@@ -131,7 +131,7 @@ Network is inferred from address prefix:
 
 ```typescript
 import { defineConfig } from '@secondlayer/cli'
-import { clarinet, actions, react } from '@secondlayer/cli/plugins'
+import { clarinet, actions, react, testing } from '@secondlayer/cli/plugins'
 
 export default defineConfig({
   out: 'src/generated.ts',
@@ -139,40 +139,102 @@ export default defineConfig({
     clarinet(),    // Generate contract interfaces from local Clarinet project
     actions(),     // Add read/write helper functions
     react(),       // Generate React hooks
+    testing(),     // Generate Clarinet SDK test helpers
   ],
 })
 ```
 
-## Future Enhancements
+### Testing Plugin
 
-#### Add `testing()` plugin for unit testing
-
-Currently, Clarinet JS SDK users must manually convert JS values to Clarity types, recall contract signatures, and write boilerplate for common tests.
-
-_Solution:_ Enable zero-config Clarinet detection and auto-run code generation within the dev workflow.
+Generate type-safe helpers for Clarinet SDK unit tests. No more manual Clarity value conversions or remembering function signatures.
 
 ```typescript
-import { describe, it, expect, beforeAll } from 'vitest';
-import { initSimnet } from '@hirosystems/clarinet-sdk';
-import { tokenContract } from './generated/helpers';
+// stacks.config.ts
+import { defineConfig } from '@secondlayer/cli'
+import { clarinet, testing } from '@secondlayer/cli/plugins'
+
+export default defineConfig({
+  out: 'src/generated.ts',
+  plugins: [
+    clarinet(),
+    testing({
+      out: './tests/helpers.ts',  // Output path (default: ./src/generated/testing.ts)
+      includePrivate: true,       // Include private function helpers
+    }),
+  ],
+})
+```
+
+#### Usage
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { Cl } from '@hirosystems/clarinet-sdk';
+import { getToken, getContracts } from './helpers';
 
 describe('Token Contract', () => {
-  let simnet;
-  
-  beforeAll(async () => {
-    simnet = await initSimnet();
+  const simnet = await initSimnet();
+  const { token } = getContracts(simnet);
+  // Or: const token = getToken(simnet);
+
+  it('calls public functions', () => {
+    const result = token.transfer(
+      { amount: 1000n, sender: 'ST1...', recipient: 'ST2...' },
+      'wallet_1'  // Caller (resolved from accounts or used as-is)
+    );
+    expect(result.result).toBeOk(Cl.bool(true));
   });
-  
-  it('transfers tokens', async () => {
-    // Clean, focused API for testing
-    const result = await tokenContract.transfer({
-      amount: 1000n,
-      sender: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
-      recipient: 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG'
-    }, 'wallet_1');
-    
-    expect(result).toBeOk();
+
+  it('calls read-only functions', () => {
+    const result = token.getBalance({ account: 'ST1...' });
+    expect(result.result).toBeOk(Cl.uint(1000n));
   });
+
+  it('reads data variables', () => {
+    const totalSupply = token.vars.totalSupply();
+    expect(totalSupply).toEqual(Cl.uint(1000000n));
+  });
+
+  it('reads map entries', () => {
+    // Simple key
+    const balance = token.maps.balances('ST1...');
+    expect(balance).toEqual(Cl.some(Cl.uint(500n)));
+
+    // Composite key (tuple)
+    const allowance = token.maps.allowances({
+      owner: 'ST1...',
+      spender: 'ST2...'
+    });
+    expect(allowance).toEqual(Cl.some(Cl.uint(100n)));
+  });
+});
+```
+
+#### Generated API
+
+| Helper | Description |
+|--------|-------------|
+| `fn(args, caller)` | Call public functions |
+| `fn(args)` | Call read-only functions |
+| `fn(args, caller)` | Call private functions (with `includePrivate: true`) |
+| `vars.varName()` | Read data variables via `getDataVar` |
+| `maps.mapName(key)` | Read map entries via `getMapEntry` with typed keys |
+
+## Future Enhancements
+
+#### Typed event matchers for testing plugin
+
+Add type-safe event assertion helpers based on contract print events.
+
+```typescript
+// Future API
+const result = token.transfer({ ... }, 'wallet_1');
+
+// Type-safe event matching
+token.events.expectTransfer(result.events, {
+  sender: 'ST1...',
+  recipient: 'ST2...',
+  amount: 1000n
 });
 ```
 

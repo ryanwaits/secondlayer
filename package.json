@@ -12,9 +12,14 @@
     "test:cli": "bun run --filter @secondlayer/cli test",
     "test:types": "bun run --filter @secondlayer/clarity-types test",
     "typecheck": "bun run --filter '*' typecheck",
-    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules"
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "bun run build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8",
     "@types/node": "^20.11.0",
     "bunup": "^0.9.0",
     "typescript": "^5.3.3",

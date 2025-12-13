@@ -97,7 +97,7 @@ function generateArgsSignature(args: readonly any[]): string {
  */
 function generateClarityArgs(
   args: readonly any[],
-  contractName: string
+  _contractName: string
 ): string {
   if (args.length === 0) return "";
 

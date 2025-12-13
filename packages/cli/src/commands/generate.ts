@@ -1,4 +1,3 @@
-import { promises as fs } from "fs";
 import path from "path";
 import chalk from "chalk";
 import ora from "ora";
@@ -14,11 +13,7 @@ import type {
   ContractSource,
   StacksConfig,
 } from "../types/config";
-import type {
-  ResolvedConfig,
-  ProcessedContract,
-  ContractConfig,
-} from "../types/plugin";
+import type { ContractConfig, ResolvedConfig } from "../types/plugin";
 
 /**
  * Generate command implementation
@@ -225,8 +220,14 @@ export async function generate(files: string[], options: GenerateOptions) {
       }
     }
 
+    // Create resolved config with typed plugins
+    const resolvedConfig: ResolvedConfig = {
+      ...config,
+      plugins: pluginManager.getPlugins(),
+    };
+
     // Execute configResolved hooks
-    await pluginManager.executeHook("configResolved", config);
+    await pluginManager.executeHook("configResolved", resolvedConfig);
 
     // Convert existing contracts to ContractConfig format (if any)
     // Use the resolved config which includes contracts added by plugins
@@ -243,7 +244,7 @@ export async function generate(files: string[], options: GenerateOptions) {
     // Transform contracts through plugins (plugins can add more contracts)
     const processedContracts = await pluginManager.transformContracts(
       contractConfigs,
-      config
+      resolvedConfig
     );
 
     if (processedContracts.length === 0) {
@@ -257,7 +258,7 @@ export async function generate(files: string[], options: GenerateOptions) {
     // Execute generation through plugin system
     const outputs = await pluginManager.executeGeneration(
       processedContracts,
-      config
+      resolvedConfig
     );
 
     // If no plugins generated the main contracts output, generate it using the existing generator
