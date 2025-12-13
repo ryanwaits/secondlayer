@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { program } from "commander";
-import { generate } from "./commands/generate";
 import pkg from "../package.json" with { type: "json" };
 
 const { version } = pkg;
@@ -22,7 +21,10 @@ program
   .option("-o, --out <path>", "Output file path (required when using direct files)")
   .option("-k, --api-key <key>", "Hiro API key (or set HIRO_API_KEY env var)")
   .option("-w, --watch", "Watch for changes")
-  .action(generate);
+  .action(async (files, options) => {
+    const { generate } = await import("./commands/generate");
+    await generate(files, options);
+  });
 
 program
   .command("init")

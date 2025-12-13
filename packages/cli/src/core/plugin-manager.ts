@@ -3,7 +3,6 @@
  * Handles plugin registration, lifecycle execution, and output management
  */
 
-import { format } from "prettier";
 import { promises as fs } from "fs";
 import path from "path";
 import { validateStacksAddress } from "@stacks/transactions";
@@ -410,6 +409,7 @@ export class PluginManager {
       },
 
       formatCode: async (code: string) => {
+        const { format } = await import("prettier");
         return format(code, {
           parser: "typescript",
           singleQuote: true,

@@ -2,7 +2,6 @@ import { promises as fs } from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
 import { createRequire } from "module";
-import { transformSync } from "esbuild";
 import type { StacksConfig, ConfigDefiner } from "../types/config";
 import type { ResolvedConfig } from "../types/plugin";
 import { PluginManager } from "../core/plugin-manager";
@@ -70,6 +69,7 @@ export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
       `from '${replacementPath}'`
     );
 
+    const { transformSync } = await import("esbuild");
     const result = transformSync(transformedCode, {
       format: "esm",
       target: "node18",
