@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 import { program } from "commander";
 import { generate } from "./commands/generate";
+import pkg from "../package.json" with { type: "json" };
+
+const { version } = pkg;
 
 /**
  * CLI entry point
  */
 
 program
-  .name("stacks")
+  .name("secondlayer")
   .description("CLI tool for generating type-safe Stacks contract interfaces")
-  .version("0.1.0");
+  .version(version);
 
 program
   .command("generate [files...]")

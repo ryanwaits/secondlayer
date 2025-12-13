@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 0.2.3
+
+### Patch Changes
+
+- Fix --version flag to read version dynamically from package.json
+
 ## 0.2.2
 
 ### Patch Changes
