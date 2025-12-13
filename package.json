@@ -1,66 +1,22 @@
 {
-  "name": "@secondlayer/cli",
-  "version": "0.1.1",
-  "description": "CLI for generating type-safe contract interfaces for the Stacks blockchain",
-  "type": "module",
-  "bin": {
-    "secondlayer": "./dist/cli.js"
-  },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    },
-    "./plugins": {
-      "types": "./dist/plugins/index.d.ts",
-      "import": "./dist/plugins/index.js",
-      "require": "./dist/plugins/index.cjs"
-    }
-  },
-  "files": [
-    "dist",
-    "templates"
-  ],
+  "name": "secondlayer",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": ["packages/*"],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "test": "vitest",
-    "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
-  },
-  "keywords": [
-    "stacks",
-    "clarity",
-    "blockchain",
-    "smart-contracts",
-    "cli"
-  ],
-  "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "@antfu/ni": "^24.4.0",
-    "@hirosystems/clarinet-sdk": "^3.0.2",
-    "@secondlayer/clarity-types": "^0.1.0",
-    "@stacks/connect": "^8.1.9",
-    "@stacks/transactions": "7.0.6",
-    "@tanstack/react-query": "^5.77.0",
-    "chalk": "^5.3.0",
-    "commander": "^11.1.0",
-    "esbuild": "^0.19.0",
-    "execa": "^9.5.3",
-    "got": "^13.0.0",
-    "ora": "^7.0.1",
-    "prettier": "^3.1.0",
-    "react": "^19.1.0"
+    "build": "bun run build:types && bun run build:cli",
+    "build:cli": "bun run --filter @secondlayer/cli build",
+    "build:types": "bun run --filter @secondlayer/clarity-types build",
+    "dev": "bun run --filter '*' dev",
+    "test": "bun run --filter '*' test",
+    "test:cli": "bun run --filter @secondlayer/cli test",
+    "test:types": "bun run --filter @secondlayer/clarity-types test",
+    "typecheck": "bun run --filter '*' typecheck",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "@types/react": "^19.1.5",
-    "tsup": "^8.0.1",
+    "bunup": "^0.9.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.1"
   },

@@ -97,13 +97,41 @@ secondlayer generate
 📄 ./src/generated/contracts.ts
 ```
 
+## Quick Start (No Config)
+
+Generate interfaces directly from local files or deployed contracts without a config file:
+
+```bash
+# Local .clar files
+secondlayer generate ./contracts/token.clar -o ./src/generated.ts
+
+# Glob patterns
+secondlayer generate "./contracts/*.clar" -o ./src/generated.ts
+
+# Deployed contracts (network auto-detected from address)
+secondlayer generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
+
+# Mix local and deployed
+secondlayer generate ./local.clar SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.token -o ./src/generated.ts
+
+# With API key (for rate limiting)
+secondlayer generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./out.ts --api-key YOUR_KEY
+
+# Or use environment variable
+HIRO_API_KEY=YOUR_KEY secondlayer generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./out.ts
+```
+
+Network is inferred from address prefix:
+- `SP` / `SM` → mainnet
+- `ST` / `SN` → testnet
+
 ## Advanced
 
 ### Plugins
 
 ```typescript
 import { defineConfig } from '@secondlayer/cli'
-import { clarinet, actions, react, hiro } from '@secondlayer/cli/plugins'
+import { clarinet, actions, react } from '@secondlayer/cli/plugins'
 
 export default defineConfig({
   out: 'src/generated.ts',
@@ -111,13 +139,6 @@ export default defineConfig({
     clarinet(),    // Generate contract interfaces from local Clarinet project
     actions(),     // Add read/write helper functions
     react(),       // Generate React hooks
-    hiro({         // Generate contract interfaces using the Hiro API
-      apiKey: process.env.HIRO_API_KEY!,
-      network: 'mainnet',
-      contracts: [
-        'SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-core-v1',
-      ],
-    }),
   ],
 })
 ```

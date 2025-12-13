@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+import { program } from "commander";
+import { generate } from "./commands/generate";
+
+/**
+ * CLI entry point
+ */
+
+program
+  .name("stacks")
+  .description("CLI tool for generating type-safe Stacks contract interfaces")
+  .version("0.1.0");
+
+program
+  .command("generate [files...]")
+  .alias("gen")
+  .description("Generate TypeScript interfaces from Clarity contracts")
+  .option("-c, --config <path>", "Path to config file")
+  .option("-o, --out <path>", "Output file path (required when using direct files)")
+  .option("-k, --api-key <key>", "Hiro API key (or set HIRO_API_KEY env var)")
+  .option("-w, --watch", "Watch for changes")
+  .action(generate);
+
+program
+  .command("init")
+  .description("Initialize a new stacks.config.ts file")
+  .action(async () => {
+    const { init } = await import("./commands/init");
+    await init();
+  });
+
+program.parse();
