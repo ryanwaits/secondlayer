@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- Fix workspace dependency resolution for @secondlayer/clarity-types
+
 ## 0.2.0
 
 ### Minor Changes
