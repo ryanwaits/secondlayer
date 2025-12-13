@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/cli",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "CLI for generating type-safe contract interfaces for the Stacks blockchain",
   "type": "module",
   "bin": {
@@ -39,7 +39,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@secondlayer/clarity-types": "^0.2.1",
+    "@secondlayer/clarity-types": "^0.2.2",
     "@stacks/transactions": "7.0.6",
     "esbuild": "^0.19.0",
     "prettier": "^3.1.0"

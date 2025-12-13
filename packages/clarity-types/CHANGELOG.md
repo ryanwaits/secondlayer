@@ -1,5 +1,11 @@
 # @secondlayer/clarity-types
 
+## 0.2.2
+
+### Patch Changes
+
+- Fix issue with CommonJS bundling
+
 ## 0.2.1
 
 ### Patch Changes

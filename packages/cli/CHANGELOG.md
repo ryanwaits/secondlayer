@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 0.2.5
+
+### Patch Changes
+
+- Fix issue with CommonJS bundling
+
+- Updated dependencies []:
+  - @secondlayer/clarity-types@0.2.2
+
 ## 0.2.4
 
 ### Patch Changes
