@@ -1,6 +1,5 @@
 import path from "path";
 import chalk from "chalk";
-import ora from "ora";
 import fg from "fast-glob";
 import { loadConfig } from "../utils/config";
 import { StacksApiClient } from "../utils/api";
@@ -121,7 +120,7 @@ async function buildConfigFromInputs(
   parsedInputs: ParsedInputs,
   outPath: string,
   apiKey: string | undefined,
-  spinner: ReturnType<typeof ora>
+  log: (msg: string) => void
 ): Promise<StacksConfig> {
   const contracts = [];
 
@@ -143,7 +142,7 @@ async function buildConfigFromInputs(
     const [address, contractName] = contractId.split(".");
     const network = inferNetwork(address);
 
-    spinner.text = `Fetching ${contractName} from ${network}...`;
+    log(`Fetching ${contractName} from ${network}...`);
 
     try {
       const apiClient = new StacksApiClient(network, apiKey);
@@ -170,7 +169,7 @@ async function buildConfigFromInputs(
 }
 
 export async function generate(files: string[], options: GenerateOptions) {
-  const spinner = ora("Processing contracts").start();
+  const log = (msg: string) => console.log(chalk.gray(`  ${msg}`));
 
   try {
     let config: StacksConfig;
@@ -179,7 +178,7 @@ export async function generate(files: string[], options: GenerateOptions) {
     if (files && files.length > 0) {
       // Require -o/--out when using direct inputs
       if (!options.out) {
-        spinner.fail("Output path required");
+        console.error(chalk.red("✗ Output path required"));
         console.error(
           chalk.red("\nWhen using direct inputs, you must specify an output path with -o/--out")
         );
@@ -194,17 +193,17 @@ export async function generate(files: string[], options: GenerateOptions) {
       const totalInputs = parsedInputs.files.length + parsedInputs.contractIds.length;
 
       if (totalInputs === 0) {
-        spinner.fail("No valid inputs found");
+        console.error(chalk.red("✗ No valid inputs found"));
         console.error(chalk.red("\nNo .clar files or contract addresses matched the provided inputs"));
         process.exit(1);
       }
 
-      spinner.text = `Processing ${totalInputs} contract(s)...`;
+      log(`Processing ${totalInputs} contract(s)...`);
 
       // Get API key from option or environment variable
       const apiKey = options.apiKey || process.env.HIRO_API_KEY;
 
-      config = await buildConfigFromInputs(parsedInputs, options.out, apiKey, spinner);
+      config = await buildConfigFromInputs(parsedInputs, options.out, apiKey, log);
     } else {
       // Use config file (existing behavior)
       config = await loadConfig(options.config);
@@ -248,7 +247,7 @@ export async function generate(files: string[], options: GenerateOptions) {
     );
 
     if (processedContracts.length === 0) {
-      spinner.warn("No contracts found to generate");
+      console.log(chalk.yellow("⚠ No contracts found to generate"));
       console.log("\nTo get started:");
       console.log("  • Add contracts to your config file, or");
       console.log("  • Use plugins like clarinet() for local contracts");
@@ -279,7 +278,7 @@ export async function generate(files: string[], options: GenerateOptions) {
 
     const contractCount = processedContracts.length;
     const contractWord = contractCount === 1 ? "contract" : "contracts";
-    spinner.succeed(`Generation complete for ${contractCount} ${contractWord}`);
+    console.log(chalk.green(`✓ Generation complete for ${contractCount} ${contractWord}`));
 
     console.log(`\n📄 ${config.out}`);
     console.log(`\n💡 Import your contracts:`);
@@ -305,7 +304,7 @@ export async function generate(files: string[], options: GenerateOptions) {
       }
     }
   } catch (error: any) {
-    spinner.fail("Generation failed");
+    console.error(chalk.red("✗ Generation failed"));
     console.error(chalk.red(`\n${error.message}`));
     if (process.env.DEBUG) {
       console.error(error.stack);

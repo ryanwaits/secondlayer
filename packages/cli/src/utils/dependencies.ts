@@ -2,7 +2,6 @@ import { promises as fs } from "fs";
 import path from "path";
 import { detect } from "@antfu/ni";
 import { execa } from "execa";
-import ora from "ora";
 import chalk from "chalk";
 
 /**
@@ -103,29 +102,23 @@ export async function installDependencies(
 
   // Install regular dependencies
   if (dependencies.length > 0) {
-    const depsSpinner = ora(
-      `Installing dependencies: ${dependencies.join(", ")}`
-    ).start();
+    console.log(chalk.gray(`  Installing dependencies: ${dependencies.join(", ")}`));
 
     try {
       const installCmd = packageManager === "npm" ? "install" : "add";
       await execa(packageManager, [installCmd, ...dependencies], {
         cwd: targetDir,
       });
-      depsSpinner.succeed(
-        `Installed dependencies: ${chalk.green(dependencies.join(", "))}`
-      );
+      console.log(chalk.green(`✓ Installed dependencies: ${dependencies.join(", ")}`));
     } catch (error) {
-      depsSpinner.fail("Failed to install dependencies");
+      console.error(chalk.red("✗ Failed to install dependencies"));
       throw error;
     }
   }
 
   // Install dev dependencies
   if (devDependencies.length > 0) {
-    const devDepsSpinner = ora(
-      `Installing dev dependencies: ${devDependencies.join(", ")}`
-    ).start();
+    console.log(chalk.gray(`  Installing dev dependencies: ${devDependencies.join(", ")}`));
 
     try {
       let installCmd: string[];
@@ -149,11 +142,9 @@ export async function installDependencies(
       await execa(packageManager, [...installCmd, ...devDependencies], {
         cwd: targetDir,
       });
-      devDepsSpinner.succeed(
-        `Installed dev dependencies: ${chalk.green(devDependencies.join(", "))}`
-      );
+      console.log(chalk.green(`✓ Installed dev dependencies: ${devDependencies.join(", ")}`));
     } catch (error) {
-      devDepsSpinner.fail("Failed to install dev dependencies");
+      console.error(chalk.red("✗ Failed to install dev dependencies"));
       throw error;
     }
   }

@@ -5,9 +5,9 @@ const sharedConfig = {
   sourcemap: "linked",
   minify: false,
   external: ["esbuild", "prettier", "@hirosystems/clarinet-sdk", "@secondlayer/clarity-types"],
-  noExternal: ["chalk", "commander", "ora", "fast-glob", "got", "execa"],
+  noExternal: ["chalk", "commander", "fast-glob", "got", "execa"],
   shims: true,
-  target: "bun",
+  target: "node",
 } as const;
 
 export default defineConfig([
