@@ -1,7 +1,7 @@
 import path from "path";
 import chalk from "chalk";
 import ora from "ora";
-import { Glob } from "bun";
+import fg from "fast-glob";
 import { loadConfig } from "../utils/config";
 import { StacksApiClient } from "../utils/api";
 import { parseClarityFile, parseApiResponse } from "../parsers/clarity";
@@ -70,8 +70,8 @@ async function parseInputs(inputs: string[]): Promise<ParsedInputs> {
 
     // Check if it's a glob pattern
     if (input.includes("*") || input.includes("?")) {
-      const glob = new Glob(input);
-      for await (const file of glob.scan({ cwd: process.cwd(), absolute: true })) {
+      const matches = await fg(input, { cwd: process.cwd(), absolute: true });
+      for (const file of matches) {
         if (file.endsWith(".clar")) {
           files.push(file);
         }

@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 0.2.2
+
+### Patch Changes
+
+- Replace Bun.Glob with fast-glob for Node.js compatibility
+
 ## 0.2.1
 
 ### Patch Changes
