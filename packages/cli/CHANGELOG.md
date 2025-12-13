@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 0.2.4
+
+### Patch Changes
+
+- Clean up eager imports and heavy deps
+
+- Updated dependencies []:
+  - @secondlayer/clarity-types@0.2.1
+
 ## 0.2.3
 
 ### Patch Changes

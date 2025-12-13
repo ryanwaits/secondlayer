@@ -1,5 +1,11 @@
 # @secondlayer/clarity-types
 
+## 0.2.1
+
+### Patch Changes
+
+- Clean up eager imports and heavy deps
+
 ## 0.2.0
 
 ### Minor Changes
