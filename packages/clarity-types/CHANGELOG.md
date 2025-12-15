@@ -1,5 +1,16 @@
 # @secondlayer/clarity-types
 
+## 0.4.1
+
+### Patch Changes
+
+- Add composite type validation and consolidate shared utilities
+  - Add validation for lists (max length), tuples (required fields), and responses (ok/err shape)
+  - Add contract name format validation for principals
+  - Create ABI normalization layer for buffer/buff and read_only/read-only compatibility
+  - Consolidate toCamelCase implementations into clarity-types
+  - Consolidate type mapping utilities into shared module
+
 ## 0.4.0
 
 ### Minor Changes
