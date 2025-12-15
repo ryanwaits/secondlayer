@@ -129,11 +129,7 @@ function generateClarityConversion(argName: string, argType: any): string {
     return `(() => {
       const listValue = ${argName};
       if (listValue.length > ${maxLength}) {
-        throw new ClarityConversionError(
-          \`List length \${listValue.length} exceeds max ${maxLength}\`,
-          ${JSON.stringify(type)},
-          listValue
-        );
+        throw new Error(\`List length \${listValue.length} exceeds max ${maxLength}\`);
       }
       return Cl.list(listValue.map(item => ${innerConversion}));
     })()`;
@@ -158,11 +154,7 @@ function generateClarityConversion(argName: string, argType: any): string {
       for (const fieldName of requiredFields) {
         const camelName = fieldName.replace(/-([a-z])/g, (_: string, l: string) => l.toUpperCase());
         if (!(fieldName in tupleValue) && !(camelName in tupleValue)) {
-          throw new ClarityConversionError(
-            \`Missing tuple field: \${fieldName}\`,
-            ${JSON.stringify(type)},
-            tupleValue
-          );
+          throw new Error(\`Missing tuple field: \${fieldName}\`);
         }
       }
       return Cl.tuple({ ${fields} });
@@ -186,11 +178,7 @@ function generateClarityConversion(argName: string, argType: any): string {
       if (hasErr && !hasOk) {
         return Cl.error(${errConversion});
       }
-      throw new ClarityConversionError(
-        "Response must have exactly 'ok' or 'err' property",
-        ${JSON.stringify(type)},
-        responseValue
-      );
+      throw new Error("Response must have exactly 'ok' or 'err' property");
     })()`;
   }
 

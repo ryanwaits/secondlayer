@@ -35,18 +35,21 @@ export function clarityTypeToTS(type: ClarityType): string {
       case "principal":
       case "trait_reference":
         return "string";
-      default:
+      default: {
         // Handle shorthand string formats (e.g., "string-ascii", "string-utf8", "buff")
-        if (type.includes("string") || type.includes("ascii") || type.includes("utf8")) {
+        // Cast to string since TypeScript narrows to never in exhaustive switches
+        const typeStr = type as string;
+        if (typeStr.includes("string") || typeStr.includes("ascii") || typeStr.includes("utf8")) {
           return "string";
         }
-        if (type.includes("buff")) {
+        if (typeStr.includes("buff")) {
           return "Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }";
         }
-        if (type.includes("uint") || type.includes("int")) {
+        if (typeStr.includes("uint") || typeStr.includes("int")) {
           return "bigint";
         }
         return "any";
+      }
     }
   }
 
