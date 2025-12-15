@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 0.3.8
+
+### Patch Changes
+
+- Fix generated code linting: map Clarity `none` type to TypeScript `null` instead of `any`
+
+  This fixes Biome and other linter warnings for response types like `{ ok: null } | { err: bigint }` in generated constant getters.
+
 ## 0.3.7
 
 ### Patch Changes
