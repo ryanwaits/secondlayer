@@ -1,5 +1,17 @@
 # @secondlayer/cli
 
+## 0.3.7
+
+### Patch Changes
+
+- Hardening improvements based on audit findings:
+  - Add composite type validation for lists (max length), tuples (required fields), and responses (ok/err shape)
+  - Create ABI normalization layer for format compatibility (buffer/buff, read_only/read-only)
+  - Enhance principal validation with contract name format checking
+  - Consolidate type mapping utilities into shared module
+  - Remove @secondlayer/clarity-types dependency from generated code for better DX
+  - Inline validation utilities in generated code (CONTRACT_NAME_REGEX)
+
 ## 0.3.6
 
 ### Patch Changes
