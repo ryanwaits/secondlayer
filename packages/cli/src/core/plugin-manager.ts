@@ -174,13 +174,12 @@ export class PluginManager {
 
       // Convert to ProcessedContract
       if (contract.abi) {
+        const addressStr = typeof contract.address === "string" ? contract.address : "";
+        const [contractAddress, originalContractName] = addressStr.split(".");
         const processed: ProcessedContract = {
-          name: contract.name || "unknown",
-          address:
-            typeof contract.address === "string"
-              ? contract.address.split(".")[0]
-              : "unknown",
-          contractName: contract.name || "unknown",
+          name: contract.name || originalContractName || "unknown",
+          address: contractAddress || "unknown",
+          contractName: originalContractName || contract.name || "unknown",
           abi: contract.abi,
           source: "api" as const, // Use "api" as default for plugin-processed contracts
           metadata: contract.metadata,

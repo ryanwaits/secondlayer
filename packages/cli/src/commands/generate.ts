@@ -238,6 +238,7 @@ export async function generate(files: string[], options: GenerateOptions) {
         source: contract.source,
         abi: (contract as any).abi, // Include ABI if it exists (from plugins)
         _clarinetSource: (contract as any)._clarinetSource, // Include plugin flags
+        _directFile: (contract as any)._directFile, // Include direct file flag
       })
     );
 
