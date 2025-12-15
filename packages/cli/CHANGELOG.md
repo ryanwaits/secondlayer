@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 0.3.1
+
+### Patch Changes
+
+- Auto-infer network from contract address prefix (SP/SM = mainnet, ST/SN = testnet) for maps, variables, constants, and read helpers. Network parameter is now optional with explicit override still supported for devnet testing.
+
 ## 0.3.0
 
 ### Minor Changes
