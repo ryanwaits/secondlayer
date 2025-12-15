@@ -268,7 +268,7 @@ function generateReadHelpers(
     const argsSignature = generateArgsSignature(func.args);
     const clarityArgs = generateClarityArgs(func.args, name);
 
-    return `async ${methodName}(${argsSignature}options?: { 
+    return `async ${methodName}(${argsSignature}options?: {
       network?: 'mainnet' | 'testnet' | 'devnet';
       senderAddress?: string;
     }) {
@@ -277,7 +277,7 @@ function generateReadHelpers(
         contractName: '${contract.contractName}',
         functionName: '${func.name}',
         functionArgs: [${clarityArgs}],
-        network: options?.network || 'mainnet',
+        network: options?.network ?? inferNetworkFromAddress('${contract.address}') ?? 'mainnet',
         senderAddress: options?.senderAddress || 'SP000000000000000000002Q6VF78'
       });
     }`;

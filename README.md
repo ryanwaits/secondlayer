@@ -41,15 +41,32 @@ const result = await mega.write.transfer(
 );
 ```
 
-### 3. React integration
+### 3. Access contract state (maps, variables, constants)
+```typescript
+import { token } from './generated/contracts'
+
+// Read map entries - network auto-inferred from contract address (SP = mainnet)
+const balance = await token.maps.balances.get('SP1234...')
+
+// Read data variables
+const totalSupply = await token.vars.totalSupply.get()
+
+// Read constants (immutable values)
+const maxSupply = await token.constants.maxSupply.get()
+
+// Override network when needed (e.g., for devnet testing)
+const devBalance = await token.maps.balances.get('SP1234...', { network: 'devnet' })
+```
+
+### 4. React integration
 ```typescript
 import { useBnsV2Transfer } from './generated/hooks'
 
 function App() {
   const { transfer, isRequestPending } = useBnsV2Transfer()
-  
+
   return (
-    <button 
+    <button
       onClick={() => transfer({
         id: 1n,
         owner: 'SP...',
@@ -59,6 +76,34 @@ function App() {
     >
       Transfer
     </button>
+  )
+}
+```
+
+### 5. React hooks for contract state
+```typescript
+import {
+  useTokenBalances,       // Map hook
+  useTokenTotalSupply,    // Variable hook
+  useTokenMaxSupply       // Constant hook
+} from './generated/hooks'
+
+function TokenInfo() {
+  // Read a map entry - key is typed based on the map definition
+  const { data: balance } = useTokenBalances('SP1234...')
+
+  // Read a data variable
+  const { data: totalSupply } = useTokenTotalSupply()
+
+  // Read a constant (uses staleTime: Infinity - never refetches)
+  const { data: maxSupply } = useTokenMaxSupply()
+
+  return (
+    <div>
+      <p>Balance: {balance?.toString()}</p>
+      <p>Total Supply: {totalSupply?.toString()}</p>
+      <p>Max Supply: {maxSupply?.toString()}</p>
+    </div>
   )
 }
 ```
@@ -219,6 +264,78 @@ describe('Token Contract', () => {
 | `fn(args, caller)` | Call private functions (with `includePrivate: true`) |
 | `vars.varName()` | Read data variables via `getDataVar` |
 | `maps.mapName(key)` | Read map entries via `getMapEntry` with typed keys |
+
+### Contract State (Maps, Variables, Constants)
+
+Access on-chain contract state directly without calling read-only functions. The generated code includes typed accessors for:
+
+- **Maps**: Key-value storage with typed keys and values
+- **Variables**: Mutable data variables (`define-data-var`)
+- **Constants**: Immutable values (`define-constant`)
+
+**Network is auto-inferred from contract address** (SP/SM = mainnet, ST/SN = testnet):
+
+```typescript
+import { token } from './generated/contracts'
+
+// Maps - access with typed keys (network inferred from contract address)
+const balance = await token.maps.balances.get('SP1234...')
+
+// Composite key (tuple)
+const allowance = await token.maps.allowances.get({
+  owner: 'SP1234...',
+  spender: 'SP5678...'
+})
+
+// Variables - mutable contract state
+const totalSupply = await token.vars.totalSupply.get()
+const isPaused = await token.vars.paused.get()
+
+// Constants - immutable values
+const maxSupply = await token.constants.maxSupply.get()
+const contractOwner = await token.constants.contractOwner.get()
+
+// Override network when needed (e.g., devnet testing with mainnet addresses)
+const devBalance = await token.maps.balances.get('SP1234...', { network: 'devnet' })
+```
+
+#### React Hooks for Contract State
+
+With the `react()` plugin, hooks are generated for each map, variable, and constant:
+
+```typescript
+import {
+  useTokenBalances,       // Map: useContract{MapName}
+  useTokenTotalSupply,    // Var: useContract{VarName}
+  useTokenMaxSupply       // Constant: useContract{ConstantName}
+} from './generated/hooks'
+
+function Dashboard() {
+  // Map hook - pass the key as argument
+  const { data: balance, isLoading } = useTokenBalances('SP1234...')
+
+  // Variable hook - no arguments needed
+  const { data: totalSupply } = useTokenTotalSupply()
+
+  // Constant hook - cached forever (staleTime: Infinity)
+  const { data: maxSupply } = useTokenMaxSupply()
+
+  // All hooks support standard react-query options
+  const { data: conditionalData } = useTokenBalances(address, {
+    enabled: !!address  // Only fetch when address is defined
+  })
+}
+```
+
+#### Network Configuration
+
+All state accessors support network selection:
+
+| Network | API Endpoint |
+|---------|--------------|
+| `mainnet` | https://api.hiro.so |
+| `testnet` | https://api.testnet.hiro.so |
+| `devnet` | http://localhost:3999 |
 
 ## Future Enhancements
 

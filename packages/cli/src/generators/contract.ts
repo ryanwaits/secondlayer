@@ -10,6 +10,41 @@ import type {
  * Code generator for contract interfaces
  */
 
+/**
+ * Generate shared network utilities for the generated code
+ */
+function generateNetworkUtils(): string {
+  return `/**
+ * API URLs for different networks
+ */
+const API_URLS: Record<'mainnet' | 'testnet' | 'devnet', string> = {
+  mainnet: 'https://api.hiro.so',
+  testnet: 'https://api.testnet.hiro.so',
+  devnet: 'http://localhost:3999'
+};
+
+/**
+ * Infer network from Stacks address prefix
+ * SP/SM = mainnet, ST/SN = testnet
+ */
+function inferNetworkFromAddress(address: string): 'mainnet' | 'testnet' | undefined {
+  if (address.startsWith('SP') || address.startsWith('SM')) return 'mainnet';
+  if (address.startsWith('ST') || address.startsWith('SN')) return 'testnet';
+  return undefined;
+}
+
+/**
+ * Get API URL, inferring network from contract address if not specified
+ */
+function getApiUrl(
+  contractAddress: string,
+  explicitNetwork?: 'mainnet' | 'testnet' | 'devnet'
+): string {
+  const network = explicitNetwork ?? inferNetworkFromAddress(contractAddress) ?? 'mainnet';
+  return API_URLS[network];
+}`;
+}
+
 export async function generateContractInterface(
   contracts: ResolvedContract[]
 ): Promise<string> {
@@ -20,11 +55,13 @@ export async function generateContractInterface(
  * DO NOT EDIT MANUALLY
  */`;
 
+  const networkUtils = generateNetworkUtils();
+
   const contractsCode = contracts
     .map((contract) => generateContract(contract))
     .join("\n\n");
 
-  const code = `${imports}\n\n${header}\n\n${contractsCode}`;
+  const code = `${imports}\n\n${header}\n\n${networkUtils}\n\n${contractsCode}`;
 
   const formatted = await format(code, {
     parser: "typescript",
@@ -357,12 +394,7 @@ function generateMapsObject(
     return `${methodName}: {
       async get(key: ${keyType}, options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType} | null> {
         const { cvToJSON, serializeCV } = await import('@stacks/transactions');
-        const apiUrls: Record<string, string> = {
-          mainnet: 'https://api.hiro.so',
-          testnet: 'https://api.testnet.hiro.so',
-          devnet: 'http://localhost:3999'
-        };
-        const baseUrl = apiUrls[options?.network || 'mainnet'];
+        const baseUrl = getApiUrl('${address}', options?.network);
         const mapKey = ${keyConversion};
         const keyHex = serializeCV(mapKey).toString('hex');
 
@@ -426,12 +458,7 @@ function generateVarsObject(
     return `${methodName}: {
       async get(options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
         const { cvToJSON, deserializeCV } = await import('@stacks/transactions');
-        const apiUrls: Record<string, string> = {
-          mainnet: 'https://api.hiro.so',
-          testnet: 'https://api.testnet.hiro.so',
-          devnet: 'http://localhost:3999'
-        };
-        const baseUrl = apiUrls[options?.network || 'mainnet'];
+        const baseUrl = getApiUrl('${address}', options?.network);
 
         const response = await fetch(
           \`\${baseUrl}/v2/data_var/${address}/${contractName}/${variable.name}?proof=0\`
@@ -481,12 +508,7 @@ function generateConstantsObject(
     return `${methodName}: {
       async get(options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
         const { cvToJSON, deserializeCV } = await import('@stacks/transactions');
-        const apiUrls: Record<string, string> = {
-          mainnet: 'https://api.hiro.so',
-          testnet: 'https://api.testnet.hiro.so',
-          devnet: 'http://localhost:3999'
-        };
-        const baseUrl = apiUrls[options?.network || 'mainnet'];
+        const baseUrl = getApiUrl('${address}', options?.network);
 
         const response = await fetch(
           \`\${baseUrl}/v2/constant_val/${address}/${contractName}/${constant.name}?proof=0\`
