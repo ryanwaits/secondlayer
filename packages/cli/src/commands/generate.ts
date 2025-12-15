@@ -120,8 +120,7 @@ function toCamelCase(str: string): string {
 async function buildConfigFromInputs(
   parsedInputs: ParsedInputs,
   outPath: string,
-  apiKey: string | undefined,
-  log: (msg: string) => void
+  apiKey: string | undefined
 ): Promise<StacksConfig> {
   const contracts = [];
 
@@ -142,8 +141,6 @@ async function buildConfigFromInputs(
   for (const contractId of parsedInputs.contractIds) {
     const [address, contractName] = contractId.split(".");
     const network = inferNetwork(address);
-
-    log(`Fetching ${contractName} from ${network}...`);
 
     try {
       const apiClient = new StacksApiClient(network, apiKey);
@@ -170,8 +167,6 @@ async function buildConfigFromInputs(
 }
 
 export async function generate(files: string[], options: GenerateOptions) {
-  const log = (msg: string) => console.log(chalk.gray(`  ${msg}`));
-
   try {
     let config: StacksConfig;
 
@@ -199,12 +194,10 @@ export async function generate(files: string[], options: GenerateOptions) {
         process.exit(1);
       }
 
-      log(`Processing ${totalInputs} contract(s)...`);
-
       // Get API key from option or environment variable
       const apiKey = options.apiKey || process.env.HIRO_API_KEY;
 
-      config = await buildConfigFromInputs(parsedInputs, options.out, apiKey, log);
+      config = await buildConfigFromInputs(parsedInputs, options.out, apiKey);
     } else {
       // Use config file (existing behavior)
       config = await loadConfig(options.config);
@@ -283,31 +276,7 @@ export async function generate(files: string[], options: GenerateOptions) {
 
     const contractCount = processedContracts.length;
     const contractWord = contractCount === 1 ? "contract" : "contracts";
-    console.log(chalk.green(`✓ Generation complete for ${contractCount} ${contractWord}`));
-
-    console.log(`\n📄 ${config.out}`);
-    console.log(`\n💡 Import your contracts:`);
-
-    // Show import examples based on actual contract names
-    if (processedContracts.length > 0) {
-      const exampleContract = processedContracts[0];
-      console.log(
-        chalk.gray(
-          `   import { ${exampleContract.name} } from '${config.out.replace(/\.ts$/, "")}'`
-        )
-      );
-
-      if (processedContracts.length > 1) {
-        console.log(
-          chalk.gray(
-            `   // Also available: ${processedContracts
-              .slice(1)
-              .map((c) => c.name)
-              .join(", ")}`
-          )
-        );
-      }
-    }
+    console.log(chalk.green(`✓ Generated \`${config.out}\` for ${contractCount} ${contractWord}`));
   } catch (error: any) {
     console.error(chalk.red("✗ Generation failed"));
     console.error(chalk.red(`\n${error.message}`));
