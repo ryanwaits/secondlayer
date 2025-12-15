@@ -52,24 +52,52 @@ export function generateEnabledCondition(args: readonly any[]): string {
 }
 
 export function mapClarityTypeToTS(clarityType: any): string {
-  // Handle non-string types
+  // Handle non-string types (object notation from ABI)
   if (typeof clarityType !== "string") {
     if (clarityType?.uint || clarityType?.int) return "bigint";
     if (clarityType?.principal) return "string";
     if (clarityType?.bool) return "boolean";
     if (clarityType?.string || clarityType?.ascii) return "string";
+    // Handle string-ascii and string-utf8 object notation (e.g., { "string-ascii": { length: 32 } })
+    if (clarityType?.["string-ascii"] || clarityType?.["string-utf8"]) return "string";
     if (clarityType?.buff) return "Uint8Array";
     if (clarityType?.optional) {
       const innerType = mapClarityTypeToTS(clarityType.optional);
       return `${innerType} | null`;
     }
-    if (clarityType?.response) return "any";
-    if (clarityType?.tuple) return "any";
-    if (clarityType?.list) return "any[]";
+
+    // Proper response type handling
+    if (clarityType?.response) {
+      const okType = mapClarityTypeToTS(clarityType.response.ok);
+      const errType = mapClarityTypeToTS(clarityType.response.error);
+      return `{ ok: ${okType} } | { err: ${errType} }`;
+    }
+
+    // Proper tuple type handling
+    if (clarityType?.tuple) {
+      const fields = clarityType.tuple
+        .map(
+          (field: any) =>
+            `${toCamelCase(field.name)}: ${mapClarityTypeToTS(field.type)}`
+        )
+        .join("; ");
+      return `{ ${fields} }`;
+    }
+
+    // Proper list type handling with inner type
+    if (clarityType?.list) {
+      const innerType = mapClarityTypeToTS(clarityType.list.type);
+      // Wrap union types in parentheses for correct precedence
+      if (innerType.includes(" | ")) {
+        return `(${innerType})[]`;
+      }
+      return `${innerType}[]`;
+    }
+
     return "any";
   }
 
-  // Handle string types
+  // Handle string types (primitive type names)
   if (clarityType.includes("uint") || clarityType.includes("int"))
     return "bigint";
   if (clarityType.includes("principal")) return "string";
@@ -81,9 +109,6 @@ export function mapClarityTypeToTS(clarityType: any): string {
     const innerType = clarityType.replace(/optional\s*/, "").trim();
     return `${mapClarityTypeToTS(innerType)} | null`;
   }
-  if (clarityType.includes("response")) return "any"; // TODO: Better response type handling
-  if (clarityType.includes("tuple")) return "any"; // TODO: Better tuple type handling
-  if (clarityType.includes("list")) return "any[]"; // TODO: Better list type handling
 
   return "any";
 }

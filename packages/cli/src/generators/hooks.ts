@@ -29,6 +29,7 @@ export async function generateContractHooks(
 import { useCallback } from 'react'
 import { useStacksConfig } from './provider'
 import { request, openContractCall as stacksOpenContractCall } from '@stacks/connect'
+import type { PostCondition } from '@stacks/transactions'
 import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'`;
 
   const header = `/**
@@ -148,7 +149,7 @@ function generateWriteHook(
     mutationFn: async (params: {
       args: ${argsType};
       options?: {
-        postConditions?: any[];
+        postConditions?: PostCondition[];
         attachment?: string;
         onFinish?: (data: any) => void;
         onCancel?: () => void;
@@ -208,7 +209,7 @@ function generateWriteHook(
   const ${toCamelCase(func.name)} = useCallback(async (
     args: ${argsType}, 
     options?: {
-      postConditions?: any[];
+      postConditions?: PostCondition[];
       attachment?: string;
       onFinish?: (data: any) => void;
       onCancel?: () => void;
@@ -539,7 +540,7 @@ function generateGenericHook(hookName: string): string {
     functionName: string;
     functionArgs: any[]; // Pre-converted Clarity values
     network?: string;
-    postConditions?: any[];
+    postConditions?: PostCondition[];
     attachment?: string;
     onFinish?: (data: any) => void;
     onCancel?: () => void;
@@ -615,7 +616,7 @@ function generateGenericHook(hookName: string): string {
     abi: T;
     functionArgs: ExtractFunctionArgs<T, FN>;
     network?: string;
-    postConditions?: any[];
+    postConditions?: PostCondition[];
     attachment?: string;
     onFinish?: (data: any) => void;
     onCancel?: () => void;
@@ -944,7 +945,7 @@ function generateGenericHook(hookName: string): string {
       contractName: string;
       codeBody: string;
       network?: string;
-      postConditions?: any[];
+      postConditions?: PostCondition[];
       onFinish?: (data: any) => void;
       onCancel?: () => void;
     }) => {
@@ -981,7 +982,7 @@ function generateGenericHook(hookName: string): string {
     contractName: string;
     codeBody: string;
     network?: string;
-    postConditions?: any[];
+    postConditions?: PostCondition[];
     onFinish?: (data: any) => void;
     onCancel?: () => void;
   }) => {

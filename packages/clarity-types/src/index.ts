@@ -20,7 +20,13 @@ export type { ClarityType } from "./types/composites";
 
 export type { ClarityToTS } from "./types/mappings";
 
-export type { ClarityContract, ClarityFunction } from "./abi/functions";
+export type {
+  ClarityContract,
+  ClarityFunction,
+  ClarityMap,
+  ClarityVariable,
+  VariableAccess,
+} from "./abi/functions";
 
 export type {
   ExtractFunctionNames,

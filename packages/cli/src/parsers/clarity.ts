@@ -2,6 +2,8 @@ import { promises as fs } from "fs";
 import type {
   ClarityContract,
   ClarityFunction,
+  ClarityMap,
+  ClarityVariable,
   ClarityType,
 } from "@secondlayer/clarity-types";
 
@@ -127,7 +129,10 @@ function inferReturnType(body: string): ClarityType {
 export function parseApiResponse(apiResponse: any): ClarityContract {
   try {
     const functions: ClarityFunction[] = [];
+    const maps: ClarityMap[] = [];
+    const variables: ClarityVariable[] = [];
 
+    // Parse functions
     if (apiResponse.functions) {
       for (const func of apiResponse.functions) {
         const access = func.access === "read_only" ? "read-only" : func.access;
@@ -144,7 +149,33 @@ export function parseApiResponse(apiResponse: any): ClarityContract {
       }
     }
 
-    return { functions };
+    // Parse maps
+    if (apiResponse.maps) {
+      for (const map of apiResponse.maps) {
+        maps.push({
+          name: map.name,
+          key: convertApiType(map.key),
+          value: convertApiType(map.value),
+        });
+      }
+    }
+
+    // Parse variables
+    if (apiResponse.variables) {
+      for (const variable of apiResponse.variables) {
+        variables.push({
+          name: variable.name,
+          type: convertApiType(variable.type),
+          access: variable.access as "constant" | "variable",
+        });
+      }
+    }
+
+    return {
+      functions,
+      maps: maps.length > 0 ? maps : undefined,
+      variables: variables.length > 0 ? variables : undefined,
+    };
   } catch (error) {
     throw new Error(`Failed to parse API response: ${error}`);
   }

@@ -14,7 +14,9 @@ import {
   generateFunctionCallArgs,
   generateEnabledCondition,
   generateObjectArgs,
+  mapClarityTypeToTS,
 } from "./utils";
+import type { ClarityMap, ClarityVariable } from "@secondlayer/clarity-types";
 
 export async function generateContractHooks(
   contracts: ProcessedContract[],
@@ -24,6 +26,7 @@ export async function generateContractHooks(
 import { useCallback } from 'react'
 import { useStacksConfig } from './provider'
 import { request, openContractCall as stacksOpenContractCall } from '@stacks/connect'
+import type { PostCondition } from '@stacks/transactions'
 import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'`;
 
   const header = `/**
@@ -53,8 +56,10 @@ function generateContractHookMethods(
   contract: ProcessedContract,
   excludeList: string[]
 ): string {
-  const { abi, name } = contract;
+  const { abi, name, address, contractName } = contract;
   const functions = abi.functions || [];
+  const maps = (abi.maps || []) as ClarityMap[];
+  const variables = (abi.variables || []) as ClarityVariable[];
 
   const readOnlyFunctions = functions.filter(
     (f: ClarityFunction) =>
@@ -86,7 +91,42 @@ function generateContractHookMethods(
     })
     .filter(Boolean);
 
-  const allHooks = [...readHooks, ...writeHooks];
+  // Generate hooks for maps
+  const mapHooks = maps
+    .map((map: ClarityMap) => {
+      const hookName = `use${capitalize(name)}${capitalize(toCamelCase(map.name))}`;
+      if (excludeList.includes(hookName)) {
+        return null;
+      }
+      return generateMapHook(map, name, address, contractName);
+    })
+    .filter(Boolean);
+
+  // Generate hooks for data variables
+  const dataVars = variables.filter((v) => v.access === "variable");
+  const varHooks = dataVars
+    .map((variable: ClarityVariable) => {
+      const hookName = `use${capitalize(name)}${capitalize(toCamelCase(variable.name))}`;
+      if (excludeList.includes(hookName)) {
+        return null;
+      }
+      return generateVarHook(variable, name, address, contractName);
+    })
+    .filter(Boolean);
+
+  // Generate hooks for constants
+  const constants = variables.filter((v) => v.access === "constant");
+  const constantHooks = constants
+    .map((constant: ClarityVariable) => {
+      const hookName = `use${capitalize(name)}${capitalize(toCamelCase(constant.name))}`;
+      if (excludeList.includes(hookName)) {
+        return null;
+      }
+      return generateConstantHook(constant, name, address, contractName);
+    })
+    .filter(Boolean);
+
+  const allHooks = [...readHooks, ...writeHooks, ...mapHooks, ...varHooks, ...constantHooks];
 
   // If all hooks for this contract are excluded, return empty string
   if (allHooks.length === 0) {
@@ -104,12 +144,15 @@ function generateReadHook(func: ClarityFunction, contractName: string): string {
       ? ", options?: { enabled?: boolean }"
       : "options?: { enabled?: boolean }";
 
+  // Generate proper return type from function outputs
+  const returnType = mapClarityTypeToTS(func.outputs);
+
   return `export function ${hookName}(${argsSignature}${enabledParam}) {
   const config = useStacksConfig()
-  
-  return useQuery({
+
+  return useQuery<${returnType}>({
     queryKey: ['${func.name}', ${contractName}.address, ${generateQueryKeyArgs(func.args)}],
-    queryFn: () => ${contractName}.read.${toCamelCase(func.name)}(${generateFunctionCallArgs(func.args) ? `{ ${generateObjectArgs(func.args)} }, ` : ""}{ 
+    queryFn: () => ${contractName}.read.${toCamelCase(func.name)}(${generateFunctionCallArgs(func.args) ? `{ ${generateObjectArgs(func.args)} }, ` : ""}{
       network: config.network,
       senderAddress: config.senderAddress || 'SP000000000000000000002Q6VF78'
     }),
@@ -134,7 +177,7 @@ function generateWriteHook(
     mutationFn: async (params: {
       args: ${argsType};
       options?: {
-        postConditions?: any[];
+        postConditions?: PostCondition[];
         attachment?: string;
         onFinish?: (data: any) => void;
         onCancel?: () => void;
@@ -192,9 +235,9 @@ function generateWriteHook(
   })
 
   const ${toCamelCase(func.name)} = useCallback(async (
-    args: ${argsType}, 
+    args: ${argsType},
     options?: {
-      postConditions?: any[];
+      postConditions?: PostCondition[];
       attachment?: string;
       onFinish?: (data: any) => void;
       onCancel?: () => void;
@@ -213,5 +256,82 @@ function generateWriteHook(
     data: mutation.data,
     reset: mutation.reset
   }
+}`;
+}
+
+/**
+ * Generate a hook for reading a map entry
+ */
+function generateMapHook(
+  map: ClarityMap,
+  contractVarName: string,
+  _address: string,
+  _contractName: string
+): string {
+  const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(map.name))}`;
+  const keyType = mapClarityTypeToTS(map.key);
+  const valueType = mapClarityTypeToTS(map.value);
+
+  return `export function ${hookName}(key: ${keyType}, options?: { enabled?: boolean }) {
+  const config = useStacksConfig()
+
+  return useQuery<${valueType} | null>({
+    queryKey: ['${contractVarName}', '${map.name}', 'map', key, config.network],
+    queryFn: async () => {
+      return ${contractVarName}.maps.${toCamelCase(map.name)}.get(key, { network: config.network })
+    },
+    enabled: options?.enabled ?? true
+  })
+}`;
+}
+
+/**
+ * Generate a hook for reading a data variable
+ */
+function generateVarHook(
+  variable: ClarityVariable,
+  contractVarName: string,
+  _address: string,
+  _contractName: string
+): string {
+  const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(variable.name))}`;
+  const valueType = mapClarityTypeToTS(variable.type);
+
+  return `export function ${hookName}(options?: { enabled?: boolean }) {
+  const config = useStacksConfig()
+
+  return useQuery<${valueType}>({
+    queryKey: ['${contractVarName}', '${variable.name}', 'var', config.network],
+    queryFn: async () => {
+      return ${contractVarName}.vars.${toCamelCase(variable.name)}.get({ network: config.network })
+    },
+    enabled: options?.enabled ?? true
+  })
+}`;
+}
+
+/**
+ * Generate a hook for reading a constant
+ */
+function generateConstantHook(
+  constant: ClarityVariable,
+  contractVarName: string,
+  _address: string,
+  _contractName: string
+): string {
+  const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(constant.name))}`;
+  const valueType = mapClarityTypeToTS(constant.type);
+
+  return `export function ${hookName}(options?: { enabled?: boolean }) {
+  const config = useStacksConfig()
+
+  return useQuery<${valueType}>({
+    queryKey: ['${contractVarName}', '${constant.name}', 'constant', config.network],
+    queryFn: async () => {
+      return ${contractVarName}.constants.${toCamelCase(constant.name)}.get({ network: config.network })
+    },
+    enabled: options?.enabled ?? true,
+    staleTime: Infinity // Constants never change
+  })
 }`;
 }

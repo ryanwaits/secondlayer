@@ -1,6 +1,10 @@
 import { format } from "prettier";
 import type { ResolvedContract } from "../types/config";
-import type { ClarityFunction } from "@secondlayer/clarity-types";
+import type {
+  ClarityFunction,
+  ClarityMap,
+  ClarityVariable,
+} from "@secondlayer/clarity-types";
 
 /**
  * Code generator for contract interfaces
@@ -43,12 +47,24 @@ function generateContract(contract: ResolvedContract): string {
     .map((func: ClarityFunction) => generateMethod(func, address, contractName))
     .join(",\n\n  ");
 
+  // Generate maps object if contract has maps
+  const mapsObject = generateMapsObject(abi.maps || [], address, contractName);
+
+  // Generate vars object if contract has variables (only data vars, not constants)
+  const varsObject = generateVarsObject(abi.variables || [], address, contractName);
+
+  // Generate constants object if contract has constants
+  const constantsObject = generateConstantsObject(abi.variables || [], address, contractName);
+
+  // Combine all members
+  const allMembers = [methods, mapsObject, varsObject, constantsObject].filter(Boolean);
+
   const contractCode = `export const ${name} = {
   address: '${address}',
   contractAddress: '${address}',
   contractName: '${contractName}',
-  
-  ${methods}
+
+  ${allMembers.join(",\n\n  ")}
 } as const`;
 
   return `${abiCode}\n\n${contractCode}`;
@@ -318,4 +334,201 @@ function generateClarityConversion(argName: string, argType: any): string {
 
   // Default fallback
   return `${argName}`;
+}
+
+/**
+ * Generate maps object with type-safe accessors for contract data maps
+ */
+function generateMapsObject(
+  maps: readonly ClarityMap[],
+  address: string,
+  contractName: string
+): string {
+  if (!maps || maps.length === 0) {
+    return "";
+  }
+
+  const mapMethods = maps.map((map) => {
+    const methodName = toCamelCase(map.name);
+    const keyType = getTypeForArg({ type: map.key });
+    const valueType = getTypeForArg({ type: map.value });
+    const keyConversion = generateMapKeyConversion(map.key);
+
+    return `${methodName}: {
+      async get(key: ${keyType}, options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType} | null> {
+        const { cvToJSON, serializeCV } = await import('@stacks/transactions');
+        const apiUrls: Record<string, string> = {
+          mainnet: 'https://api.hiro.so',
+          testnet: 'https://api.testnet.hiro.so',
+          devnet: 'http://localhost:3999'
+        };
+        const baseUrl = apiUrls[options?.network || 'mainnet'];
+        const mapKey = ${keyConversion};
+        const keyHex = serializeCV(mapKey).toString('hex');
+
+        const response = await fetch(
+          \`\${baseUrl}/v2/map_entry/${address}/${contractName}/${map.name}\`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(keyHex)
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(\`Failed to fetch map entry: \${response.statusText}\`);
+        }
+
+        const result = await response.json();
+        if (!result.data || result.data === '0x09') {
+          return null; // none value
+        }
+
+        const { deserializeCV } = await import('@stacks/transactions');
+        const cv = deserializeCV(result.data);
+        const parsed = cvToJSON(cv);
+        // Unwrap the (some ...) wrapper
+        return parsed.value?.value ?? parsed.value ?? null;
+      },
+      keyType: ${JSON.stringify(map.key)} as const,
+      valueType: ${JSON.stringify(map.value)} as const
+    }`;
+  });
+
+  return `maps: {
+    ${mapMethods.join(",\n\n    ")}
+  }`;
+}
+
+/**
+ * Generate vars object with type-safe accessors for contract data variables
+ */
+function generateVarsObject(
+  variables: readonly ClarityVariable[],
+  address: string,
+  contractName: string
+): string {
+  if (!variables || variables.length === 0) {
+    return "";
+  }
+
+  // Filter to only include mutable data variables (not constants)
+  const dataVars = variables.filter((v) => v.access === "variable");
+
+  if (dataVars.length === 0) {
+    return "";
+  }
+
+  const varMethods = dataVars.map((variable) => {
+    const methodName = toCamelCase(variable.name);
+    const valueType = getTypeForArg({ type: variable.type });
+
+    return `${methodName}: {
+      async get(options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
+        const { cvToJSON, deserializeCV } = await import('@stacks/transactions');
+        const apiUrls: Record<string, string> = {
+          mainnet: 'https://api.hiro.so',
+          testnet: 'https://api.testnet.hiro.so',
+          devnet: 'http://localhost:3999'
+        };
+        const baseUrl = apiUrls[options?.network || 'mainnet'];
+
+        const response = await fetch(
+          \`\${baseUrl}/v2/data_var/${address}/${contractName}/${variable.name}?proof=0\`
+        );
+
+        if (!response.ok) {
+          throw new Error(\`Failed to fetch data var: \${response.statusText}\`);
+        }
+
+        const result = await response.json();
+        const cv = deserializeCV(result.data);
+        const parsed = cvToJSON(cv);
+        return parsed.value ?? parsed;
+      },
+      type: ${JSON.stringify(variable.type)} as const
+    }`;
+  });
+
+  return `vars: {
+    ${varMethods.join(",\n\n    ")}
+  }`;
+}
+
+/**
+ * Generate constants object with type-safe accessors for contract constants
+ */
+function generateConstantsObject(
+  variables: readonly ClarityVariable[],
+  address: string,
+  contractName: string
+): string {
+  if (!variables || variables.length === 0) {
+    return "";
+  }
+
+  // Filter to only include constants
+  const constants = variables.filter((v) => v.access === "constant");
+
+  if (constants.length === 0) {
+    return "";
+  }
+
+  const constMethods = constants.map((constant) => {
+    const methodName = toCamelCase(constant.name);
+    const valueType = getTypeForArg({ type: constant.type });
+
+    return `${methodName}: {
+      async get(options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
+        const { cvToJSON, deserializeCV } = await import('@stacks/transactions');
+        const apiUrls: Record<string, string> = {
+          mainnet: 'https://api.hiro.so',
+          testnet: 'https://api.testnet.hiro.so',
+          devnet: 'http://localhost:3999'
+        };
+        const baseUrl = apiUrls[options?.network || 'mainnet'];
+
+        const response = await fetch(
+          \`\${baseUrl}/v2/constant_val/${address}/${contractName}/${constant.name}?proof=0\`
+        );
+
+        if (!response.ok) {
+          throw new Error(\`Failed to fetch constant: \${response.statusText}\`);
+        }
+
+        const result = await response.json();
+        const cv = deserializeCV(result.data);
+        const parsed = cvToJSON(cv);
+        return parsed.value ?? parsed;
+      },
+      type: ${JSON.stringify(constant.type)} as const
+    }`;
+  });
+
+  return `constants: {
+    ${constMethods.join(",\n\n    ")}
+  }`;
+}
+
+/**
+ * Generate Clarity conversion for map key
+ */
+function generateMapKeyConversion(keyType: any): string {
+  // Map keys are typically tuples or simple types
+  if (keyType.tuple) {
+    const fields = keyType.tuple
+      .map((field: any) => {
+        const camelFieldName = toCamelCase(field.name);
+        const fieldConversion = generateClarityConversion(
+          `key.${camelFieldName}`,
+          { type: field.type }
+        );
+        return `"${field.name}": ${fieldConversion}`;
+      })
+      .join(", ");
+    return `Cl.tuple({ ${fields} })`;
+  }
+
+  // Single-value keys
+  return generateClarityConversion("key", { type: keyType });
 }

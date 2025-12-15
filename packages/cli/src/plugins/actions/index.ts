@@ -98,17 +98,9 @@ export const actions: PluginFactory<ActionsPluginOptions> = (options = {}) => {
 };
 
 /**
- * Add required imports for fetchCallReadOnlyFunction and makeContractCall
+ * Add required imports for fetchCallReadOnlyFunction, makeContractCall, and PostCondition
  */
 function addRequiredImports(content: string): string {
-  // Check if imports already exist
-  if (
-    content.includes("fetchCallReadOnlyFunction") &&
-    content.includes("makeContractCall")
-  ) {
-    return content;
-  }
-
   // Find the existing @stacks/transactions import line
   const transactionsImportRegex =
     /import\s+\{([^}]+)\}\s+from\s+['"]@stacks\/transactions['"];/;
@@ -117,13 +109,36 @@ function addRequiredImports(content: string): string {
   if (match) {
     // Add the new imports to the existing import
     const existingImports = match[1].trim();
-    const newImports = ["fetchCallReadOnlyFunction", "makeContractCall"]
+    const requiredImports = [
+      "fetchCallReadOnlyFunction",
+      "makeContractCall",
+    ];
+
+    const newImports = requiredImports
       .filter((imp) => !existingImports.includes(imp))
       .join(", ");
 
     if (newImports) {
       const updatedImport = `import { ${existingImports}, ${newImports} } from '@stacks/transactions';`;
-      return content.replace(transactionsImportRegex, updatedImport);
+      let updatedContent = content.replace(transactionsImportRegex, updatedImport);
+
+      // Add type import for PostCondition if not present
+      if (!updatedContent.includes("type PostCondition")) {
+        updatedContent = updatedContent.replace(
+          updatedImport,
+          `${updatedImport}\nimport type { PostCondition } from '@stacks/transactions';`
+        );
+      }
+
+      return updatedContent;
+    }
+
+    // Still need to add PostCondition type import even if other imports exist
+    if (!content.includes("type PostCondition")) {
+      return content.replace(
+        transactionsImportRegex,
+        `${match[0]}\nimport type { PostCondition } from '@stacks/transactions';`
+      );
     }
   }
 

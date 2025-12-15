@@ -18,12 +18,31 @@ export interface ClarityFunction {
   outputs: ClarityType;
 }
 
+/**
+ * Clarity data variable definition
+ */
+export type VariableAccess = "constant" | "variable";
+
+export interface ClarityVariable {
+  name: string;
+  type: ClarityType;
+  access: VariableAccess;
+}
+
+/**
+ * Clarity data map definition
+ */
+export interface ClarityMap {
+  name: string;
+  key: ClarityType;
+  value: ClarityType;
+}
+
 export interface ClarityContract {
   functions: ReadonlyArray<ClarityFunction>;
-  // TODO:
+  maps?: ReadonlyArray<ClarityMap>;
+  variables?: ReadonlyArray<ClarityVariable>;
   // Future additions:
-  // maps?: ReadonlyArray<ClarityMap>
-  // variables?: ReadonlyArray<ClarityVariable>
   // fungibleTokens?: ReadonlyArray<FungibleToken>
   // nonFungibleTokens?: ReadonlyArray<NonFungibleToken>
 }

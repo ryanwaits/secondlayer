@@ -15,7 +15,7 @@
     "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "bun run build && changeset publish"
+    "release": "bun run build && NPM_TOKEN=$NPM_SECOND_LAYER_TOKEN changeset publish"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",

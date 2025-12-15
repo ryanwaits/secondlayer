@@ -33,6 +33,7 @@ import { useState, useCallback } from 'react'
 import { useStacksConfig } from './provider'
 import { connect, disconnect, isConnected, request, openContractCall as stacksOpenContractCall } from '@stacks/connect'
 import { Cl, validateStacksAddress } from '@stacks/transactions'
+import type { PostCondition } from '@stacks/transactions'
 import type { ExtractFunctionArgs, ExtractFunctionNames, ClarityContract } from '@secondlayer/clarity-types'`;
 
   const header = `/**
@@ -367,7 +368,7 @@ function generateGenericHook(hookName: string): string {
     functionName: string;
     functionArgs: any[]; // Pre-converted Clarity values
     network?: string;
-    postConditions?: any[];
+    postConditions?: PostCondition[];
     attachment?: string;
     onFinish?: (data: any) => void;
     onCancel?: () => void;
@@ -443,7 +444,7 @@ function generateGenericHook(hookName: string): string {
     abi: T;
     functionArgs: ExtractFunctionArgs<T, FN>;
     network?: string;
-    postConditions?: any[];
+    postConditions?: PostCondition[];
     attachment?: string;
     onFinish?: (data: any) => void;
     onCancel?: () => void;
@@ -772,7 +773,7 @@ function generateGenericHook(hookName: string): string {
       contractName: string;
       codeBody: string;
       network?: string;
-      postConditions?: any[];
+      postConditions?: PostCondition[];
       onFinish?: (data: any) => void;
       onCancel?: () => void;
     }) => {
@@ -809,7 +810,7 @@ function generateGenericHook(hookName: string): string {
     contractName: string;
     codeBody: string;
     network?: string;
-    postConditions?: any[];
+    postConditions?: PostCondition[];
     onFinish?: (data: any) => void;
     onCancel?: () => void;
   }) => {

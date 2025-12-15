@@ -338,7 +338,7 @@ function generateWriteHelpers(
       fee?: string | number | undefined;
       nonce?: bigint;
       anchorMode?: 1 | 2 | 3; // AnchorMode: OnChainOnly = 1, OffChainOnly = 2, Any = 3
-      postConditions?: any[]; // TODO: Add proper PostCondition types
+      postConditions?: PostCondition[];
       validateWithAbi?: boolean;
     }) {
       const { senderKey, network = 'mainnet', ...txOptions } = options;
