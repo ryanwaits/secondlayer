@@ -39,6 +39,10 @@ export function clarityTypeToTS(type: ClarityType): string {
         // Handle shorthand string formats (e.g., "string-ascii", "string-utf8", "buff")
         // Cast to string since TypeScript narrows to never in exhaustive switches
         const typeStr = type as string;
+        // Handle "none" type (commonly used in response types)
+        if (typeStr === "none") {
+          return "null";
+        }
         if (typeStr.includes("string") || typeStr.includes("ascii") || typeStr.includes("utf8")) {
           return "string";
         }
