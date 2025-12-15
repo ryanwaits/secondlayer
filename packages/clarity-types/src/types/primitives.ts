@@ -43,7 +43,5 @@ export const MAX_U128 = 2n ** 128n - 1n;
 export const MAX_I128 = 2n ** 127n - 1n;
 export const MIN_I128 = -(2n ** 127n);
 
-export const STANDARD_PRINCIPAL_REGEX = /^S[0-9A-Z]{39,40}$/;
-export const CONTRACT_PRINCIPAL_REGEX =
-  /^S[0-9A-Z]{39,40}\.[a-zA-Z][a-zA-Z0-9\-]*$/;
-export const PRINCIPAL_REGEX = /^S[0-9A-Z]{39,40}(\.[a-zA-Z][a-zA-Z0-9\-]*)?$/;
+// Contract name validation regex (used after address validation)
+export const CONTRACT_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9\-]{0,127}$/;

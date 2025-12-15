@@ -33,6 +33,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "dependencies": {
+    "@stacks/transactions": "^7.0.0"
+  },
   "devDependencies": {
     "@vitest/ui": "^1.2.1"
   },

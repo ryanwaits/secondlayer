@@ -1,16 +1,11 @@
 import type { ClarityContract, FunctionAccess } from "./functions";
 import type { ClarityToTS } from "../types/mappings";
 import type { ClarityType } from "../types/composites";
+import type { ToCamelCase } from "../utils";
 
 /**
  * Type extraction utilities for contract ABIs
  */
-
-// Utility type to convert kebab-case to camelCase
-type ToCamelCase<S extends string> =
-  S extends `${infer P1}-${infer P2}${infer P3}`
-    ? `${P1}${Capitalize<ToCamelCase<`${P2}${P3}`>>}`
-    : S;
 
 export type ExtractFunctionNames<
   C extends ClarityContract,

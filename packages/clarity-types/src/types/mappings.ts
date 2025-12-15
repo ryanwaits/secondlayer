@@ -1,14 +1,9 @@
 import type { ClarityType } from "./composites";
+import type { ToCamelCase } from "../utils";
 
 /**
  * Type mapping from Clarity types to TypeScript types
  */
-
-// Utility type to convert kebab-case to camelCase
-type ToCamelCase<S extends string> =
-  S extends `${infer P1}-${infer P2}${infer P3}`
-    ? `${P1}${Capitalize<ToCamelCase<`${P2}${P3}`>>}`
-    : S;
 
 type TupleToObject<
   T extends ReadonlyArray<{ name: string; type: ClarityType }>
