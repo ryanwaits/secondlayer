@@ -4,38 +4,14 @@
  */
 
 import type { ProcessedContract } from "../../types/plugin";
-import type { ClarityFunction } from "@secondlayer/clarity-types";
+import {
+  toCamelCase,
+  type ClarityFunction,
+  type ClarityMap,
+  type ClarityVariable,
+} from "@secondlayer/clarity-types";
 import type { TestingPluginOptions } from "./index";
-
-/**
- * Clarity data variable definition from ABI
- */
-interface ClarityVariable {
-  name: string;
-  type: any;
-  access: "constant" | "variable";
-}
-
-/**
- * Clarity map definition from ABI
- */
-interface ClarityMap {
-  name: string;
-  key: any;
-  value: any;
-}
-
-/**
- * Convert string to camelCase
- */
-function toCamelCase(str: string): string {
-  return str
-    .replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
-    .replace(/-([A-Z])/g, (_, letter) => letter)
-    .replace(/-(\d)/g, (_, digit) => digit)
-    .replace(/-/g, "")
-    .replace(/^\d/, "_$&");
-}
+import { getTypeForArg } from "../../utils/type-mapping";
 
 /**
  * Convert string to PascalCase
@@ -43,64 +19,6 @@ function toCamelCase(str: string): string {
 function toPascalCase(str: string): string {
   const camel = toCamelCase(str);
   return camel.charAt(0).toUpperCase() + camel.slice(1);
-}
-
-/**
- * Generate TypeScript type for Clarity argument
- */
-function getTypeForArg(arg: any): string {
-  const type = arg.type;
-
-  if (typeof type === "string") {
-    switch (type) {
-      case "uint128":
-      case "int128":
-        return "bigint";
-      case "bool":
-        return "boolean";
-      case "principal":
-      case "trait_reference":
-        return "string";
-      default:
-        return "any";
-    }
-  }
-
-  if (type["string-ascii"] || type["string-utf8"]) {
-    return "string";
-  }
-
-  if (type.buff) {
-    return "Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }";
-  }
-
-  if (type.optional) {
-    const innerType = getTypeForArg({ type: type.optional });
-    return `${innerType} | null`;
-  }
-
-  if (type.list) {
-    const innerType = getTypeForArg({ type: type.list.type });
-    return `${innerType}[]`;
-  }
-
-  if (type.tuple) {
-    const fields = type.tuple
-      .map(
-        (field: any) =>
-          `${toCamelCase(field.name)}: ${getTypeForArg({ type: field.type })}`
-      )
-      .join("; ");
-    return `{ ${fields} }`;
-  }
-
-  if (type.response) {
-    const okType = getTypeForArg({ type: type.response.ok });
-    const errType = getTypeForArg({ type: type.response.error });
-    return `{ ok: ${okType} } | { err: ${errType} }`;
-  }
-
-  return "any";
 }
 
 /**
@@ -199,31 +117,61 @@ function generateClarityConversion(argName: string, argType: any): string {
     const innerConversion = generateClarityConversion("item", {
       type: type.list.type,
     });
-    return `Cl.list(${argName}.map(item => ${innerConversion}))`;
+    const maxLength = type.list.length || 100;
+    return `(() => {
+      const listValue = ${argName};
+      if (listValue.length > ${maxLength}) {
+        throw new Error(\`List length \${listValue.length} exceeds max ${maxLength}\`);
+      }
+      return Cl.list(listValue.map(item => ${innerConversion}));
+    })()`;
   }
 
   if (type.tuple) {
+    const requiredFields = type.tuple.map((f: any) => f.name);
+    const fieldNames = JSON.stringify(requiredFields);
     const fields = type.tuple
       .map((field: any) => {
         const camelFieldName = toCamelCase(field.name);
         const fieldConversion = generateClarityConversion(
-          `${argName}.${camelFieldName}`,
+          `tupleValue.${camelFieldName}`,
           { type: field.type }
         );
         return `"${field.name}": ${fieldConversion}`;
       })
       .join(", ");
-    return `Cl.tuple({ ${fields} })`;
+    return `(() => {
+      const tupleValue = ${argName};
+      const requiredFields = ${fieldNames};
+      for (const fieldName of requiredFields) {
+        const camelName = fieldName.replace(/-([a-z])/g, (_: string, l: string) => l.toUpperCase());
+        if (!(fieldName in tupleValue) && !(camelName in tupleValue)) {
+          throw new Error(\`Missing tuple field: \${fieldName}\`);
+        }
+      }
+      return Cl.tuple({ ${fields} });
+    })()`;
   }
 
   if (type.response) {
-    const okConversion = generateClarityConversion(`${argName}.ok`, {
+    const okConversion = generateClarityConversion(`responseValue.ok`, {
       type: type.response.ok,
     });
-    const errConversion = generateClarityConversion(`${argName}.err`, {
+    const errConversion = generateClarityConversion(`responseValue.err`, {
       type: type.response.error,
     });
-    return `'ok' in ${argName} ? Cl.ok(${okConversion}) : Cl.error(${errConversion})`;
+    return `(() => {
+      const responseValue = ${argName};
+      const hasOk = 'ok' in responseValue;
+      const hasErr = 'err' in responseValue;
+      if (hasOk && !hasErr) {
+        return Cl.ok(${okConversion});
+      }
+      if (hasErr && !hasOk) {
+        return Cl.error(${errConversion});
+      }
+      throw new Error("Response must have exactly 'ok' or 'err' property");
+    })()`;
   }
 
   return `${argName}`;

@@ -2,10 +2,9 @@ import { promises as fs } from "fs";
 import type {
   ClarityContract,
   ClarityFunction,
-  ClarityMap,
-  ClarityVariable,
   ClarityType,
 } from "@secondlayer/clarity-types";
+import { normalizeAbi } from "../utils/abi-compat";
 
 /**
  * Basic Clarity contract parser
@@ -125,133 +124,12 @@ function inferReturnType(body: string): ClarityType {
 
 /**
  * Parse ABI from API response
+ * Uses the abi-compat normalization layer for consistent handling of different ABI formats
  */
 export function parseApiResponse(apiResponse: any): ClarityContract {
   try {
-    const functions: ClarityFunction[] = [];
-    const maps: ClarityMap[] = [];
-    const variables: ClarityVariable[] = [];
-
-    // Parse functions
-    if (apiResponse.functions) {
-      for (const func of apiResponse.functions) {
-        const access = func.access === "read_only" ? "read-only" : func.access;
-
-        functions.push({
-          name: func.name,
-          access: access,
-          args: func.args.map((arg: any) => ({
-            name: arg.name,
-            type: convertApiType(arg.type),
-          })),
-          outputs: convertApiType(func.outputs.type),
-        });
-      }
-    }
-
-    // Parse maps
-    if (apiResponse.maps) {
-      for (const map of apiResponse.maps) {
-        maps.push({
-          name: map.name,
-          key: convertApiType(map.key),
-          value: convertApiType(map.value),
-        });
-      }
-    }
-
-    // Parse variables
-    if (apiResponse.variables) {
-      for (const variable of apiResponse.variables) {
-        variables.push({
-          name: variable.name,
-          type: convertApiType(variable.type),
-          access: variable.access as "constant" | "variable",
-        });
-      }
-    }
-
-    return {
-      functions,
-      maps: maps.length > 0 ? maps : undefined,
-      variables: variables.length > 0 ? variables : undefined,
-    };
+    return normalizeAbi(apiResponse);
   } catch (error) {
     throw new Error(`Failed to parse API response: ${error}`);
   }
-}
-
-function convertApiType(apiType: any): ClarityType {
-  if (typeof apiType === "string") {
-    if (apiType === "trait_reference") {
-      return "trait_reference";
-    }
-    return parseType(apiType) || "uint128";
-  }
-
-  // Handle complex types from API
-  if (apiType.response) {
-    return {
-      response: {
-        ok: convertApiType(apiType.response.ok),
-        error: convertApiType(apiType.response.error),
-      },
-    };
-  }
-
-  if (apiType.optional) {
-    return {
-      optional: convertApiType(apiType.optional),
-    };
-  }
-
-  if (apiType.list) {
-    return {
-      list: {
-        type: convertApiType(apiType.list.type),
-        length: apiType.list.length || 100,
-      },
-    };
-  }
-
-  if (apiType.tuple) {
-    return {
-      tuple: apiType.tuple.map((field: any) => ({
-        name: field.name,
-        type: convertApiType(field.type),
-      })),
-    };
-  }
-
-  if (apiType.buffer) {
-    return {
-      buff: {
-        length: apiType.buffer.length || 32,
-      },
-    };
-  }
-
-  if (apiType["string-ascii"]) {
-    return {
-      "string-ascii": {
-        length: apiType["string-ascii"].length || 256,
-      },
-    };
-  }
-
-  if (apiType["string-utf8"]) {
-    return {
-      "string-utf8": {
-        length: apiType["string-utf8"].length || 256,
-      },
-    };
-  }
-
-  // Handle none type
-  if (apiType === "none") {
-    return "uint128"; // TODO: We'll need to handle this better in the future
-  }
-
-  // Default
-  return "uint128";
 }

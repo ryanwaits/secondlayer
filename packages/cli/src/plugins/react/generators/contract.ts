@@ -14,7 +14,7 @@ import {
   generateFunctionCallArgs,
   generateEnabledCondition,
   generateObjectArgs,
-  mapClarityTypeToTS,
+  clarityTypeToTS,
 } from "./utils";
 import type { ClarityMap, ClarityVariable } from "@secondlayer/clarity-types";
 
@@ -145,7 +145,7 @@ function generateReadHook(func: ClarityFunction, contractName: string): string {
       : "options?: { enabled?: boolean }";
 
   // Generate proper return type from function outputs
-  const returnType = mapClarityTypeToTS(func.outputs);
+  const returnType = clarityTypeToTS(func.outputs);
 
   return `export function ${hookName}(${argsSignature}${enabledParam}) {
   const config = useStacksConfig()
@@ -269,8 +269,8 @@ function generateMapHook(
   _contractName: string
 ): string {
   const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(map.name))}`;
-  const keyType = mapClarityTypeToTS(map.key);
-  const valueType = mapClarityTypeToTS(map.value);
+  const keyType = clarityTypeToTS(map.key);
+  const valueType = clarityTypeToTS(map.value);
 
   return `export function ${hookName}(key: ${keyType}, options?: { enabled?: boolean }) {
   const config = useStacksConfig()
@@ -295,7 +295,7 @@ function generateVarHook(
   _contractName: string
 ): string {
   const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(variable.name))}`;
-  const valueType = mapClarityTypeToTS(variable.type);
+  const valueType = clarityTypeToTS(variable.type);
 
   return `export function ${hookName}(options?: { enabled?: boolean }) {
   const config = useStacksConfig()
@@ -320,7 +320,7 @@ function generateConstantHook(
   _contractName: string
 ): string {
   const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(constant.name))}`;
-  const valueType = mapClarityTypeToTS(constant.type);
+  const valueType = clarityTypeToTS(constant.type);
 
   return `export function ${hookName}(options?: { enabled?: boolean }) {
   const config = useStacksConfig()
