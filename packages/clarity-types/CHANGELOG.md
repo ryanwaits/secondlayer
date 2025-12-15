@@ -1,5 +1,17 @@
 # @secondlayer/clarity-types
 
+## 0.3.0
+
+### Minor Changes
+
+- Add support for contract state (maps, variables, and constants)
+  - Generate typed `maps` object with `get()` methods for reading map entries via Hiro API
+  - Generate typed `vars` object with `get()` methods for reading data variables
+  - Generate typed `constants` object with `get()` methods for reading contract constants
+  - Add React hooks for maps (`useContractMapName`), variables (`useContractVarName`), and constants (`useContractConstantName`)
+  - Constants hooks use `staleTime: Infinity` since values never change
+  - Parse maps and variables from Hiro API contract interface responses
+
 ## 0.2.2
 
 ### Patch Changes
