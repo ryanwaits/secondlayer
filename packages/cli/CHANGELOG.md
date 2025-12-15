@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 0.3.3
+
+### Patch Changes
+
+- Fix contractName to use original kebab-case for API calls while keeping camelCase for JS exports
+  - Preserve `_directFile` flag through contract config transformation
+  - Extract original contract name from address for API endpoints (vars, constants, maps)
+  - Maintains `sbtcToken` for JS imports but uses `sbtc-token` for API URLs
+
 ## 0.3.2
 
 ### Patch Changes
