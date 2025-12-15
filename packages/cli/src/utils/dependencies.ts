@@ -5,6 +5,14 @@ import { execa } from "execa";
 import chalk from "chalk";
 
 /**
+ * Required dependencies for base generated contracts
+ */
+export const BASE_DEPENDENCIES = {
+  dependencies: ["@stacks/transactions"],
+  devDependencies: [] as string[],
+} as const;
+
+/**
  * Required dependencies for React hooks
  */
 export const HOOKS_DEPENDENCIES = {
@@ -56,17 +64,20 @@ export async function readPackageJson(targetDir: string): Promise<any> {
 }
 
 /**
- * Check which dependencies are missing
+ * Check which dependencies are missing from a required list
  */
-export async function getMissingDependencies(targetDir: string): Promise<{
+export async function getMissingDependenciesFor(
+  targetDir: string,
+  requiredDeps: { dependencies: readonly string[]; devDependencies: readonly string[] }
+): Promise<{
   dependencies: string[];
   devDependencies: string[];
 }> {
   if (!(await hasPackageJson(targetDir))) {
     // If no package.json, all dependencies are missing
     return {
-      dependencies: [...HOOKS_DEPENDENCIES.dependencies],
-      devDependencies: [...HOOKS_DEPENDENCIES.devDependencies],
+      dependencies: [...requiredDeps.dependencies],
+      devDependencies: [...requiredDeps.devDependencies],
     };
   }
 
@@ -76,11 +87,11 @@ export async function getMissingDependencies(targetDir: string): Promise<{
     ...packageJson.devDependencies,
   };
 
-  const missingDeps = HOOKS_DEPENDENCIES.dependencies.filter(
+  const missingDeps = requiredDeps.dependencies.filter(
     (dep) => !existingDeps[dep]
   );
 
-  const missingDevDeps = HOOKS_DEPENDENCIES.devDependencies.filter(
+  const missingDevDeps = requiredDeps.devDependencies.filter(
     (dep) => !existingDeps[dep]
   );
 
@@ -88,6 +99,33 @@ export async function getMissingDependencies(targetDir: string): Promise<{
     dependencies: missingDeps,
     devDependencies: missingDevDeps,
   };
+}
+
+/**
+ * Check which dependencies are missing (for hooks - backwards compatible)
+ */
+export async function getMissingDependencies(targetDir: string): Promise<{
+  dependencies: string[];
+  devDependencies: string[];
+}> {
+  return getMissingDependenciesFor(targetDir, HOOKS_DEPENDENCIES);
+}
+
+/**
+ * Check if @stacks/transactions is installed and warn if not
+ */
+export async function checkBaseDependencies(targetDir: string): Promise<void> {
+  const missing = await getMissingDependenciesFor(targetDir, BASE_DEPENDENCIES);
+
+  if (missing.dependencies.length > 0) {
+    console.log(chalk.yellow("\n⚠ Required peer dependency not found: @stacks/transactions"));
+    console.log(chalk.gray("  The generated code requires @stacks/transactions to work."));
+    console.log(chalk.gray("  Install it with:"));
+
+    const packageManager = await getPackageManager(targetDir);
+    const installCmd = packageManager === "npm" ? "install" : "add";
+    console.log(chalk.cyan(`    ${packageManager} ${installCmd} @stacks/transactions\n`));
+  }
 }
 
 /**

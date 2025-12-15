@@ -132,9 +132,8 @@ function generateClarityConversion(argName: string, argType: any): string {
           }
           if (${argName}.includes(".")) {
             return Cl.contractPrincipal(address, contractName);
-          } else {
-            return Cl.standardPrincipal(${argName});
           }
+          return Cl.standardPrincipal(${argName});
         })()`;
       default:
         return `${argName}`;
@@ -171,7 +170,8 @@ function generateClarityConversion(argName: string, argType: any): string {
         if (value.startsWith('0x') || /^[0-9a-fA-F]+$/.test(value)) {
           return Cl.bufferFromHex(value);
         }
-        if (!/^[\\x00-\\x7F]*$/.test(value)) {
+        const hasNonAscii = value.split('').some(char => char.charCodeAt(0) > 127);
+        if (hasNonAscii) {
           return Cl.bufferFromUtf8(value);
         }
         return Cl.bufferFromAscii(value);

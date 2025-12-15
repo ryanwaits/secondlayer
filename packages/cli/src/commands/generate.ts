@@ -6,6 +6,7 @@ import { StacksApiClient } from "../utils/api";
 import { parseClarityFile, parseApiResponse } from "../parsers/clarity";
 import { generateContractInterface } from "../generators/contract";
 import { PluginManager } from "../core/plugin-manager";
+import { checkBaseDependencies } from "../utils/dependencies";
 import type {
   ResolvedContract,
   NetworkName,
@@ -275,6 +276,9 @@ export async function generate(files: string[], options: GenerateOptions) {
 
     // Write all outputs to disk
     await pluginManager.writeOutputs(transformedOutputs);
+
+    // Check if @stacks/transactions is installed and warn if not
+    await checkBaseDependencies(process.cwd());
 
     const contractCount = processedContracts.length;
     const contractWord = contractCount === 1 ? "contract" : "contracts";
