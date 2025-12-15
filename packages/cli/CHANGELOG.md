@@ -1,5 +1,15 @@
 # @secondlayer/cli
 
+## 0.3.2
+
+### Patch Changes
+
+- Fix lint issues in generated code and improve dependency DX
+  - Remove useless else clauses after return statements (noUselessElse)
+  - Replace control character regex with charCodeAt for ASCII detection (noControlCharactersInRegex)
+  - Add warning when @stacks/transactions peer dependency is missing
+  - Add @requires JSDoc tag to generated file header
+
 ## 0.3.1
 
 ### Patch Changes
