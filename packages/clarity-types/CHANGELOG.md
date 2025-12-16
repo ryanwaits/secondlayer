@@ -1,5 +1,11 @@
 # @secondlayer/clarity-types
 
+## 0.4.2
+
+### Patch Changes
+
+- fix: consolidated audit fixes - config regex, missing imports, type validation, error handling, code deduplication
+
 ## 0.4.1
 
 ### Patch Changes

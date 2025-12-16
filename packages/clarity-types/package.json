@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/clarity-types",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "TypeScript type definitions and utilities for Clarity smart contract ABIs",
   "type": "module",
   "main": "./dist/index.js",

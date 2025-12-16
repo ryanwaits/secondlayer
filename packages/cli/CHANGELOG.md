@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 0.3.9
+
+### Patch Changes
+
+- fix: consolidated audit fixes - config regex, missing imports, type validation, error handling, code deduplication
+
+- Updated dependencies []:
+  - @secondlayer/clarity-types@0.4.2
+
 ## 0.3.8
 
 ### Patch Changes
