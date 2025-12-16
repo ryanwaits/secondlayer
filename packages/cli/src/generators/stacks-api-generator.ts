@@ -1,4 +1,4 @@
-import { format } from "prettier";
+import { formatCode } from "../utils/format";
 
 /**
  * Generate Stacks API utilities file
@@ -156,13 +156,5 @@ export async function fetchAccountTransactions({
   return await response.json()
 }`;
 
-  const formatted = await format(code, {
-    parser: "typescript",
-    singleQuote: true,
-    semi: false,
-    printWidth: 100,
-    trailingComma: "es5",
-  });
-
-  return formatted;
+  return formatCode(code);
 }

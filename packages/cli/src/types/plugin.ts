@@ -68,6 +68,46 @@ export interface ContractConfig {
 }
 
 /**
+ * Contract config from Clarinet plugin
+ */
+export interface ClarinetContractConfig extends ContractConfig {
+  _clarinetSource: true;
+}
+
+/**
+ * Contract config from direct file input
+ */
+export interface DirectFileContractConfig extends ContractConfig {
+  _directFile: true;
+}
+
+/**
+ * Union of all contract config types
+ */
+export type PluginContractConfig =
+  | ContractConfig
+  | ClarinetContractConfig
+  | DirectFileContractConfig;
+
+/**
+ * Type guard for Clarinet contracts
+ */
+export function isClarinetContract(
+  c: ContractConfig
+): c is ClarinetContractConfig {
+  return "_clarinetSource" in c && c._clarinetSource === true;
+}
+
+/**
+ * Type guard for direct file contracts
+ */
+export function isDirectFileContract(
+  c: ContractConfig
+): c is DirectFileContractConfig {
+  return "_directFile" in c && c._directFile === true;
+}
+
+/**
  * Processed contract with resolved ABI and metadata
  */
 export interface ProcessedContract extends ResolvedContract {

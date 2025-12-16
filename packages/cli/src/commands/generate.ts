@@ -1,6 +1,7 @@
 import path from "path";
 import chalk from "chalk";
 import fg from "fast-glob";
+import { toCamelCase } from "@secondlayer/clarity-types";
 import { loadConfig } from "../utils/config";
 import { StacksApiClient } from "../utils/api";
 import { parseClarityFile, parseApiResponse } from "../parsers/clarity";
@@ -104,15 +105,7 @@ function deriveContractName(filePath: string): string {
     .replace(/^\d/, "_$&"); // Prefix with underscore if starts with digit
 }
 
-/**
- * Convert contract name from kebab-case to camelCase
- */
-function toCamelCase(str: string): string {
-  return str
-    .replace(/[-_](.)/g, (_, char) => char.toUpperCase())
-    .replace(/^(.)/, (_, char) => char.toLowerCase())
-    .replace(/^\d/, "_$&");
-}
+const DEFAULT_DEVNET_ADDRESS = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM";
 
 /**
  * Build config from direct inputs (local files and/or deployed contract addresses)
@@ -120,9 +113,22 @@ function toCamelCase(str: string): string {
 async function buildConfigFromInputs(
   parsedInputs: ParsedInputs,
   outPath: string,
-  apiKey: string | undefined
+  apiKey: string | undefined,
+  defaultAddress?: string
 ): Promise<StacksConfig> {
   const contracts = [];
+  const deployer = defaultAddress || DEFAULT_DEVNET_ADDRESS;
+
+  // Warn about placeholder address for local files
+  if (parsedInputs.files.length > 0 && !defaultAddress) {
+    console.warn(
+      chalk.yellow(
+        `⚠️  Using placeholder address (${deployer}) for local contracts.\n` +
+          `   Generated contract addresses won't match deployed addresses.\n` +
+          `   Set defaultAddress in config or use deployed contract addresses.`
+      )
+    );
+  }
 
   // Process local .clar files
   for (const file of parsedInputs.files) {
@@ -131,7 +137,7 @@ async function buildConfigFromInputs(
 
     contracts.push({
       name,
-      address: `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.${name}`,
+      address: `${deployer}.${name}`,
       abi,
       _directFile: true,
     });
@@ -310,8 +316,7 @@ export async function resolveContract(
     const address =
       typeof source.address === "string"
         ? source.address
-        : source.address?.[network] ||
-          "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM";
+        : source.address?.[network] || DEFAULT_DEVNET_ADDRESS;
 
     const [contractAddress, contractName] = address.includes(".")
       ? address.split(".")

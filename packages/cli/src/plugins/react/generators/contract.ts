@@ -2,8 +2,8 @@
  * Contract-specific hooks generator for React plugin
  */
 
-import { format } from "prettier";
 import type { ProcessedContract } from "../../../types/plugin";
+import { formatCode } from "../../../utils/format";
 import type { ClarityFunction } from "@secondlayer/clarity-types";
 import {
   toCamelCase,
@@ -41,15 +41,7 @@ import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'`;
 
   const code = `${imports}\n\n${header}\n\n${hooksCode}`;
 
-  const formatted = await format(code, {
-    parser: "typescript",
-    singleQuote: true,
-    semi: false,
-    printWidth: 100,
-    trailingComma: "es5",
-  });
-
-  return formatted;
+  return formatCode(code);
 }
 
 function generateContractHookMethods(

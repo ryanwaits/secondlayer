@@ -45,7 +45,7 @@ export function normalizeType(type: unknown): ClarityType {
   }
 
   if (typeof type !== "object" || type === null) {
-    return "uint128"; // Default fallback
+    throw new Error(`Invalid ABI type: expected object, got ${typeof type}`);
   }
 
   const typeObj = type as Record<string, unknown>;
@@ -129,8 +129,8 @@ export function normalizeType(type: unknown): ClarityType {
     };
   }
 
-  // Unknown type, return default
-  return "uint128";
+  // Unknown type - fail explicitly
+  throw new Error(`Unknown ABI type structure: ${JSON.stringify(type)}`);
 }
 
 /**

@@ -8,14 +8,32 @@ import { normalizeAbi } from "../utils/abi-compat";
 
 /**
  * Basic Clarity contract parser
- * This is a simplified parser - a full implementation would be more robust
+ * This is a simplified regex-based parser for basic contracts.
+ * For complex contracts, use the contract address to fetch ABI from the API.
  */
 
 export async function parseClarityFile(
   filePath: string
 ): Promise<ClarityContract> {
-  const content = await fs.readFile(filePath, "utf-8");
-  return parseClarityContent(content);
+  try {
+    const content = await fs.readFile(filePath, "utf-8");
+    const result = parseClarityContent(content);
+
+    if (result.functions.length === 0) {
+      console.warn(
+        `⚠️  No functions found in ${filePath}. ` +
+          `For complex contracts, deploy first and use the contract address instead.`
+      );
+    }
+
+    return result;
+  } catch (error) {
+    throw new Error(
+      `Unable to parse ${filePath}. ` +
+        `For complex contracts, deploy first and use the contract address instead.\n` +
+        `Original error: ${error}`
+    );
+  }
 }
 
 export function parseClarityContent(content: string): ClarityContract {

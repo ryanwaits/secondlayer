@@ -87,6 +87,18 @@ export function jsToClarity(type: ClarityType, value: unknown): unknown {
       );
     }
     const str = value as string;
+
+    // Validate ASCII only (0x00-0x7F)
+    for (let i = 0; i < str.length; i++) {
+      if (str.charCodeAt(i) > 127) {
+        throw new ClarityConversionError(
+          `Non-ASCII character at position ${i}: '${str[i]}' (code ${str.charCodeAt(i)})`,
+          type,
+          value
+        );
+      }
+    }
+
     if (str.length > type["string-ascii"].length) {
       throw new ClarityConversionError(
         `String length ${str.length} exceeds max ${type["string-ascii"].length}`,

@@ -1,6 +1,16 @@
 import got from "got";
 import type { NetworkName } from "../types/config";
 
+const gotWithRetry = got.extend({
+  timeout: { request: 30000 },
+  retry: {
+    limit: 3,
+    methods: ["GET", "POST"],
+    statusCodes: [408, 429, 500, 502, 503, 504],
+    calculateDelay: ({ attemptCount }) => attemptCount * 1000,
+  },
+});
+
 /**
  * Stacks API client for fetching contract information
  */
@@ -22,6 +32,7 @@ export interface ContractInfo {
 }
 
 export class StacksApiClient {
+  private static hasWarnedAboutApiKey = false;
   private baseUrl: string;
   private headers: Record<string, string>;
 
@@ -32,6 +43,15 @@ export class StacksApiClient {
   ) {
     this.baseUrl = apiUrl || API_URLS[network];
     this.headers = apiKey ? { "x-api-key": apiKey } : {};
+
+    if (!apiKey && !StacksApiClient.hasWarnedAboutApiKey) {
+      console.warn(
+        "⚠️  No API key provided. You may be rate-limited.\n" +
+          "   Set HIRO_API_KEY env var or use --api-key flag.\n" +
+          "   Get a free key at: https://platform.hiro.so/"
+      );
+      StacksApiClient.hasWarnedAboutApiKey = true;
+    }
   }
 
   async getContractInfo(contractId: string): Promise<ContractInfo> {
@@ -46,7 +66,7 @@ export class StacksApiClient {
     const url = `${this.baseUrl}/v2/contracts/interface/${address}/${contractName}`;
 
     try {
-      const response = await got(url, {
+      const response = await gotWithRetry(url, {
         headers: this.headers,
         responseType: "json",
       });
@@ -77,7 +97,7 @@ export class StacksApiClient {
     const url = `${this.baseUrl}/v2/contracts/source/${address}/${contractName}`;
 
     try {
-      const response = await got(url, {
+      const response = await gotWithRetry(url, {
         headers: this.headers,
         responseType: "json",
       });
@@ -85,7 +105,15 @@ export class StacksApiClient {
       const data = response.body as { source: string };
       return data.source;
     } catch (error: any) {
-      return "";
+      if (error.response?.statusCode === 404) {
+        throw new Error(`Contract source not found: ${contractId}`);
+      }
+      if (error.response?.statusCode === 429) {
+        throw new Error(
+          "Rate limited. Please provide an API key in your config."
+        );
+      }
+      throw new Error(`Failed to fetch contract source: ${error.message}`);
     }
   }
 }

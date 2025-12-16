@@ -2,7 +2,7 @@
  * Generic Stacks hooks generator for React plugin
  */
 
-import { format } from "prettier";
+import { formatCode } from "../../../utils/format";
 
 const GENERIC_HOOKS = [
   "useAccount",
@@ -31,10 +31,37 @@ export async function generateGenericHooks(
   const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
 import { useStacksConfig } from './provider'
-import { connect, disconnect, isConnected, request, openContractCall as stacksOpenContractCall } from '@stacks/connect'
+import { connect, disconnect, isConnected, request, openContractCall as stacksOpenContractCall, openSTXTransfer, openSignatureRequestPopup, openContractDeploy } from '@stacks/connect'
 import { Cl, validateStacksAddress } from '@stacks/transactions'
 import type { PostCondition } from '@stacks/transactions'
-import type { ExtractFunctionArgs, ExtractFunctionNames, ClarityContract } from '@secondlayer/clarity-types'`;
+import type { ExtractFunctionArgs, ExtractFunctionNames, ClarityContract } from '@secondlayer/clarity-types'
+
+const API_URLS: Record<string, string> = {
+  mainnet: 'https://api.hiro.so',
+  testnet: 'https://api.testnet.hiro.so',
+  devnet: 'http://localhost:3999'
+}
+
+async function fetchTransaction({ txId, network, apiUrl }: { txId: string; network?: string; apiUrl?: string }): Promise<any> {
+  const baseUrl = apiUrl || API_URLS[network || 'mainnet']
+  const response = await fetch(\`\${baseUrl}/extended/v1/tx/\${txId}\`)
+  if (!response.ok) throw new Error(\`Failed to fetch transaction: \${response.statusText}\`)
+  return response.json()
+}
+
+async function fetchBlock({ height, network, apiUrl }: { height: number; network?: string; apiUrl?: string }): Promise<any> {
+  const baseUrl = apiUrl || API_URLS[network || 'mainnet']
+  const response = await fetch(\`\${baseUrl}/extended/v1/block/by_height/\${height}\`)
+  if (!response.ok) throw new Error(\`Failed to fetch block: \${response.statusText}\`)
+  return response.json()
+}
+
+async function fetchAccountTransactions({ address, network, apiUrl }: { address: string; network?: string; apiUrl?: string }): Promise<any> {
+  const baseUrl = apiUrl || API_URLS[network || 'mainnet']
+  const response = await fetch(\`\${baseUrl}/extended/v1/address/\${address}/transactions\`)
+  if (!response.ok) throw new Error(\`Failed to fetch transactions: \${response.statusText}\`)
+  return response.json()
+}`;
 
   const header = `/**
  * Generated generic Stacks React hooks
@@ -48,15 +75,7 @@ import type { ExtractFunctionArgs, ExtractFunctionNames, ClarityContract } from 
 
   const code = `${imports}\n\n${header}\n\n${hooksCode}`;
 
-  const formatted = await format(code, {
-    parser: "typescript",
-    singleQuote: true,
-    semi: false,
-    printWidth: 100,
-    trailingComma: "es5",
-  });
-
-  return formatted;
+  return formatCode(code);
 }
 
 function generateGenericHook(hookName: string): string {

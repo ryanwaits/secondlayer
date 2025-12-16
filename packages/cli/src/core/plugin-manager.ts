@@ -19,6 +19,7 @@ import type {
   HookResult,
   PluginExecutionContext,
 } from "../types/plugin";
+import { isClarinetContract, isDirectFileContract } from "../types/plugin";
 
 /**
  * Core plugin manager that orchestrates plugin execution
@@ -116,7 +117,7 @@ export class PluginManager {
 
     for (let contract of contracts) {
       // Handle special case for Clarinet plugin contracts
-      if ((contract as any)._clarinetSource && contract.abi) {
+      if (isClarinetContract(contract) && contract.abi) {
         // Convert Clarinet contracts directly to ProcessedContract format
         const address =
           typeof contract.address === "string" ? contract.address : "";
@@ -134,7 +135,7 @@ export class PluginManager {
       }
 
       // Handle direct file mode contracts (already have ABIs parsed)
-      if ((contract as any)._directFile && contract.abi) {
+      if (isDirectFileContract(contract) && contract.abi) {
         const address =
           typeof contract.address === "string" ? contract.address : "";
         const [contractAddress, contractName] = address.split(".");
@@ -408,14 +409,8 @@ export class PluginManager {
       },
 
       formatCode: async (code: string) => {
-        const { format } = await import("prettier");
-        return format(code, {
-          parser: "typescript",
-          singleQuote: true,
-          semi: true,
-          printWidth: 100,
-          trailingComma: "es5",
-        });
+        const { formatCode } = await import("../utils/format");
+        return formatCode(code);
       },
 
       resolvePath: (relativePath: string) => {

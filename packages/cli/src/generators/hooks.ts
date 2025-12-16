@@ -1,7 +1,7 @@
-import { format } from "prettier";
 import type { ResolvedContract } from "../types/config";
 import { toCamelCase, type ClarityFunction } from "@secondlayer/clarity-types";
 import { clarityTypeToTS } from "../utils/type-mapping";
+import { formatCode } from "../utils/format";
 
 /**
  * React hooks generator for contract interfaces and generic Stacks functionality
@@ -44,15 +44,7 @@ import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'`;
 
   const code = `${imports}\n\n${header}\n\n${hooksCode}`;
 
-  const formatted = await format(code, {
-    parser: "typescript",
-    singleQuote: true,
-    semi: false,
-    printWidth: 100,
-    trailingComma: "es5",
-  });
-
-  return formatted;
+  return formatCode(code);
 }
 
 export async function generateGenericHooks(
@@ -79,15 +71,7 @@ import type { ExtractFunctionArgs, ExtractFunctionNames, ClarityContract } from 
 
   const code = `${imports}\n\n${header}\n\n${hooksCode}`;
 
-  const formatted = await format(code, {
-    parser: "typescript",
-    singleQuote: true,
-    semi: false,
-    printWidth: 100,
-    trailingComma: "es5",
-  });
-
-  return formatted;
+  return formatCode(code);
 }
 
 function generateContractHookMethods(contract: ResolvedContract): string {

@@ -51,6 +51,12 @@ export interface StacksConfig {
    * Base URL for Stacks API (optional override)
    */
   apiUrl?: string;
+
+  /**
+   * Default deployer address for local contracts without explicit addresses
+   * Defaults to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM (devnet default)
+   */
+  defaultAddress?: string;
 }
 
 export interface ResolvedContract {

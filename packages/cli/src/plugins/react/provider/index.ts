@@ -2,7 +2,7 @@
  * Provider generator for React plugin
  */
 
-import { format } from "prettier";
+import { formatCode } from "../../../utils/format";
 
 /**
  * Generate the provider file content for user projects
@@ -95,13 +95,5 @@ export function useStacksConfig(): StacksReactConfig {
   return context
 }`;
 
-  const formatted = await format(code, {
-    parser: "typescript",
-    singleQuote: true,
-    semi: false,
-    printWidth: 100,
-    trailingComma: "es5",
-  });
-
-  return formatted;
+  return formatCode(code);
 }

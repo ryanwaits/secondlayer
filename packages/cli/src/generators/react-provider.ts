@@ -1,4 +1,4 @@
-import { format } from "prettier";
+import { formatCode } from "../utils/format";
 
 /**
  * Generate React provider template for user projects
@@ -97,13 +97,5 @@ export function createStacksConfig(config: StacksConfig): StacksConfig {
   }
 }`;
 
-  const formatted = await format(code, {
-    parser: "typescript",
-    singleQuote: true,
-    semi: false,
-    printWidth: 100,
-    trailingComma: "es5",
-  });
-
-  return formatted;
+  return formatCode(code);
 }

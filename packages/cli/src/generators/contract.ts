@@ -1,5 +1,5 @@
-import { format } from "prettier";
 import type { ResolvedContract } from "../types/config";
+import { formatCode } from "../utils/format";
 import {
   toCamelCase,
   type ClarityFunction,
@@ -80,15 +80,7 @@ export async function generateContractInterface(
 
   const code = `${imports}\n\n${header}\n\n${validationUtils}\n\n${networkUtils}\n\n${contractsCode}`;
 
-  const formatted = await format(code, {
-    parser: "typescript",
-    singleQuote: true,
-    semi: true,
-    printWidth: 100,
-    trailingComma: "es5",
-  });
-
-  return formatted;
+  return formatCode(code);
 }
 
 function generateContract(contract: ResolvedContract): string {
@@ -380,34 +372,41 @@ function generateMapsObject(
 
     return `${methodName}: {
       async get(key: ${keyType}, options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType} | null> {
-        const { cvToJSON, serializeCV } = await import('@stacks/transactions');
-        const baseUrl = getApiUrl('${address}', options?.network);
-        const mapKey = ${keyConversion};
-        const keyHex = serializeCV(mapKey).toString('hex');
+        try {
+          const { cvToJSON, serializeCV } = await import('@stacks/transactions');
+          const baseUrl = getApiUrl('${address}', options?.network);
+          const mapKey = ${keyConversion};
+          const keyHex = serializeCV(mapKey).toString('hex');
 
-        const response = await fetch(
-          \`\${baseUrl}/v2/map_entry/${address}/${contractName}/${map.name}\`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(keyHex)
+          const response = await fetch(
+            \`\${baseUrl}/v2/map_entry/${address}/${contractName}/${map.name}\`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(keyHex)
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
           }
-        );
 
-        if (!response.ok) {
-          throw new Error(\`Failed to fetch map entry: \${response.statusText}\`);
+          const result = await response.json();
+          if (!result.data || result.data === '0x09') {
+            return null; // none value
+          }
+
+          const { deserializeCV } = await import('@stacks/transactions');
+          const cv = deserializeCV(result.data);
+          const parsed = cvToJSON(cv);
+          // Unwrap the (some ...) wrapper
+          return parsed.value?.value ?? parsed.value ?? null;
+        } catch (error) {
+          if (error instanceof Error) {
+            throw new Error(\`Map access failed for '${map.name}': \${error.message}\`);
+          }
+          throw error;
         }
-
-        const result = await response.json();
-        if (!result.data || result.data === '0x09') {
-          return null; // none value
-        }
-
-        const { deserializeCV } = await import('@stacks/transactions');
-        const cv = deserializeCV(result.data);
-        const parsed = cvToJSON(cv);
-        // Unwrap the (some ...) wrapper
-        return parsed.value?.value ?? parsed.value ?? null;
       },
       keyType: ${JSON.stringify(map.key)} as const,
       valueType: ${JSON.stringify(map.value)} as const
@@ -444,21 +443,28 @@ function generateVarsObject(
 
     return `${methodName}: {
       async get(options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
-        const { cvToJSON, deserializeCV } = await import('@stacks/transactions');
-        const baseUrl = getApiUrl('${address}', options?.network);
+        try {
+          const { cvToJSON, deserializeCV } = await import('@stacks/transactions');
+          const baseUrl = getApiUrl('${address}', options?.network);
 
-        const response = await fetch(
-          \`\${baseUrl}/v2/data_var/${address}/${contractName}/${variable.name}?proof=0\`
-        );
+          const response = await fetch(
+            \`\${baseUrl}/v2/data_var/${address}/${contractName}/${variable.name}?proof=0\`
+          );
 
-        if (!response.ok) {
-          throw new Error(\`Failed to fetch data var: \${response.statusText}\`);
+          if (!response.ok) {
+            throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+          }
+
+          const result = await response.json();
+          const cv = deserializeCV(result.data);
+          const parsed = cvToJSON(cv);
+          return parsed.value ?? parsed;
+        } catch (error) {
+          if (error instanceof Error) {
+            throw new Error(\`Variable access failed for '${variable.name}': \${error.message}\`);
+          }
+          throw error;
         }
-
-        const result = await response.json();
-        const cv = deserializeCV(result.data);
-        const parsed = cvToJSON(cv);
-        return parsed.value ?? parsed;
       },
       type: ${JSON.stringify(variable.type)} as const
     }`;
@@ -494,21 +500,28 @@ function generateConstantsObject(
 
     return `${methodName}: {
       async get(options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
-        const { cvToJSON, deserializeCV } = await import('@stacks/transactions');
-        const baseUrl = getApiUrl('${address}', options?.network);
+        try {
+          const { cvToJSON, deserializeCV } = await import('@stacks/transactions');
+          const baseUrl = getApiUrl('${address}', options?.network);
 
-        const response = await fetch(
-          \`\${baseUrl}/v2/constant_val/${address}/${contractName}/${constant.name}?proof=0\`
-        );
+          const response = await fetch(
+            \`\${baseUrl}/v2/constant_val/${address}/${contractName}/${constant.name}?proof=0\`
+          );
 
-        if (!response.ok) {
-          throw new Error(\`Failed to fetch constant: \${response.statusText}\`);
+          if (!response.ok) {
+            throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+          }
+
+          const result = await response.json();
+          const cv = deserializeCV(result.data);
+          const parsed = cvToJSON(cv);
+          return parsed.value ?? parsed;
+        } catch (error) {
+          if (error instanceof Error) {
+            throw new Error(\`Constant access failed for '${constant.name}': \${error.message}\`);
+          }
+          throw error;
         }
-
-        const result = await response.json();
-        const cv = deserializeCV(result.data);
-        const parsed = cvToJSON(cv);
-        return parsed.value ?? parsed;
       },
       type: ${JSON.stringify(constant.type)} as const
     }`;

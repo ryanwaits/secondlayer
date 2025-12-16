@@ -65,7 +65,7 @@ export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
     }
 
     const transformedCode = code.replace(
-      /from\s+["']@stacks\/cli["']/g,
+      /from\s+["']@secondlayer\/cli["']/g,
       `from '${replacementPath}'`
     );
 

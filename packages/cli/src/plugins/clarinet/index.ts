@@ -4,6 +4,7 @@
  */
 
 import { initSimnet } from "@hirosystems/clarinet-sdk";
+import { toCamelCase } from "@secondlayer/clarity-types";
 import { generateContractInterface } from "../../generators/contract";
 import type {
   PluginFactory,
@@ -25,18 +26,6 @@ export interface ClarinetPluginOptions {
 
   /** Enable debug output */
   debug?: boolean;
-}
-
-/**
- * Convert contract name to camelCase for JavaScript export
- */
-function toCamelCase(str: string): string {
-  return str
-    .replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()) // Convert -a to A
-    .replace(/-([A-Z])/g, (_, letter) => letter) // Convert -A to A
-    .replace(/-(\d)/g, (_, digit) => digit) // Convert -1 to 1
-    .replace(/-/g, "") // Remove any remaining hyphens
-    .replace(/^\d/, "_$&"); // Prefix with underscore if starts with digit
 }
 
 /**
