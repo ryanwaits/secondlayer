@@ -2,7 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
 import { createRequire } from "module";
-import type { StacksConfig, ConfigDefiner } from "../types/config";
+import type { SecondLayerConfig, ConfigDefiner } from "../types/config";
 import type { ResolvedConfig } from "../types/plugin";
 import { PluginManager } from "../core/plugin-manager";
 
@@ -11,9 +11,9 @@ import { PluginManager } from "../core/plugin-manager";
  */
 
 const CONFIG_FILE_NAMES = [
-  "stacks.config.ts",
-  "stacks.config",
-  "stacks.config.mjs",
+  "secondlayer.config.ts",
+  "secondlayer.config",
+  "secondlayer.config.mjs",
 ];
 
 export async function findConfigFile(cwd: string): Promise<string | null> {
@@ -38,7 +38,7 @@ export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
 
   if (!resolvedPath) {
     throw new Error(
-      "No config file found. Create a stacks.config.ts file or specify a path with --config"
+      "No config file found. Create a secondlayer.config.ts file or specify a path with --config"
     );
   }
 
@@ -97,7 +97,7 @@ export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
   }
 
   if (typeof config === "function") {
-    config = config({} as StacksConfig);
+    config = config({} as SecondLayerConfig);
   }
 
   validateConfig(config);
@@ -119,7 +119,7 @@ export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
 
 export function validateConfig(
   config: unknown
-): asserts config is StacksConfig {
+): asserts config is SecondLayerConfig {
   if (!config || typeof config !== "object") {
     throw new Error("Config must be an object");
   }
@@ -150,8 +150,8 @@ export function validateConfig(
   }
 }
 
-export function defineConfig(config: StacksConfig): StacksConfig;
+export function defineConfig(config: SecondLayerConfig): SecondLayerConfig;
 export function defineConfig(definer: ConfigDefiner): ConfigDefiner;
-export function defineConfig(configOrDefiner: StacksConfig | ConfigDefiner) {
+export function defineConfig(configOrDefiner: SecondLayerConfig | ConfigDefiner) {
   return configOrDefiner;
 }

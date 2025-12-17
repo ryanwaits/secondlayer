@@ -28,7 +28,7 @@ program
 
 program
   .command("init")
-  .description("Initialize a new stacks.config.ts file")
+  .description("Initialize a new secondlayer.config.ts file")
   .action(async () => {
     const { init } = await import("./commands/init");
     await init();

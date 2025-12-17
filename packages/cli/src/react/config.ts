@@ -1,11 +1,11 @@
-import type { StacksReactConfig } from "./types";
+import type { SecondLayerReactConfig } from "./types";
 
 /**
- * Create a Stacks React configuration
+ * Create a SecondLayer React configuration
  */
-export function createStacksConfig(
-  config: StacksReactConfig
-): StacksReactConfig {
+export function createSecondLayerConfig(
+  config: SecondLayerReactConfig
+): SecondLayerReactConfig {
   return {
     network: config.network,
     apiKey: config.apiKey,

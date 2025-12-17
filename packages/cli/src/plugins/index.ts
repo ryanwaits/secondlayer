@@ -3,11 +3,11 @@
  * This will be expanded as plugins are implemented
  */
 
-import type { StacksCodegenPlugin } from "../types/plugin";
+import type { SecondLayerPlugin } from "../types/plugin";
 
 // Re-export plugin types for convenience
 export type {
-  StacksCodegenPlugin,
+  SecondLayerPlugin,
   PluginFactory,
   PluginOptions,
   GenerateContext,
@@ -68,8 +68,8 @@ export function filterByOptions<T extends { name: string }>(
 export function createPlugin(
   name: string,
   version: string,
-  implementation: Partial<StacksCodegenPlugin>
-): StacksCodegenPlugin {
+  implementation: Partial<SecondLayerPlugin>
+): SecondLayerPlugin {
   return {
     name,
     version,

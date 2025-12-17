@@ -24,7 +24,7 @@ export async function generateContractHooks(
 ): Promise<string> {
   const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { useStacksConfig } from './provider'
+import { useSecondLayerConfig } from './provider'
 import { request, openContractCall as stacksOpenContractCall } from '@stacks/connect'
 import type { PostCondition } from '@stacks/transactions'
 import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'`;
@@ -140,7 +140,7 @@ function generateReadHook(func: ClarityFunction, contractName: string): string {
   const returnType = clarityTypeToTS(func.outputs);
 
   return `export function ${hookName}(${argsSignature}${enabledParam}) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
 
   return useQuery<${returnType}>({
     queryKey: ['${func.name}', ${contractName}.address, ${generateQueryKeyArgs(func.args)}],
@@ -162,7 +162,7 @@ function generateWriteHook(
   const argsType = generateArgsType(func.args);
 
   return `export function ${hookName}() {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
   
   const mutation = useMutation({
@@ -265,7 +265,7 @@ function generateMapHook(
   const valueType = clarityTypeToTS(map.value);
 
   return `export function ${hookName}(key: ${keyType}, options?: { enabled?: boolean }) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
 
   return useQuery<${valueType} | null>({
     queryKey: ['${contractVarName}', '${map.name}', 'map', key, config.network],
@@ -290,7 +290,7 @@ function generateVarHook(
   const valueType = clarityTypeToTS(variable.type);
 
   return `export function ${hookName}(options?: { enabled?: boolean }) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
 
   return useQuery<${valueType}>({
     queryKey: ['${contractVarName}', '${variable.name}', 'var', config.network],
@@ -315,7 +315,7 @@ function generateConstantHook(
   const valueType = clarityTypeToTS(constant.type);
 
   return `export function ${hookName}(options?: { enabled?: boolean }) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
 
   return useQuery<${valueType}>({
     queryKey: ['${contractVarName}', '${constant.name}', 'constant', config.network],

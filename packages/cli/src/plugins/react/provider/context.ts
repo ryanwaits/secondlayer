@@ -1,18 +1,18 @@
 /**
- * React Context for Stacks configuration
+ * React Context for SecondLayer configuration
  */
 
 import { createContext } from "react";
-import type { StacksReactConfig } from "../types";
+import type { SecondLayerReactConfig } from "../types";
 
 /**
- * React context for Stacks configuration
+ * React context for SecondLayer configuration
  */
-export const StacksContext = createContext<StacksReactConfig | undefined>(
+export const SecondLayerContext = createContext<SecondLayerReactConfig | undefined>(
   undefined
 );
 
 /**
  * Display name for debugging
  */
-StacksContext.displayName = "StacksContext";
+SecondLayerContext.displayName = "SecondLayerContext";

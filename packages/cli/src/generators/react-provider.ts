@@ -8,9 +8,9 @@ export async function generateReactProvider(): Promise<string> {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 /**
- * Stacks configuration for React hooks
+ * SecondLayer configuration for React hooks
  */
-export interface StacksConfig {
+export interface SecondLayerConfig {
   network: 'mainnet' | 'testnet' | 'devnet'
   apiKey?: string
   apiUrl?: string
@@ -18,40 +18,40 @@ export interface StacksConfig {
 }
 
 /**
- * React Context for Stacks configuration
+ * React Context for SecondLayer configuration
  */
-const StacksContext = createContext<StacksConfig | null>(null)
+const SecondLayerContext = createContext<SecondLayerConfig | null>(null)
 
-interface StacksProviderProps {
-  config: StacksConfig
+interface SecondLayerProviderProps {
+  config: SecondLayerConfig
   children: ReactNode
 }
 
 /**
- * Provider for Stacks configuration
+ * Provider for SecondLayer configuration
  */
-export function StacksProvider({ config, children }: StacksProviderProps) {
+export function SecondLayerProvider({ config, children }: SecondLayerProviderProps) {
   return (
-    <StacksContext.Provider value={config}>
+    <SecondLayerContext.Provider value={config}>
       {children}
-    </StacksContext.Provider>
+    </SecondLayerContext.Provider>
   )
 }
 
-interface StacksQueryProviderProps {
-  config: StacksConfig
+interface SecondLayerQueryProviderProps {
+  config: SecondLayerConfig
   children: ReactNode
   queryClient?: QueryClient
 }
 
 /**
- * Convenience provider that includes both Stacks config and TanStack Query
+ * Convenience provider that includes both SecondLayer config and TanStack Query
  */
-export function StacksQueryProvider({ 
-  config, 
-  children, 
-  queryClient 
-}: StacksQueryProviderProps) {
+export function SecondLayerQueryProvider({
+  config,
+  children,
+  queryClient
+}: SecondLayerQueryProviderProps) {
   const client = queryClient || new QueryClient({
     defaultOptions: {
       queries: {
@@ -67,28 +67,28 @@ export function StacksQueryProvider({
 
   return (
     <QueryClientProvider client={client}>
-      <StacksProvider config={config} children={children} />
+      <SecondLayerProvider config={config} children={children} />
     </QueryClientProvider>
   )
 }
 
 /**
- * Hook to access the Stacks configuration
+ * Hook to access the SecondLayer configuration
  */
-export function useStacksConfig(): StacksConfig {
-  const context = useContext(StacksContext)
-  
+export function useSecondLayerConfig(): SecondLayerConfig {
+  const context = useContext(SecondLayerContext)
+
   if (!context) {
-    throw new Error('useStacksConfig must be used within a StacksProvider or StacksQueryProvider')
+    throw new Error('useSecondLayerConfig must be used within a SecondLayerProvider or SecondLayerQueryProvider')
   }
-  
+
   return context
 }
 
 /**
- * Create a Stacks configuration
+ * Create a SecondLayer configuration
  */
-export function createStacksConfig(config: StacksConfig): StacksConfig {
+export function createSecondLayerConfig(config: SecondLayerConfig): SecondLayerConfig {
   return {
     network: config.network,
     apiKey: config.apiKey,

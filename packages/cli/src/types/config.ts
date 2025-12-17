@@ -21,7 +21,7 @@ export interface ContractSource {
   name?: string;
 }
 
-export interface StacksConfig {
+export interface SecondLayerConfig {
   /**
    * Contracts to generate interfaces for (optional - plugins can provide these)
    */
@@ -68,4 +68,4 @@ export interface ResolvedContract {
 }
 
 // Helper function type
-export type ConfigDefiner = (config: StacksConfig) => StacksConfig;
+export type ConfigDefiner = (config: SecondLayerConfig) => SecondLayerConfig;

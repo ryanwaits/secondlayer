@@ -7,12 +7,12 @@ import chalk from "chalk";
  */
 
 export async function init() {
-  const configPath = path.join(process.cwd(), "stacks.config.ts");
+  const configPath = path.join(process.cwd(), "secondlayer.config.ts");
 
   // Check if config already exists
   try {
     await fs.access(configPath);
-    console.log(chalk.yellow("⚠ stacks.config.ts already exists"));
+    console.log(chalk.yellow("⚠ secondlayer.config.ts already exists"));
     return;
   } catch {
     // File doesn't exist, continue
@@ -47,7 +47,7 @@ export default defineConfig({
   // Write config file
   await fs.writeFile(configPath, config);
 
-  console.log(chalk.green("✓ Created `stacks.config.ts`"));
+  console.log(chalk.green("✓ Created `secondlayer.config.ts`"));
 
   console.log(
     "\nRun `secondlayer generate` to generate type-safe interfaces, functions, and hooks!"

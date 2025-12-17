@@ -41,6 +41,6 @@ coverage/
 docs/
 
 # Config files (users should create their own)
-stacks.config.ts
-stacks.config.js
-stacks.config.mjs
+secondlayer.config.ts
+secondlayer.config.js
+secondlayer.config.mjs

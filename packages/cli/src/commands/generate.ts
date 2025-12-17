@@ -12,7 +12,7 @@ import type {
   ResolvedContract,
   NetworkName,
   ContractSource,
-  StacksConfig,
+  SecondLayerConfig,
 } from "../types/config";
 import type { ContractConfig, ResolvedConfig } from "../types/plugin";
 
@@ -115,7 +115,7 @@ async function buildConfigFromInputs(
   outPath: string,
   apiKey: string | undefined,
   defaultAddress?: string
-): Promise<StacksConfig> {
+): Promise<SecondLayerConfig> {
   const contracts = [];
   const deployer = defaultAddress || DEFAULT_DEVNET_ADDRESS;
 
@@ -174,7 +174,7 @@ async function buildConfigFromInputs(
 
 export async function generate(files: string[], options: GenerateOptions) {
   try {
-    let config: StacksConfig;
+    let config: SecondLayerConfig;
 
     // Check if direct inputs were provided (files or contract addresses)
     if (files && files.length > 0) {

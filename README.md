@@ -1,421 +1,156 @@
 # @secondlayer/cli
 
-Generate fully typed contract interfaces, functions, and React hooks for Clarity smart contracts.
+Type-safe contract interfaces, functions, and React hooks for Clarity smart contracts.
+
+## Install
+
+```bash
+bun add -g @secondlayer/cli
+```
+
+## Quick Start
+
+Generate from local files or deployed contracts—no config required:
+
+```bash
+# Local .clar files
+secondlayer generate ./contracts/token.clar -o ./src/generated.ts
+
+# Deployed contracts (network inferred from address)
+secondlayer generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
+
+# Glob patterns
+secondlayer generate "./contracts/*.clar" -o ./src/generated.ts
+```
+
+## With Config
+
+```bash
+secondlayer init  # creates secondlayer.config.ts
+secondlayer generate
+```
+
+```typescript
+// secondlayer.config.ts
+import { defineConfig } from '@secondlayer/cli'
+import { clarinet, actions, react } from '@secondlayer/cli/plugins'
+
+export default defineConfig({
+  out: 'src/generated.ts',
+  plugins: [
+    clarinet(),  // parse local Clarinet project
+    actions(),   // add read/write helpers
+    react(),     // generate React hooks
+  ],
+})
+```
 
 ## Usage
 
-### 1. Utilize the generated contract interfaces with familiar libraries
-```typescript
-// Usage with `@stacks/transactions`
-import { mega } from './generated/contracts'
-import { fetchCallReadOnlyFunction, makeContractCall } from '@stacks/transactions'
+### Contract Calls
 
+```typescript
+import { token } from './generated/contracts'
+import { makeContractCall, fetchCallReadOnlyFunction } from '@stacks/transactions'
+
+// works with @stacks/transactions directly
 await makeContractCall({
-  ...mega.callback({
-    sender: "SPKPXQ0X3A4D1KZ4XTP1GABJX1N36VW10D02TK9X",
-    memo: "Hello world",
-  }),
+  ...token.transfer({ amount: 100n, recipient: "SP..." }),
   network: 'mainnet',
 })
 
 await fetchCallReadOnlyFunction({
-  ...mega.getBalance(),
-  network: 'mainnet'
+  ...token.getBalance({ account: "SP..." }),
+  network: 'mainnet',
 })
 ```
 
-### 2. Use built-in read/write helpers
-```typescript
-// Read helpers
-const balance = await mega.read.getBalance() // {type: 'uint', value: 42000000n}
+### Read/Write Helpers
 
-// Write helpers
-const result = await mega.write.transfer(
-  {
-    amount: 10000n,
-    recipient: "SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335",
-  },
-  {
-    senderKey: "b244296d5907de9864c0b0d51f98a13c52890be0404e83f273144cd5b9960eed01",
-  }
-);
+Requires `actions()` plugin:
+
+```typescript
+// read-only
+const balance = await token.read.getBalance({ account: "SP..." })
+
+// write (signs + broadcasts)
+await token.write.transfer(
+  { amount: 100n, recipient: "SP..." },
+  { senderKey: "..." }
+)
 ```
 
-### 3. Access contract state (maps, variables, constants)
+### Contract State
+
+Access maps, variables, constants directly:
+
 ```typescript
-import { token } from './generated/contracts'
+// maps
+const balance = await token.maps.balances.get("SP...")
 
-// Read map entries - network auto-inferred from contract address (SP = mainnet)
-const balance = await token.maps.balances.get('SP1234...')
+// variables
+const supply = await token.vars.totalSupply.get()
 
-// Read data variables
-const totalSupply = await token.vars.totalSupply.get()
+// constants
+const max = await token.constants.maxSupply.get()
 
-// Read constants (immutable values)
-const maxSupply = await token.constants.maxSupply.get()
-
-// Override network when needed (e.g., for devnet testing)
-const devBalance = await token.maps.balances.get('SP1234...', { network: 'devnet' })
+// network override
+const devBalance = await token.maps.balances.get("SP...", { network: 'devnet' })
 ```
 
-### 4. React integration
+### React Hooks
+
+Requires `react()` plugin:
+
 ```typescript
-import { useBnsV2Transfer } from './generated/hooks'
+import { useTokenTransfer, useTokenBalances, useTokenTotalSupply } from './generated/hooks'
 
 function App() {
-  const { transfer, isRequestPending } = useBnsV2Transfer()
+  const { transfer, isRequestPending } = useTokenTransfer()
+  const { data: balance } = useTokenBalances("SP...")
+  const { data: supply } = useTokenTotalSupply()
 
   return (
-    <button
-      onClick={() => transfer({
-        id: 1n,
-        owner: 'SP...',
-        recipient: 'SP...'
-      })}
-      disabled={isRequestPending}
-    >
+    <button onClick={() => transfer({ amount: 100n, recipient: "SP..." })} disabled={isRequestPending}>
       Transfer
     </button>
   )
 }
 ```
 
-### 5. React hooks for contract state
-```typescript
-import {
-  useTokenBalances,       // Map hook
-  useTokenTotalSupply,    // Variable hook
-  useTokenMaxSupply       // Constant hook
-} from './generated/hooks'
+### Testing Helpers
 
-function TokenInfo() {
-  // Read a map entry - key is typed based on the map definition
-  const { data: balance } = useTokenBalances('SP1234...')
-
-  // Read a data variable
-  const { data: totalSupply } = useTokenTotalSupply()
-
-  // Read a constant (uses staleTime: Infinity - never refetches)
-  const { data: maxSupply } = useTokenMaxSupply()
-
-  return (
-    <div>
-      <p>Balance: {balance?.toString()}</p>
-      <p>Total Supply: {totalSupply?.toString()}</p>
-      <p>Max Supply: {maxSupply?.toString()}</p>
-    </div>
-  )
-}
-```
-
-## Installation
-
-> **Note:** This package is not yet published to npm. For now, you can install it locally:
-
-```bash
-bun add -g @secondlayer/cli
-```
-## Setup
-
-To create a `stacks.config.ts` file, run `secondlayer init` in your Clarinet project:
-
-```bash
-secondlayer init
-```
+Requires `testing()` plugin:
 
 ```typescript
-// stacks.config.ts
-import { defineConfig } from '@secondlayer/cli'
-import { clarinet } from '@secondlayer/cli/plugins'
+import { getContracts } from './helpers'
 
-export default defineConfig({
-  out: 'src/generated.ts',
-  plugins: [clarinet()],
-})
+const simnet = await initSimnet()
+const { token } = getContracts(simnet)
+
+// call functions
+const result = token.transfer({ amount: 100n, recipient: "ST..." }, "wallet_1")
+expect(result.result).toBeOk(Cl.bool(true))
+
+// read state
+const supply = token.vars.totalSupply()
+const balance = token.maps.balances("ST...")
 ```
 
-Run `secondlayer generate` to create fully type-safe interfaces for your contracts.
+## Plugins
 
-```bash
-secondlayer generate
-✔ Generation complete for 2 contracts
-📄 ./src/generated/contracts.ts
-```
-
-## Quick Start (No Config)
-
-Generate interfaces directly from local files or deployed contracts without a config file:
-
-```bash
-# Local .clar files
-secondlayer generate ./contracts/token.clar -o ./src/generated.ts
-
-# Glob patterns
-secondlayer generate "./contracts/*.clar" -o ./src/generated.ts
-
-# Deployed contracts (network auto-detected from address)
-secondlayer generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
-
-# Mix local and deployed
-secondlayer generate ./local.clar SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.token -o ./src/generated.ts
-
-# With API key (for rate limiting)
-secondlayer generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./out.ts --api-key YOUR_KEY
-
-# Or use environment variable
-HIRO_API_KEY=YOUR_KEY secondlayer generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./out.ts
-```
-
-Network is inferred from address prefix:
-- `SP` / `SM` → mainnet
-- `ST` / `SN` → testnet
-
-## Advanced
-
-### Plugins
-
-```typescript
-import { defineConfig } from '@secondlayer/cli'
-import { clarinet, actions, react, testing } from '@secondlayer/cli/plugins'
-
-export default defineConfig({
-  out: 'src/generated.ts',
-  plugins: [
-    clarinet(),    // Generate contract interfaces from local Clarinet project
-    actions(),     // Add read/write helper functions
-    react(),       // Generate React hooks
-    testing(),     // Generate Clarinet SDK test helpers
-  ],
-})
-```
-
-### Testing Plugin
-
-Generate type-safe helpers for Clarinet SDK unit tests. No more manual Clarity value conversions or remembering function signatures.
-
-```typescript
-// stacks.config.ts
-import { defineConfig } from '@secondlayer/cli'
-import { clarinet, testing } from '@secondlayer/cli/plugins'
-
-export default defineConfig({
-  out: 'src/generated.ts',
-  plugins: [
-    clarinet(),
-    testing({
-      out: './tests/helpers.ts',  // Output path (default: ./src/generated/testing.ts)
-      includePrivate: true,       // Include private function helpers
-    }),
-  ],
-})
-```
-
-#### Usage
-
-```typescript
-import { describe, it, expect } from 'vitest';
-import { Cl } from '@hirosystems/clarinet-sdk';
-import { getToken, getContracts } from './helpers';
-
-describe('Token Contract', () => {
-  const simnet = await initSimnet();
-  const { token } = getContracts(simnet);
-  // Or: const token = getToken(simnet);
-
-  it('calls public functions', () => {
-    const result = token.transfer(
-      { amount: 1000n, sender: 'ST1...', recipient: 'ST2...' },
-      'wallet_1'  // Caller (resolved from accounts or used as-is)
-    );
-    expect(result.result).toBeOk(Cl.bool(true));
-  });
-
-  it('calls read-only functions', () => {
-    const result = token.getBalance({ account: 'ST1...' });
-    expect(result.result).toBeOk(Cl.uint(1000n));
-  });
-
-  it('reads data variables', () => {
-    const totalSupply = token.vars.totalSupply();
-    expect(totalSupply).toEqual(Cl.uint(1000000n));
-  });
-
-  it('reads map entries', () => {
-    // Simple key
-    const balance = token.maps.balances('ST1...');
-    expect(balance).toEqual(Cl.some(Cl.uint(500n)));
-
-    // Composite key (tuple)
-    const allowance = token.maps.allowances({
-      owner: 'ST1...',
-      spender: 'ST2...'
-    });
-    expect(allowance).toEqual(Cl.some(Cl.uint(100n)));
-  });
-});
-```
-
-#### Generated API
-
-| Helper | Description |
+| Plugin | Description |
 |--------|-------------|
-| `fn(args, caller)` | Call public functions |
-| `fn(args)` | Call read-only functions |
-| `fn(args, caller)` | Call private functions (with `includePrivate: true`) |
-| `vars.varName()` | Read data variables via `getDataVar` |
-| `maps.mapName(key)` | Read map entries via `getMapEntry` with typed keys |
+| `clarinet()` | Parse local Clarinet project |
+| `actions()` | Add `read`/`write` helpers |
+| `react()` | Generate React hooks |
+| `testing()` | Generate Clarinet SDK test helpers |
 
-### Contract State (Maps, Variables, Constants)
+## Network Inference
 
-Access on-chain contract state directly without calling read-only functions. The generated code includes typed accessors for:
-
-- **Maps**: Key-value storage with typed keys and values
-- **Variables**: Mutable data variables (`define-data-var`)
-- **Constants**: Immutable values (`define-constant`)
-
-**Network is auto-inferred from contract address** (SP/SM = mainnet, ST/SN = testnet):
-
-```typescript
-import { token } from './generated/contracts'
-
-// Maps - access with typed keys (network inferred from contract address)
-const balance = await token.maps.balances.get('SP1234...')
-
-// Composite key (tuple)
-const allowance = await token.maps.allowances.get({
-  owner: 'SP1234...',
-  spender: 'SP5678...'
-})
-
-// Variables - mutable contract state
-const totalSupply = await token.vars.totalSupply.get()
-const isPaused = await token.vars.paused.get()
-
-// Constants - immutable values
-const maxSupply = await token.constants.maxSupply.get()
-const contractOwner = await token.constants.contractOwner.get()
-
-// Override network when needed (e.g., devnet testing with mainnet addresses)
-const devBalance = await token.maps.balances.get('SP1234...', { network: 'devnet' })
-```
-
-#### React Hooks for Contract State
-
-With the `react()` plugin, hooks are generated for each map, variable, and constant:
-
-```typescript
-import {
-  useTokenBalances,       // Map: useContract{MapName}
-  useTokenTotalSupply,    // Var: useContract{VarName}
-  useTokenMaxSupply       // Constant: useContract{ConstantName}
-} from './generated/hooks'
-
-function Dashboard() {
-  // Map hook - pass the key as argument
-  const { data: balance, isLoading } = useTokenBalances('SP1234...')
-
-  // Variable hook - no arguments needed
-  const { data: totalSupply } = useTokenTotalSupply()
-
-  // Constant hook - cached forever (staleTime: Infinity)
-  const { data: maxSupply } = useTokenMaxSupply()
-
-  // All hooks support standard react-query options
-  const { data: conditionalData } = useTokenBalances(address, {
-    enabled: !!address  // Only fetch when address is defined
-  })
-}
-```
-
-#### Network Configuration
-
-All state accessors support network selection:
-
-| Network | API Endpoint |
-|---------|--------------|
-| `mainnet` | https://api.hiro.so |
-| `testnet` | https://api.testnet.hiro.so |
-| `devnet` | http://localhost:3999 |
-
-## Future Enhancements
-
-#### Typed event matchers for testing plugin
-
-Add type-safe event assertion helpers based on contract print events.
-
-```typescript
-// Future API
-const result = token.transfer({ ... }, 'wallet_1');
-
-// Type-safe event matching
-token.events.expectTransfer(result.events, {
-  sender: 'ST1...',
-  recipient: 'ST2...',
-  amount: 1000n
-});
-```
-
-#### Converting responses using `cvToValue`
-
-Currently, when calling read-only functions or receiving blockchain responses, developers must manually extract values from Clarity value objects that include type metadata (e.g., `{ type: "uint", value: 42000n }`). This requires repetitive boilerplate code to access the actual values.
-
-_Solution:_ Provide automatic Clarity value conversion with full TypeScript type inference, extracting raw values while preserving complete type safety.
-
-```typescript
-import { daoContract } from './generated/contracts';
-
-// Before
-const result = await daoContract.read.getProposal(proposalId);
-// Returns complex nested structure:
-// {
-//   type: "tuple",
-//   value: {
-//     id: { type: "uint", value: 1n },
-//     proposer: { type: "principal", value: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7" },
-//     title: { type: "string-utf8", value: "Increase Treasury Allocation" },
-//     votesFor: { type: "uint", value: 150000n },
-//     votesAgainst: { type: "uint", value: 50000n },
-//     startBlock: { type: "uint", value: 120500n },
-//     endBlock: { type: "uint", value: 125500n },
-//     executed: { type: "bool", value: false }
-//   }
-// }
-
-// Tedious extraction needed:
-return {
-  id: result.value.id.value,
-  proposer: result.value.proposer.value,
-  title: result.value.title.value,
-  votesFor: result.value.votesFor.value,
-  votesAgainst: result.value.votesAgainst.value,
-  startBlock: result.value.startBlock.value,
-  endBlock: result.value.endBlock.value,
-  executed: result.value.executed.value
-};
-
-// After
-const proposal = await daoContract.read.getProposal(proposalId);
-// Returns clean TypeScript object directly:
-// {
-//   id: 1n,
-//   proposer: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
-//   title: "Increase Treasury Allocation",
-//   votesFor: 150000n,
-//   votesAgainst: 50000n,
-//   startBlock: 120500n,
-//   endBlock: 125500n,
-//   executed: false
-// }
-
-// Full type safety and IntelliSense:
-console.log(proposal.endBlock); // ✅ TypeScript knows this is bigint
-console.log(proposal.title);     // ✅ TypeScript knows this is string
-console.log(proposal.executed);  // ✅ TypeScript knows this is boolean
-
-return proposal;
-```
-
-#### More hooks
+Address prefix determines network:
+- `SP`/`SM` → mainnet
+- `ST`/`SN` → testnet
 
 ## License
 

@@ -7,7 +7,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { validateStacksAddress } from "@stacks/transactions";
 import type {
-  StacksCodegenPlugin,
+  SecondLayerPlugin,
   UserConfig,
   ResolvedConfig,
   GenerateContext,
@@ -25,7 +25,7 @@ import { isClarinetContract, isDirectFileContract } from "../types/plugin";
  * Core plugin manager that orchestrates plugin execution
  */
 export class PluginManager {
-  private plugins: StacksCodegenPlugin[] = [];
+  private plugins: SecondLayerPlugin[] = [];
   private logger: Logger;
   private utils: PluginUtils;
   private executionContext: PluginExecutionContext;
@@ -43,7 +43,7 @@ export class PluginManager {
   /**
    * Register a plugin
    */
-  register(plugin: StacksCodegenPlugin): void {
+  register(plugin: SecondLayerPlugin): void {
     // Validate plugin
     if (!plugin.name || !plugin.version) {
       throw new Error("Plugin must have a name and version");
@@ -64,7 +64,7 @@ export class PluginManager {
   /**
    * Get all registered plugins
    */
-  getPlugins(): StacksCodegenPlugin[] {
+  getPlugins(): SecondLayerPlugin[] {
     return [...this.plugins];
   }
 
@@ -196,7 +196,7 @@ export class PluginManager {
    * Execute lifecycle hooks
    */
   async executeHook(
-    hookName: keyof StacksCodegenPlugin,
+    hookName: keyof SecondLayerPlugin,
     context: any
   ): Promise<void> {
     for (const plugin of this.plugins) {

@@ -9,16 +9,16 @@ import { formatCode } from "../../../utils/format";
  */
 export async function generateProvider(): Promise<string> {
   const code = `/**
- * Generated Stacks React Provider
+ * Generated SecondLayer React Provider
  * DO NOT EDIT MANUALLY
  */
 
 import React, { createContext, useContext } from 'react'
 
 /**
- * Stacks configuration interface
+ * SecondLayer configuration interface
  */
-export interface StacksReactConfig {
+export interface SecondLayerReactConfig {
   /**
    * Network to use for API calls
    */
@@ -43,21 +43,21 @@ export interface StacksReactConfig {
 /**
  * Provider component props
  */
-export interface StacksProviderProps {
+export interface SecondLayerProviderProps {
   children: React.ReactNode
-  config: StacksReactConfig
+  config: SecondLayerReactConfig
 }
 
 /**
- * React context for Stacks configuration
+ * React context for SecondLayer configuration
  */
-const StacksContext = createContext<StacksReactConfig | undefined>(undefined)
-StacksContext.displayName = 'StacksContext'
+const SecondLayerContext = createContext<SecondLayerReactConfig | undefined>(undefined)
+SecondLayerContext.displayName = 'SecondLayerContext'
 
 /**
- * Create a Stacks React configuration with defaults
+ * Create a SecondLayer React configuration with defaults
  */
-export function createStacksConfig(config: StacksReactConfig): StacksReactConfig {
+export function createSecondLayerConfig(config: SecondLayerReactConfig): SecondLayerReactConfig {
   return {
     network: config.network,
     apiKey: config.apiKey,
@@ -67,31 +67,31 @@ export function createStacksConfig(config: StacksReactConfig): StacksReactConfig
 }
 
 /**
- * Provider component that makes Stacks configuration available to hooks
+ * Provider component that makes SecondLayer configuration available to hooks
  */
-export function StacksProvider({ children, config }: StacksProviderProps) {
-  const resolvedConfig = createStacksConfig(config)
+export function SecondLayerProvider({ children, config }: SecondLayerProviderProps) {
+  const resolvedConfig = createSecondLayerConfig(config)
 
   return (
-    <StacksContext.Provider value={resolvedConfig}>
+    <SecondLayerContext.Provider value={resolvedConfig}>
       {children}
-    </StacksContext.Provider>
+    </SecondLayerContext.Provider>
   )
 }
 
 /**
- * Hook to access the Stacks configuration
+ * Hook to access the SecondLayer configuration
  */
-export function useStacksConfig(): StacksReactConfig {
-  const context = useContext(StacksContext)
-  
+export function useSecondLayerConfig(): SecondLayerReactConfig {
+  const context = useContext(SecondLayerContext)
+
   if (context === undefined) {
     throw new Error(
-      'useStacksConfig must be used within a StacksProvider. ' +
-      'Make sure to wrap your app with <StacksProvider config={{...}}>'
+      'useSecondLayerConfig must be used within a SecondLayerProvider. ' +
+      'Make sure to wrap your app with <SecondLayerProvider config={{...}}>'
     )
   }
-  
+
   return context
 }`;
 

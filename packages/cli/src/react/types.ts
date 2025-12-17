@@ -4,7 +4,7 @@ import type { NetworkName } from "../types/config";
  * React-specific configuration types
  */
 
-export interface StacksReactConfig {
+export interface SecondLayerReactConfig {
   /**
    * Network to use for API calls
    */

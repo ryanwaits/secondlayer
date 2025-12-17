@@ -1,17 +1,17 @@
 /**
- * React Provider for Stacks configuration
+ * React Provider for SecondLayer configuration
  */
 
 import React from "react";
-import { StacksContext } from "./context";
-import type { StacksProviderProps, StacksReactConfig } from "../types";
+import { SecondLayerContext } from "./context";
+import type { SecondLayerProviderProps, SecondLayerReactConfig } from "../types";
 
 /**
- * Create a Stacks React configuration with defaults
+ * Create a SecondLayer React configuration with defaults
  */
-export function createStacksConfig(
-  config: StacksReactConfig
-): StacksReactConfig {
+export function createSecondLayerConfig(
+  config: SecondLayerReactConfig
+): SecondLayerReactConfig {
   return {
     network: config.network,
     apiKey: config.apiKey,
@@ -21,28 +21,28 @@ export function createStacksConfig(
 }
 
 /**
- * Provider component that makes Stacks configuration available to hooks
+ * Provider component that makes SecondLayer configuration available to hooks
  */
-export function StacksProvider({ children, config }: StacksProviderProps) {
-  const resolvedConfig = createStacksConfig(config);
+export function SecondLayerProvider({ children, config }: SecondLayerProviderProps) {
+  const resolvedConfig = createSecondLayerConfig(config);
 
   return (
-    <StacksContext.Provider value={resolvedConfig}>
+    <SecondLayerContext.Provider value={resolvedConfig}>
       {children}
-    </StacksContext.Provider>
+    </SecondLayerContext.Provider>
   );
 }
 
 /**
- * Hook to access the Stacks configuration
+ * Hook to access the SecondLayer configuration
  */
-export function useStacksConfig(): StacksReactConfig {
-  const context = React.useContext(StacksContext);
+export function useSecondLayerConfig(): SecondLayerReactConfig {
+  const context = React.useContext(SecondLayerContext);
 
   if (context === undefined) {
     throw new Error(
-      "useStacksConfig must be used within a StacksProvider. " +
-        "Make sure to wrap your app with <StacksProvider config={...}>"
+      "useSecondLayerConfig must be used within a SecondLayerProvider. " +
+        "Make sure to wrap your app with <SecondLayerProvider config={...}>"
     );
   }
 

@@ -1,11 +1,11 @@
-import type { StacksReactConfig } from "./types";
+import type { SecondLayerReactConfig } from "./types";
 
 /**
- * Hook to access the Stacks configuration
+ * Hook to access the SecondLayer configuration
  * This will be generated in user projects that have React
  */
-export function useStacksConfig(): StacksReactConfig {
+export function useSecondLayerConfig(): SecondLayerReactConfig {
   throw new Error(
-    "useStacksConfig is only available in generated React hooks. Make sure you have React installed and hooks enabled in your config."
+    "useSecondLayerConfig is only available in generated React hooks. Make sure you have React installed and hooks enabled in your config."
   );
 }

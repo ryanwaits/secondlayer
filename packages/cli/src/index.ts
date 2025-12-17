@@ -5,7 +5,7 @@
 
 export { defineConfig } from "./utils/config";
 export type {
-  StacksConfig,
+  SecondLayerConfig,
   ContractSource,
   NetworkName,
 } from "./types/config";
@@ -20,7 +20,7 @@ export type {
 
 // Plugin system exports
 export type {
-  StacksCodegenPlugin,
+  SecondLayerPlugin,
   PluginFactory,
   PluginOptions,
   UserConfig,

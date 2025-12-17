@@ -30,7 +30,7 @@ export async function generateGenericHooks(
 
   const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
-import { useStacksConfig } from './provider'
+import { useSecondLayerConfig } from './provider'
 import { connect, disconnect, isConnected, request, openContractCall as stacksOpenContractCall, openSTXTransfer, openSignatureRequestPopup, openContractDeploy } from '@stacks/connect'
 import { Cl, validateStacksAddress } from '@stacks/transactions'
 import type { PostCondition } from '@stacks/transactions'
@@ -82,7 +82,7 @@ function generateGenericHook(hookName: string): string {
   switch (hookName) {
     case "useAccount":
       return `export function useAccount() {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   
   return useQuery({
     queryKey: ['stacks-account', config.network],
@@ -228,7 +228,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useNetwork":
       return `export function useNetwork() {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   
   return useQuery({
     queryKey: ['stacks-network', config.network],
@@ -256,7 +256,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useContract":
       return `export function useContract() {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
   const [isRequestPending, setIsRequestPending] = useState(false)
   
@@ -552,7 +552,7 @@ function generateGenericHook(hookName: string): string {
   network?: 'mainnet' | 'testnet' | 'devnet';
   enabled?: boolean;
 }) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   
   return useQuery<TResult>({
     queryKey: ['read-contract', params.contractAddress, params.contractName, params.functionName, params.args, params.network || config.network],
@@ -591,7 +591,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useTransaction":
       return `export function useTransaction(txId?: string) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   
   return useQuery({
     queryKey: ['transaction', txId, config.network],
@@ -606,7 +606,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useBlock":
       return `export function useBlock(height?: number) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   
   return useQuery({
     queryKey: ['block', height, config.network],
@@ -621,7 +621,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useAccountTransactions":
       return `export function useAccountTransactions(address?: string) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   
   return useQuery({
     queryKey: ['account-transactions', address, config.network],
@@ -636,7 +636,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useWaitForTransaction":
       return `export function useWaitForTransaction(txId?: string) {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   
   return useQuery({
     queryKey: ['wait-for-transaction', txId, config.network],
@@ -661,7 +661,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useOpenSTXTransfer":
       return `export function useOpenSTXTransfer() {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
   
   const mutation = useMutation({
@@ -728,7 +728,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useSignMessage":
       return `export function useSignMessage() {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   
   const mutation = useMutation({
     mutationFn: async (params: {
@@ -784,7 +784,7 @@ function generateGenericHook(hookName: string): string {
 
     case "useDeployContract":
       return `export function useDeployContract() {
-  const config = useStacksConfig()
+  const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
   
   const mutation = useMutation({

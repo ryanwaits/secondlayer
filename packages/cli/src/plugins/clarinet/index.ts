@@ -8,10 +8,8 @@ import { toCamelCase } from "@secondlayer/clarity-types";
 import { generateContractInterface } from "../../generators/contract";
 import type {
   PluginFactory,
-  // StacksCodegenPlugin,
   UserConfig,
   GenerateContext,
-  // ProcessedContract,
 } from "../../types/plugin";
 
 export interface ClarinetPluginOptions {

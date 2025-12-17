@@ -18,7 +18,7 @@ export interface ReactPluginOptions extends PluginOptions {
 /**
  * React-specific configuration types for the provider
  */
-export interface StacksReactConfig {
+export interface SecondLayerReactConfig {
   /**
    * Network to use for API calls
    */
@@ -43,7 +43,7 @@ export interface StacksReactConfig {
 /**
  * Provider component props
  */
-export interface StacksProviderProps {
+export interface SecondLayerProviderProps {
   children: React.ReactNode;
-  config: StacksReactConfig;
+  config: SecondLayerReactConfig;
 }

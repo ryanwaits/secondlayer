@@ -2,12 +2,12 @@
  * Plugin system types for @secondlayer/cli
  */
 
-import type { StacksConfig, ResolvedContract, NetworkName } from "./config";
+import type { SecondLayerConfig, ResolvedContract, NetworkName } from "./config";
 
 /**
  * Core plugin interface that all plugins must implement
  */
-export interface StacksCodegenPlugin {
+export interface SecondLayerPlugin {
   /** Plugin name (should be unique) */
   name: string;
 
@@ -46,14 +46,14 @@ export interface StacksCodegenPlugin {
 /**
  * User configuration (before plugin transformations)
  */
-export type UserConfig = StacksConfig;
+export type UserConfig = SecondLayerConfig;
 
 /**
  * Resolved configuration (after plugin transformations)
  */
-export interface ResolvedConfig extends StacksConfig {
+export interface ResolvedConfig extends SecondLayerConfig {
   /** Resolved plugins array */
-  plugins: StacksCodegenPlugin[];
+  plugins: SecondLayerPlugin[];
 }
 
 /**
@@ -229,7 +229,7 @@ export interface PluginUtils {
  */
 export type PluginFactory<TOptions = any> = (
   options?: TOptions
-) => StacksCodegenPlugin;
+) => SecondLayerPlugin;
 
 /**
  * Plugin options base interface
@@ -267,7 +267,7 @@ export interface HookResult<T = any> {
  */
 export interface PluginExecutionContext {
   /** Current plugin being executed */
-  currentPlugin?: StacksCodegenPlugin;
+  currentPlugin?: SecondLayerPlugin;
 
   /** Execution phase */
   phase: "config" | "generate" | "output";
