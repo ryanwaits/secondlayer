@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/cli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI for generating type-safe contract interfaces for the Stacks blockchain",
   "type": "module",
   "bin": {

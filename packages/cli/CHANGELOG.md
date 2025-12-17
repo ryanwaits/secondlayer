@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 1.1.0
+
+### Minor Changes
+
+- feat(actions): optional senderKey with STX_SENDER_KEY env var fallback
+
 ## 1.0.0
 
 ### Major Changes
