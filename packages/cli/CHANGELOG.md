@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 1.0.0
+
+### Major Changes
+
+- BREAKING: Renamed all Stacks/Codegen references to SecondLayer
+  - `StacksConfig` → `SecondLayerConfig`
+  - `StacksCodegenPlugin` → `SecondLayerPlugin`
+  - `StacksReactConfig` → `SecondLayerReactConfig`
+  - `StacksProvider` → `SecondLayerProvider`
+  - `useStacksConfig` → `useSecondLayerConfig`
+  - `createStacksConfig` → `createSecondLayerConfig`
+  - Config file: `stacks.config.ts` → `secondlayer.config.ts`
+
 ## 0.3.10
 
 ### Patch Changes
