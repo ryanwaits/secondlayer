@@ -1,5 +1,11 @@
 # @secondlayer/clarity-types
 
+## 0.5.0
+
+### Minor Changes
+
+- Add complete ABI types: fungible/non-fungible tokens, trait definitions, and extractors for maps, variables, and tokens
+
 ## 0.4.2
 
 ### Patch Changes
