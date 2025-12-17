@@ -60,6 +60,15 @@ export function isContractPrincipal(value: unknown): value is string {
   return CONTRACT_NAME_REGEX.test(contractName);
 }
 
+/**
+ * Validates a trait reference (contract principal pointing to a trait).
+ * Trait references are contract principals - the trait itself is identified
+ * by context (function parameter type).
+ */
+export function isTraitReference(value: unknown): value is string {
+  return isContractPrincipal(value);
+}
+
 export function isString(value: unknown): value is string {
   return typeof value === "string";
 }
@@ -130,6 +139,7 @@ import type {
   ClarityBuffer,
   ClarityStringAscii,
   ClarityStringUtf8,
+  ClarityTraitReference,
 } from "../types/primitives";
 
 /**
@@ -187,4 +197,13 @@ export function isClarityStringUtf8(
   type: ClarityType
 ): type is ClarityStringUtf8 {
   return typeof type === "object" && type !== null && "string-utf8" in type;
+}
+
+/**
+ * Type guard for Clarity trait_reference type definitions
+ */
+export function isClarityTraitReference(
+  type: ClarityType
+): type is ClarityTraitReference {
+  return type === "trait_reference";
 }

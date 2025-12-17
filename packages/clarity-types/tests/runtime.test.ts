@@ -6,6 +6,7 @@ import {
   isPrincipal,
   isStandardPrincipal,
   isContractPrincipal,
+  isTraitReference,
   isOkResponse,
   isErrResponse,
   isResponse,
@@ -18,6 +19,7 @@ import {
   isClarityBuffer,
   isClarityStringAscii,
   isClarityStringUtf8,
+  isClarityTraitReference,
   jsToClarity,
   prepareArgs,
   validateArgs,
@@ -576,6 +578,29 @@ describe("Clarity ABI Type Guards", () => {
     expect(isClarityStringUtf8({ "string-utf8": { length: 100 } })).toBe(true);
     expect(isClarityStringUtf8("uint128")).toBe(false);
     expect(isClarityStringUtf8({ "string-ascii": { length: 100 } })).toBe(false);
+  });
+
+  it("should identify trait_reference types", () => {
+    expect(isClarityTraitReference("trait_reference")).toBe(true);
+    expect(isClarityTraitReference("uint128")).toBe(false);
+    expect(isClarityTraitReference("principal")).toBe(false);
+  });
+});
+
+describe("isTraitReference", () => {
+  it("should validate trait references (contract principals)", () => {
+    expect(isTraitReference("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.my-trait")).toBe(true);
+    expect(isTraitReference("ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG.test-trait")).toBe(true);
+  });
+
+  it("should reject standard principals", () => {
+    expect(isTraitReference("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7")).toBe(false);
+  });
+
+  it("should reject invalid values", () => {
+    expect(isTraitReference("invalid")).toBe(false);
+    expect(isTraitReference(null)).toBe(false);
+    expect(isTraitReference(123)).toBe(false);
   });
 });
 

@@ -63,6 +63,7 @@ const transfer = (args: TransferArgs) => ({
 | `int128`            | `bigint`                     |
 | `bool`              | `boolean`                    |
 | `principal`         | `string`                     |
+| `trait_reference`   | `string`                     |
 | `(string-ascii N)`  | `string`                     |
 | `(string-utf8 N)`   | `string`                     |
 | `(buff N)`          | `Uint8Array`                 |
@@ -90,6 +91,47 @@ type PublicFunctions = ExtractPublicFunctions<Contract>;
 
 // Extract only read-only functions
 type ReadOnlyFunctions = ExtractReadOnlyFunctions<Contract>;
+
+// Extract private functions
+type PrivateFunctions = ExtractPrivateFunctions<Contract>;
+```
+
+### Map and Variable Extraction
+
+```typescript
+// Extract map types for typed map operations
+type MapNames = ExtractMapNames<Contract>;
+type BalanceKey = ExtractMapKey<Contract, "balances">;
+type BalanceValue = ExtractMapValue<Contract, "balances">;
+
+// Extract variable types
+type VarNames = ExtractVariableNames<Contract>;
+type OwnerType = ExtractVariableType<Contract, "contract-owner">;
+
+// Filter by access
+type Constants = ExtractConstants<Contract>;
+type DataVars = ExtractDataVars<Contract>;
+```
+
+### Token Extraction
+
+```typescript
+// Get token names
+type FTNames = ExtractFungibleTokenNames<Contract>;
+type NFTNames = ExtractNonFungibleTokenNames<Contract>;
+
+// Get NFT asset identifier type
+type NFTAsset = ExtractNFTAssetType<Contract, "my-nft">;
+```
+
+### Trait Extraction
+
+```typescript
+// Get defined trait names
+type DefinedTraits = ExtractDefinedTraitNames<Contract>;
+
+// Get implemented trait identifiers
+type ImplementedTraits = ExtractImplementedTraits<Contract>;
 ```
 
 ### Type Guards

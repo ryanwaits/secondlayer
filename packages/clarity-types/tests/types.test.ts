@@ -6,6 +6,19 @@ import type {
   ExtractFunctionArgs,
   ExtractFunctionOutput,
   ContractInterface,
+  ExtractMapNames,
+  ExtractMapKey,
+  ExtractMapValue,
+  ExtractVariableNames,
+  ExtractVariableType,
+  ExtractConstants,
+  ExtractDataVars,
+  ExtractFungibleTokenNames,
+  ExtractNonFungibleTokenNames,
+  ExtractNFTAssetType,
+  ExtractDefinedTraitNames,
+  ExtractImplementedTraits,
+  ExtractPrivateFunctions,
 } from "../src";
 
 /**
@@ -257,5 +270,101 @@ describe("Complex Type Inference", () => {
     expectTypeOf<ComplexType2>().toEqualTypeOf<
       { ok: { status: boolean; count: bigint } } | { err: string }
     >();
+  });
+});
+
+describe("Map and Variable Extraction", () => {
+  const contractWithMapsAndVars = {
+    functions: [
+      {
+        name: "internal-helper",
+        access: "private",
+        args: [],
+        outputs: "bool",
+      },
+    ],
+    maps: [
+      {
+        name: "balances",
+        key: "principal",
+        value: "uint128",
+      },
+      {
+        name: "token-owners",
+        key: "uint128",
+        value: { optional: "principal" },
+      },
+    ],
+    variables: [
+      { name: "contract-owner", type: "principal", access: "constant" },
+      { name: "total-supply", type: "uint128", access: "variable" },
+    ],
+    fungible_tokens: [{ name: "my-token" }],
+    non_fungible_tokens: [{ name: "my-nft", type: "uint128" }],
+    implemented_traits: ["SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.sip-010-trait"],
+    defined_traits: [
+      {
+        name: "transfer-trait",
+        functions: [
+          {
+            name: "transfer",
+            access: "public",
+            args: [{ name: "amount", type: "uint128" }],
+            outputs: { response: { ok: "bool", error: "uint128" } },
+          },
+        ],
+      },
+    ],
+  } as const satisfies ClarityContract;
+
+  it("should extract map names", () => {
+    type MapNames = ExtractMapNames<typeof contractWithMapsAndVars>;
+    expectTypeOf<MapNames>().toEqualTypeOf<"balances" | "token-owners">();
+  });
+
+  it("should extract map key and value types", () => {
+    type BalanceKey = ExtractMapKey<typeof contractWithMapsAndVars, "balances">;
+    type BalanceValue = ExtractMapValue<typeof contractWithMapsAndVars, "balances">;
+    expectTypeOf<BalanceKey>().toEqualTypeOf<string>();
+    expectTypeOf<BalanceValue>().toEqualTypeOf<bigint>();
+  });
+
+  it("should extract variable names by access", () => {
+    type AllVars = ExtractVariableNames<typeof contractWithMapsAndVars>;
+    type Constants = ExtractConstants<typeof contractWithMapsAndVars>;
+    type DataVars = ExtractDataVars<typeof contractWithMapsAndVars>;
+
+    expectTypeOf<AllVars>().toEqualTypeOf<"contract-owner" | "total-supply">();
+    expectTypeOf<Constants>().toEqualTypeOf<"contract-owner">();
+    expectTypeOf<DataVars>().toEqualTypeOf<"total-supply">();
+  });
+
+  it("should extract variable types", () => {
+    type SupplyType = ExtractVariableType<typeof contractWithMapsAndVars, "total-supply">;
+    expectTypeOf<SupplyType>().toEqualTypeOf<bigint>();
+  });
+
+  it("should extract token names", () => {
+    type FTNames = ExtractFungibleTokenNames<typeof contractWithMapsAndVars>;
+    type NFTNames = ExtractNonFungibleTokenNames<typeof contractWithMapsAndVars>;
+    expectTypeOf<FTNames>().toEqualTypeOf<"my-token">();
+    expectTypeOf<NFTNames>().toEqualTypeOf<"my-nft">();
+  });
+
+  it("should extract NFT asset type", () => {
+    type NFTAsset = ExtractNFTAssetType<typeof contractWithMapsAndVars, "my-nft">;
+    expectTypeOf<NFTAsset>().toEqualTypeOf<bigint>();
+  });
+
+  it("should extract trait names", () => {
+    type DefinedTraits = ExtractDefinedTraitNames<typeof contractWithMapsAndVars>;
+    type ImplementedTraits = ExtractImplementedTraits<typeof contractWithMapsAndVars>;
+    expectTypeOf<DefinedTraits>().toEqualTypeOf<"transfer-trait">();
+    expectTypeOf<ImplementedTraits>().toEqualTypeOf<"SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.sip-010-trait">();
+  });
+
+  it("should extract private functions", () => {
+    type PrivateFns = ExtractPrivateFunctions<typeof contractWithMapsAndVars>;
+    expectTypeOf<PrivateFns>().toEqualTypeOf<"internal-helper">();
   });
 });

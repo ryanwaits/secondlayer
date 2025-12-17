@@ -35,12 +35,31 @@ export type {
   ClarityMap,
   ClarityVariable,
   VariableAccess,
+  ClarityFungibleToken,
+  ClarityNonFungibleToken,
+  ClarityTraitFunction,
+  ClarityTraitDefinition,
 } from "./abi/functions";
 
 export type {
   ExtractFunctionNames,
   ExtractFunctionArgs,
   ExtractFunctionOutput,
+  ExtractPrivateFunctions,
+  ExtractMapNames,
+  ExtractMap,
+  ExtractMapKey,
+  ExtractMapValue,
+  ExtractVariableNames,
+  ExtractVariable,
+  ExtractVariableType,
+  ExtractConstants,
+  ExtractDataVars,
+  ExtractFungibleTokenNames,
+  ExtractNonFungibleTokenNames,
+  ExtractNFTAssetType,
+  ExtractDefinedTraitNames,
+  ExtractImplementedTraits,
 } from "./abi/extractors";
 
 export type {

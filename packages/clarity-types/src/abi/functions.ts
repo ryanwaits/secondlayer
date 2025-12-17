@@ -38,13 +38,47 @@ export interface ClarityMap {
   value: ClarityType;
 }
 
+/**
+ * Clarity fungible token definition (define-fungible-token)
+ */
+export interface ClarityFungibleToken {
+  name: string;
+}
+
+/**
+ * Clarity non-fungible token definition (define-non-fungible-token)
+ */
+export interface ClarityNonFungibleToken {
+  name: string;
+  type: ClarityType;
+}
+
+/**
+ * Trait function signature (used in define-trait)
+ */
+export interface ClarityTraitFunction {
+  name: string;
+  access: "public" | "read-only";
+  args: ReadonlyArray<FunctionArg>;
+  outputs: ClarityType;
+}
+
+/**
+ * Clarity trait definition (define-trait)
+ */
+export interface ClarityTraitDefinition {
+  name: string;
+  functions: ReadonlyArray<ClarityTraitFunction>;
+}
+
 export interface ClarityContract {
   functions: ReadonlyArray<ClarityFunction>;
   maps?: ReadonlyArray<ClarityMap>;
   variables?: ReadonlyArray<ClarityVariable>;
-  // Future additions:
-  // fungibleTokens?: ReadonlyArray<FungibleToken>
-  // nonFungibleTokens?: ReadonlyArray<NonFungibleToken>
+  fungible_tokens?: ReadonlyArray<ClarityFungibleToken>;
+  non_fungible_tokens?: ReadonlyArray<ClarityNonFungibleToken>;
+  implemented_traits?: ReadonlyArray<string>;
+  defined_traits?: ReadonlyArray<ClarityTraitDefinition>;
 }
 
 // Helper type to ensure const assertion
