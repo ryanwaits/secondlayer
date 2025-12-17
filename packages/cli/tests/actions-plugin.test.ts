@@ -98,8 +98,12 @@ describe("Actions Plugin", () => {
       // Should use makeContractCall
       expect(code).toContain("makeContractCall");
 
-      // Should require senderKey
-      expect(code).toContain("senderKey: string");
+      // Should have optional senderKey parameter
+      expect(code).toContain("senderKey?: string");
+
+      // Should have env var fallback
+      expect(code).toContain("process.env.STX_SENDER_KEY");
+      expect(code).toContain("senderKey required: pass as argument or set STX_SENDER_KEY env var");
 
       // Should handle arguments correctly
       expect(code).toContain(
@@ -125,6 +129,17 @@ describe("Actions Plugin", () => {
 
       expect(code).not.toContain("async transfer(");
       expect(code).toContain("async mint(");
+    });
+
+    it("should use custom senderKeyEnv when provided", async () => {
+      const options: ActionsPluginOptions = {
+        senderKeyEnv: "MY_CUSTOM_KEY",
+      };
+      const code = await generateActionHelpers(sampleContract, options);
+
+      expect(code).toContain("process.env.MY_CUSTOM_KEY");
+      expect(code).toContain("senderKey required: pass as argument or set MY_CUSTOM_KEY env var");
+      expect(code).not.toContain("STX_SENDER_KEY");
     });
   });
 

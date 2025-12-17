@@ -261,6 +261,7 @@ function generateWriteHelpers(
 ): string {
   const { abi, name } = contract;
   const functions = abi.functions || [];
+  const envVarName = options.senderKeyEnv ?? "STX_SENDER_KEY";
 
   const publicFunctions = functions.filter(
     (f: ClarityFunction) => f.access === "public"
@@ -296,8 +297,7 @@ function generateWriteHelpers(
     const argsSignature = generateArgsSignature(func.args);
     const clarityArgs = generateClarityArgs(func.args, name);
 
-    return `async ${methodName}(${argsSignature}options: {
-      senderKey: string;
+    return `async ${methodName}(${argsSignature}senderKey?: string, options?: {
       network?: 'mainnet' | 'testnet' | 'devnet';
       fee?: string | number | undefined;
       nonce?: bigint;
@@ -305,14 +305,18 @@ function generateWriteHelpers(
       postConditions?: PostCondition[];
       validateWithAbi?: boolean;
     }) {
-      const { senderKey, network = 'mainnet', ...txOptions } = options;
-      
+      const resolvedSenderKey = senderKey ?? process.env.${envVarName};
+      if (!resolvedSenderKey) {
+        throw new Error('senderKey required: pass as argument or set ${envVarName} env var');
+      }
+      const { network = 'mainnet', ...txOptions } = options ?? {};
+
       return await makeContractCall({
         contractAddress: '${contract.address}',
         contractName: '${contract.contractName}',
         functionName: '${func.name}',
         functionArgs: [${clarityArgs}],
-        senderKey,
+        senderKey: resolvedSenderKey,
         network,
         validateWithAbi: true,
         ...txOptions

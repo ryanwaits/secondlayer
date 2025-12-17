@@ -73,11 +73,14 @@ Requires `actions()` plugin:
 // read-only
 const balance = await token.read.getBalance({ account: "SP..." })
 
-// write (signs + broadcasts)
-await token.write.transfer(
-  { amount: 100n, recipient: "SP..." },
-  { senderKey: "..." }
-)
+// write (uses STX_SENDER_KEY env var)
+await token.write.transfer({ amount: 100n, recipient: "SP..." })
+
+// or pass senderKey explicitly
+await token.write.transfer({ amount: 100n, recipient: "SP..." }, "<sender-key>")
+
+// with additional options
+await token.write.transfer({ amount: 100n, recipient: "SP..." }, "<sender-key>", { network: 'testnet' })
 ```
 
 ### Contract State

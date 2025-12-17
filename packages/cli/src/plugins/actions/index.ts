@@ -25,6 +25,9 @@ export interface ActionsPluginOptions {
 
   /** Enable debug output */
   debug?: boolean;
+
+  /** Environment variable name for default sender key (default: "STX_SENDER_KEY") */
+  senderKeyEnv?: string;
 }
 
 /**
