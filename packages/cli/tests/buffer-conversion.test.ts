@@ -57,9 +57,9 @@ describe("Buffer Conversion Enhancement", () => {
     const code = await generateContractInterface([contractWithBuffer]);
 
     // Verify the code contains the logic for all supported formats
-    expect(code).toContain("case 'ascii':");
-    expect(code).toContain("case 'utf8':");
-    expect(code).toContain("case 'hex':");
+    expect(code).toContain('case "ascii":');
+    expect(code).toContain('case "utf8":');
+    expect(code).toContain('case "hex":');
     expect(code).toContain("throw new Error(`Invalid buffer value");
   });
 

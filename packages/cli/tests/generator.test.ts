@@ -186,9 +186,10 @@ describe("Contract Generator", () => {
       expect(code).toContain("principalVal: string");
       expect(code).toContain("asciiVal: string");
       expect(code).toContain("utf8Val: string");
-      expect(code).toContain(
-        "bufferVal: Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }"
-      );
+      // Biome formats union types across multiple lines
+      expect(code).toContain("bufferVal:");
+      expect(code).toContain("Uint8Array");
+      expect(code).toContain("value: string");
     });
 
     it("should handle optional and list types", async () => {

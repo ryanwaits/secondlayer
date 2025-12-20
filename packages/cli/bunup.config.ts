@@ -4,7 +4,7 @@ const sharedConfig = {
   splitting: false,
   sourcemap: "linked",
   minify: false,
-  external: ["esbuild", "prettier", "@hirosystems/clarinet-sdk", "@secondlayer/clarity-types"],
+  external: ["esbuild", "@biomejs/js-api", "@biomejs/wasm-nodejs", "@hirosystems/clarinet-sdk", "@secondlayer/clarity-types"],
   noExternal: ["chalk", "commander", "fast-glob", "got", "execa"],
   shims: true,
   target: "node",

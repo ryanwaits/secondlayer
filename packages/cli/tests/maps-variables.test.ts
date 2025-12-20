@@ -291,7 +291,8 @@ describe("Maps, Variables, and Constants Generation", () => {
       const code = await generateContractHooks([processedContract]);
 
       expect(code).toContain("useTokenContractTokenName");
-      expect(code).toContain("staleTime: Infinity");
+      // Biome converts Infinity to Number.POSITIVE_INFINITY
+      expect(code).toMatch(/staleTime:\s*(Infinity|Number\.POSITIVE_INFINITY)/);
     });
 
     it("should not generate hooks for excluded names", async () => {

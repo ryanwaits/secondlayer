@@ -41,8 +41,9 @@
   "dependencies": {
     "@secondlayer/clarity-types": "^0.5.0",
     "@stacks/transactions": "7.0.6",
-    "esbuild": "^0.19.0",
-    "prettier": "^3.1.0"
+    "@biomejs/js-api": "^0.7.0",
+    "@biomejs/wasm-nodejs": "^1.9.0",
+    "esbuild": "^0.19.0"
   },
   "devDependencies": {
     "@antfu/ni": "^24.4.0",
@@ -59,6 +60,6 @@
     "react": "^19.1.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19.0"
   }
 }
