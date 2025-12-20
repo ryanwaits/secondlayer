@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 1.2.0
+
+### Minor Changes
+
+- Migrate code formatter from Prettier to Biome JS API with import sorting and tabs
+
 ## 1.1.0
 
 ### Minor Changes
@@ -60,6 +66,7 @@
 ### Patch Changes
 
 - Add composite type validation and consolidate shared utilities
+
   - Add validation for lists (max length), tuples (required fields), and responses (ok/err shape)
   - Add contract name format validation for principals
   - Create ABI normalization layer for buffer/buff and read_only/read-only compatibility
@@ -122,6 +129,7 @@
 ### Patch Changes
 
 - Fix type safety for complex Clarity types in React hooks
+
   - Fix `mapClarityTypeToTS` to properly handle response, tuple, list, and optional types
   - React hooks now return proper TypeScript types instead of `any` for complex return values
   - Fix PostCondition types (use `PostCondition[]` instead of `any[]`)
