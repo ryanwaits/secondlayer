@@ -54,66 +54,48 @@ export class StacksApiClient {
     }
   }
 
-  async getContractInfo(contractId: string): Promise<ContractInfo> {
+  private parseContractId(contractId: string): { address: string; contractName: string } {
     const [address, contractName] = contractId.split(".");
-
     if (!address || !contractName) {
       throw new Error(
         `Invalid contract ID format: ${contractId}. Expected format: ADDRESS.CONTRACT_NAME`
       );
     }
+    return { address, contractName };
+  }
 
-    const url = `${this.baseUrl}/v2/contracts/interface/${address}/${contractName}`;
-
+  private async fetchWithErrorHandling<T>(
+    url: string,
+    resourceType: string,
+    resourceId: string
+  ): Promise<T> {
     try {
       const response = await gotWithRetry(url, {
         headers: this.headers,
         responseType: "json",
       });
-
-      return response.body as ContractInfo;
+      return response.body as T;
     } catch (error: any) {
       if (error.response?.statusCode === 404) {
-        throw new Error(`Contract not found: ${contractId}`);
+        throw new Error(`${resourceType} not found: ${resourceId}`);
       }
       if (error.response?.statusCode === 429) {
-        throw new Error(
-          "Rate limited. Please provide an API key in your config."
-        );
+        throw new Error("Rate limited. Please provide an API key in your config.");
       }
-      throw new Error(`Failed to fetch contract: ${error.message}`);
+      throw new Error(`Failed to fetch ${resourceType.toLowerCase()}: ${error.message}`);
     }
   }
 
+  async getContractInfo(contractId: string): Promise<ContractInfo> {
+    const { address, contractName } = this.parseContractId(contractId);
+    const url = `${this.baseUrl}/v2/contracts/interface/${address}/${contractName}`;
+    return this.fetchWithErrorHandling<ContractInfo>(url, "Contract", contractId);
+  }
+
   async getContractSource(contractId: string): Promise<string> {
-    const [address, contractName] = contractId.split(".");
-
-    if (!address || !contractName) {
-      throw new Error(
-        `Invalid contract ID format: ${contractId}. Expected format: ADDRESS.CONTRACT_NAME`
-      );
-    }
-
+    const { address, contractName } = this.parseContractId(contractId);
     const url = `${this.baseUrl}/v2/contracts/source/${address}/${contractName}`;
-
-    try {
-      const response = await gotWithRetry(url, {
-        headers: this.headers,
-        responseType: "json",
-      });
-
-      const data = response.body as { source: string };
-      return data.source;
-    } catch (error: any) {
-      if (error.response?.statusCode === 404) {
-        throw new Error(`Contract source not found: ${contractId}`);
-      }
-      if (error.response?.statusCode === 429) {
-        throw new Error(
-          "Rate limited. Please provide an API key in your config."
-        );
-      }
-      throw new Error(`Failed to fetch contract source: ${error.message}`);
-    }
+    const data = await this.fetchWithErrorHandling<{ source: string }>(url, "Contract source", contractId);
+    return data.source;
   }
 }
