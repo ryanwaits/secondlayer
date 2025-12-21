@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/clarity-docs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ClarityDoc - Documentation comment standard and tooling for Clarity smart contracts",
   "type": "module",
   "main": "./dist/index.js",
