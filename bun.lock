@@ -12,6 +12,16 @@
         "vitest": "^1.2.1",
       },
     },
+    "packages/clarity-docs": {
+      "name": "@secondlayer/clarity-docs",
+      "version": "0.1.0",
+      "dependencies": {
+        "@secondlayer/clarity-types": "workspace:*",
+      },
+      "devDependencies": {
+        "@vitest/ui": "^1.2.1",
+      },
+    },
     "packages/clarity-types": {
       "name": "@secondlayer/clarity-types",
       "version": "0.5.0",
@@ -24,7 +34,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "bin": {
         "secondlayer": "./dist/cli.js",
       },
@@ -351,6 +361,8 @@
     "@scure/bip39": ["@scure/bip39@1.6.0", "", { "dependencies": { "@noble/hashes": "~1.8.0", "@scure/base": "~1.2.5" } }, "sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A=="],
 
     "@sec-ant/readable-stream": ["@sec-ant/readable-stream@0.4.1", "", {}, "sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg=="],
+
+    "@secondlayer/clarity-docs": ["@secondlayer/clarity-docs@workspace:packages/clarity-docs"],
 
     "@secondlayer/clarity-types": ["@secondlayer/clarity-types@workspace:packages/clarity-types"],
 

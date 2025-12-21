@@ -1,0 +1,45 @@
+{
+  "name": "@secondlayer/clarity-docs",
+  "version": "0.1.0",
+  "description": "ClarityDoc - Documentation comment standard and tooling for Clarity smart contracts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "bunup",
+    "dev": "bunup --watch",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "stacks",
+    "clarity",
+    "documentation",
+    "claritydoc",
+    "smart-contracts",
+    "typescript"
+  ],
+  "author": "Ryan Waits",
+  "license": "MIT",
+  "dependencies": {
+    "@secondlayer/clarity-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^1.2.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
