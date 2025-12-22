@@ -34,7 +34,7 @@
   "author": "Ryan Waits",
   "license": "MIT",
   "dependencies": {
-    "@secondlayer/clarity-types": "workspace:*"
+    "@secondlayer/clarity-types": "^0.5.0"
   },
   "devDependencies": {
     "@vitest/ui": "^1.2.1"
