@@ -10,7 +10,7 @@ export * from "./types/index";
 // Parser
 export { tokenize, parseDefine, groupCommentBlocks } from "./parser/lexer";
 export type { Token, TokenType, DefineType, DefineInfo, CommentBlock } from "./parser/lexer";
-export { parseTagLine, parseDocBlock, extractParams, extractErrs, extractPosts, extractPrints, extractTagValues, extractFirstTagValue, extractCustomTags, extractCalls, extractCallers, extractImplements } from "./parser/parser";
+export { parseTagLine, parseDocBlock, extractParams, extractErrs, extractPosts, extractPrints, extractTagValues, extractFirstTagValue, extractCustomTags, extractCalls, extractCaller, extractImplements } from "./parser/parser";
 export { extractDocs, extractDocsFromFile } from "./parser/extractor";
 
 // Validation

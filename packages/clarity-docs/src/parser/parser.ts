@@ -213,11 +213,10 @@ export function extractCalls(tags: DocTag[]): CallDoc[] {
     });
 }
 
-/** Extract @caller tags as string array */
-export function extractCallers(tags: DocTag[]): string[] {
-  return tags
-    .filter((t) => t.tag === "caller")
-    .map((t) => t.description);
+/** Extract first @caller tag as string */
+export function extractCaller(tags: DocTag[]): string | undefined {
+  const tag = tags.find((t) => t.tag === "caller");
+  return tag?.description;
 }
 
 /** Extract @implements tags as string array */

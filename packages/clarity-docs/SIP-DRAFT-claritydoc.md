@@ -204,6 +204,39 @@ Comments without tags are treated as `@desc`:
 
 **Error Constants:** When `@err` is used on a constant, the parser extracts the error code from `(err uXX)` values, enabling wallets and explorers to display human-readable error messages instead of cryptic codes like `(err u67)`.
 
+#### Trait Tags
+
+| Tag | Description | Example |
+|-----|-------------|---------|
+| `@desc` | Trait purpose | `@desc Fungible token interface` |
+| `@dev` | Implementation notes | `@dev Required for SIP-010 compliance` |
+
+**Trait Documentation Example:**
+
+```clarity
+;; @desc Standard fungible token interface
+;; @dev Implements SIP-010 specification
+;; @see https://github.com/stacksgov/sips/blob/main/sips/sip-010/sip-010-fungible-token-standard.md
+(define-trait ft-trait
+  (
+    ;; Transfer tokens from sender to recipient
+    (transfer (uint principal principal (optional (buff 34))) (response bool uint))
+    ;; Get token balance for account
+    (get-balance (principal) (response uint uint))
+    ;; Get total supply
+    (get-total-supply () (response uint uint))
+    ;; Get token name
+    (get-name () (response (string-ascii 32) uint))
+    ;; Get token symbol
+    (get-symbol () (response (string-ascii 32) uint))
+    ;; Get decimals
+    (get-decimals () (response uint uint))
+    ;; Get token URI
+    (get-token-uri () (response (optional (string-utf8 256)) uint))
+  )
+)
+```
+
 #### Universal Tags
 
 These tags can be used on any definition:
@@ -219,13 +252,33 @@ These tags can be used on any definition:
 ```ebnf
 doc-block     = { doc-line } ;
 doc-line      = ";;" [ whitespace ] [ tag-content | free-text ] newline ;
-tag-content   = "@" tag-name [ whitespace tag-arg ] [ whitespace description ] ;
+tag-content   = "@" tag-name [ whitespace tag-args ] ;
 tag-name      = identifier | "custom:" identifier ;
-tag-arg       = identifier ;
+
+(* Tag-specific argument formats *)
+tag-args      = simple-tag | named-tag | typed-tag ;
+simple-tag    = description ;                           (* @desc, @ok, @dev, etc. *)
+named-tag     = identifier whitespace description ;     (* @param name desc, @err CODE desc *)
+typed-tag     = [ type-annotation whitespace ] identifier whitespace description ;
+
+(* Type annotations for @prints *)
+type-annotation = "{" type-content "}" ;
+type-content  = { any-char-except-brace } ;             (* e.g., "uint" or "from: principal, to: principal" *)
+
 description   = { any-char-except-newline } ;
 identifier    = letter { letter | digit | "-" | "_" } ;
 free-text     = { any-char-except-newline } ;
 ```
+
+**Tag Format Examples:**
+
+| Tag | Format | Example |
+|-----|--------|---------|
+| `@desc` | `@desc <description>` | `@desc Transfer tokens` |
+| `@param` | `@param <name> <description>` | `@param amount The number of tokens` |
+| `@err` | `@err <CODE> <description>` | `@err ERR_OVERFLOW Value too large` |
+| `@prints` | `@prints [<{type}>] <name> <description>` | `@prints {uint} count The iteration count` |
+| `@post` | `@post <asset> <description>` | `@post stx Transfers 10 STX` |
 
 ### Attachment Rules
 
@@ -265,6 +318,12 @@ free-text     = { any-char-except-newline } ;
 ;; @key principal The user's address
 ;; @value uint Total increments by this user
 (define-map user-increments principal uint)
+
+;; @desc Counter operations interface
+;; @dev Allows external contracts to interact with counter
+(define-trait counter-trait
+  ((increment (uint) (response uint uint))
+   (get-counter () (response uint uint))))
 
 ;; @desc Increment the counter by a specified amount
 ;; @param amount The value to add to the counter
@@ -525,7 +584,7 @@ console.log(`Saved ${savings.savedBytes} bytes (${savings.savingsPercent.toFixed
 | `@ok` | Functions | No | Success value description |
 | `@err` | Functions, Constants | Yes (code) | Error case description |
 | `@post` | Functions | Yes (asset) | Postcondition (asset transfer/mint) |
-| `@prints` | Functions | Yes (name) | Print statements triggered |
+| `@prints` | Functions | Yes (`[{type}] name`) | Print statements triggered |
 | `@example` | Functions, Constants | No | Usage example |
 | `@key` | Maps | No | Map key description |
 | `@value` | Maps | No | Map value description |
@@ -586,6 +645,55 @@ The `@uri` and `@hash` tags support hybrid documentation strategies:
 2. **Rich Media**: Link to diagrams, videos, or interactive examples
 3. **Cost Reduction**: Keep verbose docs off-chain to reduce deployment costs
 4. **Versioning**: Point to versioned documentation sites
+
+### Localization
+
+The `@uri` tag enables language-specific documentation through two patterns:
+
+**Pattern 1: Single URI with locale subpaths (Recommended)**
+
+```clarity
+;; @contract Token Contract
+;; @uri https://docs.example.com/token
+```
+
+The URI points to a root that serves locale-specific content:
+- `https://docs.example.com/token/en` for English
+- `https://docs.example.com/token/es` for Spanish
+- `https://docs.example.com/token/zh` for Chinese
+
+Clients append the user's locale to the base URI, falling back to `/en` if unavailable.
+
+**Pattern 2: Multiple URIs with locale hints**
+
+```clarity
+;; @contract Token Contract
+;; @uri https://docs.example.com/token/en
+;; @uri https://docs.example.com/token/es
+;; @uri https://docs.example.com/token/zh
+```
+
+Clients parse the locale from the URL path and select the appropriate one.
+
+**Client Implementation:**
+
+```typescript
+function getLocalizedDocUrl(uris: string[], userLocale: string): string {
+  // Pattern 2: Multiple URIs - find matching locale
+  const localeUri = uris.find(uri => uri.includes(`/${userLocale}`));
+  if (localeUri) return localeUri;
+
+  // Pattern 1: Single URI - append locale
+  if (uris.length === 1) {
+    return `${uris[0]}/${userLocale}`;
+  }
+
+  // Fallback to English or first available
+  return uris.find(uri => uri.includes('/en')) || uris[0];
+}
+```
+
+**Recommendation:** Use Pattern 1 (single URI) for simplicity. The documentation server handles locale negotiation, keeping the contract minimal.
 
 ### Integrity Verification
 

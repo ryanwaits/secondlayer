@@ -14,8 +14,8 @@ import { createEmptyContractDoc } from "../types/doc-block";
 import type { DefineInfo } from "./lexer";
 import { groupCommentBlocks, tokenize } from "./lexer";
 import {
+  extractCaller,
   extractCalls,
-  extractCallers,
   extractCustomTags,
   extractErrs,
   extractFirstTagValue,
@@ -127,7 +127,7 @@ function buildFunctionDoc(
     examples: extractTagValues(parsed.tags, "example"),
     prints: extractPrints(parsed.tags),
     calls: extractCalls(parsed.tags),
-    callers: extractCallers(parsed.tags),
+    caller: extractCaller(parsed.tags),
     desc: extractFirstTagValue(parsed.tags, "desc"),
     dev: extractFirstTagValue(parsed.tags, "dev"),
     deprecated: extractFirstTagValue(parsed.tags, "deprecated"),

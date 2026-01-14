@@ -87,7 +87,7 @@ export interface FunctionDoc extends DocBlock {
   /** External contract calls */
   calls: CallDoc[];
   /** Authorization requirements */
-  callers: string[];
+  caller?: string;
   /** Description (human-readable) */
   desc?: string;
   /** Developer notes */

@@ -231,13 +231,9 @@ function generateFunctionMarkdown(
     lines.push("");
   }
 
-  // Authorization (callers)
-  if (func.callers.length > 0) {
-    lines.push("**Authorization:**");
-    lines.push("");
-    for (const caller of func.callers) {
-      lines.push(`- ${caller}`);
-    }
+  // Authorization
+  if (func.caller) {
+    lines.push(`**Authorization:** ${func.caller}`);
     lines.push("");
   }
 

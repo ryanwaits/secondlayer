@@ -204,12 +204,12 @@ describe("generators", () => {
       }]);
     });
 
-    it("should include callers in function", () => {
+    it("should include caller in function", () => {
       const doc = extractDocs(sampleSource);
       const result = toJson(doc);
 
       const increment = result.functions.find(f => f.name === "increment");
-      expect(increment?.callers).toEqual(["Must be contract owner"]);
+      expect(increment?.caller).toBe("Must be contract owner");
     });
   });
 });

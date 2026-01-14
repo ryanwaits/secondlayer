@@ -17,7 +17,7 @@ export interface JsonFunctionDoc {
   examples: string[];
   prints: Array<{ name: string; type?: string; description: string }>;
   calls: Array<{ contract: string; function: string; description?: string }>;
-  callers: string[];
+  caller?: string;
   deprecated?: string;
   version?: string;
   see: string[];
@@ -127,7 +127,7 @@ function convertFunction(func: FunctionDoc): JsonFunctionDoc {
     examples: func.examples,
     prints: func.prints,
     calls: func.calls,
-    callers: func.callers,
+    caller: func.caller,
     deprecated: func.deprecated,
     version: func.version,
     see: func.see,

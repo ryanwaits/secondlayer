@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { tokenize, parseDefine, groupCommentBlocks } from "../src/parser/lexer";
-import { parseDocBlock, parseTagLine, extractParams, extractErrs, extractPrints, extractCalls, extractCallers, extractImplements } from "../src/parser/parser";
+import { parseDocBlock, parseTagLine, extractParams, extractErrs, extractPrints, extractCalls, extractCaller, extractImplements } from "../src/parser/parser";
 import { extractDocs } from "../src/parser/extractor";
 
 describe("lexer", () => {
@@ -417,22 +417,21 @@ describe("parser", () => {
     });
   });
 
-  describe("extractCallers", () => {
-    it("should extract caller descriptions", () => {
+  describe("extractCaller", () => {
+    it("should extract first caller description", () => {
       const tags = [
         { tag: "caller" as const, description: "Must be owner", line: 1 },
       ];
-      const result = extractCallers(tags);
-      expect(result).toEqual(["Must be owner"]);
+      const result = extractCaller(tags);
+      expect(result).toBe("Must be owner");
     });
 
-    it("should extract multiple callers", () => {
+    it("should return undefined when no caller", () => {
       const tags = [
-        { tag: "caller" as const, description: "Must be owner", line: 1 },
-        { tag: "caller" as const, description: "Must be whitelisted", line: 2 },
+        { tag: "desc" as const, description: "Some function", line: 1 },
       ];
-      const result = extractCallers(tags);
-      expect(result).toEqual(["Must be owner", "Must be whitelisted"]);
+      const result = extractCaller(tags);
+      expect(result).toBeUndefined();
     });
   });
 

@@ -103,25 +103,31 @@ function stripAllDocComments(source: string): string {
 function stripSelectiveDocs(source: string, tagsToKeep: Set<string>): string {
   const lines = source.split("\n");
   const result: string[] = [];
+  let inKeptTag = false;
 
   for (const line of lines) {
     const trimmed = line.trim();
 
     if (trimmed.startsWith(";;")) {
-      // Check if this line has a tag we want to keep
+      // Check if this line has a tag
       const tagMatch = trimmed.match(/^;;\s*@([a-zA-Z][a-zA-Z0-9_:-]*)/);
       if (tagMatch) {
         const tag = tagMatch[1];
         if (tagsToKeep.has(tag) || tag.startsWith("custom:")) {
           result.push(line);
+          inKeptTag = true;
+        } else {
+          // New tag we don't want - stop continuation
+          inKeptTag = false;
         }
-        // Skip lines with tags we don't want to keep
-      } else {
-        // Plain comment without tag - skip if we're being selective
-        // (unless it's a continuation of a kept tag, which we can't easily detect)
+      } else if (inKeptTag) {
+        // Continuation line of a kept tag - keep it
+        result.push(line);
       }
+      // else: plain comment not in continuation - skip
     } else {
       result.push(line);
+      inKeptTag = false; // Reset on non-comment line
     }
   }
 
