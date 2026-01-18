@@ -39,9 +39,9 @@ export type ClarityPrimitiveType =
   | ClarityStringUtf8
   | ClarityBuffer;
 
-export const MAX_U128 = 2n ** 128n - 1n;
-export const MAX_I128 = 2n ** 127n - 1n;
-export const MIN_I128 = -(2n ** 127n);
+export const MAX_U128: bigint = 2n ** 128n - 1n;
+export const MAX_I128: bigint = 2n ** 127n - 1n;
+export const MIN_I128: bigint = -(2n ** 127n);
 
 // Contract name validation regex (used after address validation)
-export const CONTRACT_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9\-]{0,127}$/;
+export const CONTRACT_NAME_REGEX: RegExp = /^[a-zA-Z][a-zA-Z0-9\-]{0,127}$/;
