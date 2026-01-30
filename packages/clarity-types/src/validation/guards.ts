@@ -112,12 +112,14 @@ export function isResponse<T, E>(
     return false;
   }
 
+  const obj = value as Record<string, unknown>;
+
   if ("ok" in value && !("err" in value)) {
-    return okGuard((value as any).ok);
+    return okGuard(obj.ok);
   }
 
   if ("err" in value && !("ok" in value)) {
-    return errGuard((value as any).err);
+    return errGuard(obj.err);
   }
 
   return false;

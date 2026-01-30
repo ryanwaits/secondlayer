@@ -5,10 +5,15 @@
 /**
  * Type-level utility to convert kebab-case to camelCase
  */
-export type ToCamelCase<S extends string> =
+type CamelCaseInner<S extends string> =
   S extends `${infer P1}-${infer P2}${infer P3}`
-    ? `${P1}${Capitalize<ToCamelCase<`${P2}${P3}`>>}`
+    ? `${P1}${Capitalize<CamelCaseInner<`${P2}${P3}`>>}`
     : S;
+
+export type ToCamelCase<S extends string> =
+  CamelCaseInner<S> extends `${number}${string}`
+    ? `_${CamelCaseInner<S>}`
+    : CamelCaseInner<S>;
 
 /**
  * Runtime utility to convert kebab-case to camelCase
