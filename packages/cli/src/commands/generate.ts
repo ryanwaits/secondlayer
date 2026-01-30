@@ -5,6 +5,7 @@ import { toCamelCase } from "@secondlayer/clarity-types";
 import { loadConfig } from "../utils/config";
 import { parseContractId } from "../utils/contract-id";
 import { StacksApiClient } from "../utils/api";
+import { inferNetwork } from "../utils/network";
 import { parseClarityFile, parseApiResponse } from "../parsers/clarity";
 import { generateContractInterface } from "../generators/contract";
 import { PluginManager } from "../core/plugin-manager";
@@ -39,17 +40,6 @@ function isContractAddress(input: string): boolean {
   return contractIdPattern.test(input);
 }
 
-/**
- * Infer network from contract address prefix
- */
-function inferNetwork(address: string): NetworkName {
-  // SP = mainnet standard, SM = mainnet multisig
-  if (address.startsWith("SP") || address.startsWith("SM")) {
-    return "mainnet";
-  }
-  // ST = testnet standard, SN = testnet multisig
-  return "testnet";
-}
 
 /**
  * Parse inputs and separate into local files and deployed contract addresses
@@ -147,7 +137,7 @@ async function buildConfigFromInputs(
   // Process deployed contract addresses (fetch from API)
   for (const contractId of parsedInputs.contractIds) {
     const { address, contractName } = parseContractId(contractId);
-    const network = inferNetwork(address);
+    const network = inferNetwork(address) ?? "mainnet";
 
     try {
       const apiClient = new StacksApiClient(network, apiKey);

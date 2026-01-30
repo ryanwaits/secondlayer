@@ -1,5 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { tmpdir } from "os";
+import { randomBytes } from "crypto";
 import { pathToFileURL } from "url";
 import { createRequire } from "module";
 import type { SecondLayerConfig, ConfigDefiner } from "../types/config";
@@ -76,7 +78,10 @@ export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
       loader: "ts",
     });
 
-    const tempPath = resolvedPath.replace(/\.ts$/, ".mjs");
+    const tempPath = path.join(
+      tmpdir(),
+      `secondlayer-config-${randomBytes(4).toString("hex")}.mjs`
+    );
     await fs.writeFile(tempPath, result.code);
 
     try {
