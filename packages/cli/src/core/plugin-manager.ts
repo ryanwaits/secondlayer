@@ -6,6 +6,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { validateStacksAddress } from "@stacks/transactions";
+import { parseContractId } from "../utils/contract-id";
 import type {
   SecondLayerPlugin,
   UserConfig,
@@ -121,11 +122,11 @@ export class PluginManager {
         // Convert Clarinet contracts directly to ProcessedContract format
         const address =
           typeof contract.address === "string" ? contract.address : "";
-        const [contractAddress, contractName] = address.split(".");
+        const parsed = parseContractId(address);
         const processed: ProcessedContract = {
-          name: contract.name || contractName,
-          address: contractAddress,
-          contractName: contractName,
+          name: contract.name || parsed.contractName,
+          address: parsed.address,
+          contractName: parsed.contractName,
           abi: contract.abi,
           source: "local" as const,
           metadata: { source: "clarinet" },
@@ -138,11 +139,11 @@ export class PluginManager {
       if (isDirectFileContract(contract) && contract.abi) {
         const address =
           typeof contract.address === "string" ? contract.address : "";
-        const [contractAddress, contractName] = address.split(".");
+        const parsed = parseContractId(address);
         const processed: ProcessedContract = {
-          name: contract.name || contractName,
-          address: contractAddress,
-          contractName: contractName,
+          name: contract.name || parsed.contractName,
+          address: parsed.address,
+          contractName: parsed.contractName,
           abi: contract.abi,
           source: "local" as const,
           metadata: { source: "direct" },
@@ -176,11 +177,11 @@ export class PluginManager {
       // Convert to ProcessedContract
       if (contract.abi) {
         const addressStr = typeof contract.address === "string" ? contract.address : "";
-        const [contractAddress, originalContractName] = addressStr.split(".");
+        const parsed = parseContractId(addressStr);
         const processed: ProcessedContract = {
-          name: contract.name || originalContractName || "unknown",
-          address: contractAddress || "unknown",
-          contractName: originalContractName || contract.name || "unknown",
+          name: contract.name || parsed.contractName || "unknown",
+          address: parsed.address || "unknown",
+          contractName: parsed.contractName || contract.name || "unknown",
           abi: contract.abi,
           source: "api" as const, // Use "api" as default for plugin-processed contracts
           metadata: contract.metadata,
@@ -400,12 +401,11 @@ export class PluginManager {
       },
 
       validateAddress: (address: string) => {
-        return validateStacksAddress(address.split(".")[0]);
+        return validateStacksAddress(parseContractId(address).address);
       },
 
       parseContractId: (contractId: string) => {
-        const [address, contractName] = contractId.split(".");
-        return { address, contractName };
+        return parseContractId(contractId);
       },
 
       formatCode: async (code: string) => {

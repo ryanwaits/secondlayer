@@ -1,5 +1,6 @@
 import got from "got";
 import type { NetworkName } from "../types/config";
+import { parseContractId } from "./contract-id";
 
 const gotWithRetry = got.extend({
   timeout: { request: 30000 },
@@ -54,14 +55,8 @@ export class StacksApiClient {
     }
   }
 
-  private parseContractId(contractId: string): { address: string; contractName: string } {
-    const [address, contractName] = contractId.split(".");
-    if (!address || !contractName) {
-      throw new Error(
-        `Invalid contract ID format: ${contractId}. Expected format: ADDRESS.CONTRACT_NAME`
-      );
-    }
-    return { address, contractName };
+  private parseContractId(contractId: string) {
+    return parseContractId(contractId);
   }
 
   private async fetchWithErrorHandling<T>(

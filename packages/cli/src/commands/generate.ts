@@ -3,6 +3,7 @@ import chalk from "chalk";
 import fg from "fast-glob";
 import { toCamelCase } from "@secondlayer/clarity-types";
 import { loadConfig } from "../utils/config";
+import { parseContractId } from "../utils/contract-id";
 import { StacksApiClient } from "../utils/api";
 import { parseClarityFile, parseApiResponse } from "../parsers/clarity";
 import { generateContractInterface } from "../generators/contract";
@@ -145,7 +146,7 @@ async function buildConfigFromInputs(
 
   // Process deployed contract addresses (fetch from API)
   for (const contractId of parsedInputs.contractIds) {
-    const [address, contractName] = contractId.split(".");
+    const { address, contractName } = parseContractId(contractId);
     const network = inferNetwork(address);
 
     try {
@@ -318,9 +319,9 @@ export async function resolveContract(
         ? source.address
         : source.address?.[network] || DEFAULT_DEVNET_ADDRESS;
 
-    const [contractAddress, contractName] = address.includes(".")
-      ? address.split(".")
-      : [address, name];
+    const { address: contractAddress, contractName } = address.includes(".")
+      ? parseContractId(address)
+      : { address, contractName: name };
 
     return {
       name,
@@ -349,14 +350,14 @@ export async function resolveContract(
     ).getContractInfo(contractId);
     const abi = parseApiResponse(contractInfo);
 
-    const [contractAddress, contractName] = contractId.split(".");
+    const parsed = parseContractId(contractId);
     const name =
-      source.name || contractName.replace(/-/g, "_").replace(/^\d/, "_$&");
+      source.name || parsed.contractName.replace(/-/g, "_").replace(/^\d/, "_$&");
 
     return {
       name,
-      address: contractAddress,
-      contractName,
+      address: parsed.address,
+      contractName: parsed.contractName,
       abi,
       source: "api",
     };
@@ -404,9 +405,9 @@ export async function resolveContracts(
         const contractInfo = await networkApiClient.getContractInfo(contractId);
         const abi = parseApiResponse(contractInfo);
 
-        const [contractAddress, contractName] = contractId.split(".");
+        const parsed = parseContractId(contractId);
         const baseName =
-          source.name || contractName.replace(/-/g, "_").replace(/^\d/, "_$&");
+          source.name || parsed.contractName.replace(/-/g, "_").replace(/^\d/, "_$&");
 
         // Generate network-specific names
         const name =
@@ -416,8 +417,8 @@ export async function resolveContracts(
 
         resolvedContracts.push({
           name,
-          address: contractAddress,
-          contractName,
+          address: parsed.address,
+          contractName: parsed.contractName,
           abi,
           source: "api",
         });

@@ -5,6 +5,7 @@
 
 import { initSimnet } from "@hirosystems/clarinet-sdk";
 import { toCamelCase } from "@secondlayer/clarity-types";
+import { parseContractId } from "../../utils/contract-id";
 import { generateContractInterface } from "../../generators/contract";
 import { normalizeAbi } from "../../utils/abi-compat";
 import type {
@@ -41,7 +42,7 @@ async function isUserDefinedContract(
   contractId: string,
   manifestPath: string
 ): Promise<boolean> {
-  const [address, contractName] = contractId.split(".");
+  const { address, contractName } = parseContractId(contractId);
 
   try {
     // Read Clarinet.toml to get user-defined contracts
@@ -115,7 +116,7 @@ export const clarinet: PluginFactory<ClarinetPluginOptions> = (
         const contracts = [];
 
         for (const [contractId, abi] of contractInterfaces) {
-          const [_, contractName] = contractId.split(".");
+          const { contractName } = parseContractId(contractId);
 
           // Skip system contracts
           if (!(await isUserDefinedContract(contractId, manifestPath))) {
