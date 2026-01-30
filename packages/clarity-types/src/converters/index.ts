@@ -239,7 +239,7 @@ export function prepareArgs<F extends ClarityFunction>(
 ): unknown[] {
   return func.args.map((arg) => {
     if (!(arg.name in args)) {
-      throw new Error(`Missing argument: ${arg.name}`);
+      throw new ClarityConversionError(`Missing argument: ${arg.name}`, arg.type, undefined);
     }
     return jsToClarity(arg.type, args[arg.name]);
   });
@@ -252,7 +252,7 @@ export function validateArgs<F extends ClarityFunction>(
 ): void {
   for (const arg of func.args) {
     if (!(arg.name in args)) {
-      throw new Error(`Missing argument: ${arg.name}`);
+      throw new ClarityConversionError(`Missing argument: ${arg.name}`, arg.type, undefined);
     }
     jsToClarity(arg.type, args[arg.name]);
   }
@@ -264,8 +264,10 @@ export function validateArgsArray<F extends ClarityFunction>(
   args: unknown[]
 ): void {
   if (args.length !== func.args.length) {
-    throw new Error(
-      `Expected ${func.args.length} arguments, got ${args.length}`
+    throw new ClarityConversionError(
+      `Expected ${func.args.length} arguments, got ${args.length}`,
+      func.args[0]?.type ?? "bool",
+      args
     );
   }
 

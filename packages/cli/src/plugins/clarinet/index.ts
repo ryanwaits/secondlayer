@@ -6,6 +6,7 @@
 import { initSimnet } from "@hirosystems/clarinet-sdk";
 import { toCamelCase } from "@secondlayer/clarity-types";
 import { generateContractInterface } from "../../generators/contract";
+import { normalizeAbi } from "../../utils/abi-compat";
 import type {
   PluginFactory,
   UserConfig,
@@ -140,7 +141,7 @@ export const clarinet: PluginFactory<ClarinetPluginOptions> = (
           contracts.push({
             name: sanitizedName,
             address: contractId,
-            abi: abi,
+            abi: normalizeAbi(abi),
             // Remove source field - this was causing the path resolution issue
             _clarinetSource: true, // Internal flag for our plugin
           });

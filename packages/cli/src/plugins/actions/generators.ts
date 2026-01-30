@@ -197,7 +197,7 @@ function generateReadHelpers(
 
   const readOnlyFunctions = functions.filter(
     (f: ClarityFunction) =>
-      (f.access as any) === "read_only" || f.access === "read-only"
+      f.access === "read-only"
   );
 
   if (readOnlyFunctions.length === 0) {

@@ -55,7 +55,7 @@ function generateContractHookMethods(
 
   const readOnlyFunctions = functions.filter(
     (f: ClarityFunction) =>
-      (f.access as any) === "read_only" || f.access === "read-only"
+      f.access === "read-only"
   );
   const publicFunctions = functions.filter(
     (f: ClarityFunction) => f.access === "public"

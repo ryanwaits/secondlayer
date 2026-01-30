@@ -388,7 +388,7 @@ function generateContractHelper(
   );
   const readOnlyFns = functions.filter(
     (f: ClarityFunction) =>
-      (f.access as any) === "read_only" || f.access === "read-only"
+      f.access === "read-only"
   );
   const privateFns = options.includePrivate
     ? functions.filter((f: ClarityFunction) => f.access === "private")
