@@ -55,10 +55,6 @@ export class StacksApiClient {
     }
   }
 
-  private parseContractId(contractId: string) {
-    return parseContractId(contractId);
-  }
-
   private async fetchWithErrorHandling<T>(
     url: string,
     resourceType: string,
@@ -82,13 +78,13 @@ export class StacksApiClient {
   }
 
   async getContractInfo(contractId: string): Promise<ContractInfo> {
-    const { address, contractName } = this.parseContractId(contractId);
+    const { address, contractName } = parseContractId(contractId);
     const url = `${this.baseUrl}/v2/contracts/interface/${address}/${contractName}`;
     return this.fetchWithErrorHandling<ContractInfo>(url, "Contract", contractId);
   }
 
   async getContractSource(contractId: string): Promise<string> {
-    const { address, contractName } = this.parseContractId(contractId);
+    const { address, contractName } = parseContractId(contractId);
     const url = `${this.baseUrl}/v2/contracts/source/${address}/${contractName}`;
     const data = await this.fetchWithErrorHandling<{ source: string }>(url, "Contract source", contractId);
     return data.source;
