@@ -30,19 +30,6 @@ export type ExtractFunctionArgs<
     }
   : never;
 
-export type ExtractFunctionArgsTuple<
-  C extends ClarityContract,
-  N extends ExtractFunctionNames<C>
-> = ExtractFunction<C, N> extends {
-  args: infer Args extends ReadonlyArray<{ type: any }>;
-}
-  ? {
-      [K in keyof Args]: Args[K] extends { type: infer T extends ClarityType }
-        ? ClarityToTS<T>
-        : never;
-    }
-  : never;
-
 export type ExtractFunctionOutput<
   C extends ClarityContract,
   N extends ExtractFunctionNames<C>

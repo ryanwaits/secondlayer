@@ -56,9 +56,11 @@ export interface ClarityNonFungibleToken {
 /**
  * Trait function signature (used in define-trait)
  */
+export type TraitFunctionAccess = Exclude<FunctionAccess, "private">;
+
 export interface ClarityTraitFunction {
   name: string;
-  access: "public" | "read-only";
+  access: TraitFunctionAccess;
   args: ReadonlyArray<FunctionArg>;
   outputs: ClarityType;
 }
@@ -80,6 +82,3 @@ export interface ClarityContract {
   implemented_traits?: ReadonlyArray<string>;
   defined_traits?: ReadonlyArray<ClarityTraitDefinition>;
 }
-
-// Helper type to ensure const assertion
-export type AsConst<T> = T extends ClarityContract ? T : never;
