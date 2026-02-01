@@ -170,7 +170,7 @@ function generateMapEntryHelper(map: ClarityMap, contractId: string): string {
  * Generate the vars object containing all data variable accessors
  */
 function generateVarsObject(
-  variables: ClarityVariable[],
+  variables: readonly ClarityVariable[],
   contractId: string
 ): string {
   // Filter to only include mutable variables (not constants)
@@ -190,7 +190,7 @@ function generateVarsObject(
 /**
  * Generate the maps object containing all map entry accessors
  */
-function generateMapsObject(maps: ClarityMap[], contractId: string): string {
+function generateMapsObject(maps: readonly ClarityMap[], contractId: string): string {
   if (maps.length === 0) {
     return "";
   }
@@ -211,8 +211,8 @@ function generateContractHelper(
 ): string {
   const { abi, name, address } = contract;
   const functions = abi.functions || [];
-  const variables: ClarityVariable[] = abi.variables || [];
-  const maps: ClarityMap[] = abi.maps || [];
+  const variables = abi.variables || [];
+  const maps = abi.maps || [];
   const pascalName = toPascalCase(name);
 
   // Filter functions by access type

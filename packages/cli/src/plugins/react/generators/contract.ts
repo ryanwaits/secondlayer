@@ -50,8 +50,8 @@ function generateContractHookMethods(
 ): string {
   const { abi, name, address, contractName } = contract;
   const functions = abi.functions || [];
-  const maps = (abi.maps || []) as ClarityMap[];
-  const variables = (abi.variables || []) as ClarityVariable[];
+  const maps = abi.maps || [];
+  const variables = abi.variables || [];
 
   const readOnlyFunctions = functions.filter(
     (f: ClarityFunction) =>

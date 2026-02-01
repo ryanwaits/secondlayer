@@ -2,6 +2,8 @@
  * Configuration types for @secondlayer/cli
  */
 
+import type { ClarityContract } from "@secondlayer/clarity-types";
+
 export type NetworkName = "mainnet" | "testnet" | "devnet";
 
 export interface ContractSource {
@@ -63,7 +65,7 @@ export interface ResolvedContract {
   name: string;
   address: string;
   contractName: string;
-  abi: any; // Will be ClarityContract type
+  abi: ClarityContract;
   source: "api" | "local";
 }
 
