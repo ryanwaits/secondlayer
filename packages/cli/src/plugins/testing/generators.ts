@@ -6,8 +6,10 @@
 import type { ProcessedContract } from "../../types/plugin";
 import {
   toCamelCase,
+  isClarityTuple,
   type ClarityFunction,
   type ClarityMap,
+  type ClarityType,
   type ClarityVariable,
 } from "@secondlayer/clarity-types";
 import type { TestingPluginOptions } from "./index";
@@ -110,12 +112,12 @@ function generateDataVarHelper(
 /**
  * Generate TypeScript type for map key based on its structure
  */
-function getMapKeyType(keyType: any): string {
+function getMapKeyType(keyType: ClarityType): string {
   // Map keys are typically tuples
-  if (keyType.tuple) {
+  if (isClarityTuple(keyType)) {
     const fields = keyType.tuple
       .map(
-        (field: any) =>
+        (field) =>
           `${toCamelCase(field.name)}: ${getTypeForArg({ type: field.type })}`
       )
       .join("; ");
@@ -129,11 +131,11 @@ function getMapKeyType(keyType: any): string {
 /**
  * Generate Clarity conversion for map key
  */
-function generateMapKeyConversion(keyType: any): string {
+function generateMapKeyConversion(keyType: ClarityType): string {
   // Map keys are typically tuples
-  if (keyType.tuple) {
+  if (isClarityTuple(keyType)) {
     const fields = keyType.tuple
-      .map((field: any) => {
+      .map((field) => {
         const camelFieldName = toCamelCase(field.name);
         const fieldConversion = generateClarityConversion(
           `key.${camelFieldName}`,
