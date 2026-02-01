@@ -95,15 +95,21 @@ export function extractDocs(source: string, sourcePath?: string): ContractDoc {
   return doc;
 }
 
+function extractCommonMetadata(tags: ReturnType<typeof parseDocBlock>["tags"]) {
+  return {
+    desc: extractFirstTagValue(tags, "desc"),
+    dev: extractFirstTagValue(tags, "dev"),
+    deprecated: extractFirstTagValue(tags, "deprecated"),
+    version: extractFirstTagValue(tags, "version"),
+    see: extractTagValues(tags, "see"),
+  };
+}
+
 function buildContractHeader(parsed: ReturnType<typeof parseDocBlock>): ContractHeaderDoc {
   return {
+    ...extractCommonMetadata(parsed.tags),
     contract: extractFirstTagValue(parsed.tags, "contract"),
     author: extractFirstTagValue(parsed.tags, "author"),
-    desc: extractFirstTagValue(parsed.tags, "desc"),
-    dev: extractFirstTagValue(parsed.tags, "dev"),
-    version: extractFirstTagValue(parsed.tags, "version"),
-    deprecated: extractFirstTagValue(parsed.tags, "deprecated"),
-    see: extractTagValues(parsed.tags, "see"),
     implements: extractImplements(parsed.tags),
     custom: extractCustomTags(parsed.tags),
     uri: extractFirstTagValue(parsed.tags, "uri"),
@@ -128,11 +134,7 @@ function buildFunctionDoc(
     prints: extractPrints(parsed.tags),
     calls: extractCalls(parsed.tags),
     caller: extractCaller(parsed.tags),
-    desc: extractFirstTagValue(parsed.tags, "desc"),
-    dev: extractFirstTagValue(parsed.tags, "dev"),
-    deprecated: extractFirstTagValue(parsed.tags, "deprecated"),
-    version: extractFirstTagValue(parsed.tags, "version"),
-    see: extractTagValues(parsed.tags, "see"),
+    ...extractCommonMetadata(parsed.tags),
   };
 }
 
@@ -154,11 +156,7 @@ function buildMapDoc(
         ? `${valueTag.name} ${valueTag.description}`
         : valueTag.description
       : undefined,
-    desc: extractFirstTagValue(parsed.tags, "desc"),
-    dev: extractFirstTagValue(parsed.tags, "dev"),
-    deprecated: extractFirstTagValue(parsed.tags, "deprecated"),
-    version: extractFirstTagValue(parsed.tags, "version"),
-    see: extractTagValues(parsed.tags, "see"),
+    ...extractCommonMetadata(parsed.tags),
   };
 }
 
@@ -171,11 +169,7 @@ function buildVariableDoc(
     ...parsed,
     target,
     variableName: define.name,
-    desc: extractFirstTagValue(parsed.tags, "desc"),
-    dev: extractFirstTagValue(parsed.tags, "dev"),
-    deprecated: extractFirstTagValue(parsed.tags, "deprecated"),
-    version: extractFirstTagValue(parsed.tags, "version"),
-    see: extractTagValues(parsed.tags, "see"),
+    ...extractCommonMetadata(parsed.tags),
     examples: extractTagValues(parsed.tags, "example"),
   };
 
@@ -204,11 +198,7 @@ function buildTraitDoc(
     ...parsed,
     target: "trait",
     traitName: define.name,
-    desc: extractFirstTagValue(parsed.tags, "desc"),
-    dev: extractFirstTagValue(parsed.tags, "dev"),
-    deprecated: extractFirstTagValue(parsed.tags, "deprecated"),
-    version: extractFirstTagValue(parsed.tags, "version"),
-    see: extractTagValues(parsed.tags, "see"),
+    ...extractCommonMetadata(parsed.tags),
   };
 }
 
