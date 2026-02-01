@@ -3,7 +3,17 @@
  * Used by contract, actions, and testing generators.
  */
 
-import { toCamelCase } from "@secondlayer/clarity-types";
+import {
+  toCamelCase,
+  isClarityStringAscii,
+  isClarityStringUtf8,
+  isClarityBuffer,
+  isClarityOptional,
+  isClarityList,
+  isClarityTuple,
+  isClarityResponse,
+  type ClarityType,
+} from "@secondlayer/clarity-types";
 
 /**
  * Generate a code string that converts a TypeScript value to a ClarityValue
@@ -11,7 +21,7 @@ import { toCamelCase } from "@secondlayer/clarity-types";
  */
 export function generateClarityConversion(
   argName: string,
-  argType: any
+  argType: { type: ClarityType }
 ): string {
   const type = argType.type;
 
@@ -43,15 +53,15 @@ export function generateClarityConversion(
     }
   }
 
-  if (type["string-ascii"]) {
+  if (isClarityStringAscii(type)) {
     return `Cl.stringAscii(${argName})`;
   }
 
-  if (type["string-utf8"]) {
+  if (isClarityStringUtf8(type)) {
     return `Cl.stringUtf8(${argName})`;
   }
 
-  if (type.buff) {
+  if (isClarityBuffer(type)) {
     return `(() => {
       const value = ${argName};
       if (value instanceof Uint8Array) {
@@ -83,14 +93,14 @@ export function generateClarityConversion(
     })()`;
   }
 
-  if (type.optional) {
+  if (isClarityOptional(type)) {
     const innerConversion = generateClarityConversion(argName, {
       type: type.optional,
     });
     return `${argName} !== null ? Cl.some(${innerConversion.replace(argName, `${argName}`)}) : Cl.none()`;
   }
 
-  if (type.list) {
+  if (isClarityList(type)) {
     const innerConversion = generateClarityConversion("item", {
       type: type.list.type,
     });
@@ -104,11 +114,11 @@ export function generateClarityConversion(
     })()`;
   }
 
-  if (type.tuple) {
-    const requiredFields = type.tuple.map((f: any) => f.name);
+  if (isClarityTuple(type)) {
+    const requiredFields = type.tuple.map((f) => f.name);
     const fieldNames = JSON.stringify(requiredFields);
     const fields = type.tuple
-      .map((field: any) => {
+      .map((field) => {
         const camelFieldName = toCamelCase(field.name);
         const fieldConversion = generateClarityConversion(
           `tupleValue.${camelFieldName}`,
@@ -130,7 +140,7 @@ export function generateClarityConversion(
     })()`;
   }
 
-  if (type.response) {
+  if (isClarityResponse(type)) {
     const okConversion = generateClarityConversion(`responseValue.ok`, {
       type: type.response.ok,
     });
