@@ -5,41 +5,7 @@
 import type { ProcessedContract } from "../../types/plugin";
 import { toCamelCase, type ClarityFunction } from "@secondlayer/clarity-types";
 import type { ActionsPluginOptions } from "./index";
-import { getTypeForArg } from "../../utils/type-mapping";
-import { generateClarityConversion } from "../../utils/clarity-conversion";
-
-/**
- * Generate arguments signature for helper functions
- */
-function generateArgsSignature(args: readonly any[]): string {
-  if (args.length === 0) return "";
-
-  const argsTypes = args
-    .map((arg) => {
-      const camelName = toCamelCase(arg.name);
-      return `${camelName}: ${getTypeForArg(arg)}`;
-    })
-    .join("; ");
-
-  return `args: { ${argsTypes} }, `;
-}
-
-/**
- * Generate Clarity arguments for function calls
- */
-function generateClarityArgs(
-  args: readonly any[],
-  _contractName: string
-): string {
-  if (args.length === 0) return "";
-
-  return args
-    .map((arg) => {
-      const argName = `args.${toCamelCase(arg.name)}`;
-      return generateClarityConversion(argName, arg);
-    })
-    .join(", ");
-}
+import { generateArgsSignature, generateClarityArgs } from "../../utils/generator-helpers";
 
 
 /**
@@ -49,7 +15,7 @@ function generateReadHelpers(
   contract: ProcessedContract,
   options: ActionsPluginOptions
 ): string {
-  const { abi, name } = contract;
+  const { abi } = contract;
   const functions = abi.functions || [];
 
   const readOnlyFunctions = functions.filter(
@@ -87,7 +53,7 @@ function generateReadHelpers(
   const helpers = filteredFunctions.map((func: ClarityFunction) => {
     const methodName = toCamelCase(func.name);
     const argsSignature = generateArgsSignature(func.args);
-    const clarityArgs = generateClarityArgs(func.args, name);
+    const clarityArgs = generateClarityArgs(func.args);
 
     return `async ${methodName}(${argsSignature}options?: {
       network?: 'mainnet' | 'testnet' | 'devnet';
@@ -116,7 +82,7 @@ function generateWriteHelpers(
   contract: ProcessedContract,
   options: ActionsPluginOptions
 ): string {
-  const { abi, name } = contract;
+  const { abi } = contract;
   const functions = abi.functions || [];
   const envVarName = options.senderKeyEnv ?? "STX_SENDER_KEY";
 
@@ -152,7 +118,7 @@ function generateWriteHelpers(
   const helpers = filteredFunctions.map((func: ClarityFunction) => {
     const methodName = toCamelCase(func.name);
     const argsSignature = generateArgsSignature(func.args);
-    const clarityArgs = generateClarityArgs(func.args, name);
+    const clarityArgs = generateClarityArgs(func.args);
 
     return `async ${methodName}(${argsSignature}senderKey?: string, options?: {
       network?: 'mainnet' | 'testnet' | 'devnet';

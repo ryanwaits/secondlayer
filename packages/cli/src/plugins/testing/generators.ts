@@ -13,6 +13,7 @@ import {
 import type { TestingPluginOptions } from "./index";
 import { getTypeForArg } from "../../utils/type-mapping";
 import { generateClarityConversion } from "../../utils/clarity-conversion";
+import { generateArgsSignature, generateClarityArgs } from "../../utils/generator-helpers";
 
 /**
  * Convert string to PascalCase
@@ -22,36 +23,6 @@ function toPascalCase(str: string): string {
   return camel.charAt(0).toUpperCase() + camel.slice(1);
 }
 
-/**
- * Generate arguments signature for helper functions
- */
-function generateArgsSignature(args: readonly any[]): string {
-  if (args.length === 0) return "";
-
-  const argsTypes = args
-    .map((arg) => {
-      const camelName = toCamelCase(arg.name);
-      return `${camelName}: ${getTypeForArg(arg)}`;
-    })
-    .join("; ");
-
-  return `args: { ${argsTypes} }, `;
-}
-
-
-/**
- * Generate Clarity arguments for function calls
- */
-function generateClarityArgs(args: readonly any[]): string {
-  if (args.length === 0) return "";
-
-  return args
-    .map((arg) => {
-      const argName = `args.${toCamelCase(arg.name)}`;
-      return generateClarityConversion(argName, arg);
-    })
-    .join(", ");
-}
 
 /**
  * Generate a public function helper
