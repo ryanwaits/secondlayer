@@ -2,7 +2,7 @@
  * Shared utilities for plugin code generators (actions, testing).
  */
 
-import { toCamelCase } from "@secondlayer/clarity-types";
+import { toCamelCase, type FunctionArg } from "@secondlayer/clarity-types";
 import { getTypeForArg } from "./type-mapping";
 import { generateClarityConversion } from "./clarity-conversion";
 
@@ -10,7 +10,7 @@ import { generateClarityConversion } from "./clarity-conversion";
  * Generate a TypeScript args signature for a helper function.
  * e.g. `args: { amount: bigint; recipient: string }, `
  */
-export function generateArgsSignature(args: readonly any[]): string {
+export function generateArgsSignature(args: ReadonlyArray<FunctionArg>): string {
   if (args.length === 0) return "";
 
   const argsTypes = args
@@ -27,7 +27,7 @@ export function generateArgsSignature(args: readonly any[]): string {
  * Generate Clarity argument expressions for function calls.
  * e.g. `Cl.uint(args.amount), Cl.standardPrincipal(args.recipient)`
  */
-export function generateClarityArgs(args: readonly any[]): string {
+export function generateClarityArgs(args: ReadonlyArray<FunctionArg>): string {
   if (args.length === 0) return "";
 
   return args
