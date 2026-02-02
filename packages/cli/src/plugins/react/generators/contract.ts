@@ -10,8 +10,7 @@ import {
   capitalize,
   generateHookArgsSignature,
   generateArgsType,
-  generateQueryKeyArgs,
-  generateFunctionCallArgs,
+  generateArgNames,
   generateEnabledCondition,
   generateObjectArgs,
   clarityTypeToTS,
@@ -143,8 +142,8 @@ function generateReadHook(func: ClarityFunction, contractName: string): string {
   const config = useSecondLayerConfig()
 
   return useQuery<${returnType}>({
-    queryKey: ['${func.name}', ${contractName}.address, ${generateQueryKeyArgs(func.args)}],
-    queryFn: () => ${contractName}.read.${toCamelCase(func.name)}(${generateFunctionCallArgs(func.args) ? `{ ${generateObjectArgs(func.args)} }, ` : ""}{
+    queryKey: ['${func.name}', ${contractName}.address, ${generateArgNames(func.args)}],
+    queryFn: () => ${contractName}.read.${toCamelCase(func.name)}(${generateArgNames(func.args) ? `{ ${generateObjectArgs(func.args)} }, ` : ""}{
       network: config.network,
       senderAddress: config.senderAddress || 'SP000000000000000000002Q6VF78'
     }),

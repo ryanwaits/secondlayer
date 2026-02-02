@@ -30,12 +30,7 @@ export function generateArgsType(args: ReadonlyArray<FunctionArg>): string {
   return `{ ${argsList} }`;
 }
 
-export function generateQueryKeyArgs(args: ReadonlyArray<FunctionArg>): string {
-  if (args.length === 0) return "";
-  return args.map((arg) => toCamelCase(arg.name)).join(", ");
-}
-
-export function generateFunctionCallArgs(args: ReadonlyArray<FunctionArg>): string {
+export function generateArgNames(args: ReadonlyArray<FunctionArg>): string {
   if (args.length === 0) return "";
   return args.map((arg) => toCamelCase(arg.name)).join(", ");
 }
