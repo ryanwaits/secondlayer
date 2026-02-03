@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { jsToClarity } from "../src/converters";
 import type { ClarityToTS } from "../src/types/mappings";
 import type { ClarityContract, ExtractFunctionArgs } from "../src";

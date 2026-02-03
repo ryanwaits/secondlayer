@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { extractDocs } from "../src/parser/extractor";
 import { generateMarkdown } from "../src/generators/markdown";
 import { generateJson, toJson } from "../src/generators/json";

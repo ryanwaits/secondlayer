@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { tokenize, parseDefine, groupCommentBlocks } from "../src/parser/lexer";
 import { parseDocBlock, parseTagLine, extractParams, extractErrs, extractPrints, extractCalls, extractCaller, extractImplements } from "../src/parser/parser";
 import { extractDocs } from "../src/parser/extractor";

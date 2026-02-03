@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { generateContractInterface } from "../src/generators/contract";
 import { generateContractHooks } from "../src/plugins/react/generators/contract";
 import type { ResolvedContract } from "../src/types/config";

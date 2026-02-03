@@ -1,4 +1,5 @@
-import { describe, it, expectTypeOf } from "vitest";
+import { describe, it } from "bun:test";
+import { expectTypeOf } from "expect-type";
 import type {
   ClarityToTS,
   ClarityContract,

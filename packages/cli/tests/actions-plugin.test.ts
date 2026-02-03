@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { generateActionHelpers } from "../src/plugins/actions/generators";
 import type { ProcessedContract } from "../src/types/plugin";
 import type { ActionsPluginOptions } from "../src/plugins/actions/index";

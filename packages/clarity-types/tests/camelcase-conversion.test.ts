@@ -1,5 +1,5 @@
-import { describe, it } from "vitest";
-import { expectTypeOf } from "vitest";
+import { describe, it } from "bun:test";
+import { expectTypeOf } from "expect-type";
 import type { ClarityToTS } from "../src/types/mappings";
 import type { ClarityContract, ExtractFunctionArgs } from "../src";
 

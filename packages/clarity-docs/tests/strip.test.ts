@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { stripDocs, estimateStrippingSavings } from "../src/utils/strip";
 
 describe("stripDocs", () => {

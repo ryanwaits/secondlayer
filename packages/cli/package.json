@@ -25,7 +25,7 @@
   "scripts": {
     "build": "bunup",
     "dev": "bunup --watch",
-    "test": "vitest",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "bun run build"
   },

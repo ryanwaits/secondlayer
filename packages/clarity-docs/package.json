@@ -18,8 +18,7 @@
   "scripts": {
     "build": "bunup",
     "dev": "bunup --watch",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "bun run build"
   },
@@ -36,9 +35,7 @@
   "dependencies": {
     "@secondlayer/clarity-types": "^0.5.0"
   },
-  "devDependencies": {
-    "@vitest/ui": "^1.2.1"
-  },
+  "devDependencies": {},
   "engines": {
     "node": ">=18"
   }
