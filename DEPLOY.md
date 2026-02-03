@@ -571,6 +571,40 @@ rm -rf /opt/stacks-streams
 
 **Rollback**: If issues occur, stop new services, restore symlink, and restart old systemd service.
 
+### Data Migration Safety
+
+**WARNING**: Never move data directories while Docker might recreate them.
+
+When `docker compose up` runs, it creates missing volume directories *before* containers start. This can overwrite or ignore data you just moved.
+
+**Safe approach - copy then verify:**
+```bash
+# Stop services
+$COMPOSE down
+
+# Copy (not move) data to new location
+cp -a /old/path/data /new/path/data
+
+# Update .env or compose files to point to new location
+
+# Start services
+$COMPOSE up -d
+
+# Verify data is intact
+docker exec docker-postgres-1 psql -U secondlayer -d secondlayer -c "SELECT COUNT(*) FROM blocks;"
+
+# Only after verification, delete old data
+rm -rf /old/path/data
+```
+
+**Alternative - update compose paths instead of moving data:**
+```bash
+# Edit docker-compose.hetzner.yml to point to existing data location
+# instead of physically moving files
+volumes:
+  - /old/path/data/postgres:/var/lib/postgresql/data
+```
+
 ---
 
 ## Troubleshooting
