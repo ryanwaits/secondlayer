@@ -335,12 +335,82 @@ $COMPOSE down && $COMPOSE up -d
 
 ### Update Deployment
 
+#### Full Stack Update (with rebuild)
+
 ```bash
 cd /opt/secondlayer
 git pull
 cd docker
 $COMPOSE down
 $COMPOSE up -d --build
+```
+
+#### Individual Service Updates
+
+Update a single service without rebuilding others:
+
+```bash
+cd /opt/secondlayer/docker
+
+# API only
+$COMPOSE up -d --build api
+
+# Indexer only
+$COMPOSE up -d --build indexer
+
+# Worker only (can scale at same time)
+$COMPOSE up -d --build --scale worker=3 worker
+
+# View processor only
+$COMPOSE up -d --build view-processor
+
+# Stacks node only (pulls latest image)
+$COMPOSE pull stacks-node && $COMPOSE up -d stacks-node
+```
+
+#### Quick Update (no rebuild, just restart with new code)
+
+If only config/env changed (no code changes):
+
+```bash
+$COMPOSE up -d --force-recreate api
+```
+
+#### Zero-Downtime Updates
+
+For critical services, use rolling updates:
+
+```bash
+# Scale up first, then scale back down
+$COMPOSE up -d --scale worker=4 --no-recreate
+$COMPOSE up -d --build worker
+$COMPOSE up -d --scale worker=2
+```
+
+#### Apply Config Changes
+
+After editing `docker/.env` or `docker-compose.yml`:
+
+```bash
+# Just recreate affected containers
+$COMPOSE up -d
+
+# Or force recreate all
+$COMPOSE up -d --force-recreate
+```
+
+#### Verify After Update
+
+```bash
+# Check all services healthy
+$COMPOSE ps
+
+# Check logs for errors
+$COMPOSE logs --tail 20
+
+# Verify endpoints
+curl -s http://localhost:3800/health | jq
+curl -s http://localhost:3700/health | jq
 ```
 
 ### Stacks Node Sync Progress
@@ -434,6 +504,72 @@ pg_dump -U secondlayer secondlayer > backup.sql
 2. **Firewall** the indexer to only accept traffic from your Stacks node
 3. **Rotate secrets** periodically
 4. **Enable webhook signature verification** in your handlers
+
+---
+
+## Migrating from stacks-streams
+
+If you have an existing `/opt/stacks-streams` deployment, follow these steps for a zero-downtime migration:
+
+### 1. Clone New Repo
+
+```bash
+ssh root@<server-ip>
+git clone https://github.com/secondlayer-labs/secondlayer.git /opt/secondlayer
+```
+
+### 2. Copy Environment
+
+```bash
+cp /opt/stacks-streams/docker/.env /opt/secondlayer/docker/.env
+```
+
+### 3. Symlink Existing Data
+
+Avoid copying hundreds of GB by symlinking:
+
+```bash
+ln -s /opt/stacks-streams/data /opt/secondlayer/data
+```
+
+### 4. Stop Old Services
+
+```bash
+systemctl stop stacks-streams
+```
+
+### 5. Update Systemd
+
+```bash
+sed -i 's|/opt/stacks-streams|/opt/secondlayer|g' /etc/systemd/system/stacks-streams.service
+mv /etc/systemd/system/stacks-streams.service /etc/systemd/system/secondlayer.service
+systemctl daemon-reload
+systemctl enable secondlayer
+```
+
+### 6. Start New Services
+
+```bash
+cd /opt/secondlayer/docker
+docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
+```
+
+### 7. Verify
+
+```bash
+curl -s http://localhost:3700/health | jq
+curl -s http://localhost:3800/health | jq
+docker compose -f docker-compose.yml -f docker-compose.hetzner.yml ps
+```
+
+### 8. Cleanup (after confirming stability)
+
+```bash
+# Wait a day or two, then:
+rm -rf /opt/stacks-streams
+```
+
+**Rollback**: If issues occur, stop new services, restore symlink, and restart old systemd service.
 
 ---
 

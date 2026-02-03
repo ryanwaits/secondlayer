@@ -124,6 +124,8 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
 volumes:
