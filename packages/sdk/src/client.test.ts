@@ -1,9 +1,12 @@
-import { test, expect, describe, beforeEach, mock } from "bun:test";
+import { test, expect, describe, beforeEach, afterEach, mock } from "bun:test";
 import { StreamsClient } from "./client.ts";
 import { ApiError } from "./errors.ts";
 
 const BASE_URL = "http://localhost:3800";
 const API_KEY = "test-key-123";
+
+// Store original fetch to restore after tests
+const originalFetch = globalThis.fetch;
 
 function mockFetch(response: Partial<Response> & { ok: boolean; status: number; body?: unknown }) {
   return mock(() =>
@@ -22,6 +25,11 @@ describe("StreamsClient", () => {
 
   beforeEach(() => {
     client = new StreamsClient({ baseUrl: BASE_URL, apiKey: API_KEY });
+  });
+
+  afterEach(() => {
+    // Restore original fetch to avoid polluting other tests
+    globalThis.fetch = originalFetch;
   });
 
   test("instantiates without throwing", () => {

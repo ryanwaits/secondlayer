@@ -1,6 +1,21 @@
 #!/usr/bin/env node
 import { program } from "commander";
 import pkg from "../package.json" with { type: "json" };
+import {
+  registerConfigCommand,
+  registerSetupCommand,
+  registerStreamsCommand,
+  registerStatusCommand,
+  registerSyncCommand,
+  registerDbCommand,
+  registerWebhookCommand,
+  registerViewsCommand,
+  registerStackCommand,
+  registerDoctorCommand,
+  registerAuthCommand,
+  registerLocalCommand,
+  registerLogsCommand,
+} from "./commands/index.ts";
 
 const { version } = pkg;
 
@@ -10,8 +25,11 @@ const { version } = pkg;
 
 program
   .name("secondlayer")
-  .description("CLI tool for generating type-safe Stacks contract interfaces")
+  .alias("sl")
+  .description("SecondLayer CLI for Stacks blockchain")
   .version(version);
+
+// --- Code generation commands (original @secondlayer/cli) ---
 
 program
   .command("generate [files...]")
@@ -33,5 +51,26 @@ program
     const { init } = await import("./commands/init");
     await init();
   });
+
+// --- Streams commands (from @secondlayer/cli) ---
+
+// Core commands (API-backed, work against any environment)
+registerStreamsCommand(program);
+registerViewsCommand(program);
+registerLogsCommand(program);
+registerStatusCommand(program);
+
+// Local infrastructure commands
+registerLocalCommand(program);
+
+// Utility commands
+registerStackCommand(program);
+registerDbCommand(program);
+registerSyncCommand(program);
+registerDoctorCommand(program);
+registerSetupCommand(program);
+registerConfigCommand(program);
+registerAuthCommand(program);
+registerWebhookCommand(program);
 
 program.parse();

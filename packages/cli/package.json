@@ -39,11 +39,16 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
     "@secondlayer/clarity-types": "^0.5.0",
-    "@stacks/transactions": "7.0.6",
+    "@secondlayer/sdk": "^0.2.0",
+    "@secondlayer/shared": "^0.2.0",
+    "@secondlayer/views": "^0.2.0",
+    "@stacks/transactions": "^7.2.0",
     "@biomejs/js-api": "^0.7.0",
     "@biomejs/wasm-nodejs": "^1.9.0",
-    "esbuild": "^0.19.0"
+    "esbuild": "^0.19.0",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@antfu/ni": "^24.4.0",
@@ -53,7 +58,7 @@
     "@types/bun": "^1.1.14",
     "@types/react": "^19.1.5",
     "chalk": "^5.3.0",
-    "commander": "^11.1.0",
+    "commander": "^14.0.0",
     "execa": "^9.5.3",
     "fast-glob": "^3.3.3",
     "got": "^13.0.0",

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@secondlayer/shared": ["../shared/src/index.ts"],
+      "@secondlayer/shared/*": ["../shared/src/*"],
+      "@secondlayer/auth": ["../auth/src/index.ts"],
+      "@secondlayer/auth/*": ["../auth/src/*"],
+      "@secondlayer/views": ["../views/src/index.ts"],
+      "@secondlayer/views/*": ["../views/src/*"]
+    }
+  },
+  "include": ["src/**/*", "../shared/src/**/*", "../auth/src/**/*", "../views/src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

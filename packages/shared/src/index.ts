@@ -5,11 +5,11 @@ export * from "./errors.ts";
 export { getEnv } from "./env.ts";
 export { logger } from "./logger.ts";
 
-// Queue exports (also available at @streams/shared/queue)
+// Queue exports (also available at @secondlayer/shared/queue)
 export * as queue from "./queue/index.ts";
 
-// Schema exports (also available at @streams/shared/schemas)
+// Schema exports (also available at @secondlayer/shared/schemas)
 export * from "./schemas/index.ts";
 
-// Crypto exports (also available at @streams/shared/crypto/hmac)
+// Crypto exports (also available at @secondlayer/shared/crypto/hmac)
 export * as crypto from "./crypto/hmac.ts";

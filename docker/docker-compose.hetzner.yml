@@ -1,0 +1,53 @@
+# Hetzner AX52 override — extends base docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
+
+services:
+  postgres:
+    volumes:
+      - /opt/secondlayer/data/postgres:/var/lib/postgresql/data
+
+  api:
+    volumes:
+      - /opt/secondlayer/data/views:/data/views
+
+  view-processor:
+    volumes:
+      - /opt/secondlayer/data/views:/data/views
+
+  stacks-node:
+    image: blockstack/stacks-blockchain:3.3.0.0.3
+    volumes:
+      - /opt/secondlayer/data/stacks-blockchain:/stacks-blockchain/data
+      - ./stacks-node/Config.toml:/stacks-blockchain/Config.toml:ro
+    ports:
+      - "20443:20443"
+      - "20444:20444"
+    depends_on:
+      indexer:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+    restart: unless-stopped
+    command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-api.secondlayer.tools}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,22 @@
+{
+  "name": "@secondlayer/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@secondlayer/shared": "workspace:*",
+    "@stacks/transactions": "^7.2.0",
+    "kysely": "^0.28.10"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}
