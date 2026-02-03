@@ -1,0 +1,128 @@
+{
+  "name": "@secondlayer/shared",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./db": {
+      "types": "./dist/src/db/index.d.ts",
+      "import": "./dist/src/db/index.js"
+    },
+    "./db/queries/integrity": {
+      "types": "./dist/src/db/queries/integrity.d.ts",
+      "import": "./dist/src/db/queries/integrity.js"
+    },
+    "./db/queries/metrics": {
+      "types": "./dist/src/db/queries/metrics.d.ts",
+      "import": "./dist/src/db/queries/metrics.js"
+    },
+    "./db/queries/accounts": {
+      "types": "./dist/src/db/queries/accounts.d.ts",
+      "import": "./dist/src/db/queries/accounts.js"
+    },
+    "./db/queries/usage": {
+      "types": "./dist/src/db/queries/usage.d.ts",
+      "import": "./dist/src/db/queries/usage.js"
+    },
+    "./db/queries/views": {
+      "types": "./dist/src/db/queries/views.d.ts",
+      "import": "./dist/src/db/queries/views.js"
+    },
+    "./db/jsonb": {
+      "types": "./dist/src/db/jsonb.d.ts",
+      "import": "./dist/src/db/jsonb.js"
+    },
+    "./db/schema": {
+      "types": "./dist/src/db/schema.d.ts",
+      "import": "./dist/src/db/schema.js"
+    },
+    "./lib/plans": {
+      "types": "./dist/src/lib/plans.d.ts",
+      "import": "./dist/src/lib/plans.js"
+    },
+    "./queue": {
+      "types": "./dist/src/queue/index.d.ts",
+      "import": "./dist/src/queue/index.js"
+    },
+    "./queue/listener": {
+      "types": "./dist/src/queue/listener.d.ts",
+      "import": "./dist/src/queue/listener.js"
+    },
+    "./queue/recovery": {
+      "types": "./dist/src/queue/recovery.d.ts",
+      "import": "./dist/src/queue/recovery.js"
+    },
+    "./schemas": {
+      "types": "./dist/src/schemas/index.d.ts",
+      "import": "./dist/src/schemas/index.js"
+    },
+    "./schemas/filters": {
+      "types": "./dist/src/schemas/filters.d.ts",
+      "import": "./dist/src/schemas/filters.js"
+    },
+    "./schemas/views": {
+      "types": "./dist/src/schemas/views.d.ts",
+      "import": "./dist/src/schemas/views.js"
+    },
+    "./types": {
+      "types": "./dist/src/types.d.ts",
+      "import": "./dist/src/types.js"
+    },
+    "./env": {
+      "types": "./dist/src/env.d.ts",
+      "import": "./dist/src/env.js"
+    },
+    "./logger": {
+      "types": "./dist/src/logger.d.ts",
+      "import": "./dist/src/logger.js"
+    },
+    "./errors": {
+      "types": "./dist/src/errors.d.ts",
+      "import": "./dist/src/errors.js"
+    },
+    "./crypto": {
+      "types": "./dist/src/crypto/hmac.d.ts",
+      "import": "./dist/src/crypto/hmac.js"
+    },
+    "./crypto/hmac": {
+      "types": "./dist/src/crypto/hmac.d.ts",
+      "import": "./dist/src/crypto/hmac.js"
+    },
+    "./node": {
+      "types": "./dist/src/node/client.d.ts",
+      "import": "./dist/src/node/client.js"
+    },
+    "./node/hiro-client": {
+      "types": "./dist/src/node/hiro-client.d.ts",
+      "import": "./dist/src/node/hiro-client.js"
+    }
+  },
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "scripts": {
+    "build": "bunup",
+    "dev": "bunup --watch",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "migrate": "bun run src/db/migrate.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "@stacks/transactions": "7.3.1",
+    "kysely": "0.28.10",
+    "kysely-postgres-js": "3.0.0",
+    "postgres": "^3.4.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}
