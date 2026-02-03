@@ -4,9 +4,10 @@
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
-    "build": "bun run build:types && bun run build:docs && bun run build:shared && bun run build:sdk && bun run build:cli",
+    "build": "bun run build:types && bun run build:docs && bun run build:shared && bun run build:sdk && bun run build:views && bun run build:cli",
     "build:cli": "bun run --filter @secondlayer/cli build",
     "build:sdk": "bun run --filter @secondlayer/sdk build",
+    "build:views": "bun run --filter @secondlayer/views build",
     "build:shared": "bun run --filter @secondlayer/shared build",
     "build:docs": "bun run --filter @secondlayer/clarity-docs build",
     "build:types": "bun run --filter @secondlayer/clarity-types build",
