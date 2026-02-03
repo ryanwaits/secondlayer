@@ -55,9 +55,20 @@
         "react": "^19.1.0",
       },
     },
+    "packages/sdk": {
+      "name": "@secondlayer/sdk",
+      "version": "0.1.0",
+      "dependencies": {
+        "@secondlayer/shared": "^0.2.0",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5",
+      },
+    },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@stacks/transactions": "7.3.1",
         "kysely": "0.28.10",
@@ -343,6 +354,8 @@
     "@secondlayer/clarity-types": ["@secondlayer/clarity-types@workspace:packages/clarity-types"],
 
     "@secondlayer/cli": ["@secondlayer/cli@workspace:packages/cli"],
+
+    "@secondlayer/sdk": ["@secondlayer/sdk@workspace:packages/sdk"],
 
     "@secondlayer/shared": ["@secondlayer/shared@workspace:packages/shared"],
 
@@ -1100,6 +1113,8 @@
 
     "@secondlayer/cli/@stacks/transactions": ["@stacks/transactions@7.0.6", "", { "dependencies": { "@noble/hashes": "1.1.5", "@noble/secp256k1": "1.7.1", "@stacks/common": "^7.0.2", "@stacks/network": "^7.0.2", "c32check": "^2.0.0", "lodash.clonedeep": "^4.5.0" } }, "sha512-qRGo4tNwOh+avUv/u4JGqqUWQ8xW/iUWtJV0o3BxpMyRxqDXmj+m+yeAEVYf9jRDouOo+NaWmwtRmWc0URZPdw=="],
 
+    "@secondlayer/sdk/@types/bun": ["@types/bun@1.3.8", "", { "dependencies": { "bun-types": "1.3.8" } }, "sha512-3LvWJ2q5GerAXYxO2mffLTqOzEu5qnhEAlh48Vnu8WQfnmSwbgagjGZV6BoHKJztENYEDn6QmVd949W4uESRJA=="],
+
     "@secondlayer/shared/@stacks/transactions": ["@stacks/transactions@7.3.1", "", { "dependencies": { "@noble/hashes": "1.1.5", "@noble/secp256k1": "1.7.1", "@stacks/common": "^7.3.1", "@stacks/network": "^7.3.1", "c32check": "^2.0.0", "lodash.clonedeep": "^4.5.0" } }, "sha512-ufnC1BPrOKz5b5gxxdseP3vBrFq1+qx1L6t+J/QnjXULyWdkhtS+LBEqRw2bL5qNteMvU2GhqPgFtYQPzolGbw=="],
 
     "@secondlayer/shared/@types/bun": ["@types/bun@1.3.8", "", { "dependencies": { "bun-types": "1.3.8" } }, "sha512-3LvWJ2q5GerAXYxO2mffLTqOzEu5qnhEAlh48Vnu8WQfnmSwbgagjGZV6BoHKJztENYEDn6QmVd949W4uESRJA=="],
@@ -1179,6 +1194,8 @@
     "@reown/appkit-siwx/viem/ox": ["ox@0.8.1", "", { "dependencies": { "@adraffy/ens-normalize": "^1.11.0", "@noble/ciphers": "^1.3.0", "@noble/curves": "^1.9.1", "@noble/hashes": "^1.8.0", "@scure/bip32": "^1.7.0", "@scure/bip39": "^1.6.0", "abitype": "^1.0.8", "eventemitter3": "5.0.1" }, "peerDependencies": { "typescript": ">=5.4.0" }, "optionalPeers": ["typescript"] }, "sha512-e+z5epnzV+Zuz91YYujecW8cF01mzmrUtWotJ0oEPym/G82uccs7q0WDHTYL3eiONbTUEvcZrptAKLgTBD3u2A=="],
 
     "@reown/appkit-siwx/viem/ws": ["ws@8.18.2", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-DMricUmwGZUVr++AEAe2uiVM7UoO9MAVZMDu05UQOaUII0lp+zOzLLU4Xqh/JvTqklB1T4uELaaPBKyjE1r4fQ=="],
+
+    "@secondlayer/sdk/@types/bun/bun-types": ["bun-types@1.3.8", "", { "dependencies": { "@types/node": "*" } }, "sha512-fL99nxdOWvV4LqjmC+8Q9kW3M4QTtTR1eePs94v5ctGqU8OeceWrSUaRw3JYb7tU3FkMIAjkueehrHPPPGKi5Q=="],
 
     "@secondlayer/shared/@stacks/transactions/@stacks/common": ["@stacks/common@7.3.1", "", {}, "sha512-29ANTFcSSlXnGQlgDVWg7OQ74lgQhu3x8JkeN19Q+UE/1lbQrzcctgPHG74XHjWNp8NPBqskUYA8/HLgIKuKNQ=="],
 
