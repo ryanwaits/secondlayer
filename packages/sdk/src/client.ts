@@ -89,6 +89,16 @@ export class StreamsClient {
     return response.json() as Promise<T>;
   }
 
+  private async requestWithStreamId<T>(
+    method: string,
+    pathTemplate: (id: string) => string,
+    id: string,
+    body?: unknown
+  ): Promise<T> {
+    const fullId = await this.resolveStreamId(id);
+    return this.request<T>(method, pathTemplate(fullId), body);
+  }
+
   // ── Stream ID Resolution ──────────────────────────────────────────────
 
   async resolveStreamId(partialId: string): Promise<string> {
@@ -97,7 +107,8 @@ export class StreamsClient {
     }
 
     const { streams } = await this.listStreams();
-    const matches = streams.filter((s) => s.id.startsWith(partialId));
+    const typedStreams = streams as { id: string }[];
+    const matches = typedStreams.filter((s) => s.id.startsWith(partialId));
 
     if (matches.length === 0) {
       throw new ApiError(404, `No stream found matching "${partialId}"`);
@@ -116,13 +127,13 @@ export class StreamsClient {
   }
 
   async updateStream(id: string, data: UpdateStream): Promise<StreamResponse> {
-    const fullId = await this.resolveStreamId(id);
-    return this.request<StreamResponse>("PATCH", `/api/streams/${fullId}`, data);
+    return this.requestWithStreamId("PATCH", (id) => `/api/streams/${id}`, id, data);
   }
 
   async updateStreamByName(name: string, data: CreateStream): Promise<StreamResponse> {
     const { streams } = await this.listStreams();
-    const existing = streams.find((s) => s.name === name);
+    const typedStreams = streams as { id: string; name: string }[];
+    const existing = typedStreams.find((s) => s.name === name);
     if (!existing) {
       throw new ApiError(404, `Stream with name "${name}" not found`);
     }
@@ -138,28 +149,23 @@ export class StreamsClient {
   }
 
   async getStream(id: string): Promise<StreamResponse> {
-    const fullId = await this.resolveStreamId(id);
-    return this.request<StreamResponse>("GET", `/api/streams/${fullId}`);
+    return this.requestWithStreamId("GET", (id) => `/api/streams/${id}`, id);
   }
 
   async deleteStream(id: string): Promise<void> {
-    const fullId = await this.resolveStreamId(id);
-    return this.request<void>("DELETE", `/api/streams/${fullId}`);
+    return this.requestWithStreamId("DELETE", (id) => `/api/streams/${id}`, id);
   }
 
   async enableStream(id: string): Promise<StreamResponse> {
-    const fullId = await this.resolveStreamId(id);
-    return this.request<StreamResponse>("POST", `/api/streams/${fullId}/enable`);
+    return this.requestWithStreamId("POST", (id) => `/api/streams/${id}/enable`, id);
   }
 
   async disableStream(id: string): Promise<StreamResponse> {
-    const fullId = await this.resolveStreamId(id);
-    return this.request<StreamResponse>("POST", `/api/streams/${fullId}/disable`);
+    return this.requestWithStreamId("POST", (id) => `/api/streams/${id}/disable`, id);
   }
 
   async rotateSecret(id: string): Promise<{ secret: string }> {
-    const fullId = await this.resolveStreamId(id);
-    return this.request<{ secret: string }>("POST", `/api/streams/${fullId}/rotate-secret`);
+    return this.requestWithStreamId("POST", (id) => `/api/streams/${id}/rotate-secret`, id);
   }
 
   async pauseAll(): Promise<BulkPauseResponse> {

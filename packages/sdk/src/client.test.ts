@@ -8,7 +8,7 @@ const API_KEY = "test-key-123";
 // Store original fetch to restore after tests
 const originalFetch = globalThis.fetch;
 
-function mockFetch(response: Partial<Response> & { ok: boolean; status: number; body?: unknown }) {
+function mockFetch(response: { ok: boolean; status: number; body?: unknown; headers?: Record<string, string> }) {
   return mock(() =>
     Promise.resolve({
       ok: response.ok,
@@ -17,7 +17,7 @@ function mockFetch(response: Partial<Response> & { ok: boolean; status: number; 
       json: () => Promise.resolve(response.body),
       text: () => Promise.resolve(typeof response.body === "string" ? response.body : JSON.stringify(response.body ?? "")),
     } as Response)
-  );
+  ) as unknown as typeof fetch;
 }
 
 describe("StreamsClient", () => {
@@ -106,7 +106,7 @@ describe("StreamsClient", () => {
     });
 
     test("network failure throws connection error", async () => {
-      globalThis.fetch = mock(() => Promise.reject(new TypeError("fetch failed")));
+      globalThis.fetch = mock(() => Promise.reject(new TypeError("fetch failed"))) as unknown as typeof fetch;
 
       try {
         await client.listStreams();
