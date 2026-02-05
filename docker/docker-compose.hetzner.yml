@@ -1,23 +1,28 @@
 # Hetzner AX52 override — extends base docker-compose.yml
 # Usage: docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
+#
+# Data paths (configurable via .env):
+#   DATA_DIR         - base data directory (default: /opt/secondlayer/data)
+#   CHAINSTATE_DIR   - stacks blockchain data (default: $DATA_DIR/stacks-blockchain)
+#                      Set this to a separate mount for additional NVMe storage
 
 services:
   postgres:
     volumes:
-      - /opt/secondlayer/data/postgres:/var/lib/postgresql/data
+      - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data
 
   api:
     volumes:
-      - /opt/secondlayer/data/views:/data/views
+      - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/views
 
   view-processor:
     volumes:
-      - /opt/secondlayer/data/views:/data/views
+      - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/views
 
   stacks-node:
     image: blockstack/stacks-blockchain:3.3.0.0.3
     volumes:
-      - /opt/secondlayer/data/stacks-blockchain:/stacks-blockchain/data
+      - ${CHAINSTATE_DIR:-${DATA_DIR:-/opt/secondlayer/data}/stacks-blockchain}:/stacks-blockchain/data
       - ./stacks-node/Config.toml:/stacks-blockchain/Config.toml:ro
     ports:
       - "20443:20443"
