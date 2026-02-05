@@ -1,5 +1,5 @@
 // Worker service - evaluates filters and dispatches webhooks
-import { logger, getEnv } from "@secondlayer/shared";
+import { logger, getEnv, getErrorMessage } from "@secondlayer/shared";
 import { claim, complete, fail, getWorkerId } from "@secondlayer/shared/queue";
 import { listenForJobs } from "@secondlayer/shared/queue/listener";
 import { startRecoveryLoop } from "@secondlayer/shared/queue/recovery";
@@ -37,7 +37,7 @@ async function processNextJob(): Promise<boolean> {
     await complete(job.id);
     logger.debug("Job completed", { jobId: job.id });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     logger.error("Job failed", { jobId: job.id, error: errorMessage });
     await fail(job.id, errorMessage);
   } finally {

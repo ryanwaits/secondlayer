@@ -1,5 +1,6 @@
 import { getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
+import { getErrorMessage } from "@secondlayer/shared";
 import { measureStorage } from "@secondlayer/shared/db/queries/usage";
 
 const INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -15,7 +16,7 @@ export function startStorageMeasurement(): () => void {
       logger.info("Storage measurement complete");
     } catch (err) {
       logger.error("Storage measurement failed", {
-        error: err instanceof Error ? err.message : String(err),
+        error: getErrorMessage(err),
       });
     }
   };

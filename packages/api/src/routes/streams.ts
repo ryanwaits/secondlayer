@@ -18,6 +18,33 @@ const app = new Hono();
 // Enforce stream creation limit
 app.post("/", enforceLimits("streams"));
 
+// Helper to extract Stream and StreamMetrics from joined query row
+function mapQueryRow(r: any): { stream: Stream; metrics: StreamMetrics | null } {
+  const stream: Stream = {
+    id: r.id,
+    name: r.name,
+    status: r.status,
+    filters: r.filters,
+    options: r.options,
+    webhook_url: r.webhook_url,
+    webhook_secret: r.webhook_secret,
+    api_key_id: r.api_key_id,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  };
+  const metrics: StreamMetrics | null = r.total_deliveries != null
+    ? {
+        stream_id: r.id,
+        last_triggered_at: r.last_triggered_at,
+        last_triggered_block: r.last_triggered_block,
+        total_deliveries: r.total_deliveries!,
+        failed_deliveries: r.failed_deliveries!,
+        error_message: r.error_message,
+      }
+    : null;
+  return { stream, metrics };
+}
+
 // Helper to format stream response
 function formatStream(
   stream: Stream,
@@ -128,28 +155,7 @@ app.get("/", async (c) => {
 
   return c.json({
     streams: results.map((r) => {
-      const stream: Stream = {
-        id: r.id,
-        name: r.name,
-        status: r.status,
-        filters: r.filters,
-        options: r.options,
-        webhook_url: r.webhook_url,
-        webhook_secret: r.webhook_secret,
-        api_key_id: r.api_key_id,
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-      };
-      const metrics: StreamMetrics | null = r.total_deliveries != null
-        ? {
-            stream_id: r.id,
-            last_triggered_at: r.last_triggered_at,
-            last_triggered_block: r.last_triggered_block,
-            total_deliveries: r.total_deliveries!,
-            failed_deliveries: r.failed_deliveries!,
-            error_message: r.error_message,
-          }
-        : null;
+      const { stream, metrics } = mapQueryRow(r);
       return formatStream(stream, metrics);
     }),
     total,
@@ -224,29 +230,7 @@ app.get("/:id", async (c) => {
     throw new StreamNotFoundError(id);
   }
 
-  const stream: Stream = {
-    id: result.id,
-    name: result.name,
-    status: result.status,
-    filters: result.filters,
-    options: result.options,
-    webhook_url: result.webhook_url,
-    webhook_secret: result.webhook_secret,
-    api_key_id: result.api_key_id,
-    created_at: result.created_at,
-    updated_at: result.updated_at,
-  };
-  const metrics: StreamMetrics | null = result.total_deliveries != null
-    ? {
-        stream_id: result.id,
-        last_triggered_at: result.last_triggered_at,
-        last_triggered_block: result.last_triggered_block,
-        total_deliveries: result.total_deliveries!,
-        failed_deliveries: result.failed_deliveries!,
-        error_message: result.error_message,
-      }
-    : null;
-
+  const { stream, metrics } = mapQueryRow(result);
   return c.json(formatStream(stream, metrics));
 });
 

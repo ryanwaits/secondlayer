@@ -1,5 +1,6 @@
 import { getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
+import { getErrorMessage } from "@secondlayer/shared";
 import { listen } from "@secondlayer/shared/queue/listener";
 import { listViews, updateViewStatus } from "@secondlayer/shared/db/queries/views";
 import type { View } from "@secondlayer/shared/db";
@@ -39,7 +40,7 @@ export async function startViewProcessor(opts?: {
       const def = await loadViewDefinition(view.handler_path);
       await catchUpView(def, view.name);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = getErrorMessage(err);
       if (msg.includes("Cannot find module") || msg.includes("ENOENT")) {
         await updateViewStatus(db, view.name, "error");
       }
@@ -63,7 +64,7 @@ export async function startViewProcessor(opts?: {
         const def = await loadViewDefinition(view.handler_path);
         await catchUpView(def, view.name);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = getErrorMessage(err);
         if (msg.includes("Cannot find module") || msg.includes("ENOENT")) {
           await updateViewStatus(db, view.name, "error");
         }
@@ -86,7 +87,7 @@ export async function startViewProcessor(opts?: {
       }
     } catch (err) {
       logger.error("View reorg handling failed", {
-        error: err instanceof Error ? err.message : String(err),
+        error: getErrorMessage(err),
       });
     }
   });
@@ -103,7 +104,7 @@ export async function startViewProcessor(opts?: {
       } catch (err) {
         logger.error("View poll processing failed", {
           view: view.name,
-          error: err instanceof Error ? err.message : String(err),
+          error: getErrorMessage(err),
         });
       }
     }

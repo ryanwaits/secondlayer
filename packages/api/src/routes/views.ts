@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
+import { getErrorMessage } from "@secondlayer/shared";
 import { listViews, pgSchemaName } from "@secondlayer/shared/db/queries/views";
 import { DeployViewRequestSchema } from "@secondlayer/shared/schemas/views";
 import type { View } from "@secondlayer/shared/db";
@@ -9,6 +10,7 @@ import type { ViewSchema, ViewColumn } from "@secondlayer/views/types";
 import { ViewRegistryCache } from "../views/cache.ts";
 import { getApiKeyId, getAccountId, getAccountKeyIds } from "../lib/ownership.ts";
 import { enforceLimits } from "../middleware/enforce-limits.ts";
+import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
@@ -174,10 +176,7 @@ function getOwnedView(viewName: string, keyIds: string[] | undefined): View {
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
 app.post("/", async (c) => {
-  const body = await c.req.json().catch(() => null);
-  if (!body) {
-    return c.json({ error: "Invalid JSON body" }, 400);
-  }
+  const body = await c.req.json().catch(() => { throw new InvalidJSONError(); });
 
   const parsed = DeployViewRequestSchema.safeParse(body);
   if (!parsed.success) {
@@ -200,7 +199,7 @@ app.post("/", async (c) => {
     def = mod.default ?? mod;
   } catch (err) {
     return c.json({
-      error: `Failed to load handler: ${err instanceof Error ? err.message : String(err)}`,
+      error: `Failed to load handler: ${getErrorMessage(err)}`,
     }, 400);
   }
 
@@ -209,7 +208,7 @@ app.post("/", async (c) => {
     validateViewDefinition(def);
   } catch (err) {
     return c.json({
-      error: `Invalid view definition: ${err instanceof Error ? err.message : String(err)}`,
+      error: `Invalid view definition: ${getErrorMessage(err)}`,
     }, 400);
   }
 
@@ -257,7 +256,7 @@ app.post("/:viewName/reindex", async (c) => {
       const def = mod.default ?? mod;
       await reindexView(def, { fromBlock, toBlock, schemaName: viewSchemaName(view) });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = getErrorMessage(err);
       console.error(`Reindex failed for ${viewName}: ${msg}`);
     }
   })();

@@ -1,8 +1,8 @@
-import { getDb } from "@secondlayer/shared/db";
-import { getRawClient } from "@secondlayer/shared/db";
+import { getDb, getRawClient } from "@secondlayer/shared/db";
 import { listViews } from "@secondlayer/shared/db/queries/views";
 import type { View } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
+import { getErrorMessage } from "@secondlayer/shared";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { ViewDefinition, ViewSchema } from "../types.ts";
 import { processBlock } from "./block-processor.ts";
@@ -50,7 +50,7 @@ export async function handleViewReorg(
       logger.error("View reorg handling failed", {
         view: view.name,
         blockHeight,
-        error: err instanceof Error ? err.message : String(err),
+        error: getErrorMessage(err),
       });
     }
   }

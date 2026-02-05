@@ -1,6 +1,7 @@
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import { updateViewStatus } from "@secondlayer/shared/db/queries/views";
 import { logger } from "@secondlayer/shared/logger";
+import { getErrorMessage } from "@secondlayer/shared";
 import { generateViewSQL } from "../schema/generator.ts";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { ViewDefinition } from "../types.ts";
@@ -107,7 +108,7 @@ export async function reindexView(
   } catch (err) {
     logger.error("Reindex failed", {
       view: viewName,
-      error: err instanceof Error ? err.message : String(err),
+      error: getErrorMessage(err),
     });
     await updateViewStatus(db, viewName, "error");
     throw err;

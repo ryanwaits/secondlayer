@@ -9,6 +9,7 @@ import {
   verifyMagicLink,
   upsertAccount,
 } from "@secondlayer/shared/db/queries/accounts";
+import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
@@ -22,8 +23,7 @@ const VerifySchema = z.object({
 
 // Request magic link (no auth)
 app.post("/magic-link", async (c) => {
-  const body = await c.req.json().catch(() => null);
-  if (!body) return c.json({ error: "Invalid JSON body" }, 400);
+  const body = await c.req.json().catch(() => { throw new InvalidJSONError(); });
 
   const parsed = MagicLinkSchema.parse(body);
   const db = getDb();
@@ -37,8 +37,7 @@ app.post("/magic-link", async (c) => {
 
 // Verify token → create account + session token (no auth)
 app.post("/verify", async (c) => {
-  const body = await c.req.json().catch(() => null);
-  if (!body) return c.json({ error: "Invalid JSON body" }, 400);
+  const body = await c.req.json().catch(() => { throw new InvalidJSONError(); });
 
   const parsed = VerifySchema.parse(body);
   const db = getDb();

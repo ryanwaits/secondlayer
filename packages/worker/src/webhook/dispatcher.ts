@@ -1,4 +1,4 @@
-import { logger } from "@secondlayer/shared";
+import { logger, getErrorMessage } from "@secondlayer/shared";
 import { createWebhookHeaders } from "./signing.ts";
 import type { WebhookPayload } from "./payload.ts";
 
@@ -105,7 +105,7 @@ export async function dispatchWebhook(
       if (error instanceof Error && error.name === "AbortError") {
         lastError = `Timeout after ${opts.timeoutMs}ms`;
       } else {
-        lastError = error instanceof Error ? error.message : String(error);
+        lastError = getErrorMessage(error);
       }
 
       logger.warn("Webhook request failed, will retry", {

@@ -1,4 +1,5 @@
 import { logger } from "@secondlayer/shared/logger";
+import { getErrorMessage } from "@secondlayer/shared";
 import type { ViewDefinition } from "../types.ts";
 import type { ViewContext } from "./context.ts";
 import type { MatchedTx } from "./source-matcher.ts";
@@ -73,7 +74,7 @@ export async function runHandlers(
           view: view.name,
           sourceKey,
           txId: tx.tx_id,
-          error: err instanceof Error ? err.message : String(err),
+          error: getErrorMessage(err),
         });
       }
       continue;
@@ -116,7 +117,7 @@ export async function runHandlers(
           txId: tx.tx_id,
           eventId: event.id,
           eventType: event.type,
-          error: err instanceof Error ? err.message : String(err),
+          error: getErrorMessage(err),
         });
       }
     }

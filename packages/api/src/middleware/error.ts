@@ -11,6 +11,14 @@ import {
 } from "@secondlayer/shared";
 import { ForbiddenError } from "../lib/ownership.ts";
 
+export class InvalidJSONError extends Error {
+  code = "INVALID_JSON";
+  constructor(message = "Invalid JSON body") {
+    super(message);
+    this.name = "InvalidJSONError";
+  }
+}
+
 /**
  * Global error handler (app.onError)
  */
@@ -25,6 +33,17 @@ export const errorHandler: ErrorHandler = (error, c) => {
             path: e.path.join("."),
             message: e.message,
           })),
+        },
+        400
+      );
+    }
+
+    // Handle invalid JSON body
+    if (error instanceof InvalidJSONError) {
+      return c.json(
+        {
+          error: error.message,
+          code: error.code,
         },
         400
       );
