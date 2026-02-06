@@ -34,89 +34,56 @@ CHAINSTATE_DIR=/mnt/chainstate  # Optional: separate mount for blockchain
 | PostgreSQL | ~50 GB |
 | Views cache | ~10 GB |
 
-The AX52 default RAID6 config (~887 GB) is tight for a fully synced node. Consider adding NVMe storage.
+The AX52 default RAID6 config (~887 GB) is tight for a fully synced node.
 
 ---
 
-## Adding NVMe Storage
+## Chainstate Storage (LVM Stripe)
 
-The AX41-NVMe is a whole server, not an add-on drive. For your existing AX52:
+The AX52 has 4 NVMe drives in RAID6, but the two 1TB Samsung drives each only use ~477GB for RAID partitions, leaving ~477GB free per drive. We use LVM to stripe this free space into a single ~938GB volume for chainstate.
 
-### How to Request Additional NVMe
+**Current drive layout:**
 
-1. Log into [Hetzner Robot](https://robot.hetzner.com)
-2. Go to your server → Support → Request additional hardware
-3. Request NVMe upgrade (typically 1TB or 2TB options)
-4. They'll schedule installation (brief downtime)
+| Drive | Model | Size | RAID usage | Free |
+|-------|-------|------|------------|------|
+| nvme0n1 | Toshiba 512GB | 477GB | All used | 0 |
+| nvme1n1 | Toshiba 512GB | 477GB | All used | 0 |
+| nvme2n1 | Samsung 1TB | 954GB | 477GB | **477GB** |
+| nvme3n1 | Samsung 1TB | 954GB | 477GB | **477GB** |
 
-Typical addon pricing is ~€5-15/month for NVMe drives. Check via Robot for exact AX52 options.
+**LVM config:**
+- PVs: `/dev/nvme2n1p4`, `/dev/nvme3n1p4`
+- VG: `chainstate-vg`
+- LV: `chainstate` (striped across both, ~938GB)
+- Mounted at `/mnt/chainstate`
 
-**References:**
-- [AX Server configurations and add-ons](https://docs.hetzner.com/robot/dedicated-server/server-lines/ax-server/)
-- [Price Dedicated Server Addons](https://docs.hetzner.com/robot/dedicated-server/dedicated-server-hardware/price-server-addons/)
-- [AX52 Configurator](https://www.hetzner.com/dedicated-rootserver/ax52/configurator/)
+No redundancy for chainstate — if either Samsung fails, chainstate is lost. This is acceptable since it can be restored from [Hiro's archive snapshot](#using-a-snapshot).
 
-### Before Scheduled Maintenance
-
-Hetzner will power off the server to physically install the drive. Stop services gracefully before the maintenance window to prevent data corruption.
-
-```bash
-cd /opt/secondlayer/docker
-
-# Stop all services (depends_on ensures correct order: node stops before indexer)
-docker compose -f docker-compose.yml -f docker-compose.hetzner.yml down
-
-# Verify everything stopped
-docker ps
-```
-
-<details>
-<summary>Manual ordering (if you want explicit control)</summary>
-
-Stop stacks-node first to ensure indexer doesn't miss any blocks emitted during shutdown:
+### Setup (already done)
 
 ```bash
-# 1. Stop stacks-node first (stops emitting events)
-docker compose -f docker-compose.yml -f docker-compose.hetzner.yml stop stacks-node
+# Create p4 partitions on free space of Samsung drives
+parted /dev/nvme2n1 mkpart primary 512GB 100%
+parted /dev/nvme3n1 mkpart primary 512GB 100%
 
-# 2. Stop remaining services
-docker compose -f docker-compose.yml -f docker-compose.hetzner.yml down
-```
+# LVM: stripe across both drives
+pvcreate /dev/nvme2n1p4 /dev/nvme3n1p4
+vgcreate chainstate-vg /dev/nvme2n1p4 /dev/nvme3n1p4
+lvcreate -l 100%FREE -n chainstate -i 2 chainstate-vg
 
-</details>
-
-The stacks node will resume syncing from where it left off—no progress lost.
-
-### Migration Workflow
-
-After Hetzner installs the new drive:
-
-```bash
-# 1. Identify new drive
-lsblk
-
-# 2. Format and mount
-mkfs.ext4 /dev/nvmeXn1
+# Format, mount, persist
+mkfs.ext4 /dev/chainstate-vg/chainstate
 mkdir -p /mnt/chainstate
-mount /dev/nvmeXn1 /mnt/chainstate
+mount /dev/chainstate-vg/chainstate /mnt/chainstate
+echo '/dev/chainstate-vg/chainstate /mnt/chainstate ext4 defaults 0 2' >> /etc/fstab
 
-# 3. Add to fstab for persistence
-echo '/dev/nvmeXn1 /mnt/chainstate ext4 defaults 0 2' >> /etc/fstab
-
-# 4. Stop services and migrate data
-cd /opt/secondlayer/docker
-docker compose -f docker-compose.yml -f docker-compose.hetzner.yml down
-rsync -avP /opt/secondlayer/data/stacks-blockchain/ /mnt/chainstate/
-
-# 5. Update .env to use new path
-echo 'CHAINSTATE_DIR=/mnt/chainstate' >> .env
-
-# 6. Restart
-docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
-
-# 7. Verify and cleanup old data (optional, after confirming sync works)
-# rm -rf /opt/secondlayer/data/stacks-blockchain
+# Point secondlayer at the new volume
+echo 'CHAINSTATE_DIR=/mnt/chainstate' >> /opt/secondlayer/docker/.env
 ```
+
+### Future: Hetzner drive swap
+
+The AX52 is at max drive count. Hetzner can replace a 512GB Toshiba with a 2TB NVMe (~30min downtime). This would allow partitioning the 2TB for RAID rebuild (~477GB) + ~1.5TB standalone chainstate, eliminating the need for LVM striping. Contact Hetzner via Robot → Support to schedule.
 
 ---
 
