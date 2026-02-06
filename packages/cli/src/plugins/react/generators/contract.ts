@@ -4,7 +4,7 @@
 
 import type { ProcessedContract } from "../../../types/plugin";
 import { formatCode } from "../../../utils/format";
-import type { ClarityFunction } from "@secondlayer/clarity-types";
+import type { AbiFunction } from "@secondlayer/stacks/clarity";
 import {
   toCamelCase,
   capitalize,
@@ -15,7 +15,7 @@ import {
   generateObjectArgs,
   clarityTypeToTS,
 } from "./utils";
-import type { ClarityMap, ClarityVariable } from "@secondlayer/clarity-types";
+import type { AbiMap, AbiVariable } from "@secondlayer/stacks/clarity";
 
 export async function generateContractHooks(
   contracts: ProcessedContract[],
@@ -24,8 +24,8 @@ export async function generateContractHooks(
   const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useSecondLayerConfig } from './provider'
-import { request, openContractCall as stacksOpenContractCall } from '@stacks/connect'
-import type { PostCondition } from '@stacks/transactions'
+import { request } from '@secondlayer/stacks/connect'
+import type { PostCondition } from '@secondlayer/stacks'
 import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'`;
 
   const header = `/**
@@ -53,15 +53,15 @@ function generateContractHookMethods(
   const variables = abi.variables || [];
 
   const readOnlyFunctions = functions.filter(
-    (f: ClarityFunction) =>
+    (f: AbiFunction) =>
       f.access === "read-only"
   );
   const publicFunctions = functions.filter(
-    (f: ClarityFunction) => f.access === "public"
+    (f: AbiFunction) => f.access === "public"
   );
 
   const readHooks = readOnlyFunctions
-    .map((func: ClarityFunction) => {
+    .map((func: AbiFunction) => {
       const hookName = `use${capitalize(name)}${capitalize(toCamelCase(func.name))}`;
       // Check if this specific hook is excluded
       if (excludeList.includes(hookName)) {
@@ -72,7 +72,7 @@ function generateContractHookMethods(
     .filter(Boolean);
 
   const writeHooks = publicFunctions
-    .map((func: ClarityFunction) => {
+    .map((func: AbiFunction) => {
       const hookName = `use${capitalize(name)}${capitalize(toCamelCase(func.name))}`;
       // Check if this specific hook is excluded
       if (excludeList.includes(hookName)) {
@@ -84,7 +84,7 @@ function generateContractHookMethods(
 
   // Generate hooks for maps
   const mapHooks = maps
-    .map((map: ClarityMap) => {
+    .map((map: AbiMap) => {
       const hookName = `use${capitalize(name)}${capitalize(toCamelCase(map.name))}`;
       if (excludeList.includes(hookName)) {
         return null;
@@ -96,7 +96,7 @@ function generateContractHookMethods(
   // Generate hooks for data variables
   const dataVars = variables.filter((v) => v.access === "variable");
   const varHooks = dataVars
-    .map((variable: ClarityVariable) => {
+    .map((variable: AbiVariable) => {
       const hookName = `use${capitalize(name)}${capitalize(toCamelCase(variable.name))}`;
       if (excludeList.includes(hookName)) {
         return null;
@@ -108,7 +108,7 @@ function generateContractHookMethods(
   // Generate hooks for constants
   const constants = variables.filter((v) => v.access === "constant");
   const constantHooks = constants
-    .map((constant: ClarityVariable) => {
+    .map((constant: AbiVariable) => {
       const hookName = `use${capitalize(name)}${capitalize(toCamelCase(constant.name))}`;
       if (excludeList.includes(hookName)) {
         return null;
@@ -127,7 +127,7 @@ function generateContractHookMethods(
   return allHooks.join("\n\n");
 }
 
-function generateReadHook(func: ClarityFunction, contractName: string): string {
+function generateReadHook(func: AbiFunction, contractName: string): string {
   const hookName = `use${capitalize(contractName)}${capitalize(toCamelCase(func.name))}`;
   const argsSignature = generateHookArgsSignature(func.args);
   const enabledParam =
@@ -154,7 +154,7 @@ function generateReadHook(func: ClarityFunction, contractName: string): string {
 }
 
 function generateWriteHook(
-  func: ClarityFunction,
+  func: AbiFunction,
   contractName: string
 ): string {
   const hookName = `use${capitalize(contractName)}${capitalize(toCamelCase(func.name))}`;
@@ -179,42 +179,17 @@ function generateWriteHook(
       const { contractAddress, contractName: name, functionName, functionArgs } = contractCallData
       const network = config.network || 'mainnet'
       const contract = \`\${contractAddress}.\${name}\`
-      
-      // Try @stacks/connect v8 stx_callContract first (SIP-030)
-      try {
-        const result = await request('stx_callContract', {
-          contract,
-          functionName,
-          functionArgs,
-          network,
-          ...options
-        })
-        
-        options.onFinish?.(result)
-        return result
-      } catch (connectError) {
-        // Fallback to openContractCall for broader wallet compatibility
-        console.warn('stx_callContract not supported, falling back to openContractCall:', connectError)
-        
-        return new Promise((resolve, reject) => {
-          stacksOpenContractCall({
-            contractAddress,
-            contractName: name,
-            functionName,
-            functionArgs,
-            network,
-            ...options,
-            onFinish: (data: any) => {
-              options.onFinish?.(data)
-              resolve(data)
-            },
-            onCancel: () => {
-              options.onCancel?.()
-              reject(new Error('User cancelled transaction'))
-            }
-          })
-        })
-      }
+
+      const result = await request('stx_callContract', {
+        contract,
+        functionName,
+        functionArgs,
+        network,
+        ...options
+      })
+
+      options.onFinish?.(result)
+      return result
     },
     onSuccess: () => {
       // Invalidate relevant queries on success
@@ -254,7 +229,7 @@ function generateWriteHook(
  * Generate a hook for reading a map entry
  */
 function generateMapHook(
-  map: ClarityMap,
+  map: AbiMap,
   contractVarName: string,
   _address: string,
   _contractName: string
@@ -280,7 +255,7 @@ function generateMapHook(
  * Generate a hook for reading a data variable
  */
 function generateVarHook(
-  variable: ClarityVariable,
+  variable: AbiVariable,
   contractVarName: string,
   _address: string,
   _contractName: string
@@ -305,7 +280,7 @@ function generateVarHook(
  * Generate a hook for reading a constant
  */
 function generateConstantHook(
-  constant: ClarityVariable,
+  constant: AbiVariable,
   contractVarName: string,
   _address: string,
   _contractName: string

@@ -1,7 +1,7 @@
 import path from "path";
 import chalk from "chalk";
 import fg from "fast-glob";
-import { toCamelCase } from "@secondlayer/clarity-types";
+import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { loadConfig } from "../utils/config";
 import { parseContractId } from "../utils/contract-id";
 import { StacksApiClient } from "../utils/api";
@@ -268,7 +268,7 @@ export async function generate(files: string[], options: GenerateOptions) {
     // Write all outputs to disk
     await pluginManager.writeOutputs(transformedOutputs);
 
-    // Check if @stacks/transactions is installed and warn if not
+    // Check if @secondlayer/stacks is installed and warn if not
     await checkBaseDependencies(process.cwd());
 
     const contractCount = processedContracts.length;

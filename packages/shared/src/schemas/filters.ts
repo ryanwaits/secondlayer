@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { validateStacksAddress } from "@stacks/transactions";
+import { isValidAddress } from "@secondlayer/stacks";
 
 /** Validate a Stacks principal (standard or contract, e.g. SP2J...ABC or SP2J...ABC.contract-name) */
 const stacksPrincipal = z.string().refine((val) => {
   const parts = val.split(".");
   if (parts.length > 2) return false;
-  return validateStacksAddress(parts[0]!);
+  return isValidAddress(parts[0]!);
 }, "Invalid Stacks principal address");
 
 // Base filter with common fields

@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@secondlayer/shared": "workspace:*",
-    "@stacks/transactions": "^7.2.0",
+    "@secondlayer/stacks": "workspace:*",
     "hono": "^4.0.0"
   },
   "devDependencies": {

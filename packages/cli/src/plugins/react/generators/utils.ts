@@ -2,7 +2,7 @@
  * Utility functions for React hook generation
  */
 
-import { toCamelCase, type FunctionArg } from "@secondlayer/clarity-types";
+import { toCamelCase, type FunctionArg } from "@secondlayer/stacks/clarity";
 import { clarityTypeToTS } from "../../../utils/type-mapping";
 
 // Re-export for use in other files

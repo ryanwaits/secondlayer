@@ -2,7 +2,7 @@
  * Validation for ClarityDoc documentation
  */
 
-import type { ClarityContract, ClarityFunction } from "@secondlayer/clarity-types";
+import type { AbiContract, AbiFunction } from "@secondlayer/stacks/clarity";
 import type { ContractDoc, FunctionDoc } from "../types/doc-block";
 import { isTagValidForContext, isCustomTag, type TagContext } from "../types/tags";
 
@@ -50,7 +50,7 @@ function validateTagPlacement(
 }
 
 /** Validate documentation against contract ABI */
-export function validateDocs(doc: ContractDoc, abi?: ClarityContract): ValidationResult {
+export function validateDocs(doc: ContractDoc, abi?: AbiContract): ValidationResult {
   const diagnostics: Diagnostic[] = [];
 
   // Validate tag placement for contract header
@@ -159,7 +159,7 @@ export function validateDocs(doc: ContractDoc, abi?: ClarityContract): Validatio
 }
 
 /** Validate a function's documentation */
-function validateFunctionDoc(funcDoc: FunctionDoc, abiFunc?: ClarityFunction): Diagnostic[] {
+function validateFunctionDoc(funcDoc: FunctionDoc, abiFunc?: AbiFunction): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const funcName = funcDoc.functionName;
 
@@ -242,7 +242,7 @@ export interface CoverageMetrics {
 }
 
 /** Calculate documentation coverage */
-export function calculateCoverage(doc: ContractDoc, abi: ClarityContract): CoverageMetrics {
+export function calculateCoverage(doc: ContractDoc, abi: AbiContract): CoverageMetrics {
   const publicFunctions = abi.functions.filter((f) => f.access !== "private");
   const totalFunctions = publicFunctions.length;
   const documentedFunctions = publicFunctions.filter((f) => doc.functions.has(f.name)).length;

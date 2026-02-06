@@ -5,15 +5,15 @@
 
 import {
   toCamelCase,
-  isClarityStringAscii,
-  isClarityStringUtf8,
-  isClarityBuffer,
-  isClarityOptional,
-  isClarityList,
-  isClarityTuple,
-  isClarityResponse,
-  type ClarityType,
-} from "@secondlayer/clarity-types";
+  isAbiStringAscii,
+  isAbiStringUtf8,
+  isAbiBuffer,
+  isAbiOptional,
+  isAbiList,
+  isAbiTuple,
+  isAbiResponse,
+  type AbiType,
+} from "@secondlayer/stacks/clarity";
 
 /**
  * Generate a code string that converts a TypeScript value to a ClarityValue
@@ -21,7 +21,7 @@ import {
  */
 export function generateClarityConversion(
   argName: string,
-  argType: { type: ClarityType }
+  argType: { type: AbiType }
 ): string {
   const type = argType.type;
 
@@ -53,15 +53,15 @@ export function generateClarityConversion(
     }
   }
 
-  if (isClarityStringAscii(type)) {
+  if (isAbiStringAscii(type)) {
     return `Cl.stringAscii(${argName})`;
   }
 
-  if (isClarityStringUtf8(type)) {
+  if (isAbiStringUtf8(type)) {
     return `Cl.stringUtf8(${argName})`;
   }
 
-  if (isClarityBuffer(type)) {
+  if (isAbiBuffer(type)) {
     return `(() => {
       const value = ${argName};
       if (value instanceof Uint8Array) {
@@ -93,14 +93,14 @@ export function generateClarityConversion(
     })()`;
   }
 
-  if (isClarityOptional(type)) {
+  if (isAbiOptional(type)) {
     const innerConversion = generateClarityConversion(argName, {
       type: type.optional,
     });
     return `${argName} !== null ? Cl.some(${innerConversion.replace(argName, `${argName}`)}) : Cl.none()`;
   }
 
-  if (isClarityList(type)) {
+  if (isAbiList(type)) {
     const innerConversion = generateClarityConversion("item", {
       type: type.list.type,
     });
@@ -114,7 +114,7 @@ export function generateClarityConversion(
     })()`;
   }
 
-  if (isClarityTuple(type)) {
+  if (isAbiTuple(type)) {
     const requiredFields = type.tuple.map((f) => f.name);
     const fieldNames = JSON.stringify(requiredFields);
     const fields = type.tuple
@@ -140,7 +140,7 @@ export function generateClarityConversion(
     })()`;
   }
 
-  if (isClarityResponse(type)) {
+  if (isAbiResponse(type)) {
     const okConversion = generateClarityConversion(`responseValue.ok`, {
       type: type.response.ok,
     });

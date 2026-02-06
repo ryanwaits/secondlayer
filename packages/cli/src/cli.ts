@@ -33,7 +33,7 @@ program
 
 program
   .command("generate [files...]")
-  .alias("gen")
+  .aliases(["gen", "codegen"])
   .description("Generate TypeScript interfaces from Clarity contracts")
   .option("-c, --config <path>", "Path to config file")
   .option("-o, --out <path>", "Output file path (required when using direct files)")

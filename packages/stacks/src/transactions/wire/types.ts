@@ -1,0 +1,21 @@
+// Re-export from parent types for convenience
+export type {
+  StacksTransaction,
+  Authorization,
+  StandardAuthorization,
+  SponsoredAuthorization,
+  SpendingCondition,
+  SingleSigSpendingCondition,
+  MultiSigSpendingCondition,
+  TransactionPayload,
+  TokenTransferPayload,
+  ContractCallPayload,
+  SmartContractPayload,
+  PostConditionWire,
+  StxPostConditionWire,
+  FtPostConditionWire,
+  NftPostConditionWire,
+  PostConditionPrincipalWire,
+  AssetInfoWire,
+  TransactionAuthField,
+} from "../types.ts";

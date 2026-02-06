@@ -7,12 +7,12 @@
  */
 
 import type {
-  ClarityContract,
-  ClarityFunction,
-  ClarityMap,
-  ClarityVariable,
-  ClarityType,
-} from "@secondlayer/clarity-types";
+  AbiContract,
+  AbiFunction,
+  AbiMap,
+  AbiVariable,
+  AbiType,
+} from "@secondlayer/stacks/clarity";
 
 /**
  * Normalize function access type from various formats to internal format
@@ -28,7 +28,7 @@ export function normalizeAccess(
  * Normalize a Clarity type from API format to internal format
  * Handles buffer vs buff, and recursively normalizes nested types
  */
-export function normalizeType(type: unknown): ClarityType {
+export function normalizeType(type: unknown): AbiType {
   if (typeof type === "string") {
     // Handle string primitive types
     switch (type) {
@@ -40,7 +40,7 @@ export function normalizeType(type: unknown): ClarityType {
         return type;
       default:
         // Unknown string type, return as-is
-        return type as ClarityType;
+        return type as AbiType;
     }
   }
 
@@ -136,7 +136,7 @@ export function normalizeType(type: unknown): ClarityType {
 /**
  * Normalize a function definition from API format to internal format
  */
-export function normalizeFunction(func: Record<string, unknown>): ClarityFunction {
+export function normalizeFunction(func: Record<string, unknown>): AbiFunction {
   const access = normalizeAccess(func.access as string);
   const args = (func.args as Array<{ name: string; type: unknown }>) ?? [];
   const outputs = func.outputs as { type?: unknown } | unknown;
@@ -159,7 +159,7 @@ export function normalizeFunction(func: Record<string, unknown>): ClarityFunctio
 /**
  * Normalize a map definition from API format to internal format
  */
-export function normalizeMap(map: Record<string, unknown>): ClarityMap {
+export function normalizeMap(map: Record<string, unknown>): AbiMap {
   return {
     name: map.name as string,
     key: normalizeType(map.key),
@@ -172,7 +172,7 @@ export function normalizeMap(map: Record<string, unknown>): ClarityMap {
  */
 export function normalizeVariable(
   variable: Record<string, unknown>
-): ClarityVariable {
+): AbiVariable {
   return {
     name: variable.name as string,
     type: normalizeType(variable.type),
@@ -186,18 +186,18 @@ export function normalizeVariable(
  * This handles ABIs from:
  * - Hiro API responses
  * - Clarinet SDK
- * - Upstream @stacks/transactions types
+ * - Upstream @secondlayer/stacks types
  */
-export function normalizeAbi(abi: unknown): ClarityContract {
+export function normalizeAbi(abi: unknown): AbiContract {
   if (typeof abi !== "object" || abi === null) {
     return { functions: [] };
   }
 
   const abiObj = abi as Record<string, unknown>;
 
-  const functions: ClarityFunction[] = [];
-  const maps: ClarityMap[] = [];
-  const variables: ClarityVariable[] = [];
+  const functions: AbiFunction[] = [];
+  const maps: AbiMap[] = [];
+  const variables: AbiVariable[] = [];
 
   // Normalize functions
   if (Array.isArray(abiObj.functions)) {

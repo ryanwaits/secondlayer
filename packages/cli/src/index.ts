@@ -11,12 +11,10 @@ export type {
 } from "./types/config";
 
 export type {
-  ClarityContract,
-  ClarityFunction,
-  ClarityType,
-  ContractCallParams,
-  ReadOnlyCallParams,
-} from "@secondlayer/clarity-types";
+  AbiContract,
+  AbiFunction,
+  AbiType,
+} from "@secondlayer/stacks/clarity";
 
 // Plugin system exports
 export type {

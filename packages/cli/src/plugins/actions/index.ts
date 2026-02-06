@@ -104,45 +104,31 @@ export const actions: PluginFactory<ActionsPluginOptions> = (options = {}) => {
  * Add required imports for fetchCallReadOnlyFunction, makeContractCall, and PostCondition
  */
 function addRequiredImports(content: string): string {
-  // Find the existing @stacks/transactions import line
-  const transactionsImportRegex =
-    /import\s+\{([^}]+)\}\s+from\s+['"]@stacks\/transactions['"];/;
-  const match = content.match(transactionsImportRegex);
+  // Find the existing @secondlayer/stacks import line
+  const stacksImportRegex =
+    /import\s+\{([^}]+)\}\s+from\s+['"]@secondlayer\/stacks['"];/;
+  const match = content.match(stacksImportRegex);
 
   if (match) {
-    // Add the new imports to the existing import
-    const existingImports = match[1].trim();
-    const requiredImports = [
-      "fetchCallReadOnlyFunction",
-      "makeContractCall",
-    ];
+    let updatedContent = content;
 
-    const newImports = requiredImports
-      .filter((imp) => !existingImports.includes(imp))
-      .join(", ");
-
-    if (newImports) {
-      const updatedImport = `import { ${existingImports}, ${newImports} } from '@stacks/transactions';`;
-      let updatedContent = content.replace(transactionsImportRegex, updatedImport);
-
-      // Add type import for PostCondition if not present
-      if (!updatedContent.includes("type PostCondition")) {
-        updatedContent = updatedContent.replace(
-          updatedImport,
-          `${updatedImport}\nimport type { PostCondition } from '@stacks/transactions';`
-        );
-      }
-
-      return updatedContent;
-    }
-
-    // Still need to add PostCondition type import even if other imports exist
-    if (!content.includes("type PostCondition")) {
-      return content.replace(
-        transactionsImportRegex,
-        `${match[0]}\nimport type { PostCondition } from '@stacks/transactions';`
+    // Add fetchCallReadOnlyFunction and makeContractCall from @secondlayer/stacks/clarity
+    if (!updatedContent.includes("fetchCallReadOnlyFunction")) {
+      updatedContent = updatedContent.replace(
+        stacksImportRegex,
+        `${match[0]}\nimport { fetchCallReadOnlyFunction, makeContractCall } from '@secondlayer/stacks/clarity';`
       );
     }
+
+    // Add type import for PostCondition if not present
+    if (!updatedContent.includes("type PostCondition")) {
+      updatedContent = updatedContent.replace(
+        stacksImportRegex,
+        `${match[0]}\nimport type { PostCondition } from '@secondlayer/stacks';`
+      );
+    }
+
+    return updatedContent;
   }
 
   return content;

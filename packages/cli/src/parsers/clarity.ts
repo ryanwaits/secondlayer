@@ -1,9 +1,9 @@
 import { promises as fs } from "fs";
 import type {
-  ClarityContract,
-  ClarityFunction,
-  ClarityType,
-} from "@secondlayer/clarity-types";
+  AbiContract,
+  AbiFunction,
+  AbiType,
+} from "@secondlayer/stacks/clarity";
 import { normalizeAbi } from "../utils/abi-compat";
 
 /**
@@ -14,7 +14,7 @@ import { normalizeAbi } from "../utils/abi-compat";
 
 export async function parseClarityFile(
   filePath: string
-): Promise<ClarityContract> {
+): Promise<AbiContract> {
   try {
     const content = await fs.readFile(filePath, "utf-8");
     const result = parseClarityContent(content);
@@ -36,8 +36,8 @@ export async function parseClarityFile(
   }
 }
 
-export function parseClarityContent(content: string): ClarityContract {
-  const functions: ClarityFunction[] = [];
+export function parseClarityContent(content: string): AbiContract {
+  const functions: AbiFunction[] = [];
 
   const functionRegex =
     /\(define-(public|read-only|private)\s+\(([^)]+)\)([\s\S]*?)\)\s*$/gm;
@@ -58,12 +58,12 @@ function parseFunctionSignature(
   signature: string,
   access: "public" | "read-only" | "private",
   body: string
-): ClarityFunction | null {
+): AbiFunction | null {
   // Parse function name and arguments
   const parts = signature.trim().split(/\s+/);
   const name = parts[0];
 
-  const args: Array<{ name: string; type: ClarityType }> = [];
+  const args: Array<{ name: string; type: AbiType }> = [];
 
   // Parse arguments (simplified)
   for (let i = 1; i < parts.length; i += 2) {
@@ -87,7 +87,7 @@ function parseFunctionSignature(
   };
 }
 
-function parseType(typeStr: string): ClarityType | null {
+function parseType(typeStr: string): AbiType | null {
   typeStr = typeStr.replace(/[()]/g, "").trim();
 
   // Basic type mappings
@@ -120,7 +120,7 @@ function parseType(typeStr: string): ClarityType | null {
   }
 }
 
-function inferReturnType(body: string): ClarityType {
+function inferReturnType(body: string): AbiType {
   // Simplified return type inference
   if (body.includes("(ok")) {
     if (body.includes("(err")) {
@@ -144,7 +144,7 @@ function inferReturnType(body: string): ClarityType {
  * Parse ABI from API response
  * Uses the abi-compat normalization layer for consistent handling of different ABI formats
  */
-export function parseApiResponse(apiResponse: any): ClarityContract {
+export function parseApiResponse(apiResponse: any): AbiContract {
   try {
     return normalizeAbi(apiResponse);
   } catch (error) {

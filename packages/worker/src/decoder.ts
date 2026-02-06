@@ -1,14 +1,14 @@
-import { cvToJSON, hexToCV } from "@stacks/transactions";
+import { cvToJSON, deserializeCV } from "@secondlayer/stacks/clarity";
 
 /**
  * Decode a hex-encoded Clarity value to a JavaScript object
- * Uses cvToJSON from @stacks/transactions for reliable decoding
+ * Uses cvToJSON from @secondlayer/stacks for reliable decoding
  */
 export function decodeClarityValue(hex: string): any {
   try {
     // Remove 0x prefix if present
     const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
-    const cv = hexToCV(cleanHex);
+    const cv = deserializeCV(cleanHex);
     return cvToJSON(cv);
   } catch {
     // Return original hex if decoding fails

@@ -31,5 +31,5 @@ export default defineConfig({
   dts: true,
   sourcemap: "linked",
   minify: false,
-  external: ["kysely", "kysely-postgres-js", "postgres", "zod", "@stacks/transactions"],
+  external: ["kysely", "kysely-postgres-js", "postgres", "zod"],
 });

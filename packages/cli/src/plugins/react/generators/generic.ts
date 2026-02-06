@@ -32,10 +32,10 @@ export async function generateGenericHooks(
   const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
 import { useSecondLayerConfig } from './provider'
-import { connect, disconnect, isConnected, request, openContractCall as stacksOpenContractCall, openSTXTransfer, openSignatureRequestPopup, openContractDeploy } from '@stacks/connect'
-import { Cl, validateStacksAddress } from '@stacks/transactions'
-import type { PostCondition } from '@stacks/transactions'
-import type { ExtractFunctionArgs, ExtractFunctionNames, ClarityContract } from '@secondlayer/clarity-types'
+import { connect, disconnect, isConnected, request } from '@secondlayer/stacks/connect'
+import { Cl, validateStacksAddress } from '@secondlayer/stacks'
+import type { PostCondition } from '@secondlayer/stacks'
+import type { ExtractFunctionArgs, ExtractFunctionNames, AbiContract } from '@secondlayer/stacks/clarity'
 
 const API_URLS: Record<string, string> = {
   mainnet: 'https://api.hiro.so',
@@ -89,7 +89,7 @@ function generateGenericHook(hookName: string): string {
     queryKey: ['stacks-account', config.network],
     queryFn: async () => {
       try {
-        // Check if already connected using @stacks/connect v8
+        // Check if already connected
         const connected = isConnected()
         
         if (!connected) {
@@ -103,7 +103,7 @@ function generateGenericHook(hookName: string): string {
           }
         }
 
-        // Get addresses using @stacks/connect v8 request method (SIP-030)
+        // Get addresses via SIP-030
         const result = await request('stx_getAddresses')
         
         if (!result || !result.addresses || result.addresses.length === 0) {
@@ -155,7 +155,7 @@ function generateGenericHook(hookName: string): string {
   
   const mutation = useMutation({
     mutationFn: async (options: { forceWalletSelect?: boolean } = {}) => {
-      // Use @stacks/connect v8 connect method
+      // SIP-030 connect
       return await connect(options)
     },
     onSuccess: () => {
@@ -194,7 +194,7 @@ function generateGenericHook(hookName: string): string {
   
   const mutation = useMutation({
     mutationFn: async () => {
-      // Use @stacks/connect v8 disconnect method
+      // SIP-030 disconnect
       return await disconnect()
     },
     onSuccess: () => {
@@ -272,7 +272,7 @@ function generateGenericHook(hookName: string): string {
   return useQuery<TResult>({
     queryKey: ['read-contract', params.contractAddress, params.contractName, params.functionName, params.args, params.network || config.network],
     queryFn: async () => {
-      const { fetchCallReadOnlyFunction } = await import('@stacks/transactions')
+      const { fetchCallReadOnlyFunction } = await import('@secondlayer/stacks/clarity')
       
       // For now, we'll need to handle the args conversion here
       // In the future, we could integrate with the contract interface for automatic conversion
@@ -378,39 +378,25 @@ function generateGenericHook(hookName: string): string {
       return `export function useOpenSTXTransfer() {
   const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
-  
+
   const mutation = useMutation({
     mutationFn: async (params: {
       recipient: string;
       amount: string | number;
       memo?: string;
       network?: string;
-      onFinish?: (data: any) => void;
-      onCancel?: () => void;
     }) => {
-      const { recipient, amount, memo, onFinish, onCancel, ...options } = params
+      const { recipient, amount, memo } = params
       const network = params.network || config.network || 'mainnet'
-      
-      return new Promise((resolve, reject) => {
-        openSTXTransfer({
-          recipient,
-          amount: amount.toString(),
-          memo,
-          network,
-          ...options,
-          onFinish: (data: any) => {
-            onFinish?.(data)
-            resolve(data)
-          },
-          onCancel: () => {
-            onCancel?.()
-            reject(new Error('User cancelled transaction'))
-          }
-        })
+
+      return await request('stx_transferStx', {
+        recipient,
+        amount: amount.toString(),
+        memo,
+        network,
       })
     },
     onSuccess: () => {
-      // Invalidate relevant queries on success
       queryClient.invalidateQueries({ queryKey: ['stacks-account'] })
     },
     onError: (error) => {
@@ -423,15 +409,12 @@ function generateGenericHook(hookName: string): string {
     amount: string | number;
     memo?: string;
     network?: string;
-    onFinish?: (data: any) => void;
-    onCancel?: () => void;
   }) => {
     return mutation.mutateAsync(params)
   }, [mutation])
 
   return {
     openSTXTransfer,
-    // Expose mutation state
     isPending: mutation.isPending,
     isError: mutation.isError,
     isSuccess: mutation.isSuccess,
@@ -444,31 +427,18 @@ function generateGenericHook(hookName: string): string {
     case "useSignMessage":
       return `export function useSignMessage() {
   const config = useSecondLayerConfig()
-  
+
   const mutation = useMutation({
     mutationFn: async (params: {
       message: string;
       network?: string;
-      onFinish?: (data: any) => void;
-      onCancel?: () => void;
     }) => {
-      const { message, onFinish, onCancel, ...options } = params
+      const { message } = params
       const network = params.network || config.network || 'mainnet'
-      
-      return new Promise((resolve, reject) => {
-        openSignatureRequestPopup({
-          message,
-          network,
-          ...options,
-          onFinish: (data: any) => {
-            onFinish?.(data)
-            resolve(data)
-          },
-          onCancel: () => {
-            onCancel?.()
-            reject(new Error('User cancelled message signing'))
-          }
-        })
+
+      return await request('stx_signMessage', {
+        message,
+        network,
       })
     },
     onError: (error) => {
@@ -479,15 +449,12 @@ function generateGenericHook(hookName: string): string {
   const signMessage = useCallback(async (params: {
     message: string;
     network?: string;
-    onFinish?: (data: any) => void;
-    onCancel?: () => void;
   }) => {
     return mutation.mutateAsync(params)
   }, [mutation])
 
   return {
     signMessage,
-    // Expose mutation state
     isPending: mutation.isPending,
     isError: mutation.isError,
     isSuccess: mutation.isSuccess,
@@ -501,38 +468,23 @@ function generateGenericHook(hookName: string): string {
       return `export function useDeployContract() {
   const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
-  
+
   const mutation = useMutation({
     mutationFn: async (params: {
       contractName: string;
       codeBody: string;
       network?: string;
-      postConditions?: PostCondition[];
-      onFinish?: (data: any) => void;
-      onCancel?: () => void;
     }) => {
-      const { contractName, codeBody, onFinish, onCancel, ...options } = params
+      const { contractName, codeBody } = params
       const network = params.network || config.network || 'mainnet'
-      
-      return new Promise((resolve, reject) => {
-        openContractDeploy({
-          contractName,
-          codeBody,
-          network,
-          ...options,
-          onFinish: (data: any) => {
-            onFinish?.(data)
-            resolve(data)
-          },
-          onCancel: () => {
-            onCancel?.()
-            reject(new Error('User cancelled contract deployment'))
-          }
-        })
+
+      return await request('stx_deployContract', {
+        name: contractName,
+        clarityCode: codeBody,
+        network,
       })
     },
     onSuccess: () => {
-      // Invalidate relevant queries on success
       queryClient.invalidateQueries({ queryKey: ['stacks-account'] })
     },
     onError: (error) => {
@@ -544,16 +496,12 @@ function generateGenericHook(hookName: string): string {
     contractName: string;
     codeBody: string;
     network?: string;
-    postConditions?: PostCondition[];
-    onFinish?: (data: any) => void;
-    onCancel?: () => void;
   }) => {
     return mutation.mutateAsync(params)
   }, [mutation])
 
   return {
     deployContract,
-    // Expose mutation state
     isPending: mutation.isPending,
     isError: mutation.isError,
     isSuccess: mutation.isSuccess,

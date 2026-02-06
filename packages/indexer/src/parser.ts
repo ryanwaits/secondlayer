@@ -9,13 +9,10 @@ import {
   deserializeTransaction,
   PayloadType,
   AddressHashMode,
-  AddressVersion,
-  addressFromVersionHash,
-  addressToString,
   type ContractCallPayload,
-  type SmartContractPayloadWire,
-  type VersionedSmartContractPayloadWire,
-} from "@stacks/transactions";
+  type SmartContractPayload,
+} from "@secondlayer/stacks/transactions";
+import { AddressVersion, c32address } from "@secondlayer/stacks/utils";
 
 // Stacks API URL for fallback tx lookups
 // Uses local stacks-blockchain-api if available, otherwise falls back to Hiro public API
@@ -101,8 +98,8 @@ function decodeRawTx(rawTx: string, txid?: string): {
     const { signer, hashMode } = tx.auth.spendingCondition;
 
     // Determine address version based on tx version and hash mode
-    // tx.transactionVersion: 0 = mainnet, 128 = testnet
-    const isMainnet = tx.transactionVersion === 0;
+    // tx.version: 0 = mainnet, 128 = testnet
+    const isMainnet = tx.version === 0;
     const isSingleSig = hashMode === AddressHashMode.P2PKH || hashMode === AddressHashMode.P2WPKH;
 
     let addressVersion: AddressVersion;
@@ -112,7 +109,7 @@ function decodeRawTx(rawTx: string, txid?: string): {
       addressVersion = isSingleSig ? AddressVersion.TestnetSingleSig : AddressVersion.TestnetMultiSig;
     }
 
-    const sender = addressToString(addressFromVersionHash(addressVersion, signer));
+    const sender = c32address(addressVersion, signer);
 
     // Extract contract details if applicable
     let contractId: string | null = null;
@@ -120,15 +117,14 @@ function decodeRawTx(rawTx: string, txid?: string): {
 
     if (tx.payload.payloadType === PayloadType.ContractCall) {
       const payload = tx.payload as ContractCallPayload;
-      const contractAddress = addressToString(payload.contractAddress);
-      contractId = `${contractAddress}.${payload.contractName.content}`;
-      functionName = payload.functionName.content;
+      contractId = `${payload.contractAddress}.${payload.contractName}`;
+      functionName = payload.functionName;
     } else if (
       tx.payload.payloadType === PayloadType.SmartContract ||
       tx.payload.payloadType === PayloadType.VersionedSmartContract
     ) {
-      const payload = tx.payload as SmartContractPayloadWire | VersionedSmartContractPayloadWire;
-      contractId = `${sender}.${payload.contractName.content}`;
+      const payload = tx.payload as SmartContractPayload;
+      contractId = `${sender}.${payload.contractName}`;
     }
 
     return { txType, sender, contractId, functionName };

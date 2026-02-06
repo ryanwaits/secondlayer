@@ -31,9 +31,11 @@ Snapshot Replica
     ↓ daily cron
 pg_dump -Fd -j8 --compress=zstd:level=3
     ↓
-Cloudflare R2 / S3
-    ↓
-Public download with SHA256 checksums
+    ├──→ Hetzner Storage Box (private backup, 30-day retention)
+    │
+    └──→ Cloudflare R2 (public distribution, 7-day retention)
+             ↓
+         Public download with SHA256 checksums
 ```
 
 ---
@@ -198,9 +200,59 @@ VACUUM ANALYZE;
 
 ## Distribution
 
-### Cloudflare R2 (Recommended)
+We use a two-tier storage strategy:
 
-No egress fees, S3-compatible API.
+| | Hetzner Storage Box | Cloudflare R2 |
+|---|---|---|
+| **Purpose** | Private backup/disaster recovery | Public distribution |
+| **Access** | SFTP, rsync, SMB | HTTPS, S3 API |
+| **Egress** | Metered (~€1/TB) | Free |
+| **Cost** | ~€3.50/month (1TB) | ~$15/month (1TB stored) |
+| **Best for** | Internal ops, offsite backup | Client downloads, automation |
+| **Retention** | Long-term archive (30+ days) | Recent snapshots (7 days) |
+
+```
+Production DB
+    ↓ daily pg_dump
+Hetzner Storage Box     ← private backup, cheap, long retention
+    ↓ rsync
+Cloudflare R2           ← public downloads, no egress fees, CDN
+```
+
+---
+
+### Tier 1: Hetzner Storage Box (Backup)
+
+Private offsite backup. Cheap storage with long retention for disaster recovery.
+
+**Setup:**
+1. Create Storage Box via [Hetzner Robot](https://robot.hetzner.com) → Storage → Storage Box
+2. Enable SSH/rsync access in sub-account settings
+3. Add SSH key for passwordless uploads
+
+```bash
+# Upload via rsync
+rsync -avz --progress \
+  secondlayer-snapshot-20260205.tar.zst \
+  uXXXXXX@uXXXXXX.your-storagebox.de:./snapshots/
+
+# Or via SFTP
+sftp uXXXXXX@uXXXXXX.your-storagebox.de <<< "put secondlayer-snapshot-20260205.tar.zst snapshots/"
+```
+
+**Retention policy:** Keep 30 days of daily snapshots + weekly snapshots for 6 months.
+
+```bash
+# Cleanup old snapshots (keep last 30 days)
+ssh uXXXXXX@uXXXXXX.your-storagebox.de \
+  'find snapshots/ -name "*.tar.zst" -mtime +30 -delete'
+```
+
+---
+
+### Tier 2: Cloudflare R2 (Public Distribution)
+
+Public downloads for clients and self-hosted deployments. No egress fees.
 
 ```bash
 # Upload via AWS CLI (R2 is S3-compatible)
@@ -211,6 +263,10 @@ export AWS_ENDPOINT_URL="https://<account-id>.r2.cloudflarestorage.com"
 aws s3 cp secondlayer-snapshot-20260205.tar.zst s3://secondlayer-snapshots/
 aws s3 cp secondlayer-snapshot-20260205.sha256 s3://secondlayer-snapshots/
 ```
+
+**Retention policy:** Keep 7 days of daily snapshots (clients only need recent ones).
+
+---
 
 ### Directory Structure
 
@@ -269,6 +325,7 @@ set -euo pipefail
 TIMESTAMP=$(date +%Y-%m-%d)
 WORKDIR="/tmp/snapshot-${TIMESTAMP}"
 S3_BUCKET="s3://secondlayer-snapshots/mainnet/${TIMESTAMP}"
+STORAGE_BOX="uXXXXXX@uXXXXXX.your-storagebox.de"
 
 # Create snapshot
 mkdir -p "$WORKDIR"
@@ -305,7 +362,21 @@ cd "$WORKDIR"
 tar -cf - data manifest.json | zstd -3 > snapshot.tar.zst
 sha256sum snapshot.tar.zst > snapshot.sha256
 
-# Upload
+# ============================================
+# Tier 1: Upload to Storage Box (private backup)
+# ============================================
+echo "Uploading to Storage Box..."
+rsync -avz --progress \
+  snapshot.tar.zst snapshot.sha256 manifest.json \
+  "${STORAGE_BOX}:./snapshots/mainnet/${TIMESTAMP}/"
+
+# Cleanup old Storage Box snapshots (keep 30 days)
+ssh "$STORAGE_BOX" 'find snapshots/ -type d -mtime +30 -exec rm -rf {} + 2>/dev/null || true'
+
+# ============================================
+# Tier 2: Upload to R2 (public distribution)
+# ============================================
+echo "Uploading to R2..."
 aws s3 cp snapshot.tar.zst "$S3_BUCKET/"
 aws s3 cp snapshot.sha256 "$S3_BUCKET/"
 aws s3 cp manifest.json "$S3_BUCKET/"
@@ -313,10 +384,18 @@ aws s3 cp manifest.json "$S3_BUCKET/"
 # Update latest pointer
 echo "{\"latest\": \"mainnet/${TIMESTAMP}\"}" | aws s3 cp - s3://secondlayer-snapshots/latest.json
 
-# Cleanup
+# Cleanup old R2 snapshots (keep 7 days)
+aws s3 ls s3://secondlayer-snapshots/mainnet/ | while read -r line; do
+  DIR=$(echo "$line" | awk '{print $2}' | tr -d '/')
+  if [[ "$DIR" < "$(date -d '7 days ago' +%Y-%m-%d)" ]]; then
+    aws s3 rm --recursive "s3://secondlayer-snapshots/mainnet/${DIR}/"
+  fi
+done
+
+# Cleanup local
 rm -rf "$WORKDIR"
 
-echo "Snapshot uploaded to $S3_BUCKET"
+echo "Snapshot uploaded to Storage Box and R2"
 ```
 
 ---

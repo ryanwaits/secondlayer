@@ -1,0 +1,76 @@
+{
+  "name": "@secondlayer/stacks",
+  "version": "0.0.1",
+  "description": "A viem-style SDK for the Stacks blockchain",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./accounts": {
+      "types": "./dist/accounts/index.d.ts",
+      "import": "./dist/accounts/index.js",
+      "require": "./dist/accounts/index.cjs"
+    },
+    "./chains": {
+      "types": "./dist/chains/index.d.ts",
+      "import": "./dist/chains/index.js",
+      "require": "./dist/chains/index.cjs"
+    },
+    "./clarity": {
+      "types": "./dist/clarity/index.d.ts",
+      "import": "./dist/clarity/index.js",
+      "require": "./dist/clarity/index.cjs"
+    },
+    "./actions": {
+      "types": "./dist/actions/index.d.ts",
+      "import": "./dist/actions/index.js",
+      "require": "./dist/actions/index.cjs"
+    },
+    "./postconditions": {
+      "types": "./dist/postconditions/index.d.ts",
+      "import": "./dist/postconditions/index.js",
+      "require": "./dist/postconditions/index.cjs"
+    },
+    "./transactions": {
+      "types": "./dist/transactions/index.d.ts",
+      "import": "./dist/transactions/index.js",
+      "require": "./dist/transactions/index.cjs"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js",
+      "require": "./dist/utils/index.cjs"
+    },
+    "./connect": {
+      "types": "./dist/connect/index.d.ts",
+      "import": "./dist/connect/index.js",
+      "require": "./dist/connect/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "tsup": "8.5.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1",
+    "@noble/secp256k1": "2.3.0",
+    "@scure/bip32": "2.0.1",
+    "@scure/bip39": "2.0.1",
+    "c32check": "2.0.0"
+  }
+}

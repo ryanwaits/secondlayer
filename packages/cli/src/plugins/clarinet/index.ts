@@ -4,7 +4,7 @@
  */
 
 import { initSimnet } from "@hirosystems/clarinet-sdk";
-import { toCamelCase } from "@secondlayer/clarity-types";
+import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { parseContractId } from "../../utils/contract-id";
 import { generateContractInterface } from "../../generators/contract";
 import { normalizeAbi } from "../../utils/abi-compat";

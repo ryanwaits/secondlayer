@@ -8,7 +8,7 @@ import chalk from "chalk";
  * Required dependencies for base generated contracts
  */
 export const BASE_DEPENDENCIES = {
-  dependencies: ["@stacks/transactions"],
+  dependencies: ["@secondlayer/stacks"],
   devDependencies: [] as string[],
 } as const;
 
@@ -19,8 +19,7 @@ export const HOOKS_DEPENDENCIES = {
   dependencies: [
     "react",
     "@tanstack/react-query",
-    "@stacks/transactions",
-    "@stacks/connect",
+    "@secondlayer/stacks",
   ],
   devDependencies: ["@types/react"],
 } as const;
@@ -112,19 +111,19 @@ export async function getMissingDependencies(targetDir: string): Promise<{
 }
 
 /**
- * Check if @stacks/transactions is installed and warn if not
+ * Check if @secondlayer/stacks is installed and warn if not
  */
 export async function checkBaseDependencies(targetDir: string): Promise<void> {
   const missing = await getMissingDependenciesFor(targetDir, BASE_DEPENDENCIES);
 
   if (missing.dependencies.length > 0) {
-    console.log(chalk.yellow("\n⚠ Required peer dependency not found: @stacks/transactions"));
-    console.log(chalk.gray("  The generated code requires @stacks/transactions to work."));
+    console.log(chalk.yellow("\n⚠ Required peer dependency not found: @secondlayer/stacks"));
+    console.log(chalk.gray("  The generated code requires @secondlayer/stacks to work."));
     console.log(chalk.gray("  Install it with:"));
 
     const packageManager = await getPackageManager(targetDir);
     const installCmd = packageManager === "npm" ? "install" : "add";
-    console.log(chalk.cyan(`    ${packageManager} ${installCmd} @stacks/transactions\n`));
+    console.log(chalk.cyan(`    ${packageManager} ${installCmd} @secondlayer/stacks\n`));
   }
 }
 

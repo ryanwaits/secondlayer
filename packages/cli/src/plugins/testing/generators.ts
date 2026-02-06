@@ -6,12 +6,12 @@
 import type { ProcessedContract } from "../../types/plugin";
 import {
   toCamelCase,
-  isClarityTuple,
-  type ClarityFunction,
-  type ClarityMap,
-  type ClarityType,
-  type ClarityVariable,
-} from "@secondlayer/clarity-types";
+  isAbiTuple,
+  type AbiFunction,
+  type AbiMap,
+  type AbiType,
+  type AbiVariable,
+} from "@secondlayer/stacks/clarity";
 import type { TestingPluginOptions } from "./index";
 import { getTypeForArg } from "../../utils/type-mapping";
 import { generateClarityConversion } from "../../utils/clarity-conversion";
@@ -30,7 +30,7 @@ function toPascalCase(str: string): string {
  * Generate a public function helper
  */
 function generatePublicFunction(
-  func: ClarityFunction,
+  func: AbiFunction,
   contractId: string
 ): string {
   const methodName = toCamelCase(func.name);
@@ -52,7 +52,7 @@ function generatePublicFunction(
  * Generate a read-only function helper
  */
 function generateReadOnlyFunction(
-  func: ClarityFunction,
+  func: AbiFunction,
   contractId: string
 ): string {
   const methodName = toCamelCase(func.name);
@@ -77,7 +77,7 @@ function generateReadOnlyFunction(
  * Generate a private function helper (for testing only)
  */
 function generatePrivateFunction(
-  func: ClarityFunction,
+  func: AbiFunction,
   contractId: string
 ): string {
   const methodName = toCamelCase(func.name);
@@ -99,7 +99,7 @@ function generatePrivateFunction(
  * Generate a data variable accessor helper
  */
 function generateDataVarHelper(
-  variable: ClarityVariable,
+  variable: AbiVariable,
   contractId: string
 ): string {
   const methodName = toCamelCase(variable.name);
@@ -112,9 +112,9 @@ function generateDataVarHelper(
 /**
  * Generate TypeScript type for map key based on its structure
  */
-function getMapKeyType(keyType: ClarityType): string {
+function getMapKeyType(keyType: AbiType): string {
   // Map keys are typically tuples
-  if (isClarityTuple(keyType)) {
+  if (isAbiTuple(keyType)) {
     const fields = keyType.tuple
       .map(
         (field) =>
@@ -131,9 +131,9 @@ function getMapKeyType(keyType: ClarityType): string {
 /**
  * Generate Clarity conversion for map key
  */
-function generateMapKeyConversion(keyType: ClarityType): string {
+function generateMapKeyConversion(keyType: AbiType): string {
   // Map keys are typically tuples
-  if (isClarityTuple(keyType)) {
+  if (isAbiTuple(keyType)) {
     const fields = keyType.tuple
       .map((field) => {
         const camelFieldName = toCamelCase(field.name);
@@ -154,7 +154,7 @@ function generateMapKeyConversion(keyType: ClarityType): string {
 /**
  * Generate a map entry accessor helper
  */
-function generateMapEntryHelper(map: ClarityMap, contractId: string): string {
+function generateMapEntryHelper(map: AbiMap, contractId: string): string {
   const methodName = toCamelCase(map.name);
   const keyType = getMapKeyType(map.key);
   const keyConversion = generateMapKeyConversion(map.key);
@@ -172,7 +172,7 @@ function generateMapEntryHelper(map: ClarityMap, contractId: string): string {
  * Generate the vars object containing all data variable accessors
  */
 function generateVarsObject(
-  variables: readonly ClarityVariable[],
+  variables: readonly AbiVariable[],
   contractId: string
 ): string {
   // Filter to only include mutable variables (not constants)
@@ -192,7 +192,7 @@ function generateVarsObject(
 /**
  * Generate the maps object containing all map entry accessors
  */
-function generateMapsObject(maps: readonly ClarityMap[], contractId: string): string {
+function generateMapsObject(maps: readonly AbiMap[], contractId: string): string {
   if (maps.length === 0) {
     return "";
   }
@@ -219,24 +219,24 @@ function generateContractHelper(
 
   // Filter functions by access type
   const publicFns = functions.filter(
-    (f: ClarityFunction) => f.access === "public"
+    (f: AbiFunction) => f.access === "public"
   );
   const readOnlyFns = functions.filter(
-    (f: ClarityFunction) =>
+    (f: AbiFunction) =>
       f.access === "read-only"
   );
   const privateFns = options.includePrivate
-    ? functions.filter((f: ClarityFunction) => f.access === "private")
+    ? functions.filter((f: AbiFunction) => f.access === "private")
     : [];
 
   // Generate function helpers
-  const publicHelpers = publicFns.map((f: ClarityFunction) =>
+  const publicHelpers = publicFns.map((f: AbiFunction) =>
     generatePublicFunction(f, address)
   );
-  const readOnlyHelpers = readOnlyFns.map((f: ClarityFunction) =>
+  const readOnlyHelpers = readOnlyFns.map((f: AbiFunction) =>
     generateReadOnlyFunction(f, address)
   );
-  const privateHelpers = privateFns.map((f: ClarityFunction) =>
+  const privateHelpers = privateFns.map((f: AbiFunction) =>
     generatePrivateFunction(f, address)
   );
 

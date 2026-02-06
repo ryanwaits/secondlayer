@@ -2,7 +2,7 @@
  * Shared utilities for plugin code generators (actions, testing).
  */
 
-import { toCamelCase, type FunctionArg } from "@secondlayer/clarity-types";
+import { toCamelCase, type FunctionArg } from "@secondlayer/stacks/clarity";
 import { getTypeForArg } from "./type-mapping";
 import { generateClarityConversion } from "./clarity-conversion";
 

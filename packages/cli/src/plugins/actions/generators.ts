@@ -3,7 +3,7 @@
  */
 
 import type { ProcessedContract } from "../../types/plugin";
-import { toCamelCase, type ClarityFunction } from "@secondlayer/clarity-types";
+import { toCamelCase, type AbiFunction } from "@secondlayer/stacks/clarity";
 import type { ActionsPluginOptions } from "./index";
 import { generateArgsSignature, generateClarityArgs } from "../../utils/generator-helpers";
 
@@ -19,7 +19,7 @@ function generateReadHelpers(
   const functions = abi.functions || [];
 
   const readOnlyFunctions = functions.filter(
-    (f: ClarityFunction) =>
+    (f: AbiFunction) =>
       f.access === "read-only"
   );
 
@@ -29,7 +29,7 @@ function generateReadHelpers(
 
   // Apply function filters
   const filteredFunctions = readOnlyFunctions.filter(
-    (func: ClarityFunction) => {
+    (func: AbiFunction) => {
       if (
         options.includeFunctions &&
         !options.includeFunctions.includes(func.name)
@@ -50,7 +50,7 @@ function generateReadHelpers(
     return "";
   }
 
-  const helpers = filteredFunctions.map((func: ClarityFunction) => {
+  const helpers = filteredFunctions.map((func: AbiFunction) => {
     const methodName = toCamelCase(func.name);
     const argsSignature = generateArgsSignature(func.args);
     const clarityArgs = generateClarityArgs(func.args);
@@ -87,7 +87,7 @@ function generateWriteHelpers(
   const envVarName = options.senderKeyEnv ?? "STX_SENDER_KEY";
 
   const publicFunctions = functions.filter(
-    (f: ClarityFunction) => f.access === "public"
+    (f: AbiFunction) => f.access === "public"
   );
 
   if (publicFunctions.length === 0) {
@@ -95,7 +95,7 @@ function generateWriteHelpers(
   }
 
   // Apply function filters
-  const filteredFunctions = publicFunctions.filter((func: ClarityFunction) => {
+  const filteredFunctions = publicFunctions.filter((func: AbiFunction) => {
     if (
       options.includeFunctions &&
       !options.includeFunctions.includes(func.name)
@@ -115,7 +115,7 @@ function generateWriteHelpers(
     return "";
   }
 
-  const helpers = filteredFunctions.map((func: ClarityFunction) => {
+  const helpers = filteredFunctions.map((func: AbiFunction) => {
     const methodName = toCamelCase(func.name);
     const argsSignature = generateArgsSignature(func.args);
     const clarityArgs = generateClarityArgs(func.args);

@@ -53,7 +53,7 @@ describe("Contract Generator", () => {
 
       // Check imports
       expect(code).toContain(
-        "import { Cl, validateStacksAddress } from '@stacks/transactions'"
+        "import { Cl, validateStacksAddress } from '@secondlayer/stacks'"
       );
 
       // Check contract generation

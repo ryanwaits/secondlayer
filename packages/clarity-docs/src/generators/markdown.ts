@@ -2,7 +2,7 @@
  * Generate Markdown documentation from ClarityDoc
  */
 
-import type { ClarityContract } from "@secondlayer/clarity-types";
+import type { AbiContract } from "@secondlayer/stacks/clarity";
 import type { ContractDoc, FunctionDoc, MapDoc, VariableDoc } from "../types/doc-block";
 
 /** Options for markdown generation */
@@ -18,7 +18,7 @@ export interface MarkdownOptions {
 }
 
 /** Generate Markdown documentation */
-export function generateMarkdown(doc: ContractDoc, abi?: ClarityContract, options: MarkdownOptions = {}): string {
+export function generateMarkdown(doc: ContractDoc, abi?: AbiContract, options: MarkdownOptions = {}): string {
   const lines: string[] = [];
   const { includePrivate = false, includeToc = true, contractName, includeTypes = true } = options;
 
@@ -139,7 +139,7 @@ export function generateMarkdown(doc: ContractDoc, abi?: ClarityContract, option
 
 function generateFunctionMarkdown(
   func: FunctionDoc,
-  abiFunc?: ClarityContract["functions"][number],
+  abiFunc?: AbiContract["functions"][number],
   includeTypes = true
 ): string[] {
   const lines: string[] = [];
@@ -253,7 +253,7 @@ function generateFunctionMarkdown(
 
 function generateMapMarkdown(
   map: MapDoc,
-  abiMap?: ClarityContract["maps"] extends readonly (infer T)[] | undefined ? T : never,
+  abiMap?: AbiContract["maps"] extends readonly (infer T)[] | undefined ? T : never,
   includeTypes = true
 ): string[] {
   const lines: string[] = [];
@@ -294,7 +294,7 @@ function generateMapMarkdown(
 
 function generateVariableMarkdown(
   variable: VariableDoc,
-  abiVar?: ClarityContract["variables"] extends readonly (infer T)[] | undefined ? T : never,
+  abiVar?: AbiContract["variables"] extends readonly (infer T)[] | undefined ? T : never,
   includeTypes = true
 ): string[] {
   const lines: string[] = [];

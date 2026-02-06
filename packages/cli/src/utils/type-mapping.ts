@@ -7,15 +7,15 @@
 
 import {
   toCamelCase,
-  isClarityList,
-  isClarityTuple,
-  isClarityOptional,
-  isClarityResponse,
-  isClarityBuffer,
-  isClarityStringAscii,
-  isClarityStringUtf8,
-  type ClarityType,
-} from "@secondlayer/clarity-types";
+  isAbiList,
+  isAbiTuple,
+  isAbiOptional,
+  isAbiResponse,
+  isAbiBuffer,
+  isAbiStringAscii,
+  isAbiStringUtf8,
+  type AbiType,
+} from "@secondlayer/stacks/clarity";
 
 /**
  * Map a Clarity type to its TypeScript type string representation
@@ -23,7 +23,7 @@ import {
  * @param type - The Clarity type definition from an ABI
  * @returns The TypeScript type string (e.g., "bigint", "string", "{ field: bigint }")
  */
-export function clarityTypeToTS(type: ClarityType): string {
+export function clarityTypeToTS(type: AbiType): string {
   // Handle string primitive types
   if (typeof type === "string") {
     switch (type) {
@@ -58,17 +58,17 @@ export function clarityTypeToTS(type: ClarityType): string {
   }
 
   // Handle buffer types - support flexible input
-  if (isClarityBuffer(type)) {
+  if (isAbiBuffer(type)) {
     return "Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }";
   }
 
   // Handle string types
-  if (isClarityStringAscii(type) || isClarityStringUtf8(type)) {
+  if (isAbiStringAscii(type) || isAbiStringUtf8(type)) {
     return "string";
   }
 
   // Handle optional types
-  if (isClarityOptional(type)) {
+  if (isAbiOptional(type)) {
     const innerType = clarityTypeToTS(type.optional);
     // Wrap union types in parentheses for correct precedence
     if (innerType.includes(" | ") && !innerType.startsWith("(")) {
@@ -78,7 +78,7 @@ export function clarityTypeToTS(type: ClarityType): string {
   }
 
   // Handle list types
-  if (isClarityList(type)) {
+  if (isAbiList(type)) {
     const innerType = clarityTypeToTS(type.list.type);
     // Wrap union types in parentheses for correct precedence
     if (innerType.includes(" | ") && !innerType.startsWith("(")) {
@@ -88,7 +88,7 @@ export function clarityTypeToTS(type: ClarityType): string {
   }
 
   // Handle tuple types
-  if (isClarityTuple(type)) {
+  if (isAbiTuple(type)) {
     const fields = type.tuple
       .map((field) => `${toCamelCase(field.name)}: ${clarityTypeToTS(field.type)}`)
       .join("; ");
@@ -96,7 +96,7 @@ export function clarityTypeToTS(type: ClarityType): string {
   }
 
   // Handle response types
-  if (isClarityResponse(type)) {
+  if (isAbiResponse(type)) {
     const okType = clarityTypeToTS(type.response.ok);
     const errType = clarityTypeToTS(type.response.error);
     return `{ ok: ${okType} } | { err: ${errType} }`;
@@ -113,7 +113,7 @@ export function clarityTypeToTS(type: ClarityType): string {
  * @param arg - An argument object with a `type` property
  * @returns The TypeScript type string
  */
-export function getTypeForArg(arg: { type: ClarityType }): string {
+export function getTypeForArg(arg: { type: AbiType }): string {
   return clarityTypeToTS(arg.type);
 }
 
@@ -124,7 +124,7 @@ export function getTypeForArg(arg: { type: ClarityType }): string {
  * @returns TypeScript type string like "{ arg1: bigint; arg2: string }"
  */
 export function generateArgsTypeSignature(
-  args: readonly { name: string; type: ClarityType }[]
+  args: readonly { name: string; type: AbiType }[]
 ): string {
   if (args.length === 0) return "void";
 

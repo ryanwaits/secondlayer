@@ -24,7 +24,6 @@ export default defineConfig({
   splitting: false,
   external: [
     "@secondlayer/shared",
-    "@stacks/transactions",
     "kysely",
     "postgres",
     "zod",

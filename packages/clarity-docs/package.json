@@ -33,7 +33,7 @@
   "author": "Ryan Waits",
   "license": "MIT",
   "dependencies": {
-    "@secondlayer/clarity-types": "^0.5.0"
+    "@secondlayer/stacks": "workspace:*"
   },
   "devDependencies": {},
   "engines": {
