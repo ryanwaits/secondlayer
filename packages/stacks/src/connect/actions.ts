@@ -3,9 +3,7 @@ import { request } from "./request.ts";
 import { getProvider } from "./provider.ts";
 import { clearStorage, getStorageData } from "./storage.ts";
 
-export async function connect(options?: {
-  network?: string;
-}): Promise<AddressesResult> {
+export async function connect(): Promise<AddressesResult> {
   return request("getAddresses");
 }
 

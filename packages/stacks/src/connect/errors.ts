@@ -16,14 +16,20 @@ export enum JsonRpcErrorCode {
 export class JsonRpcError extends ConnectError {
   override name = "JsonRpcError";
   code: number;
-  data?: string;
+  data?: unknown;
 
   constructor(
     message: string,
     code: number,
-    options?: { data?: string; cause?: Error }
+    options?: { data?: unknown; cause?: Error }
   ) {
-    super(message, { cause: options?.cause, details: options?.data });
+    const details =
+      options?.data !== undefined
+        ? typeof options.data === "string"
+          ? options.data
+          : JSON.stringify(options.data)
+        : undefined;
+    super(message, { cause: options?.cause, details });
     this.code = code;
     this.data = options?.data;
   }
