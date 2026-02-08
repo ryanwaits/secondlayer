@@ -1,4 +1,4 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from "bunup";
 
 export default defineConfig({
   entry: [
@@ -11,11 +11,14 @@ export default defineConfig({
     "src/transactions/index.ts",
     "src/utils/index.ts",
     "src/connect/index.ts",
+    "src/bns/index.ts",
+    "src/pox/index.ts",
+    "src/stackingdao/index.ts",
+    "src/subscriptions/index.ts",
   ],
   format: ["esm", "cjs"],
   dts: true,
   splitting: true,
-  sourcemap: true,
-  clean: true,
-  treeshake: true,
+  sourcemap: "linked",
+  minify: false,
 });
