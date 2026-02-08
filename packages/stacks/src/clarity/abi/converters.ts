@@ -29,6 +29,8 @@ export class ClarityConversionError extends Error {
 }
 
 export function jsToClarity(type: AbiType, value: unknown): unknown {
+  if (type === "none") return null;
+
   if (type === "uint128") {
     if (!isUint128(value))
       throw new ClarityConversionError("Invalid uint128 value", type, value);

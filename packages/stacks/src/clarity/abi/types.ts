@@ -11,6 +11,7 @@ export type AbiInt128 = "int128";
 export type AbiBool = "bool";
 export type AbiPrincipal = "principal";
 export type AbiTraitReference = "trait_reference";
+export type AbiNone = "none";
 
 export type AbiStringAscii<L extends number = number> = {
   "string-ascii": { length: L };
@@ -30,6 +31,7 @@ export type AbiPrimitiveType =
   | AbiBool
   | AbiPrincipal
   | AbiTraitReference
+  | AbiNone
   | AbiStringAscii
   | AbiStringUtf8
   | AbiBuffer;

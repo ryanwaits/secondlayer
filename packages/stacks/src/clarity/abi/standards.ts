@@ -106,3 +106,129 @@ export const SIP009_ABI = {
   ],
   non_fungible_tokens: [{ name: "nft", type: "uint128" }],
 } as const satisfies AbiContract;
+
+export const SIP013_ABI = {
+  functions: [
+    {
+      name: "transfer",
+      access: "public",
+      args: [
+        { name: "token-id", type: "uint128" },
+        { name: "amount", type: "uint128" },
+        { name: "sender", type: "principal" },
+        { name: "recipient", type: "principal" },
+      ],
+      outputs: { response: { ok: "bool", error: "uint128" } },
+    },
+    {
+      name: "transfer-memo",
+      access: "public",
+      args: [
+        { name: "token-id", type: "uint128" },
+        { name: "amount", type: "uint128" },
+        { name: "sender", type: "principal" },
+        { name: "recipient", type: "principal" },
+        { name: "memo", type: { buff: { length: 34 } } },
+      ],
+      outputs: { response: { ok: "bool", error: "uint128" } },
+    },
+    {
+      name: "transfer-many",
+      access: "public",
+      args: [
+        {
+          name: "transfers",
+          type: {
+            list: {
+              type: {
+                tuple: [
+                  { name: "token-id", type: "uint128" },
+                  { name: "amount", type: "uint128" },
+                  { name: "sender", type: "principal" },
+                  { name: "recipient", type: "principal" },
+                ],
+              },
+              length: 200,
+            },
+          },
+        },
+      ],
+      outputs: { response: { ok: "bool", error: "uint128" } },
+    },
+    {
+      name: "transfer-many-memo",
+      access: "public",
+      args: [
+        {
+          name: "transfers",
+          type: {
+            list: {
+              type: {
+                tuple: [
+                  { name: "token-id", type: "uint128" },
+                  { name: "amount", type: "uint128" },
+                  { name: "sender", type: "principal" },
+                  { name: "recipient", type: "principal" },
+                  { name: "memo", type: { buff: { length: 34 } } },
+                ],
+              },
+              length: 200,
+            },
+          },
+        },
+      ],
+      outputs: { response: { ok: "bool", error: "uint128" } },
+    },
+    {
+      name: "get-balance",
+      access: "read-only",
+      args: [
+        { name: "token-id", type: "uint128" },
+        { name: "account", type: "principal" },
+      ],
+      outputs: { response: { ok: "uint128", error: "uint128" } },
+    },
+    {
+      name: "get-overall-balance",
+      access: "read-only",
+      args: [{ name: "account", type: "principal" }],
+      outputs: { response: { ok: "uint128", error: "uint128" } },
+    },
+    {
+      name: "get-total-supply",
+      access: "read-only",
+      args: [{ name: "token-id", type: "uint128" }],
+      outputs: { response: { ok: "uint128", error: "uint128" } },
+    },
+    {
+      name: "get-overall-supply",
+      access: "read-only",
+      args: [],
+      outputs: { response: { ok: "uint128", error: "uint128" } },
+    },
+    {
+      name: "get-decimals",
+      access: "read-only",
+      args: [{ name: "token-id", type: "uint128" }],
+      outputs: { response: { ok: "uint128", error: "uint128" } },
+    },
+    {
+      name: "get-token-uri",
+      access: "read-only",
+      args: [{ name: "token-id", type: "uint128" }],
+      outputs: {
+        response: {
+          ok: { optional: { "string-utf8": { length: 256 } } },
+          error: "uint128",
+        },
+      },
+    },
+  ],
+  fungible_tokens: [],
+  non_fungible_tokens: [],
+} as const satisfies AbiContract;
+
+// Camel-case aliases for better DX
+export const sip010Abi = SIP010_ABI;
+export const sip009Abi = SIP009_ABI;
+export const sip013Abi = SIP013_ABI;

@@ -9,11 +9,13 @@ type TupleToObject<
   >;
 };
 
-export type AbiToTS<T extends AbiType> = T extends "uint128"
-  ? bigint
-  : T extends "int128"
+export type AbiToTS<T extends AbiType> = T extends "none"
+  ? never
+  : T extends "uint128"
     ? bigint
-    : T extends "bool"
+    : T extends "int128"
+      ? bigint
+      : T extends "bool"
       ? boolean
       : T extends "principal"
         ? string
