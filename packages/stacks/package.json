@@ -3,65 +3,84 @@
   "version": "0.0.1",
   "description": "A viem-style SDK for the Stacks blockchain",
   "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/src/index.cjs",
+  "module": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "require": "./dist/src/index.cjs"
     },
     "./accounts": {
-      "types": "./dist/accounts/index.d.ts",
-      "import": "./dist/accounts/index.js",
-      "require": "./dist/accounts/index.cjs"
+      "types": "./dist/src/accounts/index.d.ts",
+      "import": "./dist/src/accounts/index.js",
+      "require": "./dist/src/accounts/index.cjs"
     },
     "./chains": {
-      "types": "./dist/chains/index.d.ts",
-      "import": "./dist/chains/index.js",
-      "require": "./dist/chains/index.cjs"
+      "types": "./dist/src/chains/index.d.ts",
+      "import": "./dist/src/chains/index.js",
+      "require": "./dist/src/chains/index.cjs"
     },
     "./clarity": {
-      "types": "./dist/clarity/index.d.ts",
-      "import": "./dist/clarity/index.js",
-      "require": "./dist/clarity/index.cjs"
+      "types": "./dist/src/clarity/index.d.ts",
+      "import": "./dist/src/clarity/index.js",
+      "require": "./dist/src/clarity/index.cjs"
     },
     "./actions": {
-      "types": "./dist/actions/index.d.ts",
-      "import": "./dist/actions/index.js",
-      "require": "./dist/actions/index.cjs"
+      "types": "./dist/src/actions/index.d.ts",
+      "import": "./dist/src/actions/index.js",
+      "require": "./dist/src/actions/index.cjs"
     },
     "./postconditions": {
-      "types": "./dist/postconditions/index.d.ts",
-      "import": "./dist/postconditions/index.js",
-      "require": "./dist/postconditions/index.cjs"
+      "types": "./dist/src/postconditions/index.d.ts",
+      "import": "./dist/src/postconditions/index.js",
+      "require": "./dist/src/postconditions/index.cjs"
     },
     "./transactions": {
-      "types": "./dist/transactions/index.d.ts",
-      "import": "./dist/transactions/index.js",
-      "require": "./dist/transactions/index.cjs"
+      "types": "./dist/src/transactions/index.d.ts",
+      "import": "./dist/src/transactions/index.js",
+      "require": "./dist/src/transactions/index.cjs"
     },
     "./utils": {
-      "types": "./dist/utils/index.d.ts",
-      "import": "./dist/utils/index.js",
-      "require": "./dist/utils/index.cjs"
+      "types": "./dist/src/utils/index.d.ts",
+      "import": "./dist/src/utils/index.js",
+      "require": "./dist/src/utils/index.cjs"
     },
     "./connect": {
-      "types": "./dist/connect/index.d.ts",
-      "import": "./dist/connect/index.js",
-      "require": "./dist/connect/index.cjs"
+      "types": "./dist/src/connect/index.d.ts",
+      "import": "./dist/src/connect/index.js",
+      "require": "./dist/src/connect/index.cjs"
+    },
+    "./bns": {
+      "types": "./dist/src/bns/index.d.ts",
+      "import": "./dist/src/bns/index.js",
+      "require": "./dist/src/bns/index.cjs"
+    },
+    "./pox": {
+      "types": "./dist/src/pox/index.d.ts",
+      "import": "./dist/src/pox/index.js",
+      "require": "./dist/src/pox/index.cjs"
+    },
+    "./stackingdao": {
+      "types": "./dist/src/stackingdao/index.d.ts",
+      "import": "./dist/src/stackingdao/index.js",
+      "require": "./dist/src/stackingdao/index.cjs"
+    },
+    "./subscriptions": {
+      "types": "./dist/src/subscriptions/index.d.ts",
+      "import": "./dist/src/subscriptions/index.js",
+      "require": "./dist/src/subscriptions/index.cjs"
     }
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsup",
+    "build": "bunup",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "tsup": "8.5.1"
+    "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"

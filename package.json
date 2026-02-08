@@ -18,6 +18,7 @@
     "test:docs": "bun run --filter @secondlayer/clarity-docs test",
     "typecheck": "bun run --filter '*' typecheck",
     "typecheck:docs": "bun run --filter @secondlayer/clarity-docs typecheck",
+    "console": "DATABASE_URL=${DATABASE_URL:-postgresql://ryanwaits@127.0.0.1:5432/streams_dev} bun run packages/shared/src/console.ts",
     "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules",
     "changeset": "changeset",
     "version": "changeset version",
