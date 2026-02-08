@@ -164,7 +164,7 @@ function serializePostConditions(pcs: PostConditionWire[]): Uint8Array {
   return concatBytes(...parts);
 }
 
-function serializePayload(payload: TransactionPayload): Uint8Array {
+export function serializePayload(payload: TransactionPayload): Uint8Array {
   const parts: Uint8Array[] = [writeUInt8(payload.payloadType)];
 
   switch (payload.payloadType) {
