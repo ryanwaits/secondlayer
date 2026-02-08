@@ -112,6 +112,8 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "migrate": "bun run src/db/migrate.ts",
+    "seed": "DATABASE_URL=${DATABASE_URL:-postgresql://ryanwaits@127.0.0.1:5432/streams_dev} bun run src/db/seed.ts",
+    "console": "DATABASE_URL=${DATABASE_URL:-postgresql://ryanwaits@127.0.0.1:5432/streams_dev} bun run src/console.ts",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
