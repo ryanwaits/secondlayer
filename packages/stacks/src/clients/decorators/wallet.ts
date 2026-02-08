@@ -5,6 +5,7 @@ import { transferStx, type TransferStxParams } from "../../actions/wallet/transf
 import { callContract, type CallContractParams } from "../../actions/wallet/callContract.ts";
 import { deployContract, type DeployContractParams } from "../../actions/wallet/deployContract.ts";
 import { signMessage, type SignMessageParams } from "../../actions/wallet/signMessage.ts";
+import { sponsorTransaction, type SponsorTransactionParams } from "../../actions/wallet/sponsorTransaction.ts";
 import type { StacksTransaction } from "../../transactions/types.ts";
 
 export type WalletActions = {
@@ -14,6 +15,7 @@ export type WalletActions = {
   callContract: (params: CallContractParams) => Promise<string>;
   deployContract: (params: DeployContractParams) => Promise<string>;
   signMessage: (params: SignMessageParams) => Promise<string>;
+  sponsorTransaction: (params: SponsorTransactionParams) => Promise<StacksTransaction>;
 };
 
 export function walletActions(client: Client): WalletActions {
@@ -24,5 +26,6 @@ export function walletActions(client: Client): WalletActions {
     callContract: (params) => callContract(client, params),
     deployContract: (params) => deployContract(client, params),
     signMessage: (params) => signMessage(client, params),
+    sponsorTransaction: (params) => sponsorTransaction(client, params),
   };
 }

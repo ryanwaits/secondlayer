@@ -8,5 +8,7 @@ export type {
 export { createClient } from "./createClient.ts";
 export { createPublicClient, type PublicClientConfig } from "./createPublicClient.ts";
 export { createWalletClient, type WalletClientConfig } from "./createWalletClient.ts";
+export { createMultiSigClient, type MultiSigClientConfig, type MultiSigClient } from "./createMultiSigClient.ts";
 export { publicActions, type PublicActions } from "./decorators/public.ts";
 export { walletActions, type WalletActions } from "./decorators/wallet.ts";
+export { multisigActions, type MultiSigActions } from "./decorators/multisig.ts";

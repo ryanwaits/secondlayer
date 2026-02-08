@@ -6,3 +6,5 @@ export {
   SigningError,
 } from "./transaction.ts";
 export { ContractCallError, ReadOnlyCallError } from "./contract.ts";
+export { WebSocketError } from "./websocket.ts";
+export { SimulationError } from "./simulation.ts";

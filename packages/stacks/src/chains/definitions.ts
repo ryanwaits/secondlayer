@@ -10,7 +10,12 @@ export const mainnet: StacksChain = {
   magicBytes: "X2",
   bootAddress: "SP000000000000000000002Q6VF78",
   nativeCurrency: { name: "Stacks", symbol: "STX", decimals: 6 },
-  rpcUrls: { default: { http: ["https://api.mainnet.hiro.so"] } },
+  rpcUrls: {
+    default: {
+      http: ["https://api.mainnet.hiro.so"],
+      ws: ["wss://api.mainnet.hiro.so/extended/v1/ws"],
+    },
+  },
   blockExplorers: {
     default: { name: "Hiro Explorer", url: "https://explorer.hiro.so" },
   },
@@ -26,7 +31,12 @@ export const testnet: StacksChain = {
   magicBytes: "T2",
   bootAddress: "ST000000000000000000002AMW42H",
   nativeCurrency: { name: "Stacks", symbol: "STX", decimals: 6 },
-  rpcUrls: { default: { http: ["https://api.testnet.hiro.so"] } },
+  rpcUrls: {
+    default: {
+      http: ["https://api.testnet.hiro.so"],
+      ws: ["wss://api.testnet.hiro.so/extended/v1/ws"],
+    },
+  },
   blockExplorers: {
     default: {
       name: "Hiro Explorer",
@@ -45,7 +55,12 @@ export const devnet: StacksChain = {
   magicBytes: "id",
   bootAddress: "ST000000000000000000002AMW42H",
   nativeCurrency: { name: "Stacks", symbol: "STX", decimals: 6 },
-  rpcUrls: { default: { http: ["http://localhost:3999"] } },
+  rpcUrls: {
+    default: {
+      http: ["http://localhost:3999"],
+      ws: ["ws://localhost:3999/extended/v1/ws"],
+    },
+  },
 };
 
 export const mocknet: StacksChain = {

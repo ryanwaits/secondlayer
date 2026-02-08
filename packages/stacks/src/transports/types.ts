@@ -24,6 +24,7 @@ export type Transport = {
   type: string;
   request: RequestFn;
   config: TransportConfig;
+  destroy?: () => void;
 };
 
 export type TransportFactory = (params?: { chain?: StacksChain }) => Transport;

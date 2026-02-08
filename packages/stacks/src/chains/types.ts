@@ -26,7 +26,7 @@ export type StacksChain = {
   };
   /** Default RPC URLs */
   rpcUrls: {
-    default: { http: string[] };
+    default: { http: string[]; ws?: string[] };
   };
   /** Block explorer URLs */
   blockExplorers?: {

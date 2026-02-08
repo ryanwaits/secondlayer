@@ -20,6 +20,7 @@ export {
   type SponsoredAuthorization,
   type SpendingCondition,
   type SingleSigSpendingCondition,
+  type MultiSigHashMode,
   type MultiSigSpendingCondition,
   type TransactionPayload,
   type TokenTransferPayload,
@@ -43,6 +44,9 @@ export {
   signTransactionWithAccount,
   signBegin,
   getTransactionId,
+  getOriginSigHash,
+  signSponsor,
+  signSponsorWithAccount,
 } from "./signer.ts";
 
 export {
@@ -62,3 +66,14 @@ export {
 export {
   deserializeTransaction,
 } from "./wire/deserialize.ts";
+
+export {
+  makeMultiSigAddress,
+  createMultiSigSpendingCondition,
+  replayMultiSigSigHash,
+  signMultiSig,
+  signMultiSigWithAccount,
+  finalizeMultiSig,
+  combineMultiSigSignatures,
+  isNonSequential,
+} from "./multisig.ts";
