@@ -94,10 +94,6 @@ export function intToHex(integer: IntegerType, byteLength = 8): string {
   return value.toString(16).padStart(byteLength * 2, "0");
 }
 
-export function hexToInt(hex: string): number {
-  return parseInt(hex, 16);
-}
-
 export function toTwos(value: bigint, width: bigint): bigint {
   const limit = BigInt(1) << (width - BigInt(1));
   if (value < -limit || value > limit - BigInt(1)) {

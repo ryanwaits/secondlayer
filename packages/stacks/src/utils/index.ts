@@ -12,7 +12,6 @@ export {
   intToBytes,
   bigIntToBytes,
   intToHex,
-  hexToInt,
   toTwos,
   fromTwos,
   bytesToTwosBigInt,

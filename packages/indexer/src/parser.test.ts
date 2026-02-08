@@ -1,9 +1,7 @@
-import { test, expect, describe, spyOn } from "bun:test";
+import { test, expect, describe } from "bun:test";
 import { parseTransaction } from "./parser";
 import type { TransactionPayload } from "./types/node-events";
 
-// Suppress expected error logs in tests
-const consoleSpy = spyOn(console, "error").mockImplementation(() => {});
 
 describe("parseTransaction", () => {
   test("decodes token_transfer from raw_tx", async () => {
