@@ -51,6 +51,8 @@ export const AddressHashMode = {
   P2SH: 0x01,
   P2WPKH: 0x02,
   P2WSH: 0x03,
+  P2SH_NonSequential: 0x05,       // SIP-027
+  P2WSH_P2SH_NonSequential: 0x07, // SIP-027
 } as const;
 export type AddressHashMode = (typeof AddressHashMode)[keyof typeof AddressHashMode];
 
@@ -148,8 +150,14 @@ export type TransactionAuthField = {
   data: string; // hex
 };
 
+export type MultiSigHashMode =
+  | typeof AddressHashMode.P2SH
+  | typeof AddressHashMode.P2WSH
+  | typeof AddressHashMode.P2SH_NonSequential
+  | typeof AddressHashMode.P2WSH_P2SH_NonSequential;
+
 export type MultiSigSpendingCondition = {
-  hashMode: typeof AddressHashMode.P2SH | typeof AddressHashMode.P2WSH;
+  hashMode: MultiSigHashMode;
   signer: string;
   nonce: bigint;
   fee: bigint;

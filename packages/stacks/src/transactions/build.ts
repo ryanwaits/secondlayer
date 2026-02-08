@@ -1,10 +1,13 @@
 import type { StacksChain } from "../chains/types.ts";
 import type { ClarityValue } from "../clarity/types.ts";
 import type { PostCondition } from "../postconditions/types.ts";
+import type { MultiSigHashMode, SpendingCondition } from "./types.ts";
 import {
   createSingleSigSpendingCondition,
   createStandardAuth,
+  createSponsoredAuth,
 } from "./authorization.ts";
+import { createMultiSigSpendingCondition } from "./multisig.ts";
 import {
   PayloadType,
   AnchorMode,
@@ -21,41 +24,50 @@ import { Cl } from "../clarity/values.ts";
 import { intToBigInt, type IntegerType } from "../utils/encoding.ts";
 import { validateStacksAddress, parseContractId } from "../utils/address.ts";
 
-export type BuildTokenTransferOptions = {
+type MultiSigOptions = {
+  publicKeys?: string[];
+  signaturesRequired?: number;
+  hashMode?: MultiSigHashMode;
+};
+
+export type BuildTokenTransferOptions = MultiSigOptions & {
   recipient: string;
   amount: IntegerType;
   memo?: string;
   fee: IntegerType;
   nonce: IntegerType;
-  publicKey: string;
+  publicKey?: string;
   chain?: StacksChain;
   postConditionMode?: "allow" | "deny";
   postConditions?: PostCondition[];
+  sponsored?: boolean;
 };
 
-export type BuildContractCallOptions = {
+export type BuildContractCallOptions = MultiSigOptions & {
   contractAddress: string;
   contractName: string;
   functionName: string;
   functionArgs: ClarityValue[];
   fee: IntegerType;
   nonce: IntegerType;
-  publicKey: string;
+  publicKey?: string;
   chain?: StacksChain;
   postConditionMode?: "allow" | "deny";
   postConditions?: PostCondition[];
+  sponsored?: boolean;
 };
 
-export type BuildContractDeployOptions = {
+export type BuildContractDeployOptions = MultiSigOptions & {
   contractName: string;
   codeBody: string;
   clarityVersion?: ClarityVersion;
   fee: IntegerType;
   nonce: IntegerType;
-  publicKey: string;
+  publicKey?: string;
   chain?: StacksChain;
   postConditionMode?: "allow" | "deny";
   postConditions?: PostCondition[];
+  sponsored?: boolean;
 };
 
 function resolvePcMode(mode?: "allow" | "deny"): PostConditionModeWire {
@@ -118,6 +130,31 @@ function convertPostCondition(pc: PostCondition): PostConditionWire {
   }
 }
 
+import type { Authorization } from "./types.ts";
+
+function resolveSpendingCondition(
+  opts: MultiSigOptions & { publicKey?: string },
+  nonce: bigint,
+  fee: bigint
+): SpendingCondition {
+  if (opts.publicKeys) {
+    return createMultiSigSpendingCondition(
+      opts.publicKeys,
+      opts.signaturesRequired!,
+      nonce,
+      fee,
+      opts.hashMode
+    );
+  }
+  return createSingleSigSpendingCondition(opts.publicKey!, nonce, fee);
+}
+
+function resolveAuth(spendingCondition: any, sponsored?: boolean): Authorization {
+  return sponsored
+    ? createSponsoredAuth(spendingCondition)
+    : createStandardAuth(spendingCondition);
+}
+
 function resolveVersionAndChainId(chain?: StacksChain): { version: number; chainId: number } {
   if (!chain) return { version: 0x00, chainId: 0x00000001 }; // mainnet defaults
   return { version: chain.transactionVersion, chainId: chain.id };
@@ -128,18 +165,13 @@ export function buildTokenTransfer(options: BuildTokenTransferOptions): StacksTr
   const fee = intToBigInt(options.fee);
   const nonce = intToBigInt(options.nonce);
 
-  const spendingCondition = createSingleSigSpendingCondition(
-    options.publicKey,
-    nonce,
-    fee
-  );
-
+  const spendingCondition = resolveSpendingCondition(options, nonce, fee);
   const recipient = Cl.principal(options.recipient);
 
-  return {
+  const tx: StacksTransaction = {
     version,
     chainId,
-    auth: createStandardAuth(spendingCondition),
+    auth: resolveAuth(spendingCondition, options.sponsored),
     anchorMode: AnchorMode.Any,
     postConditionMode: resolvePcMode(options.postConditionMode),
     postConditions: convertPostConditions(options.postConditions),
@@ -150,6 +182,11 @@ export function buildTokenTransfer(options: BuildTokenTransferOptions): StacksTr
       memo: options.memo ?? "",
     },
   };
+
+  if (options.publicKeys) {
+    (tx as any)._multisig = { publicKeys: options.publicKeys };
+  }
+  return tx;
 }
 
 export function buildContractCall(options: BuildContractCallOptions): StacksTransaction {
@@ -157,16 +194,12 @@ export function buildContractCall(options: BuildContractCallOptions): StacksTran
   const fee = intToBigInt(options.fee);
   const nonce = intToBigInt(options.nonce);
 
-  const spendingCondition = createSingleSigSpendingCondition(
-    options.publicKey,
-    nonce,
-    fee
-  );
+  const spendingCondition = resolveSpendingCondition(options, nonce, fee);
 
-  return {
+  const tx: StacksTransaction = {
     version,
     chainId,
-    auth: createStandardAuth(spendingCondition),
+    auth: resolveAuth(spendingCondition, options.sponsored),
     anchorMode: AnchorMode.Any,
     postConditionMode: resolvePcMode(options.postConditionMode),
     postConditions: convertPostConditions(options.postConditions),
@@ -178,6 +211,11 @@ export function buildContractCall(options: BuildContractCallOptions): StacksTran
       functionArgs: options.functionArgs,
     },
   };
+
+  if (options.publicKeys) {
+    (tx as any)._multisig = { publicKeys: options.publicKeys };
+  }
+  return tx;
 }
 
 export function buildContractDeploy(options: BuildContractDeployOptions): StacksTransaction {
@@ -185,18 +223,13 @@ export function buildContractDeploy(options: BuildContractDeployOptions): Stacks
   const fee = intToBigInt(options.fee);
   const nonce = intToBigInt(options.nonce);
 
-  const spendingCondition = createSingleSigSpendingCondition(
-    options.publicKey,
-    nonce,
-    fee
-  );
-
+  const spendingCondition = resolveSpendingCondition(options, nonce, fee);
   const useVersioned = options.clarityVersion !== undefined;
 
-  return {
+  const tx: StacksTransaction = {
     version,
     chainId,
-    auth: createStandardAuth(spendingCondition),
+    auth: resolveAuth(spendingCondition, options.sponsored),
     anchorMode: AnchorMode.Any,
     postConditionMode: resolvePcMode(options.postConditionMode),
     postConditions: convertPostConditions(options.postConditions),
@@ -207,4 +240,9 @@ export function buildContractDeploy(options: BuildContractDeployOptions): Stacks
       codeBody: options.codeBody,
     },
   };
+
+  if (options.publicKeys) {
+    (tx as any)._multisig = { publicKeys: options.publicKeys };
+  }
+  return tx;
 }
