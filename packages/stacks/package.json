@@ -71,6 +71,11 @@
       "types": "./dist/src/subscriptions/index.d.ts",
       "import": "./dist/src/subscriptions/index.js",
       "require": "./dist/src/subscriptions/index.cjs"
+    },
+    "./connect/walletconnect": {
+      "types": "./dist/src/connect/walletconnect/index.d.ts",
+      "import": "./dist/src/connect/walletconnect/index.js",
+      "require": "./dist/src/connect/walletconnect/index.cjs"
     }
   },
   "files": ["dist"],
@@ -89,7 +94,8 @@
     "@noble/hashes": "2.0.1",
     "@noble/secp256k1": "2.3.0",
     "@scure/bip32": "2.0.1",
-    "@scure/bip39": "2.0.1",
-    "c32check": "2.0.0"
+    "@noble/ciphers": "2.1.1",
+    "@noble/curves": "2.0.1",
+    "@scure/bip39": "2.0.1"
   }
 }
