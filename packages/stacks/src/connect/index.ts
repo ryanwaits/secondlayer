@@ -1,6 +1,6 @@
 export { request } from "./request.ts";
 export { connect, disconnect, isConnected } from "./actions.ts";
-export { getProvider, isWalletInstalled } from "./provider.ts";
+export { getProvider, setProvider, isWalletInstalled } from "./provider.ts";
 export { ConnectError, JsonRpcError, JsonRpcErrorCode } from "./errors.ts";
 export type {
   WalletProvider,
