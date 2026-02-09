@@ -9,7 +9,7 @@ import {
   writeUInt32BE,
   intToHex,
 } from "../utils/encoding.ts";
-import { c32addressDecode } from "c32check";
+import { c32addressDecode } from "../utils/c32.ts";
 import { ClarityWireType, type ClarityValue, type ClarityType } from "./types.ts";
 
 const CLARITY_INT_SIZE = 128n;

@@ -5,7 +5,7 @@ import {
   bytesToUtf8,
   without0x,
 } from "../../utils/encoding.ts";
-import { c32address } from "c32check";
+import { c32address } from "../../utils/c32.ts";
 import {
   AuthType,
   PayloadType,

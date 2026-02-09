@@ -1,4 +1,4 @@
-import { c32address, c32addressDecode } from "c32check";
+import { c32address, c32addressDecode } from "./c32.ts";
 
 export { c32address, c32addressDecode };
 

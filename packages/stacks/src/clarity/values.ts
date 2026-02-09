@@ -1,4 +1,4 @@
-import { c32address, c32addressDecode } from "c32check";
+import { c32address, c32addressDecode } from "../utils/c32.ts";
 import {
   bytesToHex,
   hexToBytes,

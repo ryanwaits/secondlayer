@@ -2,7 +2,7 @@ import {
   getPublicKey as nobleGetPublicKey,
   sign as nobleSign,
 } from "@noble/secp256k1";
-import { c32address } from "c32check";
+import { c32address } from "../utils/c32.ts";
 import { bytesToHex, hexToBytes, intToHex, concatBytes } from "../utils/encoding.ts";
 import { hash160 } from "../utils/hash.ts";
 import {

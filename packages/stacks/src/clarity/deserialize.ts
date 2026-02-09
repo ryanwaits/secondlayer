@@ -6,7 +6,7 @@ import {
   bytesToTwosBigInt,
   without0x,
 } from "../utils/encoding.ts";
-import { c32address } from "c32check";
+import { c32address } from "../utils/c32.ts";
 import {
   clarityTypeFromByte,
   type ClarityValue,

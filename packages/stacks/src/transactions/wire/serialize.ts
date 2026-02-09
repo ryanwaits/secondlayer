@@ -10,7 +10,7 @@ import {
   writeUInt16BE,
   writeUInt8,
 } from "../../utils/encoding.ts";
-import { c32addressDecode } from "c32check";
+import { c32addressDecode } from "../../utils/c32.ts";
 import { serializeCVBytes } from "../../clarity/serialize.ts";
 import {
   AuthType,
