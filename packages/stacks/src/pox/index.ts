@@ -30,7 +30,6 @@ export type {
   DelegationInfo,
 };
 export type { PoxAddress } from "./types.ts";
-export { POX_ABI } from "./abi.ts";
 export { POX_CONTRACTS, POX_ADDRESS_VERSION, MIN_LOCK_PERIOD, MAX_LOCK_PERIOD } from "./constants.ts";
 export {
   parseBtcAddress,

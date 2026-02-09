@@ -31,8 +31,6 @@ export type {
   RegisterParams,
   UpdateZonefileParams,
 };
-export { BNS_ABI } from "./abi.ts";
-export { ZONEFILE_RESOLVER_ABI } from "./zonefile-abi.ts";
 export { BNS_CONTRACTS, ZONEFILE_RESOLVER_CONTRACTS } from "./constants.ts";
 export {
   parseFQN,
