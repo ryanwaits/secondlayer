@@ -1,3 +1,4 @@
+/** Handle returned by WebSocket subscription methods; call `unsubscribe()` to stop. */
 export type Subscription = {
   unsubscribe: () => void;
 };

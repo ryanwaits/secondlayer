@@ -4,8 +4,10 @@
 
 import type { AbiContract } from "@secondlayer/stacks/clarity";
 
+/** Supported Stacks network identifiers for contract resolution. */
 export type NetworkName = "mainnet" | "testnet" | "devnet";
 
+/** Specifies a contract to generate typed interfaces for, either from a deployed address or local Clarity source file. */
 export interface ContractSource {
   /**
    * Contract identifier (address.name) for deployed contracts
@@ -23,6 +25,7 @@ export interface ContractSource {
   name?: string;
 }
 
+/** Configuration for the `@secondlayer/cli` code generator. Defines which contracts to process, output paths, network settings, and plugins. */
 export interface SecondLayerConfig {
   /**
    * Contracts to generate interfaces for (optional - plugins can provide these)

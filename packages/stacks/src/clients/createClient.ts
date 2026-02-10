@@ -2,6 +2,10 @@ import type { Client, ClientConfig } from "./types.ts";
 
 const BASE_KEYS = new Set(["chain", "account", "transport", "request", "extend"]);
 
+/**
+ * Create a base client with transport and optional chain/account.
+ * Use `.extend()` to compose action decorators (public, wallet, multisig).
+ */
 export function createClient<
   TExtended extends Record<string, unknown> = Record<string, unknown>,
 >(config: ClientConfig): Client<TExtended> {

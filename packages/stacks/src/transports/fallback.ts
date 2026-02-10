@@ -1,6 +1,7 @@
 import type { TransportFactory } from "./types.ts";
 import { createTransport } from "./createTransport.ts";
 
+/** Create a transport that tries each transport in order until one succeeds. */
 export function fallback(transports: TransportFactory[]): TransportFactory {
   return (params) => {
     const resolved = transports.map((t) => t(params));

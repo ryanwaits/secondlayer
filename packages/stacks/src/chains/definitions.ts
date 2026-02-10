@@ -1,5 +1,6 @@
 import type { StacksChain } from "./types.ts";
 
+/** Stacks mainnet chain definition (Hiro API). */
 export const mainnet: StacksChain = {
   id: 0x00000001,
   name: "Stacks Mainnet",
@@ -21,6 +22,7 @@ export const mainnet: StacksChain = {
   },
 };
 
+/** Stacks testnet chain definition (Hiro API). */
 export const testnet: StacksChain = {
   id: 0x80000000,
   name: "Stacks Testnet",
@@ -45,6 +47,7 @@ export const testnet: StacksChain = {
   },
 };
 
+/** Local development chain definition (localhost:3999). */
 export const devnet: StacksChain = {
   id: 0x80000000,
   name: "Stacks Devnet",
@@ -63,6 +66,7 @@ export const devnet: StacksChain = {
   },
 };
 
+/** Alias for devnet used in mock/test environments. */
 export const mocknet: StacksChain = {
   ...devnet,
   name: "Stacks Mocknet",

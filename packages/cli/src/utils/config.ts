@@ -155,6 +155,20 @@ export function validateConfig(
   }
 }
 
+/**
+ * Type-safe helper for creating a `secondlayer.config.ts` configuration.
+ * Accepts either a config object or a factory function that receives a base config and returns a modified one.
+ *
+ * @example
+ * ```ts
+ * import { defineConfig } from "@secondlayer/cli";
+ *
+ * export default defineConfig({
+ *   contracts: [{ address: "SP000000000000000000002Q6VF78.bns" }],
+ *   out: "./src/generated.ts",
+ * });
+ * ```
+ */
 export function defineConfig(config: SecondLayerConfig): SecondLayerConfig;
 export function defineConfig(definer: ConfigDefiner): ConfigDefiner;
 export function defineConfig(configOrDefiner: SecondLayerConfig | ConfigDefiner) {

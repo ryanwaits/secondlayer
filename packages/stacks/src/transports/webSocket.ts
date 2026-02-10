@@ -4,6 +4,7 @@ import type { Subscription, WsSubscribeParams } from "../subscriptions/types.ts"
 import { buildRequestFn } from "./createTransport.ts";
 import { WebSocketError } from "../errors/websocket.ts";
 
+/** Configuration for the WebSocket transport, extending base {@link TransportConfig}. */
 export type WebSocketTransportConfig = TransportConfig & {
   /** WebSocket URL (resolved from chain if omitted) */
   url?: string;
@@ -15,6 +16,7 @@ export type WebSocketTransportConfig = TransportConfig & {
   reconnectBaseDelay?: number;
 };
 
+/** Transport with WebSocket subscription capabilities and auto-reconnect. */
 export type WebSocketTransport = Transport & {
   type: "webSocket";
   subscribe: (
@@ -317,6 +319,10 @@ function deriveWsUrl(httpUrl: string): string {
   return httpUrl.replace(/^http/, "ws").replace(/\/$/, "") + "/extended/v1/ws";
 }
 
+/**
+ * Create a WebSocket transport for real-time Stacks event subscriptions.
+ * HTTP requests use the resolved RPC URL; subscriptions use the WS endpoint.
+ */
 export function webSocket(
   url?: string,
   config?: WebSocketTransportConfig

@@ -8,6 +8,7 @@ import { signMessage, type SignMessageParams } from "../../actions/wallet/signMe
 import { sponsorTransaction, type SponsorTransactionParams } from "../../actions/wallet/sponsorTransaction.ts";
 import type { StacksTransaction } from "../../transactions/types.ts";
 
+/** Signing actions: send transactions, transfer STX, call/deploy contracts, sign messages. */
 export type WalletActions = {
   sendTransaction: (params: SendTransactionParams) => Promise<SendTransactionResult>;
   signTransaction: (params: SignTransactionParams) => Promise<StacksTransaction>;
@@ -18,6 +19,7 @@ export type WalletActions = {
   sponsorTransaction: (params: SponsorTransactionParams) => Promise<StacksTransaction>;
 };
 
+/** Decorator that binds {@link WalletActions} to a client instance. */
 export function walletActions(client: Client): WalletActions {
   return {
     sendTransaction: (params) => sendTransaction(client, params),

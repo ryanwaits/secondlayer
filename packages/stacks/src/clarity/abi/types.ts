@@ -54,6 +54,7 @@ export interface AbiResponseType {
   response: { ok: AbiType; error: AbiType };
 }
 
+/** Discriminated union of all Clarity value types (primitives, buffers, lists, tuples, optionals, responses). */
 export type AbiType =
   | AbiPrimitiveType
   | AbiListType

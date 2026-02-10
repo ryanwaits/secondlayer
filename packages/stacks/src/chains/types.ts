@@ -1,3 +1,4 @@
+/** Full chain descriptor used by clients and transports for network-aware operations. */
 export type StacksChain = {
   /** Chain ID (e.g. 0x00000001 for mainnet) */
   id: number;

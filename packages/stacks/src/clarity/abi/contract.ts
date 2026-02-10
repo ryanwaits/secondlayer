@@ -7,6 +7,7 @@ export interface FunctionArg {
   type: AbiType;
 }
 
+/** A single Clarity function definition with name, access level, arguments, and return type. */
 export interface AbiFunction {
   name: string;
   access: FunctionAccess;
@@ -51,6 +52,7 @@ export interface AbiTraitDefinition {
   functions: ReadonlyArray<AbiTraitFunction>;
 }
 
+/** Full Clarity contract ABI including functions, maps, variables, and token definitions. */
 export interface AbiContract {
   functions: ReadonlyArray<AbiFunction>;
   maps?: ReadonlyArray<AbiMap>;

@@ -15,11 +15,29 @@ import type { DeployViewRequest, DeployViewResponse } from "@secondlayer/shared/
 import type { QueueStats } from "@secondlayer/shared/types";
 import { ApiError } from "./errors.ts";
 
+/** Configuration for {@link StreamsClient}. */
 export interface StreamsClientOptions {
+  /** Base URL of the Secondlayer API (trailing slashes are stripped). */
   baseUrl: string;
+  /** Bearer token for authenticated requests. */
   apiKey?: string;
 }
 
+/**
+ * HTTP client for the Secondlayer Streams and Views API.
+ * Handles authentication, partial stream ID resolution, and typed responses.
+ *
+ * @example
+ * ```ts
+ * const client = new StreamsClient({
+ *   baseUrl: "https://api.secondlayer.io",
+ *   apiKey: process.env.SECONDLAYER_API_KEY,
+ * });
+ *
+ * const { streams } = await client.listStreams();
+ * const view = await client.getView("my-view");
+ * ```
+ */
 export class StreamsClient {
   private baseUrl: string;
   private apiKey?: string;

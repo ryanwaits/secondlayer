@@ -22,6 +22,7 @@ import {
   watchNftEvent, type WatchNftEventParams,
 } from "../../subscriptions/actions.ts";
 
+/** Read-only actions: balance queries, contract reads, block data, and event subscriptions. */
 export type PublicActions = {
   getNonce: (params: GetNonceParams) => Promise<bigint>;
   getBalance: (params: GetBalanceParams) => Promise<bigint>;
@@ -43,6 +44,7 @@ export type PublicActions = {
   watchNftEvent: (params: WatchNftEventParams) => Promise<Subscription>;
 };
 
+/** Decorator that binds {@link PublicActions} to a client instance. */
 export function publicActions(client: Client): PublicActions {
   return {
     getNonce: (params) => getNonce(client, params),

@@ -45,6 +45,7 @@ export type MultiSigSendTransactionParams = {
   attachment?: Uint8Array | string;
 };
 
+/** Multi-sig transaction actions: build unsigned transactions and broadcast with auto-finalization. */
 export type MultiSigActions = {
   transferStx: (params: MultiSigTransferStxParams) => Promise<StacksTransaction>;
   callContract: (params: MultiSigCallContractParams) => Promise<StacksTransaction>;
@@ -52,6 +53,7 @@ export type MultiSigActions = {
   sendTransaction: (params: MultiSigSendTransactionParams) => Promise<SendTransactionResult>;
 };
 
+/** Decorator that binds {@link MultiSigActions} to a multi-sig client. */
 export function multisigActions(client: Client): MultiSigActions {
   const msConfig = (client as any)._multisigConfig as {
     signers: string[];

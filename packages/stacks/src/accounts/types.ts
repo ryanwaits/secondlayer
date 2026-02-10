@@ -1,3 +1,4 @@
+/** Account derived from a local private key (mnemonic or raw key). */
 export type LocalAccount = {
   type: "local";
   address: string;
@@ -9,6 +10,7 @@ export type LocalAccount = {
   signMessage(message: string | Uint8Array): string;
 };
 
+/** Account with a user-provided signing function (sync or async). */
 export type CustomAccount = {
   type: "custom";
   address: string;
@@ -16,10 +18,12 @@ export type CustomAccount = {
   sign(hash: Uint8Array): Promise<Uint8Array> | Uint8Array;
 };
 
+/** Browser wallet provider interface (e.g. Leather, Xverse). */
 export type StacksProvider = {
   request(method: string, params?: any): Promise<any>;
 };
 
+/** Account backed by a browser wallet {@link StacksProvider}. */
 export type ProviderAccount = {
   type: "provider";
   address: string;
