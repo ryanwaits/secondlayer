@@ -1,22 +1,22 @@
 // Clients
 export {
   createClient,
-  createPublicClient,
+  createPublicClient as createReadClient,
   createWalletClient,
   createMultiSigClient,
-  publicActions,
+  publicActions as readActions,
   walletActions,
   multisigActions,
 } from "./clients/index.ts";
 export type {
   Client,
   ClientConfig,
-  PublicClient,
+  PublicClient as ReadClient,
   WalletClient,
   Account,
-  PublicClientConfig,
+  PublicClientConfig as ReadClientConfig,
   WalletClientConfig,
-  PublicActions,
+  PublicActions as ReadActions,
   WalletActions,
   MultiSigClientConfig,
   MultiSigClient,
