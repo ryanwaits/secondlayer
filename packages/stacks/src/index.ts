@@ -44,6 +44,6 @@ export { defineChain } from "./chains/defineChain.ts";
 export type { StacksChain } from "./chains/types.ts";
 
 // Utils (re-export most-used for convenience)
-export { formatStx, parseStx } from "./utils/units.ts";
-export { ZERO_ADDRESS, TESTNET_ZERO_ADDRESS, AddressVersion, MICROSTX_PER_STX } from "./utils/constants.ts";
+export { formatStx as formatMicroStx, parseStx } from "./utils/units.ts";
+export { ZERO_ADDRESS, AddressVersion, MICROSTX_PER_STX } from "./utils/constants.ts";
 export { isValidAddress, isAddressEqual, getContractAddress } from "./utils/address.ts";
