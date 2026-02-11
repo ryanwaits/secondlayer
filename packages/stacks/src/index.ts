@@ -40,7 +40,6 @@ export type { StacksProvider, ProviderAccount, LocalAccount, CustomAccount } fro
 
 // Chains (re-export common ones for convenience)
 export { mainnet, testnet, devnet, mocknet } from "./chains/definitions.ts";
-export { defineChain } from "./chains/defineChain.ts";
 export type { StacksChain } from "./chains/types.ts";
 
 // Utils (re-export most-used for convenience)
