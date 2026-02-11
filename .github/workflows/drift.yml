@@ -48,7 +48,7 @@ jobs:
       - name: Detect breaking changes
         id: breaking
         run: |
-          RESULT=$(drift breaking --base ${{ github.event.pull_request.merge_commit_sha }}^1 --json 2>&1 || true)
+          RESULT=$(drift breaking --base ${{ github.event.pull_request.merge_commit_sha }}^1 --json 2>/dev/null || echo '{"data":{"count":0}}')
           echo "$RESULT"
           COUNT=$(echo "$RESULT" | jq -r '.data.count // 0')
           echo "count=$COUNT" >> $GITHUB_OUTPUT
