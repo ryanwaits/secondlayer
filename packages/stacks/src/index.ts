@@ -39,7 +39,7 @@ export { providerToAccount } from "./accounts/providerToAccount.ts";
 export type { StacksProvider, ProviderAccount, LocalAccount, CustomAccount } from "./accounts/types.ts";
 
 // Chains (re-export common ones for convenience)
-export { mainnet, testnet, devnet, mocknet } from "./chains/definitions.ts";
+export { mainnet, testnet, devnet } from "./chains/definitions.ts";
 export type { StacksChain } from "./chains/types.ts";
 
 // Utils (re-export most-used for convenience)
