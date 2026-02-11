@@ -53,14 +53,15 @@ jobs:
           COUNT=$(echo "$RESULT" | jq -r '.data.count // 0')
           echo "count=$COUNT" >> $GITHUB_OUTPUT
 
+      - name: Install docs-sync deps
+        if: steps.breaking.outputs.count != '0'
+        run: |
+          git clone https://github.com/ryanwaits/drift.git /tmp/drift-action --depth=1
+          cd /tmp/drift-action/action && bun install
+
       - name: Run docs sync
         if: steps.breaking.outputs.count != '0'
         env:
           GITHUB_TOKEN: ${{ secrets.DOCS_SYNC_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          cd /tmp
-          git clone https://github.com/ryanwaits/drift.git drift-action --depth=1
-          cd drift-action/action
-          bun install
-          GITHUB_EVENT_PATH=${{ github.event_path }} bun run docs-sync.ts
+        run: bun run /tmp/drift-action/action/docs-sync.ts
