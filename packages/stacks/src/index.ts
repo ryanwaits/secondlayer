@@ -45,4 +45,4 @@ export type { StacksChain } from "./chains/types.ts";
 // Utils (re-export most-used for convenience)
 export { formatStx as formatMicroStx } from "./utils/units.ts";
 export { ZERO_ADDRESS as NULL_ADDRESS, AddressVersion, MICROSTX_PER_STX } from "./utils/constants.ts";
-export { isValidAddress, getContractAddress } from "./utils/address.ts";
+export { isValidAddress } from "./utils/address.ts";
