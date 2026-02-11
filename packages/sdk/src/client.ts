@@ -140,10 +140,12 @@ export class StreamsClient {
 
   // ── Streams ───────────────────────────────────────────────────────────
 
+  /** Create a new stream with the given configuration. */
   async createStream(data: CreateStream): Promise<CreateStreamResponse> {
     return this.request<CreateStreamResponse>("POST", "/api/streams", data);
   }
 
+  /** Update an existing stream by ID (supports partial IDs). */
   async updateStream(id: string, data: UpdateStream): Promise<StreamResponse> {
     return this.requestWithStreamId("PATCH", (id) => `/api/streams/${id}`, id, data);
   }
@@ -158,6 +160,7 @@ export class StreamsClient {
     return this.updateStream(existing.id, data);
   }
 
+  /** List all streams, optionally filtered by status. */
   async listStreams(params?: { status?: string }): Promise<ListStreamsResponse> {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set("status", params.status);
