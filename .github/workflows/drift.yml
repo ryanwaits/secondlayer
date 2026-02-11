@@ -17,7 +17,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ryanwaits/drift@main
+      - uses: ryanwaits/drift/action@main
         with:
           anthropic-key: ${{ secrets.ANTHROPIC_API_KEY }}
           min-coverage: '0'
