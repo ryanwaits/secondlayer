@@ -1,0 +1,67 @@
+name: Drift CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ci:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ryanwaits/drift/action@main
+        with:
+          min-coverage: '0'
+
+  docs-sync:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install Drift CLI
+        run: bun install -g @driftdev/cli
+
+      - name: Debug event
+        run: |
+          echo "merged: ${{ github.event.pull_request.merged }}"
+          echo "merge_commit_sha: ${{ github.event.pull_request.merge_commit_sha }}"
+          echo "number: ${{ github.event.pull_request.number }}"
+
+      - name: Detect breaking changes
+        id: breaking
+        run: |
+          RESULT=$(drift breaking --base ${{ github.event.pull_request.merge_commit_sha }}^1 --json 2>/dev/null || true)
+          echo "$RESULT"
+          COUNT=$(echo "$RESULT" | jq -r '.data.count // 0')
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+
+      - name: Install docs-sync deps
+        if: steps.breaking.outputs.count != '0'
+        run: |
+          git clone https://github.com/ryanwaits/drift.git /tmp/drift-action --depth=1
+          cd /tmp/drift-action/action && bun install
+
+      - name: Run docs sync
+        if: steps.breaking.outputs.count != '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.DOCS_SYNC_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: bun run /tmp/drift-action/action/docs-sync.ts
