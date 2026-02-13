@@ -42,6 +42,20 @@ const PROGRESS_FILE = "backfill-progress.json";
 const TX_CHUNK_SIZE = 500;
 const EVT_CHUNK_SIZE = 1000;
 
+/** Strip null bytes from all string values in an object (Postgres text columns reject \0) */
+function stripNullBytes(obj: unknown): unknown {
+  if (typeof obj === "string") return obj.replaceAll("\0", "");
+  if (Array.isArray(obj)) return obj.map(stripNullBytes);
+  if (obj && typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      result[k] = stripNullBytes(v);
+    }
+    return result;
+  }
+  return obj;
+}
+
 interface Progress {
   lastCompletedHeight: number;
   startedAt: string;
@@ -95,11 +109,14 @@ async function insertBatch(
     b.transactions.map((tx) => parseTransaction(tx, b.block_height))
   );
   const allTxResults = await Promise.all(allTxPromises);
-  const allTxs = allTxResults.filter((tx): tx is NonNullable<typeof tx> => tx !== null);
+  const allTxs = allTxResults
+    .filter((tx): tx is NonNullable<typeof tx> => tx !== null)
+    .map((tx) => stripNullBytes(tx) as typeof tx);
 
   const allEvts = blocks
     .flatMap((b) => b.events.map((evt) => parseEvent(evt, b.block_height)))
-    .filter((evt): evt is NonNullable<typeof evt> => evt !== null);
+    .filter((evt): evt is NonNullable<typeof evt> => evt !== null)
+    .map((evt) => stripNullBytes(evt) as typeof evt);
 
   await db.transaction().execute(async (tx) => {
     // Insert blocks
