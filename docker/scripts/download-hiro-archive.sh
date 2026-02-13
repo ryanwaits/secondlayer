@@ -10,24 +10,13 @@ set -euo pipefail
 
 DATA_DIR="${1:-${DATA_DIR:-/opt/secondlayer/data}}"
 DUMP_DIR="${DATA_DIR}/hiro-pg-dump"
-ARCHIVE_BASE="https://archive.hiro.so/mainnet/stacks-blockchain-api-pg"
-
-echo "==> Checking archive listing..."
-LATEST=$(curl -sL "${ARCHIVE_BASE}/" | grep -oP 'stacks-blockchain-api-pg-\d+-\d+\.\d+\.\d+-postgres-\d+' | sort -V | tail -1)
-
-if [ -z "$LATEST" ]; then
-  echo "ERROR: Could not detect latest archive. Check ${ARCHIVE_BASE}/ manually."
-  echo "Download the .dump file and place it at: ${DUMP_DIR}/hiro-api.dump"
-  exit 1
-fi
-
-DUMP_URL="${ARCHIVE_BASE}/${LATEST}/${LATEST}.dump"
-CHECKSUM_URL="${ARCHIVE_BASE}/${LATEST}/${LATEST}.sha256"
+GCS_BUCKET="https://storage.googleapis.com/archive.hiro.so"
+DUMP_URL="${GCS_BUCKET}/mainnet/stacks-blockchain-api-pg/stacks-blockchain-api-pg-17-8.13.6-latest.dump"
+CHECKSUM_URL="${GCS_BUCKET}/mainnet/stacks-blockchain-api-pg/stacks-blockchain-api-pg-17-8.13.6-latest.sha256"
 
 mkdir -p "$DUMP_DIR"
 DUMP_FILE="${DUMP_DIR}/hiro-api.dump"
 
-echo "==> Archive: ${LATEST}"
 echo "==> Downloading to: ${DUMP_FILE}"
 echo "==> URL: ${DUMP_URL}"
 echo ""
