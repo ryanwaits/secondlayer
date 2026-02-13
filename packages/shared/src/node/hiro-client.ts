@@ -214,16 +214,17 @@ export class HiroClient {
         sender_address: hiroTx.sender_address,
       });
 
-      // 3. Fetch events only for txs that have them (skip genesis-level event counts)
-      if (hiroTx.event_count > 0 && hiroTx.event_count < 100_000) {
+      // 3. Fetch events only for txs that have them
+      if (hiroTx.event_count > 0) {
+        if (hiroTx.event_count > 1000) {
+          logger.info("Fetching large event set", { txId: hiroTx.tx_id, eventCount: hiroTx.event_count, height });
+        }
         try {
           const events = await this.fetchAllEvents(hiroTx.tx_id, baseUrl);
           eventPayloads.push(...events);
         } catch (err) {
           logger.warn("Failed to fetch events for backfill", { txId: hiroTx.tx_id, error: String(err) });
         }
-      } else if (hiroTx.event_count >= 100_000) {
-        logger.info("Skipping genesis-level event count", { txId: hiroTx.tx_id, eventCount: hiroTx.event_count });
       }
     }
 
