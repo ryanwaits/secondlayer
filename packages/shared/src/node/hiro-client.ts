@@ -214,14 +214,16 @@ export class HiroClient {
         sender_address: hiroTx.sender_address,
       });
 
-      // 3. Fetch events only for txs that have them
-      if (hiroTx.event_count > 0) {
+      // 3. Fetch events only for txs that have them (skip genesis-level event counts)
+      if (hiroTx.event_count > 0 && hiroTx.event_count < 100_000) {
         try {
           const events = await this.fetchAllEvents(hiroTx.tx_id, baseUrl);
           eventPayloads.push(...events);
         } catch (err) {
           logger.warn("Failed to fetch events for backfill", { txId: hiroTx.tx_id, error: String(err) });
         }
+      } else if (hiroTx.event_count >= 100_000) {
+        logger.info("Skipping genesis-level event count", { txId: hiroTx.tx_id, eventCount: hiroTx.event_count });
       }
     }
 
@@ -283,11 +285,11 @@ export class HiroClient {
     return txs;
   }
 
-  private async fetchAllEvents(txId: string, baseUrl?: string): Promise<TransactionEventPayload[]> {
+  private async fetchAllEvents(txId: string, baseUrl?: string, maxEvents?: number): Promise<TransactionEventPayload[]> {
     const url = baseUrl || this.apiUrl;
     const events: TransactionEventPayload[] = [];
     let offset = 0;
-    const limit = 50;
+    const limit = 200;
 
     while (true) {
       const res = await this.fetchWithRetry(
