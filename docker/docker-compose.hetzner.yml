@@ -19,6 +19,67 @@ services:
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/views
 
+  # Self-hosted Hiro API for backfill (no rate limits)
+  hiro-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: stacks_blockchain_api
+    volumes:
+      - ${DATA_DIR:-/opt/secondlayer/data}/hiro-postgres:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    command:
+      - postgres
+      - -c
+      - shared_buffers=4GB
+      - -c
+      - effective_cache_size=12GB
+      - -c
+      - work_mem=256MB
+      - -c
+      - maintenance_work_mem=1GB
+      - -c
+      - max_parallel_workers_per_gather=4
+      - -c
+      - random_page_cost=1.1
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  hiro-api:
+    image: hirosystems/stacks-blockchain-api:latest
+    environment:
+      PG_HOST: hiro-postgres
+      PG_PORT: 5432
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+      PG_DATABASE: stacks_blockchain_api
+      STACKS_API_MODE: readonly
+    ports:
+      - "3999:3999"
+    depends_on:
+      hiro-postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    restart: unless-stopped
+
+  indexer:
+    environment:
+      HIRO_API_URL: http://hiro-api:3999
+      STACKS_API_URL: http://hiro-api:3999
+
   stacks-node:
     image: blockstack/stacks-blockchain:3.3.0.0.3
     volumes:

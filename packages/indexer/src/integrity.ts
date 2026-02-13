@@ -137,7 +137,9 @@ async function autoBackfill(gaps: Gap[]) {
     for (const gap of staleGaps) {
       for (let height = gap.gapStart; height <= gap.gapEnd; height++) {
         try {
-          const block = await hiroClient.getBlockForIndexer(height);
+          const block = await hiroClient.getBlockForIndexer(height, {
+            includeRawTx: process.env.BACKFILL_INCLUDE_RAW_TX === "true",
+          });
 
           if (!block) {
             logger.warn("Auto-backfill: block not found", { height });
