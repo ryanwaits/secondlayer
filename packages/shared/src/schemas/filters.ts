@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { isValidAddress } from "@secondlayer/stacks";
+import { isValidAddress as _isValidAddress } from "@secondlayer/stacks";
+
+const isValidAddress = _isValidAddress as (addr: string) => boolean;
 
 /** Validate a Stacks principal (standard or contract, e.g. SP2J...ABC or SP2J...ABC.contract-name) */
 const stacksPrincipal = z.string().refine((val) => {

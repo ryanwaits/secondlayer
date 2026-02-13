@@ -3,7 +3,7 @@ import * as readline from "node:readline";
 import util from "node:util";
 import { getDb, closeDb, sql } from "./db/index.ts";
 import { parseJsonb } from "./db/jsonb.ts";
-import { createModels, type Model } from "./db/model.ts";
+import { createModels } from "./db/model.ts";
 import * as accounts from "./db/queries/accounts.ts";
 import * as usage from "./db/queries/usage.ts";
 import * as integrity from "./db/queries/integrity.ts";

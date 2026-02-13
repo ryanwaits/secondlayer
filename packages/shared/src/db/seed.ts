@@ -5,8 +5,6 @@
  */
 import { getDb, closeDb, sql } from "./index.ts";
 import { jsonb } from "./jsonb.ts";
-import type { Database } from "./types.ts";
-
 const db = getDb();
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -15,7 +13,6 @@ const randomHex = (len: number) =>
 
 const randomHash = () => `0x${randomHex(64)}`;
 const randomTxId = () => `0x${randomHex(64)}`;
-const randomUuid = () => crypto.randomUUID();
 
 const stxAddresses = [
   "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",

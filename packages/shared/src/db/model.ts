@@ -2,7 +2,7 @@ import { sql, type Kysely } from "kysely";
 import type { Database } from "./types.ts";
 
 type TableName = keyof Database;
-type Row = Record<string, unknown>;
+type Row = globalThis.Record<string, unknown>;
 
 // ── Known properties on QueryChain (don't intercept these) ──────────
 const CHAIN_PROPS = new Set([
@@ -386,10 +386,10 @@ export function createModel(db: Kysely<Database>, table: TableName): Model {
       return base().not(conditions);
     },
     find(id: string | number) {
-      return base().where({ id }).first;
+      return base().where({ id }).first as unknown as Promise<Record | null>;
     },
     findBy(conditions: Row) {
-      return base().where(conditions).first;
+      return base().where(conditions).first as unknown as Promise<Record | null>;
     },
     pluck(column: string) {
       return base().pluck(column);
@@ -417,14 +417,14 @@ export function createModel(db: Kysely<Database>, table: TableName): Model {
 
 // ── Factory ─────────────────────────────────────────────────────────
 
-export function createModels(db: Kysely<Database>): Record<string, Model> {
+export function createModels(db: Kysely<Database>): globalThis.Record<string, Model> {
   const tables: TableName[] = [
     "blocks", "transactions", "events", "streams", "stream_metrics",
     "jobs", "index_progress", "deliveries", "views", "api_keys",
     "accounts", "sessions", "magic_links", "usage_daily", "usage_snapshots",
   ];
 
-  const models: Record<string, Model> = {};
+  const models: globalThis.Record<string, Model> = {};
   for (const table of tables) {
     const name = table
       .split("_")
