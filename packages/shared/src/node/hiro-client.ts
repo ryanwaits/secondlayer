@@ -132,6 +132,13 @@ interface TransactionEventPayload {
   smart_contract_event?: { contract_identifier: string; topic: string; value: unknown };
 }
 
+export interface GetBlockOptions {
+  /** Fetch actual raw_tx hex for each transaction (instead of "0x00" placeholder) */
+  includeRawTx?: boolean;
+  /** Max concurrent raw_tx fetches per block (default: 10) */
+  rawTxConcurrency?: number;
+}
+
 export class HiroClient {
   private apiUrl: string;
   private apiKey: string | undefined;
@@ -178,7 +185,7 @@ export class HiroClient {
    *   2. GET /extended/v2/blocks/{height}/transactions — all txs (paginated)
    *   3. GET /extended/v1/tx/events?tx_id={txId} — events per tx (only for txs with events)
    */
-  async getBlockForIndexer(height: number): Promise<NewBlockPayload | null> {
+  async getBlockForIndexer(height: number, options?: GetBlockOptions): Promise<NewBlockPayload | null> {
     // 1. Fetch block metadata
     const block = await this.fetchBlock(height);
     if (!block) return null;
@@ -207,6 +214,16 @@ export class HiroClient {
         } catch (err) {
           logger.warn("Failed to fetch events for backfill", { txId: hiroTx.tx_id, error: String(err) });
         }
+      }
+    }
+
+    // 4. Optionally fetch raw_tx for all transactions
+    if (options?.includeRawTx && txPayloads.length > 0) {
+      const txIds = txPayloads.map((t) => t.txid);
+      const rawTxMap = await this.fetchRawTxBatch(txIds, options.rawTxConcurrency);
+      for (const txPayload of txPayloads) {
+        const raw = rawTxMap.get(txPayload.txid);
+        if (raw) txPayload.raw_tx = raw;
       }
     }
 
@@ -281,6 +298,46 @@ export class HiroClient {
     }
 
     return events;
+  }
+
+  /** Fetch raw_tx hex for a single transaction */
+  async fetchRawTx(txId: string): Promise<string | null> {
+    try {
+      const res = await this.fetchWithRetry(`${this.apiUrl}/extended/v1/tx/${txId}/raw`, 10_000);
+      if (!res.ok) return null;
+      const data = (await res.json()) as { raw_tx: string };
+      return data.raw_tx || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Fetch raw_tx for multiple transactions with bounded concurrency */
+  async fetchRawTxBatch(txIds: string[], concurrency = 10): Promise<Map<string, string>> {
+    const results = new Map<string, string>();
+    for (let i = 0; i < txIds.length; i += concurrency) {
+      const chunk = txIds.slice(i, i + concurrency);
+      const settled = await Promise.allSettled(
+        chunk.map(async (txId) => {
+          const raw = await this.fetchRawTx(txId);
+          return { txId, raw };
+        })
+      );
+      for (const result of settled) {
+        if (result.status === "fulfilled" && result.value.raw) {
+          results.set(result.value.txId, result.value.raw);
+        }
+      }
+    }
+    return results;
+  }
+
+  /** Fetch current chain tip height from Hiro API status endpoint */
+  async fetchChainTip(): Promise<number> {
+    const res = await this.fetchWithRetry(`${this.apiUrl}/extended/v1/status`);
+    if (!res.ok) throw new Error(`Hiro API /status returned ${res.status}`);
+    const data = (await res.json()) as { chain_tip?: { block_height: number }; stacks_tip_height?: number };
+    return data.chain_tip?.block_height ?? data.stacks_tip_height ?? 0;
   }
 
   async isHealthy(): Promise<boolean> {
