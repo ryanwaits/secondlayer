@@ -64,6 +64,7 @@ services:
       PG_PASSWORD: postgres
       PG_DATABASE: stacks_blockchain_api
       STACKS_API_MODE: readonly
+      STACKS_API_HOST: 0.0.0.0
     ports:
       - "3999:3999"
     depends_on:
