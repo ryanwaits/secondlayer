@@ -82,7 +82,7 @@ services:
       STACKS_API_URL: http://hiro-api:3999
 
   stacks-node:
-    image: blockstack/stacks-blockchain:3.3.0.0.3
+    image: blockstack/stacks-blockchain:3.3.0.0.5
     volumes:
       - ${CHAINSTATE_DIR:-${DATA_DIR:-/opt/secondlayer/data}/stacks-blockchain}:/stacks-blockchain/data
       - ./stacks-node/Config.toml:/stacks-blockchain/Config.toml:ro
