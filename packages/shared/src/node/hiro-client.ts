@@ -141,11 +141,13 @@ export interface GetBlockOptions {
 
 export class HiroClient {
   private apiUrl: string;
+  private fallbackUrl: string | undefined;
   private apiKey: string | undefined;
   private maxRetries: number;
 
   constructor(apiUrl?: string, maxRetries = 5) {
     this.apiUrl = apiUrl || process.env.HIRO_API_URL || DEFAULT_HIRO_API_URL;
+    this.fallbackUrl = process.env.HIRO_FALLBACK_URL;
     this.apiKey = process.env.HIRO_API_KEY;
     this.maxRetries = maxRetries;
   }
@@ -186,12 +188,18 @@ export class HiroClient {
    *   3. GET /extended/v1/tx/events?tx_id={txId} — events per tx (only for txs with events)
    */
   async getBlockForIndexer(height: number, options?: GetBlockOptions): Promise<NewBlockPayload | null> {
-    // 1. Fetch block metadata
-    const block = await this.fetchBlock(height);
+    // 1. Fetch block metadata (try primary, fallback on 404)
+    let block = await this.fetchBlock(height);
+    let usingFallback = false;
+    if (!block && this.fallbackUrl) {
+      block = await this.fetchBlock(height, this.fallbackUrl);
+      if (block) usingFallback = true;
+    }
     if (!block) return null;
 
     // 2. Fetch all transactions via v2 block/transactions endpoint
-    const hiroTxs = await this.fetchBlockTransactions(height);
+    const baseUrl = usingFallback ? this.fallbackUrl! : this.apiUrl;
+    const hiroTxs = await this.fetchBlockTransactions(height, baseUrl);
 
     const txPayloads: TransactionPayload[] = [];
     const eventPayloads: TransactionEventPayload[] = [];
@@ -209,7 +217,7 @@ export class HiroClient {
       // 3. Fetch events only for txs that have them
       if (hiroTx.event_count > 0) {
         try {
-          const events = await this.fetchAllEvents(hiroTx.tx_id);
+          const events = await this.fetchAllEvents(hiroTx.tx_id, baseUrl);
           eventPayloads.push(...events);
         } catch (err) {
           logger.warn("Failed to fetch events for backfill", { txId: hiroTx.tx_id, error: String(err) });
@@ -244,22 +252,24 @@ export class HiroClient {
   }
 
   /** v2 block metadata */
-  private async fetchBlock(height: number): Promise<HiroBlockResponse | null> {
-    const res = await this.fetchWithRetry(`${this.apiUrl}/extended/v2/blocks/${height}`);
+  private async fetchBlock(height: number, baseUrl?: string): Promise<HiroBlockResponse | null> {
+    const url = baseUrl || this.apiUrl;
+    const res = await this.fetchWithRetry(`${url}/extended/v2/blocks/${height}`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`Hiro API block/${height} returned ${res.status}`);
     return res.json() as Promise<HiroBlockResponse>;
   }
 
   /** v2 block transactions (paginated) */
-  private async fetchBlockTransactions(height: number): Promise<HiroTxResponse[]> {
+  private async fetchBlockTransactions(height: number, baseUrl?: string): Promise<HiroTxResponse[]> {
+    const url = baseUrl || this.apiUrl;
     const txs: HiroTxResponse[] = [];
     let offset = 0;
     const limit = 50;
 
     while (true) {
       const res = await this.fetchWithRetry(
-        `${this.apiUrl}/extended/v2/blocks/${height}/transactions?limit=${limit}&offset=${offset}`
+        `${url}/extended/v2/blocks/${height}/transactions?limit=${limit}&offset=${offset}`
       );
       if (!res.ok) throw new Error(`Hiro API block/${height}/transactions returned ${res.status}`);
 
@@ -273,14 +283,15 @@ export class HiroClient {
     return txs;
   }
 
-  private async fetchAllEvents(txId: string): Promise<TransactionEventPayload[]> {
+  private async fetchAllEvents(txId: string, baseUrl?: string): Promise<TransactionEventPayload[]> {
+    const url = baseUrl || this.apiUrl;
     const events: TransactionEventPayload[] = [];
     let offset = 0;
     const limit = 50;
 
     while (true) {
       const res = await this.fetchWithRetry(
-        `${this.apiUrl}/extended/v1/tx/events?tx_id=${txId}&limit=${limit}&offset=${offset}`
+        `${url}/extended/v1/tx/events?tx_id=${txId}&limit=${limit}&offset=${offset}`
       );
       if (!res.ok) {
         logger.warn("Failed to fetch events from Hiro", { txId, status: res.status });

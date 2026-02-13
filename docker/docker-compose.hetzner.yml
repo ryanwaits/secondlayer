@@ -78,6 +78,7 @@ services:
   indexer:
     environment:
       HIRO_API_URL: http://hiro-api:3999
+      HIRO_FALLBACK_URL: https://api.mainnet.hiro.so
       STACKS_API_URL: http://hiro-api:3999
 
   stacks-node:
