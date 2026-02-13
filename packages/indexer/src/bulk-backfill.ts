@@ -106,7 +106,7 @@ async function insertBatch(
   // Parse all blocks
   const allBlocks = blocks.map(parseBlock);
   const allTxPromises = blocks.flatMap((b) =>
-    b.transactions.map((tx) => parseTransaction(tx, b.block_height))
+    b.transactions.map((tx) => parseTransaction(tx, b.block_height, { skipApiFallback: true }))
   );
   const allTxResults = await Promise.all(allTxPromises);
   const allTxs = allTxResults

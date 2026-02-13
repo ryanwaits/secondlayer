@@ -149,7 +149,8 @@ export function parseBlock(payload: NewBlockPayload): InsertBlock {
 
 export async function parseTransaction(
   tx: TransactionPayload,
-  blockHeight: number
+  blockHeight: number,
+  options?: { skipApiFallback?: boolean }
 ): Promise<InsertTransaction | null> {
   // Skip if no txid (completely malformed)
   if (!tx.txid) {
@@ -160,8 +161,9 @@ export async function parseTransaction(
   // The Stacks node events observer sends raw_tx but not tx_type or sender_address
   let decoded = tx.raw_tx ? decodeRawTx(tx.raw_tx, tx.txid) : null;
 
-  // If decode failed, try fetching from Stacks API
-  if (!decoded && tx.txid) {
+  // If decode failed, try fetching from Stacks API (skip during bulk backfill
+  // where tx_type and sender_address are already set from Hiro API response)
+  if (!decoded && tx.txid && !options?.skipApiFallback) {
     decoded = await fetchTxFromApi(tx.txid);
     if (decoded) {
       logger.debug("Fetched tx details from API", { txid: tx.txid, type: decoded.txType });
