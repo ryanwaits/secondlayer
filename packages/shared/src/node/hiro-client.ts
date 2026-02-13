@@ -290,7 +290,7 @@ export class HiroClient {
     const url = baseUrl || this.apiUrl;
     const events: TransactionEventPayload[] = [];
     let offset = 0;
-    const limit = 200;
+    const limit = 100;
 
     while (true) {
       const res = await this.fetchWithRetry(
