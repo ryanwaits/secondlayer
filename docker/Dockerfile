@@ -25,8 +25,7 @@ COPY packages/auth/package.json ./packages/auth/
 COPY packages/views/package.json ./packages/views/
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/sdk/package.json ./packages/sdk/
-COPY packages/clarity-types/package.json ./packages/clarity-types/
-COPY packages/clarity-docs/package.json ./packages/clarity-docs/
+COPY packages/stacks/package.json ./packages/stacks/
 # Install dependencies
 RUN bun install --frozen-lockfile
 
