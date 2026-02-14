@@ -28,10 +28,13 @@ services:
       POSTGRES_DB: stacks_blockchain_api
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/hiro-postgres:/var/lib/postgresql/data
+      - ./hiro-postgres/pg_hba.conf:/etc/pg_hba.conf:ro
     ports:
       - "5433:5432"
     command:
       - postgres
+      - -c
+      - hba_file=/etc/pg_hba.conf
       - -c
       - shared_buffers=4GB
       - -c
