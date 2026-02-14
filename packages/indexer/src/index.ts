@@ -9,6 +9,7 @@ import { parseBlock, parseTransaction, parseEvent } from "./parser.ts";
 import { detectReorg, handleReorg } from "./reorg.ts";
 import { computeContiguousTip, findGaps, countMissingBlocks } from "@secondlayer/shared/db/queries/integrity";
 import { startIntegrityLoop, integrityState } from "./integrity.ts";
+import { recordBlockReceived, startTipFollower, tipFollowerState } from "./tip-follower.ts";
 import type { NewBlockPayload, NewBurnBlockPayload } from "./types/node-events.ts";
 
 const PORT = parseInt(process.env.PORT || "3700");
@@ -80,6 +81,9 @@ const server = Bun.serve({
       status: "ok",
       blocksReceivedOutOfOrder,
       lastSeenHeight,
+      tipFollower: tipFollowerState.mode,
+      lastBlockReceivedSecondsAgo: Math.round((Date.now() - tipFollowerState.lastBlockReceivedAt) / 1000),
+      blocksFetchedViaPoll: tipFollowerState.blocksFetchedViaPoll,
     }),
 
     "/health/integrity": async () => {
@@ -127,6 +131,10 @@ const server = Bun.serve({
     "/new_block": {
       POST: async (req) => {
         try {
+          // Skip recording for self-sourced blocks (tip-follower, auto-backfill)
+          const source = req.headers.get("X-Source");
+          if (!source) recordBlockReceived();
+
           const payload = (await req.json()) as NewBlockPayload;
           const db = getDb();
 
@@ -377,9 +385,13 @@ const server = Bun.serve({
 // Start integrity loop (gap detection + optional auto-backfill)
 const stopIntegrityLoop = startIntegrityLoop();
 
+// Start tip follower (auto-fallback when node stops pushing blocks)
+const stopTipFollower = startTipFollower();
+
 // Graceful shutdown
 const shutdown = () => {
   logger.info("Shutting down indexer service...");
+  stopTipFollower();
   stopIntegrityLoop();
   server.stop();
   logger.info("Indexer service stopped");
