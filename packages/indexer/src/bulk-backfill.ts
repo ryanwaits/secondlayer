@@ -44,7 +44,7 @@ const EVT_CHUNK_SIZE = 1000;
 
 /** Strip null bytes from all string values in an object (Postgres text columns reject \0) */
 function stripNullBytes(obj: unknown): unknown {
-  if (typeof obj === "string") return obj.replaceAll("\0", "");
+  if (typeof obj === "string") return obj.split("\0").join("");
   if (Array.isArray(obj)) return obj.map(stripNullBytes);
   if (obj && typeof obj === "object") {
     const result: Record<string, unknown> = {};
