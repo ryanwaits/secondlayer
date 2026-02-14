@@ -36,6 +36,7 @@ RUN bun install --frozen-lockfile
 FROM deps AS builder
 
 # Copy source code
+COPY packages/stacks ./packages/stacks
 COPY packages/shared ./packages/shared
 COPY packages/auth ./packages/auth
 COPY packages/views ./packages/views
@@ -56,6 +57,7 @@ WORKDIR /app
 
 # Copy dependencies and built code
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/auth ./packages/auth
 COPY --from=builder /app/packages/views ./packages/views
@@ -81,6 +83,7 @@ WORKDIR /app
 
 # Copy dependencies and built code
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/worker ./packages/worker
 COPY --from=builder /app/package.json ./
@@ -100,6 +103,7 @@ WORKDIR /app
 
 # Copy dependencies and built code
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/indexer ./packages/indexer
 COPY --from=builder /app/package.json ./
