@@ -56,10 +56,6 @@ WORKDIR /app
 
 # Copy dependencies and built code
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/auth/node_modules ./packages/auth/node_modules
-COPY --from=deps /app/packages/views/node_modules ./packages/views/node_modules
-COPY --from=deps /app/packages/api/node_modules ./packages/api/node_modules
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/auth ./packages/auth
 COPY --from=builder /app/packages/views ./packages/views
@@ -85,8 +81,6 @@ WORKDIR /app
 
 # Copy dependencies and built code
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/worker/node_modules ./packages/worker/node_modules
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/worker ./packages/worker
 COPY --from=builder /app/package.json ./
@@ -106,8 +100,6 @@ WORKDIR /app
 
 # Copy dependencies and built code
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/indexer/node_modules ./packages/indexer/node_modules
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/indexer ./packages/indexer
 COPY --from=builder /app/package.json ./
