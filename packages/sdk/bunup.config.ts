@@ -1,7 +1,7 @@
 import { defineConfig } from "bunup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/client.ts", "src/errors.ts"],
+  entry: ["src/index.ts", "src/streams/index.ts", "src/views/index.ts"],
   format: ["esm"],
   dts: true,
   sourcemap: "linked",

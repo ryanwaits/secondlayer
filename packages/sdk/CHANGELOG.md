@@ -4,4 +4,4 @@
 
 ### Minor Changes
 
-- Add @secondlayer/sdk - TypeScript client for Streams API with stream management, view queries, and queue stats
+- Add @secondlayer/sdk - TypeScript client for SecondLayer API with stream management, view queries, and queue stats

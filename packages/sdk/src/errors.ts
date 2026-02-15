@@ -1,11 +1,11 @@
 /**
- * Error thrown by {@link StreamsClient} when an API request fails.
+ * Error thrown by {@link SecondLayer} when an API request fails.
  * Includes the HTTP status code for programmatic error handling.
  *
  * @example
  * ```ts
  * try {
- *   await client.getStream("abc123");
+ *   await client.streams.get("abc123");
  * } catch (err) {
  *   if (err instanceof ApiError && err.status === 404) {
  *     console.log("Stream not found");

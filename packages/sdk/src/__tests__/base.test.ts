@@ -1,11 +1,10 @@
 import { test, expect, describe, beforeEach, afterEach, mock } from "bun:test";
-import { StreamsClient } from "./client.ts";
-import { ApiError } from "./errors.ts";
+import { BaseClient } from "../base.ts";
+import { ApiError } from "../errors.ts";
 
 const BASE_URL = "http://localhost:3800";
 const API_KEY = "test-key-123";
 
-// Store original fetch to restore after tests
 const originalFetch = globalThis.fetch;
 
 function mockFetch(response: { ok: boolean; status: number; body?: unknown; headers?: Record<string, string> }) {
@@ -20,47 +19,53 @@ function mockFetch(response: { ok: boolean; status: number; body?: unknown; head
   ) as unknown as typeof fetch;
 }
 
-describe("StreamsClient", () => {
-  let client: StreamsClient;
+/** Minimal concrete subclass for testing BaseClient. */
+class TestClient extends BaseClient {
+  doRequest<T>(method: string, path: string, body?: unknown) {
+    return this.request<T>(method, path, body);
+  }
+}
+
+describe("BaseClient", () => {
+  let client: TestClient;
 
   beforeEach(() => {
-    client = new StreamsClient({ baseUrl: BASE_URL, apiKey: API_KEY });
+    client = new TestClient({ baseUrl: BASE_URL, apiKey: API_KEY });
   });
 
   afterEach(() => {
-    // Restore original fetch to avoid polluting other tests
     globalThis.fetch = originalFetch;
   });
 
-  test("instantiates without throwing", () => {
-    expect(client).toBeInstanceOf(StreamsClient);
+  test("strips trailing slashes from baseUrl", () => {
+    const c = new TestClient({ baseUrl: "http://localhost:3800///" });
+    expect(c).toBeInstanceOf(BaseClient);
   });
 
-  test("strips trailing slashes from baseUrl", () => {
-    const c = new StreamsClient({ baseUrl: "http://localhost:3800///", apiKey: API_KEY });
-    expect(c).toBeInstanceOf(StreamsClient);
+  test("defaults baseUrl when not provided", () => {
+    const c = new TestClient();
+    expect(c).toBeInstanceOf(BaseClient);
   });
 
   describe("request handling", () => {
     test("successful request returns parsed JSON", async () => {
-      const data = { streams: [], total: 0 };
+      const data = { ok: true };
       globalThis.fetch = mockFetch({ ok: true, status: 200, body: data });
 
-      const result = await client.listStreams();
+      const result = await client.doRequest("GET", "/test");
       expect(result).toEqual(data);
     });
 
-    test("401 throws ApiError with generic message", async () => {
+    test("401 throws ApiError", async () => {
       globalThis.fetch = mockFetch({ ok: false, status: 401, body: "" });
 
       try {
-        await client.listStreams();
+        await client.doRequest("GET", "/test");
         expect.unreachable("should have thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(ApiError);
         expect((err as ApiError).status).toBe(401);
         expect((err as ApiError).message).toBe("API key invalid or expired.");
-        expect((err as ApiError).message).not.toContain("streams auth");
       }
     });
 
@@ -73,7 +78,7 @@ describe("StreamsClient", () => {
       });
 
       try {
-        await client.listStreams();
+        await client.doRequest("GET", "/test");
         expect.unreachable("should have thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(ApiError);
@@ -85,7 +90,7 @@ describe("StreamsClient", () => {
       globalThis.fetch = mockFetch({ ok: false, status: 429, body: "" });
 
       try {
-        await client.listStreams();
+        await client.doRequest("GET", "/test");
         expect.unreachable("should have thrown");
       } catch (err) {
         expect((err as ApiError).message).toBe("Rate limited. Try again later.");
@@ -96,7 +101,7 @@ describe("StreamsClient", () => {
       globalThis.fetch = mockFetch({ ok: false, status: 502, body: "" });
 
       try {
-        await client.listStreams();
+        await client.doRequest("GET", "/test");
         expect.unreachable("should have thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(ApiError);
@@ -109,7 +114,7 @@ describe("StreamsClient", () => {
       globalThis.fetch = mock(() => Promise.reject(new TypeError("fetch failed"))) as unknown as typeof fetch;
 
       try {
-        await client.listStreams();
+        await client.doRequest("GET", "/test");
         expect.unreachable("should have thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(ApiError);
@@ -121,67 +126,20 @@ describe("StreamsClient", () => {
     test("204 returns undefined", async () => {
       globalThis.fetch = mockFetch({ ok: true, status: 204, body: undefined });
 
-      const result = await client.deleteStream("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+      const result = await client.doRequest("DELETE", "/test");
       expect(result).toBeUndefined();
-    });
-  });
-
-  describe("resolveStreamId", () => {
-    test("full UUID passthrough", async () => {
-      const uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
-      const result = await client.resolveStreamId(uuid);
-      expect(result).toBe(uuid);
-    });
-
-    test("partial match resolves", async () => {
-      const streams = [
-        { id: "abc12345-bbbb-cccc-dddd-eeeeeeeeeeee", name: "test" },
-      ];
-      globalThis.fetch = mockFetch({ ok: true, status: 200, body: { streams, total: 1 } });
-
-      const result = await client.resolveStreamId("abc1");
-      expect(result).toBe(streams[0].id);
-    });
-
-    test("no match throws 404", async () => {
-      globalThis.fetch = mockFetch({ ok: true, status: 200, body: { streams: [], total: 0 } });
-
-      try {
-        await client.resolveStreamId("xyz");
-        expect.unreachable("should have thrown");
-      } catch (err) {
-        expect(err).toBeInstanceOf(ApiError);
-        expect((err as ApiError).status).toBe(404);
-      }
-    });
-
-    test("ambiguous match throws 400", async () => {
-      const streams = [
-        { id: "abc12345-1111-cccc-dddd-eeeeeeeeeeee", name: "a" },
-        { id: "abc12345-2222-cccc-dddd-eeeeeeeeeeee", name: "b" },
-      ];
-      globalThis.fetch = mockFetch({ ok: true, status: 200, body: { streams, total: 2 } });
-
-      try {
-        await client.resolveStreamId("abc1");
-        expect.unreachable("should have thrown");
-      } catch (err) {
-        expect(err).toBeInstanceOf(ApiError);
-        expect((err as ApiError).status).toBe(400);
-        expect((err as ApiError).message).toContain("Multiple streams");
-      }
     });
   });
 
   describe("authHeaders", () => {
     test("includes Bearer when apiKey present", () => {
-      const headers = StreamsClient.authHeaders("my-key");
+      const headers = BaseClient.authHeaders("my-key");
       expect(headers["Authorization"]).toBe("Bearer my-key");
       expect(headers["Content-Type"]).toBe("application/json");
     });
 
     test("omits Authorization when no apiKey", () => {
-      const headers = StreamsClient.authHeaders();
+      const headers = BaseClient.authHeaders();
       expect(headers["Authorization"]).toBeUndefined();
       expect(headers["Content-Type"]).toBe("application/json");
     });
