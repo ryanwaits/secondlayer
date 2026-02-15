@@ -5,7 +5,8 @@
 
 import { promises as fs } from "fs";
 import path from "path";
-import { isValidAddress as validateStacksAddress } from "@secondlayer/stacks";
+import { isValidAddress as _validateStacksAddress } from "@secondlayer/stacks";
+const validateStacksAddress = _validateStacksAddress as (address: string) => boolean;
 import { parseContractId } from "../utils/contract-id";
 import type {
   SecondLayerPlugin,
