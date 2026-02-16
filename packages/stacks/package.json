@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/stacks",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A viem-style SDK for the Stacks blockchain",
   "type": "module",
   "main": "./dist/src/index.cjs",
@@ -78,7 +78,9 @@
       "require": "./dist/src/connect/walletconnect/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "bunup",
     "test": "bun test",

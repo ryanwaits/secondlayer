@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/views",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -33,7 +33,7 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
-    "@secondlayer/shared": "^0.2.0",
+    "@secondlayer/shared": "^0.2.1",
     "@secondlayer/stacks": "workspace:*",
     "kysely": "^0.28.10",
     "postgres": "^3.4.6",
