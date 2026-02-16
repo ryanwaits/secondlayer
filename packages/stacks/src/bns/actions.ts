@@ -20,6 +20,7 @@ import type {
 } from "./types.ts";
 import { Pc } from "../postconditions/index.ts";
 import { Cl } from "../clarity/index.ts";
+import { ContractResponseError } from "../actions/getContract.ts";
 
 function getBnsContract(client: Client) {
   if (!client.chain) {
@@ -75,12 +76,15 @@ export async function resolveName(
   const { name, namespace } = parseFQN(nameOrFQN);
   const bns = getBnsContract(client);
 
-  const owner = (await bns.read["get-owner-name"]({
-    name: stringToBytes(name),
-    namespace: stringToBytes(namespace),
-  })) as string | null;
-
-  return owner;
+  try {
+    return (await bns.read["get-owner-name"]({
+      name: stringToBytes(name),
+      namespace: stringToBytes(namespace),
+    })) as string | null;
+  } catch (e) {
+    if (e instanceof ContractResponseError) return null;
+    throw e;
+  }
 }
 
 /**
@@ -94,16 +98,21 @@ export async function getPrimaryName(
 ): Promise<string | null> {
   const bns = getBnsContract(client);
 
-  const result = (await bns.read["get-primary"]({
-    owner: address,
-  })) as { name: Uint8Array; namespace: Uint8Array } | null;
+  try {
+    const result = (await bns.read["get-primary"]({
+      owner: address,
+    })) as { name: Uint8Array; namespace: Uint8Array } | null;
 
-  if (result === null) return null;
+    if (result === null) return null;
 
-  const name = new TextDecoder().decode(result.name);
-  const namespace = new TextDecoder().decode(result.namespace);
+    const name = new TextDecoder().decode(result.name);
+    const namespace = new TextDecoder().decode(result.namespace);
 
-  return formatFQN(name, namespace);
+    return formatFQN(name, namespace);
+  } catch (e) {
+    if (e instanceof ContractResponseError) return null;
+    throw e;
+  }
 }
 
 /**
@@ -177,10 +186,15 @@ export async function getNameId(
   const { name, namespace } = parseFQN(nameOrFQN);
   const bns = getBnsContract(client);
 
-  return (await bns.read["get-id-from-bns"]({
-    name: stringToBytes(name),
-    namespace: stringToBytes(namespace),
-  })) as bigint | null;
+  try {
+    return (await bns.read["get-id-from-bns"]({
+      name: stringToBytes(name),
+      namespace: stringToBytes(namespace),
+    })) as bigint | null;
+  } catch (e) {
+    if (e instanceof ContractResponseError) return null;
+    throw e;
+  }
 }
 
 /**
