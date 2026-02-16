@@ -82,7 +82,11 @@
   "scripts": {
     "build": "bunup",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "@types/bun": "latest"
