@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 0.0.3
+
+### Patch Changes
+
+- Return `null` instead of throwing when BNS names don't exist. Fixes `resolveName`, `getPrimaryName`, and `getNameId` to catch `ContractResponseError` for not-found cases.
+
 ## 0.0.2
 
 ### Patch Changes

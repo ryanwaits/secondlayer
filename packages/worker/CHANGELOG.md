@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@0.0.3
+  - @secondlayer/shared@0.2.2
+
 ## 0.1.1
 
 ### Patch Changes

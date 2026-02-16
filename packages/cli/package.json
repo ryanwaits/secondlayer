@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/cli",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "CLI for generating type-safe contract interfaces for the Stacks blockchain",
   "type": "module",
   "bin": {
@@ -41,9 +41,9 @@
   "dependencies": {
     "@inquirer/prompts": "^8.2.0",
     "@secondlayer/sdk": "^0.3.0",
-    "@secondlayer/shared": "^0.2.1",
+    "@secondlayer/shared": "^0.2.2",
     "@secondlayer/stacks": "workspace:*",
-    "@secondlayer/views": "^0.2.1",
+    "@secondlayer/views": "^0.2.2",
     "@biomejs/js-api": "^0.7.0",
     "@biomejs/wasm-nodejs": "^1.9.0",
     "esbuild": "^0.19.0",
