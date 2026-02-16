@@ -7,7 +7,7 @@ export interface SecondLayerOptions {
   apiKey?: string;
 }
 
-const DEFAULT_BASE_URL = "https://api.secondlayer.io";
+const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
 export abstract class BaseClient {
   protected baseUrl: string;
