@@ -103,40 +103,45 @@ async function printConfigTree(cfg: Config): Promise<void> {
     : `${cfg.dataDir} ${dim(`→ ${resolvedDataDir}`)}`;
   printValue("dataDir", dataDirDisplay, isDefaultValue(cfg, "dataDir"));
 
-  // Node
-  console.log("");
-  console.log(blue("node:"));
-  if (cfg.node) {
-    printValue("  installPath", cfg.node.installPath, false, 2);
-    printValue("  network", cfg.node.network, cfg.node.network === "mainnet", 2);
-  } else {
-    console.log(dim("  (not configured)"));
-    // Show detected nodes hint
-    const detected = await detectStacksNodes();
-    if (detected.length > 0) {
-      console.log("");
-      console.log(dim(`  Detected ${detected.length} node${detected.length > 1 ? "s" : ""}:`));
-      for (const node of detected.slice(0, 3)) {
-        const status = node.running ? green("●") : dim("○");
-        console.log(dim(`    ${status} ${node.path} (${node.network})`));
-      }
-      console.log(dim("  Run 'sl init' to configure"));
+  // Local-only sections
+  if (cfg.network === "local") {
+    // Node
+    console.log("");
+    console.log(blue("node:"));
+    if (cfg.node) {
+      printValue("  installPath", cfg.node.installPath, false, 2);
+      printValue("  network", cfg.node.network, cfg.node.network === "mainnet", 2);
+    } else {
+      console.log(dim("  (not configured)"));
+      // Show detected nodes hint (requires Bun/docker — skip silently on Node)
+      try {
+        const detected = await detectStacksNodes();
+        if (detected.length > 0) {
+          console.log("");
+          console.log(dim(`  Detected ${detected.length} node${detected.length > 1 ? "s" : ""}:`));
+          for (const node of detected.slice(0, 3)) {
+            const status = node.running ? green("●") : dim("○");
+            console.log(dim(`    ${status} ${node.path} (${node.network})`));
+          }
+          console.log(dim("  Run 'sl init' to configure"));
+        }
+      } catch {}
     }
-  }
 
-  // Ports
-  console.log("");
-  console.log(blue("ports:"));
-  printValue("  api", cfg.ports.api, cfg.ports.api === defaults.ports.api, 2);
-  printValue("  indexer", cfg.ports.indexer, cfg.ports.indexer === defaults.ports.indexer, 2);
-  printValue("  webhook", cfg.ports.webhook, cfg.ports.webhook === defaults.ports.webhook, 2);
+    // Ports
+    console.log("");
+    console.log(blue("ports:"));
+    printValue("  api", cfg.ports.api, cfg.ports.api === defaults.ports.api, 2);
+    printValue("  indexer", cfg.ports.indexer, cfg.ports.indexer === defaults.ports.indexer, 2);
+    printValue("  webhook", cfg.ports.webhook, cfg.ports.webhook === defaults.ports.webhook, 2);
 
-  // Database
-  console.log("");
-  console.log(blue("database:"));
-  printValue("  type", cfg.database.type, cfg.database.type === "docker", 2);
-  if (cfg.database.url) {
-    printValue("  url", maskUrl(cfg.database.url), false, 2);
+    // Database
+    console.log("");
+    console.log(blue("database:"));
+    printValue("  type", cfg.database.type, cfg.database.type === "docker", 2);
+    if (cfg.database.url) {
+      printValue("  url", maskUrl(cfg.database.url), false, 2);
+    }
   }
 
   console.log("");
