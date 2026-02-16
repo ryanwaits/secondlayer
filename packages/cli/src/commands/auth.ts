@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { input } from "@inquirer/prompts";
 import { loadConfig, saveConfig, resolveApiUrl } from "../lib/config.ts";
 import { authHeaders } from "../lib/api-client.ts";
 import { error, success, dim, formatKeyValue } from "../lib/output.ts";
@@ -20,13 +21,10 @@ export function registerAuthCommand(program: Command): void {
         process.exit(1);
       }
 
-      // Prompt for email
-      process.stdout.write("Email: ");
-      const email = await readLine();
-      if (!email) {
-        error("Email is required");
-        process.exit(1);
-      }
+      const email = await input({
+        message: "Email:",
+        validate: (v) => v.includes("@") || "Enter a valid email",
+      });
 
       try {
         // Request magic link
@@ -44,12 +42,10 @@ export function registerAuthCommand(program: Command): void {
         }
 
         console.log(dim("Check your email for a login token."));
-        process.stdout.write("Token: ");
-        const token = await readLine();
-        if (!token) {
-          error("Token is required");
-          process.exit(1);
-        }
+        const token = await input({
+          message: "Token:",
+          validate: (v) => v.trim().length > 0 || "Token is required",
+        });
 
         // Verify token → session
         const verifyRes = await fetch(`${apiUrl}/api/auth/verify`, {
@@ -326,18 +322,3 @@ async function rotateKey(options: { name: string }): Promise<void> {
   }
 }
 
-function readLine(): Promise<string> {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf-8");
-    process.stdin.on("data", (chunk) => {
-      data += chunk;
-      if (data.includes("\n")) {
-        process.stdin.removeAllListeners("data");
-        process.stdin.pause();
-        resolve(data.trim());
-      }
-    });
-    process.stdin.resume();
-  });
-}
