@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 0.3.1
+
+### Patch Changes
+
+- Fix API base URL (secondlayer.io → secondlayer.tools)
+
 ## 0.3.0
 
 ### Minor Changes

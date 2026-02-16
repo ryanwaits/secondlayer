@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 1.3.0
+
+### Minor Changes
+
+- Add whoami command, --network global flag, hosted-mode doctor, testnet in setup wizard, shared 401 error handler with auth guidance, replace raw stdin with inquirer in auth login, hide local-only config for hosted users, improve webhook template, fix stale command references, remove duplicate top-level logs command
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/sdk@0.3.1
+
 ## 1.2.4
 
 ### Patch Changes
