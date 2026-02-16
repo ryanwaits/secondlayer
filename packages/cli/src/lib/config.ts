@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import { ensureDir, fileExists, readJsonFile, removeFile, writeTextFile } from "./fs.ts";
 
 // Config schema with Zod validation
 const PortsSchema = z.object({
@@ -67,7 +68,7 @@ const DEFAULT_CONFIG: Config = {
 };
 
 async function ensureConfigDir(): Promise<void> {
-  await Bun.$`mkdir -p ${CONFIG_DIR}`.quiet();
+  await ensureDir(CONFIG_DIR);
 }
 
 /**
@@ -168,14 +169,13 @@ function migrateConfig(raw: unknown): Config {
  * Also applies environment variable overrides from .env
  */
 export async function loadConfig(): Promise<Config> {
-  const file = Bun.file(CONFIG_PATH);
   let config: Config;
 
-  if (!(await file.exists())) {
+  if (!(await fileExists(CONFIG_PATH))) {
     config = { ...DEFAULT_CONFIG };
   } else {
     try {
-      const raw = await file.json();
+      const raw = await readJsonFile<unknown>(CONFIG_PATH);
       const migrated = migrateConfig(raw);
       config = ConfigSchema.parse(migrated);
     } catch (error) {
@@ -262,7 +262,7 @@ function applyEnvOverrides(config: Config): Config {
  * Check if a config file exists
  */
 export async function configExists(): Promise<boolean> {
-  return await Bun.file(CONFIG_PATH).exists();
+  return await fileExists(CONFIG_PATH);
 }
 
 /**
@@ -272,7 +272,7 @@ export async function saveConfig(config: Config): Promise<void> {
   // Validate before saving
   const validated = ConfigSchema.parse(config);
   await ensureConfigDir();
-  await Bun.write(CONFIG_PATH, JSON.stringify(validated, null, 2) + "\n");
+  await writeTextFile(CONFIG_PATH, JSON.stringify(validated, null, 2) + "\n");
 }
 
 /**
@@ -353,9 +353,8 @@ export async function resetConfig(): Promise<void> {
  * Clear config file entirely
  */
 export async function clearConfig(): Promise<void> {
-  const file = Bun.file(CONFIG_PATH);
-  if (await file.exists()) {
-    await Bun.$`rm ${CONFIG_PATH}`.quiet();
+  if (await fileExists(CONFIG_PATH)) {
+    await removeFile(CONFIG_PATH);
   }
 }
 
