@@ -31,6 +31,26 @@ export type {
   RegisterParams,
   UpdateZonefileParams,
 };
+
+/** Actions provided by the BNS extension. */
+export type BnsActions = {
+  bns: {
+    resolveName: (name: string) => Promise<string | null>;
+    getPrimaryName: (address: string) => Promise<string | null>;
+    canRegister: (name: string) => Promise<boolean>;
+    getNamePrice: (name: string) => Promise<bigint>;
+    getNameId: (name: string) => Promise<bigint | null>;
+    preorder: (params: PreorderParams) => Promise<{ txid: string; salt: Uint8Array }>;
+    register: (params: RegisterParams) => Promise<string>;
+    claimFast: (params: ClaimFastParams) => Promise<string>;
+    transfer: (params: TransferParams) => Promise<string>;
+    setPrimary: (params: SetPrimaryParams) => Promise<string>;
+    getZonefile: (name: string) => Promise<Uint8Array | null>;
+    updateZonefile: (params: UpdateZonefileParams) => Promise<string>;
+    revokeZonefile: (name: string) => Promise<string>;
+  };
+};
+
 export { BNS_CONTRACTS, ZONEFILE_RESOLVER_CONTRACTS } from "./constants.ts";
 export {
   parseFQN,
@@ -73,7 +93,7 @@ export {
  *   recipient: "SP3FBR...",
  * });
  */
-export function bns() {
+export function bns(): (client: Client) => BnsActions {
   return (client: Client) => ({
     bns: {
       /**

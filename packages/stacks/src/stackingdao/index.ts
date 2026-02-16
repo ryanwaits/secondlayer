@@ -31,6 +31,23 @@ export type {
   WithdrawalInfo,
   FeeInfo,
 };
+/** Actions provided by the StackingDAO extension. */
+export type StackingDaoActions = {
+  stackingDao: {
+    deposit: (params: DepositParams) => Promise<string>;
+    initWithdraw: (params: InitWithdrawParams) => Promise<string>;
+    withdraw: (params: WithdrawParams) => Promise<string>;
+    withdrawIdle: (params: WithdrawIdleParams) => Promise<string>;
+    getStSTXBalance: (address: string) => Promise<bigint>;
+    getExchangeRate: () => Promise<ExchangeRateInfo>;
+    getTotalSupply: () => Promise<bigint>;
+    getWithdrawalInfo: (nftId: bigint) => Promise<WithdrawalInfo>;
+    getFees: () => Promise<FeeInfo>;
+    getReserveBalance: () => Promise<bigint>;
+    getShutdownDeposits: () => Promise<boolean>;
+  };
+};
+
 export { STACKINGDAO_CONTRACTS, TRAIT_CONTRACTS } from "./constants.ts";
 
 /**
@@ -49,7 +66,7 @@ export { STACKINGDAO_CONTRACTS, TRAIT_CONTRACTS } from "./constants.ts";
  * // Check exchange rate
  * const rate = await client.stackingDao.getExchangeRate();
  */
-export function stackingDao() {
+export function stackingDao(): (client: Client) => StackingDaoActions {
   return (client: Client) => ({
     stackingDao: {
       /** Deposit STX, receive stSTX. */

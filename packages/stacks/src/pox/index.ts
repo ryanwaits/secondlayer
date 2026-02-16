@@ -30,6 +30,22 @@ export type {
   DelegationInfo,
 };
 export type { PoxAddress } from "./types.ts";
+
+/** Actions provided by the PoX extension. */
+export type PoxActions = {
+  pox: {
+    getPoxInfo: () => Promise<PoxInfo>;
+    getStackerInfo: (address: string) => Promise<StackerInfo | null>;
+    getDelegationInfo: (address: string) => Promise<DelegationInfo | null>;
+    canStack: (amount: bigint) => Promise<boolean>;
+    stackStx: (params: StackStxParams) => Promise<string>;
+    delegateStx: (params: DelegateStxParams) => Promise<string>;
+    revokeDelegateStx: () => Promise<string>;
+    stackExtend: (params: StackExtendParams) => Promise<string>;
+    stackIncrease: (params: StackIncreaseParams) => Promise<string>;
+  };
+};
+
 export { POX_CONTRACTS, POX_ADDRESS_VERSION, MIN_LOCK_PERIOD, MAX_LOCK_PERIOD } from "./constants.ts";
 export {
   parseBtcAddress,
@@ -66,7 +82,7 @@ export {
  *   authId: 1n,
  * });
  */
-export function pox() {
+export function pox(): (client: Client) => PoxActions {
   return (client: Client) => ({
     pox: {
       /** Query current PoX network info (cycle, minimum, lengths). */
