@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { generateStreamTemplate } from "../templates/stream.ts";
 import { success, error, warn } from "../lib/output.ts";
 import { loadConfig } from "../lib/config.ts";
+import { fileExists, ensureDir, writeTextFile } from "../lib/fs.ts";
 
 const STREAMS_DIR = "streams";
 
@@ -15,9 +16,8 @@ export function registerNewCommand(program: Command): void {
       try {
         const config = await loadConfig();
         const outputPath = options.output || join(STREAMS_DIR, `${name}.json`);
-        const file = Bun.file(outputPath);
 
-        if (await file.exists()) {
+        if (await fileExists(outputPath)) {
           warn(`File already exists: ${outputPath}`);
           process.exit(1);
         }
@@ -25,13 +25,16 @@ export function registerNewCommand(program: Command): void {
         // Ensure directory exists
         const dir = outputPath.substring(0, outputPath.lastIndexOf("/"));
         if (dir) {
-          await Bun.$`mkdir -p ${dir}`.quiet();
+          await ensureDir(dir);
         }
 
         const template = generateStreamTemplate(name, config.defaultWebhookUrl);
-        await Bun.write(outputPath, JSON.stringify(template, null, 2) + "\n");
+        await writeTextFile(outputPath, JSON.stringify(template, null, 2) + "\n");
 
         success(`Created ${outputPath}`);
+        if (!config.defaultWebhookUrl) {
+          warn("Edit the webhookUrl before registering — it must be a reachable HTTPS endpoint");
+        }
         console.log("\nEdit the file to configure your stream, then run:");
         console.log(`  sl streams register ${outputPath}`);
       } catch (err) {

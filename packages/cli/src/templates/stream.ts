@@ -6,7 +6,7 @@ export function generateStreamTemplate(
 ): CreateStream {
   return {
     name,
-    webhookUrl: webhookUrl || "https://your-server.example.com/webhook",
+    webhookUrl: webhookUrl || "https://example.com/webhook",
     filters: [
       {
         type: "contract_call",
