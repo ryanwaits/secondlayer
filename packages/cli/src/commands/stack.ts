@@ -82,7 +82,7 @@ async function stackStart(options: { node: boolean; dev: boolean; network?: stri
   if (options.node) {
     const nodePath = config.node?.installPath;
     if (!nodePath) {
-      warn("No node configured, skipping. Run 'sl node setup' to configure.");
+      warn("No node configured, skipping. Run 'sl setup' to configure.");
     } else if (await isNodeRunning()) {
       info("Node already running");
     } else {

@@ -17,6 +17,10 @@ export function registerStatusCommand(program: Command): void {
         });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            console.error("Error: Authentication required. Run: sl auth login");
+            process.exit(1);
+          }
           throw new Error(`HTTP ${response.status}`);
         }
 
@@ -35,7 +39,7 @@ export function registerStatusCommand(program: Command): void {
         console.log("");
         if (config.network === "local") {
           console.log(dim("  API service is not running."));
-          console.log(dim("  Start with: sl dev start"));
+          console.log(dim("  Start with: sl local start"));
         } else {
           console.log(dim(`  Can't reach ${config.network} API at ${resolveApiUrl(config)}`));
           console.log(dim("  Check your connection or try again."));

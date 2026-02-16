@@ -129,7 +129,7 @@ async function showOverview(_limit: number): Promise<void> {
   } catch (err) {
     error(`Failed to query database: ${err}`);
     console.log(dim("\nMake sure PostgreSQL is running."));
-    console.log(dim("Run 'sl dev' to start all services."));
+    console.log(dim("Run 'sl local start' to start all services."));
     process.exit(1);
   }
 }
@@ -358,7 +358,7 @@ async function resetDatabase(skipConfirm: boolean): Promise<void> {
     console.log("");
     success("Database reset complete");
     console.log("");
-    console.log(dim("Run 'sl dev restart' to restart the indexer for fresh sync."));
+    console.log(dim("Run 'sl local restart' to restart the indexer for fresh sync."));
     console.log("");
     process.exit(0);
   } catch (err) {
@@ -424,13 +424,13 @@ async function resyncDatabase(skipConfirm: boolean, backfill?: boolean): Promise
 
       console.log(green("  ✓ Indexer stopped"));
       console.log("");
-      info("Run 'sl dev restart' to start fresh sync");
+      info("Run 'sl local restart' to start fresh sync");
     } else {
       console.log("");
       success("Database reset complete");
       console.log("");
       if (!backfill) {
-        console.log(dim("Indexer not running. Start with 'sl dev start' to begin sync."));
+        console.log(dim("Indexer not running. Start with 'sl local start' to begin sync."));
       }
     }
 
