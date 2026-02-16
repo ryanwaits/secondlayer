@@ -113,6 +113,7 @@ async function runWizard(): Promise<void> {
     message: "How do you want to use Stacks Streams?",
     choices: [
       { name: "Hosted mainnet (recommended — zero setup)", value: "mainnet" as Network },
+      { name: "Hosted testnet", value: "testnet" as Network },
       { name: "Local development (run your own node + services)", value: "local" as Network },
     ],
   });
@@ -439,9 +440,9 @@ function printSummary(config: Config): void {
   }
   console.log();
   console.log("  Next steps:");
-  console.log("    sl dev start            # Start dev services");
+  console.log("    sl local start          # Start dev services");
   if (config.node) {
-    console.log("    sl node start           # Start your Stacks node");
+    console.log("    sl stack start          # Start your Stacks node");
   }
   console.log("    sl streams new <name>   # Create a new stream config");
   console.log();
