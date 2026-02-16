@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { checkHealth } from "../lib/health.ts";
-import { loadConfig, getDataDir } from "../lib/config.ts";
+import { loadConfig, getDataDir, resolveApiUrl } from "../lib/config.ts";
+import { authHeaders } from "../lib/api-client.ts";
 import { getChainIdHex, type Network } from "../lib/network.ts";
 import { success, warn, green, red, yellow, dim, blue, formatKeyValue } from "../lib/output.ts";
 
@@ -10,11 +11,129 @@ export function registerDoctorCommand(program: Command): void {
     .description("Run diagnostics on the full stack")
     .option("--json", "Output as JSON")
     .action(async (options: { json?: boolean }) => {
-      await runDoctor(options.json);
+      const config = await loadConfig();
+      if (config.network === "local") {
+        await runLocalDoctor(options.json);
+      } else {
+        await runHostedDoctor(options.json);
+      }
     });
 }
 
-async function runDoctor(jsonOutput?: boolean): Promise<void> {
+async function runHostedDoctor(jsonOutput?: boolean): Promise<void> {
+  const config = await loadConfig();
+  const apiUrl = resolveApiUrl(config);
+  const issues: string[] = [];
+
+  const results: Record<string, unknown> = { network: config.network, apiUrl };
+
+  // API health
+  let apiHealthy = false;
+  let statusData: Record<string, unknown> | null = null;
+  try {
+    const res = await fetch(`${apiUrl}/status`, { headers: authHeaders(config) });
+    apiHealthy = res.ok;
+    if (res.ok) {
+      statusData = await res.json() as Record<string, unknown>;
+    } else if (res.status === 401) {
+      issues.push("Authentication failed. Run: sl auth login");
+    } else {
+      issues.push(`API returned HTTP ${res.status}`);
+    }
+  } catch {
+    issues.push(`Cannot reach API at ${apiUrl}`);
+  }
+  results.apiHealthy = apiHealthy;
+
+  // Auth status
+  let authOk = false;
+  let account: { email?: string; plan?: string } | null = null;
+  try {
+    const res = await fetch(`${apiUrl}/api/accounts/me`, { headers: authHeaders(config) });
+    if (res.ok) {
+      authOk = true;
+      account = await res.json() as { email: string; plan: string };
+    } else if (res.status === 401) {
+      issues.push("Not authenticated. Run: sl auth login");
+    }
+  } catch {}
+  results.authOk = authOk;
+  results.account = account;
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({ ...results, status: statusData, issues }, null, 2));
+    return;
+  }
+
+  console.log("");
+  console.log(blue("Network"));
+  console.log(`  ${config.network} ${dim(`(${apiUrl})`)}`);
+  console.log("");
+
+  // API health
+  console.log(blue("API"));
+  console.log(`  ${apiHealthy ? green("✓") : red("✗")} ${apiHealthy ? green("reachable") : red("unreachable")}`);
+  console.log("");
+
+  // Auth
+  console.log(blue("Auth"));
+  if (authOk && account) {
+    console.log(`  ${green("✓")} Authenticated`);
+    console.log(formatKeyValue([
+      ["  Email", account.email ?? dim("unknown")],
+      ["  Plan", account.plan ?? dim("unknown")],
+    ]));
+  } else {
+    console.log(`  ${red("✗")} Not authenticated`);
+  }
+  console.log("");
+
+  // Index progress from /status
+  if (statusData) {
+    const progress = statusData.indexProgress as Array<{ network: string; lastIndexedBlock: number; highestSeenBlock: number }> | undefined;
+    if (progress?.length) {
+      console.log(blue("Index Progress"));
+      for (const p of progress) {
+        const behind = p.highestSeenBlock - p.lastIndexedBlock;
+        const behindStr = behind > 0 ? yellow(` (${behind} behind)`) : green(" (synced)");
+        console.log(`  ${p.network}: block ${p.lastIndexedBlock}${behindStr}`);
+      }
+      console.log("");
+    }
+
+    const streams = statusData.streams as { total: number; active: number; paused: number; error: number } | undefined;
+    if (streams) {
+      console.log(blue("Streams"));
+      console.log(formatKeyValue([
+        ["  Total", streams.total.toString()],
+        ["  Active", green(streams.active.toString())],
+        ["  Paused", yellow(streams.paused.toString())],
+        ["  Error", streams.error > 0 ? red(streams.error.toString()) : "0"],
+      ]));
+      console.log("");
+    }
+  }
+
+  // Issues
+  console.log(blue("Issues"));
+  if (issues.length === 0) {
+    console.log(`  ${green("None")}`);
+  } else {
+    for (const issue of issues) {
+      console.log(`  ${red("•")} ${issue}`);
+    }
+  }
+  console.log("");
+
+  if (issues.length > 0) {
+    warn(`${issues.length} issue(s) found`);
+  } else {
+    success("All checks passed");
+  }
+  console.log("");
+}
+
+async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
   const config = await loadConfig();
   const report = await checkHealth();
 
