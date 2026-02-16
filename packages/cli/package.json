@@ -1,10 +1,11 @@
 {
   "name": "@secondlayer/cli",
   "version": "1.2.4",
-  "description": "CLI for generating type-safe contract interfaces for the Stacks blockchain",
+  "description": "CLI for streams, views, and real-time blockchain indexing on Stacks",
   "type": "module",
   "bin": {
-    "secondlayer": "./dist/cli.js"
+    "secondlayer": "./dist/cli.js",
+    "sl": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -61,8 +62,5 @@
     "fast-glob": "^3.3.3",
     "got": "^13.0.0",
     "react": "^19.1.0"
-  },
-  "engines": {
-    "node": ">=20.19.0"
   }
 }

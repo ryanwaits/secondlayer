@@ -14,7 +14,7 @@ import {
   registerDoctorCommand,
   registerAuthCommand,
   registerLocalCommand,
-  registerLogsCommand,
+  registerWhoamiCommand,
 } from "./commands/index.ts";
 
 const { version } = pkg;
@@ -26,8 +26,22 @@ const { version } = pkg;
 program
   .name("secondlayer")
   .alias("sl")
-  .description("SecondLayer CLI for Stacks blockchain")
-  .version(version);
+  .description("SecondLayer CLI — streams, views, and real-time indexing for Stacks")
+  .version(version)
+  .option("--network <network>", "Override network (local, testnet, mainnet)");
+
+program.hook("preAction", (thisCommand) => {
+  const net = thisCommand.opts().network;
+  if (net) process.env.STACKS_NETWORK = net;
+});
+
+program.addHelpText('after', `
+Quickstart:
+  $ sl setup                   # Configure network + auth
+  $ sl streams new my-stream   # Scaffold a stream config
+  $ sl streams register streams/my-stream.json
+  $ sl status                  # Check system health
+`);
 
 // --- Code generation commands (original @secondlayer/cli) ---
 
@@ -57,7 +71,6 @@ program
 // Core commands (API-backed, work against any environment)
 registerStreamsCommand(program);
 registerViewsCommand(program);
-registerLogsCommand(program);
 registerStatusCommand(program);
 
 // Local infrastructure commands
@@ -71,6 +84,7 @@ registerDoctorCommand(program);
 registerSetupCommand(program);
 registerConfigCommand(program);
 registerAuthCommand(program);
+registerWhoamiCommand(program);
 registerWebhookCommand(program);
 
 program.parse();
