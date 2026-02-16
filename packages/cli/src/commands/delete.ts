@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { confirm } from "@inquirer/prompts";
-import { deleteStream, getStream } from "../lib/api-client.ts";
-import { success, error, warn } from "../lib/output.ts";
+import { deleteStream, getStream, handleApiError } from "../lib/api-client.ts";
+import { success, warn } from "../lib/output.ts";
 
 export function registerDeleteCommand(program: Command): void {
   program
@@ -29,8 +29,7 @@ export function registerDeleteCommand(program: Command): void {
         await deleteStream(id);
         success(`Deleted stream: ${stream.name}`);
       } catch (err) {
-        error(`Failed to delete stream: ${err}`);
-        process.exit(1);
+        handleApiError(err, "delete stream");
       }
     });
 }

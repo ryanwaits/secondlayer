@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { listStreams } from "../lib/api-client.ts";
-import { error, formatTable, green, red, yellow, dim } from "../lib/output.ts";
+import { listStreams, handleApiError } from "../lib/api-client.ts";
+import { formatTable, green, red, yellow, dim } from "../lib/output.ts";
 
 export function registerListCommand(program: Command): void {
   program
@@ -51,8 +51,7 @@ export function registerListCommand(program: Command): void {
           );
           console.log(dim(`\n${total} stream(s) total`));
         } catch (err) {
-          error(`Failed to list streams: ${err}`);
-          process.exit(1);
+          handleApiError(err, "list streams");
         }
       }
     );

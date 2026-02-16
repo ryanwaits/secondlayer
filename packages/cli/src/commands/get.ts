@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { getStream } from "../lib/api-client.ts";
-import { error, formatKeyValue, green, red, yellow, dim } from "../lib/output.ts";
+import { getStream, handleApiError } from "../lib/api-client.ts";
+import { formatKeyValue, green, red, yellow, dim } from "../lib/output.ts";
 
 export function registerGetCommand(program: Command): void {
   program
@@ -64,8 +64,7 @@ export function registerGetCommand(program: Command): void {
         console.log(`\n${dim("Options:")}`);
         console.log(JSON.stringify(stream.options, null, 2));
       } catch (err) {
-        error(`Failed to get stream: ${err}`);
-        process.exit(1);
+        handleApiError(err, "get stream");
       }
     });
 }

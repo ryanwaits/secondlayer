@@ -3,9 +3,10 @@ import { resolve } from "node:path";
 import { existsSync, mkdirSync, watch } from "node:fs";
 import { success, error, info, dim, formatTable, formatKeyValue, green, yellow, red } from "../lib/output.ts";
 import { generateViewTemplate } from "../templates/view.ts";
-import { listViewsApi, getViewApi, reindexViewApi, deleteViewApi, deployViewApi, queryViewTable, queryViewTableCount } from "../lib/api-client.ts";
+import { listViewsApi, getViewApi, reindexViewApi, deleteViewApi, deployViewApi, queryViewTable, queryViewTableCount, handleApiError } from "../lib/api-client.ts";
 import type { ViewQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
+import { writeTextFile } from "../lib/fs.ts";
 
 export function registerViewsCommand(program: Command): void {
   const views = program
@@ -30,10 +31,10 @@ export function registerViewsCommand(program: Command): void {
       }
 
       const content = generateViewTemplate(name);
-      await Bun.write(filePath, content);
+      await writeTextFile(filePath, content);
 
       success(`Created ${filePath}`);
-      info(`Next: streams views deploy views/${name}.ts`);
+      info(`Next: sl views deploy views/${name}.ts`);
     });
 
   // --- dev ---
@@ -137,21 +138,17 @@ export function registerViewsCommand(program: Command): void {
           // ── Remote deploy ──────────────────────────────────────
           info(`Bundling for remote deploy (${config.network})...`);
 
-          const buildResult = await Bun.build({
-            entrypoints: [absPath],
-            target: "bun",
+          const esbuild = await import("esbuild");
+          const buildResult = await esbuild.build({
+            entryPoints: [absPath],
+            bundle: true,
+            platform: "node",
             format: "esm",
             external: ["@secondlayer/views"],
+            write: false,
           });
 
-          if (!buildResult.success) {
-            for (const msg of buildResult.logs) {
-              error(String(msg));
-            }
-            process.exit(1);
-          }
-
-          const handlerCode = await buildResult.outputs[0]!.text();
+          const handlerCode = new TextDecoder().decode(buildResult.outputFiles![0]!.contents);
 
           const result = await deployViewApi({
             name: def.name,
@@ -233,8 +230,7 @@ export function registerViewsCommand(program: Command): void {
         ));
         console.log(dim(`\n${data.length} view(s) total`));
       } catch (err) {
-        error(`Failed to list views: ${err}`);
-        process.exit(1);
+        handleApiError(err, "list views");
       }
     });
 
@@ -278,8 +274,7 @@ export function registerViewsCommand(program: Command): void {
           }
         }
       } catch (err) {
-        error(`Failed to get view status: ${err}`);
-        process.exit(1);
+        handleApiError(err, "get view status");
       }
     });
 
@@ -301,8 +296,7 @@ export function registerViewsCommand(program: Command): void {
         success(result.message);
         info(`From block ${result.fromBlock} to ${result.toBlock}`);
       } catch (err) {
-        error(`Failed to reindex view: ${err}`);
-        process.exit(1);
+        handleApiError(err, "reindex view");
       }
     });
 
@@ -385,8 +379,7 @@ export function registerViewsCommand(program: Command): void {
         console.log(formatTable(columns, tableRows));
         console.log(dim(`\n${rows.length} row(s)`));
       } catch (err) {
-        error(`Failed to query view: ${err}`);
-        process.exit(1);
+        handleApiError(err, "query view");
       }
     });
 
@@ -411,8 +404,7 @@ export function registerViewsCommand(program: Command): void {
         const result = await deleteViewApi(name);
         success(result.message);
       } catch (err) {
-        error(`Failed to delete view: ${err}`);
-        process.exit(1);
+        handleApiError(err, "delete view");
       }
     });
 }

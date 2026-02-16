@@ -16,8 +16,21 @@ import type { DeployViewRequest, DeployViewResponse } from "@secondlayer/shared/
 import type { QueueStats } from "@secondlayer/shared/types";
 import { loadConfig, resolveApiUrl } from "./config.ts";
 
-export { ApiError } from "@secondlayer/sdk";
+import { ApiError } from "@secondlayer/sdk";
+export { ApiError };
 export type { ViewQueryParams } from "@secondlayer/shared/schemas";
+
+/**
+ * Shared error handler for API calls. Prints auth hint on 401, generic message otherwise.
+ */
+export function handleApiError(err: unknown, action: string): never {
+  if (err instanceof ApiError && err.status === 401) {
+    console.error("Error: Authentication required. Run: sl auth login");
+    process.exit(1);
+  }
+  console.error(`Error: Failed to ${action}: ${err}`);
+  process.exit(1);
+}
 
 async function getClient(): Promise<SecondLayer> {
   const config = await loadConfig();

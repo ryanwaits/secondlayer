@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { loadConfig, resolveApiUrl } from "../lib/config.ts";
-import { resolveStreamId, authHeaders } from "../lib/api-client.ts";
+import { resolveStreamId, authHeaders, handleApiError } from "../lib/api-client.ts";
 import { error, success, info, formatKeyValue, dim } from "../lib/output.ts";
 
 interface ReplayResponse {
@@ -135,8 +135,7 @@ export function registerReplayCommand(program: Command): void {
         console.log(dim("\nJobs will be processed by the worker in block order."));
         console.log(dim("Use 'sl streams logs <id> -f' to monitor progress."));
       } catch (err) {
-        error(`Failed to start replay: ${err}`);
-        process.exit(1);
+        handleApiError(err, "start replay");
       }
     });
 }

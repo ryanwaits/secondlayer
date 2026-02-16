@@ -8,6 +8,7 @@ import {
   getQueueStats,
   updateStream,
   authHeaders,
+  handleApiError,
 } from "../lib/api-client.ts";
 import { error, success, warn, info, dim, red } from "../lib/output.ts";
 
@@ -74,8 +75,7 @@ export function registerSetCommand(program: Command): void {
 
         await setSingleStream(id, state);
       } catch (err) {
-        error(`Failed to set stream state: ${err}`);
-        process.exit(1);
+        handleApiError(err, "set stream state");
       }
     });
 }

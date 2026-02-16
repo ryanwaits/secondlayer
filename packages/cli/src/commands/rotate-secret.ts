@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { confirm } from "@inquirer/prompts";
-import { rotateSecret, getStream } from "../lib/api-client.ts";
-import { error, success, formatKeyValue, dim, warn } from "../lib/output.ts";
+import { rotateSecret, getStream, handleApiError } from "../lib/api-client.ts";
+import { success, formatKeyValue, dim, warn } from "../lib/output.ts";
 
 export function registerRotateSecretCommand(program: Command): void {
   program
@@ -33,8 +33,7 @@ export function registerRotateSecretCommand(program: Command): void {
         );
         console.log(dim("\nSave the webhook secret - it won't be shown again!"));
       } catch (err) {
-        error(`Failed to rotate secret: ${err}`);
-        process.exit(1);
+        handleApiError(err, "rotate secret");
       }
     });
 }

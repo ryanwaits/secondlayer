@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { loadConfig, resolveApiUrl, type Config } from "../lib/config.ts";
-import { authHeaders, resolveStreamId } from "../lib/api-client.ts";
-import { error, green, red, dim, formatTable } from "../lib/output.ts";
+import { authHeaders, resolveStreamId, handleApiError } from "../lib/api-client.ts";
+import { green, red, dim, formatTable } from "../lib/output.ts";
 
 export function registerLogsCommand(program: Command): void {
   program
@@ -21,8 +21,7 @@ export function registerLogsCommand(program: Command): void {
           await showRecentLogs(resolveApiUrl(config), fullId, parseInt(options.limit), config, options.status);
         }
       } catch (err) {
-        error(`Failed to get logs: ${err}`);
-        process.exit(1);
+        handleApiError(err, "get logs");
       }
     });
 }
