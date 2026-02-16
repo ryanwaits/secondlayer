@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 0.0.4
+
+### Patch Changes
+
+- Fix `.extend()` chaining losing previous extensions. Calling `.extend(pox()).extend(bns())` now correctly preserves all extensions.
+
 ## 0.0.3
 
 ### Patch Changes

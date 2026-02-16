@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 1.2.4
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@0.0.4
+  - @secondlayer/shared@0.2.3
+  - @secondlayer/views@0.2.3
+
 ## 1.2.3
 
 ### Patch Changes
