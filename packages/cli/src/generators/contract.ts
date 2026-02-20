@@ -8,6 +8,7 @@ import {
 } from "@secondlayer/stacks/clarity";
 import { getTypeForArg } from "../utils/type-mapping";
 import { generateClarityConversion } from "../utils/clarity-conversion";
+import { generateMapKeyConversion } from "../utils/generator-helpers";
 
 /**
  * Code generator for contract interfaces
@@ -380,25 +381,3 @@ function generateConstantsObject(
   }`;
 }
 
-/**
- * Generate Clarity conversion for map key
- */
-function generateMapKeyConversion(keyType: any): string {
-  // Map keys are typically tuples or simple types
-  if (keyType.tuple) {
-    const fields = keyType.tuple
-      .map((field: any) => {
-        const camelFieldName = toCamelCase(field.name);
-        const fieldConversion = generateClarityConversion(
-          `key.${camelFieldName}`,
-          { type: field.type }
-        );
-        return `"${field.name}": ${fieldConversion}`;
-      })
-      .join(", ");
-    return `Cl.tuple({ ${fields} })`;
-  }
-
-  // Single-value keys
-  return generateClarityConversion("key", { type: keyType });
-}

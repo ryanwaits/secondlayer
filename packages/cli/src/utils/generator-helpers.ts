@@ -2,7 +2,7 @@
  * Shared utilities for plugin code generators (actions, testing).
  */
 
-import { toCamelCase, type FunctionArg } from "@secondlayer/stacks/clarity";
+import { toCamelCase, isAbiTuple, type FunctionArg, type AbiType } from "@secondlayer/stacks/clarity";
 import { getTypeForArg } from "./type-mapping";
 import { generateClarityConversion } from "./clarity-conversion";
 
@@ -36,4 +36,24 @@ export function generateClarityArgs(args: ReadonlyArray<FunctionArg>): string {
       return generateClarityConversion(argName, arg);
     })
     .join(", ");
+}
+
+/**
+ * Generate Clarity conversion for a map key (tuple or simple type).
+ */
+export function generateMapKeyConversion(keyType: AbiType): string {
+  if (isAbiTuple(keyType)) {
+    const fields = keyType.tuple
+      .map((field) => {
+        const camelFieldName = toCamelCase(field.name);
+        const fieldConversion = generateClarityConversion(
+          `key.${camelFieldName}`,
+          { type: field.type }
+        );
+        return `"${field.name}": ${fieldConversion}`;
+      })
+      .join(", ");
+    return `Cl.tuple({ ${fields} })`;
+  }
+  return generateClarityConversion("key", { type: keyType });
 }
