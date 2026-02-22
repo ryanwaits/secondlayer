@@ -10,6 +10,25 @@ import type {
 import { ApiError } from "../errors.ts";
 import { BaseClient } from "../base.ts";
 
+export interface DeliverySummary {
+  id: string;
+  blockHeight: number;
+  status: string;
+  statusCode: number | null;
+  responseTimeMs: number | null;
+  attempts: number;
+  error: string | null;
+  createdAt: string;
+}
+
+export interface DeliveryDetail extends DeliverySummary {
+  payload: unknown;
+}
+
+export interface DeliveriesResponse {
+  deliveries: DeliverySummary[];
+}
+
 export class Streams extends BaseClient {
   private async requestWithStreamId<T>(
     method: string,
@@ -84,6 +103,23 @@ export class Streams extends BaseClient {
 
   async rotateSecret(id: string): Promise<{ secret: string }> {
     return this.requestWithStreamId("POST", (id) => `/api/streams/${id}/rotate-secret`, id);
+  }
+
+  // ── Deliveries ─────────────────────────────────────────────────────
+
+  /** List recent deliveries for a stream. */
+  async listDeliveries(id: string, params?: { limit?: number; status?: string }): Promise<DeliveriesResponse> {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.status) qs.set("status", params.status);
+    const query = qs.toString();
+    return this.requestWithStreamId("GET", (id) => `/api/streams/${id}/deliveries${query ? `?${query}` : ""}`, id);
+  }
+
+  /** Get a single delivery with full payload. */
+  async getDelivery(streamId: string, deliveryId: string): Promise<DeliveryDetail> {
+    const fullId = await this.resolveStreamId(streamId);
+    return this.request<DeliveryDetail>("GET", `/api/streams/${fullId}/deliveries/${deliveryId}`);
   }
 
   async pauseAll(): Promise<BulkPauseResponse> {
