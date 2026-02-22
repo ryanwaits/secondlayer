@@ -548,4 +548,36 @@ app.get("/:id/deliveries", async (c) => {
   });
 });
 
+// Get single delivery with payload
+app.get("/:id/deliveries/:deliveryId", async (c) => {
+  const { id, deliveryId } = c.req.param();
+  const db = getDb();
+  const keyIds = await resolveKeyIds(c);
+
+  await assertStreamOwnership(db, id, keyIds);
+
+  const delivery = await db
+    .selectFrom("deliveries")
+    .selectAll()
+    .where("id", "=", deliveryId)
+    .where("stream_id", "=", id)
+    .executeTakeFirst();
+
+  if (!delivery) {
+    throw new ValidationError(`Delivery ${deliveryId} not found`);
+  }
+
+  return c.json({
+    id: delivery.id,
+    blockHeight: delivery.block_height,
+    status: delivery.status,
+    statusCode: delivery.status_code,
+    responseTimeMs: delivery.response_time_ms,
+    attempts: delivery.attempts,
+    error: delivery.error,
+    payload: parseJsonb(delivery.payload),
+    createdAt: delivery.created_at.toISOString(),
+  });
+});
+
 export default app;
