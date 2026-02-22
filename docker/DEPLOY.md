@@ -1,5 +1,15 @@
 # Hetzner AX52 Deployment
 
+> **WARNING**: Always use both compose files on Hetzner. Never run plain `docker compose up` — it creates a fresh named volume instead of using the bind-mounted data at `/opt/secondlayer/data/postgres`, effectively hiding your database.
+>
+> ```bash
+> # CORRECT — always use this on Hetzner:
+> docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d --build
+>
+> # WRONG — will create empty volume, lose access to data:
+> docker compose up -d --build
+> ```
+
 ## Quick Start (Automated)
 
 ```bash

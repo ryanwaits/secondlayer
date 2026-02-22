@@ -464,7 +464,12 @@ $COMPOSE up -d --scale worker=3
 
 Workers can be horizontally scaled. Each worker claims jobs using PostgreSQL's `SKIP LOCKED` to prevent duplicates.
 
-Docker Compose:
+Hetzner:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d --scale worker=3
+```
+
+Docker Compose (non-Hetzner):
 ```bash
 docker compose up -d --scale worker=3
 ```
@@ -631,7 +636,17 @@ volumes:
 
 ## Upgrading
 
-### Docker Compose
+### Hetzner
+
+```bash
+cd /opt/secondlayer && git pull
+cd docker
+docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d --build
+```
+
+> **WARNING**: Never use plain `docker compose up` on Hetzner. The Hetzner override bind-mounts Postgres data to `/opt/secondlayer/data/postgres`. Without it, Docker creates a fresh named volume and you lose access to your data.
+
+### Docker Compose (non-Hetzner)
 
 ```bash
 git pull
