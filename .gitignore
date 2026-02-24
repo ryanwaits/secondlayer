@@ -39,6 +39,7 @@ coverage/
 *.tmp
 *.temp
 docs/
+!docker/docs/
 
 # Config files (users should create their own)
 secondlayer.config.ts
