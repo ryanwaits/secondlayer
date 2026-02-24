@@ -11,8 +11,9 @@ set -euo pipefail
 DATA_DIR="${1:-${DATA_DIR:-/opt/secondlayer/data}}"
 DUMP_DIR="${DATA_DIR}/hiro-pg-dump"
 GCS_BUCKET="https://storage.googleapis.com/archive.hiro.so"
-DUMP_URL="${GCS_BUCKET}/mainnet/stacks-blockchain-api-pg/stacks-blockchain-api-pg-17-8.13.6-latest.dump"
-CHECKSUM_URL="${GCS_BUCKET}/mainnet/stacks-blockchain-api-pg/stacks-blockchain-api-pg-17-8.13.6-latest.sha256"
+HIRO_PG_VERSION="${HIRO_PG_VERSION:-17-8.13.6}"
+DUMP_URL="${GCS_BUCKET}/mainnet/stacks-blockchain-api-pg/stacks-blockchain-api-pg-${HIRO_PG_VERSION}-latest.dump"
+CHECKSUM_URL="${GCS_BUCKET}/mainnet/stacks-blockchain-api-pg/stacks-blockchain-api-pg-${HIRO_PG_VERSION}-latest.sha256"
 
 mkdir -p "$DUMP_DIR"
 DUMP_FILE="${DUMP_DIR}/hiro-api.dump"

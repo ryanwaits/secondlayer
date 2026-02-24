@@ -6,7 +6,7 @@ set -euo pipefail
 
 DATA_DIR="${DATA_DIR:-/opt/secondlayer/data}"
 BACKUP_DIR="${DATA_DIR}/backups/chainstate"
-VG_NAME="${VG_NAME:-vg0}"
+VG_NAME="${VG_NAME:-chainstate-vg}"
 LV_NAME="${LV_NAME:-chainstate}"
 SNAP_SIZE="${SNAP_SIZE:-50G}"
 RETENTION_DAYS=3
