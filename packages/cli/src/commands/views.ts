@@ -7,6 +7,11 @@ import { listViewsApi, getViewApi, reindexViewApi, deleteViewApi, deployViewApi,
 import type { ViewQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { writeTextFile } from "../lib/fs.ts";
+import { generateViewScaffold } from "../generators/view-scaffold.ts";
+import { generateViewConsumer } from "../generators/views.ts";
+import { StacksApiClient } from "../utils/api.ts";
+import { inferNetwork } from "../utils/network.ts";
+import { parseApiResponse } from "../parsers/clarity.ts";
 
 export function registerViewsCommand(program: Command): void {
   const views = program
@@ -60,9 +65,7 @@ export function registerViewsCommand(program: Command): void {
           const mod = await import(`${absPath}?t=${Date.now()}`);
           const def = mod.default ?? mod;
 
-          // @ts-expect-error - Dynamic import resolved at runtime
           const { validateViewDefinition } = await import("@secondlayer/views/validate");
-          // @ts-expect-error - Dynamic import resolved at runtime
           const { deploySchema } = await import("@secondlayer/views");
           const { getDb } = await import("@secondlayer/shared/db");
 
@@ -130,7 +133,6 @@ export function registerViewsCommand(program: Command): void {
         info(`Loading view from ${absPath}`);
         const mod = await import(absPath);
         const def = mod.default ?? mod;
-        // @ts-expect-error - Dynamic import resolved at runtime
         const { validateViewDefinition } = await import("@secondlayer/views/validate");
         validateViewDefinition(def);
 
@@ -167,7 +169,6 @@ export function registerViewsCommand(program: Command): void {
           }
         } else {
           // ── Local deploy ───────────────────────────────────────
-          // @ts-expect-error - Dynamic import resolved at runtime
           const { deploySchema } = await import("@secondlayer/views");
           const { getDb, closeDb } = await import("@secondlayer/shared/db");
 
@@ -405,6 +406,76 @@ export function registerViewsCommand(program: Command): void {
         success(result.message);
       } catch (err) {
         handleApiError(err, "delete view");
+      }
+    });
+
+  // --- scaffold ---
+  views
+    .command("scaffold <contractAddress>")
+    .description("Scaffold a defineView() file from a contract ABI")
+    .option("-o, --output <path>", "Output file path (required)")
+    .option("--api-key <key>", "Hiro API key")
+    .action(async (contractAddress: string, options: { output?: string; apiKey?: string }) => {
+      try {
+        if (!options.output) {
+          error("--output <path> is required");
+          process.exit(1);
+        }
+
+        const outPath = resolve(options.output);
+        const network = inferNetwork(contractAddress) ?? "mainnet";
+        const apiKey = options.apiKey ?? process.env.HIRO_API_KEY;
+
+        info(`Fetching ABI for ${contractAddress}...`);
+        const client = new StacksApiClient(network, apiKey);
+        const contractInfo = await client.getContractInfo(contractAddress);
+        const abi = parseApiResponse(contractInfo);
+
+        info(`Generating scaffold...`);
+        const content = await generateViewScaffold({
+          contractId: contractAddress,
+          functions: abi.functions,
+        });
+
+        const dir = resolve(outPath, "..");
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+        await writeTextFile(outPath, content);
+
+        success(`Created ${outPath}`);
+        info(`Next: sl views deploy ${options.output}`);
+      } catch (err) {
+        error(`Failed to scaffold view: ${err}`);
+        process.exit(1);
+      }
+    });
+
+  // --- generate ---
+  views
+    .command("generate <viewName>")
+    .description("Generate a typed client for a deployed view")
+    .option("-o, --output <path>", "Output file path (required)")
+    .action(async (viewName: string, options: { output?: string }) => {
+      try {
+        if (!options.output) {
+          error("--output <path> is required");
+          process.exit(1);
+        }
+
+        const outPath = resolve(options.output);
+
+        info(`Fetching view metadata for "${viewName}"...`);
+        const viewDetail = await getViewApi(viewName);
+
+        info(`Generating typed client...`);
+        const content = await generateViewConsumer(viewName, viewDetail);
+
+        const dir = resolve(outPath, "..");
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+        await writeTextFile(outPath, content);
+
+        success(`Created ${outPath}`);
+      } catch (err) {
+        handleApiError(err, "generate view client");
       }
     });
 }
