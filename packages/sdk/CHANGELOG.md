@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- Add `getView()` standalone factory to `@secondlayer/sdk`. Mirrors `getContract()` — accepts a view def + plain options, `SecondLayer`, or `Views` instance; no `SecondLayer` instantiation required for view-only use cases.
+
+  Generated `createClient` from `sl views generate` now takes `options?: { apiKey?: string; baseUrl?: string }` instead of `sl: SecondLayer`.
+
 ## 0.3.1
 
 ### Patch Changes

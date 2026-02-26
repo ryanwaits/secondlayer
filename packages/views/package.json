@@ -2,24 +2,24 @@
   "name": "@secondlayer/views",
   "version": "0.2.3",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
     },
     "./types": {
-      "types": "./dist/types.d.ts",
-      "import": "./dist/types.js"
+      "types": "./dist/src/types.d.ts",
+      "import": "./dist/src/types.js"
     },
     "./schema": {
-      "types": "./dist/schema/index.d.ts",
-      "import": "./dist/schema/index.js"
+      "types": "./dist/src/schema/index.d.ts",
+      "import": "./dist/src/schema/index.js"
     },
     "./validate": {
-      "types": "./dist/validate.d.ts",
-      "import": "./dist/validate.js"
+      "types": "./dist/src/validate.d.ts",
+      "import": "./dist/src/validate.js"
     }
   },
   "files": [
@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@secondlayer/shared": "^0.2.3",
-    "@secondlayer/stacks": "workspace:*",
+    "@secondlayer/stacks": "^0.0.4",
     "kysely": "^0.28.10",
     "postgres": "^3.4.6",
     "zod": "^3.24.1"

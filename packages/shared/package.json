@@ -117,7 +117,7 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
-    "@secondlayer/stacks": "workspace:*",
+    "@secondlayer/stacks": "^0.0.4",
     "kysely": "0.28.10",
     "kysely-postgres-js": "3.0.0",
     "postgres": "^3.4.6",
