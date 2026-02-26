@@ -17,3 +17,14 @@ export { deploySchema, diffSchema } from "./schema/deployer.ts";
 export { reindexView, type ReindexOptions } from "./runtime/reindex.ts";
 export type { TableDiff, ColumnDiff } from "./schema/deployer.ts";
 export type { GeneratedSQL } from "./schema/generator.ts";
+export type {
+  ColumnToTS,
+  InferColumnType,
+  SystemRow,
+  InferTableRow,
+  ComparisonFilter,
+  WhereInput,
+  FindManyOptions,
+  ViewTableClient,
+  InferViewClient,
+} from "./infer.ts";
