@@ -1,5 +1,4 @@
 import { readFile, writeFile, mkdir, unlink, stat } from "node:fs/promises";
-import { dirname } from "node:path";
 
 export async function readTextFile(path: string): Promise<string> {
   return readFile(path, "utf-8");

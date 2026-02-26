@@ -14,7 +14,6 @@ import {
 } from "@secondlayer/stacks/clarity";
 import type { TestingPluginOptions } from "./index";
 import { getTypeForArg } from "../../utils/type-mapping";
-import { generateClarityConversion } from "../../utils/clarity-conversion";
 import { generateArgsSignature, generateClarityArgs, generateMapKeyConversion } from "../../utils/generator-helpers";
 
 /**

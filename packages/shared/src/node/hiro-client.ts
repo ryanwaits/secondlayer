@@ -286,7 +286,7 @@ export class HiroClient {
     return txs;
   }
 
-  private async fetchAllEvents(txId: string, baseUrl?: string, maxEvents?: number): Promise<TransactionEventPayload[]> {
+  private async fetchAllEvents(txId: string, baseUrl?: string, _maxEvents?: number): Promise<TransactionEventPayload[]> {
     const url = baseUrl || this.apiUrl;
     const events: TransactionEventPayload[] = [];
     let offset = 0;
