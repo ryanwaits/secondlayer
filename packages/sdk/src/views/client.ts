@@ -5,7 +5,13 @@ import type {
   ReindexResponse,
 } from "@secondlayer/shared/schemas";
 import type { DeployViewRequest, DeployViewResponse } from "@secondlayer/shared/schemas/views";
+import type {
+  InferViewClient,
+  FindManyOptions,
+  WhereInput,
+} from "@secondlayer/views";
 import { BaseClient } from "../base.ts";
+import { serializeWhere, resolveOrderByColumn } from "./serialize.ts";
 
 function buildViewQueryString(params: ViewQueryParams): string {
   const qs = new URLSearchParams();
@@ -50,5 +56,72 @@ export class Views extends BaseClient {
 
   async queryTableCount(name: string, table: string, params: ViewQueryParams = {}): Promise<{ count: number }> {
     return this.request<{ count: number }>("GET", `/api/views/${name}/${table}/count${buildViewQueryString(params)}`);
+  }
+
+  /**
+   * Returns a typed client for a view defined with `defineView()`.
+   * Row types are inferred from the view's schema literal types.
+   *
+   * @example
+   * ```ts
+   * import myView from './views/my-token-view'
+   * const client = sl.views.typed(myView)
+   * const rows = await client.transfers.findMany({ where: { sender: 'SP...' } })
+   * // rows: InferTableRow<typeof myView.schema.transfers>[]
+   * ```
+   */
+  typed<T extends { name: string; schema: Record<string, unknown> }>(
+    def: T,
+  ): InferViewClient<T> {
+    const result: Record<string, unknown> = {};
+
+    for (const tableName of Object.keys(def.schema)) {
+      result[tableName] = this.createTableClient(def.name, tableName);
+    }
+
+    return result as InferViewClient<T>;
+  }
+
+  private createTableClient(viewName: string, tableName: string) {
+    const self = this;
+
+    return {
+      async findMany<TRow>(options: FindManyOptions<TRow> = {}): Promise<TRow[]> {
+        const filters = options.where
+          ? serializeWhere(options.where as Record<string, unknown>)
+          : undefined;
+
+        let sort: string | undefined;
+        let order: string | undefined;
+        if (options.orderBy) {
+          const entries = Object.entries(options.orderBy);
+          if (entries.length > 0) {
+            const [col, dir] = entries[0]!;
+            sort = resolveOrderByColumn(col);
+            order = (dir as unknown as string | undefined) ?? "asc";
+          }
+        }
+
+        const params: ViewQueryParams = {
+          sort,
+          order,
+          limit: options.limit,
+          offset: options.offset,
+          fields: options.fields?.join(","),
+          filters,
+        };
+
+        return self.queryTable(viewName, tableName, params) as Promise<TRow[]>;
+      },
+
+      async count<TRow>(where?: WhereInput<TRow>): Promise<number> {
+        const filters = where
+          ? serializeWhere(where as Record<string, unknown>)
+          : undefined;
+
+        const result = await self.queryTableCount(viewName, tableName, { filters });
+        return result.count;
+      },
+    };
   }
 }
