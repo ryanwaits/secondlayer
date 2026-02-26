@@ -336,14 +336,16 @@ app.get("/:viewName", async (c) => {
       // Table might not exist yet
     }
 
-    const columns: Record<string, string> = {};
+    const columns: Record<string, { type: string; nullable?: boolean }> = {};
     for (const [colName, col] of Object.entries(tableDef.columns)) {
-      columns[colName] = col.type;
+      columns[colName] = col.nullable
+        ? { type: col.type, nullable: true }
+        : { type: col.type };
     }
-    columns._id = "serial";
-    columns._block_height = "bigint";
-    columns._tx_id = "text";
-    columns._created_at = "timestamp";
+    columns._id = { type: "serial" };
+    columns._block_height = { type: "bigint" };
+    columns._tx_id = { type: "text" };
+    columns._created_at = { type: "timestamp" };
 
     tables[tableName] = {
       endpoint: `/views/${viewName}/${tableName}`,

@@ -45,7 +45,7 @@ export interface ViewDetail {
   };
   tables: Record<string, {
     endpoint: string;
-    columns: Record<string, string>;
+    columns: Record<string, { type: string; nullable?: boolean }>;
     rowCount: number;
     example: string;
   }>;
