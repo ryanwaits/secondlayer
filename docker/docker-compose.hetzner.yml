@@ -30,7 +30,7 @@ services:
       - ${DATA_DIR:-/opt/secondlayer/data}/hiro-postgres:/var/lib/postgresql/data
       - ./hiro-postgres/pg_hba.conf:/etc/pg_hba.conf:ro
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     command:
       - postgres
       - -c
