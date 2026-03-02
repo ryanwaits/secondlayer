@@ -121,22 +121,33 @@ export function detectAnomalies(
     });
   }
 
-  // No new blocks in >5 minutes
+  // No new blocks in >5 minutes — but only if the node is caught up
   if (
     previous &&
     current.health.indexer.ok &&
     previous.health.indexer.ok &&
     current.health.indexer.lastSeenHeight === previous.health.indexer.lastSeenHeight
   ) {
-    anomalies.push({
-      name: "no_new_blocks",
-      severity: "warn",
-      action: "alert_only",
-      service: "indexer",
-      message: `No new blocks since height ${current.health.indexer.lastSeenHeight}`,
-      line: "",
-      timestamp: now,
-    });
+    // Check if stacks-node is still syncing (node tip is moving but indexer tip isn't, or node tip is far from burn chain)
+    const nodeTip = current.health.stacksNode.tipHeight;
+    const prevNodeTip = previous.health.stacksNode.tipHeight;
+    const nodeStillSyncing = nodeTip && prevNodeTip && nodeTip !== prevNodeTip && nodeTip > (current.health.indexer.lastSeenHeight ?? 0);
+
+    if (nodeStillSyncing) {
+      // Node is syncing — indexer will catch up, suppress alert
+    } else if (!current.health.stacksNode.ok) {
+      // Node is down — that's the root cause, don't spam about indexer
+    } else {
+      anomalies.push({
+        name: "no_new_blocks",
+        severity: "warn",
+        action: "alert_only",
+        service: "indexer",
+        message: `No new blocks since height ${current.health.indexer.lastSeenHeight}`,
+        line: "",
+        timestamp: now,
+      });
+    }
   }
 
   // Gap count increased
@@ -173,14 +184,21 @@ export function detectAnomalies(
   }
 
   // Chain tip lag >10 blocks (indexer vs stacks-node)
+  // Only alert if node tip is stable (not actively syncing)
   if (
     current.health.indexer.ok &&
     current.health.stacksNode.ok &&
     current.health.stacksNode.tipHeight &&
-    current.health.indexer.lastSeenHeight
+    current.health.indexer.lastSeenHeight &&
+    previous?.health.stacksNode.ok
   ) {
     const lag = current.health.stacksNode.tipHeight - current.health.indexer.lastSeenHeight;
-    if (lag > 10) {
+    const prevNodeTip = previous.health.stacksNode.tipHeight ?? 0;
+    const nodeAdvanced = current.health.stacksNode.tipHeight - prevNodeTip;
+    // If node advanced >50 blocks in one poll interval, it's bulk syncing — don't alert
+    const nodeBulkSyncing = nodeAdvanced > 50;
+
+    if (lag > 10 && !nodeBulkSyncing) {
       anomalies.push({
         name: "chain_tip_lag",
         severity: "warn",
