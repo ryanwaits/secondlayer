@@ -7,7 +7,7 @@ set -euo pipefail
 DATA_DIR="${DATA_DIR:-/opt/secondlayer/data}"
 BACKUP_DIR="${DATA_DIR}/backups/postgres"
 CONTAINER="${PG_CONTAINER:-secondlayer-postgres-1}"
-PG_USER="${PG_USER:-postgres}"
+PG_USER="${PG_USER:-secondlayer}"
 PG_DB="${PG_DB:-secondlayer}"
 RETENTION_DAYS=7
 DATE=$(date +%Y%m%d-%H%M%S)
