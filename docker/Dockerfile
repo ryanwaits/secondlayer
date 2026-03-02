@@ -29,7 +29,7 @@ COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
 COPY packages/agent/package.json ./packages/agent/
 # Install dependencies
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # =============================================================================
 # Builder stage - build all packages
