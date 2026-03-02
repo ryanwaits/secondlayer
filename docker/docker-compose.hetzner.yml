@@ -127,6 +127,9 @@ services:
       target: agent
     environment:
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      SLACK_API_TOKEN: ${SLACK_API_TOKEN:-}
+      SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AGENT_DATA_DIR: /data/agent
       AGENT_DRY_RUN: ${AGENT_DRY_RUN:-false}

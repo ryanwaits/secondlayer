@@ -11,6 +11,9 @@ export interface AgentConfig {
   composeCmd: string[];
   composeDir: string;
   slackWebhookUrl: string;
+  slackApiToken: string;
+  slackChannelId: string;
+  slackSigningSecret: string;
   anthropicApiKey: string;
   pollIntervalMs: number;
   budgetCapDailyUsd: number;
@@ -57,6 +60,9 @@ export function loadConfig(): AgentConfig {
     ).split(" "),
     composeDir,
     slackWebhookUrl: process.env.SLACK_WEBHOOK_URL ?? "",
+    slackApiToken: process.env.SLACK_API_TOKEN ?? "",
+    slackChannelId: process.env.SLACK_CHANNEL_ID ?? "",
+    slackSigningSecret: process.env.SLACK_SIGNING_SECRET ?? "",
     anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
     pollIntervalMs: Number(process.env.AGENT_POLL_INTERVAL_MS) || 300_000,
     budgetCapDailyUsd: Number(process.env.AGENT_BUDGET_CAP_DAILY_USD) || 5,

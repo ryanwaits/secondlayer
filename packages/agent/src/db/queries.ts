@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { Decision, Snapshot, Severity, ActionType, Tier } from "../types.ts";
+import type { Alert, Decision, Snapshot, Severity, ActionType, Tier } from "../types.ts";
 
 export function insertDecision(
   db: Database,
@@ -34,6 +34,26 @@ export function insertAlert(
 
 export function resolveAlert(db: Database, id: number): void {
   db.run("UPDATE alerts SET resolved_at = datetime('now') WHERE id = ?", [id]);
+}
+
+export function getUnresolvedAlertForService(db: Database, service: string): (Alert & { id: number }) | null {
+  return db
+    .query(
+      "SELECT id, severity, service, title, message, slack_ts as slackTs, resolved_at as resolvedAt, created_at as createdAt FROM alerts WHERE service = ? AND resolved_at IS NULL AND slack_ts IS NOT NULL ORDER BY id DESC LIMIT 1"
+    )
+    .get(service) as (Alert & { id: number }) | null;
+}
+
+export function getAlertById(db: Database, id: number): (Alert & { id: number }) | null {
+  return db
+    .query(
+      "SELECT id, severity, service, title, message, slack_ts as slackTs, resolved_at as resolvedAt, created_at as createdAt FROM alerts WHERE id = ?"
+    )
+    .get(id) as (Alert & { id: number }) | null;
+}
+
+export function updateAlertSlackTs(db: Database, alertId: number, slackTs: string): void {
+  db.run("UPDATE alerts SET slack_ts = ? WHERE id = ?", [slackTs, alertId]);
 }
 
 export function getRecentDecisions(db: Database, limit = 20): Decision[] {

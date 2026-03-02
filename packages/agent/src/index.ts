@@ -3,20 +3,25 @@ import { initDb } from "./db/index.ts";
 import {
   insertSnapshot,
   insertAlert,
+  resolveAlert,
   getRecentDecisions,
   getLatestSnapshot,
   getDailySpend,
   pruneOldRecords,
   checkCooldown,
   recordCooldown,
+  getUnresolvedAlertForService,
+  updateAlertSlackTs,
+  insertDecision,
 } from "./db/queries.ts";
 import { pollHealth, collectSystemMetrics, detectAnomalies } from "./monitor/health-poller.ts";
 import { LogWatcher } from "./monitor/log-watcher.ts";
 import { ActionExecutor } from "./actions/executor.ts";
-import { sendSlackAlert, sendDailySummary } from "./notify/slack.ts";
+import { SlackClient } from "./notify/slack.ts";
+import { buildAlertBlocksWithButtons, buildDiagnosisBlocks } from "./notify/slack-blocks.ts";
+import { handleSlackCallback } from "./notify/slack-callback.ts";
 import { analyzeWithHaiku } from "./ai/haiku-analyzer.ts";
 import { diagnoseWithSonnet } from "./ai/sonnet-escalator.ts";
-import { insertDecision } from "./db/queries.ts";
 import type { PatternMatch, HealthStatus, SystemMetrics } from "./types.ts";
 
 function log(msg: string): void {
@@ -39,6 +44,11 @@ async function main(): Promise<void> {
 
   const db = initDb(config.dbPath);
   const executor = new ActionExecutor(config, db);
+  const slack = new SlackClient({
+    webhookUrl: config.slackWebhookUrl,
+    apiToken: config.slackApiToken,
+    channelId: config.slackChannelId,
+  });
 
   // Track previous health state for anomaly detection
   let previousState: { health: HealthStatus; metrics: SystemMetrics } | undefined;
@@ -51,6 +61,30 @@ async function main(): Promise<void> {
   // Alert dedup: max 1 alert per pattern+service per hour
   const ALERT_DEDUP_MAX_PER_HOUR = 1;
 
+  /** Look up existing unresolved thread for a service. */
+  function getThreadTs(service: string): string | undefined {
+    const existing = getUnresolvedAlertForService(db, service);
+    return existing?.slackTs ?? undefined;
+  }
+
+  /** Insert alert, post to Slack (with buttons in API mode), store ts back on alert row. */
+  async function postAndTrackAlert(
+    payload: { severity: Parameters<typeof insertAlert>[1]["severity"]; service: string; title: string; message: string },
+    slackPayload: Parameters<SlackClient["sendAlert"]>[0],
+    threadTs?: string
+  ): Promise<{ alertId: number; ts: string | null }> {
+    const alertId = insertAlert(db, payload);
+    let ts: string | null;
+    if (slack.canThread) {
+      const blocks = buildAlertBlocksWithButtons(slackPayload, { alertId, service: payload.service });
+      ts = await slack.postAlert(blocks, threadTs);
+    } else {
+      ts = await slack.sendAlert(slackPayload, threadTs);
+    }
+    if (ts) updateAlertSlackTs(db, alertId, ts);
+    return { alertId, ts };
+  }
+
   async function handleMatch(match: PatternMatch): Promise<void> {
     log(`Pattern: ${match.name} [${match.severity}] ${match.message}`);
 
@@ -62,29 +96,28 @@ async function main(): Promise<void> {
     }
     recordCooldown(db, match.service, alertKey);
 
-    insertAlert(db, {
-      severity: match.severity,
-      service: match.service,
-      title: match.name,
-      message: match.message,
-    });
+    const threadTs = getThreadTs(match.service);
 
     // Known action → execute directly
     if (match.action !== "escalate" && match.action !== "none") {
       const result = await executor.execute(match.action, match.service, match);
 
-      await sendSlackAlert(config.slackWebhookUrl, {
-        severity: match.severity,
-        title: match.name,
-        service: match.service,
-        details: match.message,
-        action: match.action,
-        outcome: result.outcome,
-      });
+      await postAndTrackAlert(
+        { severity: match.severity, service: match.service, title: match.name, message: match.message },
+        {
+          severity: match.severity,
+          title: match.name,
+          service: match.service,
+          details: match.message,
+          action: match.action,
+          outcome: result.outcome,
+        },
+        threadTs
+      );
       return;
     }
 
-    // Unknown/escalate → batch for AI (Sprint 5)
+    // Unknown/escalate → batch for AI
     if (config.aiEnabled && match.action === "escalate") {
       matchBatch.push(match);
       if (!batchTimer) {
@@ -99,12 +132,16 @@ async function main(): Promise<void> {
     }
 
     // No AI → alert only
-    await sendSlackAlert(config.slackWebhookUrl, {
-      severity: match.severity,
-      title: match.name,
-      service: match.service,
-      details: match.message,
-    });
+    await postAndTrackAlert(
+      { severity: match.severity, service: match.service, title: match.name, message: match.message },
+      {
+        severity: match.severity,
+        title: match.name,
+        service: match.service,
+        details: match.message,
+      },
+      threadTs
+    );
   }
 
   async function handleAiBatch(batch: PatternMatch[]): Promise<void> {
@@ -113,7 +150,8 @@ async function main(): Promise<void> {
     const dailySpend = getDailySpend(db);
     if (dailySpend >= config.budgetCapDailyUsd) {
       log(`Budget cap reached ($${dailySpend.toFixed(4)}/$${config.budgetCapDailyUsd}) — skipping AI`);
-      await sendSlackAlert(config.slackWebhookUrl, {
+      // Budget cap is agent-level → always top-level
+      await slack.sendAlert({
         severity: "warn",
         title: "Budget Cap Reached",
         service: "agent",
@@ -146,18 +184,24 @@ async function main(): Promise<void> {
       costUsd,
     });
 
+    const threadTs = getThreadTs(batch[0].service);
+
     // High confidence + safe action → auto-execute
     if (analysis.confidence > 0.7 && analysis.suggestedAction && analysis.suggestedAction !== "escalate") {
       const result = await executor.execute(analysis.suggestedAction, batch[0].service, batch[0]);
-      await sendSlackAlert(config.slackWebhookUrl, {
-        severity: analysis.severity,
-        title: `[AI] ${batch[0].name}`,
-        service: batch[0].service,
-        details: `${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%`,
-        action: analysis.suggestedAction,
-        outcome: result.outcome,
-        commands: analysis.commands,
-      });
+      await postAndTrackAlert(
+        { severity: analysis.severity, service: batch[0].service, title: `[AI] ${batch[0].name}`, message: analysis.diagnosis },
+        {
+          severity: analysis.severity,
+          title: `[AI] ${batch[0].name}`,
+          service: batch[0].service,
+          details: `${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%`,
+          action: analysis.suggestedAction,
+          outcome: result.outcome,
+          commands: analysis.commands,
+        },
+        threadTs
+      );
       return;
     }
 
@@ -180,25 +224,43 @@ async function main(): Promise<void> {
         costUsd: sonnetResult.costUsd,
       });
 
-      await sendSlackAlert(config.slackWebhookUrl, {
-        severity: sonnetResult.diagnosis.severity,
-        title: `[Sonnet] ${batch[0].name}`,
-        service: batch[0].service,
-        details: `${sonnetResult.diagnosis.diagnosis}\n\n*Steps:* ${sonnetResult.diagnosis.steps.join(", ")}\n*Confidence:* ${(sonnetResult.diagnosis.confidence * 100).toFixed(0)}%`,
-        action: sonnetResult.diagnosis.suggestedAction ?? undefined,
-        commands: sonnetResult.diagnosis.commands,
-      });
+      const { alertId: sonnetAlertId, ts: sonnetTs } = await postAndTrackAlert(
+        { severity: sonnetResult.diagnosis.severity, service: batch[0].service, title: `[Sonnet] ${batch[0].name}`, message: sonnetResult.diagnosis.diagnosis },
+        {
+          severity: sonnetResult.diagnosis.severity,
+          title: `[Sonnet] ${batch[0].name}`,
+          service: batch[0].service,
+          details: `${sonnetResult.diagnosis.diagnosis}\n\n*Steps:* ${sonnetResult.diagnosis.steps.join(", ")}\n*Confidence:* ${(sonnetResult.diagnosis.confidence * 100).toFixed(0)}%`,
+          action: sonnetResult.diagnosis.suggestedAction ?? undefined,
+          commands: sonnetResult.diagnosis.commands,
+        },
+        threadTs
+      );
+
+      // Post diagnosis with action buttons in thread
+      if (sonnetTs && slack.canThread) {
+        const diagBlocks = buildDiagnosisBlocks(
+          { ...sonnetResult.diagnosis, suggestedAction: sonnetResult.diagnosis.suggestedAction ?? undefined },
+          sonnetAlertId,
+          batch[0].service
+        );
+        await slack.postAlert(diagBlocks, sonnetTs);
+      }
       return;
     }
 
     // Otherwise just alert with Haiku diagnosis
-    await sendSlackAlert(config.slackWebhookUrl, {
-      severity: analysis.severity,
-      title: `[AI] ${batch[0].name}`,
-      service: batch[0].service,
-      details: `${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%\n*Suggested:* ${analysis.suggestedAction ?? "none"}`,
-      commands: analysis.commands,
-    });
+    await postAndTrackAlert(
+      { severity: analysis.severity, service: batch[0].service, title: `[AI] ${batch[0].name}`, message: analysis.diagnosis },
+      {
+        severity: analysis.severity,
+        title: `[AI] ${batch[0].name}`,
+        service: batch[0].service,
+        details: `${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%\n*Suggested:* ${analysis.suggestedAction ?? "none"}`,
+        commands: analysis.commands,
+      },
+      threadTs
+    );
   }
 
   // --- Health poll loop ---
@@ -219,9 +281,24 @@ async function main(): Promise<void> {
         services: JSON.stringify(
           Object.fromEntries(
             config.services.map((s) => {
-              const key = s.name as keyof HealthStatus;
-              const h = health[key];
-              return [s.name, h && typeof h === "object" && "ok" in h ? (h.ok ? "healthy" : "unhealthy") : "unknown"];
+              // Check if container is running via docker stats
+              const container = metrics.containers.find((c) => c.name === s.container);
+              if (!container?.running) return [s.name, "down"];
+
+              // For services with health endpoints in HealthStatus, use that
+              const healthKeyMap: Record<string, keyof HealthStatus> = {
+                indexer: "indexer",
+                api: "api",
+                "stacks-node": "stacksNode",
+              };
+              const healthKey = healthKeyMap[s.name];
+              if (healthKey) {
+                const h = health[healthKey];
+                return [s.name, h?.ok ? "healthy" : "unhealthy"];
+              }
+
+              // Container is running but no health endpoint — healthy
+              return [s.name, "healthy"];
             })
           )
         ),
@@ -234,13 +311,29 @@ async function main(): Promise<void> {
         await handleMatch(anomaly);
       }
 
+      // Auto-resolve: check for recovered services
+      const anomalyServices = new Set(anomalies.map((a) => a.service));
+      for (const svc of config.services) {
+        if (anomalyServices.has(svc.name)) continue; // still has issues
+        const unresolvedAlert = getUnresolvedAlertForService(db, svc.name);
+        if (!unresolvedAlert) continue;
+
+        resolveAlert(db, unresolvedAlert.id);
+        log(`Auto-resolved alert #${unresolvedAlert.id} for ${svc.name}`);
+
+        if (unresolvedAlert.slackTs && slack.canThread) {
+          await slack.postThreadReply(unresolvedAlert.slackTs, `:white_check_mark: Recovered — ${svc.name} healthy`);
+        }
+      }
+
       previousState = currentState;
       log(`Poll complete — disk:${metrics.diskUsedPct}% mem:${metrics.memUsedPct}% containers:${metrics.containers.length}`);
     } catch (e) {
       log(`Poll error: ${e}`);
       consecutivePollFailures++;
       if (consecutivePollFailures >= 3) {
-        await sendSlackAlert(config.slackWebhookUrl, {
+        // Poll failure is agent-level → always top-level
+        await slack.sendAlert({
           severity: "error",
           title: "Agent Poll Failure",
           service: "agent",
@@ -273,7 +366,7 @@ async function main(): Promise<void> {
         const created = new Date(d.createdAt ?? "");
         return created.toDateString() === now.toDateString();
       });
-      await sendDailySummary(config.slackWebhookUrl, snapshot, todayDecisions);
+      await slack.sendDailySummary(snapshot, todayDecisions);
       log("Daily summary sent");
     }
   }, 300_000); // Check every 5 min
@@ -286,9 +379,16 @@ async function main(): Promise<void> {
 
   // --- Self-health HTTP server ---
   const startedAt = Date.now();
+  const callbackDeps = {
+    db,
+    executor,
+    slack,
+    signingSecret: config.slackSigningSecret,
+    anthropicApiKey: config.anthropicApiKey,
+  };
   const server = Bun.serve({
     port: 3900,
-    fetch(_req) {
+    async fetch(_req) {
       const url = new URL(_req.url);
       if (url.pathname === "/health") {
         return Response.json({
@@ -303,6 +403,9 @@ async function main(): Promise<void> {
           }).length,
           aiSpendToday: getDailySpend(db),
         });
+      }
+      if (url.pathname === "/hooks/slack" && _req.method === "POST") {
+        return handleSlackCallback(_req, callbackDeps);
       }
       return new Response("Not Found", { status: 404 });
     },

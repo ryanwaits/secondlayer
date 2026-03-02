@@ -12,6 +12,8 @@ import {
   recordCooldown,
   getDailySpend,
   pruneOldRecords,
+  getUnresolvedAlertForService,
+  updateAlertSlackTs,
 } from "../queries.ts";
 
 let db: Database;
@@ -74,6 +76,61 @@ describe("alerts", () => {
     resolveAlert(db, id);
     const row = db.query("SELECT resolved_at FROM alerts WHERE id = ?").get(id) as { resolved_at: string };
     expect(row.resolved_at).not.toBeNull();
+  });
+});
+
+describe("getUnresolvedAlertForService", () => {
+  test("returns unresolved alert with slack_ts", () => {
+    const id = insertAlert(db, {
+      severity: "error",
+      service: "indexer",
+      title: "OOM Kill",
+      message: "Out of memory",
+    });
+    updateAlertSlackTs(db, id, "1234567890.123456");
+
+    const alert = getUnresolvedAlertForService(db, "indexer");
+    expect(alert).not.toBeNull();
+    expect(alert!.id).toBe(id);
+    expect(alert!.slackTs).toBe("1234567890.123456");
+  });
+
+  test("returns null after resolve", () => {
+    const id = insertAlert(db, {
+      severity: "error",
+      service: "indexer",
+      title: "OOM Kill",
+      message: "Out of memory",
+    });
+    updateAlertSlackTs(db, id, "1234567890.123456");
+
+    resolveAlert(db, id);
+    expect(getUnresolvedAlertForService(db, "indexer")).toBeNull();
+  });
+
+  test("returns null when no slack_ts", () => {
+    insertAlert(db, {
+      severity: "error",
+      service: "indexer",
+      title: "OOM Kill",
+      message: "Out of memory",
+    });
+    expect(getUnresolvedAlertForService(db, "indexer")).toBeNull();
+  });
+});
+
+describe("updateAlertSlackTs", () => {
+  test("stores ts on alert", () => {
+    const id = insertAlert(db, {
+      severity: "warn",
+      service: "api",
+      title: "Slow",
+      message: "API slow",
+    });
+
+    updateAlertSlackTs(db, id, "9999.8888");
+    const row = db.query("SELECT slack_ts FROM alerts WHERE id = ?").get(id) as { slack_ts: string };
+    expect(row.slack_ts).toBe("9999.8888");
   });
 });
 

@@ -1,3 +1,8 @@
 {$DOMAIN} {
-	reverse_proxy api:3800
+	handle /hooks/slack* {
+		reverse_proxy agent:3900
+	}
+	handle {
+		reverse_proxy api:3800
+	}
 }
