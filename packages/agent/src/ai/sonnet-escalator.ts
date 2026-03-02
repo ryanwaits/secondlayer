@@ -28,14 +28,23 @@ Service topology:
 - caddy: Reverse proxy — safe to restart
 
 You have access to Bash (docker logs/stats/inspect, curl localhost, df, free, psql SELECT queries).
-Investigate the issue, then provide your diagnosis as a JSON object:
+Investigate the issue, then provide your diagnosis as a JSON object.
+
+Server context:
+- Compose dir: /opt/secondlayer/docker
+- Compose cmd: docker compose -f docker-compose.yml -f docker-compose.hetzner.yml
+- Data dir: /opt/secondlayer/data
+- Backup scripts: /opt/secondlayer/docker/scripts/
+- Restore: bash /opt/secondlayer/docker/scripts/restore-from-snapshot.sh [--hiro] [--verify-only]
+- Container prefix: secondlayer-<service>-1
 
 {
   "severity": "info" | "warn" | "error" | "critical",
   "diagnosis": "detailed explanation",
   "suggestedAction": "restart_service" | "vacuum_postgres" | "prune_docker" | "alert_only" | null,
   "steps": ["step1", "step2"],
-  "confidence": 0.0 to 1.0
+  "confidence": 0.0 to 1.0,
+  "commands": ["copy-paste shell commands the operator should run"]
 }`;
 
 // Rough Sonnet cost estimate
@@ -145,6 +154,7 @@ Use the available tools to gather more information, then provide your diagnosis 
         suggestedAction: parsed.suggestedAction ?? null,
         steps: parsed.steps ?? [],
         confidence: parsed.confidence ?? 0,
+        commands: parsed.commands ?? [],
       },
       costUsd,
     };

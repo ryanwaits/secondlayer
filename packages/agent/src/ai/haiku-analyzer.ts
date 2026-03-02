@@ -9,6 +9,7 @@ const ResponseSchema = z.object({
     .enum(["restart_service", "vacuum_postgres", "prune_docker", "clear_docker_logs", "escalate", "alert_only", "none"])
     .nullable(),
   confidence: z.number().min(0).max(1),
+  commands: z.array(z.string()).optional(),
 });
 
 const SYSTEM_PROMPT = `You are a DevOps monitoring agent for a Stacks blockchain indexing system.
@@ -29,12 +30,22 @@ Safety rules:
 - For postgres/hiro-postgres, only suggest restart as last resort
 - Prefer non-destructive actions (alert_only, prune_docker)
 
+Server context:
+- SSH into server: ssh secondlayer (from jump host)
+- Compose dir: /opt/secondlayer/docker
+- Compose cmd: docker compose -f docker-compose.yml -f docker-compose.hetzner.yml
+- Data dir: /opt/secondlayer/data
+- Backup scripts: /opt/secondlayer/docker/scripts/
+- Restore: bash /opt/secondlayer/docker/scripts/restore-from-snapshot.sh [--hiro] [--verify-only]
+- Container prefix: secondlayer-<service>-1
+
 Respond ONLY with valid JSON matching this schema:
 {
   "severity": "info" | "warn" | "error" | "critical",
   "diagnosis": "string explaining what's happening",
   "suggestedAction": "restart_service" | "vacuum_postgres" | "prune_docker" | "clear_docker_logs" | "escalate" | "alert_only" | "none" | null,
-  "confidence": 0.0 to 1.0
+  "confidence": 0.0 to 1.0,
+  "commands": ["copy-paste shell commands the operator should run, if manual intervention needed"]
 }`;
 
 const FALLBACK: HaikuAnalysis = {

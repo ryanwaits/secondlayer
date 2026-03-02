@@ -85,6 +85,7 @@ export interface HaikuAnalysis {
   diagnosis: string;
   suggestedAction: ActionType | null;
   confidence: number;
+  commands?: string[];
 }
 
 export interface SonnetDiagnosis {
@@ -93,4 +94,5 @@ export interface SonnetDiagnosis {
   suggestedAction: ActionType | null;
   steps: string[];
   confidence: number;
+  commands?: string[];
 }
