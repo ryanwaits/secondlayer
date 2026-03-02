@@ -126,8 +126,8 @@ FROM base AS agent
 
 WORKDIR /app
 
-# Install docker CLI for container management
-RUN apk add --no-cache docker-cli
+# Install docker CLI for container management + bash for Agent SDK
+RUN apk add --no-cache docker-cli bash
 
 # Copy dependencies and agent code
 COPY --from=deps /app/node_modules ./node_modules
