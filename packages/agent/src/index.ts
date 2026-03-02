@@ -7,6 +7,8 @@ import {
   getLatestSnapshot,
   getDailySpend,
   pruneOldRecords,
+  checkCooldown,
+  recordCooldown,
 } from "./db/queries.ts";
 import { pollHealth, collectSystemMetrics, detectAnomalies } from "./monitor/health-poller.ts";
 import { LogWatcher } from "./monitor/log-watcher.ts";
@@ -46,8 +48,19 @@ async function main(): Promise<void> {
   let batchTimer: ReturnType<typeof setTimeout> | null = null;
 
   // --- Match handler ---
+  // Alert dedup: max 1 alert per pattern+service per hour
+  const ALERT_DEDUP_MAX_PER_HOUR = 1;
+
   async function handleMatch(match: PatternMatch): Promise<void> {
     log(`Pattern: ${match.name} [${match.severity}] ${match.message}`);
+
+    // Dedup: skip if we already alerted for this pattern+service recently
+    const alertKey = `alert_${match.name}`;
+    if (checkCooldown(db, match.service, alertKey, ALERT_DEDUP_MAX_PER_HOUR)) {
+      log(`Suppressed duplicate alert: ${match.name} on ${match.service}`);
+      return;
+    }
+    recordCooldown(db, match.service, alertKey);
 
     insertAlert(db, {
       severity: match.severity,
@@ -247,10 +260,13 @@ async function main(): Promise<void> {
   // --- Intervals ---
   const pollInterval = setInterval(pollLoop, config.pollIntervalMs);
 
-  // Daily summary at 5am UTC
+  // Daily summary at 5am UTC — guarded by timestamp to prevent double-fire
+  let lastDailySummaryDate = "";
   const dailySummaryInterval = setInterval(async () => {
     const now = new Date();
-    if (now.getUTCHours() === 5 && now.getUTCMinutes() < 6) {
+    const todayStr = now.toISOString().slice(0, 10);
+    if (now.getUTCHours() >= 5 && lastDailySummaryDate !== todayStr) {
+      lastDailySummaryDate = todayStr;
       const snapshot = getLatestSnapshot(db);
       const decisions = getRecentDecisions(db, 100);
       const todayDecisions = decisions.filter((d) => {
