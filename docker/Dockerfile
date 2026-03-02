@@ -27,6 +27,7 @@ COPY packages/cli/package.json ./packages/cli/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
+COPY packages/agent/package.json ./packages/agent/
 # Install dependencies
 RUN bun install --frozen-lockfile
 
@@ -117,3 +118,27 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3700/health || exit 1
 
 CMD ["bun", "run", "packages/indexer/src/index.ts"]
+
+# =============================================================================
+# Agent service - AI DevOps monitoring
+# =============================================================================
+FROM base AS agent
+
+WORKDIR /app
+
+# Install docker CLI for container management
+RUN apk add --no-cache docker-cli
+
+# Copy dependencies and agent code
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./
+COPY packages/agent ./packages/agent
+
+ENV NODE_ENV=production
+
+EXPOSE 3900
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3900/health || exit 1
+
+CMD ["bun", "run", "packages/agent/src/index.ts"]

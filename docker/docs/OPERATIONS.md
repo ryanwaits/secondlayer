@@ -258,6 +258,67 @@ crontab -e
 0 4 * * * /opt/secondlayer/docker/scripts/backup-chainstate.sh >> /var/log/backup-chainstate.log 2>&1
 ```
 
+### Hiro Postgres Backup
+
+```bash
+# Manual
+/opt/secondlayer/docker/scripts/backup-hiro-postgres.sh
+
+# Cron (3:30 AM daily, after main postgres backup)
+30 3 * * * /opt/secondlayer/docker/scripts/backup-hiro-postgres.sh >> /var/log/backup-hiro-postgres.log 2>&1
+```
+
+### Offsite Upload (Storage Box)
+
+```bash
+# Manual
+/opt/secondlayer/docker/scripts/upload-snapshot.sh
+
+# Dry run (show what would transfer)
+/opt/secondlayer/docker/scripts/upload-snapshot.sh --dry-run
+
+# Cron (5 AM daily, after backups complete)
+0 5 * * * /opt/secondlayer/docker/scripts/upload-snapshot.sh >> /var/log/upload-snapshot.log 2>&1
+
+# Verify files on Storage Box
+ssh -p 23 $STORAGEBOX_USER@$STORAGEBOX_HOST ls -lh /backups/postgres/
+ssh -p 23 $STORAGEBOX_USER@$STORAGEBOX_HOST ls -lh /backups/hiro-postgres/
+```
+
+### Restore from Snapshot
+
+```bash
+# Verify current DB integrity (no changes)
+/opt/secondlayer/docker/scripts/restore-from-snapshot.sh --verify-only
+/opt/secondlayer/docker/scripts/restore-from-snapshot.sh --hiro --verify-only
+
+# Dry run (show steps without executing)
+/opt/secondlayer/docker/scripts/restore-from-snapshot.sh --dry-run
+/opt/secondlayer/docker/scripts/restore-from-snapshot.sh --hiro --date 20260301 --dry-run
+
+# Restore latest backup
+/opt/secondlayer/docker/scripts/restore-from-snapshot.sh
+
+# Restore specific date (hiro)
+/opt/secondlayer/docker/scripts/restore-from-snapshot.sh --hiro --date 20260301
+```
+
+### Pre-upgrade Snapshot
+
+```bash
+# Run before any upgrade — backs up both DBs + uploads to Storage Box
+/opt/secondlayer/docker/scripts/pre-upgrade-snapshot.sh
+```
+
+### Recommended Cron Schedule
+
+```bash
+0 3  * * * /opt/secondlayer/docker/scripts/backup-postgres.sh >> /var/log/backup-postgres.log 2>&1
+30 3 * * * /opt/secondlayer/docker/scripts/backup-hiro-postgres.sh >> /var/log/backup-hiro-postgres.log 2>&1
+0 4  * * * /opt/secondlayer/docker/scripts/backup-chainstate.sh >> /var/log/backup-chainstate.log 2>&1
+0 5  * * * /opt/secondlayer/docker/scripts/upload-snapshot.sh >> /var/log/upload-snapshot.log 2>&1
+```
+
 ### Manual pg_dump / Restore
 
 ```bash
@@ -358,3 +419,66 @@ Symptom: `Event dispatcher: connection or request failed to indexer:3700` repeat
 1. Scale up workers
 2. Check for slow webhook endpoints (increase timeout or optimize)
 3. Check worker logs for errors
+
+---
+
+## Agent (AI DevOps Monitoring)
+
+The agent monitors all services, auto-fixes safe issues, and alerts on dangerous ones via Slack.
+
+### Status & Health
+
+```bash
+# Agent health
+curl -s http://localhost:3900/health | jq
+
+# Agent logs
+$COMPOSE logs agent --tail 50
+$COMPOSE logs -f agent
+```
+
+### Query Decision History
+
+```bash
+# Recent decisions
+docker exec secondlayer-agent sqlite3 /data/agent/agent.db "SELECT * FROM decisions ORDER BY id DESC LIMIT 10;"
+
+# Today's AI spend
+docker exec secondlayer-agent sqlite3 /data/agent/agent.db "SELECT SUM(cost_usd) FROM decisions WHERE created_at > datetime('now', '-1 day');"
+
+# Active alerts
+docker exec secondlayer-agent sqlite3 /data/agent/agent.db "SELECT * FROM alerts WHERE resolved_at IS NULL;"
+```
+
+### Manual Slack Test
+
+```bash
+# Send test message (requires SLACK_WEBHOOK_URL in .env)
+curl -X POST "$SLACK_WEBHOOK_URL" -H 'Content-Type: application/json' -d '{"text":"Agent test message"}'
+```
+
+### Restart Agent
+
+```bash
+$COMPOSE restart agent
+```
+
+### Disable AI (kill switch)
+
+```bash
+# In .env
+AGENT_AI_ENABLED=false
+
+# Apply
+$COMPOSE up -d agent
+```
+
+### Dry Run Mode
+
+```bash
+# In .env
+AGENT_DRY_RUN=true
+
+# Apply — agent logs actions without executing
+$COMPOSE up -d agent
+```
