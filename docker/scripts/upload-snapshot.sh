@@ -4,6 +4,14 @@
 # Cron: 0 5 * * * /opt/secondlayer/docker/scripts/upload-snapshot.sh >> /var/log/upload-snapshot.log 2>&1
 set -euo pipefail
 
+# Source env vars when running from cron
+ENV_FILE="${ENV_FILE:-/opt/secondlayer/docker/.env}"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
 DATA_DIR="${DATA_DIR:-/opt/secondlayer/data}"
 BACKUP_DIR="${DATA_DIR}/backups"
 
