@@ -116,7 +116,8 @@ export function buildDiagnosisBlocks(
   }
 
   const elements: object[] = [];
-  if (analysis.suggestedAction && analysis.suggestedAction !== "none" && analysis.suggestedAction !== "escalate") {
+  const noopActions = ["none", "escalate", "alert_only"];
+  if (analysis.suggestedAction && !noopActions.includes(analysis.suggestedAction)) {
     elements.push({
       type: "button",
       text: { type: "plain_text", text: "Execute Suggested" },
