@@ -7,6 +7,7 @@ interface SlackAlertPayload {
   details: string;
   action?: string;
   outcome?: string;
+  commands?: string[];
 }
 
 const SEVERITY_EMOJI: Record<Severity, string> = {
@@ -49,6 +50,16 @@ export async function sendSlackAlert(webhookUrl: string, payload: SlackAlertPayl
         ...(payload.outcome ? [{ type: "mrkdwn", text: `*Outcome:*\n${payload.outcome}` }] : []),
       ],
     });
+  }
+
+  if (payload.commands?.length) {
+    blocks.push(
+      { type: "divider" },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `*Runbook:*\n\`\`\`\n${payload.commands.join("\n")}\n\`\`\`` },
+      }
+    );
   }
 
   return postToSlack(webhookUrl, { blocks });

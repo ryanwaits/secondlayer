@@ -143,6 +143,7 @@ async function main(): Promise<void> {
         details: `${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%`,
         action: analysis.suggestedAction,
         outcome: result.outcome,
+        commands: analysis.commands,
       });
       return;
     }
@@ -172,6 +173,7 @@ async function main(): Promise<void> {
         service: batch[0].service,
         details: `${sonnetResult.diagnosis.diagnosis}\n\n*Steps:* ${sonnetResult.diagnosis.steps.join(", ")}\n*Confidence:* ${(sonnetResult.diagnosis.confidence * 100).toFixed(0)}%`,
         action: sonnetResult.diagnosis.suggestedAction ?? undefined,
+        commands: sonnetResult.diagnosis.commands,
       });
       return;
     }
@@ -182,6 +184,7 @@ async function main(): Promise<void> {
       title: `[AI] ${batch[0].name}`,
       service: batch[0].service,
       details: `${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%\n*Suggested:* ${analysis.suggestedAction ?? "none"}`,
+      commands: analysis.commands,
     });
   }
 
