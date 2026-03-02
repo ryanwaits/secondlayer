@@ -8,11 +8,15 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function pollHealth(): Promise<HealthStatus> {
+  const indexerHost = process.env.INDEXER_URL ?? "http://indexer:3700";
+  const apiHost = process.env.API_URL ?? "http://api:3800";
+  const stacksNodeHost = process.env.STACKS_NODE_URL ?? "http://stacks-node:20443";
+
   const [indexer, api, stacksNode, integrity] = await Promise.allSettled([
-    fetchJson<{ lastSeenHeight?: number }>("http://localhost:3700/health"),
-    fetchJson("http://localhost:3800/health"),
-    fetchJson<{ stacks_tip_height?: number; burn_block_height?: number }>("http://localhost:20443/v2/info"),
-    fetchJson<{ gaps?: number; totalMissing?: number }>("http://localhost:3700/health/integrity"),
+    fetchJson<{ lastSeenHeight?: number }>(`${indexerHost}/health`),
+    fetchJson(`${apiHost}/health`),
+    fetchJson<{ stacks_tip_height?: number; burn_block_height?: number }>(`${stacksNodeHost}/v2/info`),
+    fetchJson<{ gaps?: number; totalMissing?: number }>(`${indexerHost}/health/integrity`),
   ]);
 
   return {
@@ -37,7 +41,7 @@ export async function pollHealth(): Promise<HealthStatus> {
 
 export async function collectSystemMetrics(): Promise<SystemMetrics> {
   // Disk
-  const dfResult = Bun.spawnSync(["df", "-B1", "/opt/secondlayer/data"]);
+  const dfResult = Bun.spawnSync(["df", "-B1", "/"]);
   const dfLines = dfResult.stdout.toString().trim().split("\n");
   let diskUsedPct = 0;
   let diskAvailBytes = 0;
