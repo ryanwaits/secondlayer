@@ -3,7 +3,7 @@
 # =============================================================================
 # Base stage - common dependencies
 # =============================================================================
-FROM oven/bun:1.3.9-alpine AS base
+FROM oven/bun:1.3.10-alpine AS base
 
 WORKDIR /app
 
