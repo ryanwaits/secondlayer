@@ -482,3 +482,60 @@ AGENT_DRY_RUN=true
 # Apply — agent logs actions without executing
 $COMPOSE up -d agent
 ```
+
+### Slack App Setup (Thread Replies + Buttons)
+
+The agent supports two Slack modes:
+
+- **Webhook-only** (v1): set `SLACK_WEBHOOK_URL`. Simple top-level messages.
+- **API mode** (v2): set `SLACK_API_TOKEN` + `SLACK_CHANNEL_ID`. Enables thread grouping, auto-resolve, and action buttons.
+
+#### Setup Steps
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → Create New App → From Scratch
+2. **OAuth & Permissions** → Add Bot Token Scopes: `chat:write`, `chat:update`
+3. Install to Workspace → Copy **Bot User OAuth Token** (`xoxb-...`)
+4. Get channel ID: right-click `#secondlayer-alerts` → View Channel Details → copy ID at bottom
+5. Set env vars:
+   ```bash
+   SLACK_API_TOKEN=xoxb-...
+   SLACK_CHANNEL_ID=C0XXXXXXXXX
+   ```
+6. Invite bot to channel: `/invite @YourBotName` in `#secondlayer-alerts`
+7. Deploy: `$COMPOSE up -d --build agent`
+
+#### Enable Buttons (Interactivity)
+
+1. In Slack app settings → **Interactivity & Shortcuts** → Toggle ON
+2. Set Request URL: `https://<your-domain>/hooks/slack`
+3. Copy **Signing Secret** from Basic Information page
+4. Set env var:
+   ```bash
+   SLACK_SIGNING_SECRET=<signing-secret>
+   ```
+5. Deploy: `$COMPOSE up -d --build agent`
+
+#### Button Behavior
+
+| Button | Action |
+|--------|--------|
+| Restart | Restarts the service via Docker Compose |
+| Investigate | Runs Sonnet AI diagnosis, posts findings in thread |
+| Verify | Runs health check, posts results in thread |
+| Dismiss | Resolves alert, removes buttons from message |
+| Execute Suggested | Executes AI-suggested action |
+
+#### Auto-Resolve
+
+When a service recovers (next poll shows healthy), the agent automatically:
+- Resolves the alert in DB
+- Posts recovery message in the alert thread
+
+#### Env Vars
+
+| Var | Required | Description |
+|-----|----------|-------------|
+| `SLACK_WEBHOOK_URL` | No | Webhook URL (fallback mode) |
+| `SLACK_API_TOKEN` | No | Bot token for API mode (`xoxb-...`) |
+| `SLACK_CHANNEL_ID` | No | Channel ID for API mode |
+| `SLACK_SIGNING_SECRET` | No | For verifying button callbacks |
