@@ -46,8 +46,8 @@ COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
 COPY tsconfig.json ./
 
-# Type check server packages (excludes CLI)
-RUN bun run --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/views' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
+# Build all server packages (stacks must be built first as a dependency)
+RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/views' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
 
 # =============================================================================
 # API service
