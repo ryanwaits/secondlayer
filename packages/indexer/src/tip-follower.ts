@@ -65,7 +65,7 @@ export function startTipFollower(intervalMs?: number): () => void {
         .limit(1)
         .executeTakeFirst();
 
-      const ourHeight = progress?.highest_seen_block ?? 0;
+      const ourHeight = Number(progress?.highest_seen_block ?? 0);
       if (chainTip <= ourHeight) return;
 
       // Only fetch a small window near the tip — bulk gaps are handled by integrity/backfill
