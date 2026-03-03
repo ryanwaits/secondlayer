@@ -45,7 +45,14 @@ Server context:
   "steps": ["step1", "step2"],
   "confidence": 0.0 to 1.0,
   "commands": ["copy-paste shell commands the operator should run"]
-}`;
+}
+
+CRITICAL — evidence-based diagnosis:
+- If a tool call fails (command not found, permission denied, timeout), state that explicitly.
+- NEVER claim something "was reported" or "was observed" without direct evidence from a successful tool call.
+- If ALL diagnostic tools fail: set confidence to 0, diagnosis = "Unable to diagnose — diagnostic tools unavailable."
+- If SOME tools fail: base diagnosis ONLY on successful outputs. Note which failed.
+- Confidence scale: 0 = no evidence, <0.3 = indirect/partial, 0.3-0.7 = reasonable, >0.7 = strong direct evidence.`;
 
 // Rough Sonnet cost estimate
 const SONNET_INPUT_COST_PER_1K = 0.003;

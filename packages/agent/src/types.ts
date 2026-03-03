@@ -34,6 +34,7 @@ export interface ContainerStatus {
   memLimitMb: number;
   restartCount: number;
   running: boolean;
+  startedAt?: number;
 }
 
 export interface PatternMatch {

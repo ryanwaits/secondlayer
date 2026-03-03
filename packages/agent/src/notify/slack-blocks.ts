@@ -98,13 +98,15 @@ export function buildDiagnosisBlocks(
   alertId: number,
   service: string
 ): object[] {
+  const lowConfidence = analysis.confidence < 0.5;
+  const diagnosisText = lowConfidence
+    ? `:warning: *Unverified — low confidence diagnosis*\n\n${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%`
+    : `*AI Diagnosis:*\n${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%`;
+
   const blocks: object[] = [
     {
       type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*AI Diagnosis:*\n${analysis.diagnosis}\n\n*Confidence:* ${(analysis.confidence * 100).toFixed(0)}%`,
-      },
+      text: { type: "mrkdwn", text: diagnosisText },
     },
   ];
 
@@ -117,7 +119,7 @@ export function buildDiagnosisBlocks(
 
   const elements: object[] = [];
   const noopActions = ["none", "escalate", "alert_only"];
-  if (analysis.suggestedAction && !noopActions.includes(analysis.suggestedAction)) {
+  if (analysis.suggestedAction && !noopActions.includes(analysis.suggestedAction) && !lowConfidence) {
     elements.push({
       type: "button",
       text: { type: "plain_text", text: "Execute Suggested" },
