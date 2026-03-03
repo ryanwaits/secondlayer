@@ -68,16 +68,27 @@ export function startTipFollower(intervalMs?: number): () => void {
       const ourHeight = progress?.highest_seen_block ?? 0;
       if (chainTip <= ourHeight) return;
 
+      // Only fetch a small window near the tip — bulk gaps are handled by integrity/backfill
+      const maxBlocks = parseInt(process.env.TIP_FOLLOWER_MAX_BLOCKS || "10");
+      const fetchFrom = Math.max(ourHeight + 1, chainTip - maxBlocks + 1);
+
+      if (fetchFrom > ourHeight + 1) {
+        logger.info("Tip follower: gap too large, only fetching recent tip blocks", {
+          gap: chainTip - ourHeight,
+          fetching: chainTip - fetchFrom + 1,
+        });
+      }
+
       const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
       const localClient = new LocalClient();
 
       logger.info("Tip follower: fetching missing blocks", {
-        from: ourHeight + 1,
+        from: fetchFrom,
         to: chainTip,
-        count: chainTip - ourHeight,
+        count: chainTip - fetchFrom + 1,
       });
 
-      for (let height = ourHeight + 1; height <= chainTip; height++) {
+      for (let height = fetchFrom; height <= chainTip; height++) {
         // Check if node came back while we're polling
         if ((tipFollowerState as { mode: string }).mode === "normal") {
           logger.info("Tip follower: node resumed, stopping poll fetch");
