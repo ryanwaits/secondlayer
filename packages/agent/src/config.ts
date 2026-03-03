@@ -33,7 +33,7 @@ export const SAFE_RESTART = [
 
 export const NEVER_RESTART = ["stacks-node"] as const;
 
-export const WARN_RESTART = ["postgres", "hiro-postgres"] as const;
+export const WARN_RESTART = ["postgres"] as const;
 
 const DEFAULT_SERVICES: ServiceConfig[] = [
   { name: "indexer", container: "secondlayer-indexer-1", healthUrl: "http://localhost:3700/health", autoRestart: true },
@@ -41,8 +41,6 @@ const DEFAULT_SERVICES: ServiceConfig[] = [
   { name: "worker", container: "secondlayer-worker-1", autoRestart: true },
   { name: "view-processor", container: "secondlayer-view-processor-1", autoRestart: true },
   { name: "postgres", container: "secondlayer-postgres-1", autoRestart: false },
-  { name: "hiro-postgres", container: "secondlayer-hiro-postgres-1", autoRestart: false },
-  { name: "hiro-api", container: "secondlayer-hiro-api-1", healthUrl: "http://localhost:3999/extended", autoRestart: true },
   { name: "caddy", container: "secondlayer-caddy-1", autoRestart: true },
   { name: "stacks-node", container: "secondlayer-stacks-node-1", autoRestart: false },
 ];
