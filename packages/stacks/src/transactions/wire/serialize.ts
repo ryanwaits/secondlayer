@@ -30,6 +30,11 @@ import {
   type AssetInfoWire,
   type TransactionAuthField,
   type AuthFieldType,
+  type CoinbasePayload,
+  type CoinbaseToAltRecipientPayload,
+  type PoisonMicroblockPayload,
+  type TenureChangePayload as TenureChangePayloadType,
+  type NakamotoCoinbasePayload,
 } from "../types.ts";
 
 // Address serialization: version (1 byte) + hash160 (20 bytes)
@@ -194,6 +199,48 @@ export function serializePayload(payload: TransactionPayload): Uint8Array {
       parts.push(serializeLPString(payload.contractName));
       parts.push(serializeLPStringLong(payload.codeBody));
       break;
+
+    case PayloadType.Coinbase:
+      parts.push(hexToBytes((payload as CoinbasePayload).coinbaseBuffer));
+      break;
+
+    case PayloadType.CoinbaseToAltRecipient: {
+      const cbAlt = payload as CoinbaseToAltRecipientPayload;
+      parts.push(hexToBytes(cbAlt.coinbaseBuffer));
+      parts.push(serializeCVBytes(cbAlt.recipient));
+      break;
+    }
+
+    case PayloadType.PoisonMicroblock: {
+      const pm = payload as PoisonMicroblockPayload;
+      parts.push(hexToBytes(pm.header1));
+      parts.push(hexToBytes(pm.header2));
+      break;
+    }
+
+    case PayloadType.TenureChange: {
+      const tc = payload as TenureChangePayloadType;
+      parts.push(hexToBytes(tc.tenureConsensusHash));
+      parts.push(hexToBytes(tc.prevTenureConsensusHash));
+      parts.push(hexToBytes(tc.burnViewConsensusHash));
+      parts.push(hexToBytes(tc.previousTenureEnd));
+      parts.push(writeUInt32BE(tc.previousTenureBlocks));
+      parts.push(writeUInt8(tc.cause));
+      parts.push(hexToBytes(tc.pubkeyHash));
+      break;
+    }
+
+    case PayloadType.NakamotoCoinbase: {
+      const nc = payload as NakamotoCoinbasePayload;
+      parts.push(hexToBytes(nc.coinbaseBuffer));
+      if (nc.recipient) {
+        parts.push(serializeCVBytes({ type: "some", value: nc.recipient }));
+      } else {
+        parts.push(serializeCVBytes({ type: "none" }));
+      }
+      parts.push(hexToBytes(nc.vrfProof));
+      break;
+    }
   }
 
   return concatBytes(...parts);

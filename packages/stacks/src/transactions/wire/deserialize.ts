@@ -14,6 +14,9 @@ import {
   AssetType,
   RECOVERABLE_ECDSA_SIG_LENGTH_BYTES,
   MEMO_MAX_LENGTH_BYTES,
+  COINBASE_BYTES_LENGTH,
+  VRF_PROOF_BYTES_LENGTH,
+  MICROBLOCK_HEADER_BYTES_LENGTH,
   type StacksTransaction,
   type Authorization,
   type SpendingCondition,
@@ -25,6 +28,7 @@ import {
   type AnchorMode,
   type PostConditionModeWire,
   type ClarityVersion,
+  type TenureChangeCause,
 } from "../types.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
 import { clarityTypeFromByte } from "../../clarity/types.ts";
@@ -287,6 +291,46 @@ function readPayload(r: Reader): TransactionPayload {
       const contractName = readLPString(r);
       const codeBody = readLPString(r, 4);
       return { payloadType: PayloadType.VersionedSmartContract, clarityVersion, contractName, codeBody };
+    }
+    case PayloadType.Coinbase: {
+      const coinbaseBuffer = bytesToHex(r.readBytes(COINBASE_BYTES_LENGTH));
+      return { payloadType: PayloadType.Coinbase, coinbaseBuffer };
+    }
+    case PayloadType.CoinbaseToAltRecipient: {
+      const coinbaseBuffer = bytesToHex(r.readBytes(COINBASE_BYTES_LENGTH));
+      const recipient = readCV(r);
+      return { payloadType: PayloadType.CoinbaseToAltRecipient, coinbaseBuffer, recipient };
+    }
+    case PayloadType.PoisonMicroblock: {
+      const header1 = bytesToHex(r.readBytes(MICROBLOCK_HEADER_BYTES_LENGTH));
+      const header2 = bytesToHex(r.readBytes(MICROBLOCK_HEADER_BYTES_LENGTH));
+      return { payloadType: PayloadType.PoisonMicroblock, header1, header2 };
+    }
+    case PayloadType.TenureChange: {
+      const tenureConsensusHash = bytesToHex(r.readBytes(20));
+      const prevTenureConsensusHash = bytesToHex(r.readBytes(20));
+      const burnViewConsensusHash = bytesToHex(r.readBytes(20));
+      const previousTenureEnd = bytesToHex(r.readBytes(32));
+      const previousTenureBlocks = r.readUInt32BE();
+      const cause = r.readUInt8() as TenureChangeCause;
+      const pubkeyHash = bytesToHex(r.readBytes(20));
+      return {
+        payloadType: PayloadType.TenureChange,
+        tenureConsensusHash,
+        prevTenureConsensusHash,
+        burnViewConsensusHash,
+        previousTenureEnd,
+        previousTenureBlocks,
+        cause,
+        pubkeyHash,
+      };
+    }
+    case PayloadType.NakamotoCoinbase: {
+      const coinbaseBuffer = bytesToHex(r.readBytes(COINBASE_BYTES_LENGTH));
+      const optionalCV = readCV(r);
+      const recipient = optionalCV.type === "none" ? null : optionalCV.type === "some" ? optionalCV.value : optionalCV;
+      const vrfProof = bytesToHex(r.readBytes(VRF_PROOF_BYTES_LENGTH));
+      return { payloadType: PayloadType.NakamotoCoinbase, coinbaseBuffer, recipient, vrfProof };
     }
     default:
       throw new Error(`Unknown payload type: ${payloadType}`);

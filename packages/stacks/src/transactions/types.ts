@@ -103,6 +103,16 @@ export const AuthFieldType = {
 export const RECOVERABLE_ECDSA_SIG_LENGTH_BYTES = 65;
 export const MEMO_MAX_LENGTH_BYTES = 34;
 export const MAX_STRING_LENGTH_BYTES = 128;
+export const COINBASE_BYTES_LENGTH = 32;
+export const VRF_PROOF_BYTES_LENGTH = 80;
+export const MICROBLOCK_HEADER_BYTES_LENGTH = 132; // 1 + 2 + 32 + 32 + 65
+
+// Tenure change cause
+export const TenureChangeCause = {
+  BlockFound: 0x00,
+  Extended: 0x01,
+} as const;
+export type TenureChangeCause = (typeof TenureChangeCause)[keyof typeof TenureChangeCause];
 
 // Token transfer payload
 export type TokenTransferPayload = {
@@ -129,10 +139,55 @@ export type SmartContractPayload = {
   codeBody: string;
 };
 
+// Coinbase payload (appears in every pre-Nakamoto block)
+export type CoinbasePayload = {
+  payloadType: typeof PayloadType.Coinbase;
+  coinbaseBuffer: string; // 32 bytes hex
+};
+
+// Coinbase to alt recipient payload
+export type CoinbaseToAltRecipientPayload = {
+  payloadType: typeof PayloadType.CoinbaseToAltRecipient;
+  coinbaseBuffer: string; // 32 bytes hex
+  recipient: ClarityValue; // PrincipalCV
+};
+
+// Poison microblock payload
+export type PoisonMicroblockPayload = {
+  payloadType: typeof PayloadType.PoisonMicroblock;
+  header1: string; // 132 bytes hex (raw microblock header)
+  header2: string; // 132 bytes hex (raw microblock header)
+};
+
+// Tenure change payload (Nakamoto)
+export type TenureChangePayload = {
+  payloadType: typeof PayloadType.TenureChange;
+  tenureConsensusHash: string; // 20 bytes hex
+  prevTenureConsensusHash: string; // 20 bytes hex
+  burnViewConsensusHash: string; // 20 bytes hex
+  previousTenureEnd: string; // 32 bytes hex
+  previousTenureBlocks: number; // u32
+  cause: TenureChangeCause;
+  pubkeyHash: string; // 20 bytes hex
+};
+
+// Nakamoto coinbase payload
+export type NakamotoCoinbasePayload = {
+  payloadType: typeof PayloadType.NakamotoCoinbase;
+  coinbaseBuffer: string; // 32 bytes hex
+  recipient: ClarityValue | null; // Optional PrincipalCV
+  vrfProof: string; // 80 bytes hex
+};
+
 export type TransactionPayload =
   | TokenTransferPayload
   | ContractCallPayload
-  | SmartContractPayload;
+  | SmartContractPayload
+  | CoinbasePayload
+  | CoinbaseToAltRecipientPayload
+  | PoisonMicroblockPayload
+  | TenureChangePayload
+  | NakamotoCoinbasePayload;
 
 // Spending condition
 export type SingleSigSpendingCondition = {
