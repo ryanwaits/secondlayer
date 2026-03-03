@@ -100,6 +100,10 @@
     "./node/hiro-client": {
       "types": "./dist/src/node/hiro-client.d.ts",
       "import": "./dist/src/node/hiro-client.js"
+    },
+    "./node/local-client": {
+      "types": "./dist/src/node/local-client.d.ts",
+      "import": "./dist/src/node/local-client.js"
     }
   },
   "files": [
