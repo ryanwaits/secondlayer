@@ -26,6 +26,7 @@ export default defineConfig({
     "src/crypto/hmac.ts",
     "src/node/client.ts",
     "src/node/hiro-client.ts",
+    "src/node/local-client.ts",
   ],
   format: ["esm"],
   dts: true,

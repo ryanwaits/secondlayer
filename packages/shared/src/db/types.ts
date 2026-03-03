@@ -15,6 +15,7 @@ export interface BlocksTable {
 export interface TransactionsTable {
   tx_id: string;
   block_height: number;
+  tx_index: Generated<number>;
   type: string;
   sender: string;
   status: string;
