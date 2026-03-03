@@ -1,4 +1,7 @@
 {$DOMAIN} {
+	header -Server
+	header X-Content-Type-Options nosniff
+
 	handle /hooks/slack* {
 		reverse_proxy agent:3900
 	}
