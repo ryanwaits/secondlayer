@@ -1,354 +1,154 @@
 # Deploying Second Layer
 
-This guide covers initial setup and deployment. For day-to-day operations, see [docker/docs/OPERATIONS.md](docker/docs/OPERATIONS.md). For historical data backfill, see [docker/docs/BACKFILL.md](docker/docs/BACKFILL.md).
+For day-to-day operations, see [docker/docs/OPERATIONS.md](docker/docs/OPERATIONS.md).
 
 ## Architecture
 
-Second Layer consists of four components:
+```
+Internet → Caddy (:443) → API (:3800) ← View Processor
+                                              │
+Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worker → Webhooks
+                                     │                          ↑
+                               Tip Follower              Job Queue
+                            (Hiro remote fallback)
+```
 
 | Service | Port | Description |
 |---------|------|-------------|
-| **API** | 3800 | REST API for views and stream management |
-| **Indexer** | 3700 | Receives blocks from Stacks node, stores in DB |
-| **Worker** | - | Processes jobs, evaluates filters, delivers webhooks |
-| **PostgreSQL** | 5432 | Stores blocks, views, jobs, deliveries |
+| **Stacks Node** | 20443/20444 | Full node, pushes blocks via event observer |
+| **Indexer** | 3700 | Receives blocks, parses txs/events, stores in DB |
+| **API** | 3800 | REST API for streams, views, webhooks |
+| **Worker** | — | Processes jobs, evaluates filters, delivers webhooks |
+| **View Processor** | — | Computes materialized views |
+| **Postgres** | 5432 | Stores blocks, transactions, events, jobs |
+| **Caddy** | 80/443 | TLS termination, reverse proxy |
+| **Agent** | 3900 | AI DevOps monitoring + Slack alerts |
 
-```
-┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-│ Stacks Node │ ──── │   Indexer   │ ──── │  PostgreSQL │
-└─────────────┘      └─────────────┘      └─────────────┘
-                                                │
-┌─────────────┐      ┌─────────────┐            │
-│   Your App  │ ◄─── │   Worker    │ ───────────┘
-└─────────────┘      └─────────────┘
-                          │
-┌─────────────┐           │
-│     API     │ ──────────┘
-└─────────────┘
-```
+### Block Data Flow
+
+1. **Stacks Node** syncs the chain and pushes every block to the indexer via `POST /new_block`
+2. **Indexer** parses the block payload — decodes raw_tx, extracts events, stores everything in Postgres
+3. **Integrity loop** (every 5min) detects gaps and auto-fills from local DB or Hiro remote API
+4. **Tip follower** (when enabled) polls Hiro for missed tip blocks if the node goes silent
+
+No self-hosted Hiro API required. The indexer gets complete block data (including real `raw_tx` hex) directly from the stacks-node event observer. Hiro's public API (`api.mainnet.hiro.so`) is used only as a thin fallback for gap-fill.
 
 ## Environment Variables
 
-All services require:
+All services require `DATABASE_URL`. Service-specific:
 
 ```bash
-DATABASE_URL=postgres://user:password@host:5432/secondlayer
-```
-
-Service-specific:
-
-```bash
-# API
-PORT=3800
-LOG_LEVEL=info
-
 # Indexer
 PORT=3700
-LOG_LEVEL=info
-REQUIRE_INTEGRITY=false       # Exit on startup if block gaps detected
-AUTO_BACKFILL=false            # Auto-fetch missing blocks from Stacks node
-AUTO_BACKFILL_RATE=10          # Blocks/sec rate limit for auto-backfill
+TIP_FOLLOWER_ENABLED=true       # Disable during genesis sync
+TIP_FOLLOWER_TIMEOUT=60         # Seconds of silence before polling
+TIP_FOLLOWER_MAX_BLOCKS=10      # Max blocks to fetch per poll cycle
+TIP_FOLLOWER_INTERVAL=10        # Poll check interval (seconds)
+HIRO_API_URL=https://api.mainnet.hiro.so
+HIRO_API_KEY=                    # Optional, for better rate limits
+ENABLE_TX_DECODE_FALLBACK=false  # Hit Hiro API for decode failures
+BACKFILL_SOURCE=hiro             # "local" for reprocessing from own DB
 
 # Worker
 WORKER_CONCURRENCY=5
-NETWORKS=mainnet          # or "mainnet,testnet"
-LOG_LEVEL=info
+NETWORKS=mainnet
+
+# API
+PORT=3800
+RESEND_API_KEY=                  # For magic link auth emails
+```
+
+---
+
+## Deploy on Hetzner (Recommended)
+
+Single server, ~$60/mo. Runs full stacks-node + all services.
+
+**Server:** AX52 — AMD Ryzen 7 7700, 64GB DDR5, 4x NVMe. See [docker/docs/HETZNER-HARDWARE.md](docker/docs/HETZNER-HARDWARE.md).
+
+### 1. Initial Setup
+
+```bash
+DOMAIN=api.secondlayer.tools ssh root@<server-ip> 'bash -s' < hetzner-setup.sh
+```
+
+### 2. Configure
+
+```bash
+cp docker/.env.hetzner.example docker/.env
+# Edit .env with real values
+```
+
+### 3. Start Services
+
+```bash
+cd /opt/secondlayer/docker
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
+
+# Genesis sync — disable tip follower until caught up
+TIP_FOLLOWER_ENABLED=false $COMPOSE up -d
+
+# After sync catches up to chain tip, re-enable
+TIP_FOLLOWER_ENABLED=true $COMPOSE up -d --force-recreate indexer
+```
+
+### 4. Verify
+
+```bash
+curl http://localhost:3700/health | jq
+curl https://api.secondlayer.tools/health | jq
+```
+
+---
+
+## Deploy with Docker Compose
+
+For self-hosted deployments without a stacks-node:
+
+```bash
+git clone https://github.com/ryanwaits/secondlayer.git
+cd secondlayer
+cp docker/.env.example docker/.env
+# Edit .env
+cd docker && docker compose up -d
+```
+
+Point your external stacks-node's `Config.toml` at the indexer:
+
+```toml
+[[events_observer]]
+endpoint = "your-server:3700"
+events_keys = ["*"]
+timeout_ms = 30000
 ```
 
 ---
 
 ## Deploy on Render
 
-Render is the recommended platform for deploying Second Layer. You'll create 4 services:
+See individual service setup:
 
-### 1. PostgreSQL Database
+1. **PostgreSQL** — Render managed DB
+2. **API** — Web Service, Docker target `api`, port 10000
+3. **Indexer** — Web Service, Docker target `indexer`, port 10000
+4. **Worker** — Background Worker, Docker target `worker`
 
-1. Go to [Render Dashboard](https://dashboard.render.com)
-2. Click **New** → **PostgreSQL**
-3. Configure:
-   - **Name**: `secondlayer-db`
-   - **Database**: `secondlayer`
-   - **User**: `secondlayer`
-   - **Region**: Choose closest to your Stacks node
-   - **Plan**: Starter ($7/mo) or higher
-4. Copy the **Internal Database URL** for use in other services
-
-### 2. API Service
-
-1. Click **New** → **Web Service**
-2. Connect your GitHub repo
-3. Configure:
-   - **Name**: `secondlayer-api`
-   - **Region**: Same as database
-   - **Runtime**: Docker
-   - **Dockerfile Path**: `docker/Dockerfile`
-   - **Docker Build Context**: `.`
-   - **Docker Target**: `api`
-4. Environment variables:
-   ```
-   DATABASE_URL=<internal-database-url>
-   PORT=10000
-   LOG_LEVEL=info
-   ```
-5. Health check path: `/health`
-
-### 3. Indexer Service
-
-1. Click **New** → **Web Service**
-2. Connect your GitHub repo
-3. Configure:
-   - **Name**: `secondlayer-indexer`
-   - **Region**: Same as database
-   - **Runtime**: Docker
-   - **Dockerfile Path**: `docker/Dockerfile`
-   - **Docker Build Context**: `.`
-   - **Docker Target**: `indexer`
-4. Environment variables:
-   ```
-   DATABASE_URL=<internal-database-url>
-   PORT=10000
-   LOG_LEVEL=info
-   ```
-5. Health check path: `/health`
-
-**Important**: The indexer needs a public URL for your Stacks node to send events to. Note the `.onrender.com` URL.
-
-### 4. Worker Service
-
-1. Click **New** → **Background Worker**
-2. Connect your GitHub repo
-3. Configure:
-   - **Name**: `secondlayer-worker`
-   - **Region**: Same as database
-   - **Runtime**: Docker
-   - **Dockerfile Path**: `docker/Dockerfile`
-   - **Docker Build Context**: `.`
-   - **Docker Target**: `worker`
-4. Environment variables:
-   ```
-   DATABASE_URL=<internal-database-url>
-   WORKER_CONCURRENCY=5
-   NETWORKS=mainnet
-   LOG_LEVEL=info
-   ```
-
-### 5. Run Migrations
-
-Before first use, run migrations. You can do this via Render Shell or a one-off job:
-
-```bash
-bun run packages/shared/src/db/migrate.ts
-```
-
-Or create a **Job** in Render that runs on deploy.
-
-### 6. Configure Your Stacks Node
-
-Add to your Stacks node's `Config.toml`:
-
-```toml
-[[events_observer]]
-endpoint = "secondlayer-indexer.onrender.com"
-events_keys = ["*"]
-timeout_ms = 300000
-```
-
-Restart your Stacks node to apply.
-
----
-
-## Deploy on Hetzner Dedicated (AX52)
-
-Best option for running a full Stacks node + indexer from genesis. Single server, ~$60/mo.
-
-**Server:** AMD Ryzen 7 7700, 64GB DDR5, 4x NVMe in RAID6. See [docker/docs/HETZNER-HARDWARE.md](docker/docs/HETZNER-HARDWARE.md) for drive layout and LVM config.
-
-### 1. Order Server
-
-1. Create account at [hetzner.com](https://www.hetzner.com)
-2. Add SSH key in Robot panel → Key Management
-3. Order [AX52](https://www.hetzner.com/dedicated-rootserver/ax52/) with Ubuntu 24.04
-
-### 2. DNS
-
-Add an A record: `api.secondlayer.tools → <server-ip>`
-
-### 3. Run Setup
-
-```bash
-DOMAIN=api.secondlayer.tools ssh root@<server-ip> 'bash -s' < hetzner-setup.sh
-```
-
-The setup script clones the repo and runs `bootstrap.sh`, which:
-- Installs Docker, configures UFW (22, 80, 443, 20444) + fail2ban
-- Clones repo, generates `.env`, starts all services
-- Downloads Hiro archive + runs bulk backfill
-- Installs systemd unit for auto-start on reboot
-
-### 4. Verify
-
-```bash
-ssh root@<server-ip>
-docker compose -f docker-compose.yml -f docker-compose.hetzner.yml ps
-curl http://localhost:3700/health
-curl https://api.secondlayer.tools/health
-```
-
-### Architecture
-
-```
-Internet → Caddy (:443) → API (:3800)
-Stacks Node → POST /new_block → Indexer (:3700) → Postgres → Worker
-```
-
-All services run in Docker Compose on the same host. Caddy handles TLS via Let's Encrypt.
-
-→ See [docker/docs/OPERATIONS.md](docker/docs/OPERATIONS.md) for server management
-→ See [docker/docs/BACKFILL.md](docker/docs/BACKFILL.md) for historical data backfill
-
----
-
-## Deploy with Docker Compose
-
-For self-hosted deployments:
-
-### 1. Clone and Configure
-
-```bash
-git clone https://github.com/secondlayer-labs/secondlayer.git
-cd secondlayer
-cp docker/.env.example docker/.env
-```
-
-Edit `docker/.env`:
-
-```bash
-POSTGRES_USER=secondlayer
-POSTGRES_PASSWORD=<secure-password>
-POSTGRES_DB=secondlayer
-
-API_PORT=3800
-INDEXER_PORT=3700
-
-WORKER_CONCURRENCY=5
-NETWORKS=mainnet
-
-LOG_LEVEL=info
-```
-
-### 2. Start Services
-
-```bash
-cd docker
-docker compose up -d
-```
-
-This starts PostgreSQL, runs migrations, and launches all services.
-
-### 3. Verify
-
-```bash
-# Check services
-docker compose ps
-
-# Check API health
-curl http://localhost:3800/health
-
-# Check indexer health
-curl http://localhost:3700/health
-```
-
-### 4. Configure Your Stacks Node
-
-Add to `Config.toml`:
-
-```toml
-[[events_observer]]
-endpoint = "host.docker.internal:3700"  # or your server IP
-events_keys = ["*"]
-timeout_ms = 300000
-```
+All need `DATABASE_URL`. The indexer needs a public URL for event observer.
 
 ---
 
 ## Database Sizing
 
-Second Layer stores all blocks and events. Estimate storage:
 - ~10 KB per block (compressed)
-- ~1 GB per 100,000 blocks
-- Mainnet has ~6.5M+ blocks
-
-Recommend starting with 100 GB and monitoring growth.
+- ~1 GB per 100K blocks
+- Mainnet ~7M+ blocks = ~70+ GB
+- Recommend starting with 100 GB
 
 ---
 
 ## Security
 
-1. **Use HTTPS** for all endpoints
-2. **Firewall** the indexer to only accept traffic from your Stacks node
-3. **Rotate secrets** periodically
-4. **Enable webhook signature verification** in your handlers
-
----
-
-## Migrating from stacks-streams
-
-If you have an existing `/opt/stacks-streams` deployment:
-
-### 1. Clone New Repo
-
-```bash
-ssh root@<server-ip>
-git clone https://github.com/secondlayer-labs/secondlayer.git /opt/secondlayer
-```
-
-### 2. Copy Environment
-
-```bash
-cp /opt/stacks-streams/docker/.env /opt/secondlayer/docker/.env
-```
-
-### 3. Symlink Existing Data
-
-```bash
-ln -s /opt/stacks-streams/data /opt/secondlayer/data
-```
-
-### 4. Stop Old Services
-
-```bash
-systemctl stop stacks-streams
-```
-
-### 5. Update Systemd
-
-```bash
-sed -i 's|/opt/stacks-streams|/opt/secondlayer|g' /etc/systemd/system/stacks-streams.service
-mv /etc/systemd/system/stacks-streams.service /etc/systemd/system/secondlayer.service
-systemctl daemon-reload
-systemctl enable secondlayer
-```
-
-### 6. Start New Services
-
-```bash
-cd /opt/secondlayer/docker
-docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
-```
-
-### 7. Verify
-
-```bash
-curl -s http://localhost:3700/health | jq
-curl -s http://localhost:3800/health | jq
-docker compose -f docker-compose.yml -f docker-compose.hetzner.yml ps
-```
-
-### 8. Cleanup (after confirming stability)
-
-```bash
-# Wait a day or two, then:
-rm -rf /opt/stacks-streams
-```
-
-**Rollback**: Stop new services, restore symlink, restart old systemd service.
+1. HTTPS for all endpoints (Caddy handles TLS automatically)
+2. Firewall indexer to only accept traffic from your stacks-node
+3. Enable webhook signature verification in your handlers
+4. Rotate secrets periodically
