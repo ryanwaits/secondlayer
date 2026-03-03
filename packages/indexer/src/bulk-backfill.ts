@@ -23,6 +23,7 @@
 import { getDb, closeDb, sql } from "@secondlayer/shared/db";
 import { computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
+import { LocalClient } from "@secondlayer/shared/node/local-client";
 import type { GetBlockOptions } from "@secondlayer/shared/node/hiro-client";
 import type { NewBlockPayload, TransactionPayload, TransactionEvent } from "./types/node-events.ts";
 import { parseBlock, parseTransaction, parseEvent } from "./parser.ts";
@@ -40,6 +41,8 @@ const INCLUDE_RAW_TX = process.env.BACKFILL_INCLUDE_RAW_TX !== "false";
 const RAW_TX_CONCURRENCY = parseInt(process.env.BACKFILL_RAW_TX_CONCURRENCY || "10");
 const NETWORK = process.env.STACKS_NETWORK || "mainnet";
 const PROGRESS_FILE = "backfill-progress.json";
+/** "local" = read from own DB (reprocessing), "hiro" = existing behavior */
+const BACKFILL_SOURCE = (process.env.BACKFILL_SOURCE || "hiro") as "local" | "hiro";
 
 const TX_CHUNK_SIZE = 500;
 const EVT_CHUNK_SIZE = 1000;
@@ -179,13 +182,21 @@ async function insertBatch(
 
 async function main() {
   const hiro = new HiroClient();
+  const local = new LocalClient();
   const db = getDb();
+
+  logger.info("Backfill source", { source: BACKFILL_SOURCE });
 
   // Determine target height
   let targetHeight = BACKFILL_TO;
   if (targetHeight === 0) {
-    logger.info("Auto-detecting chain tip from Hiro API...");
-    targetHeight = await hiro.fetchChainTip();
+    if (BACKFILL_SOURCE === "local") {
+      logger.info("Auto-detecting chain tip from local DB...");
+      targetHeight = await local.getChainTip(db);
+    } else {
+      logger.info("Auto-detecting chain tip from Hiro API...");
+      targetHeight = await hiro.fetchChainTip();
+    }
     logger.info("Chain tip detected", { height: targetHeight });
   }
 
@@ -255,7 +266,12 @@ async function main() {
     for (let i = 0; i < batchHeights.length; i += CONCURRENCY) {
       const chunk = batchHeights.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(
-        chunk.map((h) => hiro.getBlockForIndexer(h, blockOptions) as Promise<NewBlockPayload | null>)
+        chunk.map(async (h) => {
+          if (BACKFILL_SOURCE === "local") {
+            return local.getBlockForReplay(db, h) as Promise<NewBlockPayload | null>;
+          }
+          return hiro.getBlockForIndexer(h, blockOptions) as Promise<NewBlockPayload | null>;
+        })
       );
       for (const result of results) {
         if (result.status === "fulfilled" && result.value) {

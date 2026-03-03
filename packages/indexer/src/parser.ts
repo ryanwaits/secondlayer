@@ -14,9 +14,9 @@ import {
 } from "@secondlayer/stacks/transactions";
 import { AddressVersion, c32address } from "@secondlayer/stacks/utils";
 
-// Stacks API URL for fallback tx lookups
-// Uses local stacks-blockchain-api if available, otherwise falls back to Hiro public API
+// Stacks API URL for fallback tx lookups (opt-in via ENABLE_TX_DECODE_FALLBACK=true)
 const STACKS_API_URL = process.env.STACKS_API_URL || "https://api.hiro.so";
+const TX_DECODE_FALLBACK_ENABLED = process.env.ENABLE_TX_DECODE_FALLBACK === "true";
 
 /**
  * Fetch transaction details from Stacks API
@@ -161,9 +161,10 @@ export async function parseTransaction(
   // The Stacks node events observer sends raw_tx but not tx_type or sender_address
   let decoded = tx.raw_tx ? decodeRawTx(tx.raw_tx, tx.txid) : null;
 
-  // If decode failed, try fetching from Stacks API (skip during bulk backfill
-  // where tx_type and sender_address are already set from Hiro API response)
-  if (!decoded && tx.txid && !options?.skipApiFallback) {
+  // If decode failed, try fetching from Stacks API only if explicitly enabled.
+  // During genesis sync, decode failures are expected for some legacy tx formats —
+  // we use "unknown" type/sender instead of hitting the API for every failure.
+  if (!decoded && tx.txid && !options?.skipApiFallback && TX_DECODE_FALLBACK_ENABLED) {
     decoded = await fetchTxFromApi(tx.txid);
     if (decoded) {
       logger.debug("Fetched tx details from API", { txid: tx.txid, type: decoded.txType });
@@ -195,6 +196,7 @@ export async function parseTransaction(
   return {
     tx_id: tx.txid,
     block_height: blockHeight,
+    tx_index: tx.tx_index ?? 0,
     type: txType,
     sender,
     status: tx.status ?? "success",

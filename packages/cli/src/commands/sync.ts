@@ -3,6 +3,7 @@ import { loadConfig } from "../lib/config.ts";
 import { error, success, info, warn, dim, yellow, green, red } from "../lib/output.ts";
 import { StacksNodeClient } from "@secondlayer/shared/node";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
+import { LocalClient } from "@secondlayer/shared/node/local-client";
 import { findGaps, countMissingBlocks } from "@secondlayer/shared/db/queries/integrity";
 import { getDb } from "@secondlayer/shared/db";
 import { confirm } from "@inquirer/prompts";
@@ -18,7 +19,7 @@ export function registerSyncCommand(program: Command): void {
     .option("--gaps", "Auto-detect and fill all gaps")
     .option("--concurrency <n>", "Parallel fetch limit (default: 1 for hiro, 5 for node)")
     .option("--delay <ms>", "Delay between batches in ms (default: 500 for hiro, 0 for node)")
-    .option("--source <source>", "Data source: auto, hiro, node", "auto")
+    .option("--source <source>", "Data source: auto, local, hiro, node", "auto")
     .option("-y, --yes", "Skip confirmation prompt")
     .action(async function (this: Command) {
       const opts = this.opts() as {
@@ -39,34 +40,50 @@ export function registerSyncCommand(program: Command): void {
         // Determine block source
         const nodeClient = new StacksNodeClient();
         const hiroClient = new HiroClient();
+        const localClient = new LocalClient();
         let useHiro = opts.source === "hiro";
         let useNode = opts.source === "node";
+        let useLocal = opts.source === "local";
 
         if (opts.source === "auto" || !opts.source) {
-          // Try node first, fall back to Hiro
-          const nodeHealthy = await nodeClient.isHealthy();
-          if (nodeHealthy) {
-            // Test if node can serve block data
-            const testBlock = await nodeClient.getBlock(1).catch(() => null);
-            if (testBlock) {
-              useNode = true;
-              info("Using local Stacks node for backfill");
+          // Try local DB → node → Hiro
+          if (!process.env.DATABASE_URL) {
+            process.env.DATABASE_URL = DEV_DATABASE_URL;
+          }
+          const db = getDb();
+          const localTip = await localClient.getChainTip(db);
+          if (localTip > 0) {
+            useLocal = true;
+            info(`Using local DB for backfill (tip: block ${localTip})`);
+          } else {
+            const nodeHealthy = await nodeClient.isHealthy();
+            if (nodeHealthy) {
+              const testBlock = await nodeClient.getBlock(1).catch(() => null);
+              if (testBlock) {
+                useNode = true;
+                info("Using local Stacks node for backfill");
+              } else {
+                useHiro = true;
+                info("Node can't serve block data, using Hiro public API");
+              }
             } else {
               useHiro = true;
-              info("Node can't serve block data, using Hiro public API");
+              info("Node not reachable, using Hiro public API");
             }
-          } else {
-            useHiro = true;
-            info("Node not reachable, using Hiro public API");
           }
         }
 
         // Auto-set concurrency based on source
         if (concurrency === 0) {
-          concurrency = useHiro ? 1 : 5;
+          concurrency = useLocal ? 10 : useHiro ? 1 : 5;
         }
 
-        if (useHiro) {
+        if (useLocal) {
+          if (!process.env.DATABASE_URL) {
+            process.env.DATABASE_URL = DEV_DATABASE_URL;
+          }
+          info("Source: local DB");
+        } else if (useHiro) {
           const hiroHealthy = await hiroClient.isHealthy();
           if (!hiroHealthy) {
             error(`Cannot reach Hiro API at ${hiroClient.getApiUrl()}`);
@@ -125,7 +142,7 @@ export function registerSyncCommand(program: Command): void {
 
         if (!opts.yes) {
           console.log("");
-          const sourceLabel = useHiro ? "Hiro API" : "local node";
+          const sourceLabel = useLocal ? "local DB" : useHiro ? "Hiro API" : "local node";
           console.log(`This will fetch ${yellow(totalBlocks.toString())} blocks from ${sourceLabel}.`);
           if (useHiro) {
             console.log(dim("Note: Hiro API fetches are slower due to per-tx event lookups."));
@@ -140,7 +157,7 @@ export function registerSyncCommand(program: Command): void {
           }
         }
 
-        // Delay between batches: default 500ms for Hiro (be nice), 0 for node
+        // Delay between batches: default 500ms for Hiro (be nice), 0 for local/node
         const batchDelay = opts.delay
           ? parseInt(opts.delay)
           : useHiro ? 500 : 0;
@@ -166,7 +183,10 @@ export function registerSyncCommand(program: Command): void {
               batch.map(async (height) => {
                 let block: unknown;
 
-                if (useHiro) {
+                if (useLocal) {
+                  const db = getDb();
+                  block = await localClient.getBlockForReplay(db, height);
+                } else if (useHiro) {
                   block = await hiroClient.getBlockForIndexer(height);
                 } else {
                   block = await nodeClient.getBlock(height);
