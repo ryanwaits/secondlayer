@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [48e42ba]
+  - @secondlayer/shared@0.3.0
+  - @secondlayer/views@0.2.4
+
 ## 0.4.0
 
 ### Minor Changes

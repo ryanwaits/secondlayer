@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 0.1.0
+
+### Minor Changes
+
+- a070de2: Support all 9 Stacks transaction payload types in deserializer/serializer. Fixes "Unknown payload type: 4" error during genesis sync by adding Coinbase, CoinbaseToAltRecipient, PoisonMicroblock, TenureChange, and NakamotoCoinbase.
+
 ## 0.0.4
 
 ### Patch Changes
