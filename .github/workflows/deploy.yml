@@ -48,8 +48,7 @@ jobs:
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: bash /opt/secondlayer/docker/scripts/deploy.sh
-          script_stop: true
-          timeout: 300s
+          command_timeout: 5m
 
   notify:
     needs: [typecheck, deploy]
