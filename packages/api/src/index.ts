@@ -29,7 +29,7 @@ app.route("/api/keys", keysRouter);
 app.route("/api/auth", authRouter);
 
 // Auth middleware — always mounted, DEV_MODE bypass handled inside middleware
-for (const path of ["/api/streams", "/api/streams/*", "/api/views", "/api/views/*", "/api/logs", "/api/logs/*", "/api/accounts", "/api/accounts/*", "/api/auth/logout"]) {
+for (const path of ["/status", "/api/streams", "/api/streams/*", "/api/views", "/api/views/*", "/api/logs", "/api/logs/*", "/api/accounts", "/api/accounts/*", "/api/auth/logout"]) {
   app.use(path, requireAuth());
   app.use(path, rateLimit());
   app.use(path, countApiRequests());

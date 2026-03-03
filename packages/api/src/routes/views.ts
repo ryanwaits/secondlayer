@@ -239,14 +239,27 @@ app.post("/", async (c) => {
 
 // ── Reindex a view ──────────────────────────────────────────────────────
 
+const MAX_CONCURRENT_REINDEXES = 2;
+let activeReindexes = 0;
+
 app.post("/:viewName/reindex", async (c) => {
   const { viewName } = c.req.param();
   const keyIds = await resolveKeyIds(c);
   const view = getOwnedView(viewName, keyIds);
 
+  if (activeReindexes >= MAX_CONCURRENT_REINDEXES) {
+    return c.json({
+      error: `Too many concurrent reindex operations (max ${MAX_CONCURRENT_REINDEXES}). Try again later.`,
+      code: "REINDEX_LIMIT",
+      activeReindexes,
+    }, 429);
+  }
+
   const body = await c.req.json().catch(() => ({}));
   const fromBlock = typeof body.fromBlock === "number" ? body.fromBlock : undefined;
   const toBlock = typeof body.toBlock === "number" ? body.toBlock : undefined;
+
+  activeReindexes++;
 
   // Fire and forget — load handler + reindex runs in background
   (async () => {
@@ -258,6 +271,8 @@ app.post("/:viewName/reindex", async (c) => {
     } catch (err) {
       const msg = getErrorMessage(err);
       console.error(`Reindex failed for ${viewName}: ${msg}`);
+    } finally {
+      activeReindexes--;
     }
   })();
 

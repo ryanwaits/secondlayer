@@ -6,6 +6,8 @@ import { assertStreamOwnership, getAccountId, getAccountKeyIds } from "../lib/ow
 const app = new Hono();
 
 // SSE stream for real-time delivery logs
+const MAX_STREAM_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
 app.get("/:id/stream", async (c) => {
   const { id } = c.req.param();
   const db = getDb();
@@ -18,9 +20,18 @@ app.get("/:id/stream", async (c) => {
   return streamSSE(c, async (sseStream) => {
     let lastDeliveryId: string | null = null;
     let running = true;
+    const startedAt = Date.now();
 
     // Poll for new deliveries (in production, use pg_notify)
     while (running) {
+      if (Date.now() - startedAt > MAX_STREAM_DURATION_MS) {
+        await sseStream.writeSSE({
+          event: "timeout",
+          data: JSON.stringify({ message: "Stream closed after 30 minutes. Reconnect to continue." }),
+        });
+        break;
+      }
+
       try {
         const results = await db
           .selectFrom("deliveries")
