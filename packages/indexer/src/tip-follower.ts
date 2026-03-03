@@ -1,6 +1,7 @@
 import { getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
+import { LocalClient } from "@secondlayer/shared/node/local-client";
 
 type TipFollowerMode = "normal" | "polling";
 
@@ -68,6 +69,7 @@ export function startTipFollower(intervalMs?: number): () => void {
       if (chainTip <= ourHeight) return;
 
       const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
+      const localClient = new LocalClient();
 
       logger.info("Tip follower: fetching missing blocks", {
         from: ourHeight + 1,
@@ -76,14 +78,24 @@ export function startTipFollower(intervalMs?: number): () => void {
       });
 
       for (let height = ourHeight + 1; height <= chainTip; height++) {
-        // Check if node came back while we're polling (read dynamically — mode may change via recordBlockReceived)
+        // Check if node came back while we're polling
         if ((tipFollowerState as { mode: string }).mode === "normal") {
           logger.info("Tip follower: node resumed, stopping poll fetch");
           break;
         }
 
         try {
-          const block = await hiro.getBlockForIndexer(height, { includeRawTx: true });
+          // Try local DB first (for re-orgs / reprocessing)
+          let block = await localClient.getBlockForReplay(db, height);
+          let source = "local";
+
+          if (!block) {
+            // Fall back to remote Hiro API
+            const hiroBlock = await hiro.getBlockForIndexer(height, { includeRawTx: true });
+            block = hiroBlock as typeof block;
+            source = "hiro";
+          }
+
           if (!block) {
             logger.warn("Tip follower: block not found", { height });
             continue;
@@ -93,13 +105,13 @@ export function startTipFollower(intervalMs?: number): () => void {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Source": "tip-follower",
+              "X-Source": `tip-follower-${source}`,
             },
             body: JSON.stringify(block),
           });
 
           if (!res.ok) {
-            logger.warn("Tip follower: indexer rejected block", { height, status: res.status });
+            logger.warn("Tip follower: indexer rejected block", { height, status: res.status, source });
           } else {
             tipFollowerState.blocksFetchedViaPoll++;
           }

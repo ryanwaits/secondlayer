@@ -2,6 +2,7 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { findGaps, countMissingBlocks, computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
+import { LocalClient } from "@secondlayer/shared/node/local-client";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 
 // Auto-backfill state (visible to /health/integrity)
@@ -123,23 +124,33 @@ async function autoBackfill(gaps: Gap[]) {
     blocks: totalBlocks,
   });
 
+  const localClient = new LocalClient();
   const hiroClient = new HiroClient();
   const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
   const blocksPerSecond = parseInt(process.env.AUTO_BACKFILL_RATE || "10");
+  const db = getDb();
 
   try {
-    const hiroHealthy = await hiroClient.isHealthy();
-    if (!hiroHealthy) {
-      logger.warn("Auto-backfill: Hiro API not reachable, skipping");
-      return;
-    }
-
     for (const gap of staleGaps) {
       for (let height = gap.gapStart; height <= gap.gapEnd; height++) {
         try {
-          const block = await hiroClient.getBlockForIndexer(height, {
-            includeRawTx: process.env.BACKFILL_INCLUDE_RAW_TX === "true",
-          });
+          // Try local DB first (for reprocessing after schema changes)
+          let block = await localClient.getBlockForReplay(db, height);
+          let source = "local";
+
+          if (!block) {
+            // Fall back to remote Hiro API
+            const hiroHealthy = await hiroClient.isHealthy();
+            if (!hiroHealthy) {
+              logger.warn("Auto-backfill: Hiro API not reachable, skipping remaining", { height });
+              return;
+            }
+            const hiroBlock = await hiroClient.getBlockForIndexer(height, {
+              includeRawTx: process.env.BACKFILL_INCLUDE_RAW_TX === "true",
+            });
+            block = hiroBlock as typeof block;
+            source = "hiro";
+          }
 
           if (!block) {
             logger.warn("Auto-backfill: block not found", { height });
@@ -150,7 +161,7 @@ async function autoBackfill(gaps: Gap[]) {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Source": "auto-backfill",
+              "X-Source": `auto-backfill-${source}`,
             },
             body: JSON.stringify(block),
           });
@@ -159,6 +170,7 @@ async function autoBackfill(gaps: Gap[]) {
             logger.warn("Auto-backfill: indexer rejected block", {
               height,
               status: res.status,
+              source,
             });
           }
 
