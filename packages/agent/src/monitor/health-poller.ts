@@ -75,15 +75,17 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
       const memUsage = parseFloat(s.MemUsage?.split("/")[0]?.replace(/[^0-9.]/g, "") ?? "0");
       const memLimit = parseFloat(s.MemUsage?.split("/")[1]?.replace(/[^0-9.]/g, "") ?? "0");
 
-      // Get restart count
+      // Get restart count + started time
       const inspectResult = Bun.spawnSync([
         "docker",
         "inspect",
         "--format",
-        "{{.RestartCount}}",
+        "{{.RestartCount}}|{{.State.StartedAt}}",
         s.Name,
       ]);
-      const restartCount = parseInt(inspectResult.stdout.toString().trim()) || 0;
+      const inspectParts = inspectResult.stdout.toString().trim().split("|");
+      const restartCount = parseInt(inspectParts[0]) || 0;
+      const startedAt = inspectParts[1] ? new Date(inspectParts[1]).getTime() || undefined : undefined;
 
       containers.push({
         name: s.Name,
@@ -92,6 +94,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
         memLimitMb: memLimit,
         restartCount,
         running: true,
+        startedAt,
       });
     } catch {
       // skip malformed lines
@@ -211,28 +214,41 @@ export function detectAnomalies(
     }
   }
 
-  // Service down
-  if (!current.health.indexer.ok) {
-    anomalies.push({
-      name: "service_down",
-      severity: "error",
-      action: "restart_service",
-      service: "indexer",
-      message: `Indexer health check failed: ${current.health.indexer.error}`,
-      line: "",
-      timestamp: now,
-    });
-  }
-  if (!current.health.api.ok) {
-    anomalies.push({
-      name: "service_down",
-      severity: "error",
-      action: "restart_service",
-      service: "api",
-      message: `API health check failed: ${current.health.api.error}`,
-      line: "",
-      timestamp: now,
-    });
+  // Service down — check if recently restarted (within 5min) to avoid false positives
+  const containerByService = new Map(
+    current.metrics.containers.map((c) => [c.name.replace(/^secondlayer-|-1$/g, ""), c])
+  );
+  const RECENT_RESTART_MS = 5 * 60 * 1000;
+
+  for (const { ok, error, svc } of [
+    { ok: current.health.indexer.ok, error: current.health.indexer.error, svc: "indexer" },
+    { ok: current.health.api.ok, error: current.health.api.error, svc: "api" },
+  ] as const) {
+    if (ok) continue;
+    const container = containerByService.get(svc);
+    const recentlyRestarted = container?.startedAt && (now - container.startedAt) < RECENT_RESTART_MS;
+
+    if (recentlyRestarted) {
+      anomalies.push({
+        name: "service_restarted",
+        severity: "info",
+        action: "alert_only",
+        service: svc,
+        message: `${svc} recently restarted, health check not yet passing: ${error}`,
+        line: "",
+        timestamp: now,
+      });
+    } else {
+      anomalies.push({
+        name: "service_down",
+        severity: "error",
+        action: "restart_service",
+        service: svc,
+        message: `${svc.charAt(0).toUpperCase() + svc.slice(1)} health check failed: ${error}`,
+        line: "",
+        timestamp: now,
+      });
+    }
   }
 
   return anomalies;
