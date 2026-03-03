@@ -1,0 +1,76 @@
+name: Deploy
+
+# Required secrets:
+#   DEPLOY_HOST      — Hetzner server IP
+#   DEPLOY_SSH_KEY   — SSH private key (ed25519)
+#   SLACK_WEBHOOK_URL — Slack incoming webhook for deploy notifications
+#
+# One-time setup:
+#   1. ssh-keygen -t ed25519 -f deploy_key -C "github-deploy"
+#   2. ssh-copy-id -i deploy_key.pub root@<server-ip>
+#   3. Add secrets in GitHub repo → Settings → Secrets
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "*.md"
+      - "docs/**"
+      - "packages/docs/**"
+      - "packages/clarity-docs/**"
+      - "plans/**"
+      - "LICENSE"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.10"
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+
+  deploy:
+    needs: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: bash /opt/secondlayer/docker/scripts/deploy.sh
+          script_stop: true
+          timeout: 300s
+
+  notify:
+    needs: [typecheck, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack notification
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+        with:
+          payload: |
+            {
+              "text": "${{ needs.deploy.result == 'success' && '✅' || '❌' }} Deploy ${{ needs.deploy.result }}: ${{ github.event.head_commit.message }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ needs.deploy.result == 'success' && ':white_check_mark:' || ':x:' }} *Deploy ${{ needs.deploy.result }}*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run> · `${{ github.sha }}`\n${{ github.event.head_commit.message }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
