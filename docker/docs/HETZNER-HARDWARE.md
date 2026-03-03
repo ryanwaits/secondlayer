@@ -68,8 +68,7 @@ echo 'CHAINSTATE_DIR=/mnt/chainstate' >> /opt/secondlayer/docker/.env
 | Component | Size |
 |-----------|------|
 | Stacks blockchain (mainnet, fully synced) | 800-900 GB |
-| PostgreSQL (secondlayer) | ~50 GB |
-| Hiro PG archive (temporary, for backfill) | ~120-150 GB |
+| PostgreSQL (secondlayer) | ~70 GB |
 | Views cache | ~10 GB |
 
 The RAID6 volume (~887GB) is tight for a fully synced node — hence the LVM stripe.
