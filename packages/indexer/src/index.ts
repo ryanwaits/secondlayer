@@ -47,7 +47,7 @@ async function runStartupIntegrityCheck() {
     });
 
     // Initialize lastSeenHeight for out-of-order tracking
-    lastSeenHeight = progress.highest_seen_block;
+    lastSeenHeight = Number(progress.highest_seen_block);
 
     const gaps = await findGaps(db, 20);
     const missing = await countMissingBlocks(db);

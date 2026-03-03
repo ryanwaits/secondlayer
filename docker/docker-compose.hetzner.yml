@@ -27,6 +27,7 @@ services:
     environment:
       HIRO_API_URL: https://api.mainnet.hiro.so
       HIRO_API_KEY: ${HIRO_API_KEY:-}
+      TIP_FOLLOWER_ENABLED: ${TIP_FOLLOWER_ENABLED:-true}
 
   stacks-node:
     image: blockstack/stacks-blockchain:3.3.0.0.5
