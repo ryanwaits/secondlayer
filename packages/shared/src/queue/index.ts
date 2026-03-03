@@ -12,7 +12,7 @@ export interface QueueStats {
 }
 
 // Worker identifier for this process
-const WORKER_ID = `worker-${randomUUID().slice(0, 8)}`;
+const WORKER_ID: string = `worker-${randomUUID().slice(0, 8)}`;
 
 /**
  * Enqueue a new job for stream evaluation

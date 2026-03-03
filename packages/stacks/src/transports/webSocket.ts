@@ -298,7 +298,7 @@ export class WebSocketChannel {
     }
   }
 
-  destroy() {
+  destroy(): void {
     this.destroyed = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
 

@@ -1,7 +1,7 @@
 import { sql, type Kysely } from "kysely";
-import type { Database } from "../types.ts";
+import type { Database, StreamMetrics } from "../types.ts";
 
-export async function getStreamMetrics(db: Kysely<Database>, streamId: string) {
+export async function getStreamMetrics(db: Kysely<Database>, streamId: string): Promise<StreamMetrics | null> {
   return (
     await db
       .selectFrom("stream_metrics")
@@ -21,7 +21,7 @@ export async function updateStreamMetrics(
     failedDeliveries: number;
     errorMessage: string | null;
   }>,
-) {
+): Promise<void> {
   await db
     .insertInto("stream_metrics")
     .values({
@@ -48,7 +48,7 @@ export async function incrementDeliveryCount(
   db: Kysely<Database>,
   streamId: string,
   failed: boolean,
-) {
+): Promise<void> {
   await db
     .insertInto("stream_metrics")
     .values({

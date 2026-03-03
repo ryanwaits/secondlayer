@@ -1,5 +1,5 @@
-import { sql } from "kysely";
-import { getDb } from "@secondlayer/shared/db";
+import { sql, type Transaction } from "kysely";
+import { getDb, type Database } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { updateViewStatus, recordViewProcessed } from "@secondlayer/shared/db/queries/views";
 import type { ViewDefinition } from "../types.ts";
@@ -111,7 +111,7 @@ export async function processBlock(
   };
 
   // Wrap entire block processing in a single transaction
-  await db.transaction().execute(async (tx) => {
+  await db.transaction().execute(async (tx: Transaction<Database>) => {
     const ctx = new ViewContext(tx, schemaName, view.schema, blockMeta, initialTx);
     const runResult = await runHandlers(view, matched, ctx);
     result.processed = runResult.processed;

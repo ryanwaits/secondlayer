@@ -35,7 +35,7 @@ export async function generateViewScaffold(input: ViewScaffoldInput): Promise<st
   // Build schema tables — one per public function
   const tables = publicFunctions.map((fn) => {
     const columns = fn.args
-      .map((arg) => {
+      .map((arg: { name: string; type: any }) => {
         const mapped = clarityTypeToViewColumn(arg.type);
         const nullable = mapped.nullable ? ", nullable: true" : "";
         return `        ${arg.name.replace(/-/g, "_")}: { type: '${mapped.type}'${nullable} }`;

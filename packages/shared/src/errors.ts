@@ -17,7 +17,7 @@ export class StreamsError extends Error {
     Error.captureStackTrace?.(this, this.constructor);
   }
 
-  toJSON() {
+  toJSON(): { name: string; code: string; message: string; stack: string | undefined; cause: unknown } {
     return {
       name: this.name,
       code: this.code,
@@ -67,9 +67,14 @@ export class WebhookDeliveryError extends StreamsError {
     super("WEBHOOK_DELIVERY_ERROR", message, cause);
   }
 
-  override toJSON() {
+  override toJSON(): { name: string; code: string; message: string; stack: string | undefined; cause: unknown; statusCode: number | undefined } {
+    const base = super.toJSON();
     return {
-      ...super.toJSON(),
+      name: base.name,
+      code: base.code,
+      message: base.message,
+      stack: base.stack,
+      cause: base.cause,
       statusCode: this.statusCode,
     };
   }

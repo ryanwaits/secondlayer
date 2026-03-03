@@ -77,7 +77,7 @@ export async function startViewProcessor(opts?: {
   });
 
   // Listen for reorgs
-  const stopReorgListening = await listen("view_reorg", async (payload) => {
+  const stopReorgListening = await listen("view_reorg", async (payload: string | undefined) => {
     if (!running) return;
     try {
       const data = JSON.parse(payload ?? "{}");

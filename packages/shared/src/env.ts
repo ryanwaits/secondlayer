@@ -12,21 +12,28 @@ const networksSchema = z.string().transform((val) => {
   return networks as ("mainnet" | "testnet")[];
 });
 
-const envSchema = z.object({
-  // DATABASE_URL is optional - consumers must provide their own
+interface EnvSchemaOutput {
+  DATABASE_URL?: string;
+  NETWORK?: "mainnet" | "testnet";
+  NETWORKS?: ("mainnet" | "testnet")[];
+  LOG_LEVEL: "debug" | "info" | "warn" | "error";
+  NODE_ENV: "development" | "production" | "test";
+}
+
+// Cast needed: z.preprocess / z.default create different _input vs _output types
+// that z.ZodType<T> can't represent without explicit input type param
+const envSchema: z.ZodType<EnvSchemaOutput> = z.object({
   DATABASE_URL: z.preprocess(
     (val) => (typeof val === "string" && val.length === 0) ? undefined : val,
     z.string().url().optional(),
   ),
-  // Single network (deprecated, for backwards compatibility)
   NETWORK: z.enum(["mainnet", "testnet"]).optional(),
-  // Multiple networks (comma-separated)
   NETWORKS: networksSchema.optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-});
+}) as unknown as z.ZodType<EnvSchemaOutput>;
 
-export type Env = z.infer<typeof envSchema> & {
+export type Env = EnvSchemaOutput & {
   enabledNetworks: ("mainnet" | "testnet")[];
 };
 

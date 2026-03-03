@@ -115,10 +115,10 @@ export function generateClarityConversion(
   }
 
   if (isAbiTuple(type)) {
-    const requiredFields = type.tuple.map((f) => f.name);
+    const requiredFields = type.tuple.map((f: { name: string }) => f.name);
     const fieldNames = JSON.stringify(requiredFields);
     const fields = type.tuple
-      .map((field) => {
+      .map((field: { name: string; type: AbiType }) => {
         const camelFieldName = toCamelCase(field.name);
         const fieldConversion = generateClarityConversion(
           `tupleValue.${camelFieldName}`,

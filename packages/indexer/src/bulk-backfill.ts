@@ -24,10 +24,12 @@ import { getDb, closeDb, sql } from "@secondlayer/shared/db";
 import { computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import type { GetBlockOptions } from "@secondlayer/shared/node/hiro-client";
-import type { NewBlockPayload } from "./types/node-events.ts";
+import type { NewBlockPayload, TransactionPayload, TransactionEvent } from "./types/node-events.ts";
 import { parseBlock, parseTransaction, parseEvent } from "./parser.ts";
 import { logger } from "@secondlayer/shared/logger";
 import { existsSync, readFileSync, writeFileSync } from "fs";
+import type { Transaction } from "kysely";
+import type { Database, InsertTransaction, InsertEvent } from "@secondlayer/shared/db";
 
 // --- Config ---
 const BACKFILL_FROM = parseInt(process.env.BACKFILL_FROM || "1");
@@ -106,25 +108,25 @@ async function insertBatch(
   // Parse all blocks
   const allBlocks = blocks.map(parseBlock);
   const allTxPromises = blocks.flatMap((b) =>
-    b.transactions.map((tx) => parseTransaction(tx, b.block_height, { skipApiFallback: true }))
+    b.transactions.map((tx: TransactionPayload) => parseTransaction(tx, b.block_height, { skipApiFallback: true }))
   );
   const allTxResults = await Promise.all(allTxPromises);
   const allTxs = allTxResults
-    .filter((tx): tx is NonNullable<typeof tx> => tx !== null)
-    .map((tx) => stripNullBytes(tx) as typeof tx);
+    .filter((tx): tx is InsertTransaction => tx !== null)
+    .map((tx) => stripNullBytes(tx) as InsertTransaction);
 
   const allEvts = blocks
-    .flatMap((b) => b.events.map((evt) => parseEvent(evt, b.block_height)))
-    .filter((evt): evt is NonNullable<typeof evt> => evt !== null)
-    .map((evt) => stripNullBytes(evt) as typeof evt);
+    .flatMap((b) => b.events.map((evt: TransactionEvent) => parseEvent(evt, b.block_height)))
+    .filter((evt): evt is InsertEvent => evt !== null)
+    .map((evt) => stripNullBytes(evt) as InsertEvent);
 
-  await db.transaction().execute(async (tx) => {
+  await db.transaction().execute(async (tx: Transaction<Database>) => {
     // Insert blocks
     for (const block of allBlocks) {
       await tx
         .insertInto("blocks")
         .values(block)
-        .onConflict((oc) =>
+        .onConflict((oc: any) =>
           oc.column("height").doUpdateSet({
             hash: block.hash,
             parent_hash: block.parent_hash,
@@ -141,7 +143,7 @@ async function insertBatch(
       await tx
         .insertInto("transactions")
         .values(allTxs.slice(i, i + TX_CHUNK_SIZE))
-        .onConflict((oc) => oc.doNothing())
+        .onConflict((oc: any) => oc.doNothing())
         .execute();
     }
 
@@ -150,7 +152,7 @@ async function insertBatch(
       await tx
         .insertInto("events")
         .values(allEvts.slice(i, i + EVT_CHUNK_SIZE))
-        .onConflict((oc) => oc.doNothing())
+        .onConflict((oc: any) => oc.doNothing())
         .execute();
     }
 
@@ -164,7 +166,7 @@ async function insertBatch(
         last_contiguous_block: 0,
         highest_seen_block: maxHeight,
       })
-      .onConflict((oc) =>
+      .onConflict((oc: any) =>
         oc.column("network").doUpdateSet({
           last_indexed_block: sql`GREATEST(index_progress.last_indexed_block, ${maxHeight})`,
           highest_seen_block: sql`GREATEST(index_progress.highest_seen_block, ${maxHeight})`,

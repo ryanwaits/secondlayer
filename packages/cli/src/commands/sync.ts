@@ -95,7 +95,7 @@ export function registerSyncCommand(program: Command): void {
           }
 
           info(`Found ${gaps.length} gaps, ${missing} missing blocks`);
-          ranges = gaps.map((g) => ({ start: g.gapStart, end: g.gapEnd }));
+          ranges = gaps.map((g: { gapStart: number; gapEnd: number }) => ({ start: g.gapStart, end: g.gapEnd }));
         } else if (opts.from && opts.to) {
           const from = parseInt(opts.from);
           const to = parseInt(opts.to);

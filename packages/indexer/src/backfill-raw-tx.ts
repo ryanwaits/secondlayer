@@ -55,7 +55,7 @@ async function main() {
 
     if (rows.length === 0) break;
 
-    const txIds = rows.map((r) => r.tx_id);
+    const txIds = rows.map((r: { tx_id: string }) => r.tx_id);
 
     // Fetch raw_tx from Hiro API
     const results = await hiro.fetchRawTxBatch(txIds, CONCURRENCY);
@@ -75,17 +75,17 @@ async function main() {
 
     // Batch UPDATE using CASE expression
     const entries = Array.from(results.entries());
-    const matchedTxIds = entries.map(([txid]) => txid);
+    const matchedTxIds = entries.map(([txid]: [string, string]) => txid);
 
     // Build parameterized CASE/WHEN update
     const caseFragments = entries.map(
-      ([txid, rawTx]) => sql`WHEN ${txid} THEN ${rawTx}`
+      ([txid, rawTx]: [string, string]) => sql`WHEN ${txid} THEN ${rawTx}`
     );
 
     await sql`
       UPDATE transactions
       SET raw_tx = CASE tx_id ${sql.join(caseFragments, sql` `)} END
-      WHERE tx_id IN (${sql.join(matchedTxIds.map((id) => sql`${id}`), sql`, `)})
+      WHERE tx_id IN (${sql.join(matchedTxIds.map((id: string) => sql`${id}`), sql`, `)})
     `.execute(db);
 
     totalUpdated += results.size;
@@ -95,11 +95,11 @@ async function main() {
     const unfetched = txIds.length - results.size;
     if (unfetched > 0) {
       // Mark unfetchable txs with a sentinel so we don't retry them forever
-      const unfetchedIds = txIds.filter((id) => !results.has(id));
+      const unfetchedIds = txIds.filter((id: string) => !results.has(id));
       await sql`
         UPDATE transactions
         SET raw_tx = '0x01'
-        WHERE tx_id IN (${sql.join(unfetchedIds.map((id) => sql`${id}`), sql`, `)})
+        WHERE tx_id IN (${sql.join(unfetchedIds.map((id: string) => sql`${id}`), sql`, `)})
       `.execute(db);
       remaining -= unfetched;
       logger.warn("Unfetchable txs marked 0x01", { count: unfetched });

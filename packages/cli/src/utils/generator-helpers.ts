@@ -44,7 +44,7 @@ export function generateClarityArgs(args: ReadonlyArray<FunctionArg>): string {
 export function generateMapKeyConversion(keyType: AbiType): string {
   if (isAbiTuple(keyType)) {
     const fields = keyType.tuple
-      .map((field) => {
+      .map((field: { name: string; type: AbiType }) => {
         const camelFieldName = toCamelCase(field.name);
         const fieldConversion = generateClarityConversion(
           `key.${camelFieldName}`,

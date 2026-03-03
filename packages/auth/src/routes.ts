@@ -56,7 +56,7 @@ app.get("/", requireAuth(), async (c) => {
     .execute();
 
   return c.json({
-    keys: keys.map((k) => ({
+    keys: keys.map((k: typeof keys[number]) => ({
       id: k.id,
       prefix: k.key_prefix,
       name: k.name,

@@ -90,7 +90,7 @@ export function clarityTypeToTS(type: AbiType): string {
   // Handle tuple types
   if (isAbiTuple(type)) {
     const fields = type.tuple
-      .map((field) => `${toCamelCase(field.name)}: ${clarityTypeToTS(field.type)}`)
+      .map((field: { name: string; type: AbiType }) => `${toCamelCase(field.name)}: ${clarityTypeToTS(field.type)}`)
       .join("; ");
     return `{ ${fields} }`;
   }

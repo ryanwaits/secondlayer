@@ -46,9 +46,11 @@ export async function reindexView(
 
     // Determine block range
     const fromBlock = opts?.fromBlock ?? 1;
-    let toBlock = opts?.toBlock;
+    let toBlock: number;
 
-    if (!toBlock) {
+    if (opts?.toBlock != null) {
+      toBlock = opts.toBlock;
+    } else {
       const progress = await db
         .selectFrom("index_progress")
         .selectAll()

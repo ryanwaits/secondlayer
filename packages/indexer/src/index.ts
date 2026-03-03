@@ -10,7 +10,10 @@ import { detectReorg, handleReorg } from "./reorg.ts";
 import { computeContiguousTip, findGaps, countMissingBlocks } from "@secondlayer/shared/db/queries/integrity";
 import { startIntegrityLoop, integrityState } from "./integrity.ts";
 import { recordBlockReceived, startTipFollower, tipFollowerState } from "./tip-follower.ts";
-import type { NewBlockPayload, NewBurnBlockPayload } from "./types/node-events.ts";
+import type { NewBlockPayload, NewBurnBlockPayload, TransactionPayload } from "./types/node-events.ts";
+import type { Gap } from "@secondlayer/shared/db/queries/integrity";
+import type { Transaction } from "kysely";
+import type { Database } from "@secondlayer/shared/db";
 
 const PORT = parseInt(process.env.PORT || "3700");
 
@@ -55,7 +58,7 @@ async function runStartupIntegrityCheck() {
       logger.warn("Integrity check: gaps detected", {
         gapCount: gaps.length,
         totalMissing: missing,
-        firstGaps: gaps.slice(0, 5).map((g) => `${g.gapStart}-${g.gapEnd}`),
+        firstGaps: gaps.slice(0, 5).map((g: Gap) => `${g.gapStart}-${g.gapEnd}`),
       });
 
       if (process.env.REQUIRE_INTEGRITY === "true") {
@@ -205,7 +208,7 @@ const server = Bun.serve({
           // Parse block data
           const block = parseBlock(payload);
           const txResults = await Promise.all(
-            payload.transactions.map((tx) => parseTransaction(tx, payload.block_height))
+            payload.transactions.map((tx: TransactionPayload) => parseTransaction(tx, payload.block_height))
           );
           const txs = txResults.filter((tx): tx is NonNullable<typeof tx> => tx !== null);
 
@@ -217,11 +220,11 @@ const server = Bun.serve({
           const TX_CHUNK_SIZE = 500;
           const EVT_CHUNK_SIZE = 1000;
 
-          await db.transaction().execute(async (tx) => {
+          await db.transaction().execute(async (tx: Transaction<Database>) => {
             await tx
               .insertInto("blocks")
               .values(block)
-              .onConflict((oc) =>
+              .onConflict((oc: any) =>
                 oc.column("height").doUpdateSet({
                   hash: block.hash,
                   parent_hash: block.parent_hash,
@@ -236,7 +239,7 @@ const server = Bun.serve({
               await tx
                 .insertInto("transactions")
                 .values(txs.slice(i, i + TX_CHUNK_SIZE))
-                .onConflict((oc) => oc.doNothing())
+                .onConflict((oc: any) => oc.doNothing())
                 .execute();
             }
 
@@ -244,7 +247,7 @@ const server = Bun.serve({
               await tx
                 .insertInto("events")
                 .values(evts.slice(i, i + EVT_CHUNK_SIZE))
-                .onConflict((oc) => oc.doNothing())
+                .onConflict((oc: any) => oc.doNothing())
                 .execute();
             }
 
@@ -283,7 +286,7 @@ const server = Bun.serve({
                 last_contiguous_block: newContiguous,
                 highest_seen_block: payload.block_height,
               })
-              .onConflict((oc) =>
+              .onConflict((oc: any) =>
                 oc.column("network").doUpdateSet({
                   last_indexed_block: sql`GREATEST(index_progress.last_indexed_block, ${payload.block_height})`,
                   last_contiguous_block: sql`GREATEST(index_progress.last_contiguous_block, ${newContiguous})`,
@@ -314,7 +317,7 @@ const server = Bun.serve({
           }
 
           if (jobsEnqueued > 0) {
-            await notifyNewJob().catch((err) => {
+            await notifyNewJob().catch((err: unknown) => {
               logger.warn("Failed to notify workers", { error: err });
             });
 

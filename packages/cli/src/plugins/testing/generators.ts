@@ -116,7 +116,7 @@ function getMapKeyType(keyType: AbiType): string {
   if (isAbiTuple(keyType)) {
     const fields = keyType.tuple
       .map(
-        (field) =>
+        (field: { name: string; type: AbiType }) =>
           `${toCamelCase(field.name)}: ${getTypeForArg({ type: field.type })}`
       )
       .join("; ");

@@ -94,7 +94,7 @@ function generateContractHookMethods(
     .filter(Boolean);
 
   // Generate hooks for data variables
-  const dataVars = variables.filter((v) => v.access === "variable");
+  const dataVars = variables.filter((v: AbiVariable) => v.access === "variable");
   const varHooks = dataVars
     .map((variable: AbiVariable) => {
       const hookName = `use${capitalize(name)}${capitalize(toCamelCase(variable.name))}`;
@@ -106,7 +106,7 @@ function generateContractHookMethods(
     .filter(Boolean);
 
   // Generate hooks for constants
-  const constants = variables.filter((v) => v.access === "constant");
+  const constants = variables.filter((v: AbiVariable) => v.access === "constant");
   const constantHooks = constants
     .map((constant: AbiVariable) => {
       const hookName = `use${capitalize(name)}${capitalize(toCamelCase(constant.name))}`;

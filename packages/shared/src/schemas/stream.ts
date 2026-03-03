@@ -1,54 +1,126 @@
 import { z } from "zod";
-import { StreamFilterSchema } from "./filters.ts";
+import { StreamFilterSchema, type StreamFilter } from "./filters.ts";
 
-// Stream options schema
-export const StreamOptionsSchema = z.object({
-  // Include decoded Clarity values in webhook payload
+// ── Type interfaces ──────────────────────────────────────────────────
+
+export interface StreamOptions {
+  decodeClarityValues: boolean;
+  includeRawTx: boolean;
+  includeBlockMetadata: boolean;
+  rateLimit: number;
+  timeoutMs: number;
+  maxRetries: number;
+}
+
+export interface CreateStream {
+  name: string;
+  webhookUrl: string;
+  filters: StreamFilter[];
+  options?: StreamOptions;
+  startBlock?: number;
+  endBlock?: number;
+}
+
+export interface UpdateStream {
+  name?: string;
+  webhookUrl?: string;
+  filters?: StreamFilter[];
+  options?: Partial<StreamOptions>;
+}
+
+export interface WebhookPayload {
+  streamId: string;
+  streamName: string;
+  block: {
+    height: number;
+    hash: string;
+    parentHash: string;
+    burnBlockHeight: number;
+    timestamp: number;
+  };
+  matches: {
+    transactions: Array<{
+      txId: string;
+      type: string;
+      sender: string;
+      status: string;
+      contractId: string | null;
+      functionName: string | null;
+      rawTx?: string;
+    }>;
+    events: Array<{
+      txId: string;
+      eventIndex: number;
+      type: string;
+      data?: any;
+    }>;
+  };
+  isBackfill: boolean;
+  deliveredAt: string;
+}
+
+export interface StreamMetricsResponse {
+  totalDeliveries: number;
+  failedDeliveries: number;
+  lastTriggeredAt: string | null;
+  lastTriggeredBlock: number | null;
+  errorMessage: string | null;
+}
+
+export interface StreamResponse {
+  id: string;
+  name: string;
+  status: "inactive" | "active" | "paused" | "failed";
+  webhookUrl: string;
+  filters: StreamFilter[];
+  options: StreamOptions;
+  totalDeliveries: number;
+  failedDeliveries: number;
+  lastTriggeredAt?: string | null;
+  lastTriggeredBlock?: number | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Zod schemas ──────────────────────────────────────────────────────
+
+// Stream options schema (internal, keeps ZodObject methods like .partial())
+const streamOptionsShape = z.object({
   decodeClarityValues: z.boolean().default(true),
-  // Include raw transaction hex in payload
   includeRawTx: z.boolean().default(false),
-  // Include full block metadata
   includeBlockMetadata: z.boolean().default(true),
-  // Rate limit: max webhooks per second
   rateLimit: z.number().int().positive().max(100).default(10),
-  // Timeout for webhook delivery in ms
   timeoutMs: z.number().int().positive().max(30000).default(10000),
-  // Max retry attempts for failed webhooks
   maxRetries: z.number().int().min(0).max(10).default(3),
 });
 
-// Create stream schema
-export const CreateStreamSchema = z.object({
+// Cast: .default() makes _input fields optional, but output type matches StreamOptions
+export const StreamOptionsSchema: z.ZodType<StreamOptions> =
+  streamOptionsShape as unknown as z.ZodType<StreamOptions>;
+
+export const CreateStreamSchema: z.ZodType<CreateStream> = z.object({
   name: z.string().min(1).max(255),
   webhookUrl: z.string().url(),
-  // At least one filter required
   filters: z.array(StreamFilterSchema).min(1),
-  // Optional settings
-  options: StreamOptionsSchema.optional().default({}),
-  // Optional: start processing from specific block (for backfill)
+  options: streamOptionsShape.optional().default({}),
   startBlock: z.number().int().positive().optional(),
-  // Optional: stop processing at specific block
   endBlock: z.number().int().positive().optional(),
-});
+}) as unknown as z.ZodType<CreateStream>;
 
-// Update stream schema (all fields optional)
-export const UpdateStreamSchema = z.object({
+export const UpdateStreamSchema: z.ZodType<UpdateStream> = z.object({
   name: z.string().min(1).max(255).optional(),
   webhookUrl: z.string().url().optional(),
   filters: z.array(StreamFilterSchema).min(1).optional(),
-  options: StreamOptionsSchema.partial().optional(),
+  options: streamOptionsShape.partial().optional(),
 }).refine(
   (data) => Object.keys(data).length > 0,
   { message: "At least one field must be provided for update" }
-);
+) as unknown as z.ZodType<UpdateStream>;
 
-// Webhook payload schema (what gets sent to the user's endpoint)
-export const WebhookPayloadSchema = z.object({
-  // Stream metadata
+export const WebhookPayloadSchema: z.ZodType<WebhookPayload> = z.object({
   streamId: z.string().uuid(),
   streamName: z.string(),
-
-  // Block metadata
   block: z.object({
     height: z.number(),
     hash: z.string(),
@@ -56,8 +128,6 @@ export const WebhookPayloadSchema = z.object({
     burnBlockHeight: z.number(),
     timestamp: z.number(),
   }),
-
-  // Matched data
   matches: z.object({
     transactions: z.array(z.object({
       txId: z.string(),
@@ -75,15 +145,11 @@ export const WebhookPayloadSchema = z.object({
       data: z.any(),
     })),
   }),
-
-  // Metadata
   isBackfill: z.boolean(),
   deliveredAt: z.string().datetime(),
-});
+}) as unknown as z.ZodType<WebhookPayload>;
 
-// Stream response schema (what API returns)
-// Stream metrics schema
-export const StreamMetricsSchema = z.object({
+export const StreamMetricsSchema: z.ZodType<StreamMetricsResponse> = z.object({
   totalDeliveries: z.number(),
   failedDeliveries: z.number(),
   lastTriggeredAt: z.string().datetime().nullable(),
@@ -91,33 +157,21 @@ export const StreamMetricsSchema = z.object({
   errorMessage: z.string().nullable(),
 });
 
-// Stream response schema (what API returns)
-export const StreamResponseSchema = z.object({
+export const StreamResponseSchema: z.ZodType<StreamResponse> = z.object({
   id: z.string().uuid(),
   name: z.string(),
   status: z.enum(["inactive", "active", "paused", "failed"]),
   webhookUrl: z.string().url(),
   filters: z.array(StreamFilterSchema),
-  options: StreamOptionsSchema,
-
-  // Metrics (joined from stream_metrics)
+  options: streamOptionsShape,
   totalDeliveries: z.number().int().default(0),
   failedDeliveries: z.number().int().default(0),
   lastTriggeredAt: z.string().datetime().nullable().optional(),
   lastTriggeredBlock: z.number().int().nullable().optional(),
   errorMessage: z.string().nullable().optional(),
-
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-});
-
-// Type exports
-export type StreamOptions = z.infer<typeof StreamOptionsSchema>;
-export type CreateStream = z.infer<typeof CreateStreamSchema>;
-export type UpdateStream = z.infer<typeof UpdateStreamSchema>;
-export type WebhookPayload = z.infer<typeof WebhookPayloadSchema>;
-export type StreamResponse = z.infer<typeof StreamResponseSchema>;
-export type StreamMetricsResponse = z.infer<typeof StreamMetricsSchema>;
+}) as unknown as z.ZodType<StreamResponse>;
 
 // API response types
 export interface CreateStreamResponse {
