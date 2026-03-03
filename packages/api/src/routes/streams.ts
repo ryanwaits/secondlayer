@@ -401,6 +401,8 @@ app.post("/:id/trigger", async (c) => {
 });
 
 // Replay - create jobs for a block range
+const MAX_REPLAY_RANGE = 10_000;
+
 async function replayBlocks(db: ReturnType<typeof getDb>, streamId: string, fromBlock: number, toBlock: number) {
   if (typeof fromBlock !== "number" || fromBlock < 0) {
     throw new ValidationError("fromBlock must be a non-negative number");
@@ -410,6 +412,11 @@ async function replayBlocks(db: ReturnType<typeof getDb>, streamId: string, from
   }
   if (fromBlock > toBlock) {
     throw new ValidationError("fromBlock must be less than or equal to toBlock");
+  }
+  if (toBlock - fromBlock + 1 > MAX_REPLAY_RANGE) {
+    throw new ValidationError(
+      `Block range too large (max ${MAX_REPLAY_RANGE}). Requested: ${toBlock - fromBlock + 1}`
+    );
   }
 
   const availableBlocks = await db
@@ -476,6 +483,8 @@ app.post("/:id/replay-failed", async (c) => {
 
   await assertStreamOwnership(db, id, keyIds);
 
+  const MAX_FAILED_REPLAY = 10_000;
+
   const failedDeliveryBlocks = await db
     .selectFrom("deliveries")
     .select("block_height")
@@ -483,6 +492,7 @@ app.post("/:id/replay-failed", async (c) => {
     .where("stream_id", "=", id)
     .where("status", "=", "failed")
     .orderBy("block_height", "asc")
+    .limit(MAX_FAILED_REPLAY)
     .execute();
 
   if (failedDeliveryBlocks.length === 0) {
@@ -493,6 +503,16 @@ app.post("/:id/replay-failed", async (c) => {
     });
   }
 
+  // Check if there are more beyond the limit
+  const totalFailed = failedDeliveryBlocks.length === MAX_FAILED_REPLAY
+    ? (await db
+        .selectFrom("deliveries")
+        .select(sql<number>`count(distinct block_height)`.as("count"))
+        .where("stream_id", "=", id)
+        .where("status", "=", "failed")
+        .executeTakeFirst())?.count ?? MAX_FAILED_REPLAY
+    : failedDeliveryBlocks.length;
+
   const jobIds: string[] = [];
   for (const { block_height } of failedDeliveryBlocks) {
     const jobId = await enqueue(id, block_height, false);
@@ -502,7 +522,10 @@ app.post("/:id/replay-failed", async (c) => {
   return c.json({
     streamId: id,
     jobCount: jobIds.length,
-    message: `Enqueued ${jobIds.length} replay jobs`,
+    totalFailed,
+    message: totalFailed > jobIds.length
+      ? `Enqueued ${jobIds.length} of ${totalFailed} failed blocks (limit ${MAX_FAILED_REPLAY})`
+      : `Enqueued ${jobIds.length} replay jobs`,
   });
 });
 
