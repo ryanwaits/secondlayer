@@ -1,5 +1,14 @@
 # @secondlayer/views
 
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [48e42ba]
+- Updated dependencies [a070de2]
+  - @secondlayer/shared@0.3.0
+  - @secondlayer/stacks@0.1.0
+
 ## 0.2.3
 
 ### Patch Changes
