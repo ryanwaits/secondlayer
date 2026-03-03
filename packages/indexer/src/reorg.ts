@@ -1,6 +1,8 @@
 import { getDb } from "@secondlayer/shared/db";
 import { sql } from "@secondlayer/shared";
 import { logger } from "@secondlayer/shared/logger";
+import type { Transaction } from "kysely";
+import type { Database } from "@secondlayer/shared/db";
 
 /**
  * Handles chain reorganizations
@@ -19,7 +21,7 @@ export async function handleReorg(
     newHash,
   });
 
-  await db.transaction().execute(async (tx) => {
+  await db.transaction().execute(async (tx: Transaction<Database>) => {
     // Mark old block as non-canonical
     await tx
       .updateTable("blocks")

@@ -14,7 +14,7 @@ export class BaseError extends Error {
     this.details = options?.details;
   }
 
-  toJSON() {
+  toJSON(): { name: string; message: string; shortMessage: string; details: string | undefined; cause: string | undefined } {
     return {
       name: this.name,
       message: this.message,

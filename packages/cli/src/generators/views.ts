@@ -15,11 +15,14 @@ export async function generateViewConsumer(
 ): Promise<string> {
   const tables = Object.entries(detail.tables);
 
+  type ColMeta = { type: string; nullable?: boolean };
+  type TableDef = { columns: Record<string, ColMeta>; endpoint: string; rowCount: number; example: string };
+
   // Build row interfaces
-  const rowInterfaces = tables.map(([tableName, tableDef]) => {
+  const rowInterfaces = tables.map(([tableName, tableDef]: [string, TableDef]) => {
     const typeName = toPascalCase(tableName) + "Row";
     const fields = Object.entries(tableDef.columns)
-      .map(([colName, colMeta]) => {
+      .map(([colName, colMeta]: [string, ColMeta]) => {
         const tsType = viewTypeToTS(colMeta.type);
         const optional = colMeta.nullable ? "?" : "";
         return `  ${colName}${optional}: ${tsType};`;
@@ -29,10 +32,10 @@ export async function generateViewConsumer(
   });
 
   // Build _schema const — must match InferViewClient's expected shape
-  const schemaColumns = tables.map(([tableName, tableDef]) => {
+  const schemaColumns = tables.map(([tableName, tableDef]: [string, TableDef]) => {
     const cols = Object.entries(tableDef.columns)
       .filter(([colName]) => !colName.startsWith("_"))
-      .map(([colName, colMeta]) => {
+      .map(([colName, colMeta]: [string, ColMeta]) => {
         const nullable = colMeta.nullable ? ", nullable: true" : "";
         return `        ${colName}: { type: '${colMeta.type}'${nullable} }`;
       })

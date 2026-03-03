@@ -1,6 +1,6 @@
 import { sql, type Kysely } from "kysely";
 import { jsonb } from "../jsonb.ts";
-import type { Database } from "../types.ts";
+import type { Database, View } from "../types.ts";
 
 /**
  * Convert a view name to its PostgreSQL schema name.
@@ -27,7 +27,7 @@ export async function registerView(
     apiKeyId?: string;
     schemaName?: string;
   },
-) {
+): Promise<View> {
   return await db
     .insertInto("views")
     .values({
@@ -53,7 +53,7 @@ export async function registerView(
     .executeTakeFirstOrThrow();
 }
 
-export async function getView(db: Kysely<Database>, name: string, apiKeyId?: string) {
+export async function getView(db: Kysely<Database>, name: string, apiKeyId?: string): Promise<View | null> {
   let query = db
     .selectFrom("views")
     .selectAll()
@@ -66,7 +66,7 @@ export async function getView(db: Kysely<Database>, name: string, apiKeyId?: str
   return (await query.executeTakeFirst()) ?? null;
 }
 
-export async function listViews(db: Kysely<Database>, apiKeyId?: string) {
+export async function listViews(db: Kysely<Database>, apiKeyId?: string): Promise<View[]> {
   let query = db.selectFrom("views").selectAll();
   if (apiKeyId) {
     query = query.where("api_key_id", "=", apiKeyId);
@@ -79,7 +79,7 @@ export async function updateViewStatus(
   name: string,
   status: string,
   lastProcessedBlock?: number,
-) {
+): Promise<void> {
   await db
     .updateTable("views")
     .set({
@@ -97,7 +97,7 @@ export async function recordViewProcessed(
   processed: number,
   errors: number,
   lastError?: string,
-) {
+): Promise<void> {
   await db
     .updateTable("views")
     .set({
@@ -116,7 +116,7 @@ export async function updateViewHandlerPath(
   db: Kysely<Database>,
   name: string,
   handlerPath: string,
-) {
+): Promise<void> {
   await db
     .updateTable("views")
     .set({ handler_path: handlerPath, updated_at: new Date() })
@@ -124,7 +124,7 @@ export async function updateViewHandlerPath(
     .execute();
 }
 
-export async function deleteView(db: Kysely<Database>, name: string, apiKeyId?: string) {
+export async function deleteView(db: Kysely<Database>, name: string, apiKeyId?: string): Promise<View | null> {
   const view = await getView(db, name, apiKeyId);
   if (!view) return null;
 

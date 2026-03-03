@@ -244,7 +244,7 @@ export function registerViewsCommand(program: Command): void {
         const view = await getViewApi(name);
 
         const rowCounts = Object.entries(view.tables)
-          .map(([t, info]) => `${t}: ${info.rowCount}`)
+          .map(([t, info]: [string, { rowCount: number }]) => `${t}: ${info.rowCount}`)
           .join(", ") || "N/A";
 
         const errorRate = view.health.totalProcessed > 0
@@ -270,7 +270,7 @@ export function registerViewsCommand(program: Command): void {
         const tableEntries = Object.entries(view.tables);
         if (tableEntries.length > 0) {
           console.log(dim("\nTable endpoints:"));
-          for (const [_t, info] of tableEntries) {
+          for (const [_t, info] of tableEntries as [string, { endpoint: string }][]) {
             console.log(dim(`  ${info.endpoint}`));
           }
         }

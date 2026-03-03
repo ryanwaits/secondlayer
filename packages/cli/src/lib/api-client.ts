@@ -24,7 +24,7 @@ export type { ViewQueryParams } from "@secondlayer/shared/schemas";
  * Shared error handler for API calls. Prints auth hint on 401, generic message otherwise.
  */
 export function handleApiError(err: unknown, action: string): never {
-  if (err instanceof ApiError && err.status === 401) {
+  if (err instanceof ApiError && (err as { status: number }).status === 401) {
     console.error("Error: Authentication required. Run: sl auth login");
     process.exit(1);
   }

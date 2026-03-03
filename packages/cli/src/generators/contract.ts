@@ -164,26 +164,27 @@ function generateMethod(
   }`;
   }
 
-  const argsList = func.args.map((arg) => toCamelCase(arg.name)).join(", ");
+  type Arg = { name: string; type: any };
+  const argsList = func.args.map((arg: Arg) => toCamelCase(arg.name)).join(", ");
   const argsTypes = func.args
-    .map((arg) => {
+    .map((arg: Arg) => {
       const camelName = toCamelCase(arg.name);
       return `${camelName}: ${getTypeForArg(arg)}`;
     })
     .join("; ");
   const argsArray = func.args
-    .map((arg) => {
+    .map((arg: Arg) => {
       const argName = toCamelCase(arg.name);
       return generateClarityConversion(argName, arg);
     })
     .join(", ");
   const objectAccess = func.args
-    .map((arg) => {
+    .map((arg: Arg) => {
       const camelName = toCamelCase(arg.name);
       return `args[0].${camelName}`;
     })
     .join(", ");
-  const positionTypes = func.args.map((arg) => getTypeForArg(arg)).join(", ");
+  const positionTypes = func.args.map((arg: Arg) => getTypeForArg(arg)).join(", ");
 
   return `${methodName}(...args: [{ ${argsTypes} }] | [${positionTypes}]) {
     const [${argsList}] = args.length === 1 && typeof args[0] === 'object' && args[0] !== null

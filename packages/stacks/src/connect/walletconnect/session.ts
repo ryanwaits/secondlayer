@@ -150,7 +150,7 @@ export class WcSession {
     });
   }
 
-  disconnect() {
+  disconnect(): void {
     if (this.sessionData && this.sessionSymKey) {
       const id = this.nextId++;
       const payload = {

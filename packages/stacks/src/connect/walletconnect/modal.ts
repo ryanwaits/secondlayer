@@ -96,7 +96,7 @@ export function showModal(opts: ModalOptions): () => void {
   return dismiss;
 }
 
-export function hideModal() {
+export function hideModal(): void {
   if (typeof document === "undefined") return;
   document.getElementById(MODAL_ID)?.remove();
 }

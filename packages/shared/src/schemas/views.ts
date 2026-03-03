@@ -2,7 +2,17 @@ import { z } from "zod";
 
 // ── Deploy View Request ─────────────────────────────────────────────────
 
-export const DeployViewRequestSchema = z.object({
+export interface DeployViewRequest {
+  name: string;
+  version?: string;
+  description?: string;
+  sources: string[];
+  schema: Record<string, unknown>;
+  handlerCode: string;
+  reindex?: boolean;
+}
+
+export const DeployViewRequestSchema: z.ZodType<DeployViewRequest> = z.object({
   name: z.string().regex(/^[a-z0-9-]+$/, "lowercase alphanumeric + hyphens only").max(63),
   version: z.string().optional(),
   description: z.string().optional(),
@@ -11,8 +21,6 @@ export const DeployViewRequestSchema = z.object({
   handlerCode: z.string().max(1_048_576, "handler code exceeds 1MB limit"),
   reindex: z.boolean().optional(),
 });
-
-export type DeployViewRequest = z.infer<typeof DeployViewRequestSchema>;
 
 export interface DeployViewResponse {
   action: "created" | "unchanged" | "updated" | "reindexed";

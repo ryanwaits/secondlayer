@@ -71,7 +71,7 @@ export function validateDocs(doc: ContractDoc, abi?: AbiContract): ValidationRes
     diagnostics.push(...tagDiagnostics);
 
     // Validate function doc content
-    const funcDiagnostics = validateFunctionDoc(funcDoc, abi?.functions.find((f) => f.name === name));
+    const funcDiagnostics = validateFunctionDoc(funcDoc, abi?.functions.find((f: AbiFunction) => f.name === name));
     diagnostics.push(...funcDiagnostics);
   }
 
@@ -185,7 +185,7 @@ function validateFunctionDoc(funcDoc: FunctionDoc, abiFunc?: AbiFunction): Diagn
 
   // Validate @param against ABI (if available)
   if (abiFunc) {
-    const abiArgNames = new Set(abiFunc.args.map((a) => a.name));
+    const abiArgNames = new Set(abiFunc.args.map((a: { name: string }) => a.name));
     const docArgNames = new Set(funcDoc.params.map((p) => p.name));
 
     // Check for documented params that don't exist
@@ -243,15 +243,15 @@ export interface CoverageMetrics {
 
 /** Calculate documentation coverage */
 export function calculateCoverage(doc: ContractDoc, abi: AbiContract): CoverageMetrics {
-  const publicFunctions = abi.functions.filter((f) => f.access !== "private");
+  const publicFunctions = abi.functions.filter((f: AbiFunction) => f.access !== "private");
   const totalFunctions = publicFunctions.length;
-  const documentedFunctions = publicFunctions.filter((f) => doc.functions.has(f.name)).length;
+  const documentedFunctions = publicFunctions.filter((f: AbiFunction) => doc.functions.has(f.name)).length;
 
   const totalMaps = abi.maps?.length || 0;
-  const documentedMaps = (abi.maps || []).filter((m) => doc.maps.has(m.name)).length;
+  const documentedMaps = (abi.maps || []).filter((m: { name: string }) => doc.maps.has(m.name)).length;
 
   const totalVariables = abi.variables?.length || 0;
-  const documentedVariables = (abi.variables || []).filter((v) => {
+  const documentedVariables = (abi.variables || []).filter((v: { name: string; access: string }) => {
     const isConstant = v.access === "constant";
     const docMap = isConstant ? doc.constants : doc.variables;
     return docMap.has(v.name);

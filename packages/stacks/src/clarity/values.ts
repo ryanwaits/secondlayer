@@ -126,7 +126,29 @@ export function stringUtf8CV(value: string): StringUtf8CV {
 
 // Cl namespace — clean API
 
-export const Cl = {
+export const Cl: {
+  readonly int: (value: IntegerType) => IntCV;
+  readonly uint: (value: IntegerType) => UIntCV;
+  readonly bool: (v: boolean) => BooleanCV;
+  principal(address: string): StandardPrincipalCV | ContractPrincipalCV;
+  address(address: string): StandardPrincipalCV | ContractPrincipalCV;
+  readonly contractPrincipal: (address: string, contractName: string) => ContractPrincipalCV;
+  readonly standardPrincipal: (address: string) => StandardPrincipalCV;
+  readonly buffer: (buffer: Uint8Array) => BufferCV;
+  readonly bufferFromHex: (hex: string) => BufferCV;
+  readonly bufferFromAscii: (ascii: string) => BufferCV;
+  readonly bufferFromUtf8: (utf8: string) => BufferCV;
+  readonly none: () => NoneCV;
+  readonly some: (value: ClarityValue) => SomeCV;
+  readonly ok: (value: ClarityValue) => ResponseOkCV;
+  readonly error: (value: ClarityValue) => ResponseErrorCV;
+  readonly list: (values: ClarityValue[]) => ListCV;
+  readonly tuple: (data: TupleData) => TupleCV;
+  readonly stringAscii: (value: string) => StringAsciiCV;
+  readonly stringUtf8: (value: string) => StringUtf8CV;
+  serialize(value: ClarityValue): string;
+  readonly deserialize: (bytes: Uint8Array) => ClarityValue;
+} = {
   int: intCV,
   uint: uintCV,
   bool: boolCV,
@@ -135,15 +157,15 @@ export const Cl = {
     if (!addr) throw new Error("Invalid principal address");
     return name ? contractPrincipalCV(addr, name) : standardPrincipalCV(addr);
   },
-  address(address: string) {
+  address(address: string): StandardPrincipalCV | ContractPrincipalCV {
     return Cl.principal(address);
   },
   contractPrincipal: contractPrincipalCV,
   standardPrincipal: standardPrincipalCV,
   buffer: bufferCV,
-  bufferFromHex: (hex: string) => bufferCV(hexToBytes(hex)),
-  bufferFromAscii: (ascii: string) => bufferCV(asciiToBytes(ascii)),
-  bufferFromUtf8: (utf8: string) => bufferCV(utf8ToBytes(utf8)),
+  bufferFromHex: (hex: string): BufferCV => bufferCV(hexToBytes(hex)),
+  bufferFromAscii: (ascii: string): BufferCV => bufferCV(asciiToBytes(ascii)),
+  bufferFromUtf8: (utf8: string): BufferCV => bufferCV(utf8ToBytes(utf8)),
   none: noneCV,
   some: someCV,
   ok: responseOkCV,

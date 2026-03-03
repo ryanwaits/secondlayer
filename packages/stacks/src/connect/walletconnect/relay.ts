@@ -108,7 +108,7 @@ export class WcRelay {
     topic: string,
     message: string,
     tag: number,
-    ttl = DEFAULT_TTL,
+    ttl: number = DEFAULT_TTL,
   ): Promise<void> {
     await this.connect();
     await this.rpc("irn_publish", {
@@ -126,7 +126,7 @@ export class WcRelay {
     symKey: Uint8Array,
     payload: unknown,
     tag: number,
-    ttl = DEFAULT_TTL,
+    ttl: number = DEFAULT_TTL,
   ): Promise<void> {
     const plaintext = JSON.stringify(payload);
     const envelope = encryptType0(symKey, plaintext);
@@ -223,7 +223,7 @@ export class WcRelay {
     }, delay);
   }
 
-  destroy() {
+  destroy(): void {
     this.destroyed = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     if (this.connectReject) {

@@ -25,7 +25,7 @@ const EC_PARAMS: [number, number, number][] = [
 
 function selectVersion(len: number): number {
   for (let v = 1; v <= 10; v++) {
-    if (len <= CAPACITIES[v]) return v;
+    if (len <= CAPACITIES[v]!) return v;
   }
   throw new Error("QR data too long");
 }
@@ -40,12 +40,12 @@ const GF_LOG = new Uint8Array(256);
     GF_LOG[x] = i;
     x = (x << 1) ^ (x >= 128 ? 0x11d : 0);
   }
-  for (let i = 255; i < 512; i++) GF_EXP[i] = GF_EXP[i - 255];
+  for (let i = 255; i < 512; i++) GF_EXP[i] = GF_EXP[i - 255]!;
 }
 
 function gfMul(a: number, b: number): number {
   if (a === 0 || b === 0) return 0;
-  return GF_EXP[GF_LOG[a] + GF_LOG[b]];
+  return GF_EXP[GF_LOG[a]! + GF_LOG[b]!]!;
 }
 
 function rsGenPoly(n: number): Uint8Array {
@@ -53,8 +53,8 @@ function rsGenPoly(n: number): Uint8Array {
   for (let i = 0; i < n; i++) {
     const next = new Uint8Array(poly.length + 1);
     for (let j = 0; j < poly.length; j++) {
-      next[j] ^= poly[j];
-      next[j + 1] ^= gfMul(poly[j], GF_EXP[i]);
+      next[j] = next[j]! ^ poly[j]!;
+      next[j + 1] = next[j + 1]! ^ gfMul(poly[j]!, GF_EXP[i]!);
     }
     poly = next;
   }
@@ -66,17 +66,17 @@ function rsEncode(data: Uint8Array, ecLen: number): Uint8Array {
   const result = new Uint8Array(data.length + ecLen);
   result.set(data);
   for (let i = 0; i < data.length; i++) {
-    const coef = result[i];
+    const coef = result[i]!;
     if (coef === 0) continue;
     for (let j = 0; j < gen.length; j++) {
-      result[i + j] ^= gfMul(gen[j], coef);
+      result[i + j] = result[i + j]! ^ gfMul(gen[j]!, coef);
     }
   }
   return result.subarray(data.length);
 }
 
 function encodeData(bytes: Uint8Array, version: number): Uint8Array {
-  const [totalCw, ecPerBlock, numBlocks] = EC_PARAMS[version];
+  const [totalCw, ecPerBlock, numBlocks] = EC_PARAMS[version]!;
   const dataCw = totalCw - ecPerBlock * numBlocks;
 
   // Build byte-mode bitstream
@@ -99,7 +99,7 @@ function encodeData(bytes: Uint8Array, version: number): Uint8Array {
     let byte = 0;
     for (let j = 0; j < 8; j++) {
       const idx = i * 8 + j;
-      byte = (byte << 1) | (idx < bits.length ? bits[idx] : 0);
+      byte = (byte << 1) | (idx < bits.length ? bits[idx]! : 0);
     }
     codewords[i] = byte;
   }
@@ -129,12 +129,12 @@ function encodeData(bytes: Uint8Array, version: number): Uint8Array {
   const maxDataLen = Math.max(...dataBlocks.map((b) => b.length));
   for (let i = 0; i < maxDataLen; i++) {
     for (const block of dataBlocks) {
-      if (i < block.length) result.push(block[i]);
+      if (i < block.length) result.push(block[i]!);
     }
   }
   for (let i = 0; i < ecPerBlock; i++) {
     for (const block of ecBlocks) {
-      if (i < block.length) result.push(block[i]);
+      if (i < block.length) result.push(block[i]!);
     }
   }
 
@@ -151,8 +151,8 @@ function createMatrix(size: number): Matrix {
 
 function setModule(m: Matrix, r: number, c: number, val: number, reserved: Matrix) {
   if (r >= 0 && r < m.length && c >= 0 && c < m.length) {
-    m[r][c] = val;
-    reserved[r][c] = 1;
+    m[r]![c] = val;
+    reserved[r]![c] = 1;
   }
 }
 
@@ -173,8 +173,8 @@ function addFinderPattern(m: Matrix, r: number, c: number, res: Matrix) {
 function addTimingPatterns(m: Matrix, res: Matrix) {
   for (let i = 8; i < m.length - 8; i++) {
     const val = i % 2 === 0 ? 1 : 0;
-    if (!res[6][i]) setModule(m, 6, i, val, res);
-    if (!res[i][6]) setModule(m, i, 6, val, res);
+    if (!res[6]![i]) setModule(m, 6, i, val, res);
+    if (!res[i]![6]) setModule(m, i, 6, val, res);
   }
 }
 
@@ -217,13 +217,13 @@ function placeData(m: Matrix, res: Matrix, data: Uint8Array) {
     for (const row of rows) {
       for (const dc of [0, -1]) {
         const c = col + dc;
-        if (c < 0 || res[row][c]) continue;
+        if (c < 0 || res[row]![c]) continue;
         if (bitIdx < totalBits) {
           const byteIdx = bitIdx >> 3;
           const bitPos = 7 - (bitIdx & 7);
-          const bit = (data[byteIdx] >> bitPos) & 1;
+          const bit = (data[byteIdx]! >> bitPos) & 1;
           // Apply mask 0: (row + col) % 2 === 0
-          m[row][c] = bit ^ ((row + c) % 2 === 0 ? 1 : 0);
+          m[row]![c] = bit ^ ((row + c) % 2 === 0 ? 1 : 0);
           bitIdx++;
         }
       }
@@ -288,7 +288,7 @@ export function qrSvg(data: string, opts?: { size?: number; dark?: string; light
   let paths = "";
   for (let r = 0; r < n; r++) {
     for (let c = 0; c < n; c++) {
-      if (matrix[r][c]) {
+      if (matrix[r]![c]) {
         const x = (c + quiet) * scale;
         const y = (r + quiet) * scale;
         paths += `M${x},${y}h${scale}v${scale}h-${scale}z`;

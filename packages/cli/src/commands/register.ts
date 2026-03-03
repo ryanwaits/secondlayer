@@ -4,16 +4,6 @@ import { createStream, updateStreamByName, ApiError, handleApiError } from "../l
 import { success, error, warn, formatKeyValue, dim } from "../lib/output.ts";
 import { fileExists, readJsonFile } from "../lib/fs.ts";
 
-// Define the CreateStream interface locally since the shared package build types it as unknown
-interface CreateStreamData {
-  name: string;
-  webhookUrl: string;
-  filters: unknown[];
-  options?: unknown;
-  startBlock?: number;
-  endBlock?: number;
-}
-
 export function registerRegisterCommand(program: Command): void {
   program
     .command("register <file>")
@@ -27,8 +17,7 @@ export function registerRegisterCommand(program: Command): void {
         }
 
         const content = await readJsonFile<unknown>(filePath);
-        // CreateStreamSchema is typed as unknown in the build output but works at runtime
-        const parsed = (CreateStreamSchema as { safeParse: (data: unknown) => { success: true; data: CreateStreamData } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } } }).safeParse(content);
+        const parsed = CreateStreamSchema.safeParse(content);
 
         if (!parsed.success) {
           error("Invalid stream configuration:");
@@ -52,7 +41,7 @@ export function registerRegisterCommand(program: Command): void {
             );
             return;
           } catch (err) {
-            if (err instanceof ApiError && err.status === 404) {
+            if (err instanceof ApiError && (err as { status: number }).status === 404) {
               warn("Stream not found, creating new...");
               // Fall through to create
             } else {

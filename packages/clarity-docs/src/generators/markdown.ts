@@ -2,7 +2,7 @@
  * Generate Markdown documentation from ClarityDoc
  */
 
-import type { AbiContract } from "@secondlayer/stacks/clarity";
+import type { AbiContract, AbiMap, AbiVariable } from "@secondlayer/stacks/clarity";
 import type { ContractDoc, FunctionDoc, MapDoc, VariableDoc } from "../types/doc-block";
 
 /** Options for markdown generation */
@@ -88,7 +88,7 @@ export function generateMarkdown(doc: ContractDoc, abi?: AbiContract, options: M
     lines.push("");
 
     for (const func of functions) {
-      lines.push(...generateFunctionMarkdown(func, abi?.functions.find((f) => f.name === func.functionName), includeTypes));
+      lines.push(...generateFunctionMarkdown(func, abi?.functions.find((f: AbiContract["functions"][number]) => f.name === func.functionName), includeTypes));
       lines.push("");
     }
   }
@@ -99,7 +99,7 @@ export function generateMarkdown(doc: ContractDoc, abi?: AbiContract, options: M
     lines.push("");
 
     for (const map of doc.maps.values()) {
-      lines.push(...generateMapMarkdown(map, abi?.maps?.find((m) => m.name === map.mapName), includeTypes));
+      lines.push(...generateMapMarkdown(map, abi?.maps?.find((m: { name: string }) => m.name === map.mapName), includeTypes));
       lines.push("");
     }
   }
@@ -124,12 +124,12 @@ export function generateMarkdown(doc: ContractDoc, abi?: AbiContract, options: M
     lines.push("");
 
     for (const variable of regularConstants) {
-      lines.push(...generateVariableMarkdown(variable, abi?.variables?.find((v) => v.name === variable.variableName), includeTypes));
+      lines.push(...generateVariableMarkdown(variable, abi?.variables?.find((v: { name: string }) => v.name === variable.variableName), includeTypes));
       lines.push("");
     }
 
     for (const variable of doc.variables.values()) {
-      lines.push(...generateVariableMarkdown(variable, abi?.variables?.find((v) => v.name === variable.variableName), includeTypes));
+      lines.push(...generateVariableMarkdown(variable, abi?.variables?.find((v: { name: string }) => v.name === variable.variableName), includeTypes));
       lines.push("");
     }
   }
@@ -174,7 +174,7 @@ function generateFunctionMarkdown(
     lines.push("|------|------|-------------|");
 
     for (const param of func.params) {
-      const abiArg = abiFunc?.args.find((a) => a.name === param.name);
+      const abiArg = abiFunc?.args.find((a: { name: string }) => a.name === param.name);
       const typeStr = includeTypes && abiArg ? `\`${formatType(abiArg.type)}\`` : "-";
       lines.push(`| \`${param.name}\` | ${typeStr} | ${param.description} |`);
     }
@@ -253,7 +253,7 @@ function generateFunctionMarkdown(
 
 function generateMapMarkdown(
   map: MapDoc,
-  abiMap?: AbiContract["maps"] extends readonly (infer T)[] | undefined ? T : never,
+  abiMap?: AbiMap,
   includeTypes = true
 ): string[] {
   const lines: string[] = [];
@@ -294,7 +294,7 @@ function generateMapMarkdown(
 
 function generateVariableMarkdown(
   variable: VariableDoc,
-  abiVar?: AbiContract["variables"] extends readonly (infer T)[] | undefined ? T : never,
+  abiVar?: AbiVariable,
   includeTypes = true
 ): string[] {
   const lines: string[] = [];

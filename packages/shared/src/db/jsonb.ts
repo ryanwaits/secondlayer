@@ -1,11 +1,11 @@
-import { sql } from "kysely";
+import { sql, type RawBuilder } from "kysely";
 
 /**
  * Safely encode a JS value as a JSONB literal for Kysely inserts/updates.
  * Kysely + postgres.js double-encodes JSON when using parameterized queries
  * with ::jsonb casts. This uses sql.raw to inline a properly escaped literal.
  */
-export function jsonb(value: unknown) {
+export function jsonb(value: unknown): RawBuilder<unknown> {
   const escaped = JSON.stringify(value).replace(/'/g, "''");
   return sql`${sql.raw(`'${escaped}'::jsonb`)}`;
 }

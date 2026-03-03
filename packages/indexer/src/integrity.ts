@@ -61,7 +61,7 @@ async function runIntegrityCheck() {
     logger.info("Integrity check: gaps detected", {
       gapCount: gaps.length,
       totalMissing: missing,
-      ranges: gaps.slice(0, 5).map((g) => `${g.gapStart}-${g.gapEnd}`),
+      ranges: gaps.slice(0, 5).map((g: Gap) => `${g.gapStart}-${g.gapEnd}`),
     });
 
     // Task 4.2: Auto-backfill if enabled

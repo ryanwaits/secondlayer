@@ -12,7 +12,7 @@ export function validateStacksAddress(address: string): boolean {
 }
 
 /** Alias for validateStacksAddress — matches future.md naming. */
-export const isValidAddress = validateStacksAddress;
+export const isValidAddress: (address: string) => boolean = validateStacksAddress;
 
 export function parseContractId(contractId: string): [string, string] {
   const [address, name] = contractId.split(".");

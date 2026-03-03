@@ -22,7 +22,7 @@ function buildViewQueryString(params: ViewQueryParams): string {
   if (params.fields) qs.set("_fields", params.fields);
   if (params.filters) {
     for (const [key, value] of Object.entries(params.filters)) {
-      qs.set(key, value);
+      qs.set(key, String(value));
     }
   }
   const str = qs.toString();

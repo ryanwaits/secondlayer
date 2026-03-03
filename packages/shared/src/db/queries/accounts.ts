@@ -32,7 +32,7 @@ export async function createMagicLink(
   db: Kysely<Database>,
   email: string,
   token: string,
-  expiresInMs = 15 * 60 * 1000,
+  expiresInMs: number = 15 * 60 * 1000,
 ): Promise<void> {
   await db
     .insertInto("magic_links")
