@@ -6,7 +6,9 @@ services:
     image: kylemanna/bitcoind:latest
     volumes:
       - ${BITCOIN_DATA_DIR:-/data/bitcoin}:/bitcoin/.bitcoin
-      - ./bitcoin.conf:/bitcoin/.bitcoin/bitcoin.conf:ro
+      # Note: bitcoin.conf must be copied into BITCOIN_DATA_DIR before starting.
+      # The kylemanna/bitcoind image chowns the data dir to UID 1000 on startup,
+      # so also run: chown -R 1000:1000 $BITCOIN_DATA_DIR
     ports:
       - "8333:8333"
     deploy:
