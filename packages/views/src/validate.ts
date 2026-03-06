@@ -1,36 +1,5 @@
 import { z } from "zod";
-
-export type ColumnType = "text" | "uint" | "int" | "principal" | "boolean" | "timestamp" | "jsonb";
-
-export interface ViewColumn {
-  type: ColumnType;
-  nullable?: boolean;
-  indexed?: boolean;
-  default?: string | number | boolean;
-}
-
-export interface ViewTable {
-  columns: Record<string, ViewColumn>;
-  indexes?: string[][];
-  uniqueKeys?: string[][];
-}
-
-export interface ViewSource {
-  contract?: string;
-  event?: string;
-  function?: string;
-  type?: string;
-  minAmount?: bigint;
-}
-
-export interface ViewDefinition {
-  name: string;
-  version?: string;
-  description?: string;
-  sources: ViewSource[];
-  schema: Record<string, ViewTable>;
-  handlers: Record<string, (...args: unknown[]) => unknown>;
-}
+import type { ColumnType, ViewColumn, ViewTable, ViewSource, ViewDefinition } from "./types.ts";
 
 export const ViewNameSchema: z.ZodType<string> = z
   .string()
