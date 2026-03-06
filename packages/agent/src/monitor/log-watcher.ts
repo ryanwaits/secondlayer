@@ -17,8 +17,8 @@ export class LogWatcher {
   private running = false;
   private onMatch: MatchCallback;
 
-  // Skip stacks-node (too verbose, RPC only)
-  private static SKIP_CONTAINERS = ["secondlayer-stacks-node-1"];
+  // stacks-node runs on the remote node server — docker logs not accessible from app server
+  private static REMOTE_SERVICES = ["stacks-node"];
 
   constructor(onMatch: MatchCallback) {
     this.onMatch = onMatch;
@@ -28,7 +28,10 @@ export class LogWatcher {
     this.running = true;
 
     for (const svc of services) {
-      if (LogWatcher.SKIP_CONTAINERS.includes(svc.container)) continue;
+      if (LogWatcher.REMOTE_SERVICES.includes(svc.name)) {
+        console.log(`[log-watcher] Skipping ${svc.name} — runs on remote node server, docker logs not available`);
+        continue;
+      }
       this.spawnWatcher(svc.name, svc.container);
     }
   }

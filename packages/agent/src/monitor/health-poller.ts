@@ -10,7 +10,8 @@ async function fetchJson<T>(url: string): Promise<T> {
 export async function pollHealth(): Promise<HealthStatus> {
   const indexerHost = process.env.INDEXER_URL ?? "http://indexer:3700";
   const apiHost = process.env.API_URL ?? "http://api:3800";
-  const stacksNodeHost = process.env.STACKS_NODE_URL ?? "http://stacks-node:20443";
+  const nodeServerUrl = process.env.NODE_SERVER_URL ?? "http://37.27.171.220";
+  const stacksNodeHost = process.env.STACKS_NODE_URL ?? `${nodeServerUrl}:20443`;
 
   const [indexer, api, stacksNode, integrity] = await Promise.allSettled([
     fetchJson<{ lastSeenHeight?: number }>(`${indexerHost}/health`),
@@ -18,6 +19,30 @@ export async function pollHealth(): Promise<HealthStatus> {
     fetchJson<{ stacks_tip_height?: number; burn_block_height?: number }>(`${stacksNodeHost}/v2/info`),
     fetchJson<{ gaps?: number; totalMissing?: number }>(`${indexerHost}/health/integrity`),
   ]);
+
+  // Distinguish node server network unreachability from a crashed local container
+  let stacksNodeResult: HealthStatus["stacksNode"];
+  if (stacksNode.status === "fulfilled") {
+    stacksNodeResult = {
+      ok: true,
+      tipHeight: stacksNode.value.stacks_tip_height,
+      burnHeight: stacksNode.value.burn_block_height,
+    };
+  } else {
+    const reason = String((stacksNode as PromiseRejectedResult).reason);
+    const isNetworkError =
+      reason.includes("ECONNREFUSED") ||
+      reason.includes("ENOTFOUND") ||
+      reason.includes("ETIMEDOUT") ||
+      reason.includes("fetch failed") ||
+      reason.includes("NetworkError");
+    if (isNetworkError) {
+      console.warn(`[health-poller] Node server unreachable at ${stacksNodeHost}: ${reason}`);
+      stacksNodeResult = { ok: false, error: "node_server_unreachable" };
+    } else {
+      stacksNodeResult = { ok: false, error: reason };
+    }
+  }
 
   return {
     indexer:
@@ -28,10 +53,7 @@ export async function pollHealth(): Promise<HealthStatus> {
       api.status === "fulfilled"
         ? { ok: true }
         : { ok: false, error: String((api as PromiseRejectedResult).reason) },
-    stacksNode:
-      stacksNode.status === "fulfilled"
-        ? { ok: true, tipHeight: stacksNode.value.stacks_tip_height, burnHeight: stacksNode.value.burn_block_height }
-        : { ok: false, error: String((stacksNode as PromiseRejectedResult).reason) },
+    stacksNode: stacksNodeResult,
     integrity:
       integrity.status === "fulfilled"
         ? { ok: true, gaps: integrity.value.gaps, totalMissing: integrity.value.totalMissing }
@@ -39,6 +61,7 @@ export async function pollHealth(): Promise<HealthStatus> {
   };
 }
 
+// collectSystemMetrics covers app server containers only (node server containers are not accessible via Docker)
 export async function collectSystemMetrics(): Promise<SystemMetrics> {
   // Disk
   const dfResult = Bun.spawnSync(["df", "-B1", "/"]);

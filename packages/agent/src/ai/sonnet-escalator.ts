@@ -23,9 +23,11 @@ const FALLBACK: SonnetDiagnosis = {
 };
 
 // Bash command allowlist patterns
+// Note: docker commands only work for app server containers; node server (stacks-node, bitcoind) must be checked via curl
 const ALLOWED_BASH_PATTERNS = [
   /^docker\s+(logs|stats|inspect|ps)\b/,
   /^curl\s+-s\s+http:\/\/localhost/,
+  /^curl\s+-s\s+http:\/\/37\.27\.171\.220/,
   /^df\b/,
   /^free\b/,
   /^docker\s+exec\s+\S+\s+psql\s+.*-c\s+"SELECT\b/,
@@ -35,19 +37,33 @@ function isBashAllowed(command: string): boolean {
   return ALLOWED_BASH_PATTERNS.some((p) => p.test(command.trim()));
 }
 
+const NODE_SERVER_URL = process.env.NODE_SERVER_URL ?? "http://37.27.171.220";
+
 const SYSTEM_PROMPT = `You are a senior DevOps engineer diagnosing issues in a Stacks blockchain indexing system.
 
-Service topology:
-- stacks-node: Blockchain node (port 20443) — NEVER restart
-- postgres: Main DB (port 5432) — WARN before restart
-- hiro-postgres: Hiro API DB (port 5433) — WARN before restart
+Service topology (two-server):
+App server (this machine):
 - indexer: Block indexer (port 3700) — safe to restart
 - api: REST API (port 3800) — safe to restart
 - worker: Job processor — safe to restart
 - view-processor: View computation — safe to restart
+- postgres: Main DB (port 5432) — WARN before restart
 - caddy: Reverse proxy — safe to restart
+- agent: This monitoring agent
 
-You have access to Bash (docker logs/stats/inspect, curl localhost, df, free, psql SELECT queries).
+Node server (remote, ${NODE_SERVER_URL}):
+- bitcoind: Bitcoin Core (port 8332 RPC, 8333 P2P) — monitored via HTTP only
+- stacks-node: Stacks blockchain node (port 20443 RPC, 20444 P2P) — monitored via HTTP only
+  NOTE: Cannot restart node server services — they run on a separate physical machine.
+  docker logs, docker restart, docker stats do NOT work for node server containers.
+  To check stacks-node: curl -s ${NODE_SERVER_URL}:20443/v2/info
+
+You have access to Bash:
+- docker logs/stats/inspect/ps — app server containers only
+- curl -s http://localhost/... — app server endpoints
+- curl -s ${NODE_SERVER_URL}:20443/v2/info — check stacks-node status
+- df, free — system metrics
+- docker exec <container> psql ... -c "SELECT ..." — postgres queries
 Investigate the issue, then provide your diagnosis as a JSON object.
 
 Server context:
@@ -55,7 +71,7 @@ Server context:
 - Compose cmd: docker compose -f docker-compose.yml -f docker-compose.hetzner.yml
 - Data dir: /opt/secondlayer/data
 - Backup scripts: /opt/secondlayer/docker/scripts/
-- Restore: bash /opt/secondlayer/docker/scripts/restore-from-snapshot.sh [--hiro] [--verify-only]
+- Restore: bash /opt/secondlayer/docker/scripts/restore-from-snapshot.sh [--verify-only]
 - Container prefix: secondlayer-<service>-1
 
 {
