@@ -87,7 +87,7 @@ export async function deposit(client: Client, params: DepositParams): Promise<st
 export async function initWithdraw(client: Client, params: InitWithdrawParams): Promise<string> {
   const core = getCoreContract(client);
   const ststx = STACKINGDAO_CONTRACTS.ststxToken;
-  return core.call["init-withdraw"](
+  return core.call.initWithdraw(
     {
       reserve: traits.reserve,
       directHelpers: traits.directHelpers,
@@ -116,7 +116,7 @@ export async function withdraw(client: Client, params: WithdrawParams): Promise<
 export async function withdrawIdle(client: Client, params: WithdrawIdleParams): Promise<string> {
   const core = getCoreContract(client);
   const ststx = STACKINGDAO_CONTRACTS.ststxToken;
-  return core.call["withdraw-idle"](
+  return core.call.withdrawIdle(
     {
       reserve: traits.reserve,
       directHelpers: traits.directHelpers,
@@ -138,7 +138,7 @@ export async function withdrawIdle(client: Client, params: WithdrawIdleParams): 
 
 export async function getStSTXBalance(client: Client, address: string): Promise<bigint> {
   const token = getStstxToken(client);
-  return (await token.read["get-balance"]({ account: address })) as bigint;
+  return (await token.read.getBalance({ account: address })) as bigint;
 }
 
 export async function getExchangeRate(client: Client): Promise<ExchangeRateInfo> {
@@ -146,11 +146,11 @@ export async function getExchangeRate(client: Client): Promise<ExchangeRateInfo>
   const dataV3 = getDataCoreV3(client);
 
   const [totalStx, ststxSupply] = await Promise.all([
-    reserve.read["get-total-stx"]({}) as Promise<bigint>,
+    reserve.read.getTotalStx({}) as Promise<bigint>,
     getTotalSupply(client),
   ]);
 
-  const stxPerStstx = (await dataV3.read["get-stx-per-ststx-helper"]({
+  const stxPerStstx = (await dataV3.read.getStxPerStstxHelper({
     stxAmount: totalStx,
   })) as bigint;
 
@@ -159,7 +159,7 @@ export async function getExchangeRate(client: Client): Promise<ExchangeRateInfo>
 
 export async function getTotalSupply(client: Client): Promise<bigint> {
   const token = getStstxToken(client);
-  return (await token.read["get-total-supply"]({})) as bigint;
+  return (await token.read.getTotalSupply({})) as bigint;
 }
 
 export async function getWithdrawalInfo(
@@ -167,7 +167,7 @@ export async function getWithdrawalInfo(
   nftId: bigint,
 ): Promise<WithdrawalInfo> {
   const dataV1 = getDataCoreV1(client);
-  return (await dataV1.read["get-withdrawals-by-nft"]({
+  return (await dataV1.read.getWithdrawalsByNft({
     nftId,
   })) as WithdrawalInfo;
 }
@@ -175,19 +175,19 @@ export async function getWithdrawalInfo(
 export async function getFees(client: Client): Promise<FeeInfo> {
   const core = getCoreContract(client);
   const [stackFee, unstackFee, withdrawIdleFee] = await Promise.all([
-    core.read["get-stack-fee"]({}) as Promise<bigint>,
-    core.read["get-unstack-fee"]({}) as Promise<bigint>,
-    core.read["get-withdraw-idle-fee"]({}) as Promise<bigint>,
+    core.read.getStackFee({}) as Promise<bigint>,
+    core.read.getUnstackFee({}) as Promise<bigint>,
+    core.read.getWithdrawIdleFee({}) as Promise<bigint>,
   ]);
   return { stackFee, unstackFee, withdrawIdleFee };
 }
 
 export async function getReserveBalance(client: Client): Promise<bigint> {
   const reserve = getReserveContract(client);
-  return (await reserve.read["get-total-stx"]({})) as bigint;
+  return (await reserve.read.getTotalStx({})) as bigint;
 }
 
 export async function getShutdownDeposits(client: Client): Promise<boolean> {
   const core = getCoreContract(client);
-  return (await core.read["get-shutdown-deposits"]({})) as boolean;
+  return (await core.read.getShutdownDeposits({})) as boolean;
 }
