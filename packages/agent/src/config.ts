@@ -21,6 +21,7 @@ export interface AgentConfig {
   services: ServiceConfig[];
   aiEnabled: boolean;
   dryRun: boolean;
+  nodeServerUrl: string;
 }
 
 export const SAFE_RESTART = [
@@ -31,7 +32,7 @@ export const SAFE_RESTART = [
   "caddy",
 ] as const;
 
-export const NEVER_RESTART = ["stacks-node"] as const;
+export const NEVER_RESTART = ["stacks-node"] as const; // runs on remote node server — cannot restart
 
 export const WARN_RESTART = ["postgres"] as const;
 
@@ -42,7 +43,7 @@ const DEFAULT_SERVICES: ServiceConfig[] = [
   { name: "view-processor", container: "secondlayer-view-processor-1", autoRestart: true },
   { name: "postgres", container: "secondlayer-postgres-1", autoRestart: false },
   { name: "caddy", container: "secondlayer-caddy-1", autoRestart: true },
-  { name: "stacks-node", container: "secondlayer-stacks-node-1", autoRestart: false },
+  // stacks-node runs on node server (remote) — not accessible via Docker DNS
 ];
 
 export function loadConfig(): AgentConfig {
@@ -68,5 +69,6 @@ export function loadConfig(): AgentConfig {
     services: DEFAULT_SERVICES,
     aiEnabled: process.env.AGENT_AI_ENABLED !== "false",
     dryRun: process.env.AGENT_DRY_RUN === "true",
+    nodeServerUrl: process.env.NODE_SERVER_URL ?? "http://37.27.171.220",
   };
 }
