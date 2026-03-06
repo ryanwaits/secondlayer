@@ -34,7 +34,7 @@ log "Installing system packages"
 apt-get update -qq && apt-get upgrade -y -qq
 apt-get install -y -qq \
   ca-certificates curl gnupg lsb-release \
-  fail2ban ufw git parted
+  fail2ban ufw git parted jq
 
 # ---------------------------------------------------------------------------
 # Docker
@@ -132,6 +132,7 @@ log "Generated Bitcoin RPC password"
 # Write .env
 # ---------------------------------------------------------------------------
 cat > "$SCRIPT_DIR/.env" <<EOF
+COMPOSE_PROJECT_NAME=secondlayer
 BITCOIN_DATA_DIR=/data/bitcoin
 STACKS_DATA_DIR=/data/stacks
 BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD}
