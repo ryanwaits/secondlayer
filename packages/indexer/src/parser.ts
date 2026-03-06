@@ -218,7 +218,7 @@ export function parseEvent(
   }
 
   // Extract the actual event data based on type (property name matches type string)
-  const eventData = (txEvent as Record<string, unknown>)[type] ?? txEvent;
+  const eventData = (txEvent as unknown as Record<string, unknown>)[type] ?? txEvent;
 
   return {
     tx_id: txid,
