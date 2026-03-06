@@ -12,7 +12,7 @@ import type {
   ExtractMapKey,
   ExtractMapValue,
 } from "../clarity/abi/index.ts";
-import { toCamelCase } from "../clarity/abi/utils.ts";
+import { toCamelCase, type ToCamelCase } from "../clarity/abi/utils.ts";
 import { jsToClarityValue, clarityValueToJSUntyped } from "../clarity/bridge.ts";
 import { readContract } from "./public/readContract.ts";
 import { callContract } from "./wallet/callContract.ts";
@@ -34,29 +34,23 @@ type ReadMethodReturn<
 // --- Public type for the contract instance ---
 
 type ReadMethods<C extends AbiContract> = {
-  [N in ExtractReadOnlyFunctions<C> as ToCamelCaseName<N>]: (
+  [N in ExtractReadOnlyFunctions<C> as ToCamelCase<N>]: (
     args: ExtractFunctionArgs<C, N>,
   ) => Promise<ReadMethodReturn<C, N>>;
 };
 
 type CallMethods<C extends AbiContract> = {
-  [N in ExtractPublicFunctions<C> as ToCamelCaseName<N>]: (
+  [N in ExtractPublicFunctions<C> as ToCamelCase<N>]: (
     args: ExtractFunctionArgs<C, N>,
     options?: ContractCallOptions,
   ) => Promise<string>;
 };
 
 type MapMethods<C extends AbiContract> = {
-  [N in ExtractMapNames<C> as ToCamelCaseName<N>]: (
+  [N in ExtractMapNames<C> as ToCamelCase<N>]: (
     key: ExtractMapKey<C, N>,
   ) => Promise<ExtractMapValue<C, N> | null>;
 };
-
-type ToCamelCaseName<S extends string> = S extends string
-  ? ReturnType<typeof toCamelCase> extends string
-    ? S
-    : S
-  : S;
 
 export type ContractCallOptions = {
   fee?: IntegerType;

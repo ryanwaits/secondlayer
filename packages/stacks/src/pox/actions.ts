@@ -33,7 +33,7 @@ function getPoxContract(client: Client) {
 /** Query current PoX network info (cycle, minimum, lengths). */
 export async function getPoxInfo(client: Client): Promise<PoxInfo> {
   const pox = getPoxContract(client);
-  return (await pox.read["get-pox-info"]({})) as PoxInfo;
+  return (await pox.read.getPoxInfo({})) as PoxInfo;
 }
 
 /** Get stacker info for an address. Returns null if not stacking. */
@@ -42,7 +42,7 @@ export async function getStackerInfo(
   address: string
 ): Promise<StackerInfo | null> {
   const pox = getPoxContract(client);
-  return (await pox.read["get-stacker-info"]({
+  return (await pox.read.getStackerInfo({
     stacker: address,
   })) as StackerInfo | null;
 }
@@ -53,7 +53,7 @@ export async function getDelegationInfo(
   address: string
 ): Promise<DelegationInfo | null> {
   const pox = getPoxContract(client);
-  return (await pox.read["get-delegation-info"]({
+  return (await pox.read.getDelegationInfo({
     stacker: address,
   })) as DelegationInfo | null;
 }
@@ -86,7 +86,7 @@ export async function stackStx(
   const poxAddr = parseBtcAddress(params.btcAddress);
   const pox = getPoxContract(client);
 
-  return pox.call["stack-stx"](
+  return pox.call.stackStx(
     {
       amountUstx: params.amount,
       poxAddr,
@@ -115,7 +115,7 @@ export async function delegateStx(
   const poxAddr = params.poxAddr ? parseBtcAddress(params.poxAddr) : null;
   const pox = getPoxContract(client);
 
-  return pox.call["delegate-stx"]({
+  return pox.call.delegateStx({
     amountUstx: params.amount,
     delegateTo: params.delegateTo,
     untilBurnHt: params.untilBurnHeight ?? null,
@@ -127,7 +127,7 @@ export async function delegateStx(
 export async function revokeDelegateStx(client: Client): Promise<string> {
   if (!client.account) throw new Error("Wallet client required");
   const pox = getPoxContract(client);
-  return pox.call["revoke-delegate-stx"]({});
+  return pox.call.revokeDelegateStx({});
 }
 
 /** Extend an active stacking lock. Requires wallet client. */
@@ -144,7 +144,7 @@ export async function stackExtend(
   const poxAddr = parseBtcAddress(params.btcAddress);
   const pox = getPoxContract(client);
 
-  return pox.call["stack-extend"]({
+  return pox.call.stackExtend({
     extendCount: BigInt(params.extendCount),
     poxAddr,
     signerSig: params.signerSig,
@@ -163,7 +163,7 @@ export async function stackIncrease(
 
   const pox = getPoxContract(client);
 
-  return pox.call["stack-increase"](
+  return pox.call.stackIncrease(
     {
       increaseBy: params.increaseBy,
       signerSig: params.signerSig,

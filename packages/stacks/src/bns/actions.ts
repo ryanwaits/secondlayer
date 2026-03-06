@@ -77,7 +77,7 @@ export async function resolveName(
   const bns = getBnsContract(client);
 
   try {
-    return (await bns.read["get-owner-name"]({
+    return (await bns.read.getOwnerName({
       name: stringToBytes(name),
       namespace: stringToBytes(namespace),
     })) as string | null;
@@ -99,7 +99,7 @@ export async function getPrimaryName(
   const bns = getBnsContract(client);
 
   try {
-    const result = (await bns.read["get-primary"]({
+    const result = (await bns.read.getPrimary({
       owner: address,
     })) as { name: Uint8Array; namespace: Uint8Array } | null;
 
@@ -134,7 +134,7 @@ export async function canRegister(
   // No can-register-name function — use can-resolve-name instead.
   // If it resolves, the name is taken. If it errors, it's available.
   try {
-    await bns.read["can-resolve-name"]({
+    await bns.read.canResolveName({
       namespace: stringToBytes(namespace),
       name: stringToBytes(name),
     });
@@ -161,7 +161,7 @@ export async function getNamePrice(
   const bns = getBnsContract(client);
 
   // get-name-price returns a nested response: (ok (ok uint))
-  const result = (await bns.read["get-name-price"]({
+  const result = (await bns.read.getNamePrice({
     namespace: stringToBytes(namespace),
     name: stringToBytes(name),
   })) as { ok: bigint } | { err: bigint };
@@ -187,7 +187,7 @@ export async function getNameId(
   const bns = getBnsContract(client);
 
   try {
-    return (await bns.read["get-id-from-bns"]({
+    return (await bns.read.getIdFromBns({
       name: stringToBytes(name),
       namespace: stringToBytes(namespace),
     })) as bigint | null;
@@ -240,7 +240,7 @@ export async function preorder(
 
   const bns = getBnsContract(client);
 
-  const txid = await bns.call["name-preorder"](
+  const txid = await bns.call.namePreorder(
     {
       hashedSaltedFqn,
       stxToBurn: price,
@@ -278,7 +278,7 @@ export async function register(
 
   const bns = getBnsContract(client);
 
-  return bns.call["name-register"]({
+  return bns.call.nameRegister({
     name: stringToBytes(name),
     namespace: stringToBytes(namespace),
     salt,
@@ -318,7 +318,7 @@ export async function claimFast(
 
   const bns = getBnsContract(client);
 
-  return bns.call["name-claim-fast"](
+  return bns.call.nameClaimFast(
     {
       name: stringToBytes(name),
       namespace: stringToBytes(namespace),
@@ -408,7 +408,7 @@ export async function setPrimary(
 
   const bns = getBnsContract(client);
 
-  return bns.call["set-primary-name"]({ primaryNameId: id });
+  return bns.call.setPrimaryName({ primaryNameId: id });
 }
 
 /**
@@ -433,7 +433,7 @@ export async function getZonefile(
   const zonefile = getZonefileContract(client);
 
   try {
-    const result = (await zonefile.read["resolve-name"]({
+    const result = (await zonefile.read.resolveName({
       name: stringToBytes(name),
       namespace: stringToBytes(namespace),
     })) as Uint8Array | null;
@@ -498,7 +498,7 @@ export async function updateZonefile(
     }
   }
 
-  return zonefileContract.call["update-zonefile"]({
+  return zonefileContract.call.updateZonefile({
     name: stringToBytes(name),
     namespace: stringToBytes(namespace),
     newZonefile: zonefileBytes,
@@ -523,7 +523,7 @@ export async function revokeZonefile(
   const { name, namespace } = parseFQN(nameOrFQN);
   const zonefileContract = getZonefileContract(client);
 
-  return zonefileContract.call["revoke-name"]({
+  return zonefileContract.call.revokeName({
     name: stringToBytes(name),
     namespace: stringToBytes(namespace),
   });

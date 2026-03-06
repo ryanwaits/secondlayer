@@ -39,7 +39,7 @@ const contract = getContract({
 });
 
 // Type-safe reads and calls
-const balance = await contract.read["get-balance"]({ account: "SP3FBR..." });
+const balance = await contract.read.getBalance({ account: "SP3FBR..." });
 const txid = await contract.call.transfer({ to: "SP3FBR...", amount: 100n });
 ```
 
