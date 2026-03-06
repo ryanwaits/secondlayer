@@ -7,6 +7,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { isValidAddress as _validateStacksAddress } from "@secondlayer/stacks";
 const validateStacksAddress = _validateStacksAddress as (address: string) => boolean;
+import { getErrorMessage } from "@secondlayer/shared";
 import { parseContractId } from "../utils/contract-id";
 import type {
   SecondLayerPlugin,
@@ -87,13 +88,12 @@ export class PluginManager {
             success: true,
           });
         } catch (error) {
-          const err = error as Error;
           this.recordHookResult(plugin.name, "transformConfig", {
             success: false,
-            error: err,
+            error: error instanceof Error ? error : new Error(getErrorMessage(error)),
           });
           throw new Error(
-            `Plugin "${plugin.name}" failed during config transformation: ${err.message}`
+            `Plugin "${plugin.name}" failed during config transformation: ${getErrorMessage(error)}`
           );
         }
       }
@@ -163,13 +163,12 @@ export class PluginManager {
               success: true,
             });
           } catch (error) {
-            const err = error as Error;
             this.recordHookResult(plugin.name, "transformContract", {
               success: false,
-              error: err,
+              error: error instanceof Error ? error : new Error(getErrorMessage(error)),
             });
             this.logger.warn(
-              `Plugin "${plugin.name}" failed to transform contract: ${err.message}`
+              `Plugin "${plugin.name}" failed to transform contract: ${getErrorMessage(error)}`
             );
           }
         }
@@ -211,13 +210,12 @@ export class PluginManager {
             success: true,
           });
         } catch (error) {
-          const err = error as Error;
           this.recordHookResult(plugin.name, hookName as string, {
             success: false,
-            error: err,
+            error: error instanceof Error ? error : new Error(getErrorMessage(error)),
           });
           this.logger.error(
-            `Plugin "${plugin.name}" failed during ${hookName as string}: ${err.message}`
+            `Plugin "${plugin.name}" failed during ${hookName as string}: ${getErrorMessage(error)}`
           );
           // Don't throw - allow other plugins to continue
         }
@@ -286,13 +284,12 @@ export class PluginManager {
               success: true,
             });
           } catch (error) {
-            const err = error as Error;
             this.recordHookResult(plugin.name, "transformOutput", {
               success: false,
-              error: err,
+              error: error instanceof Error ? error : new Error(getErrorMessage(error)),
             });
             this.logger.warn(
-              `Plugin "${plugin.name}" failed to transform output: ${err.message}`
+              `Plugin "${plugin.name}" failed to transform output: ${getErrorMessage(error)}`
             );
           }
         }
@@ -318,9 +315,8 @@ export class PluginManager {
         await this.utils.writeFile(resolvedPath, output.content);
         // Don't log here - let the main command handle success messaging
       } catch (error) {
-        const err = error as Error;
-        this.logger.error(`Failed to write ${output.path}: ${err.message}`);
-        throw err;
+        this.logger.error(`Failed to write ${output.path}: ${getErrorMessage(error)}`);
+        throw error;
       }
     }
   }

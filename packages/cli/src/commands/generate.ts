@@ -2,6 +2,7 @@ import path from "path";
 import chalk from "chalk";
 import fg from "fast-glob";
 import { toCamelCase } from "@secondlayer/stacks/clarity";
+import { getErrorMessage } from "@secondlayer/shared";
 import { loadConfig } from "../utils/config";
 import { parseContractId } from "../utils/contract-id";
 import { StacksApiClient } from "../utils/api";
@@ -151,8 +152,8 @@ async function buildConfigFromInputs(
         abi,
         _directFile: true,
       });
-    } catch (error: any) {
-      throw new Error(`Failed to fetch contract ${contractId}: ${error.message}`);
+    } catch (error) {
+      throw new Error(`Failed to fetch contract ${contractId}: ${getErrorMessage(error)}`);
     }
   }
 
@@ -274,10 +275,10 @@ export async function generate(files: string[], options: GenerateOptions) {
     const contractCount = processedContracts.length;
     const contractWord = contractCount === 1 ? "contract" : "contracts";
     console.log(chalk.green(`✓ Generated \`${config.out}\` for ${contractCount} ${contractWord}`));
-  } catch (error: any) {
+  } catch (error) {
     console.error(chalk.red("✗ Generation failed"));
-    console.error(chalk.red(`\n${error.message}`));
-    if (process.env.DEBUG) {
+    console.error(chalk.red(`\n${getErrorMessage(error)}`));
+    if (process.env.DEBUG && error instanceof Error) {
       console.error(error.stack);
     }
     process.exit(1);
@@ -412,9 +413,9 @@ export async function resolveContracts(
           abi,
           source: "api",
         });
-      } catch (error: any) {
+      } catch (error) {
         console.warn(
-          `Warning: Failed to resolve contract for ${network}: ${error.message}`
+          `Warning: Failed to resolve contract for ${network}: ${getErrorMessage(error)}`
         );
       }
     }
