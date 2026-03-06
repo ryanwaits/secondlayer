@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { input } from "@inquirer/prompts";
 import { loadConfig, saveConfig, resolveApiUrl } from "../lib/config.ts";
-import { authHeaders } from "../lib/api-client.ts";
+import { assertOk, authHeaders } from "../lib/api-client.ts";
 import { error, success, dim, formatKeyValue } from "../lib/output.ts";
 
 export function registerAuthCommand(program: Command): void {
@@ -34,12 +34,7 @@ export function registerAuthCommand(program: Command): void {
           body: JSON.stringify({ email }),
         });
 
-        if (!mlRes.ok) {
-          const body = await mlRes.text();
-          let msg = `HTTP ${mlRes.status}`;
-          try { msg = JSON.parse(body).error || msg; } catch {}
-          throw new Error(msg);
-        }
+        await assertOk(mlRes);
 
         console.log(dim("Check your email for a login token."));
         const token = await input({
@@ -54,12 +49,7 @@ export function registerAuthCommand(program: Command): void {
           body: JSON.stringify({ token: token.trim() }),
         });
 
-        if (!verifyRes.ok) {
-          const body = await verifyRes.text();
-          let msg = `HTTP ${verifyRes.status}`;
-          try { msg = JSON.parse(body).error || msg; } catch {}
-          throw new Error(msg);
-        }
+        await assertOk(verifyRes);
 
         const result = await verifyRes.json() as {
           sessionToken: string;
@@ -188,12 +178,7 @@ export function registerAuthCommand(program: Command): void {
           body: JSON.stringify({ name: options.name }),
         });
 
-        if (!res.ok) {
-          const body = await res.text();
-          let msg = `HTTP ${res.status}`;
-          try { msg = JSON.parse(body).error || msg; } catch {}
-          throw new Error(msg);
-        }
+        await assertOk(res);
 
         const { key, prefix } = await res.json() as { key: string; prefix: string };
         success(`Created API key: ${prefix}...`);
@@ -236,12 +221,7 @@ export function registerAuthCommand(program: Command): void {
           headers,
         });
 
-        if (!res.ok) {
-          const body = await res.text();
-          let msg = `HTTP ${res.status}`;
-          try { msg = JSON.parse(body).error || msg; } catch {}
-          throw new Error(msg);
-        }
+        await assertOk(res);
 
         success(`Revoked key ${idOrPrefix}`);
       } catch (err) {
@@ -303,12 +283,7 @@ async function rotateKey(options: { name: string }): Promise<void> {
       body: JSON.stringify({ name: options.name }),
     });
 
-    if (!createRes.ok) {
-      const body = await createRes.text();
-      let msg = `HTTP ${createRes.status}`;
-      try { msg = JSON.parse(body).error || msg; } catch {}
-      throw new Error(msg);
-    }
+    await assertOk(createRes);
 
     const { key, prefix } = await createRes.json() as { key: string; prefix: string };
 

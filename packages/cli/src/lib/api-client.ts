@@ -21,6 +21,21 @@ export { ApiError };
 export type { ViewQueryParams } from "@secondlayer/shared/schemas";
 
 /**
+ * Guard that throws if the response is not ok, extracting the best error message.
+ */
+export async function assertOk(res: Response): Promise<void> {
+  if (res.ok) return;
+  const body = await res.text();
+  try {
+    const parsed = JSON.parse(body);
+    if (typeof parsed.error === "string" && parsed.error) throw new Error(parsed.error);
+  } catch (e) {
+    if (e instanceof Error && e.message !== body) throw e;
+  }
+  throw new Error(`HTTP ${res.status}`);
+}
+
+/**
  * Shared error handler for API calls. Prints auth hint on 401, generic message otherwise.
  */
 export function handleApiError(err: unknown, action: string): never {

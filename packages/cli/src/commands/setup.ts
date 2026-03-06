@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { select, input, confirm } from "@inquirer/prompts";
 import { success, error, info } from "../lib/output.ts";
+import { assertOk } from "../lib/api-client.ts";
 import { detectStacksNodes, type NodeInfo } from "../lib/detect.ts";
 import { loadConfig, saveConfig, resolveApiUrl, type Config, type Network } from "../lib/config.ts";
 
@@ -369,11 +370,8 @@ async function hostedLogin(config: Config): Promise<boolean> {
     body: JSON.stringify({ email }),
   });
 
-  if (!mlRes.ok) {
-    const body = await mlRes.text();
-    let msg = `HTTP ${mlRes.status}`;
-    try { msg = JSON.parse(body).error || msg; } catch {}
-    error(`Failed to send magic link: ${msg}`);
+  try { await assertOk(mlRes); } catch (e) {
+    error(`Failed to send magic link: ${e instanceof Error ? e.message : e}`);
     return false;
   }
 
@@ -390,11 +388,8 @@ async function hostedLogin(config: Config): Promise<boolean> {
     body: JSON.stringify({ token: token.trim() }),
   });
 
-  if (!verifyRes.ok) {
-    const body = await verifyRes.text();
-    let msg = `HTTP ${verifyRes.status}`;
-    try { msg = JSON.parse(body).error || msg; } catch {}
-    error(`Verification failed: ${msg}`);
+  try { await assertOk(verifyRes); } catch (e) {
+    error(`Verification failed: ${e instanceof Error ? e.message : e}`);
     return false;
   }
 
