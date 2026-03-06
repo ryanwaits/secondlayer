@@ -1,6 +1,26 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { HookInput } from "@anthropic-ai/claude-agent-sdk";
+import { z } from "zod/v4";
 import type { SonnetDiagnosis, PatternMatch, HealthStatus, Decision, Snapshot } from "../types.ts";
+
+const SonnetResponseSchema = z.object({
+  severity: z.enum(["info", "warn", "error", "critical"]),
+  diagnosis: z.string(),
+  suggestedAction: z
+    .enum(["restart_service", "vacuum_postgres", "prune_docker", "alert_only", "none"])
+    .nullable(),
+  steps: z.array(z.string()).default([]),
+  confidence: z.number().min(0).max(1),
+  commands: z.array(z.string()).optional(),
+});
+
+const FALLBACK: SonnetDiagnosis = {
+  severity: "warn",
+  diagnosis: "Sonnet response parse error — manual review needed",
+  suggestedAction: null,
+  steps: [],
+  confidence: 0,
+};
 
 // Bash command allowlist patterns
 const ALLOWED_BASH_PATTERNS = [
@@ -142,38 +162,25 @@ Use the available tools to gather more information, then provide your diagnosis 
     const jsonMatch = lastText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return {
-        diagnosis: {
-          severity: "warn",
-          diagnosis: `No JSON in Sonnet response: ${lastText.slice(0, 200)}`,
-          suggestedAction: null,
-          steps: [],
-          confidence: 0,
-        },
+        diagnosis: { ...FALLBACK, diagnosis: `No JSON in Sonnet response: ${lastText.slice(0, 200)}` },
         costUsd,
       };
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
-    return {
-      diagnosis: {
-        severity: parsed.severity ?? "warn",
-        diagnosis: parsed.diagnosis ?? "Unknown",
-        suggestedAction: parsed.suggestedAction ?? null,
-        steps: parsed.steps ?? [],
-        confidence: parsed.confidence ?? 0,
-        commands: parsed.commands ?? [],
-      },
-      costUsd,
-    };
+    const result = SonnetResponseSchema.safeParse(parsed);
+
+    if (!result.success) {
+      return {
+        diagnosis: { ...FALLBACK, diagnosis: `Validation failed: ${result.error.message}` },
+        costUsd,
+      };
+    }
+
+    return { diagnosis: result.data, costUsd };
   } catch (e) {
     return {
-      diagnosis: {
-        severity: "warn",
-        diagnosis: `Sonnet escalation error: ${e}`,
-        suggestedAction: null,
-        steps: [],
-        confidence: 0,
-      },
+      diagnosis: { ...FALLBACK, diagnosis: `Sonnet escalation error: ${e}` },
       costUsd: 0,
     };
   }
