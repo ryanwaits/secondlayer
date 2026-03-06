@@ -217,46 +217,8 @@ export function parseEvent(
     return null;
   }
 
-  // Extract the actual event data based on type (flat structure)
-  let eventData: any;
-
-  switch (type) {
-    case "stx_transfer_event":
-      eventData = txEvent.stx_transfer_event;
-      break;
-    case "stx_mint_event":
-      eventData = txEvent.stx_mint_event;
-      break;
-    case "stx_burn_event":
-      eventData = txEvent.stx_burn_event;
-      break;
-    case "stx_lock_event":
-      eventData = txEvent.stx_lock_event;
-      break;
-    case "ft_transfer_event":
-      eventData = txEvent.ft_transfer_event;
-      break;
-    case "ft_mint_event":
-      eventData = txEvent.ft_mint_event;
-      break;
-    case "ft_burn_event":
-      eventData = txEvent.ft_burn_event;
-      break;
-    case "nft_transfer_event":
-      eventData = txEvent.nft_transfer_event;
-      break;
-    case "nft_mint_event":
-      eventData = txEvent.nft_mint_event;
-      break;
-    case "nft_burn_event":
-      eventData = txEvent.nft_burn_event;
-      break;
-    case "smart_contract_event":
-      eventData = txEvent.smart_contract_event;
-      break;
-    default:
-      eventData = txEvent;
-  }
+  // Extract the actual event data based on type (property name matches type string)
+  const eventData = (txEvent as Record<string, unknown>)[type] ?? txEvent;
 
   return {
     tx_id: txid,
