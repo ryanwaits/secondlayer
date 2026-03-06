@@ -64,7 +64,7 @@ services:
       AGENT_POLL_INTERVAL_MS: ${AGENT_POLL_INTERVAL_MS:-300000}
       AGENT_BUDGET_CAP_DAILY_USD: ${AGENT_BUDGET_CAP_DAILY_USD:-5}
       COMPOSE_DIR: /opt/secondlayer/docker
-      NODE_SERVER_URL: ${NODE_SERVER_URL:-http://37.27.171.220}
+      NODE_SERVER_URL: ${NODE_SERVER_URL}
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/agent:/data/agent
       - /var/run/docker.sock:/var/run/docker.sock

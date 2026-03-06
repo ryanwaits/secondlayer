@@ -156,7 +156,7 @@ TIP_FOLLOWER_ENABLED=true docker compose -f docker-compose.yml -f docker-compose
 
 ```bash
 # Node server: wipe stacks chainstate
-ssh node-server "rm -rf /home/stacks/mainnet"
+ssh node-server "rm -rf /data/stacks/mainnet"
 ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose restart stacks-node"
 
 # App server: truncate DB
@@ -226,7 +226,7 @@ du -sh /opt/secondlayer/data/postgres
 docker system df
 
 # Node server
-ssh node-server "df -h /home && du -sh /home/bitcoin /home/stacks"
+ssh node-server "df -h /data && du -sh /data/bitcoin /data/stacks"
 ```
 
 ### Restart & Update
@@ -401,12 +401,12 @@ Bootstrap stacks-node from Hiro's archive (~800-900 GB) instead of syncing from 
 # Stream to disk (node server)
 ssh node-server
 wget -qO- https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.gz \
-  | tar xzf - -C /home/stacks
+  | tar xzf - -C /data/stacks
 
 # With resume support
 curl --continue-at - -L -o /tmp/snapshot.tar.gz \
   https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.gz
-tar -xzf /tmp/snapshot.tar.gz -C /home/stacks
+tar -xzf /tmp/snapshot.tar.gz -C /data/stacks
 rm /tmp/snapshot.tar.gz
 ```
 
@@ -441,8 +441,18 @@ docker compose pull stacks-node && docker compose up -d stacks-node
 ssh node-server
 cd /opt/secondlayer/docker/node-server
 docker compose stop stacks-node
-rm /home/stacks/event_observers.sqlite
+rm /data/stacks/event_observers.sqlite
 docker compose start stacks-node
+```
+
+### DNS resolution failure (Ubuntu 24.04)
+
+Containers can't resolve external hosts. Ubuntu's systemd-resolved binds 127.0.0.53 which fails inside Docker. Setup scripts configure `/etc/docker/daemon.json` automatically. Manual fix:
+
+```bash
+echo '{"dns":["8.8.8.8","1.1.1.1"]}' > /etc/docker/daemon.json
+systemctl restart docker
+docker run --rm alpine nslookup google.com  # verify
 ```
 
 ### High queue depth
