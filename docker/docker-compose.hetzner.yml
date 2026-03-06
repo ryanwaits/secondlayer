@@ -3,8 +3,9 @@
 #
 # Data paths (configurable via .env):
 #   DATA_DIR         - base data directory (default: /opt/secondlayer/data)
-#   CHAINSTATE_DIR   - stacks blockchain data (default: $DATA_DIR/stacks-blockchain)
-#                      Set this to a separate mount for additional NVMe storage
+#
+# Note: stacks-node + bitcoind run on a separate node server.
+# See docker/node-server/ for node server setup.
 
 services:
   postgres:
@@ -28,24 +29,6 @@ services:
       HIRO_API_URL: https://api.mainnet.hiro.so
       HIRO_API_KEY: ${HIRO_API_KEY:-}
       TIP_FOLLOWER_ENABLED: ${TIP_FOLLOWER_ENABLED:-true}
-
-  stacks-node:
-    image: blockstack/stacks-blockchain:3.3.0.0.5
-    volumes:
-      - ${CHAINSTATE_DIR:-${DATA_DIR:-/opt/secondlayer/data}/stacks-blockchain}:/stacks-blockchain/data
-      - ./stacks-node/Config.toml:/stacks-blockchain/Config.toml:ro
-    ports:
-      - "20443:20443"
-      - "20444:20444"
-    depends_on:
-      indexer:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 32G
-    restart: unless-stopped
-    command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
 
   caddy:
     image: caddy:2-alpine
