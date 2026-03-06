@@ -16,6 +16,9 @@ services:
       # so also run: chown -R 1000:1000 $BITCOIN_DATA_DIR
     ports:
       - "8333:8333"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     deploy:
       resources:
         limits:
@@ -37,6 +40,9 @@ services:
     ports:
       - "20443:20443"
       - "20444:20444"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       bitcoind:
         condition: service_healthy
