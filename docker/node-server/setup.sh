@@ -104,9 +104,7 @@ setup_drive() {
   fi
 
   if [ ! -b "$dev" ]; then
-    log "WARNING: $dev not found, skipping. Mount $mount manually."
-    mkdir -p "$mount"
-    return
+    die "$dev not found — expected NVMe drive for $label at $mount"
   fi
 
   log "Formatting $dev as $label → $mount"
