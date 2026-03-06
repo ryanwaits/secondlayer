@@ -73,7 +73,7 @@ else
   apt-get update -qq && apt-get upgrade -y -qq
   apt-get install -y -qq \
     ca-certificates curl gnupg lsb-release \
-    mdadm fail2ban ufw git
+    mdadm fail2ban ufw git jq
 
   # Docker (official repo)
   install -m 0755 -d /etc/apt/keyrings
@@ -92,6 +92,16 @@ else
   apt-get update -qq
   apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
   systemctl enable --now docker
+
+  # Fix DNS for containers (systemd-resolved uses 127.0.0.53 which fails inside containers)
+  mkdir -p /etc/docker
+  if [ -f /etc/docker/daemon.json ]; then
+    jq '. + {"dns": ["8.8.8.8", "1.1.1.1"]}' /etc/docker/daemon.json > /tmp/daemon.json && mv /tmp/daemon.json /etc/docker/daemon.json
+  else
+    echo '{"dns": ["8.8.8.8", "1.1.1.1"]}' > /etc/docker/daemon.json
+  fi
+  systemctl restart docker
+
   log "Docker installed"
 
   # Firewall
