@@ -1,32 +1,28 @@
 #!/usr/bin/env bash
 # Zero-to-indexed bootstrap for Second Layer on Hetzner AX52 (or any Docker host).
 #
-# Usage: bash docker/scripts/bootstrap.sh [--skip-backfill] [--skip-provision] [--data-dir /path]
+# Usage: bash docker/scripts/bootstrap.sh [--skip-provision] [--data-dir /path]
 #
 # Phases:
 #   0. Provision (system packages, Docker, UFW, fail2ban, systemd)
 #   1. Pre-flight checks
 #   2. Core services (postgres, migrate, api, indexer, worker, view-processor)
-#   3. Hiro postgres
-#   4. Download + restore Hiro archive
-#   5. Fix schema + PG auth
-#   6. Start Hiro API, get chain tip
-#   7. Bulk backfill (detached)
-#   8. Stacks node + Caddy
-#   9. Print status
+#   3. Caddy
+#   4. Print status
+#
+# Note: stacks-node + bitcoind run on a separate node server.
+# See docker/node-server/setup.sh for node provisioning.
 
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # Args
 # ---------------------------------------------------------------------------
-SKIP_BACKFILL=false
 SKIP_PROVISION=false
 DATA_DIR=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --skip-backfill) SKIP_BACKFILL=true; shift ;;
     --skip-provision) SKIP_PROVISION=true; shift ;;
     --data-dir) DATA_DIR="$2"; shift 2 ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
@@ -105,16 +101,16 @@ else
   ufw allow 22/tcp
   ufw allow 80/tcp
   ufw allow 443/tcp
-  ufw allow 20444/tcp
   ufw --force enable
-  log "UFW enabled (22, 80, 443, 20444)"
+  log "UFW enabled (22, 80, 443)"
+  log "NOTE: After provisioning node server, run: ufw allow from <node-ip> to any port 3700"
 
   # fail2ban
   systemctl enable --now fail2ban
   log "fail2ban active"
 
   # Data directories
-  mkdir -p /opt/secondlayer/data/postgres /opt/secondlayer/data/stacks-blockchain /opt/secondlayer/data/views
+  mkdir -p /opt/secondlayer/data/postgres /opt/secondlayer/data/views
 
   # Generate .env if not exists
   if [ ! -f "$DOCKER_DIR/.env" ]; then
@@ -217,149 +213,14 @@ wait_healthy indexer
 log "Core services healthy"
 
 # ---------------------------------------------------------------------------
-# Phase 3: Hiro Postgres
+# Phase 3: Caddy
 # ---------------------------------------------------------------------------
-log "Phase 3: Starting hiro-postgres"
+log "Phase 3: Starting caddy"
 
-$COMPOSE up -d hiro-postgres
-wait_healthy hiro-postgres
-log "hiro-postgres healthy"
+$COMPOSE up -d caddy
 
 # ---------------------------------------------------------------------------
-# Phase 4: Download + Restore Archive
-# ---------------------------------------------------------------------------
-log "Phase 4: Download + restore Hiro archive"
-
-DUMP_FILE="${DATA_DIR}/hiro-pg-dump/hiro-api.dump"
-
-if [ ! -f "$DUMP_FILE" ]; then
-  bash scripts/download-hiro-archive.sh "$DATA_DIR"
-fi
-
-if [ -f "$DUMP_FILE" ]; then
-  log "Copying dump into hiro-postgres container..."
-  docker cp "$DUMP_FILE" docker-hiro-postgres-1:/tmp/hiro-api.dump
-
-  # Monitor restore progress in background
-  (
-    while docker exec docker-hiro-postgres-1 psql -U postgres -d stacks_blockchain_api \
-      -tAc "SELECT pg_size_pretty(pg_database_size('stacks_blockchain_api'));" 2>/dev/null; do
-      sleep 60
-    done
-  ) &
-  MONITOR_PID=$!
-
-  log "Restoring PG dump (this takes 1-3 hours)..."
-  docker exec docker-hiro-postgres-1 pg_restore \
-    --username postgres --dbname stacks_blockchain_api \
-    --jobs 4 --no-owner --no-privileges \
-    /tmp/hiro-api.dump || true  # pg_restore returns non-zero on warnings
-
-  kill "$MONITOR_PID" 2>/dev/null || true
-  log "Restore complete"
-else
-  warn "No dump file at $DUMP_FILE — skipping restore"
-fi
-
-# ---------------------------------------------------------------------------
-# Phase 5: Fix Schema + Auth
-# ---------------------------------------------------------------------------
-log "Phase 5: Fix schema"
-
-# Rename schemas so archive data lands in public
-docker exec docker-hiro-postgres-1 psql -U postgres -d stacks_blockchain_api -c "
-  DO \$\$
-  BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'stacks_blockchain_api') THEN
-      ALTER SCHEMA stacks_blockchain_api RENAME TO public_old;
-      ALTER SCHEMA public RENAME TO public_empty;
-      ALTER SCHEMA public_old RENAME TO public;
-    END IF;
-  END \$\$;
-"
-
-# Verify
-HIRO_TIP=$(docker exec docker-hiro-postgres-1 psql -U postgres -d stacks_blockchain_api \
-  -tAc "SELECT MAX(block_height) FROM blocks;" 2>/dev/null || echo "unknown")
-log "Hiro archive chain tip: $HIRO_TIP"
-
-# Clean up dump files
-rm -f "$DUMP_FILE"
-docker exec docker-hiro-postgres-1 rm -f /tmp/hiro-api.dump
-log "Schema fix done"
-
-# ---------------------------------------------------------------------------
-# Phase 6: Start Hiro API
-# ---------------------------------------------------------------------------
-log "Phase 6: Starting hiro-api"
-
-$COMPOSE up -d hiro-api
-
-log "Waiting for hiro-api to be ready..."
-READY=""
-for i in $(seq 1 30); do
-  READY=$(docker exec docker-hiro-api-1 node -e \
-    "fetch('http://127.0.0.1:3999/extended/v1/status').then(r=>r.json()).then(d=>console.log(d.status)).catch(()=>console.log('waiting'))" 2>/dev/null || echo "waiting")
-  if [ "$READY" = "ready" ]; then break; fi
-  sleep 2
-done
-
-if [ "$READY" != "ready" ]; then
-  warn "hiro-api not ready after 60s — continuing anyway"
-fi
-
-# Get chain tip for backfill target
-CHAIN_TIP=$(docker exec docker-hiro-api-1 node -e \
-  "fetch('http://127.0.0.1:3999/extended/v1/status').then(r=>r.json()).then(d=>console.log(d.chain_tip.block_height)).catch(()=>console.log('0'))" 2>/dev/null || echo "0")
-log "Chain tip from hiro-api: $CHAIN_TIP"
-
-# ---------------------------------------------------------------------------
-# Phase 7: Bulk Backfill (detached)
-# ---------------------------------------------------------------------------
-if [ "$SKIP_BACKFILL" = true ]; then
-  log "Phase 7: Skipping backfill (--skip-backfill)"
-else
-  log "Phase 7: Starting bulk backfill"
-
-  # Build workspace packages (needed for bulk-backfill imports)
-  log "Building workspace packages..."
-  docker run --rm -v "$REPO_DIR:/app" -w /app oven/bun:latest bun install
-  docker run --rm -v "$REPO_DIR:/app" -w /app oven/bun:latest bun run build:shared
-  docker run --rm -v "$REPO_DIR:/app" -w /app oven/bun:latest bun run --filter '@secondlayer/stacks' build
-
-  # Remove old backfill container if exists
-  docker rm -f backfill 2>/dev/null || true
-
-  POSTGRES_USER="${POSTGRES_USER:-secondlayer}"
-  POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-secondlayer}"
-  POSTGRES_DB="${POSTGRES_DB:-secondlayer}"
-
-  docker run -d --name backfill \
-    --network docker_default \
-    -v "$REPO_DIR:/app" -w /app \
-    -e HIRO_API_URL=http://hiro-api:3999 \
-    -e HIRO_FALLBACK_URL=https://api.mainnet.hiro.so \
-    -e HIRO_API_KEY="${HIRO_API_KEY:-}" \
-    -e DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
-    -e BACKFILL_INCLUDE_RAW_TX=false \
-    -e BACKFILL_CONCURRENCY=10 \
-    -e BACKFILL_BATCH_SIZE=100 \
-    -e BACKFILL_FROM=2 \
-    -e BACKFILL_TO="$CHAIN_TIP" \
-    oven/bun:latest bun run packages/indexer/src/bulk-backfill.ts
-
-  log "Backfill running (detached, raw_tx=false)"
-fi
-
-# ---------------------------------------------------------------------------
-# Phase 8: Stacks Node + Caddy
-# ---------------------------------------------------------------------------
-log "Phase 8: Starting stacks-node + caddy"
-
-$COMPOSE up -d stacks-node caddy
-
-# ---------------------------------------------------------------------------
-# Phase 9: Status
+# Phase 4: Status
 # ---------------------------------------------------------------------------
 echo ""
 log "Bootstrap complete"
@@ -367,17 +228,9 @@ echo ""
 echo "Services:"
 $COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""
-
-if [ "$SKIP_BACKFILL" = false ]; then
-  echo "Backfill running (detached, without raw_tx for speed):"
-  echo "  docker logs backfill 2>&1 | grep 'Batch complete' | tail -5"
-  echo ""
-fi
-
 echo "Monitor:"
-echo "  docker logs backfill --tail 5           # backfill progress"
 echo "  curl -s localhost:3700/health | jq .     # indexer health"
 echo "  curl -s localhost:3800/health | jq .     # api health"
 echo ""
-echo "After backfill completes, run raw_tx pass:"
-echo "  docker/scripts/backfill-raw-tx.sh"
+echo "Next: provision node server (bitcoind + stacks-node)"
+echo "  See docker/node-server/setup.sh"

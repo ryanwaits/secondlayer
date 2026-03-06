@@ -1,0 +1,40 @@
+# Node server (AX102) — bitcoind + stacks-node
+# Runs on dedicated hardware, pushes events to app server indexer
+
+services:
+  bitcoind:
+    image: kylemanna/bitcoind:latest
+    volumes:
+      - ${BITCOIN_DATA_DIR:-/data/bitcoin}:/bitcoin/.bitcoin
+      - ./bitcoin.conf:/bitcoin/.bitcoin/bitcoin.conf:ro
+    ports:
+      - "8333:8333"
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-rpcuser=stacks", "-rpcpassword=${BITCOIN_RPC_PASSWORD}", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  stacks-node:
+    image: blockstack/stacks-blockchain:3.3.0.0.5
+    volumes:
+      - ${STACKS_DATA_DIR:-/data/stacks}:/stacks-blockchain/data
+      - ./Config.toml:/stacks-blockchain/Config.toml:ro
+    ports:
+      - "20443:20443"
+      - "20444:20444"
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 64G
+    restart: unless-stopped
+    command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
