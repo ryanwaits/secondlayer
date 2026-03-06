@@ -20,7 +20,7 @@ The node server pushes Stacks block events to the app server indexer on port 370
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
 # Node server — run from /opt/secondlayer/docker/node-server
-NODE_COMPOSE="docker compose"
+# Just use: docker compose
 ```
 
 > Always use both compose files on app server. Plain `docker compose` creates a fresh named volume instead of using the bind-mounted data at `/opt/secondlayer/data/postgres`.
@@ -65,13 +65,13 @@ bash /opt/secondlayer/docker/node-server/setup.sh
 ```
 
 `setup.sh`:
-- Installs Docker, UFW, fail2ban
+- Installs Docker, UFW, fail2ban, jq
 - Formats `/dev/nvme0n1` → `/data/bitcoin`, `/dev/nvme1n1` → `/data/stacks`
-- Generates `bitcoin.conf`, `Config.toml`, `.env`
-- Installs systemd service
+- Generates `bitcoin.conf`, `Config.toml`, `.env` with random RPC password
+- Installs systemd service (`secondlayer-node`)
 - Starts bitcoind (IBD begins immediately)
 
-**Important:** `bitcoin.conf` must be copied into `$BITCOIN_DATA_DIR` before starting bitcoind. The image chowns the data dir to UID 1000 on startup:
+**Note:** `bitcoin.conf` must be copied into `$BITCOIN_DATA_DIR` before starting, and the data dir must be owned by UID 1000:
 ```bash
 cp bitcoin.conf $BITCOIN_DATA_DIR/
 chown -R 1000:1000 $BITCOIN_DATA_DIR
@@ -81,61 +81,75 @@ chown -R 1000:1000 $BITCOIN_DATA_DIR
 
 ## Genesis Sync
 
-Full chain sync from block 0. Takes ~4-10 days total.
+Full chain sync from block 0. Takes ~4-10 days total. **All steps are manual** — stacks-node does not auto-start.
 
 ### Steps
 
-**1. Bitcoin IBD** (~1-3 days)
+**1. Start bitcoind** — IBD begins immediately
 
 ```bash
 ssh node-server
 cd /opt/secondlayer/docker/node-server
-$NODE_COMPOSE up -d bitcoind
-# Monitor
-docker exec secondlayer-node-server-bitcoind-1 bitcoin-cli \
-  -rpcuser=stacks -rpcpassword=<pw> getblockchaininfo
+docker compose up -d bitcoind
 ```
 
-bitcoind must pass block **666050** before stacks-node can start.
-
-**2. Start stacks-node** (after Bitcoin passes 666050)
-
+Monitor progress (~1-3 days to reach block 666050):
 ```bash
 ssh node-server
-cd /opt/secondlayer/docker/node-server
-$NODE_COMPOSE up -d stacks-node
+RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/node-server/.env | cut -d= -f2)
+docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC_PW \
+  getblockchaininfo | jq '{blocks,headers,verificationprogress}'
 ```
 
-**3. Start app server with tip follower disabled**
+**2. Start app server with tip follower disabled** (do this while Bitcoin syncs)
 
 ```bash
 ssh app-server
 cd /opt/secondlayer/docker
-# Truncate DB if starting fresh
-$COMPOSE up -d postgres
+# Truncate DB for clean genesis sync
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -c "TRUNCATE blocks, transactions, events, jobs, deliveries, index_progress CASCADE;"
-# Start with tip follower off
-TIP_FOLLOWER_ENABLED=false $COMPOSE up -d
+TIP_FOLLOWER_ENABLED=false docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
 ```
 
-**4. Stacks sync** (~3-7 days)
+**3. Start stacks-node** — only after bitcoind blocks > 666050
 
 ```bash
-ssh node-server && $NODE_COMPOSE logs -f stacks-node
-ssh app-server  && $COMPOSE logs -f indexer
+# Verify Bitcoin is past Stacks genesis burn height
+ssh node-server
+RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/node-server/.env | cut -d= -f2)
+docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC_PW getblockcount
+# Must be > 666050
+
+cd /opt/secondlayer/docker/node-server
+docker compose up -d stacks-node
+# Bitcoin and Stacks sync in parallel from here (~3-7 days)
 ```
 
-**5. After sync completes**
+Monitor:
+```bash
+# Node server
+ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose logs -f stacks-node"
+
+# App server
+ssh app-server "cd /opt/secondlayer/docker && \
+  docker compose -f docker-compose.yml -f docker-compose.hetzner.yml logs -f indexer"
+```
+
+**4. After sync completes**
 
 ```bash
+ssh app-server
+cd /opt/secondlayer/docker
+
 # Verify no placeholder transactions
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -c "SELECT COUNT(*) FROM transactions WHERE raw_tx = '0x00';"
 # Should be 0
 
 # Re-enable tip follower
-TIP_FOLLOWER_ENABLED=true $COMPOSE up -d --force-recreate indexer
+TIP_FOLLOWER_ENABLED=true docker compose -f docker-compose.yml -f docker-compose.hetzner.yml \
+  up -d --force-recreate indexer
 ```
 
 ### Re-sync from genesis
@@ -144,6 +158,10 @@ TIP_FOLLOWER_ENABLED=true $COMPOSE up -d --force-recreate indexer
 # Node server: wipe stacks chainstate
 ssh node-server "rm -rf /home/stacks/mainnet"
 ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose restart stacks-node"
+
+# App server: truncate DB
+ssh app-server "docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+  -c 'TRUNCATE blocks, transactions, events, jobs, deliveries, index_progress CASCADE;'"
 ```
 
 ---
@@ -158,9 +176,8 @@ $COMPOSE logs --tail 50
 $COMPOSE logs -f indexer
 
 # Node server
-ssh node-server
-$NODE_COMPOSE logs -f stacks-node
-$NODE_COMPOSE logs --since 30m bitcoind
+ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose logs -f stacks-node"
+ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose logs --since 30m bitcoind"
 ```
 
 ### Health Checks
@@ -193,11 +210,11 @@ docker exec secondlayer-postgres-1 psql -U secondlayer \
 docker exec secondlayer-postgres-1 psql -U secondlayer \
   -c "SELECT pg_size_pretty(pg_database_size('secondlayer'));"
 
-# Node server
+# Bitcoin sync (node server)
 ssh node-server
-$NODE_COMPOSE ps
-docker exec secondlayer-node-server-bitcoind-1 bitcoin-cli \
-  -rpcuser=stacks -rpcpassword=<pw> getblockchaininfo
+RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/node-server/.env | cut -d= -f2)
+docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC_PW \
+  getblockchaininfo | jq '{blocks,headers,verificationprogress}'
 ```
 
 ### Disk Usage
@@ -231,14 +248,13 @@ $COMPOSE up -d --force-recreate indexer
 # Scale workers
 $COMPOSE up -d --scale worker=3
 
-# Node server: update stacks-node
+# Node server: update stacks-node (edit docker-compose.yml image tag first)
 ssh node-server
 cd /opt/secondlayer/docker/node-server
-# Edit docker-compose.yml image tag, then:
-$NODE_COMPOSE pull stacks-node && $NODE_COMPOSE up -d stacks-node
+docker compose pull stacks-node && docker compose up -d stacks-node
 
 # Node server: full restart
-$NODE_COMPOSE down && $NODE_COMPOSE up -d
+docker compose down && docker compose up -d
 ```
 
 ---
@@ -382,14 +398,15 @@ docker stop backfill && docker rm backfill
 Bootstrap stacks-node from Hiro's archive (~800-900 GB) instead of syncing from scratch. Note: still need a backfill strategy for the indexer DB.
 
 ```bash
-# Stream to disk
+# Stream to disk (node server)
+ssh node-server
 wget -qO- https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.gz \
-  | tar xzf - -C /data/stacks
+  | tar xzf - -C /home/stacks
 
 # With resume support
 curl --continue-at - -L -o /tmp/snapshot.tar.gz \
   https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.gz
-tar -xzf /tmp/snapshot.tar.gz -C /data/stacks
+tar -xzf /tmp/snapshot.tar.gz -C /home/stacks
 rm /tmp/snapshot.tar.gz
 ```
 
@@ -400,21 +417,22 @@ rm /tmp/snapshot.tar.gz
 ### Indexer not receiving blocks
 
 1. Check stacks-node logs on node server for event observer errors
-2. Verify `events_keys = ["*"]` in `Config.toml`
+2. Verify `events_keys = ["*"]` in node server `Config.toml`
 3. Check firewall: app server port 3700 must be open from node server IP
 4. `disable_retries = true` — missed blocks won't be retried by node; integrity loop fills gaps
 
 ```bash
-ssh node-server && ufw status
-ssh app-server  && ufw status   # must have node-server IP → 3700
+ssh node-server "ufw status"
+ssh app-server "ufw status"   # must have node-server IP → 3700
 ```
 
 ### Node stuck on "missing PoX anchor block"
 
-Upgrade stacks-node image tag, then:
+Upgrade stacks-node image tag in `docker-compose.yml`, then:
 ```bash
 ssh node-server
-$NODE_COMPOSE pull stacks-node && $NODE_COMPOSE up -d stacks-node
+cd /opt/secondlayer/docker/node-server
+docker compose pull stacks-node && docker compose up -d stacks-node
 ```
 
 ### Event dispatcher stuck
