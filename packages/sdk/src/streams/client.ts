@@ -46,8 +46,7 @@ export class Streams extends BaseClient {
     }
 
     const { streams } = await this.list();
-    const typedStreams = streams as { id: string }[];
-    const matches = typedStreams.filter((s) => s.id.startsWith(partialId));
+    const matches = streams.filter((s) => s.id.startsWith(partialId));
 
     if (matches.length === 0) {
       throw new ApiError(404, `No stream found matching "${partialId}"`);
@@ -69,8 +68,7 @@ export class Streams extends BaseClient {
 
   async updateByName(name: string, data: CreateStream): Promise<StreamResponse> {
     const { streams } = await this.list();
-    const typedStreams = streams as { id: string; name: string }[];
-    const existing = typedStreams.find((s) => s.name === name);
+    const existing = streams.find((s) => s.name === name);
     if (!existing) {
       throw new ApiError(404, `Stream with name "${name}" not found`);
     }
