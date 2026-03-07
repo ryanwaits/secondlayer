@@ -119,38 +119,13 @@ export class PluginManager {
     const processedContracts: ProcessedContract[] = [];
 
     for (let contract of contracts) {
-      // Handle special case for Clarinet plugin contracts
       if (isClarinetContract(contract) && contract.abi) {
-        // Convert Clarinet contracts directly to ProcessedContract format
-        const address =
-          typeof contract.address === "string" ? contract.address : "";
-        const parsed = parseContractId(address);
-        const processed: ProcessedContract = {
-          name: contract.name || parsed.contractName,
-          address: parsed.address,
-          contractName: parsed.contractName,
-          abi: contract.abi,
-          source: "local" as const,
-          metadata: { source: "clarinet" },
-        };
-        processedContracts.push(processed);
+        processedContracts.push(this.contractToProcessed(contract, "clarinet"));
         continue;
       }
 
-      // Handle direct file mode contracts (already have ABIs parsed)
       if (isDirectFileContract(contract) && contract.abi) {
-        const address =
-          typeof contract.address === "string" ? contract.address : "";
-        const parsed = parseContractId(address);
-        const processed: ProcessedContract = {
-          name: contract.name || parsed.contractName,
-          address: parsed.address,
-          contractName: parsed.contractName,
-          abi: contract.abi,
-          source: "local" as const,
-          metadata: { source: "direct" },
-        };
-        processedContracts.push(processed);
+        processedContracts.push(this.contractToProcessed(contract, "direct"));
         continue;
       }
 
@@ -175,19 +150,8 @@ export class PluginManager {
         }
       }
 
-      // Convert to ProcessedContract
       if (contract.abi) {
-        const addressStr = typeof contract.address === "string" ? contract.address : "";
-        const parsed = parseContractId(addressStr);
-        const processed: ProcessedContract = {
-          name: contract.name || parsed.contractName || "unknown",
-          address: parsed.address || "unknown",
-          contractName: parsed.contractName || contract.name || "unknown",
-          abi: contract.abi,
-          source: "api" as const, // Use "api" as default for plugin-processed contracts
-          metadata: contract.metadata,
-        };
-        processedContracts.push(processed);
+        processedContracts.push(this.contractToProcessed(contract, "api"));
       }
     }
 
@@ -327,6 +291,26 @@ export class PluginManager {
    */
   getExecutionResults(): Map<string, HookResult[]> {
     return new Map(this.executionContext.results);
+  }
+
+  /**
+   * Convert a contract config with an ABI into a ProcessedContract
+   */
+  private contractToProcessed(
+    contract: ContractConfig,
+    source: string
+  ): ProcessedContract {
+    const address =
+      typeof contract.address === "string" ? contract.address : "";
+    const parsed = parseContractId(address);
+    return {
+      name: contract.name || parsed.contractName || "unknown",
+      address: parsed.address || "unknown",
+      contractName: parsed.contractName || contract.name || "unknown",
+      abi: contract.abi!,
+      source: source === "api" ? ("api" as const) : ("local" as const),
+      metadata: contract.metadata ?? { source },
+    };
   }
 
   /**
