@@ -8,6 +8,7 @@ import path from "path";
 import { isValidAddress as _validateStacksAddress } from "@secondlayer/stacks";
 const validateStacksAddress = _validateStacksAddress as (address: string) => boolean;
 import { getErrorMessage } from "@secondlayer/shared";
+import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { parseContractId } from "../utils/contract-id";
 import type {
   SecondLayerPlugin,
@@ -389,9 +390,7 @@ export class PluginManager {
    */
   private createUtils(): PluginUtils {
     return {
-      toCamelCase: (str: string) => {
-        return str.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-      },
+      toCamelCase,
 
       toKebabCase: (str: string) => {
         return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
