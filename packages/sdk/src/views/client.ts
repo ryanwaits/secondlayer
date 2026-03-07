@@ -94,11 +94,11 @@ export class Views extends BaseClient {
         let sort: string | undefined;
         let order: string | undefined;
         if (options.orderBy) {
-          const entries = Object.entries(options.orderBy);
+          const entries = Object.entries(options.orderBy) as [string, "asc" | "desc"][];
           if (entries.length > 0) {
             const [col, dir] = entries[0]!;
             sort = resolveOrderByColumn(col);
-            order = (dir as unknown as string | undefined) ?? "asc";
+            order = dir ?? "asc";
           }
         }
 
