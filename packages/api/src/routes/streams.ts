@@ -109,8 +109,8 @@ app.post("/", async (c) => {
 app.get("/", async (c) => {
   const db = getDb();
   const keyIds = await resolveKeyIds(c);
-  const limit = Math.min(parseInt(c.req.query("limit") || "20"), 100);
-  const offset = parseInt(c.req.query("offset") || "0");
+  const limit  = Math.min(Math.max(1, parseInt(c.req.query("limit")  || "20", 10) || 20), 100);
+  const offset = Math.max(0,            parseInt(c.req.query("offset") || "0",  10) || 0);
 
   let query = db
     .selectFrom("streams")
@@ -524,7 +524,7 @@ app.post("/:id/replay-failed", async (c) => {
 // Get recent deliveries for a stream
 app.get("/:id/deliveries", async (c) => {
   const { id } = c.req.param();
-  const limit = Math.min(parseInt(c.req.query("limit") || "50"), 100);
+  const limit = Math.min(Math.max(1, parseInt(c.req.query("limit") || "50", 10) || 50), 100);
   const status = c.req.query("status");
 
   if (status && status !== "success" && status !== "failed") {
