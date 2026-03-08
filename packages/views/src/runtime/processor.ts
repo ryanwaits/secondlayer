@@ -12,6 +12,14 @@ const CHANNEL_NEW_BLOCK = "streams:new_job";
 const DEFAULT_CONCURRENCY = 5;
 const POLL_INTERVAL_MS = 5_000;
 
+function isHandlerNotFoundError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const code = (err as NodeJS.ErrnoException).code;
+  if (code === "MODULE_NOT_FOUND" || code === "ERR_MODULE_NOT_FOUND" || code === "ENOENT") return true;
+  // fallback: Bun may not always set code on dynamic import failures
+  return err.message.includes("Cannot find module") || err.message.includes("ENOENT");
+}
+
 /**
  * Load a ViewDefinition from its handler file path.
  */
@@ -41,7 +49,7 @@ export async function startViewProcessor(opts?: {
       await catchUpView(def, view.name);
     } catch (err) {
       const msg = getErrorMessage(err);
-      if (msg.includes("Cannot find module") || msg.includes("ENOENT")) {
+      if (isHandlerNotFoundError(err)) {
         await updateViewStatus(db, view.name, "error");
       }
       logger.error("View catch-up failed on startup", {
@@ -65,7 +73,7 @@ export async function startViewProcessor(opts?: {
         await catchUpView(def, view.name);
       } catch (err) {
         const msg = getErrorMessage(err);
-        if (msg.includes("Cannot find module") || msg.includes("ENOENT")) {
+        if (isHandlerNotFoundError(err)) {
           await updateViewStatus(db, view.name, "error");
         }
         logger.error("View processing failed", {
