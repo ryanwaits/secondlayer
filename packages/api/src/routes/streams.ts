@@ -10,7 +10,7 @@ import {
 } from "@secondlayer/shared";
 import { generateSecret } from "@secondlayer/shared/crypto/hmac";
 import { enqueue } from "@secondlayer/shared/queue";
-import { assertStreamOwnership, getApiKeyId, getAccountId, getAccountKeyIds } from "../lib/ownership.ts";
+import { assertStreamOwnership, getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
 import { enforceLimits } from "../middleware/enforce-limits.ts";
 
 const app = new Hono();
@@ -66,14 +66,6 @@ function formatStream(
     createdAt: stream.created_at.toISOString(),
     updatedAt: stream.updated_at.toISOString(),
   };
-}
-
-/** Resolve account key IDs for the current request */
-async function resolveKeyIds(c: any) {
-  const db = getDb();
-  const accountId = getAccountId(c);
-  if (!accountId) return undefined;
-  return getAccountKeyIds(db, accountId);
 }
 
 // Create stream

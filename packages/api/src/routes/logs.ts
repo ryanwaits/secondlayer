@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { getDb } from "@secondlayer/shared/db";
-import { assertStreamOwnership, getAccountId, getAccountKeyIds } from "../lib/ownership.ts";
+import { assertStreamOwnership, resolveKeyIds } from "../lib/ownership.ts";
 
 const app = new Hono();
 
@@ -11,8 +11,7 @@ const MAX_STREAM_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 app.get("/:id/stream", async (c) => {
   const { id } = c.req.param();
   const db = getDb();
-  const accountId = getAccountId(c);
-  const keyIds = accountId ? await getAccountKeyIds(db, accountId) : undefined;
+  const keyIds = await resolveKeyIds(c);
 
   // Check stream exists and ownership
   await assertStreamOwnership(db, id, keyIds);
