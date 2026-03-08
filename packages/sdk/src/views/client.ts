@@ -96,6 +96,10 @@ export class Views extends BaseClient {
         if (options.orderBy) {
           const entries = Object.entries(options.orderBy) as [string, "asc" | "desc"][];
           if (entries.length > 0) {
+            if (entries.length > 1) {
+              const extra = entries.slice(1).map(([col]) => col).join(", ");
+              throw new Error(`orderBy supports only one column; remove extra keys: ${extra}`);
+            }
             const [col, dir] = entries[0]!;
             sort = resolveOrderByColumn(col);
             order = dir ?? "asc";
