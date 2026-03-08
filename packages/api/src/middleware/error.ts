@@ -8,8 +8,8 @@ import {
   AuthenticationError,
   AuthorizationError,
   RateLimitError,
+  ForbiddenError,
 } from "@secondlayer/shared";
-import { ForbiddenError } from "../lib/ownership.ts";
 
 export class InvalidJSONError extends Error {
   code = "INVALID_JSON";
@@ -84,7 +84,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
       return c.json(
         {
           error: error.message,
-          code: "FORBIDDEN",
+          code: error.code,
         },
         403
       );
