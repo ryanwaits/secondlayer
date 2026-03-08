@@ -1,3 +1,4 @@
+import { logger } from "@secondlayer/shared";
 import { cvToJSON, deserializeCV } from "@secondlayer/stacks/clarity";
 
 /**
@@ -10,8 +11,8 @@ export function decodeClarityValue(hex: string): any {
     const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
     const cv = deserializeCV(cleanHex);
     return cvToJSON(cv);
-  } catch {
-    // Return original hex if decoding fails
+  } catch (err) {
+    logger.warn("Failed to decode Clarity value", { hex: hex.slice(0, 20), error: String(err) });
     return hex;
   }
 }
