@@ -2,15 +2,12 @@
  * Utility functions for React hook generation
  */
 
-import { toCamelCase, type FunctionArg } from "@secondlayer/stacks/clarity";
+import { type FunctionArg } from "@secondlayer/stacks/clarity";
 import { clarityTypeToTS } from "../../../utils/type-mapping";
+import { toCamelCase, capitalize } from "../../../utils/case-conversion";
 
 // Re-export for use in other files
-export { toCamelCase, clarityTypeToTS };
-
-export function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
+export { toCamelCase, clarityTypeToTS, capitalize };
 
 export function generateHookArgsSignature(args: ReadonlyArray<FunctionArg>): string {
   if (args.length === 0) return "";
