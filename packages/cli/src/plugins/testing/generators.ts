@@ -5,7 +5,6 @@
 
 import type { ProcessedContract } from "../../types/plugin";
 import {
-  toCamelCase,
   isAbiTuple,
   type AbiFunction,
   type AbiMap,
@@ -15,14 +14,8 @@ import {
 import type { TestingPluginOptions } from "./index";
 import { getTypeForArg } from "../../utils/type-mapping";
 import { generateArgsSignature, generateClarityArgs, generateMapKeyConversion } from "../../utils/generator-helpers";
+import { toCamelCase, toPascalCase } from "../../utils/case-conversion";
 
-/**
- * Convert string to PascalCase
- */
-function toPascalCase(str: string): string {
-  const camel = toCamelCase(str);
-  return camel.charAt(0).toUpperCase() + camel.slice(1);
-}
 
 
 /**

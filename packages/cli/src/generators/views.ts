@@ -1,5 +1,6 @@
 import type { ViewDetail } from "@secondlayer/shared/schemas";
 import { formatCode } from "../utils/format.ts";
+import { toPascalCase } from "../utils/case-conversion";
 
 /**
  * Generates a typed client `.ts` file for a deployed view.
@@ -69,12 +70,6 @@ export function createClient(options?: { apiKey?: string; baseUrl?: string }): C
   return formatCode(code);
 }
 
-function toPascalCase(str: string): string {
-  return str
-    .split(/[-_]/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join("");
-}
 
 /**
  * Maps column type strings from the API to TypeScript types.
