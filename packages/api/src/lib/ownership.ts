@@ -1,14 +1,7 @@
 import type { Kysely } from "kysely";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
-import { StreamNotFoundError } from "@secondlayer/shared";
-
-export class ForbiddenError extends Error {
-  constructor(message = "Forbidden") {
-    super(message);
-    this.name = "ForbiddenError";
-  }
-}
+import { StreamNotFoundError, ForbiddenError } from "@secondlayer/shared";
 
 /**
  * Get all api_key_ids belonging to the same account as the current key.

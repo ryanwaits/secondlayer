@@ -107,6 +107,12 @@ export class RateLimitError extends StreamsError {
   }
 }
 
+export class ForbiddenError extends StreamsError {
+  constructor(message = "Forbidden") {
+    super("FORBIDDEN", message);
+  }
+}
+
 /**
  * Safely extract error message from unknown error value
  */
