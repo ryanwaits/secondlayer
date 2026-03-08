@@ -1,5 +1,6 @@
 import type { Kysely } from "kysely";
 import type { Database } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import { StreamNotFoundError } from "@secondlayer/shared";
 
 export class ForbiddenError extends Error {
@@ -88,4 +89,11 @@ export function getApiKeyId(c: any): string | undefined {
 /** Extract account_id from Hono context, or undefined in DEV_MODE */
 export function getAccountId(c: any): string | undefined {
   return c.get("accountId") as string | undefined;
+}
+
+/** Resolve all active API key IDs for the current request's account. */
+export async function resolveKeyIds(c: any): Promise<string[] | undefined> {
+  const accountId = getAccountId(c);
+  if (!accountId) return undefined;
+  return getAccountKeyIds(getDb(), accountId);
 }

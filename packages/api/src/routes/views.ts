@@ -8,7 +8,7 @@ import { DeployViewRequestSchema } from "@secondlayer/shared/schemas/views";
 import type { View } from "@secondlayer/shared/db";
 import type { ViewSchema, ViewColumn } from "@secondlayer/views/types";
 import { ViewRegistryCache } from "../views/cache.ts";
-import { getApiKeyId, getAccountId, getAccountKeyIds } from "../lib/ownership.ts";
+import { getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
 import { enforceLimits } from "../middleware/enforce-limits.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
@@ -152,14 +152,6 @@ class ViewNotFoundError extends Error {
     super(`View not found: ${viewName}`);
     this.name = "ViewNotFoundError";
   }
-}
-
-/** Resolve account key IDs for the current request */
-async function resolveKeyIds(c: any): Promise<string[] | undefined> {
-  const db = getDb();
-  const accountId = getAccountId(c);
-  if (!accountId) return undefined;
-  return getAccountKeyIds(db, accountId);
 }
 
 /** Look up a view from cache with account-level ownership check */
