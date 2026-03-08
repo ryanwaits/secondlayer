@@ -108,7 +108,7 @@ export class Streams extends BaseClient {
   /** List recent deliveries for a stream. */
   async listDeliveries(id: string, params?: { limit?: number; status?: string }): Promise<DeliveriesResponse> {
     const qs = new URLSearchParams();
-    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.limit !== undefined) qs.set("limit", String(params.limit));
     if (params?.status) qs.set("status", params.status);
     const query = qs.toString();
     return this.requestWithStreamId("GET", (id) => `/api/streams/${id}/deliveries${query ? `?${query}` : ""}`, id);
