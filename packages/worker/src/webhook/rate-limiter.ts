@@ -22,34 +22,28 @@ export async function acquireToken(
   rateLimit: number = DEFAULT_RATE
 ): Promise<void> {
   let bucket = buckets.get(streamId);
-
   if (!bucket) {
     bucket = { tokens: rateLimit, lastRefill: Date.now() };
     buckets.set(streamId, bucket);
   }
 
-  // Refill tokens based on elapsed time
-  const now = Date.now();
-  const elapsed = now - bucket.lastRefill;
-  const tokensToAdd = Math.floor(elapsed / REFILL_INTERVAL_MS) * rateLimit;
+  while (true) {
+    const now = Date.now();
+    const elapsed = now - bucket.lastRefill;
+    const tokensToAdd = Math.floor(elapsed / REFILL_INTERVAL_MS) * rateLimit;
+    if (tokensToAdd > 0) {
+      bucket.tokens = Math.min(rateLimit, bucket.tokens + tokensToAdd);
+      bucket.lastRefill = now - (elapsed % REFILL_INTERVAL_MS);
+    }
 
-  if (tokensToAdd > 0) {
-    bucket.tokens = Math.min(rateLimit, bucket.tokens + tokensToAdd);
-    bucket.lastRefill = now - (elapsed % REFILL_INTERVAL_MS);
+    if (bucket.tokens > 0) {
+      bucket.tokens--;
+      return;
+    }
+
+    const waitTime = REFILL_INTERVAL_MS - (Date.now() - bucket.lastRefill);
+    await new Promise((r) => setTimeout(r, waitTime));
   }
-
-  // If tokens available, consume one
-  if (bucket.tokens > 0) {
-    bucket.tokens--;
-    return;
-  }
-
-  // Wait for next refill
-  const waitTime = REFILL_INTERVAL_MS - (now - bucket.lastRefill);
-  await new Promise((r) => setTimeout(r, waitTime));
-
-  // Recursive call to try again
-  return acquireToken(streamId, rateLimit);
 }
 
 /**
