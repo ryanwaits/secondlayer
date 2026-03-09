@@ -13,6 +13,8 @@ services:
       - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data
 
   api:
+    environment:
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/views
     deploy:
