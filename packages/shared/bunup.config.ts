@@ -10,6 +10,7 @@ export default defineConfig({
     "src/db/queries/accounts.ts",
     "src/db/queries/usage.ts",
     "src/db/queries/views.ts",
+    "src/db/queries/contracts.ts",
     "src/db/jsonb.ts",
     "src/db/schema.ts",
     "src/lib/plans.ts",
