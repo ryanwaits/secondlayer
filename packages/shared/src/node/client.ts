@@ -66,6 +66,19 @@ export class StacksNodeClient {
     }
   }
 
+  async getContractAbi(contractId: string): Promise<unknown> {
+    const dotIdx = contractId.indexOf(".");
+    const address = contractId.slice(0, dotIdx);
+    const name = contractId.slice(dotIdx + 1);
+    const res = await fetch(`${this.rpcUrl}/v2/contracts/interface/${address}/${name}`, {
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+      throw new Error(`Node RPC /v2/contracts/interface/${address}/${name} returned ${res.status}`);
+    }
+    return res.json();
+  }
+
   getRpcUrl(): string {
     return this.rpcUrl;
   }
