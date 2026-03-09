@@ -3,12 +3,6 @@ import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
 import {
   StreamsError,
-  StreamNotFoundError,
-  ValidationError,
-  AuthenticationError,
-  AuthorizationError,
-  RateLimitError,
-  ForbiddenError,
 } from "@secondlayer/shared";
 
 export class InvalidJSONError extends Error {
@@ -18,6 +12,18 @@ export class InvalidJSONError extends Error {
     this.name = "InvalidJSONError";
   }
 }
+
+// Map error codes to HTTP status codes. Checked before instanceof to avoid
+// cross-bundle class identity failures (bunup splitting: false duplicates classes).
+const CODE_TO_STATUS: Record<string, number> = {
+  AUTHENTICATION_ERROR: 401,
+  AUTHORIZATION_ERROR: 403,
+  RATE_LIMIT_ERROR: 429,
+  FORBIDDEN: 403,
+  STREAM_NOT_FOUND: 404,
+  VIEW_NOT_FOUND: 404,
+  VALIDATION_ERROR: 400,
+};
 
 /**
  * Global error handler (app.onError)
@@ -49,67 +55,16 @@ export const errorHandler: ErrorHandler = (error, c) => {
       );
     }
 
-    // Handle custom StreamsError types
-    if (error instanceof AuthenticationError) {
-      return c.json(
-        {
-          error: error.message,
-          code: error.code,
-        },
-        401
-      );
+    // Code-based matching — works across bundle boundaries
+    if ("code" in error && typeof (error as any).code === "string") {
+      const code = (error as any).code as string;
+      const status = CODE_TO_STATUS[code];
+      if (status) {
+        return c.json({ error: error.message, code }, status);
+      }
     }
 
-    if (error instanceof AuthorizationError) {
-      return c.json(
-        {
-          error: error.message,
-          code: error.code,
-        },
-        403
-      );
-    }
-
-    if (error instanceof RateLimitError) {
-      return c.json(
-        {
-          error: error.message,
-          code: error.code,
-        },
-        429
-      );
-    }
-
-    if (error instanceof ForbiddenError) {
-      return c.json(
-        {
-          error: error.message,
-          code: error.code,
-        },
-        403
-      );
-    }
-
-    if (error instanceof StreamNotFoundError) {
-      return c.json(
-        {
-          error: error.message,
-          code: error.code,
-        },
-        404
-      );
-    }
-
-    if (error instanceof ValidationError) {
-      return c.json(
-        {
-          error: error.message,
-          code: error.code,
-        },
-        400
-      );
-    }
-
+    // Fallback instanceof checks for StreamsError subtypes without mapped codes
     if (error instanceof StreamsError) {
       return c.json(
         {
@@ -117,17 +72,6 @@ export const errorHandler: ErrorHandler = (error, c) => {
           code: error.code,
         },
         500
-      );
-    }
-
-    // Handle errors with a "code" property (e.g. ViewNotFoundError)
-    if ("code" in error && (error as any).code === "VIEW_NOT_FOUND") {
-      return c.json(
-        {
-          error: error.message,
-          code: "VIEW_NOT_FOUND",
-        },
-        404
       );
     }
 
