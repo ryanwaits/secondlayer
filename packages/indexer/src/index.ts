@@ -251,6 +251,51 @@ const server = Bun.serve({
                 .execute();
             }
 
+            // Upsert contracts for deploy txs
+            const deployTxs = txs.filter((t) => t.type === "smart_contract" && t.contract_id);
+            for (let i = 0; i < deployTxs.length; i += TX_CHUNK_SIZE) {
+              const chunk = deployTxs.slice(i, i + TX_CHUNK_SIZE);
+              await tx
+                .insertInto("contracts")
+                .values(
+                  chunk.map((t) => ({
+                    contract_id: t.contract_id!,
+                    name: t.contract_id!.slice(t.contract_id!.indexOf(".") + 1),
+                    deployer: t.sender,
+                    deploy_block: t.block_height,
+                    deploy_tx_id: t.tx_id,
+                  })),
+                )
+                .onConflict((oc: any) =>
+                  oc.column("contract_id").doUpdateSet({
+                    abi: null,
+                    abi_fetched_at: null,
+                    updated_at: new Date(),
+                  }),
+                )
+                .execute();
+            }
+
+            // Update call counts for contract_call txs
+            const callTxs = txs.filter((t) => t.type === "contract_call" && t.contract_id);
+            if (callTxs.length > 0) {
+              const callCounts = new Map<string, number>();
+              for (const t of callTxs) {
+                callCounts.set(t.contract_id!, (callCounts.get(t.contract_id!) ?? 0) + 1);
+              }
+              for (const [contractId, count] of callCounts) {
+                await tx
+                  .updateTable("contracts")
+                  .set({
+                    call_count: sql`call_count + ${count}`,
+                    last_called_at: new Date(),
+                    updated_at: new Date(),
+                  })
+                  .where("contract_id", "=", contractId)
+                  .execute();
+              }
+            }
+
             const network = process.env.STACKS_NETWORK || "mainnet";
 
             // Compute lastContiguousBlock
