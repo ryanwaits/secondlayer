@@ -1,4 +1,5 @@
 import got from "got";
+import type { AbiContract } from "@secondlayer/stacks/clarity";
 import type { NetworkName } from "../types/config";
 import { parseContractId } from "./contract-id";
 
@@ -21,16 +22,6 @@ const API_URLS: Record<NetworkName, string> = {
   testnet: "https://api.testnet.hiro.so",
   devnet: "http://localhost:3999",
 };
-
-export interface ContractInfo {
-  functions: any[];
-  variables?: any[];
-  maps?: any[];
-  fungible_tokens?: any[];
-  non_fungible_tokens?: any[];
-  epoch?: string;
-  clarity_version?: string;
-}
 
 export class StacksApiClient {
   private static hasWarnedAboutApiKey = false;
@@ -77,10 +68,10 @@ export class StacksApiClient {
     }
   }
 
-  async getContractInfo(contractId: string): Promise<ContractInfo> {
+  async getContractInfo(contractId: string): Promise<AbiContract> {
     const { address, contractName } = parseContractId(contractId);
     const url = `${this.baseUrl}/v2/contracts/interface/${address}/${contractName}`;
-    return this.fetchWithErrorHandling<ContractInfo>(url, "Contract", contractId);
+    return this.fetchWithErrorHandling<AbiContract>(url, "Contract", contractId);
   }
 
   async getContractSource(contractId: string): Promise<string> {
