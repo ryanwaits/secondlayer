@@ -2,6 +2,7 @@
  * Plugin system types for @secondlayer/cli
  */
 
+import type { AbiContract } from "@secondlayer/stacks/clarity";
 import type { SecondLayerConfig, ResolvedContract, NetworkName } from "./config";
 
 /**
@@ -63,7 +64,7 @@ export interface ContractConfig {
   name?: string;
   address?: string | Partial<Record<NetworkName, string>>;
   source?: string;
-  abi?: any;
+  abi?: AbiContract;
   metadata?: Record<string, any>;
 }
 
