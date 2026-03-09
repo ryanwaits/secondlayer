@@ -217,6 +217,25 @@ docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC
   getblockchaininfo | jq '{blocks,headers,verificationprogress}'
 ```
 
+### Contracts
+
+```bash
+# Total indexed contracts
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+  -c "SELECT count(*) FROM contracts;"
+
+# Top contracts by call count
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+  -c "SELECT name, contract_id, call_count FROM contracts ORDER BY call_count DESC LIMIT 10;"
+
+# ABI cache stats
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+  -c "SELECT count(*) FILTER (WHERE abi IS NOT NULL) AS cached, count(*) AS total FROM contracts;"
+
+# Test API endpoint
+curl -s -H "Authorization: Bearer $TOKEN" "https://api.secondlayer.tools/api/contracts?q=bns" | jq
+```
+
 ### Disk Usage
 
 ```bash

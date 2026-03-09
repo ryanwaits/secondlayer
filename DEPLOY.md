@@ -56,6 +56,7 @@ NETWORKS=mainnet
 # API
 PORT=3800
 RESEND_API_KEY=                  # For magic link auth emails
+STACKS_NODE_RPC_URL=http://...   # Stacks node for ABI fetching (contracts endpoint)
 ```
 
 ---
@@ -143,6 +144,44 @@ All need `DATABASE_URL`. The indexer needs a public URL for event observer.
 - ~1 GB per 100K blocks
 - Mainnet ~7M+ blocks = ~70+ GB
 - Recommend starting with 100 GB
+
+---
+
+## Contracts Table
+
+The `contracts` table is populated automatically:
+
+- **Backfill**: Migration `0007_contracts` backfills from existing `transactions` table on first run
+- **Live**: The indexer upserts contracts on every `smart_contract` deploy and increments `call_count` on every `contract_call`
+- **ABI**: Fetched lazily from the Stacks node (`STACKS_NODE_RPC_URL`) on first `/api/contracts/:id/abi` request, then cached in the `abi` column
+
+### Verify
+
+```bash
+# Contract count
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+  -c "SELECT count(*) FROM contracts;"
+
+# Top contracts by usage
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+  -c "SELECT contract_id, name, call_count FROM contracts ORDER BY call_count DESC LIMIT 10;"
+
+# Contracts with cached ABIs
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+  -c "SELECT count(*) FILTER (WHERE abi IS NOT NULL) AS cached, count(*) AS total FROM contracts;"
+```
+
+### Re-backfill
+
+Safe to run anytime (idempotent):
+
+```sql
+INSERT INTO contracts (contract_id, name, deployer, deploy_block, deploy_tx_id, created_at)
+SELECT DISTINCT ON (contract_id) contract_id, split_part(contract_id, '.', 2), sender, block_height, tx_id, created_at
+FROM transactions WHERE type = 'smart_contract' AND contract_id IS NOT NULL
+ORDER BY contract_id, block_height ASC
+ON CONFLICT (contract_id) DO NOTHING;
+```
 
 ---
 
