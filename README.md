@@ -155,6 +155,68 @@ Address prefix determines network:
 - `SP`/`SM` → mainnet
 - `ST`/`SN` → testnet
 
+---
+
+## Platform
+
+Second Layer also provides a hosted indexing platform with real-time streams, materialized views, and contract discovery.
+
+### CLI
+
+```bash
+bun add -g @secondlayer/cli
+
+sl auth login                    # authenticate via magic link
+sl streams list                  # manage event streams
+sl views list                    # manage materialized views
+sl contracts search "token"      # search indexed contracts by name
+sl contracts info SP2J6..token   # contract details (deployer, call count, etc.)
+sl contracts abi SP2J6..token    # fetch + display contract ABI
+```
+
+All commands support `--json` for machine-readable output.
+
+### SDK
+
+```bash
+bun add @secondlayer/sdk
+```
+
+```typescript
+import { SecondLayer } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({ apiKey: "sk-sl_..." });
+
+// Search contracts
+const { contracts, total } = await sl.contracts.search("bns", { limit: 10 });
+
+// Get contract detail
+const contract = await sl.contracts.get("SP000000000000000000002Q6VF78.bns");
+
+// Fetch ABI (lazy-cached from Stacks node)
+const abi = await sl.contracts.getAbi("SP000000000000000000002Q6VF78.bns");
+```
+
+### REST API
+
+Base URL: `https://api.secondlayer.tools`
+
+```bash
+# Search contracts
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://api.secondlayer.tools/api/contracts?q=bns&limit=20"
+
+# Contract detail
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://api.secondlayer.tools/api/contracts/SP000000000000000000002Q6VF78.bns"
+
+# Contract ABI (cached, ?refresh=true to force re-fetch)
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://api.secondlayer.tools/api/contracts/SP000000000000000000002Q6VF78.bns/abi"
+```
+
+See [packages/api/README.md](packages/api/README.md) and [packages/sdk/README.md](packages/sdk/README.md) for full docs.
+
 ## License
 
 MIT
