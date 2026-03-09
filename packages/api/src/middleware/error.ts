@@ -15,7 +15,7 @@ export class InvalidJSONError extends Error {
 
 // Map error codes to HTTP status codes. Checked before instanceof to avoid
 // cross-bundle class identity failures (bunup splitting: false duplicates classes).
-const CODE_TO_STATUS: Record<string, number> = {
+const CODE_TO_STATUS: Record<string, 400 | 401 | 403 | 404 | 429> = {
   AUTHENTICATION_ERROR: 401,
   AUTHORIZATION_ERROR: 403,
   RATE_LIMIT_ERROR: 429,
