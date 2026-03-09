@@ -33,7 +33,7 @@ services:
       retries: 3
 
   stacks-node:
-    image: blockstack/stacks-blockchain:3.3.0.0.5
+    image: ghcr.io/stacks-network/stacks-core:3.3.0.0.6
     volumes:
       - ${STACKS_DATA_DIR:-/data/stacks}:/stacks-blockchain/data
       - ./Config.toml:/stacks-blockchain/Config.toml:ro
