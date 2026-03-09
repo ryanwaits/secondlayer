@@ -16,6 +16,10 @@
     "./views": {
       "types": "./dist/views/index.d.ts",
       "import": "./dist/views/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "import": "./dist/contracts/index.js"
     }
   },
   "files": [
