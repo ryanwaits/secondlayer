@@ -143,3 +143,17 @@ export async function queryViewTable(name: string, table: string, params: ViewQu
 export async function queryViewTableCount(name: string, table: string, params: ViewQueryParams = {}): Promise<{ count: number }> {
   return (await getClient()).views.queryTableCount(name, table, params);
 }
+
+// ── Contracts ─────────────────────────────────────────────────────────────
+
+export async function searchContracts(query: string, params?: { limit?: number; offset?: number }) {
+  return (await getClient()).contracts.search(query, params);
+}
+
+export async function getContractInfo(contractId: string) {
+  return (await getClient()).contracts.get(contractId);
+}
+
+export async function getContractAbi(contractId: string) {
+  return (await getClient()).contracts.getAbi(contractId);
+}
