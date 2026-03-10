@@ -45,6 +45,7 @@ const COMPARISON_OPS: Record<string, string> = {
   gt: ">",
   lt: "<",
   neq: "!=",
+  like: "ILIKE",
 };
 
 function ident(name: string): string {
@@ -76,17 +77,19 @@ class InvalidColumnError extends Error {
 }
 
 interface ParsedQuery {
-  filters: { column: string; op: string; value: string }[];
+  filters: { column: string; op: string; value: string; isLike?: boolean }[];
   sort?: string;
   order: "ASC" | "DESC";
   limit: number;
   offset: number;
   fields?: string[];
+  search?: { value: string; columns: string[] };
 }
 
 function parseQueryParams(
   params: Record<string, string>,
   validColumns: Set<string>,
+  tableDef?: { columns: Record<string, ViewColumn> },
 ): ParsedQuery {
   const filters: ParsedQuery["filters"] = [];
   let sort: string | undefined;
@@ -94,8 +97,20 @@ function parseQueryParams(
   let limit = DEFAULT_LIMIT;
   let offset = 0;
   let fields: string[] | undefined;
+  let search: ParsedQuery["search"];
 
   for (const [key, value] of Object.entries(params)) {
+    if (key === "_search") {
+      const searchCols = tableDef
+        ? Object.entries(tableDef.columns)
+            .filter(([, col]) => col.search)
+            .map(([name]) => name)
+        : [];
+      if (searchCols.length > 0) {
+        search = { value, columns: searchCols };
+      }
+      continue;
+    }
     if (key === "_sort") {
       if (!validColumns.has(value)) throw new InvalidColumnError(value);
       sort = value;
@@ -128,7 +143,7 @@ function parseQueryParams(
       const op = key.slice(dotIdx + 1);
       if (COMPARISON_OPS[op]) {
         if (!validColumns.has(col)) throw new InvalidColumnError(col);
-        filters.push({ column: col, op: COMPARISON_OPS[op], value });
+        filters.push({ column: col, op: COMPARISON_OPS[op]!, value, isLike: op === "like" });
         continue;
       }
     }
@@ -138,7 +153,7 @@ function parseQueryParams(
     filters.push({ column: key, op: "=", value });
   }
 
-  return { filters, sort, order, limit, offset, fields };
+  return { filters, sort, order, limit, offset, fields, search };
 }
 
 async function query(text: string, params: unknown[] = []) {
@@ -384,6 +399,33 @@ app.get("/:viewName", async (c) => {
   });
 });
 
+// ── Query helpers ────────────────────────────────────────────────────────
+
+function buildWhereConditions(parsed: ParsedQuery, params: unknown[]): string[] {
+  const conditions: string[] = [];
+
+  for (const f of parsed.filters) {
+    if (f.isLike) {
+      params.push(f.value);
+      conditions.push(`${ident(f.column)} ILIKE '%' || $${params.length} || '%'`);
+    } else {
+      params.push(f.value);
+      conditions.push(`${ident(f.column)} ${f.op} $${params.length}`);
+    }
+  }
+
+  if (parsed.search) {
+    params.push(parsed.search.value);
+    const idx = params.length;
+    const orClauses = parsed.search.columns.map(
+      (col) => `${ident(col)} ILIKE '%' || $${idx} || '%'`,
+    );
+    conditions.push(`(${orClauses.join(" OR ")})`);
+  }
+
+  return conditions;
+}
+
 // ── Count rows ──────────────────────────────────────────────────────────
 
 app.get("/:viewName/:tableName/count", async (c) => {
@@ -398,21 +440,15 @@ app.get("/:viewName/:tableName/count", async (c) => {
   }
 
   const validColumns = getValidColumns(tableDef);
-  const filterParams = Object.fromEntries(
-    Object.entries(c.req.query()).filter(([k]) => !k.startsWith("_")),
-  );
 
   try {
-    const parsed = parseQueryParams(filterParams, validColumns);
+    const parsed = parseQueryParams(c.req.query(), validColumns, tableDef);
     const sn = viewSchemaName(view);
     const params: unknown[] = [];
     let text = `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`;
 
-    if (parsed.filters.length > 0) {
-      const conditions = parsed.filters.map((f) => {
-        params.push(f.value);
-        return `${ident(f.column)} ${f.op} $${params.length}`;
-      });
+    const conditions = buildWhereConditions(parsed, params);
+    if (conditions.length > 0) {
       text += ` WHERE ${conditions.join(" AND ")}`;
     }
 
@@ -469,7 +505,7 @@ app.get("/:viewName/:tableName", async (c) => {
   const validColumns = getValidColumns(tableDef);
 
   try {
-    const parsed = parseQueryParams(c.req.query(), validColumns);
+    const parsed = parseQueryParams(c.req.query(), validColumns, tableDef);
     const sn = viewSchemaName(view);
     const params: unknown[] = [];
 
@@ -479,11 +515,8 @@ app.get("/:viewName/:tableName", async (c) => {
 
     let text = `SELECT ${selectFields} FROM ${ident(sn)}.${ident(tableName)}`;
 
-    if (parsed.filters.length > 0) {
-      const conditions = parsed.filters.map((f) => {
-        params.push(f.value);
-        return `${ident(f.column)} ${f.op} $${params.length}`;
-      });
+    const conditions = buildWhereConditions(parsed, params);
+    if (conditions.length > 0) {
       text += ` WHERE ${conditions.join(" AND ")}`;
     }
 
@@ -491,17 +524,32 @@ app.get("/:viewName/:tableName", async (c) => {
     text += ` ORDER BY ${sortCol} ${parsed.order}`;
     text += ` LIMIT ${parsed.limit} OFFSET ${parsed.offset}`;
 
+    // Count query uses same params
     let countText = `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`;
-    if (parsed.filters.length > 0) {
-      const conditions = parsed.filters.map((f, i) => {
-        return `${ident(f.column)} ${f.op} $${i + 1}`;
+    if (conditions.length > 0) {
+      // Rebuild conditions with fresh params array for count query
+      const countParams: unknown[] = [];
+      const countConditions = buildWhereConditions(parsed, countParams);
+      countText += ` WHERE ${countConditions.join(" AND ")}`;
+      // Use countParams for count query
+      const [data, countResult] = await Promise.all([
+        query(text, params),
+        query(countText, countParams),
+      ]);
+
+      return c.json({
+        data: Array.from(data),
+        meta: {
+          total: parseInt(String(countResult[0]?.count ?? 0), 10),
+          limit: parsed.limit,
+          offset: parsed.offset,
+        },
       });
-      countText += ` WHERE ${conditions.join(" AND ")}`;
     }
 
     const [data, countResult] = await Promise.all([
       query(text, params),
-      query(countText, params),
+      query(countText),
     ]);
 
     return c.json({
