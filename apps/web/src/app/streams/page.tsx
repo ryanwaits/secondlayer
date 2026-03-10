@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/sidebar";
 import { SectionHeading } from "@/components/section-heading";
 import { CodeBlock } from "@/components/code-block";
+import { BoxBadge } from "@/components/box-badge";
 import type { TocItem } from "@/components/sidebar";
 
 const toc: TocItem[] = [
@@ -20,8 +21,7 @@ export default function StreamsPage() {
 
       <main className="content-area">
         <header className="page-header">
-          <h1 className="page-title">Streams</h1>
-          <p className="page-date">March 10, 2026</p>
+          <h1 className="page-title">Streams <BoxBadge>Beta</BoxBadge></h1>
         </header>
 
         <div className="prose">
