@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 0.4.0
+
+### Minor Changes
+
+- Add contract query helpers with full-text search via pg_trgm. Add `getContractAbi()` for Stacks node RPC. Add `ForbiddenError` class. Treat Hiro 429 responses as reachable and increase health check timeout. Drop contracts table in favor of views system.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@0.2.0
+
 ## 0.3.0
 
 ### Minor Changes
