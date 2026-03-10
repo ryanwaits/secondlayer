@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeAll } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
-import { sql } from "@secondlayer/shared/db";
 
 const INDEXER_URL = process.env.INDEXER_URL || "http://localhost:3700";
 const HAS_DB = !!process.env.DATABASE_URL;

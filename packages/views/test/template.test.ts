@@ -1,6 +1,6 @@
 import { test, expect, describe } from "bun:test";
 import { generateViewTemplate } from "../../cli/src/templates/view.ts";
-import { ViewDefinitionSchema } from "../src/validate.ts";
+
 
 describe("generateViewTemplate", () => {
   test("output passes validateViewDefinition", async () => {

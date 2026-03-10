@@ -123,7 +123,7 @@ describe.skipIf(SKIP)("Job Queue", () => {
   test("stats returns correct counts", async () => {
     await enqueue(testStreamId, 700);
     await enqueue(testStreamId, 701);
-    const jobId = await enqueue(testStreamId, 702);
+    await enqueue(testStreamId, 702);
     const claimed = await claim();
     await complete(claimed!.id);
 

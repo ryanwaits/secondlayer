@@ -1,10 +1,11 @@
-import { defineConfig } from "bunup";
+import { defineConfig, type DefineConfigItem } from "bunup";
 
-export default defineConfig({
+const config: DefineConfigItem = defineConfig({
   entry: ["src/index.ts"],
   format: ["esm"],
   dts: true,
   sourcemap: "linked",
   minify: false,
   external: ["kysely", "kysely-postgres-js", "postgres", "pluralize"],
-});
+}) as DefineConfigItem;
+export default config;

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { clarityTypeToTS } from "../src/plugins/react/generators/utils";
+import type { AbiType } from "@secondlayer/stacks/clarity";
 
 describe("Type Safety - clarityTypeToTS", () => {
   describe("Primitive Types", () => {
@@ -20,15 +21,15 @@ describe("Type Safety - clarityTypeToTS", () => {
     });
 
     it("handles string types", () => {
-      expect(clarityTypeToTS("string-ascii")).toBe("string");
-      expect(clarityTypeToTS("string-utf8")).toBe("string");
+      expect(clarityTypeToTS("string-ascii" as AbiType)).toBe("string");
+      expect(clarityTypeToTS("string-utf8" as AbiType)).toBe("string");
       expect(clarityTypeToTS({ "string-ascii": { length: 100 } })).toBe("string");
       expect(clarityTypeToTS({ "string-utf8": { length: 100 } })).toBe("string");
     });
 
     it("handles buffer type", () => {
       // Shorthand string format
-      expect(clarityTypeToTS("buff")).toBe("Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }");
+      expect(clarityTypeToTS("buff" as AbiType)).toBe("Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }");
       // Full object format from ABI
       expect(clarityTypeToTS({ buff: { length: 32 } })).toBe("Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }");
     });
@@ -41,7 +42,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           ok: "uint128",
           error: "uint128",
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(responseType)).toBe(
         "{ ok: bigint } | { err: bigint }"
@@ -54,7 +55,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           ok: "bool",
           error: "uint128",
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(responseType)).toBe(
         "{ ok: boolean } | { err: bigint }"
@@ -72,7 +73,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           },
           error: "uint128",
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(responseType)).toBe(
         "{ ok: { balance: bigint; owner: string } } | { err: bigint }"
@@ -87,7 +88,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           { name: "owner", type: "principal" },
           { name: "amount", type: "uint128" },
         ],
-      };
+      } as const;
 
       expect(clarityTypeToTS(tupleType)).toBe(
         "{ owner: string; amount: bigint }"
@@ -100,7 +101,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           { name: "total-supply", type: "uint128" },
           { name: "token-name", type: { "string-ascii": { length: 32 } } },
         ],
-      };
+      } as const;
 
       expect(clarityTypeToTS(tupleType)).toBe(
         "{ totalSupply: bigint; tokenName: string }"
@@ -121,7 +122,7 @@ describe("Type Safety - clarityTypeToTS", () => {
             },
           },
         ],
-      };
+      } as const;
 
       expect(clarityTypeToTS(tupleType)).toBe(
         "{ id: bigint; metadata: { name: string; value: bigint } }"
@@ -136,7 +137,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           type: "uint128",
           length: 100,
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(listType)).toBe("bigint[]");
     });
@@ -147,7 +148,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           type: "principal",
           length: 50,
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(listType)).toBe("string[]");
     });
@@ -163,7 +164,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           },
           length: 10,
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(listType)).toBe(
         "{ id: bigint; owner: string }[]"
@@ -175,7 +176,7 @@ describe("Type Safety - clarityTypeToTS", () => {
     it("handles optional primitive types", () => {
       const optionalType = {
         optional: "uint128",
-      };
+      } as const;
 
       expect(clarityTypeToTS(optionalType)).toBe("bigint | null");
     });
@@ -188,7 +189,7 @@ describe("Type Safety - clarityTypeToTS", () => {
             { name: "locked", type: "bool" },
           ],
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(optionalType)).toBe(
         "{ balance: bigint; locked: boolean } | null"
@@ -213,7 +214,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           },
           error: "uint128",
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(complexType)).toBe(
         "{ ok: { id: bigint; owner: string }[] } | { err: bigint }"
@@ -231,7 +232,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           },
           error: "uint128",
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(complexType)).toBe(
         "{ ok: { amount: bigint; memo: string | null } } | { err: bigint }"
@@ -246,7 +247,7 @@ describe("Type Safety - clarityTypeToTS", () => {
           },
           length: 20,
         },
-      };
+      } as const;
 
       expect(clarityTypeToTS(listType)).toBe("(string | null)[]");
     });
@@ -254,14 +255,14 @@ describe("Type Safety - clarityTypeToTS", () => {
 
   describe("Edge Cases", () => {
     it("returns any for unknown types", () => {
-      expect(clarityTypeToTS("unknown-type")).toBe("any");
-      expect(clarityTypeToTS({ unknownProperty: true })).toBe("any");
+      expect(clarityTypeToTS("unknown-type" as AbiType)).toBe("any");
+      expect(clarityTypeToTS({ unknownProperty: true } as any)).toBe("any");
     });
 
     it("handles empty tuple", () => {
       const emptyTuple = {
         tuple: [],
-      };
+      } as const;
 
       expect(clarityTypeToTS(emptyTuple)).toBe("{  }");
     });

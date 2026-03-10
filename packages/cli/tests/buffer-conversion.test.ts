@@ -14,7 +14,7 @@ describe("Buffer Conversion Enhancement", () => {
           access: "public",
           args: [
             { name: "sender", type: "principal" },
-            { name: "memo", type: { buff: 34 } },
+            { name: "memo", type: { buff: { length: 34 } } },
           ],
           outputs: {
             response: {
@@ -27,8 +27,8 @@ describe("Buffer Conversion Enhancement", () => {
           name: "store-data",
           access: "public",
           args: [
-            { name: "key", type: { "string-ascii": 32 } },
-            { name: "data", type: { buff: 1024 } },
+            { name: "key", type: { "string-ascii": { length: 32 } } },
+            { name: "data", type: { buff: { length: 1024 } } },
           ],
           outputs: {
             response: {

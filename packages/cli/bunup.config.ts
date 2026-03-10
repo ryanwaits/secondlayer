@@ -1,16 +1,16 @@
-import { defineConfig } from "bunup";
+import { defineConfig, type DefineConfigItem } from "bunup";
 
 const sharedConfig = {
   splitting: false,
-  sourcemap: "linked",
+  sourcemap: "linked" as const,
   minify: false,
   external: ["esbuild", "@biomejs/js-api", "@biomejs/wasm-nodejs", "@hirosystems/clarinet-sdk", "@secondlayer/clarity-types"],
   noExternal: ["chalk", "commander", "fast-glob", "got", "execa"],
   shims: true,
-  target: "node",
-} as const;
+  target: "node" as const,
+};
 
-export default defineConfig([
+const config: DefineConfigItem[] = defineConfig([
   {
     name: "main",
     entry: ["src/index.ts"],
@@ -39,4 +39,5 @@ export default defineConfig([
     dts: true,
     ...sharedConfig,
   },
-]);
+]) as DefineConfigItem[];
+export default config;

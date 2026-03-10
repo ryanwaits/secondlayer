@@ -1,6 +1,6 @@
-import { defineConfig } from "bunup";
+import { defineConfig, type DefineConfigItem } from "bunup";
 
-export default defineConfig({
+const config: DefineConfigItem = defineConfig({
   entry: [
     "src/index.ts",
     "src/types.ts",
@@ -28,4 +28,5 @@ export default defineConfig({
     "postgres",
     "zod",
   ],
-});
+}) as DefineConfigItem;
+export default config;

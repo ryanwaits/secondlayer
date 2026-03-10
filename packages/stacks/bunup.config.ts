@@ -1,6 +1,6 @@
-import { defineConfig } from "bunup";
+import { defineConfig, type DefineConfigItem } from "bunup";
 
-export default defineConfig([
+const config: DefineConfigItem[] = defineConfig([
   {
     name: "stacks",
     entry: [
@@ -45,4 +45,5 @@ export default defineConfig([
     sourcemap: "linked",
     minify: false,
   },
-]);
+]) as DefineConfigItem[];
+export default config;

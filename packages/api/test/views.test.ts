@@ -1,9 +1,9 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { resolve } from "node:path";
 import { Hono } from "hono";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import { sql } from "kysely";
-import { registerView, deleteView } from "@secondlayer/shared/db/queries/views";
+import { registerView } from "@secondlayer/shared/db/queries/views";
 import viewsRouter, { startViewCache, stopViewCache } from "../src/routes/views.ts";
 
 const SKIP = !process.env.DATABASE_URL;
@@ -103,7 +103,7 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("GET /views lists all views", async () => {
     const res = await app.request("/views");
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data).toBeArray();
     expect(body.data.length).toBe(1);
     expect(body.data[0].name).toBe(VIEW_NAME);
@@ -115,7 +115,7 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("GET /views/:viewName returns view metadata with table docs", async () => {
     const res = await app.request(`/views/${VIEW_NAME}`);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.name).toBe(VIEW_NAME);
     expect(body.status).toBe("active");
     expect(body.tables.listings).toBeDefined();
@@ -137,7 +137,7 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("GET /views/:viewName/:tableName lists rows", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings`);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data).toBeArray();
     expect(body.data.length).toBe(4);
     expect(body.meta.total).toBe(4);
@@ -147,7 +147,7 @@ describe.skipIf(SKIP)("Views API Routes", () => {
 
   test("equality filter: ?status=active", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?status=active`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(3);
     expect(body.meta.total).toBe(3);
     for (const row of body.data) {
@@ -157,51 +157,51 @@ describe.skipIf(SKIP)("Views API Routes", () => {
 
   test("equality filter: ?seller=SP_ALICE", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?seller=SP_ALICE`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(2);
   });
 
   test("comparison filter: ?price.gte=1000000", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?price.gte=1000000`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(3);
   });
 
   test("comparison filter: ?price.gt=2000000", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?price.gt=2000000`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(1);
     expect(body.data[0].nft_id).toBe("nft-4");
   });
 
   test("comparison filter: ?_block_height.lte=100", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_block_height.lte=100`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(2);
   });
 
   test("combined filters: ?seller=SP_ALICE&status=active", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?seller=SP_ALICE&status=active`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(1);
     expect(body.data[0].nft_id).toBe("nft-1");
   });
 
   test("sorting: ?_sort=price&_order=desc", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_sort=price&_order=desc`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data[0].price).toBe("3000000"); // bigint comes back as string
   });
 
   test("sorting: ?_sort=price&_order=asc", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_sort=price&_order=asc`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data[0].price).toBe("500000");
   });
 
   test("pagination: ?_limit=2&_offset=0", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=2&_offset=0`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(2);
     expect(body.meta.total).toBe(4);
     expect(body.meta.limit).toBe(2);
@@ -210,20 +210,20 @@ describe.skipIf(SKIP)("Views API Routes", () => {
 
   test("pagination: ?_limit=2&_offset=2", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=2&_offset=2`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(2);
     expect(body.meta.offset).toBe(2);
   });
 
   test("pagination: ?_limit=2&_offset=3 returns 1 row", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=2&_offset=3`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(1);
   });
 
   test("field selection: ?_fields=nft_id,price", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_fields=nft_id,price`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data.length).toBe(4);
     // Should only have selected fields
     const row = body.data[0];
@@ -236,14 +236,14 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("unknown column in filter returns 400", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?nonexistent=foo`);
     expect(res.status).toBe(400);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.code).toBe("INVALID_COLUMN");
   });
 
   test("unknown column in _sort returns 400", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_sort=nonexistent`);
     expect(res.status).toBe(400);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.code).toBe("INVALID_COLUMN");
   });
 
@@ -255,14 +255,14 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("unknown table returns 404", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/nonexistent`);
     expect(res.status).toBe(404);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.code).toBe("TABLE_NOT_FOUND");
   });
 
   test("unknown view returns 404", async () => {
     const res = await app.request("/views/nonexistent/listings");
     expect(res.status).toBe(404);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.code).toBe("VIEW_NOT_FOUND");
   });
 
@@ -271,12 +271,12 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("GET by _id returns single row", async () => {
     // First get the first row's ID
     const listRes = await app.request(`/views/${VIEW_NAME}/listings?_limit=1`);
-    const listBody = await listRes.json();
+    const listBody = await listRes.json() as any;
     const id = listBody.data[0]._id;
 
     const res = await app.request(`/views/${VIEW_NAME}/listings/${id}`);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.data._id).toBe(id);
     expect(body.data.nft_id).toBeDefined();
   });
@@ -284,7 +284,7 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("GET by _id returns 404 for missing row", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings/999999`);
     expect(res.status).toBe(404);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.code).toBe("ROW_NOT_FOUND");
   });
 
@@ -293,20 +293,20 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("count returns total rows", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings/count`);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.count).toBe(4);
   });
 
   test("count with filter", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings/count?status=active`);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.count).toBe(3);
   });
 
   test("count with comparison filter", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings/count?price.gte=2000000`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.count).toBe(2);
   });
 
@@ -314,19 +314,19 @@ describe.skipIf(SKIP)("Views API Routes", () => {
 
   test("_limit is capped at 1000", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=5000`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.meta.limit).toBe(1000);
   });
 
   test("_limit=0 falls back to default", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=0`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.meta.limit).toBe(50);
   });
 
   test("_limit=-1 clamps to 1", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=-1`);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.meta.limit).toBe(1);
   });
 
@@ -344,7 +344,7 @@ describe.skipIf(SKIP)("Views API Routes", () => {
       body: JSON.stringify({ fromBlock: 1, toBlock: 10 }),
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.message).toContain("Reindex started");
     expect(body.fromBlock).toBe(1);
     expect(body.toBlock).toBe(10);
@@ -353,7 +353,7 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   test("POST /views/:viewName/reindex works without body", async () => {
     const res = await app.request(`/views/${VIEW_NAME}/reindex`, { method: "POST" });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as any;
     expect(body.message).toContain("Reindex started");
     expect(body.fromBlock).toBe(1);
     expect(body.toBlock).toBe("chain tip");
