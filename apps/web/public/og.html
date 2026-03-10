@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<title>Secondlayer OG Image</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;460&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    background: #fdfdfc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .frame {
+    width: 1200px;
+    height: 630px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 120px;
+    position: relative;
+  }
+
+  /* Subtle top-left corner mark */
+  .corner-mark {
+    position: absolute;
+    top: 48px;
+    left: 120px;
+    width: 20px;
+    height: 20px;
+    border-left: 1.5px solid #d0d0d0;
+    border-top: 1.5px solid #d0d0d0;
+  }
+
+  /* Subtle bottom-right corner mark */
+  .corner-mark-br {
+    position: absolute;
+    bottom: 48px;
+    right: 120px;
+    width: 20px;
+    height: 20px;
+    border-right: 1.5px solid #d0d0d0;
+    border-bottom: 1.5px solid #d0d0d0;
+  }
+
+  .title {
+    font-family: 'Sora', sans-serif;
+    font-size: 72px;
+    font-weight: 600;
+    color: #111;
+    letter-spacing: -2.5px;
+    line-height: 1;
+    margin-bottom: 36px;
+  }
+
+  .tagline {
+    font-family: 'Public Sans', sans-serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: #555;
+    letter-spacing: -0.3px;
+    line-height: 1.4;
+    position: relative;
+    display: inline;
+  }
+
+  .tagline-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  .agent-native {
+    position: relative;
+    display: inline;
+    color: #111;
+    font-weight: 460;
+  }
+
+  .underline-svg {
+    position: absolute;
+    bottom: -6px;
+    left: -4px;
+    width: calc(100% + 8px);
+    height: 14px;
+    pointer-events: none;
+  }
+
+  .rest {
+    color: #555;
+  }
+
+
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="corner-mark"></div>
+    <div class="corner-mark-br"></div>
+
+    <div class="title">secondlayer</div>
+
+    <div class="tagline-wrap">
+      <span class="tagline">
+        <span class="agent-native">
+          Agent-native
+          <!-- Hand-drawn underline -->
+          <svg class="underline-svg" viewBox="0 0 220 14" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+            <path
+              d="M2 9.5C18 5.5 38 3.8 62 5.2C86 6.6 108 4.2 132 6.8C156 9.4 178 5 198 7.2C206 8 214 9.5 218 8.5"
+              stroke="#6344F5"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              fill="none"
+            />
+            <path
+              d="M4 11C22 7.8 44 6 68 7.5C92 9 112 6 138 8.2C160 10 182 6.8 200 9C210 10 216 10.5 218 10"
+              stroke="#6344F5"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              fill="none"
+              opacity="0.45"
+            />
+          </svg>
+        </span>
+        <span class="rest"> developer tools for Stacks.</span>
+      </span>
+    </div>
+
+  </div>
+</body>
+</html>
