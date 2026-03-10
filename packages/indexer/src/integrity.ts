@@ -130,9 +130,26 @@ async function autoBackfill(gaps: Gap[]) {
   const blocksPerSecond = parseInt(process.env.AUTO_BACKFILL_RATE || "10");
   const db = getDb();
 
+  // Pre-flight: check Hiro health once before starting
+  const hiroHealthy = await hiroClient.isHealthy();
+  if (!hiroHealthy) {
+    logger.warn("Auto-backfill: Hiro API not reachable, skipping cycle");
+    integrityState.autoBackfillInProgress = false;
+    integrityState.autoBackfillRemaining = 0;
+    return;
+  }
+
+  let consecutiveFailures = 0;
+  const MAX_CONSECUTIVE_FAILURES = 5;
+
   try {
     for (const gap of staleGaps) {
       for (let height = gap.gapStart; height <= gap.gapEnd; height++) {
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          logger.warn("Auto-backfill: too many consecutive failures, stopping", { consecutiveFailures });
+          return;
+        }
+
         try {
           // Try local DB first (for reprocessing after schema changes)
           let block = await localClient.getBlockForReplay(db, height);
@@ -140,11 +157,6 @@ async function autoBackfill(gaps: Gap[]) {
 
           if (!block) {
             // Fall back to remote Hiro API
-            const hiroHealthy = await hiroClient.isHealthy();
-            if (!hiroHealthy) {
-              logger.warn("Auto-backfill: Hiro API not reachable, skipping remaining", { height });
-              return;
-            }
             const hiroBlock = await hiroClient.getBlockForIndexer(height, {
               includeRawTx: process.env.BACKFILL_INCLUDE_RAW_TX === "true",
             });
@@ -172,6 +184,9 @@ async function autoBackfill(gaps: Gap[]) {
               status: res.status,
               source,
             });
+            consecutiveFailures++;
+          } else {
+            consecutiveFailures = 0;
           }
 
           integrityState.autoBackfillRemaining--;
@@ -179,7 +194,8 @@ async function autoBackfill(gaps: Gap[]) {
           // Rate limit: sleep to maintain blocks/second rate
           await Bun.sleep(1000 / blocksPerSecond);
         } catch (err) {
-          logger.warn("Auto-backfill: error fetching block", { height, error: err });
+          consecutiveFailures++;
+          logger.warn("Auto-backfill: error fetching block", { height, error: String(err) });
         }
       }
     }

@@ -358,7 +358,7 @@ export class HiroClient {
     try {
       const res = await fetch(`${this.apiUrl}/extended/v1/status`, {
         headers: this.headers,
-        signal: AbortSignal.timeout(5_000),
+        signal: AbortSignal.timeout(10_000),
       });
       return res.ok;
     } catch {
