@@ -7,9 +7,9 @@ export function HomeAnnotations() {
         Agent-native developer tools for Stacks.
       </p>
       <p>
-        Atomic primitives that AI agents and developers compose to build
-        on Stacks. Every tool is a CLI command, every command is an API call,
-        every API call is a tool an agent can pick up and use in a loop.
+        Atomic primitives that work the same way everywhere — as a CLI
+        command, an API call, or a tool an agent picks up in a loop. Compose
+        them to build on Stacks. New features are just new prompts.
       </p>
       <p>
         Open source. Self-host or use hosted. Built on{" "}
