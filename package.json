@@ -2,7 +2,7 @@
   "name": "secondlayer",
   "version": "0.0.0",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "build": "bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:sdk && bun run build:views && bun run build:cli",
     "build:cli": "bun run --filter @secondlayer/cli build",
