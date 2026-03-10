@@ -16,9 +16,10 @@ export function BoxBadge({ children }: { children: React.ReactNode }) {
           setShown(true);
           requestAnimationFrame(() => {
             if (!ref.current) return;
+            const color = getComputedStyle(document.documentElement).getPropertyValue("--accent-purple").trim();
             const annotation = annotate(ref.current, {
               type: "box",
-              color: "#6344F5",
+              color,
               strokeWidth: 1.5,
               padding: [1, 3],
               animate: true,
@@ -41,7 +42,7 @@ export function BoxBadge({ children }: { children: React.ReactNode }) {
       <span
         ref={ref}
         style={{
-          color: "#6344F5",
+          color: "var(--accent-purple)",
           fontFamily: "var(--font-cursive), cursive",
           fontSize: "18px",
           fontWeight: 400,

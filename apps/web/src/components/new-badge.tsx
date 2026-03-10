@@ -19,7 +19,7 @@ export function NewBadge() {
             if (!ref.current) return;
             const annotation = annotate(ref.current, {
               type: "circle",
-              color: "#6344F5",
+              color: getComputedStyle(document.documentElement).getPropertyValue("--accent-purple").trim(),
               strokeWidth: 1.5,
               padding: 4,
               animate: true,
@@ -42,7 +42,7 @@ export function NewBadge() {
       <span
         ref={ref}
         style={{
-          color: "#6344F5",
+          color: "var(--accent-purple)",
           fontSize: "inherit",
           position: "relative",
         }}

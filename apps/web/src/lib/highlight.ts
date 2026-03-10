@@ -1,12 +1,12 @@
 import { createHighlighter, type Highlighter } from "shiki";
-import { monotonePurple } from "./syntax-theme";
+import { monotonePurple, monotonePurpleDark } from "./syntax-theme";
 
 let highlighterPromise: Promise<Highlighter> | null = null;
 
 function getHighlighter() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
-      themes: [monotonePurple],
+      themes: [monotonePurple, monotonePurpleDark],
       langs: ["typescript", "tsx", "javascript", "bash", "json", "sql"],
     });
   }
@@ -20,6 +20,9 @@ export async function highlight(
   const highlighter = await getHighlighter();
   return highlighter.codeToHtml(code, {
     lang,
-    theme: "monotone-purple",
+    themes: {
+      light: "monotone-purple",
+      dark: "monotone-purple-dark",
+    },
   });
 }
