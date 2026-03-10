@@ -279,6 +279,30 @@ body::before {
 /* Shiki-rendered code blocks */
 .code-block-wrapper {
   margin-top: var(--spacing-xs);
+  position: relative;
+}
+
+.copy-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  border-radius: 4px;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--duration-snappy) var(--ease-snappy);
+  z-index: 1;
+}
+
+.copy-button:hover {
+  color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .code-block-wrapper pre {
@@ -392,6 +416,31 @@ body::before {
   font-variant-numeric: tabular-nums;
   font-size: 14px;
   flex-shrink: 0;
+}
+
+/* ── Beta bracket ────────────────────────────────────────────────── */
+.beta-bracket-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.beta-bracket-target {
+  display: flex;
+  flex-direction: column;
+}
+
+.beta-bracket-label {
+  position: absolute;
+  right: -108px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6344F5;
+  font-family: var(--font-cursive), cursive;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 /* ── Badge (hand-drawn pink circle) ──────────────────────────────── */

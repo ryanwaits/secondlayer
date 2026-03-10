@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/sidebar";
 import { SectionHeading } from "@/components/section-heading";
 import { CodeBlock } from "@/components/code-block";
+import { BoxBadge } from "@/components/box-badge";
 import type { TocItem } from "@/components/sidebar";
 
 const toc: TocItem[] = [
@@ -21,8 +22,7 @@ export default function ViewsPage() {
 
       <main className="content-area">
         <header className="page-header">
-          <h1 className="page-title">Views</h1>
-          <p className="page-date">March 10, 2026</p>
+          <h1 className="page-title">Views <BoxBadge>Beta</BoxBadge></h1>
         </header>
 
         <div className="prose">
