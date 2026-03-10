@@ -62,7 +62,12 @@ export abstract class BaseClient {
       let message = `HTTP ${response.status}`;
       try {
         const json = JSON.parse(errorBody);
-        message = json.error || json.message || message;
+        const err = json.error ?? json.message;
+        if (typeof err === "string") {
+          message = err;
+        } else if (err && typeof err === "object") {
+          message = JSON.stringify(err);
+        }
       } catch {
         if (errorBody) message = errorBody;
       }
