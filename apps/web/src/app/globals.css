@@ -345,23 +345,28 @@ body::before {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: none;
   border: none;
   cursor: pointer;
   color: var(--copy-btn);
   padding: 4px;
   border-radius: 4px;
-  background: none;
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color var(--duration-snappy) var(--ease-snappy);
-  z-index: 1;
+  transition: opacity var(--duration-snappy) var(--ease-snappy),
+    color var(--duration-snappy) var(--ease-snappy);
+  z-index: 2;
+  opacity: 0;
+}
+
+.code-block-wrapper:hover .copy-button {
+  opacity: 1;
 }
 
 .copy-button:hover {
   color: var(--copy-btn-hover);
-  background: var(--copy-btn-hover-bg);
+  background: var(--bg);
 }
 
 .code-block-wrapper pre {
