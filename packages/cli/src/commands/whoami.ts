@@ -10,9 +10,7 @@ export function registerWhoamiCommand(program: Command): void {
     .action(async () => {
       const config = await loadConfig();
       const apiUrl = resolveApiUrl(config);
-      const token = config.sessionToken ?? config.apiKey;
-
-      if (!token) {
+      if (!config.apiKey) {
         error("Not authenticated. Run: sl auth login");
         process.exit(1);
       }
