@@ -18,10 +18,9 @@
   --copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
   --focus-ring: rgba(0, 122, 255, 0.5);
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "SF Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
-    Courier, monospace;
+  --font-sans-stack: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading-stack: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono-stack: "Fira Code", "SFMono-Regular", Consolas, monospace;
 
   --spacing-xxs: 0.5rem;
   --spacing-xs: 1rem;
@@ -73,13 +72,17 @@ html {
 body {
   background-color: var(--bg);
   color: var(--text-main);
-  font-family: var(--font-sans);
+  font-family: var(--font-sans-stack);
   font-size: 14px;
   font-weight: 460;
   line-height: 1.43;
   letter-spacing: -0.00563rem;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading-stack);
 }
 
 ::selection {
@@ -200,6 +203,7 @@ body::before {
   letter-spacing: -0.01875rem;
   line-height: normal;
   margin-bottom: 0.25rem;
+  color: var(--text-main);
 }
 
 .page-date {
@@ -275,7 +279,7 @@ body::before {
 }
 
 .prose code {
-  font-family: var(--font-mono);
+  font-family: var(--font-mono-stack);
   font-size: 0.9em;
   background-color: var(--code-bg);
   padding: 0.15em 0.35em;
@@ -298,7 +302,7 @@ body::before {
 /* ── Code blocks ─────────────────────────────────────────────────── */
 .code-block {
   background: var(--code-block-bg);
-  font-family: var(--font-mono);
+  font-family: var(--font-mono-stack);
   font-size: 0.8125rem;
   font-weight: 400;
   line-height: 1.55;
@@ -339,7 +343,7 @@ body::before {
 
 .code-block-wrapper pre {
   background: var(--code-block-bg) !important;
-  font-family: var(--font-mono);
+  font-family: var(--font-mono-stack);
   font-size: 0.8125rem;
   font-weight: 400;
   line-height: 1.55;
@@ -535,14 +539,14 @@ body::before {
 }
 
 .prop-name {
-  font-family: var(--font-mono);
+  font-family: var(--font-mono-stack);
   font-weight: 500;
   color: var(--text-main);
   font-size: 14px;
 }
 
 .prop-type {
-  font-family: var(--font-mono);
+  font-family: var(--font-mono-stack);
   color: var(--text-muted);
   font-size: 13px;
 }

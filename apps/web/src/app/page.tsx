@@ -9,7 +9,7 @@ const products = [
 
 const packages = [
   { name: "Stacks", href: "/stacks", version: "0.2.0", desc: "Viem-style SDK for Stacks" },
-  { name: "SDK", href: "/sdk", version: "0.5.0", desc: "Typed client for the Secondlayer API" },
+  { name: "SDK", href: "/sdk", version: "0.5.0", desc: "Typed client for the secondlayer API" },
   { name: "CLI", href: "/cli", version: "1.5.1", desc: "One command, every operation" },
 ];
 
@@ -31,7 +31,7 @@ export default function HomePage() {
   return (
     <div className="homepage">
       <header className="page-header">
-        <h1 className="page-title">Secondlayer</h1>
+        <h1 className="page-title">secondlayer</h1>
       </header>
 
       <HomeAnnotations />
