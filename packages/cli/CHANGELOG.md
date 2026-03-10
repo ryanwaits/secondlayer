@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 1.5.0
+
+### Minor Changes
+
+- Replace session tokens with API keys as sole CLI credential. Login now creates a `cli-<hostname>` API key via temporary session, logout revokes it server-side, and sessionToken is removed from config.
+
 ## 1.4.1
 
 ### Patch Changes

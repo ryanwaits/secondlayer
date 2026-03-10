@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/cli",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "CLI for streams, views, and real-time blockchain indexing on Stacks",
   "type": "module",
   "bin": {
