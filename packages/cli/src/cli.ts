@@ -15,7 +15,6 @@ import {
   registerAuthCommand,
   registerLocalCommand,
   registerWhoamiCommand,
-  registerContractsCommand,
 } from "./commands/index.ts";
 
 const { version } = pkg;
@@ -72,7 +71,6 @@ program
 // Core commands (API-backed, work against any environment)
 registerStreamsCommand(program);
 registerViewsCommand(program);
-registerContractsCommand(program);
 registerStatusCommand(program);
 
 // Local infrastructure commands

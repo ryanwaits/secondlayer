@@ -1,6 +1,6 @@
-import { defineConfig } from "bunup";
+import { defineConfig, type DefineConfigItem } from "bunup";
 
-export default defineConfig({
+const config: DefineConfigItem = defineConfig({
   splitting: false,
   entry: [
     "src/index.ts",
@@ -10,7 +10,6 @@ export default defineConfig({
     "src/db/queries/accounts.ts",
     "src/db/queries/usage.ts",
     "src/db/queries/views.ts",
-    "src/db/queries/contracts.ts",
     "src/db/jsonb.ts",
     "src/db/schema.ts",
     "src/lib/plans.ts",
@@ -34,4 +33,5 @@ export default defineConfig({
   sourcemap: "linked",
   minify: false,
   external: ["kysely", "kysely-postgres-js", "postgres", "zod"],
-});
+}) as DefineConfigItem;
+export default config;
