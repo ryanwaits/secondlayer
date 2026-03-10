@@ -18,7 +18,7 @@ export function BetaBracket({ children }: { children: React.ReactNode }) {
             if (!ref.current) return;
             const annotation = annotate(ref.current, {
               type: "bracket",
-              color: "rgba(0, 0, 0, 0.15)",
+              color: getComputedStyle(document.documentElement).getPropertyValue("--text-muted").trim(),
               strokeWidth: 1.5,
               padding: [2, 8],
               brackets: ["right"],
