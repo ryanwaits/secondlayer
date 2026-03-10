@@ -257,6 +257,7 @@ describe("Maps, Variables, and Constants Generation", () => {
           },
         ],
       },
+      source: "api",
     };
 
     it("should generate map hooks with correct names", async () => {
@@ -322,6 +323,7 @@ describe("Maps, Variables, and Constants Generation", () => {
             },
           ],
         },
+        source: "api",
       };
 
       const code = await generateContractHooks([processedContract]);
@@ -345,6 +347,7 @@ describe("Maps, Variables, and Constants Generation", () => {
             },
           ],
         },
+        source: "api",
       };
 
       const code = await generateContractHooks([processedContract]);
@@ -372,6 +375,7 @@ describe("Maps, Variables, and Constants Generation", () => {
             },
           ],
         },
+        source: "api",
       };
 
       const code = await generateContractHooks([processedContract]);

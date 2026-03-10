@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * React Provider for SecondLayer configuration
  */

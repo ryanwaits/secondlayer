@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll, afterEach } from "bun:test";
+import { describe, test, expect, afterAll, afterEach } from "bun:test";
 import { getDb } from "../src/db/index.ts";
 import { sql } from "kysely";
 import { registerView, getView, listViews, updateViewStatus, deleteView } from "../src/db/queries/views.ts";

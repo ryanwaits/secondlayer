@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./keys": "./src/keys.ts",
+    "./email": "./src/email.ts",
+    "./middleware": "./src/middleware.ts",
+    "./rate-limit": "./src/rate-limit.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test"

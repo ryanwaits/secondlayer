@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll } from "bun:test";
+import { describe, test, expect } from "bun:test";
 
 const INDEXER_URL = process.env.INDEXER_URL || "http://localhost:3700";
 const HAS_DB = !!process.env.DATABASE_URL;

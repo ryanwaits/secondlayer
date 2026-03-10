@@ -32,7 +32,7 @@ describe("Contract Generator", () => {
           outputs: {
             tuple: [
               { name: "total-supply", type: "uint128" },
-              { name: "name", type: { "string-ascii": 32 } },
+              { name: "name", type: { "string-ascii": { length: 32 } } },
             ],
           },
         },
@@ -167,9 +167,9 @@ describe("Contract Generator", () => {
                 { name: "int-val", type: "int128" },
                 { name: "bool-val", type: "bool" },
                 { name: "principal-val", type: "principal" },
-                { name: "ascii-val", type: { "string-ascii": 32 } },
-                { name: "utf8-val", type: { "string-utf8": 32 } },
-                { name: "buffer-val", type: { buff: 32 } },
+                { name: "ascii-val", type: { "string-ascii": { length: 32 } } },
+                { name: "utf8-val", type: { "string-utf8": { length: 32 } } },
+                { name: "buffer-val", type: { buff: { length: 32 } } },
               ],
               outputs: "bool",
             },

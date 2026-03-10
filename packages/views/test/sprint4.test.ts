@@ -1,10 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll, afterEach } from "bun:test";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
-import { sql } from "kysely";
-import { registerView, getView, deleteView } from "@secondlayer/shared/db/queries/views";
+import { registerView, getView } from "@secondlayer/shared/db/queries/views";
 import { deploySchema } from "../src/schema/deployer.ts";
 import { handleViewReorg } from "../src/runtime/reorg.ts";
-import type { ViewDefinition, ViewSchema } from "../src/types.ts";
+import type { ViewDefinition } from "../src/types.ts";
 
 const SKIP = !process.env.DATABASE_URL;
 
