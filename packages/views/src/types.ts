@@ -13,6 +13,7 @@ export interface ViewColumn {
   type: ColumnType;
   nullable?: boolean;
   indexed?: boolean;
+  search?: boolean;
   default?: string | number | boolean;
 }
 

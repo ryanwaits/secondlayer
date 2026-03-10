@@ -24,6 +24,7 @@ export const ViewColumnSchema: z.ZodType<ViewColumn> = z.object({
   type: ColumnTypeSchema,
   nullable: z.boolean().optional(),
   indexed: z.boolean().optional(),
+  search: z.boolean().optional(),
   default: z.union([z.string(), z.number(), z.boolean()]).optional(),
 }) as z.ZodType<ViewColumn>;
 

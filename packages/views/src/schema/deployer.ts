@@ -181,6 +181,11 @@ export async function deploySchema(
               `CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName} ON ${qualifiedName} (${colName})`,
             ).execute(db);
           }
+          if (col.search) {
+            await sql.raw(
+              `CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName}_trgm ON ${qualifiedName} USING gin (${colName} gin_trgm_ops)`,
+            ).execute(db);
+          }
         }
       }
 
@@ -199,6 +204,11 @@ export async function deploySchema(
           if (col.indexed) {
             await sql.raw(
               `CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName} ON ${qualifiedName} (${colName})`,
+            ).execute(db);
+          }
+          if (col.search) {
+            await sql.raw(
+              `CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName}_trgm ON ${qualifiedName} USING gin (${colName} gin_trgm_ops)`,
             ).execute(db);
           }
         }

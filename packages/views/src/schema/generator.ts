@@ -32,6 +32,15 @@ export function generateViewSQL(def: ViewDefinition, schemaNameOverride?: string
   const schemaName = schemaNameOverride ?? pgSchemaName(def.name);
   const statements: string[] = [];
 
+  // Check if any column uses search (trigram)
+  const needsTrgm = Object.values(def.schema).some((table) =>
+    Object.values(table.columns).some((col) => col.search),
+  );
+
+  if (needsTrgm) {
+    statements.push(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+  }
+
   // Schema namespace
   statements.push(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
 
@@ -74,6 +83,15 @@ export function generateViewSQL(def: ViewDefinition, schemaNameOverride?: string
       if (col.indexed) {
         statements.push(
           `CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName} ON ${qualifiedName} (${colName})`,
+        );
+      }
+    }
+
+    // Trigram GIN indexes for search columns
+    for (const [colName, col] of Object.entries(tableDef.columns)) {
+      if (col.search) {
+        statements.push(
+          `CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName}_trgm ON ${qualifiedName} USING gin (${colName} gin_trgm_ops)`,
         );
       }
     }
