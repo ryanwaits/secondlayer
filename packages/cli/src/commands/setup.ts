@@ -398,8 +398,37 @@ async function hostedLogin(config: Config): Promise<boolean> {
     account: { id: string; email: string; plan: string };
   };
 
-  config.sessionToken = result.sessionToken;
+  // Use temporary session to create a CLI API key
+  const { hostname } = await import("node:os");
+  const sessionHeaders = { Authorization: `Bearer ${result.sessionToken}`, "Content-Type": "application/json" };
+  const keyName = `cli-${hostname().toLowerCase()}`;
+
+  // Revoke existing key with same name
+  const listRes = await fetch(`${apiUrl}/api/keys`, { headers: sessionHeaders });
+  if (listRes.ok) {
+    const { keys } = await listRes.json() as { keys: { id: string; name: string | null; status: string }[] };
+    const existing = keys.find((k) => k.name === keyName && k.status === "active");
+    if (existing) {
+      await fetch(`${apiUrl}/api/keys/${existing.id}`, { method: "DELETE", headers: sessionHeaders });
+    }
+  }
+
+  const createRes = await fetch(`${apiUrl}/api/keys`, {
+    method: "POST",
+    headers: sessionHeaders,
+    body: JSON.stringify({ name: keyName }),
+  });
+  try { await assertOk(createRes); } catch (e) {
+    error(`Failed to create API key: ${e instanceof Error ? e.message : e}`);
+    return false;
+  }
+  const { key } = await createRes.json() as { key: string; prefix: string };
+
+  config.apiKey = key;
   await saveConfig(config);
+
+  // Best-effort session cleanup
+  try { await fetch(`${apiUrl}/api/auth/logout`, { method: "POST", headers: sessionHeaders }); } catch {}
 
   const account = result.account;
 

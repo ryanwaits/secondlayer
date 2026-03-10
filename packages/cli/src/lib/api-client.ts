@@ -50,14 +50,14 @@ export function handleApiError(err: unknown, action: string): never {
 async function getClient(): Promise<SecondLayer> {
   const config = await loadConfig();
   const baseUrl = resolveApiUrl(config);
-  return new SecondLayer({ baseUrl, apiKey: config.sessionToken ?? config.apiKey });
+  return new SecondLayer({ baseUrl, apiKey: config.apiKey });
 }
 
 /**
  * Build auth headers from config. Use for raw fetch() calls outside the SDK.
  */
-export function authHeaders(config: { sessionToken?: string; apiKey?: string }): Record<string, string> {
-  return SecondLayer.authHeaders(config.sessionToken ?? config.apiKey);
+export function authHeaders(config: { apiKey?: string }): Record<string, string> {
+  return SecondLayer.authHeaders(config.apiKey);
 }
 
 // ── Streams ───────────────────────────────────────────────────────────────

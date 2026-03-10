@@ -33,7 +33,6 @@ export const ConfigSchema = z.object({
   network: NetworkSchema.default("mainnet"),
   apiUrl: z.string().url().optional(),
   apiKey: z.string().optional(),
-  sessionToken: z.string().optional(),
   dataDir: z.string().default("~/.secondlayer/data"),
   defaultWebhookUrl: z.string().url().optional(),
   node: NodeSchema.optional(),
@@ -114,8 +113,8 @@ function migrateConfig(raw: unknown): Config {
     migrated.apiKey = old.apiKey;
   }
 
-  if (typeof old.sessionToken === "string") {
-    migrated.sessionToken = old.sessionToken;
+  if (typeof old.sessionToken === "string" && !migrated.apiKey) {
+    console.warn("Warning: config contains sessionToken but no apiKey. Run `sl auth login` to re-authenticate.");
   }
 
   // Preserve explicit apiUrl override
@@ -214,11 +213,6 @@ function applyEnvOverrides(config: Config): Config {
   // SECONDLAYER_API_KEY
   if (process.env.SECONDLAYER_API_KEY) {
     result.apiKey = process.env.SECONDLAYER_API_KEY;
-  }
-
-  // SECONDLAYER_SESSION_TOKEN
-  if (process.env.SECONDLAYER_SESSION_TOKEN) {
-    result.sessionToken = process.env.SECONDLAYER_SESSION_TOKEN;
   }
 
   // SL_DATA_DIR

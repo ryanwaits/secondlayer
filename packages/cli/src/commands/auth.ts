@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { hostname } from "node:os";
 import { input } from "@inquirer/prompts";
 import { loadConfig, saveConfig, resolveApiUrl } from "../lib/config.ts";
 import { assertOk, authHeaders } from "../lib/api-client.ts";
@@ -56,11 +57,38 @@ export function registerAuthCommand(program: Command): void {
           account: { id: string; email: string; plan: string };
         };
 
-        config.sessionToken = result.sessionToken;
+        const sessionHeaders = { Authorization: `Bearer ${result.sessionToken}`, "Content-Type": "application/json" };
+        const keyName = `cli-${hostname().toLowerCase()}`;
+
+        // Revoke existing key with same name
+        const listRes = await fetch(`${apiUrl}/api/keys`, { headers: sessionHeaders });
+        if (listRes.ok) {
+          const { keys } = await listRes.json() as { keys: { id: string; name: string | null; status: string }[] };
+          const existing = keys.find((k) => k.name === keyName && k.status === "active");
+          if (existing) {
+            await fetch(`${apiUrl}/api/keys/${existing.id}`, { method: "DELETE", headers: sessionHeaders });
+          }
+        }
+
+        // Create new API key
+        const createRes = await fetch(`${apiUrl}/api/keys`, {
+          method: "POST",
+          headers: sessionHeaders,
+          body: JSON.stringify({ name: keyName }),
+        });
+        await assertOk(createRes);
+        const { key, prefix } = await createRes.json() as { key: string; prefix: string };
+
+        config.apiKey = key;
         await saveConfig(config);
 
+        // Best-effort session cleanup
+        try {
+          await fetch(`${apiUrl}/api/auth/logout`, { method: "POST", headers: sessionHeaders });
+        } catch {}
+
         success(`Authenticated as ${result.account.email}`);
-        console.log(dim(`Plan: ${result.account.plan}`));
+        console.log(dim(`Key: ${prefix}...`));
         console.log(dim(`Network: ${config.network}`));
         console.log(dim(`API: ${apiUrl}`));
       } catch (err) {
@@ -71,28 +99,34 @@ export function registerAuthCommand(program: Command): void {
 
   auth
     .command("logout")
-    .description("Revoke session and remove from config")
+    .description("Revoke API key and remove from config")
     .action(async () => {
       const config = await loadConfig();
       const apiUrl = resolveApiUrl(config);
 
-      if (!config.sessionToken) {
+      if (!config.apiKey) {
         error("Not logged in.");
         process.exit(1);
       }
 
       try {
-        await fetch(`${apiUrl}/api/auth/logout`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${config.sessionToken}` },
-        });
+        const headers = authHeaders(config);
+        const listRes = await fetch(`${apiUrl}/api/keys`, { headers });
+        if (listRes.ok) {
+          const { keys } = await listRes.json() as { keys: { id: string; prefix: string }[] };
+          const currentPrefix = config.apiKey.slice(0, 14);
+          const match = keys.find((k) => currentPrefix.startsWith(k.prefix));
+          if (match) {
+            await fetch(`${apiUrl}/api/keys/${match.id}`, { method: "DELETE", headers });
+          }
+        }
       } catch {
         // Best-effort server revoke; clear locally regardless
       }
 
-      delete (config as Record<string, unknown>).sessionToken;
+      delete (config as Record<string, unknown>).apiKey;
       await saveConfig(config);
-      success("Logged out. Session revoked.");
+      success("Logged out. API key revoked.");
     });
 
   auth
@@ -101,19 +135,17 @@ export function registerAuthCommand(program: Command): void {
     .action(async () => {
       const config = await loadConfig();
       const apiUrl = resolveApiUrl(config);
-      const token = config.sessionToken ?? config.apiKey;
 
       const pairs: [string, string][] = [
         ["Network", config.network],
         ["API", apiUrl || "(not configured)"],
-        ["Session", config.sessionToken ? config.sessionToken.slice(0, 14) + "..." : "(none)"],
         ["API Key", config.apiKey ? config.apiKey.slice(0, 14) + "..." : "(none)"],
       ];
 
-      if (token && apiUrl) {
+      if (config.apiKey && apiUrl) {
         try {
           const res = await fetch(`${apiUrl}/api/accounts/me`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: authHeaders(config),
           });
           if (res.ok) {
             const data = await res.json() as { email: string; plan: string };
@@ -230,10 +262,12 @@ export function registerAuthCommand(program: Command): void {
       }
     });
 
+  const defaultKeyName = `cli-${hostname().toLowerCase()}`;
+
   keys
     .command("rotate")
     .description("Revoke current API key and create a new one")
-    .option("--name <name>", "Name for the new API key", "cli")
+    .option("--name <name>", "Name for the new API key", defaultKeyName)
     .action(async (options: { name: string }) => {
       await rotateKey(options);
     });
@@ -242,7 +276,7 @@ export function registerAuthCommand(program: Command): void {
   auth
     .command("rotate")
     .description("Revoke current API key and create a new one")
-    .option("--name <name>", "Name for the new API key", "cli")
+    .option("--name <name>", "Name for the new API key", defaultKeyName)
     .action(async (options: { name: string }) => {
       await rotateKey(options);
     });
@@ -253,7 +287,7 @@ async function rotateKey(options: { name: string }): Promise<void> {
   const apiUrl = resolveApiUrl(config);
   const headers = authHeaders(config);
 
-  if (!config.sessionToken && !config.apiKey) {
+  if (!config.apiKey) {
     error("Not logged in. Run `sl auth login` first.");
     process.exit(1);
   }
