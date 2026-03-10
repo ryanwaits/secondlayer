@@ -5,6 +5,7 @@ bun.lockb
 # Build output
 dist/
 *.tsbuildinfo
+.next/
 
 # Generated files (for examples)
 examples/generated/
