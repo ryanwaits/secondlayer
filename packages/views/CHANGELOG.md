@@ -1,5 +1,17 @@
 # @secondlayer/views
 
+## 0.3.0
+
+### Minor Changes
+
+- Add trigram search support for full-text indexed queries. Add contract-deployments reference view. Fix contractId resolution in deployment handler. Replace string-matching error detection with typed guard functions.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.4.0
+  - @secondlayer/stacks@0.2.0
+
 ## 0.2.4
 
 ### Patch Changes

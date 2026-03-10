@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- Add SDK README with comprehensive examples. Fix error serialization for non-string bodies. Validate orderBy accepts only single column. Handle limit=0 correctly in listDeliveries. Remove Contracts client in favor of views system.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.4.0
+  - @secondlayer/views@0.3.0
+
 ## 0.4.1
 
 ### Patch Changes

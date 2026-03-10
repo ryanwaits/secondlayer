@@ -1,5 +1,14 @@
 # @secondlayer/clarity-docs
 
+## 0.3.5
+
+### Patch Changes
+
+- Fix TypeScript configuration errors in bunup config.
+
+- Updated dependencies []:
+  - @secondlayer/stacks@0.2.0
+
 ## 0.3.4
 
 ### Patch Changes

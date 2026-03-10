@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 0.2.0
+
+### Minor Changes
+
+- Convert contract method names from kebab-case to camelCase for better TypeScript ergonomics (e.g. `contract.read.getBalance()` instead of `contract.read["get-balance"]()`). Clean up unused imports and fix test types.
+
 ## 0.1.0
 
 ### Minor Changes
