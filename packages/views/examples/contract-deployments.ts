@@ -32,7 +32,8 @@ export default defineView({
 
   handlers: {
     smart_contract: async (event, ctx) => {
-      const contractId = (event as any).contract_id ?? ctx.tx.sender;
+      const tx = (event as any).tx;
+      const contractId = tx?.contractId ?? ctx.tx.sender;
       const name = contractId.includes(".")
         ? contractId.split(".")[1]
         : contractId;
