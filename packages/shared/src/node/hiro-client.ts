@@ -360,7 +360,8 @@ export class HiroClient {
         headers: this.headers,
         signal: AbortSignal.timeout(10_000),
       });
-      return res.ok;
+      // 429 = rate limited but reachable
+      return res.ok || res.status === 429;
     } catch {
       return false;
     }
