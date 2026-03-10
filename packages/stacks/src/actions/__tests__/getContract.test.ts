@@ -1,10 +1,10 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, it, expect } from "bun:test";
 import { expectTypeOf } from "expect-type";
 import { getContract, ContractResponseError } from "../getContract.ts";
 import { Cl } from "../../clarity/values.ts";
 import type { AbiContract } from "../../clarity/abi/contract.ts";
 import type { Client } from "../../clients/types.ts";
-import type { ExtractFunctionArgs, ExtractFunctionOutput, AbiToTS } from "../../clarity/abi/index.ts";
+import type { ExtractFunctionArgs, ExtractFunctionOutput } from "../../clarity/abi/index.ts";
 
 const TEST_ABI = {
   functions: [
@@ -41,7 +41,7 @@ function createMockClient(
   requestHandler: (path: string, init?: any) => Promise<any>,
 ): Client {
   return {
-    transport: { request: async () => ({}) },
+    transport: { type: "custom" as const, config: {} as any, request: async () => ({}) },
     request: requestHandler,
     extend: () => ({}) as any,
   };
@@ -72,7 +72,7 @@ describe("getContract", () => {
 
   describe("read methods", () => {
     it("should call readContract and auto-unwrap ok response", async () => {
-      const mockClient = createMockClient(async (path, init) => {
+      const mockClient = createMockClient(async (_path, _init) => {
         // readContract POST returns { okay: true, result: hex }
         return {
           okay: true,

@@ -159,7 +159,7 @@ describe("request", () => {
       network: "mainnet",
     });
 
-    expect(mockRequest.mock.calls[0][1]).toEqual({
+    expect((mockRequest.mock.calls[0] as any)[1]).toEqual({
       contract: "SP123.my-contract",
       functionName: "transfer",
       functionArgs: ["arg1", "arg2"],
@@ -178,7 +178,7 @@ describe("request", () => {
       network: "mainnet",
     });
 
-    const sentArgs = (mockRequest.mock.calls[0][1] as any).functionArgs;
+    const sentArgs = ((mockRequest.mock.calls[0] as any)[1] as any).functionArgs;
     expect(sentArgs[0]).toBe("100");
   });
 
@@ -195,7 +195,7 @@ describe("request", () => {
       postConditions: [pc],
     } as any);
 
-    const sent = mockRequest.mock.calls[0][1] as any;
+    const sent = (mockRequest.mock.calls[0] as any)[1] as any;
     expect(sent.postConditions[0]).toEqual(pc);
   });
 

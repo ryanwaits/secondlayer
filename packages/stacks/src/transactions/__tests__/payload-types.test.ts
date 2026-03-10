@@ -13,7 +13,6 @@ import {
   MICROBLOCK_HEADER_BYTES_LENGTH,
   RECOVERABLE_ECDSA_SIG_LENGTH_BYTES,
   TenureChangeCause,
-  type StacksTransaction,
   type CoinbasePayload,
   type CoinbaseToAltRecipientPayload,
   type PoisonMicroblockPayload,
@@ -201,7 +200,7 @@ describe("payload type: TenureChange (0x07)", () => {
   const previousTenureEnd = "dd".repeat(32);
   const pubkeyHash = "ee".repeat(20);
 
-  function makeTenureChangeBytes(cause = TenureChangeCause.BlockFound, blocks = 10): Uint8Array {
+  function makeTenureChangeBytes(cause: TenureChangeCause = TenureChangeCause.BlockFound, blocks = 10): Uint8Array {
     return concatBytes(
       writeUInt8(PayloadType.TenureChange),
       hexToBytes(tenureConsensusHash),

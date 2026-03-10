@@ -306,7 +306,7 @@ describe("multi-sig", () => {
 
       // Each signer signs the original unsigned tx independently
       const signed1 = signMultiSig(tx, KEY1, publicKeys);
-      const signed2 = signMultiSig(tx, KEY2, publicKeys);
+      signMultiSig(tx, KEY2, publicKeys);
 
       // Pass-through should produce same sig for key1
       const passThrough1 = signMultiSig(tx, KEY1, publicKeys);

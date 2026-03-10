@@ -62,9 +62,9 @@ describe("Standard ABIs", () => {
       type PublicFns = ExtractPublicFunctions<typeof SIP010_ABI>;
       type ReadOnlyFns = ExtractReadOnlyFunctions<typeof SIP010_ABI>;
 
-      const _typeCheck: Functions = "transfer";
-      const _typeCheck2: PublicFns = "transfer";
-      const _typeCheck3: ReadOnlyFns = "get-balance";
+      const _typeCheck: Functions = "transfer"; void _typeCheck;
+      const _typeCheck2: PublicFns = "transfer"; void _typeCheck2;
+      const _typeCheck3: ReadOnlyFns = "get-balance"; void _typeCheck3;
 
       expect(true).toBe(true); // type check passes
     });
@@ -189,9 +189,9 @@ describe("Standard ABIs", () => {
 
   describe("Type compatibility", () => {
     test("all ABIs satisfy AbiContract", () => {
-      const _abi1: AbiContract = SIP010_ABI;
-      const _abi2: AbiContract = SIP009_ABI;
-      const _abi3: AbiContract = SIP013_ABI;
+      const _abi1: AbiContract = SIP010_ABI; void _abi1;
+      const _abi2: AbiContract = SIP009_ABI; void _abi2;
+      const _abi3: AbiContract = SIP013_ABI; void _abi3;
       expect(true).toBe(true); // type check passes
     });
   });

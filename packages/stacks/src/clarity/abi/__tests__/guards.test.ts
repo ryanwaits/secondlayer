@@ -2,7 +2,6 @@ import { describe, it, expect } from "bun:test";
 import {
   isUint128,
   isInt128,
-  isBool,
   isPrincipal,
   isStandardPrincipal,
   isContractPrincipal,

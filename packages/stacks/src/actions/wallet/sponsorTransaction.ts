@@ -5,7 +5,6 @@ import {
   AuthType,
   type StacksTransaction,
   type SponsoredAuthorization,
-  type SingleSigSpendingCondition,
 } from "../../transactions/types.ts";
 import { createSingleSigSpendingCondition } from "../../transactions/authorization.ts";
 import { signSponsorWithAccount } from "../../transactions/signer.ts";

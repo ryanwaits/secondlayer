@@ -14,7 +14,6 @@ import {
   PostConditionModeWire,
   FungibleConditionCode,
   NonFungibleConditionCode,
-  PostConditionPrincipalId,
   type StacksTransaction,
   type PostConditionWire,
   type PostConditionPrincipalWire,
@@ -22,7 +21,7 @@ import {
 } from "./types.ts";
 import { Cl } from "../clarity/values.ts";
 import { intToBigInt, type IntegerType } from "../utils/encoding.ts";
-import { validateStacksAddress, parseContractId } from "../utils/address.ts";
+import { parseContractId } from "../utils/address.ts";
 
 type MultiSigOptions = {
   publicKeys?: string[];

@@ -4,7 +4,7 @@ import type { ClarityValue } from "../../clarity/types.ts";
 import type { IntegerType } from "../../utils/encoding.ts";
 import type { StacksTransaction, ClarityVersion, MultiSigHashMode } from "../../transactions/types.ts";
 import { buildTokenTransfer, buildContractCall, buildContractDeploy } from "../../transactions/build.ts";
-import { finalizeMultiSig, isNonSequential } from "../../transactions/multisig.ts";
+import { finalizeMultiSig } from "../../transactions/multisig.ts";
 import { sendTransaction, type SendTransactionResult } from "../../actions/wallet/sendTransaction.ts";
 import { getNonce } from "../../actions/public/getNonce.ts";
 import { estimateFee } from "../../actions/public/estimateFee.ts";

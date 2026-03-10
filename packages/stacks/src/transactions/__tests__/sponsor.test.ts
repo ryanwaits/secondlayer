@@ -4,7 +4,6 @@ import { buildTokenTransfer } from "../build.ts";
 import {
   signTransaction,
   signTransactionWithAccount,
-  signBegin,
   getOriginSigHash,
   signSponsor,
   signSponsorWithAccount,

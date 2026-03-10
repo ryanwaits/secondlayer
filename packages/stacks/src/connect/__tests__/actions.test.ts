@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { connect, disconnect, isConnected } from "../actions.ts";
-import { setStorageData, clearStorage, getStorageData } from "../storage.ts";
+import { setStorageData, getStorageData } from "../storage.ts";
 import type { WalletProvider } from "../types.ts";
 
 // Mock localStorage

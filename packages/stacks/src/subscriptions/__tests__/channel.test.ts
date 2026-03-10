@@ -1,4 +1,4 @@
-import { test, expect, describe, beforeEach, afterEach, mock, jest } from "bun:test";
+import { test, expect, describe, beforeEach, afterEach, mock } from "bun:test";
 import { WebSocketChannel } from "../../transports/webSocket.ts";
 
 // Mock WebSocket
@@ -76,12 +76,6 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.WebSocket = originalWebSocket;
 });
-
-function getCreatedWs(): MockWebSocket {
-  // The channel creates a WebSocket internally; we capture via the global mock
-  // We need to access it indirectly through the sent messages
-  return (globalThis as any)._lastWs;
-}
 
 describe("WebSocketChannel", () => {
   test("subscribe sends JSON-RPC subscribe message", async () => {

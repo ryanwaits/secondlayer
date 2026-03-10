@@ -12,7 +12,7 @@ function createMockClient(
 ): Client {
   return {
     chain,
-    transport: { request: async () => ({}) },
+    transport: { type: "custom" as const, config: {} as any, request: async () => ({}) },
     request: requestHandler,
     extend: () => ({}) as any,
   };
@@ -82,6 +82,7 @@ describe("simulateTransaction", () => {
       if (path.includes("/v2/fees/transaction")) {
         return { estimations: [{ feeRate: 1, fee: 200 }] };
       }
+      return {};
     });
 
     const result = await simulateTransaction(client, {
@@ -104,6 +105,7 @@ describe("simulateTransaction", () => {
       if (path.includes("/v2/fees/transaction")) {
         return { estimations: [{ feeRate: 1, fee: 100 }] };
       }
+      return {};
     });
 
     const result = await simulateTransaction(client, {
