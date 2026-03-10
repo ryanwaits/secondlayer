@@ -186,6 +186,29 @@ body::before {
   margin-bottom: 6px;
 }
 
+.nav-sidebar-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-top: 20px;
+  margin-bottom: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, color 0.25s ease;
+  text-decoration: none;
+  display: block;
+}
+
+.nav-sidebar-title.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nav-sidebar-title.muted {
+  color: var(--text-muted);
+  font-weight: 460;
+}
+
 /* ── Content area ────────────────────────────────────────────────── */
 .content-area {
   max-width: 36.375rem;
