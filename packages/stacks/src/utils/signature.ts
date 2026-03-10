@@ -1,7 +1,7 @@
-import { Signature as NobleSignature, verify, Point } from "@noble/secp256k1";
+import { Signature as NobleSignature, verify } from "@noble/secp256k1";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { bytesToHex, hexToBytes, concatBytes, utf8ToBytes } from "./encoding.ts";
-import { hash160, hashP2PKH } from "./hash.ts";
+import { hexToBytes, concatBytes, utf8ToBytes } from "./encoding.ts";
+import { hashP2PKH } from "./hash.ts";
 import { c32address } from "./address.ts";
 import { AddressVersion } from "./constants.ts";
 

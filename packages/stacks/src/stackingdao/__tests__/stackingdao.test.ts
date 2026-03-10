@@ -86,9 +86,9 @@ describe("StackingDAO Extension", () => {
         transport: http(),
       }).extend(stackingDao());
 
-      const _deposit: (params: { amount: bigint }) => Promise<string> = client.stackingDao.deposit;
-      const _getBalance: (address: string) => Promise<bigint> = client.stackingDao.getStSTXBalance;
-      const _getFees: () => Promise<{ stackFee: bigint; unstackFee: bigint; withdrawIdleFee: bigint }> = client.stackingDao.getFees;
+      void (client.stackingDao.deposit as (params: { amount: bigint }) => Promise<string>);
+      void (client.stackingDao.getStSTXBalance as (address: string) => Promise<bigint>);
+      void (client.stackingDao.getFees as () => Promise<{ stackFee: bigint; unstackFee: bigint; withdrawIdleFee: bigint }>);
 
       expect(true).toBe(true);
     });

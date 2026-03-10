@@ -24,7 +24,6 @@ beforeAll(() => {
 });
 
 // Test vectors from old stacks.js
-const PRIVATE_KEY = "bcf62fdd286f9b30b2c289cce3189dbf3b502dcd955b2dc4f67d18d77f3e73c7";
 const PUBLIC_KEY = "0290255f88fa311f5dee9425ce33d7d516c24157e2aae8e25a6c631dd6f7322aef";
 const MESSAGE_HASH = "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e";
 const SIGNATURE_VRS =

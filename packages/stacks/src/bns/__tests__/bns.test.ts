@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { bns } from "../index.ts";
 import {
   parseFQN,
@@ -161,11 +161,11 @@ describe("BNS Extension", () => {
       }).extend(bns());
 
       // These should all be typed correctly
-      const _resolveName: (name: string) => Promise<string | null> = client.bns.resolveName;
-      const _getPrimaryName: (address: string) => Promise<string | null> = client.bns.getPrimaryName;
-      const _canRegister: (name: string) => Promise<boolean> = client.bns.canRegister;
-      const _getNamePrice: (name: string) => Promise<bigint> = client.bns.getNamePrice;
-      const _getNameId: (name: string) => Promise<bigint | null> = client.bns.getNameId;
+      void (client.bns.resolveName as (name: string) => Promise<string | null>);
+      void (client.bns.getPrimaryName as (address: string) => Promise<string | null>);
+      void (client.bns.canRegister as (name: string) => Promise<boolean>);
+      void (client.bns.getNamePrice as (name: string) => Promise<bigint>);
+      void (client.bns.getNameId as (name: string) => Promise<bigint | null>);
 
       expect(true).toBe(true); // Type check passes
     });

@@ -18,7 +18,6 @@ import type {
   BufferCV,
   NoneCV,
   SomeCV,
-  OptionalCV,
   ResponseOkCV,
   ResponseErrorCV,
   StandardPrincipalCV,

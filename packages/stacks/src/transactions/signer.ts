@@ -5,17 +5,13 @@ import {
   nextSignature,
   sigHashPreSign,
   sigHashPostSign,
-  createSingleSigSpendingCondition,
 } from "./authorization.ts";
 import { replayMultiSigSigHash } from "./multisig.ts";
 import { serializeTransaction } from "./wire/serialize.ts";
 import {
   AuthType,
-  PubKeyEncoding,
-  RECOVERABLE_ECDSA_SIG_LENGTH_BYTES,
   type StacksTransaction,
   type SingleSigSpendingCondition,
-  type MultiSigSpendingCondition,
   type SponsoredAuthorization,
 } from "./types.ts";
 import type { LocalAccount, CustomAccount } from "../accounts/types.ts";
@@ -42,7 +38,7 @@ export function signTransaction(
   const condition = tx.auth.spendingCondition as SingleSigSpendingCondition;
 
   // Origin always signs with AuthType.Standard (even for sponsored txs)
-  const { nextSig, nextSigHash } = nextSignature(
+  const { nextSig } = nextSignature(
     sigHash,
     AuthType.Standard,
     condition.fee,
@@ -81,12 +77,6 @@ export async function signTransactionWithAccount(
   // account.sign returns 65-byte VRS (recovery + r + s)
   const sigBytes = await account.sign(hexToBytes(sigHashPre));
   const nextSig = bytesToHex(sigBytes);
-
-  const pubKeyBytes = hexToBytes(account.publicKey);
-  const pubKeyEncoding =
-    pubKeyBytes.length === 33
-      ? PubKeyEncoding.Compressed
-      : PubKeyEncoding.Uncompressed;
 
   return {
     ...tx,

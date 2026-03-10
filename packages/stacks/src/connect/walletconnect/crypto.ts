@@ -10,7 +10,6 @@ import { bytesToHex, hexToBytes } from "../../utils/encoding.ts";
 
 const IV_LENGTH = 12;
 const KEY_LENGTH = 32;
-const TAG_LENGTH = 16;
 const TYPE_0 = 0x00;
 const TYPE_1 = 0x01;
 

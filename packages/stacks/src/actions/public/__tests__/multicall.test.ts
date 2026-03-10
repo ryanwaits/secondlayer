@@ -7,7 +7,7 @@ function createMockClient(
   requestHandler: (path: string, init?: any) => Promise<any>,
 ): Client {
   return {
-    transport: { request: async () => ({}) },
+    transport: { type: "custom" as const, config: {} as any, request: async () => ({}) },
     request: requestHandler,
     extend: () => ({}) as any,
   };

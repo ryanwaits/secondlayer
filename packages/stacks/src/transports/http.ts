@@ -1,4 +1,3 @@
-import type { StacksChain } from "../chains/types.ts";
 import type { TransportConfig, TransportFactory } from "./types.ts";
 import { buildRequestFn, createTransport } from "./createTransport.ts";
 

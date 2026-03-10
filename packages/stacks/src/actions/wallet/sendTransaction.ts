@@ -1,4 +1,4 @@
-import type { Client, WalletClient } from "../../clients/types.ts";
+import type { Client } from "../../clients/types.ts";
 import { bytesToHex } from "../../utils/encoding.ts";
 import { serializeTransaction } from "../../transactions/wire/serialize.ts";
 import { getTransactionId } from "../../transactions/signer.ts";

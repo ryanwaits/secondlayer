@@ -77,7 +77,7 @@ describe("WalletConnectProvider", () => {
 
   test("pair returns URI and approval", async () => {
     const wc = new WalletConnectProvider(config);
-    const pairPromise = wc.pair();
+    void wc.pair();
 
     await new Promise((r) => setTimeout(r, 20));
     // Would need to respond to subscribe — just verify it doesn't crash

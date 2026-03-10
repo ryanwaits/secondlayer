@@ -144,6 +144,7 @@ describe("clarityValueToJS", () => {
   it("should convert list", () => {
     const type: AbiType = { list: { type: "uint128", length: 10 } };
     const cv = Cl.list([Cl.uint(1n), Cl.uint(2n)]);
+    // @ts-expect-error — deep type instantiation with list type
     expect(clarityValueToJS(type, cv)).toEqual([1n, 2n]);
   });
 

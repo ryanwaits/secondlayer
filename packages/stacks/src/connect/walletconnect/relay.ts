@@ -3,9 +3,7 @@
 import type { WcRelayMessage } from "./types.ts";
 import {
   encryptType0,
-  decryptType0,
   encodeBase64,
-  decodeBase64,
   createRelayAuthJwt,
 } from "./crypto.ts";
 

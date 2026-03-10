@@ -1,5 +1,5 @@
 import { bech32, bech32m } from "@scure/base";
-import { hash160 } from "../utils/hash.ts";
+
 import { hexToBytes } from "../utils/encoding.ts";
 import type { PoxAddress } from "./types.ts";
 import { MIN_LOCK_PERIOD, MAX_LOCK_PERIOD, POX_ADDRESS_VERSION } from "./constants.ts";
