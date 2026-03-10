@@ -168,20 +168,6 @@ export interface UsageSnapshotsTable {
   storage_bytes: Generated<number>;
 }
 
-export interface ContractsTable {
-  contract_id: string;
-  name: string;
-  deployer: string;
-  deploy_block: number;
-  deploy_tx_id: string;
-  call_count: Generated<number>;
-  last_called_at: Date | null;
-  abi: unknown | null;
-  abi_fetched_at: Date | null;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -200,7 +186,6 @@ export interface Database {
   magic_links: MagicLinksTable;
   usage_daily: UsageDailyTable;
   usage_snapshots: UsageSnapshotsTable;
-  contracts: ContractsTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -257,6 +242,3 @@ export type InsertSession = Insertable<SessionsTable>;
 export type UsageDaily = Selectable<UsageDailyTable>;
 export type UsageSnapshot = Selectable<UsageSnapshotsTable>;
 
-export type Contract = Selectable<ContractsTable>;
-export type InsertContract = Insertable<ContractsTable>;
-export type UpdateContract = Updateable<ContractsTable>;

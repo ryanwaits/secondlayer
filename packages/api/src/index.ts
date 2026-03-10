@@ -12,7 +12,7 @@ import logsRouter from "./routes/logs.ts";
 import viewsRouter, { startViewCache, stopViewCache } from "./routes/views.ts";
 import authRouter from "./routes/auth.ts";
 import accountsRouter from "./routes/accounts.ts";
-import contractsRouter from "./routes/contracts.ts";
+import nodeRouter from "./routes/node.ts";
 
 const app = new Hono();
 
@@ -30,7 +30,7 @@ app.route("/api/keys", keysRouter);
 app.route("/api/auth", authRouter);
 
 // Auth middleware — always mounted, DEV_MODE bypass handled inside middleware
-for (const path of ["/status", "/api/streams", "/api/streams/*", "/api/views", "/api/views/*", "/api/logs", "/api/logs/*", "/api/accounts", "/api/accounts/*", "/api/contracts", "/api/contracts/*", "/api/auth/logout"]) {
+for (const path of ["/status", "/api/streams", "/api/streams/*", "/api/views", "/api/views/*", "/api/logs", "/api/logs/*", "/api/accounts", "/api/accounts/*", "/api/node", "/api/node/*", "/api/auth/logout"]) {
   app.use(path, requireAuth());
   app.use(path, rateLimit());
   app.use(path, countApiRequests());
@@ -41,7 +41,7 @@ app.route("/api/streams", streamsRouter);
 app.route("/api/logs", logsRouter);
 app.route("/api/views", viewsRouter);
 app.route("/api/accounts", accountsRouter);
-app.route("/api/contracts", contractsRouter);
+app.route("/api/node", nodeRouter);
 app.route("/", statusRouter);
 
 // Start server
