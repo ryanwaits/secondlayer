@@ -155,9 +155,9 @@ TIP_FOLLOWER_ENABLED=true docker compose -f docker-compose.yml -f docker-compose
 ### Re-sync from genesis
 
 ```bash
-# Node server: wipe stacks chainstate
-ssh node-server "rm -rf /data/stacks/mainnet"
-ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose restart stacks-node"
+# Node server: wipe stacks chainstate (check STACKS_DATA_DIR in .env)
+ssh node-server "source /opt/secondlayer/docker/node-server/.env && rm -rf \${STACKS_DATA_DIR}/mainnet \${STACKS_DATA_DIR}/event_observers.sqlite"
+ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose stop stacks-node && docker compose start stacks-node"
 
 # App server: truncate DB
 ssh app-server "docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
