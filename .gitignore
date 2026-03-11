@@ -21,6 +21,9 @@ examples/generated/
 .DS_Store
 Thumbs.db
 
+# Local databases
+*.db
+
 # Logs
 *.log
 npm-debug.log*
