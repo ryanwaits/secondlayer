@@ -28,7 +28,7 @@ app.post("/magic-link", async (c) => {
   const parsed = MagicLinkSchema.parse(body);
   const db = getDb();
 
-  const token = crypto.randomUUID();
+  const token = Math.floor(100000 + Math.random() * 900000).toString();
   await createMagicLink(db, parsed.email, token);
   await sendMagicLink(parsed.email, token);
 

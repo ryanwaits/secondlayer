@@ -37,9 +37,9 @@ export function registerAuthCommand(program: Command): void {
 
         await assertOk(mlRes);
 
-        console.log(dim("Check your email for a login token."));
+        console.log(dim("Check your email for a 6-digit login code."));
         const token = await input({
-          message: "Token:",
+          message: "Code:",
           validate: (v) => v.trim().length > 0 || "Token is required",
         });
 
