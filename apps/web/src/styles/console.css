@@ -435,18 +435,22 @@
 
 /* ── Badges ────────────────────────────────────────────────────── */
 .dash-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   font-size: 11px;
   font-weight: 560;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 1px 6px;
+  padding: 2px 6px;
   border-radius: 3px;
+  line-height: 1;
+  vertical-align: middle;
 }
 
 .dash-badge.active { color: #22c55e; background: rgba(34, 197, 94, 0.08); }
 .dash-badge.paused { color: #eab308; background: rgba(234, 179, 8, 0.08); }
 .dash-badge.failed { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+.dash-badge.inactive { color: var(--text-muted); background: rgba(128, 128, 128, 0.1); }
 .dash-badge.free { color: var(--accent-purple); background: rgba(99, 68, 245, 0.06); }
 .dash-badge.version { color: var(--text-muted); background: rgba(128, 128, 128, 0.1); font-family: var(--font-mono-stack); }
 
@@ -764,6 +768,9 @@
 }
 
 .dash-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 560;
   padding: 6px 16px;
