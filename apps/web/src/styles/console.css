@@ -913,6 +913,25 @@
 }
 
 /* ── Status bar ──────────────────────────────────────────────── */
+.dash-status-bar {
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.dash-status-bar.paused {
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.06);
+  border: 1px solid rgba(234, 179, 8, 0.15);
+}
+
+.dash-status-bar.failed {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
 
 /* ── Stream list inline actions ──────────────────────────────── */
 .stream-row {
