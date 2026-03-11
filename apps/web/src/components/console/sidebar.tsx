@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
 const navItems = [
   { label: "Dashboard", href: "/" },
@@ -29,6 +30,7 @@ const STREAM_DETAIL_RE = /^\/streams\/[0-9a-f-]{36}/;
 
 export function ConsoleSidebar() {
   const pathname = usePathname();
+  const { logout } = useAuth();
   const isStreamDetail = STREAM_DETAIL_RE.test(pathname);
   const streamId = isStreamDetail ? pathname.split("/")[2] : "";
   const streamBase = isStreamDetail ? `/streams/${streamId}` : "";
@@ -43,6 +45,14 @@ export function ConsoleSidebar() {
     if (suffix === "") return pathname === streamBase;
     return pathname.startsWith(href);
   }
+
+  const logoutButton = (
+    <div className="dash-sidebar-bottom">
+      <a className="dash-nav-logout" onClick={() => logout()}>
+        Log out
+      </a>
+    </div>
+  );
 
   if (isStreamDetail) {
     return (
@@ -62,6 +72,7 @@ export function ConsoleSidebar() {
             </li>
           ))}
         </ul>
+        {logoutButton}
       </nav>
     );
   }
@@ -93,6 +104,7 @@ export function ConsoleSidebar() {
           </li>
         ))}
       </ul>
+      {logoutButton}
     </nav>
   );
 }
