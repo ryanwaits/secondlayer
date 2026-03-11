@@ -342,6 +342,50 @@ app.post("/:id/disable", async (c) => {
   return c.json(formatStream(updated));
 });
 
+// Pause stream
+app.post("/:id/pause", async (c) => {
+  const { id } = c.req.param();
+  const db = getDb();
+  const keyIds = await resolveKeyIds(c);
+
+  const existing = await assertStreamOwnership(db, id, keyIds);
+
+  if (existing.status !== "active") {
+    throw new ValidationError(`Cannot pause stream with status '${existing.status}'`);
+  }
+
+  const updated = await db
+    .updateTable("streams")
+    .set({ status: "paused", updated_at: new Date() })
+    .where("id", "=", id)
+    .returningAll()
+    .executeTakeFirstOrThrow();
+
+  return c.json(formatStream(updated));
+});
+
+// Resume stream
+app.post("/:id/resume", async (c) => {
+  const { id } = c.req.param();
+  const db = getDb();
+  const keyIds = await resolveKeyIds(c);
+
+  const existing = await assertStreamOwnership(db, id, keyIds);
+
+  if (existing.status !== "paused") {
+    throw new ValidationError(`Cannot resume stream with status '${existing.status}'`);
+  }
+
+  const updated = await db
+    .updateTable("streams")
+    .set({ status: "active", updated_at: new Date() })
+    .where("id", "=", id)
+    .returningAll()
+    .executeTakeFirstOrThrow();
+
+  return c.json(formatStream(updated));
+});
+
 // Rotate webhook secret
 app.post("/:id/rotate-secret", async (c) => {
   const { id } = c.req.param();
