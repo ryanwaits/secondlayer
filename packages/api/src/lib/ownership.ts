@@ -88,5 +88,7 @@ export function getAccountId(c: any): string | undefined {
 export async function resolveKeyIds(c: any): Promise<string[] | undefined> {
   const accountId = getAccountId(c);
   if (!accountId) return undefined;
-  return getAccountKeyIds(getDb(), accountId);
+  const ids = await getAccountKeyIds(getDb(), accountId);
+  // Return undefined if no keys — empty array would produce invalid SQL `IN ()`
+  return ids.length > 0 ? ids : undefined;
 }
