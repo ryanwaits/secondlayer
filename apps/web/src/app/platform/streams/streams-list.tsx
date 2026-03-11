@@ -9,24 +9,37 @@ function StreamRow({ stream: initial }: { stream: Stream }) {
   const [loading, setLoading] = useState(false);
   const [confirmPause, setConfirmPause] = useState(false);
 
-  const handleAction = useCallback(
-    async (e: React.MouseEvent, action: "enable" | "disable") => {
+  const handlePause = useCallback(
+    async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       setLoading(true);
       setConfirmPause(false);
       try {
-        const res = await fetch(`/api/streams/${stream.id}/${action}`, { method: "POST" });
+        const res = await fetch(`/api/streams/${stream.id}/pause`, { method: "POST" });
         if (!res.ok) throw new Error();
-        setStream((s) => ({
-          ...s,
-          status: action === "disable" ? "paused" : "active",
-          enabled: action === "enable",
-        }));
+        setStream((s) => ({ ...s, status: "paused", enabled: true }));
       } catch {}
       setLoading(false);
     },
     [stream.id],
+  );
+
+  const handleResume = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setLoading(true);
+      try {
+        const endpoint = stream.status === "failed" || stream.status === "inactive"
+          ? "enable" : "resume";
+        const res = await fetch(`/api/streams/${stream.id}/${endpoint}`, { method: "POST" });
+        if (!res.ok) throw new Error();
+        setStream((s) => ({ ...s, status: "active", enabled: true }));
+      } catch {}
+      setLoading(false);
+    },
+    [stream.id, stream.status],
   );
 
   return (
@@ -45,7 +58,7 @@ function StreamRow({ stream: initial }: { stream: Stream }) {
           <>
             <button
               className="icon-btn-text danger"
-              onClick={(e) => handleAction(e, "disable")}
+              onClick={(e) => handlePause(e)}
               disabled={loading}
             >
               Pause
@@ -77,7 +90,7 @@ function StreamRow({ stream: initial }: { stream: Stream }) {
                 className="icon-btn resume"
                 title={stream.status === "failed" ? "Restart" : "Resume"}
                 disabled={loading}
-                onClick={(e) => handleAction(e, "enable")}
+                onClick={(e) => handleResume(e)}
               >
                 {stream.status === "failed" ? (
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
