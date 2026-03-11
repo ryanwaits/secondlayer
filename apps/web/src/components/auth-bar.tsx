@@ -2,23 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 export function AuthBar() {
   const { account, loading, logout } = useAuth();
-  const pathname = usePathname();
   const [expanded, setExpanded] = useState(false);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">(
     "idle",
   );
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // App pages (streams, views, keys, etc.) use the topbar — hide auth bar
-  const isApp = ["/streams", "/views", "/keys", "/usage", "/billing", "/settings"].some(
-    (p) => pathname === p || pathname.startsWith(p + "/"),
-  );
 
   useEffect(() => {
     if (expanded && inputRef.current) {
@@ -49,10 +42,7 @@ export function AuthBar() {
 
   if (loading) return null;
 
-  // Inside app — no auth bar needed (topbar handles nav)
-  if (isApp) return null;
-
-  // Authenticated on marketing pages
+  // Authenticated — show logout everywhere
   if (account) {
     return (
       <div className="auth-bar">
@@ -69,11 +59,8 @@ export function AuthBar() {
   // Unauthenticated
   return (
     <div className="auth-bar">
-      <Link href="/login" className="auth-bar-login">
-        Login
-      </Link>
       {status === "done" ? (
-        <span className="auth-bar-done">You&apos;re on the list ✓</span>
+        <span className="auth-bar-done">You&apos;re in for early access ✓</span>
       ) : (
         <form
           className={`auth-bar-notify ${expanded ? "expanded" : ""}`}
