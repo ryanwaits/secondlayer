@@ -224,6 +224,18 @@ export function StreamDetailClient({
         </div>
       </div>
 
+      {/* Status notices */}
+      {stream.status === "paused" && (
+        <div className="dash-status-bar paused">
+          Stream paused — events are being buffered but not delivered.
+        </div>
+      )}
+      {stream.status === "failed" && (
+        <div className="dash-status-bar failed">
+          {stream.errorMessage || "Stream failed due to consecutive delivery errors."}
+        </div>
+      )}
+
       {/* Stats */}
       <div className="dash-stats">
         <div className="dash-stat">
