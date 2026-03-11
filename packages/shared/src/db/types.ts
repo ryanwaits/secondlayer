@@ -168,6 +168,13 @@ export interface UsageSnapshotsTable {
   storage_bytes: Generated<number>;
 }
 
+export interface WaitlistTable {
+  id: Generated<string>;
+  email: string;
+  source: Generated<string>;
+  created_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -186,6 +193,7 @@ export interface Database {
   magic_links: MagicLinksTable;
   usage_daily: UsageDailyTable;
   usage_snapshots: UsageSnapshotsTable;
+  waitlist: WaitlistTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
