@@ -225,7 +225,7 @@
   font-weight: 500;
   letter-spacing: -0.01875rem;
   color: var(--text-main);
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .dash-page-desc {

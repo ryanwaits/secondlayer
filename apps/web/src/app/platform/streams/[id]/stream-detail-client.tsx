@@ -150,7 +150,7 @@ export function StreamDetailClient({
       <div className="dash-page-header">
         <div className="dash-page-header-row">
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 2 }}>
               <h1 className="dash-page-title">{stream.name}</h1>
               <span className={`dash-badge ${stream.status}`}>
                 {stream.status}
