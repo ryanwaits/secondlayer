@@ -160,16 +160,32 @@ export function StreamDetailClient({
           </div>
           <div className="dash-actions">
             {stream.status === "active" && (
-              <button
-                className="dash-btn"
-                disabled={pausing === "loading"}
-                onClick={() => setPausing("confirm")}
-              >
-                <span className="btn-icon">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="3" width="3" height="10" rx="0.5"/><rect x="9" y="3" width="3" height="10" rx="0.5"/></svg>
-                </span>
-                Pause
-              </button>
+              pausing !== "idle" ? (
+                <>
+                  <button
+                    className="dash-btn danger"
+                    onClick={handlePause}
+                  >
+                    {pausing === "loading" ? "Pausing..." : "Pause"}
+                  </button>
+                  <button
+                    className="dash-btn"
+                    onClick={() => setPausing("idle")}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="dash-btn"
+                  onClick={() => setPausing("confirm")}
+                >
+                  <span className="btn-icon">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="3" width="3" height="10" rx="0.5"/><rect x="9" y="3" width="3" height="10" rx="0.5"/></svg>
+                  </span>
+                  Pause
+                </button>
+              )
             )}
             {(stream.status === "paused" || stream.status === "inactive") && (
               <button
@@ -207,21 +223,6 @@ export function StreamDetailClient({
           </div>
         </div>
       </div>
-
-      {/* Pause confirmation */}
-      {pausing === "confirm" && (
-        <div className="dash-confirm-inline">
-          <span>Pause this stream? Events will be buffered until resumed.</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="dash-btn danger" style={{ fontSize: 12, padding: "4px 12px" }} onClick={handlePause}>
-              Pause
-            </button>
-            <button className="dash-btn" style={{ fontSize: 12, padding: "4px 12px" }} onClick={() => setPausing("idle")}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Stats */}
       <div className="dash-stats">

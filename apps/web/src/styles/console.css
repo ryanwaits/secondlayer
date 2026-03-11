@@ -913,15 +913,6 @@
 }
 
 /* ── Status bar ──────────────────────────────────────────────── */
-.dash-confirm-inline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 24px;
-}
 
 /* ── Stream list inline actions ──────────────────────────────── */
 .stream-row {
