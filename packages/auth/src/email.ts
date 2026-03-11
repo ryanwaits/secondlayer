@@ -1,3 +1,27 @@
+const FROM = process.env.EMAIL_FROM ?? "secondlayer <noreply@secondlayer.tools>";
+
+function getResendKey(): string {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY not configured");
+  return apiKey;
+}
+
+async function sendEmail(to: string, subject: string, text: string, html: string): Promise<void> {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getResendKey()}`,
+    },
+    body: JSON.stringify({ from: FROM, to: [to], subject, text, html }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Resend API error (${response.status}): ${body}`);
+  }
+}
+
 /**
  * Magic link email service. Uses Resend in production, logs to console in DEV_MODE.
  */
@@ -7,15 +31,8 @@ export async function sendMagicLink(email: string, token: string): Promise<void>
     return;
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY not configured");
-  }
-
   const webUrl = process.env.WEB_URL ?? "https://secondlayer.tools";
   const verifyUrl = `${webUrl}/verify?token=${token}`;
-
-  const from = process.env.EMAIL_FROM ?? "Second Layer <noreply@secondlayer.tools>";
 
   const text = [
     `Your login code is: ${token}`,
@@ -29,33 +46,51 @@ export async function sendMagicLink(email: string, token: string): Promise<void>
 
   const html = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-  <p style="color: #888; font-size: 14px; margin: 0 0 24px;">Sign in to Second Layer</p>
+  <p style="color: #888; font-size: 14px; margin: 0 0 24px;">Sign in to secondlayer</p>
   <div style="background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
     <p style="color: #888; font-size: 13px; margin: 0 0 8px;">Your login code</p>
     <p style="font-size: 32px; font-weight: 600; letter-spacing: 6px; margin: 0; color: #111;">${token}</p>
   </div>
   <p style="color: #888; font-size: 13px; margin: 0 0 16px;">Or click below to sign in directly:</p>
-  <a href="${verifyUrl}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-size: 14px;">Sign in to Second Layer</a>
+  <a href="${verifyUrl}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-size: 14px;">Sign in to secondlayer</a>
   <p style="color: #aaa; font-size: 12px; margin: 24px 0 0;">This code expires in 15 minutes. If you didn't request this, ignore this email.</p>
 </div>`.trim();
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: "Your Second Layer login code",
-      text,
-      html,
-    }),
-  });
+  await sendEmail(email, "Your secondlayer login code", text, html);
+}
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Resend API error (${response.status}): ${body}`);
+/**
+ * Waitlist confirmation email. Uses Resend in production, logs to console in DEV_MODE.
+ */
+export async function sendWaitlistConfirmation(email: string): Promise<void> {
+  if (process.env.DEV_MODE === "true") {
+    console.log(`\n[DEV] Waitlist confirmation for ${email}\n`);
+    console.log(`[DEV] Preview HTML at: data:text/html,${encodeURIComponent(waitlistHtml())}\n`);
+    return;
   }
+
+  const text = [
+    "You're signed up for early access to secondlayer.",
+    "",
+    "We're bringing agent-native dev tooling to Stacks — event streaming, subgraphs, and a better DX for builders.",
+    "",
+    "We're currently in alpha. We'll let you know as soon as early access opens up.",
+    "",
+    "— secondlayer",
+  ].join("\n");
+
+  await sendEmail(email, "secondlayer — early access", text, waitlistHtml());
+}
+
+function waitlistHtml(): string {
+  return `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+  <p style="color: #888; font-size: 14px; margin: 0 0 24px;">secondlayer</p>
+  <div style="background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+    <p style="font-size: 18px; font-weight: 600; margin: 0 0 12px; color: #111;">You're in for early access</p>
+    <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0;">We're bringing agent-native dev tooling to Stacks — event streaming, subgraphs, and a better DX for builders.</p>
+  </div>
+  <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">We're currently in alpha. We'll let you know as soon as early access opens up.</p>
+  <p style="color: #aaa; font-size: 12px; margin: 0;">— secondlayer</p>
+</div>`.trim();
 }

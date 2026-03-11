@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { getDb } from "@secondlayer/shared/db";
+import { sendWaitlistConfirmation } from "@secondlayer/auth/email";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
@@ -17,11 +18,17 @@ app.post("/", async (c) => {
   const { email, source } = WaitlistSchema.parse(body);
   const db = getDb();
 
-  await db
+  const result = await db
     .insertInto("waitlist")
     .values({ email, ...(source ? { source } : {}) })
     .onConflict((oc) => oc.column("email").doNothing())
-    .execute();
+    .returning("id")
+    .executeTakeFirst();
+
+  // Only send confirmation for new signups (not duplicates)
+  if (result) {
+    await sendWaitlistConfirmation(email);
+  }
 
   return c.json({ message: "You're on the list." });
 });
