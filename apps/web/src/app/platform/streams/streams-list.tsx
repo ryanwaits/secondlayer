@@ -1,10 +1,105 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { Stream } from "@/lib/types";
 
+function StreamRow({ stream: initial }: { stream: Stream }) {
+  const [stream, setStream] = useState(initial);
+  const [loading, setLoading] = useState(false);
+  const [confirmPause, setConfirmPause] = useState(false);
+
+  const handleAction = useCallback(
+    async (e: React.MouseEvent, action: "enable" | "disable") => {
+      e.preventDefault();
+      e.stopPropagation();
+      setLoading(true);
+      setConfirmPause(false);
+      try {
+        const res = await fetch(`/api/streams/${stream.id}/${action}`, { method: "POST" });
+        if (!res.ok) throw new Error();
+        setStream((s) => ({
+          ...s,
+          status: action === "disable" ? "paused" : "active",
+          enabled: action === "enable",
+        }));
+      } catch {}
+      setLoading(false);
+    },
+    [stream.id],
+  );
+
+  return (
+    <div className="dash-index-item stream-row">
+      <Link href={`/streams/${stream.id}`} className="dash-index-link">
+        <span className="dash-index-label">{stream.name}</span>
+        <span className="dash-index-meta">
+          <span className={`dash-badge ${stream.status}`}>{stream.status}</span>
+          {stream.status === "failed"
+            ? `${stream.failedDeliveries.toLocaleString()} drops`
+            : `${stream.totalDeliveries.toLocaleString()} deliveries`}
+        </span>
+      </Link>
+      <div className="stream-row-actions" onClick={(e) => e.preventDefault()}>
+        {confirmPause ? (
+          <>
+            <button
+              className="icon-btn-text danger"
+              onClick={(e) => handleAction(e, "disable")}
+              disabled={loading}
+            >
+              Pause
+            </button>
+            <button
+              className="icon-btn-text"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmPause(false); }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            {stream.status === "active" && (
+              <button
+                className="icon-btn pause"
+                title="Pause"
+                disabled={loading}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmPause(true); }}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="4" y="3" width="3" height="10" rx="0.5" />
+                  <rect x="9" y="3" width="3" height="10" rx="0.5" />
+                </svg>
+              </button>
+            )}
+            {(stream.status === "paused" || stream.status === "failed" || stream.status === "inactive") && (
+              <button
+                className="icon-btn resume"
+                title={stream.status === "failed" ? "Restart" : "Resume"}
+                disabled={loading}
+                onClick={(e) => handleAction(e, "enable")}
+              >
+                {stream.status === "failed" ? (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M2 8a6 6 0 0110.5-4M14 8a6 6 0 01-10.5 4" />
+                    <path d="M12 1v4h-4M4 15v-4h4" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M5 3.5a.5.5 0 01.8-.4l7 5a.5.5 0 010 .8l-7 5a.5.5 0 01-.8-.4v-10z" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
-  const streams = initialStreams;
+  const [streams] = useState(initialStreams);
 
   const active = streams.filter((s) => s.status === "active");
   const paused = streams.filter((s) => s.status === "paused");
@@ -55,21 +150,7 @@ export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
             </div>
             <div className="dash-index-group">
               {group.items.map((stream) => (
-                <div className="dash-index-item" key={stream.id}>
-                  <Link href={`/streams/${stream.id}`} className="dash-index-link">
-                    <span className="dash-index-label">
-                      {stream.name}
-                    </span>
-                    <span className="dash-index-meta">
-                      <span className={`dash-badge ${stream.status}`}>
-                        {stream.status}
-                      </span>
-                      {stream.status === "failed"
-                        ? `${stream.failedDeliveries.toLocaleString()} drops`
-                        : `${stream.totalDeliveries.toLocaleString()} deliveries`}
-                    </span>
-                  </Link>
-                </div>
+                <StreamRow key={stream.id} stream={stream} />
               ))}
             </div>
           </div>

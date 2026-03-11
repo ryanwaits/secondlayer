@@ -881,3 +881,131 @@
   margin-bottom: 16px;
   line-height: 1.5;
 }
+
+/* ── Header row with actions ─────────────────────────────────── */
+.dash-page-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dash-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dash-btn .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 2px;
+}
+
+/* ── Status bar ──────────────────────────────────────────────── */
+.dash-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.dash-status-bar .status-text {
+  flex: 1;
+}
+
+.dash-status-bar.paused {
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.06);
+  border: 1px solid rgba(234, 179, 8, 0.15);
+}
+
+.dash-status-bar.failed {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+/* ── Stream list inline actions ──────────────────────────────── */
+.stream-row {
+  position: relative;
+}
+
+.stream-row-actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 8px;
+  padding: 6px 0;
+}
+
+.stream-row-actions .icon-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stream-row-actions .icon-btn:hover {
+  border-color: var(--border);
+  color: var(--text-main);
+}
+
+.stream-row-actions .icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stream-row-actions .icon-btn.resume:hover {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.stream-row-actions .icon-btn.pause:hover {
+  color: #eab308;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.stream-row-actions .icon-btn-text {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 560;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stream-row-actions .icon-btn-text:hover {
+  border-color: var(--text-muted);
+  color: var(--text-main);
+}
+
+.stream-row-actions .icon-btn-text.danger {
+  color: #eab308;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.stream-row-actions .icon-btn-text.danger:hover {
+  background: rgba(234, 179, 8, 0.06);
+  border-color: #eab308;
+}
