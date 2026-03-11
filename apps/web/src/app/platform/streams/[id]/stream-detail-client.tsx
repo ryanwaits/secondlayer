@@ -66,6 +66,7 @@ export function StreamDetailClient({
   const [secretRevealed, setSecretRevealed] = useState(false);
   const [secretCopied, setSecretCopied] = useState(false);
   const [deleting, setDeleting] = useState<"idle" | "confirm" | "deleting">("idle");
+  const [disabling, setDisabling] = useState(false);
   const [pausing, setPausing] = useState<"idle" | "confirm" | "loading">("idle");
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -83,9 +84,9 @@ export function StreamDetailClient({
   const handlePause = useCallback(async () => {
     setPausing("loading");
     try {
-      const res = await fetch(`/api/streams/${stream.id}/disable`, { method: "POST" });
+      const res = await fetch(`/api/streams/${stream.id}/pause`, { method: "POST" });
       if (!res.ok) throw new Error();
-      setStream((s) => ({ ...s, status: "paused", enabled: false }));
+      setStream((s) => ({ ...s, status: "paused", enabled: true }));
     } catch {}
     setPausing("idle");
   }, [stream.id]);
@@ -93,12 +94,29 @@ export function StreamDetailClient({
   const handleResume = useCallback(async () => {
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/streams/${stream.id}/enable`, { method: "POST" });
+      const endpoint = stream.status === "failed" || stream.status === "inactive"
+        ? "enable" : "resume";
+      const res = await fetch(`/api/streams/${stream.id}/${endpoint}`, { method: "POST" });
       if (!res.ok) throw new Error();
       setStream((s) => ({ ...s, status: "active", enabled: true, errorMessage: null }));
     } catch {}
     setActionLoading(false);
-  }, [stream.id]);
+  }, [stream.id, stream.status]);
+
+  const handleToggleEnabled = useCallback(async () => {
+    setDisabling(true);
+    try {
+      const action = stream.status === "inactive" ? "enable" : "disable";
+      const res = await fetch(`/api/streams/${stream.id}/${action}`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      setStream((s) => ({
+        ...s,
+        status: action === "disable" ? "inactive" : "active",
+        enabled: action === "enable",
+      }));
+    } catch {}
+    setDisabling(false);
+  }, [stream.id, stream.status]);
 
   const handleReplayFailed = useCallback(async () => {
     setActionLoading(true);
@@ -192,32 +210,16 @@ export function StreamDetailClient({
 
       {/* Pause confirmation */}
       {pausing === "confirm" && (
-        <div className="dash-status-bar paused">
-          <span className="status-text">
-            Pausing will stop all deliveries. Buffered events will be delivered when resumed.
-          </span>
-          <button className="dash-btn danger" style={{ fontSize: 12, padding: "4px 12px" }} onClick={handlePause}>
-            Pause stream
-          </button>
-          <button className="dash-btn" style={{ fontSize: 12, padding: "4px 12px" }} onClick={() => setPausing("idle")}>
-            Cancel
-          </button>
-        </div>
-      )}
-
-      {/* Status bar for paused/failed */}
-      {pausing !== "confirm" && stream.status === "paused" && (
-        <div className="dash-status-bar paused">
-          <span className="status-text">
-            Stream paused — events are being buffered but not delivered.
-          </span>
-        </div>
-      )}
-      {stream.status === "failed" && (
-        <div className="dash-status-bar failed">
-          <span className="status-text">
-            {stream.errorMessage || "Stream failed due to consecutive delivery errors."}
-          </span>
+        <div className="dash-confirm-inline">
+          <span>Pause this stream? Events will be buffered until resumed.</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="dash-btn danger" style={{ fontSize: 12, padding: "4px 12px" }} onClick={handlePause}>
+              Pause
+            </button>
+            <button className="dash-btn" style={{ fontSize: 12, padding: "4px 12px" }} onClick={() => setPausing("idle")}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -347,27 +349,40 @@ export function StreamDetailClient({
         <hr />
         <h2 className="dash-section-title">Danger zone</h2>
       </div>
-      {deleting === "confirm" ? (
-        <div className="dash-callout-warn">
-          Are you sure? This will permanently delete this stream and all its delivery history.
-          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-            <button className="dash-btn danger" onClick={handleDelete}>
-              Delete permanently
-            </button>
-            <button className="dash-btn" onClick={() => setDeleting("idle")}>
-              Cancel
-            </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        {stream.status !== "failed" && (
+          <button
+            className="dash-btn danger"
+            disabled={disabling}
+            onClick={handleToggleEnabled}
+          >
+            {disabling
+              ? (stream.status === "inactive" ? "Enabling..." : "Disabling...")
+              : (stream.status === "inactive" ? "Enable stream" : "Disable stream")}
+          </button>
+        )}
+        {deleting === "confirm" ? (
+          <div className="dash-callout-warn">
+            Are you sure? This will permanently delete this stream and all its delivery history.
+            <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+              <button className="dash-btn danger" onClick={handleDelete}>
+                Delete permanently
+              </button>
+              <button className="dash-btn" onClick={() => setDeleting("idle")}>
+                Cancel
+              </button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <button
-          className="dash-btn danger"
-          disabled={deleting === "deleting"}
-          onClick={() => setDeleting("confirm")}
-        >
-          {deleting === "deleting" ? "Deleting..." : "Delete stream"}
-        </button>
-      )}
+        ) : (
+          <button
+            className="dash-btn danger"
+            disabled={deleting === "deleting"}
+            onClick={() => setDeleting("confirm")}
+          >
+            {deleting === "deleting" ? "Deleting..." : "Delete stream"}
+          </button>
+        )}
+      </div>
     </>
   );
 }
