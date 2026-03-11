@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
+import { useSiteHref } from "@/lib/auth";
 
 export interface TocItem {
   label: string;
@@ -78,9 +79,11 @@ export function Sidebar({ title, toc }: SidebarProps) {
     };
   }, [toc]);
 
+  const indexHref = useSiteHref("/");
+
   return (
     <aside className="sidebar">
-      <Link href="/" className="back-link">
+      <Link href={indexHref} className="back-link">
         ↩ Index
       </Link>
 

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { HomeAnnotations } from "./home-annotations";
 import { BetaBracket } from "@/components/beta-badge";
+import { SiteLink } from "@/components/site-link";
 
 const products = [
   { name: "Streams", href: "/streams", desc: "Real-time event webhooks" },
@@ -16,13 +16,13 @@ const packages = [
 function IndexItem({ item }: { item: { name: string; href: string; version?: string; desc: string } }) {
   return (
     <li className="index-item">
-      <Link href={item.href} className="index-link">
+      <SiteLink href={item.href} className="index-link">
         <span className="index-link-label">
           {item.name}
           <span className="index-desc">{item.desc}</span>
         </span>
         <span className="index-date">{item.version}</span>
-      </Link>
+      </SiteLink>
     </li>
   );
 }
