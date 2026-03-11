@@ -19,5 +19,6 @@
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": ["apps/**"]
 }
