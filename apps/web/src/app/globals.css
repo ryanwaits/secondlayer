@@ -102,7 +102,7 @@ a {
   top: 0;
   left: 0;
   right: 0;
-  height: 8rem;
+  height: 4rem;
   background: linear-gradient(to bottom, var(--bg) 0%, transparent 100%);
   z-index: 100;
   pointer-events: none;
