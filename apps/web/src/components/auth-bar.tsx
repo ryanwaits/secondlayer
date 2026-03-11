@@ -2,16 +2,24 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+
+const PLATFORM_PATHS = ["/streams", "/views", "/keys", "/usage", "/billing", "/settings"];
 
 export function AuthBar() {
   const { account, loading, logout } = useAuth();
+  const pathname = usePathname();
   const [expanded, setExpanded] = useState(false);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">(
     "idle",
   );
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const isPlatform = pathname === "/" && account
+    ? true
+    : PLATFORM_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   useEffect(() => {
     if (expanded && inputRef.current) {
@@ -42,14 +50,17 @@ export function AuthBar() {
 
   if (loading) return null;
 
-  // Authenticated — show logout everywhere
+  // Platform pages — sidebar handles logout
+  if (account && isPlatform) return null;
+
+  // Authenticated on marketing pages
   if (account) {
     return (
       <div className="auth-bar">
         <a className="auth-bar-login" onClick={() => logout()}>
           Logout
         </a>
-        <Link href="/" className="auth-bar-login">
+        <Link href="/" className="auth-bar-cta">
           Platform
         </Link>
       </div>

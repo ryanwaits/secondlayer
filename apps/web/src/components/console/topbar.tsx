@@ -46,9 +46,7 @@ export function ConsoleTopbar({
           </span>
         </button>
       </div>
-      <div className="dash-topbar-right">
-        <div className="dash-avatar" />
-      </div>
+      <div className="dash-topbar-right" />
     </div>
   );
 }
