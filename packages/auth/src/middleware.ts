@@ -11,6 +11,28 @@ export function requireAuth(opts?: { getDb?: typeof _getDb }): MiddlewareHandler
   return async (c, next) => {
     // DEV_MODE bypass — local dev without auth
     if (process.env.DEV_MODE === "true") {
+      // Still try to resolve accountId from token if present
+      const devAuth = c.req.header("authorization");
+      if (devAuth?.startsWith("Bearer ")) {
+        const devRaw = devAuth.slice(7);
+        const devHash = hashToken(devRaw);
+        const db = getDb();
+        if (devRaw.startsWith("ss-sl_")) {
+          const session = await db
+            .selectFrom("sessions")
+            .select("account_id")
+            .where("token_hash", "=", devHash)
+            .executeTakeFirst();
+          if (session) c.set("accountId", session.account_id);
+        } else if (devRaw.startsWith("sk-sl_")) {
+          const key = await db
+            .selectFrom("api_keys")
+            .select("account_id")
+            .where("key_hash", "=", devHash)
+            .executeTakeFirst();
+          if (key) c.set("accountId", key.account_id);
+        }
+      }
       await next();
       return;
     }

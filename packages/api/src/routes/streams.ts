@@ -49,6 +49,7 @@ function mapQueryRow(r: any): { stream: Stream; metrics: StreamMetrics | null } 
 function formatStream(
   stream: Stream,
   metrics?: StreamMetrics | null,
+  opts?: { includeSecret?: boolean },
 ) {
   return {
     id: stream.id,
@@ -56,6 +57,7 @@ function formatStream(
     status: stream.status,
     enabled: stream.status === "active" || stream.status === "paused",
     webhookUrl: stream.webhook_url,
+    ...(opts?.includeSecret ? { webhookSecret: stream.webhook_secret } : {}),
     filters: parseJsonb(stream.filters),
     options: parseJsonb(stream.options),
     lastTriggeredAt: metrics?.last_triggered_at?.toISOString() ?? null,
@@ -128,7 +130,12 @@ app.get("/", async (c) => {
     .offset(offset);
 
   if (keyIds) {
-    query = query.where("streams.api_key_id", "in", keyIds);
+    query = query.where((eb) =>
+      eb.or([
+        eb("streams.api_key_id", "in", keyIds),
+        eb("streams.api_key_id", "is", null),
+      ]),
+    );
   }
 
   const results = await query.execute();
@@ -139,7 +146,12 @@ app.get("/", async (c) => {
     .select(sql<number>`count(*)`.as("count"));
 
   if (keyIds) {
-    countQuery = countQuery.where("api_key_id", "in", keyIds);
+    countQuery = countQuery.where((eb) =>
+      eb.or([
+        eb("api_key_id", "in", keyIds),
+        eb("api_key_id", "is", null),
+      ]),
+    );
   }
 
   const countResult = await countQuery.executeTakeFirst();
@@ -223,7 +235,7 @@ app.get("/:id", async (c) => {
   }
 
   const { stream, metrics } = mapQueryRow(result);
-  return c.json(formatStream(stream, metrics));
+  return c.json(formatStream(stream, metrics, { includeSecret: true }));
 });
 
 // Update stream
