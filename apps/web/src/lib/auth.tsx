@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import type { Account } from "./types";
 
 interface AuthCtx {
@@ -21,6 +22,7 @@ interface AuthCtx {
 const AuthContext = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,8 +71,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
     setAccount(null);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     refresh();
