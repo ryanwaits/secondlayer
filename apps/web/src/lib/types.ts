@@ -51,3 +51,32 @@ export interface ApiKey {
   createdAt: string;
   lastUsedAt: string | null;
 }
+
+export interface ViewSummary {
+  name: string;
+  version: string;
+  status: string;
+  lastProcessedBlock: number | null;
+  tables: string[];
+  createdAt: string;
+}
+
+export interface ViewDetail {
+  name: string;
+  health: {
+    totalProcessed: number;
+    totalErrors: number;
+    errorRate: number;
+    lastError: string | null;
+    lastErrorAt: string | null;
+  };
+  tables: Record<
+    string,
+    {
+      rowCount: number;
+      endpoint: string;
+      columns: Record<string, unknown>;
+      example: unknown;
+    }
+  >;
+}

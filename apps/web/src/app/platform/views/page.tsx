@@ -1,15 +1,7 @@
 import Link from "next/link";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { EmptyState } from "@/components/console/empty-state";
-
-interface ViewSummary {
-  name: string;
-  version: string;
-  status: string;
-  lastProcessedBlock: number | null;
-  tables: string[];
-  createdAt: string;
-}
+import type { ViewSummary } from "@/lib/types";
 
 export default async function ViewsPage() {
   const session = await getSessionFromCookies();
