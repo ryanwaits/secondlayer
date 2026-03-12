@@ -749,6 +749,31 @@ a {
   color: var(--text-muted);
 }
 
+.auth-bar-nav-link {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono-stack);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 2px 8px;
+  transition: color 0.15s;
+}
+
+.auth-bar-nav-link:hover {
+  color: var(--text-primary);
+}
+
+.auth-bar-nav-key {
+  opacity: 0.5;
+}
+
+.auth-bar-nav-label {
+  margin-left: 4px;
+}
+
 .auth-bar-cta {
   font-family: var(--font-sans-stack);
   font-size: 12px;
@@ -807,6 +832,27 @@ a {
   align-items: center;
   min-height: 100vh;
   padding: 24px;
+  position: relative;
+}
+
+.login-back {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono-stack);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 2px 8px;
+  transition: color 0.15s;
+}
+
+.login-back:hover {
+  color: var(--text-primary);
 }
 
 .login-card {
