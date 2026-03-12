@@ -66,7 +66,7 @@ ${keyList}
 
 ## Rules
 - If the query maps to a known action, use map_action.
-- If the query requires modifying resources (pause, delete, resume, etc.), use confirm_action. Include ALL affected resources. Each resource MUST have its own apiCall field with the specific API call for that resource. Also include all calls in the top-level apiCalls array for bulk execution.
+- If the query requires modifying resources (pause, delete, resume, etc.), use confirm_action. Include ALL affected resources as display-only items. Include all API calls in the top-level apiCalls array.
 - If the query asks to generate code (scaffold, create, write), use generate_code.
 - If the query is a question, use answer_question.
 - Be concise. No filler.
@@ -90,20 +90,15 @@ const commandTools = {
   }),
   confirm_action: tool({
     description:
-      "Present a confirmation UI for destructive or multi-resource operations. Each resource MUST have its own apiCall for individual inline execution.",
+      "Present a confirmation UI for destructive or multi-resource operations. Resources are display-only; all execution happens via the top-level apiCalls array.",
     inputSchema: z.object({
-      title: z.string().describe("Short action summary"),
+      title: z.string().describe("Short action summary, used as the confirm button label"),
       description: z.string().optional().describe("Optional detail"),
       resources: z.array(
         z.object({
           name: z.string(),
           meta: z.string().optional(),
           status: z.enum(["green", "red", "yellow"]).optional(),
-          apiCall: z.object({
-            method: z.string(),
-            path: z.string(),
-            body: z.record(z.string(), z.unknown()).optional(),
-          }).optional().describe("API call for this specific resource"),
         }),
       ),
       destructive: z.boolean(),
@@ -206,7 +201,7 @@ function mapToolCall(
       const args = input as {
         title: string;
         description?: string;
-        resources: { name: string; meta?: string; status?: "green" | "red" | "yellow"; apiCall?: { method: string; path: string; body?: Record<string, unknown> } }[];
+        resources: { name: string; meta?: string; status?: "green" | "red" | "yellow" }[];
         destructive: boolean;
         apiCalls: { method: string; path: string; body?: Record<string, unknown> }[];
       };
