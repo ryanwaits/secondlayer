@@ -104,23 +104,27 @@ export function AuthBar() {
           className={`auth-bar-notify ${expanded ? "expanded" : ""}`}
           onSubmit={handleSubmit}
         >
-          {expanded && (
-            <input
-              ref={inputRef}
-              type="text"
-              inputMode="email"
-              className="auth-bar-input"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setExpanded(false);
-                  setEmail("");
-                }
-              }}
-            />
-          )}
+          <input
+            ref={inputRef}
+            type="text"
+            inputMode="email"
+            className="auth-bar-input"
+            placeholder="you@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setExpanded(false);
+                setEmail("");
+              }
+            }}
+            onBlur={() => {
+              if (!email) {
+                setExpanded(false);
+              }
+            }}
+            tabIndex={expanded ? 0 : -1}
+          />
           <button
             type={expanded ? "submit" : "button"}
             className="auth-bar-cta"
