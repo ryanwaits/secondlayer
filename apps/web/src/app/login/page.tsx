@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
@@ -15,6 +16,30 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState("");
   const [verifying, setVerifying] = useState(false);
+
+  const handleInputEsc = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>, clear: () => void) => {
+      if (e.key !== "Escape") return;
+      if (e.currentTarget.value) {
+        clear();
+      } else {
+        router.push("/");
+      }
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "s" || e.key === "S" || e.key === "Escape") {
+        router.push("/");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [router]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -57,6 +82,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      <Link href="/" className="login-back"><span className="auth-bar-nav-key">[S]</span><span className="auth-bar-nav-label">Secondlayer</span></Link>
       <div className="login-card">
         {status === "sent" ? (
           <div className="login-sent">
@@ -77,6 +103,7 @@ export default function LoginPage() {
                 placeholder="000000"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
+                onKeyDown={(e) => handleInputEsc(e, () => setToken(""))}
                 autoFocus
               />
               {error && <p className="login-error">{error}</p>}
@@ -109,6 +136,7 @@ export default function LoginPage() {
               placeholder="name@domain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => handleInputEsc(e, () => setEmail(""))}
               required
               autoFocus
             />
