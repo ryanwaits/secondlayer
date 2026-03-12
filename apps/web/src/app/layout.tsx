@@ -3,6 +3,7 @@ import { Sora, Public_Sans, Fira_Code, Caveat } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { AuthBar } from "@/components/auth-bar";
 import { CommandPalette } from "@/components/command-palette/command-palette";
+import { QueryProvider } from "@/lib/queries/provider";
 import "./globals.css";
 
 const sora = Sora({
@@ -49,11 +50,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${publicSans.className} ${sora.variable} ${publicSans.variable} ${firaCode.variable} ${caveat.variable}`}>
-        <AuthProvider>
-          {children}
-          <AuthBar />
-          <CommandPalette />
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            {children}
+            <AuthBar />
+            <CommandPalette />
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

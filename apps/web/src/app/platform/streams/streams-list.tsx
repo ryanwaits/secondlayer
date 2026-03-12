@@ -3,43 +3,31 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { Stream } from "@/lib/types";
+import { useStreams, usePauseStream, useResumeStream } from "@/lib/queries/streams";
 
-function StreamRow({ stream: initial }: { stream: Stream }) {
-  const [stream, setStream] = useState(initial);
-  const [loading, setLoading] = useState(false);
+function StreamRow({ stream }: { stream: Stream }) {
   const [confirmPause, setConfirmPause] = useState(false);
+  const pause = usePauseStream();
+  const resume = useResumeStream();
+  const loading = pause.isPending || resume.isPending;
 
   const handlePause = useCallback(
-    async (e: React.MouseEvent) => {
+    (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setLoading(true);
       setConfirmPause(false);
-      try {
-        const res = await fetch(`/api/streams/${stream.id}/pause`, { method: "POST" });
-        if (!res.ok) throw new Error();
-        setStream((s) => ({ ...s, status: "paused", enabled: true }));
-      } catch {}
-      setLoading(false);
+      pause.mutate(stream.id);
     },
-    [stream.id],
+    [stream.id, pause],
   );
 
   const handleResume = useCallback(
-    async (e: React.MouseEvent) => {
+    (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setLoading(true);
-      try {
-        const endpoint = stream.status === "failed" || stream.status === "inactive"
-          ? "enable" : "resume";
-        const res = await fetch(`/api/streams/${stream.id}/${endpoint}`, { method: "POST" });
-        if (!res.ok) throw new Error();
-        setStream((s) => ({ ...s, status: "active", enabled: true }));
-      } catch {}
-      setLoading(false);
+      resume.mutate({ id: stream.id, status: stream.status });
     },
-    [stream.id, stream.status],
+    [stream.id, stream.status, resume],
   );
 
   return (
@@ -112,7 +100,7 @@ function StreamRow({ stream: initial }: { stream: Stream }) {
 }
 
 export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
-  const [streams] = useState(initialStreams);
+  const { data: streams = initialStreams } = useStreams(initialStreams);
 
   const active = streams.filter((s) => s.status === "active");
   const paused = streams.filter((s) => s.status === "paused");
