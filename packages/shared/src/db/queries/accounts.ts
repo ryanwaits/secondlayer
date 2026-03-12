@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import type { Database, Account } from "../types.ts";
 
 export async function upsertAccount(
@@ -26,6 +26,20 @@ export async function getAccountById(
       .where("id", "=", id)
       .executeTakeFirst()) ?? null
   );
+}
+
+export async function isEmailAllowed(
+  db: Kysely<Database>,
+  email: string,
+): Promise<boolean> {
+  const result = await sql<{ found: number }>`
+    SELECT 1 AS found FROM accounts WHERE email = ${email}
+    UNION ALL
+    SELECT 1 AS found FROM waitlist WHERE email = ${email} AND status = 'approved'
+    LIMIT 1
+  `.execute(db);
+
+  return result.rows.length > 0;
 }
 
 export async function createMagicLink(

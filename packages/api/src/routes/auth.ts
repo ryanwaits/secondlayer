@@ -8,6 +8,7 @@ import {
   createMagicLink,
   verifyMagicLink,
   upsertAccount,
+  isEmailAllowed,
 } from "@secondlayer/shared/db/queries/accounts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
@@ -28,6 +29,12 @@ app.post("/magic-link", async (c) => {
   const parsed = MagicLinkSchema.parse(body);
   const db = getDb();
 
+  const allowed = await isEmailAllowed(db, parsed.email);
+
+  if (!allowed) {
+    return c.json({ message: "Magic link sent. Check your email." });
+  }
+
   const token = Math.floor(100000 + Math.random() * 900000).toString();
   await createMagicLink(db, parsed.email, token);
   await sendMagicLink(parsed.email, token);
@@ -47,6 +54,11 @@ app.post("/verify", async (c) => {
 
   const email = await verifyMagicLink(db, parsed.token);
   if (!email) {
+    throw new ValidationError("Invalid or expired token");
+  }
+
+  const allowed = await isEmailAllowed(db, email);
+  if (!allowed) {
     throw new ValidationError("Invalid or expired token");
   }
 
