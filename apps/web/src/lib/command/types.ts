@@ -35,7 +35,6 @@ export interface ConfirmResource {
   name: string;
   meta?: string;
   status?: "green" | "red" | "yellow";
-  apiCall?: ApiCall;
 }
 
 export interface CommandConfirmResponse {
