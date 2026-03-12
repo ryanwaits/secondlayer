@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-const PLATFORM_PATHS = ["/streams", "/views", "/keys", "/usage", "/billing", "/settings"];
+const PLATFORM_PATHS = ["/platform", "/streams", "/views", "/keys", "/usage", "/billing", "/settings"];
 
 export function AuthBar() {
   const { account, loading, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">(
@@ -26,6 +27,20 @@ export function AuthBar() {
       inputRef.current.focus();
     }
   }, [expanded]);
+
+  // L keyboard shortcut for login
+  useEffect(() => {
+    if (account || loading) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "l" || e.key === "L") {
+        router.push("/login");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [account, loading, router]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -50,8 +65,16 @@ export function AuthBar() {
 
   if (loading) return null;
 
-  // Platform pages — sidebar handles logout
-  if (account && isPlatform) return null;
+  // Platform pages — sidebar handles logout, never show auth bar
+  // If session expired (no account but cookie exists), the /api/auth/me route
+  // already cleared the cookie server-side — reload so middleware routes to marketing
+  if (isPlatform) {
+    if (!account && document.cookie.includes("sl_session")) {
+      window.location.reload();
+      return null;
+    }
+    if (account) return null;
+  }
 
   // Authenticated on marketing pages
   if (account) {
@@ -70,6 +93,10 @@ export function AuthBar() {
   // Unauthenticated
   return (
     <div className="auth-bar">
+      <Link href="/login" className="auth-bar-nav-link">
+        <span className="auth-bar-nav-key">[L]</span>
+        <span className="auth-bar-nav-label">Login</span>
+      </Link>
       {status === "done" ? (
         <span className="auth-bar-done">You&apos;re in for early access ✓</span>
       ) : (
@@ -105,8 +132,8 @@ export function AuthBar() {
             {status === "sending"
               ? "..."
               : expanded
-                ? "Send"
-                : "Notify me"}
+                ? "Join"
+                : "Get early access"}
           </button>
         </form>
       )}

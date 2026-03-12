@@ -14,9 +14,11 @@ export async function GET(req: Request) {
     });
     return NextResponse.json({ account });
   } catch (e) {
+    // Session expired or invalid — clear the cookie
+    const res = NextResponse.json({ account: null });
     if (e instanceof ApiError && e.status === 401) {
-      return NextResponse.json({ account: null });
+      res.cookies.set("sl_session", "", { maxAge: 0, path: "/" });
     }
-    return NextResponse.json({ account: null });
+    return res;
   }
 }
