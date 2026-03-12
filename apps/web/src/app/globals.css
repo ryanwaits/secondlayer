@@ -438,6 +438,13 @@ a {
   flex: 1;
   gap: 16px;
   transition: all 0.2s ease;
+  position: relative;
+}
+
+.index-link::before {
+  content: "";
+  position: absolute;
+  inset: -12px 0;
 }
 
 .index-link-label {
@@ -722,19 +729,27 @@ a {
   display: flex;
   align-items: center;
   gap: 0;
-  transition: all var(--duration-smooth) var(--ease-smooth);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 3px 3px 0;
+  box-shadow: 0 4px 24px rgba(0,0,0,0), 0 1px 4px rgba(0,0,0,0);
+  transition:
+    background var(--duration-smooth) var(--ease-smooth),
+    border-color var(--duration-smooth) var(--ease-smooth),
+    padding var(--duration-smooth) var(--ease-smooth),
+    box-shadow var(--duration-smooth) var(--ease-smooth);
 }
 
 .auth-bar-notify.expanded {
   background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border-color: var(--border);
   padding: 3px 3px 3px 12px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
 }
 
 .auth-bar-input {
-  width: 180px;
+  width: 0;
   border: none;
   outline: none;
   background: transparent;
@@ -742,7 +757,23 @@ a {
   font-size: 13px;
   color: var(--text-main);
   padding: 0;
+  margin-right: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.1s ease,
+    width var(--duration-smooth) var(--ease-smooth) 0.08s,
+    margin var(--duration-smooth) var(--ease-smooth) 0.08s;
+}
+
+.auth-bar-notify.expanded .auth-bar-input {
+  width: 180px;
   margin-right: 8px;
+  opacity: 1;
+  transition:
+    width var(--duration-smooth) var(--ease-smooth),
+    margin var(--duration-smooth) var(--ease-smooth),
+    opacity 0.15s ease 0.1s;
 }
 
 .auth-bar-input::placeholder {
