@@ -69,7 +69,7 @@ export default function LoginPage() {
       setError(null);
       try {
         await verify(token.trim());
-        router.replace("/");
+        window.location.href = "/";
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Verification failed",
