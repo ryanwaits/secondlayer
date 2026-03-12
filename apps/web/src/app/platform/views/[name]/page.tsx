@@ -1,17 +1,6 @@
 import { notFound } from "next/navigation";
 import { apiRequest, ApiError, getSessionFromCookies } from "@/lib/api";
-
-interface ViewDetail {
-  name: string;
-  health: {
-    totalProcessed: number;
-    totalErrors: number;
-    errorRate: number;
-    lastError: string | null;
-    lastErrorAt: string | null;
-  };
-  tables: Record<string, { rowCount: number; endpoint: string; columns: Record<string, unknown>; example: unknown }>;
-}
+import type { ViewDetail } from "@/lib/types";
 
 export default async function ViewOverviewPage({
   params,
