@@ -25,9 +25,9 @@ function VerifyContent() {
           new CustomEvent("sl:verified", { detail: { apiKey: result.apiKey } }),
         );
         // Brief delay so toolbar can show the key
-        setTimeout(() => router.replace("/"), 100);
+        setTimeout(() => { window.location.href = "/"; }, 100);
       } else {
-        router.replace("/");
+        window.location.href = "/";
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
