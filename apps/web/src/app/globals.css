@@ -925,9 +925,9 @@ a {
   font-family: var(--font-sans-stack);
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-main);
-  background: var(--bg);
-  border: 1px solid var(--border);
+  color: var(--bg);
+  background: var(--text-main);
+  border: 1px solid var(--text-main);
   border-radius: 10px;
   padding: 12px 16px;
   margin-top: 12px;
@@ -936,8 +936,7 @@ a {
 }
 
 .login-submit:hover {
-  border-color: var(--text-muted);
-  background: var(--code-bg);
+  opacity: 0.85;
 }
 
 .login-submit:disabled {
@@ -981,6 +980,26 @@ a {
 
 .login-dev-link:hover {
   text-decoration-color: var(--accent-purple);
+}
+
+.login-disclaimer {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  text-align: center;
+}
+
+.login-disclaimer a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.login-disclaimer a:hover {
+  text-decoration-color: var(--text-secondary);
 }
 
 /* ── Command palette ─────────────────────────────────────────────── */

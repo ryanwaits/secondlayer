@@ -114,6 +114,9 @@ export default function LoginPage() {
               >
                 {verifying ? "Verifying..." : "Verify"}
               </button>
+              <p className="login-disclaimer">
+                Didn&apos;t get a code? You may need <Link href="/#early-access">early access</Link> first.
+              </p>
             </form>
             {devToken && (
               <a
@@ -150,6 +153,9 @@ export default function LoginPage() {
                 ? "Sending..."
                 : "Send me a one-time password"}
             </button>
+            <p className="login-disclaimer">
+              You&apos;ll receive a code if you have an account or approved early access. Otherwise, <Link href="/#early-access">join the early access list</Link>.
+            </p>
           </form>
         )}
       </div>
