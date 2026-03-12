@@ -172,6 +172,7 @@ export interface WaitlistTable {
   id: Generated<string>;
   email: string;
   source: Generated<string>;
+  status: Generated<string>;
   created_at: Generated<Date>;
 }
 
