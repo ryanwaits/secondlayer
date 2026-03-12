@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { ApiKey } from "@/lib/types";
+import { useApiKeys, useCreateApiKey } from "@/lib/queries/api-keys";
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "never";
@@ -17,45 +18,26 @@ function timeAgo(dateStr: string | null): string {
 }
 
 export function KeysList({ initialKeys }: { initialKeys: ApiKey[] }) {
-  const [keys, setKeys] = useState(initialKeys);
+  const { data: keys = initialKeys } = useApiKeys(initialKeys);
+  const createKey = useCreateApiKey();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
-  const [status, setStatus] = useState<"idle" | "creating" | "done" | "error">("idle");
   const [newRawKey, setNewRawKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const status = createKey.isPending ? "creating" : createKey.isError ? "error" : createKey.isSuccess && newRawKey ? "done" : "idle";
+
   const handleCreate = useCallback(
-    async (e: React.FormEvent) => {
+    (e: React.FormEvent) => {
       e.preventDefault();
-      setStatus("creating");
-      try {
-        const res = await fetch("/api/keys", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name || undefined }),
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setNewRawKey(data.key);
-        setKeys((prev) => [
-          {
-            id: data.id,
-            prefix: data.prefix,
-            name: name || "",
-            status: "active",
-            createdAt: data.createdAt,
-            lastUsedAt: null,
-          } satisfies ApiKey,
-          ...prev,
-        ]);
-        setStatus("done");
-      } catch {
-        setStatus("error");
-        setTimeout(() => setStatus("idle"), 2000);
-      }
+      createKey.mutate(name || undefined, {
+        onSuccess: (data) => {
+          setNewRawKey(data.key);
+        },
+      });
     },
-    [name],
+    [name, createKey],
   );
 
   const handleCopy = useCallback(async () => {
@@ -69,8 +51,8 @@ export function KeysList({ initialKeys }: { initialKeys: ApiKey[] }) {
     setNewRawKey(null);
     setShowForm(false);
     setName("");
-    setStatus("idle");
-  }, []);
+    createKey.reset();
+  }, [createKey]);
 
   return (
     <>

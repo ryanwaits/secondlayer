@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Stream, Delivery } from "@/lib/types";
 import { useBreadcrumbOverrides } from "@/lib/breadcrumb";
+import {
+  useStream,
+  usePauseStream,
+  useResumeStream,
+  useDisableStream,
+  useDeleteStream,
+  useReplayFailed,
+} from "@/lib/queries/streams";
 
 function relativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -59,73 +67,52 @@ export function StreamDetailClient({
 }) {
   const router = useRouter();
   const { set: setBreadcrumb } = useBreadcrumbOverrides();
-  const [stream, setStream] = useState(initialStream);
+  const { data: stream = initialStream } = useStream(initialStream.id, initialStream);
+
   useEffect(() => {
     setBreadcrumb(`/streams/${stream.id}`, stream.name);
   }, [stream.id, stream.name, setBreadcrumb]);
+
   const [secretRevealed, setSecretRevealed] = useState(false);
   const [secretCopied, setSecretCopied] = useState(false);
   const [deleting, setDeleting] = useState<"idle" | "confirm" | "deleting">("idle");
-  const [disabling, setDisabling] = useState(false);
   const [pausing, setPausing] = useState<"idle" | "confirm" | "loading">("idle");
-  const [actionLoading, setActionLoading] = useState(false);
+
+  const pauseMutation = usePauseStream();
+  const resumeMutation = useResumeStream();
+  const disableMutation = useDisableStream();
+  const deleteMutation = useDeleteStream();
+  const replayMutation = useReplayFailed();
+
+  const actionLoading = resumeMutation.isPending || replayMutation.isPending;
 
   const handleDelete = useCallback(async () => {
     setDeleting("deleting");
-    try {
-      const res = await fetch(`/api/streams/${stream.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-      router.push("/streams");
-    } catch {
-      setDeleting("idle");
-    }
-  }, [stream.id, router]);
+    deleteMutation.mutate(stream.id, {
+      onSuccess: () => router.push("/streams"),
+      onError: () => setDeleting("idle"),
+    });
+  }, [stream.id, router, deleteMutation]);
 
-  const handlePause = useCallback(async () => {
+  const handlePause = useCallback(() => {
     setPausing("loading");
-    try {
-      const res = await fetch(`/api/streams/${stream.id}/pause`, { method: "POST" });
-      if (!res.ok) throw new Error();
-      setStream((s) => ({ ...s, status: "paused", enabled: true }));
-    } catch {}
-    setPausing("idle");
-  }, [stream.id]);
+    pauseMutation.mutate(stream.id, {
+      onSettled: () => setPausing("idle"),
+    });
+  }, [stream.id, pauseMutation]);
 
-  const handleResume = useCallback(async () => {
-    setActionLoading(true);
-    try {
-      const endpoint = stream.status === "failed" || stream.status === "inactive"
-        ? "enable" : "resume";
-      const res = await fetch(`/api/streams/${stream.id}/${endpoint}`, { method: "POST" });
-      if (!res.ok) throw new Error();
-      setStream((s) => ({ ...s, status: "active", enabled: true, errorMessage: null }));
-    } catch {}
-    setActionLoading(false);
-  }, [stream.id, stream.status]);
+  const handleResume = useCallback(() => {
+    resumeMutation.mutate({ id: stream.id, status: stream.status });
+  }, [stream.id, stream.status, resumeMutation]);
 
-  const handleToggleEnabled = useCallback(async () => {
-    setDisabling(true);
-    try {
-      const action = stream.status === "inactive" ? "enable" : "disable";
-      const res = await fetch(`/api/streams/${stream.id}/${action}`, { method: "POST" });
-      if (!res.ok) throw new Error();
-      setStream((s) => ({
-        ...s,
-        status: action === "disable" ? "inactive" : "active",
-        enabled: action === "enable",
-      }));
-    } catch {}
-    setDisabling(false);
-  }, [stream.id, stream.status]);
+  const handleToggleEnabled = useCallback(() => {
+    const action = stream.status === "inactive" ? "enable" : "disable";
+    disableMutation.mutate({ id: stream.id, action });
+  }, [stream.id, stream.status, disableMutation]);
 
-  const handleReplayFailed = useCallback(async () => {
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/streams/${stream.id}/replay-failed`, { method: "POST" });
-      if (!res.ok) throw new Error();
-    } catch {}
-    setActionLoading(false);
-  }, [stream.id]);
+  const handleReplayFailed = useCallback(() => {
+    replayMutation.mutate(stream.id);
+  }, [stream.id, replayMutation]);
 
   const successRate =
     stream.totalDeliveries > 0
@@ -196,7 +183,7 @@ export function StreamDetailClient({
                 <span className="btn-icon">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5a.5.5 0 01.8-.4l7 5a.5.5 0 010 .8l-7 5a.5.5 0 01-.8-.4v-10z"/></svg>
                 </span>
-                {actionLoading ? "Resuming..." : "Resume"}
+                {resumeMutation.isPending ? "Resuming..." : "Resume"}
               </button>
             )}
             {stream.status === "failed" && (
@@ -209,14 +196,14 @@ export function StreamDetailClient({
                   <span className="btn-icon">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 0110.5-4M14 8a6 6 0 01-10.5 4"/><path d="M12 1v4h-4M4 15v-4h4"/></svg>
                   </span>
-                  {actionLoading ? "Restarting..." : "Restart"}
+                  {resumeMutation.isPending ? "Restarting..." : "Restart"}
                 </button>
                 <button
                   className="dash-btn"
                   disabled={actionLoading}
                   onClick={handleReplayFailed}
                 >
-                  Replay failed
+                  {replayMutation.isPending ? "Replaying..." : "Replay failed"}
                 </button>
               </>
             )}
@@ -366,10 +353,10 @@ export function StreamDetailClient({
         {stream.status !== "failed" && (
           <button
             className="dash-btn danger"
-            disabled={disabling}
+            disabled={disableMutation.isPending}
             onClick={handleToggleEnabled}
           >
-            {disabling
+            {disableMutation.isPending
               ? (stream.status === "inactive" ? "Enabling..." : "Disabling...")
               : (stream.status === "inactive" ? "Enable stream" : "Disable stream")}
           </button>
