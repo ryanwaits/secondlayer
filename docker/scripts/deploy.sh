@@ -2,7 +2,8 @@
 set -euo pipefail
 
 cd /opt/secondlayer
-git pull origin main
+git fetch origin main
+git reset --hard origin/main
 
 cd docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
