@@ -1,17 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ComponentRenderProps } from "@json-render/react";
 import { highlightCode } from "../actions";
 
-interface CodeBlockProps {
+interface PaletteCodeBlockProps {
   code: string;
   lang?: string;
   title?: string;
 }
 
-export function CodeBlock({ element }: ComponentRenderProps<CodeBlockProps>) {
-  const { code, lang, title } = element.props;
+export function PaletteCodeBlock({ code, lang, title }: PaletteCodeBlockProps) {
   const [html, setHtml] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
