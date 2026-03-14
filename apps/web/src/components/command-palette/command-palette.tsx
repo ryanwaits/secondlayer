@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { actions } from "@/lib/actions/registry";
 import { fuzzyMatch, highlightLabel, type MatchResult } from "@/lib/actions/fuzzy-match";
 import { useCommandAI } from "@/lib/command/use-command-ai";
-import type { CommandResponse } from "@/lib/command/types";
-import type { Spec } from "@json-render/react";
-import { PaletteRenderer } from "./renders";
+import { InfoPanel } from "./renders/info-panel";
+import { ConfirmCard } from "./renders/confirm-card";
+import { PaletteCodeBlock } from "./renders/code-block";
 
 export function CommandPalette() {
   const router = useRouter();
@@ -169,21 +169,6 @@ export function CommandPalette() {
     return () => document.removeEventListener("click", onClick);
   }, [openPalette]);
 
-  // Build json-render spec from response
-  const spec = useMemo(() => buildSpec(response), [response]);
-
-  // Action handler for json-render
-  const handleAction = useCallback(
-    (actionName: string) => {
-      if (actionName === "execute" && response?.type === "confirm") {
-        execute(response.apiCalls);
-      } else if (actionName === "cancel") {
-        reset();
-      }
-    },
-    [response, execute, reset],
-  );
-
   if (!open) return null;
 
   // Logout confirmation overlay
@@ -253,18 +238,44 @@ export function CommandPalette() {
               <span />
               <span />
             </div>
-            Thinking
+            Interpreting&hellip;
           </div>
         );
 
       case "confirm":
-      case "code":
-      case "info":
-        if (spec) {
+        if (response?.type === "confirm") {
           return (
-            <PaletteRenderer
-              spec={spec}
-              onAction={handleAction}
+            <ConfirmCard
+              title={response.title}
+              description={response.description}
+              destructive={response.destructive}
+              resources={response.resources}
+              onExecute={() => execute(response.apiCalls)}
+              onCancel={reset}
+            />
+          );
+        }
+        return null;
+
+      case "info":
+        if (response?.type === "info") {
+          return (
+            <InfoPanel
+              title={response.title}
+              markdown={response.markdown}
+              docUrl={response.docUrl}
+            />
+          );
+        }
+        return null;
+
+      case "code":
+        if (response?.type === "code") {
+          return (
+            <PaletteCodeBlock
+              code={response.code}
+              lang={response.lang}
+              title={response.title}
             />
           );
         }
@@ -367,18 +378,27 @@ export function CommandPalette() {
         return null;
       default:
         return (
-          <div className="palette-footer-left">
-            <span className="palette-footer-hint">
-              Open <kbd>&#9166;</kbd>
-            </span>
-            <span className="palette-footer-hint">
-              <kbd>&uarr;</kbd>
-              <kbd>&darr;</kbd>
-            </span>
-          </div>
+          <>
+            <div className="palette-footer-left">
+              <span className="palette-footer-hint">
+                Open <kbd>&#9166;</kbd>
+              </span>
+              <span className="palette-footer-hint">
+                <kbd>&uarr;</kbd>
+                <kbd>&darr;</kbd>
+              </span>
+            </div>
+            <div className="palette-footer-right">
+              <span className="palette-footer-hint palette-footer-nl-hint">
+                try natural language →
+              </span>
+            </div>
+          </>
         );
     }
   };
+
+  const showAiPill = mode === "agent" || mode === "thinking";
 
   return (
     <div className="palette-overlay" onClick={closePalette}>
@@ -397,6 +417,7 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          {showAiPill && <span className="palette-ai-pill">AI</span>}
         </div>
 
         <div className="palette-divider" />
@@ -409,110 +430,6 @@ export function CommandPalette() {
       </div>
     </div>
   );
-}
-
-// ── Spec builders ──
-
-function buildSpec(response: CommandResponse | null): Spec | null {
-  if (!response) return null;
-
-  switch (response.type) {
-    case "info":
-      return {
-        root: "info",
-        elements: {
-          info: {
-            type: "InfoPanel",
-            props: {
-              title: response.title,
-              markdown: response.markdown,
-              docUrl: response.docUrl,
-            },
-            children: [],
-          },
-        },
-      };
-
-    case "confirm": {
-      const elements: Record<string, any> = {
-        card: {
-          type: "ConfirmCard",
-          props: {
-            title: response.title,
-            description: response.description,
-            destructive: response.destructive,
-          },
-          children: ["resources"],
-          on: {
-            execute: { action: "execute" },
-            cancel: { action: "cancel" },
-          },
-        },
-        resources: {
-          type: "ResourceList",
-          props: { items: response.resources },
-          children: [],
-        },
-      };
-
-      // Add detail sections if present
-      const detailKeys: string[] = [];
-      if (response.details?.length) {
-        response.details.forEach((detail, i) => {
-          const sectionKey = `detail_${i}`;
-          const childKey = `detail_child_${i}`;
-          detailKeys.push(sectionKey);
-          elements[sectionKey] = {
-            type: "DetailSection",
-            props: {
-              label: detail.label,
-              defaultOpen: i === 0,
-              badge: detail.badge,
-            },
-            children: [childKey],
-          };
-          if (detail.code) {
-            elements[childKey] = {
-              type: "CodeBlock",
-              props: { code: detail.code, lang: "json" },
-              children: [],
-            };
-          } else {
-            elements[childKey] = {
-              type: "KeyValueList",
-              props: { items: detail.items },
-              children: [],
-            };
-          }
-        });
-      }
-
-      if (detailKeys.length) {
-        elements.card.children = ["resources", ...detailKeys];
-      }
-
-      return { root: "card", elements };
-    }
-
-    case "code":
-      return {
-        root: "code",
-        elements: {
-          code: {
-            type: "CodeBlock",
-            props: {
-              code: response.code,
-              lang: response.lang,
-              title: response.title,
-            },
-            children: [],
-          },
-        },
-      };
-
-    default:
-      return null;
-  }
 }
 
 // ── Helpers ──

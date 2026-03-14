@@ -1,36 +1,46 @@
 "use client";
 
-import type { ComponentRenderProps } from "@json-render/react";
-import type { ReactNode } from "react";
+import type { ConfirmResource } from "@/lib/command/types";
 
 interface ConfirmCardProps {
   title: string;
   description?: string;
   destructive?: boolean;
+  resources: ConfirmResource[];
+  onExecute: () => void;
+  onCancel: () => void;
 }
 
-export function ConfirmCard({ element, children, emit, on }: ComponentRenderProps<ConfirmCardProps>) {
-  const { title, description, destructive } = element.props;
-  const executeHandle = on("execute");
-  const cancelHandle = on("cancel");
-
+export function ConfirmCard({
+  title,
+  description,
+  destructive,
+  resources,
+  onExecute,
+  onCancel,
+}: ConfirmCardProps) {
   return (
     <div className="palette-confirm">
       <div className="palette-confirm-header">{title}</div>
       {description && (
         <div className="palette-confirm-desc">{description}</div>
       )}
-      <div className="palette-confirm-list">{children}</div>
+      <div className="palette-confirm-list">
+        {resources.map((item, i) => (
+          <div key={i} className="palette-confirm-item">
+            {item.status && <span className={`palette-dot palette-dot-${item.status}`} />}
+            <span className="palette-confirm-name">{item.name}</span>
+            {item.meta && <span className="palette-confirm-meta">{item.meta}</span>}
+          </div>
+        ))}
+      </div>
       <div className="palette-confirm-actions">
-        <button
-          className="palette-btn"
-          onClick={() => emit("cancel")}
-        >
+        <button className="palette-btn" onClick={onCancel}>
           Cancel
         </button>
         <button
           className={`palette-btn ${destructive ? "palette-btn-danger" : ""}`}
-          onClick={() => emit("execute")}
+          onClick={onExecute}
         >
           {title}
         </button>

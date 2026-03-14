@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { marked } from "marked";
-import type { ComponentRenderProps } from "@json-render/react";
 
 interface InfoPanelProps {
   title: string;
@@ -10,9 +9,7 @@ interface InfoPanelProps {
   docUrl?: string;
 }
 
-export function InfoPanel({ element }: ComponentRenderProps<InfoPanelProps>) {
-  const { title, markdown, docUrl } = element.props;
-
+export function InfoPanel({ title, markdown, docUrl }: InfoPanelProps) {
   const html = useMemo(() => {
     return marked.parse(markdown, { async: false }) as string;
   }, [markdown]);
