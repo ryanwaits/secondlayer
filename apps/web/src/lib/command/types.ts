@@ -2,6 +2,7 @@
 
 export type PaletteMode =
   | "actions"
+  | "agent"
   | "action"
   | "thinking"
   | "confirm"
@@ -37,6 +38,14 @@ export interface ConfirmResource {
   status?: "green" | "red" | "yellow";
 }
 
+export interface ConfirmDetail {
+  label: string;
+  badge?: string;
+  items: { key: string; value: string; accent?: boolean }[];
+  /** When set, render a code snippet instead of key-value rows (e.g. bare filter with no extra fields) */
+  code?: string;
+}
+
 export interface CommandConfirmResponse {
   type: "confirm";
   title: string;
@@ -44,6 +53,7 @@ export interface CommandConfirmResponse {
   resources: ConfirmResource[];
   destructive: boolean;
   apiCalls: ApiCall[];
+  details?: ConfirmDetail[];
 }
 
 export interface CommandCodeResponse {
