@@ -16,12 +16,12 @@ export function LogoutButton() {
       onClick={handleLogout}
       className="dash-empty-action"
       style={{
-        background: "none",
-        border: "1px solid var(--border)",
+        background: "var(--text-main)",
+        border: "1px solid var(--text-main)",
         borderRadius: 6,
         padding: "6px 14px",
         fontSize: 13,
-        color: "var(--text-muted)",
+        color: "var(--bg)",
         cursor: "pointer",
       }}
     >
