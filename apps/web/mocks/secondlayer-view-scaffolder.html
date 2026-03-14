@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secondlayer — View Scaffolder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.2);
+    --border: #f2f2f2;
+    --accent-purple: #6344F5;
+    --accent-purple-bg: rgba(99,68,245,0.06);
+    --accent-purple-border: rgba(99,68,245,0.15);
+    --code-bg: rgba(0,0,0,0.04);
+    --selection-bg: #ededed;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --item-hover: rgba(0,0,0,0.03);
+    --kbd-bg: rgba(0,0,0,0.03);
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+
+  html.dark {
+    --bg: #141414;
+    --bg-elevated: #1a1a1a;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.4);
+    --text-dim: rgba(255,255,255,0.15);
+    --border: #2a2a2a;
+    --accent-purple: #8b7ff0;
+    --accent-purple-bg: rgba(139,127,240,0.08);
+    --accent-purple-border: rgba(139,127,240,0.2);
+    --code-bg: rgba(255,255,255,0.08);
+    --selection-bg: #333;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --item-hover: rgba(255,255,255,0.04);
+    --kbd-bg: rgba(255,255,255,0.05);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 460;
+    letter-spacing: -0.00563rem;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding: 40px 20px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  ::selection { background: var(--selection-bg); }
+
+  .theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    z-index: 100;
+  }
+  .theme-toggle:hover { color: var(--text-main); border-color: var(--text-muted); }
+
+  .page-header {
+    max-width: 760px;
+    margin: 0 auto 48px;
+  }
+
+  .page-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 8px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .variants {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .variant {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .variant-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent-purple);
+    letter-spacing: 0.02em;
+  }
+
+  .variant-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  /* ── Card (matches wizard-card) ── */
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* ── Buttons (match real app) ── */
+  .btn {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { background: var(--code-bg); border-color: var(--text-muted); }
+  .btn-sm { padding: 3px 8px; font-size: 11px; }
+  .btn-accent {
+    color: var(--accent-purple);
+    border-color: var(--accent-purple-border);
+    background: var(--accent-purple-bg);
+  }
+  .btn-accent:hover { background: rgba(99,68,245,0.1); }
+  .btn-danger {
+    color: var(--red);
+    border-color: rgba(239,68,68,0.3);
+  }
+  .btn-danger:hover { background: var(--red-bg); }
+
+  /* ── Field ── */
+  .field-group {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 560;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+
+  .field-input {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    padding: 6px 0;
+  }
+  .field-input::placeholder { color: var(--text-dim); }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .text-input {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text-main);
+    outline: none;
+  }
+  .text-input:focus { border-color: var(--accent-purple); }
+
+  /* ── ABI Selector ── */
+  .abi-section {
+    padding: 10px 16px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .abi-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .abi-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .abi-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .abi-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    user-select: none;
+  }
+  .abi-item:hover { background: var(--item-hover); }
+  .abi-item.selected { background: var(--accent-purple-bg); }
+
+  .abi-check {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.12s ease;
+  }
+  .abi-item.selected .abi-check {
+    background: var(--accent-purple);
+    border-color: var(--accent-purple);
+  }
+  .abi-check-mark { display: none; }
+  .abi-item.selected .abi-check-mark { display: block; }
+
+  .abi-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    flex: 1;
+  }
+
+  .abi-args {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .abi-type {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 560;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .abi-type.event { color: var(--green); background: var(--green-bg); }
+  .abi-type.public { color: var(--accent-purple); background: var(--accent-purple-bg); }
+
+  /* ── Code Panel ── */
+  .code-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-panel-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+  }
+
+  .code-panel-body {
+    padding: 14px 16px;
+    background: var(--code-bg);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text-muted);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .code-panel-body .kw { color: var(--accent-purple); }
+  .code-panel-body .str { color: var(--green); }
+  .code-panel-body .cmt { color: var(--text-dim); font-style: italic; }
+
+  /* ── Export Row ── */
+  .export-row {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* ── CLI Shortcut ── */
+  .cli-row {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .cli-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .cli-cmd {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--code-bg);
+    padding: 6px 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .cli-cmd .prompt { color: var(--accent-purple); }
+
+  /* ── Empty State ── */
+  .empty-state {
+    padding: 48px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .empty-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .empty-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 340px;
+    line-height: 1.6;
+  }
+
+  .copy-cmd {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+    margin-top: 4px;
+  }
+  .copy-cmd:hover { border-color: var(--accent-purple); }
+  .copy-cmd code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .copy-cmd code .prompt { color: var(--accent-purple); }
+  .copy-cmd .copy-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+
+  .empty-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .empty-hint kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: var(--kbd-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0 4px;
+    line-height: 18px;
+  }
+
+  /* ── View List Rows ── */
+  .view-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s ease;
+    cursor: pointer;
+  }
+  .view-row:last-child { border-bottom: none; }
+  .view-row:hover { background: var(--item-hover); }
+
+  .view-status {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .view-status.active { background: var(--green); }
+  .view-status.error { background: var(--red); }
+
+  .view-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 460;
+    flex: 1;
+  }
+
+  .view-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .dash-badge {
+    font-size: 10px;
+    font-weight: 560;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .dash-badge-active { color: var(--green); background: var(--green-bg); }
+  .dash-badge-failed { color: var(--red); background: var(--red-bg); }
+
+  /* ── Error Diagnosis ── */
+  .error-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .error-banner {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border-left: 3px solid var(--red);
+    background: var(--red-bg);
+    margin-bottom: 10px;
+  }
+
+  .error-title {
+    font-size: 12px;
+    font-weight: 560;
+    color: var(--red);
+    margin-bottom: 4px;
+  }
+
+  .error-code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--code-bg);
+    padding: 8px 10px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .ai-diagnosis {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-purple);
+    background: var(--accent-purple-bg);
+  }
+
+  .ai-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 560;
+    color: var(--accent-purple);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .ai-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .ai-text code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--code-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: flex;
+    gap: 24px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .stat-value.error { color: var(--red); }
+
+  /* ── Annotation ── */
+  .annotation {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .annotation-arrow {
+    font-family: var(--font-mono);
+    color: var(--accent-purple);
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .annotation-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark'); this.textContent = document.documentElement.classList.contains('dark') ? 'light mode' : 'dark mode'">dark mode</button>
+
+<div class="page-header">
+  <div class="page-title">View scaffolder — "copy & go" pattern</div>
+  <div class="page-subtitle">Views are TypeScript code. The web app generates scaffolds and provides copy-pasteable commands — you build in your own editor.</div>
+</div>
+
+<div class="variants">
+
+  <!-- 1: Empty State -->
+  <div class="variant">
+    <div class="variant-label">01 — views page empty state</div>
+    <div class="variant-desc">No views deployed. CLI command and scaffold shortcut instead of a "create" button.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Views</span>
+        <button class="btn btn-sm">Scaffold new view</button>
+      </div>
+      <div class="empty-state">
+        <div class="empty-title">No views deployed</div>
+        <div class="empty-desc">Views are TypeScript files that index blockchain data into queryable SQL tables. Create one from your terminal:</div>
+        <div class="copy-cmd">
+          <code><span class="prompt">$</span> sl views new my-first-view</code>
+          <span class="copy-label">copy</span>
+        </div>
+        <div class="empty-hint">or press <kbd>⌘</kbd><kbd>⇧</kbd><kbd>V</kbd> to scaffold from a contract</div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">No "create view" wizard. Just the CLI command. Honest about where the work happens.</span>
+    </div>
+  </div>
+
+  <!-- 2: Views List -->
+  <div class="variant">
+    <div class="variant-label">02 — views list with deployed views</div>
+    <div class="variant-desc">Dashboard for monitoring. Each view links to detail pages.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Views</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm">Docs</button>
+          <button class="btn btn-sm">Scaffold</button>
+        </div>
+      </div>
+      <div class="view-row">
+        <span class="view-status active"></span>
+        <span class="view-name">marketplace-listings</span>
+        <span class="view-meta">3 tables</span>
+        <span class="view-meta">block #187,432</span>
+        <span class="dash-badge dash-badge-active">active</span>
+      </div>
+      <div class="view-row">
+        <span class="view-status active"></span>
+        <span class="view-name">alex-dex-swaps</span>
+        <span class="view-meta">1 table</span>
+        <span class="view-meta">block #187,430</span>
+        <span class="dash-badge dash-badge-active">active</span>
+      </div>
+      <div class="view-row">
+        <span class="view-status error"></span>
+        <span class="view-name">token-transfers</span>
+        <span class="view-meta">2 tables</span>
+        <span class="view-meta">block #186,991</span>
+        <span class="dash-badge dash-badge-failed">failed</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3: Contract Explorer + Scaffold Generator -->
+  <div class="variant">
+    <div class="variant-label">03 — contract explorer + scaffold generator</div>
+    <div class="variant-desc">Paste a contract address → see its ABI → check what to index → get generated code.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Scaffold a View</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);">from contract ABI</span>
+      </div>
+
+      <div class="field-group">
+        <div class="input-row">
+          <input class="text-input" value="SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01" readonly>
+          <button class="btn">Fetch ABI</button>
+        </div>
+      </div>
+
+      <div class="abi-section">
+        <div class="abi-section-header">
+          <div class="field-label" style="margin-bottom:0;">Events</div>
+          <div class="abi-count">3 found</div>
+        </div>
+        <div class="abi-grid">
+          <div class="abi-item selected">
+            <div class="abi-check"><svg class="abi-check-mark" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <span class="abi-name">swap</span>
+            <span class="abi-args">(sender, token-x, token-y, dx, dy)</span>
+            <span class="abi-type event">event</span>
+          </div>
+          <div class="abi-item selected">
+            <div class="abi-check"><svg class="abi-check-mark" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <span class="abi-name">add-liquidity</span>
+            <span class="abi-args">(sender, token-x, token-y, amount-x, amount-y)</span>
+            <span class="abi-type event">event</span>
+          </div>
+          <div class="abi-item">
+            <div class="abi-check"></div>
+            <span class="abi-name">remove-liquidity</span>
+            <span class="abi-args">(sender, token-x, token-y, liquidity)</span>
+            <span class="abi-type event">event</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="abi-section">
+        <div class="abi-section-header">
+          <div class="field-label" style="margin-bottom:0;">Public Functions</div>
+          <div class="abi-count">8 found</div>
+        </div>
+        <div class="abi-grid">
+          <div class="abi-item">
+            <div class="abi-check"></div>
+            <span class="abi-name">swap-helper</span>
+            <span class="abi-args">(token-x, token-y, dx, min-dy)</span>
+            <span class="abi-type public">public</span>
+          </div>
+          <div class="abi-item">
+            <div class="abi-check"></div>
+            <span class="abi-name">add-to-position</span>
+            <span class="abi-args">(token-x, token-y, amount-x, amount-y)</span>
+            <span class="abi-type public">public</span>
+          </div>
+          <div class="abi-item">
+            <div class="abi-check"></div>
+            <span class="abi-name">reduce-position</span>
+            <span class="abi-args">(token-x, token-y, percent)</span>
+            <span class="abi-type public">public</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="code-panel-header">
+        <span class="code-panel-label">Generated · amm-pool-v2-01.view.ts</span>
+        <button class="btn btn-sm">Copy</button>
+      </div>
+      <div class="code-panel-body"><span class="kw">import</span> { defineView } <span class="kw">from</span> <span class="str">"@secondlayer/views"</span>;
+
+<span class="kw">export default</span> defineView({
+  name: <span class="str">"amm-pool-v2-01"</span>,
+  version: <span class="str">"1.0.0"</span>,
+  sources: [
+    {
+      contract: <span class="str">"SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01"</span>,
+      event: <span class="str">"swap"</span>,
+    },
+    {
+      contract: <span class="str">"SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01"</span>,
+      event: <span class="str">"add-liquidity"</span>,
+    },
+  ],
+  schema: {
+    swaps: {
+      columns: {
+        sender:  { type: <span class="str">"principal"</span>, indexed: <span class="kw">true</span> },
+        token_x: { type: <span class="str">"text"</span> },
+        token_y: { type: <span class="str">"text"</span> },
+        dx:      { type: <span class="str">"uint"</span> },
+        dy:      { type: <span class="str">"uint"</span> },
+      },
+    },
+    liquidity_adds: {
+      columns: {
+        sender:   { type: <span class="str">"principal"</span>, indexed: <span class="kw">true</span> },
+        token_x:  { type: <span class="str">"text"</span> },
+        token_y:  { type: <span class="str">"text"</span> },
+        amount_x: { type: <span class="str">"uint"</span> },
+        amount_y: { type: <span class="str">"uint"</span> },
+      },
+    },
+  },
+  <span class="cmt">// TODO: implement handlers</span>
+  handlers: {},
+});</div>
+
+      <div class="export-row">
+        <button class="btn btn-sm">Copy to clipboard</button>
+        <button class="btn btn-sm">Download .ts</button>
+        <button class="btn btn-sm">Claude Code skill</button>
+        <button class="btn btn-sm">MCP server config</button>
+      </div>
+
+      <div class="cli-row">
+        <span class="cli-label">Or run:</span>
+        <div class="cli-cmd"><span class="prompt">$</span> sl views scaffold SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01 -o views/amm-pool.ts</div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Web app generates the code. Developer copies, customizes handlers, deploys via CLI. Web app never pretends to be an IDE.</span>
+    </div>
+  </div>
+
+  <!-- 4: View Error State with AI Diagnosis -->
+  <div class="variant">
+    <div class="variant-label">04 — inline AI error diagnosis</div>
+    <div class="variant-desc">When a view has errors, AI explains the issue right where you're looking.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" style="display:flex;align-items:center;gap:8px;">
+          <span class="view-status error"></span>
+          token-transfers
+          <span class="dash-badge dash-badge-failed">failed</span>
+        </span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm">Schema</button>
+          <button class="btn btn-sm">Data</button>
+          <button class="btn btn-sm">Reindex</button>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-label">Last Block</span>
+          <span class="stat-value">#186,991</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Error Rate</span>
+          <span class="stat-value error">4.2%</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Total Rows</span>
+          <span class="stat-value">14,832</span>
+        </div>
+      </div>
+
+      <div class="error-section">
+        <div class="error-banner">
+          <div class="error-title">Handler error at block #186,992</div>
+        </div>
+        <div class="error-code">TypeError: Cannot read property 'amount' of undefined
+  at handlers["SP...::token::transfer"] (handler.js:42:18)</div>
+        <div class="ai-diagnosis">
+          <div class="ai-label">AI Diagnosis</div>
+          <div class="ai-text">
+            The <code>transfer</code> event at this block has a different payload structure — likely a contract upgrade changed the event signature. Your handler assumes <code>event.data.amount</code> exists, but the new format nests it under <code>event.data.value.amount</code>.
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;">
+          <button class="btn btn-sm">View raw event</button>
+          <button class="btn btn-sm">Copy fix suggestion</button>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">AI diagnosis is contextual and inline. Appears right where the error is, not in a chat panel. Actionable.</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secondlayer — Streams Inline AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.2);
+    --border: #f2f2f2;
+    --accent-purple: #6344F5;
+    --accent-purple-bg: rgba(99,68,245,0.06);
+    --accent-purple-border: rgba(99,68,245,0.15);
+    --code-bg: rgba(0,0,0,0.04);
+    --selection-bg: #ededed;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.08);
+    --item-hover: rgba(0,0,0,0.03);
+    --kbd-bg: rgba(0,0,0,0.03);
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+
+  html.dark {
+    --bg: #141414;
+    --bg-elevated: #1a1a1a;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.4);
+    --text-dim: rgba(255,255,255,0.15);
+    --border: #2a2a2a;
+    --accent-purple: #8b7ff0;
+    --accent-purple-bg: rgba(139,127,240,0.08);
+    --accent-purple-border: rgba(139,127,240,0.2);
+    --code-bg: rgba(255,255,255,0.08);
+    --selection-bg: #333;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.08);
+    --item-hover: rgba(255,255,255,0.04);
+    --kbd-bg: rgba(255,255,255,0.05);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 460;
+    letter-spacing: -0.00563rem;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding: 40px 20px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  ::selection { background: var(--selection-bg); }
+
+  .theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    z-index: 100;
+  }
+  .theme-toggle:hover { color: var(--text-main); border-color: var(--text-muted); }
+
+  .page-header {
+    max-width: 680px;
+    margin: 0 auto 48px;
+  }
+
+  .page-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 8px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .variants {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .variant {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .variant-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent-purple);
+    letter-spacing: 0.02em;
+  }
+
+  .variant-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  /* ── Card ── */
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { background: var(--code-bg); border-color: var(--text-muted); }
+  .btn-sm { padding: 3px 8px; font-size: 11px; }
+  .btn-accent {
+    color: var(--accent-purple);
+    border-color: var(--accent-purple-border);
+  }
+  .btn-accent:hover { background: var(--accent-purple-bg); }
+  .btn-danger {
+    color: var(--red);
+    border-color: rgba(239,68,68,0.3);
+  }
+
+  /* ── Field ── */
+  .field-group {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 560;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+
+  .field-label-sub {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-dim);
+  }
+
+  .text-input {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text-main);
+    outline: none;
+  }
+  .text-input:focus { border-color: var(--accent-purple); }
+  .text-input::placeholder { color: var(--text-dim); }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* ── AI Suggestion Chip ── */
+  .ai-suggestion {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--accent-purple-bg);
+    border: 1px solid var(--accent-purple-border);
+    border-radius: 6px;
+    animation: fadeIn 250ms ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .ai-suggestion-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+  .ai-suggestion-text strong {
+    color: var(--text-main);
+    font-weight: 560;
+  }
+
+  .ai-suggestion-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .ai-action {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .ai-action-primary {
+    background: var(--accent-purple-border);
+    color: var(--accent-purple);
+  }
+  .ai-action-primary:hover { background: rgba(99,68,245,0.2); }
+  .ai-action-ghost {
+    background: transparent;
+    color: var(--text-dim);
+  }
+  .ai-action-ghost:hover { color: var(--text-muted); }
+
+  /* ── Filter Pills (match real app) ── */
+  .filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .filter-pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 460;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+  .filter-pill:hover {
+    color: var(--text-main);
+    border-color: var(--text-muted);
+  }
+  .filter-pill.active {
+    color: var(--accent-purple);
+    border-color: rgba(99,68,245,0.4);
+    background: rgba(99,68,245,0.06);
+  }
+  .filter-pill.suggested {
+    border-color: var(--accent-purple-border);
+  }
+  .filter-pill .suggested-tag {
+    position: absolute;
+    top: -6px;
+    right: -3px;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    background: var(--accent-purple);
+    color: #fff;
+    padding: 0px 4px;
+    border-radius: 3px;
+    line-height: 13px;
+  }
+
+  /* ── Payload Preview ── */
+  .payload-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .ai-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 560;
+    color: var(--accent-purple);
+    background: var(--accent-purple-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .payload-code {
+    background: var(--code-bg);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.65;
+    color: var(--text-muted);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .payload-code .key { color: var(--text-main); font-weight: 460; }
+  .payload-code .str { color: var(--green); }
+  .payload-code .num { color: #e67e22; }
+  .payload-code .highlight {
+    color: var(--accent-purple);
+    font-weight: 500;
+  }
+
+  /* ── Delivery List ── */
+  .delivery-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .delivery-item:last-child { border-bottom: none; }
+
+  .delivery-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .delivery-dot.ok { background: var(--green); }
+  .delivery-dot.fail { background: var(--red); }
+
+  .delivery-content { flex: 1; }
+
+  .delivery-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .delivery-code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .delivery-code.error { color: var(--red); }
+  .delivery-code.success { color: var(--green); }
+
+  .delivery-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .delivery-rt {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+
+  .delivery-diagnosis {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    border-left: 3px solid var(--accent-purple);
+    background: var(--accent-purple-bg);
+  }
+
+  .diagnosis-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 560;
+    color: var(--accent-purple);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .diagnosis-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .diagnosis-text code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--code-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  /* ── Health Banner ── */
+  .health-banner {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--yellow-bg);
+  }
+
+  .health-text {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .health-text strong { color: var(--text-main); font-weight: 560; }
+
+  /* ── Webhook Test ── */
+  .test-result {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--green-bg);
+  }
+
+  .test-ok {
+    font-size: 12px;
+    font-weight: 560;
+    color: var(--green);
+  }
+
+  .test-detail {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ── NL Config Preview ── */
+  .nl-config {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--code-bg);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .nl-config .key { color: var(--text-main); }
+  .nl-config .str { color: var(--green); }
+  .nl-config .num { color: #e67e22; }
+
+  /* ── Section Divider ── */
+  .section-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 16px;
+  }
+
+  /* ── Annotation ── */
+  .annotation {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .annotation-arrow {
+    font-family: var(--font-mono);
+    color: var(--accent-purple);
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .annotation-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .dash-badge {
+    font-size: 10px;
+    font-weight: 560;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .dash-badge-active { color: var(--green); background: var(--green-bg); }
+  .dash-badge-paused { color: var(--yellow); background: var(--yellow-bg); }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark'); this.textContent = document.documentElement.classList.contains('dark') ? 'light mode' : 'dark mode'">dark mode</button>
+
+<div class="page-header">
+  <div class="page-title">Streams — inline AI enhancements</div>
+  <div class="page-subtitle">AI woven into existing surfaces. No chat panel. Intelligence appears at the point of action.</div>
+</div>
+
+<div class="variants">
+
+  <!-- 1: Contract → AI Filter Suggestion -->
+  <div class="variant">
+    <div class="variant-label">01 — contract address → AI filter suggestions</div>
+    <div class="variant-desc">User pastes a contract address. AI recognizes it and suggests relevant filters.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Create Stream</span>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Contract Address</div>
+        <input class="text-input" value="SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.alex-vault" readonly>
+
+        <div class="ai-suggestion">
+          <div class="ai-suggestion-text">
+            This is the <strong>ALEX Vault</strong> contract — a DeFi liquidity vault. It has <strong>4 public functions</strong> and <strong>3 events</strong>. Common use: tracking deposits, withdrawals, and reward distributions.
+          </div>
+          <div class="ai-suggestion-actions">
+            <button class="ai-action ai-action-primary">Apply suggested filters</button>
+            <button class="ai-action ai-action-ghost">Dismiss</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Filters <span class="field-label-sub">— select which events to stream</span></div>
+        <div class="filter-pills">
+          <span class="filter-pill active suggested">contract_call<span class="suggested-tag">ai</span></span>
+          <span class="filter-pill active suggested">print_event<span class="suggested-tag">ai</span></span>
+          <span class="filter-pill">stx_transfer</span>
+          <span class="filter-pill">ft_transfer</span>
+          <span class="filter-pill">ft_mint</span>
+          <span class="filter-pill">nft_transfer</span>
+          <span class="filter-pill">nft_mint</span>
+          <span class="filter-pill">contract_deploy</span>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">AI recognizes the contract and pre-selects relevant filters. "ai" tags make the suggestion transparent. User can dismiss or override.</span>
+    </div>
+  </div>
+
+  <!-- 2: Payload Preview -->
+  <div class="variant">
+    <div class="variant-label">02 — live payload preview</div>
+    <div class="variant-desc">After selecting filters, show a realistic example of what the webhook will receive.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Create Stream</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);">step 2 of 2</span>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Stream Name</div>
+        <input class="text-input" value="alex-vault-monitor" readonly>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Webhook URL</div>
+        <input class="text-input" value="https://api.myapp.com/webhooks/stacks" readonly>
+      </div>
+
+      <div class="field-group" style="border-bottom:none;">
+        <div class="payload-header">
+          <div class="field-label" style="margin-bottom:0;">Example Payload</div>
+          <span class="ai-badge">AI-generated</span>
+        </div>
+        <div class="payload-code">{
+  <span class="key">"streamName"</span>: <span class="str">"alex-vault-monitor"</span>,
+  <span class="key">"block"</span>: { <span class="key">"height"</span>: <span class="num">187432</span>, <span class="key">"hash"</span>: <span class="str">"0x8a3f..."</span> },
+  <span class="key">"matches"</span>: {
+    <span class="key">"transactions"</span>: [{
+      <span class="key">"txId"</span>: <span class="str">"0x7b2c..."</span>,
+      <span class="key">"type"</span>: <span class="str">"contract_call"</span>,
+      <span class="key">"contractId"</span>: <span class="highlight">"SP2C2Y...::alex-vault"</span>,
+      <span class="key">"functionName"</span>: <span class="highlight">"deposit"</span>,
+    }],
+    <span class="key">"events"</span>: [{
+      <span class="key">"type"</span>: <span class="str">"print_event"</span>,
+      <span class="key">"data"</span>: { <span class="key">"topic"</span>: <span class="highlight">"deposit"</span>, <span class="key">"amount"</span>: <span class="num">1000000</span> }
+    }]
+  }
+}</div>
+      </div>
+
+      <div style="padding:10px 16px;display:flex;justify-content:flex-end;gap:6px;border-top:1px solid var(--border);">
+        <button class="btn">Back</button>
+        <button class="btn btn-accent">Create Stream</button>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Developers see exactly what their webhook receives before committing. Highlighted fields match their filters.</span>
+    </div>
+  </div>
+
+  <!-- 3: Stream Health + AI Diagnosis -->
+  <div class="variant">
+    <div class="variant-label">03 — stream detail with inline error diagnosis</div>
+    <div class="variant-desc">Failed deliveries get AI explanations. Pattern detection across failures.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" style="display:flex;align-items:center;gap:8px;">
+          nft-tracker
+          <span class="dash-badge dash-badge-paused">degraded</span>
+        </span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm">Pause</button>
+          <button class="btn btn-sm">Replay failed</button>
+        </div>
+      </div>
+
+      <div class="health-banner">
+        <div class="health-text">
+          <strong>12 failed deliveries</strong> in the last 2 hours. All return HTTP 502 from your webhook. This pattern suggests your backend may be down or redeploying.
+        </div>
+        <button class="btn btn-sm" style="flex-shrink:0;">Check status</button>
+      </div>
+
+      <div style="padding:8px 16px 4px;">
+        <div class="field-label">Recent Deliveries</div>
+      </div>
+
+      <div class="delivery-item">
+        <span class="delivery-dot fail"></span>
+        <div class="delivery-content">
+          <div class="delivery-meta">
+            <span class="delivery-code error">502 Bad Gateway</span>
+            <span class="delivery-time">2 min ago</span>
+            <span class="delivery-rt">timeout 10s</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="delivery-item">
+        <span class="delivery-dot fail"></span>
+        <div class="delivery-content">
+          <div class="delivery-meta">
+            <span class="delivery-code error">502 Bad Gateway</span>
+            <span class="delivery-time">4 min ago</span>
+            <span class="delivery-rt">timeout 10s</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="delivery-item">
+        <span class="delivery-dot fail"></span>
+        <div class="delivery-content">
+          <div class="delivery-meta">
+            <span class="delivery-code error">502 Bad Gateway</span>
+            <span class="delivery-time">6 min ago</span>
+            <span class="delivery-rt">timeout 10s</span>
+          </div>
+          <div class="delivery-diagnosis">
+            <div class="diagnosis-label">AI Pattern</div>
+            <div class="diagnosis-text">All 12 failures started at 14:32 UTC with identical 502 responses. Your webhook at <code>api.myapp.com</code> appears unreachable. Consider pausing until your endpoint recovers to avoid burning retry budget.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="delivery-item">
+        <span class="delivery-dot ok"></span>
+        <div class="delivery-content">
+          <div class="delivery-meta">
+            <span class="delivery-code success">200 OK</span>
+            <span class="delivery-time">2 hrs ago</span>
+            <span class="delivery-rt">142ms</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="delivery-item">
+        <span class="delivery-dot ok"></span>
+        <div class="delivery-content">
+          <div class="delivery-meta">
+            <span class="delivery-code success">200 OK</span>
+            <span class="delivery-time">2 hrs ago</span>
+            <span class="delivery-rt">89ms</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">AI detects patterns across failures and surfaces advice in a banner. Diagnosis appears where you're already looking.</span>
+    </div>
+  </div>
+
+  <!-- 4: Natural Language → Filter Config -->
+  <div class="variant">
+    <div class="variant-label">04 — natural language stream description</div>
+    <div class="variant-desc">Describe what you want to track. AI configures the filters. Optional — power users skip it.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Create Stream</span>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">What do you want to track? <span class="field-label-sub">optional</span></div>
+        <input class="text-input" value="large STX transfers over 10,000 STX" readonly style="border-color:var(--accent-purple);">
+
+        <div class="ai-suggestion">
+          <div class="ai-suggestion-text">
+            Configuring an <strong>stx_transfer</strong> filter with <strong>minAmount: 10000000000</strong> (10,000 STX in microSTX).
+          </div>
+          <div class="nl-config">
+            <span class="key">filter:</span> { type: <span class="str">"stx_transfer"</span>, minAmount: <span class="num">10000000000</span> }
+          </div>
+          <div class="ai-suggestion-actions" style="margin-top:8px;">
+            <button class="ai-action ai-action-primary">Use this configuration</button>
+            <button class="ai-action ai-action-ghost">Customize manually</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">NL input is optional. Shows the generated filter config so you learn the syntax. Educational, not gatekeeping.</span>
+    </div>
+  </div>
+
+  <!-- 5: Webhook Test -->
+  <div class="variant">
+    <div class="variant-label">05 — inline webhook test</div>
+    <div class="variant-desc">Test your endpoint before creating the stream.</div>
+    <div class="card">
+      <div class="field-group" style="border-bottom:none;">
+        <div class="field-label">Webhook URL</div>
+        <div class="input-row">
+          <input class="text-input" value="https://api.myapp.com/webhooks/stacks" readonly style="flex:1;">
+          <button class="btn">Test</button>
+        </div>
+      </div>
+
+      <div class="test-result">
+        <span class="test-ok">Reachable</span>
+        <span class="test-detail">200 OK · 89ms · application/json</span>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Catches bad URLs, auth issues, and cold starts before the stream goes live.</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Command Palette Showcase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&family=Fira+Code:wght@400;500&family=Public+Sans:ital,wght@0,300..900;1,300..900&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Design tokens from secondlayer ────────────────────────────── */
+:root {
+  --bg: #fdfdfc;
+  --text-main: #111;
+  --text-prose: #111;
+  --text-muted: rgba(0, 0, 0, 0.4);
+  --border: #f2f2f2;
+  --accent-pink: #ff00aa;
+  --accent-purple: #6344F5;
+  --code-bg: rgba(0, 0, 0, 0.04);
+  --code-block-bg: #f8f8f8;
+  --selection-bg: #ededed;
+  --selection-text: #111;
+  --focus-ring: rgba(0, 122, 255, 0.5);
+
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  --font-cursive: "Caveat", cursive;
+
+  --duration-snappy: 220ms;
+  --ease-snappy: cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  --duration-smooth: 300ms;
+  --ease-smooth: cubic-bezier(0.19, 1, 0.22, 1);
+
+  --palette-bg: var(--bg);
+  --palette-border: var(--border);
+  --palette-shadow: 0 16px 48px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  --palette-item-hover: rgba(0,0,0,0.03);
+  --palette-active-indicator: var(--accent-purple);
+  --overlay-bg: rgba(0,0,0,0.12);
+  --overlay-blur: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141414;
+    --text-main: #ececec;
+    --text-prose: #ececec;
+    --text-muted: rgba(255, 255, 255, 0.4);
+    --border: #2a2a2a;
+    --code-bg: rgba(255, 255, 255, 0.08);
+    --code-block-bg: #1c1c1c;
+    --selection-bg: #333;
+    --selection-text: #ececec;
+    --accent-purple: #8b7ff0;
+    --focus-ring: rgba(60, 160, 255, 0.5);
+
+    --palette-bg: #1a1a1a;
+    --palette-border: #2a2a2a;
+    --palette-shadow: 0 16px 48px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+    --palette-item-hover: rgba(255,255,255,0.04);
+    --overlay-bg: rgba(0,0,0,0.5);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 460;
+  line-height: 1.43;
+  letter-spacing: -0.00563rem;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 { font-family: var(--font-heading); }
+
+/* ── Showcase layout ───────────────────────────────────────────── */
+.showcase {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 80px 24px 120px;
+}
+
+.showcase-header {
+  margin-bottom: 80px;
+}
+
+.showcase-header h1 {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01875rem;
+  margin-bottom: 4px;
+}
+
+.showcase-header p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.state-section {
+  margin-bottom: 100px;
+  animation: staggerIn 0.4s ease both;
+}
+
+.state-section:nth-child(2) { animation-delay: 0s; }
+.state-section:nth-child(3) { animation-delay: 0.04s; }
+.state-section:nth-child(4) { animation-delay: 0.08s; }
+.state-section:nth-child(5) { animation-delay: 0.12s; }
+.state-section:nth-child(6) { animation-delay: 0.16s; }
+.state-section:nth-child(7) { animation-delay: 0.20s; }
+.state-section:nth-child(8) { animation-delay: 0.24s; }
+.state-section:nth-child(9) { animation-delay: 0.28s; }
+.state-section:nth-child(10) { animation-delay: 0.32s; }
+.state-section:nth-child(11) { animation-delay: 0.36s; }
+.state-section:nth-child(12) { animation-delay: 0.40s; }
+
+@keyframes staggerIn {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.state-label {
+  font-size: 14px;
+  font-weight: 460;
+  color: var(--text-muted);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+
+.state-label span {
+  color: var(--text-main);
+  font-weight: 560;
+}
+
+.state-note {
+  font-family: var(--font-cursive);
+  color: var(--text-muted);
+  font-size: 18px;
+  margin-top: 16px;
+  opacity: 0.7;
+}
+
+/* ── Dashboard mock ────────────────────────────────────────────── */
+.dashboard-mock {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg);
+  position: relative;
+}
+
+.dashboard-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-wordmark {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cmdk-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: all var(--duration-snappy) var(--ease-snappy);
+}
+
+.cmdk-pill:hover {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+
+.avatar-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-purple);
+  opacity: 0.6;
+}
+
+.dashboard-body {
+  display: flex;
+  min-height: 360px;
+}
+
+.dashboard-sidebar {
+  width: 180px;
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+
+.dashboard-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.dashboard-nav-item:hover,
+.dashboard-nav-item.active {
+  color: var(--text-main);
+}
+
+.dashboard-nav-item.active {
+  font-weight: 560;
+}
+
+.dashboard-nav-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.4;
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 24px 28px;
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.stat-card-value {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.activity-header {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.activity-item:last-child { border-bottom: none; }
+
+.activity-time {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  flex-shrink: 0;
+  width: 48px;
+}
+
+.activity-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.activity-dot.green { background: #22c55e; }
+.activity-dot.yellow { background: #eab308; }
+.activity-dot.red { background: #ef4444; }
+.activity-dot.blue { background: var(--accent-purple); }
+
+/* ── Palette component ─────────────────────────────────────────── */
+.palette-demo {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
+.palette-demo.with-backdrop {
+  background: var(--overlay-bg);
+  backdrop-filter: blur(var(--overlay-blur));
+  border-radius: 12px;
+  min-height: 360px;
+  align-items: flex-start;
+  padding-top: 48px;
+}
+
+.palette {
+  width: 620px;
+  background: var(--palette-bg);
+  border: 1px solid var(--palette-border);
+  border-radius: 12px;
+  box-shadow: var(--palette-shadow);
+  overflow: hidden;
+  position: relative;
+}
+
+.palette-input-row {
+  display: flex;
+  align-items: center;
+  padding: 14px 18px;
+  gap: 10px;
+}
+
+.palette-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.palette-input {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-main);
+  border: none;
+  outline: none;
+  background: transparent;
+  letter-spacing: -0.01em;
+}
+
+.palette-input::placeholder {
+  color: var(--text-muted);
+}
+
+.palette-input-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.palette-mode-pill {
+  font-size: 11px;
+  font-weight: 460;
+  color: var(--text-muted);
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--duration-snappy) var(--ease-snappy);
+  white-space: nowrap;
+}
+
+.palette-mode-pill:hover {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+
+.palette-mode-pill.active {
+  color: var(--accent-purple);
+  border-color: var(--accent-purple);
+  background: rgba(99, 68, 245, 0.04);
+}
+
+.palette-divider {
+  height: 1px;
+  background: var(--border);
+}
+
+.palette-body {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.palette-group-label {
+  font-size: 11px;
+  font-weight: 560;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 18px 4px;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 18px;
+  gap: 10px;
+  cursor: pointer;
+  transition: background var(--duration-snappy) var(--ease-snappy);
+}
+
+.palette-item:hover,
+.palette-item.selected {
+  background: var(--palette-item-hover);
+}
+
+.palette-item-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.palette-item-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 460;
+}
+
+.palette-item-label mark {
+  background: none;
+  color: var(--text-main);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-purple);
+  text-underline-offset: 2px;
+}
+
+.palette-item-category {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.palette-item-shortcut {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 3px;
+}
+
+.palette-item-shortcut kbd {
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 18px;
+}
+
+/* ── Footer — Raycast style ────────────────────────────────────── */
+.palette-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.palette-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.palette-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.palette-footer-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.palette-footer-hint kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 18px;
+}
+
+.footer-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all var(--duration-snappy) var(--ease-snappy);
+  background: transparent;
+  font-family: var(--font-sans);
+}
+
+.footer-mode-btn:hover {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+
+.footer-mode-btn.active {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+  background: var(--palette-item-hover);
+}
+
+.footer-mode-btn kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.footer-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* ── Agent response area ───────────────────────────────────────── */
+.agent-thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.thinking-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-purple);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.agent-response {
+  padding: 12px 18px 16px;
+}
+
+.agent-response-text {
+  font-size: 13px;
+  color: var(--text-prose);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* ── Agent table — keyboard navigable rows ─────────────────────── */
+.agent-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.agent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.agent-table th {
+  text-align: left;
+  font-weight: 560;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
+.agent-table td {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+}
+
+.agent-table tr:last-child td {
+  border-bottom: none;
+}
+
+.agent-table-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background var(--duration-snappy) var(--ease-snappy);
+}
+
+.agent-table-row:hover,
+.agent-table-row.selected {
+  background: var(--palette-item-hover);
+}
+
+.agent-table-row.selected {
+  box-shadow: inset 2px 0 0 var(--accent-purple);
+}
+
+.agent-table-row-cell {
+  flex: 1;
+  font-size: 12px;
+}
+
+.agent-table-row-cell:first-child {
+  font-weight: 500;
+}
+
+.agent-table-row-action {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--duration-snappy) var(--ease-snappy);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.agent-table-row:hover .agent-table-row-action,
+.agent-table-row.selected .agent-table-row-action {
+  opacity: 1;
+}
+
+.agent-table-row-action kbd {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 16px;
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.status-badge.failed {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.status-badge.active {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.agent-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-action-btn {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all var(--duration-snappy) var(--ease-snappy);
+}
+
+.agent-action-btn:hover {
+  border-color: var(--text-muted);
+  background: var(--palette-item-hover);
+}
+
+.agent-action-btn.primary {
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+}
+
+.agent-action-btn.primary:hover {
+  background: rgba(99, 68, 245, 0.06);
+}
+
+.agent-followup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.agent-followup-icon {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.agent-followup-input {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  border: none;
+  outline: none;
+  background: transparent;
+  flex: 1;
+}
+
+/* ── Search results ────────────────────────────────────────────── */
+.search-result {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 18px;
+  gap: 2px;
+  cursor: pointer;
+  transition: background var(--duration-snappy) var(--ease-snappy);
+}
+
+.search-result:hover {
+  background: var(--palette-item-hover);
+}
+
+.search-result-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.search-result-breadcrumb {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.search-result-breadcrumb span {
+  color: var(--accent-purple);
+}
+
+.search-result-preview {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* ── Dashboard overlay ─────────────────────────────────────────── */
+.dashboard-with-overlay {
+  position: relative;
+}
+
+.dashboard-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(var(--overlay-blur));
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 48px;
+  z-index: 10;
+}
+
+/* ── Dynamic toolbar ───────────────────────────────────────────── */
+.toolbar-demo {
+  display: flex;
+  justify-content: center;
+}
+
+.toolbar {
+  width: 620px;
+  background: var(--palette-bg);
+  border: 1px solid var(--palette-border);
+  border-radius: 12px;
+  box-shadow: var(--palette-shadow);
+  overflow: hidden;
+}
+
+.toolbar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+}
+
+.toolbar-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 560;
+}
+
+.toolbar-close {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all var(--duration-snappy) var(--ease-snappy);
+}
+
+.toolbar-close:hover {
+  color: var(--text-main);
+  background: var(--palette-item-hover);
+}
+
+.toolbar-body {
+  padding: 0 18px 18px;
+}
+
+.toolbar-field {
+  margin-bottom: 14px;
+}
+
+.toolbar-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.toolbar-input {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-main);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color var(--duration-snappy) var(--ease-snappy);
+}
+
+.toolbar-input:focus {
+  border-color: var(--accent-purple);
+}
+
+.toolbar-input::placeholder {
+  color: var(--text-muted);
+}
+
+.toolbar-btn {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 560;
+  color: white;
+  background: var(--text-main);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all var(--duration-snappy) var(--ease-snappy);
+}
+
+.toolbar-btn:hover {
+  opacity: 0.85;
+}
+
+.toolbar-btn.secondary {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border);
+}
+
+.toolbar-btn.secondary:hover {
+  border-color: var(--text-muted);
+  opacity: 1;
+}
+
+.toolbar-footer-text {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 14px;
+}
+
+.toolbar-footer-text a {
+  color: var(--accent-purple);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.toolbar-footer-text a:hover {
+  text-decoration-color: var(--accent-purple);
+}
+
+.toolbar-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 0;
+}
+
+.toolbar-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 18px 28px;
+  text-align: center;
+}
+
+.toolbar-success-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.toolbar-success-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 560;
+  margin-bottom: 4px;
+}
+
+.toolbar-success-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ── Magic link sent state ─────────────────────────────────────── */
+.toolbar-magic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 18px 24px;
+  text-align: center;
+}
+
+.toolbar-magic-icon {
+  font-size: 28px;
+  margin-bottom: 10px;
+  opacity: 0.8;
+}
+
+.toolbar-magic-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 560;
+  margin-bottom: 4px;
+}
+
+.toolbar-magic-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.toolbar-magic-email {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-main);
+  background: var(--code-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.toolbar-magic-resend {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 14px;
+}
+
+.toolbar-magic-resend a {
+  color: var(--accent-purple);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.toolbar-magic-resend a:hover {
+  text-decoration-color: var(--accent-purple);
+}
+
+/* ── API key display ───────────────────────────────────────────── */
+.key-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+}
+
+.key-display-value {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-main);
+  user-select: all;
+}
+
+.key-display-copy {
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all var(--duration-snappy) var(--ease-snappy);
+}
+
+.key-display-copy:hover {
+  color: var(--text-main);
+  background: var(--palette-item-hover);
+}
+
+.key-warning {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: rgba(234, 179, 8, 0.06);
+  border-radius: 6px;
+  border: 1px solid rgba(234, 179, 8, 0.15);
+  margin-bottom: 14px;
+}
+
+/* ── Section divider ───────────────────────────────────────────── */
+.showcase-divider {
+  position: relative;
+  margin: 80px 0;
+}
+
+.showcase-divider hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+}
+
+.showcase-divider-label {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background: var(--bg);
+  padding-right: 12px;
+  font-size: 14px;
+  font-weight: 560;
+  color: var(--text-main);
+}
+
+/* ── Topbar login link ─────────────────────────────────────────── */
+.topbar-login {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.topbar-login:hover {
+  color: var(--text-main);
+}
+</style>
+</head>
+<body>
+
+<div class="showcase">
+  <header class="showcase-header">
+    <h1>secondlayer — command palette + toolbar showcase</h1>
+    <p>All states &amp; interaction flows. ⌘K is the interface.</p>
+  </header>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 1: Dashboard — palette closed                        -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 1</span> — Resting. Palette closed. ⌘K pill in topbar.</div>
+
+    <div class="dashboard-mock">
+      <div class="dashboard-topbar">
+        <div class="dashboard-wordmark">secondlayer</div>
+        <div class="dashboard-topbar-right">
+          <div class="cmdk-pill">⌘K</div>
+          <div class="avatar-dot"></div>
+        </div>
+      </div>
+      <div class="dashboard-body">
+        <div class="dashboard-sidebar">
+          <div class="dashboard-nav-item active">
+            <svg class="dashboard-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+            Dashboard
+          </div>
+          <div class="dashboard-nav-item">
+            <svg class="dashboard-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+            Streams
+          </div>
+          <div class="dashboard-nav-item">
+            <svg class="dashboard-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6h12"/></svg>
+            Views
+          </div>
+          <div class="dashboard-nav-item">
+            <svg class="dashboard-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2v12M2 5h12"/><rect x="2" y="2" width="12" height="12" rx="2"/></svg>
+            API Keys
+          </div>
+          <div class="dashboard-nav-item">
+            <svg class="dashboard-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2"/></svg>
+            Settings
+          </div>
+        </div>
+        <div class="dashboard-main">
+          <div class="stat-cards">
+            <div class="stat-card">
+              <div class="stat-card-label">Active Streams</div>
+              <div class="stat-card-value">12</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">Views Deployed</div>
+              <div class="stat-card-value">4</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">API Calls Today</div>
+              <div class="stat-card-value">2.4k</div>
+            </div>
+          </div>
+          <div class="activity-header">Recent Activity</div>
+          <div class="activity-item">
+            <span class="activity-time">2m ago</span>
+            <span class="activity-dot green"></span>
+            Stream <strong style="font-weight:560">nft-transfers</strong> delivered block #187,442
+          </div>
+          <div class="activity-item">
+            <span class="activity-time">5m ago</span>
+            <span class="activity-dot blue"></span>
+            View <strong style="font-weight:560">dao-treasury</strong> processed 14 events
+          </div>
+          <div class="activity-item">
+            <span class="activity-time">12m ago</span>
+            <span class="activity-dot green"></span>
+            Stream <strong style="font-weight:560">stx-whales</strong> delivered block #187,440
+          </div>
+          <div class="activity-item">
+            <span class="activity-time">1h ago</span>
+            <span class="activity-dot red"></span>
+            Stream <strong style="font-weight:560">token-mints</strong> delivery failed — 503
+          </div>
+          <div class="activity-item">
+            <span class="activity-time">2h ago</span>
+            <span class="activity-dot yellow"></span>
+            API key <strong style="font-weight:560">prod-key</strong> approaching rate limit
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">⌘K pill — the only visible affordance. everything lives behind it.</div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 2: Palette open — empty / default                    -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 2</span> — Palette open. Default actions mode. Mode toggle in footer.</div>
+
+    <div class="palette-demo with-backdrop">
+      <div class="palette">
+        <div class="palette-input-row">
+          <svg class="palette-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <input class="palette-input" type="text" placeholder="What do you want to do..." readonly>
+        </div>
+        <div class="palette-divider"></div>
+        <div class="palette-body">
+          <div class="palette-group-label">Recent</div>
+          <div class="palette-item selected">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+            <span class="palette-item-label">Create Stream</span>
+            <span class="palette-item-category">Streams</span>
+            <span class="palette-item-shortcut"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd></span>
+          </div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2v12M2 5h12"/><rect x="2" y="2" width="12" height="12" rx="2"/></svg>
+            <span class="palette-item-label">Rotate API Key</span>
+            <span class="palette-item-category">API Keys</span>
+            <span class="palette-item-shortcut"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>K</kbd></span>
+          </div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6h12"/></svg>
+            <span class="palette-item-label">Deploy View</span>
+            <span class="palette-item-category">Views</span>
+            <span class="palette-item-shortcut"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>V</kbd></span>
+          </div>
+
+          <div class="palette-group-label">Streams</div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+            <span class="palette-item-label">List Streams</span>
+            <span class="palette-item-category">Streams</span>
+          </div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+            <span class="palette-item-label">Replay Failed Deliveries</span>
+            <span class="palette-item-category">Streams</span>
+          </div>
+
+          <div class="palette-group-label">Views</div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6h12"/></svg>
+            <span class="palette-item-label">Query View Table</span>
+            <span class="palette-item-category">Views</span>
+          </div>
+
+          <div class="palette-group-label">Account</div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2"/></svg>
+            <span class="palette-item-label">View Usage</span>
+            <span class="palette-item-category">Account</span>
+          </div>
+        </div>
+        <div class="palette-footer">
+          <div class="palette-footer-left">
+            <span class="palette-footer-hint">Open <kbd>⏎</kbd></span>
+            <span class="palette-footer-hint"><kbd>↑</kbd><kbd>↓</kbd></span>
+          </div>
+          <div class="palette-footer-right">
+            <button class="footer-mode-btn active">Actions <kbd>⌘K</kbd></button>
+            <button class="footer-mode-btn">Agent <kbd>⌘J</kbd></button>
+            <button class="footer-mode-btn">Search <kbd>⌘/</kbd></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">mode selectors live in footer — out of the way, always accessible</div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 3: Actions mode — fuzzy matching "str"               -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 3</span> — Fuzzy match. "str" narrows to stream actions.</div>
+
+    <div class="palette-demo with-backdrop">
+      <div class="palette">
+        <div class="palette-input-row">
+          <svg class="palette-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <input class="palette-input" type="text" value="str" readonly>
+        </div>
+        <div class="palette-divider"></div>
+        <div class="palette-body">
+          <div class="palette-group-label">4 results</div>
+          <div class="palette-item selected">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M4 6l4-4 4 4"/></svg>
+            <span class="palette-item-label">Create <mark>Str</mark>eam</span>
+            <span class="palette-item-category">Streams</span>
+            <span class="palette-item-shortcut"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd></span>
+          </div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+            <span class="palette-item-label">List <mark>Str</mark>eams</span>
+            <span class="palette-item-category">Streams</span>
+          </div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12V4h2l2 3 2-3h2v8"/></svg>
+            <span class="palette-item-label"><mark>Str</mark>eam Logs</span>
+            <span class="palette-item-category">Streams</span>
+          </div>
+          <div class="palette-item">
+            <svg class="palette-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8h8M8 4v0"/><circle cx="8" cy="8" r="5.5"/></svg>
+            <span class="palette-item-label">Pause <mark>Str</mark>eam</span>
+            <span class="palette-item-category">Streams</span>
+          </div>
+        </div>
+        <div class="palette-footer">
+          <div class="palette-footer-left">
+            <span class="palette-footer-hint">Open <kbd>⏎</kbd></span>
+            <span class="palette-footer-hint"><kbd>↑</kbd><kbd>↓</kbd></span>
+          </div>
+          <div class="palette-footer-right">
+            <button class="footer-mode-btn active">Actions <kbd>⌘K</kbd></button>
+            <button class="footer-mode-btn">Agent <kbd>⌘J</kbd></button>
+            <button class="footer-mode-btn">Search <kbd>⌘/</kbd></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">category labels on each row — context without needing group headers</div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 4: Agent mode — auto-detected, thinking              -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 4</span> — Agent auto-detected. Natural language input triggers agent mode.</div>
+
+    <div class="palette-demo with-backdrop">
+      <div class="palette">
+        <div class="palette-input-row">
+          <svg class="palette-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <input class="palette-input" type="text" value="show me all streams that failed in the last 24h" readonly>
+        </div>
+        <div class="palette-divider"></div>
+        <div class="palette-body">
+          <div class="agent-thinking">
+            <span class="thinking-dot"></span>
+            Querying streams with failed deliveries...
+          </div>
+        </div>
+        <div class="palette-footer">
+          <div class="palette-footer-left">
+            <span class="palette-footer-hint"><kbd>esc</kbd> cancel</span>
+          </div>
+          <div class="palette-footer-right">
+            <button class="footer-mode-btn">Actions <kbd>⌘K</kbd></button>
+            <button class="footer-mode-btn active">Agent <kbd>⌘J</kbd></button>
+            <button class="footer-mode-btn">Search <kbd>⌘/</kbd></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">auto-detect flipped the footer indicator — no user action needed</div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 5: Agent response — keyboard-navigable rows          -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 5</span> — Agent response. Rows are keyboard-navigable. ⏎ acts on selected row.</div>
+
+    <div class="palette-demo with-backdrop">
+      <div class="palette">
+        <div class="palette-input-row">
+          <svg class="palette-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <input class="palette-input" type="text" value="show me all streams that failed in the last 24h" readonly>
+        </div>
+        <div class="palette-divider"></div>
+        <div class="palette-body">
+          <div class="agent-response">
+            <div class="agent-response-text">Found <strong>3 streams</strong> with failed deliveries in the last 24 hours:</div>
+
+            <div class="agent-table-wrap">
+              <table class="agent-table">
+                <thead>
+                  <tr>
+                    <th style="width:35%">Stream</th>
+                    <th style="width:18%">Status</th>
+                    <th style="width:15%">Drops</th>
+                    <th style="width:20%">Last Failure</th>
+                    <th style="width:12%"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="5">
+                      <div class="agent-table-row selected">
+                        <span class="agent-table-row-cell" style="width:35%">nft-transfers</span>
+                        <span class="agent-table-row-cell" style="width:18%"><span class="status-badge failed">failed</span></span>
+                        <span class="agent-table-row-cell" style="width:15%">12</span>
+                        <span class="agent-table-row-cell" style="width:20%">3h ago</span>
+                        <span class="agent-table-row-action">Retry <kbd>⏎</kbd></span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="5">
+                      <div class="agent-table-row">
+                        <span class="agent-table-row-cell" style="width:35%">stx-whales</span>
+                        <span class="agent-table-row-cell" style="width:18%"><span class="status-badge failed">failed</span></span>
+                        <span class="agent-table-row-cell" style="width:15%">4</span>
+                        <span class="agent-table-row-cell" style="width:20%">7h ago</span>
+                        <span class="agent-table-row-action">Retry <kbd>⏎</kbd></span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="5">
+                      <div class="agent-table-row">
+                        <span class="agent-table-row-cell" style="width:35%">dao-votes</span>
+                        <span class="agent-table-row-cell" style="width:18%"><span class="status-badge failed">failed</span></span>
+                        <span class="agent-table-row-cell" style="width:15%">1</span>
+                        <span class="agent-table-row-cell" style="width:20%">22h ago</span>
+                        <span class="agent-table-row-action">Retry <kbd>⏎</kbd></span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="agent-actions">
+              <button class="agent-action-btn primary">Retry all failed</button>
+              <button class="agent-action-btn">Pause failing streams</button>
+            </div>
+
+            <div class="agent-followup">
+              <span class="agent-followup-icon">⏎</span>
+              <input class="agent-followup-input" type="text" placeholder="Follow up..." readonly>
+            </div>
+          </div>
+        </div>
+        <div class="palette-footer">
+          <div class="palette-footer-left">
+            <span class="palette-footer-hint">Retry <kbd>⏎</kbd></span>
+            <span class="palette-footer-hint"><kbd>↑</kbd><kbd>↓</kbd> rows</span>
+            <span class="palette-footer-hint"><kbd>tab</kbd> follow up</span>
+          </div>
+          <div class="palette-footer-right">
+            <button class="footer-mode-btn">Actions <kbd>⌘K</kbd></button>
+            <button class="footer-mode-btn active">Agent <kbd>⌘J</kbd></button>
+            <button class="footer-mode-btn">Search <kbd>⌘/</kbd></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">arrow keys move selection — purple left-border shows focus — ⏎ retries that stream</div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 6: Search mode — manual activation                   -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 6</span> — Search mode. Manually activated via ⌘/. Searches docs, API, CLI.</div>
+
+    <div class="palette-demo with-backdrop">
+      <div class="palette">
+        <div class="palette-input-row">
+          <svg class="palette-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <input class="palette-input" type="text" value="webhook" readonly>
+        </div>
+        <div class="palette-divider"></div>
+        <div class="palette-body">
+          <div class="palette-group-label">5 results</div>
+          <div class="search-result" style="background: var(--palette-item-hover);">
+            <span class="search-result-title">Webhook Payload</span>
+            <span class="search-result-breadcrumb"><span>Docs</span> › Streams › Webhook payload</span>
+            <span class="search-result-preview">Each delivery includes the block data, matching transactions, and a signature header...</span>
+          </div>
+          <div class="search-result">
+            <span class="search-result-title">Webhook Secret Rotation</span>
+            <span class="search-result-breadcrumb"><span>Docs</span> › Streams › Management</span>
+            <span class="search-result-preview">Rotate your webhook secret without downtime using sl.streams.rotateSecret()...</span>
+          </div>
+          <div class="search-result">
+            <span class="search-result-title">Webhook Signature Verification</span>
+            <span class="search-result-breadcrumb"><span>Docs</span> › SDK › Webhooks</span>
+            <span class="search-result-preview">Verify incoming webhook signatures with the HMAC-SHA256 helper...</span>
+          </div>
+          <div class="search-result">
+            <span class="search-result-title">webhookUrl</span>
+            <span class="search-result-breadcrumb"><span>API</span> › Streams › Props</span>
+            <span class="search-result-preview">The HTTPS endpoint where deliveries are sent. Must return 2xx within 30s.</span>
+          </div>
+          <div class="search-result">
+            <span class="search-result-title">Webhook Testing</span>
+            <span class="search-result-breadcrumb"><span>Docs</span> › CLI › webhook</span>
+            <span class="search-result-preview">Test webhook endpoints locally with sl webhook test --url http://localhost:3000...</span>
+          </div>
+        </div>
+        <div class="palette-footer">
+          <div class="palette-footer-left">
+            <span class="palette-footer-hint">Open <kbd>⏎</kbd></span>
+            <span class="palette-footer-hint"><kbd>↑</kbd><kbd>↓</kbd></span>
+          </div>
+          <div class="palette-footer-right">
+            <button class="footer-mode-btn">Actions <kbd>⌘K</kbd></button>
+            <button class="footer-mode-btn">Agent <kbd>⌘J</kbd></button>
+            <button class="footer-mode-btn active">Search <kbd>⌘/</kbd></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 7: Full context — palette over dashboard              -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 7</span> — Full context. Agent over dashboard, conversational flow.</div>
+
+    <div class="dashboard-mock dashboard-with-overlay">
+      <div class="dashboard-topbar">
+        <div class="dashboard-wordmark">secondlayer</div>
+        <div class="dashboard-topbar-right">
+          <div class="cmdk-pill">⌘K</div>
+          <div class="avatar-dot"></div>
+        </div>
+      </div>
+      <div class="dashboard-body">
+        <div class="dashboard-sidebar">
+          <div class="dashboard-nav-item active">
+            <svg class="dashboard-nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+            Dashboard
+          </div>
+          <div class="dashboard-nav-item">Streams</div>
+          <div class="dashboard-nav-item">Views</div>
+          <div class="dashboard-nav-item">API Keys</div>
+          <div class="dashboard-nav-item">Settings</div>
+        </div>
+        <div class="dashboard-main">
+          <div class="stat-cards">
+            <div class="stat-card">
+              <div class="stat-card-label">Active Streams</div>
+              <div class="stat-card-value">12</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">Views Deployed</div>
+              <div class="stat-card-value">4</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">API Calls Today</div>
+              <div class="stat-card-value">2.4k</div>
+            </div>
+          </div>
+          <div class="activity-header">Recent Activity</div>
+          <div class="activity-item">
+            <span class="activity-time">2m ago</span>
+            <span class="activity-dot green"></span>
+            Stream <strong style="font-weight:560">nft-transfers</strong> delivered block #187,442
+          </div>
+          <div class="activity-item">
+            <span class="activity-time">5m ago</span>
+            <span class="activity-dot blue"></span>
+            View <strong style="font-weight:560">dao-treasury</strong> processed 14 events
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-overlay">
+        <div class="palette">
+          <div class="palette-input-row">
+            <svg class="palette-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+            <input class="palette-input" type="text" value="create stream for stx transfers over 10k" readonly>
+          </div>
+          <div class="palette-divider"></div>
+          <div class="palette-body">
+            <div class="agent-response">
+              <div class="agent-response-text">I'll create a stream filtering STX transfers over 10,000 STX. Where should deliveries go?</div>
+              <div class="agent-followup">
+                <span class="agent-followup-icon">⏎</span>
+                <input class="agent-followup-input" type="text" placeholder="https://..." readonly>
+              </div>
+            </div>
+          </div>
+          <div class="palette-footer">
+            <div class="palette-footer-left">
+              <span class="palette-footer-hint">Send <kbd>⏎</kbd></span>
+            </div>
+            <div class="palette-footer-right">
+              <button class="footer-mode-btn">Actions <kbd>⌘K</kbd></button>
+              <button class="footer-mode-btn active">Agent <kbd>⌘J</kbd></button>
+              <button class="footer-mode-btn">Search <kbd>⌘/</kbd></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">agent asks clarifying questions inline — stays in flow</div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- SECTION: Dynamic Toolbars                                   -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div class="showcase-divider">
+    <hr>
+    <div class="showcase-divider-label">Dynamic Toolbars</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 8: Homepage — unauthenticated, with login link       -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 8</span> — Homepage. Unauthenticated. "Log in" in topbar triggers toolbar.</div>
+
+    <div class="dashboard-mock">
+      <div class="dashboard-topbar">
+        <div class="dashboard-wordmark">secondlayer</div>
+        <div class="dashboard-topbar-right">
+          <span class="topbar-login">Log in</span>
+        </div>
+      </div>
+      <div style="padding: 40px 28px; min-height: 200px;">
+        <div style="max-width: 420px;">
+          <h2 style="font-size: 15px; font-weight: 500; margin-bottom: 4px;">Agent-native developer tools for Stacks</h2>
+          <p style="color: var(--text-muted); font-size: 14px; line-height: 1.5;">Real-time event webhooks, custom materialized views, and a typed SDK — all managed from a single command palette.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">"Log in" link — clicking it drops the login toolbar inline</div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 9: Login toolbar — email input                       -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 9</span> — Login toolbar. Drops inline from topbar. Email input → magic link.</div>
+
+    <div class="dashboard-mock dashboard-with-overlay">
+      <div class="dashboard-topbar">
+        <div class="dashboard-wordmark">secondlayer</div>
+        <div class="dashboard-topbar-right">
+          <span class="topbar-login">Log in</span>
+        </div>
+      </div>
+      <div style="padding: 40px 28px; min-height: 200px;">
+        <div style="max-width: 420px;">
+          <h2 style="font-size: 15px; font-weight: 500; margin-bottom: 4px;">Agent-native developer tools for Stacks</h2>
+          <p style="color: var(--text-muted); font-size: 14px; line-height: 1.5;">Real-time event webhooks, custom materialized views, and a typed SDK.</p>
+        </div>
+      </div>
+
+      <div class="dashboard-overlay">
+        <div class="toolbar" style="margin-top: 24px;">
+          <div class="toolbar-header">
+            <span class="toolbar-title">Log in to secondlayer</span>
+            <div class="toolbar-close">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+            </div>
+          </div>
+          <div class="palette-divider"></div>
+          <div class="toolbar-body" style="padding-top: 16px;">
+            <div class="toolbar-field">
+              <label class="toolbar-label">Email</label>
+              <input class="toolbar-input" type="email" placeholder="you@company.com" readonly>
+            </div>
+            <button class="toolbar-btn">Send magic link</button>
+            <div class="toolbar-footer-text">
+              No account? <a>Create one</a> — it takes 10 seconds.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 10: Magic link sent                                   -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 10</span> — Magic link sent. Confirmation in-place. No page change.</div>
+
+    <div class="palette-demo with-backdrop">
+      <div class="toolbar">
+        <div class="toolbar-header">
+          <span class="toolbar-title">Check your email</span>
+          <div class="toolbar-close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+          </div>
+        </div>
+        <div class="palette-divider"></div>
+        <div class="toolbar-magic">
+          <div class="toolbar-magic-icon">✉</div>
+          <div class="toolbar-magic-title">Magic link sent</div>
+          <div class="toolbar-magic-desc">Click the link in your email to log in. It expires in 10 minutes.</div>
+          <div class="toolbar-magic-email">ryan@secondlayer.xyz</div>
+          <div class="toolbar-magic-resend">Didn't get it? <a>Resend</a></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">same toolbar shell — content morphs in place</div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 11: Create account toolbar                            -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 11</span> — Create account. Clicked "Create one" from login. Inline form.</div>
+
+    <div class="palette-demo with-backdrop">
+      <div class="toolbar">
+        <div class="toolbar-header">
+          <span class="toolbar-title">Create your account</span>
+          <div class="toolbar-close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+          </div>
+        </div>
+        <div class="palette-divider"></div>
+        <div class="toolbar-body" style="padding-top: 16px;">
+          <div class="toolbar-field">
+            <label class="toolbar-label">Email</label>
+            <input class="toolbar-input" type="email" placeholder="you@company.com" readonly>
+          </div>
+          <button class="toolbar-btn">Create account</button>
+          <div class="toolbar-footer-text">
+            Already have an account? <a>Log in</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- STATE 12: Account created + first API key                   -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="state-section">
+    <div class="state-label"><span>State 12</span> — Account created. First API key issued. Onboarding complete.</div>
+
+    <div class="palette-demo with-backdrop">
+      <div class="toolbar">
+        <div class="toolbar-header">
+          <span class="toolbar-title">You're in</span>
+          <div class="toolbar-close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+          </div>
+        </div>
+        <div class="palette-divider"></div>
+        <div class="toolbar-body" style="padding-top: 16px;">
+          <div class="toolbar-success" style="padding: 12px 0 16px;">
+            <div class="toolbar-success-icon">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9l3.5 3.5L14 5"/></svg>
+            </div>
+            <div class="toolbar-success-title">Account created</div>
+            <div class="toolbar-success-desc">Here's your first API key. Copy it now — you won't see it again.</div>
+          </div>
+
+          <div class="toolbar-field" style="margin-bottom: 8px;">
+            <label class="toolbar-label">API Key</label>
+            <div class="key-display">
+              <span class="key-display-value">sk-sl_a1b2c3d4e5f6...x7y8z9</span>
+              <span class="key-display-copy">Copy</span>
+            </div>
+          </div>
+
+          <div class="key-warning">
+            This is the only time this key will be shown. Store it somewhere safe.
+          </div>
+
+          <button class="toolbar-btn">Open console</button>
+          <div style="margin-top: 10px;">
+            <button class="toolbar-btn secondary">Install CLI instead</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-note">zero-friction onboarding — account + key in one flow, no page changes</div>
+  </section>
+
+</div>
+
+</body>
+</html>
