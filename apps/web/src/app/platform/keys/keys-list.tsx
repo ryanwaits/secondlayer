@@ -3,6 +3,8 @@
 import { useCallback, useRef, useState } from "react";
 import type { ApiKey } from "@/lib/types";
 import { useApiKeys, useCreateApiKey } from "@/lib/queries/api-keys";
+import { detectStaleKeys } from "@/lib/intelligence/keys";
+import { Insight } from "@/components/console/intelligence";
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "never";
@@ -186,6 +188,25 @@ export function KeysList({ initialKeys }: { initialKeys: ApiKey[] }) {
           ))}
         </div>
       )}
+
+      <StaleKeyInsight keys={keys} />
     </>
+  );
+}
+
+function StaleKeyInsight({ keys }: { keys: ApiKey[] }) {
+  const stale = detectStaleKeys(keys);
+  if (stale.length === 0) return null;
+
+  const names = stale.map((k) => k.name || k.prefix);
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <Insight variant="warning" id="stale-keys">
+        <strong>{names.join(", ")}</strong>{" "}
+        {stale.length === 1 ? "hasn't" : "haven't"} been used in over 30 days.
+        Unused keys are a security risk — consider revoking them.
+      </Insight>
+    </div>
   );
 }
