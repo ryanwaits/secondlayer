@@ -13,6 +13,8 @@ import {
   useDeleteStream,
   useReplayFailed,
 } from "@/lib/queries/streams";
+import { detectFailurePattern, detectDeliveryGap } from "@/lib/intelligence/streams";
+import { Insight, Banner } from "@/components/console/intelligence";
 
 function relativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -241,6 +243,9 @@ export function StreamDetailClient({
         </div>
       </div>
 
+      {/* Intelligence */}
+      <StreamIntelligence stream={stream} deliveries={deliveries} />
+
       {/* Filters */}
       <div id="filters" className="dash-section-wrap">
         <hr />
@@ -384,5 +389,36 @@ export function StreamDetailClient({
         )}
       </div>
     </>
+  );
+}
+
+function StreamIntelligence({
+  stream,
+  deliveries,
+}: {
+  stream: Stream;
+  deliveries: Delivery[];
+}) {
+  const gap = detectDeliveryGap(stream, deliveries);
+  const failure = detectFailurePattern(deliveries);
+
+  if (!gap && !failure) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+      {gap && (
+        <Banner variant="info">
+          This stream has a gap of <strong>{gap.missedBlocks.toLocaleString()} blocks</strong> (#{gap.gapStart.toLocaleString()} – #{gap.gapEnd.toLocaleString()}).
+        </Banner>
+      )}
+      {failure && (
+        <Insight variant="danger" id={`failure-${stream.id}`}>
+          Last <strong>{failure.count}</strong> deliveries all returned{" "}
+          <code>{failure.statusCode}</code> over the past{" "}
+          <strong>{failure.sinceDuration}</strong>. Your webhook endpoint may be
+          down or rejecting requests.
+        </Insight>
+      )}
+    </div>
   );
 }

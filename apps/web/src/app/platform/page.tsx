@@ -1,6 +1,7 @@
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
 import { EmptyState } from "@/components/console/empty-state";
 import type { Stream } from "@/lib/types";
+import { triageStreams } from "@/lib/intelligence/dashboard";
 import Link from "next/link";
 
 function formatRelativeTime(date: string): string {
@@ -54,14 +55,7 @@ export default async function DashboardPage() {
   const totalDeliveries = streams.reduce((sum, s) => sum + (s.totalDeliveries ?? 0), 0);
   const hasData = streams.length > 0 || viewCount > 0;
 
-  // Recent activity: streams sorted by most recent activity (lastTriggeredAt or updatedAt)
-  const recentActivity = [...streams]
-    .sort((a, b) => {
-      const aTime = a.lastTriggeredAt || a.updatedAt;
-      const bTime = b.lastTriggeredAt || b.updatedAt;
-      return new Date(bTime).getTime() - new Date(aTime).getTime();
-    })
-    .slice(0, 5);
+  const { needsAttention, allGood } = triageStreams(streams);
 
   if (!hasData) {
     return (
@@ -98,28 +92,55 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="dash-section-wrap">
-        <hr />
-        <h2 className="dash-section-title">Recent activity</h2>
-      </div>
+      {needsAttention.length > 0 && (
+        <>
+          <div className="dash-section-wrap">
+            <hr />
+            <h2 className="dash-section-title">Needs attention</h2>
+          </div>
+          <div className="dash-activity-list">
+            {needsAttention.map(({ stream, reason }) => (
+              <Link
+                key={stream.id}
+                href={`/streams/${stream.id}`}
+                className="dash-activity-item"
+              >
+                <span
+                  className={`dash-activity-dot ${stream.status === "failed" ? "red" : "yellow"}`}
+                />
+                <span className="dash-activity-name">{stream.name}</span>
+                <span className="dash-activity-time">{reason}</span>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
-      <div className="dash-activity-list">
-        {recentActivity.map((stream) => (
-          <Link
-            key={stream.id}
-            href={`/streams/${stream.id}`}
-            className="dash-activity-item"
-          >
-            <span
-              className={`dash-activity-dot ${stream.status === "active" ? "green" : stream.status === "failed" ? "red" : "muted"}`}
-            />
-            <span className="dash-activity-name">{stream.name}</span>
-            <span className="dash-activity-time">
-              {formatRelativeTime(stream.lastTriggeredAt || stream.updatedAt)}
-            </span>
-          </Link>
-        ))}
-      </div>
+      {allGood.length > 0 && (
+        <>
+          <div className="dash-section-wrap">
+            <hr />
+            <h2 className="dash-section-title">All good</h2>
+          </div>
+          <div className="dash-activity-list">
+            {allGood.map((stream) => (
+              <Link
+                key={stream.id}
+                href={`/streams/${stream.id}`}
+                className="dash-activity-item"
+              >
+                <span className="dash-activity-dot green" />
+                <span className="dash-activity-name">{stream.name}</span>
+                <span className="dash-activity-time">
+                  {stream.totalDeliveries > 0
+                    ? `${formatCount(stream.totalDeliveries)} deliveries, ${((((stream.totalDeliveries - stream.failedDeliveries) / stream.totalDeliveries) * 100)).toFixed(1)}% success`
+                    : formatRelativeTime(stream.updatedAt)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
     </>
   );
 }
