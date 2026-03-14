@@ -33,7 +33,7 @@ export default function ScaffoldPage() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/node/contracts/${contractId}/abi`);
+      const res = await fetch(`/api/node/contracts/${contractId}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Failed to fetch ABI" }));
         throw new Error(data.error || `HTTP ${res.status}`);
