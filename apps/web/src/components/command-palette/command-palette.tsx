@@ -1,15 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { actions, getActionsByCategory } from "@/lib/actions/registry";
+import { actions } from "@/lib/actions/registry";
 import { fuzzyMatch, highlightLabel, type MatchResult } from "@/lib/actions/fuzzy-match";
 import { useCommandAI } from "@/lib/command/use-command-ai";
-import type { CommandCodeResponse, CommandInfoResponse, CommandConfirmResponse } from "@/lib/command/types";
-import { ConfirmBody } from "./confirm-body";
-import { CodeBody } from "./code-body";
-import { InfoBody } from "./info-body";
+import type { CommandResponse } from "@/lib/command/types";
+import type { Spec } from "@json-render/react";
+import { PaletteRenderer } from "./renders";
 
 export function CommandPalette() {
   const router = useRouter();
@@ -18,12 +17,13 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const results = fuzzyMatch(query, actions);
   const hasFuzzyResults = query.length === 0 || results.length > 0;
 
-  const { mode, response, error, reset } = useCommandAI(
+  const { mode, response, error, reset, submit, execute } = useCommandAI(
     open ? query : "",
     hasFuzzyResults,
     pathname,
@@ -32,6 +32,7 @@ export function CommandPalette() {
   const openPalette = useCallback(() => {
     setQuery("");
     setSelectedIdx(0);
+    setLogoutConfirm(false);
     setOpen(true);
   }, []);
 
@@ -39,22 +40,30 @@ export function CommandPalette() {
     setOpen(false);
     setQuery("");
     setSelectedIdx(0);
+    setLogoutConfirm(false);
     reset();
   }, [reset]);
 
   const executeAction = useCallback(
     (result: MatchResult) => {
       const { action } = result;
+      if (action.id === "logout") {
+        setLogoutConfirm(true);
+        return;
+      }
       closePalette();
       if (action.href) {
         router.push(action.href);
-      } else if (action.id === "logout") {
-        logout();
-        router.push("/");
       }
     },
-    [closePalette, router, logout],
+    [closePalette, router],
   );
+
+  const confirmLogout = useCallback(() => {
+    closePalette();
+    logout();
+    router.push("/");
+  }, [closePalette, logout, router]);
 
   // Auto-execute when AI maps to a known action
   useEffect(() => {
@@ -100,13 +109,32 @@ export function CommandPalette() {
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (logoutConfirm) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          confirmLogout();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setLogoutConfirm(false);
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }
+        return;
+      }
+
       if (e.key === "Escape") {
-        // Two-step escape: mode → actions → close
-        if (mode !== "actions") {
+        if (mode !== "actions" && mode !== "agent") {
+          reset();
+          setQuery("");
+        } else if (mode === "agent") {
           reset();
           setQuery("");
         } else {
           closePalette();
+        }
+      } else if (mode === "agent") {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          submit();
         }
       } else if (mode === "actions") {
         if (e.key === "ArrowDown") {
@@ -123,15 +151,7 @@ export function CommandPalette() {
         }
       }
     },
-    [closePalette, results, selectedIdx, executeAction, mode, reset],
-  );
-
-  const handleConfirmExecute = useCallback(
-    async (_confirmResponse: CommandConfirmResponse) => {
-      // Execution is handled inline by ConfirmBody — this is a no-op placeholder
-      // for the bulk "Execute All" button which ConfirmBody manages internally
-    },
-    [],
+    [closePalette, results, selectedIdx, executeAction, mode, reset, submit, logoutConfirm, confirmLogout],
   );
 
   useEffect(() => {
@@ -149,11 +169,82 @@ export function CommandPalette() {
     return () => document.removeEventListener("click", onClick);
   }, [openPalette]);
 
+  // Build json-render spec from response
+  const spec = useMemo(() => buildSpec(response), [response]);
+
+  // Action handler for json-render
+  const handleAction = useCallback(
+    (actionName: string) => {
+      if (actionName === "execute" && response?.type === "confirm") {
+        execute(response.apiCalls);
+      } else if (actionName === "cancel") {
+        reset();
+      }
+    },
+    [response, execute, reset],
+  );
+
   if (!open) return null;
+
+  // Logout confirmation overlay
+  if (logoutConfirm) {
+    return (
+      <div className="palette-overlay" onClick={closePalette}>
+        <div
+          className="palette"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={onKeyDown}
+        >
+          <div className="palette-body" style={{ padding: "24px 20px" }}>
+            <p style={{ fontSize: 14, color: "var(--text-primary)", margin: "0 0 16px", textAlign: "center" }}>
+              Are you sure you want to log out?
+            </p>
+            <div className="palette-confirm-actions" style={{ justifyContent: "center" }}>
+              <button
+                className="palette-btn"
+                onClick={() => { setLogoutConfirm(false); setTimeout(() => inputRef.current?.focus(), 0); }}
+                autoFocus
+              >
+                Cancel
+              </button>
+              <button
+                className="palette-btn palette-btn-danger"
+                onClick={confirmLogout}
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+          <div className="palette-footer">
+            <div className="palette-footer-left">
+              <span className="palette-footer-hint">
+                <kbd>&#9166;</kbd> confirm
+              </span>
+              <span className="palette-footer-hint">
+                <kbd>esc</kbd> cancel
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Determine which body to render
   const renderBody = () => {
     switch (mode) {
+      case "agent":
+        return (
+          <div className="palette-agent-ready">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.5 }}>
+              <circle cx="8" cy="8" r="6" />
+              <path d="M6 6.5c0-1.1.9-2 2-2s2 .9 2 2c0 .74-.4 1.38-1 1.73V9.5" />
+              <circle cx="8" cy="11.5" r=".5" fill="currentColor" />
+            </svg>
+            <span>Ask anything&hellip;</span>
+          </div>
+        );
+
       case "thinking":
         return (
           <div className="palette-thinking">
@@ -167,26 +258,15 @@ export function CommandPalette() {
         );
 
       case "confirm":
-        if (response?.type === "confirm") {
+      case "code":
+      case "info":
+        if (spec) {
           return (
-            <ConfirmBody
-              response={response}
-              onExecuteAll={() => handleConfirmExecute(response)}
-              onCancel={reset}
+            <PaletteRenderer
+              spec={spec}
+              onAction={handleAction}
             />
           );
-        }
-        return null;
-
-      case "code":
-        if (response?.type === "code") {
-          return <CodeBody response={response as CommandCodeResponse} />;
-        }
-        return null;
-
-      case "info":
-        if (response?.type === "info") {
-          return <InfoBody response={response as CommandInfoResponse} />;
         }
         return null;
 
@@ -271,29 +351,31 @@ export function CommandPalette() {
             </div>
           </>
         );
+      case "agent":
+        return (
+          <div className="palette-footer-left">
+            <span className="palette-footer-hint">
+              Submit <kbd>&#9166;</kbd>
+            </span>
+            <span className="palette-footer-hint">
+              <kbd>esc</kbd> clear
+            </span>
+          </div>
+        );
       case "success":
       case "error":
         return null;
       default:
         return (
-          <>
-            <div className="palette-footer-left">
-              <span className="palette-footer-hint">
-                Open <kbd>&#9166;</kbd>
-              </span>
-              <span className="palette-footer-hint">
-                <kbd>&uarr;</kbd>
-                <kbd>&darr;</kbd>
-              </span>
-            </div>
-            <div className="palette-footer-right">
-              {!query && (
-                <span className="palette-footer-hint" style={{ color: "var(--accent-purple)" }}>
-                  try natural language →
-                </span>
-              )}
-            </div>
-          </>
+          <div className="palette-footer-left">
+            <span className="palette-footer-hint">
+              Open <kbd>&#9166;</kbd>
+            </span>
+            <span className="palette-footer-hint">
+              <kbd>&uarr;</kbd>
+              <kbd>&darr;</kbd>
+            </span>
+          </div>
         );
     }
   };
@@ -321,12 +403,116 @@ export function CommandPalette() {
 
         <div className="palette-body">{renderBody()}</div>
 
-        {mode === "actions" && (
+        {(mode === "actions" || mode === "agent" || mode === "confirm" || mode === "code" || mode === "info") && (
           <div className="palette-footer">{renderFooter()}</div>
         )}
       </div>
     </div>
   );
+}
+
+// ── Spec builders ──
+
+function buildSpec(response: CommandResponse | null): Spec | null {
+  if (!response) return null;
+
+  switch (response.type) {
+    case "info":
+      return {
+        root: "info",
+        elements: {
+          info: {
+            type: "InfoPanel",
+            props: {
+              title: response.title,
+              markdown: response.markdown,
+              docUrl: response.docUrl,
+            },
+            children: [],
+          },
+        },
+      };
+
+    case "confirm": {
+      const elements: Record<string, any> = {
+        card: {
+          type: "ConfirmCard",
+          props: {
+            title: response.title,
+            description: response.description,
+            destructive: response.destructive,
+          },
+          children: ["resources"],
+          on: {
+            execute: { action: "execute" },
+            cancel: { action: "cancel" },
+          },
+        },
+        resources: {
+          type: "ResourceList",
+          props: { items: response.resources },
+          children: [],
+        },
+      };
+
+      // Add detail sections if present
+      const detailKeys: string[] = [];
+      if (response.details?.length) {
+        response.details.forEach((detail, i) => {
+          const sectionKey = `detail_${i}`;
+          const childKey = `detail_child_${i}`;
+          detailKeys.push(sectionKey);
+          elements[sectionKey] = {
+            type: "DetailSection",
+            props: {
+              label: detail.label,
+              defaultOpen: i === 0,
+              badge: detail.badge,
+            },
+            children: [childKey],
+          };
+          if (detail.code) {
+            elements[childKey] = {
+              type: "CodeBlock",
+              props: { code: detail.code, lang: "json" },
+              children: [],
+            };
+          } else {
+            elements[childKey] = {
+              type: "KeyValueList",
+              props: { items: detail.items },
+              children: [],
+            };
+          }
+        });
+      }
+
+      if (detailKeys.length) {
+        elements.card.children = ["resources", ...detailKeys];
+      }
+
+      return { root: "card", elements };
+    }
+
+    case "code":
+      return {
+        root: "code",
+        elements: {
+          code: {
+            type: "CodeBlock",
+            props: {
+              code: response.code,
+              lang: response.lang,
+              title: response.title,
+            },
+            children: [],
+          },
+        },
+      };
+
+    default:
+      return null;
+  }
 }
 
 // ── Helpers ──
@@ -363,13 +549,15 @@ function ActionsBody({
   onSelect: (r: MatchResult) => void;
   onHover: (i: number) => void;
 }) {
+  // Separate navigation items from account items
+  const navResults = results.filter((r) => r.action.category === "Navigation");
+  const accountResults = results.filter((r) => r.action.category === "Account");
+
   if (query) {
+    const allFiltered = [...navResults, ...accountResults];
     return (
       <>
-        <div className="palette-group-label">
-          {results.length} result{results.length !== 1 ? "s" : ""}
-        </div>
-        {results.map((r, i) => (
+        {allFiltered.map((r, i) => (
           <ActionItem
             key={r.action.id}
             result={r}
@@ -378,7 +566,7 @@ function ActionsBody({
             onMouseEnter={() => onHover(i)}
           />
         ))}
-        {results.length === 0 && (
+        {allFiltered.length === 0 && (
           <div
             style={{ padding: "16px 18px", color: "var(--text-muted)", fontSize: 13 }}
           >
@@ -389,43 +577,23 @@ function ActionsBody({
     );
   }
 
-  const grouped = getActionsByCategory(results.map((r) => r.action));
+  // Default view: Recent + Navigation + Account
   let idx = 0;
   const elements: React.ReactNode[] = [];
 
-  elements.push(
-    <div key="recent-label" className="palette-group-label">
-      Recent
-    </div>,
-  );
-  for (let i = 0; i < Math.min(3, results.length); i++) {
-    const r = results[i];
-    const currentIdx = idx++;
+  // Recent section (placeholder — first 3 items for now)
+  if (results.length > 0) {
     elements.push(
-      <ActionItem
-        key={`recent-${r.action.id}`}
-        result={r}
-        selected={currentIdx === selectedIdx}
-        onClick={() => onSelect(r)}
-        onMouseEnter={() => onHover(currentIdx)}
-      />,
-    );
-  }
-
-  for (const [category, categoryActions] of grouped) {
-    elements.push(
-      <div key={`cat-${category}`} className="palette-group-label">
-        {category}
+      <div key="recent-label" className="palette-group-label">
+        Recent
       </div>,
     );
-    for (const action of categoryActions) {
-      const r = results.find((r) => r.action.id === action.id);
-      if (!r) continue;
-      if (idx <= 3 && results.slice(0, 3).includes(r)) continue;
+    for (let i = 0; i < Math.min(3, results.length); i++) {
+      const r = results[i];
       const currentIdx = idx++;
       elements.push(
         <ActionItem
-          key={r.action.id}
+          key={`recent-${r.action.id}`}
           result={r}
           selected={currentIdx === selectedIdx}
           onClick={() => onSelect(r)}
@@ -435,10 +603,52 @@ function ActionsBody({
     }
   }
 
+  // Navigation section
+  elements.push(
+    <div key="nav-label" className="palette-group-label">
+      Navigation
+    </div>,
+  );
+  for (const r of navResults) {
+    // Skip if already shown in recent
+    if (idx <= 3 && results.slice(0, 3).includes(r)) continue;
+    const currentIdx = idx++;
+    elements.push(
+      <ActionItem
+        key={r.action.id}
+        result={r}
+        selected={currentIdx === selectedIdx}
+        onClick={() => onSelect(r)}
+        onMouseEnter={() => onHover(currentIdx)}
+      />,
+    );
+  }
+
+  // Account items (logout)
+  for (const r of accountResults) {
+    if (idx <= 3 && results.slice(0, 3).includes(r)) continue;
+    const currentIdx = idx++;
+    elements.push(
+      <ActionItem
+        key={r.action.id}
+        result={r}
+        selected={currentIdx === selectedIdx}
+        onClick={() => onSelect(r)}
+        onMouseEnter={() => onHover(currentIdx)}
+      />,
+    );
+  }
+
   return <>{elements}</>;
 }
 
 const iconPaths: Record<string, React.ReactNode> = {
+  home: (
+    <>
+      <path d="M3 7l5-4 5 4v6a1 1 0 01-1 1H4a1 1 0 01-1-1V7z" />
+      <path d="M6 14V9h4v5" />
+    </>
+  ),
   stream: <path d="M2 4h12M2 8h8M2 12h10" />,
   view: (
     <>
@@ -473,9 +683,18 @@ function ActionItem({
 }) {
   const { action, ranges } = result;
   const parts = highlightLabel(action.label, ranges);
+  const itemRef = useRef<HTMLDivElement>(null);
+
+  // Scroll into view when selected via keyboard
+  useEffect(() => {
+    if (selected && itemRef.current) {
+      itemRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [selected]);
 
   return (
     <div
+      ref={itemRef}
       className={`palette-item ${selected ? "selected" : ""}`}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
@@ -498,7 +717,6 @@ function ActionItem({
           ),
         )}
       </span>
-      <span className="palette-item-category">{action.category}</span>
       {action.shortcut && (
         <span className="palette-item-shortcut">
           {action.shortcut.map((k, i) => (
