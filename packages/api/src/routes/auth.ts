@@ -29,7 +29,7 @@ app.post("/magic-link", async (c) => {
   const parsed = MagicLinkSchema.parse(body);
   const db = getDb();
 
-  const allowed = await isEmailAllowed(db, parsed.email);
+  const allowed = process.env.DEV_MODE === "true" || await isEmailAllowed(db, parsed.email);
 
   if (!allowed) {
     return c.json({ message: "Magic link sent. Check your email." });
@@ -57,7 +57,7 @@ app.post("/verify", async (c) => {
     throw new ValidationError("Invalid or expired token");
   }
 
-  const allowed = await isEmailAllowed(db, email);
+  const allowed = process.env.DEV_MODE === "true" || await isEmailAllowed(db, email);
   if (!allowed) {
     throw new ValidationError("Invalid or expired token");
   }
