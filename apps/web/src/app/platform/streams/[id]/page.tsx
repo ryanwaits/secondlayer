@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
-import type { Stream, Delivery } from "@/lib/types";
+import type { Stream, Delivery, AccountInsight } from "@/lib/types";
 import { StreamDetailClient } from "./stream-detail-client";
 
 export default async function StreamOverviewPage({
@@ -32,5 +32,14 @@ export default async function StreamOverviewPage({
     deliveries = data.deliveries;
   } catch {}
 
-  return <StreamDetailClient stream={stream} deliveries={deliveries} />;
+  let insights: AccountInsight[] = [];
+  try {
+    const data = await apiRequest<{ insights: AccountInsight[] }>(
+      `/api/insights?resource_id=${id}&category=stream`,
+      { sessionToken: session },
+    );
+    insights = data.insights;
+  } catch {}
+
+  return <StreamDetailClient stream={stream} deliveries={deliveries} insights={insights} sessionToken={session} />;
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { ApiKey } from "@/lib/types";
+import type { ApiKey, AccountInsight } from "@/lib/types";
 import { useApiKeys, useCreateApiKey } from "@/lib/queries/api-keys";
 import { detectStaleKeys } from "@/lib/intelligence/keys";
 import { Insight } from "@/components/console/intelligence";
+import { InsightCard } from "@/components/console/intelligence/insight-card";
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "never";
@@ -19,7 +20,15 @@ function timeAgo(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-export function KeysList({ initialKeys }: { initialKeys: ApiKey[] }) {
+export function KeysList({
+  initialKeys,
+  insights = [],
+  sessionToken = "",
+}: {
+  initialKeys: ApiKey[];
+  insights?: AccountInsight[];
+  sessionToken?: string;
+}) {
   const { data: keys = initialKeys } = useApiKeys(initialKeys);
   const createKey = useCreateApiKey();
   const [showForm, setShowForm] = useState(false);
@@ -190,6 +199,14 @@ export function KeysList({ initialKeys }: { initialKeys: ApiKey[] }) {
       )}
 
       <StaleKeyInsight keys={keys} />
+
+      {insights.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+          {insights.map((insight) => (
+            <InsightCard key={insight.id} insight={insight} sessionToken={sessionToken} />
+          ))}
+        </div>
+      )}
     </>
   );
 }
