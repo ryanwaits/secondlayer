@@ -8,12 +8,19 @@ import { ViewContext, type BlockMeta, type TxMeta } from "./context.ts";
 import { matchSources } from "./source-matcher.ts";
 import { runHandlers } from "./runner.ts";
 
+export interface ProcessBlockTiming {
+  totalMs: number;
+  handlerMs: number;
+  flushMs: number;
+}
+
 export interface ProcessBlockResult {
   blockHeight: number;
   matched: number;
   processed: number;
   errors: number;
   skipped: boolean;
+  timing?: ProcessBlockTiming;
 }
 
 /**
@@ -38,6 +45,7 @@ export async function processBlock(
   opts?: ProcessBlockOptions,
 ): Promise<ProcessBlockResult> {
   const db = getDb();
+  const blockStart = performance.now();
   const result: ProcessBlockResult = {
     blockHeight,
     matched: 0,
@@ -111,15 +119,24 @@ export async function processBlock(
   };
 
   // Wrap entire block processing in a single transaction
+  let handlerMs = 0;
+  let flushMs = 0;
+
   await db.transaction().execute(async (tx: Transaction<Database>) => {
     const ctx = new ViewContext(tx, schemaName, view.schema, blockMeta, initialTx);
+
+    const handlerStart = performance.now();
     const runResult = await runHandlers(view, matched, ctx);
+    handlerMs = performance.now() - handlerStart;
+
     result.processed = runResult.processed;
     result.errors = runResult.errors;
 
     // 5. Flush writes
     if (ctx.pendingOps > 0) {
+      const flushStart = performance.now();
       await ctx.flush();
+      flushMs = performance.now() - flushStart;
     }
 
     // 6. Update progress + health metrics (same transaction)
@@ -135,6 +152,13 @@ export async function processBlock(
       await recordViewProcessed(tx, viewName, runResult.processed, runResult.errors, lastError);
     }
   });
+
+  const totalMs = performance.now() - blockStart;
+  result.timing = {
+    totalMs: Math.round(totalMs),
+    handlerMs: Math.round(handlerMs),
+    flushMs: Math.round(flushMs),
+  };
 
   // 7. Row count warning — sample every 1000 blocks
   if (blockHeight % 1000 === 0) {
