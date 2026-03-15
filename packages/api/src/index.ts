@@ -14,6 +14,7 @@ import authRouter from "./routes/auth.ts";
 import accountsRouter from "./routes/accounts.ts";
 import nodeRouter from "./routes/node.ts";
 import waitlistRouter from "./routes/waitlist.ts";
+import insightsRouter from "./routes/insights.ts";
 
 const app = new Hono();
 
@@ -34,7 +35,7 @@ app.route("/api/auth", authRouter);
 app.route("/api/waitlist", waitlistRouter);
 
 // Auth middleware — always mounted, DEV_MODE bypass handled inside middleware
-for (const path of ["/status", "/api/streams", "/api/streams/*", "/api/views", "/api/views/*", "/api/logs", "/api/logs/*", "/api/accounts", "/api/accounts/*", "/api/node", "/api/node/*", "/api/auth/logout"]) {
+for (const path of ["/status", "/api/streams", "/api/streams/*", "/api/views", "/api/views/*", "/api/logs", "/api/logs/*", "/api/accounts", "/api/accounts/*", "/api/insights", "/api/insights/*", "/api/node", "/api/node/*", "/api/auth/logout"]) {
   app.use(path, requireAuth());
   app.use(path, rateLimit());
   app.use(path, countApiRequests());
@@ -45,6 +46,7 @@ app.route("/api/streams", streamsRouter);
 app.route("/api/logs", logsRouter);
 app.route("/api/views", viewsRouter);
 app.route("/api/accounts", accountsRouter);
+app.route("/api/insights", insightsRouter);
 app.route("/api/node", nodeRouter);
 app.route("/", statusRouter);
 

@@ -5,6 +5,7 @@ import { listenForJobs } from "@secondlayer/shared/queue/listener";
 import { startRecoveryLoop } from "@secondlayer/shared/queue/recovery";
 import { processJob } from "./processor.ts";
 import { startStorageMeasurement } from "./jobs/measure-storage.ts";
+import { startAccountAgentScheduler } from "./jobs/account-agent.ts";
 
 const CONCURRENCY = parseInt(process.env.WORKER_CONCURRENCY || "5");
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || "1000");
@@ -65,6 +66,9 @@ async function runWorker() {
   // Start periodic storage measurement
   const stopStorageMeasurement = startStorageMeasurement();
 
+  // Start account agent scheduler
+  const stopAccountAgent = startAccountAgentScheduler();
+
   // Listen for new job notifications
   const stopListening = await listenForJobs(async () => {
     // Process jobs when notified
@@ -99,6 +103,7 @@ async function runWorker() {
     await stopListening();
     stopRecovery();
     stopStorageMeasurement();
+    stopAccountAgent();
 
     // Wait for active jobs to complete
     while (activeJobs > 0) {
