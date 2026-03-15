@@ -61,8 +61,24 @@ export interface ViewSummary {
   createdAt: string;
 }
 
+export interface AccountInsight {
+  id: string;
+  category: string;
+  insightType: string;
+  resourceId: string | null;
+  severity: "info" | "warning" | "danger";
+  title: string;
+  body: string;
+  data: Record<string, unknown>;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
 export interface ViewDetail {
   name: string;
+  version: string;
+  status: string;
+  lastProcessedBlock: number | null;
   health: {
     totalProcessed: number;
     totalErrors: number;
@@ -75,8 +91,10 @@ export interface ViewDetail {
     {
       rowCount: number;
       endpoint: string;
-      columns: Record<string, unknown>;
+      columns: Record<string, { type: string; nullable?: boolean }>;
       example: unknown;
     }
   >;
+  createdAt: string;
+  updatedAt: string;
 }
