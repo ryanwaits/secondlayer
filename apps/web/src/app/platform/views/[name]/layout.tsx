@@ -1,31 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiRequest, ApiError, getSessionFromCookies } from "@/lib/api";
-
-interface ViewDetail {
-  name: string;
-  version: string;
-  status: string;
-  lastProcessedBlock: number | null;
-  health: {
-    totalProcessed: number;
-    totalErrors: number;
-    errorRate: number;
-    lastError: string | null;
-    lastErrorAt: string | null;
-  };
-  tables: Record<
-    string,
-    {
-      endpoint: string;
-      columns: Record<string, { type: string; nullable?: boolean }>;
-      rowCount: number;
-      example: unknown;
-    }
-  >;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { ViewDetail } from "@/lib/types";
+import { Insight } from "@/components/console/intelligence/insight";
+import { detectStalledView } from "@/lib/intelligence/views";
 
 export default async function ViewDetailLayout({
   children,
@@ -49,6 +27,16 @@ export default async function ViewDetailLayout({
     throw e;
   }
 
+  let chainTip: number | null = null;
+  try {
+    const status = await apiRequest<{ chainTip: number | null }>("/status", {
+      sessionToken: session ?? undefined,
+    });
+    chainTip = status.chainTip;
+  } catch {}
+
+  const stalled = chainTip != null ? detectStalledView(view, chainTip) : null;
+
   const basePath = `/views/${name}`;
   const nav = [
     { label: "Overview", href: basePath },
@@ -69,6 +57,14 @@ export default async function ViewDetailLayout({
           )}
         </p>
       </div>
+
+      {stalled && (
+        <Insight variant="warning" id={`stalled-${view.name}`}>
+          This view is <strong>{stalled.blocksBehind.toLocaleString()} blocks</strong> behind
+          the chain tip (#{stalled.chainTip.toLocaleString()}). Last
+          processed: #{stalled.lastProcessedBlock.toLocaleString()}.
+        </Insight>
+      )}
 
       <nav className="dash-detail-nav">
         {nav.map((item) => (
