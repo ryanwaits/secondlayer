@@ -1,7 +1,8 @@
-import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
+import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { EmptyState } from "@/components/console/empty-state";
-import type { Stream } from "@/lib/types";
-import { triageStreams } from "@/lib/intelligence/dashboard";
+import type { Stream, ViewSummary, AccountInsight } from "@/lib/types";
+import { triageStreams, triageViews } from "@/lib/intelligence/dashboard";
+import { InsightCard } from "@/components/console/intelligence/insight-card";
 import Link from "next/link";
 
 function formatRelativeTime(date: string): string {
@@ -34,7 +35,9 @@ export default async function DashboardPage() {
   }
 
   let streams: Stream[] = [];
-  let viewCount = 0;
+  let views: ViewSummary[] = [];
+  let insights: AccountInsight[] = [];
+  let chainTip: number | null = null;
 
   try {
     const data = await apiRequest<{ streams: Stream[]; total: number }>(
@@ -45,17 +48,33 @@ export default async function DashboardPage() {
   } catch {}
 
   try {
-    const data = await apiRequest<{ views: unknown[]; total: number }>(
-      "/api/views?limit=1&offset=0",
+    const data = await apiRequest<{ data: ViewSummary[] }>("/api/views", {
+      sessionToken: session,
+    });
+    views = data.data;
+  } catch {}
+
+  try {
+    const data = await apiRequest<{ insights: AccountInsight[] }>(
+      "/api/insights",
       { sessionToken: session },
     );
-    viewCount = Number(data.total) || 0;
+    insights = data.insights;
+  } catch {}
+
+  try {
+    const status = await apiRequest<{ chainTip: number | null }>("/status", {
+      sessionToken: session,
+    });
+    chainTip = status.chainTip;
   } catch {}
 
   const totalDeliveries = streams.reduce((sum, s) => sum + (s.totalDeliveries ?? 0), 0);
-  const hasData = streams.length > 0 || viewCount > 0;
+  const hasData = streams.length > 0 || views.length > 0;
 
-  const { needsAttention, allGood } = triageStreams(streams);
+  const { needsAttention: streamAttention, allGood } = triageStreams(streams);
+  const viewAttention = triageViews(views, chainTip);
+  const needsAttention = [...streamAttention, ...viewAttention];
 
   if (!hasData) {
     return (
@@ -83,7 +102,7 @@ export default async function DashboardPage() {
           <span className="dash-stat-label">streams</span>
         </div>
         <div className="dash-stat">
-          <span className="dash-stat-value">{formatCount(viewCount)}</span>
+          <span className="dash-stat-value">{formatCount(views.length)}</span>
           <span className="dash-stat-label">views</span>
         </div>
         <div className="dash-stat">
@@ -92,6 +111,20 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {insights.length > 0 && (
+        <>
+          <div className="dash-section-wrap">
+            <hr />
+            <h2 className="dash-section-title">Insights</h2>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {insights.map((insight) => (
+              <InsightCard key={insight.id} insight={insight} sessionToken={session} />
+            ))}
+          </div>
+        </>
+      )}
+
       {needsAttention.length > 0 && (
         <>
           <div className="dash-section-wrap">
@@ -99,17 +132,17 @@ export default async function DashboardPage() {
             <h2 className="dash-section-title">Needs attention</h2>
           </div>
           <div className="dash-activity-list">
-            {needsAttention.map(({ stream, reason }) => (
+            {needsAttention.map((item) => (
               <Link
-                key={stream.id}
-                href={`/streams/${stream.id}`}
+                key={item.href}
+                href={item.href}
                 className="dash-activity-item"
               >
                 <span
-                  className={`dash-activity-dot ${stream.status === "failed" ? "red" : "yellow"}`}
+                  className={`dash-activity-dot ${item.status === "failed" || item.status === "error" ? "red" : "yellow"}`}
                 />
-                <span className="dash-activity-name">{stream.name}</span>
-                <span className="dash-activity-time">{reason}</span>
+                <span className="dash-activity-name">{item.name}</span>
+                <span className="dash-activity-time">{item.reason}</span>
                 <span className="dash-activity-action">View</span>
               </Link>
             ))}
