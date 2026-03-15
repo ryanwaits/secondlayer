@@ -17,18 +17,13 @@ export default async function ViewsPage() {
 
   return (
     <>
-      <div className="dash-page-header">
-        <div>
-          <h1 className="dash-page-title">Views</h1>
+      <div className="dash-page-header" style={views.length === 0 ? { textAlign: "center" } : undefined}>
+        <h1 className="dash-page-title">Views</h1>
+        {views.length > 0 && (
           <p className="dash-page-desc">
-            {views.length === 0
-              ? "No deployed views yet."
-              : `${views.length} deployed view${views.length !== 1 ? "s" : ""}`}
+            {views.length} deployed view{views.length !== 1 ? "s" : ""}
           </p>
-        </div>
-        <Link href="/platform/views/scaffold" className="scaffold-btn scaffold-btn-primary">
-          Scaffold
-        </Link>
+        )}
       </div>
 
       {views.length === 0 ? (

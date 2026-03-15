@@ -121,25 +121,34 @@ export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
 
   return (
     <>
-      <div className="dash-page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
+      <div className="dash-page-header" style={streams.length === 0 ? { textAlign: "center" } : { display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {streams.length > 0 ? (
+          <>
+            <div>
+              <h1 className="dash-page-title">Streams</h1>
+              <p className="dash-page-desc">
+                {streams.length} stream{streams.length !== 1 ? "s" : ""} — {parts.join(", ")}
+              </p>
+            </div>
+            <Link href="/streams/create" className="create-btn">
+              + Create stream
+            </Link>
+          </>
+        ) : (
           <h1 className="dash-page-title">Streams</h1>
-          <p className="dash-page-desc">
-            {streams.length === 0
-              ? "No streams yet."
-              : `${streams.length} stream${streams.length !== 1 ? "s" : ""} — ${parts.join(", ")}`}
-          </p>
-        </div>
-        <Link href="/streams/create" className="create-btn">
-          + Create stream
-        </Link>
+        )}
       </div>
 
       {streams.length === 0 ? (
         <div className="dash-empty">
           <p>Create your first stream to start receiving blockchain events.</p>
-          <div className="dash-empty-action">
-            <Link href="/streams/create">Create a stream</Link>
+          <div className="dash-empty-actions">
+            <code className="dash-empty-cmd">sl streams create --name my-stream --url https://example.com/webhook</code>
+            <div className="dash-empty-links">
+              <Link href="/streams/create">Create a stream</Link>
+              <span className="dash-empty-sep">·</span>
+              <Link href="/site/streams">Read the docs</Link>
+            </div>
           </div>
         </div>
       ) : (
