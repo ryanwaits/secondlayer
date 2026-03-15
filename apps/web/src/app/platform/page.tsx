@@ -110,6 +110,7 @@ export default async function DashboardPage() {
                 />
                 <span className="dash-activity-name">{stream.name}</span>
                 <span className="dash-activity-time">{reason}</span>
+                <span className="dash-activity-action">View</span>
               </Link>
             ))}
           </div>
