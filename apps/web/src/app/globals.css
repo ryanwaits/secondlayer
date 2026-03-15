@@ -2341,6 +2341,20 @@ a {
   border-bottom: 1px solid var(--border);
 }
 
+.scaffold-code-body {
+  position: relative;
+}
+
+.scaffold-code-scroll {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.scaffold-code-collapsed {
+  mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+}
+
 .scaffold-code-block {
   margin: 0;
   padding: 14px 16px;
@@ -2350,6 +2364,55 @@ a {
   overflow-x: auto;
   white-space: pre;
   color: var(--text-main);
+}
+
+.scaffold-code-block pre {
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.scaffold-code-block code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.scaffold-code-raw {
+  color: var(--text-muted);
+}
+
+.scaffold-code-toggle {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-sans-stack);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  z-index: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.scaffold-code-toggle:hover {
+  color: var(--text-main);
+  background: var(--code-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  .scaffold-code-toggle {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
 }
 
 .scaffold-prompt-block {
