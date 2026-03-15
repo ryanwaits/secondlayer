@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { generateViewCode } from "@/lib/scaffold/generate";
 import { generateAgentPrompt } from "@/lib/scaffold/prompt";
+import { highlightCode } from "@/components/command-palette/actions";
 
 /** Minimal ABI contract shape from the API response */
 interface AbiContract {
@@ -17,6 +18,58 @@ interface AbiContract {
 }
 
 type Step = "input" | "loading" | "explorer";
+
+const CODE_PREVIEW_HEIGHT = 280;
+
+function HighlightedCode({
+  code,
+  lang = "typescript",
+  collapsible = false,
+}: {
+  code: string;
+  lang?: string;
+  collapsible?: boolean;
+}) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    highlightCode(code, lang).then((result) => {
+      if (!cancelled) setHtml(result);
+    });
+    return () => { cancelled = true; };
+  }, [code, lang]);
+
+  const needsCollapse = collapsible && code.split("\n").length > 14;
+  const isCollapsed = needsCollapse && !expanded;
+
+  return (
+    <div className="scaffold-code-body">
+      <div
+        className={`scaffold-code-scroll ${isCollapsed ? "scaffold-code-collapsed" : ""}`}
+        style={isCollapsed ? { maxHeight: CODE_PREVIEW_HEIGHT } : undefined}
+      >
+        {html ? (
+          <div
+            className="scaffold-code-block"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        ) : (
+          <pre className="scaffold-code-block scaffold-code-raw">{code}</pre>
+        )}
+      </div>
+      {needsCollapse && (
+        <button
+          className="scaffold-code-toggle"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "Collapse" : "Show all"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function ScaffoldPage() {
   const [contractId, setContractId] = useState("");
@@ -41,10 +94,8 @@ export default function ScaffoldPage() {
       const data = await res.json();
       const contract = (data.abi ?? data) as AbiContract;
       setAbi(contract);
-      // Select all public functions by default
       const publicFns = contract.functions.filter((f) => f.access === "public");
       setSelectedFunctions(new Set(publicFns.map((f) => f.name)));
-      // Select all maps (events) by default
       const maps = contract.maps ?? [];
       setSelectedEvents(new Set(maps.map((m) => m.name)));
       setStep("explorer");
@@ -76,7 +127,6 @@ export default function ScaffoldPage() {
     [maps, selectedEvents],
   );
 
-  // Cast to the shape generateViewCode expects (AbiFunction with typed args)
   const code = useMemo(
     () =>
       selectedFnObjects.length > 0
@@ -168,7 +218,6 @@ export default function ScaffoldPage() {
         <>
           {/* ABI Explorer */}
           <div className="scaffold-explorer">
-            {/* Maps / Events */}
             {maps.length > 0 && (
               <div className="abi-section">
                 <div className="abi-section-header">
@@ -190,7 +239,6 @@ export default function ScaffoldPage() {
               </div>
             )}
 
-            {/* Public Functions */}
             {publicFunctions.length > 0 && (
               <div className="abi-section">
                 <div className="abi-section-header">
@@ -214,7 +262,6 @@ export default function ScaffoldPage() {
               </div>
             )}
 
-            {/* Read-only Functions (info only) */}
             {readOnlyFunctions.length > 0 && (
               <div className="abi-section">
                 <div className="abi-section-header">
@@ -239,7 +286,7 @@ export default function ScaffoldPage() {
               <div className="scaffold-code-header">
                 <span className="abi-section-title">Generated Scaffold</span>
               </div>
-              <pre className="scaffold-code-block">{code}</pre>
+              <HighlightedCode code={code} lang="typescript" collapsible />
             </div>
           )}
 
