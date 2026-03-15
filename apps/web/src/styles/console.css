@@ -210,9 +210,12 @@
 .dash-content {
   flex: 1;
   padding: 28px 32px 40px;
-  max-width: 820px;
   margin: 0 auto;
   overflow-y: auto;
+}
+
+@media (min-width: 1600px) {
+  .dash-content { max-width: 1100px; }
 }
 
 .dash-page-header {
