@@ -176,6 +176,69 @@ export interface WaitlistTable {
   created_at: Generated<Date>;
 }
 
+export interface AccountInsightsTable {
+  id: Generated<string>;
+  account_id: string;
+  category: string;
+  insight_type: string;
+  resource_id: string | null;
+  severity: string;
+  title: string;
+  body: string;
+  data: unknown;
+  dismissed_at: Date | null;
+  expires_at: Date | null;
+  created_at: Generated<Date>;
+}
+
+export interface AccountAgentRunsTable {
+  id: Generated<string>;
+  account_id: string;
+  started_at: Generated<Date>;
+  completed_at: Date | null;
+  status: Generated<string>;
+  input_tokens: Generated<number>;
+  output_tokens: Generated<number>;
+  cost_usd: Generated<number>;
+  insights_created: Generated<number>;
+  error: string | null;
+}
+
+export interface ViewProcessingStatsTable {
+  id: Generated<string>;
+  view_name: string;
+  api_key_id: string | null;
+  bucket_start: Date | null;
+  bucket_end: Date | null;
+  blocks_processed: number | null;
+  total_time_ms: number | null;
+  handler_time_ms: number | null;
+  flush_time_ms: number | null;
+  max_block_time_ms: number | null;
+  max_handler_time_ms: number | null;
+  avg_ops_per_block: number | null;
+  is_catchup: Generated<boolean>;
+  created_at: Generated<Date>;
+}
+
+export interface ViewTableSnapshotsTable {
+  id: Generated<string>;
+  view_name: string;
+  api_key_id: string | null;
+  table_name: string;
+  row_count: number | null;
+  created_at: Generated<Date>;
+}
+
+export interface ViewHealthSnapshotsTable {
+  id: Generated<string>;
+  view_id: string;
+  total_processed: number;
+  total_errors: number;
+  last_processed_block: number | null;
+  captured_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -195,6 +258,11 @@ export interface Database {
   usage_daily: UsageDailyTable;
   usage_snapshots: UsageSnapshotsTable;
   waitlist: WaitlistTable;
+  account_insights: AccountInsightsTable;
+  account_agent_runs: AccountAgentRunsTable;
+  view_health_snapshots: ViewHealthSnapshotsTable;
+  view_processing_stats: ViewProcessingStatsTable;
+  view_table_snapshots: ViewTableSnapshotsTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -250,4 +318,13 @@ export type InsertSession = Insertable<SessionsTable>;
 
 export type UsageDaily = Selectable<UsageDailyTable>;
 export type UsageSnapshot = Selectable<UsageSnapshotsTable>;
+
+export type AccountInsight = Selectable<AccountInsightsTable>;
+export type InsertAccountInsight = Insertable<AccountInsightsTable>;
+
+export type AccountAgentRun = Selectable<AccountAgentRunsTable>;
+export type InsertAccountAgentRun = Insertable<AccountAgentRunsTable>;
+
+export type ViewHealthSnapshot = Selectable<ViewHealthSnapshotsTable>;
+export type InsertViewHealthSnapshot = Insertable<ViewHealthSnapshotsTable>;
 
