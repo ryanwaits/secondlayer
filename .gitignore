@@ -50,3 +50,5 @@ docs/
 secondlayer.config.ts
 secondlayer.config.js
 secondlayer.config.mjs
+.vercel
+.env*.local
