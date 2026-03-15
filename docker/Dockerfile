@@ -28,6 +28,7 @@ COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
 COPY packages/agent/package.json ./packages/agent/
+COPY packages/account-agent/package.json ./packages/account-agent/
 # Install dependencies
 RUN bun install
 
@@ -44,6 +45,7 @@ COPY packages/views ./packages/views
 COPY packages/api ./packages/api
 COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
+COPY packages/account-agent ./packages/account-agent
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
@@ -87,6 +89,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/worker ./packages/worker
+COPY --from=builder /app/packages/account-agent ./packages/account-agent
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
