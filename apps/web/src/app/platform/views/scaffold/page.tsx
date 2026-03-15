@@ -39,7 +39,7 @@ export default function ScaffoldPage() {
         throw new Error(data.error || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      const contract = data.abi as AbiContract;
+      const contract = (data.abi ?? data) as AbiContract;
       setAbi(contract);
       // Select all public functions by default
       const publicFns = contract.functions.filter((f) => f.access === "public");
