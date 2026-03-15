@@ -15,6 +15,7 @@ const config: DefineConfigItem = defineConfig({
     "src/runtime/runner.ts",
     "src/runtime/source-matcher.ts",
     "src/runtime/clarity.ts",
+    "src/runtime/stats.ts",
     "src/service.ts",
   ],
   format: ["esm"],

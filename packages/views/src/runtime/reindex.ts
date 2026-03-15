@@ -6,6 +6,7 @@ import { generateViewSQL } from "../schema/generator.ts";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { ViewDefinition } from "../types.ts";
 import { processBlock } from "./block-processor.ts";
+import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
 
@@ -68,6 +69,14 @@ export async function reindexView(
     const totalBlocks = toBlock - fromBlock + 1;
     logger.info("Reindexing blocks", { view: viewName, fromBlock, toBlock, totalBlocks });
 
+    // Look up api_key_id for stats
+    const viewRow = await db
+      .selectFrom("views")
+      .select("api_key_id")
+      .where("name", "=", viewName)
+      .executeTakeFirst();
+
+    const stats = new StatsAccumulator(viewName, viewRow?.api_key_id ?? null, false);
     let blocksProcessed = 0;
     let totalEventsProcessed = 0;
     let totalErrors = 0;
@@ -78,6 +87,13 @@ export async function reindexView(
       blocksProcessed++;
       totalEventsProcessed += result.processed;
       totalErrors += result.errors;
+
+      if (result.timing) {
+        stats.record(result.timing, result.processed);
+        if (stats.shouldFlush()) {
+          await stats.flush(db);
+        }
+      }
 
       // Batch progress updates to avoid NOTIFY storm
       if (blocksProcessed % PROGRESS_INTERVAL === 0) {
@@ -94,6 +110,9 @@ export async function reindexView(
         });
       }
     }
+
+    // Flush remaining stats
+    await stats.flush(db);
 
     // Write final health metrics in one update
     const { recordViewProcessed } = await import("@secondlayer/shared/db/queries/views");

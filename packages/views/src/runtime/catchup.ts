@@ -3,6 +3,7 @@ import { logger } from "@secondlayer/shared/logger";
 import { getView } from "@secondlayer/shared/db/queries/views";
 import type { ViewDefinition } from "../types.ts";
 import { processBlock } from "./block-processor.ts";
+import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
 
@@ -50,11 +51,19 @@ export async function catchUpView(
       blocks: totalBlocks,
     });
 
+    const stats = new StatsAccumulator(viewName, viewRow.api_key_id, true);
     let processed = 0;
 
     for (let height = startBlock; height <= chainTip; height++) {
-      await processBlock(view, viewName, height);
+      const result = await processBlock(view, viewName, height);
       processed++;
+
+      if (result.timing) {
+        stats.record(result.timing, result.processed);
+        if (stats.shouldFlush()) {
+          await stats.flush(db);
+        }
+      }
 
       if (processed % LOG_INTERVAL === 0) {
         logger.info("View catch-up progress", {
@@ -66,6 +75,9 @@ export async function catchUpView(
         });
       }
     }
+
+    // Flush remaining stats
+    await stats.flush(db);
 
     logger.info("View catch-up complete", {
       view: viewName,
