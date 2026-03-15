@@ -254,9 +254,11 @@
   transform: translateY(-50%);
   background: var(--bg);
   padding-right: 12px;
-  font-size: 14px;
-  font-weight: 560;
-  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
   line-height: 20px;
   letter-spacing: -0.00563rem;
   margin: 0;
@@ -414,6 +416,7 @@
 
 .dash-activity-dot.green { background: #22c55e; }
 .dash-activity-dot.red { background: #ef4444; }
+.dash-activity-dot.yellow { background: #eab308; }
 .dash-activity-dot.muted { background: var(--text-muted); }
 
 .dash-activity-name {
@@ -425,6 +428,22 @@
 .dash-activity-time {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.dash-activity-action {
+  font-family: var(--font-sans-stack);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  flex-shrink: 0;
+  transition: background 0.1s ease;
+}
+
+.dash-activity-item:hover .dash-activity-action {
+  background: var(--code-bg);
 }
 
 @media (prefers-color-scheme: dark) {
