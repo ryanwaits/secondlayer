@@ -13,8 +13,6 @@ interface AbiContract {
     args: ReadonlyArray<{ name: string; type: unknown }>;
     outputs: unknown;
   }>;
-  maps?: ReadonlyArray<{ name: string; key: unknown; value: unknown }>;
-  variables?: ReadonlyArray<{ name: string; type: unknown; access: string }>;
 }
 
 type Step = "input" | "loading" | "explorer";
@@ -77,7 +75,6 @@ export default function ScaffoldPage() {
   const [error, setError] = useState<string | null>(null);
   const [abi, setAbi] = useState<AbiContract | null>(null);
   const [selectedFunctions, setSelectedFunctions] = useState<Set<string>>(new Set());
-  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<"code" | "prompt" | null>(null);
 
   const fetchAbi = useCallback(async () => {
@@ -96,8 +93,6 @@ export default function ScaffoldPage() {
       setAbi(contract);
       const publicFns = contract.functions.filter((f) => f.access === "public");
       setSelectedFunctions(new Set(publicFns.map((f) => f.name)));
-      const maps = contract.maps ?? [];
-      setSelectedEvents(new Set(maps.map((m) => m.name)));
       setStep("explorer");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -115,16 +110,9 @@ export default function ScaffoldPage() {
     [abi],
   );
 
-  const maps = useMemo(() => abi?.maps ?? [], [abi]);
-
   const selectedFnObjects = useMemo(
     () => publicFunctions.filter((f) => selectedFunctions.has(f.name)),
     [publicFunctions, selectedFunctions],
-  );
-
-  const selectedEventObjects = useMemo(
-    () => maps.filter((m) => selectedEvents.has(m.name)),
-    [maps, selectedEvents],
   );
 
   const code = useMemo(
@@ -136,23 +124,14 @@ export default function ScaffoldPage() {
   );
 
   const prompt = useMemo(
-    () => generateAgentPrompt(contractId, selectedEventObjects, selectedFnObjects),
-    [contractId, selectedEventObjects, selectedFnObjects],
+    () => generateAgentPrompt(contractId, [], selectedFnObjects),
+    [contractId, selectedFnObjects],
   );
 
   const contractName = contractId.split(".").pop() ?? contractId;
 
   const toggleFunction = (name: string) => {
     setSelectedFunctions((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  };
-
-  const toggleEvent = (name: string) => {
-    setSelectedEvents((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
@@ -218,27 +197,6 @@ export default function ScaffoldPage() {
         <>
           {/* ABI Explorer */}
           <div className="scaffold-explorer">
-            {maps.length > 0 && (
-              <div className="abi-section">
-                <div className="abi-section-header">
-                  <span className="abi-section-title">Maps / Events</span>
-                  <span className="abi-section-count">{maps.length}</span>
-                </div>
-                {maps.map((m) => (
-                  <label key={m.name} className="abi-item">
-                    <input
-                      type="checkbox"
-                      className="abi-check"
-                      checked={selectedEvents.has(m.name)}
-                      onChange={() => toggleEvent(m.name)}
-                    />
-                    <span className="abi-item-name">{m.name}</span>
-                    <span className="abi-type">map</span>
-                  </label>
-                ))}
-              </div>
-            )}
-
             {publicFunctions.length > 0 && (
               <div className="abi-section">
                 <div className="abi-section-header">
