@@ -607,9 +607,9 @@
   <!-- ═══════════════════════════════════════════ -->
   <div class="section-break"><span class="section-break-label">Streams</span></div>
 
-  <!-- S1: Duplicate stream detection -->
+  <!-- S1: Duplicate stream detection [NO AI] -->
   <div class="variant">
-    <div class="variant-label">S1 — duplicate stream detection</div>
+    <div class="variant-label">S1 — duplicate stream detection <span style="color:var(--green);font-weight:600;">NO AI</span></div>
     <div class="variant-desc">Creating a stream that overlaps with an existing one. Warn before they waste a stream slot.</div>
     <div class="card">
       <div class="card-header">
@@ -637,9 +637,9 @@
     </div>
   </div>
 
-  <!-- S2: Response time degradation -->
+  <!-- S2: Response time degradation [AI REQUIRED] -->
   <div class="variant">
-    <div class="variant-label">S2 — webhook response time degradation</div>
+    <div class="variant-label">S2 — webhook response time degradation <span style="color:var(--accent-purple);font-weight:600;">AI REQUIRED</span></div>
     <div class="variant-desc">Stream detail page notices your endpoint is getting slower over time.</div>
     <div class="card">
       <div class="card-header">
@@ -710,9 +710,9 @@
     </div>
   </div>
 
-  <!-- S3: Smart replay suggestion -->
+  <!-- S3: Smart replay suggestion [NO AI] -->
   <div class="variant">
-    <div class="variant-label">S3 — smart replay after recovery</div>
+    <div class="variant-label">S3 — smart replay after recovery <span style="color:var(--green);font-weight:600;">NO AI</span></div>
     <div class="variant-desc">Stream was paused due to failures. Now resumed — suggest replaying missed blocks.</div>
     <div class="card">
       <div class="card-header">
@@ -739,9 +739,9 @@
   <!-- ═══════════════════════════════════════════ -->
   <div class="section-break"><span class="section-break-label">Views</span></div>
 
-  <!-- V1: Data browser query suggestions -->
+  <!-- V1: Data browser query suggestions [AI REQUIRED] -->
   <div class="variant">
-    <div class="variant-label">V1 — data browser with contextual query hints</div>
+    <div class="variant-label">V1 — data browser with contextual query hints <span style="color:var(--accent-purple);font-weight:600;">AI REQUIRED</span></div>
     <div class="variant-desc">Browsing view data. The app suggests useful filters based on column distribution.</div>
     <div class="card">
       <div class="card-header">
@@ -799,9 +799,9 @@
     </div>
   </div>
 
-  <!-- V2: Schema performance suggestion -->
+  <!-- V2: Schema performance suggestion [AI REQUIRED] -->
   <div class="variant">
-    <div class="variant-label">V2 — schema tab with performance suggestions</div>
+    <div class="variant-label">V2 — schema tab with performance suggestions <span style="color:var(--accent-purple);font-weight:600;">AI REQUIRED</span></div>
     <div class="variant-desc">Viewing the schema. App notices query patterns and suggests missing indexes.</div>
     <div class="card">
       <div class="card-header">
@@ -848,9 +848,9 @@
     </div>
   </div>
 
-  <!-- V3: Row count anomaly -->
+  <!-- V3: Row count anomaly [AI REQUIRED] -->
   <div class="variant">
-    <div class="variant-label">V3 — data anomaly detection on view overview</div>
+    <div class="variant-label">V3 — data anomaly detection on view overview <span style="color:var(--accent-purple);font-weight:600;">AI REQUIRED</span></div>
     <div class="variant-desc">Row count dropped significantly. Something may have changed upstream.</div>
     <div class="card">
       <div class="card-header">
@@ -908,9 +908,9 @@
   <!-- ═══════════════════════════════════════════ -->
   <div class="section-break"><span class="section-break-label">API Keys</span></div>
 
-  <!-- K1: Stale / unused key detection -->
+  <!-- K1: Stale / unused key detection [NO AI — IMPLEMENTED] -->
   <div class="variant">
-    <div class="variant-label">K1 — stale key detection + rotation reminder</div>
+    <div class="variant-label">K1 — stale key detection + rotation reminder <span style="color:var(--green);font-weight:600;">NO AI — IMPLEMENTED</span></div>
     <div class="variant-desc">One key hasn't been used in weeks. Another was created months ago.</div>
     <div class="card">
       <div class="card-header">
@@ -956,9 +956,9 @@
     </div>
   </div>
 
-  <!-- K2: Key scope mismatch -->
+  <!-- K2: Key scope mismatch [AI REQUIRED] -->
   <div class="variant">
-    <div class="variant-label">K2 — key usage scope insight</div>
+    <div class="variant-label">K2 — key usage scope insight <span style="color:var(--accent-purple);font-weight:600;">AI REQUIRED</span></div>
     <div class="variant-desc">A key labeled "production" is only being used from localhost. Might be a misconfiguration.</div>
     <div class="card">
       <div class="card-header">
@@ -997,9 +997,9 @@
   <!-- ═══════════════════════════════════════════ -->
   <div class="section-break"><span class="section-break-label">Usage & Billing</span></div>
 
-  <!-- U1: Usage spike detection -->
+  <!-- U1: Usage spike detection [AI REQUIRED] -->
   <div class="variant">
-    <div class="variant-label">U1 — usage spike detection</div>
+    <div class="variant-label">U1 — usage spike detection <span style="color:var(--accent-purple);font-weight:600;">AI REQUIRED</span></div>
     <div class="variant-desc">Usage chart notices an anomalous spike and explains it.</div>
     <div class="card">
       <div class="card-header">
@@ -1061,9 +1061,9 @@
     </div>
   </div>
 
-  <!-- U2: Plan recommendation -->
+  <!-- U2: Plan recommendation [NO AI] -->
   <div class="variant">
-    <div class="variant-label">U2 — plan recommendation based on actual usage</div>
+    <div class="variant-label">U2 — plan recommendation based on actual usage <span style="color:var(--green);font-weight:600;">NO AI</span></div>
     <div class="variant-desc">User is consistently under-using their plan, or about to exceed it.</div>
     <div class="card">
       <div class="card-header">
@@ -1106,9 +1106,9 @@
   <!-- ═══════════════════════════════════════════ -->
   <div class="section-break"><span class="section-break-label">Dashboard</span></div>
 
-  <!-- D1: Dashboard with proactive summary -->
+  <!-- D1: Dashboard with proactive summary [PARTIAL — core triage is no-AI, advanced items need AI detections] -->
   <div class="variant">
-    <div class="variant-label">D1 — dashboard with contextual notices</div>
+    <div class="variant-label">D1 — dashboard with contextual notices <span style="color:var(--yellow);font-weight:600;">PARTIAL</span></div>
     <div class="variant-desc">The dashboard surfaces what needs attention. Not a static stat dump.</div>
     <div class="card">
       <div class="card-header">
