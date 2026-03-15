@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "./logo";
 
 export function ConsoleTopbar({
   segments,
@@ -9,6 +10,7 @@ export function ConsoleTopbar({
     <div className="dash-topbar">
       <div className="dash-topbar-left">
         <Link href="/" className="dash-topbar-wordmark">
+          <Logo size={18} />
           secondlayer
         </Link>
         <span className="dash-topbar-breadcrumb">
