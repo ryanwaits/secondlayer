@@ -31,6 +31,17 @@
   letter-spacing: -0.02em;
   color: var(--text-main);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-primary { fill: #6344F5; }
+.logo-echo { fill: #e0e0e0; }
+
+@media (prefers-color-scheme: dark) {
+  .logo-primary { fill: #8b7ff0; }
+  .logo-echo { fill: #444; }
 }
 
 .dash-topbar-breadcrumb {
