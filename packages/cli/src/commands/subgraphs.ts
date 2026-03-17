@@ -424,11 +424,10 @@ export function registerSubgraphsCommand(program: Command): void {
 
         const outPath = resolve(options.output);
         const network = inferNetwork(contractAddress) ?? "mainnet";
-        const config = await loadConfig();
         const apiKey = options.apiKey ?? process.env.HIRO_API_KEY;
 
         info(`Fetching ABI for ${contractAddress}...`);
-        const client = new StacksApiClient(network, apiKey, config.nodeRpcUrl);
+        const client = new StacksApiClient(network, apiKey);
         const contractInfo = await client.getContractInfo(contractAddress);
         const abi = parseApiResponse(contractInfo);
 
