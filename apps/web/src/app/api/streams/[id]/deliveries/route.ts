@@ -14,8 +14,9 @@ export async function GET(
     const { id } = await params;
     const url = new URL(req.url);
     const limit = url.searchParams.get("limit") || "50";
+    const offset = url.searchParams.get("offset") || "0";
     const status = url.searchParams.get("status") || "";
-    const qs = `limit=${limit}${status ? `&status=${status}` : ""}`;
+    const qs = `limit=${limit}&offset=${offset}${status ? `&status=${status}` : ""}`;
     const data = await apiRequest(`/api/streams/${id}/deliveries?${qs}`, {
       sessionToken,
     });

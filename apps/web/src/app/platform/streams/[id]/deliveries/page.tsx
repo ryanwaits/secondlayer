@@ -17,6 +17,7 @@ export default async function StreamDeliveriesPage({
   try {
     stream = await apiRequest<Stream>(`/api/streams/${id}`, {
       sessionToken: session,
+      tags: ["streams", `stream-${id}`],
     });
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
@@ -26,7 +27,7 @@ export default async function StreamDeliveriesPage({
   let deliveries: Delivery[] = [];
   try {
     const data = await apiRequest<{ deliveries: Delivery[] }>(
-      `/api/streams/${id}/deliveries?limit=20&offset=0`,
+      `/api/streams/${id}/deliveries?limit=10&offset=0`,
       { sessionToken: session },
     );
     deliveries = data.deliveries;
