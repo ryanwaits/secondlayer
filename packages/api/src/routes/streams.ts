@@ -581,6 +581,7 @@ app.post("/:id/replay-failed", async (c) => {
 app.get("/:id/deliveries", async (c) => {
   const { id } = c.req.param();
   const limit = Math.min(Math.max(1, parseInt(c.req.query("limit") || "50", 10) || 50), 100);
+  const offset = Math.max(0, parseInt(c.req.query("offset") || "0", 10) || 0);
   const status = c.req.query("status");
 
   if (status && status !== "success" && status !== "failed") {
@@ -597,7 +598,8 @@ app.get("/:id/deliveries", async (c) => {
     .selectAll()
     .where("stream_id", "=", id)
     .orderBy("created_at", "desc")
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
 
   if (status) {
     query = query.where("status", "=", status);
