@@ -32,8 +32,8 @@ describe("package exports", () => {
     expect(mod).toBeDefined();
   });
 
-  test("db/queries/views export", async () => {
-    const mod = await import("@secondlayer/shared/db/queries/views");
+  test("db/queries/subgraphs export", async () => {
+    const mod = await import("@secondlayer/shared/db/queries/subgraphs");
     expect(mod).toBeDefined();
   });
 
@@ -78,8 +78,8 @@ describe("package exports", () => {
     expect(mod).toBeDefined();
   });
 
-  test("schemas/views export", async () => {
-    const mod = await import("@secondlayer/shared/schemas/views");
+  test("schemas/subgraphs export", async () => {
+    const mod = await import("@secondlayer/shared/schemas/subgraphs");
     expect(mod).toBeDefined();
   });
 

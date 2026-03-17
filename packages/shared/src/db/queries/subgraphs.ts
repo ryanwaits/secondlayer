@@ -1,22 +1,22 @@
 import { sql, type Kysely } from "kysely";
 import { jsonb } from "../jsonb.ts";
-import type { Database, View } from "../types.ts";
+import type { Database, Subgraph } from "../types.ts";
 
 /**
- * Convert a view name to its PostgreSQL schema name.
- * With keyPrefix: "view_{prefix}_{name}" (tenant-isolated)
- * Without keyPrefix: "view_{name}" (backward compat)
+ * Convert a subgraph name to its PostgreSQL schema name.
+ * With keyPrefix: "subgraph_{prefix}_{name}" (tenant-isolated)
+ * Without keyPrefix: "subgraph_{name}" (backward compat)
  */
-export function pgSchemaName(viewName: string, keyPrefix?: string): string {
-  const safeName = viewName.replace(/-/g, "_");
+export function pgSchemaName(subgraphName: string, keyPrefix?: string): string {
+  const safeName = subgraphName.replace(/-/g, "_");
   if (!keyPrefix) {
-    return `view_${safeName}`;
+    return `subgraph_${safeName}`;
   }
   const safePrefix = keyPrefix.replace(/^sk-sl_/, "").replace(/-/g, "_");
-  return `view_${safePrefix}_${safeName}`;
+  return `subgraph_${safePrefix}_${safeName}`;
 }
 
-export async function registerView(
+export async function registerSubgraph(
   db: Kysely<Database>,
   data: {
     name: string;
@@ -27,9 +27,9 @@ export async function registerView(
     apiKeyId?: string;
     schemaName?: string;
   },
-): Promise<View> {
+): Promise<Subgraph> {
   return await db
-    .insertInto("views")
+    .insertInto("subgraphs")
     .values({
       name: data.name,
       version: data.version,
@@ -53,9 +53,9 @@ export async function registerView(
     .executeTakeFirstOrThrow();
 }
 
-export async function getView(db: Kysely<Database>, name: string, apiKeyId?: string): Promise<View | null> {
+export async function getSubgraph(db: Kysely<Database>, name: string, apiKeyId?: string): Promise<Subgraph | null> {
   let query = db
-    .selectFrom("views")
+    .selectFrom("subgraphs")
     .selectAll()
     .where("name", "=", name);
 
@@ -66,22 +66,22 @@ export async function getView(db: Kysely<Database>, name: string, apiKeyId?: str
   return (await query.executeTakeFirst()) ?? null;
 }
 
-export async function listViews(db: Kysely<Database>, apiKeyId?: string): Promise<View[]> {
-  let query = db.selectFrom("views").selectAll();
+export async function listSubgraphs(db: Kysely<Database>, apiKeyId?: string): Promise<Subgraph[]> {
+  let query = db.selectFrom("subgraphs").selectAll();
   if (apiKeyId) {
     query = query.where("api_key_id", "=", apiKeyId);
   }
   return query.execute();
 }
 
-export async function updateViewStatus(
+export async function updateSubgraphStatus(
   db: Kysely<Database>,
   name: string,
   status: string,
   lastProcessedBlock?: number,
 ): Promise<void> {
   await db
-    .updateTable("views")
+    .updateTable("subgraphs")
     .set({
       status,
       ...(lastProcessedBlock !== undefined ? { last_processed_block: lastProcessedBlock } : {}),
@@ -91,7 +91,7 @@ export async function updateViewStatus(
     .execute();
 }
 
-export async function recordViewProcessed(
+export async function recordSubgraphProcessed(
   db: Kysely<Database>,
   name: string,
   processed: number,
@@ -99,7 +99,7 @@ export async function recordViewProcessed(
   lastError?: string,
 ): Promise<void> {
   await db
-    .updateTable("views")
+    .updateTable("subgraphs")
     .set({
       total_processed: sql`total_processed + ${processed}`,
       total_errors: sql`total_errors + ${errors}`,
@@ -112,30 +112,30 @@ export async function recordViewProcessed(
     .execute();
 }
 
-export async function updateViewHandlerPath(
+export async function updateSubgraphHandlerPath(
   db: Kysely<Database>,
   name: string,
   handlerPath: string,
 ): Promise<void> {
   await db
-    .updateTable("views")
+    .updateTable("subgraphs")
     .set({ handler_path: handlerPath, updated_at: new Date() })
     .where("name", "=", name)
     .execute();
 }
 
-export async function deleteView(db: Kysely<Database>, name: string, apiKeyId?: string): Promise<View | null> {
-  const view = await getView(db, name, apiKeyId);
-  if (!view) return null;
+export async function deleteSubgraph(db: Kysely<Database>, name: string, apiKeyId?: string): Promise<Subgraph | null> {
+  const subgraph = await getSubgraph(db, name, apiKeyId);
+  if (!subgraph) return null;
 
   // Use stored schema_name if available, otherwise compute
-  const schemaName = view.schema_name ?? pgSchemaName(name);
+  const schemaName = subgraph.schema_name ?? pgSchemaName(name);
 
-  // Drop the view's schema (CASCADE drops all tables within)
+  // Drop the subgraph's schema (CASCADE drops all tables within)
   await sql`DROP SCHEMA IF EXISTS ${sql.raw(`"${schemaName}"`)} CASCADE`.execute(db);
 
   // Remove from registry
-  await db.deleteFrom("views").where("id", "=", view.id).execute();
+  await db.deleteFrom("subgraphs").where("id", "=", subgraph.id).execute();
 
-  return view;
+  return subgraph;
 }

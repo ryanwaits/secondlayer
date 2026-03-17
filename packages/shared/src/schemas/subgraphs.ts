@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-// ── Deploy View Request ─────────────────────────────────────────────────
+// ── Deploy Subgraph Request ─────────────────────────────────────────────────
 
-export interface DeployViewRequest {
+export interface DeploySubgraphRequest {
   name: string;
   version?: string;
   description?: string;
@@ -12,7 +12,7 @@ export interface DeployViewRequest {
   reindex?: boolean;
 }
 
-export const DeployViewRequestSchema: z.ZodType<DeployViewRequest> = z.object({
+export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> = z.object({
   name: z.string().regex(/^[a-z0-9-]+$/, "lowercase alphanumeric + hyphens only").max(63),
   version: z.string().optional(),
   description: z.string().optional(),
@@ -22,15 +22,15 @@ export const DeployViewRequestSchema: z.ZodType<DeployViewRequest> = z.object({
   reindex: z.boolean().optional(),
 });
 
-export interface DeployViewResponse {
+export interface DeploySubgraphResponse {
   action: "created" | "unchanged" | "updated" | "reindexed";
-  viewId: string;
+  subgraphId: string;
   message: string;
 }
 
-// View API response types
+// Subgraph API response types
 
-export interface ViewSummary {
+export interface SubgraphSummary {
   name: string;
   version: string;
   status: string;
@@ -39,7 +39,7 @@ export interface ViewSummary {
   createdAt: string;
 }
 
-export interface ViewDetail {
+export interface SubgraphDetail {
   name: string;
   version: string;
   status: string;
@@ -67,7 +67,7 @@ export interface ReindexResponse {
   toBlock: number | string;
 }
 
-export interface ViewQueryParams {
+export interface SubgraphQueryParams {
   sort?: string;
   order?: string;
   limit?: number;
