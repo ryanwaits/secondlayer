@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — API Keys Detail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.12);
+    --border: #f2f2f2;
+    --border-hover: #ddd;
+    --accent-purple: #6344F5;
+    --accent-purple-bg: rgba(99,68,245,0.04);
+    --accent-purple-border: rgba(99,68,245,0.15);
+    --code-bg: rgba(0,0,0,0.04);
+    --code-block-bg: #fafafa;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --bg-elevated: #1a1a1a;
+      --text-main: #ececec;
+      --text-muted: rgba(255,255,255,0.4);
+      --text-dim: rgba(255,255,255,0.1);
+      --border: #2a2a2a;
+      --border-hover: #3a3a3a;
+      --accent-purple: #8b7ff0;
+      --accent-purple-bg: rgba(139,127,240,0.06);
+      --accent-purple-border: rgba(139,127,240,0.18);
+      --code-bg: rgba(255,255,255,0.08);
+      --code-block-bg: #1c1c1c;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px 120px;
+  }
+  ::selection { background: rgba(99,68,245,0.15); }
+
+  .theme-toggle {
+    position: fixed; top: 12px; right: 12px; z-index: 100;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  .explorations { display: flex; flex-direction: column; gap: 80px; max-width: 700px; width: 100%; }
+  .exp-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-purple);
+    margin-bottom: 4px;
+  }
+  .exp-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
+
+  /* ── Page chrome ── */
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .page-title {
+    font-family: var(--font-heading); font-size: 15px; font-weight: 500;
+    letter-spacing: -0.01875rem;
+  }
+  .page-desc {
+    font-size: 14px; color: var(--text-muted); margin-bottom: 20px;
+  }
+  .create-btn {
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    color: var(--text-main); background: transparent;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; transition: all 0.2s;
+  }
+  .create-btn:hover { border-color: var(--text-muted); background: var(--code-bg); }
+
+  /* ── Key rows ── */
+  .key-list { display: flex; flex-direction: column; }
+
+  .key-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: opacity 0.15s;
+    gap: 16px;
+  }
+  .key-list:hover .key-row { opacity: 0.4; }
+  .key-list:hover .key-row:hover { opacity: 1; }
+  .key-row.selected { opacity: 1 !important; }
+
+  .key-row-left {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .key-prefix {
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-main);
+  }
+  .key-name {
+    color: var(--text-muted); font-weight: 400; font-size: 14px;
+  }
+  .key-row-right {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-muted); font-size: 14px; flex-shrink: 0;
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 560; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 2px 6px; border-radius: 3px; line-height: 1;
+  }
+  .badge.active { color: var(--green); background: rgba(34,197,94,0.08); }
+  .badge.revoked { color: var(--text-muted); background: rgba(128,128,128,0.1); }
+
+  /* ── Inline detail panel ── */
+  .key-detail {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    animation: slideDown 0.2s ease;
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .detail-section-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: -0.00563rem; color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  /* Code block */
+  .code-block {
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; position: relative; margin-bottom: 6px;
+  }
+  .code-block pre {
+    margin: 0; padding: 14px 16px; padding-right: 60px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.65;
+    background: var(--code-block-bg); white-space: pre; overflow-x: auto;
+  }
+  .code-block .kw { color: var(--accent-purple); }
+  .code-block .str { color: #059669; }
+  .code-block .cmt { color: var(--text-dim); font-style: italic; }
+  @media (prefers-color-scheme: dark) {
+    .code-block .str { color: #34d399; }
+  }
+  .code-block .copy-btn {
+    position: absolute; top: 10px; right: 10px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 3px 8px; cursor: pointer; transition: all 0.15s;
+    opacity: 0; z-index: 2;
+  }
+  .code-block:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { color: var(--text-main); border-color: var(--text-muted); }
+  .copy-btn.copied { color: var(--text-main); border-color: var(--text-muted); opacity: 1; }
+
+  .code-hint {
+    font-size: 11px; color: var(--text-muted); display: flex;
+    align-items: center; gap: 6px; margin-bottom: 20px; opacity: 0.7;
+  }
+
+  /* Meta grid */
+  .meta-row {
+    display: flex; gap: 32px; margin-bottom: 20px;
+  }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .meta-value { font-size: 13px; font-weight: 460; }
+  .meta-value .badge { vertical-align: 1px; }
+
+  /* Danger button */
+  .btn-danger {
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    color: var(--red); background: transparent;
+    border: 1px solid rgba(239,68,68,0.3); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.06); border-color: var(--red); }
+
+  /* ── Split view ── */
+  .split-view {
+    display: flex; gap: 0; border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; min-height: 460px;
+  }
+  .split-left {
+    flex: 1; min-width: 0; border-right: 1px solid var(--border);
+  }
+  .split-left .key-row {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    margin: 0;
+  }
+  .split-left .key-row.selected {
+    background: var(--code-bg);
+  }
+  .split-right {
+    width: 340px; flex-shrink: 0; padding: 20px;
+    overflow-y: auto;
+  }
+  .split-right .detail-section-label:first-child { margin-top: 0; }
+
+  .split-placeholder {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: var(--text-muted); font-size: 13px;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center; padding: 32px 0;
+    color: var(--text-muted); font-size: 13px;
+  }
+  .empty-state a {
+    color: var(--accent-purple); text-decoration: underline;
+    text-decoration-color: transparent; text-underline-offset: 2px;
+    cursor: pointer; transition: text-decoration-color 0.2s;
+  }
+  .empty-state a:hover { text-decoration-color: var(--accent-purple); }
+  .empty-preview {
+    max-width: 420px; margin: 20px auto 0; text-align: left;
+  }
+  .empty-preview-label {
+    font-size: 11px; color: var(--text-muted); margin-bottom: 8px;
+    text-align: center; opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.style.colorScheme = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'; this.textContent = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'">dark</button>
+
+<div class="explorations">
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- STATE 1: Keys list, no selection                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">State 1 — Keys list, no selection</div>
+    <div class="exp-desc">Standard table. Click a row to expand its detail panel below.</div>
+
+    <div class="page-header">
+      <h1 class="page-title">API Keys</h1>
+      <button class="create-btn">+ Create key</button>
+    </div>
+    <p class="page-desc">3 keys</p>
+
+    <div class="key-list">
+      <div class="key-row">
+        <div class="key-row-left">
+          <span class="key-prefix">sl_live_••••a1b2</span>
+          <span class="key-name">prod-key</span>
+        </div>
+        <div class="key-row-right">
+          <span class="badge active">active</span>
+          last used 2h ago
+        </div>
+      </div>
+      <div class="key-row">
+        <div class="key-row-left">
+          <span class="key-prefix">sl_live_••••f8e3</span>
+          <span class="key-name">staging</span>
+        </div>
+        <div class="key-row-right">
+          <span class="badge active">active</span>
+          last used 5d ago
+        </div>
+      </div>
+      <div class="key-row">
+        <div class="key-row-left">
+          <span class="key-prefix">sl_live_••••c4d9</span>
+          <span class="key-name">old-key</span>
+        </div>
+        <div class="key-row-right">
+          <span class="badge revoked">revoked</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- STATE 2: Inline detail expansion                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">State 2 — Inline detail expansion</div>
+    <div class="exp-desc">Click "prod-key" row to expand. SDK snippet with masked key, usage examples, metadata, revoke. Click again to collapse.</div>
+
+    <div class="page-header">
+      <h1 class="page-title">API Keys</h1>
+      <button class="create-btn">+ Create key</button>
+    </div>
+    <p class="page-desc">3 keys</p>
+
+    <div class="key-list" id="inline-list">
+      <div class="key-row selected" onclick="toggleInline('detail-prod')">
+        <div class="key-row-left">
+          <span class="key-prefix">sl_live_••••a1b2</span>
+          <span class="key-name">prod-key</span>
+        </div>
+        <div class="key-row-right">
+          <span class="badge active">active</span>
+          last used 2h ago
+        </div>
+      </div>
+
+      <!-- Expanded detail -->
+      <div class="key-detail" id="detail-prod">
+        <div class="detail-section-label">SDK</div>
+        <div class="code-block" style="margin-bottom:6px">
+          <button class="copy-btn" onclick="copyCode(this, 'import { SecondLayer } from &quot;@secondlayer/sdk&quot;;\n\nconst client = new SecondLayer({\n  apiKey: &quot;sl_live_••••a1b2&quot;,\n});\n\n// List streams\nconst streams = await client.streams.list();\n\n// Query a view table\nconst rows = await client.views.query(&quot;my-view&quot;, &quot;transfers&quot;, {\n  limit: 10,\n});')">Copy</button>
+          <pre><span class="kw">import</span> { SecondLayer } <span class="kw">from</span> <span class="str">"@secondlayer/sdk"</span>;
+
+<span class="kw">const</span> client = <span class="kw">new</span> SecondLayer({
+  apiKey: <span class="str">"sl_live_••••a1b2"</span>,
+});
+
+<span class="cmt">// List streams</span>
+<span class="kw">const</span> streams = <span class="kw">await</span> client.streams.list();
+
+<span class="cmt">// Query a view table</span>
+<span class="kw">const</span> rows = <span class="kw">await</span> client.views.query(<span class="str">"my-view"</span>, <span class="str">"transfers"</span>, {
+  limit: <span style="color:var(--accent-purple)">10</span>,
+});</pre>
+        </div>
+        <div class="code-hint" style="margin-bottom:20px">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v3"/><circle cx="8" cy="11" r="0.5" fill="var(--green)"/></svg>
+          Full API key included when copied
+        </div>
+
+        <div class="meta-row">
+          <div class="meta-item">
+            <span class="meta-label">Status</span>
+            <span class="meta-value"><span class="badge active">active</span></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Created</span>
+            <span class="meta-value">Mar 2, 2026</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Last used</span>
+            <span class="meta-value">2 hours ago</span>
+          </div>
+        </div>
+
+        <button class="btn-danger">Revoke key</button>
+      </div>
+
+      <div class="key-row" onclick="toggleInline('detail-staging')">
+        <div class="key-row-left">
+          <span class="key-prefix">sl_live_••••f8e3</span>
+          <span class="key-name">staging</span>
+        </div>
+        <div class="key-row-right">
+          <span class="badge active">active</span>
+          last used 5d ago
+        </div>
+      </div>
+
+      <div class="key-detail" id="detail-staging" style="display:none">
+        <div class="detail-section-label">SDK</div>
+        <div class="code-block" style="margin-bottom:6px">
+          <button class="copy-btn" onclick="copyCode(this, 'import { SecondLayer } from &quot;@secondlayer/sdk&quot;;\n\nconst client = new SecondLayer({\n  apiKey: &quot;sl_live_••••f8e3&quot;,\n});\n\n// List streams\nconst streams = await client.streams.list();\n\n// Query a view table\nconst rows = await client.views.query(&quot;my-view&quot;, &quot;transfers&quot;, {\n  limit: 10,\n});')">Copy</button>
+          <pre><span class="kw">import</span> { SecondLayer } <span class="kw">from</span> <span class="str">"@secondlayer/sdk"</span>;
+
+<span class="kw">const</span> client = <span class="kw">new</span> SecondLayer({
+  apiKey: <span class="str">"sl_live_••••f8e3"</span>,
+});
+
+<span class="cmt">// List streams</span>
+<span class="kw">const</span> streams = <span class="kw">await</span> client.streams.list();
+
+<span class="cmt">// Query a view table</span>
+<span class="kw">const</span> rows = <span class="kw">await</span> client.views.query(<span class="str">"my-view"</span>, <span class="str">"transfers"</span>, {
+  limit: <span style="color:var(--accent-purple)">10</span>,
+});</pre>
+        </div>
+        <div class="code-hint" style="margin-bottom:20px">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v3"/><circle cx="8" cy="11" r="0.5" fill="var(--green)"/></svg>
+          Full API key included when copied
+        </div>
+
+        <div class="meta-row">
+          <div class="meta-item">
+            <span class="meta-label">Status</span>
+            <span class="meta-value"><span class="badge active">active</span></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Created</span>
+            <span class="meta-value">Feb 18, 2026</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Last used</span>
+            <span class="meta-value">5 days ago</span>
+          </div>
+        </div>
+
+        <button class="btn-danger">Revoke key</button>
+      </div>
+
+      <div class="key-row">
+        <div class="key-row-left">
+          <span class="key-prefix">sl_live_••••c4d9</span>
+          <span class="key-name">old-key</span>
+        </div>
+        <div class="key-row-right">
+          <span class="badge revoked">revoked</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- STATE 3: Side panel (split view)                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">State 3 — Side panel (split view)</div>
+    <div class="exp-desc">Click a key to open detail in a right-side panel. Selected row gets highlighted. Key list stays visible for context.</div>
+
+    <div class="page-header">
+      <h1 class="page-title">API Keys</h1>
+      <button class="create-btn">+ Create key</button>
+    </div>
+    <p class="page-desc">3 keys</p>
+
+    <div class="split-view">
+      <div class="split-left">
+        <div class="key-row selected" onclick="selectSplitKey(0)">
+          <div class="key-row-left">
+            <span class="key-prefix">sl_live_••••a1b2</span>
+            <span class="key-name">prod-key</span>
+          </div>
+          <div class="key-row-right">
+            <span class="badge active">active</span>
+          </div>
+        </div>
+        <div class="key-row" onclick="selectSplitKey(1)">
+          <div class="key-row-left">
+            <span class="key-prefix">sl_live_••••f8e3</span>
+            <span class="key-name">staging</span>
+          </div>
+          <div class="key-row-right">
+            <span class="badge active">active</span>
+          </div>
+        </div>
+        <div class="key-row" onclick="selectSplitKey(2)">
+          <div class="key-row-left">
+            <span class="key-prefix">sl_live_••••c4d9</span>
+            <span class="key-name">old-key</span>
+          </div>
+          <div class="key-row-right">
+            <span class="badge revoked">revoked</span>
+          </div>
+        </div>
+      </div>
+      <div class="split-right" id="split-panel">
+        <div class="detail-section-label">SDK</div>
+        <div class="code-block">
+          <button class="copy-btn" style="opacity:1" onclick="copyCode(this, 'import { SecondLayer } from &quot;@secondlayer/sdk&quot;;\n\nconst client = new SecondLayer({\n  apiKey: &quot;sl_live_••••a1b2&quot;,\n});\n\n// List streams\nconst streams = await client.streams.list();\n\n// Query a view table\nconst rows = await client.views.query(&quot;my-view&quot;, &quot;transfers&quot;, {\n  limit: 10,\n});')">Copy</button>
+          <pre><span class="kw">import</span> { SecondLayer } <span class="kw">from</span> <span class="str">"@secondlayer/sdk"</span>;
+
+<span class="kw">const</span> client = <span class="kw">new</span> SecondLayer({
+  apiKey: <span class="str">"sl_live_••••a1b2"</span>,
+});
+
+<span class="cmt">// List streams</span>
+<span class="kw">const</span> streams = <span class="kw">await</span> client.streams.list();
+
+<span class="cmt">// Query a view table</span>
+<span class="kw">const</span> rows = <span class="kw">await</span> client.views.query(<span class="str">"my-view"</span>, <span class="str">"transfers"</span>, {
+  limit: <span style="color:var(--accent-purple)">10</span>,
+});</pre>
+        </div>
+        <div class="code-hint" style="margin-bottom:20px">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v3"/><circle cx="8" cy="11" r="0.5" fill="var(--green)"/></svg>
+          Full key included when copied
+        </div>
+
+        <div class="meta-row">
+          <div class="meta-item">
+            <span class="meta-label">Status</span>
+            <span class="meta-value"><span class="badge active">active</span></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Created</span>
+            <span class="meta-value">Mar 2, 2026</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Last used</span>
+            <span class="meta-value">2h ago</span>
+          </div>
+        </div>
+
+        <button class="btn-danger">Revoke key</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- STATE 4: Empty state                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">State 4 — Empty state</div>
+    <div class="exp-desc">No keys yet. Preview of what the SDK snippet will look like with a placeholder key.</div>
+
+    <div class="page-header">
+      <h1 class="page-title">API Keys</h1>
+      <button class="create-btn">+ Create key</button>
+    </div>
+
+    <div class="empty-state">
+      <p>No API keys yet.</p>
+      <p style="margin-top:8px"><a>Create your first key</a> to start using the SDK.</p>
+
+      <div class="empty-preview">
+        <div class="empty-preview-label">Preview</div>
+        <div class="code-block" style="opacity:0.5">
+          <pre><span class="kw">import</span> { SecondLayer } <span class="kw">from</span> <span class="str">"@secondlayer/sdk"</span>;
+
+<span class="kw">const</span> client = <span class="kw">new</span> SecondLayer({
+  apiKey: <span class="str">"sl_live_••••••••"</span>,
+});
+
+<span class="cmt">// List streams</span>
+<span class="kw">const</span> streams = <span class="kw">await</span> client.streams.list();
+
+<span class="cmt">// Query a view table</span>
+<span class="kw">const</span> rows = <span class="kw">await</span> client.views.query(<span class="str">"my-view"</span>, <span class="str">"transfers"</span>, {
+  limit: <span style="color:var(--accent-purple)">10</span>,
+});</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function toggleInline(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const row = el.previousElementSibling;
+  if (el.style.display === 'none') {
+    // Close all others first
+    document.querySelectorAll('#inline-list .key-detail').forEach(d => {
+      d.style.display = 'none';
+      if (d.previousElementSibling) d.previousElementSibling.classList.remove('selected');
+    });
+    el.style.display = '';
+    if (row) row.classList.add('selected');
+  } else {
+    el.style.display = 'none';
+    if (row) row.classList.remove('selected');
+  }
+}
+
+function selectSplitKey(idx) {
+  const rows = document.querySelectorAll('.split-left .key-row');
+  rows.forEach((r, i) => r.classList.toggle('selected', i === idx));
+  // In a real app, this would update the panel content
+}
+
+function copyCode(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+</script>
+
+</body>
+</html>

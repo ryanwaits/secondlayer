@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Dashboard Data State</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.12);
+    --border: #f2f2f2;
+    --border-hover: #ddd;
+    --accent-purple: #6344F5;
+    --accent-purple-bg: rgba(99,68,245,0.04);
+    --accent-purple-border: rgba(99,68,245,0.15);
+    --code-bg: rgba(0,0,0,0.04);
+    --code-block-bg: #fafafa;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --bg-elevated: #1a1a1a;
+      --text-main: #ececec;
+      --text-muted: rgba(255,255,255,0.4);
+      --text-dim: rgba(255,255,255,0.1);
+      --border: #2a2a2a;
+      --border-hover: #3a3a3a;
+      --accent-purple: #8b7ff0;
+      --accent-purple-bg: rgba(139,127,240,0.06);
+      --accent-purple-border: rgba(139,127,240,0.18);
+      --code-bg: rgba(255,255,255,0.08);
+      --code-block-bg: #1c1c1c;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+    padding: 40px 20px 120px;
+    max-width: 900px;
+  }
+  ::selection { background: rgba(99,68,245,0.15); }
+
+  .theme-toggle {
+    position: fixed; top: 12px; right: 12px; z-index: 100;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  /* ── Page header ── */
+  .page-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .page-title {
+    font-family: var(--font-heading); font-size: 15px; font-weight: 500;
+    letter-spacing: -0.01875rem;
+  }
+  .actions-btn {
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    color: var(--text-main); background: transparent;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px 6px 14px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 2px;
+  }
+  .actions-btn:hover { border-color: var(--text-muted); background: var(--code-bg); }
+
+  /* ── Stats row ── */
+  .stats {
+    display: flex; gap: 32px; margin-bottom: 4px;
+  }
+  .stat { display: flex; align-items: baseline; gap: 6px; }
+  .stat-value {
+    font-family: var(--font-heading); font-size: 20px; font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .stat-label { font-size: 13px; color: var(--text-muted); }
+
+  /* ── Section divider ── */
+  .section-wrap { position: relative; margin-top: 32px; margin-bottom: 20px; }
+  .section-wrap hr { border: none; height: 1px; background: var(--border); }
+  .section-title {
+    position: absolute; top: 50%; left: 0; transform: translateY(-50%);
+    background: var(--bg); padding-right: 12px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: -0.00563rem; color: var(--text-muted);
+    line-height: 20px; margin: 0;
+  }
+
+  /* ── Activity feed ── */
+  .feed { display: flex; flex-direction: column; }
+  .feed-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot.green { background: var(--green); }
+  .dot.red { background: var(--red); }
+  .dot.yellow { background: var(--yellow); }
+  .dot.muted { background: var(--text-muted); opacity: 0.4; }
+  .feed-text { flex: 1; color: var(--text-main); font-weight: 460; }
+  .feed-text .mono {
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .feed-text .dim { color: var(--text-muted); }
+  .feed-time {
+    font-size: 12px; color: var(--text-muted); flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Resource rows ── */
+  .resource-list { display: flex; flex-direction: column; }
+  .resource-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    text-decoration: none; color: var(--text-main);
+    transition: background 0.1s;
+  }
+  .resource-item:last-child { border-bottom: none; }
+  .resource-name {
+    font-family: var(--font-mono); font-size: 13px; flex: 1;
+  }
+  .resource-meta {
+    font-size: 12px; color: var(--text-muted); flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .badge {
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 560; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 2px 6px; border-radius: 3px; line-height: 1;
+  }
+  .badge.active { color: var(--green); background: rgba(34,197,94,0.08); }
+  .badge.paused { color: var(--yellow); background: rgba(234,179,8,0.08); }
+  .badge.failed { color: var(--red); background: rgba(239,68,68,0.08); }
+  .badge.synced { color: var(--green); background: rgba(34,197,94,0.08); }
+  .badge.syncing { color: var(--yellow); background: rgba(234,179,8,0.08); }
+
+  /* ── Insight card ── */
+  .insight {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px; padding: 12px 14px; border-radius: 6px;
+    font-size: 13px; line-height: 1.5;
+    border-left: 3px solid transparent;
+  }
+  .insight-warning {
+    color: var(--yellow); background: rgba(234,179,8,0.06);
+    border-left-color: var(--yellow);
+  }
+  .insight-info {
+    color: var(--accent-purple); background: var(--accent-purple-bg);
+    border-left-color: var(--accent-purple);
+  }
+  .insight strong { display: block; margin-bottom: 2px; }
+  .insight-body { color: var(--text-main); opacity: 0.7; }
+  .insight-dismiss {
+    font-size: 12px; font-weight: 460; color: var(--text-muted);
+    background: none; border: none; cursor: pointer;
+    padding: 2px 8px; border-radius: 4px; transition: all 0.15s;
+    flex-shrink: 0; font-family: inherit;
+  }
+  .insight-dismiss:hover { color: var(--text-main); background: var(--code-bg); }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.style.colorScheme = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'; this.textContent = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'">dark</button>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Dashboard — Data State                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<div class="page-header">
+  <h1 class="page-title">Dashboard</h1>
+  <button class="actions-btn">
+    Actions
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;">
+      <path d="M4 6l4 4 4-4"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Stats row -->
+<div class="stats">
+  <div class="stat">
+    <span class="stat-value">3</span>
+    <span class="stat-label">streams</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">2</span>
+    <span class="stat-label">views</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">99.2%</span>
+    <span class="stat-label">delivery rate</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">1,247</span>
+    <span class="stat-label">deliveries 24h</span>
+  </div>
+</div>
+
+<!-- Intelligence callout -->
+<div style="margin-top: 24px;">
+  <div class="insight insight-warning" id="insight-1">
+    <div>
+      <strong>dex-monitor has 23% failed deliveries in the last hour</strong>
+      <span class="insight-body">Your webhook at api.example.com/hook is returning 502 Bad Gateway. Last 8 failures occurred between 14:02–14:18.</span>
+    </div>
+    <button class="insight-dismiss" onclick="document.getElementById('insight-1').style.display='none'">Dismiss</button>
+  </div>
+</div>
+
+<!-- Activity feed -->
+<div class="section-wrap">
+  <hr><h2 class="section-title">Activity</h2>
+</div>
+
+<div class="feed">
+  <div class="feed-item">
+    <span class="dot green"></span>
+    <span class="feed-text">Stream <span class="mono">stx-transfers</span> triggered <span class="dim">— Block 187,432</span></span>
+    <span class="feed-time">2m ago</span>
+  </div>
+  <div class="feed-item">
+    <span class="dot green"></span>
+    <span class="feed-text">View <span class="mono">token-transfers</span> processed to <span class="dim">Block 187,430</span></span>
+    <span class="feed-time">3m ago</span>
+  </div>
+  <div class="feed-item">
+    <span class="dot red"></span>
+    <span class="feed-text">Delivery failed — <span class="mono">dex-monitor</span> <span class="dim">→ 502 Bad Gateway</span></span>
+    <span class="feed-time">8m ago</span>
+  </div>
+  <div class="feed-item">
+    <span class="dot green"></span>
+    <span class="feed-text">View <span class="mono">nft-listings</span> processed to <span class="dim">Block 187,429</span></span>
+    <span class="feed-time">12m ago</span>
+  </div>
+  <div class="feed-item">
+    <span class="dot yellow"></span>
+    <span class="feed-text">Stream <span class="mono">whale-alerts</span> paused <span class="dim">by CLI</span></span>
+    <span class="feed-time">1h ago</span>
+  </div>
+  <div class="feed-item">
+    <span class="dot muted"></span>
+    <span class="feed-text">Stream <span class="mono">stx-transfers</span> webhook secret rotated</span>
+    <span class="feed-time">3h ago</span>
+  </div>
+</div>
+
+<!-- Streams -->
+<div class="section-wrap">
+  <hr><h2 class="section-title">Streams</h2>
+</div>
+
+<div class="resource-list">
+  <a class="resource-item" href="#">
+    <span class="dot green"></span>
+    <span class="resource-name">stx-transfers</span>
+    <span class="resource-meta">
+      842 deliveries, 100% success
+      <span class="badge active">active</span>
+    </span>
+  </a>
+  <a class="resource-item" href="#">
+    <span class="dot red"></span>
+    <span class="resource-name">dex-monitor</span>
+    <span class="resource-meta">
+      389 deliveries, 77% success
+      <span class="badge failed">failed</span>
+    </span>
+  </a>
+  <a class="resource-item" href="#">
+    <span class="dot yellow"></span>
+    <span class="resource-name">whale-alerts</span>
+    <span class="resource-meta">
+      16 deliveries, 100% success
+      <span class="badge paused">paused</span>
+    </span>
+  </a>
+</div>
+
+<!-- Views -->
+<div class="section-wrap">
+  <hr><h2 class="section-title">Views</h2>
+</div>
+
+<div class="resource-list">
+  <a class="resource-item" href="#">
+    <span class="dot green"></span>
+    <span class="resource-name">token-transfers</span>
+    <span class="resource-meta">
+      block 187,430 · 2 tables
+      <span class="badge synced">synced</span>
+    </span>
+  </a>
+  <a class="resource-item" href="#">
+    <span class="dot yellow"></span>
+    <span class="resource-name">nft-listings</span>
+    <span class="resource-meta">
+      block 186,583 · 3 tables
+      <span class="badge syncing">syncing</span>
+    </span>
+  </a>
+</div>
+
+</body>
+</html>

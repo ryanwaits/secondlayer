@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Dashboard Empty State Explorations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.15);
+    --border: #f2f2f2;
+    --border-strong: #e8e8e8;
+    --accent: #6344F5;
+    --accent-bg: rgba(99,68,245,0.05);
+    --accent-border: rgba(99,68,245,0.12);
+    --code-bg: rgba(0,0,0,0.03);
+    --code-block-bg: #fafafa;
+    --green: #22c55e;
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+
+  html.dark {
+    --bg: #141414;
+    --bg-elevated: #1a1a1a;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.4);
+    --text-dim: rgba(255,255,255,0.12);
+    --border: #252525;
+    --border-strong: #333;
+    --accent: #8b7ff0;
+    --accent-bg: rgba(139,127,240,0.06);
+    --accent-border: rgba(139,127,240,0.18);
+    --code-bg: rgba(255,255,255,0.05);
+    --code-block-bg: #1c1c1c;
+    --green: #22c55e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px 120px;
+  }
+  ::selection { background: rgba(99,68,245,0.15); }
+
+  .theme-toggle {
+    position: fixed; top: 20px; right: 20px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px; cursor: pointer; z-index: 100;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  .explorations { display: flex; flex-direction: column; gap: 96px; max-width: 640px; width: 100%; }
+  .exploration { display: flex; flex-direction: column; gap: 16px; }
+  .exp-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* Shared component styles                                       */
+  /* ═══════════════════════════════════════════════════════════════ */
+
+  .dash-title {
+    font-family: var(--font-heading); font-size: 15px; font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Product cards ── */
+  .product-cards { display: flex; gap: 12px; }
+  .product-card {
+    flex: 1; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg-elevated); overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .product-card:hover { border-color: var(--border-strong); }
+
+  .pc-header { padding: 20px 20px 0; }
+  .pc-eyebrow {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 6px;
+  }
+  .pc-title {
+    font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.35; margin-bottom: 4px;
+  }
+  .pc-desc {
+    font-size: 12.5px; color: var(--text-muted); line-height: 1.5;
+  }
+
+  .pc-code {
+    margin: 14px 16px 0; border-radius: 8px; overflow: hidden;
+    background: var(--code-block-bg); border: 1px solid var(--border);
+  }
+  .pc-code pre {
+    margin: 0; padding: 14px 16px;
+    font-family: var(--font-mono); font-size: 11.5px; line-height: 1.65;
+    white-space: pre; overflow-x: auto; color: var(--text-main);
+  }
+  .pc-code .kw { color: var(--accent); }
+  .pc-code .str { color: #059669; }
+  .pc-code .cmt { color: var(--text-dim); font-style: italic; }
+  .pc-code .fn { color: var(--text-main); font-weight: 500; }
+  html.dark .pc-code .str { color: #34d399; }
+
+  .pc-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px 16px; gap: 12px;
+  }
+  .pc-links { display: flex; gap: 12px; }
+  .pc-link {
+    font-size: 12px; color: var(--text-muted); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .pc-link:hover { color: var(--accent); }
+  .pc-link-sep { color: var(--text-dim); }
+
+  /* ── Copy prompt button ── */
+  .copy-prompt {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--accent); background: none;
+    border: 1px solid var(--accent-border); border-radius: 5px;
+    padding: 4px 12px; cursor: pointer; transition: all 0.15s;
+    flex-shrink: 0; white-space: nowrap;
+  }
+  .copy-prompt:hover { background: var(--accent-bg); }
+  .copy-prompt.copied { background: var(--green); color: #fff; border-color: var(--green); }
+
+  /* ── Skill bar ── */
+  .skill-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: var(--accent-bg);
+    border: 1px solid var(--accent-border); border-radius: 8px;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .skill-bar-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--accent); flex-shrink: 0;
+  }
+  .skill-bar-cmd { flex: 1; color: var(--text-main); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Quick actions row ── */
+  .qa-row { display: flex; gap: 8px; }
+  .qa-card {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .qa-card:hover { border-color: var(--accent-border); background: var(--accent-bg); }
+  .qa-icon {
+    width: 28px; height: 28px; border-radius: 6px; background: var(--code-bg);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-muted);
+  }
+  .qa-text { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+  .qa-label { font-size: 13px; font-weight: 500; }
+  .qa-desc { font-size: 11px; color: var(--text-muted); }
+
+  /* ── CLI command inline ── */
+  .cli-cmd {
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+    background: var(--code-bg); padding: 6px 12px; border-radius: 6px;
+    display: block;
+  }
+
+  .hint-text {
+    text-align: center; font-size: 11px; color: var(--text-dim);
+  }
+
+  @media (max-width: 640px) {
+    .product-cards { flex-direction: column; }
+    .qa-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark'); this.textContent = document.documentElement.classList.contains('dark') ? 'light mode' : 'dark mode'">dark mode</button>
+
+<div class="explorations">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- OPTION A: Two product cards with code snippets                -->
+  <!-- Like a mini marketing site inside the dashboard               -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="exploration">
+    <div class="exp-label">A — product cards with code</div>
+
+    <div class="dash-title">Dashboard</div>
+
+    <div class="product-cards">
+      <!-- Streams card -->
+      <div class="product-card">
+        <div class="pc-header">
+          <div class="pc-eyebrow">Streams</div>
+          <div class="pc-title">Webhook event delivery</div>
+          <div class="pc-desc">
+            Filter on-chain events — transfers, calls, mints — and deliver matches to your endpoint in real time.
+          </div>
+        </div>
+        <div class="pc-code">
+          <pre><span class="kw">const</span> { stream } = <span class="kw">await</span> sl.streams.<span class="fn">create</span>({
+  name: <span class="str">"stx-transfers"</span>,
+  webhookUrl: <span class="str">"https://..."</span>,
+  filters: [{ type: <span class="str">"stx_transfer"</span> }],
+})</pre>
+        </div>
+        <div class="pc-footer">
+          <div class="pc-links">
+            <a class="pc-link" href="#">Docs</a>
+            <span class="pc-link-sep">·</span>
+            <a class="pc-link" href="#">Examples</a>
+          </div>
+          <button class="copy-prompt" onclick="copyBtn(this, 'streams')">Copy prompt</button>
+        </div>
+      </div>
+
+      <!-- Views card -->
+      <div class="product-card">
+        <div class="pc-header">
+          <div class="pc-eyebrow">Views</div>
+          <div class="pc-title">Custom blockchain indexer</div>
+          <div class="pc-desc">
+            Define SQL tables and TypeScript handlers. secondlayer indexes matching activity into queryable Postgres.
+          </div>
+        </div>
+        <div class="pc-code">
+          <pre><span class="kw">export default</span> <span class="fn">defineView</span>({
+  name: <span class="str">"token-transfers"</span>,
+  sources: [{ type: <span class="str">"stx-transfer"</span> }],
+  schema: {
+    transfers: {
+      columns: { sender: { type: <span class="str">"principal"</span> } }
+    }
+  }
+})</pre>
+        </div>
+        <div class="pc-footer">
+          <div class="pc-links">
+            <a class="pc-link" href="#">Docs</a>
+            <span class="pc-link-sep">·</span>
+            <a class="pc-link" href="#">Scaffold</a>
+          </div>
+          <button class="copy-prompt" onclick="copyBtn(this, 'views')">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- OPTION B: Stacked — hero section + code + quick actions       -->
+  <!-- More editorial, one thing at a time                           -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="exploration">
+    <div class="exp-label">B — stacked editorial</div>
+
+    <div class="dash-title">Dashboard</div>
+
+    <div style="padding:28px 0 20px; border-bottom: 1px solid var(--border);">
+      <div style="font-family: var(--font-heading); font-size: 20px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.3; margin-bottom: 6px;">
+        Index the Stacks blockchain.
+      </div>
+      <div style="font-size: 13px; color: var(--text-muted); line-height: 1.55; max-width: 440px;">
+        Streams push events to your webhook. Views index into SQL you can query. Both start with a few lines of code — or paste a prompt into your agent.
+      </div>
+    </div>
+
+    <div class="product-cards" style="margin-top: 4px;">
+      <div class="product-card">
+        <div class="pc-header">
+          <div class="pc-eyebrow">Streams</div>
+          <div class="pc-title">Webhooks for blockchain events</div>
+          <div class="pc-desc">At-least-once delivery. Filter by type, contract, sender, amount.</div>
+        </div>
+        <div class="pc-code">
+          <pre><span class="cmt"># Create + register a stream</span>
+sl streams new my-stream
+sl streams register ./my-stream.json</pre>
+        </div>
+        <div class="pc-footer">
+          <a class="pc-link" href="#">Read the docs →</a>
+          <button class="copy-prompt" onclick="copyBtn(this, 'streams')">Copy prompt</button>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="pc-header">
+          <div class="pc-eyebrow">Views</div>
+          <div class="pc-title">SQL tables from chain data</div>
+          <div class="pc-desc">Scaffold from a contract ABI, write handlers, deploy, query via REST.</div>
+        </div>
+        <div class="pc-code">
+          <pre><span class="cmt"># Scaffold + deploy a view</span>
+sl views scaffold SP102...::amm-pool \
+  -o views/swaps.ts
+sl views deploy views/swaps.ts</pre>
+        </div>
+        <div class="pc-footer">
+          <a class="pc-link" href="#">Read the docs →</a>
+          <button class="copy-prompt" onclick="copyBtn(this, 'views')">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- OPTION C: Compact — skill bar + product cards (no hero)       -->
+  <!-- Tight, utilitarian, dev console feel                          -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="exploration">
+    <div class="exp-label">C — compact console</div>
+
+    <div class="dash-title">Dashboard</div>
+
+    <div class="skill-bar">
+      <span class="skill-bar-label">skill</span>
+      <span class="skill-bar-cmd">npx skills add ryanwaits/secondlayer --skill secondlayer</span>
+      <button class="copy-prompt" onclick="copyBtn(this, 'skill')" style="font-size:10px; padding: 3px 10px;">Copy</button>
+    </div>
+
+    <div class="product-cards">
+      <div class="product-card">
+        <div class="pc-header">
+          <div class="pc-eyebrow">Streams</div>
+          <div class="pc-title">Webhook event delivery</div>
+        </div>
+        <div class="pc-code">
+          <pre>sl streams new my-stream
+sl streams register ./my-stream.json</pre>
+        </div>
+        <div class="pc-footer">
+          <a class="pc-link" href="#">Docs →</a>
+          <button class="copy-prompt" onclick="copyBtn(this, 'streams')">Copy prompt</button>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="pc-header">
+          <div class="pc-eyebrow">Views</div>
+          <div class="pc-title">Blockchain indexer</div>
+        </div>
+        <div class="pc-code">
+          <pre>sl views scaffold &lt;contract&gt; -o view.ts
+sl views deploy view.ts</pre>
+        </div>
+        <div class="pc-footer">
+          <a class="pc-link" href="#">Docs →</a>
+          <button class="copy-prompt" onclick="copyBtn(this, 'views')">Copy prompt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.dropdown-wrap.open').forEach((d) => {
+    if (!d.contains(e.target)) d.classList.remove('open');
+  });
+});
+
+function copyBtn(btn, type) {
+  const prompts = {
+    streams: `Streams are webhook subscriptions — define filters for on-chain events (transfers, contract calls, mints, etc.) and secondlayer pushes matching events to your endpoint as each block is processed. Delivery is at-least-once.
+
+Ensure setup (skip any step already done, use the project's package manager):
+- Skill: skills add ryanwaits/secondlayer --skill secondlayer
+- CLI: @secondlayer/cli installed globally
+- Auth: secondlayer auth login
+
+/secondlayer Help me create a stream. Ask me:
+1. What blockchain events do I want to track?
+2. Where should deliveries be sent (webhook URL)?
+3. Any filter constraints (contract, sender, amount)?
+
+Create the stream config and register it.`,
+
+    views: `Views are like subgraphs — define SQL tables, write event handlers in TypeScript, and secondlayer indexes matching blockchain activity into queryable Postgres tables. Think materialized views over the chain.
+
+Ensure setup (skip any step already done, use the project's package manager):
+- Skill: skills add ryanwaits/secondlayer --skill secondlayer
+- CLI: @secondlayer/cli installed globally
+- Auth: secondlayer auth login
+
+/secondlayer Help me create a view. Ask me:
+1. What contract do I want to index?
+2. Which events or function calls should I track?
+3. What columns do I need in my tables?
+
+Scaffold the view, let me review it, then deploy.`,
+
+    skill: 'npx skills add ryanwaits/secondlayer --skill secondlayer'
+  };
+
+  const text = prompts[type] || '';
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>
