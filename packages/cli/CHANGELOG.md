@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 1.6.5
+
+### Patch Changes
+
+- Coerce numeric columns to BigInt in findOne/findMany results so arithmetic works correctly in handlers.
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@0.5.2
+
 ## 1.6.4
 
 ### Patch Changes
