@@ -12,4 +12,5 @@ export const queryKeys = {
   keys: {
     all: ["keys"] as const,
   },
+  status: ["status"] as const,
 };

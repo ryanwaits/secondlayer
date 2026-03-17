@@ -74,6 +74,13 @@ export interface AccountInsight {
   expiresAt: string | null;
 }
 
+export interface SystemStatus {
+  status: "healthy" | "degraded";
+  chainTip: number | null;
+  recentDeliveries: number;
+  timestamp: string;
+}
+
 export interface ViewDetail {
   name: string;
   version: string;
