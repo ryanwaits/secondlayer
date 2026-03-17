@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Onboarding Explorations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-secondary: #444;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.15);
+    --border: #f0f0f0;
+    --border-hover: #ddd;
+    --accent: #6344F5;
+    --accent-muted: rgba(99,68,245,0.5);
+    --accent-bg: rgba(99,68,245,0.05);
+    --accent-border: rgba(99,68,245,0.15);
+    --accent-border-active: rgba(99,68,245,0.4);
+    --code-bg: rgba(0,0,0,0.03);
+    --code-block-bg: #fafafa;
+    --green: #22c55e;
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+
+  html.dark {
+    --bg: #141414;
+    --bg-elevated: #1a1a1a;
+    --text-main: #ececec;
+    --text-secondary: #bbb;
+    --text-muted: rgba(255,255,255,0.4);
+    --text-dim: rgba(255,255,255,0.1);
+    --border: #222;
+    --border-hover: #3a3a3a;
+    --accent: #8b7ff0;
+    --accent-muted: rgba(139,127,240,0.5);
+    --accent-bg: rgba(139,127,240,0.06);
+    --accent-border: rgba(139,127,240,0.18);
+    --accent-border-active: rgba(139,127,240,0.5);
+    --code-bg: rgba(255,255,255,0.05);
+    --code-block-bg: #1c1c1c;
+    --green: #22c55e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px 120px;
+  }
+  ::selection { background: rgba(99,68,245,0.15); }
+
+  .theme-toggle {
+    position: fixed; top: 20px; right: 20px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px; cursor: pointer; z-index: 100;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  .explorations { display: flex; flex-direction: column; gap: 120px; max-width: 520px; width: 100%; }
+  .exploration { display: flex; flex-direction: column; gap: 20px; }
+  .exp-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+  }
+  .exp-desc {
+    font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-top: -12px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* OPTION A — Product picker                                     */
+  /* ═══════════════════════════════════════════════════════════════ */
+
+  .onboard-a { display: flex; flex-direction: column; gap: 24px; }
+
+  .onboard-a-header {
+    display: flex; flex-direction: column; gap: 6px;
+    padding-bottom: 24px; border-bottom: 1px solid var(--border);
+  }
+  .onboard-a-title {
+    font-family: var(--font-heading); font-size: 20px; font-weight: 600;
+    letter-spacing: -0.03em; line-height: 1.25;
+  }
+  .onboard-a-sub {
+    font-size: 13.5px; color: var(--text-muted); line-height: 1.55;
+    max-width: 400px;
+  }
+
+  .product-picker { display: flex; flex-direction: column; gap: 10px; }
+
+  .product-option {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 16px 18px; border: 1px solid var(--border);
+    border-radius: 10px; cursor: pointer; transition: all 0.15s;
+    position: relative; user-select: none;
+  }
+  .product-option:hover { border-color: var(--border-hover); }
+  .product-option.selected {
+    border-color: var(--accent-border-active);
+    background: var(--accent-bg);
+  }
+
+  .product-check {
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-hover); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; margin-top: 1px;
+  }
+  .product-option.selected .product-check {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .product-check svg { opacity: 0; transition: opacity 0.15s; }
+  .product-option.selected .product-check svg { opacity: 1; }
+
+  .product-info { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .product-name {
+    font-family: var(--font-heading); font-size: 14px; font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .product-tagline { font-size: 12.5px; color: var(--text-muted); line-height: 1.45; }
+
+  .product-code-preview {
+    margin-top: 10px; padding: 10px 12px;
+    background: var(--code-block-bg); border-radius: 6px;
+    border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 11px; line-height: 1.6;
+    color: var(--text-secondary); overflow-x: auto; white-space: pre;
+  }
+  .product-code-preview .kw { color: var(--accent); }
+  .product-code-preview .str { color: #059669; }
+  html.dark .product-code-preview .str { color: #34d399; }
+
+  .onboard-hint {
+    font-size: 11.5px; color: var(--text-dim); line-height: 1.5;
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  .onboard-hint svg { flex-shrink: 0; margin-top: 2px; }
+
+  .onboard-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 20px; border-top: 1px solid var(--border);
+  }
+  .onboard-skip {
+    font-size: 12.5px; color: var(--text-muted); cursor: pointer;
+    background: none; border: none; font-family: var(--font-sans);
+    font-weight: 460; transition: color 0.15s;
+  }
+  .onboard-skip:hover { color: var(--text-main); }
+  .onboard-continue {
+    font-family: var(--font-sans); font-size: 13px; font-weight: 560;
+    color: #fff; background: var(--text-main);
+    border: none; border-radius: 6px; padding: 8px 20px;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .onboard-continue:hover { opacity: 0.85; }
+  .onboard-continue:disabled { opacity: 0.3; cursor: default; }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* OPTION B — Inline toggle cards with immediate dashboard        */
+  /* No separate "onboarding step" — just smart defaults            */
+  /* ═══════════════════════════════════════════════════════════════ */
+
+  .onboard-b { display: flex; flex-direction: column; gap: 0; }
+
+  .onboard-b-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .onboard-b-title {
+    font-family: var(--font-heading); font-size: 15px; font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  .toggle-cards { display: flex; gap: 10px; margin-bottom: 20px; }
+  .toggle-card {
+    flex: 1; padding: 14px 16px;
+    border: 1px solid var(--border); border-radius: 10px;
+    cursor: pointer; transition: all 0.2s; position: relative;
+  }
+  .toggle-card:hover { border-color: var(--border-hover); }
+  .toggle-card.active {
+    border-color: var(--accent-border-active);
+    background: var(--accent-bg);
+  }
+  .toggle-card.active::after {
+    content: ''; position: absolute; top: -1px; left: 20px; right: 20px;
+    height: 2px; background: var(--accent); border-radius: 0 0 2px 2px;
+  }
+
+  .tc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .tc-name {
+    font-family: var(--font-heading); font-size: 13px; font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .tc-toggle {
+    width: 32px; height: 18px; border-radius: 9px;
+    background: var(--border-hover); position: relative;
+    transition: background 0.2s; flex-shrink: 0;
+  }
+  .toggle-card.active .tc-toggle { background: var(--accent); }
+  .tc-toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .toggle-card.active .tc-toggle::after { transform: translateX(14px); }
+
+  .tc-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; }
+
+  .tc-code {
+    margin-top: 10px; padding: 8px 10px;
+    background: var(--code-block-bg); border-radius: 5px;
+    border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 10.5px; line-height: 1.55;
+    color: var(--text-secondary); white-space: pre; overflow-x: auto;
+  }
+  .tc-code .kw { color: var(--accent); }
+  .tc-code .str { color: #059669; }
+  html.dark .tc-code .str { color: #34d399; }
+
+  .config-hint {
+    font-size: 11px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 0;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* OPTION C — Single question with progressive disclosure         */
+  /* Feels like a terminal prompt                                   */
+  /* ═══════════════════════════════════════════════════════════════ */
+
+  .onboard-c { display: flex; flex-direction: column; gap: 0; }
+
+  .terminal-prompt {
+    display: flex; flex-direction: column; gap: 20px;
+    padding: 28px 24px;
+    background: var(--code-block-bg); border: 1px solid var(--border);
+    border-radius: 10px; font-family: var(--font-mono);
+  }
+
+  .tp-line {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13px; line-height: 1.5;
+  }
+  .tp-caret {
+    color: var(--accent); font-weight: 600; flex-shrink: 0;
+    margin-top: 0px;
+  }
+  .tp-text { color: var(--text-main); }
+  .tp-text .dim { color: var(--text-muted); }
+
+  .tp-options { display: flex; flex-direction: column; gap: 6px; padding-left: 23px; }
+  .tp-option {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer; transition: all 0.15s;
+    font-size: 12.5px; font-family: var(--font-sans); font-weight: 460;
+  }
+  .tp-option:hover { border-color: var(--border-hover); background: var(--bg-elevated); }
+  .tp-option.selected {
+    border-color: var(--accent-border-active); background: var(--accent-bg);
+  }
+
+  .tp-radio {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1.5px solid var(--border-hover); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .tp-option.selected .tp-radio {
+    border-color: var(--accent); background: var(--accent);
+  }
+  .tp-radio-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #fff; opacity: 0; transition: opacity 0.15s;
+  }
+  .tp-option.selected .tp-radio-dot { opacity: 1; }
+
+  .tp-option-text { flex: 1; }
+  .tp-option-name { font-weight: 560; color: var(--text-main); }
+  .tp-option-desc { color: var(--text-muted); font-size: 11px; margin-top: 1px; }
+
+  .tp-kbd {
+    font-family: var(--font-mono); font-size: 10px;
+    padding: 1px 5px; border: 1px solid var(--border);
+    border-radius: 3px; color: var(--text-dim);
+  }
+
+  .tp-footer {
+    padding-left: 23px; margin-top: 4px;
+    font-size: 11px; color: var(--text-dim); font-family: var(--font-sans);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* Sidebar preview                                                */
+  /* ═══════════════════════════════════════════════════════════════ */
+  .sidebar-preview {
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px 18px; background: var(--bg-elevated);
+    display: flex; flex-direction: column; gap: 4px;
+    max-width: 160px;
+  }
+  .sp-title {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 4px;
+  }
+  .sp-item {
+    font-size: 13px; font-weight: 460; color: var(--text-muted);
+    padding: 2px 0; transition: all 0.15s;
+  }
+  .sp-item.active { color: var(--text-main); font-weight: 560; }
+  .sp-item.hidden { color: var(--text-dim); text-decoration: line-through; font-size: 12px; }
+  .sp-item.hidden::after {
+    content: 'hidden'; font-family: var(--font-mono); font-size: 9px;
+    margin-left: 6px; color: var(--text-dim); text-decoration: none;
+    display: inline;
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark'); this.textContent = document.documentElement.classList.contains('dark') ? 'light mode' : 'dark mode'">dark mode</button>
+
+<div class="explorations">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- OPTION A — Product picker (dedicated onboarding step)         -->
+  <!-- Shows after first login. Checkbox selection, code previews.  -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="exploration">
+    <div class="exp-label">A — product picker (first login)</div>
+    <div class="exp-desc">Dedicated step after first login. Select what you want, see code previews. Configures sidebar + dashboard. Skippable — defaults to everything on.</div>
+
+    <div class="onboard-a">
+      <div class="onboard-a-header">
+        <div class="onboard-a-title">What are you building?</div>
+        <div class="onboard-a-sub">
+          Select the products you need. This configures your dashboard and sidebar. You can change this anytime in settings.
+        </div>
+      </div>
+
+      <div class="product-picker">
+        <div class="product-option selected" onclick="this.classList.toggle('selected')">
+          <div class="product-check">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M3.5 8.5l3 3 6-7"/></svg>
+          </div>
+          <div class="product-info">
+            <div class="product-name">Streams</div>
+            <div class="product-tagline">Real-time webhook delivery for blockchain events. Filter transfers, calls, mints — push to your endpoint.</div>
+            <div class="product-code-preview"><span class="kw">const</span> { stream } = <span class="kw">await</span> sl.streams.create({
+  name: <span class="str">"stx-transfers"</span>,
+  filters: [{ type: <span class="str">"stx_transfer"</span> }],
+})</div>
+          </div>
+        </div>
+
+        <div class="product-option selected" onclick="this.classList.toggle('selected')">
+          <div class="product-check">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M3.5 8.5l3 3 6-7"/></svg>
+          </div>
+          <div class="product-info">
+            <div class="product-name">Views</div>
+            <div class="product-tagline">Custom blockchain indexer. SQL tables + TypeScript handlers. Like subgraphs, but queryable Postgres.</div>
+            <div class="product-code-preview"><span class="kw">export default</span> defineView({
+  name: <span class="str">"token-transfers"</span>,
+  sources: [{ type: <span class="str">"stx-transfer"</span> }],
+  schema: { transfers: { ... } }
+})</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="onboard-hint">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="6.5"/><path d="M8 5.5v3M8 10.5v.5"/></svg>
+        <span>Deselected products are hidden from your sidebar and dashboard. Re-enable anytime in <strong>Settings → Products</strong>.</span>
+      </div>
+
+      <div class="onboard-actions">
+        <button class="onboard-skip">Skip — enable everything</button>
+        <button class="onboard-continue">Continue</button>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:24px; align-items:flex-start; margin-top:8px;">
+      <div class="sidebar-preview">
+        <div class="sp-title">Sidebar result</div>
+        <div class="sp-item active">Dashboard</div>
+        <div class="sp-item">Streams</div>
+        <div class="sp-item">Views</div>
+        <div class="sp-item">API Keys</div>
+      </div>
+      <div class="sidebar-preview">
+        <div class="sp-title">If views deselected</div>
+        <div class="sp-item active">Dashboard</div>
+        <div class="sp-item">Streams</div>
+        <div class="sp-item hidden">Views</div>
+        <div class="sp-item">API Keys</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- OPTION B — Inline toggle (no separate step)                   -->
+  <!-- Dashboard itself is the onboarding. Toggle cards on/off.      -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="exploration">
+    <div class="exp-label">B — inline toggle (no onboarding step)</div>
+    <div class="exp-desc">No separate onboarding. First dashboard load shows toggle cards for each product. Flip off to hide from sidebar + dashboard. Settings gear always accessible.</div>
+
+    <div class="onboard-b">
+      <div class="onboard-b-header">
+        <div class="onboard-b-title">Dashboard</div>
+      </div>
+
+      <div class="toggle-cards">
+        <div class="toggle-card active" onclick="this.classList.toggle('active')">
+          <div class="tc-top">
+            <span class="tc-name">Streams</span>
+            <div class="tc-toggle"></div>
+          </div>
+          <div class="tc-desc">Webhook delivery for on-chain events</div>
+          <div class="tc-code">sl streams new my-stream
+sl streams register ./my-stream.json</div>
+        </div>
+
+        <div class="toggle-card active" onclick="this.classList.toggle('active')">
+          <div class="tc-top">
+            <span class="tc-name">Views</span>
+            <div class="tc-toggle"></div>
+          </div>
+          <div class="tc-desc">SQL indexer for blockchain data</div>
+          <div class="tc-code">sl views scaffold &lt;contract&gt; \
+  -o views/my-view.ts
+sl views deploy views/my-view.ts</div>
+        </div>
+      </div>
+
+      <div class="config-hint">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.5"/><path d="M8 5.5v3M8 10.5v.5"/></svg>
+        Toggle off to hide from sidebar. Change anytime in Settings.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- OPTION C — Terminal-style prompt                              -->
+  <!-- Feels like configuring a CLI. Question → select → done.       -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="exploration">
+    <div class="exp-label">C — terminal prompt</div>
+    <div class="exp-desc">Feels like a CLI config step. Single question, multi-select. Resolves immediately — no "wizard." Matches the dev-tool DNA of the product.</div>
+
+    <div class="onboard-c">
+      <div class="terminal-prompt">
+        <div class="tp-line">
+          <span class="tp-caret">→</span>
+          <span class="tp-text">Which products do you want enabled? <span class="dim">(select all that apply)</span></span>
+        </div>
+
+        <div class="tp-options">
+          <div class="tp-option selected" onclick="this.classList.toggle('selected')">
+            <div class="tp-radio"><div class="tp-radio-dot"></div></div>
+            <div class="tp-option-text">
+              <div class="tp-option-name">Streams</div>
+              <div class="tp-option-desc">Real-time webhook event delivery</div>
+            </div>
+          </div>
+          <div class="tp-option selected" onclick="this.classList.toggle('selected')">
+            <div class="tp-radio"><div class="tp-radio-dot"></div></div>
+            <div class="tp-option-text">
+              <div class="tp-option-name">Views</div>
+              <div class="tp-option-desc">Custom blockchain indexer (SQL + TypeScript)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tp-footer">
+          Press <span class="tp-kbd">Enter</span> to confirm · Change later in Settings
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Theme toggle
+</script>
+
+</body>
+</html>

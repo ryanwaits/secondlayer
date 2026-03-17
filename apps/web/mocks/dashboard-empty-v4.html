@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Dashboard Empty State v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.12);
+    --border: #f2f2f2;
+    --border-hover: #ddd;
+    --accent-purple: #6344F5;
+    --accent-purple-bg: rgba(99,68,245,0.04);
+    --accent-purple-border: rgba(99,68,245,0.15);
+    --code-bg: rgba(0,0,0,0.04);
+    --code-block-bg: #fafafa;
+    --green: #22c55e;
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --bg-elevated: #1a1a1a;
+      --text-main: #ececec;
+      --text-muted: rgba(255,255,255,0.4);
+      --text-dim: rgba(255,255,255,0.1);
+      --border: #2a2a2a;
+      --border-hover: #3a3a3a;
+      --accent-purple: #8b7ff0;
+      --accent-purple-bg: rgba(139,127,240,0.06);
+      --accent-purple-border: rgba(139,127,240,0.18);
+      --code-bg: rgba(255,255,255,0.08);
+      --code-block-bg: #1c1c1c;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px 120px;
+  }
+  ::selection { background: rgba(99,68,245,0.15); }
+
+  .theme-toggle {
+    position: fixed; top: 12px; right: 12px; z-index: 100;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  .explorations { display: flex; flex-direction: column; gap: 80px; max-width: 560px; width: 100%; }
+  .exp-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-purple);
+    margin-bottom: 4px;
+  }
+  .exp-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
+
+  /* ── Page chrome ── */
+  .page-title {
+    font-family: var(--font-heading); font-size: 15px; font-weight: 500;
+    letter-spacing: -0.01875rem; margin-bottom: 24px;
+  }
+
+  /* ── Empty message ── */
+  .empty-msg {
+    text-align: center; padding: 28px 0 32px;
+    color: var(--text-muted); font-size: 13px;
+  }
+  .empty-msg a {
+    color: var(--accent-purple); text-decoration: underline;
+    text-decoration-color: transparent; text-underline-offset: 2px;
+    transition: text-decoration-color 0.2s;
+  }
+  .empty-msg a:hover { text-decoration-color: var(--accent-purple); }
+
+  /* ── Section heading ── */
+  .section-wrap { position: relative; margin-top: 0; margin-bottom: 20px; }
+  .section-wrap hr { border: none; height: 1px; background: var(--border); }
+  .section-title {
+    position: absolute; top: 50%; left: 0; transform: translateY(-50%);
+    background: var(--bg); padding-right: 12px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: -0.00563rem; color: var(--text-muted);
+    line-height: 20px; margin: 0;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* Mode tabs (Agent / Manual)                                     */
+  /* ═══════════════════════════════════════════════════════════════ */
+  .mode-tabs {
+    display: flex; gap: 0; border: 1px solid var(--border);
+    border-radius: 6px; overflow: hidden; margin-bottom: 16px;
+    align-self: flex-start;
+  }
+  .mode-tab {
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    color: var(--text-muted); background: none; border: none;
+    padding: 6px 18px; cursor: pointer; transition: all 0.12s;
+    border-right: 1px solid var(--border);
+  }
+  .mode-tab:last-child { border-right: none; }
+  .mode-tab:hover { color: var(--text-main); }
+  .mode-tab.active {
+    color: var(--text-main); font-weight: 560;
+    background: var(--code-bg);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* Agent prompt card                                               */
+  /* ═══════════════════════════════════════════════════════════════ */
+  .agent-prompt {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    position: relative;
+  }
+  .agent-prompt-header {
+    padding: 16px 18px 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .agent-prompt-title {
+    font-family: var(--font-heading); font-size: 14px; font-weight: 600;
+    color: var(--text-main); letter-spacing: -0.02em; line-height: 1.35;
+  }
+  .agent-prompt-copy {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--accent-purple); background: none;
+    border: 1px solid var(--accent-purple-border);
+    border-radius: 5px; padding: 3px 10px; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .agent-prompt-copy:hover { background: var(--accent-purple-bg); }
+  .agent-prompt-copy.copied { background: var(--green); color: #fff; border-color: var(--green); }
+  .agent-prompt-code {
+    margin: 12px 18px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  .agent-prompt-code pre {
+    margin: 0;
+    padding: 14px 16px;
+    font-family: var(--font-mono); font-size: 12px;
+    line-height: 1.6;
+    background: var(--code-block-bg);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--text-main);
+  }
+  .agent-prompt-scroll {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .agent-prompt-collapsed {
+    max-height: 160px;
+    mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+  }
+  .agent-prompt-toggle {
+    position: absolute; bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-main); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 14px; cursor: pointer; transition: all 0.15s;
+    z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .agent-prompt-toggle:hover {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    .agent-prompt-toggle { box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+    .agent-prompt-toggle:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* Steps (Manual tab)                                              */
+  /* ═══════════════════════════════════════════════════════════════ */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+  .step {
+    display: flex;
+    gap: 16px;
+    position: relative;
+    padding-bottom: 24px;
+  }
+  .step:last-child { padding-bottom: 0; }
+
+  /* Vertical connector */
+  .step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 24px;
+  }
+  .step-number {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: var(--text-muted); background: var(--bg);
+    flex-shrink: 0;
+    z-index: 1;
+    transition: all 0.15s;
+  }
+  .step-line {
+    width: 1px; flex: 1;
+    background: var(--border);
+    margin-top: 6px;
+  }
+  .step:last-child .step-line { display: none; }
+
+  .step-content {
+    flex: 1;
+    min-width: 0;
+    padding-top: 1px;
+  }
+  .step-title {
+    font-size: 13px; font-weight: 560;
+    color: var(--text-main);
+    margin-bottom: 10px;
+    line-height: 24px; /* align with step number */
+  }
+
+  /* ── Terminal code block inside steps ── */
+  .step-code {
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: var(--bg);
+  }
+  .step-code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px; border-bottom: 1px solid var(--border);
+  }
+  .step-code-header-left {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-muted); font-weight: 500;
+  }
+  .step-code-body {
+    padding: 10px 14px;
+    background: var(--code-block-bg);
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--text-main);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .step-code-body .dollar {
+    color: var(--text-muted); user-select: none; margin-right: 8px;
+  }
+  .step-code-body .cmd-text { flex: 1; }
+
+  /* Package manager tabs inside step */
+  .install-tabs {
+    display: flex; gap: 0;
+  }
+  .install-tab {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: none; border: none;
+    padding: 3px 10px; cursor: pointer; transition: all 0.12s;
+    border-radius: 4px;
+  }
+  .install-tab:hover { color: var(--text-main); }
+  .install-tab.active {
+    color: var(--text-main); font-weight: 600;
+    background: var(--code-bg);
+  }
+
+  /* Copy button (inline, right-aligned) */
+  .copy-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px;
+    border: none; background: none; cursor: pointer;
+    color: var(--text-muted); border-radius: 4px;
+    transition: all 0.12s; flex-shrink: 0;
+    opacity: 0;
+  }
+  .step-code:hover .copy-icon,
+  .agent-prompt:hover .agent-prompt-copy { opacity: 1; }
+  .copy-icon:hover { color: var(--text-main); background: var(--code-bg); }
+  .copy-icon.copied { color: var(--green); }
+
+  /* ── Quick action copy cards ── */
+  .quick-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick-action {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; transition: all 0.15s; flex: 1; min-width: 200px;
+  }
+  .quick-action:hover { border-color: var(--accent-purple-border); background: var(--accent-purple-bg); }
+  .quick-action-icon {
+    width: 28px; height: 28px; border-radius: 6px; background: var(--code-bg);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    color: var(--text-muted);
+  }
+  .quick-action-text { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+  .quick-action-label { font-size: 13px; font-weight: 500; color: var(--text-main); }
+  .quick-action-desc { font-size: 11px; color: var(--text-muted); }
+  .copy-sm {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--accent-purple); background: none;
+    border: 1px solid var(--accent-purple-border);
+    border-radius: 5px; padding: 3px 10px; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .copy-sm:hover { background: var(--accent-purple-bg); }
+  .copy-sm.copied { background: var(--green); color: #fff; border-color: var(--green); }
+
+  .hint {
+    font-size: 11px; color: var(--text-muted); text-align: center;
+    margin-top: 4px; opacity: 0.7;
+  }
+
+  @media (max-width: 640px) {
+    .quick-actions { flex-direction: column; }
+    .quick-action { min-width: unset; }
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.style.colorScheme = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'; this.textContent = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'">dark</button>
+
+<div class="explorations">
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- STATE A: Both products enabled, no data                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">State A — both products, no data</div>
+    <div class="exp-desc">Agent tab (default) shows the agent prompt card with copy + collapsible code. Manual tab shows stepped install guide. Quick-start cards below.</div>
+
+    <h1 class="page-title">Dashboard</h1>
+
+    <div class="empty-msg">No streams or views yet. Get set up and create your first resource.</div>
+
+    <div class="section-wrap"><hr><h2 class="section-title">Get started</h2></div>
+
+    <div class="mode-tabs" id="mode-a">
+      <button class="mode-tab active" onclick="switchMode('a','agent',this)">Agent</button>
+      <button class="mode-tab" onclick="switchMode('a','manual',this)">Manual</button>
+    </div>
+
+    <!-- Agent tab -->
+    <div id="mode-a-agent">
+      <div class="agent-prompt">
+        <div class="agent-prompt-header">
+          <span class="agent-prompt-title">Set up secondlayer</span>
+          <button class="agent-prompt-copy" onclick="copyPrompt(this, 'prompt-a')">Copy</button>
+        </div>
+        <div class="agent-prompt-code">
+          <div class="agent-prompt-scroll agent-prompt-collapsed" id="prompt-a-scroll">
+            <pre id="prompt-a">Streams are webhook subscriptions — define filters for on-chain events (transfers, contract calls, mints, etc.) and secondlayer pushes matching events to your endpoint as each block is processed. Delivery is at-least-once.
+
+Views are like subgraphs — define SQL tables, write event handlers in TypeScript, and secondlayer indexes matching blockchain activity into queryable Postgres tables. Think materialized views over the chain.
+
+Ensure setup (skip any step already done, use the project's package manager):
+- Skill: `skills add ryanwaits/secondlayer --skill secondlayer`
+- CLI: `@secondlayer/cli` installed globally
+- Auth: `secondlayer auth login`
+
+/secondlayer Help me get started. Ask me:
+1. Do I want to create a stream (webhook delivery) or a view (custom indexer)?
+2. What blockchain events should it track?
+3. What's my endpoint URL or what tables do I need?
+
+Set everything up and walk me through it.</pre>
+          </div>
+          <button class="agent-prompt-toggle" onclick="expandPrompt('prompt-a-scroll', this)">Show all</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual tab -->
+    <div id="mode-a-manual" style="display:none">
+      <div class="steps">
+        <!-- Step 1 -->
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">1</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Install the CLI</div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+                <div class="install-tabs" id="pkg-a">
+                  <button class="install-tab active" onclick="switchPkg('a','npm',this)">npm</button>
+                  <button class="install-tab" onclick="switchPkg('a','yarn',this)">yarn</button>
+                  <button class="install-tab" onclick="switchPkg('a','pnpm',this)">pnpm</button>
+                  <button class="install-tab" onclick="switchPkg('a','bun',this)">bun</button>
+                </div>
+              </div>
+              <div class="step-code-body" id="pkg-a-body">
+                <span><span class="dollar">$</span><span class="cmd-text">npm install -g @secondlayer/cli</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Step 2 -->
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">2</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Authenticate</div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+              </div>
+              <div class="step-code-body">
+                <span><span class="dollar">$</span><span class="cmd-text">secondlayer auth login</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Step 3 -->
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">3</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Create your first resource</div>
+            <div class="step-code" style="margin-bottom:6px">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+              </div>
+              <div class="step-code-body">
+                <span><span class="dollar">$</span><span class="cmd-text">secondlayer streams create</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+              </div>
+              <div class="step-code-body">
+                <span><span class="dollar">$</span><span class="cmd-text">secondlayer views init</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-wrap" style="margin-top:28px;"><hr><h2 class="section-title">Quick start</h2></div>
+
+    <div class="quick-actions">
+      <div class="quick-action" onclick="copyText(this.querySelector('.copy-sm'), 'Create a stream that watches for STX transfer events over 100 STX and sends them to my webhook at https://example.com/webhook')">
+        <div class="quick-action-icon">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l6 4 6-4M2 4v8l6 4 6-4V4M2 4l6-4 6 4"/></svg>
+        </div>
+        <div class="quick-action-text">
+          <span class="quick-action-label">Create a stream</span>
+          <span class="quick-action-desc">Webhook event delivery</span>
+        </div>
+        <button class="copy-sm" onclick="event.stopPropagation()">Copy</button>
+      </div>
+      <div class="quick-action" onclick="copyText(this.querySelector('.copy-sm'), 'Scaffold a view that indexes swap events from the ALEX DEX contract SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01 and deploy it')">
+        <div class="quick-action-icon">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 8h4M5 10h5"/></svg>
+        </div>
+        <div class="quick-action-text">
+          <span class="quick-action-label">Deploy a view</span>
+          <span class="quick-action-desc">Custom blockchain indexer</span>
+        </div>
+        <button class="copy-sm" onclick="event.stopPropagation()">Copy</button>
+      </div>
+    </div>
+    <div class="hint">Paste into Claude Code, Cursor, Windsurf, or any agent</div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- STATE B: Only Streams enabled, no data                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">State B — streams only, no data</div>
+    <div class="exp-desc">Agent prompt scoped to streams. Manual step 3 is "Create your first stream". Only stream quick-action card.</div>
+
+    <h1 class="page-title">Dashboard</h1>
+
+    <div class="empty-msg">No streams yet. Get set up and create your first stream.</div>
+
+    <div class="section-wrap"><hr><h2 class="section-title">Get started</h2></div>
+
+    <div class="mode-tabs" id="mode-b">
+      <button class="mode-tab active" onclick="switchMode('b','agent',this)">Agent</button>
+      <button class="mode-tab" onclick="switchMode('b','manual',this)">Manual</button>
+    </div>
+
+    <!-- Agent tab -->
+    <div id="mode-b-agent">
+      <div class="agent-prompt">
+        <div class="agent-prompt-header">
+          <span class="agent-prompt-title">Set up secondlayer</span>
+          <button class="agent-prompt-copy" onclick="copyPrompt(this, 'prompt-b')">Copy</button>
+        </div>
+        <div class="agent-prompt-code">
+          <div class="agent-prompt-scroll agent-prompt-collapsed" id="prompt-b-scroll">
+            <pre id="prompt-b">Streams are webhook subscriptions — define filters for on-chain events (transfers, contract calls, mints, etc.) and secondlayer pushes matching events to your endpoint as each block is processed. Delivery is at-least-once.
+
+Ensure setup (skip any step already done, use the project's package manager):
+- Skill: `skills add ryanwaits/secondlayer --skill secondlayer`
+- CLI: `@secondlayer/cli` installed globally
+- Auth: `secondlayer auth login`
+
+/secondlayer Help me create a stream. Ask me:
+1. What blockchain events do I want to track?
+2. Where should deliveries be sent (webhook URL)?
+3. Any filter constraints (contract, sender, amount)?
+
+Create the stream config and register it.</pre>
+          </div>
+          <button class="agent-prompt-toggle" onclick="expandPrompt('prompt-b-scroll', this)">Show all</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual tab -->
+    <div id="mode-b-manual" style="display:none">
+      <div class="steps">
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">1</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Install the CLI</div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+                <div class="install-tabs" id="pkg-b">
+                  <button class="install-tab active" onclick="switchPkg('b','npm',this)">npm</button>
+                  <button class="install-tab" onclick="switchPkg('b','yarn',this)">yarn</button>
+                  <button class="install-tab" onclick="switchPkg('b','pnpm',this)">pnpm</button>
+                  <button class="install-tab" onclick="switchPkg('b','bun',this)">bun</button>
+                </div>
+              </div>
+              <div class="step-code-body" id="pkg-b-body">
+                <span><span class="dollar">$</span><span class="cmd-text">npm install -g @secondlayer/cli</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">2</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Authenticate</div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+              </div>
+              <div class="step-code-body">
+                <span><span class="dollar">$</span><span class="cmd-text">secondlayer auth login</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">3</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Create your first stream</div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+              </div>
+              <div class="step-code-body">
+                <span><span class="dollar">$</span><span class="cmd-text">secondlayer streams create</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-wrap" style="margin-top:28px;"><hr><h2 class="section-title">Quick start</h2></div>
+
+    <div class="quick-actions">
+      <div class="quick-action" onclick="copyText(this.querySelector('.copy-sm'), 'Create a stream that watches for STX transfer events over 100 STX and sends them to my webhook at https://example.com/webhook')">
+        <div class="quick-action-icon">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l6 4 6-4M2 4v8l6 4 6-4V4M2 4l6-4 6 4"/></svg>
+        </div>
+        <div class="quick-action-text">
+          <span class="quick-action-label">Create a stream</span>
+          <span class="quick-action-desc">Webhook event delivery</span>
+        </div>
+        <button class="copy-sm" onclick="event.stopPropagation()">Copy</button>
+      </div>
+    </div>
+    <div class="hint">Paste into Claude Code, Cursor, Windsurf, or any agent</div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- STATE C: Only Views enabled, no data                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">State C — views only, no data</div>
+    <div class="exp-desc">Agent prompt scoped to views. Manual step 3 is "Deploy your first view". Only view quick-action card.</div>
+
+    <h1 class="page-title">Dashboard</h1>
+
+    <div class="empty-msg">No views yet. Get set up and deploy your first view.</div>
+
+    <div class="section-wrap"><hr><h2 class="section-title">Get started</h2></div>
+
+    <div class="mode-tabs" id="mode-c">
+      <button class="mode-tab active" onclick="switchMode('c','agent',this)">Agent</button>
+      <button class="mode-tab" onclick="switchMode('c','manual',this)">Manual</button>
+    </div>
+
+    <!-- Agent tab -->
+    <div id="mode-c-agent">
+      <div class="agent-prompt">
+        <div class="agent-prompt-header">
+          <span class="agent-prompt-title">Set up secondlayer</span>
+          <button class="agent-prompt-copy" onclick="copyPrompt(this, 'prompt-c')">Copy</button>
+        </div>
+        <div class="agent-prompt-code">
+          <div class="agent-prompt-scroll agent-prompt-collapsed" id="prompt-c-scroll">
+            <pre id="prompt-c">Views are like subgraphs — define SQL tables, write event handlers in TypeScript, and secondlayer indexes matching blockchain activity into queryable Postgres tables. Think materialized views over the chain.
+
+Ensure setup (skip any step already done, use the project's package manager):
+- Skill: `skills add ryanwaits/secondlayer --skill secondlayer`
+- CLI: `@secondlayer/cli` installed globally
+- Auth: `secondlayer auth login`
+
+/secondlayer Help me create a view. Ask me:
+1. What contract do I want to index?
+2. Which events or function calls should I track?
+3. What columns do I need in my tables?
+
+Scaffold the view, let me review it, then deploy.</pre>
+          </div>
+          <button class="agent-prompt-toggle" onclick="expandPrompt('prompt-c-scroll', this)">Show all</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual tab -->
+    <div id="mode-c-manual" style="display:none">
+      <div class="steps">
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">1</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Install the CLI</div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+                <div class="install-tabs" id="pkg-c">
+                  <button class="install-tab active" onclick="switchPkg('c','npm',this)">npm</button>
+                  <button class="install-tab" onclick="switchPkg('c','yarn',this)">yarn</button>
+                  <button class="install-tab" onclick="switchPkg('c','pnpm',this)">pnpm</button>
+                  <button class="install-tab" onclick="switchPkg('c','bun',this)">bun</button>
+                </div>
+              </div>
+              <div class="step-code-body" id="pkg-c-body">
+                <span><span class="dollar">$</span><span class="cmd-text">npm install -g @secondlayer/cli</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">2</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Authenticate</div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+              </div>
+              <div class="step-code-body">
+                <span><span class="dollar">$</span><span class="cmd-text">secondlayer auth login</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-indicator">
+            <div class="step-number">3</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title">Deploy your first view</div>
+            <div class="step-code">
+              <div class="step-code-header">
+                <div class="step-code-header-left">
+                  <span style="opacity:0.5">&#9658;_</span>
+                  <span>Terminal</span>
+                </div>
+              </div>
+              <div class="step-code-body">
+                <span><span class="dollar">$</span><span class="cmd-text">secondlayer views init</span></span>
+                <button class="copy-icon" onclick="copyCmdFromBody(this)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-wrap" style="margin-top:28px;"><hr><h2 class="section-title">Quick start</h2></div>
+
+    <div class="quick-actions">
+      <div class="quick-action" onclick="copyText(this.querySelector('.copy-sm'), 'Scaffold a view that indexes swap events from the ALEX DEX contract SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01 and deploy it')">
+        <div class="quick-action-icon">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 8h4M5 10h5"/></svg>
+        </div>
+        <div class="quick-action-text">
+          <span class="quick-action-label">Deploy a view</span>
+          <span class="quick-action-desc">Custom blockchain indexer</span>
+        </div>
+        <button class="copy-sm" onclick="event.stopPropagation()">Copy</button>
+      </div>
+    </div>
+    <div class="hint">Paste into Claude Code, Cursor, Windsurf, or any agent</div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- STATE D: Neither enabled                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">State D — no products enabled</div>
+    <div class="exp-desc">Edge case. User disabled everything. Simple message with settings link.</div>
+
+    <h1 class="page-title">Dashboard</h1>
+
+    <div class="empty-msg">
+      No products enabled. <a href="#">Enable products in Settings</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const PKG_COMMANDS = {
+  npm:  'npm install -g @secondlayer/cli',
+  yarn: 'yarn global add @secondlayer/cli',
+  pnpm: 'pnpm add -g @secondlayer/cli',
+  bun:  'bun add -g @secondlayer/cli',
+};
+
+function switchPkg(group, pkg, btn) {
+  const tabs = document.getElementById('pkg-' + group);
+  tabs.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const body = document.getElementById('pkg-' + group + '-body');
+  if (body) {
+    const copyBtn = body.querySelector('.copy-icon');
+    body.innerHTML = '<span><span class="dollar">$</span><span class="cmd-text">' + PKG_COMMANDS[pkg] + '</span></span>';
+    if (copyBtn) body.appendChild(copyBtn);
+    else {
+      const newBtn = document.createElement('button');
+      newBtn.className = 'copy-icon';
+      newBtn.onclick = function() { copyCmdFromBody(this); };
+      newBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+      body.appendChild(newBtn);
+    }
+  }
+}
+
+function switchMode(group, mode, btn) {
+  const modeEl = document.getElementById('mode-' + group);
+  modeEl.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const agent = document.getElementById('mode-' + group + '-agent');
+  const manual = document.getElementById('mode-' + group + '-manual');
+  if (agent) agent.style.display = mode === 'agent' ? '' : 'none';
+  if (manual) manual.style.display = mode === 'manual' ? '' : 'none';
+}
+
+function copyPrompt(btn, preId) {
+  const pre = document.getElementById(preId);
+  navigator.clipboard.writeText(pre.textContent.trim()).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyCmdFromBody(btn) {
+  const body = btn.closest('.step-code-body');
+  const cmd = body.querySelector('.cmd-text').textContent;
+  navigator.clipboard.writeText(cmd).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    }, 1500);
+  });
+}
+
+function expandPrompt(scrollId, btn) {
+  const el = document.getElementById(scrollId);
+  el.classList.remove('agent-prompt-collapsed');
+  el.style.maxHeight = 'none';
+  btn.style.display = 'none';
+}
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>

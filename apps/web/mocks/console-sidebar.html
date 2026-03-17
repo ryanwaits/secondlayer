@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Console Sidebar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.12);
+    --border: #f2f2f2;
+    --border-hover: #ddd;
+    --accent-purple: #6344F5;
+    --code-bg: rgba(0,0,0,0.04);
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --bg-elevated: #1a1a1a;
+      --text-main: #ececec;
+      --text-muted: rgba(255,255,255,0.4);
+      --text-dim: rgba(255,255,255,0.1);
+      --border: #2a2a2a;
+      --border-hover: #3a3a3a;
+      --accent-purple: #8b7ff0;
+      --code-bg: rgba(255,255,255,0.08);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+    padding: 40px 20px 120px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  ::selection { background: rgba(99,68,245,0.15); }
+
+  .theme-toggle {
+    position: fixed; top: 12px; right: 12px; z-index: 100;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  .explorations { display: flex; flex-direction: column; gap: 60px; width: 100%; max-width: 1000px; }
+  .exp-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-purple);
+    margin-bottom: 4px;
+  }
+  .exp-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
+
+  /* ── Console chrome ── */
+  .console {
+    border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; height: 420px; display: flex; flex-direction: column;
+    background: var(--bg);
+  }
+  .console.short { height: 320px; }
+  .topbar {
+    display: flex; align-items: center; padding: 0 16px; height: 40px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    font-size: 12px; gap: 12px;
+  }
+  .topbar-logo { display: flex; align-items: center; cursor: pointer; }
+  .logo-primary { fill: #6344F5; }
+  .logo-echo { fill: #e0e0e0; }
+  @media (prefers-color-scheme: dark) {
+    .logo-primary { fill: #8b7ff0; }
+    .logo-echo { fill: #444; }
+  }
+  .topbar-breadcrumb { color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+  .topbar-breadcrumb span { color: var(--text-main); font-weight: 460; }
+  .topbar-breadcrumb .sep { opacity: 0.4; }
+  .topbar-breadcrumb .link { color: var(--text-muted); cursor: pointer; }
+  .topbar-center { flex: 1; display: flex; justify-content: center; }
+  .topbar-search {
+    display: flex; align-items: center; gap: 6px; font-family: var(--font-mono);
+    font-size: 11px; color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px; min-width: 180px;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-muted); }
+  .topbar-right .user {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--code-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--text-muted);
+  }
+
+  .body { display: flex; flex: 1; min-height: 0; }
+
+  .content {
+    flex: 1; padding: 20px 24px; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .content-placeholder {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 12px; font-family: var(--font-mono);
+  }
+  .content-title {
+    font-family: var(--font-heading); font-size: 14px; font-weight: 500;
+    letter-spacing: -0.02em; margin-bottom: 16px;
+  }
+
+  /* ── Sidebar shared ── */
+  .sidebar {
+    width: 180px; flex-shrink: 0; border-right: 1px solid var(--border);
+    padding: 16px 0 16px 16px; display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* ── Variation 1: Resource list ── */
+  .sidebar-group-title {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 6px; margin-top: 16px;
+    opacity: 0.6;
+  }
+  .sidebar-group-title:first-child { margin-top: 0; }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 0; font-size: 13px; font-weight: 460;
+    color: var(--text-muted); text-decoration: none;
+    cursor: pointer; transition: color 0.15s;
+  }
+  .sidebar-item:hover { color: var(--text-main); }
+  .sidebar-item.active { color: var(--text-main); font-weight: 560; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot.green { background: var(--green); }
+  .dot.red { background: var(--red); }
+  .dot.yellow { background: var(--yellow); }
+  .dot.muted { background: var(--text-muted); opacity: 0.3; }
+
+  .sidebar-empty {
+    font-size: 12px; color: var(--text-dim); padding: 4px 0;
+  }
+
+  /* ── Variation 2: Collapsible ── */
+  .sidebar-group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0; cursor: pointer; transition: color 0.15s;
+    padding-right: 16px; margin-top: 4px;
+  }
+  .sidebar-group-header:first-child { margin-top: 0; }
+  .sidebar-group-header:hover { color: var(--text-main); }
+  .sidebar-group-header-left {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 460; color: var(--text-muted);
+  }
+  .sidebar-group-count {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--text-muted); background: var(--code-bg);
+    padding: 0 5px; border-radius: 3px; line-height: 16px;
+  }
+  .sidebar-group-chevron {
+    color: var(--text-muted); transition: transform 0.15s;
+  }
+  .sidebar-group-chevron.open { transform: rotate(90deg); }
+  .sidebar-group-items {
+    padding-left: 4px; overflow: hidden;
+  }
+
+  /* ── Variation 3: Icon sidebar ── */
+  .sidebar-icons {
+    width: 50px; flex-shrink: 0; border-right: 1px solid var(--border);
+    padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .sidebar-icon-btn {
+    width: 34px; height: 34px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+    border: none; background: none; position: relative;
+  }
+  .sidebar-icon-btn:hover { color: var(--text-main); background: var(--code-bg); }
+  .sidebar-icon-btn.active { color: var(--text-main); background: var(--code-bg); }
+  .sidebar-icon-btn .badge-count {
+    position: absolute; top: 4px; right: 4px;
+    font-family: var(--font-mono); font-size: 8px; font-weight: 600;
+    background: var(--text-muted); color: var(--bg); border-radius: 50%;
+    width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Variation 4: No sidebar ── */
+  .content-tabs {
+    display: flex; gap: 16px; border-bottom: 1px solid var(--border);
+    padding-bottom: 10px; margin-bottom: 20px;
+  }
+  .content-tab {
+    font-size: 13px; font-weight: 460; color: var(--text-muted);
+    cursor: pointer; transition: color 0.15s; border: none; background: none;
+    font-family: inherit; padding: 0; border-bottom: 2px solid transparent;
+    padding-bottom: 2px;
+  }
+  .content-tab:hover { color: var(--text-main); }
+  .content-tab.active { color: var(--text-main); font-weight: 560; border-bottom-color: var(--text-main); }
+
+  /* ── Variation 1 detail: sub-nav ── */
+  .sidebar-subnav {
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+    margin-right: 16px;
+  }
+  .sidebar-subnav-item {
+    display: block; padding: 3px 0; font-size: 13px; font-weight: 460;
+    color: var(--text-muted); text-decoration: none; cursor: pointer;
+    transition: color 0.15s;
+  }
+  .sidebar-subnav-item:hover { color: var(--text-main); }
+  .sidebar-subnav-item.active { color: var(--text-main); font-weight: 560; }
+
+  /* Pairs */
+  .pair { display: flex; gap: 16px; }
+  .pair > * { flex: 1; }
+
+  .pair-label {
+    font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);
+    font-weight: 500; margin-bottom: 6px; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.style.colorScheme = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'; this.textContent = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'">dark</button>
+
+<div class="explorations">
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 1: Resource list sidebar                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 1 — Resource list sidebar</div>
+    <div class="exp-desc">Resources grouped by type with status dots. Active resource highlighted. Logo click = home. Shows dashboard view, empty state, and stream detail sub-nav.</div>
+
+    <!-- Dashboard with resources -->
+    <div class="pair-label">Dashboard (with resources)</div>
+    <div class="console" style="margin-bottom:16px;">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+            <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+            <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+          </svg>
+        </div>
+        <div class="topbar-breadcrumb"><span class="sep">/</span> <span>Dashboard</span></div>
+        <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+        <div class="topbar-right">Docs <div class="user">R</div></div>
+      </div>
+      <div class="body">
+        <div class="sidebar">
+          <div class="sidebar-group-title">Streams</div>
+          <a class="sidebar-item"><span class="dot green"></span> stx-transfers</a>
+          <a class="sidebar-item"><span class="dot red"></span> dex-monitor</a>
+          <a class="sidebar-item"><span class="dot yellow"></span> whale-alerts</a>
+          <div class="sidebar-group-title">Views</div>
+          <a class="sidebar-item"><span class="dot green"></span> token-transfers</a>
+          <a class="sidebar-item"><span class="dot yellow"></span> nft-listings</a>
+        </div>
+        <div class="content">
+          <div class="content-title">Dashboard</div>
+          <div class="content-placeholder">stats + activity + resource lists</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stream detail with sub-nav -->
+    <div class="pair" style="margin-bottom:16px;">
+      <div>
+        <div class="pair-label">Stream detail (selected)</div>
+        <div class="console short">
+          <div class="topbar">
+            <div class="topbar-logo">
+              <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+                <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+                <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+              </svg>
+            </div>
+            <div class="topbar-breadcrumb"><span class="sep">/</span> <span class="link">Streams</span> <span class="sep">/</span> <span>stx-transfers</span></div>
+            <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+            <div class="topbar-right">Docs <div class="user">R</div></div>
+          </div>
+          <div class="body">
+            <div class="sidebar">
+              <div class="sidebar-group-title">Streams</div>
+              <a class="sidebar-item active"><span class="dot green"></span> stx-transfers</a>
+              <a class="sidebar-item"><span class="dot red"></span> dex-monitor</a>
+              <a class="sidebar-item"><span class="dot yellow"></span> whale-alerts</a>
+              <div class="sidebar-subnav">
+                <a class="sidebar-subnav-item active">Overview</a>
+                <a class="sidebar-subnav-item">Filters</a>
+                <a class="sidebar-subnav-item">Deliveries</a>
+                <a class="sidebar-subnav-item">Webhook</a>
+                <a class="sidebar-subnav-item">Replay</a>
+              </div>
+              <div class="sidebar-group-title">Views</div>
+              <a class="sidebar-item"><span class="dot green"></span> token-transfers</a>
+              <a class="sidebar-item"><span class="dot yellow"></span> nft-listings</a>
+            </div>
+            <div class="content">
+              <div class="content-title">stx-transfers</div>
+              <div class="content-placeholder">stream detail content</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="pair-label">Empty state (no resources)</div>
+        <div class="console short">
+          <div class="topbar">
+            <div class="topbar-logo">
+              <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+                <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+                <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+              </svg>
+            </div>
+            <div class="topbar-breadcrumb"><span class="sep">/</span> <span>Dashboard</span></div>
+            <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+            <div class="topbar-right">Docs <div class="user">R</div></div>
+          </div>
+          <div class="body">
+            <div class="sidebar">
+              <div class="sidebar-group-title">Streams</div>
+              <div class="sidebar-empty">No streams</div>
+              <div class="sidebar-group-title">Views</div>
+              <div class="sidebar-empty">No views</div>
+            </div>
+            <div class="content">
+              <div class="content-title">Dashboard</div>
+              <div class="content-placeholder">empty state + get started</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 2: Collapsible groups                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 2 — Collapsible groups with counts</div>
+    <div class="exp-desc">Group headers show resource count. Click to expand/collapse. Streams expanded, Views collapsed. Scales better with many resources.</div>
+
+    <div class="console">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+            <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+            <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+          </svg>
+        </div>
+        <div class="topbar-breadcrumb"><span class="sep">/</span> <span>Dashboard</span></div>
+        <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+        <div class="topbar-right">Docs <div class="user">R</div></div>
+      </div>
+      <div class="body">
+        <div class="sidebar">
+          <!-- Streams: expanded -->
+          <div class="sidebar-group-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? '' : 'none'; this.querySelector('.sidebar-group-chevron').classList.toggle('open')">
+            <div class="sidebar-group-header-left">
+              Streams
+              <span class="sidebar-group-count">3</span>
+            </div>
+            <svg class="sidebar-group-chevron open" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>
+          </div>
+          <div class="sidebar-group-items">
+            <a class="sidebar-item"><span class="dot green"></span> stx-transfers</a>
+            <a class="sidebar-item"><span class="dot red"></span> dex-monitor</a>
+            <a class="sidebar-item"><span class="dot yellow"></span> whale-alerts</a>
+          </div>
+
+          <!-- Views: collapsed -->
+          <div class="sidebar-group-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? '' : 'none'; this.querySelector('.sidebar-group-chevron').classList.toggle('open')">
+            <div class="sidebar-group-header-left">
+              Views
+              <span class="sidebar-group-count">2</span>
+            </div>
+            <svg class="sidebar-group-chevron" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>
+          </div>
+          <div class="sidebar-group-items" style="display:none">
+            <a class="sidebar-item"><span class="dot green"></span> token-transfers</a>
+            <a class="sidebar-item"><span class="dot yellow"></span> nft-listings</a>
+          </div>
+        </div>
+        <div class="content">
+          <div class="content-title">Dashboard</div>
+          <div class="content-placeholder">dashboard content</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 3: Icon sidebar                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 3 — Icon sidebar (narrow)</div>
+    <div class="exp-desc">~50px wide with icons only. Badge counts on icons. Hover/click could expand a flyout. Maximum content space.</div>
+
+    <div class="console">
+      <div class="topbar">
+        <div class="topbar-logo">
+          <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+            <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+            <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+          </svg>
+        </div>
+        <div class="topbar-breadcrumb"><span class="sep">/</span> <span>Dashboard</span></div>
+        <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+        <div class="topbar-right">Docs <div class="user">R</div></div>
+      </div>
+      <div class="body">
+        <div class="sidebar-icons">
+          <button class="sidebar-icon-btn active" title="Dashboard">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+          </button>
+          <button class="sidebar-icon-btn" title="Streams">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l6 4 6-4M2 4v8l6 4 6-4V4M2 4l6-4 6 4"/></svg>
+            <span class="badge-count">3</span>
+          </button>
+          <button class="sidebar-icon-btn" title="Views">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 8h4M5 10h5"/></svg>
+            <span class="badge-count">2</span>
+          </button>
+        </div>
+        <div class="content">
+          <div class="content-title">Dashboard</div>
+          <div class="content-placeholder">more content space</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 4: No sidebar                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 4 — No sidebar at all</div>
+    <div class="exp-desc">Sidebar removed. Full width content. Stream detail uses in-content tabs instead of sidebar sub-nav. Navigation via search + topbar only.</div>
+
+    <div class="pair">
+      <div>
+        <div class="pair-label">Dashboard</div>
+        <div class="console short">
+          <div class="topbar">
+            <div class="topbar-logo">
+              <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+                <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+                <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+              </svg>
+            </div>
+            <div class="topbar-breadcrumb"><span class="sep">/</span> <span>Dashboard</span></div>
+            <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+            <div class="topbar-right">Docs <div class="user">R</div></div>
+          </div>
+          <div class="body">
+            <div class="content">
+              <div class="content-title">Dashboard</div>
+              <div class="content-placeholder">full-width content</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="pair-label">Stream detail (tabs in content)</div>
+        <div class="console short">
+          <div class="topbar">
+            <div class="topbar-logo">
+              <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+                <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+                <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+              </svg>
+            </div>
+            <div class="topbar-breadcrumb"><span class="sep">/</span> <span class="link">Streams</span> <span class="sep">/</span> <span>stx-transfers</span></div>
+            <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+            <div class="topbar-right">Docs <div class="user">R</div></div>
+          </div>
+          <div class="body">
+            <div class="content">
+              <div class="content-title">stx-transfers</div>
+              <div class="content-tabs">
+                <button class="content-tab active">Overview</button>
+                <button class="content-tab">Filters</button>
+                <button class="content-tab">Deliveries</button>
+                <button class="content-tab">Webhook</button>
+                <button class="content-tab">Replay</button>
+              </div>
+              <div class="content-placeholder">stream overview content</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 5: Hybrid                                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 5 — Hybrid (contextual sidebar)</div>
+    <div class="exp-desc">Dashboard: no sidebar. Resource detail: sidebar appears with resource list + sub-nav. The sidebar is contextual — only shows when you need to navigate between resources.</div>
+
+    <div class="pair">
+      <div>
+        <div class="pair-label">Dashboard (no sidebar)</div>
+        <div class="console short">
+          <div class="topbar">
+            <div class="topbar-logo">
+              <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+                <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+                <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+              </svg>
+            </div>
+            <div class="topbar-breadcrumb"><span class="sep">/</span> <span>Dashboard</span></div>
+            <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+            <div class="topbar-right">Docs <div class="user">R</div></div>
+          </div>
+          <div class="body">
+            <div class="content">
+              <div class="content-title">Dashboard</div>
+              <div class="content-placeholder">full-width dashboard</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="pair-label">Stream detail (sidebar appears)</div>
+        <div class="console short">
+          <div class="topbar">
+            <div class="topbar-logo">
+              <svg viewBox="6 9 36 24" width="24" height="16" fill="none">
+                <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+                <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+              </svg>
+            </div>
+            <div class="topbar-breadcrumb"><span class="sep">/</span> <span class="link">Streams</span> <span class="sep">/</span> <span>stx-transfers</span></div>
+            <div class="topbar-center"><div class="topbar-search">⌘K Search...</div></div>
+            <div class="topbar-right">Docs <div class="user">R</div></div>
+          </div>
+          <div class="body">
+            <div class="sidebar">
+              <div class="sidebar-group-title">Streams</div>
+              <a class="sidebar-item active"><span class="dot green"></span> stx-transfers</a>
+              <a class="sidebar-item"><span class="dot red"></span> dex-monitor</a>
+              <a class="sidebar-item"><span class="dot yellow"></span> whale-alerts</a>
+              <div class="sidebar-subnav">
+                <a class="sidebar-subnav-item active">Overview</a>
+                <a class="sidebar-subnav-item">Filters</a>
+                <a class="sidebar-subnav-item">Deliveries</a>
+                <a class="sidebar-subnav-item">Webhook</a>
+                <a class="sidebar-subnav-item">Replay</a>
+              </div>
+            </div>
+            <div class="content">
+              <div class="content-title">stx-transfers</div>
+              <div class="content-placeholder">stream detail content</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Console Topbar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.12);
+    --border: #f2f2f2;
+    --border-hover: #ddd;
+    --accent-purple: #6344F5;
+    --code-bg: rgba(0,0,0,0.04);
+    --green: #22c55e;
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --bg-elevated: #1a1a1a;
+      --text-main: #ececec;
+      --text-muted: rgba(255,255,255,0.4);
+      --text-dim: rgba(255,255,255,0.1);
+      --border: #2a2a2a;
+      --border-hover: #3a3a3a;
+      --accent-purple: #8b7ff0;
+      --code-bg: rgba(255,255,255,0.08);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 120px;
+  }
+  ::selection { background: rgba(99,68,245,0.15); }
+
+  .theme-toggle {
+    position: fixed; top: 12px; right: 12px; z-index: 100;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  .explorations { display: flex; flex-direction: column; gap: 60px; width: 100%; max-width: 1200px; padding: 0 20px; }
+  .exp-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-purple);
+    margin-bottom: 4px;
+  }
+  .exp-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
+
+  /* ── Shared topbar ── */
+  .topbar {
+    display: flex; align-items: center;
+    padding: 0 20px; height: 48px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); width: 100%;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .topbar-center { flex: 1; display: flex; justify-content: center; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+  .logo { display: flex; align-items: center; }
+  .logo-primary { fill: #6344F5; }
+  .logo-echo { fill: #e0e0e0; }
+  @media (prefers-color-scheme: dark) {
+    .logo-primary { fill: #8b7ff0; }
+    .logo-echo { fill: #444; }
+  }
+
+  .breadcrumb {
+    font-size: 13px; color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .breadcrumb span { color: var(--text-main); font-weight: 460; }
+  .breadcrumb-link { color: var(--text-muted); text-decoration: none; font-weight: 460; transition: color 0.2s; }
+  .breadcrumb-link:hover { color: var(--text-main); }
+  .breadcrumb-sep { color: var(--text-muted); opacity: 0.4; }
+
+  .cmdk {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 5px 12px 5px 10px; cursor: pointer; transition: all 0.15s;
+    min-width: 240px; background: transparent;
+  }
+  .cmdk:hover { border-color: var(--text-muted); color: var(--text-main); }
+  .cmdk svg { opacity: 0.4; flex-shrink: 0; }
+  .cmdk-text { flex: 1; font-size: 12px; }
+  .cmdk-keys { display: flex; gap: 2px; }
+  .cmdk-keys kbd {
+    font-family: var(--font-mono); font-size: 10px;
+    border: 1px solid var(--border); border-radius: 3px;
+    padding: 0 4px; line-height: 18px;
+  }
+  .cmdk-sm { min-width: 200px; }
+
+  /* ── Right-side elements ── */
+  .topbar-link {
+    font-size: 12px; font-weight: 460; color: var(--text-muted);
+    text-decoration: none; transition: color 0.15s; white-space: nowrap;
+  }
+  .topbar-link:hover { color: var(--text-main); }
+
+  .topbar-icon-link {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px;
+    color: var(--text-muted); transition: all 0.15s; cursor: pointer;
+  }
+  .topbar-icon-link:hover { color: var(--text-main); background: var(--code-bg); }
+
+  .topbar-sep {
+    width: 1px; height: 16px; background: var(--border);
+  }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 460; color: var(--text-muted);
+    padding: 3px 10px 3px 8px;
+    border: 1px solid var(--border); border-radius: 20px;
+    cursor: default; transition: all 0.15s;
+  }
+  .status-pill:hover { border-color: var(--border-hover); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  /* ── User avatar ── */
+  .user-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--code-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+    border: 1px solid transparent; position: relative;
+  }
+  .user-avatar:hover { border-color: var(--border); color: var(--text-main); }
+  .user-avatar.open { border-color: var(--border); color: var(--text-main); }
+
+  /* ── Dropdown ── */
+  .dropdown-wrap { position: relative; }
+  .dropdown {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; min-width: 180px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08); z-index: 20;
+  }
+  @media (prefers-color-scheme: dark) {
+    .dropdown { box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  }
+  .dropdown-item {
+    display: block; padding: 8px 14px; font-size: 13px; font-weight: 460;
+    color: var(--text-main); text-decoration: none; transition: background 0.1s;
+    cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+    font-family: inherit;
+  }
+  .dropdown-item:hover { background: var(--code-bg); }
+  .dropdown-item.muted { color: var(--text-muted); }
+  .dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+  .dropdown-label {
+    padding: 8px 14px 4px; font-size: 10px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.style.colorScheme = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'; this.textContent = document.documentElement.style.colorScheme === 'dark' ? 'light' : 'dark'">dark</button>
+
+<div class="explorations">
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 1: Docs link + user menu                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 1 — Docs link + user menu</div>
+    <div class="exp-desc">Keep current layout. Add "Docs" text link and user initial avatar dropdown on the right. Clean, minimal addition.</div>
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <a class="logo" href="#">
+          <svg viewBox="6 9 36 24" width="32" height="21" fill="none">
+            <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+            <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+          </svg>
+        </a>
+        <div class="breadcrumb">
+          <span class="breadcrumb-sep">/</span>
+          <a class="breadcrumb-link" href="#">Streams</a>
+          <span class="breadcrumb-sep">/</span>
+          <span>stx-transfers</span>
+        </div>
+      </div>
+      <div class="topbar-center">
+        <button class="cmdk cmdk-sm" type="button">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
+          </svg>
+          <span class="cmdk-text">Search or ask anything...</span>
+          <span class="cmdk-keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </button>
+      </div>
+      <div class="topbar-right">
+        <a class="topbar-link" href="#" target="_blank">Docs</a>
+        <div class="topbar-sep"></div>
+        <div class="dropdown-wrap">
+          <div class="user-avatar" onclick="this.classList.toggle('open'); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">R</div>
+          <div class="dropdown" style="display:none">
+            <div class="dropdown-label">Account</div>
+            <a class="dropdown-item" href="#">Settings</a>
+            <a class="dropdown-item" href="#">API Keys</a>
+            <a class="dropdown-item" href="#">Usage</a>
+            <a class="dropdown-item" href="#">Billing</a>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item muted">Log out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 2: Minimal right actions                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 2 — Minimal right actions</div>
+    <div class="exp-desc">Docs as a small external-link icon. User avatar. Nothing else. Maximum restraint — lets the search bar breathe.</div>
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <a class="logo" href="#">
+          <svg viewBox="6 9 36 24" width="32" height="21" fill="none">
+            <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+            <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+          </svg>
+        </a>
+        <div class="breadcrumb">
+          <span class="breadcrumb-sep">/</span>
+          <a class="breadcrumb-link" href="#">Streams</a>
+          <span class="breadcrumb-sep">/</span>
+          <span>stx-transfers</span>
+        </div>
+      </div>
+      <div class="topbar-center">
+        <button class="cmdk" type="button">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
+          </svg>
+          <span class="cmdk-text">Search or ask anything...</span>
+          <span class="cmdk-keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </button>
+      </div>
+      <div class="topbar-right">
+        <a class="topbar-icon-link" href="#" target="_blank" title="Documentation">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M5 11L11 5M11 5H6M11 5V10"/>
+          </svg>
+        </a>
+        <div class="dropdown-wrap">
+          <div class="user-avatar open">R</div>
+          <div class="dropdown" style="display:block">
+            <div class="dropdown-label">Account</div>
+            <a class="dropdown-item" href="#">Settings</a>
+            <a class="dropdown-item" href="#">API Keys</a>
+            <a class="dropdown-item" href="#">Usage</a>
+            <a class="dropdown-item" href="#">Billing</a>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item muted">Log out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 3: Search left, status + actions right            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 3 — Search left, status + actions right</div>
+    <div class="exp-desc">Search moves after breadcrumbs (smaller). Right side gets a status pill, docs link, and user avatar. More information density.</div>
+
+    <div class="topbar">
+      <div class="topbar-left" style="flex:1; gap:12px;">
+        <a class="logo" href="#">
+          <svg viewBox="6 9 36 24" width="32" height="21" fill="none">
+            <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+            <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+          </svg>
+        </a>
+        <div class="breadcrumb">
+          <span class="breadcrumb-sep">/</span>
+          <span>Dashboard</span>
+        </div>
+        <button class="cmdk" type="button" style="min-width:180px; max-width:240px; margin-left:8px;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
+          </svg>
+          <span class="cmdk-text">Search...</span>
+          <span class="cmdk-keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </button>
+      </div>
+      <div class="topbar-right">
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          Operational
+        </div>
+        <div class="topbar-sep"></div>
+        <a class="topbar-link" href="#" target="_blank">Docs</a>
+        <div class="topbar-sep"></div>
+        <div class="dropdown-wrap">
+          <div class="user-avatar">R</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- VARIATION 4: Compact — logo only, no breadcrumbs            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div>
+    <div class="exp-label">Variation 4 — Compact, no breadcrumbs</div>
+    <div class="exp-desc">Breadcrumbs removed from topbar (they'd live in page content). Logo left, search center, docs + user right. Maximum clean.</div>
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <a class="logo" href="#">
+          <svg viewBox="6 9 36 24" width="32" height="21" fill="none">
+            <polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+            <polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+          </svg>
+        </a>
+      </div>
+      <div class="topbar-center">
+        <button class="cmdk cmdk-sm" type="button">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
+          </svg>
+          <span class="cmdk-text">Search or ask anything...</span>
+          <span class="cmdk-keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </button>
+      </div>
+      <div class="topbar-right">
+        <a class="topbar-link" href="#" target="_blank">Docs</a>
+        <div class="topbar-sep"></div>
+        <div class="dropdown-wrap">
+          <div class="user-avatar">R</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.dropdown').forEach(d => {
+    if (!d.parentElement.contains(e.target)) {
+      d.style.display = 'none';
+      d.previousElementSibling.classList.remove('open');
+    }
+  });
+});
+</script>
+
+</body>
+</html>

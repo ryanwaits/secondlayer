@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Unified Dashboard Variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --border: #f2f2f2;
+    --accent-purple: #6344F5;
+    --code-bg: rgba(0,0,0,0.04);
+    --code-block-bg: #f8f8f8;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --text-main: #ececec;
+      --text-muted: rgba(255,255,255,0.4);
+      --border: #2a2a2a;
+      --accent-purple: #8b7ff0;
+      --code-bg: rgba(255,255,255,0.08);
+      --code-block-bg: #1c1c1c;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(99,68,245,0.15); }
+
+  /* ── Theme toggle ─────────────────────────────────── */
+  .theme-toggle {
+    position: fixed; top: 12px; right: 12px; z-index: 100;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  /* ── Layout frame ─────────────────────────────────── */
+  .frame {
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+
+  .topbar {
+    display: flex; align-items: center;
+    padding: 0 20px; height: 48px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .topbar-brand {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+    letter-spacing: -0.02em; color: var(--text-main);
+  }
+  .topbar-sep { color: var(--text-muted); opacity: 0.3; margin: 0 12px; }
+  .topbar-page { font-size: 13px; font-weight: 460; color: var(--text-muted); }
+
+  .body { display: flex; flex: 1; min-height: 0; }
+
+  /* ── Sidebar (shared across variants) ─────────────── */
+  .sidebar {
+    width: 180px; padding: 20px 0 20px 20px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  .nav-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .nav-list a {
+    color: var(--text-muted); text-decoration: none;
+    font-size: 14px; font-weight: 460; display: block;
+    padding: 2px 0; transition: color 0.2s;
+  }
+  .nav-list a:hover, .nav-list a.active {
+    color: var(--text-main); font-weight: 560;
+  }
+  .nav-group-title {
+    font-size: 14px; font-weight: 460; color: var(--text-main);
+    margin-top: 20px; margin-bottom: 6px;
+  }
+  .nav-bottom {
+    margin-top: auto; padding: 16px 0 4px;
+    border-top: 1px solid var(--border); margin-right: 20px;
+  }
+  .nav-bottom a {
+    color: var(--text-muted); font-size: 13px; font-weight: 460;
+    text-decoration: none; cursor: pointer;
+  }
+  .nav-bottom a:hover { color: var(--text-main); }
+
+  /* ── Content area ─────────────────────────────────── */
+  .content {
+    flex: 1; padding: 28px 32px 40px; overflow-y: auto;
+  }
+
+  .page-header {
+    margin-bottom: 24px;
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .page-title {
+    font-family: var(--font-heading); font-size: 15px; font-weight: 500;
+    letter-spacing: -0.01875rem;
+  }
+
+  /* ── Stats row ────────────────────────────────────── */
+  .stats { display: flex; gap: 32px; margin-bottom: 4px; }
+  .stat { display: flex; align-items: baseline; gap: 6px; }
+  .stat-value {
+    font-family: var(--font-heading); font-size: 20px; font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .stat-label { font-size: 13px; color: var(--text-muted); }
+
+  /* ── Section heading (hr + overlaid text) ──────────── */
+  .section-wrap { position: relative; margin-top: 32px; margin-bottom: 20px; }
+  .section-wrap hr { border: none; height: 1px; background: var(--border); }
+  .section-title {
+    position: absolute; top: 50%; left: 0; transform: translateY(-50%);
+    background: var(--bg); padding-right: 12px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: -0.00563rem; color: var(--text-muted);
+    line-height: 20px; margin: 0;
+  }
+
+  /* ── Activity rows ────────────────────────────────── */
+  .activity-list { display: flex; flex-direction: column; }
+  .activity-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    text-decoration: none; color: var(--text-main);
+    transition: background 0.1s; cursor: pointer;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-item:hover { background: rgba(0,0,0,0.02); }
+  @media (prefers-color-scheme: dark) {
+    .activity-item:hover { background: rgba(255,255,255,0.02); }
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot.green { background: var(--green); }
+  .dot.yellow { background: var(--yellow); }
+  .dot.red { background: var(--red); }
+  .dot.muted { background: var(--text-muted); opacity: 0.4; }
+  .activity-name {
+    font-family: var(--font-mono); font-size: 13px; flex: 1;
+  }
+  .activity-meta { font-size: 12px; color: var(--text-muted); }
+  .activity-type {
+    font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 3px;
+    background: var(--code-bg); color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* ── Badge ────────────────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 560; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 2px 6px; border-radius: 3px;
+    line-height: 1; vertical-align: middle;
+  }
+  .badge.active { color: var(--green); background: rgba(34,197,94,0.08); }
+  .badge.syncing { color: var(--yellow); background: rgba(234,179,8,0.08); }
+  .badge.error { color: var(--red); background: rgba(239,68,68,0.08); }
+
+  /* ════════════════════════════════════════════════════ */
+  /* VARIANT-SPECIFIC STYLES                             */
+  /* ════════════════════════════════════════════════════ */
+
+  /* ── Variant separator ────────────────────────────── */
+  .variant-sep {
+    border: none; height: 1px;
+    background: repeating-linear-gradient(90deg, var(--border) 0, var(--border) 6px, transparent 6px, transparent 12px);
+    margin: 0;
+  }
+  .variant-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--accent-purple); padding: 20px 32px 0;
+  }
+  .variant-desc {
+    font-size: 12px; color: var(--text-muted); padding: 4px 32px 16px;
+    line-height: 1.5;
+  }
+
+  /* ── A: Right-aligned filter tabs ─────────────────── */
+  .header-tabs {
+    display: flex; align-items: center; gap: 2px;
+  }
+  .header-tab {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: none; border: 1px solid transparent;
+    border-radius: 4px; padding: 3px 10px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .header-tab:hover { color: var(--text-main); }
+  .header-tab.active {
+    color: var(--text-main); font-weight: 600;
+    border-color: var(--border); background: var(--code-bg);
+  }
+
+  /* ── B: Segmented control ─────────────────────────── */
+  .segmented {
+    display: inline-flex; border: 1px solid var(--border);
+    border-radius: 6px; overflow: hidden; margin-bottom: 24px;
+  }
+  .seg-btn {
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    color: var(--text-muted); background: none; border: none;
+    padding: 6px 16px; cursor: pointer; transition: all 0.15s;
+    border-right: 1px solid var(--border);
+  }
+  .seg-btn:last-child { border-right: none; }
+  .seg-btn:hover { color: var(--text-main); }
+  .seg-btn.active {
+    color: var(--text-main); font-weight: 560;
+    background: var(--code-bg);
+  }
+
+  /* ── C: Collapsible groups ────────────────────────── */
+  .collapse-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 0; cursor: pointer; user-select: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .collapse-header:hover .collapse-title { color: var(--text-main); }
+  .collapse-chevron {
+    width: 14px; height: 14px; color: var(--text-muted);
+    transition: transform 0.2s; flex-shrink: 0;
+  }
+  .collapse-header.open .collapse-chevron { transform: rotate(90deg); }
+  .collapse-title {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    letter-spacing: -0.00563rem; text-transform: uppercase;
+    color: var(--text-muted); transition: color 0.15s;
+  }
+  .collapse-count {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-muted); opacity: 0.6;
+  }
+  .collapse-body { overflow: hidden; }
+  .collapse-body.closed { display: none; }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark'); this.textContent = document.documentElement.classList.contains('dark') ? 'light' : 'dark'">dark</button>
+
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- VARIANT A — Stacked sections (hr dividers)                  -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="frame" style="height: auto; min-height: auto; border-bottom: 3px solid var(--accent-purple);">
+  <div class="topbar">
+    <span class="topbar-brand">secondlayer</span>
+    <span class="topbar-sep">/</span>
+    <span class="topbar-page">Dashboard</span>
+  </div>
+  <div class="body" style="min-height: 560px;">
+    <nav class="sidebar">
+      <ul class="nav-list">
+        <li><a href="#" class="active">Dashboard</a></li>
+      </ul>
+      <div class="nav-group-title">Account</div>
+      <ul class="nav-list">
+        <li><a href="#">API Keys</a></li>
+        <li><a href="#">Usage</a></li>
+        <li><a href="#">Billing</a></li>
+        <li><a href="#">Settings</a></li>
+      </ul>
+      <div class="nav-bottom"><a>Log out</a></div>
+    </nav>
+    <main class="content">
+      <div class="variant-label" style="padding: 0; margin-bottom: 4px;">Variant A — Stacked sections</div>
+      <div class="variant-desc" style="padding: 0; margin-bottom: 20px;">Streams and Views as separate sections with the existing hr+title divider pattern. Familiar, zero learning curve. Everything visible at a glance.</div>
+
+      <div class="page-header">
+        <h1 class="page-title">Dashboard</h1>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span class="stat-value">3</span><span class="stat-label">streams</span></div>
+        <div class="stat"><span class="stat-value">2</span><span class="stat-label">views</span></div>
+        <div class="stat"><span class="stat-value">12.4k</span><span class="stat-label">deliveries</span></div>
+      </div>
+
+      <!-- Streams section -->
+      <div class="section-wrap">
+        <hr>
+        <h2 class="section-title">Streams</h2>
+      </div>
+      <div class="activity-list">
+        <a class="activity-item">
+          <span class="dot green"></span>
+          <span class="activity-name">stx-transfers</span>
+          <span class="activity-meta">8.2k deliveries, 99.8% success</span>
+          <span class="badge active">active</span>
+        </a>
+        <a class="activity-item">
+          <span class="dot green"></span>
+          <span class="activity-name">nft-mints</span>
+          <span class="activity-meta">4.1k deliveries, 99.2% success</span>
+          <span class="badge active">active</span>
+        </a>
+        <a class="activity-item">
+          <span class="dot yellow"></span>
+          <span class="activity-name">contract-calls</span>
+          <span class="activity-meta">3 failed in last hour</span>
+          <span class="badge syncing">paused</span>
+        </a>
+      </div>
+
+      <!-- Views section -->
+      <div class="section-wrap">
+        <hr>
+        <h2 class="section-title">Views</h2>
+      </div>
+      <div class="activity-list">
+        <a class="activity-item">
+          <span class="dot green"></span>
+          <span class="activity-name">token-transfers</span>
+          <span class="activity-meta">block 184,291 · 2 tables</span>
+          <span class="badge active">synced</span>
+        </a>
+        <a class="activity-item">
+          <span class="dot yellow"></span>
+          <span class="activity-name">defi-pools</span>
+          <span class="activity-meta">block 183,800 · 491 behind</span>
+          <span class="badge syncing">syncing</span>
+        </a>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- VARIANT B — Right-aligned filter tabs in header              -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="frame" style="height: auto; min-height: auto; border-bottom: 3px solid var(--accent-purple);">
+  <div class="topbar">
+    <span class="topbar-brand">secondlayer</span>
+    <span class="topbar-sep">/</span>
+    <span class="topbar-page">Dashboard</span>
+  </div>
+  <div class="body" style="min-height: 480px;">
+    <nav class="sidebar">
+      <ul class="nav-list">
+        <li><a href="#" class="active">Dashboard</a></li>
+      </ul>
+      <div class="nav-group-title">Account</div>
+      <ul class="nav-list">
+        <li><a href="#">API Keys</a></li>
+        <li><a href="#">Usage</a></li>
+        <li><a href="#">Billing</a></li>
+        <li><a href="#">Settings</a></li>
+      </ul>
+      <div class="nav-bottom"><a>Log out</a></div>
+    </nav>
+    <main class="content" id="variant-b">
+      <div class="variant-label" style="padding: 0; margin-bottom: 4px;">Variant B — Right-aligned filter tabs</div>
+      <div class="variant-desc" style="padding: 0; margin-bottom: 20px;">Compact pill tabs in the header row. "All" shows mixed list with type tags. Filtering without page navigation. Good for power users who want to narrow focus fast.</div>
+
+      <div class="page-header">
+        <h1 class="page-title">Dashboard</h1>
+        <div class="header-tabs">
+          <button class="header-tab active" onclick="filterB('all', this)">All</button>
+          <button class="header-tab" onclick="filterB('stream', this)">Streams</button>
+          <button class="header-tab" onclick="filterB('view', this)">Views</button>
+        </div>
+      </div>
+
+      <div class="stats" id="b-stats">
+        <div class="stat"><span class="stat-value">3</span><span class="stat-label">streams</span></div>
+        <div class="stat"><span class="stat-value">2</span><span class="stat-label">views</span></div>
+        <div class="stat"><span class="stat-value">12.4k</span><span class="stat-label">deliveries</span></div>
+      </div>
+
+      <div class="section-wrap"><hr><h2 class="section-title">Resources</h2></div>
+
+      <div class="activity-list" id="b-list">
+        <a class="activity-item" data-type="stream">
+          <span class="dot green"></span>
+          <span class="activity-name">stx-transfers</span>
+          <span class="activity-meta">8.2k deliveries</span>
+          <span class="activity-type">stream</span>
+        </a>
+        <a class="activity-item" data-type="stream">
+          <span class="dot green"></span>
+          <span class="activity-name">nft-mints</span>
+          <span class="activity-meta">4.1k deliveries</span>
+          <span class="activity-type">stream</span>
+        </a>
+        <a class="activity-item" data-type="view">
+          <span class="dot green"></span>
+          <span class="activity-name">token-transfers</span>
+          <span class="activity-meta">block 184,291</span>
+          <span class="activity-type">view</span>
+        </a>
+        <a class="activity-item" data-type="stream">
+          <span class="dot yellow"></span>
+          <span class="activity-name">contract-calls</span>
+          <span class="activity-meta">3 failed</span>
+          <span class="activity-type">stream</span>
+        </a>
+        <a class="activity-item" data-type="view">
+          <span class="dot yellow"></span>
+          <span class="activity-name">defi-pools</span>
+          <span class="activity-meta">491 behind</span>
+          <span class="activity-type">view</span>
+        </a>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- VARIANT C — Segmented control below title                    -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="frame" style="height: auto; min-height: auto; border-bottom: 3px solid var(--accent-purple);">
+  <div class="topbar">
+    <span class="topbar-brand">secondlayer</span>
+    <span class="topbar-sep">/</span>
+    <span class="topbar-page">Dashboard</span>
+  </div>
+  <div class="body" style="min-height: 480px;">
+    <nav class="sidebar">
+      <ul class="nav-list">
+        <li><a href="#" class="active">Dashboard</a></li>
+      </ul>
+      <div class="nav-group-title">Account</div>
+      <ul class="nav-list">
+        <li><a href="#">API Keys</a></li>
+        <li><a href="#">Usage</a></li>
+        <li><a href="#">Billing</a></li>
+        <li><a href="#">Settings</a></li>
+      </ul>
+      <div class="nav-bottom"><a>Log out</a></div>
+    </nav>
+    <main class="content" id="variant-c">
+      <div class="variant-label" style="padding: 0; margin-bottom: 4px;">Variant C — Segmented control</div>
+      <div class="variant-desc" style="padding: 0; margin-bottom: 20px;">Toggle between views. "Both" is default. When filtered, stats and list update. Feels app-like — familiar iOS/macOS pattern. Slightly heavier visually than variant B.</div>
+
+      <div class="page-header">
+        <h1 class="page-title">Dashboard</h1>
+      </div>
+
+      <div class="segmented">
+        <button class="seg-btn active" onclick="filterC('all', this)">Both</button>
+        <button class="seg-btn" onclick="filterC('stream', this)">Streams</button>
+        <button class="seg-btn" onclick="filterC('view', this)">Views</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span class="stat-value">3</span><span class="stat-label">streams</span></div>
+        <div class="stat"><span class="stat-value">2</span><span class="stat-label">views</span></div>
+        <div class="stat"><span class="stat-value">12.4k</span><span class="stat-label">deliveries</span></div>
+      </div>
+
+      <div class="section-wrap"><hr><h2 class="section-title">Resources</h2></div>
+
+      <div class="activity-list" id="c-list">
+        <a class="activity-item" data-type="stream">
+          <span class="dot green"></span>
+          <span class="activity-name">stx-transfers</span>
+          <span class="activity-meta">8.2k deliveries, 99.8% success</span>
+          <span class="activity-type">stream</span>
+        </a>
+        <a class="activity-item" data-type="stream">
+          <span class="dot green"></span>
+          <span class="activity-name">nft-mints</span>
+          <span class="activity-meta">4.1k deliveries, 99.2% success</span>
+          <span class="activity-type">stream</span>
+        </a>
+        <a class="activity-item" data-type="view">
+          <span class="dot green"></span>
+          <span class="activity-name">token-transfers</span>
+          <span class="activity-meta">block 184,291 · 2 tables</span>
+          <span class="activity-type">view</span>
+        </a>
+        <a class="activity-item" data-type="stream">
+          <span class="dot yellow"></span>
+          <span class="activity-name">contract-calls</span>
+          <span class="activity-meta">3 failed in last hour</span>
+          <span class="activity-type">stream</span>
+        </a>
+        <a class="activity-item" data-type="view">
+          <span class="dot yellow"></span>
+          <span class="activity-name">defi-pools</span>
+          <span class="activity-meta">block 183,800 · 491 behind</span>
+          <span class="activity-type">view</span>
+        </a>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- VARIANT D — Collapsible disclosure groups                    -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="frame" style="height: auto; min-height: auto;">
+  <div class="topbar">
+    <span class="topbar-brand">secondlayer</span>
+    <span class="topbar-sep">/</span>
+    <span class="topbar-page">Dashboard</span>
+  </div>
+  <div class="body" style="min-height: 520px;">
+    <nav class="sidebar">
+      <ul class="nav-list">
+        <li><a href="#" class="active">Dashboard</a></li>
+      </ul>
+      <div class="nav-group-title">Account</div>
+      <ul class="nav-list">
+        <li><a href="#">API Keys</a></li>
+        <li><a href="#">Usage</a></li>
+        <li><a href="#">Billing</a></li>
+        <li><a href="#">Settings</a></li>
+      </ul>
+      <div class="nav-bottom"><a>Log out</a></div>
+    </nav>
+    <main class="content">
+      <div class="variant-label" style="padding: 0; margin-bottom: 4px;">Variant D — Collapsible groups</div>
+      <div class="variant-desc" style="padding: 0; margin-bottom: 20px;">Both products always present, collapsible via chevron. Remembers open/closed state. Good for users who primarily use one product but occasionally check the other. Noisier than stacked — the toggle affordance adds visual weight.</div>
+
+      <div class="page-header">
+        <h1 class="page-title">Dashboard</h1>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span class="stat-value">3</span><span class="stat-label">streams</span></div>
+        <div class="stat"><span class="stat-value">2</span><span class="stat-label">views</span></div>
+        <div class="stat"><span class="stat-value">12.4k</span><span class="stat-label">deliveries</span></div>
+      </div>
+
+      <!-- Streams group -->
+      <div style="margin-top: 28px;">
+        <div class="collapse-header open" onclick="toggleCollapse(this)">
+          <svg class="collapse-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>
+          <span class="collapse-title">Streams</span>
+          <span class="collapse-count">3</span>
+        </div>
+        <div class="collapse-body">
+          <div class="activity-list">
+            <a class="activity-item">
+              <span class="dot green"></span>
+              <span class="activity-name">stx-transfers</span>
+              <span class="activity-meta">8.2k deliveries, 99.8% success</span>
+              <span class="badge active">active</span>
+            </a>
+            <a class="activity-item">
+              <span class="dot green"></span>
+              <span class="activity-name">nft-mints</span>
+              <span class="activity-meta">4.1k deliveries, 99.2% success</span>
+              <span class="badge active">active</span>
+            </a>
+            <a class="activity-item">
+              <span class="dot yellow"></span>
+              <span class="activity-name">contract-calls</span>
+              <span class="activity-meta">3 failed in last hour</span>
+              <span class="badge syncing">paused</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Views group -->
+      <div style="margin-top: 8px;">
+        <div class="collapse-header open" onclick="toggleCollapse(this)">
+          <svg class="collapse-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>
+          <span class="collapse-title">Views</span>
+          <span class="collapse-count">2</span>
+        </div>
+        <div class="collapse-body">
+          <div class="activity-list">
+            <a class="activity-item">
+              <span class="dot green"></span>
+              <span class="activity-name">token-transfers</span>
+              <span class="activity-meta">block 184,291 · 2 tables</span>
+              <span class="badge active">synced</span>
+            </a>
+            <a class="activity-item">
+              <span class="dot yellow"></span>
+              <span class="activity-name">defi-pools</span>
+              <span class="activity-meta">block 183,800 · 491 behind</span>
+              <span class="badge syncing">syncing</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<script>
+// Dark mode
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  document.documentElement.classList.add('dark');
+  document.querySelector('.theme-toggle').textContent = 'light';
+}
+
+// Variant B filter
+function filterB(type, btn) {
+  btn.closest('.header-tabs').querySelectorAll('.header-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#b-list .activity-item').forEach(item => {
+    item.style.display = (type === 'all' || item.dataset.type === type) ? '' : 'none';
+  });
+}
+
+// Variant C filter
+function filterC(type, btn) {
+  btn.closest('.segmented').querySelectorAll('.seg-btn').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#c-list .activity-item').forEach(item => {
+    item.style.display = (type === 'all' || item.dataset.type === type) ? '' : 'none';
+  });
+}
+
+// Variant D collapse
+function toggleCollapse(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('closed');
+}
+</script>
+
+</body>
+</html>

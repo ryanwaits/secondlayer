@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secondlayer — Agent Onboarding Touchpoints</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.2);
+    --border: #f2f2f2;
+    --accent-purple: #6344F5;
+    --accent-purple-bg: rgba(99,68,245,0.06);
+    --accent-purple-border: rgba(99,68,245,0.15);
+    --code-bg: rgba(0,0,0,0.04);
+    --code-block-bg: rgba(0,0,0,0.025);
+    --selection-bg: #ededed;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --item-hover: rgba(0,0,0,0.03);
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    --install-bg: rgba(99,68,245,0.04);
+    --install-border: rgba(99,68,245,0.12);
+    --copy-bg: #111;
+    --copy-text: #fff;
+  }
+
+  html.dark {
+    --bg: #141414;
+    --bg-elevated: #1a1a1a;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.4);
+    --text-dim: rgba(255,255,255,0.15);
+    --border: #2a2a2a;
+    --accent-purple: #8b7ff0;
+    --accent-purple-bg: rgba(139,127,240,0.08);
+    --accent-purple-border: rgba(139,127,240,0.2);
+    --code-bg: rgba(255,255,255,0.08);
+    --code-block-bg: rgba(255,255,255,0.04);
+    --selection-bg: #333;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --item-hover: rgba(255,255,255,0.04);
+    --install-bg: rgba(139,127,240,0.06);
+    --install-border: rgba(139,127,240,0.15);
+    --copy-bg: #fff;
+    --copy-text: #111;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.00563rem; -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px 120px; transition: background 0.2s, color 0.2s;
+  }
+  ::selection { background: var(--selection-bg); }
+
+  .theme-toggle {
+    position: fixed; top: 20px; right: 20px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px; cursor: pointer; z-index: 100;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  .page-title {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); letter-spacing: 0.02em; margin-bottom: 48px;
+  }
+  .states-grid { display: flex; flex-direction: column; gap: 72px; max-width: 560px; width: 100%; }
+  .state-section { display: flex; flex-direction: column; gap: 12px; }
+  .state-label { font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--accent-purple); letter-spacing: 0.02em; }
+  .state-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; line-height: 1.5; }
+  .annotation { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; }
+  .annotation-arrow { font-family: var(--font-mono); color: var(--accent-purple); font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+  .annotation-text { font-size: 11px; color: var(--text-dim); line-height: 1.5; font-style: italic; }
+  .annotation-text code { font-family: var(--font-mono); font-size: 10px; }
+
+  /* ── Skill Install Bar ── */
+  .skill-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: var(--install-bg);
+    border: 1px solid var(--install-border); border-radius: 8px;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .skill-bar-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--accent-purple); flex-shrink: 0;
+  }
+  .skill-bar-cmd {
+    flex: 1; color: var(--text-main); font-weight: 400;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ── Small Copy Button (for bars, chips, quick actions) ── */
+  .copy-sm {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--accent-purple); background: none;
+    border: 1px solid var(--accent-purple-border);
+    border-radius: 5px; padding: 3px 10px; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .copy-sm:hover { background: var(--accent-purple-bg); }
+  .copy-sm.copied { background: var(--green); color: #fff; border-color: var(--green); }
+
+  /* ── Quick Action Cards ── */
+  .quick-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick-action {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; transition: all 0.15s; flex: 1; min-width: 200px;
+  }
+  .quick-action:hover { border-color: var(--accent-purple-border); background: var(--install-bg); }
+  .quick-action-icon {
+    width: 28px; height: 28px; border-radius: 6px; background: var(--code-bg);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-muted);
+  }
+  .quick-action-text { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+  .quick-action-label { font-size: 13px; font-weight: 500; color: var(--text-main); }
+  .quick-action-desc { font-size: 11px; color: var(--text-muted); }
+
+  /* ── Dropdown Button ── */
+  .dropdown-wrap { position: relative; display: inline-block; }
+  .dropdown-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--accent-purple); background: var(--accent-purple-bg);
+    border: 1px solid var(--accent-purple-border);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; transition: all 0.15s;
+  }
+  .dropdown-btn:hover { background: var(--install-bg); }
+  .dropdown-btn svg { transition: transform 0.15s; }
+  .dropdown-wrap.open .dropdown-btn svg { transform: rotate(180deg); }
+
+  .dropdown-menu {
+    display: none; position: absolute; top: calc(100% + 4px); right: 0;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    min-width: 280px; overflow: hidden; z-index: 10;
+  }
+  .dropdown-wrap.open .dropdown-menu { display: block; }
+
+  .dropdown-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; cursor: pointer; transition: background 0.12s;
+  }
+  .dropdown-item:hover { background: var(--item-hover); }
+  .dropdown-item + .dropdown-item { border-top: 1px solid var(--border); }
+  .dropdown-item-icon {
+    width: 24px; height: 24px; border-radius: 5px; background: var(--code-bg);
+    display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0;
+  }
+  .dropdown-item-text { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+  .dropdown-item-label { font-size: 12px; font-weight: 500; color: var(--text-main); }
+  .dropdown-item-desc { font-size: 10px; color: var(--text-muted); }
+
+  /* ── Prompt Card ── */
+  .prompt-card {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+  }
+  .prompt-header { padding: 20px 22px 0; display: flex; flex-direction: column; gap: 4px; }
+  .prompt-eyebrow {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
+  }
+  .prompt-title {
+    font-family: var(--font-heading); font-size: 16px; font-weight: 600;
+    color: var(--text-main); letter-spacing: -0.02em; line-height: 1.35;
+  }
+  .prompt-footer {
+    padding: 14px 22px 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .prompt-agents { font-size: 11px; color: var(--text-dim); font-weight: 460; }
+  .prompt-docs {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+    text-decoration: none; transition: color 0.15s;
+  }
+  .prompt-docs:hover { color: var(--accent-purple); }
+
+  /* ── Code Panel (reuses scaffold-code patterns) ── */
+  .code-panel {
+    margin: 14px 22px 0; border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; position: relative;
+  }
+  .code-panel-scroll {
+    overflow: hidden; transition: max-height 0.3s ease;
+  }
+  .code-panel-scroll.collapsed {
+    max-height: 160px;
+    mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+  }
+  .code-panel pre {
+    margin: 0; padding: 14px 16px; padding-right: 70px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.65;
+    background: var(--code-block-bg); white-space: pre-wrap; word-break: break-word;
+  }
+
+  /* Syntax colors */
+  .code-panel .kw { color: var(--accent-purple); }
+  .code-panel .str { color: #059669; }
+  .code-panel .cmt { color: var(--text-dim); font-style: italic; }
+  .code-panel .fn { color: #b45309; }
+  html.dark .code-panel .str { color: #34d399; }
+  html.dark .code-panel .fn { color: #fbbf24; }
+
+  .code-panel-copy {
+    position: absolute; top: 10px; right: 10px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--text-muted); background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 3px 10px; cursor: pointer; transition: all 0.15s; z-index: 2;
+    opacity: 0;
+  }
+  .code-panel:hover .code-panel-copy { opacity: 1; }
+  .code-panel-copy:hover { color: var(--text-main); border-color: var(--text-muted); }
+  .code-panel-copy.copied { background: var(--green); color: #fff; border-color: var(--green); opacity: 1; }
+
+  .code-panel-toggle {
+    display: block; width: 100%; padding: 6px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--code-bg);
+    border: none; border-top: 1px solid var(--border);
+    cursor: pointer; transition: all 0.15s;
+    text-align: center;
+  }
+  .code-panel-toggle:hover { color: var(--text-main); background: var(--item-hover); }
+
+  /* ── Sim Header ── */
+  .sim-header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+  .sim-title { font-family: var(--font-heading); font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+  .sim-desc { font-size: 13px; color: var(--text-muted); }
+
+  /* ── Sim List ── */
+  .sim-list {
+    display: flex; flex-direction: column; gap: 1px;
+    background: var(--border); border-radius: 8px;
+    overflow: hidden; border: 1px solid var(--border);
+  }
+  .sim-list-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--bg-elevated);
+  }
+  .sim-list-name { font-size: 13px; font-weight: 500; }
+  .sim-list-meta { font-size: 11px; color: var(--text-muted); }
+  .sim-list-meta.green { color: var(--green); }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark'); this.textContent = document.documentElement.classList.contains('dark') ? 'light mode' : 'dark mode'">dark mode</button>
+
+<div class="page-title">Agent onboarding — touchpoints across the app</div>
+
+<div class="states-grid">
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 01: Dashboard — empty state                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="state-section">
+    <div class="state-label">01 — dashboard empty state</div>
+    <div class="state-desc">Original empty states with CLI commands + links, then agent prompt block below each.</div>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div class="sim-header">
+        <span class="sim-title">Dashboard</span>
+      </div>
+
+      <div class="skill-bar">
+        <span class="skill-bar-label">skill</span>
+        <span class="skill-bar-cmd">npx skills add ryanwaits/secondlayer --skill secondlayer</span>
+        <button class="copy-sm" onclick="copyText(this, 'npx skills add ryanwaits/secondlayer --skill secondlayer')">Copy</button>
+      </div>
+
+      <div class="quick-actions">
+        <div class="quick-action" onclick="copyText(this.querySelector('.copy-sm'), 'Create a stream that watches for STX transfer events over 100 STX and sends them to my webhook at https://example.com/webhook')">
+          <div class="quick-action-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l6 4 6-4M2 4v8l6 4 6-4V4M2 4l6-4 6 4"/></svg>
+          </div>
+          <div class="quick-action-text">
+            <span class="quick-action-label">Create a stream</span>
+            <span class="quick-action-desc">Webhook event delivery</span>
+          </div>
+          <button class="copy-sm" onclick="event.stopPropagation()">Copy</button>
+        </div>
+        <div class="quick-action" onclick="copyText(this.querySelector('.copy-sm'), 'Scaffold a view that indexes swap events from the ALEX DEX contract SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01 and deploy it')">
+          <div class="quick-action-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 8h4M5 10h5"/></svg>
+          </div>
+          <div class="quick-action-text">
+            <span class="quick-action-label">Deploy a view</span>
+            <span class="quick-action-desc">Custom blockchain indexer</span>
+          </div>
+          <button class="copy-sm" onclick="event.stopPropagation()">Copy</button>
+        </div>
+      </div>
+
+      <div class="prompt-agents" style="text-align:center;">Install the skill, then paste a task into your agent</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 02: Dashboard — has data (dropdown button)                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="state-section">
+    <div class="state-label">02 — dashboard with data (dropdown)</div>
+    <div class="state-desc">When data exists, quick actions collapse into a dropdown in the header. Same two options + skill install.</div>
+
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div class="sim-header" style="margin-bottom:0;">
+          <span class="sim-title">Dashboard</span>
+        </div>
+        <div class="dropdown-wrap" id="dash-dropdown">
+          <button class="dropdown-btn" onclick="this.closest('.dropdown-wrap').classList.toggle('open')">
+            Action
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+          </button>
+          <div class="dropdown-menu">
+            <div class="dropdown-item" onclick="copyText(document.querySelector('#dash-dd-stream'), 'Create a stream that watches for STX transfer events over 100 STX and sends them to my webhook'); document.querySelector('#dash-dropdown').classList.remove('open')">
+              <div class="dropdown-item-icon">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l6 4 6-4M2 4v8l6 4 6-4V4M2 4l6-4 6 4"/></svg>
+              </div>
+              <div class="dropdown-item-text">
+                <span class="dropdown-item-label">Create a stream</span>
+                <span class="dropdown-item-desc">Copy task for your agent</span>
+              </div>
+              <button class="copy-sm" id="dash-dd-stream" onclick="event.stopPropagation()">Copy</button>
+            </div>
+            <div class="dropdown-item" onclick="copyText(document.querySelector('#dash-dd-view'), 'Scaffold a view that indexes swap events from a Stacks contract and deploy it'); document.querySelector('#dash-dropdown').classList.remove('open')">
+              <div class="dropdown-item-icon">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 8h4M5 10h5"/></svg>
+              </div>
+              <div class="dropdown-item-text">
+                <span class="dropdown-item-label">Deploy a view</span>
+                <span class="dropdown-item-desc">Copy task for your agent</span>
+              </div>
+              <button class="copy-sm" id="dash-dd-view" onclick="event.stopPropagation()">Copy</button>
+            </div>
+            <div class="dropdown-item" onclick="copyText(document.querySelector('#dash-dd-skill'), 'npx skills add ryanwaits/secondlayer --skill secondlayer'); document.querySelector('#dash-dropdown').classList.remove('open')">
+              <div class="dropdown-item-icon" style="background:var(--accent-purple-bg);">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--accent-purple)" stroke-width="1.5"><path d="M8 1v14M1 8h14"/></svg>
+              </div>
+              <div class="dropdown-item-text">
+                <span class="dropdown-item-label">Install skill</span>
+                <span class="dropdown-item-desc">Give your agent full Second Layer knowledge</span>
+              </div>
+              <button class="copy-sm" id="dash-dd-skill" onclick="event.stopPropagation()">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Simulated stats row -->
+      <div style="display:flex; gap:24px; padding:8px 0;">
+        <div><span style="font-size:20px; font-weight:600;">3</span> <span style="font-size:12px; color:var(--text-muted);">streams</span></div>
+        <div><span style="font-size:20px; font-weight:600;">2</span> <span style="font-size:12px; color:var(--text-muted);">views</span></div>
+        <div><span style="font-size:20px; font-weight:600;">4.2k</span> <span style="font-size:12px; color:var(--text-muted);">deliveries</span></div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <span class="annotation-arrow">&lhook;</span>
+      <span class="annotation-text">Dropdown stays out of the way. Same quick-copy tasks + skill install. Closes on selection.</span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 03: Streams — empty state                                 -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="state-section">
+    <div class="state-label">03 — streams empty state</div>
+    <div class="state-desc">Skill bar + collapsible code panel. Shows preview height with fade-out. Copy grabs full content. "Show all" expands.</div>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div class="sim-header">
+        <span class="sim-title">Streams</span>
+      </div>
+
+      <div class="skill-bar">
+        <span class="skill-bar-label">skill</span>
+        <span class="skill-bar-cmd">npx skills add ryanwaits/secondlayer --skill secondlayer</span>
+        <button class="copy-sm" onclick="copyText(this, 'npx skills add ryanwaits/secondlayer --skill secondlayer')">Copy</button>
+      </div>
+
+      <div class="prompt-card" id="streams-card">
+        <div class="prompt-header">
+          <span class="prompt-eyebrow">paste into your agent</span>
+          <span class="prompt-title">Create your first stream.</span>
+        </div>
+
+        <div class="code-panel" style="margin-bottom:0;" id="streams-panel">
+          <div class="code-panel-scroll collapsed" id="streams-code-scroll">
+            <pre>Create a Second Layer stream that watches
+for STX transfer events and delivers them
+to my webhook.
+
+<span class="kw">npm install</span> -g @secondlayer/cli
+<span class="fn">secondlayer</span> auth login
+
+<span class="cmt"># Generate stream config template</span>
+<span class="fn">secondlayer</span> streams new stx-transfers \
+  -o streams/stx-transfers.json
+
+<span class="cmt"># Edit the JSON to set your webhook URL</span>
+<span class="cmt"># and filters, then register:</span>
+<span class="fn">secondlayer</span> streams register \
+  streams/stx-transfers.json
+
+<span class="cmt"># The output includes a webhookSecret</span>
+<span class="cmt"># — save it, it's shown only once.</span></pre>
+          </div>
+          <button class="code-panel-copy" onclick="copyCodePanel(this, 'streams-panel')">Copy</button>
+          <button class="code-panel-toggle" onclick="togglePanel('streams-code-scroll', this)">Show all</button>
+        </div>
+
+        <div class="prompt-footer">
+          <span class="prompt-agents">Works with Claude Code, Codex, Cursor, Windsurf</span>
+          <a class="prompt-docs" href="#">docs &rarr;</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <span class="annotation-arrow">&lhook;</span>
+      <span class="annotation-text">Collapsed by default — most users just hit Copy. Code panel reuses <code>scaffold-code-collapsed</code> mask-image pattern. Copy always grabs the full text regardless of expand state.</span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 04: Views — empty state                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="state-section">
+    <div class="state-label">04 — views empty state</div>
+    <div class="state-desc">Same pattern. Collapsible code panel with scaffold + deploy commands.</div>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div class="sim-header">
+        <span class="sim-title">Views</span>
+      </div>
+
+      <div class="skill-bar">
+        <span class="skill-bar-label">skill</span>
+        <span class="skill-bar-cmd">npx skills add ryanwaits/secondlayer --skill secondlayer</span>
+        <button class="copy-sm" onclick="copyText(this, 'npx skills add ryanwaits/secondlayer --skill secondlayer')">Copy</button>
+      </div>
+
+      <div class="prompt-card" id="views-card">
+        <div class="prompt-header">
+          <span class="prompt-eyebrow">paste into your agent</span>
+          <span class="prompt-title">Deploy your first view.</span>
+        </div>
+
+        <div class="code-panel" style="margin-bottom:0;" id="views-panel">
+          <div class="code-panel-scroll collapsed" id="views-code-scroll">
+            <pre>Scaffold a Second Layer view that indexes
+swap events from the ALEX DEX contract
+and deploy it.
+
+<span class="kw">npm install</span> -g @secondlayer/cli
+<span class="fn">secondlayer</span> auth login
+
+<span class="cmt"># Scaffold from contract ABI</span>
+<span class="fn">secondlayer</span> views scaffold \
+  <span class="str">SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM</span>\
+<span class="str">.amm-pool-v2-01</span> \
+  -o views/alex-swaps.ts
+
+<span class="cmt"># Review the generated handler, then:</span>
+<span class="fn">secondlayer</span> views deploy views/alex-swaps.ts</pre>
+          </div>
+          <button class="code-panel-copy" onclick="copyCodePanel(this, 'views-panel')">Copy</button>
+          <button class="code-panel-toggle" onclick="togglePanel('views-code-scroll', this)">Show all</button>
+        </div>
+
+        <div class="prompt-footer">
+          <span class="prompt-agents">Works with Claude Code, Codex, Cursor, Windsurf</span>
+          <a class="prompt-docs" href="#">docs &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 05: Streams list — has data (dropdown)                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="state-section">
+    <div class="state-label">05 — streams list with data</div>
+    <div class="state-desc">Dropdown in header for quick agent actions. Same pattern as dashboard.</div>
+
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div class="sim-header" style="margin-bottom:0;">
+          <span class="sim-title">Streams</span>
+          <span class="sim-desc">3 streams — 2 active, 1 paused</span>
+        </div>
+        <div class="dropdown-wrap" id="streams-dropdown">
+          <button class="dropdown-btn" onclick="this.closest('.dropdown-wrap').classList.toggle('open')">
+            Action
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+          </button>
+          <div class="dropdown-menu">
+            <div class="dropdown-item" onclick="copyText(document.querySelector('#str-dd-create'), 'Create a new stream that watches for contract call events and delivers them to my webhook'); document.querySelector('#streams-dropdown').classList.remove('open')">
+              <div class="dropdown-item-text">
+                <span class="dropdown-item-label">Create a stream</span>
+                <span class="dropdown-item-desc">Copy task for your agent</span>
+              </div>
+              <button class="copy-sm" id="str-dd-create" onclick="event.stopPropagation()">Copy</button>
+            </div>
+            <div class="dropdown-item" onclick="copyText(document.querySelector('#str-dd-skill'), 'npx skills add ryanwaits/secondlayer --skill secondlayer'); document.querySelector('#streams-dropdown').classList.remove('open')">
+              <div class="dropdown-item-text">
+                <span class="dropdown-item-label">Install skill</span>
+                <span class="dropdown-item-desc">Full Second Layer agent knowledge</span>
+              </div>
+              <button class="copy-sm" id="str-dd-skill" onclick="event.stopPropagation()">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sim-list">
+        <div class="sim-list-item">
+          <span class="sim-list-name">stx-transfers</span>
+          <span class="sim-list-meta green">active</span>
+        </div>
+        <div class="sim-list-item">
+          <span class="sim-list-name">nft-tracker</span>
+          <span class="sim-list-meta green">active</span>
+        </div>
+        <div class="sim-list-item">
+          <span class="sim-list-name">whale-alerts</span>
+          <span class="sim-list-meta">paused</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 06: API Keys — SDK snippet with masked key                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="state-section">
+    <div class="state-label">06 — API keys page</div>
+    <div class="state-desc">SDK init snippet with masked key. Copy injects the real key. The one place API keys surface for agent use.</div>
+
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="sim-header">
+        <span class="sim-title">API Keys</span>
+        <span class="sim-desc">1 active key</span>
+      </div>
+
+      <div class="code-panel" id="sdk-panel">
+        <div class="code-panel-scroll">
+          <pre><span class="kw">import</span> { SecondLayer } <span class="kw">from</span> <span class="str">"@secondlayer/sdk"</span>;
+
+<span class="kw">const</span> sl = <span class="kw">new</span> SecondLayer({
+  apiKey: <span class="str">"<span class="key" style="color:var(--accent-purple)">sl_live_••••a1b2</span>"</span>,
+});</pre>
+        </div>
+        <button class="code-panel-copy" onclick="copyCodePanel(this, 'sdk-panel')" style="opacity:1;">Copy</button>
+      </div>
+      <div style="font-size:11px; color:var(--text-dim); display:flex; align-items:center; gap:6px;">
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.5"><path d="M1 8a7 7 0 1014 0A7 7 0 001 8z"/><path d="M8 5v3M8 10.5v.5"/></svg>
+        Full API key included when copied
+      </div>
+    </div>
+
+    <div class="annotation">
+      <span class="annotation-arrow">&lhook;</span>
+      <span class="annotation-text">Only place the API key surfaces in copy-paste. Agents need this for SDK usage. CLI uses <code>secondlayer auth</code> instead.</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Close dropdowns on outside click
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.dropdown-wrap.open').forEach((d) => {
+    if (!d.contains(e.target)) d.classList.remove('open');
+  });
+});
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyCodePanel(btn, panelId) {
+  const panel = document.getElementById(panelId);
+  const pre = panel.querySelector('pre');
+  if (!pre) return;
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function togglePanel(scrollId, btn) {
+  const el = document.getElementById(scrollId);
+  if (el.classList.contains('collapsed')) {
+    el.classList.remove('collapsed');
+    el.style.maxHeight = el.scrollHeight + 'px';
+    btn.textContent = 'Collapse';
+  } else {
+    el.classList.add('collapsed');
+    el.style.maxHeight = '';
+    btn.textContent = 'Show all';
+  }
+}
+</script>
+
+</body>
+</html>
