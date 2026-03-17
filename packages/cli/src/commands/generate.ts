@@ -4,6 +4,7 @@ import fg from "fast-glob";
 import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { getErrorMessage } from "@secondlayer/shared";
 import { loadConfig } from "../utils/config";
+import { loadConfig as loadCliConfig } from "../lib/config.ts";
 import { parseContractId } from "../utils/contract-id";
 import { StacksApiClient } from "../utils/api";
 import { inferNetwork } from "../utils/network";
@@ -106,7 +107,8 @@ async function buildConfigFromInputs(
   parsedInputs: ParsedInputs,
   outPath: string,
   apiKey: string | undefined,
-  defaultAddress?: string
+  defaultAddress?: string,
+  nodeRpcUrl?: string,
 ): Promise<SecondLayerConfig> {
   const contracts = [];
   const deployer = defaultAddress || DEFAULT_DEVNET_ADDRESS;
@@ -141,7 +143,7 @@ async function buildConfigFromInputs(
     const network = inferNetwork(address) ?? "mainnet";
 
     try {
-      const apiClient = new StacksApiClient(network, apiKey);
+      const apiClient = new StacksApiClient(network, apiKey, nodeRpcUrl);
       const contractInfo = await apiClient.getContractInfo(contractId);
       const abi = parseApiResponse(contractInfo);
       const name = toCamelCase(contractName);
@@ -194,8 +196,9 @@ export async function generate(files: string[], options: GenerateOptions) {
 
       // Get API key from option or environment variable
       const apiKey = options.apiKey || process.env.HIRO_API_KEY;
+      const cliConfig = await loadCliConfig();
 
-      config = await buildConfigFromInputs(parsedInputs, options.out, apiKey);
+      config = await buildConfigFromInputs(parsedInputs, options.out, apiKey, undefined, cliConfig.nodeRpcUrl);
     } else {
       // Use config file (existing behavior)
       config = await loadConfig(options.config);

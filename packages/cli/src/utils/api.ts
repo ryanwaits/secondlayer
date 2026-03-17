@@ -14,10 +14,15 @@ const gotWithRetry = got.extend({
 });
 
 /**
- * Stacks API client for fetching contract information
+ * Stacks API client for fetching contract information.
+ *
+ * URL resolution order:
+ *   1. Explicit `apiUrl` constructor arg
+ *   2. `STACKS_NODE_RPC_URL` env var
+ *   3. Hiro public API (fallback)
  */
 
-const API_URLS: Record<NetworkName, string> = {
+const HIRO_URLS: Record<NetworkName, string> = {
   mainnet: "https://api.hiro.so",
   testnet: "https://api.testnet.hiro.so",
   devnet: "http://localhost:3999",
@@ -27,20 +32,23 @@ export class StacksApiClient {
   private static hasWarnedAboutApiKey = false;
   private baseUrl: string;
   private headers: Record<string, string>;
+  private usingHiro: boolean;
 
   constructor(
     network: NetworkName = "mainnet",
     apiKey?: string,
     apiUrl?: string
   ) {
-    this.baseUrl = apiUrl || API_URLS[network];
+    const nodeRpcUrl = process.env.STACKS_NODE_RPC_URL;
+    this.baseUrl = apiUrl || nodeRpcUrl || HIRO_URLS[network];
+    this.usingHiro = !apiUrl && !nodeRpcUrl;
     this.headers = apiKey ? { "x-api-key": apiKey } : {};
 
-    if (!apiKey && !StacksApiClient.hasWarnedAboutApiKey) {
+    if (this.usingHiro && !apiKey && !StacksApiClient.hasWarnedAboutApiKey) {
       console.warn(
-        "⚠️  No API key provided. You may be rate-limited.\n" +
-          "   Set HIRO_API_KEY env var or use --api-key flag.\n" +
-          "   Get a free key at: https://platform.hiro.so/"
+        "⚠️  Using Hiro public API (no STACKS_NODE_RPC_URL set). You may be rate-limited.\n" +
+          "   Set STACKS_NODE_RPC_URL to use your own node, or set HIRO_API_KEY for Hiro.\n" +
+          "   Get a free Hiro key at: https://platform.hiro.so/"
       );
       StacksApiClient.hasWarnedAboutApiKey = true;
     }
