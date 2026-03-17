@@ -29,9 +29,11 @@ export default function SubgraphsPage() {
 
         <div className="prose">
           <p>
-            Subgraphs are declarative SQL tables that auto-index blockchain data.
-            Define a schema, write event handlers, deploy, and query — like a
-            materialized view over the chain.
+            Subgraphs let you build custom views of Stacks onchain data. Define
+            the events you care about, write TypeScript handlers that transform
+            them into SQL rows, and secondlayer indexes everything into
+            queryable Postgres tables — your own slice of the chain, shaped
+            exactly how your app needs it.
           </p>
           <p>
             Install with <code>bun add @secondlayer/subgraphs</code>.
@@ -89,7 +91,7 @@ export default defineSubgraph({
 
         <div className="prose">
           <p>
-            Each subgraph gets its own PostgreSQL schema (<code>view_&lt;name&gt;</code>).
+            Each subgraph gets its own PostgreSQL schema (<code>subgraph_&lt;name&gt;</code>).
             Tables are defined declaratively with typed columns. System columns
             are added automatically: <code>_id</code>, <code>_blockHeight</code>,{" "}
             <code>_txId</code>, <code>_createdAt</code>.
