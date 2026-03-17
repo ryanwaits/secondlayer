@@ -1,5 +1,5 @@
 /**
- * Simple token bucket rate limiter for per-stream webhook delivery
+ * Simple token bucket rate limiter for per-stream delivery
  * Note: This is per-worker; with N workers, actual rate = N × limit
  */
 

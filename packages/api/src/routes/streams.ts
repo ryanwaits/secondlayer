@@ -26,8 +26,8 @@ function mapQueryRow(r: any): { stream: Stream; metrics: StreamMetrics | null } 
     status: r.status,
     filters: r.filters,
     options: r.options,
-    webhook_url: r.webhook_url,
-    webhook_secret: r.webhook_secret,
+    endpoint_url: r.endpoint_url,
+    signing_secret: r.signing_secret,
     api_key_id: r.api_key_id,
     created_at: r.created_at,
     updated_at: r.updated_at,
@@ -56,8 +56,8 @@ function formatStream(
     name: stream.name,
     status: stream.status,
     enabled: stream.status === "active" || stream.status === "paused",
-    webhookUrl: stream.webhook_url,
-    ...(opts?.includeSecret ? { webhookSecret: stream.webhook_secret } : {}),
+    endpointUrl: stream.endpoint_url,
+    ...(opts?.includeSecret ? { signingSecret: stream.signing_secret } : {}),
     filters: parseJsonb(stream.filters),
     options: parseJsonb(stream.options),
     lastTriggeredAt: metrics?.last_triggered_at?.toISOString() ?? null,
@@ -78,15 +78,15 @@ app.post("/", async (c) => {
   const db = getDb();
   const apiKeyId = getApiKeyId(c);
 
-  // Generate webhook secret
-  const webhookSecret = generateSecret();
+  // Generate signing secret
+  const signingSecret = generateSecret();
 
   const stream = await db
     .insertInto("streams")
     .values({
       name: parsed.name,
-      webhook_url: parsed.webhookUrl,
-      webhook_secret: webhookSecret,
+      endpoint_url: parsed.endpointUrl,
+      signing_secret: signingSecret,
       filters: jsonb(parsed.filters),
       options: jsonb(parsed.options ?? {}),
       status: "active",
@@ -101,7 +101,7 @@ app.post("/", async (c) => {
   return c.json(
     {
       stream: formatStream(stream),
-      webhookSecret,
+      signingSecret,
     },
     201
   );
@@ -254,7 +254,7 @@ app.patch("/:id", async (c) => {
   };
 
   if (parsed.name !== undefined) updates.name = parsed.name;
-  if (parsed.webhookUrl !== undefined) updates.webhook_url = parsed.webhookUrl;
+  if (parsed.endpointUrl !== undefined) updates.endpoint_url = parsed.endpointUrl;
   if (parsed.filters !== undefined) updates.filters = jsonb(parsed.filters) as any;
   if (parsed.options !== undefined) {
     updates.options = jsonb({ ...parseJsonb<object>(existing.options), ...parsed.options }) as any;
@@ -386,7 +386,7 @@ app.post("/:id/resume", async (c) => {
   return c.json(formatStream(updated));
 });
 
-// Rotate webhook secret
+// Rotate signing secret
 app.post("/:id/rotate-secret", async (c) => {
   const { id } = c.req.param();
   const db = getDb();
@@ -398,7 +398,7 @@ app.post("/:id/rotate-secret", async (c) => {
 
   const updated = await getDb()
     .updateTable("streams")
-    .set({ webhook_secret: newSecret, updated_at: new Date() })
+    .set({ signing_secret: newSecret, updated_at: new Date() })
     .where("id", "=", id)
     .returningAll()
     .executeTakeFirst();
@@ -409,7 +409,7 @@ app.post("/:id/rotate-secret", async (c) => {
 
   return c.json({
     ...formatStream(updated),
-    webhookSecret: newSecret,
+    signingSecret: newSecret,
   });
 });
 
