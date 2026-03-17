@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Stream } from "@/lib/types";
+import type { Stream, Delivery } from "@/lib/types";
 import { queryKeys } from "./keys";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -22,6 +22,7 @@ export function useStreams(initialData?: Stream[]) {
       fetchJson<{ streams: Stream[]; total: number }>("/api/streams?limit=100&offset=0")
         .then((r) => r.streams),
     initialData,
+    staleTime: 2 * 60_000,
   });
 }
 
@@ -30,6 +31,18 @@ export function useStream(id: string, initialData?: Stream) {
     queryKey: queryKeys.streams.detail(id),
     queryFn: () => fetchJson<Stream>(`/api/streams/${id}`),
     initialData,
+  });
+}
+
+export function useDeliveries(id: string, initialData?: Delivery[]) {
+  return useQuery({
+    queryKey: queryKeys.streams.deliveries(id),
+    queryFn: () =>
+      fetchJson<{ deliveries: Delivery[] }>(
+        `/api/streams/${id}/deliveries?limit=5`,
+      ).then((r) => r.deliveries),
+    initialData,
+    staleTime: 30_000,
   });
 }
 

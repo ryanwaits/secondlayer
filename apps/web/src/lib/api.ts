@@ -18,9 +18,10 @@ export async function apiRequest<T>(
     method?: string;
     body?: unknown;
     sessionToken?: string;
+    tags?: string[];
   } = {},
 ): Promise<T> {
-  const { method = "GET", body, sessionToken } = options;
+  const { method = "GET", body, sessionToken, tags } = options;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -30,11 +31,15 @@ export async function apiRequest<T>(
     headers["Authorization"] = `Bearer ${sessionToken}`;
   }
 
+  const nextOptions: Record<string, unknown> = tags
+    ? { tags }
+    : { revalidate: 0 };
+
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    cache: "no-store",
+    next: nextOptions,
   });
 
   if (!res.ok) {
