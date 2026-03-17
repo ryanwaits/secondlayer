@@ -522,6 +522,8 @@
 }
 
 .dash-activity-dot.green { background: #22c55e; }
+.dash-activity-dot.blue { background: #38bdf8; }
+.dash-activity-dot.yellow { background: #eab308; }
 .dash-activity-dot.red { background: #ef4444; }
 .dash-activity-dot.yellow { background: #eab308; }
 .dash-activity-dot.muted { background: var(--text-muted); }
@@ -574,8 +576,12 @@
 }
 
 .dash-badge.active { color: #22c55e; background: rgba(34, 197, 94, 0.08); }
+.dash-badge.syncing { color: #38bdf8; background: rgba(56, 189, 248, 0.08); }
+.dash-badge.reindexing { color: #38bdf8; background: rgba(56, 189, 248, 0.08); }
 .dash-badge.paused { color: #eab308; background: rgba(234, 179, 8, 0.08); }
+.dash-badge.stalled { color: #eab308; background: rgba(234, 179, 8, 0.08); }
 .dash-badge.failed { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+.dash-badge.error { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 .dash-badge.inactive { color: var(--text-muted); background: rgba(128, 128, 128, 0.1); }
 .dash-badge.free { color: var(--accent-purple); background: rgba(99, 68, 245, 0.06); }
 .dash-badge.version { color: var(--text-muted); background: rgba(128, 128, 128, 0.1); font-family: var(--font-mono-stack); }

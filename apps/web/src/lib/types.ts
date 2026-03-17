@@ -57,6 +57,8 @@ export interface SubgraphSummary {
   version: string;
   status: string;
   lastProcessedBlock: number | null;
+  totalProcessed: number;
+  totalErrors: number;
   tables: string[];
   createdAt: string;
 }
