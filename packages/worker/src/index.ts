@@ -1,4 +1,4 @@
-// Worker service - evaluates filters and dispatches webhooks
+// Worker service - evaluates filters and dispatches deliveries
 import { logger, getEnv, getErrorMessage } from "@secondlayer/shared";
 import { claim, complete, fail, getWorkerId } from "@secondlayer/shared/queue";
 import { listenForJobs } from "@secondlayer/shared/queue/listener";

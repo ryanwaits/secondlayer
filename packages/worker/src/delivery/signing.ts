@@ -1,10 +1,10 @@
 import { createSignatureHeader } from "@secondlayer/shared/crypto/hmac";
 
 /**
- * Create headers for a signed webhook request
+ * Create headers for a signed delivery request
  * Uses Stripe-style signature format: t=timestamp,v1=signature
  */
-export function createWebhookHeaders(
+export function createDeliveryHeaders(
   payload: string,
   secret: string | null
 ): Record<string, string> {
@@ -22,8 +22,8 @@ export function createWebhookHeaders(
 }
 
 /**
- * Sign a webhook payload and return the signature header value
+ * Sign a delivery payload and return the signature header value
  */
-export function signWebhook(payload: string, secret: string): string {
+export function signDelivery(payload: string, secret: string): string {
   return createSignatureHeader(payload, secret);
 }

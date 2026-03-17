@@ -1,7 +1,7 @@
 import { getDb, jsonb } from "@secondlayer/shared/db";
 import { sql } from "kysely";
 import type { Delivery } from "@secondlayer/shared/db";
-import type { WebhookPayload } from "./payload.ts";
+import type { DeliveryPayload } from "./payload.ts";
 import type { DispatchResult } from "./dispatcher.ts";
 
 export interface DeliveryRecord {
@@ -9,7 +9,7 @@ export interface DeliveryRecord {
   jobId: string | null;
   blockHeight: number;
   result: DispatchResult;
-  payload: WebhookPayload;
+  payload: DeliveryPayload;
 }
 
 /**

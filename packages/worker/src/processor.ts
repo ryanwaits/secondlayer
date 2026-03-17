@@ -6,12 +6,12 @@ import type { StreamFilter, StreamOptions } from "@secondlayer/shared/schemas";
 import { evaluateFilters, type MatchResult } from "./matcher/index.ts";
 import {
   buildPayload,
-  dispatchWebhook,
+  dispatchDelivery,
   acquireToken,
   recordDelivery,
   countRecentFailures,
-  type WebhookPayload,
-} from "./webhook/index.ts";
+  type DeliveryPayload,
+} from "./delivery/index.ts";
 import { incrementDeliveryCount, updateStreamMetrics } from "@secondlayer/shared/db/queries/metrics";
 import { incrementDeliveries as incrementAccountDeliveries } from "@secondlayer/shared/db/queries/usage";
 
@@ -24,12 +24,12 @@ export interface ProcessedJob {
   stream: Stream;
   block: Block | null;
   matches: MatchResult;
-  payload: WebhookPayload | null;
+  payload: DeliveryPayload | null;
   delivered: boolean;
 }
 
 /**
- * Process a single job - evaluate filters and deliver webhook
+ * Process a single job - evaluate filters and deliver payload
  */
 export async function processJob(job: Job): Promise<ProcessedJob> {
   const db = getDb();
@@ -108,17 +108,17 @@ export async function processJob(job: Job): Promise<ProcessedJob> {
     return { stream, block, matches, payload: null, delivered: false };
   }
 
-  // 6. Build webhook payload
+  // 6. Build delivery payload
   const payload = buildPayload(stream, block, matches, job.backfill);
 
-  // 7. Rate limit and deliver webhook
+  // 7. Rate limit and deliver
   const options = parseJsonb<StreamOptions>(stream.options);
   await acquireToken(stream.id, options.rateLimit || 10);
 
-  const result = await dispatchWebhook(
-    stream.webhook_url,
+  const result = await dispatchDelivery(
+    stream.endpoint_url,
     payload,
-    stream.webhook_secret,
+    stream.signing_secret,
     {
       maxAttempts: options.maxRetries ?? 3,
       timeoutMs: options.timeoutMs ?? 10000,
@@ -156,7 +156,7 @@ export async function processJob(job: Job): Promise<ProcessedJob> {
       });
     }
 
-    logger.info("Webhook delivered", {
+    logger.info("Delivery dispatched", {
       streamId: stream.id,
       blockHeight: block.height,
       matchedTxs: matches.transactions.length,
@@ -172,7 +172,7 @@ export async function processJob(job: Job): Promise<ProcessedJob> {
       await disableStreamOnFailure(stream.id, result.error || "Too many delivery failures");
     }
 
-    logger.warn("Webhook delivery failed", {
+    logger.warn("Delivery failed", {
       streamId: stream.id,
       blockHeight: block.height,
       error: result.error,

@@ -1,6 +1,6 @@
 import { logger, getErrorMessage } from "@secondlayer/shared";
-import { createWebhookHeaders } from "./signing.ts";
-import type { WebhookPayload } from "./payload.ts";
+import { createDeliveryHeaders } from "./signing.ts";
+import type { DeliveryPayload } from "./payload.ts";
 
 export interface DispatchResult {
   success: boolean;
@@ -23,17 +23,17 @@ const DEFAULT_OPTIONS: Required<DispatchOptions> = {
 };
 
 /**
- * Dispatch a webhook with retry logic
+ * Dispatch a delivery with retry logic
  */
-export async function dispatchWebhook(
+export async function dispatchDelivery(
   url: string,
-  payload: WebhookPayload,
+  payload: DeliveryPayload,
   secret: string | null,
   options: DispatchOptions = {}
 ): Promise<DispatchResult> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const payloadStr = JSON.stringify(payload);
-  const headers = createWebhookHeaders(payloadStr, secret);
+  const headers = createDeliveryHeaders(payloadStr, secret);
 
   let lastError: string | undefined;
   let lastStatusCode: number | undefined;
@@ -58,7 +58,7 @@ export async function dispatchWebhook(
 
       // Success (2xx)
       if (response.ok) {
-        logger.debug("Webhook delivered", {
+        logger.debug("Delivery dispatched", {
           url,
           statusCode: response.status,
           attempt,
@@ -78,7 +78,7 @@ export async function dispatchWebhook(
         const errorText = await response.text().catch(() => "Unknown error");
         lastError = `HTTP ${response.status}: ${errorText.slice(0, 200)}`;
 
-        logger.warn("Webhook rejected (4xx)", {
+        logger.warn("Delivery rejected (4xx)", {
           url,
           statusCode: response.status,
           error: lastError,
@@ -95,7 +95,7 @@ export async function dispatchWebhook(
 
       // Server error (5xx) - retry
       lastError = `HTTP ${response.status}`;
-      logger.warn("Webhook failed (5xx), will retry", {
+      logger.warn("Delivery failed (5xx), will retry", {
         url,
         statusCode: response.status,
         attempt,
@@ -108,7 +108,7 @@ export async function dispatchWebhook(
         lastError = getErrorMessage(error);
       }
 
-      logger.warn("Webhook request failed, will retry", {
+      logger.warn("Delivery request failed, will retry", {
         url,
         error: lastError,
         attempt,
@@ -124,7 +124,7 @@ export async function dispatchWebhook(
   }
 
   // All attempts failed
-  logger.error("Webhook delivery failed after all attempts", {
+  logger.error("Delivery failed after all attempts", {
     url,
     attempts: opts.maxAttempts,
     lastError,

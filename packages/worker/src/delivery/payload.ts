@@ -4,7 +4,7 @@ import type { StreamOptions } from "@secondlayer/shared/schemas";
 import type { MatchResult } from "../matcher/index.ts";
 import { decodeEventData } from "../decoder.ts";
 
-export interface WebhookPayload {
+export interface DeliveryPayload {
   streamId: string;
   streamName: string;
   network: string;
@@ -37,14 +37,14 @@ export interface WebhookPayload {
 }
 
 /**
- * Build webhook payload from stream, block, and matches
+ * Build delivery payload from stream, block, and matches
  */
 export function buildPayload(
   stream: Stream,
   block: Block,
   matches: MatchResult,
   isBackfill: boolean
-): WebhookPayload {
+): DeliveryPayload {
   const options = parseJsonb<StreamOptions>(stream.options);
 
   return {
