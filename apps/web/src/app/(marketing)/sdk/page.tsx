@@ -45,14 +45,14 @@ export default function SdkPage() {
 
         <CodeBlock lang="typescript" code={`import { SecondLayer } from "@secondlayer/sdk"
 
-const sl = new SecondLayer({
+const client = new SecondLayer({
   apiKey: "sk-sl_...",
   baseUrl: "https://api.secondlayer.tools", // default
 })
 
 // Sub-clients are available as properties:
-sl.streams  // stream CRUD, deliveries, replay
-sl.views    // view deploy, query, reindex`} />
+client.streams  // stream CRUD, deliveries, replay
+client.views    // view deploy, query, reindex`} />
 
         <SectionHeading id="streams">Streams</SectionHeading>
 
@@ -64,7 +64,7 @@ sl.views    // view deploy, query, reindex`} />
         </div>
 
         <CodeBlock lang="typescript" code={`// Create — returns stream + webhook secret for HMAC verification
-const { stream, webhookSecret } = await sl.streams.create({
+const { stream, webhookSecret } = await client.streams.create({
   name: "my-stream",
   webhookUrl: "https://example.com/webhook",
   filters: [
@@ -73,34 +73,34 @@ const { stream, webhookSecret } = await sl.streams.create({
 })
 
 // List (optionally filter by status)
-const { streams, total } = await sl.streams.list({ status: "active" })
+const { streams, total } = await client.streams.list({ status: "active" })
 
 // Get by ID (supports partial IDs)
-const stream = await sl.streams.get("a1b2c3")
+const stream = await client.streams.get("a1b2c3")
 
 // Update filters or webhook URL
-await sl.streams.update("a1b2c3", {
+await client.streams.update("a1b2c3", {
   filters: [{ type: "contract_call", contractId: "SP1234...::token" }],
 })
 
 // Enable / disable / delete
-await sl.streams.enable("a1b2c3")
-await sl.streams.disable("a1b2c3")
-await sl.streams.delete("a1b2c3")
+await client.streams.enable("a1b2c3")
+await client.streams.disable("a1b2c3")
+await client.streams.delete("a1b2c3")
 
 // Bulk operations
-await sl.streams.pauseAll()
-await sl.streams.resumeAll()
+await client.streams.pauseAll()
+await client.streams.resumeAll()
 
 // Rotate webhook secret
-const { secret } = await sl.streams.rotateSecret("a1b2c3")
+const { secret } = await client.streams.rotateSecret("a1b2c3")
 
 // Inspect deliveries
-const { deliveries } = await sl.streams.listDeliveries("a1b2c3", {
+const { deliveries } = await client.streams.listDeliveries("a1b2c3", {
   limit: 20,
   status: "failed",
 })
-const detail = await sl.streams.getDelivery("a1b2c3", "delivery-id")`} />
+const detail = await client.streams.getDelivery("a1b2c3", "delivery-id")`} />
 
         <SectionHeading id="views">Views</SectionHeading>
 
@@ -113,13 +113,13 @@ const detail = await sl.streams.getDelivery("a1b2c3", "delivery-id")`} />
         </div>
 
         <CodeBlock lang="typescript" code={`// List deployed views
-const { data } = await sl.views.list()
+const { data } = await client.views.list()
 
 // Get view details (tables, health, row counts)
-const view = await sl.views.get("token-transfers")
+const view = await client.views.get("token-transfers")
 
 // Query a table
-const { data, meta } = await sl.views.queryTable(
+const { data, meta } = await client.views.queryTable(
   "token-transfers",
   "transfers",
   {
@@ -133,20 +133,20 @@ const { data, meta } = await sl.views.queryTable(
 // meta = { total, limit, offset }
 
 // Count rows
-const { count } = await sl.views.queryTableCount(
+const { count } = await client.views.queryTableCount(
   "token-transfers",
   "transfers",
   { filters: { sender: "SP1234..." } }
 )
 
 // Reindex from scratch
-await sl.views.reindex("token-transfers", {
+await client.views.reindex("token-transfers", {
   fromBlock: 150_000,
   toBlock: 160_000,
 })
 
 // Delete view and all data
-await sl.views.delete("token-transfers")`} />
+await client.views.delete("token-transfers")`} />
 
         <SectionHeading id="typed-views">Typed views</SectionHeading>
 
@@ -175,7 +175,7 @@ const total = await client.transfers.count({
 })
 
 // Or via the SecondLayer instance
-const typed = sl.views.typed(myView)
+const typed = client.views.typed(myView)
 const rows = await typed.transfers.findMany({ ... })`} />
 
         <SectionHeading id="error-handling">Error handling</SectionHeading>
@@ -190,7 +190,7 @@ const rows = await typed.transfers.findMany({ ... })`} />
         <CodeBlock lang="typescript" code={`import { ApiError } from "@secondlayer/sdk"
 
 try {
-  await sl.streams.get("nonexistent")
+  await client.streams.get("nonexistent")
 } catch (err) {
   if (err instanceof ApiError) {
     err.status   // 404
@@ -221,7 +221,7 @@ try {
             </span>
           </div>
 
-          <div className="props-group-title">sl.streams</div>
+          <div className="props-group-title">client.streams</div>
 
           <div className="prop-row">
             <span className="prop-name">create(data)</span>
@@ -260,7 +260,7 @@ try {
             <span className="prop-type">{"{"}deliveries{"}"}</span>
           </div>
 
-          <div className="props-group-title">sl.views</div>
+          <div className="props-group-title">client.views</div>
 
           <div className="prop-row">
             <span className="prop-name">list()</span>

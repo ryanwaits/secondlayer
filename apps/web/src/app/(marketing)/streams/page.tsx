@@ -2,6 +2,8 @@ import { Sidebar } from "@/components/sidebar";
 import { SectionHeading } from "@/components/section-heading";
 import { CodeBlock } from "@/components/code-block";
 import { BoxBadge } from "@/components/box-badge";
+import { AgentPromptBlock } from "@/components/console/agent-prompt";
+import { MARKETING_STREAMS_PROMPT } from "@/lib/agent-prompts";
 import type { TocItem } from "@/components/sidebar";
 
 const toc: TocItem[] = [
@@ -36,6 +38,13 @@ export default function StreamsPage() {
           </p>
         </div>
 
+        <AgentPromptBlock
+
+          title="Set up streams with your agent."
+          code={MARKETING_STREAMS_PROMPT}
+          collapsible
+        />
+
         <SectionHeading id="getting-started">Getting started</SectionHeading>
 
         <div className="prose">
@@ -47,9 +56,9 @@ export default function StreamsPage() {
 
         <CodeBlock lang="typescript" code={`import { SecondLayer } from "@secondlayer/sdk"
 
-const sl = new SecondLayer({ apiKey: "sk-sl_..." })
+const client = new SecondLayer({ apiKey: "sk-sl_..." })
 
-const { stream, webhookSecret } = await sl.streams.create({
+const { stream, webhookSecret } = await client.streams.create({
   name: "my-stream",
   webhookUrl: "https://example.com/webhook",
   filters: [
@@ -197,30 +206,30 @@ const { stream, webhookSecret } = await sl.streams.create({
         </div>
 
         <CodeBlock lang="typescript" code={`// List streams
-const { streams } = await sl.streams.list({ status: "active" })
+const { streams } = await client.streams.list({ status: "active" })
 
 // Get by ID (supports partial IDs)
-const stream = await sl.streams.get("a1b2c3")
+const stream = await client.streams.get("a1b2c3")
 
 // Update
-await sl.streams.update("a1b2c3", {
+await client.streams.update("a1b2c3", {
   webhookUrl: "https://new-endpoint.com/webhook",
   filters: [{ type: "stx_transfer", minAmount: 5_000_000 }],
 })
 
 // Enable / disable
-await sl.streams.enable("a1b2c3")
-await sl.streams.disable("a1b2c3")
+await client.streams.enable("a1b2c3")
+await client.streams.disable("a1b2c3")
 
 // Bulk pause / resume all streams
-await sl.streams.pauseAll()
-await sl.streams.resumeAll()
+await client.streams.pauseAll()
+await client.streams.resumeAll()
 
 // Rotate webhook secret
-const { secret } = await sl.streams.rotateSecret("a1b2c3")
+const { secret } = await client.streams.rotateSecret("a1b2c3")
 
 // Delete
-await sl.streams.delete("a1b2c3")`} />
+await client.streams.delete("a1b2c3")`} />
 
         <SectionHeading id="replay">Replay</SectionHeading>
 
@@ -233,13 +242,13 @@ await sl.streams.delete("a1b2c3")`} />
         </div>
 
         <CodeBlock lang="typescript" code={`// Via SDK — replay blocks 150,000 to 151,000
-await sl.streams.replay("a1b2c3", {
+await client.streams.replay("a1b2c3", {
   startBlock: 150_000,
   endBlock: 151_000,
 })
 
 // Replay failed deliveries
-await sl.streams.replayFailed("a1b2c3")`} />
+await client.streams.replayFailed("a1b2c3")`} />
 
         <SectionHeading id="cli">CLI</SectionHeading>
 
