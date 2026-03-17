@@ -1,9 +1,9 @@
 export function Logo({ size = 20 }: { size?: number }) {
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="6 9 36 24"
       width={size}
-      height={size}
+      height={Math.round(size * (24 / 36))}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >

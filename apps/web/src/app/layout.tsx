@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Sora, Public_Sans, Fira_Code, Caveat } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
+import { PreferencesProvider } from "@/lib/preferences";
 import { AuthBar } from "@/components/auth-bar";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { QueryProvider } from "@/lib/queries/provider";
@@ -52,9 +53,11 @@ export default function RootLayout({
       <body className={`${publicSans.className} ${sora.variable} ${publicSans.variable} ${firaCode.variable} ${caveat.variable}`}>
         <QueryProvider>
           <AuthProvider>
-            {children}
-            <AuthBar />
-            <CommandPalette />
+            <PreferencesProvider>
+              {children}
+              <AuthBar />
+              <CommandPalette />
+            </PreferencesProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

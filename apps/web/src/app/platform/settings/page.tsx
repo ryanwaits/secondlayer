@@ -1,6 +1,7 @@
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { Account } from "@/lib/types";
 import { LogoutButton } from "./logout-button";
+import { ProductToggles } from "@/components/console/product-toggles";
 
 export default async function SettingsPage() {
   const session = await getSessionFromCookies();
@@ -54,6 +55,12 @@ export default async function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <div className="dash-section-wrap" style={{ marginTop: 32 }}>
+        <hr />
+        <h2 className="dash-section-title">Products</h2>
+      </div>
+      <ProductToggles />
 
       <div style={{ marginTop: 32 }}>
         <LogoutButton />
