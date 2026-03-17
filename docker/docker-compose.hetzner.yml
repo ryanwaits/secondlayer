@@ -16,15 +16,15 @@ services:
     environment:
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
     volumes:
-      - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/views
+      - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
     deploy:
       resources:
         limits:
           memory: 1G
 
-  view-processor:
+  subgraph-processor:
     volumes:
-      - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/views
+      - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
 
   indexer:
     environment:

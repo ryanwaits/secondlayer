@@ -6,7 +6,7 @@
 # Phases:
 #   0. Provision (system packages, Docker, UFW, fail2ban, systemd)
 #   1. Pre-flight checks
-#   2. Core services (postgres, migrate, api, indexer, worker, view-processor)
+#   2. Core services (postgres, migrate, api, indexer, worker, subgraph-processor)
 #   3. Caddy
 #   4. Print status
 #
@@ -120,7 +120,7 @@ else
   log "fail2ban active"
 
   # Data directories
-  mkdir -p /opt/secondlayer/data/postgres /opt/secondlayer/data/views
+  mkdir -p /opt/secondlayer/data/postgres /opt/secondlayer/data/subgraphs
 
   # Generate .env if not exists
   if [ ! -f "$DOCKER_DIR/.env" ]; then
@@ -216,7 +216,7 @@ $COMPOSE up -d postgres
 wait_healthy postgres
 
 $COMPOSE up migrate
-$COMPOSE up -d api indexer worker view-processor
+$COMPOSE up -d api indexer worker subgraph-processor
 
 wait_healthy api
 wait_healthy indexer

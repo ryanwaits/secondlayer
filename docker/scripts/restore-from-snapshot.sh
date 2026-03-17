@@ -46,7 +46,7 @@ else
   PG_CONTAINER="${PG_CONTAINER:-secondlayer-postgres-1}"
   PG_USER="${PG_USER:-secondlayer}"
   PG_DB="${PG_DB:-secondlayer}"
-  DEPENDENTS="api indexer worker view-processor"
+  DEPENDENTS="api indexer worker subgraph-processor"
 fi
 
 LOCAL_BACKUP_DIR="${DATA_DIR}/backups/${BACKUP_SUBDIR}"

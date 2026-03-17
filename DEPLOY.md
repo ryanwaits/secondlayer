@@ -5,7 +5,7 @@ For day-to-day operations, see [docker/docs/OPERATIONS.md](docker/docs/OPERATION
 ## Architecture
 
 ```
-Internet → Caddy (:443) → API (:3800) ← View Processor
+Internet → Caddy (:443) → API (:3800) ← Subgraph Processor
                                               │
 Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worker → Webhooks
                                      │                          ↑
@@ -17,9 +17,9 @@ Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worke
 |---------|------|-------------|
 | **Stacks Node** | 20443/20444 | Full node, pushes blocks via event observer |
 | **Indexer** | 3700 | Receives blocks, parses txs/events, stores in DB |
-| **API** | 3800 | REST API for streams, views, webhooks |
+| **API** | 3800 | REST API for streams, subgraphs, webhooks |
 | **Worker** | — | Processes jobs, evaluates filters, delivers webhooks |
-| **View Processor** | — | Computes materialized views |
+| **Subgraph Processor** | — | Computes subgraphs |
 | **Postgres** | 5432 | Stores blocks, transactions, events, jobs |
 | **Caddy** | 80/443 | TLS termination, reverse proxy |
 | **Agent** | 3900 | AI DevOps monitoring + Slack alerts |
