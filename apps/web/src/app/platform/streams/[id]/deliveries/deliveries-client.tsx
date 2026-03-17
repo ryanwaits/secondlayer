@@ -49,12 +49,20 @@ export function DeliveriesClient({
   const qc = useQueryClient();
   const totalPages = Math.max(1, Math.ceil(stream.totalDeliveries / PAGE_SIZE));
 
-  const { data: deliveries = [], isFetching } = useQuery({
+  // Seed page 0 into the cache from server data
+  useEffect(() => {
+    if (initialDeliveries.length > 0) {
+      qc.setQueryData(
+        queryKeys.streams.deliveriesPage(stream.id, 0),
+        initialDeliveries,
+      );
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { data: deliveries = [], isFetching, isError } = useQuery({
     queryKey: queryKeys.streams.deliveriesPage(stream.id, page),
     queryFn: () => fetchDeliveries(stream.id, page),
-    initialData: page === 0 ? initialDeliveries : undefined,
     staleTime: 30_000,
-    placeholderData: (prev) => prev,
   });
 
   // Prefetch next page
@@ -80,7 +88,9 @@ export function DeliveriesClient({
 
   return (
     <>
-      {deliveries.length === 0 && !isFetching ? (
+      {isError ? (
+        <div className="dash-empty">Failed to load deliveries. Try refreshing.</div>
+      ) : deliveries.length === 0 && !isFetching ? (
         <div className="dash-empty">No deliveries yet</div>
       ) : (
         <>
