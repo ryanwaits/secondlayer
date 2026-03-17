@@ -34,7 +34,7 @@ export const ConfigSchema = z.object({
   apiUrl: z.string().url().optional(),
   apiKey: z.string().optional(),
   dataDir: z.string().default("~/.secondlayer/data"),
-  defaultWebhookUrl: z.string().url().optional(),
+  defaultEndpointUrl: z.string().url().optional(),
   node: NodeSchema.optional(),
   ports: PortsSchema.default({}),
   database: DatabaseSchema.default({}),
@@ -57,7 +57,7 @@ export type DatabaseConfig = z.infer<typeof DatabaseSchema>;
 const CONFIG_DIR = join(homedir(), ".secondlayer");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
-const LOCAL_WEBHOOK_URL = "http://localhost:3900/receiver";
+const LOCAL_ENDPOINT_URL = "http://localhost:3900/receiver";
 
 const DEFAULT_CONFIG: Config = {
   network: "mainnet",
@@ -126,8 +126,8 @@ function migrateConfig(raw: unknown): Config {
     migrated.dataDir = old.dataDir;
   }
 
-  if (typeof old.defaultWebhookUrl === "string") {
-    migrated.defaultWebhookUrl = old.defaultWebhookUrl;
+  if (typeof old.defaultEndpointUrl === "string") {
+    migrated.defaultEndpointUrl = old.defaultEndpointUrl;
   }
 
   // Migrate old flat node fields to nested structure
@@ -188,8 +188,8 @@ export async function loadConfig(): Promise<Config> {
   config = applyEnvOverrides(config);
 
   // Default receiver URL only for local network
-  if (!config.defaultWebhookUrl && config.network === "local") {
-    config.defaultWebhookUrl = LOCAL_WEBHOOK_URL;
+  if (!config.defaultEndpointUrl && config.network === "local") {
+    config.defaultEndpointUrl = LOCAL_ENDPOINT_URL;
   }
 
   return config;

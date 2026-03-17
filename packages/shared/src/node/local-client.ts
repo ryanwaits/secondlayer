@@ -73,7 +73,7 @@ export class LocalClient {
     return {
       block_hash: block.hash,
       block_height: block.height,
-      // Not stored in our DB — not needed by parser/webhooks
+      // Not stored in our DB — not needed by parser/deliveries
       index_block_hash: "",
       parent_block_hash: block.parent_hash,
       parent_index_block_hash: "",

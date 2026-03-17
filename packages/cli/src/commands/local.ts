@@ -471,7 +471,7 @@ function formatLogLine(service: string, line: string, verbose: boolean): string 
     }
   }
 
-  // Webhook payload: summarize unless verbose
+  // Delivery payload: summarize unless verbose
   if (service === "receiver" && !verbose) {
     const summary = formatDeliverySummary(line);
     if (summary) return `${prefix} ${summary}`;
