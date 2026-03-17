@@ -1,9 +1,9 @@
 ---
 name: secondlayer
 description: Install, configure, and build on Second Layer — a Stacks blockchain
-  indexing platform. Use this skill when creating streams (webhook event delivery),
+  indexing platform. Use this skill when creating streams (real-time event delivery),
   scaffolding/deploying views (custom indexers), querying indexed data, or managing
-  API keys. Triggers on tasks involving Stacks blockchain data, webhook streams,
+  API keys. Triggers on tasks involving Stacks blockchain data, streams,
   custom indexers, blockchain event filtering, or the `secondlayer` CLI (`sl` shorthand).
 license: MIT
 metadata:
@@ -17,7 +17,7 @@ Stacks blockchain indexing platform. Two primitives:
 
 | | Streams | Views |
 |--|---------|-------|
-| **Model** | Push — delivers matching events to your webhook | Pull — indexes into SQL tables you query via REST |
+| **Model** | Push — delivers matching events to your endpoint | Pull — indexes into SQL tables you query via REST |
 | **Use when** | Real-time reactions (alerts, bots, pipelines) | Historical queries (dashboards, APIs, analytics) |
 | **Define with** | JSON config file | TypeScript (defineView + handlers) |
 | **State** | Stateless delivery | Stateful (persisted tables) |
@@ -52,7 +52,7 @@ secondlayer auth keys rotate              # rotate active key
 
 ## Streams
 
-Streams deliver matching blockchain events to a webhook URL in real-time.
+Streams deliver matching blockchain events to an endpoint URL in real-time.
 
 ### Create a stream
 
@@ -61,17 +61,17 @@ Streams deliver matching blockchain events to a webhook URL in real-time.
 secondlayer streams new my-stream -o streams/my-stream.json
 ```
 
-**Step 2**: Edit the JSON — set `webhookUrl` and `filters`, then register:
+**Step 2**: Edit the JSON — set `endpointUrl` and `filters`, then register:
 ```bash
 secondlayer streams register streams/my-stream.json
 ```
-Save the `webhookSecret` from the output — it's shown only once.
+Save the `signingSecret` from the output — it's shown only once.
 
 **SDK alternative** (single step):
 ```typescript
-const { stream, webhookSecret } = await sl.streams.create({
+const { stream, signingSecret } = await sl.streams.create({
   name: "stx-transfers",
-  webhookUrl: "https://example.com/webhook",
+  endpointUrl: "https://example.com/receive",
   filters: [{ type: "stx_transfer", minAmount: 1000000 }],
   options: { maxRetries: 5, timeoutMs: 10000 },
 });
@@ -121,7 +121,7 @@ secondlayer streams logs <id> -f                     # tail delivery logs in rea
 secondlayer streams replay <id> --from 100 --to 200  # replay block range (max 10k)
 secondlayer streams replay <id> --last 50            # replay last N blocks
 secondlayer streams replay <id> --block 180500       # replay single block
-secondlayer streams rotate-secret <id>               # generate new webhook secret
+secondlayer streams rotate-secret <id>               # generate new signing secret
 ```
 
 SDK equivalents:
@@ -145,12 +145,12 @@ await sl.streams.rotateSecret(id)
 | `includeRawTx` | `false` | — | Include raw transaction hex |
 | `includeBlockMetadata` | `true` | — | Include block hash, timestamp, etc. |
 | `rateLimit` | `10` | `100` | Max deliveries per second |
-| `timeoutMs` | `10000` | `30000` | Webhook response timeout (ms) |
+| `timeoutMs` | `10000` | `30000` | Endpoint response timeout (ms) |
 | `maxRetries` | `3` | `10` | Retry attempts on failure |
 
-### Webhook payload
+### Delivery payload
 
-Your webhook receives a POST with this shape:
+Your endpoint receives a POST with this shape:
 
 ```typescript
 {
@@ -166,7 +166,7 @@ Your webhook receives a POST with this shape:
 }
 ```
 
-Verify payloads with the `X-Secondlayer-Signature` header (HMAC-SHA256 using your webhook secret). Failed deliveries retry with exponential backoff up to `maxRetries`.
+Verify payloads with the `X-Secondlayer-Signature` header (HMAC-SHA256 using your signing secret). Failed deliveries retry with exponential backoff up to `maxRetries`.
 
 ---
 
