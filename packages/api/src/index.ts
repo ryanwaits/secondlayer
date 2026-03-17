@@ -9,7 +9,7 @@ import { countApiRequests } from "./middleware/usage.ts";
 import streamsRouter from "./routes/streams.ts";
 import statusRouter from "./routes/status.ts";
 import logsRouter from "./routes/logs.ts";
-import viewsRouter, { startViewCache, stopViewCache } from "./routes/views.ts";
+import subgraphsRouter, { startSubgraphCache, stopSubgraphCache } from "./routes/subgraphs.ts";
 import authRouter from "./routes/auth.ts";
 import accountsRouter from "./routes/accounts.ts";
 import nodeRouter from "./routes/node.ts";
@@ -35,7 +35,7 @@ app.route("/api/auth", authRouter);
 app.route("/api/waitlist", waitlistRouter);
 
 // Auth middleware — always mounted, DEV_MODE bypass handled inside middleware
-for (const path of ["/status", "/api/streams", "/api/streams/*", "/api/views", "/api/views/*", "/api/logs", "/api/logs/*", "/api/accounts", "/api/accounts/*", "/api/insights", "/api/insights/*", "/api/node", "/api/node/*", "/api/auth/logout"]) {
+for (const path of ["/status", "/api/streams", "/api/streams/*", "/api/subgraphs", "/api/subgraphs/*", "/api/logs", "/api/logs/*", "/api/accounts", "/api/accounts/*", "/api/insights", "/api/insights/*", "/api/node", "/api/node/*", "/api/auth/logout"]) {
   app.use(path, requireAuth());
   app.use(path, rateLimit());
   app.use(path, countApiRequests());
@@ -44,7 +44,7 @@ for (const path of ["/status", "/api/streams", "/api/streams/*", "/api/views", "
 // Mount routes
 app.route("/api/streams", streamsRouter);
 app.route("/api/logs", logsRouter);
-app.route("/api/views", viewsRouter);
+app.route("/api/subgraphs", subgraphsRouter);
 app.route("/api/accounts", accountsRouter);
 app.route("/api/insights", insightsRouter);
 app.route("/api/node", nodeRouter);
@@ -55,9 +55,9 @@ const PORT = parseInt(process.env.PORT || "3800");
 
 logger.info("Starting API service", { port: PORT });
 
-// Start view registry cache (LISTEN for view_changes)
-startViewCache().catch((err) => {
-  logger.warn("Failed to start view cache, views will load on-demand", { error: String(err) });
+// Start subgraph registry cache (LISTEN for subgraph_changes)
+startSubgraphCache().catch((err) => {
+  logger.warn("Failed to start subgraph cache, subgraphs will load on-demand", { error: String(err) });
 });
 
 const server = Bun.serve({
@@ -68,7 +68,7 @@ const server = Bun.serve({
 // Graceful shutdown
 const shutdown = async () => {
   logger.info("Shutting down API service...");
-  await stopViewCache();
+  await stopSubgraphCache();
   server.stop();
   logger.info("API service stopped");
   process.exit(0);

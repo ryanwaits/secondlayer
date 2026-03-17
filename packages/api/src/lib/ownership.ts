@@ -49,28 +49,28 @@ export async function assertStreamOwnership(
 }
 
 /**
- * Assert the authenticated account owns the given view.
- * Returns the view row on success.
+ * Assert the authenticated account owns the given subgraph.
+ * Returns the subgraph row on success.
  * Throws 404 if not found, 403 if owned by another account.
  */
-export async function assertViewOwnership(
+export async function assertSubgraphOwnership(
   db: Kysely<Database>,
-  viewName: string,
+  subgraphName: string,
   accountKeyIds: string[] | undefined,
 ) {
-  const view = await db
-    .selectFrom("views")
+  const subgraph = await db
+    .selectFrom("subgraphs")
     .selectAll()
-    .where("name", "=", viewName)
+    .where("name", "=", subgraphName)
     .executeTakeFirst();
 
-  if (!view) return null;
+  if (!subgraph) return null;
 
-  if (accountKeyIds && view.api_key_id && !accountKeyIds.includes(view.api_key_id)) {
-    throw new ForbiddenError("View belongs to another account");
+  if (accountKeyIds && subgraph.api_key_id && !accountKeyIds.includes(subgraph.api_key_id)) {
+    throw new ForbiddenError("Subgraph belongs to another account");
   }
 
-  return view;
+  return subgraph;
 }
 
 /** Extract api_key_id from Hono context, or undefined in DEV_MODE */

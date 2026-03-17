@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 import { Hono } from "hono";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import { sql } from "kysely";
-import { registerView } from "@secondlayer/shared/db/queries/views";
-import viewsRouter, { startViewCache, stopViewCache } from "../src/routes/views.ts";
+import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
+import subgraphsRouter, { startSubgraphCache, stopSubgraphCache } from "../src/routes/subgraphs.ts";
 
 const SKIP = !process.env.DATABASE_URL;
 
@@ -23,14 +23,14 @@ describe("parseQueryParams (via route behavior)", () => {
 
 // ── Integration tests ───────────────────────────────────────────────────
 
-const VIEW_NAME = "test-api-view";
-const PG_SCHEMA = "view_test_api_view";
+const SUBGRAPH_NAME = "test-api-subgraph";
+const PG_SCHEMA = "view_test_api_subgraph";
 
-const viewDef = {
-  name: VIEW_NAME,
+const subgraphDef = {
+  name: SUBGRAPH_NAME,
   version: "1.0.0",
   definition: {
-    name: VIEW_NAME,
+    name: SUBGRAPH_NAME,
     sources: [{ contract: "SP123::marketplace" }],
     schema: {
       listings: {
@@ -48,18 +48,18 @@ const viewDef = {
   handlerPath: resolve(__dirname, "../../../fixtures/test-handler.ts"),
 };
 
-describe.skipIf(SKIP)("Views API Routes", () => {
+describe.skipIf(SKIP)("Subgraphs API Routes", () => {
   const app = new Hono();
-  app.route("/views", viewsRouter);
+  app.route("/subgraphs", subgraphsRouter);
 
   beforeAll(async () => {
     const db = getDb();
     // Clean slate
-    await db.deleteFrom("views").execute();
+    await db.deleteFrom("subgraphs").execute();
     await sql.raw(`DROP SCHEMA IF EXISTS ${PG_SCHEMA} CASCADE`).execute(db);
 
-    // Register view
-    await registerView(db, viewDef);
+    // Register subgraph
+    await registerSubgraph(db, subgraphDef);
 
     // Create PG schema + table
     const client = getRawClient();
@@ -87,55 +87,55 @@ describe.skipIf(SKIP)("Views API Routes", () => {
         (102, 'tx4', 'nft-4', 'SP_CAROL', 3000000, 'active')
     `);
 
-    // Start cache so routes can resolve views
-    await startViewCache();
+    // Start cache so routes can resolve subgraphs
+    await startSubgraphCache();
   });
 
   afterAll(async () => {
-    await stopViewCache();
+    await stopSubgraphCache();
     const db = getDb();
     await sql.raw(`DROP SCHEMA IF EXISTS ${PG_SCHEMA} CASCADE`).execute(db);
-    await db.deleteFrom("views").execute();
+    await db.deleteFrom("subgraphs").execute();
   });
 
-  // ── GET /views ──────────────────────────────────────────────────────
+  // ── GET /subgraphs ──────────────────────────────────────────────────────
 
-  test("GET /views lists all views", async () => {
-    const res = await app.request("/views");
+  test("GET /subgraphs lists all subgraphs", async () => {
+    const res = await app.request("/subgraphs");
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.data).toBeArray();
     expect(body.data.length).toBe(1);
-    expect(body.data[0].name).toBe(VIEW_NAME);
+    expect(body.data[0].name).toBe(SUBGRAPH_NAME);
     expect(body.data[0].tables).toContain("listings");
   });
 
-  // ── GET /views/:viewName ────────────────────────────────────────────
+  // ── GET /subgraphs/:subgraphName ────────────────────────────────────────
 
-  test("GET /views/:viewName returns view metadata with table docs", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}`);
+  test("GET /subgraphs/:subgraphName returns subgraph metadata with table docs", async () => {
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    expect(body.name).toBe(VIEW_NAME);
+    expect(body.name).toBe(SUBGRAPH_NAME);
     expect(body.status).toBe("active");
     expect(body.tables.listings).toBeDefined();
     expect(body.tables.listings.columns.nft_id).toBe("text");
     expect(body.tables.listings.columns.price).toBe("uint");
     expect(body.tables.listings.columns._id).toBe("serial");
     expect(body.tables.listings.rowCount).toBe(4);
-    expect(body.tables.listings.endpoint).toBe(`/views/${VIEW_NAME}/listings`);
+    expect(body.tables.listings.endpoint).toBe(`/subgraphs/${SUBGRAPH_NAME}/listings`);
     expect(body.tables.listings.example).toContain("_sort=");
   });
 
-  test("GET /views/:viewName returns 404 for unknown view", async () => {
-    const res = await app.request("/views/nonexistent");
+  test("GET /subgraphs/:subgraphName returns 404 for unknown subgraph", async () => {
+    const res = await app.request("/subgraphs/nonexistent");
     expect(res.status).toBe(404);
   });
 
-  // ── GET /views/:viewName/:tableName ─────────────────────────────────
+  // ── GET /subgraphs/:subgraphName/:tableName ─────────────────────────────
 
-  test("GET /views/:viewName/:tableName lists rows", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings`);
+  test("GET /subgraphs/:subgraphName/:tableName lists rows", async () => {
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings`);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.data).toBeArray();
@@ -146,7 +146,7 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   });
 
   test("equality filter: ?status=active", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?status=active`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?status=active`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(3);
     expect(body.meta.total).toBe(3);
@@ -156,51 +156,51 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   });
 
   test("equality filter: ?seller=SP_ALICE", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?seller=SP_ALICE`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?seller=SP_ALICE`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(2);
   });
 
   test("comparison filter: ?price.gte=1000000", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?price.gte=1000000`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?price.gte=1000000`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(3);
   });
 
   test("comparison filter: ?price.gt=2000000", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?price.gt=2000000`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?price.gt=2000000`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(1);
     expect(body.data[0].nft_id).toBe("nft-4");
   });
 
   test("comparison filter: ?_block_height.lte=100", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_block_height.lte=100`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_block_height.lte=100`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(2);
   });
 
   test("combined filters: ?seller=SP_ALICE&status=active", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?seller=SP_ALICE&status=active`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?seller=SP_ALICE&status=active`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(1);
     expect(body.data[0].nft_id).toBe("nft-1");
   });
 
   test("sorting: ?_sort=price&_order=desc", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_sort=price&_order=desc`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_sort=price&_order=desc`);
     const body = await res.json() as any;
     expect(body.data[0].price).toBe("3000000"); // bigint comes back as string
   });
 
   test("sorting: ?_sort=price&_order=asc", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_sort=price&_order=asc`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_sort=price&_order=asc`);
     const body = await res.json() as any;
     expect(body.data[0].price).toBe("500000");
   });
 
   test("pagination: ?_limit=2&_offset=0", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=2&_offset=0`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=2&_offset=0`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(2);
     expect(body.meta.total).toBe(4);
@@ -209,20 +209,20 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   });
 
   test("pagination: ?_limit=2&_offset=2", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=2&_offset=2`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=2&_offset=2`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(2);
     expect(body.meta.offset).toBe(2);
   });
 
   test("pagination: ?_limit=2&_offset=3 returns 1 row", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=2&_offset=3`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=2&_offset=3`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(1);
   });
 
   test("field selection: ?_fields=nft_id,price", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_fields=nft_id,price`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_fields=nft_id,price`);
     const body = await res.json() as any;
     expect(body.data.length).toBe(4);
     // Should only have selected fields
@@ -234,47 +234,47 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   });
 
   test("unknown column in filter returns 400", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?nonexistent=foo`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?nonexistent=foo`);
     expect(res.status).toBe(400);
     const body = await res.json() as any;
     expect(body.code).toBe("INVALID_COLUMN");
   });
 
   test("unknown column in _sort returns 400", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_sort=nonexistent`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_sort=nonexistent`);
     expect(res.status).toBe(400);
     const body = await res.json() as any;
     expect(body.code).toBe("INVALID_COLUMN");
   });
 
   test("unknown column in _fields returns 400", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_fields=nft_id,bad_col`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_fields=nft_id,bad_col`);
     expect(res.status).toBe(400);
   });
 
   test("unknown table returns 404", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/nonexistent`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/nonexistent`);
     expect(res.status).toBe(404);
     const body = await res.json() as any;
     expect(body.code).toBe("TABLE_NOT_FOUND");
   });
 
-  test("unknown view returns 404", async () => {
-    const res = await app.request("/views/nonexistent/listings");
+  test("unknown subgraph returns 404", async () => {
+    const res = await app.request("/subgraphs/nonexistent/listings");
     expect(res.status).toBe(404);
     const body = await res.json() as any;
-    expect(body.code).toBe("VIEW_NOT_FOUND");
+    expect(body.code).toBe("SUBGRAPH_NOT_FOUND");
   });
 
-  // ── GET /views/:viewName/:tableName/:id ─────────────────────────────
+  // ── GET /subgraphs/:subgraphName/:tableName/:id ─────────────────────────
 
   test("GET by _id returns single row", async () => {
     // First get the first row's ID
-    const listRes = await app.request(`/views/${VIEW_NAME}/listings?_limit=1`);
+    const listRes = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=1`);
     const listBody = await listRes.json() as any;
     const id = listBody.data[0]._id;
 
-    const res = await app.request(`/views/${VIEW_NAME}/listings/${id}`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/${id}`);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.data._id).toBe(id);
@@ -282,30 +282,30 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   });
 
   test("GET by _id returns 404 for missing row", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings/999999`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/999999`);
     expect(res.status).toBe(404);
     const body = await res.json() as any;
     expect(body.code).toBe("ROW_NOT_FOUND");
   });
 
-  // ── GET /views/:viewName/:tableName/count ───────────────────────────
+  // ── GET /subgraphs/:subgraphName/:tableName/count ───────────────────────
 
   test("count returns total rows", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings/count`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/count`);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.count).toBe(4);
   });
 
   test("count with filter", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings/count?status=active`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/count?status=active`);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.count).toBe(3);
   });
 
   test("count with comparison filter", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings/count?price.gte=2000000`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/count?price.gte=2000000`);
     const body = await res.json() as any;
     expect(body.count).toBe(2);
   });
@@ -313,32 +313,32 @@ describe.skipIf(SKIP)("Views API Routes", () => {
   // ── _limit bounds ───────────────────────────────────────────────────
 
   test("_limit is capped at 1000", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=5000`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=5000`);
     const body = await res.json() as any;
     expect(body.meta.limit).toBe(1000);
   });
 
   test("_limit=0 falls back to default", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=0`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=0`);
     const body = await res.json() as any;
     expect(body.meta.limit).toBe(50);
   });
 
   test("_limit=-1 clamps to 1", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/listings?_limit=-1`);
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=-1`);
     const body = await res.json() as any;
     expect(body.meta.limit).toBe(1);
   });
 
-  // ── POST /views/:viewName/reindex ───────────────────────────────────
+  // ── POST /subgraphs/:subgraphName/reindex ───────────────────────────────
 
-  test("POST /views/:viewName/reindex returns 404 for unknown view", async () => {
-    const res = await app.request("/views/nonexistent/reindex", { method: "POST" });
+  test("POST /subgraphs/:subgraphName/reindex returns 404 for unknown subgraph", async () => {
+    const res = await app.request("/subgraphs/nonexistent/reindex", { method: "POST" });
     expect(res.status).toBe(404);
   });
 
-  test("POST /views/:viewName/reindex accepts request for existing view", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/reindex`, {
+  test("POST /subgraphs/:subgraphName/reindex accepts request for existing subgraph", async () => {
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/reindex`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fromBlock: 1, toBlock: 10 }),
@@ -350,8 +350,8 @@ describe.skipIf(SKIP)("Views API Routes", () => {
     expect(body.toBlock).toBe(10);
   });
 
-  test("POST /views/:viewName/reindex works without body", async () => {
-    const res = await app.request(`/views/${VIEW_NAME}/reindex`, { method: "POST" });
+  test("POST /subgraphs/:subgraphName/reindex works without body", async () => {
+    const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/reindex`, { method: "POST" });
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.message).toContain("Reindex started");
