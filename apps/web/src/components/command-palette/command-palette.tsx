@@ -173,7 +173,7 @@ export function CommandPalette() {
     "/views": [
       { queryKey: queryKeys.views.all, apiPath: "/api/views", unwrap: (d: any) => d.data },
     ],
-    "/keys": [
+    "/api-keys": [
       { queryKey: queryKeys.keys.all, apiPath: "/api/keys", unwrap: (d: any) => d.keys },
     ],
     "/usage": [

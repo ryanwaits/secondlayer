@@ -13,7 +13,7 @@ export const actions: Action[] = [
   { id: "home", label: "Home", keywords: ["dashboard", "overview"], category: "Navigation", icon: "home", href: "/" },
   { id: "streams", label: "Streams", keywords: ["webhooks", "events", "list"], category: "Navigation", icon: "stream", href: "/streams" },
   { id: "views", label: "Views", keywords: ["tables", "indexes", "data"], category: "Navigation", icon: "view", href: "/views" },
-  { id: "api-keys", label: "API Keys", keywords: ["tokens", "keys", "auth"], category: "Navigation", icon: "key", href: "/keys" },
+  { id: "api-keys", label: "API Keys", keywords: ["tokens", "keys", "auth"], category: "Navigation", icon: "key", href: "/api-keys" },
   { id: "usage", label: "Usage", keywords: ["quota", "limits", "metrics"], category: "Navigation", icon: "settings", href: "/usage" },
   { id: "billing", label: "Billing", keywords: ["plan", "payment", "invoice"], category: "Navigation", icon: "settings", href: "/billing" },
   { id: "settings", label: "Settings", keywords: ["account", "profile", "email"], category: "Navigation", icon: "settings", href: "/settings" },

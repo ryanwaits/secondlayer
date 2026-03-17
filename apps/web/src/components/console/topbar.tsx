@@ -38,7 +38,7 @@ function UserMenu() {
           <Link href="/platform/settings" className="dash-user-dropdown-item" onClick={() => setOpen(false)}>
             Settings
           </Link>
-          <Link href="/platform/keys" className="dash-user-dropdown-item" onClick={() => setOpen(false)}>
+          <Link href="/platform/api-keys" className="dash-user-dropdown-item" onClick={() => setOpen(false)}>
             API Keys
           </Link>
           <Link href="/platform/usage" className="dash-user-dropdown-item" onClick={() => setOpen(false)}>

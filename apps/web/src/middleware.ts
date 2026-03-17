@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 // Paths that have both marketing (unauthed) and platform (authed) versions
 const DUAL_PATHS = ["/streams", "/views"];
 // Paths that require authentication
-const AUTH_REQUIRED = ["/keys", "/usage", "/billing", "/settings"];
+const AUTH_REQUIRED = ["/api-keys", "/usage", "/billing", "/settings"];
 
 export function middleware(request: NextRequest) {
   const session = request.cookies.get("sl_session");
@@ -42,5 +42,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/site/:path*", "/streams", "/streams/:path*", "/views", "/views/:path*", "/keys", "/keys/:path*", "/usage", "/usage/:path*", "/billing", "/billing/:path*", "/settings", "/settings/:path*"],
+  matcher: ["/", "/site/:path*", "/streams", "/streams/:path*", "/views", "/views/:path*", "/api-keys", "/api-keys/:path*", "/usage", "/usage/:path*", "/billing", "/billing/:path*", "/settings", "/settings/:path*"],
 };
