@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiKey, AccountInsight } from "@/lib/types";
 import { useApiKeys, useCreateApiKey } from "@/lib/queries/api-keys";
 import { detectStaleKeys } from "@/lib/intelligence/keys";
 import { Insight } from "@/components/console/intelligence";
 import { InsightCard } from "@/components/console/intelligence/insight-card";
+import { CopyButton } from "@/components/copy-button";
+import { highlight } from "@/lib/highlight";
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "never";
@@ -18,6 +20,90 @@ function timeAgo(dateStr: string | null): string {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
   return new Date(dateStr).toLocaleDateString();
+}
+
+function sdkSnippet(prefix: string) {
+  return `import { SecondLayer } from "@secondlayer/sdk";
+
+const client = new SecondLayer({
+  apiKey: "${prefix}",
+});
+
+// List streams
+const streams = await client.streams.list();
+
+// Query a view table
+const rows = await client.views.query("my-view", "transfers", {
+  limit: 10,
+});`;
+}
+
+function KeyDetail({ apiKey }: { apiKey: ApiKey }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const code = sdkSnippet(apiKey.prefix);
+
+  useEffect(() => {
+    let cancelled = false;
+    highlight(code, "typescript").then((result) => {
+      if (!cancelled) setHtml(result);
+    });
+    return () => { cancelled = true; };
+  }, [code]);
+
+  return (
+    <div className="key-detail">
+      <div className="key-detail-section-label">SDK</div>
+      <div className="code-block-wrapper key-detail-code">
+        <CopyButton code={code} />
+        {html ? (
+          <div dangerouslySetInnerHTML={{ __html: html }} />
+        ) : (
+          <pre><code>{code}</code></pre>
+        )}
+      </div>
+      <div className="key-detail-hint">
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="#22c55e" strokeWidth="1.5">
+          <circle cx="8" cy="8" r="7" />
+          <path d="M8 5v3" />
+          <circle cx="8" cy="11" r="0.5" fill="#22c55e" />
+        </svg>
+        Full API key included when copied
+      </div>
+
+      <div className="key-detail-meta">
+        <div className="key-detail-meta-item">
+          <span className="key-detail-meta-label">Status</span>
+          <span className="key-detail-meta-value">
+            {apiKey.status === "active" ? (
+              <span className="dash-badge active">active</span>
+            ) : (
+              <span className="dash-badge inactive">revoked</span>
+            )}
+          </span>
+        </div>
+        <div className="key-detail-meta-item">
+          <span className="key-detail-meta-label">Created</span>
+          <span className="key-detail-meta-value">
+            {new Date(apiKey.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </span>
+        </div>
+        <div className="key-detail-meta-item">
+          <span className="key-detail-meta-label">Last used</span>
+          <span className="key-detail-meta-value">
+            {timeAgo(apiKey.lastUsedAt)}
+          </span>
+        </div>
+      </div>
+
+      {apiKey.status === "active" && (
+        <button className="dash-btn danger">Revoke key</button>
+      )}
+    </div>
+  );
 }
 
 export function KeysList({
@@ -35,6 +121,7 @@ export function KeysList({
   const [name, setName] = useState("");
   const [newRawKey, setNewRawKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const status = createKey.isPending ? "creating" : createKey.isError ? "error" : createKey.isSuccess && newRawKey ? "done" : "idle";
@@ -174,25 +261,31 @@ export function KeysList({
       ) : (
         <div className="dash-index-group">
           {keys.map((key) => (
-            <div key={key.id} className="dash-index-item">
-              <div className="dash-index-link">
-                <span className="dash-index-label">
-                  <span className="key-prefix">{key.prefix}</span>
-                  {key.name && (
-                    <span className="dash-index-desc">{key.name}</span>
-                  )}
-                </span>
-                <span className="dash-index-meta">
-                  {key.status === "active" ? (
-                    <span className="dash-badge active">active</span>
-                  ) : (
-                    <s style={{ opacity: 0.5 }}>revoked</s>
-                  )}
-                  {key.status === "active" && (
-                    <>last used {timeAgo(key.lastUsedAt)}</>
-                  )}
-                </span>
+            <div key={key.id}>
+              <div
+                className={`dash-index-item${selectedKeyId === key.id ? " selected" : ""}`}
+                onClick={() => setSelectedKeyId(selectedKeyId === key.id ? null : key.id)}
+              >
+                <div className="dash-index-link">
+                  <span className="dash-index-label">
+                    <span className="key-prefix">{key.prefix}</span>
+                    {key.name && (
+                      <span className="key-name">{key.name}</span>
+                    )}
+                  </span>
+                  <span className="dash-index-meta">
+                    {key.status === "active" ? (
+                      <span className="dash-badge active">active</span>
+                    ) : (
+                      <s style={{ opacity: 0.5 }}>revoked</s>
+                    )}
+                    {key.status === "active" && (
+                      <>last used {timeAgo(key.lastUsedAt)}</>
+                    )}
+                  </span>
+                </div>
               </div>
+              {selectedKeyId === key.id && <KeyDetail apiKey={key} />}
             </div>
           ))}
         </div>
