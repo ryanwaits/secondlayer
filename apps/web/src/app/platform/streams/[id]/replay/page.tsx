@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
 import type { Stream } from "@/lib/types";
 import { ReplayClient } from "./replay-client";
-import { StreamTabs } from "../stream-tabs";
 
 export default async function StreamReplayPage({
   params,
@@ -24,13 +23,5 @@ export default async function StreamReplayPage({
     throw e;
   }
 
-  return (
-    <>
-      <div className="dash-page-header">
-        <h1 className="dash-page-title">{stream.name}</h1>
-      </div>
-      <StreamTabs streamId={id} />
-      <ReplayClient stream={stream} />
-    </>
-  );
+  return <ReplayClient stream={stream} />;
 }
