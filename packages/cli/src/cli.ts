@@ -9,7 +9,7 @@ import {
   registerSyncCommand,
   registerDbCommand,
   registerWebhookCommand,
-  registerViewsCommand,
+  registerSubgraphsCommand,
   registerStackCommand,
   registerDoctorCommand,
   registerAuthCommand,
@@ -26,7 +26,7 @@ const { version } = pkg;
 program
   .name("secondlayer")
   .alias("sl")
-  .description("SecondLayer CLI — streams, views, and real-time indexing for Stacks")
+  .description("SecondLayer CLI — streams, subgraphs, and real-time indexing for Stacks")
   .version(version)
   .option("--network <network>", "Override network (local, testnet, mainnet)");
 
@@ -70,7 +70,7 @@ program
 
 // Core commands (API-backed, work against any environment)
 registerStreamsCommand(program);
-registerViewsCommand(program);
+registerSubgraphsCommand(program);
 registerStatusCommand(program);
 
 // Local infrastructure commands

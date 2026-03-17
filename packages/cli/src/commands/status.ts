@@ -132,11 +132,11 @@ function printStatus(status: any): void {
   );
   console.log("");
 
-  // Views + Deliveries (hosted mode fields)
-  if (status.activeViews !== undefined || status.recentDeliveries !== undefined) {
+  // Subgraphs + Deliveries (hosted mode fields)
+  if (status.activeSubgraphs !== undefined || status.recentDeliveries !== undefined) {
     console.log(blue("Activity"));
     const pairs: [string, string][] = [];
-    if (status.activeViews !== undefined) pairs.push(["  Active Views", status.activeViews.toString()]);
+    if (status.activeSubgraphs !== undefined) pairs.push(["  Active Subgraphs", status.activeSubgraphs.toString()]);
     if (status.recentDeliveries !== undefined) pairs.push(["  Deliveries (24h)", status.recentDeliveries.toString()]);
     console.log(formatKeyValue(pairs));
     console.log("");

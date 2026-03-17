@@ -10,7 +10,7 @@ export {
   type WebhookEvent,
 } from "./webhook-server.ts";
 export {
-  startViewProcessor,
-  stopViewProcessor,
-  isViewProcessorRunning,
-} from "./view-processor.ts";
+  startSubgraphProcessor,
+  stopSubgraphProcessor,
+  isSubgraphProcessorRunning,
+} from "./subgraph-processor.ts";

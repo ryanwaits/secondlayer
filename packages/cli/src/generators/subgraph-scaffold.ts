@@ -1,29 +1,29 @@
 import type { AbiFunction } from "@secondlayer/stacks/clarity";
 import { formatCode } from "../utils/format.ts";
-import { clarityTypeToViewColumn } from "./clarity-to-view.ts";
+import { clarityTypeToSubgraphColumn } from "./clarity-to-subgraph.ts";
 
-export interface ViewScaffoldInput {
+export interface SubgraphScaffoldInput {
   /** Full contract identifier, e.g. SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.contract-name */
   contractId: string;
   /** Public functions from the contract ABI */
   functions: readonly AbiFunction[];
-  /** View name (defaults to contract name portion of contractId) */
-  viewName?: string;
+  /** Subgraph name (defaults to contract name portion of contractId) */
+  subgraphName?: string;
 }
 
 /**
- * Generates a `defineView()` TypeScript file from a contract ABI.
+ * Generates a `defineSubgraph()` TypeScript file from a contract ABI.
  *
  * Strategy: one table per public function, columns = function arguments
  * mapped via the Clarity type → ColumnType mapper.
  */
-export async function generateViewScaffold(input: ViewScaffoldInput): Promise<string> {
+export async function generateSubgraphScaffold(input: SubgraphScaffoldInput): Promise<string> {
   const { contractId, functions } = input;
 
-  // Derive view name from contract portion if not provided
+  // Derive subgraph name from contract portion if not provided
   const contractParts = contractId.split(".");
   const contractName = contractParts[contractParts.length - 1] ?? contractId;
-  const viewName = input.viewName ?? contractName;
+  const subgraphName = input.subgraphName ?? contractName;
 
   // Public functions only (skip read-only and private)
   const publicFunctions = functions.filter((f) => f.access === "public");
@@ -36,7 +36,7 @@ export async function generateViewScaffold(input: ViewScaffoldInput): Promise<st
   const tables = publicFunctions.map((fn) => {
     const columns = fn.args
       .map((arg: { name: string; type: any }) => {
-        const mapped = clarityTypeToViewColumn(arg.type);
+        const mapped = clarityTypeToSubgraphColumn(arg.type);
         const nullable = mapped.nullable ? ", nullable: true" : "";
         return `        ${arg.name.replace(/-/g, "_")}: { type: '${mapped.type}'${nullable} }`;
       })
@@ -60,10 +60,10 @@ export async function generateViewScaffold(input: ViewScaffoldInput): Promise<st
   const handlersBlock = handlerKeys.join(",\n\n");
 
   const code = `
-import { defineView } from '@secondlayer/views';
+import { defineSubgraph } from '@secondlayer/subgraphs';
 
-export default defineView({
-  name: '${viewName}',
+export default defineSubgraph({
+  name: '${subgraphName}',
   sources: [{ contract: '${contractId}' }],
   schema: {
 ${schemaBlock}

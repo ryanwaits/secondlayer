@@ -10,7 +10,7 @@ import {
   startApi,
   startWebhookServer,
   stopWebhookServer,
-  startViewProcessor,
+  startSubgraphProcessor,
 } from "../services/index.ts";
 import { success, error, info, dim, green, blue, yellow, red, cyan, magenta } from "../lib/output.ts";
 import {
@@ -196,21 +196,21 @@ export async function runBackground(options: DevOptions): Promise<void> {
       console.log(green("  ✓ Worker"), dim("processing jobs"));
     }
 
-    // View processor
+    // Subgraph processor
     {
-      const viewsLogFile = getLogFile("views");
-      const viewsProc = Bun.spawn(["bun", "run", resolve(packagesDir, "packages/views/src/service.ts")], {
+      const subgraphsLogFile = getLogFile("subgraphs");
+      const subgraphsProc = Bun.spawn(["bun", "run", resolve(packagesDir, "packages/subgraphs/src/service.ts")], {
         env: { ...process.env, ...env },
-        stdout: Bun.file(viewsLogFile),
-        stderr: Bun.file(viewsLogFile),
+        stdout: Bun.file(subgraphsLogFile),
+        stderr: Bun.file(subgraphsLogFile),
       });
-      state.services.views = {
-        pid: viewsProc.pid,
+      state.services.subgraphs = {
+        pid: subgraphsProc.pid,
         port: null,
         startedAt: new Date().toISOString(),
-        logFile: viewsLogFile,
+        logFile: subgraphsLogFile,
       };
-      console.log(green("  ✓ View processor"), dim("processing views"));
+      console.log(green("  ✓ Subgraph processor"), dim("processing subgraphs"));
     }
 
     // Webhook server
@@ -392,8 +392,8 @@ export async function runForeground(options: DevOptions): Promise<void> {
       console.log(green("  ✓ Worker"), dim("processing jobs"));
     }
 
-    await startViewProcessor({ onLog: (line) => logService("views", line) });
-    console.log(green("  ✓ View processor"), dim("processing views"));
+    await startSubgraphProcessor({ onLog: (line) => logService("subgraphs", line) });
+    console.log(green("  ✓ Subgraph processor"), dim("processing subgraphs"));
 
     console.log("");
     printUrls(indexerPort, apiPort, webhookPort, options.webhook);
@@ -451,7 +451,7 @@ const serviceColors: Record<string, (text: string) => string> = {
   api: blue,
   indexer: cyan,
   worker: yellow,
-  views: magenta,
+  subgraphs: magenta,
   webhook: green,
 };
 
@@ -758,21 +758,21 @@ export async function restartDev(): Promise<void> {
     console.log(green("  ✓ Webhook server"), dim(`http://localhost:${webhookPort}`));
   }
 
-  // View processor (always restart if was running)
-  if (state.services.views) {
-    const viewsLogFile = getLogFile("views");
-    const viewsProc = Bun.spawn(["bun", "run", resolve(packagesDir, "packages/views/src/service.ts")], {
+  // Subgraph processor (always restart if was running)
+  if (state.services.subgraphs) {
+    const subgraphsLogFile = getLogFile("subgraphs");
+    const subgraphsProc = Bun.spawn(["bun", "run", resolve(packagesDir, "packages/subgraphs/src/service.ts")], {
       env: { ...process.env, ...env },
-      stdout: Bun.file(viewsLogFile),
-      stderr: Bun.file(viewsLogFile),
+      stdout: Bun.file(subgraphsLogFile),
+      stderr: Bun.file(subgraphsLogFile),
     });
-    newState.services.views = {
-      pid: viewsProc.pid,
+    newState.services.subgraphs = {
+      pid: subgraphsProc.pid,
       port: null,
       startedAt: new Date().toISOString(),
-      logFile: viewsLogFile,
+      logFile: subgraphsLogFile,
     };
-    console.log(green("  ✓ View processor"), dim("processing views"));
+    console.log(green("  ✓ Subgraph processor"), dim("processing subgraphs"));
   }
 
   // Wait a bit for processes to start

@@ -1,4 +1,4 @@
-import type { ColumnType } from "@secondlayer/views";
+import type { ColumnType } from "@secondlayer/subgraphs";
 import {
   isAbiBuffer,
   isAbiStringAscii,
@@ -8,7 +8,7 @@ import {
 } from "@secondlayer/stacks/clarity";
 
 /**
- * Maps a Clarity ABI type to a ViewColumn ColumnType.
+ * Maps a Clarity ABI type to a SubgraphColumn ColumnType.
  *
  * Mapping rules:
  *  uint128 / uint  → "uint"
@@ -24,7 +24,7 @@ export interface MappedColumn {
   nullable: boolean;
 }
 
-export function clarityTypeToViewColumn(abiType: AbiType): MappedColumn {
+export function clarityTypeToSubgraphColumn(abiType: AbiType): MappedColumn {
   return mapType(abiType, false);
 }
 

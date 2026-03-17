@@ -7,18 +7,18 @@ import type {
   ListStreamsResponse,
   BulkPauseResponse,
   BulkResumeResponse,
-  ViewSummary,
-  ViewDetail,
-  ViewQueryParams,
+  SubgraphSummary,
+  SubgraphDetail,
+  SubgraphQueryParams,
   ReindexResponse,
 } from "@secondlayer/shared/schemas";
-import type { DeployViewRequest, DeployViewResponse } from "@secondlayer/shared/schemas/views";
+import type { DeploySubgraphRequest, DeploySubgraphResponse } from "@secondlayer/shared/schemas/subgraphs";
 import type { QueueStats } from "@secondlayer/shared/types";
 import { loadConfig, resolveApiUrl } from "./config.ts";
 
 import { ApiError } from "@secondlayer/sdk";
 export { ApiError };
-export type { ViewQueryParams } from "@secondlayer/shared/schemas";
+export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
 
 /**
  * Guard that throws if the response is not ok, extracting the best error message.
@@ -114,33 +114,33 @@ export async function getQueueStats(): Promise<QueueStats> {
   return (await getClient()).getQueueStats();
 }
 
-// ── Views ─────────────────────────────────────────────────────────────────
+// ── Subgraphs ─────────────────────────────────────────────────────────────
 
-export async function listViewsApi(): Promise<{ data: ViewSummary[] }> {
-  return (await getClient()).views.list();
+export async function listSubgraphsApi(): Promise<{ data: SubgraphSummary[] }> {
+  return (await getClient()).subgraphs.list();
 }
 
-export async function getViewApi(name: string): Promise<ViewDetail> {
-  return (await getClient()).views.get(name);
+export async function getSubgraphApi(name: string): Promise<SubgraphDetail> {
+  return (await getClient()).subgraphs.get(name);
 }
 
-export async function reindexViewApi(name: string, options?: { fromBlock?: number; toBlock?: number }): Promise<ReindexResponse> {
-  return (await getClient()).views.reindex(name, options);
+export async function reindexSubgraphApi(name: string, options?: { fromBlock?: number; toBlock?: number }): Promise<ReindexResponse> {
+  return (await getClient()).subgraphs.reindex(name, options);
 }
 
-export async function deleteViewApi(name: string): Promise<{ message: string }> {
-  return (await getClient()).views.delete(name);
+export async function deleteSubgraphApi(name: string): Promise<{ message: string }> {
+  return (await getClient()).subgraphs.delete(name);
 }
 
-export async function deployViewApi(data: DeployViewRequest): Promise<DeployViewResponse> {
-  return (await getClient()).views.deploy(data);
+export async function deploySubgraphApi(data: DeploySubgraphRequest): Promise<DeploySubgraphResponse> {
+  return (await getClient()).subgraphs.deploy(data);
 }
 
-export async function queryViewTable(name: string, table: string, params: ViewQueryParams = {}): Promise<unknown[]> {
-  return (await getClient()).views.queryTable(name, table, params);
+export async function querySubgraphTable(name: string, table: string, params: SubgraphQueryParams = {}): Promise<unknown[]> {
+  return (await getClient()).subgraphs.queryTable(name, table, params);
 }
 
-export async function queryViewTableCount(name: string, table: string, params: ViewQueryParams = {}): Promise<{ count: number }> {
-  return (await getClient()).views.queryTableCount(name, table, params);
+export async function querySubgraphTableCount(name: string, table: string, params: SubgraphQueryParams = {}): Promise<{ count: number }> {
+  return (await getClient()).subgraphs.queryTableCount(name, table, params);
 }
 
