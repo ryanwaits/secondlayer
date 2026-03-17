@@ -5,7 +5,7 @@ import { sql } from "@secondlayer/shared";
 import { logger } from "@secondlayer/shared/logger";
 import { enqueue } from "@secondlayer/shared/queue";
 import { notifyNewJob } from "@secondlayer/shared/queue/listener";
-import { parseBlock, parseTransaction, parseEvent } from "./parser.ts";
+import { parseBlock, parseTransaction, parseEvent, stripNullBytes } from "./parser.ts";
 import { detectReorg, handleReorg } from "./reorg.ts";
 import { computeContiguousTip, findGaps, countMissingBlocks } from "@secondlayer/shared/db/queries/integrity";
 import { startIntegrityLoop, integrityState } from "./integrity.ts";
@@ -210,11 +210,14 @@ const server = Bun.serve({
           const txResults = await Promise.all(
             payload.transactions.map((tx: TransactionPayload) => parseTransaction(tx, payload.block_height))
           );
-          const txs = txResults.filter((tx): tx is NonNullable<typeof tx> => tx !== null);
+          const txs = txResults
+            .filter((tx): tx is NonNullable<typeof tx> => tx !== null)
+            .map((tx) => stripNullBytes(tx) as typeof tx);
 
           const evts = payload.events
             .map((evt) => parseEvent(evt, payload.block_height))
-            .filter((evt): evt is NonNullable<typeof evt> => evt !== null);
+            .filter((evt): evt is NonNullable<typeof evt> => evt !== null)
+            .map((evt) => stripNullBytes(evt) as typeof evt);
 
           // Insert in transaction (chunk large batches to avoid Postgres parameter limit)
           const TX_CHUNK_SIZE = 500;
