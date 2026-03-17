@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 1.6.1
+
+### Patch Changes
+
+- Prefer STACKS_NODE_RPC_URL over Hiro public API for ABI fetches in scaffold/generate commands.
+
 ## 1.6.0
 
 ### Minor Changes
