@@ -2,6 +2,8 @@ import got from "got";
 import type { AbiContract } from "@secondlayer/stacks/clarity";
 import type { NetworkName } from "../types/config";
 import { parseContractId } from "./contract-id";
+import { loadConfig, resolveApiUrl } from "../lib/config.ts";
+import { authHeaders } from "../lib/api-client.ts";
 
 const gotWithRetry = got.extend({
   timeout: { request: 30000 },
@@ -14,44 +16,39 @@ const gotWithRetry = got.extend({
 });
 
 /**
- * Stacks API client for fetching contract information.
+ * Stacks contract client for fetching ABIs and source code.
  *
- * URL resolution order:
- *   1. Explicit `apiUrl` constructor arg
- *   2. `STACKS_NODE_RPC_URL` env var
- *   3. Hiro public API (fallback)
+ * Mainnet/testnet: proxied through SecondLayer API (/api/node/contracts/:id/abi)
+ * Devnet: direct RPC to local node (STACKS_NODE_RPC_URL or localhost:3999)
  */
-
-const HIRO_URLS: Record<NetworkName, string> = {
-  mainnet: "https://api.hiro.so",
-  testnet: "https://api.testnet.hiro.so",
-  devnet: "http://localhost:3999",
-};
-
 export class StacksApiClient {
-  private static hasWarnedAboutApiKey = false;
   private baseUrl: string;
   private headers: Record<string, string>;
-  private usingHiro: boolean;
+  private useProxy: boolean;
 
   constructor(
     network: NetworkName = "mainnet",
     apiKey?: string,
-    apiUrl?: string
+    apiUrl?: string,
+    slApiUrl?: string,
   ) {
-    const nodeRpcUrl = process.env.STACKS_NODE_RPC_URL;
-    this.baseUrl = apiUrl || nodeRpcUrl || HIRO_URLS[network];
-    this.usingHiro = !apiUrl && !nodeRpcUrl;
-    this.headers = apiKey ? { "x-api-key": apiKey } : {};
+    this.useProxy = !apiUrl && network !== "devnet";
 
-    if (this.usingHiro && !apiKey && !StacksApiClient.hasWarnedAboutApiKey) {
-      console.warn(
-        "⚠️  Using Hiro public API (no STACKS_NODE_RPC_URL set). You may be rate-limited.\n" +
-          "   Set STACKS_NODE_RPC_URL to use your own node, or set HIRO_API_KEY for Hiro.\n" +
-          "   Get a free Hiro key at: https://platform.hiro.so/"
-      );
-      StacksApiClient.hasWarnedAboutApiKey = true;
+    if (this.useProxy) {
+      this.baseUrl = slApiUrl || "";
+      this.headers = {};
+    } else {
+      this.baseUrl = apiUrl || process.env.STACKS_NODE_RPC_URL || "http://localhost:3999";
+      this.headers = apiKey ? { "x-api-key": apiKey } : {};
     }
+  }
+
+  /** Lazy-init: resolve SecondLayer API URL + auth from config if using proxy */
+  private async ensureProxy(): Promise<void> {
+    if (!this.useProxy || this.baseUrl) return;
+    const config = await loadConfig();
+    this.baseUrl = resolveApiUrl(config);
+    this.headers = authHeaders(config);
   }
 
   private async fetchWithErrorHandling<T>(
@@ -66,25 +63,34 @@ export class StacksApiClient {
       });
       return response.body as T;
     } catch (error: any) {
+      if (error.response?.statusCode === 401) {
+        throw new Error("Authentication required. Run: secondlayer auth login");
+      }
       if (error.response?.statusCode === 404) {
         throw new Error(`${resourceType} not found: ${resourceId}`);
-      }
-      if (error.response?.statusCode === 429) {
-        throw new Error("Rate limited. Please provide an API key in your config.");
       }
       throw new Error(`Failed to fetch ${resourceType.toLowerCase()}: ${error.message}`);
     }
   }
 
   async getContractInfo(contractId: string): Promise<AbiContract> {
+    await this.ensureProxy();
+
+    if (this.useProxy) {
+      const url = `${this.baseUrl}/api/node/contracts/${contractId}/abi`;
+      return this.fetchWithErrorHandling<AbiContract>(url, "Contract", contractId);
+    }
+
     const { address, contractName } = parseContractId(contractId);
     const url = `${this.baseUrl}/v2/contracts/interface/${address}/${contractName}`;
     return this.fetchWithErrorHandling<AbiContract>(url, "Contract", contractId);
   }
 
   async getContractSource(contractId: string): Promise<string> {
+    // Source endpoint is only available via direct RPC
     const { address, contractName } = parseContractId(contractId);
-    const url = `${this.baseUrl}/v2/contracts/source/${address}/${contractName}`;
+    const rpcUrl = process.env.STACKS_NODE_RPC_URL || this.baseUrl;
+    const url = `${rpcUrl}/v2/contracts/source/${address}/${contractName}`;
     const data = await this.fetchWithErrorHandling<{ source: string }>(url, "Contract source", contractId);
     return data.source;
   }
