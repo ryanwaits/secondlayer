@@ -51,7 +51,8 @@ export class Subgraphs extends BaseClient {
   }
 
   async queryTable(name: string, table: string, params: SubgraphQueryParams = {}): Promise<unknown[]> {
-    return this.request<unknown[]>("GET", `/api/subgraphs/${name}/${table}${buildSubgraphQueryString(params)}`);
+    const result = await this.request<{ data: unknown[] } | unknown[]>("GET", `/api/subgraphs/${name}/${table}${buildSubgraphQueryString(params)}`);
+    return Array.isArray(result) ? result : result.data;
   }
 
   async queryTableCount(name: string, table: string, params: SubgraphQueryParams = {}): Promise<{ count: number }> {
