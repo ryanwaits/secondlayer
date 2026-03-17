@@ -1,19 +1,19 @@
 import type {
-  ViewSummary,
-  ViewDetail,
-  ViewQueryParams,
+  SubgraphSummary,
+  SubgraphDetail,
+  SubgraphQueryParams,
   ReindexResponse,
 } from "@secondlayer/shared/schemas";
-import type { DeployViewRequest, DeployViewResponse } from "@secondlayer/shared/schemas/views";
+import type { DeploySubgraphRequest, DeploySubgraphResponse } from "@secondlayer/shared/schemas/subgraphs";
 import type {
-  InferViewClient,
+  InferSubgraphClient,
   FindManyOptions,
   WhereInput,
-} from "@secondlayer/views";
+} from "@secondlayer/subgraphs";
 import { BaseClient } from "../base.ts";
 import { serializeWhere, resolveOrderByColumn } from "./serialize.ts";
 
-function buildViewQueryString(params: ViewQueryParams): string {
+function buildSubgraphQueryString(params: SubgraphQueryParams): string {
   const qs = new URLSearchParams();
   if (params.sort) qs.set("_sort", params.sort);
   if (params.order) qs.set("_order", params.order);
@@ -29,60 +29,60 @@ function buildViewQueryString(params: ViewQueryParams): string {
   return str ? `?${str}` : "";
 }
 
-export class Views extends BaseClient {
-  async list(): Promise<{ data: ViewSummary[] }> {
-    return this.request<{ data: ViewSummary[] }>("GET", "/api/views");
+export class Subgraphs extends BaseClient {
+  async list(): Promise<{ data: SubgraphSummary[] }> {
+    return this.request<{ data: SubgraphSummary[] }>("GET", "/api/subgraphs");
   }
 
-  async get(name: string): Promise<ViewDetail> {
-    return this.request<ViewDetail>("GET", `/api/views/${name}`);
+  async get(name: string): Promise<SubgraphDetail> {
+    return this.request<SubgraphDetail>("GET", `/api/subgraphs/${name}`);
   }
 
   async reindex(name: string, options?: { fromBlock?: number; toBlock?: number }): Promise<ReindexResponse> {
-    return this.request<ReindexResponse>("POST", `/api/views/${name}/reindex`, options);
+    return this.request<ReindexResponse>("POST", `/api/subgraphs/${name}/reindex`, options);
   }
 
   async delete(name: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>("DELETE", `/api/views/${name}`);
+    return this.request<{ message: string }>("DELETE", `/api/subgraphs/${name}`);
   }
 
-  async deploy(data: DeployViewRequest): Promise<DeployViewResponse> {
-    return this.request<DeployViewResponse>("POST", "/api/views", data);
+  async deploy(data: DeploySubgraphRequest): Promise<DeploySubgraphResponse> {
+    return this.request<DeploySubgraphResponse>("POST", "/api/subgraphs", data);
   }
 
-  async queryTable(name: string, table: string, params: ViewQueryParams = {}): Promise<unknown[]> {
-    return this.request<unknown[]>("GET", `/api/views/${name}/${table}${buildViewQueryString(params)}`);
+  async queryTable(name: string, table: string, params: SubgraphQueryParams = {}): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/subgraphs/${name}/${table}${buildSubgraphQueryString(params)}`);
   }
 
-  async queryTableCount(name: string, table: string, params: ViewQueryParams = {}): Promise<{ count: number }> {
-    return this.request<{ count: number }>("GET", `/api/views/${name}/${table}/count${buildViewQueryString(params)}`);
+  async queryTableCount(name: string, table: string, params: SubgraphQueryParams = {}): Promise<{ count: number }> {
+    return this.request<{ count: number }>("GET", `/api/subgraphs/${name}/${table}/count${buildSubgraphQueryString(params)}`);
   }
 
   /**
-   * Returns a typed client for a view defined with `defineView()`.
-   * Row types are inferred from the view's schema literal types.
+   * Returns a typed client for a subgraph defined with `defineSubgraph()`.
+   * Row types are inferred from the subgraph's schema literal types.
    *
    * @example
    * ```ts
-   * import myView from './views/my-token-view'
-   * const client = sl.views.typed(myView)
+   * import mySubgraph from './subgraphs/my-token-subgraph'
+   * const client = sl.subgraphs.typed(mySubgraph)
    * const rows = await client.transfers.findMany({ where: { sender: 'SP...' } })
-   * // rows: InferTableRow<typeof myView.schema.transfers>[]
+   * // rows: InferTableRow<typeof mySubgraph.schema.transfers>[]
    * ```
    */
   typed<T extends { name: string; schema: Record<string, unknown> }>(
     def: T,
-  ): InferViewClient<T> {
+  ): InferSubgraphClient<T> {
     const result: Record<string, unknown> = {};
 
     for (const tableName of Object.keys(def.schema)) {
       result[tableName] = this.createTableClient(def.name, tableName);
     }
 
-    return result as InferViewClient<T>;
+    return result as InferSubgraphClient<T>;
   }
 
-  private createTableClient(viewName: string, tableName: string) {
+  private createTableClient(subgraphName: string, tableName: string) {
     const self = this;
 
     return {
@@ -106,7 +106,7 @@ export class Views extends BaseClient {
           }
         }
 
-        const params: ViewQueryParams = {
+        const params: SubgraphQueryParams = {
           sort,
           order,
           limit: options.limit,
@@ -115,7 +115,7 @@ export class Views extends BaseClient {
           filters,
         };
 
-        return self.queryTable(viewName, tableName, params) as Promise<TRow[]>;
+        return self.queryTable(subgraphName, tableName, params) as Promise<TRow[]>;
       },
 
       async count<TRow>(where?: WhereInput<TRow>): Promise<number> {
@@ -123,7 +123,7 @@ export class Views extends BaseClient {
           ? serializeWhere(where as Record<string, unknown>)
           : undefined;
 
-        const result = await self.queryTableCount(viewName, tableName, { filters });
+        const result = await self.queryTableCount(subgraphName, tableName, { filters });
         return result.count;
       },
     };
