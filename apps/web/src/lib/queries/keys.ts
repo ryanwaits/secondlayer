@@ -12,5 +12,11 @@ export const queryKeys = {
   keys: {
     all: ["keys"] as const,
   },
+  insights: {
+    all: ["insights"] as const,
+    byCategory: (category: string) => ["insights", category] as const,
+    byResource: (category: string, resourceId: string) =>
+      ["insights", category, resourceId] as const,
+  },
   status: ["status"] as const,
 };

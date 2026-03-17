@@ -19,6 +19,7 @@ export function useApiKeys(initialData?: ApiKey[]) {
     queryFn: () =>
       fetchJson<{ keys: ApiKey[] }>("/api/keys").then((r) => r.keys),
     initialData,
+    staleTime: 5 * 60_000,
   });
 }
 
