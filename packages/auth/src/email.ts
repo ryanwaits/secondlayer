@@ -82,6 +82,42 @@ export async function sendWaitlistConfirmation(email: string): Promise<void> {
   await sendEmail(email, "secondlayer — early access", text, waitlistHtml());
 }
 
+/**
+ * Approval notification email with auto-login link. Uses Resend in production, logs to console in DEV_MODE.
+ */
+export async function sendApprovalNotification(email: string, token: string): Promise<void> {
+  if (process.env.DEV_MODE === "true") {
+    console.log(`\n[DEV] Approval notification for ${email}, token: ${token}\n`);
+    return;
+  }
+
+  const webUrl = process.env.WEB_URL ?? "https://secondlayer.tools";
+  const verifyUrl = `${webUrl}/verify?token=${token}`;
+
+  const text = [
+    "You're in — early access is ready.",
+    "",
+    `Sign in directly: ${verifyUrl}`,
+    "",
+    "This link expires in 7 days.",
+    "",
+    "— secondlayer",
+  ].join("\n");
+
+  const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+  <p style="color: #888; font-size: 14px; margin: 0 0 24px;">secondlayer</p>
+  <div style="background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+    <p style="font-size: 18px; font-weight: 600; margin: 0 0 12px; color: #111;">You're in — early access is ready</p>
+    <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0;">Your spot on secondlayer is confirmed. Click below to sign in and start building.</p>
+  </div>
+  <a href="${verifyUrl}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-size: 14px;">Sign in to secondlayer</a>
+  <p style="color: #aaa; font-size: 12px; margin: 24px 0 0;">This link expires in 7 days. If you didn't sign up, ignore this email.</p>
+</div>`.trim();
+
+  await sendEmail(email, "You're in — secondlayer early access", text, html);
+}
+
 function waitlistHtml(): string {
   return `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">

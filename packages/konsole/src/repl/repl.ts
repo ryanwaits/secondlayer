@@ -7,7 +7,9 @@ import { rubyToJs, evalExpr } from "./eval.ts";
 import { printResult } from "./printer.ts";
 import { createCommands } from "./commands.ts";
 import { createCompleter } from "./completer.ts";
-import { dim, cyan, red } from "./colors.ts";
+import { dim, cyan, red, green } from "./colors.ts";
+import { sendApprovalNotification } from "@secondlayer/auth/email";
+import { createMagicLink } from "@secondlayer/shared/db/queries/accounts";
 
 export interface ReplOptions {
   db: Kysely<any>;
@@ -27,11 +29,36 @@ export function startRepl(opts: ReplOptions) {
     return rows;
   }
 
+  // Approve a waitlisted email: sets status, creates magic link, sends email
+  async function approve(email: string) {
+    const row = await sql<{ status: string }>`
+      SELECT status FROM waitlist WHERE email = ${email} LIMIT 1
+    `.execute(db);
+
+    if (row.rows.length === 0) {
+      console.log(red(`  No waitlist entry for ${email}`));
+      return;
+    }
+    if (row.rows[0].status !== "pending") {
+      console.log(red(`  ${email} is already ${row.rows[0].status}`));
+      return;
+    }
+
+    await sql`UPDATE waitlist SET status = 'approved' WHERE email = ${email}`.execute(db);
+
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    await createMagicLink(db, email, token, 7 * 24 * 60 * 60 * 1000);
+    await sendApprovalNotification(email, token);
+
+    console.log(green(`  Approved ${email} — token: ${token}`));
+  }
+
   // Build eval context
   const ctx: Record<string, unknown> = {
     db,
     sql,
     rawSql,
+    approve,
     ...models,
   };
 

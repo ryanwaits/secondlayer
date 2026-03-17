@@ -40,7 +40,7 @@
     },
     "packages/account-agent": {
       "name": "@secondlayer/account-agent",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
         "@secondlayer/shared": "^0.4.0",
@@ -53,7 +53,7 @@
     },
     "packages/agent": {
       "name": "@secondlayer/agent",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.2.63",
         "@anthropic-ai/sdk": "^0.78.0",
@@ -66,7 +66,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "0.1.6",
+      "version": "0.2.0",
       "dependencies": {
         "@secondlayer/auth": "^0.1.5",
         "@secondlayer/shared": "^0.4.0",
@@ -81,9 +81,9 @@
     },
     "packages/auth": {
       "name": "@secondlayer/auth",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
-        "@secondlayer/shared": "^0.4.0",
+        "@secondlayer/shared": "^0.5.0",
         "hono": "^4.0.0",
         "zod": "^3.24.1",
       },
@@ -101,7 +101,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "1.5.1",
+      "version": "1.6.0",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -133,7 +133,7 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "@secondlayer/stacks": "workspace:*",
@@ -151,6 +151,8 @@
         "konsole": "./src/index.ts",
       },
       "dependencies": {
+        "@secondlayer/auth": "workspace:*",
+        "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.10",
         "kysely-postgres-js": "3.0.0",
         "pluralize": "^8.0.0",
@@ -162,7 +164,7 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "@secondlayer/shared": "^0.4.0",
         "@secondlayer/subgraphs": "^0.4.0",
@@ -174,7 +176,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "dependencies": {
         "@secondlayer/stacks": "^0.2.0",
         "kysely": "0.28.10",
@@ -207,7 +209,7 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "dependencies": {
         "@secondlayer/shared": "^0.4.0",
         "@secondlayer/stacks": "^0.2.0",
@@ -222,7 +224,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "0.1.5",
+      "version": "0.2.0",
       "dependencies": {
         "@secondlayer/account-agent": "^0.1.0",
         "@secondlayer/shared": "^0.4.0",
