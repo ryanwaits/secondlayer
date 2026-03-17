@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { apiRequest, ApiError, getSessionFromRequest } from "@/lib/api";
 import type { ApiKey } from "@/lib/types";
 
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
       "/api/keys",
       { method: "POST", body, sessionToken },
     );
+    revalidateTag("keys", { expire: 0 });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {

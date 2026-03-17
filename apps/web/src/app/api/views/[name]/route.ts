@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { apiRequest, ApiError, getSessionFromRequest } from "@/lib/api";
 
 export async function GET(
@@ -39,6 +40,7 @@ export async function DELETE(
       `/api/views/${name}`,
       { method: "DELETE", sessionToken },
     );
+    revalidateTag("views", { expire: 0 });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {

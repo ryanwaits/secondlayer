@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { apiRequest, ApiError, getSessionFromRequest } from "@/lib/api";
 
 export async function GET(
@@ -39,6 +40,8 @@ export async function PATCH(
       body,
       sessionToken,
     });
+    revalidateTag("streams", { expire: 0 });
+    revalidateTag(`stream-${id}`, { expire: 0 });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {
@@ -63,6 +66,7 @@ export async function DELETE(
       method: "DELETE",
       sessionToken,
     });
+    revalidateTag("streams", { expire: 0 });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {
