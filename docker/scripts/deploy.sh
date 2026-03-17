@@ -15,7 +15,9 @@ $COMPOSE build api indexer worker agent migrate
 $COMPOSE run --rm migrate
 
 # Restart app services — NEVER touch stacks-node, postgres, hiro-postgres, hiro-api
-$COMPOSE up -d api indexer worker subgraph-processor agent caddy
+# Remove orphaned containers from renamed services (view-processor → subgraph-processor)
+docker rm -f secondlayer-view-processor-1 2>/dev/null || true
+$COMPOSE up -d --remove-orphans api indexer worker subgraph-processor agent caddy
 
 # Health check
 sleep 10
