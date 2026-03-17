@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 0.6.1
+
+### Patch Changes
+
+- Fix subgraph queryTable to unwrap `data` field from API response.
+
 ## 0.6.0
 
 ### Minor Changes
