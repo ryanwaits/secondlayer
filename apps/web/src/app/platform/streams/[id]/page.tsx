@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
-import type { Stream, Delivery, AccountInsight } from "@/lib/types";
+import type { Stream } from "@/lib/types";
 import { StreamDetailClient } from "./stream-detail-client";
 
 export default async function StreamOverviewPage({
@@ -17,29 +17,12 @@ export default async function StreamOverviewPage({
   try {
     stream = await apiRequest<Stream>(`/api/streams/${id}`, {
       sessionToken: session,
+      tags: ["streams", `stream-${id}`],
     });
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   }
 
-  let deliveries: Delivery[] = [];
-  try {
-    const data = await apiRequest<{ deliveries: Delivery[] }>(
-      `/api/streams/${id}/deliveries?limit=5&offset=0`,
-      { sessionToken: session },
-    );
-    deliveries = data.deliveries;
-  } catch {}
-
-  let insights: AccountInsight[] = [];
-  try {
-    const data = await apiRequest<{ insights: AccountInsight[] }>(
-      `/api/insights?resource_id=${id}&category=stream`,
-      { sessionToken: session },
-    );
-    insights = data.insights;
-  } catch {}
-
-  return <StreamDetailClient stream={stream} deliveries={deliveries} insights={insights} sessionToken={session} />;
+  return <StreamDetailClient stream={stream} sessionToken={session} />;
 }

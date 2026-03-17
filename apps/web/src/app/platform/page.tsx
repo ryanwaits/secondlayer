@@ -1,6 +1,6 @@
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { EmptyState } from "@/components/console/empty-state";
-import type { Stream, ViewSummary, AccountInsight } from "@/lib/types";
+import type { Stream, ViewSummary } from "@/lib/types";
 import { DashboardContent } from "@/components/console/dashboard-content";
 
 export default async function DashboardPage() {
@@ -16,38 +16,24 @@ export default async function DashboardPage() {
     );
   }
 
-  let streams: Stream[] = [];
-  let views: ViewSummary[] = [];
-  let insights: AccountInsight[] = [];
-
-  try {
-    const data = await apiRequest<{ streams: Stream[]; total: number }>(
+  const [streamsResult, viewsResult] = await Promise.allSettled([
+    apiRequest<{ streams: Stream[]; total: number }>(
       "/api/streams?limit=100&offset=0",
-      { sessionToken: session },
-    );
-    streams = data.streams;
-  } catch {}
-
-  try {
-    const data = await apiRequest<{ data: ViewSummary[] }>("/api/views", {
+      { sessionToken: session, tags: ["streams"] },
+    ),
+    apiRequest<{ data: ViewSummary[] }>("/api/views", {
       sessionToken: session,
-    });
-    views = data.data;
-  } catch {}
+      tags: ["views"],
+    }),
+  ]);
 
-  try {
-    const data = await apiRequest<{ insights: AccountInsight[] }>(
-      "/api/insights",
-      { sessionToken: session },
-    );
-    insights = data.insights;
-  } catch {}
+  const streams = streamsResult.status === "fulfilled" ? streamsResult.value.streams : [];
+  const views = viewsResult.status === "fulfilled" ? viewsResult.value.data : [];
 
   return (
     <DashboardContent
       streams={streams}
       views={views}
-      insights={insights}
       sessionToken={session}
     />
   );

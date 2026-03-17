@@ -29,10 +29,12 @@ export function StreamHeader({ initialStream }: { initialStream: Stream }) {
   }, [stream.id, replayMutation]);
 
   return (
-    <div className="dash-page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-      <h1 className="dash-page-title">{stream.name}</h1>
-      <div className="dash-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div className="dash-page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <h1 className="dash-page-title">{stream.name}</h1>
         <span className={`dash-badge ${stream.status}`}>{stream.status}</span>
+      </div>
+      <div className="dash-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
         {stream.status === "active" && (
           pausing !== "idle" ? (
             <>

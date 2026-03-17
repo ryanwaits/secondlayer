@@ -15,25 +15,26 @@ export default async function ViewDetailLayout({
   const { name } = await params;
   const session = await getSessionFromCookies();
 
-  let view: ViewDetail;
-  try {
-    view = await apiRequest<ViewDetail>(`/api/views/${name}`, {
+  const [viewResult, statusResult] = await Promise.allSettled([
+    apiRequest<ViewDetail>(`/api/views/${name}`, {
       sessionToken: session ?? undefined,
-    });
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 404) {
+      tags: ["views", `view-${name}`],
+    }),
+    apiRequest<{ chainTip: number | null }>("/status", {
+      sessionToken: session ?? undefined,
+      tags: ["status"],
+    }),
+  ]);
+
+  if (viewResult.status === "rejected") {
+    if (viewResult.reason instanceof ApiError && viewResult.reason.status === 404) {
       notFound();
     }
-    throw e;
+    throw viewResult.reason;
   }
 
-  let chainTip: number | null = null;
-  try {
-    const status = await apiRequest<{ chainTip: number | null }>("/status", {
-      sessionToken: session ?? undefined,
-    });
-    chainTip = status.chainTip;
-  } catch {}
+  const view = viewResult.value;
+  const chainTip = statusResult.status === "fulfilled" ? statusResult.value.chainTip : null;
 
   const stalled = chainTip != null ? detectStalledView(view, chainTip) : null;
 

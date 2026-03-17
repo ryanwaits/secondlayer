@@ -3,16 +3,17 @@
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Stream, Delivery, AccountInsight } from "@/lib/types";
+import type { Stream, Delivery } from "@/lib/types";
 import { useBreadcrumbOverrides } from "@/lib/breadcrumb";
 import {
   useStream,
+  useDeliveries,
   useDisableStream,
   useDeleteStream,
 } from "@/lib/queries/streams";
 import { detectFailurePattern, detectDeliveryGap } from "@/lib/intelligence/streams";
 import { Insight, Banner } from "@/components/console/intelligence";
-import { InsightCard } from "@/components/console/intelligence/insight-card";
+import { InsightsSection } from "@/components/console/intelligence/insights-section";
 
 function relativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -60,18 +61,15 @@ function formatNum(n: number): string {
 
 export function StreamDetailClient({
   stream: initialStream,
-  deliveries,
-  insights = [],
   sessionToken,
 }: {
   stream: Stream;
-  deliveries: Delivery[];
-  insights?: AccountInsight[];
   sessionToken?: string;
 }) {
   const router = useRouter();
   const { set: setBreadcrumb } = useBreadcrumbOverrides();
   const { data: stream = initialStream } = useStream(initialStream.id, initialStream);
+  const { data: deliveries = [] } = useDeliveries(initialStream.id);
 
   useEffect(() => {
     setBreadcrumb(`/streams/${stream.id}`, stream.name);
@@ -150,13 +148,7 @@ export function StreamDetailClient({
       <StreamIntelligence stream={stream} deliveries={deliveries} />
 
       {/* AI Insights */}
-      {insights.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
-          {insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} sessionToken={sessionToken ?? ""} />
-          ))}
-        </div>
-      )}
+      <InsightsSection category="stream" resourceId={stream.id} sessionToken={sessionToken ?? ""} />
 
       {/* Filters */}
       <div id="filters" className="dash-section-wrap">

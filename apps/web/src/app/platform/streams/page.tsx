@@ -21,7 +21,7 @@ export default async function StreamsPage() {
   try {
     const data = await apiRequest<{ streams: Stream[]; total: number }>(
       "/api/streams?limit=100&offset=0",
-      { sessionToken: session },
+      { sessionToken: session, tags: ["streams"] },
     );
     streams = data.streams;
   } catch (e) {

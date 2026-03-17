@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { apiRequest, ApiError, getSessionFromCookies } from "@/lib/api";
-import type { ViewDetail, AccountInsight } from "@/lib/types";
+import type { ViewDetail } from "@/lib/types";
 import { Insight } from "@/components/console/intelligence/insight";
-import { InsightCard } from "@/components/console/intelligence/insight-card";
+import { InsightsSection } from "@/components/console/intelligence/insights-section";
 import { detectHighErrorRate } from "@/lib/intelligence/views";
 
 function formatTimeAgo(dateStr: string): string {
@@ -28,22 +28,11 @@ export default async function ViewOverviewPage({
   try {
     view = await apiRequest<ViewDetail>(`/api/views/${name}`, {
       sessionToken: session ?? undefined,
+      tags: ["views", `view-${name}`],
     });
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
-  }
-
-  // Fetch AI-powered view insights
-  let insights: AccountInsight[] = [];
-  if (session) {
-    try {
-      const data = await apiRequest<{ insights: AccountInsight[] }>(
-        `/api/insights?category=view&resource_id=${name}`,
-        { sessionToken: session },
-      );
-      insights = data.insights;
-    } catch {}
   }
 
   const tableEntries = Object.entries(view.tables);
@@ -74,12 +63,8 @@ export default async function ViewOverviewPage({
         </Insight>
       )}
 
-      {insights.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-          {insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} sessionToken={session!} />
-          ))}
-        </div>
+      {session && (
+        <InsightsSection category="view" resourceId={name} sessionToken={session} />
       )}
 
       <div className="dash-stats">

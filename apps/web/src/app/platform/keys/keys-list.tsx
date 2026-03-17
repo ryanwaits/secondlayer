@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ApiKey, AccountInsight } from "@/lib/types";
+import type { ApiKey } from "@/lib/types";
 import { useApiKeys, useCreateApiKey } from "@/lib/queries/api-keys";
 import { detectStaleKeys } from "@/lib/intelligence/keys";
 import { Insight } from "@/components/console/intelligence";
-import { InsightCard } from "@/components/console/intelligence/insight-card";
+import { InsightsSection } from "@/components/console/intelligence/insights-section";
 import { CopyButton } from "@/components/copy-button";
 import { highlight } from "@/lib/highlight";
 
@@ -108,11 +108,9 @@ function KeyDetail({ apiKey }: { apiKey: ApiKey }) {
 
 export function KeysList({
   initialKeys,
-  insights = [],
   sessionToken = "",
 }: {
   initialKeys: ApiKey[];
-  insights?: AccountInsight[];
   sessionToken?: string;
 }) {
   const { data: keys = initialKeys } = useApiKeys(initialKeys);
@@ -293,13 +291,7 @@ export function KeysList({
 
       <StaleKeyInsight keys={keys} />
 
-      {insights.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-          {insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} sessionToken={sessionToken} />
-          ))}
-        </div>
-      )}
+      <InsightsSection category="key" sessionToken={sessionToken} />
     </>
   );
 }
