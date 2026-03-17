@@ -330,6 +330,8 @@ app.get("/", async (c) => {
       version: v.version,
       status: v.status,
       lastProcessedBlock: v.last_processed_block,
+      totalProcessed: v.total_processed,
+      totalErrors: v.total_errors,
       tables: Object.keys(getSubgraphSchema(v)),
       createdAt: v.created_at.toISOString(),
     })),
