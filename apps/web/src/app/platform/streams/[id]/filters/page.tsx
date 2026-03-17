@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
 import type { Stream } from "@/lib/types";
 import { FiltersClient } from "./filters-client";
+import { StreamTabs } from "../stream-tabs";
 
 export default async function StreamFiltersPage({
   params,
@@ -28,11 +29,9 @@ export default async function StreamFiltersPage({
   return (
     <>
       <div className="dash-page-header">
-        <h1 className="dash-page-title">Filters</h1>
-        <p className="dash-page-desc">
-          {activeCount} active filter{activeCount !== 1 ? "s" : ""} on this stream
-        </p>
+        <h1 className="dash-page-title">{stream.name}</h1>
       </div>
+      <StreamTabs streamId={id} />
 
       <div className="dash-section-wrap">
         <hr />
