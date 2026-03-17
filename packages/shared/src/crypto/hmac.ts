@@ -1,7 +1,7 @@
 import { createHmac, randomBytes } from "crypto";
 
 /**
- * Generate a random secret for webhook signing
+ * Generate a random secret for delivery signing
  * Returns 32 bytes as a 64-character hex string
  */
 export function generateSecret(): string {
