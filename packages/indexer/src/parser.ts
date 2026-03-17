@@ -228,3 +228,17 @@ export function parseEvent(
     data: eventData,
   };
 }
+
+/** Strip null bytes from all string values — Postgres text/jsonb columns reject \0 */
+export function stripNullBytes(obj: unknown): unknown {
+  if (typeof obj === "string") return obj.split("\0").join("");
+  if (Array.isArray(obj)) return obj.map(stripNullBytes);
+  if (obj && typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      result[k] = stripNullBytes(v);
+    }
+    return result;
+  }
+  return obj;
+}

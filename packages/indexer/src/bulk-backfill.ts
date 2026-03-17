@@ -26,7 +26,7 @@ import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 import type { GetBlockOptions } from "@secondlayer/shared/node/hiro-client";
 import type { NewBlockPayload, TransactionPayload, TransactionEvent } from "./types/node-events.ts";
-import { parseBlock, parseTransaction, parseEvent } from "./parser.ts";
+import { parseBlock, parseTransaction, parseEvent, stripNullBytes } from "./parser.ts";
 import { logger } from "@secondlayer/shared/logger";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import type { Transaction } from "kysely";
@@ -47,19 +47,6 @@ const BACKFILL_SOURCE = (process.env.BACKFILL_SOURCE || "hiro") as "local" | "hi
 const TX_CHUNK_SIZE = 500;
 const EVT_CHUNK_SIZE = 1000;
 
-/** Strip null bytes from all string values in an object (Postgres text columns reject \0) */
-function stripNullBytes(obj: unknown): unknown {
-  if (typeof obj === "string") return obj.split("\0").join("");
-  if (Array.isArray(obj)) return obj.map(stripNullBytes);
-  if (obj && typeof obj === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj)) {
-      result[k] = stripNullBytes(v);
-    }
-    return result;
-  }
-  return obj;
-}
 
 interface Progress {
   lastCompletedHeight: number;
