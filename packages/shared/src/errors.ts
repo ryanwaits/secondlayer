@@ -56,15 +56,15 @@ export class DatabaseError extends StreamsError {
 }
 
 /**
- * Webhook delivery error
+ * Delivery error
  */
-export class WebhookDeliveryError extends StreamsError {
+export class DeliveryError extends StreamsError {
   constructor(
     message: string,
     public statusCode?: number,
     cause?: unknown
   ) {
-    super("WEBHOOK_DELIVERY_ERROR", message, cause);
+    super("DELIVERY_ERROR", message, cause);
   }
 
   override toJSON(): { name: string; code: string; message: string; stack: string | undefined; cause: unknown; statusCode: number | undefined } {

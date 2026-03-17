@@ -18,7 +18,7 @@ describe.skipIf(SKIP)("Job Queue", () => {
       .insertInto("streams")
       .values({
         name: "test-stream",
-        webhook_url: "https://example.com/webhook",
+        endpoint_url: "https://example.com/webhook",
         filters: jsonb([]) as any,
         options: jsonb({}) as any,
       })
@@ -144,7 +144,7 @@ describe.skipIf(SKIP)("Stale Job Recovery", () => {
       .insertInto("streams")
       .values({
         name: "recovery-test-stream",
-        webhook_url: "https://example.com/webhook",
+        endpoint_url: "https://example.com/webhook",
         filters: jsonb([]) as any,
         options: jsonb({}) as any,
       })
