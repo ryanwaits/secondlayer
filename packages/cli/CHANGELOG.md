@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 1.6.2
+
+### Patch Changes
+
+- Route ABI fetches through SecondLayer API proxy instead of Hiro public API.
+
 ## 1.6.1
 
 ### Patch Changes
