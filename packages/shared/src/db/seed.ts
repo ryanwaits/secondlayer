@@ -195,8 +195,8 @@ const streamRows = await db
     name: s.name,
     status: i < 5 ? "active" : "paused",
     filters: jsonb(s.filters) as any,
-    webhook_url: s.webhook,
-    webhook_secret: `whsec_${randomHex(32)}`,
+    endpoint_url: s.webhook,
+    signing_secret: `slsec_${randomHex(32)}`,
     api_key_id: apiKeyRows[i % apiKeyRows.length].id,
   })))
   .returningAll()

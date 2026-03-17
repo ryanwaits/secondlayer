@@ -41,8 +41,8 @@ export interface StreamsTable {
   status: Generated<string>;
   filters: unknown;
   options: Generated<unknown>;
-  webhook_url: string;
-  webhook_secret: string | null;
+  endpoint_url: string;
+  signing_secret: string | null;
   api_key_id: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
