@@ -155,6 +155,18 @@ db                         # raw Kysely instance
 sql                        # Kysely sql template tag
 ```
 
+## Waitlist Approval
+
+Approve a waitlisted email directly from the REPL. Sets status to `approved`, creates a 7-day magic link, and sends the approval email.
+
+```ruby
+approve("user@example.com")
+```
+
+With `DEV_MODE=true`, the token is logged to console instead of sending an email.
+
+Requires `RESEND_API_KEY` and `WEB_URL` env vars in production (same as the API).
+
 ## Commands
 
 | Command | Description |
