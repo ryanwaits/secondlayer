@@ -9,7 +9,7 @@ const STREAMS_INTRO = `Streams deliver matching on-chain events (transfers, cont
 const SUBGRAPHS_INTRO = `Subgraphs are declarative SQL tables that auto-index blockchain activity into queryable Postgres tables. Define a schema, write event handlers in TypeScript, deploy, and query — like a materialized view over the chain.`;
 
 const SETUP = `Ensure setup (skip any step already done, use the project's package manager):
-- Skill: run the \`skills\` npm package to install — e.g. \`npx|bunx|pnpm dlx skills add ryanwaits/secondlayer --skill secondlayer\`
+- Skill: run the \`skills\` npm package to install — e.g. \`npx|bunx|pnpm dlx skills add ryanwaits/secondlayer --skill secondlayer -y\`
 - CLI: \`@secondlayer/cli\` installed globally
 - Auth: \`secondlayer auth login\``;
 
