@@ -93,7 +93,7 @@ export interface DeliveriesTable {
   created_at: Generated<Date>;
 }
 
-export interface ViewsTable {
+export interface SubgraphsTable {
   id: Generated<string>;
   name: string;
   version: Generated<string>;
@@ -204,9 +204,9 @@ export interface AccountAgentRunsTable {
   error: string | null;
 }
 
-export interface ViewProcessingStatsTable {
+export interface SubgraphProcessingStatsTable {
   id: Generated<string>;
-  view_name: string;
+  subgraph_name: string;
   api_key_id: string | null;
   bucket_start: Date | null;
   bucket_end: Date | null;
@@ -221,18 +221,18 @@ export interface ViewProcessingStatsTable {
   created_at: Generated<Date>;
 }
 
-export interface ViewTableSnapshotsTable {
+export interface SubgraphTableSnapshotsTable {
   id: Generated<string>;
-  view_name: string;
+  subgraph_name: string;
   api_key_id: string | null;
   table_name: string;
   row_count: number | null;
   created_at: Generated<Date>;
 }
 
-export interface ViewHealthSnapshotsTable {
+export interface SubgraphHealthSnapshotsTable {
   id: Generated<string>;
-  view_id: string;
+  subgraph_id: string;
   total_processed: number;
   total_errors: number;
   last_processed_block: number | null;
@@ -250,7 +250,7 @@ export interface Database {
   jobs: JobsTable;
   index_progress: IndexProgressTable;
   deliveries: DeliveriesTable;
-  views: ViewsTable;
+  subgraphs: SubgraphsTable;
   api_keys: ApiKeysTable;
   accounts: AccountsTable;
   sessions: SessionsTable;
@@ -260,9 +260,9 @@ export interface Database {
   waitlist: WaitlistTable;
   account_insights: AccountInsightsTable;
   account_agent_runs: AccountAgentRunsTable;
-  view_health_snapshots: ViewHealthSnapshotsTable;
-  view_processing_stats: ViewProcessingStatsTable;
-  view_table_snapshots: ViewTableSnapshotsTable;
+  subgraph_health_snapshots: SubgraphHealthSnapshotsTable;
+  subgraph_processing_stats: SubgraphProcessingStatsTable;
+  subgraph_table_snapshots: SubgraphTableSnapshotsTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -299,9 +299,9 @@ export type Delivery = Selectable<DeliveriesTable>;
 export type InsertDelivery = Insertable<DeliveriesTable>;
 export type UpdateDelivery = Updateable<DeliveriesTable>;
 
-export type View = Selectable<ViewsTable>;
-export type InsertView = Insertable<ViewsTable>;
-export type UpdateView = Updateable<ViewsTable>;
+export type Subgraph = Selectable<SubgraphsTable>;
+export type InsertSubgraph = Insertable<SubgraphsTable>;
+export type UpdateSubgraph = Updateable<SubgraphsTable>;
 
 export type ApiKey = Selectable<ApiKeysTable>;
 export type InsertApiKey = Insertable<ApiKeysTable>;
@@ -325,6 +325,6 @@ export type InsertAccountInsight = Insertable<AccountInsightsTable>;
 export type AccountAgentRun = Selectable<AccountAgentRunsTable>;
 export type InsertAccountAgentRun = Insertable<AccountAgentRunsTable>;
 
-export type ViewHealthSnapshot = Selectable<ViewHealthSnapshotsTable>;
-export type InsertViewHealthSnapshot = Insertable<ViewHealthSnapshotsTable>;
+export type SubgraphHealthSnapshot = Selectable<SubgraphHealthSnapshotsTable>;
+export type InsertSubgraphHealthSnapshot = Insertable<SubgraphHealthSnapshotsTable>;
 

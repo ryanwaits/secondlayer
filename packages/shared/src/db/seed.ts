@@ -284,22 +284,22 @@ for (let i = 0; i < deliveryValues.length; i += 100) {
 }
 console.log(`  deliveries: ${deliveryValues.length}`);
 
-// ── 10. Views ───────────────────────────────────────────────────────
-const viewDefs = [
-  { name: "token-balances", def: { tables: ["balances"], source: "ft_transfer" }, handler: "./views/token-balances.ts" },
-  { name: "nft-ownership", def: { tables: ["owners"], source: "nft_mint" }, handler: "./views/nft-ownership.ts" },
-  { name: "stacking-summary", def: { tables: ["stacks"], source: "stx_lock" }, handler: "./views/stacking-summary.ts" },
-  { name: "contract-activity", def: { tables: ["calls"], source: "contract_call" }, handler: "./views/contract-activity.ts" },
+// ── 10. Subgraphs ───────────────────────────────────────────────────
+const subgraphDefs = [
+  { name: "token-balances", def: { tables: ["balances"], source: "ft_transfer" }, handler: "./subgraphs/token-balances.ts" },
+  { name: "nft-ownership", def: { tables: ["owners"], source: "nft_mint" }, handler: "./subgraphs/nft-ownership.ts" },
+  { name: "stacking-summary", def: { tables: ["stacks"], source: "stx_lock" }, handler: "./subgraphs/stacking-summary.ts" },
+  { name: "contract-activity", def: { tables: ["calls"], source: "contract_call" }, handler: "./subgraphs/contract-activity.ts" },
 ];
 
 await db
-  .insertInto("views")
-  .values(viewDefs.map((v, i) => ({
+  .insertInto("subgraphs")
+  .values(subgraphDefs.map((v, i) => ({
     name: v.name,
     definition: jsonb(v.def) as any,
     schema_hash: randomHex(16),
     handler_path: v.handler,
-    schema_name: `view_${apiKeyRows[i % apiKeyRows.length].key_prefix.replace("sk-sl_", "")}_${v.name.replace(/-/g, "_")}`,
+    schema_name: `subgraph_${apiKeyRows[i % apiKeyRows.length].key_prefix.replace("sk-sl_", "")}_${v.name.replace(/-/g, "_")}`,
     api_key_id: apiKeyRows[i % apiKeyRows.length].id,
     last_processed_block: BLOCK_START + BLOCK_COUNT - 1 - Math.floor(Math.random() * 5),
     total_processed: 1000 + Math.floor(Math.random() * 5000),
@@ -308,7 +308,7 @@ await db
   .onConflict((oc) => oc.columns(["name", "api_key_id"]).doNothing())
   .execute();
 
-console.log(`  views: ${viewDefs.length}`);
+console.log(`  subgraphs: ${subgraphDefs.length}`);
 
 // ── 11. Index Progress ──────────────────────────────────────────────
 await db

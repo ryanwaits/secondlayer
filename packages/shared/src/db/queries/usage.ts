@@ -86,7 +86,7 @@ export async function getUsage(
 export interface LimitCheck {
   allowed: boolean;
   limits: ReturnType<typeof getPlanLimits>;
-  current: UsageSummary & { streams: number; views: number };
+  current: UsageSummary & { streams: number; subgraphs: number };
   exceeded?: string;
 }
 
@@ -107,9 +107,9 @@ export async function checkLimits(
     .where("api_keys.account_id", "=", accountId)
     .executeTakeFirst();
 
-  const viewCount = await db
-    .selectFrom("views")
-    .innerJoin("api_keys", "views.api_key_id", "api_keys.id")
+  const subgraphCount = await db
+    .selectFrom("subgraphs")
+    .innerJoin("api_keys", "subgraphs.api_key_id", "api_keys.id")
     .select(sql<number>`count(*)`.as("count"))
     .where("api_keys.account_id", "=", accountId)
     .executeTakeFirst();
@@ -117,15 +117,15 @@ export async function checkLimits(
   const current = {
     ...usage,
     streams: Number(streamCount?.count ?? 0),
-    views: Number(viewCount?.count ?? 0),
+    subgraphs: Number(subgraphCount?.count ?? 0),
   };
 
   // Check each limit
   if (current.streams >= limits.streams) {
     return { allowed: false, limits, current, exceeded: "streams" };
   }
-  if (current.views >= limits.views) {
-    return { allowed: false, limits, current, exceeded: "views" };
+  if (current.subgraphs >= limits.subgraphs) {
+    return { allowed: false, limits, current, exceeded: "subgraphs" };
   }
   if (current.apiRequestsToday >= limits.apiRequestsPerDay) {
     return { allowed: false, limits, current, exceeded: "api_requests" };
@@ -142,20 +142,20 @@ export async function checkLimits(
 
 /**
  * Measure storage for all accounts by querying pg_total_relation_size
- * for each tenant's view schemas.
+ * for each tenant's subgraph schemas.
  */
 export async function measureStorage(db: Kysely<Database>): Promise<void> {
-  // Get all accounts with views
-  const accountViews = await db
-    .selectFrom("views")
-    .innerJoin("api_keys", "views.api_key_id", "api_keys.id")
-    .select(["api_keys.account_id", "views.schema_name"])
-    .where("views.schema_name", "is not", null)
+  // Get all accounts with subgraphs
+  const accountSubgraphs = await db
+    .selectFrom("subgraphs")
+    .innerJoin("api_keys", "subgraphs.api_key_id", "api_keys.id")
+    .select(["api_keys.account_id", "subgraphs.schema_name"])
+    .where("subgraphs.schema_name", "is not", null)
     .execute();
 
   // Group schemas by account
   const byAccount = new Map<string, string[]>();
-  for (const row of accountViews) {
+  for (const row of accountSubgraphs) {
     const schemas = byAccount.get(row.account_id) ?? [];
     if (row.schema_name) schemas.push(row.schema_name);
     byAccount.set(row.account_id, schemas);
