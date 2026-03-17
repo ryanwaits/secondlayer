@@ -14,7 +14,7 @@ export interface StreamOptions {
 
 export interface CreateStream {
   name: string;
-  webhookUrl: string;
+  endpointUrl: string;
   filters: StreamFilter[];
   options?: StreamOptions;
   startBlock?: number;
@@ -23,12 +23,12 @@ export interface CreateStream {
 
 export interface UpdateStream {
   name?: string;
-  webhookUrl?: string;
+  endpointUrl?: string;
   filters?: StreamFilter[];
   options?: Partial<StreamOptions>;
 }
 
-export interface WebhookPayload {
+export interface DeliveryPayload {
   streamId: string;
   streamName: string;
   block: {
@@ -71,7 +71,7 @@ export interface StreamResponse {
   id: string;
   name: string;
   status: "inactive" | "active" | "paused" | "failed";
-  webhookUrl: string;
+  endpointUrl: string;
   filters: StreamFilter[];
   options: StreamOptions;
   totalDeliveries: number;
@@ -101,7 +101,7 @@ export const StreamOptionsSchema: z.ZodType<StreamOptions> =
 
 export const CreateStreamSchema: z.ZodType<CreateStream> = z.object({
   name: z.string().min(1).max(255),
-  webhookUrl: z.string().url(),
+  endpointUrl: z.string().url(),
   filters: z.array(StreamFilterSchema).min(1),
   options: streamOptionsShape.optional().default({}),
   startBlock: z.number().int().positive().optional(),
@@ -110,7 +110,7 @@ export const CreateStreamSchema: z.ZodType<CreateStream> = z.object({
 
 export const UpdateStreamSchema: z.ZodType<UpdateStream> = z.object({
   name: z.string().min(1).max(255).optional(),
-  webhookUrl: z.string().url().optional(),
+  endpointUrl: z.string().url().optional(),
   filters: z.array(StreamFilterSchema).min(1).optional(),
   options: streamOptionsShape.partial().optional(),
 }).refine(
@@ -118,7 +118,7 @@ export const UpdateStreamSchema: z.ZodType<UpdateStream> = z.object({
   { message: "At least one field must be provided for update" }
 ) as unknown as z.ZodType<UpdateStream>;
 
-export const WebhookPayloadSchema: z.ZodType<WebhookPayload> = z.object({
+export const DeliveryPayloadSchema: z.ZodType<DeliveryPayload> = z.object({
   streamId: z.string().uuid(),
   streamName: z.string(),
   block: z.object({
@@ -147,7 +147,7 @@ export const WebhookPayloadSchema: z.ZodType<WebhookPayload> = z.object({
   }),
   isBackfill: z.boolean(),
   deliveredAt: z.string().datetime(),
-}) as unknown as z.ZodType<WebhookPayload>;
+}) as unknown as z.ZodType<DeliveryPayload>;
 
 export const StreamMetricsSchema: z.ZodType<StreamMetricsResponse> = z.object({
   totalDeliveries: z.number(),
@@ -161,7 +161,7 @@ export const StreamResponseSchema: z.ZodType<StreamResponse> = z.object({
   id: z.string().uuid(),
   name: z.string(),
   status: z.enum(["inactive", "active", "paused", "failed"]),
-  webhookUrl: z.string().url(),
+  endpointUrl: z.string().url(),
   filters: z.array(StreamFilterSchema),
   options: streamOptionsShape,
   totalDeliveries: z.number().int().default(0),
@@ -176,7 +176,7 @@ export const StreamResponseSchema: z.ZodType<StreamResponse> = z.object({
 // API response types
 export interface CreateStreamResponse {
   stream: StreamResponse;
-  webhookSecret: string;
+  signingSecret: string;
 }
 
 export interface ListStreamsResponse {
