@@ -3,12 +3,12 @@ export { startIndexer, stopIndexer, isIndexerRunning, getIndexerPort } from "./i
 export { startWorker, stopWorker, isWorkerRunning } from "./worker.ts";
 export { startApi, stopApi, isApiRunning, getApiPort } from "./api.ts";
 export {
-  startWebhookServer,
-  stopWebhookServer,
-  isWebhookServerRunning,
-  type WebhookServerOptions,
-  type WebhookEvent,
-} from "./webhook-server.ts";
+  startReceiverServer,
+  stopReceiverServer,
+  isReceiverServerRunning,
+  type ReceiverServerOptions,
+  type DeliveryEvent,
+} from "./receiver-server.ts";
 export {
   startSubgraphProcessor,
   stopSubgraphProcessor,

@@ -26,7 +26,7 @@ import {
 } from "../lib/output.ts";
 
 // Service definitions
-const DEV_SERVICES = ["api", "indexer", "worker", "webhook", "subgraphs"] as const;
+const DEV_SERVICES = ["api", "indexer", "worker", "receiver", "subgraphs"] as const;
 type DevService = (typeof DEV_SERVICES)[number];
 
 export function registerLocalCommand(program: Command): void {
@@ -42,13 +42,13 @@ export function registerLocalCommand(program: Command): void {
   // Start subcommand
   local
     .command("start")
-    .description("Start all local dev services (API, indexer, worker, webhook)")
+    .description("Start all local dev services (API, indexer, worker, receiver)")
     .option("--indexer-port <port>", "Indexer port", "3700")
     .option("--api-port <port>", "API port", "3800")
-    .option("--webhook-port <port>", "Test webhook server port", "3900")
-    .option("--no-webhook", "Skip test webhook server")
+    .option("--receiver-port <port>", "Test receiver server port", "3900")
+    .option("--no-receiver", "Skip test receiver server")
     .option("--no-worker", "Skip worker service")
-    .option("--secret <secret>", "Webhook secret for signature verification")
+    .option("--secret <secret>", "Signing secret for signature verification")
     .option("--stacks-node", "Use port 3701 for indexer (avoids conflict with stacks-blockchain-api)")
     .option("-f, --foreground", "Run in foreground (blocking)")
     .action(async (options) => {
@@ -96,7 +96,7 @@ export function registerLocalCommand(program: Command): void {
   local
     .command("logs")
     .description("View local service logs (dev + node)")
-    .option("-s, --service <name>", "Filter by service (api, indexer, worker, webhook, subgraphs, node)")
+    .option("-s, --service <name>", "Filter by service (api, indexer, worker, receiver, subgraphs, node)")
     .option("-f, --follow", "Follow log output")
     .option("-n, --lines <n>", "Number of lines to show", "50")
     .option("-q, --quiet", "Filter out common noise")
@@ -251,7 +251,7 @@ const serviceColors: Record<string, (text: string) => string> = {
   indexer: cyan,
   worker: yellow,
   subgraphs: magenta,
-  webhook: green,
+  receiver: green,
   node: red,
 };
 
@@ -472,18 +472,18 @@ function formatLogLine(service: string, line: string, verbose: boolean): string 
   }
 
   // Webhook payload: summarize unless verbose
-  if (service === "webhook" && !verbose) {
-    const summary = formatWebhookSummary(line);
+  if (service === "receiver" && !verbose) {
+    const summary = formatDeliverySummary(line);
     if (summary) return `${prefix} ${summary}`;
   }
 
   return `${prefix} ${line}`;
 }
 
-function formatWebhookSummary(jsonStr: string): string | null {
+function formatDeliverySummary(jsonStr: string): string | null {
   try {
     const data = JSON.parse(jsonStr);
-    if (data.type !== "webhook" || !data.body) return null;
+    if (data.type !== "delivery" || !data.body) return null;
 
     const { body, method, path, timestamp } = data;
     const streamName = body.streamName ?? body.streamId?.slice(0, 8) ?? "unknown";

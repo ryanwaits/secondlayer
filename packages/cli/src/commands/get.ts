@@ -13,7 +13,7 @@ export function registerGetCommand(program: Command): void {
           id: string;
           name: string;
           status: string;
-          webhookUrl: string;
+          endpointUrl: string;
           totalDeliveries: number;
           failedDeliveries: number;
           lastTriggeredAt: string | null;
@@ -44,7 +44,7 @@ export function registerGetCommand(program: Command): void {
             ["ID", stream.id],
             ["Name", stream.name],
             ["Status", statusColor(stream.status)],
-            ["Webhook URL", stream.webhookUrl],
+            ["Endpoint URL", stream.endpointUrl],
             ["Total Deliveries", stream.totalDeliveries.toString()],
             ["Failed Deliveries", stream.failedDeliveries.toString()],
             ["Last Triggered", stream.lastTriggeredAt || dim("never")],

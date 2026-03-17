@@ -50,16 +50,16 @@ export function registerRegisterCommand(program: Command): void {
           }
         }
 
-        const result = await createStream(streamData) as { stream: { id: string; name: string }; webhookSecret: string };
+        const result = await createStream(streamData) as { stream: { id: string; name: string }; signingSecret: string };
         success(`Registered stream: ${result.stream.name}`);
         console.log(
           formatKeyValue([
             ["ID", result.stream.id],
             ["Name", result.stream.name],
-            ["Webhook Secret", result.webhookSecret],
+            ["Signing Secret", result.signingSecret],
           ])
         );
-        console.log(dim("\nSave the webhook secret - it won't be shown again!"));
+        console.log(dim("\nSave the signing secret - it won't be shown again!"));
       } catch (err) {
         handleApiError(err, "register stream");
       }

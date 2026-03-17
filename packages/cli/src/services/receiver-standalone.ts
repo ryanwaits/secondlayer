@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-// Standalone webhook server for background mode
+// Standalone receiver server for background mode
 import { verifySignatureHeader } from "@secondlayer/shared/crypto";
 
 const PORT = parseInt(process.env.PORT || "3900");
-const SECRET = process.env.WEBHOOK_SECRET;
+const SECRET = process.env.SIGNING_SECRET;
 
 const server = Bun.serve({
   port: PORT,
@@ -46,7 +46,7 @@ const server = Bun.serve({
     // Log to stdout (captured to log file in background mode)
     const time = new Date().toISOString();
     console.log(JSON.stringify({
-      type: "webhook",
+      type: "delivery",
       timestamp: time,
       method,
       path,
@@ -58,11 +58,11 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Webhook server listening on port ${PORT}`);
+console.log(`Receiver server listening on port ${PORT}`);
 
 // Graceful shutdown
 const shutdown = () => {
-  console.log("Shutting down webhook server...");
+  console.log("Shutting down receiver server...");
   server.stop();
   process.exit(0);
 };

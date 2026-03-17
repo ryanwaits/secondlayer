@@ -8,7 +8,7 @@ import {
   registerStatusCommand,
   registerSyncCommand,
   registerDbCommand,
-  registerWebhookCommand,
+  registerReceiverCommand,
   registerSubgraphsCommand,
   registerStackCommand,
   registerDoctorCommand,
@@ -85,6 +85,6 @@ registerSetupCommand(program);
 registerConfigCommand(program);
 registerAuthCommand(program);
 registerWhoamiCommand(program);
-registerWebhookCommand(program);
+registerReceiverCommand(program);
 
 program.parse();

@@ -2,11 +2,11 @@ import type { CreateStream } from "@secondlayer/shared/schemas";
 
 export function generateStreamTemplate(
   name: string,
-  webhookUrl?: string
+  endpointUrl?: string
 ): CreateStream {
   return {
     name,
-    webhookUrl: webhookUrl || "https://example.com/webhook",
+    endpointUrl: endpointUrl || "https://example.com/endpoint",
     filters: [
       {
         type: "contract_call",
