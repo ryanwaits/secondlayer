@@ -32,7 +32,7 @@ export default async function StreamDetailLayout({
 
   return (
     <>
-      <StreamHeader initialStream={stream} />
+      <StreamHeader initialStream={stream} sessionToken={session} />
       <DetailTabs items={[
         { label: "Overview", href: basePath },
         { label: "Filters", href: `${basePath}/filters` },

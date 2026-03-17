@@ -13,7 +13,7 @@ import {
 } from "@/lib/queries/streams";
 import { detectFailurePattern, detectDeliveryGap } from "@/lib/intelligence/streams";
 import { Insight, Banner } from "@/components/console/intelligence";
-import { InsightsSection } from "@/components/console/intelligence/insights-section";
+
 
 function relativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -114,18 +114,6 @@ export function StreamDetailClient({
 
   return (
     <>
-      {/* Status notices */}
-      {stream.status === "paused" && (
-        <div className="dash-status-bar paused">
-          Stream paused — events are being buffered but not delivered.
-        </div>
-      )}
-      {stream.status === "failed" && (
-        <div className="dash-status-bar failed">
-          {stream.errorMessage || "Stream failed due to consecutive delivery errors."}
-        </div>
-      )}
-
       {/* Stats */}
       <div className="dash-stats">
         <div className="dash-stat">
@@ -146,9 +134,6 @@ export function StreamDetailClient({
 
       {/* Intelligence */}
       <StreamIntelligence stream={stream} deliveries={deliveries} />
-
-      {/* AI Insights */}
-      <InsightsSection category="stream" resourceId={stream.id} sessionToken={sessionToken ?? ""} />
 
       {/* Filters */}
       <div id="filters" className="dash-section-wrap">

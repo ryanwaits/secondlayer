@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { apiRequest, ApiError, getSessionFromCookies } from "@/lib/api";
 import type { ViewDetail } from "@/lib/types";
 import { Insight } from "@/components/console/intelligence/insight";
+import { InsightsSection } from "@/components/console/intelligence/insights-section";
 import { detectStalledView } from "@/lib/intelligence/views";
 import { DetailTabs } from "@/components/console/detail-tabs";
 
@@ -65,6 +66,10 @@ export default async function ViewDetailLayout({
           the chain tip (#{stalled.chainTip.toLocaleString()}). Last
           processed: #{stalled.lastProcessedBlock.toLocaleString()}.
         </Insight>
+      )}
+
+      {session && (
+        <InsightsSection category="view" resourceId={name} sessionToken={session} />
       )}
 
       <DetailTabs items={tabs} />
