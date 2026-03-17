@@ -4,7 +4,7 @@ import type { ClarityValue } from "../../clarity/types.ts";
 import type { IntegerType } from "../../utils/encoding.ts";
 import type { StacksTransaction, ClarityVersion, MultiSigHashMode } from "../../transactions/types.ts";
 import { buildTokenTransfer, buildContractCall, buildContractDeploy } from "../../transactions/build.ts";
-import { finalizeMultiSig } from "../../transactions/multisig.ts";
+import { finalizeMultiSig, makeMultiSigAddress } from "../../transactions/multisig.ts";
 import { sendTransaction, type SendTransactionResult } from "../../actions/wallet/sendTransaction.ts";
 import { getNonce } from "../../actions/public/getNonce.ts";
 import { estimateFee } from "../../actions/public/estimateFee.ts";
@@ -68,7 +68,6 @@ export function multisigActions(client: Client): MultiSigActions {
   /** Resolve nonce from the multi-sig address */
   async function resolveNonce(nonce?: IntegerType): Promise<IntegerType> {
     if (nonce !== undefined) return nonce;
-    const { makeMultiSigAddress } = await import("../../transactions/multisig.ts");
     const address = makeMultiSigAddress(signers, requiredSignatures, client.chain);
     return getNonce(client, { address });
   }
