@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.5.2
+
+### Patch Changes
+
+- Coerce numeric columns to BigInt in findOne/findMany results so arithmetic works correctly in handlers.
+
 ## 0.5.1
 
 ### Patch Changes
