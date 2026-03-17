@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { actions } from "@/lib/actions/registry";
 import { fuzzyMatch, highlightLabel, type MatchResult } from "@/lib/actions/fuzzy-match";
 import { useCommandAI } from "@/lib/command/use-command-ai";
+import { queryKeys } from "@/lib/queries/keys";
 import { InfoPanel } from "./renders/info-panel";
 import { ConfirmCard } from "./renders/confirm-card";
 import { PaletteCodeBlock } from "./renders/code-block";
@@ -20,6 +22,7 @@ export function CommandPalette() {
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const qc = useQueryClient();
   const results = fuzzyMatch(query, actions);
   const hasFuzzyResults = query.length === 0 || results.length > 0;
 
@@ -157,6 +160,48 @@ export function CommandPalette() {
   useEffect(() => {
     setSelectedIdx(0);
   }, [query]);
+
+  // Prefetch data for highlighted action
+  const prefetchTargets: Record<string, { queryKey: readonly string[]; apiPath: string }[]> = {
+    "/": [
+      { queryKey: queryKeys.streams.all, apiPath: "/api/streams?limit=100&offset=0" },
+      { queryKey: queryKeys.views.all, apiPath: "/api/views" },
+    ],
+    "/streams": [
+      { queryKey: queryKeys.streams.all, apiPath: "/api/streams?limit=100&offset=0" },
+    ],
+    "/views": [
+      { queryKey: queryKeys.views.all, apiPath: "/api/views" },
+    ],
+    "/keys": [
+      { queryKey: queryKeys.keys.all, apiPath: "/api/keys" },
+    ],
+    "/usage": [
+      { queryKey: ["account", "usage"], apiPath: "/api/accounts/usage" },
+    ],
+    "/billing": [
+      { queryKey: ["account", "usage"], apiPath: "/api/accounts/usage" },
+    ],
+    "/settings": [
+      { queryKey: ["account", "me"], apiPath: "/api/accounts/me" },
+    ],
+  };
+
+  useEffect(() => {
+    if (mode !== "actions") return;
+    const selected = results[selectedIdx];
+    if (!selected?.action.href) return;
+    const targets = prefetchTargets[selected.action.href];
+    if (!targets) return;
+    for (const { queryKey, apiPath } of targets) {
+      qc.prefetchQuery({
+        queryKey,
+        queryFn: () =>
+          fetch(apiPath, { credentials: "same-origin" }).then((r) => r.json()),
+        staleTime: 30_000,
+      });
+    }
+  }, [selectedIdx, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Wire ⌘K bar in topbar
   useEffect(() => {
