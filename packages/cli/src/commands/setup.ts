@@ -13,7 +13,7 @@ interface InitOptions {
   dataDir?: string;
   nodePath?: string;
   network?: "local" | "testnet" | "mainnet";
-  webhookUrl?: string;
+  endpointUrl?: string;
 }
 
 export function registerSetupCommand(program: Command): void {
@@ -25,7 +25,7 @@ export function registerSetupCommand(program: Command): void {
     .option("--data-dir <path>", "Data directory path")
     .option("--node-path <path>", "Path to Stacks node")
     .option("--network <network>", "Network (local, testnet, or mainnet)")
-    .option("--webhook-url <url>", "Default webhook URL for new streams")
+    .option("--endpoint-url <url>", "Default endpoint URL for new streams")
     .action(async (options: InitOptions) => {
       try {
         // Handle --detect-only flag
@@ -35,7 +35,7 @@ export function registerSetupCommand(program: Command): void {
         }
 
         // Non-interactive mode if --yes or any flags provided
-        const hasFlags = options.yes || options.dataDir || options.nodePath || options.network || options.webhookUrl;
+        const hasFlags = options.yes || options.dataDir || options.nodePath || options.network || options.endpointUrl;
         if (hasFlags) {
           await runNonInteractive(options);
           return;
@@ -73,7 +73,7 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
 
   // Local mode
   config.dataDir = options.dataDir || config.dataDir || "~/.secondlayer/data";
-  config.defaultWebhookUrl = options.webhookUrl || config.defaultWebhookUrl;
+  config.defaultWebhookUrl = options.endpointUrl || config.defaultWebhookUrl;
 
   if (options.nodePath) {
     config.node = {
@@ -140,9 +140,9 @@ async function runWizard(): Promise<void> {
     config.node = nodeConfig;
   }
 
-  // Step 4: Webhook URL
-  const webhookUrl = await promptWebhookUrl(config);
-  config.defaultWebhookUrl = webhookUrl;
+  // Step 4: Endpoint URL
+  const endpointUrl = await promptEndpointUrl(config);
+  config.defaultWebhookUrl = endpointUrl;
 
   // Save config
   await saveConfig(config);
@@ -316,13 +316,13 @@ async function promptNetwork(): Promise<"mainnet" | "testnet"> {
 }
 
 /**
- * Prompt for default webhook URL
+ * Prompt for default endpoint URL
  */
-async function promptWebhookUrl(config: Config): Promise<string> {
-  const internalUrl = "http://localhost:3900/webhook";
+async function promptEndpointUrl(config: Config): Promise<string> {
+  const internalUrl = "http://localhost:3900/receiver";
 
   const choice = await select({
-    message: "Default webhook URL for new streams?",
+    message: "Default endpoint URL for new streams?",
     choices: [
       { name: `Internal test server (${internalUrl})`, value: "internal" },
       { name: "Custom URL...", value: "custom" },
@@ -334,7 +334,7 @@ async function promptWebhookUrl(config: Config): Promise<string> {
   }
 
   const customUrl = await input({
-    message: "Enter webhook URL:",
+    message: "Enter endpoint URL:",
     default: config.defaultWebhookUrl !== internalUrl ? config.defaultWebhookUrl : undefined,
     validate: (value) => {
       if (!value.trim()) return "URL cannot be empty";
@@ -456,7 +456,7 @@ function printSummary(config: Config): void {
   console.log("  Settings:");
   console.log(`    Data directory: ${config.dataDir}`);
   if (config.defaultWebhookUrl) {
-    console.log(`    Webhook URL:    ${config.defaultWebhookUrl}`);
+    console.log(`    Endpoint URL:   ${config.defaultWebhookUrl}`);
   }
   if (config.node) {
     console.log(`    Node path:      ${config.node.installPath}`);

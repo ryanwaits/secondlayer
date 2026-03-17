@@ -1,14 +1,14 @@
 import { verifySignatureHeader } from "@secondlayer/shared/crypto";
 import { green, yellow, red, dim, blue } from "../lib/output.ts";
 
-export interface WebhookServerOptions {
+export interface ReceiverServerOptions {
   port?: number;
   secret?: string;
   responseCode?: number;
-  onWebhook?: (payload: WebhookEvent) => void;
+  onDelivery?: (payload: DeliveryEvent) => void;
 }
 
-export interface WebhookEvent {
+export interface DeliveryEvent {
   timestamp: Date;
   method: string;
   path: string;
@@ -19,7 +19,7 @@ export interface WebhookEvent {
 
 let server: ReturnType<typeof Bun.serve> | null = null;
 
-export function startWebhookServer(options: WebhookServerOptions = {}): number {
+export function startReceiverServer(options: ReceiverServerOptions = {}): number {
   const port = options.port ?? 3900;
   const responseCode = options.responseCode ?? 200;
 
@@ -35,7 +35,7 @@ export function startWebhookServer(options: WebhookServerOptions = {}): number {
         return new Response("OK", { status: 200 });
       }
 
-      // Only accept POST for webhooks
+      // Only accept POST for deliveries
       if (method !== "POST") {
         return new Response("Method not allowed", { status: 405 });
       }
@@ -65,7 +65,7 @@ export function startWebhookServer(options: WebhookServerOptions = {}): number {
         body = null;
       }
 
-      const event: WebhookEvent = {
+      const event: DeliveryEvent = {
         timestamp: new Date(),
         method,
         path,
@@ -75,11 +75,11 @@ export function startWebhookServer(options: WebhookServerOptions = {}): number {
       };
 
       // Call callback if provided
-      if (options.onWebhook) {
-        options.onWebhook(event);
+      if (options.onDelivery) {
+        options.onDelivery(event);
       } else {
         // Default logging
-        logWebhook(event);
+        logDelivery(event);
       }
 
       return new Response("OK", { status: responseCode });
@@ -89,22 +89,22 @@ export function startWebhookServer(options: WebhookServerOptions = {}): number {
   return port;
 }
 
-export function stopWebhookServer(): void {
+export function stopReceiverServer(): void {
   if (server) {
     server.stop();
     server = null;
   }
 }
 
-export function isWebhookServerRunning(): boolean {
+export function isReceiverServerRunning(): boolean {
   return server !== null;
 }
 
-function logWebhook(event: WebhookEvent): void {
+function logDelivery(event: DeliveryEvent): void {
   const time = event.timestamp.toISOString();
   console.log("");
   console.log(blue("━".repeat(60)));
-  console.log(green("⚡ Webhook received"));
+  console.log(green("⚡ Delivery received"));
   console.log(dim(`   ${time}`));
   console.log(dim(`   ${event.method} ${event.path}`));
 

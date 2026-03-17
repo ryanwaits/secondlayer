@@ -6,7 +6,7 @@ import { success, formatKeyValue, dim, warn } from "../lib/output.ts";
 export function registerRotateSecretCommand(program: Command): void {
   program
     .command("rotate-secret <id>")
-    .description("Generate a new webhook secret for a stream")
+    .description("Generate a new signing secret for a stream")
     .option("-y, --yes", "Skip confirmation prompt")
     .action(async (id: string, options: { yes?: boolean }) => {
       try {
@@ -14,7 +14,7 @@ export function registerRotateSecretCommand(program: Command): void {
 
         if (!options.yes) {
           const confirmed = await confirm({
-            message: `Rotate webhook secret for "${stream.name}"? The current secret will be invalidated.`,
+            message: `Rotate signing secret for "${stream.name}"? The current secret will be invalidated.`,
             default: false,
           });
           if (!confirmed) {
@@ -24,14 +24,14 @@ export function registerRotateSecretCommand(program: Command): void {
         }
 
         const result = await rotateSecret(stream.id) as { secret: string };
-        success(`Rotated webhook secret for: ${stream.name}`);
+        success(`Rotated signing secret for: ${stream.name}`);
         console.log(
           formatKeyValue([
             ["Stream", stream.name],
-            ["Webhook Secret", result.secret],
+            ["Signing Secret", result.secret],
           ])
         );
-        console.log(dim("\nSave the webhook secret - it won't be shown again!"));
+        console.log(dim("\nSave the signing secret - it won't be shown again!"));
       } catch (err) {
         handleApiError(err, "rotate secret");
       }

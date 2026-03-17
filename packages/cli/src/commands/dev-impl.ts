@@ -8,8 +8,8 @@ import {
   startIndexer,
   startWorker,
   startApi,
-  startWebhookServer,
-  stopWebhookServer,
+  startReceiverServer,
+  stopReceiverServer,
   startSubgraphProcessor,
 } from "../services/index.ts";
 import { success, error, info, dim, green, blue, yellow, red, cyan, magenta } from "../lib/output.ts";
@@ -36,8 +36,8 @@ const DEV_DATABASE_URL = "postgres://postgres:postgres@localhost:5432/streams_de
 export interface DevOptions {
   indexerPort: string;
   apiPort: string;
-  webhookPort: string;
-  webhook: boolean;
+  receiverPort: string;
+  receiver: boolean;
   worker: boolean;
   secret?: string;
   stacksNode?: boolean;
@@ -77,7 +77,7 @@ export async function runBackground(options: DevOptions): Promise<void> {
   // Use config ports as defaults, CLI options override
   const indexerPort = options.stacksNode ? 3701 : parseInt(options.indexerPort) || config.ports.indexer;
   const apiPort = parseInt(options.apiPort) || config.ports.api;
-  const webhookPort = parseInt(options.webhookPort) || config.ports.webhook;
+  const receiverPort = parseInt(options.receiverPort) || config.ports.receiver;
 
   // Validate network consistency when connecting to a stacks node
   if (options.stacksNode && config.node) {
@@ -213,25 +213,25 @@ export async function runBackground(options: DevOptions): Promise<void> {
       console.log(green("  ✓ Subgraph processor"), dim("processing subgraphs"));
     }
 
-    // Webhook server
-    if (options.webhook) {
-      const webhookLogFile = getLogFile("webhook");
-      const webhookArgs = ["bun", "run", resolve(packagesDir, "packages/cli/src/services/webhook-standalone.ts")];
-      const webhookEnv: Record<string, string> = { ...process.env as Record<string, string>, PORT: String(webhookPort) };
-      if (options.secret) webhookEnv.WEBHOOK_SECRET = options.secret;
+    // Receiver server
+    if (options.receiver) {
+      const receiverLogFile = getLogFile("receiver");
+      const receiverArgs = ["bun", "run", resolve(packagesDir, "packages/cli/src/services/receiver-standalone.ts")];
+      const receiverEnv: Record<string, string> = { ...process.env as Record<string, string>, PORT: String(receiverPort) };
+      if (options.secret) receiverEnv.SIGNING_SECRET = options.secret;
 
-      const webhookProc = Bun.spawn(webhookArgs, {
-        env: webhookEnv,
-        stdout: Bun.file(webhookLogFile),
-        stderr: Bun.file(webhookLogFile),
+      const receiverProc = Bun.spawn(receiverArgs, {
+        env: receiverEnv,
+        stdout: Bun.file(receiverLogFile),
+        stderr: Bun.file(receiverLogFile),
       });
-      state.services.webhook = {
-        pid: webhookProc.pid,
-        port: webhookPort,
+      state.services.receiver = {
+        pid: receiverProc.pid,
+        port: receiverPort,
         startedAt: new Date().toISOString(),
-        logFile: webhookLogFile,
+        logFile: receiverLogFile,
       };
-      console.log(green("  ✓ Webhook server"), dim(`http://localhost:${webhookPort}`));
+      console.log(green("  ✓ Receiver server"), dim(`http://localhost:${receiverPort}`));
     }
 
     // Wait a bit for processes to start
@@ -247,7 +247,7 @@ export async function runBackground(options: DevOptions): Promise<void> {
     await saveDevState(state);
 
     console.log("");
-    printUrls(indexerPort, apiPort, webhookPort, options.webhook);
+    printUrls(indexerPort, apiPort, receiverPort, options.receiver);
     console.log("");
     success("Dev environment started in background");
     console.log("");
@@ -304,7 +304,7 @@ export async function runForeground(options: DevOptions): Promise<void> {
   // Use config ports as defaults, CLI options override
   const indexerPort = options.stacksNode ? 3701 : parseInt(options.indexerPort) || config.ports.indexer;
   const apiPort = parseInt(options.apiPort) || config.ports.api;
-  const webhookPort = parseInt(options.webhookPort) || config.ports.webhook;
+  const receiverPort = parseInt(options.receiverPort) || config.ports.receiver;
 
   let devPostgresStarted = false;
 
@@ -312,8 +312,8 @@ export async function runForeground(options: DevOptions): Promise<void> {
     console.log("\n");
     info("Shutting down services...");
 
-    if (options.webhook) {
-      stopWebhookServer();
+    if (options.receiver) {
+      stopReceiverServer();
     }
 
     await serviceManager.stopAll();
@@ -376,9 +376,9 @@ export async function runForeground(options: DevOptions): Promise<void> {
     // Set DEV_MODE for all in-process services
     process.env.DEV_MODE = "true";
 
-    if (options.webhook) {
-      startWebhookServer({ port: webhookPort, secret: options.secret });
-      console.log(green("  ✓ Webhook server"), dim(`http://localhost:${webhookPort}`));
+    if (options.receiver) {
+      startReceiverServer({ port: receiverPort, secret: options.secret });
+      console.log(green("  ✓ Receiver server"), dim(`http://localhost:${receiverPort}`));
     }
 
     await startApi({ port: apiPort, onLog: (line) => logService("api", line) });
@@ -396,7 +396,7 @@ export async function runForeground(options: DevOptions): Promise<void> {
     console.log(green("  ✓ Subgraph processor"), dim("processing subgraphs"));
 
     console.log("");
-    printUrls(indexerPort, apiPort, webhookPort, options.webhook);
+    printUrls(indexerPort, apiPort, receiverPort, options.receiver);
     console.log("");
     info("Press Ctrl+C to stop all services");
     console.log("");
@@ -405,8 +405,8 @@ export async function runForeground(options: DevOptions): Promise<void> {
   } catch (err) {
     error(`Failed to start services: ${err}`);
     await serviceManager.stopAll();
-    if (options.webhook) {
-      stopWebhookServer();
+    if (options.receiver) {
+      stopReceiverServer();
     }
     process.exit(1);
   }
@@ -452,13 +452,13 @@ const serviceColors: Record<string, (text: string) => string> = {
   indexer: cyan,
   worker: yellow,
   subgraphs: magenta,
-  webhook: green,
+  receiver: green,
 };
 
-function formatWebhookSummary(jsonStr: string): string | null {
+function formatDeliverySummary(jsonStr: string): string | null {
   try {
     const data = JSON.parse(jsonStr);
-    if (data.type !== "webhook" || !data.body) return null;
+    if (data.type !== "delivery" || !data.body) return null;
 
     const { body, method, path, timestamp } = data;
     const streamName = body.streamName ?? body.streamId?.slice(0, 8) ?? "unknown";
@@ -495,9 +495,9 @@ function formatLogLine(service: string, line: string, verbose: boolean): string 
     }
   }
 
-  // Webhook payload: summarize unless verbose
-  if (service === "webhook" && !verbose) {
-    const summary = formatWebhookSummary(line);
+  // Delivery payload: summarize unless verbose
+  if (service === "receiver" && !verbose) {
+    const summary = formatDeliverySummary(line);
     if (summary) return `${prefix} ${summary}`;
   }
 
@@ -740,22 +740,22 @@ export async function restartDev(): Promise<void> {
     console.log(green("  ✓ Worker"), dim("processing jobs"));
   }
 
-  // Webhook (if was running before)
-  if (state.services.webhook) {
-    const webhookPort = config.ports.webhook;
-    const webhookLogFile = getLogFile("webhook");
-    const webhookProc = Bun.spawn(["bun", "run", resolve(packagesDir, "packages/cli/src/services/webhook-standalone.ts")], {
-      env: { ...process.env as Record<string, string>, PORT: String(webhookPort) },
-      stdout: Bun.file(webhookLogFile),
-      stderr: Bun.file(webhookLogFile),
+  // Receiver (if was running before)
+  if (state.services.receiver) {
+    const receiverPort = config.ports.receiver;
+    const receiverLogFile = getLogFile("receiver");
+    const receiverProc = Bun.spawn(["bun", "run", resolve(packagesDir, "packages/cli/src/services/receiver-standalone.ts")], {
+      env: { ...process.env as Record<string, string>, PORT: String(receiverPort) },
+      stdout: Bun.file(receiverLogFile),
+      stderr: Bun.file(receiverLogFile),
     });
-    newState.services.webhook = {
-      pid: webhookProc.pid,
-      port: webhookPort,
+    newState.services.receiver = {
+      pid: receiverProc.pid,
+      port: receiverPort,
       startedAt: new Date().toISOString(),
-      logFile: webhookLogFile,
+      logFile: receiverLogFile,
     };
-    console.log(green("  ✓ Webhook server"), dim(`http://localhost:${webhookPort}`));
+    console.log(green("  ✓ Receiver server"), dim(`http://localhost:${receiverPort}`));
   }
 
   // Subgraph processor (always restart if was running)
@@ -852,8 +852,8 @@ function printBanner(): void {
 function printUrls(
   indexerPort: number,
   apiPort: number,
-  webhookPort: number,
-  webhookEnabled: boolean
+  receiverPort: number,
+  receiverEnabled: boolean
 ): void {
   console.log(dim("  ─────────────────────────────────────────"));
   console.log("");
@@ -866,9 +866,9 @@ function printUrls(
   console.log(`    Send block:     curl -X POST http://localhost:${indexerPort}/new_block -d @block.json`);
   console.log("");
 
-  if (webhookEnabled) {
-    console.log("  " + blue("Test Webhook:"));
-    console.log(`    Receives webhooks at http://localhost:${webhookPort}/`);
+  if (receiverEnabled) {
+    console.log("  " + blue("Test Receiver:"));
+    console.log(`    Receives deliveries at http://localhost:${receiverPort}/`);
     console.log(`    Use this URL when creating streams for testing`);
     console.log("");
   }

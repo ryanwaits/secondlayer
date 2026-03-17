@@ -7,7 +7,7 @@ import { ensureDir, fileExists, readJsonFile, removeFile, writeTextFile } from "
 const PortsSchema = z.object({
   api: z.number().int().min(1).max(65535).default(3800),
   indexer: z.number().int().min(1).max(65535).default(3700),
-  webhook: z.number().int().min(1).max(65535).default(3900),
+  receiver: z.number().int().min(1).max(65535).default(3900),
 });
 
 const NodeSchema = z.object({
@@ -57,12 +57,12 @@ export type DatabaseConfig = z.infer<typeof DatabaseSchema>;
 const CONFIG_DIR = join(homedir(), ".secondlayer");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
-const LOCAL_WEBHOOK_URL = "http://localhost:3900/webhook";
+const LOCAL_WEBHOOK_URL = "http://localhost:3900/receiver";
 
 const DEFAULT_CONFIG: Config = {
   network: "mainnet",
   dataDir: "~/.secondlayer/data",
-  ports: { api: 3800, indexer: 3700, webhook: 3900 },
+  ports: { api: 3800, indexer: 3700, receiver: 3900 },
   database: { type: "docker" },
 };
 
@@ -187,7 +187,7 @@ export async function loadConfig(): Promise<Config> {
   // Apply environment variable overrides (from .env or shell)
   config = applyEnvOverrides(config);
 
-  // Default webhook URL only for local network
+  // Default receiver URL only for local network
   if (!config.defaultWebhookUrl && config.network === "local") {
     config.defaultWebhookUrl = LOCAL_WEBHOOK_URL;
   }
@@ -236,11 +236,11 @@ function applyEnvOverrides(config: Config): Config {
     }
   }
 
-  // SL_WEBHOOK_PORT
-  if (process.env.SL_WEBHOOK_PORT) {
-    const port = parseInt(process.env.SL_WEBHOOK_PORT, 10);
+  // SL_RECEIVER_PORT
+  if (process.env.SL_RECEIVER_PORT) {
+    const port = parseInt(process.env.SL_RECEIVER_PORT, 10);
     if (!isNaN(port) && port > 0 && port <= 65535) {
-      result.ports = { ...result.ports, webhook: port };
+      result.ports = { ...result.ports, receiver: port };
     }
   }
 

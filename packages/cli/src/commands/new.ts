@@ -33,7 +33,7 @@ export function registerNewCommand(program: Command): void {
 
         success(`Created ${outputPath}`);
         if (!config.defaultWebhookUrl) {
-          warn("Edit the webhookUrl before registering — it must be a reachable HTTPS endpoint");
+          warn("Edit the endpointUrl before registering — it must be a reachable HTTPS endpoint");
         }
         console.log("\nEdit the file to configure your stream, then run:");
         console.log(`  sl streams register ${outputPath}`);

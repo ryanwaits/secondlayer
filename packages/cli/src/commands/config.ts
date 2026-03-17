@@ -133,7 +133,7 @@ async function printConfigTree(cfg: Config): Promise<void> {
     console.log(blue("ports:"));
     printValue("  api", cfg.ports.api, cfg.ports.api === defaults.ports.api, 2);
     printValue("  indexer", cfg.ports.indexer, cfg.ports.indexer === defaults.ports.indexer, 2);
-    printValue("  webhook", cfg.ports.webhook, cfg.ports.webhook === defaults.ports.webhook, 2);
+    printValue("  receiver", cfg.ports.receiver, cfg.ports.receiver === defaults.ports.receiver, 2);
 
     // Database
     console.log("");

@@ -3,15 +3,15 @@ import { join } from "node:path";
 import { success, error, dim } from "../lib/output.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 
-export function registerWebhookCommand(program: Command): void {
-  const webhook = program
-    .command("webhook")
-    .description("Webhook development tools")
+export function registerReceiverCommand(program: Command): void {
+  const receiver = program
+    .command("receiver")
+    .description("Receiver development tools")
     .hook("preAction", async () => { await requireLocalNetwork(); });
 
-  webhook
+  receiver
     .command("init <directory>")
-    .description("Scaffold a webhook handler with types and signature verification")
+    .description("Scaffold a receiver handler with types and signature verification")
     .option("-n, --name <name>", "Stream name", "my-stream")
     .option("--network <network>", "Network (mainnet/testnet)", "mainnet")
     .option("-p, --port <port>", "Server port", "4000")
@@ -38,10 +38,10 @@ export function registerWebhookCommand(program: Command): void {
         await generateEnvFile(dir);
         await generatePackageJson(dir, options.name);
 
-        success(`Created webhook handler in ${directory}/`);
+        success(`Created receiver handler in ${directory}/`);
         console.log("");
         console.log("  Files created:");
-        console.log(`    ${dim("server.ts")}      Webhook server with HMAC verification`);
+        console.log(`    ${dim("server.ts")}      Receiver server with HMAC verification`);
         console.log(`    ${dim("types.ts")}       Payload type definitions`);
         console.log(`    ${dim("stream.json")}    Stream configuration`);
         console.log(`    ${dim(".env")}           Environment variables`);
@@ -56,27 +56,27 @@ export function registerWebhookCommand(program: Command): void {
         console.log(`    sl streams register ${directory}/stream.json`);
         console.log("");
       } catch (err) {
-        error(`Failed to scaffold webhook: ${err}`);
+        error(`Failed to scaffold receiver: ${err}`);
         process.exit(1);
       }
     });
 }
 
 async function generateServerFile(dir: string, port: number): Promise<void> {
-  const content = `import type { WebhookPayload } from "./types.ts";
+  const content = `import type { DeliveryPayload } from "./types.ts";
 
-const WEBHOOK_SECRET = process.env.STREAMS_WEBHOOK_SECRET;
+const SIGNING_SECRET = process.env.STREAMS_SIGNING_SECRET;
 
 /**
  * Verify HMAC signature from Stacks Streams
  */
 async function verifySignature(body: string, signature: string | null): Promise<boolean> {
-  if (!WEBHOOK_SECRET || !signature) return false;
+  if (!SIGNING_SECRET || !signature) return false;
 
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(WEBHOOK_SECRET),
+    encoder.encode(SIGNING_SECRET),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
@@ -89,9 +89,9 @@ async function verifySignature(body: string, signature: string | null): Promise<
 }
 
 /**
- * Handle incoming webhook payload
+ * Handle incoming delivery payload
  */
-async function handlePayload(payload: WebhookPayload): Promise<void> {
+async function handlePayload(payload: DeliveryPayload): Promise<void> {
   console.log(\`Block \${payload.block.height}: \${payload.matches.events.length} events\`);
 
   for (const event of payload.matches.events) {
@@ -130,13 +130,13 @@ Bun.serve({
       return new Response("ok");
     }
 
-    // Webhook endpoint
+    // Receiver endpoint
     if (req.method === "POST" && url.pathname === "/payload") {
       const body = await req.text();
       const signature = req.headers.get("x-streams-signature");
 
       // Verify signature
-      if (WEBHOOK_SECRET) {
+      if (SIGNING_SECRET) {
         const valid = await verifySignature(body, signature);
         if (!valid) {
           console.error("Invalid signature");
@@ -145,7 +145,7 @@ Bun.serve({
       }
 
       try {
-        const payload: WebhookPayload = JSON.parse(body);
+        const payload: DeliveryPayload = JSON.parse(body);
         await handlePayload(payload);
         return new Response("ok");
       } catch (err) {
@@ -158,7 +158,7 @@ Bun.serve({
   },
 });
 
-console.log(\`Webhook server listening on http://localhost:${port}/payload\`);
+console.log(\`Receiver server listening on http://localhost:${port}/payload\`);
 `;
 
   await Bun.write(join(dir, "server.ts"), content);
@@ -166,12 +166,12 @@ console.log(\`Webhook server listening on http://localhost:${port}/payload\`);
 
 async function generateTypesFile(dir: string): Promise<void> {
   const content = `/**
- * Stacks Streams Webhook Payload Types
+ * Stacks Streams Delivery Payload Types
  *
  * These types match the payload structure sent by Stacks Streams.
  */
 
-export interface WebhookPayload {
+export interface DeliveryPayload {
   streamId: string;
   streamName: string;
   network: "mainnet" | "testnet";
@@ -300,12 +300,12 @@ async function generateStreamJson(
   name: string,
   network: string,
   port: number,
-  _defaultWebhookUrl?: string
+  _defaultEndpointUrl?: string
 ): Promise<void> {
   const content = {
     name,
     network,
-    webhookUrl: `http://localhost:${port}/payload`,
+    endpointUrl: `http://localhost:${port}/payload`,
     filters: [
       {
         type: "stx_transfer",
@@ -326,9 +326,9 @@ async function generateStreamJson(
 }
 
 async function generateEnvFile(dir: string): Promise<void> {
-  const content = `# Stacks Streams Webhook Secret
+  const content = `# Stacks Streams Signing Secret
 # Get this from: sl streams register stream.json
-STREAMS_WEBHOOK_SECRET=
+STREAMS_SIGNING_SECRET=
 
 # Add your database connection, etc.
 # DATABASE_URL=postgres://...
@@ -339,7 +339,7 @@ STREAMS_WEBHOOK_SECRET=
 
 async function generatePackageJson(dir: string, name: string): Promise<void> {
   const content = {
-    name: `${name}-webhook`,
+    name: `${name}-receiver`,
     version: "0.1.0",
     type: "module",
     scripts: {
