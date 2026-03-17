@@ -52,7 +52,7 @@ export interface ApiKey {
   lastUsedAt: string | null;
 }
 
-export interface ViewSummary {
+export interface SubgraphSummary {
   name: string;
   version: string;
   status: string;
@@ -81,7 +81,7 @@ export interface SystemStatus {
   timestamp: string;
 }
 
-export interface ViewDetail {
+export interface SubgraphDetail {
   name: string;
   version: string;
   status: string;

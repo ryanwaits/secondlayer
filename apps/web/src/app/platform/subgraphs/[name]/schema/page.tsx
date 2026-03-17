@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { apiRequest, ApiError, getSessionFromCookies } from "@/lib/api";
 
-interface ViewDetail {
+interface SubgraphDetail {
   name: string;
   tables: Record<
     string,
@@ -16,7 +16,7 @@ interface ViewDetail {
 
 const SYSTEM_COLUMNS = new Set(["_id", "_block_height", "_tx_id", "_created_at"]);
 
-export default async function ViewSchemaPage({
+export default async function SubgraphSchemaPage({
   params,
 }: {
   params: Promise<{ name: string }>;
@@ -24,9 +24,9 @@ export default async function ViewSchemaPage({
   const { name } = await params;
   const session = await getSessionFromCookies();
 
-  let view: ViewDetail;
+  let subgraph: SubgraphDetail;
   try {
-    view = await apiRequest<ViewDetail>(`/api/views/${name}`, {
+    subgraph = await apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
       sessionToken: session ?? undefined,
     });
   } catch (e) {
@@ -34,7 +34,7 @@ export default async function ViewSchemaPage({
     throw e;
   }
 
-  const tableEntries = Object.entries(view.tables);
+  const tableEntries = Object.entries(subgraph.tables);
 
   return (
     <>

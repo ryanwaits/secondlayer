@@ -10,7 +10,7 @@ import {
 
 interface Products {
   streams: boolean;
-  views: boolean;
+  subgraphs: boolean;
 }
 
 interface Preferences {
@@ -28,7 +28,7 @@ interface PreferencesCtx {
 const STORAGE_KEY = "sl:preferences";
 
 const DEFAULT: Preferences = {
-  products: { streams: true, views: true },
+  products: { streams: true, subgraphs: true },
   onboardingComplete: false,
 };
 

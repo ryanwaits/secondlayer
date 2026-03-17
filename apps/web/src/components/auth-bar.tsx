@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-const PLATFORM_PATHS = ["/platform", "/streams", "/views", "/api-keys", "/usage", "/billing", "/settings"];
+const PLATFORM_PATHS = ["/platform", "/streams", "/subgraphs", "/api-keys", "/usage", "/billing", "/settings"];
 
 export function AuthBar() {
   const { account, loading, logout } = useAuth();

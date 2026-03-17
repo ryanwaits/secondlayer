@@ -6,8 +6,8 @@ import type { TocItem } from "@/components/sidebar";
 const toc: TocItem[] = [
   { label: "Getting started", href: "#getting-started" },
   { label: "Streams", href: "#streams" },
-  { label: "Views", href: "#views" },
-  { label: "Typed views", href: "#typed-views" },
+  { label: "Subgraphs", href: "#subgraphs" },
+  { label: "Typed subgraphs", href: "#typed-subgraphs" },
   { label: "Error handling", href: "#error-handling" },
   { label: "Props", href: "#props" },
 ];
@@ -52,7 +52,7 @@ const client = new SecondLayer({
 
 // Sub-clients are available as properties:
 client.streams  // stream CRUD, deliveries, replay
-client.views    // view deploy, query, reindex`} />
+client.subgraphs    // subgraph deploy, query, reindex`} />
 
         <SectionHeading id="streams">Streams</SectionHeading>
 
@@ -102,24 +102,24 @@ const { deliveries } = await client.streams.listDeliveries("a1b2c3", {
 })
 const detail = await client.streams.getDelivery("a1b2c3", "delivery-id")`} />
 
-        <SectionHeading id="views">Views</SectionHeading>
+        <SectionHeading id="subgraphs">Subgraphs</SectionHeading>
 
         <div className="prose">
           <p>
-            Deploy, query, and manage indexed views. The query API supports
+            Deploy, query, and manage indexed subgraphs. The query API supports
             filtering with comparison operators, sorting, pagination, field
             selection, and full-text search.
           </p>
         </div>
 
-        <CodeBlock lang="typescript" code={`// List deployed views
-const { data } = await client.views.list()
+        <CodeBlock lang="typescript" code={`// List deployed subgraphs
+const { data } = await client.subgraphs.list()
 
-// Get view details (tables, health, row counts)
-const view = await client.views.get("token-transfers")
+// Get subgraph details (tables, health, row counts)
+const subgraph = await client.subgraphs.get("token-transfers")
 
 // Query a table
-const { data, meta } = await client.views.queryTable(
+const { data, meta } = await client.subgraphs.queryTable(
   "token-transfers",
   "transfers",
   {
@@ -133,36 +133,36 @@ const { data, meta } = await client.views.queryTable(
 // meta = { total, limit, offset }
 
 // Count rows
-const { count } = await client.views.queryTableCount(
+const { count } = await client.subgraphs.queryTableCount(
   "token-transfers",
   "transfers",
   { filters: { sender: "SP1234..." } }
 )
 
 // Reindex from scratch
-await client.views.reindex("token-transfers", {
+await client.subgraphs.reindex("token-transfers", {
   fromBlock: 150_000,
   toBlock: 160_000,
 })
 
-// Delete view and all data
-await client.views.delete("token-transfers")`} />
+// Delete subgraph and all data
+await client.subgraphs.delete("token-transfers")`} />
 
-        <SectionHeading id="typed-views">Typed views</SectionHeading>
+        <SectionHeading id="typed-subgraphs">Typed subgraphs</SectionHeading>
 
         <div className="prose">
           <p>
-            Import a view definition to get a fully typed query client. Table
+            Import a subgraph definition to get a fully typed query client. Table
             names, column names, and filter operators are all inferred from
             your schema.
           </p>
         </div>
 
-        <CodeBlock lang="typescript" code={`import { getView } from "@secondlayer/sdk"
-import myView from "./views/token-transfers"
+        <CodeBlock lang="typescript" code={`import { getSubgraph } from "@secondlayer/sdk"
+import mySubgraph from "./subgraphs/token-transfers"
 
-// Standalone helper — accepts options, SecondLayer instance, or Views instance
-const client = getView(myView, { apiKey: "sk-sl_..." })
+// Standalone helper — accepts options, SecondLayer instance, or Subgraphs instance
+const client = getSubgraph(mySubgraph, { apiKey: "sk-sl_..." })
 
 const rows = await client.transfers.findMany({
   where: { sender: { eq: "SP1234..." }, amount: { gte: 1000000n } },
@@ -175,7 +175,7 @@ const total = await client.transfers.count({
 })
 
 // Or via the SecondLayer instance
-const typed = client.views.typed(myView)
+const typed = client.subgraphs.typed(mySubgraph)
 const rows = await typed.transfers.findMany({ ... })`} />
 
         <SectionHeading id="error-handling">Error handling</SectionHeading>
@@ -260,19 +260,19 @@ try {
             <span className="prop-type">{"{"}deliveries{"}"}</span>
           </div>
 
-          <div className="props-group-title">client.views</div>
+          <div className="props-group-title">client.subgraphs</div>
 
           <div className="prop-row">
             <span className="prop-name">list()</span>
-            <span className="prop-type">{"{"}data: ViewSummary[]{"}"}</span>
+            <span className="prop-type">{"{"}data: SubgraphSummary[]{"}"}</span>
           </div>
           <div className="prop-row">
             <span className="prop-name">get(name)</span>
-            <span className="prop-type">ViewDetail</span>
+            <span className="prop-type">SubgraphDetail</span>
           </div>
           <div className="prop-row">
             <span className="prop-name">deploy(data)</span>
-            <span className="prop-type">{"{"}action, viewId, message{"}"}</span>
+            <span className="prop-type">{"{"}action, subgraphId, message{"}"}</span>
           </div>
           <div className="prop-row">
             <span className="prop-name">queryTable(name, table, params?)</span>
@@ -292,22 +292,22 @@ try {
           </div>
           <div className="prop-row">
             <span className="prop-name">typed(def)</span>
-            <span className="prop-type">InferViewClient</span>
+            <span className="prop-type">InferSubgraphClient</span>
           </div>
 
           <div className="props-group-title">Exports</div>
 
           <div className="prop-row">
             <span className="prop-name">@secondlayer/sdk</span>
-            <span className="prop-type">SecondLayer, Streams, Views, getView, ApiError</span>
+            <span className="prop-type">SecondLayer, Streams, Subgraphs, getSubgraph, ApiError</span>
           </div>
           <div className="prop-row">
             <span className="prop-name">@secondlayer/sdk/streams</span>
             <span className="prop-type">Streams</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">@secondlayer/sdk/views</span>
-            <span className="prop-type">Views, getView</span>
+            <span className="prop-name">@secondlayer/sdk/subgraphs</span>
+            <span className="prop-type">Subgraphs, getSubgraph</span>
           </div>
         </div>
       </main>

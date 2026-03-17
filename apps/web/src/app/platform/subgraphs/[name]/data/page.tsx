@@ -11,7 +11,7 @@ interface TableMeta {
 
 const PAGE_SIZE = 20;
 
-export default function ViewDataPage() {
+export default function SubgraphDataPage() {
   const { name } = useParams<{ name: string }>();
   const [tables, setTables] = useState<string[]>([]);
   const [activeTable, setActiveTable] = useState<string>("");
@@ -19,9 +19,9 @@ export default function ViewDataPage() {
   const [meta, setMeta] = useState<TableMeta | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch view detail to get table names
+  // Fetch subgraph detail to get table names
   useEffect(() => {
-    fetch(`/api/views/${name}`)
+    fetch(`/api/subgraphs/${name}`)
       .then((r) => r.json())
       .then((data) => {
         const names = Object.keys(data.tables || {});
@@ -37,7 +37,7 @@ export default function ViewDataPage() {
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/views/${name}/${table}?_limit=${PAGE_SIZE}&_offset=${offset}&_sort=_id&_order=desc`,
+          `/api/subgraphs/${name}/${table}?_limit=${PAGE_SIZE}&_offset=${offset}&_sort=_id&_order=desc`,
         );
         const json = await res.json();
         setRows((prev) => (append ? [...prev, ...json.data] : json.data));

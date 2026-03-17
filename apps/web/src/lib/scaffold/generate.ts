@@ -1,5 +1,5 @@
 /**
- * Client-side view scaffold generator.
+ * Client-side subgraph scaffold generator.
  *
  * Inlines ABI type guards to avoid importing @secondlayer/stacks/clarity
  * (which pulls in node:module transitively and breaks the browser build).
@@ -15,7 +15,7 @@ interface AbiFunction {
   outputs: AbiType;
 }
 
-/** Subset of ColumnType — inlined to avoid depending on @secondlayer/views */
+/** Subset of ColumnType — inlined to avoid depending on @secondlayer/subgraphs */
 type ColumnType = "uint" | "int" | "principal" | "boolean" | "text" | "jsonb" | "serial";
 
 interface MappedColumn {
@@ -71,22 +71,22 @@ function mapType(abiType: AbiType, nullable: boolean): MappedColumn {
   return { type: "jsonb", nullable };
 }
 
-function clarityTypeToViewColumn(abiType: AbiType): MappedColumn {
+function clarityTypeToSubgraphColumn(abiType: AbiType): MappedColumn {
   return mapType(abiType, false);
 }
 
 /**
- * Generates a `defineView()` TypeScript scaffold from selected contract functions.
+ * Generates a `defineSubgraph()` TypeScript scaffold from selected contract functions.
  * Browser-safe — pure string templating, no formatCode dependency.
  */
-export function generateViewCode(
+export function generateSubgraphCode(
   contractId: string,
   functions: readonly AbiFunction[],
-  viewName?: string,
+  subgraphName?: string,
 ): string {
   const contractParts = contractId.split(".");
   const contractName = contractParts[contractParts.length - 1] ?? contractId;
-  const name = viewName ?? contractName;
+  const name = subgraphName ?? contractName;
 
   const publicFunctions = functions.filter((f) => f.access === "public");
 
@@ -97,7 +97,7 @@ export function generateViewCode(
   const tables = publicFunctions.map((fn) => {
     const columns = fn.args
       .map((arg) => {
-        const mapped = clarityTypeToViewColumn(arg.type);
+        const mapped = clarityTypeToSubgraphColumn(arg.type);
         const nullable = mapped.nullable ? ", nullable: true" : "";
         return `        ${arg.name.replace(/-/g, "_")}: { type: '${mapped.type}'${nullable} }`;
       })
@@ -119,9 +119,9 @@ export function generateViewCode(
 
   const handlersBlock = handlerKeys.join(",\n\n");
 
-  return `import { defineView } from '@secondlayer/views';
+  return `import { defineSubgraph } from '@secondlayer/subgraphs';
 
-export default defineView({
+export default defineSubgraph({
   name: '${name}',
   sources: [{ contract: '${contractId}' }],
   schema: {

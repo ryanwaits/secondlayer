@@ -4,9 +4,9 @@ import { usePreferences } from "@/lib/preferences";
 
 export function ProductToggles() {
   const { preferences, setProducts } = usePreferences();
-  const { streams, views } = preferences.products;
+  const { streams, subgraphs } = preferences.products;
 
-  function toggle(product: "streams" | "views") {
+  function toggle(product: "streams" | "subgraphs") {
     setProducts({ ...preferences.products, [product]: !preferences.products[product] });
   }
 
@@ -28,12 +28,12 @@ export function ProductToggles() {
       </div>
       <div className="dash-index-item">
         <div className="dash-index-link">
-          <span className="dash-index-label">Views</span>
+          <span className="dash-index-label">Subgraphs</span>
           <span className="dash-index-meta">
             <button
-              className={`product-toggle${views ? " active" : ""}`}
-              onClick={() => toggle("views")}
-              aria-label="Toggle Views"
+              className={`product-toggle${subgraphs ? " active" : ""}`}
+              onClick={() => toggle("subgraphs")}
+              aria-label="Toggle Subgraphs"
             >
               <span className="product-toggle-knob" />
             </button>

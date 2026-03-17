@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { generateViewCode } from "@/lib/scaffold/generate";
+import { generateSubgraphCode } from "@/lib/scaffold/generate";
 import { generateAgentPrompt } from "@/lib/scaffold/prompt";
 import { highlightCode } from "@/components/command-palette/actions";
 
@@ -118,7 +118,7 @@ export default function ScaffoldPage() {
   const code = useMemo(
     () =>
       selectedFnObjects.length > 0
-        ? generateViewCode(contractId, selectedFnObjects as any)
+        ? generateSubgraphCode(contractId, selectedFnObjects as any)
         : "",
     [contractId, selectedFnObjects],
   );
@@ -158,9 +158,9 @@ export default function ScaffoldPage() {
   return (
     <>
       <div className="dash-page-header">
-        <h1 className="dash-page-title">Scaffold View</h1>
+        <h1 className="dash-page-title">Scaffold Subgraph</h1>
         <p className="dash-page-desc">
-          Generate a view scaffold from a contract ABI
+          Generate a subgraph scaffold from a contract ABI
         </p>
       </div>
 
@@ -179,7 +179,7 @@ export default function ScaffoldPage() {
           onClick={fetchAbi}
           disabled={!contractId.trim() || step === "loading"}
         >
-          {step === "loading" ? "Fetching…" : "Fetch ABI"}
+          {step === "loading" ? "Fetching..." : "Fetch ABI"}
         </button>
       </div>
 
@@ -284,7 +284,7 @@ export default function ScaffoldPage() {
           <div className="hint">
             <span className="hint-text">
               <strong>CLI:</strong>{" "}
-              <code>sl views scaffold {contractId} -o views/{contractName}.ts</code>
+              <code>sl subgraphs scaffold {contractId} -o subgraphs/{contractName}.ts</code>
             </span>
           </div>
         </>

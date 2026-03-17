@@ -14,7 +14,7 @@ export async function GET(
   const { name } = await params;
 
   try {
-    const data = await apiRequest(`/api/views/${name}`, { sessionToken });
+    const data = await apiRequest(`/api/subgraphs/${name}`, { sessionToken });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {
@@ -37,10 +37,10 @@ export async function DELETE(
 
   try {
     const data = await apiRequest<{ message: string }>(
-      `/api/views/${name}`,
+      `/api/subgraphs/${name}`,
       { method: "DELETE", sessionToken },
     );
-    revalidateTag("views", { expire: 0 });
+    revalidateTag("subgraphs", { expire: 0 });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {

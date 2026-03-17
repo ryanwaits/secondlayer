@@ -7,7 +7,7 @@ const toc: TocItem[] = [
   { label: "Install", href: "#install" },
   { label: "Auth", href: "#auth" },
   { label: "Streams", href: "#streams" },
-  { label: "Views", href: "#views" },
+  { label: "Subgraphs", href: "#subgraphs" },
   { label: "Codegen", href: "#codegen" },
   { label: "Local dev", href: "#local-dev" },
   { label: "Commands", href: "#commands" },
@@ -26,7 +26,7 @@ export default function CliPage() {
 
         <div className="prose">
           <p>
-            The <code>sl</code> command manages streams, views, auth, code
+            The <code>sl</code> command manages streams, subgraphs, auth, code
             generation, and local development infrastructure from the terminal.
             One binary, every Second Layer operation.
           </p>
@@ -119,44 +119,44 @@ sl streams rotate-secret <id>
 # Delete (with confirmation)
 sl streams delete <id>`} lang="bash" />
 
-        <SectionHeading id="views">Views</SectionHeading>
+        <SectionHeading id="subgraphs">Subgraphs</SectionHeading>
 
         <div className="prose">
           <p>
-            Deploy and manage indexed views. The CLI bundles handler code with
+            Deploy and manage indexed subgraphs. The CLI bundles handler code with
             esbuild, diffs schema changes, and handles deployment.
           </p>
         </div>
 
-        <CodeBlock code={`# Scaffold a new view
-sl views new token-transfers
+        <CodeBlock code={`# Scaffold a new subgraph
+sl subgraphs new token-transfers
 
 # Deploy to Second Layer
-sl views deploy views/token-transfers.ts
+sl subgraphs deploy subgraphs/token-transfers.ts
 
 # Dev mode — watches for changes, hot-redeploys
-sl views dev views/token-transfers.ts
+sl subgraphs dev subgraphs/token-transfers.ts
 
 # Check indexing status and health
-sl views status token-transfers
+sl subgraphs status token-transfers
 
-# Query a deployed view
-sl views query token-transfers transfers --sort _block_height --order desc
-sl views query token-transfers transfers --filter sender=SP1234... --limit 25
-sl views query token-transfers transfers --filter "amount.gte=1000000" --count
+# Query a deployed subgraph
+sl subgraphs query token-transfers transfers --sort _block_height --order desc
+sl subgraphs query token-transfers transfers --filter sender=SP1234... --limit 25
+sl subgraphs query token-transfers transfers --filter "amount.gte=1000000" --count
 
 # Reindex from scratch or a specific range
-sl views reindex token-transfers
-sl views reindex token-transfers --from 150000 --to 160000
+sl subgraphs reindex token-transfers
+sl subgraphs reindex token-transfers --from 150000 --to 160000
 
-# Scaffold a view from a deployed contract's ABI
-sl views scaffold SP1234...::my-contract --output views/my-contract.ts
+# Scaffold a subgraph from a deployed contract's ABI
+sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts
 
-# Generate a typed client from a deployed view
-sl views generate token-transfers --output src/generated/
+# Generate a typed client from a deployed subgraph
+sl subgraphs generate token-transfers --output src/generated/
 
-# Delete view and all data
-sl views delete token-transfers`} lang="bash" />
+# Delete subgraph and all data
+sl subgraphs delete token-transfers`} lang="bash" />
 
         <SectionHeading id="codegen">Codegen</SectionHeading>
 
@@ -317,43 +317,43 @@ sl local stop`} lang="bash" />
             <span className="prop-type">Delete stream</span>
           </div>
 
-          <div className="props-group-title">Views</div>
+          <div className="props-group-title">Subgraphs</div>
 
           <div className="prop-row">
-            <span className="prop-name">sl views new &lt;name&gt;</span>
-            <span className="prop-type">Scaffold view definition</span>
+            <span className="prop-name">sl subgraphs new &lt;name&gt;</span>
+            <span className="prop-type">Scaffold subgraph definition</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl views deploy &lt;file&gt;</span>
+            <span className="prop-name">sl subgraphs deploy &lt;file&gt;</span>
             <span className="prop-type">Deploy (local or remote)</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl views dev &lt;file&gt;</span>
+            <span className="prop-name">sl subgraphs dev &lt;file&gt;</span>
             <span className="prop-type">Watch + hot-redeploy</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl views status &lt;name&gt;</span>
+            <span className="prop-name">sl subgraphs status &lt;name&gt;</span>
             <span className="prop-type">Indexing status + health</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl views query &lt;name&gt; &lt;table&gt;</span>
+            <span className="prop-name">sl subgraphs query &lt;name&gt; &lt;table&gt;</span>
             <span className="prop-type">Query with filters, sort, count</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl views reindex &lt;name&gt;</span>
+            <span className="prop-name">sl subgraphs reindex &lt;name&gt;</span>
             <span className="prop-type">Reindex (--from, --to)</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl views scaffold &lt;contract&gt;</span>
-            <span className="prop-type">Generate view from ABI</span>
+            <span className="prop-name">sl subgraphs scaffold &lt;contract&gt;</span>
+            <span className="prop-type">Generate subgraph from ABI</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl views generate &lt;name&gt;</span>
+            <span className="prop-name">sl subgraphs generate &lt;name&gt;</span>
             <span className="prop-type">Generate typed client</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl views delete &lt;name&gt;</span>
-            <span className="prop-type">Delete view + data</span>
+            <span className="prop-name">sl subgraphs delete &lt;name&gt;</span>
+            <span className="prop-type">Delete subgraph + data</span>
           </div>
 
           <div className="props-group-title">Codegen</div>

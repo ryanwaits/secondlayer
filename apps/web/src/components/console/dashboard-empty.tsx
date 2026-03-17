@@ -7,24 +7,24 @@ import { ManualSteps } from "@/components/console/manual-steps";
 import {
   DASHBOARD_BOTH_PROMPT,
   DASHBOARD_STREAMS_PROMPT,
-  DASHBOARD_VIEWS_PROMPT,
+  DASHBOARD_SUBGRAPHS_PROMPT,
 } from "@/lib/agent-prompts";
 import Link from "next/link";
 
 type Mode = "agent" | "manual";
 
-function agentPrompt(streams: boolean, views: boolean) {
-  if (streams && views) return DASHBOARD_BOTH_PROMPT;
+function agentPrompt(streams: boolean, subgraphs: boolean) {
+  if (streams && subgraphs) return DASHBOARD_BOTH_PROMPT;
   if (streams) return DASHBOARD_STREAMS_PROMPT;
-  return DASHBOARD_VIEWS_PROMPT;
+  return DASHBOARD_SUBGRAPHS_PROMPT;
 }
 
 export function DashboardEmpty() {
   const { preferences } = usePreferences();
-  const { streams, views } = preferences.products;
+  const { streams, subgraphs } = preferences.products;
   const [mode, setMode] = useState<Mode>("agent");
 
-  if (!streams && !views) {
+  if (!streams && !subgraphs) {
     return (
       <div className="empty-msg">
         No products enabled.{" "}
@@ -58,10 +58,10 @@ export function DashboardEmpty() {
       {mode === "agent" ? (
         <AgentPromptBlock
           title="Paste this into your agent to get started"
-          code={agentPrompt(streams, views)}
+          code={agentPrompt(streams, subgraphs)}
         />
       ) : (
-        <ManualSteps streams={streams} views={views} />
+        <ManualSteps streams={streams} subgraphs={subgraphs} />
       )}
     </>
   );

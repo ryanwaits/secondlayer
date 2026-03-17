@@ -1,24 +1,24 @@
-import type { ViewSummary, ViewDetail } from "@/lib/types";
+import type { SubgraphSummary, SubgraphDetail } from "@/lib/types";
 
-// ── V1 — Stalled View ───────────────────────────────────────────────
+// ── V1 — Stalled Subgraph ──────────────────────────────────────────
 
-export interface StalledView {
+export interface StalledSubgraph {
   blocksBehind: number;
   lastProcessedBlock: number;
   chainTip: number;
 }
 
-export function detectStalledView(
-  view: ViewSummary | ViewDetail,
+export function detectStalledSubgraph(
+  subgraph: SubgraphSummary | SubgraphDetail,
   chainTip: number,
-): StalledView | null {
-  if (view.status === "error" || view.status === "reindexing") return null;
-  if (view.lastProcessedBlock == null) return null;
+): StalledSubgraph | null {
+  if (subgraph.status === "error" || subgraph.status === "reindexing") return null;
+  if (subgraph.lastProcessedBlock == null) return null;
 
-  const blocksBehind = chainTip - view.lastProcessedBlock;
+  const blocksBehind = chainTip - subgraph.lastProcessedBlock;
   if (blocksBehind <= 50) return null;
 
-  return { blocksBehind, lastProcessedBlock: view.lastProcessedBlock, chainTip };
+  return { blocksBehind, lastProcessedBlock: subgraph.lastProcessedBlock, chainTip };
 }
 
 // ── V2 — High Error Rate ────────────────────────────────────────────
@@ -33,7 +33,7 @@ export interface HighErrorRate {
 }
 
 export function detectHighErrorRate(
-  health: ViewDetail["health"],
+  health: SubgraphDetail["health"],
 ): HighErrorRate | null {
   if (health.totalProcessed < 100) return null;
   if (health.errorRate < 0.05) return null;

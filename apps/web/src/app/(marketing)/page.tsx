@@ -4,7 +4,7 @@ import { SiteLink } from "@/components/site-link";
 
 const products = [
   { name: "Streams", href: "/streams", desc: "Real-time event webhooks" },
-  { name: "Views", href: "/views", desc: "Custom subgraphs for indexed data" },
+  { name: "Subgraphs", href: "/subgraphs", desc: "Custom indexers for blockchain data" },
 ];
 
 const packages = [

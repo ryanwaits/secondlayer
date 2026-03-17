@@ -3,12 +3,12 @@ import { getSessionFromRequest, apiRequest } from "@/lib/api";
 import { actions } from "@/lib/actions/registry";
 import { createCommandAgent } from "@/lib/command/agent";
 import type { CommandRequest, CommandResponse } from "@/lib/command/types";
-import type { Stream, ViewSummary, ApiKey } from "@/lib/types";
+import type { Stream, SubgraphSummary, ApiKey } from "@/lib/types";
 
 function buildInstructions(
   path: string,
   streams: Stream[],
-  views: ViewSummary[],
+  subgraphs: SubgraphSummary[],
   keys: ApiKey[],
 ) {
   const actionList = actions
@@ -24,9 +24,9 @@ function buildInstructions(
         .join("\n")
     : "No streams.";
 
-  const viewList = views.length
-    ? views.map((v) => `- name:"${v.name}" status:${v.status}`).join("\n")
-    : "No views.";
+  const subgraphList = subgraphs.length
+    ? subgraphs.map((v) => `- name:"${v.name}" status:${v.status}`).join("\n")
+    : "No subgraphs.";
 
   const keyList = keys.length
     ? keys.map((k) => `- id:${k.id} prefix:${k.prefix} name:"${k.name}" status:${k.status}`).join("\n")
@@ -55,8 +55,8 @@ ${actionList}
 ### Streams
 ${streamList}
 
-### Views
-${viewList}
+### Subgraphs
+${subgraphList}
 
 ### API Keys
 ${keyList}
@@ -73,7 +73,7 @@ ${keyList}
 - DELETE /api/keys/{id} — revoke an API key
 
 ## Markdown formatting rules (for answer)
-- Use \`code ticks\` for product concepts: \`streams\`, \`views\`, \`API keys\`, \`webhooks\`, \`filters\`, \`deliveries\`.
+- Use \`code ticks\` for product concepts: \`streams\`, \`subgraphs\`, \`API keys\`, \`webhooks\`, \`filters\`, \`deliveries\`.
 - Never write two consecutive prose sentences. Break up text with bullet points, numbered lists, tables, or headers.
 - Use ## headers to separate topics. Use **bold** for emphasis.
 - Prefer structured formats: bullets for features, numbered lists for steps, tables for comparisons.
@@ -99,19 +99,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Query too short" }, { status: 400 });
   }
 
-  const [streams, views, keys] = await Promise.all([
+  const [streams, subgraphs, keys] = await Promise.all([
     apiRequest<{ streams: Stream[] }>("/api/streams", { sessionToken })
       .then((r) => r.streams)
       .catch(() => [] as Stream[]),
-    apiRequest<{ data: ViewSummary[] }>("/api/views", { sessionToken })
+    apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", { sessionToken })
       .then((r) => r.data)
-      .catch(() => [] as ViewSummary[]),
+      .catch(() => [] as SubgraphSummary[]),
     apiRequest<{ keys: ApiKey[] }>("/api/keys", { sessionToken })
       .then((r) => r.keys)
       .catch(() => [] as ApiKey[]),
   ]);
 
-  const instructions = buildInstructions(context.path, streams, views, keys);
+  const instructions = buildInstructions(context.path, streams, subgraphs, keys);
   const agent = createCommandAgent(instructions);
 
   try {

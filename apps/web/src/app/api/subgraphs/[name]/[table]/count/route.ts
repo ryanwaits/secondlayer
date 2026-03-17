@@ -11,12 +11,10 @@ export async function GET(
   }
 
   const { name, table } = await params;
-  const { searchParams } = new URL(req.url);
-  const qs = searchParams.toString();
 
   try {
-    const data = await apiRequest(
-      `/api/views/${name}/${table}${qs ? `?${qs}` : ""}`,
+    const data = await apiRequest<{ count: number }>(
+      `/api/subgraphs/${name}/${table}/count`,
       { sessionToken },
     );
     return NextResponse.json(data);

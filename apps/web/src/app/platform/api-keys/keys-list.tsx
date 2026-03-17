@@ -32,8 +32,8 @@ const client = new SecondLayer({
 // List streams
 const streams = await client.streams.list();
 
-// Query a view table
-const rows = await client.views.query("my-view", "transfers", {
+// Query a subgraph table
+const rows = await client.subgraphs.query("my-subgraph", "transfers", {
   limit: 10,
 });`;
 }

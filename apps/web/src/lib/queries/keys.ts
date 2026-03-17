@@ -7,9 +7,9 @@ export const queryKeys = {
     deliveriesPage: (id: string, page: number) =>
       ["streams", id, "deliveries", page] as const,
   },
-  views: {
-    all: ["views"] as const,
-    detail: (name: string) => ["views", name] as const,
+  subgraphs: {
+    all: ["subgraphs"] as const,
+    detail: (name: string) => ["subgraphs", name] as const,
   },
   keys: {
     all: ["keys"] as const,

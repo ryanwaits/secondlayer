@@ -165,13 +165,13 @@ export function CommandPalette() {
   const prefetchTargets: Record<string, { queryKey: readonly string[]; apiPath: string; unwrap?: (data: unknown) => unknown }[]> = {
     "/": [
       { queryKey: queryKeys.streams.all, apiPath: "/api/streams?limit=100&offset=0", unwrap: (d: any) => d.streams },
-      { queryKey: queryKeys.views.all, apiPath: "/api/views", unwrap: (d: any) => d.data },
+      { queryKey: queryKeys.subgraphs.all, apiPath: "/api/subgraphs", unwrap: (d: any) => d.data },
     ],
     "/streams": [
       { queryKey: queryKeys.streams.all, apiPath: "/api/streams?limit=100&offset=0", unwrap: (d: any) => d.streams },
     ],
-    "/views": [
-      { queryKey: queryKeys.views.all, apiPath: "/api/views", unwrap: (d: any) => d.data },
+    "/subgraphs": [
+      { queryKey: queryKeys.subgraphs.all, apiPath: "/api/subgraphs", unwrap: (d: any) => d.data },
     ],
     "/api-keys": [
       { queryKey: queryKeys.keys.all, apiPath: "/api/keys", unwrap: (d: any) => d.keys },

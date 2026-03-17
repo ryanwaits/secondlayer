@@ -40,15 +40,15 @@ const CheckIcon = (
 export function OnboardingPanel() {
   const { setProducts, completeOnboarding } = usePreferences();
   const [streams, setStreams] = useState(true);
-  const [views, setViews] = useState(true);
+  const [subgraphs, setSubgraphs] = useState(true);
 
   function handleSkip() {
-    setProducts({ streams: true, views: true });
+    setProducts({ streams: true, subgraphs: true });
     completeOnboarding();
   }
 
   function handleGo() {
-    setProducts({ streams, views });
+    setProducts({ streams, subgraphs });
     completeOnboarding();
   }
 
@@ -77,12 +77,12 @@ export function OnboardingPanel() {
             </div>
 
             <div
-              className={`wp-option${views ? " selected" : ""}`}
-              onClick={() => setViews(!views)}
+              className={`wp-option${subgraphs ? " selected" : ""}`}
+              onClick={() => setSubgraphs(!subgraphs)}
             >
               <div className="wp-check">{CheckIcon}</div>
               <div className="wp-option-content">
-                <div className="wp-option-name">Views</div>
+                <div className="wp-option-name">Subgraphs</div>
                 <div className="wp-option-desc">
                   SQL indexer for blockchain data
                 </div>
@@ -116,7 +116,7 @@ export function OnboardingPanel() {
           <button
             className="wp-go"
             onClick={handleGo}
-            disabled={!streams && !views}
+            disabled={!streams && !subgraphs}
           >
             Go to dashboard
           </button>

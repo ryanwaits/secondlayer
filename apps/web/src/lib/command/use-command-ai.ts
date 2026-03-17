@@ -97,8 +97,8 @@ export function useCommandAI(
     if (apiCall.path.includes("/keys")) {
       qc.invalidateQueries({ queryKey: queryKeys.keys.all });
     }
-    if (apiCall.path.includes("/views")) {
-      qc.invalidateQueries({ queryKey: queryKeys.views.all });
+    if (apiCall.path.includes("/subgraphs")) {
+      qc.invalidateQueries({ queryKey: queryKeys.subgraphs.all });
     }
   }, [qc]);
 
