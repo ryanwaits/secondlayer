@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
 import type { Stream } from "@/lib/types";
+import { DetailTabs } from "@/components/console/detail-tabs";
 
 export default async function StreamDetailLayout({
   children,
@@ -14,8 +15,9 @@ export default async function StreamDetailLayout({
 
   const { id } = await params;
 
+  let stream: Stream;
   try {
-    await apiRequest<Stream>(`/api/streams/${id}`, {
+    stream = await apiRequest<Stream>(`/api/streams/${id}`, {
       sessionToken: session,
     });
   } catch (e) {
@@ -25,5 +27,21 @@ export default async function StreamDetailLayout({
     throw e;
   }
 
-  return <>{children}</>;
+  const basePath = `/streams/${id}`;
+
+  return (
+    <>
+      <div className="dash-page-header">
+        <h1 className="dash-page-title">{stream.name}</h1>
+      </div>
+      <DetailTabs items={[
+        { label: "Overview", href: basePath },
+        { label: "Filters", href: `${basePath}/filters` },
+        { label: "Deliveries", href: `${basePath}/deliveries` },
+        { label: "Webhook", href: `${basePath}/webhook` },
+        { label: "Replay", href: `${basePath}/replay` },
+      ]} />
+      {children}
+    </>
+  );
 }

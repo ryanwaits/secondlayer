@@ -16,7 +16,6 @@ import {
 import { detectFailurePattern, detectDeliveryGap } from "@/lib/intelligence/streams";
 import { Insight, Banner } from "@/components/console/intelligence";
 import { InsightCard } from "@/components/console/intelligence/insight-card";
-import { StreamTabs } from "./stream-tabs";
 
 function relativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -141,84 +140,50 @@ export function StreamDetailClient({
 
   return (
     <>
-      {/* Header */}
-      <div className="dash-page-header">
-        <div className="dash-page-header-row">
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 2 }}>
-              <h1 className="dash-page-title">{stream.name}</h1>
-              <span className={`dash-badge ${stream.status}`}>
-                {stream.status}
-              </span>
-            </div>
-          </div>
-          <div className="dash-actions">
-            {stream.status === "active" && (
-              pausing !== "idle" ? (
-                <>
-                  <button
-                    className="dash-btn danger"
-                    onClick={handlePause}
-                  >
-                    {pausing === "loading" ? "Pausing..." : "Pause"}
-                  </button>
-                  <button
-                    className="dash-btn"
-                    onClick={() => setPausing("idle")}
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="dash-btn"
-                  onClick={() => setPausing("confirm")}
-                >
-                  <span className="btn-icon">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="3" width="3" height="10" rx="0.5"/><rect x="9" y="3" width="3" height="10" rx="0.5"/></svg>
-                  </span>
-                  Pause
-                </button>
-              )
-            )}
-            {(stream.status === "paused" || stream.status === "inactive") && (
-              <button
-                className="dash-btn primary"
-                disabled={actionLoading}
-                onClick={handleResume}
-              >
-                <span className="btn-icon">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5a.5.5 0 01.8-.4l7 5a.5.5 0 010 .8l-7 5a.5.5 0 01-.8-.4v-10z"/></svg>
-                </span>
-                {resumeMutation.isPending ? "Resuming..." : "Resume"}
+      {/* Actions */}
+      <div className="dash-actions" style={{ marginBottom: 16 }}>
+        <span className={`dash-badge ${stream.status}`}>{stream.status}</span>
+        {stream.status === "active" && (
+          pausing !== "idle" ? (
+            <>
+              <button className="dash-btn danger" onClick={handlePause}>
+                {pausing === "loading" ? "Pausing..." : "Pause"}
               </button>
-            )}
-            {stream.status === "failed" && (
-              <>
-                <button
-                  className="dash-btn primary"
-                  disabled={actionLoading}
-                  onClick={handleResume}
-                >
-                  <span className="btn-icon">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 0110.5-4M14 8a6 6 0 01-10.5 4"/><path d="M12 1v4h-4M4 15v-4h4"/></svg>
-                  </span>
-                  {resumeMutation.isPending ? "Restarting..." : "Restart"}
-                </button>
-                <button
-                  className="dash-btn"
-                  disabled={actionLoading}
-                  onClick={handleReplayFailed}
-                >
-                  {replayMutation.isPending ? "Replaying..." : "Replay failed"}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+              <button className="dash-btn" onClick={() => setPausing("idle")}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button className="dash-btn" onClick={() => setPausing("confirm")}>
+              <span className="btn-icon">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="3" width="3" height="10" rx="0.5"/><rect x="9" y="3" width="3" height="10" rx="0.5"/></svg>
+              </span>
+              Pause
+            </button>
+          )
+        )}
+        {(stream.status === "paused" || stream.status === "inactive") && (
+          <button className="dash-btn primary" disabled={actionLoading} onClick={handleResume}>
+            <span className="btn-icon">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5a.5.5 0 01.8-.4l7 5a.5.5 0 010 .8l-7 5a.5.5 0 01-.8-.4v-10z"/></svg>
+            </span>
+            {resumeMutation.isPending ? "Resuming..." : "Resume"}
+          </button>
+        )}
+        {stream.status === "failed" && (
+          <>
+            <button className="dash-btn primary" disabled={actionLoading} onClick={handleResume}>
+              <span className="btn-icon">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 0110.5-4M14 8a6 6 0 01-10.5 4"/><path d="M12 1v4h-4M4 15v-4h4"/></svg>
+              </span>
+              {resumeMutation.isPending ? "Restarting..." : "Restart"}
+            </button>
+            <button className="dash-btn" disabled={actionLoading} onClick={handleReplayFailed}>
+              {replayMutation.isPending ? "Replaying..." : "Replay failed"}
+            </button>
+          </>
+        )}
       </div>
-
-      <StreamTabs streamId={stream.id} />
 
       {/* Status notices */}
       {stream.status === "paused" && (
