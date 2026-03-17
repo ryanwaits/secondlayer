@@ -2,7 +2,7 @@
 name: secondlayer
 description: Install, configure, and build on Second Layer — a Stacks blockchain
   indexing platform. Use this skill when creating streams (real-time event delivery),
-  scaffolding/deploying views (custom indexers), querying indexed data, or managing
+  scaffolding/deploying subgraphs (custom indexers), querying indexed data, or managing
   API keys. Triggers on tasks involving Stacks blockchain data, streams,
   custom indexers, blockchain event filtering, or the `secondlayer` CLI (`sl` shorthand).
 license: MIT
@@ -15,11 +15,11 @@ metadata:
 
 Stacks blockchain indexing platform. Two primitives:
 
-| | Streams | Views |
-|--|---------|-------|
+| | Streams | Subgraphs |
+|--|---------|-----------|
 | **Model** | Push — delivers matching events to your endpoint | Pull — indexes into SQL tables you query via REST |
 | **Use when** | Real-time reactions (alerts, bots, pipelines) | Historical queries (dashboards, APIs, analytics) |
-| **Define with** | JSON config file | TypeScript (defineView + handlers) |
+| **Define with** | JSON config file | TypeScript (defineSubgraph + handlers) |
 | **State** | Stateless delivery | Stateful (persisted tables) |
 
 ## Install & Auth
@@ -170,25 +170,25 @@ Verify payloads with the `X-Secondlayer-Signature` header (HMAC-SHA256 using you
 
 ---
 
-## Views
+## Subgraphs
 
-Views are TypeScript indexers that process blockchain events and write to SQL tables. Query via REST API or typed SDK client.
+Subgraphs are TypeScript indexers that process blockchain events and write to SQL tables. Query via REST API or typed SDK client.
 
 ### Scaffold from contract
 
 ```bash
-secondlayer views scaffold SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01 \
-  -o views/alex-swaps.ts
+secondlayer subgraphs scaffold SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01 \
+  -o subgraphs/alex-swaps.ts
 ```
 
-Fetches the contract ABI and generates a complete `defineView()` scaffold with sources, schema, and handler stubs.
+Fetches the contract ABI and generates a complete `defineSubgraph()` scaffold with sources, schema, and handler stubs.
 
-### View definition
+### Subgraph definition
 
 ```typescript
-import { defineView } from "@secondlayer/views";
+import { defineSubgraph } from "@secondlayer/subgraphs";
 
-export default defineView({
+export default defineSubgraph({
   name: "dex-swaps",
   version: "1.0.0",
 
@@ -254,7 +254,7 @@ Column options: `nullable`, `indexed`, `search` (enables ILIKE on queries), `def
 
 Handler key = source key derived as: `"contract::event"`, `"contract::function"`, `"contract"`, `"type"`, or `"*"` (catch-all).
 
-### ViewContext (handler API)
+### SubgraphContext (handler API)
 
 ```typescript
 handlers: {
@@ -283,62 +283,62 @@ System columns added to every row automatically: `_id`, `_block_height`, `_tx_id
 ### Deploy & manage
 
 ```bash
-secondlayer views deploy views/my-view.ts              # deploy (creates or updates)
-secondlayer views deploy views/my-view.ts --reindex    # force reindex on breaking schema change
-secondlayer views dev views/my-view.ts                 # watch + hot-reload (local dev only)
-secondlayer views list                                 # list deployed views
-secondlayer views status my-view                       # health, row counts, errors per table
-secondlayer views reindex my-view                      # reindex from block 1
-secondlayer views reindex my-view --from 150000        # reindex from specific block
-secondlayer views delete my-view                       # delete view + all data (-y to skip confirm)
-secondlayer views generate my-view -o src/client.ts    # generate typed TypeScript client
+secondlayer subgraphs deploy subgraphs/my-subgraph.ts              # deploy (creates or updates)
+secondlayer subgraphs deploy subgraphs/my-subgraph.ts --reindex    # force reindex on breaking schema change
+secondlayer subgraphs dev subgraphs/my-subgraph.ts                 # watch + hot-reload (local dev only)
+secondlayer subgraphs list                                         # list deployed subgraphs
+secondlayer subgraphs status my-subgraph                           # health, row counts, errors per table
+secondlayer subgraphs reindex my-subgraph                          # reindex from block 1
+secondlayer subgraphs reindex my-subgraph --from 150000            # reindex from specific block
+secondlayer subgraphs delete my-subgraph                           # delete subgraph + all data (-y to skip confirm)
+secondlayer subgraphs generate my-subgraph -o src/client.ts        # generate typed TypeScript client
 ```
 
 ### Query
 
 **CLI**:
 ```bash
-secondlayer views query my-view swaps --limit 10 --sort amount_x --order desc
-secondlayer views query my-view swaps --filter sender=SP... --filter "amount_x.gte=1000"
-secondlayer views query my-view swaps --count
-secondlayer views query my-view swaps --fields sender,amount_x,amount_y
+secondlayer subgraphs query my-subgraph swaps --limit 10 --sort amount_x --order desc
+secondlayer subgraphs query my-subgraph swaps --filter sender=SP... --filter "amount_x.gte=1000"
+secondlayer subgraphs query my-subgraph swaps --count
+secondlayer subgraphs query my-subgraph swaps --fields sender,amount_x,amount_y
 ```
 
 **REST API**:
 ```
-GET /api/views/{name}/{table}?_sort=amount_x&_order=desc&_limit=10&sender=SP...
-GET /api/views/{name}/{table}/count?sender=SP...
-GET /api/views/{name}/{table}/{id}
+GET /api/subgraphs/{name}/{table}?_sort=amount_x&_order=desc&_limit=10&sender=SP...
+GET /api/subgraphs/{name}/{table}/count?sender=SP...
+GET /api/subgraphs/{name}/{table}/{id}
 ```
 
 Filter operators: `=`, `.gte`, `.lte`, `.gt`, `.lt`, `.neq`, `.like` (ILIKE).
 
 **SDK (untyped)**:
 ```typescript
-const rows = await sl.views.queryTable("my-view", "swaps", {
+const rows = await sl.subgraphs.queryTable("my-subgraph", "swaps", {
   sort: "amount_x", order: "desc", limit: 10,
   filters: { sender: "SP...", "amount_x.gte": "1000" },
 });
-const { count } = await sl.views.queryTableCount("my-view", "swaps");
+const { count } = await sl.subgraphs.queryTableCount("my-subgraph", "swaps");
 ```
 
 **SDK (typed — recommended)**:
 ```typescript
-import { getView } from "@secondlayer/sdk";
-import myView from "./views/my-view";
+import { getSubgraph } from "@secondlayer/sdk";
+import mySubgraph from "./subgraphs/my-subgraph";
 
-const view = getView(myView, sl);
-const swaps = await view.swaps.findMany({
+const subgraph = getSubgraph(mySubgraph, sl);
+const swaps = await subgraph.swaps.findMany({
   where: { sender: "SP...", amount_x: { gte: 1000 } },
   orderBy: { amount_x: "desc" },
   limit: 10,
 });
-const total = await view.swaps.count({ sender: "SP..." });
+const total = await subgraph.swaps.count({ sender: "SP..." });
 ```
 
 Or generate a standalone typed client:
 ```bash
-secondlayer views generate my-view -o src/views/my-view-client.ts
+secondlayer subgraphs generate my-subgraph -o src/subgraphs/my-subgraph-client.ts
 ```
 
 ---
