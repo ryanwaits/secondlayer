@@ -4,6 +4,12 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { Stream } from "@/lib/types";
 import { useStreams, usePauseStream, useResumeStream } from "@/lib/queries/streams";
+import { AgentPromptBlock } from "@/components/console/agent-prompt";
+import { ManualSteps } from "@/components/console/manual-steps";
+import { ActionDropdown } from "@/components/console/action-dropdown";
+import { STREAMS_EMPTY_PROMPT } from "@/lib/agent-prompts";
+
+type Mode = "agent" | "manual";
 
 function StreamRow({ stream }: { stream: Stream }) {
   const [confirmPause, setConfirmPause] = useState(false);
@@ -101,6 +107,7 @@ function StreamRow({ stream }: { stream: Stream }) {
 
 export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
   const { data: streams = initialStreams } = useStreams(initialStreams);
+  const [mode, setMode] = useState<Mode>("agent");
 
   const active = streams.filter((s) => s.status === "active");
   const paused = streams.filter((s) => s.status === "paused");
@@ -121,36 +128,49 @@ export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
 
   return (
     <>
-      <div className="dash-page-header" style={streams.length === 0 ? { textAlign: "center" } : { display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        {streams.length > 0 ? (
-          <>
-            <div>
-              <h1 className="dash-page-title">Streams</h1>
-              <p className="dash-page-desc">
-                {streams.length} stream{streams.length !== 1 ? "s" : ""} — {parts.join(", ")}
-              </p>
-            </div>
-            <Link href="/streams/create" className="create-btn">
-              + Create stream
-            </Link>
-          </>
-        ) : (
+      <div className="dash-page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
           <h1 className="dash-page-title">Streams</h1>
-        )}
+          {streams.length > 0 && (
+            <p className="dash-page-desc">
+              {streams.length} stream{streams.length !== 1 ? "s" : ""} — {parts.join(", ")}
+            </p>
+          )}
+        </div>
+        <ActionDropdown variant="streams" />
       </div>
 
       {streams.length === 0 ? (
-        <div className="dash-empty">
-          <p>Create your first stream to start receiving blockchain events.</p>
-          <div className="dash-empty-actions">
-            <code className="dash-empty-cmd">sl streams create --name my-stream --url https://example.com/webhook</code>
-            <div className="dash-empty-links">
-              <Link href="/streams/create">Create a stream</Link>
-              <span className="dash-empty-sep">·</span>
-              <Link href="/site/streams">Read the docs</Link>
-            </div>
+        <>
+          <div className="dash-section-wrap">
+            <hr />
+            <h2 className="dash-section-title">Get started</h2>
           </div>
-        </div>
+
+          <div className="mode-tabs">
+            <button
+              className={`mode-tab${mode === "agent" ? " active" : ""}`}
+              onClick={() => setMode("agent")}
+            >
+              Agent
+            </button>
+            <button
+              className={`mode-tab${mode === "manual" ? " active" : ""}`}
+              onClick={() => setMode("manual")}
+            >
+              Manual
+            </button>
+          </div>
+
+          {mode === "agent" ? (
+            <AgentPromptBlock
+              title="Paste this into your agent"
+              code={STREAMS_EMPTY_PROMPT}
+            />
+          ) : (
+            <ManualSteps streams views={false} />
+          )}
+        </>
       ) : (
         groups.map((group) => (
           <div key={group.label}>
