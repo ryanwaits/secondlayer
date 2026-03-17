@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/web",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -11,7 +11,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.58",
     "@secondlayer/stacks": "workspace:*",
-"@tanstack/react-query": "5.90.21",
+    "@tanstack/react-query": "5.90.21",
     "ai": "6.0.116",
     "next": "16.1.6",
     "react": "19.2.4",
