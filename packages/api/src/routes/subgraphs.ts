@@ -3,33 +3,33 @@ import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import { getErrorMessage } from "@secondlayer/shared";
-import { listViews, pgSchemaName } from "@secondlayer/shared/db/queries/views";
-import { DeployViewRequestSchema } from "@secondlayer/shared/schemas/views";
-import type { View } from "@secondlayer/shared/db";
-import type { ViewSchema, ViewColumn } from "@secondlayer/views/types";
-import { ViewRegistryCache } from "../views/cache.ts";
+import { listSubgraphs, pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
+import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
+import type { Subgraph } from "@secondlayer/shared/db";
+import type { SubgraphSchema, SubgraphColumn } from "@secondlayer/subgraphs/types";
+import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import { getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
 import { enforceLimits } from "../middleware/enforce-limits.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
-// Enforce view creation limit
-app.post("/", enforceLimits("views"));
+// Enforce subgraph creation limit
+app.post("/", enforceLimits("subgraphs"));
 
-// View registry cache — auto-refreshes via PG NOTIFY
-const cache = new ViewRegistryCache(async () => {
+// Subgraph registry cache — auto-refreshes via PG NOTIFY
+const cache = new SubgraphRegistryCache(async () => {
   const db = getDb();
-  return listViews(db);
+  return listSubgraphs(db);
 });
 
 /** Start the cache listener. Call once on API startup. */
-export async function startViewCache(): Promise<void> {
+export async function startSubgraphCache(): Promise<void> {
   await cache.start();
 }
 
 /** Stop the cache listener. Call on API shutdown. */
-export async function stopViewCache(): Promise<void> {
+export async function stopSubgraphCache(): Promise<void> {
   await cache.stop();
 }
 
@@ -55,19 +55,19 @@ function ident(name: string): string {
   return `"${name}"`;
 }
 
-/** Get the PG schema name for a view, preferring stored schema_name */
-function viewSchemaName(view: View): string {
-  return view.schema_name ?? pgSchemaName(view.name);
+/** Get the PG schema name for a subgraph, preferring stored schema_name */
+function subgraphSchemaName(subgraph: Subgraph): string {
+  return subgraph.schema_name ?? pgSchemaName(subgraph.name);
 }
 
-function getValidColumns(table: { columns: Record<string, ViewColumn> }): Set<string> {
+function getValidColumns(table: { columns: Record<string, SubgraphColumn> }): Set<string> {
   const cols = new Set(Object.keys(table.columns));
   for (const sc of SYSTEM_COLUMNS) cols.add(sc);
   return cols;
 }
 
-function getViewSchema(view: View): ViewSchema {
-  return (view.definition as any)?.schema ?? {};
+function getSubgraphSchema(subgraph: Subgraph): SubgraphSchema {
+  return (subgraph.definition as any)?.schema ?? {};
 }
 
 class InvalidColumnError extends Error {
@@ -89,7 +89,7 @@ interface ParsedQuery {
 function parseQueryParams(
   params: Record<string, string>,
   validColumns: Set<string>,
-  tableDef?: { columns: Record<string, ViewColumn> },
+  tableDef?: { columns: Record<string, SubgraphColumn> },
 ): ParsedQuery {
   const filters: ParsedQuery["filters"] = [];
   let sort: string | undefined;
@@ -161,45 +161,45 @@ async function query(text: string, params: unknown[] = []) {
   return client.unsafe(text, params as any[]);
 }
 
-class ViewNotFoundError extends Error {
-  code = "VIEW_NOT_FOUND";
-  constructor(viewName: string) {
-    super(`View not found: ${viewName}`);
-    this.name = "ViewNotFoundError";
+class SubgraphNotFoundError extends Error {
+  code = "SUBGRAPH_NOT_FOUND";
+  constructor(subgraphName: string) {
+    super(`Subgraph not found: ${subgraphName}`);
+    this.name = "SubgraphNotFoundError";
   }
 }
 
-/** Look up a view from cache with account-level ownership check */
-function getOwnedView(viewName: string, keyIds: string[] | undefined): View {
-  const view = cache.get(viewName, keyIds);
-  if (!view) {
-    throw new ViewNotFoundError(viewName);
+/** Look up a subgraph from cache with account-level ownership check */
+function getOwnedSubgraph(subgraphName: string, keyIds: string[] | undefined): Subgraph {
+  const subgraph = cache.get(subgraphName, keyIds);
+  if (!subgraph) {
+    throw new SubgraphNotFoundError(subgraphName);
   }
-  return view;
+  return subgraph;
 }
 
-// ── Deploy a view ───────────────────────────────────────────────────────
+// ── Deploy a subgraph ───────────────────────────────────────────────────
 
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
 app.post("/", async (c) => {
   const body = await c.req.json().catch(() => { throw new InvalidJSONError(); });
 
-  const parsed = DeployViewRequestSchema.safeParse(body);
+  const parsed = DeploySubgraphRequestSchema.safeParse(body);
   if (!parsed.success) {
     return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
   }
 
   const { name, handlerCode, reindex } = parsed.data;
-  const viewsDir = join(DATA_DIR, "views");
-  if (!existsSync(viewsDir)) {
-    mkdirSync(viewsDir, { recursive: true });
+  const subgraphsDir = join(DATA_DIR, "subgraphs");
+  if (!existsSync(subgraphsDir)) {
+    mkdirSync(subgraphsDir, { recursive: true });
   }
 
-  const handlerPath = join(viewsDir, `${name}.js`);
+  const handlerPath = join(subgraphsDir, `${name}.js`);
   await Bun.write(handlerPath, handlerCode);
 
-  // Import the handler to get a full ViewDefinition with handler functions
+  // Import the handler to get a full SubgraphDefinition with handler functions
   let def: any;
   try {
     const mod = await import(`${handlerPath}?t=${Date.now()}`);
@@ -211,11 +211,11 @@ app.post("/", async (c) => {
   }
 
   try {
-    const { validateViewDefinition } = await import("@secondlayer/views/validate");
-    validateViewDefinition(def);
+    const { validateSubgraphDefinition } = await import("@secondlayer/subgraphs/validate");
+    validateSubgraphDefinition(def);
   } catch (err) {
     return c.json({
-      error: `Invalid view definition: ${getErrorMessage(err)}`,
+      error: `Invalid subgraph definition: ${getErrorMessage(err)}`,
     }, 400);
   }
 
@@ -226,7 +226,7 @@ app.post("/", async (c) => {
   // Compute tenant-prefixed schema name
   const schemaName = keyPrefix ? pgSchemaName(name, keyPrefix) : pgSchemaName(name);
 
-  const { deploySchema } = await import("@secondlayer/views");
+  const { deploySchema } = await import("@secondlayer/subgraphs");
   const db = getDb();
   const result = await deploySchema(db, def, handlerPath, {
     forceReindex: reindex,
@@ -239,20 +239,20 @@ app.post("/", async (c) => {
   const status = result.action === "created" ? 201 : 200;
   return c.json({
     action: result.action,
-    viewId: result.viewId,
-    message: `View "${name}" ${result.action}`,
+    subgraphId: result.subgraphId,
+    message: `Subgraph "${name}" ${result.action}`,
   }, status);
 });
 
-// ── Reindex a view ──────────────────────────────────────────────────────
+// ── Reindex a subgraph ──────────────────────────────────────────────────
 
 const MAX_CONCURRENT_REINDEXES = 2;
 let activeReindexes = 0;
 
-app.post("/:viewName/reindex", async (c) => {
-  const { viewName } = c.req.param();
+app.post("/:subgraphName/reindex", async (c) => {
+  const { subgraphName } = c.req.param();
   const keyIds = await resolveKeyIds(c);
-  const view = getOwnedView(viewName, keyIds);
+  const subgraph = getOwnedSubgraph(subgraphName, keyIds);
 
   if (activeReindexes >= MAX_CONCURRENT_REINDEXES) {
     return c.json({
@@ -271,83 +271,83 @@ app.post("/:viewName/reindex", async (c) => {
   // Fire and forget — load handler + reindex runs in background
   (async () => {
     try {
-      const { reindexView } = await import("@secondlayer/views");
-      const mod = await import(view.handler_path);
+      const { reindexSubgraph } = await import("@secondlayer/subgraphs");
+      const mod = await import(subgraph.handler_path);
       const def = mod.default ?? mod;
-      await reindexView(def, { fromBlock, toBlock, schemaName: viewSchemaName(view) });
+      await reindexSubgraph(def, { fromBlock, toBlock, schemaName: subgraphSchemaName(subgraph) });
     } catch (err) {
       const msg = getErrorMessage(err);
-      console.error(`Reindex failed for ${viewName}: ${msg}`);
+      console.error(`Reindex failed for ${subgraphName}: ${msg}`);
     } finally {
       activeReindexes--;
     }
   })();
 
   return c.json({
-    message: `Reindex started for view "${viewName}"`,
+    message: `Reindex started for subgraph "${subgraphName}"`,
     fromBlock: fromBlock ?? 1,
     toBlock: toBlock ?? "chain tip",
   });
 });
 
-// ── Delete a view ────────────────────────────────────────────────────────
+// ── Delete a subgraph ────────────────────────────────────────────────────
 
-app.delete("/:viewName", async (c) => {
-  const { viewName } = c.req.param();
+app.delete("/:subgraphName", async (c) => {
+  const { subgraphName } = c.req.param();
   const apiKeyId = getApiKeyId(c);
   const keyIds = await resolveKeyIds(c);
-  const view = getOwnedView(viewName, keyIds);
+  const subgraph = getOwnedSubgraph(subgraphName, keyIds);
 
   const db = getDb();
-  const sn = viewSchemaName(view);
+  const sn = subgraphSchemaName(subgraph);
 
-  // Drop the view's schema (all tables) and remove registry entry
+  // Drop the subgraph's schema (all tables) and remove registry entry
   const client = getRawClient();
   await client.unsafe(`DROP SCHEMA IF EXISTS ${ident(sn)} CASCADE`);
-  const { deleteView } = await import("@secondlayer/shared/db/queries/views");
-  await deleteView(db, viewName, apiKeyId);
+  const { deleteSubgraph } = await import("@secondlayer/shared/db/queries/subgraphs");
+  await deleteSubgraph(db, subgraphName, apiKeyId);
 
   // Clean up handler file if it exists
-  if (view.handler_path) {
-    try { unlinkSync(view.handler_path); } catch {}
+  if (subgraph.handler_path) {
+    try { unlinkSync(subgraph.handler_path); } catch {}
   }
 
   // Refresh cache
   await cache.refresh();
 
-  return c.json({ message: `View "${viewName}" deleted` });
+  return c.json({ message: `Subgraph "${subgraphName}" deleted` });
 });
 
-// ── List all views ──────────────────────────────────────────────────────
+// ── List all subgraphs ──────────────────────────────────────────────────
 
 app.get("/", async (c) => {
   const keyIds = await resolveKeyIds(c);
-  const allViews = cache.getAll(keyIds);
+  const allSubgraphs = cache.getAll(keyIds);
 
   return c.json({
-    data: allViews.map((v) => ({
+    data: allSubgraphs.map((v) => ({
       name: v.name,
       version: v.version,
       status: v.status,
       lastProcessedBlock: v.last_processed_block,
-      tables: Object.keys(getViewSchema(v)),
+      tables: Object.keys(getSubgraphSchema(v)),
       createdAt: v.created_at.toISOString(),
     })),
   });
 });
 
-// ── View metadata + docs ────────────────────────────────────────────────
+// ── Subgraph metadata + docs ────────────────────────────────────────────
 
-app.get("/:viewName", async (c) => {
-  const { viewName } = c.req.param();
+app.get("/:subgraphName", async (c) => {
+  const { subgraphName } = c.req.param();
   const keyIds = await resolveKeyIds(c);
-  const view = getOwnedView(viewName, keyIds);
+  const subgraph = getOwnedSubgraph(subgraphName, keyIds);
 
-  const viewSchema = getViewSchema(view);
+  const subgraphSchema = getSubgraphSchema(subgraph);
   const tables: Record<string, any> = {};
-  const sn = viewSchemaName(view);
+  const sn = subgraphSchemaName(subgraph);
 
-  for (const [tableName, tableDef] of Object.entries(viewSchema)) {
+  for (const [tableName, tableDef] of Object.entries(subgraphSchema)) {
     let rowCount = 0;
     try {
       const result = await query(
@@ -370,32 +370,32 @@ app.get("/:viewName", async (c) => {
     columns._created_at = { type: "timestamp" };
 
     tables[tableName] = {
-      endpoint: `/views/${viewName}/${tableName}`,
+      endpoint: `/subgraphs/${subgraphName}/${tableName}`,
       columns,
       rowCount,
-      example: `/views/${viewName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
+      example: `/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
     };
   }
 
-  const errorRate = view.total_processed > 0
-    ? view.total_errors / view.total_processed
+  const errorRate = subgraph.total_processed > 0
+    ? subgraph.total_errors / subgraph.total_processed
     : 0;
 
   return c.json({
-    name: view.name,
-    version: view.version,
-    status: view.status,
-    lastProcessedBlock: view.last_processed_block,
+    name: subgraph.name,
+    version: subgraph.version,
+    status: subgraph.status,
+    lastProcessedBlock: subgraph.last_processed_block,
     health: {
-      totalProcessed: view.total_processed,
-      totalErrors: view.total_errors,
+      totalProcessed: subgraph.total_processed,
+      totalErrors: subgraph.total_errors,
       errorRate: parseFloat(errorRate.toFixed(4)),
-      lastError: view.last_error ?? null,
-      lastErrorAt: view.last_error_at?.toISOString() ?? null,
+      lastError: subgraph.last_error ?? null,
+      lastErrorAt: subgraph.last_error_at?.toISOString() ?? null,
     },
     tables,
-    createdAt: view.created_at.toISOString(),
-    updatedAt: view.updated_at.toISOString(),
+    createdAt: subgraph.created_at.toISOString(),
+    updatedAt: subgraph.updated_at.toISOString(),
   });
 });
 
@@ -428,13 +428,13 @@ function buildWhereConditions(parsed: ParsedQuery, params: unknown[]): string[] 
 
 // ── Count rows ──────────────────────────────────────────────────────────
 
-app.get("/:viewName/:tableName/count", async (c) => {
-  const { viewName, tableName } = c.req.param();
+app.get("/:subgraphName/:tableName/count", async (c) => {
+  const { subgraphName, tableName } = c.req.param();
   const keyIds = await resolveKeyIds(c);
-  const view = getOwnedView(viewName, keyIds);
+  const subgraph = getOwnedSubgraph(subgraphName, keyIds);
 
-  const viewSchema = getViewSchema(view);
-  const tableDef = viewSchema[tableName];
+  const subgraphSchema = getSubgraphSchema(subgraph);
+  const tableDef = subgraphSchema[tableName];
   if (!tableDef) {
     return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
   }
@@ -443,7 +443,7 @@ app.get("/:viewName/:tableName/count", async (c) => {
 
   try {
     const parsed = parseQueryParams(c.req.query(), validColumns, tableDef);
-    const sn = viewSchemaName(view);
+    const sn = subgraphSchemaName(subgraph);
     const params: unknown[] = [];
     let text = `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`;
 
@@ -464,19 +464,19 @@ app.get("/:viewName/:tableName/count", async (c) => {
 
 // ── Get row by ID ───────────────────────────────────────────────────────
 
-app.get("/:viewName/:tableName/:id", async (c) => {
-  const { viewName, tableName, id } = c.req.param();
+app.get("/:subgraphName/:tableName/:id", async (c) => {
+  const { subgraphName, tableName, id } = c.req.param();
   if (id === "count") return;
 
   const keyIds = await resolveKeyIds(c);
-  const view = getOwnedView(viewName, keyIds);
+  const subgraph = getOwnedSubgraph(subgraphName, keyIds);
 
-  const viewSchema = getViewSchema(view);
-  if (!viewSchema[tableName]) {
+  const subgraphSchema = getSubgraphSchema(subgraph);
+  if (!subgraphSchema[tableName]) {
     return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
   }
 
-  const sn = viewSchemaName(view);
+  const sn = subgraphSchemaName(subgraph);
   const result = await query(
     `SELECT * FROM ${ident(sn)}.${ident(tableName)} WHERE "_id" = $1`,
     [parseInt(id, 10)],
@@ -491,13 +491,13 @@ app.get("/:viewName/:tableName/:id", async (c) => {
 
 // ── List rows with filters ──────────────────────────────────────────────
 
-app.get("/:viewName/:tableName", async (c) => {
-  const { viewName, tableName } = c.req.param();
+app.get("/:subgraphName/:tableName", async (c) => {
+  const { subgraphName, tableName } = c.req.param();
   const keyIds = await resolveKeyIds(c);
-  const view = getOwnedView(viewName, keyIds);
+  const subgraph = getOwnedSubgraph(subgraphName, keyIds);
 
-  const viewSchema = getViewSchema(view);
-  const tableDef = viewSchema[tableName];
+  const subgraphSchema = getSubgraphSchema(subgraph);
+  const tableDef = subgraphSchema[tableName];
   if (!tableDef) {
     return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
   }
@@ -506,7 +506,7 @@ app.get("/:viewName/:tableName", async (c) => {
 
   try {
     const parsed = parseQueryParams(c.req.query(), validColumns, tableDef);
-    const sn = viewSchemaName(view);
+    const sn = subgraphSchemaName(subgraph);
     const params: unknown[] = [];
 
     const selectFields = parsed.fields

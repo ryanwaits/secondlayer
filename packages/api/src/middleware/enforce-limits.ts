@@ -5,10 +5,10 @@ import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
 
 /**
  * Enforce free tier limits on mutation endpoints.
- * Optionally specify which resource to check (streams/views).
+ * Optionally specify which resource to check (streams/subgraphs).
  * DEV_MODE bypasses enforcement.
  */
-export function enforceLimits(resource?: "streams" | "views"): MiddlewareHandler {
+export function enforceLimits(resource?: "streams" | "subgraphs"): MiddlewareHandler {
   return async (c, next) => {
     if (process.env.DEV_MODE === "true") {
       await next();
@@ -61,7 +61,7 @@ export function enforceLimits(resource?: "streams" | "views"): MiddlewareHandler
 
 const limitKeyMap: Record<string, string> = {
   streams: "streams",
-  views: "views",
+  subgraphs: "subgraphs",
   api_requests: "apiRequestsPerDay",
   deliveries: "deliveriesPerMonth",
   storage: "storageBytes",
@@ -69,7 +69,7 @@ const limitKeyMap: Record<string, string> = {
 
 const currentKeyMap: Record<string, string> = {
   streams: "streams",
-  views: "views",
+  subgraphs: "subgraphs",
   api_requests: "apiRequestsToday",
   deliveries: "deliveriesThisMonth",
   storage: "storageBytes",

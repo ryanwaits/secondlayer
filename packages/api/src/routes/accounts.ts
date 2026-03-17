@@ -41,7 +41,7 @@ app.get("/usage", async (c) => {
     limits: result.limits,
     current: {
       streams: result.current.streams,
-      views: result.current.views,
+      subgraphs: result.current.subgraphs,
       apiRequestsToday: result.current.apiRequestsToday,
       deliveriesThisMonth: result.current.deliveriesThisMonth,
       storageBytes: result.current.storageBytes,

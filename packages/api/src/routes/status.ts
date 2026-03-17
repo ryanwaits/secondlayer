@@ -125,8 +125,8 @@ app.get("/status", async (c) => {
     // Deliveries count unavailable
   }
 
-  // Get view health summary
-  let viewHealth: Array<{
+  // Get subgraph health summary
+  let subgraphHealth: Array<{
     name: string;
     status: string;
     lastProcessedBlock: number;
@@ -136,8 +136,8 @@ app.get("/status", async (c) => {
     lastError: string | null;
   }> = [];
   try {
-    const allViews = await db.selectFrom("views").selectAll().execute();
-    viewHealth = allViews.map((v) => ({
+    const allSubgraphs = await db.selectFrom("subgraphs").selectAll().execute();
+    subgraphHealth = allSubgraphs.map((v) => ({
       name: v.name,
       status: v.status,
       lastProcessedBlock: v.last_processed_block,
@@ -149,7 +149,7 @@ app.get("/status", async (c) => {
       lastError: v.last_error ?? null,
     }));
   } catch {
-    // Views unavailable
+    // Subgraphs unavailable
   }
 
   return c.json({
@@ -167,9 +167,9 @@ app.get("/status", async (c) => {
     streams: streamCounts,
     activeStreams: streamCounts.active,
     chainTip,
-    activeViews: viewHealth.filter((v) => v.status === "active").length,
+    activeSubgraphs: subgraphHealth.filter((v) => v.status === "active").length,
     recentDeliveries,
-    views: viewHealth,
+    subgraphs: subgraphHealth,
     timestamp: new Date().toISOString(),
   });
 });
