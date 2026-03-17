@@ -202,7 +202,8 @@ export function DashboardContent({
                   <span
                     className={`dash-activity-dot ${
                       stream.status === "failed" ? "red" :
-                      stream.status === "paused" ? "yellow" : "green"
+                      stream.status === "paused" ? "yellow" :
+                      stream.status === "inactive" ? "muted" : "green"
                     }`}
                   />
                   <span className="dash-activity-name">{stream.name}</span>
