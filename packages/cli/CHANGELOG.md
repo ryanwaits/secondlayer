@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 1.6.3
+
+### Patch Changes
+
+- Serialize subgraph source objects to strings before sending to deploy API, fixing "Expected string, received object" error.
+
 ## 1.6.2
 
 ### Patch Changes
