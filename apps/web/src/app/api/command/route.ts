@@ -73,7 +73,7 @@ ${keyList}
 - DELETE /api/keys/{id} — revoke an API key
 
 ## Markdown formatting rules (for answer)
-- Use \`code ticks\` for product concepts: \`streams\`, \`subgraphs\`, \`API keys\`, \`webhooks\`, \`filters\`, \`deliveries\`.
+- Use \`code ticks\` for product concepts: \`streams\`, \`subgraphs\`, \`API keys\`, \`endpoints\`, \`filters\`, \`deliveries\`.
 - Never write two consecutive prose sentences. Break up text with bullet points, numbered lists, tables, or headers.
 - Use ## headers to separate topics. Use **bold** for emphasis.
 - Prefer structured formats: bullets for features, numbered lists for steps, tables for comparisons.

@@ -182,17 +182,17 @@ export function StreamDetailClient({
         </div>
       )}
 
-      {/* Webhook */}
-      <div id="webhook" className="dash-section-wrap">
+      {/* Endpoint */}
+      <div id="endpoint" className="dash-section-wrap">
         <hr />
-        <h2 className="dash-section-title">Webhook</h2>
+        <h2 className="dash-section-title">Endpoint</h2>
       </div>
       <div className="dash-index-group">
         <div className="dash-index-item">
           <div className="dash-index-link">
             <span className="dash-index-label">URL</span>
             <span className="dash-index-meta">
-              <code>{stream.webhookUrl}</code>
+              <code>{stream.endpointUrl}</code>
             </span>
           </div>
         </div>
@@ -204,16 +204,16 @@ export function StreamDetailClient({
                 <code
                   style={{ cursor: "pointer" }}
                   onClick={() => {
-                    if (stream.webhookSecret) {
-                      navigator.clipboard.writeText(stream.webhookSecret);
+                    if (stream.signingSecret) {
+                      navigator.clipboard.writeText(stream.signingSecret);
                       setSecretCopied(true);
                       setTimeout(() => setSecretCopied(false), 1500);
                     }
                   }}
                 >
                   {secretRevealed
-                    ? stream.webhookSecret ?? "—"
-                    : `${(stream.webhookSecret ?? "whsec_").slice(0, 6)}••••••••••••`}
+                    ? stream.signingSecret ?? "—"
+                    : `${(stream.signingSecret ?? "slsec_").slice(0, 6)}••••••••••••`}
                 </code>
                 {secretCopied && (
                   <span className="dash-copy-tooltip">Copied</span>
@@ -304,8 +304,8 @@ function StreamIntelligence({
         <Insight variant="danger" id={`failure-${stream.id}`}>
           Last <strong>{failure.count}</strong> deliveries all returned{" "}
           <code>{failure.statusCode}</code> over the past{" "}
-          <strong>{failure.sinceDuration}</strong>. Your webhook endpoint may be
-          down or rejecting requests.
+          <strong>{failure.sinceDuration}</strong>. Your endpoint may be
+          down or rejecting deliveries.
         </Insight>
       )}
     </div>

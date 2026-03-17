@@ -19,8 +19,8 @@ export interface Stream {
   name: string;
   status: "inactive" | "active" | "paused" | "failed";
   enabled: boolean;
-  webhookUrl: string;
-  webhookSecret?: string;
+  endpointUrl: string;
+  signingSecret?: string;
   filters: unknown[];
   options: StreamOptions;
   totalDeliveries: number;

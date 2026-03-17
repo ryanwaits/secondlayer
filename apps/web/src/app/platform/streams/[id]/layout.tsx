@@ -37,7 +37,7 @@ export default async function StreamDetailLayout({
         { label: "Overview", href: basePath },
         { label: "Filters", href: `${basePath}/filters` },
         { label: "Deliveries", href: `${basePath}/deliveries` },
-        { label: "Webhook", href: `${basePath}/webhook` },
+        { label: "Endpoint", href: `${basePath}/endpoint` },
         { label: "Replay", href: `${basePath}/replay` },
       ]} />
       {children}

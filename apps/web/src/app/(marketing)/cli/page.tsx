@@ -113,7 +113,7 @@ sl streams logs <id> --follow
 # Replay a block range (max 10,000 blocks)
 sl streams replay <id> --start 150000 --end 160000
 
-# Rotate webhook secret
+# Rotate signing secret
 sl streams rotate-secret <id>
 
 # Delete (with confirmation)
@@ -189,7 +189,7 @@ sl generate --output src/generated/contracts.ts`} lang="bash" />
         <div className="prose">
           <p>
             Run the full Second Layer stack locally for development. Manages
-            the API, indexer, worker, webhook receiver, and optionally a
+            the API, indexer, worker, delivery receiver, and optionally a
             Stacks node — all via Docker.
           </p>
         </div>
@@ -310,7 +310,7 @@ sl local stop`} lang="bash" />
           </div>
           <div className="prop-row">
             <span className="prop-name">sl streams rotate-secret &lt;id&gt;</span>
-            <span className="prop-type">New webhook secret</span>
+            <span className="prop-type">New signing secret</span>
           </div>
           <div className="prop-row">
             <span className="prop-name">sl streams delete &lt;id&gt;</span>
@@ -432,8 +432,8 @@ sl local stop`} lang="bash" />
             <span className="prop-type">Full stack (node + services)</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">sl webhook init &lt;dir&gt;</span>
-            <span className="prop-type">Scaffold webhook handler</span>
+            <span className="prop-name">sl receiver init &lt;dir&gt;</span>
+            <span className="prop-type">Scaffold receiver handler</span>
           </div>
         </div>
       </main>

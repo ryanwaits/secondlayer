@@ -94,7 +94,7 @@ POST /api/streams with body:
 \`\`\`
 {
   name: string (1-255 chars, required),
-  webhookUrl: string (valid URL, required),
+  endpointUrl: string (valid URL, required),
   filters: StreamFilter[] (at least 1 required),
   options?: {
     decodeClarityValues: boolean (default: true),
@@ -113,7 +113,7 @@ POST /api/streams with body:
 \`\`\`json
 {
   "name": "DEX Trades",
-  "webhookUrl": "https://example.com/webhook",
+  "endpointUrl": "https://example.com/streams",
   "filters": [
     { "type": "contract_call", "contractId": "SP2C2...DEX.swap" }
   ]
@@ -124,7 +124,7 @@ POST /api/streams with body:
 \`\`\`json
 {
   "name": "Whale Alerts",
-  "webhookUrl": "https://example.com/whales",
+  "endpointUrl": "https://example.com/whales",
   "filters": [
     { "type": "stx_transfer", "minAmount": 1000000000 }
   ]
@@ -172,11 +172,11 @@ export function getStreamManagementDocs(): string {
 - **Resume**: POST /api/streams/{id}/resume — restart paused stream
 - **Disable**: POST /api/streams/{id}/disable — fully disable a stream
 - **Enable**: POST /api/streams/{id}/enable — re-enable a disabled stream
-- **Replay failed**: POST /api/streams/{id}/replay-failed — retry failed webhook deliveries
+- **Replay failed**: POST /api/streams/{id}/replay-failed — retry failed deliveries
 - **Delete**: DELETE /api/streams/{id} — permanently remove a stream
 
 ### Stream statuses
-- **active**: running and delivering webhooks
+- **active**: running and delivering events
 - **paused**: temporarily stopped, can be resumed
 - **inactive**: disabled, must be enabled to start
 - **failed**: errored out, check errorMessage field`;

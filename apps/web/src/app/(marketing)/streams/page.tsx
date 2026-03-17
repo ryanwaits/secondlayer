@@ -9,7 +9,7 @@ import type { TocItem } from "@/components/sidebar";
 const toc: TocItem[] = [
   { label: "Getting started", href: "#getting-started" },
   { label: "Filters", href: "#filters" },
-  { label: "Webhook payload", href: "#webhook-payload" },
+  { label: "Delivery payload", href: "#delivery-payload" },
   { label: "Management", href: "#management" },
   { label: "Replay", href: "#replay" },
   { label: "CLI", href: "#cli" },
@@ -28,10 +28,10 @@ export default function StreamsPage() {
 
         <div className="prose">
           <p>
-            Streams deliver real-time blockchain events to your webhook. Define
-            filters for the on-chain activity you care about — transfers,
-            contract calls, deployments, token events — and Second Layer pushes
-            matching events to your endpoint as each block is processed.
+            Streams deliver onchain events to your app in real-time. Define
+            filters for the activity you care about — transfers, contract calls,
+            deployments, token events — and secondlayer pushes matching events
+            to your endpoint as each block is processed.
           </p>
           <p>
             Delivery is at-least-once. Handlers should be idempotent.
@@ -49,7 +49,7 @@ export default function StreamsPage() {
 
         <div className="prose">
           <p>
-            Create a stream via the SDK. You&apos;ll get back a webhook secret
+            Create a stream via the SDK. You&apos;ll get back a signing secret
             for verifying deliveries.
           </p>
         </div>
@@ -58,9 +58,9 @@ export default function StreamsPage() {
 
 const client = new SecondLayer({ apiKey: "sk-sl_..." })
 
-const { stream, webhookSecret } = await client.streams.create({
+const { stream, signingSecret } = await client.streams.create({
   name: "my-stream",
-  webhookUrl: "https://example.com/webhook",
+  endpointUrl: "https://example.com/streams",
   filters: [
     { type: "stx_transfer" },
   ],
@@ -157,11 +157,11 @@ const { stream, webhookSecret } = await client.streams.create({
           </div>
         </div>
 
-        <SectionHeading id="webhook-payload">Webhook payload</SectionHeading>
+        <SectionHeading id="delivery-payload">Delivery payload</SectionHeading>
 
         <div className="prose">
           <p>
-            Each delivery posts a JSON payload to your webhook URL with the
+            Each delivery posts a JSON payload to your endpoint URL with the
             matching block, transactions, and events.
           </p>
         </div>
@@ -213,7 +213,7 @@ const stream = await client.streams.get("a1b2c3")
 
 // Update
 await client.streams.update("a1b2c3", {
-  webhookUrl: "https://new-endpoint.com/webhook",
+  endpointUrl: "https://new-endpoint.com/streams",
   filters: [{ type: "stx_transfer", minAmount: 5_000_000 }],
 })
 
@@ -225,7 +225,7 @@ await client.streams.disable("a1b2c3")
 await client.streams.pauseAll()
 await client.streams.resumeAll()
 
-// Rotate webhook secret
+// Rotate signing secret
 const { secret } = await client.streams.rotateSecret("a1b2c3")
 
 // Delete
@@ -235,7 +235,7 @@ await client.streams.delete("a1b2c3")`} />
 
         <div className="prose">
           <p>
-            Replay historical blocks through a stream. The webhook payload
+            Replay historical blocks through a stream. The delivery payload
             includes <code>isBackfill: true</code> for replayed deliveries.
             Maximum 10,000 blocks per replay request.
           </p>
@@ -276,7 +276,7 @@ sl streams logs a1b2c3
 # Replay a block range
 sl streams replay a1b2c3 --start 150000 --end 151000
 
-# Rotate webhook secret
+# Rotate signing secret
 sl streams rotate-secret a1b2c3`} />
 
         <SectionHeading id="props">Props</SectionHeading>
@@ -290,7 +290,7 @@ sl streams rotate-secret a1b2c3`} />
             <span className="prop-required">required</span>
           </div>
           <div className="prop-row">
-            <span className="prop-name">webhookUrl</span>
+            <span className="prop-name">endpointUrl</span>
             <span className="prop-type">string</span>
             <span className="prop-required">required</span>
           </div>
