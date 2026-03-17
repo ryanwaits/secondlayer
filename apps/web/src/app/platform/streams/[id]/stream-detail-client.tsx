@@ -151,7 +151,6 @@ export function StreamDetailClient({
                 {stream.status}
               </span>
             </div>
-            <p className="dash-page-desc">Created {formatDate(stream.createdAt)}</p>
           </div>
           <div className="dash-actions">
             {stream.status === "active" && (
@@ -272,6 +271,44 @@ export function StreamDetailClient({
         {highlightJson(stream.filters)}
       </pre>
 
+      {/* Recent deliveries */}
+      <div id="deliveries" className="dash-section-wrap">
+        <hr />
+        <h2 className="dash-section-title">Recent deliveries</h2>
+      </div>
+      {deliveries.length === 0 ? (
+        <div className="dash-empty">No deliveries yet</div>
+      ) : (
+        <div className="dash-activity-list">
+          {deliveries.map((d) => (
+            <div key={d.id} className="dash-activity-item">
+              <span
+                className={`dash-activity-dot ${d.statusCode >= 200 && d.statusCode < 300 ? "green" : "red"}`}
+              />
+              <span className="dash-activity-name">
+                Block #{d.blockHeight.toLocaleString()}
+              </span>
+              <span className="dash-activity-time">
+                {relativeTime(d.createdAt)}
+              </span>
+            </div>
+          ))}
+          {stream.totalDeliveries > 5 && (
+            <Link
+              href={`/streams/${stream.id}/deliveries`}
+              style={{
+                fontSize: 12,
+                color: "var(--text-muted)",
+                padding: "10px 0",
+                display: "block",
+              }}
+            >
+              View all {formatNum(stream.totalDeliveries)} deliveries →
+            </Link>
+          )}
+        </div>
+      )}
+
       {/* Webhook */}
       <div id="webhook" className="dash-section-wrap">
         <hr />
@@ -327,44 +364,6 @@ export function StreamDetailClient({
           </div>
         </div>
       </div>
-
-      {/* Recent deliveries */}
-      <div id="deliveries" className="dash-section-wrap">
-        <hr />
-        <h2 className="dash-section-title">Recent deliveries</h2>
-      </div>
-      {deliveries.length === 0 ? (
-        <div className="dash-empty">No deliveries yet</div>
-      ) : (
-        <div className="dash-activity-list">
-          {deliveries.map((d) => (
-            <div key={d.id} className="dash-activity-item">
-              <span
-                className={`dash-activity-dot ${d.statusCode >= 200 && d.statusCode < 300 ? "green" : "red"}`}
-              />
-              <span className="dash-activity-name">
-                Block #{d.blockHeight.toLocaleString()}
-              </span>
-              <span className="dash-activity-time">
-                {relativeTime(d.createdAt)}
-              </span>
-            </div>
-          ))}
-          {stream.totalDeliveries > 5 && (
-            <Link
-              href={`/streams/${stream.id}/deliveries`}
-              style={{
-                fontSize: 12,
-                color: "var(--text-muted)",
-                padding: "10px 0",
-                display: "block",
-              }}
-            >
-              View all {formatNum(stream.totalDeliveries)} deliveries →
-            </Link>
-          )}
-        </div>
-      )}
 
       {/* Danger zone */}
       <div className="dash-section-wrap">

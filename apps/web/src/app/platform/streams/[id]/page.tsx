@@ -26,7 +26,7 @@ export default async function StreamOverviewPage({
   let deliveries: Delivery[] = [];
   try {
     const data = await apiRequest<{ deliveries: Delivery[] }>(
-      `/api/streams/${id}/deliveries?limit=25&offset=0`,
+      `/api/streams/${id}/deliveries?limit=5&offset=0`,
       { sessionToken: session },
     );
     deliveries = data.deliveries;
