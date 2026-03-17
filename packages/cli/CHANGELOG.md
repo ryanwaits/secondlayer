@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 1.6.4
+
+### Patch Changes
+
+- CLI: bundle updated SDK with query response unwrap fix. Subgraphs: use NUMERIC for uint/int columns to handle Clarity values > bigint max.
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@0.5.1
+
 ## 1.6.3
 
 ### Patch Changes

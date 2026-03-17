@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/cli",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "CLI for streams, subgraphs, and real-time blockchain indexing on Stacks",
   "type": "module",
   "bin": {
@@ -44,7 +44,7 @@
     "@secondlayer/sdk": "^0.6.0",
     "@secondlayer/shared": "^0.5.0",
     "@secondlayer/stacks": "^0.2.0",
-    "@secondlayer/subgraphs": "^0.5.0",
+    "@secondlayer/subgraphs": "^0.5.1",
     "@biomejs/js-api": "^0.7.0",
     "@biomejs/wasm-nodejs": "^1.9.0",
     "esbuild": "^0.19.0",
