@@ -3,24 +3,21 @@ import { BetaBracket } from "@/components/beta-badge";
 import { SiteLink } from "@/components/site-link";
 
 const products = [
-  { name: "Streams", href: "/streams", desc: "Real-time event webhooks" },
-  { name: "Subgraphs", href: "/subgraphs", desc: "Custom indexers for blockchain data" },
+  { name: "Subgraphs", href: "/subgraphs" },
+  { name: "Streams", href: "/streams" },
 ];
 
 const packages = [
-  { name: "Stacks", href: "/stacks", version: "0.2.0", desc: "Viem-style SDK for Stacks" },
-  { name: "SDK", href: "/sdk", version: "0.5.0", desc: "Typed client for the secondlayer API" },
-  { name: "CLI", href: "/cli", version: "1.5.1", desc: "One command, every operation" },
+  { name: "Stacks", href: "/stacks", version: "0.2.0" },
+  { name: "SDK", href: "/sdk", version: "0.6.0" },
+  { name: "CLI", href: "/cli", version: "1.6.0" },
 ];
 
-function IndexItem({ item }: { item: { name: string; href: string; version?: string; desc: string } }) {
+function IndexItem({ item }: { item: { name: string; href: string; version?: string } }) {
   return (
     <li className="index-item">
       <SiteLink href={item.href} className="index-link">
-        <span className="index-link-label">
-          {item.name}
-          <span className="index-desc">{item.desc}</span>
-        </span>
+        <span className="index-link-label">{item.name}</span>
         <span className="index-date">{item.version}</span>
       </SiteLink>
     </li>
