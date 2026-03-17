@@ -4,7 +4,7 @@
  * Structure: product explainer -> idempotent setup -> /secondlayer skill invocation
  */
 
-const STREAMS_INTRO = `Streams are webhook subscriptions — define filters for on-chain events (transfers, contract calls, mints, etc.) and secondlayer pushes matching events to your endpoint as each block is processed. Delivery is at-least-once.`;
+const STREAMS_INTRO = `Streams deliver matching on-chain events (transfers, contract calls, mints, etc.) to your endpoint as each block is processed. Define filters, point at a URL, and secondlayer handles the rest. Delivery is at-least-once.`;
 
 const SUBGRAPHS_INTRO = `Subgraphs are declarative SQL tables that auto-index blockchain activity into queryable Postgres tables. Define a schema, write event handlers in TypeScript, deploy, and query — like a materialized view over the chain.`;
 
@@ -21,7 +21,7 @@ ${SETUP}
 
 /secondlayer Help me create a stream. Ask me:
 1. What blockchain events do I want to track?
-2. Where should deliveries be sent (webhook URL)?
+2. Where should deliveries be sent (endpoint URL)?
 3. Any filter constraints (contract, sender, amount)?
 
 Create the stream config and register it.`;
@@ -43,7 +43,7 @@ export const QUICK_STREAM_PROMPT = `${STREAMS_INTRO}
 
 ${SETUP}
 
-/secondlayer Create a stream that watches for STX transfer events over 100 STX and sends them to my webhook at https://example.com/webhook.`;
+/secondlayer Create a stream that watches for STX transfer events over 100 STX and sends them to my endpoint at https://example.com/events.`;
 
 export const QUICK_SUBGRAPH_PROMPT = `${SUBGRAPHS_INTRO}
 
@@ -74,7 +74,7 @@ ${SUBGRAPHS_INTRO}
 ${SETUP}
 
 /secondlayer Help me get started. Ask me:
-1. Do I want to create a stream (webhook delivery) or a subgraph (custom indexer)?
+1. Do I want to create a stream (real-time delivery) or a subgraph (custom indexer)?
 2. What blockchain events should it track?
 3. What's my endpoint URL or what tables do I need?
 
@@ -86,7 +86,7 @@ ${SETUP}
 
 /secondlayer Help me create a stream. Ask me:
 1. What blockchain events do I want to track?
-2. Where should deliveries be sent (webhook URL)?
+2. Where should deliveries be sent (endpoint URL)?
 3. Any filter constraints (contract, sender, amount)?
 
 Create the stream config and register it.`;

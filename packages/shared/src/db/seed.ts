@@ -181,12 +181,12 @@ console.log(`  events: ${eventRows.length}`);
 
 // ── 6. Streams ──────────────────────────────────────────────────────
 const streamDefs = [
-  { name: "stx-transfers", filters: { type: "stx_transfer" }, webhook: "https://hooks.slack.com/stx-alerts" },
-  { name: "nft-mints", filters: { type: "nft_mint" }, webhook: "https://api.nft-tracker.io/webhook" },
-  { name: "defi-swaps", filters: { contract_id: "SP2C2YFP12AJZB1MADC9PK03NGKJQ8MFGE4ESPDAZ.alex-vault", function_name: "swap" }, webhook: "https://defi-dash.xyz/ingest" },
-  { name: "sbtc-deposits", filters: { contract_id: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sbtc-deposit" }, webhook: "https://sbtc-monitor.secondlayer.xyz/hook" },
-  { name: "all-contract-calls", filters: { type: "contract_call" }, webhook: "https://analytics.stacksbuilder.io/events" },
-  { name: "stacking-events", filters: { type: "stx_lock" }, webhook: "https://stacking.capital/api/notify" },
+  { name: "stx-transfers", filters: { type: "stx_transfer" }, endpoint: "https://hooks.slack.com/stx-alerts" },
+  { name: "nft-mints", filters: { type: "nft_mint" }, endpoint: "https://api.nft-tracker.io/webhook" },
+  { name: "defi-swaps", filters: { contract_id: "SP2C2YFP12AJZB1MADC9PK03NGKJQ8MFGE4ESPDAZ.alex-vault", function_name: "swap" }, endpoint: "https://defi-dash.xyz/ingest" },
+  { name: "sbtc-deposits", filters: { contract_id: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sbtc-deposit" }, endpoint: "https://sbtc-monitor.secondlayer.xyz/hook" },
+  { name: "all-contract-calls", filters: { type: "contract_call" }, endpoint: "https://analytics.stacksbuilder.io/events" },
+  { name: "stacking-events", filters: { type: "stx_lock" }, endpoint: "https://stacking.capital/api/notify" },
 ];
 
 const streamRows = await db
@@ -195,7 +195,7 @@ const streamRows = await db
     name: s.name,
     status: i < 5 ? "active" : "paused",
     filters: jsonb(s.filters) as any,
-    endpoint_url: s.webhook,
+    endpoint_url: s.endpoint,
     signing_secret: `slsec_${randomHex(32)}`,
     api_key_id: apiKeyRows[i % apiKeyRows.length].id,
   })))
@@ -238,7 +238,7 @@ for (const stream of streamRows) {
       status,
       attempts: status === "completed" ? 1 : status === "failed" ? 3 : 0,
       completed_at: status === "completed" ? new Date(Date.now() - Math.random() * 3600000) : null,
-      error: status === "failed" ? "Webhook returned 503 Service Unavailable" : null,
+      error: status === "failed" ? "Endpoint returned 503 Service Unavailable" : null,
     });
   }
 }

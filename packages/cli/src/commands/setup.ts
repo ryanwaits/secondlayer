@@ -73,7 +73,7 @@ async function runNonInteractive(options: InitOptions): Promise<void> {
 
   // Local mode
   config.dataDir = options.dataDir || config.dataDir || "~/.secondlayer/data";
-  config.defaultWebhookUrl = options.endpointUrl || config.defaultWebhookUrl;
+  config.defaultEndpointUrl = options.endpointUrl || config.defaultEndpointUrl;
 
   if (options.nodePath) {
     config.node = {
@@ -142,7 +142,7 @@ async function runWizard(): Promise<void> {
 
   // Step 4: Endpoint URL
   const endpointUrl = await promptEndpointUrl(config);
-  config.defaultWebhookUrl = endpointUrl;
+  config.defaultEndpointUrl = endpointUrl;
 
   // Save config
   await saveConfig(config);
@@ -335,7 +335,7 @@ async function promptEndpointUrl(config: Config): Promise<string> {
 
   const customUrl = await input({
     message: "Enter endpoint URL:",
-    default: config.defaultWebhookUrl !== internalUrl ? config.defaultWebhookUrl : undefined,
+    default: config.defaultEndpointUrl !== internalUrl ? config.defaultEndpointUrl : undefined,
     validate: (value) => {
       if (!value.trim()) return "URL cannot be empty";
       try {
@@ -455,8 +455,8 @@ function printSummary(config: Config): void {
   console.log();
   console.log("  Settings:");
   console.log(`    Data directory: ${config.dataDir}`);
-  if (config.defaultWebhookUrl) {
-    console.log(`    Endpoint URL:   ${config.defaultWebhookUrl}`);
+  if (config.defaultEndpointUrl) {
+    console.log(`    Endpoint URL:   ${config.defaultEndpointUrl}`);
   }
   if (config.node) {
     console.log(`    Node path:      ${config.node.installPath}`);

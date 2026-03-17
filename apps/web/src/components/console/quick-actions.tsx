@@ -52,7 +52,7 @@ export function QuickActions({
       {streams && (
         <QuickActionCard
           label="Create a stream"
-          desc="Webhook event delivery"
+          desc="Real-time event delivery"
           prompt={QUICK_STREAM_PROMPT}
         />
       )}

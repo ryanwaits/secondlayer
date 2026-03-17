@@ -34,7 +34,7 @@ export function registerReceiverCommand(program: Command): void {
         // Generate files
         await generateServerFile(dir, port);
         await generateTypesFile(dir);
-        await generateStreamJson(dir, options.name, network, port, config.defaultWebhookUrl);
+        await generateStreamJson(dir, options.name, network, port, config.defaultEndpointUrl);
         await generateEnvFile(dir);
         await generatePackageJson(dir, options.name);
 

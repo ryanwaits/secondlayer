@@ -28,11 +28,11 @@ export function registerNewCommand(program: Command): void {
           await ensureDir(dir);
         }
 
-        const template = generateStreamTemplate(name, config.defaultWebhookUrl);
+        const template = generateStreamTemplate(name, config.defaultEndpointUrl);
         await writeTextFile(outputPath, JSON.stringify(template, null, 2) + "\n");
 
         success(`Created ${outputPath}`);
-        if (!config.defaultWebhookUrl) {
+        if (!config.defaultEndpointUrl) {
           warn("Edit the endpointUrl before registering — it must be a reachable HTTPS endpoint");
         }
         console.log("\nEdit the file to configure your stream, then run:");

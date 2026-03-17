@@ -70,7 +70,7 @@ export function OnboardingPanel() {
               <div className="wp-option-content">
                 <div className="wp-option-name">Streams</div>
                 <div className="wp-option-desc">
-                  Webhook delivery for on-chain events
+                  Real-time delivery for on-chain events
                 </div>
               </div>
               <span className="wp-option-tag">push</span>
