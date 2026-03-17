@@ -8,7 +8,7 @@ export function StreamTabs({ streamId }: { streamId: string }) {
       { label: "Overview", href: `/streams/${streamId}` },
       { label: "Filters", href: `/streams/${streamId}/filters` },
       { label: "Deliveries", href: `/streams/${streamId}/deliveries` },
-      { label: "Webhook", href: `/streams/${streamId}/webhook` },
+      { label: "Endpoint", href: `/streams/${streamId}/endpoint` },
       { label: "Replay", href: `/streams/${streamId}/replay` },
     ]} />
   );

@@ -58,15 +58,15 @@ client.subgraphs    // subgraph deploy, query, reindex`} />
 
         <div className="prose">
           <p>
-            Create and manage webhook-based event streams. Streams push
-            matching blockchain events to your endpoint in real time.
+            Create and manage event streams. Streams deliver matching
+            onchain events to your endpoint in real-time.
           </p>
         </div>
 
-        <CodeBlock lang="typescript" code={`// Create — returns stream + webhook secret for HMAC verification
-const { stream, webhookSecret } = await client.streams.create({
+        <CodeBlock lang="typescript" code={`// Create — returns stream + signing secret for HMAC verification
+const { stream, signingSecret } = await client.streams.create({
   name: "my-stream",
-  webhookUrl: "https://example.com/webhook",
+  endpointUrl: "https://example.com/streams",
   filters: [
     { type: "stx_transfer", minAmount: 1_000_000 },
   ],
@@ -78,7 +78,7 @@ const { streams, total } = await client.streams.list({ status: "active" })
 // Get by ID (supports partial IDs)
 const stream = await client.streams.get("a1b2c3")
 
-// Update filters or webhook URL
+// Update filters or endpoint URL
 await client.streams.update("a1b2c3", {
   filters: [{ type: "contract_call", contractId: "SP1234...::token" }],
 })
@@ -92,7 +92,7 @@ await client.streams.delete("a1b2c3")
 await client.streams.pauseAll()
 await client.streams.resumeAll()
 
-// Rotate webhook secret
+// Rotate signing secret
 const { secret } = await client.streams.rotateSecret("a1b2c3")
 
 // Inspect deliveries
@@ -225,7 +225,7 @@ try {
 
           <div className="prop-row">
             <span className="prop-name">create(data)</span>
-            <span className="prop-type">{"{"}stream, webhookSecret{"}"}</span>
+            <span className="prop-type">{"{"}stream, signingSecret{"}"}</span>
           </div>
           <div className="prop-row">
             <span className="prop-name">list(params?)</span>

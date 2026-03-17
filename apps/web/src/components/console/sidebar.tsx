@@ -7,7 +7,7 @@ const streamDetailItems = [
   { label: "Overview", suffix: "" },
   { label: "Filters", suffix: "/filters" },
   { label: "Deliveries", suffix: "/deliveries" },
-  { label: "Webhook", suffix: "/webhook" },
+  { label: "Endpoint", suffix: "/endpoint" },
   { label: "Replay", suffix: "/replay" },
 ];
 
