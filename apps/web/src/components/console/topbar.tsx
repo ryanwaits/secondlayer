@@ -104,9 +104,9 @@ export function ConsoleTopbar({
         </button>
       </div>
       <div className="dash-topbar-right">
-        <a href="/streams" className="dash-topbar-link" target="_blank">
+        <Link href="/site" className="dash-topbar-link">
           Docs
-        </a>
+        </Link>
         <div className="dash-topbar-sep-line" />
         <UserMenu />
       </div>
