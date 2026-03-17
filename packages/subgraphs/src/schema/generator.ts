@@ -3,8 +3,8 @@ import { pgSchemaName } from "./utils.ts";
 
 export const TYPE_MAP: Record<ColumnType, string> = {
   text: "TEXT",
-  uint: "BIGINT",
-  int: "INTEGER",
+  uint: "NUMERIC",
+  int: "NUMERIC",
   principal: "TEXT",
   boolean: "BOOLEAN",
   timestamp: "TIMESTAMPTZ",
