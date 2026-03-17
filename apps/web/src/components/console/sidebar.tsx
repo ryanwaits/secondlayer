@@ -2,20 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/lib/auth";
-
-const navItems = [
-  { label: "Dashboard", href: "/" },
-  { label: "Streams", href: "/streams" },
-  { label: "Views", href: "/views" },
-];
-
-const accountItems = [
-  { label: "API Keys", href: "/keys" },
-  { label: "Usage", href: "/usage" },
-  { label: "Billing", href: "/billing" },
-  { label: "Settings", href: "/settings" },
-];
 
 const streamDetailItems = [
   { label: "Overview", suffix: "" },
@@ -30,29 +16,15 @@ const STREAM_DETAIL_RE = /^\/streams\/[0-9a-f-]{36}/;
 
 export function ConsoleSidebar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
   const isStreamDetail = STREAM_DETAIL_RE.test(pathname);
   const streamId = isStreamDetail ? pathname.split("/")[2] : "";
   const streamBase = isStreamDetail ? `/streams/${streamId}` : "";
-
-  function isActive(href: string) {
-    if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(href + "/");
-  }
 
   function isStreamItemActive(suffix: string) {
     const href = `${streamBase}${suffix}`;
     if (suffix === "") return pathname === streamBase;
     return pathname.startsWith(href);
   }
-
-  const logoutButton = (
-    <div className="dash-sidebar-bottom">
-      <a className="dash-nav-logout" onClick={() => logout()}>
-        Log out
-      </a>
-    </div>
-  );
 
   if (isStreamDetail) {
     return (
@@ -72,7 +44,6 @@ export function ConsoleSidebar() {
             </li>
           ))}
         </ul>
-        {logoutButton}
       </nav>
     );
   }
@@ -80,31 +51,15 @@ export function ConsoleSidebar() {
   return (
     <nav className="dash-sidebar">
       <ul className="dash-nav-list">
-        {navItems.map((item) => (
-          <li key={item.href}>
-            <Link
-              href={item.href}
-              className={isActive(item.href) ? "active" : ""}
-            >
-              {item.label}
-            </Link>
-          </li>
-        ))}
+        <li>
+          <Link
+            href="/"
+            className={pathname === "/" || pathname === "/platform" ? "active" : ""}
+          >
+            Dashboard
+          </Link>
+        </li>
       </ul>
-      <div className="dash-nav-group-title">Account</div>
-      <ul className="dash-nav-list">
-        {accountItems.map((item) => (
-          <li key={item.href}>
-            <Link
-              href={item.href}
-              className={isActive(item.href) ? "active" : ""}
-            >
-              {item.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {logoutButton}
     </nav>
   );
 }
