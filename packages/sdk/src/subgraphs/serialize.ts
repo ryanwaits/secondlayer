@@ -21,7 +21,7 @@ function resolveColumn(col: string): string {
 
 /**
  * Serializes a WhereInput object into the flat filter map expected by
- * ViewQueryParams.filters (and the REST API query string).
+ * SubgraphQueryParams.filters (and the REST API query string).
  *
  * Scalar values → `{ column: "value" }`
  * Comparison objects → `{ "column.gte": "100", "column.lt": "200" }`

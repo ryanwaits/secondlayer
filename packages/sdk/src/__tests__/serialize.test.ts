@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { serializeWhere, resolveOrderByColumn } from "../views/serialize.ts";
+import { serializeWhere, resolveOrderByColumn } from "../subgraphs/serialize.ts";
 
 describe("serializeWhere", () => {
   test("scalar equality", () => {

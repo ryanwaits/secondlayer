@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeEach, afterEach, mock } from "bun:test";
-import { Views } from "../views/client.ts";
+import { Subgraphs } from "../subgraphs/client.ts";
 
 const BASE_URL = "http://localhost:3800";
 const API_KEY = "test-key-123";
@@ -18,11 +18,11 @@ function mockFetch(response: { ok: boolean; status: number; body?: unknown; head
   ) as unknown as typeof fetch;
 }
 
-describe("Views", () => {
-  let views: Views;
+describe("Subgraphs", () => {
+  let subgraphs: Subgraphs;
 
   beforeEach(() => {
-    views = new Views({ baseUrl: BASE_URL, apiKey: API_KEY });
+    subgraphs = new Subgraphs({ baseUrl: BASE_URL, apiKey: API_KEY });
   });
 
   afterEach(() => {
@@ -32,7 +32,7 @@ describe("Views", () => {
   test("queryTable builds correct URL", async () => {
     globalThis.fetch = mockFetch({ ok: true, status: 200, body: [{ id: 1 }] });
 
-    const result = await views.queryTable("my-view", "events", {
+    const result = await subgraphs.queryTable("my-subgraph", "events", {
       sort: "block_height",
       order: "desc",
       limit: 10,
@@ -41,7 +41,7 @@ describe("Views", () => {
 
     const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
     const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(calledUrl).toContain("/api/views/my-view/events");
+    expect(calledUrl).toContain("/api/subgraphs/my-subgraph/events");
     expect(calledUrl).toContain("_sort=block_height");
     expect(calledUrl).toContain("_order=desc");
     expect(calledUrl).toContain("_limit=10");
@@ -50,36 +50,36 @@ describe("Views", () => {
   test("queryTableCount builds correct URL", async () => {
     globalThis.fetch = mockFetch({ ok: true, status: 200, body: { count: 42 } });
 
-    const result = await views.queryTableCount("my-view", "events", {
+    const result = await subgraphs.queryTableCount("my-subgraph", "events", {
       filters: { sender: "SP123" },
     });
     expect(result).toEqual({ count: 42 });
 
     const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
     const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(calledUrl).toContain("/api/views/my-view/events/count");
+    expect(calledUrl).toContain("/api/subgraphs/my-subgraph/events/count");
     expect(calledUrl).toContain("sender=SP123");
   });
 
   test("queryTable with no params omits query string", async () => {
     globalThis.fetch = mockFetch({ ok: true, status: 200, body: [] });
 
-    await views.queryTable("my-view", "events");
+    await subgraphs.queryTable("my-subgraph", "events");
 
     const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
     const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(calledUrl).toBe(`${BASE_URL}/api/views/my-view/events`);
+    expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs/my-subgraph/events`);
   });
 
-  test("deploy sends POST to /api/views", async () => {
-    const deployData = { name: "test-view", query: "SELECT 1" };
-    globalThis.fetch = mockFetch({ ok: true, status: 200, body: { name: "test-view", status: "deploying" } });
+  test("deploy sends POST to /api/subgraphs", async () => {
+    const deployData = { name: "test-subgraph", query: "SELECT 1" };
+    globalThis.fetch = mockFetch({ ok: true, status: 200, body: { name: "test-subgraph", status: "deploying" } });
 
-    await views.deploy(deployData as any);
+    await subgraphs.deploy(deployData as any);
 
     const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
     const [calledUrl, calledOpts] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(calledUrl).toBe(`${BASE_URL}/api/views`);
+    expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs`);
     expect(calledOpts.method).toBe("POST");
   });
 });
