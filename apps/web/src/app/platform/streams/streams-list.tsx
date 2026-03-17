@@ -3,7 +3,9 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { Stream } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStreams, usePauseStream, useResumeStream } from "@/lib/queries/streams";
+import { queryKeys } from "@/lib/queries/keys";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { ManualSteps } from "@/components/console/manual-steps";
 import { ActionDropdown } from "@/components/console/action-dropdown";
@@ -16,6 +18,16 @@ function StreamRow({ stream }: { stream: Stream }) {
   const pause = usePauseStream();
   const resume = useResumeStream();
   const loading = pause.isPending || resume.isPending;
+  const qc = useQueryClient();
+
+  const prefetch = useCallback(() => {
+    qc.prefetchQuery({
+      queryKey: queryKeys.streams.detail(stream.id),
+      queryFn: () =>
+        fetch(`/api/streams/${stream.id}`, { credentials: "same-origin" }).then((r) => r.json()),
+      staleTime: 30_000,
+    });
+  }, [qc, stream.id]);
 
   const handlePause = useCallback(
     (e: React.MouseEvent) => {
@@ -38,7 +50,7 @@ function StreamRow({ stream }: { stream: Stream }) {
 
   return (
     <div className="dash-index-item stream-row">
-      <Link href={`/streams/${stream.id}`} className="dash-index-link">
+      <Link href={`/streams/${stream.id}`} className="dash-index-link" onMouseEnter={prefetch}>
         <span className="dash-index-label">{stream.name}</span>
         <span className="dash-index-meta">
           <span className={`dash-badge ${stream.status}`}>{stream.status}</span>

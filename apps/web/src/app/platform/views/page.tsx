@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import type { ViewSummary, AccountInsight } from "@/lib/types";
+import type { ViewSummary } from "@/lib/types";
 import { detectStalledView } from "@/lib/intelligence/views";
-import { InsightCard } from "@/components/console/intelligence/insight-card";
+import { InsightsSection } from "@/components/console/intelligence/insights-section";
 import { ActionDropdown } from "@/components/console/action-dropdown";
 import { ViewsEmpty } from "./views-empty";
 
@@ -10,30 +10,21 @@ export default async function ViewsPage() {
   const session = await getSessionFromCookies();
   let views: ViewSummary[] = [];
   let chainTip: number | null = null;
-  let insights: AccountInsight[] = [];
 
   if (session) {
-    try {
-      const data = await apiRequest<{ data: ViewSummary[] }>("/api/views", {
+    const [viewsResult, statusResult] = await Promise.allSettled([
+      apiRequest<{ data: ViewSummary[] }>("/api/views", {
         sessionToken: session,
-      });
-      views = data.data;
-    } catch {}
-
-    try {
-      const status = await apiRequest<{ chainTip: number | null }>("/status", {
+        tags: ["views"],
+      }),
+      apiRequest<{ chainTip: number | null }>("/status", {
         sessionToken: session,
-      });
-      chainTip = status.chainTip;
-    } catch {}
+        tags: ["status"],
+      }),
+    ]);
 
-    try {
-      const data = await apiRequest<{ insights: AccountInsight[] }>(
-        "/api/insights?category=view",
-        { sessionToken: session },
-      );
-      insights = data.insights;
-    } catch {}
+    views = viewsResult.status === "fulfilled" ? viewsResult.value.data : [];
+    chainTip = statusResult.status === "fulfilled" ? statusResult.value.chainTip : null;
   }
 
   return (
@@ -50,12 +41,8 @@ export default async function ViewsPage() {
         <ActionDropdown variant="views" />
       </div>
 
-      {insights.length > 0 && session && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-          {insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} sessionToken={session} />
-          ))}
-        </div>
+      {session && (
+        <InsightsSection category="view" sessionToken={session} />
       )}
 
       {views.length === 0 ? (

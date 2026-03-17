@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import type { Stream, ViewSummary, AccountInsight } from "@/lib/types";
+import { useState, useCallback } from "react";
+import type { Stream, ViewSummary } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePreferences } from "@/lib/preferences";
 import { ActionDropdown } from "@/components/console/action-dropdown";
-import { InsightCard } from "@/components/console/intelligence/insight-card";
+import { InsightsSection } from "@/components/console/intelligence/insights-section";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { ManualSteps } from "@/components/console/manual-steps";
 import {
@@ -12,6 +13,7 @@ import {
   DASHBOARD_STREAMS_PROMPT,
   DASHBOARD_VIEWS_PROMPT,
 } from "@/lib/agent-prompts";
+import { queryKeys } from "@/lib/queries/keys";
 import Link from "next/link";
 
 type Mode = "agent" | "manual";
@@ -48,17 +50,40 @@ function deliveryRate(streams: Stream[]): string {
 export function DashboardContent({
   streams,
   views,
-  insights,
   sessionToken,
 }: {
   streams: Stream[];
   views: ViewSummary[];
-  insights: AccountInsight[];
   sessionToken: string;
 }) {
   const { preferences } = usePreferences();
   const { streams: streamsEnabled, views: viewsEnabled } = preferences.products;
   const [mode, setMode] = useState<Mode>("agent");
+  const qc = useQueryClient();
+
+  const prefetchStream = useCallback(
+    (id: string) => {
+      qc.prefetchQuery({
+        queryKey: queryKeys.streams.detail(id),
+        queryFn: () =>
+          fetch(`/api/streams/${id}`, { credentials: "same-origin" }).then((r) => r.json()),
+        staleTime: 30_000,
+      });
+    },
+    [qc],
+  );
+
+  const prefetchView = useCallback(
+    (name: string) => {
+      qc.prefetchQuery({
+        queryKey: queryKeys.views.detail(name),
+        queryFn: () =>
+          fetch(`/api/views/${name}`, { credentials: "same-origin" }).then((r) => r.json()),
+        staleTime: 30_000,
+      });
+    },
+    [qc],
+  );
 
   const hasData = streams.length > 0 || views.length > 0;
   const totalDeliveries = streams.reduce((s, st) => s + (st.totalDeliveries ?? 0), 0);
@@ -154,19 +179,9 @@ export function DashboardContent({
             <ManualSteps streams={streamsEnabled} views={viewsEnabled} />
           )}
         </>
-      ) : insights.length > 0 ? (
-        <>
-          <div className="dash-section-wrap">
-            <hr />
-            <h2 className="dash-section-title">Insights</h2>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {insights.map((insight) => (
-              <InsightCard key={insight.id} insight={insight} sessionToken={sessionToken} />
-            ))}
-          </div>
-        </>
-      ) : null}
+      ) : (
+        <InsightsSection sessionToken={sessionToken} title="Insights" />
+      )}
 
       {/* Streams */}
       {streamsEnabled && (
@@ -182,6 +197,7 @@ export function DashboardContent({
                   key={stream.id}
                   href={`/streams/${stream.id}`}
                   className="dash-activity-item"
+                  onMouseEnter={() => prefetchStream(stream.id)}
                 >
                   <span
                     className={`dash-activity-dot ${
@@ -219,6 +235,7 @@ export function DashboardContent({
                   key={view.name}
                   href={`/views/${view.name}`}
                   className="dash-activity-item"
+                  onMouseEnter={() => prefetchView(view.name)}
                 >
                   <span
                     className={`dash-activity-dot ${
