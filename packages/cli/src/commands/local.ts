@@ -26,7 +26,7 @@ import {
 } from "../lib/output.ts";
 
 // Service definitions
-const DEV_SERVICES = ["api", "indexer", "worker", "webhook", "views"] as const;
+const DEV_SERVICES = ["api", "indexer", "worker", "webhook", "subgraphs"] as const;
 type DevService = (typeof DEV_SERVICES)[number];
 
 export function registerLocalCommand(program: Command): void {
@@ -96,7 +96,7 @@ export function registerLocalCommand(program: Command): void {
   local
     .command("logs")
     .description("View local service logs (dev + node)")
-    .option("-s, --service <name>", "Filter by service (api, indexer, worker, webhook, views, node)")
+    .option("-s, --service <name>", "Filter by service (api, indexer, worker, webhook, subgraphs, node)")
     .option("-f, --follow", "Follow log output")
     .option("-n, --lines <n>", "Number of lines to show", "50")
     .option("-q, --quiet", "Filter out common noise")
@@ -250,7 +250,7 @@ const serviceColors: Record<string, (text: string) => string> = {
   api: blue,
   indexer: cyan,
   worker: yellow,
-  views: magenta,
+  subgraphs: magenta,
   webhook: green,
   node: red,
 };

@@ -2,28 +2,28 @@ import { Command } from "commander";
 import { resolve } from "node:path";
 import { existsSync, mkdirSync, watch } from "node:fs";
 import { success, error, info, dim, formatTable, formatKeyValue, green, yellow, red } from "../lib/output.ts";
-import { generateViewTemplate } from "../templates/view.ts";
-import { listViewsApi, getViewApi, reindexViewApi, deleteViewApi, deployViewApi, queryViewTable, queryViewTableCount, handleApiError } from "../lib/api-client.ts";
-import type { ViewQueryParams } from "../lib/api-client.ts";
+import { generateSubgraphTemplate } from "../templates/subgraph.ts";
+import { listSubgraphsApi, getSubgraphApi, reindexSubgraphApi, deleteSubgraphApi, deploySubgraphApi, querySubgraphTable, querySubgraphTableCount, handleApiError } from "../lib/api-client.ts";
+import type { SubgraphQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { writeTextFile } from "../lib/fs.ts";
-import { generateViewScaffold } from "../generators/view-scaffold.ts";
-import { generateViewConsumer } from "../generators/views.ts";
+import { generateSubgraphScaffold } from "../generators/subgraph-scaffold.ts";
+import { generateSubgraphConsumer } from "../generators/subgraphs.ts";
 import { StacksApiClient } from "../utils/api.ts";
 import { inferNetwork } from "../utils/network.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
 
-export function registerViewsCommand(program: Command): void {
-  const views = program
-    .command("views")
-    .description("Manage materialized views");
+export function registerSubgraphsCommand(program: Command): void {
+  const subgraphs = program
+    .command("subgraphs")
+    .description("Manage materialized subgraphs");
 
   // --- new ---
-  views
+  subgraphs
     .command("new <name>")
-    .description("Scaffold a new view definition file")
+    .description("Scaffold a new subgraph definition file")
     .action(async (name: string) => {
-      const dir = resolve("views");
+      const dir = resolve("subgraphs");
       const filePath = resolve(dir, `${name}.ts`);
 
       if (existsSync(filePath)) {
@@ -35,17 +35,17 @@ export function registerViewsCommand(program: Command): void {
         mkdirSync(dir, { recursive: true });
       }
 
-      const content = generateViewTemplate(name);
+      const content = generateSubgraphTemplate(name);
       await writeTextFile(filePath, content);
 
       success(`Created ${filePath}`);
-      info(`Next: sl views deploy views/${name}.ts`);
+      info(`Next: sl subgraphs deploy subgraphs/${name}.ts`);
     });
 
   // --- dev ---
-  views
+  subgraphs
     .command("dev <file>")
-    .description("Watch a view file and auto-redeploy on change")
+    .description("Watch a subgraph file and auto-redeploy on change")
     .action(async (file: string) => {
       await requireLocalNetwork();
 
@@ -58,31 +58,31 @@ export function registerViewsCommand(program: Command): void {
       info(`Watching ${absPath} for changes...`);
       info("Press Ctrl+C to stop\n");
 
-      const deployView = async () => {
+      const deploySubgraph = async () => {
         try {
           // Clear module cache for hot reload
           delete require.cache[absPath];
           const mod = await import(`${absPath}?t=${Date.now()}`);
           const def = mod.default ?? mod;
 
-          const { validateViewDefinition } = await import("@secondlayer/views/validate");
-          const { deploySchema } = await import("@secondlayer/views");
+          const { validateSubgraphDefinition } = await import("@secondlayer/subgraphs/validate");
+          const { deploySchema } = await import("@secondlayer/subgraphs");
           const { getDb } = await import("@secondlayer/shared/db");
 
-          validateViewDefinition(def);
+          validateSubgraphDefinition(def);
           const db = getDb();
           const result = await deploySchema(db, def, absPath, { forceReindex: false });
 
           if (result.action === "unchanged") {
             info(`[${new Date().toLocaleTimeString()}] No schema changes`);
           } else if (result.action === "created") {
-            success(`[${new Date().toLocaleTimeString()}] View "${def.name}" created`);
+            success(`[${new Date().toLocaleTimeString()}] Subgraph "${def.name}" created`);
           } else if (result.action === "updated") {
-            success(`[${new Date().toLocaleTimeString()}] View "${def.name}" updated (additive)`);
+            success(`[${new Date().toLocaleTimeString()}] Subgraph "${def.name}" updated (additive)`);
           } else if (result.action === "reindexed") {
-            success(`[${new Date().toLocaleTimeString()}] View "${def.name}" reindexed (breaking schema change)`);
+            success(`[${new Date().toLocaleTimeString()}] Subgraph "${def.name}" reindexed (breaking schema change)`);
           } else {
-            success(`[${new Date().toLocaleTimeString()}] View "${def.name}" deployed (${result.action})`);
+            success(`[${new Date().toLocaleTimeString()}] Subgraph "${def.name}" deployed (${result.action})`);
           }
 
           // Show handler stats
@@ -94,7 +94,7 @@ export function registerViewsCommand(program: Command): void {
       };
 
       // Initial deploy
-      await deployView();
+      await deploySubgraph();
 
       // Watch with debounce
       let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -103,7 +103,7 @@ export function registerViewsCommand(program: Command): void {
         timeout = setTimeout(async () => {
           console.log("");
           info("File changed, redeploying...");
-          await deployView();
+          await deploySubgraph();
         }, 300);
       });
 
@@ -120,9 +120,9 @@ export function registerViewsCommand(program: Command): void {
     });
 
   // --- deploy ---
-  views
+  subgraphs
     .command("deploy <file>")
-    .description("Deploy a view definition file")
+    .description("Deploy a subgraph definition file")
     .option("--reindex", "Force reindex on breaking schema change (drops and rebuilds all data)")
     .action(async (file: string, options: { reindex?: boolean }) => {
       try {
@@ -130,11 +130,11 @@ export function registerViewsCommand(program: Command): void {
         const config = await loadConfig();
 
         // Load and validate locally for fast feedback
-        info(`Loading view from ${absPath}`);
+        info(`Loading subgraph from ${absPath}`);
         const mod = await import(absPath);
         const def = mod.default ?? mod;
-        const { validateViewDefinition } = await import("@secondlayer/views/validate");
-        validateViewDefinition(def);
+        const { validateSubgraphDefinition } = await import("@secondlayer/subgraphs/validate");
+        validateSubgraphDefinition(def);
 
         if (config.network !== "local") {
           // ── Remote deploy ──────────────────────────────────────
@@ -146,13 +146,13 @@ export function registerViewsCommand(program: Command): void {
             bundle: true,
             platform: "node",
             format: "esm",
-            external: ["@secondlayer/views"],
+            external: ["@secondlayer/subgraphs"],
             write: false,
           });
 
           const handlerCode = new TextDecoder().decode(buildResult.outputFiles![0]!.contents);
 
-          const result = await deployViewApi({
+          const result = await deploySubgraphApi({
             name: def.name,
             version: def.version,
             description: def.description,
@@ -163,46 +163,46 @@ export function registerViewsCommand(program: Command): void {
           });
 
           if (result.action === "unchanged") {
-            info(`View "${def.name}" is up to date (no schema changes)`);
+            info(`Subgraph "${def.name}" is up to date (no schema changes)`);
           } else {
-            success(`View "${def.name}" ${result.action} (remote)`);
+            success(`Subgraph "${def.name}" ${result.action} (remote)`);
           }
         } else {
           // ── Local deploy ───────────────────────────────────────
-          const { deploySchema } = await import("@secondlayer/views");
+          const { deploySchema } = await import("@secondlayer/subgraphs");
           const { getDb, closeDb } = await import("@secondlayer/shared/db");
 
           const db = getDb();
           const result = await deploySchema(db, def, absPath, { forceReindex: options.reindex });
 
           if (result.action === "unchanged") {
-            info(`View "${def.name}" is up to date (no schema changes)`);
+            info(`Subgraph "${def.name}" is up to date (no schema changes)`);
           } else if (result.action === "created") {
-            success(`View "${def.name}" created (id: ${result.viewId.slice(0, 8)})`);
+            success(`Subgraph "${def.name}" created (id: ${result.subgraphId.slice(0, 8)})`);
           } else if (result.action === "reindexed") {
-            success(`View "${def.name}" schema rebuilt (id: ${result.viewId.slice(0, 8)})`);
-            info(`Reindexing will begin when view processor starts.`);
+            success(`Subgraph "${def.name}" schema rebuilt (id: ${result.subgraphId.slice(0, 8)})`);
+            info(`Reindexing will begin when subgraph processor starts.`);
           } else {
-            success(`View "${def.name}" updated (id: ${result.viewId.slice(0, 8)})`);
+            success(`Subgraph "${def.name}" updated (id: ${result.subgraphId.slice(0, 8)})`);
           }
 
           await closeDb();
         }
       } catch (err) {
-        error(`Failed to deploy view: ${err}`);
+        error(`Failed to deploy subgraph: ${err}`);
         process.exit(1);
       }
     });
 
   // --- list ---
-  views
+  subgraphs
     .command("list")
     .alias("ls")
-    .description("List all deployed views")
+    .description("List all deployed subgraphs")
     .option("--json", "Output as JSON")
     .action(async (options: { json?: boolean }) => {
       try {
-        const { data } = await listViewsApi();
+        const { data } = await listSubgraphsApi();
 
         if (options.json) {
           console.log(JSON.stringify(data, null, 2));
@@ -210,7 +210,7 @@ export function registerViewsCommand(program: Command): void {
         }
 
         if (data.length === 0) {
-          console.log("No views deployed");
+          console.log("No subgraphs deployed");
           return;
         }
 
@@ -229,45 +229,45 @@ export function registerViewsCommand(program: Command): void {
           ["Name", "Version", "Status", "Last Block", "Tables"],
           tableRows,
         ));
-        console.log(dim(`\n${data.length} view(s) total`));
+        console.log(dim(`\n${data.length} subgraph(s) total`));
       } catch (err) {
-        handleApiError(err, "list views");
+        handleApiError(err, "list subgraphs");
       }
     });
 
   // --- status ---
-  views
+  subgraphs
     .command("status <name>")
-    .description("Show detailed view status")
+    .description("Show detailed subgraph status")
     .action(async (name: string) => {
       try {
-        const view = await getViewApi(name);
+        const subgraph = await getSubgraphApi(name);
 
-        const rowCounts = Object.entries(view.tables)
+        const rowCounts = Object.entries(subgraph.tables)
           .map(([t, info]: [string, { rowCount: number }]) => `${t}: ${info.rowCount}`)
           .join(", ") || "N/A";
 
-        const errorRate = view.health.totalProcessed > 0
-          ? `${(view.health.errorRate * 100).toFixed(2)}%`
+        const errorRate = subgraph.health.totalProcessed > 0
+          ? `${(subgraph.health.errorRate * 100).toFixed(2)}%`
           : "N/A";
 
         console.log(formatKeyValue([
-          ["Name", view.name],
-          ["Version", view.version],
-          ["Status", view.status],
-          ["Last Block", String(view.lastProcessedBlock)],
+          ["Name", subgraph.name],
+          ["Version", subgraph.version],
+          ["Status", subgraph.status],
+          ["Last Block", String(subgraph.lastProcessedBlock)],
           ["Row Count", rowCounts],
-          ["Total Processed", String(view.health.totalProcessed)],
-          ["Total Errors", String(view.health.totalErrors)],
+          ["Total Processed", String(subgraph.health.totalProcessed)],
+          ["Total Errors", String(subgraph.health.totalErrors)],
           ["Error Rate", errorRate],
-          ["Last Error", view.health.lastError ?? "none"],
-          ["Last Error At", view.health.lastErrorAt ?? "N/A"],
-          ["Created", view.createdAt],
-          ["Updated", view.updatedAt],
+          ["Last Error", subgraph.health.lastError ?? "none"],
+          ["Last Error At", subgraph.health.lastErrorAt ?? "N/A"],
+          ["Created", subgraph.createdAt],
+          ["Updated", subgraph.updatedAt],
         ]));
 
         // Show table endpoints
-        const tableEntries = Object.entries(view.tables);
+        const tableEntries = Object.entries(subgraph.tables);
         if (tableEntries.length > 0) {
           console.log(dim("\nTable endpoints:"));
           for (const [_t, info] of tableEntries as [string, { endpoint: string }][]) {
@@ -275,21 +275,21 @@ export function registerViewsCommand(program: Command): void {
           }
         }
       } catch (err) {
-        handleApiError(err, "get view status");
+        handleApiError(err, "get subgraph status");
       }
     });
 
   // --- reindex ---
-  views
+  subgraphs
     .command("reindex <name>")
-    .description("Reindex a view from historical blocks")
+    .description("Reindex a subgraph from historical blocks")
     .option("--from <block>", "Start block height")
     .option("--to <block>", "End block height")
     .action(async (name: string, options: { from?: string; to?: string }) => {
       try {
-        info(`Reindexing view "${name}"...`);
+        info(`Reindexing subgraph "${name}"...`);
 
-        const result = await reindexViewApi(name, {
+        const result = await reindexSubgraphApi(name, {
           fromBlock: options.from ? parseInt(options.from, 10) : undefined,
           toBlock: options.to ? parseInt(options.to, 10) : undefined,
         });
@@ -297,14 +297,14 @@ export function registerViewsCommand(program: Command): void {
         success(result.message);
         info(`From block ${result.fromBlock} to ${result.toBlock}`);
       } catch (err) {
-        handleApiError(err, "reindex view");
+        handleApiError(err, "reindex subgraph");
       }
     });
 
   // --- query ---
-  views
+  subgraphs
     .command("query <name> <table>")
-    .description("Query a view table")
+    .description("Query a subgraph table")
     .option("--sort <column>", "Sort by column")
     .option("--order <dir>", "Sort direction (asc|desc)", "asc")
     .option("--limit <n>", "Max rows to return", "20")
@@ -336,7 +336,7 @@ export function registerViewsCommand(program: Command): void {
           }
         }
 
-        const params: ViewQueryParams = {
+        const params: SubgraphQueryParams = {
           sort: options.sort,
           order: options.sort ? options.order : undefined,
           limit: parseInt(options.limit, 10),
@@ -346,7 +346,7 @@ export function registerViewsCommand(program: Command): void {
         };
 
         if (options.count) {
-          const result = await queryViewTableCount(name, table, params);
+          const result = await querySubgraphTableCount(name, table, params);
           if (options.json) {
             console.log(JSON.stringify(result, null, 2));
           } else {
@@ -355,7 +355,7 @@ export function registerViewsCommand(program: Command): void {
           return;
         }
 
-        const rows = await queryViewTable(name, table, params) as Record<string, unknown>[];
+        const rows = await querySubgraphTable(name, table, params) as Record<string, unknown>[];
 
         if (options.json) {
           console.log(JSON.stringify(rows, null, 2));
@@ -380,21 +380,21 @@ export function registerViewsCommand(program: Command): void {
         console.log(formatTable(columns, tableRows));
         console.log(dim(`\n${rows.length} row(s)`));
       } catch (err) {
-        handleApiError(err, "query view");
+        handleApiError(err, "query subgraph");
       }
     });
 
   // --- delete ---
-  views
+  subgraphs
     .command("delete <name>")
-    .description("Delete a view and its data")
+    .description("Delete a subgraph and its data")
     .option("-y, --yes", "Skip confirmation")
     .action(async (name: string, options: { yes?: boolean }) => {
       try {
         if (!options.yes) {
           const { confirm } = await import("@inquirer/prompts");
           const ok = await confirm({
-            message: `Delete view "${name}" and all its data? This cannot be undone.`,
+            message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
           });
           if (!ok) {
             info("Cancelled");
@@ -402,17 +402,17 @@ export function registerViewsCommand(program: Command): void {
           }
         }
 
-        const result = await deleteViewApi(name);
+        const result = await deleteSubgraphApi(name);
         success(result.message);
       } catch (err) {
-        handleApiError(err, "delete view");
+        handleApiError(err, "delete subgraph");
       }
     });
 
   // --- scaffold ---
-  views
+  subgraphs
     .command("scaffold <contractAddress>")
-    .description("Scaffold a defineView() file from a contract ABI")
+    .description("Scaffold a defineSubgraph() file from a contract ABI")
     .option("-o, --output <path>", "Output file path (required)")
     .option("--api-key <key>", "Hiro API key")
     .action(async (contractAddress: string, options: { output?: string; apiKey?: string }) => {
@@ -432,7 +432,7 @@ export function registerViewsCommand(program: Command): void {
         const abi = parseApiResponse(contractInfo);
 
         info(`Generating scaffold...`);
-        const content = await generateViewScaffold({
+        const content = await generateSubgraphScaffold({
           contractId: contractAddress,
           functions: abi.functions,
         });
@@ -442,19 +442,19 @@ export function registerViewsCommand(program: Command): void {
         await writeTextFile(outPath, content);
 
         success(`Created ${outPath}`);
-        info(`Next: sl views deploy ${options.output}`);
+        info(`Next: sl subgraphs deploy ${options.output}`);
       } catch (err) {
-        error(`Failed to scaffold view: ${err}`);
+        error(`Failed to scaffold subgraph: ${err}`);
         process.exit(1);
       }
     });
 
   // --- generate ---
-  views
-    .command("generate <viewName>")
-    .description("Generate a typed client for a deployed view")
+  subgraphs
+    .command("generate <subgraphName>")
+    .description("Generate a typed client for a deployed subgraph")
     .option("-o, --output <path>", "Output file path (required)")
-    .action(async (viewName: string, options: { output?: string }) => {
+    .action(async (subgraphName: string, options: { output?: string }) => {
       try {
         if (!options.output) {
           error("--output <path> is required");
@@ -463,11 +463,11 @@ export function registerViewsCommand(program: Command): void {
 
         const outPath = resolve(options.output);
 
-        info(`Fetching view metadata for "${viewName}"...`);
-        const viewDetail = await getViewApi(viewName);
+        info(`Fetching subgraph metadata for "${subgraphName}"...`);
+        const subgraphDetail = await getSubgraphApi(subgraphName);
 
         info(`Generating typed client...`);
-        const content = await generateViewConsumer(viewName, viewDetail);
+        const content = await generateSubgraphConsumer(subgraphName, subgraphDetail);
 
         const dir = resolve(outPath, "..");
         if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -475,7 +475,7 @@ export function registerViewsCommand(program: Command): void {
 
         success(`Created ${outPath}`);
       } catch (err) {
-        handleApiError(err, "generate view client");
+        handleApiError(err, "generate subgraph client");
       }
     });
 }

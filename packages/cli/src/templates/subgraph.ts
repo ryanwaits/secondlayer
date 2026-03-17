@@ -1,15 +1,15 @@
 /**
- * Generate a starter view definition file with inline comments.
+ * Generate a starter subgraph definition file with inline comments.
  */
-export function generateViewTemplate(name: string): string {
-  return `import { defineView } from "@secondlayer/views";
+export function generateSubgraphTemplate(name: string): string {
+  return `import { defineSubgraph } from "@secondlayer/subgraphs";
 
-export default defineView({
+export default defineSubgraph({
   name: "${name}",
   version: "1.0.0",
-  description: "TODO: describe what this view tracks",
+  description: "TODO: describe what this subgraph tracks",
 
-  // Sources define what blockchain data this view processes.
+  // Sources define what blockchain data this subgraph processes.
   // Each source filters transactions/events by contract, type, function, or event.
   // Examples:
   //   { contract: "SP000...::my-contract" }              — all txs to a contract
@@ -20,7 +20,7 @@ export default defineView({
     { contract: "SP000000000000000000002Q6VF78.pox-4" },
   ],
 
-  // Schema defines the tables this view creates.
+  // Schema defines the tables this subgraph creates.
   // Each table gets auto-columns: _id, _block_height, _tx_id, _created_at.
   // Column types: text, uint, int, principal, boolean, timestamp, jsonb
   schema: {
