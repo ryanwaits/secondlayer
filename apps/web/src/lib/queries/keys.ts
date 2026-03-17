@@ -4,6 +4,8 @@ export const queryKeys = {
     all: ["streams"] as const,
     detail: (id: string) => ["streams", id] as const,
     deliveries: (id: string) => ["streams", id, "deliveries"] as const,
+    deliveriesPage: (id: string, page: number) =>
+      ["streams", id, "deliveries", page] as const,
   },
   views: {
     all: ["views"] as const,

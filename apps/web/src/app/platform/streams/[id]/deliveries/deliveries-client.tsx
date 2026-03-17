@@ -1,10 +1,26 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import type { Stream, Delivery } from "@/lib/types";
 import { useBreadcrumbOverrides } from "@/lib/breadcrumb";
+import { queryKeys } from "@/lib/queries/keys";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
+
+async function fetchDeliveries(
+  streamId: string,
+  page: number,
+): Promise<Delivery[]> {
+  const res = await fetch(
+    `/api/streams/${streamId}/deliveries?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`,
+    { credentials: "same-origin" },
+  );
+  if (!res.ok) throw new Error("Failed to fetch deliveries");
+  const data = await res.json();
+  return data.deliveries;
+}
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -29,38 +45,42 @@ export function DeliveriesClient({
     setBreadcrumb(`/streams/${stream.id}`, stream.name);
   }, [stream.id, stream.name, setBreadcrumb]);
 
-  const [deliveries, setDeliveries] = useState(initialDeliveries);
   const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const qc = useQueryClient();
   const totalPages = Math.max(1, Math.ceil(stream.totalDeliveries / PAGE_SIZE));
 
-  const goToPage = useCallback(async (p: number) => {
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/streams/${stream.id}/deliveries?limit=${PAGE_SIZE}&offset=${p * PAGE_SIZE}`,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setDeliveries(data.deliveries);
-        setPage(p);
-      }
-    } finally {
-      setLoading(false);
+  const { data: deliveries = [], isFetching } = useQuery({
+    queryKey: queryKeys.streams.deliveriesPage(stream.id, page),
+    queryFn: () => fetchDeliveries(stream.id, page),
+    initialData: page === 0 ? initialDeliveries : undefined,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+
+  // Prefetch next page
+  useEffect(() => {
+    if (page < totalPages - 1) {
+      qc.prefetchQuery({
+        queryKey: queryKeys.streams.deliveriesPage(stream.id, page + 1),
+        queryFn: () => fetchDeliveries(stream.id, page + 1),
+        staleTime: 30_000,
+      });
     }
-  }, [stream.id]);
+  }, [page, stream.id, totalPages, qc]);
+
+  const prefetchPage = (p: number) => {
+    if (p >= 0 && p < totalPages) {
+      qc.prefetchQuery({
+        queryKey: queryKeys.streams.deliveriesPage(stream.id, p),
+        queryFn: () => fetchDeliveries(stream.id, p),
+        staleTime: 30_000,
+      });
+    }
+  };
 
   return (
     <>
-      <div className="dash-page-header">
-        <h1 className="dash-page-title">Deliveries</h1>
-        <p className="dash-page-desc">
-          {stream.totalDeliveries.toLocaleString()} total &mdash;{" "}
-          {stream.failedDeliveries.toLocaleString()} failed
-        </p>
-      </div>
-
-      {deliveries.length === 0 ? (
+      {deliveries.length === 0 && !isFetching ? (
         <div className="dash-empty">No deliveries yet</div>
       ) : (
         <>
@@ -80,7 +100,7 @@ export function DeliveriesClient({
                 {deliveries.map((d) => {
                   const isOk = d.statusCode >= 200 && d.statusCode < 300;
                   return (
-                    <tr key={d.id}>
+                    <tr key={d.id} style={{ opacity: isFetching ? 0.5 : 1, transition: "opacity 150ms" }}>
                       <td>#{d.blockHeight.toLocaleString()}</td>
                       <td>
                         <span className={`dash-badge ${isOk ? "active" : "failed"}`}>
@@ -108,16 +128,18 @@ export function DeliveriesClient({
               <button
                 className="dash-btn"
                 style={{ padding: "4px 10px", fontSize: 12 }}
-                disabled={page === 0 || loading}
-                onClick={() => goToPage(page - 1)}
+                disabled={page === 0}
+                onClick={() => setPage(page - 1)}
+                onMouseEnter={() => prefetchPage(page - 2)}
               >
                 ← Prev
               </button>
               <button
                 className="dash-btn"
                 style={{ padding: "4px 10px", fontSize: 12 }}
-                disabled={page >= totalPages - 1 || loading}
-                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(page + 1)}
+                onMouseEnter={() => prefetchPage(page + 2)}
               >
                 Next →
               </button>
