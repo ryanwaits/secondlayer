@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { apiRequest, ApiError, getSessionFromRequest } from "@/lib/api";
 
 export async function POST(
@@ -18,6 +19,7 @@ export async function POST(
       body,
       sessionToken,
     });
+    revalidateTag(`stream-${id}`, { expire: 0 });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {

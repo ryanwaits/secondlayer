@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { apiRequest, ApiError, getSessionFromRequest } from "@/lib/api";
 
 export async function POST(
@@ -18,6 +19,8 @@ export async function POST(
       `/api/views/${name}/reindex`,
       { method: "POST", body, sessionToken },
     );
+    revalidateTag("views", { expire: 0 });
+    revalidateTag(`view-${name}`, { expire: 0 });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {
