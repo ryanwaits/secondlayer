@@ -28,7 +28,7 @@ export const SAFE_RESTART = [
   "indexer",
   "api",
   "worker",
-  "view-processor",
+  "subgraph-processor",
   "caddy",
 ] as const;
 
@@ -40,7 +40,7 @@ const DEFAULT_SERVICES: ServiceConfig[] = [
   { name: "indexer", container: "secondlayer-indexer-1", healthUrl: "http://localhost:3700/health", autoRestart: true },
   { name: "api", container: "secondlayer-api-1", healthUrl: "http://localhost:3800/health", autoRestart: true },
   { name: "worker", container: "secondlayer-worker-1", autoRestart: true },
-  { name: "view-processor", container: "secondlayer-view-processor-1", autoRestart: true },
+  { name: "subgraph-processor", container: "secondlayer-subgraph-processor-1", autoRestart: true },
   { name: "postgres", container: "secondlayer-postgres-1", autoRestart: false },
   { name: "caddy", container: "secondlayer-caddy-1", autoRestart: true },
   // stacks-node runs on node server (remote) — not accessible via Docker DNS

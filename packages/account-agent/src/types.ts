@@ -1,5 +1,5 @@
 export interface InsightOutput {
-  category: "stream" | "key" | "usage" | "view";
+  category: "stream" | "key" | "usage" | "subgraph";
   insight_type: string;
   resource_id: string | null;
   severity: "info" | "warning" | "danger";

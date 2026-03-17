@@ -37,27 +37,27 @@ export const toolDefinitions: Anthropic.Tool[] = [
     input_schema: { type: "object" as const, properties: {}, required: [] },
   },
   {
-    name: "get_view_health",
+    name: "get_subgraph_health",
     description:
-      "Get all views with health metrics and historical snapshots (last 48h) for trend analysis. Also returns chain indexing progress.",
+      "Get all subgraphs with health metrics and historical snapshots (last 48h) for trend analysis. Also returns chain indexing progress.",
     input_schema: { type: "object" as const, properties: {}, required: [] },
   },
   {
-    name: "get_view_performance",
+    name: "get_subgraph_performance",
     description:
-      "Get view processing performance stats (avg/max block time, handler time, flush time) over 1h, 24h, and 7d windows per view.",
+      "Get subgraph processing performance stats (avg/max block time, handler time, flush time) over 1h, 24h, and 7d windows per subgraph.",
     input_schema: { type: "object" as const, properties: {}, required: [] },
   },
   {
-    name: "get_view_table_growth",
+    name: "get_subgraph_table_growth",
     description:
-      "Get view table row counts with 24h and 7d growth rates. Takes a snapshot on each call for trend tracking.",
+      "Get subgraph table row counts with 24h and 7d growth rates. Takes a snapshot on each call for trend tracking.",
     input_schema: { type: "object" as const, properties: {}, required: [] },
   },
   {
-    name: "get_view_schema_health",
+    name: "get_subgraph_schema_health",
     description:
-      "Compare view definitions against actual PG schema. Detects missing columns, type mismatches, high NULL rates, and missing indexes.",
+      "Compare subgraph definitions against actual PG schema. Detects missing columns, type mismatches, high NULL rates, and missing indexes.",
     input_schema: { type: "object" as const, properties: {}, required: [] },
   },
 ];
@@ -80,14 +80,14 @@ export async function executeTool(
       return getKeyUsage(accountId, db);
     case "get_usage_trend":
       return getUsageTrend(accountId, db);
-    case "get_view_health":
-      return getViewHealth(accountId, db);
-    case "get_view_performance":
-      return getViewPerformance(accountId, db);
-    case "get_view_table_growth":
-      return getViewTableGrowth(accountId, db);
-    case "get_view_schema_health":
-      return getViewSchemaHealth(accountId, db);
+    case "get_subgraph_health":
+      return getSubgraphHealth(accountId, db);
+    case "get_subgraph_performance":
+      return getSubgraphPerformance(accountId, db);
+    case "get_subgraph_table_growth":
+      return getSubgraphTableGrowth(accountId, db);
+    case "get_subgraph_schema_health":
+      return getSubgraphSchemaHealth(accountId, db);
     default:
       return { error: `Unknown tool: ${toolName}` };
   }
@@ -230,45 +230,45 @@ async function getUsageTrend(accountId: string, db: Kysely<Database>) {
     .execute();
 }
 
-async function getViewHealth(accountId: string, db: Kysely<Database>) {
+async function getSubgraphHealth(accountId: string, db: Kysely<Database>) {
   const keyIds = await getAccountKeyIds(accountId, db);
-  if (keyIds.length === 0) return { views: [], chain: null };
+  if (keyIds.length === 0) return { subgraphs: [], chain: null };
 
-  // Get all views for this account
-  const views = await db
-    .selectFrom("views")
+  // Get all subgraphs for this account
+  const subgraphs = await db
+    .selectFrom("subgraphs")
     .selectAll()
     .where("api_key_id", "in", keyIds)
     .execute();
 
-  if (views.length === 0) return { views: [], chain: null };
+  if (subgraphs.length === 0) return { subgraphs: [], chain: null };
 
-  const viewIds = views.map((v) => v.id);
+  const subgraphIds = subgraphs.map((v) => v.id);
   const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
   // Get snapshots from last 48h
   const snapshots = await db
-    .selectFrom("view_health_snapshots")
-    .select(["view_id", "total_processed", "total_errors", "last_processed_block", "captured_at"])
-    .where("view_id", "in", viewIds)
+    .selectFrom("subgraph_health_snapshots")
+    .select(["subgraph_id", "total_processed", "total_errors", "last_processed_block", "captured_at"])
+    .where("subgraph_id", "in", subgraphIds)
     .where("captured_at", ">", cutoff48h)
     .orderBy("captured_at", "asc")
     .execute();
 
-  // Upsert a snapshot per view (skip if one exists within last 25 min)
+  // Upsert a snapshot per subgraph (skip if one exists within last 25 min)
   const cutoff25m = new Date(Date.now() - 25 * 60 * 1000);
-  for (const view of views) {
+  for (const subgraph of subgraphs) {
     const recentSnapshot = snapshots.find(
-      (s) => s.view_id === view.id && s.captured_at > cutoff25m,
+      (s) => s.subgraph_id === subgraph.id && s.captured_at > cutoff25m,
     );
     if (!recentSnapshot) {
       await db
-        .insertInto("view_health_snapshots")
+        .insertInto("subgraph_health_snapshots")
         .values({
-          view_id: view.id,
-          total_processed: view.total_processed,
-          total_errors: view.total_errors,
-          last_processed_block: view.last_processed_block,
+          subgraph_id: subgraph.id,
+          total_processed: subgraph.total_processed,
+          total_errors: subgraph.total_errors,
+          last_processed_block: subgraph.last_processed_block,
         })
         .execute();
     }
@@ -277,7 +277,7 @@ async function getViewHealth(accountId: string, db: Kysely<Database>) {
   // Prune snapshots older than 7 days
   const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   await db
-    .deleteFrom("view_health_snapshots")
+    .deleteFrom("subgraph_health_snapshots")
     .where("captured_at", "<", cutoff7d)
     .execute();
 
@@ -297,16 +297,16 @@ async function getViewHealth(accountId: string, db: Kysely<Database>) {
     }
   } catch {}
 
-  // Build response with snapshots grouped by view
-  const snapshotsByView = new Map<string, typeof snapshots>();
+  // Build response with snapshots grouped by subgraph
+  const snapshotsBySubgraph = new Map<string, typeof snapshots>();
   for (const s of snapshots) {
-    const arr = snapshotsByView.get(s.view_id) ?? [];
+    const arr = snapshotsBySubgraph.get(s.subgraph_id) ?? [];
     arr.push(s);
-    snapshotsByView.set(s.view_id, arr);
+    snapshotsBySubgraph.set(s.subgraph_id, arr);
   }
 
   return {
-    views: views.map((v) => ({
+    subgraphs: subgraphs.map((v) => ({
       id: v.id,
       name: v.name,
       status: v.status,
@@ -320,7 +320,7 @@ async function getViewHealth(accountId: string, db: Kysely<Database>) {
       last_error_at: v.last_error_at?.toISOString() ?? null,
       created_at: v.created_at.toISOString(),
       updated_at: v.updated_at.toISOString(),
-      snapshots: (snapshotsByView.get(v.id) ?? []).map((s) => ({
+      snapshots: (snapshotsBySubgraph.get(v.id) ?? []).map((s) => ({
         total_processed: s.total_processed,
         total_errors: s.total_errors,
         last_processed_block: s.last_processed_block,
@@ -331,21 +331,21 @@ async function getViewHealth(accountId: string, db: Kysely<Database>) {
   };
 }
 
-// ── V5 — View Performance Stats ─────────────────────────────────────
+// ── V5 — Subgraph Performance Stats ─────────────────────────────────
 
-async function getViewPerformance(accountId: string, db: Kysely<Database>) {
+async function getSubgraphPerformance(accountId: string, db: Kysely<Database>) {
   const keyIds = await getAccountKeyIds(accountId, db);
   if (keyIds.length === 0) return [];
 
-  const views = await db
-    .selectFrom("views")
+  const subgraphs = await db
+    .selectFrom("subgraphs")
     .select(["name", "api_key_id"])
     .where("api_key_id", "in", keyIds)
     .execute();
 
-  if (views.length === 0) return [];
+  if (subgraphs.length === 0) return [];
 
-  const viewNames = views.map((v) => v.name);
+  const subgraphNames = subgraphs.map((v) => v.name);
   const windows = [
     { label: "1h", ms: 60 * 60 * 1000 },
     { label: "24h", ms: 24 * 60 * 60 * 1000 },
@@ -356,9 +356,9 @@ async function getViewPerformance(accountId: string, db: Kysely<Database>) {
   for (const w of windows) {
     const cutoff = new Date(Date.now() - w.ms);
     const stats = await db
-      .selectFrom("view_processing_stats")
+      .selectFrom("subgraph_processing_stats")
       .select([
-        "view_name",
+        "subgraph_name",
         (eb) => eb.fn.sum<number>("blocks_processed").as("total_blocks"),
         (eb) => eb.fn.sum<number>("total_time_ms").as("total_time"),
         (eb) => eb.fn.sum<number>("handler_time_ms").as("total_handler_time"),
@@ -366,15 +366,15 @@ async function getViewPerformance(accountId: string, db: Kysely<Database>) {
         (eb) => eb.fn.max<number>("max_block_time_ms").as("max_block_time"),
         (eb) => eb.fn.max<number>("max_handler_time_ms").as("max_handler_time"),
       ])
-      .where("view_name", "in", viewNames)
+      .where("subgraph_name", "in", subgraphNames)
       .where("bucket_start", ">", cutoff)
-      .groupBy("view_name")
+      .groupBy("subgraph_name")
       .execute();
 
     for (const row of stats) {
       const blocks = Number(row.total_blocks) || 1;
       results.push({
-        view_name: row.view_name,
+        subgraph_name: row.subgraph_name,
         window: w.label,
         blocks_processed: Number(row.total_blocks),
         avg_block_time_ms: Math.round(Number(row.total_time) / blocks),
@@ -389,26 +389,26 @@ async function getViewPerformance(accountId: string, db: Kysely<Database>) {
   return results;
 }
 
-// ── V6 — View Table Growth ──────────────────────────────────────────
+// ── V6 — Subgraph Table Growth ──────────────────────────────────────
 
-async function getViewTableGrowth(accountId: string, db: Kysely<Database>) {
+async function getSubgraphTableGrowth(accountId: string, db: Kysely<Database>) {
   const keyIds = await getAccountKeyIds(accountId, db);
   if (keyIds.length === 0) return [];
 
-  const views = await db
-    .selectFrom("views")
+  const subgraphs = await db
+    .selectFrom("subgraphs")
     .selectAll()
     .where("api_key_id", "in", keyIds)
     .execute();
 
-  if (views.length === 0) return [];
+  if (subgraphs.length === 0) return [];
 
   const results = [];
 
-  for (const view of views) {
-    const schema = (view.definition as any)?.schema ?? {};
+  for (const subgraph of subgraphs) {
+    const schema = (subgraph.definition as any)?.schema ?? {};
     const tableNames = Object.keys(schema);
-    const schemaName = view.schema_name ?? view.name.replace(/[^a-z0-9_]/gi, "_");
+    const schemaName = subgraph.schema_name ?? subgraph.name.replace(/[^a-z0-9_]/gi, "_");
 
     for (const tableName of tableNames) {
       // Get approximate row count from pg_stat
@@ -423,10 +423,10 @@ async function getViewTableGrowth(accountId: string, db: Kysely<Database>) {
 
       // Snapshot current count
       await db
-        .insertInto("view_table_snapshots")
+        .insertInto("subgraph_table_snapshots")
         .values({
-          view_name: view.name,
-          api_key_id: view.api_key_id,
+          subgraph_name: subgraph.name,
+          api_key_id: subgraph.api_key_id,
           table_name: tableName,
           row_count: rowCount,
         })
@@ -437,9 +437,9 @@ async function getViewTableGrowth(accountId: string, db: Kysely<Database>) {
       const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
       const oldest24h = await db
-        .selectFrom("view_table_snapshots")
+        .selectFrom("subgraph_table_snapshots")
         .select("row_count")
-        .where("view_name", "=", view.name)
+        .where("subgraph_name", "=", subgraph.name)
         .where("table_name", "=", tableName)
         .where("created_at", ">", cutoff24h)
         .orderBy("created_at", "asc")
@@ -447,9 +447,9 @@ async function getViewTableGrowth(accountId: string, db: Kysely<Database>) {
         .executeTakeFirst();
 
       const oldest7d = await db
-        .selectFrom("view_table_snapshots")
+        .selectFrom("subgraph_table_snapshots")
         .select("row_count")
-        .where("view_name", "=", view.name)
+        .where("subgraph_name", "=", subgraph.name)
         .where("table_name", "=", tableName)
         .where("created_at", ">", cutoff7d)
         .orderBy("created_at", "asc")
@@ -457,7 +457,7 @@ async function getViewTableGrowth(accountId: string, db: Kysely<Database>) {
         .executeTakeFirst();
 
       results.push({
-        view_name: view.name,
+        subgraph_name: subgraph.name,
         table_name: tableName,
         current_rows: rowCount,
         growth_24h: oldest24h ? rowCount - Number(oldest24h.row_count) : null,
@@ -472,32 +472,32 @@ async function getViewTableGrowth(accountId: string, db: Kysely<Database>) {
   // Prune snapshots older than 30 days
   const cutoff30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   await db
-    .deleteFrom("view_table_snapshots")
+    .deleteFrom("subgraph_table_snapshots")
     .where("created_at", "<", cutoff30d)
     .execute();
 
   return results;
 }
 
-// ── V7 — View Schema Health ─────────────────────────────────────────
+// ── V7 — Subgraph Schema Health ─────────────────────────────────────
 
-async function getViewSchemaHealth(accountId: string, db: Kysely<Database>) {
+async function getSubgraphSchemaHealth(accountId: string, db: Kysely<Database>) {
   const keyIds = await getAccountKeyIds(accountId, db);
   if (keyIds.length === 0) return [];
 
-  const views = await db
-    .selectFrom("views")
+  const subgraphs = await db
+    .selectFrom("subgraphs")
     .selectAll()
     .where("api_key_id", "in", keyIds)
     .execute();
 
-  if (views.length === 0) return [];
+  if (subgraphs.length === 0) return [];
 
   const issues = [];
 
-  for (const view of views) {
-    const defSchema = (view.definition as any)?.schema ?? {};
-    const schemaName = view.schema_name ?? view.name.replace(/[^a-z0-9_]/gi, "_");
+  for (const subgraph of subgraphs) {
+    const defSchema = (subgraph.definition as any)?.schema ?? {};
+    const schemaName = subgraph.schema_name ?? subgraph.name.replace(/[^a-z0-9_]/gi, "_");
 
     for (const [tableName, tableDef] of Object.entries(defSchema) as [string, any][]) {
       // Get actual PG columns
@@ -513,7 +513,7 @@ async function getViewSchemaHealth(accountId: string, db: Kysely<Database>) {
 
       if (pgCols.rows.length === 0) {
         issues.push({
-          view_name: view.name,
+          subgraph_name: subgraph.name,
           type: "empty_table",
           table: tableName,
           detail: "Table does not exist in database",
@@ -529,7 +529,7 @@ async function getViewSchemaHealth(accountId: string, db: Kysely<Database>) {
       for (const colName of Object.keys(defColumns)) {
         if (!pgColMap.has(colName)) {
           issues.push({
-            view_name: view.name,
+            subgraph_name: subgraph.name,
             type: "missing_column",
             table: tableName,
             column: colName,
@@ -561,7 +561,7 @@ async function getViewSchemaHealth(accountId: string, db: Kysely<Database>) {
               const nullRate = Number(row?.[`null_${col}`]) || 0;
               if (nullRate > 0.95) {
                 issues.push({
-                  view_name: view.name,
+                  subgraph_name: subgraph.name,
                   type: "null_column",
                   table: tableName,
                   column: col,
@@ -590,7 +590,7 @@ async function getViewSchemaHealth(accountId: string, db: Kysely<Database>) {
           );
           if (!found) {
             issues.push({
-              view_name: view.name,
+              subgraph_name: subgraph.name,
               type: "missing_index",
               table: tableName,
               detail: `Composite index on (${colsInIdx}) declared but not found in database`,
