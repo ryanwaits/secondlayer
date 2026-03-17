@@ -39,7 +39,7 @@ describe("tableToModelName", () => {
   test("single-word tables", () => {
     expect(tableToModelName("events")).toBe("Event");
     expect(tableToModelName("jobs")).toBe("Job");
-    expect(tableToModelName("views")).toBe("View");
+    expect(tableToModelName("subgraphs")).toBe("Subgraph");
     expect(tableToModelName("sessions")).toBe("Session");
   });
 });

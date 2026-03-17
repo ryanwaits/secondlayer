@@ -16,7 +16,7 @@ Autonomous AI DevOps monitoring agent for a Stacks blockchain indexing deploymen
   |   indexer -------+               +------------------+    |
   |   api -----------+  docker logs  |                  |    |
   |   worker --------+  --follow     |   Log Watcher    |    |
-  |   view-processor-+  ---------->  |   (8 services)   |    |
+  |   subgraph-processor+  -------->  |   (8 services)   |    |
   |   postgres ------+               |                  |    |
   |   hiro-postgres--+               +--------+---------+    |
   |   hiro-api ------+                        |              |
@@ -85,7 +85,7 @@ Autonomous AI DevOps monitoring agent for a Stacks blockchain indexing deploymen
 | indexer | secondlayer-indexer-1 | `localhost:3700/health` | Yes |
 | api | secondlayer-api-1 | `localhost:3800/health` | Yes |
 | worker | secondlayer-worker-1 | -- | Yes |
-| view-processor | secondlayer-view-processor-1 | -- | Yes |
+| subgraph-processor | secondlayer-subgraph-processor-1 | -- | Yes |
 | postgres | secondlayer-postgres-1 | -- | No |
 | hiro-postgres | secondlayer-hiro-postgres-1 | -- | No |
 | hiro-api | secondlayer-hiro-api-1 | `localhost:3999/extended` | Yes |
@@ -139,7 +139,7 @@ Plus system-level collection:
 ### Restart Classification
 
 ```
-SAFE_RESTART:    indexer, api, worker, view-processor, caddy
+SAFE_RESTART:    indexer, api, worker, subgraph-processor, caddy
 NEVER_RESTART:   stacks-node
 WARN_RESTART:    postgres, hiro-postgres  (alert only, no auto-restart)
 ```

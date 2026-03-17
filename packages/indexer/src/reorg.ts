@@ -42,8 +42,8 @@ export async function handleReorg(
       .where("status", "in", ["pending", "processing"])
       .execute();
 
-    // Notify view processor about the reorg
-    await sql`SELECT pg_notify('view_reorg', ${JSON.stringify({ blockHeight, oldHash, newHash })})`.execute(tx);
+    // Notify subgraph processor about the reorg
+    await sql`SELECT pg_notify('subgraph_reorg', ${JSON.stringify({ blockHeight, oldHash, newHash })})`.execute(tx);
 
     logger.info("Reorganization handled", {
       blockHeight,

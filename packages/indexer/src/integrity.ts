@@ -200,7 +200,7 @@ async function autoBackfill(gaps: Gap[]) {
       }
     }
 
-    // Recompute contiguous immediately so views can advance
+    // Recompute contiguous immediately so subgraphs can advance
     await recomputeContiguous(getDb());
     logger.info("Auto-backfill complete", { blocks: totalBlocks });
   } catch (err) {
