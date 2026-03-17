@@ -161,20 +161,20 @@ export function CommandPalette() {
     setSelectedIdx(0);
   }, [query]);
 
-  // Prefetch data for highlighted action
-  const prefetchTargets: Record<string, { queryKey: readonly string[]; apiPath: string }[]> = {
+  // Prefetch data for highlighted action — queryFn must match the hook's unwrap
+  const prefetchTargets: Record<string, { queryKey: readonly string[]; apiPath: string; unwrap?: (data: unknown) => unknown }[]> = {
     "/": [
-      { queryKey: queryKeys.streams.all, apiPath: "/api/streams?limit=100&offset=0" },
-      { queryKey: queryKeys.views.all, apiPath: "/api/views" },
+      { queryKey: queryKeys.streams.all, apiPath: "/api/streams?limit=100&offset=0", unwrap: (d: any) => d.streams },
+      { queryKey: queryKeys.views.all, apiPath: "/api/views", unwrap: (d: any) => d.data },
     ],
     "/streams": [
-      { queryKey: queryKeys.streams.all, apiPath: "/api/streams?limit=100&offset=0" },
+      { queryKey: queryKeys.streams.all, apiPath: "/api/streams?limit=100&offset=0", unwrap: (d: any) => d.streams },
     ],
     "/views": [
-      { queryKey: queryKeys.views.all, apiPath: "/api/views" },
+      { queryKey: queryKeys.views.all, apiPath: "/api/views", unwrap: (d: any) => d.data },
     ],
     "/keys": [
-      { queryKey: queryKeys.keys.all, apiPath: "/api/keys" },
+      { queryKey: queryKeys.keys.all, apiPath: "/api/keys", unwrap: (d: any) => d.keys },
     ],
     "/usage": [
       { queryKey: ["account", "usage"], apiPath: "/api/accounts/usage" },
@@ -193,11 +193,13 @@ export function CommandPalette() {
     if (!selected?.action.href) return;
     const targets = prefetchTargets[selected.action.href];
     if (!targets) return;
-    for (const { queryKey, apiPath } of targets) {
+    for (const { queryKey, apiPath, unwrap } of targets) {
       qc.prefetchQuery({
         queryKey,
         queryFn: () =>
-          fetch(apiPath, { credentials: "same-origin" }).then((r) => r.json()),
+          fetch(apiPath, { credentials: "same-origin" })
+            .then((r) => r.json())
+            .then((d) => (unwrap ? unwrap(d) : d)),
         staleTime: 30_000,
       });
     }
