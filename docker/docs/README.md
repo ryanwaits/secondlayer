@@ -41,7 +41,7 @@ bash scripts/bootstrap.sh
 `bootstrap.sh` phases:
 1. Provisions Docker, UFW (22/80/443), fail2ban, systemd service
 2. Pre-flight: checks `.env`, disk space (>200GB required)
-3. Starts: postgres → migrate → api, indexer, worker, view-processor
+3. Starts: postgres → migrate → api, indexer, worker, subgraph-processor
 4. Starts caddy
 
 Flags:

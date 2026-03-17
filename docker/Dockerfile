@@ -22,7 +22,7 @@ COPY packages/api/package.json ./packages/api/
 COPY packages/worker/package.json ./packages/worker/
 COPY packages/indexer/package.json ./packages/indexer/
 COPY packages/auth/package.json ./packages/auth/
-COPY packages/views/package.json ./packages/views/
+COPY packages/subgraphs/package.json ./packages/subgraphs/
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/stacks/package.json ./packages/stacks/
@@ -41,7 +41,7 @@ FROM deps AS builder
 COPY packages/stacks ./packages/stacks
 COPY packages/shared ./packages/shared
 COPY packages/auth ./packages/auth
-COPY packages/views ./packages/views
+COPY packages/subgraphs ./packages/subgraphs
 COPY packages/api ./packages/api
 COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
@@ -49,7 +49,7 @@ COPY packages/account-agent ./packages/account-agent
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
-RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/views' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
+RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/subgraphs' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
 
 # =============================================================================
 # API service
@@ -63,7 +63,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/auth ./packages/auth
-COPY --from=builder /app/packages/views ./packages/views
+COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
 COPY --from=builder /app/packages/api ./packages/api
 COPY --from=builder /app/package.json ./
 

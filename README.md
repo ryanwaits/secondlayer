@@ -159,7 +159,7 @@ Address prefix determines network:
 
 ## Platform
 
-Second Layer also provides a hosted indexing platform with real-time streams, materialized views, and contract discovery.
+Second Layer also provides a hosted indexing platform with real-time streams, subgraphs, and contract discovery.
 
 ### CLI
 
@@ -168,7 +168,7 @@ bun add -g @secondlayer/cli
 
 sl auth login                    # authenticate via magic link
 sl streams list                  # manage event streams
-sl views list                    # manage materialized views
+sl subgraphs list                # manage subgraphs
 sl contracts search "token"      # search indexed contracts by name
 sl contracts info SP2J6..token   # contract details (deployer, call count, etc.)
 sl contracts abi SP2J6..token    # fetch + display contract ABI
