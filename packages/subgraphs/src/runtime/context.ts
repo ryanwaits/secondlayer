@@ -129,7 +129,8 @@ export class SubgraphContext {
     const { clause } = buildWhereClause(where);
     const query = `SELECT * FROM ${qualifiedTable} WHERE ${clause} LIMIT 1`;
     const { rows } = await sql.raw(query).execute(this.db);
-    return (rows as Record<string, unknown>[])[0] ?? null;
+    const row = (rows as Record<string, unknown>[])[0] ?? null;
+    return row ? this.coerceRow(table, row) : null;
   }
 
   async findMany(
@@ -141,7 +142,20 @@ export class SubgraphContext {
     const { clause } = buildWhereClause(where);
     const query = `SELECT * FROM ${qualifiedTable} WHERE ${clause}`;
     const { rows } = await sql.raw(query).execute(this.db);
-    return rows as Record<string, unknown>[];
+    return (rows as Record<string, unknown>[]).map((r) => this.coerceRow(table, r));
+  }
+
+  /** Coerce string values from Postgres back to BigInt for uint/int columns */
+  private coerceRow(table: string, row: Record<string, unknown>): Record<string, unknown> {
+    const tableDef = this.subgraphSchema[table];
+    if (!tableDef) return row;
+    const result = { ...row };
+    for (const [col, def] of Object.entries(tableDef.columns)) {
+      if ((def.type === "uint" || def.type === "int") && typeof result[col] === "string") {
+        result[col] = BigInt(result[col] as string);
+      }
+    }
+    return result;
   }
 
   // --- Flush ---
