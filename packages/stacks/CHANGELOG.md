@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 0.2.1
+
+### Patch Changes
+
+- Fix duplicate export of `combineMultiSigSignatures` caused by dynamic import creating a separate bunup chunk. Replaced with static import.
+
 ## 0.2.0
 
 ### Minor Changes
