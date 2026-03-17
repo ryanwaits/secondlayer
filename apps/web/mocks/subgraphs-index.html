@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subgraphs — Secondlayer</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;460;500;560&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --text-main: #ececec;
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --border: #2a2a2a;
+  --code-bg: rgba(255, 255, 255, 0.08);
+  --bg-main: #0a0a0a;
+  --font-sans-stack: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono-stack: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  --font-heading-stack: var(--font-sans-stack);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-sans-stack);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.console-main { max-width: 1100px; margin: 0 auto; padding: 40px 32px; }
+
+/* ── Page header ───────────────────────────────────────── */
+.dash-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.dash-page-title {
+  font-family: var(--font-heading-stack);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+  margin-bottom: 0;
+}
+
+.dash-page-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ── Actions dropdown ──────────────────────────────────── */
+.actions-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s ease;
+}
+.actions-btn:hover { border-color: var(--text-muted); }
+.actions-btn svg { opacity: 0.5; }
+
+/* ── Section heading — hr with overlaid text ───────────── */
+.dash-section-wrap {
+  position: relative;
+  margin-top: 32px;
+  margin-bottom: 20px;
+}
+
+.dash-section-wrap hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+}
+
+.dash-section-title {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background: var(--bg-main);
+  padding-right: 12px;
+  font-size: 11px;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ── Index rows ────────────────────────────────────────── */
+.dash-index-group { display: flex; flex-direction: column; }
+
+.dash-index-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.dash-index-item:last-child { border-bottom: none; }
+
+.dash-index-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 16px;
+  text-decoration: none;
+  color: var(--text-main);
+  font-weight: 460;
+}
+
+.dash-index-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-index-hint {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.dash-index-meta {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Badges ────────────────────────────────────────────── */
+.dash-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.dash-badge.active { color: #22c55e; background: rgba(34, 197, 94, 0.08); }
+.dash-badge.syncing { color: #38bdf8; background: rgba(56, 189, 248, 0.08); }
+.dash-badge.stalled { color: #eab308; background: rgba(234, 179, 8, 0.08); }
+.dash-badge.error { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+.dash-badge.version { color: var(--text-muted); background: rgba(128, 128, 128, 0.1); font-family: var(--font-mono-stack); }
+
+/* ── Activity dot ──────────────────────────────────────── */
+.dash-activity-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dash-activity-dot.green { background: #22c55e; }
+.dash-activity-dot.blue { background: #38bdf8; }
+.dash-activity-dot.yellow { background: #eab308; }
+.dash-activity-dot.red { background: #ef4444; }
+
+/* ── Syncing progress bar ──────────────────────────────── */
+.sync-progress {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-bar {
+  width: 48px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sync-bar-fill {
+  height: 100%;
+  background: #38bdf8;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Chevron ───────────────────────────────────────────── */
+.chevron {
+  color: var(--text-muted);
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+<div class="console-main">
+
+  <!-- Header -->
+  <div class="dash-page-header">
+    <div>
+      <h1 class="dash-page-title">Subgraphs</h1>
+      <p class="dash-page-desc">5 subgraphs — 2 active, 1 syncing, 1 stalled, 1 error</p>
+    </div>
+    <button class="actions-btn">
+      Actions
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3 3 3-3"/></svg>
+    </button>
+  </div>
+
+  <!-- ACTIVE -->
+  <div class="dash-section-wrap">
+    <hr>
+    <h2 class="dash-section-title">Active</h2>
+  </div>
+  <div class="dash-index-group">
+    <div class="dash-index-item">
+      <a href="#" class="dash-index-link">
+        <span class="dash-index-label">
+          <span class="dash-activity-dot green"></span>
+          dex-swaps
+        </span>
+        <span class="dash-index-meta">
+          <span class="dash-badge active">active</span>
+          12,450 rows
+          <span style="margin-left: 2px">#35,218</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </a>
+    </div>
+    <div class="dash-index-item">
+      <a href="#" class="dash-index-link">
+        <span class="dash-index-label">
+          <span class="dash-activity-dot green"></span>
+          nft-marketplace
+        </span>
+        <span class="dash-index-meta">
+          <span class="dash-badge active">active</span>
+          87,312 rows
+          <span style="margin-left: 2px">#35,218</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </a>
+    </div>
+  </div>
+
+  <!-- SYNCING -->
+  <div class="dash-section-wrap">
+    <hr>
+    <h2 class="dash-section-title">Syncing</h2>
+  </div>
+  <div class="dash-index-group">
+    <div class="dash-index-item">
+      <a href="#" class="dash-index-link">
+        <span class="dash-index-label">
+          <span class="dash-activity-dot blue"></span>
+          pox-stacking
+          <span class="dash-index-hint">catching up</span>
+        </span>
+        <span class="dash-index-meta">
+          <span class="dash-badge syncing">syncing</span>
+          <span class="sync-progress">
+            <span class="sync-bar"><span class="sync-bar-fill" style="width: 14%"></span></span>
+            #5,011 of #35,218
+          </span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </a>
+    </div>
+  </div>
+
+  <!-- STALLED -->
+  <div class="dash-section-wrap">
+    <hr>
+    <h2 class="dash-section-title">Stalled</h2>
+  </div>
+  <div class="dash-index-group">
+    <div class="dash-index-item">
+      <a href="#" class="dash-index-link">
+        <span class="dash-index-label">
+          <span class="dash-activity-dot yellow"></span>
+          token-transfers
+          <span class="dash-index-hint">18,204 blocks behind</span>
+        </span>
+        <span class="dash-index-meta">
+          <span class="dash-badge stalled">stalled</span>
+          3,891 rows
+          <span style="margin-left: 2px">#17,014</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="dash-section-wrap">
+    <hr>
+    <h2 class="dash-section-title">Error</h2>
+  </div>
+  <div class="dash-index-group">
+    <div class="dash-index-item">
+      <a href="#" class="dash-index-link">
+        <span class="dash-index-label">
+          <span class="dash-activity-dot red"></span>
+          defi-yields
+        </span>
+        <span class="dash-index-meta">
+          <span class="dash-badge error">error</span>
+          247 errors
+          <span style="margin-left: 2px">#12,803</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </a>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,6 +1,36 @@
 import type { SubgraphSummary, SubgraphDetail } from "@/lib/types";
 
-// ── V1 — Stalled Subgraph ──────────────────────────────────────────
+// ── Display status — derived from DB status + chain tip ───────────
+
+export type DisplayStatus = "active" | "syncing" | "stalled" | "error" | "reindexing";
+
+export interface SubgraphDisplayState {
+  displayStatus: DisplayStatus;
+  blocksBehind: number;
+  chainTip: number;
+}
+
+/**
+ * Derive a display status from the DB status and chain tip.
+ *  - active: within 50 blocks of tip
+ *  - syncing: behind tip but DB status is "active" (catching up)
+ *  - stalled: same as syncing but retained for backward compat
+ *  - error/reindexing: pass through from DB
+ */
+export function getDisplayStatus(
+  subgraph: SubgraphSummary | SubgraphDetail,
+  chainTip: number | null,
+): DisplayStatus {
+  if (subgraph.status === "error") return "error";
+  if (subgraph.status === "reindexing") return "reindexing";
+  if (chainTip == null || subgraph.lastProcessedBlock == null) return "active";
+
+  const blocksBehind = chainTip - subgraph.lastProcessedBlock;
+  if (blocksBehind <= 50) return "active";
+  return "syncing";
+}
+
+// ── V1 — Stalled Subgraph (legacy, used by insights) ─────────────
 
 export interface StalledSubgraph {
   blocksBehind: number;
