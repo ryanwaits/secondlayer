@@ -7,7 +7,7 @@ For day-to-day operations, see [docker/docs/OPERATIONS.md](docker/docs/OPERATION
 ```
 Internet → Caddy (:443) → API (:3800) ← Subgraph Processor
                                               │
-Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worker → Webhooks
+Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worker → Deliveries
                                      │                          ↑
                                Tip Follower              Job Queue
                             (Hiro remote fallback)
@@ -17,8 +17,8 @@ Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worke
 |---------|------|-------------|
 | **Stacks Node** | 20443/20444 | Full node, pushes blocks via event observer |
 | **Indexer** | 3700 | Receives blocks, parses txs/events, stores in DB |
-| **API** | 3800 | REST API for streams, subgraphs, webhooks |
-| **Worker** | — | Processes jobs, evaluates filters, delivers webhooks |
+| **API** | 3800 | REST API for streams, subgraphs, deliveries |
+| **Worker** | — | Processes jobs, evaluates filters, sends deliveries |
 | **Subgraph Processor** | — | Computes subgraphs |
 | **Postgres** | 5432 | Stores blocks, transactions, events, jobs |
 | **Caddy** | 80/443 | TLS termination, reverse proxy |
@@ -189,5 +189,5 @@ ON CONFLICT (contract_id) DO NOTHING;
 
 1. HTTPS for all endpoints (Caddy handles TLS automatically)
 2. Firewall indexer to only accept traffic from your stacks-node
-3. Enable webhook signature verification in your handlers
+3. Enable delivery signature verification in your handlers
 4. Rotate secrets periodically

@@ -38,13 +38,13 @@ const abi = await sl.contracts.getAbi("SP000000000000000000002Q6VF78.bns");
 
 ## Streams
 
-Manage real-time event streams with webhook delivery.
+Manage real-time event streams with endpoint delivery.
 
 ```typescript
 // Create
-const { stream, webhookSecret } = await sl.streams.create({
+const { stream, signingSecret } = await sl.streams.create({
   name: "my-stream",
-  webhookUrl: "https://example.com/webhook",
+  endpointUrl: "https://example.com/receive",
   filters: { type: "contract_call", contract_id: "SP...token" },
 });
 

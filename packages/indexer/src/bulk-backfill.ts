@@ -3,7 +3,7 @@
  *
  * Designed for use with a self-hosted Hiro API (no rate limits).
  * Writes directly to DB (bypasses /new_block HTTP endpoint).
- * Does NOT enqueue stream jobs — bulk historical data skips webhooks.
+ * Does NOT enqueue stream jobs — bulk historical data skips deliveries.
  *
  * Usage:
  *   HIRO_API_URL=http://localhost:3999 DATABASE_URL=postgres://... \

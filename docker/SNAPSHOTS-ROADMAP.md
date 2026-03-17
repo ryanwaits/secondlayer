@@ -48,7 +48,7 @@ Restore snapshot locally, replay specific block range, step through handler logi
 1. Create stream via API
 2. GET /streams/{id}/history?from=170000
 3. Receive paginated JSON immediately
-4. New blocks via webhook in real-time
+4. New blocks delivered in real-time
 ```
 
 #### Self-Hosted Indexer
