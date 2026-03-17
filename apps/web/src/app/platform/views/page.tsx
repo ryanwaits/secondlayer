@@ -3,6 +3,8 @@ import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { ViewSummary, AccountInsight } from "@/lib/types";
 import { detectStalledView } from "@/lib/intelligence/views";
 import { InsightCard } from "@/components/console/intelligence/insight-card";
+import { ActionDropdown } from "@/components/console/action-dropdown";
+import { ViewsEmpty } from "./views-empty";
 
 export default async function ViewsPage() {
   const session = await getSessionFromCookies();
@@ -36,13 +38,16 @@ export default async function ViewsPage() {
 
   return (
     <>
-      <div className="dash-page-header" style={views.length === 0 ? { textAlign: "center" } : undefined}>
-        <h1 className="dash-page-title">Views</h1>
-        {views.length > 0 && (
-          <p className="dash-page-desc">
-            {views.length} deployed view{views.length !== 1 ? "s" : ""}
-          </p>
-        )}
+      <div className="dash-page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
+          <h1 className="dash-page-title">Views</h1>
+          {views.length > 0 && (
+            <p className="dash-page-desc">
+              {views.length} deployed view{views.length !== 1 ? "s" : ""}
+            </p>
+          )}
+        </div>
+        <ActionDropdown variant="views" />
       </div>
 
       {insights.length > 0 && session && (
@@ -54,17 +59,7 @@ export default async function ViewsPage() {
       )}
 
       {views.length === 0 ? (
-        <div className="dash-empty">
-          <p>Deploy a view to start indexing blockchain data.</p>
-          <div className="dash-empty-actions">
-            <code className="dash-empty-cmd">sl views scaffold {"<contract-id>"} -o views/my-view.ts</code>
-            <div className="dash-empty-links">
-              <Link href="/platform/views/scaffold">Scaffold from contract</Link>
-              <span className="dash-empty-sep">·</span>
-              <Link href="/site/views">Read the docs</Link>
-            </div>
-          </div>
-        </div>
+        <ViewsEmpty />
       ) : (
         <div className="dash-index-group">
           {views.map((view) => {
