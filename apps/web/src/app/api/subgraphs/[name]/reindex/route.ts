@@ -16,11 +16,11 @@ export async function POST(
   try {
     const body = await req.json().catch(() => ({}));
     const data = await apiRequest<{ message: string; fromBlock?: number; toBlock?: number }>(
-      `/api/views/${name}/reindex`,
+      `/api/subgraphs/${name}/reindex`,
       { method: "POST", body, sessionToken },
     );
-    revalidateTag("views", { expire: 0 });
-    revalidateTag(`view-${name}`, { expire: 0 });
+    revalidateTag("subgraphs", { expire: 0 });
+    revalidateTag(`subgraph-${name}`, { expire: 0 });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {

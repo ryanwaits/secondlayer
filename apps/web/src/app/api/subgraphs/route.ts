@@ -1,22 +1,16 @@
 import { NextResponse } from "next/server";
 import { apiRequest, ApiError, getSessionFromRequest } from "@/lib/api";
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ name: string; table: string }> },
-) {
+export async function GET(req: Request) {
   const sessionToken = getSessionFromRequest(req);
   if (!sessionToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, table } = await params;
-
   try {
-    const data = await apiRequest<{ count: number }>(
-      `/api/views/${name}/${table}/count`,
-      { sessionToken },
-    );
+    const data = await apiRequest<{ data: unknown[] }>("/api/subgraphs", {
+      sessionToken,
+    });
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof ApiError) {

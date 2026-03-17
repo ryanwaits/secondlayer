@@ -4,14 +4,14 @@ interface UsageData {
   plan: string;
   limits: {
     streams: number;
-    views: number;
+    subgraphs: number;
     apiRequestsPerDay: number;
     deliveriesPerMonth: number;
     storageBytes: number;
   };
   current: {
     streams: number;
-    views: number;
+    subgraphs: number;
     apiRequestsToday: number;
     deliveriesThisMonth: number;
     storageBytes: number;
@@ -81,9 +81,9 @@ export default async function UsagePage() {
         </div>
         <div className="dash-index-item">
           <div className="dash-index-link">
-            <span className="dash-index-label">Views</span>
+            <span className="dash-index-label">Subgraphs</span>
             <span className="dash-index-meta">
-              {usage.current.views} / {usage.limits.views}
+              {usage.current.subgraphs} / {usage.limits.subgraphs}
             </span>
           </div>
         </div>

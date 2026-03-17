@@ -3,7 +3,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { CodeBlock } from "@/components/code-block";
 import { BoxBadge } from "@/components/box-badge";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
-import { MARKETING_VIEWS_PROMPT } from "@/lib/agent-prompts";
+import { MARKETING_SUBGRAPHS_PROMPT } from "@/lib/agent-prompts";
 import type { TocItem } from "@/components/sidebar";
 
 const toc: TocItem[] = [
@@ -17,31 +17,31 @@ const toc: TocItem[] = [
   { label: "Props", href: "#props" },
 ];
 
-export default function ViewsPage() {
+export default function SubgraphsPage() {
   return (
     <div className="article-layout">
-      <Sidebar title="Views" toc={toc} />
+      <Sidebar title="Subgraphs" toc={toc} />
 
       <main className="content-area">
         <header className="page-header">
-          <h1 className="page-title">Views <BoxBadge>Beta</BoxBadge></h1>
+          <h1 className="page-title">Subgraphs <BoxBadge>Beta</BoxBadge></h1>
         </header>
 
         <div className="prose">
           <p>
-            Views are declarative SQL tables that auto-index blockchain data.
+            Subgraphs are declarative SQL tables that auto-index blockchain data.
             Define a schema, write event handlers, deploy, and query — like a
             materialized view over the chain.
           </p>
           <p>
-            Install with <code>bun add @secondlayer/views</code>.
+            Install with <code>bun add @secondlayer/subgraphs</code>.
           </p>
         </div>
 
         <AgentPromptBlock
 
-          title="Set up views with your agent."
-          code={MARKETING_VIEWS_PROMPT}
+          title="Set up subgraphs with your agent."
+          code={MARKETING_SUBGRAPHS_PROMPT}
           collapsible
         />
 
@@ -49,15 +49,15 @@ export default function ViewsPage() {
 
         <div className="prose">
           <p>
-            A view definition has three parts: sources (what events to listen
+            A subgraph definition has three parts: sources (what events to listen
             for), a schema (what tables to create), and handlers (how to process
             each event into rows).
           </p>
         </div>
 
-        <CodeBlock code={`import { defineView } from "@secondlayer/views"
+        <CodeBlock code={`import { defineSubgraph } from "@secondlayer/subgraphs"
 
-export default defineView({
+export default defineSubgraph({
   name: "token-transfers",
   version: 1,
   sources: [
@@ -89,7 +89,7 @@ export default defineView({
 
         <div className="prose">
           <p>
-            Each view gets its own PostgreSQL schema (<code>view_&lt;name&gt;</code>).
+            Each subgraph gets its own PostgreSQL schema (<code>view_&lt;name&gt;</code>).
             Tables are defined declaratively with typed columns. System columns
             are added automatically: <code>_id</code>, <code>_blockHeight</code>,{" "}
             <code>_txId</code>, <code>_createdAt</code>.
@@ -175,14 +175,14 @@ export default defineView({
 
         <div className="prose">
           <p>
-            Once deployed, query views through the SDK or CLI. The query API
+            Once deployed, query subgraphs through the SDK or CLI. The query API
             supports filtering, comparison operators, ordering, pagination, and
             field selection.
           </p>
         </div>
 
         <CodeBlock lang="typescript" code={`// Via SDK
-const { data, meta } = await client.views.queryTable(
+const { data, meta } = await client.subgraphs.queryTable(
   "token-transfers",
   "transfers",
   {
@@ -195,37 +195,37 @@ const { data, meta } = await client.views.queryTable(
 )
 
 // Comparison operators via dot notation
-const { data } = await client.views.queryTable(
+const { data } = await client.subgraphs.queryTable(
   "token-transfers",
   "transfers",
   { filters: { "amount.gte": "1000000" } }
 )
 
 // Get row count
-const { count } = await client.views.queryTableCount(
+const { count } = await client.subgraphs.queryTableCount(
   "token-transfers",
   "transfers",
   { filters: { sender: "SP1234..." } }
 )
 
 // Via CLI
-sl views query token-transfers transfers --sort _block_height --order desc --limit 25
-sl views query token-transfers transfers --filter sender=SP1234... --count`} />
+sl subgraphs query token-transfers transfers --sort _block_height --order desc --limit 25
+sl subgraphs query token-transfers transfers --filter sender=SP1234... --count`} />
 
         <SectionHeading id="typed-client">Typed client</SectionHeading>
 
         <div className="prose">
           <p>
-            The SDK can infer TypeScript types from your view definition,
+            The SDK can infer TypeScript types from your subgraph definition,
             giving you typed queries with autocompletion for table names,
             column names, and filter operators.
           </p>
         </div>
 
-        <CodeBlock lang="typescript" code={`import { getView } from "@secondlayer/sdk"
-import myView from "./views/token-transfers"
+        <CodeBlock lang="typescript" code={`import { getSubgraph } from "@secondlayer/sdk"
+import mySubgraph from "./subgraphs/token-transfers"
 
-const client = getView(myView, { apiKey: "sk-sl_..." })
+const client = getSubgraph(mySubgraph, { apiKey: "sk-sl_..." })
 
 // Fully typed — table names, column names, where operators
 const rows = await client.transfers.findMany({
@@ -240,7 +240,7 @@ const total = await client.transfers.count({
 
 // Or via the SecondLayer instance
 const client = new SecondLayer({ apiKey: "sk-sl_..." })
-const typed = client.views.typed(myView)
+const typed = client.subgraphs.typed(mySubgraph)
 const rows = await typed.transfers.findMany({ ... })`} />
 
         <SectionHeading id="search">Search</SectionHeading>
@@ -263,7 +263,7 @@ const rows = await typed.transfers.findMany({ ... })`} />
 }
 
 // Query with search via REST API
-const { data } = await client.views.queryTable("contracts", "contracts", {
+const { data } = await client.subgraphs.queryTable("contracts", "contracts", {
   search: "token",
 })`} />
 
@@ -271,7 +271,7 @@ const { data } = await client.views.queryTable("contracts", "contracts", {
 
         <div className="prose">
           <p>
-            Deploy views via the CLI. The CLI bundles your handler code with
+            Deploy subgraphs via the CLI. The CLI bundles your handler code with
             esbuild and posts it to the API. Schema changes are diffed
             automatically — additive changes are applied in place, breaking
             changes require a reindex.
@@ -279,24 +279,24 @@ const { data } = await client.views.queryTable("contracts", "contracts", {
         </div>
 
         <CodeBlock lang="bash" code={`# Deploy to Second Layer
-sl views deploy views/token-transfers.ts
+sl subgraphs deploy subgraphs/token-transfers.ts
 
 # Dev mode — watches for changes, auto-redeploys
-sl views dev views/token-transfers.ts
+sl subgraphs dev subgraphs/token-transfers.ts
 
 # Force reindex (drops and recreates schema)
-sl views reindex token-transfers
+sl subgraphs reindex token-transfers
 
 # Reindex from a specific block range
-sl views reindex token-transfers --from 150000 --to 160000
+sl subgraphs reindex token-transfers --from 150000 --to 160000
 
-# Scaffold a view from a deployed contract's ABI
-sl views scaffold SP1234...::my-contract --output views/my-contract.ts`} />
+# Scaffold a subgraph from a deployed contract's ABI
+sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts`} />
 
         <SectionHeading id="props">Props</SectionHeading>
 
         <div className="props-section">
-          <div className="props-group-title">defineView</div>
+          <div className="props-group-title">defineSubgraph</div>
 
           <div className="prop-row">
             <span className="prop-name">name</span>
@@ -314,17 +314,17 @@ sl views scaffold SP1234...::my-contract --output views/my-contract.ts`} />
           </div>
           <div className="prop-row">
             <span className="prop-name">sources</span>
-            <span className="prop-type">ViewSource[]</span>
+            <span className="prop-type">SubgraphSource[]</span>
             <span className="prop-required">required</span>
           </div>
           <div className="prop-row">
             <span className="prop-name">schema</span>
-            <span className="prop-type">Record&lt;string, ViewTable&gt;</span>
+            <span className="prop-type">Record&lt;string, SubgraphTable&gt;</span>
             <span className="prop-required">required</span>
           </div>
           <div className="prop-row">
             <span className="prop-name">handlers</span>
-            <span className="prop-type">Record&lt;string, ViewHandler&gt;</span>
+            <span className="prop-type">Record&lt;string, SubgraphHandler&gt;</span>
             <span className="prop-required">required</span>
           </div>
 
@@ -355,7 +355,7 @@ sl views scaffold SP1234...::my-contract --output views/my-contract.ts`} />
             <span className="prop-type">string | number | boolean</span>
           </div>
 
-          <div className="props-group-title">ViewSource</div>
+          <div className="props-group-title">SubgraphSource</div>
 
           <div className="prop-row">
             <span className="prop-name">type</span>

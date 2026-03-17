@@ -6,7 +6,7 @@ const topics: [DocTopic, ...DocTopic[]] = [
   "stream-filters",
   "stream-creation",
   "api-keys",
-  "views",
+  "subgraphs",
   "stream-management",
 ];
 

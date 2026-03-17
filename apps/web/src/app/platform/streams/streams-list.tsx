@@ -180,7 +180,7 @@ export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
               code={STREAMS_EMPTY_PROMPT}
             />
           ) : (
-            <ManualSteps streams views={false} />
+            <ManualSteps streams subgraphs={false} />
           )}
         </>
       ) : (

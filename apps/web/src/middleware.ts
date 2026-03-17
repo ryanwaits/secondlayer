@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths that have both marketing (unauthed) and platform (authed) versions
-const DUAL_PATHS = ["/streams", "/views"];
+const DUAL_PATHS = ["/streams", "/subgraphs"];
 // Paths that require authentication
 const AUTH_REQUIRED = ["/api-keys", "/usage", "/billing", "/settings"];
 
@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
   const session = request.cookies.get("sl_session");
   const { pathname } = request.nextUrl;
 
-  // /site/* → serve marketing pages even when authenticated
+  // /site/* -> serve marketing pages even when authenticated
   if (pathname.startsWith("/site")) {
     const target = pathname.replace(/^\/site/, "") || "/";
     return NextResponse.rewrite(new URL(target, request.url));
@@ -42,5 +42,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/site/:path*", "/streams", "/streams/:path*", "/views", "/views/:path*", "/api-keys", "/api-keys/:path*", "/usage", "/usage/:path*", "/billing", "/billing/:path*", "/settings", "/settings/:path*"],
+  matcher: ["/", "/site/:path*", "/streams", "/streams/:path*", "/subgraphs", "/subgraphs/:path*", "/api-keys", "/api-keys/:path*", "/usage", "/usage/:path*", "/billing", "/billing/:path*", "/settings", "/settings/:path*"],
 };

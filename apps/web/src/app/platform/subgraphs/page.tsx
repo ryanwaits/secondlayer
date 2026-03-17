@@ -1,21 +1,21 @@
 import Link from "next/link";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import type { ViewSummary } from "@/lib/types";
-import { detectStalledView } from "@/lib/intelligence/views";
+import type { SubgraphSummary } from "@/lib/types";
+import { detectStalledSubgraph } from "@/lib/intelligence/subgraphs";
 import { InsightsSection } from "@/components/console/intelligence/insights-section";
 import { ActionDropdown } from "@/components/console/action-dropdown";
-import { ViewsEmpty } from "./views-empty";
+import { SubgraphsEmpty } from "./subgraphs-empty";
 
-export default async function ViewsPage() {
+export default async function SubgraphsPage() {
   const session = await getSessionFromCookies();
-  let views: ViewSummary[] = [];
+  let subgraphs: SubgraphSummary[] = [];
   let chainTip: number | null = null;
 
   if (session) {
-    const [viewsResult, statusResult] = await Promise.allSettled([
-      apiRequest<{ data: ViewSummary[] }>("/api/views", {
+    const [subgraphsResult, statusResult] = await Promise.allSettled([
+      apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
         sessionToken: session,
-        tags: ["views"],
+        tags: ["subgraphs"],
       }),
       apiRequest<{ chainTip: number | null }>("/status", {
         sessionToken: session,
@@ -23,7 +23,7 @@ export default async function ViewsPage() {
       }),
     ]);
 
-    views = viewsResult.status === "fulfilled" ? viewsResult.value.data : [];
+    subgraphs = subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
     chainTip = statusResult.status === "fulfilled" ? statusResult.value.chainTip : null;
   }
 
@@ -31,43 +31,43 @@ export default async function ViewsPage() {
     <>
       <div className="dash-page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
-          <h1 className="dash-page-title">Views</h1>
-          {views.length > 0 && (
+          <h1 className="dash-page-title">Subgraphs</h1>
+          {subgraphs.length > 0 && (
             <p className="dash-page-desc">
-              {views.length} deployed view{views.length !== 1 ? "s" : ""}
+              {subgraphs.length} deployed subgraph{subgraphs.length !== 1 ? "s" : ""}
             </p>
           )}
         </div>
-        <ActionDropdown variant="views" />
+        <ActionDropdown variant="subgraphs" />
       </div>
 
       {session && (
-        <InsightsSection category="view" sessionToken={session} />
+        <InsightsSection category="subgraph" sessionToken={session} />
       )}
 
-      {views.length === 0 ? (
-        <ViewsEmpty />
+      {subgraphs.length === 0 ? (
+        <SubgraphsEmpty />
       ) : (
         <div className="dash-index-group">
-          {views.map((view) => {
-            const stalled = chainTip != null ? detectStalledView(view, chainTip) : null;
+          {subgraphs.map((subgraph) => {
+            const stalled = chainTip != null ? detectStalledSubgraph(subgraph, chainTip) : null;
             return (
-              <div key={view.name} className="dash-index-item">
+              <div key={subgraph.name} className="dash-index-item">
                 <Link
-                  href={`/views/${view.name}`}
+                  href={`/subgraphs/${subgraph.name}`}
                   className="dash-index-link"
                 >
                   <span className="dash-index-label">
                     {stalled && <span className="dash-activity-dot yellow" />}
-                    {view.name}
+                    {subgraph.name}
                     {stalled && (
                       <span className="dash-index-hint"> (stalled)</span>
                     )}
                   </span>
                   <span className="dash-index-meta">
-                    <span className="dash-badge version">v{view.version}</span>
-                    {view.lastProcessedBlock != null &&
-                      `#${view.lastProcessedBlock.toLocaleString()}`}
+                    <span className="dash-badge version">v{subgraph.version}</span>
+                    {subgraph.lastProcessedBlock != null &&
+                      `#${subgraph.lastProcessedBlock.toLocaleString()}`}
                   </span>
                 </Link>
               </div>

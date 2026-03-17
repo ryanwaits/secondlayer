@@ -1,6 +1,6 @@
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { EmptyState } from "@/components/console/empty-state";
-import type { Stream, ViewSummary } from "@/lib/types";
+import type { Stream, SubgraphSummary } from "@/lib/types";
 import { DashboardContent } from "@/components/console/dashboard-content";
 
 export default async function DashboardPage() {
@@ -16,24 +16,24 @@ export default async function DashboardPage() {
     );
   }
 
-  const [streamsResult, viewsResult] = await Promise.allSettled([
+  const [streamsResult, subgraphsResult] = await Promise.allSettled([
     apiRequest<{ streams: Stream[]; total: number }>(
       "/api/streams?limit=100&offset=0",
       { sessionToken: session, tags: ["streams"] },
     ),
-    apiRequest<{ data: ViewSummary[] }>("/api/views", {
+    apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
       sessionToken: session,
-      tags: ["views"],
+      tags: ["subgraphs"],
     }),
   ]);
 
   const streams = streamsResult.status === "fulfilled" ? streamsResult.value.streams : [];
-  const views = viewsResult.status === "fulfilled" ? viewsResult.value.data : [];
+  const subgraphs = subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
 
   return (
     <DashboardContent
       streams={streams}
-      views={views}
+      subgraphs={subgraphs}
       sessionToken={session}
     />
   );

@@ -9,7 +9,7 @@ interface AbiFunction {
 }
 
 /**
- * Generates a copy-pasteable agent prompt for creating a Secondlayer view.
+ * Generates a copy-pasteable agent prompt for creating a Secondlayer subgraph.
  */
 export function generateAgentPrompt(
   contractId: string,
@@ -20,7 +20,7 @@ export function generateAgentPrompt(
   const contractName = contractParts[contractParts.length - 1] ?? contractId;
 
   const lines: string[] = [
-    `Create a Secondlayer view for contract ${contractId}.`,
+    `Create a Secondlayer subgraph for contract ${contractId}.`,
     "",
   ];
 
@@ -34,7 +34,7 @@ export function generateAgentPrompt(
 
   lines.push("");
   lines.push(
-    `Use \`sl views scaffold ${contractId} -o views/${contractName}.ts\``,
+    `Use \`sl subgraphs scaffold ${contractId} -o subgraphs/${contractName}.ts\``,
     "to generate the base scaffold, then customize the handlers.",
   );
 

@@ -81,17 +81,17 @@ function Step({
 
 export function ManualSteps({
   streams,
-  views,
+  subgraphs,
 }: {
   streams: boolean;
-  views: boolean;
+  subgraphs: boolean;
 }) {
   const step3Title =
-    streams && views
+    streams && subgraphs
       ? "Create your first resource"
       : streams
         ? "Create your first stream"
-        : "Deploy your first view";
+        : "Deploy your first subgraph";
 
   return (
     <div className="steps">
@@ -103,11 +103,11 @@ export function ManualSteps({
       </Step>
       <Step number={3} title={step3Title} last>
         {streams && (
-          <div style={streams && views ? { marginBottom: 6 } : undefined}>
+          <div style={streams && subgraphs ? { marginBottom: 6 } : undefined}>
             <TerminalBlock command="secondlayer streams create" />
           </div>
         )}
-        {views && <TerminalBlock command="secondlayer views init" />}
+        {subgraphs && <TerminalBlock command="secondlayer subgraphs init" />}
       </Step>
     </div>
   );

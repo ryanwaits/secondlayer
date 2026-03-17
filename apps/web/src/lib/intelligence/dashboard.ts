@@ -1,9 +1,9 @@
-import type { Stream, ViewSummary } from "@/lib/types";
-import { detectStalledView } from "./views";
+import type { Stream, SubgraphSummary } from "@/lib/types";
+import { detectStalledSubgraph } from "./subgraphs";
 
 export interface AttentionItem {
   stream?: Stream;
-  view?: ViewSummary;
+  subgraph?: SubgraphSummary;
   name: string;
   href: string;
   status: string;
@@ -56,28 +56,28 @@ export function triageStreams(streams: Stream[]): TriageResult {
   return { needsAttention, allGood };
 }
 
-export function triageViews(
-  views: ViewSummary[],
+export function triageSubgraphs(
+  subgraphs: SubgraphSummary[],
   chainTip: number | null,
 ): AttentionItem[] {
   const items: AttentionItem[] = [];
 
-  for (const view of views) {
-    if (view.status === "error") {
+  for (const subgraph of subgraphs) {
+    if (subgraph.status === "error") {
       items.push({
-        view,
-        name: view.name,
-        href: `/views/${view.name}`,
+        subgraph,
+        name: subgraph.name,
+        href: `/subgraphs/${subgraph.name}`,
         status: "error",
-        reason: "View is in error state",
+        reason: "Subgraph is in error state",
       });
     } else if (chainTip != null) {
-      const stalled = detectStalledView(view, chainTip);
+      const stalled = detectStalledSubgraph(subgraph, chainTip);
       if (stalled) {
         items.push({
-          view,
-          name: view.name,
-          href: `/views/${view.name}`,
+          subgraph,
+          name: subgraph.name,
+          href: `/subgraphs/${subgraph.name}`,
           status: "stalled",
           reason: `${stalled.blocksBehind.toLocaleString()} blocks behind`,
         });

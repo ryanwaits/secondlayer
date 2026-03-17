@@ -26,7 +26,7 @@ export function StatusPill() {
   if (!status) return null;
 
   const isHealthy = status.status === "healthy";
-  const plan = preferences.products.streams || preferences.products.views ? "Free" : null;
+  const plan = preferences.products.streams || preferences.products.subgraphs ? "Free" : null;
 
   return (
     <div className="status-pill-wrap">

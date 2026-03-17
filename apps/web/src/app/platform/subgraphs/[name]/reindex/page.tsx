@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
-export default function ViewReindexPage() {
+export default function SubgraphReindexPage() {
   const { name } = useParams<{ name: string }>();
   const [fromBlock, setFromBlock] = useState("");
   const [toBlock, setToBlock] = useState("");
@@ -19,7 +19,7 @@ export default function ViewReindexPage() {
     if (toBlock) body.toBlock = Number(toBlock);
 
     try {
-      const res = await fetch(`/api/views/${name}/reindex`, {
+      const res = await fetch(`/api/subgraphs/${name}/reindex`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -41,7 +41,7 @@ export default function ViewReindexPage() {
   return (
     <>
       <div className="dash-callout-warn">
-        Reindexing is destructive. All existing data for this view will be
+        Reindexing is destructive. All existing data for this subgraph will be
         dropped and reprocessed from the specified block range.
       </div>
 

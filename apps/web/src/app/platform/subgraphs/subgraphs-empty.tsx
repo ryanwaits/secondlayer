@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { ManualSteps } from "@/components/console/manual-steps";
-import { VIEWS_EMPTY_PROMPT } from "@/lib/agent-prompts";
+import { SUBGRAPHS_EMPTY_PROMPT } from "@/lib/agent-prompts";
 
 type Mode = "agent" | "manual";
 
-export function ViewsEmpty() {
+export function SubgraphsEmpty() {
   const [mode, setMode] = useState<Mode>("agent");
 
   return (
@@ -35,10 +35,10 @@ export function ViewsEmpty() {
       {mode === "agent" ? (
         <AgentPromptBlock
           title="Paste this into your agent"
-          code={VIEWS_EMPTY_PROMPT}
+          code={SUBGRAPHS_EMPTY_PROMPT}
         />
       ) : (
-        <ManualSteps streams={false} views />
+        <ManualSteps streams={false} subgraphs />
       )}
     </>
   );

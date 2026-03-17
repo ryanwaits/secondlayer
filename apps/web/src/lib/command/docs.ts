@@ -151,17 +151,17 @@ DELETE /api/keys/{id}
 - status: "active" | "revoked"`;
 }
 
-export function getViewDocs(): string {
-  return `## Views
+export function getSubgraphDocs(): string {
+  return `## Subgraphs
 
-Views are materialized query indexes over blockchain data.
+Subgraphs are materialized query indexes over blockchain data.
 
 ### Fields
 - name: string (unique identifier)
 - status: "building" | "ready" | "failed"
 
 ### Navigation
-Views are managed at /views in the dashboard.`;
+Subgraphs are managed at /subgraphs in the dashboard.`;
 }
 
 export function getStreamManagementDocs(): string {
@@ -186,14 +186,14 @@ export type DocTopic =
   | "stream-filters"
   | "stream-creation"
   | "api-keys"
-  | "views"
+  | "subgraphs"
   | "stream-management";
 
 const topicMap: Record<DocTopic, () => string> = {
   "stream-filters": getStreamFilterDocs,
   "stream-creation": getStreamCreationDocs,
   "api-keys": getApiKeyDocs,
-  "views": getViewDocs,
+  "subgraphs": getSubgraphDocs,
   "stream-management": getStreamManagementDocs,
 };
 

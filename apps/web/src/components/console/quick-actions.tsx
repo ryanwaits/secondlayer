@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { QUICK_STREAM_PROMPT, QUICK_VIEW_PROMPT } from "@/lib/agent-prompts";
+import { QUICK_STREAM_PROMPT, QUICK_SUBGRAPH_PROMPT } from "@/lib/agent-prompts";
 
 function CopyTag({ copied }: { copied: boolean }) {
   return (
@@ -42,10 +42,10 @@ function QuickActionCard({
 
 export function QuickActions({
   streams = true,
-  views = true,
+  subgraphs = true,
 }: {
   streams?: boolean;
-  views?: boolean;
+  subgraphs?: boolean;
 } = {}) {
   return (
     <div className="quick-actions">
@@ -56,11 +56,11 @@ export function QuickActions({
           prompt={QUICK_STREAM_PROMPT}
         />
       )}
-      {views && (
+      {subgraphs && (
         <QuickActionCard
-          label="Deploy a view"
+          label="Deploy a subgraph"
           desc="Custom blockchain indexer"
-          prompt={QUICK_VIEW_PROMPT}
+          prompt={QUICK_SUBGRAPH_PROMPT}
         />
       )}
     </div>
@@ -68,9 +68,9 @@ export function QuickActions({
 }
 
 export function StreamQuickAction() {
-  return <QuickActions streams views={false} />;
+  return <QuickActions streams subgraphs={false} />;
 }
 
-export function ViewQuickAction() {
-  return <QuickActions streams={false} views />;
+export function SubgraphQuickAction() {
+  return <QuickActions streams={false} subgraphs />;
 }

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { DROPDOWN_CREATE_STREAM, DROPDOWN_DEPLOY_VIEW } from "@/lib/agent-prompts";
+import { DROPDOWN_CREATE_STREAM, DROPDOWN_DEPLOY_SUBGRAPH } from "@/lib/agent-prompts";
 
 interface ActionItem {
   label: string;
   description: string;
   copyText: string;
-  icon?: "stream" | "view";
+  icon?: "stream" | "subgraph";
 }
 
 const ICONS = {
@@ -16,7 +16,7 @@ const ICONS = {
       <path d="M2 4l6 4 6-4M2 4v8l6 4 6-4V4M2 4l6-4 6 4" />
     </svg>
   ),
-  view: (
+  subgraph: (
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
       <rect x="2" y="2" width="12" height="12" rx="2" />
       <path d="M5 6h6M5 8h4M5 10h5" />
@@ -26,27 +26,27 @@ const ICONS = {
 
 const DASHBOARD_ITEMS: ActionItem[] = [
   { label: "Create a stream", description: "Copy agent prompt", copyText: DROPDOWN_CREATE_STREAM, icon: "stream" },
-  { label: "Deploy a view", description: "Copy agent prompt", copyText: DROPDOWN_DEPLOY_VIEW, icon: "view" },
+  { label: "Deploy a subgraph", description: "Copy agent prompt", copyText: DROPDOWN_DEPLOY_SUBGRAPH, icon: "subgraph" },
 ];
 
 const STREAMS_ITEMS: ActionItem[] = [
   { label: "Create a stream", description: "Copy agent prompt", copyText: DROPDOWN_CREATE_STREAM, icon: "stream" },
 ];
 
-const VIEWS_ITEMS: ActionItem[] = [
-  { label: "Deploy a view", description: "Copy agent prompt", copyText: DROPDOWN_DEPLOY_VIEW, icon: "view" },
+const SUBGRAPHS_ITEMS: ActionItem[] = [
+  { label: "Deploy a subgraph", description: "Copy agent prompt", copyText: DROPDOWN_DEPLOY_SUBGRAPH, icon: "subgraph" },
 ];
 
 export function ActionDropdown({
   variant = "dashboard",
 }: {
-  variant?: "dashboard" | "streams" | "views";
+  variant?: "dashboard" | "streams" | "subgraphs";
 }) {
   const [open, setOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  const items = variant === "streams" ? STREAMS_ITEMS : variant === "views" ? VIEWS_ITEMS : DASHBOARD_ITEMS;
+  const items = variant === "streams" ? STREAMS_ITEMS : variant === "subgraphs" ? SUBGRAPHS_ITEMS : DASHBOARD_ITEMS;
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (ref.current && !ref.current.contains(e.target as Node)) {
