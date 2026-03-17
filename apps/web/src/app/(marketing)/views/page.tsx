@@ -2,6 +2,8 @@ import { Sidebar } from "@/components/sidebar";
 import { SectionHeading } from "@/components/section-heading";
 import { CodeBlock } from "@/components/code-block";
 import { BoxBadge } from "@/components/box-badge";
+import { AgentPromptBlock } from "@/components/console/agent-prompt";
+import { MARKETING_VIEWS_PROMPT } from "@/lib/agent-prompts";
 import type { TocItem } from "@/components/sidebar";
 
 const toc: TocItem[] = [
@@ -35,6 +37,13 @@ export default function ViewsPage() {
             Install with <code>bun add @secondlayer/views</code>.
           </p>
         </div>
+
+        <AgentPromptBlock
+
+          title="Set up views with your agent."
+          code={MARKETING_VIEWS_PROMPT}
+          collapsible
+        />
 
         <SectionHeading id="getting-started">Getting started</SectionHeading>
 
@@ -173,7 +182,7 @@ export default defineView({
         </div>
 
         <CodeBlock lang="typescript" code={`// Via SDK
-const { data, meta } = await sl.views.queryTable(
+const { data, meta } = await client.views.queryTable(
   "token-transfers",
   "transfers",
   {
@@ -186,14 +195,14 @@ const { data, meta } = await sl.views.queryTable(
 )
 
 // Comparison operators via dot notation
-const { data } = await sl.views.queryTable(
+const { data } = await client.views.queryTable(
   "token-transfers",
   "transfers",
   { filters: { "amount.gte": "1000000" } }
 )
 
 // Get row count
-const { count } = await sl.views.queryTableCount(
+const { count } = await client.views.queryTableCount(
   "token-transfers",
   "transfers",
   { filters: { sender: "SP1234..." } }
@@ -230,8 +239,8 @@ const total = await client.transfers.count({
 })
 
 // Or via the SecondLayer instance
-const sl = new SecondLayer({ apiKey: "sk-sl_..." })
-const typed = sl.views.typed(myView)
+const client = new SecondLayer({ apiKey: "sk-sl_..." })
+const typed = client.views.typed(myView)
 const rows = await typed.transfers.findMany({ ... })`} />
 
         <SectionHeading id="search">Search</SectionHeading>
@@ -254,7 +263,7 @@ const rows = await typed.transfers.findMany({ ... })`} />
 }
 
 // Query with search via REST API
-const { data } = await sl.views.queryTable("contracts", "contracts", {
+const { data } = await client.views.queryTable("contracts", "contracts", {
   search: "token",
 })`} />
 
