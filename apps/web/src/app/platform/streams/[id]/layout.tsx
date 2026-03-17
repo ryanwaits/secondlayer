@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
 import type { Stream } from "@/lib/types";
 import { DetailTabs } from "@/components/console/detail-tabs";
+import { StreamHeader } from "./stream-header";
 
 export default async function StreamDetailLayout({
   children,
@@ -31,9 +32,7 @@ export default async function StreamDetailLayout({
 
   return (
     <>
-      <div className="dash-page-header">
-        <h1 className="dash-page-title">{stream.name}</h1>
-      </div>
+      <StreamHeader initialStream={stream} />
       <DetailTabs items={[
         { label: "Overview", href: basePath },
         { label: "Filters", href: `${basePath}/filters` },
