@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiRequest, ApiError, getSessionFromCookies } from "@/lib/api";
 import type { ViewDetail } from "@/lib/types";
 import { Insight } from "@/components/console/intelligence/insight";
 import { detectStalledView } from "@/lib/intelligence/views";
+import { DetailTabs } from "@/components/console/detail-tabs";
 
 export default async function ViewDetailLayout({
   children,
@@ -38,7 +38,7 @@ export default async function ViewDetailLayout({
   const stalled = chainTip != null ? detectStalledView(view, chainTip) : null;
 
   const basePath = `/views/${name}`;
-  const nav = [
+  const tabs = [
     { label: "Overview", href: basePath },
     { label: "Schema", href: `${basePath}/schema` },
     { label: "Data", href: `${basePath}/data` },
@@ -66,14 +66,7 @@ export default async function ViewDetailLayout({
         </Insight>
       )}
 
-      <nav className="dash-detail-nav">
-        {nav.map((item) => (
-          <Link key={item.href} href={item.href}>
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-
+      <DetailTabs items={tabs} />
       {children}
     </>
   );

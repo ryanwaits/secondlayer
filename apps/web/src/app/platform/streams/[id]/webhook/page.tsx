@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
 import type { Stream } from "@/lib/types";
 import { WebhookClient } from "./webhook-client";
+import { StreamTabs } from "../stream-tabs";
 
 export default async function StreamWebhookPage({
   params,
@@ -23,5 +24,13 @@ export default async function StreamWebhookPage({
     throw e;
   }
 
-  return <WebhookClient stream={stream} />;
+  return (
+    <>
+      <div className="dash-page-header">
+        <h1 className="dash-page-title">{stream.name}</h1>
+      </div>
+      <StreamTabs streamId={id} />
+      <WebhookClient stream={stream} />
+    </>
+  );
 }

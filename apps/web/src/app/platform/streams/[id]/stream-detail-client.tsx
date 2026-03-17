@@ -16,6 +16,7 @@ import {
 import { detectFailurePattern, detectDeliveryGap } from "@/lib/intelligence/streams";
 import { Insight, Banner } from "@/components/console/intelligence";
 import { InsightCard } from "@/components/console/intelligence/insight-card";
+import { StreamTabs } from "./stream-tabs";
 
 function relativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -217,6 +218,8 @@ export function StreamDetailClient({
           </div>
         </div>
       </div>
+
+      <StreamTabs streamId={stream.id} />
 
       {/* Status notices */}
       {stream.status === "paused" && (

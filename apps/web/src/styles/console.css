@@ -928,26 +928,32 @@
 }
 
 /* ── Stream detail nav ────────────────────────────────────────── */
-.dash-detail-nav {
+/* ── Detail tabs (in-content sub-nav) ─────────────────────────── */
+.detail-tabs {
   display: flex;
   gap: 16px;
-  margin-bottom: 24px;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 12px;
+  margin-bottom: 24px;
 }
 
-.dash-detail-nav a {
+.detail-tab {
   font-size: 13px;
   font-weight: 460;
   color: var(--text-muted);
   text-decoration: none;
-  transition: color 0.2s ease;
+  padding: 0 0 10px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s;
 }
 
-.dash-detail-nav a:hover,
-.dash-detail-nav a.active {
+.detail-tab:hover {
+  color: var(--text-main);
+}
+
+.detail-tab.active {
   color: var(--text-main);
   font-weight: 560;
+  border-bottom-color: var(--text-main);
 }
 
 /* ── Form elements ────────────────────────────────────────────── */

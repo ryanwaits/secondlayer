@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
 import type { Stream, Delivery } from "@/lib/types";
 import { DeliveriesClient } from "./deliveries-client";
+import { StreamTabs } from "../stream-tabs";
 
 export default async function StreamDeliveriesPage({
   params,
@@ -33,9 +34,15 @@ export default async function StreamDeliveriesPage({
   } catch {}
 
   return (
-    <DeliveriesClient
-      stream={stream}
-      initialDeliveries={deliveries}
-    />
+    <>
+      <div className="dash-page-header">
+        <h1 className="dash-page-title">{stream.name}</h1>
+      </div>
+      <StreamTabs streamId={id} />
+      <DeliveriesClient
+        stream={stream}
+        initialDeliveries={deliveries}
+      />
+    </>
   );
 }
