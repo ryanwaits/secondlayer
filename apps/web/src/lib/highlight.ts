@@ -7,7 +7,7 @@ function getHighlighter() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
       themes: [monotonePurple, monotonePurpleDark],
-      langs: ["typescript", "tsx", "javascript", "bash", "json", "sql"],
+      langs: ["typescript", "tsx", "javascript", "bash", "json", "sql", "markdown"],
     });
   }
   return highlighterPromise;
