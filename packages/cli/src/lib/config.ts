@@ -33,6 +33,7 @@ export const ConfigSchema = z.object({
   network: NetworkSchema.default("mainnet"),
   apiUrl: z.string().url().optional(),
   apiKey: z.string().optional(),
+  nodeRpcUrl: z.string().url().optional(),
   dataDir: z.string().default("~/.secondlayer/data"),
   defaultEndpointUrl: z.string().url().optional(),
   node: NodeSchema.optional(),
@@ -242,6 +243,11 @@ function applyEnvOverrides(config: Config): Config {
     if (!isNaN(port) && port > 0 && port <= 65535) {
       result.ports = { ...result.ports, receiver: port };
     }
+  }
+
+  // STACKS_NODE_RPC_URL
+  if (process.env.STACKS_NODE_RPC_URL) {
+    result.nodeRpcUrl = process.env.STACKS_NODE_RPC_URL;
   }
 
   // DATABASE_URL - implies external database
