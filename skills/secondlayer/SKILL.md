@@ -213,9 +213,10 @@ export default defineSubgraph({
   },
 
   // How to process each matched event
+  // Handler key MUST match the sourceKey: "contract::event" or "contract::function"
   handlers: {
-    // Key = sourceKey: "contract::event" or "*" for catch-all
     "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01::swap": (event, ctx) => {
+      // event contains decoded Clarity fields from the print event
       ctx.insert("swaps", {
         sender: ctx.tx.sender,
         token_x: event.tokenX,
@@ -242,23 +243,76 @@ export default defineSubgraph({
 
 Column options: `nullable`, `indexed`, `search` (enables ILIKE on queries), `default`.
 
-### Sources
+### Sources and handler key matching
+
+**Critical:** Each source produces a `sourceKey`. The handler key MUST match the sourceKey exactly, or use `"*"` as catch-all.
 
 ```typescript
-{ contract: "SP...::contract", event: "transfer" }     // contract event
-{ contract: "SP...::contract", function: "swap" }       // function call
-{ contract: "*.pox-*", event: "stacking" }              // wildcard
-{ type: "stx_transfer", minAmount: 1000000n }           // tx type
-{ contract: "SP...::contract" }                         // all activity on contract
+// Source                                                  → sourceKey (= handler key)
+{ contract: "SP...contract", event: "transfer" }           → "SP...contract::transfer"
+{ contract: "SP...contract", function: "swap" }            → "SP...contract::swap"
+{ contract: "SP...contract" }                              → "SP...contract"
+{ type: "stx_transfer" }                                   → "stx_transfer"
 ```
 
-Handler key = source key derived as: `"contract::event"`, `"contract::function"`, `"contract"`, `"type"`, or `"*"` (catch-all).
+**Common mistake:** using a contract-level source `{ contract: "SP...pox" }` but function-specific handler keys `"SP...pox::stack-stx"` — these won't match. Either:
+- Use function-specific **sources** with matching handler keys, OR
+- Use a contract-level source with a `"SP...pox"` handler key or `"*"` catch-all
+
+```typescript
+// CORRECT — sources match handler keys
+sources: [
+  { contract: "SP...amm-pool-v2-01", function: "swap-helper" },
+  { contract: "SP...amm-pool-v2-01", event: "swap" },
+],
+handlers: {
+  "SP...amm-pool-v2-01::swap-helper": (event, ctx) => { ... },
+  "SP...amm-pool-v2-01::swap": (event, ctx) => { ... },
+}
+
+// CORRECT — catch-all handler for contract-level source
+sources: [{ contract: "SP...amm-pool-v2-01" }],
+handlers: {
+  "SP...amm-pool-v2-01": (event, ctx) => { ... },
+  // or "*": (event, ctx) => { ... }
+}
+```
+
+### Event payload shape
+
+The `event` object passed to handlers has different shapes depending on the match:
+
+**Event-based match** (source has `event`):
+```typescript
+{
+  // Decoded Clarity event fields (keys are camelCased from Clarity names)
+  tokenX: "SP...token",
+  tokenY: "SP...token",
+  dx: 1000000n,
+  dy: 500000n,
+  // Metadata
+  _eventId: "uuid",
+  _eventType: "print_event",
+  _eventIndex: 0,
+  tx: { txId, sender, type, status, contractId, functionName },
+}
+```
+
+**Function-call match** (source has `function`, no events):
+```typescript
+{
+  tx: { txId, sender, type, status, contractId, functionName },
+}
+```
+Access transaction metadata via `event.tx` or `ctx.tx`. Function args are NOT decoded in the event payload — use `ctx.tx.sender` and block/tx context instead.
+
+**Best practice:** For function-call indexing, rely on `ctx.tx.*` and `ctx.block.*` for data. For rich decoded data, use event-based sources where the contract emits print events.
 
 ### SubgraphContext (handler API)
 
 ```typescript
 handlers: {
-  "*": async (event, ctx) => {
+  "SP...contract::swap": async (event, ctx) => {
     // Write operations — batched, flushed atomically per block
     ctx.insert("table", { col: value });
     ctx.update("table", { id: 1 }, { col: newValue });
