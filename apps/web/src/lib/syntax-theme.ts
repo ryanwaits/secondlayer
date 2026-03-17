@@ -195,6 +195,41 @@ export const monotonePurple: ThemeRegistrationRaw = {
         foreground: "#6344F5",
       },
     },
+    // Markdown — inline code
+    {
+      scope: ["markup.inline.raw", "markup.raw"],
+      settings: {
+        foreground: "#6344F5",
+      },
+    },
+    // Markdown — list markers
+    {
+      scope: ["punctuation.definition.list.begin.markdown"],
+      settings: {
+        foreground: "#888888",
+      },
+    },
+    // Markdown — headings
+    {
+      scope: ["markup.heading", "entity.name.section"],
+      settings: {
+        foreground: "#1a1a1a",
+        fontStyle: "bold",
+      },
+    },
+    // Markdown — bold/italic
+    {
+      scope: ["markup.bold"],
+      settings: {
+        fontStyle: "bold",
+      },
+    },
+    {
+      scope: ["markup.italic"],
+      settings: {
+        fontStyle: "italic",
+      },
+    },
   ],
 };
 
@@ -298,6 +333,30 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
     {
       scope: ["meta.decorator", "punctuation.decorator"],
       settings: { foreground: "#8b7ff0" },
+    },
+    // Markdown — inline code
+    {
+      scope: ["markup.inline.raw", "markup.raw"],
+      settings: { foreground: "#8b7ff0" },
+    },
+    // Markdown — list markers
+    {
+      scope: ["punctuation.definition.list.begin.markdown"],
+      settings: { foreground: "#707070" },
+    },
+    // Markdown — headings
+    {
+      scope: ["markup.heading", "entity.name.section"],
+      settings: { foreground: "#e0e0e0", fontStyle: "bold" },
+    },
+    // Markdown — bold/italic
+    {
+      scope: ["markup.bold"],
+      settings: { fontStyle: "bold" },
+    },
+    {
+      scope: ["markup.italic"],
+      settings: { fontStyle: "italic" },
     },
   ],
 };

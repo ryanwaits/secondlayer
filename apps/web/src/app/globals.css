@@ -3,6 +3,7 @@
   --text-main: #111;
   --text-prose: #111;
   --text-muted: rgba(0, 0, 0, 0.4);
+  --text-dim: rgba(0, 0, 0, 0.12);
   --border: #f2f2f2;
   --accent-pink: #ff00aa;
   --accent-purple: #6344F5;
@@ -51,6 +52,7 @@
     --text-main: #ececec;
     --text-prose: #ececec;
     --text-muted: rgba(255, 255, 255, 0.4);
+    --text-dim: rgba(255, 255, 255, 0.1);
     --border: #2a2a2a;
     --code-bg: rgba(255, 255, 255, 0.08);
     --code-block-bg: #1c1c1c;
@@ -722,8 +724,9 @@ a {
 /* ── Auth bar ────────────────────────────────────────────────────── */
 .auth-bar {
   position: fixed;
-  top: 20px;
-  right: 24px;
+  top: 0;
+  right: 32px;
+  height: 48px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2459,3 +2462,88 @@ a {
   color: var(--text-muted);
   opacity: 0.4;
 }
+
+/* ── Agent Prompt Block ────────────────────────────────────────── */
+.agent-prompt {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  position: relative;
+}
+
+.content-area .agent-prompt,
+.dash-content .agent-prompt {
+  margin-top: var(--spacing-xs);
+}
+
+.agent-prompt-header {
+  padding: 20px 22px 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+
+.agent-prompt-title {
+  font-family: var(--font-heading-stack);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
+/* Reuses .code-block-wrapper for pre/copy styling — just override margin */
+.agent-prompt-code.code-block-wrapper {
+  margin: 14px 22px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.agent-prompt-code.code-block-wrapper pre {
+  border-radius: 0;
+}
+
+.agent-prompt-scroll {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.agent-prompt-collapsed {
+  mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+}
+
+.agent-prompt-toggle {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono-stack);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-main);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  z-index: 3;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.agent-prompt-toggle:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  .agent-prompt-toggle {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+  .agent-prompt-toggle:hover {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  }
+}
+
