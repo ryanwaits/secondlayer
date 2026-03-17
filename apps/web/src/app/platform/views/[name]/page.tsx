@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { apiRequest, ApiError, getSessionFromCookies } from "@/lib/api";
 import type { ViewDetail } from "@/lib/types";
 import { Insight } from "@/components/console/intelligence/insight";
-import { InsightsSection } from "@/components/console/intelligence/insights-section";
+
 import { detectHighErrorRate } from "@/lib/intelligence/views";
 
 function formatTimeAgo(dateStr: string): string {
@@ -61,10 +61,6 @@ export default async function ViewOverviewPage({
             </>
           )}
         </Insight>
-      )}
-
-      {session && (
-        <InsightsSection category="view" resourceId={name} sessionToken={session} />
       )}
 
       <div className="dash-stats">
