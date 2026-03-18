@@ -1,5 +1,14 @@
 # @secondlayer/sdk
 
+## 0.6.2
+
+### Patch Changes
+
+- fix(subgraphs): fix Zod v4 type cast in validate.ts
+  chore(sdk): remove dangling ./contracts export
+- Updated dependencies []:
+  - @secondlayer/subgraphs@0.5.3
+
 ## 0.6.1
 
 ### Patch Changes
