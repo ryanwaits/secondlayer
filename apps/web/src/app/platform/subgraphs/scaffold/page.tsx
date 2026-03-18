@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { generateSubgraphCode } from "@/lib/scaffold/generate";
+import type { AbiMap } from "@/lib/scaffold/generate";
 import { generateAgentPrompt } from "@/lib/scaffold/prompt";
 import { highlightCode } from "@/components/command-palette/actions";
 
@@ -12,6 +13,11 @@ interface AbiContract {
     access: "public" | "read-only" | "private";
     args: ReadonlyArray<{ name: string; type: unknown }>;
     outputs: unknown;
+  }>;
+  maps?: ReadonlyArray<{
+    name: string;
+    key: unknown;
+    value: unknown;
   }>;
 }
 
@@ -75,6 +81,7 @@ export default function ScaffoldPage() {
   const [error, setError] = useState<string | null>(null);
   const [abi, setAbi] = useState<AbiContract | null>(null);
   const [selectedFunctions, setSelectedFunctions] = useState<Set<string>>(new Set());
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<"code" | "prompt" | null>(null);
 
   const fetchAbi = useCallback(async () => {
@@ -93,6 +100,7 @@ export default function ScaffoldPage() {
       setAbi(contract);
       const publicFns = contract.functions.filter((f) => f.access === "public");
       setSelectedFunctions(new Set(publicFns.map((f) => f.name)));
+      setSelectedEvents(new Set((contract.maps ?? []).map((m) => m.name)));
       setStep("explorer");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -110,28 +118,49 @@ export default function ScaffoldPage() {
     [abi],
   );
 
+  const eventMaps = useMemo(() => (abi?.maps ?? []) as readonly AbiMap[], [abi]);
+
   const selectedFnObjects = useMemo(
     () => publicFunctions.filter((f) => selectedFunctions.has(f.name)),
     [publicFunctions, selectedFunctions],
   );
 
+  const selectedEventObjects = useMemo(
+    () => eventMaps.filter((m) => selectedEvents.has(m.name)),
+    [eventMaps, selectedEvents],
+  );
+
   const code = useMemo(
     () =>
-      selectedFnObjects.length > 0
-        ? generateSubgraphCode(contractId, selectedFnObjects as any)
+      selectedFnObjects.length > 0 || selectedEventObjects.length > 0
+        ? generateSubgraphCode(
+            contractId,
+            selectedFnObjects as any,
+            undefined,
+            selectedEventObjects.length > 0 ? selectedEventObjects : undefined,
+          )
         : "",
-    [contractId, selectedFnObjects],
+    [contractId, selectedFnObjects, selectedEventObjects],
   );
 
   const prompt = useMemo(
-    () => generateAgentPrompt(contractId, [], selectedFnObjects),
-    [contractId, selectedFnObjects],
+    () => generateAgentPrompt(contractId, selectedEventObjects, selectedFnObjects),
+    [contractId, selectedEventObjects, selectedFnObjects],
   );
 
   const contractName = contractId.split(".").pop() ?? contractId;
 
   const toggleFunction = (name: string) => {
     setSelectedFunctions((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const toggleEvent = (name: string) => {
+    setSelectedEvents((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
@@ -197,6 +226,27 @@ export default function ScaffoldPage() {
         <>
           {/* ABI Explorer */}
           <div className="scaffold-explorer">
+            {eventMaps.length > 0 && (
+              <div className="abi-section">
+                <div className="abi-section-header">
+                  <span className="abi-section-title">Events (Maps)</span>
+                  <span className="abi-section-count">{eventMaps.length}</span>
+                </div>
+                {eventMaps.map((ev) => (
+                  <label key={ev.name} className="abi-item">
+                    <input
+                      type="checkbox"
+                      className="abi-check"
+                      checked={selectedEvents.has(ev.name)}
+                      onChange={() => toggleEvent(ev.name)}
+                    />
+                    <span className="abi-item-name">{ev.name}</span>
+                    <span className="abi-type">event</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
             {publicFunctions.length > 0 && (
               <div className="abi-section">
                 <div className="abi-section-header">
