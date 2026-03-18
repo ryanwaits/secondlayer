@@ -509,20 +509,6 @@ app.post("/:id/replay", async (c) => {
   return c.json(result);
 });
 
-// Backfill - deprecated, use /replay instead
-app.post("/:id/backfill", async (c) => {
-  const { id } = c.req.param();
-  const body = await c.req.json();
-  const db = getDb();
-  const keyIds = await resolveKeyIds(c);
-
-  await assertStreamOwnership(db, id, keyIds);
-
-  const result = await replayBlocks(db, id, body.fromBlock, body.toBlock);
-  c.header("X-Deprecated", "Use POST /:id/replay instead");
-  return c.json(result);
-});
-
 // Replay failed deliveries
 app.post("/:id/replay-failed", async (c) => {
   const { id } = c.req.param();
