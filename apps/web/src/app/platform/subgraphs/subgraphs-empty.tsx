@@ -1,15 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
-import { ManualSteps } from "@/components/console/manual-steps";
 import { SUBGRAPHS_EMPTY_PROMPT } from "@/lib/agent-prompts";
 
-type Mode = "agent" | "manual";
-
 export function SubgraphsEmpty() {
-  const [mode, setMode] = useState<Mode>("agent");
-
   return (
     <>
       <div className="dash-section-wrap">
@@ -17,29 +12,19 @@ export function SubgraphsEmpty() {
         <h2 className="dash-section-title">Get started</h2>
       </div>
 
-      <div className="mode-tabs">
-        <button
-          className={`mode-tab${mode === "agent" ? " active" : ""}`}
-          onClick={() => setMode("agent")}
-        >
-          Agent
-        </button>
-        <button
-          className={`mode-tab${mode === "manual" ? " active" : ""}`}
-          onClick={() => setMode("manual")}
-        >
-          Manual
-        </button>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <Link href="/subgraphs/templates" className="scaffold-btn">
+          Browse templates
+        </Link>
+        <Link href="/subgraphs/scaffold" className="scaffold-btn">
+          Scaffold from contract
+        </Link>
       </div>
 
-      {mode === "agent" ? (
-        <AgentPromptBlock
-          title="Paste this into your agent"
-          code={SUBGRAPHS_EMPTY_PROMPT}
-        />
-      ) : (
-        <ManualSteps streams={false} subgraphs />
-      )}
+      <AgentPromptBlock
+        title="Paste this into your agent"
+        code={SUBGRAPHS_EMPTY_PROMPT}
+      />
     </>
   );
 }

@@ -3,20 +3,12 @@
 import { useState, useCallback } from "react";
 import type { Stream, SubgraphSummary } from "@/lib/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePreferences } from "@/lib/preferences";
 import { ActionDropdown } from "@/components/console/action-dropdown";
 import { InsightsSection } from "@/components/console/intelligence/insights-section";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
-import { ManualSteps } from "@/components/console/manual-steps";
-import {
-  DASHBOARD_BOTH_PROMPT,
-  DASHBOARD_STREAMS_PROMPT,
-  DASHBOARD_SUBGRAPHS_PROMPT,
-} from "@/lib/agent-prompts";
+import { DASHBOARD_BOTH_PROMPT } from "@/lib/agent-prompts";
 import { queryKeys } from "@/lib/queries/keys";
 import Link from "next/link";
-
-type Mode = "agent" | "manual";
 
 function formatRelativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -32,12 +24,6 @@ function formatRelativeTime(date: string): string {
 function formatCount(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
   return n.toString();
-}
-
-function agentPrompt(streams: boolean, subgraphs: boolean) {
-  if (streams && subgraphs) return DASHBOARD_BOTH_PROMPT;
-  if (streams) return DASHBOARD_STREAMS_PROMPT;
-  return DASHBOARD_SUBGRAPHS_PROMPT;
 }
 
 function deliveryRate(streams: Stream[]): string {
@@ -56,9 +42,6 @@ export function DashboardContent({
   subgraphs: SubgraphSummary[];
   sessionToken: string;
 }) {
-  const { preferences } = usePreferences();
-  const { streams: streamsEnabled, subgraphs: subgraphsEnabled } = preferences.products;
-  const [mode, setMode] = useState<Mode>("agent");
   const qc = useQueryClient();
 
   const prefetchStream = useCallback(
@@ -88,21 +71,6 @@ export function DashboardContent({
   const hasData = streams.length > 0 || subgraphs.length > 0;
   const totalDeliveries = streams.reduce((s, st) => s + (st.totalDeliveries ?? 0), 0);
 
-  // No products enabled at all
-  if (!streamsEnabled && !subgraphsEnabled) {
-    return (
-      <>
-        <div className="dash-page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <h1 className="dash-page-title">Dashboard</h1>
-        </div>
-        <div className="empty-msg">
-          No products enabled.{" "}
-          <Link href="/platform/settings">Enable products in Settings</Link>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       {/* Header */}
@@ -113,38 +81,30 @@ export function DashboardContent({
 
       {/* Stats */}
       <div className="dash-stats">
-        {streamsEnabled && (
-          <div className="dash-stat">
-            <span className={`dash-stat-value${streams.length === 0 ? " zero" : ""}`}>
-              {formatCount(streams.length)}
-            </span>
-            <span className="dash-stat-label">streams</span>
-          </div>
-        )}
-        {subgraphsEnabled && (
-          <div className="dash-stat">
-            <span className={`dash-stat-value${subgraphs.length === 0 ? " zero" : ""}`}>
-              {formatCount(subgraphs.length)}
-            </span>
-            <span className="dash-stat-label">subgraphs</span>
-          </div>
-        )}
-        {streamsEnabled && (
-          <>
-            <div className="dash-stat">
-              <span className={`dash-stat-value${totalDeliveries === 0 ? " zero" : ""}`}>
-                {totalDeliveries === 0 ? "\u2014" : deliveryRate(streams)}
-              </span>
-              <span className="dash-stat-label">delivery rate</span>
-            </div>
-            <div className="dash-stat">
-              <span className={`dash-stat-value${totalDeliveries === 0 ? " zero" : ""}`}>
-                {formatCount(totalDeliveries)}
-              </span>
-              <span className="dash-stat-label">deliveries</span>
-            </div>
-          </>
-        )}
+        <div className="dash-stat">
+          <span className={`dash-stat-value${streams.length === 0 ? " zero" : ""}`}>
+            {formatCount(streams.length)}
+          </span>
+          <span className="dash-stat-label">streams</span>
+        </div>
+        <div className="dash-stat">
+          <span className={`dash-stat-value${subgraphs.length === 0 ? " zero" : ""}`}>
+            {formatCount(subgraphs.length)}
+          </span>
+          <span className="dash-stat-label">subgraphs</span>
+        </div>
+        <div className="dash-stat">
+          <span className={`dash-stat-value${totalDeliveries === 0 ? " zero" : ""}`}>
+            {totalDeliveries === 0 ? "\u2014" : deliveryRate(streams)}
+          </span>
+          <span className="dash-stat-label">delivery rate</span>
+        </div>
+        <div className="dash-stat">
+          <span className={`dash-stat-value${totalDeliveries === 0 ? " zero" : ""}`}>
+            {formatCount(totalDeliveries)}
+          </span>
+          <span className="dash-stat-label">deliveries</span>
+        </div>
       </div>
 
       {/* Get started (empty) OR Insights (data) */}
@@ -155,109 +115,82 @@ export function DashboardContent({
             <h2 className="dash-section-title">Get started</h2>
           </div>
 
-          <div className="mode-tabs">
-            <button
-              className={`mode-tab${mode === "agent" ? " active" : ""}`}
-              onClick={() => setMode("agent")}
-            >
-              Agent
-            </button>
-            <button
-              className={`mode-tab${mode === "manual" ? " active" : ""}`}
-              onClick={() => setMode("manual")}
-            >
-              Manual
-            </button>
-          </div>
-
-          {mode === "agent" ? (
-            <AgentPromptBlock
-              title="Paste this into your agent to get started"
-              code={agentPrompt(streamsEnabled, subgraphsEnabled)}
-            />
-          ) : (
-            <ManualSteps streams={streamsEnabled} subgraphs={subgraphsEnabled} />
-          )}
+          <AgentPromptBlock
+            title="Paste this into your agent to get started"
+            code={DASHBOARD_BOTH_PROMPT}
+          />
         </>
       ) : (
         <InsightsSection sessionToken={sessionToken} title="Insights" />
       )}
 
       {/* Streams */}
-      {streamsEnabled && (
-        <>
-          <div className="dash-section-wrap">
-            <hr />
-            <h2 className="dash-section-title">Streams</h2>
-          </div>
-          {streams.length > 0 ? (
-            <div className="dash-activity-list">
-              {streams.map((stream) => (
-                <Link
-                  key={stream.id}
-                  href={`/streams/${stream.id}`}
-                  className="dash-activity-item"
-                  onMouseEnter={() => prefetchStream(stream.id)}
-                >
-                  <span
-                    className={`dash-activity-dot ${
-                      stream.status === "failed" ? "red" :
-                      stream.status === "paused" ? "yellow" :
-                      stream.status === "inactive" ? "muted" : "green"
-                    }`}
-                  />
-                  <span className="dash-activity-name">{stream.name}</span>
-                  <span className="dash-activity-time">
-                    {stream.totalDeliveries > 0
-                      ? `${formatCount(stream.totalDeliveries)} deliveries, ${(((stream.totalDeliveries - stream.failedDeliveries) / stream.totalDeliveries) * 100).toFixed(1)}% success`
-                      : formatRelativeTime(stream.updatedAt)}
-                  </span>
-                  <span className={`dash-badge ${stream.status}`}>{stream.status}</span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="dash-section-empty">No streams</div>
-          )}
-        </>
+      <div className="dash-section-wrap">
+        <hr />
+        <h2 className="dash-section-title">Streams</h2>
+      </div>
+      {streams.length > 0 ? (
+        <div className="dash-activity-list">
+          {streams.map((stream) => (
+            <Link
+              key={stream.id}
+              href={`/streams/${stream.id}`}
+              className="dash-activity-item"
+              onMouseEnter={() => prefetchStream(stream.id)}
+            >
+              <span
+                className={`dash-activity-dot ${
+                  stream.status === "failed" ? "red" :
+                  stream.status === "paused" ? "yellow" :
+                  stream.status === "inactive" ? "muted" : "green"
+                }`}
+              />
+              <span className="dash-activity-name">{stream.name}</span>
+              <span className="dash-activity-time">
+                {stream.totalDeliveries > 0
+                  ? `${formatCount(stream.totalDeliveries)} deliveries, ${(((stream.totalDeliveries - stream.failedDeliveries) / stream.totalDeliveries) * 100).toFixed(1)}% success`
+                  : formatRelativeTime(stream.updatedAt)}
+              </span>
+              <span className={`dash-badge ${stream.status}`}>{stream.status}</span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="dash-section-empty">No streams</div>
       )}
 
       {/* Subgraphs */}
-      {subgraphsEnabled && (
-        <>
-          <div className="dash-section-wrap">
-            <hr />
-            <h2 className="dash-section-title">Subgraphs</h2>
-          </div>
-          {subgraphs.length > 0 ? (
-            <div className="dash-activity-list">
-              {subgraphs.map((subgraph) => (
-                <Link
-                  key={subgraph.name}
-                  href={`/subgraphs/${subgraph.name}`}
-                  className="dash-activity-item"
-                  onMouseEnter={() => prefetchSubgraph(subgraph.name)}
-                >
-                  <span
-                    className={`dash-activity-dot ${
-                      subgraph.status === "error" ? "red" :
-                      subgraph.status === "syncing" ? "yellow" : "green"
-                    }`}
-                  />
-                  <span className="dash-activity-name">{subgraph.name}</span>
-                  <span className="dash-activity-time">
-                    {subgraph.lastProcessedBlock
-                      ? `block ${subgraph.lastProcessedBlock.toLocaleString()} \u00b7 ${subgraph.tables.length} table${subgraph.tables.length !== 1 ? "s" : ""}`
-                      : `${subgraph.tables.length} table${subgraph.tables.length !== 1 ? "s" : ""}`}
-                  </span>
-                  <span className={`dash-badge ${subgraph.status === "synced" ? "active" : subgraph.status}`}>{subgraph.status}</span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="dash-section-empty">No subgraphs</div>
-          )}
-        </>
+      <div className="dash-section-wrap">
+        <hr />
+        <h2 className="dash-section-title">Subgraphs</h2>
+      </div>
+      {subgraphs.length > 0 ? (
+        <div className="dash-activity-list">
+          {subgraphs.map((subgraph) => (
+            <Link
+              key={subgraph.name}
+              href={`/subgraphs/${subgraph.name}`}
+              className="dash-activity-item"
+              onMouseEnter={() => prefetchSubgraph(subgraph.name)}
+            >
+              <span
+                className={`dash-activity-dot ${
+                  subgraph.status === "error" ? "red" :
+                  subgraph.status === "syncing" ? "yellow" : "green"
+                }`}
+              />
+              <span className="dash-activity-name">{subgraph.name}</span>
+              <span className="dash-activity-time">
+                {subgraph.lastProcessedBlock
+                  ? `block ${subgraph.lastProcessedBlock.toLocaleString()} \u00b7 ${subgraph.tables.length} table${subgraph.tables.length !== 1 ? "s" : ""}`
+                  : `${subgraph.tables.length} table${subgraph.tables.length !== 1 ? "s" : ""}`}
+              </span>
+              <span className={`dash-badge ${subgraph.status === "synced" ? "active" : subgraph.status}`}>{subgraph.status}</span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="dash-section-empty">No subgraphs</div>
       )}
     </>
   );

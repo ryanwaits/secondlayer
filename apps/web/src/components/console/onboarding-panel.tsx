@@ -22,73 +22,16 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-const CheckIcon = (
-  <svg
-    className="wp-check-icon"
-    width="10"
-    height="10"
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="#fff"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-  >
-    <path d="M3.5 8.5l3 3 6-7" />
-  </svg>
-);
-
 export function OnboardingPanel() {
-  const { setProducts, completeOnboarding } = usePreferences();
-  const [streams, setStreams] = useState(true);
-  const [subgraphs, setSubgraphs] = useState(true);
-
-  function handleSkip() {
-    setProducts({ streams: true, subgraphs: true });
-    completeOnboarding();
-  }
-
-  function handleGo() {
-    setProducts({ streams, subgraphs });
-    completeOnboarding();
-  }
+  const { completeOnboarding } = usePreferences();
 
   return (
     <div className="onboarding-overlay">
       <div className="wizard-panel">
         <div className="wp-body">
-          <div className="wp-question">Configure your workspace</div>
+          <div className="wp-question">Get started</div>
           <div className="wp-sub">
-            Select products and install the tools. Change anytime in Settings.
-          </div>
-
-          <div className="wp-options" style={{ marginBottom: 20 }}>
-            <div
-              className={`wp-option${streams ? " selected" : ""}`}
-              onClick={() => setStreams(!streams)}
-            >
-              <div className="wp-check">{CheckIcon}</div>
-              <div className="wp-option-content">
-                <div className="wp-option-name">Streams</div>
-                <div className="wp-option-desc">
-                  Real-time delivery for on-chain events
-                </div>
-              </div>
-              <span className="wp-option-tag">push</span>
-            </div>
-
-            <div
-              className={`wp-option${subgraphs ? " selected" : ""}`}
-              onClick={() => setSubgraphs(!subgraphs)}
-            >
-              <div className="wp-check">{CheckIcon}</div>
-              <div className="wp-option-content">
-                <div className="wp-option-name">Subgraphs</div>
-                <div className="wp-option-desc">
-                  SQL indexer for blockchain data
-                </div>
-              </div>
-              <span className="wp-option-tag">pull</span>
-            </div>
+            Install the tools to start building with Secondlayer.
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -110,14 +53,7 @@ export function OnboardingPanel() {
         </div>
 
         <div className="wp-footer">
-          <button className="wp-skip" onClick={handleSkip}>
-            Skip — enable everything
-          </button>
-          <button
-            className="wp-go"
-            onClick={handleGo}
-            disabled={!streams && !subgraphs}
-          >
+          <button className="wp-go" onClick={completeOnboarding}>
             Go to dashboard
           </button>
         </div>

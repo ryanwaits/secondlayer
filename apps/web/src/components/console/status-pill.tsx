@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useStatus } from "@/lib/queries/status";
-import { usePreferences } from "@/lib/preferences";
 
 function formatBlock(n: number): string {
   return n.toLocaleString("en-US");
@@ -20,13 +19,11 @@ function timeSince(dateStr: string): string {
 
 export function StatusPill() {
   const { data: status } = useStatus();
-  const { preferences } = usePreferences();
   const [expanded, setExpanded] = useState(false);
 
   if (!status) return null;
 
   const isHealthy = status.status === "healthy";
-  const plan = preferences.products.streams || preferences.products.subgraphs ? "Free" : null;
 
   return (
     <div className="status-pill-wrap">
@@ -58,14 +55,12 @@ export function StatusPill() {
                 {timeSince(status.timestamp)}
               </span>
             </div>
-            {plan && (
-              <div className="status-pill-expanded-row">
-                <span className="status-pill-expanded-label">Plan</span>
-                <span className="status-pill-expanded-value status-pill-plan">
-                  {plan}
-                </span>
-              </div>
-            )}
+            <div className="status-pill-expanded-row">
+              <span className="status-pill-expanded-label">Plan</span>
+              <span className="status-pill-expanded-value status-pill-plan">
+                Free
+              </span>
+            </div>
           </div>
         </>
       )}
