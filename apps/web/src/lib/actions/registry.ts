@@ -13,6 +13,8 @@ export const actions: Action[] = [
   { id: "home", label: "Home", keywords: ["dashboard", "overview"], category: "Navigation", icon: "home", href: "/" },
   { id: "streams", label: "Streams", keywords: ["delivery", "events", "list"], category: "Navigation", icon: "stream", href: "/streams" },
   { id: "subgraphs", label: "Subgraphs", keywords: ["tables", "indexes", "data"], category: "Navigation", icon: "subgraph", href: "/subgraphs" },
+  { id: "templates", label: "Templates", keywords: ["template", "gallery", "examples", "starter"], category: "Navigation", icon: "view", href: "/subgraphs/templates" },
+  { id: "scaffold", label: "Scaffold Subgraph", keywords: ["scaffold", "generate", "contract", "abi"], category: "Navigation", icon: "view", href: "/subgraphs/scaffold" },
   { id: "api-keys", label: "API Keys", keywords: ["tokens", "keys", "auth"], category: "Navigation", icon: "key", href: "/api-keys" },
   { id: "usage", label: "Usage", keywords: ["quota", "limits", "metrics"], category: "Navigation", icon: "settings", href: "/usage" },
   { id: "billing", label: "Billing", keywords: ["plan", "payment", "invoice"], category: "Navigation", icon: "settings", href: "/billing" },

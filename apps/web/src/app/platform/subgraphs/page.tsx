@@ -129,6 +129,15 @@ export default async function SubgraphsPage() {
         <ActionDropdown variant="subgraphs" />
       </div>
 
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <Link href="/subgraphs/templates" className="scaffold-btn">
+          Browse templates
+        </Link>
+        <Link href="/subgraphs/scaffold" className="scaffold-btn">
+          Scaffold from contract
+        </Link>
+      </div>
+
       {subgraphs.length === 0 ? (
         <SubgraphsEmpty />
       ) : (
