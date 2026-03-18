@@ -182,12 +182,80 @@ export function getStreamManagementDocs(): string {
 - **failed**: errored out, check errorMessage field`;
 }
 
+export function getSubgraphScaffoldDocs(): string {
+  return `## Subgraph Scaffold — defineSubgraph() API
+
+Subgraphs are TypeScript indexers. Use \`defineSubgraph()\` to define schema, sources, and handlers.
+
+### Structure
+\`\`\`typescript
+import { defineSubgraph } from '@secondlayer/subgraphs';
+
+export default defineSubgraph({
+  name: 'my-subgraph',
+  sources: [{ contract: 'SP...contract', event: 'swap' }],
+  schema: {
+    table_name: {
+      columns: {
+        col: { type: 'uint' },
+      },
+      uniqueKeys: [['col']],  // enables ctx.upsert()
+    }
+  },
+  handlers: {
+    'SP...contract::swap': (event, ctx) => {
+      ctx.insert('table_name', { col: event.value });
+    },
+  },
+});
+\`\`\`
+
+### Column Types
+| Clarity | Column | Notes |
+|---------|--------|-------|
+| uint128 | uint | Token amounts, IDs |
+| int128 | int | Signed values |
+| principal | principal | Stacks addresses |
+| bool | boolean | Flags |
+| string-ascii/utf8 | text | Strings |
+| buff | text | Hex buffers |
+| optional<T> | type + nullable:true | Unwraps inner |
+| tuple/list | jsonb | Complex data |
+
+### Handler Patterns
+
+**Insert:** \`ctx.insert('table', { col: event.value })\`
+**Upsert (needs uniqueKeys):** \`ctx.upsert('table', { key: id }, { col: val })\`
+**Update:** \`ctx.update('table', { id: 1 }, { col: newVal })\`
+**Delete:** \`ctx.delete('table', { id: 1 })\`
+**Read:** \`await ctx.findOne('table', { key: val })\`
+**Read many:** \`await ctx.findMany('table', { key: val })\`
+
+### Context
+\`ctx.block.height\`, \`ctx.block.hash\`, \`ctx.block.timestamp\`
+\`ctx.tx.txId\`, \`ctx.tx.sender\`, \`ctx.tx.type\`, \`ctx.tx.status\`
+
+### Source Key Matching
+Handler key MUST match the source key:
+- \`{ contract: "SP...", event: "swap" }\` → handler key: \`"SP...::swap"\`
+- \`{ contract: "SP...", function: "transfer" }\` → handler key: \`"SP...::transfer"\`
+- \`{ contract: "SP..." }\` → handler key: \`"SP..."\`
+
+### CLI
+\`\`\`bash
+sl subgraphs scaffold SP...contract -o subgraphs/name.ts
+sl subgraphs deploy subgraphs/name.ts
+sl subgraphs dev subgraphs/name.ts  # watch mode
+\`\`\``;
+}
+
 export type DocTopic =
   | "stream-filters"
   | "stream-creation"
   | "api-keys"
   | "subgraphs"
-  | "stream-management";
+  | "stream-management"
+  | "subgraph-scaffold";
 
 const topicMap: Record<DocTopic, () => string> = {
   "stream-filters": getStreamFilterDocs,
@@ -195,6 +263,7 @@ const topicMap: Record<DocTopic, () => string> = {
   "api-keys": getApiKeyDocs,
   "subgraphs": getSubgraphDocs,
   "stream-management": getStreamManagementDocs,
+  "subgraph-scaffold": getSubgraphScaffoldDocs,
 };
 
 export function getDocsForTopic(topic: DocTopic): string {
