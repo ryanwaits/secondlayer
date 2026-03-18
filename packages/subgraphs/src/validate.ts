@@ -60,7 +60,7 @@ export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
   sources: z.array(SubgraphSourceSchema).min(1, "Must have at least one source"),
   schema: SubgraphSchemaSchema,
   handlers: z.record(z.string(), z.function()),
-}) as z.ZodType<SubgraphDefinition>;
+}) as unknown as z.ZodType<SubgraphDefinition>;
 
 /**
  * Validates a subgraph definition, returning the parsed result or throwing on failure.
