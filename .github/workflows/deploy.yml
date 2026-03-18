@@ -47,7 +47,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: bash /opt/secondlayer/docker/scripts/deploy.sh
+          script: export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$HOME/.bun/bin" && bash /opt/secondlayer/docker/scripts/deploy.sh
           command_timeout: 5m
 
   notify:
