@@ -8,27 +8,18 @@ import {
   useState,
 } from "react";
 
-interface Products {
-  streams: boolean;
-  subgraphs: boolean;
-}
-
 interface Preferences {
-  products: Products;
   onboardingComplete: boolean;
 }
 
 interface PreferencesCtx {
-  preferences: Preferences;
-  setProducts(products: Products): void;
-  completeOnboarding(): void;
   showOnboarding: boolean;
+  completeOnboarding(): void;
 }
 
 const STORAGE_KEY = "sl:preferences";
 
 const DEFAULT: Preferences = {
-  products: { streams: true, subgraphs: true },
   onboardingComplete: false,
 };
 
@@ -64,14 +55,6 @@ export function PreferencesProvider({
     setMounted(true);
   }, []);
 
-  const setProducts = useCallback((products: Products) => {
-    setPreferences((prev) => {
-      const next = { ...prev, products };
-      write(next);
-      return next;
-    });
-  }, []);
-
   const completeOnboarding = useCallback(() => {
     setPreferences((prev) => {
       const next = { ...prev, onboardingComplete: true };
@@ -84,7 +67,7 @@ export function PreferencesProvider({
 
   return (
     <PreferencesContext.Provider
-      value={{ preferences, setProducts, completeOnboarding, showOnboarding }}
+      value={{ showOnboarding, completeOnboarding }}
     >
       {children}
     </PreferencesContext.Provider>

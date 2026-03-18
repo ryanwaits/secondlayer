@@ -7,11 +7,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useStreams, usePauseStream, useResumeStream } from "@/lib/queries/streams";
 import { queryKeys } from "@/lib/queries/keys";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
-import { ManualSteps } from "@/components/console/manual-steps";
 import { ActionDropdown } from "@/components/console/action-dropdown";
 import { STREAMS_EMPTY_PROMPT } from "@/lib/agent-prompts";
-
-type Mode = "agent" | "manual";
 
 function StreamRow({ stream }: { stream: Stream }) {
   const [confirmPause, setConfirmPause] = useState(false);
@@ -119,7 +116,6 @@ function StreamRow({ stream }: { stream: Stream }) {
 
 export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
   const { data: streams = initialStreams } = useStreams(initialStreams);
-  const [mode, setMode] = useState<Mode>("agent");
 
   const active = streams.filter((s) => s.status === "active");
   const paused = streams.filter((s) => s.status === "paused");
@@ -159,29 +155,10 @@ export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
             <h2 className="dash-section-title">Get started</h2>
           </div>
 
-          <div className="mode-tabs">
-            <button
-              className={`mode-tab${mode === "agent" ? " active" : ""}`}
-              onClick={() => setMode("agent")}
-            >
-              Agent
-            </button>
-            <button
-              className={`mode-tab${mode === "manual" ? " active" : ""}`}
-              onClick={() => setMode("manual")}
-            >
-              Manual
-            </button>
-          </div>
-
-          {mode === "agent" ? (
-            <AgentPromptBlock
-              title="Paste this into your agent"
-              code={STREAMS_EMPTY_PROMPT}
-            />
-          ) : (
-            <ManualSteps streams subgraphs={false} />
-          )}
+          <AgentPromptBlock
+            title="Paste this into your agent"
+            code={STREAMS_EMPTY_PROMPT}
+          />
         </>
       ) : (
         groups.map((group) => (
