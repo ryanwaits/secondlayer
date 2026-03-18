@@ -334,6 +334,85 @@ handlers: {
 
 System columns added to every row automatically: `_id`, `_block_height`, `_tx_id`, `_created_at`.
 
+### Handler patterns
+
+See [references/subgraph-patterns.md](references/subgraph-patterns.md) for complete examples.
+
+**DEX swap tracking:**
+```typescript
+sources: [
+  { contract: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01", event: "swap" },
+],
+handlers: {
+  "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01::swap": (event, ctx) => {
+    ctx.insert("swaps", {
+      sender: ctx.tx.sender,
+      token_x: event.tokenX,
+      token_y: event.tokenY,
+      amount_x: event.dx,
+      amount_y: event.dy,
+    });
+  },
+}
+```
+
+**Running totals with upsert:**
+```typescript
+handlers: {
+  "SP...token::transfer": async (event, ctx) => {
+    ctx.insert("transfers", {
+      from_addr: event.sender,
+      to_addr: event.recipient,
+      amount: event.amount,
+    });
+
+    // Update running balance
+    const existing = await ctx.findOne("balances", { address: event.recipient });
+    const prev = existing ? BigInt(existing.balance as string) : 0n;
+    ctx.upsert("balances", { address: event.recipient }, {
+      address: event.recipient,
+      balance: prev + BigInt(event.amount as string),
+    });
+  },
+}
+```
+
+**Conditional insert with findOne:**
+```typescript
+handlers: {
+  "SP...marketplace::list-item": async (event, ctx) => {
+    const existing = await ctx.findOne("listings", { nft_id: event.nftId });
+    if (existing) {
+      ctx.update("listings", { nft_id: event.nftId }, {
+        price: event.price,
+        updated_block: ctx.block.height,
+      });
+    } else {
+      ctx.insert("listings", {
+        nft_id: event.nftId,
+        seller: ctx.tx.sender,
+        price: event.price,
+      });
+    }
+  },
+}
+```
+
+### Column type reference
+
+See [references/column-types.md](references/column-types.md) for the complete mapping from Clarity types.
+
+| Clarity type | Subgraph column | Notes |
+|-------------|----------------|-------|
+| `uint128` | `uint` | Token amounts, IDs |
+| `int128` | `int` | Signed values |
+| `principal` / `trait_reference` | `principal` | Stacks addresses |
+| `bool` | `boolean` | Flags |
+| `string-ascii` / `string-utf8` | `text` | Strings |
+| `buff` | `text` | Hex-encoded buffers |
+| `optional<T>` | mapped type + `nullable: true` | Unwraps inner type |
+| `tuple` / `list` / `response` | `jsonb` | Complex nested data |
+
 ### Deploy & manage
 
 ```bash
@@ -413,3 +492,28 @@ try {
 ```
 
 Partial IDs supported: `sl.streams.get("abc1")` resolves via list. Throws 404 if no match, 400 if ambiguous.
+
+---
+
+## Templates
+
+Curated subgraph templates available in the web dashboard at `/platform/subgraphs/templates`:
+
+| Template | Category | Description |
+|----------|----------|-------------|
+| DEX Swap Tracking | DeFi | ALEX AMM pool swap events — token pairs, amounts, traders |
+| NFT Marketplace | NFT | Listings, sales, cancellations with price tracking |
+| Token Transfers | Token | FT transfers with running balance computation |
+| BNS Names | Infrastructure | Name registrations and transfers on BNS |
+| STX Whale Alerts | Token | Large STX transfers above configurable threshold |
+
+Each template provides:
+- Complete `defineSubgraph()` code ready to deploy
+- Agent prompt for customization
+- Downloadable .ts file
+
+**Customization points:**
+- Replace placeholder contract IDs (`SP...marketplace`) with real ones
+- Adjust column types/indexes for your use case
+- Add `uniqueKeys` to enable `ctx.upsert()` for idempotent writes
+- Combine patterns (e.g., add balances table to swap tracker)
