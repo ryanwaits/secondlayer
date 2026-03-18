@@ -4,12 +4,16 @@ import { lookupDocs } from "./tools/lookup-docs";
 import { answer } from "./tools/answer";
 import { navigate } from "./tools/navigate";
 import { manageResource } from "./tools/manage-resource";
+import { diagnose } from "./tools/diagnose";
+import { scaffold } from "./tools/scaffold";
 
 const tools = {
   lookup_docs: lookupDocs,
   answer,
   navigate,
   manage_resource: manageResource,
+  diagnose,
+  scaffold,
 };
 
 export function createCommandAgent(instructions: string) {
