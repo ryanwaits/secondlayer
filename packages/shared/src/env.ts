@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // Parse comma-separated networks
 const networksSchema = z.string().transform((val) => {

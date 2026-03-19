@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { generateSubgraphCode } from "../lib/scaffold-generate.ts";
 import { defineTool } from "../lib/tool.ts";
