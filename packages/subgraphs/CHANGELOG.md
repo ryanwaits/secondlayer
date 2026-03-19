@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.5.4
+
+### Patch Changes
+
+- Export template registry from subgraphs package.
+
 ## 0.5.3
 
 ### Patch Changes

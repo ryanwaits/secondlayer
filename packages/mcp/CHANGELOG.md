@@ -1,0 +1,12 @@
+# @secondlayer/mcp
+
+## 0.2.0
+
+### Minor Changes
+
+- Initial release. 19 MCP tools: streams CRUD, subgraph deploy/query, scaffold, templates. Stdio and HTTP transports.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@0.5.4
