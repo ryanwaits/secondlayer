@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/subgraphs",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -37,8 +37,8 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
-    "@secondlayer/shared": "^0.5.1",
-    "@secondlayer/stacks": "^0.2.0",
+    "@secondlayer/shared": "^0.6.0",
+    "@secondlayer/stacks": "^0.2.2",
     "kysely": "^0.28.10",
     "postgres": "^3.4.6",
     "zod": "^4.3.6"

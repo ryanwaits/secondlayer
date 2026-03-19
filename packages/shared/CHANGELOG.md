@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 0.6.0
+
+### Minor Changes
+
+- Add HiroPgClient for direct-PG bulk backfill, increase default fetch timeout to 120s.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@0.2.2
+
 ## 0.5.1
 
 ### Patch Changes
