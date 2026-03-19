@@ -22,7 +22,6 @@
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.58",
         "@secondlayer/stacks": "workspace:*",
-        "@secondlayer/subgraphs": "workspace:*",
         "@tanstack/react-query": "5.90.21",
         "ai": "6.0.116",
         "next": "16.1.6",

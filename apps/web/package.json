@@ -4,14 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "bun run --filter @secondlayer/subgraphs build && next build",
+    "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.58",
     "@secondlayer/stacks": "workspace:*",
-    "@secondlayer/subgraphs": "workspace:*",
     "@tanstack/react-query": "5.90.21",
     "ai": "6.0.116",
     "next": "16.1.6",
