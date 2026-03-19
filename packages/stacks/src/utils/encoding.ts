@@ -111,7 +111,10 @@ export function fromTwos(value: bigint, width: bigint): bigint {
 }
 
 export function bytesToTwosBigInt(bytes: Uint8Array): bigint {
-  return fromTwos(BigInt(`0x${bytesToHex(bytes)}`), BigInt(bytes.byteLength * 8));
+  if (bytes.length === 0) return 0n;
+  const hex = bytesToHex(bytes);
+  if (hex.length === 0) return 0n;
+  return fromTwos(BigInt(`0x${hex}`), BigInt(bytes.byteLength * 8));
 }
 
 export function writeUInt32BE(value: number): Uint8Array {

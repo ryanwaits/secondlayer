@@ -26,6 +26,8 @@ export const ClarityVersion = {
   Clarity1: 1,
   Clarity2: 2,
   Clarity3: 3,
+  Clarity4: 4,
+  Clarity5: 5,
 } as const;
 export type ClarityVersion = (typeof ClarityVersion)[keyof typeof ClarityVersion];
 
@@ -111,6 +113,11 @@ export const MICROBLOCK_HEADER_BYTES_LENGTH = 132; // 1 + 2 + 32 + 32 + 65
 export const TenureChangeCause = {
   BlockFound: 0x00,
   Extended: 0x01,
+  ExtendedRuntime: 0x02,
+  ExtendedReadCount: 0x03,
+  ExtendedReadLength: 0x04,
+  ExtendedWriteCount: 0x05,
+  ExtendedWriteLength: 0x06,
 } as const;
 export type TenureChangeCause = (typeof TenureChangeCause)[keyof typeof TenureChangeCause];
 

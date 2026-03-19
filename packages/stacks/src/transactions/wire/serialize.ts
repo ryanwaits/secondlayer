@@ -53,12 +53,12 @@ function serializeLPStringLong(str: string): Uint8Array {
   return serializeLPString(str, 4);
 }
 
-// Memo: padded to MEMO_MAX_LENGTH_BYTES
+// Memo: flat 34-byte field (no length prefix) per SIP-005
 function serializeMemo(memo: string): Uint8Array {
   const content = asciiToBytes(memo);
   const padded = new Uint8Array(MEMO_MAX_LENGTH_BYTES);
   padded.set(content.slice(0, MEMO_MAX_LENGTH_BYTES));
-  return concatBytes(writeUInt8(content.length), padded);
+  return padded;
 }
 
 function serializeSpendingCondition(condition: SpendingCondition): Uint8Array {
@@ -134,22 +134,26 @@ function serializeAssetInfo(asset: AssetInfoWire): Uint8Array {
 }
 
 function serializePostCondition(pc: PostConditionWire): Uint8Array {
-  const parts: Uint8Array[] = [serializePrincipal(pc.principal)];
+  // Wire order: asset_type first, then principal (per SIP-005)
+  const parts: Uint8Array[] = [];
 
   switch (pc.type) {
     case "stx":
       parts.push(writeUInt8(AssetType.STX));
+      parts.push(serializePrincipal(pc.principal));
       parts.push(writeUInt8(pc.conditionCode));
       parts.push(intToBytes(pc.amount, 8));
       break;
     case "ft":
       parts.push(writeUInt8(AssetType.Fungible));
+      parts.push(serializePrincipal(pc.principal));
       parts.push(serializeAssetInfo(pc.asset));
       parts.push(writeUInt8(pc.conditionCode));
       parts.push(intToBytes(pc.amount, 8));
       break;
     case "nft":
       parts.push(writeUInt8(AssetType.NonFungible));
+      parts.push(serializePrincipal(pc.principal));
       parts.push(serializeAssetInfo(pc.asset));
       parts.push(serializeCVBytes(pc.assetId));
       parts.push(writeUInt8(pc.conditionCode));
