@@ -33,28 +33,37 @@ export function registerSubgraphTools(server: McpServer) {
   defineTool<{
     name: string; table: string; filters?: Record<string, string>;
     sort?: string; order?: string; limit?: number; offset?: number;
+    fields?: string; count?: boolean;
   }>(
     server,
     "subgraphs_query",
-    "Query rows from a subgraph table (max 50 rows).",
+    "Query rows from a subgraph table (max 200 rows). Filters support operators: \"amount.gte\": \"1000\", \"sender.neq\": \"SP...\", \"name.like\": \"%token%\". Available operators: eq, neq, gt, gte, lt, lte, like.",
     {
       name: z.string().describe("Subgraph name"),
       table: z.string().describe("Table name"),
-      filters: z.record(z.string(), z.string()).optional().describe("Column filters as key-value pairs (e.g. {\"sender\": \"SP...\"})"),
+      filters: z.record(z.string(), z.string()).optional().describe("Column filters — plain values or with operators (e.g. {\"amount.gte\": \"1000\", \"sender\": \"SP...\"})"),
       sort: z.string().optional().describe("Column to sort by"),
       order: z.enum(["asc", "desc"]).optional().describe("Sort order"),
-      limit: z.number().max(50).optional().describe("Max rows (default 50)"),
+      limit: z.number().max(200).optional().describe("Max rows (default 50, max 200)"),
       offset: z.number().optional().describe("Offset for pagination"),
+      fields: z.string().optional().describe("Comma-separated column list to return (e.g. \"sender,amount\")"),
+      count: z.boolean().optional().describe("If true, return row count instead of rows"),
     },
-    async ({ name, table, filters, sort, order, limit, offset }) => {
+    async ({ name, table, filters, sort, order, limit, offset, fields, count }) => {
+      if (count) {
+        const result = await getClient().subgraphs.queryTableCount(name, table, { filters, sort, order });
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
       const rows = await getClient().subgraphs.queryTable(name, table, {
         filters,
         sort,
         order,
         limit: limit ?? 50,
         offset,
+        fields,
       });
-      const result = withCap(rows as Record<string, unknown>[], 50);
+      const cap = limit ?? 50;
+      const result = withCap(rows as Record<string, unknown>[], cap > 200 ? 200 : cap);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     },
   );

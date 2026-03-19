@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getClient } from "../lib/client.ts";
+import { getClient, apiRequest } from "../lib/client.ts";
 import { formatStreamSummary, formatDeliverySummary, withCap } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";
 
@@ -181,6 +181,34 @@ export function registerStreamTools(server: McpServer) {
           text: JSON.stringify({ resumed: result.resumed, streams: result.streams.map(formatStreamSummary) }, null, 2),
         }],
       };
+    },
+  );
+
+  defineTool<{ id: string; fromBlock: number; toBlock: number }>(
+    server,
+    "streams_replay",
+    "Replay blocks through a stream, re-delivering events for a block range.",
+    {
+      id: z.string().describe("Stream UUID or prefix"),
+      fromBlock: z.number().describe("Start block height (inclusive)"),
+      toBlock: z.number().describe("End block height (inclusive)"),
+    },
+    async ({ id, fromBlock, toBlock }) => {
+      const result = await apiRequest<{ streamId: string; fromBlock: number; toBlock: number; jobCount: number; message: string }>(
+        "POST", `/api/streams/${id}/replay`, { fromBlock, toBlock },
+      );
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    },
+  );
+
+  defineTool<{ id: string }>(
+    server,
+    "streams_rotate_secret",
+    "Rotate the signing secret for a stream. Returns the new secret.",
+    { id: z.string().describe("Stream UUID or prefix") },
+    async ({ id }) => {
+      const result = await getClient().streams.rotateSecret(id);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     },
   );
 }
