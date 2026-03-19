@@ -478,7 +478,7 @@ secondlayer subgraphs generate my-subgraph -o src/subgraphs/my-subgraph-client.t
 
 ## MCP Server
 
-`@secondlayer/mcp` exposes all platform tools to AI agents via MCP (Model Context Protocol). 19 tools across streams, subgraphs, scaffold, and templates.
+`@secondlayer/mcp` exposes all platform tools to AI agents via MCP (Model Context Protocol). 22 tools + 3 resources across streams, subgraphs, scaffold, templates, and account.
 
 ### Setup — IDE (stdio)
 
@@ -513,10 +513,25 @@ Endpoint: `POST/GET/DELETE /mcp`. Auth via `Authorization: Bearer <secret>`. Ses
 
 | Domain | Tools |
 |--------|-------|
-| Streams | `list`, `get`, `create`, `update`, `delete`, `toggle`, `deliveries`, `pause_all`, `resume_all` |
+| Streams | `list`, `get`, `create`, `update`, `delete`, `toggle`, `deliveries`, `pause_all`, `resume_all`, `replay`, `rotate_secret` |
 | Subgraphs | `list`, `get`, `query`, `reindex`, `delete`, `deploy` |
 | Scaffold | `from_contract`, `from_abi` |
 | Templates | `list`, `get` |
+| Account | `whoami` |
+
+`subgraphs_query` supports `fields` (column projection), `count` (row count), and filter operators (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`). Max limit: 200.
+
+### MCP Resources
+
+| URI | Description |
+|-----|-------------|
+| `secondlayer://filters` | Filter types reference |
+| `secondlayer://column-types` | Column type mappings and options |
+| `secondlayer://templates` | Available subgraph templates |
+
+### MCP Error Handling
+
+All tools return structured errors: `{ error: { type, status, message } }` with `isError: true`. Error types: `unauthorized` (401), `not_found` (404), `rate_limited` (429), `server_error` (5xx), `error` (other).
 
 ### Deploy via MCP
 
