@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 0.3.0
+
+### Minor Changes
+
+- Add structured error handling, 3 new tools (replay, rotate_secret, whoami), enhanced subgraphs_query, and 3 MCP resources.
+
 ## 0.2.1
 
 ### Patch Changes
