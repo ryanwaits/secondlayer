@@ -1,11 +1,13 @@
 {
   "name": "@secondlayer/mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
+    "mcp": "./dist/bin.js",
     "secondlayer-mcp": "./dist/bin.js",
+    "mcp-http": "./dist/bin-http.js",
     "secondlayer-mcp-http": "./dist/bin-http.js"
   },
   "exports": {
@@ -15,7 +17,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "bunup",

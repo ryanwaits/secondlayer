@@ -7,7 +7,7 @@ import { registerSubgraphTools } from "./tools/subgraphs.ts";
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "secondlayer",
-    version: "0.1.0",
+    version: "0.2.1",
   });
 
   registerTemplateTools(server);
