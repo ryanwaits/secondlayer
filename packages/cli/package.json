@@ -48,7 +48,7 @@
     "@biomejs/js-api": "^0.7.0",
     "@biomejs/wasm-nodejs": "^1.9.0",
     "esbuild": "^0.19.0",
-    "zod": "^3.24.1"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@antfu/ni": "^24.4.0",

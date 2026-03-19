@@ -48,7 +48,7 @@ export function getEnv(): Env {
 
   if (!result.success) {
     console.error("❌ Invalid environment configuration:");
-    console.error(result.error.format());
+    console.error(z.treeifyError(result.error));
     throw new Error("Invalid environment configuration");
   }
 
