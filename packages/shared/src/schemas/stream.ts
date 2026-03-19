@@ -103,7 +103,7 @@ export const CreateStreamSchema: z.ZodType<CreateStream> = z.object({
   name: z.string().min(1).max(255),
   endpointUrl: z.string().url(),
   filters: z.array(StreamFilterSchema).min(1),
-  options: streamOptionsShape.optional().default(undefined),
+  options: streamOptionsShape.optional(),
   startBlock: z.number().int().positive().optional(),
   endBlock: z.number().int().positive().optional(),
 }) as unknown as z.ZodType<CreateStream>;
