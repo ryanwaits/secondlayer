@@ -217,6 +217,16 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 See [packages/api/README.md](packages/api/README.md) and [packages/sdk/README.md](packages/sdk/README.md) for full docs.
 
+### MCP (AI Agents)
+
+Connect AI agents to Second Layer via MCP:
+
+```bash
+bun add @secondlayer/mcp
+```
+
+See [packages/mcp/README.md](packages/mcp/README.md) for IDE and HTTP setup.
+
 ## License
 
 MIT

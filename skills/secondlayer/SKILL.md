@@ -476,6 +476,72 @@ secondlayer subgraphs generate my-subgraph -o src/subgraphs/my-subgraph-client.t
 
 ---
 
+## MCP Server
+
+`@secondlayer/mcp` exposes all platform tools to AI agents via MCP (Model Context Protocol). 19 tools across streams, subgraphs, scaffold, and templates.
+
+### Setup — IDE (stdio)
+
+Add to your MCP client config (Claude Desktop, Cursor, VS Code):
+
+```json
+{
+  "mcpServers": {
+    "secondlayer": {
+      "command": "npx",
+      "args": ["@secondlayer/mcp"],
+      "env": {
+        "SECONDLAYER_API_KEY": "sl_live_..."
+      }
+    }
+  }
+}
+```
+
+### Setup — Remote (HTTP)
+
+```bash
+export SECONDLAYER_API_KEY=sl_live_...
+export SECONDLAYER_MCP_SECRET=your-bearer-secret
+npx @secondlayer/mcp-http
+# Listening on port 3100
+```
+
+Endpoint: `POST/GET/DELETE /mcp`. Auth via `Authorization: Bearer <secret>`. Sessions tracked via `Mcp-Session-Id` header.
+
+### Available tools
+
+| Domain | Tools |
+|--------|-------|
+| Streams | `list`, `get`, `create`, `update`, `delete`, `toggle`, `deliveries`, `pause_all`, `resume_all` |
+| Subgraphs | `list`, `get`, `query`, `reindex`, `delete`, `deploy` |
+| Scaffold | `from_contract`, `from_abi` |
+| Templates | `list`, `get` |
+
+### Deploy via MCP
+
+Agents can deploy subgraphs by passing TypeScript code directly:
+
+```typescript
+// Agent calls subgraphs_deploy with:
+{
+  code: "import { defineSubgraph } from '@secondlayer/subgraphs';\nexport default defineSubgraph({ ... })",
+  reindex: false
+}
+// Returns: { action: "created", subgraphId: "...", message: "..." }
+```
+
+Code is bundled with esbuild, validated, and deployed — no file system access needed.
+
+### Bulk operations
+
+`streams_pause_all` and `streams_resume_all` use a confirm gate:
+
+- `{ confirm: false }` (default) — returns preview of affected streams
+- `{ confirm: true }` — executes the operation
+
+---
+
 ## Error Handling (SDK)
 
 ```typescript
