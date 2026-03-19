@@ -1,6 +1,6 @@
 # @secondlayer/api
 
-REST API for Second Layer — streams, views, and contract discovery.
+REST API for Second Layer — streams, subgraphs, and contract discovery.
 
 Base URL: `https://api.secondlayer.tools`
 
@@ -76,15 +76,15 @@ POST   /api/streams/:id/disable  # disable
 POST   /api/streams/:id/replay   # replay block range
 ```
 
-## Views
+## Subgraphs
 
 ```
-GET    /api/views                # list
-POST   /api/views                # deploy
-GET    /api/views/:name          # get
-DELETE /api/views/:name          # delete
-POST   /api/views/:name/reindex  # reindex
-GET    /api/views/:name/:table   # query table
+GET    /api/subgraphs                # list
+POST   /api/subgraphs                # deploy
+GET    /api/subgraphs/:name          # get
+DELETE /api/subgraphs/:name          # delete
+POST   /api/subgraphs/:name/reindex  # reindex
+GET    /api/subgraphs/:name/:table   # query table
 ```
 
 ## Error Codes
@@ -94,6 +94,6 @@ GET    /api/views/:name/:table   # query table
 | 400 | `VALIDATION_ERROR` | Invalid input |
 | 401 | `AUTHENTICATION_ERROR` | Missing or invalid token |
 | 403 | `AUTHORIZATION_ERROR` | Token valid but not authorized |
-| 404 | `STREAM_NOT_FOUND` / `VIEW_NOT_FOUND` | Resource not found |
+| 404 | `STREAM_NOT_FOUND` / `SUBGRAPH_NOT_FOUND` | Resource not found |
 | 429 | `RATE_LIMIT_ERROR` | Rate limited |
 | 500 | `INTERNAL_ERROR` | Server error |
