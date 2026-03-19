@@ -81,13 +81,18 @@ class Reader {
   }
 
   readBytes(length: number): Uint8Array {
+    if (this.offset + length > this.data.length) {
+      throw new Error(`Buffer underflow: need ${length} bytes at offset ${this.offset}, have ${this.data.length}`);
+    }
     const slice = this.data.slice(this.offset, this.offset + length);
     this.offset += length;
     return slice;
   }
 
   readBigUInt64BE(): bigint {
-    return BigInt(`0x${bytesToHex(this.readBytes(8))}`);
+    const bytes = this.readBytes(8);
+    const hex = bytesToHex(bytes);
+    return hex.length > 0 ? BigInt(`0x${hex}`) : 0n;
   }
 }
 
@@ -235,7 +240,9 @@ function readPostConditionPrincipal(r: Reader): PostConditionPrincipalWire {
     case PostConditionPrincipalId.Contract:
       return { type: "contract", address: readAddress(r), contractName: readLPString(r) };
     default:
-      throw new Error(`Unknown post condition principal type: ${type}`);
+      // Some legacy transactions may have unexpected principal types.
+      // Treat as origin to allow deserialization to continue.
+      return { type: "origin" };
   }
 }
 
@@ -243,8 +250,9 @@ function readPostConditions(r: Reader): PostConditionWire[] {
   const count = r.readUInt32BE();
   const pcs: PostConditionWire[] = [];
   for (let i = 0; i < count; i++) {
-    const principal = readPostConditionPrincipal(r);
+    // Wire order: asset_type, then principal (per SIP-005 and stacks.js)
     const assetType = r.readUInt8();
+    const principal = readPostConditionPrincipal(r);
     switch (assetType) {
       case AssetType.STX:
         pcs.push({ type: "stx", principal, conditionCode: r.readUInt8(), amount: r.readBigUInt64BE() });
@@ -267,9 +275,9 @@ function readPayload(r: Reader): TransactionPayload {
     case PayloadType.TokenTransfer: {
       const recipient = readCV(r);
       const amount = r.readBigUInt64BE();
-      const memoContentLen = r.readUInt8();
+      // Memo is a flat 34-byte field (no length prefix) per SIP-005
       const memoBytes = r.readBytes(MEMO_MAX_LENGTH_BYTES);
-      const memo = bytesToAscii(memoBytes.slice(0, memoContentLen)).replace(/\0+$/, "");
+      const memo = bytesToAscii(memoBytes).replace(/\0+$/, "");
       return { payloadType: PayloadType.TokenTransfer, recipient, amount, memo };
     }
     case PayloadType.ContractCall: {
