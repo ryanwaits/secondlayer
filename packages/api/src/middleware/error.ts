@@ -1,6 +1,6 @@
 import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { ZodError } from "zod";
+import { ZodError } from "zod/v4";
 import {
   StreamsError,
 } from "@secondlayer/shared";
@@ -35,8 +35,8 @@ export const errorHandler: ErrorHandler = (error, c) => {
         {
           error: "Validation Error",
           code: "VALIDATION_ERROR",
-          details: error.errors.map((e: { path: (string | number)[]; message: string }) => ({
-            path: e.path.join("."),
+          details: error.issues.map((e) => ({
+            path: e.path.map(String).join("."),
             message: e.message,
           })),
         },

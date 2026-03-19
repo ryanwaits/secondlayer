@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { templates, getTemplateById, getTemplatesByCategory } from "@secondlayer/subgraphs/templates";
 import { defineTool } from "../lib/tool.ts";

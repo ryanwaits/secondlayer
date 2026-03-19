@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // ── Deploy Subgraph Request ─────────────────────────────────────────────────
 
@@ -17,7 +17,7 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> = z.o
   version: z.string().optional(),
   description: z.string().optional(),
   sources: z.array(z.string()).min(1),
-  schema: z.record(z.unknown()),
+  schema: z.record(z.string(), z.unknown()),
   handlerCode: z.string().max(1_048_576, "handler code exceeds 1MB limit"),
   reindex: z.boolean().optional(),
 });

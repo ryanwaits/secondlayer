@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { ensureDir, fileExists, readJsonFile, removeFile, writeTextFile } from "./fs.ts";
 
 // Config schema with Zod validation
@@ -37,8 +37,8 @@ export const ConfigSchema = z.object({
   dataDir: z.string().default("~/.secondlayer/data"),
   defaultEndpointUrl: z.string().url().optional(),
   node: NodeSchema.optional(),
-  ports: PortsSchema.default({}),
-  database: DatabaseSchema.default({}),
+  ports: PortsSchema.default({ api: 3800, indexer: 3700, receiver: 3900 }),
+  database: DatabaseSchema.default({ type: "docker" as const }),
 });
 
 /**

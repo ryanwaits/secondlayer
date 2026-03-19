@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { ColumnType, SubgraphColumn, SubgraphTable, SubgraphSource, SubgraphDefinition } from "./types.ts";
 
 export const SubgraphNameSchema: z.ZodType<string> = z
@@ -59,7 +59,7 @@ export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
   description: z.string().optional(),
   sources: z.array(SubgraphSourceSchema).min(1, "Must have at least one source"),
   schema: SubgraphSchemaSchema,
-  handlers: z.record(z.string(), z.function()),
+  handlers: z.record(z.string(), z.function() as unknown as z.ZodType<Function>),
 }) as unknown as z.ZodType<SubgraphDefinition>;
 
 /**

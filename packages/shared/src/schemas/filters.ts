@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import { isValidAddress as _isValidAddress } from "@secondlayer/stacks";
 
 const isValidAddress = _isValidAddress as (addr: string) => boolean;
