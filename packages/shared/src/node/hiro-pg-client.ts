@@ -10,7 +10,6 @@
  */
 
 import postgres from "postgres";
-import { logger } from "../logger.ts";
 
 const SCHEMA = "stacks_blockchain_api";
 
@@ -108,7 +107,6 @@ export class HiroPgClient {
     this.sql = postgres(url, {
       max: 10,
       idle_timeout: 30,
-      types: { bigint: postgres.BigInt },
     });
   }
 
