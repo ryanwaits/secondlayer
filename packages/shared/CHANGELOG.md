@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.5.1
+
+### Patch Changes
+
+- Migrate all zod imports from v3 compat layer to zod/v4 and fix type errors.
+
 ## 0.5.0
 
 ### Minor Changes
