@@ -159,7 +159,10 @@ export async function parseTransaction(
 
   // Decode raw_tx to extract tx_type and sender_address
   // The Stacks node events observer sends raw_tx but not tx_type or sender_address
-  let decoded = tx.raw_tx ? decodeRawTx(tx.raw_tx, tx.txid) : null;
+  // Skip decode for burnchain ops (raw_tx = "0x00" or "0x") — these are Bitcoin-originated
+  // operations with no Stacks transaction bytes
+  const hasDecodableRawTx = tx.raw_tx && tx.raw_tx.length > 10;
+  let decoded = hasDecodableRawTx ? decodeRawTx(tx.raw_tx, tx.txid) : null;
 
   // If decode failed, try fetching from Stacks API only if explicitly enabled.
   // During genesis sync, decode failures are expected for some legacy tx formats —
