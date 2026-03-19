@@ -116,6 +116,30 @@ const originSigned = signTransaction(tx, originKey);
 const fullySigned = signSponsor(originSigned, sponsorKey);
 ```
 
+## Enums
+
+### ClarityVersion
+
+| Name | Value |
+|------|-------|
+| `Clarity1` | 1 |
+| `Clarity2` | 2 |
+| `Clarity3` | 3 |
+| `Clarity4` | 4 |
+| `Clarity5` | 5 |
+
+### TenureChangeCause
+
+| Name | Value |
+|------|-------|
+| `BlockFound` | 0x00 |
+| `Extended` | 0x01 |
+| `ExtendedRuntime` | 0x02 |
+| `ExtendedReadCount` | 0x03 |
+| `ExtendedReadLength` | 0x04 |
+| `ExtendedWriteCount` | 0x05 |
+| `ExtendedWriteLength` | 0x06 |
+
 ## Wire Format
 
 ```typescript

@@ -81,7 +81,7 @@ chown -R 1000:1000 $BITCOIN_DATA_DIR
 
 ## Genesis Sync
 
-Full chain sync from block 0. Takes ~4-10 days total. **All steps are manual** — stacks-node does not auto-start.
+Full chain sync from block 0. Takes ~10-14 days total. **All steps are manual** — stacks-node does not auto-start.
 
 ### Steps
 
@@ -109,7 +109,7 @@ cd /opt/secondlayer/docker
 # Truncate DB for clean genesis sync
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -c "TRUNCATE blocks, transactions, events, jobs, deliveries, index_progress CASCADE;"
-TIP_FOLLOWER_ENABLED=false docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
+TIP_FOLLOWER_ENABLED=false $COMPOSE up -d
 ```
 
 **3. Start stacks-node** — only after bitcoind blocks > 666050
@@ -133,7 +133,7 @@ ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose logs -
 
 # App server
 ssh app-server "cd /opt/secondlayer/docker && \
-  docker compose -f docker-compose.yml -f docker-compose.hetzner.yml logs -f indexer"
+  $COMPOSE logs -f indexer"
 ```
 
 **4. After sync completes**
@@ -142,14 +142,13 @@ ssh app-server "cd /opt/secondlayer/docker && \
 ssh app-server
 cd /opt/secondlayer/docker
 
-# Verify no placeholder transactions
+# Check for placeholder transactions (excluding burnchain ops which legitimately have raw_tx = '0x00')
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
-  -c "SELECT COUNT(*) FROM transactions WHERE raw_tx = '0x00';"
-# Should be 0
+  -c "SELECT COUNT(*) FROM transactions WHERE raw_tx = '0x00' AND type_id NOT IN (1,2,3,4,5);"
+# Should be 0. ~700 burnchain operations (PoX stacking, STX transfers via BTC) have raw_tx = '0x00' by design.
 
 # Re-enable tip follower
-TIP_FOLLOWER_ENABLED=true docker compose -f docker-compose.yml -f docker-compose.hetzner.yml \
-  up -d --force-recreate indexer
+TIP_FOLLOWER_ENABLED=true $COMPOSE up -d --force-recreate indexer
 ```
 
 ### Re-sync from genesis
@@ -392,13 +391,25 @@ docker run -d --name backfill \
   -e BACKFILL_BATCH_SIZE=100 \
   -e BACKFILL_FROM=2 \
   oven/bun:latest bun run packages/indexer/src/bulk-backfill.ts
+
+# Fastest option: backfill from local Hiro Postgres (~150 blocks/sec)
+docker run -d --name backfill \
+  --network secondlayer_default \
+  -v /opt/secondlayer:/app -w /app \
+  -e DATABASE_URL=postgres://secondlayer:secondlayer@postgres:5432/secondlayer \
+  -e HIRO_PG_URL=postgres://hiro_user:password@hiro-postgres:5432/stacks_blockchain_api \
+  -e BACKFILL_SOURCE=hiro-pg \
+  -e BACKFILL_CONCURRENCY=20 \
+  -e BACKFILL_BATCH_SIZE=100 \
+  -e BACKFILL_FROM=2 \
+  oven/bun:latest bun run packages/indexer/src/bulk-backfill.ts
 ```
 
 > Block 1 (genesis) has 330K events. Always set `BACKFILL_FROM=2`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BACKFILL_SOURCE` | `hiro` | `hiro` = Hiro API, `local` = own Postgres |
+| `BACKFILL_SOURCE` | `hiro` | `hiro` = Hiro API, `local` = own Postgres, `hiro-pg` = direct PG queries against local Hiro API database (fastest, ~150 blocks/sec) |
 | `BACKFILL_FROM` | `2` | Start height |
 | `BACKFILL_TO` | auto | End height (auto-detects chain tip) |
 | `BACKFILL_CONCURRENCY` | `20` | Parallel fetches |
@@ -419,15 +430,17 @@ Bootstrap stacks-node from Hiro's archive (~800-900 GB) instead of syncing from 
 ```bash
 # Stream to disk (node server)
 ssh node-server
-wget -qO- https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.gz \
-  | tar xzf - -C /data/stacks
+wget -qO- https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.zst \
+  | tar --zstd -xf - -C /data/stacks
 
 # With resume support
-curl --continue-at - -L -o /tmp/snapshot.tar.gz \
-  https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.gz
-tar -xzf /tmp/snapshot.tar.gz -C /data/stacks
-rm /tmp/snapshot.tar.gz
+curl --continue-at - -L -o /tmp/snapshot.tar.zst \
+  https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.zst
+tar --zstd -xf /tmp/snapshot.tar.zst -C /data/stacks
+rm /tmp/snapshot.tar.zst
 ```
+
+> The archive may contain empty sqlite files. Stacks-node regenerates them on first boot — expect a longer initial startup.
 
 ---
 

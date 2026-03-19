@@ -19,23 +19,6 @@ const sl = new SecondLayer({
 });
 ```
 
-## Contracts
-
-Search, inspect, and fetch ABIs for on-chain contracts.
-
-```typescript
-// Search by name
-const { contracts, total } = await sl.contracts.search("bns", { limit: 10, offset: 0 });
-
-// Get contract detail
-const contract = await sl.contracts.get("SP000000000000000000002Q6VF78.bns");
-// { contractId, name, deployer, deployBlock, deployTxId, callCount, lastCalledAt, abi, ... }
-
-// Fetch ABI (lazy-cached from Stacks node)
-const abi = await sl.contracts.getAbi("SP000000000000000000002Q6VF78.bns");
-// { functions: [...], maps: [...], variables: [...], ... }
-```
-
 ## Streams
 
 Manage real-time event streams with endpoint delivery.
@@ -85,7 +68,7 @@ const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode })
 import { ApiError } from "@secondlayer/sdk";
 
 try {
-  await sl.contracts.get("nonexistent");
+  await sl.streams.get("nonexistent");
 } catch (err) {
   if (err instanceof ApiError) {
     console.log(err.status);  // 404

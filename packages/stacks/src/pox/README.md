@@ -50,6 +50,7 @@ await wallet.pox.stackStx({
   amount: 100_000_000_000n,       // 100k STX in microSTX
   btcAddress: "bc1q...",           // BTC reward address
   lockPeriod: 12,                  // 1-12 cycles
+  startBurnHeight: 850_000n,      // burn height at which stacking begins
   signerSig: signature,            // signer signature (buff 65)
   signerKey: publicKey,            // signer public key (buff 33)
   maxAmount: 100_000_000_000n,
