@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 0.5.6
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.6.0
+  - @secondlayer/stacks@0.2.2
+
 ## 0.5.5
 
 ### Patch Changes

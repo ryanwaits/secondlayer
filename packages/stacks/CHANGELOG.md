@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 0.2.2
+
+### Patch Changes
+
+- Fix SIP-005 wire format: post condition field order, TokenTransfer memo encoding, buffer underflow guards, add missing TenureChangeCause/ClarityVersion variants.
+
 ## 0.2.1
 
 ### Patch Changes

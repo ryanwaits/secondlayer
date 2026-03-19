@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/cli",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "CLI for streams, subgraphs, and real-time blockchain indexing on Stacks",
   "type": "module",
   "bin": {
@@ -41,10 +41,10 @@
   "license": "MIT",
   "dependencies": {
     "@inquirer/prompts": "^8.2.0",
-    "@secondlayer/sdk": "^0.6.0",
-    "@secondlayer/shared": "^0.5.1",
-    "@secondlayer/stacks": "^0.2.0",
-    "@secondlayer/subgraphs": "^0.5.5",
+    "@secondlayer/sdk": "^0.6.3",
+    "@secondlayer/shared": "^0.6.0",
+    "@secondlayer/stacks": "^0.2.2",
+    "@secondlayer/subgraphs": "^0.5.6",
     "@biomejs/js-api": "^0.7.0",
     "@biomejs/wasm-nodejs": "^1.9.0",
     "esbuild": "^0.19.0",
