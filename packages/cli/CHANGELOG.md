@@ -1,5 +1,15 @@
 # @secondlayer/cli
 
+## 1.6.6
+
+### Patch Changes
+
+- Migrate all zod imports from v3 compat layer to zod/v4 and fix type errors.
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.5.1
+  - @secondlayer/subgraphs@0.5.5
+
 ## 1.6.5
 
 ### Patch Changes

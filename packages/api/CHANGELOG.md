@@ -1,5 +1,16 @@
 # @secondlayer/api
 
+## 0.2.1
+
+### Patch Changes
+
+- Migrate all zod imports from v3 compat layer to zod/v4 and fix type errors.
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.5.1
+  - @secondlayer/auth@0.1.7
+  - @secondlayer/subgraphs@0.5.5
+
 ## 0.2.0
 
 ### Minor Changes
