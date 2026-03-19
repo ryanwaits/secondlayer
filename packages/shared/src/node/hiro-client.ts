@@ -157,7 +157,7 @@ export class HiroClient {
   }
 
   /** Fetch with retry on 429/5xx using exponential backoff */
-  private async fetchWithRetry(url: string, timeoutMs = 15_000): Promise<Response> {
+  private async fetchWithRetry(url: string, timeoutMs = 120_000): Promise<Response> {
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       const res = await fetch(url, { headers: this.headers, signal: AbortSignal.timeout(timeoutMs) });
 
