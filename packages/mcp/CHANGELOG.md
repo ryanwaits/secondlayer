@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 0.2.1
+
+### Patch Changes
+
+- Fix npx resolution, version mismatch, and include README in published package.
+
 ## 0.2.0
 
 ### Minor Changes
