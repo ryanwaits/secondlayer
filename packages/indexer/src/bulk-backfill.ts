@@ -24,6 +24,7 @@ import { getDb, closeDb, sql } from "@secondlayer/shared/db";
 import { computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
+import { HiroPgClient } from "@secondlayer/shared/node/hiro-pg-client";
 import type { GetBlockOptions } from "@secondlayer/shared/node/hiro-client";
 import type { NewBlockPayload, TransactionPayload, TransactionEvent } from "./types/node-events.ts";
 import { parseBlock, parseTransaction, parseEvent, stripNullBytes } from "./parser.ts";
@@ -41,8 +42,8 @@ const INCLUDE_RAW_TX = process.env.BACKFILL_INCLUDE_RAW_TX !== "false";
 const RAW_TX_CONCURRENCY = parseInt(process.env.BACKFILL_RAW_TX_CONCURRENCY || "10");
 const NETWORK = process.env.STACKS_NETWORK || "mainnet";
 const PROGRESS_FILE = "backfill-progress.json";
-/** "local" = read from own DB (reprocessing), "hiro" = existing behavior */
-const BACKFILL_SOURCE = (process.env.BACKFILL_SOURCE || "hiro") as "local" | "hiro";
+/** "local" = read from own DB, "hiro" = HTTP API, "hiro-pg" = direct PG */
+const BACKFILL_SOURCE = (process.env.BACKFILL_SOURCE || "hiro") as "local" | "hiro" | "hiro-pg";
 
 const TX_CHUNK_SIZE = 500;
 const EVT_CHUNK_SIZE = 1000;
@@ -170,6 +171,7 @@ async function insertBatch(
 async function main() {
   const hiro = new HiroClient();
   const local = new LocalClient();
+  const hiroPg = BACKFILL_SOURCE === "hiro-pg" ? new HiroPgClient() : null;
   const db = getDb();
 
   logger.info("Backfill source", { source: BACKFILL_SOURCE });
@@ -180,6 +182,9 @@ async function main() {
     if (BACKFILL_SOURCE === "local") {
       logger.info("Auto-detecting chain tip from local DB...");
       targetHeight = await local.getChainTip(db);
+    } else if (BACKFILL_SOURCE === "hiro-pg") {
+      logger.info("Auto-detecting chain tip from Hiro PG...");
+      targetHeight = await hiroPg!.getChainTip();
     } else {
       logger.info("Auto-detecting chain tip from Hiro API...");
       targetHeight = await hiro.fetchChainTip();
@@ -248,23 +253,32 @@ async function main() {
   for (let batchIdx = 0; batchIdx < heights.length; batchIdx += BATCH_SIZE) {
     const batchHeights = heights.slice(batchIdx, batchIdx + BATCH_SIZE);
 
-    // Fetch blocks with bounded concurrency
+    // Fetch blocks — use batch query for hiro-pg, bounded concurrency for others
     const fetchedBlocks: NewBlockPayload[] = [];
-    for (let i = 0; i < batchHeights.length; i += CONCURRENCY) {
-      const chunk = batchHeights.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(
-        chunk.map(async (h) => {
-          if (BACKFILL_SOURCE === "local") {
-            return local.getBlockForReplay(db, h) as Promise<NewBlockPayload | null>;
+    if (BACKFILL_SOURCE === "hiro-pg") {
+      try {
+        const blocks = await hiroPg!.getBlockBatch(batchHeights, { includeRawTx: INCLUDE_RAW_TX });
+        fetchedBlocks.push(...blocks);
+      } catch (err) {
+        logger.warn("Failed to fetch block batch", { error: String(err) });
+      }
+    } else {
+      for (let i = 0; i < batchHeights.length; i += CONCURRENCY) {
+        const chunk = batchHeights.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          chunk.map(async (h) => {
+            if (BACKFILL_SOURCE === "local") {
+              return local.getBlockForReplay(db, h) as Promise<NewBlockPayload | null>;
+            }
+            return hiro.getBlockForIndexer(h, blockOptions) as Promise<NewBlockPayload | null>;
+          })
+        );
+        for (const result of results) {
+          if (result.status === "fulfilled" && result.value) {
+            fetchedBlocks.push(result.value);
+          } else if (result.status === "rejected") {
+            logger.warn("Failed to fetch block", { error: String(result.reason) });
           }
-          return hiro.getBlockForIndexer(h, blockOptions) as Promise<NewBlockPayload | null>;
-        })
-      );
-      for (const result of results) {
-        if (result.status === "fulfilled" && result.value) {
-          fetchedBlocks.push(result.value);
-        } else if (result.status === "rejected") {
-          logger.warn("Failed to fetch block", { error: String(result.reason) });
         }
       }
     }
@@ -312,6 +326,7 @@ async function main() {
     }
   }
 
+  if (hiroPg) await hiroPg.close();
   await recomputeContiguousAndClose(db);
 
   const elapsed = (Date.now() - startTime) / 1000;
