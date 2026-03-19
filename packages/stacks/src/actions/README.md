@@ -5,7 +5,7 @@ Standalone action functions for tree-shakeable imports. These are the same funct
 ## Public (Read-Only) Actions
 
 ```typescript
-import { getBalance, getNonce, readContract, getBlock } from "@secondlayer/stacks/actions";
+import { getBalance, getNonce, readContract, getBlock, getBlockHeight } from "@secondlayer/stacks/actions";
 
 const balance = await getBalance(client, { address: "SP2J6..." });
 const nonce = await getNonce(client, { address: "SP2J6..." });

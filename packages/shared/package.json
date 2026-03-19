@@ -33,10 +33,6 @@
       "types": "./dist/src/db/queries/subgraphs.d.ts",
       "import": "./dist/src/db/queries/subgraphs.js"
     },
-    "./db/queries/contracts": {
-      "types": "./dist/src/db/queries/contracts.d.ts",
-      "import": "./dist/src/db/queries/contracts.js"
-    },
     "./db/jsonb": {
       "types": "./dist/src/db/jsonb.d.ts",
       "import": "./dist/src/db/jsonb.js"

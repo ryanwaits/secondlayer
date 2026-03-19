@@ -11,11 +11,10 @@ import { http } from "@secondlayer/stacks";
 const transport = http();
 
 // Custom URL
-const transport = http({ url: "https://my-node.example.com" });
+const transport = http("https://my-node.example.com");
 
 // With options
-const transport = http({
-  url: "https://my-node.example.com",
+const transport = http("https://my-node.example.com", {
   apiKey: "my-api-key",
   timeout: 30_000,
   retryCount: 3,
@@ -31,7 +30,7 @@ import { webSocket } from "@secondlayer/stacks";
 const transport = webSocket();
 
 // Custom URL
-const transport = webSocket({ url: "wss://my-node.example.com" });
+const transport = webSocket("wss://my-node.example.com");
 ```
 
 ## Fallback
@@ -42,8 +41,8 @@ Tries transports in order, falls back on failure.
 import { fallback, http } from "@secondlayer/stacks";
 
 const transport = fallback([
-  http({ url: "https://primary-node.com" }),
-  http({ url: "https://backup-node.com" }),
+  http("https://primary-node.com"),
+  http("https://backup-node.com"),
 ]);
 ```
 

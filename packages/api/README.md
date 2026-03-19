@@ -1,6 +1,6 @@
 # @secondlayer/api
 
-REST API for Second Layer — streams, subgraphs, and contract discovery.
+REST API for Second Layer — streams and subgraphs.
 
 Base URL: `https://api.secondlayer.tools`
 
@@ -9,59 +9,10 @@ Base URL: `https://api.secondlayer.tools`
 All endpoints require a Bearer token (session token or API key):
 
 ```bash
-curl -H "Authorization: Bearer ss-sl_..." https://api.secondlayer.tools/api/contracts?q=bns
+curl -H "Authorization: Bearer ss-sl_..." https://api.secondlayer.tools/api/streams
 ```
 
 Get a session token via the CLI: `sl auth login`
-
-## Contracts
-
-### Search
-
-```
-GET /api/contracts?q=<query>&limit=20&offset=0
-```
-
-| Param | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `q` | yes | — | Search term (matches name and contract_id via ILIKE) |
-| `limit` | no | 20 | Max results (1-100) |
-| `offset` | no | 0 | Pagination offset |
-
-Response:
-```json
-{
-  "contracts": [
-    {
-      "contractId": "SP000000000000000000002Q6VF78.pox",
-      "name": "pox",
-      "deployer": "SP000000000000000000002Q6VF78",
-      "deployBlock": 0,
-      "callCount": 20,
-      "lastCalledAt": "2026-03-09T19:56:12.000Z",
-      "createdAt": "2026-03-09T18:00:00.000Z"
-    }
-  ],
-  "total": 1
-}
-```
-
-### Get Contract
-
-```
-GET /api/contracts/:contractId
-```
-
-Returns `ContractDetail` (summary + `deployTxId`, `abi`, `updatedAt`). 404 if not found.
-
-### Get ABI
-
-```
-GET /api/contracts/:contractId/abi
-GET /api/contracts/:contractId/abi?refresh=true
-```
-
-Returns the contract's Clarity ABI as JSON. On first request, fetches from the Stacks node and caches in the database. Subsequent requests serve from cache. Pass `?refresh=true` to force re-fetch (useful for upgraded contracts).
 
 ## Streams
 
