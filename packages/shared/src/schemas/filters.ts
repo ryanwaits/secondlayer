@@ -238,7 +238,7 @@ export const PrintEventFilterSchema: z.ZodType<PrintEventFilter> = z.object({
 
 // Union of all filter types
 export const StreamFilterSchema: z.ZodType<StreamFilter> = z.discriminatedUnion("type", [
-  StxTransferFilterSchema as z.ZodType<StxTransferFilter> & z.ZodTypeDef as any,
+  StxTransferFilterSchema as any,
   StxMintFilterSchema as any,
   StxBurnFilterSchema as any,
   StxLockFilterSchema as any,
