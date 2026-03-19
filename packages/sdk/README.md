@@ -57,28 +57,26 @@ await sl.streams.update("stream-id", { name: "renamed" });
 await sl.streams.delete("stream-id");
 ```
 
-## Views
+## Subgraphs
 
-Deploy and query materialized views.
+Deploy and query subgraphs (custom indexers).
 
 ```typescript
 // List
-const { data } = await sl.views.list();
+const { data } = await sl.subgraphs.list();
 
 // Get
-const view = await sl.views.get("my-view");
+const subgraph = await sl.subgraphs.get("my-subgraph");
 
 // Query table
-const rows = await sl.views.queryTable("my-view", "transfers", {
+const rows = await sl.subgraphs.queryTable("my-subgraph", "transfers", {
   sort: "block_height",
   order: "desc",
   limit: 50,
 });
 
-// Typed client (with defineView schema)
-import myView from "./views/my-view";
-const client = sl.views.typed(myView);
-const rows = await client.transfers.findMany({ where: { sender: "SP..." } });
+// Deploy
+const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode });
 ```
 
 ## Error Handling
