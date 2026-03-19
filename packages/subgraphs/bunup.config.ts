@@ -17,6 +17,7 @@ const config: DefineConfigItem = defineConfig({
     "src/runtime/clarity.ts",
     "src/runtime/stats.ts",
     "src/service.ts",
+    "src/templates.ts",
   ],
   format: ["esm"],
   dts: true,
