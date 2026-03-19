@@ -12,21 +12,36 @@ interface BundleResult {
 }
 
 export async function bundleSubgraphCode(code: string): Promise<BundleResult> {
-  const result = await esbuild.build({
-    stdin: { contents: code, loader: "ts", resolveDir: process.cwd() },
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    external: ["@secondlayer/subgraphs"],
-    write: false,
-  });
+  let result: esbuild.BuildResult;
+  try {
+    result = await esbuild.build({
+      stdin: { contents: code, loader: "ts", resolveDir: process.cwd() },
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      external: ["@secondlayer/subgraphs"],
+      write: false,
+    });
+  } catch (err: unknown) {
+    throw new Error(`Bundle failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
   const handlerCode = new TextDecoder().decode(result.outputFiles![0]!.contents);
 
-  const dataUri = `data:text/javascript;base64,${Buffer.from(handlerCode).toString("base64")}`;
-  const mod = await import(dataUri);
+  let mod: Record<string, unknown>;
+  try {
+    const dataUri = `data:text/javascript;base64,${Buffer.from(handlerCode).toString("base64")}`;
+    mod = await import(dataUri);
+  } catch (err: unknown) {
+    throw new Error(`Module evaluation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
   const def = mod.default ?? mod;
 
-  const validated = validateSubgraphDefinition(def);
+  let validated: ReturnType<typeof validateSubgraphDefinition>;
+  try {
+    validated = validateSubgraphDefinition(def);
+  } catch (err: unknown) {
+    throw new Error(`Validation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   return {
     name: validated.name,

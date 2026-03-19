@@ -6,7 +6,9 @@ import { defineTool } from "../lib/tool.ts";
 const API_BASE = process.env.SECONDLAYER_API_URL || "https://api.secondlayer.tools";
 
 async function fetchAbi(contractId: string): Promise<{ functions: any[]; maps: any[] }> {
-  const res = await fetch(`${API_BASE}/api/node/contracts/${contractId}/abi`);
+  const res = await fetch(`${API_BASE}/api/node/contracts/${contractId}/abi`, {
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!res.ok) {
     if (res.status === 404) throw new Error(`Contract not found: ${contractId}`);
     throw new Error(`Failed to fetch ABI: HTTP ${res.status}`);
