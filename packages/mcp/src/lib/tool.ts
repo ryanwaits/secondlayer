@@ -24,5 +24,22 @@ export function defineTool<T>(
   schema: Record<string, unknown>,
   handler: (args: T) => Promise<ToolResult> | ToolResult,
 ): void {
-  (server.tool as Function)(name, description, schema, handler);
+  const wrappedHandler = async (args: T): Promise<ToolResult> => {
+    try {
+      return await handler(args);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      const status = err instanceof Error && "status" in err ? (err as any).status : 0;
+      const type =
+        status === 401 ? "unauthorized" :
+        status === 404 ? "not_found" :
+        status === 429 ? "rate_limited" :
+        status >= 500 ? "server_error" : "error";
+      return {
+        content: [{ type: "text", text: JSON.stringify({ error: { type, status, message } }) }],
+        isError: true,
+      };
+    }
+  };
+  (server.tool as Function)(name, description, schema, wrappedHandler);
 }

@@ -29,10 +29,25 @@ const httpServer = createHttpServer(async (req: IncomingMessage, res: ServerResp
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
   if (req.method === "POST") {
-    // Read body
+    // Read body with 1MB limit
+    const MAX_BODY = 1_048_576;
     const chunks: Buffer[] = [];
-    for await (const chunk of req) chunks.push(chunk as Buffer);
-    const body = JSON.parse(Buffer.concat(chunks).toString());
+    let totalSize = 0;
+    for await (const chunk of req) {
+      totalSize += (chunk as Buffer).length;
+      if (totalSize > MAX_BODY) {
+        res.writeHead(413).end(JSON.stringify({ error: "Request body too large" }));
+        return;
+      }
+      chunks.push(chunk as Buffer);
+    }
+    let body: any;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString());
+    } catch {
+      res.writeHead(400).end(JSON.stringify({ error: "Invalid JSON" }));
+      return;
+    }
 
     // Check if this is an initialize request (new session)
     const isInitialize = Array.isArray(body)
