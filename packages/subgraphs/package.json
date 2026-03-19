@@ -20,6 +20,10 @@
     "./validate": {
       "types": "./dist/src/validate.d.ts",
       "import": "./dist/src/validate.js"
+    },
+    "./templates": {
+      "types": "./dist/src/templates.d.ts",
+      "import": "./dist/src/templates.js"
     }
   },
   "files": [
@@ -37,7 +41,7 @@
     "@secondlayer/stacks": "^0.2.0",
     "kysely": "^0.28.10",
     "postgres": "^3.4.6",
-    "zod": "^3.24.1"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bun": "latest",
