@@ -9,7 +9,7 @@ Two-server setup:
 | App server | AX52 | `ssh app-server` | indexer, API, Postgres, Caddy, worker, agent |
 | Node server | AX162-S | `ssh node-server` | bitcoind, stacks-node |
 
-The node server pushes Stacks block events to the app server indexer on port 3700.
+The node server pushes Stacks block events to the app server indexer on port 3700. App server runs `postgres:17-alpine`.
 
 ---
 
@@ -70,6 +70,8 @@ bash /opt/secondlayer/docker/node-server/setup.sh
 - Generates `bitcoin.conf`, `Config.toml`, `.env` with random RPC password
 - Installs systemd service (`secondlayer-node`)
 - Starts bitcoind (IBD begins immediately)
+
+> **Gotcha:** `STACKS_DATA_DIR` in `.env` (default `/data/stacks`) must match where chainstate actually lives on disk. If using a snapshot restore, extract to the path in `.env` — a mismatch causes full re-sync from genesis.
 
 **Note:** `bitcoin.conf` must be copied into `$BITCOIN_DATA_DIR` before starting, and the data dir must be owned by UID 1000:
 ```bash
@@ -380,10 +382,13 @@ curl -s localhost:3700/health/integrity | jq
 For large-scale population or reprocessing after schema changes:
 
 ```bash
+# Source credentials from .env
+source /opt/secondlayer/docker/.env
+
 docker run -d --name backfill \
   --network secondlayer_default \
   -v /opt/secondlayer:/app -w /app \
-  -e DATABASE_URL=postgres://secondlayer:secondlayer@postgres:5432/secondlayer \
+  -e DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
   -e HIRO_API_URL=https://api.mainnet.hiro.so \
   -e HIRO_API_KEY=${HIRO_API_KEY:-} \
   -e BACKFILL_SOURCE=hiro \
@@ -392,12 +397,12 @@ docker run -d --name backfill \
   -e BACKFILL_FROM=2 \
   oven/bun:latest bun run packages/indexer/src/bulk-backfill.ts
 
-# Fastest option: backfill from local Hiro Postgres (~150 blocks/sec)
+# Fastest option: backfill from local Hiro Postgres (~24-40 blocks/sec with batch queries)
 docker run -d --name backfill \
   --network secondlayer_default \
   -v /opt/secondlayer:/app -w /app \
-  -e DATABASE_URL=postgres://secondlayer:secondlayer@postgres:5432/secondlayer \
-  -e HIRO_PG_URL=postgres://hiro_user:password@hiro-postgres:5432/stacks_blockchain_api \
+  -e DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
+  -e HIRO_PG_URL=postgres://secondlayer:secondlayer@postgres:5432/stacks_blockchain_api?options=-csearch_path%3Dstacks_blockchain_api \
   -e BACKFILL_SOURCE=hiro-pg \
   -e BACKFILL_CONCURRENCY=20 \
   -e BACKFILL_BATCH_SIZE=100 \
@@ -405,11 +410,13 @@ docker run -d --name backfill \
   oven/bun:latest bun run packages/indexer/src/bulk-backfill.ts
 ```
 
+> `hiro-pg` is the fastest backfill source (~24-40 blocks/sec with batch queries). Requires a local copy of the Hiro API database — see "Hiro PG Restore" below.
+
 > Block 1 (genesis) has 330K events. Always set `BACKFILL_FROM=2`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BACKFILL_SOURCE` | `hiro` | `hiro` = Hiro API, `local` = own Postgres, `hiro-pg` = direct PG queries against local Hiro API database (fastest, ~150 blocks/sec) |
+| `BACKFILL_SOURCE` | `hiro` | `hiro` = Hiro API, `local` = own Postgres, `hiro-pg` = direct PG queries against local Hiro API database (fastest, ~24-40 blocks/sec with batch queries) |
 | `BACKFILL_FROM` | `2` | Start height |
 | `BACKFILL_TO` | auto | End height (auto-detects chain tip) |
 | `BACKFILL_CONCURRENCY` | `20` | Parallel fetches |
@@ -423,24 +430,66 @@ docker logs backfill 2>&1 | grep "Batch complete" | tail -5
 docker stop backfill && docker rm backfill
 ```
 
+### Hiro PG Restore
+
+Restore Hiro's API Postgres dump locally for fast `hiro-pg` backfill.
+
+```bash
+# 1. Download dump from archive.hiro.so
+curl -L -o /tmp/hiro-api-pg.dump \
+  https://archive.hiro.so/mainnet/stacks-blockchain-api/mainnet-stacks-blockchain-api-latest.dump
+
+# 2. Create database in existing Postgres container
+docker exec secondlayer-postgres-1 psql -U secondlayer \
+  -c "CREATE DATABASE stacks_blockchain_api;"
+
+# 3. Restore (parallel with --jobs 4)
+docker exec -i secondlayer-postgres-1 \
+  pg_restore -U secondlayer -d stacks_blockchain_api --no-owner --jobs 4 \
+  < /tmp/hiro-api-pg.dump
+
+# 4. Run backfill with hiro-pg source
+#    Connection string must set search_path via options param:
+#    postgres://user:pass@host:5432/stacks_blockchain_api?options=-csearch_path%3Dstacks_blockchain_api
+#    See bulk backfill commands above.
+
+# 5. Drop database after parity verification
+docker exec secondlayer-postgres-1 psql -U secondlayer \
+  -c "DROP DATABASE stacks_blockchain_api;"
+rm /tmp/hiro-api-pg.dump
+```
+
+> Apply the "Tuning for Large Restores" settings (see Database section) before pg_restore — massive speedup.
+
 ### Chainstate Snapshot (optional)
 
 Bootstrap stacks-node from Hiro's archive (~800-900 GB) instead of syncing from scratch. Note: still need a backfill strategy for the indexer DB.
 
 ```bash
-# Stream to disk (node server)
 ssh node-server
-wget -qO- https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.zst \
-  | tar --zstd -xf - -C /data/stacks
 
-# With resume support
+# 1. Download archive to /tmp (resumable)
 curl --continue-at - -L -o /tmp/snapshot.tar.zst \
   https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.zst
-tar --zstd -xf /tmp/snapshot.tar.zst -C /data/stacks
+
+# 2. Stop stacks-node
+cd /opt/secondlayer/docker/node-server
+docker compose stop stacks-node
+
+# 3. Extract to STACKS_DATA_DIR (check .env — default /data/stacks)
+source .env
+tar --zstd -xf /tmp/snapshot.tar.zst -C ${STACKS_DATA_DIR:-/data/stacks}
+
+# 4. Start stacks-node — first boot does sortDB migration (normal, takes a few minutes)
+docker compose start stacks-node
+
+# 5. Clean up after verifying node is syncing
 rm /tmp/snapshot.tar.zst
 ```
 
-> The archive may contain empty sqlite files. Stacks-node regenerates them on first boot — expect a longer initial startup.
+> **CRITICAL:** `STACKS_DATA_DIR` in `/opt/secondlayer/docker/node-server/.env` must match the extraction path. A mismatch causes stacks-node to find an empty data dir and re-sync from genesis.
+>
+> First boot after snapshot restore runs a sortDB migration — this is normal and takes a few minutes. Do not kill the process.
 
 ---
 
