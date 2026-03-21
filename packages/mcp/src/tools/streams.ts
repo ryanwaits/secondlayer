@@ -5,7 +5,7 @@ import { formatStreamSummary, formatDeliverySummary, withCap } from "../lib/form
 import { defineTool } from "../lib/tool.ts";
 
 /** Filter schema — full 13-type discriminated union for MCP JSON Schema generation. */
-const FilterSchema = z.discriminatedUnion("type", [
+export const FilterSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("stx_transfer"), sender: z.string().optional(), recipient: z.string().optional(), minAmount: z.number().optional(), maxAmount: z.number().optional() }),
   z.object({ type: z.literal("stx_mint"), recipient: z.string().optional(), minAmount: z.number().optional() }),
   z.object({ type: z.literal("stx_burn"), sender: z.string().optional(), minAmount: z.number().optional() }),

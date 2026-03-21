@@ -1,21 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { templates } from "@secondlayer/subgraphs/templates";
+import { FilterSchema } from "./tools/streams.ts";
 
-const FILTERS_REFERENCE = [
-  { type: "stx_transfer", fields: ["sender", "recipient", "minAmount", "maxAmount"] },
-  { type: "stx_mint", fields: ["recipient", "minAmount"] },
-  { type: "stx_burn", fields: ["sender", "minAmount"] },
-  { type: "stx_lock", fields: ["lockedAddress", "minAmount"] },
-  { type: "ft_transfer", fields: ["sender", "recipient", "assetIdentifier", "minAmount"] },
-  { type: "ft_mint", fields: ["recipient", "assetIdentifier", "minAmount"] },
-  { type: "ft_burn", fields: ["sender", "assetIdentifier", "minAmount"] },
-  { type: "nft_transfer", fields: ["sender", "recipient", "assetIdentifier", "tokenId"] },
-  { type: "nft_mint", fields: ["recipient", "assetIdentifier", "tokenId"] },
-  { type: "nft_burn", fields: ["sender", "assetIdentifier", "tokenId"] },
-  { type: "contract_call", fields: ["contractId", "functionName", "caller"] },
-  { type: "contract_deploy", fields: ["deployer", "contractName"] },
-  { type: "print_event", fields: ["contractId", "topic", "contains"] },
-];
+/** Derived from FilterSchema — single source of truth for filter types and fields. */
+const FILTERS_REFERENCE = FilterSchema.options.map((opt) => ({
+  type: opt.shape.type.def.values[0] as string,
+  fields: Object.keys(opt.shape).filter((k) => k !== "type"),
+}));
 
 const COLUMN_TYPES = [
   { type: "uint", sqlType: "bigint", description: "Unsigned integer (Clarity uint)" },
