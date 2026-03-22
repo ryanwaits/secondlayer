@@ -10,6 +10,7 @@ import {
   upsertAccount,
   isEmailAllowed,
 } from "@secondlayer/shared/db/queries/accounts";
+import { getClientIp } from "@secondlayer/auth/http";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
@@ -109,13 +110,5 @@ app.post("/logout", async (c) => {
 
   return c.json({ message: "Logged out" });
 });
-
-function getClientIp(c: any): string {
-  return (
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
-    c.req.header("cf-connecting-ip") ||
-    "unknown"
-  );
-}
 
 export default app;
