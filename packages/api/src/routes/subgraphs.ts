@@ -67,7 +67,7 @@ function getValidColumns(table: { columns: Record<string, SubgraphColumn> }): Se
 }
 
 function getSubgraphSchema(subgraph: Subgraph): SubgraphSchema {
-  return (subgraph.definition as any)?.schema ?? {};
+  return (subgraph.definition.schema as SubgraphSchema) ?? {};
 }
 
 class InvalidColumnError extends Error {

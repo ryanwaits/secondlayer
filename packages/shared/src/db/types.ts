@@ -98,7 +98,7 @@ export interface SubgraphsTable {
   name: string;
   version: Generated<string>;
   status: Generated<string>;
-  definition: unknown;
+  definition: Record<string, unknown>;
   schema_hash: string;
   handler_path: string;
   schema_name: string | null;

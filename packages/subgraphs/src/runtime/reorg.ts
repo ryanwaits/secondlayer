@@ -26,7 +26,7 @@ export async function handleSubgraphReorg(
 
   for (const sg of activeSubgraphs) {
     try {
-      const schema = (sg.definition as any)?.schema as SubgraphSchema | undefined;
+      const schema = sg.definition.schema as SubgraphSchema | undefined;
       if (!schema) continue;
 
       const schemaName = sg.schema_name ?? pgSchemaName(sg.name);
