@@ -9,7 +9,8 @@
     "./keys": "./src/keys.ts",
     "./email": "./src/email.ts",
     "./middleware": "./src/middleware.ts",
-    "./rate-limit": "./src/rate-limit.ts"
+    "./rate-limit": "./src/rate-limit.ts",
+    "./http": "./src/http.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

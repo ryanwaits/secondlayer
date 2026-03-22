@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 import { getDb } from "@secondlayer/shared/db";
 import { generateApiKey } from "./keys.ts";
 import { requireAuth } from "./middleware.ts";
+import { getClientIp } from "./http.ts";
 
 const CreateKeySchema = z.object({
   name: z.string().max(255).optional(),
@@ -95,13 +96,5 @@ app.delete("/:id", requireAuth(), async (c) => {
 
   return c.json({ revoked: true, id });
 });
-
-function getClientIp(c: any): string {
-  return (
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
-    c.req.header("cf-connecting-ip") ||
-    "unknown"
-  );
-}
 
 export default app;
