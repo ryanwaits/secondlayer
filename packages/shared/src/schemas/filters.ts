@@ -125,7 +125,7 @@ export type StreamFilter =
   | PrintEventFilter;
 
 // STX Transfer Filter
-export const StxTransferFilterSchema: z.ZodType<StxTransferFilter> = z.object({
+export const StxTransferFilterSchema = z.object({
   type: z.literal("stx_transfer"),
   ...baseFilter,
   // Optional: minimum amount in microSTX
@@ -135,28 +135,28 @@ export const StxTransferFilterSchema: z.ZodType<StxTransferFilter> = z.object({
 });
 
 // STX Mint Filter
-export const StxMintFilterSchema: z.ZodType<StxMintFilter> = z.object({
+export const StxMintFilterSchema = z.object({
   type: z.literal("stx_mint"),
   recipient: stacksPrincipal.optional(),
   minAmount: z.coerce.number().int().positive().optional(),
 });
 
 // STX Burn Filter
-export const StxBurnFilterSchema: z.ZodType<StxBurnFilter> = z.object({
+export const StxBurnFilterSchema = z.object({
   type: z.literal("stx_burn"),
   sender: stacksPrincipal.optional(),
   minAmount: z.coerce.number().int().positive().optional(),
 });
 
 // STX Lock Filter
-export const StxLockFilterSchema: z.ZodType<StxLockFilter> = z.object({
+export const StxLockFilterSchema = z.object({
   type: z.literal("stx_lock"),
   lockedAddress: stacksPrincipal.optional(),
   minAmount: z.coerce.number().int().positive().optional(),
 });
 
 // FT Transfer Filter
-export const FtTransferFilterSchema: z.ZodType<FtTransferFilter> = z.object({
+export const FtTransferFilterSchema = z.object({
   type: z.literal("ft_transfer"),
   ...baseFilter,
   // Contract that defines the token (e.g., SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-wstx)
@@ -165,7 +165,7 @@ export const FtTransferFilterSchema: z.ZodType<FtTransferFilter> = z.object({
 });
 
 // FT Mint Filter
-export const FtMintFilterSchema: z.ZodType<FtMintFilter> = z.object({
+export const FtMintFilterSchema = z.object({
   type: z.literal("ft_mint"),
   recipient: stacksPrincipal.optional(),
   assetIdentifier: z.string().optional(),
@@ -173,7 +173,7 @@ export const FtMintFilterSchema: z.ZodType<FtMintFilter> = z.object({
 });
 
 // FT Burn Filter
-export const FtBurnFilterSchema: z.ZodType<FtBurnFilter> = z.object({
+export const FtBurnFilterSchema = z.object({
   type: z.literal("ft_burn"),
   sender: stacksPrincipal.optional(),
   assetIdentifier: z.string().optional(),
@@ -181,7 +181,7 @@ export const FtBurnFilterSchema: z.ZodType<FtBurnFilter> = z.object({
 });
 
 // NFT Transfer Filter
-export const NftTransferFilterSchema: z.ZodType<NftTransferFilter> = z.object({
+export const NftTransferFilterSchema = z.object({
   type: z.literal("nft_transfer"),
   ...baseFilter,
   assetIdentifier: z.string().optional(),
@@ -190,7 +190,7 @@ export const NftTransferFilterSchema: z.ZodType<NftTransferFilter> = z.object({
 });
 
 // NFT Mint Filter
-export const NftMintFilterSchema: z.ZodType<NftMintFilter> = z.object({
+export const NftMintFilterSchema = z.object({
   type: z.literal("nft_mint"),
   recipient: stacksPrincipal.optional(),
   assetIdentifier: z.string().optional(),
@@ -198,7 +198,7 @@ export const NftMintFilterSchema: z.ZodType<NftMintFilter> = z.object({
 });
 
 // NFT Burn Filter
-export const NftBurnFilterSchema: z.ZodType<NftBurnFilter> = z.object({
+export const NftBurnFilterSchema = z.object({
   type: z.literal("nft_burn"),
   sender: stacksPrincipal.optional(),
   assetIdentifier: z.string().optional(),
@@ -206,7 +206,7 @@ export const NftBurnFilterSchema: z.ZodType<NftBurnFilter> = z.object({
 });
 
 // Contract Call Filter
-export const ContractCallFilterSchema: z.ZodType<ContractCallFilter> = z.object({
+export const ContractCallFilterSchema = z.object({
   type: z.literal("contract_call"),
   // Contract being called
   contractId: stacksPrincipal.optional(),
@@ -217,7 +217,7 @@ export const ContractCallFilterSchema: z.ZodType<ContractCallFilter> = z.object(
 });
 
 // Contract Deploy Filter
-export const ContractDeployFilterSchema: z.ZodType<ContractDeployFilter> = z.object({
+export const ContractDeployFilterSchema = z.object({
   type: z.literal("contract_deploy"),
   // Deployer address
   deployer: stacksPrincipal.optional(),
@@ -226,7 +226,7 @@ export const ContractDeployFilterSchema: z.ZodType<ContractDeployFilter> = z.obj
 });
 
 // Print Event Filter (smart contract events)
-export const PrintEventFilterSchema: z.ZodType<PrintEventFilter> = z.object({
+export const PrintEventFilterSchema = z.object({
   type: z.literal("print_event"),
   // Contract emitting the event
   contractId: stacksPrincipal.optional(),
@@ -237,18 +237,18 @@ export const PrintEventFilterSchema: z.ZodType<PrintEventFilter> = z.object({
 });
 
 // Union of all filter types
-export const StreamFilterSchema: z.ZodType<StreamFilter> = z.discriminatedUnion("type", [
-  StxTransferFilterSchema as any,
-  StxMintFilterSchema as any,
-  StxBurnFilterSchema as any,
-  StxLockFilterSchema as any,
-  FtTransferFilterSchema as any,
-  FtMintFilterSchema as any,
-  FtBurnFilterSchema as any,
-  NftTransferFilterSchema as any,
-  NftMintFilterSchema as any,
-  NftBurnFilterSchema as any,
-  ContractCallFilterSchema as any,
-  ContractDeployFilterSchema as any,
-  PrintEventFilterSchema as any,
+export const StreamFilterSchema = z.discriminatedUnion("type", [
+  StxTransferFilterSchema,
+  StxMintFilterSchema,
+  StxBurnFilterSchema,
+  StxLockFilterSchema,
+  FtTransferFilterSchema,
+  FtMintFilterSchema,
+  FtBurnFilterSchema,
+  NftTransferFilterSchema,
+  NftMintFilterSchema,
+  NftBurnFilterSchema,
+  ContractCallFilterSchema,
+  ContractDeployFilterSchema,
+  PrintEventFilterSchema,
 ]);
