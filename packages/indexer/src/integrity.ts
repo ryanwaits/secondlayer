@@ -11,7 +11,7 @@ export const integrityState = {
   gapCount: 0,
   totalMissing: 0,
   gaps: [] as Gap[],
-  autoBackfillEnabled: false,
+  autoBackfillEnabled: process.env.AUTO_BACKFILL_ENABLED !== "false",
   autoBackfillInProgress: false,
   autoBackfillRemaining: 0,
 };
