@@ -406,7 +406,7 @@ async function getSubgraphTableGrowth(accountId: string, db: Kysely<Database>) {
   const results = [];
 
   for (const subgraph of subgraphs) {
-    const schema = (subgraph.definition as any)?.schema ?? {};
+    const schema = subgraph.definition.schema ?? {};
     const tableNames = Object.keys(schema);
     const schemaName = subgraph.schema_name ?? subgraph.name.replace(/[^a-z0-9_]/gi, "_");
 
@@ -496,7 +496,7 @@ async function getSubgraphSchemaHealth(accountId: string, db: Kysely<Database>) 
   const issues = [];
 
   for (const subgraph of subgraphs) {
-    const defSchema = (subgraph.definition as any)?.schema ?? {};
+    const defSchema = subgraph.definition.schema ?? {};
     const schemaName = subgraph.schema_name ?? subgraph.name.replace(/[^a-z0-9_]/gi, "_");
 
     for (const [tableName, tableDef] of Object.entries(defSchema) as [string, any][]) {

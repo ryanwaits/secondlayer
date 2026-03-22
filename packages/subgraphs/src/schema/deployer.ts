@@ -130,9 +130,8 @@ export async function deploySchema(
       return { action: "reindexed", subgraphId: sg.id };
     }
 
-    const existingDef = existing.definition as { schema?: SubgraphSchema };
-    if (existingDef.schema) {
-      const diff = diffSchema(existingDef.schema, def.schema);
+    if (existing.definition.schema) {
+      const diff = diffSchema(existing.definition.schema as SubgraphSchema, def.schema);
       const { breaking, reasons } = hasBreakingChanges(diff);
 
       if (breaking) {
