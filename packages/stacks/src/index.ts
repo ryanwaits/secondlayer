@@ -47,3 +47,16 @@ export type { StacksChain } from "./chains/types.ts";
 export { formatStx, parseStx } from "./utils/units.ts";
 export { ZERO_ADDRESS, TESTNET_ZERO_ADDRESS, AddressVersion, MICROSTX_PER_STX } from "./utils/constants.ts";
 export { isValidAddress, isAddressEqual, getContractAddress } from "./utils/address.ts";
+
+// Errors
+export {
+  BaseError,
+  TransactionError,
+  BroadcastError,
+  SerializationError,
+  SigningError,
+  ContractCallError,
+  ReadOnlyCallError,
+  WebSocketError,
+  SimulationError,
+} from "./errors/index.ts";
