@@ -28,6 +28,7 @@ const config: DefineConfigItem = defineConfig({
     "src/node/hiro-client.ts",
     "src/node/local-client.ts",
     "src/node/hiro-pg-client.ts",
+    "src/node/archive-client.ts",
   ],
   format: ["esm"],
   dts: true,
