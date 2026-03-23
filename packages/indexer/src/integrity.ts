@@ -1,8 +1,8 @@
 import { getDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { findGaps, countMissingBlocks, computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
-import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
+import { ArchiveReplayClient } from "@secondlayer/shared/node/archive-client";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 
 // Auto-backfill state (visible to /health/integrity)
@@ -103,6 +103,7 @@ async function autoBackfill(gaps: Gap[]) {
 
   const now = new Date();
   const cooldownMs = 5 * 60 * 1000; // 5 minutes
+  const archiveThresholdMs = 24 * 60 * 60 * 1000; // 24 hours
 
   // Only fill gaps that have been seen for >5 minutes
   const staleGaps = gaps.filter((gap) => {
@@ -125,84 +126,78 @@ async function autoBackfill(gaps: Gap[]) {
   });
 
   const localClient = new LocalClient();
-  const hiroClient = new HiroClient();
   const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
-  const blocksPerSecond = parseInt(process.env.AUTO_BACKFILL_RATE || "10");
   const db = getDb();
 
-  // Pre-flight: check Hiro health once before starting
-  const hiroHealthy = await hiroClient.isHealthy();
-  if (!hiroHealthy) {
-    logger.warn("Auto-backfill: Hiro API not reachable, skipping cycle");
-    integrityState.autoBackfillInProgress = false;
-    integrityState.autoBackfillRemaining = 0;
-    return;
-  }
-
-  let consecutiveFailures = 0;
-  const MAX_CONSECUTIVE_FAILURES = 5;
-
   try {
+    // Phase 1: Try local DB for each gap height (reprocessing/replays)
+    const remainingHeights = new Set<number>();
     for (const gap of staleGaps) {
       for (let height = gap.gapStart; height <= gap.gapEnd; height++) {
-        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-          logger.warn("Auto-backfill: too many consecutive failures, stopping", { consecutiveFailures });
-          return;
-        }
-
-        try {
-          // Try local DB first (for reprocessing after schema changes)
-          let block = await localClient.getBlockForReplay(db, height);
-          let source = "local";
-
-          if (!block) {
-            // Fall back to remote Hiro API
-            const hiroBlock = await hiroClient.getBlockForIndexer(height, {
-              includeRawTx: process.env.BACKFILL_INCLUDE_RAW_TX === "true",
-            });
-            block = hiroBlock as typeof block;
-            source = "hiro";
-          }
-
-          if (!block) {
-            logger.warn("Auto-backfill: block not found", { height });
-            continue;
-          }
-
+        const block = await localClient.getBlockForReplay(db, height);
+        if (block) {
           const res = await fetch(`${indexerUrl}/new_block`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Source": `auto-backfill-${source}`,
+              "X-Source": "auto-backfill-local",
             },
             body: JSON.stringify(block),
           });
-
-          if (!res.ok) {
-            logger.warn("Auto-backfill: indexer rejected block", {
-              height,
-              status: res.status,
-              source,
-            });
-            consecutiveFailures++;
-          } else {
-            consecutiveFailures = 0;
+          if (res.ok) {
+            integrityState.autoBackfillRemaining--;
           }
-
-          integrityState.autoBackfillRemaining--;
-
-          // Rate limit: sleep to maintain blocks/second rate
-          await Bun.sleep(1000 / blocksPerSecond);
-        } catch (err) {
-          consecutiveFailures++;
-          logger.warn("Auto-backfill: error fetching block", { height, error: String(err) });
+        } else {
+          remainingHeights.add(height);
         }
       }
     }
 
-    // Recompute contiguous immediately so subgraphs can advance
+    if (remainingHeights.size === 0) {
+      await recomputeContiguous(getDb());
+      logger.info("Auto-backfill complete (all from local)", { blocks: totalBlocks });
+      return;
+    }
+
+    // Phase 2: Use archive replay for remaining gaps (only if oldest gap > 24h)
+    const oldestGapAge = Math.max(
+      ...staleGaps.map((g) => {
+        const firstSeen = gapFirstSeen.get(gapKey(g));
+        return firstSeen ? now.getTime() - firstSeen.getTime() : 0;
+      }),
+    );
+
+    if (oldestGapAge < archiveThresholdMs) {
+      logger.info("Auto-backfill: gaps too recent for archive, deferring", {
+        remaining: remainingHeights.size,
+        oldestGapAgeHrs: (oldestGapAge / 3600000).toFixed(1),
+      });
+      return;
+    }
+
+    const archiveClient = new ArchiveReplayClient();
+    const available = await archiveClient.isAvailable();
+    if (!available) {
+      logger.warn("Auto-backfill: archive not reachable, skipping");
+      return;
+    }
+
+    const result = await archiveClient.replayGaps(remainingHeights, indexerUrl, {
+      onProgress: (count: number, height: number) => {
+        integrityState.autoBackfillRemaining = remainingHeights.size - count;
+        if (count % 500 === 0) {
+          logger.info("Auto-backfill: archive replay progress", { replayed: count, height });
+        }
+      },
+    });
+
     await recomputeContiguous(getDb());
-    logger.info("Auto-backfill complete", { blocks: totalBlocks });
+    logger.info("Auto-backfill complete", {
+      blocks: totalBlocks,
+      fromLocal: totalBlocks - remainingHeights.size,
+      fromArchive: result.replayed,
+      archiveErrors: result.errors,
+    });
   } catch (err) {
     logger.error("Auto-backfill failed", { error: err });
   } finally {
