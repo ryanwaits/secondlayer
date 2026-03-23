@@ -28,12 +28,11 @@ services:
 
   indexer:
     environment:
-      HIRO_API_URL: https://api.mainnet.hiro.so
-      HIRO_API_KEY: ${HIRO_API_KEY:-}
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
       TIP_FOLLOWER_ENABLED: ${TIP_FOLLOWER_ENABLED:-true}
       AUTO_BACKFILL_ENABLED: ${AUTO_BACKFILL_ENABLED:-true}
-      AUTO_BACKFILL_RATE: ${AUTO_BACKFILL_RATE:-2}
       BACKFILL_INCLUDE_RAW_TX: ${BACKFILL_INCLUDE_RAW_TX:-true}
+      ARCHIVE_DIR: /tmp
 
   caddy:
     image: caddy:2-alpine
