@@ -108,6 +108,14 @@
     "./node/hiro-pg-client": {
       "types": "./dist/src/node/hiro-pg-client.d.ts",
       "import": "./dist/src/node/hiro-pg-client.js"
+    },
+    "./node/client": {
+      "types": "./dist/src/node/client.d.ts",
+      "import": "./dist/src/node/client.js"
+    },
+    "./node/archive-client": {
+      "types": "./dist/src/node/archive-client.d.ts",
+      "import": "./dist/src/node/archive-client.js"
     }
   },
   "files": [
