@@ -1,6 +1,6 @@
 import { getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
-import { HiroClient } from "@secondlayer/shared/node/hiro-client";
+import { StacksNodeClient } from "@secondlayer/shared/node/client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 
 type TipFollowerMode = "normal" | "polling";
@@ -46,14 +46,15 @@ export function startTipFollower(intervalMs?: number): () => void {
         logger.info("Tip follower: no block for " + Math.round(silenceMs / 1000) + "s, switching to polling");
       }
 
-      const hiro = new HiroClient();
-      const healthy = await hiro.isHealthy();
+      const node = new StacksNodeClient();
+      const healthy = await node.isHealthy();
       if (!healthy) {
-        logger.warn("Tip follower: Hiro API not reachable, skipping");
+        logger.warn("Tip follower: stacks-node not reachable, skipping");
         return;
       }
 
-      const chainTip = await hiro.fetchChainTip();
+      const nodeInfo = await node.getInfo();
+      const chainTip = nodeInfo.stacks_tip_height;
       if (!chainTip) return;
 
       const db = getDb();
@@ -68,66 +69,35 @@ export function startTipFollower(intervalMs?: number): () => void {
       const ourHeight = Number(progress?.highest_seen_block ?? 0);
       if (chainTip <= ourHeight) return;
 
-      // Only fetch a small window near the tip — bulk gaps are handled by integrity/backfill
-      const maxBlocks = parseInt(process.env.TIP_FOLLOWER_MAX_BLOCKS || "10");
-      const fetchFrom = Math.max(ourHeight + 1, chainTip - maxBlocks + 1);
-
-      if (fetchFrom > ourHeight + 1) {
-        logger.info("Tip follower: gap too large, only fetching recent tip blocks", {
-          gap: chainTip - ourHeight,
-          fetching: chainTip - fetchFrom + 1,
-        });
-      }
-
-      const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
-      const localClient = new LocalClient();
-
-      logger.info("Tip follower: fetching missing blocks", {
-        from: fetchFrom,
-        to: chainTip,
-        count: chainTip - fetchFrom + 1,
+      // Log the gap — integrity loop handles actual backfill via archive replay
+      const gap = chainTip - ourHeight;
+      logger.info("Tip follower: behind chain tip", {
+        ourHeight,
+        chainTip,
+        gap,
       });
 
-      for (let height = fetchFrom; height <= chainTip; height++) {
-        // Check if node came back while we're polling
-        if ((tipFollowerState as { mode: string }).mode === "normal") {
-          logger.info("Tip follower: node resumed, stopping poll fetch");
-          break;
-        }
+      // For small gaps, try replaying from local DB (blocks we already have)
+      if (gap <= 10) {
+        const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
+        const localClient = new LocalClient();
 
-        try {
-          // Try local DB first (for re-orgs / reprocessing)
-          let block = await localClient.getBlockForReplay(db, height);
-          let source = "local";
+        for (let height = ourHeight + 1; height <= chainTip; height++) {
+          if ((tipFollowerState as { mode: string }).mode === "normal") break;
 
-          if (!block) {
-            // Fall back to remote Hiro API
-            const hiroBlock = await hiro.getBlockForIndexer(height, { includeRawTx: true });
-            block = hiroBlock as typeof block;
-            source = "hiro";
-          }
-
-          if (!block) {
-            logger.warn("Tip follower: block not found", { height });
-            continue;
-          }
+          const block = await localClient.getBlockForReplay(db, height);
+          if (!block) continue;
 
           const res = await fetch(`${indexerUrl}/new_block`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Source": `tip-follower-${source}`,
+              "X-Source": "tip-follower-local",
             },
             body: JSON.stringify(block),
           });
 
-          if (!res.ok) {
-            logger.warn("Tip follower: indexer rejected block", { height, status: res.status, source });
-          } else {
-            tipFollowerState.blocksFetchedViaPoll++;
-          }
-        } catch (err) {
-          logger.warn("Tip follower: error fetching block", { height, error: err });
+          if (res.ok) tipFollowerState.blocksFetchedViaPoll++;
         }
       }
     } catch (err) {
