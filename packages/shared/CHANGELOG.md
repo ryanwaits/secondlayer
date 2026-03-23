@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.6.1
+
+### Patch Changes
+
+- Add ArchiveReplayClient for backfilling from Hiro event observer archive, removing public API dependency
+
 ## 0.6.0
 
 ### Minor Changes
