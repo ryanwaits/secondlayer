@@ -8,7 +8,7 @@ FROM oven/bun:1.3.10-alpine AS base
 WORKDIR /app
 
 # Install common dependencies
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl zstd
 
 # =============================================================================
 # Dependencies stage - install all dependencies
