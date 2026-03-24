@@ -161,12 +161,15 @@ async function autoBackfill(gaps: Gap[]) {
 
     // Phase 2: Use archive replay for remaining gaps (only if oldest gap > 24h)
     // Use DB-based age check (survives restarts) — look at created_at of the block
-    // just before the gap to determine when the gap was created
-    const oldestGapBlock = Math.min(...staleGaps.map((g) => g.gapStart - 1));
+    // just AFTER the gap to determine when the gap was created. The block after the
+    // gap was the first block received after the outage, so its created_at reflects
+    // when the gap appeared. (The block before might have been recently inserted by
+    // a partial archive replay, giving a misleadingly recent created_at.)
+    const oldestGapEndBlock = Math.min(...staleGaps.map((g) => g.gapEnd + 1));
     const adjacentBlock = await db
       .selectFrom("blocks")
       .select("created_at")
-      .where("height", "=", oldestGapBlock)
+      .where("height", "=", oldestGapEndBlock)
       .where("canonical", "=", true)
       .executeTakeFirst();
 
