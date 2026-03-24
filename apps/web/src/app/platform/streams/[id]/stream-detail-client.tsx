@@ -13,26 +13,7 @@ import {
 } from "@/lib/queries/streams";
 import { detectFailurePattern, detectDeliveryGap } from "@/lib/intelligence/streams";
 import { Insight, Banner } from "@/components/console/intelligence";
-
-
-function relativeTime(date: string): string {
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+import { relativeTime, formatDate, formatNum } from "@/lib/format";
 
 function highlightJson(data: unknown): React.ReactNode[] {
   const raw = JSON.stringify(data, null, 2);
@@ -51,12 +32,6 @@ function highlightJson(data: unknown): React.ReactNode[] {
   }
   if (i < raw.length) parts.push(raw.slice(i));
   return parts;
-}
-
-function formatNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-  return n.toLocaleString();
 }
 
 export function StreamDetailClient({

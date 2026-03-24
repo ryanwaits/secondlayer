@@ -1,4 +1,5 @@
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
+import { formatNum, formatBytes } from "@/lib/format";
 
 interface UsageData {
   plan: string;
@@ -16,19 +17,6 @@ interface UsageData {
     deliveriesThisMonth: number;
     storageBytes: number;
   };
-}
-
-function formatNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-  return n.toLocaleString();
-}
-
-function formatBytes(b: number): string {
-  if (b >= 1_073_741_824) return `${(b / 1_073_741_824).toFixed(1)}GB`;
-  if (b >= 1_048_576) return `${Math.round(b / 1_048_576)}MB`;
-  if (b >= 1024) return `${Math.round(b / 1024)}KB`;
-  return `${b}B`;
 }
 
 export default async function BillingPage() {
