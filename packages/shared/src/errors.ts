@@ -113,6 +113,18 @@ export class ForbiddenError extends StreamsError {
   }
 }
 
+/** Error code → HTTP status. Used by API middleware for code-based matching
+ *  (avoids cross-bundle instanceof failures from bunup class duplication). */
+export const CODE_TO_STATUS: Record<string, 400 | 401 | 403 | 404 | 429> = {
+  AUTHENTICATION_ERROR: 401,
+  AUTHORIZATION_ERROR: 403,
+  RATE_LIMIT_ERROR: 429,
+  FORBIDDEN: 403,
+  STREAM_NOT_FOUND: 404,
+  VIEW_NOT_FOUND: 404,
+  VALIDATION_ERROR: 400,
+} as const;
+
 /**
  * Safely extract error message from unknown error value
  */
