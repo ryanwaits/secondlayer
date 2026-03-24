@@ -160,17 +160,24 @@ async function autoBackfill(gaps: Gap[]) {
     }
 
     // Phase 2: Use archive replay for remaining gaps (only if oldest gap > 24h)
-    const oldestGapAge = Math.max(
-      ...staleGaps.map((g) => {
-        const firstSeen = gapFirstSeen.get(gapKey(g));
-        return firstSeen ? now.getTime() - firstSeen.getTime() : 0;
-      }),
-    );
+    // Use DB-based age check (survives restarts) — look at created_at of the block
+    // just before the gap to determine when the gap was created
+    const oldestGapBlock = Math.min(...staleGaps.map((g) => g.gapStart - 1));
+    const adjacentBlock = await db
+      .selectFrom("blocks")
+      .select("created_at")
+      .where("height", "=", oldestGapBlock)
+      .where("canonical", "=", true)
+      .executeTakeFirst();
 
-    if (oldestGapAge < archiveThresholdMs) {
+    const gapAge = adjacentBlock
+      ? now.getTime() - new Date(adjacentBlock.created_at).getTime()
+      : 0;
+
+    if (gapAge < archiveThresholdMs) {
       logger.info("Auto-backfill: gaps too recent for archive, deferring", {
         remaining: remainingHeights.size,
-        oldestGapAgeHrs: (oldestGapAge / 3600000).toFixed(1),
+        gapAgeHrs: (gapAge / 3600000).toFixed(1),
       });
       return;
     }
