@@ -6,15 +6,23 @@
  * This client downloads the archive, streams + filters for specific block
  * heights, and POSTs matching payloads directly to the indexer.
  *
+ * Caches the archive locally for up to 24h to avoid redundant ~25GB downloads.
  * Zero external API dependency — only needs the static archive file.
  */
 
 import { logger } from "../logger.ts";
+import { existsSync, unlinkSync, renameSync, readFileSync, writeFileSync } from "node:fs";
 
 const DEFAULT_ARCHIVE_URL =
   "https://archive.hiro.so/mainnet/stacks-blockchain-api/mainnet-stacks-blockchain-api-latest.zst";
 
 const HEIGHT_REGEX = /"block_height":\s*(\d+)/;
+const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+interface ArchiveMeta {
+  lastModified: string | null;
+  downloadedAt: string;
+}
 
 export interface ReplayResult {
   replayed: number;
@@ -32,6 +40,16 @@ export class ArchiveReplayClient {
   constructor(opts?: { archiveUrl?: string; archiveDir?: string }) {
     this.archiveUrl = opts?.archiveUrl || process.env.ARCHIVE_URL || DEFAULT_ARCHIVE_URL;
     this.archiveDir = opts?.archiveDir || process.env.ARCHIVE_DIR || "/tmp";
+  }
+
+  private get archivePath() {
+    return `${this.archiveDir}/secondlayer-archive.zst`;
+  }
+  private get metaPath() {
+    return `${this.archiveDir}/secondlayer-archive.meta.json`;
+  }
+  private get partialPath() {
+    return `${this.archiveDir}/secondlayer-archive.zst.partial`;
   }
 
   /** HEAD request to archive URL — verify reachable and has content */
@@ -60,24 +78,19 @@ export class ArchiveReplayClient {
     if (gapHeights.size === 0) return { replayed: 0, errors: 0 };
 
     const maxHeight = Math.max(...gapHeights);
-    const archivePath = `${this.archiveDir}/secondlayer-archive.zst`;
     let replayed = 0;
     let errors = 0;
 
-    logger.info("Archive replay: downloading archive", {
-      url: this.archiveUrl.split("/").pop(),
-      targetHeights: gapHeights.size,
-      maxHeight,
-    });
-
     try {
-      // Download archive
-      await this.download(archivePath);
+      await this.ensureArchive();
 
-      logger.info("Archive replay: download complete, starting decompression + replay");
+      logger.info("Archive replay: starting decompression + replay", {
+        targetHeights: gapHeights.size,
+        maxHeight,
+      });
 
       // Decompress via zstd subprocess
-      const proc = Bun.spawn(["zstd", "-d", archivePath, "--stdout"], {
+      const proc = Bun.spawn(["zstd", "-d", this.archivePath, "--stdout"], {
         stdout: "pipe",
         stderr: "ignore",
       });
@@ -162,25 +175,131 @@ export class ArchiveReplayClient {
       }
 
       logger.info("Archive replay: complete", { replayed, errors, missing: remaining.size });
-    } finally {
-      // Clean up archive file
-      try {
-        const file = Bun.file(archivePath);
-        if (await file.exists()) {
-          await Bun.write(archivePath, ""); // truncate
-          const { unlinkSync } = await import("node:fs");
-          unlinkSync(archivePath);
-        }
-      } catch {
-        // Best-effort cleanup
-      }
+    } catch (err) {
+      // Clean up on error (corrupt/partial downloads)
+      this.cleanupFile(this.archivePath);
+      this.cleanupFile(this.metaPath);
+      this.cleanupFile(this.partialPath);
+      throw err;
     }
 
     return { replayed, errors };
   }
 
-  /** Download archive to disk with streaming */
-  private async download(destPath: string): Promise<void> {
+  /**
+   * Ensure a fresh-enough archive exists locally.
+   * Uses HTTP conditional requests to avoid redundant downloads.
+   */
+  private async ensureArchive(): Promise<void> {
+    this.cleanStaleFiles();
+
+    const meta = this.readMeta();
+    const cached = existsSync(this.archivePath) && meta !== null;
+
+    if (cached) {
+      const age = Date.now() - new Date(meta.downloadedAt).getTime();
+      if (age < CACHE_MAX_AGE_MS) {
+        // Cache is fresh enough — check if remote has a newer version
+        const headers: Record<string, string> = {};
+        if (meta.lastModified) {
+          headers["If-Modified-Since"] = meta.lastModified;
+        }
+
+        try {
+          const res = await fetch(this.archiveUrl, {
+            method: "HEAD",
+            headers,
+            signal: AbortSignal.timeout(15_000),
+          });
+
+          if (res.status === 304) {
+            logger.info("Archive replay: using cached archive", {
+              ageHrs: (age / 3600000).toFixed(1),
+            });
+            return;
+          }
+
+          // 200 = remote is newer, re-download below
+          logger.info("Archive replay: remote archive is newer, re-downloading");
+        } catch {
+          // Can't reach remote — use cache anyway
+          logger.info("Archive replay: remote unreachable, using cached archive");
+          return;
+        }
+      } else {
+        logger.info("Archive replay: cache expired, re-downloading");
+      }
+    }
+
+    // Download fresh archive
+    logger.info("Archive replay: downloading archive", {
+      url: this.archiveUrl.split("/").pop(),
+    });
+
+    const lastModified = await this.download(this.partialPath);
+
+    // Atomic rename: partial → final
+    renameSync(this.partialPath, this.archivePath);
+
+    // Write meta sidecar
+    this.writeMeta({ lastModified, downloadedAt: new Date().toISOString() });
+
+    logger.info("Archive replay: download complete");
+  }
+
+  /** Remove stale cache (> 24h) and orphaned partial files */
+  private cleanStaleFiles(): void {
+    try {
+      // Clean orphaned partial downloads
+      if (existsSync(this.partialPath)) {
+        unlinkSync(this.partialPath);
+      }
+
+      // Clean stale cache
+      const meta = this.readMeta();
+      if (meta) {
+        const age = Date.now() - new Date(meta.downloadedAt).getTime();
+        if (age > CACHE_MAX_AGE_MS) {
+          this.cleanupFile(this.archivePath);
+          this.cleanupFile(this.metaPath);
+          logger.info("Archive replay: cleaned stale cache");
+        }
+      } else if (existsSync(this.archivePath)) {
+        // Archive without meta — orphaned, clean up
+        this.cleanupFile(this.archivePath);
+      }
+    } catch {
+      // Best-effort cleanup
+    }
+  }
+
+  private readMeta(): ArchiveMeta | null {
+    try {
+      if (!existsSync(this.metaPath)) return null;
+      return JSON.parse(readFileSync(this.metaPath, "utf-8")) as ArchiveMeta;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeMeta(meta: ArchiveMeta): void {
+    try {
+      writeFileSync(this.metaPath, JSON.stringify(meta));
+    } catch {
+      // Best-effort
+    }
+  }
+
+  private cleanupFile(path: string): void {
+    try {
+      if (existsSync(path)) unlinkSync(path);
+    } catch {
+      // Best-effort
+    }
+  }
+
+  /** Download archive to disk with streaming. Returns Last-Modified header. */
+  private async download(destPath: string): Promise<string | null> {
     const res = await fetch(this.archiveUrl, {
       signal: AbortSignal.timeout(30 * 60 * 1000), // 30 min timeout
     });
@@ -189,6 +308,7 @@ export class ArchiveReplayClient {
       throw new Error(`Archive download failed: HTTP ${res.status}`);
     }
 
+    const lastModified = res.headers.get("last-modified");
     const totalBytes = Number(res.headers.get("content-length") || 0);
     const writer = Bun.file(destPath).writer();
     let downloaded = 0;
@@ -207,6 +327,7 @@ export class ArchiveReplayClient {
     }
 
     await writer.end();
+    return lastModified;
   }
 }
 

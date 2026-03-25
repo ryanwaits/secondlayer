@@ -32,7 +32,9 @@ services:
       TIP_FOLLOWER_ENABLED: ${TIP_FOLLOWER_ENABLED:-true}
       AUTO_BACKFILL_ENABLED: ${AUTO_BACKFILL_ENABLED:-true}
       BACKFILL_INCLUDE_RAW_TX: ${BACKFILL_INCLUDE_RAW_TX:-true}
-      ARCHIVE_DIR: /tmp
+      ARCHIVE_DIR: /data/archive
+    volumes:
+      - ${DATA_DIR:-/opt/secondlayer/data}/archive:/data/archive
 
   caddy:
     image: caddy:2-alpine
