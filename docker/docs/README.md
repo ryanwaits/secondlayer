@@ -386,6 +386,7 @@ For large-scale population or reprocessing after schema changes:
 source /opt/secondlayer/docker/.env
 
 docker run -d --name backfill \
+  --no-healthcheck \
   --network secondlayer_default \
   -v /opt/secondlayer:/app -w /app \
   -e DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
@@ -399,6 +400,7 @@ docker run -d --name backfill \
 
 # Fastest option: backfill from local Hiro Postgres (~24-40 blocks/sec with batch queries)
 docker run -d --name backfill \
+  --no-healthcheck \
   --network secondlayer_default \
   -v /opt/secondlayer:/app -w /app \
   -e DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
