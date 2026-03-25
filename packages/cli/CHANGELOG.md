@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 1.6.8
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.7.0
+  - @secondlayer/sdk@0.6.4
+  - @secondlayer/subgraphs@0.5.7
+
 ## 1.6.7
 
 ### Patch Changes

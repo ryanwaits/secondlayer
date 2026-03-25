@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.7.0
+
+### Minor Changes
+
+- Cache Hiro event archive locally for up to 24h to avoid redundant ~25GB downloads during auto-backfill.
+
 ## 0.6.1
 
 ### Patch Changes
