@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Postgres backup via pg_dump
 # Usage: backup-postgres.sh
 # Cron: 0 3 * * * /opt/secondlayer/docker/scripts/backup-postgres.sh

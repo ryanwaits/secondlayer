@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Restore postgres from Storage Box snapshot
 # Usage: restore-from-snapshot.sh [--hiro] [--date YYYYMMDD] [--verify-only] [--dry-run]
 # Example: restore-from-snapshot.sh --hiro --date 20260301 --verify-only
