@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Hiro Postgres backup via pg_dump
 # Usage: backup-hiro-postgres.sh
 # Cron: 0 3 * * * /opt/secondlayer/docker/scripts/backup-hiro-postgres.sh >> /var/log/backup-hiro-postgres.log 2>&1

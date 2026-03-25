@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Fill raw_tx hex for transactions stored with placeholder "0x00" during fast backfill.
 # Run after bootstrap.sh bulk backfill completes.
 set -euo pipefail

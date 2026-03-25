@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Zero-to-indexed bootstrap for Second Layer on Hetzner AX52 (or any Docker host).
 #
 # Usage: bash docker/scripts/bootstrap.sh [--skip-provision] [--data-dir /path]

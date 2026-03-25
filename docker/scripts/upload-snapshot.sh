@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Upload local backups to Hetzner Storage Box via rsync/SSH
 # Usage: upload-snapshot.sh [--dry-run]
 # Cron: 0 5 * * * /opt/secondlayer/docker/scripts/upload-snapshot.sh >> /var/log/upload-snapshot.log 2>&1

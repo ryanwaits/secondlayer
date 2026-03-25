@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # LVM snapshot-based chainstate backup
 # Usage: backup-chainstate.sh
 # Cron: 0 4 * * * /opt/secondlayer/docker/scripts/backup-chainstate.sh

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Download Hiro API Postgres archive dump for self-hosted backfill.
 #
 # Usage: bash docker/scripts/download-hiro-archive.sh [DATA_DIR]

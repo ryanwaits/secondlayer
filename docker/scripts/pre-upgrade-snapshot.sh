@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Pre-upgrade snapshot: backup both postgres DBs + upload to Storage Box
 # Usage: pre-upgrade-snapshot.sh
 # Run before any docker compose upgrades
