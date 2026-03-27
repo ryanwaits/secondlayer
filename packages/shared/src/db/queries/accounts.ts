@@ -60,7 +60,7 @@ export async function createMagicLink(
 
 /**
  * Verify a magic link token. Returns the email if valid, null otherwise.
- * Marks the token as used atomically.
+ * Marks the token as used atomically. Rejects after 5 failed attempts.
  */
 export async function verifyMagicLink(
   db: Kysely<Database>,
@@ -72,8 +72,20 @@ export async function verifyMagicLink(
     .where("token", "=", token)
     .where("used_at", "is", null)
     .where("expires_at", ">", new Date())
+    .where("failed_attempts", "<", 5)
     .returning("email")
     .executeTakeFirst();
 
-  return result?.email ?? null;
+  if (result?.email) return result.email;
+
+  // Increment failed attempts if token exists but didn't verify
+  await db
+    .updateTable("magic_links")
+    .set({ failed_attempts: sql`failed_attempts + 1` })
+    .where("token", "=", token)
+    .where("used_at", "is", null)
+    .where("expires_at", ">", new Date())
+    .execute();
+
+  return null;
 }

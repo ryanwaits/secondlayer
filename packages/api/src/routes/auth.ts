@@ -36,7 +36,9 @@ app.post("/magic-link", async (c) => {
     return c.json({ message: "Magic link sent. Check your email." });
   }
 
-  const token = Math.floor(100000 + Math.random() * 900000).toString();
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   await createMagicLink(db, parsed.email, token);
   await sendMagicLink(parsed.email, token);
 
