@@ -36,7 +36,7 @@ export async function registerSubgraph(
       definition: jsonb(data.definition) as any,
       schema_hash: data.schemaHash,
       handler_path: data.handlerPath,
-      api_key_id: data.apiKeyId ?? null,
+      api_key_id: data.apiKeyId!,
       schema_name: data.schemaName ?? null,
     })
     .onConflict((oc) =>

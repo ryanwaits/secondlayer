@@ -41,7 +41,7 @@ export async function assertStreamOwnership(
     throw new StreamNotFoundError(streamId);
   }
 
-  if (accountKeyIds && stream.api_key_id && !accountKeyIds.includes(stream.api_key_id)) {
+  if (accountKeyIds && !accountKeyIds.includes(stream.api_key_id)) {
     throw new ForbiddenError("Stream belongs to another account");
   }
 
@@ -66,7 +66,7 @@ export async function assertSubgraphOwnership(
 
   if (!subgraph) return null;
 
-  if (accountKeyIds && subgraph.api_key_id && !accountKeyIds.includes(subgraph.api_key_id)) {
+  if (accountKeyIds && !accountKeyIds.includes(subgraph.api_key_id)) {
     throw new ForbiddenError("Subgraph belongs to another account");
   }
 

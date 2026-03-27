@@ -90,7 +90,7 @@ app.post("/", async (c) => {
       filters: jsonb(parsed.filters),
       options: jsonb(parsed.options ?? {}),
       status: "active",
-      api_key_id: apiKeyId ?? null,
+      api_key_id: apiKeyId!,
     })
     .returningAll()
     .executeTakeFirstOrThrow();
@@ -130,12 +130,7 @@ app.get("/", async (c) => {
     .offset(offset);
 
   if (keyIds) {
-    query = query.where((eb) =>
-      eb.or([
-        eb("streams.api_key_id", "in", keyIds),
-        eb("streams.api_key_id", "is", null),
-      ]),
-    );
+    query = query.where("streams.api_key_id", "in", keyIds);
   }
 
   const results = await query.execute();
@@ -146,12 +141,7 @@ app.get("/", async (c) => {
     .select(sql<number>`count(*)`.as("count"));
 
   if (keyIds) {
-    countQuery = countQuery.where((eb) =>
-      eb.or([
-        eb("api_key_id", "in", keyIds),
-        eb("api_key_id", "is", null),
-      ]),
-    );
+    countQuery = countQuery.where("api_key_id", "in", keyIds);
   }
 
   const countResult = await countQuery.executeTakeFirst();
