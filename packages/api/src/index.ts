@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 import { logger } from "@secondlayer/shared";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
-import { requireAuth, rateLimit, keysRouter } from "@secondlayer/auth";
+import { requireAuth, rateLimit, ipRateLimit, keysRouter } from "@secondlayer/auth";
 import { countApiRequests } from "./middleware/usage.ts";
 import streamsRouter from "./routes/streams.ts";
 import statusRouter from "./routes/status.ts";
@@ -28,7 +28,8 @@ app.onError(errorHandler);
 // Key management routes (always available)
 app.route("/api/keys", keysRouter);
 
-// Auth routes (no auth required)
+// Auth routes (no auth required, IP rate limited)
+app.use("/api/auth/*", ipRateLimit(10));
 app.route("/api/auth", authRouter);
 
 // Waitlist (no auth required)

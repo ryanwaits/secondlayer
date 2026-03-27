@@ -43,7 +43,7 @@ export interface StreamsTable {
   options: Generated<unknown>;
   endpoint_url: string;
   signing_secret: string | null;
-  api_key_id: string | null;
+  api_key_id: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -107,7 +107,7 @@ export interface SubgraphsTable {
   last_error_at: Date | null;
   total_processed: Generated<number>;
   total_errors: Generated<number>;
-  api_key_id: string | null;
+  api_key_id: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -151,6 +151,7 @@ export interface MagicLinksTable {
   token: string;
   expires_at: Date;
   used_at: Date | null;
+  failed_attempts: Generated<number>;
   created_at: Generated<Date>;
 }
 
