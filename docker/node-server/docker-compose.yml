@@ -33,7 +33,7 @@ services:
       retries: 3
 
   stacks-node:
-    image: ghcr.io/stacks-network/stacks-core:3.3.0.0.6
+    image: ghcr.io/stacks-network/stacks-core:3.4.0.0.0
     volumes:
       - ${STACKS_DATA_DIR:-/data/stacks}:/stacks-blockchain/data
       - ./Config.toml:/stacks-blockchain/Config.toml:ro
@@ -52,3 +52,14 @@ services:
           memory: 64G
     restart: unless-stopped
     command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
+
+  # Nginx reverse proxy for event observer — buffers payloads before forwarding
+  # to app-server indexer. Works around stacks-node TCP send failures on cross-DC links.
+  event-proxy:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    restart: unless-stopped
