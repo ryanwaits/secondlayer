@@ -4,7 +4,7 @@ import type { ColumnType, SubgraphColumn, SubgraphTable } from "./types.ts";
 
 /** Maps a ColumnType string literal to its TypeScript equivalent */
 export type ColumnToTS<T extends string> = T extends "uint" | "int"
-  ? number
+  ? bigint
   : T extends "text" | "principal" | "timestamp"
     ? string
     : T extends "boolean"
@@ -26,7 +26,7 @@ export type InferColumnType<C extends SubgraphColumn> =
 /** Shape of system columns on every returned row (camelCase, underscore-prefixed) */
 export interface SystemRow {
   _id: string;
-  _blockHeight: number;
+  _blockHeight: bigint;
   _txId: string;
   _createdAt: string;
 }
@@ -60,7 +60,7 @@ export type WhereInput<TRow> = {
  * Both `_blockHeight` and `blockHeight` are valid — serializer handles mapping.
  */
 export type SystemWhereAliases = {
-  blockHeight?: number | ComparisonFilter<number>;
+  blockHeight?: bigint | ComparisonFilter<bigint>;
   txId?: string | ComparisonFilter<string>;
   createdAt?: string | ComparisonFilter<string>;
   id?: string | ComparisonFilter<string>;
