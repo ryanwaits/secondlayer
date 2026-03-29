@@ -13,6 +13,7 @@
     "@secondlayer/stacks": "workspace:*",
     "@tanstack/react-query": "5.90.21",
     "ai": "6.0.116",
+    "dompurify": "3.3.3",
     "next": "16.1.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -21,6 +22,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.2.0",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

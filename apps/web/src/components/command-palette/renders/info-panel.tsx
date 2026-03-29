@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 
 interface InfoPanelProps {
   title: string;
@@ -11,7 +12,7 @@ interface InfoPanelProps {
 
 export function InfoPanel({ title, markdown, docUrl }: InfoPanelProps) {
   const html = useMemo(() => {
-    return marked.parse(markdown, { async: false }) as string;
+    return DOMPurify.sanitize(marked.parse(markdown, { async: false }) as string);
   }, [markdown]);
 
   return (
