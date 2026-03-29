@@ -2,10 +2,9 @@ import {
   bytesToHex,
   hexToBytes,
   bytesToAscii,
-  bytesToUtf8,
   without0x,
 } from "../../utils/encoding.ts";
-import { c32address } from "../../utils/c32.ts";
+import { BytesReader } from "../../utils/bytes-reader.ts";
 import {
   AuthType,
   PayloadType,
@@ -31,146 +30,13 @@ import {
   type TenureChangeCause,
 } from "../types.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
-import { clarityTypeFromByte } from "../../clarity/types.ts";
 import {
-  intCV,
-  uintCV,
-  trueCV,
-  falseCV,
-  bufferCV,
-  noneCV,
-  someCV,
-  responseOkCV,
-  responseErrorCV,
-  standardPrincipalCV,
-  contractPrincipalCV,
-  listCV,
-  tupleCV,
-  stringAsciiCV,
-  stringUtf8CV,
-} from "../../clarity/values.ts";
-import { bytesToTwosBigInt } from "../../utils/encoding.ts";
+  readCV,
+  readAddress,
+  readLPString,
+} from "../../clarity/deserialize.ts";
 
-class Reader {
-  private data: Uint8Array;
-  public offset = 0;
-
-  constructor(data: Uint8Array) {
-    this.data = data;
-  }
-
-  readUInt8(): number {
-    return this.data[this.offset++]!;
-  }
-
-  readUInt16BE(): number {
-    const val = ((this.data[this.offset]! << 8) | this.data[this.offset + 1]!) >>> 0;
-    this.offset += 2;
-    return val;
-  }
-
-  readUInt32BE(): number {
-    const val =
-      ((this.data[this.offset]! << 24) |
-        (this.data[this.offset + 1]! << 16) |
-        (this.data[this.offset + 2]! << 8) |
-        this.data[this.offset + 3]!) >>>
-      0;
-    this.offset += 4;
-    return val;
-  }
-
-  readBytes(length: number): Uint8Array {
-    if (this.offset + length > this.data.length) {
-      throw new Error(`Buffer underflow: need ${length} bytes at offset ${this.offset}, have ${this.data.length}`);
-    }
-    const slice = this.data.slice(this.offset, this.offset + length);
-    this.offset += length;
-    return slice;
-  }
-
-  readBigUInt64BE(): bigint {
-    const bytes = this.readBytes(8);
-    const hex = bytesToHex(bytes);
-    return hex.length > 0 ? BigInt(`0x${hex}`) : 0n;
-  }
-}
-
-function readAddress(r: Reader): string {
-  const version = r.readUInt8();
-  const hash160 = bytesToHex(r.readBytes(20));
-  return c32address(version, hash160);
-}
-
-function readLPString(r: Reader, prefixBytes = 1): string {
-  let length = 0;
-  for (let i = 0; i < prefixBytes; i++) {
-    length = (length << 8) | r.readUInt8();
-  }
-  return bytesToUtf8(r.readBytes(length));
-}
-
-function readCV(r: Reader): ClarityValue {
-  const typeByte = r.readUInt8();
-  const type = clarityTypeFromByte(typeByte);
-
-  switch (type) {
-    case "int":
-      return intCV(bytesToTwosBigInt(r.readBytes(16)));
-    case "uint":
-      return uintCV(r.readBytes(16));
-    case "true":
-      return trueCV();
-    case "false":
-      return falseCV();
-    case "buffer": {
-      const len = r.readUInt32BE();
-      return bufferCV(r.readBytes(len));
-    }
-    case "none":
-      return noneCV();
-    case "some":
-      return someCV(readCV(r));
-    case "ok":
-      return responseOkCV(readCV(r));
-    case "err":
-      return responseErrorCV(readCV(r));
-    case "address":
-      return standardPrincipalCV(readAddress(r));
-    case "contract": {
-      const addr = readAddress(r);
-      const name = readLPString(r);
-      return contractPrincipalCV(addr, name);
-    }
-    case "list": {
-      const len = r.readUInt32BE();
-      const items: ClarityValue[] = [];
-      for (let i = 0; i < len; i++) items.push(readCV(r));
-      return listCV(items);
-    }
-    case "tuple": {
-      const len = r.readUInt32BE();
-      const data: Record<string, ClarityValue> = {};
-      for (let i = 0; i < len; i++) {
-        const key = readLPString(r);
-        data[key] = readCV(r);
-      }
-      return tupleCV(data);
-    }
-    case "ascii": {
-      const len = r.readUInt32BE();
-      return stringAsciiCV(bytesToAscii(r.readBytes(len)));
-    }
-    case "utf8": {
-      const len = r.readUInt32BE();
-      return stringUtf8CV(bytesToUtf8(r.readBytes(len)));
-    }
-    default:
-      throw new Error(`Unknown clarity type: ${type}`);
-  }
-}
-
-function readSpendingCondition(r: Reader): SpendingCondition {
+function readSpendingCondition(r: BytesReader): SpendingCondition {
   const hashMode = r.readUInt8();
   const signer = bytesToHex(r.readBytes(20));
   const nonce = r.readBigUInt64BE();
@@ -206,7 +72,7 @@ function readSpendingCondition(r: Reader): SpendingCondition {
   return { hashMode, signer, nonce, fee, fields, signaturesRequired } as SpendingCondition;
 }
 
-function readAuthorization(r: Reader): Authorization {
+function readAuthorization(r: BytesReader): Authorization {
   const authType = r.readUInt8();
   const spendingCondition = readSpendingCondition(r);
 
@@ -222,7 +88,7 @@ function readAuthorization(r: Reader): Authorization {
   };
 }
 
-function readAssetInfo(r: Reader): AssetInfoWire {
+function readAssetInfo(r: BytesReader): AssetInfoWire {
   return {
     address: readAddress(r),
     contractName: readLPString(r),
@@ -230,7 +96,7 @@ function readAssetInfo(r: Reader): AssetInfoWire {
   };
 }
 
-function readPostConditionPrincipal(r: Reader): PostConditionPrincipalWire {
+function readPostConditionPrincipal(r: BytesReader): PostConditionPrincipalWire {
   const type = r.readUInt8();
   switch (type) {
     case PostConditionPrincipalId.Origin:
@@ -246,7 +112,7 @@ function readPostConditionPrincipal(r: Reader): PostConditionPrincipalWire {
   }
 }
 
-function readPostConditions(r: Reader): PostConditionWire[] {
+function readPostConditions(r: BytesReader): PostConditionWire[] {
   const count = r.readUInt32BE();
   const pcs: PostConditionWire[] = [];
   for (let i = 0; i < count; i++) {
@@ -268,7 +134,7 @@ function readPostConditions(r: Reader): PostConditionWire[] {
   return pcs;
 }
 
-function readPayload(r: Reader): TransactionPayload {
+function readPayload(r: BytesReader): TransactionPayload {
   const payloadType = r.readUInt8();
 
   switch (payloadType) {
@@ -347,7 +213,7 @@ function readPayload(r: Reader): TransactionPayload {
 
 export function deserializeTransaction(input: string | Uint8Array): StacksTransaction {
   const bytes = typeof input === "string" ? hexToBytes(without0x(input)) : input;
-  const r = new Reader(bytes);
+  const r = new BytesReader(bytes);
 
   return {
     version: r.readUInt8(),

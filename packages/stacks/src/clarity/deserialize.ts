@@ -7,6 +7,7 @@ import {
   without0x,
 } from "../utils/encoding.ts";
 import { c32address } from "../utils/c32.ts";
+import { BytesReader } from "../utils/bytes-reader.ts";
 import {
   clarityTypeFromByte,
   type ClarityValue,
@@ -29,45 +30,13 @@ import {
   stringUtf8CV,
 } from "./values.ts";
 
-class BytesReader {
-  private data: Uint8Array;
-  private offset = 0;
-
-  constructor(data: Uint8Array) {
-    this.data = data;
-  }
-
-  readUInt8(): number {
-    const value = this.data[this.offset]!;
-    this.offset += 1;
-    return value;
-  }
-
-  readUInt32BE(): number {
-    const value =
-      ((this.data[this.offset]! << 24) |
-        (this.data[this.offset + 1]! << 16) |
-        (this.data[this.offset + 2]! << 8) |
-        this.data[this.offset + 3]!) >>>
-      0;
-    this.offset += 4;
-    return value;
-  }
-
-  readBytes(length: number): Uint8Array {
-    const slice = this.data.slice(this.offset, this.offset + length);
-    this.offset += length;
-    return slice;
-  }
-}
-
-function readAddress(reader: BytesReader): string {
+export function readAddress(reader: BytesReader): string {
   const version = reader.readUInt8();
   const hash160 = bytesToHex(reader.readBytes(20));
   return c32address(version, hash160);
 }
 
-function readLPString(reader: BytesReader, prefixBytes = 1): string {
+export function readLPString(reader: BytesReader, prefixBytes = 1): string {
   let length = 0;
   for (let i = 0; i < prefixBytes; i++) {
     length = (length << 8) | reader.readUInt8();
@@ -75,7 +44,7 @@ function readLPString(reader: BytesReader, prefixBytes = 1): string {
   return bytesToUtf8(reader.readBytes(length));
 }
 
-function readCV(reader: BytesReader): ClarityValue {
+export function readCV(reader: BytesReader): ClarityValue {
   const typeByte = reader.readUInt8();
   const type = clarityTypeFromByte(typeByte);
 
