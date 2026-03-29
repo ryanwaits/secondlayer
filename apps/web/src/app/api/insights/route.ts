@@ -9,7 +9,12 @@ export async function GET(req: Request) {
 
   try {
     const url = new URL(req.url);
-    const qs = url.searchParams.toString();
+    const allowed = new URLSearchParams();
+    const category = url.searchParams.get("category");
+    const resourceId = url.searchParams.get("resource_id");
+    if (category) allowed.set("category", category);
+    if (resourceId) allowed.set("resource_id", resourceId);
+    const qs = allowed.toString();
     const data = await apiRequest(`/api/insights${qs ? `?${qs}` : ""}`, {
       sessionToken,
     });

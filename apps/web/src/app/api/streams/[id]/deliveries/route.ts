@@ -13,9 +13,11 @@ export async function GET(
   try {
     const { id } = await params;
     const url = new URL(req.url);
-    const limit = url.searchParams.get("limit") || "50";
-    const offset = url.searchParams.get("offset") || "0";
-    const status = url.searchParams.get("status") || "";
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50") || 50, 1), 1000);
+    const offset = Math.max(parseInt(url.searchParams.get("offset") || "0") || 0, 0);
+    const VALID_STATUSES = ["success", "failed", "pending"];
+    const rawStatus = url.searchParams.get("status") || "";
+    const status = VALID_STATUSES.includes(rawStatus) ? rawStatus : "";
     const qs = `limit=${limit}&offset=${offset}${status ? `&status=${status}` : ""}`;
     const data = await apiRequest(`/api/streams/${id}/deliveries?${qs}`, {
       sessionToken,

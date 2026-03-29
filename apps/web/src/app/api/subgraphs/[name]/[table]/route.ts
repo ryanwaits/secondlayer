@@ -12,7 +12,13 @@ export async function GET(
 
   const { name, table } = await params;
   const { searchParams } = new URL(req.url);
-  const qs = searchParams.toString();
+  const ALLOWED_PARAMS = ["_limit", "_offset", "_sort", "_order"];
+  const allowed = new URLSearchParams();
+  for (const key of ALLOWED_PARAMS) {
+    const val = searchParams.get(key);
+    if (val) allowed.set(key, val);
+  }
+  const qs = allowed.toString();
 
   try {
     const data = await apiRequest(
