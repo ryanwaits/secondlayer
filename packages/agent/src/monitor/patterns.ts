@@ -36,7 +36,7 @@ export const PATTERN_RULES: PatternRule[] = [
     regex: /(?:FATAL|PANIC):\s+(.+)/i,
     severity: "critical",
     action: "alert_only",
-    services: ["postgres", "hiro-postgres"],
+    services: ["postgres"],
     message: (m) => `Postgres fatal: ${m[1]}`,
   },
   {

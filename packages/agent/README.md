@@ -16,10 +16,9 @@ Autonomous AI DevOps monitoring agent for a Stacks blockchain indexing deploymen
   |   indexer -------+               +------------------+    |
   |   api -----------+  docker logs  |                  |    |
   |   worker --------+  --follow     |   Log Watcher    |    |
-  |   subgraph-processor+  -------->  |   (8 services)   |    |
+  |   subgraph-processor+  -------->  |   (6 services)   |    |
   |   postgres ------+               |                  |    |
-  |   hiro-postgres--+               +--------+---------+    |
-  |   hiro-api ------+                        |              |
+  |                                  +--------+---------+    |
   |   caddy ---------+                  Pattern Match        |
   |                                        |                 |
   |   stacks-node                          v                 |
@@ -78,7 +77,7 @@ Autonomous AI DevOps monitoring agent for a Stacks blockchain indexing deploymen
 
 ## What's Monitored
 
-### Real-Time Log Watching (8 services)
+### Real-Time Log Watching (6 services)
 
 | Service | Container | Health URL | Auto-Restart |
 |---|---|---|---|
@@ -87,8 +86,6 @@ Autonomous AI DevOps monitoring agent for a Stacks blockchain indexing deploymen
 | worker | secondlayer-worker-1 | -- | Yes |
 | subgraph-processor | secondlayer-subgraph-processor-1 | -- | Yes |
 | postgres | secondlayer-postgres-1 | -- | No |
-| hiro-postgres | secondlayer-hiro-postgres-1 | -- | No |
-| hiro-api | secondlayer-hiro-api-1 | `localhost:3999/extended` | Yes |
 | caddy | secondlayer-caddy-1 | -- | Yes |
 | **stacks-node** | **secondlayer-stacks-node-1** | **RPC only** | **Never** |
 
@@ -99,7 +96,7 @@ Autonomous AI DevOps monitoring agent for a Stacks blockchain indexing deploymen
 | `oom_kill` | `Out of memory\|OOM\|oom-kill\|Killed process` | critical | `restart_service` | all |
 | `disk_full` | `No space left on device\|ENOSPC\|disk full` | critical | `prune_docker` | all |
 | `conn_refused` | `ECONNREFUSED\|Connection refused` | warn | `restart_service` | all |
-| `pg_fatal` | `FATAL\|PANIC: (.+)` | critical | `alert_only` | postgres, hiro-postgres |
+| `pg_fatal` | `FATAL\|PANIC: (.+)` | critical | `alert_only` | postgres |
 | `gap_growth` | `gap\|missing .+ blocks?\|gaps?` | warn | `alert_only` | indexer |
 | `sync_stall` | `stall\|stuck\|timeout .+ sync\|block\|chain` | warn | `restart_service` | indexer |
 | `unhandled_error` | `unhandled\|uncaught .+ error\|exception\|rejection` | error | `escalate` (AI) | all |
@@ -141,14 +138,14 @@ Plus system-level collection:
 ```
 SAFE_RESTART:    indexer, api, worker, subgraph-processor, caddy
 NEVER_RESTART:   stacks-node
-WARN_RESTART:    postgres, hiro-postgres  (alert only, no auto-restart)
+WARN_RESTART:    postgres  (alert only, no auto-restart)
 ```
 
 ### Guardrails
 
 - **Cooldown**: Max 3 restarts per hour per service. Tracked in SQLite `cooldowns` table.
 - **NEVER_RESTART**: Any restart attempt on `stacks-node` is blocked and logged.
-- **WARN_RESTART**: Restart requests for `postgres`/`hiro-postgres` are downgraded to `alert_only`.
+- **WARN_RESTART**: Restart requests for `postgres` are downgraded to `alert_only`.
 - **Budget cap**: $5/day default for AI API spend. When exceeded, AI analysis is skipped and a budget alert is sent.
 - **Dry run mode**: All actions are logged but not executed.
 
@@ -255,8 +252,8 @@ GET http://localhost:3900/health
 {
   "status": "healthy",
   "uptime": 86400,
-  "watchersConnected": 8,
-  "watchersTotal": 8,
+  "watchersConnected": 6,
+  "watchersTotal": 6,
   "lastPollAt": 1709312400000,
   "decisionsToday": 3,
   "aiSpendToday": 0.0042
@@ -428,7 +425,7 @@ AI-driven alerts include a confidence percentage and are prefixed with `[AI]` or
 +--------------------------------------------------+
 | :chart_with_upwards_trend: Daily Summary          |
 +--------------------------------------------------+
-| Services:  8/9 healthy  | Actions Today:  4      |
+| Services:  6/7 healthy  | Actions Today:  4      |
 | AI Spend:  $0.0042      | Gaps:  0               |
 +--------------------------------------------------+
 ```
