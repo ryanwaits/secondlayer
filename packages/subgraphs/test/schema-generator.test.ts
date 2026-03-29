@@ -37,7 +37,7 @@ test("maps column types correctly", () => {
   const { statements } = generateSubgraphSQL(baseDef);
   const createTable = statements[1]!;
   expect(createTable).toContain("sender TEXT NOT NULL");
-  expect(createTable).toContain("amount BIGINT NOT NULL");
+  expect(createTable).toContain("amount NUMERIC NOT NULL");
   expect(createTable).toContain("memo TEXT"); // nullable — no NOT NULL
 });
 
@@ -100,8 +100,8 @@ test("generates all column types", () => {
   const { statements } = generateSubgraphSQL(def);
   const table = statements[1]!;
   expect(table).toContain("a TEXT");
-  expect(table).toContain("b BIGINT");
-  expect(table).toContain("c INTEGER");
+  expect(table).toContain("b NUMERIC");
+  expect(table).toContain("c NUMERIC");
   expect(table).toContain("d TEXT");
   expect(table).toContain("e BOOLEAN");
   expect(table).toContain("f TIMESTAMPTZ");
