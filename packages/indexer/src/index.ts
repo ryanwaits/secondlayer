@@ -110,7 +110,15 @@ const server = Bun.serve({
         // DB unavailable
       }
 
-      const status = integrityState.totalMissing === 0
+      // Use live DB data to override stale in-memory gap count
+      const gapCount = lastContiguousBlock >= lastIndexedBlock
+        ? 0
+        : integrityState.gapCount;
+      const totalMissing = lastContiguousBlock >= lastIndexedBlock
+        ? 0
+        : integrityState.totalMissing;
+
+      const status = totalMissing === 0
         ? "healthy"
         : integrityState.autoBackfillInProgress
           ? "degraded"
@@ -120,8 +128,8 @@ const server = Bun.serve({
         status,
         lastContiguousBlock,
         lastIndexedBlock,
-        gapCount: integrityState.gapCount,
-        totalMissingBlocks: integrityState.totalMissing,
+        gapCount,
+        totalMissingBlocks: totalMissing,
         autoBackfillEnabled: integrityState.autoBackfillEnabled,
         autoBackfillProgress: {
           remaining: integrityState.autoBackfillRemaining,
