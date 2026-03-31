@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 0.6.0
+
+### Minor Changes
+
+- Batch block fetching with adaptive sizing and prefetch pipeline for 15-18x faster subgraph catch-up. Batch INSERT statements on flush. Non-destructive backfill support. Increase default DB connection pool to 20.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.7.1
+
 ## 0.5.7
 
 ### Patch Changes

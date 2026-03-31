@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 0.7.0
+
+### Minor Changes
+
+- Add `subgraphs.backfill()` SDK method and `sl subgraphs backfill` CLI command for non-destructive block range re-processing.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@0.6.0
+  - @secondlayer/shared@0.7.1
+
 ## 0.6.4
 
 ### Patch Changes
