@@ -10,6 +10,19 @@ import {
 import { fetchJson } from "@/lib/queries/fetch";
 
 const PAGE_SIZE = 20;
+const SYSTEM_COLS = ["_id", "_block_height", "_tx_id", "_created_at"];
+
+function pickDisplayCols(allCols: string[]): string[] {
+  // Show _id, _block_height, then up to 2 user columns
+  const user = allCols.filter((c) => !SYSTEM_COLS.includes(c));
+  return ["_id", "_block_height", ...user.slice(0, 2)];
+}
+
+function truncate(val: unknown, max = 32): string {
+  if (val == null) return "";
+  const s = typeof val === "object" ? JSON.stringify(val) : String(val);
+  return s.length > max ? s.slice(0, max) + "..." : s;
+}
 
 export function DataClient({
   subgraphName,
@@ -24,6 +37,7 @@ export function DataClient({
 }) {
   const [activeTable, setActiveTable] = useState(initialTable);
   const [page, setPage] = useState(0);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const qc = useQueryClient();
 
   // Seed page 0 cache from server data
@@ -45,7 +59,11 @@ export function DataClient({
   const rows = data?.data ?? [];
   const meta = data?.meta ?? null;
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / PAGE_SIZE)) : 1;
-  const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+  const allCols = rows.length > 0 ? Object.keys(rows[0]) : [];
+  const displayCols = pickDisplayCols(allCols);
+
+  // Collapse expanded row on page/table change
+  useEffect(() => { setExpandedIdx(null); }, [page, activeTable]);
 
   // Prefetch next page
   useEffect(() => {
@@ -84,16 +102,15 @@ export function DataClient({
 
   return (
     <>
-      {/* Table selector tabs */}
-      <div style={{ marginBottom: 16 }}>
+      <div className="tab-row">
         {tables.map((t) => (
-          <span
+          <button
             key={t}
-            className={`dash-tab${t === activeTable ? " active" : ""}`}
+            className={`tab-item${t === activeTable ? " active" : ""}`}
             onClick={() => handleTableSwitch(t)}
           >
             {t}
-          </span>
+          </button>
         ))}
       </div>
 
@@ -109,66 +126,68 @@ export function DataClient({
             <table className="dash-data-table">
               <thead>
                 <tr>
-                  {columns.map((col) => (
+                  {displayCols.map((col) => (
                     <th key={col}>{col}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, i) => (
-                  <tr
-                    key={i}
-                    style={{ opacity: isFetching ? 0.5 : 1, transition: "opacity 150ms" }}
-                  >
-                    {columns.map((col) => (
-                      <td key={col}>
-                        {row[col] == null
-                          ? ""
-                          : typeof row[col] === "object"
-                            ? JSON.stringify(row[col])
-                            : String(row[col])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {rows.map((row, i) => {
+                  const isExpanded = expandedIdx === i;
+                  return (
+                    <tbody key={i}>
+                      <tr
+                        className={isExpanded ? "selected" : ""}
+                        style={{
+                          opacity: isFetching ? 0.5 : 1,
+                          transition: "opacity 150ms",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setExpandedIdx(isExpanded ? null : i)}
+                      >
+                        {displayCols.map((col) => (
+                          <td key={col}>{truncate(row[col])}</td>
+                        ))}
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={displayCols.length} style={{ padding: 0 }}>
+                            <div className="row-detail">
+                              <pre>{JSON.stringify(row, null, 2)}</pre>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {meta && (
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                fontSize: 12,
-                color: "var(--text-muted)",
-              }}
-            >
+            <div className="pagination">
               <span>
-                Showing {page * PAGE_SIZE + 1}–
+                Showing {page * PAGE_SIZE + 1}&ndash;
                 {Math.min((page + 1) * PAGE_SIZE, meta.total)} of{" "}
                 {meta.total.toLocaleString()}
               </span>
-              <div style={{ display: "flex", gap: 4 }}>
+              <div className="pg-btns">
                 <button
                   className="dash-btn"
-                  style={{ padding: "4px 10px", fontSize: 12 }}
                   disabled={page === 0}
                   onClick={() => setPage(page - 1)}
                   onMouseEnter={() => prefetchPage(page - 2)}
                 >
-                  ← Prev
+                  &larr; Prev
                 </button>
                 <button
                   className="dash-btn"
-                  style={{ padding: "4px 10px", fontSize: 12 }}
                   disabled={page >= totalPages - 1}
                   onClick={() => setPage(page + 1)}
                   onMouseEnter={() => prefetchPage(page + 2)}
                 >
-                  Next →
+                  Next &rarr;
                 </button>
               </div>
             </div>
