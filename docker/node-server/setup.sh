@@ -179,7 +179,7 @@ bootstrap_node = "02196f005965cebe6ddc3901b7b1cc1aa7a88f305bb8c5893456b8f9a60592
 endpoint = "${APP_SERVER_IP}:3700"
 events_keys = ["*"]
 timeout_ms = 30000
-disable_retries = true
+disable_retries = false
 
 [burnchain]
 chain = "bitcoin"
