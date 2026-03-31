@@ -5,6 +5,7 @@ import { ConsoleTopbar } from "./topbar";
 import { BreadcrumbProvider, useBreadcrumbOverrides } from "@/lib/breadcrumb";
 import { usePreferences } from "@/lib/preferences";
 import { useAuth } from "@/lib/auth";
+import { ConsoleSidebar } from "./sidebar";
 import { OnboardingPanel } from "./onboarding-panel";
 import { StatusPill } from "./status-pill";
 
@@ -32,6 +33,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
     <div className="dash">
       <ConsoleTopbar segments={segments} />
       <div className="dash-body">
+        <ConsoleSidebar />
         <main className="dash-content">
           {children}
           <StatusPill />
