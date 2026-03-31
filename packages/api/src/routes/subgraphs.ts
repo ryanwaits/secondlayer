@@ -246,19 +246,27 @@ app.post("/", async (c) => {
 
 // ── Reindex a subgraph ──────────────────────────────────────────────────
 
-const MAX_CONCURRENT_REINDEXES = 2;
-let activeReindexes = 0;
+const MAX_CONCURRENT_OPERATIONS = 2;
+let activeOperations = 0;
+const activeSubgraphOps = new Set<string>();
 
 app.post("/:subgraphName/reindex", async (c) => {
   const { subgraphName } = c.req.param();
   const keyIds = await resolveKeyIds(c);
   const subgraph = getOwnedSubgraph(subgraphName, keyIds);
 
-  if (activeReindexes >= MAX_CONCURRENT_REINDEXES) {
+  if (activeSubgraphOps.has(subgraphName)) {
     return c.json({
-      error: `Too many concurrent reindex operations (max ${MAX_CONCURRENT_REINDEXES}). Try again later.`,
-      code: "REINDEX_LIMIT",
-      activeReindexes,
+      error: `A reindex or backfill is already running for "${subgraphName}". Wait for it to complete.`,
+      code: "OPERATION_IN_PROGRESS",
+    }, 409);
+  }
+
+  if (activeOperations >= MAX_CONCURRENT_OPERATIONS) {
+    return c.json({
+      error: `Too many concurrent operations (max ${MAX_CONCURRENT_OPERATIONS}). Try again later.`,
+      code: "OPERATION_LIMIT",
+      activeOperations,
     }, 429);
   }
 
@@ -266,7 +274,8 @@ app.post("/:subgraphName/reindex", async (c) => {
   const fromBlock = typeof body.fromBlock === "number" ? body.fromBlock : undefined;
   const toBlock = typeof body.toBlock === "number" ? body.toBlock : undefined;
 
-  activeReindexes++;
+  activeOperations++;
+  activeSubgraphOps.add(subgraphName);
 
   // Fire and forget — load handler + reindex runs in background
   (async () => {
@@ -279,7 +288,8 @@ app.post("/:subgraphName/reindex", async (c) => {
       const msg = getErrorMessage(err);
       console.error(`Reindex failed for ${subgraphName}: ${msg}`);
     } finally {
-      activeReindexes--;
+      activeOperations--;
+      activeSubgraphOps.delete(subgraphName);
     }
   })();
 
@@ -297,11 +307,18 @@ app.post("/:subgraphName/backfill", async (c) => {
   const keyIds = await resolveKeyIds(c);
   const subgraph = getOwnedSubgraph(subgraphName, keyIds);
 
-  if (activeReindexes >= MAX_CONCURRENT_REINDEXES) {
+  if (activeSubgraphOps.has(subgraphName)) {
     return c.json({
-      error: `Too many concurrent operations (max ${MAX_CONCURRENT_REINDEXES}). Try again later.`,
-      code: "REINDEX_LIMIT",
-      activeReindexes,
+      error: `A reindex or backfill is already running for "${subgraphName}". Wait for it to complete.`,
+      code: "OPERATION_IN_PROGRESS",
+    }, 409);
+  }
+
+  if (activeOperations >= MAX_CONCURRENT_OPERATIONS) {
+    return c.json({
+      error: `Too many concurrent operations (max ${MAX_CONCURRENT_OPERATIONS}). Try again later.`,
+      code: "OPERATION_LIMIT",
+      activeOperations,
     }, 429);
   }
 
@@ -313,7 +330,8 @@ app.post("/:subgraphName/backfill", async (c) => {
     return c.json({ error: "Both fromBlock and toBlock are required for backfill", code: "VALIDATION_ERROR" }, 400);
   }
 
-  activeReindexes++;
+  activeOperations++;
+  activeSubgraphOps.add(subgraphName);
 
   (async () => {
     try {
@@ -325,7 +343,8 @@ app.post("/:subgraphName/backfill", async (c) => {
       const msg = getErrorMessage(err);
       console.error(`Backfill failed for ${subgraphName}: ${msg}`);
     } finally {
-      activeReindexes--;
+      activeOperations--;
+      activeSubgraphOps.delete(subgraphName);
     }
   })();
 
