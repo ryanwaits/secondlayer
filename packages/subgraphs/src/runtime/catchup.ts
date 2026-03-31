@@ -78,6 +78,16 @@ export async function catchUpSubgraph(
     );
 
     while (currentHeight <= chainTip) {
+      // Check if subgraph status changed (e.g. reindex started) — bail if so
+      const currentRow = await getSubgraph(db, subgraphName);
+      if (!currentRow || currentRow.status !== "active") {
+        logger.info("Subgraph status changed, stopping catch-up", {
+          subgraph: subgraphName,
+          status: currentRow?.status ?? "deleted",
+        });
+        break;
+      }
+
       // Await current batch
       const batch = await nextBatchPromise;
       const batchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
