@@ -281,7 +281,7 @@ docker compose down && docker compose up -d
 
 ## Tip Follower
 
-Polls Hiro's public API when stacks-node stops sending blocks (node restart, network issues). Only fetches a small window near chain tip — bulk gaps handled by integrity auto-backfill.
+Polls the stacks-node RPC when blocks stop arriving (node restart, network issues). Only fetches a small window near chain tip — bulk gaps handled by integrity auto-backfill.
 
 ### Configuration
 
@@ -319,15 +319,49 @@ docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -c "SELECT * FROM index_progress;"
 ```
 
-### Backup
+### Backup Strategy
+
+Three-layer backup system with ~5-minute RPO:
+
+| Schedule | Script | What | Retention |
+|----------|--------|------|-----------|
+| Every 5 min | `sync-wal.sh` | WAL segments → Storage Box | 24h local, synced offsite |
+| Daily 3 AM | `backup-postgres.sh` | `pg_dump \| gzip` (~15GB) | 7 days |
+| Weekly Sun 4 AM | `backup-basebackup.sh` | `pg_basebackup` (physical) | 14 days |
+| Daily 5 AM | `upload-snapshot.sh` | rsync all backups → Storage Box | mirrors local |
+
+**WAL archiving** is configured in `docker-compose.hetzner.yml` via postgres `command:` flags:
+- `wal_level=replica` — enables WAL archiving
+- `archive_mode=on` — archives completed WAL segments
+- `archive_command` — copies segments to `/wal_archive/` (mounted at `$DATA_DIR/wal_archive`)
+- `archive_timeout=300` — forces archive every 5 min even if segment not full
+
+WAL archive dir must be owned by the postgres user (UID 70 in Alpine):
+```bash
+chown 70:70 $DATA_DIR/wal_archive
+```
 
 ```bash
-# Manual
-docker exec secondlayer-postgres-1 pg_dump -U secondlayer secondlayer > backup-$(date +%F).sql
+# Verify WAL archiving is active
+docker exec secondlayer-postgres-1 psql -U secondlayer -c "SELECT * FROM pg_stat_archiver;"
 
-# Automated cron (app server)
-0 3 * * * /opt/secondlayer/docker/scripts/backup-postgres.sh >> /var/log/backup-postgres.log 2>&1
-0 5 * * * /opt/secondlayer/docker/scripts/upload-snapshot.sh >> /var/log/upload-snapshot.log 2>&1
+# Manual pg_dump
+docker exec secondlayer-postgres-1 pg_dump -U secondlayer secondlayer | gzip > backup-$(date +%F).sql.gz
+```
+
+**Cron jobs (app server):**
+```bash
+# WAL sync (every 5 min)
+*/5 * * * * /opt/secondlayer/docker/scripts/sync-wal.sh >> /opt/secondlayer/data/backups/sync-wal.log 2>&1
+
+# Daily pg_dump (3 AM)
+0 3 * * * /opt/secondlayer/docker/scripts/backup-postgres.sh >> /opt/secondlayer/data/backups/backup-postgres.log 2>&1
+
+# Weekly pg_basebackup (Sunday 4 AM)
+0 4 * * 0 /opt/secondlayer/docker/scripts/backup-basebackup.sh >> /opt/secondlayer/data/backups/backup-basebackup.log 2>&1
+
+# Upload all backups to Storage Box (5 AM)
+0 5 * * * /opt/secondlayer/docker/scripts/upload-snapshot.sh >> /opt/secondlayer/data/backups/upload-snapshot.log 2>&1
 ```
 
 ### Offsite (Storage Box)
@@ -336,15 +370,26 @@ docker exec secondlayer-postgres-1 pg_dump -U secondlayer secondlayer > backup-$
 /opt/secondlayer/docker/scripts/upload-snapshot.sh
 /opt/secondlayer/docker/scripts/upload-snapshot.sh --dry-run
 ssh -p 23 $STORAGEBOX_USER@$STORAGEBOX_HOST ls -lh /backups/postgres/
+ssh -p 23 $STORAGEBOX_USER@$STORAGEBOX_HOST ls -lh /backups/wal/
 ```
 
 ### Restore
 
+**From pg_dump (logical restore):**
 ```bash
-# From local dump
-cat backup.sql | docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer
+zcat backup.sql.gz | docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer
+```
 
-# From snapshot
+**From pg_basebackup + WAL (point-in-time recovery):**
+1. Stop postgres
+2. Replace `$DATA_DIR/postgres` with extracted base backup
+3. Copy WAL files from Storage Box to `$DATA_DIR/wal_archive/`
+4. Create `recovery.signal` in postgres data dir
+5. Set `restore_command` in postgres config
+6. Start postgres — it replays WAL to recover
+
+**Automated restore from Storage Box:**
+```bash
 /opt/secondlayer/docker/scripts/restore-from-snapshot.sh --verify-only
 /opt/secondlayer/docker/scripts/restore-from-snapshot.sh --dry-run
 /opt/secondlayer/docker/scripts/restore-from-snapshot.sh
@@ -371,7 +416,11 @@ VACUUM ANALYZE;
 
 ### Auto (Integrity Loop)
 
-Runs every 5 minutes. Scans for gaps, fills from local DB first, then Hiro remote API.
+Runs every 5 minutes. Two-phase gap filling:
+1. **Local DB** — replays blocks already in our DB (handles reorgs)
+2. **Hiro API** — fetches missing blocks individually from Hiro's public API (handles outages)
+
+The stacks-node event observer has `disable_retries = false`, so it will retry failed deliveries. For blocks missed despite retries (e.g., indexer was down), the integrity loop fills them automatically.
 
 ```bash
 curl -s localhost:3700/health/integrity | jq
@@ -502,7 +551,7 @@ rm /tmp/snapshot.tar.zst
 1. Check stacks-node logs on node server for event observer errors
 2. Verify `events_keys = ["*"]` in node server `Config.toml`
 3. Check firewall: app server port 3700 must be open from node server IP
-4. `disable_retries = true` — missed blocks won't be retried by node; integrity loop fills gaps
+4. `disable_retries = false` in Config.toml — node retries failed deliveries. Integrity loop fills any remaining gaps via Hiro API
 
 ```bash
 ssh node-server "ufw status"
