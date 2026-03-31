@@ -32,7 +32,7 @@ export async function apiRequest<T>(
   }
 
   const nextOptions: Record<string, unknown> = tags
-    ? { tags }
+    ? { tags, revalidate: 10 }
     : { revalidate: 0 };
 
   const res = await fetch(`${API_URL}${path}`, {

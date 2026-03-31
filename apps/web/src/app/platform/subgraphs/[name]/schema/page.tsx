@@ -28,6 +28,7 @@ export default async function SubgraphSchemaPage({
   try {
     subgraph = await apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
       sessionToken: session ?? undefined,
+      tags: ["subgraphs", `subgraph-${name}`],
     });
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();

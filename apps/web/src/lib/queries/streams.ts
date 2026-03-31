@@ -3,15 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Stream, Delivery } from "@/lib/types";
 import { queryKeys } from "./keys";
-
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { credentials: "same-origin", ...init });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(data.error || "Request failed");
-  }
-  return res.json();
-}
+import { fetchJson } from "./fetch";
 
 // ── Queries ──
 
@@ -22,7 +14,7 @@ export function useStreams(initialData?: Stream[]) {
       fetchJson<{ streams: Stream[]; total: number }>("/api/streams?limit=100&offset=0")
         .then((r) => r.streams),
     initialData,
-    staleTime: 2 * 60_000,
+    staleTime: 60_000,
   });
 }
 

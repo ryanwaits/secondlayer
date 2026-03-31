@@ -3,15 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApiKey } from "@/lib/types";
 import { queryKeys } from "./keys";
-
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { credentials: "same-origin", ...init });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(data.error || "Request failed");
-  }
-  return res.json();
-}
+import { fetchJson } from "./fetch";
 
 export function useApiKeys(initialData?: ApiKey[]) {
   return useQuery({
@@ -19,7 +11,7 @@ export function useApiKeys(initialData?: ApiKey[]) {
     queryFn: () =>
       fetchJson<{ keys: ApiKey[] }>("/api/keys").then((r) => r.keys),
     initialData,
-    staleTime: 5 * 60_000,
+    staleTime: 60_000,
   });
 }
 

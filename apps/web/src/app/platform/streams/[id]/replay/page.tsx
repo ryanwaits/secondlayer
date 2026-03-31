@@ -17,6 +17,7 @@ export default async function StreamReplayPage({
   try {
     stream = await apiRequest<Stream>(`/api/streams/${id}`, {
       sessionToken: session,
+      tags: ["streams", `stream-${id}`],
     });
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
