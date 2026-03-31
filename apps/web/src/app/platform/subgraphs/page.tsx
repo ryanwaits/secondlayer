@@ -56,7 +56,7 @@ function SubgraphRow({
           </span>
           {displayStatus === "error"
             ? `${subgraph.totalErrors.toLocaleString()} errors`
-            : `${subgraph.totalProcessed.toLocaleString()} rows`}
+            : `${subgraph.totalProcessed.toLocaleString()} blocks`}
           {subgraph.lastProcessedBlock != null && (
             <span>#{subgraph.lastProcessedBlock.toLocaleString()}</span>
           )}

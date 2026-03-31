@@ -2,8 +2,9 @@ import { notFound } from "next/navigation";
 import { apiRequest, ApiError, getSessionFromCookies } from "@/lib/api";
 import type { SubgraphDetail } from "@/lib/types";
 import { Insight } from "@/components/console/intelligence/insight";
-
+import { CopyButton } from "@/components/copy-button";
 import { detectHighErrorRate } from "@/lib/intelligence/subgraphs";
+import { OverviewExamples } from "./overview-examples";
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -38,6 +39,15 @@ export default async function SubgraphOverviewPage({
   const tableEntries = Object.entries(subgraph.tables);
   const totalRows = tableEntries.reduce((sum, [, t]) => sum + t.rowCount, 0);
   const errorRate = detectHighErrorRate(subgraph.health);
+  const firstTable = tableEntries[0]?.[0] ?? "";
+  const firstTableCols = firstTable ? Object.keys(subgraph.tables[firstTable].columns).filter((c) => !c.startsWith("_")) : [];
+  const baseUrl = `https://api.secondlayer.tools/api/subgraphs/${name}/${firstTable}`;
+
+  // Find a filterable column for examples
+  const filterCol = firstTableCols[0] ?? "name";
+  const searchCol = firstTable
+    ? Object.entries(subgraph.tables[firstTable].columns).find(([, c]) => c.searchable)?.[0] ?? null
+    : null;
 
   return (
     <>
@@ -76,7 +86,69 @@ export default async function SubgraphOverviewPage({
         </div>
       </div>
 
-      <div className="dash-section-wrap">
+      {firstTable && (
+        <>
+          <div className="dash-section-wrap">
+            <hr />
+            <h2 className="dash-section-title">Endpoint</h2>
+          </div>
+
+          <div className="code-inline" style={{ marginBottom: 16 }}>
+            <code>{baseUrl}</code>
+            <CopyButton code={baseUrl} />
+          </div>
+
+          <div className="dash-section-wrap">
+            <hr />
+            <h2 className="dash-section-title">Quick reference</h2>
+          </div>
+
+          <div className="endpoint-list">
+            <div className="endpoint-row">
+              <span className="endpoint-method">GET</span>
+              <span className="endpoint-path">/api/subgraphs/{name}/{firstTable}</span>
+              <span className="endpoint-desc">Query rows</span>
+            </div>
+            <div className="endpoint-row">
+              <span className="endpoint-method">GET</span>
+              <span className="endpoint-path">...{firstTable}?{filterCol}=VALUE</span>
+              <span className="endpoint-desc">Filtered</span>
+            </div>
+            {searchCol && (
+              <div className="endpoint-row">
+                <span className="endpoint-method">GET</span>
+                <span className="endpoint-path">...{firstTable}?_search=term</span>
+                <span className="endpoint-desc">Search</span>
+              </div>
+            )}
+            <div className="endpoint-row">
+              <span className="endpoint-method">GET</span>
+              <span className="endpoint-path">...{firstTable}/count</span>
+              <span className="endpoint-desc">Count</span>
+            </div>
+            <div className="endpoint-row">
+              <span className="endpoint-method">GET</span>
+              <span className="endpoint-path">...{firstTable}/42</span>
+              <span className="endpoint-desc">Get by ID</span>
+            </div>
+          </div>
+
+          <div className="dash-section-wrap" style={{ marginTop: 20 }}>
+            <hr />
+            <h2 className="dash-section-title">Examples</h2>
+          </div>
+
+          <OverviewExamples
+            subgraphName={name}
+            tableName={firstTable}
+            filterCol={filterCol}
+            searchCol={searchCol}
+            apiKey={session}
+          />
+        </>
+      )}
+
+      <div className="dash-section-wrap" style={{ marginTop: 20 }}>
         <hr />
         <h2 className="dash-section-title">Tables</h2>
       </div>
