@@ -35,27 +35,30 @@ export async function loadBlockRange(
       .execute(),
   ]);
 
-  // Index by block height
+  // Index by block height (coerce to number — bigint columns may return as string or number)
   const txsByHeight = new Map<number, Transaction[]>();
   for (const tx of txs) {
-    const list = txsByHeight.get(tx.block_height) ?? [];
+    const h = Number(tx.block_height);
+    const list = txsByHeight.get(h) ?? [];
     list.push(tx);
-    txsByHeight.set(tx.block_height, list);
+    txsByHeight.set(h, list);
   }
 
   const eventsByHeight = new Map<number, Event[]>();
   for (const evt of events) {
-    const list = eventsByHeight.get(evt.block_height) ?? [];
+    const h = Number(evt.block_height);
+    const list = eventsByHeight.get(h) ?? [];
     list.push(evt);
-    eventsByHeight.set(evt.block_height, list);
+    eventsByHeight.set(h, list);
   }
 
   const result = new Map<number, BlockData>();
   for (const block of blocks) {
-    result.set(block.height, {
+    const h = Number(block.height);
+    result.set(h, {
       block,
-      txs: txsByHeight.get(block.height) ?? [],
-      events: eventsByHeight.get(block.height) ?? [],
+      txs: txsByHeight.get(h) ?? [],
+      events: eventsByHeight.get(h) ?? [],
     });
   }
 
