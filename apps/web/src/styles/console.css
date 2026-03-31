@@ -640,7 +640,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.code-inline .copy-button {
+.code-inline .copy-button,
+.tabbed-code-header .copy-button {
   position: static;
   opacity: 1;
   flex-shrink: 0;
