@@ -2,7 +2,6 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { findGaps, countMissingBlocks, computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
-import { ArchiveReplayClient } from "@secondlayer/shared/node/archive-client";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 
@@ -104,7 +103,6 @@ async function autoBackfill(gaps: Gap[]) {
 
   const now = new Date();
   const cooldownMs = 5 * 60 * 1000; // 5 minutes
-  const archiveThresholdMs = 24 * 60 * 60 * 1000; // 24 hours
 
   // Only fill gaps that have been seen for >5 minutes
   const staleGaps = gaps.filter((gap) => {
@@ -160,76 +158,18 @@ async function autoBackfill(gaps: Gap[]) {
       return;
     }
 
-    // Phase 2: Use archive replay for remaining gaps (only if oldest gap > 24h)
-    // Use DB-based age check (survives restarts) — look at created_at of the block
-    // just AFTER the gap to determine when the gap was created. The block after the
-    // gap was the first block received after the outage, so its created_at reflects
-    // when the gap appeared. (The block before might have been recently inserted by
-    // a partial archive replay, giving a misleadingly recent created_at.)
-    const oldestGapEndBlock = Math.min(...staleGaps.map((g) => g.gapEnd + 1));
-    const adjacentBlock = await db
-      .selectFrom("blocks")
-      .select("created_at")
-      .where("height", "=", oldestGapEndBlock)
-      .where("canonical", "=", true)
-      .executeTakeFirst();
-
-    const gapAge = adjacentBlock
-      ? now.getTime() - new Date(adjacentBlock.created_at).getTime()
-      : 0;
-
-    // Phase 2: Archive replay (only if gap > 24h)
-    let archiveReplayed = 0;
-    let archiveErrors = 0;
-
-    if (gapAge >= archiveThresholdMs) {
-      const archiveClient = new ArchiveReplayClient();
-      const available = await archiveClient.isAvailable();
-
-      if (available) {
-        const result = await archiveClient.replayGaps(remainingHeights, indexerUrl, {
-          onProgress: (count: number, height: number) => {
-            integrityState.autoBackfillRemaining = remainingHeights.size - count;
-            if (count % 500 === 0) {
-              logger.info("Auto-backfill: archive replay progress", { replayed: count, height });
-            }
-          },
-        });
-        archiveReplayed = result.replayed;
-        archiveErrors = result.errors;
-      } else {
-        logger.warn("Auto-backfill: archive not reachable, skipping phase 2");
-      }
-    } else {
-      logger.info("Auto-backfill: gaps too recent for archive, skipping phase 2", {
-        remaining: remainingHeights.size,
-        gapAgeHrs: (gapAge / 3600000).toFixed(1),
-      });
-    }
-
-    // Phase 3: Hiro API fallback for blocks archive couldn't fill
-    const afterArchive = new Set<number>();
-    for (const h of remainingHeights) {
-      const exists = await db
-        .selectFrom("blocks")
-        .select("height")
-        .where("height", "=", h)
-        .where("canonical", "=", true)
-        .executeTakeFirst();
-      if (!exists) afterArchive.add(h);
-    }
-
+    // Phase 2: Hiro API for remaining blocks
     let hiroFilled = 0;
-    if (afterArchive.size > 0) {
-      logger.info("Auto-backfill: trying Hiro API for remaining blocks", {
-        remaining: afterArchive.size,
+    if (remainingHeights.size > 0) {
+      logger.info("Auto-backfill: fetching from Hiro API", {
+        remaining: remainingHeights.size,
       });
 
       const hiroClient = new HiroClient();
       const hiroHealthy = await hiroClient.isHealthy();
 
       if (hiroHealthy) {
-        for (const h of afterArchive) {
+        for (const h of remainingHeights) {
           try {
             const payload = await hiroClient.getBlockForIndexer(h, { includeRawTx: true });
             if (!payload) continue;
@@ -254,7 +194,7 @@ async function autoBackfill(gaps: Gap[]) {
           }
         }
       } else {
-        logger.warn("Auto-backfill: Hiro API not reachable, skipping phase 3");
+        logger.warn("Auto-backfill: Hiro API not reachable");
       }
     }
 
@@ -262,9 +202,7 @@ async function autoBackfill(gaps: Gap[]) {
     logger.info("Auto-backfill complete", {
       blocks: totalBlocks,
       fromLocal: totalBlocks - remainingHeights.size,
-      fromArchive: archiveReplayed,
       fromHiro: hiroFilled,
-      archiveErrors,
     });
   } catch (err) {
     logger.error("Auto-backfill failed", { error: err });
