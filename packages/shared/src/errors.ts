@@ -1,12 +1,26 @@
+export const ErrorCodes = {
+  STREAM_NOT_FOUND: "STREAM_NOT_FOUND",
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  DATABASE_ERROR: "DATABASE_ERROR",
+  DELIVERY_ERROR: "DELIVERY_ERROR",
+  FILTER_EVALUATION_ERROR: "FILTER_EVALUATION_ERROR",
+  AUTHENTICATION_ERROR: "AUTHENTICATION_ERROR",
+  AUTHORIZATION_ERROR: "AUTHORIZATION_ERROR",
+  RATE_LIMIT_ERROR: "RATE_LIMIT_ERROR",
+  FORBIDDEN: "FORBIDDEN",
+} as const;
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
 /**
  * Base error class for all Stacks Streams errors
  */
 export class StreamsError extends Error {
-  public code: string;
+  public code: ErrorCode;
   public override cause?: unknown;
 
   constructor(
-    code: string,
+    code: ErrorCode,
     message: string,
     cause?: unknown
   ) {
@@ -115,13 +129,21 @@ export class ForbiddenError extends StreamsError {
 
 /** Error code → HTTP status. Used by API middleware for code-based matching
  *  (avoids cross-bundle instanceof failures from bunup class duplication). */
-export const CODE_TO_STATUS: Record<string, 400 | 401 | 403 | 404 | 429> = {
+type MappedCode = Extract<
+  ErrorCode,
+  | "AUTHENTICATION_ERROR"
+  | "AUTHORIZATION_ERROR"
+  | "RATE_LIMIT_ERROR"
+  | "FORBIDDEN"
+  | "STREAM_NOT_FOUND"
+  | "VALIDATION_ERROR"
+>;
+export const CODE_TO_STATUS: Record<MappedCode, 400 | 401 | 403 | 404 | 429> = {
   AUTHENTICATION_ERROR: 401,
   AUTHORIZATION_ERROR: 403,
   RATE_LIMIT_ERROR: 429,
   FORBIDDEN: 403,
   STREAM_NOT_FOUND: 404,
-  VIEW_NOT_FOUND: 404,
   VALIDATION_ERROR: 400,
 } as const;
 

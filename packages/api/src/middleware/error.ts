@@ -47,7 +47,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
     // Code-based matching — works across bundle boundaries
     if ("code" in error && typeof (error as any).code === "string") {
       const code = (error as any).code as string;
-      const status = CODE_TO_STATUS[code];
+      const status = (CODE_TO_STATUS as Record<string, 400 | 401 | 403 | 404 | 429>)[code];
       if (status) {
         return c.json({ error: error.message, code }, status);
       }
