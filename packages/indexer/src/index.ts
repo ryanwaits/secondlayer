@@ -338,7 +338,9 @@ const server = Bun.serve({
             jobs_enqueued: jobsEnqueued,
           });
         } catch (error) {
-          logger.error("Error processing new_block", { error });
+          logger.error("Error processing new_block", {
+            error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+          });
           return Response.json({ status: "error", message: String(error) }, { status: 500 });
         }
       },
