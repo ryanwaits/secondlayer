@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { sql } from "kysely";
 import { getDb } from "@secondlayer/shared/db";
 import { stats as queueStats } from "@secondlayer/shared/queue";
-import { findGaps, countMissingBlocks } from "@secondlayer/shared/db/queries/integrity";
 
 const app = new Hono();
 
@@ -15,23 +14,47 @@ app.get("/health", async (c) => {
 app.get("/status", async (c) => {
   const db = getDb();
 
-  // Check database connection
-  let dbStatus = "ok";
-  try {
-    await sql`SELECT 1`.execute(db);
-  } catch {
-    dbStatus = "error";
-  }
+  // Run all independent queries in parallel
+  const [
+    dbResult,
+    queueResult,
+    progressResult,
+    streamResult,
+    indexerResult,
+    deliveriesResult,
+    subgraphResult,
+  ] = await Promise.allSettled([
+    // 1. DB ping
+    sql`SELECT 1`.execute(db),
+    // 2. Queue stats
+    queueStats(),
+    // 3. Index progress
+    db.selectFrom("index_progress").selectAll().execute(),
+    // 4. Stream counts
+    db.selectFrom("streams")
+      .select(["status", sql<number>`count(*)`.as("count")])
+      .groupBy("status")
+      .execute(),
+    // 5. Indexer health
+    fetch(
+      `${process.env.INDEXER_URL || "http://localhost:3700"}/health`,
+      { signal: AbortSignal.timeout(1000) },
+    ).then((r) => r.ok ? r.json() as Promise<{ blocksReceivedOutOfOrder?: number }> : null),
+    // 6. Recent deliveries
+    db.selectFrom("deliveries")
+      .select(sql<number>`count(*)`.as("count"))
+      .where("created_at", ">=", sql<Date>`now() - interval '24 hours'`)
+      .executeTakeFirst(),
+    // 7. Subgraphs
+    db.selectFrom("subgraphs").selectAll().execute(),
+  ]);
 
-  // Get queue stats
-  let queue = { pending: 0, processing: 0, completed: 0, failed: 0, total: 0 };
-  try {
-    queue = await queueStats();
-  } catch {
-    // Queue stats unavailable
-  }
+  const dbStatus = dbResult.status === "fulfilled" ? "ok" : "error";
 
-  // Get index progress per network
+  const queue = queueResult.status === "fulfilled"
+    ? queueResult.value
+    : { pending: 0, processing: 0, completed: 0, failed: 0, total: 0 };
+
   let progress: Array<{
     network: string;
     lastIndexedBlock: number;
@@ -39,93 +62,40 @@ app.get("/status", async (c) => {
     highestSeenBlock: number;
     updatedAt: string;
   }> = [];
-  try {
-    const results = await db.selectFrom("index_progress").selectAll().execute();
-    progress = results.map((p) => ({
+  let chainTip: number | null = null;
+  if (progressResult.status === "fulfilled") {
+    progress = progressResult.value.map((p) => ({
       network: p.network,
       lastIndexedBlock: p.last_indexed_block,
       lastContiguousBlock: p.last_contiguous_block,
       highestSeenBlock: p.highest_seen_block,
       updatedAt: p.updated_at.toISOString(),
     }));
-  } catch {
-    // Progress unavailable
+    // Use highest_seen_block as chain tip instead of external API call
+    if (progressResult.value.length > 0) {
+      chainTip = Math.max(...progressResult.value.map((p) => p.highest_seen_block));
+    }
   }
 
-  // Get stream counts
-  let streamCounts = { total: 0, inactive: 0, active: 0, paused: 0, failed: 0 };
-  try {
-    const results = await db
-      .selectFrom("streams")
-      .select([
-        "status",
-        sql<number>`count(*)`.as("count"),
-      ])
-      .groupBy("status")
-      .execute();
-
-    streamCounts.total = results.reduce((sum, r) => sum + r.count, 0);
-    for (const r of results) {
+  const streamCounts = { total: 0, inactive: 0, active: 0, paused: 0, failed: 0 };
+  if (streamResult.status === "fulfilled") {
+    streamCounts.total = streamResult.value.reduce((sum, r) => sum + r.count, 0);
+    for (const r of streamResult.value) {
       if (r.status === "inactive") streamCounts.inactive = r.count;
       if (r.status === "active") streamCounts.active = r.count;
       if (r.status === "paused") streamCounts.paused = r.count;
       if (r.status === "failed") streamCounts.failed = r.count;
     }
-  } catch {
-    // Stream counts unavailable
   }
 
-  // Get indexer stats (ephemeral counters)
-  let indexerStats = { blocksReceivedOutOfOrder: 0 };
-  try {
-    const indexerUrl = process.env.INDEXER_URL || "http://localhost:3700";
-    const res = await fetch(`${indexerUrl}/health`);
-    if (res.ok) {
-      const data = await res.json() as { blocksReceivedOutOfOrder?: number };
-      indexerStats.blocksReceivedOutOfOrder = data.blocksReceivedOutOfOrder ?? 0;
-    }
-  } catch {
-    // Indexer health unavailable
-  }
+  const blocksReceivedOutOfOrder = indexerResult.status === "fulfilled" && indexerResult.value
+    ? (indexerResult.value.blocksReceivedOutOfOrder ?? 0)
+    : 0;
 
-  // Get integrity info
-  let gaps: Array<{ gapStart: number; gapEnd: number; size: number }> = [];
-  let totalMissingBlocks = 0;
-  try {
-    gaps = await findGaps(db, 10);
-    totalMissingBlocks = await countMissingBlocks(db);
-  } catch {
-    // Integrity check unavailable
-  }
+  const recentDeliveries = deliveriesResult.status === "fulfilled"
+    ? (deliveriesResult.value?.count ?? 0)
+    : 0;
 
-  // Get chain tip from public API (best-effort)
-  let chainTip: number | null = null;
-  try {
-    const res = await fetch("https://api.mainnet.hiro.so/v2/info", {
-      signal: AbortSignal.timeout(3000),
-    });
-    if (res.ok) {
-      const info = (await res.json()) as { stacks_tip_height?: number };
-      chainTip = info.stacks_tip_height ?? null;
-    }
-  } catch {
-    // Chain tip unavailable — no-op
-  }
-
-  // Get recent deliveries (last 24h)
-  let recentDeliveries = 0;
-  try {
-    const result = await db
-      .selectFrom("deliveries")
-      .select(sql<number>`count(*)`.as("count"))
-      .where("created_at", ">=", sql<Date>`now() - interval '24 hours'`)
-      .executeTakeFirst();
-    recentDeliveries = result?.count ?? 0;
-  } catch {
-    // Deliveries count unavailable
-  }
-
-  // Get subgraph health summary
   let subgraphHealth: Array<{
     name: string;
     status: string;
@@ -135,9 +105,8 @@ app.get("/status", async (c) => {
     errorRate: number;
     lastError: string | null;
   }> = [];
-  try {
-    const allSubgraphs = await db.selectFrom("subgraphs").selectAll().execute();
-    subgraphHealth = allSubgraphs.map((v) => ({
+  if (subgraphResult.status === "fulfilled") {
+    subgraphHealth = subgraphResult.value.map((v) => ({
       name: v.name,
       status: v.status,
       lastProcessedBlock: v.last_processed_block,
@@ -148,27 +117,30 @@ app.get("/status", async (c) => {
         : 0,
       lastError: v.last_error ?? null,
     }));
-  } catch {
-    // Subgraphs unavailable
   }
+
+  // Integrity: use last_contiguous_block vs last_indexed_block from progress
+  // Avoids expensive window function gap queries on 7M+ rows
+  const integrity = progress.length > 0 &&
+    progress.every((p) => p.lastContiguousBlock >= p.lastIndexedBlock)
+    ? "complete"
+    : "gaps_detected";
 
   return c.json({
     status: dbStatus === "ok" ? "healthy" : "degraded",
     network: process.env.STACKS_NETWORK || "mainnet",
-    database: {
-      status: dbStatus,
-    },
+    database: { status: dbStatus },
     queue,
     indexProgress: progress,
-    integrity: totalMissingBlocks === 0 ? "complete" : "gaps_detected",
-    gaps,
-    totalMissingBlocks,
-    blocksReceivedOutOfOrder: indexerStats.blocksReceivedOutOfOrder,
+    integrity,
+    gaps: [],
+    totalMissingBlocks: 0,
+    blocksReceivedOutOfOrder,
     streams: streamCounts,
     activeStreams: streamCounts.active,
     chainTip,
     activeSubgraphs: subgraphHealth.filter((v) => v.status === "active").length,
-    recentDeliveries,
+    recentDeliveries: String(recentDeliveries),
     subgraphs: subgraphHealth,
     timestamp: new Date().toISOString(),
   });

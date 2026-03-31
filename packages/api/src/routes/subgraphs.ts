@@ -349,16 +349,20 @@ app.get("/:subgraphName", async (c) => {
   const tables: Record<string, any> = {};
   const sn = subgraphSchemaName(subgraph);
 
-  for (const [tableName, tableDef] of Object.entries(subgraphSchema)) {
-    let rowCount = 0;
-    try {
-      const result = await query(
-        `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
-      );
-      rowCount = parseInt(String(result[0]?.count ?? 0), 10);
-    } catch {
-      // Table might not exist yet
-    }
+  const schemaEntries = Object.entries(subgraphSchema);
+
+  // Parallelize all COUNT queries instead of running them sequentially
+  const countResults = await Promise.allSettled(
+    schemaEntries.map(([tableName]) =>
+      query(`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`)
+        .then((r) => parseInt(String(r[0]?.count ?? 0), 10))
+    ),
+  );
+
+  for (let i = 0; i < schemaEntries.length; i++) {
+    const [tableName, tableDef] = schemaEntries[i];
+    const cr = countResults[i];
+    const rowCount = cr.status === "fulfilled" ? cr.value : 0;
 
     const columns: Record<string, { type: string; nullable?: boolean }> = {};
     for (const [colName, col] of Object.entries(tableDef.columns)) {
