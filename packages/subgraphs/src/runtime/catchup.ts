@@ -98,9 +98,23 @@ export async function catchUpSubgraph(
           continue;
         }
 
-        const result = await processBlock(subgraph, subgraphName, height, {
-          preloaded: blockData,
-        });
+        let result;
+        try {
+          result = await processBlock(subgraph, subgraphName, height, {
+            preloaded: blockData,
+          });
+        } catch (err) {
+          logger.error("Block processing error during catch-up", {
+            subgraph: subgraphName,
+            blockHeight: height,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          // Update progress past this block so we don't retry it forever
+          const { updateSubgraphStatus } = await import("@secondlayer/shared/db/queries/subgraphs");
+          await updateSubgraphStatus(db, subgraphName, "active", height).catch(() => {});
+          processed++;
+          continue;
+        }
         processed++;
 
         if (result.timing) {
