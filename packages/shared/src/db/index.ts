@@ -12,7 +12,9 @@ export function getDb(connectionString?: string): Kysely<Database> {
 
     // Always use SSL for remote databases, just disable cert verification if needed
     const isLocal = url.includes("localhost") || url.includes("127.0.0.1") || url.includes("@postgres:");
+    const poolMax = parseInt(process.env.DATABASE_POOL_MAX ?? "20", 10);
     rawClient = postgres(url, {
+      max: poolMax,
       ssl: isLocal ? undefined : { rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== "0" },
     });
     db = new Kysely<Database>({
