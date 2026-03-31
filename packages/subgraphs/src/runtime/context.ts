@@ -242,7 +242,22 @@ export class SubgraphContext {
       if (!currentBatch) return;
       const qualifiedTable = `"${this.pgSchemaName}"."${currentBatch.table}"`;
       const colList = currentBatch.cols.map((c) => `"${c}"`).join(", ");
-      const valuesList = currentBatch.rows.map((r) => `(${r.join(", ")})`).join(", ");
+
+      // Deduplicate by upsert key — last row wins (Postgres rejects duplicate keys in one INSERT)
+      let rows = currentBatch.rows;
+      if (currentBatch.upsertKeys && currentBatch.upsertKeys.length > 0) {
+        const keyIndices = currentBatch.upsertKeys.map((k) => currentBatch!.cols.indexOf(k));
+        const seen = new Map<string, number>();
+        for (let i = 0; i < rows.length; i++) {
+          const key = keyIndices.map((ki) => rows[i][ki]).join("\0");
+          seen.set(key, i);
+        }
+        if (seen.size < rows.length) {
+          rows = Array.from(seen.values()).map((i) => rows[i]);
+        }
+      }
+
+      const valuesList = rows.map((r) => `(${r.join(", ")})`).join(", ");
       let stmt = `INSERT INTO ${qualifiedTable} (${colList}) VALUES ${valuesList}`;
 
       if (currentBatch.upsertKeys && currentBatch.upsertKeys.length > 0) {
