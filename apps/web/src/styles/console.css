@@ -12,10 +12,12 @@
 .dash-topbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 32px;
   height: 48px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  position: relative;
 }
 
 .dash-topbar-left {
@@ -80,7 +82,9 @@
 }
 
 .dash-topbar-center {
-  flex: 1;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   justify-content: center;
 }
@@ -316,10 +320,8 @@
 /* ── Content area ──────────────────────────────────────────────── */
 .dash-content {
   flex: 1;
-  padding: 28px 16px 40px;
+  padding: 28px 32px 40px;
   overflow-y: auto;
-  max-width: 36.375rem;
-  margin: 0 auto;
 }
 
 .dash-page-header {
@@ -742,7 +744,7 @@
   font-family: var(--font-sans-stack);
   font-size: 12px;
   font-weight: 560;
-  color: white;
+  color: var(--bg);
   background: var(--text-main);
   border: none;
   border-radius: 6px;
