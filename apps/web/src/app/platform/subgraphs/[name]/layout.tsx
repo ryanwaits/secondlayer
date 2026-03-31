@@ -54,9 +54,6 @@ export default async function SubgraphDetailLayout({
         <h1 className="dash-page-title">{subgraph.name}</h1>
         <p className="dash-page-desc">
           v{subgraph.version} &middot; {subgraph.status}
-          {subgraph.lastProcessedBlock != null && (
-            <> &middot; block #{subgraph.lastProcessedBlock.toLocaleString()}</>
-          )}
         </p>
       </div>
 
