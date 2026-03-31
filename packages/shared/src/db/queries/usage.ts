@@ -98,12 +98,16 @@ export async function getDailyUsage(
     .selectFrom("usage_daily")
     .select(["date", "api_requests", "deliveries"])
     .where("account_id", "=", accountId)
-    .where("date", ">=", sql<string>`(NOW()::date - 6)::text`)
+    .where("date", ">=", sql<string>`NOW()::date - 6`)
     .orderBy("date", "asc")
     .execute();
 
-  // Fill missing days with 0
-  const byDate = new Map(rows.map((r) => [r.date, r]));
+  // Fill missing days with 0 (normalize date to YYYY-MM-DD string)
+  const byDate = new Map(rows.map((r) => {
+    const d = r.date as unknown;
+    const key = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+    return [key, r];
+  }));
   const result: DailyUsage[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
