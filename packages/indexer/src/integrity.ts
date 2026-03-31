@@ -3,6 +3,7 @@ import { logger } from "@secondlayer/shared/logger";
 import { findGaps, countMissingBlocks, computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 import { ArchiveReplayClient } from "@secondlayer/shared/node/archive-client";
+import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 
 // Auto-backfill state (visible to /health/integrity)
@@ -177,36 +178,93 @@ async function autoBackfill(gaps: Gap[]) {
       ? now.getTime() - new Date(adjacentBlock.created_at).getTime()
       : 0;
 
-    if (gapAge < archiveThresholdMs) {
-      logger.info("Auto-backfill: gaps too recent for archive, deferring", {
+    // Phase 2: Archive replay (only if gap > 24h)
+    let archiveReplayed = 0;
+    let archiveErrors = 0;
+
+    if (gapAge >= archiveThresholdMs) {
+      const archiveClient = new ArchiveReplayClient();
+      const available = await archiveClient.isAvailable();
+
+      if (available) {
+        const result = await archiveClient.replayGaps(remainingHeights, indexerUrl, {
+          onProgress: (count: number, height: number) => {
+            integrityState.autoBackfillRemaining = remainingHeights.size - count;
+            if (count % 500 === 0) {
+              logger.info("Auto-backfill: archive replay progress", { replayed: count, height });
+            }
+          },
+        });
+        archiveReplayed = result.replayed;
+        archiveErrors = result.errors;
+      } else {
+        logger.warn("Auto-backfill: archive not reachable, skipping phase 2");
+      }
+    } else {
+      logger.info("Auto-backfill: gaps too recent for archive, skipping phase 2", {
         remaining: remainingHeights.size,
         gapAgeHrs: (gapAge / 3600000).toFixed(1),
       });
-      return;
     }
 
-    const archiveClient = new ArchiveReplayClient();
-    const available = await archiveClient.isAvailable();
-    if (!available) {
-      logger.warn("Auto-backfill: archive not reachable, skipping");
-      return;
+    // Phase 3: Hiro API fallback for blocks archive couldn't fill
+    const afterArchive = new Set<number>();
+    for (const h of remainingHeights) {
+      const exists = await db
+        .selectFrom("blocks")
+        .select("height")
+        .where("height", "=", h)
+        .where("canonical", "=", true)
+        .executeTakeFirst();
+      if (!exists) afterArchive.add(h);
     }
 
-    const result = await archiveClient.replayGaps(remainingHeights, indexerUrl, {
-      onProgress: (count: number, height: number) => {
-        integrityState.autoBackfillRemaining = remainingHeights.size - count;
-        if (count % 500 === 0) {
-          logger.info("Auto-backfill: archive replay progress", { replayed: count, height });
+    let hiroFilled = 0;
+    if (afterArchive.size > 0) {
+      logger.info("Auto-backfill: trying Hiro API for remaining blocks", {
+        remaining: afterArchive.size,
+      });
+
+      const hiroClient = new HiroClient();
+      const hiroHealthy = await hiroClient.isHealthy();
+
+      if (hiroHealthy) {
+        for (const h of afterArchive) {
+          try {
+            const payload = await hiroClient.getBlockForIndexer(h, { includeRawTx: true });
+            if (!payload) continue;
+
+            const res = await fetch(`${indexerUrl}/new_block`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Source": "auto-backfill-hiro",
+              },
+              body: JSON.stringify(payload),
+            });
+
+            if (res.ok) {
+              hiroFilled++;
+              integrityState.autoBackfillRemaining--;
+            } else {
+              logger.warn("Auto-backfill: Hiro block rejected by indexer", { height: h, status: res.status });
+            }
+          } catch (err) {
+            logger.warn("Auto-backfill: Hiro API fetch failed", { height: h, error: String(err) });
+          }
         }
-      },
-    });
+      } else {
+        logger.warn("Auto-backfill: Hiro API not reachable, skipping phase 3");
+      }
+    }
 
     await recomputeContiguous(getDb());
     logger.info("Auto-backfill complete", {
       blocks: totalBlocks,
       fromLocal: totalBlocks - remainingHeights.size,
-      fromArchive: result.replayed,
-      archiveErrors: result.errors,
+      fromArchive: archiveReplayed,
+      fromHiro: hiroFilled,
+      archiveErrors,
     });
   } catch (err) {
     logger.error("Auto-backfill failed", { error: err });
