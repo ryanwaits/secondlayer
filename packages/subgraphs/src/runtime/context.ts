@@ -193,53 +193,95 @@ export class SubgraphContext {
     return opsToFlush.length;
   }
 
-  /** Build SQL statements from write ops */
+  /** Prepare a single insert row, returning its data, columns, upsert key for batching. */
+  private prepareInsert(op: WriteOp): {
+    data: Record<string, unknown>;
+    cols: string[];
+    vals: string[];
+    upsertKeys: string[] | undefined;
+    batchKey: string;
+  } {
+    const upsertKeys = op.data._upsert_keys as string[] | undefined;
+    const data = { ...op.data };
+    delete data._upsert_keys;
+    delete data._upsert_fallback_keys;
+    delete data._upsert_fallback_set;
+
+    data._block_height = this.block.height;
+    data._tx_id = this._tx.txId;
+    data._created_at = "NOW()";
+
+    const cols = Object.keys(data);
+    cols.forEach(validateColumnName);
+    const vals = cols.map((c) =>
+      data[c] === "NOW()" ? "NOW()" : escapeLiteral(data[c]),
+    );
+
+    // Batch key: table + sorted columns + upsert key signature
+    const batchKey = `${op.table}:${cols.sort().join(",")}:${upsertKeys?.sort().join(",") ?? ""}`;
+
+    return { data, cols, vals, upsertKeys, batchKey };
+  }
+
+  /** Build SQL statements from write ops, batching compatible INSERTs. */
   private buildStatements(ops: WriteOp[]): string[] {
     const statements: string[] = [];
+
+    // Group consecutive inserts by batch key
+    type InsertBatch = {
+      table: string;
+      cols: string[];
+      rows: string[][];
+      upsertKeys: string[] | undefined;
+    };
+
+    let currentBatch: InsertBatch | null = null;
+    let currentBatchKey = "";
+
+    const flushInsertBatch = () => {
+      if (!currentBatch) return;
+      const qualifiedTable = `"${this.pgSchemaName}"."${currentBatch.table}"`;
+      const colList = currentBatch.cols.map((c) => `"${c}"`).join(", ");
+      const valuesList = currentBatch.rows.map((r) => `(${r.join(", ")})`).join(", ");
+      let stmt = `INSERT INTO ${qualifiedTable} (${colList}) VALUES ${valuesList}`;
+
+      if (currentBatch.upsertKeys && currentBatch.upsertKeys.length > 0) {
+        const updateCols = currentBatch.cols.filter(
+          (c) => !currentBatch!.upsertKeys!.includes(c) && !c.startsWith("_"),
+        );
+        if (updateCols.length > 0) {
+          const setClauses = updateCols.map((c) => `"${c}" = EXCLUDED."${c}"`);
+          stmt += ` ON CONFLICT (${currentBatch.upsertKeys.map((k) => `"${k}"`).join(", ")}) DO UPDATE SET ${setClauses.join(", ")}`;
+        } else {
+          stmt += ` ON CONFLICT (${currentBatch.upsertKeys.map((k) => `"${k}"`).join(", ")}) DO NOTHING`;
+        }
+      }
+
+      statements.push(stmt);
+      currentBatch = null;
+      currentBatchKey = "";
+    };
 
     for (const op of ops) {
       const qualifiedTable = `"${this.pgSchemaName}"."${op.table}"`;
 
-      switch (op.kind) {
-        case "insert": {
-          const upsertKeys = op.data._upsert_keys as string[] | undefined;
-          const fallbackKeys = op.data._upsert_fallback_keys as string[] | undefined;
-          const fallbackSet = op.data._upsert_fallback_set as Record<string, unknown> | undefined;
-          const data = { ...op.data };
-          delete data._upsert_keys;
-          delete data._upsert_fallback_keys;
-          delete data._upsert_fallback_set;
+      if (op.kind === "insert") {
+        const { cols, vals, upsertKeys, batchKey } = this.prepareInsert(op);
 
-          // Auto-populate meta columns
-          data._block_height = this.block.height;
-          data._tx_id = this._tx.txId;
-          data._created_at = "NOW()";
-
-          const cols = Object.keys(data);
-          cols.forEach(validateColumnName);
-          const vals = cols.map((c) =>
-            data[c] === "NOW()" ? "NOW()" : escapeLiteral(data[c]),
-          );
-          let stmt = `INSERT INTO ${qualifiedTable} (${cols.map((c) => `"${c}"`).join(", ")}) VALUES (${vals.join(", ")})`;
-
-          if (upsertKeys && upsertKeys.length > 0) {
-            const updateCols = cols.filter((c) => !upsertKeys.includes(c) && !c.startsWith("_"));
-            if (updateCols.length > 0) {
-              const setClauses = updateCols.map((c) => `"${c}" = EXCLUDED."${c}"`);
-              stmt += ` ON CONFLICT (${upsertKeys.map((k) => `"${k}"`).join(", ")}) DO UPDATE SET ${setClauses.join(", ")}`;
-            } else {
-              stmt += ` ON CONFLICT (${upsertKeys.map((k) => `"${k}"`).join(", ")}) DO NOTHING`;
-            }
-          } else if (fallbackKeys && fallbackSet) {
-            // Fallback upsert: use ON CONFLICT DO UPDATE but without a declared constraint
-            // This will just be a plain INSERT — if it conflicts, PG will raise an error.
-            // The caller was already warned. This is the best we can do without a unique constraint.
-          }
-
-          statements.push(stmt);
-          break;
+        if (batchKey === currentBatchKey && currentBatch) {
+          // Same table + columns + upsert key — append to batch
+          currentBatch.rows.push(vals);
+        } else {
+          // Different batch — flush previous and start new
+          flushInsertBatch();
+          currentBatch = { table: op.table, cols, rows: [vals], upsertKeys };
+          currentBatchKey = batchKey;
         }
-        case "update": {
+      } else {
+        // Non-insert — flush any pending insert batch first
+        flushInsertBatch();
+
+        if (op.kind === "update") {
           const setEntries = Object.entries(op.set!);
           setEntries.forEach(([k]) => validateColumnName(k));
           const setClauses = setEntries.map(
@@ -249,15 +291,15 @@ export class SubgraphContext {
           statements.push(
             `UPDATE ${qualifiedTable} SET ${setClauses.join(", ")} WHERE ${clause}`,
           );
-          break;
-        }
-        case "delete": {
+        } else if (op.kind === "delete") {
           const { clause } = buildWhereClause(op.data);
           statements.push(`DELETE FROM ${qualifiedTable} WHERE ${clause}`);
-          break;
         }
       }
     }
+
+    // Flush any remaining insert batch
+    flushInsertBatch();
 
     return statements;
   }
