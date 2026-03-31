@@ -789,6 +789,80 @@
   border-radius: 4px;
 }
 
+/* ── Usage: limit rows with progress bars ─────────────────────── */
+.limit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.limit-row:last-child { border-bottom: none; }
+.limit-label { font-size: 13px; font-weight: 460; }
+.limit-right { display: flex; align-items: center; gap: 12px; }
+.limit-value {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  min-width: 48px;
+  text-align: right;
+}
+.limit-bar {
+  width: 60px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--code-bg);
+  overflow: hidden;
+}
+.limit-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-purple);
+}
+
+/* ── Usage: sparkline ─────────────────────────────────────────── */
+.spark-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 32px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+.spark-bar {
+  flex: 1;
+  background: var(--accent-purple);
+  border-radius: 2px 2px 0 0;
+  min-width: 0;
+  transition: opacity 0.15s;
+}
+.spark-bar:hover { opacity: 1 !important; }
+.spark-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono-stack);
+  font-size: 9px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* ── Usage: breakdown rows ────────────────────────────────────── */
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.breakdown-row:last-child { border-bottom: none; }
+.breakdown-label { color: var(--text-muted); }
+.breakdown-value {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+}
+
 .dash-page-header {
   margin-bottom: 24px;
 }

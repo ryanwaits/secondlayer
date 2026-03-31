@@ -1,5 +1,12 @@
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { formatNum, formatBytes } from "@/lib/format";
+import { Sparkline } from "@/components/console/sparkline";
+
+interface DailyUsage {
+  date: string;
+  apiRequests: number;
+  deliveries: number;
+}
 
 interface UsageData {
   plan: string;
@@ -17,6 +24,16 @@ interface UsageData {
     deliveriesThisMonth: number;
     storageBytes: number;
   };
+  daily?: DailyUsage[];
+}
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function formatDayLabel(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return "Today";
+  return DAY_NAMES[d.getDay()];
 }
 
 export default async function UsagePage() {
@@ -40,6 +57,11 @@ export default async function UsagePage() {
     );
   }
 
+  const sparkData = (usage.daily ?? []).map((d) => ({
+    label: formatDayLabel(d.date),
+    value: d.apiRequests,
+  }));
+
   return (
     <>
       <div className="dash-page-header">
@@ -50,59 +72,87 @@ export default async function UsagePage() {
         <hr />
         <h2 className="dash-section-title">Plan</h2>
       </div>
-      <div className="dash-index-group">
-        <div className="dash-index-item">
-          <div className="dash-index-link">
-            <span className="dash-index-label">Current plan</span>
-            <span className="dash-index-meta">
-              <span className={`dash-badge ${usage.plan}`}>{usage.plan}</span>
-            </span>
-          </div>
-        </div>
-        <div className="dash-index-item">
-          <div className="dash-index-link">
-            <span className="dash-index-label">Streams</span>
-            <span className="dash-index-meta">
-              {usage.current.streams} of {usage.limits.streams} limit
-            </span>
-          </div>
-        </div>
-        <div className="dash-index-item">
-          <div className="dash-index-link">
-            <span className="dash-index-label">Subgraphs</span>
-            <span className="dash-index-meta">
-              {usage.current.subgraphs} of {usage.limits.subgraphs} limit
-            </span>
-          </div>
-        </div>
-        <div className="dash-index-item">
-          <div className="dash-index-link">
-            <span className="dash-index-label">API requests today</span>
-            <span className="dash-index-meta">
-              {formatNum(usage.current.apiRequestsToday)} of {formatNum(usage.limits.apiRequestsPerDay)} limit
-            </span>
-          </div>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <span className={`dash-badge ${usage.plan}`}>{usage.plan}</span>
       </div>
 
       <div className="dash-section-wrap">
         <hr />
+        <h2 className="dash-section-title">Resource limits</h2>
+      </div>
+      <div>
+        <div className="limit-row">
+          <span className="limit-label">Streams</span>
+          <div className="limit-right">
+            <span className="limit-value">
+              {usage.current.streams} / {usage.limits.streams}
+            </span>
+            <div className="limit-bar">
+              <div
+                className="limit-bar-fill"
+                style={{
+                  width: `${(usage.current.streams / usage.limits.streams) * 100}%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="limit-row">
+          <span className="limit-label">Subgraphs</span>
+          <div className="limit-right">
+            <span className="limit-value">
+              {usage.current.subgraphs} / {usage.limits.subgraphs}
+            </span>
+            <div className="limit-bar">
+              <div
+                className="limit-bar-fill"
+                style={{
+                  width: `${(usage.current.subgraphs / usage.limits.subgraphs) * 100}%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {sparkData.length > 0 && (
+        <>
+          <div className="dash-section-wrap" style={{ marginTop: 24 }}>
+            <hr />
+            <h2 className="dash-section-title">API calls — last 7 days</h2>
+          </div>
+          <Sparkline data={sparkData} />
+        </>
+      )}
+
+      <div className="dash-section-wrap" style={{ marginTop: 24 }}>
+        <hr />
         <h2 className="dash-section-title">This month</h2>
       </div>
-      <div className="dash-stats">
-        <div className="dash-stat">
-          <span className="dash-stat-value">{formatNum(usage.current.deliveriesThisMonth)}</span>
-          <span className="dash-stat-label">deliveries</span>
+      <div>
+        <div className="breakdown-row">
+          <span className="breakdown-label">API calls</span>
+          <span className="breakdown-value">
+            {formatNum(usage.current.apiRequestsToday)}
+          </span>
         </div>
-        <div className="dash-stat">
-          <span className="dash-stat-value">{formatNum(usage.current.apiRequestsToday)}</span>
-          <span className="dash-stat-label">API calls</span>
+        <div className="breakdown-row">
+          <span className="breakdown-label">Deliveries</span>
+          <span className="breakdown-value">
+            {formatNum(usage.current.deliveriesThisMonth)}
+          </span>
         </div>
-        <div className="dash-stat">
-          <span className="dash-stat-value">{formatBytes(usage.current.storageBytes)}</span>
-          <span className="dash-stat-label">storage</span>
+        <div className="breakdown-row">
+          <span className="breakdown-label">Subgraph data</span>
+          <span className="breakdown-value">
+            {formatBytes(usage.current.storageBytes)}
+          </span>
         </div>
       </div>
+
+      <p className="dash-hint" style={{ marginTop: 12, opacity: 0.7 }}>
+        Resource limits apply to creation. API reads are unlimited on all plans.
+      </p>
     </>
   );
 }
