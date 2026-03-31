@@ -3,8 +3,13 @@ import { Sora, Public_Sans, Fira_Code, Caveat } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { PreferencesProvider } from "@/lib/preferences";
 import { AuthBar } from "@/components/auth-bar";
-import { CommandPalette } from "@/components/command-palette/command-palette";
 import { QueryProvider } from "@/lib/queries/provider";
+import dynamic from "next/dynamic";
+
+const CommandPalette = dynamic(
+  () => import("@/components/command-palette/command-palette").then((m) => m.CommandPalette),
+  { ssr: false },
+);
 import "./globals.css";
 
 const sora = Sora({

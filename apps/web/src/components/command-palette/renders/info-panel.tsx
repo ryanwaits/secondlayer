@@ -1,8 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { marked } from "marked";
-import DOMPurify from "dompurify";
+import { useEffect, useState } from "react";
 
 interface InfoPanelProps {
   title: string;
@@ -11,9 +9,30 @@ interface InfoPanelProps {
 }
 
 export function InfoPanel({ title, markdown, docUrl }: InfoPanelProps) {
-  const html = useMemo(() => {
-    return DOMPurify.sanitize(marked.parse(markdown, { async: false }) as string);
+  const [html, setHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      import("marked").then((m) => m.marked),
+      import("dompurify").then((m) => m.default),
+    ]).then(([marked, DOMPurify]) => {
+      if (cancelled) return;
+      const raw = marked.parse(markdown, { async: false }) as string;
+      setHtml(DOMPurify.sanitize(raw));
+    });
+    return () => { cancelled = true; };
   }, [markdown]);
+
+  if (!html) {
+    return (
+      <div className="palette-info">
+        <div className="palette-info-markdown" style={{ opacity: 0.5 }}>
+          Loading…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="palette-info">
