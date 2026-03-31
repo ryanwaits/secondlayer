@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getDb } from "@secondlayer/shared/db";
 import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
-import { checkLimits } from "@secondlayer/shared/db/queries/usage";
+import { checkLimits, getDailyUsage } from "@secondlayer/shared/db/queries/usage";
 import { AuthenticationError } from "@secondlayer/shared/errors";
 
 const app = new Hono();
@@ -34,7 +34,10 @@ app.get("/usage", async (c) => {
   const account = await getAccountById(db, accountId);
   if (!account) throw new AuthenticationError("Account not found");
 
-  const result = await checkLimits(db, accountId, account.plan);
+  const [result, daily] = await Promise.all([
+    checkLimits(db, accountId, account.plan),
+    getDailyUsage(db, accountId),
+  ]);
 
   return c.json({
     plan: account.plan,
@@ -46,6 +49,7 @@ app.get("/usage", async (c) => {
       deliveriesThisMonth: result.current.deliveriesThisMonth,
       storageBytes: result.current.storageBytes,
     },
+    daily,
   });
 });
 

@@ -83,6 +83,42 @@ export async function getUsage(
   };
 }
 
+export interface DailyUsage {
+  date: string;
+  apiRequests: number;
+  deliveries: number;
+}
+
+/** Get last 7 days of daily usage, filling missing days with 0. */
+export async function getDailyUsage(
+  db: Kysely<Database>,
+  accountId: string,
+): Promise<DailyUsage[]> {
+  const rows = await db
+    .selectFrom("usage_daily")
+    .select(["date", "api_requests", "deliveries"])
+    .where("account_id", "=", accountId)
+    .where("date", ">=", sql<string>`(NOW()::date - 6)::text`)
+    .orderBy("date", "asc")
+    .execute();
+
+  // Fill missing days with 0
+  const byDate = new Map(rows.map((r) => [r.date, r]));
+  const result: DailyUsage[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const row = byDate.get(dateStr);
+    result.push({
+      date: dateStr,
+      apiRequests: row?.api_requests ?? 0,
+      deliveries: row?.deliveries ?? 0,
+    });
+  }
+  return result;
+}
+
 export interface LimitCheck {
   allowed: boolean;
   limits: ReturnType<typeof getPlanLimits>;
