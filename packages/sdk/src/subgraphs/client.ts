@@ -42,6 +42,10 @@ export class Subgraphs extends BaseClient {
     return this.request<ReindexResponse>("POST", `/api/subgraphs/${name}/reindex`, options);
   }
 
+  async backfill(name: string, options: { fromBlock: number; toBlock: number }): Promise<ReindexResponse> {
+    return this.request<ReindexResponse>("POST", `/api/subgraphs/${name}/backfill`, options);
+  }
+
   async delete(name: string): Promise<{ message: string }> {
     return this.request<{ message: string }>("DELETE", `/api/subgraphs/${name}`);
   }

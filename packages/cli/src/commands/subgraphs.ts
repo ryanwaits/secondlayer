@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { existsSync, mkdirSync, watch } from "node:fs";
 import { success, error, info, dim, formatTable, formatKeyValue, green, yellow, red } from "../lib/output.ts";
 import { generateSubgraphTemplate } from "../templates/subgraph.ts";
-import { listSubgraphsApi, getSubgraphApi, reindexSubgraphApi, deleteSubgraphApi, deploySubgraphApi, querySubgraphTable, querySubgraphTableCount, handleApiError } from "../lib/api-client.ts";
+import { listSubgraphsApi, getSubgraphApi, reindexSubgraphApi, backfillSubgraphApi, deleteSubgraphApi, deploySubgraphApi, querySubgraphTable, querySubgraphTableCount, handleApiError } from "../lib/api-client.ts";
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { writeTextFile } from "../lib/fs.ts";
@@ -299,6 +299,33 @@ export function registerSubgraphsCommand(program: Command): void {
         info(`From block ${result.fromBlock} to ${result.toBlock}`);
       } catch (err) {
         handleApiError(err, "reindex subgraph");
+      }
+    });
+
+  // --- backfill ---
+  subgraphs
+    .command("backfill <name>")
+    .description("Backfill a block range without dropping existing data")
+    .requiredOption("--from <block>", "Start block height")
+    .requiredOption("--to <block>", "End block height")
+    .action(async (name: string, options: { from: string; to: string }) => {
+      try {
+        const fromBlock = parseInt(options.from, 10);
+        const toBlock = parseInt(options.to, 10);
+
+        if (isNaN(fromBlock) || isNaN(toBlock)) {
+          error("--from and --to must be valid block numbers");
+          process.exit(1);
+        }
+
+        info(`Backfilling subgraph "${name}" from block ${fromBlock} to ${toBlock}...`);
+
+        const result = await backfillSubgraphApi(name, { fromBlock, toBlock });
+
+        success(result.message);
+        info(`From block ${result.fromBlock} to ${result.toBlock}`);
+      } catch (err) {
+        handleApiError(err, "backfill subgraph");
       }
     });
 

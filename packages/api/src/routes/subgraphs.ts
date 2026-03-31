@@ -290,6 +290,52 @@ app.post("/:subgraphName/reindex", async (c) => {
   });
 });
 
+// ── Backfill a subgraph (non-destructive) ────────────────────────────────
+
+app.post("/:subgraphName/backfill", async (c) => {
+  const { subgraphName } = c.req.param();
+  const keyIds = await resolveKeyIds(c);
+  const subgraph = getOwnedSubgraph(subgraphName, keyIds);
+
+  if (activeReindexes >= MAX_CONCURRENT_REINDEXES) {
+    return c.json({
+      error: `Too many concurrent operations (max ${MAX_CONCURRENT_REINDEXES}). Try again later.`,
+      code: "REINDEX_LIMIT",
+      activeReindexes,
+    }, 429);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const fromBlock = typeof body.fromBlock === "number" ? body.fromBlock : undefined;
+  const toBlock = typeof body.toBlock === "number" ? body.toBlock : undefined;
+
+  if (!fromBlock || !toBlock) {
+    return c.json({ error: "Both fromBlock and toBlock are required for backfill", code: "VALIDATION_ERROR" }, 400);
+  }
+
+  activeReindexes++;
+
+  (async () => {
+    try {
+      const { backfillSubgraph } = await import("@secondlayer/subgraphs");
+      const mod = await import(subgraph.handler_path);
+      const def = mod.default ?? mod;
+      await backfillSubgraph(def, { fromBlock, toBlock, schemaName: subgraphSchemaName(subgraph) });
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      console.error(`Backfill failed for ${subgraphName}: ${msg}`);
+    } finally {
+      activeReindexes--;
+    }
+  })();
+
+  return c.json({
+    message: `Backfill started for subgraph "${subgraphName}"`,
+    fromBlock,
+    toBlock,
+  });
+});
+
 // ── Delete a subgraph ────────────────────────────────────────────────────
 
 app.delete("/:subgraphName", async (c) => {

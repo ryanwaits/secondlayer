@@ -128,6 +128,10 @@ export async function reindexSubgraphApi(name: string, options?: { fromBlock?: n
   return (await getClient()).subgraphs.reindex(name, options);
 }
 
+export async function backfillSubgraphApi(name: string, options: { fromBlock: number; toBlock: number }): Promise<ReindexResponse> {
+  return (await getClient()).subgraphs.backfill(name, options);
+}
+
 export async function deleteSubgraphApi(name: string): Promise<{ message: string }> {
   return (await getClient()).subgraphs.delete(name);
 }
