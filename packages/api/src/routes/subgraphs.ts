@@ -364,11 +364,15 @@ app.get("/:subgraphName", async (c) => {
     const cr = countResults[i];
     const rowCount = cr.status === "fulfilled" ? cr.value : 0;
 
-    const columns: Record<string, { type: string; nullable?: boolean }> = {};
+    const columns: Record<string, any> = {};
     for (const [colName, col] of Object.entries(tableDef.columns)) {
-      columns[colName] = col.nullable
-        ? { type: col.type, nullable: true }
-        : { type: col.type };
+      columns[colName] = {
+        type: col.type,
+        ...(col.nullable && { nullable: true }),
+        ...(col.indexed && { indexed: true }),
+        ...(col.search && { searchable: true }),
+        ...(col.default !== undefined && { default: col.default }),
+      };
     }
     columns._id = { type: "serial" };
     columns._block_height = { type: "bigint" };
@@ -380,6 +384,8 @@ app.get("/:subgraphName", async (c) => {
       columns,
       rowCount,
       example: `/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
+      ...(tableDef.indexes && { indexes: tableDef.indexes }),
+      ...(tableDef.uniqueKeys && { uniqueKeys: tableDef.uniqueKeys }),
     };
   }
 
@@ -387,11 +393,18 @@ app.get("/:subgraphName", async (c) => {
     ? subgraph.total_errors / subgraph.total_processed
     : 0;
 
+  const def = subgraph.definition as Record<string, unknown> | null;
+  const sources = def?.sources ?? null;
+  const description = def?.description ?? null;
+
   return c.json({
     name: subgraph.name,
     version: subgraph.version,
     status: subgraph.status,
     lastProcessedBlock: subgraph.last_processed_block,
+    ...(description && { description }),
+    ...(sources && { sources }),
+    definition: def,
     health: {
       totalProcessed: subgraph.total_processed,
       totalErrors: subgraph.total_errors,

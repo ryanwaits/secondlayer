@@ -83,11 +83,21 @@ export interface SystemStatus {
   timestamp: string;
 }
 
+export interface SubgraphSource {
+  contract: string;
+  function?: string;
+  event?: string;
+  type?: string;
+}
+
 export interface SubgraphDetail {
   name: string;
   version: string;
   status: string;
   lastProcessedBlock: number | null;
+  description?: string;
+  sources?: SubgraphSource[];
+  definition?: Record<string, unknown>;
   health: {
     totalProcessed: number;
     totalErrors: number;
@@ -100,7 +110,18 @@ export interface SubgraphDetail {
     {
       rowCount: number;
       endpoint: string;
-      columns: Record<string, { type: string; nullable?: boolean }>;
+      columns: Record<
+        string,
+        {
+          type: string;
+          nullable?: boolean;
+          indexed?: boolean;
+          searchable?: boolean;
+          default?: string | number | boolean;
+        }
+      >;
+      indexes?: string[][];
+      uniqueKeys?: string[][];
       example: unknown;
     }
   >;
