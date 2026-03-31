@@ -4,12 +4,7 @@ import { AuthProvider } from "@/lib/auth";
 import { PreferencesProvider } from "@/lib/preferences";
 import { AuthBar } from "@/components/auth-bar";
 import { QueryProvider } from "@/lib/queries/provider";
-import dynamic from "next/dynamic";
-
-const CommandPalette = dynamic(
-  () => import("@/components/command-palette/command-palette").then((m) => m.CommandPalette),
-  { ssr: false },
-);
+import { LazyCommandPalette } from "@/components/command-palette/lazy";
 import "./globals.css";
 
 const sora = Sora({
@@ -61,7 +56,7 @@ export default function RootLayout({
             <PreferencesProvider>
               {children}
               <AuthBar />
-              <CommandPalette />
+              <LazyCommandPalette />
             </PreferencesProvider>
           </AuthProvider>
         </QueryProvider>
