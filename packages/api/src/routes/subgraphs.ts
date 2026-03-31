@@ -324,17 +324,31 @@ app.get("/", async (c) => {
   const keyIds = await resolveKeyIds(c);
   const allSubgraphs = cache.getAll(keyIds);
 
+  // Fetch live stats from DB (cache may be stale for block progress)
+  const db = getDb();
+  const liveStats = new Map<string, { last_processed_block: number; total_processed: number; total_errors: number; status: string }>();
+  try {
+    const rows = await db
+      .selectFrom("subgraphs")
+      .select(["id", "last_processed_block", "total_processed", "total_errors", "status"])
+      .execute();
+    for (const r of rows) liveStats.set(r.id, r);
+  } catch { /* fall back to cache values */ }
+
   return c.json({
-    data: allSubgraphs.map((v) => ({
-      name: v.name,
-      version: v.version,
-      status: v.status,
-      lastProcessedBlock: v.last_processed_block,
-      totalProcessed: v.total_processed,
-      totalErrors: v.total_errors,
-      tables: Object.keys(getSubgraphSchema(v)),
-      createdAt: v.created_at.toISOString(),
-    })),
+    data: allSubgraphs.map((v) => {
+      const live = liveStats.get(v.id);
+      return {
+        name: v.name,
+        version: v.version,
+        status: live?.status ?? v.status,
+        lastProcessedBlock: live?.last_processed_block ?? v.last_processed_block,
+        totalProcessed: live?.total_processed ?? v.total_processed,
+        totalErrors: live?.total_errors ?? v.total_errors,
+        tables: Object.keys(getSubgraphSchema(v)),
+        createdAt: v.created_at.toISOString(),
+      };
+    }),
   });
 });
 
@@ -351,13 +365,21 @@ app.get("/:subgraphName", async (c) => {
 
   const schemaEntries = Object.entries(subgraphSchema);
 
-  // Parallelize all COUNT queries instead of running them sequentially
-  const countResults = await Promise.allSettled(
-    schemaEntries.map(([tableName]) =>
-      query(`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`)
-        .then((r) => parseInt(String(r[0]?.count ?? 0), 10))
+  // Fetch live stats + COUNT queries in parallel
+  const db = getDb();
+  const [countResults, liveRow] = await Promise.all([
+    Promise.allSettled(
+      schemaEntries.map(([tableName]) =>
+        query(`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`)
+          .then((r) => parseInt(String(r[0]?.count ?? 0), 10))
+      ),
     ),
-  );
+    db.selectFrom("subgraphs")
+      .select(["last_processed_block", "total_processed", "total_errors", "status", "last_error", "last_error_at", "updated_at"])
+      .where("id", "=", subgraph.id)
+      .executeTakeFirst()
+      .catch(() => null),
+  ]);
 
   for (let i = 0; i < schemaEntries.length; i++) {
     const [tableName, tableDef] = schemaEntries[i];
@@ -389,9 +411,11 @@ app.get("/:subgraphName", async (c) => {
     };
   }
 
-  const errorRate = subgraph.total_processed > 0
-    ? subgraph.total_errors / subgraph.total_processed
-    : 0;
+  // Use live DB values for stats, fall back to cache
+  const live = liveRow ?? subgraph;
+  const totalProcessed = live.total_processed;
+  const totalErrors = live.total_errors;
+  const errorRate = totalProcessed > 0 ? totalErrors / totalProcessed : 0;
 
   const def = subgraph.definition as Record<string, unknown> | null;
   const sources = def?.sources ?? null;
@@ -400,21 +424,21 @@ app.get("/:subgraphName", async (c) => {
   return c.json({
     name: subgraph.name,
     version: subgraph.version,
-    status: subgraph.status,
-    lastProcessedBlock: subgraph.last_processed_block,
+    status: live.status,
+    lastProcessedBlock: live.last_processed_block,
     ...(description && { description }),
     ...(sources && { sources }),
     definition: def,
     health: {
-      totalProcessed: subgraph.total_processed,
-      totalErrors: subgraph.total_errors,
+      totalProcessed,
+      totalErrors,
       errorRate: parseFloat(errorRate.toFixed(4)),
-      lastError: subgraph.last_error ?? null,
-      lastErrorAt: subgraph.last_error_at?.toISOString() ?? null,
+      lastError: live.last_error ?? null,
+      lastErrorAt: live.last_error_at?.toISOString() ?? null,
     },
     tables,
     createdAt: subgraph.created_at.toISOString(),
-    updatedAt: subgraph.updated_at.toISOString(),
+    updatedAt: live.updated_at?.toISOString() ?? subgraph.updated_at.toISOString(),
   });
 });
 
