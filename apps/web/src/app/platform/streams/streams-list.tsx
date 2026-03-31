@@ -6,8 +6,9 @@ import type { Stream } from "@/lib/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStreams, usePauseStream, useResumeStream } from "@/lib/queries/streams";
 import { queryKeys } from "@/lib/queries/keys";
-import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { ActionDropdown } from "@/components/console/action-dropdown";
+import { GettingStarted } from "@/components/console/getting-started";
+import { QuickStartCard, QuickStartSection } from "@/components/console/quick-start-card";
 import { STREAMS_EMPTY_PROMPT } from "@/lib/agent-prompts";
 
 function StreamRow({ stream }: { stream: Stream }) {
@@ -150,15 +151,27 @@ export function StreamsList({ initialStreams }: { initialStreams: Stream[] }) {
 
       {streams.length === 0 ? (
         <>
+          <p className="dash-empty">No streams yet. Get set up and create your first stream.</p>
+
           <div className="dash-section-wrap">
             <hr />
             <h2 className="dash-section-title">Get started</h2>
           </div>
 
-          <AgentPromptBlock
-            title="Paste this into your agent"
-            code={STREAMS_EMPTY_PROMPT}
+          <GettingStarted
+            agentPrompt={STREAMS_EMPTY_PROMPT}
+            createCommand="secondlayer streams create"
+            createLabel="Create your first stream"
           />
+
+          <QuickStartSection>
+            <QuickStartCard
+              icon={<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4l6 4 6-4M2 4v8l6 4 6-4V4M2 4l6-4 6 4"/></svg>}
+              label="Create a stream"
+              description="Webhook event delivery"
+              copyText="Create a stream that watches for STX transfer events over 100 STX and sends them to my webhook at https://example.com/webhook"
+            />
+          </QuickStartSection>
         </>
       ) : (
         groups.map((group) => (
