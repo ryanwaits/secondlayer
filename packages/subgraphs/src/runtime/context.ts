@@ -217,8 +217,8 @@ export class SubgraphContext {
       data[c] === "NOW()" ? "NOW()" : escapeLiteral(data[c]),
     );
 
-    // Batch key: table + sorted columns + upsert key signature
-    const batchKey = `${op.table}:${cols.sort().join(",")}:${upsertKeys?.sort().join(",") ?? ""}`;
+    // Batch key: table + sorted columns + upsert key signature (spread to avoid mutating cols)
+    const batchKey = `${op.table}:${[...cols].sort().join(",")}:${upsertKeys ? [...upsertKeys].sort().join(",") : ""}`;
 
     return { data, cols, vals, upsertKeys, batchKey };
   }
