@@ -4,15 +4,29 @@ import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import type { SubgraphDefinition } from "../types.ts";
 import { processBlock } from "./block-processor.ts";
 import { StatsAccumulator } from "./stats.ts";
+import { loadBlockRange, avgEventsPerBlock } from "./batch-loader.ts";
 
 const LOG_INTERVAL = 1000;
+const DEFAULT_BATCH_SIZE = 500;
+const MIN_BATCH_SIZE = 100;
+const MAX_BATCH_SIZE = 1000;
 
 const catchingUp = new Set<string>();
 
 /**
+ * Adjust batch size based on event density.
+ * Sparse blocks (early chain) → larger batches. Dense blocks → smaller batches.
+ */
+function adjustBatchSize(current: number, avgEvents: number): number {
+  if (avgEvents > 50) return Math.max(Math.round(current * 0.5), MIN_BATCH_SIZE);
+  if (avgEvents < 10) return Math.min(Math.round(current * 1.5), MAX_BATCH_SIZE);
+  return current;
+}
+
+/**
  * Catch a subgraph up from its last_processed_block to the chain tip.
- * Re-reads lastProcessedBlock from DB to avoid stale values.
- * Skips if a catch-up is already in progress for this subgraph.
+ * Uses batch loading (3 queries per batch instead of 3 per block) and
+ * pipeline prefetching (loads next batch while processing current).
  */
 export async function catchUpSubgraph(
   subgraph: SubgraphDefinition,
@@ -53,27 +67,65 @@ export async function catchUpSubgraph(
 
     const stats = new StatsAccumulator(subgraphName, subgraphRow.api_key_id, true);
     let processed = 0;
+    let batchSize = DEFAULT_BATCH_SIZE;
+    let currentHeight = startBlock;
 
-    for (let height = startBlock; height <= chainTip; height++) {
-      const result = await processBlock(subgraph, subgraphName, height);
-      processed++;
+    // Pipeline: start loading first batch
+    let nextBatchPromise = loadBlockRange(
+      db,
+      currentHeight,
+      Math.min(currentHeight + batchSize - 1, chainTip),
+    );
 
-      if (result.timing) {
-        stats.record(result.timing, result.processed);
-        if (stats.shouldFlush()) {
-          await stats.flush(db);
+    while (currentHeight <= chainTip) {
+      // Await current batch
+      const batch = await nextBatchPromise;
+      const batchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
+
+      // Start prefetching next batch while we process this one
+      const nextStart = batchEnd + 1;
+      if (nextStart <= chainTip) {
+        const nextEnd = Math.min(nextStart + batchSize - 1, chainTip);
+        nextBatchPromise = loadBlockRange(db, nextStart, nextEnd);
+      }
+
+      // Process each block from pre-loaded data
+      for (let height = currentHeight; height <= batchEnd; height++) {
+        const blockData = batch.get(height);
+        if (!blockData) {
+          // Block missing (gap) — skip
+          processed++;
+          continue;
+        }
+
+        const result = await processBlock(subgraph, subgraphName, height, {
+          preloaded: blockData,
+        });
+        processed++;
+
+        if (result.timing) {
+          stats.record(result.timing, result.processed);
+          if (stats.shouldFlush()) {
+            await stats.flush(db);
+          }
+        }
+
+        if (processed % LOG_INTERVAL === 0) {
+          logger.info("Subgraph catch-up progress", {
+            subgraph: subgraphName,
+            processed,
+            total: totalBlocks,
+            currentBlock: height,
+            pct: Math.round((processed / totalBlocks) * 100),
+          });
         }
       }
 
-      if (processed % LOG_INTERVAL === 0) {
-        logger.info("Subgraph catch-up progress", {
-          subgraph: subgraphName,
-          processed,
-          total: totalBlocks,
-          currentBlock: height,
-          pct: Math.round((processed / totalBlocks) * 100),
-        });
-      }
+      // Adaptive batch sizing based on event density
+      const avg = avgEventsPerBlock(batch);
+      batchSize = adjustBatchSize(batchSize, avg);
+
+      currentHeight = batchEnd + 1;
     }
 
     // Flush remaining stats

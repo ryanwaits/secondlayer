@@ -8,6 +8,9 @@ import { SubgraphContext, type BlockMeta, type TxMeta } from "./context.ts";
 import { matchSources } from "./source-matcher.ts";
 import { runHandlers } from "./runner.ts";
 
+// Cache schema_name per subgraph to avoid per-block DB lookups
+const schemaNameCache = new Map<string, string>();
+
 export interface ProcessBlockTiming {
   totalMs: number;
   handlerMs: number;
@@ -33,9 +36,17 @@ export interface ProcessBlockResult {
  * 4. Flush context (commit writes atomically)
  * 5. Update subgraph.last_processed_block
  */
+export interface PreloadedBlockData {
+  block: import("@secondlayer/shared/db").Block;
+  txs: import("@secondlayer/shared/db").Transaction[];
+  events: import("@secondlayer/shared/db").Event[];
+}
+
 export interface ProcessBlockOptions {
   /** Skip updating last_processed_block in DB (reindex batches this externally). */
   skipProgressUpdate?: boolean;
+  /** Pre-loaded block data — skips DB reads when provided (used by batch catch-up). */
+  preloaded?: PreloadedBlockData;
 }
 
 export async function processBlock(
@@ -54,37 +65,44 @@ export async function processBlock(
     skipped: false,
   };
 
-  // 1. Load block
-  const block = await db
-    .selectFrom("blocks")
-    .selectAll()
-    .where("height", "=", blockHeight)
-    .executeTakeFirst();
+  // 1. Load block (use pre-loaded data if available, otherwise fetch from DB)
+  let block, txs, evts;
+  if (opts?.preloaded) {
+    block = opts.preloaded.block;
+    txs = opts.preloaded.txs;
+    evts = opts.preloaded.events;
+  } else {
+    block = await db
+      .selectFrom("blocks")
+      .selectAll()
+      .where("height", "=", blockHeight)
+      .executeTakeFirst();
 
-  if (!block) {
-    logger.warn("Block not found for subgraph processing", { subgraph: subgraphName, blockHeight });
-    result.skipped = true;
-    return result;
+    if (!block) {
+      logger.warn("Block not found for subgraph processing", { subgraph: subgraphName, blockHeight });
+      result.skipped = true;
+      return result;
+    }
+
+    if (!block.canonical) {
+      logger.debug("Skipping non-canonical block", { subgraph: subgraphName, blockHeight });
+      result.skipped = true;
+      return result;
+    }
+
+    // 2. Load txs + events
+    txs = await db
+      .selectFrom("transactions")
+      .selectAll()
+      .where("block_height", "=", blockHeight)
+      .execute();
+
+    evts = await db
+      .selectFrom("events")
+      .selectAll()
+      .where("block_height", "=", blockHeight)
+      .execute();
   }
-
-  if (!block.canonical) {
-    logger.debug("Skipping non-canonical block", { subgraph: subgraphName, blockHeight });
-    result.skipped = true;
-    return result;
-  }
-
-  // 2. Load txs + events
-  const txs = await db
-    .selectFrom("transactions")
-    .selectAll()
-    .where("block_height", "=", blockHeight)
-    .execute();
-
-  const evts = await db
-    .selectFrom("events")
-    .selectAll()
-    .where("block_height", "=", blockHeight)
-    .execute();
 
   // 3. Match source
   const matched = matchSources(subgraph.sources, txs, evts);
@@ -98,13 +116,17 @@ export async function processBlock(
   }
 
   // 4. Create context and run handlers
-  // Use stored schema_name from DB if available, otherwise compute
-  const subgraphRecord = await db
-    .selectFrom("subgraphs")
-    .select("schema_name")
-    .where("name", "=", subgraphName)
-    .executeTakeFirst();
-  const schemaName = subgraphRecord?.schema_name ?? pgSchemaName(subgraphName);
+  // Use cached schema_name (fetched once per subgraph, not per block)
+  let schemaName = schemaNameCache.get(subgraphName);
+  if (!schemaName) {
+    const subgraphRecord = await db
+      .selectFrom("subgraphs")
+      .select("schema_name")
+      .where("name", "=", subgraphName)
+      .executeTakeFirst();
+    schemaName = subgraphRecord?.schema_name ?? pgSchemaName(subgraphName);
+    schemaNameCache.set(subgraphName, schemaName);
+  }
   const blockMeta: BlockMeta = {
     height: block.height,
     hash: block.hash,
