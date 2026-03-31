@@ -63,7 +63,7 @@ export default async function UsagePage() {
           <div className="dash-index-link">
             <span className="dash-index-label">Streams</span>
             <span className="dash-index-meta">
-              {usage.current.streams} / {usage.limits.streams}
+              {usage.current.streams} of {usage.limits.streams} limit
             </span>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default async function UsagePage() {
           <div className="dash-index-link">
             <span className="dash-index-label">Subgraphs</span>
             <span className="dash-index-meta">
-              {usage.current.subgraphs} / {usage.limits.subgraphs}
+              {usage.current.subgraphs} of {usage.limits.subgraphs} limit
             </span>
           </div>
         </div>
@@ -79,7 +79,7 @@ export default async function UsagePage() {
           <div className="dash-index-link">
             <span className="dash-index-label">API requests today</span>
             <span className="dash-index-meta">
-              {formatNum(usage.current.apiRequestsToday)} / {formatNum(usage.limits.apiRequestsPerDay)}
+              {formatNum(usage.current.apiRequestsToday)} of {formatNum(usage.limits.apiRequestsPerDay)} limit
             </span>
           </div>
         </div>
