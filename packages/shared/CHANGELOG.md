@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.8.1
+
+### Patch Changes
+
+- e274333: fix(subgraphs): use highest_seen_block ceiling and add startBlock support
+
 ## 0.8.0
 
 ### Minor Changes
