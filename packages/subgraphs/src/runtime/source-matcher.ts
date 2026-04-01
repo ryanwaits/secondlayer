@@ -112,13 +112,20 @@ function matchSource(
 				// Check if any events match the contract
 				matchedEvents = txEvents.filter((e) => {
 					const data = e.data as Record<string, unknown> | null;
-					const contractIdentifier = data?.contract_identifier as
-						| string
-						| undefined;
-					return (
-						contractIdentifier &&
-						matchPattern(contractIdentifier, source.contract!)
-					);
+					// smart_contract_event uses contract_identifier
+					const contractId = data?.contract_identifier as string | undefined;
+					if (contractId && matchPattern(contractId, source.contract!)) {
+						return true;
+					}
+					// FT/NFT events use asset_identifier (format: "contract::asset-name")
+					const assetId = data?.asset_identifier as string | undefined;
+					if (assetId) {
+						const contract = assetId.split("::")[0];
+						if (contract && matchPattern(contract, source.contract!)) {
+							return true;
+						}
+					}
+					return false;
 				});
 				if (matchedEvents.length === 0) continue;
 			}

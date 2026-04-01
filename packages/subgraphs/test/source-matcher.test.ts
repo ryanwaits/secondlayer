@@ -48,7 +48,7 @@ const events = [
 		tx_id: "tx2",
 		type: "ft_transfer_event",
 		event_index: 0,
-		data: { contract_identifier: "SP000.token" },
+		data: { asset_identifier: "SP000.token::my-token" },
 	},
 ];
 
@@ -135,6 +135,48 @@ describe("matchSources", () => {
 		expect(matched.length).toBe(1);
 		expect(matched[0]!.tx.tx_id).toBe("tx3");
 		expect(matched[0]!.events.length).toBe(1);
+	});
+
+	test("matches FT events by asset_identifier when tx doesn't match", () => {
+		const ftEvents = [
+			...events,
+			{
+				id: "e5",
+				tx_id: "tx3",
+				type: "ft_mint_event",
+				event_index: 0,
+				data: { asset_identifier: "SP999.sbtc-token::sbtc-token", amount: "1000", recipient: "SP1" },
+			},
+		];
+		const matched = matchSources(
+			[{ contract: "SP999.sbtc-token", event: "ft_mint_event" }],
+			txs,
+			ftEvents,
+		);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.tx.tx_id).toBe("tx3");
+		expect(matched[0]!.events.length).toBe(1);
+		expect(matched[0]!.events[0]!.type).toBe("ft_mint_event");
+	});
+
+	test("matches NFT events by asset_identifier when tx doesn't match", () => {
+		const nftEvents = [
+			...events,
+			{
+				id: "e6",
+				tx_id: "tx3",
+				type: "nft_mint_event",
+				event_index: 0,
+				data: { asset_identifier: "SP999.nft-collection::my-nft" },
+			},
+		];
+		const matched = matchSources(
+			[{ contract: "SP999.nft-collection" }],
+			txs,
+			nftEvents,
+		);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.tx.tx_id).toBe("tx3");
 	});
 
 	// New tests for plural sources + type-based matching
