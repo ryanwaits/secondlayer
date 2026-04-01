@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.8.1
+
+### Patch Changes
+
+- Fix phantom gaps caused by adaptive batch sizing: batchEnd now uses the actual prefetched range instead of the potentially resized batchSize.
+
 ## 0.8.0
 
 ### Minor Changes
