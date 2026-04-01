@@ -94,12 +94,11 @@ async function processBlockRange(
 	let currentHeight = fromBlock;
 	let aborted = false;
 
-	// Pipeline: start loading first batch
-	let nextBatchPromise = loadBlockRange(
-		db,
-		currentHeight,
-		Math.min(currentHeight + batchSize - 1, toBlock),
-	);
+	// Pipeline: start loading first batch and track the prefetched range.
+	// batchEnd must match what was actually loaded — not recalculated from a
+	// potentially resized batchSize (adaptive sizing can change it between iterations).
+	let nextBatchEnd = Math.min(currentHeight + batchSize - 1, toBlock);
+	let nextBatchPromise = loadBlockRange(db, currentHeight, nextBatchEnd);
 
 	while (currentHeight <= toBlock) {
 		// Check for abort at batch boundary
@@ -114,13 +113,13 @@ async function processBlockRange(
 		}
 
 		const batch = await nextBatchPromise;
-		const batchEnd = Math.min(currentHeight + batchSize - 1, toBlock);
+		const batchEnd = nextBatchEnd;
 
-		// Prefetch next batch
+		// Prefetch next batch (uses current batchSize, which may have been adapted)
 		const nextStart = batchEnd + 1;
 		if (nextStart <= toBlock) {
-			const nextEnd = Math.min(nextStart + batchSize - 1, toBlock);
-			nextBatchPromise = loadBlockRange(db, nextStart, nextEnd);
+			nextBatchEnd = Math.min(nextStart + batchSize - 1, toBlock);
+			nextBatchPromise = loadBlockRange(db, nextStart, nextBatchEnd);
 		}
 
 		const batchFailedBlocks: { height: number; reason: string }[] = [];
