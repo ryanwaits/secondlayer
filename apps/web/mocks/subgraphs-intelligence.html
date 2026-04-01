@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secondlayer — Subgraphs Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --bg-surface: #f8f8f7;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.2);
+    --border: #f2f2f2;
+    --accent-purple: #6344F5;
+    --accent-purple-bg: rgba(99,68,245,0.06);
+    --accent-purple-border: rgba(99,68,245,0.15);
+    --code-bg: rgba(0,0,0,0.04);
+    --selection-bg: #ededed;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --green-glow: rgba(34,197,94,0.2);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.08);
+    --blue: #3b82f6;
+    --blue-bg: rgba(59,130,246,0.08);
+    --orange: #f97316;
+    --orange-bg: rgba(249,115,22,0.07);
+    --orange-border: rgba(249,115,22,0.2);
+    --item-hover: rgba(0,0,0,0.03);
+    --kbd-bg: rgba(0,0,0,0.03);
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+
+  html.dark {
+    --bg: #141414;
+    --bg-elevated: #1a1a1a;
+    --bg-surface: #161616;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.4);
+    --text-dim: rgba(255,255,255,0.15);
+    --border: #2a2a2a;
+    --accent-purple: #8b7ff0;
+    --accent-purple-bg: rgba(139,127,240,0.08);
+    --accent-purple-border: rgba(139,127,240,0.2);
+    --code-bg: rgba(255,255,255,0.08);
+    --selection-bg: #333;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --green-glow: rgba(34,197,94,0.15);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.08);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96,165,250,0.08);
+    --orange: #f97316;
+    --orange-bg: rgba(249,115,22,0.07);
+    --orange-border: rgba(249,115,22,0.2);
+    --item-hover: rgba(255,255,255,0.04);
+    --kbd-bg: rgba(255,255,255,0.05);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 460;
+    letter-spacing: -0.00563rem;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding: 40px 20px 120px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  ::selection { background: var(--selection-bg); }
+
+  .theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    z-index: 100;
+  }
+  .theme-toggle:hover { color: var(--text-main); border-color: var(--text-muted); }
+
+  .page-header {
+    max-width: 720px;
+    margin: 0 auto 48px;
+  }
+
+  .page-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 8px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .variants {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  /* ── Section Divider ── */
+  .section-break {
+    text-align: center;
+    padding: 20px 0;
+  }
+  .section-break-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 560;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: var(--bg);
+    padding: 0 12px;
+    position: relative;
+  }
+  .section-break::before {
+    content: "";
+    display: block;
+    height: 1px;
+    background: var(--border);
+    position: relative;
+    top: 10px;
+  }
+
+  .variant {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .variant-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent-purple);
+    letter-spacing: 0.02em;
+  }
+
+  .variant-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  /* ── Card ── */
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { background: var(--code-bg); border-color: var(--text-muted); }
+  .btn-sm { padding: 3px 8px; font-size: 11px; }
+  .btn-accent {
+    color: var(--accent-purple);
+    border-color: var(--accent-purple-border);
+  }
+  .btn-accent:hover { background: var(--accent-purple-bg); }
+  .btn-danger {
+    color: var(--red);
+    border-color: rgba(239,68,68,0.3);
+  }
+  .btn-danger:hover { background: var(--red-bg); }
+  .btn-orange {
+    color: var(--orange);
+    border-color: var(--orange-border);
+  }
+  .btn-orange:hover { background: var(--orange-bg); }
+
+  /* ── Insight Note ── */
+  .insight {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-purple);
+    background: var(--accent-purple-bg);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .insight strong {
+    color: var(--text-main);
+    font-weight: 560;
+  }
+  .insight code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--code-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .insight-warning {
+    border-left-color: var(--yellow);
+    background: var(--yellow-bg);
+  }
+  .insight-danger {
+    border-left-color: var(--red);
+    background: var(--red-bg);
+  }
+  .insight-success {
+    border-left-color: var(--green);
+    background: var(--green-bg);
+  }
+  .insight-info {
+    border-left-color: var(--blue);
+    background: var(--blue-bg);
+  }
+  .insight-orange {
+    border-left-color: var(--orange);
+    background: var(--orange-bg);
+  }
+
+  .insight-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .insight-action {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    background: rgba(0,0,0,0.06);
+    color: var(--text-muted);
+  }
+  html.dark .insight-action { background: rgba(255,255,255,0.08); }
+  .insight-action:hover { color: var(--text-main); }
+  .insight-action-primary {
+    background: var(--accent-purple-border);
+    color: var(--accent-purple);
+  }
+  .insight-action-orange {
+    background: var(--orange-border);
+    color: var(--orange);
+  }
+
+  /* ── Hint ── */
+  .hint {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: var(--code-bg);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .hint strong { color: var(--text-main); font-weight: 560; }
+  .hint-text { flex: 1; }
+  .hint-dismiss {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0 2px;
+  }
+  .hint-dismiss:hover { color: var(--text-muted); }
+
+  /* ── Badges ── */
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 560;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .badge-active { color: var(--green); background: var(--green-bg); }
+  .badge-syncing { color: var(--blue); background: var(--blue-bg); }
+  .badge-error { color: var(--red); background: var(--red-bg); }
+  .badge-stalled { color: var(--yellow); background: var(--yellow-bg); }
+  .badge-gaps { color: var(--orange); background: var(--orange-bg); }
+  .badge-backfilling { color: var(--accent-purple); background: var(--accent-purple-bg); }
+  .badge-complete { color: var(--green); background: var(--green-bg); }
+  .badge-muted { color: var(--text-dim); background: var(--code-bg); }
+
+  .badge .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .badge-active .dot {
+    box-shadow: 0 0 6px var(--green-glow);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Status dots ── */
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green { background: var(--green); }
+  .dot-red { background: var(--red); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-blue { background: var(--blue); }
+  .dot-orange { background: var(--orange); }
+  .dot-purple { background: var(--accent-purple); }
+
+  /* ── Row items ── */
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s ease;
+    cursor: pointer;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row:hover { background: var(--item-hover); }
+
+  .row-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 460;
+    flex-shrink: 0;
+  }
+
+  .row-detail {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .row-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Stats ── */
+  .stats-row {
+    display: flex;
+    gap: 24px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-item { display: flex; flex-direction: column; gap: 2px; }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .stat-value.error { color: var(--red); }
+  .stat-value.warn { color: var(--yellow); }
+  .stat-value.good { color: var(--green); }
+
+  /* ── Field label ── */
+  .field-label {
+    font-size: 11px;
+    font-weight: 560;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+
+  /* ── Banner ── */
+  .banner {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .banner strong { color: var(--text-main); font-weight: 560; }
+  .banner-warning { background: var(--yellow-bg); }
+  .banner-info { background: var(--accent-purple-bg); }
+  .banner-orange { background: var(--orange-bg); }
+  .banner-text { flex: 1; }
+
+  /* ── Sync progress ── */
+  .progress-track {
+    height: 6px;
+    background: var(--code-bg);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--blue), var(--green));
+    transition: width 0.6s ease;
+    position: relative;
+  }
+  .progress-fill.catching-up {
+    background: linear-gradient(90deg, var(--blue) 60%, var(--blue));
+  }
+  .progress-fill.backfilling {
+    background: linear-gradient(90deg, var(--accent-purple) 60%, var(--accent-purple));
+  }
+  .progress-fill::after {
+    content: '';
+    position: absolute; right: 0; top: 0; bottom: 0;
+    width: 20px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15));
+    border-radius: 0 3px 3px 0;
+  }
+
+  .progress-gaps {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+  .gap-marker {
+    position: absolute; top: 0; bottom: 0;
+    background: var(--orange);
+    opacity: 0.7;
+    min-width: 2px;
+    border-radius: 1px;
+  }
+
+  .sync-details {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .sync-detail-val { color: var(--text-main); }
+
+  /* ── Gap summary card ── */
+  .gap-summary {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: var(--orange-bg);
+    border: 1px solid var(--orange-border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .gap-summary-left {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .gap-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: rgba(249,115,22,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--orange);
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .gap-summary-text {
+    font-size: 13px; color: var(--text-main);
+  }
+  .gap-summary-text strong {
+    font-weight: 600; color: var(--orange);
+  }
+  .gap-summary-sub {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .gap-summary-link {
+    font-family: var(--font-mono);
+    font-size: 12px; font-weight: 500;
+    color: var(--orange);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .gap-summary-link:hover { opacity: 0.7; }
+
+  /* ── Integrity row ── */
+  .integrity-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding: 8px 0;
+  }
+  .integrity-label {
+    font-size: 12px; color: var(--text-muted);
+  }
+
+  /* ── Sync card ── */
+  .sync-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .sync-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .sync-header-left {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sync-pct {
+    font-family: var(--font-mono);
+    font-size: 13px; font-weight: 500;
+  }
+
+  /* ── Chevron ── */
+  .chevron {
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  /* ── Annotation ── */
+  .annotation {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .annotation-arrow {
+    font-family: var(--font-mono);
+    color: var(--accent-purple);
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .annotation-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  /* ── Gap timeline ── */
+  .gap-timeline {
+    display: flex;
+    flex-direction: column;
+  }
+  .gap-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .gap-row:last-child { border-bottom: none; }
+  .gap-range {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-main);
+    min-width: 140px;
+  }
+  .gap-blocks {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 80px;
+  }
+  .gap-status {
+    margin-left: auto;
+  }
+
+  /* ── Backfill progress mini ── */
+  .backfill-mini {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .backfill-mini-bar {
+    width: 48px;
+    height: 3px;
+    background: var(--code-bg);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .backfill-mini-fill {
+    height: 100%;
+    background: var(--accent-purple);
+    border-radius: 2px;
+  }
+  .backfill-mini-pct {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-purple);
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .tab {
+    font-family: var(--font-sans);
+    font-size: 12px; font-weight: 500;
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border: none; background: none; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab:hover { color: var(--text-main); }
+  .tab.active {
+    color: var(--text-main);
+    border-bottom-color: var(--text-main);
+  }
+  .tab .tab-badge {
+    font-family: var(--font-mono);
+    font-size: 9px; font-weight: 500;
+    padding: 1px 5px; border-radius: 8px;
+    margin-left: 4px;
+  }
+  .tab .tab-badge-orange {
+    background: var(--orange-bg);
+    color: var(--orange);
+  }
+  .tab .tab-badge-purple {
+    background: var(--accent-purple-bg);
+    color: var(--accent-purple);
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark'); this.textContent = document.documentElement.classList.contains('dark') ? 'light mode' : 'dark mode'">dark mode</button>
+
+<div class="page-header">
+  <div class="page-title">Subgraphs — inline intelligence</div>
+  <div class="page-subtitle">Smart backfill, gap detection, and integrity surfaces embedded in the subgraph index and detail views. Same design language as streams intelligence.</div>
+</div>
+
+<div class="variants">
+
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section-break"><span class="section-break-label">Index</span></div>
+
+  <!-- I1: Index with inline gap/backfill awareness -->
+  <div class="variant">
+    <div class="variant-label">I1 — index with gap + backfill awareness <span style="color:var(--green);font-weight:600;">NO AI</span></div>
+    <div class="variant-desc">Subgraph index shows sync state, gap counts, and active backfills at a glance. No clicking through to discover problems.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Subgraphs</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:12px;color:var(--text-muted);">6 subgraphs</span>
+          <button class="btn btn-sm">Deploy new</button>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-label">Active</span>
+          <span class="stat-value good">3</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Syncing</span>
+          <span class="stat-value" style="color:var(--blue);">1</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Backfilling</span>
+          <span class="stat-value" style="color:var(--accent-purple);">1</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Gaps</span>
+          <span class="stat-value warn">5</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Errors</span>
+          <span class="stat-value error">1</span>
+        </div>
+      </div>
+
+      <!-- Needs attention banner -->
+      <div style="padding:8px 16px 4px;">
+        <div class="field-label">Needs attention</div>
+      </div>
+
+      <!-- Row: gaps detected -->
+      <div class="list-row">
+        <span class="dot dot-orange"></span>
+        <span class="row-name">bns-names</span>
+        <span class="row-detail"><strong style="color:var(--orange);">3 gaps</strong> &middot; 2,481 missing blocks &middot; earliest at #79,200</span>
+        <span class="row-meta">
+          <span class="badge badge-gaps">gaps</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </div>
+
+      <!-- Row: error -->
+      <div class="list-row">
+        <span class="dot dot-red"></span>
+        <span class="row-name">defi-yields</span>
+        <span class="row-detail">handler crash at block #182,403 &middot; 247 consecutive errors</span>
+        <span class="row-meta">
+          <span class="badge badge-error">error</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </div>
+
+      <!-- Row: backfilling -->
+      <div class="list-row">
+        <span class="dot dot-purple"></span>
+        <span class="row-name">pox-stacking</span>
+        <span class="row-detail">backfilling blocks #1 – #120,000</span>
+        <span class="row-meta">
+          <span class="badge badge-backfilling"><span class="dot"></span>backfill</span>
+          <div class="backfill-mini">
+            <div class="backfill-mini-bar"><div class="backfill-mini-fill" style="width:34%;"></div></div>
+            <span class="backfill-mini-pct">34%</span>
+          </div>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </div>
+
+      <div style="padding:8px 16px 4px;">
+        <div class="field-label">Active</div>
+      </div>
+
+      <div class="list-row">
+        <span class="dot dot-green"></span>
+        <span class="row-name">dex-swaps</span>
+        <span class="row-detail">12,450 rows &middot; block #189,403</span>
+        <span class="row-meta">
+          <span class="badge badge-active"><span class="dot"></span>active</span>
+          <span class="badge badge-complete">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+          </span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </div>
+
+      <div class="list-row">
+        <span class="dot dot-green"></span>
+        <span class="row-name">nft-marketplace</span>
+        <span class="row-detail">87,312 rows &middot; block #189,403</span>
+        <span class="row-meta">
+          <span class="badge badge-active"><span class="dot"></span>active</span>
+          <span class="badge badge-complete">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+          </span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </div>
+
+      <div class="list-row">
+        <span class="dot dot-green"></span>
+        <span class="row-name">token-transfers</span>
+        <span class="row-detail">3,891 rows &middot; block #189,403</span>
+        <span class="row-meta">
+          <span class="badge badge-active"><span class="dot"></span>active</span>
+          <span class="badge badge-gaps" style="font-size:9px;">2 gaps</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+        </span>
+      </div>
+
+      <!-- Insight at bottom of index -->
+      <div style="padding:10px 16px;">
+        <div class="insight insight-orange">
+          <strong>5 total gaps</strong> across 2 subgraphs covering <strong>4,102 missing blocks</strong>. Run a bulk backfill to resolve all gaps at once, or address them individually.
+          <div class="insight-actions">
+            <button class="insight-action insight-action-orange">Backfill all gaps</button>
+            <button class="insight-action">View gap details</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Index is a triage screen. "Needs attention" floats problems up. Gap counts and backfill progress inline — no drill-down required to know what's broken.</span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section-break"><span class="section-break-label">Detail — Sync + Gaps</span></div>
+
+  <!-- D1: Detail with sync progress + gap markers -->
+  <div class="variant">
+    <div class="variant-label">D1 — sync progress with gap markers <span style="color:var(--green);font-weight:600;">NO AI</span></div>
+    <div class="variant-desc">Subgraph detail page. Progress bar shows coverage with orange gap markers. Integrity status at a glance.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <span class="dot dot-green"></span>
+          bns-names
+          <span class="badge badge-active"><span class="dot"></span>active</span>
+        </span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm">Reindex</button>
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active">Overview</button>
+        <button class="tab">Schema</button>
+        <button class="tab">Data</button>
+        <button class="tab">Sources</button>
+        <button class="tab">Gaps <span class="tab-badge tab-badge-orange">3</span></button>
+        <button class="tab">Reindex</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-label">Total Rows</span>
+          <span class="stat-value">142,809</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Error Rate</span>
+          <span class="stat-value good">0.2%</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Last Block</span>
+          <span class="stat-value">#189,403</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Integrity</span>
+          <span class="stat-value warn">97.6%</span>
+        </div>
+      </div>
+
+      <!-- Sync progress section -->
+      <div style="padding:16px;">
+        <div class="sync-card">
+          <div class="sync-header">
+            <div class="sync-header-left">
+              <span class="badge badge-active"><span class="dot"></span>synced</span>
+              <span class="sync-pct" style="color:var(--green);">100%</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+              0 blocks remaining
+            </span>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill" style="width:100%;">
+              <div class="progress-gaps">
+                <div class="gap-marker" style="left:42%;width:0.8%;"></div>
+                <div class="gap-marker" style="left:67%;width:0.3%;"></div>
+                <div class="gap-marker" style="left:88.5%;width:0.15%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-details">
+            <span>start <span class="sync-detail-val">#1</span></span>
+            <span>last <span class="sync-detail-val">#189,403</span></span>
+            <span>tip <span class="sync-detail-val">#189,403</span></span>
+          </div>
+
+          <div class="integrity-row">
+            <span class="integrity-label">Data integrity</span>
+            <span class="badge badge-gaps">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M8 5.5v3M8 11h.01M2.5 13.5h11l-5.5-10z"/>
+              </svg>
+              3 gaps
+            </span>
+          </div>
+
+          <div class="gap-summary">
+            <div class="gap-summary-left">
+              <div class="gap-icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="1" y="6" width="4" height="4" rx="0.5"/>
+                  <rect x="11" y="6" width="4" height="4" rx="0.5"/>
+                  <path d="M5.5 8h5" stroke-dasharray="2 2"/>
+                </svg>
+              </div>
+              <div>
+                <div class="gap-summary-text"><strong>3</strong> unresolved gaps</div>
+                <div class="gap-summary-sub">2,481 missing blocks &middot; earliest at #79,200</div>
+              </div>
+            </div>
+            <a href="#" class="gap-summary-link">Backfill &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Synced doesn't mean complete. Orange markers on the progress bar show exactly where data is missing. Integrity percentage gives instant confidence signal.</span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section-break"><span class="section-break-label">Detail — Gaps Tab</span></div>
+
+  <!-- D2: Gaps tab with timeline + backfill controls -->
+  <div class="variant">
+    <div class="variant-label">D2 — gaps tab with backfill controls <span style="color:var(--green);font-weight:600;">NO AI</span></div>
+    <div class="variant-desc">Dedicated gaps view. Shows each gap range, status, and one-click backfill. Ongoing backfills show inline progress.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          bns-names
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);font-weight:400;margin-left:4px;">/ gaps</span>
+        </span>
+        <button class="btn btn-sm btn-orange">Backfill all</button>
+      </div>
+
+      <div class="banner banner-orange">
+        <div class="banner-text">
+          <strong>3 gaps</strong> spanning <strong>2,481 blocks</strong>. Backfill processes missed blocks without reindexing your entire subgraph.
+        </div>
+      </div>
+
+      <div class="gap-timeline">
+        <!-- Gap 1: largest, not started -->
+        <div class="gap-row">
+          <span class="dot dot-orange"></span>
+          <span class="gap-range">#79,200 – #80,712</span>
+          <span class="gap-blocks">1,512 blocks</span>
+          <span style="font-size:11px;color:var(--text-muted);flex:1;">detected 2h ago</span>
+          <span class="gap-status">
+            <button class="btn btn-sm btn-orange">Backfill</button>
+          </span>
+        </div>
+
+        <!-- Gap 2: backfilling -->
+        <div class="gap-row">
+          <span class="dot dot-purple"></span>
+          <span class="gap-range">#126,400 – #127,018</span>
+          <span class="gap-blocks">618 blocks</span>
+          <span style="flex:1;">
+            <div class="backfill-mini">
+              <span class="badge badge-backfilling" style="font-size:9px;"><span class="dot"></span>backfilling</span>
+              <div class="backfill-mini-bar" style="width:64px;"><div class="backfill-mini-fill" style="width:62%;"></div></div>
+              <span class="backfill-mini-pct">62%</span>
+            </div>
+          </span>
+          <span class="gap-status">
+            <button class="btn btn-sm" style="font-size:10px;">Cancel</button>
+          </span>
+        </div>
+
+        <!-- Gap 3: small -->
+        <div class="gap-row">
+          <span class="dot dot-orange"></span>
+          <span class="gap-range">#167,800 – #168,151</span>
+          <span class="gap-blocks">351 blocks</span>
+          <span style="font-size:11px;color:var(--text-muted);flex:1;">detected 45m ago</span>
+          <span class="gap-status">
+            <button class="btn btn-sm btn-orange">Backfill</button>
+          </span>
+        </div>
+      </div>
+
+      <div style="padding:10px 16px;">
+        <div class="hint">
+          <div class="hint-text">
+            Gaps are detected automatically when the indexer notices missing block ranges. Backfill replays only the missing blocks — it's <strong>non-destructive</strong> and won't affect live sync.
+          </div>
+          <span class="hint-dismiss">&times;</span>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Each gap is a row with range, size, and action. Active backfills show inline progress. "Backfill all" for bulk resolution. Hint explains what backfill does for newcomers.</span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section-break"><span class="section-break-label">Detail — Smart Backfill</span></div>
+
+  <!-- D3: Post-reindex gap detection -->
+  <div class="variant">
+    <div class="variant-label">D3 — smart backfill after reindex <span style="color:var(--green);font-weight:600;">NO AI</span></div>
+    <div class="variant-desc">Reindex just completed. System detected gaps created during the reindex window and suggests targeted backfill.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <span class="dot dot-green"></span>
+          pox-stacking
+          <span class="badge badge-active"><span class="dot"></span>active</span>
+        </span>
+      </div>
+
+      <div class="banner banner-info">
+        <div class="banner-text">
+          Reindex completed. While reindexing, <strong>847 blocks</strong> (#188,556 – #189,403) arrived but weren't processed. These blocks are now gaps.
+        </div>
+        <button class="btn btn-sm btn-accent">Backfill 847 blocks</button>
+      </div>
+
+      <div style="padding:16px;">
+        <div class="sync-card">
+          <div class="sync-header">
+            <div class="sync-header-left">
+              <span class="badge badge-active"><span class="dot"></span>synced</span>
+              <span class="sync-pct" style="color:var(--green);">100%</span>
+            </div>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill" style="width:100%;">
+              <div class="progress-gaps">
+                <div class="gap-marker" style="left:99.5%;width:0.5%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sync-details">
+            <span>start <span class="sync-detail-val">#1</span></span>
+            <span>reindex end <span class="sync-detail-val">#188,556</span></span>
+            <span>tip <span class="sync-detail-val">#189,403</span></span>
+          </div>
+
+          <div class="integrity-row">
+            <span class="integrity-label">Data integrity</span>
+            <span class="badge badge-gaps">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M8 5.5v3M8 11h.01M2.5 13.5h11l-5.5-10z"/>
+              </svg>
+              1 gap
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Like S3 smart replay for streams — knows the exact gap window from the reindex, calculates the block range, offers one-click fix. No manual block math.</span>
+    </div>
+  </div>
+
+
+  <!-- D4: Active backfill progress -->
+  <div class="variant">
+    <div class="variant-label">D4 — active backfill progress view <span style="color:var(--green);font-weight:600;">NO AI</span></div>
+    <div class="variant-desc">Backfill is running. Shows progress, ETA, and blocks/sec. Live sync continues in parallel.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <span class="dot dot-purple"></span>
+          dex-swaps
+          <span class="badge badge-backfilling"><span class="dot"></span>backfilling</span>
+        </span>
+        <button class="btn btn-sm">Cancel backfill</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-label">Backfill Range</span>
+          <span class="stat-value">#1 – #120,000</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Processed</span>
+          <span class="stat-value" style="color:var(--accent-purple);">40,800</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Speed</span>
+          <span class="stat-value">~340 blk/s</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">ETA</span>
+          <span class="stat-value">~6 min</span>
+        </div>
+      </div>
+
+      <div style="padding:16px;">
+        <div class="sync-card">
+          <div class="sync-header">
+            <div class="sync-header-left">
+              <span class="badge badge-backfilling"><span class="dot"></span>backfilling</span>
+              <span class="sync-pct" style="color:var(--accent-purple);">34%</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+              79,200 blocks remaining
+            </span>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill backfilling" style="width:34%;"></div>
+          </div>
+
+          <div class="sync-details">
+            <span>start <span class="sync-detail-val">#1</span></span>
+            <span>current <span class="sync-detail-val">#40,800</span></span>
+            <span>end <span class="sync-detail-val">#120,000</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 16px 12px;">
+        <div class="hint">
+          <div class="hint-text">
+            Live sync continues processing new blocks at the chain tip while backfill runs in parallel. New data is available immediately — backfill fills in historical coverage.
+          </div>
+          <span class="hint-dismiss">&times;</span>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Speed, ETA, and progress in one glance. Hint reassures that live sync isn't interrupted. Cancel is always available.</span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section-break"><span class="section-break-label">Detail — Clean States</span></div>
+
+  <!-- D5: Fully synced, no gaps — the goal state -->
+  <div class="variant">
+    <div class="variant-label">D5 — fully synced, no gaps <span style="color:var(--green);font-weight:600;">GOAL STATE</span></div>
+    <div class="variant-desc">Everything is good. Minimal chrome — just confidence signals.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <span class="dot dot-green"></span>
+          dex-swaps
+          <span class="badge badge-active"><span class="dot"></span>active</span>
+        </span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-label">Total Rows</span>
+          <span class="stat-value">12,450</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Error Rate</span>
+          <span class="stat-value good">0.0%</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Last Block</span>
+          <span class="stat-value">#189,403</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Integrity</span>
+          <span class="stat-value good">100%</span>
+        </div>
+      </div>
+
+      <div style="padding:16px;">
+        <div class="sync-card">
+          <div class="sync-header">
+            <div class="sync-header-left">
+              <span class="badge badge-active"><span class="dot"></span>synced</span>
+              <span class="sync-pct" style="color:var(--green);">100%</span>
+            </div>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill" style="width:100%;"></div>
+          </div>
+
+          <div class="sync-details">
+            <span>start <span class="sync-detail-val">#1</span></span>
+            <span>last <span class="sync-detail-val">#189,403</span></span>
+            <span>tip <span class="sync-detail-val">#189,403</span></span>
+          </div>
+
+          <div class="integrity-row">
+            <span class="integrity-label">Data integrity</span>
+            <span class="badge badge-complete">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+              complete
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Clean state is quiet. Green checkmark, 100% integrity, no banners or warnings. The absence of noise IS the signal.</span>
+    </div>
+  </div>
+
+
+  <!-- D6: Catching up from behind -->
+  <div class="variant">
+    <div class="variant-label">D6 — catching up after deploy <span style="color:var(--green);font-weight:600;">NO AI</span></div>
+    <div class="variant-desc">New subgraph just deployed. Processing historical blocks to catch up to chain tip.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <span class="dot dot-blue"></span>
+          token-transfers
+          <span class="badge badge-syncing"><span class="dot"></span>syncing</span>
+        </span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-label">Total Rows</span>
+          <span class="stat-value">1,204</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Speed</span>
+          <span class="stat-value">~520 blk/s</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">ETA</span>
+          <span class="stat-value">~4 min</span>
+        </div>
+      </div>
+
+      <div style="padding:16px;">
+        <div class="sync-card">
+          <div class="sync-header">
+            <div class="sync-header-left">
+              <span class="badge badge-syncing"><span class="dot"></span>catching up</span>
+              <span class="sync-pct" style="color:var(--blue);">14.2%</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+              162,484 blocks remaining
+            </span>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill catching-up" style="width:14.2%;"></div>
+          </div>
+
+          <div class="sync-details">
+            <span>start <span class="sync-detail-val">#1</span></span>
+            <span>current <span class="sync-detail-val">#26,919</span></span>
+            <span>tip <span class="sync-detail-val">#189,403</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Fresh deploy state. Speed and ETA give the user something to watch. No false alerts — catching up is expected, not an error.</span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section-break"><span class="section-break-label">Intelligence</span></div>
+
+  <!-- I2: Gap pattern detection -->
+  <div class="variant">
+    <div class="variant-label">I2 — recurring gap pattern detection <span style="color:var(--accent-purple);font-weight:600;">AI REQUIRED</span></div>
+    <div class="variant-desc">System notices gaps keep appearing in the same block range pattern. Something systematic is wrong.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <span class="dot dot-orange"></span>
+          bns-names
+          <span class="badge badge-gaps">3 gaps</span>
+        </span>
+      </div>
+
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);">
+        <div class="insight insight-warning">
+          These gaps follow a pattern: they all start at blocks where the <code>BNS</code> contract emits <strong>bulk-register</strong> events (50+ events per block). Your handler likely times out on high-event blocks. Consider increasing <code>handler_timeout</code> from <code>30s</code> to <code>120s</code> in your subgraph config.
+          <div class="insight-actions">
+            <button class="insight-action insight-action-primary">Copy updated config</button>
+            <button class="insight-action">View affected blocks</button>
+            <button class="insight-action">Backfill + fix</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap-timeline">
+        <div class="gap-row">
+          <span class="dot dot-orange"></span>
+          <span class="gap-range">#79,200 – #80,712</span>
+          <span class="gap-blocks">1,512 blocks</span>
+          <span style="font-size:11px;color:var(--text-muted);flex:1;">starts at bulk-register block</span>
+        </div>
+        <div class="gap-row">
+          <span class="dot dot-orange"></span>
+          <span class="gap-range">#126,400 – #127,018</span>
+          <span class="gap-blocks">618 blocks</span>
+          <span style="font-size:11px;color:var(--text-muted);flex:1;">starts at bulk-register block</span>
+        </div>
+        <div class="gap-row">
+          <span class="dot dot-orange"></span>
+          <span class="gap-range">#167,800 – #168,151</span>
+          <span class="gap-blocks">351 blocks</span>
+          <span style="font-size:11px;color:var(--text-muted);flex:1;">starts at bulk-register block</span>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Doesn't just show gaps — explains why they keep happening. Correlates gap starts with on-chain events. "Backfill + fix" addresses root cause, not just symptoms.</span>
+    </div>
+  </div>
+
+
+  <!-- I3: Backfill impact estimate -->
+  <div class="variant">
+    <div class="variant-label">I3 — backfill impact estimate <span style="color:var(--accent-purple);font-weight:600;">AI REQUIRED</span></div>
+    <div class="variant-desc">Before running backfill, shows estimated impact on row counts and data completeness.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Backfill Preview</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">bns-names</span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-label">Blocks to Process</span>
+          <span class="stat-value">2,481</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Est. New Rows</span>
+          <span class="stat-value" style="color:var(--accent-purple);">~3,200</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Est. Duration</span>
+          <span class="stat-value">~8 sec</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Integrity After</span>
+          <span class="stat-value good">100%</span>
+        </div>
+      </div>
+
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);">
+        <div class="insight">
+          Based on surrounding block density (~1.3 events/block in these ranges), this backfill should recover approximately <strong>3,200 name registrations</strong>. Your <code>names</code> table will go from <strong>142,809 → ~146,009 rows</strong>.
+          <div class="insight-actions">
+            <button class="insight-action insight-action-primary">Run backfill</button>
+            <button class="insight-action">Dry run first</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Predicts the outcome before you commit. Duration estimate sets expectations. "Dry run" for cautious users. Shows exactly what you'll gain.</span>
+    </div>
+  </div>
+
+
+  <!-- I4: Stale subgraph detection -->
+  <div class="variant">
+    <div class="variant-label">I4 — stale subgraph detection <span style="color:var(--green);font-weight:600;">NO AI</span></div>
+    <div class="variant-desc">Subgraph is "active" but the source contract hasn't emitted events in weeks. Probably abandoned.</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <span class="dot dot-green"></span>
+          old-marketplace
+          <span class="badge badge-active"><span class="dot"></span>active</span>
+        </span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-label">Total Rows</span>
+          <span class="stat-value">89</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Last Event</span>
+          <span class="stat-value warn">42 days ago</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Source Contract</span>
+          <span class="stat-value" style="font-size:11px;">SP2C2Y…::marketplace-v1</span>
+        </div>
+      </div>
+
+      <div style="padding:10px 16px;">
+        <div class="insight insight-warning">
+          This subgraph hasn't received new events in <strong>42 days</strong>. The source contract <code>marketplace-v1</code> appears to have been superseded by <code>marketplace-v2</code> (last event: 3 min ago). Consider updating your source config or deleting this subgraph.
+          <div class="insight-actions">
+            <button class="insight-action">Update source</button>
+            <button class="insight-action" style="color:var(--red);">Delete subgraph</button>
+            <button class="insight-action">Ignore</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annotation">
+      <span class="annotation-arrow">↳</span>
+      <span class="annotation-text">Detects contract migrations automatically. Doesn't just say "no events" — points at the successor contract. Prevents zombie subgraphs consuming resources.</span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

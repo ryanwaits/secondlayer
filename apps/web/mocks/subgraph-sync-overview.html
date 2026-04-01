@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en" style="color-scheme: dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Subgraph Overview + Sync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=Public+Sans:wght@400;460;500;560;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg-elevated: #111;
+  --bg-surface: #161616;
+  --text-main: #e5e5e5;
+  --text-muted: #737373;
+  --text-dim: rgba(255,255,255,0.08);
+  --border: #1e1e1e;
+  --border-hover: #2a2a2a;
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.08);
+  --green-glow: rgba(34,197,94,0.15);
+  --blue: #38bdf8;
+  --blue-bg: rgba(56,189,248,0.08);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.08);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.08);
+  --orange: #f97316;
+  --orange-bg: rgba(249,115,22,0.07);
+  --orange-border: rgba(249,115,22,0.2);
+  --purple: #8b7ff0;
+  --purple-bg: rgba(139,127,240,0.06);
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 460;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding: 40px 20px 120px;
+  display: flex;
+  justify-content: center;
+}
+
+::selection { background: rgba(56,189,248,0.2); }
+
+.page { max-width: 640px; width: 100%; }
+
+/* ── Header ── */
+.page-header { margin-bottom: 8px; }
+.page-title {
+  font-size: 15px; font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.page-desc {
+  font-size: 13px; color: var(--text-muted);
+  margin-top: 4px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
+  margin-bottom: 24px; margin-top: 16px;
+}
+.tab {
+  font-family: var(--font-sans);
+  font-size: 13px; font-weight: 500;
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border: none; background: none; cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab:hover { color: var(--text-main); }
+.tab.active {
+  color: var(--text-main);
+  border-bottom-color: var(--text-main);
+}
+.tab .tab-badge {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 500;
+  padding: 1px 6px; border-radius: 8px;
+  margin-left: 6px;
+  background: var(--orange-bg);
+  color: var(--orange);
+}
+
+/* ── Insight banner ── */
+.insight {
+  font-size: 13px; line-height: 1.5;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 3px solid;
+}
+.insight.warning {
+  background: var(--yellow-bg);
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+.insight strong { font-weight: 600; }
+
+/* ── Section dividers ── */
+.section-wrap {
+  position: relative;
+  margin-top: 28px; margin-bottom: 16px;
+}
+.section-wrap hr {
+  border: none; height: 1px;
+  background: var(--border);
+}
+.section-title {
+  position: absolute; top: 50%; left: 0;
+  transform: translateY(-50%);
+  background: var(--bg); padding-right: 12px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Stats row ── */
+.stats {
+  display: flex; gap: 32px;
+  margin-bottom: 4px;
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 22px; font-weight: 500;
+  letter-spacing: -0.03em;
+  display: block;
+}
+.stat-label {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
+/* ── Badges ── */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 4px;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.badge.active { color: var(--green); background: var(--green-bg); }
+.badge.syncing { color: var(--blue); background: var(--blue-bg); }
+.badge.error { color: var(--red); background: var(--red-bg); }
+.badge.complete { color: var(--green); background: var(--green-bg); }
+.badge.gaps { color: var(--orange); background: var(--orange-bg); }
+
+.badge .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+}
+.badge.active .dot {
+  box-shadow: 0 0 6px var(--green-glow);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Sync Progress ── */
+.sync-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+.sync-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.sync-header-left {
+  display: flex; align-items: center; gap: 8px;
+}
+.sync-status-label {
+  font-size: 13px; font-weight: 500;
+}
+.sync-pct {
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 500;
+  color: var(--green);
+}
+
+/* Progress bar */
+.progress-track {
+  height: 6px;
+  background: var(--text-dim);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+  transition: width 0.6s ease;
+  position: relative;
+}
+.progress-fill.catching-up {
+  background: linear-gradient(90deg, var(--blue) 60%, var(--blue));
+}
+.progress-fill::after {
+  content: '';
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 20px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15));
+  border-radius: 0 3px 3px 0;
+}
+
+/* Gap markers on progress bar */
+.progress-gaps {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+.gap-marker {
+  position: absolute; top: 0; bottom: 0;
+  background: var(--orange);
+  opacity: 0.7;
+  min-width: 2px;
+  border-radius: 1px;
+}
+
+.sync-details {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.sync-detail-val { color: var(--text-main); }
+
+/* ── Gap summary card ── */
+.gap-summary {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--orange-bg);
+  border: 1px solid var(--orange-border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.gap-summary-left {
+  display: flex; align-items: center; gap: 10px;
+}
+.gap-icon {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  background: rgba(249,115,22,0.12);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--orange);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.gap-summary-text {
+  font-size: 13px; color: var(--text-main);
+}
+.gap-summary-text strong {
+  font-weight: 600; color: var(--orange);
+}
+.gap-summary-sub {
+  font-size: 11px; color: var(--text-muted);
+  margin-top: 1px;
+}
+.gap-summary-link {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500;
+  color: var(--orange);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.gap-summary-link:hover { opacity: 0.7; }
+
+/* ── Integrity line ── */
+.integrity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 8px 0;
+}
+.integrity-label {
+  font-size: 12px; color: var(--text-muted);
+}
+
+/* ── Tables section ── */
+.index-group { display: flex; flex-direction: column; }
+.index-item {
+  border-bottom: 1px solid var(--border);
+}
+.index-item:last-child { border-bottom: none; }
+.index-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  text-decoration: none;
+  color: var(--text-main);
+  transition: opacity 0.15s;
+}
+.index-link:hover { opacity: 0.7; }
+.index-label { font-size: 14px; font-weight: 460; }
+.index-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Endpoint list ── */
+.endpoint-list {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.endpoint-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.endpoint-row:last-child { border-bottom: none; }
+.endpoint-method {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  color: var(--green);
+  min-width: 32px;
+}
+.endpoint-path {
+  font-family: var(--font-mono);
+  font-size: 12px; color: var(--text-main);
+  flex: 1;
+}
+.endpoint-desc {
+  font-size: 12px; color: var(--text-muted);
+}
+
+/* ── Annotation labels ── */
+.mock-label {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--purple);
+  margin-bottom: 6px;
+}
+.mock-note {
+  font-size: 11px; color: var(--text-muted);
+  line-height: 1.5; margin-bottom: 20px;
+}
+
+.demo-spacer { height: 48px; }
+
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── Mock annotation ── -->
+  <div class="mock-label">Mock: Enhanced Overview</div>
+  <div class="mock-note">
+    Adds Sync Progress section to existing subgraph detail overview page.<br>
+    Shows progress bar, gap markers, integrity, and gap summary card.
+  </div>
+
+  <!-- ── Page header ── -->
+  <div class="page-header">
+    <div class="page-title">bns-names</div>
+    <div class="page-desc">
+      v2 &middot; active
+    </div>
+  </div>
+
+  <!-- ── Stalled insight (existing) ── -->
+  <div class="insight warning">
+    This subgraph is <strong>1,247 blocks</strong> behind the chain tip (#189,403).
+    Last processed: #188,156.
+  </div>
+
+  <!-- ── Tabs ── -->
+  <div class="tabs">
+    <button class="tab active">Overview</button>
+    <button class="tab">Schema</button>
+    <button class="tab">Data</button>
+    <button class="tab">Sources</button>
+    <button class="tab">Gaps <span class="tab-badge">3</span></button>
+    <button class="tab">Reindex</button>
+  </div>
+
+  <!-- ── Existing stats ── -->
+  <div class="stats">
+    <div>
+      <span class="stat-value">142,809</span>
+      <span class="stat-label">total rows</span>
+    </div>
+    <div>
+      <span class="stat-value">0.2%</span>
+      <span class="stat-label">error rate</span>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       NEW: Sync Progress section
+       ════════════════════════════════════════════════════════ -->
+  <div class="section-wrap">
+    <hr>
+    <h2 class="section-title">Sync progress</h2>
+  </div>
+
+  <div class="sync-card">
+    <div class="sync-header">
+      <div class="sync-header-left">
+        <span class="badge syncing"><span class="dot"></span>catching up</span>
+        <span class="sync-pct" style="color: var(--blue);">99.3%</span>
+      </div>
+      <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
+        1,247 blocks remaining
+      </span>
+    </div>
+
+    <!-- Progress bar with gap markers -->
+    <div class="progress-track">
+      <div class="progress-fill catching-up" style="width: 99.3%;">
+        <div class="progress-gaps">
+          <!-- Gap markers — positioned by % within the total range -->
+          <div class="gap-marker" style="left: 42%; width: 0.8%;"></div>
+          <div class="gap-marker" style="left: 67%; width: 0.3%;"></div>
+          <div class="gap-marker" style="left: 88.5%; width: 0.15%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sync-details">
+      <span>start <span class="sync-detail-val">#1</span></span>
+      <span>last <span class="sync-detail-val">#188,156</span></span>
+      <span>tip <span class="sync-detail-val">#189,403</span></span>
+    </div>
+
+    <!-- Integrity row -->
+    <div class="integrity-row">
+      <span class="integrity-label">Data integrity</span>
+      <span class="badge gaps">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M8 5.5v3M8 11h.01M2.5 13.5h11l-5.5-10z"/>
+        </svg>
+        gaps detected
+      </span>
+    </div>
+
+    <!-- Gap summary card -->
+    <div class="gap-summary">
+      <div class="gap-summary-left">
+        <div class="gap-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="6" width="4" height="4" rx="0.5"/>
+            <rect x="11" y="6" width="4" height="4" rx="0.5"/>
+            <path d="M5.5 8h5" stroke-dasharray="2 2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="gap-summary-text"><strong>3</strong> unresolved gaps</div>
+          <div class="gap-summary-sub">2,481 missing blocks &middot; earliest at #79,200</div>
+        </div>
+      </div>
+      <a href="#" class="gap-summary-link">View gaps &rarr;</a>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       Variant B: Fully synced, no gaps
+       ════════════════════════════════════════════════════════ -->
+  <div class="demo-spacer"></div>
+  <div class="mock-label">Variant: Synced + No Gaps</div>
+  <div class="mock-note">When the subgraph is fully caught up with clean integrity.</div>
+
+  <div class="sync-card">
+    <div class="sync-header">
+      <div class="sync-header-left">
+        <span class="badge active"><span class="dot"></span>synced</span>
+        <span class="sync-pct">100%</span>
+      </div>
+      <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
+        0 blocks remaining
+      </span>
+    </div>
+
+    <div class="progress-track">
+      <div class="progress-fill" style="width: 100%;"></div>
+    </div>
+
+    <div class="sync-details">
+      <span>start <span class="sync-detail-val">#1</span></span>
+      <span>last <span class="sync-detail-val">#189,403</span></span>
+      <span>tip <span class="sync-detail-val">#189,403</span></span>
+    </div>
+
+    <div class="integrity-row">
+      <span class="integrity-label">Data integrity</span>
+      <span class="badge complete">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 8.5l3.5 3.5 6.5-7"/>
+        </svg>
+        complete
+      </span>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       Rest of existing overview content
+       ════════════════════════════════════════════════════════ -->
+  <div class="section-wrap">
+    <hr>
+    <h2 class="section-title">Endpoint</h2>
+  </div>
+
+  <div class="endpoint-list">
+    <div class="endpoint-row">
+      <span class="endpoint-method">GET</span>
+      <span class="endpoint-path">/api/subgraphs/bns-names/names</span>
+      <span class="endpoint-desc">Query rows</span>
+    </div>
+    <div class="endpoint-row">
+      <span class="endpoint-method">GET</span>
+      <span class="endpoint-path">...names?namespace=btc</span>
+      <span class="endpoint-desc">Filtered</span>
+    </div>
+    <div class="endpoint-row">
+      <span class="endpoint-method">GET</span>
+      <span class="endpoint-path">...names?_search=term</span>
+      <span class="endpoint-desc">Search</span>
+    </div>
+    <div class="endpoint-row">
+      <span class="endpoint-method">GET</span>
+      <span class="endpoint-path">...names/count</span>
+      <span class="endpoint-desc">Count</span>
+    </div>
+  </div>
+
+  <div class="section-wrap">
+    <hr>
+    <h2 class="section-title">Tables</h2>
+  </div>
+
+  <div class="index-group">
+    <div class="index-item">
+      <a href="#" class="index-link">
+        <span class="index-label">names</span>
+        <span class="index-meta">142,809 rows</span>
+      </a>
+    </div>
+    <div class="index-item">
+      <a href="#" class="index-link">
+        <span class="index-label">namespaces</span>
+        <span class="index-meta">12 rows</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
