@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [[`e4a6258`](https://github.com/ryanwaits/secondlayer/commit/e4a625854bea486efd62f9ebdf47a0791a850757)]:
+  - @secondlayer/shared@0.8.0
+  - @secondlayer/account-agent@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes

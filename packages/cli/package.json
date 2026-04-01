@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "1.7.0",
+	"version": "1.8.0",
 	"description": "CLI for streams, subgraphs, and real-time blockchain indexing on Stacks",
 	"type": "module",
 	"bin": {
@@ -19,7 +19,10 @@
 			"import": "./dist/plugins/index.js"
 		}
 	},
-	"files": ["dist", "templates"],
+	"files": [
+		"dist",
+		"templates"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -27,15 +30,21 @@
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "bun run build"
 	},
-	"keywords": ["stacks", "clarity", "blockchain", "smart-contracts", "cli"],
+	"keywords": [
+		"stacks",
+		"clarity",
+		"blockchain",
+		"smart-contracts",
+		"cli"
+	],
 	"author": "",
 	"license": "MIT",
 	"dependencies": {
 		"@inquirer/prompts": "^8.2.0",
-		"@secondlayer/sdk": "^0.7.0",
-		"@secondlayer/shared": "^0.7.1",
+		"@secondlayer/sdk": "^0.8.0",
+		"@secondlayer/shared": "^0.8.0",
 		"@secondlayer/stacks": "^0.2.2",
-		"@secondlayer/subgraphs": "^0.6.0",
+		"@secondlayer/subgraphs": "^0.7.0",
 		"@biomejs/js-api": "^0.7.0",
 		"@biomejs/wasm-nodejs": "^1.9.0",
 		"esbuild": "^0.19.0",

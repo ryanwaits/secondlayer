@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/mcp",
-	"version": "0.3.2",
+	"version": "0.3.3",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -16,7 +16,10 @@
 			"import": "./dist/index.js"
 		}
 	},
-	"files": ["dist", "README.md"],
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -25,8 +28,8 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
-		"@secondlayer/sdk": "^0.7.0",
-		"@secondlayer/subgraphs": "^0.6.0",
+		"@secondlayer/sdk": "^0.8.0",
+		"@secondlayer/subgraphs": "^0.7.0",
 		"esbuild": "^0.27.4",
 		"zod": "^4.3.6"
 	},

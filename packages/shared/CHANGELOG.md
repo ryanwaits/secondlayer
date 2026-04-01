@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.8.0
+
+### Minor Changes
+
+- [`e4a6258`](https://github.com/ryanwaits/secondlayer/commit/e4a625854bea486efd62f9ebdf47a0791a850757) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Add subgraph gap detection, tracking, and backfill across runtime, API, SDK, and CLI
+
 ## 0.7.1
 
 ### Patch Changes
