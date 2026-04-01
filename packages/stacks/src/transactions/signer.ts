@@ -1,175 +1,185 @@
+import type { CustomAccount, LocalAccount } from "../accounts/types.ts";
 import { bytesToHex, hexToBytes } from "../utils/encoding.ts";
 import { txidFromBytes } from "../utils/hash.ts";
 import {
-  intoInitialSighashAuth,
-  nextSignature,
-  sigHashPreSign,
-  sigHashPostSign,
+	intoInitialSighashAuth,
+	nextSignature,
+	sigHashPostSign,
+	sigHashPreSign,
 } from "./authorization.ts";
 import { replayMultiSigSigHash } from "./multisig.ts";
-import { serializeTransaction } from "./wire/serialize.ts";
 import {
-  AuthType,
-  type StacksTransaction,
-  type SingleSigSpendingCondition,
-  type SponsoredAuthorization,
+	AuthType,
+	type SingleSigSpendingCondition,
+	type SponsoredAuthorization,
+	type StacksTransaction,
 } from "./types.ts";
-import type { LocalAccount, CustomAccount } from "../accounts/types.ts";
+import { serializeTransaction } from "./wire/serialize.ts";
 
 function txid(tx: StacksTransaction): string {
-  return txidFromBytes(serializeTransaction(tx));
+	return txidFromBytes(serializeTransaction(tx));
 }
 
 /** Compute the initial sighash for a transaction */
 export function signBegin(tx: StacksTransaction): string {
-  const cleared: StacksTransaction = {
-    ...tx,
-    auth: intoInitialSighashAuth(tx.auth),
-  };
-  return txid(cleared);
+	const cleared: StacksTransaction = {
+		...tx,
+		auth: intoInitialSighashAuth(tx.auth),
+	};
+	return txid(cleared);
 }
 
 /** Sign a single-sig transaction with a private key, returning the signed transaction */
 export function signTransaction(
-  tx: StacksTransaction,
-  privateKey: string
+	tx: StacksTransaction,
+	privateKey: string,
 ): StacksTransaction {
-  const sigHash = signBegin(tx);
-  const condition = tx.auth.spendingCondition as SingleSigSpendingCondition;
+	const sigHash = signBegin(tx);
+	const condition = tx.auth.spendingCondition as SingleSigSpendingCondition;
 
-  // Origin always signs with AuthType.Standard (even for sponsored txs)
-  const { nextSig } = nextSignature(
-    sigHash,
-    AuthType.Standard,
-    condition.fee,
-    condition.nonce,
-    privateKey
-  );
+	// Origin always signs with AuthType.Standard (even for sponsored txs)
+	const { nextSig } = nextSignature(
+		sigHash,
+		AuthType.Standard,
+		condition.fee,
+		condition.nonce,
+		privateKey,
+	);
 
-  return {
-    ...tx,
-    auth: {
-      ...tx.auth,
-      spendingCondition: {
-        ...condition,
-        signature: nextSig,
-      },
-    },
-  };
+	return {
+		...tx,
+		auth: {
+			...tx.auth,
+			spendingCondition: {
+				...condition,
+				signature: nextSig,
+			},
+		},
+	};
 }
 
 /** Sign a single-sig transaction using an account (LocalAccount or CustomAccount) */
 export async function signTransactionWithAccount(
-  tx: StacksTransaction,
-  account: LocalAccount | CustomAccount
+	tx: StacksTransaction,
+	account: LocalAccount | CustomAccount,
 ): Promise<StacksTransaction> {
-  const sigHash = signBegin(tx);
-  const condition = tx.auth.spendingCondition as SingleSigSpendingCondition;
+	const sigHash = signBegin(tx);
+	const condition = tx.auth.spendingCondition as SingleSigSpendingCondition;
 
-  // Origin always signs with AuthType.Standard (even for sponsored txs)
-  const sigHashPre = sigHashPreSign(
-    sigHash,
-    AuthType.Standard,
-    condition.fee,
-    condition.nonce
-  );
+	// Origin always signs with AuthType.Standard (even for sponsored txs)
+	const sigHashPre = sigHashPreSign(
+		sigHash,
+		AuthType.Standard,
+		condition.fee,
+		condition.nonce,
+	);
 
-  // account.sign returns 65-byte VRS (recovery + r + s)
-  const sigBytes = await account.sign(hexToBytes(sigHashPre));
-  const nextSig = bytesToHex(sigBytes);
+	// account.sign returns 65-byte VRS (recovery + r + s)
+	const sigBytes = await account.sign(hexToBytes(sigHashPre));
+	const nextSig = bytesToHex(sigBytes);
 
-  return {
-    ...tx,
-    auth: {
-      ...tx.auth,
-      spendingCondition: {
-        ...condition,
-        signature: nextSig,
-      },
-    },
-  };
+	return {
+		...tx,
+		auth: {
+			...tx.auth,
+			spendingCondition: {
+				...condition,
+				signature: nextSig,
+			},
+		},
+	};
 }
 
 /** Get the txid of a transaction */
 export function getTransactionId(tx: StacksTransaction): string {
-  return txid(tx);
+	return txid(tx);
 }
 
 /** Reconstruct the sighash after origin signing (needed for sponsor signing) */
 export function getOriginSigHash(tx: StacksTransaction): string {
-  const condition = tx.auth.spendingCondition;
+	const condition = tx.auth.spendingCondition;
 
-  // Multi-sig: replay through all fields
-  if ("fields" in condition) {
-    return replayMultiSigSigHash(tx);
-  }
+	// Multi-sig: replay through all fields
+	if ("fields" in condition) {
+		return replayMultiSigSigHash(tx);
+	}
 
-  // Single-sig
-  const initialSigHash = signBegin(tx);
-  const sc = condition as SingleSigSpendingCondition;
-  const preSign = sigHashPreSign(initialSigHash, AuthType.Standard, sc.fee, sc.nonce);
-  return sigHashPostSign(preSign, sc.keyEncoding, sc.signature);
+	// Single-sig
+	const initialSigHash = signBegin(tx);
+	const sc = condition as SingleSigSpendingCondition;
+	const preSign = sigHashPreSign(
+		initialSigHash,
+		AuthType.Standard,
+		sc.fee,
+		sc.nonce,
+	);
+	return sigHashPostSign(preSign, sc.keyEncoding, sc.signature);
 }
 
 /** Sign a sponsored transaction as the sponsor with a private key */
-export function signSponsor(tx: StacksTransaction, privateKey: string): StacksTransaction {
-  if (tx.auth.authType !== AuthType.Sponsored) {
-    throw new Error("Transaction must be sponsored");
-  }
-  const auth = tx.auth as SponsoredAuthorization;
-  const sponsorCondition = auth.sponsorSpendingCondition as SingleSigSpendingCondition;
-  const originSigHash = getOriginSigHash(tx);
+export function signSponsor(
+	tx: StacksTransaction,
+	privateKey: string,
+): StacksTransaction {
+	if (tx.auth.authType !== AuthType.Sponsored) {
+		throw new Error("Transaction must be sponsored");
+	}
+	const auth = tx.auth as SponsoredAuthorization;
+	const sponsorCondition =
+		auth.sponsorSpendingCondition as SingleSigSpendingCondition;
+	const originSigHash = getOriginSigHash(tx);
 
-  const { nextSig } = nextSignature(
-    originSigHash,
-    AuthType.Sponsored,
-    sponsorCondition.fee,
-    sponsorCondition.nonce,
-    privateKey
-  );
+	const { nextSig } = nextSignature(
+		originSigHash,
+		AuthType.Sponsored,
+		sponsorCondition.fee,
+		sponsorCondition.nonce,
+		privateKey,
+	);
 
-  return {
-    ...tx,
-    auth: {
-      ...auth,
-      sponsorSpendingCondition: {
-        ...sponsorCondition,
-        signature: nextSig,
-      },
-    },
-  };
+	return {
+		...tx,
+		auth: {
+			...auth,
+			sponsorSpendingCondition: {
+				...sponsorCondition,
+				signature: nextSig,
+			},
+		},
+	};
 }
 
 /** Sign a sponsored transaction as the sponsor using an account */
 export async function signSponsorWithAccount(
-  tx: StacksTransaction,
-  account: LocalAccount | CustomAccount
+	tx: StacksTransaction,
+	account: LocalAccount | CustomAccount,
 ): Promise<StacksTransaction> {
-  if (tx.auth.authType !== AuthType.Sponsored) {
-    throw new Error("Transaction must be sponsored");
-  }
-  const auth = tx.auth as SponsoredAuthorization;
-  const sponsorCondition = auth.sponsorSpendingCondition as SingleSigSpendingCondition;
-  const originSigHash = getOriginSigHash(tx);
+	if (tx.auth.authType !== AuthType.Sponsored) {
+		throw new Error("Transaction must be sponsored");
+	}
+	const auth = tx.auth as SponsoredAuthorization;
+	const sponsorCondition =
+		auth.sponsorSpendingCondition as SingleSigSpendingCondition;
+	const originSigHash = getOriginSigHash(tx);
 
-  const sigHashPre = sigHashPreSign(
-    originSigHash,
-    AuthType.Sponsored,
-    sponsorCondition.fee,
-    sponsorCondition.nonce
-  );
+	const sigHashPre = sigHashPreSign(
+		originSigHash,
+		AuthType.Sponsored,
+		sponsorCondition.fee,
+		sponsorCondition.nonce,
+	);
 
-  const sigBytes = await account.sign(hexToBytes(sigHashPre));
-  const nextSig = bytesToHex(sigBytes);
+	const sigBytes = await account.sign(hexToBytes(sigHashPre));
+	const nextSig = bytesToHex(sigBytes);
 
-  return {
-    ...tx,
-    auth: {
-      ...auth,
-      sponsorSpendingCondition: {
-        ...sponsorCondition,
-        signature: nextSig,
-      },
-    },
-  };
+	return {
+		...tx,
+		auth: {
+			...auth,
+			sponsorSpendingCondition: {
+				...sponsorCondition,
+				signature: nextSig,
+			},
+		},
+	};
 }

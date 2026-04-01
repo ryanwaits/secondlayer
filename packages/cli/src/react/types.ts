@@ -5,23 +5,23 @@ import type { NetworkName } from "../types/config";
  */
 
 export interface SecondLayerReactConfig {
-  /**
-   * Network to use for API calls
-   */
-  network: NetworkName;
+	/**
+	 * Network to use for API calls
+	 */
+	network: NetworkName;
 
-  /**
-   * API key for Stacks API (optional)
-   */
-  apiKey?: string;
+	/**
+	 * API key for Stacks API (optional)
+	 */
+	apiKey?: string;
 
-  /**
-   * Base URL for Stacks API (optional override)
-   */
-  apiUrl?: string;
+	/**
+	 * Base URL for Stacks API (optional override)
+	 */
+	apiUrl?: string;
 
-  /**
-   * Default sender address for read-only calls
-   */
-  senderAddress?: string;
+	/**
+	 * Default sender address for read-only calls
+	 */
+	senderAddress?: string;
 }

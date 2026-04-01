@@ -4,15 +4,15 @@
  */
 
 import {
-  toCamelCase,
-  isAbiStringAscii,
-  isAbiStringUtf8,
-  isAbiBuffer,
-  isAbiOptional,
-  isAbiList,
-  isAbiTuple,
-  isAbiResponse,
-  type AbiType,
+	type AbiType,
+	isAbiBuffer,
+	isAbiList,
+	isAbiOptional,
+	isAbiResponse,
+	isAbiStringAscii,
+	isAbiStringUtf8,
+	isAbiTuple,
+	toCamelCase,
 } from "@secondlayer/stacks/clarity";
 
 /**
@@ -20,22 +20,22 @@ import {
  * based on the Clarity ABI argument type.
  */
 export function generateClarityConversion(
-  argName: string,
-  argType: { type: AbiType }
+	argName: string,
+	argType: { type: AbiType },
 ): string {
-  const type = argType.type;
+	const type = argType.type;
 
-  if (typeof type === "string") {
-    switch (type) {
-      case "uint128":
-        return `Cl.uint(${argName})`;
-      case "int128":
-        return `Cl.int(${argName})`;
-      case "bool":
-        return `Cl.bool(${argName})`;
-      case "principal":
-      case "trait_reference":
-        return `(() => {
+	if (typeof type === "string") {
+		switch (type) {
+			case "uint128":
+				return `Cl.uint(${argName})`;
+			case "int128":
+				return `Cl.int(${argName})`;
+			case "bool":
+				return `Cl.bool(${argName})`;
+			case "principal":
+			case "trait_reference":
+				return `(() => {
           const [address, contractName] = ${argName}.split(".") as [string, string | undefined];
           if (!validateStacksAddress(address)) {
             throw new Error("Invalid Stacks address format");
@@ -48,21 +48,21 @@ export function generateClarityConversion(
           }
           return Cl.standardPrincipal(${argName});
         })()`;
-      default:
-        return `${argName}`;
-    }
-  }
+			default:
+				return `${argName}`;
+		}
+	}
 
-  if (isAbiStringAscii(type)) {
-    return `Cl.stringAscii(${argName})`;
-  }
+	if (isAbiStringAscii(type)) {
+		return `Cl.stringAscii(${argName})`;
+	}
 
-  if (isAbiStringUtf8(type)) {
-    return `Cl.stringUtf8(${argName})`;
-  }
+	if (isAbiStringUtf8(type)) {
+		return `Cl.stringUtf8(${argName})`;
+	}
 
-  if (isAbiBuffer(type)) {
-    return `(() => {
+	if (isAbiBuffer(type)) {
+		return `(() => {
       const value = ${argName};
       if (value instanceof Uint8Array) {
         return Cl.buffer(value);
@@ -91,43 +91,43 @@ export function generateClarityConversion(
       }
       throw new Error(\`Invalid buffer value: \${value}\`);
     })()`;
-  }
+	}
 
-  if (isAbiOptional(type)) {
-    const innerConversion = generateClarityConversion(argName, {
-      type: type.optional,
-    });
-    return `${argName} !== null ? Cl.some(${innerConversion.replace(argName, `${argName}`)}) : Cl.none()`;
-  }
+	if (isAbiOptional(type)) {
+		const innerConversion = generateClarityConversion(argName, {
+			type: type.optional,
+		});
+		return `${argName} !== null ? Cl.some(${innerConversion.replace(argName, `${argName}`)}) : Cl.none()`;
+	}
 
-  if (isAbiList(type)) {
-    const innerConversion = generateClarityConversion("item", {
-      type: type.list.type,
-    });
-    const maxLength = type.list.length || 100;
-    return `(() => {
+	if (isAbiList(type)) {
+		const innerConversion = generateClarityConversion("item", {
+			type: type.list.type,
+		});
+		const maxLength = type.list.length || 100;
+		return `(() => {
       const listValue = ${argName};
       if (listValue.length > ${maxLength}) {
         throw new Error(\`List length \${listValue.length} exceeds max ${maxLength}\`);
       }
       return Cl.list(listValue.map(item => ${innerConversion}));
     })()`;
-  }
+	}
 
-  if (isAbiTuple(type)) {
-    const requiredFields = type.tuple.map((f: { name: string }) => f.name);
-    const fieldNames = JSON.stringify(requiredFields);
-    const fields = type.tuple
-      .map((field: { name: string; type: AbiType }) => {
-        const camelFieldName = toCamelCase(field.name);
-        const fieldConversion = generateClarityConversion(
-          `tupleValue.${camelFieldName}`,
-          { type: field.type }
-        );
-        return `"${field.name}": ${fieldConversion}`;
-      })
-      .join(", ");
-    return `(() => {
+	if (isAbiTuple(type)) {
+		const requiredFields = type.tuple.map((f: { name: string }) => f.name);
+		const fieldNames = JSON.stringify(requiredFields);
+		const fields = type.tuple
+			.map((field: { name: string; type: AbiType }) => {
+				const camelFieldName = toCamelCase(field.name);
+				const fieldConversion = generateClarityConversion(
+					`tupleValue.${camelFieldName}`,
+					{ type: field.type },
+				);
+				return `"${field.name}": ${fieldConversion}`;
+			})
+			.join(", ");
+		return `(() => {
       const tupleValue = ${argName};
       const requiredFields = ${fieldNames};
       for (const fieldName of requiredFields) {
@@ -138,16 +138,16 @@ export function generateClarityConversion(
       }
       return Cl.tuple({ ${fields} });
     })()`;
-  }
+	}
 
-  if (isAbiResponse(type)) {
-    const okConversion = generateClarityConversion(`responseValue.ok`, {
-      type: type.response.ok,
-    });
-    const errConversion = generateClarityConversion(`responseValue.err`, {
-      type: type.response.error,
-    });
-    return `(() => {
+	if (isAbiResponse(type)) {
+		const okConversion = generateClarityConversion(`responseValue.ok`, {
+			type: type.response.ok,
+		});
+		const errConversion = generateClarityConversion(`responseValue.err`, {
+			type: type.response.error,
+		});
+		return `(() => {
       const responseValue = ${argName};
       const hasOk = 'ok' in responseValue;
       const hasErr = 'err' in responseValue;
@@ -159,7 +159,7 @@ export function generateClarityConversion(
       }
       throw new Error("Response must have exactly 'ok' or 'err' property");
     })()`;
-  }
+	}
 
-  return `${argName}`;
+	return `${argName}`;
 }

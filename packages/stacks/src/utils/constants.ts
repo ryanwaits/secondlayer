@@ -5,12 +5,13 @@ export const MIN_I128: bigint = -(1n << 127n);
 
 /** C32-encoded address version bytes for single-sig and multi-sig on each network. */
 export const AddressVersion = {
-  MainnetSingleSig: 22,
-  MainnetMultiSig: 20,
-  TestnetSingleSig: 26,
-  TestnetMultiSig: 21,
+	MainnetSingleSig: 22,
+	MainnetMultiSig: 20,
+	TestnetSingleSig: 26,
+	TestnetMultiSig: 21,
 } as const;
-export type AddressVersion = (typeof AddressVersion)[keyof typeof AddressVersion];
+export type AddressVersion =
+	(typeof AddressVersion)[keyof typeof AddressVersion];
 
 /** Mainnet burn address (all-zero hash160). */
 export const ZERO_ADDRESS = "SP000000000000000000002Q6VF78";

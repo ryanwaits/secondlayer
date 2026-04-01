@@ -9,9 +9,9 @@ import { getDb } from "../db/index.ts";
  * @returns Number of recovered jobs
  */
 export async function recoverStaleJobs(
-  staleThresholdMinutes = 5
+	staleThresholdMinutes = 5,
 ): Promise<number> {
-  const { rows } = await sql`
+	const { rows } = await sql`
     UPDATE jobs
     SET
       status = 'pending',
@@ -23,7 +23,7 @@ export async function recoverStaleJobs(
     RETURNING id
   `.execute(getDb());
 
-  return rows.length;
+	return rows.length;
 }
 
 /**
@@ -31,19 +31,19 @@ export async function recoverStaleJobs(
  * Returns a cleanup function to stop the interval
  */
 export function startRecoveryLoop(
-  intervalMs = 60000, // 1 minute
-  staleThresholdMinutes = 5
+	intervalMs = 60000, // 1 minute
+	staleThresholdMinutes = 5,
 ): () => void {
-  const intervalId = setInterval(async () => {
-    try {
-      const recovered = await recoverStaleJobs(staleThresholdMinutes);
-      if (recovered > 0) {
-        console.log(`Recovered ${recovered} stale jobs`);
-      }
-    } catch (error) {
-      console.error("Error recovering stale jobs:", error);
-    }
-  }, intervalMs);
+	const intervalId = setInterval(async () => {
+		try {
+			const recovered = await recoverStaleJobs(staleThresholdMinutes);
+			if (recovered > 0) {
+				console.log(`Recovered ${recovered} stale jobs`);
+			}
+		} catch (error) {
+			console.error("Error recovering stale jobs:", error);
+		}
+	}, intervalMs);
 
-  return () => clearInterval(intervalId);
+	return () => clearInterval(intervalId);
 }

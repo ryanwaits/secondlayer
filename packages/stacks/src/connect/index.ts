@@ -3,15 +3,15 @@ export { connect, disconnect, isConnected } from "./actions.ts";
 export { getProvider, setProvider, isWalletInstalled } from "./provider.ts";
 export { ConnectError, JsonRpcError, JsonRpcErrorCode } from "./errors.ts";
 export type {
-  WalletProvider,
-  AddressEntry,
-  AddressesResult,
-  Methods,
-  MethodParams,
-  MethodResult,
-  TransferStxParams,
-  CallContractParams,
-  DeployContractParams,
-  SignMessageParams,
-  SignTransactionParams,
+	WalletProvider,
+	AddressEntry,
+	AddressesResult,
+	Methods,
+	MethodParams,
+	MethodResult,
+	TransferStxParams,
+	CallContractParams,
+	DeployContractParams,
+	SignMessageParams,
+	SignTransactionParams,
 } from "./types.ts";

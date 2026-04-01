@@ -1,28 +1,28 @@
 {
-  "name": "@secondlayer/auth",
-  "version": "0.1.9",
-  "private": true,
-  "type": "module",
-  "main": "./src/index.ts",
-  "exports": {
-    ".": "./src/index.ts",
-    "./keys": "./src/keys.ts",
-    "./email": "./src/email.ts",
-    "./middleware": "./src/middleware.ts",
-    "./rate-limit": "./src/rate-limit.ts",
-    "./http": "./src/http.ts"
-  },
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "bun test"
-  },
-  "dependencies": {
-    "@secondlayer/shared": "^0.7.0",
-    "hono": "^4.0.0",
-    "zod": "^4.3.6"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "^5"
-  }
+	"name": "@secondlayer/auth",
+	"version": "0.1.9",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./keys": "./src/keys.ts",
+		"./email": "./src/email.ts",
+		"./middleware": "./src/middleware.ts",
+		"./rate-limit": "./src/rate-limit.ts",
+		"./http": "./src/http.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@secondlayer/shared": "^0.7.0",
+		"hono": "^4.0.0",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5"
+	}
 }

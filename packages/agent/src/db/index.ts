@@ -1,12 +1,12 @@
 import { Database } from "bun:sqlite";
 
 export function initDb(path: string): Database {
-  const db = new Database(path, { create: true });
+	const db = new Database(path, { create: true });
 
-  db.exec("PRAGMA journal_mode = WAL");
-  db.exec("PRAGMA busy_timeout = 5000");
+	db.exec("PRAGMA journal_mode = WAL");
+	db.exec("PRAGMA busy_timeout = 5000");
 
-  db.exec(`
+	db.exec(`
     CREATE TABLE IF NOT EXISTS decisions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tier TEXT NOT NULL,
@@ -20,7 +20,7 @@ export function initDb(path: string): Database {
     )
   `);
 
-  db.exec(`
+	db.exec(`
     CREATE TABLE IF NOT EXISTS snapshots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       disk TEXT NOT NULL DEFAULT '{}',
@@ -33,7 +33,7 @@ export function initDb(path: string): Database {
     )
   `);
 
-  db.exec(`
+	db.exec(`
     CREATE TABLE IF NOT EXISTS alerts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       severity TEXT NOT NULL,
@@ -46,7 +46,7 @@ export function initDb(path: string): Database {
     )
   `);
 
-  db.exec(`
+	db.exec(`
     CREATE TABLE IF NOT EXISTS cooldowns (
       service TEXT NOT NULL,
       action TEXT NOT NULL,
@@ -56,5 +56,5 @@ export function initDb(path: string): Database {
     )
   `);
 
-  return db;
+	return db;
 }

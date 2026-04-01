@@ -1,140 +1,142 @@
-import { logger, getErrorMessage } from "@secondlayer/shared";
-import { createDeliveryHeaders } from "./signing.ts";
+import { getErrorMessage, logger } from "@secondlayer/shared";
 import type { DeliveryPayload } from "./payload.ts";
+import { createDeliveryHeaders } from "./signing.ts";
 
 export interface DispatchResult {
-  success: boolean;
-  statusCode?: number;
-  responseTimeMs: number;
-  attempts: number;
-  error?: string;
+	success: boolean;
+	statusCode?: number;
+	responseTimeMs: number;
+	attempts: number;
+	error?: string;
 }
 
 export interface DispatchOptions {
-  maxAttempts?: number;
-  timeoutMs?: number;
-  retryDelayMs?: number[];
+	maxAttempts?: number;
+	timeoutMs?: number;
+	retryDelayMs?: number[];
 }
 
 const DEFAULT_OPTIONS: Required<DispatchOptions> = {
-  maxAttempts: 3,
-  timeoutMs: 10000,
-  retryDelayMs: [1000, 5000, 10000],
+	maxAttempts: 3,
+	timeoutMs: 10000,
+	retryDelayMs: [1000, 5000, 10000],
 };
 
 /**
  * Dispatch a delivery with retry logic
  */
 export async function dispatchDelivery(
-  url: string,
-  payload: DeliveryPayload,
-  secret: string | null,
-  options: DispatchOptions = {}
+	url: string,
+	payload: DeliveryPayload,
+	secret: string | null,
+	options: DispatchOptions = {},
 ): Promise<DispatchResult> {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
-  const payloadStr = JSON.stringify(payload);
-  const headers = createDeliveryHeaders(payloadStr, secret);
+	const opts = { ...DEFAULT_OPTIONS, ...options };
+	const payloadStr = JSON.stringify(payload);
+	const headers = createDeliveryHeaders(payloadStr, secret);
 
-  let lastError: string | undefined;
-  let lastStatusCode: number | undefined;
+	let lastError: string | undefined;
+	let lastStatusCode: number | undefined;
 
-  for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
-    const startTime = Date.now();
+	for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
+		const startTime = Date.now();
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), opts.timeoutMs);
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), opts.timeoutMs);
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: payloadStr,
-        signal: controller.signal,
-      });
+			const response = await fetch(url, {
+				method: "POST",
+				headers,
+				body: payloadStr,
+				signal: controller.signal,
+			});
 
-      clearTimeout(timeoutId);
-      const responseTimeMs = Date.now() - startTime;
-      lastStatusCode = response.status;
+			clearTimeout(timeoutId);
+			const responseTimeMs = Date.now() - startTime;
+			lastStatusCode = response.status;
 
-      // Success (2xx)
-      if (response.ok) {
-        logger.debug("Delivery dispatched", {
-          url,
-          statusCode: response.status,
-          attempt,
-          responseTimeMs,
-        });
+			// Success (2xx)
+			if (response.ok) {
+				logger.debug("Delivery dispatched", {
+					url,
+					statusCode: response.status,
+					attempt,
+					responseTimeMs,
+				});
 
-        return {
-          success: true,
-          statusCode: response.status,
-          responseTimeMs,
-          attempts: attempt,
-        };
-      }
+				return {
+					success: true,
+					statusCode: response.status,
+					responseTimeMs,
+					attempts: attempt,
+				};
+			}
 
-      // Client error (4xx) - don't retry
-      if (response.status >= 400 && response.status < 500) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        lastError = `HTTP ${response.status}: ${errorText.slice(0, 200)}`;
+			// Client error (4xx) - don't retry
+			if (response.status >= 400 && response.status < 500) {
+				const errorText = await response.text().catch(() => "Unknown error");
+				lastError = `HTTP ${response.status}: ${errorText.slice(0, 200)}`;
 
-        logger.warn("Delivery rejected (4xx)", {
-          url,
-          statusCode: response.status,
-          error: lastError,
-        });
+				logger.warn("Delivery rejected (4xx)", {
+					url,
+					statusCode: response.status,
+					error: lastError,
+				});
 
-        return {
-          success: false,
-          statusCode: response.status,
-          responseTimeMs,
-          attempts: attempt,
-          error: lastError,
-        };
-      }
+				return {
+					success: false,
+					statusCode: response.status,
+					responseTimeMs,
+					attempts: attempt,
+					error: lastError,
+				};
+			}
 
-      // Server error (5xx) - retry
-      lastError = `HTTP ${response.status}`;
-      logger.warn("Delivery failed (5xx), will retry", {
-        url,
-        statusCode: response.status,
-        attempt,
-        maxAttempts: opts.maxAttempts,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        lastError = `Timeout after ${opts.timeoutMs}ms`;
-      } else {
-        lastError = getErrorMessage(error);
-      }
+			// Server error (5xx) - retry
+			lastError = `HTTP ${response.status}`;
+			logger.warn("Delivery failed (5xx), will retry", {
+				url,
+				statusCode: response.status,
+				attempt,
+				maxAttempts: opts.maxAttempts,
+			});
+		} catch (error) {
+			if (error instanceof Error && error.name === "AbortError") {
+				lastError = `Timeout after ${opts.timeoutMs}ms`;
+			} else {
+				lastError = getErrorMessage(error);
+			}
 
-      logger.warn("Delivery request failed, will retry", {
-        url,
-        error: lastError,
-        attempt,
-        maxAttempts: opts.maxAttempts,
-      });
-    }
+			logger.warn("Delivery request failed, will retry", {
+				url,
+				error: lastError,
+				attempt,
+				maxAttempts: opts.maxAttempts,
+			});
+		}
 
-    // Wait before retry (if not last attempt)
-    if (attempt < opts.maxAttempts) {
-      const delay = opts.retryDelayMs[attempt - 1] || opts.retryDelayMs[opts.retryDelayMs.length - 1];
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
+		// Wait before retry (if not last attempt)
+		if (attempt < opts.maxAttempts) {
+			const delay =
+				opts.retryDelayMs[attempt - 1] ||
+				opts.retryDelayMs[opts.retryDelayMs.length - 1];
+			await new Promise((r) => setTimeout(r, delay));
+		}
+	}
 
-  // All attempts failed
-  logger.error("Delivery failed after all attempts", {
-    url,
-    attempts: opts.maxAttempts,
-    lastError,
-  });
+	// All attempts failed
+	logger.error("Delivery failed after all attempts", {
+		url,
+		attempts: opts.maxAttempts,
+		lastError,
+	});
 
-  return {
-    success: false,
-    statusCode: lastStatusCode,
-    responseTimeMs: 0,
-    attempts: opts.maxAttempts,
-    error: lastError,
-  };
+	return {
+		success: false,
+		statusCode: lastStatusCode,
+		responseTimeMs: 0,
+		attempts: opts.maxAttempts,
+		error: lastError,
+	};
 }

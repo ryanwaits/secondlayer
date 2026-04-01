@@ -1,56 +1,59 @@
-import { Hono } from "hono";
 import { getDb } from "@secondlayer/shared/db";
 import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
-import { checkLimits, getDailyUsage } from "@secondlayer/shared/db/queries/usage";
+import {
+	checkLimits,
+	getDailyUsage,
+} from "@secondlayer/shared/db/queries/usage";
 import { AuthenticationError } from "@secondlayer/shared/errors";
+import { Hono } from "hono";
 
 const app = new Hono();
 
 function requireAccountId(c: any): string {
-  const accountId = c.get("accountId") as string | undefined;
-  if (!accountId) throw new AuthenticationError("Not authenticated");
-  return accountId;
+	const accountId = c.get("accountId") as string | undefined;
+	if (!accountId) throw new AuthenticationError("Not authenticated");
+	return accountId;
 }
 
 // GET /api/accounts/me
 app.get("/me", async (c) => {
-  const accountId = requireAccountId(c);
-  const db = getDb();
-  const account = await getAccountById(db, accountId);
-  if (!account) throw new AuthenticationError("Account not found");
+	const accountId = requireAccountId(c);
+	const db = getDb();
+	const account = await getAccountById(db, accountId);
+	if (!account) throw new AuthenticationError("Account not found");
 
-  return c.json({
-    id: account.id,
-    email: account.email,
-    plan: account.plan,
-    createdAt: account.created_at.toISOString(),
-  });
+	return c.json({
+		id: account.id,
+		email: account.email,
+		plan: account.plan,
+		createdAt: account.created_at.toISOString(),
+	});
 });
 
 // GET /api/accounts/usage
 app.get("/usage", async (c) => {
-  const accountId = requireAccountId(c);
-  const db = getDb();
-  const account = await getAccountById(db, accountId);
-  if (!account) throw new AuthenticationError("Account not found");
+	const accountId = requireAccountId(c);
+	const db = getDb();
+	const account = await getAccountById(db, accountId);
+	if (!account) throw new AuthenticationError("Account not found");
 
-  const [result, daily] = await Promise.all([
-    checkLimits(db, accountId, account.plan),
-    getDailyUsage(db, accountId),
-  ]);
+	const [result, daily] = await Promise.all([
+		checkLimits(db, accountId, account.plan),
+		getDailyUsage(db, accountId),
+	]);
 
-  return c.json({
-    plan: account.plan,
-    limits: result.limits,
-    current: {
-      streams: result.current.streams,
-      subgraphs: result.current.subgraphs,
-      apiRequestsToday: result.current.apiRequestsToday,
-      deliveriesThisMonth: result.current.deliveriesThisMonth,
-      storageBytes: result.current.storageBytes,
-    },
-    daily,
-  });
+	return c.json({
+		plan: account.plan,
+		limits: result.limits,
+		current: {
+			streams: result.current.streams,
+			subgraphs: result.current.subgraphs,
+			apiRequestsToday: result.current.apiRequestsToday,
+			deliveriesThisMonth: result.current.deliveriesThisMonth,
+			storageBytes: result.current.storageBytes,
+		},
+		daily,
+	});
 });
 
 export default app;

@@ -1,35 +1,35 @@
 export interface DepositParams {
-  amount: bigint;
-  referrer?: string;
-  pool?: string;
+	amount: bigint;
+	referrer?: string;
+	pool?: string;
 }
 
 export interface InitWithdrawParams {
-  ststxAmount: bigint;
+	ststxAmount: bigint;
 }
 
 export interface WithdrawParams {
-  nftId: bigint;
+	nftId: bigint;
 }
 
 export interface WithdrawIdleParams {
-  ststxAmount: bigint;
+	ststxAmount: bigint;
 }
 
 export interface ExchangeRateInfo {
-  stxPerStstx: bigint;
-  ststxSupply: bigint;
-  totalStx: bigint;
+	stxPerStstx: bigint;
+	ststxSupply: bigint;
+	totalStx: bigint;
 }
 
 export interface WithdrawalInfo {
-  ststxAmount: bigint;
-  stxAmount: bigint;
-  unlockBurnHeight: bigint;
+	ststxAmount: bigint;
+	stxAmount: bigint;
+	unlockBurnHeight: bigint;
 }
 
 export interface FeeInfo {
-  stackFee: bigint;
-  unstackFee: bigint;
-  withdrawIdleFee: bigint;
+	stackFee: bigint;
+	unstackFee: bigint;
+	withdrawIdleFee: bigint;
 }

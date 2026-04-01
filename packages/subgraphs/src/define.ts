@@ -18,7 +18,7 @@ import type { SubgraphDefinition, SubgraphSchema } from "./types.ts";
  * ```
  */
 export function defineSubgraph<S extends SubgraphSchema>(
-  def: Omit<SubgraphDefinition, "schema"> & { schema: S },
+	def: Omit<SubgraphDefinition, "schema"> & { schema: S },
 ): Omit<SubgraphDefinition, "schema"> & { schema: S } {
-  return def;
+	return def;
 }

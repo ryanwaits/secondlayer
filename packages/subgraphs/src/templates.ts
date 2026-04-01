@@ -1,19 +1,20 @@
 export interface SubgraphTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: "defi" | "nft" | "token" | "infrastructure";
-  code: string;
-  prompt: string;
+	id: string;
+	name: string;
+	description: string;
+	category: "defi" | "nft" | "token" | "infrastructure";
+	code: string;
+	prompt: string;
 }
 
 export const templates: SubgraphTemplate[] = [
-  {
-    id: "dex-swaps",
-    name: "DEX Swap Tracking",
-    description: "Track swap events from ALEX or any AMM pool. Indexes token pairs, amounts, and traders.",
-    category: "defi",
-    code: `import { defineSubgraph } from '@secondlayer/subgraphs';
+	{
+		id: "dex-swaps",
+		name: "DEX Swap Tracking",
+		description:
+			"Track swap events from ALEX or any AMM pool. Indexes token pairs, amounts, and traders.",
+		category: "defi",
+		code: `import { defineSubgraph } from '@secondlayer/subgraphs';
 
 export default defineSubgraph({
   name: 'dex-swaps',
@@ -45,14 +46,16 @@ export default defineSubgraph({
   },
 });
 `,
-    prompt: "Create a Secondlayer subgraph that tracks DEX swap events from ALEX AMM pool. Index sender, token pairs, and amounts.",
-  },
-  {
-    id: "nft-marketplace",
-    name: "NFT Marketplace",
-    description: "Index NFT listings, sales, and cancellations. Track prices and ownership changes.",
-    category: "nft",
-    code: `import { defineSubgraph } from '@secondlayer/subgraphs';
+		prompt:
+			"Create a Secondlayer subgraph that tracks DEX swap events from ALEX AMM pool. Index sender, token pairs, and amounts.",
+	},
+	{
+		id: "nft-marketplace",
+		name: "NFT Marketplace",
+		description:
+			"Index NFT listings, sales, and cancellations. Track prices and ownership changes.",
+		category: "nft",
+		code: `import { defineSubgraph } from '@secondlayer/subgraphs';
 
 export default defineSubgraph({
   name: 'nft-marketplace',
@@ -104,14 +107,16 @@ export default defineSubgraph({
   },
 });
 `,
-    prompt: "Create a Secondlayer subgraph for an NFT marketplace. Track listings, cancellations, and sales with prices.",
-  },
-  {
-    id: "token-transfers",
-    name: "Token Transfers",
-    description: "Track fungible token transfers with running balance computation per address.",
-    category: "token",
-    code: `import { defineSubgraph } from '@secondlayer/subgraphs';
+		prompt:
+			"Create a Secondlayer subgraph for an NFT marketplace. Track listings, cancellations, and sales with prices.",
+	},
+	{
+		id: "token-transfers",
+		name: "Token Transfers",
+		description:
+			"Track fungible token transfers with running balance computation per address.",
+		category: "token",
+		code: `import { defineSubgraph } from '@secondlayer/subgraphs';
 
 export default defineSubgraph({
   name: 'token-transfers',
@@ -161,14 +166,16 @@ export default defineSubgraph({
   },
 });
 `,
-    prompt: "Create a Secondlayer subgraph that tracks token transfers and computes running balances per address.",
-  },
-  {
-    id: "bns-names",
-    name: "BNS Names",
-    description: "Index BNS name registrations and transfers. Search names by owner or namespace.",
-    category: "infrastructure",
-    code: `import { defineSubgraph } from '@secondlayer/subgraphs';
+		prompt:
+			"Create a Secondlayer subgraph that tracks token transfers and computes running balances per address.",
+	},
+	{
+		id: "bns-names",
+		name: "BNS Names",
+		description:
+			"Index BNS name registrations and transfers. Search names by owner or namespace.",
+		category: "infrastructure",
+		code: `import { defineSubgraph } from '@secondlayer/subgraphs';
 
 export default defineSubgraph({
   name: 'bns-names',
@@ -216,14 +223,16 @@ export default defineSubgraph({
   },
 });
 `,
-    prompt: "Create a Secondlayer subgraph for BNS name registrations and transfers on Stacks.",
-  },
-  {
-    id: "stx-whales",
-    name: "STX Whale Alerts",
-    description: "Track large STX transfers above a configurable threshold. Great for monitoring whale activity.",
-    category: "token",
-    code: `import { defineSubgraph } from '@secondlayer/subgraphs';
+		prompt:
+			"Create a Secondlayer subgraph for BNS name registrations and transfers on Stacks.",
+	},
+	{
+		id: "stx-whales",
+		name: "STX Whale Alerts",
+		description:
+			"Track large STX transfers above a configurable threshold. Great for monitoring whale activity.",
+		category: "token",
+		code: `import { defineSubgraph } from '@secondlayer/subgraphs';
 
 const WHALE_THRESHOLD = 100_000_000_000; // 100k STX in microSTX
 
@@ -253,14 +262,15 @@ export default defineSubgraph({
   },
 });
 `,
-    prompt: "Create a Secondlayer subgraph that tracks STX transfers above 100k STX as whale alerts.",
-  },
+		prompt:
+			"Create a Secondlayer subgraph that tracks STX transfers above 100k STX as whale alerts.",
+	},
 ];
 
 export function getTemplateById(id: string): SubgraphTemplate | undefined {
-  return templates.find((t) => t.id === id);
+	return templates.find((t) => t.id === id);
 }
 
 export function getTemplatesByCategory(category: string): SubgraphTemplate[] {
-  return templates.filter((t) => t.category === category);
+	return templates.filter((t) => t.category === category);
 }

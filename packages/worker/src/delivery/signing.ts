@@ -5,25 +5,25 @@ import { createSignatureHeader } from "@secondlayer/shared/crypto/hmac";
  * Uses Stripe-style signature format: t=timestamp,v1=signature
  */
 export function createDeliveryHeaders(
-  payload: string,
-  secret: string | null
+	payload: string,
+	secret: string | null,
 ): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "User-Agent": "Second-Layer/1.0",
-  };
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+		"User-Agent": "Second-Layer/1.0",
+	};
 
-  if (secret) {
-    const signature = createSignatureHeader(payload, secret);
-    headers["X-Secondlayer-Signature"] = signature;
-  }
+	if (secret) {
+		const signature = createSignatureHeader(payload, secret);
+		headers["X-Secondlayer-Signature"] = signature;
+	}
 
-  return headers;
+	return headers;
 }
 
 /**
  * Sign a delivery payload and return the signature header value
  */
 export function signDelivery(payload: string, secret: string): string {
-  return createSignatureHeader(payload, secret);
+	return createSignatureHeader(payload, secret);
 }

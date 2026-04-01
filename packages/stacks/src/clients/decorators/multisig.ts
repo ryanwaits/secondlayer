@@ -1,171 +1,197 @@
-import type { Client } from "../types.ts";
-import type { PostCondition } from "../../postconditions/types.ts";
-import type { ClarityValue } from "../../clarity/types.ts";
-import type { IntegerType } from "../../utils/encoding.ts";
-import type { StacksTransaction, ClarityVersion, MultiSigHashMode } from "../../transactions/types.ts";
-import { buildTokenTransfer, buildContractCall, buildContractDeploy } from "../../transactions/build.ts";
-import { finalizeMultiSig, makeMultiSigAddress } from "../../transactions/multisig.ts";
-import { sendTransaction, type SendTransactionResult } from "../../actions/wallet/sendTransaction.ts";
-import { getNonce } from "../../actions/public/getNonce.ts";
 import { estimateFee } from "../../actions/public/estimateFee.ts";
+import { getNonce } from "../../actions/public/getNonce.ts";
+import {
+	type SendTransactionResult,
+	sendTransaction,
+} from "../../actions/wallet/sendTransaction.ts";
+import type { ClarityValue } from "../../clarity/types.ts";
+import type { PostCondition } from "../../postconditions/types.ts";
+import {
+	buildContractCall,
+	buildContractDeploy,
+	buildTokenTransfer,
+} from "../../transactions/build.ts";
+import {
+	finalizeMultiSig,
+	makeMultiSigAddress,
+} from "../../transactions/multisig.ts";
+import type {
+	ClarityVersion,
+	MultiSigHashMode,
+	StacksTransaction,
+} from "../../transactions/types.ts";
 import { parseContractId } from "../../utils/address.ts";
+import type { IntegerType } from "../../utils/encoding.ts";
+import type { Client } from "../types.ts";
 
 export type MultiSigTransferStxParams = {
-  to: string;
-  amount: IntegerType;
-  memo?: string;
-  fee?: IntegerType;
-  nonce?: IntegerType;
-  postConditionMode?: "allow" | "deny";
-  postConditions?: PostCondition[];
+	to: string;
+	amount: IntegerType;
+	memo?: string;
+	fee?: IntegerType;
+	nonce?: IntegerType;
+	postConditionMode?: "allow" | "deny";
+	postConditions?: PostCondition[];
 };
 
 export type MultiSigCallContractParams = {
-  contract: string;
-  functionName: string;
-  functionArgs?: ClarityValue[];
-  fee?: IntegerType;
-  nonce?: IntegerType;
-  postConditionMode?: "allow" | "deny";
-  postConditions?: PostCondition[];
+	contract: string;
+	functionName: string;
+	functionArgs?: ClarityValue[];
+	fee?: IntegerType;
+	nonce?: IntegerType;
+	postConditionMode?: "allow" | "deny";
+	postConditions?: PostCondition[];
 };
 
 export type MultiSigDeployContractParams = {
-  contractName: string;
-  codeBody: string;
-  clarityVersion?: ClarityVersion;
-  fee?: IntegerType;
-  nonce?: IntegerType;
-  postConditionMode?: "allow" | "deny";
-  postConditions?: PostCondition[];
+	contractName: string;
+	codeBody: string;
+	clarityVersion?: ClarityVersion;
+	fee?: IntegerType;
+	nonce?: IntegerType;
+	postConditionMode?: "allow" | "deny";
+	postConditions?: PostCondition[];
 };
 
 export type MultiSigSendTransactionParams = {
-  transaction: StacksTransaction;
-  attachment?: Uint8Array | string;
+	transaction: StacksTransaction;
+	attachment?: Uint8Array | string;
 };
 
 /** Multi-sig transaction actions: build unsigned transactions and broadcast with auto-finalization. */
 export type MultiSigActions = {
-  transferStx: (params: MultiSigTransferStxParams) => Promise<StacksTransaction>;
-  callContract: (params: MultiSigCallContractParams) => Promise<StacksTransaction>;
-  deployContract: (params: MultiSigDeployContractParams) => Promise<StacksTransaction>;
-  sendTransaction: (params: MultiSigSendTransactionParams) => Promise<SendTransactionResult>;
+	transferStx: (
+		params: MultiSigTransferStxParams,
+	) => Promise<StacksTransaction>;
+	callContract: (
+		params: MultiSigCallContractParams,
+	) => Promise<StacksTransaction>;
+	deployContract: (
+		params: MultiSigDeployContractParams,
+	) => Promise<StacksTransaction>;
+	sendTransaction: (
+		params: MultiSigSendTransactionParams,
+	) => Promise<SendTransactionResult>;
 };
 
 /** Decorator that binds {@link MultiSigActions} to a multi-sig client. */
 export function multisigActions(client: Client): MultiSigActions {
-  const msConfig = (client as any)._multisigConfig as {
-    signers: string[];
-    requiredSignatures: number;
-    hashMode?: MultiSigHashMode;
-  };
+	const msConfig = (client as any)._multisigConfig as {
+		signers: string[];
+		requiredSignatures: number;
+		hashMode?: MultiSigHashMode;
+	};
 
-  if (!msConfig) throw new Error("multisigActions requires a multi-sig client");
+	if (!msConfig) throw new Error("multisigActions requires a multi-sig client");
 
-  const { signers, requiredSignatures, hashMode } = msConfig;
+	const { signers, requiredSignatures, hashMode } = msConfig;
 
-  /** Resolve nonce from the multi-sig address */
-  async function resolveNonce(nonce?: IntegerType): Promise<IntegerType> {
-    if (nonce !== undefined) return nonce;
-    const address = makeMultiSigAddress(signers, requiredSignatures, client.chain);
-    return getNonce(client, { address });
-  }
+	/** Resolve nonce from the multi-sig address */
+	async function resolveNonce(nonce?: IntegerType): Promise<IntegerType> {
+		if (nonce !== undefined) return nonce;
+		const address = makeMultiSigAddress(
+			signers,
+			requiredSignatures,
+			client.chain,
+		);
+		return getNonce(client, { address });
+	}
 
-  return {
-    async transferStx(params) {
-      const nonce = await resolveNonce(params.nonce);
+	return {
+		async transferStx(params) {
+			const nonce = await resolveNonce(params.nonce);
 
-      const unsigned = buildTokenTransfer({
-        recipient: params.to,
-        amount: params.amount,
-        memo: params.memo,
-        fee: params.fee ?? 0n,
-        nonce,
-        publicKeys: signers,
-        signaturesRequired: requiredSignatures,
-        hashMode,
-        chain: client.chain,
-        postConditionMode: params.postConditionMode,
-        postConditions: params.postConditions,
-      });
+			const unsigned = buildTokenTransfer({
+				recipient: params.to,
+				amount: params.amount,
+				memo: params.memo,
+				fee: params.fee ?? 0n,
+				nonce,
+				publicKeys: signers,
+				signaturesRequired: requiredSignatures,
+				hashMode,
+				chain: client.chain,
+				postConditionMode: params.postConditionMode,
+				postConditions: params.postConditions,
+			});
 
-      if (params.fee === undefined) {
-        const estimates = await estimateFee(client, { transaction: unsigned });
-        const mid = estimates[1] ?? estimates[0];
-        if (mid) {
-          (unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
-        }
-      }
+			if (params.fee === undefined) {
+				const estimates = await estimateFee(client, { transaction: unsigned });
+				const mid = estimates[1] ?? estimates[0];
+				if (mid) {
+					(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
+				}
+			}
 
-      return unsigned;
-    },
+			return unsigned;
+		},
 
-    async callContract(params) {
-      const [contractAddress, contractName] = parseContractId(params.contract);
-      const nonce = await resolveNonce(params.nonce);
+		async callContract(params) {
+			const [contractAddress, contractName] = parseContractId(params.contract);
+			const nonce = await resolveNonce(params.nonce);
 
-      const unsigned = buildContractCall({
-        contractAddress,
-        contractName,
-        functionName: params.functionName,
-        functionArgs: params.functionArgs ?? [],
-        fee: params.fee ?? 0n,
-        nonce,
-        publicKeys: signers,
-        signaturesRequired: requiredSignatures,
-        hashMode,
-        chain: client.chain,
-        postConditionMode: params.postConditionMode,
-        postConditions: params.postConditions,
-      });
+			const unsigned = buildContractCall({
+				contractAddress,
+				contractName,
+				functionName: params.functionName,
+				functionArgs: params.functionArgs ?? [],
+				fee: params.fee ?? 0n,
+				nonce,
+				publicKeys: signers,
+				signaturesRequired: requiredSignatures,
+				hashMode,
+				chain: client.chain,
+				postConditionMode: params.postConditionMode,
+				postConditions: params.postConditions,
+			});
 
-      if (params.fee === undefined) {
-        const estimates = await estimateFee(client, { transaction: unsigned });
-        const mid = estimates[1] ?? estimates[0];
-        if (mid) {
-          (unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
-        }
-      }
+			if (params.fee === undefined) {
+				const estimates = await estimateFee(client, { transaction: unsigned });
+				const mid = estimates[1] ?? estimates[0];
+				if (mid) {
+					(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
+				}
+			}
 
-      return unsigned;
-    },
+			return unsigned;
+		},
 
-    async deployContract(params) {
-      const nonce = await resolveNonce(params.nonce);
+		async deployContract(params) {
+			const nonce = await resolveNonce(params.nonce);
 
-      const unsigned = buildContractDeploy({
-        contractName: params.contractName,
-        codeBody: params.codeBody,
-        clarityVersion: params.clarityVersion,
-        fee: params.fee ?? 0n,
-        nonce,
-        publicKeys: signers,
-        signaturesRequired: requiredSignatures,
-        hashMode,
-        chain: client.chain,
-        postConditionMode: params.postConditionMode,
-        postConditions: params.postConditions,
-      });
+			const unsigned = buildContractDeploy({
+				contractName: params.contractName,
+				codeBody: params.codeBody,
+				clarityVersion: params.clarityVersion,
+				fee: params.fee ?? 0n,
+				nonce,
+				publicKeys: signers,
+				signaturesRequired: requiredSignatures,
+				hashMode,
+				chain: client.chain,
+				postConditionMode: params.postConditionMode,
+				postConditions: params.postConditions,
+			});
 
-      if (params.fee === undefined) {
-        const estimates = await estimateFee(client, { transaction: unsigned });
-        const mid = estimates[1] ?? estimates[0];
-        if (mid) {
-          (unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
-        }
-      }
+			if (params.fee === undefined) {
+				const estimates = await estimateFee(client, { transaction: unsigned });
+				const mid = estimates[1] ?? estimates[0];
+				if (mid) {
+					(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
+				}
+			}
 
-      return unsigned;
-    },
+			return unsigned;
+		},
 
-    async sendTransaction(params) {
-      // Auto-finalize before broadcast
-      const finalized = finalizeMultiSig(params.transaction, signers);
-      return sendTransaction(client, {
-        transaction: finalized,
-        attachment: params.attachment,
-      });
-    },
-  };
+		async sendTransaction(params) {
+			// Auto-finalize before broadcast
+			const finalized = finalizeMultiSig(params.transaction, signers);
+			return sendTransaction(client, {
+				transaction: finalized,
+				attachment: params.attachment,
+			});
+		},
+	};
 }

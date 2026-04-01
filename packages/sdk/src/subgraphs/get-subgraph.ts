@@ -17,15 +17,17 @@ import { Subgraphs } from "./client.ts";
  * const rows = await client.transfers.findMany({ where: { sender: 'SP...' } })
  * ```
  */
-export function getSubgraph<T extends { name: string; schema: Record<string, unknown> }>(
-  def: T,
-  options: Partial<SecondLayerOptions> | SecondLayer | Subgraphs = {},
+export function getSubgraph<
+	T extends { name: string; schema: Record<string, unknown> },
+>(
+	def: T,
+	options: Partial<SecondLayerOptions> | SecondLayer | Subgraphs = {},
 ): InferSubgraphClient<T> {
-  if (options instanceof Subgraphs) {
-    return options.typed(def);
-  }
-  if (options instanceof SecondLayer) {
-    return options.subgraphs.typed(def);
-  }
-  return new Subgraphs(options).typed(def);
+	if (options instanceof Subgraphs) {
+		return options.typed(def);
+	}
+	if (options instanceof SecondLayer) {
+		return options.subgraphs.typed(def);
+	}
+	return new Subgraphs(options).typed(def);
 }

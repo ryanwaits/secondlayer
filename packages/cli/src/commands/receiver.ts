@@ -1,69 +1,86 @@
-import { Command } from "commander";
 import { join } from "node:path";
-import { success, error, dim } from "../lib/output.ts";
+import type { Command } from "commander";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
+import { dim, error, success } from "../lib/output.ts";
 
 export function registerReceiverCommand(program: Command): void {
-  const receiver = program
-    .command("receiver")
-    .description("Receiver development tools")
-    .hook("preAction", async () => { await requireLocalNetwork(); });
+	const receiver = program
+		.command("receiver")
+		.description("Receiver development tools")
+		.hook("preAction", async () => {
+			await requireLocalNetwork();
+		});
 
-  receiver
-    .command("init <directory>")
-    .description("Scaffold a receiver handler with types and signature verification")
-    .option("-n, --name <name>", "Stream name", "my-stream")
-    .option("--network <network>", "Network (mainnet/testnet)", "mainnet")
-    .option("-p, --port <port>", "Server port", "4000")
-    .action(async (directory: string, options: { name: string; network: string; port: string }) => {
-      try {
-        const config = await loadConfig();
-        const port = parseInt(options.port);
-        const network = options.network as "mainnet" | "testnet";
+	receiver
+		.command("init <directory>")
+		.description(
+			"Scaffold a receiver handler with types and signature verification",
+		)
+		.option("-n, --name <name>", "Stream name", "my-stream")
+		.option("--network <network>", "Network (mainnet/testnet)", "mainnet")
+		.option("-p, --port <port>", "Server port", "4000")
+		.action(
+			async (
+				directory: string,
+				options: { name: string; network: string; port: string },
+			) => {
+				try {
+					const config = await loadConfig();
+					const port = Number.parseInt(options.port);
+					const network = options.network as "mainnet" | "testnet";
 
-        // Check if directory exists
-        const dir = join(process.cwd(), directory);
-        const dirExists = await Bun.file(join(dir, "package.json")).exists();
-        if (dirExists) {
-          error(`Directory ${directory} already contains a project`);
-          process.exit(1);
-        }
+					// Check if directory exists
+					const dir = join(process.cwd(), directory);
+					const dirExists = await Bun.file(join(dir, "package.json")).exists();
+					if (dirExists) {
+						error(`Directory ${directory} already contains a project`);
+						process.exit(1);
+					}
 
-        await Bun.$`mkdir -p ${dir}`.quiet();
+					await Bun.$`mkdir -p ${dir}`.quiet();
 
-        // Generate files
-        await generateServerFile(dir, port);
-        await generateTypesFile(dir);
-        await generateStreamJson(dir, options.name, network, port, config.defaultEndpointUrl);
-        await generateEnvFile(dir);
-        await generatePackageJson(dir, options.name);
+					// Generate files
+					await generateServerFile(dir, port);
+					await generateTypesFile(dir);
+					await generateStreamJson(
+						dir,
+						options.name,
+						network,
+						port,
+						config.defaultEndpointUrl,
+					);
+					await generateEnvFile(dir);
+					await generatePackageJson(dir, options.name);
 
-        success(`Created receiver handler in ${directory}/`);
-        console.log("");
-        console.log("  Files created:");
-        console.log(`    ${dim("server.ts")}      Receiver server with HMAC verification`);
-        console.log(`    ${dim("types.ts")}       Payload type definitions`);
-        console.log(`    ${dim("stream.json")}    Stream configuration`);
-        console.log(`    ${dim(".env")}           Environment variables`);
-        console.log(`    ${dim("package.json")}   Dependencies`);
-        console.log("");
-        console.log("  Next steps:");
-        console.log(`    cd ${directory}`);
-        console.log("    bun install");
-        console.log("    bun server.ts");
-        console.log("");
-        console.log("  Then register your stream:");
-        console.log(`    sl streams register ${directory}/stream.json`);
-        console.log("");
-      } catch (err) {
-        error(`Failed to scaffold receiver: ${err}`);
-        process.exit(1);
-      }
-    });
+					success(`Created receiver handler in ${directory}/`);
+					console.log("");
+					console.log("  Files created:");
+					console.log(
+						`    ${dim("server.ts")}      Receiver server with HMAC verification`,
+					);
+					console.log(`    ${dim("types.ts")}       Payload type definitions`);
+					console.log(`    ${dim("stream.json")}    Stream configuration`);
+					console.log(`    ${dim(".env")}           Environment variables`);
+					console.log(`    ${dim("package.json")}   Dependencies`);
+					console.log("");
+					console.log("  Next steps:");
+					console.log(`    cd ${directory}`);
+					console.log("    bun install");
+					console.log("    bun server.ts");
+					console.log("");
+					console.log("  Then register your stream:");
+					console.log(`    sl streams register ${directory}/stream.json`);
+					console.log("");
+				} catch (err) {
+					error(`Failed to scaffold receiver: ${err}`);
+					process.exit(1);
+				}
+			},
+		);
 }
 
 async function generateServerFile(dir: string, port: number): Promise<void> {
-  const content = `import type { DeliveryPayload } from "./types.ts";
+	const content = `import type { DeliveryPayload } from "./types.ts";
 
 const SIGNING_SECRET = process.env.STREAMS_SIGNING_SECRET;
 
@@ -161,11 +178,11 @@ Bun.serve({
 console.log(\`Receiver server listening on http://localhost:${port}/payload\`);
 `;
 
-  await Bun.write(join(dir, "server.ts"), content);
+	await Bun.write(join(dir, "server.ts"), content);
 }
 
 async function generateTypesFile(dir: string): Promise<void> {
-  const content = `/**
+	const content = `/**
  * Stacks Streams Delivery Payload Types
  *
  * These types match the payload structure sent by Stacks Streams.
@@ -292,41 +309,44 @@ export function isPrintEvent(event: EventMatch): event is PrintEvent {
 }
 `;
 
-  await Bun.write(join(dir, "types.ts"), content);
+	await Bun.write(join(dir, "types.ts"), content);
 }
 
 async function generateStreamJson(
-  dir: string,
-  name: string,
-  network: string,
-  port: number,
-  _defaultEndpointUrl?: string
+	dir: string,
+	name: string,
+	network: string,
+	port: number,
+	_defaultEndpointUrl?: string,
 ): Promise<void> {
-  const content = {
-    name,
-    network,
-    endpointUrl: `http://localhost:${port}/payload`,
-    filters: [
-      {
-        type: "stx_transfer",
-        minAmount: 1000000,
-      },
-    ],
-    options: {
-      decodeClarityValues: true,
-      includeRawTx: false,
-      includeBlockMetadata: true,
-      rateLimit: 10,
-      timeoutMs: 10000,
-      maxRetries: 3,
-    },
-  };
+	const content = {
+		name,
+		network,
+		endpointUrl: `http://localhost:${port}/payload`,
+		filters: [
+			{
+				type: "stx_transfer",
+				minAmount: 1000000,
+			},
+		],
+		options: {
+			decodeClarityValues: true,
+			includeRawTx: false,
+			includeBlockMetadata: true,
+			rateLimit: 10,
+			timeoutMs: 10000,
+			maxRetries: 3,
+		},
+	};
 
-  await Bun.write(join(dir, "stream.json"), JSON.stringify(content, null, 2) + "\n");
+	await Bun.write(
+		join(dir, "stream.json"),
+		JSON.stringify(content, null, 2) + "\n",
+	);
 }
 
 async function generateEnvFile(dir: string): Promise<void> {
-  const content = `# Stacks Streams Signing Secret
+	const content = `# Stacks Streams Signing Secret
 # Get this from: sl streams register stream.json
 STREAMS_SIGNING_SECRET=
 
@@ -334,23 +354,26 @@ STREAMS_SIGNING_SECRET=
 # DATABASE_URL=postgres://...
 `;
 
-  await Bun.write(join(dir, ".env"), content);
+	await Bun.write(join(dir, ".env"), content);
 }
 
 async function generatePackageJson(dir: string, name: string): Promise<void> {
-  const content = {
-    name: `${name}-receiver`,
-    version: "0.1.0",
-    type: "module",
-    scripts: {
-      start: "bun server.ts",
-      dev: "bun --watch server.ts",
-    },
-    dependencies: {},
-    devDependencies: {
-      "@types/bun": "latest",
-    },
-  };
+	const content = {
+		name: `${name}-receiver`,
+		version: "0.1.0",
+		type: "module",
+		scripts: {
+			start: "bun server.ts",
+			dev: "bun --watch server.ts",
+		},
+		dependencies: {},
+		devDependencies: {
+			"@types/bun": "latest",
+		},
+	};
 
-  await Bun.write(join(dir, "package.json"), JSON.stringify(content, null, 2) + "\n");
+	await Bun.write(
+		join(dir, "package.json"),
+		JSON.stringify(content, null, 2) + "\n",
+	);
 }

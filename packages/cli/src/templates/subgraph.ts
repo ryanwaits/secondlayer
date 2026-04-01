@@ -2,7 +2,7 @@
  * Generate a starter subgraph definition file with inline comments.
  */
 export function generateSubgraphTemplate(name: string): string {
-  return `import { defineSubgraph } from "@secondlayer/subgraphs";
+	return `import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "${name}",

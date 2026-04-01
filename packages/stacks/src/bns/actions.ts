@@ -1,63 +1,63 @@
-import type { Client } from "../clients/types.ts";
 import { getContract } from "../actions/getContract.ts";
-import { BNS_ABI } from "./abi.ts";
-import { ZONEFILE_RESOLVER_ABI } from "./zonefile-abi.ts";
-import { BNS_CONTRACTS, ZONEFILE_RESOLVER_CONTRACTS } from "./constants.ts";
-import {
-  parseFQN,
-  validateFQN,
-  formatFQN,
-  generateSalt,
-  hashPreorder,
-} from "./utils.ts";
-import type {
-  ClaimFastParams,
-  TransferParams,
-  SetPrimaryParams,
-  PreorderParams,
-  RegisterParams,
-  UpdateZonefileParams,
-} from "./types.ts";
-import { Pc } from "../postconditions/index.ts";
-import { Cl } from "../clarity/index.ts";
 import { ContractResponseError } from "../actions/getContract.ts";
+import { Cl } from "../clarity/index.ts";
+import type { Client } from "../clients/types.ts";
+import { Pc } from "../postconditions/index.ts";
+import { BNS_ABI } from "./abi.ts";
+import { BNS_CONTRACTS, ZONEFILE_RESOLVER_CONTRACTS } from "./constants.ts";
+import type {
+	ClaimFastParams,
+	PreorderParams,
+	RegisterParams,
+	SetPrimaryParams,
+	TransferParams,
+	UpdateZonefileParams,
+} from "./types.ts";
+import {
+	formatFQN,
+	generateSalt,
+	hashPreorder,
+	parseFQN,
+	validateFQN,
+} from "./utils.ts";
+import { ZONEFILE_RESOLVER_ABI } from "./zonefile-abi.ts";
 
 function getBnsContract(client: Client) {
-  if (!client.chain) {
-    throw new Error("Client must have a chain configured");
-  }
-  const network = client.chain.network;
-  const contract =
-    network === "mainnet" ? BNS_CONTRACTS.mainnet : BNS_CONTRACTS.testnet;
+	if (!client.chain) {
+		throw new Error("Client must have a chain configured");
+	}
+	const network = client.chain.network;
+	const contract =
+		network === "mainnet" ? BNS_CONTRACTS.mainnet : BNS_CONTRACTS.testnet;
 
-  return getContract({
-    client,
-    address: contract.address,
-    name: contract.name,
-    abi: BNS_ABI,
-  });
+	return getContract({
+		client,
+		address: contract.address,
+		name: contract.name,
+		abi: BNS_ABI,
+	});
 }
 
 function getZonefileContract(client: Client) {
-  if (!client.chain) {
-    throw new Error("Client must have a chain configured");
-  }
-  const network = client.chain.network;
-  const contract =
-    network === "mainnet"
-      ? ZONEFILE_RESOLVER_CONTRACTS.mainnet
-      : ZONEFILE_RESOLVER_CONTRACTS.testnet;
+	if (!client.chain) {
+		throw new Error("Client must have a chain configured");
+	}
+	const network = client.chain.network;
+	const contract =
+		network === "mainnet"
+			? ZONEFILE_RESOLVER_CONTRACTS.mainnet
+			: ZONEFILE_RESOLVER_CONTRACTS.testnet;
 
-  return getContract({
-    client,
-    address: contract.address,
-    name: contract.name,
-    abi: ZONEFILE_RESOLVER_ABI,
-  });
+	return getContract({
+		client,
+		address: contract.address,
+		name: contract.name,
+		abi: ZONEFILE_RESOLVER_ABI,
+	});
 }
 
 function stringToBytes(str: string): Uint8Array {
-  return new TextEncoder().encode(str);
+	return new TextEncoder().encode(str);
 }
 
 /**
@@ -66,25 +66,25 @@ function stringToBytes(str: string): Uint8Array {
  * const owner = await resolveName(client, "alice.btc");
  */
 export async function resolveName(
-  client: Client,
-  nameOrFQN: string
+	client: Client,
+	nameOrFQN: string,
 ): Promise<string | null> {
-  if (!validateFQN(nameOrFQN)) {
-    throw new Error(`Invalid name format: ${nameOrFQN}`);
-  }
+	if (!validateFQN(nameOrFQN)) {
+		throw new Error(`Invalid name format: ${nameOrFQN}`);
+	}
 
-  const { name, namespace } = parseFQN(nameOrFQN);
-  const bns = getBnsContract(client);
+	const { name, namespace } = parseFQN(nameOrFQN);
+	const bns = getBnsContract(client);
 
-  try {
-    return (await bns.read.getOwnerName({
-      name: stringToBytes(name),
-      namespace: stringToBytes(namespace),
-    })) as string | null;
-  } catch (e) {
-    if (e instanceof ContractResponseError) return null;
-    throw e;
-  }
+	try {
+		return (await bns.read.getOwnerName({
+			name: stringToBytes(name),
+			namespace: stringToBytes(namespace),
+		})) as string | null;
+	} catch (e) {
+		if (e instanceof ContractResponseError) return null;
+		throw e;
+	}
 }
 
 /**
@@ -93,26 +93,26 @@ export async function resolveName(
  * const primary = await getPrimaryName(client, "SP2J6...");
  */
 export async function getPrimaryName(
-  client: Client,
-  address: string
+	client: Client,
+	address: string,
 ): Promise<string | null> {
-  const bns = getBnsContract(client);
+	const bns = getBnsContract(client);
 
-  try {
-    const result = (await bns.read.getPrimary({
-      owner: address,
-    })) as { name: Uint8Array; namespace: Uint8Array } | null;
+	try {
+		const result = (await bns.read.getPrimary({
+			owner: address,
+		})) as { name: Uint8Array; namespace: Uint8Array } | null;
 
-    if (result === null) return null;
+		if (result === null) return null;
 
-    const name = new TextDecoder().decode(result.name);
-    const namespace = new TextDecoder().decode(result.namespace);
+		const name = new TextDecoder().decode(result.name);
+		const namespace = new TextDecoder().decode(result.namespace);
 
-    return formatFQN(name, namespace);
-  } catch (e) {
-    if (e instanceof ContractResponseError) return null;
-    throw e;
-  }
+		return formatFQN(name, namespace);
+	} catch (e) {
+		if (e instanceof ContractResponseError) return null;
+		throw e;
+	}
 }
 
 /**
@@ -121,27 +121,27 @@ export async function getPrimaryName(
  * const available = await canRegister(client, "bob.btc");
  */
 export async function canRegister(
-  client: Client,
-  nameOrFQN: string
+	client: Client,
+	nameOrFQN: string,
 ): Promise<boolean> {
-  if (!validateFQN(nameOrFQN)) {
-    throw new Error(`Invalid name format: ${nameOrFQN}`);
-  }
+	if (!validateFQN(nameOrFQN)) {
+		throw new Error(`Invalid name format: ${nameOrFQN}`);
+	}
 
-  const { name, namespace } = parseFQN(nameOrFQN);
-  const bns = getBnsContract(client);
+	const { name, namespace } = parseFQN(nameOrFQN);
+	const bns = getBnsContract(client);
 
-  // No can-register-name function — use can-resolve-name instead.
-  // If it resolves, the name is taken. If it errors, it's available.
-  try {
-    await bns.read.canResolveName({
-      namespace: stringToBytes(namespace),
-      name: stringToBytes(name),
-    });
-    return false; // resolved = taken
-  } catch {
-    return true; // error = available
-  }
+	// No can-register-name function — use can-resolve-name instead.
+	// If it resolves, the name is taken. If it errors, it's available.
+	try {
+		await bns.read.canResolveName({
+			namespace: stringToBytes(namespace),
+			name: stringToBytes(name),
+		});
+		return false; // resolved = taken
+	} catch {
+		return true; // error = available
+	}
 }
 
 /**
@@ -150,24 +150,24 @@ export async function canRegister(
  * const price = await getNamePrice(client, "bob.btc");
  */
 export async function getNamePrice(
-  client: Client,
-  nameOrFQN: string
+	client: Client,
+	nameOrFQN: string,
 ): Promise<bigint> {
-  if (!validateFQN(nameOrFQN)) {
-    throw new Error(`Invalid name format: ${nameOrFQN}`);
-  }
+	if (!validateFQN(nameOrFQN)) {
+		throw new Error(`Invalid name format: ${nameOrFQN}`);
+	}
 
-  const { name, namespace } = parseFQN(nameOrFQN);
-  const bns = getBnsContract(client);
+	const { name, namespace } = parseFQN(nameOrFQN);
+	const bns = getBnsContract(client);
 
-  // get-name-price returns a nested response: (ok (ok uint))
-  const result = (await bns.read.getNamePrice({
-    namespace: stringToBytes(namespace),
-    name: stringToBytes(name),
-  })) as { ok: bigint } | { err: bigint };
+	// get-name-price returns a nested response: (ok (ok uint))
+	const result = (await bns.read.getNamePrice({
+		namespace: stringToBytes(namespace),
+		name: stringToBytes(name),
+	})) as { ok: bigint } | { err: bigint };
 
-  if ("ok" in result) return result.ok;
-  throw new Error(`Failed to get name price for ${nameOrFQN}`);
+	if ("ok" in result) return result.ok;
+	throw new Error(`Failed to get name price for ${nameOrFQN}`);
 }
 
 /**
@@ -176,25 +176,25 @@ export async function getNamePrice(
  * const id = await getNameId(client, "alice.btc");
  */
 export async function getNameId(
-  client: Client,
-  nameOrFQN: string
+	client: Client,
+	nameOrFQN: string,
 ): Promise<bigint | null> {
-  if (!validateFQN(nameOrFQN)) {
-    throw new Error(`Invalid name format: ${nameOrFQN}`);
-  }
+	if (!validateFQN(nameOrFQN)) {
+		throw new Error(`Invalid name format: ${nameOrFQN}`);
+	}
 
-  const { name, namespace } = parseFQN(nameOrFQN);
-  const bns = getBnsContract(client);
+	const { name, namespace } = parseFQN(nameOrFQN);
+	const bns = getBnsContract(client);
 
-  try {
-    return (await bns.read.getIdFromBns({
-      name: stringToBytes(name),
-      namespace: stringToBytes(namespace),
-    })) as bigint | null;
-  } catch (e) {
-    if (e instanceof ContractResponseError) return null;
-    throw e;
-  }
+	try {
+		return (await bns.read.getIdFromBns({
+			name: stringToBytes(name),
+			namespace: stringToBytes(namespace),
+		})) as bigint | null;
+	} catch (e) {
+		if (e instanceof ContractResponseError) return null;
+		throw e;
+	}
 }
 
 /**
@@ -211,46 +211,52 @@ export async function getNameId(
  * await register(client, { name: "bob.btc", salt });
  */
 export async function preorder(
-  client: Client,
-  params: PreorderParams
+	client: Client,
+	params: PreorderParams,
 ): Promise<{ txid: string; salt: Uint8Array }> {
-  const { name: nameInput, namespace: namespaceInput, salt: providedSalt } = params;
-  const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
+	const {
+		name: nameInput,
+		namespace: namespaceInput,
+		salt: providedSalt,
+	} = params;
+	const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
 
-  if (!validateFQN(fqn)) {
-    throw new Error(`Invalid name format: ${fqn}`);
-  }
+	if (!validateFQN(fqn)) {
+		throw new Error(`Invalid name format: ${fqn}`);
+	}
 
-  const { name, namespace } = parseFQN(fqn);
+	const { name, namespace } = parseFQN(fqn);
 
-  // Check availability
-  const available = await canRegister(client, fqn);
-  if (!available) {
-    throw new Error(`Name ${fqn} is not available for registration`);
-  }
+	// Check availability
+	const available = await canRegister(client, fqn);
+	if (!available) {
+		throw new Error(`Name ${fqn} is not available for registration`);
+	}
 
-  // Get price
-  const price = await getNamePrice(client, fqn);
+	// Get price
+	const price = await getNamePrice(client, fqn);
 
-  // Generate or use provided salt
-  const salt = providedSalt ?? generateSalt();
+	// Generate or use provided salt
+	const salt = providedSalt ?? generateSalt();
 
-  // Calculate hash commitment
-  const hashedSaltedFqn = hashPreorder(name, namespace, salt);
+	// Calculate hash commitment
+	const hashedSaltedFqn = hashPreorder(name, namespace, salt);
 
-  const bns = getBnsContract(client);
+	const bns = getBnsContract(client);
 
-  const txid = await bns.call.namePreorder(
-    {
-      hashedSaltedFqn,
-      stxToBurn: price,
-    },
-    {
-      postConditions: [Pc.principal(client.account!.address).willSendLte(price).ustx()],
-    }
-  );
+	const txid = await bns.call.namePreorder(
+		{
+			hashedSaltedFqn,
+			stxToBurn: price,
+		},
+		{
+			postConditions: [
+				Pc.principal(client.account!.address).willSendLte(price).ustx(),
+			],
+		},
+	);
 
-  return { txid, salt };
+	return { txid, salt };
 }
 
 /**
@@ -264,25 +270,25 @@ export async function preorder(
  * });
  */
 export async function register(
-  client: Client,
-  params: RegisterParams
+	client: Client,
+	params: RegisterParams,
 ): Promise<string> {
-  const { name: nameInput, namespace: namespaceInput, salt } = params;
-  const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
+	const { name: nameInput, namespace: namespaceInput, salt } = params;
+	const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
 
-  if (!validateFQN(fqn)) {
-    throw new Error(`Invalid name format: ${fqn}`);
-  }
+	if (!validateFQN(fqn)) {
+		throw new Error(`Invalid name format: ${fqn}`);
+	}
 
-  const { name, namespace } = parseFQN(fqn);
+	const { name, namespace } = parseFQN(fqn);
 
-  const bns = getBnsContract(client);
+	const bns = getBnsContract(client);
 
-  return bns.call.nameRegister({
-    name: stringToBytes(name),
-    namespace: stringToBytes(namespace),
-    salt,
-  });
+	return bns.call.nameRegister({
+		name: stringToBytes(name),
+		namespace: stringToBytes(namespace),
+		salt,
+	});
 }
 
 /**
@@ -295,39 +301,39 @@ export async function register(
  * });
  */
 export async function claimFast(
-  client: Client,
-  params: ClaimFastParams
+	client: Client,
+	params: ClaimFastParams,
 ): Promise<string> {
-  const { name: nameInput, namespace: namespaceInput, recipient } = params;
-  const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
+	const { name: nameInput, namespace: namespaceInput, recipient } = params;
+	const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
 
-  if (!validateFQN(fqn)) {
-    throw new Error(`Invalid name format: ${fqn}`);
-  }
+	if (!validateFQN(fqn)) {
+		throw new Error(`Invalid name format: ${fqn}`);
+	}
 
-  const { name, namespace } = parseFQN(fqn);
+	const { name, namespace } = parseFQN(fqn);
 
-  // Check availability
-  const available = await canRegister(client, fqn);
-  if (!available) {
-    throw new Error(`Name ${fqn} is not available for registration`);
-  }
+	// Check availability
+	const available = await canRegister(client, fqn);
+	if (!available) {
+		throw new Error(`Name ${fqn} is not available for registration`);
+	}
 
-  // Get price
-  const price = await getNamePrice(client, fqn);
+	// Get price
+	const price = await getNamePrice(client, fqn);
 
-  const bns = getBnsContract(client);
+	const bns = getBnsContract(client);
 
-  return bns.call.nameClaimFast(
-    {
-      name: stringToBytes(name),
-      namespace: stringToBytes(namespace),
-      sendTo: recipient,
-    },
-    {
-      postConditions: [Pc.principal(recipient).willSendLte(price).ustx()],
-    }
-  );
+	return bns.call.nameClaimFast(
+		{
+			name: stringToBytes(name),
+			namespace: stringToBytes(namespace),
+			sendTo: recipient,
+		},
+		{
+			postConditions: [Pc.principal(recipient).willSendLte(price).ustx()],
+		},
+	);
 }
 
 /**
@@ -339,48 +345,48 @@ export async function claimFast(
  * });
  */
 export async function transfer(
-  client: Client,
-  params: TransferParams
+	client: Client,
+	params: TransferParams,
 ): Promise<string> {
-  const { name: nameInput, namespace: namespaceInput, recipient } = params;
-  const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
+	const { name: nameInput, namespace: namespaceInput, recipient } = params;
+	const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
 
-  if (!validateFQN(fqn)) {
-    throw new Error(`Invalid name format: ${fqn}`);
-  }
+	if (!validateFQN(fqn)) {
+		throw new Error(`Invalid name format: ${fqn}`);
+	}
 
-  const id = await getNameId(client, fqn);
-  if (id === null) {
-    throw new Error(`Name ${fqn} does not exist`);
-  }
+	const id = await getNameId(client, fqn);
+	if (id === null) {
+		throw new Error(`Name ${fqn} does not exist`);
+	}
 
-  const currentOwner = await resolveName(client, fqn);
-  if (!currentOwner) {
-    throw new Error(`Cannot determine owner of ${fqn}`);
-  }
+	const currentOwner = await resolveName(client, fqn);
+	if (!currentOwner) {
+		throw new Error(`Cannot determine owner of ${fqn}`);
+	}
 
-  const bns = getBnsContract(client);
-  if (!client.chain) {
-    throw new Error("Client must have a chain configured");
-  }
-  const network = client.chain.network;
-  const contract =
-    network === "mainnet" ? BNS_CONTRACTS.mainnet : BNS_CONTRACTS.testnet;
+	const bns = getBnsContract(client);
+	if (!client.chain) {
+		throw new Error("Client must have a chain configured");
+	}
+	const network = client.chain.network;
+	const contract =
+		network === "mainnet" ? BNS_CONTRACTS.mainnet : BNS_CONTRACTS.testnet;
 
-  return bns.call.transfer(
-    {
-      id,
-      owner: currentOwner,
-      recipient,
-    },
-    {
-      postConditions: [
-        Pc.principal(currentOwner)
-          .willSendAsset()
-          .nft(`${contract.address}.${contract.name}::BNS-V2`, Cl.uint(id)),
-      ],
-    }
-  );
+	return bns.call.transfer(
+		{
+			id,
+			owner: currentOwner,
+			recipient,
+		},
+		{
+			postConditions: [
+				Pc.principal(currentOwner)
+					.willSendAsset()
+					.nft(`${contract.address}.${contract.name}::BNS-V2`, Cl.uint(id)),
+			],
+		},
+	);
 }
 
 /**
@@ -391,24 +397,24 @@ export async function transfer(
  * });
  */
 export async function setPrimary(
-  client: Client,
-  params: SetPrimaryParams
+	client: Client,
+	params: SetPrimaryParams,
 ): Promise<string> {
-  const { name: nameInput, namespace: namespaceInput } = params;
-  const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
+	const { name: nameInput, namespace: namespaceInput } = params;
+	const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
 
-  if (!validateFQN(fqn)) {
-    throw new Error(`Invalid name format: ${fqn}`);
-  }
+	if (!validateFQN(fqn)) {
+		throw new Error(`Invalid name format: ${fqn}`);
+	}
 
-  const id = await getNameId(client, fqn);
-  if (id === null) {
-    throw new Error(`Name ${fqn} does not exist`);
-  }
+	const id = await getNameId(client, fqn);
+	if (id === null) {
+		throw new Error(`Name ${fqn} does not exist`);
+	}
 
-  const bns = getBnsContract(client);
+	const bns = getBnsContract(client);
 
-  return bns.call.setPrimaryName({ primaryNameId: id });
+	return bns.call.setPrimaryName({ primaryNameId: id });
 }
 
 /**
@@ -422,27 +428,27 @@ export async function setPrimary(
  * }
  */
 export async function getZonefile(
-  client: Client,
-  nameOrFQN: string
+	client: Client,
+	nameOrFQN: string,
 ): Promise<Uint8Array | null> {
-  if (!validateFQN(nameOrFQN)) {
-    throw new Error(`Invalid name format: ${nameOrFQN}`);
-  }
+	if (!validateFQN(nameOrFQN)) {
+		throw new Error(`Invalid name format: ${nameOrFQN}`);
+	}
 
-  const { name, namespace } = parseFQN(nameOrFQN);
-  const zonefile = getZonefileContract(client);
+	const { name, namespace } = parseFQN(nameOrFQN);
+	const zonefile = getZonefileContract(client);
 
-  try {
-    const result = (await zonefile.read.resolveName({
-      name: stringToBytes(name),
-      namespace: stringToBytes(namespace),
-    })) as Uint8Array | null;
+	try {
+		const result = (await zonefile.read.resolveName({
+			name: stringToBytes(name),
+			namespace: stringToBytes(namespace),
+		})) as Uint8Array | null;
 
-    return result;
-  } catch {
-    // Contract returns (err 101) when no zonefile is set
-    return null;
-  }
+		return result;
+	} catch {
+		// Contract returns (err 101) when no zonefile is set
+		return null;
+	}
 }
 
 /**
@@ -463,46 +469,46 @@ export async function getZonefile(
  * });
  */
 export async function updateZonefile(
-  client: Client,
-  params: UpdateZonefileParams
+	client: Client,
+	params: UpdateZonefileParams,
 ): Promise<string> {
-  const { name: nameInput, namespace: namespaceInput, zonefile } = params;
-  const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
+	const { name: nameInput, namespace: namespaceInput, zonefile } = params;
+	const fqn = namespaceInput ? `${nameInput}.${namespaceInput}` : nameInput;
 
-  if (!validateFQN(fqn)) {
-    throw new Error(`Invalid name format: ${fqn}`);
-  }
+	if (!validateFQN(fqn)) {
+		throw new Error(`Invalid name format: ${fqn}`);
+	}
 
-  const { name, namespace } = parseFQN(fqn);
+	const { name, namespace } = parseFQN(fqn);
 
-  // Verify ownership
-  const currentOwner = await resolveName(client, fqn);
-  if (!currentOwner) {
-    throw new Error(`Name ${fqn} does not exist`);
-  }
+	// Verify ownership
+	const currentOwner = await resolveName(client, fqn);
+	if (!currentOwner) {
+		throw new Error(`Name ${fqn} does not exist`);
+	}
 
-  const zonefileContract = getZonefileContract(client);
+	const zonefileContract = getZonefileContract(client);
 
-  // Convert zonefile to Uint8Array or null
-  let zonefileBytes: Uint8Array | null = null;
-  if (zonefile !== null) {
-    zonefileBytes =
-      typeof zonefile === "string"
-        ? new TextEncoder().encode(zonefile)
-        : zonefile;
+	// Convert zonefile to Uint8Array or null
+	let zonefileBytes: Uint8Array | null = null;
+	if (zonefile !== null) {
+		zonefileBytes =
+			typeof zonefile === "string"
+				? new TextEncoder().encode(zonefile)
+				: zonefile;
 
-    if (zonefileBytes.length > 8192) {
-      throw new Error(
-        `Zonefile too large: ${zonefileBytes.length} bytes (max 8192)`
-      );
-    }
-  }
+		if (zonefileBytes.length > 8192) {
+			throw new Error(
+				`Zonefile too large: ${zonefileBytes.length} bytes (max 8192)`,
+			);
+		}
+	}
 
-  return zonefileContract.call.updateZonefile({
-    name: stringToBytes(name),
-    namespace: stringToBytes(namespace),
-    newZonefile: zonefileBytes,
-  });
+	return zonefileContract.call.updateZonefile({
+		name: stringToBytes(name),
+		namespace: stringToBytes(namespace),
+		newZonefile: zonefileBytes,
+	});
 }
 
 /**
@@ -513,18 +519,18 @@ export async function updateZonefile(
  * await revokeZonefile(client, "alice.btc");
  */
 export async function revokeZonefile(
-  client: Client,
-  nameOrFQN: string
+	client: Client,
+	nameOrFQN: string,
 ): Promise<string> {
-  if (!validateFQN(nameOrFQN)) {
-    throw new Error(`Invalid name format: ${nameOrFQN}`);
-  }
+	if (!validateFQN(nameOrFQN)) {
+		throw new Error(`Invalid name format: ${nameOrFQN}`);
+	}
 
-  const { name, namespace } = parseFQN(nameOrFQN);
-  const zonefileContract = getZonefileContract(client);
+	const { name, namespace } = parseFQN(nameOrFQN);
+	const zonefileContract = getZonefileContract(client);
 
-  return zonefileContract.call.revokeName({
-    name: stringToBytes(name),
-    namespace: stringToBytes(namespace),
-  });
+	return zonefileContract.call.revokeName({
+		name: stringToBytes(name),
+		namespace: stringToBytes(namespace),
+	});
 }

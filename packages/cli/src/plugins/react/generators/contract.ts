@@ -2,143 +2,152 @@
  * Contract-specific hooks generator for React plugin
  */
 
+import type { AbiFunction } from "@secondlayer/stacks/clarity";
+import type { AbiMap, AbiVariable } from "@secondlayer/stacks/clarity";
 import type { ProcessedContract } from "../../../types/plugin";
 import { formatCode } from "../../../utils/format";
-import type { AbiFunction } from "@secondlayer/stacks/clarity";
 import {
-  toCamelCase,
-  capitalize,
-  generateHookArgsSignature,
-  generateArgsType,
-  generateArgNames,
-  generateEnabledCondition,
-  generateObjectArgs,
-  clarityTypeToTS,
+	capitalize,
+	clarityTypeToTS,
+	generateArgNames,
+	generateArgsType,
+	generateEnabledCondition,
+	generateHookArgsSignature,
+	generateObjectArgs,
+	toCamelCase,
 } from "./utils";
-import type { AbiMap, AbiVariable } from "@secondlayer/stacks/clarity";
 
 export async function generateContractHooks(
-  contracts: ProcessedContract[],
-  excludeList: string[] = []
+	contracts: ProcessedContract[],
+	excludeList: string[] = [],
 ): Promise<string> {
-  const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+	const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useSecondLayerConfig } from './provider'
 import { request } from '@secondlayer/stacks/connect'
 import type { PostCondition } from '@secondlayer/stacks'
 import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'`;
 
-  const header = `/**
+	const header = `/**
  * Generated contract-specific React hooks
  * DO NOT EDIT MANUALLY
  */`;
 
-  const hooksCode = contracts
-    .map((contract) => generateContractHookMethods(contract, excludeList))
-    .filter(Boolean)
-    .join("\n\n");
+	const hooksCode = contracts
+		.map((contract) => generateContractHookMethods(contract, excludeList))
+		.filter(Boolean)
+		.join("\n\n");
 
-  const code = `${imports}\n\n${header}\n\n${hooksCode}`;
+	const code = `${imports}\n\n${header}\n\n${hooksCode}`;
 
-  return formatCode(code);
+	return formatCode(code);
 }
 
 function generateContractHookMethods(
-  contract: ProcessedContract,
-  excludeList: string[]
+	contract: ProcessedContract,
+	excludeList: string[],
 ): string {
-  const { abi, name, address, contractName } = contract;
-  const functions = abi.functions || [];
-  const maps = abi.maps || [];
-  const variables = abi.variables || [];
+	const { abi, name, address, contractName } = contract;
+	const functions = abi.functions || [];
+	const maps = abi.maps || [];
+	const variables = abi.variables || [];
 
-  const readOnlyFunctions = functions.filter(
-    (f: AbiFunction) =>
-      f.access === "read-only"
-  );
-  const publicFunctions = functions.filter(
-    (f: AbiFunction) => f.access === "public"
-  );
+	const readOnlyFunctions = functions.filter(
+		(f: AbiFunction) => f.access === "read-only",
+	);
+	const publicFunctions = functions.filter(
+		(f: AbiFunction) => f.access === "public",
+	);
 
-  const readHooks = readOnlyFunctions
-    .map((func: AbiFunction) => {
-      const hookName = `use${capitalize(name)}${capitalize(toCamelCase(func.name))}`;
-      // Check if this specific hook is excluded
-      if (excludeList.includes(hookName)) {
-        return null;
-      }
-      return generateReadHook(func, name);
-    })
-    .filter(Boolean);
+	const readHooks = readOnlyFunctions
+		.map((func: AbiFunction) => {
+			const hookName = `use${capitalize(name)}${capitalize(toCamelCase(func.name))}`;
+			// Check if this specific hook is excluded
+			if (excludeList.includes(hookName)) {
+				return null;
+			}
+			return generateReadHook(func, name);
+		})
+		.filter(Boolean);
 
-  const writeHooks = publicFunctions
-    .map((func: AbiFunction) => {
-      const hookName = `use${capitalize(name)}${capitalize(toCamelCase(func.name))}`;
-      // Check if this specific hook is excluded
-      if (excludeList.includes(hookName)) {
-        return null;
-      }
-      return generateWriteHook(func, name);
-    })
-    .filter(Boolean);
+	const writeHooks = publicFunctions
+		.map((func: AbiFunction) => {
+			const hookName = `use${capitalize(name)}${capitalize(toCamelCase(func.name))}`;
+			// Check if this specific hook is excluded
+			if (excludeList.includes(hookName)) {
+				return null;
+			}
+			return generateWriteHook(func, name);
+		})
+		.filter(Boolean);
 
-  // Generate hooks for maps
-  const mapHooks = maps
-    .map((map: AbiMap) => {
-      const hookName = `use${capitalize(name)}${capitalize(toCamelCase(map.name))}`;
-      if (excludeList.includes(hookName)) {
-        return null;
-      }
-      return generateMapHook(map, name, address, contractName);
-    })
-    .filter(Boolean);
+	// Generate hooks for maps
+	const mapHooks = maps
+		.map((map: AbiMap) => {
+			const hookName = `use${capitalize(name)}${capitalize(toCamelCase(map.name))}`;
+			if (excludeList.includes(hookName)) {
+				return null;
+			}
+			return generateMapHook(map, name, address, contractName);
+		})
+		.filter(Boolean);
 
-  // Generate hooks for data variables
-  const dataVars = variables.filter((v: AbiVariable) => v.access === "variable");
-  const varHooks = dataVars
-    .map((variable: AbiVariable) => {
-      const hookName = `use${capitalize(name)}${capitalize(toCamelCase(variable.name))}`;
-      if (excludeList.includes(hookName)) {
-        return null;
-      }
-      return generateVarHook(variable, name, address, contractName);
-    })
-    .filter(Boolean);
+	// Generate hooks for data variables
+	const dataVars = variables.filter(
+		(v: AbiVariable) => v.access === "variable",
+	);
+	const varHooks = dataVars
+		.map((variable: AbiVariable) => {
+			const hookName = `use${capitalize(name)}${capitalize(toCamelCase(variable.name))}`;
+			if (excludeList.includes(hookName)) {
+				return null;
+			}
+			return generateVarHook(variable, name, address, contractName);
+		})
+		.filter(Boolean);
 
-  // Generate hooks for constants
-  const constants = variables.filter((v: AbiVariable) => v.access === "constant");
-  const constantHooks = constants
-    .map((constant: AbiVariable) => {
-      const hookName = `use${capitalize(name)}${capitalize(toCamelCase(constant.name))}`;
-      if (excludeList.includes(hookName)) {
-        return null;
-      }
-      return generateConstantHook(constant, name, address, contractName);
-    })
-    .filter(Boolean);
+	// Generate hooks for constants
+	const constants = variables.filter(
+		(v: AbiVariable) => v.access === "constant",
+	);
+	const constantHooks = constants
+		.map((constant: AbiVariable) => {
+			const hookName = `use${capitalize(name)}${capitalize(toCamelCase(constant.name))}`;
+			if (excludeList.includes(hookName)) {
+				return null;
+			}
+			return generateConstantHook(constant, name, address, contractName);
+		})
+		.filter(Boolean);
 
-  const allHooks = [...readHooks, ...writeHooks, ...mapHooks, ...varHooks, ...constantHooks];
+	const allHooks = [
+		...readHooks,
+		...writeHooks,
+		...mapHooks,
+		...varHooks,
+		...constantHooks,
+	];
 
-  // If all hooks for this contract are excluded, return empty string
-  if (allHooks.length === 0) {
-    return "";
-  }
+	// If all hooks for this contract are excluded, return empty string
+	if (allHooks.length === 0) {
+		return "";
+	}
 
-  return allHooks.join("\n\n");
+	return allHooks.join("\n\n");
 }
 
 function generateReadHook(func: AbiFunction, contractName: string): string {
-  const hookName = `use${capitalize(contractName)}${capitalize(toCamelCase(func.name))}`;
-  const argsSignature = generateHookArgsSignature(func.args);
-  const enabledParam =
-    func.args.length > 0
-      ? ", options?: { enabled?: boolean }"
-      : "options?: { enabled?: boolean }";
+	const hookName = `use${capitalize(contractName)}${capitalize(toCamelCase(func.name))}`;
+	const argsSignature = generateHookArgsSignature(func.args);
+	const enabledParam =
+		func.args.length > 0
+			? ", options?: { enabled?: boolean }"
+			: "options?: { enabled?: boolean }";
 
-  // Generate proper return type from function outputs
-  const returnType = clarityTypeToTS(func.outputs);
+	// Generate proper return type from function outputs
+	const returnType = clarityTypeToTS(func.outputs);
 
-  return `export function ${hookName}(${argsSignature}${enabledParam}) {
+	return `export function ${hookName}(${argsSignature}${enabledParam}) {
   const config = useSecondLayerConfig()
 
   return useQuery<${returnType}>({
@@ -153,14 +162,11 @@ function generateReadHook(func: AbiFunction, contractName: string): string {
 }`;
 }
 
-function generateWriteHook(
-  func: AbiFunction,
-  contractName: string
-): string {
-  const hookName = `use${capitalize(contractName)}${capitalize(toCamelCase(func.name))}`;
-  const argsType = generateArgsType(func.args);
+function generateWriteHook(func: AbiFunction, contractName: string): string {
+	const hookName = `use${capitalize(contractName)}${capitalize(toCamelCase(func.name))}`;
+	const argsType = generateArgsType(func.args);
 
-  return `export function ${hookName}() {
+	return `export function ${hookName}() {
   const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
   
@@ -229,16 +235,16 @@ function generateWriteHook(
  * Generate a hook for reading a map entry
  */
 function generateMapHook(
-  map: AbiMap,
-  contractVarName: string,
-  _address: string,
-  _contractName: string
+	map: AbiMap,
+	contractVarName: string,
+	_address: string,
+	_contractName: string,
 ): string {
-  const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(map.name))}`;
-  const keyType = clarityTypeToTS(map.key);
-  const valueType = clarityTypeToTS(map.value);
+	const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(map.name))}`;
+	const keyType = clarityTypeToTS(map.key);
+	const valueType = clarityTypeToTS(map.value);
 
-  return `export function ${hookName}(key: ${keyType}, options?: { enabled?: boolean }) {
+	return `export function ${hookName}(key: ${keyType}, options?: { enabled?: boolean }) {
   const config = useSecondLayerConfig()
 
   return useQuery<${valueType} | null>({
@@ -255,15 +261,15 @@ function generateMapHook(
  * Generate a hook for reading a data variable
  */
 function generateVarHook(
-  variable: AbiVariable,
-  contractVarName: string,
-  _address: string,
-  _contractName: string
+	variable: AbiVariable,
+	contractVarName: string,
+	_address: string,
+	_contractName: string,
 ): string {
-  const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(variable.name))}`;
-  const valueType = clarityTypeToTS(variable.type);
+	const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(variable.name))}`;
+	const valueType = clarityTypeToTS(variable.type);
 
-  return `export function ${hookName}(options?: { enabled?: boolean }) {
+	return `export function ${hookName}(options?: { enabled?: boolean }) {
   const config = useSecondLayerConfig()
 
   return useQuery<${valueType}>({
@@ -280,15 +286,15 @@ function generateVarHook(
  * Generate a hook for reading a constant
  */
 function generateConstantHook(
-  constant: AbiVariable,
-  contractVarName: string,
-  _address: string,
-  _contractName: string
+	constant: AbiVariable,
+	contractVarName: string,
+	_address: string,
+	_contractName: string,
 ): string {
-  const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(constant.name))}`;
-  const valueType = clarityTypeToTS(constant.type);
+	const hookName = `use${capitalize(contractVarName)}${capitalize(toCamelCase(constant.name))}`;
+	const valueType = clarityTypeToTS(constant.type);
 
-  return `export function ${hookName}(options?: { enabled?: boolean }) {
+	return `export function ${hookName}(options?: { enabled?: boolean }) {
   const config = useSecondLayerConfig()
 
   return useQuery<${valueType}>({

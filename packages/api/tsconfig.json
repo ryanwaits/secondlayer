@@ -1,17 +1,22 @@
 {
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@secondlayer/shared": ["../shared/src/index.ts"],
-      "@secondlayer/shared/*": ["../shared/src/*"],
-      "@secondlayer/auth": ["../auth/src/index.ts"],
-      "@secondlayer/auth/*": ["../auth/src/*"],
-      "@secondlayer/subgraphs": ["../subgraphs/src/index.ts"],
-      "@secondlayer/subgraphs/*": ["../subgraphs/src/*"]
-    }
-  },
-  "include": ["src/**/*", "../shared/src/**/*", "../auth/src/**/*", "../subgraphs/src/**/*"],
-  "exclude": ["node_modules", "dist"]
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"baseUrl": ".",
+		"paths": {
+			"@secondlayer/shared": ["../shared/src/index.ts"],
+			"@secondlayer/shared/*": ["../shared/src/*"],
+			"@secondlayer/auth": ["../auth/src/index.ts"],
+			"@secondlayer/auth/*": ["../auth/src/*"],
+			"@secondlayer/subgraphs": ["../subgraphs/src/index.ts"],
+			"@secondlayer/subgraphs/*": ["../subgraphs/src/*"]
+		}
+	},
+	"include": [
+		"src/**/*",
+		"../shared/src/**/*",
+		"../auth/src/**/*",
+		"../subgraphs/src/**/*"
+	],
+	"exclude": ["node_modules", "dist"]
 }

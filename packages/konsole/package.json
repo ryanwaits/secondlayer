@@ -1,28 +1,28 @@
 {
-  "name": "konsole",
-  "version": "0.0.6",
-  "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "bin": {
-    "konsole": "./src/index.ts"
-  },
-  "scripts": {
-    "start": "bun run src/index.ts",
-    "build": "bunup",
-    "dev": "bunup --watch",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@secondlayer/auth": "workspace:*",
-    "@secondlayer/shared": "workspace:*",
-    "kysely": "0.28.10",
-    "kysely-postgres-js": "3.0.0",
-    "pluralize": "^8.0.0",
-    "postgres": "^3.4.6"
-  },
-  "devDependencies": {
-    "@types/pluralize": "^0.0.33"
-  }
+	"name": "konsole",
+	"version": "0.0.6",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"bin": {
+		"konsole": "./src/index.ts"
+	},
+	"scripts": {
+		"start": "bun run src/index.ts",
+		"build": "bunup",
+		"dev": "bunup --watch",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@secondlayer/auth": "workspace:*",
+		"@secondlayer/shared": "workspace:*",
+		"kysely": "0.28.10",
+		"kysely-postgres-js": "3.0.0",
+		"pluralize": "^8.0.0",
+		"postgres": "^3.4.6"
+	},
+	"devDependencies": {
+		"@types/pluralize": "^0.0.33"
+	}
 }

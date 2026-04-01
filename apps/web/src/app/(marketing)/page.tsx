@@ -1,59 +1,64 @@
-import { HomeAnnotations } from "./home-annotations";
 import { BetaBracket } from "@/components/beta-badge";
 import { SiteLink } from "@/components/site-link";
+import { HomeAnnotations } from "./home-annotations";
 
 const products = [
-  { name: "Subgraphs", href: "/subgraphs" },
-  { name: "Streams", href: "/streams" },
+	{ name: "Subgraphs", href: "/subgraphs" },
+	{ name: "Streams", href: "/streams" },
 ];
 
 const packages = [
-  { name: "Stacks", href: "/stacks", version: "0.2.0" },
-  { name: "SDK", href: "/sdk", version: "0.6.0" },
-  { name: "CLI", href: "/cli", version: "1.6.0" },
+	{ name: "Stacks", href: "/stacks", version: "0.2.0" },
+	{ name: "SDK", href: "/sdk", version: "0.6.0" },
+	{ name: "CLI", href: "/cli", version: "1.6.0" },
 ];
 
-function IndexItem({ item }: { item: { name: string; href: string; version?: string } }) {
-  return (
-    <li className="index-item">
-      <SiteLink href={item.href} className="index-link">
-        <span className="index-link-label">{item.name}</span>
-        <span className="index-date">{item.version}</span>
-      </SiteLink>
-    </li>
-  );
+function IndexItem({
+	item,
+}: { item: { name: string; href: string; version?: string } }) {
+	return (
+		<li className="index-item">
+			<SiteLink href={item.href} className="index-link">
+				<span className="index-link-label">{item.name}</span>
+				<span className="index-date">{item.version}</span>
+			</SiteLink>
+		</li>
+	);
 }
 
 export default function HomePage() {
-  return (
-    <div className="homepage">
-      <header className="page-header">
-        <h1 className="page-title">secondlayer</h1>
-      </header>
+	return (
+		<div className="homepage">
+			<header className="page-header">
+				<h1 className="page-title">secondlayer</h1>
+			</header>
 
-      <HomeAnnotations />
+			<HomeAnnotations />
 
-      <section className="index-group" style={{ marginTop: "var(--spacing-xl)" }}>
-        <div className="index-year-group">
-          <div className="index-year">Products</div>
-          <BetaBracket>
-            <ul className="index-list">
-              {products.map((item) => (
-                <IndexItem key={item.href} item={item} />
-              ))}
-            </ul>
-          </BetaBracket>
-        </div>
+			<section
+				className="index-group"
+				style={{ marginTop: "var(--spacing-xl)" }}
+			>
+				<div className="index-year-group">
+					<div className="index-year">Products</div>
+					<BetaBracket>
+						<ul className="index-list">
+							{products.map((item) => (
+								<IndexItem key={item.href} item={item} />
+							))}
+						</ul>
+					</BetaBracket>
+				</div>
 
-        <div className="index-year-group">
-          <div className="index-year">Packages</div>
-          <ul className="index-list">
-            {packages.map((item) => (
-              <IndexItem key={item.href} item={item} />
-            ))}
-          </ul>
-        </div>
-      </section>
-    </div>
-  );
+				<div className="index-year-group">
+					<div className="index-year">Packages</div>
+					<ul className="index-list">
+						{packages.map((item) => (
+							<IndexItem key={item.href} item={item} />
+						))}
+					</ul>
+				</div>
+			</section>
+		</div>
+	);
 }

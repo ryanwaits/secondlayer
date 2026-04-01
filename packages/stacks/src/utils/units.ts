@@ -3,21 +3,24 @@
  * @example formatUnits(1000000n, 6) → "1.0"
  * @example formatUnits(1500000n, 6) → "1.5"
  */
-export function formatUnits(value: bigint | number | string, decimals: number): string {
-  let v = BigInt(value);
+export function formatUnits(
+	value: bigint | number | string,
+	decimals: number,
+): string {
+	let v = BigInt(value);
 
-  const negative = v < 0n;
-  if (negative) v = -v;
+	const negative = v < 0n;
+	if (negative) v = -v;
 
-  const divisor = 10n ** BigInt(decimals);
-  let integer = (v / divisor).toString();
-  let fraction = (v % divisor).toString().padStart(decimals, "0");
+	const divisor = 10n ** BigInt(decimals);
+	const integer = (v / divisor).toString();
+	let fraction = (v % divisor).toString().padStart(decimals, "0");
 
-  // Trim trailing zeros, but keep at least one decimal
-  fraction = fraction.replace(/0+$/, "") || "0";
+	// Trim trailing zeros, but keep at least one decimal
+	fraction = fraction.replace(/0+$/, "") || "0";
 
-  const result = `${integer}.${fraction}`;
-  return negative ? `-${result}` : result;
+	const result = `${integer}.${fraction}`;
+	return negative ? `-${result}` : result;
 }
 
 /**
@@ -26,22 +29,22 @@ export function formatUnits(value: bigint | number | string, decimals: number): 
  * @example parseUnits("1", 6) → 1000000n
  */
 export function parseUnits(value: string | number, decimals: number): bigint {
-  let str = typeof value === "number" ? value.toString() : value;
+	let str = typeof value === "number" ? value.toString() : value;
 
-  const negative = str.startsWith("-");
-  if (negative) str = str.slice(1);
+	const negative = str.startsWith("-");
+	if (negative) str = str.slice(1);
 
-  const [integer = "", fraction = ""] = str.split(".");
+	const [integer = "", fraction = ""] = str.split(".");
 
-  if (fraction.length > decimals) {
-    throw new Error(
-      `Too many decimal places: "${value}" has ${fraction.length} decimals, max is ${decimals}`
-    );
-  }
+	if (fraction.length > decimals) {
+		throw new Error(
+			`Too many decimal places: "${value}" has ${fraction.length} decimals, max is ${decimals}`,
+		);
+	}
 
-  const padded = fraction.padEnd(decimals, "0");
-  const result = BigInt(integer + padded);
-  return negative ? -result : result;
+	const padded = fraction.padEnd(decimals, "0");
+	const result = BigInt(integer + padded);
+	return negative ? -result : result;
 }
 
 /**
@@ -49,7 +52,7 @@ export function parseUnits(value: string | number, decimals: number): bigint {
  * @example formatStx(1000000n) → "1.0"
  */
 export function formatStx(microStx: bigint | number | string): string {
-  return formatUnits(microStx, 6);
+	return formatUnits(microStx, 6);
 }
 
 /**
@@ -57,5 +60,5 @@ export function formatStx(microStx: bigint | number | string): string {
  * @example parseStx("1.5") → 1500000n
  */
 export function parseStx(stx: string | number): bigint {
-  return parseUnits(stx, 6);
+	return parseUnits(stx, 6);
 }

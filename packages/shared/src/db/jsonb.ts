@@ -1,4 +1,4 @@
-import { sql, type RawBuilder } from "kysely";
+import { type RawBuilder, sql } from "kysely";
 
 /**
  * Safely encode a JS value as a JSONB literal for Kysely inserts/updates.
@@ -6,8 +6,8 @@ import { sql, type RawBuilder } from "kysely";
  * with ::jsonb casts. This uses sql.raw to inline a properly escaped literal.
  */
 export function jsonb(value: unknown): RawBuilder<unknown> {
-  const escaped = JSON.stringify(value).replace(/'/g, "''");
-  return sql`${sql.raw(`'${escaped}'::jsonb`)}`;
+	const escaped = JSON.stringify(value).replace(/'/g, "''");
+	return sql`${sql.raw(`'${escaped}'::jsonb`)}`;
 }
 
 /**
@@ -16,12 +16,12 @@ export function jsonb(value: unknown): RawBuilder<unknown> {
  * instead of a parsed object.
  */
 export function parseJsonb<T = unknown>(value: unknown): T {
-  if (typeof value === "string") {
-    try {
-      return JSON.parse(value) as T;
-    } catch {
-      return value as T;
-    }
-  }
-  return (value ?? {}) as T;
+	if (typeof value === "string") {
+		try {
+			return JSON.parse(value) as T;
+		} catch {
+			return value as T;
+		}
+	}
+	return (value ?? {}) as T;
 }

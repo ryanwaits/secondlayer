@@ -1,43 +1,49 @@
-import { defineConfig, type DefineConfigItem } from "bunup";
+import { type DefineConfigItem, defineConfig } from "bunup";
 
 const sharedConfig = {
-  splitting: false,
-  sourcemap: "linked" as const,
-  minify: false,
-  external: ["esbuild", "@biomejs/js-api", "@biomejs/wasm-nodejs", "@hirosystems/clarinet-sdk", "@secondlayer/clarity-types"],
-  noExternal: ["chalk", "commander", "fast-glob", "got", "execa"],
-  shims: true,
-  target: "node" as const,
+	splitting: false,
+	sourcemap: "linked" as const,
+	minify: false,
+	external: [
+		"esbuild",
+		"@biomejs/js-api",
+		"@biomejs/wasm-nodejs",
+		"@hirosystems/clarinet-sdk",
+		"@secondlayer/clarity-types",
+	],
+	noExternal: ["chalk", "commander", "fast-glob", "got", "execa"],
+	shims: true,
+	target: "node" as const,
 };
 
 const config: DefineConfigItem[] = defineConfig([
-  {
-    name: "main",
-    entry: ["src/index.ts"],
-    format: ["esm"],
-    dts: true,
-    ...sharedConfig,
-  },
-  {
-    name: "cli",
-    entry: ["src/cli.ts"],
-    format: ["esm"],
-    dts: false,
-    ...sharedConfig,
-  },
-  {
-    name: "plugins",
-    entry: ["src/plugins/index.ts"],
-    format: ["esm"],
-    dts: true,
-    ...sharedConfig,
-  },
-  {
-    name: "plugin-manager",
-    entry: ["src/core/plugin-manager.ts"],
-    format: ["esm"],
-    dts: true,
-    ...sharedConfig,
-  },
+	{
+		name: "main",
+		entry: ["src/index.ts"],
+		format: ["esm"],
+		dts: true,
+		...sharedConfig,
+	},
+	{
+		name: "cli",
+		entry: ["src/cli.ts"],
+		format: ["esm"],
+		dts: false,
+		...sharedConfig,
+	},
+	{
+		name: "plugins",
+		entry: ["src/plugins/index.ts"],
+		format: ["esm"],
+		dts: true,
+		...sharedConfig,
+	},
+	{
+		name: "plugin-manager",
+		entry: ["src/core/plugin-manager.ts"],
+		format: ["esm"],
+		dts: true,
+		...sharedConfig,
+	},
 ]) as DefineConfigItem[];
 export default config;
