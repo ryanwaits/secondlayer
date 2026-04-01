@@ -49,7 +49,8 @@ export function startRepl(opts: ReplOptions) {
 		);
 
 		const token = Math.floor(100000 + Math.random() * 900000).toString();
-		await createMagicLink(db, email, token, 7 * 24 * 60 * 60 * 1000);
+		const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+		await createMagicLink(db, email, token, code, 7 * 24 * 60 * 60 * 1000);
 		await sendApprovalNotification(email, token);
 
 		console.log(green(`  Approved ${email} — token: ${token}`));
