@@ -104,6 +104,8 @@ export interface SubgraphsTable {
 	schema_name: string | null;
 	start_block: Generated<number>;
 	last_processed_block: Generated<number>;
+	reindex_from_block: number | null;
+	reindex_to_block: number | null;
 	last_error: string | null;
 	last_error_at: Date | null;
 	total_processed: Generated<number>;
