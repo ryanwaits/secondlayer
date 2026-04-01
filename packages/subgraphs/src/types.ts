@@ -105,6 +105,8 @@ export interface SubgraphDefinition {
 	version?: string;
 	/** Human description */
 	description?: string;
+	/** Block height to start indexing from (default: 1) */
+	startBlock?: number;
 	/** What blockchain data to process — one or more source filters */
 	sources: SubgraphSource[];
 	/** Tables in this subgraph */

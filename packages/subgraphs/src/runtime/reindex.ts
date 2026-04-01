@@ -196,13 +196,14 @@ async function processBlockRange(
 }
 
 /**
- * Resolve block range from options, defaulting to 1..chain_tip.
+ * Resolve block range from options, defaulting to def.startBlock..chain_tip.
  */
 async function resolveBlockRange(
 	db: ReturnType<typeof getDb>,
+	def: SubgraphDefinition,
 	opts?: ReindexOptions,
 ): Promise<{ fromBlock: number; toBlock: number }> {
-	const fromBlock = opts?.fromBlock ?? 1;
+	const fromBlock = opts?.fromBlock ?? def.startBlock ?? 1;
 	let toBlock: number;
 
 	if (opts?.toBlock != null) {
@@ -213,8 +214,7 @@ async function resolveBlockRange(
 			.selectAll()
 			.where("network", "=", process.env.NETWORK ?? "mainnet")
 			.executeTakeFirst();
-		toBlock =
-			progress?.last_indexed_block ?? progress?.last_contiguous_block ?? 0;
+		toBlock = progress?.highest_seen_block ?? 0;
 	}
 
 	return { fromBlock, toBlock };
@@ -245,7 +245,7 @@ export async function reindexSubgraph(
 		}
 		logger.info("Schema recreated for reindex", { subgraph: subgraphName });
 
-		const { fromBlock, toBlock } = await resolveBlockRange(db, opts);
+		const { fromBlock, toBlock } = await resolveBlockRange(db, def, opts);
 
 		if (fromBlock > toBlock) {
 			logger.info("No blocks to reindex", {

@@ -126,6 +126,7 @@ export async function deploySchema(
 			name: def.name,
 			version: def.version,
 			description: def.description,
+			startBlock: def.startBlock,
 			sources: def.sources,
 			schema: def.schema,
 		}) as Record<string, unknown>,
@@ -133,6 +134,7 @@ export async function deploySchema(
 		handlerPath,
 		apiKeyId: opts?.apiKeyId,
 		schemaName,
+		startBlock: def.startBlock,
 	};
 
 	if (existing) {

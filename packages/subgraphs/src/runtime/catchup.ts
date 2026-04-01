@@ -87,10 +87,11 @@ export async function catchUpSubgraph(
 
 		if (!progress) return 0;
 
-		const chainTip = Number(progress.last_contiguous_block);
+		const chainTip = Number(progress.highest_seen_block);
 		if (lastProcessedBlock >= chainTip) return 0;
 
-		const startBlock = lastProcessedBlock + 1;
+		const subgraphStart = Number(subgraphRow.start_block) || 1;
+		const startBlock = Math.max(lastProcessedBlock + 1, subgraphStart);
 		const totalBlocks = chainTip - lastProcessedBlock;
 
 		logger.info("Subgraph catch-up starting", {
