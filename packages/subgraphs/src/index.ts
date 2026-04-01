@@ -16,6 +16,7 @@ export { pgSchemaName } from "./schema/utils.ts";
 export { deploySchema, diffSchema } from "./schema/deployer.ts";
 export {
 	reindexSubgraph,
+	resumeReindex,
 	backfillSubgraph,
 	type ReindexOptions,
 } from "./runtime/reindex.ts";

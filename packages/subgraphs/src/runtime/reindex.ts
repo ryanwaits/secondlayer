@@ -52,11 +52,13 @@ export interface ReindexOptions {
 	fromBlock?: number;
 	toBlock?: number;
 	schemaName?: string;
+	signal?: AbortSignal;
 }
 
 /**
  * Shared block range processor used by both reindex and backfill.
  * Processes blocks in batches with prefetch pipeline.
+ * Supports cancellation via AbortSignal — breaks cleanly at batch boundaries.
  */
 async function processBlockRange(
 	def: SubgraphDefinition,
@@ -67,11 +69,13 @@ async function processBlockRange(
 		isCatchup: boolean;
 		apiKeyId: string | null;
 		subgraphId?: string;
+		signal?: AbortSignal;
 	},
 ): Promise<{
 	blocksProcessed: number;
 	totalEventsProcessed: number;
 	totalErrors: number;
+	aborted: boolean;
 }> {
 	const db = getDb();
 	const subgraphName = def.name;
@@ -88,6 +92,7 @@ async function processBlockRange(
 	let totalErrors = 0;
 	let batchSize = DEFAULT_BATCH_SIZE;
 	let currentHeight = fromBlock;
+	let aborted = false;
 
 	// Pipeline: start loading first batch
 	let nextBatchPromise = loadBlockRange(
@@ -97,6 +102,17 @@ async function processBlockRange(
 	);
 
 	while (currentHeight <= toBlock) {
+		// Check for abort at batch boundary
+		if (opts.signal?.aborted) {
+			aborted = true;
+			logger.info("Block processing aborted", {
+				subgraph: subgraphName,
+				currentBlock: currentHeight,
+				reason: String(opts.signal.reason ?? "unknown"),
+			});
+			break;
+		}
+
 		const batch = await nextBatchPromise;
 		const batchEnd = Math.min(currentHeight + batchSize - 1, toBlock);
 
@@ -192,7 +208,7 @@ async function processBlockRange(
 	}
 
 	await stats.flush(db);
-	return { blocksProcessed, totalEventsProcessed, totalErrors };
+	return { blocksProcessed, totalEventsProcessed, totalErrors, aborted };
 }
 
 /**
@@ -221,8 +237,24 @@ async function resolveBlockRange(
 }
 
 /**
+ * Clear reindex metadata columns after completion or cancellation.
+ */
+async function clearReindexMetadata(
+	db: ReturnType<typeof getDb>,
+	subgraphName: string,
+): Promise<void> {
+	await db
+		.updateTable("subgraphs")
+		.set({ reindex_from_block: null, reindex_to_block: null })
+		.where("name", "=", subgraphName)
+		.execute();
+}
+
+/**
  * Reindex a subgraph by dropping its tables, recreating them, and reprocessing
  * all historical blocks through the handler pipeline.
+ * Supports cancellation via AbortSignal — on shutdown abort, status stays
+ * "reindexing" for auto-resume; on user cancel, status resets to "active".
  */
 export async function reindexSubgraph(
 	def: SubgraphDefinition,
@@ -237,14 +269,7 @@ export async function reindexSubgraph(
 	logger.info("Reindex starting", { subgraph: subgraphName });
 
 	try {
-		// Drop and recreate schema + tables
-		await client.unsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
-		const { statements } = generateSubgraphSQL(def, schemaName);
-		for (const stmt of statements) {
-			await client.unsafe(stmt);
-		}
-		logger.info("Schema recreated for reindex", { subgraph: subgraphName });
-
+		// Resolve block range BEFORE schema drop so we can persist metadata
 		const { fromBlock, toBlock } = await resolveBlockRange(db, def, opts);
 
 		if (fromBlock > toBlock) {
@@ -256,6 +281,21 @@ export async function reindexSubgraph(
 			await updateSubgraphStatus(db, subgraphName, "active", 0);
 			return { processed: 0 };
 		}
+
+		// Store reindex range so we can resume after a crash
+		await db
+			.updateTable("subgraphs")
+			.set({ reindex_from_block: fromBlock, reindex_to_block: toBlock })
+			.where("name", "=", subgraphName)
+			.execute();
+
+		// Drop and recreate schema + tables
+		await client.unsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+		const { statements } = generateSubgraphSQL(def, schemaName);
+		for (const stmt of statements) {
+			await client.unsafe(stmt);
+		}
+		logger.info("Schema recreated for reindex", { subgraph: subgraphName });
 
 		logger.info("Reindexing blocks", {
 			subgraph: subgraphName,
@@ -277,7 +317,24 @@ export async function reindexSubgraph(
 			isCatchup: false,
 			apiKeyId: subgraphRow?.api_key_id ?? null,
 			subgraphId: subgraphRow?.id,
+			signal: opts?.signal,
 		});
+
+		// Handle abort
+		if (result.aborted) {
+			const reason = String(opts?.signal?.reason ?? "unknown");
+			if (reason === "user-cancelled") {
+				await updateSubgraphStatus(db, subgraphName, "active");
+				await clearReindexMetadata(db, subgraphName);
+				logger.info("Reindex cancelled by user", { subgraph: subgraphName });
+			} else {
+				// shutdown — leave status as "reindexing" for auto-resume
+				logger.info("Reindex interrupted by shutdown, will resume", {
+					subgraph: subgraphName,
+				});
+			}
+			return { processed: result.blocksProcessed };
+		}
 
 		// Write final health metrics
 		const { recordSubgraphProcessed } = await import(
@@ -296,6 +353,7 @@ export async function reindexSubgraph(
 		}
 
 		await updateSubgraphStatus(db, subgraphName, "active", toBlock);
+		await clearReindexMetadata(db, subgraphName);
 		logger.info("Reindex complete", {
 			subgraph: subgraphName,
 			blocks: result.blocksProcessed,
@@ -314,13 +372,134 @@ export async function reindexSubgraph(
 }
 
 /**
+ * Resume a previously interrupted reindex. Skips schema drop (already done)
+ * and continues from last_processed_block + 1.
+ */
+export async function resumeReindex(
+	def: SubgraphDefinition,
+	opts: {
+		schemaName: string;
+		signal?: AbortSignal;
+	},
+): Promise<{ processed: number }> {
+	const db = getDb();
+	const subgraphName = def.name;
+
+	const row = await db
+		.selectFrom("subgraphs")
+		.select([
+			"id",
+			"api_key_id",
+			"last_processed_block",
+			"reindex_from_block",
+			"reindex_to_block",
+		])
+		.where("name", "=", subgraphName)
+		.executeTakeFirst();
+
+	if (!row) throw new Error(`Subgraph "${subgraphName}" not found`);
+
+	// Legacy: no reindex metadata — fall back to full reindex
+	if (row.reindex_from_block == null || row.reindex_to_block == null) {
+		logger.info("No reindex metadata, starting fresh reindex", {
+			subgraph: subgraphName,
+		});
+		return reindexSubgraph(def, {
+			schemaName: opts.schemaName,
+			signal: opts.signal,
+		});
+	}
+
+	const fromBlock = Math.max(
+		row.last_processed_block + 1,
+		row.reindex_from_block,
+	);
+	const toBlock = row.reindex_to_block;
+
+	if (fromBlock > toBlock) {
+		logger.info("Resume: no remaining blocks", { subgraph: subgraphName });
+		await updateSubgraphStatus(db, subgraphName, "active", toBlock);
+		await clearReindexMetadata(db, subgraphName);
+		return { processed: 0 };
+	}
+
+	logger.info("Resuming reindex", {
+		subgraph: subgraphName,
+		fromBlock,
+		toBlock,
+		remaining: toBlock - fromBlock + 1,
+	});
+
+	try {
+		const result = await processBlockRange(def, {
+			fromBlock,
+			toBlock,
+			status: "reindexing",
+			isCatchup: false,
+			apiKeyId: row.api_key_id ?? null,
+			subgraphId: row.id,
+			signal: opts.signal,
+		});
+
+		if (result.aborted) {
+			const reason = String(opts.signal?.reason ?? "unknown");
+			if (reason === "user-cancelled") {
+				await updateSubgraphStatus(db, subgraphName, "active");
+				await clearReindexMetadata(db, subgraphName);
+				logger.info("Resume cancelled by user", { subgraph: subgraphName });
+			} else {
+				logger.info("Resume interrupted by shutdown, will resume again", {
+					subgraph: subgraphName,
+				});
+			}
+			return { processed: result.blocksProcessed };
+		}
+
+		const { recordSubgraphProcessed } = await import(
+			"@secondlayer/shared/db/queries/subgraphs"
+		);
+		if (result.totalEventsProcessed > 0 || result.totalErrors > 0) {
+			await recordSubgraphProcessed(
+				db,
+				subgraphName,
+				result.totalEventsProcessed,
+				result.totalErrors,
+				result.totalErrors > 0
+					? `${result.totalErrors} error(s) during resumed reindex`
+					: undefined,
+			);
+		}
+
+		await updateSubgraphStatus(db, subgraphName, "active", toBlock);
+		await clearReindexMetadata(db, subgraphName);
+		logger.info("Resumed reindex complete", {
+			subgraph: subgraphName,
+			blocks: result.blocksProcessed,
+		});
+		return { processed: result.blocksProcessed };
+	} catch (err) {
+		logger.error("Resumed reindex failed", {
+			subgraph: subgraphName,
+			error: getErrorMessage(err),
+		});
+		await updateSubgraphStatus(db, subgraphName, "error");
+		throw err;
+	}
+}
+
+/**
  * Backfill a subgraph by re-processing a block range WITHOUT dropping the schema.
  * Uses upserts so existing data is updated, not duplicated. Safe to run while
  * the subgraph is actively syncing.
  */
 export async function backfillSubgraph(
 	def: SubgraphDefinition,
-	opts: { fromBlock: number; toBlock: number; schemaName?: string },
+	opts: {
+		fromBlock: number;
+		toBlock: number;
+		schemaName?: string;
+		signal?: AbortSignal;
+	},
 ): Promise<{ processed: number }> {
 	const db = getDb();
 	const subgraphName = def.name;
@@ -345,7 +524,13 @@ export async function backfillSubgraph(
 			isCatchup: false,
 			apiKeyId: subgraphRow?.api_key_id ?? null,
 			subgraphId: subgraphRow?.id,
+			signal: opts.signal,
 		});
+
+		if (result.aborted) {
+			logger.info("Backfill aborted", { subgraph: subgraphName });
+			return { processed: result.blocksProcessed };
+		}
 
 		// Resolve any gaps within the backfilled range
 		const resolved = await resolveGaps(
