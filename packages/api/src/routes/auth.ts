@@ -7,6 +7,7 @@ import {
 	isEmailAllowed,
 	upsertAccount,
 	verifyMagicLink,
+	verifyMagicLinkByCode,
 } from "@secondlayer/shared/db/queries/accounts";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
@@ -19,9 +20,27 @@ const MagicLinkSchema = z.object({
 	email: z.string().email(),
 });
 
-const VerifySchema = z.object({
-	token: z.string().min(1),
-});
+const VerifySchema = z.union([
+	z.object({ token: z.string().min(1) }),
+	z.object({ code: z.string().length(6), email: z.string().email() }),
+]);
+
+// IP-based rate limiting for verify endpoint
+const verifyAttempts = new Map<string, { count: number; resetAt: number }>();
+const VERIFY_RATE_LIMIT = 10;
+const VERIFY_WINDOW_MS = 15 * 60_000;
+
+function checkVerifyRateLimit(ip: string): boolean {
+	const now = Date.now();
+	const entry = verifyAttempts.get(ip);
+	if (!entry || now > entry.resetAt) {
+		verifyAttempts.set(ip, { count: 1, resetAt: now + VERIFY_WINDOW_MS });
+		return true;
+	}
+	if (entry.count >= VERIFY_RATE_LIMIT) return false;
+	entry.count++;
+	return true;
+}
 
 // Request magic link (no auth)
 app.post("/magic-link", async (c) => {
@@ -39,22 +58,33 @@ app.post("/magic-link", async (c) => {
 		return c.json({ message: "Magic link sent. Check your email." });
 	}
 
+	// Generate secure magic link token (for URL)
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
 	const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
 		"",
 	);
-	await createMagicLink(db, parsed.email, token);
-	await sendMagicLink(parsed.email, token);
+
+	// Generate 6-digit numeric code (for manual entry)
+	const codeNum = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
+	const code = String(codeNum).padStart(6, "0");
+
+	await createMagicLink(db, parsed.email, token, code);
+	await sendMagicLink(parsed.email, token, code);
 
 	return c.json({
-		message: "Magic link sent. Check your email.",
-		...(process.env.DEV_MODE === "true" && { token }),
+		message: "Check your email for a login code.",
+		...(process.env.DEV_MODE === "true" && { token, code }),
 	});
 });
 
-// Verify token → create account + session token (no auth)
+// Verify token or code → create account + session token (no auth)
 app.post("/verify", async (c) => {
+	const ip = getClientIp(c);
+	if (!checkVerifyRateLimit(ip)) {
+		return c.json({ error: "Too many attempts. Try again later." }, 429);
+	}
+
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
 	});
@@ -62,9 +92,12 @@ app.post("/verify", async (c) => {
 	const parsed = VerifySchema.parse(body);
 	const db = getDb();
 
-	const email = await verifyMagicLink(db, parsed.token);
+	const email =
+		"token" in parsed
+			? await verifyMagicLink(db, parsed.token)
+			: await verifyMagicLinkByCode(db, parsed.email, parsed.code);
 	if (!email) {
-		throw new ValidationError("Invalid or expired token");
+		throw new ValidationError("Invalid or expired code");
 	}
 
 	const allowed =
