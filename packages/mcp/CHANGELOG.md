@@ -1,5 +1,13 @@
 # @secondlayer/mcp
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [[`e4a6258`](https://github.com/ryanwaits/secondlayer/commit/e4a625854bea486efd62f9ebdf47a0791a850757)]:
+  - @secondlayer/subgraphs@0.7.0
+  - @secondlayer/sdk@0.8.0
+
 ## 0.3.2
 
 ### Patch Changes

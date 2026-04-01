@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/subgraphs",
-	"version": "0.6.0",
+	"version": "0.7.0",
 	"type": "module",
 	"main": "./dist/src/index.js",
 	"types": "./dist/src/index.d.ts",
@@ -26,7 +26,9 @@
 			"import": "./dist/src/templates.js"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -35,7 +37,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^0.7.1",
+		"@secondlayer/shared": "^0.8.0",
 		"@secondlayer/stacks": "^0.2.2",
 		"kysely": "^0.28.10",
 		"postgres": "^3.4.6",
