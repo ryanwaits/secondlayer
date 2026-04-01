@@ -13,8 +13,11 @@ import type { Account } from "./types";
 interface AuthCtx {
 	account: Account | null;
 	loading: boolean;
-	login(email: string): Promise<{ token?: string }>;
-	verify(token: string): Promise<{ account: Account; apiKey?: string }>;
+	login(email: string): Promise<{ token?: string; code?: string }>;
+	verify(
+		tokenOrCode: string,
+		email?: string,
+	): Promise<{ account: Account; apiKey?: string }>;
 	logout(): Promise<void>;
 	refresh(): Promise<void>;
 }
@@ -54,11 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		[],
 	);
 
-	const verify = useCallback(async (token: string) => {
+	const verify = useCallback(async (tokenOrCode: string, email?: string) => {
+		const body = email ? { code: tokenOrCode, email } : { token: tokenOrCode };
 		const res = await fetch("/api/auth/verify", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ token }),
+			body: JSON.stringify(body),
 		});
 		if (!res.ok) {
 			const data = await res.json();

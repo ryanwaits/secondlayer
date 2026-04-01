@@ -1,13 +1,13 @@
+import { NextResponse } from "next/server";
 import { ApiError, apiRequest } from "@/lib/api";
 import type { Account, ApiKey } from "@/lib/types";
-import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
 	try {
-		const { token } = await req.json();
+		const body = await req.json();
 		const data = await apiRequest<{ sessionToken: string; account: Account }>(
 			"/api/auth/verify",
-			{ method: "POST", body: { token } },
+			{ method: "POST", body },
 		);
 
 		const { sessionToken, account } = data;

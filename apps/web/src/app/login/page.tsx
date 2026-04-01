@@ -1,19 +1,21 @@
 "use client";
 
-import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-	const { login } = useAuth();
+	const { login, verify } = useAuth();
 	const router = useRouter();
 	const [email, setEmail] = useState("");
+	const [code, setCode] = useState("");
 	const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
 		"idle",
 	);
 	const [devToken, setDevToken] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [verifyError, setVerifyError] = useState<string | null>(null);
 
 	const handleInputEsc = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>, clear: () => void) => {
@@ -61,6 +63,21 @@ export default function LoginPage() {
 		[email, login, status],
 	);
 
+	const handleVerifyCode = useCallback(
+		async (e: React.FormEvent) => {
+			e.preventDefault();
+			if (code.length !== 6) return;
+			setVerifyError(null);
+			try {
+				await verify(code, email);
+				router.replace("/");
+			} catch {
+				setVerifyError("Invalid or expired code. Try again.");
+			}
+		},
+		[code, email, verify, router],
+	);
+
 	return (
 		<div className="login-page">
 			<Link href="/" className="login-back">
@@ -72,10 +89,40 @@ export default function LoginPage() {
 					<div className="login-sent">
 						<p className="login-sent-title">Check your email</p>
 						<p className="login-sent-desc">
-							We sent a sign-in link to <strong>{email}</strong>
+							We sent a login code to <strong>{email}</strong>
 						</p>
+						<form onSubmit={handleVerifyCode}>
+							<input
+								type="text"
+								inputMode="numeric"
+								pattern="[0-9]*"
+								maxLength={6}
+								className="login-input"
+								placeholder="000000"
+								value={code}
+								onChange={(e) =>
+									setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+								}
+								onKeyDown={(e) => handleInputEsc(e, () => setCode(""))}
+								autoFocus
+								style={{
+									textAlign: "center",
+									letterSpacing: "0.5em",
+									fontSize: 20,
+								}}
+							/>
+							{verifyError && <p className="login-error">{verifyError}</p>}
+							<button
+								type="submit"
+								className="login-submit"
+								disabled={code.length !== 6}
+							>
+								Verify
+							</button>
+						</form>
 						<p className="login-disclaimer" style={{ marginTop: 16 }}>
-							Didn&apos;t get it? You may need{" "}
+							Or click the link in your email to sign in directly. Didn&apos;t
+							get it? You may need{" "}
 							<Link href="/#early-access">early access</Link> first.
 						</p>
 						{devToken && (
@@ -106,9 +153,7 @@ export default function LoginPage() {
 							className="login-submit"
 							disabled={status === "sending"}
 						>
-							{status === "sending"
-								? "Sending..."
-								: "Send me a one-time password"}
+							{status === "sending" ? "Sending..." : "Send me a login code"}
 						</button>
 						<p className="login-disclaimer">
 							You&apos;ll receive a code if you have an account or approved
