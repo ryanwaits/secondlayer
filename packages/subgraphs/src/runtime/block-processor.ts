@@ -208,17 +208,21 @@ export async function processBlock(
 		flushMs: Math.round(flushMs),
 	};
 
-	// 7. Row count warning — sample every 1000 blocks
+	// 7. Row count warning — sample every 1000 blocks (uses pg_stat estimate, not COUNT(*))
 	if (blockHeight % 1000 === 0) {
 		try {
 			const tables = Object.keys(subgraph.schema);
 			for (const table of tables) {
 				const { rows } = await sql
-					.raw(`SELECT COUNT(*) as count FROM "${schemaName}"."${table}"`)
+					.raw(
+						`SELECT n_live_tup AS count FROM pg_stat_user_tables WHERE schemaname = '${schemaName}' AND relname = '${table}'`,
+					)
 					.execute(db);
-				const count = Number((rows[0] as Record<string, unknown>).count);
+				const count = Number(
+					(rows[0] as Record<string, unknown>)?.count ?? 0,
+				);
 				if (count >= 10_000_000) {
-					logger.warn("Subgraph table exceeds 10M rows", {
+					logger.warn("Subgraph table exceeds 10M rows (estimate)", {
 						subgraph: subgraphName,
 						table,
 						count,

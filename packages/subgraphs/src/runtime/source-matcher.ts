@@ -22,13 +22,21 @@ export interface MatchedTx {
 
 /**
  * Check if a string matches a pattern with `*` wildcard support.
+ * Compiled RegExp objects are cached to avoid recompilation on every call.
  */
+const patternCache = new Map<string, RegExp>();
+
 function matchPattern(value: string, pattern: string): boolean {
 	if (!pattern.includes("*")) return value === pattern;
-	const regex = pattern
-		.replace(/[.+^${}()|[\]\\]/g, "\\$&")
-		.replace(/\*/g, ".*");
-	return new RegExp(`^${regex}$`).test(value);
+	let re = patternCache.get(pattern);
+	if (!re) {
+		const regex = pattern
+			.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+			.replace(/\*/g, ".*");
+		re = new RegExp(`^${regex}$`);
+		patternCache.set(pattern, re);
+	}
+	return re.test(value);
 }
 
 type TxRecord = {
