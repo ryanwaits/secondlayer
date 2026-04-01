@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.9.0
+  - @secondlayer/subgraphs@0.7.2
+
 ## 0.8.0
 
 ### Minor Changes

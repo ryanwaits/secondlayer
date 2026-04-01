@@ -1,5 +1,12 @@
 # @secondlayer/auth
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.9.0
+
 ## 0.1.10
 
 ### Patch Changes

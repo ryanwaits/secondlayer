@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.9.0
+
 ## 0.7.1
 
 ### Patch Changes

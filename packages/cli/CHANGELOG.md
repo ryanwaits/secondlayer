@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 1.9.0
+
+### Minor Changes
+
+- Add 6-digit login code alongside magic link for dual auth (code entry + link click).
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.9.0
+  - @secondlayer/sdk@0.8.1
+  - @secondlayer/subgraphs@0.7.2
+
 ## 1.8.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.9.0
+
+### Minor Changes
+
+- Add 6-digit login code alongside magic link for dual auth (code entry + link click).
+
 ## 0.8.1
 
 ### Patch Changes

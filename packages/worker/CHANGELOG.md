@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.9.0
+  - @secondlayer/account-agent@0.2.4
+
 ## 0.2.3
 
 ### Patch Changes
