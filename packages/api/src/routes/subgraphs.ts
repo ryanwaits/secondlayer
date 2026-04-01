@@ -294,7 +294,7 @@ const MAX_CONCURRENT_OPERATIONS = 2;
 export const activeAbortControllers = new Map<string, AbortController>();
 
 export function abortAllOperations(reason: string): void {
-	for (const [name, controller] of activeAbortControllers) {
+	for (const [, controller] of activeAbortControllers) {
 		controller.abort(reason);
 	}
 }
