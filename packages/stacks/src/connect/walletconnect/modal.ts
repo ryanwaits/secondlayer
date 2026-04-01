@@ -1,7 +1,7 @@
 /** Minimal wallet picker modal (injected wallets + WC QR) */
 
-import { qrSvg } from "./qr.ts";
 import { isWalletInstalled } from "../provider.ts";
+import { qrSvg } from "./qr.ts";
 
 declare const document: any;
 
@@ -19,84 +19,84 @@ const STYLES = `
 `;
 
 export interface ModalOptions {
-  wcUri?: string;
-  onSelectInjected?: () => void;
-  onClose?: () => void;
+	wcUri?: string;
+	onSelectInjected?: () => void;
+	onClose?: () => void;
 }
 
 export function showModal(opts: ModalOptions): () => void {
-  if (typeof document === "undefined") return () => {};
+	if (typeof document === "undefined") return () => {};
 
-  // Remove existing
-  document.getElementById(MODAL_ID)?.remove();
+	// Remove existing
+	document.getElementById(MODAL_ID)?.remove();
 
-  const overlay = document.createElement("div");
-  overlay.id = MODAL_ID;
+	const overlay = document.createElement("div");
+	overlay.id = MODAL_ID;
 
-  const style = document.createElement("style");
-  style.textContent = STYLES;
-  overlay.appendChild(style);
+	const style = document.createElement("style");
+	style.textContent = STYLES;
+	overlay.appendChild(style);
 
-  const box = document.createElement("div");
-  box.className = "sl-wc-box";
-  box.style.position = "relative";
+	const box = document.createElement("div");
+	box.className = "sl-wc-box";
+	box.style.position = "relative";
 
-  // Close button
-  const close = document.createElement("button");
-  close.className = "sl-wc-close";
-  close.textContent = "\u00d7";
-  close.onclick = dismiss;
-  box.appendChild(close);
+	// Close button
+	const close = document.createElement("button");
+	close.className = "sl-wc-close";
+	close.textContent = "\u00d7";
+	close.onclick = dismiss;
+	box.appendChild(close);
 
-  // Title
-  const title = document.createElement("h2");
-  title.className = "sl-wc-title";
-  title.textContent = "Connect Wallet";
-  box.appendChild(title);
+	// Title
+	const title = document.createElement("h2");
+	title.className = "sl-wc-title";
+	title.textContent = "Connect Wallet";
+	box.appendChild(title);
 
-  // Injected wallet button
-  if (isWalletInstalled()) {
-    const btn = document.createElement("button");
-    btn.className = "sl-wc-btn";
-    btn.textContent = "Browser Wallet";
-    btn.onclick = () => {
-      dismiss();
-      opts.onSelectInjected?.();
-    };
-    box.appendChild(btn);
-  }
+	// Injected wallet button
+	if (isWalletInstalled()) {
+		const btn = document.createElement("button");
+		btn.className = "sl-wc-btn";
+		btn.textContent = "Browser Wallet";
+		btn.onclick = () => {
+			dismiss();
+			opts.onSelectInjected?.();
+		};
+		box.appendChild(btn);
+	}
 
-  // QR code
-  if (opts.wcUri) {
-    if (isWalletInstalled()) {
-      const divider = document.createElement("div");
-      divider.className = "sl-wc-divider";
-      divider.textContent = "or scan with mobile wallet";
-      box.appendChild(divider);
-    }
+	// QR code
+	if (opts.wcUri) {
+		if (isWalletInstalled()) {
+			const divider = document.createElement("div");
+			divider.className = "sl-wc-divider";
+			divider.textContent = "or scan with mobile wallet";
+			box.appendChild(divider);
+		}
 
-    const qr = document.createElement("div");
-    qr.className = "sl-wc-qr";
-    qr.innerHTML = qrSvg(opts.wcUri, { size: 240 });
-    box.appendChild(qr);
-  }
+		const qr = document.createElement("div");
+		qr.className = "sl-wc-qr";
+		qr.innerHTML = qrSvg(opts.wcUri, { size: 240 });
+		box.appendChild(qr);
+	}
 
-  overlay.appendChild(box);
-  overlay.onclick = (e: any) => {
-    if (e.target === overlay) dismiss();
-  };
+	overlay.appendChild(box);
+	overlay.onclick = (e: any) => {
+		if (e.target === overlay) dismiss();
+	};
 
-  document.body.appendChild(overlay);
+	document.body.appendChild(overlay);
 
-  function dismiss() {
-    overlay.remove();
-    opts.onClose?.();
-  }
+	function dismiss() {
+		overlay.remove();
+		opts.onClose?.();
+	}
 
-  return dismiss;
+	return dismiss;
 }
 
 export function hideModal(): void {
-  if (typeof document === "undefined") return;
-  document.getElementById(MODAL_ID)?.remove();
+	if (typeof document === "undefined") return;
+	document.getElementById(MODAL_ID)?.remove();
 }

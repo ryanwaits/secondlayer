@@ -14,12 +14,12 @@
  * ```
  */
 export class ApiError extends Error {
-  constructor(
-    /** HTTP status code (0 for network errors). */
-    public status: number,
-    message: string
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
+	constructor(
+		/** HTTP status code (0 for network errors). */
+		public status: number,
+		message: string,
+	) {
+		super(message);
+		this.name = "ApiError";
+	}
 }

@@ -1,107 +1,105 @@
 {
-  "name": "@secondlayer/stacks",
-  "version": "0.2.2",
-  "description": "A viem-style SDK for the Stacks blockchain",
-  "type": "module",
-  "main": "./dist/src/index.cjs",
-  "module": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js",
-      "require": "./dist/src/index.cjs"
-    },
-    "./accounts": {
-      "types": "./dist/src/accounts/index.d.ts",
-      "import": "./dist/src/accounts/index.js",
-      "require": "./dist/src/accounts/index.cjs"
-    },
-    "./chains": {
-      "types": "./dist/src/chains/index.d.ts",
-      "import": "./dist/src/chains/index.js",
-      "require": "./dist/src/chains/index.cjs"
-    },
-    "./clarity": {
-      "types": "./dist/src/clarity/index.d.ts",
-      "import": "./dist/src/clarity/index.js",
-      "require": "./dist/src/clarity/index.cjs"
-    },
-    "./actions": {
-      "types": "./dist/src/actions/index.d.ts",
-      "import": "./dist/src/actions/index.js",
-      "require": "./dist/src/actions/index.cjs"
-    },
-    "./postconditions": {
-      "types": "./dist/src/postconditions/index.d.ts",
-      "import": "./dist/src/postconditions/index.js",
-      "require": "./dist/src/postconditions/index.cjs"
-    },
-    "./transactions": {
-      "types": "./dist/src/transactions/index.d.ts",
-      "import": "./dist/src/transactions/index.js",
-      "require": "./dist/src/transactions/index.cjs"
-    },
-    "./utils": {
-      "types": "./dist/src/utils/index.d.ts",
-      "import": "./dist/src/utils/index.js",
-      "require": "./dist/src/utils/index.cjs"
-    },
-    "./connect": {
-      "types": "./dist/src/connect/index.d.ts",
-      "import": "./dist/src/connect/index.js",
-      "require": "./dist/src/connect/index.cjs"
-    },
-    "./bns": {
-      "types": "./dist/src/bns/index.d.ts",
-      "import": "./dist/src/bns/index.js",
-      "require": "./dist/src/bns/index.cjs"
-    },
-    "./pox": {
-      "types": "./dist/src/pox/index.d.ts",
-      "import": "./dist/src/pox/index.js",
-      "require": "./dist/src/pox/index.cjs"
-    },
-    "./stackingdao": {
-      "types": "./dist/src/stackingdao/index.d.ts",
-      "import": "./dist/src/stackingdao/index.js",
-      "require": "./dist/src/stackingdao/index.cjs"
-    },
-    "./subscriptions": {
-      "types": "./dist/src/subscriptions/index.d.ts",
-      "import": "./dist/src/subscriptions/index.js",
-      "require": "./dist/src/subscriptions/index.cjs"
-    },
-    "./connect/walletconnect": {
-      "types": "./dist/src/connect/walletconnect/index.d.ts",
-      "import": "./dist/src/connect/walletconnect/index.js",
-      "require": "./dist/src/connect/walletconnect/index.cjs"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "bunup",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@noble/hashes": "2.0.1",
-    "@noble/secp256k1": "2.3.0",
-    "@scure/bip32": "2.0.1",
-    "@noble/ciphers": "2.1.1",
-    "@noble/curves": "2.0.1",
-    "@scure/bip39": "2.0.1"
-  }
+	"name": "@secondlayer/stacks",
+	"version": "0.2.2",
+	"description": "A viem-style SDK for the Stacks blockchain",
+	"type": "module",
+	"main": "./dist/src/index.cjs",
+	"module": "./dist/src/index.js",
+	"types": "./dist/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/src/index.d.ts",
+			"import": "./dist/src/index.js",
+			"require": "./dist/src/index.cjs"
+		},
+		"./accounts": {
+			"types": "./dist/src/accounts/index.d.ts",
+			"import": "./dist/src/accounts/index.js",
+			"require": "./dist/src/accounts/index.cjs"
+		},
+		"./chains": {
+			"types": "./dist/src/chains/index.d.ts",
+			"import": "./dist/src/chains/index.js",
+			"require": "./dist/src/chains/index.cjs"
+		},
+		"./clarity": {
+			"types": "./dist/src/clarity/index.d.ts",
+			"import": "./dist/src/clarity/index.js",
+			"require": "./dist/src/clarity/index.cjs"
+		},
+		"./actions": {
+			"types": "./dist/src/actions/index.d.ts",
+			"import": "./dist/src/actions/index.js",
+			"require": "./dist/src/actions/index.cjs"
+		},
+		"./postconditions": {
+			"types": "./dist/src/postconditions/index.d.ts",
+			"import": "./dist/src/postconditions/index.js",
+			"require": "./dist/src/postconditions/index.cjs"
+		},
+		"./transactions": {
+			"types": "./dist/src/transactions/index.d.ts",
+			"import": "./dist/src/transactions/index.js",
+			"require": "./dist/src/transactions/index.cjs"
+		},
+		"./utils": {
+			"types": "./dist/src/utils/index.d.ts",
+			"import": "./dist/src/utils/index.js",
+			"require": "./dist/src/utils/index.cjs"
+		},
+		"./connect": {
+			"types": "./dist/src/connect/index.d.ts",
+			"import": "./dist/src/connect/index.js",
+			"require": "./dist/src/connect/index.cjs"
+		},
+		"./bns": {
+			"types": "./dist/src/bns/index.d.ts",
+			"import": "./dist/src/bns/index.js",
+			"require": "./dist/src/bns/index.cjs"
+		},
+		"./pox": {
+			"types": "./dist/src/pox/index.d.ts",
+			"import": "./dist/src/pox/index.js",
+			"require": "./dist/src/pox/index.cjs"
+		},
+		"./stackingdao": {
+			"types": "./dist/src/stackingdao/index.d.ts",
+			"import": "./dist/src/stackingdao/index.js",
+			"require": "./dist/src/stackingdao/index.cjs"
+		},
+		"./subscriptions": {
+			"types": "./dist/src/subscriptions/index.d.ts",
+			"import": "./dist/src/subscriptions/index.js",
+			"require": "./dist/src/subscriptions/index.cjs"
+		},
+		"./connect/walletconnect": {
+			"types": "./dist/src/connect/walletconnect/index.d.ts",
+			"import": "./dist/src/connect/walletconnect/index.js",
+			"require": "./dist/src/connect/walletconnect/index.cjs"
+		}
+	},
+	"files": ["dist"],
+	"scripts": {
+		"build": "bunup",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "bun run build"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@noble/hashes": "2.0.1",
+		"@noble/secp256k1": "2.3.0",
+		"@scure/bip32": "2.0.1",
+		"@noble/ciphers": "2.1.1",
+		"@noble/curves": "2.0.1",
+		"@scure/bip39": "2.0.1"
+	}
 }

@@ -1,48 +1,57 @@
-const FROM = process.env.EMAIL_FROM ?? "secondlayer <noreply@secondlayer.tools>";
+const FROM =
+	process.env.EMAIL_FROM ?? "secondlayer <noreply@secondlayer.tools>";
 
 function getResendKey(): string {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error("RESEND_API_KEY not configured");
-  return apiKey;
+	const apiKey = process.env.RESEND_API_KEY;
+	if (!apiKey) throw new Error("RESEND_API_KEY not configured");
+	return apiKey;
 }
 
-async function sendEmail(to: string, subject: string, text: string, html: string): Promise<void> {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getResendKey()}`,
-    },
-    body: JSON.stringify({ from: FROM, to: [to], subject, text, html }),
-  });
+async function sendEmail(
+	to: string,
+	subject: string,
+	text: string,
+	html: string,
+): Promise<void> {
+	const response = await fetch("https://api.resend.com/emails", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${getResendKey()}`,
+		},
+		body: JSON.stringify({ from: FROM, to: [to], subject, text, html }),
+	});
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Resend API error (${response.status}): ${body}`);
-  }
+	if (!response.ok) {
+		const body = await response.text();
+		throw new Error(`Resend API error (${response.status}): ${body}`);
+	}
 }
 
 /**
  * Magic link email service. Uses Resend in production, logs to console in DEV_MODE.
  */
-export async function sendMagicLink(email: string, token: string): Promise<void> {
-  if (process.env.DEV_MODE === "true") {
-    console.log(`\n[DEV] Magic link token for ${email}: ${token}\n`);
-    return;
-  }
+export async function sendMagicLink(
+	email: string,
+	token: string,
+): Promise<void> {
+	if (process.env.DEV_MODE === "true") {
+		console.log(`\n[DEV] Magic link token for ${email}: ${token}\n`);
+		return;
+	}
 
-  const webUrl = process.env.WEB_URL ?? "https://secondlayer.tools";
-  const verifyUrl = `${webUrl}/verify?token=${token}`;
+	const webUrl = process.env.WEB_URL ?? "https://secondlayer.tools";
+	const verifyUrl = `${webUrl}/verify?token=${token}`;
 
-  const text = [
-    `Sign in to secondlayer: ${verifyUrl}`,
-    "",
-    "This link expires in 15 minutes.",
-    "",
-    "If you didn't request this, you can safely ignore this email.",
-  ].join("\n");
+	const text = [
+		`Sign in to secondlayer: ${verifyUrl}`,
+		"",
+		"This link expires in 15 minutes.",
+		"",
+		"If you didn't request this, you can safely ignore this email.",
+	].join("\n");
 
-  const html = `
+	const html = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
   <p style="color: #888; font-size: 14px; margin: 0 0 24px;">secondlayer</p>
   <p style="color: #555; font-size: 14px; margin: 0 0 24px;">Click below to sign in:</p>
@@ -50,55 +59,62 @@ export async function sendMagicLink(email: string, token: string): Promise<void>
   <p style="color: #aaa; font-size: 12px; margin: 24px 0 0;">This link expires in 15 minutes. If you didn't request this, ignore this email.</p>
 </div>`.trim();
 
-  await sendEmail(email, "Sign in to secondlayer", text, html);
+	await sendEmail(email, "Sign in to secondlayer", text, html);
 }
 
 /**
  * Waitlist confirmation email. Uses Resend in production, logs to console in DEV_MODE.
  */
 export async function sendWaitlistConfirmation(email: string): Promise<void> {
-  if (process.env.DEV_MODE === "true") {
-    console.log(`\n[DEV] Waitlist confirmation for ${email}\n`);
-    console.log(`[DEV] Preview HTML at: data:text/html,${encodeURIComponent(waitlistHtml())}\n`);
-    return;
-  }
+	if (process.env.DEV_MODE === "true") {
+		console.log(`\n[DEV] Waitlist confirmation for ${email}\n`);
+		console.log(
+			`[DEV] Preview HTML at: data:text/html,${encodeURIComponent(waitlistHtml())}\n`,
+		);
+		return;
+	}
 
-  const text = [
-    "You're signed up for early access to secondlayer.",
-    "",
-    "We're bringing agent-native dev tooling to Stacks — event streaming, subgraphs, and a better DX for builders.",
-    "",
-    "We're currently in alpha. We'll let you know as soon as early access opens up.",
-    "",
-    "— secondlayer",
-  ].join("\n");
+	const text = [
+		"You're signed up for early access to secondlayer.",
+		"",
+		"We're bringing agent-native dev tooling to Stacks — event streaming, subgraphs, and a better DX for builders.",
+		"",
+		"We're currently in alpha. We'll let you know as soon as early access opens up.",
+		"",
+		"— secondlayer",
+	].join("\n");
 
-  await sendEmail(email, "secondlayer — early access", text, waitlistHtml());
+	await sendEmail(email, "secondlayer — early access", text, waitlistHtml());
 }
 
 /**
  * Approval notification email with auto-login link. Uses Resend in production, logs to console in DEV_MODE.
  */
-export async function sendApprovalNotification(email: string, token: string): Promise<void> {
-  if (process.env.DEV_MODE === "true") {
-    console.log(`\n[DEV] Approval notification for ${email}, token: ${token}\n`);
-    return;
-  }
+export async function sendApprovalNotification(
+	email: string,
+	token: string,
+): Promise<void> {
+	if (process.env.DEV_MODE === "true") {
+		console.log(
+			`\n[DEV] Approval notification for ${email}, token: ${token}\n`,
+		);
+		return;
+	}
 
-  const webUrl = process.env.WEB_URL ?? "https://secondlayer.tools";
-  const verifyUrl = `${webUrl}/verify?token=${token}`;
+	const webUrl = process.env.WEB_URL ?? "https://secondlayer.tools";
+	const verifyUrl = `${webUrl}/verify?token=${token}`;
 
-  const text = [
-    "You're in — early access is ready.",
-    "",
-    `Sign in directly: ${verifyUrl}`,
-    "",
-    "This link expires in 7 days.",
-    "",
-    "— secondlayer",
-  ].join("\n");
+	const text = [
+		"You're in — early access is ready.",
+		"",
+		`Sign in directly: ${verifyUrl}`,
+		"",
+		"This link expires in 7 days.",
+		"",
+		"— secondlayer",
+	].join("\n");
 
-  const html = `
+	const html = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
   <p style="color: #888; font-size: 14px; margin: 0 0 24px;">secondlayer</p>
   <div style="background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
@@ -109,11 +125,11 @@ export async function sendApprovalNotification(email: string, token: string): Pr
   <p style="color: #aaa; font-size: 12px; margin: 24px 0 0;">This link expires in 7 days. If you didn't sign up, ignore this email.</p>
 </div>`.trim();
 
-  await sendEmail(email, "You're in — secondlayer early access", text, html);
+	await sendEmail(email, "You're in — secondlayer early access", text, html);
 }
 
 function waitlistHtml(): string {
-  return `
+	return `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
   <p style="color: #888; font-size: 14px; margin: 0 0 24px;">secondlayer</p>
   <div style="background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; padding: 24px; margin-bottom: 24px;">

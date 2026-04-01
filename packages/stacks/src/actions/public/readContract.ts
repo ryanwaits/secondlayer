@@ -1,41 +1,41 @@
-import type { Client } from "../../clients/types.ts";
-import type { ClarityValue } from "../../clarity/types.ts";
-import { serializeCVBytes } from "../../clarity/serialize.ts";
 import { deserializeCVBytes } from "../../clarity/deserialize.ts";
-import { bytesToHex, with0x } from "../../utils/encoding.ts";
+import { serializeCVBytes } from "../../clarity/serialize.ts";
+import type { ClarityValue } from "../../clarity/types.ts";
+import type { Client } from "../../clients/types.ts";
 import { parseContractId } from "../../utils/address.ts";
+import { bytesToHex, with0x } from "../../utils/encoding.ts";
 
 export type ReadContractParams = {
-  contract: string; // "address.name"
-  functionName: string;
-  args?: ClarityValue[];
-  sender?: string;
+	contract: string; // "address.name"
+	functionName: string;
+	args?: ClarityValue[];
+	sender?: string;
 };
 
 export async function readContract<T extends ClarityValue = ClarityValue>(
-  client: Client,
-  params: ReadContractParams
+	client: Client,
+	params: ReadContractParams,
 ): Promise<T> {
-  const [address, name] = parseContractId(params.contract);
-  const sender = params.sender ?? address;
+	const [address, name] = parseContractId(params.contract);
+	const sender = params.sender ?? address;
 
-  const serializedArgs = (params.args ?? []).map((arg) =>
-    with0x(bytesToHex(serializeCVBytes(arg)))
-  );
+	const serializedArgs = (params.args ?? []).map((arg) =>
+		with0x(bytesToHex(serializeCVBytes(arg))),
+	);
 
-  const data = await client.request(
-    `/v2/contracts/call-read/${address}/${name}/${params.functionName}`,
-    {
-      method: "POST",
-      body: {
-        sender,
-        arguments: serializedArgs,
-      },
-    }
-  );
+	const data = await client.request(
+		`/v2/contracts/call-read/${address}/${name}/${params.functionName}`,
+		{
+			method: "POST",
+			body: {
+				sender,
+				arguments: serializedArgs,
+			},
+		},
+	);
 
-  if (data.okay) {
-    return deserializeCVBytes<T>(data.result);
-  }
-  throw new Error(data.cause ?? "Read-only call failed");
+	if (data.okay) {
+		return deserializeCVBytes<T>(data.result);
+	}
+	throw new Error(data.cause ?? "Read-only call failed");
 }

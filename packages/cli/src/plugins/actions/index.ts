@@ -3,171 +3,171 @@
  * Generates read and write helper functions for direct blockchain interaction
  */
 
-import { generateActionHelpers } from "./generators";
 import type {
-  PluginFactory,
-  // UserConfig,
-  GenerateContext,
+	// UserConfig,
+	GenerateContext,
+	PluginFactory,
 } from "../../types/plugin";
+import { generateActionHelpers } from "./generators";
 
 export interface ActionsPluginOptions {
-  /** Include only specific contracts */
-  include?: string[];
+	/** Include only specific contracts */
+	include?: string[];
 
-  /** Exclude specific contracts */
-  exclude?: string[];
+	/** Exclude specific contracts */
+	exclude?: string[];
 
-  /** Include only specific functions */
-  includeFunctions?: string[];
+	/** Include only specific functions */
+	includeFunctions?: string[];
 
-  /** Exclude specific functions */
-  excludeFunctions?: string[];
+	/** Exclude specific functions */
+	excludeFunctions?: string[];
 
-  /** Enable debug output */
-  debug?: boolean;
+	/** Enable debug output */
+	debug?: boolean;
 
-  /** Environment variable name for default sender key (default: "STX_SENDER_KEY") */
-  senderKeyEnv?: string;
+	/** Environment variable name for default sender key (default: "STX_SENDER_KEY") */
+	senderKeyEnv?: string;
 }
 
 /**
  * Actions plugin factory
  */
 export const actions: PluginFactory<ActionsPluginOptions> = (options = {}) => {
-  return {
-    name: "@secondlayer/cli/plugin-actions",
-    version: "1.0.0",
+	return {
+		name: "@secondlayer/cli/plugin-actions",
+		version: "1.0.0",
 
-    async generate(context: GenerateContext): Promise<void> {
-      const { contracts } = context;
+		async generate(context: GenerateContext): Promise<void> {
+			const { contracts } = context;
 
-      // Filter contracts based on options
-      const filteredContracts = contracts.filter((contract) => {
-        if (options.include && !options.include.includes(contract.name)) {
-          return false;
-        }
-        if (options.exclude && options.exclude.includes(contract.name)) {
-          return false;
-        }
-        return true;
-      });
+			// Filter contracts based on options
+			const filteredContracts = contracts.filter((contract) => {
+				if (options.include && !options.include.includes(contract.name)) {
+					return false;
+				}
+				if (options.exclude && options.exclude.includes(contract.name)) {
+					return false;
+				}
+				return true;
+			});
 
-      if (filteredContracts.length === 0) {
-        if (options.debug) {
-          context.logger.debug("Actions plugin: No contracts to process");
-        }
-        return;
-      }
+			if (filteredContracts.length === 0) {
+				if (options.debug) {
+					context.logger.debug("Actions plugin: No contracts to process");
+				}
+				return;
+			}
 
-      if (options.debug) {
-        context.logger.debug(
-          `Actions plugin: Generating read/write helpers for ${filteredContracts.length} contracts`
-        );
-      }
+			if (options.debug) {
+				context.logger.debug(
+					`Actions plugin: Generating read/write helpers for ${filteredContracts.length} contracts`,
+				);
+			}
 
-      // Collect all helpers for all contracts
-      const contractHelpers = new Map<string, string>();
+			// Collect all helpers for all contracts
+			const contractHelpers = new Map<string, string>();
 
-      for (const contract of filteredContracts) {
-        const actionsCode = await generateActionHelpers(contract, options);
-        if (actionsCode) {
-          contractHelpers.set(contract.name, actionsCode);
-        }
-      }
+			for (const contract of filteredContracts) {
+				const actionsCode = await generateActionHelpers(contract, options);
+				if (actionsCode) {
+					contractHelpers.set(contract.name, actionsCode);
+				}
+			}
 
-      // Inject all helpers into the output
-      if (contractHelpers.size > 0) {
-        const existingOutput = context.outputs.get("contracts");
-        if (existingOutput) {
-          let modifiedContent = addRequiredImports(existingOutput.content);
+			// Inject all helpers into the output
+			if (contractHelpers.size > 0) {
+				const existingOutput = context.outputs.get("contracts");
+				if (existingOutput) {
+					let modifiedContent = addRequiredImports(existingOutput.content);
 
-          // Inject helpers for each contract
-          for (const [contractName, helpersCode] of contractHelpers) {
-            modifiedContent = injectHelpersIntoContract(
-              modifiedContent,
-              contractName,
-              helpersCode
-            );
-          }
+					// Inject helpers for each contract
+					for (const [contractName, helpersCode] of contractHelpers) {
+						modifiedContent = injectHelpersIntoContract(
+							modifiedContent,
+							contractName,
+							helpersCode,
+						);
+					}
 
-          context.outputs.set("contracts", {
-            ...existingOutput,
-            content: modifiedContent,
-          });
-        }
-      }
-    },
-  };
+					context.outputs.set("contracts", {
+						...existingOutput,
+						content: modifiedContent,
+					});
+				}
+			}
+		},
+	};
 };
 
 /**
  * Add required imports for fetchCallReadOnlyFunction, makeContractCall, and PostCondition
  */
 function addRequiredImports(content: string): string {
-  // Find the existing @secondlayer/stacks import line
-  const stacksImportRegex =
-    /import\s+\{([^}]+)\}\s+from\s+['"]@secondlayer\/stacks['"];/;
-  const match = content.match(stacksImportRegex);
+	// Find the existing @secondlayer/stacks import line
+	const stacksImportRegex =
+		/import\s+\{([^}]+)\}\s+from\s+['"]@secondlayer\/stacks['"];/;
+	const match = content.match(stacksImportRegex);
 
-  if (match) {
-    let updatedContent = content;
+	if (match) {
+		let updatedContent = content;
 
-    // Add fetchCallReadOnlyFunction and makeContractCall from @secondlayer/stacks/clarity
-    if (!updatedContent.includes("fetchCallReadOnlyFunction")) {
-      updatedContent = updatedContent.replace(
-        stacksImportRegex,
-        `${match[0]}\nimport { fetchCallReadOnlyFunction, makeContractCall } from '@secondlayer/stacks/clarity';`
-      );
-    }
+		// Add fetchCallReadOnlyFunction and makeContractCall from @secondlayer/stacks/clarity
+		if (!updatedContent.includes("fetchCallReadOnlyFunction")) {
+			updatedContent = updatedContent.replace(
+				stacksImportRegex,
+				`${match[0]}\nimport { fetchCallReadOnlyFunction, makeContractCall } from '@secondlayer/stacks/clarity';`,
+			);
+		}
 
-    // Add type import for PostCondition if not present
-    if (!updatedContent.includes("type PostCondition")) {
-      updatedContent = updatedContent.replace(
-        stacksImportRegex,
-        `${match[0]}\nimport type { PostCondition } from '@secondlayer/stacks';`
-      );
-    }
+		// Add type import for PostCondition if not present
+		if (!updatedContent.includes("type PostCondition")) {
+			updatedContent = updatedContent.replace(
+				stacksImportRegex,
+				`${match[0]}\nimport type { PostCondition } from '@secondlayer/stacks';`,
+			);
+		}
 
-    return updatedContent;
-  }
+		return updatedContent;
+	}
 
-  return content;
+	return content;
 }
 
 /**
  * Inject read/write helpers into a specific contract object in the output
  */
 function injectHelpersIntoContract(
-  content: string,
-  contractName: string,
-  helpersCode: string
+	content: string,
+	contractName: string,
+	helpersCode: string,
 ): string {
-  // Use a more precise regex to find the entire contract object
-  const contractPattern = new RegExp(
-    `(export const ${contractName} = \\{[\\s\\S]*?)\\n\\} as const;`,
-    "g"
-  );
+	// Use a more precise regex to find the entire contract object
+	const contractPattern = new RegExp(
+		`(export const ${contractName} = \\{[\\s\\S]*?)\\n\\} as const;`,
+		"g",
+	);
 
-  return content.replace(contractPattern, (_, contractBody) => {
-    // Remove any trailing comma and whitespace from the contract body
-    const cleanBody = contractBody.replace(/,\s*$/, "");
+	return content.replace(contractPattern, (_, contractBody) => {
+		// Remove any trailing comma and whitespace from the contract body
+		const cleanBody = contractBody.replace(/,\s*$/, "");
 
-    // Add proper indentation to lines that start top-level properties
-    const indentedHelpersCode = helpersCode
-      .split("\n")
-      .map((line) => {
-        // Only add indentation to lines that start with a property name (like "write:")
-        if (line.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*\s*:/)) {
-          return `  ${line}`;
-        }
-        return line;
-      })
-      .join("\n");
+		// Add proper indentation to lines that start top-level properties
+		const indentedHelpersCode = helpersCode
+			.split("\n")
+			.map((line) => {
+				// Only add indentation to lines that start with a property name (like "write:")
+				if (line.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*\s*:/)) {
+					return `  ${line}`;
+				}
+				return line;
+			})
+			.join("\n");
 
-    // Add the helpers with proper formatting
-    return `${cleanBody},
+		// Add the helpers with proper formatting
+		return `${cleanBody},
 
 ${indentedHelpersCode}
 } as const;`;
-  });
+	});
 }

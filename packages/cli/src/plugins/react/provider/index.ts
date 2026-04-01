@@ -8,7 +8,7 @@ import { formatCode } from "../../../utils/format";
  * Generate the provider file content for user projects
  */
 export async function generateProvider(): Promise<string> {
-  const code = `/**
+	const code = `/**
  * Generated SecondLayer React Provider
  * DO NOT EDIT MANUALLY
  */
@@ -95,5 +95,5 @@ export function useSecondLayerConfig(): SecondLayerReactConfig {
   return context
 }`;
 
-  return formatCode(code);
+	return formatCode(code);
 }

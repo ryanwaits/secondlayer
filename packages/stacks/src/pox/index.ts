@@ -1,57 +1,62 @@
 import type { Client } from "../clients/types.ts";
 import {
-  getPoxInfo,
-  getStackerInfo,
-  getDelegationInfo,
-  canStack,
-  stackStx,
-  delegateStx,
-  revokeDelegateStx,
-  stackExtend,
-  stackIncrease,
+	canStack,
+	delegateStx,
+	getDelegationInfo,
+	getPoxInfo,
+	getStackerInfo,
+	revokeDelegateStx,
+	stackExtend,
+	stackIncrease,
+	stackStx,
 } from "./actions.ts";
 import type {
-  StackStxParams,
-  DelegateStxParams,
-  StackExtendParams,
-  StackIncreaseParams,
-  PoxInfo,
-  StackerInfo,
-  DelegationInfo,
+	DelegateStxParams,
+	DelegationInfo,
+	PoxInfo,
+	StackExtendParams,
+	StackIncreaseParams,
+	StackStxParams,
+	StackerInfo,
 } from "./types.ts";
 
 export type {
-  StackStxParams,
-  DelegateStxParams,
-  StackExtendParams,
-  StackIncreaseParams,
-  PoxInfo,
-  StackerInfo,
-  DelegationInfo,
+	StackStxParams,
+	DelegateStxParams,
+	StackExtendParams,
+	StackIncreaseParams,
+	PoxInfo,
+	StackerInfo,
+	DelegationInfo,
 };
 export type { PoxAddress } from "./types.ts";
 
 /** Actions provided by the PoX extension. */
 export type PoxActions = {
-  pox: {
-    getPoxInfo: () => Promise<PoxInfo>;
-    getStackerInfo: (address: string) => Promise<StackerInfo | null>;
-    getDelegationInfo: (address: string) => Promise<DelegationInfo | null>;
-    canStack: (amount: bigint) => Promise<boolean>;
-    stackStx: (params: StackStxParams) => Promise<string>;
-    delegateStx: (params: DelegateStxParams) => Promise<string>;
-    revokeDelegateStx: () => Promise<string>;
-    stackExtend: (params: StackExtendParams) => Promise<string>;
-    stackIncrease: (params: StackIncreaseParams) => Promise<string>;
-  };
+	pox: {
+		getPoxInfo: () => Promise<PoxInfo>;
+		getStackerInfo: (address: string) => Promise<StackerInfo | null>;
+		getDelegationInfo: (address: string) => Promise<DelegationInfo | null>;
+		canStack: (amount: bigint) => Promise<boolean>;
+		stackStx: (params: StackStxParams) => Promise<string>;
+		delegateStx: (params: DelegateStxParams) => Promise<string>;
+		revokeDelegateStx: () => Promise<string>;
+		stackExtend: (params: StackExtendParams) => Promise<string>;
+		stackIncrease: (params: StackIncreaseParams) => Promise<string>;
+	};
 };
 
-export { POX_CONTRACTS, POX_ADDRESS_VERSION, MIN_LOCK_PERIOD, MAX_LOCK_PERIOD } from "./constants.ts";
 export {
-  parseBtcAddress,
-  validateLockPeriod,
-  burnHeightToRewardCycle,
-  rewardCycleToBurnHeight,
+	POX_CONTRACTS,
+	POX_ADDRESS_VERSION,
+	MIN_LOCK_PERIOD,
+	MAX_LOCK_PERIOD,
+} from "./constants.ts";
+export {
+	parseBtcAddress,
+	validateLockPeriod,
+	burnHeightToRewardCycle,
+	rewardCycleToBurnHeight,
 } from "./utils.ts";
 
 /**
@@ -83,35 +88,36 @@ export {
  * });
  */
 export function pox(): (client: Client) => PoxActions {
-  return (client: Client) => ({
-    pox: {
-      /** Query current PoX network info (cycle, minimum, lengths). */
-      getPoxInfo: () => getPoxInfo(client),
+	return (client: Client) => ({
+		pox: {
+			/** Query current PoX network info (cycle, minimum, lengths). */
+			getPoxInfo: () => getPoxInfo(client),
 
-      /** Get stacker info for an address. Returns null if not stacking. */
-      getStackerInfo: (address: string) => getStackerInfo(client, address),
+			/** Get stacker info for an address. Returns null if not stacking. */
+			getStackerInfo: (address: string) => getStackerInfo(client, address),
 
-      /** Get delegation info for an address. Returns null if not delegating. */
-      getDelegationInfo: (address: string) => getDelegationInfo(client, address),
+			/** Get delegation info for an address. Returns null if not delegating. */
+			getDelegationInfo: (address: string) =>
+				getDelegationInfo(client, address),
 
-      /** Check if an amount meets the minimum stacking threshold. */
-      canStack: (amount: bigint) => canStack(client, amount),
+			/** Check if an amount meets the minimum stacking threshold. */
+			canStack: (amount: bigint) => canStack(client, amount),
 
-      /** Lock STX for stacking (solo). */
-      stackStx: (params: StackStxParams) => stackStx(client, params),
+			/** Lock STX for stacking (solo). */
+			stackStx: (params: StackStxParams) => stackStx(client, params),
 
-      /** Delegate STX to a pool operator. */
-      delegateStx: (params: DelegateStxParams) => delegateStx(client, params),
+			/** Delegate STX to a pool operator. */
+			delegateStx: (params: DelegateStxParams) => delegateStx(client, params),
 
-      /** Revoke an active delegation. */
-      revokeDelegateStx: () => revokeDelegateStx(client),
+			/** Revoke an active delegation. */
+			revokeDelegateStx: () => revokeDelegateStx(client),
 
-      /** Extend an active stacking lock by additional cycles. */
-      stackExtend: (params: StackExtendParams) => stackExtend(client, params),
+			/** Extend an active stacking lock by additional cycles. */
+			stackExtend: (params: StackExtendParams) => stackExtend(client, params),
 
-      /** Increase the amount of locked STX. */
-      stackIncrease: (params: StackIncreaseParams) =>
-        stackIncrease(client, params),
-    },
-  });
+			/** Increase the amount of locked STX. */
+			stackIncrease: (params: StackIncreaseParams) =>
+				stackIncrease(client, params),
+		},
+	});
 }

@@ -1,40 +1,52 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { HookInput } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod/v4";
-import type { SonnetDiagnosis, PatternMatch, HealthStatus, Decision, Snapshot } from "../types.ts";
+import type {
+	Decision,
+	HealthStatus,
+	PatternMatch,
+	Snapshot,
+	SonnetDiagnosis,
+} from "../types.ts";
 
 const SonnetResponseSchema = z.object({
-  severity: z.enum(["info", "warn", "error", "critical"]),
-  diagnosis: z.string(),
-  suggestedAction: z
-    .enum(["restart_service", "vacuum_postgres", "prune_docker", "alert_only", "none"])
-    .nullable(),
-  steps: z.array(z.string()).default([]),
-  confidence: z.number().min(0).max(1),
-  commands: z.array(z.string()).optional(),
+	severity: z.enum(["info", "warn", "error", "critical"]),
+	diagnosis: z.string(),
+	suggestedAction: z
+		.enum([
+			"restart_service",
+			"vacuum_postgres",
+			"prune_docker",
+			"alert_only",
+			"none",
+		])
+		.nullable(),
+	steps: z.array(z.string()).default([]),
+	confidence: z.number().min(0).max(1),
+	commands: z.array(z.string()).optional(),
 });
 
 const FALLBACK: SonnetDiagnosis = {
-  severity: "warn",
-  diagnosis: "Sonnet response parse error — manual review needed",
-  suggestedAction: null,
-  steps: [],
-  confidence: 0,
+	severity: "warn",
+	diagnosis: "Sonnet response parse error — manual review needed",
+	suggestedAction: null,
+	steps: [],
+	confidence: 0,
 };
 
 // Bash command allowlist patterns
 // Note: docker commands only work for app server containers; node server (stacks-node, bitcoind) must be checked via curl
 const ALLOWED_BASH_PATTERNS = [
-  /^docker\s+(logs|stats|inspect|ps)\b/,
-  /^curl\s+-s\s+http:\/\/localhost/,
-  /^curl\s+-s\s+http:\/\/37\.27\.171\.220/,
-  /^df\b/,
-  /^free\b/,
-  /^docker\s+exec\s+\S+\s+psql\s+.*-c\s+"SELECT\b/,
+	/^docker\s+(logs|stats|inspect|ps)\b/,
+	/^curl\s+-s\s+http:\/\/localhost/,
+	/^curl\s+-s\s+http:\/\/37\.27\.171\.220/,
+	/^df\b/,
+	/^free\b/,
+	/^docker\s+exec\s+\S+\s+psql\s+.*-c\s+"SELECT\b/,
 ];
 
 function isBashAllowed(command: string): boolean {
-  return ALLOWED_BASH_PATTERNS.some((p) => p.test(command.trim()));
+	return ALLOWED_BASH_PATTERNS.some((p) => p.test(command.trim()));
 }
 
 const NODE_SERVER_URL = process.env.NODE_SERVER_URL ?? "http://37.27.171.220";
@@ -95,15 +107,15 @@ const SONNET_INPUT_COST_PER_1K = 0.003;
 const SONNET_OUTPUT_COST_PER_1K = 0.015;
 
 export async function diagnoseWithSonnet(
-  trigger: PatternMatch[],
-  context: {
-    health?: HealthStatus;
-    recentDecisions?: Decision[];
-    latestSnapshot?: Snapshot | null;
-  },
-  apiKey: string
+	trigger: PatternMatch[],
+	context: {
+		health?: HealthStatus;
+		recentDecisions?: Decision[];
+		latestSnapshot?: Snapshot | null;
+	},
+	apiKey: string,
 ): Promise<{ diagnosis: SonnetDiagnosis; costUsd: number }> {
-  const userMessage = `Investigate this issue:
+	const userMessage = `Investigate this issue:
 
 Triggers: ${JSON.stringify(trigger.map((t) => ({ name: t.name, severity: t.severity, service: t.service, message: t.message })))}
 
@@ -112,92 +124,101 @@ Recent decisions: ${JSON.stringify(context.recentDecisions?.slice(0, 5))}
 
 Use the available tools to gather more information, then provide your diagnosis as JSON.`;
 
-  let totalInputTokens = 0;
-  let totalOutputTokens = 0;
+	let totalInputTokens = 0;
+	let totalOutputTokens = 0;
 
-  try {
-    const stream = query({
-      prompt: userMessage,
-      options: {
-        model: "claude-sonnet-4-6",
-        maxTurns: 5,
-        systemPrompt: SYSTEM_PROMPT,
-        tools: ["Bash", "Read", "Grep"],
-        permissionMode: "default",
-        env: {
-          ANTHROPIC_API_KEY: apiKey,
-        },
-        hooks: {
-          PreToolUse: [
-            {
-              matcher: "Bash",
-              hooks: [
-                async (input: HookInput) => {
-                  if (input.hook_event_name !== "PreToolUse") return { continue: true };
-                  const toolInput = input.tool_input as { command?: string } | undefined;
-                  const cmd = toolInput?.command ?? "";
-                  if (!isBashAllowed(cmd)) {
-                    return {
-                      decision: "block" as const,
-                      reason: `Command not in allowlist: ${cmd.slice(0, 100)}`,
-                    };
-                  }
-                  return {
-                    decision: "approve" as const,
-                  };
-                },
-              ],
-            },
-          ],
-        },
-      },
-    });
+	try {
+		const stream = query({
+			prompt: userMessage,
+			options: {
+				model: "claude-sonnet-4-6",
+				maxTurns: 5,
+				systemPrompt: SYSTEM_PROMPT,
+				tools: ["Bash", "Read", "Grep"],
+				permissionMode: "default",
+				env: {
+					ANTHROPIC_API_KEY: apiKey,
+				},
+				hooks: {
+					PreToolUse: [
+						{
+							matcher: "Bash",
+							hooks: [
+								async (input: HookInput) => {
+									if (input.hook_event_name !== "PreToolUse")
+										return { continue: true };
+									const toolInput = input.tool_input as
+										| { command?: string }
+										| undefined;
+									const cmd = toolInput?.command ?? "";
+									if (!isBashAllowed(cmd)) {
+										return {
+											decision: "block" as const,
+											reason: `Command not in allowlist: ${cmd.slice(0, 100)}`,
+										};
+									}
+									return {
+										decision: "approve" as const,
+									};
+								},
+							],
+						},
+					],
+				},
+			},
+		});
 
-    let lastText = "";
+		let lastText = "";
 
-    for await (const message of stream) {
-      if (message.type === "assistant" && message.message) {
-        const textBlock = message.message.content?.find(
-          (b: { type: string }) => b.type === "text"
-        );
-        if (textBlock && "text" in textBlock) {
-          lastText = textBlock.text as string;
-        }
-      }
-      if (message.type === "result" && message.usage) {
-        totalInputTokens += message.usage.input_tokens ?? 0;
-        totalOutputTokens += message.usage.output_tokens ?? 0;
-      }
-    }
+		for await (const message of stream) {
+			if (message.type === "assistant" && message.message) {
+				const textBlock = message.message.content?.find(
+					(b: { type: string }) => b.type === "text",
+				);
+				if (textBlock && "text" in textBlock) {
+					lastText = textBlock.text as string;
+				}
+			}
+			if (message.type === "result" && message.usage) {
+				totalInputTokens += message.usage.input_tokens ?? 0;
+				totalOutputTokens += message.usage.output_tokens ?? 0;
+			}
+		}
 
-    const costUsd =
-      (totalInputTokens / 1000) * SONNET_INPUT_COST_PER_1K +
-      (totalOutputTokens / 1000) * SONNET_OUTPUT_COST_PER_1K;
+		const costUsd =
+			(totalInputTokens / 1000) * SONNET_INPUT_COST_PER_1K +
+			(totalOutputTokens / 1000) * SONNET_OUTPUT_COST_PER_1K;
 
-    // Extract JSON from response
-    const jsonMatch = lastText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return {
-        diagnosis: { ...FALLBACK, diagnosis: `No JSON in Sonnet response: ${lastText.slice(0, 200)}` },
-        costUsd,
-      };
-    }
+		// Extract JSON from response
+		const jsonMatch = lastText.match(/\{[\s\S]*\}/);
+		if (!jsonMatch) {
+			return {
+				diagnosis: {
+					...FALLBACK,
+					diagnosis: `No JSON in Sonnet response: ${lastText.slice(0, 200)}`,
+				},
+				costUsd,
+			};
+		}
 
-    const parsed = JSON.parse(jsonMatch[0]);
-    const result = SonnetResponseSchema.safeParse(parsed);
+		const parsed = JSON.parse(jsonMatch[0]);
+		const result = SonnetResponseSchema.safeParse(parsed);
 
-    if (!result.success) {
-      return {
-        diagnosis: { ...FALLBACK, diagnosis: `Validation failed: ${result.error.message}` },
-        costUsd,
-      };
-    }
+		if (!result.success) {
+			return {
+				diagnosis: {
+					...FALLBACK,
+					diagnosis: `Validation failed: ${result.error.message}`,
+				},
+				costUsd,
+			};
+		}
 
-    return { diagnosis: result.data, costUsd };
-  } catch (e) {
-    return {
-      diagnosis: { ...FALLBACK, diagnosis: `Sonnet escalation error: ${e}` },
-      costUsd: 0,
-    };
-  }
+		return { diagnosis: result.data, costUsd };
+	} catch (e) {
+		return {
+			diagnosis: { ...FALLBACK, diagnosis: `Sonnet escalation error: ${e}` },
+			costUsd: 0,
+		};
+	}
 }

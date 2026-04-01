@@ -1,511 +1,569 @@
-import { Command } from "commander";
-import { select, input, confirm } from "@inquirer/prompts";
-import { success, error, info } from "../lib/output.ts";
+import { confirm, input, select } from "@inquirer/prompts";
+import type { Command } from "commander";
 import { assertOk } from "../lib/api-client.ts";
-import { detectStacksNodes, type NodeInfo } from "../lib/detect.ts";
-import { loadConfig, saveConfig, resolveApiUrl, type Config, type Network } from "../lib/config.ts";
+import {
+	type Config,
+	type Network,
+	loadConfig,
+	resolveApiUrl,
+	saveConfig,
+} from "../lib/config.ts";
+import { type NodeInfo, detectStacksNodes } from "../lib/detect.ts";
+import { error, info, success } from "../lib/output.ts";
 
 const STREAMS_DIR = "streams";
 
 interface InitOptions {
-  detectOnly?: boolean;
-  yes?: boolean;
-  dataDir?: string;
-  nodePath?: string;
-  network?: "local" | "testnet" | "mainnet";
-  endpointUrl?: string;
+	detectOnly?: boolean;
+	yes?: boolean;
+	dataDir?: string;
+	nodePath?: string;
+	network?: "local" | "testnet" | "mainnet";
+	endpointUrl?: string;
 }
 
 export function registerSetupCommand(program: Command): void {
-  program
-    .command("setup")
-    .description("Set up a streams project and configure settings")
-    .option("--detect-only", "Only detect existing Stacks nodes, don't initialize")
-    .option("-y, --yes", "Use defaults without prompts")
-    .option("--data-dir <path>", "Data directory path")
-    .option("--node-path <path>", "Path to Stacks node")
-    .option("--network <network>", "Network (local, testnet, or mainnet)")
-    .option("--endpoint-url <url>", "Default endpoint URL for new streams")
-    .action(async (options: InitOptions) => {
-      try {
-        // Handle --detect-only flag
-        if (options.detectOnly) {
-          await runDetection();
-          return;
-        }
+	program
+		.command("setup")
+		.description("Set up a streams project and configure settings")
+		.option(
+			"--detect-only",
+			"Only detect existing Stacks nodes, don't initialize",
+		)
+		.option("-y, --yes", "Use defaults without prompts")
+		.option("--data-dir <path>", "Data directory path")
+		.option("--node-path <path>", "Path to Stacks node")
+		.option("--network <network>", "Network (local, testnet, or mainnet)")
+		.option("--endpoint-url <url>", "Default endpoint URL for new streams")
+		.action(async (options: InitOptions) => {
+			try {
+				// Handle --detect-only flag
+				if (options.detectOnly) {
+					await runDetection();
+					return;
+				}
 
-        // Non-interactive mode if --yes or any flags provided
-        const hasFlags = options.yes || options.dataDir || options.nodePath || options.network || options.endpointUrl;
-        if (hasFlags) {
-          await runNonInteractive(options);
-          return;
-        }
+				// Non-interactive mode if --yes or any flags provided
+				const hasFlags =
+					options.yes ||
+					options.dataDir ||
+					options.nodePath ||
+					options.network ||
+					options.endpointUrl;
+				if (hasFlags) {
+					await runNonInteractive(options);
+					return;
+				}
 
-        // Run interactive wizard
-        await runWizard();
-      } catch (err) {
-        // Handle Ctrl+C gracefully
-        if ((err as Error).name === "ExitPromptError") {
-          console.log("\nSetup cancelled.");
-          process.exit(0);
-        }
-        error(`Failed to initialize: ${err}`);
-        process.exit(1);
-      }
-    });
+				// Run interactive wizard
+				await runWizard();
+			} catch (err) {
+				// Handle Ctrl+C gracefully
+				if ((err as Error).name === "ExitPromptError") {
+					console.log("\nSetup cancelled.");
+					process.exit(0);
+				}
+				error(`Failed to initialize: ${err}`);
+				process.exit(1);
+			}
+		});
 }
 
 /**
  * Run non-interactive setup with flags/defaults
  */
 async function runNonInteractive(options: InitOptions): Promise<void> {
-  const config = await loadConfig();
-  const network = options.network || config.network || "mainnet";
-  config.network = network as Network;
+	const config = await loadConfig();
+	const network = options.network || config.network || "mainnet";
+	config.network = network as Network;
 
-  // Hosted mode: authenticate via magic link
-  if (network !== "local") {
-    await saveConfig(config);
-    const result = await hostedLogin(config);
-    if (!result) process.exit(1);
-    return;
-  }
+	// Hosted mode: authenticate via magic link
+	if (network !== "local") {
+		await saveConfig(config);
+		const result = await hostedLogin(config);
+		if (!result) process.exit(1);
+		return;
+	}
 
-  // Local mode
-  config.dataDir = options.dataDir || config.dataDir || "~/.secondlayer/data";
-  config.defaultEndpointUrl = options.endpointUrl || config.defaultEndpointUrl;
+	// Local mode
+	config.dataDir = options.dataDir || config.dataDir || "~/.secondlayer/data";
+	config.defaultEndpointUrl = options.endpointUrl || config.defaultEndpointUrl;
 
-  if (options.nodePath) {
-    config.node = {
-      installPath: options.nodePath,
-      network: (options.network as "mainnet" | "testnet") || "mainnet",
-    };
-  }
+	if (options.nodePath) {
+		config.node = {
+			installPath: options.nodePath,
+			network: (options.network as "mainnet" | "testnet") || "mainnet",
+		};
+	}
 
-  await saveConfig(config);
+	await saveConfig(config);
 
-  await Bun.$`mkdir -p ${STREAMS_DIR}`.quiet();
-  await Bun.write(`${STREAMS_DIR}/.gitkeep`, "");
+	await Bun.$`mkdir -p ${STREAMS_DIR}`.quiet();
+	await Bun.write(`${STREAMS_DIR}/.gitkeep`, "");
 
-  printSummary(config);
+	printSummary(config);
 }
 
 /**
  * Print the setup banner
  */
 function printBanner(): void {
-  console.log();
-  console.log("  ╔═══════════════════════════════════════╗");
-  console.log("  ║        SecondLayer CLI Setup           ║");
-  console.log("  ╚═══════════════════════════════════════╝");
-  console.log();
+	console.log();
+	console.log("  ╔═══════════════════════════════════════╗");
+	console.log("  ║        SecondLayer CLI Setup           ║");
+	console.log("  ╚═══════════════════════════════════════╝");
+	console.log();
 }
 
 /**
  * Run the interactive setup wizard
  */
 async function runWizard(): Promise<void> {
-  printBanner();
+	printBanner();
 
-  const config = await loadConfig();
+	const config = await loadConfig();
 
-  // Step 1: Network selection
-  const network = await select({
-    message: "How do you want to use Stacks Streams?",
-    choices: [
-      { name: "Hosted mainnet (recommended — zero setup)", value: "mainnet" as Network },
-      { name: "Hosted testnet", value: "testnet" as Network },
-      { name: "Local development (run your own node + services)", value: "local" as Network },
-    ],
-  });
+	// Step 1: Network selection
+	const network = await select({
+		message: "How do you want to use Stacks Streams?",
+		choices: [
+			{
+				name: "Hosted mainnet (recommended — zero setup)",
+				value: "mainnet" as Network,
+			},
+			{ name: "Hosted testnet", value: "testnet" as Network },
+			{
+				name: "Local development (run your own node + services)",
+				value: "local" as Network,
+			},
+		],
+	});
 
-  config.network = network;
+	config.network = network;
 
-  // Hosted mode: authenticate via magic link
-  if (network !== "local") {
-    await saveConfig(config);
-    const result = await hostedLogin(config);
-    if (!result) process.exit(1);
-    return;
-  }
+	// Hosted mode: authenticate via magic link
+	if (network !== "local") {
+		await saveConfig(config);
+		const result = await hostedLogin(config);
+		if (!result) process.exit(1);
+		return;
+	}
 
-  // Local mode: existing wizard flow
-  // Step 2: Data directory
-  const dataDir = await promptDataDir(config);
-  config.dataDir = dataDir;
+	// Local mode: existing wizard flow
+	// Step 2: Data directory
+	const dataDir = await promptDataDir(config);
+	config.dataDir = dataDir;
 
-  // Step 3: Node detection
-  const nodeConfig = await promptNodeSetup();
-  if (nodeConfig) {
-    config.node = nodeConfig;
-  }
+	// Step 3: Node detection
+	const nodeConfig = await promptNodeSetup();
+	if (nodeConfig) {
+		config.node = nodeConfig;
+	}
 
-  // Step 4: Endpoint URL
-  const endpointUrl = await promptEndpointUrl(config);
-  config.defaultEndpointUrl = endpointUrl;
+	// Step 4: Endpoint URL
+	const endpointUrl = await promptEndpointUrl(config);
+	config.defaultEndpointUrl = endpointUrl;
 
-  // Save config
-  await saveConfig(config);
+	// Save config
+	await saveConfig(config);
 
-  // Create streams directory
-  await Bun.$`mkdir -p ${STREAMS_DIR}`.quiet();
-  await Bun.write(`${STREAMS_DIR}/.gitkeep`, "");
+	// Create streams directory
+	await Bun.$`mkdir -p ${STREAMS_DIR}`.quiet();
+	await Bun.write(`${STREAMS_DIR}/.gitkeep`, "");
 
-  // Print summary
-  printSummary(config);
+	// Print summary
+	printSummary(config);
 }
 
 /**
  * Prompt for data directory
  */
 async function promptDataDir(config: Config): Promise<string> {
-  const defaultDir = "~/.secondlayer/data";
+	const defaultDir = "~/.secondlayer/data";
 
-  const choice = await select({
-    message: "Where should streams store data?",
-    choices: [
-      { name: `Default (${defaultDir})`, value: "default" },
-      { name: "Custom path...", value: "custom" },
-    ],
-  });
+	const choice = await select({
+		message: "Where should streams store data?",
+		choices: [
+			{ name: `Default (${defaultDir})`, value: "default" },
+			{ name: "Custom path...", value: "custom" },
+		],
+	});
 
-  if (choice === "default") {
-    return defaultDir;
-  }
+	if (choice === "default") {
+		return defaultDir;
+	}
 
-  const customPath = await input({
-    message: "Enter data directory path:",
-    default: config.dataDir !== defaultDir ? config.dataDir : undefined,
-    validate: (value) => {
-      if (!value.trim()) return "Path cannot be empty";
-      return true;
-    },
-  });
+	const customPath = await input({
+		message: "Enter data directory path:",
+		default: config.dataDir !== defaultDir ? config.dataDir : undefined,
+		validate: (value) => {
+			if (!value.trim()) return "Path cannot be empty";
+			return true;
+		},
+	});
 
-  return customPath;
+	return customPath;
 }
 
 /**
  * Prompt for Stacks node setup
  */
-async function promptNodeSetup(): Promise<{ installPath: string; network: "mainnet" | "testnet" } | null> {
-  const choice = await select({
-    message: "Do you have an existing Stacks node?",
-    choices: [
-      { name: "Yes, auto-detect", value: "detect" },
-      { name: "Yes, specify path", value: "manual" },
-      { name: "No, skip for now", value: "skip" },
-    ],
-  });
+async function promptNodeSetup(): Promise<{
+	installPath: string;
+	network: "mainnet" | "testnet";
+} | null> {
+	const choice = await select({
+		message: "Do you have an existing Stacks node?",
+		choices: [
+			{ name: "Yes, auto-detect", value: "detect" },
+			{ name: "Yes, specify path", value: "manual" },
+			{ name: "No, skip for now", value: "skip" },
+		],
+	});
 
-  if (choice === "skip") {
-    return null;
-  }
+	if (choice === "skip") {
+		return null;
+	}
 
-  if (choice === "detect") {
-    return await handleAutoDetect();
-  }
+	if (choice === "detect") {
+		return await handleAutoDetect();
+	}
 
-  // Manual path entry
-  const nodePath = await input({
-    message: "Enter path to Stacks node:",
-    validate: (value) => {
-      if (!value.trim()) return "Path cannot be empty";
-      return true;
-    },
-  });
+	// Manual path entry
+	const nodePath = await input({
+		message: "Enter path to Stacks node:",
+		validate: (value) => {
+			if (!value.trim()) return "Path cannot be empty";
+			return true;
+		},
+	});
 
-  const network = await promptNetwork();
+	const network = await promptNetwork();
 
-  return { installPath: nodePath, network };
+	return { installPath: nodePath, network };
 }
 
 /**
  * Handle auto-detection flow
  */
-async function handleAutoDetect(): Promise<{ installPath: string; network: "mainnet" | "testnet" } | null> {
-  info("Scanning for Stacks nodes...\n");
+async function handleAutoDetect(): Promise<{
+	installPath: string;
+	network: "mainnet" | "testnet";
+} | null> {
+	info("Scanning for Stacks nodes...\n");
 
-  const nodes = await detectStacksNodes();
+	const nodes = await detectStacksNodes();
 
-  if (nodes.length === 0) {
-    console.log("  No Stacks nodes found.\n");
+	if (nodes.length === 0) {
+		console.log("  No Stacks nodes found.\n");
 
-    const retry = await select({
-      message: "What would you like to do?",
-      choices: [
-        { name: "Enter path manually", value: "manual" },
-        { name: "Skip for now", value: "skip" },
-      ],
-    });
+		const retry = await select({
+			message: "What would you like to do?",
+			choices: [
+				{ name: "Enter path manually", value: "manual" },
+				{ name: "Skip for now", value: "skip" },
+			],
+		});
 
-    if (retry === "skip") {
-      return null;
-    }
+		if (retry === "skip") {
+			return null;
+		}
 
-    const nodePath = await input({
-      message: "Enter path to Stacks node:",
-      validate: (value) => {
-        if (!value.trim()) return "Path cannot be empty";
-        return true;
-      },
-    });
+		const nodePath = await input({
+			message: "Enter path to Stacks node:",
+			validate: (value) => {
+				if (!value.trim()) return "Path cannot be empty";
+				return true;
+			},
+		});
 
-    const network = await promptNetwork();
-    return { installPath: nodePath, network };
-  }
+		const network = await promptNetwork();
+		return { installPath: nodePath, network };
+	}
 
-  // Show found nodes
-  console.log(`Found ${nodes.length} Stacks node${nodes.length > 1 ? "s" : ""}:\n`);
+	// Show found nodes
+	console.log(
+		`Found ${nodes.length} Stacks node${nodes.length > 1 ? "s" : ""}:\n`,
+	);
 
-  for (const node of nodes) {
-    printNodeInfo(node);
-  }
+	for (const node of nodes) {
+		printNodeInfo(node);
+	}
 
-  // If only one node, confirm it
-  if (nodes.length === 1) {
-    const useNode = await confirm({
-      message: `Use this node?`,
-      default: true,
-    });
+	// If only one node, confirm it
+	if (nodes.length === 1) {
+		const useNode = await confirm({
+			message: `Use this node?`,
+			default: true,
+		});
 
-    if (useNode) {
-      return { installPath: nodes[0]!.path, network: nodes[0]!.network };
-    }
+		if (useNode) {
+			return { installPath: nodes[0]!.path, network: nodes[0]!.network };
+		}
 
-    return null;
-  }
+		return null;
+	}
 
-  // Multiple nodes - let user select
-  const choices = [
-    ...nodes.map((node) => ({
-      name: `${node.path} (${node.network}${node.running ? ", running" : ""})`,
-      value: node.path,
-    })),
-    { name: "None of these", value: "none" },
-  ];
+	// Multiple nodes - let user select
+	const choices = [
+		...nodes.map((node) => ({
+			name: `${node.path} (${node.network}${node.running ? ", running" : ""})`,
+			value: node.path,
+		})),
+		{ name: "None of these", value: "none" },
+	];
 
-  const selectedPath = await select({
-    message: "Which node should streams use?",
-    choices,
-  });
+	const selectedPath = await select({
+		message: "Which node should streams use?",
+		choices,
+	});
 
-  if (selectedPath === "none") {
-    return null;
-  }
+	if (selectedPath === "none") {
+		return null;
+	}
 
-  const selectedNode = nodes.find((n) => n.path === selectedPath);
-  if (!selectedNode) return null;
+	const selectedNode = nodes.find((n) => n.path === selectedPath);
+	if (!selectedNode) return null;
 
-  return { installPath: selectedNode.path, network: selectedNode.network };
+	return { installPath: selectedNode.path, network: selectedNode.network };
 }
 
 /**
  * Prompt for network selection
  */
 async function promptNetwork(): Promise<"mainnet" | "testnet"> {
-  const network = await select({
-    message: "Which network?",
-    choices: [
-      { name: "mainnet", value: "mainnet" as const },
-      { name: "testnet", value: "testnet" as const },
-    ],
-  });
+	const network = await select({
+		message: "Which network?",
+		choices: [
+			{ name: "mainnet", value: "mainnet" as const },
+			{ name: "testnet", value: "testnet" as const },
+		],
+	});
 
-  return network;
+	return network;
 }
 
 /**
  * Prompt for default endpoint URL
  */
 async function promptEndpointUrl(config: Config): Promise<string> {
-  const internalUrl = "http://localhost:3900/receiver";
+	const internalUrl = "http://localhost:3900/receiver";
 
-  const choice = await select({
-    message: "Default endpoint URL for new streams?",
-    choices: [
-      { name: `Internal test server (${internalUrl})`, value: "internal" },
-      { name: "Custom URL...", value: "custom" },
-    ],
-  });
+	const choice = await select({
+		message: "Default endpoint URL for new streams?",
+		choices: [
+			{ name: `Internal test server (${internalUrl})`, value: "internal" },
+			{ name: "Custom URL...", value: "custom" },
+		],
+	});
 
-  if (choice === "internal") {
-    return internalUrl;
-  }
+	if (choice === "internal") {
+		return internalUrl;
+	}
 
-  const customUrl = await input({
-    message: "Enter endpoint URL:",
-    default: config.defaultEndpointUrl !== internalUrl ? config.defaultEndpointUrl : undefined,
-    validate: (value) => {
-      if (!value.trim()) return "URL cannot be empty";
-      try {
-        new URL(value);
-        return true;
-      } catch {
-        return "Must be a valid URL";
-      }
-    },
-  });
+	const customUrl = await input({
+		message: "Enter endpoint URL:",
+		default:
+			config.defaultEndpointUrl !== internalUrl
+				? config.defaultEndpointUrl
+				: undefined,
+		validate: (value) => {
+			if (!value.trim()) return "URL cannot be empty";
+			try {
+				new URL(value);
+				return true;
+			} catch {
+				return "Must be a valid URL";
+			}
+		},
+	});
 
-  return customUrl;
+	return customUrl;
 }
 
 /**
  * Hosted login via magic link email flow
  */
 async function hostedLogin(config: Config): Promise<boolean> {
-  const apiUrl = resolveApiUrl(config);
+	const apiUrl = resolveApiUrl(config);
 
-  info(`Connecting to ${config.network} API...`);
-  console.log();
+	info(`Connecting to ${config.network} API...`);
+	console.log();
 
-  const email = await input({
-    message: "Email address:",
-    validate: (v) => v.includes("@") || "Enter a valid email",
-  });
+	const email = await input({
+		message: "Email address:",
+		validate: (v) => v.includes("@") || "Enter a valid email",
+	});
 
-  const mlRes = await fetch(`${apiUrl}/api/auth/magic-link`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
+	const mlRes = await fetch(`${apiUrl}/api/auth/magic-link`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ email }),
+	});
 
-  try { await assertOk(mlRes); } catch (e) {
-    error(`Failed to send magic link: ${e instanceof Error ? e.message : e}`);
-    return false;
-  }
+	try {
+		await assertOk(mlRes);
+	} catch (e) {
+		error(`Failed to send magic link: ${e instanceof Error ? e.message : e}`);
+		return false;
+	}
 
-  info("Check your email for a login token.");
+	info("Check your email for a login token.");
 
-  const token = await input({
-    message: "Paste token from email:",
-    validate: (v) => v.trim().length > 0 || "Token is required",
-  });
+	const token = await input({
+		message: "Paste token from email:",
+		validate: (v) => v.trim().length > 0 || "Token is required",
+	});
 
-  const verifyRes = await fetch(`${apiUrl}/api/auth/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token: token.trim() }),
-  });
+	const verifyRes = await fetch(`${apiUrl}/api/auth/verify`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ token: token.trim() }),
+	});
 
-  try { await assertOk(verifyRes); } catch (e) {
-    error(`Verification failed: ${e instanceof Error ? e.message : e}`);
-    return false;
-  }
+	try {
+		await assertOk(verifyRes);
+	} catch (e) {
+		error(`Verification failed: ${e instanceof Error ? e.message : e}`);
+		return false;
+	}
 
-  const result = await verifyRes.json() as {
-    sessionToken: string;
-    account: { id: string; email: string; plan: string };
-  };
+	const result = (await verifyRes.json()) as {
+		sessionToken: string;
+		account: { id: string; email: string; plan: string };
+	};
 
-  // Use temporary session to create a CLI API key
-  const { hostname } = await import("node:os");
-  const sessionHeaders = { Authorization: `Bearer ${result.sessionToken}`, "Content-Type": "application/json" };
-  const keyName = `cli-${hostname().toLowerCase()}`;
+	// Use temporary session to create a CLI API key
+	const { hostname } = await import("node:os");
+	const sessionHeaders = {
+		Authorization: `Bearer ${result.sessionToken}`,
+		"Content-Type": "application/json",
+	};
+	const keyName = `cli-${hostname().toLowerCase()}`;
 
-  // Revoke existing key with same name
-  const listRes = await fetch(`${apiUrl}/api/keys`, { headers: sessionHeaders });
-  if (listRes.ok) {
-    const { keys } = await listRes.json() as { keys: { id: string; name: string | null; status: string }[] };
-    const existing = keys.find((k) => k.name === keyName && k.status === "active");
-    if (existing) {
-      await fetch(`${apiUrl}/api/keys/${existing.id}`, { method: "DELETE", headers: sessionHeaders });
-    }
-  }
+	// Revoke existing key with same name
+	const listRes = await fetch(`${apiUrl}/api/keys`, {
+		headers: sessionHeaders,
+	});
+	if (listRes.ok) {
+		const { keys } = (await listRes.json()) as {
+			keys: { id: string; name: string | null; status: string }[];
+		};
+		const existing = keys.find(
+			(k) => k.name === keyName && k.status === "active",
+		);
+		if (existing) {
+			await fetch(`${apiUrl}/api/keys/${existing.id}`, {
+				method: "DELETE",
+				headers: sessionHeaders,
+			});
+		}
+	}
 
-  const createRes = await fetch(`${apiUrl}/api/keys`, {
-    method: "POST",
-    headers: sessionHeaders,
-    body: JSON.stringify({ name: keyName }),
-  });
-  try { await assertOk(createRes); } catch (e) {
-    error(`Failed to create API key: ${e instanceof Error ? e.message : e}`);
-    return false;
-  }
-  const { key } = await createRes.json() as { key: string; prefix: string };
+	const createRes = await fetch(`${apiUrl}/api/keys`, {
+		method: "POST",
+		headers: sessionHeaders,
+		body: JSON.stringify({ name: keyName }),
+	});
+	try {
+		await assertOk(createRes);
+	} catch (e) {
+		error(`Failed to create API key: ${e instanceof Error ? e.message : e}`);
+		return false;
+	}
+	const { key } = (await createRes.json()) as { key: string; prefix: string };
 
-  config.apiKey = key;
-  await saveConfig(config);
+	config.apiKey = key;
+	await saveConfig(config);
 
-  // Best-effort session cleanup
-  try { await fetch(`${apiUrl}/api/auth/logout`, { method: "POST", headers: sessionHeaders }); } catch {}
+	// Best-effort session cleanup
+	try {
+		await fetch(`${apiUrl}/api/auth/logout`, {
+			method: "POST",
+			headers: sessionHeaders,
+		});
+	} catch {}
 
-  const account = result.account;
+	const account = result.account;
 
-  console.log();
-  success(`Authenticated as ${account.email}!`);
-  console.log();
-  console.log(`  Plan:    ${account.plan}`);
-  console.log(`  API:     ${apiUrl}`);
-  console.log();
-  console.log("  Next steps:");
-  console.log("    sl streams list         # List streams");
-  console.log("    sl streams new <name>   # Create a stream");
-  console.log("    sl auth status          # Check auth status");
-  console.log();
-  return true;
+	console.log();
+	success(`Authenticated as ${account.email}!`);
+	console.log();
+	console.log(`  Plan:    ${account.plan}`);
+	console.log(`  API:     ${apiUrl}`);
+	console.log();
+	console.log("  Next steps:");
+	console.log("    sl streams list         # List streams");
+	console.log("    sl streams new <name>   # Create a stream");
+	console.log("    sl auth status          # Check auth status");
+	console.log();
+	return true;
 }
 
 /**
  * Print setup summary
  */
 function printSummary(config: Config): void {
-  console.log();
-  success("Configuration saved!");
-  console.log();
-  console.log("  Settings:");
-  console.log(`    Data directory: ${config.dataDir}`);
-  if (config.defaultEndpointUrl) {
-    console.log(`    Endpoint URL:   ${config.defaultEndpointUrl}`);
-  }
-  if (config.node) {
-    console.log(`    Node path:      ${config.node.installPath}`);
-    console.log(`    Network:        ${config.node.network}`);
-  }
-  console.log();
-  console.log("  Next steps:");
-  console.log("    sl local start          # Start dev services");
-  if (config.node) {
-    console.log("    sl stack start          # Start your Stacks node");
-  }
-  console.log("    sl streams new <name>   # Create a new stream config");
-  console.log();
+	console.log();
+	success("Configuration saved!");
+	console.log();
+	console.log("  Settings:");
+	console.log(`    Data directory: ${config.dataDir}`);
+	if (config.defaultEndpointUrl) {
+		console.log(`    Endpoint URL:   ${config.defaultEndpointUrl}`);
+	}
+	if (config.node) {
+		console.log(`    Node path:      ${config.node.installPath}`);
+		console.log(`    Network:        ${config.node.network}`);
+	}
+	console.log();
+	console.log("  Next steps:");
+	console.log("    sl local start          # Start dev services");
+	if (config.node) {
+		console.log("    sl stack start          # Start your Stacks node");
+	}
+	console.log("    sl streams new <name>   # Create a new stream config");
+	console.log();
 }
 
 /**
  * Run node detection and display results
  */
 async function runDetection(): Promise<void> {
-  info("Scanning for Stacks nodes...\n");
+	info("Scanning for Stacks nodes...\n");
 
-  const nodes = await detectStacksNodes();
+	const nodes = await detectStacksNodes();
 
-  if (nodes.length === 0) {
-    console.log("  No Stacks nodes found.\n");
-    console.log("Checked locations:");
-    console.log("  - Running Docker containers");
-    console.log("  - /Volumes/*/stacks-blockchain-docker");
-    console.log("  - ~/stacks-blockchain-docker");
-    console.log("  - /opt/stacks-*\n");
-    console.log("To set up a node manually:");
-    console.log("  sl config set node.installPath /path/to/node");
-    return;
-  }
+	if (nodes.length === 0) {
+		console.log("  No Stacks nodes found.\n");
+		console.log("Checked locations:");
+		console.log("  - Running Docker containers");
+		console.log("  - /Volumes/*/stacks-blockchain-docker");
+		console.log("  - ~/stacks-blockchain-docker");
+		console.log("  - /opt/stacks-*\n");
+		console.log("To set up a node manually:");
+		console.log("  sl config set node.installPath /path/to/node");
+		return;
+	}
 
-  console.log(`Found ${nodes.length} Stacks node${nodes.length > 1 ? "s" : ""}:\n`);
+	console.log(
+		`Found ${nodes.length} Stacks node${nodes.length > 1 ? "s" : ""}:\n`,
+	);
 
-  for (const node of nodes) {
-    printNodeInfo(node);
-  }
+	for (const node of nodes) {
+		printNodeInfo(node);
+	}
 }
 
 /**
  * Print formatted node info
  */
 function printNodeInfo(node: NodeInfo): void {
-  const status = node.running ? "\x1b[32m●\x1b[0m running" : "\x1b[90m○\x1b[0m stopped";
-  const source = node.source === "container" ? "docker" : "filesystem";
+	const status = node.running
+		? "\x1b[32m●\x1b[0m running"
+		: "\x1b[90m○\x1b[0m stopped";
+	const source = node.source === "container" ? "docker" : "filesystem";
 
-  console.log(`  ${status}  ${node.path}`);
-  console.log(`           network: ${node.network}, source: ${source}\n`);
+	console.log(`  ${status}  ${node.path}`);
+	console.log(`           network: ${node.network}, source: ${source}\n`);
 }

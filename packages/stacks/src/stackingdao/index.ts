@@ -1,51 +1,51 @@
 import type { Client } from "../clients/types.ts";
 import {
-  deposit,
-  initWithdraw,
-  withdraw,
-  withdrawIdle,
-  getStSTXBalance,
-  getExchangeRate,
-  getTotalSupply,
-  getWithdrawalInfo,
-  getFees,
-  getReserveBalance,
-  getShutdownDeposits,
+	deposit,
+	getExchangeRate,
+	getFees,
+	getReserveBalance,
+	getShutdownDeposits,
+	getStSTXBalance,
+	getTotalSupply,
+	getWithdrawalInfo,
+	initWithdraw,
+	withdraw,
+	withdrawIdle,
 } from "./actions.ts";
 import type {
-  DepositParams,
-  InitWithdrawParams,
-  WithdrawParams,
-  WithdrawIdleParams,
-  ExchangeRateInfo,
-  WithdrawalInfo,
-  FeeInfo,
+	DepositParams,
+	ExchangeRateInfo,
+	FeeInfo,
+	InitWithdrawParams,
+	WithdrawIdleParams,
+	WithdrawParams,
+	WithdrawalInfo,
 } from "./types.ts";
 
 export type {
-  DepositParams,
-  InitWithdrawParams,
-  WithdrawParams,
-  WithdrawIdleParams,
-  ExchangeRateInfo,
-  WithdrawalInfo,
-  FeeInfo,
+	DepositParams,
+	InitWithdrawParams,
+	WithdrawParams,
+	WithdrawIdleParams,
+	ExchangeRateInfo,
+	WithdrawalInfo,
+	FeeInfo,
 };
 /** Actions provided by the StackingDAO extension. */
 export type StackingDaoActions = {
-  stackingDao: {
-    deposit: (params: DepositParams) => Promise<string>;
-    initWithdraw: (params: InitWithdrawParams) => Promise<string>;
-    withdraw: (params: WithdrawParams) => Promise<string>;
-    withdrawIdle: (params: WithdrawIdleParams) => Promise<string>;
-    getStSTXBalance: (address: string) => Promise<bigint>;
-    getExchangeRate: () => Promise<ExchangeRateInfo>;
-    getTotalSupply: () => Promise<bigint>;
-    getWithdrawalInfo: (nftId: bigint) => Promise<WithdrawalInfo>;
-    getFees: () => Promise<FeeInfo>;
-    getReserveBalance: () => Promise<bigint>;
-    getShutdownDeposits: () => Promise<boolean>;
-  };
+	stackingDao: {
+		deposit: (params: DepositParams) => Promise<string>;
+		initWithdraw: (params: InitWithdrawParams) => Promise<string>;
+		withdraw: (params: WithdrawParams) => Promise<string>;
+		withdrawIdle: (params: WithdrawIdleParams) => Promise<string>;
+		getStSTXBalance: (address: string) => Promise<bigint>;
+		getExchangeRate: () => Promise<ExchangeRateInfo>;
+		getTotalSupply: () => Promise<bigint>;
+		getWithdrawalInfo: (nftId: bigint) => Promise<WithdrawalInfo>;
+		getFees: () => Promise<FeeInfo>;
+		getReserveBalance: () => Promise<bigint>;
+		getShutdownDeposits: () => Promise<boolean>;
+	};
 };
 
 export { STACKINGDAO_CONTRACTS, TRAIT_CONTRACTS } from "./constants.ts";
@@ -67,40 +67,42 @@ export { STACKINGDAO_CONTRACTS, TRAIT_CONTRACTS } from "./constants.ts";
  * const rate = await client.stackingDao.getExchangeRate();
  */
 export function stackingDao(): (client: Client) => StackingDaoActions {
-  return (client: Client) => ({
-    stackingDao: {
-      /** Deposit STX, receive stSTX. */
-      deposit: (params: DepositParams) => deposit(client, params),
+	return (client: Client) => ({
+		stackingDao: {
+			/** Deposit STX, receive stSTX. */
+			deposit: (params: DepositParams) => deposit(client, params),
 
-      /** Initiate withdrawal — burns stSTX, mints NFT receipt. */
-      initWithdraw: (params: InitWithdrawParams) => initWithdraw(client, params),
+			/** Initiate withdrawal — burns stSTX, mints NFT receipt. */
+			initWithdraw: (params: InitWithdrawParams) =>
+				initWithdraw(client, params),
 
-      /** Finalize withdrawal — burns NFT, receive STX. */
-      withdraw: (params: WithdrawParams) => withdraw(client, params),
+			/** Finalize withdrawal — burns NFT, receive STX. */
+			withdraw: (params: WithdrawParams) => withdraw(client, params),
 
-      /** Withdraw idle STX instantly (burns stSTX). */
-      withdrawIdle: (params: WithdrawIdleParams) => withdrawIdle(client, params),
+			/** Withdraw idle STX instantly (burns stSTX). */
+			withdrawIdle: (params: WithdrawIdleParams) =>
+				withdrawIdle(client, params),
 
-      /** Get stSTX balance for an address. */
-      getStSTXBalance: (address: string) => getStSTXBalance(client, address),
+			/** Get stSTX balance for an address. */
+			getStSTXBalance: (address: string) => getStSTXBalance(client, address),
 
-      /** Get current STX/stSTX exchange rate info. */
-      getExchangeRate: () => getExchangeRate(client),
+			/** Get current STX/stSTX exchange rate info. */
+			getExchangeRate: () => getExchangeRate(client),
 
-      /** Get total stSTX supply. */
-      getTotalSupply: () => getTotalSupply(client),
+			/** Get total stSTX supply. */
+			getTotalSupply: () => getTotalSupply(client),
 
-      /** Get withdrawal NFT info by ID. Returns tuple with amounts and unlock height. */
-      getWithdrawalInfo: (nftId: bigint) => getWithdrawalInfo(client, nftId),
+			/** Get withdrawal NFT info by ID. Returns tuple with amounts and unlock height. */
+			getWithdrawalInfo: (nftId: bigint) => getWithdrawalInfo(client, nftId),
 
-      /** Get current fee rates. */
-      getFees: () => getFees(client),
+			/** Get current fee rates. */
+			getFees: () => getFees(client),
 
-      /** Get total STX in reserve. */
-      getReserveBalance: () => getReserveBalance(client),
+			/** Get total STX in reserve. */
+			getReserveBalance: () => getReserveBalance(client),
 
-      /** Check if deposits are shut down. */
-      getShutdownDeposits: () => getShutdownDeposits(client),
-    },
-  });
+			/** Check if deposits are shut down. */
+			getShutdownDeposits: () => getShutdownDeposits(client),
+		},
+	});
 }

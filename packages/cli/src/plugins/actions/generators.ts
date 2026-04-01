@@ -2,60 +2,59 @@
  * Action generators for read and write helper functions
  */
 
+import { type AbiFunction, toCamelCase } from "@secondlayer/stacks/clarity";
 import type { ProcessedContract } from "../../types/plugin";
-import { toCamelCase, type AbiFunction } from "@secondlayer/stacks/clarity";
+import {
+	generateArgsSignature,
+	generateClarityArgs,
+} from "../../utils/generator-helpers";
 import type { ActionsPluginOptions } from "./index";
-import { generateArgsSignature, generateClarityArgs } from "../../utils/generator-helpers";
-
 
 /**
  * Generate read helper functions for a contract (fixed version)
  */
 function generateReadHelpers(
-  contract: ProcessedContract,
-  options: ActionsPluginOptions
+	contract: ProcessedContract,
+	options: ActionsPluginOptions,
 ): string {
-  const { abi } = contract;
-  const functions = abi.functions || [];
+	const { abi } = contract;
+	const functions = abi.functions || [];
 
-  const readOnlyFunctions = functions.filter(
-    (f: AbiFunction) =>
-      f.access === "read-only"
-  );
+	const readOnlyFunctions = functions.filter(
+		(f: AbiFunction) => f.access === "read-only",
+	);
 
-  if (readOnlyFunctions.length === 0) {
-    return "";
-  }
+	if (readOnlyFunctions.length === 0) {
+		return "";
+	}
 
-  // Apply function filters
-  const filteredFunctions = readOnlyFunctions.filter(
-    (func: AbiFunction) => {
-      if (
-        options.includeFunctions &&
-        !options.includeFunctions.includes(func.name)
-      ) {
-        return false;
-      }
-      if (
-        options.excludeFunctions &&
-        options.excludeFunctions.includes(func.name)
-      ) {
-        return false;
-      }
-      return true;
-    }
-  );
+	// Apply function filters
+	const filteredFunctions = readOnlyFunctions.filter((func: AbiFunction) => {
+		if (
+			options.includeFunctions &&
+			!options.includeFunctions.includes(func.name)
+		) {
+			return false;
+		}
+		if (
+			options.excludeFunctions &&
+			options.excludeFunctions.includes(func.name)
+		) {
+			return false;
+		}
+		return true;
+	});
 
-  if (filteredFunctions.length === 0) {
-    return "";
-  }
+	if (filteredFunctions.length === 0) {
+		return "";
+	}
 
-  const helpers = filteredFunctions.map((func: AbiFunction) => {
-    const methodName = toCamelCase(func.name);
-    const argsSignature = generateArgsSignature(func.args);
-    const clarityArgs = generateClarityArgs(func.args);
+	const helpers = filteredFunctions.map((func: AbiFunction) => {
+		const methodName = toCamelCase(func.name);
+		const argsSignature = generateArgsSignature(func.args);
+		const clarityArgs = generateClarityArgs(func.args);
 
-    return `async ${methodName}(${argsSignature}options?: {
+		return `async ${methodName}(${argsSignature}options?: {
       network?: 'mainnet' | 'testnet' | 'devnet';
       senderAddress?: string;
     }) {
@@ -68,9 +67,9 @@ function generateReadHelpers(
         senderAddress: options?.senderAddress || 'SP000000000000000000002Q6VF78'
       });
     }`;
-  });
+	});
 
-  return `read: {
+	return `read: {
     ${helpers.join(",\n\n    ")}
   }`;
 }
@@ -79,48 +78,48 @@ function generateReadHelpers(
  * Generate write helper functions for a contract (fixed version)
  */
 function generateWriteHelpers(
-  contract: ProcessedContract,
-  options: ActionsPluginOptions
+	contract: ProcessedContract,
+	options: ActionsPluginOptions,
 ): string {
-  const { abi } = contract;
-  const functions = abi.functions || [];
-  const envVarName = options.senderKeyEnv ?? "STX_SENDER_KEY";
+	const { abi } = contract;
+	const functions = abi.functions || [];
+	const envVarName = options.senderKeyEnv ?? "STX_SENDER_KEY";
 
-  const publicFunctions = functions.filter(
-    (f: AbiFunction) => f.access === "public"
-  );
+	const publicFunctions = functions.filter(
+		(f: AbiFunction) => f.access === "public",
+	);
 
-  if (publicFunctions.length === 0) {
-    return "";
-  }
+	if (publicFunctions.length === 0) {
+		return "";
+	}
 
-  // Apply function filters
-  const filteredFunctions = publicFunctions.filter((func: AbiFunction) => {
-    if (
-      options.includeFunctions &&
-      !options.includeFunctions.includes(func.name)
-    ) {
-      return false;
-    }
-    if (
-      options.excludeFunctions &&
-      options.excludeFunctions.includes(func.name)
-    ) {
-      return false;
-    }
-    return true;
-  });
+	// Apply function filters
+	const filteredFunctions = publicFunctions.filter((func: AbiFunction) => {
+		if (
+			options.includeFunctions &&
+			!options.includeFunctions.includes(func.name)
+		) {
+			return false;
+		}
+		if (
+			options.excludeFunctions &&
+			options.excludeFunctions.includes(func.name)
+		) {
+			return false;
+		}
+		return true;
+	});
 
-  if (filteredFunctions.length === 0) {
-    return "";
-  }
+	if (filteredFunctions.length === 0) {
+		return "";
+	}
 
-  const helpers = filteredFunctions.map((func: AbiFunction) => {
-    const methodName = toCamelCase(func.name);
-    const argsSignature = generateArgsSignature(func.args);
-    const clarityArgs = generateClarityArgs(func.args);
+	const helpers = filteredFunctions.map((func: AbiFunction) => {
+		const methodName = toCamelCase(func.name);
+		const argsSignature = generateArgsSignature(func.args);
+		const clarityArgs = generateClarityArgs(func.args);
 
-    return `async ${methodName}(${argsSignature}senderKey?: string, options?: {
+		return `async ${methodName}(${argsSignature}senderKey?: string, options?: {
       network?: 'mainnet' | 'testnet' | 'devnet';
       fee?: string | number | undefined;
       nonce?: bigint;
@@ -145,9 +144,9 @@ function generateWriteHelpers(
         ...txOptions
       });
     }`;
-  });
+	});
 
-  return `write: {
+	return `write: {
     ${helpers.join(",\n\n    ")}
   }`;
 }
@@ -156,16 +155,16 @@ function generateWriteHelpers(
  * Generate action helpers (read and write functions) for a contract
  */
 export async function generateActionHelpers(
-  contract: ProcessedContract,
-  options: ActionsPluginOptions
+	contract: ProcessedContract,
+	options: ActionsPluginOptions,
 ): Promise<string> {
-  const readHelpers = generateReadHelpers(contract, options);
-  const writeHelpers = generateWriteHelpers(contract, options);
+	const readHelpers = generateReadHelpers(contract, options);
+	const writeHelpers = generateWriteHelpers(contract, options);
 
-  if (!readHelpers && !writeHelpers) {
-    return "";
-  }
+	if (!readHelpers && !writeHelpers) {
+		return "";
+	}
 
-  const helpers = [readHelpers, writeHelpers].filter(Boolean);
-  return helpers.join(",\n\n");
+	const helpers = [readHelpers, writeHelpers].filter(Boolean);
+	return helpers.join(",\n\n");
 }

@@ -1,26 +1,26 @@
 #!/usr/bin/env bun
 import { sql } from "kysely";
 import { connectDb } from "./db.ts";
-import { introspectSchema } from "./schema/introspect.ts";
-import { inferAssociations } from "./schema/associations.ts";
 import { createModelsFromSchema } from "./model/factory.ts";
+import { bold, dim, red } from "./repl/colors.ts";
 import { startRepl } from "./repl/repl.ts";
-import { dim, bold, red } from "./repl/colors.ts";
+import { inferAssociations } from "./schema/associations.ts";
+import { introspectSchema } from "./schema/introspect.ts";
 
 // Parse URL from argv or env
 const url = process.argv[2] || process.env.DATABASE_URL;
 if (!url) {
-  console.error(red("Usage: konsole <postgres://...> or set DATABASE_URL"));
-  process.exit(1);
+	console.error(red("Usage: konsole <postgres://...> or set DATABASE_URL"));
+	process.exit(1);
 }
 
 const { db, close } = connectDb(url);
 
 try {
-  await sql`SELECT 1`.execute(db);
+	await sql`SELECT 1`.execute(db);
 } catch (e: any) {
-  console.error(red(`Failed to connect: ${e.message}`));
-  process.exit(1);
+	console.error(red(`Failed to connect: ${e.message}`));
+	process.exit(1);
 }
 
 const schema = await introspectSchema(db);

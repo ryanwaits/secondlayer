@@ -8,9 +8,9 @@ import type { SecondLayerReactConfig } from "../types";
 /**
  * React context for SecondLayer configuration
  */
-export const SecondLayerContext = createContext<SecondLayerReactConfig | undefined>(
-  undefined
-);
+export const SecondLayerContext = createContext<
+	SecondLayerReactConfig | undefined
+>(undefined);
 
 /**
  * Display name for debugging

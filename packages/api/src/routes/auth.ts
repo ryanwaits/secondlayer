@@ -1,116 +1,124 @@
+import { sendMagicLink } from "@secondlayer/auth/email";
+import { getClientIp } from "@secondlayer/auth/http";
+import { generateSessionToken, hashToken } from "@secondlayer/auth/keys";
+import { getDb } from "@secondlayer/shared/db";
+import {
+	createMagicLink,
+	isEmailAllowed,
+	upsertAccount,
+	verifyMagicLink,
+} from "@secondlayer/shared/db/queries/accounts";
+import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { z } from "zod/v4";
-import { getDb } from "@secondlayer/shared/db";
-import { ValidationError } from "@secondlayer/shared/errors";
-import { generateSessionToken, hashToken } from "@secondlayer/auth/keys";
-import { sendMagicLink } from "@secondlayer/auth/email";
-import {
-  createMagicLink,
-  verifyMagicLink,
-  upsertAccount,
-  isEmailAllowed,
-} from "@secondlayer/shared/db/queries/accounts";
-import { getClientIp } from "@secondlayer/auth/http";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
 const MagicLinkSchema = z.object({
-  email: z.string().email(),
+	email: z.string().email(),
 });
 
 const VerifySchema = z.object({
-  token: z.string().min(1),
+	token: z.string().min(1),
 });
 
 // Request magic link (no auth)
 app.post("/magic-link", async (c) => {
-  const body = await c.req.json().catch(() => { throw new InvalidJSONError(); });
+	const body = await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	});
 
-  const parsed = MagicLinkSchema.parse(body);
-  const db = getDb();
+	const parsed = MagicLinkSchema.parse(body);
+	const db = getDb();
 
-  const allowed = process.env.DEV_MODE === "true" || await isEmailAllowed(db, parsed.email);
+	const allowed =
+		process.env.DEV_MODE === "true" || (await isEmailAllowed(db, parsed.email));
 
-  if (!allowed) {
-    return c.json({ message: "Magic link sent. Check your email." });
-  }
+	if (!allowed) {
+		return c.json({ message: "Magic link sent. Check your email." });
+	}
 
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  await createMagicLink(db, parsed.email, token);
-  await sendMagicLink(parsed.email, token);
+	const bytes = new Uint8Array(32);
+	crypto.getRandomValues(bytes);
+	const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+		"",
+	);
+	await createMagicLink(db, parsed.email, token);
+	await sendMagicLink(parsed.email, token);
 
-  return c.json({
-    message: "Magic link sent. Check your email.",
-    ...(process.env.DEV_MODE === "true" && { token }),
-  });
+	return c.json({
+		message: "Magic link sent. Check your email.",
+		...(process.env.DEV_MODE === "true" && { token }),
+	});
 });
 
 // Verify token → create account + session token (no auth)
 app.post("/verify", async (c) => {
-  const body = await c.req.json().catch(() => { throw new InvalidJSONError(); });
+	const body = await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	});
 
-  const parsed = VerifySchema.parse(body);
-  const db = getDb();
+	const parsed = VerifySchema.parse(body);
+	const db = getDb();
 
-  const email = await verifyMagicLink(db, parsed.token);
-  if (!email) {
-    throw new ValidationError("Invalid or expired token");
-  }
+	const email = await verifyMagicLink(db, parsed.token);
+	if (!email) {
+		throw new ValidationError("Invalid or expired token");
+	}
 
-  const allowed = process.env.DEV_MODE === "true" || await isEmailAllowed(db, email);
-  if (!allowed) {
-    throw new ValidationError("Invalid or expired token");
-  }
+	const allowed =
+		process.env.DEV_MODE === "true" || (await isEmailAllowed(db, email));
+	if (!allowed) {
+		throw new ValidationError("Invalid or expired token");
+	}
 
-  const account = await upsertAccount(db, email);
+	const account = await upsertAccount(db, email);
 
-  // Create session token
-  const { raw, hash, prefix } = generateSessionToken();
-  await db
-    .insertInto("sessions")
-    .values({
-      token_hash: hash,
-      token_prefix: prefix,
-      account_id: account.id,
-      ip_address: getClientIp(c),
-    })
-    .execute();
+	// Create session token
+	const { raw, hash, prefix } = generateSessionToken();
+	await db
+		.insertInto("sessions")
+		.values({
+			token_hash: hash,
+			token_prefix: prefix,
+			account_id: account.id,
+			ip_address: getClientIp(c),
+		})
+		.execute();
 
-  return c.json({
-    sessionToken: raw,
-    account: {
-      id: account.id,
-      email: account.email,
-      plan: account.plan,
-    },
-  });
+	return c.json({
+		sessionToken: raw,
+		account: {
+			id: account.id,
+			email: account.email,
+			plan: account.plan,
+		},
+	});
 });
 
 // Logout — revoke session (requires auth, handled by middleware)
 app.post("/logout", async (c) => {
-  const authHeader = c.req.header("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return c.json({ error: "Missing authorization" }, 401);
-  }
+	const authHeader = c.req.header("authorization");
+	if (!authHeader?.startsWith("Bearer ")) {
+		return c.json({ error: "Missing authorization" }, 401);
+	}
 
-  const raw = authHeader.slice(7);
-  if (!raw.startsWith("ss-sl_")) {
-    return c.json({ error: "Logout requires a session token" }, 400);
-  }
+	const raw = authHeader.slice(7);
+	if (!raw.startsWith("ss-sl_")) {
+		return c.json({ error: "Logout requires a session token" }, 400);
+	}
 
-  const tokenHash = hashToken(raw);
-  const db = getDb();
+	const tokenHash = hashToken(raw);
+	const db = getDb();
 
-  await db
-    .updateTable("sessions")
-    .set({ revoked_at: new Date() })
-    .where("token_hash", "=", tokenHash)
-    .execute();
+	await db
+		.updateTable("sessions")
+		.set({ revoked_at: new Date() })
+		.where("token_hash", "=", tokenHash)
+		.execute();
 
-  return c.json({ message: "Logged out" });
+	return c.json({ message: "Logged out" });
 });
 
 export default app;

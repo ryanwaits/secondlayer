@@ -1,28 +1,28 @@
-import { notFound } from "next/navigation";
-import { apiRequest, getSessionFromCookies, ApiError } from "@/lib/api";
+import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { Stream } from "@/lib/types";
+import { notFound } from "next/navigation";
 import { ReplayClient } from "./replay-client";
 
 export default async function StreamReplayPage({
-  params,
+	params,
 }: {
-  params: Promise<{ id: string }>;
+	params: Promise<{ id: string }>;
 }) {
-  const session = await getSessionFromCookies();
-  if (!session) notFound();
+	const session = await getSessionFromCookies();
+	if (!session) notFound();
 
-  const { id } = await params;
+	const { id } = await params;
 
-  let stream: Stream;
-  try {
-    stream = await apiRequest<Stream>(`/api/streams/${id}`, {
-      sessionToken: session,
-      tags: ["streams", `stream-${id}`],
-    });
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 404) notFound();
-    throw e;
-  }
+	let stream: Stream;
+	try {
+		stream = await apiRequest<Stream>(`/api/streams/${id}`, {
+			sessionToken: session,
+			tags: ["streams", `stream-${id}`],
+		});
+	} catch (e) {
+		if (e instanceof ApiError && e.status === 404) notFound();
+		throw e;
+	}
 
-  return <ReplayClient stream={stream} />;
+	return <ReplayClient stream={stream} />;
 }

@@ -4,7 +4,7 @@ import { formatCode } from "../utils/format";
  * Generate React provider template for user projects
  */
 export async function generateReactProvider(): Promise<string> {
-  const code = `import React, { createContext, useContext, type ReactNode } from 'react'
+	const code = `import React, { createContext, useContext, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 /**
@@ -97,5 +97,5 @@ export function createSecondLayerConfig(config: SecondLayerConfig): SecondLayerC
   }
 }`;
 
-  return formatCode(code);
+	return formatCode(code);
 }

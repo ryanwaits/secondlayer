@@ -2,34 +2,34 @@
  * Generic Stacks hooks generator for React plugin
  */
 
-import { formatCode } from "../../../utils/format";
 import { USE_CONTRACT_TEMPLATE } from "../../../generators/templates/use-contract";
+import { formatCode } from "../../../utils/format";
 
 const GENERIC_HOOKS = [
-  "useAccount",
-  "useConnect",
-  "useDisconnect",
-  "useNetwork",
-  "useContract",
-  "useOpenSTXTransfer",
-  "useSignMessage",
-  "useDeployContract",
-  "useReadContract",
-  "useTransaction",
-  "useBlock",
-  "useAccountTransactions",
-  "useWaitForTransaction",
+	"useAccount",
+	"useConnect",
+	"useDisconnect",
+	"useNetwork",
+	"useContract",
+	"useOpenSTXTransfer",
+	"useSignMessage",
+	"useDeployContract",
+	"useReadContract",
+	"useTransaction",
+	"useBlock",
+	"useAccountTransactions",
+	"useWaitForTransaction",
 ] as const;
 
 export async function generateGenericHooks(
-  excludeList: string[] = []
+	excludeList: string[] = [],
 ): Promise<string> {
-  // Filter out excluded hooks
-  const hooksToGenerate = GENERIC_HOOKS.filter(
-    (hookName) => !excludeList.includes(hookName)
-  );
+	// Filter out excluded hooks
+	const hooksToGenerate = GENERIC_HOOKS.filter(
+		(hookName) => !excludeList.includes(hookName),
+	);
 
-  const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+	const imports = `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
 import { useSecondLayerConfig } from './provider'
 import { connect, disconnect, isConnected, request } from '@secondlayer/stacks/connect'
@@ -64,25 +64,25 @@ async function fetchAccountTransactions({ address, network, apiUrl }: { address:
   return response.json()
 }`;
 
-  const header = `/**
+	const header = `/**
  * Generated generic Stacks React hooks
  * DO NOT EDIT MANUALLY
  */`;
 
-  const hooksCode = hooksToGenerate
-    .map((hookName) => generateGenericHook(hookName))
-    .filter(Boolean)
-    .join("\n\n");
+	const hooksCode = hooksToGenerate
+		.map((hookName) => generateGenericHook(hookName))
+		.filter(Boolean)
+		.join("\n\n");
 
-  const code = `${imports}\n\n${header}\n\n${hooksCode}`;
+	const code = `${imports}\n\n${header}\n\n${hooksCode}`;
 
-  return formatCode(code);
+	return formatCode(code);
 }
 
 function generateGenericHook(hookName: string): string {
-  switch (hookName) {
-    case "useAccount":
-      return `export function useAccount() {
+	switch (hookName) {
+		case "useAccount":
+			return `export function useAccount() {
   const config = useSecondLayerConfig()
   
   return useQuery({
@@ -149,8 +149,8 @@ function generateGenericHook(hookName: string): string {
   })
 }`;
 
-    case "useConnect":
-      return `export function useConnect() {
+		case "useConnect":
+			return `export function useConnect() {
   const queryClient = useQueryClient()
   
   const mutation = useMutation({
@@ -188,8 +188,8 @@ function generateGenericHook(hookName: string): string {
   }
 }`;
 
-    case "useDisconnect":
-      return `export function useDisconnect() {
+		case "useDisconnect":
+			return `export function useDisconnect() {
   const queryClient = useQueryClient()
   
   const mutation = useMutation({
@@ -227,8 +227,8 @@ function generateGenericHook(hookName: string): string {
   }
 }`;
 
-    case "useNetwork":
-      return `export function useNetwork() {
+		case "useNetwork":
+			return `export function useNetwork() {
   const config = useSecondLayerConfig()
   
   return useQuery({
@@ -255,11 +255,11 @@ function generateGenericHook(hookName: string): string {
   })
 }`;
 
-    case "useContract":
-      return USE_CONTRACT_TEMPLATE;
+		case "useContract":
+			return USE_CONTRACT_TEMPLATE;
 
-    case "useReadContract":
-      return `export function useReadContract<TArgs = any, TResult = any>(params: {
+		case "useReadContract":
+			return `export function useReadContract<TArgs = any, TResult = any>(params: {
   contractAddress: string;
   contractName: string;
   functionName: string;
@@ -304,8 +304,8 @@ function generateGenericHook(hookName: string): string {
   })
 }`;
 
-    case "useTransaction":
-      return `export function useTransaction(txId?: string) {
+		case "useTransaction":
+			return `export function useTransaction(txId?: string) {
   const config = useSecondLayerConfig()
   
   return useQuery({
@@ -319,8 +319,8 @@ function generateGenericHook(hookName: string): string {
   })
 }`;
 
-    case "useBlock":
-      return `export function useBlock(height?: number) {
+		case "useBlock":
+			return `export function useBlock(height?: number) {
   const config = useSecondLayerConfig()
   
   return useQuery({
@@ -334,8 +334,8 @@ function generateGenericHook(hookName: string): string {
   })
 }`;
 
-    case "useAccountTransactions":
-      return `export function useAccountTransactions(address?: string) {
+		case "useAccountTransactions":
+			return `export function useAccountTransactions(address?: string) {
   const config = useSecondLayerConfig()
   
   return useQuery({
@@ -349,8 +349,8 @@ function generateGenericHook(hookName: string): string {
   })
 }`;
 
-    case "useWaitForTransaction":
-      return `export function useWaitForTransaction(txId?: string) {
+		case "useWaitForTransaction":
+			return `export function useWaitForTransaction(txId?: string) {
   const config = useSecondLayerConfig()
   
   return useQuery({
@@ -374,8 +374,8 @@ function generateGenericHook(hookName: string): string {
   })
 }`;
 
-    case "useOpenSTXTransfer":
-      return `export function useOpenSTXTransfer() {
+		case "useOpenSTXTransfer":
+			return `export function useOpenSTXTransfer() {
   const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
 
@@ -424,8 +424,8 @@ function generateGenericHook(hookName: string): string {
   }
 }`;
 
-    case "useSignMessage":
-      return `export function useSignMessage() {
+		case "useSignMessage":
+			return `export function useSignMessage() {
   const config = useSecondLayerConfig()
 
   const mutation = useMutation({
@@ -464,8 +464,8 @@ function generateGenericHook(hookName: string): string {
   }
 }`;
 
-    case "useDeployContract":
-      return `export function useDeployContract() {
+		case "useDeployContract":
+			return `export function useDeployContract() {
   const config = useSecondLayerConfig()
   const queryClient = useQueryClient()
 
@@ -511,7 +511,7 @@ function generateGenericHook(hookName: string): string {
   }
 }`;
 
-    default:
-      return "";
-  }
+		default:
+			return "";
+	}
 }

@@ -1,6 +1,6 @@
+import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { getDb } from "@secondlayer/shared/db";
 import { assertStreamOwnership, resolveKeyIds } from "../lib/ownership.ts";
 
 const app = new Hono();
@@ -9,71 +9,73 @@ const app = new Hono();
 const MAX_STREAM_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
 app.get("/:id/stream", async (c) => {
-  const { id } = c.req.param();
-  const db = getDb();
-  const keyIds = await resolveKeyIds(c);
+	const { id } = c.req.param();
+	const db = getDb();
+	const keyIds = await resolveKeyIds(c);
 
-  // Check stream exists and ownership
-  await assertStreamOwnership(db, id, keyIds);
+	// Check stream exists and ownership
+	await assertStreamOwnership(db, id, keyIds);
 
-  return streamSSE(c, async (sseStream) => {
-    let lastDeliveryId: string | null = null;
-    let running = true;
-    const startedAt = Date.now();
+	return streamSSE(c, async (sseStream) => {
+		let lastDeliveryId: string | null = null;
+		let running = true;
+		const startedAt = Date.now();
 
-    // Poll for new deliveries (in production, use pg_notify)
-    while (running) {
-      if (Date.now() - startedAt > MAX_STREAM_DURATION_MS) {
-        await sseStream.writeSSE({
-          event: "timeout",
-          data: JSON.stringify({ message: "Stream closed after 30 minutes. Reconnect to continue." }),
-        });
-        break;
-      }
+		// Poll for new deliveries (in production, use pg_notify)
+		while (running) {
+			if (Date.now() - startedAt > MAX_STREAM_DURATION_MS) {
+				await sseStream.writeSSE({
+					event: "timeout",
+					data: JSON.stringify({
+						message: "Stream closed after 30 minutes. Reconnect to continue.",
+					}),
+				});
+				break;
+			}
 
-      try {
-        const results = await db
-          .selectFrom("deliveries")
-          .selectAll()
-          .where("stream_id", "=", id)
-          .orderBy("created_at", "desc")
-          .limit(10)
-          .execute();
+			try {
+				const results = await db
+					.selectFrom("deliveries")
+					.selectAll()
+					.where("stream_id", "=", id)
+					.orderBy("created_at", "desc")
+					.limit(10)
+					.execute();
 
-        // Find new deliveries
-        for (const delivery of results.reverse()) {
-          if (!lastDeliveryId || delivery.id > lastDeliveryId) {
-            await sseStream.writeSSE({
-              event: "delivery",
-              data: JSON.stringify({
-                id: delivery.id,
-                blockHeight: delivery.block_height,
-                status: delivery.status,
-                statusCode: delivery.status_code,
-                responseTimeMs: delivery.response_time_ms,
-                attempts: delivery.attempts,
-                error: delivery.error,
-                createdAt: delivery.created_at.toISOString(),
-              }),
-            });
-            lastDeliveryId = delivery.id;
-          }
-        }
+				// Find new deliveries
+				for (const delivery of results.reverse()) {
+					if (!lastDeliveryId || delivery.id > lastDeliveryId) {
+						await sseStream.writeSSE({
+							event: "delivery",
+							data: JSON.stringify({
+								id: delivery.id,
+								blockHeight: delivery.block_height,
+								status: delivery.status,
+								statusCode: delivery.status_code,
+								responseTimeMs: delivery.response_time_ms,
+								attempts: delivery.attempts,
+								error: delivery.error,
+								createdAt: delivery.created_at.toISOString(),
+							}),
+						});
+						lastDeliveryId = delivery.id;
+					}
+				}
 
-        // Send heartbeat
-        await sseStream.writeSSE({
-          event: "heartbeat",
-          data: new Date().toISOString(),
-        });
+				// Send heartbeat
+				await sseStream.writeSSE({
+					event: "heartbeat",
+					data: new Date().toISOString(),
+				});
 
-        // Wait before next poll
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      } catch (_err) {
-        // Connection closed or error
-        running = false;
-      }
-    }
-  });
+				// Wait before next poll
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+			} catch (_err) {
+				// Connection closed or error
+				running = false;
+			}
+		}
+	});
 });
 
 export default app;

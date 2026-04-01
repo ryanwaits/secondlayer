@@ -6,417 +6,433 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { isValidAddress as _validateStacksAddress } from "@secondlayer/stacks";
-const validateStacksAddress = _validateStacksAddress as (address: string) => boolean;
+const validateStacksAddress = _validateStacksAddress as (
+	address: string,
+) => boolean;
 import { getErrorMessage } from "@secondlayer/shared";
 import { toCamelCase } from "@secondlayer/stacks/clarity";
-import { parseContractId } from "../utils/contract-id";
 import type {
-  SecondLayerPlugin,
-  UserConfig,
-  ResolvedConfig,
-  GenerateContext,
-  Logger,
-  PluginUtils,
-  GeneratedOutput,
-  ProcessedContract,
-  ContractConfig,
-  HookResult,
-  PluginExecutionContext,
+	ContractConfig,
+	GenerateContext,
+	GeneratedOutput,
+	HookResult,
+	Logger,
+	PluginExecutionContext,
+	PluginUtils,
+	ProcessedContract,
+	ResolvedConfig,
+	SecondLayerPlugin,
+	UserConfig,
 } from "../types/plugin";
 import { isClarinetContract, isDirectFileContract } from "../types/plugin";
+import { parseContractId } from "../utils/contract-id";
 
 /**
  * Core plugin manager that orchestrates plugin execution
  */
 export class PluginManager {
-  private plugins: SecondLayerPlugin[] = [];
-  private logger: Logger;
-  private utils: PluginUtils;
-  private executionContext: PluginExecutionContext;
+	private plugins: SecondLayerPlugin[] = [];
+	private logger: Logger;
+	private utils: PluginUtils;
+	private executionContext: PluginExecutionContext;
 
-  constructor() {
-    this.logger = this.createLogger();
-    this.utils = this.createUtils();
-    this.executionContext = {
-      phase: "config",
-      startTime: Date.now(),
-      results: new Map(),
-    };
-  }
+	constructor() {
+		this.logger = this.createLogger();
+		this.utils = this.createUtils();
+		this.executionContext = {
+			phase: "config",
+			startTime: Date.now(),
+			results: new Map(),
+		};
+	}
 
-  /**
-   * Register a plugin
-   */
-  register(plugin: SecondLayerPlugin): void {
-    // Validate plugin
-    if (!plugin.name || !plugin.version) {
-      throw new Error("Plugin must have a name and version");
-    }
+	/**
+	 * Register a plugin
+	 */
+	register(plugin: SecondLayerPlugin): void {
+		// Validate plugin
+		if (!plugin.name || !plugin.version) {
+			throw new Error("Plugin must have a name and version");
+		}
 
-    // Check for duplicate plugin names
-    const existing = this.plugins.find((p) => p.name === plugin.name);
-    if (existing) {
-      throw new Error(
-        `Plugin "${plugin.name}" is already registered (version ${existing.version})`
-      );
-    }
+		// Check for duplicate plugin names
+		const existing = this.plugins.find((p) => p.name === plugin.name);
+		if (existing) {
+			throw new Error(
+				`Plugin "${plugin.name}" is already registered (version ${existing.version})`,
+			);
+		}
 
-    this.plugins.push(plugin);
-    this.logger.debug(`Registered plugin: ${plugin.name}@${plugin.version}`);
-  }
+		this.plugins.push(plugin);
+		this.logger.debug(`Registered plugin: ${plugin.name}@${plugin.version}`);
+	}
 
-  /**
-   * Get all registered plugins
-   */
-  getPlugins(): SecondLayerPlugin[] {
-    return [...this.plugins];
-  }
+	/**
+	 * Get all registered plugins
+	 */
+	getPlugins(): SecondLayerPlugin[] {
+		return [...this.plugins];
+	}
 
-  /**
-   * Transform user config through all plugins
-   */
-  async transformConfig(config: UserConfig): Promise<ResolvedConfig> {
-    this.executionContext.phase = "config";
-    let transformedConfig = { ...config };
+	/**
+	 * Transform user config through all plugins
+	 */
+	async transformConfig(config: UserConfig): Promise<ResolvedConfig> {
+		this.executionContext.phase = "config";
+		let transformedConfig = { ...config };
 
-    for (const plugin of this.plugins) {
-      if (plugin.transformConfig) {
-        this.executionContext.currentPlugin = plugin;
-        try {
-          const result = await plugin.transformConfig(transformedConfig);
-          transformedConfig = result;
-          this.recordHookResult(plugin.name, "transformConfig", {
-            success: true,
-          });
-        } catch (error) {
-          this.recordHookResult(plugin.name, "transformConfig", {
-            success: false,
-            error: error instanceof Error ? error : new Error(getErrorMessage(error)),
-          });
-          throw new Error(
-            `Plugin "${plugin.name}" failed during config transformation: ${getErrorMessage(error)}`
-          );
-        }
-      }
-    }
+		for (const plugin of this.plugins) {
+			if (plugin.transformConfig) {
+				this.executionContext.currentPlugin = plugin;
+				try {
+					const result = await plugin.transformConfig(transformedConfig);
+					transformedConfig = result;
+					this.recordHookResult(plugin.name, "transformConfig", {
+						success: true,
+					});
+				} catch (error) {
+					this.recordHookResult(plugin.name, "transformConfig", {
+						success: false,
+						error:
+							error instanceof Error
+								? error
+								: new Error(getErrorMessage(error)),
+					});
+					throw new Error(
+						`Plugin "${plugin.name}" failed during config transformation: ${getErrorMessage(error)}`,
+					);
+				}
+			}
+		}
 
-    // Add plugins array to resolved config
-    const resolvedConfig: ResolvedConfig = {
-      ...transformedConfig,
-      plugins: this.plugins,
-    };
+		// Add plugins array to resolved config
+		const resolvedConfig: ResolvedConfig = {
+			...transformedConfig,
+			plugins: this.plugins,
+		};
 
-    return resolvedConfig;
-  }
+		return resolvedConfig;
+	}
 
-  /**
-   * Transform contracts through all plugins
-   */
-  async transformContracts(
-    contracts: ContractConfig[],
-    _config: ResolvedConfig
-  ): Promise<ProcessedContract[]> {
-    const processedContracts: ProcessedContract[] = [];
+	/**
+	 * Transform contracts through all plugins
+	 */
+	async transformContracts(
+		contracts: ContractConfig[],
+		_config: ResolvedConfig,
+	): Promise<ProcessedContract[]> {
+		const processedContracts: ProcessedContract[] = [];
 
-    for (let contract of contracts) {
-      if (isClarinetContract(contract) && contract.abi) {
-        processedContracts.push(this.contractToProcessed(contract, "clarinet"));
-        continue;
-      }
+		for (let contract of contracts) {
+			if (isClarinetContract(contract) && contract.abi) {
+				processedContracts.push(this.contractToProcessed(contract, "clarinet"));
+				continue;
+			}
 
-      if (isDirectFileContract(contract) && contract.abi) {
-        processedContracts.push(this.contractToProcessed(contract, "direct"));
-        continue;
-      }
+			if (isDirectFileContract(contract) && contract.abi) {
+				processedContracts.push(this.contractToProcessed(contract, "direct"));
+				continue;
+			}
 
-      // Transform through each plugin
-      for (const plugin of this.plugins) {
-        if (plugin.transformContract) {
-          this.executionContext.currentPlugin = plugin;
-          try {
-            contract = await plugin.transformContract(contract);
-            this.recordHookResult(plugin.name, "transformContract", {
-              success: true,
-            });
-          } catch (error) {
-            this.recordHookResult(plugin.name, "transformContract", {
-              success: false,
-              error: error instanceof Error ? error : new Error(getErrorMessage(error)),
-            });
-            this.logger.warn(
-              `Plugin "${plugin.name}" failed to transform contract: ${getErrorMessage(error)}`
-            );
-          }
-        }
-      }
+			// Transform through each plugin
+			for (const plugin of this.plugins) {
+				if (plugin.transformContract) {
+					this.executionContext.currentPlugin = plugin;
+					try {
+						contract = await plugin.transformContract(contract);
+						this.recordHookResult(plugin.name, "transformContract", {
+							success: true,
+						});
+					} catch (error) {
+						this.recordHookResult(plugin.name, "transformContract", {
+							success: false,
+							error:
+								error instanceof Error
+									? error
+									: new Error(getErrorMessage(error)),
+						});
+						this.logger.warn(
+							`Plugin "${plugin.name}" failed to transform contract: ${getErrorMessage(error)}`,
+						);
+					}
+				}
+			}
 
-      if (contract.abi) {
-        processedContracts.push(this.contractToProcessed(contract, "api"));
-      }
-    }
+			if (contract.abi) {
+				processedContracts.push(this.contractToProcessed(contract, "api"));
+			}
+		}
 
-    return processedContracts;
-  }
+		return processedContracts;
+	}
 
-  /**
-   * Execute lifecycle hooks
-   */
-  async executeHook(
-    hookName: keyof SecondLayerPlugin,
-    context: any
-  ): Promise<void> {
-    for (const plugin of this.plugins) {
-      const hook = plugin[hookName];
-      if (typeof hook === "function") {
-        this.executionContext.currentPlugin = plugin;
-        try {
-          await (hook as any).call(plugin, context);
-          this.recordHookResult(plugin.name, hookName as string, {
-            success: true,
-          });
-        } catch (error) {
-          this.recordHookResult(plugin.name, hookName as string, {
-            success: false,
-            error: error instanceof Error ? error : new Error(getErrorMessage(error)),
-          });
-          this.logger.error(
-            `Plugin "${plugin.name}" failed during ${hookName as string}: ${getErrorMessage(error)}`
-          );
-          // Don't throw - allow other plugins to continue
-        }
-      }
-    }
-  }
+	/**
+	 * Execute lifecycle hooks
+	 */
+	async executeHook(
+		hookName: keyof SecondLayerPlugin,
+		context: any,
+	): Promise<void> {
+		for (const plugin of this.plugins) {
+			const hook = plugin[hookName];
+			if (typeof hook === "function") {
+				this.executionContext.currentPlugin = plugin;
+				try {
+					await (hook as any).call(plugin, context);
+					this.recordHookResult(plugin.name, hookName as string, {
+						success: true,
+					});
+				} catch (error) {
+					this.recordHookResult(plugin.name, hookName as string, {
+						success: false,
+						error:
+							error instanceof Error
+								? error
+								: new Error(getErrorMessage(error)),
+					});
+					this.logger.error(
+						`Plugin "${plugin.name}" failed during ${hookName as string}: ${getErrorMessage(error)}`,
+					);
+					// Don't throw - allow other plugins to continue
+				}
+			}
+		}
+	}
 
-  /**
-   * Execute generation phase with full context
-   */
-  async executeGeneration(
-    contracts: ProcessedContract[],
-    config: ResolvedConfig
-  ): Promise<Map<string, GeneratedOutput>> {
-    this.executionContext.phase = "generate";
-    const outputs = new Map<string, GeneratedOutput>();
+	/**
+	 * Execute generation phase with full context
+	 */
+	async executeGeneration(
+		contracts: ProcessedContract[],
+		config: ResolvedConfig,
+	): Promise<Map<string, GeneratedOutput>> {
+		this.executionContext.phase = "generate";
+		const outputs = new Map<string, GeneratedOutput>();
 
-    // Create generation context
-    const context: GenerateContext = {
-      config,
-      logger: this.logger,
-      utils: this.utils,
-      contracts,
-      outputs,
-      augment: (outputKey: string, contractName: string, content: any) => {
-        this.augmentOutput(outputs, outputKey, contractName, content);
-      },
-      addOutput: (key: string, output: GeneratedOutput) => {
-        outputs.set(key, output);
-      },
-    };
+		// Create generation context
+		const context: GenerateContext = {
+			config,
+			logger: this.logger,
+			utils: this.utils,
+			contracts,
+			outputs,
+			augment: (outputKey: string, contractName: string, content: any) => {
+				this.augmentOutput(outputs, outputKey, contractName, content);
+			},
+			addOutput: (key: string, output: GeneratedOutput) => {
+				outputs.set(key, output);
+			},
+		};
 
-    // Execute beforeGenerate hooks
-    await this.executeHook("beforeGenerate", context);
+		// Execute beforeGenerate hooks
+		await this.executeHook("beforeGenerate", context);
 
-    // Execute generate hooks
-    await this.executeHook("generate", context);
+		// Execute generate hooks
+		await this.executeHook("generate", context);
 
-    // Execute afterGenerate hooks
-    await this.executeHook("afterGenerate", context);
+		// Execute afterGenerate hooks
+		await this.executeHook("afterGenerate", context);
 
-    return outputs;
-  }
+		return outputs;
+	}
 
-  /**
-   * Transform outputs through plugins
-   */
-  async transformOutputs(
-    outputs: Map<string, GeneratedOutput>
-  ): Promise<Map<string, GeneratedOutput>> {
-    this.executionContext.phase = "output";
-    const transformedOutputs = new Map<string, GeneratedOutput>();
+	/**
+	 * Transform outputs through plugins
+	 */
+	async transformOutputs(
+		outputs: Map<string, GeneratedOutput>,
+	): Promise<Map<string, GeneratedOutput>> {
+		this.executionContext.phase = "output";
+		const transformedOutputs = new Map<string, GeneratedOutput>();
 
-    for (const [key, output] of outputs) {
-      let transformedContent = output.content;
+		for (const [key, output] of outputs) {
+			let transformedContent = output.content;
 
-      for (const plugin of this.plugins) {
-        if (plugin.transformOutput) {
-          this.executionContext.currentPlugin = plugin;
-          try {
-            transformedContent = await plugin.transformOutput(
-              transformedContent,
-              output.type || "other"
-            );
-            this.recordHookResult(plugin.name, "transformOutput", {
-              success: true,
-            });
-          } catch (error) {
-            this.recordHookResult(plugin.name, "transformOutput", {
-              success: false,
-              error: error instanceof Error ? error : new Error(getErrorMessage(error)),
-            });
-            this.logger.warn(
-              `Plugin "${plugin.name}" failed to transform output: ${getErrorMessage(error)}`
-            );
-          }
-        }
-      }
+			for (const plugin of this.plugins) {
+				if (plugin.transformOutput) {
+					this.executionContext.currentPlugin = plugin;
+					try {
+						transformedContent = await plugin.transformOutput(
+							transformedContent,
+							output.type || "other",
+						);
+						this.recordHookResult(plugin.name, "transformOutput", {
+							success: true,
+						});
+					} catch (error) {
+						this.recordHookResult(plugin.name, "transformOutput", {
+							success: false,
+							error:
+								error instanceof Error
+									? error
+									: new Error(getErrorMessage(error)),
+						});
+						this.logger.warn(
+							`Plugin "${plugin.name}" failed to transform output: ${getErrorMessage(error)}`,
+						);
+					}
+				}
+			}
 
-      transformedOutputs.set(key, {
-        ...output,
-        content: transformedContent,
-      });
-    }
+			transformedOutputs.set(key, {
+				...output,
+				content: transformedContent,
+			});
+		}
 
-    return transformedOutputs;
-  }
+		return transformedOutputs;
+	}
 
-  /**
-   * Write outputs to disk
-   */
-  async writeOutputs(outputs: Map<string, GeneratedOutput>): Promise<void> {
-    for (const [, output] of outputs) {
-      try {
-        const resolvedPath = path.resolve(process.cwd(), output.path);
-        await this.utils.ensureDir(path.dirname(resolvedPath));
-        await this.utils.writeFile(resolvedPath, output.content);
-        // Don't log here - let the main command handle success messaging
-      } catch (error) {
-        this.logger.error(`Failed to write ${output.path}: ${getErrorMessage(error)}`);
-        throw error;
-      }
-    }
-  }
+	/**
+	 * Write outputs to disk
+	 */
+	async writeOutputs(outputs: Map<string, GeneratedOutput>): Promise<void> {
+		for (const [, output] of outputs) {
+			try {
+				const resolvedPath = path.resolve(process.cwd(), output.path);
+				await this.utils.ensureDir(path.dirname(resolvedPath));
+				await this.utils.writeFile(resolvedPath, output.content);
+				// Don't log here - let the main command handle success messaging
+			} catch (error) {
+				this.logger.error(
+					`Failed to write ${output.path}: ${getErrorMessage(error)}`,
+				);
+				throw error;
+			}
+		}
+	}
 
-  /**
-   * Get execution results for debugging
-   */
-  getExecutionResults(): Map<string, HookResult[]> {
-    return new Map(this.executionContext.results);
-  }
+	/**
+	 * Get execution results for debugging
+	 */
+	getExecutionResults(): Map<string, HookResult[]> {
+		return new Map(this.executionContext.results);
+	}
 
-  /**
-   * Convert a contract config with an ABI into a ProcessedContract
-   */
-  private contractToProcessed(
-    contract: ContractConfig,
-    source: string
-  ): ProcessedContract {
-    const address =
-      typeof contract.address === "string" ? contract.address : "";
-    const parsed = parseContractId(address);
-    return {
-      name: contract.name || parsed.contractName || "unknown",
-      address: parsed.address || "unknown",
-      contractName: parsed.contractName || contract.name || "unknown",
-      abi: contract.abi!,
-      source: source === "api" ? ("api" as const) : ("local" as const),
-      metadata: contract.metadata ?? { source },
-    };
-  }
+	/**
+	 * Convert a contract config with an ABI into a ProcessedContract
+	 */
+	private contractToProcessed(
+		contract: ContractConfig,
+		source: string,
+	): ProcessedContract {
+		const address =
+			typeof contract.address === "string" ? contract.address : "";
+		const parsed = parseContractId(address);
+		return {
+			name: contract.name || parsed.contractName || "unknown",
+			address: parsed.address || "unknown",
+			contractName: parsed.contractName || contract.name || "unknown",
+			abi: contract.abi!,
+			source: source === "api" ? ("api" as const) : ("local" as const),
+			metadata: contract.metadata ?? { source },
+		};
+	}
 
-  /**
-   * Augment existing output with additional content
-   */
-  private augmentOutput(
-    outputs: Map<string, GeneratedOutput>,
-    outputKey: string,
-    contractName: string,
-    content: any
-  ): void {
-    const existing = outputs.get(outputKey);
-    if (!existing) {
-      this.logger.warn(`Cannot augment non-existent output: ${outputKey}`);
-      return;
-    }
+	/**
+	 * Augment existing output with additional content
+	 */
+	private augmentOutput(
+		outputs: Map<string, GeneratedOutput>,
+		outputKey: string,
+		contractName: string,
+		content: any,
+	): void {
+		const existing = outputs.get(outputKey);
+		if (!existing) {
+			this.logger.warn(`Cannot augment non-existent output: ${outputKey}`);
+			return;
+		}
 
-    // Simple augmentation - append content
-    // In a real implementation, this would be more sophisticated
-    const augmentedContent = `${existing.content}\n\n// Augmented by plugin for ${contractName}\n${JSON.stringify(content, null, 2)}`;
+		// Simple augmentation - append content
+		// In a real implementation, this would be more sophisticated
+		const augmentedContent = `${existing.content}\n\n// Augmented by plugin for ${contractName}\n${JSON.stringify(content, null, 2)}`;
 
-    outputs.set(outputKey, {
-      ...existing,
-      content: augmentedContent,
-    });
-  }
+		outputs.set(outputKey, {
+			...existing,
+			content: augmentedContent,
+		});
+	}
 
-  /**
-   * Record hook execution result
-   */
-  private recordHookResult(
-    pluginName: string,
-    hookName: string,
-    result: Omit<HookResult, "plugin">
-  ): void {
-    const key = `${pluginName}:${hookName}`;
-    const existing = this.executionContext.results.get(key) || [];
-    existing.push({ ...result, plugin: pluginName });
-    this.executionContext.results.set(key, existing);
-  }
+	/**
+	 * Record hook execution result
+	 */
+	private recordHookResult(
+		pluginName: string,
+		hookName: string,
+		result: Omit<HookResult, "plugin">,
+	): void {
+		const key = `${pluginName}:${hookName}`;
+		const existing = this.executionContext.results.get(key) || [];
+		existing.push({ ...result, plugin: pluginName });
+		this.executionContext.results.set(key, existing);
+	}
 
-  /**
-   * Create logger instance
-   */
-  private createLogger(): Logger {
-    return {
-      info: (message: string) => console.log(`ℹ️  ${message}`),
-      warn: (message: string) => console.warn(`⚠️  ${message}`),
-      error: (message: string) => console.error(`❌ ${message}`),
-      debug: (message: string) => {
-        if (process.env.DEBUG) {
-          console.log(`🐛 ${message}`);
-        }
-      },
-      success: (message: string) => console.log(`✅ ${message}`),
-    };
-  }
+	/**
+	 * Create logger instance
+	 */
+	private createLogger(): Logger {
+		return {
+			info: (message: string) => console.log(`ℹ️  ${message}`),
+			warn: (message: string) => console.warn(`⚠️  ${message}`),
+			error: (message: string) => console.error(`❌ ${message}`),
+			debug: (message: string) => {
+				if (process.env.DEBUG) {
+					console.log(`🐛 ${message}`);
+				}
+			},
+			success: (message: string) => console.log(`✅ ${message}`),
+		};
+	}
 
-  /**
-   * Create utils instance
-   */
-  private createUtils(): PluginUtils {
-    return {
-      toCamelCase,
+	/**
+	 * Create utils instance
+	 */
+	private createUtils(): PluginUtils {
+		return {
+			toCamelCase,
 
-      toKebabCase: (str: string) => {
-        return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-      },
+			toKebabCase: (str: string) => {
+				return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+			},
 
-      validateAddress: (address: string) => {
-        return validateStacksAddress(parseContractId(address).address);
-      },
+			validateAddress: (address: string) => {
+				return validateStacksAddress(parseContractId(address).address);
+			},
 
-      parseContractId: (contractId: string) => {
-        return parseContractId(contractId);
-      },
+			parseContractId: (contractId: string) => {
+				return parseContractId(contractId);
+			},
 
-      formatCode: async (code: string) => {
-        const { formatCode } = await import("../utils/format");
-        return formatCode(code);
-      },
+			formatCode: async (code: string) => {
+				const { formatCode } = await import("../utils/format");
+				return formatCode(code);
+			},
 
-      resolvePath: (relativePath: string) => {
-        return path.resolve(process.cwd(), relativePath);
-      },
+			resolvePath: (relativePath: string) => {
+				return path.resolve(process.cwd(), relativePath);
+			},
 
-      fileExists: async (filePath: string) => {
-        try {
-          await fs.access(filePath);
-          return true;
-        } catch {
-          return false;
-        }
-      },
+			fileExists: async (filePath: string) => {
+				try {
+					await fs.access(filePath);
+					return true;
+				} catch {
+					return false;
+				}
+			},
 
-      readFile: async (filePath: string) => {
-        return fs.readFile(filePath, "utf-8");
-      },
+			readFile: async (filePath: string) => {
+				return fs.readFile(filePath, "utf-8");
+			},
 
-      writeFile: async (filePath: string, content: string) => {
-        await fs.writeFile(filePath, content, "utf-8");
-      },
+			writeFile: async (filePath: string, content: string) => {
+				await fs.writeFile(filePath, content, "utf-8");
+			},
 
-      ensureDir: async (dirPath: string) => {
-        await fs.mkdir(dirPath, { recursive: true });
-      },
-    };
-  }
+			ensureDir: async (dirPath: string) => {
+				await fs.mkdir(dirPath, { recursive: true });
+			},
+		};
+	}
 }

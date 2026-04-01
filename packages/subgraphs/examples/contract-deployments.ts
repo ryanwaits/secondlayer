@@ -11,44 +11,44 @@ import { defineSubgraph } from "../src/define.ts";
  *   GET /api/subgraphs/contract-deployments/contracts?deployer=SP000000000000000000002Q6VF78
  */
 export default defineSubgraph({
-  name: "contract-deployments",
-  version: "1.0.0",
-  description: "Tracks all smart contract deployments on Stacks",
+	name: "contract-deployments",
+	version: "1.0.0",
+	description: "Tracks all smart contract deployments on Stacks",
 
-  sources: [{ type: "smart_contract" }],
+	sources: [{ type: "smart_contract" }],
 
-  schema: {
-    contracts: {
-      columns: {
-        contract_id: { type: "text", search: true, indexed: true },
-        name: { type: "text", search: true },
-        deployer: { type: "principal", indexed: true },
-        deploy_block: { type: "uint" },
-        deploy_tx_id: { type: "text" },
-      },
-      uniqueKeys: [["contract_id"]],
-    },
-  },
+	schema: {
+		contracts: {
+			columns: {
+				contract_id: { type: "text", search: true, indexed: true },
+				name: { type: "text", search: true },
+				deployer: { type: "principal", indexed: true },
+				deploy_block: { type: "uint" },
+				deploy_tx_id: { type: "text" },
+			},
+			uniqueKeys: [["contract_id"]],
+		},
+	},
 
-  handlers: {
-    smart_contract: async (event, ctx) => {
-      const tx = (event as any).tx;
-      const contractId = tx?.contractId ?? ctx.tx.sender;
-      const name = contractId.includes(".")
-        ? contractId.split(".")[1]
-        : contractId;
+	handlers: {
+		smart_contract: async (event, ctx) => {
+			const tx = (event as any).tx;
+			const contractId = tx?.contractId ?? ctx.tx.sender;
+			const name = contractId.includes(".")
+				? contractId.split(".")[1]
+				: contractId;
 
-      ctx.upsert(
-        "contracts",
-        { contract_id: contractId },
-        {
-          contract_id: contractId,
-          name,
-          deployer: ctx.tx.sender,
-          deploy_block: ctx.block.height,
-          deploy_tx_id: ctx.tx.txId,
-        },
-      );
-    },
-  },
+			ctx.upsert(
+				"contracts",
+				{ contract_id: contractId },
+				{
+					contract_id: contractId,
+					name,
+					deployer: ctx.tx.sender,
+					deploy_block: ctx.block.height,
+					deploy_tx_id: ctx.tx.txId,
+				},
+			);
+		},
+	},
 });

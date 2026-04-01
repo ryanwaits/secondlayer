@@ -8,14 +8,14 @@
  */
 
 export interface StripOptions {
-  /** Keep @err tags for wallet integration (default: true) */
-  keepErrors?: boolean;
-  /** Keep @desc tags for basic documentation (default: false) */
-  keepDesc?: boolean;
-  /** Keep specific tags (overrides other options) */
-  keepTags?: string[];
-  /** Remove all doc comments entirely (default: false) */
-  removeAll?: boolean;
+	/** Keep @err tags for wallet integration (default: true) */
+	keepErrors?: boolean;
+	/** Keep @desc tags for basic documentation (default: false) */
+	keepDesc?: boolean;
+	/** Keep specific tags (overrides other options) */
+	keepTags?: string[];
+	/** Remove all doc comments entirely (default: false) */
+	removeAll?: boolean;
 }
 
 /**
@@ -34,104 +34,109 @@ export interface StripOptions {
  * const custom = stripDocs(source, { keepTags: ['err', 'desc'] });
  */
 export function stripDocs(source: string, options: StripOptions = {}): string {
-  const { keepErrors = true, keepDesc = false, keepTags = [], removeAll = false } = options;
+	const {
+		keepErrors = true,
+		keepDesc = false,
+		keepTags = [],
+		removeAll = false,
+	} = options;
 
-  if (removeAll) {
-    return stripAllDocComments(source);
-  }
+	if (removeAll) {
+		return stripAllDocComments(source);
+	}
 
-  const tagsToKeep = new Set(keepTags);
-  if (keepErrors) tagsToKeep.add("err");
-  if (keepDesc) tagsToKeep.add("desc");
+	const tagsToKeep = new Set(keepTags);
+	if (keepErrors) tagsToKeep.add("err");
+	if (keepDesc) tagsToKeep.add("desc");
 
-  return stripSelectiveDocs(source, tagsToKeep);
+	return stripSelectiveDocs(source, tagsToKeep);
 }
 
 /** Remove all ;; doc comments */
 function stripAllDocComments(source: string): string {
-  const lines = source.split("\n");
-  const result: string[] = [];
-  let inDocBlock = false;
-  let docBlockLines: number[] = [];
+	const lines = source.split("\n");
+	const result: string[] = [];
+	let inDocBlock = false;
+	let docBlockLines: number[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		const trimmed = line.trim();
 
-    if (trimmed.startsWith(";;")) {
-      // Check if next non-empty line is a define
-      if (!inDocBlock) {
-        inDocBlock = true;
-        docBlockLines = [i];
-      } else {
-        docBlockLines.push(i);
-      }
-    } else if (inDocBlock) {
-      // End of doc block
-      if (trimmed.startsWith("(define-")) {
-        // This was a doc block for a definition - skip it
-        inDocBlock = false;
-        docBlockLines = [];
-      } else if (trimmed.length === 0) {
-        // Empty line continues potential doc block
-        docBlockLines.push(i);
-      } else {
-        // Non-define, non-empty - keep these comments (not attached to define)
-        for (const idx of docBlockLines) {
-          result.push(lines[idx]);
-        }
-        inDocBlock = false;
-        docBlockLines = [];
-      }
-      result.push(line);
-    } else {
-      result.push(line);
-    }
-  }
+		if (trimmed.startsWith(";;")) {
+			// Check if next non-empty line is a define
+			if (!inDocBlock) {
+				inDocBlock = true;
+				docBlockLines = [i];
+			} else {
+				docBlockLines.push(i);
+			}
+		} else if (inDocBlock) {
+			// End of doc block
+			if (trimmed.startsWith("(define-")) {
+				// This was a doc block for a definition - skip it
+				inDocBlock = false;
+				docBlockLines = [];
+			} else if (trimmed.length === 0) {
+				// Empty line continues potential doc block
+				docBlockLines.push(i);
+			} else {
+				// Non-define, non-empty - keep these comments (not attached to define)
+				for (const idx of docBlockLines) {
+					result.push(lines[idx]);
+				}
+				inDocBlock = false;
+				docBlockLines = [];
+			}
+			result.push(line);
+		} else {
+			result.push(line);
+		}
+	}
 
-  // Handle trailing doc block
-  if (inDocBlock) {
-    for (const idx of docBlockLines) {
-      result.push(lines[idx]);
-    }
-  }
+	// Handle trailing doc block
+	if (inDocBlock) {
+		for (const idx of docBlockLines) {
+			result.push(lines[idx]);
+		}
+	}
 
-  return result.join("\n");
+	return result.join("\n");
 }
 
 /** Strip docs selectively, keeping specified tags */
 function stripSelectiveDocs(source: string, tagsToKeep: Set<string>): string {
-  const lines = source.split("\n");
-  const result: string[] = [];
-  let inKeptTag = false;
+	const lines = source.split("\n");
+	const result: string[] = [];
+	let inKeptTag = false;
 
-  for (const line of lines) {
-    const trimmed = line.trim();
+	for (const line of lines) {
+		const trimmed = line.trim();
 
-    if (trimmed.startsWith(";;")) {
-      // Check if this line has a tag
-      const tagMatch = trimmed.match(/^;;\s*@([a-zA-Z][a-zA-Z0-9_:-]*)/);
-      if (tagMatch) {
-        const tag = tagMatch[1];
-        if (tagsToKeep.has(tag) || tag.startsWith("custom:")) {
-          result.push(line);
-          inKeptTag = true;
-        } else {
-          // New tag we don't want - stop continuation
-          inKeptTag = false;
-        }
-      } else if (inKeptTag) {
-        // Continuation line of a kept tag - keep it
-        result.push(line);
-      }
-      // else: plain comment not in continuation - skip
-    } else {
-      result.push(line);
-      inKeptTag = false; // Reset on non-comment line
-    }
-  }
+		if (trimmed.startsWith(";;")) {
+			// Check if this line has a tag
+			const tagMatch = trimmed.match(/^;;\s*@([a-zA-Z][a-zA-Z0-9_:-]*)/);
+			if (tagMatch) {
+				const tag = tagMatch[1];
+				if (tagsToKeep.has(tag) || tag.startsWith("custom:")) {
+					result.push(line);
+					inKeptTag = true;
+				} else {
+					// New tag we don't want - stop continuation
+					inKeptTag = false;
+				}
+			} else if (inKeptTag) {
+				// Continuation line of a kept tag - keep it
+				result.push(line);
+			}
+			// else: plain comment not in continuation - skip
+		} else {
+			result.push(line);
+			inKeptTag = false; // Reset on non-comment line
+		}
+	}
 
-  return result.join("\n");
+	return result.join("\n");
 }
 
 /**
@@ -140,14 +145,20 @@ function stripSelectiveDocs(source: string, tagsToKeep: Set<string>): string {
  * @returns Object with byte counts and estimated savings
  */
 export function estimateStrippingSavings(
-  source: string,
-  options: StripOptions = {}
-): { originalBytes: number; strippedBytes: number; savedBytes: number; savingsPercent: number } {
-  const stripped = stripDocs(source, options);
-  const originalBytes = new TextEncoder().encode(source).length;
-  const strippedBytes = new TextEncoder().encode(stripped).length;
-  const savedBytes = originalBytes - strippedBytes;
-  const savingsPercent = originalBytes > 0 ? (savedBytes / originalBytes) * 100 : 0;
+	source: string,
+	options: StripOptions = {},
+): {
+	originalBytes: number;
+	strippedBytes: number;
+	savedBytes: number;
+	savingsPercent: number;
+} {
+	const stripped = stripDocs(source, options);
+	const originalBytes = new TextEncoder().encode(source).length;
+	const strippedBytes = new TextEncoder().encode(stripped).length;
+	const savedBytes = originalBytes - strippedBytes;
+	const savingsPercent =
+		originalBytes > 0 ? (savedBytes / originalBytes) * 100 : 0;
 
-  return { originalBytes, strippedBytes, savedBytes, savingsPercent };
+	return { originalBytes, strippedBytes, savedBytes, savingsPercent };
 }

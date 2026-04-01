@@ -1,9 +1,9 @@
 import { BaseError } from "./base.ts";
 
 export class ContractCallError extends BaseError {
-  override name = "ContractCallError";
+	override name = "ContractCallError";
 }
 
 export class ReadOnlyCallError extends BaseError {
-  override name = "ReadOnlyCallError";
+	override name = "ReadOnlyCallError";
 }

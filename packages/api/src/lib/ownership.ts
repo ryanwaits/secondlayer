@@ -1,23 +1,23 @@
-import type { Kysely } from "kysely";
+import { ForbiddenError, StreamNotFoundError } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
-import { StreamNotFoundError, ForbiddenError } from "@secondlayer/shared";
+import type { Kysely } from "kysely";
 
 /**
  * Get all api_key_ids belonging to the same account as the current key.
  * Enables account-level resource scoping across key rotations.
  */
 export async function getAccountKeyIds(
-  db: Kysely<Database>,
-  accountId: string,
+	db: Kysely<Database>,
+	accountId: string,
 ): Promise<string[]> {
-  const keys = await db
-    .selectFrom("api_keys")
-    .select("id")
-    .where("account_id", "=", accountId)
-    .where("status", "=", "active")
-    .execute();
-  return keys.map((k) => k.id);
+	const keys = await db
+		.selectFrom("api_keys")
+		.select("id")
+		.where("account_id", "=", accountId)
+		.where("status", "=", "active")
+		.execute();
+	return keys.map((k) => k.id);
 }
 
 /**
@@ -27,25 +27,25 @@ export async function getAccountKeyIds(
  * Throws 404 if not found, 403 if owned by another account.
  */
 export async function assertStreamOwnership(
-  db: Kysely<Database>,
-  streamId: string,
-  accountKeyIds: string[] | undefined,
+	db: Kysely<Database>,
+	streamId: string,
+	accountKeyIds: string[] | undefined,
 ) {
-  const stream = await db
-    .selectFrom("streams")
-    .selectAll()
-    .where("id", "=", streamId)
-    .executeTakeFirst();
+	const stream = await db
+		.selectFrom("streams")
+		.selectAll()
+		.where("id", "=", streamId)
+		.executeTakeFirst();
 
-  if (!stream) {
-    throw new StreamNotFoundError(streamId);
-  }
+	if (!stream) {
+		throw new StreamNotFoundError(streamId);
+	}
 
-  if (accountKeyIds && !accountKeyIds.includes(stream.api_key_id)) {
-    throw new ForbiddenError("Stream belongs to another account");
-  }
+	if (accountKeyIds && !accountKeyIds.includes(stream.api_key_id)) {
+		throw new ForbiddenError("Stream belongs to another account");
+	}
 
-  return stream;
+	return stream;
 }
 
 /**
@@ -54,41 +54,41 @@ export async function assertStreamOwnership(
  * Throws 404 if not found, 403 if owned by another account.
  */
 export async function assertSubgraphOwnership(
-  db: Kysely<Database>,
-  subgraphName: string,
-  accountKeyIds: string[] | undefined,
+	db: Kysely<Database>,
+	subgraphName: string,
+	accountKeyIds: string[] | undefined,
 ) {
-  const subgraph = await db
-    .selectFrom("subgraphs")
-    .selectAll()
-    .where("name", "=", subgraphName)
-    .executeTakeFirst();
+	const subgraph = await db
+		.selectFrom("subgraphs")
+		.selectAll()
+		.where("name", "=", subgraphName)
+		.executeTakeFirst();
 
-  if (!subgraph) return null;
+	if (!subgraph) return null;
 
-  if (accountKeyIds && !accountKeyIds.includes(subgraph.api_key_id)) {
-    throw new ForbiddenError("Subgraph belongs to another account");
-  }
+	if (accountKeyIds && !accountKeyIds.includes(subgraph.api_key_id)) {
+		throw new ForbiddenError("Subgraph belongs to another account");
+	}
 
-  return subgraph;
+	return subgraph;
 }
 
 /** Extract api_key_id from Hono context, or undefined in DEV_MODE */
 export function getApiKeyId(c: any): string | undefined {
-  const apiKey = c.get("apiKey");
-  return apiKey?.id;
+	const apiKey = c.get("apiKey");
+	return apiKey?.id;
 }
 
 /** Extract account_id from Hono context, or undefined in DEV_MODE */
 export function getAccountId(c: any): string | undefined {
-  return c.get("accountId") as string | undefined;
+	return c.get("accountId") as string | undefined;
 }
 
 /** Resolve all active API key IDs for the current request's account. */
 export async function resolveKeyIds(c: any): Promise<string[] | undefined> {
-  const accountId = getAccountId(c);
-  if (!accountId) return undefined;
-  const ids = await getAccountKeyIds(getDb(), accountId);
-  // Return undefined if no keys — empty array would produce invalid SQL `IN ()`
-  return ids.length > 0 ? ids : undefined;
+	const accountId = getAccountId(c);
+	if (!accountId) return undefined;
+	const ids = await getAccountKeyIds(getDb(), accountId);
+	// Return undefined if no keys — empty array would produce invalid SQL `IN ()`
+	return ids.length > 0 ? ids : undefined;
 }

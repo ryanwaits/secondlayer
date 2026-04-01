@@ -4,7 +4,7 @@ import { formatCode } from "../utils/format";
  * Generate Stacks API utilities file
  */
 export async function generateStacksApiUtils(): Promise<string> {
-  const code = `/**
+	const code = `/**
  * Stacks API utility functions
  * Implements missing API functions using Stacks blockchain endpoints
  * DO NOT EDIT MANUALLY
@@ -156,5 +156,5 @@ export async function fetchAccountTransactions({
   return await response.json()
 }`;
 
-  return formatCode(code);
+	return formatCode(code);
 }

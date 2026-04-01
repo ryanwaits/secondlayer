@@ -3,7 +3,7 @@
 // so the agent can reason about real schema shapes.
 
 export function getStreamFilterDocs(): string {
-  return `## Stream Filter Types
+	return `## Stream Filter Types
 
 Streams use filters to match on-chain events. Each filter has a \`type\` discriminant and optional fields.
 
@@ -87,7 +87,7 @@ Streams use filters to match on-chain events. Each filter has a \`type\` discrim
 }
 
 export function getStreamCreationDocs(): string {
-  return `## Creating a Stream
+	return `## Creating a Stream
 
 POST /api/streams with body:
 
@@ -133,7 +133,7 @@ POST /api/streams with body:
 }
 
 export function getApiKeyDocs(): string {
-  return `## API Keys
+	return `## API Keys
 
 API keys authenticate requests to the Secondlayer API.
 
@@ -152,7 +152,7 @@ DELETE /api/keys/{id}
 }
 
 export function getSubgraphDocs(): string {
-  return `## Subgraphs
+	return `## Subgraphs
 
 Subgraphs are materialized query indexes over blockchain data.
 
@@ -165,7 +165,7 @@ Subgraphs are managed at /subgraphs in the dashboard.`;
 }
 
 export function getStreamManagementDocs(): string {
-  return `## Stream Management
+	return `## Stream Management
 
 ### Actions
 - **Pause**: POST /api/streams/{id}/pause — temporarily stop deliveries
@@ -183,7 +183,7 @@ export function getStreamManagementDocs(): string {
 }
 
 export function getSubgraphScaffoldDocs(): string {
-  return `## Subgraph Scaffold — defineSubgraph() API
+	return `## Subgraph Scaffold — defineSubgraph() API
 
 Subgraphs are TypeScript indexers. Use \`defineSubgraph()\` to define schema, sources, and handlers.
 
@@ -250,22 +250,22 @@ sl subgraphs dev subgraphs/name.ts  # watch mode
 }
 
 export type DocTopic =
-  | "stream-filters"
-  | "stream-creation"
-  | "api-keys"
-  | "subgraphs"
-  | "stream-management"
-  | "subgraph-scaffold";
+	| "stream-filters"
+	| "stream-creation"
+	| "api-keys"
+	| "subgraphs"
+	| "stream-management"
+	| "subgraph-scaffold";
 
 const topicMap: Record<DocTopic, () => string> = {
-  "stream-filters": getStreamFilterDocs,
-  "stream-creation": getStreamCreationDocs,
-  "api-keys": getApiKeyDocs,
-  "subgraphs": getSubgraphDocs,
-  "stream-management": getStreamManagementDocs,
-  "subgraph-scaffold": getSubgraphScaffoldDocs,
+	"stream-filters": getStreamFilterDocs,
+	"stream-creation": getStreamCreationDocs,
+	"api-keys": getApiKeyDocs,
+	subgraphs: getSubgraphDocs,
+	"stream-management": getStreamManagementDocs,
+	"subgraph-scaffold": getSubgraphScaffoldDocs,
 };
 
 export function getDocsForTopic(topic: DocTopic): string {
-  return topicMap[topic]();
+	return topicMap[topic]();
 }

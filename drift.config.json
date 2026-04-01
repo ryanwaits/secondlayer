@@ -1,11 +1,9 @@
 {
-  "entry": "packages/stacks/src/index.ts",
-  "coverage": {
-    "min": 0
-  },
-  "docs": {
-    "remote": [
-      { "repo": "ryanwaits/secondlayer-docs" }
-    ]
-  }
+	"entry": "packages/stacks/src/index.ts",
+	"coverage": {
+		"min": 0
+	},
+	"docs": {
+		"remote": [{ "repo": "ryanwaits/secondlayer-docs" }]
+	}
 }
