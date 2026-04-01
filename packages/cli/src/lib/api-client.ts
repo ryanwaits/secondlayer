@@ -156,6 +156,12 @@ export async function backfillSubgraphApi(
 	return (await getClient()).subgraphs.backfill(name, options);
 }
 
+export async function stopSubgraphApi(
+	name: string,
+): Promise<{ message: string }> {
+	return (await getClient()).subgraphs.stop(name);
+}
+
 export async function deleteSubgraphApi(
 	name: string,
 ): Promise<{ message: string }> {

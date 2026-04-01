@@ -53,6 +53,13 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
+	async stop(name: string): Promise<{ message: string }> {
+		return this.request<{ message: string }>(
+			"POST",
+			`/api/subgraphs/${name}/stop`,
+		);
+	}
+
 	async backfill(
 		name: string,
 		options: { fromBlock: number; toBlock: number },

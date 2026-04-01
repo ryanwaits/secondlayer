@@ -14,6 +14,7 @@ import {
 	querySubgraphTable,
 	querySubgraphTableCount,
 	reindexSubgraphApi,
+	stopSubgraphApi,
 } from "../lib/api-client.ts";
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
@@ -428,6 +429,20 @@ export function registerSubgraphsCommand(program: Command): void {
 				info(`From block ${result.fromBlock} to ${result.toBlock}`);
 			} catch (err) {
 				handleApiError(err, "backfill subgraph");
+			}
+		});
+
+	// --- stop ---
+	subgraphs
+		.command("stop <name>")
+		.description("Stop a running reindex or backfill operation")
+		.action(async (name: string) => {
+			try {
+				info(`Stopping operation for subgraph "${name}"...`);
+				const result = await stopSubgraphApi(name);
+				success(result.message);
+			} catch (err) {
+				handleApiError(err, "stop subgraph operation");
 			}
 		});
 
