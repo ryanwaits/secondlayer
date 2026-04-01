@@ -40,16 +40,18 @@ export function registerAuthCommand(program: Command): void {
 				await assertOk(mlRes);
 
 				console.log(dim("Check your email for a 6-digit login code."));
-				const token = await input({
+				const code = await input({
 					message: "Code:",
-					validate: (v) => v.trim().length > 0 || "Token is required",
+					validate: (v) =>
+						/^\d{6}$/.test(v.trim()) ||
+						"Enter the 6-digit code from your email",
 				});
 
-				// Verify token → session
+				// Verify code + email → session
 				const verifyRes = await fetch(`${apiUrl}/api/auth/verify`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ token: token.trim() }),
+					body: JSON.stringify({ code: code.trim(), email }),
 				});
 
 				await assertOk(verifyRes);
@@ -166,7 +168,7 @@ export function registerAuthCommand(program: Command): void {
 				["API", apiUrl || "(not configured)"],
 				[
 					"API Key",
-					config.apiKey ? config.apiKey.slice(0, 14) + "..." : "(none)",
+					config.apiKey ? `${config.apiKey.slice(0, 14)}...` : "(none)",
 				],
 			];
 
