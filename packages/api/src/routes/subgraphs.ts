@@ -277,12 +277,34 @@ app.post("/", async (c) => {
 
 	await cache.refresh();
 
+	// Auto-trigger reindex on first deploy so the subgraph uses the fast
+	// batch pipeline instead of the slow catch-up loop.
+	if (result.action === "created") {
+		const controller = new AbortController();
+		activeAbortControllers.set(name, controller);
+
+		(async () => {
+			try {
+				const { reindexSubgraph } = await import("@secondlayer/subgraphs");
+				await reindexSubgraph(def, {
+					schemaName,
+					signal: controller.signal,
+				});
+			} catch (err) {
+				console.error(`Auto-reindex failed for ${name}: ${getErrorMessage(err)}`);
+			} finally {
+				activeAbortControllers.delete(name);
+			}
+		})();
+	}
+
 	const status = result.action === "created" ? 201 : 200;
 	return c.json(
 		{
 			action: result.action,
 			subgraphId: result.subgraphId,
 			message: `Subgraph "${name}" ${result.action}`,
+			...(result.action === "created" ? { reindexStarted: true } : {}),
 		},
 		status,
 	);
