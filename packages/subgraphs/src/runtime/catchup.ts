@@ -110,12 +110,11 @@ export async function catchUpSubgraph(
 		let batchSize = DEFAULT_BATCH_SIZE;
 		let currentHeight = startBlock;
 
-		// Pipeline: start loading first batch
-		let nextBatchPromise = loadBlockRange(
-			db,
-			currentHeight,
-			Math.min(currentHeight + batchSize - 1, chainTip),
-		);
+		// Pipeline: start loading first batch and track the prefetched range.
+		// batchEnd must match what was actually loaded — not recalculated from a
+		// potentially resized batchSize (adaptive sizing can change it between iterations).
+		let nextBatchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
+		let nextBatchPromise = loadBlockRange(db, currentHeight, nextBatchEnd);
 
 		while (currentHeight <= chainTip) {
 			// Check if subgraph status changed (e.g. reindex started) — bail if so
@@ -130,13 +129,13 @@ export async function catchUpSubgraph(
 
 			// Await current batch
 			const batch = await nextBatchPromise;
-			const batchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
+			const batchEnd = nextBatchEnd;
 
 			// Start prefetching next batch while we process this one
 			const nextStart = batchEnd + 1;
 			if (nextStart <= chainTip) {
-				const nextEnd = Math.min(nextStart + batchSize - 1, chainTip);
-				nextBatchPromise = loadBlockRange(db, nextStart, nextEnd);
+				nextBatchEnd = Math.min(nextStart + batchSize - 1, chainTip);
+				nextBatchPromise = loadBlockRange(db, nextStart, nextBatchEnd);
 			}
 
 			// Process each block from pre-loaded data
