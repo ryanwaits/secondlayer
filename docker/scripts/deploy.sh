@@ -8,8 +8,9 @@ git reset --hard origin/main
 cd docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
-# Build app images (migrate reuses api target, must be included)
-$COMPOSE build api indexer worker agent migrate
+# Build app images — --no-cache ensures source code changes are always picked up
+# subgraph-processor shares the api target but is listed explicitly for clarity
+$COMPOSE build --no-cache api indexer worker subgraph-processor agent migrate
 
 # Run migrations synchronously — fail fast on error
 $COMPOSE run --rm migrate
