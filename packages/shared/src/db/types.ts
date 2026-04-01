@@ -161,6 +161,7 @@ export interface MagicLinksTable {
 	id: Generated<string>;
 	email: string;
 	token: string;
+	code: string | null;
 	expires_at: Date;
 	used_at: Date | null;
 	failed_attempts: Generated<number>;

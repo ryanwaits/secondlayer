@@ -46,6 +46,7 @@ export async function createMagicLink(
 	db: Kysely<Database>,
 	email: string,
 	token: string,
+	code: string,
 	expiresInMs: number = 15 * 60 * 1000,
 ): Promise<void> {
 	await db
@@ -53,6 +54,7 @@ export async function createMagicLink(
 		.values({
 			email,
 			token,
+			code,
 			expires_at: new Date(Date.now() + expiresInMs),
 		})
 		.execute();
@@ -60,7 +62,7 @@ export async function createMagicLink(
 
 /**
  * Verify a magic link token. Returns the email if valid, null otherwise.
- * Marks the token as used atomically. Rejects after 5 failed attempts.
+ * Marks the token as used atomically. Rejects after 3 failed attempts.
  */
 export async function verifyMagicLink(
 	db: Kysely<Database>,
@@ -72,7 +74,7 @@ export async function verifyMagicLink(
 		.where("token", "=", token)
 		.where("used_at", "is", null)
 		.where("expires_at", ">", new Date())
-		.where("failed_attempts", "<", 5)
+		.where("failed_attempts", "<", 3)
 		.returning("email")
 		.executeTakeFirst();
 
@@ -83,6 +85,41 @@ export async function verifyMagicLink(
 		.updateTable("magic_links")
 		.set({ failed_attempts: sql`failed_attempts + 1` })
 		.where("token", "=", token)
+		.where("used_at", "is", null)
+		.where("expires_at", ">", new Date())
+		.execute();
+
+	return null;
+}
+
+/**
+ * Verify by 6-digit code + email. Same atomic pattern as verifyMagicLink.
+ * Rejects after 3 failed attempts. Increments failed_attempts on all
+ * active codes for this email on failure (prevents parallel brute-force).
+ */
+export async function verifyMagicLinkByCode(
+	db: Kysely<Database>,
+	email: string,
+	code: string,
+): Promise<string | null> {
+	const result = await db
+		.updateTable("magic_links")
+		.set({ used_at: new Date() })
+		.where("email", "=", email)
+		.where("code", "=", code)
+		.where("used_at", "is", null)
+		.where("expires_at", ">", new Date())
+		.where("failed_attempts", "<", 3)
+		.returning("email")
+		.executeTakeFirst();
+
+	if (result?.email) return result.email;
+
+	// Increment failed attempts on all active codes for this email
+	await db
+		.updateTable("magic_links")
+		.set({ failed_attempts: sql`failed_attempts + 1` })
+		.where("email", "=", email)
 		.where("used_at", "is", null)
 		.where("expires_at", ">", new Date())
 		.execute();
