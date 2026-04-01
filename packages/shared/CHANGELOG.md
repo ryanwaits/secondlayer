@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.10.0
+
+### Minor Changes
+
+- Deploy-resilient reindexing: abort support, auto-resume on startup, graceful shutdown, and `sl subgraphs stop` command.
+
 ## 0.9.0
 
 ### Minor Changes

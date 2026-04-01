@@ -1,5 +1,13 @@
 # @secondlayer/mcp
 
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@0.8.0
+  - @secondlayer/sdk@0.9.0
+
 ## 0.3.3
 
 ### Patch Changes
