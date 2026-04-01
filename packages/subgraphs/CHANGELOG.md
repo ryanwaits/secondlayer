@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.7.3
+
+### Patch Changes
+
+- Cache compiled regex patterns in source matcher, use pg_stat estimates instead of COUNT(\*) for row count warnings.
+
 ## 0.7.2
 
 ### Patch Changes
