@@ -1,7 +1,7 @@
 import { getErrorMessage } from "@secondlayer/shared";
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition, SubgraphFilter } from "../types.ts";
-import { decodeEventData } from "./clarity.ts";
+import { decodeClarityValue, decodeEventData } from "./clarity.ts";
 import type { SubgraphContext } from "./context.ts";
 import type { MatchedTx } from "./source-matcher.ts";
 
@@ -31,6 +31,42 @@ function camelizeKeys(obj: unknown): unknown {
 }
 
 /**
+ * Decode function_args (hex-encoded ClarityValues) to an array of JS values.
+ * Returns decoded values via cvToValue.
+ */
+function decodeFunctionArgs(args: unknown): unknown[] {
+	if (!Array.isArray(args)) return [];
+	return args.map((arg) => {
+		if (typeof arg === "string") return decodeClarityValue(arg);
+		return arg;
+	});
+}
+
+/**
+ * Decode raw_result (hex-encoded Clarity return value) to JS value.
+ */
+function decodeRawResult(raw: unknown): unknown {
+	if (typeof raw === "string" && raw.length > 2) {
+		return decodeClarityValue(raw);
+	}
+	return null;
+}
+
+/** Safely convert a value to BigInt. Handles string, number, bigint. Returns 0n on failure. */
+function safeBigInt(val: unknown): bigint {
+	if (typeof val === "bigint") return val;
+	if (typeof val === "number") return BigInt(val);
+	if (typeof val === "string") {
+		try {
+			return BigInt(val);
+		} catch {
+			return 0n;
+		}
+	}
+	return 0n;
+}
+
+/**
  * Build a typed event payload based on the source filter type.
  * Returns the payload the handler will receive.
  */
@@ -48,6 +84,10 @@ function buildEventPayload(
 		functionName: tx.function_name ?? null,
 	};
 
+	// Decoded function args + result for contract_call payloads
+	const decodedArgs = decodeFunctionArgs(tx.function_args);
+	const decodedResult = decodeRawResult(tx.raw_result);
+
 	// No event — tx-level match (contract_call or contract_deploy)
 	if (!event) {
 		switch (filter.type) {
@@ -56,8 +96,8 @@ function buildEventPayload(
 					contractId: tx.contract_id ?? "",
 					functionName: tx.function_name ?? "",
 					caller: tx.sender,
-					args: {}, // TODO: decode from ABI when available
-					result: null,
+					args: decodedArgs,
+					result: decodedResult,
 					tx: txMeta,
 				};
 			case "contract_deploy":
@@ -80,21 +120,21 @@ function buildEventPayload(
 			return {
 				sender: decoded.sender as string,
 				recipient: decoded.recipient as string,
-				amount: decoded.amount,
+				amount: safeBigInt(decoded.amount),
 				assetIdentifier: decoded.asset_identifier as string,
 				tx: txMeta,
 			};
 		case "ft_mint":
 			return {
 				recipient: decoded.recipient as string,
-				amount: decoded.amount,
+				amount: safeBigInt(decoded.amount),
 				assetIdentifier: decoded.asset_identifier as string,
 				tx: txMeta,
 			};
 		case "ft_burn":
 			return {
 				sender: decoded.sender as string,
-				amount: decoded.amount,
+				amount: safeBigInt(decoded.amount),
 				assetIdentifier: decoded.asset_identifier as string,
 				tx: txMeta,
 			};
@@ -128,39 +168,48 @@ function buildEventPayload(
 			return {
 				sender: decoded.sender as string,
 				recipient: decoded.recipient as string,
-				amount: decoded.amount,
+				amount: safeBigInt(decoded.amount),
 				memo: decoded.memo ?? "",
 				tx: txMeta,
 			};
 		case "stx_mint":
 			return {
 				recipient: decoded.recipient as string,
-				amount: decoded.amount,
+				amount: safeBigInt(decoded.amount),
 				tx: txMeta,
 			};
 		case "stx_burn":
 			return {
 				sender: decoded.sender as string,
-				amount: decoded.amount,
+				amount: safeBigInt(decoded.amount),
 				tx: txMeta,
 			};
 		case "stx_lock":
 			return {
 				lockedAddress: decoded.locked_address as string,
-				lockedAmount: decoded.locked_amount,
-				unlockHeight: decoded.unlock_height,
+				lockedAmount: safeBigInt(decoded.locked_amount),
+				unlockHeight: safeBigInt(decoded.unlock_height),
 				tx: txMeta,
 			};
 
 		// ── Print event ──
 		case "print_event": {
-			const topic = decoded.topic as string ?? "";
 			const rawValue = decoded.value;
-			// Camelize keys for developer convenience
-			const data =
-				rawValue && typeof rawValue === "object"
-					? (camelizeKeys(rawValue) as Record<string, unknown>)
-					: rawValue;
+			// Extract topic from decoded Clarity value (not raw event topic which is always "print")
+			const clarityObj =
+				rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)
+					? (rawValue as Record<string, unknown>)
+					: null;
+			const topic = clarityObj?.topic
+				? String(clarityObj.topic)
+				: ((decoded.topic as string) ?? "");
+			// Camelize remaining keys for developer convenience
+			const { topic: _, ...rest } = clarityObj ?? {};
+			const data = Object.keys(rest).length > 0
+				? (camelizeKeys(rest) as Record<string, unknown>)
+				: rawValue && typeof rawValue !== "object"
+					? rawValue
+					: {};
 			return {
 				contractId: decoded.contract_identifier as string ?? tx.contract_id ?? "",
 				topic,
@@ -177,8 +226,8 @@ function buildEventPayload(
 				contractId: tx.contract_id ?? "",
 				functionName: tx.function_name ?? "",
 				caller: tx.sender,
-				args: {}, // TODO: decode from ABI
-				result: null,
+				args: decodedArgs,
+				result: decodedResult,
 				tx: txMeta,
 			};
 
