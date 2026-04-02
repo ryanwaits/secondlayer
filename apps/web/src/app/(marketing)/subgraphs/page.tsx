@@ -62,11 +62,10 @@ export default function SubgraphsPage() {
 					code={`import { defineSubgraph } from "@secondlayer/subgraphs"
 
 export default defineSubgraph({
-  name: "token-transfers",
-  version: 1,
-  sources: [
-    { type: "stx-transfer" },
-  ],
+  name: "stx-transfers",
+  sources: {
+    transfer: { type: "stx_transfer" },
+  },
   schema: {
     transfers: {
       columns: {
@@ -78,12 +77,12 @@ export default defineSubgraph({
     },
   },
   handlers: {
-    "*": async (event, ctx) => {
-      await ctx.insert("transfers", {
-        sender: event.tx.sender,
-        recipient: event.data.recipient,
-        amount: event.data.amount,
-        memo: event.data.memo,
+    transfer: (event, ctx) => {
+      ctx.insert("transfers", {
+        sender: event.sender,
+        recipient: event.recipient,
+        amount: event.amount,
+        memo: event.memo,
       })
     },
   },
@@ -156,31 +155,47 @@ export default defineSubgraph({
 
 				<div className="prose">
 					<p>
-						Handlers process events into table rows. Each handler receives the
-						event and a context object with write and read operations. Use{" "}
-						<code>&quot;*&quot;</code> as a catch-all or match specific source
-						keys.
+						Handlers process events into table rows. Each handler key must match
+						a source name. The handler receives a typed event and a context
+						object with write, read, and aggregate operations.
 					</p>
 				</div>
 
 				<CodeBlock
 					code={`handlers: {
-  "*": async (event, ctx) => {
+  transfer: async (event, ctx) => {
     // Write operations (batched, flushed atomically):
-    await ctx.insert("transfers", { ... })
-    await ctx.upsert("balances", { ... }) // requires uniqueKeys
-    await ctx.update("balances", { amount: 0 }, { address: "SP..." })
-    await ctx.delete("balances", { address: "SP..." })
+    ctx.insert("transfers", { ... })
+    ctx.upsert("balances", { ... })     // requires uniqueKeys
+    ctx.update("balances", { address: "SP..." }, { amount: 0 })
+    ctx.delete("balances", { address: "SP..." })
+    ctx.patch("balances", { address: "SP..." }, { amount: 0 }) // partial update
+
+    // Find-then-merge-or-insert (async — values can be functions):
+    await ctx.patchOrInsert("holders", { address: event.sender }, {
+      address: event.sender,
+      balance: (existing) => (existing?.balance ?? 0n) + event.amount,
+      tx_count: (existing) => (existing?.tx_count ?? 0n) + 1n,
+    })
 
     // Read operations (immediate):
     const row = await ctx.findOne("balances", { address: "SP..." })
     const rows = await ctx.findMany("balances", { token: "usda" })
 
+    // Aggregates:
+    const total = await ctx.count("transfers")
+    const sum = await ctx.sum("transfers", "amount")
+
+    // Formatting:
+    ctx.formatUnits(1000000n, 6)  // "1.000000"
+
     // Block/tx metadata:
-    ctx.blockHeight   // current block
-    ctx.txId          // current transaction
-    ctx.timestamp     // block timestamp
-    ctx.sender        // tx sender
+    ctx.block.height         // current block height
+    ctx.block.timestamp      // block timestamp
+    ctx.tx.txId              // current transaction id
+    ctx.tx.sender            // tx sender
+    ctx.tx.contractId        // called contract (if contract_call)
+    ctx.tx.functionName      // called function (if contract_call)
   },
 }`}
 				/>
@@ -330,16 +345,23 @@ sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts`}
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">version</span>
-						<span className="prop-type">number</span>
-						<span className="prop-default">1</span>
+						<span className="prop-type">string</span>
+						<span className="prop-default">&quot;1.0.0&quot;</span>
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">description</span>
 						<span className="prop-type">string</span>
 					</div>
 					<div className="prop-row">
+						<span className="prop-name">startBlock</span>
+						<span className="prop-type">number</span>
+						<span className="prop-default">1</span>
+					</div>
+					<div className="prop-row">
 						<span className="prop-name">sources</span>
-						<span className="prop-type">SubgraphSource[]</span>
+						<span className="prop-type">
+							Record&lt;string, SubgraphFilter&gt;
+						</span>
 						<span className="prop-required">required</span>
 					</div>
 					<div className="prop-row">
@@ -384,29 +406,55 @@ sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts`}
 						<span className="prop-type">string | number | boolean</span>
 					</div>
 
-					<div className="props-group-title">SubgraphSource</div>
+					<div className="props-group-title">SubgraphFilter types</div>
 
 					<div className="prop-row">
-						<span className="prop-name">type</span>
-						<span className="prop-type">string</span>
-						<span className="prop-default">transaction type filter</span>
+						<span className="prop-name">stx_transfer</span>
+						<span className="prop-type">
+							sender?, recipient?, minAmount?, maxAmount?
+						</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">contract</span>
-						<span className="prop-type">string</span>
-						<span className="prop-default">supports wildcards</span>
+						<span className="prop-name">ft_transfer</span>
+						<span className="prop-type">
+							assetIdentifier?, sender?, recipient?, minAmount?
+						</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">function</span>
-						<span className="prop-type">string</span>
+						<span className="prop-name">ft_mint / ft_burn</span>
+						<span className="prop-type">
+							assetIdentifier?, sender/recipient?, minAmount?
+						</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">event</span>
-						<span className="prop-type">string</span>
+						<span className="prop-name">nft_transfer</span>
+						<span className="prop-type">
+							assetIdentifier?, sender?, recipient?
+						</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">minAmount</span>
-						<span className="prop-type">number</span>
+						<span className="prop-name">nft_mint / nft_burn</span>
+						<span className="prop-type">
+							assetIdentifier?, sender/recipient?
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">contract_call</span>
+						<span className="prop-type">
+							contractId?, functionName?, caller?, abi?
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">contract_deploy</span>
+						<span className="prop-type">deployer?, contractName?</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">print_event</span>
+						<span className="prop-type">contractId?, topic?</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">stx_mint / stx_burn / stx_lock</span>
+						<span className="prop-type">address filters, minAmount?</span>
 					</div>
 
 					<div className="props-group-title">Query operators</div>

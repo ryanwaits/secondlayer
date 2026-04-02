@@ -101,7 +101,7 @@ Every stream needs at least one filter. Common patterns:
 { type: "contract_deploy" }
 ```
 
-13 filter types total. See [references/filters.md](references/filters.md) for the complete list with all fields.
+13 filter types total. See [references/filters.md](references/filters.md) for the complete list with all fields. Subgraphs use the same filter types (`SubgraphFilter`) for their named sources.
 
 Wildcards supported in `contractId`, `functionName`, `contractName`: `"SP102*::amm-*"`, `"swap*"`.
 
@@ -192,10 +192,13 @@ export default defineSubgraph({
   name: "dex-swaps",
   version: "1.0.0",
 
-  // What blockchain data to watch
-  sources: [
-    { contract: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01", event: "swap" },
-  ],
+  // What blockchain data to watch — named objects, keys become handler keys
+  sources: {
+    swap: { type: "print_event", contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01", topic: "swap" },
+  },
+
+  // Optional: start indexing from a specific block (default: 1)
+  startBlock: 150000,
 
   // SQL tables to create
   schema: {
@@ -212,17 +215,16 @@ export default defineSubgraph({
     },
   },
 
-  // How to process each matched event
-  // Handler key MUST match the sourceKey: "contract::event" or "contract::function"
+  // How to process each matched event — handler key = source name
   handlers: {
-    "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01::swap": (event, ctx) => {
-      // event contains decoded Clarity fields from the print event
+    swap: (event, ctx) => {
+      // event.data contains auto-unwrapped Clarity fields (camelized keys, bigint amounts)
       ctx.insert("swaps", {
         sender: ctx.tx.sender,
-        token_x: event.tokenX,
-        token_y: event.tokenY,
-        amount_x: event.dx,
-        amount_y: event.dy,
+        token_x: event.data.tokenX,
+        token_y: event.data.tokenY,
+        amount_x: event.data.dx,   // bigint, not string
+        amount_y: event.data.dy,
       });
     },
   },
@@ -245,89 +247,114 @@ Column options: `nullable`, `indexed`, `search` (enables ILIKE on queries), `def
 
 ### Sources and handler key matching
 
-**Critical:** Each source produces a `sourceKey`. The handler key MUST match the sourceKey exactly, or use `"*"` as catch-all.
+Sources are **named objects**. The source name IS the handler key — no `sourceKey()` function, no `"contract::event"` string matching.
 
 ```typescript
-// Source                                                  → sourceKey (= handler key)
-{ contract: "SP...contract", event: "transfer" }           → "SP...contract::transfer"
-{ contract: "SP...contract", function: "swap" }            → "SP...contract::swap"
-{ contract: "SP...contract" }                              → "SP...contract"
-{ type: "stx_transfer" }                                   → "stx_transfer"
-```
-
-**Common mistake:** using a contract-level source `{ contract: "SP...pox" }` but function-specific handler keys `"SP...pox::stack-stx"` — these won't match. Either:
-- Use function-specific **sources** with matching handler keys, OR
-- Use a contract-level source with a `"SP...pox"` handler key or `"*"` catch-all
-
-```typescript
-// CORRECT — sources match handler keys
-sources: [
-  { contract: "SP...amm-pool-v2-01", function: "swap-helper" },
-  { contract: "SP...amm-pool-v2-01", event: "swap" },
-],
+// Source name = handler key. Use any descriptive name you want.
+sources: {
+  swap:       { type: "print_event", contractId: "SP...amm-pool-v2-01", topic: "swap" },
+  addLiq:     { type: "contract_call", contractId: "SP...amm-pool-v2-01", functionName: "add-liquidity" },
+  stxMoves:   { type: "stx_transfer", minAmount: 100000000n },
+  tokenMint:  { type: "ft_mint", assetIdentifier: "SP...token-wstx" },
+},
 handlers: {
-  "SP...amm-pool-v2-01::swap-helper": (event, ctx) => { ... },
-  "SP...amm-pool-v2-01::swap": (event, ctx) => { ... },
-}
-
-// CORRECT — catch-all handler for contract-level source
-sources: [{ contract: "SP...amm-pool-v2-01" }],
-handlers: {
-  "SP...amm-pool-v2-01": (event, ctx) => { ... },
-  // or "*": (event, ctx) => { ... }
+  swap:      (event, ctx) => { ... },
+  addLiq:    (event, ctx) => { ... },
+  stxMoves:  (event, ctx) => { ... },
+  tokenMint: (event, ctx) => { ... },
+  "*":       (event, ctx) => { ... },  // catch-all still supported
 }
 ```
+
+Source types use the `SubgraphFilter` type (same filter types as Streams — see filter reference above). No `SubgraphSource` type.
 
 ### Event payload shape
 
-The `event` object passed to handlers has different shapes depending on the match:
+Event data is **auto-unwrapped** — no `{type, value}` Clarity wrappers. Amounts are `bigint`, not strings. Print event data keys are **camelized** (e.g., `token-x` becomes `tokenX`).
 
-**Event-based match** (source has `event`):
+**`print_event` source:**
 ```typescript
 {
-  // Decoded Clarity event fields (keys are camelCased from Clarity names)
-  tokenX: "SP...token",
-  tokenY: "SP...token",
-  dx: 1000000n,
-  dy: 500000n,
-  // Metadata
-  _eventId: "uuid",
-  _eventType: "print_event",
-  _eventIndex: 0,
-  tx: { txId, sender, type, status, contractId, functionName },
+  topic: "swap",              // the print event topic
+  data: {                     // auto-unwrapped, camelized keys
+    tokenX: "SP...token",
+    tokenY: "SP...token",
+    dx: 1000000n,             // bigint
+    dy: 500000n,
+  },
 }
 ```
 
-**Function-call match** (source has `function`, no events):
+**`contract_call` source:**
 ```typescript
 {
-  tx: { txId, sender, type, status, contractId, functionName },
+  args: {                     // decoded function arguments
+    tokenX: "SP...token",
+    amount: 500000n,
+  },
+  result: { ... },            // decoded return value
 }
 ```
-Access transaction metadata via `event.tx` or `ctx.tx`. Function args are NOT decoded in the event payload — use `ctx.tx.sender` and block/tx context instead.
 
-**Best practice:** For function-call indexing, rely on `ctx.tx.*` and `ctx.block.*` for data. For rich decoded data, use event-based sources where the contract emits print events.
+**`ft_transfer` / `ft_mint` / `ft_burn` source:**
+```typescript
+{
+  sender: "SP...",            // ft_transfer / ft_burn
+  recipient: "SP...",         // ft_transfer / ft_mint
+  amount: 1000000n,           // bigint
+  assetIdentifier: "SP...::token",
+}
+```
+
+**`stx_transfer` source:**
+```typescript
+{
+  sender: "SP...",
+  recipient: "SP...",
+  amount: 1000000n,           // bigint (microSTX)
+}
+```
+
+Transaction metadata always available via `ctx.tx` — includes `txId`, `sender`, `type`, `status`, `contractId`, `functionName`.
 
 ### SubgraphContext (handler API)
 
 ```typescript
 handlers: {
-  "SP...contract::swap": async (event, ctx) => {
+  swap: async (event, ctx) => {
     // Write operations — batched, flushed atomically per block
     ctx.insert("table", { col: value });
     ctx.update("table", { id: 1 }, { col: newValue });
     ctx.upsert("table", { txId: ctx.tx.txId }, { col: value }); // needs uniqueKeys
     ctx.delete("table", { id: 1 });
+    ctx.patch("table", { id: 1 }, { col: newValue });           // partial update, preserves other fields
+
+    // Computed upsert — values can be functions that receive existing row
+    await ctx.patchOrInsert("balances", { address: "SP..." }, {
+      address: "SP...",
+      balance: (existing) => (existing ? existing.balance as bigint : 0n) + amount,
+    });
 
     // Read operations — immediate against current DB state
     const row = await ctx.findOne("table", { sender: "SP..." });
     const rows = await ctx.findMany("table", { token: "wSTX" });
+
+    // Aggregates
+    const total = await ctx.count("table", { sender: "SP..." });
+    const volume = await ctx.sum("table", "amount", { token: "wSTX" });
+    const highest = await ctx.max("table", "amount");
+    const lowest = await ctx.min("table", "amount");
+    const traders = await ctx.countDistinct("table", "sender");
+
+    // Utilities
+    ctx.formatUnits(1000000n, 6);  // "1.0"
 
     // Context
     ctx.block.height;        ctx.block.hash;
     ctx.block.timestamp;     ctx.block.burnBlockHeight;
     ctx.tx.txId;             ctx.tx.sender;
     ctx.tx.type;             ctx.tx.status;
+    ctx.tx.contractId;       ctx.tx.functionName;
   },
 }
 ```
@@ -340,38 +367,39 @@ See [references/subgraph-patterns.md](references/subgraph-patterns.md) for compl
 
 **DEX swap tracking:**
 ```typescript
-sources: [
-  { contract: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01", event: "swap" },
-],
+sources: {
+  swap: { type: "print_event", contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01", topic: "swap" },
+},
 handlers: {
-  "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01::swap": (event, ctx) => {
+  swap: (event, ctx) => {
     ctx.insert("swaps", {
       sender: ctx.tx.sender,
-      token_x: event.tokenX,
-      token_y: event.tokenY,
-      amount_x: event.dx,
-      amount_y: event.dy,
+      token_x: event.data.tokenX,
+      token_y: event.data.tokenY,
+      amount_x: event.data.dx,
+      amount_y: event.data.dy,
     });
   },
 }
 ```
 
-**Running totals with upsert:**
+**Running totals with patchOrInsert:**
 ```typescript
+sources: {
+  transfer: { type: "ft_transfer", assetIdentifier: "SP...::token" },
+},
 handlers: {
-  "SP...token::transfer": async (event, ctx) => {
+  transfer: async (event, ctx) => {
     ctx.insert("transfers", {
       from_addr: event.sender,
       to_addr: event.recipient,
-      amount: event.amount,
+      amount: event.amount,    // already bigint
     });
 
-    // Update running balance
-    const existing = await ctx.findOne("balances", { address: event.recipient });
-    const prev = existing ? BigInt(existing.balance as string) : 0n;
-    ctx.upsert("balances", { address: event.recipient }, {
+    // Update running balance — computed value receives existing row
+    await ctx.patchOrInsert("balances", { address: event.recipient }, {
       address: event.recipient,
-      balance: prev + BigInt(event.amount as string),
+      balance: (existing) => (existing ? existing.balance as bigint : 0n) + event.amount,
     });
   },
 }
@@ -379,19 +407,22 @@ handlers: {
 
 **Conditional insert with findOne:**
 ```typescript
+sources: {
+  listing: { type: "print_event", contractId: "SP...marketplace", topic: "list-item" },
+},
 handlers: {
-  "SP...marketplace::list-item": async (event, ctx) => {
-    const existing = await ctx.findOne("listings", { nft_id: event.nftId });
+  listing: async (event, ctx) => {
+    const existing = await ctx.findOne("listings", { nft_id: event.data.nftId });
     if (existing) {
-      ctx.update("listings", { nft_id: event.nftId }, {
-        price: event.price,
+      ctx.patch("listings", { nft_id: event.data.nftId }, {
+        price: event.data.price,
         updated_block: ctx.block.height,
       });
     } else {
       ctx.insert("listings", {
-        nft_id: event.nftId,
+        nft_id: event.data.nftId,
         seller: ctx.tx.sender,
-        price: event.price,
+        price: event.data.price,
       });
     }
   },
