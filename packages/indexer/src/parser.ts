@@ -11,6 +11,7 @@ import {
 	type SmartContractPayload,
 	deserializeTransaction,
 } from "@secondlayer/stacks/transactions";
+import { serializeCV } from "@secondlayer/stacks/clarity";
 import { AddressVersion, c32address } from "@secondlayer/stacks/utils";
 import type {
 	NewBlockPayload,
@@ -32,6 +33,7 @@ async function fetchTxFromApi(txid: string): Promise<{
 	sender: string;
 	contractId: string | null;
 	functionName: string | null;
+	functionArgs: string[] | null;
 } | null> {
 	try {
 		const response = await fetch(`${STACKS_API_URL}/extended/v1/tx/${txid}`);
@@ -65,6 +67,7 @@ async function fetchTxFromApi(txid: string): Promise<{
 			sender: data.sender_address || "unknown",
 			contractId,
 			functionName,
+			functionArgs: null,
 		};
 	} catch (error) {
 		logger.debug("Error fetching tx from API", { txid, error: String(error) });
@@ -98,6 +101,7 @@ function decodeRawTx(
 	sender: string;
 	contractId: string | null;
 	functionName: string | null;
+	functionArgs: string[] | null;
 } | null {
 	try {
 		const tx = deserializeTransaction(rawTx);
@@ -130,11 +134,13 @@ function decodeRawTx(
 		// Extract contract details if applicable
 		let contractId: string | null = null;
 		let functionName: string | null = null;
+		let functionArgs: string[] | null = null;
 
 		if (tx.payload.payloadType === PayloadType.ContractCall) {
 			const payload = tx.payload as ContractCallPayload;
 			contractId = `${payload.contractAddress}.${payload.contractName}`;
 			functionName = payload.functionName;
+			functionArgs = payload.functionArgs?.map((cv) => serializeCV(cv)) ?? null;
 		} else if (
 			tx.payload.payloadType === PayloadType.SmartContract ||
 			tx.payload.payloadType === PayloadType.VersionedSmartContract
@@ -143,7 +149,7 @@ function decodeRawTx(
 			contractId = `${sender}.${payload.contractName}`;
 		}
 
-		return { txType, sender, contractId, functionName };
+		return { txType, sender, contractId, functionName, functionArgs };
 	} catch (error) {
 		// Some transactions can't be decoded - log for debugging and use fallback values
 		logger.warn("Failed to decode raw_tx", {
@@ -206,6 +212,7 @@ export async function parseTransaction(
 	const sender = decoded?.sender ?? tx.sender_address ?? "unknown";
 	let contractId = decoded?.contractId ?? null;
 	let functionName = decoded?.functionName ?? null;
+	let functionArgs: string[] | null = decoded?.functionArgs ?? null;
 
 	// If decoding failed but payload has contract info, use that as fallback
 	if (!decoded) {
@@ -214,6 +221,9 @@ export async function parseTransaction(
 			if (contractCall) {
 				contractId = contractCall.contract_id;
 				functionName = contractCall.function_name;
+				if (Array.isArray(contractCall.function_args)) {
+					functionArgs = contractCall.function_args;
+				}
 			}
 		} else if (tx.tx_type === "smart_contract") {
 			const smartContract = (tx as any).smart_contract;
@@ -232,6 +242,8 @@ export async function parseTransaction(
 		status: tx.status ?? "success",
 		contract_id: contractId,
 		function_name: functionName,
+		function_args: functionArgs ? JSON.stringify(functionArgs) : null,
+		raw_result: tx.raw_result ?? null,
 		raw_tx: tx.raw_tx,
 	};
 }
