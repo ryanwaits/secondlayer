@@ -14,6 +14,8 @@ type TxRecord = {
 	status: string;
 	contract_id?: string | null;
 	function_name?: string | null;
+	function_args?: unknown | null;
+	raw_result?: string | null;
 };
 
 type EventRecord = {
