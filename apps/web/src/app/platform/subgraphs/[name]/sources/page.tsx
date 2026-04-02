@@ -52,30 +52,20 @@ export default async function SubgraphSourcesPage({
 						{filter.type}
 					</div>
 					<div className="source-fns">
-						{filter.contractId && (
-							<span className="source-fn">
-								{filter.contractId as string}
-							</span>
+						{typeof filter.contractId === "string" && (
+							<span className="source-fn">{filter.contractId}</span>
 						)}
-						{filter.assetIdentifier && (
-							<span className="source-fn">
-								{filter.assetIdentifier as string}
-							</span>
+						{typeof filter.assetIdentifier === "string" && (
+							<span className="source-fn">{filter.assetIdentifier}</span>
 						)}
-						{filter.functionName && (
-							<span className="source-fn">
-								{filter.functionName as string}
-							</span>
+						{typeof filter.functionName === "string" && (
+							<span className="source-fn">{filter.functionName}</span>
 						)}
-						{filter.topic && (
-							<span className="source-fn">
-								topic: {filter.topic as string}
-							</span>
+						{typeof filter.topic === "string" && (
+							<span className="source-fn">topic: {filter.topic}</span>
 						)}
-						{filter.minAmount && (
-							<span className="source-fn">
-								min: {String(filter.minAmount)}
-							</span>
+						{filter.minAmount != null && (
+							<span className="source-fn">min: {String(filter.minAmount)}</span>
 						)}
 					</div>
 				</div>
