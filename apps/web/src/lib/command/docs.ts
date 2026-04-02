@@ -193,7 +193,9 @@ import { defineSubgraph } from '@secondlayer/subgraphs';
 
 export default defineSubgraph({
   name: 'my-subgraph',
-  sources: [{ contract: 'SP...contract', event: 'swap' }],
+  sources: {
+    swap: { type: 'print_event', contractId: 'SP...contract', topic: 'swap' },
+  },
   schema: {
     table_name: {
       columns: {
@@ -203,8 +205,8 @@ export default defineSubgraph({
     }
   },
   handlers: {
-    'SP...contract::swap': (event, ctx) => {
-      ctx.insert('table_name', { col: event.value });
+    swap: (event, ctx) => {
+      ctx.insert('table_name', { col: event.data.value });
     },
   },
 });
@@ -224,22 +226,27 @@ export default defineSubgraph({
 
 ### Handler Patterns
 
-**Insert:** \`ctx.insert('table', { col: event.value })\`
+**Insert:** \`ctx.insert('table', { col: value })\`
 **Upsert (needs uniqueKeys):** \`ctx.upsert('table', { key: id }, { col: val })\`
 **Update:** \`ctx.update('table', { id: 1 }, { col: newVal })\`
+**Patch (partial update):** \`ctx.patch('table', { id: 1 }, { status: 'done' })\`
+**PatchOrInsert:** \`await ctx.patchOrInsert('table', { addr }, { balance: (e) => (e?.balance ?? 0n) + amt })\`
 **Delete:** \`ctx.delete('table', { id: 1 })\`
 **Read:** \`await ctx.findOne('table', { key: val })\`
-**Read many:** \`await ctx.findMany('table', { key: val })\`
+**Format:** \`ctx.formatUnits(1000000n, 6)\` → \`"1.000000"\`
 
 ### Context
 \`ctx.block.height\`, \`ctx.block.hash\`, \`ctx.block.timestamp\`
-\`ctx.tx.txId\`, \`ctx.tx.sender\`, \`ctx.tx.type\`, \`ctx.tx.status\`
+\`ctx.tx.txId\`, \`ctx.tx.sender\`, \`ctx.tx.contractId\`, \`ctx.tx.functionName\`
 
-### Source Key Matching
-Handler key MUST match the source key:
-- \`{ contract: "SP...", event: "swap" }\` → handler key: \`"SP...::swap"\`
-- \`{ contract: "SP...", function: "transfer" }\` → handler key: \`"SP...::transfer"\`
-- \`{ contract: "SP..." }\` → handler key: \`"SP..."\`
+### Named Sources
+Sources are named objects. The name = handler key:
+\`\`\`
+sources: { swap: { type: 'contract_call', contractId: 'SP...', functionName: 'swap' } }
+handlers: { swap: (event, ctx) => { ... } }
+\`\`\`
+
+Filter types: stx_transfer, ft_transfer, ft_mint, ft_burn, nft_transfer, nft_mint, nft_burn, contract_call, contract_deploy, print_event, stx_mint, stx_burn, stx_lock
 
 ### CLI
 \`\`\`bash

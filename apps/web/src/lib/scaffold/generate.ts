@@ -208,16 +208,18 @@ export function generateSubgraphCode(
 
 	const schemaBlock = tableDefs.join(",\n");
 
-	// Build sources
-	const sourceEntries: string[] = [`{ contract: '${contractId}' }`];
-
-	// Build handlers
+	// Build named sources and handlers
+	const sourceEntries: string[] = [];
 	const handlerEntries: string[] = [];
 
 	// Event handlers
 	if (hasEvents) {
 		for (const ev of events) {
+			const sourceName = toCamel(ev.name);
 			const tableName = toSnake(ev.name);
+			sourceEntries.push(
+				`    ${sourceName}: { type: 'print_event', contractId: '${contractId}', topic: '${ev.name}' }`,
+			);
 			let insertCall: string;
 			if (isAbiTuple(ev.value)) {
 				insertCall = buildInsertCall(tableName, ev.value.tuple);
@@ -225,27 +227,34 @@ export function generateSubgraphCode(
 				insertCall = `      ctx.insert('${tableName}', {\n        value: event.value,\n      });`;
 			}
 			handlerEntries.push(
-				`    '${contractId}::${ev.name}': async (event, ctx) => {\n${insertCall}\n    }`,
+				`    ${sourceName}: async (event, ctx) => {\n${insertCall}\n    }`,
 			);
 		}
 	}
 
 	// Function handlers
 	for (const fn of publicFunctions) {
+		const sourceName = toCamel(fn.name);
 		const tableName = toSnake(fn.name);
+		sourceEntries.push(
+			`    ${sourceName}: { type: 'contract_call', contractId: '${contractId}', functionName: '${fn.name}' }`,
+		);
 		const insertCall = buildInsertCall(tableName, fn.args);
 		handlerEntries.push(
-			`    '${contractId}::${fn.name}': async (event, ctx) => {\n${insertCall}\n    }`,
+			`    ${sourceName}: async (event, ctx) => {\n${insertCall}\n    }`,
 		);
 	}
 
+	const sourcesBlock = sourceEntries.join(",\n");
 	const handlersBlock = handlerEntries.join(",\n\n");
 
 	return `import { defineSubgraph } from '@secondlayer/subgraphs';
 
 export default defineSubgraph({
   name: '${name}',
-  sources: [${sourceEntries.join(", ")}],
+  sources: {
+${sourcesBlock}
+  },
   schema: {
 ${schemaBlock}
   },
