@@ -20,7 +20,22 @@ $COMPOSE run --rm migrate
 docker rm -f secondlayer-view-processor-1 2>/dev/null || true
 $COMPOSE up -d --remove-orphans api indexer worker subgraph-processor agent caddy
 
-# Health check
-sleep 10
-curl -sf http://localhost:3800/health > /dev/null && echo "api: healthy" || { echo "api: UNHEALTHY"; exit 1; }
-curl -sf http://localhost:3700/health > /dev/null && echo "indexer: healthy" || { echo "indexer: UNHEALTHY"; exit 1; }
+# Health check with retry
+check_health() {
+  local name=$1 url=$2 retries=5 delay=5
+  for i in $(seq 1 $retries); do
+    if curl -sf "$url" > /dev/null 2>&1; then
+      echo "$name: healthy"
+      return 0
+    fi
+    echo "$name: attempt $i/$retries failed, retrying in ${delay}s..."
+    sleep $delay
+  done
+  echo "$name: UNHEALTHY after $retries attempts"
+  docker logs secondlayer-${name}-1 --tail 30 2>&1 || true
+  return 1
+}
+
+sleep 5
+check_health api http://localhost:3800/health
+check_health indexer http://localhost:3700/health
