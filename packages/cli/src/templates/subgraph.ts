@@ -10,15 +10,19 @@ export default defineSubgraph({
   description: "TODO: describe what this subgraph tracks",
 
   // Sources define what blockchain data this subgraph processes.
-  // Each source filters transactions/events by contract, type, function, or event.
-  // Examples:
-  //   { contract: "SP000...::my-contract" }              — all txs to a contract
-  //   { contract: "SP000...::my-contract", event: "transfer" } — specific event
-  //   { type: "stx_transfer", minAmount: 1000000n }      — STX transfers >= 1 STX
-  //   { contract: "*.pox-*" }                             — wildcard contract match
-  sources: [
-    { contract: "SP000000000000000000002Q6VF78.pox-4" },
-  ],
+  // Each source is named — the name becomes the handler key.
+  //
+  // Filter types:
+  //   { type: "ft_transfer", assetIdentifier: "SP...token::token-name" }
+  //   { type: "ft_mint", assetIdentifier: "SP...token::token-name" }
+  //   { type: "contract_call", contractId: "SP...contract", functionName: "swap" }
+  //   { type: "contract_deploy" }
+  //   { type: "print_event", contractId: "SP...contract", topic: "my-event" }
+  //   { type: "stx_transfer", minAmount: 1000000n }
+  //   { type: "nft_transfer", assetIdentifier: "SP...nft::nft-name" }
+  sources: {
+    handler: { type: "contract_call", contractId: "SP000000000000000000002Q6VF78.pox-4" },
+  },
 
   // Schema defines the tables this subgraph creates.
   // Each table gets auto-columns: _id, _block_height, _tx_id, _created_at.
@@ -30,20 +34,18 @@ export default defineSubgraph({
         amount: { type: "uint" },
         memo: { type: "text", nullable: true },
       },
-      // Optional composite indexes
-      // indexes: [["sender", "amount"]],
     },
   },
 
-  // Handlers process matched events and write to your tables via the context.
-  // Keys match source patterns (use sourceKey format), or "*" as catch-all.
-  // Context methods: ctx.insert(), ctx.update(), ctx.delete()
+  // Handlers process matched events. Keys must match source names.
+  // Context: ctx.insert(), ctx.update(), ctx.upsert(), ctx.patch(),
+  //          ctx.patchOrInsert(), ctx.findOne(), ctx.findMany()
   handlers: {
-    "*": async (event, ctx) => {
-      await ctx.insert("data", {
-        sender: event.sender ?? event.tx?.sender,
+    handler: (event, ctx) => {
+      ctx.insert("data", {
+        sender: ctx.tx.sender,
         amount: event.amount ?? 0,
-        memo: event.memo ?? null,
+        memo: null,
       });
     },
   },

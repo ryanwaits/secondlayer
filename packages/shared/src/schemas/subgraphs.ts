@@ -6,7 +6,7 @@ export interface DeploySubgraphRequest {
 	name: string;
 	version?: string;
 	description?: string;
-	sources: string[];
+	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;
 	handlerCode: string;
 	reindex?: boolean;
@@ -20,7 +20,10 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 			.max(63),
 		version: z.string().optional(),
 		description: z.string().optional(),
-		sources: z.array(z.string()).min(1),
+		sources: z.record(z.string(), z.record(z.string(), z.unknown())).refine(
+			(s) => Object.keys(s).length > 0,
+			"Must have at least one source",
+		),
 		schema: z.record(z.string(), z.unknown()),
 		handlerCode: z.string().max(1_048_576, "handler code exceeds 1MB limit"),
 		reindex: z.boolean().optional(),

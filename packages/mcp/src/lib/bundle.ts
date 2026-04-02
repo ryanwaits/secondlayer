@@ -1,4 +1,3 @@
-import { sourceKey } from "@secondlayer/subgraphs";
 import { validateSubgraphDefinition } from "@secondlayer/subgraphs/validate";
 import esbuild from "esbuild";
 
@@ -6,7 +5,7 @@ interface BundleResult {
 	name: string;
 	version?: string;
 	description?: string;
-	sources: string[];
+	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;
 	handlerCode: string;
 }
@@ -55,7 +54,7 @@ export async function bundleSubgraphCode(code: string): Promise<BundleResult> {
 		name: validated.name,
 		version: validated.version,
 		description: validated.description,
-		sources: validated.sources.map(sourceKey),
+		sources: validated.sources as unknown as Record<string, Record<string, unknown>>,
 		schema: validated.schema,
 		handlerCode,
 	};

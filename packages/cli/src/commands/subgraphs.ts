@@ -193,12 +193,11 @@ export function registerSubgraphsCommand(program: Command): void {
 						buildResult.outputFiles![0]!.contents,
 					);
 
-					const { sourceKey } = await import("@secondlayer/subgraphs");
 					const result = await deploySubgraphApi({
 						name: def.name,
 						version: def.version,
 						description: def.description,
-						sources: def.sources.map(sourceKey),
+						sources: def.sources as any,
 						schema: def.schema,
 						handlerCode,
 						reindex: options.reindex,
