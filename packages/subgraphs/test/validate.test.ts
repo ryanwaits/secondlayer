@@ -21,11 +21,11 @@ test("SubgraphNameSchema accepts valid names", () => {
 test("validateSubgraphDefinition accepts valid definition", () => {
 	const def = {
 		name: "test-subgraph",
-		sources: [{ contract: "SP000::contract" }],
+		sources: { handler: { type: "contract_call", contractId: "SP000::contract" } },
 		schema: {
 			data: { columns: { amount: { type: "uint" } } },
 		},
-		handlers: { "*": () => {} },
+		handlers: { handler: () => {} },
 	};
 
 	const result = validateSubgraphDefinition(def);
@@ -36,9 +36,9 @@ test("validateSubgraphDefinition rejects empty schema (no tables)", () => {
 	expect(() =>
 		validateSubgraphDefinition({
 			name: "bad",
-			sources: [{ contract: "SP000::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
 			schema: {},
-			handlers: { "*": () => {} },
+			handlers: { handler: () => {} },
 		}),
 	).toThrow("Schema must have at least one table");
 });
@@ -47,9 +47,9 @@ test("validateSubgraphDefinition rejects table with no columns", () => {
 	expect(() =>
 		validateSubgraphDefinition({
 			name: "bad",
-			sources: [{ contract: "SP000::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
 			schema: { data: { columns: {} } },
-			handlers: { "*": () => {} },
+			handlers: { handler: () => {} },
 		}),
 	).toThrow("Table must have at least one column");
 });
@@ -58,9 +58,9 @@ test("validateSubgraphDefinition rejects source with neither contract nor type",
 	expect(() =>
 		validateSubgraphDefinition({
 			name: "bad",
-			sources: [{ event: "transfer" }],
+			sources: { bad: { event: "transfer" } as any },
 			schema: { data: { columns: { x: { type: "text" } } } },
-			handlers: { "*": () => {} },
+			handlers: { bad: () => {} },
 		}),
 	).toThrow();
 });
@@ -69,9 +69,9 @@ test("validateSubgraphDefinition rejects empty sources array", () => {
 	expect(() =>
 		validateSubgraphDefinition({
 			name: "bad",
-			sources: [],
+			sources: {},
 			schema: { data: { columns: { x: { type: "text" } } } },
-			handlers: { "*": () => {} },
+			handlers: {},
 		}),
 	).toThrow();
 });
@@ -80,9 +80,9 @@ test("validateSubgraphDefinition rejects invalid column type", () => {
 	expect(() =>
 		validateSubgraphDefinition({
 			name: "bad",
-			sources: [{ contract: "SP::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP::c" } },
 			schema: { data: { columns: { x: { type: "invalid" } } } },
-			handlers: { "*": () => {} },
+			handlers: { handler: () => {} },
 		}),
 	).toThrow();
 });
@@ -90,12 +90,12 @@ test("validateSubgraphDefinition rejects invalid column type", () => {
 test("validateSubgraphDefinition accepts multiple tables", () => {
 	const result = validateSubgraphDefinition({
 		name: "multi",
-		sources: [{ contract: "SP::c" }],
+		sources: { handler: { type: "contract_call", contractId: "SP::c" } },
 		schema: {
 			listings: { columns: { price: { type: "uint" } } },
 			sales: { columns: { buyer: { type: "principal" } } },
 		},
-		handlers: { "*": () => {} },
+		handlers: { handler: () => {} },
 	});
 	expect(Object.keys(result.schema)).toEqual(["listings", "sales"]);
 });
@@ -103,27 +103,27 @@ test("validateSubgraphDefinition accepts multiple tables", () => {
 test("validateSubgraphDefinition accepts type-based source", () => {
 	const result = validateSubgraphDefinition({
 		name: "transfers",
-		sources: [{ type: "stx_transfer" }],
+		sources: { stx: { type: "stx_transfer" } },
 		schema: {
 			data: { columns: { amount: { type: "uint" } } },
 		},
-		handlers: { stx_transfer: () => {} },
+		handlers: { stx: () => {} },
 	});
-	expect(result.sources[0]!.type).toBe("stx_transfer");
+	expect(result.sources.stx!.type).toBe("stx_transfer");
 });
 
 test("validateSubgraphDefinition accepts multiple sources", () => {
 	const result = validateSubgraphDefinition({
 		name: "multi-src",
-		sources: [
-			{ contract: "SP::marketplace" },
-			{ contract: "SP::token", event: "transfer" },
-			{ type: "stx_transfer" },
-		],
+		sources: {
+			marketplace: { type: "contract_call", contractId: "SP::marketplace" },
+			transfer: { type: "ft_transfer", assetIdentifier: "SP::token" },
+			stx: { type: "stx_transfer" },
+		},
 		schema: {
 			data: { columns: { x: { type: "text" } } },
 		},
-		handlers: { "*": () => {} },
+		handlers: { marketplace: () => {}, transfer: () => {}, stx: () => {} },
 	});
-	expect(result.sources.length).toBe(3);
+	expect(Object.keys(result.sources).length).toBe(3);
 });

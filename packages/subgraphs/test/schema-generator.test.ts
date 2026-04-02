@@ -4,7 +4,7 @@ import type { SubgraphDefinition } from "../src/types.ts";
 
 const baseDef: SubgraphDefinition = {
 	name: "token-transfers",
-	sources: [{ contract: "SP000::token", event: "transfer" }],
+	sources: { transfer: { type: "ft_transfer", assetIdentifier: "SP000::token" } },
 	schema: {
 		transfers: {
 			columns: {
@@ -15,7 +15,7 @@ const baseDef: SubgraphDefinition = {
 			},
 		},
 	},
-	handlers: { "*": async () => {} },
+	handlers: { transfer: async () => {} },
 };
 
 test("generates CREATE SCHEMA statement", () => {
@@ -85,7 +85,7 @@ test("converts hyphens to underscores in schema name", () => {
 test("generates all column types", () => {
 	const def: SubgraphDefinition = {
 		name: "all-types",
-		sources: [{ contract: "SP::c" }],
+		sources: { handler: { type: "contract_call", contractId: "SP::c" } },
 		schema: {
 			data: {
 				columns: {
@@ -99,7 +99,7 @@ test("generates all column types", () => {
 				},
 			},
 		},
-		handlers: { "*": () => {} },
+		handlers: { handler: () => {} },
 	};
 	const { statements } = generateSubgraphSQL(def);
 	const table = statements[1]!;
@@ -115,7 +115,7 @@ test("generates all column types", () => {
 test("generates multiple tables", () => {
 	const def: SubgraphDefinition = {
 		name: "marketplace",
-		sources: [{ contract: "SP::nft" }],
+		sources: { handler: { type: "contract_call", contractId: "SP::nft" } },
 		schema: {
 			listings: {
 				columns: { price: { type: "uint" } },
@@ -124,7 +124,7 @@ test("generates multiple tables", () => {
 				columns: { buyer: { type: "principal" } },
 			},
 		},
-		handlers: { "*": () => {} },
+		handlers: { handler: () => {} },
 	};
 	const { statements } = generateSubgraphSQL(def);
 	const creates = statements.filter((s) => s.startsWith("CREATE TABLE"));
@@ -136,7 +136,7 @@ test("generates multiple tables", () => {
 test("generates composite indexes", () => {
 	const def: SubgraphDefinition = {
 		name: "indexed",
-		sources: [{ contract: "SP::c" }],
+		sources: { handler: { type: "contract_call", contractId: "SP::c" } },
 		schema: {
 			data: {
 				columns: {
@@ -146,7 +146,7 @@ test("generates composite indexes", () => {
 				indexes: [["seller", "status"]],
 			},
 		},
-		handlers: { "*": () => {} },
+		handlers: { handler: () => {} },
 	};
 	const { statements } = generateSubgraphSQL(def);
 	const compositeIdx = statements.find((s) => s.includes("composite_0"));

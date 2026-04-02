@@ -23,7 +23,7 @@ const PG_SCHEMA = "subgraph_sprint4_test";
 const baseDef: SubgraphDefinition = {
 	name: SUBGRAPH_NAME,
 	version: "1.0.0",
-	sources: [{ contract: "SP123::test" }],
+	sources: { handler: { type: "contract_call", contractId: "SP123::test" } },
 	schema: {
 		transfers: {
 			columns: {
@@ -32,7 +32,7 @@ const baseDef: SubgraphDefinition = {
 			},
 		},
 	},
-	handlers: { "*": async () => {} },
+	handlers: { handler: async () => {} },
 };
 
 async function cleanup() {
@@ -227,7 +227,7 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 		await registerSubgraph(db, {
 			name: SUBGRAPH_NAME,
 			version: "1.0.0",
-			definition: { name: SUBGRAPH_NAME, sources: [{ contract: "SP::c" }] },
+			definition: { name: SUBGRAPH_NAME, sources: { handler: { type: "contract_call", contractId: "SP::c" } } },
 			schemaHash: "abc",
 			handlerPath: "/tmp/handler.ts",
 		});

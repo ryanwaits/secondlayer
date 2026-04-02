@@ -3,12 +3,26 @@ export type {
 	SubgraphColumn,
 	SubgraphTable,
 	SubgraphSchema,
-	SubgraphSource,
 	SubgraphContext,
 	SubgraphHandler,
 	SubgraphDefinition,
+	SubgraphFilter,
+	StxTransferFilter,
+	StxMintFilter,
+	StxBurnFilter,
+	StxLockFilter,
+	FtTransferFilter,
+	FtMintFilter,
+	FtBurnFilter,
+	NftTransferFilter,
+	NftMintFilter,
+	NftBurnFilter,
+	ContractCallFilter,
+	ContractDeployFilter,
+	PrintEventFilter,
+	TxMeta,
+	ComputedValue,
 } from "./types.ts";
-export { sourceKey } from "./types.ts";
 export { defineSubgraph } from "./define.ts";
 export { validateSubgraphDefinition } from "./validate.ts";
 export { generateSubgraphSQL } from "./schema/generator.ts";

@@ -1,7 +1,8 @@
 import type { Database } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
+import { formatUnits } from "@secondlayer/stacks/utils";
 import { type Kysely, type Transaction, sql } from "kysely";
-import type { SubgraphSchema } from "../types.ts";
+import type { ComputedValue, SubgraphSchema } from "../types.ts";
 
 type AnyDb = Kysely<Database> | Transaction<Database>;
 
@@ -25,6 +26,8 @@ export interface TxMeta {
 	sender: string;
 	type: string;
 	status: string;
+	contractId?: string | null;
+	functionName?: string | null;
 }
 
 /** Validate that a column name is safe for SQL identifiers */
@@ -136,6 +139,37 @@ export class SubgraphContext {
 		this.ops.push({ kind: "delete", table, data: where });
 	}
 
+	/** Partial update — sets only specified fields, preserves everything else */
+	patch(
+		table: string,
+		where: Record<string, unknown>,
+		set: Record<string, unknown>,
+	): void {
+		this.update(table, where, set);
+	}
+
+	/**
+	 * Find-then-merge-or-insert. Values can be functions: (existing) => newValue.
+	 * Async because it reads existing row first.
+	 */
+	async patchOrInsert(
+		table: string,
+		key: Record<string, unknown>,
+		row: Record<string, ComputedValue>,
+	): Promise<void> {
+		const existing = await this.findOne(table, key);
+		const resolved: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(row)) {
+			resolved[k] = typeof v === "function" ? v(existing) : v;
+		}
+		this.upsert(table, key, resolved);
+	}
+
+	/** Format a bigint amount with decimal places */
+	formatUnits(value: bigint, decimals: number): string {
+		return formatUnits(value, decimals);
+	}
+
 	// --- Read operations (immediate) ---
 
 	async findOne(
@@ -163,6 +197,103 @@ export class SubgraphContext {
 		return (rows as Record<string, unknown>[]).map((r) =>
 			this.coerceRow(table, r),
 		);
+	}
+
+	// --- Aggregate reads ---
+
+	async count(
+		table: string,
+		where?: Record<string, unknown>,
+	): Promise<number> {
+		this.validateTable(table);
+		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
+		const whereClause = where
+			? `WHERE ${buildWhereClause(where).clause}`
+			: "";
+		const { rows } = await sql
+			.raw(`SELECT COUNT(*)::int AS count FROM ${qualifiedTable} ${whereClause}`)
+			.execute(this.db);
+		return Number((rows as Record<string, unknown>[])[0]?.count ?? 0);
+	}
+
+	async sum(
+		table: string,
+		column: string,
+		where?: Record<string, unknown>,
+	): Promise<bigint> {
+		this.validateTable(table);
+		validateColumnName(column);
+		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
+		const whereClause = where
+			? `WHERE ${buildWhereClause(where).clause}`
+			: "";
+		const { rows } = await sql
+			.raw(
+				`SELECT COALESCE(SUM("${column}"), 0) AS total FROM ${qualifiedTable} ${whereClause}`,
+			)
+			.execute(this.db);
+		return BigInt(
+			(rows as Record<string, unknown>[])[0]?.total?.toString() ?? "0",
+		);
+	}
+
+	async min(
+		table: string,
+		column: string,
+		where?: Record<string, unknown>,
+	): Promise<bigint | null> {
+		this.validateTable(table);
+		validateColumnName(column);
+		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
+		const whereClause = where
+			? `WHERE ${buildWhereClause(where).clause}`
+			: "";
+		const { rows } = await sql
+			.raw(
+				`SELECT MIN("${column}") AS val FROM ${qualifiedTable} ${whereClause}`,
+			)
+			.execute(this.db);
+		const val = (rows as Record<string, unknown>[])[0]?.val;
+		return val != null ? BigInt(val.toString()) : null;
+	}
+
+	async max(
+		table: string,
+		column: string,
+		where?: Record<string, unknown>,
+	): Promise<bigint | null> {
+		this.validateTable(table);
+		validateColumnName(column);
+		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
+		const whereClause = where
+			? `WHERE ${buildWhereClause(where).clause}`
+			: "";
+		const { rows } = await sql
+			.raw(
+				`SELECT MAX("${column}") AS val FROM ${qualifiedTable} ${whereClause}`,
+			)
+			.execute(this.db);
+		const val = (rows as Record<string, unknown>[])[0]?.val;
+		return val != null ? BigInt(val.toString()) : null;
+	}
+
+	async countDistinct(
+		table: string,
+		column: string,
+		where?: Record<string, unknown>,
+	): Promise<number> {
+		this.validateTable(table);
+		validateColumnName(column);
+		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
+		const whereClause = where
+			? `WHERE ${buildWhereClause(where).clause}`
+			: "";
+		const { rows } = await sql
+			.raw(
+				`SELECT COUNT(DISTINCT "${column}")::int AS count FROM ${qualifiedTable} ${whereClause}`,
+			)
+			.execute(this.db);
+		return Number((rows as Record<string, unknown>[])[0]?.count ?? 0);
 	}
 
 	/** Coerce string values from Postgres back to BigInt for uint/int columns */

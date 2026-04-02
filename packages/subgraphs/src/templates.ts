@@ -18,9 +18,9 @@ export const templates: SubgraphTemplate[] = [
 
 export default defineSubgraph({
   name: 'dex-swaps',
-  sources: [
-    { contract: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01', event: 'swap' },
-  ],
+  sources: {
+    swap: { type: 'print_event', contractId: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01', topic: 'swap' },
+  },
   schema: {
     swaps: {
       columns: {
@@ -34,13 +34,13 @@ export default defineSubgraph({
     },
   },
   handlers: {
-    'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01::swap': (event, ctx) => {
+    swap: (event, ctx) => {
       ctx.insert('swaps', {
         sender: ctx.tx.sender,
-        token_x: event.tokenX,
-        token_y: event.tokenY,
-        amount_x: event.dx,
-        amount_y: event.dy,
+        token_x: event.data.tokenX,
+        token_y: event.data.tokenY,
+        amount_x: event.data.dx,
+        amount_y: event.data.dy,
       });
     },
   },
@@ -59,11 +59,11 @@ export default defineSubgraph({
 
 export default defineSubgraph({
   name: 'nft-marketplace',
-  sources: [
-    { contract: 'SP...marketplace', event: 'list-item' },
-    { contract: 'SP...marketplace', event: 'unlist-item' },
-    { contract: 'SP...marketplace', event: 'purchase' },
-  ],
+  sources: {
+    listItem: { type: 'print_event', contractId: 'SP...marketplace', topic: 'list-item' },
+    unlistItem: { type: 'print_event', contractId: 'SP...marketplace', topic: 'unlist-item' },
+    purchase: { type: 'print_event', contractId: 'SP...marketplace', topic: 'purchase' },
+  },
   schema: {
     listings: {
       columns: {
@@ -84,24 +84,24 @@ export default defineSubgraph({
     },
   },
   handlers: {
-    'SP...marketplace::list-item': (event, ctx) => {
-      ctx.upsert('listings', { nft_id: event.nftId }, {
-        nft_id: event.nftId,
+    listItem: (event, ctx) => {
+      ctx.upsert('listings', { nft_id: event.data.nftId }, {
+        nft_id: event.data.nftId,
         seller: ctx.tx.sender,
-        price: event.price,
+        price: event.data.price,
         status: 'active',
       });
     },
-    'SP...marketplace::unlist-item': (event, ctx) => {
-      ctx.update('listings', { nft_id: event.nftId }, { status: 'cancelled' });
+    unlistItem: (event, ctx) => {
+      ctx.update('listings', { nft_id: event.data.nftId }, { status: 'cancelled' });
     },
-    'SP...marketplace::purchase': (event, ctx) => {
-      ctx.update('listings', { nft_id: event.nftId }, { status: 'sold' });
+    purchase: (event, ctx) => {
+      ctx.update('listings', { nft_id: event.data.nftId }, { status: 'sold' });
       ctx.insert('sales', {
-        nft_id: event.nftId,
-        seller: event.seller,
+        nft_id: event.data.nftId,
+        seller: event.data.seller,
         buyer: ctx.tx.sender,
-        price: event.price,
+        price: event.data.price,
       });
     },
   },
@@ -120,9 +120,9 @@ export default defineSubgraph({
 
 export default defineSubgraph({
   name: 'token-transfers',
-  sources: [
-    { contract: 'SP...token', event: 'transfer' },
-  ],
+  sources: {
+    transfer: { type: 'ft_transfer', assetIdentifier: 'SP...token' },
+  },
   schema: {
     transfers: {
       columns: {
@@ -140,7 +140,7 @@ export default defineSubgraph({
     },
   },
   handlers: {
-    'SP...token::transfer': async (event, ctx) => {
+    transfer: async (event, ctx) => {
       ctx.insert('transfers', {
         from_addr: event.sender,
         to_addr: event.recipient,
@@ -152,7 +152,7 @@ export default defineSubgraph({
       const senderPrev = senderBal ? BigInt(senderBal.balance as string) : 0n;
       ctx.upsert('balances', { address: event.sender }, {
         address: event.sender,
-        balance: senderPrev - BigInt(event.amount as string),
+        balance: senderPrev - event.amount,
       });
 
       // Update recipient balance
@@ -160,7 +160,7 @@ export default defineSubgraph({
       const recipPrev = recipBal ? BigInt(recipBal.balance as string) : 0n;
       ctx.upsert('balances', { address: event.recipient }, {
         address: event.recipient,
-        balance: recipPrev + BigInt(event.amount as string),
+        balance: recipPrev + event.amount,
       });
     },
   },
@@ -179,10 +179,10 @@ export default defineSubgraph({
 
 export default defineSubgraph({
   name: 'bns-names',
-  sources: [
-    { contract: 'SP000000000000000000002Q6VF78.bns', function: 'name-register' },
-    { contract: 'SP000000000000000000002Q6VF78.bns', function: 'name-transfer' },
-  ],
+  sources: {
+    nameRegister: { type: 'contract_call', contractId: 'SP000000000000000000002Q6VF78.bns', functionName: 'name-register' },
+    nameTransfer: { type: 'contract_call', contractId: 'SP000000000000000000002Q6VF78.bns', functionName: 'name-transfer' },
+  },
   schema: {
     names: {
       columns: {
@@ -202,22 +202,22 @@ export default defineSubgraph({
     },
   },
   handlers: {
-    'SP000000000000000000002Q6VF78.bns::name-register': (event, ctx) => {
-      ctx.upsert('names', { name: event.name, namespace: event.namespace }, {
-        name: event.name,
-        namespace: event.namespace,
+    nameRegister: (event, ctx) => {
+      ctx.upsert('names', { name: event.args.name, namespace: event.args.namespace }, {
+        name: event.args.name,
+        namespace: event.args.namespace,
         owner: ctx.tx.sender,
       });
     },
-    'SP000000000000000000002Q6VF78.bns::name-transfer': (event, ctx) => {
-      ctx.update('names', { name: event.name, namespace: event.namespace }, {
-        owner: event.newOwner,
+    nameTransfer: (event, ctx) => {
+      ctx.update('names', { name: event.args.name, namespace: event.args.namespace }, {
+        owner: event.args.newOwner,
       });
       ctx.insert('transfers', {
-        name: event.name,
-        namespace: event.namespace,
-        from_addr: event.sender,
-        to_addr: event.newOwner,
+        name: event.args.name,
+        namespace: event.args.namespace,
+        from_addr: event.args.sender,
+        to_addr: event.args.newOwner,
       });
     },
   },
@@ -234,11 +234,13 @@ export default defineSubgraph({
 		category: "token",
 		code: `import { defineSubgraph } from '@secondlayer/subgraphs';
 
-const WHALE_THRESHOLD = 100_000_000_000; // 100k STX in microSTX
+const WHALE_THRESHOLD = 100_000_000_000n; // 100k STX in microSTX
 
 export default defineSubgraph({
   name: 'stx-whales',
-  sources: [{ type: 'stx_transfer' }],
+  sources: {
+    stxTransfer: { type: 'stx_transfer' },
+  },
   schema: {
     whale_transfers: {
       columns: {
@@ -249,9 +251,8 @@ export default defineSubgraph({
     },
   },
   handlers: {
-    stx_transfer: (event, ctx) => {
-      const amount = BigInt(event.amount as string);
-      if (amount >= BigInt(WHALE_THRESHOLD)) {
+    stxTransfer: (event, ctx) => {
+      if (event.amount >= WHALE_THRESHOLD) {
         ctx.insert('whale_transfers', {
           sender: event.sender,
           receiver: event.recipient,

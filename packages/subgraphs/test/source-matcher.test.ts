@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { matchSources } from "../src/runtime/source-matcher.ts";
+import type { SubgraphFilter } from "../src/types.ts";
+
+// ── Test fixtures ───────────────────────────────────────────────────
 
 const txs = [
 	{
@@ -26,6 +29,14 @@ const txs = [
 		contract_id: null,
 		function_name: null,
 	},
+	{
+		tx_id: "tx4",
+		type: "smart_contract",
+		sender: "SP4",
+		status: "success",
+		contract_id: "SP4.my-contract",
+		function_name: null,
+	},
 ];
 
 const events = [
@@ -34,227 +45,355 @@ const events = [
 		tx_id: "tx1",
 		type: "smart_contract_event",
 		event_index: 0,
-		data: { contract_identifier: "SP000.nft-marketplace", topic: "listing" },
+		data: {
+			contract_identifier: "SP000.nft-marketplace",
+			topic: "print",
+			value: "0x01",
+		},
 	},
 	{
 		id: "e2",
 		tx_id: "tx1",
 		type: "nft_transfer_event",
 		event_index: 1,
-		data: { asset_identifier: "SP000.nft-marketplace::nft" },
+		data: {
+			asset_identifier: "SP000.nft-marketplace::nft",
+			sender: "SP1",
+			recipient: "SP5",
+		},
 	},
 	{
 		id: "e3",
 		tx_id: "tx2",
 		type: "ft_transfer_event",
 		event_index: 0,
-		data: { asset_identifier: "SP000.token::my-token" },
+		data: {
+			asset_identifier: "SP000.token::my-token",
+			sender: "SP2",
+			recipient: "SP6",
+			amount: "1000",
+		},
+	},
+	{
+		id: "e4",
+		tx_id: "tx3",
+		type: "stx_transfer_event",
+		event_index: 0,
+		data: { sender: "SP3", recipient: "SP7", amount: "5000000" },
+	},
+	{
+		id: "e5",
+		tx_id: "tx2",
+		type: "ft_mint_event",
+		event_index: 1,
+		data: {
+			asset_identifier: "SP000.token::my-token",
+			recipient: "SP2",
+			amount: "500",
+		},
+	},
+	{
+		id: "e6",
+		tx_id: "tx2",
+		type: "ft_burn_event",
+		event_index: 2,
+		data: {
+			asset_identifier: "SP000.token::my-token",
+			sender: "SP2",
+			amount: "100",
+		},
 	},
 ];
 
+// ── Tests ───────────────────────────────────────────────────────────
+
 describe("matchSources", () => {
-	test("matches by exact contract", () => {
-		const matched = matchSources(
-			[{ contract: "SP000.nft-marketplace" }],
-			txs,
-			events,
-		);
+	// ── Contract call filters ──
+
+	test("matches contract_call by contractId", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			listing: {
+				type: "contract_call",
+				contractId: "SP000.nft-marketplace",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
 		expect(matched[0]!.tx.tx_id).toBe("tx1");
-		expect(matched[0]!.events.length).toBe(2);
-		expect(matched[0]!.sourceKey).toBe("SP000.nft-marketplace");
+		expect(matched[0]!.sourceName).toBe("listing");
 	});
 
-	test("matches by contract with glob", () => {
-		const matched = matchSources([{ contract: "SP000.*" }], txs, events);
+	test("matches contract_call by contractId + functionName", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			list: {
+				type: "contract_call",
+				contractId: "SP000.nft-marketplace",
+				functionName: "list-item",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.tx.function_name).toBe("list-item");
+	});
+
+	test("filters out non-matching function name", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			buy: {
+				type: "contract_call",
+				contractId: "SP000.nft-marketplace",
+				functionName: "buy-item",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(0);
+	});
+
+	test("matches contract_call with wildcard contractId", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			all: { type: "contract_call", contractId: "SP000.*" },
+		};
+		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(2); // tx1 and tx2
 	});
 
-	test("filters by function name", () => {
-		const matched = matchSources(
-			[{ contract: "SP000.nft-marketplace", function: "list-item" }],
-			txs,
-			events,
-		);
+	test("matches contract_call by caller", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			fromSP1: {
+				type: "contract_call",
+				contractId: "SP000.nft-marketplace",
+				caller: "SP1",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.function_name).toBe("list-item");
-		expect(matched[0]!.sourceKey).toBe("SP000.nft-marketplace::list-item");
 	});
 
-	test("filters by event type", () => {
-		const matched = matchSources(
-			[{ contract: "SP000.nft-marketplace", event: "smart_contract_event" }],
-			txs,
-			events,
-		);
+	// ── Contract deploy filters ──
+
+	test("matches contract_deploy", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			deploy: { type: "contract_deploy" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.tx.tx_id).toBe("tx4");
+		expect(matched[0]!.sourceName).toBe("deploy");
+	});
+
+	test("matches contract_deploy by deployer", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			deploy: { type: "contract_deploy", deployer: "SP4" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+	});
+
+	test("matches contract_deploy by contractName", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			deploy: { type: "contract_deploy", contractName: "my-contract" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+	});
+
+	test("filters contract_deploy by wrong deployer", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			deploy: { type: "contract_deploy", deployer: "SP999" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(0);
+	});
+
+	// ── FT event filters ──
+
+	test("matches ft_transfer by assetIdentifier", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			transfer: {
+				type: "ft_transfer",
+				assetIdentifier: "SP000.token::my-token",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.tx.tx_id).toBe("tx2");
+		expect(matched[0]!.events.length).toBe(1);
+		expect(matched[0]!.events[0]!.type).toBe("ft_transfer_event");
+	});
+
+	test("matches ft_mint by assetIdentifier", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			mint: {
+				type: "ft_mint",
+				assetIdentifier: "SP000.token::my-token",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.events[0]!.type).toBe("ft_mint_event");
+	});
+
+	test("matches ft_burn by assetIdentifier", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			burn: {
+				type: "ft_burn",
+				assetIdentifier: "SP000.token::my-token",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.events[0]!.type).toBe("ft_burn_event");
+	});
+
+	test("matches ft_transfer with wildcard assetIdentifier", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			allTransfers: {
+				type: "ft_transfer",
+				assetIdentifier: "SP000.*::*",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+	});
+
+	test("matches ft_transfer with minAmount filter", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			big: {
+				type: "ft_transfer",
+				assetIdentifier: "SP000.token::my-token",
+				minAmount: 500n,
+			},
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1); // amount 1000 >= 500
+
+		const tooHigh: Record<string, SubgraphFilter> = {
+			huge: {
+				type: "ft_transfer",
+				assetIdentifier: "SP000.token::my-token",
+				minAmount: 5000n,
+			},
+		};
+		const none = matchSources(tooHigh, txs, events);
+		expect(none.length).toBe(0); // amount 1000 < 5000
+	});
+
+	test("matches ft_transfer without assetIdentifier (chain-wide)", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			allFt: { type: "ft_transfer" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1); // e3 matches
+	});
+
+	// ── NFT event filters ──
+
+	test("matches nft_transfer by assetIdentifier", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			nft: {
+				type: "nft_transfer",
+				assetIdentifier: "SP000.nft-marketplace::nft",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.events[0]!.type).toBe("nft_transfer_event");
+	});
+
+	// ── STX event filters ──
+
+	test("matches stx_transfer", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			stx: { type: "stx_transfer" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.tx.tx_id).toBe("tx3");
+	});
+
+	test("matches stx_transfer with minAmount", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			whale: { type: "stx_transfer", minAmount: 1000000n },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1); // 5000000 >= 1000000
+
+		const tooHigh: Record<string, SubgraphFilter> = {
+			mega: { type: "stx_transfer", minAmount: 10000000n },
+		};
+		const none = matchSources(tooHigh, txs, events);
+		expect(none.length).toBe(0);
+	});
+
+	test("matches stx_transfer with sender filter", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			fromSP3: { type: "stx_transfer", sender: "SP3" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(1);
+	});
+
+	// ── Print event filters ──
+
+	test("matches print_event by contractId", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			prints: {
+				type: "print_event",
+				contractId: "SP000.nft-marketplace",
+			},
+		};
+		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
 		expect(matched[0]!.events.length).toBe(1);
 		expect(matched[0]!.events[0]!.type).toBe("smart_contract_event");
 	});
 
-	test("filters by topic via event", () => {
-		const matched = matchSources(
-			[{ contract: "SP000.nft-marketplace", event: "listing" }],
-			txs,
-			events,
-		);
+	test("matches print_event with wildcard contractId", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			allPrints: { type: "print_event", contractId: "SP000.*" },
+		};
+		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.events.length).toBe(1);
+	});
+
+	test("filters print_event by wrong contractId", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			wrong: { type: "print_event", contractId: "SP999.unknown" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(0);
+	});
+
+	// ── Multi-source ──
+
+	test("matches multiple named sources", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			calls: { type: "contract_call", contractId: "SP000.nft-marketplace" },
+			deploys: { type: "contract_deploy" },
+			stx: { type: "stx_transfer" },
+		};
+		const matched = matchSources(sources, txs, events);
+		expect(matched.length).toBe(3);
+		const names = matched.map((m) => m.sourceName).sort();
+		expect(names).toEqual(["calls", "deploys", "stx"]);
+	});
+
+	test("deduplicates by tx_id + sourceName", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			a: { type: "contract_call", contractId: "SP000.nft-marketplace" },
+			b: { type: "contract_call", contractId: "SP000.nft-marketplace" },
+		};
+		const matched = matchSources(sources, txs, events);
+		// Same tx matched by two different source names — both kept (different sourceName)
+		expect(matched.length).toBe(2);
+		expect(matched[0]!.sourceName).toBe("a");
+		expect(matched[1]!.sourceName).toBe("b");
 	});
 
 	test("returns empty for no matches", () => {
-		const matched = matchSources([{ contract: "SP999.unknown" }], txs, events);
+		const sources: Record<string, SubgraphFilter> = {
+			nothing: { type: "contract_call", contractId: "SP999.unknown" },
+		};
+		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(0);
-	});
-
-	test("skips tx without matching function", () => {
-		const matched = matchSources(
-			[{ contract: "SP000.nft-marketplace", function: "buy-item" }],
-			txs,
-			events,
-		);
-		expect(matched.length).toBe(0);
-	});
-
-	test("matches events by contract_identifier when tx doesn't match", () => {
-		const extraEvents = [
-			...events,
-			{
-				id: "e4",
-				tx_id: "tx3",
-				type: "smart_contract_event",
-				event_index: 0,
-				data: { contract_identifier: "SP999.special" },
-			},
-		];
-		const matched = matchSources(
-			[{ contract: "SP999.special" }],
-			txs,
-			extraEvents,
-		);
-		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.tx_id).toBe("tx3");
-		expect(matched[0]!.events.length).toBe(1);
-	});
-
-	test("matches FT events by asset_identifier when tx doesn't match", () => {
-		const ftEvents = [
-			...events,
-			{
-				id: "e5",
-				tx_id: "tx3",
-				type: "ft_mint_event",
-				event_index: 0,
-				data: { asset_identifier: "SP999.sbtc-token::sbtc-token", amount: "1000", recipient: "SP1" },
-			},
-		];
-		const matched = matchSources(
-			[{ contract: "SP999.sbtc-token", event: "ft_mint_event" }],
-			txs,
-			ftEvents,
-		);
-		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.tx_id).toBe("tx3");
-		expect(matched[0]!.events.length).toBe(1);
-		expect(matched[0]!.events[0]!.type).toBe("ft_mint_event");
-	});
-
-	test("matches NFT events by asset_identifier when tx doesn't match", () => {
-		const nftEvents = [
-			...events,
-			{
-				id: "e6",
-				tx_id: "tx3",
-				type: "nft_mint_event",
-				event_index: 0,
-				data: { asset_identifier: "SP999.nft-collection::my-nft" },
-			},
-		];
-		const matched = matchSources(
-			[{ contract: "SP999.nft-collection" }],
-			txs,
-			nftEvents,
-		);
-		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.tx_id).toBe("tx3");
-	});
-
-	// New tests for plural sources + type-based matching
-
-	test("matches multiple sources", () => {
-		const matched = matchSources(
-			[{ contract: "SP000.nft-marketplace" }, { contract: "SP000.token" }],
-			txs,
-			events,
-		);
-		expect(matched.length).toBe(2);
-		expect(matched.map((m) => m.tx.tx_id).sort()).toEqual(["tx1", "tx2"]);
-	});
-
-	test("deduplicates by tx_id + sourceKey", () => {
-		// Same source twice should not produce duplicate matches
-		const matched = matchSources(
-			[
-				{ contract: "SP000.nft-marketplace" },
-				{ contract: "SP000.nft-marketplace" },
-			],
-			txs,
-			events,
-		);
-		expect(matched.length).toBe(1);
-	});
-
-	test("matches by transaction type", () => {
-		const matched = matchSources([{ type: "token_transfer" }], txs, events);
-		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.tx_id).toBe("tx3");
-		expect(matched[0]!.sourceKey).toBe("token_transfer");
-	});
-
-	test("matches type-based with minAmount filter", () => {
-		const transferEvents = [
-			{
-				id: "e5",
-				tx_id: "tx3",
-				type: "stx_transfer_event",
-				event_index: 0,
-				data: { amount: "5000000" },
-			},
-		];
-		const matched = matchSources(
-			[{ type: "token_transfer", minAmount: 1000000n }],
-			txs,
-			transferEvents,
-		);
-		expect(matched.length).toBe(1);
-	});
-
-	test("minAmount filters out small amounts", () => {
-		const transferEvents = [
-			{
-				id: "e5",
-				tx_id: "tx3",
-				type: "stx_transfer_event",
-				event_index: 0,
-				data: { amount: "500" },
-			},
-		];
-		const matched = matchSources(
-			[{ type: "token_transfer", minAmount: 1000000n }],
-			txs,
-			transferEvents,
-		);
-		expect(matched.length).toBe(0);
-	});
-
-	test("mixed contract and type sources", () => {
-		const matched = matchSources(
-			[{ contract: "SP000.nft-marketplace" }, { type: "token_transfer" }],
-			txs,
-			events,
-		);
-		expect(matched.length).toBe(2);
-		const keys = matched.map((m) => m.sourceKey).sort();
-		expect(keys).toEqual(["SP000.nft-marketplace", "token_transfer"]);
 	});
 });

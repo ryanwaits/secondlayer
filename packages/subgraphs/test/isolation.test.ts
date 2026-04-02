@@ -39,7 +39,7 @@ const matched: MatchedTx[] = [
 		events: [
 			{ id: "e1", tx_id: "tx1", type: "event", event_index: 0, data: {} },
 		],
-		sourceKey: "SP::c",
+		sourceName: "handler",
 	},
 ];
 
@@ -48,10 +48,10 @@ describe("subgraph isolation", () => {
 		let callCount = 0;
 		const sg: SubgraphDefinition = {
 			name: "slow-subgraph",
-			sources: [{ contract: "SP::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
-				"SP::c": async () => {
+				handler: async () => {
 					callCount++;
 					// Simulate slow handler that exceeds per-event timeout
 					await new Promise((_, reject) =>
@@ -76,7 +76,7 @@ describe("subgraph isolation", () => {
 					event_index: i,
 					data: {},
 				})),
-				sourceKey: "SP::c",
+				sourceName: "handler",
 			},
 		];
 
@@ -93,10 +93,10 @@ describe("subgraph isolation", () => {
 
 		const failingSubgraph: SubgraphDefinition = {
 			name: "failing-subgraph",
-			sources: [{ contract: "SP::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
-				"SP::c": () => {
+				handler: () => {
 					throw new Error("subgraph1 exploded");
 				},
 			},
@@ -104,10 +104,10 @@ describe("subgraph isolation", () => {
 
 		const healthySubgraph: SubgraphDefinition = {
 			name: "healthy-subgraph",
-			sources: [{ contract: "SP::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
-				"SP::c": () => {
+				handler: () => {
 					results.push("healthy processed");
 				},
 			},
@@ -146,10 +146,10 @@ describe("subgraph isolation", () => {
 	test("empty block (0 matched events) does not error", async () => {
 		const sg: SubgraphDefinition = {
 			name: "empty-block-subgraph",
-			sources: [{ contract: "SP::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
-				"SP::c": () => {
+				handler: () => {
 					throw new Error("should not be called");
 				},
 			},
@@ -166,10 +166,10 @@ describe("subgraph isolation", () => {
 
 		const subgraph1: SubgraphDefinition = {
 			name: "subgraph-a",
-			sources: [{ contract: "SP::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
-				"SP::c": () => {
+				handler: () => {
 					results.push("subgraph-a");
 				},
 			},
@@ -177,10 +177,10 @@ describe("subgraph isolation", () => {
 
 		const subgraph2: SubgraphDefinition = {
 			name: "subgraph-b",
-			sources: [{ contract: "SP::c" }],
+			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
-				"SP::c": () => {
+				handler: () => {
 					results.push("subgraph-b");
 				},
 			},

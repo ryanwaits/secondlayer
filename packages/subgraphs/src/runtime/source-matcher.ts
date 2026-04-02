@@ -1,29 +1,31 @@
-import { type SubgraphSource, sourceKey } from "../types.ts";
+import type { SubgraphFilter } from "../types.ts";
 
 export interface MatchedTx {
-	tx: {
-		tx_id: string;
-		type: string;
-		sender: string;
-		status: string;
-		contract_id?: string | null;
-		function_name?: string | null;
-	};
-	events: {
-		id: string;
-		tx_id: string;
-		type: string;
-		event_index: number;
-		data: unknown;
-	}[];
-	/** Which source produced this match — used for handler dispatch */
-	sourceKey: string;
+	tx: TxRecord;
+	events: EventRecord[];
+	/** Source object key — used for handler dispatch */
+	sourceName: string;
 }
 
-/**
- * Check if a string matches a pattern with `*` wildcard support.
- * Compiled RegExp objects are cached to avoid recompilation on every call.
- */
+type TxRecord = {
+	tx_id: string;
+	type: string;
+	sender: string;
+	status: string;
+	contract_id?: string | null;
+	function_name?: string | null;
+};
+
+type EventRecord = {
+	id: string;
+	tx_id: string;
+	type: string;
+	event_index: number;
+	data: unknown;
+};
+
+// ── Wildcard matching (shared with v1) ──────────────────────────────
+
 const patternCache = new Map<string, RegExp>();
 
 function matchPattern(value: string, pattern: string): boolean {
@@ -39,110 +41,220 @@ function matchPattern(value: string, pattern: string): boolean {
 	return re.test(value);
 }
 
-type TxRecord = {
-	tx_id: string;
-	type: string;
-	sender: string;
-	status: string;
-	contract_id?: string | null;
-	function_name?: string | null;
-};
-type EventRecord = {
-	id: string;
-	tx_id: string;
-	type: string;
-	event_index: number;
-	data: unknown;
-};
+// ── Per-filter-type matchers ────────────────────────────────────────
 
-/**
- * Match a single source against transactions and events.
- */
-function matchSource(
-	source: SubgraphSource,
+function matchFilter(
+	filter: SubgraphFilter,
 	transactions: TxRecord[],
 	eventsByTx: Map<string, EventRecord[]>,
-): MatchedTx[] {
-	const results: MatchedTx[] = [];
-	const key = sourceKey(source);
+): { tx: TxRecord; events: EventRecord[] }[] {
+	const results: { tx: TxRecord; events: EventRecord[] }[] = [];
 
-	for (const tx of transactions) {
-		// Type-based matching (e.g., token_transfer → matches tx.type)
-		if (source.type) {
-			if (!matchPattern(tx.type, source.type)) continue;
+	switch (filter.type) {
+		// ── STX events ──
+		case "stx_transfer":
+		case "stx_mint":
+		case "stx_burn":
+		case "stx_lock": {
+			const eventType = `${filter.type}_event`;
+			for (const tx of transactions) {
+				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
+				const matched = txEvents.filter((e) => e.type === eventType);
+				if (matched.length === 0) continue;
 
-			const txEvents = eventsByTx.get(tx.tx_id) ?? [];
-
-			// Collect all events for this tx (type-based sources match the whole tx)
-			let matchedEvents = txEvents;
-
-			// minAmount filter — check events with an amount field
-			if (source.minAmount !== undefined) {
-				const amountEvents = matchedEvents.filter((e) => {
+				// Apply address filters
+				const filtered = matched.filter((e) => {
 					const data = e.data as Record<string, unknown> | null;
-					const rawAmount = data?.amount as string | number | undefined;
-					if (rawAmount === undefined) return false;
-					const amount = BigInt(rawAmount);
-					return amount >= source.minAmount!;
+					if (!data) return false;
+					if ("sender" in filter && filter.sender) {
+						if (!matchPattern(data.sender as string, filter.sender))
+							return false;
+					}
+					if ("recipient" in filter && filter.recipient) {
+						if (!matchPattern(data.recipient as string, filter.recipient))
+							return false;
+					}
+					if ("lockedAddress" in filter && filter.lockedAddress) {
+						if (
+							!matchPattern(
+								data.locked_address as string,
+								filter.lockedAddress,
+							)
+						)
+							return false;
+					}
+					// Amount filters
+					if ("minAmount" in filter && filter.minAmount !== undefined) {
+						const amount = BigInt((data.amount ?? data.locked_amount ?? "0") as string);
+						if (amount < filter.minAmount) return false;
+					}
+					if ("maxAmount" in filter && (filter as { maxAmount?: bigint }).maxAmount !== undefined) {
+						const amount = BigInt((data.amount ?? "0") as string);
+						if (amount > (filter as { maxAmount: bigint }).maxAmount) return false;
+					}
+					return true;
 				});
-				if (amountEvents.length === 0) continue;
-				matchedEvents = amountEvents;
-			}
 
-			results.push({ tx, events: matchedEvents, sourceKey: key });
-			continue;
+				if (filtered.length > 0) {
+					results.push({ tx, events: filtered });
+				}
+			}
+			break;
 		}
 
-		// Contract-based matching
-		if (source.contract) {
-			const txContractMatch =
-				tx.contract_id && matchPattern(tx.contract_id, source.contract);
-
-			// Function filter
-			if (source.function && tx.function_name) {
-				if (!matchPattern(tx.function_name, source.function)) continue;
-			} else if (source.function && !tx.function_name) {
-				continue;
-			}
-
-			const txEvents = eventsByTx.get(tx.tx_id) ?? [];
-			let matchedEvents = txEvents;
-
-			if (!txContractMatch) {
-				// Check if any events match the contract
-				matchedEvents = txEvents.filter((e) => {
+		// ── FT events ──
+		case "ft_transfer":
+		case "ft_mint":
+		case "ft_burn": {
+			const eventType = `${filter.type}_event`;
+			for (const tx of transactions) {
+				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
+				const matched = txEvents.filter((e) => {
+					if (e.type !== eventType) return false;
 					const data = e.data as Record<string, unknown> | null;
-					// smart_contract_event uses contract_identifier
-					const contractId = data?.contract_identifier as string | undefined;
-					if (contractId && matchPattern(contractId, source.contract!)) {
-						return true;
-					}
-					// FT/NFT events use asset_identifier (format: "contract::asset-name")
-					const assetId = data?.asset_identifier as string | undefined;
-					if (assetId) {
-						const contract = assetId.split("::")[0];
-						if (contract && matchPattern(contract, source.contract!)) {
-							return true;
-						}
-					}
-					return false;
-				});
-				if (matchedEvents.length === 0) continue;
-			}
+					if (!data) return false;
 
-			// Event type / topic filter
-			if (source.event) {
-				matchedEvents = matchedEvents.filter((e) => {
-					if (matchPattern(e.type, source.event!)) return true;
+					// Asset identifier filter
+					if (filter.assetIdentifier) {
+						const assetId = data.asset_identifier as string | undefined;
+						if (!assetId || !matchPattern(assetId, filter.assetIdentifier))
+							return false;
+					}
+					// Address filters
+					if ("sender" in filter && filter.sender) {
+						if (!matchPattern(data.sender as string, filter.sender))
+							return false;
+					}
+					if ("recipient" in filter && filter.recipient) {
+						if (!matchPattern(data.recipient as string, filter.recipient))
+							return false;
+					}
+					// Amount filter
+					if (filter.minAmount !== undefined) {
+						const amount = BigInt((data.amount ?? "0") as string);
+						if (amount < filter.minAmount) return false;
+					}
+					return true;
+				});
+
+				if (matched.length > 0) {
+					results.push({ tx, events: matched });
+				}
+			}
+			break;
+		}
+
+		// ── NFT events ──
+		case "nft_transfer":
+		case "nft_mint":
+		case "nft_burn": {
+			const eventType = `${filter.type}_event`;
+			for (const tx of transactions) {
+				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
+				const matched = txEvents.filter((e) => {
+					if (e.type !== eventType) return false;
 					const data = e.data as Record<string, unknown> | null;
-					const topic = data?.topic as string | undefined;
-					return topic ? matchPattern(topic, source.event!) : false;
-				});
-			}
+					if (!data) return false;
 
-			if (txContractMatch || matchedEvents.length > 0) {
-				results.push({ tx, events: matchedEvents, sourceKey: key });
+					if (filter.assetIdentifier) {
+						const assetId = data.asset_identifier as string | undefined;
+						if (!assetId || !matchPattern(assetId, filter.assetIdentifier))
+							return false;
+					}
+					if ("sender" in filter && filter.sender) {
+						if (!matchPattern(data.sender as string, filter.sender))
+							return false;
+					}
+					if ("recipient" in filter && filter.recipient) {
+						if (!matchPattern(data.recipient as string, filter.recipient))
+							return false;
+					}
+					return true;
+				});
+
+				if (matched.length > 0) {
+					results.push({ tx, events: matched });
+				}
 			}
+			break;
+		}
+
+		// ── Contract call ──
+		case "contract_call": {
+			for (const tx of transactions) {
+				if (tx.type !== "contract_call") continue;
+
+				// Contract filter
+				if (filter.contractId) {
+					if (!tx.contract_id || !matchPattern(tx.contract_id, filter.contractId))
+						continue;
+				}
+				// Function filter
+				if (filter.functionName) {
+					if (
+						!tx.function_name ||
+						!matchPattern(tx.function_name, filter.functionName)
+					)
+						continue;
+				}
+				// Caller filter
+				if (filter.caller) {
+					if (!matchPattern(tx.sender, filter.caller)) continue;
+				}
+
+				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
+				results.push({ tx, events: txEvents });
+			}
+			break;
+		}
+
+		// ── Contract deploy ──
+		case "contract_deploy": {
+			for (const tx of transactions) {
+				if (tx.type !== "smart_contract") continue;
+
+				if (filter.deployer) {
+					if (!matchPattern(tx.sender, filter.deployer)) continue;
+				}
+				if (filter.contractName) {
+					const name = tx.contract_id?.split(".")[1] ?? "";
+					if (!matchPattern(name, filter.contractName)) continue;
+				}
+
+				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
+				results.push({ tx, events: txEvents });
+			}
+			break;
+		}
+
+		// ── Print event ──
+		case "print_event": {
+			for (const tx of transactions) {
+				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
+				const matched = txEvents.filter((e) => {
+					if (e.type !== "smart_contract_event") return false;
+					const data = e.data as Record<string, unknown> | null;
+					if (!data) return false;
+					if (data.topic !== "print") return false;
+
+					// Contract filter
+					if (filter.contractId) {
+						const contractId = data.contract_identifier as string | undefined;
+						if (!contractId || !matchPattern(contractId, filter.contractId))
+							return false;
+					}
+					// Topic filter — check the decoded Clarity value's topic field
+					// At this stage data.value is still raw hex; topic filtering happens
+					// after decode in the runner. For now, skip topic filtering here.
+					// The runner will filter by topic after decoding.
+					return true;
+				});
+
+				if (matched.length > 0) {
+					results.push({ tx, events: matched });
+				}
+			}
+			break;
 		}
 	}
 
@@ -150,11 +262,11 @@ function matchSource(
 }
 
 /**
- * Match all sources against a block's transactions and events.
- * Deduplicates by (txId, sourceKey) — each handler key fires at most once per tx.
+ * Match named filters against a block's transactions and events.
+ * Returns matches with sourceName = the object key from sources.
  */
 export function matchSources(
-	sources: SubgraphSource[],
+	sources: Record<string, SubgraphFilter>,
 	transactions: TxRecord[],
 	events: EventRecord[],
 ): MatchedTx[] {
@@ -169,13 +281,13 @@ export function matchSources(
 	const seen = new Set<string>();
 	const results: MatchedTx[] = [];
 
-	for (const source of sources) {
-		const matches = matchSource(source, transactions, eventsByTx);
+	for (const [sourceName, filter] of Object.entries(sources)) {
+		const matches = matchFilter(filter, transactions, eventsByTx);
 		for (const match of matches) {
-			const dedupeKey = `${match.tx.tx_id}:${match.sourceKey}`;
+			const dedupeKey = `${match.tx.tx_id}:${sourceName}`;
 			if (!seen.has(dedupeKey)) {
 				seen.add(dedupeKey);
-				results.push(match);
+				results.push({ ...match, sourceName });
 			}
 		}
 	}

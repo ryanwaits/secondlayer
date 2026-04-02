@@ -3,7 +3,7 @@ import type {
 	ColumnType,
 	SubgraphColumn,
 	SubgraphDefinition,
-	SubgraphSource,
+	SubgraphFilter,
 	SubgraphTable,
 } from "./types.ts";
 
@@ -52,27 +52,45 @@ export const SubgraphSchemaSchema: z.ZodType<Record<string, SubgraphTable>> = z
 		"Schema must have at least one table",
 	) as z.ZodType<Record<string, SubgraphTable>>;
 
-export const SubgraphSourceSchema: z.ZodType<SubgraphSource> = z
+const VALID_FILTER_TYPES = [
+	"stx_transfer", "stx_mint", "stx_burn", "stx_lock",
+	"ft_transfer", "ft_mint", "ft_burn",
+	"nft_transfer", "nft_mint", "nft_burn",
+	"contract_call", "contract_deploy", "print_event",
+] as const;
+
+export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> = z
 	.object({
-		contract: z.string().optional(),
-		event: z.string().optional(),
-		function: z.string().optional(),
-		type: z.string().optional(),
+		type: z.enum(VALID_FILTER_TYPES),
+		// All optional fields across all filter types
+		sender: z.string().optional(),
+		recipient: z.string().optional(),
 		minAmount: z.bigint().optional(),
+		maxAmount: z.bigint().optional(),
+		assetIdentifier: z.string().optional(),
+		contractId: z.string().optional(),
+		functionName: z.string().optional(),
+		caller: z.string().optional(),
+		deployer: z.string().optional(),
+		contractName: z.string().optional(),
+		topic: z.string().optional(),
+		lockedAddress: z.string().optional(),
+		abi: z.record(z.string(), z.any()).optional(),
 	})
-	.refine(
-		(s) => s.contract || s.type,
-		"Source must specify at least 'contract' or 'type'",
-	) as z.ZodType<SubgraphSource>;
+	.passthrough() as unknown as z.ZodType<SubgraphFilter>;
 
 export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
 	{
 		name: SubgraphNameSchema,
 		version: z.string().optional(),
 		description: z.string().optional(),
+		startBlock: z.number().int().nonnegative().optional(),
 		sources: z
-			.array(SubgraphSourceSchema)
-			.min(1, "Must have at least one source"),
+			.record(z.string(), SubgraphFilterSchema)
+			.refine(
+				(s) => Object.keys(s).length > 0,
+				"Must have at least one source",
+			),
 		schema: SubgraphSchemaSchema,
 		handlers: z.record(z.string(), z.any()),
 	},

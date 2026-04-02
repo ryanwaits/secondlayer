@@ -15,7 +15,7 @@ export default defineSubgraph({
 	version: "1.0.0",
 	description: "Tracks all smart contract deployments on Stacks",
 
-	sources: [{ type: "smart_contract" }],
+	sources: { deploy: { type: "contract_deploy" } },
 
 	schema: {
 		contracts: {
@@ -31,7 +31,7 @@ export default defineSubgraph({
 	},
 
 	handlers: {
-		smart_contract: async (event, ctx) => {
+		deploy: async (event, ctx) => {
 			const tx = (event as any).tx;
 			const contractId = tx?.contractId ?? ctx.tx.sender;
 			const name = contractId.includes(".")

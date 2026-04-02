@@ -10,11 +10,10 @@ import type { SubgraphDefinition, SubgraphSchema } from "./types.ts";
  * ```ts
  * export default defineSubgraph({
  *   name: "my-subgraph",
- *   sources: [{ contract: "SP000...::my-contract" }],
+ *   sources: { transfer: { type: "ft_transfer", assetIdentifier: "SP...::token" } },
  *   schema: { transfers: { columns: { amount: { type: "uint" } } } },
- *   handlers: { "*": (event, ctx) => { ... } }
+ *   handlers: { transfer: (event, ctx) => { ... } }
  * })
- * // typeof result.schema.transfers.columns.amount.type → "uint" (not string)
  * ```
  */
 export function defineSubgraph<S extends SubgraphSchema>(

@@ -5,7 +5,7 @@ import type { SubgraphDefinition } from "../src/types.ts";
 test("defineSubgraph returns the same definition", () => {
 	const def: SubgraphDefinition = {
 		name: "test-subgraph",
-		sources: [{ contract: "SP000::my-contract", event: "transfer" }],
+		sources: { transfer: { type: "ft_transfer", assetIdentifier: "SP000::my-contract" } },
 		schema: {
 			transfers: {
 				columns: {
@@ -14,7 +14,7 @@ test("defineSubgraph returns the same definition", () => {
 				},
 			},
 		},
-		handlers: { "*": async () => {} },
+		handlers: { transfer: async () => {} },
 	};
 
 	const result = defineSubgraph(def);
@@ -28,11 +28,11 @@ test("defineSubgraph preserves optional fields", () => {
 		name: "versioned",
 		version: "2.0.0",
 		description: "A test subgraph",
-		sources: [{ contract: "SP000::contract" }],
+		sources: { handler: { type: "contract_call", contractId: "SP000::contract" } },
 		schema: {
 			data: { columns: { value: { type: "text" } } },
 		},
-		handlers: { "*": () => {} },
+		handlers: { handler: () => {} },
 	});
 
 	expect(def.version).toBe("2.0.0");
@@ -42,7 +42,7 @@ test("defineSubgraph preserves optional fields", () => {
 test("defineSubgraph supports multiple tables", () => {
 	const def = defineSubgraph({
 		name: "marketplace",
-		sources: [{ contract: "SP000::nft-marketplace" }],
+		sources: { handler: { type: "contract_call", contractId: "SP000::nft-marketplace" } },
 		schema: {
 			listings: {
 				columns: {
@@ -60,7 +60,7 @@ test("defineSubgraph supports multiple tables", () => {
 				},
 			},
 		},
-		handlers: { "*": async () => {} },
+		handlers: { handler: async () => {} },
 	});
 
 	expect(Object.keys(def.schema)).toEqual(["listings", "sales"]);
@@ -70,21 +70,21 @@ test("defineSubgraph supports multiple tables", () => {
 test("defineSubgraph supports multiple sources with keyed handlers", () => {
 	const def = defineSubgraph({
 		name: "multi-source",
-		sources: [
-			{ contract: "SP000::marketplace", event: "listing" },
-			{ contract: "SP000::marketplace", event: "sale" },
-			{ type: "stx_transfer" },
-		],
+		sources: {
+			listing: { type: "ft_transfer", assetIdentifier: "SP000::marketplace" },
+			sale: { type: "ft_transfer", assetIdentifier: "SP000::marketplace" },
+			stx: { type: "stx_transfer" },
+		},
 		schema: {
 			data: { columns: { value: { type: "text" } } },
 		},
 		handlers: {
-			"SP000::marketplace::listing": async () => {},
-			"SP000::marketplace::sale": async () => {},
-			stx_transfer: async () => {},
+			listing: async () => {},
+			sale: async () => {},
+			stx: async () => {},
 		},
 	});
 
-	expect(def.sources.length).toBe(3);
+	expect(Object.keys(def.sources).length).toBe(3);
 	expect(Object.keys(def.handlers).length).toBe(3);
 });
