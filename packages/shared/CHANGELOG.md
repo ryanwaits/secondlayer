@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 0.10.1
+
+### Patch Changes
+
+- 885662d: feat(subgraphs): named-object sources with SubgraphFilter discriminated union
+
+  Breaking: sources changed from `SubgraphSource[]` to `Record<string, SubgraphFilter>`. Handler keys are now source names, not derived sourceKey strings. Event data auto-unwrapped via cvToValue. New context methods: patch, patchOrInsert, formatUnits, aggregates.
+
 ## 0.10.0
 
 ### Minor Changes
