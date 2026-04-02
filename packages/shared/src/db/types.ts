@@ -21,6 +21,8 @@ export interface TransactionsTable {
 	status: string;
 	contract_id: string | null;
 	function_name: string | null;
+	function_args: Generated<unknown | null>;
+	raw_result: Generated<string | null>;
 	raw_tx: string;
 	created_at: Generated<Date>;
 }
