@@ -117,6 +117,7 @@ interface TxRow {
 	status: number;
 	sender_address: string;
 	raw_tx: Buffer;
+	raw_result: Buffer | null;
 	event_count: number;
 	contract_call_contract_id: string | null;
 	contract_call_function_name: string | null;
@@ -164,7 +165,7 @@ export class HiroPgClient {
 
 		// 2. Transactions
 		const txs = await this.sql<TxRow[]>`
-      SELECT tx_id, tx_index, type_id, status, sender_address, raw_tx, event_count,
+      SELECT tx_id, tx_index, type_id, status, sender_address, raw_tx, raw_result, event_count,
              contract_call_contract_id, contract_call_function_name, smart_contract_contract_id
       FROM ${this.sql(SCHEMA)}.txs
       WHERE block_height = ${height} AND canonical = true AND microblock_canonical = true
@@ -176,6 +177,7 @@ export class HiroPgClient {
 			const entry: any = {
 				txid: toHex(tx.tx_id),
 				raw_tx: options?.includeRawTx ? toHex(tx.raw_tx) : "0x00",
+				raw_result: tx.raw_result ? toHex(tx.raw_result) : undefined,
 				status: mapTxStatus(tx.status),
 				tx_index: tx.tx_index,
 				tx_type: txType,
@@ -395,7 +397,7 @@ export class HiroPgClient {
 
 		// 2. All transactions
 		const txs = await this.sql`
-      SELECT tx_id, tx_index, type_id, status, sender_address, raw_tx, event_count, block_height,
+      SELECT tx_id, tx_index, type_id, status, sender_address, raw_tx, raw_result, event_count, block_height,
              contract_call_contract_id, contract_call_function_name, smart_contract_contract_id
       FROM ${this.sql(SCHEMA)}.txs
       WHERE block_height = ANY(${heights}) AND canonical = true AND microblock_canonical = true
@@ -408,6 +410,7 @@ export class HiroPgClient {
 			const entry: any = {
 				txid: toHex(tx.tx_id),
 				raw_tx: options?.includeRawTx ? toHex(tx.raw_tx) : "0x00",
+				raw_result: tx.raw_result ? toHex(tx.raw_result) : undefined,
 				status: mapTxStatus(tx.status),
 				tx_index: tx.tx_index,
 				tx_type: txType,

@@ -31,6 +31,8 @@ interface ReplayTransactionPayload {
 	tx_index: number;
 	tx_type?: string;
 	sender_address?: string;
+	raw_result?: string | null;
+	contract_call?: { function_args: string[] };
 }
 
 interface ReplayEventPayload {
@@ -85,14 +87,27 @@ export class LocalClient {
 			burn_block_timestamp: block.timestamp,
 			miner_txid: "",
 			timestamp: block.timestamp,
-			transactions: transactions.map((tx) => ({
-				txid: tx.tx_id,
-				raw_tx: tx.raw_tx,
-				status: tx.status,
-				tx_index: tx.tx_index,
-				tx_type: tx.type,
-				sender_address: tx.sender,
-			})),
+			transactions: transactions.map((tx) => {
+				const entry: ReplayTransactionPayload = {
+					txid: tx.tx_id,
+					raw_tx: tx.raw_tx,
+					status: tx.status,
+					tx_index: tx.tx_index,
+					tx_type: tx.type,
+					sender_address: tx.sender,
+					raw_result: tx.raw_result ?? null,
+				};
+				// Include function_args if stored (for contract_call txs)
+				if (tx.function_args) {
+					const args = typeof tx.function_args === "string"
+						? JSON.parse(tx.function_args)
+						: tx.function_args;
+					if (Array.isArray(args)) {
+						entry.contract_call = { function_args: args };
+					}
+				}
+				return entry;
+			}),
 			events: events.map((evt) => {
 				const data = (evt.data ?? {}) as Record<string, unknown>;
 				const eventType = evt.type;
