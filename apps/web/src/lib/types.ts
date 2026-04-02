@@ -83,11 +83,9 @@ export interface SystemStatus {
 	timestamp: string;
 }
 
-export interface SubgraphSource {
-	contract: string;
-	function?: string;
-	event?: string;
-	type?: string;
+export interface SubgraphFilter {
+	type: string;
+	[key: string]: unknown;
 }
 
 export interface SubgraphDetail {
@@ -96,7 +94,7 @@ export interface SubgraphDetail {
 	status: string;
 	lastProcessedBlock: number | null;
 	description?: string;
-	sources?: SubgraphSource[];
+	sources?: Record<string, SubgraphFilter>;
 	definition?: Record<string, unknown>;
 	health: {
 		totalProcessed: number;

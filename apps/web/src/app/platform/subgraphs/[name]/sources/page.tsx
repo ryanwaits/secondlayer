@@ -24,7 +24,7 @@ export default async function SubgraphSourcesPage({
 
 	const sources = subgraph.sources;
 
-	if (!sources || sources.length === 0) {
+	if (!sources || Object.keys(sources).length === 0) {
 		return (
 			<>
 				<p className="dash-page-desc">
@@ -43,29 +43,40 @@ export default async function SubgraphSourcesPage({
 		);
 	}
 
-	// Group sources by contract
-	const byContract = new Map<string, string[]>();
-	for (const src of sources) {
-		const fns = byContract.get(src.contract) ?? [];
-		const label = src.function ?? src.event ?? src.type ?? "unknown";
-		if (!fns.includes(label)) fns.push(label);
-		byContract.set(src.contract, fns);
-	}
-
 	return (
 		<>
-			{Array.from(byContract.entries()).map(([contract, fns]) => (
-				<div key={contract} className="source-card">
+			{Object.entries(sources).map(([sourceName, filter]) => (
+				<div key={sourceName} className="source-card">
 					<div className="source-contract">
-						<span className="source-contract-label">Contract</span>
-						{contract}
+						<span className="source-contract-label">{sourceName}</span>
+						{filter.type}
 					</div>
 					<div className="source-fns">
-						{fns.map((fn) => (
-							<span key={fn} className="source-fn">
-								{fn}
+						{filter.contractId && (
+							<span className="source-fn">
+								{filter.contractId as string}
 							</span>
-						))}
+						)}
+						{filter.assetIdentifier && (
+							<span className="source-fn">
+								{filter.assetIdentifier as string}
+							</span>
+						)}
+						{filter.functionName && (
+							<span className="source-fn">
+								{filter.functionName as string}
+							</span>
+						)}
+						{filter.topic && (
+							<span className="source-fn">
+								topic: {filter.topic as string}
+							</span>
+						)}
+						{filter.minAmount && (
+							<span className="source-fn">
+								min: {String(filter.minAmount)}
+							</span>
+						)}
 					</div>
 				</div>
 			))}
