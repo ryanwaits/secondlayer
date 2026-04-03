@@ -1,9 +1,14 @@
 import { getDb } from "@secondlayer/shared/db";
-import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
+import {
+	getAccountById,
+	isSlugTaken,
+	updateAccountProfile,
+} from "@secondlayer/shared/db/queries/accounts";
 import {
 	checkLimits,
 	getDailyUsage,
 } from "@secondlayer/shared/db/queries/usage";
+import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/marketplace";
 import { AuthenticationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 
@@ -26,6 +31,10 @@ app.get("/me", async (c) => {
 		id: account.id,
 		email: account.email,
 		plan: account.plan,
+		displayName: account.display_name,
+		bio: account.bio,
+		slug: account.slug,
+		avatarUrl: account.avatar_url,
 		createdAt: account.created_at.toISOString(),
 	});
 });
@@ -53,6 +62,39 @@ app.get("/usage", async (c) => {
 			storageBytes: result.current.storageBytes,
 		},
 		daily,
+	});
+});
+
+// PATCH /api/accounts/me — update profile (display_name, bio, slug)
+app.patch("/me", async (c) => {
+	const accountId = requireAccountId(c);
+	const db = getDb();
+
+	const body = await c.req.json();
+	const parsed = UpdateProfileRequestSchema.safeParse(body);
+	if (!parsed.success) {
+		return c.json({ error: parsed.error.issues }, 400);
+	}
+
+	const data = parsed.data;
+
+	// Check slug uniqueness if changing
+	if (data.slug) {
+		const taken = await isSlugTaken(db, data.slug, accountId);
+		if (taken) {
+			return c.json({ error: "Slug already taken" }, 409);
+		}
+	}
+
+	const updated = await updateAccountProfile(db, accountId, data);
+
+	return c.json({
+		id: updated.id,
+		email: updated.email,
+		displayName: updated.display_name,
+		bio: updated.bio,
+		slug: updated.slug,
+		avatarUrl: updated.avatar_url,
 	});
 });
 
