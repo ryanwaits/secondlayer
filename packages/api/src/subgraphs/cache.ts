@@ -82,6 +82,19 @@ export class SubgraphRegistryCache {
 		return all.filter((v) => !v.api_key_id || keySet.has(v.api_key_id));
 	}
 
+	/** Get all public subgraphs (for marketplace browsing) */
+	getPublic(): Subgraph[] {
+		return Array.from(this.subgraphs.values()).filter((v) => v.is_public);
+	}
+
+	/** Get a single public subgraph by name (no ownership check) */
+	getPublicByName(name: string): Subgraph | undefined {
+		for (const v of this.subgraphs.values()) {
+			if (v.name === name && v.is_public) return v;
+		}
+		return undefined;
+	}
+
 	get isLoaded(): boolean {
 		return this.loaded;
 	}

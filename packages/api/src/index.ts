@@ -14,6 +14,7 @@ import { requestLogger } from "./middleware/logging.ts";
 import { countApiRequests } from "./middleware/usage.ts";
 import accountsRouter from "./routes/accounts.ts";
 import authRouter from "./routes/auth.ts";
+import marketplaceRouter from "./routes/marketplace.ts";
 import insightsRouter from "./routes/insights.ts";
 import logsRouter from "./routes/logs.ts";
 import nodeRouter from "./routes/node.ts";
@@ -45,6 +46,10 @@ app.route("/api/auth", authRouter);
 
 // Waitlist (no auth required)
 app.route("/api/waitlist", waitlistRouter);
+
+// Marketplace (no auth required, IP rate limited)
+app.use("/api/marketplace/*", ipRateLimit(60));
+app.route("/api/marketplace", marketplaceRouter);
 
 // Auth middleware — always mounted, DEV_MODE bypass handled inside middleware
 for (const path of [
