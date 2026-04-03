@@ -1,4 +1,5 @@
 // Streams commands (from @secondlayer/cli)
+export { registerAccountCommand } from "./account.ts";
 export { registerConfigCommand } from "./config.ts";
 export { registerSetupCommand } from "./setup.ts";
 export { registerStreamsCommand } from "./streams.ts";

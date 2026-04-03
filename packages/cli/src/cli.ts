@@ -2,6 +2,7 @@
 import { program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
+	registerAccountCommand,
 	registerAuthCommand,
 	registerConfigCommand,
 	registerDbCommand,
@@ -85,6 +86,9 @@ registerStatusCommand(program);
 
 // Local infrastructure commands
 registerLocalCommand(program);
+
+// Account + auth
+registerAccountCommand(program);
 
 // Utility commands
 registerStackCommand(program);

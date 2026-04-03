@@ -200,6 +200,50 @@ export async function getSubgraphGaps(
 	return (await getClient()).subgraphs.gaps(name, opts);
 }
 
+// ── Account Profile ──────────────────────────────────────────────────
+
+export async function getAccountProfile(): Promise<{
+	id: string;
+	email: string;
+	plan: string;
+	displayName: string | null;
+	bio: string | null;
+	slug: string | null;
+	avatarUrl: string | null;
+	createdAt: string;
+}> {
+	const config = await loadConfig();
+	const baseUrl = resolveApiUrl(config);
+	const res = await fetch(`${baseUrl}/api/accounts/me`, {
+		headers: authHeaders(config),
+	});
+	await assertOk(res);
+	return res.json();
+}
+
+export async function updateAccountProfile(data: {
+	display_name?: string;
+	bio?: string;
+	slug?: string;
+}): Promise<{
+	id: string;
+	email: string;
+	displayName: string | null;
+	bio: string | null;
+	slug: string | null;
+	avatarUrl: string | null;
+}> {
+	const config = await loadConfig();
+	const baseUrl = resolveApiUrl(config);
+	const res = await fetch(`${baseUrl}/api/accounts/me`, {
+		method: "PATCH",
+		headers: authHeaders(config),
+		body: JSON.stringify(data),
+	});
+	await assertOk(res);
+	return res.json();
+}
+
 // ── Marketplace (public, no auth required) ──────────────────────────
 
 export async function browseMarketplace(
