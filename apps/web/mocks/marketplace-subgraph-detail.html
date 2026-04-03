@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>alex-dex-trades — Marketplace — Secondlayer</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;460;500;560&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --text-main: #ececec;
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --border: #2a2a2a;
+  --code-bg: rgba(255, 255, 255, 0.08);
+  --bg-main: #0a0a0a;
+  --bg-elevated: #111111;
+  --accent: #6344F5;
+  --accent-muted: rgba(99, 68, 245, 0.12);
+  --font-sans-stack: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono-stack: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  --font-heading-stack: var(--font-sans-stack);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-sans-stack);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.console-main { max-width: 1100px; margin: 0 auto; padding: 40px 32px; }
+
+/* ── Breadcrumb ───────────────────────────────────────── */
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.breadcrumb a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.breadcrumb a:hover { text-decoration: underline; }
+
+/* ── Subgraph header ──────────────────────────────────── */
+.sg-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.sg-header-left { flex: 1; }
+
+.sg-name {
+  font-family: var(--font-mono-stack);
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.sg-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 700px;
+  margin-bottom: 12px;
+}
+
+.sg-creator {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.sg-creator a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.sg-creator a:hover { text-decoration: underline; }
+
+.sg-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.sg-tag {
+  font-family: var(--font-mono-stack);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  line-height: 1.3;
+}
+
+.sg-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn {
+  font-family: var(--font-sans-stack);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover { opacity: 0.9; }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-main);
+}
+
+.btn-secondary:hover { border-color: var(--text-muted); }
+
+/* ── Badges ───────────────────────────────────────────── */
+.dash-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.dash-badge.active { color: #22c55e; background: rgba(34, 197, 94, 0.08); }
+
+/* ── Stats row ────────────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-family: var(--font-mono-stack);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Section heading ──────────────────────────────────── */
+.dash-section-wrap {
+  position: relative;
+  margin-top: 8px;
+  margin-bottom: 20px;
+}
+
+.dash-section-wrap hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+}
+
+.dash-section-title {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background: var(--bg-main);
+  padding-right: 12px;
+  font-size: 11px;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ── Query chart (sparkline placeholder) ──────────────── */
+.chart-wrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 32px;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.chart-range {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 80px;
+}
+
+.chart-bar {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+  min-height: 2px;
+}
+
+.chart-bar:hover { opacity: 1; }
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Table schemas ────────────────────────────────────── */
+.table-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.table-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
+.table-name {
+  font-family: var(--font-mono-stack);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.table-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-columns {
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 24px;
+}
+
+.table-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.col-name {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  color: var(--text-main);
+}
+
+.col-type {
+  font-family: var(--font-mono-stack);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.table-endpoint {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.endpoint-url {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  color: var(--text-main);
+  background: var(--code-bg);
+  padding: 3px 8px;
+  border-radius: 4px;
+  user-select: all;
+}
+
+/* ── Metadata ─────────────────────────────────────────── */
+.meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-label {
+  font-size: 11px;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.meta-value {
+  font-family: var(--font-mono-stack);
+  font-size: 13px;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 700px) {
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .sg-header { flex-direction: column; }
+  .table-columns { grid-template-columns: 1fr; }
+  .meta-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="console-main">
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb">
+    <a href="marketplace-browse.html">Marketplace</a> / <a href="marketplace-creator.html">@alexbuilder</a> / alex-dex-trades
+  </div>
+
+  <!-- Header -->
+  <div class="sg-header">
+    <div class="sg-header-left">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+        <h1 class="sg-name">alex-dex-trades</h1>
+        <span class="dash-badge active">active</span>
+      </div>
+      <p class="sg-desc">Historical DEX trade data from Alex Lab — swaps, volumes, and price impact across all trading pairs. Indexes swap events from the ALEX AMM contracts and computes per-block price snapshots.</p>
+      <div class="sg-creator">by <a href="marketplace-creator.html">@alexbuilder</a></div>
+      <div class="sg-tags">
+        <span class="sg-tag">defi</span>
+        <span class="sg-tag">dex</span>
+      </div>
+    </div>
+    <div class="sg-actions">
+      <button class="btn btn-secondary">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-2"/><path d="M7 9l7-7M10 2h4v4"/></svg>
+        Copy Config
+      </button>
+      <button class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2v3a1 1 0 01-1 1H2m12-2v10a1 1 0 01-1 1H3a1 1 0 01-1-1V5l4-4h7a1 1 0 011 1z"/></svg>
+        Fork
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Queries (7d)</div>
+      <div class="stat-value">12,438</div>
+      <div class="stat-sub">+18% vs prev week</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Queries (30d)</div>
+      <div class="stat-value">41,207</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Tables</div>
+      <div class="stat-value">3</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Version</div>
+      <div class="stat-value">v4</div>
+      <div class="stat-sub">Last deployed 2d ago</div>
+    </div>
+  </div>
+
+  <!-- Query chart -->
+  <div class="dash-section-wrap">
+    <hr>
+    <h2 class="dash-section-title">Query volume</h2>
+  </div>
+
+  <div class="chart-wrap">
+    <div class="chart-header">
+      <span class="chart-title">Daily queries</span>
+      <span class="chart-range">Last 30 days</span>
+    </div>
+    <div class="chart-bars">
+      <div class="chart-bar" style="height:35%"></div>
+      <div class="chart-bar" style="height:42%"></div>
+      <div class="chart-bar" style="height:38%"></div>
+      <div class="chart-bar" style="height:50%"></div>
+      <div class="chart-bar" style="height:45%"></div>
+      <div class="chart-bar" style="height:55%"></div>
+      <div class="chart-bar" style="height:60%"></div>
+      <div class="chart-bar" style="height:48%"></div>
+      <div class="chart-bar" style="height:52%"></div>
+      <div class="chart-bar" style="height:58%"></div>
+      <div class="chart-bar" style="height:42%"></div>
+      <div class="chart-bar" style="height:65%"></div>
+      <div class="chart-bar" style="height:70%"></div>
+      <div class="chart-bar" style="height:62%"></div>
+      <div class="chart-bar" style="height:55%"></div>
+      <div class="chart-bar" style="height:48%"></div>
+      <div class="chart-bar" style="height:72%"></div>
+      <div class="chart-bar" style="height:78%"></div>
+      <div class="chart-bar" style="height:68%"></div>
+      <div class="chart-bar" style="height:80%"></div>
+      <div class="chart-bar" style="height:75%"></div>
+      <div class="chart-bar" style="height:82%"></div>
+      <div class="chart-bar" style="height:88%"></div>
+      <div class="chart-bar" style="height:85%"></div>
+      <div class="chart-bar" style="height:90%"></div>
+      <div class="chart-bar" style="height:78%"></div>
+      <div class="chart-bar" style="height:92%"></div>
+      <div class="chart-bar" style="height:95%"></div>
+      <div class="chart-bar" style="height:88%"></div>
+      <div class="chart-bar" style="height:100%"></div>
+    </div>
+    <div class="chart-labels">
+      <span>Mar 5</span>
+      <span>Mar 12</span>
+      <span>Mar 19</span>
+      <span>Mar 26</span>
+      <span>Apr 3</span>
+    </div>
+  </div>
+
+  <!-- Table schemas -->
+  <div class="dash-section-wrap">
+    <hr>
+    <h2 class="dash-section-title">Tables &amp; Endpoints</h2>
+  </div>
+
+  <div class="table-list">
+
+    <div class="table-card">
+      <div class="table-header">
+        <span class="table-name">swaps</span>
+        <div class="table-meta">
+          <span>482,319 rows</span>
+          <span>6 columns</span>
+        </div>
+      </div>
+      <div class="table-columns">
+        <div class="table-col"><span class="col-name">tx_id</span> <span class="col-type">text</span></div>
+        <div class="table-col"><span class="col-name">block_height</span> <span class="col-type">integer</span></div>
+        <div class="table-col"><span class="col-name">sender</span> <span class="col-type">text</span></div>
+        <div class="table-col"><span class="col-name">token_in</span> <span class="col-type">text</span></div>
+        <div class="table-col"><span class="col-name">token_out</span> <span class="col-type">text</span></div>
+        <div class="table-col"><span class="col-name">amount_in</span> <span class="col-type">numeric</span></div>
+      </div>
+      <div class="table-endpoint">
+        Endpoint
+        <span class="endpoint-url">/api/marketplace/subgraphs/alex-dex-trades/swaps</span>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <span class="table-name">volumes_daily</span>
+        <div class="table-meta">
+          <span>1,247 rows</span>
+          <span>5 columns</span>
+        </div>
+      </div>
+      <div class="table-columns">
+        <div class="table-col"><span class="col-name">date</span> <span class="col-type">date</span></div>
+        <div class="table-col"><span class="col-name">pair</span> <span class="col-type">text</span></div>
+        <div class="table-col"><span class="col-name">volume_usd</span> <span class="col-type">numeric</span></div>
+        <div class="table-col"><span class="col-name">trade_count</span> <span class="col-type">integer</span></div>
+        <div class="table-col"><span class="col-name">avg_price_impact</span> <span class="col-type">numeric</span></div>
+      </div>
+      <div class="table-endpoint">
+        Endpoint
+        <span class="endpoint-url">/api/marketplace/subgraphs/alex-dex-trades/volumes_daily</span>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <span class="table-name">price_snapshots</span>
+        <div class="table-meta">
+          <span>89,412 rows</span>
+          <span>4 columns</span>
+        </div>
+      </div>
+      <div class="table-columns">
+        <div class="table-col"><span class="col-name">block_height</span> <span class="col-type">integer</span></div>
+        <div class="table-col"><span class="col-name">pair</span> <span class="col-type">text</span></div>
+        <div class="table-col"><span class="col-name">price</span> <span class="col-type">numeric</span></div>
+        <div class="table-col"><span class="col-name">timestamp</span> <span class="col-type">timestamptz</span></div>
+      </div>
+      <div class="table-endpoint">
+        Endpoint
+        <span class="endpoint-url">/api/marketplace/subgraphs/alex-dex-trades/price_snapshots</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Metadata -->
+  <div class="dash-section-wrap">
+    <hr>
+    <h2 class="dash-section-title">Details</h2>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-item">
+      <span class="meta-label">Start Block</span>
+      <span class="meta-value">100,000</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Last Processed Block</span>
+      <span class="meta-value">7,482,103</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Created</span>
+      <span class="meta-value">2025-11-14</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Last Updated</span>
+      <span class="meta-value">2026-04-01</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
