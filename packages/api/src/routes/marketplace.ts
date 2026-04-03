@@ -1,3 +1,7 @@
+import { copyFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { requireAuth } from "@secondlayer/auth";
+import { getErrorMessage } from "@secondlayer/shared";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import {
 	getCreatorProfile,
@@ -7,7 +11,10 @@ import {
 	incrementSubgraphQueryCount,
 	listPublicSubgraphs,
 } from "@secondlayer/shared/db/queries/marketplace";
+import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
+import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
+import { getApiKeyId } from "../lib/ownership.ts";
 import { cache } from "./subgraphs.ts";
 import {
 	InvalidColumnError,
@@ -58,6 +65,9 @@ app.get("/subgraphs", async (c) => {
 			status: row.status,
 			version: row.version,
 			tables: Object.keys(schema),
+			totalQueries7d: (row as any).queries_7d ?? 0,
+			forkCount: (row as any).fork_count ?? 0,
+			forkedFrom: !!(row as any).forked_from_id,
 			totalProcessed: row.total_processed,
 			progress:
 				row.last_processed_block > startBlock
@@ -92,7 +102,7 @@ app.get("/subgraphs/:name", async (c) => {
 
 	// Fetch row counts + usage in parallel
 	const db = getDb();
-	const [countResults, usage7d, usage30d, usageDaily, creatorRow] =
+	const [countResults, usage7d, usage30d, usageDaily, creatorRow, forkedFromRow, forkCountRow] =
 		await Promise.all([
 			Promise.allSettled(
 				schemaEntries.map(([tableName]) =>
@@ -114,6 +124,20 @@ app.get("/subgraphs/:name", async (c) => {
 					"accounts.avatar_url",
 				])
 				.where("api_keys.id", "=", subgraph.api_key_id)
+				.executeTakeFirst(),
+			// Resolve forked_from_id to source name
+			subgraph.forked_from_id
+				? db
+						.selectFrom("subgraphs")
+						.select(["id", "name"])
+						.where("id", "=", subgraph.forked_from_id)
+						.executeTakeFirst()
+				: Promise.resolve(null),
+			// Count forks of this subgraph
+			db
+				.selectFrom("subgraphs")
+				.select(db.fn.countAll<number>().as("count"))
+				.where("forked_from_id", "=", subgraph.id)
 				.executeTakeFirst(),
 		]);
 
@@ -157,7 +181,8 @@ app.get("/subgraphs/:name", async (c) => {
 		tables: Object.keys(subgraphSchema),
 		startBlock: subgraph.start_block,
 		lastProcessedBlock: subgraph.last_processed_block,
-		forkedFrom: subgraph.forked_from_id,
+		forkedFrom: forkedFromRow ? { id: forkedFromRow.id, name: forkedFromRow.name } : null,
+		forkCount: Number(forkCountRow?.count ?? 0),
 		sources: def?.sources ?? null,
 		tableSchemas,
 		usage: {
@@ -271,10 +296,136 @@ app.get("/creators/:slug", async (c) => {
 				status: row.status,
 				version: row.version,
 				tables: Object.keys(schema),
+				totalQueries7d: (row as any).queries_7d ?? 0,
 				createdAt: row.created_at.toISOString(),
 			};
 		}),
 	});
+});
+
+// ── Fork a public subgraph (auth required) ────────────────────────────
+
+const DATA_DIR = process.env.DATA_DIR ?? "./data";
+
+app.post("/subgraphs/:name/fork", requireAuth(), async (c) => {
+	const { name } = c.req.param();
+	const db = getDb();
+
+	// Parse optional body
+	let newName = name;
+	try {
+		const body = await c.req.json();
+		if (body?.newName) newName = body.newName;
+	} catch {
+		// No body or invalid JSON — use source name as default
+	}
+
+	// Validate new name format
+	if (!/^[a-z0-9-]+$/.test(newName) || newName.length > 63) {
+		return c.json(
+			{ error: "Name must be lowercase alphanumeric + hyphens, max 63 chars" },
+			400,
+		);
+	}
+
+	// Look up source — must be public
+	const source = await getPublicSubgraph(db, name);
+	if (!source) {
+		return c.json({ error: "Subgraph not found", code: "NOT_FOUND" }, 404);
+	}
+
+	// Verify source handler exists on disk
+	if (!source.handler_path || !existsSync(source.handler_path)) {
+		return c.json(
+			{ error: "Source handler file missing", code: "INTERNAL_ERROR" },
+			500,
+		);
+	}
+
+	// Auth context
+	const apiKeyId = getApiKeyId(c);
+	const apiKey = (c as any).get("apiKey");
+	const keyPrefix = apiKey?.key_prefix;
+
+	// Name collision check
+	const existing = await getSubgraph(db, newName, apiKeyId);
+	if (existing) {
+		return c.json(
+			{ error: `Subgraph "${newName}" already exists` },
+			409,
+		);
+	}
+
+	// Copy handler file
+	const subgraphsDir = join(DATA_DIR, "subgraphs");
+	const newHandlerPath = join(subgraphsDir, `${newName}.js`);
+	try {
+		copyFileSync(source.handler_path, newHandlerPath);
+	} catch (err) {
+		return c.json(
+			{ error: `Failed to copy handler: ${getErrorMessage(err)}` },
+			500,
+		);
+	}
+
+	// Import the copied handler to get definition
+	let def: any;
+	try {
+		const mod = await import(`${newHandlerPath}?t=${Date.now()}`);
+		def = mod.default ?? mod;
+	} catch (err) {
+		return c.json(
+			{ error: `Failed to load handler: ${getErrorMessage(err)}` },
+			500,
+		);
+	}
+
+	// Override name in definition for the fork
+	def.name = newName;
+
+	// Deploy schema (creates PG schema + tables + registers subgraph)
+	const schemaName = keyPrefix
+		? pgSchemaName(newName, keyPrefix)
+		: pgSchemaName(newName);
+
+	const { deploySchema } = await import("@secondlayer/subgraphs");
+	const result = await deploySchema(db, def, newHandlerPath, {
+		apiKeyId,
+		schemaName,
+	});
+
+	// Set forked_from_id (deploySchema doesn't thread this)
+	await db
+		.updateTable("subgraphs")
+		.set({ forked_from_id: source.id })
+		.where("id", "=", result.subgraphId)
+		.execute();
+
+	await cache.refresh();
+
+	// Auto-start indexing
+	if (result.action === "created") {
+		(async () => {
+			try {
+				const { reindexSubgraph } = await import("@secondlayer/subgraphs");
+				await reindexSubgraph(def, { schemaName });
+			} catch (err) {
+				console.error(
+					`Auto-reindex failed for fork ${newName}: ${getErrorMessage(err)}`,
+				);
+			}
+		})();
+	}
+
+	return c.json(
+		{
+			action: "forked",
+			subgraphId: result.subgraphId,
+			name: newName,
+			forkedFrom: name,
+		},
+		201,
+	);
 });
 
 export default app;
