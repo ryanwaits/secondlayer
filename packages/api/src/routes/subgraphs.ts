@@ -9,19 +9,30 @@ import {
 	getGapSummaryBySubgraph,
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import {
+	publishSubgraph,
+	unpublishSubgraph,
+} from "@secondlayer/shared/db/queries/marketplace";
+import {
 	listSubgraphs,
 	pgSchemaName,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
-import type {
-	SubgraphColumn,
-	SubgraphSchema,
-} from "@secondlayer/subgraphs/types";
+import { PublishSubgraphRequestSchema } from "@secondlayer/shared/schemas/marketplace";
 import { Hono } from "hono";
 import { getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
 import { enforceLimits } from "../middleware/enforce-limits.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
+import {
+	MAX_LIMIT,
+	ident,
+	subgraphSchemaName,
+	getValidColumns,
+	getSubgraphSchema,
+	InvalidColumnError,
+	parseQueryParams,
+	buildWhereConditions,
+} from "./subgraph-query-helpers.ts";
 
 const app = new Hono();
 
@@ -29,7 +40,7 @@ const app = new Hono();
 app.post("/", enforceLimits("subgraphs"));
 
 // Subgraph registry cache — auto-refreshes via PG NOTIFY
-const cache = new SubgraphRegistryCache(async () => {
+export const cache = new SubgraphRegistryCache(async () => {
 	const db = getDb();
 	return listSubgraphs(db);
 });
@@ -45,142 +56,6 @@ export async function stopSubgraphCache(): Promise<void> {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
-
-const SYSTEM_COLUMNS = new Set([
-	"_id",
-	"_block_height",
-	"_tx_id",
-	"_created_at",
-]);
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 1000;
-
-const COMPARISON_OPS: Record<string, string> = {
-	gte: ">=",
-	lte: "<=",
-	gt: ">",
-	lt: "<",
-	neq: "!=",
-	like: "ILIKE",
-};
-
-function ident(name: string): string {
-	if (!/^[a-z0-9_]+$/i.test(name)) {
-		throw new Error(`Invalid identifier: ${name}`);
-	}
-	return `"${name}"`;
-}
-
-/** Get the PG schema name for a subgraph, preferring stored schema_name */
-function subgraphSchemaName(subgraph: Subgraph): string {
-	return subgraph.schema_name ?? pgSchemaName(subgraph.name);
-}
-
-function getValidColumns(table: {
-	columns: Record<string, SubgraphColumn>;
-}): Set<string> {
-	const cols = new Set(Object.keys(table.columns));
-	for (const sc of SYSTEM_COLUMNS) cols.add(sc);
-	return cols;
-}
-
-function getSubgraphSchema(subgraph: Subgraph): SubgraphSchema {
-	return (subgraph.definition.schema as SubgraphSchema) ?? {};
-}
-
-class InvalidColumnError extends Error {
-	constructor(column: string) {
-		super(`Unknown column: ${column}`);
-	}
-}
-
-interface ParsedQuery {
-	filters: { column: string; op: string; value: string; isLike?: boolean }[];
-	sort?: string;
-	order: "ASC" | "DESC";
-	limit: number;
-	offset: number;
-	fields?: string[];
-	search?: { value: string; columns: string[] };
-}
-
-function parseQueryParams(
-	params: Record<string, string>,
-	validColumns: Set<string>,
-	tableDef?: { columns: Record<string, SubgraphColumn> },
-): ParsedQuery {
-	const filters: ParsedQuery["filters"] = [];
-	let sort: string | undefined;
-	let order: "ASC" | "DESC" = "ASC";
-	let limit = DEFAULT_LIMIT;
-	let offset = 0;
-	let fields: string[] | undefined;
-	let search: ParsedQuery["search"];
-
-	for (const [key, value] of Object.entries(params)) {
-		if (key === "_search") {
-			const searchCols = tableDef
-				? Object.entries(tableDef.columns)
-						.filter(([, col]) => col.search)
-						.map(([name]) => name)
-				: [];
-			if (searchCols.length > 0) {
-				search = { value, columns: searchCols };
-			}
-			continue;
-		}
-		if (key === "_sort") {
-			if (!validColumns.has(value)) throw new InvalidColumnError(value);
-			sort = value;
-			continue;
-		}
-		if (key === "_order") {
-			order = value.toLowerCase() === "desc" ? "DESC" : "ASC";
-			continue;
-		}
-		if (key === "_limit") {
-			limit = Math.min(
-				Math.max(1, Number.parseInt(value, 10) || DEFAULT_LIMIT),
-				MAX_LIMIT,
-			);
-			continue;
-		}
-		if (key === "_offset") {
-			offset = Math.max(0, Number.parseInt(value, 10) || 0);
-			continue;
-		}
-		if (key === "_fields") {
-			fields = value.split(",").map((f) => f.trim());
-			for (const f of fields) {
-				if (!validColumns.has(f)) throw new InvalidColumnError(f);
-			}
-			continue;
-		}
-
-		// Comparison operators: column.op=value
-		const dotIdx = key.lastIndexOf(".");
-		if (dotIdx > 0) {
-			const col = key.slice(0, dotIdx);
-			const op = key.slice(dotIdx + 1);
-			if (COMPARISON_OPS[op]) {
-				if (!validColumns.has(col)) throw new InvalidColumnError(col);
-				filters.push({
-					column: col,
-					op: COMPARISON_OPS[op]!,
-					value,
-					isLike: op === "like",
-				});
-				continue;
-			}
-		}
-
-		// Equality filter
-		if (!validColumns.has(key)) throw new InvalidColumnError(key);
-		filters.push({ column: key, op: "=", value });
-	}
-
-	return { filters, sort, order, limit, offset, fields, search };
-}
 
 async function query(text: string, params: unknown[] = []) {
 	const client = getRawClient();
@@ -479,6 +354,46 @@ app.post("/:subgraphName/backfill", async (c) => {
 		message: `Backfill started for subgraph "${subgraphName}"`,
 		fromBlock,
 		toBlock,
+	});
+});
+
+// ── Publish / unpublish a subgraph ───────────────────────────────────────
+
+app.post("/:subgraphName/publish", async (c) => {
+	const { subgraphName } = c.req.param();
+	const keyIds = await resolveKeyIds(c);
+	const subgraph = getOwnedSubgraph(subgraphName, keyIds);
+
+	const body = await c.req.json().catch(() => ({}));
+	const parsed = PublishSubgraphRequestSchema.safeParse(body);
+	if (!parsed.success) {
+		return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
+	}
+
+	const db = getDb();
+	await publishSubgraph(db, subgraph.id, parsed.data);
+	await cache.refresh();
+
+	return c.json({
+		message: `Subgraph "${subgraphName}" published`,
+		name: subgraphName,
+		isPublic: true,
+	});
+});
+
+app.post("/:subgraphName/unpublish", async (c) => {
+	const { subgraphName } = c.req.param();
+	const keyIds = await resolveKeyIds(c);
+	const subgraph = getOwnedSubgraph(subgraphName, keyIds);
+
+	const db = getDb();
+	await unpublishSubgraph(db, subgraph.id);
+	await cache.refresh();
+
+	return c.json({
+		message: `Subgraph "${subgraphName}" unpublished`,
+		name: subgraphName,
+		isPublic: false,
 	});
 });
 
@@ -790,38 +705,6 @@ app.get("/:subgraphName/gaps", async (c) => {
 		},
 	});
 });
-
-// ── Query helpers ────────────────────────────────────────────────────────
-
-function buildWhereConditions(
-	parsed: ParsedQuery,
-	params: unknown[],
-): string[] {
-	const conditions: string[] = [];
-
-	for (const f of parsed.filters) {
-		if (f.isLike) {
-			params.push(f.value);
-			conditions.push(
-				`${ident(f.column)} ILIKE '%' || $${params.length} || '%'`,
-			);
-		} else {
-			params.push(f.value);
-			conditions.push(`${ident(f.column)} ${f.op} $${params.length}`);
-		}
-	}
-
-	if (parsed.search) {
-		params.push(parsed.search.value);
-		const idx = params.length;
-		const orClauses = parsed.search.columns.map(
-			(col) => `${ident(col)} ILIKE '%' || $${idx} || '%'`,
-		);
-		conditions.push(`(${orClauses.join(" OR ")})`);
-	}
-
-	return conditions;
-}
 
 // ── Count rows ──────────────────────────────────────────────────────────
 
