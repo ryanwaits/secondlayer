@@ -1,10 +1,11 @@
 import type { Command } from "commander";
 import {
 	browseMarketplace,
+	forkMarketplaceSubgraph,
 	getMarketplaceSubgraph,
 	handleApiError,
 } from "../lib/api-client.ts";
-import { dim, formatKeyValue, formatTable, cyan } from "../lib/output.ts";
+import { cyan, dim, formatKeyValue, formatTable, success } from "../lib/output.ts";
 
 export function registerMarketplaceCommand(program: Command): void {
 	const marketplace = program
@@ -109,6 +110,28 @@ export function registerMarketplaceCommand(program: Command): void {
 				}
 			} catch (err) {
 				handleApiError(err, "view subgraph");
+			}
+		});
+
+	marketplace
+		.command("fork <name>")
+		.description("Fork a public subgraph into your account")
+		.option("--name <newName>", "Name for the forked subgraph")
+		.option("--json", "Output as JSON")
+		.action(async (name: string, options: { name?: string; json?: boolean }) => {
+			try {
+				const result = await forkMarketplaceSubgraph(name, options.name);
+
+				if (options.json) {
+					console.log(JSON.stringify(result, null, 2));
+					return;
+				}
+
+				success(`Forked ${result.forkedFrom} as ${result.name}`);
+				console.log(dim(`Subgraph ID: ${result.subgraphId}`));
+				console.log(dim("Indexing will start automatically from the source's start block."));
+			} catch (err) {
+				handleApiError(err, "fork subgraph");
 			}
 		});
 }

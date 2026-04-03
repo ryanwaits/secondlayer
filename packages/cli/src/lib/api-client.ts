@@ -261,6 +261,18 @@ export async function getMarketplaceSubgraph(
 	return (await getClient()).marketplace.get(name);
 }
 
+export async function forkMarketplaceSubgraph(
+	name: string,
+	newName?: string,
+): Promise<{
+	action: string;
+	subgraphId: string;
+	name: string;
+	forkedFrom: string;
+}> {
+	return (await getClient()).marketplace.fork(name, newName);
+}
+
 export async function publishSubgraphApi(
 	name: string,
 	opts?: { tags?: string[]; description?: string },
