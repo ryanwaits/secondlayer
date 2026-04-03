@@ -20,6 +20,17 @@
   --font-heading-stack: var(--font-sans-stack);
 }
 
+[data-theme="light"] {
+  --text-main: #1a1a1a;
+  --text-muted: rgba(0, 0, 0, 0.45);
+  --border: #e0e0e0;
+  --code-bg: rgba(0, 0, 0, 0.05);
+  --bg-main: #ffffff;
+  --bg-elevated: #f7f7f7;
+  --accent: #5534E0;
+  --accent-muted: rgba(85, 52, 224, 0.08);
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -336,6 +347,30 @@ body {
 }
 
 /* ── Responsive ────────────────────────────────────────── */
+/* ── Theme toggle ─────────────────────────────────────── */
+.theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  z-index: 100;
+}
+
+.theme-toggle:hover { color: var(--text-main); border-color: var(--text-muted); }
+.theme-toggle .icon-sun { display: none; }
+[data-theme="light"] .theme-toggle .icon-moon { display: none; }
+[data-theme="light"] .theme-toggle .icon-sun { display: block; }
+
 @media (max-width: 700px) {
   .subgraph-grid { grid-template-columns: 1fr; }
   .filter-row { flex-direction: column; align-items: flex-start; }
@@ -589,5 +624,24 @@ body {
   </div>
 
 </div>
+
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+  <svg class="icon-moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8.5a5.5 5.5 0 01-7-7 5.5 5.5 0 107 7z"/></svg>
+  <svg class="icon-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1v2m0 10v2m-5-7H1m14 0h-2m-1.05-4.95L11.5 4.5m-7 7L3.05 12.95m0-9.9L4.5 4.5m7 7l1.45 1.45"/></svg>
+</button>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const next = html.getAttribute('data-theme') === 'light' ? '' : 'light';
+  if (next) html.setAttribute('data-theme', next);
+  else html.removeAttribute('data-theme');
+  localStorage.setItem('sl-theme', next || 'dark');
+}
+(function() {
+  const saved = localStorage.getItem('sl-theme');
+  if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+})();
+</script>
 </body>
 </html>
