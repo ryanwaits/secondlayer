@@ -59,6 +59,20 @@ export class Marketplace extends BaseClient {
 		return this.request("GET", `/api/marketplace/creators/${slug}`);
 	}
 
+	async fork(
+		name: string,
+		newName?: string,
+	): Promise<{
+		action: string;
+		subgraphId: string;
+		name: string;
+		forkedFrom: string;
+	}> {
+		return this.request("POST", `/api/marketplace/subgraphs/${name}/fork`, {
+			newName,
+		});
+	}
+
 	async queryTable(
 		name: string,
 		table: string,
