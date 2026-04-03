@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { requireAuth } from "@secondlayer/auth";
+import { ipRateLimit, requireAuth } from "@secondlayer/auth";
 import { getErrorMessage } from "@secondlayer/shared";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import {
@@ -200,7 +200,7 @@ app.get("/subgraphs/:name", async (c) => {
 
 // ── Query public subgraph data ──────────────────────────────────────────
 
-app.get("/subgraphs/:name/:tableName", async (c) => {
+app.get("/subgraphs/:name/:tableName", ipRateLimit(30), async (c) => {
 	const { name, tableName } = c.req.param();
 
 	const subgraph = cache.getPublicByName(name);
