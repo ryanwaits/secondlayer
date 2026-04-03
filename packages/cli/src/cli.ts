@@ -7,6 +7,7 @@ import {
 	registerDbCommand,
 	registerDoctorCommand,
 	registerLocalCommand,
+	registerMarketplaceCommand,
 	registerReceiverCommand,
 	registerSetupCommand,
 	registerStackCommand,
@@ -79,6 +80,7 @@ program
 // Core commands (API-backed, work against any environment)
 registerStreamsCommand(program);
 registerSubgraphsCommand(program);
+registerMarketplaceCommand(program);
 registerStatusCommand(program);
 
 // Local infrastructure commands

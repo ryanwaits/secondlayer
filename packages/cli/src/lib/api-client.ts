@@ -1,10 +1,13 @@
 import { SecondLayer } from "@secondlayer/sdk";
+import type { MarketplaceBrowseOptions } from "@secondlayer/sdk/marketplace";
 import type {
 	BulkPauseResponse,
 	BulkResumeResponse,
 	CreateStream,
 	CreateStreamResponse,
 	ListStreamsResponse,
+	MarketplaceSubgraphDetail,
+	MarketplaceSubgraphSummary,
 	ReindexResponse,
 	StreamResponse,
 	SubgraphDetail,
@@ -195,4 +198,50 @@ export async function getSubgraphGaps(
 	opts?: { limit?: number; offset?: number; resolved?: boolean },
 ): Promise<SubgraphGapsResponse> {
 	return (await getClient()).subgraphs.gaps(name, opts);
+}
+
+// ── Marketplace (public, no auth required) ──────────────────────────
+
+export async function browseMarketplace(
+	opts: MarketplaceBrowseOptions = {},
+): Promise<{
+	data: MarketplaceSubgraphSummary[];
+	meta: { total: number; limit: number; offset: number };
+}> {
+	return (await getClient()).marketplace.browse(opts);
+}
+
+export async function getMarketplaceSubgraph(
+	name: string,
+): Promise<MarketplaceSubgraphDetail> {
+	return (await getClient()).marketplace.get(name);
+}
+
+export async function publishSubgraphApi(
+	name: string,
+	opts?: { tags?: string[]; description?: string },
+): Promise<{ message: string }> {
+	const config = await loadConfig();
+	const baseUrl = resolveApiUrl(config);
+	const res = await fetch(`${baseUrl}/api/subgraphs/${name}/publish`, {
+		method: "POST",
+		headers: authHeaders(config),
+		body: JSON.stringify(opts ?? {}),
+	});
+	await assertOk(res);
+	return res.json();
+}
+
+export async function unpublishSubgraphApi(
+	name: string,
+): Promise<{ message: string }> {
+	const config = await loadConfig();
+	const baseUrl = resolveApiUrl(config);
+	const res = await fetch(`${baseUrl}/api/subgraphs/${name}/unpublish`, {
+		method: "POST",
+		headers: authHeaders(config),
+		body: JSON.stringify({}),
+	});
+	await assertOk(res);
+	return res.json();
 }

@@ -11,4 +11,5 @@ export { registerStackCommand } from "./stack.ts";
 export { registerDoctorCommand } from "./doctor.ts";
 export { registerAuthCommand } from "./auth.ts";
 export { registerLocalCommand } from "./local.ts";
+export { registerMarketplaceCommand } from "./marketplace.ts";
 export { registerWhoamiCommand } from "./whoami.ts";
