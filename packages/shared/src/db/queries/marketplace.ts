@@ -33,8 +33,11 @@ export async function listPublicSubgraphs(
 			"subgraphs.start_block",
 			"subgraphs.total_processed",
 			"subgraphs.created_at",
+			"subgraphs.forked_from_id",
 			"accounts.display_name",
 			"accounts.slug",
+			sql<number>`(SELECT COALESCE(SUM(query_count), 0) FROM subgraph_usage_daily WHERE subgraph_id = subgraphs.id AND date >= CURRENT_DATE - 7)::int`.as("queries_7d"),
+			sql<number>`(SELECT COUNT(*) FROM subgraphs s2 WHERE s2.forked_from_id = subgraphs.id)::int`.as("fork_count"),
 		])
 		.where("subgraphs.is_public", "=", true);
 
@@ -57,7 +60,9 @@ export async function listPublicSubgraphs(
 	}
 
 	// Sort
-	if (opts.sort === "name") {
+	if (opts.sort === "popular") {
+		query = query.orderBy(sql`queries_7d`, "desc");
+	} else if (opts.sort === "name") {
 		query = query.orderBy("subgraphs.name", "asc");
 	} else {
 		// Default: recent
@@ -138,6 +143,7 @@ export async function getCreatorProfile(db: Kysely<Database>, slug: string) {
 			"subgraphs.start_block",
 			"subgraphs.total_processed",
 			"subgraphs.created_at",
+			sql<number>`(SELECT COALESCE(SUM(query_count), 0) FROM subgraph_usage_daily WHERE subgraph_id = subgraphs.id AND date >= CURRENT_DATE - 7)::int`.as("queries_7d"),
 		])
 		.where("api_keys.account_id", "=", account.id)
 		.where("subgraphs.is_public", "=", true)

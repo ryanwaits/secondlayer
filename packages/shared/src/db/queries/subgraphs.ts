@@ -27,6 +27,7 @@ export async function registerSubgraph(
 		apiKeyId?: string;
 		schemaName?: string;
 		startBlock?: number;
+		forkedFromId?: string;
 	},
 ): Promise<Subgraph> {
 	return await db
@@ -40,6 +41,7 @@ export async function registerSubgraph(
 			api_key_id: data.apiKeyId!,
 			schema_name: data.schemaName ?? null,
 			start_block: data.startBlock ?? 0,
+			forked_from_id: data.forkedFromId ?? null,
 		})
 		.onConflict((oc) =>
 			oc.columns(["name", "api_key_id"]).doUpdateSet({
