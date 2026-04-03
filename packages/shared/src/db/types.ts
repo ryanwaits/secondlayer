@@ -113,6 +113,10 @@ export interface SubgraphsTable {
 	total_processed: Generated<number>;
 	total_errors: Generated<number>;
 	api_key_id: string;
+	is_public: Generated<boolean>;
+	tags: Generated<string[]>;
+	description: string | null;
+	forked_from_id: string | null;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }
@@ -146,6 +150,10 @@ export interface AccountsTable {
 	id: Generated<string>;
 	email: string;
 	plan: Generated<string>;
+	display_name: string | null;
+	bio: string | null;
+	avatar_url: string | null;
+	slug: string | null;
 	created_at: Generated<Date>;
 }
 
@@ -257,6 +265,12 @@ export interface SubgraphHealthSnapshotsTable {
 	captured_at: Generated<Date>;
 }
 
+export interface SubgraphUsageDailyTable {
+	subgraph_id: string;
+	date: string;
+	query_count: Generated<number>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -282,6 +296,7 @@ export interface Database {
 	subgraph_processing_stats: SubgraphProcessingStatsTable;
 	subgraph_table_snapshots: SubgraphTableSnapshotsTable;
 	subgraph_gaps: SubgraphGapsTable;
+	subgraph_usage_daily: SubgraphUsageDailyTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -350,3 +365,6 @@ export type InsertSubgraphHealthSnapshot =
 
 export type SubgraphGap = Selectable<SubgraphGapsTable>;
 export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
+
+export type SubgraphUsageDaily = Selectable<SubgraphUsageDailyTable>;
+export type InsertSubgraphUsageDaily = Insertable<SubgraphUsageDailyTable>;

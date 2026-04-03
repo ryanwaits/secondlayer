@@ -73,6 +73,14 @@
 			"types": "./dist/src/schemas/subgraphs.d.ts",
 			"import": "./dist/src/schemas/subgraphs.js"
 		},
+		"./schemas/marketplace": {
+			"types": "./dist/src/schemas/marketplace.d.ts",
+			"import": "./dist/src/schemas/marketplace.js"
+		},
+		"./db/queries/marketplace": {
+			"types": "./dist/src/db/queries/marketplace.d.ts",
+			"import": "./dist/src/db/queries/marketplace.js"
+		},
 		"./types": {
 			"types": "./dist/src/types.d.ts",
 			"import": "./dist/src/types.js"
