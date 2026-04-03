@@ -28,6 +28,42 @@ export async function getAccountById(
 	);
 }
 
+export async function updateAccountProfile(
+	db: Kysely<Database>,
+	id: string,
+	data: {
+		display_name?: string;
+		bio?: string;
+		slug?: string;
+	},
+): Promise<Account> {
+	const set: Record<string, unknown> = {};
+	if (data.display_name !== undefined) set.display_name = data.display_name;
+	if (data.bio !== undefined) set.bio = data.bio;
+	if (data.slug !== undefined) set.slug = data.slug;
+
+	return db
+		.updateTable("accounts")
+		.set(set)
+		.where("id", "=", id)
+		.returningAll()
+		.executeTakeFirstOrThrow();
+}
+
+export async function isSlugTaken(
+	db: Kysely<Database>,
+	slug: string,
+	excludeAccountId: string,
+): Promise<boolean> {
+	const row = await db
+		.selectFrom("accounts")
+		.select("id")
+		.where("slug", "=", slug)
+		.where("id", "!=", excludeAccountId)
+		.executeTakeFirst();
+	return !!row;
+}
+
 export async function isEmailAllowed(
 	db: Kysely<Database>,
 	email: string,
