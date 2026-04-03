@@ -633,10 +633,11 @@ export function registerSubgraphsCommand(program: Command): void {
 		.description("Publish a subgraph to the marketplace")
 		.option("--tags <tags>", "Tags (comma-separated, max 5)")
 		.option("--description <desc>", "Public description (max 500 chars)")
+		.option("--json", "Output as JSON")
 		.action(
 			async (
 				name: string,
-				options: { tags?: string; description?: string },
+				options: { tags?: string; description?: string; json?: boolean },
 			) => {
 				try {
 					const opts: { tags?: string[]; description?: string } = {};
@@ -647,6 +648,10 @@ export function registerSubgraphsCommand(program: Command): void {
 						opts.description = options.description;
 					}
 					const result = await publishSubgraphApi(name, opts);
+					if (options.json) {
+						console.log(JSON.stringify(result, null, 2));
+						return;
+					}
 					success(result.message);
 				} catch (err) {
 					handleApiError(err, "publish subgraph");
@@ -658,9 +663,14 @@ export function registerSubgraphsCommand(program: Command): void {
 	subgraphs
 		.command("unpublish <name>")
 		.description("Remove a subgraph from the marketplace")
-		.action(async (name: string) => {
+		.option("--json", "Output as JSON")
+		.action(async (name: string, options: { json?: boolean }) => {
 			try {
 				const result = await unpublishSubgraphApi(name);
+				if (options.json) {
+					console.log(JSON.stringify(result, null, 2));
+					return;
+				}
 				success(result.message);
 			} catch (err) {
 				handleApiError(err, "unpublish subgraph");
