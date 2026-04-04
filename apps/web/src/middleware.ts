@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths that have both marketing (unauthed) and platform (authed) versions
-const DUAL_PATHS = ["/streams", "/subgraphs"];
+const DUAL_PATHS = ["/streams", "/subgraphs", "/marketplace"];
 // Paths that require authentication
-const AUTH_REQUIRED = ["/api-keys", "/usage", "/billing", "/settings"];
+const AUTH_REQUIRED = [
+	"/api-keys",
+	"/usage",
+	"/billing",
+	"/settings",
+	"/sessions",
+	"/agents",
+];
 
 export function middleware(request: NextRequest) {
 	const session = request.cookies.get("sl_session");
@@ -55,5 +62,11 @@ export const config = {
 		"/billing/:path*",
 		"/settings",
 		"/settings/:path*",
+		"/sessions",
+		"/sessions/:path*",
+		"/agents",
+		"/agents/:path*",
+		"/marketplace",
+		"/marketplace/:path*",
 	],
 };

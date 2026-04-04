@@ -5,10 +5,18 @@
 	--text-muted: rgba(0, 0, 0, 0.4);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #f2f2f2;
+	--border-hover: #ddd;
+	--bg-elevated: #fff;
+	--bg-chrome: #f0f0f0;
+	--bg-tab-active: #fdfdfc;
 	--accent-pink: #ff00aa;
 	--accent-purple: #6344f5;
+	--accent-purple-bg: rgba(99, 68, 245, 0.04);
+	--accent-purple-border: rgba(99, 68, 245, 0.15);
+	--accent-purple-glow: rgba(99, 68, 245, 0.08);
 	--code-bg: rgba(0, 0, 0, 0.04);
 	--code-block-bg: #f8f8f8;
+	--nudge-bg: rgba(0, 0, 0, 0.02);
 	--selection-bg: #ededed;
 	--selection-text: #111;
 	--link-underline: #d9d9d9;
@@ -54,8 +62,16 @@
 		--text-muted: rgba(255, 255, 255, 0.4);
 		--text-dim: rgba(255, 255, 255, 0.1);
 		--border: #2a2a2a;
+		--border-hover: #3a3a3a;
+		--bg-elevated: #1a1a1a;
+		--bg-chrome: #0c0c0c;
+		--bg-tab-active: #141414;
+		--accent-purple-bg: rgba(139, 127, 240, 0.06);
+		--accent-purple-border: rgba(139, 127, 240, 0.2);
+		--accent-purple-glow: rgba(139, 127, 240, 0.06);
 		--code-bg: rgba(255, 255, 255, 0.08);
 		--code-block-bg: #1c1c1c;
+		--nudge-bg: rgba(255, 255, 255, 0.02);
 		--selection-bg: #333;
 		--selection-text: #ececec;
 		--link-underline: #444;
@@ -192,8 +208,8 @@ a {
 	padding: 80px 16px 40px;
 }
 
-/* ── Sidebar ─────────────────────────────────────────────────────── */
-.sidebar {
+/* ── Sidebar (marketing pages only) ─────────────────────────────── */
+.article-layout > .sidebar {
 	position: fixed;
 	top: 5rem;
 	left: 5rem;
@@ -722,7 +738,7 @@ a {
 
 /* ── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 1080px) {
-	.sidebar {
+	.article-layout > .sidebar {
 		position: static;
 		width: auto;
 		margin-bottom: var(--spacing-md);

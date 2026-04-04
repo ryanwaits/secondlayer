@@ -13,6 +13,9 @@ const PLATFORM_PATHS = [
 	"/usage",
 	"/billing",
 	"/settings",
+	"/sessions",
+	"/agents",
+	"/marketplace",
 ];
 
 export function AuthBar() {
@@ -83,13 +86,8 @@ export function AuthBar() {
 	// Platform pages — sidebar handles logout, never show auth bar
 	// If session expired (no account but cookie exists), the /api/auth/me route
 	// already cleared the cookie server-side — reload so middleware routes to marketing
-	if (isPlatform) {
-		if (!account && document.cookie.includes("sl_session")) {
-			window.location.reload();
-			return null;
-		}
-		if (account) return null;
-	}
+	// Platform pages — sidebar handles everything, never show auth bar
+	if (isPlatform) return null;
 
 	// Authenticated on marketing pages
 	if (account) {
