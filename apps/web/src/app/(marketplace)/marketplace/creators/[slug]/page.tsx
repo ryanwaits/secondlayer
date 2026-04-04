@@ -2,9 +2,7 @@ import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
 import { CreatorDetail } from "./creator";
 
-const toc: TocItem[] = [
-	{ label: "Subgraphs", href: "#subgraphs" },
-];
+const toc: TocItem[] = [{ label: "Subgraphs", href: "#subgraphs" }];
 
 export default async function CreatorPage({
 	params,
@@ -23,6 +21,7 @@ export default async function CreatorPage({
 			/>
 
 			<main className="content-area">
+				<div className="page-header" />
 				<CreatorDetail slug={slug} />
 			</main>
 		</div>

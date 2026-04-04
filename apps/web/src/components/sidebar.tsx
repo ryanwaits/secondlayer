@@ -25,16 +25,23 @@ export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 	useEffect(() => {
 		if (!toc || toc.length === 0) return;
 
-		const header = document.querySelector(".page-header");
 		const ids = toc.map((item) => item.href.replace("#", ""));
 		const firstId = ids[0] ?? "";
-		const elements = ids
-			.map((id) => document.getElementById(id))
-			.filter(Boolean) as HTMLElement[];
 
-		// Header observer — controls title visibility and resets state at top
-		const headerObserver = header
-			? new IntersectionObserver(
+		let headerObserver: IntersectionObserver | null = null;
+		let sectionObserver: IntersectionObserver | null = null;
+		let mutationObserver: MutationObserver | null = null;
+		let observedIds = new Set<string>();
+
+		function setup() {
+			const header = document.querySelector(".page-header");
+			const elements = ids
+				.map((id) => document.getElementById(id))
+				.filter(Boolean) as HTMLElement[];
+
+			// Header observer — controls title visibility and resets state at top
+			if (header && !headerObserver) {
+				headerObserver = new IntersectionObserver(
 					([entry]) => {
 						headerVisible.current = entry.isIntersecting;
 						setTitleVisible(!entry.isIntersecting);
@@ -46,38 +53,65 @@ export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 						}
 					},
 					{ threshold: 0 },
-				)
-			: null;
+				);
+				headerObserver.observe(header);
+			}
 
-		// Section observer — only updates active when header is out of view
-		const sectionObserver = new IntersectionObserver(
-			(entries) => {
-				entries.forEach((entry) => {
-					if (entry.isIntersecting) {
-						visibleSections.current.add(entry.target.id);
-					} else {
-						visibleSections.current.delete(entry.target.id);
-					}
-				});
+			// Section observer — only updates active when header is out of view
+			if (!sectionObserver) {
+				sectionObserver = new IntersectionObserver(
+					(entries) => {
+						for (const entry of entries) {
+							if (entry.isIntersecting) {
+								visibleSections.current.add(entry.target.id);
+							} else {
+								visibleSections.current.delete(entry.target.id);
+							}
+						}
 
-				// Don't update active if we're still at the top
-				if (headerVisible.current) return;
+						if (headerVisible.current) return;
 
-				const active = ids.find((id) => visibleSections.current.has(id));
-				if (active) {
-					setActiveId(active);
+						const active = ids.find((id) => visibleSections.current.has(id));
+						if (active) {
+							setActiveId(active);
+						}
+					},
+					{ rootMargin: "0px 0px -60% 0px", threshold: 0 },
+				);
+			}
+
+			// Observe any new elements that appeared
+			for (const el of elements) {
+				if (!observedIds.has(el.id)) {
+					sectionObserver.observe(el);
+					observedIds.add(el.id);
 				}
-			},
-			{ rootMargin: "0px 0px -60% 0px", threshold: 0 },
-		);
+			}
 
-		if (header) headerObserver!.observe(header);
-		elements.forEach((el) => sectionObserver.observe(el));
+			// Stop watching DOM once all sections are found
+			if (observedIds.size === ids.length && mutationObserver) {
+				mutationObserver.disconnect();
+				mutationObserver = null;
+			}
+		}
+
+		setup();
+
+		// If not all elements found yet, watch for DOM changes
+		if (observedIds.size < ids.length) {
+			mutationObserver = new MutationObserver(() => setup());
+			mutationObserver.observe(document.body, {
+				childList: true,
+				subtree: true,
+			});
+		}
 
 		return () => {
 			headerObserver?.disconnect();
-			sectionObserver.disconnect();
+			sectionObserver?.disconnect();
+			mutationObserver?.disconnect();
 			visibleSections.current.clear();
+			observedIds = new Set();
 		};
 	}, [toc]);
 
@@ -92,12 +126,13 @@ export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 			</Link>
 
 			{title && (
-				<a
-					href="#"
+				<button
+					type="button"
+					onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
 					className={`nav-sidebar-title ${titleVisible ? "visible" : ""} ${activeId ? "muted" : ""}`}
 				>
 					{title}
-				</a>
+				</button>
 			)}
 
 			{toc && toc.length > 0 && (

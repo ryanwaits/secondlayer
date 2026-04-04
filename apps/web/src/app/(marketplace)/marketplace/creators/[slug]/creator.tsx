@@ -29,18 +29,16 @@ export function CreatorDetail({ slug }: { slug: string }) {
 	return (
 		<>
 			{/* Creator header */}
-			<header className="page-header mkt-creator-header">
+			<header className="mkt-creator-header">
 				<div className="mkt-creator-avatar">{initial}</div>
 				<div className="mkt-creator-info">
-					<h1 className="mkt-creator-name">
-						{data.displayName ?? slug}
-					</h1>
+					<h1 className="mkt-creator-name">{data.displayName ?? slug}</h1>
 					<div className="mkt-creator-slug">@{data.slug ?? slug}</div>
 					{data.bio && <p className="mkt-creator-bio">{data.bio}</p>}
 					<div className="mkt-creator-stats">
 						<span>
-							<strong>{data.subgraphs.length}</strong> public
-							subgraph{data.subgraphs.length !== 1 ? "s" : ""}
+							<strong>{data.subgraphs.length}</strong> public subgraph
+							{data.subgraphs.length !== 1 ? "s" : ""}
 						</span>
 						<span>
 							<strong>{fmtK(totalQueries)}</strong> queries / 7d

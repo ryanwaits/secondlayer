@@ -240,6 +240,12 @@ a {
 	transition: opacity 0.25s ease, color 0.25s ease;
 	text-decoration: none;
 	display: block;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	font-family: inherit;
+	text-align: left;
 }
 
 .nav-sidebar-title.visible {
