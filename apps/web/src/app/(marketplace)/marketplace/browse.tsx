@@ -8,6 +8,7 @@ import { useMarketplaceBrowse } from "@/lib/queries/marketplace";
 // Category display order + labels
 const CATEGORIES: { id: string; label: string }[] = [
 	{ id: "defi", label: "DeFi" },
+	{ id: "stacking", label: "Stacking" },
 	{ id: "nfts", label: "NFTs" },
 	{ id: "identity", label: "Identity" },
 	{ id: "governance", label: "Governance" },

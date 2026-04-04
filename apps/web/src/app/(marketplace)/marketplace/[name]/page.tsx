@@ -6,6 +6,7 @@ const toc: TocItem[] = [
 	{ label: "Stats", href: "#stats" },
 	{ label: "Query volume", href: "#query-volume" },
 	{ label: "Tables", href: "#tables" },
+	{ label: "Quick start", href: "#quick-start" },
 	{ label: "Details", href: "#details" },
 ];
 
@@ -26,6 +27,7 @@ export default async function SubgraphDetailPage({
 			/>
 
 			<main className="content-area">
+				<div className="page-header" />
 				<SubgraphDetail name={name} />
 			</main>
 		</div>

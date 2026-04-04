@@ -1,5 +1,6 @@
 "use client";
 
+import { TabbedCode } from "@/components/console/tabbed-code";
 import { SectionHeading } from "@/components/section-heading";
 import { useMarketplaceDetail } from "@/lib/queries/marketplace";
 import Link from "next/link";
@@ -26,20 +27,27 @@ export function SubgraphDetail({ name }: { name: string }) {
 
 	const tables = Object.entries(data.tableSchemas ?? {});
 	const maxCount = Math.max(
-		...((data.usage?.daily ?? []).map((d) => d.count).filter(Boolean)),
+		...(data.usage?.daily ?? []).map((d) => d.count).filter(Boolean),
 		1,
 	);
 
 	// Chart label dates — show 5 evenly spaced
 	const daily = data.usage?.daily ?? [];
-	const labelIdxs = daily.length >= 5
-		? [0, Math.floor(daily.length / 4), Math.floor(daily.length / 2), Math.floor((3 * daily.length) / 4), daily.length - 1]
-		: daily.map((_, i) => i);
+	const labelIdxs =
+		daily.length >= 5
+			? [
+					0,
+					Math.floor(daily.length / 4),
+					Math.floor(daily.length / 2),
+					Math.floor((3 * daily.length) / 4),
+					daily.length - 1,
+				]
+			: daily.map((_, i) => i);
 
 	return (
 		<>
 			{/* Header */}
-			<header className="page-header mkt-sg-header">
+			<header className="mkt-sg-header">
 				<div className="mkt-sg-title-row">
 					<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
 						<h1 className="mkt-sg-name">{data.name}</h1>
@@ -49,14 +57,30 @@ export function SubgraphDetail({ name }: { name: string }) {
 					</div>
 					<div className="mkt-sg-actions">
 						<button type="button" className="mkt-btn mkt-btn-secondary">
-							<svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+							<svg
+								aria-hidden="true"
+								width="12"
+								height="12"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+							>
 								<rect x="2" y="2" width="8" height="8" rx="1.5" />
 								<path d="M6 10.5V12a1.5 1.5 0 001.5 1.5H12A1.5 1.5 0 0013.5 12V7.5A1.5 1.5 0 0012 6h-1.5" />
 							</svg>
 							Copy
 						</button>
 						<button type="button" className="mkt-btn mkt-btn-primary">
-							<svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+							<svg
+								aria-hidden="true"
+								width="12"
+								height="12"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+							>
 								<circle cx="5" cy="3.5" r="1.5" />
 								<circle cx="5" cy="12.5" r="1.5" />
 								<circle cx="11" cy="3.5" r="1.5" />
@@ -69,9 +93,7 @@ export function SubgraphDetail({ name }: { name: string }) {
 						</button>
 					</div>
 				</div>
-				{data.description && (
-					<p className="mkt-sg-desc">{data.description}</p>
-				)}
+				{data.description && <p className="mkt-sg-desc">{data.description}</p>}
 				{data.creator?.slug && (
 					<div className="mkt-sg-creator">
 						by{" "}
@@ -142,9 +164,7 @@ export function SubgraphDetail({ name }: { name: string }) {
 					</div>
 					<div className="mkt-chart-labels">
 						{labelIdxs.map((i) => (
-							<span key={daily[i]?.date}>
-								{daily[i]?.date.slice(5)}
-							</span>
+							<span key={daily[i]?.date}>{daily[i]?.date.slice(5)}</span>
 						))}
 					</div>
 				</div>
@@ -173,14 +193,23 @@ export function SubgraphDetail({ name }: { name: string }) {
 									</div>
 								))}
 							</div>
-							<div className="mkt-table-endpoint">
-								Endpoint
-								<span className="mkt-endpoint-url">{schema.endpoint}</span>
-							</div>
 						</div>
 					);
 				})}
 			</div>
+
+			{/* Quick start */}
+			<SectionHeading id="quick-start">Quick start</SectionHeading>
+
+			{tables.length > 0 && (
+				<TabbedCode
+					tabs={tables.map(([tableName, schema]) => ({
+						label: tableName,
+						lang: "bash",
+						code: `curl "https://api.secondlayer.xyz${schema.endpoint}?limit=10"`,
+					}))}
+				/>
+			)}
 
 			{/* Metadata */}
 			<SectionHeading id="details">Details</SectionHeading>
@@ -188,9 +217,7 @@ export function SubgraphDetail({ name }: { name: string }) {
 			<div className="mkt-meta-grid">
 				<div className="mkt-meta-item">
 					<span className="mkt-meta-label">Start Block</span>
-					<span className="mkt-meta-value">
-						{fmt(data.startBlock ?? 0)}
-					</span>
+					<span className="mkt-meta-value">{fmt(data.startBlock ?? 0)}</span>
 				</div>
 				<div className="mkt-meta-item">
 					<span className="mkt-meta-label">Last Processed Block</span>

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import "@/styles/console.css";
 import "@/styles/marketplace.css";
 
 function EscBack() {

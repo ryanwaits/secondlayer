@@ -4,6 +4,7 @@ import { MarketplaceBrowse } from "./browse";
 
 const toc: TocItem[] = [
 	{ label: "DeFi", href: "#defi" },
+	{ label: "Stacking", href: "#stacking" },
 	{ label: "NFTs", href: "#nfts" },
 	{ label: "Identity", href: "#identity" },
 	{ label: "Governance", href: "#governance" },
