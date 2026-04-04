@@ -1,3 +1,4 @@
+import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { Account } from "@/lib/types";
 import { LogoutButton } from "./logout-button";
@@ -16,15 +17,20 @@ export default async function SettingsPage() {
 
 	if (!account) {
 		return (
-			<div className="dash-page-header">
-				<h1 className="dash-page-title">Settings</h1>
-				<p className="dash-page-desc">Unable to load account.</p>
-			</div>
+			<>
+				<OverviewTopbar path="Settings" page="Project" showRefresh={false} showTimeRange={false} />
+				<div className="dash-page-header">
+					<h1 className="dash-page-title">Settings</h1>
+					<p className="dash-page-desc">Unable to load account.</p>
+				</div>
+			</>
 		);
 	}
 
 	return (
 		<>
+			<OverviewTopbar path="Settings" page="Project" showRefresh={false} showTimeRange={false} />
+			<div style={{ flex: 1, overflow: "auto" }}>
 			<div className="dash-page-header">
 				<h1 className="dash-page-title">Settings</h1>
 				<p className="dash-page-desc">Account settings.</p>
@@ -59,6 +65,7 @@ export default async function SettingsPage() {
 
 			<div style={{ marginTop: 32 }}>
 				<LogoutButton />
+			</div>
 			</div>
 		</>
 	);

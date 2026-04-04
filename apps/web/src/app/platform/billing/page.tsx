@@ -1,3 +1,4 @@
+import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { formatBytes, formatNum } from "@/lib/format";
 
@@ -33,15 +34,20 @@ export default async function BillingPage() {
 
 	if (!usage) {
 		return (
+			<>
+			<OverviewTopbar path="Settings" page="Billing" showRefresh={false} showTimeRange={false} />
 			<div className="dash-page-header">
 				<h1 className="dash-page-title">Billing</h1>
 				<p className="dash-page-desc">Unable to load billing data.</p>
 			</div>
+			</>
 		);
 	}
 
 	return (
 		<>
+			<OverviewTopbar path="Settings" page="Billing" showRefresh={false} showTimeRange={false} />
+			<div style={{ flex: 1, overflow: "auto" }}>
 			<div className="dash-page-header">
 				<h1 className="dash-page-title">Billing</h1>
 			</div>
@@ -111,6 +117,7 @@ export default async function BillingPage() {
 					</span>
 					<span className="dash-stat-label">storage</span>
 				</div>
+			</div>
 			</div>
 		</>
 	);

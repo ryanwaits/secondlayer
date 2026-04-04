@@ -1,3 +1,4 @@
+import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { Sparkline } from "@/components/console/sparkline";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { formatBytes, formatNum } from "@/lib/format";
@@ -50,10 +51,13 @@ export default async function UsagePage() {
 
 	if (!usage) {
 		return (
-			<div className="dash-page-header">
-				<h1 className="dash-page-title">Usage</h1>
-				<p className="dash-page-desc">Unable to load usage data.</p>
-			</div>
+			<>
+				<OverviewTopbar path="Settings" page="Usage" showRefresh={false} showTimeRange={false} />
+				<div className="dash-page-header">
+					<h1 className="dash-page-title">Usage</h1>
+					<p className="dash-page-desc">Unable to load usage data.</p>
+				</div>
+			</>
 		);
 	}
 
@@ -64,6 +68,8 @@ export default async function UsagePage() {
 
 	return (
 		<>
+			<OverviewTopbar path="Settings" page="Usage" showRefresh={false} showTimeRange={false} />
+			<div style={{ flex: 1, overflow: "auto" }}>
 			<div className="dash-page-header">
 				<h1 className="dash-page-title">Usage</h1>
 			</div>
@@ -153,6 +159,7 @@ export default async function UsagePage() {
 			<p className="dash-hint" style={{ marginTop: 12, opacity: 0.7 }}>
 				Resource limits apply to creation. API reads are unlimited on all plans.
 			</p>
+			</div>
 		</>
 	);
 }
