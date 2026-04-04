@@ -1,23 +1,23 @@
-import { Insight } from "@/components/console/intelligence/insight";
-import { CopyButton } from "@/components/copy-button";
+import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
+import { DetailCodeBlock } from "@/components/console/detail-code-block";
+import { DetailSection } from "@/components/console/detail-section";
+import { MetaGrid } from "@/components/console/meta-grid";
+import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
-import { detectHighErrorRate } from "@/lib/intelligence/subgraphs";
-import type { SubgraphDetail } from "@/lib/types";
+import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
+import type { SubgraphDetail, SubgraphSummary } from "@/lib/types";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { OverviewExamples } from "./overview-examples";
+import { SubgraphDataBrowser } from "./data-browser";
+import { SubgraphReindexForm } from "./reindex-form";
 
-function formatTimeAgo(dateStr: string): string {
-	const diff = Date.now() - new Date(dateStr).getTime();
-	const mins = Math.floor(diff / 60000);
-	if (mins < 1) return "just now";
-	if (mins < 60) return `${mins}m ago`;
-	const hours = Math.floor(mins / 60);
-	if (hours < 24) return `${hours}h ago`;
-	const days = Math.floor(hours / 24);
-	return `${days}d ago`;
+function statusBadgeClass(status: string) {
+	if (status === "active") return "active";
+	if (status === "syncing" || status === "reindexing") return "syncing";
+	return "error";
 }
 
-export default async function SubgraphOverviewPage({
+export default async function SubgraphDetailPage({
 	params,
 }: {
 	params: Promise<{ name: string }>;
@@ -26,11 +26,28 @@ export default async function SubgraphOverviewPage({
 	const session = await getSessionFromCookies();
 
 	let subgraph: SubgraphDetail;
+	let allSubgraphs: SubgraphSummary[] = [];
+
 	try {
-		subgraph = await apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
-			sessionToken: session ?? undefined,
-			tags: ["subgraphs", `subgraph-${name}`],
-		});
+		const [sgResult, listResult] = await Promise.allSettled([
+			apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
+				sessionToken: session ?? undefined,
+				tags: ["subgraphs", `subgraph-${name}`],
+			}),
+			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
+				sessionToken: session ?? undefined,
+				tags: ["subgraphs"],
+			}),
+		]);
+
+		if (sgResult.status === "rejected") {
+			if (sgResult.reason instanceof ApiError && sgResult.reason.status === 404)
+				notFound();
+			throw sgResult.reason;
+		}
+		subgraph = sgResult.value;
+		allSubgraphs =
+			listResult.status === "fulfilled" ? listResult.value.data : [];
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 404) notFound();
 		throw e;
@@ -38,155 +55,210 @@ export default async function SubgraphOverviewPage({
 
 	const tableEntries = Object.entries(subgraph.tables);
 	const totalRows = tableEntries.reduce((sum, [, t]) => sum + t.rowCount, 0);
-	const errorRate = detectHighErrorRate(subgraph.health);
-	const firstTable = tableEntries[0]?.[0] ?? "";
-	const firstTableCols = firstTable
-		? Object.keys(subgraph.tables[firstTable].columns).filter(
-				(c) => !c.startsWith("_"),
-			)
-		: [];
-	const baseUrl = `https://api.secondlayer.tools/api/subgraphs/${name}/${firstTable}`;
+	const displayStatus = getDisplayStatus(
+		{
+			...subgraph,
+			totalProcessed: subgraph.health.totalProcessed,
+			totalErrors: subgraph.health.totalErrors,
+			tables: Object.keys(subgraph.tables),
+			createdAt: "",
+		},
+		subgraph.lastProcessedBlock,
+	);
 
-	// Find a filterable column for examples
-	const filterCol = firstTableCols[0] ?? "name";
-	const searchCol = firstTable
-		? (Object.entries(subgraph.tables[firstTable].columns).find(
-				([, c]) => c.searchable,
-			)?.[0] ?? null)
-		: null;
+	const dropdownItems = allSubgraphs.map((sg) => ({
+		name: sg.name,
+		href: `/subgraphs/${sg.name}`,
+	}));
 
 	return (
 		<>
-			{errorRate && (
-				<Insight
-					variant={errorRate.isRecent ? "danger" : "warning"}
-					id={`error-rate-${subgraph.name}`}
-				>
-					{errorRate.isRecent ? (
-						<>
-							Error rate is{" "}
-							<strong>{(errorRate.errorRate * 100).toFixed(1)}%</strong> (
-							{errorRate.totalErrors.toLocaleString()}/
-							{errorRate.totalProcessed.toLocaleString()}). Last error{" "}
-							{formatTimeAgo(errorRate.lastErrorAt!)}:
-							<code style={{ display: "block", marginTop: 4 }}>
-								{errorRate.lastError}
-							</code>
-						</>
-					) : (
-						<>
-							Historical error rate is{" "}
-							<strong>{(errorRate.errorRate * 100).toFixed(1)}%</strong> (
-							{errorRate.totalErrors.toLocaleString()}/
-							{errorRate.totalProcessed.toLocaleString()}). No errors in the
-							last 24 hours.
-						</>
-					)}
-				</Insight>
-			)}
-
-			<div className="dash-stats">
-				<div className="dash-stat">
-					<span className="dash-stat-value">{totalRows.toLocaleString()}</span>
-					<span className="dash-stat-label">total rows</span>
-				</div>
-				<div className="dash-stat">
-					<span className="dash-stat-value">
-						{(subgraph.health.errorRate * 100).toFixed(1)}%
-					</span>
-					<span className="dash-stat-label">error rate</span>
-				</div>
-			</div>
-
-			{firstTable && (
-				<>
-					<div className="dash-section-wrap">
-						<hr />
-						<h2 className="dash-section-title">Endpoint</h2>
-					</div>
-
-					<div className="code-inline" style={{ marginBottom: 16 }}>
-						<code>{baseUrl}</code>
-						<CopyButton code={baseUrl} />
-					</div>
-
-					<div className="dash-section-wrap">
-						<hr />
-						<h2 className="dash-section-title">Quick reference</h2>
-					</div>
-
-					<div className="endpoint-list">
-						<div className="endpoint-row">
-							<span className="endpoint-method">GET</span>
-							<span className="endpoint-path">
-								/api/subgraphs/{name}/{firstTable}
-							</span>
-							<span className="endpoint-desc">Query rows</span>
-						</div>
-						<div className="endpoint-row">
-							<span className="endpoint-method">GET</span>
-							<span className="endpoint-path">
-								...{firstTable}?{filterCol}=VALUE
-							</span>
-							<span className="endpoint-desc">Filtered</span>
-						</div>
-						{searchCol && (
-							<div className="endpoint-row">
-								<span className="endpoint-method">GET</span>
-								<span className="endpoint-path">
-									...{firstTable}?_search=term
-								</span>
-								<span className="endpoint-desc">Search</span>
-							</div>
-						)}
-						<div className="endpoint-row">
-							<span className="endpoint-method">GET</span>
-							<span className="endpoint-path">...{firstTable}/count</span>
-							<span className="endpoint-desc">Count</span>
-						</div>
-						<div className="endpoint-row">
-							<span className="endpoint-method">GET</span>
-							<span className="endpoint-path">...{firstTable}/42</span>
-							<span className="endpoint-desc">Get by ID</span>
-						</div>
-					</div>
-
-					<div className="dash-section-wrap" style={{ marginTop: 20 }}>
-						<hr />
-						<h2 className="dash-section-title">Examples</h2>
-					</div>
-
-					<OverviewExamples
-						subgraphName={name}
-						tableName={firstTable}
-						filterCol={filterCol}
-						searchCol={searchCol}
-						apiKey={session}
+			<OverviewTopbar
+				path={
+					<Link
+						href="/subgraphs"
+						style={{ color: "inherit", textDecoration: "none" }}
+					>
+						Subgraphs
+					</Link>
+				}
+				page={
+					<BreadcrumbDropdown
+						current={name}
+						items={dropdownItems}
+						allHref="/subgraphs"
+						allLabel="View all subgraphs"
 					/>
-				</>
-			)}
+				}
+			/>
+			<div style={{ flex: 1, overflowY: "auto" }}>
+				<div className="overview-inner">
+					{/* Metadata cards */}
+					<MetaGrid
+						items={[
+							{ label: "ID", value: name, mono: true },
+							{
+								label: "Status",
+								value: (
+									<span className={`badge ${statusBadgeClass(displayStatus)}`}>
+										{displayStatus}
+									</span>
+								),
+							},
+							{
+								label: "Block Height",
+								value: subgraph.lastProcessedBlock
+									? `#${subgraph.lastProcessedBlock.toLocaleString()}`
+									: "—",
+								mono: true,
+							},
+							{ label: "Version", value: subgraph.version, mono: true },
+							{
+								label: "Events Indexed",
+								value: subgraph.health.totalProcessed.toLocaleString(),
+							},
+							{
+								label: "Error Rate",
+								value: `${(subgraph.health.errorRate * 100).toFixed(1)}%`,
+								valueColor:
+									subgraph.health.errorRate > 0.05 ? "red" : "green",
+							},
+							{
+								label: "Tables",
+								value: String(tableEntries.length),
+							},
+							{
+								label: "Total Rows",
+								value: totalRows.toLocaleString(),
+							},
+						]}
+					/>
 
-			<div className="dash-section-wrap" style={{ marginTop: 20 }}>
-				<hr />
-				<h2 className="dash-section-title">Tables</h2>
-			</div>
-
-			{tableEntries.length === 0 ? (
-				<p className="dash-page-desc">No tables yet.</p>
-			) : (
-				<div className="dash-index-group">
-					{tableEntries.map(([tableName, table]) => (
-						<div key={tableName} className="dash-index-item">
-							<div className="dash-index-link">
-								<span className="dash-index-label">{tableName}</span>
-								<span className="dash-index-meta">
-									{table.rowCount.toLocaleString()} rows
-								</span>
+					{/* Schema */}
+					<DetailSection title="Schema">
+						{tableEntries.map(([tableName, table]) => (
+							<div key={tableName} className="sg-schema-table">
+								<div className="sg-schema-name">
+									{tableName}{" "}
+									<span className="row-count">
+										{table.rowCount.toLocaleString()} rows
+									</span>
+								</div>
+								<table className="sg-table">
+									<thead>
+										<tr>
+											<th>Column</th>
+											<th>Type</th>
+											<th>Attributes</th>
+										</tr>
+									</thead>
+									<tbody>
+										{Object.entries(table.columns).map(
+											([colName, col]) => (
+												<tr key={colName}>
+													<td>
+														<span className="mono">{colName}</span>
+													</td>
+													<td>
+														<span className="mono">{col.type}</span>
+													</td>
+													<td>
+														{colName.startsWith("_") && (
+															<span className="sg-col-badge">system</span>
+														)}{" "}
+														{col.indexed && (
+															<span className="sg-col-badge indexed">
+																indexed
+															</span>
+														)}{" "}
+														{col.searchable && (
+															<span className="sg-col-badge searchable">
+																searchable
+															</span>
+														)}
+													</td>
+												</tr>
+											),
+										)}
+									</tbody>
+								</table>
 							</div>
-						</div>
-					))}
+						))}
+					</DetailSection>
+
+					{/* Data Browser */}
+					{tableEntries.length > 0 && (
+						<DetailSection title="Data">
+							<SubgraphDataBrowser
+								subgraphName={name}
+								tables={Object.keys(subgraph.tables)}
+								sessionToken={session ?? ""}
+							/>
+						</DetailSection>
+					)}
+
+					{/* Sources */}
+					{subgraph.sources && Object.keys(subgraph.sources).length > 0 && (
+						<DetailSection title="Sources">
+							{Object.entries(subgraph.sources).map(
+								([sourceName, source]) => (
+									<div key={sourceName} className="sg-source-card">
+										<div className="sg-source-header">
+											<span className="sg-source-name">{sourceName}</span>
+											<span className="sg-source-type">
+												{source.type ?? "event"}
+											</span>
+										</div>
+										<div className="sg-source-meta">
+											{Boolean(source.contract_id) && (
+												<span>
+													<span className="label">Contract</span>{" "}
+													<span className="val">{String(source.contract_id)}</span>
+												</span>
+											)}
+											{Boolean(source.asset_identifier) && (
+												<span>
+													<span className="label">Asset</span>{" "}
+													<span className="val">
+														{String(source.asset_identifier)}
+													</span>
+												</span>
+											)}
+										</div>
+									</div>
+								),
+							)}
+						</DetailSection>
+					)}
+
+					{/* Definition */}
+					<DetailSection title="Definition">
+						<DetailCodeBlock
+							label="SUBGRAPH DEFINITION"
+							code={JSON.stringify(subgraph.definition ?? {}, null, 2)}
+							showCopy
+						/>
+					</DetailSection>
+
+					{/* Backfill / Reindex */}
+					<DetailSection title="Backfill &amp; Reindex">
+						<SubgraphReindexForm
+							subgraphName={name}
+							sessionToken={session ?? ""}
+						/>
+					</DetailSection>
+
+					{/* Quick Actions */}
+					<DetailSection title="Quick Actions">
+						<DetailCodeBlock
+							label="Add a view to this subgraph"
+							code={`sl views scaffold ${name}`}
+							showCopy
+							showOpenInEditor
+						/>
+					</DetailSection>
 				</div>
-			)}
+			</div>
 		</>
 	);
 }
