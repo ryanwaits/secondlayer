@@ -448,6 +448,9 @@
 	border: 1px solid var(--border);
 	border-radius: 8px;
 	padding: 12px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
 }
 
 .mkt-stat-label {
