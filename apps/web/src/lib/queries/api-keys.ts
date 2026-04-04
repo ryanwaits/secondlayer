@@ -9,7 +9,7 @@ export function useApiKeys(initialData?: ApiKey[]) {
 	return useQuery({
 		queryKey: queryKeys.keys.all,
 		queryFn: () =>
-			fetchJson<{ keys: ApiKey[] }>("/api/keys").then((r) => r.keys),
+			fetchJson<{ keys: ApiKey[] }>("/api/keys").then((r) => r.keys ?? []),
 		initialData,
 		staleTime: 60_000,
 	});

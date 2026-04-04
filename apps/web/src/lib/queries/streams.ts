@@ -13,7 +13,7 @@ export function useStreams(initialData?: Stream[]) {
 		queryFn: () =>
 			fetchJson<{ streams: Stream[]; total: number }>(
 				"/api/streams?limit=100&offset=0",
-			).then((r) => r.streams),
+			).then((r) => r.streams ?? []),
 		initialData,
 		staleTime: 60_000,
 	});
@@ -33,7 +33,7 @@ export function useDeliveries(id: string, initialData?: Delivery[]) {
 		queryFn: () =>
 			fetchJson<{ deliveries: Delivery[] }>(
 				`/api/streams/${id}/deliveries?limit=5`,
-			).then((r) => r.deliveries),
+			).then((r) => r.deliveries ?? []),
 		initialData,
 		staleTime: 30_000,
 	});

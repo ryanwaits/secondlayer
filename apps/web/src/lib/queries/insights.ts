@@ -36,7 +36,7 @@ export function useInsights(opts?: {
 		queryFn: () =>
 			fetchJson<{ insights: AccountInsight[] }>(
 				`/api/insights${qs ? `?${qs}` : ""}`,
-			).then((r) => r.insights),
+			).then((r) => r.insights ?? []),
 		staleTime: 60_000,
 	});
 }

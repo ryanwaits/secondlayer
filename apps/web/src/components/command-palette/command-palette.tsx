@@ -237,10 +237,12 @@ export function CommandPalette() {
 		for (const { queryKey, apiPath, unwrap } of targets) {
 			qc.prefetchQuery({
 				queryKey,
-				queryFn: () =>
-					fetch(apiPath, { credentials: "same-origin" })
-						.then((r) => r.json())
-						.then((d) => (unwrap ? unwrap(d) : d)),
+				queryFn: async () => {
+					const r = await fetch(apiPath, { credentials: "same-origin" });
+					if (!r.ok) throw new Error(`Prefetch failed: ${r.status}`);
+					const d = await r.json();
+					return unwrap ? unwrap(d) ?? [] : d;
+				},
 				staleTime: 30_000,
 			});
 		}
