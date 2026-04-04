@@ -12,9 +12,11 @@ export interface TocItem {
 interface SidebarProps {
 	title?: string;
 	toc?: TocItem[];
+	backHref?: string;
+	backLabel?: string;
 }
 
-export function Sidebar({ title, toc }: SidebarProps) {
+export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 	const [activeId, setActiveId] = useState<string>("");
 	const [titleVisible, setTitleVisible] = useState(false);
 	const headerVisible = useRef(true);
@@ -80,11 +82,13 @@ export function Sidebar({ title, toc }: SidebarProps) {
 	}, [toc]);
 
 	const indexHref = useSiteHref("/");
+	const resolvedBackHref = backHref ?? indexHref;
+	const resolvedBackLabel = backLabel ?? "Index";
 
 	return (
 		<aside className="sidebar">
-			<Link href={indexHref} className="back-link">
-				↩ Index
+			<Link href={resolvedBackHref} className="back-link">
+				↩ {resolvedBackLabel}
 			</Link>
 
 			{title && (
