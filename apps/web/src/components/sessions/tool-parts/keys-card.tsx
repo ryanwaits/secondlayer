@@ -28,9 +28,9 @@ export function KeysCard({ keys }: KeysCardProps) {
 			{keys.map((k) => (
 				<div key={k.id} className="tool-status-row">
 					<span className="tool-status-name">{k.name}</span>
-					<code className="tool-key-prefix">{k.prefix}...</code>
 					<span className="tool-status-meta">
-						{k.lastUsedAt ? `used ${formatRelative(k.lastUsedAt)}` : "never used"}
+						<code className="tool-key-prefix">{k.prefix}...</code>
+						{k.lastUsedAt ? ` ${formatRelative(k.lastUsedAt)}` : " never used"}
 					</span>
 				</div>
 			))}

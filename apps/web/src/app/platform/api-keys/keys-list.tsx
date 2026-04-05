@@ -161,9 +161,14 @@ export function KeysList({
 							<div className="settings-key-created">
 								{new Date(key.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
 							</div>
-							{key.status === "active" && (
-								<button type="button" className="settings-key-revoke" onClick={() => { if (confirm("Revoke this key? This cannot be undone.")) revokeKey.mutate(key.id); }}>Revoke</button>
-							)}
+							<button
+								type="button"
+								className="settings-key-revoke"
+								style={key.status !== "active" ? { visibility: "hidden" } : undefined}
+								onClick={() => { if (confirm("Revoke this key? This cannot be undone.")) revokeKey.mutate(key.id); }}
+							>
+								Revoke
+							</button>
 						</div>
 					))
 				)}
