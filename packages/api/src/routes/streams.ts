@@ -40,6 +40,7 @@ function mapQueryRow(r: any): {
 		endpoint_url: r.endpoint_url,
 		signing_secret: r.signing_secret,
 		api_key_id: r.api_key_id,
+		project_id: r.project_id ?? null,
 		created_at: r.created_at,
 		updated_at: r.updated_at,
 	};

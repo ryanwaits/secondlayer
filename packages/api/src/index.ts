@@ -18,6 +18,7 @@ import marketplaceRouter from "./routes/marketplace.ts";
 import insightsRouter from "./routes/insights.ts";
 import logsRouter from "./routes/logs.ts";
 import nodeRouter from "./routes/node.ts";
+import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
 import subgraphsRouter, {
@@ -66,6 +67,8 @@ for (const path of [
 	"/api/insights/*",
 	"/api/node",
 	"/api/node/*",
+	"/api/projects",
+	"/api/projects/*",
 	"/api/auth/logout",
 ]) {
 	app.use(path, requireAuth());
@@ -80,6 +83,7 @@ app.route("/api/subgraphs", subgraphsRouter);
 app.route("/api/accounts", accountsRouter);
 app.route("/api/insights", insightsRouter);
 app.route("/api/node", nodeRouter);
+app.route("/api/projects", projectsRouter);
 app.route("/", statusRouter);
 
 // Start server
