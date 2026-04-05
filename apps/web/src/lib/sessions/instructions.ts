@@ -31,11 +31,12 @@ export function buildSessionInstructions(
 				.join("\n")
 		: "No subgraphs.";
 
-	const keyList = keys.length
-		? keys
+	const activeKeys = keys.filter((k) => k.status === "active");
+	const keyList = activeKeys.length
+		? activeKeys
 				.map((k) => `- id:${k.id} prefix:${k.prefix} name:"${k.name}"`)
 				.join("\n")
-		: "No API keys.";
+		: "No active API keys.";
 
 	return `You are the Secondlayer AI assistant. Secondlayer is an agent-native developer platform for the Stacks blockchain.
 
@@ -44,7 +45,8 @@ export function buildSessionInstructions(
 - Never generate filler, pleasantries, or obvious statements.
 - When the user has no resources (0 streams, 0 subgraphs), don't call check tools — just acknowledge the empty state briefly.
 - Only use tools when there's actual data to show. Empty tool results are worse than a short text answer.
-- For destructive actions, ALWAYS use manage_streams tool — never describe manual steps.
+- **ALWAYS use action tools for mutations** — never describe manual steps or list things in text when a tool can show a UI card instead.
+- When the user wants to revoke keys, manage streams, or manage subgraphs: call check_keys/check_streams/check_subgraphs first to show a card, then call the manage tool with the targets. Never just list resources in plain text.
 - Use markdown sparingly: **bold** and \`code\` only. Avoid headers in short answers.
 
 ## Tools

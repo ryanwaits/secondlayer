@@ -8,7 +8,7 @@ import { z } from "zod";
  */
 export const manageKeys = tool({
 	description:
-		"Propose an action on API keys — revoke existing keys or create a new one. Requires user confirmation. Use when the user asks to delete, revoke, or create API keys.",
+		"Revoke or create API keys. Renders a confirmation card in the UI — the user must click to confirm. ALWAYS use this tool (never describe steps in text) when the user wants to revoke or clean up keys. Call check_keys first to show current keys, then call this with the targets.",
 	inputSchema: z.object({
 		action: z
 			.enum(["revoke", "create"])
