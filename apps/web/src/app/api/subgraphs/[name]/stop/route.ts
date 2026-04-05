@@ -18,8 +18,8 @@ export async function POST(
 			`/api/subgraphs/${name}/stop`,
 			{ method: "POST", sessionToken },
 		);
-		revalidateTag("subgraphs");
-		revalidateTag(`subgraph-${name}`);
+		revalidateTag("subgraphs", { expire: 0 });
+		revalidateTag(`subgraph-${name}`, { expire: 0 });
 		return NextResponse.json(data);
 	} catch (e) {
 		if (e instanceof ApiError) {
