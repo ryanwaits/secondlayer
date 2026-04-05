@@ -78,7 +78,7 @@ export default function SessionsPage() {
 
 	const navigate = useCallback(
 		(text: string) => {
-			const id = Math.random().toString(36).slice(2, 10);
+			const id = crypto.randomUUID();
 			router.push(`/sessions/${id}?q=${encodeURIComponent(text)}`);
 		},
 		[router],
