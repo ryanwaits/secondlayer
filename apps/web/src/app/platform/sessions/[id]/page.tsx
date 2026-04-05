@@ -9,26 +9,55 @@ import {
 	lastAssistantMessageIsCompleteWithToolCalls,
 	type UIMessage,
 } from "ai";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-function SessionChat({ id }: { id: string }) {
+function SessionLoader({ id }: { id: string }) {
 	const searchParams = useSearchParams();
 	const initialQuery = searchParams.get("q");
-	const { addTab, updateTab } = useSessionTabs();
-	const initialized = useRef(false);
-	const titleGenerated = useRef(false);
-	const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(
-		null,
-	);
+	const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(null);
 
-	// Load persisted messages on mount
 	useEffect(() => {
 		fetch(`/api/sessions/${id}/messages`, { credentials: "same-origin" })
 			.then((r) => (r.ok ? r.json() : { messages: [] }))
-			.then((data) => setInitialMessages(data.messages ?? []))
+			.then((data) => {
+				const msgs = (data.messages ?? []).filter(
+					(m: Record<string, unknown>) => m.role && m.parts,
+				);
+				setInitialMessages(msgs);
+			})
 			.catch(() => setInitialMessages([]));
 	}, [id]);
+
+	if (initialMessages === null) {
+		return (
+			<div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
+				Loading...
+			</div>
+		);
+	}
+
+	return (
+		<SessionChat
+			id={id}
+			initialQuery={initialQuery}
+			initialMessages={initialMessages}
+		/>
+	);
+}
+
+function SessionChat({
+	id,
+	initialQuery,
+	initialMessages,
+}: {
+	id: string;
+	initialQuery: string | null;
+	initialMessages: UIMessage[];
+}) {
+	const { addTab, updateTab } = useSessionTabs();
+	const initialized = useRef(false);
+	const titleGenerated = useRef(false);
 
 	const transport = useMemo(
 		() =>
@@ -42,13 +71,13 @@ function SessionChat({ id }: { id: string }) {
 	const chat = useChat({
 		id,
 		transport,
-		messages: initialMessages ?? undefined,
+		messages: initialMessages.length > 0 ? initialMessages : undefined,
 		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 	});
 
-	// Send initial query from URL on first load (only when messages are loaded)
+	// Send initial query or restore tab on first render
 	useEffect(() => {
-		if (initialized.current || initialMessages === null) return;
+		if (initialized.current) return;
 		initialized.current = true;
 
 		if (initialQuery && initialMessages.length === 0) {
@@ -57,7 +86,6 @@ function SessionChat({ id }: { id: string }) {
 				label: initialQuery.slice(0, 30) + (initialQuery.length > 30 ? "..." : ""),
 				href: `/sessions/${id}`,
 			});
-			// Strip ?q= from URL so refresh doesn't re-send
 			window.history.replaceState(null, "", `/sessions/${id}`);
 			chat.sendMessage({ text: initialQuery });
 		} else if (initialMessages.length > 0) {
@@ -71,7 +99,7 @@ function SessionChat({ id }: { id: string }) {
 				: "Session";
 			addTab({ id, label, href: `/sessions/${id}` });
 		}
-	}, [id, initialQuery, initialMessages, addTab, chat]);
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Generate title via LLM after first AI response
 	useEffect(() => {
@@ -116,23 +144,6 @@ function SessionChat({ id }: { id: string }) {
 		[chat],
 	);
 
-	if (initialMessages === null) {
-		return (
-			<div
-				style={{
-					flex: 1,
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					color: "var(--text-muted)",
-					fontSize: 13,
-				}}
-			>
-				Loading...
-			</div>
-		);
-	}
-
 	return (
 		<div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
 			<MessageList
@@ -173,21 +184,12 @@ export default function SessionResultPage({
 	return (
 		<Suspense
 			fallback={
-				<div
-					style={{
-						flex: 1,
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-						color: "var(--text-muted)",
-						fontSize: 13,
-					}}
-				>
+				<div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
 					Loading...
 				</div>
 			}
 		>
-			<SessionChat id={id} />
+			<SessionLoader id={id} />
 		</Suspense>
 	);
 }
