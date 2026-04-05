@@ -21,9 +21,12 @@ function SessionLoader({ id }: { id: string }) {
 		fetch(`/api/sessions/${id}/messages`, { credentials: "same-origin" })
 			.then((r) => (r.ok ? r.json() : { messages: [] }))
 			.then((data) => {
-				const msgs = (data.messages ?? []).filter(
-					(m: Record<string, unknown>) => m.role && m.parts,
-				);
+				const msgs = (data.messages ?? [])
+					.filter((m: Record<string, unknown>) => m.role && m.parts)
+					.map((m: Record<string, unknown>) => ({
+						...m,
+						parts: typeof m.parts === "string" ? JSON.parse(m.parts) : m.parts,
+					}));
 				setInitialMessages(msgs);
 			})
 			.catch(() => setInitialMessages([]));

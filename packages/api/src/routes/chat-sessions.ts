@@ -70,7 +70,7 @@ app.patch("/:id", async (c) => {
 	const updates: Record<string, unknown> = { updated_at: new Date() };
 	if (body.title !== undefined) updates.title = body.title;
 	if (body.summary !== undefined)
-		updates.summary = JSON.stringify(body.summary);
+		updates.summary = body.summary;
 
 	await db
 		.updateTable("chat_sessions")
@@ -163,8 +163,8 @@ app.put("/:id/messages", async (c) => {
 					messages.map((m) => ({
 						chat_session_id: id,
 						role: m.role,
-						parts: JSON.stringify(m.parts),
-						metadata: m.metadata ? JSON.stringify(m.metadata) : null,
+						parts: m.parts,
+						metadata: m.metadata ?? null,
 					})),
 				)
 				.execute();
