@@ -17,10 +17,10 @@
     --text-dim: rgba(0,0,0,0.1);
     --border: #e8e8e8;
     --border-hover: #ddd;
-    --accent-purple: #6344F5;
-    --accent-purple-bg: rgba(99,68,245,0.04);
-    --accent-purple-border: rgba(99,68,245,0.15);
-    --accent-purple-glow: rgba(99,68,245,0.08);
+    --accent: #b5a836;
+    --accent-bg: rgba(181,168,54,0.06);
+    --accent-border: rgba(181,168,54,0.25);
+    --accent-glow: rgba(181,168,54,0.1);
     --code-bg: rgba(0,0,0,0.04);
     --code-block-bg: #f8f8f8;
     --green: #22c55e;
@@ -47,10 +47,10 @@
       --text-dim: rgba(255,255,255,0.08);
       --border: #252525;
       --border-hover: #3a3a3a;
-      --accent-purple: #8b7ff0;
-      --accent-purple-bg: rgba(139,127,240,0.06);
-      --accent-purple-border: rgba(139,127,240,0.2);
-      --accent-purple-glow: rgba(139,127,240,0.06);
+      --accent: #8a8240;
+      --accent-bg: rgba(138,130,64,0.08);
+      --accent-border: rgba(138,130,64,0.3);
+      --accent-glow: rgba(138,130,64,0.08);
       --code-bg: rgba(255,255,255,0.06);
       --code-block-bg: #1c1c1c;
       --green-bg: rgba(34,197,94,0.06);
@@ -103,7 +103,7 @@
   }
   .sb-item:hover { color: var(--text-main); background: var(--code-bg); }
   .sb-item.active {
-    color: var(--accent-purple); background: var(--accent-purple-bg);
+    color: var(--accent); background: var(--accent-bg);
     font-weight: 500;
   }
   .sb-item-icon {
@@ -175,14 +175,14 @@
   .org-chevron { color: var(--text-dim); flex-shrink: 0; }
   .org-avatar {
     width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-    background: var(--accent-purple-bg);
+    background: var(--accent-bg);
     display: flex; align-items: center; justify-content: center;
     font-family: var(--font-mono); font-size: 12px; font-weight: 600;
-    color: var(--accent-purple);
+    color: var(--accent);
     cursor: pointer; transition: all 0.15s;
     border: 2px solid transparent;
   }
-  .org-avatar:hover { border-color: var(--accent-purple); }
+  .org-avatar:hover { border-color: var(--accent); }
 
   /* User Settings Modal */
   .user-modal-overlay {
@@ -220,10 +220,10 @@
   }
   .user-modal-avatar {
     width: 40px; height: 40px; border-radius: 50%;
-    background: var(--accent-purple-bg);
+    background: var(--accent-bg);
     display: flex; align-items: center; justify-content: center;
     font-family: var(--font-mono); font-size: 16px; font-weight: 600;
-    color: var(--accent-purple); flex-shrink: 0;
+    color: var(--accent); flex-shrink: 0;
   }
   .user-modal-info { flex: 1; }
   .user-modal-name {
@@ -275,7 +275,7 @@
   }
   .user-modal-close-btn {
     font-family: var(--font-sans); font-size: 13px; font-weight: 500;
-    color: #fff; background: var(--accent-purple);
+    color: #fff; background: var(--accent);
     border: none; border-radius: 6px;
     padding: 7px 18px; cursor: pointer; transition: opacity 0.15s;
   }
@@ -305,7 +305,7 @@
   .org-popover-item:hover { background: var(--code-bg); color: var(--text-main); }
   .org-popover-item.active { color: var(--text-main); font-weight: 500; }
   .org-popover-check {
-    margin-left: auto; color: var(--accent-purple); opacity: 0;
+    margin-left: auto; color: var(--accent); opacity: 0;
   }
   .org-popover-item.active .org-popover-check { opacity: 1; }
   .org-popover-divider {
@@ -430,11 +430,11 @@
   /* ════════════════════════════════════════════════
      HOME — Overview Dashboard
      ════════════════════════════════════════════════ */
-  .logo-primary { fill: #6344F5; }
-  .logo-echo { fill: #e0e0e0; }
+  .logo-primary { fill: #555; }
+  .logo-echo { fill: #bbb; }
   @media (prefers-color-scheme: dark) {
-    .logo-primary { fill: #8b7ff0; }
-    .logo-echo { fill: #333; }
+    .logo-primary { fill: #999; }
+    .logo-echo { fill: #444; }
   }
 
   .home-panel { flex-direction: column; overflow: hidden; }
@@ -555,7 +555,7 @@
     padding: 8px 0;
   }
   .ov-section-link {
-    font-size: 12px; font-weight: 500; color: var(--accent-purple);
+    font-size: 12px; font-weight: 500; color: var(--accent);
     cursor: pointer; text-decoration: none;
   }
   .ov-section-link:hover { text-decoration: underline; }
@@ -574,6 +574,166 @@
     font-family: var(--font-mono); font-size: 10px; font-weight: 600;
     color: var(--text-muted);
   }
+
+  /* ════════════════════════════════════════════════
+     SETTINGS — shared form layout
+     ════════════════════════════════════════════════ */
+  .settings-scroll { flex: 1; overflow-y: auto; }
+  .settings-inner { max-width: 640px; margin: 0 auto; padding: 24px 28px 80px; }
+  .settings-title {
+    font-family: var(--font-heading); font-size: 16px; font-weight: 500;
+    letter-spacing: -0.02em; margin-bottom: 4px;
+  }
+  .settings-desc {
+    font-size: 13px; color: var(--text-muted); margin-bottom: 24px;
+  }
+
+  .settings-section { margin-bottom: 28px; }
+  .settings-section-title {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted); opacity: 0.7; margin-bottom: 12px;
+  }
+  .settings-field { margin-bottom: 16px; }
+  .settings-label {
+    font-size: 13px; font-weight: 500; color: var(--text-main);
+    margin-bottom: 4px; display: block;
+  }
+  .settings-hint {
+    font-size: 12px; color: var(--text-muted); margin-top: 3px;
+  }
+  .settings-input {
+    width: 100%; height: 36px; background: transparent;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 0 10px; font-family: var(--font-sans); font-size: 13px;
+    color: var(--text-main); outline: none; transition: border-color 0.15s;
+  }
+  .settings-input::placeholder { color: var(--text-dim); }
+  .settings-input:focus { border-color: var(--accent-border); }
+  .settings-input.mono {
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .settings-textarea {
+    width: 100%; min-height: 80px; background: transparent;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; font-family: var(--font-sans); font-size: 13px;
+    color: var(--text-main); outline: none; resize: vertical;
+    transition: border-color 0.15s;
+  }
+  .settings-textarea:focus { border-color: var(--accent-border); }
+
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .settings-row .settings-field { flex: 1; margin-bottom: 0; }
+
+  .settings-btn {
+    font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+    border: none; border-radius: 6px; padding: 7px 18px;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .settings-btn.primary {
+    color: #fff; background: var(--accent);
+  }
+  .settings-btn.primary:hover { opacity: 0.9; }
+  .settings-btn.ghost {
+    color: var(--text-muted); background: transparent;
+    border: 1px solid var(--border);
+  }
+  .settings-btn.ghost:hover { color: var(--text-main); border-color: var(--border-hover); }
+  .settings-btn.danger {
+    color: var(--red); background: var(--red-bg);
+  }
+  .settings-btn.danger:hover { opacity: 0.9; }
+
+  .settings-divider {
+    height: 1px; background: var(--border); margin: 24px 0;
+  }
+
+  /* Key list */
+  .key-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .key-row:last-child { border-bottom: none; }
+  .key-name {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+    color: var(--text-main); flex: 1; min-width: 0;
+  }
+  .key-prefix {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-muted); background: var(--code-bg);
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .key-created {
+    font-size: 11px; color: var(--text-dim);
+  }
+  .key-revoke {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--red); background: transparent; border: 1px solid var(--red);
+    border-radius: 4px; padding: 2px 8px; cursor: pointer;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .key-row:hover .key-revoke { opacity: 1; }
+
+  /* Team member list */
+  .member-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .member-row:last-child { border-bottom: none; }
+  .member-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: var(--accent); flex-shrink: 0;
+  }
+  .member-info { flex: 1; min-width: 0; }
+  .member-name { font-size: 13px; font-weight: 500; }
+  .member-email { font-size: 12px; color: var(--text-muted); }
+  .member-role {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 4px;
+    background: var(--code-bg); color: var(--text-muted);
+  }
+  .member-role.owner { color: var(--accent); background: var(--accent-bg); }
+
+  /* Usage bars */
+  .usage-row { margin-bottom: 20px; }
+  .usage-label {
+    display: flex; justify-content: space-between;
+    font-size: 13px; margin-bottom: 6px;
+  }
+  .usage-label-name { font-weight: 500; }
+  .usage-label-value { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+  .usage-bar {
+    height: 6px; border-radius: 3px; background: var(--code-bg); overflow: hidden;
+  }
+  .usage-bar-fill {
+    height: 100%; border-radius: 3px; transition: width 0.3s;
+  }
+  .usage-bar-fill.purple { background: var(--accent); }
+  .usage-bar-fill.green { background: var(--green); }
+  .usage-stat-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; margin-bottom: 24px;
+  }
+  .usage-stat {
+    border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+  }
+  .usage-stat-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted); opacity: 0.7; margin-bottom: 8px;
+  }
+  .usage-stat-value {
+    font-family: var(--font-heading); font-size: 20px; font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .usage-stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
   /* ════════════════════════════════════════════════
      AI RESULT — inline result from natural language
@@ -606,7 +766,7 @@
     padding: 12px 16px; border-bottom: 1px solid var(--border);
     background: var(--code-bg);
   }
-  .result-block-icon { color: var(--accent-purple); opacity: 0.6; }
+  .result-block-icon { color: var(--accent); opacity: 0.6; }
   .result-block-title {
     font-family: var(--font-mono); font-size: 11px; font-weight: 600;
     color: var(--text-main); flex: 1;
@@ -642,12 +802,12 @@
     background: transparent;
   }
   .result-action:hover {
-    color: var(--text-main); border-color: var(--accent-purple-border);
-    background: var(--accent-purple-bg);
+    color: var(--text-main); border-color: var(--accent-border);
+    background: var(--accent-bg);
   }
   .result-action.primary {
-    color: var(--accent-purple); border-color: var(--accent-purple-border);
-    background: var(--accent-purple-bg);
+    color: var(--accent); border-color: var(--accent-border);
+    background: var(--accent-bg);
   }
 
   .result-bottom {
@@ -663,8 +823,8 @@
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   .result-bottom-input:focus {
-    border-color: var(--accent-purple-border);
-    box-shadow: 0 0 0 3px var(--accent-purple-glow);
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-glow);
   }
   .result-bottom-input::placeholder { color: var(--text-muted); }
 
@@ -819,7 +979,7 @@
   }
   .sg-table .type {
     font-family: var(--font-mono); font-size: 11px; font-weight: 500;
-    color: var(--accent-purple);
+    color: var(--accent);
   }
   .sg-table .dim { color: var(--text-dim); }
 
@@ -849,7 +1009,7 @@
     color: var(--text-main); white-space: pre; overflow-x: auto;
   }
   .sg-code-body .key { color: var(--text-muted); }
-  .sg-code-body .str { color: var(--accent-purple); }
+  .sg-code-body .str { color: var(--accent); }
 
   /* Schema table */
   .sg-schema-table { margin-bottom: 20px; }
@@ -866,7 +1026,7 @@
     letter-spacing: 0.02em; padding: 1px 6px; border-radius: 3px;
     background: var(--code-bg); color: var(--text-muted);
   }
-  .sg-col-badge.indexed { color: var(--accent-purple); background: var(--accent-purple-bg); }
+  .sg-col-badge.indexed { color: var(--accent); background: var(--accent-bg); }
   .sg-col-badge.searchable { color: var(--green); background: var(--green-bg); }
 
   /* Data browser */
@@ -945,7 +1105,7 @@
     transition: border-color 0.15s;
   }
   .sg-reindex-input::placeholder { color: var(--text-dim); }
-  .sg-reindex-input:focus { border-color: var(--accent-purple-border); }
+  .sg-reindex-input:focus { border-color: var(--accent-border); }
   .sg-reindex-btn {
     font-family: var(--font-sans); font-size: 13px; font-weight: 500;
     color: #fff; background: var(--red);
@@ -1016,8 +1176,8 @@
   }
   .sessions-input::placeholder { color: var(--text-muted); font-weight: 400; }
   .sessions-input:focus {
-    border-color: var(--accent-purple-border);
-    box-shadow: 0 0 0 3px var(--accent-purple-glow);
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-glow);
   }
   .sessions-submit {
     position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
@@ -1067,10 +1227,10 @@
     margin-top: 4px; padding-top: 10px;
     cursor: pointer; border-radius: 6px; transition: background 0.1s;
   }
-  .nav-ai-fallback:hover { background: var(--accent-purple-bg); }
+  .nav-ai-fallback:hover { background: var(--accent-bg); }
   .nav-ai-icon {
     width: 20px; height: 20px; display: flex; align-items: center;
-    justify-content: center; flex-shrink: 0; color: var(--accent-purple); opacity: 0.6;
+    justify-content: center; flex-shrink: 0; color: var(--accent); opacity: 0.6;
   }
   .nav-ai-text { font-size: 12px; color: var(--text-muted); flex: 1; }
   .nav-ai-text em { color: var(--text-main); font-style: normal; font-weight: 500; }
@@ -1120,7 +1280,7 @@
   .index-actions { display: flex; gap: 8px; }
   .index-create-btn {
     font-family: var(--font-sans); font-size: 12px; font-weight: 500;
-    color: #fff; background: var(--accent-purple);
+    color: #fff; background: var(--accent);
     border: none; border-radius: 6px;
     padding: 6px 14px; cursor: pointer; transition: opacity 0.15s;
     display: flex; align-items: center; gap: 5px;
@@ -1138,7 +1298,7 @@
     transition: border-color 0.15s;
   }
   .index-search::placeholder { color: var(--text-muted); }
-  .index-search:focus { border-color: var(--accent-purple-border); }
+  .index-search:focus { border-color: var(--accent-border); }
 
   /* Resource row */
   .index-row {
@@ -1168,7 +1328,7 @@
   .breadcrumb-dropdown-trigger {
     display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
   }
-  .breadcrumb-dropdown-trigger:hover { color: var(--accent-purple); }
+  .breadcrumb-dropdown-trigger:hover { color: var(--accent); }
   .breadcrumb-dropdown-chevron {
     opacity: 0.4; transition: transform 0.15s;
   }
@@ -1190,7 +1350,7 @@
   .breadcrumb-dropdown-item:hover { background: var(--code-bg); color: var(--text-main); }
   .breadcrumb-dropdown-item.active { color: var(--text-main); font-weight: 600; }
   .breadcrumb-dropdown-item .check {
-    margin-left: auto; color: var(--accent-purple); opacity: 0;
+    margin-left: auto; color: var(--accent); opacity: 0;
   }
   .breadcrumb-dropdown-item.active .check { opacity: 1; }
   .breadcrumb-dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
@@ -1198,9 +1358,9 @@
     display: flex; align-items: center; gap: 8px;
     padding: 7px 10px; border-radius: 5px;
     font-size: 12px; font-weight: 460;
-    color: var(--accent-purple); cursor: pointer; transition: background 0.1s;
+    color: var(--accent); cursor: pointer; transition: background 0.1s;
   }
-  .breadcrumb-dropdown-link:hover { background: var(--accent-purple-bg); }
+  .breadcrumb-dropdown-link:hover { background: var(--accent-bg); }
 
   /* ════════════════════════════════════════════════
      STREAMS DETAIL
@@ -1303,7 +1463,7 @@
     width: 36px; height: 36px; border-radius: 8px;
     background: var(--bg); border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    color: var(--accent-purple);
+    color: var(--accent);
     transform: translateY(50%);
   }
   .agent-card-body { padding: 28px 16px 16px; }
@@ -1342,7 +1502,7 @@
     transition: border-color 0.15s;
   }
   .mp-search::placeholder { color: var(--text-muted); }
-  .mp-search:focus { border-color: var(--accent-purple-border); }
+  .mp-search:focus { border-color: var(--accent-border); }
 
   /* Filter row */
   .mp-filter-row {
@@ -1358,8 +1518,8 @@
   }
   .mp-filter-tag:hover { color: var(--text-main); border-color: var(--text-muted); }
   .mp-filter-tag.active {
-    color: var(--accent-purple); border-color: var(--accent-purple);
-    background: var(--accent-purple-bg);
+    color: var(--accent); border-color: var(--accent);
+    background: var(--accent-bg);
   }
   .mp-sort {
     font-family: var(--font-sans); font-size: 12px; font-weight: 460;
@@ -1409,7 +1569,7 @@
     font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;
   }
   .mp-card-author { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
-  .mp-card-author a { color: var(--accent-purple); text-decoration: none; font-weight: 500; }
+  .mp-card-author a { color: var(--accent); text-decoration: none; font-weight: 500; }
   .mp-card-author a:hover { text-decoration: underline; }
   .mp-card-tags { display: flex; gap: 4px; margin-bottom: 10px; }
   .mp-tag {
@@ -1448,7 +1608,7 @@
     max-width: 700px; margin-bottom: 10px;
   }
   .mp-sg-creator { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
-  .mp-sg-creator a { color: var(--accent-purple); text-decoration: none; font-weight: 500; }
+  .mp-sg-creator a { color: var(--accent); text-decoration: none; font-weight: 500; }
   .mp-sg-creator a:hover { text-decoration: underline; }
   .mp-sg-tags { display: flex; gap: 4px; }
 
@@ -1462,7 +1622,7 @@
   }
   .mp-btn-secondary { background: transparent; color: var(--text-main); }
   .mp-btn-secondary:hover { border-color: var(--text-muted); }
-  .mp-btn-primary { background: var(--accent-purple); border-color: var(--accent-purple); color: #fff; }
+  .mp-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .mp-btn-primary:hover { opacity: 0.9; }
   .mp-btn .fork-count {
     background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 10px;
@@ -1491,7 +1651,7 @@
     display: flex; align-items: flex-end; gap: 3px; height: 80px;
   }
   .mp-chart-bar {
-    flex: 1; background: var(--accent-purple); border-radius: 2px 2px 0 0;
+    flex: 1; background: var(--accent); border-radius: 2px 2px 0 0;
     opacity: 0.6; transition: opacity 0.15s; min-height: 2px;
   }
   .mp-chart-bar:hover { opacity: 1; }
@@ -1510,7 +1670,7 @@
     padding: 12px 16px; background: var(--code-bg);
     border-bottom: 1px solid var(--border);
   }
-  .mp-table-name { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--accent-purple); }
+  .mp-table-name { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--accent); }
   .mp-table-meta {
     font-size: 12px; color: var(--text-muted);
     display: flex; gap: 12px;
@@ -1559,9 +1719,9 @@
   }
   .mp-creator-avatar {
     width: 64px; height: 64px; border-radius: 12px;
-    background: var(--accent-purple-bg); border: 1px solid var(--border);
+    background: var(--accent-bg); border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 560; color: var(--accent-purple); flex-shrink: 0;
+    font-size: 24px; font-weight: 560; color: var(--accent); flex-shrink: 0;
   }
   .mp-creator-info { flex: 1; }
   .mp-creator-name {
@@ -1569,7 +1729,7 @@
     letter-spacing: -0.02em; margin-bottom: 2px;
   }
   .mp-creator-slug {
-    font-family: var(--font-mono); font-size: 13px; color: var(--accent-purple);
+    font-family: var(--font-mono); font-size: 13px; color: var(--accent);
     margin-bottom: 8px;
   }
   .mp-creator-bio {
@@ -1682,19 +1842,16 @@
       <span class="sb-accordion-chevron"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg></span>
     </a>
     <div class="sb-accordion open">
-      <a class="sb-item sb-child">
+      <a class="sb-item sb-child" data-nav="settings-project" onclick="showView('settings-project')">
         <span class="sb-item-label">Project</span>
       </a>
-      <a class="sb-item sb-child">
+      <a class="sb-item sb-child" data-nav="settings-keys" onclick="showView('settings-keys')">
         <span class="sb-item-label">API Keys</span>
       </a>
-      <a class="sb-item sb-child">
-        <span class="sb-item-label">Webhooks</span>
-      </a>
-      <a class="sb-item sb-child">
+      <a class="sb-item sb-child" data-nav="settings-team" onclick="showView('settings-team')">
         <span class="sb-item-label">Team</span>
       </a>
-      <a class="sb-item sb-child">
+      <a class="sb-item sb-child" data-nav="settings-usage" onclick="showView('settings-usage')">
         <span class="sb-item-label">Usage</span>
       </a>
     </div>
@@ -1755,6 +1912,10 @@
   <button onclick="openStreamDetail('stx-transfers')">Stream Detail</button>
   <button onclick="showView('agents')">Agents</button>
   <button onclick="showView('marketplace')">Marketplace</button>
+  <button onclick="showView('settings-project')">Project</button>
+  <button onclick="showView('settings-keys')">API Keys</button>
+  <button onclick="showView('settings-team')">Team</button>
+  <button onclick="showView('settings-usage')">Usage</button>
   <button onclick="showView('overlay')">⌘K Overlay</button>
 </div>
 
@@ -2522,7 +2683,7 @@
               <input class="sg-reindex-input" type="text" placeholder="e.g. 187421">
             </div>
           </div>
-          <button class="sg-reindex-btn" style="background:var(--accent-purple);">Backfill gaps</button>
+          <button class="sg-reindex-btn" style="background:var(--accent);">Backfill gaps</button>
         </div>
         <!-- Reindex tab -->
         <div class="sg-reindex-form" id="tab-reindex" style="display:none;">
@@ -2856,7 +3017,7 @@
               <input class="sg-reindex-input" type="text" placeholder="e.g. 187421">
             </div>
           </div>
-          <button class="sg-reindex-btn" style="background:var(--accent-purple);">Replay blocks</button>
+          <button class="sg-reindex-btn" style="background:var(--accent);">Replay blocks</button>
         </div>
       </div>
 
@@ -3101,7 +3262,7 @@
 <div class="panel mp-detail-panel" id="view-mp-detail">
   <div class="overview-topbar">
     <div class="overview-breadcrumb">
-      <div class="overview-breadcrumb-project"><a style="cursor:pointer;color:inherit;text-decoration:none;" onclick="showView('marketplace')">Marketplace</a> / <a style="cursor:pointer;color:var(--accent-purple);text-decoration:none;" onclick="showView('mp-creator')">@alexbuilder</a> /</div>
+      <div class="overview-breadcrumb-project"><a style="cursor:pointer;color:inherit;text-decoration:none;" onclick="showView('marketplace')">Marketplace</a> / <a style="cursor:pointer;color:var(--accent);text-decoration:none;" onclick="showView('mp-creator')">@alexbuilder</a> /</div>
       <div class="overview-breadcrumb-page">alex-dex-trades</div>
     </div>
     <div class="overview-meta">
@@ -3327,6 +3488,311 @@
   </div>
 </div>
 
+<!-- ═══ SETTINGS: PROJECT ═════════════════════════ -->
+<div class="panel" id="view-settings-project">
+  <div class="overview-topbar">
+    <div class="overview-breadcrumb">
+      <div class="overview-breadcrumb-project">my-project / Settings /</div>
+      <div class="overview-breadcrumb-page">Project</div>
+    </div>
+    <div class="overview-meta"></div>
+  </div>
+  <div class="settings-scroll">
+    <div class="settings-inner">
+      <h1 class="settings-title">Project settings</h1>
+      <p class="settings-desc">Manage your project configuration, network, and display preferences.</p>
+
+      <div class="settings-section">
+        <div class="settings-section-title">General</div>
+        <div class="settings-field">
+          <label class="settings-label">Project name</label>
+          <input type="text" class="settings-input" value="my-project" />
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">Description</label>
+          <textarea class="settings-textarea" placeholder="Optional project description...">Stacks indexing and streaming infrastructure for DeFi analytics.</textarea>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Network</div>
+        <div class="settings-row">
+          <div class="settings-field">
+            <label class="settings-label">Stacks network</label>
+            <input type="text" class="settings-input mono" value="mainnet" disabled />
+            <div class="settings-hint">Cannot be changed after project creation.</div>
+          </div>
+          <div class="settings-field">
+            <label class="settings-label">Node RPC</label>
+            <input type="text" class="settings-input mono" value="https://stacks-node-api.mainnet.stacks.co" />
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <div style="display:flex;gap:8px;">
+        <button class="settings-btn primary">Save changes</button>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Danger zone</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--border);border-radius:8px;">
+          <div>
+            <div style="font-size:13px;font-weight:500;">Delete project</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Permanently remove this project and all its data.</div>
+          </div>
+          <button class="settings-btn danger">Delete project</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS: API KEYS ════════════════════════ -->
+<div class="panel" id="view-settings-keys">
+  <div class="overview-topbar">
+    <div class="overview-breadcrumb">
+      <div class="overview-breadcrumb-project">my-project / Settings /</div>
+      <div class="overview-breadcrumb-page">API Keys</div>
+    </div>
+    <div class="overview-meta"></div>
+  </div>
+  <div class="settings-scroll">
+    <div class="settings-inner">
+      <h1 class="settings-title">API Keys</h1>
+      <p class="settings-desc">Manage keys for authenticating with the secondlayer API. Keep these secret.</p>
+
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+        <button class="settings-btn primary" style="display:flex;align-items:center;gap:5px;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 2v8M2 6h8"/></svg>
+          Create key
+        </button>
+      </div>
+
+      <div class="settings-section">
+        <div class="key-row">
+          <div class="key-name">production</div>
+          <div class="key-prefix">sl_live_a3f8...x91k</div>
+          <div class="key-created">Created Mar 12</div>
+          <button class="key-revoke">Revoke</button>
+        </div>
+        <div class="key-row">
+          <div class="key-name">development</div>
+          <div class="key-prefix">sl_test_7b2d...m4qr</div>
+          <div class="key-created">Created Feb 28</div>
+          <button class="key-revoke">Revoke</button>
+        </div>
+        <div class="key-row">
+          <div class="key-name">ci-pipeline</div>
+          <div class="key-prefix">sl_live_9c1e...p7ws</div>
+          <div class="key-created">Created Jan 15</div>
+          <button class="key-revoke">Revoke</button>
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Rate limits</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.5;">
+          Each key allows <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-main);font-weight:500;">1,000</span> requests per minute.
+          Exceeding this limit returns <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-main);">429 Too Many Requests</span>.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS: TEAM ════════════════════════════ -->
+<div class="panel" id="view-settings-team">
+  <div class="overview-topbar">
+    <div class="overview-breadcrumb">
+      <div class="overview-breadcrumb-project">my-project / Settings /</div>
+      <div class="overview-breadcrumb-page">Team</div>
+    </div>
+    <div class="overview-meta"></div>
+  </div>
+  <div class="settings-scroll">
+    <div class="settings-inner">
+      <h1 class="settings-title">Team</h1>
+      <p class="settings-desc">Manage who has access to this project and their roles.</p>
+
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+        <button class="settings-btn primary" style="display:flex;align-items:center;gap:5px;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 2v8M2 6h8"/></svg>
+          Invite member
+        </button>
+      </div>
+
+      <div class="settings-section">
+        <div class="member-row">
+          <div class="member-avatar">R</div>
+          <div class="member-info">
+            <div class="member-name">Ryan Waits</div>
+            <div class="member-email">ryan@secondlayer.xyz</div>
+          </div>
+          <div class="member-role owner">Owner</div>
+        </div>
+        <div class="member-row">
+          <div class="member-avatar">A</div>
+          <div class="member-info">
+            <div class="member-name">Alex Builder</div>
+            <div class="member-email">alex@example.com</div>
+          </div>
+          <div class="member-role">Admin</div>
+        </div>
+        <div class="member-row">
+          <div class="member-avatar">S</div>
+          <div class="member-info">
+            <div class="member-name">Sam Developer</div>
+            <div class="member-email">sam@example.com</div>
+          </div>
+          <div class="member-role">Member</div>
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Pending invitations</div>
+        <div class="ov-empty">No pending invitations.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS: USAGE ═══════════════════════════ -->
+<div class="panel" id="view-settings-usage">
+  <div class="overview-topbar">
+    <div class="overview-breadcrumb">
+      <div class="overview-breadcrumb-project">my-project / Settings /</div>
+      <div class="overview-breadcrumb-page">Usage</div>
+    </div>
+    <div class="overview-meta">
+      <span class="overview-meta-item">Current period <span class="mono">Mar 1 – Mar 31</span></span>
+    </div>
+  </div>
+  <div class="settings-scroll">
+    <div class="settings-inner">
+      <h1 class="settings-title">Usage</h1>
+      <p class="settings-desc">Resource consumption for the current billing period.</p>
+
+      <div class="usage-stat-grid">
+        <div class="usage-stat">
+          <div class="usage-stat-label">Events Indexed</div>
+          <div class="usage-stat-value">1.2M</div>
+          <div class="usage-stat-sub">of 5M included</div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Stream Deliveries</div>
+          <div class="usage-stat-value">8,421</div>
+          <div class="usage-stat-sub">of 50K included</div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">API Requests</div>
+          <div class="usage-stat-value">42.1K</div>
+          <div class="usage-stat-sub">of 500K included</div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">API calls — last 7 days</div>
+        <div style="display:flex;align-items:flex-end;gap:3px;height:64px;margin-bottom:4px;">
+          <div style="flex:1;background:var(--accent);border-radius:2px 2px 0 0;height:35%;opacity:0.5;"></div>
+          <div style="flex:1;background:var(--accent);border-radius:2px 2px 0 0;height:52%;opacity:0.5;"></div>
+          <div style="flex:1;background:var(--accent);border-radius:2px 2px 0 0;height:41%;opacity:0.5;"></div>
+          <div style="flex:1;background:var(--accent);border-radius:2px 2px 0 0;height:78%;opacity:0.5;"></div>
+          <div style="flex:1;background:var(--accent);border-radius:2px 2px 0 0;height:65%;opacity:0.5;"></div>
+          <div style="flex:1;background:var(--accent);border-radius:2px 2px 0 0;height:88%;opacity:0.5;"></div>
+          <div style="flex:1;background:var(--accent);border-radius:2px 2px 0 0;height:100%;opacity:1;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--text-muted);margin-bottom:20px;">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Today</span>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Resource limits</div>
+
+        <div class="usage-row">
+          <div class="usage-label">
+            <span class="usage-label-name">Streams</span>
+            <span class="usage-label-value">3 / 10</span>
+          </div>
+          <div class="usage-bar">
+            <div class="usage-bar-fill purple" style="width:30%"></div>
+          </div>
+        </div>
+
+        <div class="usage-row">
+          <div class="usage-label">
+            <span class="usage-label-name">Subgraphs</span>
+            <span class="usage-label-value">4 / 10</span>
+          </div>
+          <div class="usage-bar">
+            <div class="usage-bar-fill purple" style="width:40%"></div>
+          </div>
+        </div>
+
+        <div class="usage-row">
+          <div class="usage-label">
+            <span class="usage-label-name">Storage</span>
+            <span class="usage-label-value">1.8 GB / 10 GB</span>
+          </div>
+          <div class="usage-bar">
+            <div class="usage-bar-fill green" style="width:18%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">This month</div>
+
+        <div class="usage-row">
+          <div class="usage-label">
+            <span class="usage-label-name">API calls</span>
+            <span class="usage-label-value">42,138</span>
+          </div>
+        </div>
+
+        <div class="usage-row">
+          <div class="usage-label">
+            <span class="usage-label-name">Deliveries</span>
+            <span class="usage-label-value">8,421</span>
+          </div>
+        </div>
+
+        <div class="usage-row">
+          <div class="usage-label">
+            <span class="usage-label-name">Events indexed</span>
+            <span class="usage-label-value">1.2M</span>
+          </div>
+        </div>
+
+        <div style="font-size:12px;color:var(--text-muted);opacity:0.7;margin-top:4px;">
+          Resource limits apply to creation. API reads are unlimited on all plans.
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Plan</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--border);border-radius:8px;">
+          <div>
+            <div style="font-size:13px;font-weight:500;">Pro</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">5M events, 50K deliveries, 500K API requests</div>
+          </div>
+          <button class="settings-btn ghost">Manage plan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /main-col -->
 
 <script>
@@ -3398,6 +3864,7 @@ function showView(viewId) {
   // Update sidebar active state
   const isHome = viewId === 'home';
   const isSession = ['sessions','result','confirm','overlay'].includes(viewId);
+  const isSettings = viewId.startsWith('settings-');
   document.querySelectorAll('.sidebar-nav .sb-item[data-nav]').forEach(item => {
     item.classList.remove('active');
   });
@@ -3413,6 +3880,14 @@ function showView(viewId) {
     document.querySelector('.sidebar-nav .sb-item[data-nav="agents"]')?.classList.add('active');
   } else if (['marketplace','mp-detail','mp-creator'].includes(viewId)) {
     document.querySelector('.sidebar-nav .sb-item[data-nav="marketplace"]')?.classList.add('active');
+  } else if (isSettings) {
+    document.querySelector(`.sidebar-nav .sb-item[data-nav="${viewId}"]`)?.classList.add('active');
+    // Open accordion if closed
+    const acc = document.querySelector('.sb-accordion');
+    if (acc && !acc.classList.contains('open')) {
+      acc.classList.add('open');
+      document.querySelector('.sb-accordion-toggle')?.classList.add('open');
+    }
   }
 
   // Tab bar only visible in sessions context

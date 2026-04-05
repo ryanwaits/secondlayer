@@ -6,12 +6,12 @@ import type { ThemeRegistrationRaw } from "shiki";
  * Light palette:
  *   bg        #f8f8f8    fg        #3a3a3a
  *   gray-1    #999999    gray-2    #666666    gray-3    #444444
- *   dark      #1a1a1a    purple    #6344F5
+ *   dark      #1a1a1a    purple    #7a7a3a
  *
  * Dark palette:
  *   bg        #1c1c1c    fg        #c8c8c8
  *   gray-1    #707070    gray-2    #909090    gray-3    #b0b0b0
- *   light     #e0e0e0    purple    #8b7ff0
+ *   light     #e0e0e0    purple    #9a9450
  */
 export const monotonePurple: ThemeRegistrationRaw = {
 	name: "monotone-purple",
@@ -48,7 +48,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				"keyword.operator.expression",
 			],
 			settings: {
-				foreground: "#6344F5",
+				foreground: "#7a7a3a",
 			},
 		},
 		// Import/export/from
@@ -60,7 +60,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				"keyword.control.as",
 			],
 			settings: {
-				foreground: "#6344F5",
+				foreground: "#7a7a3a",
 			},
 		},
 		// Strings
@@ -90,7 +90,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				"variable.language.this",
 			],
 			settings: {
-				foreground: "#6344F5",
+				foreground: "#7a7a3a",
 			},
 		},
 		// Function names / calls
@@ -160,7 +160,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 		{
 			scope: ["punctuation.definition.template-expression"],
 			settings: {
-				foreground: "#6344F5",
+				foreground: "#7a7a3a",
 			},
 		},
 		// Tags (JSX/HTML)
@@ -188,14 +188,14 @@ export const monotonePurple: ThemeRegistrationRaw = {
 		{
 			scope: ["meta.decorator", "punctuation.decorator"],
 			settings: {
-				foreground: "#6344F5",
+				foreground: "#7a7a3a",
 			},
 		},
 		// Markdown — inline code
 		{
 			scope: ["markup.inline.raw", "markup.raw"],
 			settings: {
-				foreground: "#6344F5",
+				foreground: "#7a7a3a",
 			},
 		},
 		// Markdown — list markers
@@ -257,7 +257,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"keyword.control.from",
 				"keyword.control.as",
 			],
-			settings: { foreground: "#8b7ff0" },
+			settings: { foreground: "#9a9450" },
 		},
 		{
 			scope: [
@@ -278,7 +278,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"constant.language.boolean",
 				"variable.language.this",
 			],
-			settings: { foreground: "#8b7ff0" },
+			settings: { foreground: "#9a9450" },
 		},
 		{
 			scope: ["entity.name.function", "support.function", "meta.function-call"],
@@ -327,7 +327,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		},
 		{
 			scope: ["punctuation.definition.template-expression"],
-			settings: { foreground: "#8b7ff0" },
+			settings: { foreground: "#9a9450" },
 		},
 		{
 			scope: ["entity.name.tag", "punctuation.definition.tag"],
@@ -343,12 +343,12 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		},
 		{
 			scope: ["meta.decorator", "punctuation.decorator"],
-			settings: { foreground: "#8b7ff0" },
+			settings: { foreground: "#9a9450" },
 		},
 		// Markdown — inline code
 		{
 			scope: ["markup.inline.raw", "markup.raw"],
-			settings: { foreground: "#8b7ff0" },
+			settings: { foreground: "#9a9450" },
 		},
 		// Markdown — list markers
 		{

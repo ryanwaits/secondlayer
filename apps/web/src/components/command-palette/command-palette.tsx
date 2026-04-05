@@ -463,7 +463,7 @@ export function CommandPalette() {
 								<a
 									href={response.docUrl}
 									className="palette-footer-hint"
-									style={{ color: "var(--accent-purple)", cursor: "pointer" }}
+									style={{ color: "var(--accent)", cursor: "pointer" }}
 									target="_blank"
 									rel="noopener noreferrer"
 								>

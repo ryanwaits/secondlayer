@@ -98,7 +98,7 @@ export function SubgraphReindexForm({
 					<button
 						type="button"
 						className="sg-reindex-btn"
-						style={{ background: "var(--accent-purple)" }}
+						style={{ background: "var(--accent)" }}
 						onClick={handleSubmit}
 					>
 						Backfill gaps

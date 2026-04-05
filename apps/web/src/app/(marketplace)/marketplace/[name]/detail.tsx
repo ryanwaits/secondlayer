@@ -237,7 +237,7 @@ export function SubgraphDetail({ name }: { name: string }) {
 						<span className="mkt-meta-value">
 							<Link
 								href={`/marketplace/${data.forkedFrom.name}`}
-								style={{ color: "var(--accent-purple)" }}
+								style={{ color: "var(--accent)" }}
 							>
 								{data.forkedFrom.name}
 							</Link>

@@ -22,7 +22,7 @@ export default async function MarketplaceDetailPage({
 					<>
 						<Link href="/marketplace" style={{ color: "inherit", textDecoration: "none" }}>Marketplace</Link>
 						{" / "}
-						<Link href={`/marketplace/creator/${sg.creatorHandle}`} style={{ color: "var(--accent-purple)", textDecoration: "none" }}>
+						<Link href={`/marketplace/creator/${sg.creatorHandle}`} style={{ color: "var(--accent)", textDecoration: "none" }}>
 							@{sg.creatorHandle}
 						</Link>
 					</>
