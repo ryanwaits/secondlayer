@@ -60,24 +60,40 @@ app.post("/", async (c) => {
 	return c.json({ id: session.id }, 201);
 });
 
-// Update chat session (title, summary)
+// Update chat session (title, summary) — upserts if session doesn't exist yet
 app.patch("/:id", async (c) => {
 	const accountId = requireAccountId(c);
 	const id = c.req.param("id");
 	const body = await c.req.json();
 	const db = getDb();
 
-	const updates: Record<string, unknown> = { updated_at: new Date() };
-	if (body.title !== undefined) updates.title = body.title;
-	if (body.summary !== undefined)
-		updates.summary = body.summary;
-
-	await db
-		.updateTable("chat_sessions")
-		.set(updates)
+	const existing = await db
+		.selectFrom("chat_sessions")
+		.select("id")
 		.where("id", "=", id)
 		.where("account_id", "=", accountId)
-		.execute();
+		.executeTakeFirst();
+
+	if (existing) {
+		const updates: Record<string, unknown> = { updated_at: new Date() };
+		if (body.title !== undefined) updates.title = body.title;
+		if (body.summary !== undefined) updates.summary = body.summary;
+
+		await db
+			.updateTable("chat_sessions")
+			.set(updates)
+			.where("id", "=", id)
+			.execute();
+	} else {
+		await db
+			.insertInto("chat_sessions")
+			.values({
+				id,
+				account_id: accountId,
+				title: body.title ?? null,
+			})
+			.execute();
+	}
 
 	return c.json({ ok: true });
 });
