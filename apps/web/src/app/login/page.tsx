@@ -70,12 +70,12 @@ export default function LoginPage() {
 			setVerifyError(null);
 			try {
 				await verify(code, email);
-				router.replace("/");
+				window.location.href = "/";
 			} catch {
 				setVerifyError("Invalid or expired code. Try again.");
 			}
 		},
-		[code, email, verify, router],
+		[code, email, verify],
 	);
 
 	return (
