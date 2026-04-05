@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { ProjectSwitcher } from "./project-switcher";
 import { UserModal } from "./user-modal";
@@ -26,8 +26,7 @@ const NAV_ITEMS: NavItem[] = [
 const SETTINGS_CHILDREN = [
 	{ href: "/settings", label: "Project" },
 	{ href: "/api-keys", label: "API Keys" },
-	{ href: "/settings", label: "Webhooks" },
-	{ href: "/settings", label: "Team" },
+	{ href: "/team", label: "Team" },
 	{ href: "/usage", label: "Usage" },
 ];
 
@@ -78,11 +77,21 @@ const ICONS: Record<string, React.ReactNode> = {
 	),
 };
 
-// Badge counts — will be replaced with real data
-const BADGE_COUNTS: Record<string, number> = {
-	subgraphs: 4,
-	streams: 3,
-};
+function useSidebarCounts() {
+	const [counts, setCounts] = useState<Record<string, number>>({});
+	useEffect(() => {
+		Promise.allSettled([
+			fetch("/api/subgraphs", { credentials: "same-origin" }).then(r => r.json()),
+			fetch("/api/streams?limit=1&offset=0", { credentials: "same-origin" }).then(r => r.json()),
+		]).then(([sg, st]) => {
+			const c: Record<string, number> = {};
+			if (sg.status === "fulfilled" && sg.value?.data) c.subgraphs = sg.value.data.length;
+			if (st.status === "fulfilled" && st.value?.total != null) c.streams = st.value.total;
+			setCounts(c);
+		});
+	}, []);
+	return counts;
+}
 
 function isActive(pathname: string, href: string) {
 	if (href === "/") return pathname === "/platform" || pathname === "/";
@@ -96,14 +105,15 @@ function isSettingsActive(pathname: string) {
 	return (
 		clean.startsWith("/settings") ||
 		clean.startsWith("/api-keys") ||
-		clean.startsWith("/usage") ||
-		clean.startsWith("/billing")
+		clean.startsWith("/team") ||
+		clean.startsWith("/usage")
 	);
 }
 
 export function ConsoleSidebar() {
 	const pathname = usePathname();
 	const { account } = useAuth();
+	const counts = useSidebarCounts();
 	const [settingsOpen, setSettingsOpen] = useState(true);
 	const [userModalOpen, setUserModalOpen] = useState(false);
 	const initial = account?.email ? account.email[0].toUpperCase() : "U";
@@ -130,8 +140,8 @@ export function ConsoleSidebar() {
 						>
 							<span className="sb-item-icon">{ICONS[item.icon]}</span>
 							<span className="sb-item-label">{item.label}</span>
-							{item.badgeKey && BADGE_COUNTS[item.badgeKey] != null && (
-								<span className="sb-item-badge">{BADGE_COUNTS[item.badgeKey]}</span>
+							{item.badgeKey && counts[item.badgeKey] != null && (
+								<span className="sb-item-badge">{counts[item.badgeKey]}</span>
 							)}
 						</Link>
 					))}
@@ -165,7 +175,13 @@ export function ConsoleSidebar() {
 
 				{/* Bottom */}
 				<div className="sidebar-bottom">
-					<div className="sb-bottom-item">
+					<div
+						className="sb-bottom-item"
+						style={{ cursor: "pointer" }}
+						onClick={() => {
+							window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+						}}
+					>
 						<span className="sb-bottom-icon">
 							<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
 								<circle cx="7" cy="7" r="4.5" />
@@ -179,7 +195,11 @@ export function ConsoleSidebar() {
 							</kbd>
 						</span>
 					</div>
-					<div className="sb-bottom-item">
+					<div
+						className="sb-bottom-item"
+						style={{ cursor: "pointer" }}
+						onClick={() => window.open("https://docs.secondlayer.xyz", "_blank")}
+					>
 						<span className="sb-bottom-icon">
 							<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
 								<path d="M2 4h12M2 8h8M2 12h10" />

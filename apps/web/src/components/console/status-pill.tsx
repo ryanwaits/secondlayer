@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/lib/auth";
 import { useStatus } from "@/lib/queries/status";
 import { useState } from "react";
 
@@ -18,6 +19,7 @@ function timeSince(dateStr: string): string {
 }
 
 export function StatusPill() {
+	const { account } = useAuth();
 	const { data: status } = useStatus();
 	const [expanded, setExpanded] = useState(false);
 
@@ -58,7 +60,7 @@ export function StatusPill() {
 						<div className="status-pill-expanded-row">
 							<span className="status-pill-expanded-label">Plan</span>
 							<span className="status-pill-expanded-value status-pill-plan">
-								Free
+								{account?.plan ?? "Free"}
 							</span>
 						</div>
 					</div>

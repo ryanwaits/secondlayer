@@ -1,7 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 import { useStatus } from "@/lib/queries/status";
+import {
+	useTopbar,
+	REFRESH_OPTIONS,
+	TIME_RANGE_OPTIONS,
+	type RefreshInterval,
+	type TimeRange,
+} from "@/lib/topbar-context";
 
 function formatBlock(n: number) {
 	return `#${n.toLocaleString()}`;
@@ -15,6 +23,73 @@ function timeAgo(iso: string) {
 	return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function MetaDropdown<T>({
+	options,
+	value,
+	onChange,
+	icon,
+}: {
+	options: { value: T; label: string }[];
+	value: T;
+	onChange: (v: T) => void;
+	icon: ReactNode;
+}) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+	const current = options.find((o) => o.value === value);
+
+	return (
+		<div className="meta-dropdown-wrap" ref={ref}>
+			<button
+				type="button"
+				className="overview-meta-btn"
+				onClick={() => setOpen(!open)}
+				onBlur={(e) => {
+					if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false);
+				}}
+			>
+				{icon}
+				{current?.label}
+				<svg
+					width="8"
+					height="8"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+					strokeLinecap="round"
+					aria-hidden="true"
+				>
+					<path d="M4 6l4 4 4-4" />
+				</svg>
+			</button>
+			{open && (
+				<div className="meta-dropdown">
+					{options.map((opt) => (
+						<button
+							key={String(opt.value)}
+							type="button"
+							className={`meta-dropdown-item${opt.value === value ? " active" : ""}`}
+							onMouseDown={(e) => {
+								e.preventDefault();
+								onChange(opt.value);
+								setOpen(false);
+							}}
+						>
+							{opt.label}
+							{opt.value === value && (
+								<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+									<path d="M3 8.5l3.5 3.5 6.5-8" />
+								</svg>
+							)}
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
 interface OverviewTopbarProps {
 	project?: string;
 	path?: ReactNode;
@@ -22,6 +97,7 @@ interface OverviewTopbarProps {
 	showMeta?: boolean;
 	showRefresh?: boolean;
 	showTimeRange?: boolean;
+	lastUpdated?: string | null;
 }
 
 export function OverviewTopbar({
@@ -31,11 +107,21 @@ export function OverviewTopbar({
 	showMeta = true,
 	showRefresh = true,
 	showTimeRange = true,
+	lastUpdated,
 }: OverviewTopbarProps) {
 	const { data: status } = useStatus();
+	const { autoRefresh, timeRange, setAutoRefresh, setTimeRange, autoRefreshLabel } = useTopbar();
 
 	const blockHeight = status?.chainTip ? formatBlock(status.chainTip) : "—";
-	const lastUpdated = status?.timestamp ? timeAgo(status.timestamp) : "—";
+
+	let lastUpdatedDisplay: string;
+	if (lastUpdated === null) {
+		lastUpdatedDisplay = "—";
+	} else if (lastUpdated !== undefined) {
+		lastUpdatedDisplay = timeAgo(lastUpdated);
+	} else {
+		lastUpdatedDisplay = status?.timestamp ? timeAgo(status.timestamp) : "—";
+	}
 
 	return (
 		<div className="overview-topbar">
@@ -48,7 +134,7 @@ export function OverviewTopbar({
 			{showMeta && (
 				<div className="overview-meta">
 					<span className="overview-meta-item">
-						Last updated <span className="mono">{lastUpdated}</span>
+						Last updated <span className="mono">{lastUpdatedDisplay}</span>
 					</span>
 					<span className="overview-meta-sep" />
 					<span className="overview-meta-item">
@@ -57,67 +143,33 @@ export function OverviewTopbar({
 					{showRefresh && (
 						<>
 							<span className="overview-meta-sep" />
-							<button type="button" className="overview-meta-btn">
-								<svg
-									width="12"
-									height="12"
-									viewBox="0 0 16 16"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.5"
-									strokeLinecap="round"
-									aria-hidden="true"
-								>
-									<path d="M2 8a6 6 0 0 1 10.5-4" />
-									<path d="M14 8a6 6 0 0 1-10.5 4" />
-									<path d="M10 4h3V1" />
-									<path d="M6 12H3v3" />
-								</svg>
-								Auto-refresh off
-								<svg
-									width="8"
-									height="8"
-									viewBox="0 0 16 16"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									aria-hidden="true"
-								>
-									<path d="M4 6l4 4 4-4" />
-								</svg>
-							</button>
+							<MetaDropdown<RefreshInterval>
+								options={REFRESH_OPTIONS}
+								value={autoRefresh}
+								onChange={setAutoRefresh}
+								icon={
+									<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+										<path d="M2 8a6 6 0 0 1 10.5-4" />
+										<path d="M14 8a6 6 0 0 1-10.5 4" />
+										<path d="M10 4h3V1" />
+										<path d="M6 12H3v3" />
+									</svg>
+								}
+							/>
 						</>
 					)}
 					{showTimeRange && (
-						<button type="button" className="overview-meta-btn">
-							<svg
-								width="12"
-								height="12"
-								viewBox="0 0 16 16"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1.5"
-								strokeLinecap="round"
-								aria-hidden="true"
-							>
-								<circle cx="8" cy="8" r="6" />
-								<path d="M8 4.5V8l2.5 1.5" />
-							</svg>
-							Past 7 days
-							<svg
-								width="8"
-								height="8"
-								viewBox="0 0 16 16"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								aria-hidden="true"
-							>
-								<path d="M4 6l4 4 4-4" />
-							</svg>
-						</button>
+						<MetaDropdown<TimeRange>
+							options={TIME_RANGE_OPTIONS}
+							value={timeRange}
+							onChange={setTimeRange}
+							icon={
+								<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+									<circle cx="8" cy="8" r="6" />
+									<path d="M8 4.5V8l2.5 1.5" />
+								</svg>
+							}
+						/>
 					)}
 				</div>
 			)}

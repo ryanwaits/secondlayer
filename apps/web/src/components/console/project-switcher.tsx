@@ -1,17 +1,15 @@
 "use client";
 
+import { useProjects } from "@/lib/queries/projects";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-
-const PROJECTS = [
-	{ name: "my-project", active: true },
-	{ name: "stx-analytics", active: false },
-	{ name: "defi-dashboard", active: false },
-];
 
 export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
-	const current = PROJECTS.find((p) => p.active) || PROJECTS[0];
+	const { data: projects } = useProjects();
+
+	// For now, first project is "active" — will be route-based later
+	const current = projects?.[0];
 
 	useEffect(() => {
 		function handleClick(e: MouseEvent) {
@@ -28,10 +26,10 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 			{open && (
 				<div className="org-popover">
 					<div className="org-popover-title">Projects</div>
-					{PROJECTS.map((p) => (
+					{(projects ?? []).map((p) => (
 						<div
-							key={p.name}
-							className={`org-popover-item${p.active ? " active" : ""}`}
+							key={p.id}
+							className={`org-popover-item${p.id === current?.id ? " active" : ""}`}
 							onClick={() => setOpen(false)}
 						>
 							{p.name}
@@ -52,7 +50,7 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 				</div>
 			)}
 			<div className="org-trigger" onClick={() => setOpen(!open)}>
-				<span className="org-name">{current.name}</span>
+				<span className="org-name">{current?.name ?? "my-project"}</span>
 				<span className="org-chevron">
 					<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
 						<path d="M4 6l4 4 4-4" />
