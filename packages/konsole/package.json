@@ -17,7 +17,7 @@
 	"dependencies": {
 		"@secondlayer/auth": "workspace:*",
 		"@secondlayer/shared": "workspace:*",
-		"kysely": "0.28.10",
+		"kysely": "0.28.15",
 		"kysely-postgres-js": "3.0.0",
 		"pluralize": "^8.0.0",
 		"postgres": "^3.4.6"
