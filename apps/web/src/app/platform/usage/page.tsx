@@ -31,10 +31,15 @@ interface UsageData {
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function formatDayLabel(dateStr: string): string {
-	const d = new Date(dateStr + "T00:00:00");
+	const d = new Date(`${dateStr}T00:00:00`);
 	const today = new Date();
 	if (d.toDateString() === today.toDateString()) return "Today";
 	return DAY_NAMES[d.getDay()];
+}
+
+function pct(current: number, limit: number) {
+	if (limit <= 0) return 0;
+	return Math.min((current / limit) * 100, 100);
 }
 
 export default async function UsagePage() {
@@ -53,9 +58,11 @@ export default async function UsagePage() {
 		return (
 			<>
 				<OverviewTopbar path="Settings" page="Usage" showRefresh={false} showTimeRange={false} />
-				<div className="dash-page-header">
-					<h1 className="dash-page-title">Usage</h1>
-					<p className="dash-page-desc">Unable to load usage data.</p>
+				<div className="settings-scroll">
+					<div className="settings-inner">
+						<h1 className="settings-title">Usage</h1>
+						<p className="settings-desc">Unable to load usage data.</p>
+					</div>
 				</div>
 			</>
 		);
@@ -69,96 +76,89 @@ export default async function UsagePage() {
 	return (
 		<>
 			<OverviewTopbar path="Settings" page="Usage" showRefresh={false} showTimeRange={false} />
-			<div style={{ flex: 1, overflow: "auto" }}>
-			<div className="dash-page-header">
-				<h1 className="dash-page-title">Usage</h1>
-			</div>
+			<div className="settings-scroll">
+				<div className="settings-inner">
+					<h1 className="settings-title">Usage</h1>
+					<p className="settings-desc">Resource consumption for the current billing period.</p>
 
-			<div className="dash-section-wrap">
-				<hr />
-				<h2 className="dash-section-title">Plan</h2>
-			</div>
-			<div style={{ marginBottom: 16 }}>
-				<span className={`dash-badge ${usage.plan}`}>{usage.plan}</span>
-			</div>
+					{/* Stat cards */}
+					<div className="usage-stat-grid">
+						<div className="usage-stat">
+							<div className="usage-stat-label">Events Indexed</div>
+							<div className="usage-stat-value">{formatNum(usage.current.deliveriesThisMonth)}</div>
+							<div className="usage-stat-sub">of {formatNum(usage.limits.deliveriesPerMonth)} included</div>
+						</div>
+						<div className="usage-stat">
+							<div className="usage-stat-label">API Requests</div>
+							<div className="usage-stat-value">{formatNum(usage.current.apiRequestsToday)}</div>
+							<div className="usage-stat-sub">of {formatNum(usage.limits.apiRequestsPerDay)} / day</div>
+						</div>
+						<div className="usage-stat">
+							<div className="usage-stat-label">Storage</div>
+							<div className="usage-stat-value">{formatBytes(usage.current.storageBytes)}</div>
+							<div className="usage-stat-sub">of {formatBytes(usage.limits.storageBytes)}</div>
+						</div>
+					</div>
 
-			<div className="dash-section-wrap">
-				<hr />
-				<h2 className="dash-section-title">Resource limits</h2>
-			</div>
-			<div>
-				<div className="limit-row">
-					<span className="limit-label">Streams</span>
-					<div className="limit-right">
-						<span className="limit-value">
-							{usage.current.streams} / {usage.limits.streams}
-						</span>
-						<div className="limit-bar">
-							<div
-								className="limit-bar-fill"
-								style={{
-									width: `${(usage.current.streams / usage.limits.streams) * 100}%`,
-								}}
-							/>
+					{/* Sparkline */}
+					{sparkData.length > 0 && (
+						<div className="settings-section">
+							<div className="settings-section-title">API calls — last 7 days</div>
+							<Sparkline data={sparkData} />
+						</div>
+					)}
+
+					{/* Resource limits */}
+					<div className="settings-section">
+						<div className="settings-section-title">Resource limits</div>
+
+						<div className="usage-row">
+							<div className="usage-label">
+								<span className="usage-label-name">Streams</span>
+								<span className="usage-label-value">{usage.current.streams} / {usage.limits.streams}</span>
+							</div>
+							<div className="usage-bar">
+								<div className="usage-bar-fill accent" style={{ width: `${pct(usage.current.streams, usage.limits.streams)}%` }} />
+							</div>
+						</div>
+
+						<div className="usage-row">
+							<div className="usage-label">
+								<span className="usage-label-name">Subgraphs</span>
+								<span className="usage-label-value">{usage.current.subgraphs} / {usage.limits.subgraphs}</span>
+							</div>
+							<div className="usage-bar">
+								<div className="usage-bar-fill accent" style={{ width: `${pct(usage.current.subgraphs, usage.limits.subgraphs)}%` }} />
+							</div>
+						</div>
+
+						<div className="usage-row">
+							<div className="usage-label">
+								<span className="usage-label-name">Storage</span>
+								<span className="usage-label-value">{formatBytes(usage.current.storageBytes)} / {formatBytes(usage.limits.storageBytes)}</span>
+							</div>
+							<div className="usage-bar">
+								<div className="usage-bar-fill green" style={{ width: `${pct(usage.current.storageBytes, usage.limits.storageBytes)}%` }} />
+							</div>
+						</div>
+					</div>
+
+					<div className="settings-divider" />
+
+					{/* Plan */}
+					<div className="settings-section">
+						<div className="settings-section-title">Plan</div>
+						<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", border: "1px solid var(--border)", borderRadius: 8 }}>
+							<div>
+								<div style={{ fontSize: 13, fontWeight: 500 }}>{usage.plan}</div>
+								<div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+									{usage.limits.streams} streams, {usage.limits.subgraphs} subgraphs, {formatNum(usage.limits.apiRequestsPerDay)} API req/day
+								</div>
+							</div>
+							<button type="button" className="settings-btn ghost">Manage plan</button>
 						</div>
 					</div>
 				</div>
-				<div className="limit-row">
-					<span className="limit-label">Subgraphs</span>
-					<div className="limit-right">
-						<span className="limit-value">
-							{usage.current.subgraphs} / {usage.limits.subgraphs}
-						</span>
-						<div className="limit-bar">
-							<div
-								className="limit-bar-fill"
-								style={{
-									width: `${(usage.current.subgraphs / usage.limits.subgraphs) * 100}%`,
-								}}
-							/>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			{sparkData.length > 0 && (
-				<>
-					<div className="dash-section-wrap" style={{ marginTop: 24 }}>
-						<hr />
-						<h2 className="dash-section-title">API calls — last 7 days</h2>
-					</div>
-					<Sparkline data={sparkData} />
-				</>
-			)}
-
-			<div className="dash-section-wrap" style={{ marginTop: 24 }}>
-				<hr />
-				<h2 className="dash-section-title">This month</h2>
-			</div>
-			<div>
-				<div className="breakdown-row">
-					<span className="breakdown-label">API calls</span>
-					<span className="breakdown-value">
-						{formatNum(usage.current.apiRequestsToday)}
-					</span>
-				</div>
-				<div className="breakdown-row">
-					<span className="breakdown-label">Deliveries</span>
-					<span className="breakdown-value">
-						{formatNum(usage.current.deliveriesThisMonth)}
-					</span>
-				</div>
-				<div className="breakdown-row">
-					<span className="breakdown-label">Subgraph data</span>
-					<span className="breakdown-value">
-						{formatBytes(usage.current.storageBytes)}
-					</span>
-				</div>
-			</div>
-
-			<p className="dash-hint" style={{ marginTop: 12, opacity: 0.7 }}>
-				Resource limits apply to creation. API reads are unlimited on all plans.
-			</p>
 			</div>
 		</>
 	);

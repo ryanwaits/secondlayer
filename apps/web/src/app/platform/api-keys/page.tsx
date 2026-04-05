@@ -20,8 +20,10 @@ export default async function KeysPage() {
 	return (
 		<>
 			<OverviewTopbar path="Settings" page="API Keys" showRefresh={false} showTimeRange={false} />
-			<div style={{ flex: 1, overflow: "auto" }}>
-				<KeysList initialKeys={keys} sessionToken={session ?? ""} />
+			<div className="settings-scroll">
+				<div className="settings-inner">
+					<KeysList initialKeys={keys} sessionToken={session ?? ""} />
+				</div>
 			</div>
 		</>
 	);

@@ -15,6 +15,17 @@ export function useApiKeys(initialData?: ApiKey[]) {
 	});
 }
 
+export function useRevokeApiKey() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (keyId: string) =>
+			fetchJson(`/api/keys/${keyId}`, { method: "DELETE" }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: queryKeys.keys.all });
+		},
+	});
+}
+
 export function useCreateApiKey() {
 	const qc = useQueryClient();
 	return useMutation({

@@ -30,4 +30,9 @@ export const queryKeys = {
 		creator: (slug: string) => ["marketplace", "creator", slug] as const,
 	},
 	status: ["status"] as const,
+	projects: {
+		all: ["projects"] as const,
+		detail: (slug: string) => ["projects", slug] as const,
+		team: (slug: string) => ["projects", slug, "team"] as const,
+	},
 };

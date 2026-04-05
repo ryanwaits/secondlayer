@@ -2,6 +2,10 @@ export interface Account {
 	id: string;
 	email: string;
 	plan: string;
+	displayName: string | null;
+	bio: string | null;
+	slug: string | null;
+	avatarUrl: string | null;
 	createdAt: string;
 }
 
@@ -74,6 +78,34 @@ export interface AccountInsight {
 	data: Record<string, unknown>;
 	createdAt: string;
 	expiresAt: string | null;
+}
+
+export interface Project {
+	id: string;
+	name: string;
+	slug: string;
+	network: string;
+	nodeRpc: string | null;
+	settings: Record<string, unknown>;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface TeamMember {
+	id: string;
+	role: string;
+	email: string;
+	displayName: string | null;
+	avatarUrl: string | null;
+	createdAt: string;
+}
+
+export interface TeamInvitation {
+	id: string;
+	email: string;
+	role: string;
+	expiresAt: string;
+	createdAt: string;
 }
 
 export interface SystemStatus {

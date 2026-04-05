@@ -1,13 +1,9 @@
 "use client";
 
-import { Insight } from "@/components/console/intelligence";
-import { InsightsSection } from "@/components/console/intelligence/insights-section";
 import { CopyButton } from "@/components/copy-button";
-import { highlight } from "@/lib/highlight";
-import { detectStaleKeys } from "@/lib/intelligence/keys";
-import { useApiKeys, useCreateApiKey } from "@/lib/queries/api-keys";
+import { useApiKeys, useCreateApiKey, useRevokeApiKey } from "@/lib/queries/api-keys";
 import type { ApiKey } from "@/lib/types";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 function timeAgo(dateStr: string | null): string {
 	if (!dateStr) return "never";
@@ -22,101 +18,6 @@ function timeAgo(dateStr: string | null): string {
 	return new Date(dateStr).toLocaleDateString();
 }
 
-function sdkSnippet(prefix: string) {
-	return `import { SecondLayer } from "@secondlayer/sdk";
-
-const client = new SecondLayer({
-  apiKey: "${prefix}",
-});
-
-// List streams
-const streams = await client.streams.list();
-
-// Query a subgraph table
-const rows = await client.subgraphs.query("my-subgraph", "transfers", {
-  limit: 10,
-});`;
-}
-
-function KeyDetail({ apiKey }: { apiKey: ApiKey }) {
-	const [html, setHtml] = useState<string | null>(null);
-	const code = sdkSnippet(apiKey.prefix);
-
-	useEffect(() => {
-		let cancelled = false;
-		highlight(code, "typescript").then((result) => {
-			if (!cancelled) setHtml(result);
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, [code]);
-
-	return (
-		<div className="key-detail">
-			<div className="key-detail-section-label">SDK</div>
-			<div className="code-block-wrapper key-detail-code">
-				<CopyButton code={code} />
-				{html ? (
-					<div dangerouslySetInnerHTML={{ __html: html }} />
-				) : (
-					<pre>
-						<code>{code}</code>
-					</pre>
-				)}
-			</div>
-			<div className="key-detail-hint">
-				<svg
-					width="10"
-					height="10"
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="#22c55e"
-					strokeWidth="1.5"
-				>
-					<circle cx="8" cy="8" r="7" />
-					<path d="M8 5v3" />
-					<circle cx="8" cy="11" r="0.5" fill="#22c55e" />
-				</svg>
-				Full API key included when copied
-			</div>
-
-			<div className="key-detail-meta">
-				<div className="key-detail-meta-item">
-					<span className="key-detail-meta-label">Status</span>
-					<span className="key-detail-meta-value">
-						{apiKey.status === "active" ? (
-							<span className="dash-badge active">active</span>
-						) : (
-							<span className="dash-badge inactive">revoked</span>
-						)}
-					</span>
-				</div>
-				<div className="key-detail-meta-item">
-					<span className="key-detail-meta-label">Created</span>
-					<span className="key-detail-meta-value">
-						{new Date(apiKey.createdAt).toLocaleDateString("en-US", {
-							month: "short",
-							day: "numeric",
-							year: "numeric",
-						})}
-					</span>
-				</div>
-				<div className="key-detail-meta-item">
-					<span className="key-detail-meta-label">Last used</span>
-					<span className="key-detail-meta-value">
-						{timeAgo(apiKey.lastUsedAt)}
-					</span>
-				</div>
-			</div>
-
-			{apiKey.status === "active" && (
-				<button className="dash-btn danger">Revoke key</button>
-			)}
-		</div>
-	);
-}
-
 export function KeysList({
 	initialKeys,
 	sessionToken = "",
@@ -126,11 +27,11 @@ export function KeysList({
 }) {
 	const { data: keys = initialKeys } = useApiKeys(initialKeys);
 	const createKey = useCreateApiKey();
+	const revokeKey = useRevokeApiKey();
 	const [showForm, setShowForm] = useState(false);
 	const [name, setName] = useState("");
 	const [newRawKey, setNewRawKey] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
-	const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const status = createKey.isPending
@@ -169,177 +70,114 @@ export function KeysList({
 
 	return (
 		<>
-			<div
-				className="dash-page-header"
-				style={{
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "space-between",
-				}}
-			>
+			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
 				<div>
-					<h1 className="dash-page-title">API Keys</h1>
-					{keys.length > 0 && (
-						<p className="dash-page-desc">
-							{keys.length} key{keys.length !== 1 ? "s" : ""}
-						</p>
-					)}
+					<h1 className="settings-title">API Keys</h1>
+					<p className="settings-desc">Manage keys for authenticating with the secondlayer API. Keep these secret.</p>
 				</div>
-				{!showForm && status !== "done" && (
+			</div>
+
+			{!showForm && status !== "done" && (
+				<div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
 					<button
-						className="create-btn"
+						type="button"
+						className="settings-btn primary"
+						style={{ display: "flex", alignItems: "center", gap: 5 }}
 						onClick={() => {
 							setShowForm(true);
 							setTimeout(() => inputRef.current?.focus(), 0);
 						}}
 					>
-						+ Create key
+						<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8" /></svg>
+						Create key
 					</button>
-				)}
-			</div>
+				</div>
+			)}
 
 			{/* Inline create form */}
 			{showForm && status !== "done" && (
-				<div className="create-card">
-					<form
-						onSubmit={handleCreate}
-						style={{ display: "flex", alignItems: "flex-end", gap: 10 }}
-					>
-						<div style={{ flex: 1 }}>
-							<label className="create-label">Key name</label>
+				<div style={{ padding: "14px 16px", border: "1px solid var(--border)", borderRadius: 8, marginBottom: 16 }}>
+					<form onSubmit={handleCreate} style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+						<label style={{ flex: 1 }}>
+							<span className="settings-label">Key name</span>
 							<input
 								ref={inputRef}
-								className="create-input"
+								className="settings-input"
 								type="text"
-								placeholder="e.g. prod-key"
+								placeholder="e.g. production"
 								value={name}
 								onChange={(e) => setName(e.target.value)}
 								autoFocus
 							/>
-						</div>
-						<button
-							type="submit"
-							className="create-submit"
-							disabled={status === "creating"}
-						>
+						</label>
+						<button type="submit" className="settings-btn primary" disabled={status === "creating"}>
 							{status === "creating" ? "..." : "Create"}
 						</button>
-						<button
-							type="button"
-							className="create-cancel"
-							onClick={() => {
-								setShowForm(false);
-								setName("");
-							}}
-						>
+						<button type="button" className="settings-btn ghost" onClick={() => { setShowForm(false); setName(""); }}>
 							Cancel
 						</button>
 					</form>
 					{status === "error" && (
-						<p style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>
+						<p style={{ fontSize: 12, color: "var(--red)", marginTop: 8 }}>
 							Failed to create key. Try again.
 						</p>
 					)}
 				</div>
 			)}
 
-			{/* Success banner with raw key */}
+			{/* Success banner */}
 			{status === "done" && newRawKey && (
-				<div className="create-success">
-					<div className="create-success-header">
-						<div className="create-success-icon">
-							<svg
-								width="12"
-								height="12"
-								viewBox="0 0 16 16"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-							>
-								<path d="M4 8l3 3 5-5" />
-							</svg>
-						</div>
-						<span className="create-success-title">
-							{name || "Key"} created
-						</span>
+				<div style={{ padding: "14px 16px", border: "1px solid var(--green)", borderRadius: 8, marginBottom: 16, background: "var(--green-bg)" }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+						<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--green)" strokeWidth="2" aria-hidden="true"><path d="M4 8l3 3 5-5" /></svg>
+						<span style={{ fontSize: 13, fontWeight: 500 }}>{name || "Key"} created</span>
 						<span style={{ flex: 1 }} />
-						<button className="create-cancel" onClick={dismissSuccess}>
-							Dismiss
-						</button>
+						<button type="button" className="settings-btn ghost" onClick={dismissSuccess}>Dismiss</button>
 					</div>
-					<div className="key-row">
-						<span className="key-value">{newRawKey}</span>
-						<button className="key-copy" onClick={handleCopy}>
-							{copied ? "Copied" : "Copy"}
-						</button>
+					<div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--code-bg)", borderRadius: 6 }}>
+						<span style={{ flex: 1, fontFamily: "var(--font-mono-stack)", fontSize: 12, wordBreak: "break-all" }}>{newRawKey}</span>
+						<button type="button" className="settings-btn ghost" onClick={handleCopy}>{copied ? "Copied" : "Copy"}</button>
 					</div>
-					<div className="create-success-warning">
+					<div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
 						Copy this key now — it won&apos;t be shown again.
 					</div>
 				</div>
 			)}
 
 			{/* Keys list */}
-			{keys.length === 0 && !showForm ? (
-				<div className="dash-empty">
-					<p>No API keys yet.</p>
-					<div className="dash-empty-action">
-						<a onClick={() => setShowForm(true)}>Create your first key</a>
+			<div className="settings-section">
+				{keys.length === 0 && !showForm ? (
+					<div className="ov-empty">
+						No API keys yet.{" "}
+						<button type="button" className="ov-section-link" onClick={() => setShowForm(true)} style={{ cursor: "pointer", background: "none", border: "none", font: "inherit" }}>
+							Create your first key &rarr;
+						</button>
 					</div>
-				</div>
-			) : (
-				<div className="dash-index-group">
-					{keys.map((key) => (
-						<div key={key.id}>
-							<div
-								className={`dash-index-item${selectedKeyId === key.id ? " selected" : ""}`}
-								onClick={() =>
-									setSelectedKeyId(selectedKeyId === key.id ? null : key.id)
-								}
-							>
-								<div className="dash-index-link">
-									<span className="dash-index-label">
-										<span className="key-prefix">{key.prefix}</span>
-										{key.name && <span className="key-name">{key.name}</span>}
-									</span>
-									<span className="dash-index-meta">
-										{key.status === "active" ? (
-											<span className="dash-badge active">active</span>
-										) : (
-											<s style={{ opacity: 0.5 }}>revoked</s>
-										)}
-										{key.status === "active" && (
-											<>last used {timeAgo(key.lastUsedAt)}</>
-										)}
-									</span>
-								</div>
+				) : (
+					keys.map((key) => (
+						<div key={key.id} className="settings-key-row">
+							<div className="settings-key-name">{key.name || key.prefix}</div>
+							<div className="settings-key-prefix">{key.prefix}</div>
+							<div className="settings-key-created">
+								{new Date(key.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
 							</div>
-							{selectedKeyId === key.id && <KeyDetail apiKey={key} />}
+							{key.status === "active" && (
+								<button type="button" className="settings-key-revoke" onClick={() => { if (confirm("Revoke this key? This cannot be undone.")) revokeKey.mutate(key.id); }}>Revoke</button>
+							)}
 						</div>
-					))}
+					))
+				)}
+			</div>
+
+			<div className="settings-divider" />
+
+			<div className="settings-section">
+				<div className="settings-section-title">Rate limits</div>
+				<div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
+					Each key allows <span style={{ fontFamily: "var(--font-mono-stack)", fontSize: 12, color: "var(--text-main)", fontWeight: 500 }}>1,000</span> requests per minute.
+					Exceeding this limit returns <span style={{ fontFamily: "var(--font-mono-stack)", fontSize: 12, color: "var(--text-main)" }}>429 Too Many Requests</span>.
 				</div>
-			)}
-
-			<StaleKeyInsight keys={keys} />
-
-			<InsightsSection category="key" sessionToken={sessionToken} />
+			</div>
 		</>
-	);
-}
-
-function StaleKeyInsight({ keys }: { keys: ApiKey[] }) {
-	const stale = detectStaleKeys(keys);
-	if (stale.length === 0) return null;
-
-	const names = stale.map((k) => k.name || k.prefix);
-
-	return (
-		<div style={{ marginTop: 12 }}>
-			<Insight variant="warning" id="stale-keys">
-				<strong>{names.join(", ")}</strong>{" "}
-				{stale.length === 1 ? "hasn't" : "haven't"} been used in over 30 days.
-				Unused keys are a security risk — consider revoking them.
-			</Insight>
-		</div>
 	);
 }
