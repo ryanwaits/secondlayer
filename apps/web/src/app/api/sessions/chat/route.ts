@@ -54,8 +54,18 @@ export async function POST(req: Request) {
 		system,
 		messages: await convertToModelMessages(messages),
 		tools,
+		toolChoice: "auto",
 		stopWhen: stepCountIs(5),
 		maxOutputTokens: 4096,
+		prepareStep: async ({ stepNumber, steps }) => {
+			// Force tool use on the first step — the model should always check
+			// data or take action before responding with text
+			if (stepNumber === 0) {
+				return { toolChoice: "required" as const };
+			}
+			// After tool calls complete, let the model decide (text or more tools)
+			return {};
+		},
 		onFinish: async ({ response }) => {
 			// Use after() to keep serverless function alive for persistence
 			const persistWork = async () => {

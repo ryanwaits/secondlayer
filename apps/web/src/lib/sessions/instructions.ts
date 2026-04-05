@@ -42,12 +42,9 @@ export function buildSessionInstructions(
 
 ## Rules
 - Be EXTREMELY concise. 1-2 sentences max. No "next steps", no suggestions unless asked.
-- Never generate filler, pleasantries, or obvious statements.
-- When the user has no resources (0 streams, 0 subgraphs), don't call check tools — just acknowledge the empty state briefly.
-- Only use tools when there's actual data to show. Empty tool results are worse than a short text answer.
-- **ALWAYS use action tools for mutations** — never describe manual steps or list things in text when a tool can show a UI card instead.
-- When the user wants to revoke keys, manage streams, or manage subgraphs: call check_keys/check_streams/check_subgraphs first to show a card, then call the manage tool with the targets. Never just list resources in plain text.
+- Never generate filler or pleasantries.
 - Use markdown sparingly: **bold** and \`code\` only. Avoid headers in short answers.
+- Empty tool results (0 items) are fine — the UI handles empty states gracefully.
 
 ## Tools
 - **check_subgraphs** / **check_streams** — fetch live status. Only call when user has resources.
