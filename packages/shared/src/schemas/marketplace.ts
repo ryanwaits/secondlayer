@@ -1,31 +1,52 @@
 import { z } from "zod/v4";
 
+// ── Request Types ────────────────────────────────────────────────────
+
+export interface PublishSubgraphRequest {
+	tags?: string[];
+	description?: string;
+}
+
+export interface UpdateProfileRequest {
+	display_name?: string;
+	bio?: string;
+	slug?: string;
+}
+
+export interface ForkSubgraphRequest {
+	sourceSubgraphName: string;
+	newName?: string;
+}
+
 // ── Request Schemas ───────────────────────────────────────────────────
 
-export const PublishSubgraphRequestSchema = z.object({
-	tags: z.array(z.string().max(30)).max(5).optional(),
-	description: z.string().max(500).optional(),
-});
+export const PublishSubgraphRequestSchema: z.ZodType<PublishSubgraphRequest> =
+	z.object({
+		tags: z.array(z.string().max(30)).max(5).optional(),
+		description: z.string().max(500).optional(),
+	});
 
-export const UpdateProfileRequestSchema = z.object({
-	display_name: z.string().max(50).optional(),
-	bio: z.string().max(300).optional(),
-	slug: z
-		.string()
-		.regex(/^[a-z0-9-]+$/, "lowercase alphanumeric + hyphens only")
-		.min(3)
-		.max(30)
-		.optional(),
-});
+export const UpdateProfileRequestSchema: z.ZodType<UpdateProfileRequest> =
+	z.object({
+		display_name: z.string().max(50).optional(),
+		bio: z.string().max(300).optional(),
+		slug: z
+			.string()
+			.regex(/^[a-z0-9-]+$/, "lowercase alphanumeric + hyphens only")
+			.min(3)
+			.max(30)
+			.optional(),
+	});
 
-export const ForkSubgraphRequestSchema = z.object({
-	sourceSubgraphName: z.string(),
-	newName: z
-		.string()
-		.regex(/^[a-z0-9-]+$/, "lowercase alphanumeric + hyphens only")
-		.max(63)
-		.optional(),
-});
+export const ForkSubgraphRequestSchema: z.ZodType<ForkSubgraphRequest> =
+	z.object({
+		sourceSubgraphName: z.string(),
+		newName: z
+			.string()
+			.regex(/^[a-z0-9-]+$/, "lowercase alphanumeric + hyphens only")
+			.max(63)
+			.optional(),
+	});
 
 // ── Response Types ────────────────────────────────────────────────────
 
