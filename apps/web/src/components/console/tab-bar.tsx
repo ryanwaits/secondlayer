@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useState } from "react";
 
 interface Tab {
@@ -52,25 +52,28 @@ export function SessionTabsProvider({ children }: { children: React.ReactNode })
 
 export function SessionTabBar() {
 	const pathname = usePathname();
+	const router = useRouter();
 	const { tabs, removeTab } = useSessionTabs();
 	const isHome = pathname === "/sessions" || pathname === "/platform/sessions";
 
+	const handleClose = useCallback(
+		(id: string, index: number) => {
+			const isActive =
+				pathname === tabs[index].href ||
+				pathname === `/platform${tabs[index].href}`;
+			removeTab(id);
+			if (!isActive) return;
+			// Navigate to tab to the left, or home if last tab
+			const next = tabs[index - 1] ?? tabs[index + 1];
+			router.push(next ? next.href : "/sessions");
+		},
+		[pathname, tabs, removeTab, router],
+	);
+
 	return (
 		<div className="session-tab-bar">
-			{/* Home tab */}
-			<Link
-				href="/sessions"
-				className={`session-tab${isHome ? " active" : ""}`}
-			>
-				<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-					<path d="M2 6.5L8 2l6 4.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6.5z" />
-					<path d="M6 14V9h4v5" />
-				</svg>
-				<span className="tab-label">Untitled</span>
-			</Link>
-
-			{/* Open tabs */}
-			{tabs.map((tab) => {
+			{/* Open tabs — includes "Untitled" tabs for new sessions */}
+			{tabs.map((tab, i) => {
 				const active =
 					pathname === tab.href ||
 					pathname === `/platform${tab.href}`;
@@ -87,7 +90,7 @@ export function SessionTabBar() {
 							onClick={(e) => {
 								e.preventDefault();
 								e.stopPropagation();
-								removeTab(tab.id);
+								handleClose(tab.id, i);
 							}}
 						>
 							<svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
@@ -98,12 +101,14 @@ export function SessionTabBar() {
 				);
 			})}
 
-			{/* New tab */}
-			<Link href="/sessions" className="session-tab-new" title="New session">
-				<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-					<path d="M6 2v8M2 6h8" />
-				</svg>
-			</Link>
+			{/* New tab — no-op if already on welcome with no tabs */}
+			{!(isHome && tabs.length === 0) && (
+				<Link href="/sessions" className="session-tab-new" title="New session">
+					<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+						<path d="M6 2v8M2 6h8" />
+					</svg>
+				</Link>
+			)}
 		</div>
 	);
 }
