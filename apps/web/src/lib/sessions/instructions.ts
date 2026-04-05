@@ -44,7 +44,7 @@ export function buildSessionInstructions(
 - Be EXTREMELY concise. 1-2 sentences max. No "next steps", no suggestions unless asked.
 - Never generate filler or pleasantries.
 - Use markdown sparingly: **bold** and \`code\` only. Avoid headers in short answers.
-- Empty tool results (0 items) are fine — the UI handles empty states gracefully.
+- When the user asks to check, manage, create, delete, or modify any resource, ALWAYS use the appropriate tool — never guess at resource state.
 
 ## Tools
 - **check_subgraphs** / **check_streams** — fetch live status. Only call when user has resources.

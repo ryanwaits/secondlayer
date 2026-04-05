@@ -57,13 +57,25 @@ export async function POST(req: Request) {
 		toolChoice: "auto",
 		stopWhen: stepCountIs(5),
 		maxOutputTokens: 4096,
-		prepareStep: async ({ stepNumber, steps }) => {
-			// Force tool use on the first step — the model should always check
-			// data or take action before responding with text
+		prepareStep: async ({ stepNumber }) => {
 			if (stepNumber === 0) {
-				return { toolChoice: "required" as const };
+				// Step 0: read-only tools only — let the model decide if it needs them
+				return {
+					toolChoice: "auto" as const,
+					activeTools: [
+						"check_subgraphs",
+						"check_streams",
+						"check_usage",
+						"check_keys",
+						"check_insights",
+						"query_subgraph",
+						"lookup_docs",
+						"recall_sessions",
+						"diagnose",
+					],
+				};
 			}
-			// After tool calls complete, let the model decide (text or more tools)
+			// After initial read, all tools available (including mutations)
 			return {};
 		},
 		onFinish: async ({ response }) => {
