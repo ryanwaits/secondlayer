@@ -13,12 +13,14 @@ interface Tab {
 interface TabsContext {
 	tabs: Tab[];
 	addTab: (tab: Tab) => void;
+	updateTab: (id: string, updates: Partial<Pick<Tab, "label">>) => void;
 	removeTab: (id: string) => void;
 }
 
 const TabsCtx = createContext<TabsContext>({
 	tabs: [],
 	addTab: () => {},
+	updateTab: () => {},
 	removeTab: () => {},
 });
 
@@ -33,12 +35,16 @@ export function SessionTabsProvider({ children }: { children: React.ReactNode })
 		setTabs((prev) => (prev.some((t) => t.id === tab.id) ? prev : [...prev, tab]));
 	}, []);
 
+	const updateTab = useCallback((id: string, updates: Partial<Pick<Tab, "label">>) => {
+		setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+	}, []);
+
 	const removeTab = useCallback((id: string) => {
 		setTabs((prev) => prev.filter((t) => t.id !== id));
 	}, []);
 
 	return (
-		<TabsCtx.Provider value={{ tabs, addTab, removeTab }}>
+		<TabsCtx.Provider value={{ tabs, addTab, updateTab, removeTab }}>
 			{children}
 		</TabsCtx.Provider>
 	);
@@ -60,7 +66,7 @@ export function SessionTabBar() {
 					<path d="M2 6.5L8 2l6 4.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6.5z" />
 					<path d="M6 14V9h4v5" />
 				</svg>
-				<span className="tab-label">New Session</span>
+				<span className="tab-label">Untitled</span>
 			</Link>
 
 			{/* Open tabs */}
