@@ -10,6 +10,7 @@
 	},
 	"dependencies": {
 		"@ai-sdk/anthropic": "3.0.58",
+		"@ai-sdk/react": "3.0.148",
 		"@secondlayer/stacks": "workspace:*",
 		"@tanstack/react-query": "5.90.21",
 		"ai": "6.0.116",
