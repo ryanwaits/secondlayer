@@ -9,7 +9,7 @@ import {
 	lastAssistantMessageIsCompleteWithToolCalls,
 	type UIMessage,
 } from "ai";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function SessionChat({ id }: { id: string }) {
@@ -55,8 +55,10 @@ function SessionChat({ id }: { id: string }) {
 			addTab({
 				id,
 				label: initialQuery.slice(0, 30) + (initialQuery.length > 30 ? "..." : ""),
-				href: `/sessions/${id}?q=${encodeURIComponent(initialQuery)}`,
+				href: `/sessions/${id}`,
 			});
+			// Strip ?q= from URL so refresh doesn't re-send
+			window.history.replaceState(null, "", `/sessions/${id}`);
 			chat.sendMessage({ text: initialQuery });
 		} else if (initialMessages.length > 0) {
 			const firstUserMsg = initialMessages.find((m) => m.role === "user");
