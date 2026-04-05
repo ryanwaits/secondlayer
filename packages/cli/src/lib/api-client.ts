@@ -218,7 +218,7 @@ export async function getAccountProfile(): Promise<{
 		headers: authHeaders(config),
 	});
 	await assertOk(res);
-	return res.json();
+	return res.json() as any;
 }
 
 export async function updateAccountProfile(data: {
@@ -241,7 +241,7 @@ export async function updateAccountProfile(data: {
 		body: JSON.stringify(data),
 	});
 	await assertOk(res);
-	return res.json();
+	return res.json() as any;
 }
 
 // ── Marketplace (public, no auth required) ──────────────────────────
@@ -285,7 +285,7 @@ export async function publishSubgraphApi(
 		body: JSON.stringify(opts ?? {}),
 	});
 	await assertOk(res);
-	return res.json();
+	return res.json() as any;
 }
 
 export async function unpublishSubgraphApi(
@@ -299,5 +299,5 @@ export async function unpublishSubgraphApi(
 		body: JSON.stringify({}),
 	});
 	await assertOk(res);
-	return res.json();
+	return res.json() as any;
 }

@@ -49,7 +49,7 @@ app.get("/subgraphs", async (c) => {
 	});
 
 	// Enrich with table names from definition
-	const data = result.data.map((row) => {
+	const data = result.data.map((row: any) => {
 		const def = row.definition as Record<string, unknown> | null;
 		const schema = (def?.schema ?? {}) as Record<string, unknown>;
 		const startBlock = row.start_block ?? 0;
@@ -85,15 +85,11 @@ app.get("/subgraphs", async (c) => {
 app.get("/subgraphs/:name", async (c) => {
 	const { name } = c.req.param();
 
-	// Try cache first
-	let subgraph = cache.getPublicByName(name);
+	// Try cache first, fall back to DB
+	const cached = cache.getPublicByName(name);
+	const subgraph = cached ?? (await getPublicSubgraph(getDb(), name));
 	if (!subgraph) {
-		// Fall back to DB
-		const row = await getPublicSubgraph(getDb(), name);
-		if (!row) {
-			return c.json({ error: "Subgraph not found", code: "NOT_FOUND" }, 404);
-		}
-		subgraph = row;
+		return c.json({ error: "Subgraph not found", code: "NOT_FOUND" }, 404);
 	}
 
 	const subgraphSchema = getSubgraphSchema(subgraph);
@@ -188,7 +184,7 @@ app.get("/subgraphs/:name", async (c) => {
 		usage: {
 			totalQueries7d: usage7d,
 			totalQueries30d: usage30d,
-			daily: usageDaily.map((d) => ({
+			daily: usageDaily.map((d: any) => ({
 				date: d.date,
 				count: d.query_count,
 			})),
@@ -286,7 +282,7 @@ app.get("/creators/:slug", async (c) => {
 		bio: account.bio,
 		avatarUrl: account.avatar_url,
 		slug: account.slug,
-		subgraphs: subgraphs.map((row) => {
+		subgraphs: subgraphs.map((row: any) => {
 			const def = row.definition as Record<string, unknown> | null;
 			const schema = (def?.schema ?? {}) as Record<string, unknown>;
 			return {

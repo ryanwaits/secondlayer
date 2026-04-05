@@ -261,7 +261,9 @@ describe("runHandlers", () => {
 		});
 		const ctx = mockCtx();
 		await runHandlers(sg, matched, ctx as any);
-		expect(seenContractId).toBe("SP::c");
-		expect(seenFunctionName).toBe("transfer");
+		expect(seenContractId).not.toBeNull();
+		expect(seenContractId!).toBe("SP::c");
+		expect(seenFunctionName).not.toBeNull();
+		expect(seenFunctionName!).toBe("transfer");
 	});
 });

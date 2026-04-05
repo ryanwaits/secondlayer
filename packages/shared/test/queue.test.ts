@@ -26,6 +26,7 @@ describe.skipIf(SKIP)("Job Queue", () => {
 			.values({
 				name: "test-stream",
 				endpoint_url: "https://example.com/webhook",
+				api_key_id: "test-api-key-id",
 				filters: jsonb([]) as any,
 				options: jsonb({}) as any,
 			})
@@ -168,6 +169,7 @@ describe.skipIf(SKIP)("Stale Job Recovery", () => {
 			.values({
 				name: "recovery-test-stream",
 				endpoint_url: "https://example.com/webhook",
+				api_key_id: "test-api-key-id",
 				filters: jsonb([]) as any,
 				options: jsonb({}) as any,
 			})

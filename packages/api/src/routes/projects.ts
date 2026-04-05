@@ -23,7 +23,7 @@ app.get("/", async (c) => {
 	const db = getDb();
 	const projects = await getProjectsByAccount(db, accountId);
 	return c.json({
-		projects: projects.map((p) => ({
+		projects: projects.map((p: any) => ({
 			id: p.id,
 			name: p.name,
 			slug: p.slug,
@@ -177,7 +177,7 @@ app.get("/:slug/team", async (c) => {
 	]);
 
 	return c.json({
-		members: members.map((m) => ({
+		members: members.map((m: any) => ({
 			id: m.id,
 			role: m.role,
 			email: m.email,
@@ -185,7 +185,7 @@ app.get("/:slug/team", async (c) => {
 			avatarUrl: m.avatar_url,
 			createdAt: m.created_at.toISOString(),
 		})),
-		invitations: invitations.map((i) => ({
+		invitations: invitations.map((i: any) => ({
 			id: i.id,
 			email: i.email,
 			role: i.role,
