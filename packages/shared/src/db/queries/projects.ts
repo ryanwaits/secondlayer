@@ -1,10 +1,10 @@
 import type { Kysely } from "kysely";
-import type { Database } from "../types";
+import type { Database, Project, TeamInvitation } from "../types.ts";
 
 export async function getProjectsByAccount(
 	db: Kysely<Database>,
 	accountId: string,
-) {
+): Promise<Project[]> {
 	return db
 		.selectFrom("projects")
 		.selectAll()
@@ -17,7 +17,7 @@ export async function getProjectBySlug(
 	db: Kysely<Database>,
 	accountId: string,
 	slug: string,
-) {
+): Promise<Project | undefined> {
 	return db
 		.selectFrom("projects")
 		.selectAll()
@@ -29,7 +29,16 @@ export async function getProjectBySlug(
 export async function getTeamMembers(
 	db: Kysely<Database>,
 	projectId: string,
-) {
+): Promise<Array<{
+	id: string;
+	role: string;
+	created_at: Date;
+	account_id: string;
+	email: string;
+	display_name: string | null;
+	avatar_url: string | null;
+	account_slug: string | null;
+}>> {
 	return db
 		.selectFrom("team_members")
 		.innerJoin("accounts", "accounts.id", "team_members.account_id")
@@ -51,7 +60,7 @@ export async function getTeamMembers(
 export async function getTeamInvitations(
 	db: Kysely<Database>,
 	projectId: string,
-) {
+): Promise<TeamInvitation[]> {
 	return db
 		.selectFrom("team_invitations")
 		.selectAll()

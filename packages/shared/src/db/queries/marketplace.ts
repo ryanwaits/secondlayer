@@ -1,5 +1,5 @@
 import { type Kysely, sql } from "kysely";
-import type { Database } from "../types.ts";
+import type { Database, Subgraph } from "../types.ts";
 
 /**
  * List public subgraphs with creator info and usage stats.
@@ -13,7 +13,7 @@ export async function listPublicSubgraphs(
 		search?: string;
 		sort?: "recent" | "popular" | "name";
 	} = {},
-) {
+): Promise<{ data: any[]; meta: { total: number; limit: number; offset: number } }> {
 	const limit = Math.min(Math.max(1, opts.limit ?? 50), 100);
 	const offset = Math.max(0, opts.offset ?? 0);
 
@@ -104,7 +104,7 @@ export async function listPublicSubgraphs(
 /**
  * Get a single public subgraph by name with creator info.
  */
-export async function getPublicSubgraph(db: Kysely<Database>, name: string) {
+export async function getPublicSubgraph(db: Kysely<Database>, name: string): Promise<any | undefined> {
 	return db
 		.selectFrom("subgraphs")
 		.innerJoin("api_keys", "api_keys.id", "subgraphs.api_key_id")
@@ -119,7 +119,7 @@ export async function getPublicSubgraph(db: Kysely<Database>, name: string) {
 /**
  * Get a creator profile by slug with their public subgraphs.
  */
-export async function getCreatorProfile(db: Kysely<Database>, slug: string) {
+export async function getCreatorProfile(db: Kysely<Database>, slug: string): Promise<{ account: any; subgraphs: any[] } | null> {
 	const account = await db
 		.selectFrom("accounts")
 		.select(["id", "display_name", "bio", "avatar_url", "slug"])
@@ -160,7 +160,7 @@ export async function publishSubgraph(
 	db: Kysely<Database>,
 	subgraphId: string,
 	opts?: { tags?: string[]; description?: string },
-) {
+): Promise<Subgraph> {
 	const set: Record<string, unknown> = {
 		is_public: true,
 		updated_at: new Date(),
@@ -182,7 +182,7 @@ export async function publishSubgraph(
 export async function unpublishSubgraph(
 	db: Kysely<Database>,
 	subgraphId: string,
-) {
+): Promise<Subgraph> {
 	return db
 		.updateTable("subgraphs")
 		.set({ is_public: false, updated_at: new Date() })
@@ -214,7 +214,7 @@ export async function getSubgraphUsageHistory(
 	db: Kysely<Database>,
 	subgraphId: string,
 	days: number,
-) {
+): Promise<Array<{ date: string; query_count: number }>> {
 	return db
 		.selectFrom("subgraph_usage_daily")
 		.select(["date", "query_count"])
