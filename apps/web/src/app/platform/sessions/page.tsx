@@ -1,5 +1,6 @@
 "use client";
 
+import { useSessionTabs } from "@/components/console/tab-bar";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -50,18 +51,20 @@ interface RecentSession {
 export default function SessionsPage() {
 	const router = useRouter();
 	const { account } = useAuth();
+	const { removeTab } = useSessionTabs();
 	const [query, setQuery] = useState("");
 	const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
 
 	const deleteSession = useCallback(
 		async (id: string) => {
 			setRecentSessions((prev) => prev.filter((s) => s.id !== id));
+			removeTab(id);
 			await fetch(`/api/sessions/${id}`, {
 				method: "DELETE",
 				credentials: "same-origin",
 			});
 		},
-		[],
+		[removeTab],
 	);
 
 	useEffect(() => {
