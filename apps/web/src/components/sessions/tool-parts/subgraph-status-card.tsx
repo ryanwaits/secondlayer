@@ -43,6 +43,8 @@ function statusLabel(status: string): string {
 }
 
 export function SubgraphStatusCard({ subgraphs }: SubgraphStatusCardProps) {
+	if (subgraphs.length === 0) return null;
+
 	return (
 		<div className="tool-card">
 			<div className="tool-card-header">

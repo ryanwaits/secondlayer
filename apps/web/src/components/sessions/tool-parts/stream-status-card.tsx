@@ -34,6 +34,8 @@ function statusLabel(status: string, enabled: boolean): string {
 }
 
 export function StreamStatusCard({ streams }: StreamStatusCardProps) {
+	if (streams.length === 0) return null;
+
 	return (
 		<div className="tool-card">
 			<div className="tool-card-header">

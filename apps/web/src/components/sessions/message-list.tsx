@@ -324,7 +324,14 @@ function formatMarkdown(text: string): string {
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;")
+		// Headers
+		.replace(/^### (.+)$/gm, '<h4 class="msg-h4">$1</h4>')
+		.replace(/^## (.+)$/gm, '<h3 class="msg-h3">$1</h3>')
+		// Bold + code
 		.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
 		.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-		.replace(/\n/g, "<br>");
+		// List items
+		.replace(/^- (.+)$/gm, '<div class="msg-li">$1</div>')
+		// Line breaks (but not after block elements)
+		.replace(/\n(?!<)/g, "<br>");
 }

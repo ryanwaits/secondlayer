@@ -4275,11 +4275,7 @@ body:has(.dash) .auth-bar {
 	margin-top: 10px;
 	text-align: center;
 }
-.sessions-recent {
-	width: 100%;
-	max-width: 600px;
-	margin-top: 44px;
-}
+/* sessions-recent: see dedicated section below */
 .sessions-links-header {
 	font-family: var(--font-mono-stack);
 	font-size: 10px;
@@ -5308,16 +5304,22 @@ body:has(.dash) .auth-bar {
 .sessions-recent-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
   border-radius: 6px;
-  text-decoration: none;
-  color: var(--text-main);
   transition: background 0.15s;
 }
 
 .sessions-recent-item:hover {
   background: var(--nudge-bg);
+}
+
+.sessions-recent-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: var(--text-main);
 }
 
 .sessions-recent-title {
@@ -5330,6 +5332,25 @@ body:has(.dash) .auth-bar {
   font-family: var(--font-mono);
   color: var(--text-muted);
 }
+
+.sessions-recent-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.sessions-recent-item:hover .sessions-recent-delete { opacity: 1; }
+.sessions-recent-delete:hover { color: var(--red); }
 
 /* ── Session Error Bar ──────────────────────────── */
 
@@ -5368,4 +5389,38 @@ body:has(.dash) .auth-bar {
   font-family: var(--font-mono);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* ── Message Markdown Elements ──────────────── */
+
+.msg-h3 {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 8px 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.msg-h4 {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 6px 0 2px;
+  letter-spacing: -0.01em;
+}
+
+.msg-li {
+  padding-left: 12px;
+  position: relative;
+  margin: 2px 0;
+}
+
+.msg-li::before {
+  content: "·";
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+  font-weight: 700;
 }
