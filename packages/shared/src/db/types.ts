@@ -306,6 +306,24 @@ export interface TeamInvitationsTable {
 	created_at: Generated<Date>;
 }
 
+export interface ChatSessionsTable {
+	id: Generated<string>;
+	account_id: string;
+	title: string | null;
+	summary: unknown | null;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
+}
+
+export interface ChatMessagesTable {
+	id: Generated<string>;
+	chat_session_id: string;
+	role: string;
+	parts: unknown;
+	metadata: unknown | null;
+	created_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -335,6 +353,8 @@ export interface Database {
 	projects: ProjectsTable;
 	team_members: TeamMembersTable;
 	team_invitations: TeamInvitationsTable;
+	chat_sessions: ChatSessionsTable;
+	chat_messages: ChatMessagesTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -416,3 +436,10 @@ export type InsertTeamMember = Insertable<TeamMembersTable>;
 
 export type TeamInvitation = Selectable<TeamInvitationsTable>;
 export type InsertTeamInvitation = Insertable<TeamInvitationsTable>;
+
+export type ChatSession = Selectable<ChatSessionsTable>;
+export type InsertChatSession = Insertable<ChatSessionsTable>;
+export type UpdateChatSession = Updateable<ChatSessionsTable>;
+
+export type ChatMessage = Selectable<ChatMessagesTable>;
+export type InsertChatMessage = Insertable<ChatMessagesTable>;
