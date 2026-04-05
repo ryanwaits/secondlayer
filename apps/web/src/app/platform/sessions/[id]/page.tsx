@@ -12,30 +12,57 @@ import {
 import { useSearchParams } from "next/navigation";
 import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+interface SessionData {
+	messages: UIMessage[];
+	title: string | null;
+}
+
 function SessionLoader({ id }: { id: string }) {
 	const searchParams = useSearchParams();
 	const initialQuery = searchParams.get("q");
-	const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(null);
+	const [data, setData] = useState<SessionData | null>(null);
 
 	useEffect(() => {
-		fetch(`/api/sessions/${id}/messages`, { credentials: "same-origin" })
-			.then((r) => (r.ok ? r.json() : { messages: [] }))
-			.then((data) => {
-				const msgs = (data.messages ?? [])
-					.filter((m: Record<string, unknown>) => m.role && m.parts)
-					.map((m: Record<string, unknown>) => ({
-						...m,
-						parts: typeof m.parts === "string" ? JSON.parse(m.parts) : m.parts,
-					}));
-				setInitialMessages(msgs);
-			})
-			.catch(() => setInitialMessages([]));
+		// Fetch messages and session metadata in parallel
+		Promise.all([
+			fetch(`/api/sessions/${id}/messages`, { credentials: "same-origin" })
+				.then((r) => (r.ok ? r.json() : { messages: [] }))
+				.catch(() => ({ messages: [] })),
+			fetch(`/api/sessions/list`, { credentials: "same-origin" })
+				.then((r) => (r.ok ? r.json() : { sessions: [] }))
+				.catch(() => ({ sessions: [] })),
+		]).then(([msgData, listData]) => {
+			const msgs = (msgData.messages ?? [])
+				.filter((m: Record<string, unknown>) => m.role && m.parts)
+				.map((m: Record<string, unknown>) => ({
+					...m,
+					parts: typeof m.parts === "string" ? JSON.parse(m.parts) : m.parts,
+				}));
+			const session = (listData.sessions ?? []).find(
+				(s: Record<string, unknown>) => s.id === id,
+			);
+			setData({ messages: msgs, title: session?.title ?? null });
+		});
 	}, [id]);
 
-	if (initialMessages === null) {
+	// For new sessions with a query, skip the loading state entirely
+	if (data === null && initialQuery) {
 		return (
-			<div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
-				Loading...
+			<SessionChat
+				id={id}
+				initialQuery={initialQuery}
+				initialMessages={[]}
+				savedTitle={null}
+			/>
+		);
+	}
+
+	if (data === null) {
+		// Returning existing session — show empty container (no flicker text)
+		return (
+			<div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+				<div style={{ flex: 1 }} />
+				<ChatInput onSend={() => {}} disabled placeholder="Loading..." />
 			</div>
 		);
 	}
@@ -44,7 +71,8 @@ function SessionLoader({ id }: { id: string }) {
 		<SessionChat
 			id={id}
 			initialQuery={initialQuery}
-			initialMessages={initialMessages}
+			initialMessages={data.messages}
+			savedTitle={data.title}
 		/>
 	);
 }
@@ -53,14 +81,16 @@ function SessionChat({
 	id,
 	initialQuery,
 	initialMessages,
+	savedTitle,
 }: {
 	id: string;
 	initialQuery: string | null;
 	initialMessages: UIMessage[];
+	savedTitle: string | null;
 }) {
 	const { addTab, updateTab } = useSessionTabs();
 	const initialized = useRef(false);
-	const titleGenerated = useRef(false);
+	const titleGenerated = useRef(savedTitle !== null);
 
 	const transport = useMemo(
 		() =>
@@ -92,14 +122,8 @@ function SessionChat({
 			window.history.replaceState(null, "", `/sessions/${id}`);
 			chat.sendMessage({ text: initialQuery });
 		} else if (initialMessages.length > 0) {
-			const firstUserMsg = initialMessages.find((m) => m.role === "user");
-			const label = firstUserMsg
-				? firstUserMsg.parts
-						.filter((p): p is { type: "text"; text: string } => p.type === "text")
-						.map((p) => p.text)
-						.join(" ")
-						.slice(0, 30) || "Session"
-				: "Session";
+			// Use saved DB title if available, otherwise fall back to message text
+			const label = savedTitle ?? "Session";
 			addTab({ id, label, href: `/sessions/${id}` });
 		}
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -127,7 +151,6 @@ function SessionChat({
 			.then((data) => {
 				if (data?.title) {
 					updateTab(id, { label: data.title });
-					// Persist title to DB
 					fetch(`/api/sessions/${id}`, {
 						method: "PATCH",
 						headers: { "Content-Type": "application/json" },
@@ -196,8 +219,8 @@ export default function SessionResultPage({
 	return (
 		<Suspense
 			fallback={
-				<div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
-					Loading...
+				<div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+					<div style={{ flex: 1 }} />
 				</div>
 			}
 		>
