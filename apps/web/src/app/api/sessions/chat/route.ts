@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText, convertToModelMessages, type UIMessage } from "ai";
+import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from "ai";
 import { getSessionFromRequest } from "@/lib/api";
 import {
 	createChatSession,
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 		system,
 		messages: await convertToModelMessages(messages),
 		tools,
-		maxSteps: 5,
+		stopWhen: stepCountIs(5),
 		maxOutputTokens: 4096,
 		onFinish: async ({ response }) => {
 			try {

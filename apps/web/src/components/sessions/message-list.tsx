@@ -144,7 +144,7 @@ function MessageBubble({
 						return (
 							<ToolPartRenderer
 								key={seg.key}
-								part={seg.part}
+								part={seg.part as Parameters<typeof ToolPartRenderer>[0]["part"]}
 								addToolOutput={addToolOutput}
 							/>
 						);
