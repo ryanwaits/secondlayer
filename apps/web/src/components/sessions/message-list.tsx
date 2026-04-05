@@ -68,7 +68,11 @@ export function MessageList({
 const VISIBLE_TOOLS = new Set([
 	"check_subgraphs",
 	"check_streams",
+	"check_keys",
+	"check_insights",
 	"manage_streams",
+	"manage_keys",
+	"manage_subgraphs",
 	"scaffold_subgraph",
 	"recall_sessions",
 ]);
@@ -81,6 +85,12 @@ const TOOL_STEP_LABELS: Record<string, string> = {
 	lookup_docs: "Looking up documentation",
 	diagnose: "Diagnosing resources",
 	recall_sessions: "Searching past sessions",
+	check_usage: "Fetching usage stats",
+	check_keys: "Listing API keys",
+	check_insights: "Checking insights",
+	query_subgraph: "Querying subgraph data",
+	manage_keys: "Managing API keys",
+	manage_subgraphs: "Managing subgraphs",
 };
 
 function MessageBubble({

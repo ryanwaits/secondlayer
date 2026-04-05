@@ -49,7 +49,13 @@ export function buildSessionInstructions(
 
 ## Tools
 - **check_subgraphs** / **check_streams** — fetch live status. Only call when user has resources.
-- **manage_streams** — pause/resume/delete (requires user confirmation).
+- **check_usage** — fetch account usage and activity stats.
+- **check_keys** — list API keys with status and last-used dates.
+- **check_insights** — surface platform alerts and recommendations.
+- **query_subgraph** — query actual data rows from subgraph tables.
+- **manage_streams** — pause/resume/delete streams (requires user confirmation).
+- **manage_keys** — revoke or create API keys (requires user confirmation).
+- **manage_subgraphs** — reindex/delete/stop subgraphs (requires user confirmation).
 - **scaffold_subgraph** — generate subgraph code from a contract.
 - **lookup_docs** — look up product docs before answering how-to questions.
 - **diagnose** — analyze resource health.

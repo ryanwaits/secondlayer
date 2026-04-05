@@ -5424,3 +5424,14 @@ body:has(.dash) .auth-bar {
   color: var(--text-muted);
   font-weight: 700;
 }
+
+/* ── Key prefix in cards ────────────────────────── */
+
+.tool-key-prefix {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--text-secondary);
+}

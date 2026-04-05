@@ -1,12 +1,18 @@
 import { apiRequest } from "@/lib/api";
 import type { ApiKey, Stream, SubgraphSummary } from "@/lib/types";
+import { createCheckInsights } from "./check-insights";
+import { createCheckKeys } from "./check-keys";
 import { createCheckStreams } from "./check-streams";
 import { createCheckSubgraphs } from "./check-subgraphs";
+import { createCheckUsage } from "./check-usage";
 import { createDiagnose } from "./diagnose";
-import { createScaffoldSubgraph } from "./scaffold-subgraph";
 import { lookupDocs } from "./lookup-docs";
+import { manageKeys } from "./manage-keys";
 import { manageStreams } from "./manage-streams";
+import { manageSubgraphs } from "./manage-subgraphs";
+import { createQuerySubgraph } from "./query-subgraph";
 import { createRecallSessions } from "./recall-sessions";
+import { createScaffoldSubgraph } from "./scaffold-subgraph";
 
 export interface AccountResources {
 	streams: Stream[];
@@ -39,7 +45,13 @@ export function createSessionTools(sessionToken: string) {
 	return {
 		check_subgraphs: createCheckSubgraphs(sessionToken),
 		check_streams: createCheckStreams(sessionToken),
+		check_usage: createCheckUsage(sessionToken),
+		check_keys: createCheckKeys(sessionToken),
+		check_insights: createCheckInsights(sessionToken),
+		query_subgraph: createQuerySubgraph(sessionToken),
 		manage_streams: manageStreams,
+		manage_keys: manageKeys,
+		manage_subgraphs: manageSubgraphs,
 		scaffold_subgraph: createScaffoldSubgraph(),
 		lookup_docs: lookupDocs,
 		diagnose: createDiagnose(),

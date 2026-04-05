@@ -10,6 +10,8 @@ import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
 import { StreamStatusCard } from "./tool-parts/stream-status-card";
 import { ActionCard } from "./tool-parts/action-card";
 import { CodeCard } from "./tool-parts/code-card";
+import { KeysCard } from "./tool-parts/keys-card";
+import { InsightsCard } from "./tool-parts/insights-card";
 import { SuccessBanner } from "./tool-parts/success-banner";
 import { ThinkingIndicator } from "./tool-parts/thinking-indicator";
 import { MemoryRecallCard } from "./tool-parts/memory-tag";
@@ -27,39 +29,53 @@ interface ToolPartRendererProps {
 const TOOL_LABELS: Record<string, string> = {
 	check_subgraphs: "Checking subgraphs...",
 	check_streams: "Checking streams...",
+	check_usage: "Fetching usage stats...",
+	check_keys: "Listing API keys...",
+	check_insights: "Checking insights...",
+	query_subgraph: "Querying subgraph data...",
 	manage_streams: "Preparing action...",
+	manage_keys: "Preparing key action...",
+	manage_subgraphs: "Preparing subgraph action...",
 	scaffold_subgraph: "Generating code...",
 	lookup_docs: "Looking up docs...",
 	diagnose: "Diagnosing...",
 	recall_sessions: "Searching past sessions...",
 };
 
+const HUMAN_IN_LOOP_TOOLS = new Set([
+	"manage_streams",
+	"manage_keys",
+	"manage_subgraphs",
+]);
+
 export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps) {
 	const toolName = getToolName(part);
 	const state = part.state;
 
-	// Loading states
-	if (state === "input-streaming" || (state === "input-available" && toolName !== "manage_streams")) {
-		if (state === "input-available" && hasExecute(toolName)) {
-			return <ThinkingIndicator label={TOOL_LABELS[toolName] ?? "Working..."} />;
-		}
+	// Loading states for tools with execute
+	if (state === "input-streaming") {
 		return <ThinkingIndicator label={TOOL_LABELS[toolName] ?? "Working..."} />;
 	}
 
-	// Human-in-the-loop: manage_streams
-	if (toolName === "manage_streams" && state === "input-available") {
+	if (state === "input-available" && !HUMAN_IN_LOOP_TOOLS.has(toolName)) {
+		return <ThinkingIndicator label={TOOL_LABELS[toolName] ?? "Working..."} />;
+	}
+
+	// Human-in-the-loop tools
+	if (state === "input-available" && HUMAN_IN_LOOP_TOOLS.has(toolName)) {
 		const input = part.input as {
 			action: string;
-			targets: Array<{ id: string; name: string; reason?: string }>;
+			targets: Array<{ id?: string; name: string; reason?: string }>;
 		};
+		const resourceType = toolName === "manage_keys" ? "keys" : toolName === "manage_subgraphs" ? "subgraphs" : "streams";
 		return (
 			<ActionCard
 				action={input.action}
-				targets={input.targets}
+				targets={input.targets.map((t) => ({ id: t.id ?? t.name, name: t.name, reason: t.reason }))}
 				onConfirm={() =>
 					addToolOutput({
 						toolCallId: part.toolCallId,
-						output: { confirmed: true, message: `${input.targets.length} streams ${input.action}d successfully` },
+						output: { confirmed: true, message: `${input.targets.length} ${resourceType} ${input.action}d successfully` },
 					})
 				}
 				onCancel={() =>
@@ -109,7 +125,40 @@ export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps)
 					/>
 				);
 
-			case "manage_streams": {
+			case "check_keys":
+				return (
+					<KeysCard
+						keys={
+							output.keys as Array<{
+								id: string;
+								name: string;
+								prefix: string;
+								status: string;
+								lastUsedAt: string | null;
+								createdAt: string;
+							}>
+						}
+					/>
+				);
+
+			case "check_insights":
+				return (
+					<InsightsCard
+						insights={
+							output.insights as Array<{
+								id: string;
+								severity: "info" | "warning" | "danger";
+								title: string;
+								body: string;
+								category: string;
+							}>
+						}
+					/>
+				);
+
+			case "manage_streams":
+			case "manage_keys":
+			case "manage_subgraphs": {
 				const msg = (output as { message?: string }).message;
 				if ((output as { confirmed?: boolean }).confirmed === false) {
 					return <SuccessBanner message={msg ?? "Action cancelled"} />;
@@ -137,8 +186,8 @@ export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps)
 				return <MemoryRecallCard sessions={sessions} />;
 			}
 
-			// lookup_docs and diagnose don't render UI cards — their output
-			// feeds back into the model for a text response
+			// check_usage, query_subgraph, lookup_docs, diagnose
+			// render as text via the model's response — no dedicated card
 			default:
 				return null;
 		}
@@ -154,9 +203,4 @@ export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps)
 	}
 
 	return null;
-}
-
-/** Tools that have server-side execute functions (vs human-in-the-loop) */
-function hasExecute(toolName: string): boolean {
-	return toolName !== "manage_streams";
 }
