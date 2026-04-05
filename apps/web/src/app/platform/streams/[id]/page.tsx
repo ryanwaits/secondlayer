@@ -9,6 +9,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StreamDangerZone } from "./danger-zone";
 import { StreamDeliveries } from "./deliveries-section";
+import { ReplayForm } from "./replay-form";
+import { SigningSecret } from "./signing-secret";
 
 function statusBadgeClass(status: string) {
 	if (status === "active") return "active";
@@ -94,6 +96,7 @@ export default async function StreamDetailPage({
 						allLabel="View all streams"
 					/>
 				}
+				lastUpdated={stream.lastTriggeredAt ?? stream.updatedAt}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
@@ -142,13 +145,7 @@ export default async function StreamDetailPage({
 								{ label: "Webhook URL", value: stream.endpointUrl, mono: true },
 								{
 									label: "Signing Secret",
-									value: (
-										<span className="sg-secret">
-											<span className="sg-secret-value">{"•".repeat(16)}</span>
-											<button type="button" className="sg-secret-btn">Reveal</button>
-											<button type="button" className="sg-secret-btn">Copy</button>
-										</span>
-									),
+									value: <SigningSecret secret={stream.signingSecret} />,
 								},
 								{ label: "Signature Header", value: "x-secondlayer-signature", mono: true },
 								{
@@ -178,24 +175,7 @@ export default async function StreamDetailPage({
 
 					{/* Replay */}
 					<DetailSection title="Replay">
-						<div className="sg-reindex-form">
-							<p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
-								Replay deliveries for a specific block range. Max 10,000 blocks per replay.
-							</p>
-							<div className="sg-reindex-fields">
-								<div className="sg-reindex-field">
-									<div className="sg-reindex-label">Start block</div>
-									<input className="sg-reindex-input" type="text" placeholder="e.g. 187000" />
-								</div>
-								<div className="sg-reindex-field">
-									<div className="sg-reindex-label">End block</div>
-									<input className="sg-reindex-input" type="text" placeholder="e.g. 187421" />
-								</div>
-							</div>
-							<button type="button" className="sg-reindex-btn" style={{ background: "var(--accent-purple)" }}>
-								Replay blocks
-							</button>
-						</div>
+						<ReplayForm streamId={stream.id} />
 					</DetailSection>
 
 					{/* Danger Zone */}

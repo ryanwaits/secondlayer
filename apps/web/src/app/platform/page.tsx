@@ -100,7 +100,7 @@ export default async function DashboardPage() {
 						) : (
 							<div className="ov-empty">
 								No subgraphs yet.{" "}
-								<Link href="/subgraphs/scaffold" className="ov-section-link">
+								<Link href="/subgraphs" className="ov-section-link">
 									Create one &rarr;
 								</Link>
 							</div>

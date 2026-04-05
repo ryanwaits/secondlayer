@@ -48,7 +48,7 @@ export const actions: Action[] = [
 		keywords: ["scaffold", "generate", "contract", "abi"],
 		category: "Navigation",
 		icon: "view",
-		href: "/subgraphs/scaffold",
+		href: "/subgraphs",
 	},
 	{
 		id: "api-keys",

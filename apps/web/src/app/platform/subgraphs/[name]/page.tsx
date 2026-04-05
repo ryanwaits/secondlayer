@@ -90,6 +90,7 @@ export default async function SubgraphDetailPage({
 						allLabel="View all subgraphs"
 					/>
 				}
+				lastUpdated={subgraph?.createdAt ?? null}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
