@@ -979,6 +979,7 @@ a {
 
 	.auth-bar-cta {
 		background: var(--text-main);
+		color: var(--bg);
 		box-shadow: none;
 	}
 }
