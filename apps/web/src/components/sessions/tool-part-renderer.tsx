@@ -72,12 +72,14 @@ export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps)
 			<ActionCard
 				action={input.action}
 				targets={input.targets.map((t) => ({ id: t.id ?? t.name, name: t.name, reason: t.reason }))}
-				onConfirm={() =>
+				onConfirm={async () => {
+					// Execute the actual API calls
+					await executeAction(toolName, input.action, input.targets);
 					addToolOutput({
 						toolCallId: part.toolCallId,
 						output: { confirmed: true, message: `${input.targets.length} ${resourceType} ${input.action}d successfully` },
-					})
-				}
+					});
+				}}
 				onCancel={() =>
 					addToolOutput({
 						toolCallId: part.toolCallId,
@@ -203,4 +205,51 @@ export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps)
 	}
 
 	return null;
+}
+
+/** Execute the actual API call for human-in-the-loop tools */
+async function executeAction(
+	toolName: string,
+	action: string,
+	targets: Array<{ id?: string; name: string }>,
+) {
+	const calls: Promise<Response>[] = [];
+
+	for (const t of targets) {
+		switch (toolName) {
+			case "manage_streams": {
+				const pathMap: Record<string, { method: string; path: string }> = {
+					pause: { method: "POST", path: `/api/streams/${t.id}/pause` },
+					resume: { method: "POST", path: `/api/streams/${t.id}/resume` },
+					delete: { method: "DELETE", path: `/api/streams/${t.id}` },
+					"replay-failed": { method: "POST", path: `/api/streams/${t.id}/replay-failed` },
+				};
+				const call = pathMap[action];
+				if (call) {
+					calls.push(fetch(call.path, { method: call.method, credentials: "same-origin" }));
+				}
+				break;
+			}
+			case "manage_keys": {
+				if (action === "revoke") {
+					calls.push(fetch(`/api/keys/${t.id}`, { method: "DELETE", credentials: "same-origin" }));
+				}
+				break;
+			}
+			case "manage_subgraphs": {
+				const pathMap: Record<string, { method: string; path: string }> = {
+					reindex: { method: "POST", path: `/api/subgraphs/${t.name}/reindex` },
+					delete: { method: "DELETE", path: `/api/subgraphs/${t.name}` },
+					stop: { method: "POST", path: `/api/subgraphs/${t.name}/stop` },
+				};
+				const call = pathMap[action];
+				if (call) {
+					calls.push(fetch(call.path, { method: call.method, credentials: "same-origin" }));
+				}
+				break;
+			}
+		}
+	}
+
+	await Promise.allSettled(calls);
 }
