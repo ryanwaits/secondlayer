@@ -53,6 +53,17 @@ export default function SessionsPage() {
 	const [query, setQuery] = useState("");
 	const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
 
+	const deleteSession = useCallback(
+		async (id: string) => {
+			setRecentSessions((prev) => prev.filter((s) => s.id !== id));
+			await fetch(`/api/sessions/${id}`, {
+				method: "DELETE",
+				credentials: "same-origin",
+			});
+		},
+		[],
+	);
+
 	useEffect(() => {
 		fetch("/api/sessions/list", { credentials: "same-origin" })
 			.then((r) => (r.ok ? r.json() : { sessions: [] }))
@@ -134,18 +145,28 @@ export default function SessionsPage() {
 					<div className="sessions-recent">
 						<div className="sessions-recent-label">Recent</div>
 						{recentSessions.map((s) => (
-							<Link
-								key={s.id}
-								href={`/sessions/${s.id}`}
-								className="sessions-recent-item"
-							>
-								<span className="sessions-recent-title">
-									{s.title || "Untitled"}
-								</span>
-								<span className="sessions-recent-date">
-									{formatRelative(s.created_at)}
-								</span>
-							</Link>
+							<div key={s.id} className="sessions-recent-item">
+								<Link
+									href={`/sessions/${s.id}`}
+									className="sessions-recent-link"
+								>
+									<span className="sessions-recent-title">
+										{s.title || "Untitled"}
+									</span>
+									<span className="sessions-recent-date">
+										{formatRelative(s.created_at)}
+									</span>
+								</Link>
+								<button
+									type="button"
+									className="sessions-recent-delete"
+									onClick={() => deleteSession(s.id)}
+								>
+									<svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+										<path d="M1.5 1.5l5 5M6.5 1.5l-5 5" />
+									</svg>
+								</button>
+							</div>
 						))}
 					</div>
 				)}
