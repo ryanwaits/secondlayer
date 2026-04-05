@@ -78,8 +78,10 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 function useSidebarCounts() {
+	const { account } = useAuth();
 	const [counts, setCounts] = useState<Record<string, number>>({});
 	useEffect(() => {
+		if (!account) return;
 		Promise.allSettled([
 			fetch("/api/subgraphs", { credentials: "same-origin" }).then(r => r.json()),
 			fetch("/api/streams?limit=1&offset=0", { credentials: "same-origin" }).then(r => r.json()),
@@ -89,7 +91,7 @@ function useSidebarCounts() {
 			if (st.status === "fulfilled" && st.value?.total != null) c.streams = st.value.total;
 			setCounts(c);
 		});
-	}, []);
+	}, [account]);
 	return counts;
 }
 

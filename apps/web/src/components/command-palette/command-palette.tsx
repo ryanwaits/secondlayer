@@ -19,7 +19,7 @@ import { InfoPanel } from "./renders/info-panel";
 export function CommandPalette() {
 	const router = useRouter();
 	const pathname = usePathname();
-	const { logout } = useAuth();
+	const { account, logout } = useAuth();
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [selectedIdx, setSelectedIdx] = useState(0);
@@ -229,7 +229,7 @@ export function CommandPalette() {
 	};
 
 	useEffect(() => {
-		if (mode !== "actions") return;
+		if (!open || !account || mode !== "actions") return;
 		const selected = results[selectedIdx];
 		if (!selected?.action.href) return;
 		const targets = prefetchTargets[selected.action.href];
@@ -246,7 +246,7 @@ export function CommandPalette() {
 				staleTime: 30_000,
 			});
 		}
-	}, [selectedIdx, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [open, selectedIdx, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Wire ⌘K bar in topbar
 	useEffect(() => {
