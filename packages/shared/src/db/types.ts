@@ -46,6 +46,7 @@ export interface StreamsTable {
 	endpoint_url: string;
 	signing_secret: string | null;
 	api_key_id: string;
+	project_id: string | null;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }
@@ -113,6 +114,7 @@ export interface SubgraphsTable {
 	total_processed: Generated<number>;
 	total_errors: Generated<number>;
 	api_key_id: string;
+	project_id: string | null;
 	is_public: Generated<boolean>;
 	tags: Generated<string[]>;
 	description: string | null;
@@ -271,6 +273,39 @@ export interface SubgraphUsageDailyTable {
 	query_count: Generated<number>;
 }
 
+export interface ProjectsTable {
+	id: Generated<string>;
+	name: string;
+	slug: string;
+	account_id: string;
+	settings: Generated<Record<string, unknown>>;
+	network: Generated<string>;
+	node_rpc: string | null;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
+}
+
+export interface TeamMembersTable {
+	id: Generated<string>;
+	project_id: string;
+	account_id: string;
+	role: Generated<string>;
+	invited_by: string | null;
+	created_at: Generated<Date>;
+}
+
+export interface TeamInvitationsTable {
+	id: Generated<string>;
+	project_id: string;
+	email: string;
+	role: Generated<string>;
+	token: string;
+	invited_by: string | null;
+	expires_at: Date;
+	accepted_at: Date | null;
+	created_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -297,6 +332,9 @@ export interface Database {
 	subgraph_table_snapshots: SubgraphTableSnapshotsTable;
 	subgraph_gaps: SubgraphGapsTable;
 	subgraph_usage_daily: SubgraphUsageDailyTable;
+	projects: ProjectsTable;
+	team_members: TeamMembersTable;
+	team_invitations: TeamInvitationsTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -368,3 +406,13 @@ export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
 
 export type SubgraphUsageDaily = Selectable<SubgraphUsageDailyTable>;
 export type InsertSubgraphUsageDaily = Insertable<SubgraphUsageDailyTable>;
+
+export type Project = Selectable<ProjectsTable>;
+export type InsertProject = Insertable<ProjectsTable>;
+export type UpdateProject = Updateable<ProjectsTable>;
+
+export type TeamMember = Selectable<TeamMembersTable>;
+export type InsertTeamMember = Insertable<TeamMembersTable>;
+
+export type TeamInvitation = Selectable<TeamInvitationsTable>;
+export type InsertTeamInvitation = Insertable<TeamInvitationsTable>;
