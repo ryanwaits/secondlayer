@@ -3022,10 +3022,16 @@ body:has(.dash) .auth-bar {
 	background: var(--code-bg);
 	padding: 2px 8px;
 	border-radius: 4px;
+	width: 120px;
+	text-align: center;
+	flex-shrink: 0;
 }
 .settings-key-created {
 	font-size: 11px;
 	color: var(--text-dim);
+	width: 50px;
+	text-align: right;
+	flex-shrink: 0;
 }
 .settings-key-revoke {
 	font-family: var(--font-mono-stack);
