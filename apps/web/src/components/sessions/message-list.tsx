@@ -5,9 +5,10 @@ import {
 	isToolUIPart,
 	getToolName,
 	type UIMessage,
-	type UIMessagePart,
+	type UIDataTypes,
+	type UITools,
+	type ChatStatus,
 } from "ai";
-import type { ChatStatus } from "@ai-sdk/react";
 import { useEffect, useMemo, useRef } from "react";
 import { ToolPartRenderer } from "./tool-part-renderer";
 import { StepFlow, type StepInfo } from "./tool-parts/step-flow";
@@ -157,15 +158,15 @@ function MessageBubble({
 
 type Segment =
 	| { type: "text"; text: string; key: string }
-	| { type: "tool"; part: UIMessagePart; key: string }
+	| { type: "tool"; part: UIMessage["parts"][number]; key: string }
 	| { type: "step-flow"; steps: StepInfo[]; key: string };
 
 function groupPartsIntoSegments(
-	parts: UIMessagePart[],
+	parts: UIMessage["parts"][number][],
 	msgId: string,
 ): Segment[] {
 	const segments: Segment[] = [];
-	let toolBuffer: { part: UIMessagePart; index: number }[] = [];
+	let toolBuffer: { part: UIMessage["parts"][number]; index: number }[] = [];
 
 	function flushToolBuffer() {
 		if (toolBuffer.length === 0) return;
@@ -239,7 +240,7 @@ function groupPartsIntoSegments(
 }
 
 /** Renders a tool part inline (for use inside StepFlow without addToolOutput) */
-function InlineToolCard({ part }: { part: UIMessagePart }) {
+function InlineToolCard({ part }: { part: UIMessage["parts"][number] }) {
 	const toolPart = part as Parameters<typeof getToolName>[0];
 	const toolName = getToolName(toolPart);
 	const state = toolPart.state;

@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 	const result = streamText({
 		model: anthropic("claude-sonnet-4-20250514"),
 		system,
-		messages: convertToModelMessages(messages),
+		messages: await convertToModelMessages(messages),
 		tools,
 		maxSteps: 5,
 		maxOutputTokens: 4096,
@@ -54,17 +54,15 @@ export async function POST(req: Request) {
 				const allMessages = [
 					...messages,
 					...response.messages.map((m) => ({
-						id: m.id,
+						id: crypto.randomUUID(),
 						role: m.role as UIMessage["role"],
 						parts:
-							"content" in m
-								? Array.isArray(m.content)
-									? m.content.map((p: Record<string, unknown>) => {
-											if (p.type === "text")
-												return { type: "text" as const, text: String(p.text) };
-											return p;
-										})
-									: [{ type: "text" as const, text: String(m.content) }]
+							"content" in m && Array.isArray(m.content)
+								? m.content.map((p) => {
+										if ("type" in p && p.type === "text" && "text" in p)
+											return { type: "text" as const, text: String(p.text) };
+										return p as unknown as UIMessage["parts"][number];
+									})
 								: [],
 					})),
 				];
@@ -73,7 +71,6 @@ export async function POST(req: Request) {
 					chatSessionId,
 					allMessages as UIMessage[],
 				);
-				// Extract and save session summary for cross-session recall
 				const summary = extractSessionSummary(allMessages as UIMessage[]);
 				if (summary.toolCalls.length > 0) {
 					await updateSessionSummary(sessionToken, chatSessionId, summary);

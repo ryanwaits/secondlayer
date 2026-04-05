@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
 	const { text } = await generateText({
 		model: anthropic("claude-haiku-4-5-20251001"),
-		maxTokens: 20,
+		maxOutputTokens: 20,
 		prompt: `Generate a short title (3-6 words, no quotes) for a chat session that started with this message:\n\n"${message.slice(0, 500)}"`,
 	});
 

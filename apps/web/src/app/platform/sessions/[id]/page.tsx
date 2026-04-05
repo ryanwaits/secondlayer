@@ -4,9 +4,13 @@ import { ChatInput } from "@/components/sessions/chat-input";
 import { MessageList } from "@/components/sessions/message-list";
 import { useSessionTabs } from "@/components/console/tab-bar";
 import { useChat } from "@ai-sdk/react";
-import { lastAssistantMessageIsCompleteWithToolCalls, type UIMessage } from "ai";
+import {
+	DefaultChatTransport,
+	lastAssistantMessageIsCompleteWithToolCalls,
+	type UIMessage,
+} from "ai";
 import { useSearchParams } from "next/navigation";
-import { Suspense, use, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function SessionChat({ id }: { id: string }) {
 	const searchParams = useSearchParams();
@@ -26,10 +30,18 @@ function SessionChat({ id }: { id: string }) {
 			.catch(() => setInitialMessages([]));
 	}, [id]);
 
+	const transport = useMemo(
+		() =>
+			new DefaultChatTransport({
+				api: "/api/sessions/chat",
+				body: { chatSessionId: id },
+			}),
+		[id],
+	);
+
 	const chat = useChat({
 		id,
-		api: "/api/sessions/chat",
-		body: { chatSessionId: id },
+		transport,
 		messages: initialMessages ?? undefined,
 		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 	});
@@ -40,7 +52,6 @@ function SessionChat({ id }: { id: string }) {
 		initialized.current = true;
 
 		if (initialQuery && initialMessages.length === 0) {
-			// Add tab immediately with truncated query
 			addTab({
 				id,
 				label: initialQuery.slice(0, 30) + (initialQuery.length > 30 ? "..." : ""),
@@ -48,7 +59,6 @@ function SessionChat({ id }: { id: string }) {
 			});
 			chat.sendMessage({ text: initialQuery });
 		} else if (initialMessages.length > 0) {
-			// Restore tab from persisted messages
 			const firstUserMsg = initialMessages.find((m) => m.role === "user");
 			const label = firstUserMsg
 				? firstUserMsg.parts
@@ -94,7 +104,16 @@ function SessionChat({ id }: { id: string }) {
 		[chat],
 	);
 
-	// Show loading while fetching persisted messages
+	const handleToolOutput = useCallback(
+		(options: { toolCallId: string; output: unknown }) => {
+			chat.addToolOutput({
+				...options,
+				tool: "" as never,
+			});
+		},
+		[chat],
+	);
+
 	if (initialMessages === null) {
 		return (
 			<div
@@ -117,7 +136,7 @@ function SessionChat({ id }: { id: string }) {
 			<MessageList
 				messages={chat.messages}
 				status={chat.status}
-				addToolOutput={chat.addToolOutput}
+				addToolOutput={handleToolOutput}
 			/>
 			{chat.error && (
 				<div className="session-error-bar">
