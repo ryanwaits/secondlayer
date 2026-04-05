@@ -125,7 +125,16 @@ function SessionChat({
 		})
 			.then((r) => (r.ok ? r.json() : null))
 			.then((data) => {
-				if (data?.title) updateTab(id, { label: data.title });
+				if (data?.title) {
+					updateTab(id, { label: data.title });
+					// Persist title to DB
+					fetch(`/api/sessions/${id}`, {
+						method: "PATCH",
+						headers: { "Content-Type": "application/json" },
+						credentials: "same-origin",
+						body: JSON.stringify({ title: data.title }),
+					}).catch(() => {});
+				}
 			})
 			.catch(() => {});
 	}, [id, chat.messages, updateTab]);
