@@ -9,19 +9,19 @@
 
 services:
   postgres:
-    command:
-      - "postgres"
-      - "-c"
-      - "wal_level=replica"
-      - "-c"
-      - "archive_mode=on"
-      - "-c"
-      - "archive_command=test ! -f /wal_archive/%f && cp %p /wal_archive/%f"
-      - "-c"
-      - "archive_timeout=300"
+    # WAL archiving disabled until backfill is complete and DB is worth archiving
+    # command:
+    #   - "postgres"
+    #   - "-c"
+    #   - "wal_level=replica"
+    #   - "-c"
+    #   - "archive_mode=on"
+    #   - "-c"
+    #   - "archive_command=test ! -f /wal_archive/%f && cp %p /wal_archive/%f"
+    #   - "-c"
+    #   - "archive_timeout=300"
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data
-      - ${DATA_DIR:-/opt/secondlayer/data}/wal_archive:/wal_archive
 
   api:
     environment:
