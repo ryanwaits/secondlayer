@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+
+const STORAGE_KEY = "sl-session-tabs";
 
 interface Tab {
 	id: string;
@@ -28,8 +30,34 @@ export function useSessionTabs() {
 	return useContext(TabsCtx);
 }
 
+function loadTabs(): Tab[] {
+	if (typeof window === "undefined") return [];
+	try {
+		const stored = sessionStorage.getItem(STORAGE_KEY);
+		return stored ? JSON.parse(stored) : [];
+	} catch {
+		return [];
+	}
+}
+
+function saveTabs(tabs: Tab[]) {
+	try {
+		sessionStorage.setItem(STORAGE_KEY, JSON.stringify(tabs));
+	} catch {}
+}
+
 export function SessionTabsProvider({ children }: { children: React.ReactNode }) {
 	const [tabs, setTabs] = useState<Tab[]>([]);
+
+	// Hydrate from sessionStorage on mount
+	useEffect(() => {
+		setTabs(loadTabs());
+	}, []);
+
+	// Persist to sessionStorage on change
+	useEffect(() => {
+		saveTabs(tabs);
+	}, [tabs]);
 
 	const addTab = useCallback((tab: Tab) => {
 		setTabs((prev) => (prev.some((t) => t.id === tab.id) ? prev : [...prev, tab]));
@@ -54,7 +82,6 @@ export function SessionTabBar() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const { tabs, removeTab } = useSessionTabs();
-	const isHome = pathname === "/sessions" || pathname === "/platform/sessions";
 
 	const handleClose = useCallback(
 		(id: string, index: number) => {
@@ -63,7 +90,6 @@ export function SessionTabBar() {
 				pathname === `/platform${tabs[index].href}`;
 			removeTab(id);
 			if (!isActive) return;
-			// Navigate to tab to the left, or home if last tab
 			const next = tabs[index - 1] ?? tabs[index + 1];
 			router.push(next ? next.href : "/sessions");
 		},
@@ -72,7 +98,6 @@ export function SessionTabBar() {
 
 	return (
 		<div className="session-tab-bar">
-			{/* Open tabs — includes "Untitled" tabs for new sessions */}
 			{tabs.map((tab, i) => {
 				const active =
 					pathname === tab.href ||
@@ -101,14 +126,11 @@ export function SessionTabBar() {
 				);
 			})}
 
-			{/* New tab — no-op if already on welcome with no tabs */}
-			{!(isHome && tabs.length === 0) && (
-				<Link href="/sessions" className="session-tab-new" title="New session">
-					<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-						<path d="M6 2v8M2 6h8" />
-					</svg>
-				</Link>
-			)}
+			<Link href="/sessions" className="session-tab-new" title="New session">
+				<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+					<path d="M6 2v8M2 6h8" />
+				</svg>
+			</Link>
 		</div>
 	);
 }
