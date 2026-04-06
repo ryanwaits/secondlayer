@@ -1,5 +1,6 @@
 "use client";
 
+import { ChatInput } from "@/components/sessions/chat-input";
 import { useSessionTabs } from "@/components/console/tab-bar";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
@@ -52,7 +53,6 @@ export default function SessionsPage() {
 	const router = useRouter();
 	const { account } = useAuth();
 	const { removeTab } = useSessionTabs();
-	const [query, setQuery] = useState("");
 	const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
 
 	const deleteSession = useCallback(
@@ -87,11 +87,6 @@ export default function SessionsPage() {
 		[router],
 	);
 
-	function handleSubmit() {
-		if (!query.trim()) return;
-		navigate(query.trim());
-	}
-
 	return (
 		<div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 24px", flex: 1 }}>
 			<div className="sessions-hero">
@@ -105,31 +100,7 @@ export default function SessionsPage() {
 
 				<h1 className="sessions-greeting">{greeting}</h1>
 
-				{/* Chat input */}
-				<div className="sessions-input-wrap">
-					<input
-						className="sessions-input"
-						type="text"
-						placeholder="Search or ask a question..."
-						value={query}
-						onChange={(e) => setQuery(e.target.value)}
-						onKeyDown={(e) => {
-							if (e.key === "Enter") handleSubmit();
-						}}
-					/>
-					<button
-						type="button"
-						className="sessions-submit"
-						onClick={handleSubmit}
-					>
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-							<path d="M3 8h10M10 5l3 3-3 3" />
-						</svg>
-					</button>
-				</div>
-				<p className="sessions-disclaimer">
-					Navigate to anything, or ask in plain English
-				</p>
+				<ChatInput onSend={navigate} placeholder="Message secondlayer..." />
 
 				<div className="sessions-chips">
 					{SUGGESTIONS.map((s) => (
