@@ -4991,9 +4991,9 @@ body:has(.dash) .auth-bar {
   padding: 8px 14px 10px;
 }
 
-/* Session variant — thin pill */
+/* Session variant — thin bar */
 .input-card-session {
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 0;
 }
 

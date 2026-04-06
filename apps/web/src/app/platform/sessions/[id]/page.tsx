@@ -183,7 +183,7 @@ function SessionChat({
 	);
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+		<div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
 			<MessageList
 				messages={chat.messages}
 				status={chat.status}

@@ -59,8 +59,6 @@ export function MessageList({
 					</div>
 				</div>
 			)}
-			{/* Spacer pushes latest message toward top of viewport */}
-			<div style={{ minHeight: "40vh", flexShrink: 0 }} />
 			<div ref={bottomRef} />
 		</div>
 	);
