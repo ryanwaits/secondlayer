@@ -58,8 +58,11 @@ export async function POST(req: Request) {
 		stopWhen: stepCountIs(5),
 		maxOutputTokens: 4096,
 		prepareStep: async ({ stepNumber }) => {
-			if (stepNumber === 0) {
-				// Step 0: read-only tools only — let the model decide if it needs them
+			// Only phase tools on step 0 of the first message in a session.
+			// For follow-up messages (conversation already has history),
+			// all tools should be available from the start.
+			const isFirstMessage = messages.length <= 1;
+			if (stepNumber === 0 && isFirstMessage) {
 				return {
 					toolChoice: "auto" as const,
 					activeTools: [
@@ -75,7 +78,6 @@ export async function POST(req: Request) {
 					],
 				};
 			}
-			// After initial read, all tools available (including mutations)
 			return {};
 		},
 		onFinish: async ({ response }) => {
