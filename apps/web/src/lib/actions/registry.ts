@@ -3,84 +3,76 @@ export interface Action {
 	label: string;
 	keywords: string[];
 	category: string;
-	icon: string; // SVG path(s) key
 	href?: string;
 	shortcut?: string[];
 }
 
 export const actions: Action[] = [
-	// Navigation
+	// Platform
 	{
 		id: "home",
 		label: "Home",
 		keywords: ["dashboard", "overview"],
-		category: "Navigation",
-		icon: "home",
+		category: "Platform",
 		href: "/",
+	},
+	{
+		id: "sessions",
+		label: "Sessions",
+		keywords: ["chat", "agent", "ai"],
+		category: "Platform",
+		href: "/sessions",
 	},
 	{
 		id: "streams",
 		label: "Streams",
-		keywords: ["delivery", "events", "list"],
-		category: "Navigation",
-		icon: "stream",
+		keywords: ["delivery", "events", "webhook"],
+		category: "Platform",
 		href: "/streams",
 	},
 	{
 		id: "subgraphs",
 		label: "Subgraphs",
 		keywords: ["tables", "indexes", "data"],
-		category: "Navigation",
-		icon: "subgraph",
+		category: "Platform",
 		href: "/subgraphs",
 	},
 	{
-		id: "templates",
-		label: "Templates",
-		keywords: ["template", "gallery", "examples", "starter"],
-		category: "Navigation",
-		icon: "view",
-		href: "/subgraphs/templates",
+		id: "marketplace",
+		label: "Marketplace",
+		keywords: ["templates", "gallery", "examples"],
+		category: "Platform",
+		href: "/marketplace",
 	},
-	{
-		id: "scaffold",
-		label: "Scaffold Subgraph",
-		keywords: ["scaffold", "generate", "contract", "abi"],
-		category: "Navigation",
-		icon: "view",
-		href: "/subgraphs",
-	},
+
+	// Settings
 	{
 		id: "api-keys",
 		label: "API Keys",
 		keywords: ["tokens", "keys", "auth"],
-		category: "Navigation",
-		icon: "key",
+		category: "Settings",
 		href: "/api-keys",
 	},
 	{
 		id: "usage",
 		label: "Usage",
 		keywords: ["quota", "limits", "metrics"],
-		category: "Navigation",
-		icon: "settings",
+		category: "Settings",
 		href: "/usage",
-	},
-	{
-		id: "billing",
-		label: "Billing",
-		keywords: ["plan", "payment", "invoice"],
-		category: "Navigation",
-		icon: "settings",
-		href: "/billing",
 	},
 	{
 		id: "settings",
 		label: "Settings",
-		keywords: ["account", "profile", "email"],
-		category: "Navigation",
-		icon: "settings",
+		keywords: ["account", "profile", "project"],
+		category: "Settings",
 		href: "/settings",
+	},
+	{
+		id: "team",
+		label: "Team",
+		keywords: ["members", "invite", "collaborators"],
+		category: "Settings",
+		href: "/team",
 	},
 
 	// Account
@@ -89,7 +81,6 @@ export const actions: Action[] = [
 		label: "Log Out",
 		keywords: ["sign out", "exit"],
 		category: "Account",
-		icon: "settings",
 	},
 ];
 

@@ -1241,6 +1241,20 @@ a {
 	flex-shrink: 0;
 }
 
+.palette-item-type {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-dim);
+	flex-shrink: 0;
+}
+
+.palette-empty {
+	padding: 24px 18px;
+	text-align: center;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
 .palette-item-shortcut {
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
