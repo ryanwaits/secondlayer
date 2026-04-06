@@ -5441,3 +5441,85 @@ body:has(.dash) .auth-bar {
   border-radius: 3px;
   color: var(--text-secondary);
 }
+
+/* ── Tool Call Indicator ─────────────────────── */
+
+.tool-call-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(255,255,255,0.22);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.tool-call-indicator:hover { color: rgba(255,255,255,0.4); }
+.tool-call-indicator:hover .tool-call-icon { opacity: 0.5; }
+
+@media (prefers-color-scheme: light) {
+  .tool-call-indicator { color: rgba(0,0,0,0.2); }
+  .tool-call-indicator:hover { color: rgba(0,0,0,0.4); }
+}
+
+.tool-call-icon {
+  width: 12px; height: 12px;
+  opacity: 0.35;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.tool-call-name { letter-spacing: 0.01em; }
+
+.tool-call-chevron {
+  width: 8px; height: 8px;
+  opacity: 0.3;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.tool-call-indicator.expanded .tool-call-chevron {
+  transform: rotate(90deg);
+}
+
+.tool-call-dots {
+  display: flex; gap: 2px;
+}
+
+.tool-call-dots span {
+  width: 3px; height: 3px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: tc-pulse 1.4s ease-in-out infinite;
+}
+
+.tool-call-dots span:nth-child(2) { animation-delay: 0.2s; }
+.tool-call-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes tc-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.tool-call-detail {
+  padding: 4px 10px;
+  margin: 0 0 4px 18px;
+  background: rgba(255,255,255,0.02);
+  border-left: 1px solid var(--border);
+  border-radius: 0 4px 4px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(255,255,255,0.18);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+@media (prefers-color-scheme: light) {
+  .tool-call-detail {
+    background: rgba(0,0,0,0.02);
+    color: rgba(0,0,0,0.25);
+  }
+}
