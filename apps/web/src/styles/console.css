@@ -4929,6 +4929,11 @@ body:has(.dash) .auth-bar {
   padding: 0 24px 20px;
   display: flex;
   justify-content: center;
+  width: 100%;
+}
+
+.sessions-hero .input-dock {
+  padding: 0 0 16px;
 }
 
 .input-card {
