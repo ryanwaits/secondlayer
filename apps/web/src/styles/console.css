@@ -4213,7 +4213,7 @@ body:has(.dash) .auth-bar {
 	align-items: center;
 	padding-top: calc(18vh - 10px);
 	width: 100%;
-	max-width: 720px;
+	max-width: 600px;
 	margin: 0 auto;
 	padding-bottom: 80px;
 }
