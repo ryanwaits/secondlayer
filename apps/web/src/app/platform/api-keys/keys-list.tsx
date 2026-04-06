@@ -25,7 +25,8 @@ export function KeysList({
 	initialKeys: ApiKey[];
 	sessionToken?: string;
 }) {
-	const { data: keys = initialKeys } = useApiKeys(initialKeys);
+	const { data: allKeys = initialKeys } = useApiKeys(initialKeys);
+	const keys = allKeys.filter((k) => k.status === "active");
 	const createKey = useCreateApiKey();
 	const revokeKey = useRevokeApiKey();
 	const [showForm, setShowForm] = useState(false);
