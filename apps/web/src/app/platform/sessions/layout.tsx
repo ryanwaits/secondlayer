@@ -10,7 +10,7 @@ export default function SessionsLayout({
 	return (
 		<SessionTabsProvider>
 			<SessionTabBar />
-			<div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>{children}</div>
+			<div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>{children}</div>
 		</SessionTabsProvider>
 	);
 }

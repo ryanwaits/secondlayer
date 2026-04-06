@@ -4813,7 +4813,10 @@ body:has(.dash) .auth-bar {
   max-width: 720px;
   width: 100%;
   margin: 0 auto;
+  scrollbar-width: none;
 }
+
+.session-messages::-webkit-scrollbar { display: none; }
 
 .msg {
   display: flex;
