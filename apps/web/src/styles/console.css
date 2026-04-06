@@ -4806,10 +4806,13 @@ body:has(.dash) .auth-bar {
 .session-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 24px 0;
+  padding: 24px 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .msg {
@@ -4928,7 +4931,7 @@ body:has(.dash) .auth-bar {
 .input-card {
   width: 100%;
   max-width: 720px;
-  background: rgba(15,15,15,1);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 12px;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -4946,7 +4949,6 @@ body:has(.dash) .auth-bar {
 .input-card.disabled { opacity: 0.5; pointer-events: none; }
 
 @media (prefers-color-scheme: light) {
-  .input-card { background: #fafafa; }
   .input-card:focus-within {
     border-color: rgba(0,0,0,0.15);
     box-shadow: 0 0 0 1px rgba(0,0,0,0.04), 0 2px 12px rgba(0,0,0,0.06);
