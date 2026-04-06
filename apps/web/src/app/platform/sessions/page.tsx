@@ -100,7 +100,7 @@ export default function SessionsPage() {
 
 				<h1 className="sessions-greeting">{greeting}</h1>
 
-				<ChatInput onSend={navigate} placeholder="Message secondlayer..." />
+				<ChatInput onSend={navigate} placeholder="Message secondlayer..." variant="welcome" />
 
 				<div className="sessions-chips">
 					{SUGGESTIONS.map((s) => (

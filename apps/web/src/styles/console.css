@@ -4924,6 +4924,8 @@ body:has(.dash) .auth-bar {
 
 /* ── Input Card ──────────────────────────────── */
 
+/* ── Input Dock (shared wrapper) ────────────── */
+
 .input-dock {
   flex-shrink: 0;
   padding: 0 24px 20px;
@@ -4932,16 +4934,16 @@ body:has(.dash) .auth-bar {
   width: 100%;
 }
 
-.sessions-hero .input-dock {
-  padding: 0 0 16px;
-}
+.input-dock-welcome { padding: 0; }
+.sessions-hero .input-dock { padding: 0 0 16px; }
+
+/* ── Input Card — shared base ──────────────── */
 
 .input-card {
   width: 100%;
   max-width: 720px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 12px;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -4950,10 +4952,7 @@ body:has(.dash) .auth-bar {
   box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.3);
 }
 
-.input-card:hover:not(:focus-within) {
-  border-color: var(--border-hover);
-}
-
+.input-card:hover:not(:focus-within) { border-color: var(--border-hover); }
 .input-card.disabled { opacity: 0.5; pointer-events: none; }
 
 @media (prefers-color-scheme: light) {
@@ -4963,9 +4962,12 @@ body:has(.dash) .auth-bar {
   }
 }
 
-.input-textarea-wrap { padding: 12px 14px 0; }
+/* Welcome variant — tall card */
+.input-card-welcome { border-radius: 12px; }
 
-.input-textarea {
+.input-card-welcome .input-textarea-wrap { padding: 12px 14px 0; }
+
+.input-card-welcome .input-textarea {
   width: 100%;
   min-height: 24px;
   max-height: 200px;
@@ -4980,16 +4982,47 @@ body:has(.dash) .auth-bar {
   overflow-y: auto;
 }
 
-.input-textarea::placeholder { color: var(--text-muted); }
-.input-textarea::-webkit-scrollbar { width: 3px; }
-.input-textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.input-card-welcome .input-textarea::placeholder { color: var(--text-muted); }
 
-.input-footer {
+.input-card-welcome .input-footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   padding: 8px 14px 10px;
 }
+
+/* Session variant — thin pill */
+.input-card-session {
+  border-radius: 24px;
+  padding: 0;
+}
+
+.input-pill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 16px;
+}
+
+.input-pill-textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-main);
+  resize: none;
+  line-height: 1.4;
+  min-height: 20px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.input-pill-textarea::placeholder { color: var(--text-muted); }
+.input-pill-textarea::-webkit-scrollbar { display: none; }
+
+/* ── Shared icon buttons ───────────────────── */
 
 .input-actions {
   display: flex;
@@ -5001,22 +5034,38 @@ body:has(.dash) .auth-bar {
   width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center;
   border: none;
-  background: var(--accent-bg);
-  color: var(--accent);
-  border-radius: 6px;
+  background: var(--text-main);
+  color: var(--bg);
+  border-radius: 50%;
   cursor: pointer;
   transition: all 0.15s;
-  opacity: 0;
-  transform: scale(0.9);
+  flex-shrink: 0;
 }
 
-.input-submit.visible {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.input-submit:hover { background: rgba(181,168,54,0.25); }
+.input-submit:hover { opacity: 0.85; }
 .input-submit:disabled { pointer-events: none; }
+
+.input-mic {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-muted);
+  border-radius: 50%;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  .input-submit {
+    background: var(--text-main);
+    color: #fff;
+  }
+  .input-mic {
+    background: rgba(0,0,0,0.06);
+    color: rgba(0,0,0,0.3);
+  }
+}
 
 /* Session suggestion chips */
 .sessions-chips {
