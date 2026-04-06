@@ -33,11 +33,27 @@ function SessionLoader({ id }: { id: string }) {
 				.catch(() => ({ sessions: [] })),
 		]).then(([msgData, listData]) => {
 			const msgs = (msgData.messages ?? [])
-				.filter((m: Record<string, unknown>) => m.role && m.parts)
-				.map((m: Record<string, unknown>) => ({
-					...m,
-					parts: typeof m.parts === "string" ? JSON.parse(m.parts) : m.parts,
-				}));
+				.filter((m: Record<string, unknown>) => {
+					if (!m.role || !m.parts) return false;
+					// Filter out tool-result messages (intermediate, not for UI)
+					if (m.role === "tool") return false;
+					return true;
+				})
+				.map((m: Record<string, unknown>) => {
+					const parts = typeof m.parts === "string" ? JSON.parse(m.parts) : m.parts;
+					// Filter out tool-call parts from assistant messages
+					// (these are model-format, not UI-format — they cause empty bubbles)
+					const filteredParts = Array.isArray(parts)
+						? parts.filter((p: Record<string, unknown>) =>
+							p.type !== "tool-call" && p.type !== "tool-result"
+						)
+						: parts;
+					return { ...m, parts: filteredParts };
+				})
+				// Remove messages that have no remaining parts after filtering
+				.filter((m: Record<string, unknown>) =>
+					Array.isArray(m.parts) ? m.parts.length > 0 : true
+				);
 			const session = (listData.sessions ?? []).find(
 				(s: Record<string, unknown>) => s.id === id,
 			);
@@ -45,24 +61,11 @@ function SessionLoader({ id }: { id: string }) {
 		});
 	}, [id]);
 
-	// For new sessions with a query, skip the loading state entirely
-	if (data === null && initialQuery) {
-		return (
-			<SessionChat
-				id={id}
-				initialQuery={initialQuery}
-				initialMessages={[]}
-				savedTitle={null}
-			/>
-		);
-	}
-
 	if (data === null) {
-		// Returning existing session — show empty container (no flicker text)
 		return (
 			<div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
 				<div style={{ flex: 1 }} />
-				<ChatInput onSend={() => {}} disabled placeholder="Loading..." />
+				<ChatInput onSend={() => {}} disabled />
 			</div>
 		);
 	}
