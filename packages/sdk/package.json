@@ -20,6 +20,10 @@
 		"./marketplace": {
 			"types": "./dist/marketplace/index.d.ts",
 			"import": "./dist/marketplace/index.js"
+		},
+		"./workflows": {
+			"types": "./dist/workflows/index.d.ts",
+			"import": "./dist/workflows/index.js"
 		}
 	},
 	"files": [
@@ -34,7 +38,8 @@
 	},
 	"dependencies": {
 		"@secondlayer/shared": "^0.10.1",
-		"@secondlayer/subgraphs": "^0.9.0"
+		"@secondlayer/subgraphs": "^0.9.0",
+		"@secondlayer/workflows": "^0.1.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
