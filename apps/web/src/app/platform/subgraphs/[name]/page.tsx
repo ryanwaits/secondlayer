@@ -115,22 +115,17 @@ export default async function SubgraphDetailPage({
 							},
 							{ label: "Version", value: subgraph.version, mono: true },
 							{
-								label: "Events Indexed",
-								value: subgraph.health.totalProcessed.toLocaleString(),
+								label: "Total Rows",
+								value: totalRows.toLocaleString(),
 							},
 							{
 								label: "Error Rate",
 								value: `${(subgraph.health.errorRate * 100).toFixed(1)}%`,
-								valueColor:
-									subgraph.health.errorRate > 0.05 ? "red" : "green",
+								valueColor: subgraph.health.errorRate > 0.05 ? "red" : "green",
 							},
 							{
 								label: "Tables",
 								value: String(tableEntries.length),
-							},
-							{
-								label: "Total Rows",
-								value: totalRows.toLocaleString(),
 							},
 						]}
 					/>
@@ -154,33 +149,31 @@ export default async function SubgraphDetailPage({
 										</tr>
 									</thead>
 									<tbody>
-										{Object.entries(table.columns).map(
-											([colName, col]) => (
-												<tr key={colName}>
-													<td>
-														<span className="mono">{colName}</span>
-													</td>
-													<td>
-														<span className="mono">{col.type}</span>
-													</td>
-													<td>
-														{colName.startsWith("_") && (
-															<span className="sg-col-badge">system</span>
-														)}{" "}
-														{col.indexed && (
-															<span className="sg-col-badge indexed">
-																indexed
-															</span>
-														)}{" "}
-														{col.searchable && (
-															<span className="sg-col-badge searchable">
-																searchable
-															</span>
-														)}
-													</td>
-												</tr>
-											),
-										)}
+										{Object.entries(table.columns).map(([colName, col]) => (
+											<tr key={colName}>
+												<td>
+													<span className="mono">{colName}</span>
+												</td>
+												<td>
+													<span className="mono">{col.type}</span>
+												</td>
+												<td>
+													{colName.startsWith("_") && (
+														<span className="sg-col-badge">system</span>
+													)}{" "}
+													{col.indexed && (
+														<span className="sg-col-badge indexed">
+															indexed
+														</span>
+													)}{" "}
+													{col.searchable && (
+														<span className="sg-col-badge searchable">
+															searchable
+														</span>
+													)}
+												</td>
+											</tr>
+										))}
 									</tbody>
 								</table>
 							</div>
@@ -201,34 +194,34 @@ export default async function SubgraphDetailPage({
 					{/* Sources */}
 					{subgraph.sources && Object.keys(subgraph.sources).length > 0 && (
 						<DetailSection title="Sources">
-							{Object.entries(subgraph.sources).map(
-								([sourceName, source]) => (
-									<div key={sourceName} className="sg-source-card">
-										<div className="sg-source-header">
-											<span className="sg-source-name">{sourceName}</span>
-											<span className="sg-source-type">
-												{source.type ?? "event"}
-											</span>
-										</div>
-										<div className="sg-source-meta">
-											{Boolean(source.contract_id) && (
-												<span>
-													<span className="label">Contract</span>{" "}
-													<span className="val">{String(source.contract_id)}</span>
-												</span>
-											)}
-											{Boolean(source.asset_identifier) && (
-												<span>
-													<span className="label">Asset</span>{" "}
-													<span className="val">
-														{String(source.asset_identifier)}
-													</span>
-												</span>
-											)}
-										</div>
+							{Object.entries(subgraph.sources).map(([sourceName, source]) => (
+								<div key={sourceName} className="sg-source-card">
+									<div className="sg-source-header">
+										<span className="sg-source-name">{sourceName}</span>
+										<span className="sg-source-type">
+											{source.type ?? "event"}
+										</span>
 									</div>
-								),
-							)}
+									<div className="sg-source-meta">
+										{Boolean(source.contract_id) && (
+											<span>
+												<span className="label">Contract</span>{" "}
+												<span className="val">
+													{String(source.contract_id)}
+												</span>
+											</span>
+										)}
+										{Boolean(source.asset_identifier) && (
+											<span>
+												<span className="label">Asset</span>{" "}
+												<span className="val">
+													{String(source.asset_identifier)}
+												</span>
+											</span>
+										)}
+									</div>
+								</div>
+							))}
 						</DetailSection>
 					)}
 

@@ -31,12 +31,13 @@ export default async function DashboardPage() {
 		streams =
 			streamsResult.status === "fulfilled" ? streamsResult.value.streams : [];
 		subgraphs =
-			subgraphsResult.status === "fulfilled"
-				? subgraphsResult.value.data
-				: [];
+			subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
 	}
 
-	const totalEvents = subgraphs.reduce((s, sg) => s + sg.totalProcessed, 0);
+	const totalEvents = subgraphs.reduce(
+		(s, sg) => s + (sg.totalRows ?? sg.totalProcessed),
+		0,
+	);
 	const totalDeliveries = streams.reduce((s, st) => s + st.totalDeliveries, 0);
 	const failedDeliveries = streams.reduce(
 		(s, st) => s + st.failedDeliveries,
@@ -61,11 +62,12 @@ export default async function DashboardPage() {
 										<div className="ov-card-label">Total Subgraphs</div>
 										<div className="ov-card-value">{subgraphs.length}</div>
 										<div className="ov-card-sub">
-											{subgraphs.filter((s) => s.status === "active").length} active
+											{subgraphs.filter((s) => s.status !== "error").length}{" "}
+											active
 										</div>
 									</Link>
 									<Link href="/subgraphs" className="ov-card">
-										<div className="ov-card-label">Events Indexed</div>
+										<div className="ov-card-label">Rows Indexed</div>
 										<div className="ov-card-value">
 											{totalEvents > 1_000_000
 												? `${(totalEvents / 1_000_000).toFixed(1)}M`
@@ -82,11 +84,14 @@ export default async function DashboardPage() {
 											className="ov-list-item"
 										>
 											<span className="ov-list-name">{sg.name}</span>
-											<span className={`ov-list-status ${statusClass(sg.status)}`}>
+											<span
+												className={`ov-list-status ${statusClass(sg.status)}`}
+											>
 												{sg.status}
 											</span>
 											<span className="ov-list-meta">
-												{sg.totalProcessed.toLocaleString()} events
+												{(sg.totalRows ?? sg.totalProcessed).toLocaleString()}{" "}
+												rows
 											</span>
 										</Link>
 									))}
@@ -136,9 +141,7 @@ export default async function DashboardPage() {
 										>
 											{successRate}%
 										</div>
-										<div className="ov-card-sub">
-											{failedDeliveries} failed
-										</div>
+										<div className="ov-card-sub">{failedDeliveries} failed</div>
 									</Link>
 								</div>
 								<div className="ov-list">
@@ -149,7 +152,9 @@ export default async function DashboardPage() {
 											className="ov-list-item"
 										>
 											<span className="ov-list-name">{st.name}</span>
-											<span className={`ov-list-status ${statusClass(st.status)}`}>
+											<span
+												className={`ov-list-status ${statusClass(st.status)}`}
+											>
 												{st.status}
 											</span>
 											<span className="ov-list-meta">

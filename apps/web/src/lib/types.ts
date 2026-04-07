@@ -62,6 +62,7 @@ export interface SubgraphSummary {
 	status: string;
 	lastProcessedBlock: number | null;
 	totalProcessed: number;
+	totalRows?: number;
 	totalErrors: number;
 	tables: string[];
 	createdAt: string;
