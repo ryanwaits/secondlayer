@@ -4,34 +4,35 @@ import { getErrorMessage } from "@secondlayer/shared";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
 import {
+	publishSubgraph,
+	unpublishSubgraph,
+} from "@secondlayer/shared/db/queries/marketplace";
+import {
 	countSubgraphMissingBlocks,
 	findSubgraphGaps,
 	getGapSummaryBySubgraph,
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import {
-	publishSubgraph,
-	unpublishSubgraph,
-} from "@secondlayer/shared/db/queries/marketplace";
-import {
 	listSubgraphs,
 	pgSchemaName,
 } from "@secondlayer/shared/db/queries/subgraphs";
-import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
 import { PublishSubgraphRequestSchema } from "@secondlayer/shared/schemas/marketplace";
+import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
 import { Hono } from "hono";
+import { sql } from "kysely";
 import { getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
 import { enforceLimits } from "../middleware/enforce-limits.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import {
-	MAX_LIMIT,
-	ident,
-	subgraphSchemaName,
-	getValidColumns,
-	getSubgraphSchema,
 	InvalidColumnError,
-	parseQueryParams,
+	MAX_LIMIT,
 	buildWhereConditions,
+	getSubgraphSchema,
+	getValidColumns,
+	ident,
+	parseQueryParams,
+	subgraphSchemaName,
 } from "./subgraph-query-helpers.ts";
 
 const app = new Hono();
@@ -166,7 +167,9 @@ app.post("/", async (c) => {
 					signal: controller.signal,
 				});
 			} catch (err) {
-				console.error(`Auto-reindex failed for ${name}: ${getErrorMessage(err)}`);
+				console.error(
+					`Auto-reindex failed for ${name}: ${getErrorMessage(err)}`,
+				);
 			} finally {
 				activeAbortControllers.delete(name);
 			}
@@ -468,6 +471,19 @@ app.get("/", async (c) => {
 	>();
 	for (const g of gapSummaries) gapMap.set(g.subgraphName, g);
 
+	// Approximate row counts per subgraph schema (single pg_stat query)
+	const rowCountMap = new Map<string, number>();
+	try {
+		const { rows } = await sql
+			.raw(
+				`SELECT schemaname, SUM(n_live_tup)::bigint AS total_rows FROM pg_stat_user_tables WHERE schemaname LIKE 'subgraph_%' GROUP BY schemaname`,
+			)
+			.execute(db);
+		for (const r of rows as { schemaname: string; total_rows: string }[]) {
+			rowCountMap.set(r.schemaname, Number(r.total_rows));
+		}
+	} catch {}
+
 	const chainTip = progressRow?.highest_seen_block ?? 0;
 
 	return c.json({
@@ -494,6 +510,7 @@ app.get("/", async (c) => {
 				status: live?.status ?? v.status,
 				lastProcessedBlock,
 				totalProcessed: live?.total_processed ?? v.total_processed,
+				totalRows: rowCountMap.get(subgraphSchemaName(v)) ?? 0,
 				totalErrors: live?.total_errors ?? v.total_errors,
 				tables: Object.keys(getSubgraphSchema(v)),
 				chainTip,
