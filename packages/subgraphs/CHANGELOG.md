@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.9.3
+
+### Patch Changes
+
+- Allow ComputedValue callbacks to return unknown so existing record field access doesn't need casts
+
 ## 0.9.2
 
 ### Patch Changes
