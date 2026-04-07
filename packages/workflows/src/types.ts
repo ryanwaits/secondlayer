@@ -1,0 +1,167 @@
+import type { SubgraphFilter } from "@secondlayer/subgraphs/types";
+
+// --- Triggers ---
+
+export interface EventTrigger {
+	type: "event";
+	filter: SubgraphFilter;
+}
+
+export interface StreamTrigger {
+	type: "stream";
+	filter: SubgraphFilter;
+}
+
+export interface ScheduleTrigger {
+	type: "schedule";
+	cron: string;
+	timezone?: string;
+}
+
+export interface ManualInputField {
+	type: "string" | "number" | "boolean";
+	required?: boolean;
+	default?: string | number | boolean;
+	description?: string;
+}
+
+export interface ManualTrigger {
+	type: "manual";
+	input?: Record<string, ManualInputField>;
+}
+
+export type WorkflowTrigger =
+	| EventTrigger
+	| StreamTrigger
+	| ScheduleTrigger
+	| ManualTrigger;
+
+// --- Retry ---
+
+export interface RetryConfig {
+	maxAttempts?: number;
+	backoffMs?: number;
+	backoffMultiplier?: number;
+}
+
+// --- AI ---
+
+export interface SchemaField {
+	type: "string" | "number" | "boolean" | "array" | "object";
+	description?: string;
+	items?: string;
+}
+
+export interface AIStepOptions {
+	prompt: string;
+	model?: "haiku" | "sonnet";
+	schema?: Record<string, SchemaField>;
+}
+
+// --- Delivery ---
+
+export interface WebhookTarget {
+	type: "webhook";
+	url: string;
+	body: Record<string, unknown>;
+	headers?: Record<string, string>;
+}
+
+export interface SlackTarget {
+	type: "slack";
+	channel: string;
+	text: string;
+}
+
+export interface EmailTarget {
+	type: "email";
+	to: string;
+	subject: string;
+	body: string;
+}
+
+export type DeliverTarget = WebhookTarget | SlackTarget | EmailTarget;
+
+// --- Query ---
+
+export interface QueryOptions {
+	where?: Record<string, unknown>;
+	orderBy?: Record<string, "asc" | "desc">;
+	limit?: number;
+	offset?: number;
+}
+
+// --- Invoke ---
+
+export interface InvokeOptions {
+	workflow: string;
+	input?: Record<string, unknown>;
+}
+
+// --- Step Context ---
+
+export interface StepContext {
+	run<T>(id: string, fn: () => Promise<T>): Promise<T>;
+	ai(
+		id: string,
+		options: AIStepOptions,
+	): Promise<Record<string, unknown>>;
+	query(
+		subgraph: string,
+		table: string,
+		options?: QueryOptions,
+	): Promise<Record<string, unknown>[]>;
+	count(
+		subgraph: string,
+		table: string,
+		where?: Record<string, unknown>,
+	): Promise<number>;
+	deliver(id: string, target: DeliverTarget): Promise<void>;
+	sleep(id: string, ms: number): Promise<void>;
+	invoke(id: string, options: InvokeOptions): Promise<unknown>;
+}
+
+// --- Workflow Context ---
+
+export interface WorkflowContext {
+	event: Record<string, unknown>;
+	step: StepContext;
+	input?: Record<string, unknown>;
+}
+
+// --- Workflow Definition ---
+
+export interface WorkflowDefinition {
+	name: string;
+	trigger: WorkflowTrigger;
+	handler: (ctx: WorkflowContext) => Promise<unknown>;
+	retries?: RetryConfig;
+	timeout?: number;
+}
+
+// --- Run types ---
+
+export type WorkflowRunStatus =
+	| "running"
+	| "completed"
+	| "failed"
+	| "cancelled";
+
+export interface StepResult {
+	id: string;
+	status: "completed" | "failed" | "skipped";
+	duration: number;
+	output?: unknown;
+	error?: string;
+}
+
+export interface WorkflowRun {
+	id: string;
+	workflowName: string;
+	status: WorkflowRunStatus;
+	steps: StepResult[];
+	duration: number;
+	aiTokensUsed: number;
+	triggeredAt: string;
+	completedAt: string | null;
+}

@@ -1,0 +1,42 @@
+{
+	"name": "@secondlayer/workflows",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./types": {
+			"types": "./dist/types.d.ts",
+			"import": "./dist/types.js"
+		},
+		"./validate": {
+			"types": "./dist/validate.d.ts",
+			"import": "./dist/validate.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "bunup",
+		"dev": "bunup --watch",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "bun run build"
+	},
+	"dependencies": {
+		"@secondlayer/subgraphs": "^0.9.0",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}
