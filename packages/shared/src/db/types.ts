@@ -324,6 +324,82 @@ export interface ChatMessagesTable {
 	created_at: Generated<Date>;
 }
 
+// ── Workflow tables ──────────────────────────────────────────────────
+
+export interface WorkflowDefinitionsTable {
+	id: Generated<string>;
+	name: string;
+	version: Generated<string>;
+	status: Generated<string>;
+	trigger_type: string;
+	trigger_config: unknown;
+	handler_path: string;
+	retries_config: unknown | null;
+	timeout_ms: number | null;
+	api_key_id: string;
+	project_id: string | null;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
+}
+
+export interface WorkflowRunsTable {
+	id: Generated<string>;
+	definition_id: string;
+	status: Generated<string>;
+	trigger_type: string;
+	trigger_data: unknown | null;
+	dedup_key: string | null;
+	error: string | null;
+	started_at: Date | null;
+	completed_at: Date | null;
+	duration_ms: number | null;
+	total_ai_tokens: Generated<number>;
+	created_at: Generated<Date>;
+}
+
+export interface WorkflowStepsTable {
+	id: Generated<string>;
+	run_id: string;
+	step_index: number;
+	step_id: string;
+	step_type: string;
+	status: Generated<string>;
+	input: unknown | null;
+	output: unknown | null;
+	error: string | null;
+	retry_count: Generated<number>;
+	ai_tokens_used: Generated<number>;
+	started_at: Date | null;
+	completed_at: Date | null;
+	duration_ms: number | null;
+	created_at: Generated<Date>;
+}
+
+export interface WorkflowQueueTable {
+	id: Generated<string>;
+	run_id: string;
+	status: Generated<string>;
+	attempts: Generated<number>;
+	max_attempts: Generated<number>;
+	scheduled_for: Generated<Date>;
+	locked_at: Date | null;
+	locked_by: string | null;
+	error: string | null;
+	created_at: Generated<Date>;
+	completed_at: Date | null;
+}
+
+export interface WorkflowSchedulesTable {
+	id: Generated<string>;
+	definition_id: string;
+	cron_expr: string;
+	timezone: Generated<string>;
+	next_run_at: Date;
+	last_run_at: Date | null;
+	enabled: Generated<boolean>;
+	created_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -355,6 +431,11 @@ export interface Database {
 	team_invitations: TeamInvitationsTable;
 	chat_sessions: ChatSessionsTable;
 	chat_messages: ChatMessagesTable;
+	workflow_definitions: WorkflowDefinitionsTable;
+	workflow_runs: WorkflowRunsTable;
+	workflow_steps: WorkflowStepsTable;
+	workflow_queue: WorkflowQueueTable;
+	workflow_schedules: WorkflowSchedulesTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -426,6 +507,25 @@ export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
 
 export type SubgraphUsageDaily = Selectable<SubgraphUsageDailyTable>;
 export type InsertSubgraphUsageDaily = Insertable<SubgraphUsageDailyTable>;
+
+export type WorkflowDefinition = Selectable<WorkflowDefinitionsTable>;
+export type InsertWorkflowDefinition = Insertable<WorkflowDefinitionsTable>;
+export type UpdateWorkflowDefinition = Updateable<WorkflowDefinitionsTable>;
+
+export type WorkflowRun = Selectable<WorkflowRunsTable>;
+export type InsertWorkflowRun = Insertable<WorkflowRunsTable>;
+export type UpdateWorkflowRun = Updateable<WorkflowRunsTable>;
+
+export type WorkflowStep = Selectable<WorkflowStepsTable>;
+export type InsertWorkflowStep = Insertable<WorkflowStepsTable>;
+export type UpdateWorkflowStep = Updateable<WorkflowStepsTable>;
+
+export type WorkflowQueueItem = Selectable<WorkflowQueueTable>;
+export type InsertWorkflowQueueItem = Insertable<WorkflowQueueTable>;
+
+export type WorkflowSchedule = Selectable<WorkflowSchedulesTable>;
+export type InsertWorkflowSchedule = Insertable<WorkflowSchedulesTable>;
+export type UpdateWorkflowSchedule = Updateable<WorkflowSchedulesTable>;
 
 export type Project = Selectable<ProjectsTable>;
 export type InsertProject = Insertable<ProjectsTable>;
