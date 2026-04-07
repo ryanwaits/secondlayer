@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 0.10.0
+
+### Minor Changes
+
+- feat: add workflows support across packages
+
+  - @secondlayer/sdk: add workflows client
+  - @secondlayer/cli: add `sl workflows` commands
+  - @secondlayer/mcp: add workflow tools for AI agents
+  - @secondlayer/indexer: add tx repair script for missing function_args and raw_result
+
 ## 0.9.1
 
 ### Patch Changes
