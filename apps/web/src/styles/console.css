@@ -3923,6 +3923,19 @@ body:has(.dash) .auth-bar {
 	pointer-events: none;
 }
 
+/* Skeleton loading */
+.skeleton {
+	display: inline-block;
+	height: 12px;
+	border-radius: 3px;
+	background: var(--border);
+	animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+	0%, 100% { opacity: 0.3; }
+	50% { opacity: 0.6; }
+}
+
 /* Source cards */
 .sg-source-card {
 	border: 1px solid var(--border);
