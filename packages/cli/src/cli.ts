@@ -17,6 +17,7 @@ import {
 	registerSubgraphsCommand,
 	registerSyncCommand,
 	registerWhoamiCommand,
+	registerWorkflowsCommand,
 } from "./commands/index.ts";
 
 const { version } = pkg;
@@ -29,7 +30,7 @@ program
 	.name("secondlayer")
 	.alias("sl")
 	.description(
-		"SecondLayer CLI — streams, subgraphs, and real-time indexing for Stacks",
+		"SecondLayer CLI — streams, subgraphs, workflows, and real-time indexing for Stacks",
 	)
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)");
@@ -81,6 +82,7 @@ program
 // Core commands (API-backed, work against any environment)
 registerStreamsCommand(program);
 registerSubgraphsCommand(program);
+registerWorkflowsCommand(program);
 registerMarketplaceCommand(program);
 registerStatusCommand(program);
 
