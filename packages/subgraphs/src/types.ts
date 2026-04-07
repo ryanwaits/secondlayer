@@ -154,7 +154,9 @@ export type RowValue =
 	| unknown[];
 
 /** Value or computed function that receives existing row */
-export type ComputedValue = RowValue | ((existing: Record<string, unknown> | null) => RowValue);
+export type ComputedValue =
+	| RowValue
+	| ((existing: Record<string, unknown> | null) => unknown);
 
 /** Context passed to subgraph handlers during event processing */
 export interface SubgraphContext {
