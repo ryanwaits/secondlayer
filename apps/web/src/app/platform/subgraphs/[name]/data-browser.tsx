@@ -22,11 +22,15 @@ export function SubgraphDataBrowser({
 		queryKey: ["subgraph-data", subgraphName, activeTable, page],
 		queryFn: async () => {
 			const res = await fetch(
-				`/api/subgraphs/${subgraphName}/${activeTable}?limit=${limit}&offset=${page * limit}`,
+				`/api/subgraphs/${subgraphName}/${activeTable}?_limit=${limit}&_offset=${page * limit}&_sort=_block_height&_order=desc`,
 				{ headers: { Authorization: `Bearer ${sessionToken}` } },
 			);
 			if (!res.ok) return { rows: [], total: 0 };
-			return res.json() as Promise<{ rows: Record<string, unknown>[]; total: number }>;
+			const json = (await res.json()) as {
+				data: Record<string, unknown>[];
+				meta: { total: number };
+			};
+			return { rows: json.data, total: json.meta.total };
 		},
 		staleTime: 30_000,
 		enabled: !!activeTable,
@@ -57,11 +61,19 @@ export function SubgraphDataBrowser({
 			)}
 
 			{isLoading ? (
-				<div style={{ padding: "20px 0", color: "var(--text-muted)", fontSize: 13 }}>
+				<div
+					style={{
+						padding: "20px 0",
+						color: "var(--text-muted)",
+						fontSize: 13,
+					}}
+				>
 					Loading...
 				</div>
 			) : rows.length === 0 ? (
-				<div style={{ padding: "20px 0", color: "var(--text-dim)", fontSize: 13 }}>
+				<div
+					style={{ padding: "20px 0", color: "var(--text-dim)", fontSize: 13 }}
+				>
 					No data in {activeTable}.
 				</div>
 			) : (
@@ -91,8 +103,7 @@ export function SubgraphDataBrowser({
 					<div className="sg-data-pagination">
 						<span>
 							Showing {page * limit + 1}&ndash;
-							{Math.min((page + 1) * limit, total)} of{" "}
-							{total.toLocaleString()}
+							{Math.min((page + 1) * limit, total)} of {total.toLocaleString()}
 						</span>
 						<div style={{ display: "flex", gap: 4 }}>
 							<button
