@@ -1,6 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure PATH includes essential directories (fixes broken .bashrc on some systems)
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$HOME/.bun/bin:$PATH"
+
+# Verify critical commands exist
+for cmd in git docker curl; do
+	if ! command -v $cmd &> /dev/null; then
+		echo "ERROR: $cmd not found in PATH"
+		exit 1
+	fi
+done
+
 cd /opt/secondlayer
 git fetch origin main
 git reset --hard origin/main
