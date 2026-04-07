@@ -21,6 +21,7 @@ export type {
 	ContractDeployFilter,
 	PrintEventFilter,
 	TxMeta,
+	RowValue,
 	ComputedValue,
 } from "./types.ts";
 export { defineSubgraph } from "./define.ts";

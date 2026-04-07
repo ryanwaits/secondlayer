@@ -142,8 +142,19 @@ export interface TxMeta {
 	functionName?: string | null;
 }
 
+/** Scalar types that can appear as row values */
+export type RowValue =
+	| string
+	| number
+	| bigint
+	| boolean
+	| null
+	| undefined
+	| Record<string, unknown>
+	| unknown[];
+
 /** Value or computed function that receives existing row */
-export type ComputedValue<T = unknown> = T | ((existing: Record<string, unknown> | null) => T);
+export type ComputedValue = RowValue | ((existing: Record<string, unknown> | null) => RowValue);
 
 /** Context passed to subgraph handlers during event processing */
 export interface SubgraphContext {
