@@ -4,9 +4,9 @@
  * Structure: product explainer -> idempotent setup -> /secondlayer skill invocation
  */
 
-const STREAMS_INTRO = `Streams deliver matching on-chain events (transfers, contract calls, mints, etc.) to your endpoint as each block is processed. Define filters, point at a URL, and secondlayer handles the rest. Delivery is at-least-once.`;
+const STREAMS_INTRO = "Streams deliver matching on-chain events (transfers, contract calls, mints, etc.) to your endpoint as each block is processed. Define filters, point at a URL, and secondlayer handles the rest. Delivery is at-least-once.";
 
-const SUBGRAPHS_INTRO = `Subgraphs are declarative SQL tables that auto-index blockchain activity into queryable Postgres tables. Define a schema, write event handlers in TypeScript, deploy, and query — like a materialized view over the chain.`;
+const SUBGRAPHS_INTRO = "Subgraphs are declarative SQL tables that auto-index blockchain activity into queryable Postgres tables. Define a schema, write event handlers in TypeScript, deploy, and query — like a materialized view over the chain.";
 
 const SETUP = `Ensure setup (skip any step already done, use the project's package manager):
 - Skill: run the \`skills\` npm package to install — e.g. \`npx|bunx|pnpm dlx skills add ryanwaits/secondlayer --skill secondlayer -y\`
@@ -102,8 +102,37 @@ ${SETUP}
 
 Scaffold the subgraph, let me review it, then deploy.`;
 
+// ── Workflows ───────────────────────────────────────────────────
+
+const WORKFLOWS_INTRO = "Workflows automate intelligence on your onchain data. Define multi-step tasks that trigger on blockchain events, run on a schedule, or fire on demand. Each step runs independently with automatic retries. Use step.ai() for LLM analysis and step.query() to read subgraph data directly.";
+
+export const WORKFLOWS_EMPTY_PROMPT = `${WORKFLOWS_INTRO}
+
+${SETUP}
+
+/secondlayer Help me create a workflow. Ask me:
+1. What should trigger this workflow? (blockchain event, schedule, or manual)
+2. What data do I need to read or analyze?
+3. What action should it take? (webhook, Slack, email)
+
+Create the workflow and deploy it.`;
+
+export const QUICK_WORKFLOW_PROMPT = `${WORKFLOWS_INTRO}
+
+${SETUP}
+
+/secondlayer Create a workflow that monitors STX transfers over 100K STX, runs AI analysis on the transfer pattern, and sends a Slack alert to #whale-alerts.`;
+
+export const DROPDOWN_CREATE_WORKFLOW = `${WORKFLOWS_INTRO}
+
+${SETUP}
+
+/secondlayer Create a new workflow. Ask me what it should monitor and what action to take.`;
+
 // ── Marketing docs (below intro prose) ───────────────────────────
 
 export const MARKETING_STREAMS_PROMPT = STREAMS_EMPTY_PROMPT;
 
 export const MARKETING_SUBGRAPHS_PROMPT = SUBGRAPHS_EMPTY_PROMPT;
+
+export const MARKETING_WORKFLOWS_PROMPT = WORKFLOWS_EMPTY_PROMPT;

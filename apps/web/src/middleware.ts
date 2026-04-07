@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths that have both marketing (unauthed) and platform (authed) versions
-const DUAL_PATHS = ["/streams", "/subgraphs", "/marketplace"];
+const DUAL_PATHS = ["/streams", "/subgraphs", "/marketplace", "/workflows"];
 // Paths that require authentication
 const AUTH_REQUIRED = [
 	"/api-keys",
@@ -10,7 +10,6 @@ const AUTH_REQUIRED = [
 	"/team",
 	"/settings",
 	"/sessions",
-	"/agents",
 ];
 
 export function middleware(request: NextRequest) {
@@ -23,9 +22,14 @@ export function middleware(request: NextRequest) {
 		return NextResponse.rewrite(new URL(target, request.url));
 	}
 
+	// Redirect old /agents URLs to /workflows
+	if (pathname === "/agents" || pathname.startsWith("/agents/")) {
+		return NextResponse.redirect(new URL(pathname.replace("/agents", "/workflows"), request.url));
+	}
+
 	if (!session) {
 		if (
-			AUTH_REQUIRED.some((p) => pathname === p || pathname.startsWith(p + "/"))
+			AUTH_REQUIRED.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 		) {
 			return NextResponse.redirect(new URL("/", request.url));
 		}
@@ -38,8 +42,8 @@ export function middleware(request: NextRequest) {
 	}
 
 	for (const prefix of [...DUAL_PATHS, ...AUTH_REQUIRED]) {
-		if (pathname === prefix || pathname.startsWith(prefix + "/")) {
-			return NextResponse.rewrite(new URL("/platform" + pathname, request.url));
+		if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+			return NextResponse.rewrite(new URL(`/platform${pathname}`, request.url));
 		}
 	}
 
@@ -64,8 +68,8 @@ export const config = {
 		"/settings/:path*",
 		"/sessions",
 		"/sessions/:path*",
-		"/agents",
-		"/agents/:path*",
+		"/workflows",
+		"/workflows/:path*",
 		"/marketplace",
 		"/marketplace/:path*",
 	],

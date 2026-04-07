@@ -184,11 +184,11 @@ export default async function DashboardPage() {
 						</div>
 					</CollapsibleSection>
 
-					{/* Agents */}
-					<CollapsibleSection title="Agents" count={0}>
+					{/* Workflows */}
+					<CollapsibleSection title="Workflows" count={0}>
 						<div className="ov-empty">
-							No agents deployed yet.{" "}
-							<Link href="/agents" className="ov-section-link">
+							No workflows deployed yet.{" "}
+							<Link href="/workflows" className="ov-section-link">
 								Get started &rarr;
 							</Link>
 						</div>

@@ -14,7 +14,7 @@ const PLATFORM_PATHS = [
 	"/billing",
 	"/settings",
 	"/sessions",
-	"/agents",
+	"/workflows",
 	"/marketplace",
 ];
 
@@ -33,7 +33,7 @@ export function AuthBar() {
 		pathname === "/" && account
 			? true
 			: PLATFORM_PATHS.some(
-					(p) => pathname === p || pathname.startsWith(p + "/"),
+					(p) => pathname === p || pathname.startsWith(`${p}/`),
 				);
 
 	useEffect(() => {
@@ -93,9 +93,9 @@ export function AuthBar() {
 	if (account) {
 		return (
 			<div className="auth-bar">
-				<a className="auth-bar-login" onClick={() => logout()}>
+				<button type="button" className="auth-bar-login" onClick={() => logout()}>
 					Logout
-				</a>
+				</button>
 				<Link href="/" className="auth-bar-cta">
 					Platform
 				</Link>

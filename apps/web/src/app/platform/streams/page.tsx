@@ -47,20 +47,20 @@ export default async function StreamsPage() {
 					)}
 
 					{streams.length === 0 ? (
-						<div className="agents-inner" style={{ padding: "40px 0 0" }}>
-							<h1 className="agents-title">No streams yet</h1>
-							<p className="agents-desc">
+						<div className="empty-inner" style={{ padding: "40px 0 0" }}>
+							<h1 className="empty-title">No streams yet</h1>
+							<p className="empty-desc">
 								Streams deliver real-time blockchain events to your
 								webhook endpoints. Create one from your terminal or SDK.
 							</p>
-							<div className="agents-divider">
-								<span className="agents-divider-text">Get started</span>
+							<div className="empty-divider">
+								<span className="empty-divider-text">Get started</span>
 							</div>
-							<div className="agents-cards">
-								<div className="agent-card">
-									<div className="agent-card-preview">
-										<div className="agent-card-preview-art">
-											<svg width="120" height="60" viewBox="0 0 120 60" fill="none">
+							<div className="empty-cards">
+								<div className="empty-card">
+									<div className="empty-card-preview">
+										<div className="empty-card-preview-art">
+											<svg width="120" height="60" viewBox="0 0 120 60" fill="none" aria-hidden="true">
 												<rect x="8" y="8" width="10" height="4" rx="1" fill="currentColor" opacity="0.4" />
 												<rect x="22" y="8" width="40" height="4" rx="1" fill="currentColor" opacity="0.2" />
 												<rect x="8" y="18" width="10" height="4" rx="1" fill="currentColor" opacity="0.4" />
@@ -70,25 +70,25 @@ export default async function StreamsPage() {
 												<rect x="8" y="38" width="60" height="4" rx="1" fill="currentColor" opacity="0.1" />
 											</svg>
 										</div>
-										<div className="agent-card-icon">
-											<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+										<div className="empty-card-icon">
+											<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
 												<path d="M4 5l3 3-3 3" />
 												<path d="M9 11h4" />
 											</svg>
 										</div>
 									</div>
-									<div className="agent-card-body">
-										<div className="agent-card-title">Use the CLI</div>
-										<div className="agent-card-desc">
+									<div className="empty-card-body">
+										<div className="empty-card-title">Use the CLI</div>
+										<div className="empty-card-desc">
 											Run <code style={{ fontSize: 12, background: "var(--code-bg)", padding: "1px 5px", borderRadius: 3 }}>npx secondlayer stream create</code> to
 											configure and deploy a stream from your terminal.
 										</div>
 									</div>
 								</div>
-								<div className="agent-card">
-									<div className="agent-card-preview">
-										<div className="agent-card-preview-art">
-											<svg width="120" height="60" viewBox="0 0 120 60" fill="none">
+								<div className="empty-card">
+									<div className="empty-card-preview">
+										<div className="empty-card-preview-art">
+											<svg width="120" height="60" viewBox="0 0 120 60" fill="none" aria-hidden="true">
 												<circle cx="20" cy="20" r="6" fill="currentColor" opacity="0.15" />
 												<circle cx="60" cy="30" r="6" fill="currentColor" opacity="0.15" />
 												<circle cx="100" cy="20" r="6" fill="currentColor" opacity="0.15" />
@@ -97,17 +97,17 @@ export default async function StreamsPage() {
 												<rect x="8" y="42" width="104" height="4" rx="2" fill="currentColor" opacity="0.08" />
 											</svg>
 										</div>
-										<div className="agent-card-icon">
-											<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+										<div className="empty-card-icon">
+											<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
 												<path d="M5 4l-3 4 3 4" />
 												<path d="M11 4l3 4-3 4" />
 												<path d="M9 2l-2 12" />
 											</svg>
 										</div>
 									</div>
-									<div className="agent-card-body">
-										<div className="agent-card-title">Use the SDK</div>
-										<div className="agent-card-desc">
+									<div className="empty-card-body">
+										<div className="empty-card-title">Use the SDK</div>
+										<div className="empty-card-desc">
 											Define streams programmatically with the Secondlayer SDK.
 											Set filters, endpoints, and retry policies in TypeScript.
 										</div>

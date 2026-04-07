@@ -3,7 +3,7 @@
 export function HomeAnnotations() {
 	return (
 		<div className="prose">
-			<p>Agent-native developer tools for Stacks.</p>
+			<p>Developer tools for Stacks.</p>
 			<p>
 				Atomic primitives that work the same way everywhere — as a CLI command,
 				an API call, or a tool an agent picks up in a loop. Compose them to

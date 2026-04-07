@@ -29,16 +29,16 @@ const caveat = Caveat({
 
 export const metadata: Metadata = {
 	title: "secondlayer",
-	description: "Agent-native developer tools for Stacks",
+	description: "Developer tools for Stacks",
 	openGraph: {
 		title: "secondlayer",
-		description: "Agent-native developer tools for Stacks",
+		description: "Developer tools for Stacks",
 		images: [{ url: "/og.png", width: 1200, height: 630 }],
 	},
 	twitter: {
 		card: "summary_large_image",
 		title: "secondlayer",
-		description: "Agent-native developer tools for Stacks",
+		description: "Developer tools for Stacks",
 		images: ["/og.png"],
 	},
 };

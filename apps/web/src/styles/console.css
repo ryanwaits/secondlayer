@@ -4475,19 +4475,19 @@ body:has(.dash) .auth-bar {
    REDESIGN: Agents — Getting Started
    Mock ref: lines 1258–1322
    ════════════════════════════════════════════════ */
-.agents-inner {
+.empty-inner {
 	max-width: 800px;
 	margin: 0 auto;
 	padding: 48px 32px 80px;
 }
-.agents-title {
+.empty-title {
 	font-family: var(--font-heading-stack);
 	font-size: 20px;
 	font-weight: 500;
 	letter-spacing: -0.02em;
 	text-align: center;
 }
-.agents-desc {
+.empty-desc {
 	font-size: 14px;
 	color: var(--text-muted);
 	text-align: center;
@@ -4497,20 +4497,20 @@ body:has(.dash) .auth-bar {
 	margin-left: auto;
 	margin-right: auto;
 }
-.agents-divider {
+.empty-divider {
 	display: flex;
 	align-items: center;
 	gap: 16px;
 	margin: 36px 0 28px;
 }
-.agents-divider::before,
-.agents-divider::after {
+.empty-divider::before,
+.empty-divider::after {
 	content: '';
 	flex: 1;
 	height: 1px;
 	background: var(--border);
 }
-.agents-divider-text {
+.empty-divider-text {
 	font-family: var(--font-mono-stack);
 	font-size: 10px;
 	font-weight: 600;
@@ -4520,22 +4520,22 @@ body:has(.dash) .auth-bar {
 	opacity: 0.6;
 	white-space: nowrap;
 }
-.agents-cards {
+.empty-cards {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 16px;
 }
-.agent-card {
+.empty-card {
 	border: 1px solid var(--border);
 	border-radius: 10px;
 	overflow: hidden;
 	cursor: pointer;
 	transition: all 0.15s;
 }
-.agent-card:hover {
+.empty-card:hover {
 	border-color: var(--border-hover);
 }
-.agent-card-preview {
+.empty-card-preview {
 	height: 120px;
 	background: var(--code-bg);
 	display: flex;
@@ -4545,11 +4545,11 @@ body:has(.dash) .auth-bar {
 	position: relative;
 	overflow: hidden;
 }
-.agent-card-preview-art {
+.empty-card-preview-art {
 	opacity: 0.15;
 	color: var(--text-muted);
 }
-.agent-card-icon {
+.empty-card-icon {
 	position: absolute;
 	bottom: -1px;
 	left: 16px;
@@ -4564,10 +4564,10 @@ body:has(.dash) .auth-bar {
 	color: var(--accent);
 	transform: translateY(50%);
 }
-.agent-card-body {
+.empty-card-body {
 	padding: 28px 16px 16px;
 }
-.agent-card-title {
+.empty-card-title {
 	font-size: 14px;
 	font-weight: 560;
 	margin-bottom: 6px;
@@ -4575,19 +4575,19 @@ body:has(.dash) .auth-bar {
 	align-items: center;
 	gap: 6px;
 }
-.agent-card-title .info-icon {
+.empty-card-title .info-icon {
 	color: var(--text-dim);
 }
-.agent-card-desc {
+.empty-card-desc {
 	font-size: 13px;
 	color: var(--text-muted);
 	line-height: 1.5;
 }
 @media (max-width: 640px) {
-	.agents-cards {
+	.empty-cards {
 		grid-template-columns: 1fr;
 	}
-	.agents-inner {
+	.empty-inner {
 		padding: 28px 16px 80px;
 	}
 }
