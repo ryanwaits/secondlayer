@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.9.2
+
+### Patch Changes
+
+- Narrow ComputedValue type so patchOrInsert callback params are inferred without explicit annotation
+
 ## 0.9.0
 
 ### Minor Changes
