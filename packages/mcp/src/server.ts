@@ -7,6 +7,7 @@ import { registerAccountTools } from "./tools/account.ts";
 import { registerScaffoldTools } from "./tools/scaffold.ts";
 import { registerStreamTools } from "./tools/streams.ts";
 import { registerSubgraphTools } from "./tools/subgraphs.ts";
+import { registerWorkflowTools } from "./tools/workflows.ts";
 import { registerTemplateTools } from "./tools/templates.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -25,6 +26,7 @@ export function createServer(): McpServer {
 	registerStreamTools(server);
 	registerSubgraphTools(server);
 	registerAccountTools(server);
+	registerWorkflowTools(server);
 	registerResources(server);
 
 	return server;
