@@ -61,6 +61,28 @@ export const RetryConfigSchema: z.ZodType<RetryConfig> = z.object({
 	backoffMultiplier: z.number().positive().optional(),
 }) as z.ZodType<RetryConfig>;
 
+export const McpStepOptionsSchema = z.object({
+	server: z.string().min(1),
+	tool: z.string().min(1),
+	args: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const DiscordTargetSchema = z.object({
+	type: z.literal("discord"),
+	webhookUrl: z.string().url(),
+	content: z.string().min(1),
+	username: z.string().optional(),
+	avatarUrl: z.string().optional(),
+});
+
+export const TelegramTargetSchema = z.object({
+	type: z.literal("telegram"),
+	botToken: z.string().min(1),
+	chatId: z.string().min(1),
+	text: z.string().min(1),
+	parseMode: z.enum(["HTML", "Markdown"]).optional(),
+});
+
 export const WorkflowDefinitionSchema: z.ZodType<WorkflowDefinition> =
 	z.object({
 		name: WorkflowNameSchema,

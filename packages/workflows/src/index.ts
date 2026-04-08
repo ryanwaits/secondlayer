@@ -20,6 +20,10 @@ export type {
 	InvokeOptions,
 	SchemaField,
 	ManualInputField,
+	DiscordTarget,
+	TelegramTarget,
+	McpStepOptions,
+	McpStepResult,
 } from "./types.ts";
 export { defineWorkflow } from "./define.ts";
 export { validateWorkflowDefinition } from "./validate.ts";

@@ -15,6 +15,12 @@ export async function executeDeliverStep(
 		case "email":
 			await deliverEmail(target.to, target.subject, target.body);
 			break;
+		case "discord":
+			await deliverDiscord(target.webhookUrl, target.content, target.username, target.avatarUrl);
+			break;
+		case "telegram":
+			await deliverTelegram(target.botToken, target.chatId, target.text, target.parseMode);
+			break;
 		default:
 			throw new Error(`Unknown delivery target type: ${(target as Record<string, unknown>).type}`);
 	}
@@ -99,4 +105,58 @@ async function deliverEmail(
 	}
 
 	logger.debug(`Email delivered to ${to}`);
+}
+
+async function deliverDiscord(
+	webhookUrl: string,
+	content: string,
+	username?: string,
+	avatarUrl?: string,
+): Promise<void> {
+	const response = await fetch(webhookUrl, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			content,
+			...(username ? { username } : {}),
+			...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+		}),
+		signal: AbortSignal.timeout(10_000),
+	});
+
+	if (!response.ok) {
+		throw new Error(
+			`Discord delivery failed: ${response.status} ${response.statusText}`,
+		);
+	}
+
+	logger.debug("Discord message delivered");
+}
+
+async function deliverTelegram(
+	botToken: string,
+	chatId: string,
+	text: string,
+	parseMode?: "HTML" | "Markdown",
+): Promise<void> {
+	const response = await fetch(
+		`https://api.telegram.org/bot${botToken}/sendMessage`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				chat_id: chatId,
+				text,
+				...(parseMode ? { parse_mode: parseMode } : {}),
+			}),
+			signal: AbortSignal.timeout(10_000),
+		},
+	);
+
+	if (!response.ok) {
+		const err = await response.text();
+		throw new Error(`Telegram delivery failed: ${response.status} ${err}`);
+	}
+
+	logger.debug(`Telegram message delivered to chat ${chatId}`);
 }

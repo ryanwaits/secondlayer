@@ -7,6 +7,7 @@ import { createStepContext } from "./steps/context.ts";
 import { SleepInterrupt } from "./steps/sleep.ts";
 import { checkEventTriggers } from "./triggers/event.ts";
 import { startCronScheduler } from "./triggers/cron.ts";
+import { closeMcpClients } from "./steps/mcp.ts";
 import {
 	claimWorkflowJob,
 	completeWorkflowJob,
@@ -248,6 +249,7 @@ export async function startWorkflowProcessor(opts: {
 			await new Promise((r) => setTimeout(r, 500));
 		}
 
+		await closeMcpClients();
 		logger.info("Workflow processor stopped");
 	};
 }

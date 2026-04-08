@@ -80,7 +80,28 @@ export interface EmailTarget {
 	body: string;
 }
 
-export type DeliverTarget = WebhookTarget | SlackTarget | EmailTarget;
+export interface DiscordTarget {
+	type: "discord";
+	webhookUrl: string;
+	content: string;
+	username?: string;
+	avatarUrl?: string;
+}
+
+export interface TelegramTarget {
+	type: "telegram";
+	botToken: string;
+	chatId: string;
+	text: string;
+	parseMode?: "HTML" | "Markdown";
+}
+
+export type DeliverTarget =
+	| WebhookTarget
+	| SlackTarget
+	| EmailTarget
+	| DiscordTarget
+	| TelegramTarget;
 
 // --- Query ---
 
@@ -96,6 +117,19 @@ export interface QueryOptions {
 export interface InvokeOptions {
 	workflow: string;
 	input?: Record<string, unknown>;
+}
+
+// --- MCP ---
+
+export interface McpStepOptions {
+	server: string;
+	tool: string;
+	args?: Record<string, unknown>;
+}
+
+export interface McpStepResult {
+	content: Array<{ type: string; text?: string }>;
+	isError?: boolean;
 }
 
 // --- Step Context ---
@@ -119,6 +153,7 @@ export interface StepContext {
 	deliver(id: string, target: DeliverTarget): Promise<void>;
 	sleep(id: string, ms: number): Promise<void>;
 	invoke(id: string, options: InvokeOptions): Promise<unknown>;
+	mcp(id: string, options: McpStepOptions): Promise<McpStepResult>;
 }
 
 // --- Workflow Context ---

@@ -6,14 +6,16 @@ import type {
 	DeliverTarget,
 	QueryOptions,
 	InvokeOptions,
+	McpStepOptions,
 } from "@secondlayer/workflows";
-import { parseJsonb } from "@secondlayer/shared/db/jsonb";
+import { jsonb, parseJsonb } from "@secondlayer/shared/db/jsonb";
 import { logger } from "@secondlayer/shared/logger";
 // run.ts is called inline via memoize, not imported directly
 import { executeAiStep } from "./ai.ts";
 import { executeQueryStep, executeCountStep } from "./query.ts";
 import { executeDeliverStep } from "./deliver.ts";
 import { executeInvokeStep } from "./invoke.ts";
+import { executeMcpStep } from "./mcp.ts";
 import { SleepInterrupt } from "./sleep.ts";
 
 /**
@@ -61,7 +63,7 @@ export function createStepContext(
 						step_id: stepId,
 						step_type: stepType,
 						status: "running",
-						input: input != null ? (JSON.stringify(input) as any) : null,
+						input: input != null ? jsonb(input) : null,
 						started_at: new Date(),
 					})
 					.returningAll()
@@ -87,7 +89,7 @@ export function createStepContext(
 				.updateTable("workflow_steps")
 				.set({
 					status: "completed",
-					output: JSON.stringify(result) as any,
+					output: jsonb(result),
 					completed_at: new Date(),
 					duration_ms: durationMs,
 				})
@@ -106,7 +108,7 @@ export function createStepContext(
 					.updateTable("workflow_steps")
 					.set({
 						status: "completed",
-						output: JSON.stringify({ sleepUntil: err.resumeAt.toISOString() }) as any,
+						output: jsonb({ sleepUntil: err.resumeAt.toISOString() }),
 						completed_at: new Date(),
 						duration_ms: durationMs,
 					})
@@ -185,5 +187,10 @@ export function createStepContext(
 
 		invoke: (id: string, options: InvokeOptions) =>
 			memoize(id, "invoke", options, () => executeInvokeStep(db, options)),
+
+		mcp: (id: string, options: McpStepOptions) =>
+			memoize(id, "mcp", { server: options.server, tool: options.tool, args: options.args }, () =>
+				executeMcpStep(options),
+			),
 	};
 }
