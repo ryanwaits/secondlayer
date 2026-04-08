@@ -10,7 +10,9 @@ Internet → Caddy (:443) → API (:3800) ← Subgraph Processor
 Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worker → Deliveries
                                      │                          ↑
                                Tip Follower              Job Queue
-                            (Hiro remote fallback)
+                            (Hiro remote fallback)         │
+                                                    Workflow Runner
+                                                   (AI, MCP, delivery)
 ```
 
 | Service | Port | Description |
@@ -22,6 +24,7 @@ Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worke
 | **Subgraph Processor** | — | Computes subgraphs |
 | **Postgres** | 5432 | Stores blocks, transactions, events, jobs |
 | **Caddy** | 80/443 | TLS termination, reverse proxy |
+| **Workflow Runner** | — | Executes workflow steps (AI, MCP, delivery) |
 | **Agent** | 3900 | AI DevOps monitoring + Slack alerts |
 
 ### Block Data Flow
@@ -52,6 +55,10 @@ BACKFILL_SOURCE=hiro             # "local" for reprocessing from own DB
 # Worker
 WORKER_CONCURRENCY=5
 NETWORKS=mainnet
+
+# Workflow Runner
+WORKFLOW_CONCURRENCY=5
+ANTHROPIC_API_KEY=              # Required for step.ai()
 
 # API
 PORT=3800
@@ -133,8 +140,9 @@ See individual service setup:
 2. **API** — Web Service, Docker target `api`, port 10000
 3. **Indexer** — Web Service, Docker target `indexer`, port 10000
 4. **Worker** — Background Worker, Docker target `worker`
+5. **Workflow Runner** — Background Worker, Docker target `workflow-runner`
 
-All need `DATABASE_URL`. The indexer needs a public URL for event observer.
+All need `DATABASE_URL`. The indexer needs a public URL for event observer. The workflow runner needs `ANTHROPIC_API_KEY` for AI steps.
 
 ---
 

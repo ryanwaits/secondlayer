@@ -169,6 +169,8 @@ bun add -g @secondlayer/cli
 sl auth login                    # authenticate via magic link
 sl streams list                  # manage event streams
 sl subgraphs list                # manage subgraphs
+sl workflows list                # manage workflows
+sl workflows deploy my-flow.ts   # deploy a workflow
 ```
 
 All commands support `--json` for machine-readable output.
@@ -196,6 +198,12 @@ const { stream, signingSecret } = await sl.streams.create({
 
 // List subgraphs
 const { data } = await sl.subgraphs.list();
+
+// List workflows
+const { workflows } = await sl.workflows.list();
+
+// Trigger a workflow
+const { runId } = await sl.workflows.trigger("whale-alerts");
 ```
 
 ### REST API

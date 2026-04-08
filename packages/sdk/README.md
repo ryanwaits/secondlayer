@@ -62,6 +62,39 @@ const rows = await sl.subgraphs.queryTable("my-subgraph", "transfers", {
 const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode });
 ```
 
+## Workflows
+
+Deploy and manage automated workflows.
+
+```typescript
+// List
+const { workflows } = await sl.workflows.list();
+
+// Get
+const detail = await sl.workflows.get("whale-alerts");
+
+// Deploy
+const result = await sl.workflows.deploy({
+  name: "whale-alerts",
+  trigger: { type: "event", filter: { type: "stx_transfer" } },
+  handlerCode: "...",
+});
+
+// Trigger manually
+const { runId } = await sl.workflows.trigger("whale-alerts", { threshold: 100000 });
+
+// Pause / Resume / Delete
+await sl.workflows.pause("whale-alerts");
+await sl.workflows.resume("whale-alerts");
+await sl.workflows.delete("whale-alerts");
+
+// List runs
+const { runs } = await sl.workflows.listRuns("whale-alerts", { status: "completed", limit: 10 });
+
+// Get run details
+const run = await sl.workflows.getRun("run-id");
+```
+
 ## Error Handling
 
 ```typescript

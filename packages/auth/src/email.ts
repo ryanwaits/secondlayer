@@ -85,7 +85,7 @@ export async function sendWaitlistConfirmation(email: string): Promise<void> {
 	const text = [
 		"You're signed up for early access to secondlayer.",
 		"",
-		"We're bringing agent-native dev tooling to Stacks — event streaming, subgraphs, and a better DX for builders.",
+		"Developer tools for Stacks — event streaming, subgraphs, workflows, and a better DX for builders.",
 		"",
 		"We're currently in alpha. We'll let you know as soon as early access opens up.",
 		"",
@@ -142,7 +142,7 @@ function waitlistHtml(): string {
   <p style="color: #888; font-size: 14px; margin: 0 0 24px;">secondlayer</p>
   <div style="background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
     <p style="font-size: 18px; font-weight: 600; margin: 0 0 12px; color: #111;">You're in for early access</p>
-    <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0;">We're bringing agent-native dev tooling to Stacks — event streaming, subgraphs, and a better DX for builders.</p>
+    <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0;">Developer tools for Stacks — event streaming, subgraphs, workflows, and a better DX for builders.</p>
   </div>
   <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">We're currently in alpha. We'll let you know as soon as early access opens up.</p>
   <p style="color: #aaa; font-size: 12px; margin: 0;">— secondlayer</p>
