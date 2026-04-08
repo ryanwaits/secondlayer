@@ -378,6 +378,13 @@ sl workflows deploy workflows/`}
 
 const client = new SecondLayer({ apiKey: "sk-sl_..." })
 
+// Deploy a workflow
+const result = await client.workflows.deploy({
+  name: "whale-alert",
+  trigger: { type: "stream", filter: { type: "stx_transfer", minAmount: 100_000_000_000 } },
+  handlerCode: bundledCode,
+})
+
 // List workflows
 const { workflows } = await client.workflows.list()
 
@@ -430,7 +437,7 @@ sl workflows delete whale-alert`}
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">trigger</span>
-						<span className="prop-type">EventTrigger | ScheduleTrigger | ManualTrigger</span>
+						<span className="prop-type">EventTrigger | StreamTrigger | ScheduleTrigger | ManualTrigger</span>
 						<span className="prop-required">required</span>
 					</div>
 					<div className="prop-row">
@@ -559,6 +566,10 @@ sl workflows delete whale-alert`}
 
 					<div className="prop-row">
 						<span className="prop-name">id</span>
+						<span className="prop-type">string</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">workflowName</span>
 						<span className="prop-type">string</span>
 					</div>
 					<div className="prop-row">
