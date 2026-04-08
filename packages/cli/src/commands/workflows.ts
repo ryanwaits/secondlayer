@@ -12,6 +12,7 @@ import {
 	success,
 	yellow,
 } from "../lib/output.ts";
+import { loadConfig } from "../lib/config.ts";
 
 function getClient(): SecondLayer {
 	const apiKey = process.env.SECONDLAYER_API_KEY;
@@ -48,16 +49,52 @@ export function registerWorkflowsCommand(program: Command): void {
 				);
 				const result = validateWorkflowDefinition(def);
 
-				success(`Workflow "${result.name}" is valid`);
-				info(`Trigger: ${result.trigger.type}`);
-				if (result.retries) {
-					info(`Retries: maxAttempts=${result.retries.maxAttempts ?? "default"}`);
-				}
-				if (result.timeout) {
-					info(`Timeout: ${result.timeout}ms`);
+				const config = await loadConfig();
+
+				if (config.network !== "local") {
+					// ── Remote deploy ──────────────────────────────────────
+					info(`Bundling for remote deploy (${config.network})...`);
+
+					const esbuild = await import("esbuild");
+					const buildResult = await esbuild.build({
+						entryPoints: [absPath],
+						bundle: true,
+						platform: "node",
+						format: "esm",
+						external: ["@secondlayer/workflows"],
+						write: false,
+					});
+
+					const handlerCode = new TextDecoder().decode(
+						buildResult.outputFiles?.[0]?.contents,
+					);
+
+					const deployResult = await getClient().workflows.deploy({
+						name: def.name,
+						trigger: def.trigger,
+						handlerCode,
+						retries: def.retries,
+						timeout: def.timeout,
+					});
+
+					if (deployResult.action === "unchanged") {
+						info(`Workflow "${def.name}" is up to date (no changes)`);
+					} else {
+						success(`Workflow "${def.name}" ${deployResult.action} (remote)`);
+					}
+				} else {
+					// ── Local deploy ───────────────────────────────────────
+					success(`Workflow "${result.name}" is valid`);
+					info(`Trigger: ${result.trigger.type}`);
+					if (result.retries) {
+						info(`Retries: maxAttempts=${result.retries.maxAttempts ?? "default"}`);
+					}
+					if (result.timeout) {
+						info(`Timeout: ${result.timeout}ms`);
+					}
 				}
 			} catch (err) {
-				error(`Failed to validate workflow: ${err}`);
+				error(`Failed to deploy workflow: ${err}`);
 				process.exit(1);
 			}
 		});

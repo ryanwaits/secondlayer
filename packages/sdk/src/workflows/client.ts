@@ -3,7 +3,6 @@ import type {
 	WorkflowRunStatus,
 } from "@secondlayer/workflows";
 import { BaseClient } from "../base.ts";
-import { ApiError } from "../errors.ts";
 
 export interface WorkflowSummary {
 	name: string;
@@ -31,46 +30,56 @@ export interface WorkflowRunSummary {
 	completedAt: string | null;
 }
 
-function notYet(): never {
-	throw new ApiError(501, "Workflows API not yet available");
-}
-
 export class Workflows extends BaseClient {
-	async list(): Promise<{ workflows: WorkflowSummary[] }> {
-		return notYet();
+	async deploy(data: {
+		name: string;
+		trigger: Record<string, unknown>;
+		handlerCode: string;
+		retries?: Record<string, unknown>;
+		timeout?: number;
+	}): Promise<{ action: string; workflowId: string; message: string }> {
+		return this.request("POST", "/api/workflows", data);
 	}
 
-	async get(_name: string): Promise<WorkflowDetail> {
-		return notYet();
+	async list(): Promise<{ workflows: WorkflowSummary[] }> {
+		return this.request("GET", "/api/workflows");
+	}
+
+	async get(name: string): Promise<WorkflowDetail> {
+		return this.request("GET", `/api/workflows/${name}`);
 	}
 
 	async trigger(
-		_name: string,
-		_input?: Record<string, unknown>,
+		name: string,
+		input?: Record<string, unknown>,
 	): Promise<{ runId: string }> {
-		return notYet();
+		return this.request("POST", `/api/workflows/${name}/trigger`, input ? { input } : undefined);
 	}
 
-	async pause(_name: string): Promise<void> {
-		return notYet();
+	async pause(name: string): Promise<void> {
+		return this.request("POST", `/api/workflows/${name}/pause`);
 	}
 
-	async resume(_name: string): Promise<void> {
-		return notYet();
+	async resume(name: string): Promise<void> {
+		return this.request("POST", `/api/workflows/${name}/resume`);
 	}
 
-	async delete(_name: string): Promise<void> {
-		return notYet();
+	async delete(name: string): Promise<void> {
+		return this.request("DELETE", `/api/workflows/${name}`);
 	}
 
 	async listRuns(
-		_name: string,
-		_params?: { status?: WorkflowRunStatus; limit?: number },
+		name: string,
+		params?: { status?: WorkflowRunStatus; limit?: number },
 	): Promise<{ runs: WorkflowRunSummary[] }> {
-		return notYet();
+		const qs = new URLSearchParams();
+		if (params?.status) qs.set("status", params.status);
+		if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+		const query = qs.toString();
+		return this.request("GET", `/api/workflows/${name}/runs${query ? `?${query}` : ""}`);
 	}
 
-	async getRun(_runId: string): Promise<WorkflowRun> {
-		return notYet();
+	async getRun(runId: string): Promise<WorkflowRun> {
+		return this.request("GET", `/api/workflows/runs/${runId}`);
 	}
 }

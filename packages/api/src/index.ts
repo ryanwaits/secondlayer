@@ -22,6 +22,7 @@ import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
+import workflowsRouter from "./routes/workflows.ts";
 import subgraphsRouter, {
 	abortAllOperations,
 	activeAbortControllers,
@@ -72,6 +73,8 @@ for (const path of [
 	"/api/projects/*",
 	"/api/chat-sessions",
 	"/api/chat-sessions/*",
+	"/api/workflows",
+	"/api/workflows/*",
 	"/api/auth/logout",
 ]) {
 	app.use(path, requireAuth());
@@ -88,6 +91,7 @@ app.route("/api/insights", insightsRouter);
 app.route("/api/node", nodeRouter);
 app.route("/api/projects", projectsRouter);
 app.route("/api/chat-sessions", chatSessionsRouter);
+app.route("/api/workflows", workflowsRouter);
 app.route("/", statusRouter);
 
 // Start server
