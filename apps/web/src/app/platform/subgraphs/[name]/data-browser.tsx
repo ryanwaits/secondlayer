@@ -105,7 +105,7 @@ export function SubgraphDataBrowser({
 
 	const rows = data?.rows ?? [];
 	const total = data?.total ?? 0;
-	const columns = rows.length > 0 ? Object.keys(rows[0]).slice(0, 5) : [];
+	const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 	const stale = isFetching && isPlaceholderData;
 
 	return (
@@ -138,34 +138,36 @@ export function SubgraphDataBrowser({
 				</div>
 			) : (
 				<>
-					<table
-						className="sg-table"
-						style={{
-							opacity: stale ? 0.5 : 1,
-							transition: "opacity 100ms",
-						}}
-					>
-						<thead>
-							<tr>
-								{columns.map((col) => (
-									<th key={col}>{col}</th>
-								))}
-							</tr>
-						</thead>
-						<tbody>
-							{rows.map((row) => (
-								<tr key={String(row._id ?? row.tx_id ?? row.contract_id)}>
+					<div className="sg-table-scroll">
+						<table
+							className="sg-table"
+							style={{
+								opacity: stale ? 0.5 : 1,
+								transition: "opacity 100ms",
+							}}
+						>
+							<thead>
+								<tr>
 									{columns.map((col) => (
-										<td key={col}>
-											<span className="mono">
-												{String(row[col] ?? "—").slice(0, 40)}
-											</span>
-										</td>
+										<th key={col}>{col}</th>
 									))}
 								</tr>
-							))}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{rows.map((row) => (
+									<tr key={String(row._id ?? row.tx_id ?? row.contract_id)}>
+										{columns.map((col) => (
+											<td key={col}>
+												<span className="mono">
+													{String(row[col] ?? "—")}
+												</span>
+											</td>
+										))}
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
 					<div className="sg-data-pagination">
 						<span>
 							Showing {page * LIMIT + 1}&ndash;

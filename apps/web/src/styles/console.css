@@ -2434,10 +2434,14 @@ body:has(.dash) .auth-bar {
    REDESIGN: Data Table
    Mock ref: lines 640–690 (.sg-table)
    ════════════════════════════════════════════════ */
-.sg-table {
-	width: 100%;
-	border-collapse: collapse;
+.sg-table-scroll {
+	overflow-x: auto;
 	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+.sg-table {
+	min-width: 100%;
+	border-collapse: collapse;
 	border-radius: 8px;
 	overflow: hidden;
 }
