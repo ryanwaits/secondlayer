@@ -190,64 +190,11 @@ export default async function SubgraphDetailPage({
 						</DetailSection>
 					)}
 
-					{/* Sources */}
-					{subgraph.sources && Object.keys(subgraph.sources).length > 0 && (
-						<DetailSection title="Sources">
-							{Object.entries(subgraph.sources).map(([sourceName, source]) => (
-								<div key={sourceName} className="sg-source-card">
-									<div className="sg-source-header">
-										<span className="sg-source-name">{sourceName}</span>
-										<span className="sg-source-type">
-											{source.type ?? "event"}
-										</span>
-									</div>
-									<div className="sg-source-meta">
-										{Boolean(source.contract_id) && (
-											<span>
-												<span className="label">Contract</span>{" "}
-												<span className="val">
-													{String(source.contract_id)}
-												</span>
-											</span>
-										)}
-										{Boolean(source.asset_identifier) && (
-											<span>
-												<span className="label">Asset</span>{" "}
-												<span className="val">
-													{String(source.asset_identifier)}
-												</span>
-											</span>
-										)}
-									</div>
-								</div>
-							))}
-						</DetailSection>
-					)}
-
-					{/* Definition */}
-					<DetailSection title="Definition">
-						<DetailCodeBlock
-							label="SUBGRAPH DEFINITION"
-							code={JSON.stringify(subgraph.definition ?? {}, null, 2)}
-							showCopy
-						/>
-					</DetailSection>
-
 					{/* Backfill / Reindex */}
 					<DetailSection title="Backfill &amp; Reindex">
 						<SubgraphReindexForm
 							subgraphName={name}
 							sessionToken={session ?? ""}
-						/>
-					</DetailSection>
-
-					{/* Quick Actions */}
-					<DetailSection title="Quick Actions">
-						<DetailCodeBlock
-							label="Add a view to this subgraph"
-							code={`sl views scaffold ${name}`}
-							showCopy
-							showOpenInEditor
 						/>
 					</DetailSection>
 				</div>
