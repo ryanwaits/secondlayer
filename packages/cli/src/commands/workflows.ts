@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Command } from "commander";
 import { SecondLayer } from "@secondlayer/sdk";
+import type { Command } from "commander";
+import { loadConfig } from "../lib/config.ts";
 import {
 	dim,
 	error,
@@ -12,7 +13,25 @@ import {
 	success,
 	yellow,
 } from "../lib/output.ts";
-import { loadConfig } from "../lib/config.ts";
+
+function formatValidationError(err: unknown): void {
+	if (
+		err != null &&
+		typeof err === "object" &&
+		"issues" in err &&
+		Array.isArray((err as Record<string, unknown>).issues)
+	) {
+		error("Workflow validation failed:");
+		for (const issue of (
+			err as { issues: Array<{ path?: string[]; message: string }> }
+		).issues) {
+			const path = issue.path?.length ? issue.path.join(".") : "(root)";
+			error(`  ${path}: ${issue.message}`);
+		}
+	} else {
+		error(`Failed to validate workflow: ${err}`);
+	}
+}
 
 function getClient(): SecondLayer {
 	const apiKey = process.env.SECONDLAYER_API_KEY;
@@ -87,14 +106,52 @@ export function registerWorkflowsCommand(program: Command): void {
 					success(`Workflow "${result.name}" is valid`);
 					info(`Trigger: ${result.trigger.type}`);
 					if (result.retries) {
-						info(`Retries: maxAttempts=${result.retries.maxAttempts ?? "default"}`);
+						info(
+							`Retries: maxAttempts=${result.retries.maxAttempts ?? "default"}`,
+						);
 					}
 					if (result.timeout) {
 						info(`Timeout: ${result.timeout}ms`);
 					}
 				}
 			} catch (err) {
-				error(`Failed to deploy workflow: ${err}`);
+				formatValidationError(err);
+				process.exit(1);
+			}
+		});
+
+	// --- validate ---
+	workflows
+		.command("validate <file>")
+		.description("Validate a workflow definition without deploying")
+		.action(async (file: string) => {
+			try {
+				const absPath = resolve(file);
+				if (!existsSync(absPath)) {
+					error(`File not found: ${absPath}`);
+					process.exit(1);
+				}
+
+				const mod = await import(absPath);
+				const def = mod.default ?? mod;
+
+				const { validateWorkflowDefinition } = await import(
+					"@secondlayer/workflows/validate"
+				);
+				const result = validateWorkflowDefinition(def);
+
+				success(`Workflow "${result.name}" is valid`);
+				info(`Trigger: ${result.trigger.type}`);
+				if (result.retries) {
+					info(
+						`Retries: maxAttempts=${result.retries.maxAttempts ?? "default"}, backoffMs=${result.retries.backoffMs ?? 1000}, multiplier=${result.retries.backoffMultiplier ?? 2}`,
+					);
+				}
+				if (result.timeout) {
+					info(`Timeout: ${result.timeout}ms`);
+				}
+			} catch (err) {
+				formatValidationError(err);
 				process.exit(1);
 			}
 		});
@@ -121,12 +178,7 @@ export function registerWorkflowsCommand(program: Command): void {
 
 				const rows = items.map((w) => {
 					const statusColor = w.status === "active" ? green : yellow;
-					return [
-						w.name,
-						statusColor(w.status),
-						w.triggerType,
-						w.createdAt,
-					];
+					return [w.name, statusColor(w.status), w.triggerType, w.createdAt];
 				});
 
 				console.log(
@@ -178,9 +230,7 @@ export function registerWorkflowsCommand(program: Command): void {
 		.option("--input <json>", "Input JSON string")
 		.action(async (name: string, options: { input?: string }) => {
 			try {
-				const input = options.input
-					? JSON.parse(options.input)
-					: undefined;
+				const input = options.input ? JSON.parse(options.input) : undefined;
 
 				const result = await getClient().workflows.trigger(name, input);
 				success(`Triggered workflow "${name}"`);
@@ -205,7 +255,12 @@ export function registerWorkflowsCommand(program: Command): void {
 			) => {
 				try {
 					const { runs } = await getClient().workflows.listRuns(name, {
-						status: options.status as "running" | "completed" | "failed" | "cancelled" | undefined,
+						status: options.status as
+							| "running"
+							| "completed"
+							| "failed"
+							| "cancelled"
+							| undefined,
 						limit: options.limit
 							? Number.parseInt(options.limit, 10)
 							: undefined,
