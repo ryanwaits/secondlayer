@@ -2,20 +2,28 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { connectDb } from "../db.ts";
 import { introspectSchema } from "../schema/introspect.ts";
 
-const url =
-	process.env.DATABASE_URL ||
-	"postgresql://ryanwaits@127.0.0.1:5432/streams_dev";
-const { db, close } = connectDb(url);
+const url = process.env.DATABASE_URL;
+
+// Skip all tests when no database is available
+const describeDb = url ? describe : describe.skip;
+
+let db: ReturnType<typeof connectDb>["db"];
+let close: ReturnType<typeof connectDb>["close"];
+
+if (url) {
+	const conn = connectDb(url);
+	db = conn.db;
+	close = conn.close;
+}
 
 afterAll(async () => {
-	await close();
+	if (close) await close();
 });
 
-describe("introspectSchema", () => {
+describeDb("introspectSchema", () => {
 	test("discovers tables", async () => {
 		const schema = await introspectSchema(db);
 		expect(schema.tables.size).toBeGreaterThan(0);
-		// Should have common tables
 		expect(schema.tables.has("accounts")).toBe(true);
 	});
 
@@ -38,7 +46,6 @@ describe("introspectSchema", () => {
 	test("discovers foreign keys", async () => {
 		const schema = await introspectSchema(db);
 		expect(schema.foreignKeys.length).toBeGreaterThan(0);
-		// api_keys → accounts FK should exist
 		const fk = schema.foreignKeys.find(
 			(f) => f.fromTable === "api_keys" && f.toTable === "accounts",
 		);
