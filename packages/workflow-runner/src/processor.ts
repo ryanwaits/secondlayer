@@ -1,21 +1,21 @@
 import { getDb } from "@secondlayer/shared/db";
+import { parseJsonb } from "@secondlayer/shared/db/jsonb";
 import { logger } from "@secondlayer/shared/logger";
 import { listen } from "@secondlayer/shared/queue/listener";
-import { parseJsonb } from "@secondlayer/shared/db/jsonb";
 import type { WorkflowDefinition } from "@secondlayer/workflows";
-import { createStepContext } from "./steps/context.ts";
-import { SleepInterrupt } from "./steps/sleep.ts";
-import { checkEventTriggers } from "./triggers/event.ts";
-import { startCronScheduler } from "./triggers/cron.ts";
-import { closeMcpClients } from "./steps/mcp.ts";
 import {
 	claimWorkflowJob,
 	completeWorkflowJob,
-	failWorkflowJob,
 	enqueueWorkflowRun,
-	recoverStaleWorkflowJobs,
+	failWorkflowJob,
 	getWorkerId,
+	recoverStaleWorkflowJobs,
 } from "./queue.ts";
+import { createStepContext } from "./steps/context.ts";
+import { closeMcpClients } from "./steps/mcp.ts";
+import { SleepInterrupt } from "./steps/sleep.ts";
+import { startCronScheduler } from "./triggers/cron.ts";
+import { checkEventTriggers } from "./triggers/event.ts";
 
 const POLL_INTERVAL_MS = Number.parseInt(
 	process.env.WORKFLOW_POLL_INTERVAL_MS ?? "1000",
@@ -176,7 +176,16 @@ export async function startWorkflowProcessor(opts: {
 				durationMs,
 			});
 
-			await failWorkflowJob(queueId, errorMsg, maxAttempts);
+			const retriesConfig = parseJsonb<{
+				backoffMs?: number;
+				backoffMultiplier?: number;
+			}>(defRow.retries_config);
+			await failWorkflowJob(
+				queueId,
+				errorMsg,
+				maxAttempts,
+				retriesConfig ?? undefined,
+			);
 
 			// Update run if permanently failed
 			const queueItem = await db

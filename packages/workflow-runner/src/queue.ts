@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { sql } from "kysely";
 import { getDb } from "@secondlayer/shared/db";
-import { logger } from "@secondlayer/shared/logger";
 import type { WorkflowQueueItem, WorkflowRun } from "@secondlayer/shared/db";
+import { logger } from "@secondlayer/shared/logger";
+import { sql } from "kysely";
 
 const WORKER_ID = `wf-${randomUUID().slice(0, 8)}`;
 
@@ -90,11 +90,12 @@ export async function completeWorkflowJob(queueId: string): Promise<void> {
 		.execute();
 }
 
-/** Fail a workflow queue item. Re-queues if under max attempts. */
+/** Fail a workflow queue item. Re-queues if under max attempts with exponential backoff. */
 export async function failWorkflowJob(
 	queueId: string,
 	error: string,
 	maxAttempts = 3,
+	backoff?: { backoffMs?: number; backoffMultiplier?: number },
 ): Promise<void> {
 	const db = getDb();
 
@@ -107,11 +108,17 @@ export async function failWorkflowJob(
 	if (!item) return;
 
 	if (item.attempts < maxAttempts) {
+		const baseMs = backoff?.backoffMs ?? 1000;
+		const multiplier = backoff?.backoffMultiplier ?? 2;
+		const delayMs = baseMs * multiplier ** (item.attempts - 1);
+		const scheduledFor = new Date(Date.now() + delayMs);
+
 		await db
 			.updateTable("workflow_queue")
 			.set({
 				status: "pending",
 				error,
+				scheduled_for: scheduledFor,
 				locked_at: null,
 				locked_by: null,
 			})
@@ -170,7 +177,5 @@ export async function recoverStaleWorkflowJobs(
 /** Send PG NOTIFY for new workflow jobs. */
 export async function notifyNewWorkflowJob(runId?: string): Promise<void> {
 	const payload = runId ?? "";
-	await sql`SELECT pg_notify('workflows:new_job', ${payload})`.execute(
-		getDb(),
-	);
+	await sql`SELECT pg_notify('workflows:new_job', ${payload})`.execute(getDb());
 }
