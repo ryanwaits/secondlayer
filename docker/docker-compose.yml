@@ -109,6 +109,26 @@ services:
     deploy:
       replicas: ${WORKER_REPLICAS:-1}
 
+  # Workflow runner service
+  workflow-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: workflow-runner
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      WORKFLOW_CONCURRENCY: ${WORKFLOW_CONCURRENCY:-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      DATA_DIR: /data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Subgraph processor service
   subgraph-processor:
     build:

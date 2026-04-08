@@ -29,6 +29,8 @@ COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
 COPY packages/agent/package.json ./packages/agent/
 COPY packages/account-agent/package.json ./packages/account-agent/
+COPY packages/workflows/package.json ./packages/workflows/
+COPY packages/workflow-runner/package.json ./packages/workflow-runner/
 # Install dependencies
 RUN bun install
 
@@ -46,6 +48,8 @@ COPY packages/api ./packages/api
 COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
 COPY packages/account-agent ./packages/account-agent
+COPY packages/workflows ./packages/workflows
+COPY packages/workflow-runner ./packages/workflow-runner
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
@@ -97,6 +101,26 @@ ENV WORKER_CONCURRENCY=5
 
 # Worker doesn't expose a port but we can add a simple health endpoint
 CMD ["bun", "run", "packages/worker/src/index.ts"]
+
+# =============================================================================
+# Workflow runner service
+# =============================================================================
+FROM base AS workflow-runner
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/stacks ./packages/stacks
+COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
+COPY --from=builder /app/packages/workflows ./packages/workflows
+COPY --from=builder /app/packages/workflow-runner ./packages/workflow-runner
+COPY --from=builder /app/package.json ./
+
+ENV NODE_ENV=production
+ENV WORKFLOW_CONCURRENCY=5
+
+CMD ["bun", "run", "packages/workflow-runner/src/index.ts"]
 
 # =============================================================================
 # Indexer service
