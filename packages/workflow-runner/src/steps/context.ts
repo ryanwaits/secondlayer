@@ -1,21 +1,21 @@
-import type { Kysely } from "kysely";
 import type { Database } from "@secondlayer/shared/db";
-import type {
-	StepContext,
-	AIStepOptions,
-	DeliverTarget,
-	QueryOptions,
-	InvokeOptions,
-	McpStepOptions,
-} from "@secondlayer/workflows";
 import { jsonb, parseJsonb } from "@secondlayer/shared/db/jsonb";
 import { logger } from "@secondlayer/shared/logger";
+import type {
+	AIStepOptions,
+	DeliverTarget,
+	InvokeOptions,
+	McpStepOptions,
+	QueryOptions,
+	StepContext,
+} from "@secondlayer/workflows";
+import type { Kysely } from "kysely";
 // run.ts is called inline via memoize, not imported directly
 import { executeAiStep } from "./ai.ts";
-import { executeQueryStep, executeCountStep } from "./query.ts";
 import { executeDeliverStep } from "./deliver.ts";
 import { executeInvokeStep } from "./invoke.ts";
 import { executeMcpStep } from "./mcp.ts";
+import { executeCountStep, executeQueryStep } from "./query.ts";
 import { SleepInterrupt } from "./sleep.ts";
 
 /**
@@ -99,8 +99,7 @@ export function createStepContext(
 			return result;
 		} catch (err) {
 			const durationMs = Date.now() - startTime;
-			const errorMsg =
-				err instanceof Error ? err.message : String(err);
+			const errorMsg = err instanceof Error ? err.message : String(err);
 
 			// Re-throw SleepInterrupt without marking as failed
 			if (err instanceof SleepInterrupt) {
@@ -156,25 +155,67 @@ export function createStepContext(
 	}
 
 	return {
-		run: <T>(id: string, fn: () => Promise<T>) =>
-			memoize(id, "run", null, fn),
+		run: <T>(id: string, fn: () => Promise<T>) => memoize(id, "run", null, fn),
 
 		ai: (id: string, options: AIStepOptions) =>
-			memoize(id, "ai", { prompt: options.prompt, model: options.model }, async () => {
-				const result = await executeAiStep(options);
-				await updateAiTokens(id, result.tokensUsed);
-				return result.output;
-			}),
+			memoize(
+				id,
+				"ai",
+				{ prompt: options.prompt, model: options.model },
+				async () => {
+					const result = await executeAiStep(options);
+					await updateAiTokens(id, result.tokensUsed);
+					return result.output;
+				},
+			),
 
-		query: (subgraph: string, table: string, options?: QueryOptions) =>
-			memoize(`query:${subgraph}/${table}`, "query", { subgraph, table, ...options }, () =>
+		query: (
+			...args:
+				| [string, string, QueryOptions?]
+				| [string, string, string, QueryOptions?]
+		) => {
+			const hasId = args.length >= 3 && typeof args[2] === "string";
+			const [id, subgraph, table, options] = hasId
+				? [
+						args[0],
+						args[1],
+						args[2] as string,
+						args[3] as QueryOptions | undefined,
+					]
+				: [
+						`query:${args[0]}/${args[1]}`,
+						args[0],
+						args[1],
+						args[2] as QueryOptions | undefined,
+					];
+			return memoize(id, "query", { subgraph, table, ...options }, () =>
 				executeQueryStep(db, subgraph, table, options),
-			),
+			);
+		},
 
-		count: (subgraph: string, table: string, where?: Record<string, unknown>) =>
-			memoize(`count:${subgraph}/${table}`, "count", { subgraph, table, where }, () =>
+		count: (
+			...args:
+				| [string, string, Record<string, unknown>?]
+				| [string, string, string, Record<string, unknown>?]
+		) => {
+			const hasId = args.length >= 3 && typeof args[2] === "string";
+			const [id, subgraph, table, where] = hasId
+				? [
+						args[0],
+						args[1],
+						args[2] as string,
+						args[3] as Record<string, unknown> | undefined,
+					]
+				: [
+						`count:${args[0]}/${args[1]}`,
+						args[0],
+						args[1],
+						args[2] as Record<string, unknown> | undefined,
+					];
+			return memoize(id, "count", { subgraph, table, where }, () =>
 				executeCountStep(db, subgraph, table, where),
-			),
+			);
+		},
 
 		deliver: (id: string, target: DeliverTarget) =>
 			memoize(id, "deliver", target, () => executeDeliverStep(target)),
@@ -189,8 +230,11 @@ export function createStepContext(
 			memoize(id, "invoke", options, () => executeInvokeStep(db, options)),
 
 		mcp: (id: string, options: McpStepOptions) =>
-			memoize(id, "mcp", { server: options.server, tool: options.tool, args: options.args }, () =>
-				executeMcpStep(options),
+			memoize(
+				id,
+				"mcp",
+				{ server: options.server, tool: options.tool, args: options.args },
+				() => executeMcpStep(options),
 			),
 	};
 }

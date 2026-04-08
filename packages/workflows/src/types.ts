@@ -136,16 +136,25 @@ export interface McpStepResult {
 
 export interface StepContext {
 	run<T>(id: string, fn: () => Promise<T>): Promise<T>;
-	ai(
-		id: string,
-		options: AIStepOptions,
-	): Promise<Record<string, unknown>>;
+	ai(id: string, options: AIStepOptions): Promise<Record<string, unknown>>;
 	query(
 		subgraph: string,
 		table: string,
 		options?: QueryOptions,
 	): Promise<Record<string, unknown>[]>;
+	query(
+		id: string,
+		subgraph: string,
+		table: string,
+		options?: QueryOptions,
+	): Promise<Record<string, unknown>[]>;
 	count(
+		subgraph: string,
+		table: string,
+		where?: Record<string, unknown>,
+	): Promise<number>;
+	count(
+		id: string,
 		subgraph: string,
 		table: string,
 		where?: Record<string, unknown>,
