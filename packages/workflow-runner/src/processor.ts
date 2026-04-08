@@ -5,6 +5,8 @@ import { parseJsonb } from "@secondlayer/shared/db/jsonb";
 import type { WorkflowDefinition } from "@secondlayer/workflows";
 import { createStepContext } from "./steps/context.ts";
 import { SleepInterrupt } from "./steps/sleep.ts";
+import { checkEventTriggers } from "./triggers/event.ts";
+import { startCronScheduler } from "./triggers/cron.ts";
 import {
 	claimWorkflowJob,
 	completeWorkflowJob,
@@ -205,10 +207,18 @@ export async function startWorkflowProcessor(opts: {
 		}
 	}
 
-	// PG LISTEN for real-time wakeups
-	const stopListener = await listen("workflows:new_job", () => {
+	// PG LISTEN for workflow queue wakeups
+	const stopQueueListener = await listen("workflows:new_job", () => {
 		drainQueue();
 	});
+
+	// PG LISTEN for indexer block notifications → check event/stream triggers
+	const stopBlockListener = await listen("streams:new_job", () => {
+		checkEventTriggers();
+	});
+
+	// Start cron scheduler (polls every 60s)
+	const stopCron = startCronScheduler();
 
 	// Poll interval as fallback
 	const pollInterval = setInterval(() => {
@@ -220,15 +230,18 @@ export async function startWorkflowProcessor(opts: {
 		recoverStaleWorkflowJobs(STALE_THRESHOLD_MIN);
 	}, RECOVERY_INTERVAL_MS);
 
-	// Initial drain
+	// Initial drain + trigger check
 	drainQueue();
+	checkEventTriggers();
 
 	// Return cleanup function
 	return async () => {
 		running = false;
 		clearInterval(pollInterval);
 		clearInterval(recoveryInterval);
-		await stopListener();
+		stopCron();
+		await stopQueueListener();
+		await stopBlockListener();
 
 		// Wait for active jobs to finish
 		while (activeJobs > 0) {
