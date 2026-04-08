@@ -21,7 +21,7 @@ COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
 # Build app images — --no-cache ensures source code changes are always picked up
 # subgraph-processor shares the api target but is listed explicitly for clarity
-$COMPOSE build --no-cache api indexer worker subgraph-processor agent migrate
+$COMPOSE build --no-cache api indexer worker subgraph-processor workflow-runner agent migrate
 
 # Run migrations synchronously — fail fast on error
 $COMPOSE run --rm migrate
@@ -29,7 +29,7 @@ $COMPOSE run --rm migrate
 # Restart app services — NEVER touch stacks-node, postgres, hiro-postgres, hiro-api
 # Remove orphaned containers from renamed services (view-processor → subgraph-processor)
 docker rm -f secondlayer-view-processor-1 2>/dev/null || true
-$COMPOSE up -d --remove-orphans api indexer worker subgraph-processor agent caddy
+$COMPOSE up -d --remove-orphans api indexer worker subgraph-processor workflow-runner agent caddy
 
 # Health check with retry
 check_health() {
