@@ -400,6 +400,12 @@ export interface WorkflowSchedulesTable {
 	created_at: Generated<Date>;
 }
 
+export interface WorkflowCursorsTable {
+	name: string;
+	block_height: Generated<number>;
+	updated_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -436,6 +442,7 @@ export interface Database {
 	workflow_steps: WorkflowStepsTable;
 	workflow_queue: WorkflowQueueTable;
 	workflow_schedules: WorkflowSchedulesTable;
+	workflow_cursors: WorkflowCursorsTable;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -526,6 +533,8 @@ export type InsertWorkflowQueueItem = Insertable<WorkflowQueueTable>;
 export type WorkflowSchedule = Selectable<WorkflowSchedulesTable>;
 export type InsertWorkflowSchedule = Insertable<WorkflowSchedulesTable>;
 export type UpdateWorkflowSchedule = Updateable<WorkflowSchedulesTable>;
+
+export type WorkflowCursor = Selectable<WorkflowCursorsTable>;
 
 export type Project = Selectable<ProjectsTable>;
 export type InsertProject = Insertable<ProjectsTable>;
