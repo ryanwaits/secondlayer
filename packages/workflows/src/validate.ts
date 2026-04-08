@@ -9,6 +9,9 @@ import type {
 	StreamTrigger,
 	WorkflowDefinition,
 	WorkflowTrigger,
+	McpStepOptions,
+	DiscordTarget,
+	TelegramTarget,
 } from "./types.ts";
 
 export const WorkflowNameSchema: z.ZodType<string> = z
@@ -61,13 +64,13 @@ export const RetryConfigSchema: z.ZodType<RetryConfig> = z.object({
 	backoffMultiplier: z.number().positive().optional(),
 }) as z.ZodType<RetryConfig>;
 
-export const McpStepOptionsSchema = z.object({
+export const McpStepOptionsSchema: z.ZodType<McpStepOptions> = z.object({
 	server: z.string().min(1),
 	tool: z.string().min(1),
 	args: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const DiscordTargetSchema = z.object({
+export const DiscordTargetSchema: z.ZodType<DiscordTarget> = z.object({
 	type: z.literal("discord"),
 	webhookUrl: z.string().url(),
 	content: z.string().min(1),
@@ -75,7 +78,7 @@ export const DiscordTargetSchema = z.object({
 	avatarUrl: z.string().optional(),
 });
 
-export const TelegramTargetSchema = z.object({
+export const TelegramTargetSchema: z.ZodType<TelegramTarget> = z.object({
 	type: z.literal("telegram"),
 	botToken: z.string().min(1),
 	chatId: z.string().min(1),
