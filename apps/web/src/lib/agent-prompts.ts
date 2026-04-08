@@ -104,7 +104,7 @@ Scaffold the subgraph, let me review it, then deploy.`;
 
 // ── Workflows ───────────────────────────────────────────────────
 
-const WORKFLOWS_INTRO = "Workflows automate intelligence on your onchain data. Define multi-step tasks that trigger on blockchain events, run on a schedule, or fire on demand. Each step runs independently with automatic retries. Use step.ai() for LLM analysis and step.query() to read subgraph data directly.";
+const WORKFLOWS_INTRO = "Workflows automate intelligence on your onchain data. Define multi-step tasks that trigger on blockchain events, run on a schedule, or fire on demand. Each step runs independently with automatic retries. Available step methods: step.ai() for LLM analysis, step.query() to read subgraph data, step.mcp() to call MCP server tools, step.deliver() to send to webhooks/Slack/Discord/Telegram/email, step.invoke() to chain workflows, and step.sleep() for delays.";
 
 export const WORKFLOWS_EMPTY_PROMPT = `${WORKFLOWS_INTRO}
 

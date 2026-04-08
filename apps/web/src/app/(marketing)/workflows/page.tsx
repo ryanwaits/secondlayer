@@ -11,6 +11,7 @@ const toc: TocItem[] = [
 	{ label: "Triggers", href: "#triggers" },
 	{ label: "Steps", href: "#steps" },
 	{ label: "AI analysis", href: "#ai-analysis" },
+	{ label: "MCP tools", href: "#mcp-tools" },
 	{ label: "Querying subgraphs", href: "#querying-subgraphs" },
 	{ label: "Delivering results", href: "#delivering-results" },
 	{ label: "Deploy", href: "#deploy" },
@@ -265,6 +266,44 @@ const deepAnalysis = await step.ai("deep-analysis", {
 })`}
 				/>
 
+				<SectionHeading id="mcp-tools">MCP tools</SectionHeading>
+
+				<div className="prose">
+					<p>
+						<code>step.mcp()</code> calls tools on external MCP servers — GitHub,
+						Slack, Notion, or any server in the MCP ecosystem. Configure servers
+						via environment variables and call any tool from your workflow.
+					</p>
+				</div>
+
+				<CodeBlock
+					code={`// Configure MCP servers via environment variables:
+// MCP_SERVER_GITHUB=npx @modelcontextprotocol/server-github
+// MCP_SERVER_FILESYSTEM=npx @modelcontextprotocol/server-filesystem /data
+
+// Call any tool on a configured MCP server
+const files = await step.mcp("list-files", {
+  server: "filesystem",
+  tool: "list_directory",
+  args: { path: "/data/reports" },
+})
+
+// Create a GitHub issue from workflow analysis
+await step.mcp("file-issue", {
+  server: "github",
+  tool: "create_issue",
+  args: {
+    repo: "myorg/myrepo",
+    title: "Anomaly detected in swap volume",
+    body: analysis.summary,
+  },
+})
+
+// MCP results include content array and error flag
+// result.content → [{ type: "text", text: "..." }]
+// result.isError → false`}
+				/>
+
 				<SectionHeading id="querying-subgraphs">
 					Querying subgraphs
 				</SectionHeading>
@@ -311,8 +350,8 @@ const prices = await step.query("price-feeds", "prices", {
 				<div className="prose">
 					<p>
 						<code>step.deliver()</code> sends results to external systems.
-						Supports webhook, Slack, and email. Deliveries are retried on failure
-						and tracked in the run log.
+						Supports webhook, Slack, Discord, Telegram, and email. Deliveries are
+						retried on failure and tracked in the run log.
 					</p>
 				</div>
 
@@ -338,6 +377,23 @@ await step.deliver("daily-report", {
   to: "team@example.com",
   subject: "Daily DEX Volume Report",
   body: reportHtml,
+})
+
+// Discord notification
+await step.deliver("notify-discord", {
+  type: "discord",
+  webhookUrl: "https://discord.com/api/webhooks/YOUR/WEBHOOK",
+  content: "Whale transfer detected!",
+  username: "Secondlayer Bot",
+})
+
+// Telegram message
+await step.deliver("alert-telegram", {
+  type: "telegram",
+  botToken: process.env.TELEGRAM_BOT_TOKEN,
+  chatId: "-1001234567890",
+  text: "⚠️ Large swap detected on DEX",
+  parseMode: "HTML",
 })`}
 				/>
 
@@ -512,7 +568,7 @@ sl workflows delete whale-alert`}
 					<div className="prop-row">
 						<span className="prop-name">step.deliver(id, opts)</span>
 						<span className="prop-type">
-							Send results via webhook, Slack, or email.
+							Send results via webhook, Slack, Discord, Telegram, or email.
 						</span>
 					</div>
 					<div className="prop-row">
@@ -525,6 +581,12 @@ sl workflows delete whale-alert`}
 						<span className="prop-name">step.invoke(id, opts)</span>
 						<span className="prop-type">
 							Trigger another workflow and await its result.
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">step.mcp(id, opts)</span>
+						<span className="prop-type">
+							Call a tool on an external MCP server.
 						</span>
 					</div>
 
@@ -547,6 +609,23 @@ sl workflows delete whale-alert`}
 						<span className="prop-type">Record&lt;string, SchemaField&gt;</span>
 					</div>
 
+					<div className="props-group-title">step.mcp options</div>
+
+					<div className="prop-row">
+						<span className="prop-name">server</span>
+						<span className="prop-type">string</span>
+						<span className="prop-required">required</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">tool</span>
+						<span className="prop-type">string</span>
+						<span className="prop-required">required</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">args</span>
+						<span className="prop-type">Record&lt;string, unknown&gt;</span>
+					</div>
+
 					<div className="props-group-title">step.deliver targets</div>
 
 					<div className="prop-row">
@@ -560,6 +639,14 @@ sl workflows delete whale-alert`}
 					<div className="prop-row">
 						<span className="prop-name">email</span>
 						<span className="prop-type">to, subject, body</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">discord</span>
+						<span className="prop-type">webhookUrl, content, username?, avatarUrl?</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">telegram</span>
+						<span className="prop-type">botToken, chatId, text, parseMode?</span>
 					</div>
 
 					<div className="props-group-title">WorkflowRun</div>

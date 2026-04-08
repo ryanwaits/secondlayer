@@ -8,6 +8,7 @@ const toc: TocItem[] = [
 	{ label: "Streams", href: "#streams" },
 	{ label: "Subgraphs", href: "#subgraphs" },
 	{ label: "Typed subgraphs", href: "#typed-subgraphs" },
+	{ label: "Workflows", href: "#workflows" },
 	{ label: "Error handling", href: "#error-handling" },
 	{ label: "Props", href: "#props" },
 ];
@@ -53,8 +54,9 @@ const client = new SecondLayer({
 })
 
 // Sub-clients are available as properties:
-client.streams  // stream CRUD, deliveries, replay
-client.subgraphs    // subgraph deploy, query, reindex`}
+client.streams      // stream CRUD, deliveries, replay
+client.subgraphs    // subgraph deploy, query, reindex
+client.workflows    // workflow deploy, trigger, runs`}
 				/>
 
 				<SectionHeading id="streams">Streams</SectionHeading>
@@ -188,6 +190,54 @@ const total = await client.transfers.count({
 // Or via the SecondLayer instance
 const typed = client.subgraphs.typed(mySubgraph)
 const rows = await typed.transfers.findMany({ ... })`}
+				/>
+
+				<SectionHeading id="workflows">Workflows</SectionHeading>
+
+				<div className="prose">
+					<p>
+						Deploy, trigger, and manage automated workflows. Workflows run
+						multi-step tasks with AI analysis, MCP tool calls, subgraph
+						queries, and delivery to webhooks, Slack, Discord, Telegram, or
+						email.
+					</p>
+				</div>
+
+				<CodeBlock
+					lang="typescript"
+					code={`// Deploy a workflow
+const result = await client.workflows.deploy({
+  name: "whale-alerts",
+  trigger: { type: "event", filter: { type: "stx_transfer" } },
+  handlerCode: bundledCode,
+})
+
+// List workflows
+const { workflows } = await client.workflows.list()
+
+// Get details
+const detail = await client.workflows.get("whale-alerts")
+
+// Trigger manually (with optional input)
+const { runId } = await client.workflows.trigger("whale-alerts", {
+  threshold: 100_000,
+})
+
+// Pause / resume
+await client.workflows.pause("whale-alerts")
+await client.workflows.resume("whale-alerts")
+
+// List runs (filter by status)
+const { runs } = await client.workflows.listRuns("whale-alerts", {
+  status: "completed",
+  limit: 10,
+})
+
+// Get run details (steps, duration, AI token usage)
+const run = await client.workflows.getRun("run-id")
+
+// Delete
+await client.workflows.delete("whale-alerts")`}
 				/>
 
 				<SectionHeading id="error-handling">Error handling</SectionHeading>
@@ -330,12 +380,55 @@ try {
 						<span className="prop-type">InferSubgraphClient</span>
 					</div>
 
+					<div className="props-group-title">client.workflows</div>
+
+					<div className="prop-row">
+						<span className="prop-name">deploy(data)</span>
+						<span className="prop-type">
+							{"{"}action, workflowId, message{"}"}
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">list()</span>
+						<span className="prop-type">
+							{"{"}workflows: WorkflowSummary[]{"}"}
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">get(name)</span>
+						<span className="prop-type">WorkflowDetail</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">trigger(name, input?)</span>
+						<span className="prop-type">
+							{"{"}runId{"}"}
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">pause(name) / resume(name)</span>
+						<span className="prop-type">void</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">delete(name)</span>
+						<span className="prop-type">void</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">listRuns(name, params?)</span>
+						<span className="prop-type">
+							{"{"}runs: WorkflowRunSummary[]{"}"}
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">getRun(runId)</span>
+						<span className="prop-type">WorkflowRun</span>
+					</div>
+
 					<div className="props-group-title">Exports</div>
 
 					<div className="prop-row">
 						<span className="prop-name">@secondlayer/sdk</span>
 						<span className="prop-type">
-							SecondLayer, Streams, Subgraphs, getSubgraph, ApiError
+							SecondLayer, Streams, Subgraphs, Workflows, getSubgraph, ApiError
 						</span>
 					</div>
 					<div className="prop-row">
@@ -345,6 +438,10 @@ try {
 					<div className="prop-row">
 						<span className="prop-name">@secondlayer/sdk/subgraphs</span>
 						<span className="prop-type">Subgraphs, getSubgraph</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">@secondlayer/sdk/workflows</span>
+						<span className="prop-type">Workflows</span>
 					</div>
 				</div>
 			</main>

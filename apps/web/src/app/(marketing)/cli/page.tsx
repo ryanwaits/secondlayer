@@ -8,6 +8,7 @@ const toc: TocItem[] = [
 	{ label: "Auth", href: "#auth" },
 	{ label: "Streams", href: "#streams" },
 	{ label: "Subgraphs", href: "#subgraphs" },
+	{ label: "Workflows", href: "#workflows" },
 	{ label: "Codegen", href: "#codegen" },
 	{ label: "Local dev", href: "#local-dev" },
 	{ label: "Commands", href: "#commands" },
@@ -26,9 +27,9 @@ export default function CliPage() {
 
 				<div className="prose">
 					<p>
-						The <code>sl</code> command manages streams, subgraphs, auth, code
-						generation, and local development infrastructure from the terminal.
-						One binary, every Second Layer operation.
+						The <code>sl</code> command manages streams, subgraphs, workflows,
+						auth, code generation, and local development infrastructure from
+						the terminal. One binary, every Second Layer operation.
 					</p>
 					<p>
 						Install globally with <code>bun add -g @secondlayer/cli</code>.
@@ -165,6 +166,42 @@ sl subgraphs generate token-transfers --output src/generated/
 
 # Delete subgraph and all data
 sl subgraphs delete token-transfers`}
+					lang="bash"
+				/>
+
+				<SectionHeading id="workflows">Workflows</SectionHeading>
+
+				<div className="prose">
+					<p>
+						Deploy and manage automated workflows. The CLI validates definitions,
+						bundles handler code, and deploys to Second Layer.
+					</p>
+				</div>
+
+				<CodeBlock
+					code={`# Deploy a workflow definition
+sl workflows deploy workflows/whale-alerts.ts
+
+# List all workflows
+sl workflows ls
+
+# Get workflow details
+sl workflows get whale-alerts
+
+# Trigger a workflow run (with optional input)
+sl workflows trigger whale-alerts
+sl workflows trigger whale-alerts --input '{"threshold": 100000}'
+
+# View run history
+sl workflows runs whale-alerts
+sl workflows runs whale-alerts --status failed --limit 5
+
+# Pause / resume
+sl workflows pause whale-alerts
+sl workflows resume whale-alerts
+
+# Delete (with confirmation)
+sl workflows delete whale-alerts`}
 					lang="bash"
 				/>
 
@@ -382,6 +419,41 @@ sl local stop`}
 					<div className="prop-row">
 						<span className="prop-name">sl subgraphs delete &lt;name&gt;</span>
 						<span className="prop-type">Delete subgraph + data</span>
+					</div>
+
+					<div className="props-group-title">Workflows</div>
+
+					<div className="prop-row">
+						<span className="prop-name">sl workflows deploy &lt;file&gt;</span>
+						<span className="prop-type">Validate + deploy workflow</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">sl workflows ls</span>
+						<span className="prop-type">List all workflows</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">sl workflows get &lt;name&gt;</span>
+						<span className="prop-type">Workflow details</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">sl workflows trigger &lt;name&gt;</span>
+						<span className="prop-type">Trigger a run (--input)</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">sl workflows runs &lt;name&gt;</span>
+						<span className="prop-type">Run history (--status, --limit)</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">sl workflows pause &lt;name&gt;</span>
+						<span className="prop-type">Pause workflow</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">sl workflows resume &lt;name&gt;</span>
+						<span className="prop-type">Resume workflow</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">sl workflows delete &lt;name&gt;</span>
+						<span className="prop-type">Delete workflow</span>
 					</div>
 
 					<div className="props-group-title">Codegen</div>
