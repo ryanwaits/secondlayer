@@ -16,12 +16,14 @@ interface TopbarState {
 	autoRefresh: RefreshInterval;
 	setAutoRefresh: (v: RefreshInterval) => void;
 	autoRefreshLabel: string;
+	now: number;
 }
 
 const TopbarCtx = createContext<TopbarState>({
 	autoRefresh: null,
 	setAutoRefresh: () => {},
 	autoRefreshLabel: "Auto-refresh off",
+	now: Date.now(),
 });
 
 export function useTopbar() {
@@ -30,6 +32,7 @@ export function useTopbar() {
 
 export function TopbarProvider({ children }: { children: React.ReactNode }) {
 	const [autoRefresh, setAutoRefresh] = useState<RefreshInterval>(null);
+	const [now, setNow] = useState(() => Date.now());
 	const queryClient = useQueryClient();
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -45,6 +48,11 @@ export function TopbarProvider({ children }: { children: React.ReactNode }) {
 		};
 	}, [autoRefresh, queryClient]);
 
+	useEffect(() => {
+		const id = setInterval(() => setNow(Date.now()), 60_000);
+		return () => clearInterval(id);
+	}, []);
+
 	const refreshLabel = REFRESH_OPTIONS.find((o) => o.value === autoRefresh)?.label ?? "Auto-refresh off";
 
 	return (
@@ -53,6 +61,7 @@ export function TopbarProvider({ children }: { children: React.ReactNode }) {
 				autoRefresh,
 				setAutoRefresh,
 				autoRefreshLabel: refreshLabel,
+				now,
 			}}
 		>
 			{children}

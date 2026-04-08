@@ -13,8 +13,8 @@ function formatBlock(n: number) {
 	return `#${n.toLocaleString()}`;
 }
 
-function timeAgo(iso: string) {
-	const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+function timeAgo(iso: string, now: number) {
+	const diff = Math.floor((now - new Date(iso).getTime()) / 1000);
 	if (diff < 60) return "just now";
 	if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
 	if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -106,7 +106,7 @@ export function OverviewTopbar({
 	lastUpdated,
 }: OverviewTopbarProps) {
 	const { data: status } = useStatus();
-	const { autoRefresh, setAutoRefresh, autoRefreshLabel } = useTopbar();
+	const { autoRefresh, setAutoRefresh, autoRefreshLabel, now } = useTopbar();
 
 	const blockHeight = status?.chainTip ? formatBlock(status.chainTip) : "—";
 
@@ -114,9 +114,9 @@ export function OverviewTopbar({
 	if (lastUpdated === null) {
 		lastUpdatedDisplay = "—";
 	} else if (lastUpdated !== undefined) {
-		lastUpdatedDisplay = timeAgo(lastUpdated);
+		lastUpdatedDisplay = timeAgo(lastUpdated, now);
 	} else {
-		lastUpdatedDisplay = status?.timestamp ? timeAgo(status.timestamp) : "—";
+		lastUpdatedDisplay = status?.timestamp ? timeAgo(status.timestamp, now) : "—";
 	}
 
 	return (
