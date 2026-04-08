@@ -184,12 +184,12 @@ describe("runHandlers", () => {
 		expect(received.length).toBe(2);
 		expect(received[0]!.sender).toBe("SP1");
 		expect(received[0]!.recipient).toBe("SP2");
-		expect(received[0]!.amount).toBe("1000");
+		expect(received[0]!.amount).toBe(1000n);
 		expect(received[0]!.assetIdentifier).toBe("SP::c::token");
 		expect((received[0]!.tx as any).txId).toBe("tx1");
 		// Second event
 		expect(received[1]!.recipient).toBe("SP3");
-		expect(received[1]!.amount).toBe("2000");
+		expect(received[1]!.amount).toBe(2000n);
 	});
 
 	test("calls handler with tx-level data when no events", async () => {
