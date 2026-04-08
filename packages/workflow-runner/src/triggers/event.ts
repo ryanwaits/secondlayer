@@ -1,14 +1,35 @@
+import { createHash } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
-import { logger } from "@secondlayer/shared/logger";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
+import { createWorkflowRun } from "@secondlayer/shared/db/queries/workflows";
+import { logger } from "@secondlayer/shared/logger";
 import { matchSources } from "@secondlayer/subgraphs/runtime/source-matcher";
 import type { SubgraphFilter } from "@secondlayer/subgraphs/types";
-import { createWorkflowRun } from "@secondlayer/shared/db/queries/workflows";
+import { sql } from "kysely";
 import { enqueueWorkflowRun } from "../queue.ts";
-import { createHash } from "node:crypto";
 
-/** Track the last block height we checked for event triggers. */
-let lastCheckedBlock = 0;
+const CURSOR_NAME = "event_trigger";
+
+/** Load cursor from DB, defaulting to 0 if not found. */
+async function loadCursor(): Promise<number> {
+	const db = getDb();
+	const row = await db
+		.selectFrom("workflow_cursors")
+		.select("block_height")
+		.where("name", "=", CURSOR_NAME)
+		.executeTakeFirst();
+	return row?.block_height ?? 0;
+}
+
+/** Persist cursor to DB via upsert. */
+async function saveCursor(blockHeight: number): Promise<void> {
+	const db = getDb();
+	await sql`
+		INSERT INTO workflow_cursors (name, block_height, updated_at)
+		VALUES (${CURSOR_NAME}, ${blockHeight}, NOW())
+		ON CONFLICT (name) DO UPDATE SET block_height = ${blockHeight}, updated_at = NOW()
+	`.execute(db);
+}
 
 /**
  * Check for event/stream triggers that match new blocks.
@@ -26,6 +47,8 @@ export async function checkEventTriggers(): Promise<void> {
 		.execute();
 
 	if (definitions.length === 0) return;
+
+	const lastCheckedBlock = await loadCursor();
 
 	// Find new blocks since last check
 	const blocks = await db
@@ -126,10 +149,7 @@ export async function checkEventTriggers(): Promise<void> {
 				});
 			} catch (err) {
 				// Dedup constraint violation is expected — skip silently
-				if (
-					err instanceof Error &&
-					err.message.includes("unique")
-				) {
+				if (err instanceof Error && err.message.includes("unique")) {
 					continue;
 				}
 				logger.error("Failed to create workflow run from event trigger", {
@@ -139,11 +159,11 @@ export async function checkEventTriggers(): Promise<void> {
 			}
 		}
 
-		lastCheckedBlock = block.height;
+		await saveCursor(block.height);
 	}
 }
 
 /** Reset the cursor (used in tests or after reindex). */
-export function resetEventCursor(blockHeight = 0): void {
-	lastCheckedBlock = blockHeight;
+export async function resetEventCursor(blockHeight = 0): Promise<void> {
+	await saveCursor(blockHeight);
 }
