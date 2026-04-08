@@ -42,17 +42,7 @@ export default async function SubgraphsPage() {
 
 	return (
 		<>
-			<OverviewTopbar
-				page="Subgraphs"
-				lastUpdated={
-					subgraphs.length > 0
-						? subgraphs.reduce(
-								(latest, sg) => (sg.createdAt > latest ? sg.createdAt : latest),
-								subgraphs[0].createdAt,
-							)
-						: null
-				}
-			/>
+			<OverviewTopbar page="Subgraphs" />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
 					{subgraphs.length > 0 && (

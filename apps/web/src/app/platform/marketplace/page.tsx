@@ -3,12 +3,12 @@ import Link from "next/link";
 import { CATEGORIES, MARKETPLACE_SUBGRAPHS } from "./mock-data";
 
 const TABLE_ICON = (
-	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
 		<rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2 7h12" />
 	</svg>
 );
 const CHART_ICON = (
-	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
 		<path d="M3 12l3-4 3 2 4-5" />
 	</svg>
 );
@@ -23,13 +23,13 @@ export default function MarketplacePage() {
 
 	return (
 		<>
-			<OverviewTopbar page="Marketplace" showRefresh={false} showTimeRange={false} />
+			<OverviewTopbar page="Marketplace" showRefresh={false} />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
 					{/* Search */}
 					<div className="mp-search-wrap">
 						<span className="mp-search-icon">
-							<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+							<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
 								<circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5L14 14" />
 							</svg>
 						</span>

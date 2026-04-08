@@ -5,12 +5,12 @@ import { notFound } from "next/navigation";
 import { MARKETPLACE_SUBGRAPHS } from "../../mock-data";
 
 const TABLE_ICON = (
-	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
 		<rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2 7h12" />
 	</svg>
 );
 const CHART_ICON = (
-	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
 		<path d="M3 12l3-4 3 2 4-5" />
 	</svg>
 );
@@ -34,7 +34,7 @@ export default async function CreatorProfilePage({
 
 	const subgraphs = MARKETPLACE_SUBGRAPHS.filter((sg) => sg.creatorHandle === handle);
 	const totalQueries = subgraphs.reduce((s, sg) => {
-		const num = parseFloat(sg.queriesWeek.replace("k", "")) * 1000;
+		const num = Number.parseFloat(sg.queriesWeek.replace("k", "")) * 1000;
 		return s + num;
 	}, 0);
 
@@ -44,7 +44,6 @@ export default async function CreatorProfilePage({
 				path={<Link href="/marketplace" style={{ color: "inherit", textDecoration: "none" }}>Marketplace</Link>}
 				page={`@${handle}`}
 				showRefresh={false}
-				showTimeRange={false}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">

@@ -29,7 +29,6 @@ export default async function MarketplaceDetailPage({
 				}
 				page={sg.name}
 				showRefresh={false}
-				showTimeRange={false}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
@@ -49,14 +48,14 @@ export default async function MarketplaceDetailPage({
 						</div>
 						<div className="mp-sg-actions">
 							<button type="button" className="mp-btn mp-btn-secondary">
-								<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+								<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
 									<path d="M5 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-2" />
 									<path d="M7 9l7-7M10 2h4v4" />
 								</svg>
 								Copy Config
 							</button>
 							<button type="button" className="mp-btn mp-btn-primary">
-								<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+								<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
 									<path d="M5 2v3a1 1 0 01-1 1H2m12-2v10a1 1 0 01-1 1H3a1 1 0 01-1-1V5l4-4h7a1 1 0 011 1z" />
 								</svg>
 								Fork
@@ -100,6 +99,7 @@ export default async function MarketplaceDetailPage({
 							</div>
 							<div className="mp-chart-bars">
 								{CHART_HEIGHTS.map((h, i) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: static decorative chart bars, order never changes
 									<div key={i} className="mp-chart-bar" style={{ height: `${h}%` }} />
 								))}
 							</div>

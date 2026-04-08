@@ -19,7 +19,7 @@ export default async function KeysPage() {
 
 	return (
 		<>
-			<OverviewTopbar path="Settings" page="API Keys" showRefresh={false} showTimeRange={false} />
+			<OverviewTopbar path="Settings" page="API Keys" showRefresh={false} />
 			<div className="settings-scroll">
 				<div className="settings-inner">
 					<KeysList initialKeys={keys} sessionToken={session ?? ""} />

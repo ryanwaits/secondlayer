@@ -6,9 +6,7 @@ import { useStatus } from "@/lib/queries/status";
 import {
 	useTopbar,
 	REFRESH_OPTIONS,
-	TIME_RANGE_OPTIONS,
 	type RefreshInterval,
-	type TimeRange,
 } from "@/lib/topbar-context";
 
 function formatBlock(n: number) {
@@ -96,7 +94,6 @@ interface OverviewTopbarProps {
 	page: string | ReactNode;
 	showMeta?: boolean;
 	showRefresh?: boolean;
-	showTimeRange?: boolean;
 	lastUpdated?: string | null;
 }
 
@@ -106,11 +103,10 @@ export function OverviewTopbar({
 	page,
 	showMeta = true,
 	showRefresh = true,
-	showTimeRange = true,
 	lastUpdated,
 }: OverviewTopbarProps) {
 	const { data: status } = useStatus();
-	const { autoRefresh, timeRange, setAutoRefresh, setTimeRange, autoRefreshLabel } = useTopbar();
+	const { autoRefresh, setAutoRefresh, autoRefreshLabel } = useTopbar();
 
 	const blockHeight = status?.chainTip ? formatBlock(status.chainTip) : "—";
 
@@ -157,19 +153,6 @@ export function OverviewTopbar({
 								}
 							/>
 						</>
-					)}
-					{showTimeRange && (
-						<MetaDropdown<TimeRange>
-							options={TIME_RANGE_OPTIONS}
-							value={timeRange}
-							onChange={setTimeRange}
-							icon={
-								<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-									<circle cx="8" cy="8" r="6" />
-									<path d="M8 4.5V8l2.5 1.5" />
-								</svg>
-							}
-						/>
 					)}
 				</div>
 			)}

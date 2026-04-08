@@ -57,7 +57,7 @@ export default async function UsagePage() {
 	if (!usage) {
 		return (
 			<>
-				<OverviewTopbar path="Settings" page="Usage" showRefresh={false} showTimeRange={false} />
+				<OverviewTopbar path="Settings" page="Usage" showRefresh={false} />
 				<div className="settings-scroll">
 					<div className="settings-inner">
 						<h1 className="settings-title">Usage</h1>
@@ -75,7 +75,7 @@ export default async function UsagePage() {
 
 	return (
 		<>
-			<OverviewTopbar path="Settings" page="Usage" showRefresh={false} showTimeRange={false} />
+			<OverviewTopbar path="Settings" page="Usage" showRefresh={false} />
 			<div className="settings-scroll">
 				<div className="settings-inner">
 					<h1 className="settings-title">Usage</h1>

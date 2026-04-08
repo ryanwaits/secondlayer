@@ -51,7 +51,7 @@ export default function SettingsPage() {
 
 	return (
 		<>
-			<OverviewTopbar path="Settings" page="Project" showRefresh={false} showTimeRange={false} />
+			<OverviewTopbar path="Settings" page="Project" showRefresh={false} />
 			<div className="settings-scroll">
 				<div className="settings-inner">
 					<h1 className="settings-title">Project settings</h1>

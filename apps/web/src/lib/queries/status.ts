@@ -12,7 +12,6 @@ export function useStatus() {
 			if (!res.ok) return null;
 			return res.json() as Promise<SystemStatus>;
 		},
-		refetchInterval: 30_000,
 		staleTime: 15_000,
 	});
 }

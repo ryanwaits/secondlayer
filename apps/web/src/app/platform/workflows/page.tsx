@@ -3,11 +3,7 @@ import { OverviewTopbar } from "@/components/console/overview-topbar";
 export default function WorkflowsPage() {
 	return (
 		<>
-			<OverviewTopbar
-				page="Workflows"
-				showRefresh={false}
-				showTimeRange={false}
-			/>
+			<OverviewTopbar page="Workflows" showRefresh={false} />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="empty-inner" style={{ padding: "40px 0 0" }}>
 					<h1 className="empty-title">No workflows yet</h1>

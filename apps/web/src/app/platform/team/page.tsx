@@ -29,7 +29,7 @@ export default function TeamPage() {
 
 	return (
 		<>
-			<OverviewTopbar path="Settings" page="Team" showRefresh={false} showTimeRange={false} />
+			<OverviewTopbar path="Settings" page="Team" showRefresh={false} />
 			<div className="settings-scroll">
 				<div className="settings-inner">
 					<h1 className="settings-title">Team</h1>
