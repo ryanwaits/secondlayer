@@ -98,6 +98,7 @@ function buildEventPayload(
 					caller: tx.sender,
 					args: decodedArgs,
 					result: decodedResult,
+					resultHex: tx.raw_result ?? null,
 					tx: txMeta,
 				};
 			case "contract_deploy":
@@ -205,13 +206,15 @@ function buildEventPayload(
 				: ((decoded.topic as string) ?? "");
 			// Camelize remaining keys for developer convenience
 			const { topic: _, ...rest } = clarityObj ?? {};
-			const data = Object.keys(rest).length > 0
-				? (camelizeKeys(rest) as Record<string, unknown>)
-				: rawValue && typeof rawValue !== "object"
-					? rawValue
-					: {};
+			const data =
+				Object.keys(rest).length > 0
+					? (camelizeKeys(rest) as Record<string, unknown>)
+					: rawValue && typeof rawValue !== "object"
+						? rawValue
+						: {};
 			return {
-				contractId: decoded.contract_identifier as string ?? tx.contract_id ?? "",
+				contractId:
+					(decoded.contract_identifier as string) ?? tx.contract_id ?? "",
 				topic,
 				data: data ?? {},
 				tx: txMeta,
@@ -228,6 +231,7 @@ function buildEventPayload(
 				caller: tx.sender,
 				args: decodedArgs,
 				result: decodedResult,
+				resultHex: tx.raw_result ?? null,
 				tx: txMeta,
 			};
 
