@@ -65,6 +65,8 @@ interface RepairTx {
 	raw_result: string | null;
 	function_args: string | null;
 	type: string;
+	contract_id: string | null;
+	function_name: string | null;
 }
 
 interface RepairProgress {
@@ -136,6 +138,8 @@ class HiroRepairClient {
 	async fetchTxDetails(txId: string): Promise<{
 		raw_result?: string;
 		function_args?: string[];
+		contract_id?: string;
+		function_name?: string;
 	} | null> {
 		const url = `https://api.mainnet.hiro.so/extended/v1/tx/${txId}`;
 		const res = await this.fetchWithRetry(url);
@@ -150,11 +154,19 @@ class HiroRepairClient {
 			tx_status: string;
 			tx_result?: { hex: string };
 			contract_call?: {
+				contract_id?: string;
+				function_name?: string;
 				function_args?: Array<{ hex: string; repr: string }>;
 			};
+			smart_contract?: { contract_id?: string };
 		};
 
-		const result: { raw_result?: string; function_args?: string[] } = {};
+		const result: {
+			raw_result?: string;
+			function_args?: string[];
+			contract_id?: string;
+			function_name?: string;
+		} = {};
 
 		if (data.tx_result?.hex) {
 			result.raw_result = data.tx_result.hex;
@@ -167,6 +179,16 @@ class HiroRepairClient {
 			result.function_args = data.contract_call.function_args.map(
 				(arg) => arg.hex,
 			);
+		}
+
+		if (data.contract_call?.contract_id) {
+			result.contract_id = data.contract_call.contract_id;
+		}
+		if (data.contract_call?.function_name) {
+			result.function_name = data.contract_call.function_name;
+		}
+		if (data.smart_contract?.contract_id) {
+			result.contract_id = data.smart_contract.contract_id;
 		}
 
 		return result;
@@ -222,10 +244,14 @@ async function repairTransaction(
 ): Promise<{
 	functionArgs: string[] | null;
 	rawResult: string | null;
+	contractId: string | null;
+	functionName: string | null;
 	source: "decode" | "api" | "none";
 }> {
 	let functionArgs: string[] | null = null;
 	let rawResult: string | null = null;
+	let contractId: string | null = null;
+	let functionName: string | null = null;
 	let source: "decode" | "api" | "none" = "none";
 
 	// 1. Try to decode function_args from raw_tx if missing
@@ -238,8 +264,8 @@ async function repairTransaction(
 		}
 	}
 
-	// 2. If still missing function_args or raw_result, fetch from Hiro API
-	if (!functionArgs || !tx.raw_result) {
+	// 2. If still missing function_args, raw_result, or contract_id, fetch from Hiro API
+	if (!functionArgs || !tx.raw_result || !tx.contract_id) {
 		const apiData = await hiroClient.fetchTxDetails(tx.tx_id);
 
 		if (apiData) {
@@ -249,8 +275,17 @@ async function repairTransaction(
 			if (!tx.raw_result && apiData.raw_result) {
 				rawResult = apiData.raw_result;
 			}
+			if (!tx.contract_id && apiData.contract_id) {
+				contractId = apiData.contract_id;
+			}
+			if (!tx.function_name && apiData.function_name) {
+				functionName = apiData.function_name;
+			}
 
-			if (source === "none" && (functionArgs || rawResult)) {
+			if (
+				source === "none" &&
+				(functionArgs || rawResult || contractId || functionName)
+			) {
 				source = "api";
 			}
 
@@ -258,11 +293,13 @@ async function repairTransaction(
 				txId: tx.tx_id,
 				gotFunctionArgs: !!apiData.function_args,
 				gotRawResult: !!apiData.raw_result,
+				gotContractId: !!apiData.contract_id,
+				gotFunctionName: !!apiData.function_name,
 			});
 		}
 	}
 
-	return { functionArgs, rawResult, source };
+	return { functionArgs, rawResult, contractId, functionName, source };
 }
 
 // --- Progress Management ---
@@ -350,8 +387,8 @@ async function main() {
 
 		logger.info("Processing batch", { from: batchStart, to: batchEnd });
 
-		// Find transactions needing repair in this batch
-		const txsToRepair = await db
+		// Phase 1: contract_call rows missing function_args or raw_result
+		const phase1 = await db
 			.selectFrom("transactions")
 			.select([
 				"tx_id",
@@ -361,6 +398,8 @@ async function main() {
 				"raw_result",
 				"function_args",
 				"type",
+				"contract_id",
+				"function_name",
 			])
 			.where("block_height", ">=", batchStart)
 			.where("block_height", "<=", batchEnd)
@@ -371,6 +410,40 @@ async function main() {
 			.orderBy("block_height", "asc")
 			.orderBy("tx_index", "asc")
 			.execute();
+
+		// Phase 2: contract_call or smart_contract rows missing contract_id
+		const phase2 = await db
+			.selectFrom("transactions")
+			.select([
+				"tx_id",
+				"block_height",
+				"tx_index",
+				"raw_tx",
+				"raw_result",
+				"function_args",
+				"type",
+				"contract_id",
+				"function_name",
+			])
+			.where("block_height", ">=", batchStart)
+			.where("block_height", "<=", batchEnd)
+			.where((eb) =>
+				eb.or([
+					eb("type", "=", "contract_call"),
+					eb("type", "=", "smart_contract"),
+				]),
+			)
+			.where("contract_id", "is", null)
+			.orderBy("block_height", "asc")
+			.orderBy("tx_index", "asc")
+			.execute();
+
+		// Merge, deduplicating by tx_id
+		const seenIds = new Set(phase1.map((t) => t.tx_id));
+		const txsToRepair = [
+			...phase1,
+			...phase2.filter((t) => !seenIds.has(t.tx_id)),
+		];
 
 		if (txsToRepair.length === 0) {
 			logger.info("No repairs needed in batch", {
@@ -395,6 +468,8 @@ async function main() {
 			tx_id: string;
 			function_args: string[] | null;
 			raw_result: string | null;
+			contract_id: string | null;
+			function_name: string | null;
 			source: string;
 		}> = [];
 
@@ -410,12 +485,16 @@ async function main() {
 						raw_result: tx.raw_result as string | null,
 						function_args: tx.function_args as string | null,
 						type: tx.type as string,
+						contract_id: tx.contract_id as string | null,
+						function_name: tx.function_name as string | null,
 					};
 					const result = await repairTransaction(typedTx, hiroClient);
 					return {
 						tx_id: typedTx.tx_id,
 						function_args: result.functionArgs,
 						raw_result: result.rawResult,
+						contract_id: result.contractId,
+						function_name: result.functionName,
 						source: result.source,
 					};
 				}),
@@ -424,7 +503,8 @@ async function main() {
 
 			// Progress logging
 			const chunkRepaired = chunkResults.filter(
-				(r) => r.function_args || r.raw_result,
+				(r) =>
+					r.function_args || r.raw_result || r.contract_id || r.function_name,
 			).length;
 			logger.debug("Processed chunk", {
 				chunkSize: chunk.length,
@@ -437,14 +517,31 @@ async function main() {
 		let batchRepaired = 0;
 		if (!DRY_RUN) {
 			for (const repair of repaired) {
-				if (!repair.function_args && !repair.raw_result) continue;
+				if (
+					!repair.function_args &&
+					!repair.raw_result &&
+					!repair.contract_id &&
+					!repair.function_name
+				)
+					continue;
 
-				const updateData: { function_args?: string; raw_result?: string } = {};
+				const updateData: {
+					function_args?: string;
+					raw_result?: string;
+					contract_id?: string;
+					function_name?: string;
+				} = {};
 				if (repair.function_args) {
 					updateData.function_args = JSON.stringify(repair.function_args);
 				}
 				if (repair.raw_result) {
 					updateData.raw_result = repair.raw_result;
+				}
+				if (repair.contract_id) {
+					updateData.contract_id = repair.contract_id;
+				}
+				if (repair.function_name) {
+					updateData.function_name = repair.function_name;
 				}
 
 				await db
@@ -459,11 +556,14 @@ async function main() {
 					source: repair.source,
 					functionArgs: !!repair.function_args,
 					rawResult: !!repair.raw_result,
+					contractId: !!repair.contract_id,
+					functionName: !!repair.function_name,
 				});
 			}
 		} else {
 			batchRepaired = repaired.filter(
-				(r) => r.function_args || r.raw_result,
+				(r) =>
+					r.function_args || r.raw_result || r.contract_id || r.function_name,
 			).length;
 			logger.info("Dry run - would repair", {
 				count: batchRepaired,
