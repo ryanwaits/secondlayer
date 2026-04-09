@@ -140,11 +140,7 @@ export async function deploySchema(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
 
-	const existing = await getSubgraph(
-		db,
-		def.name,
-		opts?.accountId ?? opts?.apiKeyId,
-	);
+	const existing = await getSubgraph(db, def.name, opts?.accountId);
 
 	const schemaName = opts?.schemaName ?? pgSchemaName(def.name);
 

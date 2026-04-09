@@ -56,7 +56,7 @@ export async function assertStreamOwnership(
 export async function assertSubgraphOwnership(
 	db: Kysely<Database>,
 	subgraphName: string,
-	accountKeyIds: string[] | undefined,
+	accountId: string | undefined,
 ) {
 	const subgraph = await db
 		.selectFrom("subgraphs")
@@ -66,11 +66,7 @@ export async function assertSubgraphOwnership(
 
 	if (!subgraph) return null;
 
-	if (
-		accountKeyIds &&
-		subgraph.api_key_id &&
-		!accountKeyIds.includes(subgraph.api_key_id)
-	) {
+	if (accountId && subgraph.account_id && subgraph.account_id !== accountId) {
 		throw new ForbiddenError("Subgraph belongs to another account");
 	}
 

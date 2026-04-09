@@ -14,7 +14,7 @@ import {
 import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
-import { getApiKeyId } from "../lib/ownership.ts";
+import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { cache } from "./subgraphs.ts";
 import {
 	InvalidColumnError,
@@ -340,11 +340,11 @@ app.post("/subgraphs/:name/fork", requireAuth(), async (c) => {
 
 	// Auth context
 	const apiKeyId = getApiKeyId(c);
-	const apiKey = (c as any).get("apiKey");
-	const keyPrefix = apiKey?.key_prefix;
+	const accountId = getAccountId(c);
+	const accountPrefix = accountId?.slice(0, 8);
 
-	// Name collision check
-	const existing = await getSubgraph(db, newName, apiKeyId);
+	// Name collision check (account-scoped)
+	const existing = await getSubgraph(db, newName, accountId);
 	if (existing) {
 		return c.json(
 			{ error: `Subgraph "${newName}" already exists` },
@@ -380,13 +380,14 @@ app.post("/subgraphs/:name/fork", requireAuth(), async (c) => {
 	def.name = newName;
 
 	// Deploy schema (creates PG schema + tables + registers subgraph)
-	const schemaName = keyPrefix
-		? pgSchemaName(newName, keyPrefix)
+	const schemaName = accountPrefix
+		? pgSchemaName(newName, accountPrefix)
 		: pgSchemaName(newName);
 
 	const { deploySchema } = await import("@secondlayer/subgraphs");
 	const result = await deploySchema(db, def, newHandlerPath, {
 		apiKeyId,
+		accountId,
 		schemaName,
 	});
 
