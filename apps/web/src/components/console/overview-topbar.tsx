@@ -112,19 +112,7 @@ function VersionDropdown({ version }: { version: string }) {
 					if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false);
 				}}
 			>
-				<svg
-					width="12"
-					height="12"
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="1.5"
-					strokeLinecap="round"
-					aria-hidden="true"
-				>
-					<path d="M2 4l6-2 6 2v4c0 3-6 6-6 6S2 11 2 8V4z" />
-				</svg>
-				{version}
+				v{version}
 				<svg
 					width="8"
 					height="8"
