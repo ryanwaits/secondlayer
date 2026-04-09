@@ -32,6 +32,7 @@ export async function registerSubgraph(
 		schemaName?: string;
 		startBlock?: number;
 		forkedFromId?: string;
+		handlerCode?: string;
 	},
 ): Promise<Subgraph> {
 	return await db
@@ -44,6 +45,7 @@ export async function registerSubgraph(
 			handler_path: data.handlerPath,
 			api_key_id: data.apiKeyId ?? null,
 			account_id: data.accountId ?? "",
+			handler_code: data.handlerCode ?? null,
 			schema_name: data.schemaName ?? null,
 			start_block: data.startBlock ?? 0,
 			forked_from_id: data.forkedFromId ?? null,
@@ -54,6 +56,7 @@ export async function registerSubgraph(
 				definition: jsonb(data.definition) as any,
 				schema_hash: data.schemaHash,
 				handler_path: data.handlerPath,
+				handler_code: data.handlerCode ?? null,
 				api_key_id: data.apiKeyId ?? null,
 				schema_name: data.schemaName ?? null,
 				start_block: data.startBlock ?? 0,
