@@ -208,7 +208,10 @@ export function registerSubgraphsCommand(program: Command): void {
 
 					if (result.action === "unchanged") {
 						info(`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`);
-					} else if (result.action === "created" || result.action === "reindexed") {
+					} else if (result.action === "created") {
+						// Fresh deploy — no existing data to drop, no confirmation needed
+						success(`Subgraph "${def.name}" created → v${result.version}`);
+					} else if (result.action === "reindexed") {
 						// Show diff if available
 						if (result.diff) {
 							const { addedTables, addedColumns, breakingChanges } = result.diff;
@@ -222,7 +225,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							}
 						}
 
-						// Confirmation prompt for destructive operations (skippable with --force)
+						// Confirmation prompt — dropping existing data (skippable with --force)
 						const confirmed = options.force || await confirm({
 							message: `⚠  This will drop all data and reindex from scratch. Continue?`,
 						});
@@ -231,12 +234,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							process.exit(0);
 						}
 
-						// Re-deploy with confirmation (server already wrote the handler, just need the reindex to proceed)
-						success(
-							result.action === "created"
-								? `Subgraph "${def.name}" created → v${result.version}`
-								: `Subgraph "${def.name}" updated → v${result.version} (reindexing)`,
-						);
+						success(`Subgraph "${def.name}" updated → v${result.version} (reindexing)`);
 					} else {
 						// "updated" — additive changes, no confirmation needed
 						if (result.diff) {
