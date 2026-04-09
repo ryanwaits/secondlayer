@@ -15,10 +15,12 @@ export function SubgraphUrlSection({ tables }: Props) {
 
 	if (!tableNames.length) return null;
 
-	const endpoint = tables[selectedTable]?.endpoint ?? "";
+	const API_BASE = "https://api.secondlayer.tools";
+	const relativePath = tables[selectedTable]?.endpoint ?? "";
+	const fullUrl = `${API_BASE}${relativePath}`;
 
 	const handleCopy = async () => {
-		await navigator.clipboard.writeText(endpoint);
+		await navigator.clipboard.writeText(fullUrl);
 		setCopied(true);
 		setTimeout(() => setCopied(false), 1500);
 	};
@@ -29,10 +31,10 @@ export function SubgraphUrlSection({ tables }: Props) {
 		setCopied(false);
 	};
 
-	// Split endpoint into base + table suffix for accent coloring
-	const tableIndex = endpoint.lastIndexOf(selectedTable);
-	const urlBase = tableIndex !== -1 ? endpoint.slice(0, tableIndex) : endpoint;
-	const urlTable = tableIndex !== -1 ? endpoint.slice(tableIndex) : "";
+	// Split at last "/" for accent coloring on the table segment
+	const lastSlash = fullUrl.lastIndexOf("/");
+	const urlBase = fullUrl.slice(0, lastSlash + 1);
+	const urlTable = fullUrl.slice(lastSlash + 1);
 
 	return (
 		<div className="sg-detail-section">
