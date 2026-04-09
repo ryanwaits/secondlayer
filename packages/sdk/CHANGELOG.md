@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 0.10.3
+
+### Patch Changes
+
+- Add verifyWebhookSignature helper for verifying x-secondlayer-signature HMAC headers on webhook deliveries
+
 ## 0.10.2
 
 ### Patch Changes
