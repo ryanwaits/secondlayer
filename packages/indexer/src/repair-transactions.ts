@@ -403,7 +403,12 @@ async function main() {
 			])
 			.where("block_height", ">=", batchStart)
 			.where("block_height", "<=", batchEnd)
-			.where("type", "=", "contract_call")
+			.where((eb) =>
+				eb.or([
+					eb("type", "=", "contract_call"),
+					eb("type", "=", "smart_contract"),
+				]),
+			)
 			.where((eb) =>
 				eb.or([eb("function_args", "is", null), eb("raw_result", "is", null)]),
 			)
