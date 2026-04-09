@@ -1,5 +1,17 @@
 # @secondlayer/subgraphs
 
+## 0.9.4
+
+### Patch Changes
+
+- fix(subgraphs): expose resultHex in contract_call handler payload
+
+  Adds `resultHex` (raw hex string) to the contract_call event payload so handlers can store the unmodified transaction result. Previously only the decoded Clarity object was available, causing `String(result)` to produce `[object Object]`.
+
+  fix(indexer): normalize Hiro API function_args to hex strings
+
+  Parser fallback now extracts `.hex` from `{hex,repr,name,type}` objects returned by the Hiro API, ensuring function_args are stored as hex strings consistently across all backfill sources.
+
 ## 0.9.3
 
 ### Patch Changes

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Subgraph URL Section</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:wght@400;460;500;560;600&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.12);
+    --border: #e8e8e8;
+    --border-hover: #d8d8d8;
+    --accent: #b5a836;
+    --accent-bg: rgba(181,168,54,0.07);
+    --accent-border: rgba(181,168,54,0.25);
+    --code-bg: rgba(0,0,0,0.035);
+    --green: #22c55e;
+    --font-sans: "Public Sans", system-ui, sans-serif;
+    --font-heading: "Sora", system-ui, sans-serif;
+    --font-mono: "Fira Code", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --bg-elevated: #1a1a1a;
+      --text-main: #ececec;
+      --text-muted: rgba(255,255,255,0.38);
+      --text-dim: rgba(255,255,255,0.08);
+      --border: #252525;
+      --border-hover: #3a3a3a;
+      --accent: #b5a836;
+      --accent-bg: rgba(181,168,54,0.08);
+      --accent-border: rgba(181,168,54,0.3);
+      --code-bg: rgba(255,255,255,0.05);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    -webkit-font-smoothing: antialiased;
+    display: flex; align-items: flex-start; justify-content: center;
+    min-height: 100vh; padding: 60px 32px;
+  }
+
+  .frame {
+    width: 100%; max-width: 860px;
+  }
+
+  /* ── Section chrome ──────────────────────────── */
+  .sg-detail-section { margin-bottom: 32px; }
+  .sg-detail-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .sg-detail-title {
+    font-family: var(--font-heading); font-size: 13px; font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Table dropdown (meta-dropdown style) ───── */
+  .meta-dropdown-wrap { position: relative; }
+  .overview-meta-btn {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--font-sans); font-size: 12px; font-weight: 460;
+    color: var(--text-muted); background: transparent;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; cursor: pointer; transition: all 0.15s;
+  }
+  .overview-meta-btn:hover { color: var(--text-main); border-color: var(--border-hover); }
+  .overview-meta-btn svg { opacity: 0.5; }
+  .meta-dropdown {
+    position: absolute; top: calc(100% + 5px); right: 0;
+    min-width: 160px; background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 4px; z-index: 50;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    display: none;
+  }
+  .meta-dropdown.open { display: block; animation: fadeUp 0.12s ease; }
+  .meta-dropdown-item {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 7px 10px; border-radius: 5px;
+    font-family: var(--font-sans); font-size: 12px; font-weight: 460;
+    color: var(--text-muted); background: transparent; border: none;
+    cursor: pointer; transition: background 0.1s; text-align: left;
+  }
+  .meta-dropdown-item:hover { background: var(--code-bg); color: var(--text-main); }
+  .meta-dropdown-item.active { color: var(--text-main); font-weight: 500; }
+
+  /* ── URL snippet ─────────────────────────────── */
+  .sg-url-snippet {
+    display: flex; align-items: center;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 7px; overflow: hidden; padding-left: 14px;
+    margin-bottom: 7px;
+  }
+  .sg-url-text {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 400;
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    padding: 11px 0; color: var(--text-muted);
+  }
+  .sg-url-text .url-table { color: var(--accent); }
+  .sg-url-copy-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; flex-shrink: 0;
+    color: var(--text-muted); background: transparent;
+    border: none; border-left: 1px solid var(--border);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .sg-url-copy-btn:hover { color: var(--text-main); background: var(--border); }
+  .sg-url-copy-btn.copied { color: var(--green); }
+  .sg-url-desc {
+    font-size: 12px; color: var(--text-muted); opacity: 0.6;
+    margin-bottom: 20px;
+  }
+
+  /* ── Code example tabs ───────────────────────── */
+  .sg-code-tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .sg-code-tab {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: none; border: none;
+    padding: 7px 14px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.12s;
+  }
+  .sg-code-tab:hover { color: var(--text-main); }
+  .sg-code-tab.active { color: var(--text-main); border-bottom-color: var(--accent); font-weight: 600; }
+
+  .sg-code-pane { display: none; }
+  .sg-code-pane.active { display: block; }
+
+  /* ── Code block (marketing style) ───────────── */
+  .code-block-wrapper {
+    position: relative;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 8px 8px;
+    overflow: hidden;
+  }
+  .code-block-inner {
+    padding: 16px 18px;
+    font-family: var(--font-mono); font-size: 12.5px; line-height: 1.75;
+    overflow-x: auto; white-space: pre;
+  }
+  .code-copy-btn {
+    position: absolute; top: 10px; right: 10px;
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--font-sans); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 4px 10px; cursor: pointer; transition: all 0.15s;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .code-block-wrapper:hover .code-copy-btn { opacity: 1; }
+  .code-copy-btn:hover { color: var(--text-main); border-color: var(--border-hover); }
+  .code-copy-btn.copied { color: var(--green); }
+
+  /* ── Syntax token colors ─────────────────────── */
+  /* Matching the monotone-purple theme but adapted to olive accent */
+  .t-kw  { color: var(--accent); font-weight: 500; }          /* keywords: curl, const, await */
+  .t-str { color: var(--text-main); }                          /* strings */
+  .t-url { color: var(--text-muted); }                         /* url base */
+  .t-tbl { color: var(--accent); }                             /* table name in url */
+  .t-cm  { color: var(--text-dim); font-style: italic; }       /* comments */
+  .t-key { color: var(--text-muted); }                         /* object keys */
+  .t-fn  { color: var(--text-main); font-weight: 500; }        /* function names */
+  .t-op  { color: var(--text-muted); }                         /* operators, punctuation */
+  .t-hdr { color: var(--text-muted); }                         /* header names */
+
+  /* ── Animations ──────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Theme toggle ────────────────────────────── */
+  .theme-toggle {
+    position: fixed; top: 12px; right: 16px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+  .section-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-muted); opacity: 0.4;
+    margin-bottom: 28px;
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="cycleTheme()">theme</button>
+
+<div class="frame">
+  <p class="section-label">Subgraph Detail — URL Section</p>
+
+  <div class="sg-detail-section">
+    <!-- Header: title + table selector -->
+    <div class="sg-detail-header">
+      <span class="sg-detail-title">Subgraph URL</span>
+      <div class="meta-dropdown-wrap">
+        <button class="overview-meta-btn" onclick="toggleDrop()">
+          <span id="tableLabel">contract_calls</span>
+          <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg>
+        </button>
+        <div class="meta-dropdown" id="tableDrop">
+          <button class="meta-dropdown-item active" onmousedown="selectTable('contract_calls',this)">
+            contract_calls
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5l3.5 3.5 6.5-8"/></svg>
+          </button>
+          <button class="meta-dropdown-item" onmousedown="selectTable('contracts',this)">
+            contracts
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="opacity:0"><path d="M3 8.5l3.5 3.5 6.5-8"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- URL snippet: always visible, quick copy -->
+    <div class="sg-url-snippet">
+      <span class="sg-url-text" id="urlDisplay">
+        <span class="t-url">https://api.secondlayer.tools/subgraphs/contracts/</span><span class="url-table" id="urlTable">contract_calls</span>
+      </span>
+      <button class="sg-url-copy-btn" id="urlCopyBtn" onclick="copyUrl()" title="Copy URL">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+    </div>
+    <p class="sg-url-desc">REST endpoint for querying <span id="descTable" style="color:var(--accent)">contract_calls</span> data from this subgraph</p>
+
+    <!-- Code example tabs -->
+    <div class="sg-code-tabs">
+      <button class="sg-code-tab active" onclick="switchTab('curl',this)">cURL</button>
+      <button class="sg-code-tab" onclick="switchTab('node',this)">Node.js</button>
+    </div>
+
+    <!-- cURL pane -->
+    <div class="sg-code-pane active" id="pane-curl">
+      <div class="code-block-wrapper">
+        <div class="code-block-inner" id="curl-code"><span class="t-kw">curl</span> <span class="t-str">'https://api.secondlayer.tools/subgraphs/contracts/<span class="t-tbl" id="curl-table">contract_calls</span>'</span> \
+  <span class="t-op">-H</span> <span class="t-str">'Authorization: Bearer <span class="t-key">YOUR_API_KEY</span>'</span> \
+  <span class="t-op">-G</span> \
+  <span class="t-op">-d</span> <span class="t-str">'_limit=10&amp;_offset=0'</span></div>
+        <button class="code-copy-btn" id="curlCopyBtn" onclick="copyCode('curl')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+    </div>
+
+    <!-- Node.js pane -->
+    <div class="sg-code-pane" id="pane-node">
+      <div class="code-block-wrapper">
+        <div class="code-block-inner" id="node-code"><span class="t-kw">const</span> response = <span class="t-kw">await</span> <span class="t-fn">fetch</span><span class="t-op">(</span>
+  <span class="t-str">`https://api.secondlayer.tools/subgraphs/contracts/<span class="t-tbl" id="node-table">contract_calls</span>?_limit=10`</span>,
+  <span class="t-op">{</span>
+    <span class="t-key">headers</span><span class="t-op">:</span> <span class="t-op">{</span>
+      <span class="t-key">Authorization</span><span class="t-op">:</span> <span class="t-str">`Bearer <span class="t-op">${</span><span class="t-key">process.env.SECONDLAYER_API_KEY</span><span class="t-op">}</span>`</span>
+    <span class="t-op">}</span>
+  <span class="t-op">}</span>
+<span class="t-op">);</span>
+<span class="t-kw">const</span> data = <span class="t-kw">await</span> response<span class="t-op">.</span><span class="t-fn">json</span><span class="t-op">();</span></div>
+        <button class="code-copy-btn" id="nodeCopyBtn" onclick="copyCode('node')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const BASE = 'https://api.secondlayer.tools/subgraphs/contracts/';
+  let currentTable = 'contract_calls';
+  let currentTab = 'curl';
+
+  // ── Theme ──────────────────────────────────────
+  let themeMode = 0;
+  function cycleTheme() {
+    themeMode = (themeMode + 1) % 3;
+    const labels = ['system','light','dark'];
+    document.querySelector('.theme-toggle').textContent = labels[themeMode];
+    document.documentElement.style.colorScheme = themeMode === 1 ? 'light' : themeMode === 2 ? 'dark' : '';
+  }
+
+  // ── Table dropdown ─────────────────────────────
+  function toggleDrop() {
+    document.getElementById('tableDrop').classList.toggle('open');
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.meta-dropdown-wrap'))
+      document.getElementById('tableDrop').classList.remove('open');
+  });
+
+  function selectTable(table, el) {
+    e.preventDefault?.();
+    currentTable = table;
+    document.querySelectorAll('.meta-dropdown-item').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tableLabel').textContent = table;
+    document.getElementById('urlTable').textContent = table;
+    document.getElementById('descTable').textContent = table;
+    document.getElementById('curl-table').textContent = table;
+    document.getElementById('node-table').textContent = table;
+    document.getElementById('tableDrop').classList.remove('open');
+    // reset copy states
+    ['urlCopyBtn','curlCopyBtn','nodeCopyBtn'].forEach(id => {
+      const btn = document.getElementById(id);
+      btn?.classList.remove('copied');
+      const label = btn?.querySelector('span') ?? btn;
+      if (id !== 'urlCopyBtn' && label) label.textContent = 'Copy';
+    });
+  }
+
+  // ── Tab switcher ───────────────────────────────
+  function switchTab(tab, btn) {
+    currentTab = tab;
+    document.querySelectorAll('.sg-code-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.sg-code-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById('pane-' + tab).classList.add('active');
+  }
+
+  // ── Copy ───────────────────────────────────────
+  function copyUrl() {
+    const url = BASE + currentTable;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('urlCopyBtn');
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 1500);
+    });
+  }
+
+  const curlTemplate = (t) =>
+    `curl 'https://api.secondlayer.tools/subgraphs/contracts/${t}' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -G \\\n  -d '_limit=10&_offset=0'`;
+
+  const nodeTemplate = (t) =>
+    `const response = await fetch(\n  \`https://api.secondlayer.tools/subgraphs/contracts/${t}?_limit=10\`,\n  {\n    headers: {\n      Authorization: \`Bearer \${process.env.SECONDLAYER_API_KEY}\`\n    }\n  }\n);\nconst data = await response.json();`;
+
+  function copyCode(type) {
+    const text = type === 'curl' ? curlTemplate(currentTable) : nodeTemplate(currentTable);
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById(type + 'CopyBtn');
+      btn.classList.add('copied');
+      const span = btn.querySelector('span') ?? btn;
+      if (span) span.textContent = 'Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        if (span) span.textContent = 'Copy';
+      }, 1500);
+    });
+  }
+</script>
+</body>
+</html>
