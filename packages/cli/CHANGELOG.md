@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 1.12.1
+
+### Patch Changes
+
+- fix(cli): only prompt confirmation for reindex, not fresh deploy
+
+  Fresh deploys (new subgraph, no existing data) no longer show the destructive reindex confirmation prompt. The prompt now only appears when dropping and rebuilding existing data.
+
 ## 1.12.0
 
 ### Minor Changes
