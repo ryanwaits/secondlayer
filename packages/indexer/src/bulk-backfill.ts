@@ -211,7 +211,7 @@ async function main() {
 			targetHeight = await local.getChainTip(db);
 		} else if (BACKFILL_SOURCE === "hiro-pg") {
 			logger.info("Auto-detecting chain tip from Hiro PG...");
-			targetHeight = await hiroPg?.getChainTip();
+			targetHeight = (await hiroPg?.getChainTip()) ?? 0;
 		} else {
 			logger.info("Auto-detecting chain tip from Hiro API...");
 			targetHeight = await hiro.fetchChainTip();
@@ -326,7 +326,7 @@ async function main() {
 				const blocks = await hiroPg?.getBlockBatch(batchHeights, {
 					includeRawTx: INCLUDE_RAW_TX,
 				});
-				fetchedBlocks.push(...blocks);
+				if (blocks) fetchedBlocks.push(...blocks);
 			} catch (err) {
 				logger.warn("Failed to fetch block batch", { error: String(err) });
 			}
