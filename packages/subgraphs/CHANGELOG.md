@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 0.9.5
+
+### Patch Changes
+
+- fix(subgraphs): parse JSONB string for function_args before array check
+
+  postgres.js returns JSONB columns as JSON-encoded strings rather than parsed JavaScript objects. The function_args decoder was calling Array.isArray() on a string and always returning [], causing args_json to be empty for every indexed contract call. Now correctly parses the string before the array check.
+
 ## 0.9.4
 
 ### Patch Changes
