@@ -49,8 +49,8 @@ export function diffSchema(
 	const tables: Record<string, ColumnDiff> = {};
 	for (const tableName of incomingTables) {
 		if (!existingTables.has(tableName)) continue;
-		const existingCols = existing[tableName]!.columns;
-		const incomingCols = incoming[tableName]!.columns;
+		const existingCols = existing[tableName]?.columns;
+		const incomingCols = incoming[tableName]?.columns;
 
 		const existingKeys = new Set(Object.keys(existingCols));
 		const incomingKeys = new Set(Object.keys(incomingCols));
@@ -179,8 +179,7 @@ export async function deploySchema(
 			if (breaking) {
 				if (!opts?.forceReindex) {
 					throw new Error(
-						`Breaking schema change detected (${reasons.join("; ")}). ` +
-							`Use --reindex to force rebuild, or delete the subgraph first.`,
+						`Breaking schema change detected (${reasons.join("; ")}). Use --reindex to force rebuild, or delete the subgraph first.`,
 					);
 				}
 
@@ -200,10 +199,10 @@ export async function deploySchema(
 				const tableDef = def.schema[tableName]!;
 				const qualifiedName = `${schemaName}.${tableName}`;
 				const colDefs = [
-					`_id BIGSERIAL PRIMARY KEY`,
-					`_block_height BIGINT NOT NULL`,
-					`_tx_id TEXT NOT NULL`,
-					`_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+					"_id BIGSERIAL PRIMARY KEY",
+					"_block_height BIGINT NOT NULL",
+					"_tx_id TEXT NOT NULL",
+					"_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
 				];
 				for (const [colName, col] of Object.entries(tableDef.columns)) {
 					const nullable = col.nullable ? "" : " NOT NULL";
@@ -252,7 +251,7 @@ export async function deploySchema(
 					const sqlType = TYPE_MAP[col.type]!;
 					const nullable = col.nullable
 						? ""
-						: " NOT NULL DEFAULT " + getDefault(col.type);
+						: ` NOT NULL DEFAULT ${getDefault(col.type)}`;
 					await sql
 						.raw(
 							`ALTER TABLE ${qualifiedName} ADD COLUMN ${colName} ${sqlType}${nullable}`,
