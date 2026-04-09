@@ -1,5 +1,18 @@
 # @secondlayer/shared
 
+## 0.12.1
+
+### Patch Changes
+
+- fix(subgraphs): complete accountId migration across deployer, marketplace, ownership
+
+  Removes remaining apiKeyId fallbacks introduced in the Sprint 1 account-scoping change:
+
+  - deployer.ts: getSubgraph lookup no longer falls back to apiKeyId
+  - marketplace.ts: fork collision check and schema prefix use accountId
+  - ownership.ts: assertSubgraphOwnership checks account_id instead of api_key_id
+  - deleteSubgraph: uses accountId parameter consistently
+
 ## 0.12.0
 
 ### Minor Changes
