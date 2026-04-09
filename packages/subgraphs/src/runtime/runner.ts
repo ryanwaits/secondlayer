@@ -33,10 +33,21 @@ function camelizeKeys(obj: unknown): unknown {
 /**
  * Decode function_args (hex-encoded ClarityValues) to an array of JS values.
  * Returns decoded values via cvToValue.
+ *
+ * postgres.js returns JSONB columns as JSON strings rather than parsed objects —
+ * parse the string first before checking Array.isArray.
  */
 function decodeFunctionArgs(args: unknown): unknown[] {
-	if (!Array.isArray(args)) return [];
-	return args.map((arg) => {
+	let parsed = args;
+	if (typeof parsed === "string") {
+		try {
+			parsed = JSON.parse(parsed);
+		} catch {
+			return [];
+		}
+	}
+	if (!Array.isArray(parsed)) return [];
+	return parsed.map((arg) => {
 		if (typeof arg === "string") return decodeClarityValue(arg);
 		return arg;
 	});
