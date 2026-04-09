@@ -19,7 +19,7 @@ export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 
 	const title = tableNames.length === 1 ? "Endpoint" : "Endpoints";
 
-	const API_BASE = "https://api.secondlayer.tools";
+	const API_BASE = "https://api.secondlayer.tools/api";
 	const relativePath = tables[selectedTable]?.endpoint ?? "";
 	const fullUrl = `${API_BASE}${relativePath}`;
 

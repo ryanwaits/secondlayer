@@ -131,6 +131,13 @@ export default async function SubgraphDetailPage({
 					<MetaGrid
 						items={[
 							{
+								label: "Base URL",
+								value: "https://api.secondlayer.tools/api",
+								mono: true,
+								tooltip: "Base URL for all REST queries against this subgraph",
+								copyValue: "https://api.secondlayer.tools/api",
+							},
+							{
 								label: "Status",
 								value: (
 									<span className={`badge ${statusBadgeClass(displayStatus)}`}>
