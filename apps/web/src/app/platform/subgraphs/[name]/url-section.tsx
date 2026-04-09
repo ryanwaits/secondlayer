@@ -1,5 +1,6 @@
 "use client";
 
+import { TabbedCode } from "@/components/console/tabbed-code";
 import { useRef, useState } from "react";
 
 interface Props {
@@ -150,6 +151,22 @@ export function SubgraphUrlSection({ tables }: Props) {
 				<span style={{ color: "var(--accent)" }}>{selectedTable}</span> data
 				from this subgraph
 			</p>
+
+			<TabbedCode
+				key={selectedTable}
+				tabs={[
+					{
+						label: "cURL",
+						lang: "bash",
+						code: `curl '${fullUrl}' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -G \\\n  -d '_limit=10&_offset=0'`,
+					},
+					{
+						label: "Node.js",
+						lang: "javascript",
+						code: `const response = await fetch(\n  '${fullUrl}?_limit=10',\n  { headers: { Authorization: \`Bearer \${process.env.SECONDLAYER_API_KEY}\` } }\n);\nconst data = await response.json();`,
+					},
+				]}
+			/>
 		</div>
 	);
 }
