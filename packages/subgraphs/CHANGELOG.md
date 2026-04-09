@@ -1,5 +1,20 @@
 # @secondlayer/subgraphs
 
+## 0.10.0
+
+### Minor Changes
+
+- feat(subgraphs): account-wide subgraph scoping
+
+  Subgraphs are now scoped at the account level rather than per API key. Any API key on the same account can deploy and update the same named subgraph without creating duplicates. Includes migration 0028 which adds `account_id` to the subgraphs table and renames existing PG schemas to use account prefix instead of key prefix.
+
+  **Breaking for self-hosted:** Run migration 0028 before deploying. Stop the subgraph processor before running the migration (it renames live PG schemas).
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.11.0
+
 ## 0.9.5
 
 ### Patch Changes

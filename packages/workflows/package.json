@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/workflows",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -29,7 +29,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/subgraphs": "^0.9.0",
+		"@secondlayer/subgraphs": "^0.10.0",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/sdk",
-	"version": "0.10.0",
+	"version": "0.10.1",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -37,9 +37,9 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^0.10.1",
-		"@secondlayer/subgraphs": "^0.9.0",
-		"@secondlayer/workflows": "^0.0.1"
+		"@secondlayer/shared": "^0.11.0",
+		"@secondlayer/subgraphs": "^0.10.0",
+		"@secondlayer/workflows": "^0.0.2"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

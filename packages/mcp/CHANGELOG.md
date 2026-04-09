@@ -1,5 +1,14 @@
 # @secondlayer/mcp
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@0.10.0
+  - @secondlayer/sdk@0.10.1
+  - @secondlayer/workflows@0.0.2
+
 ## 0.4.0
 
 ### Minor Changes

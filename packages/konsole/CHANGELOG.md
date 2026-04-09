@@ -1,5 +1,13 @@
 # konsole
 
+## 0.0.12
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.11.0
+  - @secondlayer/auth@0.1.13
+
 ## 0.0.11
 
 ### Patch Changes
