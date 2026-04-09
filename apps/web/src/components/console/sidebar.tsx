@@ -19,7 +19,7 @@ const NAV_ITEMS: NavItem[] = [
 	{ href: "/subgraphs", label: "Subgraphs", icon: "subgraph", badgeKey: "subgraphs" },
 	{ href: "/streams", label: "Streams", icon: "stream", badgeKey: "streams" },
 	{ href: "/sessions", label: "Sessions", icon: "sessions" },
-	{ href: "/workflows", label: "Workflows", icon: "workflows" },
+	{ href: "/workflows", label: "Workflows", icon: "workflows", badgeKey: "workflows" },
 	{ href: "/marketplace", label: "Marketplace", icon: "marketplace" },
 ];
 
@@ -87,10 +87,12 @@ function useSidebarCounts() {
 		Promise.allSettled([
 			fetch("/api/subgraphs", { credentials: "same-origin" }).then(r => r.json()),
 			fetch("/api/streams?limit=1&offset=0", { credentials: "same-origin" }).then(r => r.json()),
-		]).then(([sg, st]) => {
+			fetch("/api/workflows", { credentials: "same-origin" }).then(r => r.json()),
+		]).then(([sg, st, wf]) => {
 			const c: Record<string, number> = {};
 			if (sg.status === "fulfilled" && sg.value?.data) c.subgraphs = sg.value.data.length;
 			if (st.status === "fulfilled" && st.value?.total != null) c.streams = st.value.total;
+			if (wf.status === "fulfilled" && wf.value?.workflows) c.workflows = wf.value.workflows.length;
 			setCounts(c);
 		});
 	}, [account]);

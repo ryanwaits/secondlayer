@@ -1,7 +1,8 @@
 import { CollapsibleSection } from "@/components/console/collapsible-section";
+import { OnboardingCard } from "@/components/console/onboarding-card";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import type { Stream, SubgraphSummary } from "@/lib/types";
+import type { Stream, SubgraphSummary, WorkflowSummary } from "@/lib/types";
 import Link from "next/link";
 
 function statusClass(status: string) {
@@ -16,23 +17,35 @@ export default async function DashboardPage() {
 
 	let streams: Stream[] = [];
 	let subgraphs: SubgraphSummary[] = [];
+	let workflows: WorkflowSummary[] = [];
 
 	if (session) {
-		const [streamsResult, subgraphsResult] = await Promise.allSettled([
-			apiRequest<{ streams: Stream[]; total: number }>(
-				"/api/streams?limit=100&offset=0",
-				{ sessionToken: session, tags: ["streams"] },
-			),
-			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
-				sessionToken: session,
-				tags: ["subgraphs"],
-			}),
-		]);
+		const [streamsResult, subgraphsResult, workflowsResult] =
+			await Promise.allSettled([
+				apiRequest<{ streams: Stream[]; total: number }>(
+					"/api/streams?limit=100&offset=0",
+					{ sessionToken: session, tags: ["streams"] },
+				),
+				apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
+					sessionToken: session,
+					tags: ["subgraphs"],
+				}),
+				apiRequest<{ workflows: WorkflowSummary[] }>("/api/workflows", {
+					sessionToken: session,
+					tags: ["workflows"],
+				}),
+			]);
 		streams =
 			streamsResult.status === "fulfilled" ? streamsResult.value.streams : [];
 		subgraphs =
 			subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
+		workflows =
+			workflowsResult.status === "fulfilled"
+				? workflowsResult.value.workflows
+				: [];
 	}
+
+	const totalWorkflowRuns = workflows.reduce((s, w) => s + w.totalRuns, 0);
 
 	const totalEvents = subgraphs.reduce(
 		(s, sg) => s + (sg.totalRows ?? sg.totalProcessed),
@@ -53,6 +66,8 @@ export default async function DashboardPage() {
 			<OverviewTopbar page="Overview" />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
+					<OnboardingCard />
+
 					{/* Subgraphs */}
 					<CollapsibleSection title="Subgraphs" count={subgraphs.length}>
 						{subgraphs.length > 0 ? (
@@ -190,13 +205,59 @@ export default async function DashboardPage() {
 					</CollapsibleSection>
 
 					{/* Workflows */}
-					<CollapsibleSection title="Workflows" count={0}>
-						<div className="ov-empty">
-							No workflows deployed yet.{" "}
-							<Link href="/workflows" className="ov-section-link">
-								Get started &rarr;
-							</Link>
-						</div>
+					<CollapsibleSection title="Workflows" count={workflows.length}>
+						{workflows.length > 0 ? (
+							<>
+								<div className="ov-cards">
+									<Link href="/workflows" className="ov-card">
+										<div className="ov-card-label">Total Workflows</div>
+										<div className="ov-card-value">{workflows.length}</div>
+										<div className="ov-card-sub">
+											{workflows.filter((w) => w.status === "active").length}{" "}
+											active
+										</div>
+									</Link>
+									<Link href="/workflows" className="ov-card">
+										<div className="ov-card-label">Total Runs</div>
+										<div className="ov-card-value">
+											{totalWorkflowRuns.toLocaleString()}
+										</div>
+										<div className="ov-card-sub">across all workflows</div>
+									</Link>
+								</div>
+								<div className="ov-list">
+									{workflows.slice(0, 5).map((wf) => (
+										<Link
+											key={wf.name}
+											href={`/workflows/${wf.name}`}
+											className="ov-list-item"
+										>
+											<span className="ov-list-name">{wf.name}</span>
+											<span
+												className={`ov-list-status ${statusClass(wf.status)}`}
+											>
+												{wf.status}
+											</span>
+											<span className="ov-list-meta">
+												{wf.totalRuns.toLocaleString()} runs
+											</span>
+										</Link>
+									))}
+								</div>
+								<div className="ov-section-footer">
+									<Link href="/workflows" className="ov-section-link">
+										View all workflows &rarr;
+									</Link>
+								</div>
+							</>
+						) : (
+							<div className="ov-empty">
+								No workflows deployed yet.{" "}
+								<Link href="/workflows" className="ov-section-link">
+									Get started &rarr;
+								</Link>
+							</div>
+						)}
 					</CollapsibleSection>
 				</div>
 			</div>
