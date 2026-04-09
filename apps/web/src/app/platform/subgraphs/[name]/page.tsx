@@ -136,6 +136,7 @@ export default async function SubgraphDetailPage({
 								mono: true,
 								tooltip: "Base URL for all REST queries against this subgraph",
 								copyValue: "https://api.secondlayer.tools/api",
+								span: 2,
 							},
 							{
 								label: "Status",

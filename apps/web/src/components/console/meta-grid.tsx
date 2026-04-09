@@ -11,6 +11,8 @@ interface MetaItem {
 	tooltip?: string;
 	/** When provided, renders a hover-visible copy button alongside the value */
 	copyValue?: string;
+	/** Number of grid columns this card should span */
+	span?: number;
 }
 
 interface MetaGridProps {
@@ -29,7 +31,11 @@ function CopyableCard({ item }: { item: MetaItem }) {
 	};
 
 	return (
-		<div key={item.label} className="sg-meta-card sg-meta-card--copyable">
+		<div
+			key={item.label}
+			className="sg-meta-card sg-meta-card--copyable"
+			style={item.span ? { gridColumn: `span ${item.span}` } : undefined}
+		>
 			<div className="sg-meta-label">
 				{item.label}
 				{item.tooltip && (
@@ -114,7 +120,11 @@ export function MetaGrid({ items, columns }: MetaGridProps) {
 				item.copyValue ? (
 					<CopyableCard key={item.label} item={item} />
 				) : (
-					<div key={item.label} className="sg-meta-card">
+					<div
+						key={item.label}
+						className="sg-meta-card"
+						style={item.span ? { gridColumn: `span ${item.span}` } : undefined}
+					>
 						<div className="sg-meta-label">
 							{item.label}
 							{item.tooltip && (
