@@ -147,9 +147,9 @@ export async function updateSubgraphHandlerPath(
 export async function deleteSubgraph(
 	db: Kysely<Database>,
 	name: string,
-	apiKeyId?: string,
+	accountId?: string,
 ): Promise<Subgraph | null> {
-	const subgraph = await getSubgraph(db, name, apiKeyId);
+	const subgraph = await getSubgraph(db, name, accountId);
 	if (!subgraph) return null;
 
 	// Use stored schema_name if available, otherwise compute

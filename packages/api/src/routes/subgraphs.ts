@@ -409,7 +409,6 @@ app.post("/:subgraphName/unpublish", async (c) => {
 
 app.delete("/:subgraphName", async (c) => {
 	const { subgraphName } = c.req.param();
-	const apiKeyId = getApiKeyId(c);
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
 
@@ -422,7 +421,7 @@ app.delete("/:subgraphName", async (c) => {
 	const { deleteSubgraph } = await import(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
-	await deleteSubgraph(db, subgraphName, apiKeyId);
+	await deleteSubgraph(db, subgraphName, accountId);
 
 	// Clean up handler file if it exists
 	if (subgraph.handler_path) {
