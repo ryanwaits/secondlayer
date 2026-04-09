@@ -136,6 +136,11 @@ export interface SubgraphDetail {
 		lastError: string | null;
 		lastErrorAt: string | null;
 	};
+	sync: {
+		blocksRemaining: number;
+		chainTip: number | null;
+		progress: number;
+	};
 	tables: Record<
 		string,
 		{

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubgraphDataBrowser } from "./data-browser";
 import { SubgraphReindexForm } from "./reindex-form";
+import { SubgraphUrlSection } from "./url-section";
 
 function statusBadgeClass(status: string) {
 	if (status === "active") return "active";
@@ -66,6 +67,21 @@ export default async function SubgraphDetailPage({
 		subgraph.lastProcessedBlock,
 	);
 
+	const { totalProcessed, totalErrors } = subgraph.health;
+	const uptime =
+		totalProcessed > 0
+			? `${(((totalProcessed - totalErrors) / totalProcessed) * 100).toFixed(1)}%`
+			: "—";
+
+	const { blocksRemaining } = subgraph.sync;
+	const lagSeconds = blocksRemaining * 10;
+	const latency =
+		blocksRemaining === 0
+			? "synced"
+			: lagSeconds >= 600
+				? `~${Math.round(lagSeconds / 60)}m`
+				: `~${lagSeconds}s`;
+
 	const dropdownItems = allSubgraphs.map((sg) => ({
 		name: sg.name,
 		href: `/subgraphs/${sg.name}`,
@@ -90,13 +106,13 @@ export default async function SubgraphDetailPage({
 						allLabel="View all subgraphs"
 					/>
 				}
+				version={subgraph.version}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
 					{/* Metadata cards */}
 					<MetaGrid
 						items={[
-							{ label: "ID", value: name, mono: true },
 							{
 								label: "Status",
 								value: (
@@ -106,28 +122,22 @@ export default async function SubgraphDetailPage({
 								),
 							},
 							{
-								label: "Block Height",
+								label: "Last Indexed Block",
 								value: subgraph.lastProcessedBlock
 									? `#${subgraph.lastProcessedBlock.toLocaleString()}`
 									: "—",
 								mono: true,
 							},
-							{ label: "Version", value: subgraph.version, mono: true },
 							{
 								label: "Total Rows",
 								value: totalRows.toLocaleString(),
 							},
-							{
-								label: "Error Rate",
-								value: `${(subgraph.health.errorRate * 100).toFixed(1)}%`,
-								valueColor: subgraph.health.errorRate > 0.05 ? "red" : "green",
-							},
-							{
-								label: "Tables",
-								value: String(tableEntries.length),
-							},
+							{ label: "Latency", value: latency },
+							{ label: "Uptime", value: uptime },
 						]}
 					/>
+
+					<SubgraphUrlSection tables={subgraph.tables} />
 
 					{/* Schema */}
 					<DetailSection title="Schema">

@@ -1,13 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { useRef, useState } from "react";
 import { useStatus } from "@/lib/queries/status";
 import {
-	useTopbar,
 	REFRESH_OPTIONS,
 	type RefreshInterval,
+	useTopbar,
 } from "@/lib/topbar-context";
+import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 
 function formatBlock(n: number) {
 	return `#${n.toLocaleString()}`;
@@ -76,12 +76,100 @@ function MetaDropdown<T>({
 						>
 							{opt.label}
 							{opt.value === value && (
-								<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+								<svg
+									width="12"
+									height="12"
+									viewBox="0 0 16 16"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									aria-hidden="true"
+								>
 									<path d="M3 8.5l3.5 3.5 6.5-8" />
 								</svg>
 							)}
 						</button>
 					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
+function VersionDropdown({ version }: { version: string }) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+
+	return (
+		<div className="meta-dropdown-wrap" ref={ref}>
+			<button
+				type="button"
+				className="overview-meta-btn"
+				onClick={() => setOpen(!open)}
+				onBlur={(e) => {
+					if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false);
+				}}
+			>
+				<svg
+					width="12"
+					height="12"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					aria-hidden="true"
+				>
+					<path d="M2 4l6-2 6 2v4c0 3-6 6-6 6S2 11 2 8V4z" />
+				</svg>
+				{version}
+				<svg
+					width="8"
+					height="8"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+					strokeLinecap="round"
+					aria-hidden="true"
+				>
+					<path d="M4 6l4 4 4-4" />
+				</svg>
+			</button>
+			{open && (
+				<div className="meta-dropdown">
+					<button
+						type="button"
+						className="meta-dropdown-item active"
+						onMouseDown={(e) => {
+							e.preventDefault();
+							setOpen(false);
+						}}
+					>
+						{version}
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 16 16"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M3 8.5l3.5 3.5 6.5-8" />
+						</svg>
+					</button>
+					<div className="meta-dropdown-divider" />
+					<span
+						className="meta-dropdown-item"
+						style={{ opacity: 0.4, cursor: "default", pointerEvents: "none" }}
+					>
+						Deploy new version
+					</span>
 				</div>
 			)}
 		</div>
@@ -95,6 +183,7 @@ interface OverviewTopbarProps {
 	showMeta?: boolean;
 	showRefresh?: boolean;
 	lastUpdated?: string | null;
+	version?: string;
 }
 
 export function OverviewTopbar({
@@ -104,6 +193,7 @@ export function OverviewTopbar({
 	showMeta = true,
 	showRefresh = true,
 	lastUpdated,
+	version,
 }: OverviewTopbarProps) {
 	const { data: status } = useStatus();
 	const { autoRefresh, setAutoRefresh, autoRefreshLabel, now } = useTopbar();
@@ -116,7 +206,9 @@ export function OverviewTopbar({
 	} else if (lastUpdated !== undefined) {
 		lastUpdatedDisplay = timeAgo(lastUpdated, now);
 	} else {
-		lastUpdatedDisplay = status?.timestamp ? timeAgo(status.timestamp, now) : "—";
+		lastUpdatedDisplay = status?.timestamp
+			? timeAgo(status.timestamp, now)
+			: "—";
 	}
 
 	return (
@@ -144,7 +236,16 @@ export function OverviewTopbar({
 								value={autoRefresh}
 								onChange={setAutoRefresh}
 								icon={
-									<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+									<svg
+										width="12"
+										height="12"
+										viewBox="0 0 16 16"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="1.5"
+										strokeLinecap="round"
+										aria-hidden="true"
+									>
 										<path d="M2 8a6 6 0 0 1 10.5-4" />
 										<path d="M14 8a6 6 0 0 1-10.5 4" />
 										<path d="M10 4h3V1" />
@@ -152,6 +253,12 @@ export function OverviewTopbar({
 									</svg>
 								}
 							/>
+						</>
+					)}
+					{version && (
+						<>
+							<span className="overview-meta-sep" />
+							<VersionDropdown version={version} />
 						</>
 					)}
 				</div>
