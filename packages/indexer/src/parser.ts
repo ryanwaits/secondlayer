@@ -4,6 +4,7 @@ import type {
 	InsertTransaction,
 } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
+import { serializeCV } from "@secondlayer/stacks/clarity";
 import {
 	AddressHashMode,
 	type ContractCallPayload,
@@ -11,7 +12,6 @@ import {
 	type SmartContractPayload,
 	deserializeTransaction,
 } from "@secondlayer/stacks/transactions";
-import { serializeCV } from "@secondlayer/stacks/clarity";
 import { AddressVersion, c32address } from "@secondlayer/stacks/utils";
 import type {
 	NewBlockPayload,
@@ -222,7 +222,12 @@ export async function parseTransaction(
 				contractId = contractCall.contract_id;
 				functionName = contractCall.function_name;
 				if (Array.isArray(contractCall.function_args)) {
-					functionArgs = contractCall.function_args;
+					// Node events send hex strings; Hiro API sends {hex,repr,name,type} objects
+					functionArgs = contractCall.function_args.map((arg: unknown) =>
+						arg !== null && typeof arg === "object" && "hex" in (arg as object)
+							? (arg as { hex: string }).hex
+							: (arg as string),
+					);
 				}
 			}
 		} else if (tx.tx_type === "smart_contract") {
