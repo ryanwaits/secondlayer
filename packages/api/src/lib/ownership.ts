@@ -66,7 +66,11 @@ export async function assertSubgraphOwnership(
 
 	if (!subgraph) return null;
 
-	if (accountKeyIds && !accountKeyIds.includes(subgraph.api_key_id)) {
+	if (
+		accountKeyIds &&
+		subgraph.api_key_id &&
+		!accountKeyIds.includes(subgraph.api_key_id)
+	) {
 		throw new ForbiddenError("Subgraph belongs to another account");
 	}
 

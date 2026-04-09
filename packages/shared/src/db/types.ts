@@ -113,7 +113,8 @@ export interface SubgraphsTable {
 	last_error_at: Date | null;
 	total_processed: Generated<number>;
 	total_errors: Generated<number>;
-	api_key_id: string;
+	api_key_id: string | null;
+	account_id: string;
 	project_id: string | null;
 	is_public: Generated<boolean>;
 	tags: Generated<string[]>;

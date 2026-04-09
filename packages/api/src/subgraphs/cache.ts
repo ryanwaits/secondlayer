@@ -4,7 +4,7 @@ import postgres from "postgres";
 
 /**
  * In-memory cache of subgraph registry, invalidated via PG NOTIFY.
- * Tenant-aware: subgraphs keyed by (api_key_id, name) composite.
+ * Account-aware: subgraphs keyed by (account_id, name) composite.
  */
 export class SubgraphRegistryCache {
 	private subgraphs = new Map<string, Subgraph>();
@@ -15,9 +15,9 @@ export class SubgraphRegistryCache {
 
 	constructor(private loadAll: () => Promise<Subgraph[]>) {}
 
-	/** Composite cache key: "apiKeyId:subgraphName" or ":subgraphName" for null keys */
-	private cacheKey(name: string, apiKeyId?: string | null): string {
-		return `${apiKeyId ?? ""}:${name}`;
+	/** Composite cache key: "accountId:subgraphName" or ":subgraphName" for empty account */
+	private cacheKey(name: string, accountId?: string | null): string {
+		return `${accountId ?? ""}:${name}`;
 	}
 
 	async start(): Promise<void> {
@@ -48,7 +48,7 @@ export class SubgraphRegistryCache {
 		const allSubgraphs = await this.loadAll();
 		this.subgraphs.clear();
 		for (const v of allSubgraphs) {
-			this.subgraphs.set(this.cacheKey(v.name, v.api_key_id), v);
+			this.subgraphs.set(this.cacheKey(v.name, v.account_id), v);
 		}
 		this.loaded = true;
 		logger.info("Subgraph registry cache loaded", {
@@ -56,30 +56,26 @@ export class SubgraphRegistryCache {
 		});
 	}
 
-	/** Get a subgraph by name, optionally scoped to an API key or set of account keys */
-	get(name: string, keyIds?: string[]): Subgraph | undefined {
-		if (keyIds && keyIds.length > 0) {
-			// Try each account key
-			for (const kid of keyIds) {
-				const v = this.subgraphs.get(this.cacheKey(name, kid));
-				if (v) return v;
-			}
-			// Also check subgraphs with null api_key_id
-			return this.subgraphs.get(this.cacheKey(name));
+	/** Get a subgraph by name, optionally scoped to an account */
+	get(name: string, accountId?: string): Subgraph | undefined {
+		if (accountId) {
+			return (
+				this.subgraphs.get(this.cacheKey(name, accountId)) ??
+				this.subgraphs.get(this.cacheKey(name))
+			);
 		}
-		// No keyIds (DEV_MODE) — find first subgraph with this name
+		// No accountId (DEV_MODE) — find first subgraph with this name
 		for (const v of this.subgraphs.values()) {
 			if (v.name === name) return v;
 		}
 		return undefined;
 	}
 
-	/** Get all subgraphs, optionally filtered by account key IDs */
-	getAll(keyIds?: string[]): Subgraph[] {
+	/** Get all subgraphs, optionally filtered by account */
+	getAll(accountId?: string): Subgraph[] {
 		const all = Array.from(this.subgraphs.values());
-		if (!keyIds || keyIds.length === 0) return all;
-		const keySet = new Set(keyIds);
-		return all.filter((v) => !v.api_key_id || keySet.has(v.api_key_id));
+		if (!accountId) return all;
+		return all.filter((v) => !v.account_id || v.account_id === accountId);
 	}
 
 	/** Get all public subgraphs (for marketplace browsing) */

@@ -104,7 +104,12 @@ export async function deploySchema(
 	db: AnyDb,
 	def: SubgraphDefinition,
 	handlerPath: string,
-	opts?: { forceReindex?: boolean; apiKeyId?: string; schemaName?: string },
+	opts?: {
+		forceReindex?: boolean;
+		apiKeyId?: string;
+		accountId?: string;
+		schemaName?: string;
+	},
 ): Promise<{
 	action: "created" | "unchanged" | "updated" | "reindexed";
 	subgraphId: string;
@@ -116,7 +121,11 @@ export async function deploySchema(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
 
-	const existing = await getSubgraph(db, def.name, opts?.apiKeyId);
+	const existing = await getSubgraph(
+		db,
+		def.name,
+		opts?.accountId ?? opts?.apiKeyId,
+	);
 
 	const schemaName = opts?.schemaName ?? pgSchemaName(def.name);
 	const regData = {
@@ -133,6 +142,7 @@ export async function deploySchema(
 		schemaHash: hash,
 		handlerPath,
 		apiKeyId: opts?.apiKeyId,
+		accountId: opts?.accountId,
 		schemaName,
 		startBlock: def.startBlock,
 	};

@@ -4,15 +4,18 @@ import type { Database, Subgraph } from "../types.ts";
 
 /**
  * Convert a subgraph name to its PostgreSQL schema name.
- * With keyPrefix: "subgraph_{prefix}_{name}" (tenant-isolated)
- * Without keyPrefix: "subgraph_{name}" (backward compat)
+ * With accountPrefix (first 8 chars of account_id): "subgraph_{prefix}_{name}"
+ * Without prefix: "subgraph_{name}" (backward compat / local dev)
  */
-export function pgSchemaName(subgraphName: string, keyPrefix?: string): string {
+export function pgSchemaName(
+	subgraphName: string,
+	accountPrefix?: string,
+): string {
 	const safeName = subgraphName.replace(/-/g, "_");
-	if (!keyPrefix) {
+	if (!accountPrefix) {
 		return `subgraph_${safeName}`;
 	}
-	const safePrefix = keyPrefix.replace(/^sk-sl_/, "").replace(/-/g, "_");
+	const safePrefix = accountPrefix.replace(/-/g, "_");
 	return `subgraph_${safePrefix}_${safeName}`;
 }
 
@@ -25,6 +28,7 @@ export async function registerSubgraph(
 		schemaHash: string;
 		handlerPath: string;
 		apiKeyId?: string;
+		accountId?: string;
 		schemaName?: string;
 		startBlock?: number;
 		forkedFromId?: string;
@@ -38,17 +42,19 @@ export async function registerSubgraph(
 			definition: jsonb(data.definition) as any,
 			schema_hash: data.schemaHash,
 			handler_path: data.handlerPath,
-			api_key_id: data.apiKeyId!,
+			api_key_id: data.apiKeyId ?? null,
+			account_id: data.accountId ?? "",
 			schema_name: data.schemaName ?? null,
 			start_block: data.startBlock ?? 0,
 			forked_from_id: data.forkedFromId ?? null,
 		})
 		.onConflict((oc) =>
-			oc.columns(["name", "api_key_id"]).doUpdateSet({
+			oc.columns(["name", "account_id"]).doUpdateSet({
 				version: data.version,
 				definition: jsonb(data.definition) as any,
 				schema_hash: data.schemaHash,
 				handler_path: data.handlerPath,
+				api_key_id: data.apiKeyId ?? null,
 				schema_name: data.schemaName ?? null,
 				start_block: data.startBlock ?? 0,
 				updated_at: new Date(),
@@ -61,12 +67,12 @@ export async function registerSubgraph(
 export async function getSubgraph(
 	db: Kysely<Database>,
 	name: string,
-	apiKeyId?: string,
+	accountId?: string,
 ): Promise<Subgraph | null> {
 	let query = db.selectFrom("subgraphs").selectAll().where("name", "=", name);
 
-	if (apiKeyId) {
-		query = query.where("api_key_id", "=", apiKeyId);
+	if (accountId) {
+		query = query.where("account_id", "=", accountId);
 	}
 
 	return (await query.executeTakeFirst()) ?? null;
@@ -74,11 +80,11 @@ export async function getSubgraph(
 
 export async function listSubgraphs(
 	db: Kysely<Database>,
-	apiKeyId?: string,
+	accountId?: string,
 ): Promise<Subgraph[]> {
 	let query = db.selectFrom("subgraphs").selectAll();
-	if (apiKeyId) {
-		query = query.where("api_key_id", "=", apiKeyId);
+	if (accountId) {
+		query = query.where("account_id", "=", accountId);
 	}
 	return query.execute();
 }

@@ -412,20 +412,27 @@ const subgraphDefs = [
 await db
 	.insertInto("subgraphs")
 	.values(
-		subgraphDefs.map((v, i) => ({
-			name: v.name,
-			definition: jsonb(v.def) as any,
-			schema_hash: randomHex(16),
-			handler_path: v.handler,
-			schema_name: `subgraph_${apiKeyRows[i % apiKeyRows.length].key_prefix.replace("sk-sl_", "")}_${v.name.replace(/-/g, "_")}`,
-			api_key_id: apiKeyRows[i % apiKeyRows.length].id,
-			last_processed_block:
-				BLOCK_START + BLOCK_COUNT - 1 - Math.floor(Math.random() * 5),
-			total_processed: 1000 + Math.floor(Math.random() * 5000),
-			total_errors: Math.floor(Math.random() * 20),
-		})),
+		subgraphDefs.map((v, i) => {
+			const key = apiKeyRows[i % apiKeyRows.length];
+			const accountPrefix =
+				key.account_id?.slice(0, 8) ??
+				key.key_prefix.replace("sk-sl_", "").slice(0, 8);
+			return {
+				name: v.name,
+				definition: jsonb(v.def) as any,
+				schema_hash: randomHex(16),
+				handler_path: v.handler,
+				schema_name: `subgraph_${accountPrefix}_${v.name.replace(/-/g, "_")}`,
+				api_key_id: key.id,
+				account_id: key.account_id ?? "",
+				last_processed_block:
+					BLOCK_START + BLOCK_COUNT - 1 - Math.floor(Math.random() * 5),
+				total_processed: 1000 + Math.floor(Math.random() * 5000),
+				total_errors: Math.floor(Math.random() * 20),
+			};
+		}),
 	)
-	.onConflict((oc) => oc.columns(["name", "api_key_id"]).doNothing())
+	.onConflict((oc) => oc.columns(["name", "account_id"]).doNothing())
 	.execute();
 
 console.log(`  subgraphs: ${subgraphDefs.length}`);
