@@ -2,6 +2,12 @@
 /* Console / Dashboard                                             */
 /* ═══════════════════════════════════════════════════════════════ */
 
+/* Remove native focus rings globally within the console shell */
+.dash *:focus,
+.dash *:focus-visible {
+	outline: none !important;
+}
+
 /* Platform shell — sidebar + main-col horizontal layout */
 .dash {
 	display: flex;
@@ -2362,9 +2368,7 @@ body:has(.dash) .auth-bar {
 	color: var(--text-main);
 }
 .overview-meta-sep {
-	width: 1px;
-	height: 14px;
-	background: var(--border);
+	display: none;
 }
 .overview-meta-btn {
 	display: flex;
@@ -2433,20 +2437,18 @@ body:has(.dash) .auth-bar {
 
 /* ── Subgraph URL section ────────────────────── */
 .sg-url-snippet {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	background: var(--code-bg);
 	border: 1px solid var(--border);
 	border-radius: 7px;
 	overflow: hidden;
 	padding-left: 14px;
+	max-width: 100%;
 }
 .sg-url-text {
 	font-family: var(--font-mono-stack);
 	font-size: 12px;
-	flex: 1;
-	overflow: hidden;
-	text-overflow: ellipsis;
 	white-space: nowrap;
 	padding: 11px 0;
 	color: var(--text-muted);
@@ -2474,12 +2476,6 @@ body:has(.dash) .auth-bar {
 }
 .sg-url-copy-btn.copied {
 	color: var(--green);
-}
-.sg-url-desc {
-	margin-top: 7px;
-	font-size: 12px;
-	color: var(--text-muted);
-	opacity: 0.6;
 }
 .overview-meta-btn svg {
 	opacity: 0.5;
@@ -3256,7 +3252,7 @@ body:has(.dash) .auth-bar {
 	background: var(--accent);
 }
 .usage-bar-fill.green {
-	background: var(--green);
+	background: var(--teal);
 }
 
 /* ════════════════════════════════════════════════
@@ -3990,8 +3986,8 @@ body:has(.dash) .auth-bar {
 	background: var(--accent-bg);
 }
 .sg-col-badge.searchable {
-	color: var(--green);
-	background: var(--green-bg);
+	color: var(--teal);
+	background: var(--teal-bg);
 }
 
 /* Data browser */

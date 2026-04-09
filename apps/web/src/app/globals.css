@@ -35,6 +35,8 @@
 	--red-bg: rgba(239, 68, 68, 0.08);
 	--blue: #3b82f6;
 	--blue-bg: rgba(59, 130, 246, 0.08);
+	--teal: #1588b2;
+	--teal-bg: rgba(21, 136, 178, 0.08);
 
 	--font-sans-stack: "Public Sans", ui-sans-serif, system-ui, sans-serif;
 	--font-heading-stack: "Sora", ui-sans-serif, system-ui, sans-serif;
@@ -91,6 +93,8 @@
 		--red-bg: rgba(239, 68, 68, 0.08);
 		--blue: #60a5fa;
 		--blue-bg: rgba(96, 165, 250, 0.08);
+		--teal: #1ea8d8;
+		--teal-bg: rgba(30, 168, 216, 0.1);
 	}
 }
 
@@ -130,6 +134,8 @@ html.force-dark {
 	--red-bg: rgba(239, 68, 68, 0.08);
 	--blue: #60a5fa;
 	--blue-bg: rgba(96, 165, 250, 0.08);
+	--teal: #1ea8d8;
+	--teal-bg: rgba(30, 168, 216, 0.1);
 }
 
 /* Force light via class (user preference override on dark system) */
@@ -168,6 +174,8 @@ html.force-light {
 	--red-bg: rgba(239, 68, 68, 0.08);
 	--blue: #3b82f6;
 	--blue-bg: rgba(59, 130, 246, 0.08);
+	--teal: #1588b2;
+	--teal-bg: rgba(21, 136, 178, 0.08);
 }
 
 * {
