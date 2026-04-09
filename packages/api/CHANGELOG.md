@@ -1,5 +1,14 @@
 # @secondlayer/api
 
+## 0.3.5
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@0.11.0
+  - @secondlayer/shared@0.12.0
+  - @secondlayer/auth@0.1.14
+
 ## 0.3.4
 
 ### Patch Changes

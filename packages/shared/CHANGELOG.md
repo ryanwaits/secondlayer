@@ -1,5 +1,18 @@
 # @secondlayer/shared
 
+## 0.12.0
+
+### Minor Changes
+
+- feat(subgraphs): smart deploy — auto-versioning, auto-reindex, schema diff
+
+  - System now owns versioning: patch auto-increments on every deploy (1.0.0 → 1.0.1); use --version flag for intentional bumps
+  - Breaking schema changes auto-trigger reindex — no --reindex flag needed
+  - Deploy output shows schema diff (added tables/columns, breaking changes, new version)
+  - version field removed from schema hash so version bumps don't look like schema changes
+  - --force flag skips reindex confirmation prompt
+  - Handler code persisted in DB so container restarts don't break in-flight reindexes (migration 0029)
+
 ## 0.11.0
 
 ### Minor Changes

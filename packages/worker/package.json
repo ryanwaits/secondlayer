@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/worker",
-	"version": "0.2.6",
+	"version": "0.2.7",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -11,8 +11,8 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@secondlayer/account-agent": "^0.2.6",
-		"@secondlayer/shared": "^0.11.0",
+		"@secondlayer/account-agent": "^0.2.7",
+		"@secondlayer/shared": "^0.12.0",
 		"@secondlayer/stacks": "^0.2.2",
 		"kysely": "0.28.15"
 	},
