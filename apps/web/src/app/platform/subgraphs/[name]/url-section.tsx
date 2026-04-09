@@ -5,9 +5,10 @@ import { useRef, useState } from "react";
 
 interface Props {
 	tables: Record<string, { endpoint: string }>;
+	apiKeyPrefix?: string;
 }
 
-export function SubgraphUrlSection({ tables }: Props) {
+export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 	const tableNames = Object.keys(tables);
 	const [selectedTable, setSelectedTable] = useState(tableNames[0] ?? "");
 	const [open, setOpen] = useState(false);
@@ -15,6 +16,8 @@ export function SubgraphUrlSection({ tables }: Props) {
 	const dropRef = useRef<HTMLDivElement>(null);
 
 	if (!tableNames.length) return null;
+
+	const title = tableNames.length === 1 ? "Endpoint" : "Endpoints";
 
 	const API_BASE = "https://api.secondlayer.tools";
 	const relativePath = tables[selectedTable]?.endpoint ?? "";
@@ -32,6 +35,9 @@ export function SubgraphUrlSection({ tables }: Props) {
 		setCopied(false);
 	};
 
+	const keyDisplay = apiKeyPrefix ? `${apiKeyPrefix}****` : "YOUR_API_KEY";
+	const keyCopy = "YOUR_API_KEY";
+
 	// Split at last "/" for accent coloring on the table segment
 	const lastSlash = fullUrl.lastIndexOf("/");
 	const urlBase = fullUrl.slice(0, lastSlash + 1);
@@ -40,8 +46,8 @@ export function SubgraphUrlSection({ tables }: Props) {
 	return (
 		<div className="sg-detail-section">
 			<div className="sg-detail-header">
-				<span className="sg-detail-title">Subgraph URL</span>
-				<div className="sg-detail-actions">
+				<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+					<span className="sg-detail-title">{title}</span>
 					<div className="meta-dropdown-wrap" ref={dropRef}>
 						<button
 							type="button"
@@ -52,6 +58,29 @@ export function SubgraphUrlSection({ tables }: Props) {
 									setOpen(false);
 							}}
 						>
+							<svg
+								width="11"
+								height="11"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								aria-hidden="true"
+							>
+								<rect x="2" y="3" width="12" height="10" rx="1" />
+								<path d="M2 7h12" />
+								<path d="M6 3v10" />
+							</svg>
+							<span
+								style={{
+									width: "1px",
+									height: "10px",
+									background: "var(--border)",
+									display: "inline-block",
+									flexShrink: 0,
+								}}
+							/>
 							{selectedTable}
 							<svg
 								width="8"
@@ -146,27 +175,25 @@ export function SubgraphUrlSection({ tables }: Props) {
 				</button>
 			</div>
 
-			<p className="sg-url-desc">
-				REST endpoint for querying{" "}
-				<span style={{ color: "var(--accent)" }}>{selectedTable}</span> data
-				from this subgraph
-			</p>
-
-			<TabbedCode
-				key={selectedTable}
-				tabs={[
-					{
-						label: "cURL",
-						lang: "bash",
-						code: `curl '${fullUrl}' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -G \\\n  -d '_limit=10&_offset=0'`,
-					},
-					{
-						label: "Node.js",
-						lang: "javascript",
-						code: `const response = await fetch(\n  '${fullUrl}?_limit=10',\n  { headers: { Authorization: \`Bearer \${process.env.SECONDLAYER_API_KEY}\` } }\n);\nconst data = await response.json();`,
-					},
-				]}
-			/>
+			<div style={{ marginTop: "16px" }}>
+				<TabbedCode
+					key={selectedTable}
+					tabs={[
+						{
+							label: "cURL",
+							lang: "bash",
+							code: `curl '${fullUrl}' \\\n  -H 'Authorization: Bearer ${keyDisplay}' \\\n  -G \\\n  -d '_limit=10&_offset=0'`,
+							copyCode: `curl '${fullUrl}' \\\n  -H 'Authorization: Bearer ${keyCopy}' \\\n  -G \\\n  -d '_limit=10&_offset=0'`,
+						},
+						{
+							label: "Node.js",
+							lang: "javascript",
+							code: `const response = await fetch(\n  '${fullUrl}?_limit=10',\n  { headers: { Authorization: \`Bearer ${keyDisplay}\` } }\n);\nconst data = await response.json();`,
+							copyCode: `const response = await fetch(\n  '${fullUrl}?_limit=10',\n  { headers: { Authorization: \`Bearer ${keyCopy}\` } }\n);\nconst data = await response.json();`,
+						},
+					]}
+				/>
+			</div>
 		</div>
 	);
 }

@@ -6,6 +6,7 @@ interface MetaItem {
 	sub?: string;
 	mono?: boolean;
 	valueColor?: string;
+	tooltip?: string;
 }
 
 interface MetaGridProps {
@@ -23,25 +24,33 @@ export function MetaGrid({ items, columns }: MetaGridProps) {
 				<div key={item.label} className="sg-meta-card">
 					<div className="sg-meta-label">
 						{item.label}
-						<span className="info">
-							<svg
-								width="10"
-								height="10"
-								viewBox="0 0 16 16"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1.5"
-								strokeLinecap="round"
-							>
-								<circle cx="8" cy="8" r="6" />
-								<path d="M8 7v4" />
-								<circle cx="8" cy="5" r="0.5" fill="currentColor" />
-							</svg>
-						</span>
+						{item.tooltip && (
+							<span className="info" title={item.tooltip}>
+								<svg
+									width="10"
+									height="10"
+									viewBox="0 0 16 16"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1.5"
+									strokeLinecap="round"
+									aria-label={item.tooltip}
+									role="img"
+								>
+									<circle cx="8" cy="8" r="6" />
+									<path d="M8 7v4" />
+									<circle cx="8" cy="5" r="0.5" fill="currentColor" />
+								</svg>
+							</span>
+						)}
 					</div>
 					<div
 						className={`sg-meta-value${item.mono ? " mono" : ""}`}
-						style={item.valueColor ? { color: `var(--${item.valueColor})` } : undefined}
+						style={
+							item.valueColor
+								? { color: `var(--${item.valueColor})` }
+								: undefined
+						}
 					>
 						{item.value}
 					</div>

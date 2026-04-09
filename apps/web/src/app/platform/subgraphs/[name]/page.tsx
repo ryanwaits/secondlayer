@@ -5,7 +5,7 @@ import { MetaGrid } from "@/components/console/meta-grid";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
-import type { SubgraphDetail, SubgraphSummary } from "@/lib/types";
+import type { ApiKey, SubgraphDetail, SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubgraphDataBrowser } from "./data-browser";
@@ -53,6 +53,23 @@ export default async function SubgraphDetailPage({
 		if (e instanceof ApiError && e.status === 404) notFound();
 		throw e;
 	}
+
+	const keysResult = await apiRequest<{ keys: ApiKey[] }>("/api/keys", {
+		sessionToken: session ?? undefined,
+		tags: ["keys"],
+	}).catch(() => ({ keys: [] as ApiKey[] }));
+
+	const primaryKey = keysResult.keys
+		.filter((k) => k.status === "active")
+		.sort((a, b) => {
+			if (a.lastUsedAt && b.lastUsedAt)
+				return (
+					new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime()
+				);
+			if (a.lastUsedAt) return -1;
+			if (b.lastUsedAt) return 1;
+			return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+		})[0];
 
 	const tableEntries = Object.entries(subgraph.tables);
 	const totalRows = tableEntries.reduce((sum, [, t]) => sum + t.rowCount, 0);
@@ -120,6 +137,7 @@ export default async function SubgraphDetailPage({
 										{displayStatus}
 									</span>
 								),
+								tooltip: "Current indexing state of this subgraph",
 							},
 							{
 								label: "Last Indexed Block",
@@ -127,17 +145,33 @@ export default async function SubgraphDetailPage({
 									? `#${subgraph.lastProcessedBlock.toLocaleString()}`
 									: "—",
 								mono: true,
+								tooltip:
+									"Most recent block processed by this subgraph. May lag behind chain tip while catching up.",
 							},
 							{
 								label: "Total Rows",
 								value: totalRows.toLocaleString(),
+								tooltip: "Total records across all tables in this subgraph",
 							},
-							{ label: "Latency", value: latency },
-							{ label: "Uptime", value: uptime },
+							{
+								label: "Latency",
+								value: latency,
+								tooltip:
+									"Estimated time behind chain tip, based on blocks remaining × ~10s avg block time",
+							},
+							{
+								label: "Uptime",
+								value: uptime,
+								tooltip:
+									"Percentage of blocks processed without error — (processed − errors) / processed",
+							},
 						]}
 					/>
 
-					<SubgraphUrlSection tables={subgraph.tables} />
+					<SubgraphUrlSection
+						tables={subgraph.tables}
+						apiKeyPrefix={primaryKey?.prefix}
+					/>
 
 					{/* Schema */}
 					<DetailSection title="Schema">
