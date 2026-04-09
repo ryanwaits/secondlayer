@@ -1,4 +1,4 @@
-import { formatSummaryForPrompt, type SessionSummary } from "./summary";
+import { type SessionSummary, formatSummaryForPrompt } from "./summary";
 import type { AccountResources } from "./tools";
 
 interface RecentSessionInfo {
@@ -11,7 +11,7 @@ export function buildSessionInstructions(
 	resources: AccountResources,
 	recentSessions?: RecentSessionInfo[],
 ): string {
-	const { streams, subgraphs, keys, chainTip } = resources;
+	const { streams, subgraphs, workflows, keys, chainTip } = resources;
 
 	const streamList = streams.length
 		? streams
@@ -30,6 +30,15 @@ export function buildSessionInstructions(
 				)
 				.join("\n")
 		: "No subgraphs.";
+
+	const workflowList = workflows.length
+		? workflows
+				.map(
+					(w) =>
+						`- name:"${w.name}" status:${w.status} trigger:${w.triggerType} runs:${w.totalRuns}`,
+				)
+				.join("\n")
+		: "No workflows.";
 
 	const activeKeys = keys.filter((k) => k.status === "active");
 	const keyList = activeKeys.length
@@ -61,6 +70,9 @@ ${streamList}
 ### Subgraphs
 ${subgraphList}
 
+### Workflows
+${workflowList}
+
 ### API Keys
 ${keyList}
 
@@ -68,9 +80,7 @@ ${chainTip != null ? `### Chain tip\nBlock ${chainTip.toLocaleString()}` : ""}
 ${buildRecentSessionsSection(recentSessions)}`;
 }
 
-function buildRecentSessionsSection(
-	sessions?: RecentSessionInfo[],
-): string {
+function buildRecentSessionsSection(sessions?: RecentSessionInfo[]): string {
 	if (!sessions?.length) return "";
 
 	const lines = sessions.map((s) => {
