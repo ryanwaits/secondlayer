@@ -20,7 +20,7 @@
  *   BACKFILL_RAW_TX_CONCURRENCY - Parallel raw_tx fetches per block (default: 10)
  */
 
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { closeDb, getDb, sql } from "@secondlayer/shared/db";
 import type {
 	Database,
@@ -123,7 +123,7 @@ async function insertBatch(
 	const allBlocks = blocks.map(parseBlock);
 	const allTxPromises = blocks.flatMap((b) =>
 		b.transactions.map((tx: TransactionPayload) =>
-			parseTransaction(tx, b.block_height, { skipApiFallback: true }),
+			parseTransaction(tx, b.block_height),
 		),
 	);
 	const allTxResults = await Promise.all(allTxPromises);
@@ -211,7 +211,7 @@ async function main() {
 			targetHeight = await local.getChainTip(db);
 		} else if (BACKFILL_SOURCE === "hiro-pg") {
 			logger.info("Auto-detecting chain tip from Hiro PG...");
-			targetHeight = await hiroPg!.getChainTip();
+			targetHeight = await hiroPg?.getChainTip();
 		} else {
 			logger.info("Auto-detecting chain tip from Hiro API...");
 			targetHeight = await hiro.fetchChainTip();
@@ -323,7 +323,7 @@ async function main() {
 		const fetchedBlocks: NewBlockPayload[] = [];
 		if (BACKFILL_SOURCE === "hiro-pg") {
 			try {
-				const blocks = await hiroPg!.getBlockBatch(batchHeights, {
+				const blocks = await hiroPg?.getBlockBatch(batchHeights, {
 					includeRawTx: INCLUDE_RAW_TX,
 				});
 				fetchedBlocks.push(...blocks);
