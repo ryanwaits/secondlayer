@@ -150,6 +150,8 @@ app.post("/", async (c) => {
 		apiKeyId,
 		accountId,
 		schemaName,
+		version: parsed.data.version,
+		handlerCode: parsed.data.handlerCode,
 	});
 
 	await cache.refresh();
@@ -182,7 +184,9 @@ app.post("/", async (c) => {
 		{
 			action: result.action,
 			subgraphId: result.subgraphId,
+			version: result.version,
 			message: `Subgraph "${name}" ${result.action}`,
+			...(result.diff ? { diff: result.diff } : {}),
 			...(result.action === "created" ? { reindexStarted: true } : {}),
 		},
 		status,

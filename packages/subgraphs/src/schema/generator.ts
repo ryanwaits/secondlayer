@@ -123,11 +123,11 @@ export function generateSubgraphSQL(
 		}
 	}
 
-	// Hash based on schema structure (excludes handler)
+	// Hash based on schema structure only — version intentionally excluded
+	// so server-managed version bumps don't look like schema changes
 	const hashInput = JSON.stringify(
 		{
 			name: def.name,
-			version: def.version,
 			schema: def.schema,
 			sources: def.sources,
 		},

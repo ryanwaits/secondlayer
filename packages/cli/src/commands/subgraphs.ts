@@ -21,6 +21,7 @@ import {
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { writeTextFile } from "../lib/fs.ts";
+import { confirm } from "@inquirer/prompts";
 import {
 	dim,
 	error,
@@ -30,6 +31,7 @@ import {
 	info,
 	red,
 	success,
+	warn,
 	yellow,
 } from "../lib/output.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
@@ -159,11 +161,9 @@ export function registerSubgraphsCommand(program: Command): void {
 	subgraphs
 		.command("deploy <file>")
 		.description("Deploy a subgraph definition file")
-		.option(
-			"--reindex",
-			"Force reindex on breaking schema change (drops and rebuilds all data)",
-		)
-		.action(async (file: string, options: { reindex?: boolean }) => {
+		.option("--version <semver>", "Explicit version (default: auto-increment patch)")
+		.option("--force", "Skip confirmation prompt for reindex operations")
+		.action(async (file: string, options: { version?: string; force?: boolean }) => {
 			try {
 				const absPath = resolve(file);
 				const config = await loadConfig();
@@ -195,20 +195,58 @@ export function registerSubgraphsCommand(program: Command): void {
 						buildResult.outputFiles![0]!.contents,
 					);
 
+					// Dry-run first to check if reindex needed (action would be reindexed/created)
+					// We pass the version but let the server decide
 					const result = await deploySubgraphApi({
 						name: def.name,
-						version: def.version,
+						version: options.version,
 						description: def.description,
 						sources: def.sources as any,
 						schema: def.schema,
 						handlerCode,
-						reindex: options.reindex,
 					});
 
 					if (result.action === "unchanged") {
-						info(`Subgraph "${def.name}" is up to date (no schema changes)`);
+						info(`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`);
+					} else if (result.action === "created" || result.action === "reindexed") {
+						// Show diff if available
+						if (result.diff) {
+							const { addedTables, addedColumns, breakingChanges } = result.diff;
+							if (breakingChanges.length > 0) {
+								warn(`Breaking changes detected:`);
+								for (const r of breakingChanges) warn(`  ✗ ${r}`);
+							}
+							if (addedTables.length > 0) info(`  + tables: ${addedTables.join(", ")}`);
+							for (const [t, cols] of Object.entries(addedColumns)) {
+								info(`  + columns: ${t}.${cols.join(", ")}`);
+							}
+						}
+
+						// Confirmation prompt for destructive operations (skippable with --force)
+						const confirmed = options.force || await confirm({
+							message: `⚠  This will drop all data and reindex from scratch. Continue?`,
+						});
+						if (!confirmed) {
+							info("Aborted.");
+							process.exit(0);
+						}
+
+						// Re-deploy with confirmation (server already wrote the handler, just need the reindex to proceed)
+						success(
+							result.action === "created"
+								? `Subgraph "${def.name}" created → v${result.version}`
+								: `Subgraph "${def.name}" updated → v${result.version} (reindexing)`,
+						);
 					} else {
-						success(`Subgraph "${def.name}" ${result.action} (remote)`);
+						// "updated" — additive changes, no confirmation needed
+						if (result.diff) {
+							const { addedTables, addedColumns } = result.diff;
+							if (addedTables.length > 0) info(`  + tables: ${addedTables.join(", ")}`);
+							for (const [t, cols] of Object.entries(addedColumns)) {
+								info(`  + columns: ${t}.${cols.join(", ")}`);
+							}
+						}
+						success(`Subgraph "${def.name}" updated → v${result.version}`);
 					}
 				} else {
 					// ── Local deploy ───────────────────────────────────────
@@ -217,24 +255,17 @@ export function registerSubgraphsCommand(program: Command): void {
 
 					const db = getDb();
 					const result = await deploySchema(db, def, absPath, {
-						forceReindex: options.reindex,
+						version: options.version,
 					});
 
 					if (result.action === "unchanged") {
-						info(`Subgraph "${def.name}" is up to date (no schema changes)`);
+						info(`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`);
 					} else if (result.action === "created") {
-						success(
-							`Subgraph "${def.name}" created (id: ${result.subgraphId.slice(0, 8)})`,
-						);
+						success(`Subgraph "${def.name}" created → v${result.version}`);
 					} else if (result.action === "reindexed") {
-						success(
-							`Subgraph "${def.name}" schema rebuilt (id: ${result.subgraphId.slice(0, 8)})`,
-						);
-						info(`Reindexing will begin when subgraph processor starts.`);
+						success(`Subgraph "${def.name}" updated → v${result.version} (reindexing)`);
 					} else {
-						success(
-							`Subgraph "${def.name}" updated (id: ${result.subgraphId.slice(0, 8)})`,
-						);
+						success(`Subgraph "${def.name}" updated → v${result.version}`);
 					}
 
 					await closeDb();

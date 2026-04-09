@@ -93,12 +93,27 @@ function hasBreakingChanges(diff: TableDiff): {
 	return { breaking: reasons.length > 0, reasons };
 }
 
+/** Increment the patch segment of a semver string. "1.0.2" → "1.0.3" */
+function bumpPatch(version: string): string {
+	const parts = version.split(".");
+	if (parts.length !== 3) return "1.0.1";
+	const patch = Number.parseInt(parts[2] ?? "0", 10);
+	return `${parts[0]}.${parts[1]}.${Number.isNaN(patch) ? 1 : patch + 1}`;
+}
+
+export interface DeployDiff {
+	addedTables: string[];
+	removedTables: string[];
+	addedColumns: Record<string, string[]>;
+	breakingChanges: string[];
+}
+
 /**
  * Deploy a subgraph schema to the database.
  * - New subgraph → CREATE SCHEMA + tables + register
- * - Same hash → no-op
+ * - Same hash → no-op (handler path updated)
  * - Additive change → ALTER TABLE ADD COLUMN / CREATE TABLE for new tables
- * - Breaking change → throws error
+ * - Breaking change → auto-reindex (drop + recreate)
  */
 export async function deploySchema(
 	db: AnyDb,
@@ -109,10 +124,14 @@ export async function deploySchema(
 		apiKeyId?: string;
 		accountId?: string;
 		schemaName?: string;
+		version?: string;
+		handlerCode?: string;
 	},
 ): Promise<{
 	action: "created" | "unchanged" | "updated" | "reindexed";
 	subgraphId: string;
+	version: string;
+	diff?: DeployDiff;
 }> {
 	validateSubgraphDefinition(def);
 
@@ -128,9 +147,15 @@ export async function deploySchema(
 	);
 
 	const schemaName = opts?.schemaName ?? pgSchemaName(def.name);
+
+	// Server owns versioning: use explicit flag, bump patch from existing, or start at 1.0.0
+	const newVersion =
+		opts?.version ??
+		(existing ? bumpPatch(existing.version) : "1.0.0");
+
 	const regData = {
 		name: def.name,
-		version: def.version || "1.0.0",
+		version: newVersion,
 		definition: toJsonSafe({
 			name: def.name,
 			version: def.version,
@@ -143,6 +168,7 @@ export async function deploySchema(
 		handlerPath,
 		apiKeyId: opts?.apiKeyId,
 		accountId: opts?.accountId,
+		handlerCode: opts?.handlerCode,
 		schemaName,
 		startBlock: def.startBlock,
 	};
@@ -154,7 +180,7 @@ export async function deploySchema(
 				"@secondlayer/shared/db/queries/subgraphs"
 			);
 			await updateSubgraphHandlerPath(db, def.name, handlerPath);
-			return { action: "unchanged", subgraphId: existing.id };
+			return { action: "unchanged", subgraphId: existing.id, version: existing.version };
 		}
 
 		if (existing.schema_hash === hash && opts?.forceReindex) {
@@ -166,7 +192,7 @@ export async function deploySchema(
 				await sql.raw(stmt).execute(db);
 			}
 			const sg = await registerSubgraph(db, regData);
-			return { action: "reindexed", subgraphId: sg.id };
+			return { action: "reindexed", subgraphId: sg.id, version: newVersion };
 		}
 
 		if (existing.definition.schema) {
@@ -176,14 +202,8 @@ export async function deploySchema(
 			);
 			const { breaking, reasons } = hasBreakingChanges(diff);
 
-			if (breaking) {
-				if (!opts?.forceReindex) {
-					throw new Error(
-						`Breaking schema change detected (${reasons.join("; ")}). Use --reindex to force rebuild, or delete the subgraph first.`,
-					);
-				}
-
-				// Force reindex: drop schema, recreate, register, caller triggers reindex
+			if (breaking || opts?.forceReindex) {
+				// Breaking change or forced: drop schema, recreate, register
 				await sql
 					.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
 					.execute(db);
@@ -191,7 +211,17 @@ export async function deploySchema(
 					await sql.raw(stmt).execute(db);
 				}
 				const sg = await registerSubgraph(db, regData);
-				return { action: "reindexed", subgraphId: sg.id };
+				const deployDiff: DeployDiff = {
+					addedTables: diff.addedTables,
+					removedTables: diff.removedTables,
+					addedColumns: Object.fromEntries(
+						Object.entries(diff.tables)
+							.filter(([, c]) => c.added.length > 0)
+							.map(([t, c]) => [t, c.added]),
+					),
+					breakingChanges: reasons,
+				};
+				return { action: "reindexed", subgraphId: sg.id, version: newVersion, diff: deployDiff };
 			}
 
 			// Create new tables
@@ -273,10 +303,20 @@ export async function deploySchema(
 					}
 				}
 			}
-		}
 
-		const sg = await registerSubgraph(db, regData);
-		return { action: "updated", subgraphId: sg.id };
+			const sg = await registerSubgraph(db, regData);
+			const addedCols: Record<string, string[]> = {};
+			for (const [t, colDiff] of Object.entries(diff.tables)) {
+				if ((colDiff as ColumnDiff).added.length > 0) addedCols[t] = (colDiff as ColumnDiff).added;
+			}
+			const deployDiff: DeployDiff = {
+				addedTables: diff.addedTables,
+				removedTables: [],
+				addedColumns: addedCols,
+				breakingChanges: [],
+			};
+			return { action: "updated", subgraphId: sg.id, version: newVersion, diff: deployDiff };
+		}
 	}
 
 	// New subgraph — execute all DDL
@@ -285,7 +325,7 @@ export async function deploySchema(
 	}
 
 	const sg = await registerSubgraph(db, regData);
-	return { action: "created", subgraphId: sg.id };
+	return { action: "created", subgraphId: sg.id, version: newVersion };
 }
 
 function getDefault(type: string): string {

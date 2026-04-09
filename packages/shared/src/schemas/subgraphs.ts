@@ -9,6 +9,7 @@ export interface DeploySubgraphRequest {
 	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;
 	handlerCode: string;
+	/** @deprecated Use server auto-reindex on breaking changes instead */
 	reindex?: boolean;
 }
 
@@ -32,7 +33,14 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 export interface DeploySubgraphResponse {
 	action: "created" | "unchanged" | "updated" | "reindexed";
 	subgraphId: string;
+	version: string;
 	message: string;
+	diff?: {
+		addedTables: string[];
+		removedTables: string[];
+		addedColumns: Record<string, string[]>;
+		breakingChanges: string[];
+	};
 }
 
 // Subgraph API response types
