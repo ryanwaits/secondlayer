@@ -5,7 +5,7 @@ import {
 	requireAuth,
 } from "@secondlayer/auth";
 import { logger } from "@secondlayer/shared";
-import { getDb } from "@secondlayer/shared/db";
+import { closeDb, getDb } from "@secondlayer/shared/db";
 // API service - REST API for stream management
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -13,16 +13,15 @@ import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import { countApiRequests } from "./middleware/usage.ts";
 import accountsRouter from "./routes/accounts.ts";
-import chatSessionsRouter from "./routes/chat-sessions.ts";
 import authRouter from "./routes/auth.ts";
-import marketplaceRouter from "./routes/marketplace.ts";
+import chatSessionsRouter from "./routes/chat-sessions.ts";
 import insightsRouter from "./routes/insights.ts";
 import logsRouter from "./routes/logs.ts";
+import marketplaceRouter from "./routes/marketplace.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
-import workflowsRouter from "./routes/workflows.ts";
 import subgraphsRouter, {
 	abortAllOperations,
 	activeAbortControllers,
@@ -30,6 +29,7 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import waitlistRouter from "./routes/waitlist.ts";
+import workflowsRouter from "./routes/workflows.ts";
 
 const app = new Hono();
 
@@ -138,12 +138,17 @@ const server = Bun.serve({
 
 					// Regenerate handler file from DB if missing (survives container restarts)
 					if (row.handler_path && row.handler_code) {
-						const { existsSync, mkdirSync, writeFileSync } = await import("node:fs");
+						const { existsSync, mkdirSync, writeFileSync } = await import(
+							"node:fs"
+						);
 						const { dirname } = await import("node:path");
 						if (!existsSync(row.handler_path)) {
 							mkdirSync(dirname(row.handler_path), { recursive: true });
 							writeFileSync(row.handler_path, row.handler_code);
-							logger.info("Restored handler file from DB", { subgraph: row.name, path: row.handler_path });
+							logger.info("Restored handler file from DB", {
+								subgraph: row.name,
+								path: row.handler_path,
+							});
 						}
 					}
 
@@ -185,7 +190,10 @@ const shutdown = async () => {
 			count: activeAbortControllers.size,
 		});
 		const start = Date.now();
-		while (activeAbortControllers.size > 0 && Date.now() - start < SHUTDOWN_TIMEOUT) {
+		while (
+			activeAbortControllers.size > 0 &&
+			Date.now() - start < SHUTDOWN_TIMEOUT
+		) {
 			await new Promise((r) => setTimeout(r, 500));
 		}
 		if (activeAbortControllers.size > 0) {
@@ -196,6 +204,7 @@ const shutdown = async () => {
 	}
 
 	await stopSubgraphCache();
+	await closeDb();
 	server.stop();
 	logger.info("API service stopped");
 	process.exit(0);
