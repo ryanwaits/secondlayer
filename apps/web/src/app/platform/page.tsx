@@ -5,6 +5,28 @@ import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { Stream, SubgraphSummary, WorkflowSummary } from "@/lib/types";
 import Link from "next/link";
 
+function InfoTip({ text }: { text: string }) {
+	return (
+		<span className="info" title={text}>
+			<svg
+				width="10"
+				height="10"
+				viewBox="0 0 16 16"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				aria-label={text}
+				role="img"
+			>
+				<circle cx="8" cy="8" r="6" />
+				<path d="M8 7v4" />
+				<circle cx="8" cy="5" r="0.5" fill="currentColor" />
+			</svg>
+		</span>
+	);
+}
+
 function statusClass(status: string) {
 	if (status === "active") return "active";
 	if (status === "syncing" || status === "reindexing") return "syncing";
@@ -51,6 +73,12 @@ export default async function DashboardPage() {
 		(s, sg) => s + (sg.totalRows ?? sg.totalProcessed),
 		0,
 	);
+	const totalProcessed = subgraphs.reduce((s, sg) => s + sg.totalProcessed, 0);
+	const totalErrors = subgraphs.reduce((s, sg) => s + sg.totalErrors, 0);
+	const subgraphUptime =
+		totalProcessed > 0
+			? ((totalProcessed - totalErrors) / totalProcessed) * 100
+			: null;
 	const totalDeliveries = streams.reduce((s, st) => s + st.totalDeliveries, 0);
 	const failedDeliveries = streams.reduce(
 		(s, st) => s + st.failedDeliveries,
@@ -74,7 +102,10 @@ export default async function DashboardPage() {
 							<>
 								<div className="ov-cards">
 									<Link href="/subgraphs" className="ov-card">
-										<div className="ov-card-label">Total Subgraphs</div>
+										<div className="ov-card-label">
+											Total Subgraphs{" "}
+											<InfoTip text="Number of deployed subgraphs" />
+										</div>
 										<div className="ov-card-value">{subgraphs.length}</div>
 										<div className="ov-card-sub">
 											{subgraphs.filter((s) => s.status !== "error").length}{" "}
@@ -82,11 +113,38 @@ export default async function DashboardPage() {
 										</div>
 									</Link>
 									<Link href="/subgraphs" className="ov-card">
-										<div className="ov-card-label">Rows Indexed</div>
+										<div className="ov-card-label">
+											Rows Indexed{" "}
+											<InfoTip text="Total rows stored across all subgraph tables" />
+										</div>
 										<div className="ov-card-value">
 											{totalEvents > 1_000_000
 												? `${(totalEvents / 1_000_000).toFixed(1)}M`
 												: totalEvents.toLocaleString()}
+										</div>
+										<div className="ov-card-sub">across all subgraphs</div>
+									</Link>
+									<Link href="/subgraphs" className="ov-card">
+										<div className="ov-card-label">
+											Uptime{" "}
+											<InfoTip text="Percentage of blocks processed without error across all subgraphs" />
+										</div>
+										<div
+											className="ov-card-value"
+											style={{
+												color:
+													subgraphUptime === null
+														? undefined
+														: subgraphUptime >= 99
+															? "var(--green)"
+															: subgraphUptime >= 95
+																? "var(--yellow)"
+																: "var(--red)",
+											}}
+										>
+											{subgraphUptime !== null
+												? `${subgraphUptime.toFixed(1)}%`
+												: "—"}
 										</div>
 										<div className="ov-card-sub">across all subgraphs</div>
 									</Link>
@@ -133,7 +191,10 @@ export default async function DashboardPage() {
 							<>
 								<div className="ov-cards">
 									<Link href="/streams" className="ov-card">
-										<div className="ov-card-label">Deliveries</div>
+										<div className="ov-card-label">
+											Deliveries{" "}
+											<InfoTip text="Total webhook deliveries attempted across all streams" />
+										</div>
 										<div className="ov-card-value">
 											{totalDeliveries.toLocaleString()}
 										</div>
@@ -142,7 +203,10 @@ export default async function DashboardPage() {
 										</div>
 									</Link>
 									<Link href="/streams" className="ov-card">
-										<div className="ov-card-label">Success Rate</div>
+										<div className="ov-card-label">
+											Success Rate{" "}
+											<InfoTip text="Percentage of webhook deliveries completed successfully" />
+										</div>
 										<div
 											className="ov-card-value"
 											style={{
@@ -210,7 +274,10 @@ export default async function DashboardPage() {
 							<>
 								<div className="ov-cards">
 									<Link href="/workflows" className="ov-card">
-										<div className="ov-card-label">Total Workflows</div>
+										<div className="ov-card-label">
+											Total Workflows{" "}
+											<InfoTip text="Number of deployed workflows" />
+										</div>
 										<div className="ov-card-value">{workflows.length}</div>
 										<div className="ov-card-sub">
 											{workflows.filter((w) => w.status === "active").length}{" "}
@@ -218,7 +285,10 @@ export default async function DashboardPage() {
 										</div>
 									</Link>
 									<Link href="/workflows" className="ov-card">
-										<div className="ov-card-label">Total Runs</div>
+										<div className="ov-card-label">
+											Total Runs{" "}
+											<InfoTip text="Total workflow executions across all workflows" />
+										</div>
 										<div className="ov-card-value">
 											{totalWorkflowRuns.toLocaleString()}
 										</div>
