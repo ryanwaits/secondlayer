@@ -2483,7 +2483,7 @@ body:has(.dash) .auth-bar {
 /* ── API Reference two-column layout ─────────────────────────── */
 .sg-api-columns {
 	display: grid;
-	grid-template-columns: 2fr 1fr;
+	grid-template-columns: 2fr minmax(0, 1fr);
 	gap: 12px;
 	align-items: start;
 }
