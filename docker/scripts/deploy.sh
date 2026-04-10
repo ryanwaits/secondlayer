@@ -26,6 +26,9 @@ $COMPOSE build --no-cache api indexer worker subgraph-processor workflow-runner 
 # Run migrations synchronously — fail fast on error
 $COMPOSE run --rm migrate
 
+# Clean up stale one-off containers (from manual `docker compose run` without --rm)
+docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docker rm -f 2>/dev/null || true
+
 # Restart app services — NEVER touch stacks-node, postgres, hiro-postgres, hiro-api
 # Remove orphaned containers from renamed services (view-processor → subgraph-processor)
 docker rm -f secondlayer-view-processor-1 2>/dev/null || true
