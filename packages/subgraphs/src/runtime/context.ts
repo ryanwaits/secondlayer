@@ -77,7 +77,11 @@ export class SubgraphContext {
 
 	insert(table: string, row: Record<string, unknown>): void {
 		this.validateTable(table);
-		this.ops.push({ kind: "insert", table, data: row });
+		this.ops.push({
+			kind: "insert",
+			table,
+			data: { ...row, _block_height: this.block.height, _tx_id: this._tx.txId },
+		});
 	}
 
 	update(
@@ -95,7 +99,8 @@ export class SubgraphContext {
 		row: Record<string, unknown>,
 	): void {
 		this.validateTable(table);
-		const tableDef = this.subgraphSchema[table]!;
+		const tableDef = this.subgraphSchema[table];
+		if (!tableDef) return;
 		const keyColumns = Object.keys(key);
 
 		// Check if there's a matching uniqueKeys constraint
@@ -105,12 +110,14 @@ export class SubgraphContext {
 				uk.every((c) => keyColumns.includes(c)),
 		);
 
+		const meta = { _block_height: this.block.height, _tx_id: this._tx.txId };
+
 		if (hasUniqueConstraint) {
 			// Use ON CONFLICT for proper upsert
 			this.ops.push({
 				kind: "insert",
 				table,
-				data: { ...key, ...row, _upsert_keys: keyColumns },
+				data: { ...key, ...row, ...meta, _upsert_keys: keyColumns },
 			});
 		} else {
 			// Fallback: log warning, use findOne + conditional insert/update
@@ -127,6 +134,7 @@ export class SubgraphContext {
 				data: {
 					...key,
 					...row,
+					...meta,
 					_upsert_fallback_keys: keyColumns,
 					_upsert_fallback_set: row,
 				},
@@ -201,17 +209,14 @@ export class SubgraphContext {
 
 	// --- Aggregate reads ---
 
-	async count(
-		table: string,
-		where?: Record<string, unknown>,
-	): Promise<number> {
+	async count(table: string, where?: Record<string, unknown>): Promise<number> {
 		this.validateTable(table);
 		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
-		const whereClause = where
-			? `WHERE ${buildWhereClause(where).clause}`
-			: "";
+		const whereClause = where ? `WHERE ${buildWhereClause(where).clause}` : "";
 		const { rows } = await sql
-			.raw(`SELECT COUNT(*)::int AS count FROM ${qualifiedTable} ${whereClause}`)
+			.raw(
+				`SELECT COUNT(*)::int AS count FROM ${qualifiedTable} ${whereClause}`,
+			)
 			.execute(this.db);
 		return Number((rows as Record<string, unknown>[])[0]?.count ?? 0);
 	}
@@ -224,9 +229,7 @@ export class SubgraphContext {
 		this.validateTable(table);
 		validateColumnName(column);
 		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
-		const whereClause = where
-			? `WHERE ${buildWhereClause(where).clause}`
-			: "";
+		const whereClause = where ? `WHERE ${buildWhereClause(where).clause}` : "";
 		const { rows } = await sql
 			.raw(
 				`SELECT COALESCE(SUM("${column}"), 0) AS total FROM ${qualifiedTable} ${whereClause}`,
@@ -245,9 +248,7 @@ export class SubgraphContext {
 		this.validateTable(table);
 		validateColumnName(column);
 		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
-		const whereClause = where
-			? `WHERE ${buildWhereClause(where).clause}`
-			: "";
+		const whereClause = where ? `WHERE ${buildWhereClause(where).clause}` : "";
 		const { rows } = await sql
 			.raw(
 				`SELECT MIN("${column}") AS val FROM ${qualifiedTable} ${whereClause}`,
@@ -265,9 +266,7 @@ export class SubgraphContext {
 		this.validateTable(table);
 		validateColumnName(column);
 		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
-		const whereClause = where
-			? `WHERE ${buildWhereClause(where).clause}`
-			: "";
+		const whereClause = where ? `WHERE ${buildWhereClause(where).clause}` : "";
 		const { rows } = await sql
 			.raw(
 				`SELECT MAX("${column}") AS val FROM ${qualifiedTable} ${whereClause}`,
@@ -285,9 +284,7 @@ export class SubgraphContext {
 		this.validateTable(table);
 		validateColumnName(column);
 		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
-		const whereClause = where
-			? `WHERE ${buildWhereClause(where).clause}`
-			: "";
+		const whereClause = where ? `WHERE ${buildWhereClause(where).clause}` : "";
 		const { rows } = await sql
 			.raw(
 				`SELECT COUNT(DISTINCT "${column}")::int AS count FROM ${qualifiedTable} ${whereClause}`,
@@ -360,12 +357,14 @@ export class SubgraphContext {
 	} {
 		const upsertKeys = op.data._upsert_keys as string[] | undefined;
 		const data = { ...op.data };
-		delete data._upsert_keys;
-		delete data._upsert_fallback_keys;
-		delete data._upsert_fallback_set;
+		data._upsert_keys = undefined;
+		data._upsert_fallback_keys = undefined;
+		data._upsert_fallback_set = undefined;
 
-		data._block_height = this.block.height;
-		data._tx_id = this._tx.txId;
+		// _block_height and _tx_id are captured at insert/upsert time (not flush time)
+		// to ensure correct tx attribution when multiple txs are batched per block
+		if (!data._block_height) data._block_height = this.block.height;
+		if (!data._tx_id) data._tx_id = this._tx.txId;
 		data._created_at = "NOW()";
 
 		const cols = Object.keys(data);
@@ -397,15 +396,15 @@ export class SubgraphContext {
 
 		const flushInsertBatch = () => {
 			if (!currentBatch) return;
-			const qualifiedTable = `"${this.pgSchemaName}"."${currentBatch.table}"`;
-			const colList = currentBatch.cols.map((c) => `"${c}"`).join(", ");
+			const batch = currentBatch;
+			const qualifiedTable = `"${this.pgSchemaName}"."${batch.table}"`;
+			const colList = batch.cols.map((c) => `"${c}"`).join(", ");
 
 			// Deduplicate by upsert key — last row wins (Postgres rejects duplicate keys in one INSERT)
-			let rows = currentBatch.rows;
-			if (currentBatch.upsertKeys && currentBatch.upsertKeys.length > 0) {
-				const keyIndices = currentBatch.upsertKeys.map((k) =>
-					currentBatch!.cols.indexOf(k),
-				);
+			let rows = batch.rows;
+			if (batch.upsertKeys && batch.upsertKeys.length > 0) {
+				const uKeys = batch.upsertKeys;
+				const keyIndices = uKeys.map((k) => batch.cols.indexOf(k));
 				const seen = new Map<string, number>();
 				for (let i = 0; i < rows.length; i++) {
 					const key = keyIndices.map((ki) => rows[i][ki]).join("\0");
@@ -419,15 +418,16 @@ export class SubgraphContext {
 			const valuesList = rows.map((r) => `(${r.join(", ")})`).join(", ");
 			let stmt = `INSERT INTO ${qualifiedTable} (${colList}) VALUES ${valuesList}`;
 
-			if (currentBatch.upsertKeys && currentBatch.upsertKeys.length > 0) {
-				const updateCols = currentBatch.cols.filter(
-					(c) => !currentBatch!.upsertKeys!.includes(c) && !c.startsWith("_"),
+			if (batch.upsertKeys && batch.upsertKeys.length > 0) {
+				const batchKeys = batch.upsertKeys;
+				const updateCols = batch.cols.filter(
+					(c) => !batchKeys.includes(c) && !c.startsWith("_"),
 				);
 				if (updateCols.length > 0) {
 					const setClauses = updateCols.map((c) => `"${c}" = EXCLUDED."${c}"`);
-					stmt += ` ON CONFLICT (${currentBatch.upsertKeys.map((k) => `"${k}"`).join(", ")}) DO UPDATE SET ${setClauses.join(", ")}`;
+					stmt += ` ON CONFLICT (${batchKeys.map((k) => `"${k}"`).join(", ")}) DO UPDATE SET ${setClauses.join(", ")}`;
 				} else {
-					stmt += ` ON CONFLICT (${currentBatch.upsertKeys.map((k) => `"${k}"`).join(", ")}) DO NOTHING`;
+					stmt += ` ON CONFLICT (${batchKeys.map((k) => `"${k}"`).join(", ")}) DO NOTHING`;
 				}
 			}
 
@@ -456,8 +456,8 @@ export class SubgraphContext {
 				flushInsertBatch();
 
 				if (op.kind === "update") {
-					const setEntries = Object.entries(op.set!);
-					setEntries.forEach(([k]) => validateColumnName(k));
+					const setEntries = Object.entries(op.set ?? {});
+					for (const [k] of setEntries) validateColumnName(k);
 					const setClauses = setEntries.map(
 						([k, v]) => `"${k}" = ${escapeLiteral(v)}`,
 					);
@@ -507,7 +507,7 @@ function buildWhereClause(where: Record<string, unknown>): {
 	const entries = Object.entries(where);
 	if (entries.length === 0) return { clause: "TRUE", values: [] };
 
-	entries.forEach(([k]) => validateColumnName(k));
+	for (const [k] of entries) validateColumnName(k);
 	const parts = entries.map(([k, v]) => `"${k}" = ${escapeLiteral(v)}`);
 	return { clause: parts.join(" AND "), values: [] };
 }
