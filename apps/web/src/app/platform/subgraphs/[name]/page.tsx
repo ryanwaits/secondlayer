@@ -132,10 +132,10 @@ export default async function SubgraphDetailPage({
 						items={[
 							{
 								label: "Base URL",
-								value: "https://api.secondlayer.tools/api",
+								value: "https://api.secondlayer.tools/api/subgraphs",
 								mono: true,
 								tooltip: "Base URL for all REST queries against this subgraph",
-								copyValue: "https://api.secondlayer.tools/api",
+								copyValue: "https://api.secondlayer.tools/api/subgraphs",
 								span: 2,
 							},
 							{
