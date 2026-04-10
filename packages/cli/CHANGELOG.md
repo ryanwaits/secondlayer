@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 1.12.2
+
+### Patch Changes
+
+- simplify gap display in subgraph status output
+
 ## 1.12.1
 
 ### Patch Changes
