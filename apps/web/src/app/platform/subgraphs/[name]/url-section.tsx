@@ -197,100 +197,76 @@ export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 	const pathBase = relativePath.slice(0, lastSlash + 1);
 	const pathTable = relativePath.slice(lastSlash + 1);
 
-	const dropdown = (
-		<div className="meta-dropdown-wrap" ref={dropRef}>
-			<button
-				type="button"
-				className="overview-meta-btn"
-				onClick={() => setOpen(!open)}
-				onBlur={(e) => {
-					if (!dropRef.current?.contains(e.relatedTarget as Node))
-						setOpen(false);
-				}}
-			>
-				<svg
-					width="11"
-					height="11"
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="1.5"
-					strokeLinecap="round"
-					aria-hidden="true"
-				>
-					<rect x="2" y="3" width="12" height="10" rx="1" />
-					<path d="M2 7h12" />
-					<path d="M6 3v10" />
-				</svg>
-				<span
-					style={{
-						width: "1px",
-						height: "10px",
-						background: "var(--border)",
-						display: "inline-block",
-						flexShrink: 0,
-					}}
-				/>
-				{selectedTable}
-				<svg
-					width="8"
-					height="8"
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="2"
-					strokeLinecap="round"
-					aria-hidden="true"
-				>
-					<path d="M4 6l4 4 4-4" />
-				</svg>
-			</button>
-			{open && (
-				<div className="meta-dropdown">
-					{tableNames.map((name) => (
-						<button
-							key={name}
-							type="button"
-							className={`meta-dropdown-item${name === selectedTable ? " active" : ""}`}
-							onMouseDown={(e) => {
-								e.preventDefault();
-								selectTable(name);
-							}}
-						>
-							{name}
-							{name === selectedTable && (
-								<svg
-									width="12"
-									height="12"
-									viewBox="0 0 16 16"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									aria-hidden="true"
-								>
-									<path d="M3 8.5l3.5 3.5 6.5-8" />
-								</svg>
-							)}
-						</button>
-					))}
-				</div>
-			)}
-		</div>
-	);
-
 	return (
-		<DetailSection title={title} actions={dropdown}>
+		<DetailSection title={title}>
 			<div className="sg-api-columns">
 				{/* Left: URL bar + query parameters */}
 				<div className="sg-api-card">
 					<div className="sg-api-url-bar">
 						<span className="sg-api-method">GET</span>
-						<span className="sg-api-url">
-							{pathBase}
-							<span className="table-segment">{pathTable}</span>
-						</span>
+						<div className="meta-dropdown-wrap sg-api-url-select" ref={dropRef}>
+							<button
+								type="button"
+								className="sg-api-url-trigger"
+								onClick={() => tableNames.length > 1 && setOpen(!open)}
+								onBlur={(e) => {
+									if (!dropRef.current?.contains(e.relatedTarget as Node))
+										setOpen(false);
+								}}
+							>
+								<span className="sg-api-url">
+									{pathBase}
+									<span className="table-segment">{pathTable}</span>
+								</span>
+								{tableNames.length > 1 && (
+									<svg
+										className="sg-api-url-chevron"
+										width="10"
+										height="10"
+										viewBox="0 0 16 16"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										aria-hidden="true"
+									>
+										<path d="M4 6l4 4 4-4" />
+									</svg>
+								)}
+							</button>
+							{open && (
+								<div className="meta-dropdown">
+									{tableNames.map((name) => (
+										<button
+											key={name}
+											type="button"
+											className={`meta-dropdown-item${name === selectedTable ? " active" : ""}`}
+											onMouseDown={(e) => {
+												e.preventDefault();
+												selectTable(name);
+											}}
+										>
+											{name}
+											{name === selectedTable && (
+												<svg
+													width="12"
+													height="12"
+													viewBox="0 0 16 16"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													aria-hidden="true"
+												>
+													<path d="M3 8.5l3.5 3.5 6.5-8" />
+												</svg>
+											)}
+										</button>
+									))}
+								</div>
+							)}
+						</div>
 						<button
 							type="button"
 							className={`sg-api-copy-btn${copied ? " copied" : ""}`}

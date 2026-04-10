@@ -2552,6 +2552,36 @@ body:has(.dash) .auth-bar {
 	background: var(--code-bg);
 }
 
+/* URL bar inline table selector */
+.sg-api-url-select {
+	flex: 1;
+	min-width: 0;
+}
+.sg-api-url-trigger {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	min-width: 0;
+}
+.sg-api-url-trigger .sg-api-url {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.sg-api-url-chevron {
+	color: var(--accent);
+	flex-shrink: 0;
+	opacity: 0.6;
+	transition: opacity 0.15s;
+}
+.sg-api-url-trigger:hover .sg-api-url-chevron {
+	opacity: 1;
+}
+
 /* Query parameters list */
 .sg-params-section {
 	padding: 16px 20px 8px;
