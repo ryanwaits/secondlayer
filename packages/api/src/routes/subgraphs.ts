@@ -158,9 +158,8 @@ app.post("/", async (c) => {
 
 	await cache.refresh();
 
-	// Auto-trigger reindex on first deploy so the subgraph uses the fast
-	// batch pipeline instead of the slow catch-up loop.
-	if (result.action === "created") {
+	// Auto-trigger reindex for new deploys and breaking schema changes
+	if (result.action === "created" || result.action === "reindexed") {
 		const controller = new AbortController();
 		activeAbortControllers.set(name, controller);
 
@@ -189,7 +188,9 @@ app.post("/", async (c) => {
 			version: result.version,
 			message: `Subgraph "${name}" ${result.action}`,
 			...(result.diff ? { diff: result.diff } : {}),
-			...(result.action === "created" ? { reindexStarted: true } : {}),
+			...(result.action === "created" || result.action === "reindexed"
+				? { reindexStarted: true }
+				: {}),
 		},
 		status,
 	);
