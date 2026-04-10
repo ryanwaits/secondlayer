@@ -98,72 +98,6 @@ function MetaDropdown<T>({
 	);
 }
 
-function VersionDropdown({ version }: { version: string }) {
-	const [open, setOpen] = useState(false);
-	const ref = useRef<HTMLDivElement>(null);
-
-	return (
-		<div className="meta-dropdown-wrap" ref={ref}>
-			<button
-				type="button"
-				className="overview-meta-btn"
-				onClick={() => setOpen(!open)}
-				onBlur={(e) => {
-					if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false);
-				}}
-			>
-				v{version}
-				<svg
-					width="8"
-					height="8"
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="2"
-					strokeLinecap="round"
-					aria-hidden="true"
-				>
-					<path d="M4 6l4 4 4-4" />
-				</svg>
-			</button>
-			{open && (
-				<div className="meta-dropdown">
-					<button
-						type="button"
-						className="meta-dropdown-item active"
-						onMouseDown={(e) => {
-							e.preventDefault();
-							setOpen(false);
-						}}
-					>
-						{version}
-						<svg
-							width="12"
-							height="12"
-							viewBox="0 0 16 16"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							aria-hidden="true"
-						>
-							<path d="M3 8.5l3.5 3.5 6.5-8" />
-						</svg>
-					</button>
-					<div className="meta-dropdown-divider" />
-					<span
-						className="meta-dropdown-item"
-						style={{ opacity: 0.4, cursor: "default", pointerEvents: "none" }}
-					>
-						Deploy new version
-					</span>
-				</div>
-			)}
-		</div>
-	);
-}
-
 interface OverviewTopbarProps {
 	project?: string;
 	path?: ReactNode;
@@ -171,7 +105,6 @@ interface OverviewTopbarProps {
 	showMeta?: boolean;
 	showRefresh?: boolean;
 	lastUpdated?: string | null;
-	version?: string;
 }
 
 export function OverviewTopbar({
@@ -181,7 +114,6 @@ export function OverviewTopbar({
 	showMeta = true,
 	showRefresh = true,
 	lastUpdated,
-	version,
 }: OverviewTopbarProps) {
 	const { data: status } = useStatus();
 	const { autoRefresh, setAutoRefresh, autoRefreshLabel, now } = useTopbar();
@@ -241,12 +173,6 @@ export function OverviewTopbar({
 									</svg>
 								}
 							/>
-						</>
-					)}
-					{version && (
-						<>
-							<span className="overview-meta-sep" />
-							<VersionDropdown version={version} />
 						</>
 					)}
 				</div>
