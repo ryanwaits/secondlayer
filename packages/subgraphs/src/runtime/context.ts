@@ -357,9 +357,12 @@ export class SubgraphContext {
 	} {
 		const upsertKeys = op.data._upsert_keys as string[] | undefined;
 		const data = { ...op.data };
-		data._upsert_keys = undefined;
-		data._upsert_fallback_keys = undefined;
-		data._upsert_fallback_set = undefined;
+		// biome-ignore lint/performance/noDelete: must remove key, not set undefined — Object.keys must not include these
+		delete data._upsert_keys;
+		// biome-ignore lint/performance/noDelete: same as above
+		delete data._upsert_fallback_keys;
+		// biome-ignore lint/performance/noDelete: same as above
+		delete data._upsert_fallback_set;
 
 		// _block_height and _tx_id are captured at insert/upsert time (not flush time)
 		// to ensure correct tx attribution when multiple txs are batched per block
