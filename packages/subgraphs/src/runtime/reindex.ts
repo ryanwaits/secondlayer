@@ -5,7 +5,10 @@ import {
 	recordGapBatch,
 	resolveGaps,
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
-import { updateSubgraphStatus } from "@secondlayer/shared/db/queries/subgraphs";
+import {
+	recordSubgraphProcessed,
+	updateSubgraphStatus,
+} from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import { generateSubgraphSQL } from "../schema/generator.ts";
 import { pgSchemaName } from "../schema/utils.ts";
@@ -139,13 +142,17 @@ async function processBlockRange(
 					preloaded: blockData,
 				});
 			} catch (err) {
+				const errorMsg = err instanceof Error ? err.message : String(err);
 				logger.error("Block processing error", {
 					subgraph: subgraphName,
 					blockHeight: height,
-					error: err instanceof Error ? err.message : String(err),
+					error: errorMsg,
 				});
 				batchFailedBlocks.push({ height, reason: "processing_error" });
 				await updateSubgraphStatus(db, subgraphName, status, height).catch(
+					() => {},
+				);
+				await recordSubgraphProcessed(db, subgraphName, 0, 1, errorMsg).catch(
 					() => {},
 				);
 				blocksProcessed++;
