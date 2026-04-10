@@ -46,9 +46,9 @@ export function TabbedCode({ tabs }: { tabs: CodeTab[] }) {
 						</button>
 					))}
 				</div>
-				<CopyButton code={tab.copyCode ?? tab.code} />
 			</div>
 			<div className="tabbed-code-body">
+				<CopyButton code={tab.copyCode ?? tab.code} />
 				{htmlCache[active] ? (
 					<div dangerouslySetInnerHTML={{ __html: htmlCache[active] }} />
 				) : (
