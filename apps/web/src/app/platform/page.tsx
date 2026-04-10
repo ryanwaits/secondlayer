@@ -27,6 +27,24 @@ function InfoTip({ text }: { text: string }) {
 	);
 }
 
+interface RecentSession {
+	id: string;
+	title: string | null;
+	created_at: string;
+}
+
+function formatRelative(dateStr: string): string {
+	const diff = Date.now() - new Date(dateStr).getTime();
+	const mins = Math.floor(diff / 60_000);
+	if (mins < 1) return "just now";
+	if (mins < 60) return `${mins}m ago`;
+	const hrs = Math.floor(mins / 60);
+	if (hrs < 24) return `${hrs}h ago`;
+	const days = Math.floor(hrs / 24);
+	if (days < 7) return days === 1 ? "yesterday" : `${days}d ago`;
+	return new Date(dateStr).toLocaleDateString();
+}
+
 function statusClass(status: string) {
 	if (status === "active") return "active";
 	if (status === "syncing" || status === "reindexing") return "syncing";
@@ -40,9 +58,10 @@ export default async function DashboardPage() {
 	let streams: Stream[] = [];
 	let subgraphs: SubgraphSummary[] = [];
 	let workflows: WorkflowSummary[] = [];
+	let sessions: RecentSession[] = [];
 
 	if (session) {
-		const [streamsResult, subgraphsResult, workflowsResult] =
+		const [streamsResult, subgraphsResult, workflowsResult, sessionsResult] =
 			await Promise.allSettled([
 				apiRequest<{ streams: Stream[]; total: number }>(
 					"/api/streams?limit=100&offset=0",
@@ -56,6 +75,10 @@ export default async function DashboardPage() {
 					sessionToken: session,
 					tags: ["workflows"],
 				}),
+				apiRequest<{ sessions: RecentSession[] }>(
+					"/api/chat-sessions?limit=10",
+					{ sessionToken: session, tags: ["sessions"] },
+				),
 			]);
 		streams =
 			streamsResult.status === "fulfilled" ? streamsResult.value.streams : [];
@@ -65,9 +88,18 @@ export default async function DashboardPage() {
 			workflowsResult.status === "fulfilled"
 				? workflowsResult.value.workflows
 				: [];
+		sessions =
+			sessionsResult.status === "fulfilled"
+				? sessionsResult.value.sessions
+				: [];
 	}
 
 	const totalWorkflowRuns = workflows.reduce((s, w) => s + w.totalRuns, 0);
+
+	const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+	const sessionsThisWeek = sessions.filter(
+		(s) => new Date(s.created_at).getTime() > weekAgo,
+	).length;
 
 	const totalEvents = subgraphs.reduce(
 		(s, sg) => s + (sg.totalRows ?? sg.totalProcessed),
@@ -259,13 +291,57 @@ export default async function DashboardPage() {
 					</CollapsibleSection>
 
 					{/* Sessions */}
-					<CollapsibleSection title="Sessions" count={0}>
-						<div className="ov-empty">
-							No sessions yet.{" "}
-							<Link href="/sessions" className="ov-section-link">
-								Start a session &rarr;
-							</Link>
-						</div>
+					<CollapsibleSection title="Sessions" count={sessions.length}>
+						{sessions.length > 0 ? (
+							<>
+								<div className="ov-cards">
+									<Link href="/sessions" className="ov-card">
+										<div className="ov-card-label">
+											Total Sessions{" "}
+											<InfoTip text="Number of saved chat sessions" />
+										</div>
+										<div className="ov-card-value">{sessions.length}</div>
+										<div className="ov-card-sub">saved sessions</div>
+									</Link>
+									<Link href="/sessions" className="ov-card">
+										<div className="ov-card-label">
+											This Week{" "}
+											<InfoTip text="Sessions created in the last 7 days" />
+										</div>
+										<div className="ov-card-value">{sessionsThisWeek}</div>
+										<div className="ov-card-sub">sessions created</div>
+									</Link>
+								</div>
+								<div className="ov-list">
+									{sessions.slice(0, 5).map((s) => (
+										<Link
+											key={s.id}
+											href={`/sessions/${s.id}`}
+											className="ov-list-item"
+										>
+											<span className="ov-list-name">
+												{s.title || "Untitled session"}
+											</span>
+											<span className="ov-list-meta">
+												{formatRelative(s.created_at)}
+											</span>
+										</Link>
+									))}
+								</div>
+								<div className="ov-section-footer">
+									<Link href="/sessions" className="ov-section-link">
+										View all sessions &rarr;
+									</Link>
+								</div>
+							</>
+						) : (
+							<div className="ov-empty">
+								No sessions yet.{" "}
+								<Link href="/sessions" className="ov-section-link">
+									Start a session &rarr;
+								</Link>
+							</div>
+						)}
 					</CollapsibleSection>
 
 					{/* Workflows */}
