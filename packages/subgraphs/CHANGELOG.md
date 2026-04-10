@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.11.4
+
+### Patch Changes
+
+- fix: use delete instead of undefined assignment for internal metadata keys to prevent them appearing as SQL columns
+
 ## 0.11.3
 
 ### Patch Changes

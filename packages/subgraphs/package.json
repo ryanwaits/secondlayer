@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/subgraphs",
-	"version": "0.11.3",
+	"version": "0.11.4",
 	"type": "module",
 	"main": "./dist/src/index.js",
 	"types": "./dist/src/index.d.ts",
