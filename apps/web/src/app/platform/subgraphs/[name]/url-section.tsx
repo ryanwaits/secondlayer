@@ -5,70 +5,138 @@ import { TabbedCode } from "@/components/console/tabbed-code";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 
+interface TableInfo {
+	endpoint: string;
+	example: unknown;
+	columns: Record<
+		string,
+		{
+			type: string;
+			nullable?: boolean;
+			indexed?: boolean;
+			searchable?: boolean;
+		}
+	>;
+}
+
 interface Props {
-	tables: Record<string, { endpoint: string; example: unknown }>;
+	tables: Record<string, TableInfo>;
 	apiKeyPrefix?: string;
 }
 
-const QUERY_PARAMS: {
+interface QueryParam {
 	name: string;
 	type: string;
 	default: string | null;
 	desc: ReactNode;
-}[] = [
-	{
-		name: "_limit",
-		type: "integer",
-		default: "100",
-		desc: (
-			<>
-				Maximum number of rows to return. Max <code>1000</code>.
-			</>
-		),
-	},
-	{
-		name: "_offset",
-		type: "integer",
-		default: "0",
-		desc: "Number of rows to skip for pagination.",
-	},
-	{
-		name: "_order_by",
-		type: "string",
-		default: null,
-		desc: "Column to sort results by.",
-	},
-	{
-		name: "_order",
-		type: '"asc" | "desc"',
-		default: '"desc"',
-		desc: (
-			<>
-				Sort direction. Applied to the column specified by{" "}
-				<code>_order_by</code>.
-			</>
-		),
-	},
-	{
-		name: "_where_{column}",
-		type: "varies",
-		default: null,
-		desc: (
-			<>
-				Filter rows by column value. Supports: <code>eq</code>, <code>gt</code>,{" "}
-				<code>lt</code>, <code>gte</code>, <code>lte</code>, <code>like</code>.
-				<br />
-				Example: <code>_where_block_height=gt.100000</code>
-			</>
-		),
-	},
-	{
-		name: "_select",
-		type: "string",
-		default: null,
-		desc: "Comma-separated list of columns to return. Omit for all columns.",
-	},
-];
+}
+
+function buildQueryParams(table: TableInfo | undefined): QueryParam[] {
+	const cols = table?.columns ?? {};
+	const colNames = Object.keys(cols).filter((c) => !c.startsWith("_"));
+	const indexedCols = Object.entries(cols)
+		.filter(([, c]) => c.indexed)
+		.map(([name]) => name);
+	const searchableCols = Object.entries(cols)
+		.filter(([, c]) => c.searchable)
+		.map(([name]) => name);
+
+	const params: QueryParam[] = [
+		{
+			name: "_limit",
+			type: "integer",
+			default: "100",
+			desc: (
+				<>
+					Maximum number of rows to return. Max <code>1000</code>.
+				</>
+			),
+		},
+		{
+			name: "_offset",
+			type: "integer",
+			default: "0",
+			desc: "Number of rows to skip for pagination.",
+		},
+		{
+			name: "_sort",
+			type: "string",
+			default: null,
+			desc:
+				indexedCols.length > 0 ? (
+					<>
+						Column to sort by. Indexed:{" "}
+						{indexedCols.map((c, i) => (
+							<span key={c}>
+								{i > 0 && ", "}
+								<code>{c}</code>
+							</span>
+						))}
+					</>
+				) : (
+					"Column to sort results by."
+				),
+		},
+		{
+			name: "_order",
+			type: '"asc" | "desc"',
+			default: '"asc"',
+			desc: (
+				<>
+					Sort direction. Applied to the column specified by <code>_sort</code>.
+				</>
+			),
+		},
+		{
+			name: "{column}.{op}",
+			type: "varies",
+			default: null,
+			desc: (
+				<>
+					Filter by column value. Operators: <code>eq</code>, <code>gt</code>,{" "}
+					<code>lt</code>, <code>gte</code>, <code>lte</code>, <code>like</code>
+					.
+					<br />
+					Columns:{" "}
+					{colNames.slice(0, 6).map((c, i) => (
+						<span key={c}>
+							{i > 0 && ", "}
+							<code>{c}</code>
+						</span>
+					))}
+					{colNames.length > 6 && <> + {colNames.length - 6} more</>}
+				</>
+			),
+		},
+		{
+			name: "_fields",
+			type: "string",
+			default: null,
+			desc: "Comma-separated list of columns to return. Omit for all columns.",
+		},
+	];
+
+	if (searchableCols.length > 0) {
+		params.push({
+			name: "_search",
+			type: "string",
+			default: null,
+			desc: (
+				<>
+					Full-text search across:{" "}
+					{searchableCols.map((c, i) => (
+						<span key={c}>
+							{i > 0 && ", "}
+							<code>{c}</code>
+						</span>
+					))}
+				</>
+			),
+		});
+	}
+
+	return params;
+}
 
 export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 	const tableNames = Object.keys(tables);
@@ -241,7 +309,7 @@ export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 					</div>
 					<div className="sg-params-section">
 						<div className="sg-params-heading">Query parameters</div>
-						{QUERY_PARAMS.map((p) => (
+						{buildQueryParams(tables[selectedTable]).map((p) => (
 							<div key={p.name} className="sg-param-row">
 								<div className="sg-param-name-line">
 									<span className="sg-param-name">{p.name}</span>
