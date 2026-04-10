@@ -100,6 +100,39 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				foreground: "#1a1a1a",
 			},
 		},
+		// Shell builtins (curl, echo, export)
+		{
+			scope: ["support.function.builtin"],
+			settings: {
+				foreground: "#1a1a1a",
+				fontStyle: "bold",
+			},
+		},
+		// Shell variables ($FOO, ${BAR})
+		{
+			scope: [
+				"variable.other.special",
+				"variable.other.normal",
+				"punctuation.definition.variable",
+			],
+			settings: {
+				foreground: "#7a7a3a",
+			},
+		},
+		// Pipes and redirects
+		{
+			scope: ["keyword.operator.pipe", "keyword.operator.redirect"],
+			settings: {
+				foreground: "#888888",
+			},
+		},
+		// Command-line flags (-H, --flag)
+		{
+			scope: ["variable.parameter.option", "punctuation.definition.parameter"],
+			settings: {
+				foreground: "#666666",
+			},
+		},
 		// Types / classes
 		{
 			scope: [
@@ -283,6 +316,30 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		{
 			scope: ["entity.name.function", "support.function", "meta.function-call"],
 			settings: { foreground: "#e0e0e0" },
+		},
+		// Shell builtins
+		{
+			scope: ["support.function.builtin"],
+			settings: { foreground: "#e0e0e0", fontStyle: "bold" },
+		},
+		// Shell variables
+		{
+			scope: [
+				"variable.other.special",
+				"variable.other.normal",
+				"punctuation.definition.variable",
+			],
+			settings: { foreground: "#9a9450" },
+		},
+		// Pipes and redirects
+		{
+			scope: ["keyword.operator.pipe", "keyword.operator.redirect"],
+			settings: { foreground: "#808080" },
+		},
+		// Command-line flags
+		{
+			scope: ["variable.parameter.option", "punctuation.definition.parameter"],
+			settings: { foreground: "#909090" },
 		},
 		{
 			scope: [
