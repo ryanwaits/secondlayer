@@ -18,6 +18,7 @@ import {
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { PublishSubgraphRequestSchema } from "@secondlayer/shared/schemas/marketplace";
 import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
+import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
@@ -60,6 +61,7 @@ export async function stopSubgraphCache(): Promise<void> {
 
 async function query(text: string, params: unknown[] = []) {
 	const client = getRawClient();
+	// biome-ignore lint/suspicious/noExplicitAny: postgres client requires any[]
 	return client.unsafe(text, params as any[]);
 }
 
@@ -107,7 +109,7 @@ app.post("/", async (c) => {
 	await Bun.write(handlerPath, handlerCode);
 
 	// Import the handler to get a full SubgraphDefinition with handler functions
-	let def: any;
+	let def: SubgraphDefinition;
 	try {
 		const mod = await import(`${handlerPath}?t=${Date.now()}`);
 		def = mod.default ?? mod;
@@ -246,7 +248,7 @@ app.post("/:subgraphName/reindex", async (c) => {
 	(async () => {
 		try {
 			const { reindexSubgraph } = await import("@secondlayer/subgraphs");
-			const mod = await import(subgraph.handler_path);
+			const mod = await import(`${subgraph.handler_path}?v=${Date.now()}`);
 			const def = mod.default ?? mod;
 			await reindexSubgraph(def, {
 				fromBlock,
@@ -342,7 +344,7 @@ app.post("/:subgraphName/backfill", async (c) => {
 	(async () => {
 		try {
 			const { backfillSubgraph } = await import("@secondlayer/subgraphs");
-			const mod = await import(subgraph.handler_path);
+			const mod = await import(`${subgraph.handler_path}?v=${Date.now()}`);
 			const def = mod.default ?? mod;
 			await backfillSubgraph(def, {
 				fromBlock,
@@ -456,6 +458,7 @@ app.get("/", async (c) => {
 				"status",
 			])
 			.execute()
+			// biome-ignore lint/suspicious/noExplicitAny: fallback empty array
 			.catch(() => [] as any[]),
 		db
 			.selectFrom("index_progress")
@@ -535,6 +538,7 @@ app.get("/:subgraphName", async (c) => {
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
 
 	const subgraphSchema = getSubgraphSchema(subgraph);
+	// biome-ignore lint/suspicious/noExplicitAny: dynamic schema shape
 	const tables: Record<string, any> = {};
 	const sn = subgraphSchemaName(subgraph);
 
@@ -582,6 +586,7 @@ app.get("/:subgraphName", async (c) => {
 		const cr = countResults[i];
 		const rowCount = cr.status === "fulfilled" ? cr.value : 0;
 
+		// biome-ignore lint/suspicious/noExplicitAny: dynamic column shape
 		const columns: Record<string, any> = {};
 		for (const [colName, col] of Object.entries(tableDef.columns)) {
 			columns[colName] = {
@@ -698,7 +703,7 @@ app.get("/:subgraphName/gaps", async (c) => {
 	const offset = Math.max(0, Number.parseInt(params._offset ?? "0", 10) || 0);
 	const resolvedParam = params.resolved;
 	const unresolvedOnly =
-		resolvedParam === "true" ? false : resolvedParam === "all" ? false : true;
+		resolvedParam === "true" ? false : resolvedParam !== "all";
 
 	const [result, totalMissing] = await Promise.all([
 		findSubgraphGaps(db, subgraphName, {

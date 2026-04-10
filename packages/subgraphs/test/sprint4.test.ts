@@ -7,6 +7,7 @@ import {
 	test,
 } from "bun:test";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
+import type { Subgraph } from "@secondlayer/shared/db";
 import {
 	getSubgraph,
 	registerSubgraph,
@@ -57,7 +58,7 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 
 		const sg = await getSubgraph(db, SUBGRAPH_NAME);
 		expect(sg).not.toBeNull();
-		expect(sg!.status).toBe("active");
+		expect(sg?.status).toBe("active");
 	});
 
 	test("deploy unchanged returns unchanged", async () => {
@@ -135,7 +136,7 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
        WHERE table_schema = '${PG_SCHEMA}' AND table_name = 'transfers'
        ORDER BY ordinal_position`,
 		);
-		const colNames = cols.map((r: any) => r.column_name);
+		const colNames = cols.map((r: Record<string, unknown>) => r.column_name);
 		expect(colNames).toContain("sender");
 		expect(colNames).not.toContain("amount");
 		expect(colNames).toContain("_id");
@@ -169,7 +170,7 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 			`SELECT column_name FROM information_schema.columns
        WHERE table_schema = '${PG_SCHEMA}' AND table_name = 'transfers'`,
 		);
-		const colNames = cols.map((r: any) => r.column_name);
+		const colNames = cols.map((r: Record<string, unknown>) => r.column_name);
 		expect(colNames).toContain("memo");
 	});
 });
@@ -202,7 +203,7 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 		expect(Number.parseInt(String(beforeCount[0]?.count), 10)).toBe(4);
 
 		// Simulate reorg at block 100
-		const mockLoadDef = async (_path: string) => baseDef;
+		const mockLoadDef = async (_sg: Subgraph) => baseDef;
 		await handleSubgraphReorg(100, mockLoadDef);
 
 		// Rows at block 100 should be deleted
@@ -215,9 +216,9 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 		const remaining = await client.unsafe(
 			`SELECT DISTINCT "_block_height" FROM ${PG_SCHEMA}.transfers ORDER BY "_block_height"`,
 		);
-		expect(remaining.map((r: any) => Number(r._block_height))).toEqual([
-			101, 102,
-		]);
+		expect(
+			remaining.map((r: Record<string, unknown>) => Number(r._block_height)),
+		).toEqual([101, 102]);
 	});
 
 	test("handleSubgraphReorg skips subgraphs without schema definition", async () => {
@@ -227,13 +228,16 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 		await registerSubgraph(db, {
 			name: SUBGRAPH_NAME,
 			version: "1.0.0",
-			definition: { name: SUBGRAPH_NAME, sources: { handler: { type: "contract_call", contractId: "SP::c" } } },
+			definition: {
+				name: SUBGRAPH_NAME,
+				sources: { handler: { type: "contract_call", contractId: "SP::c" } },
+			},
 			schemaHash: "abc",
 			handlerPath: "/tmp/handler.ts",
 		});
 
 		// Should not throw
-		const mockLoadDef = async (_path: string) => baseDef;
+		const mockLoadDef = async (_sg: Subgraph) => baseDef;
 		await handleSubgraphReorg(100, mockLoadDef);
 	});
 
@@ -250,13 +254,15 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
         (202, 'tx3', 'SP_C', 3000)
     `);
 
-		const mockLoadDef = async (_path: string) => baseDef;
+		const mockLoadDef = async (_sg: Subgraph) => baseDef;
 		await handleSubgraphReorg(201, mockLoadDef);
 
 		// Only block 201 should be removed
 		const rows = await client.unsafe(
 			`SELECT "_block_height" FROM ${PG_SCHEMA}.transfers ORDER BY "_block_height"`,
 		);
-		expect(rows.map((r: any) => Number(r._block_height))).toEqual([200, 202]);
+		expect(
+			rows.map((r: Record<string, unknown>) => Number(r._block_height)),
+		).toEqual([200, 202]);
 	});
 });

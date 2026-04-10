@@ -85,7 +85,7 @@ export async function startWorkflowProcessor(opts: {
 		// Load handler module
 		let def: WorkflowDefinition;
 		try {
-			const mod = await import(defRow.handler_path);
+			const mod = await import(`${defRow.handler_path}?v=${Date.now()}`);
 			def = mod.default ?? mod;
 		} catch (err) {
 			await failWorkflowJob(

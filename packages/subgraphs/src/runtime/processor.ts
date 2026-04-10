@@ -30,14 +30,58 @@ function isHandlerNotFoundError(err: unknown): boolean {
 	);
 }
 
+// Caches for hot-reload detection — only re-import when version changes
+const knownVersions = new Map<string, string>();
+const definitionCache = new Map<string, SubgraphDefinition>();
+
 /**
- * Load a SubgraphDefinition from its handler file path.
+ * Load a SubgraphDefinition, reusing the cache unless the version changed.
+ * On version change, writes latest handler_code from DB to disk and
+ * cache-busts the dynamic import.
  */
 async function loadSubgraphDefinition(
-	handlerPath: string,
+	sg: Subgraph,
 ): Promise<SubgraphDefinition> {
-	const mod = await import(handlerPath);
-	return mod.default ?? mod;
+	const cached = definitionCache.get(sg.name);
+	if (cached && knownVersions.get(sg.name) === sg.version) {
+		return cached;
+	}
+
+	// Write latest handler code from DB to disk before importing
+	if (sg.handler_code) {
+		const { mkdirSync, writeFileSync } = await import("node:fs");
+		const { dirname } = await import("node:path");
+		mkdirSync(dirname(sg.handler_path), { recursive: true });
+		writeFileSync(sg.handler_path, sg.handler_code);
+	}
+
+	const mod = await import(`${sg.handler_path}?v=${Date.now()}`);
+	const def = mod.default ?? mod;
+
+	const prevVersion = knownVersions.get(sg.name);
+	knownVersions.set(sg.name, sg.version);
+	definitionCache.set(sg.name, def);
+
+	if (prevVersion && prevVersion !== sg.version) {
+		logger.info("Subgraph handler reloaded", {
+			subgraph: sg.name,
+			from: prevVersion,
+			to: sg.version,
+		});
+	}
+
+	return def;
+}
+
+/** Remove cached entries for subgraphs that no longer exist. */
+function cleanupCaches(active: Subgraph[]): void {
+	const names = new Set(active.map((sg) => sg.name));
+	for (const name of knownVersions.keys()) {
+		if (!names.has(name)) {
+			knownVersions.delete(name);
+			definitionCache.delete(name);
+		}
+	}
 }
 
 /**
@@ -59,7 +103,7 @@ export async function startSubgraphProcessor(opts?: {
 	);
 	for (const sg of activeSubgraphs) {
 		try {
-			const def = await loadSubgraphDefinition(sg.handler_path);
+			const def = await loadSubgraphDefinition(sg);
 			await catchUpSubgraph(def, sg.name);
 		} catch (err) {
 			const msg = getErrorMessage(err);
@@ -83,9 +127,10 @@ export async function startSubgraphProcessor(opts?: {
 		const subgraphs = (await listSubgraphs(db)).filter(
 			(v: Subgraph) => v.status === "active",
 		);
+		cleanupCaches(subgraphs);
 		for (const sg of subgraphs) {
 			try {
-				const def = await loadSubgraphDefinition(sg.handler_path);
+				const def = await loadSubgraphDefinition(sg);
 				await catchUpSubgraph(def, sg.name);
 			} catch (err) {
 				const msg = getErrorMessage(err);
@@ -126,9 +171,10 @@ export async function startSubgraphProcessor(opts?: {
 		const subgraphs = (await listSubgraphs(db)).filter(
 			(v: Subgraph) => v.status === "active",
 		);
+		cleanupCaches(subgraphs);
 		for (const sg of subgraphs) {
 			try {
-				const def = await loadSubgraphDefinition(sg.handler_path);
+				const def = await loadSubgraphDefinition(sg);
 				await catchUpSubgraph(def, sg.name);
 			} catch (err) {
 				logger.error("Subgraph poll processing failed", {
