@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.11.5
+
+### Patch Changes
+
+- record errors to total_errors/last_error during reindex block processing
+
 ## 0.11.4
 
 ### Patch Changes
