@@ -123,7 +123,6 @@ export default async function SubgraphDetailPage({
 						allLabel="View all subgraphs"
 					/>
 				}
-				version={subgraph.version}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
@@ -146,6 +145,12 @@ export default async function SubgraphDetailPage({
 									</span>
 								),
 								tooltip: "Current indexing state of this subgraph",
+							},
+							{
+								label: "Version",
+								value: `v${subgraph.version}`,
+								mono: true,
+								tooltip: "Current deployed version of this subgraph",
 							},
 							{
 								label: "Last Indexed Block",
