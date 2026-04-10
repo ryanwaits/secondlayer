@@ -170,6 +170,28 @@ export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 	const keyDisplay = apiKeyPrefix ? `${apiKeyPrefix}****` : "YOUR_API_KEY";
 	const keyCopy = "YOUR_API_KEY";
 
+	// Build dynamic query string from table schema
+	const tableInfo = tables[selectedTable];
+	const cols = tableInfo?.columns ?? {};
+	const searchableCols = Object.entries(cols)
+		.filter(([, c]) => c.searchable)
+		.map(([name]) => name);
+	const indexedCols = Object.entries(cols)
+		.filter(([, c]) => c.indexed && !c.searchable)
+		.map(([name]) => name);
+	const firstFilterCol =
+		indexedCols[0] || Object.keys(cols).find((c) => !c.startsWith("_"));
+
+	const curlParams = ["_limit=10", "_sort=_id", "_order=desc"];
+	const fetchParams = ["_limit=10", "_sort=_id", "_order=desc"];
+	if (searchableCols.length > 0) {
+		curlParams.push("_search=example");
+		fetchParams.push("_search=example");
+	} else if (firstFilterCol) {
+		curlParams.push(`${firstFilterCol}.eq=VALUE`);
+		fetchParams.push(`${firstFilterCol}.eq=VALUE`);
+	}
+
 	// Split relative path at last "/" for accent coloring on the table segment
 	const lastSlash = relativePath.lastIndexOf("/");
 	const pathBase = relativePath.slice(0, lastSlash + 1);
@@ -334,14 +356,14 @@ export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 							{
 								label: "cURL",
 								lang: "bash",
-								code: `curl '${relativePath}' \\\n  -H 'Authorization: Bearer ${keyDisplay}' \\\n  -G \\\n  -d '_limit=10&_offset=0'`,
-								copyCode: `curl '${fullUrl}' \\\n  -H 'Authorization: Bearer ${keyCopy}' \\\n  -G \\\n  -d '_limit=10&_offset=0'`,
+								code: `curl '${relativePath}' \\\n  -H 'Authorization: Bearer ${keyDisplay}' \\\n  -G \\\n  -d '${curlParams.join("&")}'`,
+								copyCode: `curl '${fullUrl}' \\\n  -H 'Authorization: Bearer ${keyCopy}' \\\n  -G \\\n  -d '${curlParams.join("&")}'`,
 							},
 							{
 								label: "Node.js",
 								lang: "javascript",
-								code: `const response = await fetch(\n  '${relativePath}?_limit=10',\n  { headers: { Authorization: \`Bearer ${keyDisplay}\` } }\n);\nconst data = await response.json();`,
-								copyCode: `const response = await fetch(\n  '${fullUrl}?_limit=10',\n  { headers: { Authorization: \`Bearer ${keyCopy}\` } }\n);\nconst data = await response.json();`,
+								code: `const response = await fetch(\n  '${relativePath}?${fetchParams.join("&")}',\n  { headers: { Authorization: \`Bearer ${keyDisplay}\` } }\n);\nconst data = await response.json();`,
+								copyCode: `const response = await fetch(\n  '${fullUrl}?${fetchParams.join("&")}',\n  { headers: { Authorization: \`Bearer ${keyCopy}\` } }\n);\nconst data = await response.json();`,
 							},
 						]}
 					/>
