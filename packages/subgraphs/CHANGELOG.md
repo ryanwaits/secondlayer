@@ -1,5 +1,14 @@
 # @secondlayer/subgraphs
 
+## 0.11.2
+
+### Patch Changes
+
+- fix schema diff false positives from JSONB key reordering; hot-reload handler code after redeploy; handle bigint in jsonb serialization
+
+- Updated dependencies []:
+  - @secondlayer/shared@0.12.2
+
 ## 0.11.1
 
 ### Patch Changes

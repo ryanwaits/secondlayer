@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.12.2
+
+### Patch Changes
+
+- fix schema diff false positives from JSONB key reordering; hot-reload handler code after redeploy; handle bigint in jsonb serialization
+
 ## 0.12.1
 
 ### Patch Changes
