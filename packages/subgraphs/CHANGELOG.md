@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 0.11.3
+
+### Patch Changes
+
+- fix \_tx_id attribution: capture at insert time instead of flush time to prevent cross-tx misattribution within a block
+
 ## 0.11.2
 
 ### Patch Changes
