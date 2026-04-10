@@ -60,8 +60,10 @@ export function diffSchema(
 			removed: [...existingKeys].filter((k) => !incomingKeys.has(k)),
 			changed: [...incomingKeys].filter((k) => {
 				if (!existingKeys.has(k)) return false;
+				const sortedStringify = (o: unknown) =>
+					JSON.stringify(o, Object.keys(o as object).sort());
 				return (
-					JSON.stringify(existingCols[k]) !== JSON.stringify(incomingCols[k])
+					sortedStringify(existingCols[k]) !== sortedStringify(incomingCols[k])
 				);
 			}),
 		};
@@ -146,8 +148,7 @@ export async function deploySchema(
 
 	// Server owns versioning: use explicit flag, bump patch from existing, or start at 1.0.0
 	const newVersion =
-		opts?.version ??
-		(existing ? bumpPatch(existing.version) : "1.0.0");
+		opts?.version ?? (existing ? bumpPatch(existing.version) : "1.0.0");
 
 	const regData = {
 		name: def.name,
@@ -176,7 +177,11 @@ export async function deploySchema(
 				"@secondlayer/shared/db/queries/subgraphs"
 			);
 			await updateSubgraphHandlerPath(db, def.name, handlerPath);
-			return { action: "unchanged", subgraphId: existing.id, version: existing.version };
+			return {
+				action: "unchanged",
+				subgraphId: existing.id,
+				version: existing.version,
+			};
 		}
 
 		if (existing.schema_hash === hash && opts?.forceReindex) {
@@ -217,12 +222,18 @@ export async function deploySchema(
 					),
 					breakingChanges: reasons,
 				};
-				return { action: "reindexed", subgraphId: sg.id, version: newVersion, diff: deployDiff };
+				return {
+					action: "reindexed",
+					subgraphId: sg.id,
+					version: newVersion,
+					diff: deployDiff,
+				};
 			}
 
 			// Create new tables
 			for (const tableName of diff.addedTables) {
-				const tableDef = def.schema[tableName]!;
+				const tableDef = def.schema[tableName];
+				if (!tableDef) continue;
 				const qualifiedName = `${schemaName}.${tableName}`;
 				const colDefs = [
 					"_id BIGSERIAL PRIMARY KEY",
@@ -232,7 +243,9 @@ export async function deploySchema(
 				];
 				for (const [colName, col] of Object.entries(tableDef.columns)) {
 					const nullable = col.nullable ? "" : " NOT NULL";
-					colDefs.push(`${colName} ${TYPE_MAP[col.type]!}${nullable}`);
+					const sqlType = TYPE_MAP[col.type];
+					if (!sqlType) continue;
+					colDefs.push(`${colName} ${sqlType}${nullable}`);
 				}
 				await sql
 					.raw(
@@ -271,10 +284,13 @@ export async function deploySchema(
 			for (const [tableName, colDiff] of Object.entries(diff.tables)) {
 				if (colDiff.added.length === 0) continue;
 				const qualifiedName = `${schemaName}.${tableName}`;
-				const tableDef = def.schema[tableName]!;
+				const tableDef = def.schema[tableName];
+				if (!tableDef) continue;
 				for (const colName of colDiff.added) {
-					const col = tableDef.columns[colName]!;
-					const sqlType = TYPE_MAP[col.type]!;
+					const col = tableDef.columns[colName];
+					if (!col) continue;
+					const sqlType = TYPE_MAP[col.type];
+					if (!sqlType) continue;
 					const nullable = col.nullable
 						? ""
 						: ` NOT NULL DEFAULT ${getDefault(col.type)}`;
@@ -303,7 +319,8 @@ export async function deploySchema(
 			const sg = await registerSubgraph(db, regData);
 			const addedCols: Record<string, string[]> = {};
 			for (const [t, colDiff] of Object.entries(diff.tables)) {
-				if ((colDiff as ColumnDiff).added.length > 0) addedCols[t] = (colDiff as ColumnDiff).added;
+				if ((colDiff as ColumnDiff).added.length > 0)
+					addedCols[t] = (colDiff as ColumnDiff).added;
 			}
 			const deployDiff: DeployDiff = {
 				addedTables: diff.addedTables,
@@ -311,7 +328,12 @@ export async function deploySchema(
 				addedColumns: addedCols,
 				breakingChanges: [],
 			};
-			return { action: "updated", subgraphId: sg.id, version: newVersion, diff: deployDiff };
+			return {
+				action: "updated",
+				subgraphId: sg.id,
+				version: newVersion,
+				diff: deployDiff,
+			};
 		}
 	}
 
