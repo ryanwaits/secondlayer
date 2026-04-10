@@ -495,7 +495,7 @@ function escapeLiteral(value: unknown): string {
 		return String(value);
 	if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
 	if (typeof value === "object")
-		return `'${JSON.stringify(value).replace(/'/g, "''")}'::jsonb`;
+		return `'${JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? v.toString() : v)).replace(/'/g, "''")}'::jsonb`;
 	// String — escape single quotes
 	return `'${String(value).replace(/'/g, "''")}'`;
 }
