@@ -356,13 +356,13 @@ export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 							{
 								label: "cURL",
 								lang: "bash",
-								code: `curl '${relativePath}' \\\n  -H 'Authorization: Bearer ${keyDisplay}' \\\n  -G \\\n  -d '${curlParams.join("&")}'`,
+								code: `curl '${fullUrl}' \\\n  -H 'Authorization: Bearer ${keyDisplay}' \\\n  -G \\\n  -d '${curlParams.join("&")}'`,
 								copyCode: `curl '${fullUrl}' \\\n  -H 'Authorization: Bearer ${keyCopy}' \\\n  -G \\\n  -d '${curlParams.join("&")}'`,
 							},
 							{
 								label: "Node.js",
 								lang: "javascript",
-								code: `const response = await fetch(\n  '${relativePath}?${fetchParams.join("&")}',\n  { headers: { Authorization: \`Bearer ${keyDisplay}\` } }\n);\nconst data = await response.json();`,
+								code: `const response = await fetch(\n  '${fullUrl}?${fetchParams.join("&")}',\n  { headers: { Authorization: \`Bearer ${keyDisplay}\` } }\n);\nconst data = await response.json();`,
 								copyCode: `const response = await fetch(\n  '${fullUrl}?${fetchParams.join("&")}',\n  { headers: { Authorization: \`Bearer ${keyCopy}\` } }\n);\nconst data = await response.json();`,
 							},
 						]}
