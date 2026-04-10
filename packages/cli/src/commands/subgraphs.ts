@@ -374,23 +374,10 @@ export function registerSubgraphsCommand(program: Command): void {
 					]),
 				);
 
-				// Show gap ranges if any
-				if (sync && sync.gaps.count > 0 && sync.gaps.ranges.length > 0) {
-					console.log(dim("\nGap ranges (top 10):"));
-					const gapRows = sync.gaps.ranges.map((g) => [
-						String(g.start),
-						String(g.end),
-						String(g.size),
-						g.reason,
-					]);
-					console.log(formatTable(["Start", "End", "Size", "Reason"], gapRows));
-					if (sync.gaps.count > sync.gaps.ranges.length) {
-						console.log(
-							dim(
-								`  ... and ${sync.gaps.count - sync.gaps.ranges.length} more. Run: sl subgraphs gaps ${name}`,
-							),
-						);
-					}
+				if (sync && sync.gaps.count > 0) {
+					console.log(
+						dim(`\nRun: sl subgraphs gaps ${name}`),
+					);
 				}
 
 				// Show table endpoints
