@@ -136,23 +136,15 @@ const server = Bun.serve({
 				try {
 					const { resumeReindex } = await import("@secondlayer/subgraphs");
 
-					// Regenerate handler file from DB if missing (survives container restarts)
+					// Write handler file from DB (ensures latest code after redeploys)
 					if (row.handler_path && row.handler_code) {
-						const { existsSync, mkdirSync, writeFileSync } = await import(
-							"node:fs"
-						);
+						const { mkdirSync, writeFileSync } = await import("node:fs");
 						const { dirname } = await import("node:path");
-						if (!existsSync(row.handler_path)) {
-							mkdirSync(dirname(row.handler_path), { recursive: true });
-							writeFileSync(row.handler_path, row.handler_code);
-							logger.info("Restored handler file from DB", {
-								subgraph: row.name,
-								path: row.handler_path,
-							});
-						}
+						mkdirSync(dirname(row.handler_path), { recursive: true });
+						writeFileSync(row.handler_path, row.handler_code);
 					}
 
-					const mod = await import(row.handler_path);
+					const mod = await import(`${row.handler_path}?v=${Date.now()}`);
 					const def = mod.default ?? mod;
 					await resumeReindex(def, {
 						schemaName: row.schema_name ?? row.name,

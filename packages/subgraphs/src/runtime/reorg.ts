@@ -14,7 +14,7 @@ import { processBlock } from "./block-processor.ts";
  */
 export async function handleSubgraphReorg(
 	blockHeight: number,
-	loadSubgraphDef: (handlerPath: string) => Promise<SubgraphDefinition>,
+	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
 ): Promise<void> {
 	const db = getDb();
 	const client = getRawClient();
@@ -50,7 +50,7 @@ export async function handleSubgraphReorg(
 			});
 
 			// Reprocess the new canonical block
-			const def = await loadSubgraphDef(sg.handler_path);
+			const def = await loadSubgraphDef(sg);
 			await processBlock(def, sg.name, blockHeight);
 
 			logger.info("Subgraph reorg reprocessed", {
