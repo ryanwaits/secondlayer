@@ -15,7 +15,15 @@ app.get("/waitlist", async (c) => {
 	const db = getDb();
 	const status = c.req.query("status") || undefined;
 	const entries = await listWaitlist(db, status);
-	return c.json({ entries });
+	return c.json({
+		entries: entries.map((e) => ({
+			id: e.id,
+			email: e.email,
+			source: e.source,
+			status: e.status,
+			createdAt: e.created_at.toISOString(),
+		})),
+	});
 });
 
 // POST /api/admin/waitlist/:id/approve
