@@ -1,1 +1,1 @@
-export const ADMIN_EMAILS = ["ryan.waits@gmail.com"];
+export const ADMIN_EMAILS: string[] = ["ryan.waits@gmail.com"];
