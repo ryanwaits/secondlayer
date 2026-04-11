@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const showCode = tool({
 	description:
-		"Display a tabbed code example card to the user. Use this for multi-language examples (curl, JavaScript, Python). Each tab gets syntax highlighting and a copy button.",
+		"Display a tabbed code example card to the user. Use this for multi-language examples with tabs: curl, Node.js, and SDK (@secondlayer/sdk). Do NOT include Python. Each tab gets syntax highlighting and a copy button.",
 	inputSchema: z.object({
 		tabs: z
 			.array(

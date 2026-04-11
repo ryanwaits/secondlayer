@@ -1,6 +1,6 @@
+import { type DocTopic, getDocsForTopic } from "@/lib/command/docs";
 import { tool } from "ai";
 import { z } from "zod";
-import { type DocTopic, getDocsForTopic } from "@/lib/command/docs";
 
 const topics: [DocTopic, ...DocTopic[]] = [
 	"stream-filters",
@@ -9,6 +9,7 @@ const topics: [DocTopic, ...DocTopic[]] = [
 	"subgraphs",
 	"stream-management",
 	"subgraph-scaffold",
+	"subgraph-query",
 ];
 
 export const lookupDocs = tool({

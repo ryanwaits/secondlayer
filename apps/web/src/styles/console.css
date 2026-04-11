@@ -288,9 +288,17 @@ body:has(.dash) .auth-bar {
 	color: var(--text-main);
 }
 .tabbed-code-tab.active {
-	color: var(--text-main);
+	color: #fff;
 	font-weight: 600;
 	border-bottom-color: var(--accent);
+}
+@media (prefers-color-scheme: light) {
+	.tabbed-code-tab.active {
+		color: #111;
+	}
+}
+html.force-light .tabbed-code-tab.active {
+	color: #111;
 }
 .tabbed-code-body {
 	padding: 0;

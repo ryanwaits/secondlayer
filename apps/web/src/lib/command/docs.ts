@@ -89,7 +89,7 @@ Streams use filters to match on-chain events. Each filter has a \`type\` discrim
 export function getStreamCreationDocs(): string {
 	return `## Creating a Stream
 
-POST /api/streams with body:
+POST https://api.secondlayer.tools/api/streams with body:
 
 \`\`\`
 {
@@ -138,11 +138,11 @@ export function getApiKeyDocs(): string {
 API keys authenticate requests to the Secondlayer API.
 
 ### Create
-POST /api/keys with body: \`{ name?: string }\`
+POST https://api.secondlayer.tools/api/keys with body: \`{ name?: string }\`
 Returns: key object with prefix visible, full key shown once.
 
 ### Revoke
-DELETE /api/keys/{id}
+DELETE https://api.secondlayer.tools/api/keys/{id}
 
 ### Fields
 - id: UUID
@@ -160,20 +160,24 @@ Subgraphs are materialized query indexes over blockchain data.
 - name: string (unique identifier)
 - status: "building" | "ready" | "failed"
 
+### API Base URL
+https://api.secondlayer.tools/api/subgraphs/{name}/{table}
+
 ### Navigation
-Subgraphs are managed at /subgraphs in the dashboard.`;
+Subgraphs are managed at /subgraphs in the dashboard.
+For querying data, use the "subgraph-query" documentation topic.`;
 }
 
 export function getStreamManagementDocs(): string {
 	return `## Stream Management
 
 ### Actions
-- **Pause**: POST /api/streams/{id}/pause — temporarily stop deliveries
-- **Resume**: POST /api/streams/{id}/resume — restart paused stream
-- **Disable**: POST /api/streams/{id}/disable — fully disable a stream
-- **Enable**: POST /api/streams/{id}/enable — re-enable a disabled stream
-- **Replay failed**: POST /api/streams/{id}/replay-failed — retry failed deliveries
-- **Delete**: DELETE /api/streams/{id} — permanently remove a stream
+- **Pause**: POST https://api.secondlayer.tools/api/streams/{id}/pause — temporarily stop deliveries
+- **Resume**: POST https://api.secondlayer.tools/api/streams/{id}/resume — restart paused stream
+- **Disable**: POST https://api.secondlayer.tools/api/streams/{id}/disable — fully disable a stream
+- **Enable**: POST https://api.secondlayer.tools/api/streams/{id}/enable — re-enable a disabled stream
+- **Replay failed**: POST https://api.secondlayer.tools/api/streams/{id}/replay-failed — retry failed deliveries
+- **Delete**: DELETE https://api.secondlayer.tools/api/streams/{id} — permanently remove a stream
 
 ### Stream statuses
 - **active**: running and delivering events
@@ -256,13 +260,75 @@ sl subgraphs dev subgraphs/name.ts  # watch mode
 \`\`\``;
 }
 
+export function getSubgraphQueryDocs(): string {
+	return `## Querying Subgraph Data
+
+Base URL: https://api.secondlayer.tools/api
+
+### Endpoint
+GET https://api.secondlayer.tools/api/subgraphs/{subgraph-name}/{table-name}
+
+Auth: Authorization: Bearer <api-key>
+
+### Query Parameters
+- **_limit**: number (default 10, max 1000) — rows to return
+- **_sort**: string (default "_id") — column to sort by
+- **_order**: "asc" | "desc" (default "desc") — sort direction
+- **_offset**: number — skip N rows (for pagination)
+- **_search**: string — full-text search across all text/string columns
+
+### Column Filtering
+Filter by column value using dot-notation operators:
+- \`{column}.eq=VALUE\` — exact match
+- \`{column}.neq=VALUE\` — not equal
+- \`{column}.gt=VALUE\` — greater than
+- \`{column}.gte=VALUE\` — greater than or equal
+- \`{column}.lt=VALUE\` — less than
+- \`{column}.lte=VALUE\` — less than or equal
+- \`{column}.like=VALUE\` — pattern match (use % as wildcard)
+
+### Example: curl
+\`\`\`bash
+curl 'https://api.secondlayer.tools/api/subgraphs/my-subgraph/swaps?_limit=10&_sort=_created_at&_order=desc' \\
+  -H 'Authorization: Bearer sk-sl_...'
+\`\`\`
+
+### Example: Node.js
+\`\`\`javascript
+const response = await fetch(
+  'https://api.secondlayer.tools/api/subgraphs/my-subgraph/swaps?_limit=10&_sort=_id&_order=desc',
+  { headers: { Authorization: \`Bearer \${apiKey}\` } }
+);
+const { data, meta } = await response.json();
+\`\`\`
+
+### Example: SDK
+\`\`\`javascript
+import { Secondlayer } from '@secondlayer/sdk';
+const client = new Secondlayer();
+const { data, meta } = await client
+  .subgraph('my-subgraph')
+  .table('swaps')
+  .query({ limit: 10, sort: '_id', order: 'desc' });
+\`\`\`
+
+### Response Format
+\`\`\`json
+{
+  "data": [{ "column1": "value", "column2": 123 }],
+  "meta": { "total": 1234, "limit": 10, "offset": 0 }
+}
+\`\`\``;
+}
+
 export type DocTopic =
 	| "stream-filters"
 	| "stream-creation"
 	| "api-keys"
 	| "subgraphs"
 	| "stream-management"
-	| "subgraph-scaffold";
+	| "subgraph-scaffold"
+	| "subgraph-query";
 
 const topicMap: Record<DocTopic, () => string> = {
 	"stream-filters": getStreamFilterDocs,
@@ -271,6 +337,7 @@ const topicMap: Record<DocTopic, () => string> = {
 	subgraphs: getSubgraphDocs,
 	"stream-management": getStreamManagementDocs,
 	"subgraph-scaffold": getSubgraphScaffoldDocs,
+	"subgraph-query": getSubgraphQueryDocs,
 };
 
 export function getDocsForTopic(topic: DocTopic): string {
