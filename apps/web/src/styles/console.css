@@ -6219,6 +6219,174 @@ body:has(.dash) .auth-bar {
 	border-top: 1px solid var(--border);
 }
 
+/* Diagnostics card */
+.diag-item {
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	gap: 10px;
+}
+.diag-item:last-child {
+	border-bottom: none;
+}
+.diag-icon {
+	width: 18px;
+	height: 18px;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	margin-top: 1px;
+}
+.diag-icon svg {
+	width: 10px;
+	height: 10px;
+}
+.diag-icon.danger {
+	background: var(--red-bg);
+	color: var(--red);
+}
+.diag-icon.warning {
+	background: var(--yellow-bg);
+	color: var(--yellow);
+}
+.diag-icon.info {
+	background: var(--green-bg);
+	color: var(--green);
+}
+.diag-body {
+	flex: 1;
+}
+.diag-title {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-main);
+	margin-bottom: 2px;
+}
+.diag-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+.diag-action {
+	margin-top: 6px;
+	font-size: 11px;
+	font-family: var(--font-mono-stack);
+	color: var(--accent);
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.diag-action svg {
+	width: 10px;
+	height: 10px;
+}
+
+/* Data table (query_subgraph results) */
+.data-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+.data-table th {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	text-align: left;
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+}
+.data-table td {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-main);
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+	max-width: 260px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.data-table tr:last-child td {
+	border-bottom: none;
+}
+.data-table tr:nth-child(even) td {
+	background: var(--nudge-bg);
+}
+.data-table .td-muted {
+	color: var(--text-muted);
+	font-size: 11px;
+}
+.table-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 14px;
+	border-top: 1px solid var(--border);
+	font-size: 11px;
+	color: var(--text-muted);
+	font-family: var(--font-mono-stack);
+}
+
+/* Session inline code blocks (fenced code in AI text) */
+.session-code-block {
+	background: var(--code-block-bg);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	overflow: hidden;
+	margin: 8px 0;
+}
+.session-code-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 14px;
+	border-bottom: 1px solid var(--border);
+}
+.session-code-lang {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 500;
+	color: var(--text-muted);
+	letter-spacing: 0.02em;
+}
+.session-code-copy {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 500;
+	color: var(--text-muted);
+	background: none;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 2px 10px;
+	cursor: pointer;
+	transition: all 0.12s;
+}
+.session-code-copy:hover {
+	color: var(--text-main);
+	border-color: var(--border-hover);
+	background: var(--nudge-bg);
+}
+.session-code-body {
+	overflow-x: auto;
+}
+.session-code-body pre {
+	margin: 0;
+	padding: 14px;
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	line-height: 1.7;
+	color: var(--text-main);
+	white-space: pre;
+}
+.session-code-body .shiki {
+	padding: 14px;
+}
+
 /* Success banner */
 .tool-success-banner {
 	display: flex;

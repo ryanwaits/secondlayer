@@ -1,19 +1,22 @@
 "use client";
 
+import { type CodeTab, TabbedCode } from "@/components/console/tabbed-code";
 import {
-	getToolName,
-	type ToolUIPart,
 	type DynamicToolUIPart,
+	type ToolUIPart,
 	type UITools,
+	getToolName,
 } from "ai";
-import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
-import { StreamStatusCard } from "./tool-parts/stream-status-card";
 import { ActionCard } from "./tool-parts/action-card";
 import { CodeCard } from "./tool-parts/code-card";
-import { KeysCard } from "./tool-parts/keys-card";
+import { DataTableCard } from "./tool-parts/data-table-card";
+import { DiagnosticsCard } from "./tool-parts/diagnostics-card";
 import { InsightsCard } from "./tool-parts/insights-card";
-import { SuccessBanner } from "./tool-parts/success-banner";
+import { KeysCard } from "./tool-parts/keys-card";
 import { MemoryRecallCard } from "./tool-parts/memory-tag";
+import { StreamStatusCard } from "./tool-parts/stream-status-card";
+import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
+import { SuccessBanner } from "./tool-parts/success-banner";
 import { ToolCallIndicator } from "./tool-parts/tool-call-indicator";
 
 type AnyToolPart = ToolUIPart<UITools> | DynamicToolUIPart;
@@ -32,29 +35,24 @@ const HUMAN_IN_LOOP_TOOLS = new Set([
 	"manage_subgraphs",
 ]);
 
-export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps) {
+export function ToolPartRenderer({
+	part,
+	addToolOutput,
+}: ToolPartRendererProps) {
 	const toolName = getToolName(part);
 	const state = part.state;
 
 	// Loading state — show indicator with dots
 	if (state === "input-streaming") {
 		return (
-			<ToolCallIndicator
-				toolName={toolName}
-				state={state}
-				input={part.input}
-			/>
+			<ToolCallIndicator toolName={toolName} state={state} input={part.input} />
 		);
 	}
 
 	// Tools with execute waiting to run — show indicator with dots
 	if (state === "input-available" && !HUMAN_IN_LOOP_TOOLS.has(toolName)) {
 		return (
-			<ToolCallIndicator
-				toolName={toolName}
-				state={state}
-				input={part.input}
-			/>
+			<ToolCallIndicator toolName={toolName} state={state} input={part.input} />
 		);
 	}
 
@@ -64,7 +62,12 @@ export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps)
 			action: string;
 			targets: Array<{ id?: string; name: string; reason?: string }>;
 		};
-		const resourceType = toolName === "manage_keys" ? "keys" : toolName === "manage_subgraphs" ? "subgraphs" : "streams";
+		const resourceType =
+			toolName === "manage_keys"
+				? "keys"
+				: toolName === "manage_subgraphs"
+					? "subgraphs"
+					: "streams";
 		return (
 			<>
 				<ToolCallIndicator
@@ -74,12 +77,19 @@ export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps)
 				/>
 				<ActionCard
 					action={input.action}
-					targets={input.targets.map((t) => ({ id: t.id ?? t.name, name: t.name, reason: t.reason }))}
+					targets={input.targets.map((t) => ({
+						id: t.id ?? t.name,
+						name: t.name,
+						reason: t.reason,
+					}))}
 					onConfirm={async () => {
 						await executeAction(toolName, input.action, input.targets);
 						addToolOutput({
 							toolCallId: part.toolCallId,
-							output: { confirmed: true, message: `${input.targets.length} ${resourceType} ${input.action}d successfully` },
+							output: {
+								confirmed: true,
+								message: `${input.targets.length} ${resourceType} ${input.action}d successfully`,
+							},
 						});
 					}}
 					onCancel={() =>
@@ -125,7 +135,8 @@ export function ToolPartRenderer({ part, addToolOutput }: ToolPartRendererProps)
 					input={part.input}
 				/>
 				<div className="tool-error">
-					Tool error: {(part as { errorText?: string }).errorText ?? "Unknown error"}
+					Tool error:{" "}
+					{(part as { errorText?: string }).errorText ?? "Unknown error"}
 				</div>
 			</>
 		);
@@ -140,43 +151,63 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 		case "check_subgraphs":
 			return (
 				<SubgraphStatusCard
-					subgraphs={output.subgraphs as Array<{
-						name: string; status: string;
-						lastProcessedBlock: number | null;
-						totalProcessed: number; totalErrors: number;
-					}>}
+					subgraphs={
+						output.subgraphs as Array<{
+							name: string;
+							status: string;
+							lastProcessedBlock: number | null;
+							totalProcessed: number;
+							totalErrors: number;
+						}>
+					}
 				/>
 			);
 
 		case "check_streams":
 			return (
 				<StreamStatusCard
-					streams={output.streams as Array<{
-						id: string; name: string; status: string;
-						enabled: boolean; totalDeliveries: number;
-						failedDeliveries: number; errorMessage: string | null;
-					}>}
+					streams={
+						output.streams as Array<{
+							id: string;
+							name: string;
+							status: string;
+							enabled: boolean;
+							totalDeliveries: number;
+							failedDeliveries: number;
+							errorMessage: string | null;
+						}>
+					}
 				/>
 			);
 
 		case "check_keys":
 			return (
 				<KeysCard
-					keys={output.keys as Array<{
-						id: string; name: string; prefix: string;
-						status: string; lastUsedAt: string | null;
-						createdAt: string;
-					}>}
+					keys={
+						output.keys as Array<{
+							id: string;
+							name: string;
+							prefix: string;
+							status: string;
+							lastUsedAt: string | null;
+							createdAt: string;
+						}>
+					}
 				/>
 			);
 
 		case "check_insights":
 			return (
 				<InsightsCard
-					insights={output.insights as Array<{
-						id: string; severity: "info" | "warning" | "danger";
-						title: string; body: string; category: string;
-					}>}
+					insights={
+						output.insights as Array<{
+							id: string;
+							severity: "info" | "warning" | "danger";
+							title: string;
+							body: string;
+							category: string;
+						}>
+					}
 				/>
 			);
 
@@ -202,14 +233,44 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 
 		case "recall_sessions": {
 			const sessions = (output.sessions ?? []) as Array<{
-				id: string; title: string | null;
-				createdAt: string; summary: string;
+				id: string;
+				title: string | null;
+				createdAt: string;
+				summary: string;
 			}>;
 			return <MemoryRecallCard sessions={sessions} />;
 		}
 
-		// lookup_docs, diagnose, check_usage, query_subgraph
-		// — invisible tools, indicator only
+		case "query_subgraph": {
+			const rows = (output.rows ?? []) as Array<Record<string, unknown>>;
+			return (
+				<DataTableCard
+					subgraph={output.subgraph as string}
+					table={output.table as string}
+					rows={rows}
+					meta={output.meta as { total?: number } | undefined}
+				/>
+			);
+		}
+
+		case "diagnose": {
+			const findings = (output.findings ?? []) as Array<{
+				resource: string;
+				resourceType: string;
+				severity: "danger" | "warning" | "info";
+				title: string;
+				description: string;
+				suggestion: string;
+			}>;
+			return <DiagnosticsCard findings={findings} />;
+		}
+
+		case "show_code": {
+			const tabs = (output.tabs ?? []) as CodeTab[];
+			return <TabbedCode tabs={tabs} />;
+		}
+
+		// lookup_docs, check_usage — invisible tools, indicator only
 		default:
 			return null;
 	}
@@ -229,15 +290,29 @@ async function executeAction(
 					pause: { method: "POST", path: `/api/streams/${t.id}/pause` },
 					resume: { method: "POST", path: `/api/streams/${t.id}/resume` },
 					delete: { method: "DELETE", path: `/api/streams/${t.id}` },
-					"replay-failed": { method: "POST", path: `/api/streams/${t.id}/replay-failed` },
+					"replay-failed": {
+						method: "POST",
+						path: `/api/streams/${t.id}/replay-failed`,
+					},
 				};
 				const call = pathMap[action];
-				if (call) calls.push(fetch(call.path, { method: call.method, credentials: "same-origin" }));
+				if (call)
+					calls.push(
+						fetch(call.path, {
+							method: call.method,
+							credentials: "same-origin",
+						}),
+					);
 				break;
 			}
 			case "manage_keys": {
 				if (action === "revoke") {
-					calls.push(fetch(`/api/keys/${t.id}`, { method: "DELETE", credentials: "same-origin" }));
+					calls.push(
+						fetch(`/api/keys/${t.id}`, {
+							method: "DELETE",
+							credentials: "same-origin",
+						}),
+					);
 				}
 				break;
 			}
@@ -248,7 +323,13 @@ async function executeAction(
 					stop: { method: "POST", path: `/api/subgraphs/${t.name}/stop` },
 				};
 				const call = pathMap[action];
-				if (call) calls.push(fetch(call.path, { method: call.method, credentials: "same-origin" }));
+				if (call)
+					calls.push(
+						fetch(call.path, {
+							method: call.method,
+							credentials: "same-origin",
+						}),
+					);
 				break;
 			}
 		}

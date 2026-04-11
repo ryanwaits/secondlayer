@@ -20,6 +20,7 @@ import { manageWorkflows } from "./manage-workflows";
 import { createQuerySubgraph } from "./query-subgraph";
 import { createRecallSessions } from "./recall-sessions";
 import { createScaffoldSubgraph } from "./scaffold-subgraph";
+import { showCode } from "./show-code";
 
 export interface AccountResources {
 	streams: Stream[];
@@ -54,7 +55,10 @@ export async function fetchAccountResources(
 	return { streams, subgraphs, workflows, keys, chainTip };
 }
 
-export function createSessionTools(sessionToken: string) {
+export function createSessionTools(
+	sessionToken: string,
+	resources: AccountResources,
+) {
 	return {
 		check_subgraphs: createCheckSubgraphs(sessionToken),
 		check_streams: createCheckStreams(sessionToken),
@@ -69,7 +73,8 @@ export function createSessionTools(sessionToken: string) {
 		manage_workflows: manageWorkflows,
 		scaffold_subgraph: createScaffoldSubgraph(),
 		lookup_docs: lookupDocs,
-		diagnose: createDiagnose(),
+		diagnose: createDiagnose(resources),
 		recall_sessions: createRecallSessions(sessionToken),
+		show_code: showCode,
 	};
 }

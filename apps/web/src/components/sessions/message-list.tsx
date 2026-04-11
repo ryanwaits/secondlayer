@@ -1,16 +1,17 @@
 "use client";
 
 import {
+	type ChatStatus,
+	type UIDataTypes,
+	type UIMessage,
+	type UITools,
+	getToolName,
 	isTextUIPart,
 	isToolUIPart,
-	getToolName,
-	type UIMessage,
-	type UIDataTypes,
-	type UITools,
-	type ChatStatus,
 } from "ai";
 import { useEffect, useMemo, useRef } from "react";
 import { ToolPartRenderer } from "./tool-part-renderer";
+import { SessionCodeBlock } from "./tool-parts/session-code-block";
 import { StepFlow, type StepInfo } from "./tool-parts/step-flow";
 
 interface MessageListProps {
@@ -75,6 +76,9 @@ const VISIBLE_TOOLS = new Set([
 	"manage_subgraphs",
 	"scaffold_subgraph",
 	"recall_sessions",
+	"query_subgraph",
+	"diagnose",
+	"show_code",
 ]);
 
 const TOOL_STEP_LABELS: Record<string, string> = {
@@ -91,6 +95,7 @@ const TOOL_STEP_LABELS: Record<string, string> = {
 	query_subgraph: "Querying subgraph data",
 	manage_keys: "Managing API keys",
 	manage_subgraphs: "Managing subgraphs",
+	show_code: "Generating code example",
 };
 
 function MessageBubble({
@@ -135,26 +140,18 @@ function MessageBubble({
 				{segments?.map((seg) => {
 					if (seg.type === "text") {
 						if (!seg.text.trim()) return null;
-						return (
-							<div
-								key={seg.key}
-								className="msg-content"
-								dangerouslySetInnerHTML={{
-									__html: formatMarkdown(seg.text),
-								}}
-							/>
-						);
+						return <MessageTextContent key={seg.key} text={seg.text} />;
 					}
 					if (seg.type === "step-flow") {
-						return (
-							<StepFlow key={seg.key} steps={seg.steps} />
-						);
+						return <StepFlow key={seg.key} steps={seg.steps} />;
 					}
 					if (seg.type === "tool") {
 						return (
 							<ToolPartRenderer
 								key={seg.key}
-								part={seg.part as Parameters<typeof ToolPartRenderer>[0]["part"]}
+								part={
+									seg.part as Parameters<typeof ToolPartRenderer>[0]["part"]
+								}
 								addToolOutput={addToolOutput}
 							/>
 						);
@@ -184,7 +181,9 @@ function groupPartsIntoSegments(
 		if (toolBuffer.length >= 2) {
 			// Multiple tool calls → render as step flow
 			const totalVisible = toolBuffer.filter((t) =>
-				VISIBLE_TOOLS.has(getToolName(t.part as Parameters<typeof getToolName>[0])),
+				VISIBLE_TOOLS.has(
+					getToolName(t.part as Parameters<typeof getToolName>[0]),
+				),
 			).length;
 
 			if (totalVisible >= 2) {
@@ -317,31 +316,105 @@ function InlineToolCard({ part }: { part: UIMessage["parts"][number] }) {
 function MiniLogo() {
 	return (
 		<svg viewBox="4 7 40 28" width="18" height="12" fill="none">
-			<polygon
-				points="8,25 28,17 42,25 22,33"
-				fill="rgba(255,255,255,0.15)"
-			/>
-			<polygon
-				points="8,19 28,11 42,19 22,27"
-				fill="rgba(255,255,255,0.4)"
-			/>
+			<polygon points="8,25 28,17 42,25 22,33" fill="rgba(255,255,255,0.15)" />
+			<polygon points="8,19 28,11 42,19 22,27" fill="rgba(255,255,255,0.4)" />
 		</svg>
 	);
 }
 
+/** Split text into alternating prose and fenced code block chunks */
+function parseTextWithCodeBlocks(
+	text: string,
+): Array<
+	| { type: "prose"; content: string }
+	| { type: "code"; code: string; lang: string }
+> {
+	const parts: Array<
+		| { type: "prose"; content: string }
+		| { type: "code"; code: string; lang: string }
+	> = [];
+	const fenceRegex = /^```(\w*)\s*\n([\s\S]*?)^```\s*$/gm;
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = fenceRegex.exec(text)) !== null) {
+		// Prose before this code block
+		if (match.index > lastIndex) {
+			parts.push({
+				type: "prose",
+				content: text.slice(lastIndex, match.index),
+			});
+		}
+		parts.push({
+			type: "code",
+			code: match[2].trimEnd(),
+			lang: match[1] || "text",
+		});
+		lastIndex = match.index + match[0].length;
+	}
+
+	// Remaining prose after last code block
+	if (lastIndex < text.length) {
+		parts.push({ type: "prose", content: text.slice(lastIndex) });
+	}
+
+	return parts;
+}
+
+/** Renders text with fenced code blocks as SessionCodeBlock components */
+function MessageTextContent({ text }: { text: string }) {
+	const chunks = useMemo(() => parseTextWithCodeBlocks(text), [text]);
+
+	// No code blocks — fast path
+	if (chunks.length === 1 && chunks[0].type === "prose") {
+		return (
+			<div
+				className="msg-content"
+				dangerouslySetInnerHTML={{ __html: formatMarkdown(chunks[0].content) }}
+			/>
+		);
+	}
+
+	return (
+		<>
+			{chunks.map((chunk, i) => {
+				if (chunk.type === "code") {
+					return (
+						<SessionCodeBlock
+							key={`code-${i}`}
+							code={chunk.code}
+							lang={chunk.lang}
+						/>
+					);
+				}
+				if (!chunk.content.trim()) return null;
+				return (
+					<div
+						key={`prose-${i}`}
+						className="msg-content"
+						dangerouslySetInnerHTML={{ __html: formatMarkdown(chunk.content) }}
+					/>
+				);
+			})}
+		</>
+	);
+}
+
 function formatMarkdown(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		// Headers
-		.replace(/^### (.+)$/gm, '<h4 class="msg-h4">$1</h4>')
-		.replace(/^## (.+)$/gm, '<h3 class="msg-h3">$1</h3>')
-		// Bold + code
-		.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-		.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-		// List items
-		.replace(/^- (.+)$/gm, '<div class="msg-li">$1</div>')
-		// Line breaks (but not after block elements)
-		.replace(/\n(?!<)/g, "<br>");
+	return (
+		text
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			// Headers
+			.replace(/^### (.+)$/gm, '<h4 class="msg-h4">$1</h4>')
+			.replace(/^## (.+)$/gm, '<h3 class="msg-h3">$1</h3>')
+			// Bold + code
+			.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+			.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+			// List items
+			.replace(/^- (.+)$/gm, '<div class="msg-li">$1</div>')
+			// Line breaks (but not after block elements)
+			.replace(/\n(?!<)/g, "<br>")
+	);
 }

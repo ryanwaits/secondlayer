@@ -1,11 +1,5 @@
-import { anthropic } from "@ai-sdk/anthropic";
-import {
-	streamText,
-	convertToModelMessages,
-	stepCountIs,
-	type UIMessage,
-} from "ai";
 import { getSessionFromRequest } from "@/lib/api";
+import { buildSessionInstructions } from "@/lib/sessions/instructions";
 import {
 	createChatSession,
 	listRecentSessions,
@@ -13,11 +7,17 @@ import {
 	updateSessionSummary,
 } from "@/lib/sessions/persistence";
 import { extractSessionSummary } from "@/lib/sessions/summary";
-import { buildSessionInstructions } from "@/lib/sessions/instructions";
 import {
 	createSessionTools,
 	fetchAccountResources,
 } from "@/lib/sessions/tools";
+import { anthropic } from "@ai-sdk/anthropic";
+import {
+	type UIMessage,
+	convertToModelMessages,
+	stepCountIs,
+	streamText,
+} from "ai";
 import { after } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 		listRecentSessions(sessionToken, 5),
 	]);
 	const system = buildSessionInstructions(resources, recentSessions);
-	const tools = createSessionTools(sessionToken);
+	const tools = createSessionTools(sessionToken, resources);
 
 	const result = streamText({
 		model: anthropic("claude-sonnet-4-20250514"),
@@ -75,6 +75,7 @@ export async function POST(req: Request) {
 						"lookup_docs",
 						"recall_sessions",
 						"diagnose",
+						"show_code",
 					],
 				};
 			}
@@ -108,15 +109,9 @@ export async function POST(req: Request) {
 						chatSessionId,
 						allMessages as UIMessage[],
 					);
-					const summary = extractSessionSummary(
-						allMessages as UIMessage[],
-					);
+					const summary = extractSessionSummary(allMessages as UIMessage[]);
 					if (summary.toolCalls.length > 0) {
-						await updateSessionSummary(
-							sessionToken,
-							chatSessionId,
-							summary,
-						);
+						await updateSessionSummary(sessionToken, chatSessionId, summary);
 					}
 				} catch (e) {
 					console.error("[sessions/chat] Persist error:", e);
