@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { highlightCode } from "@/components/command-palette/actions";
+import { useCallback, useEffect, useState } from "react";
 
 interface CodeCardProps {
 	code: string;
@@ -8,8 +9,23 @@ interface CodeCardProps {
 	lang?: string;
 }
 
-export function CodeCard({ code, filename, lang = "TypeScript" }: CodeCardProps) {
+export function CodeCard({
+	code,
+	filename,
+	lang = "typescript",
+}: CodeCardProps) {
 	const [copied, setCopied] = useState(false);
+	const [html, setHtml] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		highlightCode(code, lang).then((result) => {
+			if (!cancelled) setHtml(result);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [code, lang]);
 
 	const handleCopy = useCallback(() => {
 		navigator.clipboard.writeText(code);
@@ -23,9 +39,15 @@ export function CodeCard({ code, filename, lang = "TypeScript" }: CodeCardProps)
 				<span>{filename ?? "generated.ts"}</span>
 				<span style={{ opacity: 0.5 }}>{lang}</span>
 			</div>
-			<pre className="tool-code-body">
-				<code>{code}</code>
-			</pre>
+			<div className="tool-code-body">
+				{html ? (
+					<div dangerouslySetInnerHTML={{ __html: html }} />
+				) : (
+					<pre>
+						<code>{code}</code>
+					</pre>
+				)}
+			</div>
 			<div className="tool-code-actions">
 				<button type="button" className="tool-btn primary">
 					Deploy Now
