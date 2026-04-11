@@ -1,10 +1,20 @@
 import { tool } from "ai";
 import { z } from "zod";
+import type { AccountResources } from "./factory";
 
-export function createDiagnose() {
+interface Finding {
+	resource: string;
+	resourceType: "stream" | "subgraph";
+	severity: "danger" | "warning" | "info";
+	title: string;
+	description: string;
+	suggestion: string;
+}
+
+export function createDiagnose(resources: AccountResources) {
 	return tool({
 		description:
-			"Diagnose the health of a stream or subgraph. Analyze resources from your context for: failed status, high error rates (>10%), stalled/behind chain tip (>50 blocks), paused state.",
+			"Diagnose the health of streams or subgraphs. Returns structured findings with severity, description, and suggested actions.",
 		inputSchema: z.object({
 			resourceType: z
 				.enum(["stream", "subgraph"])
@@ -15,14 +25,131 @@ export function createDiagnose() {
 				.describe("Specific resource ID or name. Omit to diagnose all."),
 		}),
 		execute: async ({ resourceType, resourceId }) => {
-			const target = resourceId ? `"${resourceId}"` : `all ${resourceType}s`;
-			return {
-				instruction: [
-					`Analyze ${target} from the resource list in your system prompt.`,
-					"Check for: failed/error state, high failure rate (>10%), stalled (>50 blocks behind), paused, zero deliveries.",
-					"Respond with your diagnosis inline.",
-				].join("\n"),
-			};
+			const findings: Finding[] = [];
+
+			if (resourceType === "stream") {
+				const targets = resourceId
+					? resources.streams.filter(
+							(s) => s.name === resourceId || s.id === resourceId,
+						)
+					: resources.streams;
+
+				for (const s of targets) {
+					// Failed status
+					if (s.status === "failed") {
+						findings.push({
+							resource: s.name,
+							resourceType: "stream",
+							severity: "danger",
+							title: `${s.name} — failed`,
+							description: s.errorMessage
+								? `Stream is in failed state: ${s.errorMessage}`
+								: "Stream is in failed state.",
+							suggestion:
+								"Check your webhook URL and replay failed deliveries.",
+						});
+						continue;
+					}
+
+					// High error rate (>10%)
+					if (s.totalDeliveries > 0 && s.failedDeliveries > 0) {
+						const errorRate = s.failedDeliveries / s.totalDeliveries;
+						if (errorRate > 0.1) {
+							findings.push({
+								resource: s.name,
+								resourceType: "stream",
+								severity: "danger",
+								title: `${s.name} — ${Math.round(errorRate * 100)}% failure rate`,
+								description: `${s.failedDeliveries} of ${s.totalDeliveries} deliveries failed.`,
+								suggestion: "Check that your webhook URL responds with 2xx.",
+							});
+							continue;
+						}
+					}
+
+					// Paused / disabled
+					if (!s.enabled || s.status === "paused") {
+						findings.push({
+							resource: s.name,
+							resourceType: "stream",
+							severity: "warning",
+							title: `${s.name} — ${!s.enabled ? "disabled" : "paused"}`,
+							description: `Stream is ${!s.enabled ? "disabled" : "paused"}. Events are being buffered.`,
+							suggestion: `Say "resume ${s.name}" to unpause.`,
+						});
+					}
+				}
+			}
+
+			if (resourceType === "subgraph") {
+				const targets = resourceId
+					? resources.subgraphs.filter((s) => s.name === resourceId)
+					: resources.subgraphs;
+				const chainTip = resources.chainTip;
+
+				for (const s of targets) {
+					// Error state
+					if (s.status === "error") {
+						findings.push({
+							resource: s.name,
+							resourceType: "subgraph",
+							severity: "danger",
+							title: `${s.name} — error state`,
+							description: `Subgraph has ${s.totalErrors} errors.`,
+							suggestion:
+								"Check handler code for runtime errors. Consider reindexing.",
+						});
+						continue;
+					}
+
+					// Stalled (>50 blocks behind chain tip)
+					if (
+						chainTip != null &&
+						s.lastProcessedBlock != null &&
+						chainTip - s.lastProcessedBlock > 50
+					) {
+						const behind = chainTip - s.lastProcessedBlock;
+						findings.push({
+							resource: s.name,
+							resourceType: "subgraph",
+							severity: "warning",
+							title: `${s.name} — ${behind} blocks behind`,
+							description: `Last processed block ${s.lastProcessedBlock.toLocaleString()}, chain tip is ${chainTip.toLocaleString()}.`,
+							suggestion:
+								"This may catch up on its own. If stuck, try reindexing.",
+						});
+						continue;
+					}
+
+					// High error count
+					if (s.totalErrors > 0 && s.totalProcessed > 0) {
+						const errorRate = s.totalErrors / s.totalProcessed;
+						if (errorRate > 0.1) {
+							findings.push({
+								resource: s.name,
+								resourceType: "subgraph",
+								severity: "warning",
+								title: `${s.name} — ${Math.round(errorRate * 100)}% error rate`,
+								description: `${s.totalErrors} errors out of ${s.totalProcessed} processed blocks.`,
+								suggestion: "Review handler code for edge cases.",
+							});
+						}
+					}
+				}
+			}
+
+			if (findings.length === 0) {
+				findings.push({
+					resource: "all",
+					resourceType,
+					severity: "info",
+					title: `All ${resourceType}s healthy`,
+					description: `No issues detected across your ${resourceType}s.`,
+					suggestion: "",
+				});
+			}
+
+			return { findings };
 		},
 	});
 }
