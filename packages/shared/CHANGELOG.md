@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 0.12.3
+
+### Patch Changes
+
+- Add waitlist query functions (listWaitlist, getWaitlistById, approveWaitlistEntry) and admin constants export
+
 ## 0.12.2
 
 ### Patch Changes
