@@ -30,6 +30,8 @@ import subgraphsRouter, {
 } from "./routes/subgraphs.ts";
 import waitlistRouter from "./routes/waitlist.ts";
 import workflowsRouter from "./routes/workflows.ts";
+import adminRouter from "./routes/admin.ts";
+import { requireAdmin } from "./middleware/admin.ts";
 
 const app = new Hono();
 
@@ -53,6 +55,11 @@ app.route("/api/waitlist", waitlistRouter);
 // Marketplace (no auth required, IP rate limited)
 app.use("/api/marketplace/*", ipRateLimit(60));
 app.route("/api/marketplace", marketplaceRouter);
+
+// Admin routes — auth + admin guard
+app.use("/api/admin/*", requireAuth());
+app.use("/api/admin/*", requireAdmin());
+app.route("/api/admin", adminRouter);
 
 // Auth middleware — always mounted, DEV_MODE bypass handled inside middleware
 for (const path of [
