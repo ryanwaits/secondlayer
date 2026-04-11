@@ -122,6 +122,21 @@ function SessionChat({
 		transport,
 		messages: initialMessages.length > 0 ? initialMessages : undefined,
 		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+		onFinish: ({ messages: msgs }) => {
+			// Persist UI-format messages client-side (includes tool parts with state/output)
+			fetch(`/api/sessions/${id}/messages`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				credentials: "same-origin",
+				body: JSON.stringify({
+					messages: msgs.map((m) => ({
+						role: m.role,
+						parts: m.parts,
+						metadata: m.metadata ?? null,
+					})),
+				}),
+			}).catch(() => {});
+		},
 	});
 
 	// Send initial query or restore tab on first render

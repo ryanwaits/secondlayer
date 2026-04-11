@@ -3,10 +3,7 @@ import { buildSessionInstructions } from "@/lib/sessions/instructions";
 import {
 	createChatSession,
 	listRecentSessions,
-	persistMessages,
-	updateSessionSummary,
 } from "@/lib/sessions/persistence";
-import { extractSessionSummary } from "@/lib/sessions/summary";
 import {
 	createSessionTools,
 	fetchAccountResources,
@@ -81,38 +78,11 @@ export async function POST(req: Request) {
 			}
 			return {};
 		},
-		onFinish: async ({ response }) => {
-			// Use after() to keep serverless function alive for persistence
+		onFinish: async () => {
+			// Create session row + extract summary (messages persisted client-side)
 			const persistWork = async () => {
 				try {
 					await createChatSession(sessionToken, chatSessionId);
-					const allMessages = [
-						...messages,
-						...response.messages.map((m) => ({
-							id: crypto.randomUUID(),
-							role: m.role as UIMessage["role"],
-							parts:
-								"content" in m && Array.isArray(m.content)
-									? m.content.map((p) => {
-											if ("type" in p && p.type === "text" && "text" in p)
-												return {
-													type: "text" as const,
-													text: String(p.text),
-												};
-											return p as unknown as UIMessage["parts"][number];
-										})
-									: [],
-						})),
-					];
-					await persistMessages(
-						sessionToken,
-						chatSessionId,
-						allMessages as UIMessage[],
-					);
-					const summary = extractSessionSummary(allMessages as UIMessage[]);
-					if (summary.toolCalls.length > 0) {
-						await updateSessionSummary(sessionToken, chatSessionId, summary);
-					}
 				} catch (e) {
 					console.error("[sessions/chat] Persist error:", e);
 				}
