@@ -1,6 +1,6 @@
 import * as readline from "node:readline";
 import { sendApprovalNotification } from "@secondlayer/auth/email";
-import { createMagicLink } from "@secondlayer/shared/db/queries/accounts";
+import { approveWaitlistEntry } from "@secondlayer/shared/db/queries/accounts";
 import { type Kysely, sql } from "kysely";
 import type { ModelRegistry } from "../model/types.ts";
 import type { AssociationMap } from "../schema/associations.ts";
@@ -31,29 +31,19 @@ export function startRepl(opts: ReplOptions) {
 
 	// Approve a waitlisted email: sets status, creates magic link, sends email
 	async function approve(email: string) {
-		const row = await sql<{ status: string }>`
-      SELECT status FROM waitlist WHERE email = ${email} LIMIT 1
-    `.execute(db);
+		const result = await approveWaitlistEntry(db, email);
 
-		if (row.rows.length === 0) {
+		if (result.status === "not_found") {
 			console.log(red(`  No waitlist entry for ${email}`));
 			return;
 		}
-		if (row.rows[0].status !== "pending") {
-			console.log(red(`  ${email} is already ${row.rows[0].status}`));
+		if (result.status === "already_approved") {
+			console.log(red(`  ${email} is already approved`));
 			return;
 		}
 
-		await sql`UPDATE waitlist SET status = 'approved' WHERE email = ${email}`.execute(
-			db,
-		);
-
-		const token = Math.floor(100000 + Math.random() * 900000).toString();
-		const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
-		await createMagicLink(db, email, token, code, 7 * 24 * 60 * 60 * 1000);
-		await sendApprovalNotification(email, token);
-
-		console.log(green(`  Approved ${email} — token: ${token}`));
+		await sendApprovalNotification(email, result.token);
+		console.log(green(`  Approved ${email} — token: ${result.token}`));
 	}
 
 	// Build eval context
