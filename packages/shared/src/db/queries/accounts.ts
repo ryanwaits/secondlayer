@@ -1,5 +1,6 @@
 import { type Kysely, sql } from "kysely";
-import type { Account, Database } from "../types.ts";
+import type { Selectable } from "kysely";
+import type { Account, Database, WaitlistTable } from "../types.ts";
 
 export async function upsertAccount(
 	db: Kysely<Database>,
@@ -161,4 +162,66 @@ export async function verifyMagicLinkByCode(
 		.execute();
 
 	return null;
+}
+
+// ── Waitlist ──
+
+export type WaitlistEntry = Selectable<WaitlistTable>;
+
+export async function listWaitlist(
+	db: Kysely<Database>,
+	status?: string,
+): Promise<WaitlistEntry[]> {
+	let query = db
+		.selectFrom("waitlist")
+		.selectAll()
+		.orderBy("created_at", "desc");
+	if (status) {
+		query = query.where("status", "=", status);
+	}
+	return query.execute();
+}
+
+export async function getWaitlistById(
+	db: Kysely<Database>,
+	id: string,
+): Promise<WaitlistEntry | null> {
+	return (
+		(await db
+			.selectFrom("waitlist")
+			.selectAll()
+			.where("id", "=", id)
+			.executeTakeFirst()) ?? null
+	);
+}
+
+export async function approveWaitlistEntry(
+	db: Kysely<Database>,
+	email: string,
+): Promise<{
+	token: string;
+	code: string;
+	status: "approved" | "already_approved" | "not_found";
+}> {
+	const row = await db
+		.selectFrom("waitlist")
+		.select("status")
+		.where("email", "=", email)
+		.executeTakeFirst();
+
+	if (!row) return { token: "", code: "", status: "not_found" };
+	if (row.status !== "pending")
+		return { token: "", code: "", status: "already_approved" };
+
+	await db
+		.updateTable("waitlist")
+		.set({ status: "approved" })
+		.where("email", "=", email)
+		.execute();
+
+	const token = Math.floor(100000 + Math.random() * 900000).toString();
+	const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+	await createMagicLink(db, email, token, code, 7 * 24 * 60 * 60 * 1000);
+
+	return { token, code, status: "approved" };
 }

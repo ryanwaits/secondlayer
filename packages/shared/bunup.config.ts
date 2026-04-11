@@ -29,6 +29,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/env.ts",
 		"src/logger.ts",
 		"src/errors.ts",
+		"src/constants.ts",
 		"src/crypto/hmac.ts",
 		"src/node/client.ts",
 		"src/node/hiro-client.ts",
