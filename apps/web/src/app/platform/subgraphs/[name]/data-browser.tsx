@@ -7,6 +7,10 @@ interface SubgraphDataBrowserProps {
 	subgraphName: string;
 	tables: string[];
 	sessionToken: string;
+	/** When provided, parent controls which table is active */
+	controlledTable?: string;
+	/** Hide built-in table tabs (when parent owns the tabs) */
+	hideTableTabs?: boolean;
 }
 
 const LIMIT = 10;
@@ -76,8 +80,12 @@ export function SubgraphDataBrowser({
 	subgraphName,
 	tables,
 	sessionToken,
+	controlledTable,
+	hideTableTabs,
 }: SubgraphDataBrowserProps) {
-	const [activeTable, setActiveTable] = useState(tables[0] ?? "");
+	const [internalTable, setInternalTable] = useState(tables[0] ?? "");
+	const activeTable = controlledTable ?? internalTable;
+	const setActiveTable = (t: string) => setInternalTable(t);
 	const [page, setPage] = useState(0);
 	const queryClient = useQueryClient();
 
@@ -90,6 +98,11 @@ export function SubgraphDataBrowser({
 		placeholderData: (prev) => prev,
 		enabled: !!activeTable,
 	});
+
+	// Reset page when controlled table changes
+	useEffect(() => {
+		setPage(0);
+	}, [controlledTable]);
 
 	// Prefetch next page
 	useEffect(() => {
@@ -110,7 +123,7 @@ export function SubgraphDataBrowser({
 
 	return (
 		<>
-			{tables.length > 1 && (
+			{!hideTableTabs && tables.length > 1 && (
 				<div className="sg-data-tabs">
 					{tables.map((t) => (
 						<button

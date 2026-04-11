@@ -1,5 +1,4 @@
 import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
-import { DetailCodeBlock } from "@/components/console/detail-code-block";
 import { DetailSection } from "@/components/console/detail-section";
 import { MetaGrid } from "@/components/console/meta-grid";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
@@ -8,8 +7,8 @@ import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
 import type { ApiKey, SubgraphDetail, SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SubgraphDataBrowser } from "./data-browser";
 import { SubgraphReindexForm } from "./reindex-form";
+import { SubgraphTablesBrowser } from "./tables-browser";
 import { SubgraphUrlSection } from "./url-section";
 
 function statusBadgeClass(status: string) {
@@ -186,65 +185,13 @@ export default async function SubgraphDetailPage({
 						apiKeyPrefix={primaryKey?.prefix}
 					/>
 
-					{/* Schema */}
-					<DetailSection title="Schema">
-						{tableEntries.map(([tableName, table]) => (
-							<div key={tableName} className="sg-schema-table">
-								<div className="sg-schema-name">
-									{tableName}{" "}
-									<span className="row-count">
-										{table.rowCount.toLocaleString()} rows
-									</span>
-								</div>
-								<table className="sg-table">
-									<thead>
-										<tr>
-											<th>Column</th>
-											<th>Type</th>
-											<th>Attributes</th>
-										</tr>
-									</thead>
-									<tbody>
-										{Object.entries(table.columns).map(([colName, col]) => (
-											<tr key={colName}>
-												<td>
-													<span className="mono">{colName}</span>
-												</td>
-												<td>
-													<span className="mono">{col.type}</span>
-												</td>
-												<td>
-													{colName.startsWith("_") && (
-														<span className="sg-col-badge">system</span>
-													)}{" "}
-													{col.indexed && (
-														<span className="sg-col-badge indexed">
-															indexed
-														</span>
-													)}{" "}
-													{col.searchable && (
-														<span className="sg-col-badge searchable">
-															searchable
-														</span>
-													)}
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
-						))}
-					</DetailSection>
-
-					{/* Data Browser */}
+					{/* Tables (merged schema + data) */}
 					{tableEntries.length > 0 && (
-						<DetailSection title="Data">
-							<SubgraphDataBrowser
-								subgraphName={name}
-								tables={Object.keys(subgraph.tables)}
-								sessionToken={session ?? ""}
-							/>
-						</DetailSection>
+						<SubgraphTablesBrowser
+							subgraphName={name}
+							tables={subgraph.tables}
+							sessionToken={session ?? ""}
+						/>
 					)}
 
 					{/* Backfill / Reindex */}

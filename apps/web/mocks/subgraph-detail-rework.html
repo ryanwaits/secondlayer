@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Subgraph Detail Rework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:wght@400;460;500;560;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfc;
+    --bg-elevated: #fff;
+    --bg-inset: #f7f7f6;
+    --text-main: #111;
+    --text-secondary: rgba(0,0,0,0.55);
+    --text-muted: rgba(0,0,0,0.4);
+    --text-dim: rgba(0,0,0,0.08);
+    --border: #e8e8e8;
+    --border-hover: #d4d4d4;
+    --accent: #b5a836;
+    --accent-bg: rgba(181,168,54,0.06);
+    --accent-border: rgba(181,168,54,0.2);
+    --code-bg: rgba(0,0,0,0.032);
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.07);
+    --green-border: rgba(34,197,94,0.18);
+    --teal: #1588b2;
+    --teal-bg: rgba(21,136,178,0.06);
+    --teal-border: rgba(21,136,178,0.18);
+    --red: #ef4444;
+    --yellow: #eab308;
+    --blue: #3b82f6;
+    --row-hover: rgba(0,0,0,0.018);
+    --font-sans: "Public Sans", system-ui, sans-serif;
+    --font-heading: "Sora", system-ui, sans-serif;
+    --font-mono: "Fira Code", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0e0e;
+      --bg-elevated: #161616;
+      --bg-inset: #111;
+      --text-main: #e8e8e8;
+      --text-secondary: rgba(255,255,255,0.5);
+      --text-muted: rgba(255,255,255,0.32);
+      --text-dim: rgba(255,255,255,0.06);
+      --border: #222;
+      --border-hover: #363636;
+      --accent: #c4b73e;
+      --accent-bg: rgba(196,183,62,0.07);
+      --accent-border: rgba(196,183,62,0.22);
+      --code-bg: rgba(255,255,255,0.04);
+      --green-bg: rgba(34,197,94,0.08);
+      --green-border: rgba(34,197,94,0.2);
+      --teal-bg: rgba(21,136,178,0.08);
+      --teal-border: rgba(21,136,178,0.2);
+      --row-hover: rgba(255,255,255,0.025);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    -webkit-font-smoothing: antialiased;
+    display: flex; justify-content: center;
+    min-height: 100vh; padding: 48px 24px 80px;
+  }
+
+  .frame { width: 100%; max-width: 900px; }
+
+  /* ── Theme toggle ───────────────────────────── */
+  .theme-toggle {
+    position: fixed; top: 12px; right: 16px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; cursor: pointer; z-index: 100;
+  }
+  .theme-toggle:hover { color: var(--text-main); }
+
+  .section-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-muted); opacity: 0.4;
+    margin-bottom: 32px;
+  }
+
+  /* ── Section headers ────────────────────────── */
+  .section {
+    margin-bottom: 40px;
+  }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-family: var(--font-heading); font-size: 13px; font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── API Reference ──────────────────────────── */
+  .api-ref {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-elevated);
+  }
+
+  /* Endpoint bar */
+  .api-endpoint-bar {
+    display: flex; align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .api-method {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--green); background: var(--green-bg);
+    border: 1px solid var(--green-border);
+    padding: 3px 8px; border-radius: 4px;
+    margin-right: 12px; flex-shrink: 0;
+  }
+  .api-url {
+    flex: 1; font-family: var(--font-mono); font-size: 12px;
+    color: var(--text-muted); padding: 14px 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    user-select: all;
+  }
+  .api-url .table-seg { color: var(--accent); font-weight: 500; }
+  .api-copy-btn {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; margin-left: 8px;
+    color: var(--text-muted); background: transparent;
+    border: 1px solid var(--border); border-radius: 6px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .api-copy-btn:hover { color: var(--text-main); border-color: var(--border-hover); background: var(--code-bg); }
+  .api-copy-btn.copied { color: var(--green); border-color: var(--green-border); }
+
+  /* Table selector pills */
+  .api-table-selector {
+    display: flex; align-items: center; gap: 0;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .api-table-btn {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: none; border: none;
+    padding: 10px 14px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.12s;
+  }
+  .api-table-btn:hover { color: var(--text-main); }
+  .api-table-btn.active { color: var(--text-main); border-bottom-color: var(--accent); font-weight: 600; }
+
+  /* Two-column layout inside API ref */
+  .api-body {
+    display: grid; grid-template-columns: 1fr 1fr;
+  }
+  @media (max-width: 800px) {
+    .api-body { grid-template-columns: 1fr; }
+  }
+
+  /* Left: params */
+  .api-params {
+    padding: 20px;
+    border-right: 1px solid var(--border);
+  }
+  @media (max-width: 800px) {
+    .api-params { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+  .api-params-heading {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); margin-bottom: 16px;
+  }
+  .param-row {
+    padding: 10px 0;
+    border-top: 1px solid var(--text-dim);
+  }
+  .param-row:first-of-type { border-top: none; padding-top: 0; }
+  .param-name-line {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .param-name {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+    color: var(--text-main);
+  }
+  .param-type {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 400;
+    color: var(--text-muted);
+  }
+  .param-required {
+    font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+    color: var(--red); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .param-default {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-muted); margin-left: auto;
+  }
+  .param-default em { font-style: normal; color: var(--accent); }
+  .param-desc {
+    font-size: 12px; color: var(--text-secondary); line-height: 1.5;
+  }
+  .param-desc code {
+    font-family: var(--font-mono); font-size: 11px;
+    background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+  }
+
+  /* Right: code examples */
+  .api-examples {
+    display: flex; flex-direction: column;
+    background: var(--bg-inset);
+  }
+  .api-code-tabs {
+    display: flex; gap: 0;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .api-code-tab {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: none; border: none;
+    padding: 10px 12px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.12s;
+  }
+  .api-code-tab:hover { color: var(--text-main); }
+  .api-code-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+  .api-code-pane { display: none; flex: 1; position: relative; }
+  .api-code-pane.active { display: block; }
+
+  .api-code-block {
+    padding: 16px 18px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.8;
+    overflow-x: auto; white-space: pre;
+    min-height: 140px;
+  }
+  .api-code-copy {
+    position: absolute; top: 10px; right: 10px;
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--font-sans); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 4px 10px; cursor: pointer;
+    opacity: 0; transition: all 0.15s;
+  }
+  .api-code-pane:hover .api-code-copy { opacity: 1; }
+  .api-code-copy:hover { color: var(--text-main); border-color: var(--border-hover); }
+  .api-code-copy.copied { color: var(--green); }
+
+  /* Response preview */
+  .api-response {
+    border-top: 1px solid var(--border);
+  }
+  .api-response-trigger {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 10px 18px;
+    font-family: var(--font-sans); font-size: 12px; font-weight: 460;
+    color: var(--text-muted); background: none; border: none;
+    cursor: pointer; transition: color 0.12s;
+  }
+  .api-response-trigger:hover { color: var(--text-main); }
+  .api-response-left { display: flex; align-items: center; gap: 8px; }
+  .api-response-badge {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--green); background: var(--green-bg);
+    padding: 2px 7px; border-radius: 3px;
+  }
+  .api-response-chevron { transition: transform 0.15s; }
+  .api-response.open .api-response-chevron { transform: rotate(180deg); }
+  .api-response-body {
+    max-height: 0; overflow: hidden; transition: max-height 0.25s ease;
+  }
+  .api-response.open .api-response-body { max-height: 300px; }
+  .api-response-code {
+    padding: 0 18px 14px;
+    font-family: var(--font-mono); font-size: 11px; line-height: 1.7;
+    color: var(--text-secondary); overflow-x: auto; white-space: pre;
+  }
+
+  /* ── Syntax tokens ──────────────────────────── */
+  .t-kw  { color: var(--accent); font-weight: 500; }
+  .t-str { color: var(--text-main); }
+  .t-url { color: var(--text-muted); }
+  .t-tbl { color: var(--accent); }
+  .t-key { color: var(--text-muted); }
+  .t-fn  { color: var(--text-main); font-weight: 500; }
+  .t-op  { color: var(--text-muted); }
+  .t-cm  { color: var(--text-dim); font-style: italic; }
+  .t-num { color: var(--accent); }
+
+  /* ── Tables Section (merged schema + data) ─── */
+  .tables-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-elevated);
+  }
+
+  /* Table tabs bar */
+  .tables-tab-bar {
+    display: flex; align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .tables-tab {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-sans); font-size: 13px; font-weight: 460;
+    color: var(--text-muted); background: none; border: none;
+    padding: 12px 14px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.12s;
+  }
+  .tables-tab:hover { color: var(--text-main); }
+  .tables-tab.active { color: var(--text-main); border-bottom-color: var(--accent); font-weight: 560; }
+  .tables-tab .row-count {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    color: var(--text-muted); background: var(--code-bg);
+    padding: 2px 7px; border-radius: 10px;
+  }
+  .tables-tab.active .row-count { color: var(--accent); background: var(--accent-bg); }
+
+  /* View switcher */
+  .tables-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .view-switcher {
+    display: flex; background: var(--code-bg); border-radius: 6px;
+    padding: 2px; gap: 2px;
+  }
+  .view-btn {
+    font-family: var(--font-sans); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: none; border: none;
+    padding: 5px 12px; border-radius: 4px;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .view-btn:hover { color: var(--text-main); }
+  .view-btn.active { color: var(--text-main); background: var(--bg-elevated); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .tables-meta {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  }
+
+  /* Schema view (properties list) */
+  .schema-view { display: none; }
+  .schema-view.active { display: block; }
+
+  .schema-col-row {
+    display: grid; grid-template-columns: 200px 100px 1fr;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--text-dim);
+    transition: background 0.08s;
+    gap: 12px;
+  }
+  .schema-col-row:hover { background: var(--row-hover); }
+  .schema-col-row:last-child { border-bottom: none; }
+
+  .schema-col-header {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-muted); padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    display: grid; grid-template-columns: 200px 100px 1fr;
+    gap: 12px;
+    background: var(--bg-inset);
+  }
+  .col-name {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+    color: var(--text-main);
+  }
+  .col-name.system { color: var(--text-muted); }
+  .col-type {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .col-attrs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .col-badge {
+    font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 2px 7px; border-radius: 3px;
+  }
+  .col-badge.indexed { color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-border); }
+  .col-badge.searchable { color: var(--teal); background: var(--teal-bg); border: 1px solid var(--teal-border); }
+  .col-badge.system { color: var(--text-muted); background: var(--code-bg); border: 1px solid var(--text-dim); }
+  .col-badge.nullable { color: var(--text-muted); background: none; border: 1px solid var(--text-dim); }
+
+  /* Data view */
+  .data-view { display: none; overflow-x: auto; }
+  .data-view.active { display: block; }
+
+  .data-table {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .data-table thead th {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-muted); text-align: left;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-inset);
+    white-space: nowrap;
+    position: sticky; top: 0;
+  }
+  .data-table tbody td {
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--text-dim);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    max-width: 240px;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .data-table tbody tr:hover td { background: var(--row-hover); }
+  .data-table tbody tr:last-child td { border-bottom: none; }
+  .data-table .td-accent { color: var(--accent); }
+
+  /* Pagination */
+  .data-pagination {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .data-pagination span {
+    font-size: 12px; color: var(--text-muted);
+  }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn {
+    font-family: var(--font-sans); font-size: 11px; font-weight: 500;
+    color: var(--text-muted); background: none;
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 4px 12px; cursor: pointer; transition: all 0.12s;
+  }
+  .page-btn:hover { color: var(--text-main); border-color: var(--border-hover); }
+  .page-btn.disabled { opacity: 0.3; pointer-events: none; }
+
+  /* ── Utilities ──────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="cycleTheme()">theme</button>
+
+<div class="frame">
+  <p class="section-label">Subgraph Detail — API &amp; Tables Rework</p>
+
+  <!-- ═══════════════════════════════════════════════
+       SECTION: API Reference
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">API Reference</span>
+    </div>
+
+    <div class="api-ref">
+      <!-- Endpoint URL bar -->
+      <div class="api-endpoint-bar">
+        <span class="api-method">GET</span>
+        <span class="api-url" id="apiUrl">
+          <span class="t-url">/subgraphs/contracts-registry/</span><span class="table-seg" id="urlTableSeg">contract_calls</span>
+        </span>
+        <button class="api-copy-btn" id="urlCopyBtn" onclick="copyEndpoint()" title="Copy full URL">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+
+      <!-- Table selector tabs -->
+      <div class="api-table-selector">
+        <button class="api-table-btn active" onclick="selectApiTable('contract_calls', this)">contract_calls</button>
+        <button class="api-table-btn" onclick="selectApiTable('contracts', this)">contracts</button>
+      </div>
+
+      <!-- Two-column: params | code -->
+      <div class="api-body">
+        <!-- Left: Query parameters -->
+        <div class="api-params">
+          <div class="api-params-heading">Query Parameters</div>
+
+          <div class="param-row">
+            <div class="param-name-line">
+              <span class="param-name">_limit</span>
+              <span class="param-type">integer</span>
+              <span class="param-default">default: <em>100</em></span>
+            </div>
+            <div class="param-desc">Maximum number of rows to return. Max <code>1000</code>.</div>
+          </div>
+
+          <div class="param-row">
+            <div class="param-name-line">
+              <span class="param-name">_offset</span>
+              <span class="param-type">integer</span>
+              <span class="param-default">default: <em>0</em></span>
+            </div>
+            <div class="param-desc">Number of rows to skip for pagination.</div>
+          </div>
+
+          <div class="param-row">
+            <div class="param-name-line">
+              <span class="param-name">_sort</span>
+              <span class="param-type">string</span>
+            </div>
+            <div class="param-desc">Column to sort by. Indexed: <code>caller</code>, <code>contract_id</code>, <code>function_name</code></div>
+          </div>
+
+          <div class="param-row">
+            <div class="param-name-line">
+              <span class="param-name">_order</span>
+              <span class="param-type">"asc" | "desc"</span>
+              <span class="param-default">default: <em>"asc"</em></span>
+            </div>
+            <div class="param-desc">Sort direction. Applied to the column specified by <code>_sort</code>.</div>
+          </div>
+
+          <div class="param-row">
+            <div class="param-name-line">
+              <span class="param-name">{column}.{op}</span>
+              <span class="param-type">varies</span>
+            </div>
+            <div class="param-desc">Filter by column value. Operators: <code>eq</code>, <code>gt</code>, <code>lt</code>, <code>gte</code>, <code>lte</code>, <code>like</code>.<br>Columns: <code>caller</code>, <code>args_json</code>, <code>result_hex</code>, <code>contract_id</code>, <code>function_name</code></div>
+          </div>
+
+          <div class="param-row">
+            <div class="param-name-line">
+              <span class="param-name">_fields</span>
+              <span class="param-type">string</span>
+            </div>
+            <div class="param-desc">Comma-separated list of columns to return. Omit for all columns.</div>
+          </div>
+        </div>
+
+        <!-- Right: Code examples -->
+        <div class="api-examples">
+          <div class="api-code-tabs">
+            <button class="api-code-tab active" onclick="switchCodeTab('curl', this)">cURL</button>
+            <button class="api-code-tab" onclick="switchCodeTab('node', this)">Node.js</button>
+            <button class="api-code-tab" onclick="switchCodeTab('sdk', this)">SDK</button>
+          </div>
+
+          <!-- cURL -->
+          <div class="api-code-pane active" id="code-curl">
+            <div class="api-code-block"><span class="t-kw">curl</span> <span class="t-str">'https://api.secondlayer.tools/api/subgraphs<span class="t-op">\</span>
+  <span class="t-str">/contracts-registry/<span class="t-tbl" id="curl-tbl">contract_calls</span>'</span> <span class="t-op">\</span>
+  <span class="t-op">-H</span> <span class="t-str">'Authorization: Bearer <span class="t-key">sk-sl_7b3f19b****</span>'</span> <span class="t-op">\</span>
+  <span class="t-op">-G</span> <span class="t-op">\</span>
+  <span class="t-op">-d</span> <span class="t-str">'_limit=10&_sort=_id&_order=desc&caller.eq=<span class="t-key">VALUE</span>'</span></div>
+            <button class="api-code-copy" onclick="copyCode('curl')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+
+          <!-- Node.js -->
+          <div class="api-code-pane" id="code-node">
+            <div class="api-code-block"><span class="t-kw">const</span> response <span class="t-op">=</span> <span class="t-kw">await</span> <span class="t-fn">fetch</span><span class="t-op">(</span>
+  <span class="t-str">'https://api.secondlayer.tools/api/subgraphs/contracts-registry/<span class="t-tbl" id="node-tbl">contract_calls</span>?_limit=10&_sort=_id&_order=desc'</span>,
+  <span class="t-op">{</span>
+    <span class="t-key">headers</span><span class="t-op">:</span> <span class="t-op">{</span>
+      <span class="t-key">Authorization</span><span class="t-op">:</span> <span class="t-str">`Bearer <span class="t-op">${</span><span class="t-key">process.env.SECONDLAYER_API_KEY</span><span class="t-op">}</span>`</span>
+    <span class="t-op">}</span>
+  <span class="t-op">}</span>
+<span class="t-op">);</span>
+
+<span class="t-kw">const</span> <span class="t-op">{</span> <span class="t-key">data</span><span class="t-op">,</span> <span class="t-key">meta</span> <span class="t-op">}</span> <span class="t-op">=</span> <span class="t-kw">await</span> response<span class="t-op">.</span><span class="t-fn">json</span><span class="t-op">();</span>
+<span class="t-fn">console</span><span class="t-op">.</span><span class="t-fn">log</span><span class="t-op">(</span><span class="t-str">`${meta.total} total rows`</span><span class="t-op">);</span></div>
+            <button class="api-code-copy" onclick="copyCode('node')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+
+          <!-- SDK -->
+          <div class="api-code-pane" id="code-sdk">
+            <div class="api-code-block"><span class="t-kw">import</span> <span class="t-op">{</span> <span class="t-fn">Secondlayer</span> <span class="t-op">}</span> <span class="t-kw">from</span> <span class="t-str">'@secondlayer/sdk'</span><span class="t-op">;</span>
+
+<span class="t-kw">const</span> client <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Secondlayer</span><span class="t-op">();</span>
+
+<span class="t-kw">const</span> <span class="t-op">{</span> <span class="t-key">data</span><span class="t-op">,</span> <span class="t-key">meta</span> <span class="t-op">}</span> <span class="t-op">=</span> <span class="t-kw">await</span> client
+  <span class="t-op">.</span><span class="t-fn">subgraph</span><span class="t-op">(</span><span class="t-str">'contracts-registry'</span><span class="t-op">)</span>
+  <span class="t-op">.</span><span class="t-fn">table</span><span class="t-op">(</span><span class="t-str">'<span class="t-tbl" id="sdk-tbl">contract_calls</span>'</span><span class="t-op">)</span>
+  <span class="t-op">.</span><span class="t-fn">query</span><span class="t-op">({</span>
+    <span class="t-key">limit</span><span class="t-op">:</span> <span class="t-num">10</span><span class="t-op">,</span>
+    <span class="t-key">sort</span><span class="t-op">:</span> <span class="t-str">'_id'</span><span class="t-op">,</span>
+    <span class="t-key">order</span><span class="t-op">:</span> <span class="t-str">'desc'</span>
+  <span class="t-op">});</span></div>
+            <button class="api-code-copy" onclick="copyCode('sdk')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+
+          <!-- Response accordion -->
+          <div class="api-response" id="responseAccordion">
+            <button class="api-response-trigger" onclick="toggleResponse()">
+              <div class="api-response-left">
+                <span>Response</span>
+                <span class="api-response-badge">200</span>
+              </div>
+              <svg class="api-response-chevron" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg>
+            </button>
+            <div class="api-response-body">
+              <div class="api-response-code">{
+  "data": [
+    {
+      "caller": "SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS",
+      "args_json": "{\"amount\": 1000000}",
+      "result_hex": "0x0703",
+      "contract_id": "SP000000000000000000002Q6VF78.pox-4",
+      "function_name": "stack-stx",
+      "_id": 1226011,
+      "_block_height": 7354669,
+      "_tx_id": "0x8a3f…c91d"
+    }
+  ],
+  "meta": { "total": 1226011, "limit": 10, "offset": 0 }
+}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SECTION: Tables (merged schema + data)
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Tables</span>
+    </div>
+
+    <div class="tables-card">
+      <!-- Table tabs -->
+      <div class="tables-tab-bar">
+        <button class="tables-tab active" onclick="selectTable('contract_calls', this)">
+          contract_calls
+          <span class="row-count">1,226,011</span>
+        </button>
+        <button class="tables-tab" onclick="selectTable('contracts', this)">
+          contracts
+          <span class="row-count">1,165</span>
+        </button>
+      </div>
+
+      <!-- View switcher toolbar -->
+      <div class="tables-toolbar">
+        <div class="view-switcher">
+          <button class="view-btn active" onclick="switchView('schema', this)">Schema</button>
+          <button class="view-btn" onclick="switchView('data', this)">Data</button>
+        </div>
+        <span class="tables-meta" id="tablesMeta">10 columns</span>
+      </div>
+
+      <!-- SCHEMA VIEW: contract_calls -->
+      <div class="schema-view active" id="schema-contract_calls">
+        <div class="schema-col-header">
+          <span>Column</span>
+          <span>Type</span>
+          <span>Attributes</span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">caller</span>
+          <span class="col-type">principal</span>
+          <span class="col-attrs"><span class="col-badge indexed">indexed</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">args_json</span>
+          <span class="col-type">jsonb</span>
+          <span class="col-attrs"></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">result_hex</span>
+          <span class="col-type">text</span>
+          <span class="col-attrs"></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">contract_id</span>
+          <span class="col-type">text</span>
+          <span class="col-attrs"><span class="col-badge indexed">indexed</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">function_name</span>
+          <span class="col-type">text</span>
+          <span class="col-attrs"><span class="col-badge indexed">indexed</span> <span class="col-badge searchable">searchable</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">_id</span>
+          <span class="col-type">serial</span>
+          <span class="col-attrs"><span class="col-badge system">system</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">_block_height</span>
+          <span class="col-type">bigint</span>
+          <span class="col-attrs"><span class="col-badge system">system</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">_tx_id</span>
+          <span class="col-type">text</span>
+          <span class="col-attrs"><span class="col-badge system">system</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">_created_at</span>
+          <span class="col-type">timestamp</span>
+          <span class="col-attrs"><span class="col-badge system">system</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">last_called_at</span>
+          <span class="col-type">uint</span>
+          <span class="col-attrs"></span>
+        </div>
+      </div>
+
+      <!-- SCHEMA VIEW: contracts -->
+      <div class="schema-view" id="schema-contracts" style="display:none">
+        <div class="schema-col-header">
+          <span>Column</span>
+          <span>Type</span>
+          <span>Attributes</span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">name</span>
+          <span class="col-type">text</span>
+          <span class="col-attrs"><span class="col-badge indexed">indexed</span> <span class="col-badge searchable">searchable</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">deployer</span>
+          <span class="col-type">principal</span>
+          <span class="col-attrs"><span class="col-badge indexed">indexed</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">call_count</span>
+          <span class="col-type">uint</span>
+          <span class="col-attrs"></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">contract_id</span>
+          <span class="col-type">text</span>
+          <span class="col-attrs"><span class="col-badge indexed">indexed</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name">last_called_at</span>
+          <span class="col-type">uint</span>
+          <span class="col-attrs"></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">_id</span>
+          <span class="col-type">serial</span>
+          <span class="col-attrs"><span class="col-badge system">system</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">_block_height</span>
+          <span class="col-type">bigint</span>
+          <span class="col-attrs"><span class="col-badge system">system</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">_tx_id</span>
+          <span class="col-type">text</span>
+          <span class="col-attrs"><span class="col-badge system">system</span></span>
+        </div>
+        <div class="schema-col-row">
+          <span class="col-name system">_created_at</span>
+          <span class="col-type">timestamp</span>
+          <span class="col-attrs"><span class="col-badge system">system</span></span>
+        </div>
+      </div>
+
+      <!-- DATA VIEW: contract_calls -->
+      <div class="data-view" id="data-contract_calls">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>caller</th>
+              <th>function_name</th>
+              <th>contract_id</th>
+              <th>args_json</th>
+              <th>result_hex</th>
+              <th>_block_height</th>
+              <th>_tx_id</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-accent">SP2ZNG…55KS</td>
+              <td>stack-stx</td>
+              <td>SP00…78.pox-4</td>
+              <td>{"amount": 1000000}</td>
+              <td>0x0703</td>
+              <td>7,354,669</td>
+              <td>0x8a3f…c91d</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SP1KE…4YQP</td>
+              <td>transfer</td>
+              <td>SP00…78.bns</td>
+              <td>{"name": "defi"}</td>
+              <td>0x0703</td>
+              <td>7,354,668</td>
+              <td>0x3b21…f482</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SP3FBR…1DGA</td>
+              <td>swap-exact</td>
+              <td>SP1Y5…9J.velar-v2</td>
+              <td>{"token-in": "STX"}</td>
+              <td>0x0703</td>
+              <td>7,354,667</td>
+              <td>0x91c4…88e3</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SP2C2…7H9N</td>
+              <td>mint</td>
+              <td>SP2KA…Q1.mega-nft</td>
+              <td>{"id": 4291}</td>
+              <td>0x0703</td>
+              <td>7,354,666</td>
+              <td>0xf7a2…3c10</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SPNWZ…6JKD</td>
+              <td>delegate-stx</td>
+              <td>SP00…78.pox-4</td>
+              <td>{"amount": 500000}</td>
+              <td>0x0703</td>
+              <td>7,354,665</td>
+              <td>0x2e9d…bb74</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SP1SR…VW2X</td>
+              <td>list-asset</td>
+              <td>SP2KA…Q1.marketplace</td>
+              <td>{"price": 25000}</td>
+              <td>0x0703</td>
+              <td>7,354,664</td>
+              <td>0xd5c1…2f98</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SP3N4…7KPW</td>
+              <td>claim-rewards</td>
+              <td>SP1Y5…9J.farming</td>
+              <td>{"pool": "stx-usda"}</td>
+              <td>0x0703</td>
+              <td>7,354,663</td>
+              <td>0x4fc8…e1a7</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SP2X0…MN3K</td>
+              <td>add-liquidity</td>
+              <td>SP1Y5…9J.velar-v2</td>
+              <td>{"amount-x": 100}</td>
+              <td>0x0703</td>
+              <td>7,354,662</td>
+              <td>0xb3e7…59c2</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SP1QF…8ZJT</td>
+              <td>revoke-delegate</td>
+              <td>SP00…78.pox-4</td>
+              <td>{}</td>
+              <td>0x0703</td>
+              <td>7,354,661</td>
+              <td>0x67ab…d4f6</td>
+            </tr>
+            <tr>
+              <td class="td-accent">SP3YK…2BHR</td>
+              <td>transfer</td>
+              <td>SP3K8…VJ.usda-token</td>
+              <td>{"amount": 50000}</td>
+              <td>0x0703</td>
+              <td>7,354,660</td>
+              <td>0xce19…7a03</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="data-pagination">
+          <span>Showing 1–10 of 1,226,011</span>
+          <div class="page-btns">
+            <button class="page-btn disabled">&larr; Prev</button>
+            <button class="page-btn">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATA VIEW: contracts -->
+      <div class="data-view" id="data-contracts" style="display:none">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>name</th>
+              <th>deployer</th>
+              <th>call_count</th>
+              <th>contract_id</th>
+              <th>last_called_at</th>
+              <th>_block_height</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-accent">pox-4</td>
+              <td>SP000…002Q6VF78</td>
+              <td>891,204</td>
+              <td>SP000…002Q6VF78.pox-4</td>
+              <td>7,354,669</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td class="td-accent">bns</td>
+              <td>SP000…002Q6VF78</td>
+              <td>124,891</td>
+              <td>SP000…002Q6VF78.bns</td>
+              <td>7,354,668</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td class="td-accent">velar-v2</td>
+              <td>SP1Y5…XTQA9J</td>
+              <td>89,312</td>
+              <td>SP1Y5…XTQA9J.velar-v2</td>
+              <td>7,354,667</td>
+              <td>62,431</td>
+            </tr>
+            <tr>
+              <td class="td-accent">mega-nft</td>
+              <td>SP2KA…FTQ1</td>
+              <td>42,891</td>
+              <td>SP2KA…FTQ1.mega-nft</td>
+              <td>7,354,666</td>
+              <td>84,102</td>
+            </tr>
+            <tr>
+              <td class="td-accent">usda-token</td>
+              <td>SP3K8…RPVJ</td>
+              <td>31,445</td>
+              <td>SP3K8…RPVJ.usda-token</td>
+              <td>7,354,660</td>
+              <td>24,890</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="data-pagination">
+          <span>Showing 1–5 of 1,165</span>
+          <div class="page-btns">
+            <button class="page-btn disabled">&larr; Prev</button>
+            <button class="page-btn">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────
+  let currentTable = 'contract_calls';
+  let currentView = 'schema';
+  const BASE = 'https://api.secondlayer.tools/api/subgraphs/contracts-registry/';
+  const tableMeta = {
+    contract_calls: { cols: 10, rows: '1,226,011' },
+    contracts: { cols: 9, rows: '1,165' }
+  };
+
+  // ── Theme ──────────────────────────────────────
+  let themeMode = 0;
+  function cycleTheme() {
+    themeMode = (themeMode + 1) % 3;
+    const labels = ['system','light','dark'];
+    document.querySelector('.theme-toggle').textContent = labels[themeMode];
+    document.documentElement.style.colorScheme = themeMode === 1 ? 'light' : themeMode === 2 ? 'dark' : '';
+  }
+
+  // ── API table selector ─────────────────────────
+  function selectApiTable(table, btn) {
+    document.querySelectorAll('.api-table-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('urlTableSeg').textContent = table;
+    document.querySelectorAll('[id$="-tbl"]').forEach(el => el.textContent = table);
+  }
+
+  // ── Code tabs ──────────────────────────────────
+  function switchCodeTab(tab, btn) {
+    document.querySelectorAll('.api-code-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.api-code-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById('code-' + tab).classList.add('active');
+  }
+
+  // ── Response accordion ─────────────────────────
+  function toggleResponse() {
+    document.getElementById('responseAccordion').classList.toggle('open');
+  }
+
+  // ── Table tabs ─────────────────────────────────
+  function selectTable(table, btn) {
+    currentTable = table;
+    document.querySelectorAll('.tables-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Update meta
+    const meta = tableMeta[table];
+    document.getElementById('tablesMeta').textContent =
+      currentView === 'schema' ? `${meta.cols} columns` : `${meta.rows} rows`;
+
+    // Show correct schema/data view
+    updateViews();
+  }
+
+  // ── View switcher ──────────────────────────────
+  function switchView(view, btn) {
+    currentView = view;
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const meta = tableMeta[currentTable];
+    document.getElementById('tablesMeta').textContent =
+      view === 'schema' ? `${meta.cols} columns` : `${meta.rows} rows`;
+
+    updateViews();
+  }
+
+  function updateViews() {
+    // Hide all
+    document.querySelectorAll('.schema-view, .data-view').forEach(el => {
+      el.classList.remove('active');
+      el.style.display = 'none';
+    });
+
+    // Show active
+    const prefix = currentView === 'schema' ? 'schema' : 'data';
+    const target = document.getElementById(`${prefix}-${currentTable}`);
+    if (target) {
+      target.style.display = '';
+      target.classList.add('active');
+    }
+  }
+
+  // ── Copy helpers ───────────────────────────────
+  function copyEndpoint() {
+    const table = document.getElementById('urlTableSeg').textContent;
+    navigator.clipboard.writeText(BASE + table).then(() => {
+      const btn = document.getElementById('urlCopyBtn');
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 1500);
+    });
+  }
+
+  function copyCode(type) {
+    const table = document.getElementById('urlTableSeg').textContent;
+    const templates = {
+      curl: `curl '${BASE}${table}' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -G \\\n  -d '_limit=10&_sort=_id&_order=desc'`,
+      node: `const response = await fetch(\n  '${BASE}${table}?_limit=10&_sort=_id&_order=desc',\n  { headers: { Authorization: \`Bearer \${process.env.SECONDLAYER_API_KEY}\` } }\n);\nconst { data, meta } = await response.json();`,
+      sdk: `import { Secondlayer } from '@secondlayer/sdk';\n\nconst client = new Secondlayer();\n\nconst { data, meta } = await client\n  .subgraph('contracts-registry')\n  .table('${table}')\n  .query({ limit: 10, sort: '_id', order: 'desc' });`
+    };
+    navigator.clipboard.writeText(templates[type]).then(() => {
+      const pane = document.getElementById('code-' + type);
+      const btn = pane.querySelector('.api-code-copy');
+      btn.classList.add('copied');
+      btn.querySelector('span').textContent = 'Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.querySelector('span').textContent = 'Copy';
+      }, 1500);
+    });
+  }
+</script>
+</body>
+</html>
