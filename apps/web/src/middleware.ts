@@ -10,6 +10,7 @@ const AUTH_REQUIRED = [
 	"/team",
 	"/settings",
 	"/sessions",
+	"/admin",
 ];
 
 export function middleware(request: NextRequest) {
@@ -24,7 +25,9 @@ export function middleware(request: NextRequest) {
 
 	// Redirect old /agents URLs to /workflows
 	if (pathname === "/agents" || pathname.startsWith("/agents/")) {
-		return NextResponse.redirect(new URL(pathname.replace("/agents", "/workflows"), request.url));
+		return NextResponse.redirect(
+			new URL(pathname.replace("/agents", "/workflows"), request.url),
+		);
 	}
 
 	if (!session) {
@@ -39,6 +42,11 @@ export function middleware(request: NextRequest) {
 	// Authenticated: rewrite to /platform/* (internal filesystem routing)
 	if (pathname === "/") {
 		return NextResponse.rewrite(new URL("/platform", request.url));
+	}
+
+	// Admin stays at /admin (no /platform rewrite)
+	if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+		return NextResponse.next();
 	}
 
 	for (const prefix of [...DUAL_PATHS, ...AUTH_REQUIRED]) {
@@ -72,5 +80,7 @@ export const config = {
 		"/workflows/:path*",
 		"/marketplace",
 		"/marketplace/:path*",
+		"/admin",
+		"/admin/:path*",
 	],
 };

@@ -166,6 +166,35 @@ export interface WorkflowRunDetail extends WorkflowRun {
 	steps: WorkflowStep[];
 }
 
+// ── Admin ──
+
+export interface WaitlistEntry {
+	id: string;
+	email: string;
+	source: string;
+	status: "pending" | "approved" | "joined";
+	createdAt: string;
+}
+
+export interface AdminAccount {
+	id: string;
+	email: string;
+	plan: string;
+	createdAt: string;
+	subgraphCount: number;
+	streamCount: number;
+	lastActive: string | null;
+}
+
+export interface AdminStats {
+	totalAccounts: number;
+	pendingWaitlist: number;
+	totalSubgraphs: number;
+	activeSubgraphs: number;
+	errorSubgraphs: number;
+	totalStreams: number;
+}
+
 export interface SubgraphFilter {
 	type: string;
 	[key: string]: unknown;
