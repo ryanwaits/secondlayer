@@ -1,16 +1,24 @@
 "use client";
 
+import { useSessionTabs } from "@/components/console/tab-bar";
 import { ChatInput } from "@/components/sessions/chat-input";
 import { MessageList } from "@/components/sessions/message-list";
-import { useSessionTabs } from "@/components/console/tab-bar";
 import { useChat } from "@ai-sdk/react";
 import {
 	DefaultChatTransport,
-	lastAssistantMessageIsCompleteWithToolCalls,
 	type UIMessage,
+	lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { useSearchParams } from "next/navigation";
-import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	Suspense,
+	use,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 
 interface SessionData {
 	messages: UIMessage[];
@@ -35,24 +43,29 @@ function SessionLoader({ id }: { id: string }) {
 			const msgs = (msgData.messages ?? [])
 				.filter((m: Record<string, unknown>) => {
 					if (!m.role || !m.parts) return false;
-					// Filter out tool-result messages (intermediate, not for UI)
+					// Filter out tool-result messages (model-layer intermediaries)
 					if (m.role === "tool") return false;
 					return true;
 				})
 				.map((m: Record<string, unknown>) => {
-					const parts = typeof m.parts === "string" ? JSON.parse(m.parts) : m.parts;
-					// Filter out tool-call parts from assistant messages
-					// (these are model-format, not UI-format — they cause empty bubbles)
+					const parts =
+						typeof m.parts === "string" ? JSON.parse(m.parts) : m.parts;
+					// Keep UI-format tool parts (type: "tool-*" with toolCallId/state/output).
+					// Only filter model-format artifacts (tool-call/tool-result without toolCallId).
 					const filteredParts = Array.isArray(parts)
-						? parts.filter((p: Record<string, unknown>) =>
-							p.type !== "tool-call" && p.type !== "tool-result"
-						)
+						? parts.filter((p: Record<string, unknown>) => {
+								if (p.type === "tool-call" || p.type === "tool-result") {
+									// Keep if it has toolCallId (UI-format), drop if model-format
+									return !!p.toolCallId;
+								}
+								return true;
+							})
 						: parts;
 					return { ...m, parts: filteredParts };
 				})
 				// Remove messages that have no remaining parts after filtering
 				.filter((m: Record<string, unknown>) =>
-					Array.isArray(m.parts) ? m.parts.length > 0 : true
+					Array.isArray(m.parts) ? m.parts.length > 0 : true,
 				);
 			const session = (listData.sessions ?? []).find(
 				(s: Record<string, unknown>) => s.id === id,
@@ -119,7 +132,8 @@ function SessionChat({
 		if (initialQuery && initialMessages.length === 0) {
 			addTab({
 				id,
-				label: initialQuery.slice(0, 30) + (initialQuery.length > 30 ? "..." : ""),
+				label:
+					initialQuery.slice(0, 30) + (initialQuery.length > 30 ? "..." : ""),
 				href: `/sessions/${id}`,
 			});
 			window.history.replaceState(null, "", `/sessions/${id}`);
@@ -183,7 +197,14 @@ function SessionChat({
 	);
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				flex: 1,
+				minHeight: 0,
+			}}
+		>
 			<MessageList
 				messages={chat.messages}
 				status={chat.status}
