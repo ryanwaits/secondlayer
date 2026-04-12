@@ -5,14 +5,24 @@ import { useCallback, useEffect, useState } from "react";
 
 interface SessionCodeBlockProps {
 	code: string;
+	/** Pre-rendered highlighted HTML. If set, no client highlighting runs. */
+	html?: string;
 	lang?: string;
 }
 
-export function SessionCodeBlock({ code, lang }: SessionCodeBlockProps) {
-	const [html, setHtml] = useState<string | null>(null);
+export function SessionCodeBlock({
+	code,
+	html: initialHtml,
+	lang,
+}: SessionCodeBlockProps) {
+	const [html, setHtml] = useState<string | null>(initialHtml ?? null);
 	const [copied, setCopied] = useState(false);
 
 	useEffect(() => {
+		if (initialHtml) {
+			setHtml(initialHtml);
+			return;
+		}
 		if (!lang) return;
 		let cancelled = false;
 		highlightCode(code, lang).then((result) => {
@@ -21,7 +31,7 @@ export function SessionCodeBlock({ code, lang }: SessionCodeBlockProps) {
 		return () => {
 			cancelled = true;
 		};
-	}, [code, lang]);
+	}, [code, lang, initialHtml]);
 
 	const handleCopy = useCallback(() => {
 		navigator.clipboard.writeText(code);

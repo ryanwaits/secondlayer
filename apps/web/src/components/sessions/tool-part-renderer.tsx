@@ -223,12 +223,12 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 
 		case "scaffold_subgraph": {
 			if ((output as { error?: boolean }).error) return null;
-			return (
-				<CodeCard
-					code={(output as { code: string }).code}
-					filename={(output as { filename?: string }).filename}
-				/>
-			);
+			const o = output as {
+				code: string;
+				html?: string;
+				filename?: string;
+			};
+			return <CodeCard code={o.code} html={o.html} filename={o.filename} />;
 		}
 
 		case "recall_sessions": {
@@ -266,7 +266,9 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 		}
 
 		case "show_code": {
+			if ((output as { error?: boolean }).error) return null;
 			const tabs = (output.tabs ?? []) as CodeTab[];
+			if (tabs.length === 0) return null;
 			return <TabbedCode tabs={tabs} />;
 		}
 

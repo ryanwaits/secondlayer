@@ -1,3 +1,4 @@
+import { highlight } from "@/lib/highlight";
 import { generateSubgraphCode } from "@/lib/scaffold/generate";
 import { tool } from "ai";
 import { z } from "zod";
@@ -34,9 +35,7 @@ export function createScaffoldSubgraph() {
 			}
 
 			const abi = await res.json();
-			const publicFunctions = (
-				abi.functions ?? []
-			).filter(
+			const publicFunctions = (abi.functions ?? []).filter(
 				(f: Record<string, unknown>) => f.access === "public",
 			);
 
@@ -48,8 +47,10 @@ export function createScaffoldSubgraph() {
 			}
 
 			const code = generateSubgraphCode(contractId, publicFunctions);
+			const html = await highlight(code, "typescript");
 			return {
 				code,
+				html,
 				contractId,
 				filename: `subgraphs/${name}.ts`,
 				functionCount: publicFunctions.length,

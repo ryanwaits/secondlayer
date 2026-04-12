@@ -1,5 +1,6 @@
 "use client";
 
+import { highlightCode } from "@/components/command-palette/actions";
 import {
 	type ChatStatus,
 	type UIDataTypes,
@@ -9,7 +10,7 @@ import {
 	isTextUIPart,
 	isToolUIPart,
 } from "ai";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ToolPartRenderer } from "./tool-part-renderer";
 import { SessionCodeBlock } from "./tool-parts/session-code-block";
 import { StepFlow, type StepInfo } from "./tool-parts/step-flow";
@@ -365,6 +366,37 @@ function parseTextWithCodeBlocks(
 function MessageTextContent({ text }: { text: string }) {
 	const chunks = useMemo(() => parseTextWithCodeBlocks(text), [text]);
 
+	// Batch-highlight every code chunk in parallel once chunks stabilize.
+	// Keyed by chunk index; cleared when chunks identity changes.
+	const [htmlByIndex, setHtmlByIndex] = useState<Record<number, string>>({});
+
+	useEffect(() => {
+		const codeChunks = chunks
+			.map((c, i) => ({ c, i }))
+			.filter(({ c }) => c.type === "code") as Array<{
+			c: { type: "code"; code: string; lang: string };
+			i: number;
+		}>;
+		if (codeChunks.length === 0) {
+			setHtmlByIndex({});
+			return;
+		}
+		let cancelled = false;
+		Promise.all(codeChunks.map(({ c }) => highlightCode(c.code, c.lang))).then(
+			(results) => {
+				if (cancelled) return;
+				const next: Record<number, string> = {};
+				codeChunks.forEach(({ i }, idx) => {
+					next[i] = results[idx];
+				});
+				setHtmlByIndex(next);
+			},
+		);
+		return () => {
+			cancelled = true;
+		};
+	}, [chunks]);
+
 	// No code blocks — fast path
 	if (chunks.length === 1 && chunks[0].type === "prose") {
 		return (
@@ -383,6 +415,7 @@ function MessageTextContent({ text }: { text: string }) {
 						<SessionCodeBlock
 							key={`code-${i}`}
 							code={chunk.code}
+							html={htmlByIndex[i]}
 							lang={chunk.lang}
 						/>
 					);
