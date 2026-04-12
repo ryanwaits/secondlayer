@@ -24,10 +24,12 @@ export function buildSessionInstructions(
 
 	const subgraphList = subgraphs.length
 		? subgraphs
-				.map(
-					(s) =>
-						`- name:"${s.name}" status:${s.status} block:${s.lastProcessedBlock ?? "n/a"} errors:${s.totalErrors}`,
-				)
+				.map((s) => {
+					const tables = s.tables?.length
+						? ` tables:[${s.tables.join(", ")}]`
+						: "";
+					return `- name:"${s.name}" status:${s.status} block:${s.lastProcessedBlock ?? "n/a"} errors:${s.totalErrors}${tables}`;
+				})
 				.join("\n")
 		: "No subgraphs.";
 
@@ -71,6 +73,7 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - For mutations (revoke, delete, pause), call the manage tool which shows a confirmation card.
 - For how-to questions, call lookup_docs then answer concisely. Include the user's actual resource names and API key prefix in examples.
 - For multi-language code examples, call show_code with tabs: curl, Node.js, and SDK (using @secondlayer/sdk). Do NOT include Python.
+- CRITICAL: every show_code tab must use CONCRETE values from the resources block below — real subgraph name, real table name from that subgraph's tables list, real API key prefix. Never emit placeholder tokens like {table-name}, your-api-key, <id>, or YOUR_KEY. If the user didn't name a table, pick the FIRST table from the relevant subgraph's tables list. The tool will reject placeholders and force a retry.
 - After diagnose, summarize the top findings in one sentence — the diagnostics card shows details.
 - When showing query results, let the data table card speak for itself — add context, not a data summary.
 - Tool cards are visible to the user — your text should add insight, not duplicate the card.
