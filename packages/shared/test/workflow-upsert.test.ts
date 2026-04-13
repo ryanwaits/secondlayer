@@ -28,7 +28,8 @@ describe.skipIf(SKIP)("upsertWorkflowDefinition", () => {
 			.values({
 				account_id: acct.id,
 				key_hash: `test-${Date.now()}`,
-				prefix: `sk_test_${Date.now().toString().slice(-6)}`,
+				key_prefix: `sk_test_${Date.now().toString().slice(-6)}`,
+				ip_address: "127.0.0.1",
 				name: "wf-upsert-test",
 			})
 			.returningAll()
