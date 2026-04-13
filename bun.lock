@@ -25,6 +25,7 @@
         "@secondlayer/bundler": "workspace:*",
         "@secondlayer/scaffold": "workspace:*",
         "@secondlayer/stacks": "workspace:*",
+        "@secondlayer/workflows": "workspace:*",
         "@tanstack/react-query": "5.90.21",
         "ai": "6.0.116",
         "dompurify": "3.3.3",
