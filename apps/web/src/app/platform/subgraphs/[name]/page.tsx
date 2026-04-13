@@ -7,6 +7,7 @@ import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
 import type { ApiKey, SubgraphDetail, SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { OpenInChat } from "./open-in-chat";
 import { SubgraphReindexForm } from "./reindex-form";
 import { SubgraphTablesBrowser } from "./tables-browser";
 import { SubgraphUrlSection } from "./url-section";
@@ -125,6 +126,17 @@ export default async function SubgraphDetailPage({
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
+					{/* Open in chat CTA */}
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "flex-end",
+							marginBottom: 12,
+						}}
+					>
+						<OpenInChat subgraphName={name} />
+					</div>
+
 					{/* Metadata cards */}
 					<MetaGrid
 						items={[

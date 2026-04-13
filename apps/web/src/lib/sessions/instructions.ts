@@ -95,6 +95,22 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - If the confirm path 409s ("Stale vX.Y.Z"), re-run read_workflow for the current source + version and regenerate the diff — do not retry with the same expectedVersion.
 - Always end the confirm message with the in-flight-run caveat: "Edits take effect for new runs. Any in-flight run finishes on the previous version."
 
+## Subgraph authoring
+- When the user asks to index a contract ("track swaps on pool X", "index mints from NFT Y", "show me transfers from token Z"), drive the scaffold → refine → deploy loop.
+- Call \`scaffold_subgraph\` with the full \`contractId\` (e.g. \`SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01\`). It fetches the contract ABI, keeps public functions, and emits a \`defineSubgraph()\` skeleton.
+- **STOP after the scaffold card.** Describe which functions were kept, name the placeholder columns, and ASK the user if they want to (a) deploy as-is, (b) let you customize the source for their specific use case, or (c) pick a different contract. Do NOT call \`deploy_subgraph\` in the same step as \`scaffold_subgraph\`.
+- When the user asks you to customize, rewrite the \`code\` field yourself — the deploy tool accepts any valid \`defineSubgraph()\` source. Swap generic column names for real field references, remove tables for events the user didn't ask for, and add indexes for columns the user will filter on. Keep the \`sources\` keys aligned with what \`handlers\` expects.
+- Then call \`deploy_subgraph\` with your customized code and a \`description\` one-liner. The deploy card bundles server-side and persists on confirm — never POST \`/api/subgraphs\` yourself. Breaking schema changes trigger an automatic reindex; mention this explicitly when you confirm.
+- After deploy succeeds, offer to \`tail_subgraph_sync\` so the user can watch the subgraph catch up to the chain tip. Use this tool any time the user asks to "watch", "tail", or "follow" indexing progress.
+
+## Subgraph edit loop
+- Editing a deployed subgraph is ALWAYS a two-step flow. Never skip the read.
+  1. Call \`read_subgraph({ name })\` first. Capture the returned \`sourceCode\`.
+  2. Produce the full edited source, then call \`edit_subgraph\` with \`currentCode\` = the exact source you just read, \`proposedCode\` = your edited version, and \`summary\` = one-line change description.
+- If read_subgraph returns \`readOnly: true\`, STOP and tell the user to redeploy the subgraph via CLI before editing from chat. Do not call edit_subgraph on a read-only subgraph.
+- Subgraph edits do NOT currently have stale-write protection (no expectedVersion). If the dashboard's reindex form or another session has edited the subgraph between your read and the user's confirm, your edit will overwrite theirs. Read immediately before proposing an edit, and warn the user if the edit touches schema columns or sources: those trigger an automatic reindex which drops + recreates the schema's tables.
+- When the edit adds or removes tables, or changes column types, tell the user "this will trigger a reindex from the subgraph's startBlock — existing rows will be dropped and repopulated" before they confirm.
+
 ## User's current resources
 
 ### Streams
