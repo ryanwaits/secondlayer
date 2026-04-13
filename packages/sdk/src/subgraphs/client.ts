@@ -17,6 +17,27 @@ import type {
 import { BaseClient } from "../base.ts";
 import { resolveOrderByColumn, serializeWhere } from "./serialize.ts";
 
+export interface SubgraphSource {
+	name: string;
+	version: string;
+	sourceCode: string | null;
+	readOnly: boolean;
+	reason?: string;
+	updatedAt: string;
+}
+
+export interface BundleSubgraphResponse {
+	ok: true;
+	name: string;
+	version: string | null;
+	description: string | null;
+	sources: Record<string, Record<string, unknown>>;
+	schema: Record<string, unknown>;
+	handlerCode: string;
+	sourceCode: string;
+	bundleSize: number;
+}
+
 function buildSubgraphQueryString(params: SubgraphQueryParams): string {
 	const qs = new URLSearchParams();
 	if (params.sort) qs.set("_sort", params.sort);
@@ -95,6 +116,22 @@ export class Subgraphs extends BaseClient {
 
 	async deploy(data: DeploySubgraphRequest): Promise<DeploySubgraphResponse> {
 		return this.request<DeploySubgraphResponse>("POST", "/api/subgraphs", data);
+	}
+
+	async getSource(name: string): Promise<SubgraphSource> {
+		return this.request<SubgraphSource>("GET", `/api/subgraphs/${name}/source`);
+	}
+
+	/**
+	 * Bundle a TypeScript subgraph source on the server. Used by the web chat
+	 * authoring loop so Vercel's serverless runtime doesn't have to run esbuild.
+	 */
+	async bundle(data: { code: string }): Promise<BundleSubgraphResponse> {
+		return this.request<BundleSubgraphResponse>(
+			"POST",
+			"/api/subgraphs/bundle",
+			data,
+		);
 	}
 
 	async queryTable(

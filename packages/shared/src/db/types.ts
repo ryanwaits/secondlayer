@@ -116,6 +116,7 @@ export interface SubgraphsTable {
 	api_key_id: string | null;
 	account_id: string;
 	handler_code: string | null;
+	source_code: string | null;
 	project_id: string | null;
 	is_public: Generated<boolean>;
 	tags: Generated<string[]>;

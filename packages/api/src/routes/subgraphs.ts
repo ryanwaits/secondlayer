@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { getErrorMessage } from "@secondlayer/shared";
+import { BundleSizeError, bundleSubgraphCode } from "@secondlayer/bundler";
+import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
 import {
@@ -154,6 +155,7 @@ app.post("/", async (c) => {
 		schemaName,
 		version: parsed.data.version,
 		handlerCode: parsed.data.handlerCode,
+		sourceCode: parsed.data.sourceCode,
 	});
 
 	await cache.refresh();
@@ -194,6 +196,84 @@ app.post("/", async (c) => {
 		},
 		status,
 	);
+});
+
+// ── Bundle (server-side esbuild for chat authoring loop) ─────────────────
+//
+// Accepts a TypeScript subgraph source and returns the bundled handler +
+// extracted metadata. Called by the web chat session proxy so Vercel
+// serverless can skip esbuild entirely. CLI/MCP still bundle locally.
+// Declared before any `/:subgraphName/...` route so Hono doesn't treat
+// "bundle" as a subgraph name.
+
+const VALID_ORIGINS = new Set(["cli", "mcp", "session"]);
+function readSubgraphOrigin(c: {
+	req: { header(name: string): string | undefined };
+}): string {
+	const raw = c.req.header("x-sl-origin")?.toLowerCase() ?? "unknown";
+	return VALID_ORIGINS.has(raw) ? raw : "unknown";
+}
+
+app.post("/bundle", async (c) => {
+	const apiKeyId = getApiKeyId(c);
+	const accountId = getAccountId(c);
+	if (!apiKeyId && !accountId) {
+		return c.json({ error: "Unauthorized" }, 401);
+	}
+	const origin = readSubgraphOrigin(c);
+
+	let body: { code?: unknown };
+	try {
+		body = (await c.req.json()) as { code?: unknown };
+	} catch {
+		throw new InvalidJSONError();
+	}
+	if (typeof body.code !== "string" || body.code.length === 0) {
+		return c.json({ error: "Missing `code` string in body" }, 400);
+	}
+
+	try {
+		const bundled = await bundleSubgraphCode(body.code);
+		const bundleSize = Buffer.byteLength(bundled.handlerCode, "utf8");
+		logger.info("Subgraph bundled", {
+			origin,
+			name: bundled.name,
+			bundleSize,
+			ok: true,
+		});
+		return c.json({
+			ok: true,
+			name: bundled.name,
+			version: bundled.version ?? null,
+			description: bundled.description ?? null,
+			sources: bundled.sources,
+			schema: bundled.schema,
+			handlerCode: bundled.handlerCode,
+			sourceCode: body.code,
+			bundleSize,
+		});
+	} catch (err) {
+		if (err instanceof BundleSizeError) {
+			logger.warn("Subgraph bundle rejected: too large", {
+				origin,
+				actualBytes: err.actualBytes,
+				maxBytes: err.maxBytes,
+			});
+			return c.json(
+				{
+					ok: false,
+					error: err.message,
+					code: "BUNDLE_TOO_LARGE",
+					actualBytes: err.actualBytes,
+					maxBytes: err.maxBytes,
+				},
+				413,
+			);
+		}
+		const message = err instanceof Error ? err.message : String(err);
+		logger.warn("Subgraph bundle failed", { origin, error: message });
+		return c.json({ ok: false, error: message, code: "BUNDLE_FAILED" }, 400);
+	}
 });
 
 // ── Reindex / backfill operations ─────────────────────────────────────
@@ -685,6 +765,40 @@ app.get("/:subgraphName", async (c) => {
 		createdAt: subgraph.created_at.toISOString(),
 		updatedAt:
 			live.updated_at?.toISOString() ?? subgraph.updated_at.toISOString(),
+	});
+});
+
+// ── Get source (for chat read/edit loop) ───────────────────────────────
+
+app.get("/:subgraphName/source", async (c) => {
+	const { subgraphName } = c.req.param();
+	const accountId = getAccountId(c);
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+
+	const db = getDb();
+	const row = await db
+		.selectFrom("subgraphs")
+		.select(["source_code", "updated_at"])
+		.where("id", "=", subgraph.id)
+		.executeTakeFirst();
+
+	if (!row || row.source_code === null) {
+		return c.json({
+			name: subgraph.name,
+			version: subgraph.version,
+			sourceCode: null,
+			readOnly: true,
+			reason: "deployed before source-capture — redeploy to enable chat edits",
+			updatedAt: (row?.updated_at ?? subgraph.updated_at).toISOString(),
+		});
+	}
+
+	return c.json({
+		name: subgraph.name,
+		version: subgraph.version,
+		sourceCode: row.source_code,
+		readOnly: false,
+		updatedAt: row.updated_at.toISOString(),
 	});
 });
 

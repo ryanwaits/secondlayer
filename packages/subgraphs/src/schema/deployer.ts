@@ -128,6 +128,7 @@ export async function deploySchema(
 		schemaName?: string;
 		version?: string;
 		handlerCode?: string;
+		sourceCode?: string;
 	},
 ): Promise<{
 	action: "created" | "unchanged" | "updated" | "reindexed";
@@ -166,6 +167,7 @@ export async function deploySchema(
 		apiKeyId: opts?.apiKeyId,
 		accountId: opts?.accountId,
 		handlerCode: opts?.handlerCode,
+		sourceCode: opts?.sourceCode,
 		schemaName,
 		startBlock: def.startBlock,
 	};

@@ -9,6 +9,8 @@ export interface DeploySubgraphRequest {
 	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;
 	handlerCode: string;
+	/** Original TypeScript source, persisted so chat can read/diff/edit later. */
+	sourceCode?: string;
 	/** @deprecated Use server auto-reindex on breaking changes instead */
 	reindex?: boolean;
 }
@@ -21,12 +23,18 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 			.max(63),
 		version: z.string().optional(),
 		description: z.string().optional(),
-		sources: z.record(z.string(), z.record(z.string(), z.unknown())).refine(
-			(s) => Object.keys(s).length > 0,
-			"Must have at least one source",
-		),
+		sources: z
+			.record(z.string(), z.record(z.string(), z.unknown()))
+			.refine(
+				(s) => Object.keys(s).length > 0,
+				"Must have at least one source",
+			),
 		schema: z.record(z.string(), z.unknown()),
 		handlerCode: z.string().max(1_048_576, "handler code exceeds 1MB limit"),
+		sourceCode: z
+			.string()
+			.max(1_048_576, "source code exceeds 1MB limit")
+			.optional(),
 		reindex: z.boolean().optional(),
 	});
 
