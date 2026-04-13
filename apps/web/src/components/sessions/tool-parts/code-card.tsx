@@ -53,9 +53,6 @@ export function CodeCard({
 				)}
 			</div>
 			<div className="tool-code-actions">
-				<button type="button" className="tool-btn primary">
-					Deploy Now
-				</button>
 				<button type="button" className="tool-btn ghost" onClick={handleCopy}>
 					{copied ? "Copied" : "Copy"}
 				</button>
