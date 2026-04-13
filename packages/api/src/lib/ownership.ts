@@ -92,3 +92,38 @@ export async function resolveKeyIds(c: any): Promise<string[] | undefined> {
 	// Return undefined if no keys — empty array would produce invalid SQL `IN ()`
 	return ids.length > 0 ? ids : undefined;
 }
+
+/**
+ * Resolve the api_key_id to attribute a write to.
+ *
+ * If the request was authenticated with an API key (sk-sl_…), returns that
+ * key's id directly. If the request was authenticated with a session cookie
+ * (ss-sl_…), the caller has an accountId but no apiKey — so we look up the
+ * account's oldest active API key and return that. This lets session-scoped
+ * chat deploys land on the user's "primary" key without prompting for key
+ * selection in the UI.
+ *
+ * Returns undefined if:
+ *   - the request isn't authenticated at all (neither apiKey nor accountId)
+ *   - the account has zero active API keys (caller should 403 with NO_API_KEY)
+ */
+export async function resolveApiKeyIdForWrite(
+	c: any,
+): Promise<string | undefined> {
+	const direct = getApiKeyId(c);
+	if (direct) return direct;
+
+	const accountId = getAccountId(c);
+	if (!accountId) return undefined;
+
+	const row = await getDb()
+		.selectFrom("api_keys")
+		.select("id")
+		.where("account_id", "=", accountId)
+		.where("status", "=", "active")
+		.orderBy("created_at", "asc")
+		.limit(1)
+		.executeTakeFirst();
+
+	return row?.id;
+}

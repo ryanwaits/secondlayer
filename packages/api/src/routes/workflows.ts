@@ -21,7 +21,12 @@ import { VersionConflictError } from "@secondlayer/shared/errors";
 import { DeployWorkflowRequestSchema } from "@secondlayer/shared/schemas/workflows";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
+import {
+	getAccountId,
+	getApiKeyId,
+	resolveApiKeyIdForWrite,
+	resolveKeyIds,
+} from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const MAX_TAIL_DURATION_MS = 30 * 60 * 1000; // 30 minutes (matches logs.ts)
@@ -133,8 +138,24 @@ app.post("/", async (c) => {
 	}
 
 	const parsed = DeployWorkflowRequestSchema.parse(body);
-	const apiKeyId = getApiKeyId(c);
-	if (!apiKeyId) return c.json({ error: "API key required" }, 401);
+
+	// Accept either direct API key auth (sk-sl_…) OR session cookie auth
+	// (ss-sl_…, used by the web chat authoring loop). Session users get
+	// attributed to their account's oldest active API key.
+	const apiKeyId = await resolveApiKeyIdForWrite(c);
+	if (!apiKeyId) {
+		if (getAccountId(c)) {
+			return c.json(
+				{
+					error:
+						"This account has no active API keys. Create one in Settings before deploying workflows from chat.",
+					code: "NO_API_KEY",
+				},
+				403,
+			);
+		}
+		return c.json({ error: "API key required" }, 401);
+	}
 
 	// Idempotency: replay cached result for dry-run-less deploys when the client
 	// sends a clientRequestId and we've seen this exact tuple in the last 30s.
@@ -339,8 +360,15 @@ app.post("/", async (c) => {
 // doesn't treat "bundle" as a workflow name.
 
 app.post("/bundle", async (c) => {
+	// Bundling is a pure, stateless operation — it doesn't attribute the
+	// result to any specific key, it just needs to know the caller is
+	// authenticated. Accept either an explicit API key OR a session cookie
+	// (via accountId set by requireAuth).
 	const apiKeyId = getApiKeyId(c);
-	if (!apiKeyId) return c.json({ error: "API key required" }, 401);
+	const accountId = getAccountId(c);
+	if (!apiKeyId && !accountId) {
+		return c.json({ error: "Unauthorized" }, 401);
+	}
 	const origin = readOrigin(c);
 
 	let body: { code?: unknown };
