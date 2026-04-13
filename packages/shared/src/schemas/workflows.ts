@@ -8,6 +8,7 @@ export interface DeployWorkflowRequest {
 	handlerCode: string;
 	sourceCode?: string;
 	expectedVersion?: string;
+	dryRun?: boolean;
 	retries?: {
 		maxAttempts?: number;
 		backoffMs?: number;
@@ -38,6 +39,7 @@ export const DeployWorkflowRequestSchema: z.ZodType<DeployWorkflowRequest> =
 				"expectedVersion must be semver major.minor.patch",
 			)
 			.optional(),
+		dryRun: z.boolean().optional(),
 		retries: z
 			.object({
 				maxAttempts: z.number().int().positive().optional(),

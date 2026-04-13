@@ -52,6 +52,44 @@ app.post("/", async (c) => {
 	const apiKeyId = getApiKeyId(c);
 	if (!apiKeyId) return c.json({ error: "API key required" }, 401);
 
+	const bundleSize = Buffer.byteLength(parsed.handlerCode, "utf8");
+
+	// Dry run: validate via data-URI import, no disk write, no DB write.
+	if (parsed.dryRun) {
+		try {
+			const dataUri = `data:text/javascript;base64,${Buffer.from(parsed.handlerCode).toString("base64")}`;
+			const mod = await import(dataUri);
+			const def = mod.default ?? mod;
+			if (!def.trigger || !def.handler) {
+				return c.json(
+					{
+						valid: false,
+						error: "Workflow must export trigger and handler",
+						bundleSize,
+					},
+					400,
+				);
+			}
+			return c.json({
+				valid: true,
+				validation: {
+					name: parsed.name,
+					triggerType: (parsed.trigger.type as string | undefined) ?? "manual",
+				},
+				bundleSize,
+			});
+		} catch (err) {
+			return c.json(
+				{
+					valid: false,
+					error: `Invalid handler: ${getErrorMessage(err)}`,
+					bundleSize,
+				},
+				400,
+			);
+		}
+	}
+
 	// Write handler code to disk
 	const dir = ensureWorkflowDir();
 	const handlerPath = join(dir, `${parsed.name}.js`);
