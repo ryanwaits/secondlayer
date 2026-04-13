@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@secondlayer/auth": "^0.1.14",
+		"@secondlayer/bundler": "^0.1.0",
 		"@secondlayer/shared": "^0.12.0",
 		"@secondlayer/subgraphs": "^0.11.0",
 		"hono": "^4.0.0",

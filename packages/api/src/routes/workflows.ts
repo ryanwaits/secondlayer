@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
+import { BundleSizeError, bundleWorkflowCode } from "@secondlayer/bundler";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
@@ -324,6 +325,77 @@ app.post("/", async (c) => {
 	}
 
 	return c.json(response);
+});
+
+// ── Bundle (server-side esbuild for chat authoring loop) ─────────────────
+//
+// Accepts a user-supplied TypeScript workflow source and returns the bundled
+// handler + extracted metadata. Called by the web chat session proxy
+// (`apps/web/src/app/api/sessions/bundle-workflow`) because Vercel serverless
+// can't reliably run esbuild + data-URI import. CLI and MCP still bundle
+// locally in their own shells — this route exists for the chat flow.
+//
+// Must be declared BEFORE any `/:name` parametric route so Hono's router
+// doesn't treat "bundle" as a workflow name.
+
+app.post("/bundle", async (c) => {
+	const apiKeyId = getApiKeyId(c);
+	if (!apiKeyId) return c.json({ error: "API key required" }, 401);
+	const origin = readOrigin(c);
+
+	let body: { code?: unknown };
+	try {
+		body = (await c.req.json()) as { code?: unknown };
+	} catch {
+		throw new InvalidJSONError();
+	}
+	if (typeof body.code !== "string" || body.code.length === 0) {
+		return c.json({ error: "Missing `code` string in body" }, 400);
+	}
+
+	try {
+		const bundled = await bundleWorkflowCode(body.code);
+		const bundleSize = Buffer.byteLength(bundled.handlerCode, "utf8");
+		logger.info("Workflow bundled", { origin, bundleSize, ok: true });
+		return c.json({
+			ok: true,
+			name: bundled.name,
+			trigger: bundled.trigger,
+			handlerCode: bundled.handlerCode,
+			sourceCode: bundled.sourceCode,
+			retries: bundled.retries ?? null,
+			timeout: bundled.timeout ?? null,
+			bundleSize,
+		});
+	} catch (err) {
+		if (err instanceof BundleSizeError) {
+			logger.warn("Workflow bundle rejected: too large", {
+				origin,
+				actualBytes: err.actualBytes,
+				maxBytes: err.maxBytes,
+			});
+			return c.json(
+				{
+					ok: false,
+					error: err.message,
+					code: "BUNDLE_TOO_LARGE",
+					actualBytes: err.actualBytes,
+					maxBytes: err.maxBytes,
+				},
+				413,
+			);
+		}
+		const message = err instanceof Error ? err.message : String(err);
+		logger.warn("Workflow bundle failed", { origin, error: message });
+		return c.json(
+			{
+				ok: false,
+				error: message,
+				code: "BUNDLE_FAILED",
+			},
+			400,
+		);
+	}
 });
 
 // ── List ─────────────────────────────────────────────────────────────────
