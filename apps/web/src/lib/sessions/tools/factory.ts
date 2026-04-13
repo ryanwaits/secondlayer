@@ -23,6 +23,7 @@ import { manageWorkflows } from "./manage-workflows";
 import { createQuerySubgraph } from "./query-subgraph";
 import { createReadWorkflow } from "./read-workflow";
 import { createRecallSessions } from "./recall-sessions";
+import { rollbackWorkflow } from "./rollback-workflow";
 import { createScaffoldSubgraph } from "./scaffold-subgraph";
 import { createScaffoldWorkflow } from "./scaffold-workflow";
 import { showCode } from "./show-code";
@@ -82,6 +83,7 @@ export function createSessionTools(
 		deploy_workflow: deployWorkflow,
 		read_workflow: createReadWorkflow(sessionToken),
 		edit_workflow: editWorkflow,
+		rollback_workflow: rollbackWorkflow,
 		tail_workflow_run: tailWorkflowRun,
 		list_workflow_templates: listWorkflowTemplates,
 		lookup_docs: lookupDocs,

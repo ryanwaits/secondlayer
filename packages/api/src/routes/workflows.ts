@@ -520,6 +520,113 @@ app.get("/:name/runs", async (c) => {
 	});
 });
 
+// ── Rollback ─────────────────────────────────────────────────────────────
+
+app.post("/:name/rollback", async (c) => {
+	const apiKeyId = getApiKeyId(c);
+	if (!apiKeyId) return c.json({ error: "API key required" }, 401);
+
+	const db = getDb();
+	const keyIds = await resolveKeyIds(c);
+	const name = c.req.param("name");
+	const def = await getWorkflowDefinition(db, name, keyIds);
+	if (!def) return c.json({ error: "Workflow not found" }, 404);
+
+	let body: { toVersion?: unknown } = {};
+	try {
+		body = (await c.req.json()) as { toVersion?: unknown };
+	} catch {
+		// allow empty body — rollback to previous
+	}
+	const requestedVersion =
+		typeof body.toVersion === "string" ? body.toVersion : undefined;
+
+	const dir = ensureWorkflowDir();
+	const availableVersions: string[] = [];
+	try {
+		const entries = await readdir(dir);
+		for (const file of entries) {
+			const match = file.match(VERSIONED_HANDLER_RE);
+			if (!match) continue;
+			const [, base, major, minor, patch] = match;
+			if (base !== name) continue;
+			availableVersions.push(`${major}.${minor}.${patch}`);
+		}
+	} catch {
+		return c.json(
+			{ error: "No prior handler bundles on disk to roll back to." },
+			404,
+		);
+	}
+	availableVersions.sort((a, b) => compareSemver(b, a));
+
+	let toVersion: string | undefined;
+	if (requestedVersion) {
+		if (!availableVersions.includes(requestedVersion)) {
+			return c.json(
+				{
+					error: `Version ${requestedVersion} is not available on disk`,
+					available: availableVersions,
+				},
+				404,
+			);
+		}
+		toVersion = requestedVersion;
+	} else {
+		toVersion = availableVersions.find((v) => v !== def.version);
+		if (!toVersion) {
+			return c.json(
+				{ error: "No prior version available to roll back to." },
+				404,
+			);
+		}
+	}
+
+	// Copy the target handler bundle to the new bumped-version path.
+	const nextVersion = bumpPatch(def.version);
+	const sourcePath = join(dir, `${name}-${toVersion}.js`);
+	const nextPath = join(dir, `${name}-${nextVersion}.js`);
+	try {
+		const buffer = await Bun.file(sourcePath).arrayBuffer();
+		await Bun.write(nextPath, buffer);
+	} catch (err) {
+		return c.json(
+			{ error: `Failed to restore handler: ${getErrorMessage(err)}` },
+			500,
+		);
+	}
+
+	await db
+		.updateTable("workflow_definitions")
+		.set({
+			handler_path: nextPath,
+			version: nextVersion,
+			status: "active",
+			updated_at: new Date(),
+		})
+		.where("id", "=", def.id)
+		.execute();
+
+	void pruneOlderHandlerVersions(dir, name, 3);
+
+	const origin = readOrigin(c);
+	logger.info("Workflow rolled back", {
+		name,
+		fromVersion: def.version,
+		toVersion,
+		newVersion: nextVersion,
+		origin,
+	});
+
+	return c.json({
+		action: "rolled-back",
+		name,
+		fromVersion: def.version,
+		restoredFromVersion: toVersion,
+		version: nextVersion,
+	});
+});
+
 // ── Tail run (SSE) ───────────────────────────────────────────────────────
 
 app.get("/:name/runs/:runId/stream", async (c) => {

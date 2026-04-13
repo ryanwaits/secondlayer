@@ -239,6 +239,28 @@ export function registerWorkflowTools(server: McpServer) {
 		},
 	);
 
+	defineTool<{ name: string; toVersion?: string }>(
+		server,
+		"workflows_rollback",
+		"Roll a workflow back to a prior version. The restored handler is re-published as a NEW version (audit trail), so no history is lost. Pass toVersion to pick a specific bundle; omit to roll back to the immediate previous version on disk. Last 3 versions are retained.",
+		{
+			name: z.string().describe("Workflow name"),
+			toVersion: z
+				.string()
+				.regex(/^\d+\.\d+\.\d+$/)
+				.optional()
+				.describe(
+					"Target version to restore. Must be one of the retained bundles on disk.",
+				),
+		},
+		async ({ name, toVersion }) => {
+			const result = await getClient().workflows.rollback(name, toVersion);
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
 	defineTool<{ name: string }>(
 		server,
 		"workflows_delete",

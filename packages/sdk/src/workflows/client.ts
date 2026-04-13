@@ -172,6 +172,23 @@ export class Workflows extends BaseClient {
 		return this.request("GET", `/api/workflows/${name}/source`);
 	}
 
+	async rollback(
+		name: string,
+		toVersion?: string,
+	): Promise<{
+		action: "rolled-back";
+		name: string;
+		fromVersion: string;
+		restoredFromVersion: string;
+		version: string;
+	}> {
+		return this.request(
+			"POST",
+			`/api/workflows/${name}/rollback`,
+			toVersion ? { toVersion } : {},
+		);
+	}
+
 	/**
 	 * Subscribe to a workflow run's server-sent event stream. Resolves when the
 	 * run completes, times out, or the signal is aborted. Throws on HTTP errors

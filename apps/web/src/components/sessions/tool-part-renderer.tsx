@@ -45,6 +45,7 @@ const HUMAN_IN_LOOP_TOOLS = new Set([
 	"manage_subgraphs",
 	"deploy_workflow",
 	"edit_workflow",
+	"rollback_workflow",
 ]);
 
 export function ToolPartRenderer({
@@ -65,6 +66,88 @@ export function ToolPartRenderer({
 	if (state === "input-available" && !HUMAN_IN_LOOP_TOOLS.has(toolName)) {
 		return (
 			<ToolCallIndicator toolName={toolName} state={state} input={part.input} />
+		);
+	}
+
+	// rollback_workflow presents a simple confirm card and POSTs /api/workflows/:name/rollback.
+	if (state === "input-available" && toolName === "rollback_workflow") {
+		const input = part.input as {
+			name: string;
+			toVersion?: string;
+			reason?: string;
+		};
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<ActionCard
+					action="delete"
+					targets={[
+						{
+							id: input.name,
+							name: input.name,
+							reason:
+								input.reason ??
+								(input.toVersion
+									? `Restore ${input.toVersion}`
+									: "Restore previous version"),
+						},
+					]}
+					onConfirm={async () => {
+						try {
+							const res = await fetch(`/api/workflows/${input.name}/rollback`, {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								credentials: "same-origin",
+								body: JSON.stringify(
+									input.toVersion ? { toVersion: input.toVersion } : {},
+								),
+							});
+							const body = (await res.json()) as {
+								version?: string;
+								error?: string;
+							};
+							addToolOutput({
+								toolCallId: part.toolCallId,
+								output: res.ok
+									? {
+											confirmed: true,
+											ok: true,
+											name: input.name,
+											version: body.version,
+											message: `Rolled back "${input.name}" to v${body.version}`,
+										}
+									: {
+											confirmed: false,
+											ok: false,
+											error: body.error ?? `HTTP ${res.status}`,
+										},
+							});
+						} catch (err) {
+							addToolOutput({
+								toolCallId: part.toolCallId,
+								output: {
+									confirmed: false,
+									ok: false,
+									error: err instanceof Error ? err.message : String(err),
+								},
+							});
+						}
+					}}
+					onCancel={() =>
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output: {
+								confirmed: false,
+								message: "Rollback cancelled",
+							},
+						})
+					}
+				/>
+			</>
 		);
 	}
 
