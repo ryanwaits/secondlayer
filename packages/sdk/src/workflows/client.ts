@@ -91,6 +91,17 @@ export interface DeployResponse {
 	message: string;
 }
 
+export interface BundleWorkflowResponse {
+	ok: true;
+	name: string;
+	trigger: Record<string, unknown>;
+	handlerCode: string;
+	sourceCode: string;
+	retries: Record<string, unknown> | null;
+	timeout: number | null;
+	bundleSize: number;
+}
+
 export interface WorkflowSummary {
 	name: string;
 	status: "active" | "paused";
@@ -172,6 +183,17 @@ export class Workflows extends BaseClient {
 
 	async getSource(name: string): Promise<WorkflowSource> {
 		return this.request("GET", `/api/workflows/${name}/source`);
+	}
+
+	/**
+	 * Bundle a TypeScript workflow source on the server. Used by the web chat
+	 * authoring loop so Vercel's serverless runtime doesn't have to run esbuild.
+	 * CLI and MCP still bundle locally — this method is for clients that can't
+	 * install `@secondlayer/bundler` directly (e.g. browser tooling, edge
+	 * functions).
+	 */
+	async bundle(data: { code: string }): Promise<BundleWorkflowResponse> {
+		return this.request("POST", "/api/workflows/bundle", data);
 	}
 
 	async pauseAll(): Promise<{
