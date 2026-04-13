@@ -43,6 +43,7 @@ const HUMAN_IN_LOOP_TOOLS = new Set([
 	"manage_streams",
 	"manage_keys",
 	"manage_subgraphs",
+	"manage_workflows",
 	"deploy_workflow",
 	"edit_workflow",
 	"rollback_workflow",
@@ -228,13 +229,16 @@ export function ToolPartRenderer({
 		const input = part.input as {
 			action: string;
 			targets: Array<{ id?: string; name: string; reason?: string }>;
+			triggerInput?: string;
 		};
 		const resourceType =
 			toolName === "manage_keys"
 				? "keys"
 				: toolName === "manage_subgraphs"
 					? "subgraphs"
-					: "streams";
+					: toolName === "manage_workflows"
+						? "workflows"
+						: "streams";
 		return (
 			<>
 				<ToolCallIndicator
@@ -250,6 +254,18 @@ export function ToolPartRenderer({
 						reason: t.reason,
 					}))}
 					onConfirm={async () => {
+						if (toolName === "manage_workflows") {
+							const result = await executeManageWorkflows(
+								input.action,
+								input.targets,
+								input.triggerInput,
+							);
+							addToolOutput({
+								toolCallId: part.toolCallId,
+								output: result,
+							});
+							return;
+						}
 						await executeAction(toolName, input.action, input.targets);
 						addToolOutput({
 							toolCallId: part.toolCallId,
@@ -380,10 +396,17 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 
 		case "manage_streams":
 		case "manage_keys":
-		case "manage_subgraphs": {
+		case "manage_subgraphs":
+		case "manage_workflows": {
 			const msg = (output as { message?: string }).message;
 			if ((output as { confirmed?: boolean }).confirmed === false) {
-				return <SuccessBanner message={msg ?? "Action cancelled"} />;
+				return (
+					<SuccessBanner tone="info" message={msg ?? "Action cancelled"} />
+				);
+			}
+			const errored = (output as { error?: string }).error;
+			if (errored) {
+				return <SuccessBanner tone="error" message={errored} />;
 			}
 			return <SuccessBanner message={msg ?? "Action completed"} />;
 		}
@@ -600,6 +623,137 @@ async function executeAction(
 	}
 
 	await Promise.allSettled(calls);
+}
+
+/**
+ * Handler for `manage_workflows` HIL confirms. Split from the generic
+ * `executeAction` because workflow operations need structured response
+ * handling:
+ *   - `trigger` returns a runId we want to pass back to the agent so it can
+ *     tail the run in a follow-up step.
+ *   - Any non-2xx upstream response needs to surface as a chat error rather
+ *     than being silently swallowed by `Promise.allSettled`.
+ */
+async function executeManageWorkflows(
+	action: string,
+	targets: Array<{ id?: string; name: string; reason?: string }>,
+	triggerInput?: string,
+): Promise<{
+	confirmed: boolean;
+	ok: boolean;
+	action: string;
+	name?: string;
+	runId?: string;
+	message?: string;
+	error?: string;
+}> {
+	const first = targets[0];
+	if (!first) {
+		return {
+			confirmed: true,
+			ok: false,
+			action,
+			error: "No workflow targets provided",
+		};
+	}
+
+	try {
+		if (action === "trigger") {
+			let inputBody: Record<string, unknown> = {};
+			if (triggerInput) {
+				try {
+					const parsed = JSON.parse(triggerInput);
+					if (parsed && typeof parsed === "object") {
+						inputBody = { input: parsed };
+					}
+				} catch {
+					return {
+						confirmed: true,
+						ok: false,
+						action,
+						name: first.name,
+						error: "triggerInput was not valid JSON",
+					};
+				}
+			}
+			const res = await fetch(`/api/workflows/${first.name}/trigger`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "same-origin",
+				body: JSON.stringify(inputBody),
+			});
+			const body = (await res.json().catch(() => ({}))) as {
+				runId?: string;
+				error?: string;
+			};
+			if (!res.ok) {
+				return {
+					confirmed: true,
+					ok: false,
+					action,
+					name: first.name,
+					error: body.error ?? `HTTP ${res.status}`,
+				};
+			}
+			return {
+				confirmed: true,
+				ok: true,
+				action,
+				name: first.name,
+				runId: body.runId,
+				message: body.runId
+					? `Triggered ${first.name} — run ${body.runId}`
+					: `Triggered ${first.name}`,
+			};
+		}
+
+		const path =
+			action === "pause"
+				? `/api/workflows/${first.name}/pause`
+				: action === "resume"
+					? `/api/workflows/${first.name}/resume`
+					: action === "delete"
+						? `/api/workflows/${first.name}`
+						: null;
+		if (!path) {
+			return {
+				confirmed: true,
+				ok: false,
+				action,
+				error: `Unknown workflow action: ${action}`,
+			};
+		}
+		const res = await fetch(path, {
+			method: action === "delete" ? "DELETE" : "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+		});
+		if (!res.ok) {
+			const body = (await res.json().catch(() => ({}))) as { error?: string };
+			return {
+				confirmed: true,
+				ok: false,
+				action,
+				name: first.name,
+				error: body.error ?? `HTTP ${res.status}`,
+			};
+		}
+		return {
+			confirmed: true,
+			ok: true,
+			action,
+			name: first.name,
+			message: `${first.name} ${action}d`,
+		};
+	} catch (err) {
+		return {
+			confirmed: true,
+			ok: false,
+			action,
+			name: first.name,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
 }
 
 type BundleWorkflowResult = {
