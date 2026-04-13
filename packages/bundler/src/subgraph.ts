@@ -1,6 +1,7 @@
 import { validateSubgraphDefinition } from "@secondlayer/subgraphs/validate";
 import esbuild from "esbuild";
 import { BundleSizeError, SUBGRAPH_BUNDLE_MAX_BYTES } from "./errors.ts";
+import { stubPackagesPlugin } from "./stub-plugin.ts";
 
 export interface SubgraphBundleResult {
 	name: string;
@@ -21,10 +22,10 @@ export async function bundleSubgraphCode(
 			bundle: true,
 			platform: "node",
 			format: "esm",
-			// DON'T externalize @secondlayer/subgraphs — bundled output is
-			// validated via `import(dataUri)` below and data-URI imports
-			// cannot resolve bare specifiers. `defineSubgraph` is a pure
-			// identity function so inlining is effectively free.
+			// Intercept `@secondlayer/subgraphs` with an inline stub so esbuild
+			// doesn't walk the filesystem looking for node_modules. See
+			// stub-plugin.ts for the full rationale.
+			plugins: [stubPackagesPlugin()],
 			write: false,
 		});
 	} catch (err: unknown) {

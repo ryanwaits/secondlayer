@@ -5,6 +5,7 @@ import type {
 import { validateWorkflowDefinition } from "@secondlayer/workflows/validate";
 import esbuild from "esbuild";
 import { BundleSizeError, WORKFLOW_BUNDLE_MAX_BYTES } from "./errors.ts";
+import { stubPackagesPlugin } from "./stub-plugin.ts";
 
 export interface WorkflowBundleResult {
 	name: string;
@@ -25,10 +26,12 @@ export async function bundleWorkflowCode(
 			bundle: true,
 			platform: "node",
 			format: "esm",
-			// DON'T externalize @secondlayer/workflows — the bundled handler is
-			// validated by `import(dataUri)` below, and data-URI imports can't
-			// resolve bare specifiers (no parent URL). `defineWorkflow` is a
-			// pure identity function so inlining it adds negligible bytes.
+			// Intercept `@secondlayer/workflows` with an inline stub so esbuild
+			// doesn't walk the filesystem looking for node_modules (which fails
+			// on Vercel serverless where the repo's node_modules isn't next to
+			// process.cwd()). The stub provides a literal `defineWorkflow`
+			// identity function — the only runtime export user workflows import.
+			plugins: [stubPackagesPlugin()],
 			write: false,
 		});
 	} catch (err: unknown) {
