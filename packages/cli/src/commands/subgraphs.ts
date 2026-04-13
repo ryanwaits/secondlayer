@@ -181,19 +181,13 @@ export function registerSubgraphsCommand(program: Command): void {
 					// ── Remote deploy ──────────────────────────────────────
 					info(`Bundling for remote deploy (${config.network})...`);
 
-					const esbuild = await import("esbuild");
-					const buildResult = await esbuild.build({
-						entryPoints: [absPath],
-						bundle: true,
-						platform: "node",
-						format: "esm",
-						external: ["@secondlayer/subgraphs"],
-						write: false,
-					});
-
-					const handlerCode = new TextDecoder().decode(
-						buildResult.outputFiles![0]!.contents,
+					const { readFile } = await import("node:fs/promises");
+					const source = await readFile(absPath, "utf8");
+					const { bundleSubgraphCode } = await import(
+						"@secondlayer/bundler"
 					);
+					const bundled = await bundleSubgraphCode(source);
+					const handlerCode = bundled.handlerCode;
 
 					// Dry-run first to check if reindex needed (action would be reindexed/created)
 					// We pass the version but let the server decide
