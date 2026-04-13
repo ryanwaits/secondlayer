@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { templates } from "@secondlayer/subgraphs/templates";
+import { templates as subgraphTemplates } from "@secondlayer/subgraphs/templates";
+import { templates as workflowTemplates } from "@secondlayer/workflows/templates";
 import { FilterSchema } from "./tools/streams.ts";
 
 /** Derived from FilterSchema — single source of truth for filter types and fields. */
@@ -70,7 +71,7 @@ export function registerResources(server: McpServer) {
 		"secondlayer://templates",
 		{
 			description:
-				"Available subgraph templates with descriptions and categories",
+				"Available subgraph and workflow templates with descriptions and categories",
 		},
 		async () => ({
 			contents: [
@@ -78,12 +79,27 @@ export function registerResources(server: McpServer) {
 					uri: "secondlayer://templates",
 					mimeType: "application/json",
 					text: JSON.stringify(
-						templates.map(({ id, name, description, category }) => ({
-							id,
-							name,
-							description,
-							category,
-						})),
+						[
+							...subgraphTemplates.map(
+								({ id, name, description, category }) => ({
+									kind: "subgraph" as const,
+									id,
+									name,
+									description,
+									category,
+								}),
+							),
+							...workflowTemplates.map(
+								({ id, name, description, category, trigger }) => ({
+									kind: "workflow" as const,
+									id,
+									name,
+									description,
+									category,
+									trigger,
+								}),
+							),
+						],
 						null,
 						2,
 					),
