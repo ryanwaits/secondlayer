@@ -151,6 +151,94 @@ export function registerWorkflowTools(server: McpServer) {
 		},
 	);
 
+	defineTool<{
+		name: string;
+		runId: string;
+		limit?: number;
+		timeoutMs?: number;
+	}>(
+		server,
+		"workflows_tail_run",
+		"Tail a workflow run via SSE and return a compacted log. Resolves as soon as the run completes, `limit` events are collected, or `timeoutMs` elapses (default 60s). MCP is not streaming-first — use this for short-lived follow-ups, not long tails.",
+		{
+			name: z.string().describe("Workflow name"),
+			runId: z.string().describe("Run id"),
+			limit: z
+				.number()
+				.int()
+				.positive()
+				.max(200)
+				.optional()
+				.describe("Max step events to collect (default 50)"),
+			timeoutMs: z
+				.number()
+				.int()
+				.positive()
+				.max(5 * 60 * 1000)
+				.optional()
+				.describe("Hard timeout in ms (default 60000, max 300000)"),
+		},
+		async ({ name, runId, limit, timeoutMs }) => {
+			const cap = limit ?? 50;
+			const deadline = timeoutMs ?? 60_000;
+
+			const events: Array<Record<string, unknown>> = [];
+			let finalStatus: string | null = null;
+			let stoppedBy: "done" | "limit" | "timeout" = "timeout";
+
+			const controller = new AbortController();
+			const timer = setTimeout(() => {
+				stoppedBy = "timeout";
+				controller.abort();
+			}, deadline);
+
+			try {
+				await getClient().workflows.streamRun(
+					name,
+					runId,
+					(event) => {
+						if (event.type === "step") {
+							events.push(event.step as unknown as Record<string, unknown>);
+							if (events.length >= cap) {
+								stoppedBy = "limit";
+								controller.abort();
+							}
+						} else if (event.type === "done") {
+							finalStatus = event.done.status;
+							stoppedBy = "done";
+						}
+					},
+					controller.signal,
+				);
+			} catch (err) {
+				if (!(err instanceof Error) || err.name !== "AbortError") {
+					throw err;
+				}
+			} finally {
+				clearTimeout(timer);
+			}
+
+			return {
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify(
+							{
+								runId,
+								finalStatus,
+								stoppedBy,
+								eventCount: events.length,
+								events,
+							},
+							null,
+							2,
+						),
+					},
+				],
+			};
+		},
+	);
+
 	defineTool<{ name: string }>(
 		server,
 		"workflows_delete",
