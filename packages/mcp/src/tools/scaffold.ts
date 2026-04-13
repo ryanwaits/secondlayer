@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { generateSubgraphCode } from "@secondlayer/scaffold";
+import type { AbiFunction, AbiMap } from "@secondlayer/scaffold";
 import { z } from "zod/v4";
-import { generateSubgraphCode } from "../lib/scaffold-generate.ts";
 import { defineTool } from "../lib/tool.ts";
 
 const API_BASE =
@@ -8,7 +9,7 @@ const API_BASE =
 
 async function fetchAbi(
 	contractId: string,
-): Promise<{ functions: any[]; maps: any[] }> {
+): Promise<{ functions: AbiFunction[]; maps: AbiMap[] }> {
 	const res = await fetch(`${API_BASE}/api/node/contracts/${contractId}/abi`, {
 		signal: AbortSignal.timeout(10_000),
 	});
@@ -17,7 +18,10 @@ async function fetchAbi(
 			throw new Error(`Contract not found: ${contractId}`);
 		throw new Error(`Failed to fetch ABI: HTTP ${res.status}`);
 	}
-	const abi = (await res.json()) as Record<string, any>;
+	const abi = (await res.json()) as {
+		functions?: AbiFunction[];
+		maps?: AbiMap[];
+	};
 	return {
 		functions: abi.functions ?? [],
 		maps: abi.maps ?? [],
@@ -67,7 +71,7 @@ export function registerScaffoldTools(server: McpServer) {
 				.describe("Override the subgraph name"),
 		},
 		async ({ abi, contractId, subgraphName }) => {
-			let parsed: Record<string, any>;
+			let parsed: { functions?: AbiFunction[]; maps?: AbiMap[] };
 			try {
 				parsed = JSON.parse(abi);
 			} catch {

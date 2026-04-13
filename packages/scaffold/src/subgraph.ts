@@ -1,6 +1,5 @@
 /**
- * Subgraph scaffold generator — copied from apps/web/src/lib/scaffold/generate.ts.
- * Browser-safe, pure string templating, no deps.
+ * Browser-safe subgraph scaffold generator — pure string templating, no deps.
  */
 
 type AbiType = string | Record<string, unknown>;

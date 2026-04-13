@@ -29,6 +29,7 @@
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@secondlayer/bundler": "^0.1.0",
+		"@secondlayer/scaffold": "^0.1.0",
 		"@secondlayer/sdk": "^0.10.2",
 		"@secondlayer/subgraphs": "^0.11.0",
 		"@secondlayer/workflows": "^0.0.3",
