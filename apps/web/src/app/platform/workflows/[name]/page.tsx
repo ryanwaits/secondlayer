@@ -9,6 +9,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { WorkflowDangerZone } from "./danger-zone";
 import { ManualTrigger } from "./manual-trigger";
+import { OpenInChat } from "./open-in-chat";
 import { WorkflowRunsSection } from "./runs-section";
 
 function statusBadgeClass(status: string) {
@@ -92,6 +93,17 @@ export default async function WorkflowDetailPage({
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
+					{/* Open in chat CTA */}
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "flex-end",
+							marginBottom: 12,
+						}}
+					>
+						<OpenInChat workflowName={name} />
+					</div>
+
 					{/* Metadata cards */}
 					<MetaGrid
 						items={[
