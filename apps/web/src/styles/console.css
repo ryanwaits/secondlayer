@@ -6429,19 +6429,35 @@ html.force-light .tabbed-code-tab.active {
 	padding: 14px;
 }
 
-/* Success banner */
+/* Status banner (shared by success / error / info tones) */
 .tool-success-banner {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	padding: 10px 14px;
-	background: var(--green-bg);
-	border: 1px solid rgba(34, 197, 94, 0.2);
 	border-radius: 10px;
 	margin-top: 8px;
 	font-size: 12px;
 	font-weight: 500;
+	border: 1px solid transparent;
+}
+
+.tool-success-banner.tone-success {
+	background: var(--green-bg);
+	border-color: rgba(34, 197, 94, 0.2);
 	color: var(--green);
+}
+
+.tool-success-banner.tone-error {
+	background: var(--red-bg);
+	border-color: rgba(239, 68, 68, 0.2);
+	color: var(--red);
+}
+
+.tool-success-banner.tone-info {
+	background: var(--nudge-bg, rgba(255, 255, 255, 0.05));
+	border-color: var(--border);
+	color: var(--text-muted);
 }
 
 .tool-success-banner svg {

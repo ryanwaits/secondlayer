@@ -432,6 +432,7 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			if (!o.ok) {
 				return (
 					<SuccessBanner
+						tone={o.cancelled ? "info" : "error"}
 						message={
 							o.cancelled ? "Deploy cancelled" : (o.error ?? "Deploy failed")
 						}
@@ -453,6 +454,7 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			if (!o.ok) {
 				return (
 					<SuccessBanner
+						tone={o.cancelled ? "info" : "error"}
 						message={
 							o.cancelled ? "Edit cancelled" : (o.error ?? "Edit failed")
 						}

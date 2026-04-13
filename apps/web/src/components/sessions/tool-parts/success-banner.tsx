@@ -2,11 +2,12 @@
 
 interface SuccessBannerProps {
 	message: string;
+	tone?: "success" | "error" | "info";
 }
 
-export function SuccessBanner({ message }: SuccessBannerProps) {
+export function SuccessBanner({ message, tone = "success" }: SuccessBannerProps) {
 	return (
-		<div className="tool-success-banner">
+		<div className={`tool-success-banner tone-${tone}`}>
 			<svg
 				width="14"
 				height="14"
@@ -17,7 +18,19 @@ export function SuccessBanner({ message }: SuccessBannerProps) {
 				strokeLinecap="round"
 			>
 				<circle cx="8" cy="8" r="6" />
-				<path d="M5.5 8l2 2 3.5-3.5" />
+				{tone === "error" ? (
+					<>
+						<path d="M10 6l-4 4" />
+						<path d="M6 6l4 4" />
+					</>
+				) : tone === "info" ? (
+					<>
+						<path d="M8 11V7" />
+						<circle cx="8" cy="5" r="0.5" fill="currentColor" />
+					</>
+				) : (
+					<path d="M5.5 8l2 2 3.5-3.5" />
+				)}
 			</svg>
 			{message}
 		</div>
