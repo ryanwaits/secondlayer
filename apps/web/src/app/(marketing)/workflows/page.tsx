@@ -418,7 +418,7 @@ await step.deliver("alert-telegram", {
 						Every update bumps the patch version automatically. Pass{" "}
 						<code>expectedVersion</code> to opt into optimistic concurrency —
 						the server returns <code>HTTP 409</code> with{" "}
-						<code>{`{ currentVersion, expectedVersion }`}</code> when another
+						<code>{"{ currentVersion, expectedVersion }"}</code> when another
 						deploy landed between your read and your write. Pass{" "}
 						<code>dryRun: true</code> to validate the bundle without touching
 						the database. Pass <code>clientRequestId</code> for idempotency —
@@ -480,7 +480,9 @@ try {
 						<code>mint-watcher</code>, <code>price-circuit-breaker</code>,{" "}
 						<code>daily-digest</code>, <code>failed-tx-alert</code>, and{" "}
 						<code>health-cron</code>. Each template has a typed{" "}
-						<code>{`{ id, name, description, category, trigger, code, prompt }`}</code>{" "}
+						<code>
+							{"{ id, name, description, category, trigger, code, prompt }"}
+						</code>{" "}
 						shape — the <code>code</code> field is the exact{" "}
 						<code>defineWorkflow()</code> source, and <code>prompt</code> is the
 						natural-language description agents use to match user intent. The
@@ -561,7 +563,7 @@ await client.workflows.deploy({
 						Every deploy bumps the stored workflow version by one patch digit
 						(for example, <code>1.0.3</code> → <code>1.0.4</code>). Handler
 						bundles are written to disk as{" "}
-						<code>data/workflows/{`{name}-{version}`}.js</code>, so the runner
+						<code>data/workflows/{"{name}-{version}"}.js</code>, so the runner
 						can resolve a specific bundle for in-flight runs while the next
 						trigger picks up the latest. The API retains the most recent three
 						on-disk bundles per workflow; older versions are pruned on each
