@@ -1308,6 +1308,14 @@ html.force-light .tabbed-code-tab.active {
 .dash-data-table tr.selected td {
 	background: rgba(99, 68, 245, 0.04);
 }
+.dash-data-link {
+	color: var(--accent, #6344f5);
+	text-decoration: none;
+	font-weight: 500;
+}
+.dash-data-link:hover {
+	text-decoration: underline;
+}
 .dash-data-table td {
 	max-width: 200px;
 	overflow: hidden;
@@ -6051,6 +6059,21 @@ html.force-light .tabbed-code-tab.active {
 	display: flex;
 	align-items: center;
 	gap: 6px;
+}
+
+.tool-step-output {
+	margin: 6px 0 0;
+	padding: 8px 10px;
+	background: var(--bg-base, rgba(0, 0, 0, 0.03));
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-main);
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 240px;
+	overflow: auto;
 }
 
 .tool-status-row {

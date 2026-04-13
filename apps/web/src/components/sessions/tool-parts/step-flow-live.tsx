@@ -27,6 +27,28 @@ function statusToState(status: string): StepInfo["state"] {
 	return "active";
 }
 
+function formatOutput(output: unknown): string | null {
+	if (output == null) return null;
+	if (typeof output === "string") return output;
+	try {
+		return JSON.stringify(output, null, 2);
+	} catch {
+		return String(output);
+	}
+}
+
+function renderStepCard(event: StepEvent) {
+	if (event.error) {
+		return <div className="tool-error-body">{event.error}</div>;
+	}
+	if (event.status !== "completed" && event.status !== "success") {
+		return undefined;
+	}
+	const formatted = formatOutput(event.output);
+	if (!formatted) return undefined;
+	return <pre className="tool-step-output">{formatted}</pre>;
+}
+
 function labelFor(event: StepEvent): string {
 	const core = `${event.stepType}:${event.stepId}`;
 	if (event.status === "failed") return `${core} — failed`;
@@ -132,9 +154,7 @@ export function StepFlowLive({ workflowName, runId }: StepFlowLiveProps) {
 		return {
 			label: labelFor(event),
 			state: statusToState(event.status),
-			card: event.error ? (
-				<div className="tool-error-body">{event.error}</div>
-			) : undefined,
+			card: renderStepCard(event),
 		};
 	});
 

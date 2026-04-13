@@ -89,8 +89,8 @@ export function WorkflowRunsSection({
 						<tr key={run.id}>
 							<td>
 								<Link
-									href={`/workflows/${workflowName}/runs/${run.id}`}
-									style={{ color: "inherit", textDecoration: "none" }}
+									href={`/platform/workflows/${workflowName}/runs/${run.id}`}
+									className="dash-data-link"
 								>
 									{run.id.slice(0, 8)}
 								</Link>
