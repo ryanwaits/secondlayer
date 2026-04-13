@@ -5,6 +5,8 @@ export interface SecondLayerOptions {
 	baseUrl: string;
 	/** Bearer token for authenticated requests. */
 	apiKey?: string;
+	/** Deploy origin label sent as `x-sl-origin` (telemetry). Defaults to `cli`. */
+	origin?: "cli" | "mcp" | "session";
 }
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
@@ -12,10 +14,12 @@ const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 export abstract class BaseClient {
 	protected baseUrl: string;
 	protected apiKey?: string;
+	protected origin: "cli" | "mcp" | "session";
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
 		this.apiKey = options.apiKey;
+		this.origin = options.origin ?? "cli";
 	}
 
 	static authHeaders(apiKey?: string): Record<string, string> {
@@ -23,7 +27,7 @@ export abstract class BaseClient {
 			"Content-Type": "application/json",
 		};
 		if (apiKey) {
-			headers["Authorization"] = `Bearer ${apiKey}`;
+			headers.Authorization = `Bearer ${apiKey}`;
 		}
 		return headers;
 	}
@@ -35,6 +39,7 @@ export abstract class BaseClient {
 	): Promise<T> {
 		const url = `${this.baseUrl}${path}`;
 		const headers = BaseClient.authHeaders(this.apiKey);
+		headers["x-sl-origin"] = this.origin;
 
 		let response: Response;
 		try {
@@ -72,8 +77,10 @@ export abstract class BaseClient {
 
 			const errorBody = await response.text();
 			let message = `HTTP ${response.status}`;
+			let parsedBody: unknown = errorBody;
 			try {
 				const json = JSON.parse(errorBody);
+				parsedBody = json;
 				const err = json.error ?? json.message;
 				if (typeof err === "string") {
 					message = err;
@@ -83,7 +90,7 @@ export abstract class BaseClient {
 			} catch {
 				if (errorBody) message = errorBody;
 			}
-			throw new ApiError(response.status, message);
+			throw new ApiError(response.status, message, parsedBody);
 		}
 
 		if (response.status === 204) {

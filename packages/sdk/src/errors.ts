@@ -18,8 +18,25 @@ export class ApiError extends Error {
 		/** HTTP status code (0 for network errors). */
 		public status: number,
 		message: string,
+		/** Raw response body (parsed JSON if possible) — preserved for callers that need error details. */
+		public body?: unknown,
 	) {
 		super(message);
 		this.name = "ApiError";
+	}
+}
+
+/**
+ * Thrown by {@link Workflows.deploy} when the server rejects a deploy because the
+ * provided `expectedVersion` does not match the current stored version.
+ */
+export class VersionConflictError extends ApiError {
+	constructor(
+		public currentVersion: string,
+		public expectedVersion: string,
+		message = `Version conflict: expected ${expectedVersion}, current ${currentVersion}`,
+	) {
+		super(409, message, { currentVersion, expectedVersion });
+		this.name = "VersionConflictError";
 	}
 }

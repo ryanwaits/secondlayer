@@ -1,5 +1,29 @@
 import type { WorkflowRun, WorkflowRunStatus } from "@secondlayer/workflows";
 import { BaseClient } from "../base.ts";
+import { ApiError, VersionConflictError } from "../errors.ts";
+
+export interface WorkflowSource {
+	name: string;
+	version: string;
+	sourceCode: string | null;
+	readOnly: boolean;
+	reason?: string;
+	updatedAt: string;
+}
+
+export interface DeployDryRunResponse {
+	valid: boolean;
+	validation?: { name: string; triggerType: string };
+	bundleSize: number;
+	error?: string;
+}
+
+export interface DeployResponse {
+	action: "created" | "updated";
+	workflowId: string;
+	version: string;
+	message: string;
+}
 
 export interface WorkflowSummary {
 	name: string;
@@ -28,6 +52,17 @@ export interface WorkflowRunSummary {
 }
 
 export class Workflows extends BaseClient {
+	async deploy(
+		data: {
+			name: string;
+			trigger: Record<string, unknown>;
+			handlerCode: string;
+			sourceCode?: string;
+			expectedVersion?: string;
+			retries?: Record<string, unknown>;
+			timeout?: number;
+		} & { dryRun?: false },
+	): Promise<DeployResponse>;
 	async deploy(data: {
 		name: string;
 		trigger: Record<string, unknown>;
@@ -36,8 +71,39 @@ export class Workflows extends BaseClient {
 		expectedVersion?: string;
 		retries?: Record<string, unknown>;
 		timeout?: number;
-	}): Promise<{ action: string; workflowId: string; message: string }> {
-		return this.request("POST", "/api/workflows", data);
+		dryRun: true;
+	}): Promise<DeployDryRunResponse>;
+	async deploy(data: {
+		name: string;
+		trigger: Record<string, unknown>;
+		handlerCode: string;
+		sourceCode?: string;
+		expectedVersion?: string;
+		dryRun?: boolean;
+		retries?: Record<string, unknown>;
+		timeout?: number;
+	}): Promise<DeployResponse | DeployDryRunResponse> {
+		try {
+			return await this.request("POST", "/api/workflows", data);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 409) {
+				const body = err.body as
+					| { currentVersion?: string; expectedVersion?: string }
+					| undefined;
+				if (body?.currentVersion && body.expectedVersion) {
+					throw new VersionConflictError(
+						body.currentVersion,
+						body.expectedVersion,
+						err.message,
+					);
+				}
+			}
+			throw err;
+		}
+	}
+
+	async getSource(name: string): Promise<WorkflowSource> {
+		return this.request("GET", `/api/workflows/${name}/source`);
 	}
 
 	async list(): Promise<{ workflows: WorkflowSummary[] }> {
