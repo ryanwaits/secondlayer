@@ -31,6 +31,8 @@ COPY packages/agent/package.json ./packages/agent/
 COPY packages/account-agent/package.json ./packages/account-agent/
 COPY packages/workflows/package.json ./packages/workflows/
 COPY packages/workflow-runner/package.json ./packages/workflow-runner/
+COPY packages/bundler/package.json ./packages/bundler/
+COPY packages/scaffold/package.json ./packages/scaffold/
 # Install dependencies
 RUN bun install
 
