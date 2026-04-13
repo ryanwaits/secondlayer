@@ -21,7 +21,10 @@ export async function bundleSubgraphCode(
 			bundle: true,
 			platform: "node",
 			format: "esm",
-			external: ["@secondlayer/subgraphs"],
+			// DON'T externalize @secondlayer/subgraphs — bundled output is
+			// validated via `import(dataUri)` below and data-URI imports
+			// cannot resolve bare specifiers. `defineSubgraph` is a pure
+			// identity function so inlining is effectively free.
 			write: false,
 		});
 	} catch (err: unknown) {

@@ -26,4 +26,9 @@ export type {
 	McpStepResult,
 } from "./types.ts";
 export { defineWorkflow } from "./define.ts";
-export { validateWorkflowDefinition } from "./validate.ts";
+// Note: validateWorkflowDefinition is intentionally NOT re-exported here.
+// The barrel is imported by every user workflow file via
+// `import { defineWorkflow } from "@secondlayer/workflows"`, and we need that
+// import to tree-shake cleanly — otherwise esbuild transitively pulls in zod
+// and bare-specifier resolution from `import(dataUri)` fails with NameTooLong.
+// Callers that need validation should import from "@secondlayer/workflows/validate".

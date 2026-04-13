@@ -25,7 +25,10 @@ export async function bundleWorkflowCode(
 			bundle: true,
 			platform: "node",
 			format: "esm",
-			external: ["@secondlayer/workflows"],
+			// DON'T externalize @secondlayer/workflows — the bundled handler is
+			// validated by `import(dataUri)` below, and data-URI imports can't
+			// resolve bare specifiers (no parent URL). `defineWorkflow` is a
+			// pure identity function so inlining it adds negligible bytes.
 			write: false,
 		});
 	} catch (err: unknown) {
