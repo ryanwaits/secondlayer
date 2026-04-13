@@ -1,5 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bundleWorkflowCode } from "@secondlayer/bundler";
+import {
+	type ScaffoldDeliveryTarget,
+	type ScaffoldStepKind,
+	generateWorkflowCode,
+} from "@secondlayer/scaffold";
 import { VersionConflictError } from "@secondlayer/sdk";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
@@ -103,6 +108,61 @@ export function registerWorkflowTools(server: McpServer) {
 			return {
 				content: [{ type: "text", text: `Resumed workflow "${name}"` }],
 			};
+		},
+	);
+
+	defineTool<{
+		name: string;
+		trigger:
+			| { type: "event"; filterType?: string }
+			| { type: "stream"; filterType?: string }
+			| { type: "schedule"; cron: string; timezone?: string }
+			| { type: "manual" };
+		steps: ScaffoldStepKind[];
+		deliveryTarget?: ScaffoldDeliveryTarget;
+	}>(
+		server,
+		"workflows_scaffold",
+		"Generate a compilable defineWorkflow() skeleton from a typed intent. Returns the TypeScript source; pass it to workflows_deploy to persist. Placeholders inside the source must be filled in before running a real workflow.",
+		{
+			name: z
+				.string()
+				.regex(/^[a-z][a-z0-9-]*$/)
+				.describe("Workflow name (lowercase, hyphens)"),
+			trigger: z
+				.discriminatedUnion("type", [
+					z.object({
+						type: z.literal("event"),
+						filterType: z.string().optional(),
+					}),
+					z.object({
+						type: z.literal("stream"),
+						filterType: z.string().optional(),
+					}),
+					z.object({
+						type: z.literal("schedule"),
+						cron: z.string().min(1),
+						timezone: z.string().optional(),
+					}),
+					z.object({ type: z.literal("manual") }),
+				])
+				.describe("Trigger shape"),
+			steps: z
+				.array(z.enum(["run", "query", "ai", "deliver"]))
+				.describe("Ordered list of step kinds to include in the handler"),
+			deliveryTarget: z
+				.enum(["webhook", "slack", "email", "discord", "telegram"])
+				.optional()
+				.describe("Delivery target used when steps includes `deliver`"),
+		},
+		async ({ name, trigger, steps, deliveryTarget }) => {
+			const code = generateWorkflowCode({
+				name,
+				trigger,
+				steps,
+				deliveryTarget,
+			});
+			return { content: [{ type: "text", text: code }] };
 		},
 	);
 
