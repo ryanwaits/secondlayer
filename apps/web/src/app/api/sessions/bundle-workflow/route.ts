@@ -1,7 +1,23 @@
 import { getSessionFromRequest } from "@/lib/api";
-import { BundleSizeError, bundleWorkflowCode } from "@secondlayer/bundler";
 import { NextResponse } from "next/server";
 
+const API_URL = process.env.SL_API_URL || "http://localhost:3800";
+
+/**
+ * Thin passthrough to the Hetzner API's server-side workflow bundler.
+ *
+ * Why this isn't bundling locally: Vercel's serverless Node runtime has no
+ * stable node_modules layout for esbuild's resolver, and `import(dataUri)`
+ * can't resolve bare specifiers. Every attempt to run `@secondlayer/bundler`
+ * in this function hit a different edge case. The Hetzner API service has a
+ * warm workspace, a stable esbuild binary, and already validates bundled
+ * handlers downstream in POST /api/workflows — moving bundling there
+ * eliminates the whole class of Vercel-specific failures.
+ *
+ * This route preserves the same auth + response shape so the chat deploy
+ * card (`apps/web/src/components/sessions/tool-part-renderer.tsx`) doesn't
+ * need to change.
+ */
 export async function POST(req: Request) {
 	const session = getSessionFromRequest(req);
 	if (!session) {
@@ -14,7 +30,6 @@ export async function POST(req: Request) {
 	} catch {
 		return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 	}
-
 	if (typeof body.code !== "string" || body.code.length === 0) {
 		return NextResponse.json(
 			{ error: "Missing `code` string in body" },
@@ -23,34 +38,37 @@ export async function POST(req: Request) {
 	}
 
 	try {
-		const bundled = await bundleWorkflowCode(body.code);
-		return NextResponse.json({
-			ok: true,
-			name: bundled.name,
-			trigger: bundled.trigger,
-			handlerCode: bundled.handlerCode,
-			sourceCode: bundled.sourceCode,
-			retries: bundled.retries ?? null,
-			timeout: bundled.timeout ?? null,
-			bundleSize: Buffer.byteLength(bundled.handlerCode, "utf8"),
+		const upstream = await fetch(`${API_URL}/api/workflows/bundle`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${session}`,
+				"x-sl-origin": "session",
+			},
+			body: JSON.stringify({ code: body.code }),
 		});
-	} catch (err) {
-		if (err instanceof BundleSizeError) {
+		const text = await upstream.text();
+		try {
+			const json = JSON.parse(text);
+			return NextResponse.json(json, { status: upstream.status });
+		} catch {
 			return NextResponse.json(
 				{
 					ok: false,
-					error: err.message,
-					code: "BUNDLE_TOO_LARGE",
-					actualBytes: err.actualBytes,
-					maxBytes: err.maxBytes,
+					error: text || `Upstream HTTP ${upstream.status}`,
+					code: "UPSTREAM_INVALID_RESPONSE",
 				},
-				{ status: 413 },
+				{ status: upstream.status || 502 },
 			);
 		}
-		const message = err instanceof Error ? err.message : String(err);
+	} catch (err) {
 		return NextResponse.json(
-			{ ok: false, error: message, code: "BUNDLE_FAILED" },
-			{ status: 400 },
+			{
+				ok: false,
+				error: err instanceof Error ? err.message : String(err),
+				code: "UPSTREAM_UNREACHABLE",
+			},
+			{ status: 502 },
 		);
 	}
 }
