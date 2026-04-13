@@ -1,8 +1,10 @@
+export type WorkflowTemplateCategory = "monitoring" | "defi" | "ops" | "digest";
+
 export interface WorkflowTemplate {
 	id: string;
 	name: string;
 	description: string;
-	category: "monitoring" | "defi" | "ops" | "digest";
+	category: WorkflowTemplateCategory;
 	trigger: "event" | "schedule" | "manual";
 	code: string;
 	prompt: string;
@@ -268,3 +270,13 @@ export default defineWorkflow({
 			"Page me on Telegram if my subgraph stops indexing for more than 15 minutes.",
 	},
 ];
+
+export function getTemplateById(id: string): WorkflowTemplate | undefined {
+	return templates.find((t) => t.id === id);
+}
+
+export function getTemplatesByCategory(
+	category: WorkflowTemplateCategory,
+): WorkflowTemplate[] {
+	return templates.filter((t) => t.category === category);
+}
