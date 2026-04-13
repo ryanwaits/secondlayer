@@ -108,9 +108,9 @@ function DiffLineRow({ line }: { line: DiffLine }) {
 	return (
 		<div className={className}>
 			<span className="tool-diff-marker">{marker}</span>
-			{/* biome-ignore lint/security/noDangerouslySetInnerHtml: server-rendered shiki HTML */}
 			<span
 				className="tool-diff-content"
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: server-rendered shiki HTML
 				dangerouslySetInnerHTML={{ __html: line.html }}
 			/>
 		</div>
