@@ -4,6 +4,7 @@ import type {
 } from "@secondlayer/workflows/types";
 import { validateWorkflowDefinition } from "@secondlayer/workflows/validate";
 import esbuild from "esbuild";
+import { BundleSizeError, WORKFLOW_BUNDLE_MAX_BYTES } from "./errors.ts";
 
 export interface WorkflowBundleResult {
 	name: string;
@@ -36,6 +37,13 @@ export async function bundleWorkflowCode(
 	const outputFile = result.outputFiles?.[0];
 	if (!outputFile) {
 		throw new Error("Bundle failed: no output produced");
+	}
+	if (outputFile.contents.byteLength > WORKFLOW_BUNDLE_MAX_BYTES) {
+		throw new BundleSizeError(
+			"workflow",
+			outputFile.contents.byteLength,
+			WORKFLOW_BUNDLE_MAX_BYTES,
+		);
 	}
 	const handlerCode = new TextDecoder().decode(outputFile.contents);
 

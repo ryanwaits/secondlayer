@@ -1,5 +1,6 @@
 import { validateSubgraphDefinition } from "@secondlayer/subgraphs/validate";
 import esbuild from "esbuild";
+import { BundleSizeError, SUBGRAPH_BUNDLE_MAX_BYTES } from "./errors.ts";
 
 export interface SubgraphBundleResult {
 	name: string;
@@ -31,6 +32,13 @@ export async function bundleSubgraphCode(
 	const outputFile = result.outputFiles?.[0];
 	if (!outputFile) {
 		throw new Error("Bundle failed: no output produced");
+	}
+	if (outputFile.contents.byteLength > SUBGRAPH_BUNDLE_MAX_BYTES) {
+		throw new BundleSizeError(
+			"subgraph",
+			outputFile.contents.byteLength,
+			SUBGRAPH_BUNDLE_MAX_BYTES,
+		);
 	}
 	const handlerCode = new TextDecoder().decode(outputFile.contents);
 
