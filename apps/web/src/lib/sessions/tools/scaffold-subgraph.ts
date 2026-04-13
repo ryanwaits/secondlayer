@@ -1,5 +1,5 @@
 import { highlight } from "@/lib/highlight";
-import { generateSubgraphCode } from "@/lib/scaffold/generate";
+import { generateSubgraphCode } from "@secondlayer/scaffold";
 import { tool } from "ai";
 import { z } from "zod";
 

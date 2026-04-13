@@ -1,4 +1,5 @@
-import { generateSubgraphCode } from "@/lib/scaffold/generate";
+import { generateSubgraphCode } from "@secondlayer/scaffold";
+import type { AbiFunction } from "@secondlayer/scaffold";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -35,9 +36,9 @@ export const scaffold = tool({
 				};
 			}
 
-			const abi = await res.json();
+			const abi = (await res.json()) as { functions?: AbiFunction[] };
 			const publicFunctions = (abi.functions ?? []).filter(
-				(f: any) => f.access === "public",
+				(f) => f.access === "public",
 			);
 
 			if (publicFunctions.length === 0) {
