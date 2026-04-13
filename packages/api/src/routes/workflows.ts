@@ -145,6 +145,15 @@ app.post("/", async (c) => {
 		throw err;
 	}
 
+	// If the edit moves this workflow off a schedule trigger, delete any
+	// leftover workflow_schedules row so the cron worker stops firing.
+	if (triggerType !== "schedule") {
+		await db
+			.deleteFrom("workflow_schedules")
+			.where("definition_id", "=", definition.id)
+			.execute();
+	}
+
 	// Handle schedule trigger — upsert workflow_schedules
 	if (triggerType === "schedule" && trigger.cron) {
 		const { CronExpressionParser } = await import("cron-parser");
