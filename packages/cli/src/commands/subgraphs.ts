@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, watch } from "node:fs";
 import { resolve } from "node:path";
+import { confirm } from "@inquirer/prompts";
 import type { Command } from "commander";
 import { generateSubgraphScaffold } from "../generators/subgraph-scaffold.ts";
 import { generateSubgraphConsumer } from "../generators/subgraphs.ts";
@@ -21,7 +22,6 @@ import {
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { writeTextFile } from "../lib/fs.ts";
-import { confirm } from "@inquirer/prompts";
 import {
 	dim,
 	error,
@@ -161,112 +161,129 @@ export function registerSubgraphsCommand(program: Command): void {
 	subgraphs
 		.command("deploy <file>")
 		.description("Deploy a subgraph definition file")
-		.option("--version <semver>", "Explicit version (default: auto-increment patch)")
+		.option(
+			"--version <semver>",
+			"Explicit version (default: auto-increment patch)",
+		)
 		.option("--force", "Skip confirmation prompt for reindex operations")
-		.action(async (file: string, options: { version?: string; force?: boolean }) => {
-			try {
-				const absPath = resolve(file);
-				const config = await loadConfig();
+		.action(
+			async (file: string, options: { version?: string; force?: boolean }) => {
+				try {
+					const absPath = resolve(file);
+					const config = await loadConfig();
 
-				// Load and validate locally for fast feedback
-				info(`Loading subgraph from ${absPath}`);
-				const mod = await import(absPath);
-				const def = mod.default ?? mod;
-				const { validateSubgraphDefinition } = await import(
-					"@secondlayer/subgraphs/validate"
-				);
-				validateSubgraphDefinition(def);
-
-				if (config.network !== "local") {
-					// ── Remote deploy ──────────────────────────────────────
-					info(`Bundling for remote deploy (${config.network})...`);
-
-					const { readFile } = await import("node:fs/promises");
-					const source = await readFile(absPath, "utf8");
-					const { bundleSubgraphCode } = await import(
-						"@secondlayer/bundler"
+					// Load and validate locally for fast feedback
+					info(`Loading subgraph from ${absPath}`);
+					const mod = await import(absPath);
+					const def = mod.default ?? mod;
+					const { validateSubgraphDefinition } = await import(
+						"@secondlayer/subgraphs/validate"
 					);
-					const bundled = await bundleSubgraphCode(source);
-					const handlerCode = bundled.handlerCode;
+					validateSubgraphDefinition(def);
 
-					// Dry-run first to check if reindex needed (action would be reindexed/created)
-					// We pass the version but let the server decide
-					const result = await deploySubgraphApi({
-						name: def.name,
-						version: options.version,
-						description: def.description,
-						sources: def.sources as any,
-						schema: def.schema,
-						handlerCode,
-					});
+					if (config.network !== "local") {
+						// ── Remote deploy ──────────────────────────────────────
+						info(`Bundling for remote deploy (${config.network})...`);
 
-					if (result.action === "unchanged") {
-						info(`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`);
-					} else if (result.action === "created") {
-						// Fresh deploy — no existing data to drop, no confirmation needed
-						success(`Subgraph "${def.name}" created → v${result.version}`);
-					} else if (result.action === "reindexed") {
-						// Show diff if available
-						if (result.diff) {
-							const { addedTables, addedColumns, breakingChanges } = result.diff;
-							if (breakingChanges.length > 0) {
-								warn(`Breaking changes detected:`);
-								for (const r of breakingChanges) warn(`  ✗ ${r}`);
-							}
-							if (addedTables.length > 0) info(`  + tables: ${addedTables.join(", ")}`);
-							for (const [t, cols] of Object.entries(addedColumns)) {
-								info(`  + columns: ${t}.${cols.join(", ")}`);
-							}
-						}
+						const { readFile } = await import("node:fs/promises");
+						const source = await readFile(absPath, "utf8");
+						const { bundleSubgraphCode } = await import("@secondlayer/bundler");
+						const bundled = await bundleSubgraphCode(source);
+						const handlerCode = bundled.handlerCode;
 
-						// Confirmation prompt — dropping existing data (skippable with --force)
-						const confirmed = options.force || await confirm({
-							message: `⚠  This will drop all data and reindex from scratch. Continue?`,
+						// Dry-run first to check if reindex needed (action would be reindexed/created)
+						// We pass the version but let the server decide
+						const result = await deploySubgraphApi({
+							name: def.name,
+							version: options.version,
+							description: def.description,
+							sources: def.sources as Record<string, Record<string, unknown>>,
+							schema: def.schema,
+							handlerCode,
 						});
-						if (!confirmed) {
-							info("Aborted.");
-							process.exit(0);
-						}
 
-						success(`Subgraph "${def.name}" updated → v${result.version} (reindexing)`);
-					} else {
-						// "updated" — additive changes, no confirmation needed
-						if (result.diff) {
-							const { addedTables, addedColumns } = result.diff;
-							if (addedTables.length > 0) info(`  + tables: ${addedTables.join(", ")}`);
-							for (const [t, cols] of Object.entries(addedColumns)) {
-								info(`  + columns: ${t}.${cols.join(", ")}`);
+						if (result.action === "unchanged") {
+							info(
+								`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`,
+							);
+						} else if (result.action === "created") {
+							// Fresh deploy — no existing data to drop, no confirmation needed
+							success(`Subgraph "${def.name}" created → v${result.version}`);
+						} else if (result.action === "reindexed") {
+							// Show diff if available
+							if (result.diff) {
+								const { addedTables, addedColumns, breakingChanges } =
+									result.diff;
+								if (breakingChanges.length > 0) {
+									warn("Breaking changes detected:");
+									for (const r of breakingChanges) warn(`  ✗ ${r}`);
+								}
+								if (addedTables.length > 0)
+									info(`  + tables: ${addedTables.join(", ")}`);
+								for (const [t, cols] of Object.entries(addedColumns)) {
+									info(`  + columns: ${t}.${cols.join(", ")}`);
+								}
 							}
+
+							// Confirmation prompt — dropping existing data (skippable with --force)
+							const confirmed =
+								options.force ||
+								(await confirm({
+									message:
+										"⚠  This will drop all data and reindex from scratch. Continue?",
+								}));
+							if (!confirmed) {
+								info("Aborted.");
+								process.exit(0);
+							}
+
+							success(
+								`Subgraph "${def.name}" updated → v${result.version} (reindexing)`,
+							);
+						} else {
+							// "updated" — additive changes, no confirmation needed
+							if (result.diff) {
+								const { addedTables, addedColumns } = result.diff;
+								if (addedTables.length > 0)
+									info(`  + tables: ${addedTables.join(", ")}`);
+								for (const [t, cols] of Object.entries(addedColumns)) {
+									info(`  + columns: ${t}.${cols.join(", ")}`);
+								}
+							}
+							success(`Subgraph "${def.name}" updated → v${result.version}`);
 						}
-						success(`Subgraph "${def.name}" updated → v${result.version}`);
-					}
-				} else {
-					// ── Local deploy ───────────────────────────────────────
-					const { deploySchema } = await import("@secondlayer/subgraphs");
-					const { getDb, closeDb } = await import("@secondlayer/shared/db");
-
-					const db = getDb();
-					const result = await deploySchema(db, def, absPath, {
-						version: options.version,
-					});
-
-					if (result.action === "unchanged") {
-						info(`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`);
-					} else if (result.action === "created") {
-						success(`Subgraph "${def.name}" created → v${result.version}`);
-					} else if (result.action === "reindexed") {
-						success(`Subgraph "${def.name}" updated → v${result.version} (reindexing)`);
 					} else {
-						success(`Subgraph "${def.name}" updated → v${result.version}`);
-					}
+						// ── Local deploy ───────────────────────────────────────
+						const { deploySchema } = await import("@secondlayer/subgraphs");
+						const { getDb, closeDb } = await import("@secondlayer/shared/db");
 
-					await closeDb();
+						const db = getDb();
+						const result = await deploySchema(db, def, absPath, {
+							version: options.version,
+						});
+
+						if (result.action === "unchanged") {
+							info(
+								`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`,
+							);
+						} else if (result.action === "created") {
+							success(`Subgraph "${def.name}" created → v${result.version}`);
+						} else if (result.action === "reindexed") {
+							success(
+								`Subgraph "${def.name}" updated → v${result.version} (reindexing)`,
+							);
+						} else {
+							success(`Subgraph "${def.name}" updated → v${result.version}`);
+						}
+
+						await closeDb();
+					}
+				} catch (err) {
+					error(`Failed to deploy subgraph: ${err}`);
+					process.exit(1);
 				}
-			} catch (err) {
-				error(`Failed to deploy subgraph: ${err}`);
-				process.exit(1);
-			}
-		});
+			},
+		);
 
 	// --- list ---
 	subgraphs
@@ -369,9 +386,7 @@ export function registerSubgraphsCommand(program: Command): void {
 				);
 
 				if (sync && sync.gaps.count > 0) {
-					console.log(
-						dim(`\nRun: sl subgraphs gaps ${name}`),
-					);
+					console.log(dim(`\nRun: sl subgraphs gaps ${name}`));
 				}
 
 				// Show table endpoints
@@ -425,7 +440,7 @@ export function registerSubgraphsCommand(program: Command): void {
 				const fromBlock = Number.parseInt(options.from, 10);
 				const toBlock = Number.parseInt(options.to, 10);
 
-				if (isNaN(fromBlock) || isNaN(toBlock)) {
+				if (Number.isNaN(fromBlock) || Number.isNaN(toBlock)) {
 					error("--from and --to must be valid block numbers");
 					process.exit(1);
 				}
@@ -594,7 +609,9 @@ export function registerSubgraphsCommand(program: Command): void {
 						return;
 					}
 
-					const columns = Object.keys(rows[0]!);
+					const firstRow = rows[0];
+					if (!firstRow) return;
+					const columns = Object.keys(firstRow);
 					const tableRows = rows.map((row) =>
 						columns.map((col) => {
 							const val = row[col];
@@ -713,7 +730,7 @@ export function registerSubgraphsCommand(program: Command): void {
 					const contractInfo = await client.getContractInfo(contractAddress);
 					const abi = parseApiResponse(contractInfo);
 
-					info(`Generating scaffold...`);
+					info("Generating scaffold...");
 					const content = await generateSubgraphScaffold({
 						contractId: contractAddress,
 						functions: abi.functions,
@@ -749,7 +766,7 @@ export function registerSubgraphsCommand(program: Command): void {
 				info(`Fetching subgraph metadata for "${subgraphName}"...`);
 				const subgraphDetail = await getSubgraphApi(subgraphName);
 
-				info(`Generating typed client...`);
+				info("Generating typed client...");
 				const content = await generateSubgraphConsumer(
 					subgraphName,
 					subgraphDetail,

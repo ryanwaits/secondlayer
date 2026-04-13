@@ -8,7 +8,11 @@ export interface DeployWorkflowRequest {
 	handlerCode: string;
 	sourceCode?: string;
 	expectedVersion?: string;
-	retries?: { maxAttempts?: number; backoffMs?: number; backoffMultiplier?: number };
+	retries?: {
+		maxAttempts?: number;
+		backoffMs?: number;
+		backoffMultiplier?: number;
+	};
 	timeout?: number;
 }
 
@@ -16,7 +20,10 @@ export const DeployWorkflowRequestSchema: z.ZodType<DeployWorkflowRequest> =
 	z.object({
 		name: z
 			.string()
-			.regex(/^[a-z][a-z0-9-]*$/, "lowercase alphanumeric + hyphens, must start with letter")
+			.regex(
+				/^[a-z][a-z0-9-]*$/,
+				"lowercase alphanumeric + hyphens, must start with letter",
+			)
 			.max(63),
 		trigger: z.record(z.string(), z.unknown()),
 		handlerCode: z.string().max(1_048_576, "handler code exceeds 1MB limit"),
@@ -26,7 +33,10 @@ export const DeployWorkflowRequestSchema: z.ZodType<DeployWorkflowRequest> =
 			.optional(),
 		expectedVersion: z
 			.string()
-			.regex(/^\d+\.\d+\.\d+$/, "expectedVersion must be semver major.minor.patch")
+			.regex(
+				/^\d+\.\d+\.\d+$/,
+				"expectedVersion must be semver major.minor.patch",
+			)
 			.optional(),
 		retries: z
 			.object({
