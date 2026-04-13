@@ -8,15 +8,16 @@ const nextConfig: NextConfig = {
 		optimizePackageImports: ["@tanstack/react-query"],
 	},
 	// Server-only packages that can't be bundled by Turbopack:
-	// - @secondlayer/bundler / esbuild: native binary + dynamic import(dataUri)
-	// - @secondlayer/scaffold: transitively pulls string templates that the
-	//   bundler uses; keep it in-process via require() for consistency
+	// - @secondlayer/scaffold: ships string templates used by the scaffold tools
 	// - @secondlayer/workflows: templates + validators are server-only
+	// - diff: unified patch helpers used by the server-side diff route
+	//
+	// NOTE: @secondlayer/bundler + esbuild were removed here — workflow
+	// bundling now happens on the Hetzner API via POST /api/workflows/bundle,
+	// and the Vercel session proxy only forwards bytes.
 	serverExternalPackages: [
-		"@secondlayer/bundler",
 		"@secondlayer/scaffold",
 		"@secondlayer/workflows",
-		"esbuild",
 		"diff",
 	],
 	async rewrites() {
