@@ -6,6 +6,8 @@ export interface DeployWorkflowRequest {
 	name: string;
 	trigger: Record<string, unknown>;
 	handlerCode: string;
+	sourceCode?: string;
+	expectedVersion?: string;
 	retries?: { maxAttempts?: number; backoffMs?: number; backoffMultiplier?: number };
 	timeout?: number;
 }
@@ -18,6 +20,14 @@ export const DeployWorkflowRequestSchema: z.ZodType<DeployWorkflowRequest> =
 			.max(63),
 		trigger: z.record(z.string(), z.unknown()),
 		handlerCode: z.string().max(1_048_576, "handler code exceeds 1MB limit"),
+		sourceCode: z
+			.string()
+			.max(1_048_576, "source code exceeds 1MB limit")
+			.optional(),
+		expectedVersion: z
+			.string()
+			.regex(/^\d+\.\d+\.\d+$/, "expectedVersion must be semver major.minor.patch")
+			.optional(),
 		retries: z
 			.object({
 				maxAttempts: z.number().int().positive().optional(),
