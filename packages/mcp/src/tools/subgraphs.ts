@@ -177,10 +177,24 @@ export function registerSubgraphTools(server: McpServer) {
 				sources: bundled.sources,
 				schema: bundled.schema,
 				handlerCode: bundled.handlerCode,
+				sourceCode: code,
 				reindex,
 			});
 			return {
 				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ name: string }>(
+		server,
+		"subgraphs_read_source",
+		"Fetch the deployed TypeScript source of a subgraph (plus its stored version). Returns a readOnly payload for subgraphs deployed before source capture — in that case the caller should redeploy via CLI before editing.",
+		{ name: z.string().describe("Subgraph name") },
+		async ({ name }) => {
+			const source = await getClient().subgraphs.getSource(name);
+			return {
+				content: [{ type: "text", text: JSON.stringify(source, null, 2) }],
 			};
 		},
 	);
