@@ -336,6 +336,7 @@ export interface WorkflowDefinitionsTable {
 	trigger_type: string;
 	trigger_config: unknown;
 	handler_path: string;
+	source_code: string | null;
 	retries_config: unknown | null;
 	timeout_ms: number | null;
 	api_key_id: string;
