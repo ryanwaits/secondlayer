@@ -219,6 +219,7 @@
       },
       "devDependencies": {
         "@secondlayer/bundler": "workspace:*",
+        "@secondlayer/shared": "workspace:*",
         "@types/bun": "latest",
         "typescript": "^5",
       },
