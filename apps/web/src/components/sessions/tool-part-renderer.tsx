@@ -1,6 +1,10 @@
 "use client";
 
 import { type CodeTab, TabbedCode } from "@/components/console/tabbed-code";
+import type {
+	DiffHunk as DiffHunkType,
+	WorkflowDiff,
+} from "@/lib/sessions/diff-workflow";
 import {
 	type DynamicToolUIPart,
 	type ToolUIPart,
@@ -14,6 +18,7 @@ import { DataTableCard } from "./tool-parts/data-table-card";
 import { DeploySuccessCard } from "./tool-parts/deploy-success-card";
 import { DeployWorkflowCard } from "./tool-parts/deploy-workflow-card";
 import { DiagnosticsCard } from "./tool-parts/diagnostics-card";
+import { DiffCard } from "./tool-parts/diff-card";
 import { InsightsCard } from "./tool-parts/insights-card";
 import { KeysCard } from "./tool-parts/keys-card";
 import { MemoryRecallCard } from "./tool-parts/memory-tag";
@@ -38,6 +43,7 @@ const HUMAN_IN_LOOP_TOOLS = new Set([
 	"manage_keys",
 	"manage_subgraphs",
 	"deploy_workflow",
+	"edit_workflow",
 ]);
 
 export function ToolPartRenderer({
@@ -58,6 +64,35 @@ export function ToolPartRenderer({
 	if (state === "input-available" && !HUMAN_IN_LOOP_TOOLS.has(toolName)) {
 		return (
 			<ToolCallIndicator toolName={toolName} state={state} input={part.input} />
+		);
+	}
+
+	// edit_workflow renders a diff card and runs bundle + deploy with expectedVersion on confirm.
+	if (state === "input-available" && toolName === "edit_workflow") {
+		const input = part.input as {
+			name: string;
+			currentCode: string;
+			proposedCode: string;
+			summary: string;
+			expectedVersion: string;
+		};
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<EditWorkflowCardWrapper
+					input={input}
+					onResult={(output) =>
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output,
+						})
+					}
+				/>
+			</>
 		);
 	}
 
@@ -322,6 +357,48 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			return <DeploySuccessCardWrapper name={o.name} version={o.version} />;
 		}
 
+		case "edit_workflow": {
+			const o = output as {
+				ok?: boolean;
+				cancelled?: boolean;
+				name?: string;
+				version?: string;
+				error?: string;
+			};
+			if (!o.ok) {
+				return (
+					<SuccessBanner
+						message={
+							o.cancelled ? "Edit cancelled" : (o.error ?? "Edit failed")
+						}
+					/>
+				);
+			}
+			if (!o.name || !o.version) return null;
+			return <DeploySuccessCardWrapper name={o.name} version={o.version} />;
+		}
+
+		case "read_workflow": {
+			if ((output as { error?: boolean }).error) return null;
+			if ((output as { readOnly?: boolean }).readOnly) {
+				const o = output as { name?: string; reason?: string };
+				return (
+					<SuccessBanner
+						message={`${o.name ?? "Workflow"} is read-only — ${o.reason ?? "redeploy via CLI to enable chat edits"}`}
+					/>
+				);
+			}
+			const o = output as {
+				sourceCode?: string;
+				html?: string;
+				filename?: string;
+			};
+			if (!o.sourceCode) return null;
+			return (
+				<CodeCard code={o.sourceCode} html={o.html} filename={o.filename} />
+			);
+		}
+
 		case "recall_sessions": {
 			const sessions = (output.sessions ?? []) as Array<{
 				id: string;
@@ -560,6 +637,111 @@ function DeploySuccessCardWrapper({
 			}}
 			onTail={() => {
 				// Tail CTA wiring lands in Sprint 5 (T5.6).
+			}}
+		/>
+	);
+}
+
+type EditWorkflowInput = {
+	name: string;
+	currentCode: string;
+	proposedCode: string;
+	summary: string;
+	expectedVersion: string;
+};
+
+type EditWorkflowResult = {
+	ok: boolean;
+	cancelled?: boolean;
+	name?: string;
+	version?: string;
+	error?: string;
+};
+
+async function fetchDiff(input: EditWorkflowInput): Promise<WorkflowDiff> {
+	const res = await fetch("/api/sessions/diff-workflow", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		credentials: "same-origin",
+		body: JSON.stringify({
+			name: input.name,
+			currentCode: input.currentCode,
+			proposedCode: input.proposedCode,
+		}),
+	});
+	if (!res.ok) {
+		throw new Error(`Diff failed (HTTP ${res.status})`);
+	}
+	return (await res.json()) as WorkflowDiff;
+}
+
+function EditWorkflowCardWrapper({
+	input,
+	onResult,
+}: {
+	input: EditWorkflowInput;
+	onResult: (result: EditWorkflowResult) => void;
+}) {
+	const [hunks, setHunks] = useState<DiffHunkType[] | null>(null);
+	const [added, setAdded] = useState(0);
+	const [removed, setRemoved] = useState(0);
+	const [busy, setBusy] = useState(false);
+	const [staleVersion, setStaleVersion] = useState<string | undefined>();
+	const [errorText, setErrorText] = useState<string | undefined>();
+
+	// Fetch diff once on mount.
+	useState(() => {
+		void (async () => {
+			try {
+				const diff = await fetchDiff(input);
+				setHunks(diff.hunks);
+				setAdded(diff.added);
+				setRemoved(diff.removed);
+			} catch (err) {
+				setErrorText(err instanceof Error ? err.message : String(err));
+				setHunks([]);
+			}
+		})();
+	});
+
+	if (hunks === null) {
+		return <div className="tool-card-loading">Computing diff…</div>;
+	}
+
+	return (
+		<DiffCard
+			name={input.name}
+			summary={input.summary}
+			hunks={hunks}
+			added={added}
+			removed={removed}
+			busy={busy}
+			staleVersion={staleVersion}
+			errorText={errorText}
+			onCancel={() => onResult({ ok: false, cancelled: true })}
+			onConfirm={async () => {
+				setBusy(true);
+				setErrorText(undefined);
+				setStaleVersion(undefined);
+				const result = await bundleAndDeployWorkflow({
+					code: input.proposedCode,
+					expectedVersion: input.expectedVersion,
+				});
+				if (!result.ok && result.error?.toLowerCase().includes("version")) {
+					const match = result.error.match(/current\s+(\d+\.\d+\.\d+)/i);
+					setStaleVersion(match?.[1] ?? "?");
+					setErrorText(result.error);
+					setBusy(false);
+					onResult({ ok: false, error: result.error });
+					return;
+				}
+				setBusy(false);
+				onResult({
+					ok: result.ok,
+					name: result.name,
+					version: result.version,
+					error: result.error,
+				});
 			}}
 		/>
 	);
