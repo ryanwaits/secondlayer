@@ -2,6 +2,43 @@ import type { WorkflowRun, WorkflowRunStatus } from "@secondlayer/workflows";
 import { BaseClient } from "../base.ts";
 import { ApiError, VersionConflictError } from "../errors.ts";
 
+function parseSseChunk(raw: string): WorkflowTailEvent | null {
+	let event = "message";
+	const dataLines: string[] = [];
+	for (const line of raw.split("\n")) {
+		if (line.startsWith("event:")) {
+			event = line.slice(6).trim();
+		} else if (line.startsWith("data:")) {
+			dataLines.push(line.slice(5).trimStart());
+		}
+	}
+	if (dataLines.length === 0) return null;
+	const data = dataLines.join("\n");
+	try {
+		const parsed = JSON.parse(data);
+		switch (event) {
+			case "step":
+				return { type: "step", step: parsed as WorkflowStepEvent };
+			case "done":
+				return { type: "done", done: parsed as WorkflowRunDoneEvent };
+			case "heartbeat":
+				return {
+					type: "heartbeat",
+					ts: typeof parsed === "string" ? parsed : String(parsed),
+				};
+			case "timeout":
+				return {
+					type: "timeout",
+					message: (parsed as { message?: string }).message ?? "timeout",
+				};
+			default:
+				return null;
+		}
+	} catch {
+		return null;
+	}
+}
+
 export interface WorkflowSource {
 	name: string;
 	version: string;
@@ -10,6 +47,35 @@ export interface WorkflowSource {
 	reason?: string;
 	updatedAt: string;
 }
+
+export interface WorkflowStepEvent {
+	id: string;
+	stepIndex: number;
+	stepId: string;
+	stepType: string;
+	status: string;
+	output?: unknown;
+	error: string | null;
+	retryCount: number;
+	aiTokensUsed: number;
+	startedAt: string | null;
+	completedAt: string | null;
+	durationMs: number | null;
+	ts: string;
+}
+
+export interface WorkflowRunDoneEvent {
+	runId: string;
+	status: string;
+	error?: string | null;
+	completedAt?: string | null;
+}
+
+export type WorkflowTailEvent =
+	| { type: "step"; step: WorkflowStepEvent }
+	| { type: "done"; done: WorkflowRunDoneEvent }
+	| { type: "heartbeat"; ts: string }
+	| { type: "timeout"; message: string };
 
 export interface DeployDryRunResponse {
 	valid: boolean;
@@ -104,6 +170,59 @@ export class Workflows extends BaseClient {
 
 	async getSource(name: string): Promise<WorkflowSource> {
 		return this.request("GET", `/api/workflows/${name}/source`);
+	}
+
+	/**
+	 * Subscribe to a workflow run's server-sent event stream. Resolves when the
+	 * run completes, times out, or the signal is aborted. Throws on HTTP errors
+	 * opening the stream.
+	 */
+	async streamRun(
+		name: string,
+		runId: string,
+		onEvent: (event: WorkflowTailEvent) => void,
+		signal?: AbortSignal,
+	): Promise<void> {
+		const url = `${this.baseUrl}/api/workflows/${name}/runs/${runId}/stream`;
+		const headers: Record<string, string> = {
+			Accept: "text/event-stream",
+			"x-sl-origin": this.origin,
+		};
+		if (this.apiKey) {
+			headers.Authorization = `Bearer ${this.apiKey}`;
+		}
+
+		const res = await fetch(url, { headers, signal });
+		if (!res.ok || !res.body) {
+			throw new ApiError(
+				res.status,
+				`Failed to open workflow run stream (HTTP ${res.status})`,
+			);
+		}
+
+		const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+		let buffer = "";
+
+		while (true) {
+			const { value, done } = await reader.read();
+			if (done) break;
+			buffer += value;
+
+			let sep = buffer.indexOf("\n\n");
+			while (sep !== -1) {
+				const chunk = buffer.slice(0, sep);
+				buffer = buffer.slice(sep + 2);
+				const parsed = parseSseChunk(chunk);
+				if (parsed) {
+					onEvent(parsed);
+					if (parsed.type === "done" || parsed.type === "timeout") {
+						await reader.cancel().catch(() => undefined);
+						return;
+					}
+				}
+				sep = buffer.indexOf("\n\n");
+			}
+		}
 	}
 
 	async list(): Promise<{ workflows: WorkflowSummary[] }> {
