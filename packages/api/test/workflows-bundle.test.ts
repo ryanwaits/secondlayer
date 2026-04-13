@@ -12,8 +12,13 @@ import workflowsRouter from "../src/routes/workflows.ts";
  * real auth stack.
  */
 
+type TestVariables = {
+	apiKey: { id: string };
+	accountId: string;
+};
+
 function buildApp() {
-	const app = new Hono();
+	const app = new Hono<{ Variables: TestVariables }>();
 	app.onError(errorHandler);
 	app.use("/workflows/*", async (c, next) => {
 		c.set("apiKey", { id: "test-key-workflows-bundle" });
