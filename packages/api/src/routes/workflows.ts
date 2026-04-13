@@ -17,8 +17,12 @@ import {
 import { VersionConflictError } from "@secondlayer/shared/errors";
 import { DeployWorkflowRequestSchema } from "@secondlayer/shared/schemas/workflows";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
+
+const MAX_TAIL_DURATION_MS = 30 * 60 * 1000; // 30 minutes (matches logs.ts)
+const TAIL_POLL_INTERVAL_MS = 500;
 
 const VALID_ORIGINS = new Set(["cli", "mcp", "session"]);
 function readOrigin(c: {
@@ -449,6 +453,118 @@ app.get("/:name/runs", async (c) => {
 		})),
 	});
 });
+
+// ── Tail run (SSE) ───────────────────────────────────────────────────────
+
+app.get("/:name/runs/:runId/stream", async (c) => {
+	const db = getDb();
+	const keyIds = await resolveKeyIds(c);
+	const { name, runId } = c.req.param();
+
+	const def = await getWorkflowDefinition(db, name, keyIds);
+	if (!def) return c.json({ error: "Workflow not found" }, 404);
+
+	const run = await getWorkflowRun(db, runId);
+	if (!run || run.definition_id !== def.id) {
+		return c.json({ error: "Run not found" }, 404);
+	}
+
+	return streamSSE(c, async (sseStream) => {
+		const seen = new Map<string, string>();
+		const startedAt = Date.now();
+		let running = true;
+
+		const snapshotSteps = await getWorkflowSteps(db, runId);
+		for (const step of snapshotSteps) {
+			seen.set(step.id, step.status);
+			await sseStream.writeSSE({
+				event: "step",
+				data: JSON.stringify(serialiseStep(step)),
+			});
+		}
+
+		if (run.status !== "running" && run.status !== "pending") {
+			await sseStream.writeSSE({
+				event: "done",
+				data: JSON.stringify({ runId, status: run.status }),
+			});
+			return;
+		}
+
+		while (running) {
+			if (Date.now() - startedAt > MAX_TAIL_DURATION_MS) {
+				await sseStream.writeSSE({
+					event: "timeout",
+					data: JSON.stringify({
+						message: "Stream closed after 30 minutes. Reconnect to continue.",
+					}),
+				});
+				break;
+			}
+
+			try {
+				const latestRun = await getWorkflowRun(db, runId);
+				const steps = await getWorkflowSteps(db, runId);
+
+				for (const step of steps) {
+					const prev = seen.get(step.id);
+					if (prev !== step.status) {
+						seen.set(step.id, step.status);
+						await sseStream.writeSSE({
+							event: "step",
+							data: JSON.stringify(serialiseStep(step)),
+						});
+					}
+				}
+
+				if (
+					latestRun &&
+					latestRun.status !== "running" &&
+					latestRun.status !== "pending"
+				) {
+					await sseStream.writeSSE({
+						event: "done",
+						data: JSON.stringify({
+							runId,
+							status: latestRun.status,
+							error: latestRun.error,
+							completedAt: latestRun.completed_at?.toISOString() ?? null,
+						}),
+					});
+					break;
+				}
+
+				await sseStream.writeSSE({
+					event: "heartbeat",
+					data: new Date().toISOString(),
+				});
+				await new Promise((r) => setTimeout(r, TAIL_POLL_INTERVAL_MS));
+			} catch (_err) {
+				running = false;
+			}
+		}
+	});
+});
+
+function serialiseStep(
+	step: Awaited<ReturnType<typeof getWorkflowSteps>>[number],
+): Record<string, unknown> {
+	return {
+		id: step.id,
+		stepIndex: step.step_index,
+		stepId: step.step_id,
+		stepType: step.step_type,
+		status: step.status,
+		output: step.output ? parseJsonb(step.output) : null,
+		error: step.error,
+		retryCount: step.retry_count,
+		aiTokensUsed: step.ai_tokens_used,
+		startedAt: step.started_at?.toISOString() ?? null,
+		completedAt: step.completed_at?.toISOString() ?? null,
+		durationMs: step.duration_ms,
+		ts: new Date().toISOString(),
+	};
+}
 
 // ── Get run detail ───────────────────────────────────────────────────────
 
