@@ -6025,6 +6025,19 @@ html.force-light .tabbed-code-tab.active {
 	border-radius: 10px;
 	overflow: hidden;
 	margin-top: 8px;
+	max-width: 100%;
+	min-width: 0;
+}
+
+/* Flex children need min-width: 0 so long content wraps instead of pushing
+   the card past the message container. */
+.tool-card > * {
+	min-width: 0;
+}
+
+.tool-card-header {
+	min-width: 0;
+	word-break: break-word;
 }
 
 .tool-card-header {
@@ -6117,6 +6130,7 @@ html.force-light .tabbed-code-tab.active {
 	border-bottom: 1px solid var(--border);
 	gap: 12px;
 	font-size: 13px;
+	min-width: 0;
 }
 
 .tool-action-row:last-child {
@@ -6128,11 +6142,18 @@ html.force-light .tabbed-code-tab.active {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	min-width: 0;
+	overflow-wrap: anywhere;
 }
 
 .tool-action-reason {
 	font-size: 11px;
 	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+.tool-status-name {
+	overflow-wrap: anywhere;
 }
 
 /* Card footer with buttons */
@@ -6195,6 +6216,8 @@ html.force-light .tabbed-code-tab.active {
 	border-radius: 10px;
 	overflow: hidden;
 	margin-top: 8px;
+	max-width: 100%;
+	min-width: 0;
 }
 
 .tool-code-header {
@@ -6210,14 +6233,25 @@ html.force-light .tabbed-code-tab.active {
 
 .tool-code-body {
 	padding: 14px;
-	overflow-x: auto;
 	font-family: var(--font-mono);
 	font-size: 12px;
 	line-height: 1.7;
 	color: var(--text-main);
 	margin: 0;
+	min-width: 0;
+	max-width: 100%;
+}
+
+/* Shiki renders <pre class="shiki"> with its own white-space: pre, which would
+   force horizontal overflow on long lines. Override so code wraps like prose. */
+.tool-code-body pre,
+.tool-code-body .shiki,
+.tool-code-body .shiki pre,
+.tool-code-body code {
 	white-space: pre-wrap;
 	word-break: break-word;
+	overflow-wrap: anywhere;
+	max-width: 100%;
 }
 
 .tool-code-actions {
