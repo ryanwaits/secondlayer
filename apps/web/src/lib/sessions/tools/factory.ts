@@ -13,6 +13,7 @@ import { createCheckUsage } from "./check-usage";
 import { createCheckWorkflows } from "./check-workflows";
 import { deployWorkflow } from "./deploy-workflow";
 import { createDiagnose } from "./diagnose";
+import { listWorkflowTemplates } from "./list-workflow-templates";
 import { lookupDocs } from "./lookup-docs";
 import { manageKeys } from "./manage-keys";
 import { manageStreams } from "./manage-streams";
@@ -76,6 +77,7 @@ export function createSessionTools(
 		scaffold_subgraph: createScaffoldSubgraph(),
 		scaffold_workflow: createScaffoldWorkflow(),
 		deploy_workflow: deployWorkflow,
+		list_workflow_templates: listWorkflowTemplates,
 		lookup_docs: lookupDocs,
 		diagnose: createDiagnose(resources),
 		recall_sessions: createRecallSessions(sessionToken),
