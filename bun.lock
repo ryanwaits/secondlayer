@@ -212,6 +212,7 @@
         "@secondlayer/workflows": "^0.0.3",
       },
       "devDependencies": {
+        "@secondlayer/bundler": "workspace:*",
         "@types/bun": "latest",
         "typescript": "^5",
       },
@@ -316,6 +317,7 @@
         "zod": "^4.3.6",
       },
       "devDependencies": {
+        "@secondlayer/bundler": "workspace:*",
         "@types/bun": "latest",
         "typescript": "^5",
       },

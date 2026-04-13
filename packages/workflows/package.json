@@ -16,6 +16,10 @@
 		"./validate": {
 			"types": "./dist/validate.d.ts",
 			"import": "./dist/validate.js"
+		},
+		"./templates": {
+			"types": "./dist/templates.d.ts",
+			"import": "./dist/templates.js"
 		}
 	},
 	"files": [
@@ -33,6 +37,7 @@
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
+		"@secondlayer/bundler": "workspace:*",
 		"@types/bun": "latest",
 		"typescript": "^5"
 	},
