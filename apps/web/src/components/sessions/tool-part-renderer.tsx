@@ -624,28 +624,75 @@ function DeploySuccessCardWrapper({
 	version: string;
 }) {
 	const [testRunSent, setTestRunSent] = useState(false);
+	const [runId, setRunId] = useState<string | null>(null);
+	const [tailOpen, setTailOpen] = useState(false);
+	const [tailError, setTailError] = useState<string | null>(null);
+
+	const startTail = async () => {
+		if (tailOpen) return;
+		setTailError(null);
+		let targetRunId = runId;
+		if (!targetRunId) {
+			// No test run has fired yet — trigger one so there's something to tail.
+			try {
+				const res = await fetch(`/api/workflows/${name}/trigger`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					credentials: "same-origin",
+					body: "{}",
+				});
+				if (!res.ok) {
+					setTailError(`Failed to trigger run (HTTP ${res.status})`);
+					return;
+				}
+				const body = (await res.json()) as { runId?: string };
+				if (!body.runId) {
+					setTailError("Trigger succeeded but returned no runId");
+					return;
+				}
+				targetRunId = body.runId;
+				setRunId(targetRunId);
+				setTestRunSent(true);
+			} catch (err) {
+				setTailError(err instanceof Error ? err.message : String(err));
+				return;
+			}
+		}
+		setTailOpen(true);
+	};
+
 	return (
 		<DeploySuccessCard
 			name={name}
 			version={version}
 			testRunSent={testRunSent}
+			tailOpen={tailOpen}
+			tail={
+				tailOpen && runId ? (
+					<StepFlowLive workflowName={name} runId={runId} />
+				) : tailError ? (
+					<div className="tool-error-body">{tailError}</div>
+				) : undefined
+			}
 			onTrigger={async () => {
 				if (testRunSent) return;
 				setTestRunSent(true);
 				try {
-					await fetch(`/api/workflows/${name}/trigger`, {
+					const res = await fetch(`/api/workflows/${name}/trigger`, {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						credentials: "same-origin",
 						body: "{}",
 					});
+					if (res.ok) {
+						const body = (await res.json()) as { runId?: string };
+						if (body.runId) setRunId(body.runId);
+					}
 				} catch {
 					setTestRunSent(false);
 				}
 			}}
-			onTail={() => {
-				// Tail CTA wiring lands in Sprint 5 (T5.6).
-			}}
+			onTail={startTail}
 		/>
 	);
 }
