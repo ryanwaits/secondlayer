@@ -9,6 +9,7 @@ export interface DeployWorkflowRequest {
 	sourceCode?: string;
 	expectedVersion?: string;
 	dryRun?: boolean;
+	clientRequestId?: string;
 	retries?: {
 		maxAttempts?: number;
 		backoffMs?: number;
@@ -40,6 +41,7 @@ export const DeployWorkflowRequestSchema: z.ZodType<DeployWorkflowRequest> =
 			)
 			.optional(),
 		dryRun: z.boolean().optional(),
+		clientRequestId: z.string().min(1).max(128).optional(),
 		retries: z
 			.object({
 				maxAttempts: z.number().int().positive().optional(),

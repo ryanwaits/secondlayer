@@ -211,6 +211,7 @@ export function ToolPartRenderer({
 						const result = await bundleAndDeployWorkflow({
 							code: input.code,
 							expectedVersion: input.expectedVersion,
+							clientRequestId: `deploy-${part.toolCallId}`,
 						});
 						addToolOutput({
 							toolCallId: part.toolCallId,
@@ -622,6 +623,7 @@ type DeployWorkflowResponse = {
 async function bundleAndDeployWorkflow(input: {
 	code: string;
 	expectedVersion?: string;
+	clientRequestId?: string;
 }): Promise<{
 	ok: boolean;
 	name?: string;
@@ -672,6 +674,9 @@ async function bundleAndDeployWorkflow(input: {
 				timeout: bundled.timeout ?? undefined,
 				...(input.expectedVersion
 					? { expectedVersion: input.expectedVersion }
+					: {}),
+				...(input.clientRequestId
+					? { clientRequestId: input.clientRequestId }
 					: {}),
 			}),
 		});
@@ -864,6 +869,7 @@ function EditWorkflowCardWrapper({
 				const result = await bundleAndDeployWorkflow({
 					code: input.proposedCode,
 					expectedVersion: input.expectedVersion,
+					clientRequestId: `edit-${input.expectedVersion}-${input.name}`,
 				});
 				if (!result.ok && result.error?.toLowerCase().includes("version")) {
 					const match = result.error.match(/current\s+(\d+\.\d+\.\d+)/i);

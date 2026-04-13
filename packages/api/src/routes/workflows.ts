@@ -26,6 +26,41 @@ import { InvalidJSONError } from "../middleware/error.ts";
 const MAX_TAIL_DURATION_MS = 30 * 60 * 1000; // 30 minutes (matches logs.ts)
 const TAIL_POLL_INTERVAL_MS = 500;
 
+// Per-instance deploy idempotency cache. Key = `${apiKeyId}:${clientRequestId}`.
+// Entries expire after 30 seconds. Enough for double-click dedupe; horizontally
+// scaled API would need a shared store.
+const DEPLOY_IDEMPOTENCY_TTL_MS = 30_000;
+const deployIdempotencyCache = new Map<
+	string,
+	{ body: Record<string, unknown>; status: number; expiresAt: number }
+>();
+
+function readDeployIdempotency(key: string) {
+	const entry = deployIdempotencyCache.get(key);
+	if (!entry) return undefined;
+	if (entry.expiresAt < Date.now()) {
+		deployIdempotencyCache.delete(key);
+		return undefined;
+	}
+	return entry;
+}
+
+function writeDeployIdempotency(
+	key: string,
+	body: Record<string, unknown>,
+	status: number,
+) {
+	deployIdempotencyCache.set(key, {
+		body,
+		status,
+		expiresAt: Date.now() + DEPLOY_IDEMPOTENCY_TTL_MS,
+	});
+	// Cheap opportunistic cleanup — drop anything else that's expired.
+	for (const [k, v] of deployIdempotencyCache) {
+		if (v.expiresAt < Date.now()) deployIdempotencyCache.delete(k);
+	}
+}
+
 const VALID_ORIGINS = new Set(["cli", "mcp", "session"]);
 function readOrigin(c: {
 	req: { header(name: string): string | undefined };
@@ -99,6 +134,19 @@ app.post("/", async (c) => {
 	const parsed = DeployWorkflowRequestSchema.parse(body);
 	const apiKeyId = getApiKeyId(c);
 	if (!apiKeyId) return c.json({ error: "API key required" }, 401);
+
+	// Idempotency: replay cached result for dry-run-less deploys when the client
+	// sends a clientRequestId and we've seen this exact tuple in the last 30s.
+	const idempotencyKey =
+		parsed.clientRequestId && !parsed.dryRun
+			? `${apiKeyId}:${parsed.clientRequestId}`
+			: null;
+	if (idempotencyKey) {
+		const cached = readDeployIdempotency(idempotencyKey);
+		if (cached) {
+			return c.json(cached.body, cached.status as 200 | 409);
+		}
+	}
 
 	const bundleSize = Buffer.byteLength(parsed.handlerCode, "utf8");
 
@@ -264,12 +312,18 @@ app.post("/", async (c) => {
 		triggerType,
 	});
 
-	return c.json({
+	const response = {
 		action: isNew ? "created" : "updated",
 		workflowId: definition.id,
 		version: definition.version,
 		message: `Workflow "${parsed.name}" ${isNew ? "created" : "updated"}`,
-	});
+	};
+
+	if (idempotencyKey) {
+		writeDeployIdempotency(idempotencyKey, response, 200);
+	}
+
+	return c.json(response);
 });
 
 // ── List ─────────────────────────────────────────────────────────────────

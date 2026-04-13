@@ -127,6 +127,7 @@ export class Workflows extends BaseClient {
 			expectedVersion?: string;
 			retries?: Record<string, unknown>;
 			timeout?: number;
+			clientRequestId?: string;
 		} & { dryRun?: false },
 	): Promise<DeployResponse>;
 	async deploy(data: {
@@ -146,6 +147,7 @@ export class Workflows extends BaseClient {
 		sourceCode?: string;
 		expectedVersion?: string;
 		dryRun?: boolean;
+		clientRequestId?: string;
 		retries?: Record<string, unknown>;
 		timeout?: number;
 	}): Promise<DeployResponse | DeployDryRunResponse> {
