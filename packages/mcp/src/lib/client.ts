@@ -12,7 +12,12 @@ export function getClient(): SecondLayer {
 					"Get your key at https://app.secondlayer.tools/settings/api-keys",
 			);
 		}
-		instance = new SecondLayer({ apiKey });
+		const baseUrl = process.env.SECONDLAYER_API_URL;
+		instance = new SecondLayer({
+			apiKey,
+			origin: "mcp",
+			...(baseUrl ? { baseUrl } : {}),
+		});
 	}
 	return instance;
 }

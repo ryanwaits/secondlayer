@@ -1,4 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { bundleWorkflowCode } from "@secondlayer/bundler";
+import { VersionConflictError } from "@secondlayer/sdk";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
@@ -41,10 +43,7 @@ export function registerWorkflowTools(server: McpServer) {
 		"Trigger a workflow run. Optionally pass input as a JSON string.",
 		{
 			name: z.string().describe("Workflow name"),
-			input: z
-				.string()
-				.optional()
-				.describe("Input as JSON string"),
+			input: z.string().optional().describe("Input as JSON string"),
 		},
 		async ({ name, input }) => {
 			const parsed = input ? JSON.parse(input) : undefined;
@@ -81,6 +80,84 @@ export function registerWorkflowTools(server: McpServer) {
 		},
 	);
 
+	defineTool<{ code: string; expectedVersion?: string; dryRun?: boolean }>(
+		server,
+		"workflows_deploy",
+		"Deploy a workflow from TypeScript source. Pass the full defineWorkflow() source — it will be bundled, validated, and deployed. Use expectedVersion for optimistic concurrency, or dryRun to validate without persisting.",
+		{
+			code: z
+				.string()
+				.describe("TypeScript source code containing a defineWorkflow() call"),
+			expectedVersion: z
+				.string()
+				.regex(/^\d+\.\d+\.\d+$/)
+				.optional()
+				.describe(
+					"Stored version the client expects (major.minor.patch). Server returns 409 on mismatch.",
+				),
+			dryRun: z
+				.boolean()
+				.optional()
+				.describe("If true, validate and bundle only — do not persist."),
+		},
+		async ({ code, expectedVersion, dryRun }) => {
+			let bundled: Awaited<ReturnType<typeof bundleWorkflowCode>>;
+			try {
+				bundled = await bundleWorkflowCode(code);
+			} catch (err) {
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: err instanceof Error ? err.message : String(err),
+						},
+					],
+				};
+			}
+
+			const base = {
+				name: bundled.name,
+				trigger: bundled.trigger as unknown as Record<string, unknown>,
+				handlerCode: bundled.handlerCode,
+				sourceCode: bundled.sourceCode,
+				retries: bundled.retries as Record<string, unknown> | undefined,
+				timeout: bundled.timeout,
+				expectedVersion,
+			};
+			try {
+				const result = dryRun
+					? await getClient().workflows.deploy({ ...base, dryRun: true })
+					: await getClient().workflows.deploy(base);
+				return {
+					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+				};
+			} catch (err) {
+				if (err instanceof VersionConflictError) {
+					return {
+						isError: true,
+						content: [
+							{
+								type: "text",
+								text: JSON.stringify(
+									{
+										error: err.message,
+										code: "VERSION_CONFLICT",
+										currentVersion: err.currentVersion,
+										expectedVersion: err.expectedVersion,
+									},
+									null,
+									2,
+								),
+							},
+						],
+					};
+				}
+				throw err;
+			}
+		},
+	);
+
 	defineTool<{ name: string; status?: string; limit?: number }>(
 		server,
 		"workflows_runs",
@@ -91,14 +168,16 @@ export function registerWorkflowTools(server: McpServer) {
 				.enum(["running", "completed", "failed", "cancelled"])
 				.optional()
 				.describe("Filter by run status"),
-			limit: z
-				.number()
-				.optional()
-				.describe("Max runs to return (default 20)"),
+			limit: z.number().optional().describe("Max runs to return (default 20)"),
 		},
 		async ({ name, status, limit }) => {
 			const { runs } = await getClient().workflows.listRuns(name, {
-				status: status as "running" | "completed" | "failed" | "cancelled" | undefined,
+				status: status as
+					| "running"
+					| "completed"
+					| "failed"
+					| "cancelled"
+					| undefined,
 				limit,
 			});
 			return {
