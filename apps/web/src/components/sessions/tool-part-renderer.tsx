@@ -14,7 +14,10 @@ import {
 import { useState } from "react";
 import { ActionCard } from "./tool-parts/action-card";
 import { CodeCard } from "./tool-parts/code-card";
+import { ConfigDiffCard } from "./tool-parts/config-diff-card";
 import { DataTableCard } from "./tool-parts/data-table-card";
+import { DeliveriesTailCard } from "./tool-parts/deliveries-tail-card";
+import { DeployStreamCard } from "./tool-parts/deploy-stream-card";
 import { DeploySubgraphCard } from "./tool-parts/deploy-subgraph-card";
 import { DeploySuccessCard } from "./tool-parts/deploy-success-card";
 import { DeployWorkflowCard } from "./tool-parts/deploy-workflow-card";
@@ -24,6 +27,7 @@ import { InsightsCard } from "./tool-parts/insights-card";
 import { KeysCard } from "./tool-parts/keys-card";
 import { MemoryRecallCard } from "./tool-parts/memory-tag";
 import { StepFlowLive } from "./tool-parts/step-flow-live";
+import { StreamConfigCard } from "./tool-parts/stream-config-card";
 import { StreamStatusCard } from "./tool-parts/stream-status-card";
 import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
 import { SubgraphSyncLive } from "./tool-parts/subgraph-sync-live";
@@ -51,6 +55,8 @@ const HUMAN_IN_LOOP_TOOLS = new Set([
 	"rollback_workflow",
 	"deploy_subgraph",
 	"edit_subgraph",
+	"deploy_stream",
+	"edit_stream",
 ]);
 
 export function ToolPartRenderer({
@@ -284,6 +290,89 @@ export function ToolPartRenderer({
 					input={part.input}
 				/>
 				<EditSubgraphCardWrapper
+					input={input}
+					onResult={(output) =>
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output,
+						})
+					}
+				/>
+			</>
+		);
+	}
+
+	// deploy_stream — POSTs /api/streams on confirm, surfaces signingSecret in success card.
+	if (state === "input-available" && toolName === "deploy_stream") {
+		const input = part.input as {
+			name: string;
+			endpointUrl: string;
+			filters: Array<Record<string, unknown>>;
+			options?: Record<string, unknown>;
+			reason?: string;
+		};
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<DeployStreamCard
+					name={input.name}
+					endpointUrl={input.endpointUrl}
+					filterCount={input.filters.length}
+					reason={input.reason}
+					onConfirm={async (action) => {
+						if (action === "cancel") {
+							addToolOutput({
+								toolCallId: part.toolCallId,
+								output: { ok: false, cancelled: true },
+							});
+							return;
+						}
+						const result = await deployStreamConfig({
+							name: input.name,
+							endpointUrl: input.endpointUrl,
+							filters: input.filters,
+							options: input.options,
+						});
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output: result,
+						});
+					}}
+				/>
+			</>
+		);
+	}
+
+	// edit_stream — ConfigDiffCard + PATCH /api/streams/:id on confirm.
+	if (state === "input-available" && toolName === "edit_stream") {
+		const input = part.input as {
+			id: string;
+			currentConfig: {
+				name: string;
+				endpointUrl: string;
+				filters: Array<Record<string, unknown>>;
+				options: Record<string, unknown>;
+			};
+			proposedConfig: {
+				name?: string;
+				endpointUrl?: string;
+				filters?: Array<Record<string, unknown>>;
+				options?: Record<string, unknown>;
+			};
+			summary: string;
+		};
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<EditStreamCardWrapper
 					input={input}
 					onResult={(output) =>
 						addToolOutput({
@@ -624,6 +713,143 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 					message={`Updated ${o.name}${o.version ? ` → v${o.version}` : ""}`}
 				/>
 			);
+		}
+
+		case "scaffold_stream": {
+			if ((output as { error?: boolean }).error) return null;
+			const o = output as {
+				name?: string;
+				endpointUrl?: string;
+				filters?: unknown[];
+				options?: Record<string, unknown>;
+				html?: string;
+			};
+			if (!o.name || !o.endpointUrl || !o.filters || !o.options) return null;
+			return (
+				<StreamConfigCard
+					name={o.name}
+					endpointUrl={o.endpointUrl}
+					filters={o.filters}
+					options={o.options}
+					html={o.html}
+				/>
+			);
+		}
+
+		case "read_stream": {
+			if ((output as { error?: boolean }).error) return null;
+			const o = output as {
+				name?: string;
+				status?: string;
+				endpointUrl?: string;
+				filters?: unknown[];
+				options?: Record<string, unknown>;
+				html?: string;
+			};
+			if (!o.name || !o.endpointUrl || !o.filters || !o.options) return null;
+			return (
+				<StreamConfigCard
+					name={o.name}
+					status={o.status}
+					endpointUrl={o.endpointUrl}
+					filters={o.filters}
+					options={o.options}
+					html={o.html}
+				/>
+			);
+		}
+
+		case "tail_deliveries": {
+			if ((output as { error?: boolean }).error) return null;
+			const o = output as { id?: string; name?: string };
+			if (!o.id || !o.name) return null;
+			return <DeliveriesTailCard id={o.id} name={o.name} />;
+		}
+
+		case "list_stream_filter_types": {
+			const filterTypes = (output.filterTypes ?? []) as Array<{
+				type: string;
+				description: string;
+				optionalParams: string[];
+			}>;
+			if (filterTypes.length === 0) return null;
+			return (
+				<div className="tool-card">
+					<div className="tool-card-header">Stream filter types</div>
+					{filterTypes.map((ft) => (
+						<div key={ft.type} className="tool-status-row">
+							<div className="tool-action-detail">
+								<span className="tool-status-name">{ft.type}</span>
+								<span className="tool-action-reason">{ft.description}</span>
+								{ft.optionalParams.length > 0 && (
+									<span className="tool-action-reason">
+										params: {ft.optionalParams.join(", ")}
+									</span>
+								)}
+							</div>
+						</div>
+					))}
+				</div>
+			);
+		}
+
+		case "deploy_stream": {
+			const o = output as {
+				ok?: boolean;
+				cancelled?: boolean;
+				name?: string;
+				id?: string;
+				signingSecret?: string;
+				error?: string;
+			};
+			if (!o.ok) {
+				return (
+					<SuccessBanner
+						tone={o.cancelled ? "info" : "error"}
+						message={
+							o.cancelled ? "Deploy cancelled" : (o.error ?? "Deploy failed")
+						}
+					/>
+				);
+			}
+			return (
+				<div className="tool-card">
+					<div className="tool-card-header">
+						Stream deployed · {o.name ?? ""}
+					</div>
+					{o.signingSecret && (
+						<div className="tool-status-row">
+							<div className="tool-action-detail">
+								<span className="tool-status-name">Signing secret</span>
+								<span className="tool-action-reason">
+									Copy this NOW — it won't be shown again.
+								</span>
+								<pre className="tool-step-output">{o.signingSecret}</pre>
+							</div>
+						</div>
+					)}
+				</div>
+			);
+		}
+
+		case "edit_stream": {
+			const o = output as {
+				ok?: boolean;
+				cancelled?: boolean;
+				name?: string;
+				error?: string;
+			};
+			if (!o.ok) {
+				return (
+					<SuccessBanner
+						tone={o.cancelled ? "info" : "error"}
+						message={
+							o.cancelled ? "Edit cancelled" : (o.error ?? "Edit failed")
+						}
+					/>
+				);
+			}
+			return <SuccessBanner message={`Updated stream ${o.name ?? ""}`} />;
 		}
 
 		case "read_subgraph": {
@@ -1215,6 +1441,160 @@ function EditSubgraphCardWrapper({
 					name: result.name,
 					version: result.version,
 				});
+			}}
+		/>
+	);
+}
+
+type DeployStreamSuccessResponse = {
+	stream: { id: string; name: string };
+	signingSecret: string;
+};
+
+/**
+ * POST /api/streams with the config from deploy_stream's input. Returns the
+ * new stream's id + one-time signing secret on success. The secret is shown
+ * once in the output card — users must copy it immediately.
+ */
+async function deployStreamConfig(input: {
+	name: string;
+	endpointUrl: string;
+	filters: Array<Record<string, unknown>>;
+	options?: Record<string, unknown>;
+}): Promise<{
+	ok: boolean;
+	id?: string;
+	name?: string;
+	signingSecret?: string;
+	error?: string;
+}> {
+	try {
+		const res = await fetch("/api/streams", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"x-sl-origin": "session",
+			},
+			credentials: "same-origin",
+			body: JSON.stringify({
+				name: input.name,
+				endpointUrl: input.endpointUrl,
+				filters: input.filters,
+				...(input.options ? { options: input.options } : {}),
+			}),
+		});
+		const body = (await res.json().catch(() => ({}))) as
+			| DeployStreamSuccessResponse
+			| { error?: string | Record<string, unknown> };
+		if (!res.ok) {
+			const rawErr = (body as { error?: unknown }).error;
+			const msg =
+				typeof rawErr === "string"
+					? rawErr
+					: rawErr
+						? JSON.stringify(rawErr)
+						: `Deploy failed (HTTP ${res.status})`;
+			return { ok: false, error: msg };
+		}
+		const ok = body as DeployStreamSuccessResponse;
+		return {
+			ok: true,
+			id: ok.stream.id,
+			name: ok.stream.name,
+			signingSecret: ok.signingSecret,
+		};
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+type EditStreamInput = {
+	id: string;
+	currentConfig: {
+		name: string;
+		endpointUrl: string;
+		filters: Array<Record<string, unknown>>;
+		options: Record<string, unknown>;
+	};
+	proposedConfig: {
+		name?: string;
+		endpointUrl?: string;
+		filters?: Array<Record<string, unknown>>;
+		options?: Record<string, unknown>;
+	};
+	summary: string;
+};
+
+type EditStreamResult = {
+	ok: boolean;
+	cancelled?: boolean;
+	name?: string;
+	error?: string;
+};
+
+function EditStreamCardWrapper({
+	input,
+	onResult,
+}: {
+	input: EditStreamInput;
+	onResult: (result: EditStreamResult) => void;
+}) {
+	const [busy, setBusy] = useState(false);
+	const [errorText, setErrorText] = useState<string | undefined>();
+
+	return (
+		<ConfigDiffCard
+			name={input.currentConfig.name}
+			summary={input.summary}
+			current={input.currentConfig}
+			proposed={input.proposedConfig}
+			busy={busy}
+			errorText={errorText}
+			onCancel={() => onResult({ ok: false, cancelled: true })}
+			onConfirm={async () => {
+				setBusy(true);
+				setErrorText(undefined);
+				try {
+					const res = await fetch(`/api/streams/${input.id}`, {
+						method: "PATCH",
+						headers: {
+							"Content-Type": "application/json",
+							"x-sl-origin": "session",
+						},
+						credentials: "same-origin",
+						body: JSON.stringify(input.proposedConfig),
+					});
+					const body = (await res.json().catch(() => ({}))) as {
+						error?: unknown;
+						name?: string;
+					};
+					if (!res.ok) {
+						const raw = body.error;
+						const msg =
+							typeof raw === "string"
+								? raw
+								: raw
+									? JSON.stringify(raw)
+									: `Edit failed (HTTP ${res.status})`;
+						setErrorText(msg);
+						setBusy(false);
+						onResult({ ok: false, error: msg });
+						return;
+					}
+					setBusy(false);
+					onResult({
+						ok: true,
+						name: body.name ?? input.currentConfig.name,
+					});
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					setErrorText(msg);
+					setBusy(false);
+					onResult({ ok: false, error: msg });
+				}
 			}}
 		/>
 	);

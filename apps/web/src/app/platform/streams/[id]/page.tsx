@@ -9,6 +9,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StreamDangerZone } from "./danger-zone";
 import { StreamDeliveries } from "./deliveries-section";
+import { OpenInChat } from "./open-in-chat";
 import { ReplayForm } from "./replay-form";
 import { SigningSecret } from "./signing-secret";
 
@@ -84,7 +85,10 @@ export default async function StreamDetailPage({
 		<>
 			<OverviewTopbar
 				path={
-					<Link href="/streams" style={{ color: "inherit", textDecoration: "none" }}>
+					<Link
+						href="/streams"
+						style={{ color: "inherit", textDecoration: "none" }}
+					>
 						Streams
 					</Link>
 				}
@@ -100,6 +104,17 @@ export default async function StreamDetailPage({
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
+					{/* Open in chat CTA */}
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "flex-end",
+							marginBottom: 12,
+						}}
+					>
+						<OpenInChat streamId={stream.id} streamName={stream.name} />
+					</div>
+
 					{/* Metadata cards */}
 					<MetaGrid
 						items={[
@@ -112,14 +127,30 @@ export default async function StreamDetailPage({
 									</span>
 								),
 							},
-							{ label: "Created", value: formatDate(stream.createdAt), mono: true },
-							{ label: "Total Deliveries", value: stream.totalDeliveries.toLocaleString() },
+							{
+								label: "Created",
+								value: formatDate(stream.createdAt),
+								mono: true,
+							},
+							{
+								label: "Total Deliveries",
+								value: stream.totalDeliveries.toLocaleString(),
+							},
 							{
 								label: "Success Rate",
 								value: `${successRate}%`,
-								valueColor: Number(successRate) >= 99 ? "green" : Number(successRate) >= 95 ? "yellow" : "red",
+								valueColor:
+									Number(successRate) >= 99
+										? "green"
+										: Number(successRate) >= 95
+											? "yellow"
+											: "red",
 							},
-							{ label: "Last Triggered", value: formatDate(stream.lastTriggeredAt), mono: true },
+							{
+								label: "Last Triggered",
+								value: formatDate(stream.lastTriggeredAt),
+								mono: true,
+							},
 						]}
 					/>
 
@@ -147,27 +178,48 @@ export default async function StreamDetailPage({
 									label: "Signing Secret",
 									value: <SigningSecret secret={stream.signingSecret} />,
 								},
-								{ label: "Signature Header", value: "x-secondlayer-signature", mono: true },
+								{
+									label: "Signature Header",
+									value: "x-secondlayer-signature",
+									mono: true,
+								},
 								{
 									label: "Options",
-									value: [
-										stream.options?.decodeClarityValues && "decodeClarityValues",
-										stream.options?.maxRetries != null && `maxRetries: ${stream.options.maxRetries}`,
-										stream.options?.timeoutMs != null && `timeout: ${stream.options.timeoutMs}ms`,
-									].filter(Boolean).join(" · ") || "defaults",
+									value:
+										[
+											stream.options?.decodeClarityValues &&
+												"decodeClarityValues",
+											stream.options?.maxRetries != null &&
+												`maxRetries: ${stream.options.maxRetries}`,
+											stream.options?.timeoutMs != null &&
+												`timeout: ${stream.options.timeoutMs}ms`,
+										]
+											.filter(Boolean)
+											.join(" · ") || "defaults",
 								},
 							]}
 						/>
 						<div style={{ marginTop: 12 }}>
 							<DetailCodeBlock
 								label="EXAMPLE PAYLOAD"
-								code={JSON.stringify({
-									streamId: stream.id,
-									streamName: stream.name,
-									block: { height: 187421, hash: "0x8a3f..." },
-									matches: [{ type: "stx_transfer", sender: "SP2J6...K8V3", recipient: "SP1WN...R4XY", amount: "50000000000" }],
-									deliveredAt: new Date().toISOString(),
-								}, null, 2)}
+								code={JSON.stringify(
+									{
+										streamId: stream.id,
+										streamName: stream.name,
+										block: { height: 187421, hash: "0x8a3f..." },
+										matches: [
+											{
+												type: "stx_transfer",
+												sender: "SP2J6...K8V3",
+												recipient: "SP1WN...R4XY",
+												amount: "50000000000",
+											},
+										],
+										deliveredAt: new Date().toISOString(),
+									},
+									null,
+									2,
+								)}
 								showCopy
 							/>
 						</div>
@@ -180,7 +232,12 @@ export default async function StreamDetailPage({
 
 					{/* Danger Zone */}
 					<DetailSection title="Danger Zone">
-						<StreamDangerZone streamId={id} streamName={stream.name} status={stream.status} sessionToken={session} />
+						<StreamDangerZone
+							streamId={id}
+							streamName={stream.name}
+							status={stream.status}
+							sessionToken={session}
+						/>
 					</DetailSection>
 				</div>
 			</div>
