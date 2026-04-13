@@ -7,9 +7,12 @@ import {
 	type UITools,
 	getToolName,
 } from "ai";
+import { useState } from "react";
 import { ActionCard } from "./tool-parts/action-card";
 import { CodeCard } from "./tool-parts/code-card";
 import { DataTableCard } from "./tool-parts/data-table-card";
+import { DeploySuccessCard } from "./tool-parts/deploy-success-card";
+import { DeployWorkflowCard } from "./tool-parts/deploy-workflow-card";
 import { DiagnosticsCard } from "./tool-parts/diagnostics-card";
 import { InsightsCard } from "./tool-parts/insights-card";
 import { KeysCard } from "./tool-parts/keys-card";
@@ -33,6 +36,7 @@ const HUMAN_IN_LOOP_TOOLS = new Set([
 	"manage_streams",
 	"manage_keys",
 	"manage_subgraphs",
+	"deploy_workflow",
 ]);
 
 export function ToolPartRenderer({
@@ -53,6 +57,48 @@ export function ToolPartRenderer({
 	if (state === "input-available" && !HUMAN_IN_LOOP_TOOLS.has(toolName)) {
 		return (
 			<ToolCallIndicator toolName={toolName} state={state} input={part.input} />
+		);
+	}
+
+	// deploy_workflow has a bespoke card that drives the bundle + deploy flow itself.
+	if (state === "input-available" && toolName === "deploy_workflow") {
+		const input = part.input as {
+			name: string;
+			code: string;
+			triggerSummary: string;
+			reason?: string;
+			expectedVersion?: string;
+		};
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<DeployWorkflowCard
+					name={input.name}
+					triggerSummary={input.triggerSummary}
+					reason={input.reason}
+					onConfirm={async (action) => {
+						if (action === "cancel") {
+							addToolOutput({
+								toolCallId: part.toolCallId,
+								output: { ok: false, cancelled: true },
+							});
+							return;
+						}
+						const result = await bundleAndDeployWorkflow({
+							code: input.code,
+							expectedVersion: input.expectedVersion,
+						});
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output: result,
+						});
+					}}
+				/>
+			</>
 		);
 	}
 
@@ -231,6 +277,37 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			return <CodeCard code={o.code} html={o.html} filename={o.filename} />;
 		}
 
+		case "scaffold_workflow": {
+			if ((output as { error?: boolean }).error) return null;
+			const o = output as {
+				code: string;
+				html?: string;
+				filename?: string;
+			};
+			return <CodeCard code={o.code} html={o.html} filename={o.filename} />;
+		}
+
+		case "deploy_workflow": {
+			const o = output as {
+				ok?: boolean;
+				cancelled?: boolean;
+				name?: string;
+				version?: string;
+				error?: string;
+			};
+			if (!o.ok) {
+				return (
+					<SuccessBanner
+						message={
+							o.cancelled ? "Deploy cancelled" : (o.error ?? "Deploy failed")
+						}
+					/>
+				);
+			}
+			if (!o.name || !o.version) return null;
+			return <DeploySuccessCardWrapper name={o.name} version={o.version} />;
+		}
+
 		case "recall_sessions": {
 			const sessions = (output.sessions ?? []) as Array<{
 				id: string;
@@ -338,4 +415,138 @@ async function executeAction(
 	}
 
 	await Promise.allSettled(calls);
+}
+
+type BundleWorkflowResult = {
+	ok: boolean;
+	name?: string;
+	trigger?: Record<string, unknown>;
+	handlerCode?: string;
+	sourceCode?: string;
+	retries?: Record<string, unknown> | null;
+	timeout?: number | null;
+	error?: string;
+	actualBytes?: number;
+	maxBytes?: number;
+};
+
+type DeployWorkflowResponse = {
+	action: "created" | "updated";
+	workflowId: string;
+	version: string;
+	message: string;
+};
+
+async function bundleAndDeployWorkflow(input: {
+	code: string;
+	expectedVersion?: string;
+}): Promise<{
+	ok: boolean;
+	name?: string;
+	version?: string;
+	workflowId?: string;
+	error?: string;
+}> {
+	let bundled: BundleWorkflowResult;
+	try {
+		const bundleRes = await fetch("/api/sessions/bundle-workflow", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "same-origin",
+			body: JSON.stringify({ code: input.code }),
+		});
+		bundled = (await bundleRes.json()) as BundleWorkflowResult;
+		if (!bundleRes.ok || !bundled.ok) {
+			return {
+				ok: false,
+				error: bundled.error ?? `Bundle failed (HTTP ${bundleRes.status})`,
+			};
+		}
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+
+	if (!bundled.name || !bundled.handlerCode) {
+		return { ok: false, error: "Bundler returned an incomplete response" };
+	}
+
+	try {
+		const deployRes = await fetch("/api/workflows", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"x-sl-origin": "session",
+			},
+			credentials: "same-origin",
+			body: JSON.stringify({
+				name: bundled.name,
+				trigger: bundled.trigger,
+				handlerCode: bundled.handlerCode,
+				sourceCode: bundled.sourceCode,
+				retries: bundled.retries ?? undefined,
+				timeout: bundled.timeout ?? undefined,
+				...(input.expectedVersion
+					? { expectedVersion: input.expectedVersion }
+					: {}),
+			}),
+		});
+		const deployBody = (await deployRes.json()) as
+			| DeployWorkflowResponse
+			| { error?: string; currentVersion?: string };
+		if (!deployRes.ok) {
+			const msg =
+				(deployBody as { error?: string }).error ??
+				`Deploy failed (HTTP ${deployRes.status})`;
+			return { ok: false, error: msg };
+		}
+		const ok = deployBody as DeployWorkflowResponse;
+		return {
+			ok: true,
+			name: bundled.name,
+			version: ok.version,
+			workflowId: ok.workflowId,
+		};
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+function DeploySuccessCardWrapper({
+	name,
+	version,
+}: {
+	name: string;
+	version: string;
+}) {
+	const [testRunSent, setTestRunSent] = useState(false);
+	return (
+		<DeploySuccessCard
+			name={name}
+			version={version}
+			testRunSent={testRunSent}
+			onTrigger={async () => {
+				if (testRunSent) return;
+				setTestRunSent(true);
+				try {
+					await fetch(`/api/workflows/${name}/trigger`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						credentials: "same-origin",
+						body: "{}",
+					});
+				} catch {
+					setTestRunSent(false);
+				}
+			}}
+			onTail={() => {
+				// Tail CTA wiring lands in Sprint 5 (T5.6).
+			}}
+		/>
+	);
 }
