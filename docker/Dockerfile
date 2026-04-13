@@ -52,10 +52,11 @@ COPY packages/indexer ./packages/indexer
 COPY packages/account-agent ./packages/account-agent
 COPY packages/workflows ./packages/workflows
 COPY packages/workflow-runner ./packages/workflow-runner
+COPY packages/bundler ./packages/bundler
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
-RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/subgraphs' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
+RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/subgraphs' --filter '@secondlayer/workflows' --filter '@secondlayer/bundler' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
 
 # =============================================================================
 # API service
@@ -70,6 +71,8 @@ COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/auth ./packages/auth
 COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
+COPY --from=builder /app/packages/workflows ./packages/workflows
+COPY --from=builder /app/packages/bundler ./packages/bundler
 COPY --from=builder /app/packages/api ./packages/api
 COPY --from=builder /app/package.json ./
 
