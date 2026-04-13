@@ -1,7 +1,7 @@
 import { validateSubgraphDefinition } from "@secondlayer/subgraphs/validate";
 import esbuild from "esbuild";
 
-interface BundleResult {
+export interface SubgraphBundleResult {
 	name: string;
 	version?: string;
 	description?: string;
@@ -10,7 +10,9 @@ interface BundleResult {
 	handlerCode: string;
 }
 
-export async function bundleSubgraphCode(code: string): Promise<BundleResult> {
+export async function bundleSubgraphCode(
+	code: string,
+): Promise<SubgraphBundleResult> {
 	let result: esbuild.BuildResult;
 	try {
 		result = await esbuild.build({
@@ -26,9 +28,11 @@ export async function bundleSubgraphCode(code: string): Promise<BundleResult> {
 			`Bundle failed: ${err instanceof Error ? err.message : String(err)}`,
 		);
 	}
-	const handlerCode = new TextDecoder().decode(
-		result.outputFiles![0]!.contents,
-	);
+	const outputFile = result.outputFiles?.[0];
+	if (!outputFile) {
+		throw new Error("Bundle failed: no output produced");
+	}
+	const handlerCode = new TextDecoder().decode(outputFile.contents);
 
 	let mod: Record<string, unknown>;
 	try {
@@ -54,7 +58,10 @@ export async function bundleSubgraphCode(code: string): Promise<BundleResult> {
 		name: validated.name,
 		version: validated.version,
 		description: validated.description,
-		sources: validated.sources as unknown as Record<string, Record<string, unknown>>,
+		sources: validated.sources as unknown as Record<
+			string,
+			Record<string, unknown>
+		>,
 		schema: validated.schema,
 		handlerCode,
 	};

@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { bundleSubgraphCode } from "@secondlayer/bundler";
 import { z } from "zod/v4";
-import { bundleSubgraphCode } from "../lib/bundle.ts";
 import { getClient } from "../lib/client.ts";
 import { formatSubgraphSummary, withCap } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";
