@@ -8,7 +8,8 @@ import type {
 	WorkflowStep,
 } from "../types.ts";
 
-function bumpPatch(version: string): string {
+/** Bump the patch digit of a semver string. Falls back to "1.0.1" on malformed input. */
+export function bumpPatch(version: string): string {
 	const parts = version.split(".");
 	if (parts.length !== 3) return "1.0.1";
 	const [major, minor, patch] = parts.map((p) => Number.parseInt(p, 10));

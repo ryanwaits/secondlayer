@@ -1,9 +1,11 @@
 import { existsSync, mkdirSync } from "node:fs";
+import { readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
 import {
+	bumpPatch,
 	createWorkflowRun,
 	deleteWorkflowDefinition,
 	getWorkflowDefinition,
@@ -40,6 +42,48 @@ function ensureWorkflowDir(): string {
 	const dir = join(DATA_DIR, "workflows");
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	return dir;
+}
+
+const VERSIONED_HANDLER_RE = /^(.+)-(\d+)\.(\d+)\.(\d+)\.js$/;
+
+function compareSemver(a: string, b: string): number {
+	const pa = a.split(".").map(Number);
+	const pb = b.split(".").map(Number);
+	for (let i = 0; i < 3; i++) {
+		const av = pa[i] ?? 0;
+		const bv = pb[i] ?? 0;
+		if (av !== bv) return av - bv;
+	}
+	return 0;
+}
+
+/** Keep only the most recent `keep` versions of this workflow's handler bundles. */
+async function pruneOlderHandlerVersions(
+	dir: string,
+	name: string,
+	keep: number,
+): Promise<void> {
+	try {
+		const entries = await readdir(dir);
+		const versions: Array<{ file: string; version: string }> = [];
+		for (const file of entries) {
+			const match = file.match(VERSIONED_HANDLER_RE);
+			if (!match) continue;
+			const [, base, major, minor, patch] = match;
+			if (base !== name) continue;
+			versions.push({ file, version: `${major}.${minor}.${patch}` });
+		}
+		versions.sort((x, y) => compareSemver(y.version, x.version));
+		const drop = versions.slice(keep);
+		for (const v of drop) {
+			await unlink(join(dir, v.file)).catch(() => undefined);
+		}
+	} catch (err) {
+		logger.warn("Prune workflow handlers failed", {
+			name,
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
 }
 
 // ── Deploy ──────────────────────────────────────────────────────────────
@@ -94,9 +138,16 @@ app.post("/", async (c) => {
 		}
 	}
 
-	// Write handler code to disk
+	// Resolve the version we're about to write BEFORE the upsert so we can
+	// pick a versioned handler path. `bumpPatch` matches the upsert logic —
+	// if an edit race lands a different version, the DB write still wins and
+	// we reconcile the path after the fact.
+	const db = getDb();
+	const existing = await getWorkflowDefinition(db, parsed.name, [apiKeyId]);
+	const targetVersion = existing ? bumpPatch(existing.version) : "1.0.0";
+
 	const dir = ensureWorkflowDir();
-	const handlerPath = join(dir, `${parsed.name}.js`);
+	const handlerPath = join(dir, `${parsed.name}-${targetVersion}.js`);
 	await Bun.write(handlerPath, parsed.handlerCode);
 
 	// Validate by importing
@@ -113,7 +164,6 @@ app.post("/", async (c) => {
 	const trigger = parsed.trigger as Record<string, unknown>;
 	const triggerType = (trigger.type as string) ?? "manual";
 
-	const db = getDb();
 	const origin = readOrigin(c);
 	let definition: Awaited<ReturnType<typeof upsertWorkflowDefinition>>;
 	try {
@@ -189,6 +239,22 @@ app.post("/", async (c) => {
 
 	const isNew =
 		definition.created_at.getTime() === definition.updated_at.getTime();
+
+	// If the resolved DB version differs from our pre-bumped prediction
+	// (race condition), rename the handler file so the runner can find it.
+	if (definition.version !== targetVersion) {
+		const actualPath = join(dir, `${parsed.name}-${definition.version}.js`);
+		await Bun.write(actualPath, parsed.handlerCode).catch(() => undefined);
+		await db
+			.updateTable("workflow_definitions")
+			.set({ handler_path: actualPath })
+			.where("id", "=", definition.id)
+			.execute();
+		definition.handler_path = actualPath;
+	}
+
+	// Prune older versions keeping the last 3 on disk.
+	void pruneOlderHandlerVersions(dir, parsed.name, 3);
 
 	logger.info("Workflow deployed", {
 		name: parsed.name,
