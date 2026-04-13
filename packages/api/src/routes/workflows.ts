@@ -406,6 +406,96 @@ app.post("/:name/trigger", async (c) => {
 	return c.json({ runId: run.id });
 });
 
+// ── Bulk pause ───────────────────────────────────────────────────────────
+
+app.post("/pause-all", async (c) => {
+	const keyIds = await resolveKeyIds(c);
+	const db = getDb();
+
+	let query = db
+		.updateTable("workflow_definitions")
+		.set({ status: "paused", updated_at: new Date() })
+		.where("status", "=", "active");
+	if (keyIds) {
+		query = query.where("api_key_id", "in", keyIds);
+	}
+	const updated = await query.returningAll().execute();
+
+	// Disable any schedule rows for the paused definitions.
+	if (updated.length > 0) {
+		await db
+			.updateTable("workflow_schedules")
+			.set({ enabled: false })
+			.where(
+				"definition_id",
+				"in",
+				updated.map((d) => d.id),
+			)
+			.execute();
+	}
+
+	return c.json({
+		paused: updated.length,
+		workflows: updated.map((w) => ({
+			name: w.name,
+			version: w.version,
+			status: w.status,
+		})),
+	});
+});
+
+// ── Cancel run ───────────────────────────────────────────────────────────
+
+app.post("/runs/:runId/cancel", async (c) => {
+	const db = getDb();
+	const keyIds = await resolveKeyIds(c);
+	const runId = c.req.param("runId");
+
+	const run = await getWorkflowRun(db, runId);
+	if (!run) return c.json({ error: "Run not found" }, 404);
+
+	// Ownership: the definition must belong to one of the caller's api keys.
+	const def = await db
+		.selectFrom("workflow_definitions")
+		.select(["id", "api_key_id"])
+		.where("id", "=", run.definition_id)
+		.executeTakeFirst();
+	if (!def) return c.json({ error: "Run not found" }, 404);
+	if (keyIds && !keyIds.includes(def.api_key_id)) {
+		return c.json({ error: "Run not found" }, 404);
+	}
+
+	if (run.status !== "running" && run.status !== "pending") {
+		return c.json({
+			runId,
+			status: run.status,
+			cancelled: false,
+			message: `Run already ${run.status}`,
+		});
+	}
+
+	const now = new Date();
+	await db
+		.updateTable("workflow_runs")
+		.set({
+			status: "cancelled",
+			completed_at: now,
+			error: "Cancelled by user",
+		})
+		.where("id", "=", runId)
+		.execute();
+
+	// Drop any queue row for this run so workers stop picking it up.
+	await db.deleteFrom("workflow_queue").where("run_id", "=", runId).execute();
+
+	return c.json({
+		runId,
+		status: "cancelled",
+		cancelled: true,
+		completedAt: now.toISOString(),
+	});
+});
+
 // ── Pause / Resume ───────────────────────────────────────────────────────
 
 app.post("/:name/pause", async (c) => {

@@ -172,6 +172,23 @@ export class Workflows extends BaseClient {
 		return this.request("GET", `/api/workflows/${name}/source`);
 	}
 
+	async pauseAll(): Promise<{
+		paused: number;
+		workflows: Array<{ name: string; version: string; status: string }>;
+	}> {
+		return this.request("POST", "/api/workflows/pause-all");
+	}
+
+	async cancelRun(runId: string): Promise<{
+		runId: string;
+		status: string;
+		cancelled: boolean;
+		completedAt?: string;
+		message?: string;
+	}> {
+		return this.request("POST", `/api/workflows/runs/${runId}/cancel`);
+	}
+
 	async rollback(
 		name: string,
 		toVersion?: string,

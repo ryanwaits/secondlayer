@@ -239,6 +239,32 @@ export function registerWorkflowTools(server: McpServer) {
 		},
 	);
 
+	defineTool<Record<string, never>>(
+		server,
+		"workflows_pause_all",
+		"Pause ALL active workflows for the authenticated account. Irreversible only by calling pause/resume per workflow. Returns the list of affected workflows.",
+		{},
+		async () => {
+			const result = await getClient().workflows.pauseAll();
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ runId: string }>(
+		server,
+		"workflows_cancel_run",
+		"Cancel an in-flight workflow run. Marks the run as cancelled and removes any pending queue entry. No-ops if the run is already terminal.",
+		{ runId: z.string().describe("Run id to cancel") },
+		async ({ runId }) => {
+			const result = await getClient().workflows.cancelRun(runId);
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
 	defineTool<{ name: string; toVersion?: string }>(
 		server,
 		"workflows_rollback",
