@@ -10,6 +10,7 @@ import {
 	getTemplateById as getWorkflowTemplateById,
 	templates as workflowTemplates,
 } from "@secondlayer/workflows/templates";
+import { createPatch } from "diff";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
@@ -55,6 +56,97 @@ export function registerWorkflowTools(server: McpServer) {
 			const source = await getClient().workflows.getSource(name);
 			return {
 				content: [{ type: "text", text: JSON.stringify(source, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{
+		name: string;
+		proposedCode: string;
+		expectedVersion?: string;
+	}>(
+		server,
+		"workflows_propose_edit",
+		"Validate a proposed edit WITHOUT deploying. Fetches the current stored source, bundles the proposed source, computes a unified diff, and returns everything for review. Use this when you want to show the user a diff before committing — pair it with workflows_deploy(expectedVersion=...) to persist.",
+		{
+			name: z.string().describe("Workflow name"),
+			proposedCode: z
+				.string()
+				.describe("New TypeScript source — must compile and validate."),
+			expectedVersion: z
+				.string()
+				.regex(/^\d+\.\d+\.\d+$/)
+				.optional()
+				.describe("Version the proposer is editing from (for audit)."),
+		},
+		async ({ name, proposedCode, expectedVersion }) => {
+			const current = await getClient().workflows.getSource(name);
+			if (current.sourceCode === null) {
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify(
+								{
+									error:
+										"Workflow has no stored source. Redeploy via CLI first.",
+									readOnly: true,
+									version: current.version,
+								},
+								null,
+								2,
+							),
+						},
+					],
+				};
+			}
+
+			let bundleValid = false;
+			let validation: { name: string; triggerType: string } | { error: string };
+			let bundleSize = 0;
+			try {
+				const bundled = await bundleWorkflowCode(proposedCode);
+				bundleValid = true;
+				bundleSize = Buffer.byteLength(bundled.handlerCode, "utf8");
+				validation = {
+					name: bundled.name,
+					triggerType: bundled.trigger.type,
+				};
+			} catch (err) {
+				validation = {
+					error: err instanceof Error ? err.message : String(err),
+				};
+			}
+
+			const diffText = createPatch(
+				`${name}.ts`,
+				current.sourceCode,
+				proposedCode,
+				`v${current.version}`,
+				"proposed",
+			);
+
+			return {
+				content: [
+					{
+						type: "text",
+						text: JSON.stringify(
+							{
+								currentVersion: current.version,
+								expectedVersion,
+								currentSource: current.sourceCode,
+								proposedSource: proposedCode,
+								diffText,
+								bundleValid,
+								validation,
+								bundleSize,
+							},
+							null,
+							2,
+						),
+					},
+				],
 			};
 		},
 	);
