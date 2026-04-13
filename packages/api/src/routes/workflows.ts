@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { getErrorMessage } from "@secondlayer/shared";
+import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
 import {
@@ -14,10 +14,19 @@ import {
 	updateWorkflowStatus,
 	upsertWorkflowDefinition,
 } from "@secondlayer/shared/db/queries/workflows";
+import { VersionConflictError } from "@secondlayer/shared/errors";
 import { DeployWorkflowRequestSchema } from "@secondlayer/shared/schemas/workflows";
 import { Hono } from "hono";
 import { getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
+
+const VALID_ORIGINS = new Set(["cli", "mcp", "session"]);
+function readOrigin(c: {
+	req: { header(name: string): string | undefined };
+}): string {
+	const raw = c.req.header("x-sl-origin")?.toLowerCase() ?? "unknown";
+	return VALID_ORIGINS.has(raw) ? raw : "unknown";
+}
 
 const app = new Hono();
 
@@ -63,17 +72,40 @@ app.post("/", async (c) => {
 	const triggerType = (trigger.type as string) ?? "manual";
 
 	const db = getDb();
-	const definition = await upsertWorkflowDefinition(db, {
-		name: parsed.name,
-		triggerType,
-		triggerConfig: trigger,
-		handlerPath,
-		apiKeyId,
-		retriesConfig: parsed.retries as Record<string, unknown> | undefined,
-		timeoutMs: parsed.timeout,
-		sourceCode: parsed.sourceCode,
-		expectedVersion: parsed.expectedVersion,
-	});
+	const origin = readOrigin(c);
+	let definition: Awaited<ReturnType<typeof upsertWorkflowDefinition>>;
+	try {
+		definition = await upsertWorkflowDefinition(db, {
+			name: parsed.name,
+			triggerType,
+			triggerConfig: trigger,
+			handlerPath,
+			apiKeyId,
+			retriesConfig: parsed.retries as Record<string, unknown> | undefined,
+			timeoutMs: parsed.timeout,
+			sourceCode: parsed.sourceCode,
+			expectedVersion: parsed.expectedVersion,
+		});
+	} catch (err) {
+		if (err instanceof VersionConflictError) {
+			logger.warn("Workflow deploy version conflict", {
+				name: parsed.name,
+				origin,
+				currentVersion: err.currentVersion,
+				expectedVersion: err.expectedVersion,
+			});
+			return c.json(
+				{
+					error: err.message,
+					code: "VERSION_CONFLICT",
+					currentVersion: err.currentVersion,
+					expectedVersion: err.expectedVersion,
+				},
+				409,
+			);
+		}
+		throw err;
+	}
 
 	// Handle schedule trigger — upsert workflow_schedules
 	if (triggerType === "schedule" && trigger.cron) {
@@ -107,9 +139,18 @@ app.post("/", async (c) => {
 	const isNew =
 		definition.created_at.getTime() === definition.updated_at.getTime();
 
+	logger.info("Workflow deployed", {
+		name: parsed.name,
+		version: definition.version,
+		action: isNew ? "created" : "updated",
+		origin,
+		triggerType,
+	});
+
 	return c.json({
 		action: isNew ? "created" : "updated",
 		workflowId: definition.id,
+		version: definition.version,
 		message: `Workflow "${parsed.name}" ${isNew ? "created" : "updated"}`,
 	});
 });
