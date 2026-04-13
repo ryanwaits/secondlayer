@@ -24,9 +24,7 @@ function summariseTrigger(t: z.infer<typeof TriggerSchema>): string {
 	switch (t.type) {
 		case "event":
 		case "stream":
-			return t.filterType
-				? `${t.type} · ${t.filterType}`
-				: `${t.type} trigger`;
+			return t.filterType ? `${t.type} · ${t.filterType}` : `${t.type} trigger`;
 		case "schedule":
 			return `schedule · ${t.cron}${t.timezone ? ` (${t.timezone})` : ""}`;
 		case "manual":
