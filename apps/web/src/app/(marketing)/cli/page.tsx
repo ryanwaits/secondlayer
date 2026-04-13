@@ -28,8 +28,8 @@ export default function CliPage() {
 				<div className="prose">
 					<p>
 						The <code>sl</code> command manages streams, subgraphs, workflows,
-						auth, code generation, and local development infrastructure from
-						the terminal. One binary, every Second Layer operation.
+						auth, code generation, and local development infrastructure from the
+						terminal. One binary, every Second Layer operation.
 					</p>
 					<p>
 						Install globally with <code>bun add -g @secondlayer/cli</code>.
@@ -131,8 +131,13 @@ sl streams delete <id>`}
 
 				<div className="prose">
 					<p>
-						Deploy and manage indexed subgraphs. The CLI bundles handler code
-						with esbuild, diffs schema changes, and handles deployment.
+						Deploy and manage indexed subgraphs. The CLI calls into{" "}
+						<code>@secondlayer/bundler</code> (esbuild with{" "}
+						<code>@secondlayer/subgraphs</code> externalised) to produce the
+						handler bundle, validates it via{" "}
+						<code>validateSubgraphDefinition</code>, diffs schema changes, and
+						handles deployment. Subgraph bundles are capped at 4 MB; overflow
+						surfaces as a typed <code>BundleSizeError</code>.
 					</p>
 				</div>
 
@@ -173,8 +178,14 @@ sl subgraphs delete token-transfers`}
 
 				<div className="prose">
 					<p>
-						Deploy and manage automated workflows. The CLI validates definitions,
-						bundles handler code, and deploys to Second Layer.
+						Deploy and manage automated workflows. The CLI validates definitions
+						through <code>@secondlayer/bundler</code> (esbuild with{" "}
+						<code>@secondlayer/workflows</code> externalised), caps bundles at 1
+						MB, and ships both the compiled handler and the original TypeScript
+						source to the platform. Storing the source is what makes the chat{" "}
+						<code>read_workflow</code> and <code>edit_workflow</code> loop work
+						— any deploy from the CLI is immediately editable in chat. Every
+						update bumps the stored patch version automatically.
 					</p>
 				</div>
 
