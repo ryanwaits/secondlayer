@@ -88,11 +88,9 @@ export function registerWorkflowsCommand(program: Command): void {
 						timeout: bundled.timeout,
 					});
 
-					if (deployResult.action === "unchanged") {
-						info(`Workflow "${def.name}" is up to date (no changes)`);
-					} else {
-						success(`Workflow "${def.name}" ${deployResult.action} (remote)`);
-					}
+					success(
+						`Workflow "${def.name}" ${deployResult.action} → v${deployResult.version} (remote)`,
+					);
 				} else {
 					// ── Local deploy ───────────────────────────────────────
 					success(`Workflow "${result.name}" is valid`);

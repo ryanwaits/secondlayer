@@ -44,7 +44,7 @@ describe("Workflows.deploy", () => {
 			trigger: { type: "manual" },
 			handlerCode: "export default {};",
 		});
-		const call = fn.mock.calls[0] as [string, RequestInit];
+		const call = fn.mock.calls[0] as unknown as [string, RequestInit];
 		const headers = call[1].headers as Record<string, string>;
 		expect(headers["x-sl-origin"]).toBe("cli");
 	});
@@ -66,7 +66,7 @@ describe("Workflows.deploy", () => {
 			trigger: { type: "manual" },
 			handlerCode: "export default {};",
 		});
-		const call = fn.mock.calls[0] as [string, RequestInit];
+		const call = fn.mock.calls[0] as unknown as [string, RequestInit];
 		const headers = call[1].headers as Record<string, string>;
 		expect(headers["x-sl-origin"]).toBe("mcp");
 	});
