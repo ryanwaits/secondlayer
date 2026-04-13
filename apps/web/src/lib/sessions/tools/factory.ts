@@ -26,6 +26,7 @@ import { createRecallSessions } from "./recall-sessions";
 import { createScaffoldSubgraph } from "./scaffold-subgraph";
 import { createScaffoldWorkflow } from "./scaffold-workflow";
 import { showCode } from "./show-code";
+import { tailWorkflowRun } from "./tail-workflow-run";
 
 export interface AccountResources {
 	streams: Stream[];
@@ -81,6 +82,7 @@ export function createSessionTools(
 		deploy_workflow: deployWorkflow,
 		read_workflow: createReadWorkflow(sessionToken),
 		edit_workflow: editWorkflow,
+		tail_workflow_run: tailWorkflowRun,
 		list_workflow_templates: listWorkflowTemplates,
 		lookup_docs: lookupDocs,
 		diagnose: createDiagnose(resources),

@@ -22,6 +22,7 @@ import { DiffCard } from "./tool-parts/diff-card";
 import { InsightsCard } from "./tool-parts/insights-card";
 import { KeysCard } from "./tool-parts/keys-card";
 import { MemoryRecallCard } from "./tool-parts/memory-tag";
+import { StepFlowLive } from "./tool-parts/step-flow-live";
 import { StreamStatusCard } from "./tool-parts/stream-status-card";
 import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
 import { SuccessBanner } from "./tool-parts/success-banner";
@@ -376,6 +377,13 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			}
 			if (!o.name || !o.version) return null;
 			return <DeploySuccessCardWrapper name={o.name} version={o.version} />;
+		}
+
+		case "tail_workflow_run": {
+			if ((output as { error?: boolean }).error) return null;
+			const o = output as { name?: string; runId?: string };
+			if (!o.name || !o.runId) return null;
+			return <StepFlowLive workflowName={o.name} runId={o.runId} />;
 		}
 
 		case "read_workflow": {
