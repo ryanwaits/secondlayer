@@ -11,8 +11,10 @@ import { createCheckStreams } from "./check-streams";
 import { createCheckSubgraphs } from "./check-subgraphs";
 import { createCheckUsage } from "./check-usage";
 import { createCheckWorkflows } from "./check-workflows";
+import { deploySubgraph } from "./deploy-subgraph";
 import { deployWorkflow } from "./deploy-workflow";
 import { createDiagnose } from "./diagnose";
+import { editSubgraph } from "./edit-subgraph";
 import { editWorkflow } from "./edit-workflow";
 import { listWorkflowTemplates } from "./list-workflow-templates";
 import { lookupDocs } from "./lookup-docs";
@@ -21,12 +23,14 @@ import { manageStreams } from "./manage-streams";
 import { manageSubgraphs } from "./manage-subgraphs";
 import { manageWorkflows } from "./manage-workflows";
 import { createQuerySubgraph } from "./query-subgraph";
+import { createReadSubgraph } from "./read-subgraph";
 import { createReadWorkflow } from "./read-workflow";
 import { createRecallSessions } from "./recall-sessions";
 import { rollbackWorkflow } from "./rollback-workflow";
 import { createScaffoldSubgraph } from "./scaffold-subgraph";
 import { createScaffoldWorkflow } from "./scaffold-workflow";
 import { showCode } from "./show-code";
+import { tailSubgraphSync } from "./tail-subgraph-sync";
 import { tailWorkflowRun } from "./tail-workflow-run";
 
 export interface AccountResources {
@@ -85,6 +89,10 @@ export function createSessionTools(
 		edit_workflow: editWorkflow,
 		rollback_workflow: rollbackWorkflow,
 		tail_workflow_run: tailWorkflowRun,
+		deploy_subgraph: deploySubgraph,
+		read_subgraph: createReadSubgraph(sessionToken),
+		edit_subgraph: editSubgraph,
+		tail_subgraph_sync: tailSubgraphSync,
 		list_workflow_templates: listWorkflowTemplates,
 		lookup_docs: lookupDocs,
 		diagnose: createDiagnose(resources),

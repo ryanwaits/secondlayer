@@ -15,6 +15,7 @@ import { useState } from "react";
 import { ActionCard } from "./tool-parts/action-card";
 import { CodeCard } from "./tool-parts/code-card";
 import { DataTableCard } from "./tool-parts/data-table-card";
+import { DeploySubgraphCard } from "./tool-parts/deploy-subgraph-card";
 import { DeploySuccessCard } from "./tool-parts/deploy-success-card";
 import { DeployWorkflowCard } from "./tool-parts/deploy-workflow-card";
 import { DiagnosticsCard } from "./tool-parts/diagnostics-card";
@@ -25,6 +26,7 @@ import { MemoryRecallCard } from "./tool-parts/memory-tag";
 import { StepFlowLive } from "./tool-parts/step-flow-live";
 import { StreamStatusCard } from "./tool-parts/stream-status-card";
 import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
+import { SubgraphSyncLive } from "./tool-parts/subgraph-sync-live";
 import { SuccessBanner } from "./tool-parts/success-banner";
 import { ToolCallIndicator } from "./tool-parts/tool-call-indicator";
 import { WorkflowTemplatesCard } from "./tool-parts/workflow-templates-card";
@@ -47,6 +49,8 @@ const HUMAN_IN_LOOP_TOOLS = new Set([
 	"deploy_workflow",
 	"edit_workflow",
 	"rollback_workflow",
+	"deploy_subgraph",
+	"edit_subgraph",
 ]);
 
 export function ToolPartRenderer({
@@ -219,6 +223,74 @@ export function ToolPartRenderer({
 							output: result,
 						});
 					}}
+				/>
+			</>
+		);
+	}
+
+	// deploy_subgraph — mirrors deploy_workflow, drives the subgraph bundle + deploy path.
+	if (state === "input-available" && toolName === "deploy_subgraph") {
+		const input = part.input as {
+			name: string;
+			code: string;
+			description: string;
+			reason?: string;
+		};
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<DeploySubgraphCard
+					name={input.name}
+					description={input.description}
+					reason={input.reason}
+					onConfirm={async (action) => {
+						if (action === "cancel") {
+							addToolOutput({
+								toolCallId: part.toolCallId,
+								output: { ok: false, cancelled: true },
+							});
+							return;
+						}
+						const result = await bundleAndDeploySubgraph({
+							code: input.code,
+						});
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output: result,
+						});
+					}}
+				/>
+			</>
+		);
+	}
+
+	// edit_subgraph — mirrors edit_workflow, renders a DiffCard and runs bundle + deploy on confirm.
+	if (state === "input-available" && toolName === "edit_subgraph") {
+		const input = part.input as {
+			name: string;
+			currentCode: string;
+			proposedCode: string;
+			summary: string;
+		};
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<EditSubgraphCardWrapper
+					input={input}
+					onResult={(output) =>
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output,
+						})
+					}
 				/>
 			</>
 		);
@@ -493,6 +565,86 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			const o = output as { name?: string; runId?: string };
 			if (!o.name || !o.runId) return null;
 			return <StepFlowLive workflowName={o.name} runId={o.runId} />;
+		}
+
+		case "tail_subgraph_sync": {
+			if ((output as { error?: boolean }).error) return null;
+			const o = output as { name?: string };
+			if (!o.name) return null;
+			return <SubgraphSyncLive name={o.name} />;
+		}
+
+		case "deploy_subgraph": {
+			const o = output as {
+				ok?: boolean;
+				cancelled?: boolean;
+				name?: string;
+				version?: string;
+				error?: string;
+			};
+			if (!o.ok) {
+				return (
+					<SuccessBanner
+						tone={o.cancelled ? "info" : "error"}
+						message={
+							o.cancelled ? "Deploy cancelled" : (o.error ?? "Deploy failed")
+						}
+					/>
+				);
+			}
+			if (!o.name) return null;
+			return (
+				<SuccessBanner
+					message={`Deployed ${o.name}${o.version ? ` → v${o.version}` : ""}`}
+				/>
+			);
+		}
+
+		case "edit_subgraph": {
+			const o = output as {
+				ok?: boolean;
+				cancelled?: boolean;
+				name?: string;
+				version?: string;
+				error?: string;
+			};
+			if (!o.ok) {
+				return (
+					<SuccessBanner
+						tone={o.cancelled ? "info" : "error"}
+						message={
+							o.cancelled ? "Edit cancelled" : (o.error ?? "Edit failed")
+						}
+					/>
+				);
+			}
+			if (!o.name) return null;
+			return (
+				<SuccessBanner
+					message={`Updated ${o.name}${o.version ? ` → v${o.version}` : ""}`}
+				/>
+			);
+		}
+
+		case "read_subgraph": {
+			if ((output as { error?: boolean }).error) return null;
+			if ((output as { readOnly?: boolean }).readOnly) {
+				const o = output as { name?: string; reason?: string };
+				return (
+					<SuccessBanner
+						message={`${o.name ?? "Subgraph"} is read-only — ${o.reason ?? "redeploy via CLI to enable chat edits"}`}
+					/>
+				);
+			}
+			const o = output as {
+				sourceCode?: string;
+				html?: string;
+				filename?: string;
+			};
+			if (!o.sourceCode) return null;
+			return (
+				<CodeCard code={o.sourceCode} html={o.html} filename={o.filename} />
+			);
 		}
 
 		case "read_workflow": {
@@ -858,6 +1010,214 @@ async function bundleAndDeployWorkflow(input: {
 			error: err instanceof Error ? err.message : String(err),
 		};
 	}
+}
+
+type BundleSubgraphResult = {
+	ok: boolean;
+	name?: string;
+	version?: string | null;
+	description?: string | null;
+	sources?: Record<string, Record<string, unknown>>;
+	schema?: Record<string, unknown>;
+	handlerCode?: string;
+	sourceCode?: string;
+	error?: string;
+	actualBytes?: number;
+	maxBytes?: number;
+};
+
+type DeploySubgraphResponse = {
+	action: "created" | "unchanged" | "updated" | "reindexed";
+	subgraphId: string;
+	version: string;
+	message: string;
+};
+
+/**
+ * Mirrors bundleAndDeployWorkflow: bundle via the Hetzner-backed session
+ * proxy, then POST the bundled handler + extracted metadata to
+ * /api/subgraphs. Sends x-sl-origin: session so telemetry matches the
+ * workflow chat flow.
+ */
+async function bundleAndDeploySubgraph(input: { code: string }): Promise<{
+	ok: boolean;
+	name?: string;
+	version?: string;
+	subgraphId?: string;
+	error?: string;
+}> {
+	let bundled: BundleSubgraphResult;
+	try {
+		const bundleRes = await fetch("/api/sessions/bundle-subgraph", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "same-origin",
+			body: JSON.stringify({ code: input.code }),
+		});
+		bundled = (await bundleRes.json()) as BundleSubgraphResult;
+		if (!bundleRes.ok || !bundled.ok) {
+			return {
+				ok: false,
+				error: bundled.error ?? `Bundle failed (HTTP ${bundleRes.status})`,
+			};
+		}
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+
+	if (
+		!bundled.name ||
+		!bundled.handlerCode ||
+		!bundled.sources ||
+		!bundled.schema
+	) {
+		return { ok: false, error: "Bundler returned an incomplete response" };
+	}
+
+	try {
+		const deployRes = await fetch("/api/subgraphs", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"x-sl-origin": "session",
+			},
+			credentials: "same-origin",
+			body: JSON.stringify({
+				name: bundled.name,
+				version: bundled.version ?? undefined,
+				description: bundled.description ?? undefined,
+				sources: bundled.sources,
+				schema: bundled.schema,
+				handlerCode: bundled.handlerCode,
+				sourceCode: bundled.sourceCode,
+			}),
+		});
+		const deployBody = (await deployRes.json()) as
+			| DeploySubgraphResponse
+			| { error?: string | Record<string, unknown> };
+		if (!deployRes.ok) {
+			const rawErr = (deployBody as { error?: unknown }).error;
+			const msg =
+				typeof rawErr === "string"
+					? rawErr
+					: rawErr
+						? JSON.stringify(rawErr)
+						: `Deploy failed (HTTP ${deployRes.status})`;
+			return { ok: false, error: msg };
+		}
+		const ok = deployBody as DeploySubgraphResponse;
+		return {
+			ok: true,
+			name: bundled.name,
+			version: ok.version,
+			subgraphId: ok.subgraphId,
+		};
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+type EditSubgraphInput = {
+	name: string;
+	currentCode: string;
+	proposedCode: string;
+	summary: string;
+};
+
+type EditSubgraphResult = {
+	ok: boolean;
+	cancelled?: boolean;
+	name?: string;
+	version?: string;
+	error?: string;
+};
+
+async function fetchSubgraphDiff(
+	input: EditSubgraphInput,
+): Promise<WorkflowDiff> {
+	const res = await fetch("/api/sessions/diff-subgraph", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		credentials: "same-origin",
+		body: JSON.stringify({
+			name: input.name,
+			currentCode: input.currentCode,
+			proposedCode: input.proposedCode,
+		}),
+	});
+	if (!res.ok) {
+		throw new Error(`Diff failed (HTTP ${res.status})`);
+	}
+	return (await res.json()) as WorkflowDiff;
+}
+
+function EditSubgraphCardWrapper({
+	input,
+	onResult,
+}: {
+	input: EditSubgraphInput;
+	onResult: (result: EditSubgraphResult) => void;
+}) {
+	const [hunks, setHunks] = useState<DiffHunkType[] | null>(null);
+	const [added, setAdded] = useState(0);
+	const [removed, setRemoved] = useState(0);
+	const [busy, setBusy] = useState(false);
+	const [errorText, setErrorText] = useState<string | undefined>();
+
+	useState(() => {
+		void (async () => {
+			try {
+				const diff = await fetchSubgraphDiff(input);
+				setHunks(diff.hunks);
+				setAdded(diff.added);
+				setRemoved(diff.removed);
+			} catch (err) {
+				setErrorText(err instanceof Error ? err.message : String(err));
+				setHunks([]);
+			}
+		})();
+	});
+
+	if (hunks === null) {
+		return <div className="tool-card-loading">Computing diff…</div>;
+	}
+
+	return (
+		<DiffCard
+			name={input.name}
+			summary={input.summary}
+			hunks={hunks}
+			added={added}
+			removed={removed}
+			busy={busy}
+			errorText={errorText}
+			onCancel={() => onResult({ ok: false, cancelled: true })}
+			onConfirm={async () => {
+				setBusy(true);
+				setErrorText(undefined);
+				const result = await bundleAndDeploySubgraph({
+					code: input.proposedCode,
+				});
+				setBusy(false);
+				if (!result.ok) {
+					setErrorText(result.error);
+					onResult({ ok: false, error: result.error });
+					return;
+				}
+				onResult({
+					ok: true,
+					name: result.name,
+					version: result.version,
+				});
+			}}
+		/>
+	);
 }
 
 function DeploySuccessCardWrapper({
