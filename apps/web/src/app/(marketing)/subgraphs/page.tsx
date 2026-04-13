@@ -14,6 +14,7 @@ const toc: TocItem[] = [
 	{ label: "Typed client", href: "#typed-client" },
 	{ label: "Search", href: "#search" },
 	{ label: "Deploy", href: "#deploy" },
+	{ label: "Chat authoring", href: "#chat-authoring" },
 	{ label: "Props", href: "#props" },
 ];
 
@@ -332,6 +333,62 @@ sl subgraphs reindex token-transfers --from 150000 --to 160000
 # Scaffold a subgraph from a deployed contract's ABI
 sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts`}
 				/>
+
+				<SectionHeading id="chat-authoring">Chat authoring</SectionHeading>
+
+				<div className="prose">
+					<p>
+						The full scaffold → deploy → read → edit → tail loop runs in chat,
+						without leaving the browser. A user describes a contract they want
+						to index; the agent calls <code>scaffold_subgraph</code> with the{" "}
+						<code>contractId</code>, fetches the ABI, emits a{" "}
+						<code>defineSubgraph()</code> skeleton, and pauses for confirmation.
+						On deploy, the server bundles the TypeScript with esbuild (via{" "}
+						<code>POST /api/subgraphs/bundle</code>), validates the definition,
+						and persists both the bundled handler and the original source so the
+						agent can read and edit it later.
+					</p>
+					<p>
+						Editing works the same way as workflows: the agent calls{" "}
+						<code>read_subgraph</code> to fetch the deployed TypeScript from{" "}
+						<code>GET /api/subgraphs/:name/source</code>, proposes a diff via{" "}
+						<code>edit_subgraph</code>, and the client renders a unified diff
+						card backed by the shared <code>buildUnifiedDiff</code> helper.
+						Confirming re-bundles and redeploys through the same chat origin.
+						Subgraphs deployed before source capture land in the DB with{" "}
+						<code>source_code = NULL</code> and come back as{" "}
+						<code>{"{ readOnly: true }"}</code> — those need a CLI redeploy once
+						before they're chat-editable.
+					</p>
+					<p>
+						<strong>Reindex semantics.</strong> When an edit touches schema
+						columns or sources, the server's schema diff detects a breaking
+						change and kicks off an automatic reindex from the subgraph's{" "}
+						<code>startBlock</code>. The chat instructions make the agent warn
+						the user before confirming any edit that will drop and repopulate
+						rows.
+					</p>
+					<p>
+						After deploy, <code>tail_subgraph_sync</code> polls{" "}
+						<code>GET /api/subgraphs/:name</code> every two seconds and shows a
+						live progress bar against the chain tip, stopping when the subgraph
+						catches up. The platform dashboard also has an{" "}
+						<strong>Open in chat</strong> button on every subgraph detail page —
+						it seeds a new session with a <code>read_subgraph</code> prompt so
+						you can jump from the UI straight into the authoring loop.
+					</p>
+					<p>
+						Chat session tools: <code>scaffold_subgraph</code>,{" "}
+						<code>deploy_subgraph</code>, <code>read_subgraph</code>,{" "}
+						<code>edit_subgraph</code>, <code>tail_subgraph_sync</code>,{" "}
+						<code>check_subgraphs</code>, <code>query_subgraph</code>,{" "}
+						<code>manage_subgraphs</code>. MCP equivalents for external agents
+						(Claude Desktop, Inspector): <code>subgraphs_deploy</code>,{" "}
+						<code>subgraphs_read_source</code>, <code>subgraphs_list</code>,{" "}
+						<code>subgraphs_get</code>, <code>subgraphs_query</code>,{" "}
+						<code>subgraphs_reindex</code>, <code>subgraphs_delete</code>.
+					</p>
+				</div>
 
 				<SectionHeading id="props">Props</SectionHeading>
 

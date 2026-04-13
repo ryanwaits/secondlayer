@@ -187,6 +187,19 @@ sl subgraphs delete token-transfers`}
 						— any deploy from the CLI is immediately editable in chat. Every
 						update bumps the stored patch version automatically.
 					</p>
+					<p>
+						Subgraph deploys now store source the same way. The API runs the
+						bundler server-side through <code>POST /api/subgraphs/bundle</code>,
+						persists the original TypeScript in a new{" "}
+						<code>subgraphs.source_code</code> column (migration{" "}
+						<code>0031</code>), and exposes it via{" "}
+						<code>GET /api/subgraphs/:name/source</code>. A CLI deploy is
+						immediately editable through the chat <code>read_subgraph</code> /{" "}
+						<code>edit_subgraph</code> tools and through the MCP{" "}
+						<code>subgraphs_read_source</code> tool for external agents.
+						Subgraphs deployed before the migration come back as{" "}
+						<code>{"{ readOnly: true }"}</code> — one CLI redeploy fixes them.
+					</p>
 				</div>
 
 				<CodeBlock

@@ -165,6 +165,14 @@ await client.subgraphs.reindex("token-transfers", {
   toBlock: 160_000,
 })
 
+// Bundle TypeScript source on the server (no local esbuild required)
+const bundled = await client.subgraphs.bundle({ code: tsSource })
+// → { name, version, sources, schema, handlerCode, sourceCode, bundleSize }
+
+// Read the stored TypeScript source (powers chat read/edit loop)
+const source = await client.subgraphs.getSource("token-transfers")
+if (source.readOnly) console.log(source.reason) // pre-capture rows return readOnly
+
 // Delete subgraph and all data
 await client.subgraphs.delete("token-transfers")`}
 				/>

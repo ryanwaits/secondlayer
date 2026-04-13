@@ -13,6 +13,7 @@ const toc: TocItem[] = [
 	{ label: "Management", href: "#management" },
 	{ label: "Replay", href: "#replay" },
 	{ label: "CLI", href: "#cli" },
+	{ label: "Chat authoring", href: "#chat-authoring" },
 	{ label: "Props", href: "#props" },
 ];
 
@@ -307,6 +308,64 @@ sl streams replay a1b2c3 --start 150000 --end 151000
 # Rotate signing secret
 sl streams rotate-secret a1b2c3`}
 				/>
+
+				<SectionHeading id="chat-authoring">Chat authoring</SectionHeading>
+
+				<div className="prose">
+					<p>
+						Unlike workflows and subgraphs, a stream is <em>not</em> TypeScript
+						source. It's a JSON config: a name, an HTTPS endpoint, a list of
+						filter objects, and optional delivery options. The chat agent
+						authors streams by emitting filter arrays, not code — the same
+						scaffold → deploy → read → edit → tail loop, adapted to structured
+						data.
+					</p>
+					<p>
+						When a user describes a trigger ("POST to{" "}
+						<code>https://example.com/hook</code> whenever sbtc mints"), the
+						agent calls <code>list_stream_filter_types</code> first — an
+						on-demand tool returning the 13 filter types with their optional
+						params and example fixtures. This keeps the system prompt lean while
+						still giving the agent full filter coverage. The agent then calls{" "}
+						<code>scaffold_stream</code>, which wraps{" "}
+						<code>generateStreamConfig()</code> from{" "}
+						<code>@secondlayer/scaffold</code>, merges default options (rate
+						limit, timeout, retries), and renders a config card. The user
+						confirms, <code>deploy_stream</code> POSTs to{" "}
+						<code>/api/streams</code>, and the success card surfaces the
+						one-time <strong>signing secret</strong> — the agent is instructed
+						to tell users "copy this now, it won't be shown again."
+					</p>
+					<p>
+						Edit works the same as workflows: <code>read_stream</code> fetches
+						the current config (resolving by name or id), the agent proposes a
+						patch via <code>edit_stream</code>, and the client renders a{" "}
+						<code>ConfigDiffCard</code> — a structural diff of filters added /
+						removed / modified plus any top-level field changes, not a
+						line-based text diff. Confirming PATCHes{" "}
+						<code>/api/streams/:id</code>. <code>tail_deliveries</code> polls{" "}
+						<code>GET /api/streams/:id/deliveries</code> every three seconds and
+						renders the last 20 attempts as they land.
+					</p>
+					<p>
+						The platform dashboard also has an <strong>Open in chat</strong>{" "}
+						button on every stream detail page — it seeds a new session with a{" "}
+						<code>read_stream</code> prompt so you can jump from the UI straight
+						into an edit.
+					</p>
+					<p>
+						Chat session tools: <code>scaffold_stream</code>,{" "}
+						<code>deploy_stream</code>, <code>read_stream</code>,{" "}
+						<code>edit_stream</code>, <code>tail_deliveries</code>,{" "}
+						<code>list_stream_filter_types</code>, <code>check_streams</code>,{" "}
+						<code>manage_streams</code>. MCP equivalents for external agents:{" "}
+						<code>streams_create</code>, <code>streams_update</code>,{" "}
+						<code>streams_get</code>, <code>streams_list</code>,{" "}
+						<code>streams_delete</code>, <code>streams_toggle</code>,{" "}
+						<code>streams_deliveries</code>, <code>streams_replay</code>,{" "}
+						<code>streams_rotate_secret</code>.
+					</p>
+				</div>
 
 				<SectionHeading id="props">Props</SectionHeading>
 
