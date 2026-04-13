@@ -226,6 +226,35 @@ app.get("/", async (c) => {
 	return c.json({ workflows: summaries });
 });
 
+// ── Get source ──────────────────────────────────────────────────────────
+
+app.get("/:name/source", async (c) => {
+	const keyIds = await resolveKeyIds(c);
+	const db = getDb();
+	const def = await getWorkflowDefinition(db, c.req.param("name"), keyIds);
+
+	if (!def) return c.json({ error: "Workflow not found" }, 404);
+
+	if (def.source_code === null) {
+		return c.json({
+			name: def.name,
+			version: def.version,
+			sourceCode: null,
+			readOnly: true,
+			reason: "deployed before source-capture — redeploy to enable chat edits",
+			updatedAt: def.updated_at.toISOString(),
+		});
+	}
+
+	return c.json({
+		name: def.name,
+		version: def.version,
+		sourceCode: def.source_code,
+		readOnly: false,
+		updatedAt: def.updated_at.toISOString(),
+	});
+});
+
 // ── Get ──────────────────────────────────────────────────────────────────
 
 app.get("/:name", async (c) => {
