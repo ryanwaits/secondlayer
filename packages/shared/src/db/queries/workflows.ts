@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { VersionConflictError } from "../../errors.ts";
 import { jsonb } from "../jsonb.ts";
 import type {
 	Database,
@@ -6,6 +7,23 @@ import type {
 	WorkflowRun,
 	WorkflowStep,
 } from "../types.ts";
+
+function bumpPatch(version: string): string {
+	const parts = version.split(".");
+	if (parts.length !== 3) return "1.0.1";
+	const [major, minor, patch] = parts.map((p) => Number.parseInt(p, 10));
+	if (
+		Number.isNaN(major) ||
+		Number.isNaN(minor) ||
+		Number.isNaN(patch) ||
+		major === undefined ||
+		minor === undefined ||
+		patch === undefined
+	) {
+		return "1.0.1";
+	}
+	return `${major}.${minor}.${patch + 1}`;
+}
 
 // ── Definitions ──────────────────────────────────────────────────────
 
@@ -54,38 +72,63 @@ export async function upsertWorkflowDefinition(
 		projectId?: string;
 		retriesConfig?: Record<string, unknown>;
 		timeoutMs?: number;
-		version?: string;
+		sourceCode?: string;
+		expectedVersion?: string;
 	},
 ): Promise<WorkflowDefinition> {
+	const existing = await db
+		.selectFrom("workflow_definitions")
+		.selectAll()
+		.where("name", "=", data.name)
+		.where("api_key_id", "=", data.apiKeyId)
+		.executeTakeFirst();
+
+	if (existing) {
+		if (
+			data.expectedVersion !== undefined &&
+			existing.version !== data.expectedVersion
+		) {
+			throw new VersionConflictError(existing.version, data.expectedVersion);
+		}
+
+		const nextVersion = bumpPatch(existing.version);
+
+		return await db
+			.updateTable("workflow_definitions")
+			.set({
+				trigger_type: data.triggerType,
+				trigger_config: jsonb(data.triggerConfig) as unknown as string,
+				handler_path: data.handlerPath,
+				source_code: data.sourceCode ?? existing.source_code,
+				retries_config: data.retriesConfig
+					? (jsonb(data.retriesConfig) as unknown as string)
+					: null,
+				timeout_ms: data.timeoutMs ?? null,
+				version: nextVersion,
+				status: "active",
+				updated_at: new Date(),
+			})
+			.where("id", "=", existing.id)
+			.returningAll()
+			.executeTakeFirstOrThrow();
+	}
+
 	return await db
 		.insertInto("workflow_definitions")
 		.values({
 			name: data.name,
 			trigger_type: data.triggerType,
-			trigger_config: jsonb(data.triggerConfig) as any,
+			trigger_config: jsonb(data.triggerConfig) as unknown as string,
 			handler_path: data.handlerPath,
+			source_code: data.sourceCode ?? null,
 			api_key_id: data.apiKeyId,
 			project_id: data.projectId ?? null,
 			retries_config: data.retriesConfig
-				? (jsonb(data.retriesConfig) as any)
+				? (jsonb(data.retriesConfig) as unknown as string)
 				: null,
 			timeout_ms: data.timeoutMs ?? null,
-			version: data.version ?? "1.0.0",
+			version: "1.0.0",
 		})
-		.onConflict((oc) =>
-			oc.columns(["name", "api_key_id"]).doUpdateSet({
-				trigger_type: data.triggerType,
-				trigger_config: jsonb(data.triggerConfig) as any,
-				handler_path: data.handlerPath,
-				retries_config: data.retriesConfig
-					? (jsonb(data.retriesConfig) as any)
-					: null,
-				timeout_ms: data.timeoutMs ?? null,
-				version: data.version ?? "1.0.0",
-				status: "active",
-				updated_at: new Date(),
-			}),
-		)
 		.returningAll()
 		.executeTakeFirstOrThrow();
 }
@@ -134,7 +177,7 @@ export async function createWorkflowRun(
 			definition_id: data.definitionId,
 			trigger_type: data.triggerType,
 			trigger_data: data.triggerData
-				? (jsonb(data.triggerData) as any)
+				? (jsonb(data.triggerData) as unknown as string)
 				: null,
 			dedup_key: data.dedupKey ?? null,
 		})

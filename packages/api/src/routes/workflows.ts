@@ -2,18 +2,18 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { getErrorMessage } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import {
-	listWorkflowDefinitions,
-	getWorkflowDefinition,
-	upsertWorkflowDefinition,
-	updateWorkflowStatus,
-	deleteWorkflowDefinition,
-	createWorkflowRun,
-	getWorkflowRun,
-	listWorkflowRuns,
-	getWorkflowSteps,
-} from "@secondlayer/shared/db/queries/workflows";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
+import {
+	createWorkflowRun,
+	deleteWorkflowDefinition,
+	getWorkflowDefinition,
+	getWorkflowRun,
+	getWorkflowSteps,
+	listWorkflowDefinitions,
+	listWorkflowRuns,
+	updateWorkflowStatus,
+	upsertWorkflowDefinition,
+} from "@secondlayer/shared/db/queries/workflows";
 import { DeployWorkflowRequestSchema } from "@secondlayer/shared/schemas/workflows";
 import { Hono } from "hono";
 import { getApiKeyId, resolveKeyIds } from "../lib/ownership.ts";
@@ -53,16 +53,10 @@ app.post("/", async (c) => {
 		const mod = await import(handlerPath);
 		const def = mod.default ?? mod;
 		if (!def.trigger || !def.handler) {
-			return c.json(
-				{ error: "Workflow must export trigger and handler" },
-				400,
-			);
+			return c.json({ error: "Workflow must export trigger and handler" }, 400);
 		}
 	} catch (err) {
-		return c.json(
-			{ error: `Invalid handler: ${getErrorMessage(err)}` },
-			400,
-		);
+		return c.json({ error: `Invalid handler: ${getErrorMessage(err)}` }, 400);
 	}
 
 	const trigger = parsed.trigger as Record<string, unknown>;
@@ -77,6 +71,8 @@ app.post("/", async (c) => {
 		apiKeyId,
 		retriesConfig: parsed.retries as Record<string, unknown> | undefined,
 		timeoutMs: parsed.timeout,
+		sourceCode: parsed.sourceCode,
+		expectedVersion: parsed.expectedVersion,
 	});
 
 	// Handle schedule trigger — upsert workflow_schedules
@@ -108,7 +104,8 @@ app.post("/", async (c) => {
 			.execute();
 	}
 
-	const isNew = definition.created_at.getTime() === definition.updated_at.getTime();
+	const isNew =
+		definition.created_at.getTime() === definition.updated_at.getTime();
 
 	return c.json({
 		action: isNew ? "created" : "updated",
@@ -196,7 +193,8 @@ app.post("/:name/trigger", async (c) => {
 	const def = await getWorkflowDefinition(db, c.req.param("name"), keyIds);
 
 	if (!def) return c.json({ error: "Workflow not found" }, 404);
-	if (def.status !== "active") return c.json({ error: "Workflow is not active" }, 400);
+	if (def.status !== "active")
+		return c.json({ error: "Workflow is not active" }, 400);
 
 	let input: Record<string, unknown> = {};
 	try {
@@ -257,7 +255,9 @@ app.post("/:name/resume", async (c) => {
 
 	// Re-enable schedule if exists
 	if (def.trigger_type === "schedule") {
-		const trigger = parseJsonb<{ cron: string; timezone?: string }>(def.trigger_config);
+		const trigger = parseJsonb<{ cron: string; timezone?: string }>(
+			def.trigger_config,
+		);
 		if (trigger?.cron) {
 			const { CronExpressionParser } = await import("cron-parser");
 			const timezone = trigger.timezone ?? "UTC";
@@ -312,7 +312,11 @@ app.get("/:name/runs", async (c) => {
 	const limit = Number.parseInt(c.req.query("limit") ?? "20", 10);
 	const offset = Number.parseInt(c.req.query("offset") ?? "0", 10);
 
-	const runs = await listWorkflowRuns(db, def.id, { status: status || undefined, limit, offset });
+	const runs = await listWorkflowRuns(db, def.id, {
+		status: status || undefined,
+		limit,
+		offset,
+	});
 
 	return c.json({
 		runs: runs.map((r) => ({

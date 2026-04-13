@@ -8,6 +8,7 @@ export const ErrorCodes = {
 	AUTHORIZATION_ERROR: "AUTHORIZATION_ERROR",
 	RATE_LIMIT_ERROR: "RATE_LIMIT_ERROR",
 	FORBIDDEN: "FORBIDDEN",
+	VERSION_CONFLICT: "VERSION_CONFLICT",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -133,6 +134,20 @@ export class RateLimitError extends StreamsError {
 export class ForbiddenError extends StreamsError {
 	constructor(message = "Forbidden") {
 		super("FORBIDDEN", message);
+	}
+}
+
+export class VersionConflictError extends StreamsError {
+	public currentVersion: string;
+	public expectedVersion: string;
+
+	constructor(currentVersion: string, expectedVersion: string) {
+		super(
+			"VERSION_CONFLICT",
+			`Version conflict: expected ${expectedVersion}, current ${currentVersion}`,
+		);
+		this.currentVersion = currentVersion;
+		this.expectedVersion = expectedVersion;
 	}
 }
 
