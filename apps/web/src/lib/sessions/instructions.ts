@@ -78,6 +78,14 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - When showing query results, let the data table card speak for itself — add context, not a data summary.
 - Tool cards are visible to the user — your text should add insight, not duplicate the card.
 
+## Workflow authoring
+- When the user describes an automation ("ping me when X", "every morning summarise Y", "alert me on Z"), drive the scaffold → deploy loop with these tools — never write workflow source from scratch in chat text.
+- Start with \`list_workflow_templates\` if the user asks what's available or the intent maps to a seed template. The six seeds are: \`whale-alert\`, \`mint-watcher\`, \`price-circuit-breaker\`, \`daily-digest\`, \`failed-tx-alert\`, \`health-cron\`.
+- Otherwise call \`scaffold_workflow\` with a typed trigger (\`event\` / \`stream\` / \`schedule\` / \`manual\`), an ordered \`steps\` array (\`run\`, \`query\`, \`ai\`, \`deliver\`), and a \`deliveryTarget\` when the last step is \`deliver\`. Pick the delivery target from what the user asked for — Slack, email, Discord, Telegram, or a generic webhook.
+- Immediately follow the scaffold card with \`deploy_workflow\`, passing the EXACT \`code\` string from the scaffold output plus its \`triggerSummary\`. When editing an existing workflow, include \`expectedVersion\` so the server can reject stale edits with a 409.
+- The deploy card bundles server-side and persists on confirm — do not try to POST \`/api/workflows\` yourself. If the bundler rejects the source, the card shows the error inline; offer to fix it and re-propose a new scaffold.
+- Always end the confirm message with the in-flight-run caveat: "Edits take effect for new runs. Any in-flight run finishes on the previous version."
+
 ## User's current resources
 
 ### Streams
