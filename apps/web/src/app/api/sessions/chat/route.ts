@@ -68,11 +68,13 @@ export async function POST(req: Request) {
 						"check_usage",
 						"check_keys",
 						"check_insights",
+						"check_workflows",
 						"query_subgraph",
 						"lookup_docs",
 						"recall_sessions",
 						"diagnose",
 						"show_code",
+						"scaffold_workflow",
 					],
 				};
 			}

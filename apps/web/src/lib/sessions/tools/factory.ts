@@ -11,6 +11,7 @@ import { createCheckStreams } from "./check-streams";
 import { createCheckSubgraphs } from "./check-subgraphs";
 import { createCheckUsage } from "./check-usage";
 import { createCheckWorkflows } from "./check-workflows";
+import { deployWorkflow } from "./deploy-workflow";
 import { createDiagnose } from "./diagnose";
 import { lookupDocs } from "./lookup-docs";
 import { manageKeys } from "./manage-keys";
@@ -20,6 +21,7 @@ import { manageWorkflows } from "./manage-workflows";
 import { createQuerySubgraph } from "./query-subgraph";
 import { createRecallSessions } from "./recall-sessions";
 import { createScaffoldSubgraph } from "./scaffold-subgraph";
+import { createScaffoldWorkflow } from "./scaffold-workflow";
 import { showCode } from "./show-code";
 
 export interface AccountResources {
@@ -72,6 +74,8 @@ export function createSessionTools(
 		check_workflows: createCheckWorkflows(sessionToken),
 		manage_workflows: manageWorkflows,
 		scaffold_subgraph: createScaffoldSubgraph(),
+		scaffold_workflow: createScaffoldWorkflow(),
+		deploy_workflow: deployWorkflow,
 		lookup_docs: lookupDocs,
 		diagnose: createDiagnose(resources),
 		recall_sessions: createRecallSessions(sessionToken),
