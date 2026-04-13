@@ -1,7 +1,4 @@
-import type {
-	WorkflowRun,
-	WorkflowRunStatus,
-} from "@secondlayer/workflows";
+import type { WorkflowRun, WorkflowRunStatus } from "@secondlayer/workflows";
 import { BaseClient } from "../base.ts";
 
 export interface WorkflowSummary {
@@ -35,6 +32,8 @@ export class Workflows extends BaseClient {
 		name: string;
 		trigger: Record<string, unknown>;
 		handlerCode: string;
+		sourceCode?: string;
+		expectedVersion?: string;
 		retries?: Record<string, unknown>;
 		timeout?: number;
 	}): Promise<{ action: string; workflowId: string; message: string }> {
@@ -53,7 +52,11 @@ export class Workflows extends BaseClient {
 		name: string,
 		input?: Record<string, unknown>,
 	): Promise<{ runId: string }> {
-		return this.request("POST", `/api/workflows/${name}/trigger`, input ? { input } : undefined);
+		return this.request(
+			"POST",
+			`/api/workflows/${name}/trigger`,
+			input ? { input } : undefined,
+		);
 	}
 
 	async pause(name: string): Promise<void> {
@@ -76,7 +79,10 @@ export class Workflows extends BaseClient {
 		if (params?.status) qs.set("status", params.status);
 		if (params?.limit !== undefined) qs.set("limit", String(params.limit));
 		const query = qs.toString();
-		return this.request("GET", `/api/workflows/${name}/runs${query ? `?${query}` : ""}`);
+		return this.request(
+			"GET",
+			`/api/workflows/${name}/runs${query ? `?${query}` : ""}`,
+		);
 	}
 
 	async getRun(runId: string): Promise<WorkflowRun> {

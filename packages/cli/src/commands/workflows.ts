@@ -74,26 +74,18 @@ export function registerWorkflowsCommand(program: Command): void {
 					// ── Remote deploy ──────────────────────────────────────
 					info(`Bundling for remote deploy (${config.network})...`);
 
-					const esbuild = await import("esbuild");
-					const buildResult = await esbuild.build({
-						entryPoints: [absPath],
-						bundle: true,
-						platform: "node",
-						format: "esm",
-						external: ["@secondlayer/workflows"],
-						write: false,
-					});
-
-					const handlerCode = new TextDecoder().decode(
-						buildResult.outputFiles?.[0]?.contents,
-					);
+					const { readFile } = await import("node:fs/promises");
+					const source = await readFile(absPath, "utf8");
+					const { bundleWorkflowCode } = await import("@secondlayer/bundler");
+					const bundled = await bundleWorkflowCode(source);
 
 					const deployResult = await getClient().workflows.deploy({
-						name: def.name,
-						trigger: def.trigger,
-						handlerCode,
-						retries: def.retries,
-						timeout: def.timeout,
+						name: bundled.name,
+						trigger: bundled.trigger as unknown as Record<string, unknown>,
+						handlerCode: bundled.handlerCode,
+						sourceCode: bundled.sourceCode,
+						retries: bundled.retries as Record<string, unknown> | undefined,
+						timeout: bundled.timeout,
 					});
 
 					if (deployResult.action === "unchanged") {
