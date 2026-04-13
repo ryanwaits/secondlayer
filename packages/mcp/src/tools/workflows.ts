@@ -37,6 +37,32 @@ export function registerWorkflowTools(server: McpServer) {
 		},
 	);
 
+	defineTool<{ name: string }>(
+		server,
+		"workflows_get_definition",
+		"Return the deployed TypeScript source of a workflow plus its stored version. Returns `sourceCode: null` + `readOnly: true` for workflows deployed before source capture.",
+		{ name: z.string().describe("Workflow name") },
+		async ({ name }) => {
+			const source = await getClient().workflows.getSource(name);
+			return {
+				content: [{ type: "text", text: JSON.stringify(source, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ name: string }>(
+		server,
+		"workflows_delete",
+		"Delete a workflow permanently.",
+		{ name: z.string().describe("Workflow name") },
+		async ({ name }) => {
+			await getClient().workflows.delete(name);
+			return {
+				content: [{ type: "text", text: `Deleted workflow "${name}"` }],
+			};
+		},
+	);
+
 	defineTool<{ name: string; input?: string }>(
 		server,
 		"workflows_trigger",
