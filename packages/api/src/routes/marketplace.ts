@@ -13,6 +13,7 @@ import {
 } from "@secondlayer/shared/db/queries/marketplace";
 import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
+import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import {
@@ -30,7 +31,7 @@ const app = new Hono();
 
 async function query(text: string, params: unknown[] = []) {
 	const client = getRawClient();
-	return client.unsafe(text, params);
+	return client.unsafe(text, params as never[]);
 }
 
 // ── Browse public subgraphs ─────────────────────────────────────────────
@@ -379,10 +380,10 @@ app.post("/subgraphs/:name/fork", requireAuth(), async (c) => {
 	}
 
 	// Import the copied handler to get definition
-	let def: Record<string, unknown>;
+	let def: SubgraphDefinition;
 	try {
 		const mod = await import(`${newHandlerPath}?t=${Date.now()}`);
-		def = (mod.default ?? mod) as Record<string, unknown>;
+		def = (mod.default ?? mod) as SubgraphDefinition;
 	} catch (err) {
 		return c.json(
 			{ error: `Failed to load handler: ${getErrorMessage(err)}` },

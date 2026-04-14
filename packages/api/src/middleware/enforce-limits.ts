@@ -46,8 +46,11 @@ export function enforceLimits(
 
 			const limitKey = limitKeyMap[result.exceeded] ?? result.exceeded;
 			const currentKey = currentKeyMap[result.exceeded] ?? result.exceeded;
-			const limitsRecord = result.limits as Record<string, number | undefined>;
-			const currentRecord = result.current as Record<
+			const limitsRecord = result.limits as unknown as Record<
+				string,
+				number | undefined
+			>;
+			const currentRecord = result.current as unknown as Record<
 				string,
 				number | undefined
 			>;
