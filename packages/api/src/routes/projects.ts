@@ -1,17 +1,17 @@
+import crypto from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
 import {
-	getProjectsByAccount,
 	getProjectBySlug,
-	getTeamMembers,
+	getProjectsByAccount,
 	getTeamInvitations,
+	getTeamMembers,
 } from "@secondlayer/shared/db/queries/projects";
 import { AuthenticationError } from "@secondlayer/shared/errors";
-import { Hono } from "hono";
-import crypto from "node:crypto";
+import { type Context, Hono } from "hono";
 
 const app = new Hono();
 
-function requireAccountId(c: any): string {
+function requireAccountId(c: Context): string {
 	const accountId = c.get("accountId") as string | undefined;
 	if (!accountId) throw new AuthenticationError("Not authenticated");
 	return accountId;
@@ -23,7 +23,7 @@ app.get("/", async (c) => {
 	const db = getDb();
 	const projects = await getProjectsByAccount(db, accountId);
 	return c.json({
-		projects: projects.map((p: any) => ({
+		projects: projects.map((p) => ({
 			id: p.id,
 			name: p.name,
 			slug: p.slug,
@@ -89,14 +89,17 @@ app.post("/", async (c) => {
 		})
 		.execute();
 
-	return c.json({
-		id: project.id,
-		name: project.name,
-		slug: project.slug,
-		network: project.network,
-		nodeRpc: project.node_rpc,
-		createdAt: project.created_at.toISOString(),
-	}, 201);
+	return c.json(
+		{
+			id: project.id,
+			name: project.name,
+			slug: project.slug,
+			network: project.network,
+			nodeRpc: project.node_rpc,
+			createdAt: project.created_at.toISOString(),
+		},
+		201,
+	);
 });
 
 // PATCH /api/projects/:slug — update project
@@ -119,7 +122,8 @@ app.patch("/:slug", async (c) => {
 	}
 	if (body.network !== undefined) updates.network = body.network;
 	if (body.nodeRpc !== undefined) updates.node_rpc = body.nodeRpc;
-	if (body.settings !== undefined) updates.settings = JSON.stringify(body.settings);
+	if (body.settings !== undefined)
+		updates.settings = JSON.stringify(body.settings);
 
 	if (Object.keys(updates).length === 0) {
 		return c.json({ error: "No fields to update" }, 400);
@@ -177,7 +181,7 @@ app.get("/:slug/team", async (c) => {
 	]);
 
 	return c.json({
-		members: members.map((m: any) => ({
+		members: members.map((m) => ({
 			id: m.id,
 			role: m.role,
 			email: m.email,
@@ -185,7 +189,7 @@ app.get("/:slug/team", async (c) => {
 			avatarUrl: m.avatar_url,
 			createdAt: m.created_at.toISOString(),
 		})),
-		invitations: invitations.map((i: any) => ({
+		invitations: invitations.map((i) => ({
 			id: i.id,
 			email: i.email,
 			role: i.role,
@@ -222,12 +226,15 @@ app.post("/:slug/team/invite", async (c) => {
 		.returningAll()
 		.executeTakeFirstOrThrow();
 
-	return c.json({
-		id: invitation.id,
-		email: invitation.email,
-		role: invitation.role,
-		expiresAt: invitation.expires_at.toISOString(),
-	}, 201);
+	return c.json(
+		{
+			id: invitation.id,
+			email: invitation.email,
+			role: invitation.role,
+			expiresAt: invitation.expires_at.toISOString(),
+		},
+		201,
+	);
 });
 
 // DELETE /api/projects/:slug/team/:memberId — remove member
@@ -248,7 +255,8 @@ app.delete("/:slug/team/:memberId", async (c) => {
 		.executeTakeFirst();
 
 	if (!member) return c.json({ error: "Member not found" }, 404);
-	if (member.role === "owner") return c.json({ error: "Cannot remove owner" }, 400);
+	if (member.role === "owner")
+		return c.json({ error: "Cannot remove owner" }, 400);
 
 	await db.deleteFrom("team_members").where("id", "=", memberId).execute();
 	return c.json({ ok: true });

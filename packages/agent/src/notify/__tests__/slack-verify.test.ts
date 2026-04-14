@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createHmac } from "crypto";
+import { createHmac } from "node:crypto";
 import { verifySlackSignature } from "../slack-verify.ts";
 
 const SECRET = "test_signing_secret_12345";
@@ -9,10 +9,7 @@ function makeSignature(
 	timestamp: string,
 	body: string,
 ): string {
-	return (
-		"v0=" +
-		createHmac("sha256", secret).update(`v0:${timestamp}:${body}`).digest("hex")
-	);
+	return `v0=${createHmac("sha256", secret).update(`v0:${timestamp}:${body}`).digest("hex")}`;
 }
 
 function nowTimestamp(): string {

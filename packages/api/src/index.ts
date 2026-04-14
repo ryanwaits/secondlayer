@@ -9,10 +9,12 @@ import { closeDb, getDb } from "@secondlayer/shared/db";
 // API service - REST API for stream management
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { requireAdmin } from "./middleware/admin.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import { countApiRequests } from "./middleware/usage.ts";
 import accountsRouter from "./routes/accounts.ts";
+import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
 import insightsRouter from "./routes/insights.ts";
@@ -30,8 +32,6 @@ import subgraphsRouter, {
 } from "./routes/subgraphs.ts";
 import waitlistRouter from "./routes/waitlist.ts";
 import workflowsRouter from "./routes/workflows.ts";
-import adminRouter from "./routes/admin.ts";
-import { requireAdmin } from "./middleware/admin.ts";
 
 const app = new Hono();
 

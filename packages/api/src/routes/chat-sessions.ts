@@ -1,9 +1,9 @@
 import { getDb } from "@secondlayer/shared/db";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 
 const app = new Hono();
 
-function requireAccountId(c: any): string {
+function requireAccountId(c: Context): string {
 	const accountId = c.get("accountId") as string | undefined;
 	if (!accountId) {
 		throw new Error("Not authenticated");

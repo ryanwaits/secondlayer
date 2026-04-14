@@ -58,7 +58,7 @@ describe("snapshots", () => {
 
 		const snap = getLatestSnapshot(db);
 		expect(snap).not.toBeNull();
-		expect(snap!.disk).toBe('{"usedPct":45}');
+		expect(snap?.disk).toBe('{"usedPct":45}');
 	});
 });
 
@@ -93,8 +93,8 @@ describe("getUnresolvedAlertForService", () => {
 
 		const alert = getUnresolvedAlertForService(db, "indexer");
 		expect(alert).not.toBeNull();
-		expect(alert!.id).toBe(id);
-		expect(alert!.slackTs).toBe("1234567890.123456");
+		expect(alert?.id).toBe(id);
+		expect(alert?.slackTs).toBe("1234567890.123456");
 	});
 
 	test("returns null after resolve", () => {

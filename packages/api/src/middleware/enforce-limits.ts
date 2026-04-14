@@ -1,7 +1,7 @@
 import { getDb } from "@secondlayer/shared/db";
 import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
 import { checkLimits } from "@secondlayer/shared/db/queries/usage";
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 
 /**
  * Enforce free tier limits on mutation endpoints.
@@ -11,13 +11,13 @@ import type { MiddlewareHandler } from "hono";
 export function enforceLimits(
 	resource?: "streams" | "subgraphs",
 ): MiddlewareHandler {
-	return async (c, next) => {
+	return async (c: Context, next) => {
 		if (process.env.DEV_MODE === "true") {
 			await next();
 			return;
 		}
 
-		const accountId = (c as any).get("accountId") as string | undefined;
+		const accountId = c.get("accountId") as string | undefined;
 		if (!accountId) {
 			await next();
 			return;
@@ -32,7 +32,7 @@ export function enforceLimits(
 
 		const result = await checkLimits(db, accountId, account.plan);
 
-		if (!result.allowed) {
+		if (!result.allowed && result.exceeded) {
 			// If a specific resource is requested, only block if that resource is exceeded
 			if (resource && result.exceeded !== resource) {
 				await next();
@@ -44,16 +44,20 @@ export function enforceLimits(
 				return;
 			}
 
+			const limitKey = limitKeyMap[result.exceeded] ?? result.exceeded;
+			const currentKey = currentKeyMap[result.exceeded] ?? result.exceeded;
+			const limitsRecord = result.limits as Record<string, number | undefined>;
+			const currentRecord = result.current as Record<
+				string,
+				number | undefined
+			>;
+
 			return c.json(
 				{
 					error: `Plan limit exceeded: ${result.exceeded}`,
 					code: "LIMIT_EXCEEDED",
-					limit: (result.limits as any)[
-						limitKeyMap[result.exceeded!] ?? result.exceeded!
-					],
-					current: (result.current as any)[
-						currentKeyMap[result.exceeded!] ?? result.exceeded!
-					],
+					limit: limitsRecord[limitKey],
+					current: currentRecord[currentKey],
 					resource: result.exceeded,
 				},
 				429,

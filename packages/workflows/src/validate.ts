@@ -1,17 +1,17 @@
-import { z } from "zod/v4";
 import { SubgraphFilterSchema } from "@secondlayer/subgraphs/validate";
+import { z } from "zod/v4";
 import type {
+	DiscordTarget,
 	EventTrigger,
 	ManualInputField,
 	ManualTrigger,
+	McpStepOptions,
 	RetryConfig,
 	ScheduleTrigger,
 	StreamTrigger,
+	TelegramTarget,
 	WorkflowDefinition,
 	WorkflowTrigger,
-	McpStepOptions,
-	DiscordTarget,
-	TelegramTarget,
 } from "./types.ts";
 
 export const WorkflowNameSchema: z.ZodType<string> = z
@@ -86,14 +86,15 @@ export const TelegramTargetSchema: z.ZodType<TelegramTarget> = z.object({
 	parseMode: z.enum(["HTML", "Markdown"]).optional(),
 });
 
-export const WorkflowDefinitionSchema: z.ZodType<WorkflowDefinition> =
-	z.object({
+export const WorkflowDefinitionSchema: z.ZodType<WorkflowDefinition> = z.object(
+	{
 		name: WorkflowNameSchema,
 		trigger: WorkflowTriggerSchema,
 		handler: z.function(),
 		retries: RetryConfigSchema.optional(),
 		timeout: z.number().int().positive().optional(),
-	}) as unknown as z.ZodType<WorkflowDefinition>;
+	},
+) as unknown as z.ZodType<WorkflowDefinition>;
 
 /**
  * Validates a workflow definition, returning the parsed result or throwing on failure.

@@ -1,6 +1,7 @@
 import { ForbiddenError, StreamNotFoundError } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
+import type { Context } from "hono";
 import type { Kysely } from "kysely";
 
 /**
@@ -74,18 +75,18 @@ export async function assertSubgraphOwnership(
 }
 
 /** Extract api_key_id from Hono context, or undefined in DEV_MODE */
-export function getApiKeyId(c: any): string | undefined {
-	const apiKey = c.get("apiKey");
+export function getApiKeyId(c: Context): string | undefined {
+	const apiKey = c.get("apiKey") as { id: string } | undefined;
 	return apiKey?.id;
 }
 
 /** Extract account_id from Hono context, or undefined in DEV_MODE */
-export function getAccountId(c: any): string | undefined {
+export function getAccountId(c: Context): string | undefined {
 	return c.get("accountId") as string | undefined;
 }
 
 /** Resolve all active API key IDs for the current request's account. */
-export async function resolveKeyIds(c: any): Promise<string[] | undefined> {
+export async function resolveKeyIds(c: Context): Promise<string[] | undefined> {
 	const accountId = getAccountId(c);
 	if (!accountId) return undefined;
 	const ids = await getAccountKeyIds(getDb(), accountId);
@@ -108,7 +109,7 @@ export async function resolveKeyIds(c: any): Promise<string[] | undefined> {
  *   - the account has zero active API keys (caller should 403 with NO_API_KEY)
  */
 export async function resolveApiKeyIdForWrite(
-	c: any,
+	c: Context,
 ): Promise<string | undefined> {
 	const direct = getApiKeyId(c);
 	if (direct) return direct;

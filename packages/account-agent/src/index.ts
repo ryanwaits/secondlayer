@@ -226,7 +226,7 @@ function parseInsights(text: string | null): InsightOutput[] {
 		if (!Array.isArray(parsed)) return [];
 		// Basic validation
 		return parsed.filter(
-			(i: any) =>
+			(i: InsightOutput) =>
 				i.category &&
 				i.insight_type &&
 				i.severity &&

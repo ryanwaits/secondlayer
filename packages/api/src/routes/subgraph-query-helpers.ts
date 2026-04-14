@@ -120,11 +120,12 @@ export function parseQueryParams(
 		if (dotIdx > 0) {
 			const col = key.slice(0, dotIdx);
 			const op = key.slice(dotIdx + 1);
-			if (COMPARISON_OPS[op]) {
+			const comparisonOp = COMPARISON_OPS[op];
+			if (comparisonOp) {
 				if (!validColumns.has(col)) throw new InvalidColumnError(col);
 				filters.push({
 					column: col,
-					op: COMPARISON_OPS[op]!,
+					op: comparisonOp,
 					value,
 					isLike: op === "like",
 				});

@@ -15,7 +15,6 @@ import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
-import { cache } from "./subgraphs.ts";
 import {
 	InvalidColumnError,
 	buildWhereConditions,
@@ -25,19 +24,22 @@ import {
 	parseQueryParams,
 	subgraphSchemaName,
 } from "./subgraph-query-helpers.ts";
+import { cache } from "./subgraphs.ts";
 
 const app = new Hono();
 
 async function query(text: string, params: unknown[] = []) {
 	const client = getRawClient();
-	return client.unsafe(text, params as any[]);
+	return client.unsafe(text, params);
 }
 
 // ── Browse public subgraphs ─────────────────────────────────────────────
 
 app.get("/subgraphs", async (c) => {
 	const params = c.req.query();
-	const tags = params.tags ? params.tags.split(",").map((t) => t.trim()) : undefined;
+	const tags = params.tags
+		? params.tags.split(",").map((t) => t.trim())
+		: undefined;
 
 	const db = getDb();
 	const result = await listPublicSubgraphs(db, {
@@ -49,31 +51,36 @@ app.get("/subgraphs", async (c) => {
 	});
 
 	// Enrich with table names from definition
-	const data = result.data.map((row: any) => {
-		const def = row.definition as Record<string, unknown> | null;
+	const data = result.data.map((row) => {
+		const rowRecord = row as Record<string, unknown>;
+		const def = rowRecord.definition as Record<string, unknown> | null;
 		const schema = (def?.schema ?? {}) as Record<string, unknown>;
-		const startBlock = row.start_block ?? 0;
+		const startBlock = (rowRecord.start_block as number) ?? 0;
 
 		return {
-			name: row.name,
-			description: row.description,
-			tags: row.tags,
+			name: rowRecord.name as string,
+			description: rowRecord.description as string | null,
+			tags: rowRecord.tags as string[] | null,
 			creator: {
-				displayName: row.display_name,
-				slug: row.slug,
+				displayName: rowRecord.display_name as string | null,
+				slug: rowRecord.slug as string | null,
 			},
-			status: row.status,
-			version: row.version,
+			status: rowRecord.status as string,
+			version: rowRecord.version as number,
 			tables: Object.keys(schema),
-			totalQueries7d: (row as any).queries_7d ?? 0,
-			forkCount: (row as any).fork_count ?? 0,
-			forkedFrom: !!(row as any).forked_from_id,
-			totalProcessed: row.total_processed,
+			totalQueries7d: (rowRecord.queries_7d as number) ?? 0,
+			forkCount: (rowRecord.fork_count as number) ?? 0,
+			forkedFrom: !!rowRecord.forked_from_id,
+			totalProcessed: rowRecord.total_processed as number,
 			progress:
-				row.last_processed_block > startBlock
-					? Math.min(1, row.last_processed_block / Math.max(1, startBlock + 1))
+				(rowRecord.last_processed_block as number) > startBlock
+					? Math.min(
+							1,
+							(rowRecord.last_processed_block as number) /
+								Math.max(1, startBlock + 1),
+						)
 					: 0,
-			createdAt: row.created_at.toISOString(),
+			createdAt: (rowRecord.created_at as Date).toISOString(),
 		};
 	});
 
@@ -98,52 +105,59 @@ app.get("/subgraphs/:name", async (c) => {
 
 	// Fetch row counts + usage in parallel
 	const db = getDb();
-	const [countResults, usage7d, usage30d, usageDaily, creatorRow, forkedFromRow, forkCountRow] =
-		await Promise.all([
-			Promise.allSettled(
-				schemaEntries.map(([tableName]) =>
-					query(
-						`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
-					).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
-				),
+	const [
+		countResults,
+		usage7d,
+		usage30d,
+		usageDaily,
+		creatorRow,
+		forkedFromRow,
+		forkCountRow,
+	] = await Promise.all([
+		Promise.allSettled(
+			schemaEntries.map(([tableName]) =>
+				query(
+					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
+				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
 			),
-			getSubgraphQueryTotal(db, subgraph.id, 7),
-			getSubgraphQueryTotal(db, subgraph.id, 30),
-			getSubgraphUsageHistory(db, subgraph.id, 30),
-			db
-				.selectFrom("api_keys")
-				.innerJoin("accounts", "accounts.id", "api_keys.account_id")
-				.select([
-					"accounts.display_name",
-					"accounts.slug",
-					"accounts.bio",
-					"accounts.avatar_url",
-				])
-				.where("api_keys.id", "=", subgraph.api_key_id)
-				.executeTakeFirst(),
-			// Resolve forked_from_id to source name
-			subgraph.forked_from_id
-				? db
-						.selectFrom("subgraphs")
-						.select(["id", "name"])
-						.where("id", "=", subgraph.forked_from_id)
-						.executeTakeFirst()
-				: Promise.resolve(null),
-			// Count forks of this subgraph
-			db
-				.selectFrom("subgraphs")
-				.select(db.fn.countAll<number>().as("count"))
-				.where("forked_from_id", "=", subgraph.id)
-				.executeTakeFirst(),
-		]);
+		),
+		getSubgraphQueryTotal(db, subgraph.id, 7),
+		getSubgraphQueryTotal(db, subgraph.id, 30),
+		getSubgraphUsageHistory(db, subgraph.id, 30),
+		db
+			.selectFrom("api_keys")
+			.innerJoin("accounts", "accounts.id", "api_keys.account_id")
+			.select([
+				"accounts.display_name",
+				"accounts.slug",
+				"accounts.bio",
+				"accounts.avatar_url",
+			])
+			.where("api_keys.id", "=", subgraph.api_key_id)
+			.executeTakeFirst(),
+		// Resolve forked_from_id to source name
+		subgraph.forked_from_id
+			? db
+					.selectFrom("subgraphs")
+					.select(["id", "name"])
+					.where("id", "=", subgraph.forked_from_id)
+					.executeTakeFirst()
+			: Promise.resolve(null),
+		// Count forks of this subgraph
+		db
+			.selectFrom("subgraphs")
+			.select(db.fn.countAll<number>().as("count"))
+			.where("forked_from_id", "=", subgraph.id)
+			.executeTakeFirst(),
+	]);
 
-	const tableSchemas: Record<string, any> = {};
+	const tableSchemas: Record<string, unknown> = {};
 	for (let i = 0; i < schemaEntries.length; i++) {
 		const [tableName, tableDef] = schemaEntries[i];
 		const cr = countResults[i];
 		const rowCount = cr.status === "fulfilled" ? cr.value : 0;
 
-		const columns: Record<string, any> = {};
+		const columns: Record<string, { type: string; nullable?: boolean }> = {};
 		for (const [colName, col] of Object.entries(tableDef.columns)) {
 			columns[colName] = {
 				type: col.type,
@@ -177,16 +191,18 @@ app.get("/subgraphs/:name", async (c) => {
 		tables: Object.keys(subgraphSchema),
 		startBlock: subgraph.start_block,
 		lastProcessedBlock: subgraph.last_processed_block,
-		forkedFrom: forkedFromRow ? { id: forkedFromRow.id, name: forkedFromRow.name } : null,
+		forkedFrom: forkedFromRow
+			? { id: forkedFromRow.id, name: forkedFromRow.name }
+			: null,
 		forkCount: Number(forkCountRow?.count ?? 0),
 		sources: def?.sources ?? null,
 		tableSchemas,
 		usage: {
 			totalQueries7d: usage7d,
 			totalQueries30d: usage30d,
-			daily: usageDaily.map((d: any) => ({
-				date: d.date,
-				count: d.query_count,
+			daily: usageDaily.map((d) => ({
+				date: (d as { date: string }).date,
+				count: (d as { query_count: number }).query_count,
 			})),
 		},
 		createdAt: subgraph.created_at.toISOString(),
@@ -282,18 +298,19 @@ app.get("/creators/:slug", async (c) => {
 		bio: account.bio,
 		avatarUrl: account.avatar_url,
 		slug: account.slug,
-		subgraphs: subgraphs.map((row: any) => {
-			const def = row.definition as Record<string, unknown> | null;
+		subgraphs: subgraphs.map((row) => {
+			const rowRecord = row as Record<string, unknown>;
+			const def = rowRecord.definition as Record<string, unknown> | null;
 			const schema = (def?.schema ?? {}) as Record<string, unknown>;
 			return {
-				name: row.name,
-				description: row.description,
-				tags: row.tags,
-				status: row.status,
-				version: row.version,
+				name: rowRecord.name as string,
+				description: rowRecord.description as string | null,
+				tags: rowRecord.tags as string[] | null,
+				status: rowRecord.status as string,
+				version: rowRecord.version as number,
 				tables: Object.keys(schema),
-				totalQueries7d: (row as any).queries_7d ?? 0,
-				createdAt: row.created_at.toISOString(),
+				totalQueries7d: (rowRecord.queries_7d as number) ?? 0,
+				createdAt: (rowRecord.created_at as Date).toISOString(),
 			};
 		}),
 	});
@@ -346,10 +363,7 @@ app.post("/subgraphs/:name/fork", requireAuth(), async (c) => {
 	// Name collision check (account-scoped)
 	const existing = await getSubgraph(db, newName, accountId);
 	if (existing) {
-		return c.json(
-			{ error: `Subgraph "${newName}" already exists` },
-			409,
-		);
+		return c.json({ error: `Subgraph "${newName}" already exists` }, 409);
 	}
 
 	// Copy handler file
@@ -365,10 +379,10 @@ app.post("/subgraphs/:name/fork", requireAuth(), async (c) => {
 	}
 
 	// Import the copied handler to get definition
-	let def: any;
+	let def: Record<string, unknown>;
 	try {
 		const mod = await import(`${newHandlerPath}?t=${Date.now()}`);
-		def = mod.default ?? mod;
+		def = (mod.default ?? mod) as Record<string, unknown>;
 	} catch (err) {
 		return c.json(
 			{ error: `Failed to load handler: ${getErrorMessage(err)}` },

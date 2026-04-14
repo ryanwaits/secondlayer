@@ -523,7 +523,7 @@ async function getSubgraphSchemaHealth(
 
 		for (const [tableName, tableDef] of Object.entries(defSchema) as [
 			string,
-			any,
+			{ columns?: Record<string, unknown>; indexes?: string[][] },
 		][]) {
 			// Get actual PG columns
 			const pgCols = await sql<{

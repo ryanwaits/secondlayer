@@ -46,7 +46,7 @@ async function main(): Promise<void> {
 	log(`  services: ${config.services.map((s) => s.name).join(", ")}`);
 
 	// Ensure data dir exists
-	const { mkdirSync } = await import("fs");
+	const { mkdirSync } = await import("node:fs");
 	mkdirSync(config.dataDir, { recursive: true });
 
 	const db = initDb(config.dbPath);

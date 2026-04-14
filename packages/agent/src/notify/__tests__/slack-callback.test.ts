@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { createHmac } from "crypto";
+import { createHmac } from "node:crypto";
 import { initDb } from "../../db/index.ts";
 import {
 	getAlertById,
@@ -22,9 +22,7 @@ function makeSignedRequest(
 ): Request {
 	const ts = opts?.timestamp ?? String(Math.floor(Date.now() / 1000));
 	const secret = opts?.secret ?? SECRET;
-	const sig =
-		"v0=" +
-		createHmac("sha256", secret).update(`v0:${ts}:${body}`).digest("hex");
+	const sig = `v0=${createHmac("sha256", secret).update(`v0:${ts}:${body}`).digest("hex")}`;
 
 	return new Request("http://localhost:3900/hooks/slack", {
 		method: "POST",

@@ -8,13 +8,13 @@ import {
 	checkLimits,
 	getDailyUsage,
 } from "@secondlayer/shared/db/queries/usage";
-import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/marketplace";
 import { AuthenticationError } from "@secondlayer/shared/errors";
-import { Hono } from "hono";
+import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/marketplace";
+import { type Context, Hono } from "hono";
 
 const app = new Hono();
 
-function requireAccountId(c: any): string {
+function requireAccountId(c: Context): string {
 	const accountId = c.get("accountId") as string | undefined;
 	if (!accountId) throw new AuthenticationError("Not authenticated");
 	return accountId;
