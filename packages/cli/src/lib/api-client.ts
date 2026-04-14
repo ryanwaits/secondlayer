@@ -55,6 +55,39 @@ export function handleApiError(err: unknown, action: string): never {
 	process.exit(1);
 }
 
+/**
+ * Wraps an async function with standardized error handling for CLI actions.
+ * Eliminates repetitive try/catch boilerplate in command definitions.
+ *
+ * @example
+ * ```typescript
+ * .action(withErrorHandling(async (options) => {
+ *   // command logic without try/catch
+ * }, { action: "update profile" }))
+ * ```
+ */
+export function withErrorHandling<TArgs extends unknown[]>(
+	fn: (...args: TArgs) => Promise<void>,
+	options?: {
+		/** Action description for error messages (e.g., "deploy workflow") */
+		action?: string;
+		/** Optional custom error handler (defaults to handleApiError) */
+		onError?: (err: unknown) => void;
+	},
+): (...args: TArgs) => Promise<void> {
+	return async (...args: TArgs) => {
+		try {
+			await fn(...args);
+		} catch (err) {
+			if (options?.onError) {
+				options.onError(err);
+			} else {
+				handleApiError(err, options?.action ?? "execute command");
+			}
+		}
+	};
+}
+
 async function getClient(): Promise<SecondLayer> {
 	const config = await loadConfig();
 	const baseUrl = resolveApiUrl(config);

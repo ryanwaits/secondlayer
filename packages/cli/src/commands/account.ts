@@ -1,8 +1,8 @@
 import type { Command } from "commander";
 import {
 	getAccountProfile,
-	handleApiError,
 	updateAccountProfile,
+	withErrorHandling,
 } from "../lib/api-client.ts";
 import { dim, formatKeyValue, success } from "../lib/output.ts";
 
@@ -19,13 +19,13 @@ export function registerAccountCommand(program: Command): void {
 		.option("--slug <slug>", "Set public URL slug")
 		.option("--json", "Output as JSON")
 		.action(
-			async (options: {
-				name?: string;
-				bio?: string;
-				slug?: string;
-				json?: boolean;
-			}) => {
-				try {
+			withErrorHandling(
+				async (options: {
+					name?: string;
+					bio?: string;
+					slug?: string;
+					json?: boolean;
+				}) => {
 					const hasUpdates = options.name || options.bio || options.slug;
 
 					if (hasUpdates) {
@@ -73,9 +73,8 @@ export function registerAccountCommand(program: Command): void {
 							["Slug", profile.slug ?? dim("—")],
 						]),
 					);
-				} catch (err) {
-					handleApiError(err, "manage profile");
-				}
-			},
+				},
+				{ action: "manage profile" },
+			),
 		);
 }
