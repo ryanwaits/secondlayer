@@ -62,3 +62,25 @@ export function withCap<T>(
 		total: items.length,
 	};
 }
+
+/** Build MCP text response with JSON-serialized payload. */
+export function jsonResponse(
+	data: unknown,
+	isError?: boolean,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+	return {
+		content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+		...(isError && { isError: true }),
+	};
+}
+
+/** Build MCP text response with plain text payload. */
+export function textResponse(
+	text: string,
+	isError?: boolean,
+): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+	return {
+		content: [{ type: "text", text }],
+		...(isError && { isError: true }),
+	};
+}

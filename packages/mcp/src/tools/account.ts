@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { apiRequest } from "../lib/client.ts";
+import { jsonResponse } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";
 
 export function registerAccountTools(server: McpServer) {
@@ -13,9 +14,7 @@ export function registerAccountTools(server: McpServer) {
 				"GET",
 				"/api/accounts/me",
 			);
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			return jsonResponse(result);
 		},
 	);
 }
