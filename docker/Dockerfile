@@ -28,7 +28,6 @@ COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
 COPY packages/agent/package.json ./packages/agent/
-COPY packages/account-agent/package.json ./packages/account-agent/
 COPY packages/workflows/package.json ./packages/workflows/
 COPY packages/workflow-runner/package.json ./packages/workflow-runner/
 COPY packages/bundler/package.json ./packages/bundler/
@@ -49,7 +48,6 @@ COPY packages/subgraphs ./packages/subgraphs
 COPY packages/api ./packages/api
 COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
-COPY packages/account-agent ./packages/account-agent
 COPY packages/workflows ./packages/workflows
 COPY packages/workflow-runner ./packages/workflow-runner
 COPY packages/bundler ./packages/bundler
@@ -98,7 +96,6 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/worker ./packages/worker
-COPY --from=builder /app/packages/account-agent ./packages/account-agent
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production

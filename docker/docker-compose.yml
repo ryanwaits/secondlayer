@@ -86,7 +86,7 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Worker service (can be scaled)
+  # Worker service (can be scaled) - runs scheduled background jobs only
   worker:
     build:
       context: ..
@@ -98,8 +98,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       NETWORKS: ${NETWORKS:-mainnet}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ACCOUNT_AGENT_BUDGET_USD: ${ACCOUNT_AGENT_BUDGET_USD:-0.25}
     depends_on:
       migrate:
         condition: service_completed_successfully
