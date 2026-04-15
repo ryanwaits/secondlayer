@@ -76,9 +76,7 @@ export function registerDbCommand(program: Command): void {
 
 	dbCmd
 		.command("reset")
-		.description(
-			"Truncate all indexed data (blocks, txs, events, jobs, deliveries)",
-		)
+		.description("Truncate all indexed data (blocks, txs, events)")
 		.option("-y, --yes", "Skip confirmation prompt")
 		.action(async function (this: Command) {
 			const opts = this.opts();
@@ -384,7 +382,7 @@ async function resetDatabase(skipConfirm: boolean): Promise<void> {
 		console.log(`  ${red(blockCount.toString())} blocks`);
 		console.log(`  ${red(txCount.toString())} transactions`);
 		console.log(`  ${red(eventCount.toString())} events`);
-		console.log(`  ${dim("+ jobs, deliveries, index_progress")}`);
+		console.log(`  ${dim("+ index_progress")}`);
 		console.log("");
 		console.log(dim("Note: Subgraph configurations will be preserved."));
 		console.log("");
@@ -404,9 +402,9 @@ async function resetDatabase(skipConfirm: boolean): Promise<void> {
 		info("Truncating tables...");
 
 		// Truncate in order to respect foreign key constraints
-		// deliveries -> jobs -> events -> transactions -> blocks
+		// events -> transactions -> blocks
 		// index_progress has no FKs
-		await sql`TRUNCATE TABLE deliveries, jobs, events, transactions, blocks, index_progress RESTART IDENTITY CASCADE`.execute(
+		await sql`TRUNCATE TABLE events, transactions, blocks, index_progress RESTART IDENTITY CASCADE`.execute(
 			db,
 		);
 
@@ -467,7 +465,7 @@ async function resyncDatabase(
 
 		// Step 1: Truncate tables
 		info("Truncating tables...");
-		await sql`TRUNCATE TABLE deliveries, jobs, events, transactions, blocks, index_progress RESTART IDENTITY CASCADE`.execute(
+		await sql`TRUNCATE TABLE events, transactions, blocks, index_progress RESTART IDENTITY CASCADE`.execute(
 			db,
 		);
 		console.log(green("  ✓ Database reset"));
