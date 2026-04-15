@@ -32,18 +32,18 @@ async function saveCursor(blockHeight: number): Promise<void> {
 }
 
 /**
- * Check for event/stream triggers that match new blocks.
- * Called on `streams:new_job` PG NOTIFY (when indexer commits a block).
+ * Check for event triggers that match new blocks.
+ * Called on `indexer:new_block` PG NOTIFY (when indexer commits a block).
  */
 export async function checkEventTriggers(): Promise<void> {
 	const db = getDb();
 
-	// Get active workflow definitions with event or stream triggers
+	// Get active workflow definitions with event triggers
 	const definitions = await db
 		.selectFrom("workflow_definitions")
 		.selectAll()
 		.where("status", "=", "active")
-		.where("trigger_type", "in", ["event", "stream"])
+		.where("trigger_type", "=", "event")
 		.execute();
 
 	if (definitions.length === 0) return;

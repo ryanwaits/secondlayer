@@ -347,43 +347,18 @@ const server = Bun.serve({
 							.execute();
 					});
 
-					logger.info("Block indexed successfully", {
-						height: payload.block_height,
-						transactions: txs.length,
-						events: evts.length,
-					});
+				logger.info("Block indexed successfully", {
+					height: payload.block_height,
+					transactions: txs.length,
+					events: evts.length,
+				});
 
-					// Enqueue jobs for active streams
-					const activeStreams = await db
-						.selectFrom("streams")
-						.select("id")
-						.where("status", "=", "active")
-						.execute();
-
-					let jobsEnqueued = 0;
-					for (const stream of activeStreams) {
-						await enqueue(stream.id, payload.block_height);
-						jobsEnqueued++;
-					}
-
-					if (jobsEnqueued > 0) {
-						await notifyNewJob().catch((err: unknown) => {
-							logger.warn("Failed to notify workers", { error: err });
-						});
-
-						logger.debug("Enqueued jobs for streams", {
-							count: jobsEnqueued,
-							blockHeight: payload.block_height,
-						});
-					}
-
-					return Response.json({
-						status: "ok",
-						block_height: payload.block_height,
-						transactions: txs.length,
-						events: evts.length,
-						jobs_enqueued: jobsEnqueued,
-					});
+				return Response.json({
+					status: "ok",
+					block_height: payload.block_height,
+					transactions: txs.length,
+					events: evts.length,
+				});
 				} catch (error) {
 					logger.error("Error processing new_block", {
 						error:

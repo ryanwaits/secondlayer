@@ -222,8 +222,8 @@ export async function startWorkflowProcessor(opts: {
 		drainQueue();
 	});
 
-	// PG LISTEN for indexer block notifications → check event/stream triggers
-	const stopBlockListener = await listen("streams:new_job", () => {
+	// PG LISTEN for indexer block notifications → check event triggers
+	const stopBlockListener = await listen("indexer:new_block", () => {
 		checkEventTriggers();
 	});
 

@@ -11,7 +11,7 @@ import type { SubgraphDefinition } from "../types.ts";
 import { catchUpSubgraph } from "./catchup.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 
-const CHANNEL_NEW_BLOCK = "streams:new_job";
+const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const DEFAULT_CONCURRENCY = 5;
 const POLL_INTERVAL_MS = 5_000;
 
