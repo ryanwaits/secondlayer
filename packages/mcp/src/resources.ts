@@ -1,13 +1,23 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamFilterSchema } from "@secondlayer/shared/schemas";
 import { templates as subgraphTemplates } from "@secondlayer/subgraphs/templates";
 import { templates as workflowTemplates } from "@secondlayer/workflows/templates";
 
-/** Derived from StreamFilterSchema — single source of truth for filter types and fields. */
-const FILTERS_REFERENCE = StreamFilterSchema.options.map((opt) => ({
-	type: opt.shape.type.def.values[0] as string,
-	fields: Object.keys(opt.shape).filter((k) => k !== "type"),
-}));
+/** Filter types for blockchain events — aligned with SubgraphFilter vocabulary. */
+const FILTERS_REFERENCE = [
+	{ type: "stx_transfer", fields: ["sender", "recipient", "minAmount", "maxAmount"] },
+	{ type: "stx_mint", fields: ["recipient", "minAmount"] },
+	{ type: "stx_burn", fields: ["sender", "minAmount"] },
+	{ type: "stx_lock", fields: ["lockedAddress", "minAmount"] },
+	{ type: "ft_transfer", fields: ["sender", "recipient", "assetIdentifier", "minAmount", "maxAmount"] },
+	{ type: "ft_mint", fields: ["recipient", "assetIdentifier", "minAmount"] },
+	{ type: "ft_burn", fields: ["sender", "assetIdentifier", "minAmount"] },
+	{ type: "nft_transfer", fields: ["sender", "recipient", "assetIdentifier", "tokenId"] },
+	{ type: "nft_mint", fields: ["recipient", "assetIdentifier", "tokenId"] },
+	{ type: "nft_burn", fields: ["sender", "assetIdentifier", "tokenId"] },
+	{ type: "contract_call", fields: ["contract", "function"] },
+	{ type: "contract_deploy", fields: ["contract"] },
+	{ type: "print_event", fields: ["contract", "event", "contains"] },
+];
 
 const COLUMN_TYPES = [
 	{
