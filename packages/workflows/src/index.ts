@@ -2,7 +2,6 @@ export type {
 	WorkflowDefinition,
 	WorkflowTrigger,
 	EventTrigger,
-	StreamTrigger,
 	ScheduleTrigger,
 	ManualTrigger,
 	RetryConfig,

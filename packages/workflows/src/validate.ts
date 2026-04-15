@@ -8,7 +8,6 @@ import type {
 	McpStepOptions,
 	RetryConfig,
 	ScheduleTrigger,
-	StreamTrigger,
 	TelegramTarget,
 	WorkflowDefinition,
 	WorkflowTrigger,
@@ -27,11 +26,6 @@ export const EventTriggerSchema: z.ZodType<EventTrigger> = z.object({
 	type: z.literal("event"),
 	filter: SubgraphFilterSchema,
 }) as z.ZodType<EventTrigger>;
-
-export const StreamTriggerSchema: z.ZodType<StreamTrigger> = z.object({
-	type: z.literal("stream"),
-	filter: SubgraphFilterSchema,
-}) as z.ZodType<StreamTrigger>;
 
 export const ScheduleTriggerSchema: z.ZodType<ScheduleTrigger> = z.object({
 	type: z.literal("schedule"),
@@ -53,7 +47,6 @@ export const ManualTriggerSchema: z.ZodType<ManualTrigger> = z.object({
 
 export const WorkflowTriggerSchema: z.ZodType<WorkflowTrigger> = z.union([
 	EventTriggerSchema,
-	StreamTriggerSchema,
 	ScheduleTriggerSchema,
 	ManualTriggerSchema,
 ]) as z.ZodType<WorkflowTrigger>;
