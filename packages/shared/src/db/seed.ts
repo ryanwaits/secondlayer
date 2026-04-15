@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Seed script — populates streams_dev with realistic Stacks blockchain data.
+ * Seed script — populates the dev database with realistic Stacks blockchain data.
  * Run: bun run seed
  */
 import { closeDb, getDb, sql } from "./index.ts";
@@ -226,166 +226,7 @@ for (let i = 0; i < eventRows.length; i += 100) {
 }
 console.log(`  events: ${eventRows.length}`);
 
-// ── 6. Streams ──────────────────────────────────────────────────────
-const streamDefs = [
-	{
-		name: "stx-transfers",
-		filters: { type: "stx_transfer" },
-		endpoint: "https://hooks.slack.com/stx-alerts",
-	},
-	{
-		name: "nft-mints",
-		filters: { type: "nft_mint" },
-		endpoint: "https://api.nft-tracker.io/webhook",
-	},
-	{
-		name: "defi-swaps",
-		filters: {
-			contract_id: "SP2C2YFP12AJZB1MADC9PK03NGKJQ8MFGE4ESPDAZ.alex-vault",
-			function_name: "swap",
-		},
-		endpoint: "https://defi-dash.xyz/ingest",
-	},
-	{
-		name: "sbtc-deposits",
-		filters: {
-			contract_id: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sbtc-deposit",
-		},
-		endpoint: "https://sbtc-monitor.secondlayer.xyz/hook",
-	},
-	{
-		name: "all-contract-calls",
-		filters: { type: "contract_call" },
-		endpoint: "https://analytics.stacksbuilder.io/events",
-	},
-	{
-		name: "stacking-events",
-		filters: { type: "stx_lock" },
-		endpoint: "https://stacking.capital/api/notify",
-	},
-];
-
-const streamRows = await db
-	.insertInto("streams")
-	.values(
-		streamDefs.map((s, i) => ({
-			name: s.name,
-			status: i < 5 ? "active" : "paused",
-			filters: jsonb(s.filters) as any,
-			endpoint_url: s.endpoint,
-			signing_secret: `slsec_${randomHex(32)}`,
-			api_key_id: apiKeyRows[i % apiKeyRows.length].id,
-		})),
-	)
-	.returningAll()
-	.execute();
-
-console.log(`  streams: ${streamRows.length}`);
-
-// ── 7. Stream Metrics ───────────────────────────────────────────────
-await db
-	.insertInto("stream_metrics")
-	.values(
-		streamRows.map((s, i) => ({
-			stream_id: s.id,
-			last_triggered_at: new Date(Date.now() - Math.random() * 3600000),
-			last_triggered_block:
-				BLOCK_START + BLOCK_COUNT - 1 - Math.floor(Math.random() * 10),
-			total_deliveries: 50 + Math.floor(Math.random() * 500),
-			failed_deliveries: Math.floor(Math.random() * 10),
-			error_message: i === 3 ? "Connection timeout after 30s" : null,
-		})),
-	)
-	.execute();
-
-console.log(`  stream_metrics: ${streamRows.length}`);
-
-// ── 8. Jobs (~2 per stream per recent block) ────────────────────────
-const jobValues: Array<{
-	stream_id: string;
-	block_height: number;
-	status: string;
-	attempts: number;
-	completed_at: Date | null;
-	error: string | null;
-}> = [];
-
-for (const stream of streamRows) {
-	for (
-		let h = BLOCK_START + BLOCK_COUNT - 20;
-		h < BLOCK_START + BLOCK_COUNT;
-		h++
-	) {
-		const status =
-			Math.random() > 0.1
-				? "completed"
-				: Math.random() > 0.5
-					? "failed"
-					: "pending";
-		jobValues.push({
-			stream_id: stream.id,
-			block_height: h,
-			status,
-			attempts: status === "completed" ? 1 : status === "failed" ? 3 : 0,
-			completed_at:
-				status === "completed"
-					? new Date(Date.now() - Math.random() * 3600000)
-					: null,
-			error:
-				status === "failed"
-					? "Endpoint returned 503 Service Unavailable"
-					: null,
-		});
-	}
-}
-
-const jobRows = await db
-	.insertInto("jobs")
-	.values(jobValues)
-	.returningAll()
-	.execute();
-
-console.log(`  jobs: ${jobRows.length}`);
-
-// ── 9. Deliveries ───────────────────────────────────────────────────
-const deliveryValues: Array<{
-	stream_id: string;
-	job_id: string | null;
-	block_height: number;
-	status: string;
-	status_code: number | null;
-	response_time_ms: number | null;
-	error: string | null;
-	payload: ReturnType<typeof jsonb>;
-}> = [];
-
-for (const job of jobRows.filter(
-	(j) => j.status === "completed" || j.status === "failed",
-)) {
-	deliveryValues.push({
-		stream_id: job.stream_id,
-		job_id: job.id,
-		block_height: job.block_height,
-		status: job.status === "completed" ? "delivered" : "failed",
-		status_code: job.status === "completed" ? 200 : 503,
-		response_time_ms: 50 + Math.floor(Math.random() * 450),
-		error: job.error,
-		payload: jsonb({
-			block_height: job.block_height,
-			events: [{ type: pick(eventTypes), data: {} }],
-		}) as any,
-	});
-}
-
-for (let i = 0; i < deliveryValues.length; i += 100) {
-	await db
-		.insertInto("deliveries")
-		.values(deliveryValues.slice(i, i + 100))
-		.execute();
-}
-console.log(`  deliveries: ${deliveryValues.length}`);
-
-// ── 10. Subgraphs ───────────────────────────────────────────────────
+// ── 6. Subgraphs ───────────────────────────────────────────────────
 const subgraphDefs = [
 	{
 		name: "token-balances",
@@ -437,7 +278,7 @@ await db
 
 console.log(`  subgraphs: ${subgraphDefs.length}`);
 
-// ── 11. Index Progress ──────────────────────────────────────────────
+// ── 7. Index Progress ───────────────────────────────────────────────
 await db
 	.insertInto("index_progress")
 	.values({
@@ -457,7 +298,7 @@ await db
 
 console.log(`  index_progress: 1`);
 
-// ── 12. Sessions ────────────────────────────────────────────────────
+// ── 8. Sessions ─────────────────────────────────────────────────────
 await db
 	.insertInto("sessions")
 	.values(
@@ -473,7 +314,7 @@ await db
 
 console.log(`  sessions: 3`);
 
-// ── 13. Usage Daily ─────────────────────────────────────────────────
+// ── 9. Usage Daily ──────────────────────────────────────────────────
 const today = new Date().toISOString().slice(0, 10);
 const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 

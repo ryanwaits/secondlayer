@@ -17,11 +17,6 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
-	test("db/queries/metrics export", async () => {
-		const mod = await import("@secondlayer/shared/db/queries/metrics");
-		expect(mod).toBeDefined();
-	});
-
 	test("db/queries/accounts export", async () => {
 		const mod = await import("@secondlayer/shared/db/queries/accounts");
 		expect(mod).toBeDefined();
@@ -53,18 +48,8 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
-	test("queue export", async () => {
-		const mod = await import("@secondlayer/shared/queue");
-		expect(mod).toBeDefined();
-	});
-
 	test("queue/listener export", async () => {
 		const mod = await import("@secondlayer/shared/queue/listener");
-		expect(mod).toBeDefined();
-	});
-
-	test("queue/recovery export", async () => {
-		const mod = await import("@secondlayer/shared/queue/recovery");
 		expect(mod).toBeDefined();
 	});
 

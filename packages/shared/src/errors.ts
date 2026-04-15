@@ -1,5 +1,4 @@
 export const ErrorCodes = {
-	STREAM_NOT_FOUND: "STREAM_NOT_FOUND",
 	VALIDATION_ERROR: "VALIDATION_ERROR",
 	DATABASE_ERROR: "DATABASE_ERROR",
 	DELIVERY_ERROR: "DELIVERY_ERROR",
@@ -9,6 +8,7 @@ export const ErrorCodes = {
 	RATE_LIMIT_ERROR: "RATE_LIMIT_ERROR",
 	FORBIDDEN: "FORBIDDEN",
 	VERSION_CONFLICT: "VERSION_CONFLICT",
+	NOT_FOUND: "NOT_FOUND",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -45,12 +45,9 @@ export class StreamsError extends Error {
 	}
 }
 
-/**
- * Stream not found error
- */
-export class StreamNotFoundError extends StreamsError {
-	constructor(streamId: string) {
-		super("STREAM_NOT_FOUND", `Stream not found: ${streamId}`);
+export class NotFoundError extends StreamsError {
+	constructor(message: string) {
+		super("NOT_FOUND", message);
 	}
 }
 
@@ -159,7 +156,7 @@ type MappedCode = Extract<
 	| "AUTHORIZATION_ERROR"
 	| "RATE_LIMIT_ERROR"
 	| "FORBIDDEN"
-	| "STREAM_NOT_FOUND"
+	| "NOT_FOUND"
 	| "VALIDATION_ERROR"
 >;
 export const CODE_TO_STATUS: Record<MappedCode, 400 | 401 | 403 | 404 | 429> = {
@@ -167,7 +164,7 @@ export const CODE_TO_STATUS: Record<MappedCode, 400 | 401 | 403 | 404 | 429> = {
 	AUTHORIZATION_ERROR: 403,
 	RATE_LIMIT_ERROR: 429,
 	FORBIDDEN: 403,
-	STREAM_NOT_FOUND: 404,
+	NOT_FOUND: 404,
 	VALIDATION_ERROR: 400,
 } as const;
 

@@ -72,12 +72,10 @@ app.get("/accounts", async (c) => {
 		plan: string;
 		created_at: Date;
 		subgraph_count: string;
-		stream_count: string;
 		last_active: Date | null;
 	}>`
 		SELECT a.*,
 			(SELECT count(*) FROM subgraphs WHERE account_id = a.id) AS subgraph_count,
-			(SELECT count(*) FROM streams s JOIN api_keys k ON k.id = s.api_key_id WHERE k.account_id = a.id) AS stream_count,
 			(SELECT max(last_used_at) FROM sessions WHERE account_id = a.id) AS last_active
 		FROM accounts a
 		ORDER BY a.created_at DESC
@@ -90,7 +88,6 @@ app.get("/accounts", async (c) => {
 			plan: a.plan,
 			createdAt: a.created_at.toISOString(),
 			subgraphCount: Number(a.subgraph_count),
-			streamCount: Number(a.stream_count),
 			lastActive: a.last_active ? a.last_active.toISOString() : null,
 		})),
 	});
@@ -99,7 +96,7 @@ app.get("/accounts", async (c) => {
 // GET /api/admin/stats
 app.get("/stats", async (c) => {
 	const db = getDb();
-	const [accounts, waitlist, subgraphs, streams] = await Promise.all([
+	const [accounts, waitlist, subgraphs] = await Promise.all([
 		db
 			.selectFrom("accounts")
 			.select((eb) => eb.fn.countAll<number>().as("count"))
@@ -123,10 +120,6 @@ app.get("/stats", async (c) => {
 					.as("error"),
 			])
 			.executeTakeFirstOrThrow(),
-		db
-			.selectFrom("streams")
-			.select((eb) => eb.fn.countAll<number>().as("count"))
-			.executeTakeFirstOrThrow(),
 	]);
 
 	return c.json({
@@ -135,7 +128,6 @@ app.get("/stats", async (c) => {
 		totalSubgraphs: Number(subgraphs.total),
 		activeSubgraphs: Number(subgraphs.active),
 		errorSubgraphs: Number(subgraphs.error),
-		totalStreams: Number(streams.count),
 	});
 });
 

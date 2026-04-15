@@ -4,10 +4,6 @@ import type { Database } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
 
-/**
- * Handles chain reorganizations
- * Marks old blocks as non-canonical and invalidates their jobs
- */
 export async function handleReorg(
 	blockHeight: number,
 	oldHash: string,
@@ -22,7 +18,6 @@ export async function handleReorg(
 	});
 
 	await db.transaction().execute(async (tx: Transaction<Database>) => {
-		// Mark old block as non-canonical
 		await tx
 			.updateTable("blocks")
 			.set({ canonical: false })
@@ -30,27 +25,11 @@ export async function handleReorg(
 			.where("hash", "=", oldHash)
 			.execute();
 
-		// Invalidate jobs for this block
-		// Set them to failed status so they don't get reprocessed
-		await tx
-			.updateTable("jobs")
-			.set({
-				status: "failed",
-				error: `Block reorganization detected - block ${blockHeight} is no longer canonical`,
-			})
-			.where("block_height", "=", blockHeight)
-			.where("status", "in", ["pending", "processing"])
-			.execute();
-
-		// Notify subgraph processor about the reorg
 		await sql`SELECT pg_notify('subgraph_reorg', ${JSON.stringify({ blockHeight, oldHash, newHash })})`.execute(
 			tx,
 		);
 
-		logger.info("Reorganization handled", {
-			blockHeight,
-			invalidatedJobs: "updated",
-		});
+		logger.info("Reorganization handled", { blockHeight });
 	});
 }
 

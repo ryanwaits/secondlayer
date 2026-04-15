@@ -6,7 +6,6 @@ import {
 } from "@secondlayer/auth";
 import { logger } from "@secondlayer/shared";
 import { closeDb, getDb } from "@secondlayer/shared/db";
-// API service - REST API for stream management
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { requireAdmin } from "./middleware/admin.ts";
@@ -18,7 +17,6 @@ import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
 import insightsRouter from "./routes/insights.ts";
-import logsRouter from "./routes/logs.ts";
 import marketplaceRouter from "./routes/marketplace.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
@@ -65,8 +63,6 @@ for (const path of [
 	"/status",
 	"/api/subgraphs",
 	"/api/subgraphs/*",
-	"/api/logs",
-	"/api/logs/*",
 	"/api/accounts",
 	"/api/accounts/*",
 	"/api/insights",
@@ -86,8 +82,6 @@ for (const path of [
 	app.use(path, countApiRequests());
 }
 
-// Mount routes
-app.route("/api/logs", logsRouter);
 app.route("/api/subgraphs", subgraphsRouter);
 app.route("/api/accounts", accountsRouter);
 app.route("/api/insights", insightsRouter);

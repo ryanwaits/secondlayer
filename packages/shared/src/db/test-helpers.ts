@@ -13,7 +13,7 @@ export async function createTestDatabase(): Promise<string> {
 	const baseUrl =
 		process.env.DATABASE_URL ||
 		"postgresql://postgres:postgres@localhost:5432/postgres";
-	const dbName = `streams_test_${Date.now()}_${++testDbCounter}`;
+	const dbName = `secondlayer_test_${Date.now()}_${++testDbCounter}`;
 
 	const client = postgres(baseUrl, { max: 1 });
 	try {
@@ -61,7 +61,7 @@ export async function resetTables(): Promise<void> {
 
 	const client = postgres(dbUrl);
 	try {
-		await client`TRUNCATE TABLE deliveries, jobs, events, transactions, blocks, streams, index_progress RESTART IDENTITY CASCADE`;
+		await client`TRUNCATE TABLE events, transactions, blocks, index_progress RESTART IDENTITY CASCADE`;
 	} finally {
 		await client.end();
 	}

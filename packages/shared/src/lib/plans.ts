@@ -1,5 +1,4 @@
 export interface PlanLimits {
-	streams: number;
 	subgraphs: number;
 	apiRequestsPerDay: number;
 	deliveriesPerMonth: number;
@@ -7,11 +6,10 @@ export interface PlanLimits {
 }
 
 export const FREE_PLAN: PlanLimits = {
-	streams: 3,
 	subgraphs: 2,
 	apiRequestsPerDay: 1_000,
 	deliveriesPerMonth: 5_000,
-	storageBytes: 100 * 1024 * 1024, // 100MB
+	storageBytes: 100 * 1024 * 1024,
 };
 
 export function getPlanLimits(plan: string): PlanLimits {

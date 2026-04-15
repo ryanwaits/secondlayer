@@ -11,7 +11,7 @@ export function getDb(connectionString?: string): Kysely<Database> {
 		const url =
 			connectionString ||
 			process.env.DATABASE_URL ||
-			"postgres://postgres:postgres@localhost:5432/streams_dev";
+			"postgres://postgres:postgres@localhost:5432/secondlayer_dev";
 
 		// Always use SSL for remote databases, just disable cert verification if needed
 		const isLocal =

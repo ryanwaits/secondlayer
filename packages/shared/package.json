@@ -17,10 +17,6 @@
 			"types": "./dist/src/db/queries/integrity.d.ts",
 			"import": "./dist/src/db/queries/integrity.js"
 		},
-		"./db/queries/metrics": {
-			"types": "./dist/src/db/queries/metrics.d.ts",
-			"import": "./dist/src/db/queries/metrics.js"
-		},
 		"./db/queries/accounts": {
 			"types": "./dist/src/db/queries/accounts.d.ts",
 			"import": "./dist/src/db/queries/accounts.js"
@@ -49,17 +45,9 @@
 			"types": "./dist/src/lib/plans.d.ts",
 			"import": "./dist/src/lib/plans.js"
 		},
-		"./queue": {
-			"types": "./dist/src/queue/index.d.ts",
-			"import": "./dist/src/queue/index.js"
-		},
 		"./queue/listener": {
 			"types": "./dist/src/queue/listener.d.ts",
 			"import": "./dist/src/queue/listener.js"
-		},
-		"./queue/recovery": {
-			"types": "./dist/src/queue/recovery.d.ts",
-			"import": "./dist/src/queue/recovery.js"
 		},
 		"./schemas": {
 			"types": "./dist/src/schemas/index.d.ts",
@@ -156,7 +144,7 @@
 		"test": "bun test",
 		"typecheck": "tsc --noEmit",
 		"migrate": "bun run src/db/migrate.ts",
-		"seed": "DATABASE_URL=${DATABASE_URL:-postgresql://ryanwaits@127.0.0.1:5432/streams_dev} bun run src/db/seed.ts",
+		"seed": "DATABASE_URL=${DATABASE_URL:-postgresql://ryanwaits@127.0.0.1:5432/secondlayer_dev} bun run src/db/seed.ts",
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {

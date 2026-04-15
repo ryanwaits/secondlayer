@@ -5,11 +5,10 @@ import type { Context, MiddlewareHandler } from "hono";
 
 /**
  * Enforce free tier limits on mutation endpoints.
- * Optionally specify which resource to check (streams/subgraphs).
- * DEV_MODE bypasses enforcement.
+ * Optionally specify which resource to check. DEV_MODE bypasses enforcement.
  */
 export function enforceLimits(
-	resource?: "streams" | "subgraphs",
+	resource?: "subgraphs",
 ): MiddlewareHandler {
 	return async (c: Context, next) => {
 		if (process.env.DEV_MODE === "true") {
@@ -33,12 +32,10 @@ export function enforceLimits(
 		const result = await checkLimits(db, accountId, account.plan);
 
 		if (!result.allowed && result.exceeded) {
-			// If a specific resource is requested, only block if that resource is exceeded
 			if (resource && result.exceeded !== resource) {
 				await next();
 				return;
 			}
-			// If no specific resource, block on api_requests exceeded
 			if (!resource && result.exceeded !== "api_requests") {
 				await next();
 				return;
@@ -73,7 +70,6 @@ export function enforceLimits(
 }
 
 const limitKeyMap: Record<string, string> = {
-	streams: "streams",
 	subgraphs: "subgraphs",
 	api_requests: "apiRequestsPerDay",
 	deliveries: "deliveriesPerMonth",
@@ -81,7 +77,6 @@ const limitKeyMap: Record<string, string> = {
 };
 
 const currentKeyMap: Record<string, string> = {
-	streams: "streams",
 	subgraphs: "subgraphs",
 	api_requests: "apiRequestsToday",
 	deliveries: "deliveriesThisMonth",
