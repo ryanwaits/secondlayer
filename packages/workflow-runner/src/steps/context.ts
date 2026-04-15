@@ -170,52 +170,24 @@ export function createStepContext(
 			),
 
 		query: (
-			...args:
-				| [string, string, QueryOptions?]
-				| [string, string, string, QueryOptions?]
-		) => {
-			const hasId = args.length >= 3 && typeof args[2] === "string";
-			const [id, subgraph, table, options] = hasId
-				? [
-						args[0],
-						args[1],
-						args[2] as string,
-						args[3] as QueryOptions | undefined,
-					]
-				: [
-						`query:${args[0]}/${args[1]}`,
-						args[0],
-						args[1],
-						args[2] as QueryOptions | undefined,
-					];
-			return memoize(id, "query", { subgraph, table, ...options }, () =>
+			id: string,
+			subgraph: string,
+			table: string,
+			options?: QueryOptions,
+		) =>
+			memoize(id, "query", { subgraph, table, ...options }, () =>
 				executeQueryStep(db, subgraph, table, options),
-			);
-		},
+			),
 
 		count: (
-			...args:
-				| [string, string, Record<string, unknown>?]
-				| [string, string, string, Record<string, unknown>?]
-		) => {
-			const hasId = args.length >= 3 && typeof args[2] === "string";
-			const [id, subgraph, table, where] = hasId
-				? [
-						args[0],
-						args[1],
-						args[2] as string,
-						args[3] as Record<string, unknown> | undefined,
-					]
-				: [
-						`count:${args[0]}/${args[1]}`,
-						args[0],
-						args[1],
-						args[2] as Record<string, unknown> | undefined,
-					];
-			return memoize(id, "count", { subgraph, table, where }, () =>
+			id: string,
+			subgraph: string,
+			table: string,
+			where?: Record<string, unknown>,
+		) =>
+			memoize(id, "count", { subgraph, table, where }, () =>
 				executeCountStep(db, subgraph, table, where),
-			);
-		},
+			),
 
 		deliver: (id: string, target: DeliverTarget) =>
 			memoize(id, "deliver", target, () => executeDeliverStep(target)),

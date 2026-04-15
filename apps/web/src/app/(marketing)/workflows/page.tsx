@@ -75,7 +75,7 @@ export default defineWorkflow({
   },
   handler: async ({ event, step }) => {
     const context = await step.run("enrich", async () => {
-      const sender = await step.query("accounts", "balances", {
+      const sender = await step.query("sender-balance", "accounts", "balances", {
         where: { address: { eq: event.sender } },
       })
       return { ...event, senderBalance: sender[0]?.balance }
@@ -102,8 +102,8 @@ export default defineWorkflow({
 					<p>
 						Three trigger types. Event triggers fire the workflow directly when
 						a block matches a SubgraphFilter — no external webhook needed.
-						Schedule triggers use cron expressions. Manual triggers accept
-						typed input via the API or dashboard.
+						Schedule triggers use cron expressions. Manual triggers accept typed
+						input via the API or dashboard.
 					</p>
 				</div>
 
@@ -188,12 +188,12 @@ trigger: {
     // 1. Enrich — query subgraph for context
     const context = await step.run("enrich", async () => {
       const [recentSwaps, pool] = await Promise.all([
-        step.query("dex-swaps", "swaps", {
+        step.query("recent-swaps", "dex-swaps", "swaps", {
           where: { sender: { eq: event.sender }, _blockHeight: { gte: event.block.height - 500 } },
           orderBy: { _blockHeight: "desc" },
           limit: 20,
         }),
-        step.query("dex-pools", "pools", {
+        step.query("pool", "dex-pools", "pools", {
           where: { contractId: { eq: event.contractId } },
           limit: 1,
         }),
@@ -316,7 +316,7 @@ await step.mcp("file-issue", {
 
 				<CodeBlock
 					code={`// Query a subgraph table
-const largeSwaps = await step.query("dex-swaps", "swaps", {
+const largeSwaps = await step.query("large-swaps", "dex-swaps", "swaps", {
   where: {
     amount: { gte: "1000000000" },
     _blockHeight: { gte: event.block.height - 100 },
@@ -326,15 +326,15 @@ const largeSwaps = await step.query("dex-swaps", "swaps", {
 })
 
 // Aggregate queries
-const volume = await step.count("dex-swaps", "swaps", {
+const volume = await step.count("daily-volume", "dex-swaps", "swaps", {
   timestamp: { gte: oneDayAgo },
 })
 
 // Cross-subgraph correlation
-const positions = await step.query("lending-positions", "borrows", {
+const positions = await step.query("borrows", "lending-positions", "borrows", {
   where: { borrower: { eq: event.sender } },
 })
-const prices = await step.query("price-feeds", "prices", {
+const prices = await step.query("latest-price", "price-feeds", "prices", {
   where: { token: { eq: positions[0]?.token } },
   orderBy: { _blockHeight: "desc" },
   limit: 1,
@@ -744,7 +744,8 @@ sl workflows delete whale-alert`}
 					<div className="prop-row">
 						<span className="prop-name">event</span>
 						<span className="prop-type">
-							filter: SubgraphFilter (fires workflow directly when a block matches)
+							filter: SubgraphFilter (fires workflow directly when a block
+							matches)
 						</span>
 					</div>
 					<div className="prop-row">
@@ -773,14 +774,16 @@ sl workflows delete whale-alert`}
 						</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">step.query(subgraph, table, opts)</span>
+						<span className="prop-name">
+							step.query(id, subgraph, table, opts)
+						</span>
 						<span className="prop-type">
 							Direct Postgres query against subgraph tables.
 						</span>
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">
-							step.count(subgraph, table, where)
+							step.count(id, subgraph, table, where)
 						</span>
 						<span className="prop-type">
 							Row count against subgraph tables.

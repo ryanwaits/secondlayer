@@ -84,37 +84,25 @@ const result = await step.ai("classify", {
 });
 ```
 
-### `step.query(subgraph, table, options?)` / `step.query(id, subgraph, table, options?)`
+### `step.query(id, subgraph, table, options?)`
 
-Query a subgraph table. Pass an explicit `id` to avoid memoization issues if table names change.
+Query a subgraph table. The `id` is the stable memoization key — reuse it across runs, change it only when the step's intent changes.
 
 ```typescript
-// Auto-generated memoization key
-const txs = await step.query("my-indexer", "transfers", {
+const txs = await step.query("recent-transfers", "my-indexer", "transfers", {
   where: { sender: { eq: "SP..." }, amount: { gte: 100000 } },
   orderBy: { block_height: "desc" },
-  limit: 10,
-});
-
-// Explicit memoization key (recommended)
-const txs = await step.query("recent-transfers", "my-indexer", "transfers", {
-  where: { amount: { gte: 100000 } },
   limit: 10,
 });
 ```
 
 **Where operators:** `eq`, `neq`, `gt`, `gte`, `lt`, `lte`
 
-### `step.count(subgraph, table, where?)` / `step.count(id, subgraph, table, where?)`
+### `step.count(id, subgraph, table, where?)`
 
 Count rows in a subgraph table.
 
 ```typescript
-const total = await step.count("my-indexer", "transfers", {
-  sender: "SP...",
-});
-
-// With explicit ID
 const total = await step.count("whale-count", "my-indexer", "transfers", {
   amount: { gte: 1000000 },
 });
