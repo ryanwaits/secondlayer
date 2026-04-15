@@ -7,22 +7,19 @@ For day-to-day operations, see [docker/docs/OPERATIONS.md](docker/docs/OPERATION
 ```
 Internet → Caddy (:443) → API (:3800) ← Subgraph Processor
                                               │
-Stacks Node ──event observer──→ Indexer (:3700) → Postgres → Worker → Deliveries
-                                     │                          ↑
-                               Tip Follower              Job Queue
-                            (Hiro remote fallback)         │
-                                                    Workflow Runner
-                                                   (AI, MCP, delivery)
+Stacks Node ──event observer──→ Indexer (:3700) → Postgres
+                                     │                 ↑
+                               Tip Follower     Workflow Runner
+                            (Hiro remote fallback)  (AI, MCP, delivery)
 ```
 
 | Service | Port | Description |
 |---------|------|-------------|
 | **Stacks Node** | 20443/20444 | Full node, pushes blocks via event observer |
 | **Indexer** | 3700 | Receives blocks, parses txs/events, stores in DB |
-| **API** | 3800 | REST API for streams, subgraphs, deliveries |
-| **Worker** | — | Processes jobs, evaluates filters, sends deliveries |
+| **API** | 3800 | REST API for subgraphs and workflows |
 | **Subgraph Processor** | — | Computes subgraphs |
-| **Postgres** | 5432 | Stores blocks, transactions, events, jobs |
+| **Postgres** | 5432 | Stores blocks, transactions, events |
 | **Caddy** | 80/443 | TLS termination, reverse proxy |
 | **Workflow Runner** | — | Executes workflow steps (AI, MCP, delivery) |
 | **Agent** | 3900 | AI DevOps monitoring + Slack alerts |
@@ -51,10 +48,6 @@ HIRO_API_URL=https://api.mainnet.hiro.so
 HIRO_API_KEY=                    # Optional, for better rate limits
 ENABLE_TX_DECODE_FALLBACK=false  # Hit Hiro API for decode failures
 BACKFILL_SOURCE=hiro             # "local" for reprocessing from own DB
-
-# Worker
-WORKER_CONCURRENCY=5
-NETWORKS=mainnet
 
 # Workflow Runner
 WORKFLOW_CONCURRENCY=5
@@ -139,8 +132,7 @@ See individual service setup:
 1. **PostgreSQL** — Render managed DB
 2. **API** — Web Service, Docker target `api`, port 10000
 3. **Indexer** — Web Service, Docker target `indexer`, port 10000
-4. **Worker** — Background Worker, Docker target `worker`
-5. **Workflow Runner** — Background Worker, Docker target `workflow-runner`
+4. **Workflow Runner** — Background Worker, Docker target `workflow-runner`
 
 All need `DATABASE_URL`. The indexer needs a public URL for event observer. The workflow runner needs `ANTHROPIC_API_KEY` for AI steps.
 
@@ -197,5 +189,4 @@ ON CONFLICT (contract_id) DO NOTHING;
 
 1. HTTPS for all endpoints (Caddy handles TLS automatically)
 2. Firewall indexer to only accept traffic from your stacks-node
-3. Enable delivery signature verification in your handlers
-4. Rotate secrets periodically
+3. Rotate secrets periodically

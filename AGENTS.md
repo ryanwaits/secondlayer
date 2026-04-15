@@ -51,7 +51,7 @@ Always prefer `bunx` over `npx`.
 |---------|------------|-------|
 | `@secondlayer/stacks` | — | Foundational, build first |
 | `@secondlayer/shared` | stacks | DB utils, shared types |
-| `@secondlayer/sdk` | shared | Client SDK (streams, subgraphs, workflows) |
+| `@secondlayer/sdk` | shared | Client SDK (subgraphs, workflows) |
 | `@secondlayer/subgraphs` | shared, sdk | Subgraph processing |
 | `@secondlayer/workflows` | subgraphs | Workflow definitions, types, validation |
 | `@secondlayer/workflow-runner` | workflows, shared, subgraphs | Runtime executor (AI, MCP, delivery) |

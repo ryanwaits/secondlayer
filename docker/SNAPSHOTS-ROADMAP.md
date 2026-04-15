@@ -10,7 +10,7 @@ How indexer snapshots will improve the experience for Second Layer operators and
 
 **Without snapshots:**
 - New deployments require syncing from block 0 → days/weeks
-- Historical backfill for streams processes blocks sequentially → slow
+- Historical backfill for subgraphs processes blocks sequentially → slow
 - View reindexing re-fetches every block from the node → slow
 - Disaster recovery means full resync → extended downtime
 - Clients can't easily self-host or access historical data
@@ -42,13 +42,12 @@ Restore snapshot locally, replay specific block range, step through handler logi
 
 ### Client-Facing
 
-#### New Stream with Historical Data
+#### New Subgraph with Historical Data
 **With snapshot-powered backfill:**
 ```
-1. Create stream via API
-2. GET /streams/{id}/history?from=170000
-3. Receive paginated JSON immediately
-4. New blocks delivered in real-time
+1. Deploy subgraph
+2. Processor replays from snapshot
+3. Caught up to tip in minutes instead of hours
 ```
 
 #### Self-Hosted Indexer
@@ -79,7 +78,6 @@ With snapshots: ~1000 blocks/sec (read pre-indexed events → run handler)
 
 | Feature | Description |
 |---------|-------------|
-| Historical Query API | `GET /streams/{id}/history` |
 | Fast View Reindex | Replay from indexed events, not node |
 | Bulk Export | Download filtered events as CSV/JSON |
 
@@ -171,7 +169,7 @@ s3://secondlayer-snapshots/
 | Metric | Current | Target |
 |--------|---------|--------|
 | New deployment time | Days/weeks | < 2 hours |
-| Stream backfill (30 days) | Hours | < 5 minutes |
+| Subgraph backfill (30 days) | Hours | < 5 minutes |
 | View reindex (full history) | Hours | < 10 minutes |
 | Disaster recovery RTO | Days | < 2 hours |
 | Self-hosted setup time | Weeks | < 1 day |

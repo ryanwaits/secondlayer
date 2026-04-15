@@ -1,10 +1,10 @@
 ---
 name: secondlayer
 description: Install, configure, and build on Second Layer — a Stacks blockchain
-  indexing platform. Use this skill when creating streams (real-time event delivery),
-  scaffolding/deploying subgraphs (custom indexers), querying indexed data, or managing
-  API keys. Triggers on tasks involving Stacks blockchain data, streams,
-  custom indexers, blockchain event filtering, or the `secondlayer` CLI (`sl` shorthand).
+  indexing platform. Use this skill when scaffolding/deploying subgraphs (custom
+  indexers), authoring workflows, querying indexed data, or managing API keys.
+  Triggers on tasks involving Stacks blockchain data, custom indexers, workflows,
+  blockchain event filtering, or the `secondlayer` CLI (`sl` shorthand).
 license: MIT
 metadata:
   author: secondlayer
@@ -15,12 +15,12 @@ metadata:
 
 Stacks blockchain indexing platform. Two primitives:
 
-| | Streams | Subgraphs |
-|--|---------|-----------|
-| **Model** | Push — delivers matching events to your endpoint | Pull — indexes into SQL tables you query via REST |
-| **Use when** | Real-time reactions (alerts, bots, pipelines) | Historical queries (dashboards, APIs, analytics) |
-| **Define with** | JSON config file | TypeScript (defineSubgraph + handlers) |
-| **State** | Stateless delivery | Stateful (persisted tables) |
+| | Subgraphs | Workflows |
+|--|-----------|-----------|
+| **Model** | Indexes events into SQL tables you query via REST | Event- or cron-driven handlers with memoized steps |
+| **Use when** | Historical queries (dashboards, APIs, analytics) | Reactions, notifications, AI analysis, delivery |
+| **Define with** | TypeScript (`defineSubgraph` + handlers) | TypeScript (`defineWorkflow` + steps) |
+| **State** | Persisted tables | Memoized step outputs per run |
 
 ## Install & Auth
 
@@ -50,36 +50,9 @@ secondlayer auth keys rotate              # rotate active key
 
 ---
 
-## Streams
+## Event Filters
 
-Streams deliver matching blockchain events to an endpoint URL in real-time.
-
-### Create a stream
-
-**Step 1**: Generate config template:
-```bash
-secondlayer streams new my-stream -o streams/my-stream.json
-```
-
-**Step 2**: Edit the JSON — set `endpointUrl` and `filters`, then register:
-```bash
-secondlayer streams register streams/my-stream.json
-```
-Save the `signingSecret` from the output — it's shown only once.
-
-**SDK alternative** (single step):
-```typescript
-const { stream, signingSecret } = await sl.streams.create({
-  name: "stx-transfers",
-  endpointUrl: "https://example.com/receive",
-  filters: [{ type: "stx_transfer", minAmount: 1000000 }],
-  options: { maxRetries: 5, timeoutMs: 10000 },
-});
-```
-
-### Filters
-
-Every stream needs at least one filter. Common patterns:
+Subgraphs and workflows both match on-chain activity with the same filter types. Common patterns:
 
 ```typescript
 // STX transfers over 100 STX
@@ -101,72 +74,9 @@ Every stream needs at least one filter. Common patterns:
 { type: "contract_deploy" }
 ```
 
-13 filter types total. See [references/filters.md](references/filters.md) for the complete list with all fields. Subgraphs use the same filter types (`SubgraphFilter`) for their named sources.
+13 filter types total. See [references/filters.md](references/filters.md) for the complete list with all fields.
 
 Wildcards supported in `contractId`, `functionName`, `contractName`: `"SP102*::amm-*"`, `"swap*"`.
-
-### Manage streams
-
-```bash
-secondlayer streams list                             # list all (--status active/paused/failed)
-secondlayer streams get <id>                         # details (supports partial IDs)
-secondlayer streams set <id> active                  # enable
-secondlayer streams set <id> disabled                # disable
-secondlayer streams set <id> --retry                 # restart failed stream
-secondlayer streams set <id> --retry --replay-failed # restart + replay failed deliveries
-secondlayer streams set --all paused                 # pause all
-secondlayer streams set --all paused --wait          # pause all + wait for queue drain
-secondlayer streams delete <id>                      # delete (-f to skip confirm)
-secondlayer streams logs <id> -f                     # tail delivery logs in real-time
-secondlayer streams replay <id> --from 100 --to 200  # replay block range (max 10k)
-secondlayer streams replay <id> --last 50            # replay last N blocks
-secondlayer streams replay <id> --block 180500       # replay single block
-secondlayer streams rotate-secret <id>               # generate new signing secret
-```
-
-SDK equivalents:
-```typescript
-await sl.streams.list({ status: "active" })
-await sl.streams.get("abc123")        // supports partial IDs
-await sl.streams.enable(id)
-await sl.streams.disable(id)
-await sl.streams.pauseAll()
-await sl.streams.resumeAll()
-await sl.streams.delete(id)
-await sl.streams.listDeliveries(id, { limit: 20, status: "failed" })
-await sl.streams.rotateSecret(id)
-```
-
-### Stream options
-
-| Option | Default | Max | Description |
-|--------|---------|-----|-------------|
-| `decodeClarityValues` | `true` | — | Decode Clarity values in payloads |
-| `includeRawTx` | `false` | — | Include raw transaction hex |
-| `includeBlockMetadata` | `true` | — | Include block hash, timestamp, etc. |
-| `rateLimit` | `10` | `100` | Max deliveries per second |
-| `timeoutMs` | `10000` | `30000` | Endpoint response timeout (ms) |
-| `maxRetries` | `3` | `10` | Retry attempts on failure |
-
-### Delivery payload
-
-Your endpoint receives a POST with this shape:
-
-```typescript
-{
-  streamId: string;
-  streamName: string;
-  block: { height, hash, parentHash, burnBlockHeight, timestamp };
-  matches: {
-    transactions: [{ txId, type, sender, status, contractId, functionName }];
-    events: [{ txId, eventIndex, type, data }];
-  };
-  isBackfill: boolean;   // true if from replay, false for live
-  deliveredAt: string;   // ISO datetime
-}
-```
-
-Verify payloads with the `X-Secondlayer-Signature` header (HMAC-SHA256 using your signing secret). Failed deliveries retry with exponential backoff up to `maxRetries`.
 
 ---
 
@@ -266,7 +176,7 @@ handlers: {
 }
 ```
 
-Source types use the `SubgraphFilter` type (same filter types as Streams — see filter reference above). No `SubgraphSource` type.
+Source types use the `SubgraphFilter` type — see the filter reference above. No `SubgraphSource` type.
 
 ### Event payload shape
 
@@ -509,7 +419,7 @@ secondlayer subgraphs generate my-subgraph -o src/subgraphs/my-subgraph-client.t
 
 ## MCP Server
 
-`@secondlayer/mcp` exposes all platform tools to AI agents via MCP (Model Context Protocol). 22 tools + 3 resources across streams, subgraphs, scaffold, templates, and account.
+`@secondlayer/mcp` exposes all platform tools to AI agents via MCP (Model Context Protocol). Tools + 3 resources across subgraphs, workflows, scaffold, templates, and account.
 
 ### Setup — IDE (stdio)
 
@@ -544,8 +454,8 @@ Endpoint: `POST/GET/DELETE /mcp`. Auth via `Authorization: Bearer <secret>`. Ses
 
 | Domain | Tools |
 |--------|-------|
-| Streams | `list`, `get`, `create`, `update`, `delete`, `toggle`, `deliveries`, `pause_all`, `resume_all`, `replay`, `rotate_secret` |
 | Subgraphs | `list`, `get`, `query`, `reindex`, `delete`, `deploy` |
+| Workflows | `list`, `get`, `trigger`, `pause`, `resume`, `runs` |
 | Scaffold | `from_contract`, `from_abi` |
 | Templates | `list`, `get` |
 | Account | `whoami` |
@@ -579,13 +489,6 @@ Agents can deploy subgraphs by passing TypeScript code directly:
 
 Code is bundled with esbuild, validated, and deployed — no file system access needed.
 
-### Bulk operations
-
-`streams_pause_all` and `streams_resume_all` use a confirm gate:
-
-- `{ confirm: false }` (default) — returns preview of affected streams
-- `{ confirm: true }` — executes the operation
-
 ---
 
 ## Error Handling (SDK)
@@ -594,7 +497,7 @@ Code is bundled with esbuild, validated, and deployed — no file system access 
 import { ApiError } from "@secondlayer/sdk";
 
 try {
-  await sl.streams.get("abc123");
+  await sl.subgraphs.get("my-subgraph");
 } catch (err) {
   if (err instanceof ApiError) {
     // err.status — 401: invalid key, 404: not found, 429: rate limited
@@ -602,8 +505,6 @@ try {
   }
 }
 ```
-
-Partial IDs supported: `sl.streams.get("abc1")` resolves via list. Throws 404 if no match, 400 if ambiguous.
 
 ---
 

@@ -14,7 +14,8 @@ export const ErrorCodes = {
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
 /**
- * Base error class for all Stacks Streams errors
+ * Base error class for all Secondlayer errors.
+ * Name retained for backwards compat; refactoring is a follow-up.
  */
 export class StreamsError extends Error {
 	public code: ErrorCode;
