@@ -29,7 +29,25 @@ export interface DeliveriesResponse {
 	deliveries: DeliverySummary[];
 }
 
+/**
+ * @deprecated Streams is deprecated and will be removed in v2.0.
+ * Migrate to Workflows using the `simple-webhook` template for identical functionality.
+ * See: https://docs.secondlayer.io/migrate/streams-to-workflows
+ */
 export class Streams extends BaseClient {
+	private warned = false;
+
+	private emitDeprecationWarning(): void {
+		if (!this.warned) {
+			console.warn(
+				"[DEPRECATED] SecondLayer.streams is deprecated and will be removed in v2.0. " +
+				"Migrate to Workflows using the 'simple-webhook' template. " +
+				"See: https://docs.secondlayer.io/migrate/streams-to-workflows",
+			);
+			this.warned = true;
+		}
+	}
+
 	private async requestWithStreamId<T>(
 		method: string,
 		pathTemplate: (id: string) => string,
@@ -62,6 +80,7 @@ export class Streams extends BaseClient {
 	}
 
 	async create(data: CreateStream): Promise<CreateStreamResponse> {
+		this.emitDeprecationWarning();
 		return this.request<CreateStreamResponse>("POST", "/api/streams", data);
 	}
 
@@ -87,6 +106,7 @@ export class Streams extends BaseClient {
 	}
 
 	async list(params?: { status?: string }): Promise<ListStreamsResponse> {
+		this.emitDeprecationWarning();
 		const searchParams = new URLSearchParams();
 		if (params?.status) searchParams.set("status", params.status);
 		const query = searchParams.toString();
@@ -95,10 +115,12 @@ export class Streams extends BaseClient {
 	}
 
 	async get(id: string): Promise<StreamResponse> {
+		this.emitDeprecationWarning();
 		return this.requestWithStreamId("GET", (id) => `/api/streams/${id}`, id);
 	}
 
 	async delete(id: string): Promise<void> {
+		this.emitDeprecationWarning();
 		return this.requestWithStreamId("DELETE", (id) => `/api/streams/${id}`, id);
 	}
 
