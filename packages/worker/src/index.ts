@@ -1,6 +1,5 @@
 // Worker service - scheduled jobs only (stream processing removed)
 import { getEnv, logger } from "@secondlayer/shared";
-import { startAccountAgentScheduler } from "./jobs/account-agent.ts";
 import { startStorageMeasurement } from "./jobs/measure-storage.ts";
 
 let running = true;
@@ -10,7 +9,6 @@ let running = true;
  * 
  * NOTE: Stream processing has been removed as part of the streams deprecation.
  * The worker now only runs periodic scheduled jobs:
- * - Account agent (insights generation for paid accounts)
  * - Storage measurement (subgraph storage tracking)
  */
 async function runWorker() {
@@ -22,9 +20,6 @@ async function runWorker() {
 	// Start periodic storage measurement
 	const stopStorageMeasurement = startStorageMeasurement();
 
-	// Start account agent scheduler
-	const stopAccountAgent = startAccountAgentScheduler();
-
 	logger.info("Worker ready - running scheduled jobs");
 
 	// Handle shutdown
@@ -35,7 +30,6 @@ async function runWorker() {
 		logger.info("Shutting down worker...");
 
 		stopStorageMeasurement();
-		stopAccountAgent();
 
 		logger.info("Worker shutdown complete");
 		process.exit(0);
