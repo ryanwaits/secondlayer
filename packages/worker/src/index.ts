@@ -1,69 +1,23 @@
-// Worker service - evaluates filters and dispatches deliveries
-import { getEnv, getErrorMessage, logger } from "@secondlayer/shared";
-import { claim, complete, fail, getWorkerId } from "@secondlayer/shared/queue";
-import { listenForJobs } from "@secondlayer/shared/queue/listener";
-import { startRecoveryLoop } from "@secondlayer/shared/queue/recovery";
+// Worker service - scheduled jobs only (stream processing removed)
+import { getEnv, logger } from "@secondlayer/shared";
 import { startAccountAgentScheduler } from "./jobs/account-agent.ts";
 import { startStorageMeasurement } from "./jobs/measure-storage.ts";
-import { processJob } from "./processor.ts";
 
-const CONCURRENCY = Number.parseInt(process.env.WORKER_CONCURRENCY || "5");
-const POLL_INTERVAL_MS = Number.parseInt(
-	process.env.POLL_INTERVAL_MS || "1000",
-);
-
-let activeJobs = 0;
 let running = true;
 
 /**
- * Process a single job from the queue
- */
-async function processNextJob(): Promise<boolean> {
-	if (activeJobs >= CONCURRENCY || !running) {
-		return false;
-	}
-
-	const job = await claim();
-	if (!job) {
-		return false;
-	}
-
-	activeJobs++;
-	logger.debug("Processing job", {
-		jobId: job.id,
-		streamId: job.stream_id,
-		blockHeight: job.block_height,
-	});
-
-	try {
-		await processJob(job);
-		await complete(job.id);
-		logger.debug("Job completed", { jobId: job.id });
-	} catch (error) {
-		const errorMessage = getErrorMessage(error);
-		logger.error("Job failed", { jobId: job.id, error: errorMessage });
-		await fail(job.id, errorMessage);
-	} finally {
-		activeJobs--;
-	}
-
-	return true;
-}
-
-/**
- * Main worker loop
+ * Main worker loop - runs scheduled background jobs only
+ * 
+ * NOTE: Stream processing has been removed as part of the streams deprecation.
+ * The worker now only runs periodic scheduled jobs:
+ * - Account agent (insights generation for paid accounts)
+ * - Storage measurement (subgraph storage tracking)
  */
 async function runWorker() {
-	const workerId = getWorkerId();
 	const env = getEnv();
-	logger.info("Starting worker", {
-		workerId,
-		concurrency: CONCURRENCY,
+	logger.info("Starting worker (scheduled jobs only)", {
 		networks: env.enabledNetworks,
 	});
-
-	// Start stale job recovery loop
-	const stopRecovery = startRecoveryLoop(60000, 5);
 
 	// Start periodic storage measurement
 	const stopStorageMeasurement = startStorageMeasurement();
@@ -71,28 +25,7 @@ async function runWorker() {
 	// Start account agent scheduler
 	const stopAccountAgent = startAccountAgentScheduler();
 
-	// Listen for new job notifications
-	const stopListening = await listenForJobs(async () => {
-		// Process jobs when notified
-		while (await processNextJob()) {
-			// Keep processing until no more jobs or at capacity
-		}
-	});
-
-	// Poll for jobs periodically (backup for missed notifications)
-	const pollInterval = setInterval(async () => {
-		if (!running) return;
-		while (await processNextJob()) {
-			// Keep processing until no more jobs or at capacity
-		}
-	}, POLL_INTERVAL_MS);
-
-	// Initial job processing
-	while (await processNextJob()) {
-		// Process any pending jobs on startup
-	}
-
-	logger.info("Worker ready", { workerId });
+	logger.info("Worker ready - running scheduled jobs");
 
 	// Handle shutdown
 	const shutdown = async () => {
@@ -101,17 +34,8 @@ async function runWorker() {
 
 		logger.info("Shutting down worker...");
 
-		clearInterval(pollInterval);
-		await stopListening();
-		stopRecovery();
 		stopStorageMeasurement();
 		stopAccountAgent();
-
-		// Wait for active jobs to complete
-		while (activeJobs > 0) {
-			logger.info("Waiting for active jobs", { activeJobs });
-			await new Promise((r) => setTimeout(r, 1000));
-		}
 
 		logger.info("Worker shutdown complete");
 		process.exit(0);
