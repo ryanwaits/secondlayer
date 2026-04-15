@@ -10,6 +10,9 @@ dist/
 # Generated files (for examples)
 examples/generated/
 
+# repomix snapshot — regenerated on demand, never commit
+repo.json
+
 # IDE
 .vscode/
 .idea/
