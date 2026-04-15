@@ -403,7 +403,6 @@ export function registerWorkflowTools(server: McpServer) {
 		name: string;
 		trigger:
 			| { type: "event"; filterType?: string }
-			| { type: "stream"; filterType?: string }
 			| { type: "schedule"; cron: string; timezone?: string }
 			| { type: "manual" };
 		steps: ScaffoldStepKind[];
@@ -421,10 +420,6 @@ export function registerWorkflowTools(server: McpServer) {
 				.discriminatedUnion("type", [
 					z.object({
 						type: z.literal("event"),
-						filterType: z.string().optional(),
-					}),
-					z.object({
-						type: z.literal("stream"),
 						filterType: z.string().optional(),
 					}),
 					z.object({

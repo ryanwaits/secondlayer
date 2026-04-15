@@ -36,12 +36,6 @@ export default defineWorkflow({
 { type: "event", filter: { type: "contract_call", contract: "SP..." } }
 ```
 
-### Stream (continuous)
-
-```typescript
-{ type: "stream", filter: { type: "stx_transfer" } }
-```
-
 ### Schedule (cron)
 
 ```typescript

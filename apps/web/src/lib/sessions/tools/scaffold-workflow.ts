@@ -9,10 +9,6 @@ const TriggerSchema = z.discriminatedUnion("type", [
 		filterType: z.string().optional(),
 	}),
 	z.object({
-		type: z.literal("stream"),
-		filterType: z.string().optional(),
-	}),
-	z.object({
 		type: z.literal("schedule"),
 		cron: z.string().min(1),
 		timezone: z.string().optional(),
@@ -23,8 +19,7 @@ const TriggerSchema = z.discriminatedUnion("type", [
 function summariseTrigger(t: z.infer<typeof TriggerSchema>): string {
 	switch (t.type) {
 		case "event":
-		case "stream":
-			return t.filterType ? `${t.type} · ${t.filterType}` : `${t.type} trigger`;
+			return t.filterType ? `event · ${t.filterType}` : "event trigger";
 		case "schedule":
 			return `schedule · ${t.cron}${t.timezone ? ` (${t.timezone})` : ""}`;
 		case "manual":

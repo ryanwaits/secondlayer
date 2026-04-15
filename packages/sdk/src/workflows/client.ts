@@ -105,7 +105,7 @@ export interface BundleWorkflowResponse {
 export interface WorkflowSummary {
 	name: string;
 	status: "active" | "paused";
-	triggerType: "event" | "stream" | "schedule" | "manual";
+	triggerType: "event" | "schedule" | "manual";
 	createdAt: string;
 	updatedAt: string;
 }

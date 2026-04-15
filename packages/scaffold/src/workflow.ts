@@ -16,7 +16,6 @@ export type ScaffoldDeliveryTarget =
 
 export type ScaffoldTriggerInput =
 	| { type: "event"; filterType?: string }
-	| { type: "stream"; filterType?: string }
 	| { type: "schedule"; cron: string; timezone?: string }
 	| { type: "manual" };
 
@@ -32,14 +31,6 @@ function renderTrigger(trigger: ScaffoldTriggerInput): string {
 		case "event":
 			return `{
 		type: "event",
-		filter: {
-			type: "${trigger.filterType ?? "stx_transfer"}",
-			// Add filter criteria below (e.g. minAmount, sender, recipient).
-		},
-	}`;
-		case "stream":
-			return `{
-		type: "stream",
 		filter: {
 			type: "${trigger.filterType ?? "stx_transfer"}",
 			// Add filter criteria below (e.g. minAmount, sender, recipient).
