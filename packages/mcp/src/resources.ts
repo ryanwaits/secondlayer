@@ -1,10 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamFilterSchema } from "@secondlayer/shared/schemas";
 import { templates as subgraphTemplates } from "@secondlayer/subgraphs/templates";
 import { templates as workflowTemplates } from "@secondlayer/workflows/templates";
-import { FilterSchema } from "./tools/streams.ts";
 
-/** Derived from FilterSchema — single source of truth for filter types and fields. */
-const FILTERS_REFERENCE = FilterSchema.options.map((opt) => ({
+/** Derived from StreamFilterSchema — single source of truth for filter types and fields. */
+const FILTERS_REFERENCE = StreamFilterSchema.options.map((opt) => ({
 	type: opt.shape.type.def.values[0] as string,
 	fields: Object.keys(opt.shape).filter((k) => k !== "type"),
 }));
