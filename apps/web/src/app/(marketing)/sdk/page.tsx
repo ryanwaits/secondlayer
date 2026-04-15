@@ -5,7 +5,6 @@ import type { TocItem } from "@/components/sidebar";
 
 const toc: TocItem[] = [
 	{ label: "Getting started", href: "#getting-started" },
-	{ label: "Streams", href: "#streams" },
 	{ label: "Subgraphs", href: "#subgraphs" },
 	{ label: "Typed subgraphs", href: "#typed-subgraphs" },
 	{ label: "Workflows", href: "#workflows" },
@@ -55,7 +54,6 @@ const client = new SecondLayer({
 })
 
 // Sub-clients are available as properties:
-client.streams      // stream CRUD, deliveries, replay
 client.subgraphs    // subgraph deploy, query, reindex
 client.workflows    // workflow deploy, source, rollback, tail`}
 				/>
@@ -68,57 +66,6 @@ client.workflows    // workflow deploy, source, rollback, tail`}
 						session, or external MCP client). The default is <code>cli</code>.
 					</p>
 				</div>
-
-				<SectionHeading id="streams">Streams</SectionHeading>
-
-				<div className="prose">
-					<p>
-						Create and manage event streams. Streams deliver matching onchain
-						events to your endpoint in real-time.
-					</p>
-				</div>
-
-				<CodeBlock
-					lang="typescript"
-					code={`// Create — returns stream + signing secret for HMAC verification
-const { stream, signingSecret } = await client.streams.create({
-  name: "my-stream",
-  endpointUrl: "https://example.com/streams",
-  filters: [
-    { type: "stx_transfer", minAmount: 1_000_000 },
-  ],
-})
-
-// List (optionally filter by status)
-const { streams, total } = await client.streams.list({ status: "active" })
-
-// Get by ID (supports partial IDs)
-const stream = await client.streams.get("a1b2c3")
-
-// Update filters or endpoint URL
-await client.streams.update("a1b2c3", {
-  filters: [{ type: "contract_call", contractId: "SP1234...::token" }],
-})
-
-// Enable / disable / delete
-await client.streams.enable("a1b2c3")
-await client.streams.disable("a1b2c3")
-await client.streams.delete("a1b2c3")
-
-// Bulk operations
-await client.streams.pauseAll()
-await client.streams.resumeAll()
-
-// Rotate signing secret
-const { secret } = await client.streams.rotateSecret("a1b2c3")
-
-// Inspect deliveries
-const { deliveries } = await client.streams.listDeliveries("a1b2c3", {
-  limit: 20,
-  status: "failed",
-})
-const detail = await client.streams.getDelivery("a1b2c3", "delivery-id")`}
-				/>
 
 				<SectionHeading id="subgraphs">Subgraphs</SectionHeading>
 
@@ -308,11 +255,11 @@ await client.workflows.delete("whale-alerts")`}
 					code={`import { ApiError, VersionConflictError } from "@secondlayer/sdk"
 
 try {
-  await client.streams.get("nonexistent")
+  await client.subgraphs.get("nonexistent")
 } catch (err) {
   if (err instanceof ApiError) {
     err.status   // 404
-    err.message  // "Stream not found"
+    err.message  // "Subgraph not found"
     err.body     // parsed response body ({ error, code, ... })
   }
 }
@@ -354,52 +301,6 @@ try {
 						</span>
 					</div>
 
-					<div className="props-group-title">client.streams</div>
-
-					<div className="prop-row">
-						<span className="prop-name">create(data)</span>
-						<span className="prop-type">
-							{"{"}stream, signingSecret{"}"}
-						</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">list(params?)</span>
-						<span className="prop-type">
-							{"{"}streams, total{"}"}
-						</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">get(id)</span>
-						<span className="prop-type">StreamResponse</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">update(id, data)</span>
-						<span className="prop-type">StreamResponse</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">delete(id)</span>
-						<span className="prop-type">void</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">enable(id) / disable(id)</span>
-						<span className="prop-type">StreamResponse</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">rotateSecret(id)</span>
-						<span className="prop-type">
-							{"{"}secret{"}"}
-						</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">pauseAll() / resumeAll()</span>
-						<span className="prop-type">BulkResponse</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">listDeliveries(id, params?)</span>
-						<span className="prop-type">
-							{"{"}deliveries{"}"}
-						</span>
-					</div>
 
 					<div className="props-group-title">client.subgraphs</div>
 
@@ -552,13 +453,9 @@ try {
 					<div className="prop-row">
 						<span className="prop-name">@secondlayer/sdk</span>
 						<span className="prop-type">
-							SecondLayer, Streams, Subgraphs, Workflows, getSubgraph, ApiError,
+							SecondLayer, Subgraphs, Workflows, getSubgraph, ApiError,
 							VersionConflictError
 						</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">@secondlayer/sdk/streams</span>
-						<span className="prop-type">Streams</span>
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">@secondlayer/sdk/subgraphs</span>

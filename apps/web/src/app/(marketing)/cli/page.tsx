@@ -6,7 +6,6 @@ import type { TocItem } from "@/components/sidebar";
 const toc: TocItem[] = [
 	{ label: "Install", href: "#install" },
 	{ label: "Auth", href: "#auth" },
-	{ label: "Streams", href: "#streams" },
 	{ label: "Subgraphs", href: "#subgraphs" },
 	{ label: "Workflows", href: "#workflows" },
 	{ label: "Codegen", href: "#codegen" },
@@ -27,8 +26,8 @@ export default function CliPage() {
 
 				<div className="prose">
 					<p>
-						The <code>sl</code> command manages streams, subgraphs, workflows,
-						auth, code generation, and local development infrastructure from the
+						The <code>sl</code> command manages subgraphs, workflows, auth,
+						code generation, and local development infrastructure from the
 						terminal. One binary, every Second Layer operation.
 					</p>
 					<p>
@@ -85,45 +84,6 @@ sl auth keys revoke <id>
 
 # Logout — revokes key server-side
 sl auth logout`}
-					lang="bash"
-				/>
-
-				<SectionHeading id="streams">Streams</SectionHeading>
-
-				<div className="prose">
-					<p>Scaffold, register, and manage event streams from the CLI.</p>
-				</div>
-
-				<CodeBlock
-					code={`# Scaffold a new stream config
-sl streams new my-stream
-
-# Register with the API
-sl streams register streams/my-stream.json
-
-# List streams (optionally filter by status)
-sl streams ls
-sl streams ls --status active
-
-# Get stream details
-sl streams get <id>
-
-# Enable / disable
-sl streams set <id> enable
-sl streams set <id> disable
-
-# View delivery logs (--follow for real-time)
-sl streams logs <id>
-sl streams logs <id> --follow
-
-# Replay a block range (max 10,000 blocks)
-sl streams replay <id> --start 150000 --end 160000
-
-# Rotate signing secret
-sl streams rotate-secret <id>
-
-# Delete (with confirmation)
-sl streams delete <id>`}
 					lang="bash"
 				/>
 
@@ -318,7 +278,7 @@ sl local stop`}
 					<div className="prop-row">
 						<span className="prop-name">sl status</span>
 						<span className="prop-type">
-							System health — DB, queue, indexing, streams
+							System health — DB, indexing, subgraphs
 						</span>
 					</div>
 					<div className="prop-row">
@@ -355,49 +315,6 @@ sl local stop`}
 					<div className="prop-row">
 						<span className="prop-name">sl auth keys [list|create|revoke]</span>
 						<span className="prop-type">Key management</span>
-					</div>
-
-					<div className="props-group-title">Streams</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl streams new &lt;name&gt;</span>
-						<span className="prop-type">Scaffold stream config</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl streams register &lt;file&gt;</span>
-						<span className="prop-type">Register from JSON file</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl streams ls</span>
-						<span className="prop-type">List all streams</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl streams get &lt;id&gt;</span>
-						<span className="prop-type">Stream details</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">
-							sl streams set &lt;id&gt; &lt;state&gt;
-						</span>
-						<span className="prop-type">Enable / disable stream</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl streams logs &lt;id&gt;</span>
-						<span className="prop-type">Delivery log (--follow)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl streams replay &lt;id&gt;</span>
-						<span className="prop-type">Replay block range</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">
-							sl streams rotate-secret &lt;id&gt;
-						</span>
-						<span className="prop-type">New signing secret</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl streams delete &lt;id&gt;</span>
-						<span className="prop-type">Delete stream</span>
 					</div>
 
 					<div className="props-group-title">Subgraphs</div>

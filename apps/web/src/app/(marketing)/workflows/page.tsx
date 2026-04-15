@@ -100,25 +100,18 @@ export default defineWorkflow({
 
 				<div className="prose">
 					<p>
-						Four trigger types. Event and stream triggers use the same filter
-						types as streams and subgraphs. Stream triggers fire the workflow
-						directly when a block matches — no external webhook needed. Schedule
-						triggers use cron expressions. Manual triggers accept typed input
-						via the API or dashboard.
+						Three trigger types. Event triggers fire the workflow directly when
+						a block matches a SubgraphFilter — no external webhook needed.
+						Schedule triggers use cron expressions. Manual triggers accept
+						typed input via the API or dashboard.
 					</p>
 				</div>
 
 				<CodeBlock
-					code={`// Trigger on blockchain events — same filters as streams
+					code={`// Trigger on blockchain events — fires directly when a block matches
 trigger: {
   type: "event",
   filter: { type: "stx_transfer", minAmount: 50_000_000_000 },
-}
-
-// Stream trigger — fires directly when a block matches, no webhook
-trigger: {
-  type: "stream",
-  filter: { type: "contract_call", contractId: "SP1234...::dex", functionName: "swap" },
 }
 
 // Trigger on a schedule
@@ -188,7 +181,7 @@ trigger: {
 					code={`export default defineWorkflow({
   name: "large-swap-monitor",
   trigger: {
-    type: "stream",
+    type: "event",
     filter: { type: "contract_call", contractId: "SP1234...::amm-pool", functionName: "swap-exact-*" },
   },
   handler: async ({ event, step }) => {
@@ -724,7 +717,7 @@ sl workflows delete whale-alert`}
 					<div className="prop-row">
 						<span className="prop-name">trigger</span>
 						<span className="prop-type">
-							EventTrigger | StreamTrigger | ScheduleTrigger | ManualTrigger
+							EventTrigger | ScheduleTrigger | ManualTrigger
 						</span>
 						<span className="prop-required">required</span>
 					</div>
@@ -751,13 +744,7 @@ sl workflows delete whale-alert`}
 					<div className="prop-row">
 						<span className="prop-name">event</span>
 						<span className="prop-type">
-							filter: SubgraphFilter (same 13 types as streams)
-						</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">stream</span>
-						<span className="prop-type">
-							filter: SubgraphFilter (fires workflow directly, no webhook)
+							filter: SubgraphFilter (fires workflow directly when a block matches)
 						</span>
 					</div>
 					<div className="prop-row">

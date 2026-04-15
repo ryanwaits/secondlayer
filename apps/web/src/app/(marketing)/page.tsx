@@ -4,7 +4,6 @@ import { HomeAnnotations } from "./home-annotations";
 
 const products = [
 	{ name: "Subgraphs", href: "/subgraphs" },
-	{ name: "Streams", href: "/streams" },
 	{ name: "Workflows", href: "/workflows" },
 ];
 

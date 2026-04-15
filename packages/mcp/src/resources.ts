@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { templates as subgraphTemplates } from "@secondlayer/subgraphs/templates";
 import { templates as workflowTemplates } from "@secondlayer/workflows/templates";
 
-/** Filter types for blockchain events — aligned with SubgraphFilter vocabulary. */
+/** Filter types for blockchain events — SubgraphFilter vocabulary. */
 const FILTERS_REFERENCE = [
 	{ type: "stx_transfer", fields: ["sender", "recipient", "minAmount", "maxAmount"] },
 	{ type: "stx_mint", fields: ["recipient", "minAmount"] },
@@ -49,7 +49,7 @@ export function registerResources(server: McpServer) {
 	server.resource(
 		"filters",
 		"secondlayer://filters",
-		{ description: "Stream filter types and their available fields" },
+		{ description: "Event filter types and their available fields" },
 		async () => ({
 			contents: [
 				{
