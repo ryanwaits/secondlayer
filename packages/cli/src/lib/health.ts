@@ -203,7 +203,6 @@ export async function checkHealth(): Promise<HealthReport> {
 	const portsToCheck = [
 		{ port: config.ports.api, name: "API" },
 		{ port: config.ports.indexer, name: "Indexer" },
-		{ port: config.ports.receiver, name: "Receiver" },
 		{ port: 20443, name: "Node RPC" },
 	];
 
