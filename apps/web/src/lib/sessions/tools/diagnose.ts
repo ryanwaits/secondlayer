@@ -27,60 +27,6 @@ export function createDiagnose(resources: AccountResources) {
 		execute: async ({ resourceType, resourceId }) => {
 			const findings: Finding[] = [];
 
-			if (resourceType === "stream") {
-				const targets = resourceId
-					? resources.streams.filter(
-							(s) => s.name === resourceId || s.id === resourceId,
-						)
-					: resources.streams;
-
-				for (const s of targets) {
-					// Failed status
-					if (s.status === "failed") {
-						findings.push({
-							resource: s.name,
-							resourceType: "stream",
-							severity: "danger",
-							title: `${s.name} — failed`,
-							description: s.errorMessage
-								? `Stream is in failed state: ${s.errorMessage}`
-								: "Stream is in failed state.",
-							suggestion:
-								"Check your webhook URL and replay failed deliveries.",
-						});
-						continue;
-					}
-
-					// High error rate (>10%)
-					if (s.totalDeliveries > 0 && s.failedDeliveries > 0) {
-						const errorRate = s.failedDeliveries / s.totalDeliveries;
-						if (errorRate > 0.1) {
-							findings.push({
-								resource: s.name,
-								resourceType: "stream",
-								severity: "danger",
-								title: `${s.name} — ${Math.round(errorRate * 100)}% failure rate`,
-								description: `${s.failedDeliveries} of ${s.totalDeliveries} deliveries failed.`,
-								suggestion: "Check that your webhook URL responds with 2xx.",
-							});
-							continue;
-						}
-					}
-
-					// Paused / disabled
-					if (!s.enabled || s.status === "paused") {
-						findings.push({
-							resource: s.name,
-							resourceType: "stream",
-							severity: "warning",
-							title: `${s.name} — ${!s.enabled ? "disabled" : "paused"}`,
-							description: `Stream is ${!s.enabled ? "disabled" : "paused"}. Events are being buffered.`,
-							suggestion: `Say "resume ${s.name}" to unpause.`,
-						});
-					}
-				}
-			}
-
 			if (resourceType === "subgraph") {
 				const targets = resourceId
 					? resources.subgraphs.filter((s) => s.name === resourceId)

@@ -11,16 +11,7 @@ export function buildSessionInstructions(
 	resources: AccountResources,
 	recentSessions?: RecentSessionInfo[],
 ): string {
-	const { streams, subgraphs, workflows, keys, chainTip } = resources;
-
-	const streamList = streams.length
-		? streams
-				.map(
-					(s) =>
-						`- id:${s.id} name:"${s.name}" status:${s.status} enabled:${s.enabled} failed:${s.failedDeliveries}/${s.totalDeliveries}${s.errorMessage ? ` error:"${s.errorMessage}"` : ""}`,
-				)
-				.join("\n")
-		: "No streams.";
+	const { subgraphs, workflows, keys, chainTip } = resources;
 
 	const subgraphList = subgraphs.length
 		? subgraphs
@@ -53,7 +44,6 @@ export function buildSessionInstructions(
 
 ## API base URL
 The Secondlayer API base URL is: https://api.secondlayer.tools/api
-- Streams: POST/GET/DELETE https://api.secondlayer.tools/api/streams/{id}
 - Subgraph queries: GET https://api.secondlayer.tools/api/subgraphs/{subgraph-name}/{table-name}?_limit=10&_sort=_id&_order=desc
 - Subgraph search: GET https://api.secondlayer.tools/api/subgraphs/{subgraph-name}/{table-name}?_search=term
 - API keys: POST/DELETE https://api.secondlayer.tools/api/keys/{id}
@@ -81,7 +71,7 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 ## Workflow authoring
 - When the user describes an automation ("ping me when X", "every morning summarise Y", "alert me on Z"), drive the scaffold → refine → deploy loop.
 - Start with \`list_workflow_templates\` if the user asks what's available or the intent maps to a seed. Six seeds: \`whale-alert\`, \`mint-watcher\`, \`price-circuit-breaker\`, \`daily-digest\`, \`failed-tx-alert\`, \`health-cron\`.
-- Otherwise call \`scaffold_workflow\` with a typed trigger (\`event\` / \`stream\` / \`schedule\` / \`manual\`), an ordered \`steps\` array (\`run\`, \`query\`, \`ai\`, \`deliver\`), and a \`deliveryTarget\` when the last step is \`deliver\`. **Only include steps the user asked for.** If the user said "just use step.ai and return the analysis", pass \`steps: ["ai"]\` with no delivery target — do not add \`query\`, \`run\`, or \`deliver\` that the user didn't request.
+- Otherwise call \`scaffold_workflow\` with a typed trigger (\`event\` / \`schedule\` / \`manual\`), an ordered \`steps\` array (\`run\`, \`query\`, \`ai\`, \`deliver\`), and a \`deliveryTarget\` when the last step is \`deliver\`. **Only include steps the user asked for.** If the user said "just use step.ai and return the analysis", pass \`steps: ["ai"]\` with no delivery target — do not add \`query\`, \`run\`, or \`deliver\` that the user didn't request.
 - \`scaffold_workflow\` returns a SKELETON with placeholder values (generic AI prompt, sample \`step.query("recent-activity", "my-subgraph", ...)\`, etc). Treat it as a starting point, not finished code.
 - **STOP after the scaffold card.** Describe what was generated in one or two sentences, name the placeholders that need replacing, and ASK the user if they want to (a) deploy as-is, (b) let you customize the source to match their intent, or (c) pick another template. Do NOT call \`deploy_workflow\` in the same step as \`scaffold_workflow\`.
 - When the user asks you to customize, rewrite the \`code\` field yourself — the deploy tool accepts any valid \`defineWorkflow()\` source, not just the exact scaffold output. Replace placeholder prompts with the user's actual request, remove step kinds they didn't ask for, inline real field references (\`event.sender\`, \`ctx.input.contractId\`), and keep the trigger shape from the scaffold. Then call \`deploy_workflow\` with your customized code and the matching \`triggerSummary\`.
@@ -111,27 +101,7 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - Subgraph edits do NOT currently have stale-write protection (no expectedVersion). If the dashboard's reindex form or another session has edited the subgraph between your read and the user's confirm, your edit will overwrite theirs. Read immediately before proposing an edit, and warn the user if the edit touches schema columns or sources: those trigger an automatic reindex which drops + recreates the schema's tables.
 - When the edit adds or removes tables, or changes column types, tell the user "this will trigger a reindex from the subgraph's startBlock — existing rows will be dropped and repopulated" before they confirm.
 
-## Stream authoring
-- Streams are NOT TypeScript. A stream is a JSON config: a name, an HTTPS webhook endpoint, a list of filter objects, and optional delivery options. Agents author streams by emitting filter arrays, not code.
-- When the user describes a trigger ("POST to https://… whenever sbtc mints", "alert me when contract X calls function Y"), drive the scaffold → refine → deploy loop.
-- **Do NOT enumerate filter types from memory.** If you're unsure which filter fits, call \`list_stream_filter_types\` first — it returns all 13 filter types with their optional params and example fixtures. Only then call \`scaffold_stream\`.
-- Call \`scaffold_stream\` with \`{ name, endpointUrl, filters, options? }\`. Each filter object must include a \`type\` discriminator (e.g. \`{ type: "ft_transfer", assetIdentifier: "SP2…token::TKN", minAmount: 100000 }\`). The helper assembles a fully-shaped CreateStream payload with default options merged in, and renders a config card showing the filters + the delivery settings the stream will run with.
-- **STOP after the scaffold card.** Describe the filters in one sentence and ASK the user to confirm before deploying. Do NOT call \`deploy_stream\` in the same step as \`scaffold_stream\`.
-- Call \`deploy_stream\` only after the user confirms. Pass the same filters + options from the scaffold output. On deploy success, the card surfaces a one-time **signing secret** — ALWAYS tell the user explicitly: "Copy the signing secret now — it won't be shown again." Streams sign every delivery with this secret so the endpoint can verify the payload came from Secondlayer.
-- After deploy, offer to \`tail_deliveries\` so the user can watch deliveries land as matching blocks flow through the indexer.
-
-## Stream edit loop
-- Editing a deployed stream is ALWAYS a two-step flow. Never skip the read.
-  1. Call \`read_stream({ nameOrId })\` first. Capture the returned \`id\` plus the full \`{ name, endpointUrl, filters, options }\` config.
-  2. Call \`edit_stream\` with \`id\` from read, \`currentConfig\` = the exact config object you just read, and \`proposedConfig\` containing only the fields you want to change. Fields you omit are left alone on the server.
-- \`read_stream\` accepts either the stream name or its UUID — prefer the name if the user typed one. If you only have the id from a previous \`check_streams\` call, that also works.
-- Use this for: swapping a filter (e.g. changing \`minAmount\` on a whale alert), raising rate limits, pointing the endpoint at a new webhook URL. Always tell the user what's changing before they confirm.
-- Streams don't have a "pause a specific stream" edit — use \`manage_streams\` with \`action: "pause"\` instead. \`edit_stream\` is for config changes.
-
 ## User's current resources
-
-### Streams
-${streamList}
 
 ### Subgraphs
 ${subgraphList}
