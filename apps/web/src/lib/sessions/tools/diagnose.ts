@@ -4,7 +4,7 @@ import type { AccountResources } from "./factory";
 
 interface Finding {
 	resource: string;
-	resourceType: "stream" | "subgraph";
+	resourceType: "subgraph";
 	severity: "danger" | "warning" | "info";
 	title: string;
 	description: string;
@@ -14,10 +14,10 @@ interface Finding {
 export function createDiagnose(resources: AccountResources) {
 	return tool({
 		description:
-			"Diagnose the health of streams or subgraphs. Returns structured findings with severity, description, and suggested actions.",
+			"Diagnose the health of subgraphs. Returns structured findings with severity, description, and suggested actions.",
 		inputSchema: z.object({
 			resourceType: z
-				.enum(["stream", "subgraph"])
+				.enum(["subgraph"])
 				.describe("Type of resource to diagnose"),
 			resourceId: z
 				.string()
@@ -27,59 +27,54 @@ export function createDiagnose(resources: AccountResources) {
 		execute: async ({ resourceType, resourceId }) => {
 			const findings: Finding[] = [];
 
-			if (resourceType === "subgraph") {
-				const targets = resourceId
-					? resources.subgraphs.filter((s) => s.name === resourceId)
-					: resources.subgraphs;
-				const chainTip = resources.chainTip;
+			const targets = resourceId
+				? resources.subgraphs.filter((s) => s.name === resourceId)
+				: resources.subgraphs;
+			const chainTip = resources.chainTip;
 
-				for (const s of targets) {
-					// Error state
-					if (s.status === "error") {
-						findings.push({
-							resource: s.name,
-							resourceType: "subgraph",
-							severity: "danger",
-							title: `${s.name} — error state`,
-							description: `Subgraph has ${s.totalErrors} errors.`,
-							suggestion:
-								"Check handler code for runtime errors. Consider reindexing.",
-						});
-						continue;
-					}
+			for (const s of targets) {
+				if (s.status === "error") {
+					findings.push({
+						resource: s.name,
+						resourceType: "subgraph",
+						severity: "danger",
+						title: `${s.name} — error state`,
+						description: `Subgraph has ${s.totalErrors} errors.`,
+						suggestion:
+							"Check handler code for runtime errors. Consider reindexing.",
+					});
+					continue;
+				}
 
-					// Stalled (>50 blocks behind chain tip)
-					if (
-						chainTip != null &&
-						s.lastProcessedBlock != null &&
-						chainTip - s.lastProcessedBlock > 50
-					) {
-						const behind = chainTip - s.lastProcessedBlock;
+				if (
+					chainTip != null &&
+					s.lastProcessedBlock != null &&
+					chainTip - s.lastProcessedBlock > 50
+				) {
+					const behind = chainTip - s.lastProcessedBlock;
+					findings.push({
+						resource: s.name,
+						resourceType: "subgraph",
+						severity: "warning",
+						title: `${s.name} — ${behind} blocks behind`,
+						description: `Last processed block ${s.lastProcessedBlock.toLocaleString()}, chain tip is ${chainTip.toLocaleString()}.`,
+						suggestion:
+							"This may catch up on its own. If stuck, try reindexing.",
+					});
+					continue;
+				}
+
+				if (s.totalErrors > 0 && s.totalProcessed > 0) {
+					const errorRate = s.totalErrors / s.totalProcessed;
+					if (errorRate > 0.1) {
 						findings.push({
 							resource: s.name,
 							resourceType: "subgraph",
 							severity: "warning",
-							title: `${s.name} — ${behind} blocks behind`,
-							description: `Last processed block ${s.lastProcessedBlock.toLocaleString()}, chain tip is ${chainTip.toLocaleString()}.`,
-							suggestion:
-								"This may catch up on its own. If stuck, try reindexing.",
+							title: `${s.name} — ${Math.round(errorRate * 100)}% error rate`,
+							description: `${s.totalErrors} errors out of ${s.totalProcessed} processed blocks.`,
+							suggestion: "Review handler code for edge cases.",
 						});
-						continue;
-					}
-
-					// High error count
-					if (s.totalErrors > 0 && s.totalProcessed > 0) {
-						const errorRate = s.totalErrors / s.totalProcessed;
-						if (errorRate > 0.1) {
-							findings.push({
-								resource: s.name,
-								resourceType: "subgraph",
-								severity: "warning",
-								title: `${s.name} — ${Math.round(errorRate * 100)}% error rate`,
-								description: `${s.totalErrors} errors out of ${s.totalProcessed} processed blocks.`,
-								suggestion: "Review handler code for edge cases.",
-							});
-						}
 					}
 				}
 			}
@@ -87,7 +82,7 @@ export function createDiagnose(resources: AccountResources) {
 			if (findings.length === 0) {
 				findings.push({
 					resource: "all",
-					resourceType,
+					resourceType: "subgraph",
 					severity: "info",
 					title: `All ${resourceType}s healthy`,
 					description: `No issues detected across your ${resourceType}s.`,
