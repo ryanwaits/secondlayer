@@ -16,6 +16,7 @@ type StreamOptions = {
 	includeBlockMetadata?: boolean;
 	maxRetries?: number;
 	timeoutMs?: number;
+	rateLimit?: number;
 };
 import {
 	type DeliveryPayload,
