@@ -7,7 +7,16 @@ import {
 	updateStreamMetrics,
 } from "@secondlayer/shared/db/queries/metrics";
 import { incrementDeliveries as incrementAccountDeliveries } from "@secondlayer/shared/db/queries/usage";
-import type { StreamFilter, StreamOptions } from "@secondlayer/shared/schemas";
+import type { StreamFilter } from "@secondlayer/shared/schemas";
+
+// Local type definition since StreamOptions was removed from shared schemas
+type StreamOptions = {
+	decodeClarityValues?: boolean;
+	includeRawTx?: boolean;
+	includeBlockMetadata?: boolean;
+	maxRetries?: number;
+	timeoutMs?: number;
+};
 import {
 	type DeliveryPayload,
 	acquireToken,
