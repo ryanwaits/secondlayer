@@ -3,11 +3,8 @@ import { z } from "zod";
 import { type DocTopic, getDocsForTopic } from "../docs";
 
 const topics: [DocTopic, ...DocTopic[]] = [
-	"stream-filters",
-	"stream-creation",
 	"api-keys",
 	"subgraphs",
-	"stream-management",
 	"subgraph-scaffold",
 ];
 

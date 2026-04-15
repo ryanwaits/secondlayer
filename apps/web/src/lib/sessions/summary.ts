@@ -39,28 +39,6 @@ export function extractSessionSummary(
 					topicSet.add("subgraph-health");
 					break;
 				}
-				case "check_streams": {
-					const streams = (output?.streams as Array<{ name: string }>) ?? [];
-					toolCalls.push({
-						tool: "check_streams",
-						resources: streams.map((s) => s.name),
-					});
-					topicSet.add("stream-health");
-					break;
-				}
-				case "manage_streams": {
-					const input = part.input as {
-						action?: string;
-						targets?: Array<{ name: string }>;
-					} | undefined;
-					toolCalls.push({
-						tool: "manage_streams",
-						action: input?.action,
-						resources: input?.targets?.map((t) => t.name),
-					});
-					topicSet.add("stream-management");
-					break;
-				}
 				case "scaffold_subgraph": {
 					const contractId = (output as { contractId?: string })?.contractId;
 					toolCalls.push({

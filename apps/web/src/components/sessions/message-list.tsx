@@ -69,10 +69,8 @@ export function MessageList({
 /** Tools that render visible UI cards (vs invisible helper tools) */
 const VISIBLE_TOOLS = new Set([
 	"check_subgraphs",
-	"check_streams",
 	"check_keys",
 	"check_insights",
-	"manage_streams",
 	"manage_keys",
 	"manage_subgraphs",
 	"scaffold_subgraph",
@@ -91,8 +89,6 @@ const VISIBLE_TOOLS = new Set([
 
 const TOOL_STEP_LABELS: Record<string, string> = {
 	check_subgraphs: "Checking subgraph health",
-	check_streams: "Checking stream health",
-	manage_streams: "Managing streams",
 	scaffold_subgraph: "Generating subgraph code",
 	scaffold_workflow: "Generating workflow code",
 	deploy_workflow: "Preparing workflow deploy",
@@ -296,27 +292,6 @@ function InlineToolCard({ part }: { part: UIMessage["parts"][number] }) {
 								{s.lastProcessedBlock != null
 									? `block ${s.lastProcessedBlock.toLocaleString()}`
 									: "—"}
-							</span>
-						</div>
-					))}
-				</div>
-			);
-		}
-		case "check_streams": {
-			const streams = output.streams as Array<{
-				name: string;
-				status: string;
-				enabled: boolean;
-			}>;
-			return (
-				<div className="tool-card">
-					{streams?.map((s) => (
-						<div key={s.name} className="tool-status-row">
-							<span className="tool-status-name">{s.name}</span>
-							<span
-								className={`tool-badge ${s.status === "active" ? "healthy" : s.status === "failed" ? "error" : "paused"}`}
-							>
-								{s.status === "active" ? "Healthy" : s.status}
 							</span>
 						</div>
 					))}

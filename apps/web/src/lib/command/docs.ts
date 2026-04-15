@@ -2,135 +2,6 @@
 // Derived from @secondlayer/shared/schemas — kept as plain strings
 // so the agent can reason about real schema shapes.
 
-export function getStreamFilterDocs(): string {
-	return `## Stream Filter Types
-
-Streams use filters to match on-chain events. Each filter has a \`type\` discriminant and optional fields.
-
-### STX Filters
-
-**stx_transfer** — Match STX token transfers
-- sender?: string (Stacks principal)
-- recipient?: string (Stacks principal)
-- minAmount?: number (microSTX, positive integer)
-- maxAmount?: number (microSTX, positive integer)
-
-**stx_mint** — Match STX minting events
-- recipient?: string
-- minAmount?: number
-
-**stx_burn** — Match STX burn events
-- sender?: string
-- minAmount?: number
-
-**stx_lock** — Match STX locking (stacking)
-- lockedAddress?: string
-- minAmount?: number
-
-### Fungible Token (FT) Filters
-
-**ft_transfer** — Match fungible token transfers
-- sender?: string
-- recipient?: string
-- assetIdentifier?: string (contract that defines the token, e.g. SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-wstx)
-- minAmount?: number
-
-**ft_mint** — Match FT minting
-- recipient?: string
-- assetIdentifier?: string
-- minAmount?: number
-
-**ft_burn** — Match FT burning
-- sender?: string
-- assetIdentifier?: string
-- minAmount?: number
-
-### Non-Fungible Token (NFT) Filters
-
-**nft_transfer** — Match NFT transfers
-- sender?: string
-- recipient?: string
-- assetIdentifier?: string
-- tokenId?: string (Clarity value as hex)
-
-**nft_mint** — Match NFT minting
-- recipient?: string
-- assetIdentifier?: string
-- tokenId?: string
-
-**nft_burn** — Match NFT burning
-- sender?: string
-- assetIdentifier?: string
-- tokenId?: string
-
-### Smart Contract Filters
-
-**contract_call** — Match contract function calls
-- contractId?: string (Stacks principal, e.g. SP2J...ABC.contract-name)
-- functionName?: string (supports wildcards with *)
-- caller?: string
-
-**contract_deploy** — Match contract deployments
-- deployer?: string
-- contractName?: string (supports wildcards)
-
-**print_event** — Match smart contract print events
-- contractId?: string (contract emitting the event)
-- topic?: string (event topic/name)
-- contains?: string (substring match in event data)
-
-### Notes
-- All address fields must be valid Stacks principals (standard or contract format)
-- Amounts are in microSTX (1 STX = 1,000,000 microSTX)
-- All fields are optional — an empty filter matches all events of that type
-- A stream must have at least one filter`;
-}
-
-export function getStreamCreationDocs(): string {
-	return `## Creating a Stream
-
-POST https://api.secondlayer.tools/api/streams with body:
-
-\`\`\`
-{
-  name: string (1-255 chars, required),
-  endpointUrl: string (valid URL, required),
-  filters: StreamFilter[] (at least 1 required),
-  options?: {
-    decodeClarityValues: boolean (default: true),
-    includeRawTx: boolean (default: false),
-    includeBlockMetadata: boolean (default: true),
-    rateLimit: number (1-100, default: 10, requests per second),
-    timeoutMs: number (1-30000, default: 10000),
-    maxRetries: number (0-10, default: 3)
-  },
-  startBlock?: number (positive integer, backfill from this block),
-  endBlock?: number (positive integer, stop at this block)
-}
-\`\`\`
-
-### Example: Track contract calls
-\`\`\`json
-{
-  "name": "DEX Trades",
-  "endpointUrl": "https://example.com/streams",
-  "filters": [
-    { "type": "contract_call", "contractId": "SP2C2...DEX.swap" }
-  ]
-}
-\`\`\`
-
-### Example: Track large STX transfers
-\`\`\`json
-{
-  "name": "Whale Alerts",
-  "endpointUrl": "https://example.com/whales",
-  "filters": [
-    { "type": "stx_transfer", "minAmount": 1000000000 }
-  ]
-}
-\`\`\``;
-}
 
 export function getApiKeyDocs(): string {
 	return `## API Keys
@@ -166,24 +37,6 @@ https://api.secondlayer.tools/api/subgraphs/{name}/{table}
 ### Navigation
 Subgraphs are managed at /subgraphs in the dashboard.
 For querying data, use the "subgraph-query" documentation topic.`;
-}
-
-export function getStreamManagementDocs(): string {
-	return `## Stream Management
-
-### Actions
-- **Pause**: POST https://api.secondlayer.tools/api/streams/{id}/pause — temporarily stop deliveries
-- **Resume**: POST https://api.secondlayer.tools/api/streams/{id}/resume — restart paused stream
-- **Disable**: POST https://api.secondlayer.tools/api/streams/{id}/disable — fully disable a stream
-- **Enable**: POST https://api.secondlayer.tools/api/streams/{id}/enable — re-enable a disabled stream
-- **Replay failed**: POST https://api.secondlayer.tools/api/streams/{id}/replay-failed — retry failed deliveries
-- **Delete**: DELETE https://api.secondlayer.tools/api/streams/{id} — permanently remove a stream
-
-### Stream statuses
-- **active**: running and delivering events
-- **paused**: temporarily stopped, can be resumed
-- **inactive**: disabled, must be enabled to start
-- **failed**: errored out, check errorMessage field`;
 }
 
 export function getSubgraphScaffoldDocs(): string {
@@ -322,20 +175,14 @@ const { data, meta } = await client
 }
 
 export type DocTopic =
-	| "stream-filters"
-	| "stream-creation"
 	| "api-keys"
 	| "subgraphs"
-	| "stream-management"
 	| "subgraph-scaffold"
 	| "subgraph-query";
 
 const topicMap: Record<DocTopic, () => string> = {
-	"stream-filters": getStreamFilterDocs,
-	"stream-creation": getStreamCreationDocs,
 	"api-keys": getApiKeyDocs,
 	subgraphs: getSubgraphDocs,
-	"stream-management": getStreamManagementDocs,
 	"subgraph-scaffold": getSubgraphScaffoldDocs,
 	"subgraph-query": getSubgraphQueryDocs,
 };

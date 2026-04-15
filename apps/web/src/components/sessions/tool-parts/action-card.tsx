@@ -44,7 +44,7 @@ export function ActionCard({
 					<circle cx="8" cy="8" r="2" />
 					<path d="M2 8h4M10 8h4" />
 				</svg>
-				Streams to {label.toLowerCase()}
+				Resources to {label.toLowerCase()}
 			</div>
 			{targets.map((t) => (
 				<div key={t.id} className="tool-action-row">
