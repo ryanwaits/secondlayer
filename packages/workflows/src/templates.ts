@@ -1,4 +1,4 @@
-export type WorkflowTemplateCategory = "monitoring" | "defi" | "ops" | "digest";
+export type WorkflowTemplateCategory = "monitoring" | "defi" | "ops" | "digest" | "webhook";
 
 export interface WorkflowTemplate {
 	id: string;
@@ -268,6 +268,38 @@ export default defineWorkflow({
 `,
 		prompt:
 			"Page me on Telegram if my subgraph stops indexing for more than 15 minutes.",
+	},
+	{
+		id: "simple-webhook",
+		name: "Simple Webhook",
+		description:
+			"Receive onchain events via webhook — the simplest way to get real-time blockchain data into your app. No code required beyond the webhook URL.",
+		category: "webhook",
+		trigger: "event",
+		code: `import { defineWorkflow } from "@secondlayer/workflows";
+
+export default defineWorkflow({
+	name: "simple-webhook",
+	trigger: {
+		type: "event",
+		filter: {
+			type: "stx_transfer",
+			// TODO: Adjust filter or remove to receive all events
+		},
+	},
+	handler: async (ctx) => {
+		await ctx.step.deliver("webhook", {
+			type: "webhook",
+			url: "https://api.example.com/webhook",
+			// Optional: add headers, retry config
+			// headers: { "X-Custom-Header": "value" },
+			// maxRetries: 3,
+		});
+	},
+});
+`,
+		prompt:
+			"Send me a webhook every time a STX transfer happens on chain.",
 	},
 ];
 
