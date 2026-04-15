@@ -109,7 +109,7 @@ export interface PrintEventFilter {
 	contains?: string;
 }
 
-export type StreamFilter =
+export type EventFilter =
 	| StxTransferFilter
 	| StxMintFilter
 	| StxBurnFilter
@@ -240,7 +240,7 @@ export const PrintEventFilterSchema: z.ZodType<PrintEventFilter> = z.object({
 });
 
 // Union of all filter types
-export const StreamFilterSchema: z.ZodType<StreamFilter> = z.discriminatedUnion(
+export const EventFilterSchema: z.ZodType<EventFilter> = z.discriminatedUnion(
 	"type",
 	[
 		StxTransferFilterSchema as any,

@@ -4,7 +4,6 @@ import { serviceManager } from "./manager.ts";
 const SERVICE_NAME = "worker";
 
 export async function startWorker(options: {
-	concurrency?: number;
 	onLog?: (line: string) => void;
 }): Promise<void> {
 	const rootDir = dirname(dirname(dirname(dirname(import.meta.dir))));
@@ -14,9 +13,6 @@ export async function startWorker(options: {
 		SERVICE_NAME,
 		["bun", "run", "--watch", workerPath],
 		{
-			env: {
-				WORKER_CONCURRENCY: String(options.concurrency ?? 5),
-			},
 			onStdout: options.onLog,
 			onStderr: options.onLog,
 		},

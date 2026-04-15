@@ -99,9 +99,7 @@ COPY --from=builder /app/packages/worker ./packages/worker
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
-ENV WORKER_CONCURRENCY=5
 
-# Worker doesn't expose a port but we can add a simple health endpoint
 CMD ["bun", "run", "packages/worker/src/index.ts"]
 
 # =============================================================================

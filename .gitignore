@@ -56,3 +56,6 @@ secondlayer.config.mjs
 .vercel
 .env*.local
 plans/
+
+# Claude Code local state
+.claude/

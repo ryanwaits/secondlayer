@@ -24,29 +24,6 @@ export async function incrementApiRequests(
 		.execute();
 }
 
-/** Increment delivery counter for today. */
-export async function incrementDeliveries(
-	db: Kysely<Database>,
-	accountId: string,
-	count = 1,
-): Promise<void> {
-	const today = new Date().toISOString().slice(0, 10);
-	await db
-		.insertInto("usage_daily")
-		.values({
-			account_id: accountId,
-			date: today,
-			api_requests: 0,
-			deliveries: count,
-		})
-		.onConflict((oc) =>
-			oc.columns(["account_id", "date"]).doUpdateSet({
-				deliveries: sql`usage_daily.deliveries + ${count}`,
-			}),
-		)
-		.execute();
-}
-
 export interface UsageSummary {
 	apiRequestsToday: number;
 	deliveriesThisMonth: number;

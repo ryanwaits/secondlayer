@@ -30,7 +30,7 @@ export interface SubgraphTable {
 export type SubgraphSchema = Record<string, SubgraphTable>;
 
 // ── SubgraphFilter ──────────────────────────────────────────────────
-// Discriminated union aligned with StreamFilter vocabulary.
+// Discriminated union of event filter types.
 // Sources are named objects: { sourceName: SubgraphFilter }
 
 /** STX event filters */

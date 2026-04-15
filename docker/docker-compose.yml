@@ -94,7 +94,6 @@ services:
       target: worker
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
-      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       NETWORKS: ${NETWORKS:-mainnet}
@@ -104,8 +103,6 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-    deploy:
-      replicas: ${WORKER_REPLICAS:-1}
 
   # Workflow runner service
   workflow-runner:
