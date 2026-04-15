@@ -23,7 +23,6 @@ import marketplaceRouter from "./routes/marketplace.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
-import streamsRouter from "./routes/streams.ts";
 import subgraphsRouter, {
 	abortAllOperations,
 	activeAbortControllers,
@@ -64,8 +63,6 @@ app.route("/api/admin", adminRouter);
 // Auth middleware — always mounted, DEV_MODE bypass handled inside middleware
 for (const path of [
 	"/status",
-	"/api/streams",
-	"/api/streams/*",
 	"/api/subgraphs",
 	"/api/subgraphs/*",
 	"/api/logs",
@@ -90,7 +87,6 @@ for (const path of [
 }
 
 // Mount routes
-app.route("/api/streams", streamsRouter);
 app.route("/api/logs", logsRouter);
 app.route("/api/subgraphs", subgraphsRouter);
 app.route("/api/accounts", accountsRouter);
