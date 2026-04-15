@@ -141,7 +141,7 @@ export async function getDailyUsage(
 export interface LimitCheck {
 	allowed: boolean;
 	limits: ReturnType<typeof getPlanLimits>;
-	current: UsageSummary & { streams: number; subgraphs: number };
+	current: UsageSummary & { subgraphs: number };
 	exceeded?: string;
 }
 
@@ -154,14 +154,6 @@ export async function checkLimits(
 	const limits = getPlanLimits(plan);
 	const usage = await getUsage(db, accountId);
 
-	// Count streams owned by this account's keys
-	const streamCount = await db
-		.selectFrom("streams")
-		.innerJoin("api_keys", "streams.api_key_id", "api_keys.id")
-		.select(sql<number>`count(*)`.as("count"))
-		.where("api_keys.account_id", "=", accountId)
-		.executeTakeFirst();
-
 	const subgraphCount = await db
 		.selectFrom("subgraphs")
 		.innerJoin("api_keys", "subgraphs.api_key_id", "api_keys.id")
@@ -171,14 +163,9 @@ export async function checkLimits(
 
 	const current = {
 		...usage,
-		streams: Number(streamCount?.count ?? 0),
 		subgraphs: Number(subgraphCount?.count ?? 0),
 	};
 
-	// Check each limit
-	if (current.streams >= limits.streams) {
-		return { allowed: false, limits, current, exceeded: "streams" };
-	}
 	if (current.subgraphs >= limits.subgraphs) {
 		return { allowed: false, limits, current, exceeded: "subgraphs" };
 	}

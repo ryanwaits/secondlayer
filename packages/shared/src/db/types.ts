@@ -37,63 +37,12 @@ export interface EventsTable {
 	created_at: Generated<Date>;
 }
 
-export interface StreamsTable {
-	id: Generated<string>;
-	name: string;
-	status: Generated<string>;
-	filters: unknown;
-	options: Generated<unknown>;
-	endpoint_url: string;
-	signing_secret: string | null;
-	api_key_id: string;
-	project_id: string | null;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-}
-
-export interface StreamMetricsTable {
-	stream_id: string;
-	last_triggered_at: Date | null;
-	last_triggered_block: number | null;
-	total_deliveries: Generated<number>;
-	failed_deliveries: Generated<number>;
-	error_message: string | null;
-}
-
-export interface JobsTable {
-	id: Generated<string>;
-	stream_id: string;
-	block_height: number;
-	status: Generated<string>;
-	attempts: Generated<number>;
-	locked_at: Date | null;
-	locked_by: string | null;
-	error: string | null;
-	backfill: Generated<boolean>;
-	created_at: Generated<Date>;
-	completed_at: Date | null;
-}
-
 export interface IndexProgressTable {
 	network: string;
 	last_indexed_block: Generated<number>;
 	last_contiguous_block: Generated<number>;
 	highest_seen_block: Generated<number>;
 	updated_at: Generated<Date>;
-}
-
-export interface DeliveriesTable {
-	id: Generated<string>;
-	stream_id: string;
-	job_id: string | null;
-	block_height: number;
-	status: string;
-	status_code: number | null;
-	response_time_ms: number | null;
-	attempts: Generated<number>;
-	error: string | null;
-	payload: unknown;
-	created_at: Generated<Date>;
 }
 
 export interface SubgraphsTable {
@@ -416,11 +365,7 @@ export interface Database {
 	blocks: BlocksTable;
 	transactions: TransactionsTable;
 	events: EventsTable;
-	streams: StreamsTable;
-	stream_metrics: StreamMetricsTable;
-	jobs: JobsTable;
 	index_progress: IndexProgressTable;
-	deliveries: DeliveriesTable;
 	subgraphs: SubgraphsTable;
 	api_keys: ApiKeysTable;
 	accounts: AccountsTable;
@@ -463,25 +408,9 @@ export type Event = Selectable<EventsTable>;
 export type InsertEvent = Insertable<EventsTable>;
 export type UpdateEvent = Updateable<EventsTable>;
 
-export type Stream = Selectable<StreamsTable>;
-export type InsertStream = Insertable<StreamsTable>;
-export type UpdateStreamRow = Updateable<StreamsTable>;
-
-export type StreamMetrics = Selectable<StreamMetricsTable>;
-export type InsertStreamMetrics = Insertable<StreamMetricsTable>;
-export type UpdateStreamMetrics = Updateable<StreamMetricsTable>;
-
-export type Job = Selectable<JobsTable>;
-export type InsertJob = Insertable<JobsTable>;
-export type UpdateJob = Updateable<JobsTable>;
-
 export type IndexProgress = Selectable<IndexProgressTable>;
 export type InsertIndexProgress = Insertable<IndexProgressTable>;
 export type UpdateIndexProgress = Updateable<IndexProgressTable>;
-
-export type Delivery = Selectable<DeliveriesTable>;
-export type InsertDelivery = Insertable<DeliveriesTable>;
-export type UpdateDelivery = Updateable<DeliveriesTable>;
 
 export type Subgraph = Selectable<SubgraphsTable>;
 export type InsertSubgraph = Insertable<SubgraphsTable>;

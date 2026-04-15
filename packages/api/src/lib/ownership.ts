@@ -1,4 +1,4 @@
-import { ForbiddenError, StreamNotFoundError } from "@secondlayer/shared";
+import { ForbiddenError } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
 import type { Context } from "hono";
@@ -19,34 +19,6 @@ export async function getAccountKeyIds(
 		.where("status", "=", "active")
 		.execute();
 	return keys.map((k) => k.id);
-}
-
-/**
- * Assert the authenticated account owns the given stream.
- * Checks against all API keys belonging to the account.
- * Returns the stream row on success.
- * Throws 404 if not found, 403 if owned by another account.
- */
-export async function assertStreamOwnership(
-	db: Kysely<Database>,
-	streamId: string,
-	accountKeyIds: string[] | undefined,
-) {
-	const stream = await db
-		.selectFrom("streams")
-		.selectAll()
-		.where("id", "=", streamId)
-		.executeTakeFirst();
-
-	if (!stream) {
-		throw new StreamNotFoundError(streamId);
-	}
-
-	if (accountKeyIds && !accountKeyIds.includes(stream.api_key_id)) {
-		throw new ForbiddenError("Stream belongs to another account");
-	}
-
-	return stream;
 }
 
 /**

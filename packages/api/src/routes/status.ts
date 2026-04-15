@@ -1,47 +1,26 @@
 import { getDb } from "@secondlayer/shared/db";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
-import { stats as queueStats } from "@secondlayer/shared/queue";
 import { Hono } from "hono";
 import { sql } from "kysely";
 
 const app = new Hono();
 
-// Simple health check
 app.get("/health", async (c) => {
 	return c.json({ status: "ok" });
 });
 
-// Detailed status
 app.get("/status", async (c) => {
 	const db = getDb();
 
-	// Run all independent queries in parallel
 	const [
 		dbResult,
-		queueResult,
 		progressResult,
-		streamResult,
 		indexerResult,
-		deliveriesResult,
 		subgraphResult,
 		gapSummaryResult,
 	] = await Promise.allSettled([
-		// 1. DB ping
 		sql`SELECT 1`.execute(db),
-		// 2. Queue stats
-		queueStats(),
-		// 3. Index progress
-		db
-			.selectFrom("index_progress")
-			.selectAll()
-			.execute(),
-		// 4. Stream counts
-		db
-			.selectFrom("streams")
-			.select(["status", sql<number>`count(*)`.as("count")])
-			.groupBy("status")
-			.execute(),
-		// 5. Indexer health
+		db.selectFrom("index_progress").selectAll().execute(),
 		fetch(`${process.env.INDEXER_URL || "http://localhost:3700"}/health`, {
 			signal: AbortSignal.timeout(1000),
 		}).then((r) =>
@@ -49,27 +28,11 @@ app.get("/status", async (c) => {
 				? (r.json() as Promise<{ blocksReceivedOutOfOrder?: number }>)
 				: null,
 		),
-		// 6. Recent deliveries
-		db
-			.selectFrom("deliveries")
-			.select(sql<number>`count(*)`.as("count"))
-			.where("created_at", ">=", sql<Date>`now() - interval '24 hours'`)
-			.executeTakeFirst(),
-		// 7. Subgraphs
-		db
-			.selectFrom("subgraphs")
-			.selectAll()
-			.execute(),
-		// 8. Subgraph gap summaries
+		db.selectFrom("subgraphs").selectAll().execute(),
 		getGapSummaryBySubgraph(db),
 	]);
 
 	const dbStatus = dbResult.status === "fulfilled" ? "ok" : "error";
-
-	const queue =
-		queueResult.status === "fulfilled"
-			? queueResult.value
-			: { pending: 0, processing: 0, completed: 0, failed: 0, total: 0 };
 
 	let progress: Array<{
 		network: string;
@@ -87,7 +50,6 @@ app.get("/status", async (c) => {
 			highestSeenBlock: p.highest_seen_block,
 			updatedAt: p.updated_at.toISOString(),
 		}));
-		// Use highest_seen_block as chain tip instead of external API call
 		if (progressResult.value.length > 0) {
 			chainTip = Math.max(
 				...progressResult.value.map((p) => p.highest_seen_block),
@@ -95,34 +57,9 @@ app.get("/status", async (c) => {
 		}
 	}
 
-	const streamCounts = {
-		total: 0,
-		inactive: 0,
-		active: 0,
-		paused: 0,
-		failed: 0,
-	};
-	if (streamResult.status === "fulfilled") {
-		streamCounts.total = streamResult.value.reduce(
-			(sum, r) => sum + r.count,
-			0,
-		);
-		for (const r of streamResult.value) {
-			if (r.status === "inactive") streamCounts.inactive = r.count;
-			if (r.status === "active") streamCounts.active = r.count;
-			if (r.status === "paused") streamCounts.paused = r.count;
-			if (r.status === "failed") streamCounts.failed = r.count;
-		}
-	}
-
 	const blocksReceivedOutOfOrder =
 		indexerResult.status === "fulfilled" && indexerResult.value
 			? (indexerResult.value.blocksReceivedOutOfOrder ?? 0)
-			: 0;
-
-	const recentDeliveries =
-		deliveriesResult.status === "fulfilled"
-			? (deliveriesResult.value?.count ?? 0)
 			: 0;
 
 	const gapMap = new Map<
@@ -168,8 +105,6 @@ app.get("/status", async (c) => {
 		});
 	}
 
-	// Integrity: use last_contiguous_block vs last_indexed_block from progress
-	// Avoids expensive window function gap queries on 7M+ rows
 	const integrity =
 		progress.length > 0 &&
 		progress.every((p) => p.lastContiguousBlock >= p.lastIndexedBlock)
@@ -180,17 +115,13 @@ app.get("/status", async (c) => {
 		status: dbStatus === "ok" ? "healthy" : "degraded",
 		network: process.env.STACKS_NETWORK || "mainnet",
 		database: { status: dbStatus },
-		queue,
 		indexProgress: progress,
 		integrity,
 		gaps: [],
 		totalMissingBlocks: 0,
 		blocksReceivedOutOfOrder,
-		streams: streamCounts,
-		activeStreams: streamCounts.active,
 		chainTip,
 		activeSubgraphs: subgraphHealth.filter((v) => v.status === "active").length,
-		recentDeliveries: String(recentDeliveries),
 		subgraphs: subgraphHealth,
 		timestamp: new Date().toISOString(),
 	});
