@@ -27,8 +27,6 @@ import { InsightsCard } from "./tool-parts/insights-card";
 import { KeysCard } from "./tool-parts/keys-card";
 import { MemoryRecallCard } from "./tool-parts/memory-tag";
 import { StepFlowLive } from "./tool-parts/step-flow-live";
-import { StreamConfigCard } from "./tool-parts/stream-config-card";
-import { StreamStatusCard } from "./tool-parts/stream-status-card";
 import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
 import { SubgraphSyncLive } from "./tool-parts/subgraph-sync-live";
 import { SuccessBanner } from "./tool-parts/success-banner";
@@ -507,23 +505,6 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 				/>
 			);
 
-		case "check_streams":
-			return (
-				<StreamStatusCard
-					streams={
-						output.streams as Array<{
-							id: string;
-							name: string;
-							status: string;
-							enabled: boolean;
-							totalDeliveries: number;
-							failedDeliveries: number;
-							errorMessage: string | null;
-						}>
-					}
-				/>
-			);
-
 		case "check_keys":
 			return (
 				<KeysCard
@@ -715,141 +696,11 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			);
 		}
 
-		case "scaffold_stream": {
-			if ((output as { error?: boolean }).error) return null;
-			const o = output as {
-				name?: string;
-				endpointUrl?: string;
-				filters?: unknown[];
-				options?: Record<string, unknown>;
-				html?: string;
-			};
-			if (!o.name || !o.endpointUrl || !o.filters || !o.options) return null;
-			return (
-				<StreamConfigCard
-					name={o.name}
-					endpointUrl={o.endpointUrl}
-					filters={o.filters}
-					options={o.options}
-					html={o.html}
-				/>
-			);
-		}
-
-		case "read_stream": {
-			if ((output as { error?: boolean }).error) return null;
-			const o = output as {
-				name?: string;
-				status?: string;
-				endpointUrl?: string;
-				filters?: unknown[];
-				options?: Record<string, unknown>;
-				html?: string;
-			};
-			if (!o.name || !o.endpointUrl || !o.filters || !o.options) return null;
-			return (
-				<StreamConfigCard
-					name={o.name}
-					status={o.status}
-					endpointUrl={o.endpointUrl}
-					filters={o.filters}
-					options={o.options}
-					html={o.html}
-				/>
-			);
-		}
-
 		case "tail_deliveries": {
 			if ((output as { error?: boolean }).error) return null;
 			const o = output as { id?: string; name?: string };
 			if (!o.id || !o.name) return null;
 			return <DeliveriesTailCard id={o.id} name={o.name} />;
-		}
-
-		case "list_stream_filter_types": {
-			const filterTypes = (output.filterTypes ?? []) as Array<{
-				type: string;
-				description: string;
-				optionalParams: string[];
-			}>;
-			if (filterTypes.length === 0) return null;
-			return (
-				<div className="tool-card">
-					<div className="tool-card-header">Stream filter types</div>
-					{filterTypes.map((ft) => (
-						<div key={ft.type} className="tool-status-row">
-							<div className="tool-action-detail">
-								<span className="tool-status-name">{ft.type}</span>
-								<span className="tool-action-reason">{ft.description}</span>
-								{ft.optionalParams.length > 0 && (
-									<span className="tool-action-reason">
-										params: {ft.optionalParams.join(", ")}
-									</span>
-								)}
-							</div>
-						</div>
-					))}
-				</div>
-			);
-		}
-
-		case "deploy_stream": {
-			const o = output as {
-				ok?: boolean;
-				cancelled?: boolean;
-				name?: string;
-				id?: string;
-				signingSecret?: string;
-				error?: string;
-			};
-			if (!o.ok) {
-				return (
-					<SuccessBanner
-						tone={o.cancelled ? "info" : "error"}
-						message={
-							o.cancelled ? "Deploy cancelled" : (o.error ?? "Deploy failed")
-						}
-					/>
-				);
-			}
-			return (
-				<div className="tool-card">
-					<div className="tool-card-header">
-						Stream deployed · {o.name ?? ""}
-					</div>
-					{o.signingSecret && (
-						<div className="tool-status-row">
-							<div className="tool-action-detail">
-								<span className="tool-status-name">Signing secret</span>
-								<span className="tool-action-reason">
-									Copy this NOW — it won't be shown again.
-								</span>
-								<pre className="tool-step-output">{o.signingSecret}</pre>
-							</div>
-						</div>
-					)}
-				</div>
-			);
-		}
-
-		case "edit_stream": {
-			const o = output as {
-				ok?: boolean;
-				cancelled?: boolean;
-				name?: string;
-				error?: string;
-			};
-			if (!o.ok) {
-				return (
-					<SuccessBanner
-						tone={o.cancelled ? "info" : "error"}
-						message={
-							o.cancelled ? "Edit cancelled" : (o.error ?? "Edit failed")
-						}
-					/>
-				);
-			}
-			return <SuccessBanner message={`Updated stream ${o.name ?? ""}`} />;
 		}
 
 		case "read_subgraph": {
