@@ -1,7 +1,7 @@
 {
 	"name": "@secondlayer/cli",
 	"version": "1.12.2",
-	"description": "CLI for streams, subgraphs, and real-time blockchain indexing on Stacks",
+	"description": "CLI for subgraphs and blockchain indexing on Stacks",
 	"type": "module",
 	"bin": {
 		"secondlayer": "./dist/cli.js",

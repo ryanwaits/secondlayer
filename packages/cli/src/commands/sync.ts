@@ -21,7 +21,7 @@ import {
 } from "../lib/output.ts";
 
 const DEV_DATABASE_URL =
-	"postgres://postgres:postgres@localhost:5432/streams_dev";
+	"postgres://postgres:postgres@localhost:5432/secondlayer_dev";
 
 export function registerSyncCommand(program: Command): void {
 	program

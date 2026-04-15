@@ -414,7 +414,6 @@ export async function requireLocalNetwork(): Promise<Config> {
 		console.error(`Error: 'sl local' commands require local mode.`);
 		console.error(`  Current context: ${config.network} (hosted)`);
 		console.error("");
-		console.error(`  To view stream logs, use: sl logs <stream>`);
 		console.error(`  To check system status, use: sl status`);
 		console.error("");
 		console.error(`  To switch to local mode: sl config set network local`);

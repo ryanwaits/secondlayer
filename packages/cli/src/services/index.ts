@@ -8,13 +8,6 @@ export {
 export { startWorker, stopWorker, isWorkerRunning } from "./worker.ts";
 export { startApi, stopApi, isApiRunning, getApiPort } from "./api.ts";
 export {
-	startReceiverServer,
-	stopReceiverServer,
-	isReceiverServerRunning,
-	type ReceiverServerOptions,
-	type DeliveryEvent,
-} from "./receiver-server.ts";
-export {
 	startSubgraphProcessor,
 	stopSubgraphProcessor,
 	isSubgraphProcessorRunning,

@@ -13,7 +13,6 @@ import type {
 	DeploySubgraphRequest,
 	DeploySubgraphResponse,
 } from "@secondlayer/shared/schemas/subgraphs";
-import type { QueueStats } from "@secondlayer/shared/types";
 import { loadConfig, resolveApiUrl } from "./config.ts";
 
 import { ApiError } from "@secondlayer/sdk";
@@ -95,10 +94,6 @@ export function authHeaders(config: { apiKey?: string }): Record<
 	string
 > {
 	return SecondLayer.authHeaders(config.apiKey);
-}
-
-export async function getQueueStats(): Promise<QueueStats> {
-	return (await getClient()).getQueueStats();
 }
 
 // ── Subgraphs ─────────────────────────────────────────────────────────────

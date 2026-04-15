@@ -9,8 +9,6 @@ import {
 	registerDoctorCommand,
 	registerLocalCommand,
 	registerMarketplaceCommand,
-	registerReceiverCommand,
-	registerSetupCommand,
 	registerStackCommand,
 	registerStatusCommand,
 	registerSubgraphsCommand,
@@ -43,10 +41,10 @@ program.addHelpText(
 	"after",
 	`
 Quickstart:
-  $ sl setup                   # Configure network + auth
+  $ sl auth login                  # Authenticate
   $ sl subgraphs new my-subgraph   # Scaffold a subgraph
-  $ sl workflows new my-workflow # Scaffold a workflow
-  $ sl status                  # Check system health
+  $ sl workflows new my-workflow   # Scaffold a workflow
+  $ sl status                      # Check system health
 `,
 );
 
@@ -93,10 +91,8 @@ registerStackCommand(program);
 registerDbCommand(program);
 registerSyncCommand(program);
 registerDoctorCommand(program);
-registerSetupCommand(program);
 registerConfigCommand(program);
 registerAuthCommand(program);
 registerWhoamiCommand(program);
-registerReceiverCommand(program);
 
 program.parse();

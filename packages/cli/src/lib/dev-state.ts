@@ -1,9 +1,9 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const STREAMS_DIR = join(homedir(), ".secondlayer");
-const DEV_STATE_PATH = join(STREAMS_DIR, "dev.json");
-const LOGS_DIR = join(STREAMS_DIR, "logs");
+const STATE_DIR = join(homedir(), ".secondlayer");
+const DEV_STATE_PATH = join(STATE_DIR, "dev.json");
+const LOGS_DIR = join(STATE_DIR, "logs");
 
 export interface ServiceState {
 	pid: number;
@@ -37,7 +37,7 @@ export function getLogFile(service: string): string {
 }
 
 export async function ensureDirs(): Promise<void> {
-	await Bun.$`mkdir -p ${STREAMS_DIR}`.quiet();
+	await Bun.$`mkdir -p ${STATE_DIR}`.quiet();
 	await Bun.$`mkdir -p ${LOGS_DIR}`.quiet();
 }
 

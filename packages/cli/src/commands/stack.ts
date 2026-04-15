@@ -42,7 +42,7 @@ export function registerStackCommand(program: Command): void {
 		.description("Stop the full stack")
 		.option("--no-node", "Skip stopping the Stacks node")
 		.option("--no-dev", "Skip stopping dev services")
-		.option("--wait", "Pause streams and drain queue before stopping")
+		.option("--wait", "Wait for in-flight work to drain before stopping")
 		.hook("preAction", async () => {
 			await requireLocalNetwork();
 		})
@@ -99,7 +99,7 @@ async function stackStart(options: {
 	}
 
 	console.log("");
-	console.log(blue("Starting Stacks Streams"));
+	console.log(blue("Starting Secondlayer Stack"));
 	console.log(dim(`  Network: ${network}`));
 	console.log("");
 
@@ -157,7 +157,7 @@ async function stackStart(options: {
 		if (await isDevRunning()) {
 			info("Dev services already running");
 		} else {
-			// Delegate to `streams dev start` via subprocess
+			// Delegate to `sl dev start` via subprocess
 			const args = [
 				"bun",
 				"run",
@@ -190,31 +190,7 @@ async function stackStop(options: {
 	wait?: boolean;
 }): Promise<void> {
 	console.log("");
-	info("Stopping Stacks Streams...");
-
-	// Wait for jobs to complete if requested
-	if (options.wait) {
-		try {
-			const { getQueueStats } = await import("../lib/api-client.ts");
-			process.stdout.write(dim("Waiting for jobs to complete..."));
-			for (let i = 0; i < 300; i++) {
-				const stats = await getQueueStats();
-				const active = stats.pending + stats.processing;
-				if (active === 0) {
-					process.stdout.write("\n");
-					success("Queue drained");
-					break;
-				}
-				process.stdout.write(
-					`\r${dim(`Waiting for jobs... ${active} remaining`)}`,
-				);
-				await Bun.sleep(1000);
-			}
-		} catch {
-			warn("Could not check queue stats (API may not be running)");
-		}
-		console.log("");
-	}
+	info("Stopping Secondlayer Stack...");
 
 	// Stop dev services
 	if (options.dev) {
@@ -252,7 +228,7 @@ async function stackStop(options: {
 	// Orphaned container cleanup
 	try {
 		const result =
-			await Bun.$`docker ps -a --format json --filter "name=streams-dev" --filter "name=stacks"`
+			await Bun.$`docker ps -a --format json --filter "name=secondlayer-dev" --filter "name=stacks"`
 				.quiet()
 				.nothrow();
 		if (result.exitCode === 0) {

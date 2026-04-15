@@ -21,7 +21,7 @@ import {
 } from "../lib/output.ts";
 
 const DEV_DATABASE_URL =
-	"postgres://postgres:postgres@localhost:5432/streams_dev";
+	"postgres://postgres:postgres@localhost:5432/secondlayer_dev";
 
 export function registerDbCommand(program: Command): void {
 	const dbCmd = program
@@ -386,7 +386,7 @@ async function resetDatabase(skipConfirm: boolean): Promise<void> {
 		console.log(`  ${red(eventCount.toString())} events`);
 		console.log(`  ${dim("+ jobs, deliveries, index_progress")}`);
 		console.log("");
-		console.log(dim("Note: Stream configurations will be preserved."));
+		console.log(dim("Note: Subgraph configurations will be preserved."));
 		console.log("");
 
 		if (!skipConfirm) {
@@ -450,7 +450,7 @@ async function resyncDatabase(
 			console.log("  3. Fetch all blocks from node (backfill)");
 		}
 		console.log("");
-		console.log(dim("Note: Stream configurations will be preserved."));
+		console.log(dim("Note: Subgraph configurations will be preserved."));
 		console.log("");
 
 		if (!skipConfirm) {
