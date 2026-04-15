@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const SUGGESTIONS = [
-	"Check my streams",
+	"Check my subgraphs",
 	"Deploy a subgraph",
 	"Show usage",
 ];

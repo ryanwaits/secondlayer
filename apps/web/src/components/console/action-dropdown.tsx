@@ -1,31 +1,16 @@
 "use client";
 
-import {
-	DROPDOWN_CREATE_STREAM,
-	DROPDOWN_DEPLOY_SUBGRAPH,
-} from "@/lib/agent-prompts";
+import { DROPDOWN_DEPLOY_SUBGRAPH } from "@/lib/agent-prompts";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface ActionItem {
 	label: string;
 	description: string;
 	copyText: string;
-	icon?: "stream" | "subgraph";
+	icon?: "subgraph";
 }
 
 const ICONS = {
-	stream: (
-		<svg
-			width="12"
-			height="12"
-			viewBox="0 0 16 16"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="1.5"
-		>
-			<path d="M2 4l6 4 6-4M2 4v8l6 4 6-4V4M2 4l6-4 6 4" />
-		</svg>
-	),
 	subgraph: (
 		<svg
 			width="12"
@@ -43,25 +28,10 @@ const ICONS = {
 
 const DASHBOARD_ITEMS: ActionItem[] = [
 	{
-		label: "Create a stream",
-		description: "Copy agent prompt",
-		copyText: DROPDOWN_CREATE_STREAM,
-		icon: "stream",
-	},
-	{
 		label: "Deploy a subgraph",
 		description: "Copy agent prompt",
 		copyText: DROPDOWN_DEPLOY_SUBGRAPH,
 		icon: "subgraph",
-	},
-];
-
-const STREAMS_ITEMS: ActionItem[] = [
-	{
-		label: "Create a stream",
-		description: "Copy agent prompt",
-		copyText: DROPDOWN_CREATE_STREAM,
-		icon: "stream",
 	},
 ];
 
@@ -77,18 +47,13 @@ const SUBGRAPHS_ITEMS: ActionItem[] = [
 export function ActionDropdown({
 	variant = "dashboard",
 }: {
-	variant?: "dashboard" | "streams" | "subgraphs";
+	variant?: "dashboard" | "subgraphs";
 }) {
 	const [open, setOpen] = useState(false);
 	const [copiedKey, setCopiedKey] = useState<string | null>(null);
 	const ref = useRef<HTMLDivElement>(null);
 
-	const items =
-		variant === "streams"
-			? STREAMS_ITEMS
-			: variant === "subgraphs"
-				? SUBGRAPHS_ITEMS
-				: DASHBOARD_ITEMS;
+	const items = variant === "subgraphs" ? SUBGRAPHS_ITEMS : DASHBOARD_ITEMS;
 
 	const handleClickOutside = useCallback((e: MouseEvent) => {
 		if (ref.current && !ref.current.contains(e.target as Node)) {

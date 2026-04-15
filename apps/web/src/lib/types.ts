@@ -182,7 +182,6 @@ export interface AdminAccount {
 	plan: string;
 	createdAt: string;
 	subgraphCount: number;
-	streamCount: number;
 	lastActive: string | null;
 }
 
@@ -192,7 +191,6 @@ export interface AdminStats {
 	totalSubgraphs: number;
 	activeSubgraphs: number;
 	errorSubgraphs: number;
-	totalStreams: number;
 }
 
 export interface SubgraphFilter {

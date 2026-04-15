@@ -12,14 +12,12 @@ interface DailyUsage {
 interface UsageData {
 	plan: string;
 	limits: {
-		streams: number;
 		subgraphs: number;
 		apiRequestsPerDay: number;
 		deliveriesPerMonth: number;
 		storageBytes: number;
 	};
 	current: {
-		streams: number;
 		subgraphs: number;
 		apiRequestsToday: number;
 		deliveriesThisMonth: number;
@@ -114,16 +112,6 @@ export default async function UsagePage() {
 
 						<div className="usage-row">
 							<div className="usage-label">
-								<span className="usage-label-name">Streams</span>
-								<span className="usage-label-value">{usage.current.streams} / {usage.limits.streams}</span>
-							</div>
-							<div className="usage-bar">
-								<div className="usage-bar-fill accent" style={{ width: `${pct(usage.current.streams, usage.limits.streams)}%` }} />
-							</div>
-						</div>
-
-						<div className="usage-row">
-							<div className="usage-label">
 								<span className="usage-label-name">Subgraphs</span>
 								<span className="usage-label-value">{usage.current.subgraphs} / {usage.limits.subgraphs}</span>
 							</div>
@@ -152,7 +140,7 @@ export default async function UsagePage() {
 							<div>
 								<div style={{ fontSize: 13, fontWeight: 500 }}>{usage.plan}</div>
 								<div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-									{usage.limits.streams} streams, {usage.limits.subgraphs} subgraphs, {formatNum(usage.limits.apiRequestsPerDay)} API req/day
+									{usage.limits.subgraphs} subgraphs, {formatNum(usage.limits.apiRequestsPerDay)} API req/day
 								</div>
 							</div>
 							<button type="button" className="settings-btn ghost">Manage plan</button>

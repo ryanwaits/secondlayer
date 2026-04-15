@@ -17,7 +17,6 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
 	{ href: "/", label: "Home", icon: "home" },
 	{ href: "/subgraphs", label: "Subgraphs", icon: "subgraph", badgeKey: "subgraphs" },
-	{ href: "/streams", label: "Streams", icon: "stream", badgeKey: "streams" },
 	{ href: "/sessions", label: "Sessions", icon: "sessions" },
 	{ href: "/workflows", label: "Workflows", icon: "workflows", badgeKey: "workflows" },
 	{ href: "/marketplace", label: "Marketplace", icon: "marketplace" },
@@ -40,12 +39,6 @@ const ICONS: Record<string, React.ReactNode> = {
 	subgraph: (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
 			<path d="M9 2L5 14M3 5l-2 3 2 3M13 5l2 3-2 3" />
-		</svg>
-	),
-	stream: (
-		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-			<circle cx="8" cy="8" r="2" />
-			<path d="M2 8h4M10 8h4" />
 		</svg>
 	),
 	sessions: (
@@ -86,12 +79,10 @@ function useSidebarCounts() {
 		if (!account) return;
 		Promise.allSettled([
 			fetch("/api/subgraphs", { credentials: "same-origin" }).then(r => r.json()),
-			fetch("/api/streams?limit=1&offset=0", { credentials: "same-origin" }).then(r => r.json()),
 			fetch("/api/workflows", { credentials: "same-origin" }).then(r => r.json()),
-		]).then(([sg, st, wf]) => {
+		]).then(([sg, wf]) => {
 			const c: Record<string, number> = {};
 			if (sg.status === "fulfilled" && sg.value?.data) c.subgraphs = sg.value.data.length;
-			if (st.status === "fulfilled" && st.value?.total != null) c.streams = st.value.total;
 			if (wf.status === "fulfilled" && wf.value?.workflows) c.workflows = wf.value.workflows.length;
 			setCounts(c);
 		});
