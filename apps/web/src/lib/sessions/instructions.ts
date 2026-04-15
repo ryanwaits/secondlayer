@@ -85,6 +85,28 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - If the confirm path 409s ("Stale vX.Y.Z"), re-run read_workflow for the current source + version and regenerate the diff — do not retry with the same expectedVersion.
 - Always end the confirm message with the in-flight-run caveat: "Edits take effect for new runs. Any in-flight run finishes on the previous version."
 
+## Workflow step API reference
+ALWAYS use these exact signatures when authoring or editing a workflow's \`code\` field. Never invent options like \`table\`, \`filter\`, or \`subgraph\` inside an options object — table and subgraph are positional.
+
+- \`step.query(id, subgraph, table, { where?, orderBy?, limit?, offset? })\`
+  - \`where\` uses operator objects: \`{ col: { eq | neq | gt | gte | lt | lte: value } }\`. Bare \`{ col: value }\` also works as \`eq\`.
+  - Returns \`Record<string, unknown>[]\`. Example:
+    \`\`\`ts
+    const rows = await ctx.step.query("fetch-contract", "contracts-registry", "contracts", {
+      where: { contract_id: { eq: ctx.input.contractId } },
+      limit: 1,
+    });
+    \`\`\`
+- \`step.count(id, subgraph, table, where?)\` — same shape, returns a number.
+- \`step.ai(id, { prompt, model?: "haiku" | "sonnet", schema? })\`
+  - \`schema\` is \`Record<string, { type: "string"|"number"|"boolean"|"array"|"object", description?, items? }>\`. Result is keyed by those field names.
+- \`step.deliver(id, target)\` where \`target.type\` is \`"webhook" | "slack" | "email" | "discord" | "telegram"\` (see DeliverTarget).
+- \`step.invoke(id, { workflow, input? })\` — chain another workflow by name.
+- \`step.mcp(id, { server, tool, args? })\` — returns \`{ content, isError? }\`.
+- \`step.sleep(id, ms)\` and \`step.run(id, async () => ...)\` for arbitrary async work.
+
+Every step's first arg is a stable string \`id\` used for memoization — reuse the same id across runs, change it only when the step's intent changes. Trigger input is on \`ctx.input\` (manual) or \`ctx.event\` (event triggers).
+
 ## Subgraph authoring
 - When the user asks to index a contract ("track swaps on pool X", "index mints from NFT Y", "show me transfers from token Z"), drive the scaffold → refine → deploy loop.
 - Call \`scaffold_subgraph\` with the full \`contractId\` (e.g. \`SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01\`). It fetches the contract ABI, keeps public functions, and emits a \`defineSubgraph()\` skeleton.
