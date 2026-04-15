@@ -127,21 +127,6 @@ async function runHostedDoctor(jsonOutput?: boolean): Promise<void> {
 			console.log("");
 		}
 
-		const streams = statusData.streams as
-			| { total: number; active: number; paused: number; error: number }
-			| undefined;
-		if (streams) {
-			console.log(blue("Streams"));
-			console.log(
-				formatKeyValue([
-					["  Total", streams.total.toString()],
-					["  Active", green(streams.active.toString())],
-					["  Paused", yellow(streams.paused.toString())],
-					["  Error", streams.error > 0 ? red(streams.error.toString()) : "0"],
-				]),
-			);
-			console.log("");
-		}
 	}
 
 	// Issues

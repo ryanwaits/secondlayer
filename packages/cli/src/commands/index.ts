@@ -1,10 +1,8 @@
 export { registerAccountCommand } from "./account.ts";
 export { registerConfigCommand } from "./config.ts";
-export { registerSetupCommand } from "./setup.ts";
 export { registerStatusCommand } from "./status.ts";
 export { registerSyncCommand } from "./sync.ts";
 export { registerDbCommand } from "./db.ts";
-export { registerReceiverCommand } from "./receiver.ts";
 export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStackCommand } from "./stack.ts";
 export { registerDoctorCommand } from "./doctor.ts";

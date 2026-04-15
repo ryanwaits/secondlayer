@@ -43,22 +43,17 @@ import {
 	serviceManager,
 	startApi,
 	startIndexer,
-	startReceiverServer,
 	startSubgraphProcessor,
 	startWorker,
-	stopReceiverServer,
 } from "../services/index.ts";
 
 const DEV_DATABASE_URL =
-	"postgres://postgres:postgres@localhost:5432/streams_dev";
+	"postgres://postgres:postgres@localhost:5432/secondlayer_dev";
 
 export interface DevOptions {
 	indexerPort: string;
 	apiPort: string;
-	receiverPort: string;
-	receiver: boolean;
 	worker: boolean;
-	secret?: string;
 	stacksNode?: boolean;
 	foreground?: boolean;
 }
@@ -74,9 +69,6 @@ export async function isDevAlreadyRunning(): Promise<boolean> {
 		console.log(`  ${green("sl local logs")}     ${dim("View logs")}`);
 		console.log(`  ${green("sl local stop")}     ${dim("Stop all services")}`);
 		console.log(`  ${green("sl local status")}   ${dim("Show status")}`);
-		console.log(
-			`  ${green("sl streams set --all paused --wait")} ${dim("Pause stream processing")}`,
-		);
 		return true;
 	}
 	return false;
@@ -100,8 +92,6 @@ export async function runBackground(options: DevOptions): Promise<void> {
 		? 3701
 		: Number.parseInt(options.indexerPort) || config.ports.indexer;
 	const apiPort = Number.parseInt(options.apiPort) || config.ports.api;
-	const receiverPort =
-		Number.parseInt(options.receiverPort) || config.ports.receiver;
 
 	// Validate network consistency when connecting to a stacks node
 	if (options.stacksNode && config.node) {
@@ -258,40 +248,6 @@ export async function runBackground(options: DevOptions): Promise<void> {
 			console.log(green("  ✓ Subgraph processor"), dim("processing subgraphs"));
 		}
 
-		// Receiver server
-		if (options.receiver) {
-			const receiverLogFile = getLogFile("receiver");
-			const receiverArgs = [
-				"bun",
-				"run",
-				resolve(
-					packagesDir,
-					"packages/cli/src/services/receiver-standalone.ts",
-				),
-			];
-			const receiverEnv: Record<string, string> = {
-				...(process.env as Record<string, string>),
-				PORT: String(receiverPort),
-			};
-			if (options.secret) receiverEnv.SIGNING_SECRET = options.secret;
-
-			const receiverProc = Bun.spawn(receiverArgs, {
-				env: receiverEnv,
-				stdout: Bun.file(receiverLogFile),
-				stderr: Bun.file(receiverLogFile),
-			});
-			state.services.receiver = {
-				pid: receiverProc.pid,
-				port: receiverPort,
-				startedAt: new Date().toISOString(),
-				logFile: receiverLogFile,
-			};
-			console.log(
-				green("  ✓ Receiver server"),
-				dim(`http://localhost:${receiverPort}`),
-			);
-		}
-
 		// Wait a bit for processes to start
 		await Bun.sleep(500);
 
@@ -305,7 +261,7 @@ export async function runBackground(options: DevOptions): Promise<void> {
 		await saveDevState(state);
 
 		console.log("");
-		printUrls(indexerPort, apiPort, receiverPort, options.receiver);
+		printUrls(indexerPort, apiPort);
 		console.log("");
 		success("Dev environment started in background");
 		console.log("");
@@ -313,9 +269,6 @@ export async function runBackground(options: DevOptions): Promise<void> {
 		console.log(`  ${green("sl local logs -f")}   ${dim("Follow logs")}`);
 		console.log(`  ${green("sl local stop")}      ${dim("Stop all services")}`);
 		console.log(`  ${green("sl local status")}    ${dim("Show status")}`);
-		console.log(
-			`  ${green("sl streams set --all paused --wait")}  ${dim("Pause stream processing")}`,
-		);
 		console.log("");
 
 		// Exit explicitly - spawned processes keep event loop alive
@@ -368,8 +321,6 @@ export async function runForeground(options: DevOptions): Promise<void> {
 		? 3701
 		: Number.parseInt(options.indexerPort) || config.ports.indexer;
 	const apiPort = Number.parseInt(options.apiPort) || config.ports.api;
-	const receiverPort =
-		Number.parseInt(options.receiverPort) || config.ports.receiver;
 
 	let devPostgresStarted = false;
 
@@ -377,16 +328,12 @@ export async function runForeground(options: DevOptions): Promise<void> {
 		console.log("\n");
 		info("Shutting down services...");
 
-		if (options.receiver) {
-			stopReceiverServer();
-		}
-
 		await serviceManager.stopAll();
 
 		if (devPostgresStarted) {
 			info("Stopping PostgreSQL container...");
-			await Bun.$`docker stop streams-dev-postgres`.quiet().nothrow();
-			await Bun.$`docker rm streams-dev-postgres`.quiet().nothrow();
+			await Bun.$`docker stop secondlayer-dev-postgres`.quiet().nothrow();
+			await Bun.$`docker rm secondlayer-dev-postgres`.quiet().nothrow();
 		}
 
 		success("All services stopped");
@@ -446,14 +393,6 @@ export async function runForeground(options: DevOptions): Promise<void> {
 		// Set DEV_MODE for all in-process services
 		process.env.DEV_MODE = "true";
 
-		if (options.receiver) {
-			startReceiverServer({ port: receiverPort, secret: options.secret });
-			console.log(
-				green("  ✓ Receiver server"),
-				dim(`http://localhost:${receiverPort}`),
-			);
-		}
-
 		await startApi({ port: apiPort, onLog: (line) => logService("api", line) });
 		console.log(green("  ✓ API"), dim(`http://localhost:${apiPort}`));
 
@@ -474,7 +413,7 @@ export async function runForeground(options: DevOptions): Promise<void> {
 		console.log(green("  ✓ Subgraph processor"), dim("processing subgraphs"));
 
 		console.log("");
-		printUrls(indexerPort, apiPort, receiverPort, options.receiver);
+		printUrls(indexerPort, apiPort);
 		console.log("");
 		info("Press Ctrl+C to stop all services");
 		console.log("");
@@ -483,9 +422,6 @@ export async function runForeground(options: DevOptions): Promise<void> {
 	} catch (err) {
 		error(`Failed to start services: ${err}`);
 		await serviceManager.stopAll();
-		if (options.receiver) {
-			stopReceiverServer();
-		}
 		process.exit(1);
 	}
 }
@@ -494,7 +430,6 @@ export async function showLogs(options: {
 	follow?: boolean;
 	service?: string;
 	lines: string;
-	verbose?: boolean;
 }): Promise<void> {
 	const state = await loadDevState();
 	if (!state || Object.keys(state.services).length === 0) {
@@ -524,12 +459,11 @@ export async function showLogs(options: {
 	}
 
 	const lines = Number.parseInt(options.lines);
-	const verbose = options.verbose ?? false;
 
 	if (options.follow) {
-		await followLogs(serviceEntries, lines, verbose);
+		await followLogs(serviceEntries, lines);
 	} else {
-		await showStaticLogs(serviceEntries, lines, verbose);
+		await showStaticLogs(serviceEntries, lines);
 	}
 }
 
@@ -538,37 +472,12 @@ const serviceColors: Record<string, (text: string) => string> = {
 	indexer: cyan,
 	worker: yellow,
 	subgraphs: magenta,
-	receiver: green,
 };
 
-function formatDeliverySummary(jsonStr: string): string | null {
-	try {
-		const data = JSON.parse(jsonStr);
-		if (data.type !== "delivery" || !data.body) return null;
-
-		const { body, method, path, timestamp } = data;
-		const streamName =
-			body.streamName ?? body.streamId?.slice(0, 8) ?? "unknown";
-		const height = body.block?.height ?? "?";
-		const txCount = body.matches?.transactions?.length ?? 0;
-		const eventCount = body.matches?.events?.length ?? 0;
-
-		const dimTimestamp = dim(`[${timestamp}]`);
-		return `${dimTimestamp} ${green("INFO:")} ${method} ${path} — ${streamName} block:${height} (${txCount} txs, ${eventCount} events)`;
-	} catch {
-		return null;
-	}
-}
-
-function formatLogLine(
-	service: string,
-	line: string,
-	verbose: boolean,
-): string {
+function formatLogLine(service: string, line: string): string {
 	const colorFn = serviceColors[service] ?? dim;
 	const prefix = colorFn(`[${service}]`);
 
-	// Parse log line: [timestamp] LEVEL: message
 	const match = line.match(
 		/^(\[\d{4}-\d{2}-\d{2}T[\d:.]+Z\])\s*(INFO|WARN|ERROR|DEBUG):?\s*(.*)$/,
 	);
@@ -588,20 +497,12 @@ function formatLogLine(
 		}
 	}
 
-	// Delivery payload: summarize unless verbose
-	if (service === "receiver" && !verbose) {
-		const summary = formatDeliverySummary(line);
-		if (summary) return `${prefix} ${summary}`;
-	}
-
-	// Fallback for unstructured lines
 	return `${prefix} ${line}`;
 }
 
 async function showStaticLogs(
 	services: [string, ServiceState][],
 	lines: number,
-	verbose: boolean,
 ): Promise<void> {
 	// Collect all lines with service prefix
 	const allLines: { service: string; line: string; timestamp: Date }[] = [];
@@ -626,17 +527,15 @@ async function showStaticLogs(
 	allLines.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
 	for (const { service, line } of allLines.slice(-lines)) {
-		console.log(formatLogLine(service, line, verbose));
+		console.log(formatLogLine(service, line));
 	}
 }
 
 async function followLogs(
 	services: [string, ServiceState][],
 	initialLines: number,
-	verbose: boolean,
 ): Promise<void> {
-	// Show initial lines
-	await showStaticLogs(services, initialLines, verbose);
+	await showStaticLogs(services, initialLines);
 
 	// Start tail -f for each file and prefix output
 	const procs: ReturnType<typeof Bun.spawn>[] = [];
@@ -665,7 +564,7 @@ async function followLogs(
 
 				for (const line of lines) {
 					if (line.trim()) {
-						console.log(formatLogLine(name, line, verbose));
+						console.log(formatLogLine(name, line));
 					}
 				}
 			}
@@ -709,8 +608,8 @@ export async function stopDev(): Promise<void> {
 		// Stop docker containers if we started them
 		if (state.dockerContainers.postgres) {
 			info("Stopping PostgreSQL container...");
-			await Bun.$`docker stop streams-dev-postgres`.quiet().nothrow();
-			await Bun.$`docker rm streams-dev-postgres`.quiet().nothrow();
+			await Bun.$`docker stop secondlayer-dev-postgres`.quiet().nothrow();
+			await Bun.$`docker rm secondlayer-dev-postgres`.quiet().nothrow();
 		}
 
 		await clearDevState();
@@ -719,7 +618,7 @@ export async function stopDev(): Promise<void> {
 	}
 
 	// No state file — check for orphaned containers
-	const pgOrphan = await isContainerRunning("streams-dev-postgres");
+	const pgOrphan = await isContainerRunning("secondlayer-dev-postgres");
 
 	if (!pgOrphan) {
 		info("Dev environment is not running");
@@ -729,8 +628,8 @@ export async function stopDev(): Promise<void> {
 	info("Cleaning up orphaned containers...");
 	if (pgOrphan) {
 		info("Stopping PostgreSQL container...");
-		await Bun.$`docker stop streams-dev-postgres`.quiet().nothrow();
-		await Bun.$`docker rm streams-dev-postgres`.quiet().nothrow();
+		await Bun.$`docker stop secondlayer-dev-postgres`.quiet().nothrow();
+		await Bun.$`docker rm secondlayer-dev-postgres`.quiet().nothrow();
 	}
 	success("Orphaned containers stopped");
 }
@@ -842,40 +741,6 @@ export async function restartDev(): Promise<void> {
 		console.log(green("  ✓ Worker"), dim("processing jobs"));
 	}
 
-	// Receiver (if was running before)
-	if (state.services.receiver) {
-		const receiverPort = config.ports.receiver;
-		const receiverLogFile = getLogFile("receiver");
-		const receiverProc = Bun.spawn(
-			[
-				"bun",
-				"run",
-				resolve(
-					packagesDir,
-					"packages/cli/src/services/receiver-standalone.ts",
-				),
-			],
-			{
-				env: {
-					...(process.env as Record<string, string>),
-					PORT: String(receiverPort),
-				},
-				stdout: Bun.file(receiverLogFile),
-				stderr: Bun.file(receiverLogFile),
-			},
-		);
-		newState.services.receiver = {
-			pid: receiverProc.pid,
-			port: receiverPort,
-			startedAt: new Date().toISOString(),
-			logFile: receiverLogFile,
-		};
-		console.log(
-			green("  ✓ Receiver server"),
-			dim(`http://localhost:${receiverPort}`),
-		);
-	}
-
 	// Subgraph processor (always restart if was running)
 	if (state.services.subgraphs) {
 		const subgraphsLogFile = getLogFile("subgraphs");
@@ -938,9 +803,9 @@ export async function showDevStatus(): Promise<void> {
 	// Show Docker containers
 	console.log("");
 	console.log(blue("Docker Containers"));
-	const pgRunning = await isContainerRunning("streams-dev-postgres");
+	const pgRunning = await isContainerRunning("secondlayer-dev-postgres");
 	console.log(
-		`  ${pgRunning ? green("✓") : red("✗")} PostgreSQL ${dim("streams-dev-postgres")}`,
+		`  ${pgRunning ? green("✓") : red("✗")} PostgreSQL ${dim("secondlayer-dev-postgres")}`,
 	);
 
 	console.log("");
@@ -970,7 +835,7 @@ function printBanner(): void {
 	console.log("");
 	console.log(blue("  ╔═══════════════════════════════════════╗"));
 	console.log(
-		blue("  ║") + "       Stacks Streams Dev Server       " + blue("║"),
+		blue("  ║") + "          Secondlayer Dev Server       " + blue("║"),
 	);
 	console.log(blue("  ╚═══════════════════════════════════════╝"));
 	console.log("");
@@ -978,16 +843,13 @@ function printBanner(): void {
 	console.log("");
 }
 
-function printUrls(
-	indexerPort: number,
-	apiPort: number,
-	receiverPort: number,
-	receiverEnabled: boolean,
-): void {
+function printUrls(indexerPort: number, apiPort: number): void {
 	console.log(dim("  ─────────────────────────────────────────"));
 	console.log("");
 	console.log("  " + blue("API:"));
-	console.log(`    List streams:   curl http://localhost:${apiPort}/streams`);
+	console.log(
+		`    List subgraphs: curl http://localhost:${apiPort}/api/subgraphs`,
+	);
 	console.log(`    Health check:   curl http://localhost:${apiPort}/health`);
 	console.log("");
 	console.log("  " + blue("Indexer:"));
@@ -998,13 +860,6 @@ function printUrls(
 		`    Send block:     curl -X POST http://localhost:${indexerPort}/new_block -d @block.json`,
 	);
 	console.log("");
-
-	if (receiverEnabled) {
-		console.log("  " + blue("Test Receiver:"));
-		console.log(`    Receives deliveries at http://localhost:${receiverPort}/`);
-		console.log(`    Use this URL when creating streams for testing`);
-		console.log("");
-	}
 
 	console.log("  " + blue("Stacks Node Config:"));
 	console.log(dim("    Add to your Stacks node Config.toml:"));
@@ -1051,7 +906,7 @@ async function isDatabaseReachable(url: string): Promise<boolean> {
 }
 
 async function ensureDevPostgres(dataDir: string): Promise<boolean> {
-	const check = await Bun.$`docker ps -q -f name=streams-dev-postgres`
+	const check = await Bun.$`docker ps -q -f name=secondlayer-dev-postgres`
 		.quiet()
 		.nothrow();
 	if (check.stdout.toString().trim()) {
@@ -1062,20 +917,20 @@ async function ensureDevPostgres(dataDir: string): Promise<boolean> {
 	const pgDataDir = join(dataDir, "postgres");
 	mkdirSync(pgDataDir, { recursive: true });
 
-	const stopped = await Bun.$`docker ps -aq -f name=streams-dev-postgres`
+	const stopped = await Bun.$`docker ps -aq -f name=secondlayer-dev-postgres`
 		.quiet()
 		.nothrow();
 	if (stopped.stdout.toString().trim()) {
 		// Container exists but stopped - remove and recreate with correct volume
-		await Bun.$`docker rm streams-dev-postgres`.quiet().nothrow();
+		await Bun.$`docker rm secondlayer-dev-postgres`.quiet().nothrow();
 	}
 
 	// Create with volume mount for persistence
-	await Bun.$`docker run -d --name streams-dev-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=streams_dev -v ${pgDataDir}:/var/lib/postgresql/data -p 5432:5432 postgres:16-alpine`.quiet();
+	await Bun.$`docker run -d --name secondlayer-dev-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=secondlayer_dev -v ${pgDataDir}:/var/lib/postgresql/data -p 5432:5432 postgres:16-alpine`.quiet();
 
 	for (let i = 0; i < 30; i++) {
 		const ready =
-			await Bun.$`docker exec streams-dev-postgres pg_isready -U postgres`
+			await Bun.$`docker exec secondlayer-dev-postgres pg_isready -U postgres`
 				.quiet()
 				.nothrow();
 		if (ready.exitCode === 0) return true;

@@ -107,7 +107,7 @@ export async function checkHealth(): Promise<HealthReport> {
 	const containers: ContainerHealth[] = [];
 	try {
 		const result =
-			await Bun.$`docker ps -a --format json --filter "name=stacks" --filter "name=streams-dev"`
+			await Bun.$`docker ps -a --format json --filter "name=stacks" --filter "name=secondlayer-dev"`
 				.quiet()
 				.nothrow();
 		if (result.exitCode === 0) {
@@ -193,7 +193,7 @@ export async function checkHealth(): Promise<HealthReport> {
 	const infrastructure: InfraHealth = { postgres: false };
 
 	try {
-		const pg = await Bun.$`docker ps -q -f name=streams-dev-postgres`
+		const pg = await Bun.$`docker ps -q -f name=secondlayer-dev-postgres`
 			.quiet()
 			.nothrow();
 		infrastructure.postgres = pg.stdout.toString().trim().length > 0;

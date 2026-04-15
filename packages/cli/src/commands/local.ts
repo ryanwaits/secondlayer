@@ -108,12 +108,11 @@ export function registerLocalCommand(program: Command): void {
 		.description("View local service logs (dev + node)")
 		.option(
 			"-s, --service <name>",
-			"Filter by service (api, indexer, worker, receiver, subgraphs, node)",
+			"Filter by service (api, indexer, worker, subgraphs, node)",
 		)
 		.option("-f, --follow", "Follow log output")
 		.option("-n, --lines <n>", "Number of lines to show", "50")
 		.option("-q, --quiet", "Filter out common noise")
-		.option("-v, --verbose", "Show full payloads")
 		.action(
 			async (options: {
 				service?: string;
@@ -146,7 +145,7 @@ export function registerLocalCommand(program: Command): void {
 			"-p, --path <path>",
 			"Path to stacks-blockchain-docker (overrides config)",
 		)
-		.option("--with-indexer", "Also start streams indexer")
+		.option("--with-indexer", "Also start indexer")
 		.action(async (options: { path?: string; withIndexer?: boolean }) => {
 			const { startNode } = await import("./node-impl.ts");
 			await startNode(options.path, options.withIndexer);
@@ -161,7 +160,7 @@ export function registerLocalCommand(program: Command): void {
 			"Path to stacks-blockchain-docker (overrides config)",
 		)
 		.option("-f, --force", "Skip confirmation")
-		.option("--wait", "Pause streams and wait for jobs to complete first")
+		.option("--wait", "Wait for in-flight work to drain first")
 		.action(
 			async (options: { path?: string; force?: boolean; wait?: boolean }) => {
 				const { stopNode } = await import("./node-impl.ts");
@@ -180,7 +179,7 @@ export function registerLocalCommand(program: Command): void {
 		.option("-f, --force", "Skip confirmation")
 		.option(
 			"--wait",
-			"Pause streams and wait for jobs to complete before stopping",
+			"Wait for in-flight work to drain before stopping",
 		)
 		.action(
 			async (options: { path?: string; force?: boolean; wait?: boolean }) => {
@@ -306,52 +305,39 @@ async function showLocalLogs(options: {
 	follow?: boolean;
 	lines: string;
 	quiet?: boolean;
-	verbose?: boolean;
 }): Promise<void> {
 	const lines = Number.parseInt(options.lines);
 	const service = options.service?.toLowerCase();
 
-	// Determine which sources to show
 	const showDev =
 		!service ||
 		service === "dev" ||
 		DEV_SERVICES.includes(service as DevService);
 	const showNode = !service || service === "node";
 
-	// If specific dev service requested
 	if (service && DEV_SERVICES.includes(service as DevService)) {
 		const { showLogs } = await import("./dev-impl.ts");
 		await showLogs({
 			follow: options.follow,
 			service,
 			lines: options.lines,
-			verbose: options.verbose,
 		});
 		return;
 	}
 
-	// If only node requested
 	if (service === "node") {
 		await showNodeLogs(options);
 		return;
 	}
 
-	// Combined logs (no filter or "dev" filter)
 	if (options.follow) {
-		await followCombinedLogs(
-			showDev,
-			showNode,
-			lines,
-			options.quiet ?? false,
-			options.verbose ?? false,
-		);
+		await followCombinedLogs(showDev, showNode, lines, options.quiet ?? false);
 	} else {
 		await showStaticCombinedLogs(
 			showDev,
 			showNode,
 			lines,
 			options.quiet ?? false,
-			options.verbose ?? false,
 		);
 	}
 }
@@ -390,7 +376,6 @@ async function showStaticCombinedLogs(
 	showNode: boolean,
 	lines: number,
 	quiet: boolean,
-	verbose: boolean,
 ): Promise<void> {
 	const allLines: LogEntry[] = [];
 
@@ -432,7 +417,7 @@ async function showStaticCombinedLogs(
 
 	// Print last N lines
 	for (const { service, line } of allLines.slice(-lines)) {
-		console.log(formatLogLine(service, line, verbose));
+		console.log(formatLogLine(service, line));
 	}
 }
 
@@ -441,10 +426,8 @@ async function followCombinedLogs(
 	showNode: boolean,
 	initialLines: number,
 	quiet: boolean,
-	verbose: boolean,
 ): Promise<void> {
-	// Show initial lines
-	await showStaticCombinedLogs(showDev, showNode, initialLines, quiet, verbose);
+	await showStaticCombinedLogs(showDev, showNode, initialLines, quiet);
 
 	const procs: ReturnType<typeof Bun.spawn>[] = [];
 
@@ -458,7 +441,7 @@ async function followCombinedLogs(
 					stderr: "pipe",
 				});
 				procs.push(proc);
-				streamLogs(proc, name, verbose);
+				pipeProcLogs(proc, name);
 			}
 		}
 	}
@@ -473,7 +456,7 @@ async function followCombinedLogs(
 			},
 		);
 		procs.push(proc);
-		streamLogs(proc, "node", verbose);
+		pipeProcLogs(proc, "node");
 	}
 
 	// Handle Ctrl+C
@@ -490,10 +473,9 @@ async function followCombinedLogs(
 	await new Promise(() => {});
 }
 
-function streamLogs(
+function pipeProcLogs(
 	proc: ReturnType<typeof Bun.spawn>,
 	serviceName: string,
-	verbose: boolean,
 ): void {
 	const readStream = async (stream: ReadableStream<Uint8Array> | null) => {
 		if (!stream) return;
@@ -511,7 +493,7 @@ function streamLogs(
 
 			for (const line of lines) {
 				if (line.trim()) {
-					console.log(formatLogLine(serviceName, line, verbose));
+					console.log(formatLogLine(serviceName, line));
 				}
 			}
 		}
@@ -521,20 +503,14 @@ function streamLogs(
 	readStream(proc.stderr as ReadableStream<Uint8Array>);
 }
 
-function formatLogLine(
-	service: string,
-	line: string,
-	verbose: boolean,
-): string {
+function formatLogLine(service: string, line: string): string {
 	const colorFn = serviceColors[service] ?? dim;
 	const prefix = colorFn(`[${service}]`);
 
-	// For node logs that are already formatted, just add prefix
 	if (service === "node" && line.startsWith("[")) {
 		return `${prefix} ${line}`;
 	}
 
-	// Parse log line: [timestamp] LEVEL: message
 	const match = line.match(
 		/^(\[\d{4}-\d{2}-\d{2}T[\d:.]+Z\])\s*(INFO|WARN|ERROR|DEBUG):?\s*(.*)$/,
 	);
@@ -554,30 +530,5 @@ function formatLogLine(
 		}
 	}
 
-	// Delivery payload: summarize unless verbose
-	if (service === "receiver" && !verbose) {
-		const summary = formatDeliverySummary(line);
-		if (summary) return `${prefix} ${summary}`;
-	}
-
 	return `${prefix} ${line}`;
-}
-
-function formatDeliverySummary(jsonStr: string): string | null {
-	try {
-		const data = JSON.parse(jsonStr);
-		if (data.type !== "delivery" || !data.body) return null;
-
-		const { body, method, path, timestamp } = data;
-		const streamName =
-			body.streamName ?? body.streamId?.slice(0, 8) ?? "unknown";
-		const height = body.block?.height ?? "?";
-		const txCount = body.matches?.transactions?.length ?? 0;
-		const eventCount = body.matches?.events?.length ?? 0;
-
-		const dimTimestamp = dim(`[${timestamp}]`);
-		return `${dimTimestamp} ${green("INFO:")} ${method} ${path} — ${streamName} block:${height} (${txCount} txs, ${eventCount} events)`;
-	} catch {
-		return null;
-	}
 }

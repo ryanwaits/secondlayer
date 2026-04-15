@@ -1,4 +1,3 @@
-import type { QueueStats } from "@secondlayer/shared/types";
 import { BaseClient } from "./base.ts";
 import type { SecondLayerOptions } from "./base.ts";
 import { Marketplace } from "./marketplace/client.ts";
@@ -15,10 +14,5 @@ export class SecondLayer extends BaseClient {
 		this.subgraphs = new Subgraphs(options);
 		this.marketplace = new Marketplace(options);
 		this.workflows = new Workflows(options);
-	}
-
-	async getQueueStats(): Promise<QueueStats> {
-		const status = await this.request<{ queue: QueueStats }>("GET", "/status");
-		return status.queue;
 	}
 }

@@ -78,18 +78,6 @@ function printStatus(status: any): void {
 	console.log(`  Status: ${dbColor(status.database.status)}`);
 	console.log("");
 
-	// Queue
-	console.log(blue("Job Queue"));
-	console.log(
-		formatKeyValue([
-			["  Pending", status.queue.pending.toString()],
-			["  Processing", status.queue.processing.toString()],
-			["  Completed", status.queue.completed.toString()],
-			["  Failed", status.queue.failed.toString()],
-		]),
-	);
-	console.log("");
-
 	// Index Progress
 	console.log(blue("Index Progress"));
 	if (status.indexProgress.length === 0) {
@@ -143,33 +131,14 @@ function printStatus(status: any): void {
 	}
 	console.log("");
 
-	// Streams
-	console.log(blue("Streams"));
-	console.log(
-		formatKeyValue([
-			["  Total", status.streams.total.toString()],
-			["  Active", green(status.streams.active.toString())],
-			["  Paused", yellow(status.streams.paused.toString())],
-			[
-				"  Error",
-				status.streams.error > 0 ? red(status.streams.error.toString()) : "0",
-			],
-		]),
-	);
-	console.log("");
-
-	// Subgraphs + Deliveries (hosted mode fields)
-	if (
-		status.activeSubgraphs !== undefined ||
-		status.recentDeliveries !== undefined
-	) {
+	// Subgraphs (hosted mode)
+	if (status.activeSubgraphs !== undefined) {
 		console.log(blue("Activity"));
-		const pairs: [string, string][] = [];
-		if (status.activeSubgraphs !== undefined)
-			pairs.push(["  Active Subgraphs", status.activeSubgraphs.toString()]);
-		if (status.recentDeliveries !== undefined)
-			pairs.push(["  Deliveries (24h)", status.recentDeliveries.toString()]);
-		console.log(formatKeyValue(pairs));
+		console.log(
+			formatKeyValue([
+				["  Active Subgraphs", status.activeSubgraphs.toString()],
+			]),
+		);
 		console.log("");
 	}
 

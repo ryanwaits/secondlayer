@@ -2,7 +2,6 @@
  * Node command implementation - extracted from node.ts for use by local.ts
  */
 import { confirm, input, select } from "@inquirer/prompts";
-import { getQueueStats } from "../lib/api-client.ts";
 import { loadConfig, saveConfig } from "../lib/config.ts";
 import { getChainIdHex, validateNetworkConsistency } from "../lib/network.ts";
 import {
@@ -84,7 +83,7 @@ export async function runSetupWizard(): Promise<void> {
 
 	// Step 4: Auto-start indexer
 	const autoStartIndexer = await confirm({
-		message: "Auto-start streams indexer when node starts?",
+		message: "Auto-start indexer when node starts?",
 		default: true,
 	});
 
@@ -227,9 +226,8 @@ export async function startNode(
 export async function stopNode(
 	_pathOverride?: string,
 	force?: boolean,
-	wait?: boolean,
+	_wait?: boolean,
 ): Promise<void> {
-	// Check if running
 	if (!(await isNodeRunning())) {
 		info("Node is not running");
 		return;
@@ -248,11 +246,6 @@ export async function stopNode(
 
 	console.log("");
 
-	// If --wait, wait for queue to drain
-	if (wait) {
-		await waitForJobs();
-	}
-
 	info("Stopping Stacks node...");
 
 	const stopped = await stopNodeContainers();
@@ -268,7 +261,7 @@ export async function stopNode(
 export async function restartNode(
 	pathOverride?: string,
 	force?: boolean,
-	wait?: boolean,
+	_wait?: boolean,
 ): Promise<void> {
 	const config = await loadConfig();
 	const nodePath = pathOverride || config.node?.installPath;
@@ -295,11 +288,6 @@ export async function restartNode(
 		}
 
 		console.log("");
-
-		// If --wait, wait for queue to drain
-		if (wait) {
-			await waitForJobs();
-		}
 
 		info("Stopping Stacks node...");
 		const stopped = await stopNodeContainers();
@@ -336,33 +324,6 @@ export async function restartNode(
 	console.log("");
 }
 
-async function waitForJobs(): Promise<void> {
-	const POLL_INTERVAL_MS = 1000;
-
-	try {
-		process.stdout.write(dim("Waiting for jobs to complete..."));
-
-		while (true) {
-			const stats = await getQueueStats();
-			const active = stats.pending + stats.processing;
-
-			if (active === 0) {
-				process.stdout.write("\n");
-				success("All jobs completed");
-				console.log("");
-				return;
-			}
-
-			process.stdout.write(
-				`\r${dim(`Waiting for jobs to complete... ${active} remaining`)}`,
-			);
-			await Bun.sleep(POLL_INTERVAL_MS);
-		}
-	} catch {
-		warn("Could not check queue stats (API may not be running)");
-		console.log("");
-	}
-}
 
 export async function showStatus(
 	pathOverride?: string,
@@ -501,14 +462,14 @@ export async function showStatus(
 			signal: AbortSignal.timeout(2000),
 		});
 		if (indexerRes.ok) {
-			console.log(blue("Streams Indexer"));
+			console.log(blue("Indexer"));
 			console.log(`  ${green("+")} Running on port ${indexerPort}`);
 			console.log("");
 		}
 	} catch {
 		// Indexer not running - only show message if node is configured
 		if (config.node) {
-			console.log(blue("Streams Indexer"));
+			console.log(blue("Indexer"));
 			console.log(
 				`  ${dim("-")} ${dim(`Not running (expected on port ${indexerPort})`)}`,
 			);
