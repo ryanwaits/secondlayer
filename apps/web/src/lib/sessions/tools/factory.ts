@@ -40,10 +40,7 @@ export interface AccountResources {
 export async function fetchAccountResources(
 	sessionToken: string,
 ): Promise<AccountResources> {
-	const [streams, subgraphs, workflows, keys, chainTip] = await Promise.all([
-		apiRequest<{ streams: Stream[] }>("/api/streams", { sessionToken })
-			.then((r) => r.streams)
-			.catch(() => [] as Stream[]),
+	const [subgraphs, workflows, keys, chainTip] = await Promise.all([
 		apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", { sessionToken })
 			.then((r) => r.data)
 			.catch(() => [] as SubgraphSummary[]),
@@ -59,7 +56,7 @@ export async function fetchAccountResources(
 			.then((r) => r.chainTip ?? null)
 			.catch(() => null as number | null),
 	]);
-	return { streams, subgraphs, workflows, keys, chainTip };
+	return { subgraphs, workflows, keys, chainTip };
 }
 
 export function createSessionTools(
@@ -68,12 +65,10 @@ export function createSessionTools(
 ) {
 	return {
 		check_subgraphs: createCheckSubgraphs(sessionToken),
-		check_streams: createCheckStreams(sessionToken),
 		check_usage: createCheckUsage(sessionToken),
 		check_keys: createCheckKeys(sessionToken),
 		check_insights: createCheckInsights(sessionToken),
 		query_subgraph: createQuerySubgraph(sessionToken),
-		manage_streams: manageStreams,
 		manage_keys: manageKeys,
 		manage_subgraphs: manageSubgraphs,
 		check_workflows: createCheckWorkflows(sessionToken),
@@ -89,12 +84,6 @@ export function createSessionTools(
 		read_subgraph: createReadSubgraph(sessionToken),
 		edit_subgraph: editSubgraph,
 		tail_subgraph_sync: tailSubgraphSync,
-		scaffold_stream: scaffoldStream,
-		deploy_stream: deployStream,
-		read_stream: createReadStream(sessionToken),
-		edit_stream: editStream,
-		tail_deliveries: createTailDeliveries(sessionToken),
-		list_stream_filter_types: listStreamFilterTypes,
 		list_workflow_templates: listWorkflowTemplates,
 		lookup_docs: lookupDocs,
 		diagnose: createDiagnose(resources),
