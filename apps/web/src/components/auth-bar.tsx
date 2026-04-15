@@ -7,7 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const PLATFORM_PATHS = [
 	"/platform",
-	"/streams",
 	"/subgraphs",
 	"/api-keys",
 	"/usage",

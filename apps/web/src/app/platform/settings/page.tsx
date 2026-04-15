@@ -40,7 +40,7 @@ export default function SettingsPage() {
 
 	const handleDelete = useCallback(async () => {
 		if (!project) return;
-		if (!confirm("Delete this project? This will remove all streams, subgraphs, and data. This cannot be undone.")) return;
+		if (!confirm("Delete this project? This will remove all subgraphs and data. This cannot be undone.")) return;
 		try {
 			await deleteProject.mutateAsync(project.slug);
 			window.location.href = "/";

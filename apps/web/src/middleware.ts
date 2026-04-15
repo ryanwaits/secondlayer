@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths that have both marketing (unauthed) and platform (authed) versions
-const DUAL_PATHS = ["/streams", "/subgraphs", "/marketplace", "/workflows"];
+const DUAL_PATHS = ["/subgraphs", "/marketplace", "/workflows"];
 // Paths that require authentication
 const AUTH_REQUIRED = [
 	"/api-keys",
@@ -62,8 +62,6 @@ export const config = {
 	matcher: [
 		"/",
 		"/site/:path*",
-		"/streams",
-		"/streams/:path*",
 		"/subgraphs",
 		"/subgraphs/:path*",
 		"/api-keys",

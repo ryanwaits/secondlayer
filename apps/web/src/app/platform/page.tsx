@@ -2,7 +2,7 @@ import { CollapsibleSection } from "@/components/console/collapsible-section";
 import { OnboardingCard } from "@/components/console/onboarding-card";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import type { Stream, SubgraphSummary, WorkflowSummary } from "@/lib/types";
+import type { SubgraphSummary, WorkflowSummary } from "@/lib/types";
 import Link from "next/link";
 
 function InfoTip({ text }: { text: string }) {
@@ -55,18 +55,13 @@ function statusClass(status: string) {
 export default async function DashboardPage() {
 	const session = await getSessionFromCookies();
 
-	let streams: Stream[] = [];
 	let subgraphs: SubgraphSummary[] = [];
 	let workflows: WorkflowSummary[] = [];
 	let sessions: RecentSession[] = [];
 
 	if (session) {
-		const [streamsResult, subgraphsResult, workflowsResult, sessionsResult] =
+		const [subgraphsResult, workflowsResult, sessionsResult] =
 			await Promise.allSettled([
-				apiRequest<{ streams: Stream[]; total: number }>(
-					"/api/streams?limit=100&offset=0",
-					{ sessionToken: session, tags: ["streams"] },
-				),
 				apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
 					sessionToken: session,
 					tags: ["subgraphs"],
@@ -80,8 +75,6 @@ export default async function DashboardPage() {
 					{ sessionToken: session, tags: ["sessions"] },
 				),
 			]);
-		streams =
-			streamsResult.status === "fulfilled" ? streamsResult.value.streams : [];
 		subgraphs =
 			subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
 		workflows =
@@ -111,15 +104,6 @@ export default async function DashboardPage() {
 		totalProcessed > 0
 			? ((totalProcessed - totalErrors) / totalProcessed) * 100
 			: null;
-	const totalDeliveries = streams.reduce((s, st) => s + st.totalDeliveries, 0);
-	const failedDeliveries = streams.reduce(
-		(s, st) => s + st.failedDeliveries,
-		0,
-	);
-	const successRate =
-		totalDeliveries > 0
-			? ((1 - failedDeliveries / totalDeliveries) * 100).toFixed(1)
-			: "—";
 
 	return (
 		<>
@@ -211,79 +195,6 @@ export default async function DashboardPage() {
 							<div className="ov-empty">
 								No subgraphs yet.{" "}
 								<Link href="/subgraphs" className="ov-section-link">
-									Create one &rarr;
-								</Link>
-							</div>
-						)}
-					</CollapsibleSection>
-
-					{/* Streams */}
-					<CollapsibleSection title="Streams" count={streams.length}>
-						{streams.length > 0 ? (
-							<>
-								<div className="ov-cards">
-									<Link href="/streams" className="ov-card">
-										<div className="ov-card-label">
-											Deliveries{" "}
-											<InfoTip text="Total webhook deliveries attempted across all streams" />
-										</div>
-										<div className="ov-card-value">
-											{totalDeliveries.toLocaleString()}
-										</div>
-										<div className="ov-card-sub">
-											across {streams.length} streams
-										</div>
-									</Link>
-									<Link href="/streams" className="ov-card">
-										<div className="ov-card-label">
-											Success Rate{" "}
-											<InfoTip text="Percentage of webhook deliveries completed successfully" />
-										</div>
-										<div
-											className="ov-card-value"
-											style={{
-												color:
-													Number(successRate) >= 99
-														? "var(--green)"
-														: Number(successRate) >= 95
-															? "var(--yellow)"
-															: "var(--red)",
-											}}
-										>
-											{successRate}%
-										</div>
-										<div className="ov-card-sub">{failedDeliveries} failed</div>
-									</Link>
-								</div>
-								<div className="ov-list">
-									{streams.slice(0, 5).map((st) => (
-										<Link
-											key={st.id}
-											href={`/streams/${st.id}`}
-											className="ov-list-item"
-										>
-											<span className="ov-list-name">{st.name}</span>
-											<span
-												className={`ov-list-status ${statusClass(st.status)}`}
-											>
-												{st.status}
-											</span>
-											<span className="ov-list-meta">
-												{st.totalDeliveries.toLocaleString()} deliveries
-											</span>
-										</Link>
-									))}
-								</div>
-								<div className="ov-section-footer">
-									<Link href="/streams" className="ov-section-link">
-										View all streams &rarr;
-									</Link>
-								</div>
-							</>
-						) : (
-							<div className="ov-empty">
-								No streams yet.{" "}
-								<Link href="/streams" className="ov-section-link">
 									Create one &rarr;
 								</Link>
 							</div>

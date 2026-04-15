@@ -80,7 +80,6 @@ export default function AdminPage() {
 							value={stats.errorSubgraphs}
 							color={stats.errorSubgraphs > 0 ? "var(--red)" : undefined}
 						/>
-						<StatCard label="Total Streams" value={stats.totalStreams} />
 						<StatCard label="Total Subgraphs" value={stats.totalSubgraphs} />
 					</div>
 				) : null}

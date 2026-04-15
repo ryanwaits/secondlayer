@@ -23,12 +23,6 @@ const STEPS: Step[] = [
 		code: "sl subgraphs deploy ./my-subgraph.ts",
 		agentPrompt: true,
 	},
-	{
-		label: "Create a stream",
-		desc: "Push real-time blockchain events to your endpoint.",
-		code: "sl streams new my-stream",
-		agentPrompt: true,
-	},
 ];
 
 function CopyBtn({ text }: { text: string }) {

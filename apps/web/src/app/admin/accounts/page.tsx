@@ -87,7 +87,6 @@ export default function AccountsPage() {
 									<th style={{ ...TH_STYLE, textAlign: "center" }}>
 										Subgraphs
 									</th>
-									<th style={{ ...TH_STYLE, textAlign: "center" }}>Streams</th>
 									<th style={TH_STYLE}>Last Active</th>
 									<th style={TH_STYLE}>Joined</th>
 								</tr>
@@ -141,17 +140,6 @@ export default function AccountsPage() {
 											}}
 										>
 											{account.subgraphCount}
-										</td>
-										<td
-											style={{
-												padding: "8px 12px",
-												textAlign: "center",
-												fontFamily: "var(--font-mono-stack)",
-												fontSize: 12,
-												color: "var(--text-muted)",
-											}}
-										>
-											{account.streamCount}
 										</td>
 										<td
 											style={{
