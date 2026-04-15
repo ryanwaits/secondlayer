@@ -153,12 +153,6 @@ async function printConfigTree(cfg: Config): Promise<void> {
 			cfg.ports.indexer === defaults.ports.indexer,
 			2,
 		);
-		printValue(
-			"  receiver",
-			cfg.ports.receiver,
-			cfg.ports.receiver === defaults.ports.receiver,
-			2,
-		);
 
 		// Database
 		console.log("");

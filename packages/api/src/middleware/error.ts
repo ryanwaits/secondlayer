@@ -1,4 +1,4 @@
-import { CODE_TO_STATUS, StreamsError } from "@secondlayer/shared/errors";
+import { CODE_TO_STATUS, SecondLayerError } from "@secondlayer/shared/errors";
 import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod/v4";
@@ -52,8 +52,8 @@ export const errorHandler: ErrorHandler = (error, c) => {
 		}
 	}
 
-	// Fallback instanceof checks for StreamsError subtypes without mapped codes
-	if (error instanceof StreamsError) {
+	// Fallback instanceof checks for SecondLayerError subtypes without mapped codes
+	if (error instanceof SecondLayerError) {
 		return c.json(
 			{
 				error: error.message,

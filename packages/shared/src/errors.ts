@@ -1,8 +1,6 @@
 export const ErrorCodes = {
 	VALIDATION_ERROR: "VALIDATION_ERROR",
 	DATABASE_ERROR: "DATABASE_ERROR",
-	DELIVERY_ERROR: "DELIVERY_ERROR",
-	FILTER_EVALUATION_ERROR: "FILTER_EVALUATION_ERROR",
 	AUTHENTICATION_ERROR: "AUTHENTICATION_ERROR",
 	AUTHORIZATION_ERROR: "AUTHORIZATION_ERROR",
 	RATE_LIMIT_ERROR: "RATE_LIMIT_ERROR",
@@ -13,11 +11,8 @@ export const ErrorCodes = {
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
-/**
- * Base error class for all Secondlayer errors.
- * Name retained for backwards compat; refactoring is a follow-up.
- */
-export class StreamsError extends Error {
+/** Base error class for all Secondlayer errors. */
+export class SecondLayerError extends Error {
 	public code: ErrorCode;
 	public override cause?: unknown;
 
@@ -46,96 +41,49 @@ export class StreamsError extends Error {
 	}
 }
 
-export class NotFoundError extends StreamsError {
+export class NotFoundError extends SecondLayerError {
 	constructor(message: string) {
 		super("NOT_FOUND", message);
 	}
 }
 
-/**
- * Validation error for invalid input
- */
-export class ValidationError extends StreamsError {
+export class ValidationError extends SecondLayerError {
 	constructor(message: string, cause?: unknown) {
 		super("VALIDATION_ERROR", message, cause);
 	}
 }
 
-/**
- * Database operation error
- */
-export class DatabaseError extends StreamsError {
+export class DatabaseError extends SecondLayerError {
 	constructor(message: string, cause?: unknown) {
 		super("DATABASE_ERROR", message, cause);
 	}
 }
 
-/**
- * Delivery error
- */
-export class DeliveryError extends StreamsError {
-	constructor(
-		message: string,
-		public statusCode?: number,
-		cause?: unknown,
-	) {
-		super("DELIVERY_ERROR", message, cause);
-	}
-
-	override toJSON(): {
-		name: string;
-		code: string;
-		message: string;
-		stack: string | undefined;
-		cause: unknown;
-		statusCode: number | undefined;
-	} {
-		const base = super.toJSON();
-		return {
-			name: base.name,
-			code: base.code,
-			message: base.message,
-			stack: base.stack,
-			cause: base.cause,
-			statusCode: this.statusCode,
-		};
-	}
-}
-
-/**
- * Filter evaluation error
- */
-export class FilterEvaluationError extends StreamsError {
-	constructor(message: string, cause?: unknown) {
-		super("FILTER_EVALUATION_ERROR", message, cause);
-	}
-}
-
-export class AuthenticationError extends StreamsError {
+export class AuthenticationError extends SecondLayerError {
 	constructor(message: string) {
 		super("AUTHENTICATION_ERROR", message);
 	}
 }
 
-export class AuthorizationError extends StreamsError {
+export class AuthorizationError extends SecondLayerError {
 	constructor(message: string) {
 		super("AUTHORIZATION_ERROR", message);
 	}
 }
 
-export class RateLimitError extends StreamsError {
+export class RateLimitError extends SecondLayerError {
 	constructor(message: string) {
 		super("RATE_LIMIT_ERROR", message);
 	}
 }
 
-export class ForbiddenError extends StreamsError {
+export class ForbiddenError extends SecondLayerError {
 	constructor(message = "Forbidden") {
 		super("FORBIDDEN", message);
 	}
 }
 
-export class VersionConflictError extends StreamsError {
+export class VersionConflictError extends SecondLayerError {
 	public currentVersion: string;
 	public expectedVersion: string;
 
@@ -169,9 +117,6 @@ export const CODE_TO_STATUS: Record<MappedCode, 400 | 401 | 403 | 404 | 429> = {
 	VALIDATION_ERROR: 400,
 } as const;
 
-/**
- * Safely extract error message from unknown error value
- */
 export function getErrorMessage(err: unknown): string {
 	return err instanceof Error ? err.message : String(err);
 }

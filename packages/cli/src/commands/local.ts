@@ -24,13 +24,7 @@ import {
 } from "../lib/output.ts";
 
 // Service definitions
-const DEV_SERVICES = [
-	"api",
-	"indexer",
-	"worker",
-	"receiver",
-	"subgraphs",
-] as const;
+const DEV_SERVICES = ["api", "indexer", "worker", "subgraphs"] as const;
 type DevService = (typeof DEV_SERVICES)[number];
 
 export function registerLocalCommand(program: Command): void {
@@ -46,15 +40,10 @@ export function registerLocalCommand(program: Command): void {
 	// Start subcommand
 	local
 		.command("start")
-		.description(
-			"Start all local dev services (API, indexer, worker, receiver)",
-		)
+		.description("Start all local dev services (API, indexer, worker)")
 		.option("--indexer-port <port>", "Indexer port", "3700")
 		.option("--api-port <port>", "API port", "3800")
-		.option("--receiver-port <port>", "Test receiver server port", "3900")
-		.option("--no-receiver", "Skip test receiver server")
 		.option("--no-worker", "Skip worker service")
-		.option("--secret <secret>", "Signing secret for signature verification")
 		.option(
 			"--stacks-node",
 			"Use port 3701 for indexer (avoids conflict with stacks-blockchain-api)",
@@ -296,7 +285,6 @@ const serviceColors: Record<string, (text: string) => string> = {
 	indexer: cyan,
 	worker: yellow,
 	subgraphs: magenta,
-	receiver: green,
 	node: red,
 };
 

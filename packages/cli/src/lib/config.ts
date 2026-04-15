@@ -13,7 +13,6 @@ import {
 const PortsSchema = z.object({
 	api: z.number().int().min(1).max(65535).default(3800),
 	indexer: z.number().int().min(1).max(65535).default(3700),
-	receiver: z.number().int().min(1).max(65535).default(3900),
 });
 
 const NodeSchema = z.object({
@@ -41,9 +40,8 @@ export const ConfigSchema = z.object({
 	apiKey: z.string().optional(),
 	nodeRpcUrl: z.string().url().optional(),
 	dataDir: z.string().default("~/.secondlayer/data"),
-	defaultEndpointUrl: z.string().url().optional(),
 	node: NodeSchema.optional(),
-	ports: PortsSchema.default({ api: 3800, indexer: 3700, receiver: 3900 }),
+	ports: PortsSchema.default({ api: 3800, indexer: 3700 }),
 	database: DatabaseSchema.default({ type: "docker" as const }),
 });
 
@@ -64,12 +62,10 @@ export type DatabaseConfig = z.infer<typeof DatabaseSchema>;
 const CONFIG_DIR = join(homedir(), ".secondlayer");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
-const LOCAL_ENDPOINT_URL = "http://localhost:3900/receiver";
-
 const DEFAULT_CONFIG: Config = {
 	network: "mainnet",
 	dataDir: "~/.secondlayer/data",
-	ports: { api: 3800, indexer: 3700, receiver: 3900 },
+	ports: { api: 3800, indexer: 3700 },
 	database: { type: "docker" },
 };
 
@@ -144,10 +140,6 @@ function migrateConfig(raw: unknown): Config {
 		migrated.dataDir = old.dataDir;
 	}
 
-	if (typeof old.defaultEndpointUrl === "string") {
-		migrated.defaultEndpointUrl = old.defaultEndpointUrl;
-	}
-
 	// Migrate old flat node fields to nested structure
 	if (
 		typeof old.nodeInstallPath === "string" ||
@@ -211,11 +203,6 @@ export async function loadConfig(): Promise<Config> {
 	// Apply environment variable overrides (from .env or shell)
 	config = applyEnvOverrides(config);
 
-	// Default receiver URL only for local network
-	if (!config.defaultEndpointUrl && config.network === "local") {
-		config.defaultEndpointUrl = LOCAL_ENDPOINT_URL;
-	}
-
 	return config;
 }
 
@@ -257,14 +244,6 @@ function applyEnvOverrides(config: Config): Config {
 		const port = Number.parseInt(process.env.SL_INDEXER_PORT, 10);
 		if (!isNaN(port) && port > 0 && port <= 65535) {
 			result.ports = { ...result.ports, indexer: port };
-		}
-	}
-
-	// SL_RECEIVER_PORT
-	if (process.env.SL_RECEIVER_PORT) {
-		const port = Number.parseInt(process.env.SL_RECEIVER_PORT, 10);
-		if (!isNaN(port) && port > 0 && port <= 65535) {
-			result.ports = { ...result.ports, receiver: port };
 		}
 	}
 
