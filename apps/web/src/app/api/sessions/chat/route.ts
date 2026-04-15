@@ -64,7 +64,6 @@ export async function POST(req: Request) {
 					toolChoice: "auto" as const,
 					activeTools: [
 						"check_subgraphs",
-						"check_streams",
 						"check_usage",
 						"check_keys",
 						"check_insights",
