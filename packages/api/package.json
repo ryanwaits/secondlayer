@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "0.3.5",
+	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -11,10 +11,10 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@secondlayer/auth": "^0.1.14",
-		"@secondlayer/bundler": "^0.1.0",
-		"@secondlayer/shared": "^0.12.0",
-		"@secondlayer/subgraphs": "^0.11.0",
+		"@secondlayer/auth": "^0.1.15",
+		"@secondlayer/bundler": "^0.2.0",
+		"@secondlayer/shared": "^1.0.0",
+		"@secondlayer/subgraphs": "^0.11.6",
 		"hono": "^4.0.0",
 		"zod": "^4.3.6"
 	},

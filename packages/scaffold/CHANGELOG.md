@@ -1,4 +1,4 @@
-# @secondlayer/worker
+# @secondlayer/scaffold
 
 ## 1.0.0
 
@@ -24,117 +24,14 @@
   - CLI receiver was reading the wrong signature header (`x-streams-signature`) while the worker ships `X-Secondlayer-Signature`. The entire receiver is now removed.
   - Workflow scaffold paths (SDK + MCP + sessions) were emitting `type: "stream"` triggers that no longer typecheck against the workflows package.
 
-### Patch Changes
-
-- Updated dependencies [[`2d61e78`](https://github.com/ryanwaits/secondlayer/commit/2d61e7822ee2b1dee28bdbccf92f1837c0fd05e5), [`b4a4bf1`](https://github.com/ryanwaits/secondlayer/commit/b4a4bf186d59edb29fbde7ffd8d8273d6390c7e9), [`f1b6725`](https://github.com/ryanwaits/secondlayer/commit/f1b67257d9d6eae413ea1f49c779522205a68fc7), [`38e62e7`](https://github.com/ryanwaits/secondlayer/commit/38e62e74e600c353884fc89a5e22b8840a4d2689), [`e9c298c`](https://github.com/ryanwaits/secondlayer/commit/e9c298c828770e8ff538b957a7d7f38a7753900f)]:
-  - @secondlayer/shared@1.0.0
-
-## 0.2.7
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/shared@0.12.0
-  - @secondlayer/account-agent@0.2.7
-
-## 0.2.6
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/shared@0.11.0
-  - @secondlayer/account-agent@0.2.6
-
-## 0.2.5
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/shared@0.10.0
-  - @secondlayer/account-agent@0.2.5
-
-## 0.2.4
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/shared@0.9.0
-  - @secondlayer/account-agent@0.2.4
-
-## 0.2.3
-
-### Patch Changes
-
-- Updated dependencies [[`e4a6258`](https://github.com/ryanwaits/secondlayer/commit/e4a625854bea486efd62f9ebdf47a0791a850757)]:
-  - @secondlayer/shared@0.8.0
-  - @secondlayer/account-agent@0.2.3
-
-## 0.2.2
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/shared@0.7.0
-  - @secondlayer/account-agent@0.2.2
-
-## 0.2.1
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/shared@0.6.0
-  - @secondlayer/stacks@0.2.2
-  - @secondlayer/account-agent@0.2.1
-
-## 0.2.0
-
 ### Minor Changes
 
-- 4b716bd: Rename "views" product to "subgraphs" across entire codebase. Package `@secondlayer/views` is deprecated in favor of `@secondlayer/subgraphs`. All types, functions, API routes, CLI commands, and DB tables renamed accordingly.
+- [`eaa6115`](https://github.com/ryanwaits/secondlayer/commit/eaa61153f4a4247c42b132e022b5e972d2498883) Thanks [@ryanwaits](https://github.com/ryanwaits)! - - Introduce `@secondlayer/scaffold`: single home for browser-safe code generation. Hosts the existing `generateSubgraphCode` (moved out of MCP, deduped from `apps/web`) plus a new `generateWorkflowCode` that emits compilable `defineWorkflow()` source from a typed intent (event/stream/schedule/manual trigger, ordered steps, optional delivery target).
+  - `@secondlayer/workflows/templates`: six seed templates (`whale-alert`, `mint-watcher`, `price-circuit-breaker`, `daily-digest`, `failed-tx-alert`, `health-cron`), each a compilable source string with `id`, `name`, `description`, `category`, `trigger`, and `prompt`. Helpers `getTemplateById` and `getTemplatesByCategory` mirror the subgraph templates API.
+  - MCP: new `workflows_scaffold` (typed codegen), `workflows_template_list`, and `workflows_template_get` tools. The `secondlayer://templates` resource now returns both subgraph and workflow templates tagged with a `kind` discriminator.
 
 ### Patch Changes
 
-- Updated dependencies [4b716bd]
-  - @secondlayer/shared@0.5.0
-  - @secondlayer/account-agent@0.2.0
-
-## 0.1.5
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/shared@0.4.0
-  - @secondlayer/stacks@0.2.0
-
-## 0.1.4
-
-### Patch Changes
-
-- Updated dependencies [48e42ba]
-- Updated dependencies [a070de2]
-  - @secondlayer/shared@0.3.0
-  - @secondlayer/stacks@0.1.0
-
-## 0.1.3
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/stacks@0.0.4
-  - @secondlayer/shared@0.2.3
-
-## 0.1.2
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/stacks@0.0.3
-  - @secondlayer/shared@0.2.2
-
-## 0.1.1
-
-### Patch Changes
-
-- Updated dependencies []:
-  - @secondlayer/stacks@0.0.2
-  - @secondlayer/shared@0.2.1
+- Updated dependencies [[`2d61e78`](https://github.com/ryanwaits/secondlayer/commit/2d61e7822ee2b1dee28bdbccf92f1837c0fd05e5), [`b4a4bf1`](https://github.com/ryanwaits/secondlayer/commit/b4a4bf186d59edb29fbde7ffd8d8273d6390c7e9), [`eaa6115`](https://github.com/ryanwaits/secondlayer/commit/eaa61153f4a4247c42b132e022b5e972d2498883)]:
+  - @secondlayer/workflows@1.0.0
+  - @secondlayer/subgraphs@0.11.6
