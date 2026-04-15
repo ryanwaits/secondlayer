@@ -10,8 +10,6 @@ import {
 } from "@secondlayer/shared/db/queries/integrity";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
-import { enqueue } from "@secondlayer/shared/queue";
-import { notifyNewJob } from "@secondlayer/shared/queue/listener";
 import type { Transaction } from "kysely";
 import { integrityState, startIntegrityLoop } from "./integrity.ts";
 import {
