@@ -5,7 +5,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerResources } from "./resources.ts";
 import { registerAccountTools } from "./tools/account.ts";
 import { registerScaffoldTools } from "./tools/scaffold.ts";
-import { registerStreamTools } from "./tools/streams.ts";
 import { registerSubgraphTools } from "./tools/subgraphs.ts";
 import { registerWorkflowTools } from "./tools/workflows.ts";
 import { registerTemplateTools } from "./tools/templates.ts";
@@ -23,7 +22,6 @@ export function createServer(): McpServer {
 
 	registerTemplateTools(server);
 	registerScaffoldTools(server);
-	registerStreamTools(server);
 	registerSubgraphTools(server);
 	registerAccountTools(server);
 	registerWorkflowTools(server);
