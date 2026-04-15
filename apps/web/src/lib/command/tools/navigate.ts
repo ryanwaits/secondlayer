@@ -8,7 +8,7 @@ export const navigate = tool({
 		actionId: z
 			.string()
 			.describe(
-				"Action ID from the registry (e.g. 'streams', 'billing', 'settings')",
+				"Action ID from the registry (e.g. 'subgraphs', 'billing', 'settings')",
 			),
 	}),
 	// No execute — terminal tool

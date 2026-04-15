@@ -45,11 +45,10 @@ npx @secondlayer/mcp-http
 
 ## Tools
 
-28 tools across 6 domains.
+Tools across 5 domains.
 
 | Domain | Tools |
 | --- | --- |
-| **Streams** (11) | `streams_list`, `streams_get`, `streams_create`, `streams_update`, `streams_delete`, `streams_toggle`, `streams_deliveries`, `streams_pause_all`, `streams_resume_all`, `streams_replay`, `streams_rotate_secret` |
 | **Subgraphs** (6) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy` |
 | **Workflows** (6) | `workflows_list`, `workflows_get`, `workflows_trigger`, `workflows_pause`, `workflows_resume`, `workflows_runs` |
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
@@ -78,7 +77,7 @@ npx @secondlayer/mcp-http
 All tools return structured errors with `isError: true`:
 
 ```json
-{ "error": { "type": "not_found", "status": 404, "message": "Stream not found" } }
+{ "error": { "type": "not_found", "status": 404, "message": "Subgraph not found" } }
 ```
 
 | Error type | Status | When |

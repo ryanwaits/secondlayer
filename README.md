@@ -159,7 +159,7 @@ Address prefix determines network:
 
 ## Platform
 
-Second Layer also provides a hosted indexing platform with real-time streams, subgraphs, and contract discovery.
+Second Layer also provides a hosted indexing platform with subgraphs, workflows, and contract discovery.
 
 ### CLI
 
@@ -167,7 +167,6 @@ Second Layer also provides a hosted indexing platform with real-time streams, su
 bun add -g @secondlayer/cli
 
 sl auth login                    # authenticate via magic link
-sl streams list                  # manage event streams
 sl subgraphs list                # manage subgraphs
 sl workflows list                # manage workflows
 sl workflows deploy my-flow.ts   # deploy a workflow
@@ -186,16 +185,6 @@ import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({ apiKey: "sk-sl_..." });
 
-// List streams
-const { streams, total } = await sl.streams.list({ status: "active" });
-
-// Create a stream
-const { stream, signingSecret } = await sl.streams.create({
-  name: "my-stream",
-  endpointUrl: "https://example.com/receive",
-  filters: { type: "contract_call", contract_id: "SP...token" },
-});
-
 // List subgraphs
 const { data } = await sl.subgraphs.list();
 
@@ -211,10 +200,6 @@ const { runId } = await sl.workflows.trigger("whale-alerts");
 Base URL: `https://api.secondlayer.tools`
 
 ```bash
-# List streams
-curl -H "Authorization: Bearer $TOKEN" \
-  "https://api.secondlayer.tools/api/streams"
-
 # List subgraphs
 curl -H "Authorization: Bearer $TOKEN" \
   "https://api.secondlayer.tools/api/subgraphs"

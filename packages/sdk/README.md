@@ -19,27 +19,6 @@ const sl = new SecondLayer({
 });
 ```
 
-## Streams
-
-Manage real-time event streams with endpoint delivery.
-
-```typescript
-// Create
-const { stream, signingSecret } = await sl.streams.create({
-  name: "my-stream",
-  endpointUrl: "https://example.com/receive",
-  filters: { type: "contract_call", contract_id: "SP...token" },
-});
-
-// List
-const { streams, total } = await sl.streams.list({ status: "active" });
-
-// Get / Update / Delete
-const stream = await sl.streams.get("stream-id");
-await sl.streams.update("stream-id", { name: "renamed" });
-await sl.streams.delete("stream-id");
-```
-
 ## Subgraphs
 
 Deploy and query subgraphs (custom indexers).
@@ -101,7 +80,7 @@ const run = await sl.workflows.getRun("run-id");
 import { ApiError } from "@secondlayer/sdk";
 
 try {
-  await sl.streams.get("nonexistent");
+  await sl.subgraphs.get("nonexistent");
 } catch (err) {
   if (err instanceof ApiError) {
     console.log(err.status);  // 404

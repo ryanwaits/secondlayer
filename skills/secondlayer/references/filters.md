@@ -1,4 +1,4 @@
-# Stream Filter Types
+# Event Filter Types
 
 13 filter types, discriminated by `type` field. All fields besides `type` are optional.
 
