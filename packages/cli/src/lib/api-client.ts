@@ -1,20 +1,13 @@
 import { SecondLayer } from "@secondlayer/sdk";
 import type { MarketplaceBrowseOptions } from "@secondlayer/sdk/marketplace";
 import type {
-	BulkPauseResponse,
-	BulkResumeResponse,
-	CreateStream,
-	CreateStreamResponse,
-	ListStreamsResponse,
 	MarketplaceSubgraphDetail,
 	MarketplaceSubgraphSummary,
 	ReindexResponse,
-	StreamResponse,
 	SubgraphDetail,
 	SubgraphGapsResponse,
 	SubgraphQueryParams,
 	SubgraphSummary,
-	UpdateStream,
 } from "@secondlayer/shared/schemas";
 import type {
 	DeploySubgraphRequest,
@@ -102,66 +95,6 @@ export function authHeaders(config: { apiKey?: string }): Record<
 	string
 > {
 	return SecondLayer.authHeaders(config.apiKey);
-}
-
-// ── Streams ───────────────────────────────────────────────────────────────
-
-export async function createStream(
-	data: CreateStream,
-): Promise<CreateStreamResponse> {
-	return (await getClient()).streams.create(data);
-}
-
-export async function updateStream(
-	id: string,
-	data: UpdateStream,
-): Promise<StreamResponse> {
-	return (await getClient()).streams.update(id, data);
-}
-
-export async function updateStreamByName(
-	name: string,
-	data: CreateStream,
-): Promise<StreamResponse> {
-	return (await getClient()).streams.updateByName(name, data);
-}
-
-export async function listStreams(params?: {
-	status?: string;
-}): Promise<ListStreamsResponse> {
-	return (await getClient()).streams.list(params);
-}
-
-export async function resolveStreamId(partialId: string): Promise<string> {
-	return (await getClient()).streams.resolveStreamId(partialId);
-}
-
-export async function getStream(id: string): Promise<StreamResponse> {
-	return (await getClient()).streams.get(id);
-}
-
-export async function deleteStream(id: string): Promise<void> {
-	return (await getClient()).streams.delete(id);
-}
-
-export async function enableStream(id: string): Promise<StreamResponse> {
-	return (await getClient()).streams.enable(id);
-}
-
-export async function disableStream(id: string): Promise<StreamResponse> {
-	return (await getClient()).streams.disable(id);
-}
-
-export async function rotateSecret(id: string): Promise<{ secret: string }> {
-	return (await getClient()).streams.rotateSecret(id);
-}
-
-export async function pauseAllStreams(): Promise<BulkPauseResponse> {
-	return (await getClient()).streams.pauseAll();
-}
-
-export async function resumeAllStreams(): Promise<BulkResumeResponse> {
-	return (await getClient()).streams.resumeAll();
 }
 
 export async function getQueueStats(): Promise<QueueStats> {
