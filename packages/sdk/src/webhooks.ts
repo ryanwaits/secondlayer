@@ -11,7 +11,7 @@ export { verifySignatureHeader };
  *
  * @param rawBody - The raw request body as a string (not parsed JSON)
  * @param signatureHeader - The value of the `x-secondlayer-signature` header
- * @param secret - Your stream's signing secret
+ * @param secret - Your signing secret
  * @param toleranceSeconds - Max age of signature in seconds (default 300)
  * @returns true if the signature is valid
  *

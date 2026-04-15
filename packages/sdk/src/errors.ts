@@ -5,10 +5,10 @@
  * @example
  * ```ts
  * try {
- *   await client.streams.get("abc123");
+ *   await client.subgraphs.get("my-subgraph");
  * } catch (err) {
  *   if (err instanceof ApiError && err.status === 404) {
- *     console.log("Stream not found");
+ *     console.log("Subgraph not found");
  *   }
  * }
  * ```
