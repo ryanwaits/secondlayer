@@ -43,18 +43,10 @@ export default function CliPage() {
 # Verify
 sl --version
 
-# Interactive setup — network, auth, node config
-sl setup`}
+# Authenticate
+sl auth login`}
 					lang="bash"
 				/>
-
-				<div className="prose">
-					<p>
-						<code>sl setup</code> walks you through network selection (local,
-						testnet, mainnet), authentication via magic link, and optional
-						Stacks node configuration.
-					</p>
-				</div>
 
 				<SectionHeading id="auth">Auth</SectionHeading>
 
@@ -223,8 +215,7 @@ sl generate --output src/generated/contracts.ts`}
 				<div className="prose">
 					<p>
 						Run the full Second Layer stack locally for development. Manages the
-						API, indexer, worker, delivery receiver, and optionally a Stacks
-						node — all via Docker.
+						API, indexer, worker, and optionally a Stacks node — all via Docker.
 					</p>
 				</div>
 
@@ -271,10 +262,6 @@ sl local stop`}
 				<div className="props-section">
 					<div className="props-group-title">Core</div>
 
-					<div className="prop-row">
-						<span className="prop-name">sl setup</span>
-						<span className="prop-type">Interactive onboarding</span>
-					</div>
 					<div className="prop-row">
 						<span className="prop-name">sl status</span>
 						<span className="prop-type">
@@ -477,10 +464,6 @@ sl local stop`}
 					<div className="prop-row">
 						<span className="prop-name">sl stack start / stop</span>
 						<span className="prop-type">Full stack (node + services)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl receiver init &lt;dir&gt;</span>
-						<span className="prop-type">Scaffold receiver handler</span>
 					</div>
 				</div>
 			</main>
