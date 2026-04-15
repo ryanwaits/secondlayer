@@ -1,9 +1,18 @@
 import type { Database } from "@secondlayer/shared/db";
 import type { QueryOptions } from "@secondlayer/workflows";
-import { type Kysely, sql } from "kysely";
+import { type Kysely, type RawBuilder, sql } from "kysely";
 
 const MAX_ROWS = 1000;
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+const SQL_OPS: Record<string, string> = {
+	eq: "=",
+	neq: "!=",
+	gt: ">",
+	gte: ">=",
+	lt: "<",
+	lte: "<=",
+};
 
 function assertIdentifier(name: string, label: string): void {
 	if (!IDENTIFIER_RE.test(name)) {
@@ -32,6 +41,36 @@ async function resolveSchemaName(
 	return row.schema_name;
 }
 
+/** Build a parameterized WHERE clause from a filter object. */
+function buildWhereClause(
+	where: Record<string, unknown> | undefined,
+): RawBuilder<unknown> {
+	if (!where) return sql``;
+
+	const conditions: RawBuilder<unknown>[] = [];
+
+	for (const [key, value] of Object.entries(where)) {
+		assertIdentifier(key, "column name");
+		const col = sql.ref(key);
+
+		if (value != null && typeof value === "object" && !Array.isArray(value)) {
+			for (const [op, opVal] of Object.entries(
+				value as Record<string, unknown>,
+			)) {
+				const sqlOp = SQL_OPS[op];
+				if (sqlOp) {
+					conditions.push(sql`${col} ${sql.raw(sqlOp)} ${opVal}`);
+				}
+			}
+		} else {
+			conditions.push(sql`${col} = ${value}`);
+		}
+	}
+
+	if (conditions.length === 0) return sql``;
+	return sql`WHERE ${sql.join(conditions, sql` AND `)}`;
+}
+
 /** Query a subgraph table with parameterized filters. */
 export async function executeQueryStep(
 	db: Kysely<Database>,
@@ -44,60 +83,24 @@ export async function executeQueryStep(
 	const limit = Math.min(options?.limit ?? 100, MAX_ROWS);
 	const offset = options?.offset ?? 0;
 
-	// Build parameterized WHERE clauses
-	const conditions: string[] = [];
-	const values: unknown[] = [];
-	let paramIndex = 1;
+	const whereClause = buildWhereClause(options?.where);
 
-	if (options?.where) {
-		for (const [key, value] of Object.entries(options.where)) {
-			assertIdentifier(key, "column name");
-			if (value != null && typeof value === "object" && !Array.isArray(value)) {
-				// Comparison operators: { eq, neq, gt, gte, lt, lte }
-				const ops = value as Record<string, unknown>;
-				for (const [op, opVal] of Object.entries(ops)) {
-					const sqlOp =
-						op === "eq"
-							? "="
-							: op === "neq"
-								? "!="
-								: op === "gt"
-									? ">"
-									: op === "gte"
-										? ">="
-										: op === "lt"
-											? "<"
-											: op === "lte"
-												? "<="
-												: null;
-					if (sqlOp) {
-						conditions.push(`"${key}" ${sqlOp} $${paramIndex++}`);
-						values.push(opVal);
-					}
-				}
-			} else {
-				conditions.push(`"${key}" = $${paramIndex++}`);
-				values.push(value);
-			}
-		}
-	}
-
-	const whereClause =
-		conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-
-	// Build ORDER BY
-	let orderClause = "";
+	let orderClause: RawBuilder<unknown> = sql``;
 	if (options?.orderBy) {
 		const parts = Object.entries(options.orderBy).map(([col, dir]) => {
 			assertIdentifier(col, "orderBy column");
-			return `"${col}" ${dir === "desc" ? "DESC" : "ASC"}`;
+			const direction = dir === "desc" ? sql.raw("DESC") : sql.raw("ASC");
+			return sql`${sql.ref(col)} ${direction}`;
 		});
-		orderClause = `ORDER BY ${parts.join(", ")}`;
+		orderClause = sql`ORDER BY ${sql.join(parts, sql`, `)}`;
 	}
 
-	const fullQuery = `SELECT * FROM "${schema}"."${table}" ${whereClause} ${orderClause} LIMIT ${limit} OFFSET ${offset}`;
-
-	const result = await sql.raw(fullQuery).execute(db);
+	const tableRef = sql.table(`${schema}.${table}`);
+	const result = await sql<
+		Record<string, unknown>
+	>`SELECT * FROM ${tableRef} ${whereClause} ${orderClause} LIMIT ${sql.lit(limit)} OFFSET ${sql.lit(offset)}`.execute(
+		db,
+	);
 
 	return (result.rows ?? []) as Record<string, unknown>[];
 }
@@ -112,24 +115,12 @@ export async function executeCountStep(
 	assertIdentifier(table, "table name");
 	const schema = await resolveSchemaName(db, subgraph);
 
-	const conditions: string[] = [];
-	const values: unknown[] = [];
-	let paramIndex = 1;
+	const whereClause = buildWhereClause(where);
+	const tableRef = sql.table(`${schema}.${table}`);
 
-	if (where) {
-		for (const [key, value] of Object.entries(where)) {
-			assertIdentifier(key, "column name");
-			conditions.push(`"${key}" = $${paramIndex++}`);
-			values.push(value);
-		}
-	}
+	const result = await sql<{
+		count: number;
+	}>`SELECT COUNT(*)::int as count FROM ${tableRef} ${whereClause}`.execute(db);
 
-	const whereClause =
-		conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-
-	const fullQuery = `SELECT COUNT(*)::int as count FROM "${schema}"."${table}" ${whereClause}`;
-
-	const result = await sql.raw(fullQuery).execute(db);
-
-	return (result.rows as Array<{ count: number }>)?.[0]?.count ?? 0;
+	return result.rows?.[0]?.count ?? 0;
 }
