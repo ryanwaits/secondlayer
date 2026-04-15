@@ -1,7 +1,13 @@
 import type { Block, Stream } from "@secondlayer/shared/db";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
-import type { StreamOptions } from "@secondlayer/shared/schemas";
 import { decodeEventData } from "../decoder.ts";
+
+// Local type definition since StreamOptions was removed from shared schemas
+type StreamOptions = {
+	decodeClarityValues?: boolean;
+	includeRawTx?: boolean;
+	includeBlockMetadata?: boolean;
+};
 import type { MatchResult } from "../matcher/index.ts";
 
 export interface DeliveryPayload {
