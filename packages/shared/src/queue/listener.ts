@@ -1,6 +1,6 @@
 import postgres from "postgres";
 
-const CHANNEL_NEW_JOB = "streams:new_job";
+const CHANNEL_NEW_JOB = "indexer:new_block";
 
 /**
  * Listen for notifications on a channel
