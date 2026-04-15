@@ -7,11 +7,6 @@ export interface EventTrigger {
 	filter: SubgraphFilter;
 }
 
-export interface StreamTrigger {
-	type: "stream";
-	filter: SubgraphFilter;
-}
-
 export interface ScheduleTrigger {
 	type: "schedule";
 	cron: string;
@@ -32,7 +27,6 @@ export interface ManualTrigger {
 
 export type WorkflowTrigger =
 	| EventTrigger
-	| StreamTrigger
 	| ScheduleTrigger
 	| ManualTrigger;
 
