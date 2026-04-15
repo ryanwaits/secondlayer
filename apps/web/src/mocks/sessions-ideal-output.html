@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secondlayer Sessions — Ideal Output Mocks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&family=Fira+Code:wght@400;500&family=Sora:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Design Tokens (mirrored from globals.css) ──────────────────── */
+:root {
+  --bg: #fafafa;
+  --bg-elevated: #fff;
+  --bg-chrome: #f0f0f0;
+  --text-main: #111;
+  --text-muted: rgba(0,0,0,0.4);
+  --text-dim: rgba(0,0,0,0.12);
+  --border: #e5e5e5;
+  --border-hover: #ddd;
+  --code-bg: rgba(0,0,0,0.04);
+  --code-block-bg: #f8f8f8;
+  --nudge-bg: rgba(0,0,0,0.02);
+  --accent: #b5a836;
+  --accent-bg: rgba(181,168,54,0.06);
+  --accent-border: rgba(181,168,54,0.25);
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.08);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.08);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.08);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.08);
+
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+
+  /* Syntax colors — light */
+  --syn-keyword: #8250df;
+  --syn-string: #0a3069;
+  --syn-comment: rgba(0,0,0,0.3);
+  --syn-func: #8250df;
+  --syn-property: #953800;
+  --syn-number: #0550ae;
+  --syn-punct: rgba(0,0,0,0.4);
+  --syn-url: #0969da;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a1a;
+    --bg-elevated: #1a1a1a;
+    --bg-chrome: #0c0c0c;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.4);
+    --text-dim: rgba(255,255,255,0.1);
+    --border: #2e2e2e;
+    --border-hover: #3a3a3a;
+    --code-bg: rgba(255,255,255,0.08);
+    --code-block-bg: #1c1c1c;
+    --nudge-bg: rgba(255,255,255,0.02);
+    --accent: #8a8240;
+    --accent-bg: rgba(138,130,64,0.08);
+    --accent-border: rgba(138,130,64,0.3);
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.08);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.08);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96,165,250,0.08);
+
+    --syn-keyword: #d2a8ff;
+    --syn-string: #a5d6ff;
+    --syn-comment: rgba(255,255,255,0.25);
+    --syn-func: #d2a8ff;
+    --syn-property: #ffa657;
+    --syn-number: #79c0ff;
+    --syn-punct: rgba(255,255,255,0.35);
+    --syn-url: #58a6ff;
+  }
+}
+
+/* ── Reset / Base ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 120px;
+}
+
+/* ── Section Divider ────────────────────────────────────────────── */
+.scenario-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 56px 0 32px;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.scenario-divider::before,
+.scenario-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.scenario-divider:first-of-type { margin-top: 0; }
+
+/* ── Message Layout ─────────────────────────────────────────────── */
+.msg { display: flex; gap: 12px; margin-bottom: 20px; }
+.msg.user { flex-direction: row-reverse; }
+
+.msg-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  flex-shrink: 0; margin-top: 2px;
+}
+.user-avatar { background: var(--accent-bg); color: var(--accent); }
+.ai-avatar { background: var(--code-bg); color: var(--text-muted); padding: 5px; }
+
+.msg-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.msg.user .msg-body { align-items: flex-end; }
+
+.msg-text {
+  font-size: 14px; line-height: 1.6;
+  color: var(--text-muted);
+}
+.msg-text strong { color: var(--text-main); }
+
+.user-bubble {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px 10px 4px 10px;
+  padding: 10px 14px;
+  color: var(--text-main);
+  font-size: 14px; line-height: 1.6;
+  max-width: 480px;
+}
+
+/* ── Tool Indicator ─────────────────────────────────────────────── */
+.tool-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: default;
+  transition: background 0.12s;
+  width: fit-content;
+}
+.tool-indicator:hover { background: var(--nudge-bg); }
+.tool-indicator svg {
+  width: 12px; height: 12px;
+  opacity: 0.5; flex-shrink: 0;
+}
+.tool-indicator .chevron {
+  width: 8px; height: 8px;
+  opacity: 0.3; margin-left: 2px;
+}
+
+/* ── Generic Card Shell ─────────────────────────────────────────── */
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.card-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 6px;
+}
+.card-header svg { width: 12px; height: 12px; opacity: 0.6; }
+
+/* ── API Reference Card ─────────────────────────────────────────── */
+.api-ref-row {
+  display: flex; align-items: center;
+  padding: 10px 14px; gap: 10px;
+  font-size: 12px;
+}
+.api-ref-method {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 4px;
+  background: var(--blue-bg); color: var(--blue);
+  border: 1px solid rgba(59,130,246,0.15);
+}
+.api-ref-url {
+  font-family: var(--font-mono);
+  font-size: 12px; color: var(--text-main);
+  word-break: break-all;
+}
+
+/* ── Tabbed Code Card ───────────────────────────────────────────── */
+.code-card {
+  background: var(--code-block-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.code-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 4px;
+}
+.code-tab {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s;
+  background: none; border-top: none; border-left: none; border-right: none;
+}
+.code-tab:hover { color: var(--text-main); }
+.code-tab.active {
+  color: var(--text-main);
+  border-bottom-color: var(--accent);
+}
+.code-tab-actions {
+  margin-left: auto;
+  display: flex; align-items: center;
+  padding-right: 8px;
+}
+.copy-btn {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 500;
+  color: var(--text-muted);
+  background: none; border: 1px solid var(--border);
+  border-radius: 5px; padding: 3px 10px;
+  cursor: pointer; transition: all 0.12s;
+  display: flex; align-items: center; gap: 4px;
+}
+.copy-btn:hover {
+  color: var(--text-main);
+  border-color: var(--border-hover);
+  background: var(--nudge-bg);
+}
+.copy-btn svg { width: 11px; height: 11px; }
+
+.code-body {
+  padding: 0;
+  overflow-x: auto;
+}
+.code-body pre {
+  margin: 0;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-main);
+  white-space: pre;
+  tab-size: 2;
+  overflow-x: auto;
+}
+.code-body .hidden { display: none; }
+
+/* Syntax highlighting classes */
+.s-kw { color: var(--syn-keyword); }
+.s-str { color: var(--syn-string); }
+.s-cmt { color: var(--syn-comment); font-style: italic; }
+.s-fn { color: var(--syn-func); }
+.s-prop { color: var(--syn-property); }
+.s-num { color: var(--syn-number); }
+.s-p { color: var(--syn-punct); }
+.s-url { color: var(--syn-url); text-decoration: underline; text-decoration-color: rgba(128,128,128,0.25); text-underline-offset: 2px; }
+
+/* ── Data Table Card ────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  font-family: var(--font-mono);
+  font-size: 12px; color: var(--text-main);
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:nth-child(even) td { background: var(--nudge-bg); }
+.data-table .td-muted { color: var(--text-muted); font-size: 11px; }
+
+.table-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.table-footer-pages { display: flex; gap: 4px; }
+.table-footer-pages button {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 500;
+  width: 24px; height: 24px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer; transition: all 0.12s;
+  display: flex; align-items: center; justify-content: center;
+}
+.table-footer-pages button:hover {
+  color: var(--text-main);
+  border-color: var(--border-hover);
+  background: var(--nudge-bg);
+}
+.table-footer-pages button.active {
+  color: var(--text-main);
+  background: var(--code-bg);
+  font-weight: 600;
+}
+
+/* ── Status Row (reused for streams, subgraphs) ─────────────────── */
+.status-row {
+  display: flex; align-items: center;
+  padding: 10px 14px; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.status-row:last-child { border-bottom: none; }
+
+.status-name {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500;
+  color: var(--text-main);
+  min-width: 140px;
+}
+.status-meta {
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-left: auto;
+}
+
+.badge {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.badge-healthy { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+.badge-error { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.badge-warning { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(234,179,8,0.2); }
+.badge-paused { background: var(--code-bg); color: var(--text-muted); border: 1px solid var(--border); }
+
+/* ── Diagnostics Card ───────────────────────────────────────────── */
+.diag-item {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px;
+}
+.diag-item:last-child { border-bottom: none; }
+
+.diag-icon {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.diag-icon.danger { background: var(--red-bg); color: var(--red); }
+.diag-icon.warning { background: var(--yellow-bg); color: var(--yellow); }
+.diag-icon svg { width: 10px; height: 10px; }
+
+.diag-body { flex: 1; }
+.diag-title {
+  font-size: 12px; font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+.diag-title code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--code-bg);
+  padding: 1px 5px; border-radius: 3px;
+}
+.diag-desc {
+  font-size: 12px; color: var(--text-muted);
+  line-height: 1.5;
+}
+.diag-action {
+  margin-top: 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  display: flex; align-items: center; gap: 4px;
+}
+.diag-action svg { width: 10px; height: 10px; }
+
+/* ── Inline code in prose ───────────────────────────────────────── */
+.inline-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ── Mini logo SVG for AI avatar ────────────────────────────────── */
+.mini-logo polygon:first-child { fill: rgba(0,0,0,0.06); }
+.mini-logo polygon:last-child { fill: rgba(0,0,0,0.18); }
+@media (prefers-color-scheme: dark) {
+  .mini-logo polygon:first-child { fill: rgba(255,255,255,0.15); }
+  .mini-logo polygon:last-child { fill: rgba(255,255,255,0.4); }
+}
+
+/* ── Page header ────────────────────────────────────────────────── */
+.page-header {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.page-header h1 {
+  font-family: var(--font-heading);
+  font-size: 15px; font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.page-header p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Sessions — Ideal Output Mocks</h1>
+  <p>Design reference for generative UI components. 4 scenarios showing user request &rarr; ideal AI response.</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCENARIO 1: Querying subgraph by name                          -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scenario-divider">Scenario 1 — API how-to with code examples</div>
+
+<!-- User message -->
+<div class="msg user">
+  <div class="msg-avatar user-avatar"><span>R</span></div>
+  <div class="msg-body">
+    <div class="user-bubble">How do I query my contract-registry subgraph by name?</div>
+  </div>
+</div>
+
+<!-- AI response -->
+<div class="msg">
+  <div class="msg-avatar ai-avatar">
+    <svg class="mini-logo" viewBox="4 7 40 28" width="18" height="12" fill="none">
+      <polygon points="8,25 28,17 42,25 22,33"/>
+      <polygon points="8,19 28,11 42,19 22,27"/>
+    </svg>
+  </div>
+  <div class="msg-body">
+
+    <!-- Tool indicators (collapsed) -->
+    <div class="tool-indicator">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9.5 2.5l4 4-4 4"/><path d="M6.5 2.5l-4 4 4 4"/></svg>
+      <span>lookup_docs</span>
+      <svg class="chevron" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 1.5l3 2.5-3 2.5"/></svg>
+    </div>
+    <div class="tool-indicator">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9.5 2.5l4 4-4 4"/><path d="M6.5 2.5l-4 4 4 4"/></svg>
+      <span>query_subgraph</span>
+      <svg class="chevron" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 1.5l3 2.5-3 2.5"/></svg>
+    </div>
+
+    <!-- AI text -->
+    <div class="msg-text">Your <strong>contracts</strong> table has a <code class="inline-code">name</code> column — here's how to filter by it.</div>
+
+    <!-- API Reference card -->
+    <div class="card">
+      <div class="card-header">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h8"/></svg>
+        API Reference
+      </div>
+      <div class="api-ref-row">
+        <span class="api-ref-method">POST</span>
+        <span class="api-ref-url">https://api.secondlayer.dev/subgraph/<strong>contract-registry</strong>/query</span>
+      </div>
+    </div>
+
+    <!-- Tabbed code card -->
+    <div class="code-card" id="sc1-code">
+      <div class="code-tabs">
+        <button class="code-tab active" onclick="switchTab('sc1', 'curl')">curl</button>
+        <button class="code-tab" onclick="switchTab('sc1', 'js')">JavaScript</button>
+        <button class="code-tab" onclick="switchTab('sc1', 'python')">Python</button>
+        <div class="code-tab-actions">
+          <button class="copy-btn" onclick="copyCode('sc1')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg>
+            Copy
+          </button>
+        </div>
+      </div>
+      <div class="code-body">
+<pre class="code-block" data-tab="curl" data-card="sc1"><span class="s-fn">curl</span> -X POST <span class="s-str">https://api.secondlayer.dev/subgraph/contract-registry/query</span> \
+  -H <span class="s-str">"Authorization: Bearer sk-sl_7b3719eb..."</span> \
+  -H <span class="s-str">"Content-Type: application/json"</span> \
+  -d <span class="s-str">'{
+  "query": "SELECT * FROM contracts WHERE name LIKE </span><span class="s-prop">'%marketplace%'</span><span class="s-str"> ORDER BY _created_at DESC LIMIT 10"
+}'</span></pre>
+<pre class="code-block hidden" data-tab="js" data-card="sc1"><span class="s-kw">const</span> response = <span class="s-kw">await</span> <span class="s-fn">fetch</span>(<span class="s-str">'https://api.secondlayer.dev/subgraph/contract-registry/query'</span>, {
+  <span class="s-prop">method</span>: <span class="s-str">'POST'</span>,
+  <span class="s-prop">headers</span>: {
+    <span class="s-str">'Authorization'</span>: <span class="s-str">'Bearer sk-sl_7b3719eb...'</span>,
+    <span class="s-str">'Content-Type'</span>: <span class="s-str">'application/json'</span>,
+  },
+  <span class="s-prop">body</span>: JSON.<span class="s-fn">stringify</span>({
+    <span class="s-prop">query</span>: <span class="s-str">"SELECT * FROM contracts WHERE name LIKE '%marketplace%' ORDER BY _created_at DESC LIMIT 10"</span>
+  })
+});
+<span class="s-kw">const</span> { data } = <span class="s-kw">await</span> response.<span class="s-fn">json</span>();</pre>
+<pre class="code-block hidden" data-tab="python" data-card="sc1"><span class="s-kw">import</span> requests
+
+response = requests.<span class="s-fn">post</span>(
+    <span class="s-str">"https://api.secondlayer.dev/subgraph/contract-registry/query"</span>,
+    <span class="s-prop">headers</span>={
+        <span class="s-str">"Authorization"</span>: <span class="s-str">"Bearer sk-sl_7b3719eb..."</span>,
+        <span class="s-str">"Content-Type"</span>: <span class="s-str">"application/json"</span>,
+    },
+    <span class="s-prop">json</span>={<span class="s-str">"query"</span>: <span class="s-str">"SELECT * FROM contracts WHERE name LIKE '%marketplace%' ORDER BY _created_at DESC LIMIT 10"</span>}
+)
+data = response.<span class="s-fn">json</span>()[<span class="s-str">"data"</span>]</pre>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCENARIO 2: Show recent contracts (data table)                 -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scenario-divider">Scenario 2 — Data table from query results</div>
+
+<!-- User message -->
+<div class="msg user">
+  <div class="msg-avatar user-avatar"><span>R</span></div>
+  <div class="msg-body">
+    <div class="user-bubble">Show me recent contracts from my subgraph</div>
+  </div>
+</div>
+
+<!-- AI response -->
+<div class="msg">
+  <div class="msg-avatar ai-avatar">
+    <svg class="mini-logo" viewBox="4 7 40 28" width="18" height="12" fill="none">
+      <polygon points="8,25 28,17 42,25 22,33"/>
+      <polygon points="8,19 28,11 42,19 22,27"/>
+    </svg>
+  </div>
+  <div class="msg-body">
+
+    <!-- Tool indicator -->
+    <div class="tool-indicator">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9.5 2.5l4 4-4 4"/><path d="M6.5 2.5l-4 4 4 4"/></svg>
+      <span>query_subgraph</span>
+      <svg class="chevron" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 1.5l3 2.5-3 2.5"/></svg>
+    </div>
+
+    <!-- AI text -->
+    <div class="msg-text">Here are the 10 most recent contracts in your <strong>contract-registry</strong> subgraph.</div>
+
+    <!-- Data table card -->
+    <div class="card">
+      <div class="card-header">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M6 2v12"/></svg>
+        contracts &middot; contract-registry
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>name</th>
+              <th>deployer</th>
+              <th>block_height</th>
+              <th>created_at</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>nft-marketplace</td>
+              <td class="td-muted">SP2PABAF9..JG9</td>
+              <td>183,247</td>
+              <td class="td-muted">Apr 11, 10:23am</td>
+            </tr>
+            <tr>
+              <td>stx-bridge-v2</td>
+              <td class="td-muted">SP3FBR2A..K5M</td>
+              <td>183,201</td>
+              <td class="td-muted">Apr 11, 9:47am</td>
+            </tr>
+            <tr>
+              <td>sip-010-token</td>
+              <td class="td-muted">SPNWZ5V2..P3D</td>
+              <td>183,189</td>
+              <td class="td-muted">Apr 11, 9:31am</td>
+            </tr>
+            <tr>
+              <td>pool-registry</td>
+              <td class="td-muted">SP2C2YFP..H8D</td>
+              <td>183,142</td>
+              <td class="td-muted">Apr 11, 8:55am</td>
+            </tr>
+            <tr>
+              <td>governance-token</td>
+              <td class="td-muted">SP3K8BC0..N2T</td>
+              <td>183,098</td>
+              <td class="td-muted">Apr 11, 8:12am</td>
+            </tr>
+            <tr>
+              <td>vault-manager</td>
+              <td class="td-muted">SP1Y5DRE..Z8W</td>
+              <td>183,054</td>
+              <td class="td-muted">Apr 11, 7:38am</td>
+            </tr>
+            <tr>
+              <td>oracle-adapter</td>
+              <td class="td-muted">SPNWZ5V2..P3D</td>
+              <td>183,011</td>
+              <td class="td-muted">Apr 11, 6:59am</td>
+            </tr>
+            <tr>
+              <td>amm-swap-v3</td>
+              <td class="td-muted">SP2PABAF9..JG9</td>
+              <td>182,967</td>
+              <td class="td-muted">Apr 11, 6:21am</td>
+            </tr>
+            <tr>
+              <td>staking-pool</td>
+              <td class="td-muted">SP3FBR2A..K5M</td>
+              <td>182,934</td>
+              <td class="td-muted">Apr 11, 5:52am</td>
+            </tr>
+            <tr>
+              <td>dao-proposals</td>
+              <td class="td-muted">SP2C2YFP..H8D</td>
+              <td>182,890</td>
+              <td class="td-muted">Apr 11, 5:14am</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span>10 of 1,234 rows</span>
+        <div class="table-footer-pages">
+          <button class="active">1</button>
+          <button>2</button>
+          <button>3</button>
+          <button>&rarr;</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCENARIO 3: Code example for stream listener                   -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scenario-divider">Scenario 3 — Contextual code example</div>
+
+<!-- User message -->
+<div class="msg user">
+  <div class="msg-avatar user-avatar"><span>R</span></div>
+  <div class="msg-body">
+    <div class="user-bubble">Give me a code example to listen for new STX transfers on my stream</div>
+  </div>
+</div>
+
+<!-- AI response -->
+<div class="msg">
+  <div class="msg-avatar ai-avatar">
+    <svg class="mini-logo" viewBox="4 7 40 28" width="18" height="12" fill="none">
+      <polygon points="8,25 28,17 42,25 22,33"/>
+      <polygon points="8,19 28,11 42,19 22,27"/>
+    </svg>
+  </div>
+  <div class="msg-body">
+
+    <!-- Tool indicator -->
+    <div class="tool-indicator">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9.5 2.5l4 4-4 4"/><path d="M6.5 2.5l-4 4 4 4"/></svg>
+      <span>lookup_docs</span>
+      <svg class="chevron" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 1.5l3 2.5-3 2.5"/></svg>
+    </div>
+
+    <!-- AI text -->
+    <div class="msg-text">Here's how to receive STX transfer events on your <strong>stx-transfers</strong> stream — set up a webhook endpoint that handles the POST payload.</div>
+
+    <!-- Tabbed code card -->
+    <div class="code-card" id="sc3-code">
+      <div class="code-tabs">
+        <button class="code-tab active" onclick="switchTab('sc3', 'ts')">TypeScript</button>
+        <button class="code-tab" onclick="switchTab('sc3', 'curl')">curl (test)</button>
+        <div class="code-tab-actions">
+          <button class="copy-btn" onclick="copyCode('sc3')">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg>
+            Copy
+          </button>
+        </div>
+      </div>
+      <div class="code-body">
+<pre class="code-block" data-tab="ts" data-card="sc3"><span class="s-cmt">// Express webhook handler for your stx-transfers stream</span>
+<span class="s-kw">import</span> express <span class="s-kw">from</span> <span class="s-str">"express"</span>;
+
+<span class="s-kw">const</span> app = <span class="s-fn">express</span>();
+app.<span class="s-fn">use</span>(express.<span class="s-fn">json</span>());
+
+app.<span class="s-fn">post</span>(<span class="s-str">"/webhook/stx-transfers"</span>, (req, res) => {
+  <span class="s-kw">const</span> { events } = req.body;
+
+  <span class="s-kw">for</span> (<span class="s-kw">const</span> event <span class="s-kw">of</span> events) {
+    console.<span class="s-fn">log</span>(<span class="s-str">`STX transfer: </span><span class="s-prop">${event.sender}</span><span class="s-str"> → </span><span class="s-prop">${event.recipient}</span><span class="s-str">`</span>);
+    console.<span class="s-fn">log</span>(<span class="s-str">`  Amount: </span><span class="s-prop">${event.amount}</span><span class="s-str"> μSTX  Block: </span><span class="s-prop">${event.block_height}</span><span class="s-str">`</span>);
+  }
+
+  res.<span class="s-fn">status</span>(<span class="s-num">200</span>).<span class="s-fn">json</span>({ <span class="s-prop">ok</span>: <span class="s-kw">true</span> });
+});
+
+app.<span class="s-fn">listen</span>(<span class="s-num">3000</span>, () => console.<span class="s-fn">log</span>(<span class="s-str">"Webhook server on :3000"</span>));</pre>
+<pre class="code-block hidden" data-tab="curl" data-card="sc3"><span class="s-cmt"># Send a test event to your local webhook</span>
+<span class="s-fn">curl</span> -X POST <span class="s-str">http://localhost:3000/webhook/stx-transfers</span> \
+  -H <span class="s-str">"Content-Type: application/json"</span> \
+  -d <span class="s-str">'{
+  "events": [{
+    "type": "stx_transfer",
+    "sender": "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9",
+    "recipient": "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE",
+    "amount": 1500000,
+    "block_height": 183247
+  }]
+}'</span></pre>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCENARIO 4: Diagnose broken streams                            -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scenario-divider">Scenario 4 — Diagnostics + status cards</div>
+
+<!-- User message -->
+<div class="msg user">
+  <div class="msg-avatar user-avatar"><span>R</span></div>
+  <div class="msg-body">
+    <div class="user-bubble">What's wrong with my streams? A few seem broken</div>
+  </div>
+</div>
+
+<!-- AI response -->
+<div class="msg">
+  <div class="msg-avatar ai-avatar">
+    <svg class="mini-logo" viewBox="4 7 40 28" width="18" height="12" fill="none">
+      <polygon points="8,25 28,17 42,25 22,33"/>
+      <polygon points="8,19 28,11 42,19 22,27"/>
+    </svg>
+  </div>
+  <div class="msg-body">
+
+    <!-- Tool indicators -->
+    <div class="tool-indicator">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9.5 2.5l4 4-4 4"/><path d="M6.5 2.5l-4 4 4 4"/></svg>
+      <span>check_streams</span>
+      <svg class="chevron" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 1.5l3 2.5-3 2.5"/></svg>
+    </div>
+    <div class="tool-indicator">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9.5 2.5l4 4-4 4"/><path d="M6.5 2.5l-4 4 4 4"/></svg>
+      <span>diagnose</span>
+      <svg class="chevron" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 1.5l3 2.5-3 2.5"/></svg>
+    </div>
+
+    <!-- AI text -->
+    <div class="msg-text">Two streams need attention — <strong>payment-webhook</strong> has a high failure rate and <strong>nft-mints</strong> is paused.</div>
+
+    <!-- Stream status card -->
+    <div class="card">
+      <div class="card-header">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 8h2l2-4 4 8 2-4h2"/></svg>
+        Streams
+      </div>
+      <div class="status-row">
+        <span class="status-name">stx-transfers</span>
+        <span class="badge badge-healthy">Healthy</span>
+        <span class="status-meta">4,821 delivered</span>
+      </div>
+      <div class="status-row">
+        <span class="status-name">payment-webhook</span>
+        <span class="badge badge-error">Failing</span>
+        <span class="status-meta">189/823 failed</span>
+      </div>
+      <div class="status-row">
+        <span class="status-name">nft-mints</span>
+        <span class="badge badge-paused">Paused</span>
+        <span class="status-meta">paused Apr 9</span>
+      </div>
+      <div class="status-row">
+        <span class="status-name">contract-deploys</span>
+        <span class="badge badge-healthy">Healthy</span>
+        <span class="status-meta">1,204 delivered</span>
+      </div>
+    </div>
+
+    <!-- Diagnostics card -->
+    <div class="card" style="margin-top: 8px;">
+      <div class="card-header">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3M8 10.5v.5"/></svg>
+        Diagnostics
+      </div>
+
+      <div class="diag-item">
+        <div class="diag-icon danger">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 5v3M8 10.5v.5"/></svg>
+        </div>
+        <div class="diag-body">
+          <div class="diag-title"><code>payment-webhook</code> &mdash; 23% failure rate</div>
+          <div class="diag-desc">189 of 823 deliveries failed in the last 24h. The webhook endpoint is returning 502 responses.</div>
+          <div class="diag-action">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>
+            Check that your webhook URL responds with 2xx
+          </div>
+        </div>
+      </div>
+
+      <div class="diag-item">
+        <div class="diag-icon warning">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 5v3M8 10.5v.5"/></svg>
+        </div>
+        <div class="diag-body">
+          <div class="diag-title"><code>nft-mints</code> &mdash; manually paused</div>
+          <div class="diag-desc">This stream was paused 2 days ago. 47 events have been buffered since then and will be delivered when resumed.</div>
+          <div class="diag-action">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>
+            Say "resume nft-mints" to unpause
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+
+<script>
+function switchTab(cardId, tabName) {
+  const card = document.getElementById(cardId + '-code');
+  // Update tab buttons
+  card.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+  card.querySelector(`.code-tab[onclick*="'${tabName}'"]`).classList.add('active');
+  // Update code blocks
+  card.querySelectorAll('.code-block').forEach(b => {
+    b.classList.toggle('hidden', b.dataset.tab !== tabName);
+  });
+}
+
+function copyCode(cardId) {
+  const card = document.getElementById(cardId + '-code');
+  const visible = card.querySelector('.code-block:not(.hidden)');
+  if (visible) {
+    navigator.clipboard.writeText(visible.textContent);
+    const btn = card.querySelector('.copy-btn');
+    btn.innerHTML = 'Copied';
+    setTimeout(() => {
+      btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg> Copy`;
+    }, 2000);
+  }
+}
+</script>
+
+</body>
+</html>
