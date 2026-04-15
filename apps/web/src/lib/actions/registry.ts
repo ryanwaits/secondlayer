@@ -24,13 +24,6 @@ export const actions: Action[] = [
 		href: "/sessions",
 	},
 	{
-		id: "streams",
-		label: "Streams",
-		keywords: ["delivery", "events", "webhook"],
-		category: "Platform",
-		href: "/streams",
-	},
-	{
 		id: "subgraphs",
 		label: "Subgraphs",
 		keywords: ["tables", "indexes", "data"],

@@ -1,12 +1,5 @@
 // Query key factory — single source of truth for cache keys
 export const queryKeys = {
-	streams: {
-		all: ["streams"] as const,
-		detail: (id: string) => ["streams", id] as const,
-		deliveries: (id: string) => ["streams", id, "deliveries"] as const,
-		deliveriesPage: (id: string, page: number) =>
-			["streams", id, "deliveries", page] as const,
-	},
 	subgraphs: {
 		all: ["subgraphs"] as const,
 		detail: (name: string) => ["subgraphs", name] as const,

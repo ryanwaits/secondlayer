@@ -3,10 +3,10 @@ import { z } from "zod";
 
 export const diagnose = tool({
 	description:
-		"Diagnose the health of a stream or subgraph. The resource data is in your context (instructions). Analyze the resources for: failed status, high error rates (>10%), stalled/behind chain tip (>50 blocks), paused state. Returns a reminder to analyze — use the answer tool with your diagnosis.",
+		"Diagnose the health of a subgraph. The resource data is in your context (instructions). Analyze the resources for: error state, stalled/behind chain tip (>50 blocks). Returns a reminder to analyze — use the answer tool with your diagnosis.",
 	inputSchema: z.object({
 		resourceType: z
-			.enum(["stream", "subgraph"])
+			.enum(["subgraph"])
 			.describe("Type of resource to diagnose"),
 		resourceId: z
 			.string()
@@ -20,11 +20,8 @@ export const diagnose = tool({
 		return [
 			`Analyze ${target} from the resource list in your instructions.`,
 			"Check for:",
-			"- Failed status or error state",
-			"- High failure/error rate (>10%)",
+			"- Error state",
 			"- Stalled: >50 blocks behind chain tip",
-			"- Paused streams (events buffered but not delivered)",
-			"- Zero deliveries (new or misconfigured)",
 			"",
 			"Respond with the answer tool containing your diagnosis as markdown.",
 		].join("\n");
