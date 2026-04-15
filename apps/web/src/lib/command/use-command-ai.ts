@@ -86,15 +86,6 @@ export function useCommandAI(
 
 	const invalidateCaches = useCallback(
 		(apiCall: ApiCall) => {
-			if (apiCall.path.includes("/streams")) {
-				qc.invalidateQueries({ queryKey: queryKeys.streams.all });
-				const match = apiCall.path.match(/\/api\/streams\/([^/]+)/);
-				if (match) {
-					qc.invalidateQueries({
-						queryKey: queryKeys.streams.detail(match[1]),
-					});
-				}
-			}
 			if (apiCall.path.includes("/keys")) {
 				qc.invalidateQueries({ queryKey: queryKeys.keys.all });
 			}
