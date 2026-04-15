@@ -192,15 +192,10 @@ async function stackStop(options: {
 	console.log("");
 	info("Stopping Stacks Streams...");
 
-	// Pause and wait if requested
+	// Wait for jobs to complete if requested
 	if (options.wait) {
 		try {
-			const { pauseAllStreams, getQueueStats } = await import(
-				"../lib/api-client.ts"
-			);
-			info("Pausing streams...");
-			await pauseAllStreams();
-
+			const { getQueueStats } = await import("../lib/api-client.ts");
 			process.stdout.write(dim("Waiting for jobs to complete..."));
 			for (let i = 0; i < 300; i++) {
 				const stats = await getQueueStats();
@@ -216,7 +211,7 @@ async function stackStop(options: {
 				await Bun.sleep(1000);
 			}
 		} catch {
-			warn("Could not pause streams (API may not be running)");
+			warn("Could not check queue stats (API may not be running)");
 		}
 		console.log("");
 	}

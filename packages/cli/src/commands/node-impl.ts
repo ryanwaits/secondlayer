@@ -2,7 +2,7 @@
  * Node command implementation - extracted from node.ts for use by local.ts
  */
 import { confirm, input, select } from "@inquirer/prompts";
-import { getQueueStats, pauseAllStreams } from "../lib/api-client.ts";
+import { getQueueStats } from "../lib/api-client.ts";
 import { loadConfig, saveConfig } from "../lib/config.ts";
 import { getChainIdHex, validateNetworkConsistency } from "../lib/network.ts";
 import {
@@ -248,9 +248,9 @@ export async function stopNode(
 
 	console.log("");
 
-	// If --wait, pause streams and wait for queue to drain
+	// If --wait, wait for queue to drain
 	if (wait) {
-		await pauseAndWait();
+		await waitForJobs();
 	}
 
 	info("Stopping Stacks node...");
@@ -296,9 +296,9 @@ export async function restartNode(
 
 		console.log("");
 
-		// If --wait, pause streams and wait for queue to drain
+		// If --wait, wait for queue to drain
 		if (wait) {
-			await pauseAndWait();
+			await waitForJobs();
 		}
 
 		info("Stopping Stacks node...");
@@ -336,19 +336,10 @@ export async function restartNode(
 	console.log("");
 }
 
-async function pauseAndWait(): Promise<void> {
+async function waitForJobs(): Promise<void> {
 	const POLL_INTERVAL_MS = 1000;
 
 	try {
-		info("Pausing streams...");
-		const result = await pauseAllStreams();
-
-		if (result.paused > 0) {
-			success(
-				`Paused ${result.paused} stream${result.paused === 1 ? "" : "s"}`,
-			);
-		}
-
 		process.stdout.write(dim("Waiting for jobs to complete..."));
 
 		while (true) {
@@ -368,7 +359,7 @@ async function pauseAndWait(): Promise<void> {
 			await Bun.sleep(POLL_INTERVAL_MS);
 		}
 	} catch {
-		warn("Could not pause streams (API may not be running)");
+		warn("Could not check queue stats (API may not be running)");
 		console.log("");
 	}
 }
