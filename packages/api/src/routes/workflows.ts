@@ -475,6 +475,8 @@ app.get("/:name/source", async (c) => {
 			sourceCode: null,
 			readOnly: true,
 			reason: "deployed before source-capture — redeploy to enable chat edits",
+			triggerType: def.trigger_type,
+			triggerConfig: parseJsonb(def.trigger_config),
 			updatedAt: def.updated_at.toISOString(),
 		});
 	}
@@ -484,6 +486,8 @@ app.get("/:name/source", async (c) => {
 		version: def.version,
 		sourceCode: def.source_code,
 		readOnly: false,
+		triggerType: def.trigger_type,
+		triggerConfig: parseJsonb(def.trigger_config),
 		updatedAt: def.updated_at.toISOString(),
 	});
 });

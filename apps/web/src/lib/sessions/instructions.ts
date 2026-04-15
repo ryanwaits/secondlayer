@@ -85,6 +85,11 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - If the confirm path 409s ("Stale vX.Y.Z"), re-run read_workflow for the current source + version and regenerate the diff — do not retry with the same expectedVersion.
 - Always end the confirm message with the in-flight-run caveat: "Edits take effect for new runs. Any in-flight run finishes on the previous version."
 
+## Triggering manual workflows
+- Before calling \`manage_workflows({ action: "trigger" })\` on a manual workflow, ALWAYS \`read_workflow\` first to discover its required input fields. Look at \`declaredInput\` (the trigger's typed input schema, if declared) AND \`inputFieldRefs\` (every \`ctx.input.X\` reference scanned from the source — these are de-facto required even when no schema is declared).
+- Extract values for those fields from the user's most recent message — contract IDs, addresses, amounts, and similar identifiers are usually quoted verbatim in the request ("run with SP123...token" → \`{ contractId: "SP123...token" }\`). Pass them via \`triggerInput\` as a JSON object string.
+- If the user didn't supply a value for a field and you cannot infer it, STOP and ask before triggering. Never fire with \`{}\` and let the handler throw — that wastes a run and creates a confusing failure.
+
 ## Workflow step API reference
 ALWAYS use these exact signatures when authoring or editing a workflow's \`code\` field. Never invent options like \`table\`, \`filter\`, or \`subgraph\` inside an options object — table and subgraph are positional.
 

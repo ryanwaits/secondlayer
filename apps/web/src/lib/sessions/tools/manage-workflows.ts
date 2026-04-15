@@ -28,6 +28,8 @@ export const manageWorkflows = tool({
 		triggerInput: z
 			.string()
 			.optional()
-			.describe("Optional JSON input payload when action is 'trigger'"),
+			.describe(
+				"JSON input payload for action='trigger'. REQUIRED when the workflow's handler reads from `ctx.input.X` — call read_workflow first to discover the field names (declaredInput + inputFieldRefs), then extract values from the user's most recent message and pass them here as a JSON object string (e.g. '{\"contractId\": \"SP123...\"}'). If a required field is missing and you cannot extract it, ASK the user before triggering — never fire with `{}` and let the handler throw.",
+			),
 	}),
 });
