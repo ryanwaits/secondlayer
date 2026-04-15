@@ -3,8 +3,8 @@ import { bundleWorkflowCode } from "@secondlayer/bundler";
 import { templates } from "../src/templates.ts";
 
 describe("workflow templates", () => {
-	test("exports six seed templates", () => {
-		expect(templates).toHaveLength(6);
+	test("exports seed templates", () => {
+		expect(templates).toHaveLength(7);
 		const ids = templates.map((t) => t.id);
 		expect(ids).toEqual([
 			"whale-alert",
@@ -13,6 +13,7 @@ describe("workflow templates", () => {
 			"daily-digest",
 			"failed-tx-alert",
 			"health-cron",
+			"simple-webhook",
 		]);
 	});
 
