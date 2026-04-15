@@ -1,22 +1,3 @@
-/** Summarize a stream for list responses. */
-export function formatStreamSummary(s: {
-	id: string;
-	name: string;
-	status: string;
-	endpointUrl: string;
-	totalDeliveries: number;
-	failedDeliveries: number;
-}) {
-	return {
-		id: s.id,
-		name: s.name,
-		status: s.status,
-		endpointUrl: s.endpointUrl,
-		totalDeliveries: s.totalDeliveries,
-		failedDeliveries: s.failedDeliveries,
-	};
-}
-
 /** Summarize a subgraph for list responses. */
 export function formatSubgraphSummary(s: {
 	name: string;
@@ -29,25 +10,6 @@ export function formatSubgraphSummary(s: {
 		status: s.status,
 		tables: Array.isArray(s.tables) ? s.tables : Object.keys(s.tables),
 		lastProcessedBlock: s.lastProcessedBlock,
-	};
-}
-
-/** Summarize delivery for list responses. */
-export function formatDeliverySummary(d: {
-	id: string;
-	blockHeight: number;
-	status: string;
-	statusCode: number | null;
-	attempts: number;
-	createdAt: string;
-}) {
-	return {
-		id: d.id,
-		blockHeight: d.blockHeight,
-		status: d.status,
-		statusCode: d.statusCode,
-		attempts: d.attempts,
-		createdAt: d.createdAt,
 	};
 }
 
