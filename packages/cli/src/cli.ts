@@ -13,7 +13,6 @@ import {
 	registerSetupCommand,
 	registerStackCommand,
 	registerStatusCommand,
-	registerStreamsCommand,
 	registerSubgraphsCommand,
 	registerSyncCommand,
 	registerWhoamiCommand,
@@ -30,7 +29,7 @@ program
 	.name("secondlayer")
 	.alias("sl")
 	.description(
-		"SecondLayer CLI — streams, subgraphs, workflows, and real-time indexing for Stacks",
+		"SecondLayer CLI — subgraphs, workflows, and real-time indexing for Stacks",
 	)
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)");
@@ -45,8 +44,8 @@ program.addHelpText(
 	`
 Quickstart:
   $ sl setup                   # Configure network + auth
-  $ sl streams new my-stream   # Scaffold a stream config
-  $ sl streams register streams/my-stream.json
+  $ sl subgraphs new my-subgraph   # Scaffold a subgraph
+  $ sl workflows new my-workflow # Scaffold a workflow
   $ sl status                  # Check system health
 `,
 );
@@ -77,10 +76,7 @@ program
 		await init();
 	});
 
-// --- Streams commands (from @secondlayer/cli) ---
-
 // Core commands (API-backed, work against any environment)
-registerStreamsCommand(program);
 registerSubgraphsCommand(program);
 registerWorkflowsCommand(program);
 registerMarketplaceCommand(program);
