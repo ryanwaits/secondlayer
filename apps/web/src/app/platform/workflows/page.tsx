@@ -2,6 +2,10 @@ import { IndexRow } from "@/components/console/index-row";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { WorkflowSummary } from "@/lib/types";
+import { getTemplateById } from "@secondlayer/workflows/templates";
+import Link from "next/link";
+
+const FEATURED_TEMPLATE_IDS = ["whale-alert", "simple-webhook", "daily-digest"];
 
 function statusBadgeClass(status: string) {
 	if (status === "active") return "active";
@@ -259,6 +263,51 @@ export default async function WorkflowsPage() {
 										</div>
 									</div>
 								</div>
+							</div>
+
+							<div className="empty-divider">
+								<span className="empty-divider-text">
+									Or start from a template
+								</span>
+							</div>
+							<div className="empty-cards">
+								{FEATURED_TEMPLATE_IDS.map((id) => {
+									const template = getTemplateById(id);
+									if (!template) return null;
+									return (
+										<Link
+											key={template.id}
+											href={`/workflows/templates#${template.id}`}
+											className="empty-card"
+											style={{ textDecoration: "none" }}
+										>
+											<div className="empty-card-body">
+												<div className="empty-card-title">{template.name}</div>
+												<div className="empty-card-desc">
+													{template.description}
+												</div>
+												<div
+													style={{
+														marginTop: 8,
+														fontSize: 12,
+														opacity: 0.6,
+													}}
+												>
+													<code
+														style={{
+															background: "var(--code-bg)",
+															padding: "1px 5px",
+															borderRadius: 3,
+														}}
+													>
+														{template.id}
+													</code>{" "}
+													· {template.trigger} trigger
+												</div>
+											</div>
+										</Link>
+									);
+								})}
 							</div>
 						</div>
 					) : (
