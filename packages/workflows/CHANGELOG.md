@@ -1,5 +1,11 @@
 # @secondlayer/workflows
 
+## 1.0.1
+
+### Patch Changes
+
+- Drop deprecated 3-argument overload for `step.query` and `step.count`. Both now require the 4-argument form: `step.query(id, subgraph, table, opts)`.
+
 ## 1.0.0
 
 ### Major Changes

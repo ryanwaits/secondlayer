@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/workflows@1.0.1
+
 ## 0.1.0
 
 ### Minor Changes

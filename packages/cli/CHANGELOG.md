@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 2.1.0
+
+### Minor Changes
+
+- [`3b6d671`](https://github.com/ryanwaits/secondlayer/commit/3b6d6715bd16a317b8aa22dd6590aec3771b2d4e) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Add `sl workflows templates` subcommand. Run with no arguments to list all built-in workflow templates, or pass an id (e.g. `sl workflows templates whale-alert`) to print that template's source to stdout — pipe it into `workflows/<name>.ts` as a starting point.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/workflows@1.0.1
+
 ## 2.0.0
 
 ### Major Changes
