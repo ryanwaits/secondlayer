@@ -245,6 +245,18 @@ sl subgraphs query token-transfers transfers --sort _block_height --order desc -
 sl subgraphs query token-transfers transfers --filter sender=SP1234... --count`}
 				/>
 
+				<div className="prose">
+					<p>
+						<strong>Feed a workflow.</strong> The same tables are readable from{" "}
+						<a href="/workflows#querying-subgraphs">Workflows</a> via{" "}
+						<code>
+							step.query(&quot;stx-transfers&quot;, &quot;transfers&quot;, ...)
+						</code>{" "}
+						— trigger on an onchain event, pull context from your subgraph, then
+						act. No API round-trip; the workflow runs co-located with your data.
+					</p>
+				</div>
+
 				<SectionHeading id="typed-client">Typed client</SectionHeading>
 
 				<div className="prose">

@@ -31,7 +31,7 @@ export default function WorkflowsPage() {
 			<main className="content-area">
 				<header className="page-header">
 					<h1 className="page-title">
-						Workflows <BoxBadge>Coming soon</BoxBadge>
+						Workflows <BoxBadge>Beta</BoxBadge>
 					</h1>
 				</header>
 
@@ -308,26 +308,43 @@ await step.mcp("file-issue", {
 
 				<div className="prose">
 					<p>
-						<code>step.query()</code> reads from your deployed subgraph tables
-						directly. No API overhead — workflows run co-located with your data
-						and query Postgres directly.
+						Workflows read from the subgraph tables you already deploy. Define
+						the subgraph once, query it from any workflow — no API overhead,
+						workflows run co-located with your data and hit Postgres directly.
 					</p>
 				</div>
 
 				<CodeBlock
-					code={`// Query a subgraph table
-const largeSwaps = await step.query("large-swaps", "dex-swaps", "swaps", {
-  where: {
-    amount: { gte: "1000000000" },
-    _blockHeight: { gte: event.block.height - 100 },
+					code={`// subgraphs/stx-transfers.ts — define the tables you want to query
+import { defineSubgraph } from "@secondlayer/subgraphs"
+
+export default defineSubgraph({
+  name: "stx-transfers",
+  sources: { transfer: { type: "stx_transfer" } },
+  schema: {
+    transfers: {
+      columns: {
+        sender: { type: "principal", indexed: true },
+        recipient: { type: "principal", indexed: true },
+        amount: { type: "uint" },
+      },
+    },
   },
-  orderBy: { amount: "desc" },
-  limit: 50,
+  handlers: { transfer: (event, ctx) => ctx.insert("transfers", event) },
+})`}
+				/>
+
+				<CodeBlock
+					code={`// workflows/whale-alert.ts — read from that subgraph
+const recent = await step.query("sender-history", "stx-transfers", "transfers", {
+  where: { sender: { eq: event.sender } },
+  orderBy: { _blockHeight: "desc" },
+  limit: 25,
 })
 
-// Aggregate queries
-const volume = await step.count("daily-volume", "dex-swaps", "swaps", {
-  timestamp: { gte: oneDayAgo },
+// Aggregate the same table
+const total = await step.count("sender-total", "stx-transfers", "transfers", {
+  sender: { eq: event.sender },
 })
 
 // Cross-subgraph correlation
@@ -347,9 +364,12 @@ const prices = await step.query("latest-price", "price-feeds", "prices", {
 
 				<div className="prose">
 					<p>
-						<code>step.deliver()</code> sends results to external systems.
-						Supports webhook, Slack, Discord, Telegram, and email. Deliveries
-						are retried on failure and tracked in the run log.
+						Workflows are the native primitive for webhook delivery — pair an
+						event trigger with{" "}
+						<code>step.deliver(&#123; type: &quot;webhook&quot; &#125;)</code>{" "}
+						to push onchain events to any backend, HMAC-signed and retried on
+						failure. The same primitive also sends to Slack, Discord, Telegram,
+						and email; every delivery is tracked in the run log.
 					</p>
 				</div>
 
@@ -468,11 +488,18 @@ try {
 
 				<div className="prose">
 					<p>
-						<code>@secondlayer/workflows/templates</code> ships six
+						Browse every template with full source at{" "}
+						<a href="/workflows/templates">/workflows/templates</a> — or pipe
+						one from the CLI with <code>sl workflows templates &lt;id&gt;</code>
+						.
+					</p>
+					<p>
+						<code>@secondlayer/workflows/templates</code> ships seven
 						ready-to-deploy seeds you can fork from: <code>whale-alert</code>,{" "}
 						<code>mint-watcher</code>, <code>price-circuit-breaker</code>,{" "}
-						<code>daily-digest</code>, <code>failed-tx-alert</code>, and{" "}
-						<code>health-cron</code>. Each template has a typed{" "}
+						<code>daily-digest</code>, <code>failed-tx-alert</code>,{" "}
+						<code>health-cron</code>, and <code>simple-webhook</code>. Each
+						template has a typed{" "}
 						<code>
 							{"{ id, name, description, category, trigger, code, prompt }"}
 						</code>{" "}
@@ -491,7 +518,7 @@ try {
   getTemplatesByCategory,
 } from "@secondlayer/workflows/templates"
 
-// All six seeds
+// All seven seeds
 for (const t of templates) {
   console.log(t.id, t.trigger, t.category)
 }
