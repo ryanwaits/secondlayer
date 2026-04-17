@@ -90,7 +90,9 @@ export default function McpPage() {
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">subgraphs_reindex</span>
-						<span className="prop-type">Reindex from scratch or a block range</span>
+						<span className="prop-type">
+							Reindex from scratch or a block range
+						</span>
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">subgraphs_delete</span>
@@ -135,16 +137,6 @@ export default function McpPage() {
 						<span className="prop-type">
 							Generate a subgraph from a raw ABI
 						</span>
-					</div>
-
-					<div className="props-group-title">Templates</div>
-					<div className="prop-row">
-						<span className="prop-name">templates_list</span>
-						<span className="prop-type">List available workflow templates</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">templates_get</span>
-						<span className="prop-type">Get template source by id</span>
 					</div>
 				</div>
 			</main>

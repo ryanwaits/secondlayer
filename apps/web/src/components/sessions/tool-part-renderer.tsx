@@ -28,7 +28,6 @@ import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
 import { SubgraphSyncLive } from "./tool-parts/subgraph-sync-live";
 import { SuccessBanner } from "./tool-parts/success-banner";
 import { ToolCallIndicator } from "./tool-parts/tool-call-indicator";
-import { WorkflowTemplatesCard } from "./tool-parts/workflow-templates-card";
 
 type AnyToolPart = ToolUIPart<UITools> | DynamicToolUIPart;
 
@@ -479,19 +478,6 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 				filename?: string;
 			};
 			return <CodeCard code={o.code} html={o.html} filename={o.filename} />;
-		}
-
-		case "list_workflow_templates": {
-			const templates = (output.templates ?? []) as Array<{
-				id: string;
-				name: string;
-				description: string;
-				category: string;
-				trigger: string;
-				prompt: string;
-			}>;
-			if (templates.length === 0) return null;
-			return <WorkflowTemplatesCard templates={templates} />;
 		}
 
 		case "deploy_workflow": {

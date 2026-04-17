@@ -1,9 +1,5 @@
 import { apiRequest } from "@/lib/api";
-import type {
-	ApiKey,
-	SubgraphSummary,
-	WorkflowSummary,
-} from "@/lib/types";
+import type { ApiKey, SubgraphSummary, WorkflowSummary } from "@/lib/types";
 import { createCheckInsights } from "./check-insights";
 import { createCheckKeys } from "./check-keys";
 import { createCheckSubgraphs } from "./check-subgraphs";
@@ -14,7 +10,6 @@ import { deployWorkflow } from "./deploy-workflow";
 import { createDiagnose } from "./diagnose";
 import { editSubgraph } from "./edit-subgraph";
 import { editWorkflow } from "./edit-workflow";
-import { listWorkflowTemplates } from "./list-workflow-templates";
 import { lookupDocs } from "./lookup-docs";
 import { manageKeys } from "./manage-keys";
 import { manageSubgraphs } from "./manage-subgraphs";
@@ -84,7 +79,6 @@ export function createSessionTools(
 		read_subgraph: createReadSubgraph(sessionToken),
 		edit_subgraph: editSubgraph,
 		tail_subgraph_sync: tailSubgraphSync,
-		list_workflow_templates: listWorkflowTemplates,
 		lookup_docs: lookupDocs,
 		diagnose: createDiagnose(resources),
 		recall_sessions: createRecallSessions(sessionToken),

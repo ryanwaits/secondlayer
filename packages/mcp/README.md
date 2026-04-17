@@ -45,14 +45,13 @@ npx @secondlayer/mcp-http
 
 ## Tools
 
-Tools across 5 domains.
+Tools across 4 domains.
 
 | Domain | Tools |
 | --- | --- |
 | **Subgraphs** (6) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy` |
 | **Workflows** (6) | `workflows_list`, `workflows_get`, `workflows_trigger`, `workflows_pause`, `workflows_resume`, `workflows_runs` |
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
-| **Templates** (2) | `templates_list`, `templates_get` |
 | **Account** (1) | `account_whoami` |
 
 ### `subgraphs_query` enhancements
@@ -64,13 +63,12 @@ Tools across 5 domains.
 
 ## Resources
 
-3 MCP resources for agent context:
+2 MCP resources for agent context:
 
 | URI | Description |
 | --- | --- |
 | `secondlayer://filters` | Filter types reference |
 | `secondlayer://column-types` | Column type mappings and options |
-| `secondlayer://templates` | Available subgraph templates |
 
 ## Error Handling
 

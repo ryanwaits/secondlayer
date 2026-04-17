@@ -6,10 +6,6 @@ import {
 	generateWorkflowCode,
 } from "@secondlayer/scaffold";
 import { VersionConflictError } from "@secondlayer/sdk";
-import {
-	getTemplateById as getWorkflowTemplateById,
-	templates as workflowTemplates,
-} from "@secondlayer/workflows/templates";
 import { createPatch } from "diff";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
@@ -339,62 +335,6 @@ export function registerWorkflowTools(server: McpServer) {
 			await getClient().workflows.resume(name);
 			return {
 				content: [{ type: "text", text: `Resumed workflow "${name}"` }],
-			};
-		},
-	);
-
-	defineTool<Record<string, never>>(
-		server,
-		"workflows_template_list",
-		"List available workflow templates. Returns metadata only — use workflows_template_get for the full source.",
-		{},
-		async () => {
-			return {
-				content: [
-					{
-						type: "text",
-						text: JSON.stringify(
-							workflowTemplates.map((t) => ({
-								id: t.id,
-								name: t.name,
-								description: t.description,
-								category: t.category,
-								trigger: t.trigger,
-							})),
-							null,
-							2,
-						),
-					},
-				],
-			};
-		},
-	);
-
-	defineTool<{ id: string }>(
-		server,
-		"workflows_template_get",
-		"Get a workflow template's full TypeScript source and prompt by id.",
-		{ id: z.string().describe("Template id, e.g. 'whale-alert'") },
-		async ({ id }) => {
-			const template = getWorkflowTemplateById(id);
-			if (!template) {
-				return {
-					isError: true,
-					content: [
-						{
-							type: "text",
-							text: `Template "${id}" not found. Use workflows_template_list to see available templates.`,
-						},
-					],
-				};
-			}
-			return {
-				content: [
-					{
-						type: "text",
-						text: JSON.stringify(template, null, 2),
-					},
-				],
 			};
 		},
 	);

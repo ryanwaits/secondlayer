@@ -1,17 +1,30 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { templates as subgraphTemplates } from "@secondlayer/subgraphs/templates";
-import { templates as workflowTemplates } from "@secondlayer/workflows/templates";
 
 /** Filter types for blockchain events — SubgraphFilter vocabulary. */
 const FILTERS_REFERENCE = [
-	{ type: "stx_transfer", fields: ["sender", "recipient", "minAmount", "maxAmount"] },
+	{
+		type: "stx_transfer",
+		fields: ["sender", "recipient", "minAmount", "maxAmount"],
+	},
 	{ type: "stx_mint", fields: ["recipient", "minAmount"] },
 	{ type: "stx_burn", fields: ["sender", "minAmount"] },
 	{ type: "stx_lock", fields: ["lockedAddress", "minAmount"] },
-	{ type: "ft_transfer", fields: ["sender", "recipient", "assetIdentifier", "minAmount", "maxAmount"] },
+	{
+		type: "ft_transfer",
+		fields: [
+			"sender",
+			"recipient",
+			"assetIdentifier",
+			"minAmount",
+			"maxAmount",
+		],
+	},
 	{ type: "ft_mint", fields: ["recipient", "assetIdentifier", "minAmount"] },
 	{ type: "ft_burn", fields: ["sender", "assetIdentifier", "minAmount"] },
-	{ type: "nft_transfer", fields: ["sender", "recipient", "assetIdentifier", "tokenId"] },
+	{
+		type: "nft_transfer",
+		fields: ["sender", "recipient", "assetIdentifier", "tokenId"],
+	},
 	{ type: "nft_mint", fields: ["recipient", "assetIdentifier", "tokenId"] },
 	{ type: "nft_burn", fields: ["sender", "assetIdentifier", "tokenId"] },
 	{ type: "contract_call", fields: ["contract", "function"] },
@@ -71,48 +84,6 @@ export function registerResources(server: McpServer) {
 					uri: "secondlayer://column-types",
 					mimeType: "application/json",
 					text: JSON.stringify(COLUMN_TYPES, null, 2),
-				},
-			],
-		}),
-	);
-
-	server.resource(
-		"templates",
-		"secondlayer://templates",
-		{
-			description:
-				"Available subgraph and workflow templates with descriptions and categories",
-		},
-		async () => ({
-			contents: [
-				{
-					uri: "secondlayer://templates",
-					mimeType: "application/json",
-					text: JSON.stringify(
-						[
-							...subgraphTemplates.map(
-								({ id, name, description, category }) => ({
-									kind: "subgraph" as const,
-									id,
-									name,
-									description,
-									category,
-								}),
-							),
-							...workflowTemplates.map(
-								({ id, name, description, category, trigger }) => ({
-									kind: "workflow" as const,
-									id,
-									name,
-									description,
-									category,
-									trigger,
-								}),
-							),
-						],
-						null,
-						2,
-					),
 				},
 			],
 		}),

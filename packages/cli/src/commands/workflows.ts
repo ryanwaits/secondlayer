@@ -324,56 +324,6 @@ export function registerWorkflowsCommand(program: Command): void {
 			}
 		});
 
-	// --- templates ---
-	workflows
-		.command("templates [id]")
-		.description(
-			"List workflow templates, or print a template's source to stdout",
-		)
-		.option("--json", "Output as JSON (list mode only)")
-		.action(async (id: string | undefined, options: { json?: boolean }) => {
-			const { templates, getTemplateById } = await import(
-				"@secondlayer/workflows/templates"
-			);
-
-			if (id) {
-				const template = getTemplateById(id);
-				if (!template) {
-					error(`Template not found: ${id}`);
-					info(`Available: ${templates.map((t) => t.id).join(", ")}`);
-					process.exit(1);
-				}
-				process.stdout.write(template.code);
-				return;
-			}
-
-			if (options.json) {
-				console.log(
-					JSON.stringify(
-						templates.map(({ code: _code, ...rest }) => rest),
-						null,
-						2,
-					),
-				);
-				return;
-			}
-
-			const rows = templates.map((t) => [
-				t.id,
-				t.category,
-				t.trigger,
-				t.description,
-			]);
-			console.log(
-				formatTable(["Id", "Category", "Trigger", "Description"], rows),
-			);
-			console.log(
-				dim(
-					`\n${templates.length} template(s). Pipe source with: sl workflows templates <id> > workflows/<name>.ts`,
-				),
-			);
-		});
-
 	// --- delete ---
 	workflows
 		.command("delete <name>")

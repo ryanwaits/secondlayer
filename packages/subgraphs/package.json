@@ -21,18 +21,12 @@
 			"types": "./dist/src/validate.d.ts",
 			"import": "./dist/src/validate.js"
 		},
-		"./templates": {
-			"types": "./dist/src/templates.d.ts",
-			"import": "./dist/src/templates.js"
-		},
 		"./runtime/source-matcher": {
 			"types": "./dist/src/runtime/source-matcher.d.ts",
 			"import": "./dist/src/runtime/source-matcher.js"
 		}
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",

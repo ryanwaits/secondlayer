@@ -12,7 +12,6 @@ const toc: TocItem[] = [
 	{ label: "Steps", href: "#steps" },
 	{ label: "Delivering results", href: "#delivering-results" },
 	{ label: "Deploy", href: "#deploy" },
-	{ label: "Templates", href: "#templates" },
 ];
 
 export default function WorkflowsPage() {
@@ -196,25 +195,6 @@ sl workflows runs whale-alert
 sl workflows pause whale-alert
 sl workflows delete whale-alert`}
 				/>
-
-				<SectionHeading id="templates">Templates</SectionHeading>
-
-				<div className="prose">
-					<p>
-						Browse every template with full source at{" "}
-						<a href="/workflows/templates">/workflows/templates</a> — or pipe
-						one from the CLI with <code>sl workflows templates &lt;id&gt;</code>
-						.
-					</p>
-					<p>
-						Seven ready-to-deploy seeds ship with{" "}
-						<code>@secondlayer/workflows/templates</code>:{" "}
-						<code>whale-alert</code>, <code>mint-watcher</code>,{" "}
-						<code>price-circuit-breaker</code>, <code>daily-digest</code>,{" "}
-						<code>failed-tx-alert</code>, <code>health-cron</code>, and{" "}
-						<code>simple-webhook</code>.
-					</p>
-				</div>
 			</main>
 		</div>
 	);
