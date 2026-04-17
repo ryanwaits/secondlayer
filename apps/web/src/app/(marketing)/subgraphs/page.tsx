@@ -163,8 +163,9 @@ sl subgraphs reindex token-transfers`}
 
 				<div className="prose">
 					<p>
-						Query via the SDK or CLI. Supports filtering, comparison operators,
-						ordering, and pagination. For typed queries with autocompletion, see{" "}
+						Query via the SDK, CLI, or HTTP API. Supports filtering, comparison
+						operators, ordering, and pagination. For typed queries with
+						autocompletion, see{" "}
 						<a href="/sdk#typed-subgraphs">typed subgraphs</a> in the SDK docs.
 					</p>
 				</div>
@@ -184,7 +185,11 @@ sl subgraphs reindex token-transfers`}
 
 // CLI
 sl subgraphs query token-transfers transfers --sort _block_height --order desc
-sl subgraphs query token-transfers transfers --filter sender=SP1234... --count`}
+sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
+
+// HTTP API
+curl -H "Authorization: Bearer $SL_API_KEY" \\
+  "https://api.secondlayer.tools/api/subgraphs/token-transfers/transfers?sort=_block_height&order=desc&limit=25&sender=SP1234...&amount.gte=1000000"`}
 				/>
 			</main>
 		</div>
