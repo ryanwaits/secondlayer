@@ -28,9 +28,8 @@ export default function SubgraphsPage() {
 
 				<div className="prose">
 					<p>
-						Subgraphs turn onchain events into queryable Postgres tables —
-						define the events you care about, write TypeScript handlers, and
-						secondlayer indexes everything.
+						Subgraphs turn onchain events into custom views of the chain —
+						pick the events your app needs and shape them into a queryable API.
 					</p>
 					<p>
 						Install with <code>bun add @secondlayer/subgraphs</code>.

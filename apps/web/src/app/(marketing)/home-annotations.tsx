@@ -5,7 +5,7 @@ export function HomeAnnotations() {
 		<div className="prose">
 			<p>Agent-native developer tools for Stacks.</p>
 			<p>
-				Subgraphs turn onchain events into queryable Postgres tables. Workflows
+				Subgraphs turn onchain events into custom views of the chain. Workflows
 				run code when things happen.
 			</p>
 			<p>
