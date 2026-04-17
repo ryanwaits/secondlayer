@@ -6,9 +6,7 @@ export function HomeAnnotations() {
 			<p>Agent-native developer tools for Stacks.</p>
 			<p>
 				Subgraphs turn onchain events into queryable Postgres tables. Workflows
-				run code when things happen — trigger on those events, a schedule, or on
-				demand, then write steps that call AI, use MCP tools, query data, hit
-				any API, deliver results.
+				run code when things happen.
 			</p>
 			<p>
 				Use both through the CLI, SDK, or MCP server — same auth, same
