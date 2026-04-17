@@ -7,11 +7,13 @@ const products = [
 	{ name: "Workflows", href: "/workflows" },
 ];
 
-const packages = [
-	{ name: "Stacks", href: "/stacks", version: "0.2.0" },
-	{ name: "SDK", href: "/sdk", version: "0.6.0" },
+const interfaces = [
 	{ name: "CLI", href: "/cli", version: "1.6.0" },
+	{ name: "SDK", href: "/sdk", version: "0.6.0" },
+	{ name: "MCP", href: "/mcp", version: "1.0.0" },
 ];
+
+const foundation = [{ name: "Stacks", href: "/stacks", version: "0.2.0" }];
 
 function IndexItem({
 	item,
@@ -51,9 +53,18 @@ export default function HomePage() {
 				</div>
 
 				<div className="index-year-group">
-					<div className="index-year">Packages</div>
+					<div className="index-year">Interfaces</div>
 					<ul className="index-list">
-						{packages.map((item) => (
+						{interfaces.map((item) => (
+							<IndexItem key={item.href} item={item} />
+						))}
+					</ul>
+				</div>
+
+				<div className="index-year-group">
+					<div className="index-year">Foundation</div>
+					<ul className="index-list">
+						{foundation.map((item) => (
 							<IndexItem key={item.href} item={item} />
 						))}
 					</ul>
