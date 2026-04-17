@@ -1,3 +1,7 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type {
 	RetryConfig,
 	WorkflowTrigger,
@@ -53,14 +57,22 @@ export async function bundleWorkflowCode(
 	}
 	const handlerCode = new TextDecoder().decode(outputFile.contents);
 
+	// Write to a temp file and import from its file URL. Avoids the base64
+	// data-URI `NameTooLong` limit that strict runtimes hit once dependencies
+	// (AI SDK, providers, etc.) push the bundle past ~1 MB. `/tmp` is writable
+	// on every runtime we care about (Vercel serverless, Bun, Node).
+	const dir = await mkdtemp(join(tmpdir(), "sl-bundle-"));
+	const file = join(dir, "handler.mjs");
 	let mod: Record<string, unknown>;
 	try {
-		const dataUri = `data:text/javascript;base64,${Buffer.from(handlerCode).toString("base64")}`;
-		mod = await import(dataUri);
+		await writeFile(file, handlerCode);
+		mod = await import(pathToFileURL(file).href);
 	} catch (err: unknown) {
 		throw new Error(
 			`Module evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
 		);
+	} finally {
+		await rm(dir, { recursive: true, force: true }).catch(() => {});
 	}
 	const def = mod.default ?? mod;
 

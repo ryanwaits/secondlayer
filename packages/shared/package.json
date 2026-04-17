@@ -101,6 +101,10 @@
 			"types": "./dist/src/constants.d.ts",
 			"import": "./dist/src/constants.js"
 		},
+		"./pricing": {
+			"types": "./dist/src/pricing.d.ts",
+			"import": "./dist/src/pricing.js"
+		},
 		"./crypto": {
 			"types": "./dist/src/crypto/hmac.d.ts",
 			"import": "./dist/src/crypto/hmac.js"

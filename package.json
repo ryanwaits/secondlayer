@@ -47,5 +47,10 @@
 	},
 	"dependencies": {
 		"marked": "17.0.4"
+	},
+	"overrides": {
+		"ai": "6.0.167",
+		"@ai-sdk/anthropic": "3.0.71",
+		"@ai-sdk/provider-utils": "4.0.23"
 	}
 }

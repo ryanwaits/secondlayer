@@ -4,6 +4,10 @@ import { logger } from "@secondlayer/shared/logger";
 import type {
 	AIStepOptions,
 	DeliverTarget,
+	GenerateObjectStepOptions,
+	GenerateObjectStepResult,
+	GenerateTextStepOptions,
+	GenerateTextStepResult,
 	InvokeOptions,
 	McpStepOptions,
 	QueryOptions,
@@ -11,12 +15,18 @@ import type {
 } from "@secondlayer/workflows";
 import type { Kysely } from "kysely";
 // run.ts is called inline via memoize, not imported directly
-import { executeAiStep } from "./ai.ts";
+import {
+	executeAiStep,
+	executeGenerateObject,
+	executeGenerateText,
+} from "./ai.ts";
 import { executeDeliverStep } from "./deliver.ts";
 import { executeInvokeStep } from "./invoke.ts";
 import { executeMcpStep } from "./mcp.ts";
+import { memoKey } from "./memoKey.ts";
 import { executeCountStep, executeQueryStep } from "./query.ts";
 import { SleepInterrupt } from "./sleep.ts";
+import { wrapToolsWithMemo } from "./toolMemo.ts";
 
 /**
  * Create a StepContext that memoizes completed steps.
@@ -35,20 +45,26 @@ export function createStepContext(
 		stepId: string,
 		stepType: string,
 		input: unknown,
-		execute: () => Promise<T>,
+		execute: (parentStepId: string) => Promise<T>,
 	): Promise<T> {
 		const currentIndex = stepIndex++;
 
-		// Check for memoized result
+		// v2: memoize by hash of (stepId, canonicalJSON(input)) so prompt /
+		// config edits in source invalidate the cache on the next run. See
+		// `steps/memoKey.ts` for the per-primitive spec.
+		const key = memoKey(stepId, input);
+
 		const existing = await db
 			.selectFrom("workflow_steps")
 			.selectAll()
 			.where("run_id", "=", runId)
-			.where("step_id", "=", stepId)
+			.where("memo_key", "=", key)
 			.executeTakeFirst();
 
 		if (existing?.status === "completed" && existing.output != null) {
-			logger.debug(`Step "${stepId}" memoized, returning cached output`);
+			logger.debug(
+				`Step "${stepId}" memoized (key=${key.slice(0, 8)}…), returning cached output`,
+			);
 			return parseJsonb<T>(existing.output);
 		}
 
@@ -64,6 +80,7 @@ export function createStepContext(
 						step_type: stepType,
 						status: "running",
 						input: input != null ? jsonb(input) : null,
+						memo_key: key,
 						started_at: new Date(),
 					})
 					.returningAll()
@@ -82,7 +99,7 @@ export function createStepContext(
 		const startTime = Date.now();
 
 		try {
-			const result = await execute();
+			const result = await execute(stepRow.id);
 			const durationMs = Date.now() - startTime;
 
 			await db
@@ -166,6 +183,67 @@ export function createStepContext(
 					const result = await executeAiStep(options);
 					await updateAiTokens(id, result.tokensUsed);
 					return result.output;
+				},
+			),
+
+		generateObject: <T>(
+			id: string,
+			options: GenerateObjectStepOptions<T>,
+		): Promise<GenerateObjectStepResult<T>> =>
+			memoize(
+				id,
+				"generateObject",
+				{
+					prompt: options.prompt,
+					system: options.system,
+					model: typeof options.model === "string" ? options.model : undefined,
+				},
+				async () => {
+					const result = await executeGenerateObject({
+						model: options.model,
+						schema: options.schema as never,
+						prompt: options.prompt,
+						system: options.system,
+					});
+					await updateAiTokens(id, result.usage.totalTokens);
+					return { object: result.object as T, usage: result.usage };
+				},
+			),
+
+		generateText: (
+			id: string,
+			options: GenerateTextStepOptions,
+		): Promise<GenerateTextStepResult> =>
+			memoize(
+				id,
+				"generateText",
+				{
+					prompt: options.prompt,
+					system: options.system,
+					model: typeof options.model === "string" ? options.model : undefined,
+					maxSteps: options.maxSteps,
+				},
+				async (parentStepId) => {
+					// Wrap tools so each call persists as a child workflow_steps row;
+					// on parent retry, successful tool calls hit cache.
+					const tools = options.tools
+						? wrapToolsWithMemo(options.tools as Record<string, unknown>, {
+								runId,
+								db,
+								parentStepId,
+								nextIndex: () => stepIndex++,
+							})
+						: undefined;
+
+					const result = await executeGenerateText({
+						model: options.model,
+						prompt: options.prompt,
+						system: options.system,
+						tools,
+						maxSteps: options.maxSteps,
+					});
+					await updateAiTokens(id, result.usage.totalTokens);
+					return result;
 				},
 			),
 

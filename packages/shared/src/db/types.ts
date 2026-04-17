@@ -325,6 +325,8 @@ export interface WorkflowStepsTable {
 	started_at: Date | null;
 	completed_at: Date | null;
 	duration_ms: number | null;
+	memo_key: string | null;
+	parent_step_id: string | null;
 	created_at: Generated<Date>;
 }
 

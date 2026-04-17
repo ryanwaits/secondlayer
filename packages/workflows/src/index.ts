@@ -1,30 +1,39 @@
 export type {
-	WorkflowDefinition,
-	WorkflowTrigger,
-	EventTrigger,
-	ScheduleTrigger,
-	ManualTrigger,
-	RetryConfig,
 	AIStepOptions,
 	DeliverTarget,
-	WebhookTarget,
-	SlackTarget,
-	EmailTarget,
-	StepContext,
-	WorkflowContext,
-	WorkflowRun,
-	WorkflowRunStatus,
-	StepResult,
-	QueryOptions,
-	InvokeOptions,
-	SchemaField,
-	ManualInputField,
 	DiscordTarget,
-	TelegramTarget,
+	EmailTarget,
+	EventTrigger,
+	GenerateObjectStepOptions,
+	GenerateObjectStepResult,
+	GenerateTextStepOptions,
+	GenerateTextStepResult,
+	InvokeOptions,
+	LanguageModelUsage,
+	ManualInputField,
+	ManualTrigger,
 	McpStepOptions,
 	McpStepResult,
+	QueryOptions,
+	RetryConfig,
+	ScheduleTrigger,
+	SchemaField,
+	SlackTarget,
+	StepContext,
+	StepResult,
+	TelegramTarget,
+	WebhookTarget,
+	WorkflowContext,
+	WorkflowDefinition,
+	WorkflowRun,
+	WorkflowRunStatus,
+	WorkflowTrigger,
 } from "./types.ts";
 export { defineWorkflow } from "./define.ts";
+// Re-export AI SDK primitives for authoring convenience. Users write tools
+// with `import { tool } from "@secondlayer/workflows"` and pass them to
+// `step.generateText({ tools })`.
+export { tool } from "ai";
 // Note: validateWorkflowDefinition is intentionally NOT re-exported here.
 // The barrel is imported by every user workflow file via
 // `import { defineWorkflow } from "@secondlayer/workflows"`, and we need that

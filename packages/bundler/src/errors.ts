@@ -19,4 +19,4 @@ export class BundleSizeError extends Error {
 }
 
 export const SUBGRAPH_BUNDLE_MAX_BYTES: number = 4 * 1024 * 1024;
-export const WORKFLOW_BUNDLE_MAX_BYTES: number = 1 * 1024 * 1024;
+export const WORKFLOW_BUNDLE_MAX_BYTES: number = 4 * 1024 * 1024;

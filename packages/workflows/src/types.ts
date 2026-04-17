@@ -1,4 +1,6 @@
 import type { SubgraphFilter } from "@secondlayer/subgraphs/types";
+import type { LanguageModel, Tool } from "ai";
+import type { ZodType } from "zod/v4";
 
 // --- Triggers ---
 
@@ -47,6 +49,41 @@ export interface AIStepOptions {
 	prompt: string;
 	model?: "haiku" | "sonnet";
 	schema?: Record<string, SchemaField>;
+}
+
+// --- AI SDK v6 primitives ---
+
+export interface LanguageModelUsage {
+	inputTokens: number;
+	outputTokens: number;
+	totalTokens: number;
+}
+
+export interface GenerateObjectStepOptions<T> {
+	model?: string | LanguageModel;
+	schema: ZodType<T>;
+	prompt: string;
+	system?: string;
+}
+
+export interface GenerateObjectStepResult<T> {
+	object: T;
+	usage: LanguageModelUsage;
+}
+
+export interface GenerateTextStepOptions {
+	model?: string | LanguageModel;
+	prompt: string;
+	system?: string;
+	tools?: Record<string, Tool>;
+	maxSteps?: number;
+}
+
+export interface GenerateTextStepResult {
+	text: string;
+	toolCalls: unknown[];
+	steps: unknown[];
+	usage: LanguageModelUsage;
 }
 
 // --- Delivery ---
@@ -128,6 +165,14 @@ export interface McpStepResult {
 export interface StepContext {
 	run<T>(id: string, fn: () => Promise<T>): Promise<T>;
 	ai(id: string, options: AIStepOptions): Promise<Record<string, unknown>>;
+	generateObject<T>(
+		id: string,
+		options: GenerateObjectStepOptions<T>,
+	): Promise<GenerateObjectStepResult<T>>;
+	generateText(
+		id: string,
+		options: GenerateTextStepOptions,
+	): Promise<GenerateTextStepResult>;
 	query(
 		id: string,
 		subgraph: string,
