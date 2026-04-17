@@ -8,9 +8,6 @@ const toc: TocItem[] = [
 	{ label: "Auth", href: "#auth" },
 	{ label: "Subgraphs", href: "#subgraphs" },
 	{ label: "Workflows", href: "#workflows" },
-	{ label: "Codegen", href: "#codegen" },
-	{ label: "Local dev", href: "#local-dev" },
-	{ label: "Commands", href: "#commands" },
 ];
 
 export default function CliPage() {
@@ -21,17 +18,14 @@ export default function CliPage() {
 			<main className="content-area">
 				<header className="page-header">
 					<h1 className="page-title">CLI</h1>
-					<p className="page-date">March 10, 2026</p>
 				</header>
 
 				<div className="prose">
 					<p>
-						The <code>sl</code> command manages subgraphs, workflows, auth,
-						code generation, and local development infrastructure from the
-						terminal. One binary, every Second Layer operation.
-					</p>
-					<p>
-						Install globally with <code>bun add -g @secondlayer/cli</code>.
+						One binary, both primitives. Deploy a subgraph or a workflow, query
+						data, manage runs — same auth, same patterns as the SDK and MCP
+						server. Install globally with{" "}
+						<code>bun add -g @secondlayer/cli</code>.
 					</p>
 				</div>
 
@@ -40,432 +34,51 @@ export default function CliPage() {
 				<CodeBlock
 					code={`bun add -g @secondlayer/cli
 
-# Verify
 sl --version
-
-# Authenticate
 sl auth login`}
 					lang="bash"
 				/>
 
 				<SectionHeading id="auth">Auth</SectionHeading>
 
-				<div className="prose">
-					<p>
-						Login with your email via magic link. The CLI creates a{" "}
-						<code>cli-&lt;hostname&gt;</code> API key and stores it in{" "}
-						<code>~/.secondlayer/config.json</code>. Session tokens are never
-						persisted.
-					</p>
-				</div>
-
 				<CodeBlock
-					code={`# Login — sends magic link, creates API key
+					code={`# Login — magic link, creates API key stored in ~/.secondlayer/config.json
 sl auth login
 
-# Check current auth
 sl auth status
-
-# Rotate API key (revoke old + create new)
 sl auth rotate
-
-# Manage keys
-sl auth keys list
-sl auth keys create --name "deploy"
-sl auth keys revoke <id>
-
-# Logout — revokes key server-side
 sl auth logout`}
 					lang="bash"
 				/>
 
 				<SectionHeading id="subgraphs">Subgraphs</SectionHeading>
 
-				<div className="prose">
-					<p>
-						Deploy and manage indexed subgraphs. The CLI calls into{" "}
-						<code>@secondlayer/bundler</code> (esbuild with{" "}
-						<code>@secondlayer/subgraphs</code> externalised) to produce the
-						handler bundle, validates it via{" "}
-						<code>validateSubgraphDefinition</code>, diffs schema changes, and
-						handles deployment. Subgraph bundles are capped at 4 MB; overflow
-						surfaces as a typed <code>BundleSizeError</code>.
-					</p>
-				</div>
-
 				<CodeBlock
-					code={`# Scaffold a new subgraph
-sl subgraphs new token-transfers
-
-# Deploy to Second Layer
-sl subgraphs deploy subgraphs/token-transfers.ts
-
-# Dev mode — watches for changes, hot-redeploys
-sl subgraphs dev subgraphs/token-transfers.ts
-
-# Check indexing status and health
+					code={`sl subgraphs deploy subgraphs/token-transfers.ts
+sl subgraphs dev subgraphs/token-transfers.ts       # watch + hot-redeploy
 sl subgraphs status token-transfers
-
-# Query a deployed subgraph
 sl subgraphs query token-transfers transfers --sort _block_height --order desc
-sl subgraphs query token-transfers transfers --filter sender=SP1234... --limit 25
-sl subgraphs query token-transfers transfers --filter "amount.gte=1000000" --count
-
-# Reindex from scratch or a specific range
+sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
 sl subgraphs reindex token-transfers
-sl subgraphs reindex token-transfers --from 150000 --to 160000
-
-# Scaffold a subgraph from a deployed contract's ABI
 sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts
-
-# Generate a typed client from a deployed subgraph
-sl subgraphs generate token-transfers --output src/generated/
-
-# Delete subgraph and all data
 sl subgraphs delete token-transfers`}
 					lang="bash"
 				/>
 
 				<SectionHeading id="workflows">Workflows</SectionHeading>
 
-				<div className="prose">
-					<p>
-						Deploy and manage automated workflows. The CLI validates definitions
-						through <code>@secondlayer/bundler</code> (esbuild with{" "}
-						<code>@secondlayer/workflows</code> externalised), caps bundles at 1
-						MB, and ships both the compiled handler and the original TypeScript
-						source to the platform. Storing the source is what makes the chat{" "}
-						<code>read_workflow</code> and <code>edit_workflow</code> loop work
-						— any deploy from the CLI is immediately editable in chat. Every
-						update bumps the stored patch version automatically.
-					</p>
-					<p>
-						Subgraph deploys now store source the same way. The API runs the
-						bundler server-side through <code>POST /api/subgraphs/bundle</code>,
-						persists the original TypeScript in a new{" "}
-						<code>subgraphs.source_code</code> column (migration{" "}
-						<code>0031</code>), and exposes it via{" "}
-						<code>GET /api/subgraphs/:name/source</code>. A CLI deploy is
-						immediately editable through the chat <code>read_subgraph</code> /{" "}
-						<code>edit_subgraph</code> tools and through the MCP{" "}
-						<code>subgraphs_read_source</code> tool for external agents.
-						Subgraphs deployed before the migration come back as{" "}
-						<code>{"{ readOnly: true }"}</code> — one CLI redeploy fixes them.
-					</p>
-				</div>
-
 				<CodeBlock
-					code={`# Deploy a workflow definition
-sl workflows deploy workflows/whale-alerts.ts
-
-# List all workflows
+					code={`sl workflows deploy workflows/whale-alert.ts
+sl workflows dev workflows/whale-alert.ts           # watch + hot-redeploy
 sl workflows ls
-
-# Get workflow details
-sl workflows get whale-alerts
-
-# Trigger a workflow run (with optional input)
-sl workflows trigger whale-alerts
-sl workflows trigger whale-alerts --input '{"threshold": 100000}'
-
-# View run history
-sl workflows runs whale-alerts
-sl workflows runs whale-alerts --status failed --limit 5
-
-# Pause / resume
-sl workflows pause whale-alerts
-sl workflows resume whale-alerts
-
-# Delete (with confirmation)
-sl workflows delete whale-alerts`}
+sl workflows get whale-alert
+sl workflows trigger whale-alert --input '{"threshold": 100000}'
+sl workflows runs whale-alert --status failed
+sl workflows pause whale-alert
+sl workflows resume whale-alert
+sl workflows delete whale-alert`}
 					lang="bash"
 				/>
-
-				<SectionHeading id="codegen">Codegen</SectionHeading>
-
-				<div className="prose">
-					<p>
-						Generate TypeScript interfaces from Clarity contracts. Supports
-						local <code>.clar</code> files and deployed contract addresses.
-						Works with the plugin system for React hooks, testing utilities, and
-						transaction actions.
-					</p>
-				</div>
-
-				<CodeBlock
-					code={`# Initialize config file
-sl init
-
-# Generate types from config
-sl generate
-
-# Generate from specific files
-sl generate contracts/my-contract.clar
-
-# Watch mode — regenerate on file change
-sl generate --watch
-
-# Specify output path
-sl generate --output src/generated/contracts.ts`}
-					lang="bash"
-				/>
-
-				<SectionHeading id="local-dev">Local dev</SectionHeading>
-
-				<div className="prose">
-					<p>
-						Run the full Second Layer stack locally for development. Manages the
-						API, indexer, worker, and optionally a Stacks node — all via Docker.
-					</p>
-				</div>
-
-				<CodeBlock
-					code={`# Start all services
-sl local start
-
-# Check status
-sl local status
-
-# View logs (with service filtering)
-sl local logs --service indexer
-
-# Manage local Stacks node
-sl local node setup
-sl local node start
-sl local node logs
-sl local node stop
-
-# Start/stop the full stack (node + services)
-sl stack start
-sl stack stop
-
-# Inspect indexed data
-sl db blocks
-sl db txs --limit 20
-sl db events
-sl db gaps
-
-# Sync missing blocks
-sl sync --from 150000 --to 160000
-sl sync --gaps
-
-# System diagnostics
-sl doctor
-
-# Stop everything
-sl local stop`}
-					lang="bash"
-				/>
-
-				<SectionHeading id="commands">Commands</SectionHeading>
-
-				<div className="props-section">
-					<div className="props-group-title">Core</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl status</span>
-						<span className="prop-type">
-							System health — DB, indexing, subgraphs
-						</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl whoami</span>
-						<span className="prop-type">Current authenticated account</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl doctor</span>
-						<span className="prop-type">Diagnostic check (local + hosted)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl init</span>
-						<span className="prop-type">Create secondlayer.config.ts</span>
-					</div>
-
-					<div className="props-group-title">Auth</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl auth login</span>
-						<span className="prop-type">Magic link → API key</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl auth logout</span>
-						<span className="prop-type">Revoke key + clear config</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl auth status</span>
-						<span className="prop-type">Show key, email, plan</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl auth rotate</span>
-						<span className="prop-type">Revoke + create new key</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl auth keys [list|create|revoke]</span>
-						<span className="prop-type">Key management</span>
-					</div>
-
-					<div className="props-group-title">Subgraphs</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl subgraphs new &lt;name&gt;</span>
-						<span className="prop-type">Scaffold subgraph definition</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl subgraphs deploy &lt;file&gt;</span>
-						<span className="prop-type">Deploy (local or remote)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl subgraphs dev &lt;file&gt;</span>
-						<span className="prop-type">Watch + hot-redeploy</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl subgraphs status &lt;name&gt;</span>
-						<span className="prop-type">Indexing status + health</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">
-							sl subgraphs query &lt;name&gt; &lt;table&gt;
-						</span>
-						<span className="prop-type">Query with filters, sort, count</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl subgraphs reindex &lt;name&gt;</span>
-						<span className="prop-type">Reindex (--from, --to)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">
-							sl subgraphs scaffold &lt;contract&gt;
-						</span>
-						<span className="prop-type">Generate subgraph from ABI</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">
-							sl subgraphs generate &lt;name&gt;
-						</span>
-						<span className="prop-type">Generate typed client</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl subgraphs delete &lt;name&gt;</span>
-						<span className="prop-type">Delete subgraph + data</span>
-					</div>
-
-					<div className="props-group-title">Workflows</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl workflows deploy &lt;file&gt;</span>
-						<span className="prop-type">Validate + deploy workflow</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl workflows ls</span>
-						<span className="prop-type">List all workflows</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl workflows get &lt;name&gt;</span>
-						<span className="prop-type">Workflow details</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl workflows trigger &lt;name&gt;</span>
-						<span className="prop-type">Trigger a run (--input)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl workflows runs &lt;name&gt;</span>
-						<span className="prop-type">Run history (--status, --limit)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl workflows pause &lt;name&gt;</span>
-						<span className="prop-type">Pause workflow</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl workflows resume &lt;name&gt;</span>
-						<span className="prop-type">Resume workflow</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl workflows delete &lt;name&gt;</span>
-						<span className="prop-type">Delete workflow</span>
-					</div>
-
-					<div className="props-group-title">Codegen</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl init</span>
-						<span className="prop-type">Create config file</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl generate [files...]</span>
-						<span className="prop-type">
-							Generate TS from Clarity contracts
-						</span>
-					</div>
-
-					<div className="props-group-title">Database</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl db blocks</span>
-						<span className="prop-type">Recent indexed blocks</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl db txs</span>
-						<span className="prop-type">Recent transactions</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl db events</span>
-						<span className="prop-type">Recent events</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl db gaps</span>
-						<span className="prop-type">Gaps in indexed data</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl db reset</span>
-						<span className="prop-type">Truncate all indexed data</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl sync</span>
-						<span className="prop-type">Fetch + index missing blocks</span>
-					</div>
-
-					<div className="props-group-title">Config</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl config show</span>
-						<span className="prop-type">Print current config</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">
-							sl config set &lt;key&gt; &lt;value&gt;
-						</span>
-						<span className="prop-type">Set config value (dot notation)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl config reset</span>
-						<span className="prop-type">Reset to defaults</span>
-					</div>
-
-					<div className="props-group-title">Local</div>
-
-					<div className="prop-row">
-						<span className="prop-name">sl local start / stop / restart</span>
-						<span className="prop-type">Dev services lifecycle</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl local status</span>
-						<span className="prop-type">Environment status</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl local logs</span>
-						<span className="prop-type">Service logs (--service filter)</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">
-							sl local node [setup|start|stop|logs]
-						</span>
-						<span className="prop-type">Stacks node management</span>
-					</div>
-					<div className="prop-row">
-						<span className="prop-name">sl stack start / stop</span>
-						<span className="prop-type">Full stack (node + services)</span>
-					</div>
-				</div>
 			</main>
 		</div>
 	);
