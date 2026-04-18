@@ -16,9 +16,11 @@ export type {
 	McpStepResult,
 	QueryOptions,
 	RawCatalogDefinition,
+	RemoteSignerConfig,
 	RenderStepOptions,
 	RenderStepResult,
 	RetryConfig,
+	SignerConfig,
 	ScheduleTrigger,
 	SchemaField,
 	SlackTarget,
@@ -33,6 +35,7 @@ export type {
 	WorkflowTrigger,
 } from "./types.ts";
 export { defineWorkflow } from "./define.ts";
+export { signer } from "./signer.ts";
 // Re-export AI SDK primitives for authoring convenience. Users write tools
 // with `import { tool } from "@secondlayer/workflows"` and pass them to
 // `step.generateText({ tools })`.

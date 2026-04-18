@@ -38,6 +38,28 @@ export interface RetryConfig {
 	backoffMultiplier?: number;
 }
 
+// --- Signers ---
+
+/**
+ * Customer-hosted remote signer configuration. Secondlayer never holds the
+ * private key — the runner POSTs unsigned transactions to `endpoint` with
+ * an HMAC header (resolved at broadcast time via `hmacRef` → secret store),
+ * and the customer's service returns the signed transaction.
+ *
+ * `endpoint` + `publicKey` live in the workflow source (deployed, readable
+ * in the dashboard). `hmacRef` references a secret stored separately via
+ * `sl secrets set <name> <value>` so rotation does not require redeploy.
+ */
+export interface RemoteSignerConfig {
+	kind: "remote";
+	endpoint: string;
+	publicKey: string;
+	hmacRef: string;
+	timeoutMs?: number;
+}
+
+export type SignerConfig = RemoteSignerConfig;
+
 // --- AI ---
 
 export interface SchemaField {
@@ -240,6 +262,12 @@ export interface WorkflowDefinition {
 	handler: (ctx: WorkflowContext) => Promise<unknown>;
 	retries?: RetryConfig;
 	timeout?: number;
+	/**
+	 * Named signer configurations referenced by `broadcast({ signer: "<name>" })`.
+	 * Secondlayer never holds private keys — each signer POSTs to a customer-
+	 * hosted endpoint.
+	 */
+	signers?: Record<string, SignerConfig>;
 }
 
 // --- Run types ---
