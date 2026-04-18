@@ -9,6 +9,7 @@ import {
 	registerDoctorCommand,
 	registerLocalCommand,
 	registerMarketplaceCommand,
+	registerSecretsCommand,
 	registerStackCommand,
 	registerStatusCommand,
 	registerSubgraphsCommand,
@@ -77,6 +78,7 @@ program
 // Core commands (API-backed, work against any environment)
 registerSubgraphsCommand(program);
 registerWorkflowsCommand(program);
+registerSecretsCommand(program);
 registerMarketplaceCommand(program);
 registerStatusCommand(program);
 

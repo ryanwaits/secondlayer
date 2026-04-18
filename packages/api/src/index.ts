@@ -20,6 +20,7 @@ import insightsRouter from "./routes/insights.ts";
 import marketplaceRouter from "./routes/marketplace.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
+import { secretsRouter } from "./routes/secrets.ts";
 import statusRouter from "./routes/status.ts";
 import subgraphsRouter, {
 	abortAllOperations,
@@ -75,6 +76,8 @@ for (const path of [
 	"/api/chat-sessions/*",
 	"/api/workflows",
 	"/api/workflows/*",
+	"/api/secrets",
+	"/api/secrets/*",
 	"/api/auth/logout",
 ]) {
 	app.use(path, requireAuth());
@@ -89,6 +92,7 @@ app.route("/api/node", nodeRouter);
 app.route("/api/projects", projectsRouter);
 app.route("/api/chat-sessions", chatSessionsRouter);
 app.route("/api/workflows", workflowsRouter);
+app.route("/api/secrets", secretsRouter);
 app.route("/", statusRouter);
 
 // Start server
