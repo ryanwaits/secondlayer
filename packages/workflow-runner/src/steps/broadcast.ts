@@ -12,7 +12,7 @@ import {
 	testnet,
 } from "@secondlayer/stacks";
 import type { PublicClient } from "@secondlayer/stacks";
-import { getNonce } from "@secondlayer/stacks/actions";
+import { estimateFee, getNonce } from "@secondlayer/stacks/actions";
 import {
 	buildContractCall,
 	buildTokenTransfer,
@@ -106,7 +106,35 @@ async function broadcastIntent(
 	);
 
 	const nonce = await getNonce(publicClient, { address: senderAddress });
-	const fee = opts.maxFee ?? DEFAULT_FEE_MICROSTX;
+
+	// Fee resolution: prefer the workflow-author's `maxFee` as a hard ceiling.
+	// If absent, estimate via the Stacks node's fee oracle using a
+	// placeholder-fee build of the tx, then rebuild with the estimate.
+	// The estimate is the "medium" tier from `/v2/fees/transaction`.
+	let fee: bigint;
+	if (opts.maxFee != null) {
+		fee = opts.maxFee;
+	} else {
+		const probe = buildIntent(intent, {
+			fee: DEFAULT_FEE_MICROSTX,
+			nonce: BigInt(nonce),
+			publicKey: signerConfig.publicKey,
+			chain,
+		});
+		try {
+			const fees = await estimateFee(publicClient, {
+				transaction: probe.unsignedTx as never,
+			});
+			const mediumFee = fees[1]?.fee ?? fees[0]?.fee;
+			fee = mediumFee ? BigInt(Math.ceil(mediumFee)) : DEFAULT_FEE_MICROSTX;
+		} catch (err) {
+			logger.warn("broadcast: estimateFee failed, using default", {
+				error: err instanceof Error ? err.message : String(err),
+				fallbackFee: DEFAULT_FEE_MICROSTX.toString(),
+			});
+			fee = DEFAULT_FEE_MICROSTX;
+		}
+	}
 
 	const { unsignedTx, breakdown } = buildIntent(intent, {
 		fee,
