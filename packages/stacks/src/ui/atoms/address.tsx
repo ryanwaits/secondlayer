@@ -1,12 +1,6 @@
-import { z } from "zod/v4";
+import { AddressProps, type AddressPropsType } from "./address.schema.ts";
 
-export const AddressProps = z.object({
-	value: z.string().describe("Stacks principal (SP…/SM…/ST…)"),
-	bns: z.string().nullable().optional().describe("Optional BNS override"),
-	truncate: z.boolean().optional().default(true),
-});
-
-export type AddressPropsType = z.infer<typeof AddressProps>;
+export { AddressProps, type AddressPropsType };
 
 function truncatePrincipal(value: string): string {
 	if (value.length <= 14) return value;

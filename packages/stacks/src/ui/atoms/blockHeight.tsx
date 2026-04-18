@@ -1,15 +1,9 @@
-import { z } from "zod/v4";
+import {
+	BlockHeightProps,
+	type BlockHeightPropsType,
+} from "./blockHeight.schema.ts";
 
-export const BlockHeightProps = z.object({
-	height: z.number().int().nonnegative(),
-	timestamp: z
-		.string()
-		.nullable()
-		.optional()
-		.describe("ISO-8601 block timestamp"),
-});
-
-export type BlockHeightPropsType = z.infer<typeof BlockHeightProps>;
+export { BlockHeightProps, type BlockHeightPropsType };
 
 function relative(timestamp: string | null | undefined): string | null {
 	if (!timestamp) return null;

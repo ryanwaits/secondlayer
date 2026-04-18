@@ -1,17 +1,6 @@
-import { z } from "zod/v4";
+import { TxStatusProps, type TxStatusPropsType } from "./txStatus.schema.ts";
 
-export const TxStatusProps = z.object({
-	status: z.enum([
-		"pending",
-		"success",
-		"failed",
-		"abort_by_post_condition",
-		"abort_by_response",
-	]),
-	txId: z.string().nullable().optional(),
-});
-
-export type TxStatusPropsType = z.infer<typeof TxStatusProps>;
+export { TxStatusProps, type TxStatusPropsType };
 
 const TONE: Record<TxStatusPropsType["status"], string> = {
 	pending:

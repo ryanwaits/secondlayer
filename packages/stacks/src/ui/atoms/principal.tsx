@@ -1,13 +1,7 @@
-import { z } from "zod/v4";
 import { Address } from "./address.tsx";
+import { PrincipalProps, type PrincipalPropsType } from "./principal.schema.ts";
 
-export const PrincipalProps = z.object({
-	value: z.string().describe("Standard or contract principal"),
-	bns: z.string().nullable().optional(),
-	kind: z.enum(["standard", "contract"]).optional(),
-});
-
-export type PrincipalPropsType = z.infer<typeof PrincipalProps>;
+export { PrincipalProps, type PrincipalPropsType };
 
 function inferKind(value: string): "standard" | "contract" {
 	return value.includes(".") ? "contract" : "standard";

@@ -1,17 +1,6 @@
-import { z } from "zod/v4";
+import { NftAssetProps, type NftAssetPropsType } from "./nftAsset.schema.ts";
 
-export const NftAssetProps = z.object({
-	assetIdentifier: z
-		.string()
-		.describe("Full asset identifier (e.g. SP123.contract::asset-name)"),
-	tokenId: z
-		.string()
-		.describe("Token id (as string to preserve bigint precision)"),
-	name: z.string().nullable().optional(),
-	imageUrl: z.string().url().nullable().optional(),
-});
-
-export type NftAssetPropsType = z.infer<typeof NftAssetProps>;
+export { NftAssetProps, type NftAssetPropsType };
 
 export function NftAsset(props: NftAssetPropsType) {
 	const [, assetName] = props.assetIdentifier.split("::", 2);

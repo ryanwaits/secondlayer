@@ -1,12 +1,6 @@
-import { z } from "zod/v4";
+import { BnsNameProps, type BnsNamePropsType } from "./bnsName.schema.ts";
 
-export const BnsNameProps = z.object({
-	name: z.string(),
-	namespace: z.string(),
-	expiresAt: z.string().nullable().optional().describe("ISO-8601 timestamp"),
-});
-
-export type BnsNamePropsType = z.infer<typeof BnsNameProps>;
+export { BnsNameProps, type BnsNamePropsType };
 
 export function BnsName(props: BnsNamePropsType) {
 	return (
