@@ -90,12 +90,49 @@ export async function completeWorkflowJob(queueId: string): Promise<void> {
 		.execute();
 }
 
+/**
+ * Classify a thrown error to decide retryability. The broadcast + signer
+ * error types from `@secondlayer/stacks` expose an `isRetryable` boolean
+ * (falsy for post-condition aborts, signer policy refusal, signature
+ * invalid — all deterministic deadlocks that won't change on retry).
+ *
+ * Budget exceedances are also non-retryable: the counter is already past
+ * the cap; retrying won't help until the period resets (handled by the
+ * budget reset cron's auto-resume path).
+ */
+export function isRetryableError(err: unknown): {
+	retryable: boolean;
+	reason: string;
+} {
+	if (
+		err != null &&
+		typeof err === "object" &&
+		"isRetryable" in err &&
+		typeof (err as { isRetryable: unknown }).isRetryable === "boolean"
+	) {
+		const retryable = (err as { isRetryable: boolean }).isRetryable;
+		const name =
+			"name" in err && typeof (err as { name: unknown }).name === "string"
+				? (err as { name: string }).name
+				: "Error";
+		return {
+			retryable,
+			reason: retryable
+				? `${name} marked retryable`
+				: `${name} is non-retryable`,
+		};
+	}
+	// Default: retry unknown errors up to maxAttempts.
+	return { retryable: true, reason: "unknown error — defaulting to retryable" };
+}
+
 /** Fail a workflow queue item. Re-queues if under max attempts with exponential backoff. */
 export async function failWorkflowJob(
 	queueId: string,
 	error: string,
 	maxAttempts = 3,
 	backoff?: { backoffMs?: number; backoffMultiplier?: number },
+	classification?: { retryable: boolean; reason: string },
 ): Promise<void> {
 	const db = getDb();
 
@@ -107,7 +144,9 @@ export async function failWorkflowJob(
 
 	if (!item) return;
 
-	if (item.attempts < maxAttempts) {
+	const retryable = classification?.retryable ?? true;
+
+	if (retryable && item.attempts < maxAttempts) {
 		const baseMs = backoff?.backoffMs ?? 1000;
 		const multiplier = backoff?.backoffMultiplier ?? 2;
 		const delayMs = baseMs * multiplier ** (item.attempts - 1);
@@ -125,11 +164,14 @@ export async function failWorkflowJob(
 			.where("id", "=", queueId)
 			.execute();
 	} else {
+		const finalError = classification?.reason
+			? `${error} [${classification.reason}]`
+			: error;
 		await db
 			.updateTable("workflow_queue")
 			.set({
 				status: "failed",
-				error,
+				error: finalError,
 				completed_at: new Date(),
 				locked_at: null,
 				locked_by: null,
@@ -142,7 +184,7 @@ export async function failWorkflowJob(
 			.updateTable("workflow_runs")
 			.set({
 				status: "failed",
-				error,
+				error: finalError,
 				completed_at: new Date(),
 			})
 			.where("id", "=", item.run_id)
