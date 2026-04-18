@@ -15,6 +15,8 @@ export type {
 	McpStepOptions,
 	McpStepResult,
 	QueryOptions,
+	RenderStepOptions,
+	RenderStepResult,
 	RetryConfig,
 	ScheduleTrigger,
 	SchemaField,

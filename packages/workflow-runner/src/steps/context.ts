@@ -1,3 +1,4 @@
+import type { Catalog } from "@json-render/core";
 import type { Database } from "@secondlayer/shared/db";
 import { jsonb, parseJsonb } from "@secondlayer/shared/db/jsonb";
 import { logger } from "@secondlayer/shared/logger";
@@ -11,6 +12,8 @@ import type {
 	InvokeOptions,
 	McpStepOptions,
 	QueryOptions,
+	RenderStepOptions,
+	RenderStepResult,
 	StepContext,
 } from "@secondlayer/workflows";
 import type { Kysely } from "kysely";
@@ -25,6 +28,7 @@ import { executeInvokeStep } from "./invoke.ts";
 import { executeMcpStep } from "./mcp.ts";
 import { memoKey } from "./memoKey.ts";
 import { executeCountStep, executeQueryStep } from "./query.ts";
+import { executeRenderStep } from "./render.ts";
 import { SleepInterrupt } from "./sleep.ts";
 import { wrapToolsWithMemo } from "./toolMemo.ts";
 
@@ -207,6 +211,28 @@ export function createStepContext(
 					});
 					await updateAiTokens(id, result.usage.totalTokens);
 					return { object: result.object as T, usage: result.usage };
+				},
+			),
+
+		render: <C extends Catalog>(
+			id: string,
+			catalog: C,
+			options: RenderStepOptions,
+		): Promise<RenderStepResult<C["_specType"]>> =>
+			memoize(
+				id,
+				"render",
+				{
+					prompt: options.prompt,
+					system: options.system,
+					model: typeof options.model === "string" ? options.model : undefined,
+					context: options.context,
+					catalogComponents: catalog.componentNames,
+				},
+				async () => {
+					const result = await executeRenderStep(catalog, options);
+					await updateAiTokens(id, result.usage.totalTokens);
+					return result as RenderStepResult<C["_specType"]>;
 				},
 			),
 

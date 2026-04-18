@@ -1,3 +1,4 @@
+import type { Catalog } from "@json-render/core";
 import type { SubgraphFilter } from "@secondlayer/subgraphs/types";
 import type { LanguageModel, Tool } from "ai";
 import type { ZodType } from "zod/v4";
@@ -83,6 +84,20 @@ export interface GenerateTextStepResult {
 	text: string;
 	toolCalls: unknown[];
 	steps: unknown[];
+	usage: LanguageModelUsage;
+}
+
+// --- json-render (catalog-constrained UI output) ---
+
+export interface RenderStepOptions {
+	model?: string | LanguageModel;
+	prompt: string;
+	system?: string;
+	context?: Record<string, unknown>;
+}
+
+export interface RenderStepResult<T = unknown> {
+	spec: T;
 	usage: LanguageModelUsage;
 }
 
@@ -173,6 +188,11 @@ export interface StepContext {
 		id: string,
 		options: GenerateTextStepOptions,
 	): Promise<GenerateTextStepResult>;
+	render<C extends Catalog>(
+		id: string,
+		catalog: C,
+		options: RenderStepOptions,
+	): Promise<RenderStepResult<C["_specType"]>>;
 	query(
 		id: string,
 		subgraph: string,
