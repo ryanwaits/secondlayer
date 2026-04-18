@@ -45,5 +45,23 @@ const config: DefineConfigItem[] = defineConfig([
 		sourcemap: "linked",
 		minify: false,
 	},
+	{
+		name: "ui",
+		entry: ["src/ui/index.ts"],
+		outDir: "dist/src/ui",
+		format: ["esm", "cjs"],
+		dts: true,
+		target: "browser",
+		splitting: false,
+		sourcemap: "linked",
+		minify: false,
+		external: [
+			"react",
+			"react/jsx-runtime",
+			"@json-render/core",
+			"@json-render/react",
+			"zod",
+		],
+	},
 ]) as DefineConfigItem[];
 export default config;
