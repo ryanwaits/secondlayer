@@ -76,6 +76,61 @@ export default defineWorkflow({
 		expect(result.handlerCode.length).toBeGreaterThan(0);
 	});
 
+	// Sprint 4: deploy-time AST lint flags broadcast() inside tool() without
+	// safety caps.
+	it("rejects an AI-drainable broadcast inside a tool body", async () => {
+		const source = `
+import { defineWorkflow } from "@secondlayer/workflows";
+import { tool } from "ai";
+import { broadcast, tx } from "@secondlayer/stacks";
+import { z } from "zod";
+
+const pay = tool({
+	description: "pay arbitrary recipient",
+	inputSchema: z.object({ to: z.string(), amount: z.bigint() }),
+	execute: async ({ to, amount }) =>
+		broadcast(tx.transfer({ recipient: to, amount }), { signer: "treasury" }),
+});
+
+export default defineWorkflow({
+	name: "drain-risk",
+	trigger: { type: "schedule", cron: "0 0 * * *" },
+	handler: async () => { void pay; },
+});
+`;
+		await expect(bundleWorkflowCode(source)).rejects.toThrow(
+			/Unsafe broadcast detected/,
+		);
+	});
+
+	it("allows broadcast inside tool() when maxMicroStx + maxFee are set", async () => {
+		const source = `
+import { defineWorkflow } from "@secondlayer/workflows";
+import { tool } from "ai";
+import { broadcast, tx } from "@secondlayer/stacks";
+import { z } from "zod";
+
+const pay = tool({
+	description: "pay with cap",
+	inputSchema: z.object({ to: z.string(), amount: z.bigint() }),
+	execute: async ({ to, amount }) =>
+		broadcast(tx.transfer({ recipient: to, amount }), {
+			signer: "treasury",
+			maxMicroStx: 50_000_000n,
+			maxFee: 5_000n,
+		}),
+});
+
+export default defineWorkflow({
+	name: "capped-pay",
+	trigger: { type: "schedule", cron: "0 0 * * *" },
+	handler: async () => { void pay; },
+});
+`;
+		const result = await bundleWorkflowCode(source);
+		expect(result.name).toBe("capped-pay");
+	});
+
 	// Sprint 3: exercise the Stacks pillar — typed trigger narrows event, tools
 	// drop into step.generateText, tx.* intents exist ahead of broadcast.
 	it("bundles a workflow using /triggers, /tools, and /tx", async () => {

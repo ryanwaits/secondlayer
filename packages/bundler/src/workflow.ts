@@ -9,6 +9,7 @@ import type {
 import { validateWorkflowDefinition } from "@secondlayer/workflows/validate";
 import esbuild from "esbuild";
 import { BundleSizeError, WORKFLOW_BUNDLE_MAX_BYTES } from "./errors.ts";
+import { lintUnsafeBroadcast } from "./lint-broadcast.ts";
 import { stubPackagesPlugin } from "./stub-plugin.ts";
 
 export interface WorkflowBundleResult {
@@ -23,6 +24,19 @@ export interface WorkflowBundleResult {
 export async function bundleWorkflowCode(
 	code: string,
 ): Promise<WorkflowBundleResult> {
+	const unsafe = lintUnsafeBroadcast(code);
+	if (unsafe.length > 0) {
+		const msg = unsafe
+			.map(
+				(u) =>
+					`  line ${u.line}: broadcast() inside tool "${u.toolName}" has no cost cap or postConditions. Add { maxMicroStx, maxFee } or postConditions, or opt out with \`// @sl-unsafe-broadcast\`.`,
+			)
+			.join("\n");
+		throw new Error(
+			`Unsafe broadcast detected — AI-controlled args can drain funds without caps.\n${msg}`,
+		);
+	}
+
 	let result: esbuild.BuildResult;
 	try {
 		result = await esbuild.build({
