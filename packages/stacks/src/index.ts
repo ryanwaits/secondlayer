@@ -1,3 +1,26 @@
+// Broadcast + errors (workflow-integrated write path)
+export {
+	broadcast,
+	broadcastContext,
+	type BroadcastOptions,
+	type BroadcastResult,
+	type BroadcastRuntime,
+} from "./broadcast.ts";
+export {
+	TxRejectedError,
+	TxTimeoutError,
+	TxSignerRefusedError,
+	type TxRejectionReason,
+} from "./errors.ts";
+export {
+	tx,
+	type ContractCallIntent,
+	type DeployIntent,
+	type MultiSendIntent,
+	type TransferIntent,
+	type TxIntent,
+} from "./tx/builders.ts";
+
 // Clients
 export {
 	createClient,
