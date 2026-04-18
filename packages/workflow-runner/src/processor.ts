@@ -2,7 +2,11 @@ import { getDb } from "@secondlayer/shared/db";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
 import { logger } from "@secondlayer/shared/logger";
 import { listen } from "@secondlayer/shared/queue/listener";
-import type { WorkflowDefinition } from "@secondlayer/workflows";
+import { broadcastContext } from "@secondlayer/stacks";
+import type {
+	RemoteSignerConfig,
+	WorkflowDefinition,
+} from "@secondlayer/workflows";
 import {
 	claimWorkflowJob,
 	completeWorkflowJob,
@@ -11,6 +15,8 @@ import {
 	getWorkerId,
 	recoverStaleWorkflowJobs,
 } from "./queue.ts";
+import { SignerSecretStore } from "./secrets/store.ts";
+import { createBroadcastRuntime } from "./steps/broadcast.ts";
 import { createStepContext } from "./steps/context.ts";
 import { closeMcpClients } from "./steps/mcp.ts";
 import { SleepInterrupt } from "./steps/sleep.ts";
@@ -20,6 +26,18 @@ import { checkEventTriggers } from "./triggers/event.ts";
 const POLL_INTERVAL_MS = Number.parseInt(
 	process.env.WORKFLOW_POLL_INTERVAL_MS ?? "1000",
 );
+
+/**
+ * Lazy process-scoped `SignerSecretStore`. The store's in-memory cache is
+ * shared across runs — HMAC rotation via `sl secrets set` propagates after
+ * the 5-minute TTL without requiring a runner restart.
+ */
+let _secretStore: SignerSecretStore | null = null;
+function sharedSecretStore(db: Parameters<typeof createStepContext>[1]) {
+	if (!_secretStore) _secretStore = new SignerSecretStore(db);
+	return _secretStore;
+}
+
 const RECOVERY_INTERVAL_MS = 60_000;
 const STALE_THRESHOLD_MIN = 5;
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
@@ -114,6 +132,32 @@ export async function startWorkflowProcessor(opts: {
 			input: triggerData,
 		};
 
+		// Resolve the workflow's owning account via api_keys — needed by the
+		// broadcast runtime to look up signer HMAC secrets.
+		const apiKeyRow = await db
+			.selectFrom("api_keys")
+			.select(["account_id"])
+			.where("id", "=", defRow.api_key_id)
+			.executeTakeFirst();
+		const accountId = apiKeyRow?.account_id;
+
+		// Build the broadcast runtime bound to this run. `broadcastContext.run`
+		// scopes it via AsyncLocalStorage so concurrent runs don't share state.
+		const workflowSigners =
+			(def.signers as Record<string, RemoteSignerConfig> | undefined) ?? {};
+		const hasSigners = Object.keys(workflowSigners).length > 0;
+		const broadcastRuntime =
+			hasSigners && accountId
+				? createBroadcastRuntime({
+						db,
+						runId: run.id,
+						workflow: def.name,
+						workflowSigners,
+						accountId,
+						secrets: sharedSecretStore(db),
+					})
+				: undefined;
+
 		// Execute with timeout
 		const timeoutMs = defRow.timeout_ms ?? DEFAULT_TIMEOUT_MS;
 		const controller = new AbortController();
@@ -121,9 +165,14 @@ export async function startWorkflowProcessor(opts: {
 
 		const startTime = Date.now();
 
+		const runHandler = () => def.handler(ctx);
+		const wrapped = broadcastRuntime
+			? () => broadcastContext.run(broadcastRuntime, runHandler)
+			: runHandler;
+
 		try {
 			await Promise.race([
-				def.handler(ctx),
+				wrapped(),
 				new Promise<never>((_, reject) => {
 					controller.signal.addEventListener("abort", () => {
 						reject(new Error(`Workflow timed out after ${timeoutMs}ms`));
