@@ -5,11 +5,12 @@
 	"type": "module",
 	"workspaces": ["packages/*", "apps/*"],
 	"scripts": {
-		"build": "bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:subgraphs && bun run build:workflows && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:cli",
+		"build": "bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:subgraphs && bun run build:workflows && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:signer-node && bun run build:cli",
 		"build:bundler": "bun run --filter @secondlayer/bundler build",
 		"build:cli": "bun run --filter @secondlayer/cli build",
 		"build:scaffold": "bun run --filter @secondlayer/scaffold build",
 		"build:sdk": "bun run --filter @secondlayer/sdk build",
+		"build:signer-node": "bun run --filter @secondlayer/signer-node build",
 		"build:stacks": "bun run --filter @secondlayer/stacks build",
 		"build:subgraphs": "bun run --filter @secondlayer/subgraphs build",
 		"build:workflows": "bun run --filter @secondlayer/workflows build",
