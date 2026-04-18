@@ -4,6 +4,7 @@ import { DetailCodeBlock } from "@/components/console/detail-code-block";
 import { DetailSection } from "@/components/console/detail-section";
 import { MetaGrid } from "@/components/console/meta-grid";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
+import { WorkflowRenderOutput } from "@/components/workflow-render-output";
 import type { WorkflowRunDetail, WorkflowStep } from "@/lib/types";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -36,6 +37,10 @@ function formatDate(dateStr: string | null) {
 function StepTypeIcon({ type }: { type: string }) {
 	const colors: Record<string, string> = {
 		ai: "var(--accent)",
+		generateObject: "var(--accent)",
+		generateText: "var(--accent)",
+		render: "var(--purple, var(--accent))",
+		tool: "var(--teal, var(--blue))",
 		query: "var(--blue)",
 		deliver: "var(--green)",
 		run: "var(--text-muted)",
@@ -202,20 +207,24 @@ function StepCard({ step }: { step: WorkflowStep }) {
 								>
 									Output
 								</div>
-								<pre
-									style={{
-										fontFamily: "var(--font-mono-stack)",
-										fontSize: 11,
-										lineHeight: 1.6,
-										whiteSpace: "pre-wrap",
-										wordBreak: "break-all",
-										margin: 0,
-									}}
-								>
-									{typeof step.output === "string"
-										? step.output
-										: JSON.stringify(step.output, null, 2)}
-								</pre>
+								{step.stepType === "render" ? (
+									<WorkflowRenderOutput output={step.output} />
+								) : (
+									<pre
+										style={{
+											fontFamily: "var(--font-mono-stack)",
+											fontSize: 11,
+											lineHeight: 1.6,
+											whiteSpace: "pre-wrap",
+											wordBreak: "break-all",
+											margin: 0,
+										}}
+									>
+										{typeof step.output === "string"
+											? step.output
+											: JSON.stringify(step.output, null, 2)}
+									</pre>
+								)}
 							</>
 						)}
 						{step.error && (
