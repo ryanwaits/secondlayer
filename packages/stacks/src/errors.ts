@@ -19,7 +19,7 @@ export type TxRejectionReason =
  * (mempool or on-chain). Each `reason` maps to different retry semantics.
  */
 export class TxRejectedError extends Error {
-	readonly name = "TxRejectedError";
+	override readonly name = "TxRejectedError";
 	constructor(
 		message: string,
 		readonly reason: TxRejectionReason,
@@ -50,7 +50,7 @@ export class TxRejectedError extends Error {
  * within the configured `confirmationTimeout`. Retryable with fee bump.
  */
 export class TxTimeoutError extends Error {
-	readonly name = "TxTimeoutError";
+	override readonly name = "TxTimeoutError";
 	readonly isRetryable = true;
 	constructor(
 		message: string,
@@ -66,7 +66,7 @@ export class TxTimeoutError extends Error {
  * bad request). Non-retryable — customer policy won't change on retry.
  */
 export class TxSignerRefusedError extends Error {
-	readonly name = "TxSignerRefusedError";
+	override readonly name = "TxSignerRefusedError";
 	readonly isRetryable = false;
 	constructor(
 		message: string,

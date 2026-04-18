@@ -23,7 +23,7 @@ import { type Period, currentPeriod } from "./period.ts";
  */
 
 export class BudgetExceededError extends Error {
-	readonly name = "BudgetExceededError";
+	override readonly name = "BudgetExceededError";
 	readonly isRetryable = false;
 	constructor(
 		message: string,
