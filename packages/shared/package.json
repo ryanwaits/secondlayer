@@ -113,6 +113,10 @@
 			"types": "./dist/src/crypto/hmac.d.ts",
 			"import": "./dist/src/crypto/hmac.js"
 		},
+		"./crypto/secrets": {
+			"types": "./dist/src/crypto/secrets.d.ts",
+			"import": "./dist/src/crypto/secrets.js"
+		},
 		"./node": {
 			"types": "./dist/src/node/client.d.ts",
 			"import": "./dist/src/node/client.js"

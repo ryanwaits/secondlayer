@@ -394,6 +394,17 @@ export interface Database {
 	workflow_queue: WorkflowQueueTable;
 	workflow_schedules: WorkflowSchedulesTable;
 	workflow_cursors: WorkflowCursorsTable;
+	workflow_signer_secrets: WorkflowSignerSecretsTable;
+}
+
+export interface WorkflowSignerSecretsTable {
+	id: Generated<string>;
+	account_id: string;
+	name: string;
+	/** AES-GCM ciphertext bytes produced by the runner's KMS on write. */
+	encrypted_value: Buffer;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
 }
 
 // ── Convenience types ─────────────────────────────────────────────────
@@ -470,6 +481,10 @@ export type InsertWorkflowSchedule = Insertable<WorkflowSchedulesTable>;
 export type UpdateWorkflowSchedule = Updateable<WorkflowSchedulesTable>;
 
 export type WorkflowCursor = Selectable<WorkflowCursorsTable>;
+
+export type WorkflowSignerSecret = Selectable<WorkflowSignerSecretsTable>;
+export type InsertWorkflowSignerSecret = Insertable<WorkflowSignerSecretsTable>;
+export type UpdateWorkflowSignerSecret = Updateable<WorkflowSignerSecretsTable>;
 
 export type Project = Selectable<ProjectsTable>;
 export type InsertProject = Insertable<ProjectsTable>;
