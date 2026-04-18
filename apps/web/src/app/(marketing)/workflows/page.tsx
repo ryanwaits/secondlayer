@@ -13,6 +13,8 @@ const toc: TocItem[] = [
 	{ label: "Tools", href: "#tools" },
 	{ label: "Catalogs", href: "#catalogs" },
 	{ label: "Deploy", href: "#deploy" },
+	{ label: "Broadcast", href: "#broadcast" },
+	{ label: "Budgets", href: "#budgets" },
 	{ label: "Migrating from v1", href: "#migrating" },
 ];
 
@@ -263,13 +265,77 @@ await step.deliver("slack", {
 })`}
 				/>
 
+				<SectionHeading id="broadcast">Broadcast</SectionHeading>
+
 				<div className="prose">
 					<p>
-						Coming soon — broadcast unsigned <code>TxIntent</code> objects built
-						via <code>@secondlayer/stacks/tx</code> through a customer-owned
-						Remote Signer.
+						Submit signed transactions via a workflow-declared signer.
+						Secondlayer never holds keys — the runner POSTs unsigned tx +
+						context to your HTTPS endpoint with an HMAC-signed body; your
+						service signs and returns. Ship the reference implementation from{" "}
+						<code>@secondlayer/signer-node</code> on Railway/Fly/Hetzner.
 					</p>
 				</div>
+
+				<CodeBlock
+					code={`import { defineWorkflow, signer } from "@secondlayer/workflows"
+import { broadcast, tx } from "@secondlayer/stacks"
+
+export default defineWorkflow({
+  name: "dca",
+  trigger: { type: "schedule", cron: "0 */6 * * *" },
+  signers: {
+    treasury: signer.remote({
+      endpoint:  "https://signer.acme.com/sign",
+      publicKey: "03fae8…",
+      hmacRef:   "treasury",  // sl secrets set treasury <hmac>
+    }),
+  },
+  handler: async ({ step }) => {
+    await step.run("pay", () =>
+      broadcast(
+        tx.transfer({ recipient: "SP…", amount: 1_000_000n }),
+        { signer: "treasury", awaitConfirmation: true,
+          maxMicroStx: 50_000_000n, maxFee: 5_000n },
+      ),
+    )
+  },
+})`}
+				/>
+
+				<div className="prose">
+					<p>
+						<code>awaitConfirmation: true</code> blocks until the indexer sees
+						the tx confirmed on-chain (120s timeout). Rotate the signer's HMAC
+						without redeploying via <code>sl secrets rotate treasury</code>.
+					</p>
+				</div>
+
+				<SectionHeading id="budgets">Budgets</SectionHeading>
+
+				<div className="prose">
+					<p>
+						Per-workflow caps on AI spend, chain spend, and step count. On
+						exceed, pause the workflow (default), fire a delivery alert, or
+						continue silently. Counters reset daily/weekly; paused workflows
+						auto-resume at the boundary.
+					</p>
+				</div>
+
+				<CodeBlock
+					code={`export default defineWorkflow({
+  name: "capped-dca",
+  trigger: { type: "schedule", cron: "0 */6 * * *" },
+  budget: {
+    ai:    { maxUsd: 5, maxTokens: 1_000_000 },
+    chain: { maxMicroStx: 100_000_000n, maxTxCount: 10 },
+    run:   { maxSteps: 50, maxDurationMs: 60_000 },
+    reset: "daily",
+    onExceed: "pause",
+  },
+  handler: async ({ step }) => { /* ... */ },
+})`}
+				/>
 
 				<SectionHeading id="tools">Tools</SectionHeading>
 
