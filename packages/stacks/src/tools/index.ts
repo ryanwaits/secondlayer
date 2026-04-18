@@ -29,8 +29,12 @@
  *    ```
  */
 
-import { tool } from "ai";
+import { type Tool, tool } from "ai";
 import { z } from "zod";
+
+// biome-ignore lint/suspicious/noExplicitAny: Tool's input-schema generic is
+// too precise for isolated-declarations output — AI SDK validates at runtime.
+type LooseTool = Tool<any, any>;
 import { estimateFee as _estimateFee } from "../actions/public/estimateFee.ts";
 import { getAccountInfo as _getAccountInfo } from "../actions/public/getAccountInfo.ts";
 import { getBalance as _getBalance } from "../actions/public/getBalance.ts";
@@ -159,7 +163,22 @@ async function nftHoldings(
 
 // --- Factory: bind tools to an explicit client ---
 
-export function createStacksTools(client: StacksReadClient) {
+export interface StacksTools {
+	getStxBalance: LooseTool;
+	getAccountInfo: LooseTool;
+	getBlock: LooseTool;
+	getBlockHeight: LooseTool;
+	readContract: LooseTool;
+	estimateFee: LooseTool;
+	bnsResolve: LooseTool;
+	bnsReverse: LooseTool;
+	getTransaction: LooseTool;
+	getAccountHistory: LooseTool;
+	getMempoolStats: LooseTool;
+	getNftHoldings: LooseTool;
+}
+
+export function createStacksTools(client: StacksReadClient): StacksTools {
 	return {
 		getStxBalance: tool({
 			description: "Get the STX balance (in micro-STX) for a Stacks principal.",
@@ -258,25 +277,24 @@ export function createStacksTools(client: StacksReadClient) {
 	};
 }
 
-export type StacksTools = ReturnType<typeof createStacksTools>;
 
 // --- Bare exports using the default (env-configured) client ---
 
-export const getStxBalance = tool({
+export const getStxBalance: LooseTool = tool({
 	description:
 		"Get the STX balance (in micro-STX) for a Stacks principal. Uses default client.",
 	inputSchema: z.object({ principal: PRINCIPAL }),
 	execute: ({ principal }) => stxBalance(getDefaultPublicClient(), principal),
 });
 
-export const getAccountInfo = tool({
+export const getAccountInfo: LooseTool = tool({
 	description:
 		"Get account info (balance, locked, nonce) for a Stacks principal.",
 	inputSchema: z.object({ principal: PRINCIPAL }),
 	execute: ({ principal }) => accountInfo(getDefaultPublicClient(), principal),
 });
 
-export const getBlock = tool({
+export const getBlock: LooseTool = tool({
 	description:
 		"Fetch a Stacks block by height or hash. Omit both for the latest block.",
 	inputSchema: z.object({
@@ -286,13 +304,13 @@ export const getBlock = tool({
 	execute: (args) => block(getDefaultPublicClient(), args),
 });
 
-export const getBlockHeight = tool({
+export const getBlockHeight: LooseTool = tool({
 	description: "Get the current Stacks chain tip height.",
 	inputSchema: z.object({}),
 	execute: () => blockHeight(getDefaultPublicClient()),
 });
 
-export const readContract = tool({
+export const readContract: LooseTool = tool({
 	description:
 		"Call a read-only Clarity function. Returns the decoded value as JSON.",
 	inputSchema: z.object({
@@ -303,7 +321,7 @@ export const readContract = tool({
 	execute: (args) => contractRead(getDefaultPublicClient(), args),
 });
 
-export const estimateFee = tool({
+export const estimateFee: LooseTool = tool({
 	description:
 		"Estimate fee range (low / medium / high) for a serialized Stacks transaction.",
 	inputSchema: z.object({ serializedTxHex: z.string() }),
@@ -311,14 +329,14 @@ export const estimateFee = tool({
 		fee(getDefaultPublicClient(), serializedTxHex),
 });
 
-export const bnsResolve = tool({
+export const bnsResolve: LooseTool = tool({
 	description:
 		"Resolve a BNS name (e.g. 'satoshi.btc') to its owning Stacks principal.",
 	inputSchema: z.object({ name: z.string() }),
 	execute: ({ name }) => bnsResolveImpl(getDefaultPublicClient(), name),
 });
 
-export const bnsReverse = tool({
+export const bnsReverse: LooseTool = tool({
 	description:
 		"Reverse-lookup the primary BNS name for a Stacks principal, if set.",
 	inputSchema: z.object({ principal: PRINCIPAL }),
@@ -326,14 +344,14 @@ export const bnsReverse = tool({
 		bnsReverseImpl(getDefaultPublicClient(), principal),
 });
 
-export const getTransaction = tool({
+export const getTransaction: LooseTool = tool({
 	description:
 		"Fetch a confirmed Stacks transaction by txId (Hiro extended API).",
 	inputSchema: z.object({ txId: z.string() }),
 	execute: ({ txId }) => transactionByTxId(getDefaultPublicClient(), txId),
 });
 
-export const getAccountHistory = tool({
+export const getAccountHistory: LooseTool = tool({
 	description:
 		"Paginated transaction history for a Stacks principal (Hiro extended API).",
 	inputSchema: z.object({
@@ -344,14 +362,14 @@ export const getAccountHistory = tool({
 		accountHistory(getDefaultPublicClient(), principal, limit),
 });
 
-export const getMempoolStats = tool({
+export const getMempoolStats: LooseTool = tool({
 	description:
 		"Current mempool statistics: pending count, fee distribution, age buckets (Hiro extended API).",
 	inputSchema: z.object({}),
 	execute: () => mempoolStats(getDefaultPublicClient()),
 });
 
-export const getNftHoldings = tool({
+export const getNftHoldings: LooseTool = tool({
 	description:
 		"NFT holdings for a Stacks principal across all collections (Hiro extended API).",
 	inputSchema: z.object({

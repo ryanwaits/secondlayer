@@ -11,8 +11,13 @@
  *   await step.generateText("research", { tools: { btcConfirmations, btcBalance }, … })
  */
 
-import { tool } from "ai";
+import { type Tool, tool } from "ai";
 import { z } from "zod";
+
+// biome-ignore lint/suspicious/noExplicitAny: Tool's input-schema generic is too
+// precise for isolated-declarations output — we pass tools through to AI SDK
+// which validates at runtime.
+type LooseTool = Tool<any, any>;
 
 function baseUrl(): string {
 	return (process.env.BTC_MEMPOOL_URL ?? "https://mempool.space").replace(
@@ -42,7 +47,7 @@ const BTC_ADDRESS = z
 	.string()
 	.describe("Bitcoin address (legacy, segwit, or taproot)");
 
-export const btcConfirmations = tool({
+export const btcConfirmations: LooseTool = tool({
 	description:
 		"Number of confirmations for a Bitcoin transaction. Returns { confirmations, confirmed }.",
 	inputSchema: z.object({ txid: BTC_TXID }),
@@ -62,7 +67,7 @@ export const btcConfirmations = tool({
 	},
 });
 
-export const btcBalance = tool({
+export const btcBalance: LooseTool = tool({
 	description:
 		"Bitcoin balance for an address, in satoshis. Returns { confirmedSat, unconfirmedSat }.",
 	inputSchema: z.object({ address: BTC_ADDRESS }),
@@ -80,7 +85,7 @@ export const btcBalance = tool({
 	},
 });
 
-export const btcUtxos = tool({
+export const btcUtxos: LooseTool = tool({
 	description:
 		"List of unspent outputs for a Bitcoin address (truncated to `limit`).",
 	inputSchema: z.object({
@@ -100,7 +105,7 @@ export const btcUtxos = tool({
 	},
 });
 
-export const btcFeeEstimate = tool({
+export const btcFeeEstimate: LooseTool = tool({
 	description:
 		"Current Bitcoin fee estimates in sat/vB across priority tiers (fastest, 30-min, hour, economy).",
 	inputSchema: z.object({}),
@@ -116,7 +121,7 @@ export const btcFeeEstimate = tool({
 	},
 });
 
-export const btcBlockHeight = tool({
+export const btcBlockHeight: LooseTool = tool({
 	description: "Current Bitcoin chain tip height.",
 	inputSchema: z.object({}),
 	execute: async () => ({
