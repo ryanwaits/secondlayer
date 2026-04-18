@@ -81,6 +81,11 @@
 			"types": "./dist/src/ui/index.d.ts",
 			"import": "./dist/src/ui/index.js",
 			"require": "./dist/src/ui/index.cjs"
+		},
+		"./ui/schemas": {
+			"types": "./dist/src/ui/schemas.d.ts",
+			"import": "./dist/src/ui/schemas.js",
+			"require": "./dist/src/ui/schemas.cjs"
 		}
 	},
 	"files": ["dist"],

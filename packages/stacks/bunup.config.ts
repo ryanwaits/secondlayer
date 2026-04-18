@@ -63,5 +63,17 @@ const config: DefineConfigItem[] = defineConfig([
 			"zod",
 		],
 	},
+	{
+		name: "ui-schemas",
+		entry: ["src/ui/schemas.ts"],
+		outDir: "dist/src/ui",
+		format: ["esm", "cjs"],
+		dts: true,
+		// Pure Zod, no React — safe to bundle as neutral.
+		splitting: false,
+		sourcemap: "linked",
+		minify: false,
+		external: ["zod"],
+	},
 ]) as DefineConfigItem[];
 export default config;
