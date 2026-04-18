@@ -60,6 +60,42 @@ export interface RemoteSignerConfig {
 
 export type SignerConfig = RemoteSignerConfig;
 
+// --- Budget ---
+
+export type BudgetPeriod = "daily" | "weekly" | "per-run";
+
+export type OnExceedBehavior = "pause" | "alert" | "silent";
+
+/**
+ * Per-workflow resource budget. Enforced by the runner before each step.
+ * When any counter would exceed its cap, the workflow transitions to
+ * `status = "paused:budget"` (for `onExceed: "pause"`), fires a delivery
+ * (for `"alert"`), or continues silently (`"silent"` — metrics still tick
+ * for observability but no gating).
+ *
+ * Budgets are internal safety rails, not customer billing. Tier pricing
+ * covers compute; these caps stop a single workflow from consuming
+ * unbounded AI credits, chain fees, or step-count after a regression.
+ */
+export interface BudgetConfig {
+	ai?: {
+		maxUsd?: number;
+		maxTokens?: number;
+	};
+	chain?: {
+		maxMicroStx?: bigint;
+		maxTxCount?: number;
+	};
+	run?: {
+		maxDurationMs?: number;
+		maxSteps?: number;
+	};
+	reset?: BudgetPeriod;
+	onExceed?: OnExceedBehavior;
+	/** Optional delivery target invoked on exceed when `onExceed !== "silent"`. */
+	onExceedTarget?: DeliverTarget;
+}
+
 // --- AI ---
 
 export interface SchemaField {
@@ -268,6 +304,12 @@ export interface WorkflowDefinition {
 	 * hosted endpoint.
 	 */
 	signers?: Record<string, SignerConfig>;
+	/**
+	 * Per-workflow resource budget enforced by the runner. Stops a single
+	 * workflow from consuming unbounded AI credits, chain fees, or step-count
+	 * after a regression. See `BudgetConfig`.
+	 */
+	budget?: BudgetConfig;
 }
 
 // --- Run types ---

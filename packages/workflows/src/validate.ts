@@ -1,6 +1,7 @@
 import { SubgraphFilterSchema } from "@secondlayer/subgraphs/validate";
 import { z } from "zod/v4";
 import type {
+	BudgetConfig,
 	DiscordTarget,
 	EventTrigger,
 	ManualInputField,
@@ -79,6 +80,30 @@ export const TelegramTargetSchema: z.ZodType<TelegramTarget> = z.object({
 	parseMode: z.enum(["HTML", "Markdown"]).optional(),
 });
 
+export const BudgetConfigSchema: z.ZodType<BudgetConfig> = z.object({
+	ai: z
+		.object({
+			maxUsd: z.number().nonnegative().optional(),
+			maxTokens: z.number().int().nonnegative().optional(),
+		})
+		.optional(),
+	chain: z
+		.object({
+			maxMicroStx: z.bigint().nonnegative().optional(),
+			maxTxCount: z.number().int().nonnegative().optional(),
+		})
+		.optional(),
+	run: z
+		.object({
+			maxDurationMs: z.number().int().positive().optional(),
+			maxSteps: z.number().int().positive().optional(),
+		})
+		.optional(),
+	reset: z.enum(["daily", "weekly", "per-run"]).optional(),
+	onExceed: z.enum(["pause", "alert", "silent"]).optional(),
+	onExceedTarget: z.unknown().optional(),
+}) as z.ZodType<BudgetConfig>;
+
 export const WorkflowDefinitionSchema: z.ZodType<WorkflowDefinition> = z.object(
 	{
 		name: WorkflowNameSchema,
@@ -86,6 +111,8 @@ export const WorkflowDefinitionSchema: z.ZodType<WorkflowDefinition> = z.object(
 		handler: z.function(),
 		retries: RetryConfigSchema.optional(),
 		timeout: z.number().int().positive().optional(),
+		signers: z.record(z.string(), z.unknown()).optional(),
+		budget: BudgetConfigSchema.optional(),
 	},
 ) as unknown as z.ZodType<WorkflowDefinition>;
 
