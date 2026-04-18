@@ -3,9 +3,15 @@ import { LazyCommandPalette } from "@/components/command-palette/lazy";
 import { AuthProvider } from "@/lib/auth";
 import { PreferencesProvider } from "@/lib/preferences";
 import { QueryProvider } from "@/lib/queries/provider";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Caveat, Fira_Code, Public_Sans, Sora } from "next/font/google";
 import "./globals.css";
+
+export const viewport: Viewport = {
+	width: "device-width",
+	initialScale: 1,
+	viewportFit: "cover",
+};
 
 const sora = Sora({
 	subsets: ["latin"],

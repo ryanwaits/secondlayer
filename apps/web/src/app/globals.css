@@ -187,6 +187,13 @@ html.force-light {
 html {
 	scroll-behavior: smooth;
 	scroll-padding-top: 5.25rem;
+	-webkit-text-size-adjust: 100%;
+}
+
+@media (max-width: 768px) {
+	html {
+		scroll-padding-top: 3.25rem;
+	}
 }
 
 body {
@@ -663,6 +670,11 @@ a {
 	white-space: nowrap;
 }
 
+.beta-bracket-label-l1,
+.beta-bracket-label-l2 {
+	display: block;
+}
+
 /* ── Badge (hand-drawn pink circle) ──────────────────────────────── */
 .badge-new {
 	display: inline-flex;
@@ -821,6 +833,8 @@ a {
 }
 
 /* ── Responsive ──────────────────────────────────────────────────── */
+
+/* Stack sidebar + content once the floating sidebar can't breathe */
 @media (max-width: 1080px) {
 	.article-layout > .sidebar {
 		position: static;
@@ -830,23 +844,298 @@ a {
 
 	.article-layout {
 		flex-direction: column;
-		padding: 2rem 1.5rem 2.5rem;
+		padding: 72px 1.5rem 2.5rem;
+	}
+
+	.article-layout > .content-area {
+		max-width: 100%;
+		min-width: 0;
 	}
 }
 
+/* Touch devices: always-visible copy buttons (no hover) */
+@media (hover: none) {
+	.copy-button {
+		opacity: 0.55;
+	}
+	.copy-button:active {
+		opacity: 1;
+	}
+}
+
+/* ── Mobile (tablet + phones) ─────────────────────────────────────── */
 @media (max-width: 768px) {
-	.homepage {
-		padding: 2rem 1.5rem 2.5rem;
+	/* Slimmer scroll-fade — auth bar is thinner here */
+	.marketing::before {
+		height: 2.5rem;
 	}
 
+	/* Homepage — leave room for the compact auth bar at the top */
+	.homepage {
+		padding: 72px 20px 3rem;
+		max-width: 100%;
+	}
+
+	.page-title {
+		font-size: 0.9375rem;
+	}
+
+	/* Prose — preserve reading measure, no squish */
+	.prose {
+		margin-top: var(--spacing-sm);
+		font-size: 15px;
+		line-height: 22px;
+	}
+
+	.prose p {
+		margin-bottom: 0.875rem;
+	}
+
+	/* Prevent long inline <code> tokens from exploding layout */
+	.prose code {
+		word-break: break-word;
+	}
+
+	/* ── Homepage index list ────────────────────────────────────── */
 	.index-year-group {
 		flex-direction: column;
+		align-items: stretch;
+		padding-bottom: 8px;
 	}
 
 	.index-year {
 		width: auto;
+		padding: 14px 0 4px;
+		font-family: var(--font-heading-stack);
+		font-size: 11px;
+		font-weight: 560;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-muted);
 		border-bottom: 1px solid var(--border);
-		padding-bottom: 4px;
+		margin-bottom: 2px;
+	}
+
+	.index-item {
+		padding: 16px 0;
+	}
+
+	.index-link {
+		min-height: 28px;
+	}
+
+	.index-link::before {
+		inset: -14px 0;
+	}
+
+	/* Beta bracket — on mobile the cursive side-label folds under
+	   the list as a small italic note so it never sits off-screen */
+	.beta-bracket-label {
+		position: static;
+		transform: none;
+		display: block;
+		margin: 6px 0 0;
+		padding: 4px 0 2px;
+		font-size: 16px;
+		line-height: 1;
+		white-space: normal;
+		color: var(--accent);
+	}
+	.beta-bracket-label-l1,
+	.beta-bracket-label-l2 {
+		display: inline;
+	}
+	.beta-bracket-label-l1::after {
+		content: " ";
+	}
+	.beta-bracket-wrap {
+		position: relative;
+	}
+
+	/* Hide all rough-notation SVGs on mobile. They render into document.body
+	   with computed bounds that look broken at narrow widths, and the
+	   repositioned cursive labels carry the same meaning cleanly. */
+	svg.rough-annotation {
+		display: none !important;
+	}
+
+	/* ── Article layout ─────────────────────────────────────────── */
+	.article-layout {
+		padding: 64px 20px 3rem;
+	}
+
+	/* ToC becomes a clearly-labeled "Contents" card, flush with
+	   article width, separated by a full hairline. Feels editorial
+	   instead of like a stray list of links. */
+	.article-layout > .sidebar {
+		margin-bottom: var(--spacing-lg);
+		padding-bottom: var(--spacing-md);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.back-link {
+		font-size: 13px;
+		margin-bottom: 16px;
+	}
+
+	.nav-sidebar-title {
+		display: none;
+	}
+
+	/* Show a small "Contents" label above the TOC on mobile */
+	.article-layout > .sidebar .nav-list::before {
+		content: "Contents";
+		display: block;
+		font-family: var(--font-heading-stack);
+		font-size: 10px;
+		font-weight: 560;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+		margin-bottom: 10px;
+	}
+
+	.nav-list {
+		gap: 0;
+	}
+
+	.nav-list li {
+		border-top: 1px solid var(--border);
+	}
+	.nav-list li:last-child {
+		border-bottom: 1px solid var(--border);
+	}
+
+	.nav-list a {
+		display: block;
+		padding: 10px 0;
+		font-size: 14px;
+	}
+
+	.nav-list a.active {
+		color: var(--accent);
+	}
+	.nav-list a.active::before {
+		content: "→ ";
+		color: var(--accent);
+	}
+
+	/* ── Section headings ───────────────────────────────────────── */
+	.section-heading-wrap {
+		margin-top: var(--spacing-lg);
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.section-heading {
+		font-size: 0.8125rem;
+		padding-right: 10px;
+	}
+
+	/* ── Code blocks ────────────────────────────────────────────── */
+	.code-block,
+	.code-block-wrapper pre {
+		font-size: 0.75rem;
+		line-height: 1.6;
+		padding: 14px 16px;
+		border-radius: 6px;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.copy-button {
+		top: 6px;
+		right: 6px;
+		padding: 6px;
+	}
+
+	/* ── Agent prompt block ─────────────────────────────────────── */
+	.agent-prompt {
+		border-radius: 10px;
+	}
+	.agent-prompt-header {
+		padding: 16px 16px 0;
+	}
+	.agent-prompt-title {
+		font-size: 14px;
+		line-height: 1.35;
+	}
+	.agent-prompt-code.code-block-wrapper {
+		margin: 12px 16px 16px;
+	}
+	.agent-prompt-toggle {
+		font-size: 10px;
+		padding: 4px 12px;
+		bottom: 24px;
+	}
+
+	/* ── Props / API reference rows ─────────────────────────────── */
+	.prop-row {
+		flex-wrap: wrap;
+		gap: 4px 10px;
+		padding: 10px 0;
+	}
+	.prop-name {
+		font-size: 13px;
+	}
+	.prop-type {
+		font-size: 12px;
+		flex-basis: 100%;
+	}
+
+	/* ── Notation cursive labels ─────────────────────────────────
+	   Absolute labels positioned -140px off the side have no room.
+	   Reposition below the target, slightly smaller. */
+	.notation-label[data-position="right"],
+	.notation-label[data-position="left"] {
+		right: auto;
+		left: 0;
+		top: 100%;
+		margin-top: 6px;
+		transform: rotate(-1.5deg);
+		font-size: 16px;
+	}
+	.notation-label[data-position="top"],
+	.notation-label[data-position="bottom"] {
+		font-size: 16px;
+	}
+
+	/* Footer */
+	.footer {
+		padding: 32px 0 64px;
+	}
+}
+
+/* ── Small phones ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+	.homepage {
+		padding: 64px 18px 2.5rem;
+	}
+
+	.article-layout {
+		padding: 56px 18px 2.5rem;
+	}
+
+	.page-title {
+		font-size: 0.9375rem;
+	}
+
+	.prose {
+		font-size: 14.5px;
+		line-height: 21px;
+	}
+
+	.index-date {
+		font-size: 13px;
+	}
+
+	.code-block,
+	.code-block-wrapper pre {
+		padding: 12px 14px;
+		font-size: 0.7rem;
+		border-radius: 5px;
+	}
+
+	.section-heading {
+		font-size: 0.75rem;
 	}
 }
 
@@ -860,6 +1149,7 @@ a {
 	align-items: center;
 	gap: 12px;
 	z-index: 200;
+	max-width: calc(100vw - 48px);
 }
 
 .auth-bar-login {
@@ -982,6 +1272,47 @@ a {
 	font-size: 13px;
 	font-weight: 460;
 	color: var(--accent);
+}
+
+/* ── Auth bar — mobile overrides (must come after base rules) ────── */
+@media (max-width: 768px) {
+	.auth-bar {
+		right: 14px;
+		height: 44px;
+		gap: 8px;
+		max-width: calc(100vw - 24px);
+	}
+
+	/* Keyboard shortcut hint — useless on touch */
+	.auth-bar-nav-link {
+		display: none;
+	}
+
+	.auth-bar-cta {
+		font-size: 11.5px;
+		padding: 6px 12px;
+	}
+
+	.auth-bar-notify {
+		padding: 3px;
+	}
+
+	.auth-bar-notify.expanded {
+		padding: 3px 3px 3px 10px;
+	}
+	.auth-bar-notify.expanded .auth-bar-input {
+		width: min(180px, 42vw);
+	}
+
+	.auth-bar-done {
+		font-size: 12px;
+	}
+}
+
+@media (max-width: 360px) {
+	.auth-bar-notify.expanded .auth-bar-input {
+		width: min(140px, 38vw);
+	}
 }
 
 @media (prefers-color-scheme: dark) {

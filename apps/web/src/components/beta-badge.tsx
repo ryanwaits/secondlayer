@@ -45,9 +45,8 @@ export function BetaBracket({ children }: { children: React.ReactNode }) {
 				{children}
 			</div>
 			<span className="beta-bracket-label">
-				currently in
-				<br />
-				beta
+				<span className="beta-bracket-label-l1">currently in</span>
+				<span className="beta-bracket-label-l2">beta</span>
 			</span>
 		</div>
 	);
