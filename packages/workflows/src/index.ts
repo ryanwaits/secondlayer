@@ -15,6 +15,7 @@ export type {
 	McpStepOptions,
 	McpStepResult,
 	QueryOptions,
+	RawCatalogDefinition,
 	RenderStepOptions,
 	RenderStepResult,
 	RetryConfig,

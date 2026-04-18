@@ -12,6 +12,7 @@ import type {
 	InvokeOptions,
 	McpStepOptions,
 	QueryOptions,
+	RawCatalogDefinition,
 	RenderStepOptions,
 	RenderStepResult,
 	StepContext,
@@ -214,11 +215,11 @@ export function createStepContext(
 				},
 			),
 
-		render: <C extends Catalog>(
+		render: <T = unknown>(
 			id: string,
-			catalog: C,
+			catalog: Catalog | RawCatalogDefinition,
 			options: RenderStepOptions,
-		): Promise<RenderStepResult<C["_specType"]>> =>
+		): Promise<RenderStepResult<T>> =>
 			memoize(
 				id,
 				"render",
@@ -227,12 +228,15 @@ export function createStepContext(
 					system: options.system,
 					model: typeof options.model === "string" ? options.model : undefined,
 					context: options.context,
-					catalogComponents: catalog.componentNames,
+					catalogComponents:
+						"componentNames" in catalog
+							? catalog.componentNames
+							: Object.keys(catalog.components),
 				},
 				async () => {
 					const result = await executeRenderStep(catalog, options);
 					await updateAiTokens(id, result.usage.totalTokens);
-					return result as RenderStepResult<C["_specType"]>;
+					return result as RenderStepResult<T>;
 				},
 			),
 

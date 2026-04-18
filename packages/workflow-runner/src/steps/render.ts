@@ -1,4 +1,5 @@
-import type { Catalog } from "@json-render/core";
+import { type Catalog, defineCatalog } from "@json-render/core";
+import { schema as reactSchema } from "@json-render/react";
 import type { LanguageModel } from "ai";
 import { executeGenerateObject } from "./ai.ts";
 
@@ -19,6 +20,34 @@ export interface RenderStepResult {
 	usage: { inputTokens: number; outputTokens: number; totalTokens: number };
 }
 
+interface RawCatalogDefinition {
+	components: Record<string, { props: unknown }>;
+	actions?: Record<string, { params?: unknown }>;
+}
+
+function isBuiltCatalog(value: unknown): value is Catalog {
+	return (
+		value != null &&
+		typeof value === "object" &&
+		typeof (value as Catalog).zodSchema === "function" &&
+		typeof (value as Catalog).validate === "function"
+	);
+}
+
+/**
+ * Accept either a pre-built `Catalog` (constructed via `@json-render/core`'s
+ * `defineCatalog`) or a raw `{ components, actions? }` definition. Raw defs
+ * let the user bundle skip json-render entirely — the runner wraps at render
+ * time using its own install. See `packages/stacks/src/ui/schemas.ts`.
+ */
+function resolveCatalog(input: Catalog | RawCatalogDefinition): Catalog {
+	if (isBuiltCatalog(input)) return input;
+	return defineCatalog(reactSchema, {
+		components: input.components as never,
+		actions: (input.actions ?? {}) as never,
+	});
+}
+
 /**
  * Execute a `step.render` invocation: derive a Zod schema from the catalog,
  * call the AI with a catalog-aware system prompt, validate the returned
@@ -26,9 +55,10 @@ export interface RenderStepResult {
  * rendering.
  */
 export async function executeRenderStep(
-	catalog: Catalog,
+	input: Catalog | RawCatalogDefinition,
 	options: RenderStepOptions,
 ): Promise<RenderStepResult> {
+	const catalog = resolveCatalog(input);
 	const zodSchema = catalog.zodSchema();
 
 	const catalogPrompt = catalog.prompt();

@@ -101,6 +101,16 @@ export interface RenderStepResult<T = unknown> {
 	usage: LanguageModelUsage;
 }
 
+/**
+ * Raw catalog definition — plain-object shape that does NOT require an
+ * `@json-render/*` import in the workflow source. The runner wraps this
+ * into a real `Catalog` at render time. See `@secondlayer/stacks/ui/schemas`.
+ */
+export interface RawCatalogDefinition {
+	components: Record<string, { props: unknown }>;
+	actions?: Record<string, { params?: unknown }>;
+}
+
 // --- Delivery ---
 
 export interface WebhookTarget {
@@ -188,11 +198,11 @@ export interface StepContext {
 		id: string,
 		options: GenerateTextStepOptions,
 	): Promise<GenerateTextStepResult>;
-	render<C extends Catalog>(
+	render<T = unknown>(
 		id: string,
-		catalog: C,
+		catalog: Catalog | RawCatalogDefinition,
 		options: RenderStepOptions,
-	): Promise<RenderStepResult<C["_specType"]>>;
+	): Promise<RenderStepResult<T>>;
 	query(
 		id: string,
 		subgraph: string,
