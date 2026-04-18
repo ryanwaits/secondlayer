@@ -24,6 +24,7 @@ import {
 	serializeTransaction,
 } from "@stacks/transactions";
 import type { Kysely } from "kysely";
+import { awaitTxConfirmed } from "../confirmation/subgraph.ts";
 import type { SignerSecretStore } from "../secrets/store.ts";
 import { type TxBreakdown, requestSignature } from "../signers/remote.ts";
 
@@ -34,6 +35,10 @@ interface RuntimeContext {
 	workflowSigners: Record<string, RemoteSignerConfig>;
 	accountId: string;
 	secrets: SignerSecretStore;
+	/** Optional budget enforcer — records chain spend after each submit. */
+	enforcer?: {
+		recordBroadcast(args: { microStx: bigint }): Promise<void>;
+	};
 }
 
 /**
@@ -42,6 +47,13 @@ interface RuntimeContext {
  * may need more via `maxFee`.
  */
 const DEFAULT_FEE_MICROSTX = 10_000n;
+
+/**
+ * Default timeout for `awaitConfirmation: true`. 2 minutes covers a typical
+ * Stacks block + indexer lag. Workflows that need tighter bounds can set
+ * their workflow-level `timeout` to catch the outer case.
+ */
+const DEFAULT_CONFIRMATION_TIMEOUT_MS = 120_000;
 
 /**
  * Construct a `BroadcastRuntime` that the stacks SDK's `broadcast()` call
@@ -141,10 +153,26 @@ async function broadcastIntent(
 		txId,
 	});
 
-	return {
-		txId,
-		confirmed: false,
-	};
+	// Record the broadcast against the workflow's chain budget. Amount is the
+	// SDK-cap if set (pessimistic) else the transfer amount for transfers,
+	// else fee as a lower-bound proxy for contract calls.
+	const recordedAmount =
+		opts.maxMicroStx ?? (intent.kind === "transfer" ? intent.amount : fee);
+	await ctx.enforcer?.recordBroadcast({ microStx: recordedAmount });
+
+	// Optionally block until the indexer sees the tx confirmed on-chain.
+	// Subgraph pg_notify is the only confirmation path — no Hiro fallback.
+	// Workflows on a chain without active indexing will time out cleanly.
+	if (opts.awaitConfirmation) {
+		logger.info("broadcast: awaiting confirmation", {
+			txId,
+			timeoutMs: DEFAULT_CONFIRMATION_TIMEOUT_MS,
+		});
+		await awaitTxConfirmed(txId, DEFAULT_CONFIRMATION_TIMEOUT_MS);
+		return { txId, confirmed: true };
+	}
+
+	return { txId, confirmed: false };
 }
 
 interface BuildOptions {

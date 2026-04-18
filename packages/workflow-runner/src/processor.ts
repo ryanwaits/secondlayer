@@ -4,15 +4,18 @@ import { logger } from "@secondlayer/shared/logger";
 import { listen } from "@secondlayer/shared/queue/listener";
 import { broadcastContext } from "@secondlayer/stacks";
 import type {
+	BudgetConfig,
 	RemoteSignerConfig,
 	WorkflowDefinition,
 } from "@secondlayer/workflows";
+import { createEnforcer } from "./budget/enforcer.ts";
 import {
 	claimWorkflowJob,
 	completeWorkflowJob,
 	enqueueWorkflowRun,
 	failWorkflowJob,
 	getWorkerId,
+	isRetryableError,
 	recoverStaleWorkflowJobs,
 } from "./queue.ts";
 import { SignerSecretStore } from "./secrets/store.ts";
@@ -122,8 +125,20 @@ export async function startWorkflowProcessor(opts: {
 			.where("status", "in", ["pending", "running"]) // allow re-entry for sleep
 			.execute();
 
+		// Build budget enforcer if the workflow declares any caps. Passed into
+		// the step context so `memoize()` can gate before each step + record
+		// after; also threaded into the broadcast runtime for chain counters.
+		const budget = (def.budget as BudgetConfig | undefined) ?? {};
+		const enforcer = createEnforcer({
+			db,
+			workflowDefinitionId: defRow.id,
+			workflow: def.name,
+			runId: run.id,
+			budget,
+		});
+
 		// Create step context with memoization
-		const step = createStepContext(run.id, db);
+		const step = createStepContext(run.id, db, enforcer);
 		const triggerData = parseJsonb<Record<string, unknown>>(run.trigger_data);
 
 		const ctx = {
@@ -155,6 +170,7 @@ export async function startWorkflowProcessor(opts: {
 						workflowSigners,
 						accountId,
 						secrets: sharedSecretStore(db),
+						enforcer,
 					})
 				: undefined;
 
@@ -217,12 +233,15 @@ export async function startWorkflowProcessor(opts: {
 
 			const errorMsg = err instanceof Error ? err.message : String(err);
 			const durationMs = Date.now() - startTime;
+			const classification = isRetryableError(err);
 
 			logger.warn("Workflow run failed", {
 				runId: run.id,
 				workflow: defRow.name,
 				error: errorMsg,
 				durationMs,
+				retryable: classification.retryable,
+				reason: classification.reason,
 			});
 
 			const retriesConfig = parseJsonb<{
@@ -234,6 +253,7 @@ export async function startWorkflowProcessor(opts: {
 				errorMsg,
 				maxAttempts,
 				retriesConfig ?? undefined,
+				classification,
 			);
 
 			// Update run if permanently failed

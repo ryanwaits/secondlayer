@@ -18,6 +18,7 @@ import type {
 	StepContext,
 } from "@secondlayer/workflows";
 import type { Kysely } from "kysely";
+import type { BudgetEnforcer } from "../budget/enforcer.ts";
 // run.ts is called inline via memoize, not imported directly
 import {
 	executeAiStep,
@@ -43,6 +44,7 @@ import { wrapToolsWithMemo } from "./toolMemo.ts";
 export function createStepContext(
 	runId: string,
 	db: Kysely<Database>,
+	enforcer?: BudgetEnforcer,
 ): StepContext {
 	let stepIndex = 0;
 
@@ -52,6 +54,11 @@ export function createStepContext(
 		input: unknown,
 		execute: (parentStepId: string) => Promise<T>,
 	): Promise<T> {
+		// Budget gate: refuse the next step if any counter is exhausted.
+		// For `onExceed: "pause"` this throws BudgetExceededError; the
+		// processor catches it and flips `workflow_definitions.status`.
+		if (enforcer) await enforcer.assertBeforeStep();
+
 		const currentIndex = stepIndex++;
 
 		// v2: memoize by hash of (stepId, canonicalJSON(input)) so prompt /
@@ -118,6 +125,11 @@ export function createStepContext(
 				.where("id", "=", stepRow.id)
 				.execute();
 
+			// Count this step against the run's step budget. AI + broadcast
+			// resource counters are incremented by their respective handlers
+			// (updateAiTokens / broadcast runtime) — step_count is generic.
+			if (enforcer) await enforcer.recordStep();
+
 			return result;
 		} catch (err) {
 			const durationMs = Date.now() - startTime;
@@ -153,7 +165,11 @@ export function createStepContext(
 		}
 	}
 
-	async function updateAiTokens(stepId: string, tokens: number) {
+	async function updateAiTokens(
+		stepId: string,
+		tokens: number,
+		model?: string,
+	) {
 		await db
 			.updateTable("workflow_steps")
 			.set({ ai_tokens_used: tokens })
@@ -174,6 +190,23 @@ export function createStepContext(
 			.set({ total_ai_tokens: total })
 			.where("id", "=", runId)
 			.execute();
+
+		// Budget: count tokens + compute best-effort USD from the model string.
+		// We don't know provider here without parsing, so pass the model id as
+		// both provider and modelId — the pricing table lookup handles misses
+		// gracefully (returns 0).
+		if (enforcer) {
+			const provider = guessProvider(model);
+			await enforcer.recordAi({ tokens, provider, modelId: model });
+		}
+	}
+
+	function guessProvider(modelId: string | undefined): string | undefined {
+		if (!modelId) return undefined;
+		if (modelId.startsWith("claude-")) return "anthropic";
+		if (modelId.startsWith("gpt-")) return "openai";
+		if (modelId.startsWith("gemini-")) return "google";
+		return undefined;
 	}
 
 	return {
