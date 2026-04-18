@@ -223,10 +223,13 @@ export interface StepContext {
 
 // --- Workflow Context ---
 
-export interface WorkflowContext {
-	event: Record<string, unknown>;
+export interface WorkflowContext<
+	TEvent = Record<string, unknown>,
+	TInput = Record<string, unknown> | undefined,
+> {
+	event: TEvent;
 	step: StepContext;
-	input?: Record<string, unknown>;
+	input?: TInput;
 }
 
 // --- Workflow Definition ---
