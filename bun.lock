@@ -254,6 +254,10 @@
         "@noble/secp256k1": "2.3.0",
         "@scure/bip32": "2.0.1",
         "@scure/bip39": "2.0.1",
+        "@secondlayer/subgraphs": "^0.11.6",
+        "@secondlayer/workflows": "^1.0.1",
+        "ai": "6.0.167",
+        "zod": "^4.3.6",
       },
       "devDependencies": {
         "@json-render/core": "0.18.0",

@@ -75,4 +75,33 @@ export default defineWorkflow({
 		expect(result.name).toBe("render-schemas-test");
 		expect(result.handlerCode.length).toBeGreaterThan(0);
 	});
+
+	// Sprint 3: exercise the Stacks pillar — typed trigger narrows event, tools
+	// drop into step.generateText, tx.* intents exist ahead of broadcast.
+	it("bundles a workflow using /triggers, /tools, and /tx", async () => {
+		const source = `
+import { defineWorkflow } from "@secondlayer/workflows";
+import { on } from "@secondlayer/stacks/triggers";
+import { tx } from "@secondlayer/stacks/tx";
+
+export default defineWorkflow({
+	name: "stacks-pillar-test",
+	trigger: on.stxTransfer({ minAmount: 100_000_000_000n }),
+	handler: async ({ event, step }) => {
+		// event is typed as StxTransferEvent — sender/recipient/amount available.
+		const intent = tx.transfer({
+			recipient: event.recipient,
+			amount: event.amount,
+		});
+		await step.run("noop", async () => {
+			void intent;
+			return { ok: true };
+		});
+	},
+});
+`;
+		const result = await bundleWorkflowCode(source);
+		expect(result.name).toBe("stacks-pillar-test");
+		expect(result.trigger.type).toBe("event");
+	});
 });
