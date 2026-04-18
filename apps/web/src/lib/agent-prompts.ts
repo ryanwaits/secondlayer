@@ -4,7 +4,8 @@
  * Structure: product explainer -> idempotent setup -> /secondlayer skill invocation
  */
 
-const SUBGRAPHS_INTRO = "Subgraphs are declarative SQL tables that auto-index blockchain activity into queryable Postgres tables. Define a schema, write event handlers in TypeScript, deploy, and query — like a materialized view over the chain.";
+const SUBGRAPHS_INTRO =
+	"Subgraphs are declarative SQL tables that auto-index blockchain activity into queryable Postgres tables. Define a schema, write event handlers in TypeScript, deploy, and query — like a materialized view over the chain.";
 
 const SETUP = `Ensure setup (skip any step already done, use the project's package manager):
 - Skill: run the \`skills\` npm package to install — e.g. \`npx|bunx|pnpm dlx skills add ryanwaits/secondlayer --skill secondlayer -y\`
@@ -55,7 +56,8 @@ Scaffold the subgraph, let me review it, then deploy.`;
 
 // ── Workflows ───────────────────────────────────────────────────
 
-const WORKFLOWS_INTRO = "Workflows automate intelligence on your onchain data. Define multi-step tasks that trigger on blockchain events, run on a schedule, or fire on demand. Each step runs independently with automatic retries. Available step methods: step.ai() for LLM analysis, step.query() to read subgraph data, step.mcp() to call MCP server tools, step.deliver() to send to webhooks/Slack/Discord/Telegram/email, step.invoke() to chain workflows, and step.sleep() for delays.";
+const WORKFLOWS_INTRO =
+	"Workflows automate intelligence on your onchain data. Define multi-step tasks that trigger on blockchain events, run on a schedule, or fire on demand. Each step runs independently with automatic retries and memoization. Available step methods: step.generateObject() and step.generateText() for AI SDK v6 structured output + tool-calling, step.render() to produce catalog-validated UI, step.query() to read subgraph data, step.deliver() to send to webhooks/Slack/Discord/Telegram/email, step.invoke() to chain workflows, step.sleep() for delays, and step.run() for anything else.";
 
 export const WORKFLOWS_EMPTY_PROMPT = `${WORKFLOWS_INTRO}
 
