@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+import type { StacksAtom } from "../atom-types.ts";
 import { AmountProps, type AmountPropsType } from "./amount.schema.ts";
 
 export { AmountProps, type AmountPropsType };
@@ -19,7 +21,7 @@ function formatAmount(microUnits: string, decimals: number): string {
 	}
 }
 
-export function Amount(props: AmountPropsType) {
+export function Amount(props: AmountPropsType): ReactElement {
 	const decimals = props.decimals ?? 6;
 	const symbol = props.symbol ?? "STX";
 	const formatted = formatAmount(props.microUnits, decimals);
@@ -40,7 +42,7 @@ export function Amount(props: AmountPropsType) {
 	);
 }
 
-export const AmountComponent = {
+export const AmountComponent: StacksAtom = {
 	props: AmountProps,
 	render: Amount,
-} as const;
+};

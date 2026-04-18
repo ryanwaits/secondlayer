@@ -156,46 +156,65 @@ function make<TEvent>(
 
 // --- `on.*` helpers, 13 total ---
 
-export const on = {
-	stxTransfer: (f: Omit<StxTransferFilter, "type"> = {}) =>
+export interface TriggerHelpers {
+	stxTransfer: (
+		f?: Omit<StxTransferFilter, "type">,
+	) => TypedEventTrigger<StxTransferEvent>;
+	stxMint: (f?: Omit<StxMintFilter, "type">) => TypedEventTrigger<StxMintEvent>;
+	stxBurn: (f?: Omit<StxBurnFilter, "type">) => TypedEventTrigger<StxBurnEvent>;
+	stxLock: (f?: Omit<StxLockFilter, "type">) => TypedEventTrigger<StxLockEvent>;
+	ftTransfer: (
+		f?: Omit<FtTransferFilter, "type">,
+	) => TypedEventTrigger<FtTransferEvent>;
+	ftMint: (f?: Omit<FtMintFilter, "type">) => TypedEventTrigger<FtMintEvent>;
+	ftBurn: (f?: Omit<FtBurnFilter, "type">) => TypedEventTrigger<FtBurnEvent>;
+	nftTransfer: (
+		f?: Omit<NftTransferFilter, "type">,
+	) => TypedEventTrigger<NftTransferEvent>;
+	nftMint: (f?: Omit<NftMintFilter, "type">) => TypedEventTrigger<NftMintEvent>;
+	nftBurn: (f?: Omit<NftBurnFilter, "type">) => TypedEventTrigger<NftBurnEvent>;
+	contractCall: (
+		f?: Omit<ContractCallFilter, "type">,
+	) => TypedEventTrigger<ContractCallEvent>;
+	contractDeploy: (
+		f?: Omit<ContractDeployFilter, "type">,
+	) => TypedEventTrigger<ContractDeployEvent>;
+	printEvent: (
+		f?: Omit<PrintEventFilter, "type">,
+	) => TypedEventTrigger<PrintEventEvent>;
+}
+
+export const on: TriggerHelpers = {
+	stxTransfer: (f = {}) =>
 		make<StxTransferEvent>({ type: "stx_transfer", ...f }),
 
-	stxMint: (f: Omit<StxMintFilter, "type"> = {}) =>
-		make<StxMintEvent>({ type: "stx_mint", ...f }),
+	stxMint: (f = {}) => make<StxMintEvent>({ type: "stx_mint", ...f }),
 
-	stxBurn: (f: Omit<StxBurnFilter, "type"> = {}) =>
-		make<StxBurnEvent>({ type: "stx_burn", ...f }),
+	stxBurn: (f = {}) => make<StxBurnEvent>({ type: "stx_burn", ...f }),
 
-	stxLock: (f: Omit<StxLockFilter, "type"> = {}) =>
-		make<StxLockEvent>({ type: "stx_lock", ...f }),
+	stxLock: (f = {}) => make<StxLockEvent>({ type: "stx_lock", ...f }),
 
-	ftTransfer: (f: Omit<FtTransferFilter, "type"> = {}) =>
-		make<FtTransferEvent>({ type: "ft_transfer", ...f }),
+	ftTransfer: (f = {}) => make<FtTransferEvent>({ type: "ft_transfer", ...f }),
 
-	ftMint: (f: Omit<FtMintFilter, "type"> = {}) =>
-		make<FtMintEvent>({ type: "ft_mint", ...f }),
+	ftMint: (f = {}) => make<FtMintEvent>({ type: "ft_mint", ...f }),
 
-	ftBurn: (f: Omit<FtBurnFilter, "type"> = {}) =>
-		make<FtBurnEvent>({ type: "ft_burn", ...f }),
+	ftBurn: (f = {}) => make<FtBurnEvent>({ type: "ft_burn", ...f }),
 
-	nftTransfer: (f: Omit<NftTransferFilter, "type"> = {}) =>
+	nftTransfer: (f = {}) =>
 		make<NftTransferEvent>({ type: "nft_transfer", ...f }),
 
-	nftMint: (f: Omit<NftMintFilter, "type"> = {}) =>
-		make<NftMintEvent>({ type: "nft_mint", ...f }),
+	nftMint: (f = {}) => make<NftMintEvent>({ type: "nft_mint", ...f }),
 
-	nftBurn: (f: Omit<NftBurnFilter, "type"> = {}) =>
-		make<NftBurnEvent>({ type: "nft_burn", ...f }),
+	nftBurn: (f = {}) => make<NftBurnEvent>({ type: "nft_burn", ...f }),
 
-	contractCall: (f: Omit<ContractCallFilter, "type"> = {}) =>
+	contractCall: (f = {}) =>
 		make<ContractCallEvent>({ type: "contract_call", ...f }),
 
-	contractDeploy: (f: Omit<ContractDeployFilter, "type"> = {}) =>
+	contractDeploy: (f = {}) =>
 		make<ContractDeployEvent>({ type: "contract_deploy", ...f }),
 
-	printEvent: (f: Omit<PrintEventFilter, "type"> = {}) =>
-		make<PrintEventEvent>({ type: "print_event", ...f }),
-} as const;
+	printEvent: (f = {}) => make<PrintEventEvent>({ type: "print_event", ...f }),
+};
 
 /** Extract the event payload type from a trigger. */
 export type EventOf<T> = T extends TypedEventTrigger<infer E> ? E : never;

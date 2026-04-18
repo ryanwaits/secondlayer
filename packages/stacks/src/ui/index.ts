@@ -28,6 +28,7 @@
 export { defineCatalog } from "@json-render/core";
 export { schema } from "@json-render/react";
 
+import type { StacksAtom } from "./atom-types.ts";
 import { AddressComponent } from "./atoms/address.tsx";
 import { AmountComponent } from "./atoms/amount.tsx";
 import { BlockHeightComponent } from "./atoms/blockHeight.tsx";
@@ -37,7 +38,9 @@ import { PrincipalComponent } from "./atoms/principal.tsx";
 import { TokenComponent } from "./atoms/token.tsx";
 import { TxStatusComponent } from "./atoms/txStatus.tsx";
 
-export const atoms = {
+export type { StacksAtom } from "./atom-types.ts";
+
+export const atoms: Record<string, StacksAtom> = {
 	Address: AddressComponent,
 	Amount: AmountComponent,
 	BlockHeight: BlockHeightComponent,
@@ -46,7 +49,7 @@ export const atoms = {
 	Principal: PrincipalComponent,
 	Token: TokenComponent,
 	TxStatus: TxStatusComponent,
-} as const;
+};
 
 // Named exports for direct import (e.g. `import { Address } from "@secondlayer/stacks/ui"`)
 export { Address, AddressProps } from "./atoms/address.tsx";

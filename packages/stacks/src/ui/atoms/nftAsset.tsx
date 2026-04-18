@@ -1,8 +1,10 @@
+import type { ReactElement } from "react";
+import type { StacksAtom } from "../atom-types.ts";
 import { NftAssetProps, type NftAssetPropsType } from "./nftAsset.schema.ts";
 
 export { NftAssetProps, type NftAssetPropsType };
 
-export function NftAsset(props: NftAssetPropsType) {
+export function NftAsset(props: NftAssetPropsType): ReactElement {
 	const [, assetName] = props.assetIdentifier.split("::", 2);
 	const displayName = props.name ?? `${assetName ?? "NFT"} #${props.tokenId}`;
 	return (
@@ -20,7 +22,7 @@ export function NftAsset(props: NftAssetPropsType) {
 	);
 }
 
-export const NftAssetComponent = {
+export const NftAssetComponent: StacksAtom = {
 	props: NftAssetProps,
 	render: NftAsset,
-} as const;
+};

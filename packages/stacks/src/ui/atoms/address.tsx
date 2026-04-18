@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+import type { StacksAtom } from "../atom-types.ts";
 import { AddressProps, type AddressPropsType } from "./address.schema.ts";
 
 export { AddressProps, type AddressPropsType };
@@ -7,7 +9,7 @@ function truncatePrincipal(value: string): string {
 	return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
-export function Address(props: AddressPropsType) {
+export function Address(props: AddressPropsType): ReactElement {
 	const display =
 		props.bns ??
 		(props.truncate ? truncatePrincipal(props.value) : props.value);
@@ -18,7 +20,7 @@ export function Address(props: AddressPropsType) {
 	);
 }
 
-export const AddressComponent = {
+export const AddressComponent: StacksAtom = {
 	props: AddressProps,
 	render: Address,
-} as const;
+};

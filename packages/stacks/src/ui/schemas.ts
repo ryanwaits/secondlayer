@@ -52,6 +52,7 @@ export {
 	type TxStatusPropsType,
 } from "./atoms/txStatus.schema.ts";
 
+import type { z } from "zod";
 import { AddressProps } from "./atoms/address.schema.ts";
 import { AmountProps } from "./atoms/amount.schema.ts";
 import { BlockHeightProps } from "./atoms/blockHeight.schema.ts";
@@ -64,7 +65,7 @@ import { TxStatusProps } from "./atoms/txStatus.schema.ts";
 /**
  * Atom-schema registry — ready to drop into a catalog's `components` field.
  */
-export const atomSchemas = {
+export const atomSchemas: Record<string, { props: z.ZodTypeAny }> = {
 	Address: { props: AddressProps },
 	Amount: { props: AmountProps },
 	BlockHeight: { props: BlockHeightProps },
@@ -73,7 +74,7 @@ export const atomSchemas = {
 	Principal: { props: PrincipalProps },
 	Token: { props: TokenProps },
 	TxStatus: { props: TxStatusProps },
-} as const;
+};
 
 // --- Raw catalog definition shape (wrapped into a Catalog at render time) ---
 

@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+import type { StacksAtom } from "../atom-types.ts";
 import { Address } from "./address.tsx";
 import { PrincipalProps, type PrincipalPropsType } from "./principal.schema.ts";
 
@@ -7,7 +9,7 @@ function inferKind(value: string): "standard" | "contract" {
 	return value.includes(".") ? "contract" : "standard";
 }
 
-export function Principal(props: PrincipalPropsType) {
+export function Principal(props: PrincipalPropsType): ReactElement {
 	const kind = props.kind ?? inferKind(props.value);
 	if (kind === "contract") {
 		const parts = props.value.split(".", 2);
@@ -24,7 +26,7 @@ export function Principal(props: PrincipalPropsType) {
 	return <Address value={props.value} bns={props.bns} truncate />;
 }
 
-export const PrincipalComponent = {
+export const PrincipalComponent: StacksAtom = {
 	props: PrincipalProps,
 	render: Principal,
-} as const;
+};

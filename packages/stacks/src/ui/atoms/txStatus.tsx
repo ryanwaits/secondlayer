@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+import type { StacksAtom } from "../atom-types.ts";
 import { TxStatusProps, type TxStatusPropsType } from "./txStatus.schema.ts";
 
 export { TxStatusProps, type TxStatusPropsType };
@@ -21,7 +23,7 @@ const LABEL: Record<TxStatusPropsType["status"], string> = {
 	abort_by_response: "aborted",
 };
 
-export function TxStatus(props: TxStatusPropsType) {
+export function TxStatus(props: TxStatusPropsType): ReactElement {
 	return (
 		<span
 			className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TONE[props.status]}`}
@@ -32,7 +34,7 @@ export function TxStatus(props: TxStatusPropsType) {
 	);
 }
 
-export const TxStatusComponent = {
+export const TxStatusComponent: StacksAtom = {
 	props: TxStatusProps,
 	render: TxStatus,
-} as const;
+};

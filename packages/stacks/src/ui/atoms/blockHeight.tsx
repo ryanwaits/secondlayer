@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+import type { StacksAtom } from "../atom-types.ts";
 import {
 	BlockHeightProps,
 	type BlockHeightPropsType,
@@ -19,7 +21,7 @@ function relative(timestamp: string | null | undefined): string | null {
 	return `${Math.floor(h / 24)}d ago`;
 }
 
-export function BlockHeight(props: BlockHeightPropsType) {
+export function BlockHeight(props: BlockHeightPropsType): ReactElement {
 	const rel = relative(props.timestamp);
 	return (
 		<span className="font-mono text-sm">
@@ -29,7 +31,7 @@ export function BlockHeight(props: BlockHeightPropsType) {
 	);
 }
 
-export const BlockHeightComponent = {
+export const BlockHeightComponent: StacksAtom = {
 	props: BlockHeightProps,
 	render: BlockHeight,
-} as const;
+};
