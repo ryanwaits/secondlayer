@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/stacks",
-	"version": "0.2.2",
+	"version": "0.3.0",
 	"description": "A viem-style SDK for the Stacks blockchain",
 	"type": "module",
 	"main": "./dist/src/index.cjs",
@@ -108,7 +108,9 @@
 			"require": "./dist/src/tx/index.cjs"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"test": "bun test",
@@ -132,9 +134,15 @@
 		"typescript": "^5"
 	},
 	"peerDependenciesMeta": {
-		"@json-render/core": { "optional": true },
-		"@json-render/react": { "optional": true },
-		"react": { "optional": true }
+		"@json-render/core": {
+			"optional": true
+		},
+		"@json-render/react": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		}
 	},
 	"dependencies": {
 		"@noble/hashes": "2.0.1",
@@ -143,8 +151,8 @@
 		"@noble/ciphers": "2.1.1",
 		"@noble/curves": "2.0.1",
 		"@scure/bip39": "2.0.1",
-		"@secondlayer/subgraphs": "^0.11.6",
-		"@secondlayer/workflows": "^1.0.1",
+		"@secondlayer/subgraphs": "^0.11.7",
+		"@secondlayer/workflows": "^1.1.0",
 		"ai": "6.0.167",
 		"zod": "^4.3.6"
 	}

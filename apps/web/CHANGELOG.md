@@ -1,5 +1,54 @@
 # @secondlayer/web
 
+## 0.1.2
+
+### Patch Changes
+
+- [`4f1c7ea`](https://github.com/ryanwaits/secondlayer/commit/4f1c7eaa9242295972404174b24049c54d6b7a50) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Align `ai`/`@ai-sdk/anthropic` versions with workflows v2 (`ai@6.0.167`, `@ai-sdk/anthropic@3.0.71`). Root `overrides` entry in the monorepo `package.json` forces a single version across workspaces to avoid duplicated `@ai-sdk/provider-utils` copies.
+
+- [`7e1cf3d`](https://github.com/ryanwaits/secondlayer/commit/7e1cf3d4048b310c036ae30dac0d76f06d712375) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Workflows v2 — Sprint 2: json-render integration + Stacks UI atoms.
+
+  **New step primitive:**
+
+  - `step.render(id, catalog, { model, prompt, system?, context? })` — AI generates a json-render catalog-validated spec. Runner derives a Zod schema from `catalog.zodSchema()`, passes it to AI SDK `generateObject`, validates the result with `catalog.validate()`, and returns `{ spec, usage }`.
+
+  **Stacks UI pillar (`@secondlayer/stacks/ui`):**
+
+  - 8 atom components: `Address`, `Amount`, `TxStatus`, `Principal`, `BnsName`, `NftAsset`, `BlockHeight`, `Token`
+  - Each atom exports `{ props: ZodType, render: React.FC }` for use in both json-render catalogs and direct React rendering
+  - `defineCatalog` + `schema` re-exported from `@json-render/*` so authors only import from one place
+  - `atoms` registry + `atomComponentMap` helper for `createRenderer()` dashboard wiring
+
+  **Dashboard:**
+
+  - Workflow run detail (`apps/web/src/app/platform/workflows/[name]/runs/[runId]/page.tsx`) now dispatches on `stepType === "render"` — uses `<WorkflowRenderOutput>` client component (json-render `createRenderer` with Stacks atoms) instead of raw JSON `<pre>`. Unknown component types fall through to the raw output.
+  - New step type colors: `render`, `generateObject`, `generateText`, `tool`.
+
+  **Package plumbing:**
+
+  - `@secondlayer/stacks` adopts JSX (`tsconfig.json: "jsx": "react-jsx"`) and exposes a new `./ui` bunup entry + package subpath export
+  - `@json-render/core` + `@json-render/react` added as optional peer dependencies of both `@secondlayer/stacks` and `@secondlayer/workflows`
+
+  **Known limitation (deferred to a later sprint):** bundling a user workflow that imports `@secondlayer/stacks/ui` directly can produce duplicate Zod copies whose second pass references a bare `util` identifier esbuild doesn't re-scope, causing `Module evaluation failed: util is not defined` at deploy-time. Workaround: keep catalog definitions outside the bundled handler (inline Zod schemas only) until the bundler is taught to dedupe the nested copies or json-render publishes an unbundled entry.
+
+- [`696124e`](https://github.com/ryanwaits/secondlayer/commit/696124e115dc64d88eede394bbf422eb9a514849) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Workflows v2 — Sprint 6 polish + release readiness.
+
+  **Fee estimation (runner):** `broadcast()` now drives the default fee off the Stacks node's `/v2/fees/transaction` estimate when `maxFee` isn't supplied. Uses the "medium" tier; falls back to the 10k µSTX default if the estimate endpoint fails. Workflow authors who pass `maxFee` retain the hard ceiling; authors who omit it get realistic fees automatically.
+
+  **Docs:** `/workflows` marketing page gets small Broadcast + Budgets sections with end-to-end examples. `awaitConfirmation: true` documented inline in the broadcast example. Replaces the earlier "Coming soon" placeholder. Kept terse and code-heavy — no sprawl.
+
+  **Deferred to a v2.1 polish:**
+
+  - Dashboard burn-down UI for budgets — counters are tracked + enforced today; dashboard visibility is cosmetic (CLI and API can surface the same data)
+  - In-dashboard secret rotation UI — CLI (`sl secrets rotate`) remains the primary path
+
+  This sprint is the final v2 commit before publishing. Migrations `0033` – `0036` all outstanding; `SECONDLAYER_SECRETS_KEY` required in Hetzner env (already set per 2026-04-17).
+
+- Updated dependencies [[`4f1c7ea`](https://github.com/ryanwaits/secondlayer/commit/4f1c7eaa9242295972404174b24049c54d6b7a50), [`e88b5ce`](https://github.com/ryanwaits/secondlayer/commit/e88b5cedd6385ce26884b4f7f0d68ed917686955), [`7e1cf3d`](https://github.com/ryanwaits/secondlayer/commit/7e1cf3d4048b310c036ae30dac0d76f06d712375), [`48aea1e`](https://github.com/ryanwaits/secondlayer/commit/48aea1eebe01b09e89d4f600b8e22c5709a32ef1), [`7922498`](https://github.com/ryanwaits/secondlayer/commit/79224983a68e5eb44a2213a39f806eba227d37e3), [`9d5f68b`](https://github.com/ryanwaits/secondlayer/commit/9d5f68b46f334e4984bd1bea21d9de6de335cf01), [`696124e`](https://github.com/ryanwaits/secondlayer/commit/696124e115dc64d88eede394bbf422eb9a514849)]:
+  - @secondlayer/workflows@1.1.0
+  - @secondlayer/stacks@0.3.0
+  - @secondlayer/scaffold@1.0.0
+
 ## 0.1.1
 
 ### Patch Changes

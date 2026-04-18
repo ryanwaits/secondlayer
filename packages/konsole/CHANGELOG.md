@@ -1,5 +1,12 @@
 # konsole
 
+## 0.0.18
+
+### Patch Changes
+
+- Updated dependencies [[`4f1c7ea`](https://github.com/ryanwaits/secondlayer/commit/4f1c7eaa9242295972404174b24049c54d6b7a50), [`7922498`](https://github.com/ryanwaits/secondlayer/commit/79224983a68e5eb44a2213a39f806eba227d37e3), [`9d5f68b`](https://github.com/ryanwaits/secondlayer/commit/9d5f68b46f334e4984bd1bea21d9de6de335cf01)]:
+  - @secondlayer/shared@1.1.0
+
 ## 0.0.17
 
 ### Patch Changes
