@@ -395,6 +395,23 @@ export interface Database {
 	workflow_schedules: WorkflowSchedulesTable;
 	workflow_cursors: WorkflowCursorsTable;
 	workflow_signer_secrets: WorkflowSignerSecretsTable;
+	workflow_budgets: WorkflowBudgetsTable;
+}
+
+export interface WorkflowBudgetsTable {
+	id: Generated<string>;
+	workflow_definition_id: string;
+	/** Period key: "daily:YYYY-MM-DD" | "weekly:YYYY-Www" | "per-run:<uuid>". */
+	period: string;
+	ai_usd_used: Generated<string>;
+	ai_tokens_used: Generated<string>;
+	chain_microstx_used: Generated<string>;
+	chain_tx_count: Generated<number>;
+	run_count: Generated<number>;
+	step_count: Generated<number>;
+	reset_at: Date;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
 }
 
 export interface WorkflowSignerSecretsTable {
@@ -485,6 +502,10 @@ export type WorkflowCursor = Selectable<WorkflowCursorsTable>;
 export type WorkflowSignerSecret = Selectable<WorkflowSignerSecretsTable>;
 export type InsertWorkflowSignerSecret = Insertable<WorkflowSignerSecretsTable>;
 export type UpdateWorkflowSignerSecret = Updateable<WorkflowSignerSecretsTable>;
+
+export type WorkflowBudget = Selectable<WorkflowBudgetsTable>;
+export type InsertWorkflowBudget = Insertable<WorkflowBudgetsTable>;
+export type UpdateWorkflowBudget = Updateable<WorkflowBudgetsTable>;
 
 export type Project = Selectable<ProjectsTable>;
 export type InsertProject = Insertable<ProjectsTable>;
