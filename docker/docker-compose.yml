@@ -45,6 +45,7 @@ services:
       DATA_DIR: /data
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-Second Layer <noreply@secondlayer.tools>}
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
     ports:
       - "${API_PORT:-3800}:3800"
     depends_on:
@@ -117,6 +118,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
+      STACKS_RPC_URL: ${STACKS_RPC_URL:-}
+      STACKS_CHAIN: ${STACKS_CHAIN:-mainnet}
     depends_on:
       migrate:
         condition: service_completed_successfully
