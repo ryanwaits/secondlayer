@@ -20,11 +20,13 @@ function formatAmount(microUnits: string, decimals: number): string {
 }
 
 export function Amount(props: AmountPropsType) {
-	const formatted = formatAmount(props.microUnits, props.decimals);
+	const decimals = props.decimals ?? 6;
+	const symbol = props.symbol ?? "STX";
+	const formatted = formatAmount(props.microUnits, decimals);
 	return (
 		<span className="font-mono tabular-nums">
 			<span className="font-medium">{formatted}</span>
-			<span className="ml-1 text-muted-foreground">{props.symbol}</span>
+			<span className="ml-1 text-muted-foreground">{symbol}</span>
 			{props.usdValue != null && (
 				<span className="ml-2 text-sm text-muted-foreground">
 					($

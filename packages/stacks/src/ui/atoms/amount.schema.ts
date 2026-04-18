@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-export const AmountProps = z.object({
+export interface AmountPropsType {
+	microUnits: string;
+	decimals?: number;
+	symbol?: string;
+	usdValue?: number | null | undefined;
+}
+
+export const AmountProps: z.ZodTypeAny = z.object({
 	microUnits: z
 		.string()
 		.describe("Amount in micro-units (as string to preserve bigint precision)"),
@@ -16,5 +23,3 @@ export const AmountProps = z.object({
 	symbol: z.string().default("STX"),
 	usdValue: z.number().nullable().optional(),
 });
-
-export type AmountPropsType = z.infer<typeof AmountProps>;

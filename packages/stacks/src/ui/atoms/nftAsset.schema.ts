@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-export const NftAssetProps = z.object({
+export interface NftAssetPropsType {
+	assetIdentifier: string;
+	tokenId: string;
+	name?: string | null | undefined;
+	imageUrl?: string | null | undefined;
+}
+
+export const NftAssetProps: z.ZodTypeAny = z.object({
 	assetIdentifier: z
 		.string()
 		.describe("Full asset identifier (e.g. SP123.contract::asset-name)"),
@@ -10,5 +17,3 @@ export const NftAssetProps = z.object({
 	name: z.string().nullable().optional(),
 	imageUrl: z.string().url().nullable().optional(),
 });
-
-export type NftAssetPropsType = z.infer<typeof NftAssetProps>;

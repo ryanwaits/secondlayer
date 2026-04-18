@@ -1,6 +1,16 @@
 import { z } from "zod";
 
-export const TxStatusProps = z.object({
+export interface TxStatusPropsType {
+	status:
+		| "pending"
+		| "success"
+		| "failed"
+		| "abort_by_post_condition"
+		| "abort_by_response";
+	txId?: string | null | undefined;
+}
+
+export const TxStatusProps: z.ZodTypeAny = z.object({
 	status: z.enum([
 		"pending",
 		"success",
@@ -10,5 +20,3 @@ export const TxStatusProps = z.object({
 	]),
 	txId: z.string().nullable().optional(),
 });
-
-export type TxStatusPropsType = z.infer<typeof TxStatusProps>;
