@@ -2,7 +2,7 @@ import { CollapsibleSection } from "@/components/console/collapsible-section";
 import { OnboardingCard } from "@/components/console/onboarding-card";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import type { SubgraphSummary, WorkflowSummary } from "@/lib/types";
+import type { SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 
 function InfoTip({ text }: { text: string }) {
@@ -56,38 +56,26 @@ export default async function DashboardPage() {
 	const session = await getSessionFromCookies();
 
 	let subgraphs: SubgraphSummary[] = [];
-	let workflows: WorkflowSummary[] = [];
 	let sessions: RecentSession[] = [];
 
 	if (session) {
-		const [subgraphsResult, workflowsResult, sessionsResult] =
-			await Promise.allSettled([
-				apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
-					sessionToken: session,
-					tags: ["subgraphs"],
-				}),
-				apiRequest<{ workflows: WorkflowSummary[] }>("/api/workflows", {
-					sessionToken: session,
-					tags: ["workflows"],
-				}),
-				apiRequest<{ sessions: RecentSession[] }>(
-					"/api/chat-sessions?limit=10",
-					{ sessionToken: session, tags: ["sessions"] },
-				),
-			]);
+		const [subgraphsResult, sessionsResult] = await Promise.allSettled([
+			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
+				sessionToken: session,
+				tags: ["subgraphs"],
+			}),
+			apiRequest<{ sessions: RecentSession[] }>("/api/chat-sessions?limit=10", {
+				sessionToken: session,
+				tags: ["sessions"],
+			}),
+		]);
 		subgraphs =
 			subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
-		workflows =
-			workflowsResult.status === "fulfilled"
-				? workflowsResult.value.workflows
-				: [];
 		sessions =
 			sessionsResult.status === "fulfilled"
 				? sessionsResult.value.sessions
 				: [];
 	}
-
-	const totalWorkflowRuns = workflows.reduce((s, w) => s + w.totalRuns, 0);
 
 	const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 	const sessionsThisWeek = sessions.filter(
@@ -250,68 +238,6 @@ export default async function DashboardPage() {
 								No sessions yet.{" "}
 								<Link href="/sessions" className="ov-section-link">
 									Start a session &rarr;
-								</Link>
-							</div>
-						)}
-					</CollapsibleSection>
-
-					{/* Workflows */}
-					<CollapsibleSection title="Workflows" count={workflows.length}>
-						{workflows.length > 0 ? (
-							<>
-								<div className="ov-cards">
-									<Link href="/workflows" className="ov-card">
-										<div className="ov-card-label">
-											Total Workflows{" "}
-											<InfoTip text="Number of deployed workflows" />
-										</div>
-										<div className="ov-card-value">{workflows.length}</div>
-										<div className="ov-card-sub">
-											{workflows.filter((w) => w.status === "active").length}{" "}
-											active
-										</div>
-									</Link>
-									<Link href="/workflows" className="ov-card">
-										<div className="ov-card-label">
-											Total Runs{" "}
-											<InfoTip text="Total workflow executions across all workflows" />
-										</div>
-										<div className="ov-card-value">
-											{totalWorkflowRuns.toLocaleString()}
-										</div>
-										<div className="ov-card-sub">across all workflows</div>
-									</Link>
-								</div>
-								<div className="ov-list">
-									{workflows.slice(0, 5).map((wf) => (
-										<Link
-											key={wf.name}
-											href={`/workflows/${wf.name}`}
-											className="ov-list-item"
-										>
-											<span className="ov-list-name">{wf.name}</span>
-											<span
-												className={`ov-list-status ${statusClass(wf.status)}`}
-											>
-												{wf.status}
-											</span>
-											<span className="ov-list-meta">
-												{wf.totalRuns.toLocaleString()} runs
-											</span>
-										</Link>
-									))}
-								</div>
-								<div className="ov-section-footer">
-									<Link href="/workflows" className="ov-section-link">
-										View all workflows &rarr;
-									</Link>
-								</div>
-							</>
-						) : (
-							<div className="ov-empty">
-								No workflows deployed yet.{" "}
-								<Link href="/workflows" className="ov-section-link">
-									Get started &rarr;
 								</Link>
 							</div>
 						)}

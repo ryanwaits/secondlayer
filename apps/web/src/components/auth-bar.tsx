@@ -13,7 +13,6 @@ const PLATFORM_PATHS = [
 	"/billing",
 	"/settings",
 	"/sessions",
-	"/workflows",
 	"/marketplace",
 ];
 
@@ -92,7 +91,11 @@ export function AuthBar() {
 	if (account) {
 		return (
 			<div className="auth-bar">
-				<button type="button" className="auth-bar-login" onClick={() => logout()}>
+				<button
+					type="button"
+					className="auth-bar-login"
+					onClick={() => logout()}
+				>
 					Logout
 				</button>
 				<Link href="/" className="auth-bar-cta">
