@@ -34,16 +34,6 @@ services:
         limits:
           memory: 2G
 
-  workflow-runner:
-    environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-    volumes:
-      - ${DATA_DIR:-/opt/secondlayer/data}/workflows:/data/workflows
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
   subgraph-processor:
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs

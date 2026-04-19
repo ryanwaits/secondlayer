@@ -19,9 +19,23 @@ git reset --hard origin/main
 cd docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
+APP_SERVICES="api indexer worker subgraph-processor agent caddy"
+
+# Services that hold locks on tables migrations mutate. Kept narrow on
+# purpose — indexer's block/tx/event tables are independent of migrations
+# we run, and stopping indexer needlessly risks pointless event-proxy
+# buffering. If a future migration touches indexer tables, add it here.
+MIGRATION_LOCK_HOLDERS="api subgraph-processor agent"
+
 # Build app images — --no-cache ensures source code changes are always picked up
 # subgraph-processor shares the api target but is listed explicitly for clarity
-$COMPOSE build --no-cache api indexer worker subgraph-processor workflow-runner agent migrate
+$COMPOSE build --no-cache api indexer worker subgraph-processor agent migrate
+
+# Stop only the services that hold locks on migrated tables. DDL will then
+# acquire ACCESS EXCLUSIVE without racing subgraph-processor's 5s poll or
+# the api subgraphs-cache listener. postgres + indexer + stacks-node stay up.
+echo "🛑 Stopping lock-holders so migrations can acquire ACCESS EXCLUSIVE..."
+$COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
 
 # Run migrations synchronously — fail fast on error
 $COMPOSE run --rm migrate
@@ -29,10 +43,12 @@ $COMPOSE run --rm migrate
 # Clean up stale one-off containers (from manual `docker compose run` without --rm)
 docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docker rm -f 2>/dev/null || true
 
-# Restart app services — NEVER touch stacks-node, postgres, hiro-postgres, hiro-api
-# Remove orphaned containers from renamed services (view-processor → subgraph-processor)
-docker rm -f secondlayer-view-processor-1 2>/dev/null || true
-$COMPOSE up -d --remove-orphans api indexer worker subgraph-processor workflow-runner agent caddy
+# Restart ALL app services — ensures any new code lands, and services that
+# weren't stopped (indexer, worker, caddy) pick up new images via recreate.
+# NEVER touch stacks-node, postgres, hiro-postgres, hiro-api.
+# Remove orphaned containers from renamed/removed services.
+docker rm -f secondlayer-view-processor-1 secondlayer-workflow-runner-1 2>/dev/null || true
+$COMPOSE up -d --remove-orphans $APP_SERVICES
 
 # Health check with retry
 check_health() {

@@ -22,7 +22,6 @@ import insightsRouter from "./routes/insights.ts";
 import marketplaceRouter from "./routes/marketplace.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
-import { secretsRouter } from "./routes/secrets.ts";
 import statusRouter from "./routes/status.ts";
 import subgraphsRouter, {
 	abortAllOperations,
@@ -31,7 +30,6 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import waitlistRouter from "./routes/waitlist.ts";
-import workflowsRouter from "./routes/workflows.ts";
 
 const mode = getInstanceMode();
 const app = new Hono();
@@ -86,10 +84,6 @@ const RESOURCE_PATHS = [
 	"/api/subgraphs/*",
 	"/api/node",
 	"/api/node/*",
-	"/api/workflows",
-	"/api/workflows/*",
-	"/api/secrets",
-	"/api/secrets/*",
 ];
 
 // Platform-only resource paths (accounts, insights, projects, chat sessions,
@@ -121,8 +115,6 @@ for (const path of paths) {
 
 app.route("/api/subgraphs", subgraphsRouter);
 app.route("/api/node", nodeRouter);
-app.route("/api/workflows", workflowsRouter);
-app.route("/api/secrets", secretsRouter);
 if (mode === "platform") {
 	app.route("/api/accounts", accountsRouter);
 	app.route("/api/insights", insightsRouter);

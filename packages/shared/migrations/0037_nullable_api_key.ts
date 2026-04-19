@@ -12,6 +12,11 @@ import { type Kysely, sql } from "kysely";
  * multi-tenant case.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
+	// Fail fast instead of hanging when a live service holds ACCESS SHARE on
+	// `subgraphs` (e.g. subgraph-processor's 5s poll). Deploy script stops
+	// dependent services before running migrations — this is a safety net.
+	await sql`SET lock_timeout = '30s'`.execute(db);
+
 	await sql`ALTER TABLE subgraphs ALTER COLUMN api_key_id DROP NOT NULL`.execute(
 		db,
 	);
