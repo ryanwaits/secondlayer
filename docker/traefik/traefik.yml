@@ -1,0 +1,83 @@
+# Traefik static configuration for dedicated hosting.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dedicated.yml up -d traefik
+#
+# Dynamic config (routers, services, middlewares) comes from Docker labels on
+# running containers — we don't ship a dynamic file. Tenant routes appear as
+# the provisioner creates them; they use labels like:
+#   traefik.http.routers.<slug>.rule=Host(`<slug>.secondlayer.tools`)
+#   traefik.http.routers.<slug>.tls.certresolver=letsencrypt
+#
+# Platform routes (api.secondlayer.tools, dashboard, etc.) live on the
+# container labels in docker-compose.dedicated.yml.
+#
+# Not deployed in prod yet — landed alongside Caddy. Flip DNS + cut over in
+# a dedicated maintenance window (see docker/docs/OPERATIONS.md Sprint 6).
+
+api:
+  # Traefik admin dashboard. Restrict network exposure via docker-compose —
+  # never publish port 8080 publicly.
+  dashboard: true
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: sl-public
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "{{ env \"TRAEFIK_ACME_EMAIL\" }}"
+      storage: /acme/acme.json
+      # DNS-01 challenge via Cloudflare — required for wildcard cert on
+      # `*.secondlayer.tools`. HTTP-01 wouldn't work here because each tenant
+      # subdomain needs a cert and per-subdomain HTTP challenges don't scale.
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+        delayBeforeCheck: 10
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+  filters:
+    statusCodes:
+      - "400-499"
+      - "500-599"
+
+# Observability — scrape via Prometheus later; for now enable metrics
+# endpoint so we can curl it from the host if needed.
+metrics:
+  prometheus:
+    entryPoint: traefik
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    buckets:
+      - 0.1
+      - 0.3
+      - 1.2
+      - 5.0
