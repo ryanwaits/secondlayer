@@ -1,15 +1,31 @@
 import postgres from "postgres";
 
+interface ListenOptions {
+	/**
+	 * Connection string to LISTEN on. Defaults to `process.env.DATABASE_URL`.
+	 * In dual-DB mode, pass `SOURCE_DATABASE_URL` for indexer-fired channels
+	 * (`indexer:new_block`, `subgraph_reorg`, `tx:confirmed`) and
+	 * `TARGET_DATABASE_URL` for tenant-local channels (`subgraph_changes`).
+	 */
+	connectionString?: string;
+}
+
+function resolveUrl(opts?: ListenOptions): string {
+	const url = opts?.connectionString ?? process.env.DATABASE_URL;
+	if (!url) {
+		throw new Error(
+			"listen/notify requires a connection string (opts.connectionString or DATABASE_URL)",
+		);
+	}
+	return url;
+}
+
 export async function listen(
 	channel: string,
 	callback: (payload?: string) => void,
+	opts?: ListenOptions,
 ): Promise<() => Promise<void>> {
-	const connectionString = process.env.DATABASE_URL;
-	if (!connectionString) {
-		throw new Error("DATABASE_URL is required");
-	}
-
-	const client = postgres(connectionString, {
+	const client = postgres(resolveUrl(opts), {
 		max: 1,
 		onnotice: () => {},
 	});
@@ -23,13 +39,12 @@ export async function listen(
 	};
 }
 
-export async function notify(channel: string, payload?: string): Promise<void> {
-	const connectionString = process.env.DATABASE_URL;
-	if (!connectionString) {
-		throw new Error("DATABASE_URL is required");
-	}
-
-	const client = postgres(connectionString, { max: 1 });
+export async function notify(
+	channel: string,
+	payload?: string,
+	opts?: ListenOptions,
+): Promise<void> {
+	const client = postgres(resolveUrl(opts), { max: 1 });
 
 	try {
 		if (payload) {

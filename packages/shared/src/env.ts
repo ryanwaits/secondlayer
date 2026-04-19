@@ -19,6 +19,16 @@ const networksSchema = z.string().transform((val) => {
 
 interface EnvSchemaOutput {
 	DATABASE_URL?: string;
+	/**
+	 * Shared indexer DB (blocks/txs/events). Falls back to DATABASE_URL.
+	 * Set this alongside TARGET_DATABASE_URL to enable dual-DB mode.
+	 */
+	SOURCE_DATABASE_URL?: string;
+	/**
+	 * Tenant DB (subgraph schemas + subgraphs table). Falls back to DATABASE_URL.
+	 * Set this alongside SOURCE_DATABASE_URL to enable dual-DB mode.
+	 */
+	TARGET_DATABASE_URL?: string;
 	NETWORK?: "mainnet" | "testnet";
 	NETWORKS?: ("mainnet" | "testnet")[];
 	LOG_LEVEL: "debug" | "info" | "warn" | "error";
@@ -29,6 +39,14 @@ interface EnvSchemaOutput {
 // that z.ZodType<T> can't represent without explicit input type param
 const envSchema: z.ZodType<EnvSchemaOutput> = z.object({
 	DATABASE_URL: z.preprocess(
+		(val) => (typeof val === "string" && val.length === 0 ? undefined : val),
+		z.string().url().optional(),
+	),
+	SOURCE_DATABASE_URL: z.preprocess(
+		(val) => (typeof val === "string" && val.length === 0 ? undefined : val),
+		z.string().url().optional(),
+	),
+	TARGET_DATABASE_URL: z.preprocess(
 		(val) => (typeof val === "string" && val.length === 0 ? undefined : val),
 		z.string().url().optional(),
 	),
