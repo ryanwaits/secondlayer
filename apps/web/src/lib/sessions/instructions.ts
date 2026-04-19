@@ -11,7 +11,7 @@ export function buildSessionInstructions(
 	resources: AccountResources,
 	recentSessions?: RecentSessionInfo[],
 ): string {
-	const { subgraphs, workflows, keys, chainTip } = resources;
+	const { subgraphs, keys, chainTip } = resources;
 
 	const subgraphList = subgraphs.length
 		? subgraphs
@@ -23,15 +23,6 @@ export function buildSessionInstructions(
 				})
 				.join("\n")
 		: "No subgraphs.";
-
-	const workflowList = workflows.length
-		? workflows
-				.map(
-					(w) =>
-						`- name:"${w.name}" status:${w.status} trigger:${w.triggerType} runs:${w.totalRuns}`,
-				)
-				.join("\n")
-		: "No workflows.";
 
 	const activeKeys = keys.filter((k) => k.status === "active");
 	const keyList = activeKeys.length
@@ -68,49 +59,6 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - When showing query results, let the data table card speak for itself — add context, not a data summary.
 - Tool cards are visible to the user — your text should add insight, not duplicate the card.
 
-## Workflow authoring
-- When the user describes an automation ("ping me when X", "every morning summarise Y", "alert me on Z"), drive the scaffold → refine → deploy loop.
-- Call \`scaffold_workflow\` with a typed trigger (\`event\` / \`schedule\` / \`manual\`), an ordered \`steps\` array (\`run\`, \`query\`, \`ai\`, \`deliver\`), and a \`deliveryTarget\` when the last step is \`deliver\`. **Only include steps the user asked for.** If the user said "just use step.ai and return the analysis", pass \`steps: ["ai"]\` with no delivery target — do not add \`query\`, \`run\`, or \`deliver\` that the user didn't request.
-- \`scaffold_workflow\` returns a SKELETON with placeholder values (generic AI prompt, sample \`step.query("recent-activity", "my-subgraph", ...)\`, etc). Treat it as a starting point, not finished code.
-- **STOP after the scaffold card.** Describe what was generated in one or two sentences, name the placeholders that need replacing, and ASK the user if they want to (a) deploy as-is or (b) let you customize the source to match their intent. Do NOT call \`deploy_workflow\` in the same step as \`scaffold_workflow\`.
-- When the user asks you to customize, rewrite the \`code\` field yourself — the deploy tool accepts any valid \`defineWorkflow()\` source, not just the exact scaffold output. Replace placeholder prompts with the user's actual request, remove step kinds they didn't ask for, inline real field references (\`event.sender\`, \`ctx.input.contractId\`), and keep the trigger shape from the scaffold. Then call \`deploy_workflow\` with your customized code and the matching \`triggerSummary\`.
-- The deploy card bundles server-side and persists on confirm — never POST \`/api/workflows\` yourself. If the bundler rejects the source, the card surfaces the esbuild error inline; fix the specific line and propose a new deploy.
-
-## Workflow edit loop
-- Editing an existing workflow is ALWAYS a two-step flow. Never skip the read.
-  1. Call \`read_workflow({ name })\` first. Capture the returned \`sourceCode\` and \`version\`.
-  2. Produce the full edited source, then call \`edit_workflow\` with \`currentCode\` = the exact source you just read, \`proposedCode\` = your edited version, \`summary\` = one-line change description, and \`expectedVersion\` = the version from read_workflow.
-- If read_workflow returns \`readOnly: true\`, STOP and tell the user to redeploy the workflow via CLI before editing from chat. Do not call edit_workflow on a read-only workflow.
-- If the confirm path 409s ("Stale vX.Y.Z"), re-run read_workflow for the current source + version and regenerate the diff — do not retry with the same expectedVersion.
-- Always end the confirm message with the in-flight-run caveat: "Edits take effect for new runs. Any in-flight run finishes on the previous version."
-
-## Triggering manual workflows
-- Before calling \`manage_workflows({ action: "trigger" })\` on a manual workflow, ALWAYS \`read_workflow\` first to discover its required input fields. Look at \`declaredInput\` (the trigger's typed input schema, if declared) AND \`inputFieldRefs\` (every \`ctx.input.X\` reference scanned from the source — these are de-facto required even when no schema is declared).
-- Extract values for those fields from the user's most recent message — contract IDs, addresses, amounts, and similar identifiers are usually quoted verbatim in the request ("run with SP123...token" → \`{ contractId: "SP123...token" }\`). Pass them via \`triggerInput\` as a JSON object string.
-- If the user didn't supply a value for a field and you cannot infer it, STOP and ask before triggering. Never fire with \`{}\` and let the handler throw — that wastes a run and creates a confusing failure.
-
-## Workflow step API reference
-ALWAYS use these exact signatures when authoring or editing a workflow's \`code\` field. Never invent options like \`table\`, \`filter\`, or \`subgraph\` inside an options object — table and subgraph are positional.
-
-- \`step.query(id, subgraph, table, { where?, orderBy?, limit?, offset? })\`
-  - \`where\` uses operator objects: \`{ col: { eq | neq | gt | gte | lt | lte: value } }\`. Bare \`{ col: value }\` also works as \`eq\`.
-  - Returns \`Record<string, unknown>[]\`. Example:
-    \`\`\`ts
-    const rows = await ctx.step.query("fetch-contract", "contracts-registry", "contracts", {
-      where: { contract_id: { eq: ctx.input.contractId } },
-      limit: 1,
-    });
-    \`\`\`
-- \`step.count(id, subgraph, table, where?)\` — same shape, returns a number.
-- \`step.ai(id, { prompt, model?: "haiku" | "sonnet", schema? })\`
-  - \`schema\` is \`Record<string, { type: "string"|"number"|"boolean"|"array"|"object", description?, items? }>\`. Result is keyed by those field names.
-- \`step.deliver(id, target)\` where \`target.type\` is \`"webhook" | "slack" | "email" | "discord" | "telegram"\` (see DeliverTarget).
-- \`step.invoke(id, { workflow, input? })\` — chain another workflow by name.
-- \`step.mcp(id, { server, tool, args? })\` — returns \`{ content, isError? }\`.
-- \`step.sleep(id, ms)\` and \`step.run(id, async () => ...)\` for arbitrary async work.
-
-Every step's first arg is a stable string \`id\` used for memoization — reuse the same id across runs, change it only when the step's intent changes. Trigger input is on \`ctx.input\` (manual) or \`ctx.event\` (event triggers).
-
 ## Subgraph authoring
 - When the user asks to index a contract ("track swaps on pool X", "index mints from NFT Y", "show me transfers from token Z"), drive the scaffold → refine → deploy loop.
 - Call \`scaffold_subgraph\` with the full \`contractId\` (e.g. \`SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01\`). It fetches the contract ABI, keeps public functions, and emits a \`defineSubgraph()\` skeleton.
@@ -131,9 +79,6 @@ Every step's first arg is a stable string \`id\` used for memoization — reuse 
 
 ### Subgraphs
 ${subgraphList}
-
-### Workflows
-${workflowList}
 
 ### API Keys
 ${keyList}

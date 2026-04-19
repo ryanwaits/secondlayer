@@ -6,7 +6,6 @@ import { registerResources } from "./resources.ts";
 import { registerAccountTools } from "./tools/account.ts";
 import { registerScaffoldTools } from "./tools/scaffold.ts";
 import { registerSubgraphTools } from "./tools/subgraphs.ts";
-import { registerWorkflowTools } from "./tools/workflows.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -22,7 +21,6 @@ export function createServer(): McpServer {
 	registerScaffoldTools(server);
 	registerSubgraphTools(server);
 	registerAccountTools(server);
-	registerWorkflowTools(server);
 	registerResources(server);
 
 	return server;

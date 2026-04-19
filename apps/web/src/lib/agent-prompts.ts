@@ -54,36 +54,6 @@ ${SETUP}
 
 Scaffold the subgraph, let me review it, then deploy.`;
 
-// ── Workflows ───────────────────────────────────────────────────
-
-const WORKFLOWS_INTRO =
-	"Workflows automate intelligence on your onchain data. Define multi-step tasks that trigger on blockchain events, run on a schedule, or fire on demand. Each step runs independently with automatic retries and memoization. Available step methods: step.generateObject() and step.generateText() for AI SDK v6 structured output + tool-calling, step.render() to produce catalog-validated UI, step.query() to read subgraph data, step.deliver() to send to webhooks/Slack/Discord/Telegram/email, step.invoke() to chain workflows, step.sleep() for delays, and step.run() for anything else.";
-
-export const WORKFLOWS_EMPTY_PROMPT = `${WORKFLOWS_INTRO}
-
-${SETUP}
-
-/secondlayer Help me create a workflow. Ask me:
-1. What should trigger this workflow? (blockchain event, schedule, or manual)
-2. What data do I need to read or analyze?
-3. What action should it take? (webhook, Slack, email)
-
-Create the workflow and deploy it.`;
-
-export const QUICK_WORKFLOW_PROMPT = `${WORKFLOWS_INTRO}
-
-${SETUP}
-
-/secondlayer Create a workflow that monitors STX transfers over 100K STX, runs AI analysis on the transfer pattern, and sends a Slack alert to #whale-alerts.`;
-
-export const DROPDOWN_CREATE_WORKFLOW = `${WORKFLOWS_INTRO}
-
-${SETUP}
-
-/secondlayer Create a new workflow. Ask me what it should monitor and what action to take.`;
-
 // ── Marketing docs (below intro prose) ───────────────────────────
 
 export const MARKETING_SUBGRAPHS_PROMPT = SUBGRAPHS_EMPTY_PROMPT;
-
-export const MARKETING_WORKFLOWS_PROMPT = WORKFLOWS_EMPTY_PROMPT;
