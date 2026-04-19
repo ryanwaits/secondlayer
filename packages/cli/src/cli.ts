@@ -7,6 +7,7 @@ import {
 	registerConfigCommand,
 	registerDbCommand,
 	registerDoctorCommand,
+	registerInstanceCommand,
 	registerLocalCommand,
 	registerMarketplaceCommand,
 	registerStackCommand,
@@ -25,9 +26,7 @@ const { version } = pkg;
 program
 	.name("secondlayer")
 	.alias("sl")
-	.description(
-		"SecondLayer CLI — subgraphs and real-time indexing for Stacks",
-	)
+	.description("SecondLayer CLI — subgraphs and real-time indexing for Stacks")
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)");
 
@@ -75,6 +74,7 @@ program
 // Core commands (API-backed, work against any environment)
 registerSubgraphsCommand(program);
 registerMarketplaceCommand(program);
+registerInstanceCommand(program);
 registerStatusCommand(program);
 
 // Local infrastructure commands

@@ -14,6 +14,7 @@ const PLATFORM_PATHS = [
 	"/settings",
 	"/sessions",
 	"/marketplace",
+	"/instance",
 ];
 
 export function AuthBar() {

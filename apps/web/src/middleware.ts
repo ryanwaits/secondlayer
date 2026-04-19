@@ -10,6 +10,7 @@ const AUTH_REQUIRED = [
 	"/team",
 	"/settings",
 	"/sessions",
+	"/instance",
 	"/admin",
 ];
 
@@ -78,6 +79,8 @@ export const config = {
 		"/workflows/:path*",
 		"/marketplace",
 		"/marketplace/:path*",
+		"/instance",
+		"/instance/:path*",
 		"/admin",
 		"/admin/:path*",
 	],
