@@ -29,11 +29,12 @@ COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
 APP_SERVICES="api indexer worker subgraph-processor agent caddy"
 
-# Services that hold locks on tables migrations mutate. Kept narrow on
-# purpose — indexer's block/tx/event tables are independent of migrations
-# we run, and stopping indexer needlessly risks pointless event-proxy
-# buffering. If a future migration touches indexer tables, add it here.
-MIGRATION_LOCK_HOLDERS="api subgraph-processor agent"
+# Services that hold locks on tables migrations mutate. Indexer stays up
+# because its tables (blocks/transactions/events/index_progress) are
+# independent of the subgraphs/workflow_* tables migrations touch.
+# Worker is stopped because `measureStorage` joins subgraphs -> api_keys
+# hourly and races with ALTER TABLE subgraphs.
+MIGRATION_LOCK_HOLDERS="api subgraph-processor agent worker"
 
 # Build app images — --no-cache ensures source code changes are always picked up
 # subgraph-processor shares the api target but is listed explicitly for clarity
@@ -60,6 +61,21 @@ docker rm -f secondlayer-view-processor-1 secondlayer-workflow-runner-1 2>/dev/n
 echo "🧹 Cleaning up stale one-off migrate containers from prior deploys..."
 docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com.docker.compose.service=migrate" -q \
   | xargs -r docker rm -f 2>/dev/null || true
+
+# Terminate every remaining session on the DB. Docker stop should have
+# dropped these, but TCP-half-closed connections can linger with pg
+# sessions alive for minutes — and prior diagnostic runs showed ~20 stuck
+# `select * from subgraphs` queries queued behind our ALTER. Killing them
+# now guarantees ACCESS EXCLUSIVE on subgraphs can be acquired immediately.
+# Indexer (which we kept running) auto-reconnects via postgres.js on next
+# statement — zero block loss, by design.
+echo "🔌 Terminating zombie sessions on tenant DB..."
+docker exec secondlayer-postgres-1 psql -U "${POSTGRES_USER:-secondlayer}" -d "${POSTGRES_DB:-secondlayer}" -c "
+  SELECT pg_terminate_backend(pid)
+  FROM pg_stat_activity
+  WHERE datname = current_database()
+    AND pid <> pg_backend_pid();
+" 2>/dev/null || true
 
 # Run migrations synchronously — fail fast on error
 $COMPOSE run --rm migrate
