@@ -20,7 +20,7 @@
 services:
   # ── Reverse proxy ────────────────────────────────────────────────────
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.6.13
     restart: unless-stopped
     ports:
       - "80:80"
@@ -35,10 +35,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       TRAEFIK_ACME_EMAIL: ${TRAEFIK_ACME_EMAIL}
-      # Pin Docker client API version — Traefik v3.3's embedded client
-      # doesn't auto-negotiate with newer daemons and defaults to 1.24,
-      # which the host daemon rejects (min 1.44).
-      DOCKER_API_VERSION: "1.44"
     networks:
       # `default` = the compose project default (where platform api lives).
       # `sl-tenants` = where provisioner puts tenant containers. Traefik
