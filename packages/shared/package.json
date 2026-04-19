@@ -73,6 +73,10 @@
 			"types": "./dist/src/db/queries/workflows.d.ts",
 			"import": "./dist/src/db/queries/workflows.js"
 		},
+		"./db/queries/tenants": {
+			"types": "./dist/src/db/queries/tenants.d.ts",
+			"import": "./dist/src/db/queries/tenants.js"
+		},
 		"./db/queries/marketplace": {
 			"types": "./dist/src/db/queries/marketplace.d.ts",
 			"import": "./dist/src/db/queries/marketplace.js"
@@ -146,10 +150,7 @@
 			"import": "./dist/src/node/archive-client.js"
 		}
 	},
-	"files": [
-		"dist",
-		"migrations"
-	],
+	"files": ["dist", "migrations"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",

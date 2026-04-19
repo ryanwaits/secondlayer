@@ -22,6 +22,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/schemas/marketplace.ts",
 		"src/schemas/workflows.ts",
 		"src/db/queries/workflows.ts",
+		"src/db/queries/tenants.ts",
 		"src/types.ts",
 		"src/env.ts",
 		"src/mode.ts",

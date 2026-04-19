@@ -29,6 +29,7 @@ import subgraphsRouter, {
 	startSubgraphCache,
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
+import tenantsRouter from "./routes/tenants.ts";
 import waitlistRouter from "./routes/waitlist.ts";
 
 const mode = getInstanceMode();
@@ -87,7 +88,7 @@ const RESOURCE_PATHS = [
 ];
 
 // Platform-only resource paths (accounts, insights, projects, chat sessions,
-// auth/logout — tied to cross-tenant user identity).
+// auth/logout, tenants — tied to cross-tenant user identity / control plane).
 const PLATFORM_RESOURCE_PATHS = [
 	"/api/accounts",
 	"/api/accounts/*",
@@ -97,6 +98,8 @@ const PLATFORM_RESOURCE_PATHS = [
 	"/api/projects/*",
 	"/api/chat-sessions",
 	"/api/chat-sessions/*",
+	"/api/tenants",
+	"/api/tenants/*",
 	"/api/auth/logout",
 ];
 
@@ -120,6 +123,7 @@ if (mode === "platform") {
 	app.route("/api/insights", insightsRouter);
 	app.route("/api/projects", projectsRouter);
 	app.route("/api/chat-sessions", chatSessionsRouter);
+	app.route("/api/tenants", tenantsRouter);
 }
 app.route("/", statusRouter);
 

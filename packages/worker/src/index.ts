@@ -1,5 +1,7 @@
 import { getEnv, logger } from "@secondlayer/shared";
 import { startStorageMeasurement } from "./jobs/measure-storage.ts";
+import { startTenantHealthCron } from "./jobs/tenant-health.ts";
+import { startTenantTrialCron } from "./jobs/tenant-trial.ts";
 
 let running = true;
 
@@ -7,7 +9,11 @@ async function runWorker() {
 	const env = getEnv();
 	logger.info("Starting worker", { networks: env.enabledNetworks });
 
-	const stopStorageMeasurement = startStorageMeasurement();
+	const stops = [
+		startStorageMeasurement(),
+		startTenantTrialCron(),
+		startTenantHealthCron(),
+	];
 
 	logger.info("Worker ready");
 
@@ -16,7 +22,7 @@ async function runWorker() {
 		running = false;
 
 		logger.info("Shutting down worker...");
-		stopStorageMeasurement();
+		for (const stop of stops) stop();
 		logger.info("Worker shutdown complete");
 		process.exit(0);
 	};

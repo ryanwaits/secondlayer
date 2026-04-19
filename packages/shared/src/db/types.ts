@@ -1,4 +1,10 @@
-import type { Generated, Insertable, Selectable, Updateable } from "kysely";
+import type {
+	ColumnType,
+	Generated,
+	Insertable,
+	Selectable,
+	Updateable,
+} from "kysely";
 
 // ── Table interfaces ──────────────────────────────────────────────────
 
@@ -396,7 +402,47 @@ export interface Database {
 	workflow_cursors: WorkflowCursorsTable;
 	workflow_signer_secrets: WorkflowSignerSecretsTable;
 	workflow_budgets: WorkflowBudgetsTable;
+	tenants: TenantsTable;
 }
+
+// --- Tenants (dedicated hosting) ---
+
+export type TenantStatus =
+	| "provisioning"
+	| "active"
+	| "suspended"
+	| "error"
+	| "deleted";
+
+export interface TenantsTable {
+	id: Generated<string>;
+	account_id: string;
+	slug: string;
+	status: ColumnType<TenantStatus, TenantStatus | undefined, TenantStatus>;
+	plan: string;
+	cpus: ColumnType<number, number | string, number | string>;
+	memory_mb: number;
+	storage_limit_mb: number;
+	storage_used_mb: number | null;
+	pg_container_id: string | null;
+	api_container_id: string | null;
+	processor_container_id: string | null;
+	target_database_url_enc: Buffer;
+	tenant_jwt_secret_enc: Buffer;
+	anon_key_enc: Buffer;
+	service_key_enc: Buffer;
+	api_url_internal: string;
+	api_url_public: string;
+	trial_ends_at: Date;
+	suspended_at: Date | null;
+	last_health_check_at: Date | null;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
+}
+
+export type Tenant = Selectable<TenantsTable>;
+export type InsertTenant = Insertable<TenantsTable>;
+export type UpdateTenant = Updateable<TenantsTable>;
 
 export interface WorkflowBudgetsTable {
 	id: Generated<string>;

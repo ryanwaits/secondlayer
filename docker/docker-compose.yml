@@ -38,6 +38,7 @@ services:
       dockerfile: docker/Dockerfile
       target: api
     environment:
+      INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
       PORT: 3800
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -46,6 +47,8 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-Second Layer <noreply@secondlayer.tools>}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
+      PROVISIONER_URL: ${PROVISIONER_URL:-http://provisioner:3850}
+      PROVISIONER_SECRET: ${PROVISIONER_SECRET:-}
     ports:
       - "${API_PORT:-3800}:3800"
     depends_on:
@@ -87,23 +90,57 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Worker service (can be scaled) - runs scheduled background jobs only
+  # Worker service — scheduled background jobs (storage measurement + tenant
+  # trial/health crons in platform mode).
   worker:
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: worker
     environment:
+      INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       NETWORKS: ${NETWORKS:-mainnet}
+      PROVISIONER_URL: ${PROVISIONER_URL:-http://provisioner:3850}
+      PROVISIONER_SECRET: ${PROVISIONER_SECRET:-}
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
     depends_on:
       migrate:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
     restart: unless-stopped
+
+  # Provisioner service — tenant Docker lifecycle (platform mode only).
+  # Activated via `--profile platform`. OSS users never run this.
+  provisioner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: provisioner
+    environment:
+      PROVISIONER_PORT: "3850"
+      PROVISIONER_SECRET: ${PROVISIONER_SECRET:-}
+      PROVISIONER_SOURCE_DB_ADMIN_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      PROVISIONER_SOURCE_DB_READONLY_PASSWORD: ${PROVISIONER_SOURCE_DB_READONLY_PASSWORD:-}
+      PROVISIONER_SOURCE_DB_HOST: ${PROVISIONER_SOURCE_DB_HOST:-postgres:5432}
+      PROVISIONER_SOURCE_DB_NAME: ${POSTGRES_DB:-secondlayer}
+      PROVISIONER_IMAGE_TAG: ${PROVISIONER_IMAGE_TAG:-latest}
+      PROVISIONER_IMAGE_OWNER: ${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}
+      PROVISIONER_TENANT_BASE_DOMAIN: ${PROVISIONER_TENANT_BASE_DOMAIN:-secondlayer.tools}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+    volumes:
+      # Required for provisioner to create/manage tenant containers. Gives
+      # root-on-host effectively — run only on hosts where that's acceptable.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["platform"]
 
   # Subgraph processor service
   subgraph-processor:
