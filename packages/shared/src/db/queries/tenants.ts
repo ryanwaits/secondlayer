@@ -99,7 +99,7 @@ export async function listTenantsByStatus(
 
 export async function listExpiredTrials(
 	db: Kysely<Database>,
-	now = new Date(),
+	now: Date = new Date(),
 ): Promise<Tenant[]> {
 	return db
 		.selectFrom("tenants")
