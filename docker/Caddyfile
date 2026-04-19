@@ -1,33 +1,25 @@
 # Caddy config — platform mode with wildcard tenant routing.
 #
-# Three blocks:
-#   1. Platform API:   api.{BASE_DOMAIN}  →  api:3800
-#   2. Tenant API:     *.{BASE_DOMAIN}     →  sl-api-{slug}:3800 (on-demand TLS)
-#   3. Slack hooks:    served under (1) on /hooks/slack*
+# One site block serves both platform API and tenant subdomains. Splitting
+# into two blocks (`api.` explicit + `*.` wildcard) triggers a Caddy 2 TLS
+# connection-policy collision where the wildcard's on_demand flag leaks into
+# the explicit block's handshake path and kills all TLS. One wildcard block
+# with an inline host matcher is the only config that works.
+#
+# Backend routing:
+#   api.{BASE_DOMAIN}   →  api:3800   (`/hooks/slack*` → agent:3900)
+#   *.{BASE_DOMAIN}     →  sl-api-{labels.2}:3800   (tenant slug = leftmost label)
 #
 # On-demand TLS: Caddy issues a Let's Encrypt cert the first time a new
 # subdomain is requested. Before issuing, it calls the `ask` endpoint on
-# the provisioner — the provisioner confirms the slug maps to a running
-# tenant container (prevents rando `*.secondlayer.tools` cert spam).
-#
-# BASE_DOMAIN is the apex used for the wildcard. Defaults to `secondlayer.tools`.
+# the provisioner — the provisioner confirms the subject is `api.` (platform)
+# or a valid slug with a running tenant container. Prevents cert spam for
+# random `*.{BASE_DOMAIN}` probes.
 
 {
 	email {$CADDY_ACME_EMAIL:ryan.waits@gmail.com}
 	on_demand_tls {
 		ask http://provisioner:3850/internal/caddy/ask
-	}
-}
-
-api.{$BASE_DOMAIN:secondlayer.tools} {
-	header -Server
-	header X-Content-Type-Options nosniff
-
-	handle /hooks/slack* {
-		reverse_proxy agent:3900
-	}
-	handle {
-		reverse_proxy api:3800
 	}
 }
 
@@ -38,7 +30,19 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 	header -Server
 	header X-Content-Type-Options nosniff
 
+	@api host api.{$BASE_DOMAIN:secondlayer.tools}
+	handle @api {
+		handle /hooks/slack* {
+			reverse_proxy agent:3900
+		}
+		handle {
+			reverse_proxy api:3800
+		}
+	}
+
 	# labels.2 = leftmost label (the tenant slug). For `abc12345.secondlayer.tools`:
 	#   labels.0=tools  labels.1=secondlayer  labels.2=abc12345
-	reverse_proxy sl-api-{labels.2}:3800
+	handle {
+		reverse_proxy sl-api-{labels.2}:3800
+	}
 }
