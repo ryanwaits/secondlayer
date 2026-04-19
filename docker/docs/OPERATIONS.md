@@ -270,11 +270,100 @@ Code will land alongside existing Caddy; nothing changes in prod until we flip D
   ```
 - Provisioner health: `curl http://localhost:3850/health` returns `{ok: true, version}`.
 
-### Sprint 8 — Migration from shared to per-tenant DBs
+### Sprint 8 — Migration from shared to per-tenant DBs (code-ready)
 
-- **You'll need to**: Run a pre-migration DB backup, then `bun run packages/provisioner/src/migrate-tenant.ts --account <your-id>`.
-- **What gets dropped**: `subgraph_<prefix>_<name>` schemas from the source DB (after verification that the tenant DB has the data).
-- **What stays**: `blocks`, `transactions`, `events`, `index_progress`, `accounts`, `api_keys`, `sessions`, etc.
+The `packages/provisioner/src/migrate-tenant.ts` script is ready to run. It:
+1. Lists your subgraphs from the platform DB
+2. Provisions a tenant (via the provisioner service — must be running)
+3. `pg_dump` each subgraph schema from source → `pg_restore` to tenant
+4. Renames schemas in the tenant DB to drop the account prefix
+5. Copies subgraph registry rows into the tenant DB
+6. Copies handler `.js` files to the tenant api + processor containers
+7. Verifies row counts match source vs tenant
+
+#### Prerequisites (in order)
+
+1. Provisioner must be running (Sprint 7 activation)
+2. Traefik SHOULD be running (Sprint 6 activation) so your tenant URL resolves; you can skip if you only care about internal testing first
+3. DB backup taken — use `bash /opt/secondlayer/docker/scripts/backup-postgres.sh`
+4. Your `SECONDLAYER_SECRETS_KEY` is intact (same key provisioner uses)
+
+#### Dry run first
+
+```bash
+ssh app-server
+cd /opt/secondlayer
+
+# 1. Find your account ID
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+  -c "SELECT id, email FROM accounts;"
+
+# 2. Dry run — discovers subgraphs, preflights schemas + handler files, prints plan
+export $(cat docker/.env | xargs)
+bun run packages/provisioner/src/migrate-tenant.ts \
+  --account-id <your-uuid> \
+  --plan launch \
+  --dry-run
+```
+
+Expected output:
+```
+📋 Found N subgraphs for account:
+   - my-subgraph-1 (schema: subgraph_aabbccdd_my_subgraph_1, status: active, blocks: 12345)
+   - ...
+🔍 Preflight checks...
+   ✓ my-subgraph-1: schema + handler present
+   ...
+✨ Dry-run complete. Rerun without --dry-run to execute.
+```
+
+#### Real run
+
+```bash
+bun run packages/provisioner/src/migrate-tenant.ts \
+  --account-id <your-uuid> \
+  --plan launch
+```
+
+Typical duration: 30-90s per subgraph (pg_dump speed + table sizes). Script exits non-zero on any step failure; source is never modified unless you pass `--drop-source-schemas`.
+
+#### What gets dropped (source DB) — only with explicit flag
+
+By default: source schemas preserved. The script prints copy-pasteable DROP statements at the end so you can run them manually after verifying the tenant's been stable for a few days.
+
+To drop immediately at migration time:
+```bash
+bun run packages/provisioner/src/migrate-tenant.ts \
+  --account-id <your-uuid> \
+  --plan launch \
+  --drop-source-schemas
+```
+
+#### What stays (source DB) — always
+
+- `blocks`, `transactions`, `events`, `index_progress` — the indexer DB, never touched
+- `accounts`, `api_keys`, `sessions`, `projects`, `marketplace_*` — control plane tables
+- `tenants` (populated by the migration itself) — control plane mapping
+- `subgraphs` registry row for the migrated account — kept for backward-compat until Phase B cleanup (see `POST_MIGRATION_CLEANUP.md`)
+
+#### Post-migration steps
+
+```bash
+# 1. Get your service key from the dashboard (/instance page) or tenants table
+# 2. Point your CLI at the new instance:
+sl instance connect https://<slug>.secondlayer.tools --key sl_svc_...
+
+# 3. Verify: list subgraphs from the tenant
+sl subgraphs list
+# Should show the same subgraphs as before
+
+# 4. Watch the tenant processor for a few blocks
+docker logs sl-proc-<slug> --follow
+
+# 5. Once stable for a few days, drop source schemas (printed at end of migration)
+```
+
+See `docker/docs/POST_MIGRATION_CLEANUP.md` for the full Phase A/B/C cleanup plan after all accounts have migrated.
 
 ---
 
