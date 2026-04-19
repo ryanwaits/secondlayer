@@ -11,6 +11,7 @@ const INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 export function startStorageMeasurement(): () => void {
 	const run = async () => {
 		try {
+			// getDb() aliases getTargetDb() — tenant-side storage measurement.
 			const db = getDb();
 			await measureStorage(db);
 			logger.info("Storage measurement complete");

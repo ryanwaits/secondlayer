@@ -54,28 +54,21 @@ const printEventData = {
 		"sweep-txid": "0xdef456",
 		"burn-height": 800000n,
 	},
-	contract_identifier:
-		"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-deposit",
+	contract_identifier: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-deposit",
 };
 
 // ── Bug 1: FT amounts are strings ─────────────────────────────────────
 
 describe("Bug 1: FT amounts are strings, not BigInt", () => {
 	test("decodeEventData passes through plain string amounts unchanged", () => {
-		const decoded = decodeEventData(ftMintEventData) as Record<
-			string,
-			unknown
-		>;
+		const decoded = decodeEventData(ftMintEventData) as Record<string, unknown>;
 		// amount is still a string — decodeEventData only decodes "0x..." hex strings
 		expect(typeof decoded.amount).toBe("string");
 		expect(decoded.amount).toBe("100000000");
 	});
 
 	test("BigInt arithmetic with string amount produces garbage", () => {
-		const decoded = decodeEventData(ftMintEventData) as Record<
-			string,
-			unknown
-		>;
+		const decoded = decodeEventData(ftMintEventData) as Record<string, unknown>;
 		const eventAmount = decoded.amount; // "100000000" string
 
 		// In Bun: 0n + "100000000" → string "0100000000" (coercion, not TypeError)
@@ -87,10 +80,7 @@ describe("Bug 1: FT amounts are strings, not BigInt", () => {
 	});
 
 	test("FIXED: amount should be BigInt after buildEventPayload", () => {
-		const decoded = decodeEventData(ftMintEventData) as Record<
-			string,
-			unknown
-		>;
+		const decoded = decodeEventData(ftMintEventData) as Record<string, unknown>;
 		// The fix: convert string amounts to BigInt in buildEventPayload
 		const fixedAmount = BigInt(decoded.amount as string);
 		expect(typeof fixedAmount).toBe("bigint");
@@ -172,8 +162,7 @@ describe("Bug 3: Contract call args always empty {}", () => {
 	test("args is hardcoded to {} — handler gets undefined for all fields", () => {
 		// What buildEventPayload returns for contract_call (no event):
 		const payload = {
-			contractId:
-				"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-withdrawal",
+			contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-withdrawal",
 			functionName: "initiate-withdrawal-request",
 			caller: "SP2C2YFP12AJZB1MAYFHQK96CVK4AWZ26PFYG40MF",
 			args: {} as Record<string, unknown>,

@@ -78,21 +78,24 @@ function matchFilter(
 					}
 					if ("lockedAddress" in filter && filter.lockedAddress) {
 						if (
-							!matchPattern(
-								data.locked_address as string,
-								filter.lockedAddress,
-							)
+							!matchPattern(data.locked_address as string, filter.lockedAddress)
 						)
 							return false;
 					}
 					// Amount filters
 					if ("minAmount" in filter && filter.minAmount !== undefined) {
-						const amount = BigInt((data.amount ?? data.locked_amount ?? "0") as string);
+						const amount = BigInt(
+							(data.amount ?? data.locked_amount ?? "0") as string,
+						);
 						if (amount < filter.minAmount) return false;
 					}
-					if ("maxAmount" in filter && (filter as { maxAmount?: bigint }).maxAmount !== undefined) {
+					if (
+						"maxAmount" in filter &&
+						(filter as { maxAmount?: bigint }).maxAmount !== undefined
+					) {
 						const amount = BigInt((data.amount ?? "0") as string);
-						if (amount > (filter as { maxAmount: bigint }).maxAmount) return false;
+						if (amount > (filter as { maxAmount: bigint }).maxAmount)
+							return false;
 					}
 					return true;
 				});
@@ -188,7 +191,10 @@ function matchFilter(
 
 				// Contract filter
 				if (filter.contractId) {
-					if (!tx.contract_id || !matchPattern(tx.contract_id, filter.contractId))
+					if (
+						!tx.contract_id ||
+						!matchPattern(tx.contract_id, filter.contractId)
+					)
 						continue;
 				}
 				// Function filter

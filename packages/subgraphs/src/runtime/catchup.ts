@@ -1,4 +1,4 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb, getTargetDb } from "@secondlayer/shared/db";
 import {
 	type GapRange,
 	recordGapBatch,
@@ -71,15 +71,16 @@ export async function catchUpSubgraph(
 	catchingUp.add(subgraphName);
 
 	try {
-		const db = getDb();
+		const sourceDb = getSourceDb();
+		const targetDb = getTargetDb();
 
 		// Re-read from DB to avoid stale lastProcessedBlock
-		const subgraphRow = await getSubgraph(db, subgraphName);
+		const subgraphRow = await getSubgraph(targetDb, subgraphName);
 		if (!subgraphRow) return 0;
 		const lastProcessedBlock = Number(subgraphRow.last_processed_block);
 
-		// Get chain tip from indexProgress
-		const progress = await db
+		// Chain tip lives in the shared indexer DB (source)
+		const progress = await sourceDb
 			.selectFrom("index_progress")
 			.selectAll()
 			.where("network", "=", process.env.NETWORK ?? "mainnet")
@@ -114,11 +115,15 @@ export async function catchUpSubgraph(
 		// batchEnd must match what was actually loaded — not recalculated from a
 		// potentially resized batchSize (adaptive sizing can change it between iterations).
 		let nextBatchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
-		let nextBatchPromise = loadBlockRange(db, currentHeight, nextBatchEnd);
+		let nextBatchPromise = loadBlockRange(
+			sourceDb,
+			currentHeight,
+			nextBatchEnd,
+		);
 
 		while (currentHeight <= chainTip) {
 			// Check if subgraph status changed (e.g. reindex started) — bail if so
-			const currentRow = await getSubgraph(db, subgraphName);
+			const currentRow = await getSubgraph(targetDb, subgraphName);
 			if (!currentRow || currentRow.status !== "active") {
 				logger.info("Subgraph status changed, stopping catch-up", {
 					subgraph: subgraphName,
@@ -135,7 +140,7 @@ export async function catchUpSubgraph(
 			const nextStart = batchEnd + 1;
 			if (nextStart <= chainTip) {
 				nextBatchEnd = Math.min(nextStart + batchSize - 1, chainTip);
-				nextBatchPromise = loadBlockRange(db, nextStart, nextBatchEnd);
+				nextBatchPromise = loadBlockRange(sourceDb, nextStart, nextBatchEnd);
 			}
 
 			// Process each block from pre-loaded data
@@ -166,9 +171,12 @@ export async function catchUpSubgraph(
 					const { updateSubgraphStatus } = await import(
 						"@secondlayer/shared/db/queries/subgraphs"
 					);
-					await updateSubgraphStatus(db, subgraphName, "active", height).catch(
-						() => {},
-					);
+					await updateSubgraphStatus(
+						targetDb,
+						subgraphName,
+						"active",
+						height,
+					).catch(() => {});
 					processed++;
 					continue;
 				}
@@ -177,7 +185,7 @@ export async function catchUpSubgraph(
 				if (result.timing) {
 					stats.record(result.timing, result.processed);
 					if (stats.shouldFlush()) {
-						await stats.flush(db);
+						await stats.flush(targetDb);
 					}
 				}
 
@@ -195,14 +203,17 @@ export async function catchUpSubgraph(
 			// Record any gaps from this batch
 			if (batchFailedBlocks.length > 0) {
 				const gaps = coalesceGaps(batchFailedBlocks);
-				await recordGapBatch(db, subgraphRow.id, subgraphName, gaps).catch(
-					(err: unknown) => {
-						logger.warn("Failed to record subgraph gaps", {
-							subgraph: subgraphName,
-							error: err instanceof Error ? err.message : String(err),
-						});
-					},
-				);
+				await recordGapBatch(
+					targetDb,
+					subgraphRow.id,
+					subgraphName,
+					gaps,
+				).catch((err: unknown) => {
+					logger.warn("Failed to record subgraph gaps", {
+						subgraph: subgraphName,
+						error: err instanceof Error ? err.message : String(err),
+					});
+				});
 			}
 
 			// Adaptive batch sizing based on event density
@@ -213,7 +224,7 @@ export async function catchUpSubgraph(
 		}
 
 		// Flush remaining stats
-		await stats.flush(db);
+		await stats.flush(targetDb);
 
 		logger.info("Subgraph catch-up complete", {
 			subgraph: subgraphName,

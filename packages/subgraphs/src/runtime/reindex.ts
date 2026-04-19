@@ -1,5 +1,5 @@
 import { getErrorMessage } from "@secondlayer/shared";
-import { getDb, getRawClient } from "@secondlayer/shared/db";
+import { getRawClient, getSourceDb, getTargetDb } from "@secondlayer/shared/db";
 import {
 	type GapRange,
 	recordGapBatch,
@@ -80,7 +80,8 @@ async function processBlockRange(
 	totalErrors: number;
 	aborted: boolean;
 }> {
-	const db = getDb();
+	const sourceDb = getSourceDb();
+	const targetDb = getTargetDb();
 	const subgraphName = def.name;
 	const { fromBlock, toBlock, status } = opts;
 	const totalBlocks = toBlock - fromBlock + 1;
@@ -101,7 +102,7 @@ async function processBlockRange(
 	// batchEnd must match what was actually loaded — not recalculated from a
 	// potentially resized batchSize (adaptive sizing can change it between iterations).
 	let nextBatchEnd = Math.min(currentHeight + batchSize - 1, toBlock);
-	let nextBatchPromise = loadBlockRange(db, currentHeight, nextBatchEnd);
+	let nextBatchPromise = loadBlockRange(sourceDb, currentHeight, nextBatchEnd);
 
 	while (currentHeight <= toBlock) {
 		// Check for abort at batch boundary
@@ -122,7 +123,7 @@ async function processBlockRange(
 		const nextStart = batchEnd + 1;
 		if (nextStart <= toBlock) {
 			nextBatchEnd = Math.min(nextStart + batchSize - 1, toBlock);
-			nextBatchPromise = loadBlockRange(db, nextStart, nextBatchEnd);
+			nextBatchPromise = loadBlockRange(sourceDb, nextStart, nextBatchEnd);
 		}
 
 		const batchFailedBlocks: { height: number; reason: string }[] = [];
@@ -149,12 +150,19 @@ async function processBlockRange(
 					error: errorMsg,
 				});
 				batchFailedBlocks.push({ height, reason: "processing_error" });
-				await updateSubgraphStatus(db, subgraphName, status, height).catch(
-					() => {},
-				);
-				await recordSubgraphProcessed(db, subgraphName, 0, 1, errorMsg).catch(
-					() => {},
-				);
+				await updateSubgraphStatus(
+					targetDb,
+					subgraphName,
+					status,
+					height,
+				).catch(() => {});
+				await recordSubgraphProcessed(
+					targetDb,
+					subgraphName,
+					0,
+					1,
+					errorMsg,
+				).catch(() => {});
 				blocksProcessed++;
 				totalErrors++;
 				continue;
@@ -167,13 +175,13 @@ async function processBlockRange(
 			if (result.timing) {
 				stats.record(result.timing, result.processed);
 				if (stats.shouldFlush()) {
-					await stats.flush(db);
+					await stats.flush(targetDb);
 				}
 			}
 
 			// Batch progress updates
 			if (blocksProcessed % 100 === 0) {
-				await updateSubgraphStatus(db, subgraphName, status, height);
+				await updateSubgraphStatus(targetDb, subgraphName, status, height);
 			}
 
 			if (blocksProcessed % LOG_INTERVAL === 0) {
@@ -193,7 +201,7 @@ async function processBlockRange(
 		// Record any gaps from this batch
 		if (batchFailedBlocks.length > 0 && opts.subgraphId) {
 			const gaps = coalesceFailedBlocks(batchFailedBlocks);
-			await recordGapBatch(db, opts.subgraphId, subgraphName, gaps).catch(
+			await recordGapBatch(targetDb, opts.subgraphId, subgraphName, gaps).catch(
 				(err: unknown) => {
 					logger.warn("Failed to record subgraph gaps", {
 						subgraph: subgraphName,
@@ -213,15 +221,16 @@ async function processBlockRange(
 		currentHeight = batchEnd + 1;
 	}
 
-	await stats.flush(db);
+	await stats.flush(targetDb);
 	return { blocksProcessed, totalEventsProcessed, totalErrors, aborted };
 }
 
 /**
  * Resolve block range from options, defaulting to def.startBlock..chain_tip.
+ * Chain tip reads from `index_progress` — lives in the source DB.
  */
 async function resolveBlockRange(
-	db: ReturnType<typeof getDb>,
+	sourceDb: ReturnType<typeof getSourceDb>,
 	def: SubgraphDefinition,
 	opts?: ReindexOptions,
 ): Promise<{ fromBlock: number; toBlock: number }> {
@@ -231,7 +240,7 @@ async function resolveBlockRange(
 	if (opts?.toBlock != null) {
 		toBlock = opts.toBlock;
 	} else {
-		const progress = await db
+		const progress = await sourceDb
 			.selectFrom("index_progress")
 			.selectAll()
 			.where("network", "=", process.env.NETWORK ?? "mainnet")
@@ -246,7 +255,7 @@ async function resolveBlockRange(
  * Clear reindex metadata columns after completion or cancellation.
  */
 async function clearReindexMetadata(
-	db: ReturnType<typeof getDb>,
+	db: ReturnType<typeof getTargetDb>,
 	subgraphName: string,
 ): Promise<void> {
 	await db
@@ -266,17 +275,19 @@ export async function reindexSubgraph(
 	def: SubgraphDefinition,
 	opts?: ReindexOptions,
 ): Promise<{ processed: number }> {
-	const db = getDb();
-	const client = getRawClient();
+	// Chain tip reads hit source; subgraph rows + tenant schemas live in target
+	const sourceDb = getSourceDb();
+	const targetDb = getTargetDb();
+	const client = getRawClient("target");
 	const subgraphName = def.name;
 	const schemaName = opts?.schemaName ?? pgSchemaName(subgraphName);
 
-	await updateSubgraphStatus(db, subgraphName, "reindexing");
+	await updateSubgraphStatus(targetDb, subgraphName, "reindexing");
 	logger.info("Reindex starting", { subgraph: subgraphName });
 
 	try {
 		// Resolve block range BEFORE schema drop so we can persist metadata
-		const { fromBlock, toBlock } = await resolveBlockRange(db, def, opts);
+		const { fromBlock, toBlock } = await resolveBlockRange(sourceDb, def, opts);
 
 		if (fromBlock > toBlock) {
 			logger.info("No blocks to reindex", {
@@ -284,18 +295,18 @@ export async function reindexSubgraph(
 				fromBlock,
 				toBlock,
 			});
-			await updateSubgraphStatus(db, subgraphName, "active", 0);
+			await updateSubgraphStatus(targetDb, subgraphName, "active", 0);
 			return { processed: 0 };
 		}
 
 		// Store reindex range so we can resume after a crash
-		await db
+		await targetDb
 			.updateTable("subgraphs")
 			.set({ reindex_from_block: fromBlock, reindex_to_block: toBlock })
 			.where("name", "=", subgraphName)
 			.execute();
 
-		// Drop and recreate schema + tables
+		// Drop and recreate schema + tables (tenant-side DDL)
 		await client.unsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
 		const { statements } = generateSubgraphSQL(def, schemaName);
 		for (const stmt of statements) {
@@ -310,7 +321,7 @@ export async function reindexSubgraph(
 			totalBlocks: toBlock - fromBlock + 1,
 		});
 
-		const subgraphRow = await db
+		const subgraphRow = await targetDb
 			.selectFrom("subgraphs")
 			.select(["id", "api_key_id"])
 			.where("name", "=", subgraphName)
@@ -330,8 +341,8 @@ export async function reindexSubgraph(
 		if (result.aborted) {
 			const reason = String(opts?.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
-				await updateSubgraphStatus(db, subgraphName, "active");
-				await clearReindexMetadata(db, subgraphName);
+				await updateSubgraphStatus(targetDb, subgraphName, "active");
+				await clearReindexMetadata(targetDb, subgraphName);
 				logger.info("Reindex cancelled by user", { subgraph: subgraphName });
 			} else {
 				// shutdown — leave status as "reindexing" for auto-resume
@@ -348,7 +359,7 @@ export async function reindexSubgraph(
 		);
 		if (result.totalEventsProcessed > 0 || result.totalErrors > 0) {
 			await recordSubgraphProcessed(
-				db,
+				targetDb,
 				subgraphName,
 				result.totalEventsProcessed,
 				result.totalErrors,
@@ -358,8 +369,8 @@ export async function reindexSubgraph(
 			);
 		}
 
-		await updateSubgraphStatus(db, subgraphName, "active", toBlock);
-		await clearReindexMetadata(db, subgraphName);
+		await updateSubgraphStatus(targetDb, subgraphName, "active", toBlock);
+		await clearReindexMetadata(targetDb, subgraphName);
 		logger.info("Reindex complete", {
 			subgraph: subgraphName,
 			blocks: result.blocksProcessed,
@@ -372,7 +383,7 @@ export async function reindexSubgraph(
 			subgraph: subgraphName,
 			error: getErrorMessage(err),
 		});
-		await updateSubgraphStatus(db, subgraphName, "error");
+		await updateSubgraphStatus(targetDb, subgraphName, "error");
 		throw err;
 	}
 }
@@ -388,10 +399,10 @@ export async function resumeReindex(
 		signal?: AbortSignal;
 	},
 ): Promise<{ processed: number }> {
-	const db = getDb();
+	const targetDb = getTargetDb();
 	const subgraphName = def.name;
 
-	const row = await db
+	const row = await targetDb
 		.selectFrom("subgraphs")
 		.select([
 			"id",
@@ -424,8 +435,8 @@ export async function resumeReindex(
 
 	if (fromBlock > toBlock) {
 		logger.info("Resume: no remaining blocks", { subgraph: subgraphName });
-		await updateSubgraphStatus(db, subgraphName, "active", toBlock);
-		await clearReindexMetadata(db, subgraphName);
+		await updateSubgraphStatus(targetDb, subgraphName, "active", toBlock);
+		await clearReindexMetadata(targetDb, subgraphName);
 		return { processed: 0 };
 	}
 
@@ -450,8 +461,8 @@ export async function resumeReindex(
 		if (result.aborted) {
 			const reason = String(opts.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
-				await updateSubgraphStatus(db, subgraphName, "active");
-				await clearReindexMetadata(db, subgraphName);
+				await updateSubgraphStatus(targetDb, subgraphName, "active");
+				await clearReindexMetadata(targetDb, subgraphName);
 				logger.info("Resume cancelled by user", { subgraph: subgraphName });
 			} else {
 				logger.info("Resume interrupted by shutdown, will resume again", {
@@ -466,7 +477,7 @@ export async function resumeReindex(
 		);
 		if (result.totalEventsProcessed > 0 || result.totalErrors > 0) {
 			await recordSubgraphProcessed(
-				db,
+				targetDb,
 				subgraphName,
 				result.totalEventsProcessed,
 				result.totalErrors,
@@ -476,8 +487,8 @@ export async function resumeReindex(
 			);
 		}
 
-		await updateSubgraphStatus(db, subgraphName, "active", toBlock);
-		await clearReindexMetadata(db, subgraphName);
+		await updateSubgraphStatus(targetDb, subgraphName, "active", toBlock);
+		await clearReindexMetadata(targetDb, subgraphName);
 		logger.info("Resumed reindex complete", {
 			subgraph: subgraphName,
 			blocks: result.blocksProcessed,
@@ -488,7 +499,7 @@ export async function resumeReindex(
 			subgraph: subgraphName,
 			error: getErrorMessage(err),
 		});
-		await updateSubgraphStatus(db, subgraphName, "error");
+		await updateSubgraphStatus(targetDb, subgraphName, "error");
 		throw err;
 	}
 }
@@ -507,7 +518,7 @@ export async function backfillSubgraph(
 		signal?: AbortSignal;
 	},
 ): Promise<{ processed: number }> {
-	const db = getDb();
+	const targetDb = getTargetDb();
 	const subgraphName = def.name;
 
 	logger.info("Backfill starting", {
@@ -517,7 +528,7 @@ export async function backfillSubgraph(
 	});
 
 	try {
-		const subgraphRow = await db
+		const subgraphRow = await targetDb
 			.selectFrom("subgraphs")
 			.select(["id", "api_key_id"])
 			.where("name", "=", subgraphName)
@@ -540,7 +551,7 @@ export async function backfillSubgraph(
 
 		// Resolve any gaps within the backfilled range
 		const resolved = await resolveGaps(
-			db,
+			targetDb,
 			subgraphName,
 			opts.fromBlock,
 			opts.toBlock,
@@ -558,7 +569,7 @@ export async function backfillSubgraph(
 		);
 		if (result.totalEventsProcessed > 0 || result.totalErrors > 0) {
 			await recordSubgraphProcessed(
-				db,
+				targetDb,
 				subgraphName,
 				result.totalEventsProcessed,
 				result.totalErrors,

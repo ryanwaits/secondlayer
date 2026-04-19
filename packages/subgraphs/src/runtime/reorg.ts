@@ -1,5 +1,5 @@
 import { getErrorMessage } from "@secondlayer/shared";
-import { getDb, getRawClient } from "@secondlayer/shared/db";
+import { getRawClient, getTargetDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
 import { listSubgraphs } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
@@ -16,9 +16,11 @@ export async function handleSubgraphReorg(
 	blockHeight: number,
 	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
 ): Promise<void> {
-	const db = getDb();
-	const client = getRawClient();
-	const activeSubgraphs = (await listSubgraphs(db)).filter(
+	// Subgraphs table + tenant schemas (and thus the DELETE DDL target) live
+	// in the target DB; source DB is unrelated here.
+	const targetDb = getTargetDb();
+	const client = getRawClient("target");
+	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
 		(v: Subgraph) => v.status === "active",
 	);
 

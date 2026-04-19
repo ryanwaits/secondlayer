@@ -1,5 +1,5 @@
 import { getErrorMessage } from "@secondlayer/shared";
-import { getDb } from "@secondlayer/shared/db";
+import { getTargetDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
 import {
 	listSubgraphs,
@@ -14,6 +14,16 @@ import { handleSubgraphReorg } from "./reorg.ts";
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const DEFAULT_CONCURRENCY = 5;
 const POLL_INTERVAL_MS = 5_000;
+
+/**
+ * URL to LISTEN on for indexer-fired channels (`indexer:new_block`,
+ * `subgraph_reorg`). In dual-DB mode the indexer writes to the shared
+ * source DB, so listeners must bind there. In single-DB mode this falls
+ * back to `DATABASE_URL` — identical to pre-dual-DB behavior.
+ */
+function sourceListenerUrl(): string | undefined {
+	return process.env.SOURCE_DATABASE_URL ?? process.env.DATABASE_URL;
+}
 
 function isHandlerNotFoundError(err: unknown): boolean {
 	if (!(err instanceof Error)) return false;
@@ -96,9 +106,9 @@ export async function startSubgraphProcessor(opts?: {
 
 	logger.info("Starting subgraph processor", { concurrency });
 
-	// Catch-up all subgraphs on startup
-	const db = getDb();
-	const activeSubgraphs = (await listSubgraphs(db)).filter(
+	// Catch-up all subgraphs on startup (subgraphs table lives in target DB)
+	const targetDb = getTargetDb();
+	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
 		(v: Subgraph) => v.status === "active",
 	);
 	for (const sg of activeSubgraphs) {
@@ -108,7 +118,7 @@ export async function startSubgraphProcessor(opts?: {
 		} catch (err) {
 			const msg = getErrorMessage(err);
 			if (isHandlerNotFoundError(err)) {
-				await updateSubgraphStatus(db, sg.name, "error");
+				await updateSubgraphStatus(targetDb, sg.name, "error");
 			}
 			logger.error("Subgraph catch-up failed on startup", {
 				subgraph: sg.name,
@@ -117,35 +127,39 @@ export async function startSubgraphProcessor(opts?: {
 		}
 	}
 
-	// Listen for new blocks
-	const stopListening = await listen(CHANNEL_NEW_BLOCK, async () => {
-		if (!running) return;
-		// The NOTIFY payload doesn't include block height — we rely on
-		// each subgraph's last_processed_block to determine what to process.
-		// Trigger catch-up for all subgraphs.
-		const db = getDb();
-		const subgraphs = (await listSubgraphs(db)).filter(
-			(v: Subgraph) => v.status === "active",
-		);
-		cleanupCaches(subgraphs);
-		for (const sg of subgraphs) {
-			try {
-				const def = await loadSubgraphDefinition(sg);
-				await catchUpSubgraph(def, sg.name);
-			} catch (err) {
-				const msg = getErrorMessage(err);
-				if (isHandlerNotFoundError(err)) {
-					await updateSubgraphStatus(db, sg.name, "error");
+	// Listen for new blocks — NOTIFY is fired from the indexer on the source DB
+	const stopListening = await listen(
+		CHANNEL_NEW_BLOCK,
+		async () => {
+			if (!running) return;
+			// The NOTIFY payload doesn't include block height — we rely on
+			// each subgraph's last_processed_block to determine what to process.
+			// Trigger catch-up for all subgraphs.
+			const db = getTargetDb();
+			const subgraphs = (await listSubgraphs(db)).filter(
+				(v: Subgraph) => v.status === "active",
+			);
+			cleanupCaches(subgraphs);
+			for (const sg of subgraphs) {
+				try {
+					const def = await loadSubgraphDefinition(sg);
+					await catchUpSubgraph(def, sg.name);
+				} catch (err) {
+					const msg = getErrorMessage(err);
+					if (isHandlerNotFoundError(err)) {
+						await updateSubgraphStatus(db, sg.name, "error");
+					}
+					logger.error("Subgraph processing failed", {
+						subgraph: sg.name,
+						error: msg,
+					});
 				}
-				logger.error("Subgraph processing failed", {
-					subgraph: sg.name,
-					error: msg,
-				});
 			}
-		}
-	});
+		},
+		{ connectionString: sourceListenerUrl() },
+	);
 
-	// Listen for reorgs
+	// Listen for reorgs — also fired from the indexer on the source DB
 	const stopReorgListening = await listen(
 		"subgraph_reorg",
 		async (payload: string | undefined) => {
@@ -162,12 +176,13 @@ export async function startSubgraphProcessor(opts?: {
 				});
 			}
 		},
+		{ connectionString: sourceListenerUrl() },
 	);
 
-	// Poll as backup
+	// Poll as backup (reads subgraphs table — target DB)
 	const pollInterval = setInterval(async () => {
 		if (!running) return;
-		const db = getDb();
+		const db = getTargetDb();
 		const subgraphs = (await listSubgraphs(db)).filter(
 			(v: Subgraph) => v.status === "active",
 		);

@@ -1,4 +1,8 @@
-import { type Database, getDb } from "@secondlayer/shared/db";
+import {
+	type Database,
+	getSourceDb,
+	getTargetDb,
+} from "@secondlayer/shared/db";
 import {
 	recordSubgraphProcessed,
 	updateSubgraphStatus,
@@ -58,7 +62,8 @@ export async function processBlock(
 	blockHeight: number,
 	opts?: ProcessBlockOptions,
 ): Promise<ProcessBlockResult> {
-	const db = getDb();
+	const sourceDb = getSourceDb();
+	const targetDb = getTargetDb();
 	const blockStart = performance.now();
 	const result: ProcessBlockResult = {
 		blockHeight,
@@ -68,14 +73,16 @@ export async function processBlock(
 		skipped: false,
 	};
 
-	// 1. Load block (use pre-loaded data if available, otherwise fetch from DB)
-	let block, txs, evts;
+	// 1. Load block from source DB (shared indexer) — use pre-loaded data if available
+	let block: PreloadedBlockData["block"] | undefined;
+	let txs: PreloadedBlockData["txs"];
+	let evts: PreloadedBlockData["events"];
 	if (opts?.preloaded) {
 		block = opts.preloaded.block;
 		txs = opts.preloaded.txs;
 		evts = opts.preloaded.events;
 	} else {
-		block = await db
+		block = await sourceDb
 			.selectFrom("blocks")
 			.selectAll()
 			.where("height", "=", blockHeight)
@@ -99,14 +106,14 @@ export async function processBlock(
 			return result;
 		}
 
-		// 2. Load txs + events
-		txs = await db
+		// 2. Load txs + events (source DB)
+		txs = await sourceDb
 			.selectFrom("transactions")
 			.selectAll()
 			.where("block_height", "=", blockHeight)
 			.execute();
 
-		evts = await db
+		evts = await sourceDb
 			.selectFrom("events")
 			.selectAll()
 			.where("block_height", "=", blockHeight)
@@ -119,16 +126,16 @@ export async function processBlock(
 
 	if (matched.length === 0) {
 		if (!opts?.skipProgressUpdate) {
-			await updateSubgraphStatus(db, subgraphName, "active", blockHeight);
+			await updateSubgraphStatus(targetDb, subgraphName, "active", blockHeight);
 		}
 		return result;
 	}
 
 	// 4. Create context and run handlers
-	// Use cached schema_name (fetched once per subgraph, not per block)
+	// Schema name cache lookup reads the subgraphs table (tenant-side / target DB)
 	let schemaName = schemaNameCache.get(subgraphName);
 	if (!schemaName) {
-		const subgraphRecord = await db
+		const subgraphRecord = await targetDb
 			.selectFrom("subgraphs")
 			.select("schema_name")
 			.where("name", "=", subgraphName)
@@ -149,11 +156,12 @@ export async function processBlock(
 		status: "",
 	};
 
-	// Wrap entire block processing in a single transaction
+	// Wrap entire block processing in a single transaction on the target DB
+	// (tenant schemas + subgraph progress rows live in target)
 	let handlerMs = 0;
 	let flushMs = 0;
 
-	await db.transaction().execute(async (tx: Transaction<Database>) => {
+	await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
 		const ctx = new SubgraphContext(
 			tx,
 			schemaName,
@@ -217,10 +225,8 @@ export async function processBlock(
 					.raw(
 						`SELECT n_live_tup AS count FROM pg_stat_user_tables WHERE schemaname = '${schemaName}' AND relname = '${table}'`,
 					)
-					.execute(db);
-				const count = Number(
-					(rows[0] as Record<string, unknown>)?.count ?? 0,
-				);
+					.execute(targetDb);
+				const count = Number((rows[0] as Record<string, unknown>)?.count ?? 0);
 				if (count >= 10_000_000) {
 					logger.warn("Subgraph table exceeds 10M rows (estimate)", {
 						subgraph: subgraphName,
