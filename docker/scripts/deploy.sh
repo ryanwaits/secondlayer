@@ -52,6 +52,15 @@ $COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
 # want to drop or alter, causing indefinite hangs.
 docker rm -f secondlayer-view-processor-1 secondlayer-workflow-runner-1 2>/dev/null || true
 
+# Force-remove any zombie one-off migrate containers from prior deploys.
+# If a previous `docker compose run --rm migrate` was killed mid-flight by
+# SSH timeout, the container keeps running and holds kysely's advisory
+# migration lock — new migrate runs then wait forever. Cleanup BEFORE, not
+# after, so the new migrate run starts with a clean slate.
+echo "🧹 Cleaning up stale one-off migrate containers from prior deploys..."
+docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com.docker.compose.service=migrate" -q \
+  | xargs -r docker rm -f 2>/dev/null || true
+
 # Run migrations synchronously — fail fast on error
 $COMPOSE run --rm migrate
 
