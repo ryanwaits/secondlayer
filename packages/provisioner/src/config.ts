@@ -28,7 +28,7 @@ export interface ProvisionerConfig {
 	imageTag: string;
 	/** GHCR owner — `ghcr.io/{owner}/secondlayer-{service}:{tag}`. */
 	imageOwner: string;
-	/** Base domain for tenant URLs — used for Traefik labels. */
+	/** Base domain for tenant public URLs (`https://{slug}.{base}`). */
 	tenantBaseDomain: string;
 	/** Docker Engine API socket path. */
 	dockerSocketPath: string;

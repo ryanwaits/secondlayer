@@ -5,7 +5,7 @@ export interface TenantResources {
 	plan: PlanId;
 	/** Internal URL for tenant API (resolvable inside `sl-tenants` docker net). */
 	apiUrlInternal: string;
-	/** Public URL once Traefik is live. */
+	/** Public URL served by Caddy wildcard + on-demand TLS. */
 	apiUrlPublic: string;
 	/** Connection string for tenant PG with the tenant's own DB user. */
 	targetDatabaseUrl: string;

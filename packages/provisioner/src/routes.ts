@@ -2,17 +2,21 @@
  * Provisioner HTTP API. Mounted by `index.ts`. All routes gated by the
  * shared `PROVISIONER_SECRET` sent in `X-Provisioner-Secret` — this is the
  * only trust boundary between control plane and provisioner.
+ *
+ * Exception: `/internal/caddy/ask` is unauth — it's called by the in-cluster
+ * Caddy reverse proxy to validate on-demand TLS cert requests.
  */
 
 import { Hono, type MiddlewareHandler } from "hono";
 import { getConfig } from "./config.ts";
+import { containerInspect } from "./docker.ts";
 import {
 	getTenantStatus,
 	resizeTenant,
 	resumeTenant,
 	suspendTenant,
 } from "./lifecycle.ts";
-import { isValidSlug } from "./names.ts";
+import { apiContainerName, isValidSlug } from "./names.ts";
 import { type PlanId, isValidPlanId } from "./plans.ts";
 import { provisionTenant } from "./provision.ts";
 import { measureStorageMb } from "./storage.ts";
@@ -32,6 +36,22 @@ function requireSecret(): MiddlewareHandler {
 
 export function buildRoutes(): Hono {
 	const app = new Hono();
+
+	// Caddy on-demand TLS `ask` endpoint — unauth, only reachable inside the
+	// compose network. Caddy calls this before issuing a cert for a new
+	// `{slug}.{base}` subdomain. Returns 200 if an api container exists for
+	// the slug, 404 otherwise — which tells Caddy to refuse the cert.
+	app.get("/internal/caddy/ask", async (c) => {
+		const domain = c.req.query("domain") ?? "";
+		const { tenantBaseDomain } = getConfig();
+		const suffix = `.${tenantBaseDomain}`;
+		if (!domain.endsWith(suffix)) return c.text("wrong domain", 404);
+		const slug = domain.slice(0, -suffix.length);
+		if (!isValidSlug(slug)) return c.text("invalid slug", 404);
+		const info = await containerInspect(apiContainerName(slug));
+		if (!info) return c.text("unknown tenant", 404);
+		return c.text("ok", 200);
+	});
 
 	app.use("*", requireSecret());
 

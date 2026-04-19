@@ -1,4 +1,25 @@
-{$DOMAIN} {
+# Caddy config — platform mode with wildcard tenant routing.
+#
+# Three blocks:
+#   1. Platform API:   api.{BASE_DOMAIN}  →  api:3800
+#   2. Tenant API:     *.{BASE_DOMAIN}     →  sl-api-{slug}:3800 (on-demand TLS)
+#   3. Slack hooks:    served under (1) on /hooks/slack*
+#
+# On-demand TLS: Caddy issues a Let's Encrypt cert the first time a new
+# subdomain is requested. Before issuing, it calls the `ask` endpoint on
+# the provisioner — the provisioner confirms the slug maps to a running
+# tenant container (prevents rando `*.secondlayer.tools` cert spam).
+#
+# BASE_DOMAIN is the apex used for the wildcard. Defaults to `secondlayer.tools`.
+
+{
+	email {$CADDY_ACME_EMAIL:ryan.waits@gmail.com}
+	on_demand_tls {
+		ask http://provisioner:3850/internal/caddy/ask
+	}
+}
+
+api.{$BASE_DOMAIN:secondlayer.tools} {
 	header -Server
 	header X-Content-Type-Options nosniff
 
@@ -8,4 +29,16 @@
 	handle {
 		reverse_proxy api:3800
 	}
+}
+
+*.{$BASE_DOMAIN:secondlayer.tools} {
+	tls {
+		on_demand
+	}
+	header -Server
+	header X-Content-Type-Options nosniff
+
+	# labels.2 = leftmost label (the tenant slug). For `abc12345.secondlayer.tools`:
+	#   labels.0=tools  labels.1=secondlayer  labels.2=abc12345
+	reverse_proxy sl-api-{labels.2}:3800
 }

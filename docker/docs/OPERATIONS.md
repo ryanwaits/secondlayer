@@ -41,16 +41,16 @@ $COMPOSE up -d --force-recreate api indexer worker subgraph-processor agent
 
 **NOT required yet** because the provisioner service is behind `--profile platform` and the current deploy script doesn't start it. The routes `/api/tenants/*` and worker trial/health crons are already deployed but all short-circuit when no tenants exist (zero provisioner calls). Set these before activating the provisioner.
 
-### Upcoming (Sprint 6 — Traefik)
+### Tenant HTTPS (Caddy wildcard + on-demand TLS)
 
-Uses HTTP-01 challenge (per-subdomain certs, on-demand at first request). No DNS provider API token needed — works with any DNS provider that can serve a wildcard A record.
+Caddy serves `api.{BASE_DOMAIN}` (platform API) and `*.{BASE_DOMAIN}` (tenant subdomains). On-demand TLS issues a Let's Encrypt cert the first time a new `{slug}.{BASE_DOMAIN}` is requested, after checking with the provisioner's `ask` endpoint that the slug is a real tenant.
 
 | Var | Purpose |
 |---|---|
-| `TRAEFIK_ACME_EMAIL` | Let's Encrypt account email |
-| `TRAEFIK_DASHBOARD_USERS` | htpasswd-formatted string for Traefik admin dashboard (`htpasswd -nb admin <pw>` — double-escape `$$` in compose but single `$` in `.env`) |
+| `BASE_DOMAIN` | Apex domain served by Caddy, e.g. `secondlayer.tools`. Caddy matches `api.{BASE_DOMAIN}` and `*.{BASE_DOMAIN}`. |
+| `CADDY_ACME_EMAIL` | Let's Encrypt account email. |
 
-**DNS requirement**: wildcard A record `*.secondlayer.tools` → app-server IP (proxy-off / DNS-only). Works on any DNS provider (Vercel, Namecheap, Cloudflare, etc.).
+**DNS requirement**: wildcard A record `*.{BASE_DOMAIN}` → app-server IP (proxy-off / DNS-only). Works on any DNS provider (Vercel, Namecheap, Cloudflare, etc.).
 
 ---
 
@@ -255,16 +255,16 @@ ls -lh /opt/secondlayer/data/backups/ | tail -5
 - **You need to**: Nothing right now. `/api/tenants/*` routes are mounted but nobody calls them. Worker crons run but short-circuit (no tenants exist).
 - **What to verify after deploy**: `SELECT * FROM kysely_migration WHERE name = '0039_tenants';` returns one row.
 
-### Sprint 6 — Traefik (code-ready, not deployed)
+### Sprint 6 — Tenant HTTPS via Caddy wildcard + on-demand TLS
 
-Code will land alongside existing Caddy; nothing changes in prod until we flip DNS.
+Existing Caddy is extended with a wildcard block that reverse-proxies `{slug}.{BASE_DOMAIN}` → `sl-api-{slug}:3800`. On-demand TLS issues per-subdomain certs on first request, validated against the provisioner's `ask` endpoint (no cert spam for unknown slugs).
 
 - **You'll need to**:
-  1. Add wildcard A record `*.secondlayer.tools` → app-server IP on your DNS provider (Vercel, Cloudflare, etc.)
-  2. Generate Traefik dashboard basic-auth: `htpasswd -nb admin <password>`
-  3. Add `TRAEFIK_ACME_EMAIL` + `TRAEFIK_DASHBOARD_USERS` to `.env`
-- **Deploy impact**: zero. Traefik runs on test ports (8080/8443) alongside Caddy until we cut over.
-- **TLS**: HTTP-01 challenge issues per-subdomain certs on-demand (no wildcard). Works with any DNS provider. LE rate limit: 50/week per domain — plenty for v1 scale.
+  1. Add wildcard A record `*.{BASE_DOMAIN}` → app-server IP on your DNS provider (Vercel, Cloudflare, etc.).
+  2. Set `BASE_DOMAIN` + `CADDY_ACME_EMAIL` in `.env` (replaces the old `DOMAIN` var).
+  3. Recreate Caddy: `$COMPOSE up -d caddy` (picks up new Caddyfile + joins `sl-tenants` network).
+- **Deploy impact**: no outage — existing `api.{BASE_DOMAIN}` block is unchanged; wildcard block is additive.
+- **TLS**: HTTP-01 challenge issues per-subdomain certs on-demand. LE rate limit: 50/week per registered domain — plenty for v1 scale. Switch to DNS-01 wildcard later if needed.
 
 ### Sprint 7 — Dashboard + CLI for dedicated hosting
 
@@ -289,7 +289,7 @@ The `packages/provisioner/src/migrate-tenant.ts` script is ready to run. It:
 #### Prerequisites (in order)
 
 1. Provisioner must be running (Sprint 7 activation)
-2. Traefik SHOULD be running (Sprint 6 activation) so your tenant URL resolves; you can skip if you only care about internal testing first
+2. Caddy wildcard + on-demand TLS (Sprint 6) SHOULD be live so your tenant URL resolves; you can skip if you only care about internal testing first
 3. DB backup taken — use `bash /opt/secondlayer/docker/scripts/backup-postgres.sh`
 4. Your `SECONDLAYER_SECRETS_KEY` is intact (same key provisioner uses)
 
@@ -427,7 +427,6 @@ Zero-downtime:
 
 **Code-ready but NOT running**:
 - `secondlayer-provisioner-1` — awaits Sprint 7 activation (`--profile platform`)
-- Traefik — awaits Sprint 6
 
 **On the node server**:
 - `bitcoind`

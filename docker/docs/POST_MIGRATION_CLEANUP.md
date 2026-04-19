@@ -187,14 +187,13 @@ After migration, the shared postgres holds only:
 
 Decision: keep the shared postgres. Rename the logical split internally — "control plane DB" for auth/tenants/account tables; "source indexer DB" for blocks/transactions/events. Can live on the same physical postgres (just different databases) or be split later if scaling demands it.
 
-### C.2 Swap Caddy → Traefik
+### C.2 Caddy wildcard + on-demand TLS (tenant HTTPS)
 
-Traefik is already code-ready. Cutover steps from `docker/docs/OPERATIONS.md` Sprint 6 section:
-1. Add Cloudflare DNS wildcard + API token env
-2. Deploy with `docker-compose.dedicated.yml` alongside existing Caddy
-3. Verify a tenant subdomain works via Traefik
-4. Stop Caddy: `docker compose stop caddy`
-5. Remove Caddy from `docker-compose.hetzner.yml`
+Tenant public URLs (`{slug}.{BASE_DOMAIN}`) are served by the existing Caddy via a wildcard block + on-demand TLS. Activation steps — see `docker/docs/OPERATIONS.md` and §6.2 of `DEDICATED_HOSTING.md`:
+1. Add wildcard DNS A record `*.{BASE_DOMAIN}` → app-server IP.
+2. Set `BASE_DOMAIN` + `CADDY_ACME_EMAIL` in `.env` (replace old `DOMAIN`).
+3. `$COMPOSE up -d --force-recreate caddy` — reloads Caddyfile + joins `sl-tenants`.
+4. Provision a test tenant; `curl -I https://<slug>.{BASE_DOMAIN}` — expect 401 (TLS + routing OK).
 
 ### C.3 Update GitHub Actions OSS image workflow
 
@@ -235,7 +234,7 @@ If something breaks mid-cleanup:
 
 1. **Phase A (DB)**: each migration has a `down()`. Roll back with `migrator.migrateDown()`. Columns come back as nullable; data you already lost (none, since all we drop is an FK column and an empty workflow table) is gone.
 2. **Phase B (code)**: revert the commit via `git revert`. Redeploy.
-3. **Phase C (infra)**: keep Caddy running in parallel until Traefik has handled real tenant traffic for at least a week. No rush.
+3. **Phase C (infra)**: revert the Caddyfile (drop wildcard block + on_demand_tls stanza) and recreate Caddy — existing `api.{BASE_DOMAIN}` block is unchanged, so platform API keeps serving.
 
 ---
 

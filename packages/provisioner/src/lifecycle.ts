@@ -124,7 +124,6 @@ export async function resizeTenant(
 			memoryMb: plan.containers.api.memoryMb,
 			cpus: plan.containers.api.cpus,
 			env,
-			tenantBaseDomain: cfg.tenantBaseDomain,
 		}),
 	);
 	await containerStart(apiId);
@@ -277,7 +276,6 @@ function buildApiSpec(input: {
 	memoryMb: number;
 	cpus: number;
 	env: Record<string, string>;
-	tenantBaseDomain: string;
 }): ContainerSpec {
 	return {
 		name: input.name,
@@ -289,10 +287,6 @@ function buildApiSpec(input: {
 			"secondlayer.role": "api",
 			"secondlayer.slug": input.slug,
 			"secondlayer.plan": input.plan,
-			"traefik.enable": "true",
-			[`traefik.http.routers.${input.slug}.rule`]: `Host(\`${input.slug}.${input.tenantBaseDomain}\`)`,
-			[`traefik.http.routers.${input.slug}.tls.certresolver`]: "letsencrypt",
-			[`traefik.http.services.${input.slug}.loadbalancer.server.port`]: "3800",
 		},
 		memoryMb: input.memoryMb,
 		cpus: input.cpus,

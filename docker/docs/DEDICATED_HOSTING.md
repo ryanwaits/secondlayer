@@ -148,7 +148,7 @@ Two bridge networks defined by the provisioner (created on first provision; idem
 
 | Network | Members | Purpose |
 |---|---|---|
-| `sl-tenants` | Platform API, Provisioner, Traefik, all `sl-{role}-{slug}` containers | Platform → provisioner calls; Traefik → tenant API routing; tenant API/proc → tenant PG |
+| `sl-tenants` | Caddy (hetzner.yml), Provisioner, all `sl-{role}-{slug}` containers | Caddy → tenant API routing (`sl-api-{slug}:3800`); tenant API/proc → tenant PG |
 | `sl-source` | Shared app-server postgres + tenant API/proc containers | Tenants read blocks/txs/events from the shared indexer DB. Tenant PG is NOT on this network. |
 
 Defined in `packages/provisioner/src/names.ts:32-33`:
@@ -158,7 +158,7 @@ export const NETWORK_TENANTS = "sl-tenants";
 export const NETWORK_SOURCE = "sl-source";
 ```
 
-Platform-side compose declaration lives in `docker/docker-compose.dedicated.yml:100-115` — the provisioner also creates them if missing (`networkEnsure()` in `packages/provisioner/src/provision.ts:62-65`).
+`sl-tenants` is declared at compose level in `docker/docker-compose.hetzner.yml` (so Caddy can join at startup). The provisioner still calls `networkEnsure()` for both `sl-tenants` and `sl-source` at provision time (idempotent — reuses the existing network).
 
 ### 2.5 Readonly role (`secondlayer_readonly`)
 
@@ -211,19 +211,15 @@ Keys are minted at provision time by `mintTenantKeys()` in `packages/provisioner
 
 All naming helpers live in `packages/provisioner/src/names.ts`. Slug generation uses `crypto.randomBytes` — collision probability negligible (`36^8 ≈ 2.8 × 10^12` possible slugs).
 
-Container labels applied at create time (see `packages/provisioner/src/provision.ts:225-232, 271-280`):
+Container labels applied at create time (see `packages/provisioner/src/provision.ts`):
 
 ```
 secondlayer.role=postgres|api|processor
 secondlayer.slug={slug}
 secondlayer.plan={plan}
-traefik.enable=true                                           (api only)
-traefik.http.routers.{slug}.rule=Host(`{slug}.{domain}`)      (api only)
-traefik.http.routers.{slug}.tls.certresolver=letsencrypt      (api only)
-traefik.http.services.{slug}.loadbalancer.server.port=3800    (api only)
 ```
 
-Traefik labels are set at provision time — they're inert until Traefik actually deploys (Sprint 6, not yet live).
+Tenant API routing is name-based: Caddy's wildcard block rewrites `{slug}.{BASE_DOMAIN}` → `sl-api-{slug}:3800` using the `{labels.2}` placeholder, so no per-tenant proxy config is needed. On-demand TLS asks the provisioner's `/internal/caddy/ask` endpoint to confirm the slug before issuing a cert.
 
 ---
 
@@ -277,7 +273,7 @@ PROVISIONER_SOURCE_DB_HOST=postgres:5432              # host:port tenants use to
 PROVISIONER_SOURCE_DB_NAME=secondlayer                # default secondlayer
 PROVISIONER_IMAGE_TAG=latest                          # GHCR tag for tenant images
 PROVISIONER_IMAGE_OWNER=secondlayer-labs              # GHCR owner
-PROVISIONER_TENANT_BASE_DOMAIN=secondlayer.tools      # for Traefik labels
+PROVISIONER_TENANT_BASE_DOMAIN=secondlayer.tools      # apiUrlPublic = https://{slug}.{base}
 DOCKER_SOCKET=/var/run/docker.sock                    # override for non-standard socket paths
 PROVISIONER_PORT=3850                                 # override if you need a different port
 ```
@@ -441,38 +437,20 @@ The connection check uses `res.status === 401|403` to detect bad keys specifical
 
 After `connect`, downstream commands (`sl subgraphs deploy`, etc.) pick up the configured `apiUrl` + `apiKey` automatically.
 
-### 3.7 Traefik — `docker/traefik/traefik.yml` + `docker/docker-compose.dedicated.yml`
+### 3.7 Caddy wildcard + on-demand TLS — `docker/Caddyfile`
 
-**Reverse proxy for dedicated hosting.** Docker provider auto-discovers tenant containers via labels (set by the provisioner at container-create time). DNS-01 challenge via Cloudflare gets a wildcard cert for `*.secondlayer.tools`.
+**Reverse proxy for both platform API and tenant subdomains.** Single Caddy instance serves:
 
-`traefik.yml` static config:
-- Entry points: `web` (:80 — redirects to https) + `websecure` (:443 — TLS)
-- Docker provider on `sl-public` network with `exposedByDefault: false`
-- Cert resolver `letsencrypt` with DNS-01 via Cloudflare
-- Dashboard exposed only on `127.0.0.1:8080` (not public)
-- Prometheus metrics enabled
+- `api.{BASE_DOMAIN}` → platform `api:3800` (with slack hooks on `/hooks/slack*` → `agent:3900`)
+- `*.{BASE_DOMAIN}` → `sl-api-{labels.2}:3800` via Caddy's `{labels.N}` placeholder (leftmost label = tenant slug)
 
-Tenant routing labels (already applied by provisioner, inert until Traefik deploys) — see `packages/provisioner/src/provision.ts:275-280`:
+**On-demand TLS**: Caddy issues a Let's Encrypt cert the first time a new `{slug}.{BASE_DOMAIN}` is requested. Before issuing, it calls `http://provisioner:3850/internal/caddy/ask?domain=<host>` (unauth, in-cluster only). The provisioner checks whether `sl-api-{slug}` exists and returns 200/404 — if 404, Caddy refuses the cert (prevents random-subdomain cert-issuance DoS).
 
-```
-traefik.enable=true
-traefik.http.routers.{slug}.rule=Host(`{slug}.secondlayer.tools`)
-traefik.http.routers.{slug}.tls.certresolver=letsencrypt
-traefik.http.services.{slug}.loadbalancer.server.port=3800
-```
+Caddy joins two networks (`docker-compose.hetzner.yml`): `default` to reach platform `api` and `provisioner`; `sl-tenants` to reach `sl-api-{slug}` containers by name.
 
-Platform API labels (defined in `docker-compose.dedicated.yml:50-59`) — inert until Traefik deploys and Caddy stops:
+**TLS challenge**: HTTP-01 — per-subdomain certs issued on-demand, no DNS provider API needed. Rate limit: 50 new certs/week per registered domain. Switch to DNS-01 wildcard if that becomes a ceiling.
 
-```
-traefik.http.routers.platform-api.rule=Host(`api.secondlayer.tools`)
-traefik.http.routers.platform-api.entrypoints=websecure
-traefik.http.routers.platform-api.tls.certresolver=letsencrypt
-traefik.http.services.platform-api.loadbalancer.server.port=3800
-```
-
-Admin dashboard at `traefik.secondlayer.tools` protected by basic auth (users in `TRAEFIK_DASHBOARD_USERS` env; generated via `htpasswd -nb admin <password>`).
-
-**Not deployed yet**. `docker-compose.dedicated.yml` is parallel to the live `docker-compose.hetzner.yml` — cutover is a separate maintenance step after DNS + cert verification (§6).
+**Not a separate deploy step**. The existing Caddy service in `docker-compose.hetzner.yml` just loads the updated Caddyfile on recreate.
 
 ### 3.8 Deploy pipeline — `docker/scripts/deploy.sh`
 
@@ -536,7 +514,7 @@ const res = await fetch("/api/tenants", {
 | 3 | `volume` | `volumeEnsure('sl-data-{slug}')` |
 | 4 | `postgres` | Build spec → `containerCreate` → `containerStart` → `waitForHealthy(60s)` on `pg_isready` |
 | 5 | `migrate` | Spawn short-lived `sl-pg-{slug}-migrator` container running `bun run packages/shared/src/db/migrate.ts` against tenant DB; wait for exit; remove |
-| 6 | `api` | Build spec (env: `INSTANCE_MODE=dedicated`, dual-DB URLs, `TENANT_JWT_SECRET`, Traefik labels) → create → start → `waitForHealthy(30s)` on `/health` |
+| 6 | `api` | Build spec (env: `INSTANCE_MODE=dedicated`, dual-DB URLs, `TENANT_JWT_SECRET`) → create → start → `waitForHealthy(30s)` on `/health` |
 | 7 | `processor` | Same image, `cmd: bun run packages/subgraphs/src/service.ts` → create → start → `waitForHealthy(20s)` |
 | 8 | — | `mintTenantKeys(slug, jwtSecret)` → `{anonKey, serviceKey}` |
 | 9 | — | Return `TenantResources` |
@@ -601,7 +579,7 @@ What's **running right now on the Hetzner app server** (`INSTANCE_MODE=platform`
 | `secondlayer-subgraph-processor-1` | Shared processor | Will be decommissioned once all users migrate (Sprint 8) |
 | `secondlayer-worker-1` | Storage cron + tenant trial/health crons (latter short-circuit with 0 tenants) | |
 | `secondlayer-agent-1` | AI ops monitoring + Slack | |
-| `secondlayer-caddy-1` | TLS proxy for `api.secondlayer.tools` | Will be replaced by Traefik on cutover |
+| `secondlayer-caddy-1` | TLS proxy for `api.{BASE_DOMAIN}` + wildcard `*.{BASE_DOMAIN}` on-demand TLS |
 
 What's **deployed but dormant**:
 
@@ -612,14 +590,13 @@ What's **deployed but dormant**:
 | Worker tenant-trial cron | Running, short-circuits (no tenants in DB) | — |
 | Worker tenant-health cron | Running, short-circuits (no tenants in DB) | — |
 | Instance dashboard page | Deployed at `/instance` | Currently 404s with `{tenant: null}` — `TrialStart` view. Fully functional for provisioning if provisioner were running. |
-| Provisioner Traefik labels on tenant containers | Code paths hit on every provision | Inert — no Traefik |
+| Caddy wildcard block for `*.{BASE_DOMAIN}` | Ships in Caddyfile; inert until first tenant is provisioned | Just usage |
 
 What's **NOT deployed**:
 
 | Piece | Why |
 |---|---|
 | Provisioner service | Behind `--profile platform` in base compose; current `deploy.sh` doesn't include that profile |
-| Traefik | Parallel `docker-compose.dedicated.yml` not in use; prod still on Caddy |
 | Tenant containers | Can't exist without a running provisioner |
 
 **Net effect**: if a user navigates to `/instance` right now and clicks "Start 14-Day Trial", the platform API will try to call the provisioner at `http://provisioner:3850`, fail (no DNS resolution — no provisioner running), and return a 502 with `"Provisioner rejected the request"`. Non-destructive — no tenant state was created.
@@ -628,7 +605,7 @@ What's **NOT deployed**:
 
 ## 6. Activation checklist
 
-### 6.1 Go live with dedicated hosting (provisioner only, no Traefik)
+### 6.1 Go live with dedicated hosting (provisioner only)
 
 1. **Generate secrets** (on your local machine):
    ```bash
@@ -680,44 +657,34 @@ What's **NOT deployed**:
 
 8. **Done.** Users can now create tenants from the dashboard. Each provision spawns `sl-pg-{slug}`, `sl-api-{slug}`, `sl-proc-{slug}` on the host.
 
-### 6.2 Enable Traefik (Sprint 6 work, still deferred)
+### 6.2 Enable tenant HTTPS (Caddy wildcard + on-demand TLS)
 
-Only do this once tenants are actually running on the host and you're ready to serve them on their public subdomains.
+Activates public `{slug}.{BASE_DOMAIN}` URLs for provisioned tenants. No separate service — just Caddyfile + network membership changes that ship with this code.
 
-1. **Cloudflare API token**: Zone:DNS:Edit scope on `secondlayer.tools`.
-2. **Add to `.env`**:
+1. **Add wildcard DNS**: A record `*.{BASE_DOMAIN}` → app server IP (proxy-off / DNS-only). Confirm `api.{BASE_DOMAIN}` already resolves.
+2. **Update `/opt/secondlayer/docker/.env`** — replace the old `DOMAIN` var:
    ```bash
-   CF_API_TOKEN=<cloudflare token>
-   TRAEFIK_ACME_EMAIL=ops@secondlayer.tools
-   TRAEFIK_DASHBOARD_USERS=<htpasswd -nb admin PASSWORD output, escaped for compose>
+   BASE_DOMAIN=secondlayer.tools
+   CADDY_ACME_EMAIL=ops@secondlayer.tools
+   # Remove: DOMAIN=...
    ```
-3. **Add wildcard DNS**: A record `*.secondlayer.tools` → app server IP. Also add `api.secondlayer.tools` and `traefik.secondlayer.tools` if they don't already resolve.
-4. **Deploy Traefik** (parallel to Caddy — no conflict since Caddy and Traefik both want :80/:443 so this step conflicts; do it during a maintenance window):
+3. **Recreate Caddy** so it reloads the Caddyfile and joins the `sl-tenants` network:
    ```bash
    cd /opt/secondlayer/docker
-   COMPOSE_DEDICATED="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml -f docker-compose.dedicated.yml"
-   # Stop Caddy first (it holds :443)
-   docker compose -f docker-compose.yml -f docker-compose.hetzner.yml stop caddy
-   # Bring up Traefik
-   $COMPOSE_DEDICATED --profile platform up -d traefik
+   COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
+   $COMPOSE up -d --force-recreate caddy
    ```
-5. **Verify a tenant subdomain**. Create a test tenant first via dashboard, then:
+4. **Verify platform API still works**:
    ```bash
-   curl -I https://<test-slug>.secondlayer.tools
-   # Expect 401 (unauthenticated) — confirms TLS cert + routing work.
+   curl -I https://api.secondlayer.tools/health    # expect 200
    ```
-6. **Verify platform API**:
+5. **Verify wildcard routing** after provisioning at least one tenant:
    ```bash
-   curl -I https://api.secondlayer.tools/health
-   # Expect 200.
+   curl -I https://<test-slug>.secondlayer.tools   # expect 401 — TLS + routing OK
    ```
-7. **Update `deploy.sh`** to use the dedicated compose pair:
-   ```bash
-   # Change line 28 in deploy.sh:
-   COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml -f docker-compose.dedicated.yml"
-   ```
-   Commit + push so the next auto-deploy uses the new pair. Alternative: SSH-in and persist the override locally, but a committed change is preferable.
-8. **Remove Caddy** once confident (also removable from `docker-compose.hetzner.yml:51-65`; do in a separate PR).
+   First request for a new slug takes ~5s while Caddy issues the cert. Subsequent requests are instant.
+
+Rollback: revert the Caddyfile (drop the wildcard block + on_demand_tls stanza) and recreate Caddy.
 
 ---
 
@@ -784,9 +751,10 @@ docker exec secondlayer-api-1 curl -sf http://sl-api-{slug}:3800/health
 ```
 
 If the container is healthy from inside the network but unreachable externally:
-- Traefik not running → §6.2 activation checklist
-- Wildcard DNS not resolving → `dig {slug}.secondlayer.tools` from outside
-- Cert not issued → `docker logs secondlayer-traefik-1 | grep -i acme`
+- Caddy not joined to `sl-tenants` → `docker inspect secondlayer-caddy-1 --format '{{range $n, $_ := .NetworkSettings.Networks}}{{$n}} {{end}}'` — must include `sl-tenants`. If not, follow §6.2.
+- Wildcard DNS not resolving → `dig '*.{BASE_DOMAIN}' @1.1.1.1 +short` from outside
+- Cert not issued → `docker logs secondlayer-caddy-1 2>&1 | grep -iE 'acme|obtain|certificate'`
+- `ask` endpoint rejecting → `docker logs secondlayer-caddy-1 2>&1 | grep -i ask` + `curl http://localhost:3850/internal/caddy/ask?domain={slug}.{BASE_DOMAIN}` from inside the host
 
 ### Worker crons spamming errors
 
@@ -954,9 +922,8 @@ Source DB outage means tenant processors can't read blocks — but tenant API co
 | HTTP routes (Hono) | `packages/provisioner/src/routes.ts` |
 | Provisioner entry point | `packages/provisioner/src/index.ts` |
 | Base compose (provisioner defined here) | `docker/docker-compose.yml` |
-| Hetzner prod overrides (current) | `docker/docker-compose.hetzner.yml` |
-| Dedicated-hosting compose (not yet deployed) | `docker/docker-compose.dedicated.yml` |
-| Traefik static config | `docker/traefik/traefik.yml` |
+| Hetzner prod overrides (Caddy, agent, etc.) | `docker/docker-compose.hetzner.yml` |
+| Caddy config (platform + wildcard tenant routing) | `docker/Caddyfile` |
 | Dockerfile (all targets incl. `provisioner`) | `docker/Dockerfile` |
 | Deploy script | `docker/scripts/deploy.sh` |
 | Instance dashboard page | `apps/web/src/app/platform/instance/page.tsx` |

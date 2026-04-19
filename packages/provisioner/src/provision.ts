@@ -111,7 +111,6 @@ export async function provisionTenant(
 					targetDatabaseUrl,
 					sourceDatabaseUrl,
 					jwtSecret,
-					tenantBaseDomain: cfg.tenantBaseDomain,
 				}),
 			);
 			await containerStart(apiId);
@@ -248,7 +247,6 @@ interface ApiSpecInput {
 	targetDatabaseUrl: string;
 	sourceDatabaseUrl: string;
 	jwtSecret: string;
-	tenantBaseDomain: string;
 }
 
 function buildApiSpec(input: ApiSpecInput): ContainerSpec {
@@ -272,11 +270,6 @@ function buildApiSpec(input: ApiSpecInput): ContainerSpec {
 			"secondlayer.role": "api",
 			"secondlayer.slug": input.slug,
 			"secondlayer.plan": input.plan,
-			// Traefik labels — inert until Sprint 6 deploys Traefik.
-			"traefik.enable": "true",
-			[`traefik.http.routers.${input.slug}.rule`]: `Host(\`${input.slug}.${input.tenantBaseDomain}\`)`,
-			[`traefik.http.routers.${input.slug}.tls.certresolver`]: "letsencrypt",
-			[`traefik.http.services.${input.slug}.loadbalancer.server.port`]: "3800",
 		},
 		memoryMb: input.alloc.memoryMb,
 		cpus: input.alloc.cpus,
