@@ -1,0 +1,103 @@
+/**
+ * Compute plan definitions for dedicated hosting.
+ *
+ * Allocation within a plan (post-streams-surgery, 3 containers per tenant):
+ *   - PG           ~50% RAM, ~50% CPU
+ *   - Subgraph proc ~30% RAM, ~30% CPU
+ *   - API          ~20% RAM, ~20% CPU
+ *
+ * Docker memory limit is a hard cap (OOM kill on overage). CPU is a soft
+ * cap via `--cpus` (throttling, not killing). Storage is monitored
+ * separately and billed as overage — PG crashes if we hard-cap it.
+ */
+
+export type PlanId = "launch" | "grow" | "scale" | "enterprise";
+
+export interface ContainerAlloc {
+	memoryMb: number;
+	cpus: number;
+}
+
+export interface Plan {
+	id: PlanId;
+	displayName: string;
+	monthlyPriceUsd: number | null; // null = custom pricing (enterprise)
+	totalCpus: number;
+	totalMemoryMb: number;
+	storageLimitMb: number; // -1 = unlimited (enterprise)
+	containers: {
+		postgres: ContainerAlloc;
+		api: ContainerAlloc;
+		processor: ContainerAlloc;
+	};
+}
+
+function alloc(totalMb: number, totalCpus: number): Plan["containers"] {
+	return {
+		postgres: {
+			memoryMb: Math.floor(totalMb * 0.5),
+			cpus: round2(totalCpus * 0.5),
+		},
+		processor: {
+			memoryMb: Math.floor(totalMb * 0.3),
+			cpus: round2(totalCpus * 0.3),
+		},
+		api: {
+			memoryMb: Math.floor(totalMb * 0.2),
+			cpus: round2(totalCpus * 0.2),
+		},
+	};
+}
+
+function round2(n: number): number {
+	return Math.round(n * 100) / 100;
+}
+
+export const PLANS: Record<PlanId, Plan> = {
+	launch: {
+		id: "launch",
+		displayName: "Launch",
+		monthlyPriceUsd: 99,
+		totalCpus: 1,
+		totalMemoryMb: 2048,
+		storageLimitMb: 10240,
+		containers: alloc(2048, 1),
+	},
+	grow: {
+		id: "grow",
+		displayName: "Grow",
+		monthlyPriceUsd: 249,
+		totalCpus: 2,
+		totalMemoryMb: 4096,
+		storageLimitMb: 51200,
+		containers: alloc(4096, 2),
+	},
+	scale: {
+		id: "scale",
+		displayName: "Scale",
+		monthlyPriceUsd: 599,
+		totalCpus: 4,
+		totalMemoryMb: 8192,
+		storageLimitMb: 204800,
+		containers: alloc(8192, 4),
+	},
+	enterprise: {
+		id: "enterprise",
+		displayName: "Enterprise",
+		monthlyPriceUsd: null,
+		totalCpus: 8,
+		totalMemoryMb: 32_768,
+		storageLimitMb: -1,
+		containers: alloc(32_768, 8),
+	},
+};
+
+export function getPlan(id: string): Plan {
+	const plan = (PLANS as Record<string, Plan | undefined>)[id];
+	if (!plan) throw new Error(`Unknown plan: ${id}`);
+	return plan;
+}
+
+export function isValidPlanId(id: string): id is PlanId {
+	return id in PLANS;
+}
