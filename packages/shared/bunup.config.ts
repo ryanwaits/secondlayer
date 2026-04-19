@@ -24,6 +24,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/workflows.ts",
 		"src/types.ts",
 		"src/env.ts",
+		"src/mode.ts",
 		"src/logger.ts",
 		"src/errors.ts",
 		"src/constants.ts",

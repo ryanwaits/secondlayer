@@ -17,6 +17,7 @@ import {
 	listSubgraphs,
 	pgSchemaName,
 } from "@secondlayer/shared/db/queries/subgraphs";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { PublishSubgraphRequestSchema } from "@secondlayer/shared/schemas/marketplace";
 import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
@@ -217,7 +218,9 @@ function readSubgraphOrigin(c: {
 app.post("/bundle", async (c) => {
 	const apiKeyId = getApiKeyId(c);
 	const accountId = getAccountId(c);
-	if (!apiKeyId && !accountId) {
+	// Platform mode requires an identity to attribute the bundle to.
+	// oss/dedicated modes are single-tenant; no attribution needed.
+	if (isPlatformMode() && !apiKeyId && !accountId) {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
 	const origin = readSubgraphOrigin(c);

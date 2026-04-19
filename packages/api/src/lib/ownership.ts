@@ -1,6 +1,7 @@
 import { ForbiddenError } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
 
@@ -39,6 +40,9 @@ export async function assertSubgraphOwnership(
 
 	if (!subgraph) return null;
 
+	// oss/dedicated modes skip ownership — single-tenant context.
+	if (!isPlatformMode()) return subgraph;
+
 	if (accountId && subgraph.account_id && subgraph.account_id !== accountId) {
 		throw new ForbiddenError("Subgraph belongs to another account");
 	}
@@ -57,8 +61,13 @@ export function getAccountId(c: Context): string | undefined {
 	return c.get("accountId") as string | undefined;
 }
 
-/** Resolve all active API key IDs for the current request's account. */
+/**
+ * Resolve all active API key IDs for the current request's account.
+ * In oss/dedicated modes there's no per-account scoping — returns undefined
+ * so callers skip the `api_key_id IN (...)` filter and see all resources.
+ */
 export async function resolveKeyIds(c: Context): Promise<string[] | undefined> {
+	if (!isPlatformMode()) return undefined;
 	const accountId = getAccountId(c);
 	if (!accountId) return undefined;
 	const ids = await getAccountKeyIds(getDb(), accountId);

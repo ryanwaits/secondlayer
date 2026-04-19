@@ -6,9 +6,11 @@ import {
 } from "@secondlayer/auth";
 import { logger } from "@secondlayer/shared";
 import { closeDb, getDb } from "@secondlayer/shared/db";
-import { Hono } from "hono";
+import { getInstanceMode } from "@secondlayer/shared/mode";
+import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { requireAdmin } from "./middleware/admin.ts";
+import { dedicatedAuth, staticKeyAuth } from "./middleware/auth-modes.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import { countApiRequests } from "./middleware/usage.ts";
@@ -31,6 +33,7 @@ import subgraphsRouter, {
 import waitlistRouter from "./routes/waitlist.ts";
 import workflowsRouter from "./routes/workflows.ts";
 
+const mode = getInstanceMode();
 const app = new Hono();
 
 // Global middleware
@@ -40,65 +43,98 @@ app.use("*", requestLogger);
 // Global error handler
 app.onError(errorHandler);
 
-// Key management routes (always available)
-app.route("/api/keys", keysRouter);
+/**
+ * Resource auth middleware applied per instance mode.
+ * - oss: `staticKeyAuth` (pass-through unless `API_KEY` env is set)
+ * - dedicated: `dedicatedAuth` (HS256 JWT with anon/service role)
+ * - platform: `requireAuth` (magic-link sessions + sk-sl_ API keys)
+ */
+function resourceAuth(): MiddlewareHandler {
+	if (mode === "dedicated") return dedicatedAuth();
+	if (mode === "oss") return staticKeyAuth();
+	return requireAuth();
+}
 
-// Auth routes (no auth required, IP rate limited)
-app.use("/api/auth/*", ipRateLimit(10));
-app.route("/api/auth", authRouter);
+// Platform-only routes — skipped in oss/dedicated modes.
+if (mode === "platform") {
+	// Key management (session-scoped API key CRUD)
+	app.route("/api/keys", keysRouter);
 
-// Waitlist (no auth required)
-app.route("/api/waitlist", waitlistRouter);
+	// Auth routes (no auth required, IP rate limited)
+	app.use("/api/auth/*", ipRateLimit(10));
+	app.route("/api/auth", authRouter);
 
-// Marketplace (no auth required, IP rate limited)
-app.use("/api/marketplace/*", ipRateLimit(60));
-app.route("/api/marketplace", marketplaceRouter);
+	// Waitlist (no auth required)
+	app.route("/api/waitlist", waitlistRouter);
 
-// Admin routes — auth + admin guard
-app.use("/api/admin/*", requireAuth());
-app.use("/api/admin/*", requireAdmin());
-app.route("/api/admin", adminRouter);
+	// Marketplace (no auth required, IP rate limited)
+	app.use("/api/marketplace/*", ipRateLimit(60));
+	app.route("/api/marketplace", marketplaceRouter);
 
-// Auth middleware — always mounted, DEV_MODE bypass handled inside middleware
-for (const path of [
+	// Admin routes — auth + admin guard
+	app.use("/api/admin/*", requireAuth());
+	app.use("/api/admin/*", requireAdmin());
+	app.route("/api/admin", adminRouter);
+}
+
+// Resource routes — mounted in every mode.
+// Auth behavior: platform uses session/API-key auth, dedicated uses JWT,
+// oss is pass-through (or static-key when configured).
+const RESOURCE_PATHS = [
 	"/status",
 	"/api/subgraphs",
 	"/api/subgraphs/*",
-	"/api/accounts",
-	"/api/accounts/*",
-	"/api/insights",
-	"/api/insights/*",
 	"/api/node",
 	"/api/node/*",
-	"/api/projects",
-	"/api/projects/*",
-	"/api/chat-sessions",
-	"/api/chat-sessions/*",
 	"/api/workflows",
 	"/api/workflows/*",
 	"/api/secrets",
 	"/api/secrets/*",
+];
+
+// Platform-only resource paths (accounts, insights, projects, chat sessions,
+// auth/logout — tied to cross-tenant user identity).
+const PLATFORM_RESOURCE_PATHS = [
+	"/api/accounts",
+	"/api/accounts/*",
+	"/api/insights",
+	"/api/insights/*",
+	"/api/projects",
+	"/api/projects/*",
+	"/api/chat-sessions",
+	"/api/chat-sessions/*",
 	"/api/auth/logout",
-]) {
-	app.use(path, requireAuth());
-	app.use(path, rateLimit());
-	app.use(path, countApiRequests());
+];
+
+const paths =
+	mode === "platform"
+		? [...RESOURCE_PATHS, ...PLATFORM_RESOURCE_PATHS]
+		: RESOURCE_PATHS;
+
+for (const path of paths) {
+	app.use(path, resourceAuth());
+	if (mode === "platform") {
+		app.use(path, rateLimit());
+		app.use(path, countApiRequests());
+	}
 }
 
 app.route("/api/subgraphs", subgraphsRouter);
-app.route("/api/accounts", accountsRouter);
-app.route("/api/insights", insightsRouter);
 app.route("/api/node", nodeRouter);
-app.route("/api/projects", projectsRouter);
-app.route("/api/chat-sessions", chatSessionsRouter);
 app.route("/api/workflows", workflowsRouter);
 app.route("/api/secrets", secretsRouter);
+if (mode === "platform") {
+	app.route("/api/accounts", accountsRouter);
+	app.route("/api/insights", insightsRouter);
+	app.route("/api/projects", projectsRouter);
+	app.route("/api/chat-sessions", chatSessionsRouter);
+}
 app.route("/", statusRouter);
 
 // Start server
 const PORT = Number.parseInt(process.env.PORT || "3800");
 
-logger.info("Starting API service", { port: PORT });
+logger.info("Starting API service", { port: PORT, mode });
 
 // Start subgraph registry cache (LISTEN for subgraph_changes)
 startSubgraphCache().catch((err) => {

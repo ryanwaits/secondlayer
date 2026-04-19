@@ -89,6 +89,10 @@
 			"types": "./dist/src/env.d.ts",
 			"import": "./dist/src/env.js"
 		},
+		"./mode": {
+			"types": "./dist/src/mode.d.ts",
+			"import": "./dist/src/mode.js"
+		},
 		"./logger": {
 			"types": "./dist/src/logger.d.ts",
 			"import": "./dist/src/logger.js"
