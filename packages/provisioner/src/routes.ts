@@ -26,6 +26,9 @@ import { isProvisionError } from "./types.ts";
 function requireSecret(): MiddlewareHandler {
 	const { secret } = getConfig();
 	return async (c, next) => {
+		// `/internal/*` routes are in-cluster only (no public port binding) and
+		// must skip auth — e.g. Caddy's on-demand TLS ask endpoint.
+		if (c.req.path.startsWith("/internal/")) return next();
 		const provided = c.req.header("x-provisioner-secret");
 		if (!provided || provided !== secret) {
 			return c.json({ error: "Unauthorized" }, 401);
@@ -39,16 +42,19 @@ export function buildRoutes(): Hono {
 
 	// Caddy on-demand TLS `ask` endpoint — unauth, only reachable inside the
 	// compose network. Caddy calls this before issuing a cert for a new
-	// `{slug}.{base}` subdomain. Returns 200 if an api container exists for
-	// the slug, 404 otherwise — which tells Caddy to refuse the cert.
+	// `{slug}.{base}` subdomain (wildcard site block). Returns 200 if the
+	// subject is the platform API or an existing tenant, 404 otherwise.
 	app.get("/internal/caddy/ask", async (c) => {
 		const domain = c.req.query("domain") ?? "";
 		const { tenantBaseDomain } = getConfig();
 		const suffix = `.${tenantBaseDomain}`;
 		if (!domain.endsWith(suffix)) return c.text("wrong domain", 404);
-		const slug = domain.slice(0, -suffix.length);
-		if (!isValidSlug(slug)) return c.text("invalid slug", 404);
-		const info = await containerInspect(apiContainerName(slug));
+		const label = domain.slice(0, -suffix.length);
+		// Platform API is explicitly allowed (it has its own site block, but
+		// Caddy may still consult ask for hostnames that match the wildcard).
+		if (label === "api") return c.text("ok", 200);
+		if (!isValidSlug(label)) return c.text("invalid slug", 404);
+		const info = await containerInspect(apiContainerName(label));
 		if (!info) return c.text("unknown tenant", 404);
 		return c.text("ok", 200);
 	});
