@@ -12,11 +12,19 @@ for cmd in git docker curl; do
 	fi
 done
 
-cd /opt/secondlayer
-git fetch origin main
-git reset --hard origin/main
+# Two-stage bootstrap. Bash buffers short scripts at invocation time, so if we
+# pull + reset + continue in the same process, the rest of this file runs with
+# the OLD buffered content against the NEW compose/migration files on disk.
+# Pull first, then exec ourselves — the fresh process re-reads the file.
+if [ "${DEPLOY_REEXECED:-0}" != "1" ]; then
+	cd /opt/secondlayer
+	git fetch origin main
+	git reset --hard origin/main
+	export DEPLOY_REEXECED=1
+	exec bash /opt/secondlayer/docker/scripts/deploy.sh
+fi
 
-cd docker
+cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
 APP_SERVICES="api indexer worker subgraph-processor agent caddy"
