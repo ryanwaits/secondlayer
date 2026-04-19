@@ -95,6 +95,9 @@ FROM base AS provisioner
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
+# @secondlayer/shared depends on @secondlayer/stacks via the workspace, so
+# we must copy stacks even though the provisioner itself doesn't reference it.
+COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/provisioner ./packages/provisioner
 COPY --from=builder /app/package.json ./
