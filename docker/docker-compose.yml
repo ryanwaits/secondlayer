@@ -136,6 +136,11 @@ services:
       # Required for provisioner to create/manage tenant containers. Gives
       # root-on-host effectively — run only on hosts where that's acceptable.
       - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      # Bind to localhost only — provisioner is reached by platform API
+      # over the docker network at `provisioner:3850`; localhost binding
+      # is for operator debugging (`curl http://localhost:3850/health`).
+      - "127.0.0.1:3850:3850"
     depends_on:
       postgres:
         condition: service_healthy
