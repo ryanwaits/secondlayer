@@ -24,7 +24,6 @@ import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
-import { enforceLimits } from "../middleware/enforce-limits.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import {
@@ -40,8 +39,9 @@ import {
 
 const app = new Hono();
 
-// Enforce subgraph creation limit
-app.post("/", enforceLimits("subgraphs"));
+// Resource limits are enforced by Docker compute caps (memory/CPU/storage).
+// No application-level count check — if a tenant hits their limits, PG
+// simply runs out of resources and we surface it via monitoring.
 
 // Subgraph registry cache — auto-refreshes via PG NOTIFY
 export const cache = new SubgraphRegistryCache(async () => {

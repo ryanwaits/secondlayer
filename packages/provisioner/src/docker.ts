@@ -424,9 +424,7 @@ interface ContainerStatsResponse {
 	};
 }
 
-export async function containerStats(
-	nameOrId: string,
-): Promise<{
+export async function containerStats(nameOrId: string): Promise<{
 	cpuUsage: number;
 	memoryUsageBytes: number;
 	memoryLimitBytes: number;

@@ -19,7 +19,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.71",
         "@ai-sdk/react": "3.0.148",
@@ -63,7 +63,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "@secondlayer/auth": "^0.1.15",
         "@secondlayer/bundler": "^0.2.0",
@@ -92,11 +92,11 @@
     },
     "packages/bundler": {
       "name": "@secondlayer/bundler",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.71",
-        "@secondlayer/subgraphs": "^0.11.6",
-        "@secondlayer/workflows": "^1.0.0",
+        "@secondlayer/subgraphs": "^0.11.7",
+        "@secondlayer/workflows": "^1.1.0",
         "ai": "6.0.167",
         "esbuild": "^0.27.4",
       },
@@ -107,14 +107,14 @@
     },
     "packages/clarity-docs": {
       "name": "@secondlayer/clarity-docs",
-      "version": "0.3.5",
+      "version": "0.3.6",
       "dependencies": {
         "@secondlayer/stacks": "^0.2.0",
       },
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "2.1.0",
+      "version": "2.2.0",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -148,7 +148,7 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "@secondlayer/shared": "^1.0.0",
         "@secondlayer/stacks": "^0.2.2",
@@ -161,7 +161,7 @@
     },
     "packages/konsole": {
       "name": "konsole",
-      "version": "0.0.17",
+      "version": "0.0.18",
       "bin": {
         "konsole": "./src/index.ts",
       },
@@ -179,7 +179,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -199,6 +199,19 @@
       "devDependencies": {
         "@types/bun": "latest",
         "@types/diff": "^8.0.0",
+        "typescript": "^5",
+      },
+    },
+    "packages/provisioner": {
+      "name": "@secondlayer/provisioner",
+      "version": "0.1.0",
+      "dependencies": {
+        "@secondlayer/shared": "^1.1.0",
+        "hono": "^4.10.5",
+        "postgres": "^3.4.6",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
         "typescript": "^5",
       },
     },
@@ -231,9 +244,9 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "dependencies": {
-        "@secondlayer/stacks": "^0.2.2",
+        "@secondlayer/stacks": "^0.3.0",
         "kysely": "0.28.15",
         "kysely-postgres-js": "3.0.0",
         "postgres": "^3.4.6",
@@ -258,7 +271,7 @@
     },
     "packages/stacks": {
       "name": "@secondlayer/stacks",
-      "version": "0.2.2",
+      "version": "0.3.0",
       "dependencies": {
         "@noble/ciphers": "2.1.1",
         "@noble/curves": "2.0.1",
@@ -266,8 +279,8 @@
         "@noble/secp256k1": "2.3.0",
         "@scure/bip32": "2.0.1",
         "@scure/bip39": "2.0.1",
-        "@secondlayer/subgraphs": "^0.11.6",
-        "@secondlayer/workflows": "^1.0.1",
+        "@secondlayer/subgraphs": "^0.11.7",
+        "@secondlayer/workflows": "^1.1.0",
         "ai": "6.0.167",
         "zod": "^4.3.6",
       },
@@ -292,10 +305,10 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "0.11.6",
+      "version": "0.11.7",
       "dependencies": {
-        "@secondlayer/shared": "^1.0.0",
-        "@secondlayer/stacks": "^0.2.2",
+        "@secondlayer/shared": "^1.1.0",
+        "@secondlayer/stacks": "^0.3.0",
         "kysely": "0.28.15",
         "postgres": "^3.4.6",
         "zod": "^4.3.6",
@@ -307,7 +320,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "@secondlayer/shared": "^1.0.0",
         "@secondlayer/stacks": "^0.2.2",
@@ -340,9 +353,9 @@
     },
     "packages/workflows": {
       "name": "@secondlayer/workflows",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "dependencies": {
-        "@secondlayer/subgraphs": "^0.11.6",
+        "@secondlayer/subgraphs": "^0.11.7",
         "ai": "6.0.167",
         "zod": "^4.3.6",
       },
@@ -742,6 +755,8 @@
     "@secondlayer/indexer": ["@secondlayer/indexer@workspace:packages/indexer"],
 
     "@secondlayer/mcp": ["@secondlayer/mcp@workspace:packages/mcp"],
+
+    "@secondlayer/provisioner": ["@secondlayer/provisioner@workspace:packages/provisioner"],
 
     "@secondlayer/scaffold": ["@secondlayer/scaffold@workspace:packages/scaffold"],
 
