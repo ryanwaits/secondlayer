@@ -41,7 +41,10 @@ providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
-    network: sl-public
+    # No default network — per-container `traefik.docker.network` label picks
+    # the right network. Platform services route via the compose default
+    # network; tenant containers route via `sl-tenants` (set by provisioner
+    # on tenant API container labels).
 
 certificatesResolvers:
   letsencrypt:

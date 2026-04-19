@@ -1,17 +1,21 @@
 # Dedicated-hosting production compose override.
 #
-# Extends base docker-compose.yml with:
-#   - Traefik reverse proxy (replaces Caddy once we cut over)
-#   - Provisioner service (replaces `--profile platform` gate once dedicated
-#     hosting is the primary mode)
-#   - Per-tenant network `sl-tenants` + shared source network `sl-source`
+# Additive on top of the existing docker-compose.yml + docker-compose.hetzner.yml:
+#   - Adds Traefik reverse proxy (replaces Caddy once cutover)
+#   - Adds `sl-tenants` network for tenant container routing
+#   - Extends provisioner + api to participate in tenant routing
 #
-# Usage (once DNS + cert + secrets are in place):
-#   docker compose -f docker-compose.yml -f docker-compose.dedicated.yml up -d
+# Everything else (postgres, indexer, worker, subgraph-processor, agent)
+# stays on the existing default compose network — unchanged, not recreated.
 #
-# NOT deployed yet. Parallel to docker-compose.hetzner.yml. Cutover flips
-# the SSH deploy command from the hetzner compose pair to this pair in one
-# scripted step — see OPERATIONS.md Sprint 6 rollout.
+# Usage (once DNS A record is live):
+#   docker compose stop caddy    # vacate port 80/443
+#   COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml -f docker-compose.dedicated.yml"
+#   $COMPOSE --profile platform up -d traefik provisioner
+#   # Traefik issues cert for api.secondlayer.tools on first request,
+#   # and per-tenant certs as tenants are provisioned.
+#
+# Rollback: docker compose stop traefik && docker compose up -d caddy
 
 services:
   # ── Reverse proxy ────────────────────────────────────────────────────
@@ -21,23 +25,28 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      # Admin dashboard — only exposed on the docker network, not the host.
+      # Admin dashboard — localhost only, protected by basic auth.
       - "127.0.0.1:8080:8080"
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - traefik_acme:/acme
-      # Passthrough for dynamic Docker provider — Traefik reads container
-      # labels to build routes for tenants as they come online.
+      # Read-only docker socket for dynamic provider — Traefik reads
+      # container labels to build routes for tenants as they come online.
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       TRAEFIK_ACME_EMAIL: ${TRAEFIK_ACME_EMAIL}
     networks:
-      - sl-public
+      # `default` = the compose project default (where platform api lives).
+      # `sl-tenants` = where provisioner puts tenant containers. Traefik
+      # spans both so one proxy can serve api.secondlayer.tools AND
+      # {slug}.secondlayer.tools.
+      - default
       - sl-tenants
     labels:
       traefik.enable: "true"
-      # Admin dashboard route — protected by basic auth via env-injected users.
-      # To regenerate: htpasswd -nb admin <password>
+      # Admin dashboard route — protected by basic auth via env-injected
+      # htpasswd string. Generate: htpasswd -nb admin <password>
+      # Store the output verbatim in .env as TRAEFIK_DASHBOARD_USERS.
       traefik.http.routers.traefik-admin.rule: "Host(`traefik.secondlayer.tools`)"
       traefik.http.routers.traefik-admin.entrypoints: "websecure"
       traefik.http.routers.traefik-admin.tls.certresolver: "letsencrypt"
@@ -45,11 +54,11 @@ services:
       traefik.http.routers.traefik-admin.middlewares: "traefik-auth"
       traefik.http.middlewares.traefik-auth.basicauth.users: "${TRAEFIK_DASHBOARD_USERS:-}"
 
-  # ── Platform API — now labeled for Traefik instead of routed by Caddy ─
+  # ── Platform API — adds Traefik labels, stays on default network ────
+  # No `networks:` override — api keeps its existing network membership,
+  # Traefik reaches it via the default network. This avoids a full
+  # recreate + PG-connection blip on Traefik activation.
   api:
-    networks:
-      - sl-public
-      - sl-tenants
     labels:
       traefik.enable: "true"
       traefik.http.routers.platform-api.rule: "Host(`api.secondlayer.tools`)"
@@ -57,60 +66,24 @@ services:
       traefik.http.routers.platform-api.tls.certresolver: "letsencrypt"
       traefik.http.services.platform-api.loadbalancer.server.port: "3800"
 
-  # ── Provisioner in dedicated mode ────────────────────────────────────
-  # Joins sl-tenants network (reach tenant containers) and keeps the
-  # `platform` profile gate from base compose. Dedicated-mode deploys
-  # pass `--profile platform` explicitly, same pattern as before.
+  # ── Provisioner: spans default + sl-tenants ──────────────────────────
+  # Needs default to reach the source postgres for the readonly-role
+  # bootstrap. Needs sl-tenants to manage tenant containers.
   provisioner:
     networks:
-      - sl-public
+      - default
       - sl-tenants
-
-  # ── Subgraph-processor + other app services join sl-tenants so they
-  #     can reach tenant PG containers during migrations (Sprint 8).
-  subgraph-processor:
-    networks:
-      - sl-public
-      - sl-tenants
-
-  worker:
-    networks:
-      - sl-public
-      - sl-tenants
-
-  indexer:
-    networks:
-      - sl-public
-
-  postgres:
-    networks:
-      - sl-public
-
-  # Agent + Caddy are defined in docker-compose.hetzner.yml. This file is
-  # used ADDITIVELY on top of hetzner.yml during cutover:
-  #   docker compose -f docker-compose.yml -f docker-compose.hetzner.yml -f docker-compose.dedicated.yml up -d
-  # At cutover, stop Caddy manually: `docker compose stop caddy`.
-
-  # ── Caddy OFF in this compose — Traefik replaces it ──────────────────
-  # Not declared here; `docker compose up -d` with the hetzner compose pair
-  # starts Caddy, this pair doesn't. Cutover = swap which compose file is
-  # used in the deploy SSH command.
 
 networks:
-  # Platform services + Traefik sit on this network. Public routable traffic
-  # lands here via Traefik.
-  sl-public:
-    name: sl-public
-    driver: bridge
-  # Shared network tenant containers join for source-DB access + Traefik
-  # routing. Provisioner creates this if missing on first tenant provision.
+  # Reference the compose project's default network so services on it
+  # can be explicitly targeted. Compose auto-creates this if no services
+  # declare networks.
+  default:
+  # Tenant container network — provisioner creates + joins tenants to it.
+  # Declared here with an explicit name so it doesn't get a project-name
+  # prefix (we want `sl-tenants`, not `docker_sl-tenants`).
   sl-tenants:
     name: sl-tenants
-    driver: bridge
-  # Source indexer DB network — provisioner creates. Tenants join this too
-  # (read-only access to blocks/transactions/events).
-  sl-source:
-    name: sl-source
     driver: bridge
 
 volumes:
