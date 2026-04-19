@@ -159,7 +159,7 @@ Address prefix determines network:
 
 ## Platform
 
-Second Layer also provides a hosted indexing platform with subgraphs, workflows, and contract discovery.
+Second Layer also provides a hosted indexing platform with subgraphs and contract discovery.
 
 ### CLI
 
@@ -168,8 +168,7 @@ bun add -g @secondlayer/cli
 
 sl auth login                    # authenticate via magic link
 sl subgraphs list                # manage subgraphs
-sl workflows list                # manage workflows
-sl workflows deploy my-flow.ts   # deploy a workflow
+sl subgraphs deploy my-sg.ts     # deploy a subgraph
 ```
 
 All commands support `--json` for machine-readable output.
@@ -187,12 +186,6 @@ const sl = new SecondLayer({ apiKey: "sk-sl_..." });
 
 // List subgraphs
 const { data } = await sl.subgraphs.list();
-
-// List workflows
-const { workflows } = await sl.workflows.list();
-
-// Trigger a workflow
-const { runId } = await sl.workflows.trigger("whale-alerts");
 ```
 
 ### REST API

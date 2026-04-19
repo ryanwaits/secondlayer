@@ -9,13 +9,11 @@ import {
 	registerDoctorCommand,
 	registerLocalCommand,
 	registerMarketplaceCommand,
-	registerSecretsCommand,
 	registerStackCommand,
 	registerStatusCommand,
 	registerSubgraphsCommand,
 	registerSyncCommand,
 	registerWhoamiCommand,
-	registerWorkflowsCommand,
 } from "./commands/index.ts";
 
 const { version } = pkg;
@@ -28,7 +26,7 @@ program
 	.name("secondlayer")
 	.alias("sl")
 	.description(
-		"SecondLayer CLI — subgraphs, workflows, and real-time indexing for Stacks",
+		"SecondLayer CLI — subgraphs and real-time indexing for Stacks",
 	)
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)");
@@ -44,7 +42,6 @@ program.addHelpText(
 Quickstart:
   $ sl auth login                  # Authenticate
   $ sl subgraphs new my-subgraph   # Scaffold a subgraph
-  $ sl workflows new my-workflow   # Scaffold a workflow
   $ sl status                      # Check system health
 `,
 );
@@ -77,8 +74,6 @@ program
 
 // Core commands (API-backed, work against any environment)
 registerSubgraphsCommand(program);
-registerWorkflowsCommand(program);
-registerSecretsCommand(program);
 registerMarketplaceCommand(program);
 registerStatusCommand(program);
 
