@@ -43,10 +43,14 @@ $COMPOSE up -d --force-recreate api indexer worker subgraph-processor agent
 
 ### Upcoming (Sprint 6 — Traefik)
 
+Uses HTTP-01 challenge (per-subdomain certs, on-demand at first request). No DNS provider API token needed — works with any DNS provider that can serve a wildcard A record.
+
 | Var | Purpose |
 |---|---|
-| `CF_API_TOKEN` | Cloudflare DNS-01 token for Let's Encrypt wildcard cert on `*.secondlayer.tools` |
 | `TRAEFIK_ACME_EMAIL` | Let's Encrypt account email |
+| `TRAEFIK_DASHBOARD_USERS` | htpasswd-formatted string for Traefik admin dashboard (`htpasswd -nb admin <pw>` — double-escape `$$` in compose but single `$` in `.env`) |
+
+**DNS requirement**: wildcard A record `*.secondlayer.tools` → app-server IP (proxy-off / DNS-only). Works on any DNS provider (Vercel, Namecheap, Cloudflare, etc.).
 
 ---
 
@@ -255,11 +259,12 @@ ls -lh /opt/secondlayer/data/backups/ | tail -5
 
 Code will land alongside existing Caddy; nothing changes in prod until we flip DNS.
 
-- **You'll need to**: 
-  1. Create a Cloudflare API token with Zone:DNS:Edit on `secondlayer.tools`
-  2. Add `CF_API_TOKEN` + `TRAEFIK_ACME_EMAIL` to `.env`
-  3. Add wildcard A record `*.secondlayer.tools` → app-server IP (we'll coordinate the exact timing)
+- **You'll need to**:
+  1. Add wildcard A record `*.secondlayer.tools` → app-server IP on your DNS provider (Vercel, Cloudflare, etc.)
+  2. Generate Traefik dashboard basic-auth: `htpasswd -nb admin <password>`
+  3. Add `TRAEFIK_ACME_EMAIL` + `TRAEFIK_DASHBOARD_USERS` to `.env`
 - **Deploy impact**: zero. Traefik runs on test ports (8080/8443) alongside Caddy until we cut over.
+- **TLS**: HTTP-01 challenge issues per-subdomain certs on-demand (no wildcard). Works with any DNS provider. LE rate limit: 50/week per domain — plenty for v1 scale.
 
 ### Sprint 7 — Dashboard + CLI for dedicated hosting
 
@@ -403,7 +408,7 @@ Zero-downtime:
 | Sprint | Action required |
 |---|---|
 | 5 (now) | None — already deployed, zero-impact. |
-| 6 | Generate Cloudflare API token. Add wildcard DNS A record at the right time (I'll flag). |
+| 6 | Add wildcard DNS A record `*.secondlayer.tools` → app-server IP on your DNS provider. Generate htpasswd string for dashboard auth. |
 | 7 | Generate 2 secrets (`openssl rand -hex 32` for `PROVISIONER_SECRET`, hex 24 for readonly DB password). Add to `.env`. |
 | 8 | Schedule a backup + 30min maintenance window for the data migration. |
 

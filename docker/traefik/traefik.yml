@@ -48,15 +48,21 @@ certificatesResolvers:
     acme:
       email: "{{ env \"TRAEFIK_ACME_EMAIL\" }}"
       storage: /acme/acme.json
-      # DNS-01 challenge via Cloudflare — required for wildcard cert on
-      # `*.secondlayer.tools`. HTTP-01 wouldn't work here because each tenant
-      # subdomain needs a cert and per-subdomain HTTP challenges don't scale.
-      dnsChallenge:
-        provider: cloudflare
-        resolvers:
-          - "1.1.1.1:53"
-          - "8.8.8.8:53"
-        delayBeforeCheck: 10
+      # HTTP-01 challenge — works with any DNS provider (DNS authority only
+      # needs to resolve `{slug}.secondlayer.tools` to the app-server IP
+      # via a wildcard A record). Each tenant subdomain gets its own cert,
+      # issued on-demand at first request. LE rate limit: 50/week per
+      # registered domain — plenty for v1 scale.
+      #
+      # Trade-off vs DNS-01: no wildcard cert, ~5s latency on first request
+      # to a new subdomain while Traefik issues the cert. For workflows
+      # where provisioning already takes 30-60s, this is unnoticeable.
+      #
+      # If we later outgrow 50 certs/week or want wildcard, switch to
+      # DNS-01 by moving DNS to a lego-supported provider (Cloudflare,
+      # Route53, etc.) and replacing this block.
+      httpChallenge:
+        entryPoint: web
 
 log:
   level: INFO

@@ -30,7 +30,6 @@ services:
       # labels to build routes for tenants as they come online.
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      CF_DNS_API_TOKEN: ${CF_API_TOKEN}
       TRAEFIK_ACME_EMAIL: ${TRAEFIK_ACME_EMAIL}
     networks:
       - sl-public
