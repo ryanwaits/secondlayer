@@ -49,7 +49,8 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "{{ env \"TRAEFIK_ACME_EMAIL\" }}"
+      # email set via TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL
+      # env var (Traefik auto-maps env vars to static config paths).
       storage: /acme/acme.json
       # HTTP-01 challenge — works with any DNS provider (DNS authority only
       # needs to resolve `{slug}.secondlayer.tools` to the app-server IP

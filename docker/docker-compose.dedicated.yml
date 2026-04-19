@@ -34,7 +34,8 @@ services:
       # container labels to build routes for tenants as they come online.
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      TRAEFIK_ACME_EMAIL: ${TRAEFIK_ACME_EMAIL}
+      # Traefik auto-maps this env var to certificatesResolvers.letsencrypt.acme.email
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: ${TRAEFIK_ACME_EMAIL}
     networks:
       # `default` = the compose project default (where platform api lives).
       # `sl-tenants` = where provisioner puts tenant containers. Traefik
