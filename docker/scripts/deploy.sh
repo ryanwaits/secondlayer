@@ -45,6 +45,13 @@ $COMPOSE build --no-cache api indexer worker subgraph-processor agent migrate
 echo "🛑 Stopping lock-holders so migrations can acquire ACCESS EXCLUSIVE..."
 $COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
 
+# Force-remove orphan containers from removed/renamed services. These are
+# live containers from older deploys whose service no longer exists in the
+# compose files — `docker compose stop` misses them. Without this, an
+# orphan (e.g. old workflow-runner) can hold locks on tables migrations
+# want to drop or alter, causing indefinite hangs.
+docker rm -f secondlayer-view-processor-1 secondlayer-workflow-runner-1 2>/dev/null || true
+
 # Run migrations synchronously — fail fast on error
 $COMPOSE run --rm migrate
 
@@ -54,8 +61,6 @@ docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docke
 # Restart ALL app services — ensures any new code lands, and services that
 # weren't stopped (indexer, worker, caddy) pick up new images via recreate.
 # NEVER touch stacks-node, postgres, hiro-postgres, hiro-api.
-# Remove orphaned containers from renamed/removed services.
-docker rm -f secondlayer-view-processor-1 secondlayer-workflow-runner-1 2>/dev/null || true
 $COMPOSE up -d --remove-orphans $APP_SERVICES
 
 # Health check with retry
