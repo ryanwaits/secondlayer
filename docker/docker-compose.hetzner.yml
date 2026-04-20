@@ -56,6 +56,15 @@ services:
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/archive:/data/archive
 
+  provisioner:
+    # Provisioner needs sl-tenants to reach `sl-pg-<slug>` for storage
+    # measurement; default to reach secondlayer-postgres-1 for the readonly
+    # role bootstrap. Also used to talk to the Docker daemon via the socket
+    # passthrough in the base compose file.
+    networks:
+      default: {}
+      sl-tenants:
+
   caddy:
     image: caddy:2-alpine
     ports:
