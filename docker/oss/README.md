@@ -67,7 +67,11 @@ docker compose up -d postgres migrate api indexer subgraph-processor
 With the CLI (`bun add -g @secondlayer/cli`):
 
 ```bash
-sl subgraphs deploy ./my-subgraph.ts --api-url http://localhost:3800
+# Point the CLI at the local OSS API — no session needed.
+export SL_API_URL=http://localhost:3800
+export SL_SERVICE_KEY=<your-key>   # only if API_KEY is set in the OSS .env
+
+sl subgraphs deploy ./my-subgraph.ts
 ```
 
 Or via curl:

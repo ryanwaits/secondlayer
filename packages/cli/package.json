@@ -21,7 +21,8 @@
 	},
 	"files": [
 		"dist",
-		"templates"
+		"templates",
+		"README.md"
 	],
 	"scripts": {
 		"build": "bunup",

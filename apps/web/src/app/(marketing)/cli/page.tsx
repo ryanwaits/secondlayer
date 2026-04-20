@@ -6,8 +6,9 @@ import type { TocItem } from "@/components/sidebar";
 const toc: TocItem[] = [
 	{ label: "Install", href: "#install" },
 	{ label: "Auth", href: "#auth" },
+	{ label: "Project", href: "#project" },
+	{ label: "Instance", href: "#instance" },
 	{ label: "Subgraphs", href: "#subgraphs" },
-	{ label: "Workflows", href: "#workflows" },
 ];
 
 export default function CliPage() {
@@ -22,10 +23,9 @@ export default function CliPage() {
 
 				<div className="prose">
 					<p>
-						One binary, both primitives. Deploy a subgraph or a workflow, query
-						data, manage runs — same auth, same patterns as the SDK and MCP
-						server. Install globally with{" "}
-						<code>bun add -g @secondlayer/cli</code>.
+						One binary. Provision a dedicated instance, deploy subgraphs, query
+						data — same auth and patterns as the SDK and MCP server. Install
+						globally with <code>bun add -g @secondlayer/cli</code>.
 					</p>
 				</div>
 
@@ -50,32 +50,49 @@ sl logout`}
 					lang="bash"
 				/>
 
+				<SectionHeading id="project">Project</SectionHeading>
+
+				<CodeBlock
+					code={`# Projects map 1:1 to dedicated instances. Binding a project to a directory
+# is per-directory (like Supabase) — stored at ./.secondlayer/project.
+sl project create my-app
+sl project use my-app
+sl project current
+sl project list`}
+					lang="bash"
+				/>
+
+				<SectionHeading id="instance">Instance</SectionHeading>
+
+				<CodeBlock
+					code={`# Provision a dedicated Postgres + API + subgraph processor for the active project.
+sl instance create --plan launch     # or grow, scale
+
+sl instance info
+sl instance resize --plan grow
+sl instance suspend
+sl instance resume
+sl instance keys rotate --service    # bump JWT gen + mint new key
+sl instance delete
+
+# Direct DATABASE_URL via SSH tunnel through the bastion:
+sl instance db add-key ~/.ssh/id_ed25519.pub
+sl instance db                       # prints ssh -L command + DATABASE_URL`}
+					lang="bash"
+				/>
+
 				<SectionHeading id="subgraphs">Subgraphs</SectionHeading>
 
 				<CodeBlock
 					code={`sl subgraphs deploy subgraphs/token-transfers.ts
 sl subgraphs dev subgraphs/token-transfers.ts       # watch + hot-redeploy
+sl subgraphs list
 sl subgraphs status token-transfers
 sl subgraphs query token-transfers transfers --sort _block_height --order desc
 sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
 sl subgraphs reindex token-transfers
 sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts
 sl subgraphs delete token-transfers`}
-					lang="bash"
-				/>
-
-				<SectionHeading id="workflows">Workflows</SectionHeading>
-
-				<CodeBlock
-					code={`sl workflows deploy workflows/whale-alert.ts
-sl workflows dev workflows/whale-alert.ts           # watch + hot-redeploy
-sl workflows ls
-sl workflows get whale-alert
-sl workflows trigger whale-alert --input '{"threshold": 100000}'
-sl workflows runs whale-alert --status failed
-sl workflows pause whale-alert
-sl workflows resume whale-alert
-sl workflows delete whale-alert`}
 					lang="bash"
 				/>
 			</main>
