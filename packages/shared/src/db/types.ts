@@ -437,6 +437,7 @@ export interface TenantsTable {
 	last_health_check_at: Date | null;
 	service_gen: Generated<number>;
 	anon_gen: Generated<number>;
+	project_id: string | null;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }

@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	getProjectBySlug,
@@ -6,8 +7,17 @@ import {
 	getTeamInvitations,
 	getTeamMembers,
 } from "@secondlayer/shared/db/queries/projects";
+import {
+	getTenantByAccount,
+	insertTenant,
+} from "@secondlayer/shared/db/queries/tenants";
 import { AuthenticationError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
+import {
+	ProvisionerError,
+	provisionTenant as provisionerProvision,
+} from "../lib/provisioner-client.ts";
+import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
@@ -284,6 +294,133 @@ app.patch("/:slug/team/:memberId", async (c) => {
 		.execute();
 
 	return c.json({ ok: true });
+});
+
+// POST /api/projects/:slug/instance — provision a tenant bound to this project.
+// Platform control plane manages the project_id → tenant linkage; provisioner
+// creates Docker resources and is unaware of projects.
+//
+// Body: `{ plan: "launch" | "grow" | "scale" | "enterprise" }`.
+// Returns: `{ tenant, credentials: { apiUrl, anonKey, serviceKey } }` — same
+// shape as POST /api/tenants so the dashboard/CLI can share response handling.
+//
+// Enforces the 1:1 project↔tenant rule at application layer: 409 if the
+// project already has a tenant.
+app.post("/:slug/instance", async (c) => {
+	const accountId = requireAccountId(c);
+	const db = getDb();
+	const slug = c.req.param("slug");
+	const project = await getProjectBySlug(db, accountId, slug);
+	if (!project) return c.json({ error: "Project not found" }, 404);
+
+	const body = (await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	})) as { plan?: unknown };
+	if (
+		typeof body.plan !== "string" ||
+		!["launch", "grow", "scale", "enterprise"].includes(body.plan)
+	) {
+		return c.json(
+			{ error: "plan must be one of: launch, grow, scale, enterprise" },
+			400,
+		);
+	}
+	const plan = body.plan as "launch" | "grow" | "scale" | "enterprise";
+
+	// Enforce 1 project : 1 tenant today. The `project_id` FK is on
+	// `tenants`, so walk there and reject if one already exists for this
+	// account and this project.
+	const existing = await getTenantByAccount(db, accountId);
+	if (existing && existing.project_id === project.id) {
+		return c.json(
+			{
+				error: "Project already has an instance",
+				code: "INSTANCE_EXISTS",
+				tenant: {
+					slug: existing.slug,
+					plan: existing.plan,
+					status: existing.status,
+					apiUrl: existing.api_url_public,
+				},
+			},
+			409,
+		);
+	}
+
+	let provisioned: Awaited<ReturnType<typeof provisionerProvision>>;
+	try {
+		provisioned = await provisionerProvision({ accountId, plan });
+	} catch (err) {
+		if (err instanceof ProvisionerError) {
+			return c.json(
+				{
+					error: "Provisioner rejected the request",
+					detail: err.body.slice(0, 500),
+					status: err.status,
+				},
+				502,
+			);
+		}
+		throw err;
+	}
+
+	const TRIAL_DAYS = 14;
+	const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 3600 * 1000);
+	const alloc = {
+		launch: { cpus: 1, memoryMb: 2048, storageLimitMb: 10240 },
+		grow: { cpus: 2, memoryMb: 4096, storageLimitMb: 51200 },
+		scale: { cpus: 4, memoryMb: 8192, storageLimitMb: 204800 },
+		enterprise: { cpus: 8, memoryMb: 32_768, storageLimitMb: -1 },
+	}[plan];
+
+	const tenant = await insertTenant(db, {
+		accountId,
+		slug: provisioned.slug,
+		plan,
+		cpus: alloc.cpus,
+		memoryMb: alloc.memoryMb,
+		storageLimitMb: alloc.storageLimitMb,
+		pgContainerId: provisioned.containerIds.postgres,
+		apiContainerId: provisioned.containerIds.api,
+		processorContainerId: provisioned.containerIds.processor,
+		targetDatabaseUrl: provisioned.targetDatabaseUrl,
+		tenantJwtSecret: provisioned.tenantJwtSecret,
+		anonKey: provisioned.anonKey,
+		serviceKey: provisioned.serviceKey,
+		apiUrlInternal: provisioned.apiUrlInternal,
+		apiUrlPublic: provisioned.apiUrlPublic,
+		trialEndsAt,
+		projectId: project.id,
+	});
+
+	logger.info("Tenant provisioned for project", {
+		slug: tenant.slug,
+		projectSlug: project.slug,
+		accountId,
+	});
+
+	return c.json(
+		{
+			tenant: {
+				slug: tenant.slug,
+				plan: tenant.plan,
+				status: tenant.status,
+				cpus: Number(tenant.cpus),
+				memoryMb: tenant.memory_mb,
+				storageLimitMb: tenant.storage_limit_mb,
+				apiUrl: tenant.api_url_public,
+				trialEndsAt: tenant.trial_ends_at,
+				createdAt: tenant.created_at,
+				projectId: tenant.project_id,
+			},
+			credentials: {
+				apiUrl: provisioned.apiUrlPublic,
+				anonKey: provisioned.anonKey,
+				serviceKey: provisioned.serviceKey,
+			},
+		},
+		201,
+	);
 });
 
 export default app;

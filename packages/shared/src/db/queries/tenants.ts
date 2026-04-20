@@ -28,6 +28,7 @@ export interface NewTenantInput {
 	apiUrlInternal: string;
 	apiUrlPublic: string;
 	trialEndsAt: Date;
+	projectId?: string;
 }
 
 export async function insertTenant(
@@ -52,6 +53,7 @@ export async function insertTenant(
 		api_url_internal: input.apiUrlInternal,
 		api_url_public: input.apiUrlPublic,
 		trial_ends_at: input.trialEndsAt,
+		project_id: input.projectId ?? null,
 	};
 	return db
 		.insertInto("tenants")

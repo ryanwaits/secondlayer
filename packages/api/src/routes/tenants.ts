@@ -18,11 +18,13 @@ import {
 	bumpTenantKeyGen,
 	deleteTenant,
 	getTenantByAccount,
+	getTenantCredentials,
 	insertTenant,
 	setTenantStatus,
 	updateTenantKeys,
 	updateTenantPlan,
 } from "@secondlayer/shared/db/queries/tenants";
+import { mintEphemeralServiceJwt } from "../lib/ephemeral-jwt.ts";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import {
@@ -312,6 +314,37 @@ app.post("/me/keys/rotate", async (c) => {
 		rotated,
 		serviceGen: newGens.serviceGen,
 		anonGen: newGens.anonGen,
+	});
+});
+
+// ── POST /api/tenants/me/keys/mint-ephemeral — short-lived service JWT ─
+//
+// Session-authed caller gets back a 5-min JWT the CLI uses to hit the
+// tenant directly. Signed with the tenant's stored `tenant_jwt_secret`
+// + current `service_gen`, so the tenant API's existing auth middleware
+// validates it without any new code path.
+
+app.post("/me/keys/mint-ephemeral", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const tenant = await getTenantByAccount(getDb(), accountId);
+	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+
+	const creds = await getTenantCredentials(getDb(), tenant.slug);
+	if (!creds) {
+		return c.json({ error: "Tenant credentials unavailable" }, 500);
+	}
+
+	const ephemeral = await mintEphemeralServiceJwt({
+		secret: creds.tenantJwtSecret,
+		slug: tenant.slug,
+		serviceGen: tenant.service_gen,
+	});
+	return c.json({
+		apiUrl: tenant.api_url_public,
+		serviceKey: ephemeral.serviceKey,
+		expiresAt: ephemeral.expiresAt,
 	});
 });
 
