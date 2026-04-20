@@ -30,14 +30,6 @@ export const actions: Action[] = [
 		category: "Platform",
 		href: "/subgraphs",
 	},
-	{
-		id: "marketplace",
-		label: "Marketplace",
-		keywords: ["templates", "gallery", "examples"],
-		category: "Platform",
-		href: "/marketplace",
-	},
-
 	// Settings
 	{
 		id: "api-keys",

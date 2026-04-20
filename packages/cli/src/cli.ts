@@ -10,7 +10,6 @@ import {
 	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
-	registerMarketplaceCommand,
 	registerProjectCommand,
 	registerStackCommand,
 	registerStatusCommand,
@@ -82,7 +81,6 @@ registerInstanceCommand(program);
 
 // Workload (tenant-scoped via resolver)
 registerSubgraphsCommand(program);
-registerMarketplaceCommand(program);
 
 // Ops / inspection
 registerStatusCommand(program);

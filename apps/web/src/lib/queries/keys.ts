@@ -17,11 +17,6 @@ export const queryKeys = {
 		byResource: (category: string, resourceId: string) =>
 			["insights", category, resourceId] as const,
 	},
-	marketplace: {
-		browse: (params: string) => ["marketplace", "browse", params] as const,
-		detail: (name: string) => ["marketplace", "detail", name] as const,
-		creator: (slug: string) => ["marketplace", "creator", slug] as const,
-	},
 	status: ["status"] as const,
 	admin: {
 		waitlist: (status?: string) => ["admin", "waitlist", status] as const,

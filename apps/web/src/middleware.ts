@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths that have both marketing (unauthed) and platform (authed) versions
-const DUAL_PATHS = ["/subgraphs", "/marketplace", "/workflows"];
+const DUAL_PATHS = ["/subgraphs", "/workflows"];
 // Paths that require authentication
 const AUTH_REQUIRED = [
 	"/api-keys",
@@ -77,8 +77,6 @@ export const config = {
 		"/sessions/:path*",
 		"/workflows",
 		"/workflows/:path*",
-		"/marketplace",
-		"/marketplace/:path*",
 		"/instance",
 		"/instance/:path*",
 		"/admin",

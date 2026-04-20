@@ -402,6 +402,8 @@ export interface Database {
 	workflow_signer_secrets: WorkflowSignerSecretsTable;
 	workflow_budgets: WorkflowBudgetsTable;
 	tenants: TenantsTable;
+	tenant_usage_monthly: TenantUsageMonthlyTable;
+	provisioning_audit_log: ProvisioningAuditLogTable;
 }
 
 // --- Tenants (dedicated hosting) ---
@@ -445,6 +447,56 @@ export interface TenantsTable {
 export type Tenant = Selectable<TenantsTable>;
 export type InsertTenant = Insertable<TenantsTable>;
 export type UpdateTenant = Updateable<TenantsTable>;
+
+// --- Tenant monthly usage snapshots (for future billing) ---
+
+export interface TenantUsageMonthlyTable {
+	id: Generated<string>;
+	tenant_id: string;
+	period_month: Date;
+	storage_peak_mb: Generated<number>;
+	storage_avg_mb: Generated<number>;
+	storage_last_mb: Generated<number>;
+	measurements: Generated<number>;
+	first_at: Generated<Date>;
+	last_at: Generated<Date>;
+}
+
+export type TenantUsageMonthly = Selectable<TenantUsageMonthlyTable>;
+export type InsertTenantUsageMonthly = Insertable<TenantUsageMonthlyTable>;
+export type UpdateTenantUsageMonthly = Updateable<TenantUsageMonthlyTable>;
+
+// --- Provisioning audit log ---
+
+export type ProvisioningAuditEvent =
+	| "provision.start"
+	| "provision.success"
+	| "provision.failure"
+	| "suspend"
+	| "resume"
+	| "resize"
+	| "keys.rotate"
+	| "bastion.key.upload"
+	| "bastion.key.revoke"
+	| "teardown";
+
+export type ProvisioningAuditStatus = "ok" | "error";
+
+export interface ProvisioningAuditLogTable {
+	id: Generated<string>;
+	tenant_id: string | null;
+	tenant_slug: string | null;
+	account_id: string | null;
+	actor: string;
+	event: ProvisioningAuditEvent;
+	status: ProvisioningAuditStatus;
+	detail: unknown | null;
+	error: string | null;
+	created_at: Generated<Date>;
+}
+
+export type ProvisioningAuditLog = Selectable<ProvisioningAuditLogTable>;
+export type InsertProvisioningAuditLog = Insertable<ProvisioningAuditLogTable>;
 
 export interface WorkflowBudgetsTable {
 	id: Generated<string>;

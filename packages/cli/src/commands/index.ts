@@ -6,7 +6,6 @@ export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStackCommand } from "./stack.ts";
 export { registerDoctorCommand } from "./doctor.ts";
 export { registerLocalCommand } from "./local.ts";
-export { registerMarketplaceCommand } from "./marketplace.ts";
 export { registerWhoamiCommand } from "./whoami.ts";
 export { registerLoginCommand } from "./login.ts";
 export { registerLogoutCommand } from "./logout.ts";

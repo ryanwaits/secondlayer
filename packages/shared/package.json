@@ -61,9 +61,9 @@
 			"types": "./dist/src/schemas/subgraphs.d.ts",
 			"import": "./dist/src/schemas/subgraphs.js"
 		},
-		"./schemas/marketplace": {
-			"types": "./dist/src/schemas/marketplace.d.ts",
-			"import": "./dist/src/schemas/marketplace.js"
+		"./schemas/accounts": {
+			"types": "./dist/src/schemas/accounts.d.ts",
+			"import": "./dist/src/schemas/accounts.js"
 		},
 		"./schemas/workflows": {
 			"types": "./dist/src/schemas/workflows.d.ts",
@@ -77,13 +77,13 @@
 			"types": "./dist/src/db/queries/tenants.d.ts",
 			"import": "./dist/src/db/queries/tenants.js"
 		},
-		"./db/queries/marketplace": {
-			"types": "./dist/src/db/queries/marketplace.d.ts",
-			"import": "./dist/src/db/queries/marketplace.js"
-		},
 		"./db/queries/projects": {
 			"types": "./dist/src/db/queries/projects.d.ts",
 			"import": "./dist/src/db/queries/projects.js"
+		},
+		"./db/queries/provisioning-audit": {
+			"types": "./dist/src/db/queries/provisioning-audit.d.ts",
+			"import": "./dist/src/db/queries/provisioning-audit.js"
 		},
 		"./types": {
 			"types": "./dist/src/types.d.ts",

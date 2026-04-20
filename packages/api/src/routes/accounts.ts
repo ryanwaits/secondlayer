@@ -9,7 +9,7 @@ import {
 	getDailyUsage,
 } from "@secondlayer/shared/db/queries/usage";
 import { AuthenticationError } from "@secondlayer/shared/errors";
-import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/marketplace";
+import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/accounts";
 import { type Context, Hono } from "hono";
 
 const app = new Hono();

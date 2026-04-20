@@ -13,10 +13,6 @@
 			"types": "./dist/subgraphs/index.d.ts",
 			"import": "./dist/subgraphs/index.js"
 		},
-		"./marketplace": {
-			"types": "./dist/marketplace/index.d.ts",
-			"import": "./dist/marketplace/index.js"
-		},
 		"./workflows": {
 			"types": "./dist/workflows/index.d.ts",
 			"import": "./dist/workflows/index.js"

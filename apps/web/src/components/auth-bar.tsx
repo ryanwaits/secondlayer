@@ -13,7 +13,6 @@ const PLATFORM_PATHS = [
 	"/billing",
 	"/settings",
 	"/sessions",
-	"/marketplace",
 	"/instance",
 ];
 

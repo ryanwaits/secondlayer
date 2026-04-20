@@ -12,12 +12,10 @@ import {
 	getSubgraphGaps,
 	handleApiError,
 	listSubgraphsApi,
-	publishSubgraphApi,
 	querySubgraphTable,
 	querySubgraphTableCount,
 	reindexSubgraphApi,
 	stopSubgraphApi,
-	unpublishSubgraphApi,
 } from "../lib/api-client.ts";
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
@@ -651,56 +649,6 @@ export function registerSubgraphsCommand(program: Command): void {
 				success(result.message);
 			} catch (err) {
 				handleApiError(err, "delete subgraph");
-			}
-		});
-
-	// --- publish ---
-	subgraphs
-		.command("publish <name>")
-		.description("Publish a subgraph to the marketplace")
-		.option("--tags <tags>", "Tags (comma-separated, max 5)")
-		.option("--description <desc>", "Public description (max 500 chars)")
-		.option("--json", "Output as JSON")
-		.action(
-			async (
-				name: string,
-				options: { tags?: string; description?: string; json?: boolean },
-			) => {
-				try {
-					const opts: { tags?: string[]; description?: string } = {};
-					if (options.tags) {
-						opts.tags = options.tags.split(",").map((t) => t.trim());
-					}
-					if (options.description) {
-						opts.description = options.description;
-					}
-					const result = await publishSubgraphApi(name, opts);
-					if (options.json) {
-						console.log(JSON.stringify(result, null, 2));
-						return;
-					}
-					success(result.message);
-				} catch (err) {
-					handleApiError(err, "publish subgraph");
-				}
-			},
-		);
-
-	// --- unpublish ---
-	subgraphs
-		.command("unpublish <name>")
-		.description("Remove a subgraph from the marketplace")
-		.option("--json", "Output as JSON")
-		.action(async (name: string, options: { json?: boolean }) => {
-			try {
-				const result = await unpublishSubgraphApi(name);
-				if (options.json) {
-					console.log(JSON.stringify(result, null, 2));
-					return;
-				}
-				success(result.message);
-			} catch (err) {
-				handleApiError(err, "unpublish subgraph");
 			}
 		});
 

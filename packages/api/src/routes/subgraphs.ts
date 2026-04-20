@@ -5,10 +5,6 @@ import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
 import {
-	publishSubgraph,
-	unpublishSubgraph,
-} from "@secondlayer/shared/db/queries/marketplace";
-import {
 	countSubgraphMissingBlocks,
 	findSubgraphGaps,
 	getGapSummaryBySubgraph,
@@ -18,7 +14,6 @@ import {
 	pgSchemaName,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
-import { PublishSubgraphRequestSchema } from "@secondlayer/shared/schemas/marketplace";
 import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
@@ -444,46 +439,6 @@ app.post("/:subgraphName/backfill", async (c) => {
 		message: `Backfill started for subgraph "${subgraphName}"`,
 		fromBlock,
 		toBlock,
-	});
-});
-
-// ── Publish / unpublish a subgraph ───────────────────────────────────────
-
-app.post("/:subgraphName/publish", async (c) => {
-	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-
-	const body = await c.req.json().catch(() => ({}));
-	const parsed = PublishSubgraphRequestSchema.safeParse(body);
-	if (!parsed.success) {
-		return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
-	}
-
-	const db = getDb();
-	await publishSubgraph(db, subgraph.id, parsed.data);
-	await cache.refresh();
-
-	return c.json({
-		message: `Subgraph "${subgraphName}" published`,
-		name: subgraphName,
-		isPublic: true,
-	});
-});
-
-app.post("/:subgraphName/unpublish", async (c) => {
-	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-
-	const db = getDb();
-	await unpublishSubgraph(db, subgraph.id);
-	await cache.refresh();
-
-	return c.json({
-		message: `Subgraph "${subgraphName}" unpublished`,
-		name: subgraphName,
-		isPublic: false,
 	});
 });
 

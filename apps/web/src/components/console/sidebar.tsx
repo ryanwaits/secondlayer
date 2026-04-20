@@ -23,7 +23,6 @@ const NAV_ITEMS: NavItem[] = [
 		badgeKey: "subgraphs",
 	},
 	{ href: "/sessions", label: "Sessions", icon: "sessions" },
-	{ href: "/marketplace", label: "Marketplace", icon: "marketplace" },
 ];
 
 const SETTINGS_CHILDREN = [
@@ -99,22 +98,6 @@ const ICONS: Record<string, React.ReactNode> = {
 			<circle cx="13" cy="4" r="2" />
 			<circle cx="13" cy="12" r="2" />
 			<path d="M5 8l6-3M5 8l6 3" />
-		</svg>
-	),
-	marketplace: (
-		<svg
-			width="16"
-			height="16"
-			viewBox="0 0 16 16"
-			fill="none"
-			aria-hidden="true"
-			stroke="currentColor"
-			strokeWidth="1.5"
-			strokeLinecap="round"
-		>
-			<path d="M3 3h10v10H3z" />
-			<path d="M3 8h10" />
-			<path d="M8 3v10" />
 		</svg>
 	),
 	settings: (

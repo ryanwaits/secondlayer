@@ -19,7 +19,6 @@ import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
 import insightsRouter from "./routes/insights.ts";
-import marketplaceRouter from "./routes/marketplace.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
@@ -66,10 +65,6 @@ if (mode === "platform") {
 	// Waitlist (no auth required)
 	app.route("/api/waitlist", waitlistRouter);
 
-	// Marketplace (no auth required, IP rate limited)
-	app.use("/api/marketplace/*", ipRateLimit(60));
-	app.route("/api/marketplace", marketplaceRouter);
-
 	// Admin routes — auth + admin guard
 	app.use("/api/admin/*", requireAuth());
 	app.use("/api/admin/*", requireAdmin());
@@ -78,8 +73,8 @@ if (mode === "platform") {
 
 // Resource paths per mode.
 // - Platform: control plane only (accounts, projects, tenants, chat, insights,
-//   auth/logout, marketplace, admin). NO /api/subgraphs — subgraphs live on
-//   per-tenant dedicated containers now.
+//   auth/logout, admin). NO /api/subgraphs — subgraphs live on per-tenant
+//   dedicated containers now.
 // - Dedicated: serves /api/subgraphs on its tenant DB; /api/node read-through.
 // - OSS: full single-tenant deployment.
 const DEDICATED_PATHS = [

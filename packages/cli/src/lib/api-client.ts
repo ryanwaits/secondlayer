@@ -1,8 +1,5 @@
 import { ApiError, SecondLayer } from "@secondlayer/sdk";
-import type { MarketplaceBrowseOptions } from "@secondlayer/sdk/marketplace";
 import type {
-	MarketplaceSubgraphDetail,
-	MarketplaceSubgraphSummary,
 	ReindexResponse,
 	SubgraphDetail,
 	SubgraphGapsResponse,
@@ -180,39 +177,6 @@ export async function getSubgraphGaps(
 	return (await getTenantClient()).subgraphs.gaps(name, opts);
 }
 
-export async function publishSubgraphApi(
-	name: string,
-	opts?: { tags?: string[]; description?: string },
-): Promise<{ message: string }> {
-	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
-	const res = await fetch(`${apiUrl}/api/subgraphs/${name}/publish`, {
-		method: "POST",
-		headers: {
-			"content-type": "application/json",
-			authorization: `Bearer ${ephemeralKey}`,
-		},
-		body: JSON.stringify(opts ?? {}),
-	});
-	await assertOk(res);
-	return res.json() as Promise<{ message: string }>;
-}
-
-export async function unpublishSubgraphApi(
-	name: string,
-): Promise<{ message: string }> {
-	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
-	const res = await fetch(`${apiUrl}/api/subgraphs/${name}/unpublish`, {
-		method: "POST",
-		headers: {
-			"content-type": "application/json",
-			authorization: `Bearer ${ephemeralKey}`,
-		},
-		body: JSON.stringify({}),
-	});
-	await assertOk(res);
-	return res.json() as Promise<{ message: string }>;
-}
-
 // ── Account (platform-scoped, session-authed) ──────────────────────────
 
 export interface AccountProfile {
@@ -243,44 +207,4 @@ export async function updateAccountProfile(data: {
 	avatarUrl: string | null;
 }> {
 	return httpPlatform("/api/accounts/me", { method: "PATCH", body: data });
-}
-
-// ── Marketplace (platform-scoped, public read) ──────────────────────────
-// The marketplace queries the control-plane `subgraphs` registry. Post-cutover
-// the shared subgraphs table is gone — these calls will return empty sets
-// until marketplace is reworked as a separate sprint. Left in place so
-// `sl marketplace browse` doesn't crash the CLI.
-
-async function getPlatformClient(): Promise<SecondLayer> {
-	const base =
-		process.env.SL_PLATFORM_API_URL ?? "https://api.secondlayer.tools";
-	// Marketplace is public — no auth header needed. SDK allows empty apiKey.
-	return new SecondLayer({ baseUrl: base });
-}
-
-export async function browseMarketplace(
-	opts: MarketplaceBrowseOptions = {},
-): Promise<{
-	data: MarketplaceSubgraphSummary[];
-	meta: { total: number; limit: number; offset: number };
-}> {
-	return (await getPlatformClient()).marketplace.browse(opts);
-}
-
-export async function getMarketplaceSubgraph(
-	name: string,
-): Promise<MarketplaceSubgraphDetail> {
-	return (await getPlatformClient()).marketplace.get(name);
-}
-
-export async function forkMarketplaceSubgraph(
-	name: string,
-	newName?: string,
-): Promise<{
-	action: string;
-	subgraphId: string;
-	name: string;
-	forkedFrom: string;
-}> {
-	return (await getPlatformClient()).marketplace.fork(name, newName);
 }

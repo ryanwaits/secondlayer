@@ -2,17 +2,16 @@
  * Instance modes for the Secondlayer platform.
  *
  * - `oss`: self-hosted, single-tenant. No auth middleware, no platform routes
- *   (marketplace, projects, admin, workflows). Everything runs against a single
+ *   (projects, admin, workflows). Everything runs against a single
  *   `DATABASE_URL`. Intended for `docker compose up`.
  *
  * - `dedicated`: per-customer managed instance. JWT-based auth (anon =
  *   read-only, service = full). Dual-DB mode — shared source indexer DB for
  *   block reads, per-tenant target DB for subgraph data. No platform-wide
- *   routes mounted (no marketplace, no cross-tenant accounts).
+ *   routes mounted (no cross-tenant accounts).
  *
- * - `platform`: current shared multi-tenant behavior. Magic-link auth, API
- *   keys, marketplace, projects, admin. Removed after the migration to
- *   dedicated-per-tenant is complete.
+ * - `platform`: control-plane mode. Magic-link auth, API keys, projects,
+ *   tenants, admin. Serves the dashboard + CLI against a single shared DB.
  */
 
 export type InstanceMode = "oss" | "dedicated" | "platform";
