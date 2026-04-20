@@ -6,10 +6,12 @@ import {
 	registerConfigCommand,
 	registerDbCommand,
 	registerDoctorCommand,
+	registerInstanceCommand,
 	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
 	registerMarketplaceCommand,
+	registerProjectCommand,
 	registerStackCommand,
 	registerStatusCommand,
 	registerSubgraphsCommand,
@@ -74,8 +76,9 @@ registerLoginCommand(program);
 registerLogoutCommand(program);
 registerWhoamiCommand(program);
 
-// Tenant lifecycle (registered later in Sprint 3)
-// TODO Sprint 3: registerInstanceCommand, registerProjectCommand
+// Tenant lifecycle
+registerProjectCommand(program);
+registerInstanceCommand(program);
 
 // Workload (tenant-scoped via resolver)
 registerSubgraphsCommand(program);
