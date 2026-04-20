@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>secondlayer — Instance Page States</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,460;0,500;0,560;0,600;0,700;1,400&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafafa;
+    --bg-elevated: #fff;
+    --bg-subtle: rgba(0,0,0,0.02);
+    --text-main: #111;
+    --text-muted: rgba(0,0,0,0.5);
+    --text-dim: rgba(0,0,0,0.12);
+    --border: #e5e5e5;
+    --border-hover: #ccc;
+    --accent: #b5a836;
+    --accent-bg: rgba(181,168,54,0.08);
+    --accent-border: rgba(181,168,54,0.28);
+    --code-bg: rgba(0,0,0,0.035);
+    --code-block-bg: #f4f4f4;
+    --green: #16a34a;
+    --green-bg: rgba(22,163,74,0.08);
+    --yellow: #ca8a04;
+    --yellow-bg: rgba(202,138,4,0.1);
+    --red: #dc2626;
+    --red-bg: rgba(220,38,38,0.08);
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --bg-elevated: #1a1a1a;
+      --bg-subtle: rgba(255,255,255,0.025);
+      --text-main: #ececec;
+      --text-muted: rgba(255,255,255,0.42);
+      --text-dim: rgba(255,255,255,0.1);
+      --border: #262626;
+      --border-hover: #3a3a3a;
+      --accent: #b5a836;
+      --accent-bg: rgba(181,168,54,0.09);
+      --accent-border: rgba(181,168,54,0.32);
+      --code-bg: rgba(255,255,255,0.06);
+      --code-block-bg: #1c1c1c;
+      --green: #22c55e;
+      --green-bg: rgba(34,197,94,0.08);
+      --yellow: #eab308;
+      --yellow-bg: rgba(234,179,8,0.08);
+      --red: #ef4444;
+      --red-bg: rgba(239,68,68,0.08);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-main);
+    font-family: var(--font-sans); font-size: 14px; font-weight: 460;
+    letter-spacing: -0.005em; -webkit-font-smoothing: antialiased;
+    min-height: 100vh; padding: 32px 24px 120px;
+  }
+  ::selection { background: var(--accent-bg); }
+
+  .page-header {
+    max-width: 720px; margin: 0 auto 40px;
+  }
+  .page-header h1 {
+    font-family: var(--font-heading); font-size: 22px; font-weight: 500;
+    letter-spacing: -0.02em; margin-bottom: 6px;
+  }
+  .page-header p {
+    font-size: 13px; color: var(--text-muted);
+  }
+
+  /* ─── State wrapper (mimics the page frame) ─── */
+  .state {
+    max-width: 720px; margin: 0 auto 48px;
+  }
+  .state-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted); opacity: 0.8;
+    padding: 0 28px 10px; display: flex; gap: 10px; align-items: baseline;
+  }
+  .state-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+    position: relative; top: -3px;
+  }
+  .state-label .meta {
+    font-family: var(--font-sans); font-size: 11px; font-weight: 400;
+    text-transform: none; letter-spacing: 0;
+    color: var(--text-muted); opacity: 0.7;
+  }
+
+  .frame {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  /* Fake topbar to give context */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 20px; border-bottom: 1px solid var(--border);
+    background: var(--bg-subtle);
+  }
+  .topbar-path {
+    font-size: 12px; color: var(--text-muted);
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .topbar-path strong {
+    color: var(--text-main); font-weight: 500;
+  }
+  .topbar-meta {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-muted); letter-spacing: 0.02em;
+  }
+
+  /* ─── Settings-scroll / settings-inner (existing patterns) ─── */
+  .settings-scroll {
+    padding: 24px 28px 32px;
+    max-height: none;
+  }
+  .settings-inner { max-width: 640px; }
+
+  .settings-title {
+    font-family: var(--font-heading); font-size: 16px; font-weight: 500;
+    letter-spacing: -0.02em; margin-bottom: 4px;
+  }
+  .settings-desc {
+    font-size: 13px; color: var(--text-muted); margin-bottom: 24px;
+  }
+  .settings-section { margin-bottom: 28px; }
+  .settings-section:last-child { margin-bottom: 0; }
+  .settings-section-title {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted); opacity: 0.75; margin-bottom: 12px;
+  }
+  .settings-hint {
+    font-size: 12px; color: var(--text-muted); margin-top: 6px;
+  }
+  .settings-divider {
+    height: 1px; background: var(--border); margin: 24px 0;
+  }
+
+  .settings-btn {
+    font-family: var(--font-sans); font-size: 12.5px; font-weight: 500;
+    line-height: 1; border: 1px solid transparent; border-radius: 6px;
+    padding: 8px 14px; cursor: pointer; transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .settings-btn.primary {
+    background: var(--text-main); color: var(--bg);
+  }
+  .settings-btn.primary:hover { opacity: 0.88; }
+  .settings-btn.primary:disabled {
+    opacity: 0.35; cursor: not-allowed;
+  }
+  .settings-btn.ghost {
+    background: transparent; color: var(--text-main);
+    border-color: var(--border);
+  }
+  .settings-btn.ghost:hover { border-color: var(--border-hover); }
+  .settings-btn.danger {
+    color: var(--red); background: var(--red-bg); border-color: transparent;
+  }
+  .settings-btn.danger:hover { opacity: 0.88; }
+  .settings-btn.small {
+    padding: 5px 10px; font-size: 11.5px;
+  }
+
+  /* ─── NEW: instance-banner ─── */
+  .instance-banner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px; border-radius: 8px; border: 1px solid;
+    font-size: 13px; margin-bottom: 20px;
+  }
+  .instance-banner .banner-body { flex: 1; line-height: 1.45; }
+  .instance-banner .banner-body strong { font-weight: 500; }
+  .instance-banner.info {
+    border-color: var(--accent-border); background: var(--accent-bg);
+  }
+  .instance-banner.warning {
+    border-color: rgba(202,138,4,0.3); background: var(--yellow-bg);
+    color: var(--text-main);
+  }
+  .instance-banner.danger {
+    border-color: rgba(220,38,38,0.3); background: var(--red-bg);
+  }
+  .instance-banner .banner-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .instance-banner.info .banner-dot { background: var(--accent); }
+  .instance-banner.warning .banner-dot { background: var(--yellow); }
+  .instance-banner.danger .banner-dot { background: var(--red); }
+
+  /* ─── NEW: instance-kv ─── */
+  .instance-kv {
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden;
+  }
+  .instance-kv .row {
+    display: grid; grid-template-columns: 110px 1fr; gap: 16px;
+    padding: 10px 14px; font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .instance-kv .row:last-child { border-bottom: none; }
+  .instance-kv .row .key {
+    color: var(--text-muted);
+    font-family: var(--font-mono); font-size: 11.5px;
+    letter-spacing: 0.01em;
+  }
+  .instance-kv .row .val { color: var(--text-main); }
+  .instance-kv .row .val.mono {
+    font-family: var(--font-mono); font-size: 12.5px;
+  }
+
+  /* ─── NEW: pill ─── */
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 3px 8px; border-radius: 999px;
+  }
+  .pill .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+  .pill-success { color: var(--green); background: var(--green-bg); }
+  .pill-success .dot { background: var(--green); }
+  .pill-warn { color: var(--yellow); background: var(--yellow-bg); }
+  .pill-warn .dot { background: var(--yellow); }
+  .pill-muted { color: var(--text-muted); background: var(--bg-subtle); }
+  .pill-muted .dot { background: var(--text-muted); }
+
+  /* ─── NEW: instance-gauge ─── */
+  .instance-gauge {
+    display: grid; grid-template-columns: 60px 1fr auto;
+    align-items: center; gap: 14px; padding: 8px 0;
+    font-size: 12.5px;
+  }
+  .instance-gauge .label {
+    color: var(--text-muted); font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 0.02em;
+  }
+  .instance-gauge .bar {
+    height: 4px; background: var(--bg-subtle); border-radius: 2px;
+    overflow: hidden; position: relative;
+  }
+  .instance-gauge .fill {
+    position: absolute; inset: 0 auto 0 0; background: var(--text-main);
+    border-radius: 2px; transition: width 0.3s;
+  }
+  .instance-gauge.warn .fill { background: var(--yellow); }
+  .instance-gauge.danger .fill { background: var(--red); }
+  .instance-gauge .caption {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--text-muted); letter-spacing: 0.02em;
+    min-width: 92px; text-align: right;
+  }
+
+  /* Gauge empty-state (pre-metrics) */
+  .instance-gauge-empty {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border: 1px dashed var(--border);
+    border-radius: 8px; font-size: 12.5px; color: var(--text-muted);
+    font-style: italic;
+  }
+  .instance-gauge-empty .pulse {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-dim); animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.9; }
+  }
+
+  /* ─── NEW: connect snippet ─── */
+  .connect-url {
+    font-family: var(--font-mono); font-size: 12.5px;
+    padding: 9px 12px; background: var(--code-block-bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .connect-url .url { color: var(--text-main); }
+  .connect-url .copy-btn {
+    background: transparent; border: none; color: var(--text-muted);
+    font-family: var(--font-mono); font-size: 10.5px; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .connect-url .copy-btn:hover { color: var(--text-main); background: var(--bg-subtle); }
+
+  .connect-tabs {
+    display: flex; gap: 3px; margin-bottom: 8px;
+  }
+  .connect-tab {
+    padding: 5px 11px; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 11px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--text-muted); cursor: pointer;
+  }
+  .connect-tab.active {
+    background: var(--bg-subtle); color: var(--text-main);
+    border-color: var(--border);
+  }
+
+  .connect-code {
+    font-family: var(--font-mono); font-size: 12px;
+    background: var(--code-block-bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 14px 14px;
+    line-height: 1.6; color: var(--text-main);
+    white-space: pre-wrap; position: relative;
+  }
+  .connect-code .masked {
+    background: var(--bg-subtle); color: var(--text-muted);
+    padding: 1px 6px; border-radius: 3px; letter-spacing: 0.15em;
+  }
+  .connect-code .reveal-link {
+    display: inline-block; margin-left: 8px;
+    font-family: var(--font-sans); font-size: 11.5px;
+    color: var(--accent); text-decoration: none; cursor: pointer;
+    border-bottom: 1px solid currentColor; opacity: 0.9;
+  }
+  .connect-code .reveal-link:hover { opacity: 1; }
+  .connect-code .tok { color: var(--accent); }
+
+  /* ─── NEW: settings-key-row for key management ─── */
+  .settings-key-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .settings-key-row:first-child { padding-top: 0; }
+  .settings-key-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .settings-key-row .key-meta { flex: 1; }
+  .settings-key-row .key-name {
+    font-size: 13px; font-weight: 500; color: var(--text-main);
+    margin-bottom: 2px;
+  }
+  .settings-key-row .key-hint {
+    font-size: 11.5px; color: var(--text-muted);
+  }
+  .settings-key-row .key-hint code {
+    font-family: var(--font-mono); background: var(--code-bg);
+    padding: 1px 5px; border-radius: 3px; font-size: 10.5px;
+  }
+
+  /* ─── NEW: plan cards (TrialStart) ─── */
+  .instance-plan-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 600px) {
+    .instance-plan-grid { grid-template-columns: 1fr; }
+  }
+  .instance-plan-card {
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 14px 16px;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+  .instance-plan-card:hover { border-color: var(--border-hover); }
+  .instance-plan-card[data-selected="true"] {
+    border-color: var(--text-main);
+    background: var(--bg-subtle);
+  }
+  .instance-plan-card .tag {
+    position: absolute; top: 12px; right: 14px;
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
+    color: var(--text-muted); opacity: 0.8;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .instance-plan-card .name {
+    font-family: var(--font-heading); font-size: 14px; font-weight: 500;
+    letter-spacing: -0.01em; margin-bottom: 2px;
+  }
+  .instance-plan-card .price {
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--text-muted); margin-bottom: 14px;
+  }
+  .instance-plan-card .specs {
+    font-size: 11.5px; line-height: 1.7; color: var(--text-muted);
+  }
+  .instance-plan-card .specs span {
+    color: var(--text-main);
+  }
+  .instance-plan-card[data-selected="true"]::before {
+    content: ''; position: absolute; top: 10px; right: 10px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-main);
+  }
+  .instance-plan-card[data-selected="true"] .tag { display: none; }
+
+  /* ─── NEW: provision progress ─── */
+  .provision-progress {
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 22px 22px 20px; background: var(--bg-subtle);
+  }
+  .provision-progress .step {
+    display: flex; align-items: center; gap: 11px;
+    padding: 7px 0; font-size: 13px;
+    font-family: var(--font-mono); font-size: 12.5px;
+    color: var(--text-muted);
+  }
+  .provision-progress .step .check {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: transparent; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 9px;
+  }
+  .provision-progress .step.done .check {
+    background: var(--text-main); border-color: var(--text-main);
+    color: var(--bg);
+  }
+  .provision-progress .step.done { color: var(--text-main); }
+  .provision-progress .step.active .check {
+    border-color: var(--text-main);
+    animation: spin 1s linear infinite;
+    border-top-color: transparent;
+  }
+  .provision-progress .step.active { color: var(--text-main); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── NEW: modal ─── */
+  .modal-demo {
+    position: relative;
+    background: var(--bg-subtle); border: 1px dashed var(--border);
+    border-radius: 10px; padding: 40px 20px; margin-top: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-panel {
+    width: 100%; max-width: 440px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 10px; padding: 22px 22px 18px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .modal-title {
+    font-family: var(--font-heading); font-size: 15px; font-weight: 500;
+    letter-spacing: -0.01em; margin-bottom: 3px;
+  }
+  .modal-subtitle {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 18px;
+  }
+  .modal-warn {
+    display: flex; gap: 9px; align-items: flex-start;
+    padding: 10px 12px; border-radius: 6px;
+    background: var(--yellow-bg);
+    border: 1px solid rgba(202,138,4,0.25);
+    font-size: 11.5px; line-height: 1.45;
+    margin-bottom: 16px; color: var(--text-main);
+  }
+  .modal-warn .icon {
+    flex-shrink: 0; color: var(--yellow);
+    font-weight: 600; font-family: var(--font-mono);
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--yellow-bg); border: 1px solid var(--yellow);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px;
+  }
+
+  .key-reveal-row {
+    margin-bottom: 14px;
+  }
+  .key-reveal-row .label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 5px;
+  }
+  .key-reveal-row .value-box {
+    position: relative;
+    font-family: var(--font-mono); font-size: 11.5px;
+    padding: 9px 40px 9px 12px; border-radius: 5px;
+    background: var(--code-block-bg); border: 1px solid var(--border);
+    word-break: break-all; line-height: 1.5;
+    color: var(--text-main);
+  }
+  .key-reveal-row .copy-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 4px; padding: 3px 7px;
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-muted); cursor: pointer;
+  }
+  .key-reveal-row .copy-btn:hover { color: var(--text-main); }
+  .key-reveal-row .copy-btn.copied { color: var(--green); }
+
+  .modal-gate {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 0 14px;
+    font-size: 12px; color: var(--text-main);
+    border-top: 1px solid var(--border); margin-top: 4px;
+    cursor: pointer;
+  }
+  .modal-gate input[type="checkbox"] {
+    accent-color: var(--text-main); width: 14px; height: 14px;
+  }
+
+  .modal-footer {
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+
+  /* ─── Danger zone card ─── */
+  .danger-card {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  .danger-card .title {
+    font-size: 13px; font-weight: 500; margin-bottom: 2px;
+  }
+  .danger-card .desc {
+    font-size: 11.5px; color: var(--text-muted);
+  }
+
+  /* ─── Resize inline row ─── */
+  .resize-row {
+    display: flex; gap: 8px; align-items: center;
+  }
+  select.settings-input {
+    width: 100%; height: 34px; background: transparent;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 0 10px; font-family: var(--font-sans); font-size: 13px;
+    color: var(--text-main); outline: none;
+  }
+
+  /* Table of contents */
+  .toc {
+    max-width: 720px; margin: 0 auto 32px;
+    display: flex; flex-wrap: wrap; gap: 4px;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .toc a {
+    padding: 4px 10px; border-radius: 4px;
+    color: var(--text-muted); text-decoration: none;
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .toc a:hover {
+    color: var(--text-main); border-color: var(--border-hover);
+  }
+
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Instance page — state gallery</h1>
+  <p>Eight states of the tenant-management surface. All frames render inside a 640px column using the existing <code style="font-family:var(--font-mono);background:var(--code-bg);padding:1px 5px;border-radius:3px;">.settings-*</code> system; new <code style="font-family:var(--font-mono);background:var(--code-bg);padding:1px 5px;border-radius:3px;">.instance-*</code> classes are introduced for banners, kv rows, gauges, plan cards, and the reveal modal.</p>
+</div>
+
+<nav class="toc">
+  <a href="#s1">1. trial start</a>
+  <a href="#s2">2. provisioning</a>
+  <a href="#s3">3. key reveal (provision)</a>
+  <a href="#s4">4. active / healthy</a>
+  <a href="#s5">5. trial expiring</a>
+  <a href="#s6">6. resource pressure</a>
+  <a href="#s7">7. suspended</a>
+  <a href="#s8">8. key reveal (rotate)</a>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATE 1: TrialStart (no tenant)                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="state" id="s1">
+  <div class="state-label">01 &middot; trial start <span class="meta">no tenant row · user hasn't provisioned yet</span></div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="topbar-path"><span>my-project</span> / <strong>Instance</strong></div>
+    </div>
+    <div class="settings-scroll">
+      <div class="settings-inner">
+        <h1 class="settings-title">Start your 14-day trial</h1>
+        <p class="settings-desc">Pick a plan. We'll provision your dedicated Postgres, API, and subgraph processor. Takes about a minute.</p>
+
+        <div class="instance-plan-grid">
+          <div class="instance-plan-card">
+            <div class="tag">Hobbyist</div>
+            <div class="name">Launch</div>
+            <div class="price">$99/mo</div>
+            <div class="specs"><span>1</span> vCPU<br><span>2</span> GB RAM<br><span>10</span> GB storage</div>
+          </div>
+          <div class="instance-plan-card" data-selected="true">
+            <div class="tag">Most popular</div>
+            <div class="name">Grow</div>
+            <div class="price">$249/mo</div>
+            <div class="specs"><span>2</span> vCPU<br><span>4</span> GB RAM<br><span>50</span> GB storage</div>
+          </div>
+          <div class="instance-plan-card">
+            <div class="tag">Production</div>
+            <div class="name">Scale</div>
+            <div class="price">$599/mo</div>
+            <div class="specs"><span>4</span> vCPU<br><span>8</span> GB RAM<br><span>200</span> GB storage</div>
+          </div>
+        </div>
+
+        <div class="settings-hint" style="margin-bottom:20px">No charge until day 15. Cancel anytime.</div>
+
+        <div style="display:flex; gap:10px; align-items:center">
+          <button class="settings-btn primary">Start 14-day trial</button>
+          <span class="settings-hint" style="margin-top:0">Provisioning usually completes in under a minute.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATE 2: Provisioning                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="state" id="s2">
+  <div class="state-label">02 &middot; provisioning <span class="meta">spinner for 30-60s while containers come up</span></div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="topbar-path"><span>my-project</span> / <strong>Instance</strong></div>
+      <div class="topbar-meta">provisioning &middot; ~45s remaining</div>
+    </div>
+    <div class="settings-scroll">
+      <div class="settings-inner">
+        <h1 class="settings-title">Provisioning your instance</h1>
+        <p class="settings-desc">Don't close this tab — we'll reveal your keys once for safe-keeping when the containers are healthy.</p>
+
+        <div class="provision-progress">
+          <div class="step done"><span class="check">✓</span> Allocating slug &middot; <span style="color:var(--text-muted);font-size:11px;margin-left:4px">bwurr1nb</span></div>
+          <div class="step done"><span class="check">✓</span> Postgres container · healthy</div>
+          <div class="step active"><span class="check"></span> API container · starting migrations</div>
+          <div class="step"><span class="check"></span> Subgraph processor</div>
+          <div class="step"><span class="check"></span> DNS &middot; TLS certificate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATE 3: Key reveal modal (provision complete)              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="state" id="s3">
+  <div class="state-label">03 &middot; key reveal — provision <span class="meta">modal over the active view · one-shot display</span></div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="topbar-path"><span>my-project</span> / <strong>Instance</strong></div>
+      <div class="topbar-meta">bwurr1nb &middot; active</div>
+    </div>
+    <div class="modal-demo">
+      <div class="modal-panel">
+        <div class="modal-title">Save your keys</div>
+        <div class="modal-subtitle">These are shown once. Store them in your password manager before dismissing.</div>
+
+        <div class="modal-warn">
+          <span class="icon">!</span>
+          <span>We can't retrieve these later — you'll need to rotate if lost. Rotation invalidates the old key immediately.</span>
+        </div>
+
+        <div class="key-reveal-row">
+          <div class="label">Service key &middot; full access</div>
+          <div class="value-box">
+            eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJid3VycjFuYiIsInJvbGUiOiJzZXJ2aWNlIiwiaWF0IjoxNzc2NjM4Njg1fQ.xB8kN2QWmZLaR4vF3pKjHcYdEoPnSsTuVgAiBcDeFgH
+            <button class="copy-btn">copy</button>
+          </div>
+        </div>
+
+        <div class="key-reveal-row">
+          <div class="label">Anon key &middot; read-only</div>
+          <div class="value-box">
+            eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJid3VycjFuYiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzc2NjM4Njg1fQ.4vTBnMs7KwPqRzXeYhUgJc5iDfAaLbCkVoHpNmGrEqT
+            <button class="copy-btn copied">copied</button>
+          </div>
+        </div>
+
+        <div class="key-reveal-row">
+          <div class="label">API URL</div>
+          <div class="value-box">
+            https://bwurr1nb.secondlayer.tools
+            <button class="copy-btn">copy</button>
+          </div>
+        </div>
+
+        <label class="modal-gate">
+          <input type="checkbox" checked />
+          I've saved these securely
+        </label>
+
+        <div class="modal-footer">
+          <button class="settings-btn ghost small">Show again</button>
+          <button class="settings-btn primary small">Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATE 4: Active / healthy                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="state" id="s4">
+  <div class="state-label">04 &middot; active &middot; healthy <span class="meta">day-2 of trial · everything green</span></div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="topbar-path"><span>my-project</span> / <strong>Instance</strong></div>
+      <div class="topbar-meta">bwurr1nb &middot; last updated 3s ago</div>
+    </div>
+    <div class="settings-scroll">
+      <div class="settings-inner">
+        <h1 class="settings-title">Instance</h1>
+        <p class="settings-desc">Your dedicated Postgres, API, and subgraph processor. Trial ends in 12 days.</p>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Overview</div>
+          <div class="instance-kv">
+            <div class="row">
+              <div class="key">url</div>
+              <div class="val mono">https://bwurr1nb.secondlayer.tools</div>
+            </div>
+            <div class="row">
+              <div class="key">plan</div>
+              <div class="val">Grow &middot; 2 vCPU · 4 GB RAM · 50 GB storage</div>
+            </div>
+            <div class="row">
+              <div class="key">status</div>
+              <div class="val"><span class="pill pill-success"><span class="dot"></span>active</span></div>
+            </div>
+            <div class="row">
+              <div class="key">created</div>
+              <div class="val">4/19/2026, 10:10 PM</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Resource usage</div>
+          <div class="instance-gauge">
+            <div class="label">CPU</div>
+            <div class="bar"><div class="fill" style="width:14%"></div></div>
+            <div class="caption">14%</div>
+          </div>
+          <div class="instance-gauge">
+            <div class="label">Memory</div>
+            <div class="bar"><div class="fill" style="width:32%"></div></div>
+            <div class="caption">1.3 / 4 GB</div>
+          </div>
+          <div class="instance-gauge">
+            <div class="label">Storage</div>
+            <div class="bar"><div class="fill" style="width:6%"></div></div>
+            <div class="caption">3.1 / 50 GB</div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Connect</div>
+          <div class="connect-url">
+            <span class="url">https://bwurr1nb.secondlayer.tools</span>
+            <button class="copy-btn">copy</button>
+          </div>
+          <div class="connect-tabs">
+            <button class="connect-tab active">curl</button>
+            <button class="connect-tab">node</button>
+            <button class="connect-tab">cli</button>
+          </div>
+          <div class="connect-code">curl -H <span class="tok">"Authorization: Bearer <span class="masked">••••••••••••••••</span><a class="reveal-link">reveal once</a>"</span> \
+  https://bwurr1nb.secondlayer.tools/api/subgraphs</div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Keys</div>
+          <div class="settings-key-row">
+            <div class="key-meta">
+              <div class="key-name">Service key</div>
+              <div class="key-hint">Full access — server-side only. Last rotated <code>never</code>.</div>
+            </div>
+            <button class="settings-btn ghost small">Rotate</button>
+          </div>
+          <div class="settings-key-row">
+            <div class="key-meta">
+              <div class="key-name">Anon key</div>
+              <div class="key-hint">Read-only — safe to embed in client code. Last rotated <code>never</code>.</div>
+            </div>
+            <button class="settings-btn ghost small">Rotate</button>
+          </div>
+          <div class="settings-hint">Rotating invalidates the old key immediately. The new one is shown once.</div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Resize</div>
+          <div class="resize-row">
+            <select class="settings-input" style="flex:1; max-width:280px">
+              <option>Grow — $249/mo (2 vCPU · 4 GB · 50 GB)</option>
+              <option>Launch — $99/mo (1 vCPU · 2 GB · 10 GB)</option>
+              <option>Scale — $599/mo (4 vCPU · 8 GB · 200 GB)</option>
+            </select>
+            <button class="settings-btn primary" disabled>Apply</button>
+          </div>
+          <div class="settings-hint">Brief downtime (~30s) when crossing plans. Data is preserved.</div>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Danger zone</div>
+          <div class="danger-card" style="margin-bottom:10px">
+            <div>
+              <div class="title">Suspend instance</div>
+              <div class="desc">Stop all containers. Data preserved. Resume any time.</div>
+            </div>
+            <button class="settings-btn ghost small">Suspend</button>
+          </div>
+          <div class="danger-card">
+            <div>
+              <div class="title">Delete instance</div>
+              <div class="desc">Tears down containers and deletes all tenant data. Cannot be undone.</div>
+            </div>
+            <button class="settings-btn danger small">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATE 5: Trial expiring (banner variant)                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="state" id="s5">
+  <div class="state-label">05 &middot; trial expiring <span class="meta">≤3 days remaining · warning banner above overview</span></div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="topbar-path"><span>my-project</span> / <strong>Instance</strong></div>
+      <div class="topbar-meta">bwurr1nb &middot; last updated 3s ago</div>
+    </div>
+    <div class="settings-scroll">
+      <div class="settings-inner">
+        <h1 class="settings-title">Instance</h1>
+        <p class="settings-desc">Your dedicated Postgres, API, and subgraph processor.</p>
+
+        <div class="instance-banner warning">
+          <span class="banner-dot"></span>
+          <div class="banner-body">
+            <strong>Trial ends in 2 days.</strong> Add a payment method to keep your instance running — no interruption, no data loss.
+          </div>
+          <button class="settings-btn primary small">Add payment</button>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Overview</div>
+          <div class="instance-kv">
+            <div class="row"><div class="key">url</div><div class="val mono">https://bwurr1nb.secondlayer.tools</div></div>
+            <div class="row"><div class="key">plan</div><div class="val">Grow · trial</div></div>
+            <div class="row"><div class="key">status</div><div class="val"><span class="pill pill-warn"><span class="dot"></span>trial ending</span></div></div>
+            <div class="row"><div class="key">trial ends</div><div class="val">4/21/2026, 10:10 PM</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATE 6: Resource pressure (gauge danger)                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="state" id="s6">
+  <div class="state-label">06 &middot; resource pressure <span class="meta">memory + storage over 80% · banner nudges resize</span></div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="topbar-path"><span>my-project</span> / <strong>Instance</strong></div>
+      <div class="topbar-meta">bwurr1nb &middot; last updated 3s ago</div>
+    </div>
+    <div class="settings-scroll">
+      <div class="settings-inner">
+        <h1 class="settings-title">Instance</h1>
+        <p class="settings-desc">Approaching plan limits.</p>
+
+        <div class="instance-banner danger">
+          <span class="banner-dot"></span>
+          <div class="banner-body">
+            <strong>Storage at 91%</strong> and memory at 84%. Resize to Scale to avoid OOM kills.
+          </div>
+          <button class="settings-btn primary small">Resize plan</button>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Resource usage</div>
+          <div class="instance-gauge">
+            <div class="label">CPU</div>
+            <div class="bar"><div class="fill" style="width:46%"></div></div>
+            <div class="caption">46%</div>
+          </div>
+          <div class="instance-gauge warn">
+            <div class="label">Memory</div>
+            <div class="bar"><div class="fill" style="width:84%"></div></div>
+            <div class="caption">3.4 / 4 GB</div>
+          </div>
+          <div class="instance-gauge danger">
+            <div class="label">Storage</div>
+            <div class="bar"><div class="fill" style="width:91%"></div></div>
+            <div class="caption">45.5 / 50 GB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATE 7: Suspended                                           -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="state" id="s7">
+  <div class="state-label">07 &middot; suspended <span class="meta">containers stopped · data preserved · resume CTA</span></div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="topbar-path"><span>my-project</span> / <strong>Instance</strong></div>
+      <div class="topbar-meta">bwurr1nb &middot; suspended 2h ago</div>
+    </div>
+    <div class="settings-scroll">
+      <div class="settings-inner">
+        <h1 class="settings-title">Instance</h1>
+        <p class="settings-desc">Containers stopped. Data preserved. Resume to bring everything back online in ~20s.</p>
+
+        <div class="instance-banner info">
+          <span class="banner-dot"></span>
+          <div class="banner-body">
+            <strong>Suspended.</strong> Nothing is billed while suspended, but your slug and data are reserved.
+          </div>
+          <button class="settings-btn primary small">Resume instance</button>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Overview</div>
+          <div class="instance-kv">
+            <div class="row"><div class="key">url</div><div class="val mono">https://bwurr1nb.secondlayer.tools</div></div>
+            <div class="row"><div class="key">plan</div><div class="val">Grow</div></div>
+            <div class="row"><div class="key">status</div><div class="val"><span class="pill pill-muted"><span class="dot"></span>suspended</span></div></div>
+            <div class="row"><div class="key">suspended</div><div class="val">4/19/2026, 8:10 PM</div></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Resource usage</div>
+          <div class="instance-gauge-empty">
+            <span class="pulse"></span>
+            Metrics pause while suspended. Resume to resume collection.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATE 8: Key reveal modal (rotate flow)                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="state" id="s8">
+  <div class="state-label">08 &middot; key reveal — rotate <span class="meta">same modal · different title · invalidation notice</span></div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="topbar-path"><span>my-project</span> / <strong>Instance</strong></div>
+      <div class="topbar-meta">bwurr1nb &middot; service key rotated</div>
+    </div>
+    <div class="modal-demo">
+      <div class="modal-panel">
+        <div class="modal-title">Service key rotated</div>
+        <div class="modal-subtitle">The previous service key is now invalid. Update any deployed integrations with the new value below.</div>
+
+        <div class="modal-warn">
+          <span class="icon">!</span>
+          <span>Shown once. Store it now — we can't retrieve rotated keys later.</span>
+        </div>
+
+        <div class="key-reveal-row">
+          <div class="label">New service key</div>
+          <div class="value-box">
+            eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJid3VycjFuYiIsInJvbGUiOiJzZXJ2aWNlIiwiaWF0IjoxNzc2NzI1MDg1fQ.7LpXjQ4rW8sUtPmBfK2cYoNeDzAaHlG3RvVbEiCmFdI
+            <button class="copy-btn">copy</button>
+          </div>
+        </div>
+
+        <label class="modal-gate">
+          <input type="checkbox" />
+          I've updated my deployed integrations
+        </label>
+
+        <div class="modal-footer">
+          <button class="settings-btn primary small" disabled>Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+</body>
+</html>
