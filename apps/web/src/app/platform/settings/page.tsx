@@ -253,28 +253,14 @@ export default function SettingsPage() {
 						{account && (
 							<div
 								style={{
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "space-between",
-									padding: "12px 14px",
-									border: "1px solid var(--border)",
-									borderRadius: 8,
+									fontSize: 12,
+									color: "var(--text-muted)",
 									marginBottom: 12,
 								}}
 							>
-								<div>
-									<div style={{ fontSize: 13, fontWeight: 500 }}>Plan</div>
-									<div
-										style={{
-											fontSize: 12,
-											color: "var(--text-muted)",
-											marginTop: 2,
-										}}
-									>
-										{account.plan} · Member since{" "}
-										{new Date(account.createdAt).toLocaleDateString()}
-									</div>
-								</div>
+								Member since {new Date(account.createdAt).toLocaleDateString()}.
+								Billing follows the instance plan shown above — accounts
+								themselves aren't separately tiered.
 							</div>
 						)}
 						<LogoutButton />

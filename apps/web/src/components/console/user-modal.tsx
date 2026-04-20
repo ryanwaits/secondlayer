@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { useEffect, useState } from "react";
 
 interface UserModalProps {
 	open: boolean;
@@ -65,13 +65,7 @@ export function UserModal({ open, onClose }: UserModalProps) {
 				<div className="user-modal-profile">
 					<div className="user-modal-avatar">{initial}</div>
 					<div className="user-modal-info">
-						<div className="user-modal-name">
-							{name}
-							<span className="user-modal-role">
-								{(account?.plan ?? "member").charAt(0).toUpperCase() +
-									(account?.plan ?? "member").slice(1)}
-							</span>
-						</div>
+						<div className="user-modal-name">{name}</div>
 						<div className="user-modal-email">{email}</div>
 					</div>
 					<button
