@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DangerZone } from "./danger-zone";
+import { DbAccessSection } from "./db-access";
 import { KeyRevealModal } from "./key-reveal-modal";
 import { ProvisionProgress } from "./provision-progress";
 import { type ProvisionResponse, TrialStart } from "./trial-start";
@@ -225,6 +226,9 @@ function ActiveView({
 			<ResourceGauges tenant={tenant} runtime={runtime} />
 			<ConnectSection tenant={tenant} />
 			<KeysSection sessionToken={sessionToken} onKeyRotated={onKeyRotated} />
+			{tenant.status !== "suspended" && (
+				<DbAccessSection sessionToken={sessionToken} />
+			)}
 			<ResizeSection
 				currentPlan={tenant.plan}
 				sessionToken={sessionToken}
