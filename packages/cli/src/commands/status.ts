@@ -1,6 +1,6 @@
 import type { Command } from "commander";
-import { authHeaders } from "../lib/api-client.ts";
-import { loadConfig, resolveApiUrl } from "../lib/config.ts";
+import { loadConfig } from "../lib/config.ts";
+import { CliHttpError, httpPlatform } from "../lib/http.ts";
 import {
 	blue,
 	dim,
@@ -19,19 +19,7 @@ export function registerStatusCommand(program: Command): void {
 			const config = await loadConfig();
 
 			try {
-				const response = await fetch(`${resolveApiUrl(config)}/status`, {
-					headers: authHeaders(config),
-				});
-
-				if (!response.ok) {
-					if (response.status === 401) {
-						console.error("Error: Authentication required. Run: sl auth login");
-						process.exit(1);
-					}
-					throw new Error(`HTTP ${response.status}`);
-				}
-
-				const status = await response.json();
+				const status = await httpPlatform<Record<string, unknown>>("/status");
 
 				if (options.json) {
 					console.log(JSON.stringify(status, null, 2));
@@ -39,7 +27,11 @@ export function registerStatusCommand(program: Command): void {
 				}
 
 				printStatus(status);
-			} catch {
+			} catch (err) {
+				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
+					console.error("Not logged in. Run: sl login");
+					process.exit(1);
+				}
 				console.log("");
 				console.log(blue("System Status"));
 				console.log(`  ${red("NOT RUNNING")}`);
@@ -48,11 +40,7 @@ export function registerStatusCommand(program: Command): void {
 					console.log(dim("  API service is not running."));
 					console.log(dim("  Start with: sl local start"));
 				} else {
-					console.log(
-						dim(
-							`  Can't reach ${config.network} API at ${resolveApiUrl(config)}`,
-						),
-					);
+					console.log(dim("  Can't reach the platform API."));
 					console.log(dim("  Check your connection or try again."));
 				}
 				console.log("");

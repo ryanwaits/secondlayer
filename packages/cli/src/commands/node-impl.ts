@@ -324,7 +324,6 @@ export async function restartNode(
 	console.log("");
 }
 
-
 export async function showStatus(
 	pathOverride?: string,
 	jsonOutput?: boolean,

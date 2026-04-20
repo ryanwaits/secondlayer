@@ -8,7 +8,6 @@ import {
 	isDefaultValue,
 	loadConfig,
 	resetConfig,
-	resolveApiUrl,
 	setConfigValue,
 } from "../lib/config.ts";
 import { detectStacksNodes } from "../lib/detect.ts";
@@ -94,11 +93,10 @@ export function registerConfigCommand(program: Command): void {
 async function printConfigTree(cfg: Config): Promise<void> {
 	const defaults = getDefaultConfig();
 
-	// Network + API URL
+	// Network + default project
 	printValue("network", cfg.network, isDefaultValue(cfg, "network"));
-	printValue("apiUrl", resolveApiUrl(cfg), cfg.apiUrl === undefined);
-	if (cfg.apiKey) {
-		printValue("apiKey", cfg.apiKey.slice(0, 14) + "...", false);
+	if (cfg.defaultProject) {
+		printValue("defaultProject", cfg.defaultProject, false);
 	}
 
 	// Data Directory

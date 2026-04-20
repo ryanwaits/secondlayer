@@ -1,46 +1,86 @@
 import type { Command } from "commander";
-import { authHeaders } from "../lib/api-client.ts";
-import { loadConfig, resolveApiUrl } from "../lib/config.ts";
+import { loadConfig } from "../lib/config.ts";
+import { CliHttpError, httpPlatform } from "../lib/http.ts";
 import { dim, error, formatKeyValue } from "../lib/output.ts";
+import { readActiveProject } from "../lib/project-file.ts";
+import { readSession } from "../lib/session.ts";
 
 export function registerWhoamiCommand(program: Command): void {
 	program
 		.command("whoami")
-		.description("Show current authenticated account")
+		.description("Show current authenticated account + active project + tenant")
 		.action(async () => {
-			const config = await loadConfig();
-			const apiUrl = resolveApiUrl(config);
-			if (!config.apiKey) {
-				error("Not authenticated. Run: sl auth login");
-				process.exit(1);
+			const session = await readSession();
+			if (!session) {
+				error("Not logged in. Run: sl login");
+				process.exit(0);
 			}
 
-			try {
-				const res = await fetch(`${apiUrl}/api/accounts/me`, {
-					headers: authHeaders(config),
-				});
+			const rows: [string, string][] = [];
+			rows.push(["Email", session.email]);
 
-				if (res.status === 401) {
-					error("Not authenticated. Run: sl auth login");
+			// Account + plan
+			try {
+				const account = await httpPlatform<{ email: string; plan: string }>(
+					"/api/accounts/me",
+				);
+				rows.push(["Plan", account.plan]);
+			} catch (err) {
+				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
+					error("Session expired. Run: sl login");
 					process.exit(1);
 				}
-
-				if (!res.ok) {
-					throw new Error(`HTTP ${res.status}`);
-				}
-
-				const data = (await res.json()) as { email: string; plan: string };
-				console.log(
-					formatKeyValue([
-						["Email", data.email],
-						["Plan", data.plan],
-						["Network", config.network],
-						["API", dim(apiUrl)],
-					]),
-				);
-			} catch (err) {
-				error(`Failed to fetch account: ${err}`);
-				process.exit(1);
+				throw err;
 			}
+
+			// Active project (per-dir walk with global fallback)
+			const config = await loadConfig();
+			const active = await readActiveProject(
+				process.cwd(),
+				config.defaultProject,
+			);
+			if (active) {
+				rows.push(["Project", active.slug]);
+				rows.push(["Project source", dim(active.resolvedFrom)]);
+			} else {
+				rows.push(["Project", dim("(none — run `sl project create <name>`)")]);
+			}
+
+			// Tenant info — best effort
+			try {
+				const tenant = await httpPlatform<{
+					tenant: {
+						slug: string;
+						plan: string;
+						status: string;
+						apiUrl: string;
+						trialEndsAt: string;
+					} | null;
+				}>("/api/tenants/me");
+				if (tenant.tenant) {
+					const trialDays = Math.max(
+						0,
+						Math.ceil(
+							(new Date(tenant.tenant.trialEndsAt).getTime() - Date.now()) /
+								(24 * 60 * 60 * 1000),
+						),
+					);
+					rows.push(["Instance", tenant.tenant.apiUrl]);
+					rows.push(["Status", tenant.tenant.status]);
+					rows.push([
+						"Trial",
+						`${trialDays} day${trialDays === 1 ? "" : "s"} left`,
+					]);
+				} else {
+					rows.push([
+						"Instance",
+						dim("(none — run `sl instance create --plan launch`)"),
+					]);
+				}
+			} catch {
+				// Tenant fetch failing shouldn't break whoami.
+			}
+
+			console.log(formatKeyValue(rows));
 		});
 }

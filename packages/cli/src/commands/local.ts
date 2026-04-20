@@ -166,10 +166,7 @@ export function registerLocalCommand(program: Command): void {
 			"Path to stacks-blockchain-docker (overrides config)",
 		)
 		.option("-f, --force", "Skip confirmation")
-		.option(
-			"--wait",
-			"Wait for in-flight work to drain before stopping",
-		)
+		.option("--wait", "Wait for in-flight work to drain before stopping")
 		.action(
 			async (options: { path?: string; force?: boolean; wait?: boolean }) => {
 				const { restartNode } = await import("./node-impl.ts");

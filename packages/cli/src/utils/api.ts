@@ -1,7 +1,6 @@
 import type { AbiContract } from "@secondlayer/stacks/clarity";
 import got from "got";
-import { authHeaders } from "../lib/api-client.ts";
-import { loadConfig, resolveApiUrl } from "../lib/config.ts";
+import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
 import type { NetworkName } from "../types/config";
 import { parseContractId } from "./contract-id";
 
@@ -44,12 +43,12 @@ export class StacksApiClient {
 		}
 	}
 
-	/** Lazy-init: resolve SecondLayer API URL + auth from config if using proxy */
+	/** Lazy-init: resolve tenant API URL + ephemeral bearer if using proxy */
 	private async ensureProxy(): Promise<void> {
 		if (!this.useProxy || this.baseUrl) return;
-		const config = await loadConfig();
-		this.baseUrl = resolveApiUrl(config);
-		this.headers = authHeaders(config);
+		const { apiUrl, ephemeralKey } = await resolveActiveTenant();
+		this.baseUrl = apiUrl;
+		this.headers = { authorization: `Bearer ${ephemeralKey}` };
 	}
 
 	private async fetchWithErrorHandling<T>(

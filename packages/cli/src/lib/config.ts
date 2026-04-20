@@ -28,31 +28,20 @@ const DatabaseSchema = z.object({
 export const NetworkSchema = z.enum(["local", "testnet", "mainnet"]);
 export type Network = z.infer<typeof NetworkSchema>;
 
-const API_URLS: Record<Network, string> = {
-	local: "http://localhost:3800",
-	testnet: "https://api.secondlayer.tools",
-	mainnet: "https://api.secondlayer.tools",
-};
-
 export const ConfigSchema = z.object({
 	network: NetworkSchema.default("mainnet"),
-	apiUrl: z.string().url().optional(),
-	apiKey: z.string().optional(),
 	nodeRpcUrl: z.string().url().optional(),
 	dataDir: z.string().default("~/.secondlayer/data"),
 	node: NodeSchema.optional(),
 	ports: PortsSchema.default({ api: 3800, indexer: 3700 }),
 	database: DatabaseSchema.default({ type: "docker" as const }),
+	/**
+	 * Fallback project slug when no per-directory `.secondlayer/project` file
+	 * is found. Set via `sl project use <slug> --global` (future flag) or
+	 * edited directly. Per-directory binding always wins.
+	 */
+	defaultProject: z.string().optional(),
 });
-
-/**
- * Resolve the API URL for the current network.
- * Explicit apiUrl in config takes precedence, then network-based lookup.
- */
-export function resolveApiUrl(config: Config): string {
-	if (config.apiUrl) return config.apiUrl;
-	return API_URLS[config.network] || API_URLS.local;
-}
 
 export type Config = z.infer<typeof ConfigSchema>;
 export type NodeConfig = z.infer<typeof NodeSchema>;
@@ -92,7 +81,8 @@ export function getDataDir(config?: Config): string {
 }
 
 /**
- * Migrate old config format to new format
+ * Migrate old config format to new format. Pre-alpha — we drop obsolete
+ * fields silently instead of preserving them.
  */
 function migrateConfig(raw: unknown): Config {
 	if (!raw || typeof raw !== "object") {
@@ -100,44 +90,21 @@ function migrateConfig(raw: unknown): Config {
 	}
 
 	const old = raw as Record<string, unknown>;
-
-	// Start with defaults
 	const migrated: Record<string, unknown> = { ...DEFAULT_CONFIG };
 
-	// Migrate network + apiKey
 	if (
 		typeof old.network === "string" &&
 		["local", "testnet", "mainnet"].includes(old.network)
 	) {
 		migrated.network = old.network;
-	} else if (
-		typeof old.apiUrl === "string" &&
-		old.apiUrl !== "http://localhost:3800"
-	) {
-		// Old config with custom apiUrl but no network — keep as local with explicit apiUrl
-		migrated.network = "local";
-	}
-
-	if (typeof old.apiKey === "string") {
-		migrated.apiKey = old.apiKey;
-	}
-
-	if (typeof old.sessionToken === "string" && !migrated.apiKey) {
-		console.warn(
-			"Warning: config contains sessionToken but no apiKey. Run `sl auth login` to re-authenticate.",
-		);
-	}
-
-	// Preserve explicit apiUrl override
-	if (
-		typeof old.apiUrl === "string" &&
-		old.apiUrl !== "http://localhost:3800"
-	) {
-		migrated.apiUrl = old.apiUrl;
 	}
 
 	if (typeof old.dataDir === "string") {
 		migrated.dataDir = old.dataDir;
+	}
+
+	if (typeof old.defaultProject === "string") {
+		migrated.defaultProject = old.defaultProject;
 	}
 
 	// Migrate old flat node fields to nested structure
@@ -221,10 +188,8 @@ function applyEnvOverrides(config: Config): Config {
 		}
 	}
 
-	// SECONDLAYER_API_KEY
-	if (process.env.SECONDLAYER_API_KEY) {
-		result.apiKey = process.env.SECONDLAYER_API_KEY;
-	}
+	// Note: SL_SERVICE_KEY + SL_API_URL are read by `resolve-tenant.ts`
+	// (CI/OSS bypass). Not stored in config — env-only.
 
 	// SL_DATA_DIR
 	if (process.env.SL_DATA_DIR) {

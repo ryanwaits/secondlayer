@@ -1,4 +1,4 @@
-import { SecondLayer } from "@secondlayer/sdk";
+import { ApiError, SecondLayer } from "@secondlayer/sdk";
 import type { MarketplaceBrowseOptions } from "@secondlayer/sdk/marketplace";
 import type {
 	MarketplaceSubgraphDetail,
@@ -13,34 +13,37 @@ import type {
 	DeploySubgraphRequest,
 	DeploySubgraphResponse,
 } from "@secondlayer/shared/schemas/subgraphs";
-import { loadConfig, resolveApiUrl } from "./config.ts";
+import { CliHttpError, httpPlatform } from "./http.ts";
+import { resolveActiveTenant } from "./resolve-tenant.ts";
 
-import { ApiError } from "@secondlayer/sdk";
 export { ApiError };
 export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
 
 /**
- * Guard that throws if the response is not ok, extracting the best error message.
- */
-export async function assertOk(res: Response): Promise<void> {
-	if (res.ok) return;
-	const body = await res.text();
-	try {
-		const parsed = JSON.parse(body);
-		if (typeof parsed.error === "string" && parsed.error)
-			throw new Error(parsed.error);
-	} catch (e) {
-		if (e instanceof Error && e.message !== body) throw e;
-	}
-	throw new Error(`HTTP ${res.status}`);
-}
-
-/**
- * Shared error handler for API calls. Prints auth hint on 401, generic message otherwise.
+ * Shared error handler. Maps typed codes to user-facing hints.
  */
 export function handleApiError(err: unknown, action: string): never {
-	if (err instanceof ApiError && (err as { status: number }).status === 401) {
-		console.error("Error: Authentication required. Run: sl auth login");
+	if (err instanceof CliHttpError) {
+		if (err.code === "SESSION_EXPIRED") {
+			console.error("Session expired. Run: sl login");
+			process.exit(1);
+		}
+		if (err.code === "TRIAL_EXPIRED") {
+			console.error(err.message);
+			console.error("Run: sl instance resize --plan <...> and add payment");
+			process.exit(1);
+		}
+		if (err.code === "TENANT_SUSPENDED") {
+			console.error("Tenant is suspended. Run: sl instance resume");
+			process.exit(1);
+		}
+		if (err.code === "NO_TENANT_FOR_PROJECT") {
+			console.error(err.message);
+			process.exit(1);
+		}
+	}
+	if (err instanceof ApiError && err.status === 401) {
+		console.error("Authentication required. Run: sl login");
 		process.exit(1);
 	}
 	console.error(`Error: Failed to ${action}: ${err}`);
@@ -48,22 +51,12 @@ export function handleApiError(err: unknown, action: string): never {
 }
 
 /**
- * Wraps an async function with standardized error handling for CLI actions.
- * Eliminates repetitive try/catch boilerplate in command definitions.
- *
- * @example
- * ```typescript
- * .action(withErrorHandling(async (options) => {
- *   // command logic without try/catch
- * }, { action: "update profile" }))
- * ```
+ * Wrap async command handlers with standardized error handling.
  */
 export function withErrorHandling<TArgs extends unknown[]>(
 	fn: (...args: TArgs) => Promise<void>,
 	options?: {
-		/** Action description for error messages (e.g., "deploy workflow") */
 		action?: string;
-		/** Optional custom error handler (defaults to handleApiError) */
 		onError?: (err: unknown) => void;
 	},
 ): (...args: TArgs) => Promise<void> {
@@ -80,62 +73,84 @@ export function withErrorHandling<TArgs extends unknown[]>(
 	};
 }
 
-async function getClient(): Promise<SecondLayer> {
-	const config = await loadConfig();
-	const baseUrl = resolveApiUrl(config);
-	return new SecondLayer({ baseUrl, apiKey: config.apiKey });
+export async function assertOk(res: Response): Promise<void> {
+	if (res.ok) return;
+	const body = await res.text();
+	try {
+		const parsed = JSON.parse(body);
+		if (typeof parsed.error === "string" && parsed.error)
+			throw new Error(parsed.error);
+	} catch (e) {
+		if (e instanceof Error && e.message !== body) throw e;
+	}
+	throw new Error(`HTTP ${res.status}`);
 }
 
 /**
- * Build auth headers from config. Use for raw fetch() calls outside the SDK.
+ * Returns an SDK client targeting the caller's tenant with a short-lived
+ * ephemeral service key. Resolves via `resolveActiveTenant` — honors
+ * SL_API_URL / SL_SERVICE_KEY env-var bypass for CI/OSS.
  */
-export function authHeaders(config: { apiKey?: string }): Record<
-	string,
-	string
-> {
-	return SecondLayer.authHeaders(config.apiKey);
+async function getTenantClient(): Promise<SecondLayer> {
+	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
+	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
 
-// ── Subgraphs ─────────────────────────────────────────────────────────────
+/**
+ * Auth headers for raw fetch() against tenant endpoints — uses an ephemeral
+ * JWT. Prefer `httpTenant` from `./http.ts` for new code; this exists for
+ * callers still building raw fetch() requests.
+ */
+export async function tenantAuthHeaders(): Promise<Record<string, string>> {
+	const { ephemeralKey } = await resolveActiveTenant();
+	return SecondLayer.authHeaders(ephemeralKey);
+}
+
+/** Back-compat alias. Prefer `tenantAuthHeaders` or `httpTenant`. */
+export async function authHeaders(): Promise<Record<string, string>> {
+	return tenantAuthHeaders();
+}
+
+// ── Subgraphs (tenant-scoped) ──────────────────────────────────────────
 
 export async function listSubgraphsApi(): Promise<{ data: SubgraphSummary[] }> {
-	return (await getClient()).subgraphs.list();
+	return (await getTenantClient()).subgraphs.list();
 }
 
 export async function getSubgraphApi(name: string): Promise<SubgraphDetail> {
-	return (await getClient()).subgraphs.get(name);
+	return (await getTenantClient()).subgraphs.get(name);
 }
 
 export async function reindexSubgraphApi(
 	name: string,
 	options?: { fromBlock?: number; toBlock?: number },
 ): Promise<ReindexResponse> {
-	return (await getClient()).subgraphs.reindex(name, options);
+	return (await getTenantClient()).subgraphs.reindex(name, options);
 }
 
 export async function backfillSubgraphApi(
 	name: string,
 	options: { fromBlock: number; toBlock: number },
 ): Promise<ReindexResponse> {
-	return (await getClient()).subgraphs.backfill(name, options);
+	return (await getTenantClient()).subgraphs.backfill(name, options);
 }
 
 export async function stopSubgraphApi(
 	name: string,
 ): Promise<{ message: string }> {
-	return (await getClient()).subgraphs.stop(name);
+	return (await getTenantClient()).subgraphs.stop(name);
 }
 
 export async function deleteSubgraphApi(
 	name: string,
 ): Promise<{ message: string }> {
-	return (await getClient()).subgraphs.delete(name);
+	return (await getTenantClient()).subgraphs.delete(name);
 }
 
 export async function deploySubgraphApi(
 	data: DeploySubgraphRequest,
 ): Promise<DeploySubgraphResponse> {
-	return (await getClient()).subgraphs.deploy(data);
+	return (await getTenantClient()).subgraphs.deploy(data);
 }
 
 export async function querySubgraphTable(
@@ -143,7 +158,7 @@ export async function querySubgraphTable(
 	table: string,
 	params: SubgraphQueryParams = {},
 ): Promise<unknown[]> {
-	return (await getClient()).subgraphs.queryTable(name, table, params);
+	return (await getTenantClient()).subgraphs.queryTable(name, table, params);
 }
 
 export async function querySubgraphTableCount(
@@ -151,19 +166,56 @@ export async function querySubgraphTableCount(
 	table: string,
 	params: SubgraphQueryParams = {},
 ): Promise<{ count: number }> {
-	return (await getClient()).subgraphs.queryTableCount(name, table, params);
+	return (await getTenantClient()).subgraphs.queryTableCount(
+		name,
+		table,
+		params,
+	);
 }
 
 export async function getSubgraphGaps(
 	name: string,
 	opts?: { limit?: number; offset?: number; resolved?: boolean },
 ): Promise<SubgraphGapsResponse> {
-	return (await getClient()).subgraphs.gaps(name, opts);
+	return (await getTenantClient()).subgraphs.gaps(name, opts);
 }
 
-// ── Account Profile ──────────────────────────────────────────────────
+export async function publishSubgraphApi(
+	name: string,
+	opts?: { tags?: string[]; description?: string },
+): Promise<{ message: string }> {
+	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
+	const res = await fetch(`${apiUrl}/api/subgraphs/${name}/publish`, {
+		method: "POST",
+		headers: {
+			"content-type": "application/json",
+			authorization: `Bearer ${ephemeralKey}`,
+		},
+		body: JSON.stringify(opts ?? {}),
+	});
+	await assertOk(res);
+	return res.json() as Promise<{ message: string }>;
+}
 
-export async function getAccountProfile(): Promise<{
+export async function unpublishSubgraphApi(
+	name: string,
+): Promise<{ message: string }> {
+	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
+	const res = await fetch(`${apiUrl}/api/subgraphs/${name}/unpublish`, {
+		method: "POST",
+		headers: {
+			"content-type": "application/json",
+			authorization: `Bearer ${ephemeralKey}`,
+		},
+		body: JSON.stringify({}),
+	});
+	await assertOk(res);
+	return res.json() as Promise<{ message: string }>;
+}
+
+// ── Account (platform-scoped, session-authed) ──────────────────────────
+
+export interface AccountProfile {
 	id: string;
 	email: string;
 	plan: string;
@@ -172,14 +224,10 @@ export async function getAccountProfile(): Promise<{
 	slug: string | null;
 	avatarUrl: string | null;
 	createdAt: string;
-}> {
-	const config = await loadConfig();
-	const baseUrl = resolveApiUrl(config);
-	const res = await fetch(`${baseUrl}/api/accounts/me`, {
-		headers: authHeaders(config),
-	});
-	await assertOk(res);
-	return res.json() as any;
+}
+
+export async function getAccountProfile(): Promise<AccountProfile> {
+	return httpPlatform<AccountProfile>("/api/accounts/me");
 }
 
 export async function updateAccountProfile(data: {
@@ -194,18 +242,21 @@ export async function updateAccountProfile(data: {
 	slug: string | null;
 	avatarUrl: string | null;
 }> {
-	const config = await loadConfig();
-	const baseUrl = resolveApiUrl(config);
-	const res = await fetch(`${baseUrl}/api/accounts/me`, {
-		method: "PATCH",
-		headers: authHeaders(config),
-		body: JSON.stringify(data),
-	});
-	await assertOk(res);
-	return res.json() as any;
+	return httpPlatform("/api/accounts/me", { method: "PATCH", body: data });
 }
 
-// ── Marketplace (public, no auth required) ──────────────────────────
+// ── Marketplace (platform-scoped, public read) ──────────────────────────
+// The marketplace queries the control-plane `subgraphs` registry. Post-cutover
+// the shared subgraphs table is gone — these calls will return empty sets
+// until marketplace is reworked as a separate sprint. Left in place so
+// `sl marketplace browse` doesn't crash the CLI.
+
+async function getPlatformClient(): Promise<SecondLayer> {
+	const base =
+		process.env.SL_PLATFORM_API_URL ?? "https://api.secondlayer.tools";
+	// Marketplace is public — no auth header needed. SDK allows empty apiKey.
+	return new SecondLayer({ baseUrl: base });
+}
 
 export async function browseMarketplace(
 	opts: MarketplaceBrowseOptions = {},
@@ -213,13 +264,13 @@ export async function browseMarketplace(
 	data: MarketplaceSubgraphSummary[];
 	meta: { total: number; limit: number; offset: number };
 }> {
-	return (await getClient()).marketplace.browse(opts);
+	return (await getPlatformClient()).marketplace.browse(opts);
 }
 
 export async function getMarketplaceSubgraph(
 	name: string,
 ): Promise<MarketplaceSubgraphDetail> {
-	return (await getClient()).marketplace.get(name);
+	return (await getPlatformClient()).marketplace.get(name);
 }
 
 export async function forkMarketplaceSubgraph(
@@ -231,34 +282,5 @@ export async function forkMarketplaceSubgraph(
 	name: string;
 	forkedFrom: string;
 }> {
-	return (await getClient()).marketplace.fork(name, newName);
-}
-
-export async function publishSubgraphApi(
-	name: string,
-	opts?: { tags?: string[]; description?: string },
-): Promise<{ message: string }> {
-	const config = await loadConfig();
-	const baseUrl = resolveApiUrl(config);
-	const res = await fetch(`${baseUrl}/api/subgraphs/${name}/publish`, {
-		method: "POST",
-		headers: authHeaders(config),
-		body: JSON.stringify(opts ?? {}),
-	});
-	await assertOk(res);
-	return res.json() as any;
-}
-
-export async function unpublishSubgraphApi(
-	name: string,
-): Promise<{ message: string }> {
-	const config = await loadConfig();
-	const baseUrl = resolveApiUrl(config);
-	const res = await fetch(`${baseUrl}/api/subgraphs/${name}/unpublish`, {
-		method: "POST",
-		headers: authHeaders(config),
-		body: JSON.stringify({}),
-	});
-	await assertOk(res);
-	return res.json() as any;
+	return (await getPlatformClient()).marketplace.fork(name, newName);
 }

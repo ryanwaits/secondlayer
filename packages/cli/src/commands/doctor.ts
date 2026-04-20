@@ -1,7 +1,8 @@
 import type { Command } from "commander";
-import { authHeaders } from "../lib/api-client.ts";
-import { getDataDir, loadConfig, resolveApiUrl } from "../lib/config.ts";
+import { getAccountProfile } from "../lib/api-client.ts";
+import { getDataDir, loadConfig } from "../lib/config.ts";
 import { checkHealth } from "../lib/health.ts";
+import { CliHttpError, httpPlatform } from "../lib/http.ts";
 import { type Network, getChainIdHex } from "../lib/network.ts";
 import {
 	blue,
@@ -31,45 +32,42 @@ export function registerDoctorCommand(program: Command): void {
 
 async function runHostedDoctor(jsonOutput?: boolean): Promise<void> {
 	const config = await loadConfig();
-	const apiUrl = resolveApiUrl(config);
+	const apiUrl =
+		process.env.SL_PLATFORM_API_URL ?? "https://api.secondlayer.tools";
 	const issues: string[] = [];
 
 	const results: Record<string, unknown> = { network: config.network, apiUrl };
 
-	// API health
+	// Platform health — session-scoped.
 	let apiHealthy = false;
 	let statusData: Record<string, unknown> | null = null;
 	try {
-		const res = await fetch(`${apiUrl}/status`, {
-			headers: authHeaders(config),
-		});
-		apiHealthy = res.ok;
-		if (res.ok) {
-			statusData = (await res.json()) as Record<string, unknown>;
-		} else if (res.status === 401) {
-			issues.push("Authentication failed. Run: sl auth login");
+		statusData = await httpPlatform<Record<string, unknown>>("/status");
+		apiHealthy = true;
+	} catch (err) {
+		if (err instanceof CliHttpError) {
+			if (err.code === "SESSION_EXPIRED") {
+				issues.push("Not authenticated. Run: sl login");
+			} else {
+				issues.push(`API error: ${err.code}`);
+			}
 		} else {
-			issues.push(`API returned HTTP ${res.status}`);
+			issues.push(`Cannot reach API at ${apiUrl}`);
 		}
-	} catch {
-		issues.push(`Cannot reach API at ${apiUrl}`);
 	}
 	results.apiHealthy = apiHealthy;
 
-	// Auth status
+	// Auth — session-scoped.
 	let authOk = false;
 	let account: { email?: string; plan?: string } | null = null;
 	try {
-		const res = await fetch(`${apiUrl}/api/accounts/me`, {
-			headers: authHeaders(config),
-		});
-		if (res.ok) {
-			authOk = true;
-			account = (await res.json()) as { email: string; plan: string };
-		} else if (res.status === 401) {
-			issues.push("Not authenticated. Run: sl auth login");
+		account = await getAccountProfile();
+		authOk = true;
+	} catch (err) {
+		if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
+			issues.push("Not authenticated. Run: sl login");
 		}
-	} catch {}
+	}
 	results.authOk = authOk;
 	results.account = account;
 
@@ -126,7 +124,6 @@ async function runHostedDoctor(jsonOutput?: boolean): Promise<void> {
 			}
 			console.log("");
 		}
-
 	}
 
 	// Issues

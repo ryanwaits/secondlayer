@@ -5,7 +5,13 @@ import {
 	getMarketplaceSubgraph,
 	handleApiError,
 } from "../lib/api-client.ts";
-import { cyan, dim, formatKeyValue, formatTable, success } from "../lib/output.ts";
+import {
+	cyan,
+	dim,
+	formatKeyValue,
+	formatTable,
+	success,
+} from "../lib/output.ts";
 
 export function registerMarketplaceCommand(program: Command): void {
 	const marketplace = program
@@ -56,14 +62,8 @@ export function registerMarketplaceCommand(program: Command): void {
 						s.status,
 					]);
 
-					console.log(
-						formatTable(["Name", "Creator", "Tags", "Status"], rows),
-					);
-					console.log(
-						dim(
-							`\n${result.meta.total} subgraph(s) total`,
-						),
-					);
+					console.log(formatTable(["Name", "Creator", "Tags", "Status"], rows));
+					console.log(dim(`\n${result.meta.total} subgraph(s) total`));
 				} catch (err) {
 					handleApiError(err, "browse marketplace");
 				}
@@ -87,7 +87,10 @@ export function registerMarketplaceCommand(program: Command): void {
 					formatKeyValue([
 						["Name", detail.name],
 						["Description", detail.description ?? dim("—")],
-						["Creator", detail.creator?.displayName ?? detail.creator?.slug ?? dim("—")],
+						[
+							"Creator",
+							detail.creator?.displayName ?? detail.creator?.slug ?? dim("—"),
+						],
 						["Status", detail.status],
 						["Version", detail.version],
 						["Tags", (detail.tags ?? []).join(", ") || dim("—")],
@@ -118,20 +121,26 @@ export function registerMarketplaceCommand(program: Command): void {
 		.description("Fork a public subgraph into your account")
 		.option("--name <newName>", "Name for the forked subgraph")
 		.option("--json", "Output as JSON")
-		.action(async (name: string, options: { name?: string; json?: boolean }) => {
-			try {
-				const result = await forkMarketplaceSubgraph(name, options.name);
+		.action(
+			async (name: string, options: { name?: string; json?: boolean }) => {
+				try {
+					const result = await forkMarketplaceSubgraph(name, options.name);
 
-				if (options.json) {
-					console.log(JSON.stringify(result, null, 2));
-					return;
+					if (options.json) {
+						console.log(JSON.stringify(result, null, 2));
+						return;
+					}
+
+					success(`Forked ${result.forkedFrom} as ${result.name}`);
+					console.log(dim(`Subgraph ID: ${result.subgraphId}`));
+					console.log(
+						dim(
+							"Indexing will start automatically from the source's start block.",
+						),
+					);
+				} catch (err) {
+					handleApiError(err, "fork subgraph");
 				}
-
-				success(`Forked ${result.forkedFrom} as ${result.name}`);
-				console.log(dim(`Subgraph ID: ${result.subgraphId}`));
-				console.log(dim("Indexing will start automatically from the source's start block."));
-			} catch (err) {
-				handleApiError(err, "fork subgraph");
-			}
-		});
+			},
+		);
 }

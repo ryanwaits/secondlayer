@@ -1,7 +1,6 @@
 import { input, password } from "@inquirer/prompts";
 import type { Command } from "commander";
-import { assertOk, authHeaders } from "../lib/api-client.ts";
-import { loadConfig, resolveApiUrl } from "../lib/config.ts";
+import { assertOk } from "../lib/api-client.ts";
 import {
 	dim,
 	error,
@@ -9,6 +8,7 @@ import {
 	formatTable,
 	success,
 } from "../lib/output.ts";
+import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
 
 export function registerSecretsCommand(program: Command): void {
 	const secrets = program
@@ -132,13 +132,12 @@ async function apiContext(): Promise<{
 	apiUrl: string;
 	headers: Record<string, string>;
 }> {
-	const config = await loadConfig();
-	const apiUrl = resolveApiUrl(config);
-	if (!apiUrl) {
-		error(
-			"No API URL configured. Set network with: sl config set network testnet",
-		);
-		process.exit(1);
-	}
-	return { apiUrl, headers: authHeaders(config) };
+	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
+	return {
+		apiUrl,
+		headers: {
+			authorization: `Bearer ${ephemeralKey}`,
+			"content-type": "application/json",
+		},
+	};
 }

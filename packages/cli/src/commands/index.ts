@@ -1,13 +1,12 @@
 export { registerAccountCommand } from "./account.ts";
 export { registerConfigCommand } from "./config.ts";
 export { registerStatusCommand } from "./status.ts";
-export { registerSyncCommand } from "./sync.ts";
 export { registerDbCommand } from "./db.ts";
 export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStackCommand } from "./stack.ts";
 export { registerDoctorCommand } from "./doctor.ts";
-export { registerAuthCommand } from "./auth.ts";
 export { registerLocalCommand } from "./local.ts";
 export { registerMarketplaceCommand } from "./marketplace.ts";
 export { registerWhoamiCommand } from "./whoami.ts";
-export { registerInstanceCommand } from "./instance.ts";
+export { registerLoginCommand } from "./login.ts";
+export { registerLogoutCommand } from "./logout.ts";

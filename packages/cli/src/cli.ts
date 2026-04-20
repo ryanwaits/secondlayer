@@ -3,30 +3,27 @@ import { program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
 	registerAccountCommand,
-	registerAuthCommand,
 	registerConfigCommand,
 	registerDbCommand,
 	registerDoctorCommand,
-	registerInstanceCommand,
 	registerLocalCommand,
+	registerLoginCommand,
+	registerLogoutCommand,
 	registerMarketplaceCommand,
 	registerStackCommand,
 	registerStatusCommand,
 	registerSubgraphsCommand,
-	registerSyncCommand,
 	registerWhoamiCommand,
 } from "./commands/index.ts";
 
 const { version } = pkg;
 
-/**
- * CLI entry point
- */
-
 program
 	.name("secondlayer")
 	.alias("sl")
-	.description("SecondLayer CLI — subgraphs and real-time indexing for Stacks")
+	.description(
+		"SecondLayer CLI — dedicated Stacks indexing + real-time subgraphs",
+	)
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)");
 
@@ -39,14 +36,15 @@ program.addHelpText(
 	"after",
 	`
 Quickstart:
-  $ sl auth login                  # Authenticate
-  $ sl subgraphs new my-subgraph   # Scaffold a subgraph
-  $ sl status                      # Check system health
+  $ sl login                        # Authenticate (magic-link email)
+  $ sl project create my-app        # Scaffold a project (tenant + data)
+  $ sl project use my-app           # Bind this directory to the project
+  $ sl instance create --plan launch  # Provision a dedicated instance
+  $ sl subgraphs deploy ./x.ts      # Deploy a subgraph — targets your instance
 `,
 );
 
-// --- Code generation commands (original @secondlayer/cli) ---
-
+// --- Code generation ---
 program
 	.command("generate [files...]")
 	.aliases(["gen", "codegen"])
@@ -71,25 +69,29 @@ program
 		await init();
 	});
 
-// Core commands (API-backed, work against any environment)
+// Auth — top-level
+registerLoginCommand(program);
+registerLogoutCommand(program);
+registerWhoamiCommand(program);
+
+// Tenant lifecycle (registered later in Sprint 3)
+// TODO Sprint 3: registerInstanceCommand, registerProjectCommand
+
+// Workload (tenant-scoped via resolver)
 registerSubgraphsCommand(program);
 registerMarketplaceCommand(program);
-registerInstanceCommand(program);
+
+// Ops / inspection
 registerStatusCommand(program);
-
-// Local infrastructure commands
-registerLocalCommand(program);
-
-// Account + auth
-registerAccountCommand(program);
-
-// Utility commands
 registerStackCommand(program);
 registerDbCommand(program);
-registerSyncCommand(program);
 registerDoctorCommand(program);
 registerConfigCommand(program);
-registerAuthCommand(program);
-registerWhoamiCommand(program);
+
+// Local dev
+registerLocalCommand(program);
+
+// Account
+registerAccountCommand(program);
 
 program.parse();

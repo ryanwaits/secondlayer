@@ -107,7 +107,9 @@ async function stackStart(options: {
 	if (options.node) {
 		const nodePath = config.node?.installPath;
 		if (!nodePath) {
-			warn("No node configured, skipping. Run 'sl local node setup' to configure.");
+			warn(
+				"No node configured, skipping. Run 'sl local node setup' to configure.",
+			);
 		} else if (await isNodeRunning()) {
 			info("Node already running");
 		} else {
