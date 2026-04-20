@@ -22,6 +22,14 @@ services:
     #   - "archive_timeout=300"
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data
+    # Join sl-source so tenant api/processor containers (which join sl-source
+    # via the provisioner) can resolve this as `postgres:5432` for read-only
+    # source-data queries + pg_notify listeners.
+    networks:
+      default: {}
+      sl-source:
+        aliases:
+          - postgres
 
   api:
     environment:
@@ -108,9 +116,15 @@ volumes:
   caddy_config:
 
 networks:
-  # Named so docker creates it as `sl-tenants` (not `secondlayer_sl-tenants`).
-  # Provisioner creates tenant containers on this network; caddy joins it to
-  # reverse-proxy `{slug}.secondlayer.tools` → `sl-api-<slug>:3800`.
+  # Named so docker creates them with stable names (not project-prefixed).
+  # Provisioner declares both in `names.ts` and calls networkEnsure(), so these
+  # declarations must match exactly.
   sl-tenants:
     name: sl-tenants
+    driver: bridge
+  # sl-source: shared-indexer source network. Tenant api/processor containers
+  # join it (via provisioner) to read blocks/txs/events from the platform pg.
+  # Shared postgres joins it here with alias `postgres:5432` for DNS.
+  sl-source:
+    name: sl-source
     driver: bridge
