@@ -1,5 +1,42 @@
 # @secondlayer/cli
 
+## 3.0.0
+
+### Major Changes
+
+- [`7567649`](https://github.com/ryanwaits/secondlayer/commit/756764942865fbcc6d98608861abfbda2e175a86) Thanks [@ryanwaits](https://github.com/ryanwaits)! - CLI v2 — session-based auth, tenant auto-resolve, full instance lifecycle.
+
+  **Breaking changes (`@secondlayer/cli`)**:
+
+  - `sl auth login/logout/status` replaced by top-level `sl login` / `sl logout`. `sl auth` command group removed entirely.
+  - `sl auth keys list/create/revoke/rotate` removed. Session tokens are the only CLI credential; machine access uses `SL_SERVICE_KEY`.
+  - `sl instance connect <url> --key` removed. Tenant URL + service key are auto-resolved per command from the session.
+  - `sl sync` removed (superseded by `sl local`).
+  - `~/.secondlayer/config.json` no longer holds `apiUrl` / `apiKey`. Sessions at `~/.secondlayer/session.json`.
+  - `SECONDLAYER_API_KEY` env var no longer read.
+
+  **New (`@secondlayer/cli`)**:
+
+  - `sl login` — magic-link email with 6-digit code. Session cached 90d with server-side sliding-window renewal.
+  - `sl logout` — revokes session server-side + clears local file.
+  - `sl whoami` — shows email, plan, active project, instance URL + trial days.
+  - `sl project create <name> | list | use <slug> | current` — project management, per-directory binding at `./.secondlayer/project`.
+  - `sl instance create --plan <…> | info | resize | suspend | resume | delete | keys rotate` — full tenant lifecycle.
+  - Resolver auto-mints 5-min ephemeral service JWTs per command. No long-lived service key on disk.
+  - `SL_SERVICE_KEY` + `SL_API_URL` env-var bypass for CI/OSS. `sl instance *` refuses in OSS mode with a clear error.
+
+  **`@secondlayer/shared`**:
+
+  - New error codes + classes: `KeyRotatedError` (401), `TrialExpiredError` (402), `TenantSuspendedError` (423). `NO_TENANT_FOR_PROJECT` (404) and `INSTANCE_EXISTS` (409) added to `CODE_TO_STATUS`.
+  - Tenant API `auth-modes.dedicatedAuth` throws `KeyRotatedError` on gen mismatch so the CLI can retry-once transparently.
+
+### Patch Changes
+
+- Updated dependencies [[`ebea60d`](https://github.com/ryanwaits/secondlayer/commit/ebea60da47f6fd12d1052166aa929951f5a0cb2b), [`7567649`](https://github.com/ryanwaits/secondlayer/commit/756764942865fbcc6d98608861abfbda2e175a86), [`26c090c`](https://github.com/ryanwaits/secondlayer/commit/26c090ce6290ddc5cf42ea8b72e87e80c1a3e786), [`416f7c4`](https://github.com/ryanwaits/secondlayer/commit/416f7c4a53bcc7c96362f23c19e9b715622819d7), [`2605a4f`](https://github.com/ryanwaits/secondlayer/commit/2605a4fb3b558c942cddef2955709088f1c67450)]:
+  - @secondlayer/shared@2.0.0
+  - @secondlayer/sdk@1.0.1
+  - @secondlayer/subgraphs@0.11.8
+
 ## 2.2.0
 
 ### Minor Changes

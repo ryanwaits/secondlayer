@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/workflow-runner",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"private": true,
 	"type": "module",
 	"exports": {
@@ -15,8 +15,8 @@
 		"@json-render/core": "0.18.0",
 		"@json-render/react": "0.18.0",
 		"@modelcontextprotocol/sdk": "^1.27.1",
-		"@secondlayer/shared": "^1.0.0",
-		"@secondlayer/subgraphs": "^0.11.6",
+		"@secondlayer/shared": "^2.0.0",
+		"@secondlayer/subgraphs": "^0.11.8",
 		"@secondlayer/workflows": "^1.0.0",
 		"ai": "6.0.167",
 		"cron-parser": "^5.5.0",
