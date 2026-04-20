@@ -123,12 +123,16 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 		if (!line) continue;
 		try {
 			const s = JSON.parse(line);
+			// `docker stats` renders MemUsage as "670MiB / 2GiB" — stripping the
+			// unit suffix and dividing gives nonsense (670/2 = 335×). Keep these
+			// raw numbers for logs/dashboards but use MemPerc for any ratio logic.
 			const memUsage = Number.parseFloat(
 				s.MemUsage?.split("/")[0]?.replace(/[^0-9.]/g, "") ?? "0",
 			);
 			const memLimit = Number.parseFloat(
 				s.MemUsage?.split("/")[1]?.replace(/[^0-9.]/g, "") ?? "0",
 			);
+			const memPct = Number.parseFloat(s.MemPerc?.replace("%", "") ?? "0");
 
 			// Get restart count + started time + health (empty string if no healthcheck)
 			const inspectResult = Bun.spawnSync([
@@ -156,6 +160,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 				cpuPct: Number.parseFloat(s.CPUPerc?.replace("%", "") ?? "0"),
 				memUsageMb: memUsage,
 				memLimitMb: memLimit,
+				memPct,
 				restartCount,
 				running: true,
 				startedAt,
@@ -288,19 +293,17 @@ export function detectAnomalies(
 		}
 
 		// Memory pressure: >90% of limit sustained across two polls.
-		if (c.memLimitMb > 0 && c.memUsageMb / c.memLimitMb > 0.9) {
+		// Use `memPct` (MemPerc from docker stats) — the raw memUsage/memLimit
+		// fields mix MiB and GiB so dividing them produces false readings.
+		if (c.memPct > 90) {
 			const prev = previous?.metrics.containers.find((p) => p.name === c.name);
-			if (
-				prev &&
-				prev.memLimitMb > 0 &&
-				prev.memUsageMb / prev.memLimitMb > 0.9
-			) {
+			if (prev && prev.memPct > 90) {
 				anomalies.push({
 					name: "tenant_mem_pressure",
 					severity: "warn",
 					action: "alert_only",
 					service: svc,
-					message: `Tenant ${slug} ${role} memory at ${Math.round((c.memUsageMb / c.memLimitMb) * 100)}% of limit`,
+					message: `Tenant ${slug} ${role} memory at ${Math.round(c.memPct)}% of limit`,
 					line: "",
 					timestamp: now,
 				});

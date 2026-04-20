@@ -40,8 +40,12 @@ export interface SystemMetrics {
 export interface ContainerStatus {
 	name: string;
 	cpuPct: number;
+	// Raw MiB/GiB numbers parsed out of `docker stats` MemUsage — unit-mixed,
+	// reported for display only. Do not use for ratio comparisons; use memPct.
 	memUsageMb: number;
 	memLimitMb: number;
+	/** Pre-computed memory percentage from `docker stats` MemPerc (0–100). */
+	memPct: number;
 	restartCount: number;
 	running: boolean;
 	startedAt?: number;
