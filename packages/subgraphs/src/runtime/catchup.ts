@@ -102,11 +102,7 @@ export async function catchUpSubgraph(
 			blocks: totalBlocks,
 		});
 
-		const stats = new StatsAccumulator(
-			subgraphName,
-			subgraphRow.api_key_id,
-			true,
-		);
+		const stats = new StatsAccumulator(subgraphName, true);
 		let processed = 0;
 		let batchSize = DEFAULT_BATCH_SIZE;
 		let currentHeight = startBlock;

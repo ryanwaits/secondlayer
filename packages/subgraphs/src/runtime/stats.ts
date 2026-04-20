@@ -4,7 +4,6 @@ import type { ProcessBlockTiming } from "./block-processor.ts";
 
 interface StatsEntry {
 	subgraphName: string;
-	apiKeyId: string | null;
 	bucketStart: Date;
 	blocksProcessed: number;
 	totalTimeMs: number;
@@ -29,7 +28,6 @@ export class StatsAccumulator {
 
 	constructor(
 		private subgraphName: string,
-		private apiKeyId: string | null,
 		private isCatchup: boolean,
 	) {
 		this.current = this.newEntry();
@@ -72,7 +70,6 @@ export class StatsAccumulator {
 			.insertInto("subgraph_processing_stats")
 			.values({
 				subgraph_name: entry.subgraphName,
-				api_key_id: entry.apiKeyId,
 				bucket_start: entry.bucketStart,
 				bucket_end: new Date(),
 				blocks_processed: entry.blocksProcessed,
@@ -90,7 +87,6 @@ export class StatsAccumulator {
 	private newEntry(): StatsEntry {
 		return {
 			subgraphName: this.subgraphName,
-			apiKeyId: this.apiKeyId,
 			bucketStart: new Date(),
 			blocksProcessed: 0,
 			totalTimeMs: 0,

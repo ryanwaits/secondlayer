@@ -86,11 +86,7 @@ async function processBlockRange(
 	const { fromBlock, toBlock, status } = opts;
 	const totalBlocks = toBlock - fromBlock + 1;
 
-	const stats = new StatsAccumulator(
-		subgraphName,
-		opts.apiKeyId,
-		opts.isCatchup,
-	);
+	const stats = new StatsAccumulator(subgraphName, opts.isCatchup);
 	let blocksProcessed = 0;
 	let totalEventsProcessed = 0;
 	let totalErrors = 0;
@@ -323,7 +319,7 @@ export async function reindexSubgraph(
 
 		const subgraphRow = await targetDb
 			.selectFrom("subgraphs")
-			.select(["id", "api_key_id"])
+			.select(["id"])
 			.where("name", "=", subgraphName)
 			.executeTakeFirst();
 
@@ -332,7 +328,7 @@ export async function reindexSubgraph(
 			toBlock,
 			status: "reindexing",
 			isCatchup: false,
-			apiKeyId: subgraphRow?.api_key_id ?? null,
+			apiKeyId: null,
 			subgraphId: subgraphRow?.id,
 			signal: opts?.signal,
 		});
@@ -406,7 +402,6 @@ export async function resumeReindex(
 		.selectFrom("subgraphs")
 		.select([
 			"id",
-			"api_key_id",
 			"last_processed_block",
 			"reindex_from_block",
 			"reindex_to_block",
@@ -453,7 +448,7 @@ export async function resumeReindex(
 			toBlock,
 			status: "reindexing",
 			isCatchup: false,
-			apiKeyId: row.api_key_id ?? null,
+			apiKeyId: null,
 			subgraphId: row.id,
 			signal: opts.signal,
 		});
@@ -530,7 +525,7 @@ export async function backfillSubgraph(
 	try {
 		const subgraphRow = await targetDb
 			.selectFrom("subgraphs")
-			.select(["id", "api_key_id"])
+			.select(["id"])
 			.where("name", "=", subgraphName)
 			.executeTakeFirst();
 
@@ -539,7 +534,7 @@ export async function backfillSubgraph(
 			toBlock: opts.toBlock,
 			status: "active",
 			isCatchup: false,
-			apiKeyId: subgraphRow?.api_key_id ?? null,
+			apiKeyId: null,
 			subgraphId: subgraphRow?.id,
 			signal: opts.signal,
 		});
