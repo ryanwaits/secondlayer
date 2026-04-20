@@ -166,7 +166,8 @@ Second Layer also provides a hosted indexing platform with subgraphs and contrac
 ```bash
 bun add -g @secondlayer/cli
 
-sl auth login                    # authenticate via magic link
+sl login                         # authenticate via magic link
+sl project use <slug>            # bind cwd to a project
 sl subgraphs list                # manage subgraphs
 sl subgraphs deploy my-sg.ts     # deploy a subgraph
 ```

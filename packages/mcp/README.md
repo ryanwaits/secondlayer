@@ -19,7 +19,7 @@ Add to your Claude Desktop or Cursor config:
       "command": "npx",
       "args": ["@secondlayer/mcp"],
       "env": {
-        "SECONDLAYER_API_KEY": "sl_live_..."
+        "SL_SERVICE_KEY": "sl_live_..."
       }
     }
   }
@@ -29,7 +29,7 @@ Add to your Claude Desktop or Cursor config:
 ## Quick Start — HTTP (Remote)
 
 ```bash
-export SECONDLAYER_API_KEY=sl_live_...
+export SL_SERVICE_KEY=sl_live_...
 export SECONDLAYER_MCP_SECRET=your-secret
 npx @secondlayer/mcp-http
 # Listening on port 3100
@@ -39,7 +39,7 @@ npx @secondlayer/mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SECONDLAYER_API_KEY` | Yes | — | API key |
+| `SL_SERVICE_KEY` | Yes | — | Tenant service key. `SECONDLAYER_API_KEY` is still accepted as a deprecated alias. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
 

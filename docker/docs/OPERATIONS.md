@@ -2,7 +2,7 @@
 
 Living checklist for operating the production stack as we roll out dedicated hosting. Covers env vars you need to set, commands to verify state, and what's coming in upcoming sprints.
 
-Last updated: Sprint 5 (control plane landed, provisioner service code-ready but not started).
+Last updated after dedicated-hosting cutover + Phase 4 hardening (per-tenant backups, bastion, audit log).
 
 ---
 
@@ -13,7 +13,7 @@ All on `/opt/secondlayer/docker/.env` on the app server. After editing, run:
 ```bash
 cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
-$COMPOSE up -d --force-recreate api indexer worker subgraph-processor agent
+$COMPOSE up -d --force-recreate api indexer worker agent
 ```
 
 ### Required (set already, don't break)
@@ -122,7 +122,7 @@ docker stats --no-stream --filter "label=secondlayer.slug"
 ```bash
 # Any secondlayer-* containers NOT owned by a current compose service?
 docker ps -a --filter "name=secondlayer-" --format "{{.Names}}\t{{.Status}}" \
-  | grep -v "secondlayer-postgres\|secondlayer-api\|secondlayer-indexer\|secondlayer-worker\|secondlayer-subgraph-processor\|secondlayer-agent\|secondlayer-caddy\|secondlayer-migrate"
+  | grep -v "secondlayer-postgres\|secondlayer-api\|secondlayer-indexer\|secondlayer-worker\|secondlayer-agent\|secondlayer-caddy\|secondlayer-migrate\|secondlayer-provisioner\|secondlayer-bastion"
 
 # If you see leftovers, force-remove:
 docker rm -f <name>
@@ -137,7 +137,7 @@ The SSH-action on GitHub runs `/opt/secondlayer/docker/scripts/deploy.sh`. As of
 1. **git fetch + reset** (source update)
 2. **exec-reload** — re-exec the updated deploy.sh so we don't run old buffered content
 3. **build** — `--no-cache` for 6 services
-4. **stop lock-holders** — `api`, `subgraph-processor`, `agent`, `worker` (indexer kept running)
+4. **stop lock-holders** — `api`, `agent`, `worker` (indexer kept running)
 5. **force-remove orphan containers** — named-removed services from old deploys
 6. **clean zombie migrate containers** — prior `--rm` runs killed by SSH timeout
 7. **terminate DB sessions** — every non-self session on the DB, clean slate for DDL
@@ -248,127 +248,56 @@ ls -lh /opt/secondlayer/data/backups/ | tail -5
 
 ---
 
-## 6. Sprint rollout — what's next and what you need to do
+## 6. Dedicated-hosting lifecycle
 
-### Sprint 5 (just shipped) — control plane
+The shared-tenancy→dedicated cutover is complete. The control plane provisions
+per-tenant containers on demand via `sl instance create`.
 
-- **You need to**: Nothing right now. `/api/tenants/*` routes are mounted but nobody calls them. Worker crons run but short-circuit (no tenants exist).
-- **What to verify after deploy**: `SELECT * FROM kysely_migration WHERE name = '0039_tenants';` returns one row.
-
-### Sprint 6 — Tenant HTTPS via Caddy wildcard + on-demand TLS
-
-Existing Caddy is extended with a wildcard block that reverse-proxies `{slug}.{BASE_DOMAIN}` → `sl-api-{slug}:3800`. On-demand TLS issues per-subdomain certs on first request, validated against the provisioner's `ask` endpoint (no cert spam for unknown slugs).
-
-- **You'll need to**:
-  1. Add wildcard A record `*.{BASE_DOMAIN}` → app-server IP on your DNS provider (Vercel, Cloudflare, etc.).
-  2. Set `BASE_DOMAIN` + `CADDY_ACME_EMAIL` in `.env` (replaces the old `DOMAIN` var).
-  3. Recreate Caddy: `$COMPOSE up -d caddy` (picks up new Caddyfile + joins `sl-tenants` network).
-- **Deploy impact**: no outage — existing `api.{BASE_DOMAIN}` block is unchanged; wildcard block is additive.
-- **TLS**: HTTP-01 challenge issues per-subdomain certs on-demand. LE rate limit: 50/week per registered domain — plenty for v1 scale. Switch to DNS-01 wildcard later if needed.
-
-### Sprint 7 — Dashboard + CLI for dedicated hosting
-
-- **You'll need to**: Set `PROVISIONER_SECRET` + `PROVISIONER_SOURCE_DB_READONLY_PASSWORD` in `.env`.
-- **Activating provisioner**: Update `deploy.sh` to include `--profile platform` in the compose commands, or manually:
-  ```bash
-  $COMPOSE --profile platform up -d provisioner
-  ```
-- Provisioner health: `curl http://localhost:3850/health` returns `{ok: true, version}`.
-
-### Sprint 8 — Migration from shared to per-tenant DBs (code-ready)
-
-The `packages/provisioner/src/migrate-tenant.ts` script is ready to run. It:
-1. Lists your subgraphs from the platform DB
-2. Provisions a tenant (via the provisioner service — must be running)
-3. `pg_dump` each subgraph schema from source → `pg_restore` to tenant
-4. Renames schemas in the tenant DB to drop the account prefix
-5. Copies subgraph registry rows into the tenant DB
-6. Copies handler `.js` files to the tenant api + processor containers
-7. Verifies row counts match source vs tenant
-
-#### Prerequisites (in order)
-
-1. Provisioner must be running (Sprint 7 activation)
-2. Caddy wildcard + on-demand TLS (Sprint 6) SHOULD be live so your tenant URL resolves; you can skip if you only care about internal testing first
-3. DB backup taken — use `bash /opt/secondlayer/docker/scripts/backup-postgres.sh`
-4. Your `SECONDLAYER_SECRETS_KEY` is intact (same key provisioner uses)
-
-#### Dry run first
+### Provisioning a tenant
 
 ```bash
-ssh app-server
-cd /opt/secondlayer
-
-# 1. Find your account ID
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
-  -c "SELECT id, email FROM accounts;"
-
-# 2. Dry run — discovers subgraphs, preflights schemas + handler files, prints plan
-export $(cat docker/.env | xargs)
-bun run packages/provisioner/src/migrate-tenant.ts \
-  --account-id <your-uuid> \
-  --plan launch \
-  --dry-run
+sl login
+sl project create <name>
+sl project use <slug>
+sl instance create --plan launch   # or grow, scale
 ```
 
-Expected output:
-```
-📋 Found N subgraphs for account:
-   - my-subgraph-1 (schema: subgraph_aabbccdd_my_subgraph_1, status: active, blocks: 12345)
-   - ...
-🔍 Preflight checks...
-   ✓ my-subgraph-1: schema + handler present
-   ...
-✨ Dry-run complete. Rerun without --dry-run to execute.
-```
+The CLI session authenticates to the platform API; the API calls the
+provisioner which spawns `sl-pg-<slug>`, `sl-api-<slug>`, and
+`sl-proc-<slug>` containers on the `sl-tenants` network. Caddy issues a
+per-subdomain cert on first request, validated against the provisioner's
+`/internal/caddy/ask` endpoint.
 
-#### Real run
+### Lifecycle commands
 
 ```bash
-bun run packages/provisioner/src/migrate-tenant.ts \
-  --account-id <your-uuid> \
-  --plan launch
+sl instance info              # current plan + resource usage
+sl instance resize --plan grow
+sl instance suspend           # stop containers, keep volume
+sl instance resume
+sl instance keys rotate --service
+sl instance delete            # typed-slug confirm
+sl instance db                # DATABASE_URL via SSH tunnel to the bastion
 ```
 
-Typical duration: 30-90s per subgraph (pg_dump speed + table sizes). Script exits non-zero on any step failure; source is never modified unless you pass `--drop-source-schemas`.
+See [`DEDICATED_HOSTING.md`](./DEDICATED_HOSTING.md) for the container topology,
+[`TENANT_BACKUPS.md`](./TENANT_BACKUPS.md) for the backup/restore runbook.
 
-#### What gets dropped (source DB) — only with explicit flag
+### DNS + TLS prerequisites
 
-By default: source schemas preserved. The script prints copy-pasteable DROP statements at the end so you can run them manually after verifying the tenant's been stable for a few days.
+- Wildcard A record `*.{BASE_DOMAIN}` → app-server IP.
+- `BASE_DOMAIN` + `CADDY_ACME_EMAIL` set in `.env`.
+- `PROVISIONER_SECRET`, `PROVISIONER_SOURCE_DB_READONLY_PASSWORD` set in `.env`.
 
-To drop immediately at migration time:
-```bash
-bun run packages/provisioner/src/migrate-tenant.ts \
-  --account-id <your-uuid> \
-  --plan launch \
-  --drop-source-schemas
-```
+### Control-plane tables (source DB)
 
-#### What stays (source DB) — always
+- `blocks`, `transactions`, `events`, `index_progress` — indexer, never touched
+- `accounts`, `api_keys`, `sessions`, `projects`, `tenants` — control plane
+- `provisioning_audit_log` — lifecycle event trail
+- `tenant_usage_monthly` — storage measurements for future billing
 
-- `blocks`, `transactions`, `events`, `index_progress` — the indexer DB, never touched
-- `accounts`, `api_keys`, `sessions`, `projects`, `marketplace_*` — control plane tables
-- `tenants` (populated by the migration itself) — control plane mapping
-- `subgraphs` registry row for the migrated account — kept for backward-compat until Phase B cleanup (see `POST_MIGRATION_CLEANUP.md`)
-
-#### Post-migration steps
-
-```bash
-# 1. Get your service key from the dashboard (/instance page) or tenants table
-# 2. Point your CLI at the new instance:
-sl instance connect https://<slug>.secondlayer.tools --key sl_svc_...
-
-# 3. Verify: list subgraphs from the tenant
-sl subgraphs list
-# Should show the same subgraphs as before
-
-# 4. Watch the tenant processor for a few blocks
-docker logs sl-proc-<slug> --follow
-
-# 5. Once stable for a few days, drop source schemas (printed at end of migration)
-```
-
-See `docker/docs/POST_MIGRATION_CLEANUP.md` for the full Phase A/B/C cleanup plan after all accounts have migrated.
+Subgraph data lives on per-tenant Postgres containers only — no shared
+`subgraphs` registry table on the source DB (dropped in migration 0041).
 
 ---
 
@@ -392,10 +321,10 @@ docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -c "ALTER ROLE secondlayer WITH PASSWORD '<new>';"
 # 3. Restart all app services so they pick up the new DATABASE_URL
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
-$COMPOSE up -d --force-recreate api indexer worker subgraph-processor agent
+$COMPOSE up -d --force-recreate api indexer worker agent
 ```
 
-### Rotating provisioner secret (Sprint 7+)
+### Rotating provisioner secret
 
 Zero-downtime:
 1. Platform API reads `PROVISIONER_SECRET` from env at each call (not cached)
@@ -403,30 +332,19 @@ Zero-downtime:
 
 ---
 
-## 8. What I need from you at each sprint
+## 8. Quick reference: what's running on the app server
 
-| Sprint | Action required |
-|---|---|
-| 5 (now) | None — already deployed, zero-impact. |
-| 6 | Add wildcard DNS A record `*.secondlayer.tools` → app-server IP on your DNS provider. Generate htpasswd string for dashboard auth. |
-| 7 | Generate 2 secrets (`openssl rand -hex 32` for `PROVISIONER_SECRET`, hex 24 for readonly DB password). Add to `.env`. |
-| 8 | Schedule a backup + 30min maintenance window for the data migration. |
-
----
-
-## Quick reference: what's running RIGHT NOW (Sprint 5)
-
-**On the app server**:
-- `secondlayer-postgres-1` (shared DB)
+- `secondlayer-postgres-1` (control-plane DB — accounts, projects, tenants registry)
 - `secondlayer-api-1` (platform API, `INSTANCE_MODE=platform`)
-- `secondlayer-indexer-1` (blocks/txs/events ingestion)
-- `secondlayer-worker-1` (storage cron + tenant trial/health crons — latter short-circuit with 0 tenants)
-- `secondlayer-subgraph-processor-1` (processes blocks into subgraph schemas)
+- `secondlayer-indexer-1` (blocks/txs/events ingestion → source DB)
+- `secondlayer-worker-1` (tenant health cron + storage usage tracking)
+- `secondlayer-provisioner-1` (tenant container lifecycle)
 - `secondlayer-agent-1` (AI ops monitoring)
-- `secondlayer-caddy-1` (TLS proxy)
+- `secondlayer-caddy-1` (TLS proxy, wildcard on-demand certs for `{slug}.secondlayer.tools`)
+- `secondlayer-bastion` (SSH tunnel entrypoint for tenant DB access)
 
-**Code-ready but NOT running**:
-- `secondlayer-provisioner-1` — awaits Sprint 7 activation (`--profile platform`)
+**Per-tenant (dynamic)**:
+- `sl-pg-{slug}`, `sl-api-{slug}`, `sl-proc-{slug}` — provisioned on `sl instance create`
 
 **On the node server**:
 - `bitcoind`

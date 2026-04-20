@@ -188,8 +188,8 @@ sl subgraphs query token-transfers transfers --sort _block_height --order desc
 sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
 
 // HTTP API
-curl -H "Authorization: Bearer $SL_API_KEY" \\
-  "https://api.secondlayer.tools/api/subgraphs/token-transfers/transfers?sort=_block_height&order=desc&limit=25&sender=SP1234...&amount.gte=1000000"`}
+curl -H "Authorization: Bearer $SL_SERVICE_KEY" \\
+  "https://<your-slug>.secondlayer.tools/api/subgraphs/token-transfers/transfers?sort=_block_height&order=desc&limit=25&sender=SP1234...&amount.gte=1000000"`}
 				/>
 			</main>
 		</div>

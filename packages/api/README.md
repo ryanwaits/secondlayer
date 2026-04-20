@@ -12,7 +12,7 @@ All endpoints require a Bearer token (session token or API key):
 curl -H "Authorization: Bearer ss-sl_..." https://api.secondlayer.tools/api/subgraphs
 ```
 
-Get a session token via the CLI: `sl auth login`
+Get a session token via the CLI: `sl login`
 
 ## Subgraphs
 

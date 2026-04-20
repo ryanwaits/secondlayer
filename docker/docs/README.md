@@ -41,8 +41,8 @@ bash scripts/bootstrap.sh
 `bootstrap.sh` phases:
 1. Provisions Docker, UFW (22/80/443), fail2ban, systemd service
 2. Pre-flight: checks `.env`, disk space (>200GB required)
-3. Starts: postgres → migrate → api, indexer, worker, subgraph-processor
-4. Starts caddy
+3. Starts: postgres → migrate → api, indexer, worker, provisioner
+4. Starts caddy, bastion
 
 Flags:
 ```bash
@@ -320,6 +320,10 @@ docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
 ```
 
 ### Backup Strategy
+
+This section covers the **shared control-plane DB**. For per-tenant Postgres
+backups (hourly dumps, 7d/30d retention ladder, restore runbook), see
+[`TENANT_BACKUPS.md`](./TENANT_BACKUPS.md).
 
 Three-layer backup system with ~5-minute RPO:
 

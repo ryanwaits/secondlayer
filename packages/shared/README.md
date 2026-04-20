@@ -24,10 +24,11 @@ DATABASE_URL=... bun run migrate
 |------|-------------|
 | `@secondlayer/shared` | Core utilities |
 | `@secondlayer/shared/db` | Kysely database layer |
-| `@secondlayer/shared/db/queries/*` | Query helpers (integrity, accounts, usage, subgraphs, marketplace, projects, subgraph-gaps, workflows) |
+| `@secondlayer/shared/db/queries/*` | Query helpers (integrity, accounts, usage, subgraphs, projects, subgraph-gaps, workflows, tenants, provisioning-audit) |
 | `@secondlayer/shared/db/schema` | Database schema |
 | `@secondlayer/shared/db/jsonb` | JSONB helpers |
 | `@secondlayer/shared/schemas` | Zod schemas |
+| `@secondlayer/shared/schemas/accounts` | Account profile schemas |
 | `@secondlayer/shared/schemas/filters` | Event filter schemas |
 | `@secondlayer/shared/schemas/subgraphs` | Subgraph schemas |
 | `@secondlayer/shared/types` | Shared TypeScript types |

@@ -173,10 +173,9 @@ const txId = await registerName(wallet, {
 
 				<div className="prose">
 					<p>
-						Subpaths built for <a href="/workflows">workflows</a>: AI-SDK tools,
-						typed event triggers, unsigned tx intents for{" "}
-						<code>broadcast()</code>, and React-free schemas plus atoms for
-						dashboard rendering.
+						Subpaths built for workflows: AI-SDK tools, typed event triggers,
+						unsigned tx intents for <code>broadcast()</code>, and React-free
+						schemas plus atoms for dashboard rendering.
 					</p>
 				</div>
 

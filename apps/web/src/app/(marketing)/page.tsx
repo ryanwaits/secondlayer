@@ -5,12 +5,12 @@ import { HomeAnnotations } from "./home-annotations";
 const products = [{ name: "Subgraphs", href: "/subgraphs" }];
 
 const interfaces = [
-	{ name: "CLI", href: "/cli", version: "1.6.0" },
-	{ name: "SDK", href: "/sdk", version: "0.6.0" },
-	{ name: "MCP", href: "/mcp", version: "1.0.0" },
+	{ name: "CLI", href: "/cli", version: "3.1.0" },
+	{ name: "SDK", href: "/sdk", version: "2.0.0" },
+	{ name: "MCP", href: "/mcp", version: "1.0.2" },
 ];
 
-const foundation = [{ name: "Stacks", href: "/stacks", version: "0.2.0" }];
+const foundation = [{ name: "Stacks", href: "/stacks", version: "0.3.0" }];
 
 function IndexItem({
 	item,

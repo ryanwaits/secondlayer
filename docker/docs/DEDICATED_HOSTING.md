@@ -423,19 +423,21 @@ Next.js proxy routes (forward session-auth request to backend):
 - `apps/web/src/app/api/tenants/me/route.ts` — GET + DELETE passthrough. 404 is mapped to `{tenant: null}` with 200 status (so the page treats "no tenant" as a normal state, not an error).
 - `apps/web/src/app/api/tenants/me/resize/route.ts` — POST passthrough; `revalidateTag("tenant")` on success.
 
-### 3.6 CLI `sl instance connect` — `packages/cli/src/commands/instance.ts`
+### 3.6 CLI `sl instance` — `packages/cli/src/commands/instance.ts`
 
-Three subcommands:
+Full lifecycle commands — all session-authed against the platform API. No
+service key on disk; the platform API mints a 5-min ephemeral JWT per
+command. See `packages/cli/src/lib/resolve-tenant.ts` for the decision tree.
 
 | Command | Action |
 |---|---|
-| `sl instance connect <url> --key <key>` | Validates URL shape; pings `GET <url>/api/subgraphs` with the key; on success writes `apiUrl` + `apiKey` into `~/.config/secondlayer/config.json`. |
-| `sl instance status` | Prints current `apiUrl` + first 10 chars of `apiKey`. |
-| `sl instance disconnect` | Clears `apiUrl` + `apiKey` from config. |
-
-The connection check uses `res.status === 401|403` to detect bad keys specifically — better UX than a generic "failed" message.
-
-After `connect`, downstream commands (`sl subgraphs deploy`, etc.) pick up the configured `apiUrl` + `apiKey` automatically.
+| `sl instance create --plan <launch\|grow\|scale>` | Provisions the tenant for the active project. Boxed reveal with `serviceKey` + `anonKey` (shown once). |
+| `sl instance info` | Plan, status, resource usage, trial days left. |
+| `sl instance resize --plan <...>` | Recreates tenant containers with new resource limits. Brief downtime (~30s). |
+| `sl instance suspend` / `resume` | Stop/start containers, volume preserved. |
+| `sl instance keys rotate --service \| --anon \| --both` | Bumps `SERVICE_GEN` / `ANON_GEN`, recreates tenant API container, mints replacement keys. Old JWTs return `KEY_ROTATED` (401). |
+| `sl instance delete` | Typed-slug confirm, hard teardown. |
+| `sl instance db` | Prints `DATABASE_URL` + `ssh -L` command for the bastion tunnel. `sl instance db add-key <path>` uploads the user's SSH pubkey. |
 
 ### 3.7 Caddy wildcard + on-demand TLS — `docker/Caddyfile`
 
@@ -895,8 +897,12 @@ Source DB outage means tenant processors can't read blocks — but tenant API co
 | Instance mode flag | `packages/shared/src/mode.ts` |
 | Dual-DB getters | `packages/shared/src/db/index.ts` |
 | Tenants table schema | `packages/shared/migrations/0039_tenants.ts` |
-| Nullable api_key_id for oss/dedicated | `packages/shared/migrations/0037_nullable_api_key.ts` |
+| Nullable api_key_id (cutover precursor) | `packages/shared/migrations/0037_nullable_api_key.ts` |
 | Workflow table drop (setup for tenant model) | `packages/shared/migrations/0038_drop_workflow_tables.ts` |
+| Drop api_key_id from subgraphs (post-cutover) | `packages/shared/migrations/0041_subgraphs_drop_api_key_id.ts` |
+| Tenant→project FK | `packages/shared/migrations/0042_tenant_project_id.ts` |
+| Monthly usage snapshots | `packages/shared/migrations/0043_tenant_usage_monthly.ts` |
+| Provisioning audit log | `packages/shared/migrations/0044_provisioning_audit_log.ts` |
 | Tenant query helpers | `packages/shared/src/db/queries/tenants.ts` |
 | Encryption envelope | `packages/shared/src/crypto/secrets.ts` |
 | Auth factories | `packages/api/src/middleware/auth-modes.ts` |

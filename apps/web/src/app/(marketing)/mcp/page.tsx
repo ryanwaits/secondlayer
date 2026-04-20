@@ -46,7 +46,7 @@ export default function McpPage() {
       "command": "npx",
       "args": ["@secondlayer/mcp"],
       "env": {
-        "SECONDLAYER_API_KEY": "sk-sl_..."
+        "SL_SERVICE_KEY": "sk-sl_..."
       }
     }
   }
@@ -59,7 +59,7 @@ export default function McpPage() {
 
 				<CodeBlock
 					lang="bash"
-					code={`SECONDLAYER_API_KEY=sk-sl_... npx @secondlayer/mcp-http
+					code={`SL_SERVICE_KEY=sk-sl_... npx @secondlayer/mcp-http
 # Listening on port 3100`}
 				/>
 
