@@ -98,6 +98,12 @@ export default function McpPage() {
 						<span className="prop-name">subgraphs_delete</span>
 						<span className="prop-type">Delete subgraph and all data</span>
 					</div>
+					<div className="prop-row">
+						<span className="prop-name">subgraphs_read_source</span>
+						<span className="prop-type">
+							Fetch the deployed TypeScript source of a subgraph
+						</span>
+					</div>
 
 					<div className="props-group-title">Workflows</div>
 					<div className="prop-row">
@@ -136,6 +142,14 @@ export default function McpPage() {
 						<span className="prop-name">scaffold_from_abi</span>
 						<span className="prop-type">
 							Generate a subgraph from a raw ABI
+						</span>
+					</div>
+
+					<div className="props-group-title">Account</div>
+					<div className="prop-row">
+						<span className="prop-name">account_whoami</span>
+						<span className="prop-type">
+							Show the authenticated account's email and plan
 						</span>
 					</div>
 				</div>

@@ -90,9 +90,9 @@ export default defineSubgraph({
 						Each subgraph gets its own PostgreSQL schema (
 						<code>subgraph_&lt;name&gt;</code>). Tables are defined
 						declaratively with typed columns. System columns are added
-						automatically: <code>_id</code>, <code>_blockHeight</code>,{" "}
-						<code>_txId</code>, <code>_createdAt</code>. Enable full-text search
-						on any text column with <code>search: true</code>.
+						automatically: <code>_id</code>, <code>_block_height</code>,{" "}
+						<code>_tx_id</code>, <code>_created_at</code>. Enable full-text
+						search on any text column with <code>search: true</code>.
 					</p>
 				</div>
 
@@ -126,7 +126,7 @@ export default defineSubgraph({
   transfer: async (event, ctx) => {
     // Write
     ctx.insert("transfers", { sender: event.sender, amount: event.amount })
-    ctx.upsert("balances", { address: event.sender, amount: event.amount }) // requires uniqueKeys
+    ctx.upsert("balances", { address: event.sender }, { amount: event.amount }) // key, values — requires uniqueKeys
     ctx.update("balances", { address: "SP..." }, { amount: 0n })
     ctx.delete("balances", { address: "SP..." })
 
@@ -189,7 +189,7 @@ sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
 
 // HTTP API
 curl -H "Authorization: Bearer $SL_SERVICE_KEY" \\
-  "https://<your-slug>.secondlayer.tools/api/subgraphs/token-transfers/transfers?sort=_block_height&order=desc&limit=25&sender=SP1234...&amount.gte=1000000"`}
+  "https://<your-slug>.secondlayer.tools/api/subgraphs/token-transfers/transfers?_sort=_block_height&_order=desc&_limit=25&sender=SP1234...&amount.gte=1000000"`}
 				/>
 			</main>
 		</div>

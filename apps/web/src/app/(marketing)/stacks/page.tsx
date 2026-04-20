@@ -87,31 +87,40 @@ const nonce = await publicClient.getNonce("SP1234...")`}
 
 				<div className="prose">
 					<p>
-						Read and call Clarity contracts with full type safety. Method names
-						are automatically converted from kebab-case to camelCase.
+						Read and call Clarity contracts. Arguments are{" "}
+						<code>ClarityValue[]</code> — build them with <code>Cl.*</code>{" "}
+						helpers from <code>@secondlayer/stacks/clarity</code>.
 					</p>
 				</div>
 
 				<CodeBlock
 					code={`import { readContract, callContract, multicall } from "@secondlayer/stacks/actions"
+import { Cl } from "@secondlayer/stacks/clarity"
 
 const balance = await readContract(publicClient, {
   contract: "SP2C2YFP12AJZB1MAERTSVAR6NQJHQ5MEH0GH33C.usda-token",
-  method: "getBalance",
-  args: { owner: "SP1234..." },
+  functionName: "get-balance",
+  args: [Cl.standardPrincipal("SP1234...")],
 })
 
 const txId = await callContract(wallet, {
   contract: "SP2C2YFP12AJZB1MAERTSVAR6NQJHQ5MEH0GH33C.usda-token",
-  method: "transfer",
-  args: { amount: 1000n, sender: "SP1234...", recipient: "SP5678..." },
+  functionName: "transfer",
+  functionArgs: [
+    Cl.uint(1000n),
+    Cl.standardPrincipal("SP1234..."),
+    Cl.standardPrincipal("SP5678..."),
+    Cl.none(),
+  ],
 })
 
 // Batch multiple reads in one call
-const results = await multicall(publicClient, [
-  { contract: "SP...::token-a", method: "getBalance", args: { owner: "SP..." } },
-  { contract: "SP...::token-b", method: "getBalance", args: { owner: "SP..." } },
-])`}
+const results = await multicall(publicClient, {
+  calls: [
+    { contract: "SP...::token-a", functionName: "get-balance", args: [Cl.standardPrincipal("SP...")] },
+    { contract: "SP...::token-b", functionName: "get-balance", args: [Cl.standardPrincipal("SP...")] },
+  ],
+})`}
 				/>
 
 				<SectionHeading id="transfers">Transfers</SectionHeading>
@@ -121,7 +130,7 @@ const results = await multicall(publicClient, [
 import { Pc } from "@secondlayer/stacks/postconditions"
 
 const txId = await transferStx(wallet, {
-  recipient: "SP5678...",
+  to: "SP5678...",
   amount: 1_000_000n, // 1 STX in microSTX
   memo: "payment",
   postConditions: [
@@ -158,14 +167,21 @@ watchTransaction(publicClient, {
 				</div>
 
 				<CodeBlock
-					code={`import { resolveName, registerName } from "@secondlayer/stacks/bns"
+					code={`import { bns } from "@secondlayer/stacks/bns"
 
-const address = await resolveName(publicClient, { name: "alice.btc" })
+// Extend a client with the BNS namespace.
+const client = publicClient.extend(bns())
 
-const txId = await registerName(wallet, {
+const address = await client.bns.resolveName("alice.btc")
+const primary = await client.bns.getPrimaryName("SP1234...")
+
+// Registration is a two-step preorder → register (signed, 10+ block gap).
+// Use claimFast for uncontested namespaces (single tx, no commit-reveal).
+const walletWithBns = wallet.extend(bns())
+const txId = await walletWithBns.bns.claimFast({
   name: "myname",
   namespace: "btc",
-  zonefile: "...",
+  sendTo: "SP1234...",
 })`}
 				/>
 
@@ -249,8 +265,8 @@ export default defineWorkflow({
 })
 
 // Other helpers
-on.contractCall({ contract: "SP...::pool", method: "swap" })
-on.nftMint({ asset: "SP...::collection" })`}
+on.contractCall({ contractId: "SP...::pool", functionName: "swap" })
+on.nftMint({ assetIdentifier: "SP...::collection" })`}
 				/>
 
 				<SectionHeading id="tx">Tx intents</SectionHeading>
@@ -288,12 +304,13 @@ await step.broadcast("send", intent)
 				</div>
 
 				<CodeBlock
-					code={`import { address, amount, txStatus } from "@secondlayer/stacks/ui/schemas"
+					code={`import { AddressProps, AmountProps, TxStatusProps } from "@secondlayer/stacks/ui/schemas"
 
-return {
-  from: address("SP1234..."),
-  value: amount(1_000_000n, { token: "STX" }),
-  status: txStatus("0xabc..."),
+// Props are Zod schemas — use them to validate/serialize render payloads.
+const payload = {
+  from: AddressProps.parse({ value: "SP1234..." }),
+  value: AmountProps.parse({ value: 1_000_000n, token: "STX" }),
+  status: TxStatusProps.parse({ txId: "0xabc..." }),
 }`}
 				/>
 
