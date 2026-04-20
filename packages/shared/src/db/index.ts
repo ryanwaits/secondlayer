@@ -35,10 +35,17 @@ function getOrCreatePool(url: string): PoolEntry {
 	const existing = pools.get(url);
 	if (existing) return existing;
 
+	// "Local" = we skip TLS. Any Docker service alias (single-label hostname
+	// with no dots) is on an internal network and won't serve TLS.
+	const host = (() => {
+		try {
+			return new URL(url).hostname;
+		} catch {
+			return "";
+		}
+	})();
 	const isLocal =
-		url.includes("localhost") ||
-		url.includes("127.0.0.1") ||
-		url.includes("@postgres:");
+		host === "localhost" || host === "127.0.0.1" || !host.includes(".");
 	const poolMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "20", 10);
 	const rawClient = postgres(url, {
 		max: poolMax,
