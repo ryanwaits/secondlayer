@@ -5,10 +5,10 @@ import { CliHttpError, httpPlatform } from "../lib/http.ts";
 import {
 	blue,
 	dim,
-	error as logError,
 	formatKeyValue,
 	green,
 	info,
+	error as logError,
 	success,
 	warn,
 } from "../lib/output.ts";
@@ -250,6 +250,93 @@ export function registerInstanceCommand(program: Command): void {
 				}
 			},
 		);
+
+	const db = instance
+		.command("db")
+		.description(
+			"Get a DATABASE_URL for direct Postgres access (via SSH tunnel)",
+		);
+
+	db.command("info", { isDefault: true })
+		.description("Print SSH tunnel command + DATABASE_URL for the instance")
+		.action(async () => {
+			guardOssMode();
+			try {
+				const res = await httpPlatform<{
+					slug: string;
+					bastionHost: string;
+					bastionPort: number;
+					bastionUser: string;
+					pgContainer: string;
+					localPort: number;
+					sshCommand: string;
+					databaseUrl: string;
+				}>("/api/tenants/me/db-access");
+				console.log("");
+				console.log(dim("1. Upload your public key (one time):"));
+				console.log(dim("   sl instance db add-key ~/.ssh/id_ed25519.pub"));
+				console.log("");
+				console.log(dim("2. Open the SSH tunnel in a separate terminal:"));
+				console.log(green(`   ${res.sshCommand}`));
+				console.log("");
+				console.log(dim("3. Use this DATABASE_URL while the tunnel is open:"));
+				console.log(green(`   ${res.databaseUrl}`));
+				console.log("");
+			} catch (err) {
+				handleInstanceError(err, "fetch db access info");
+			}
+		});
+
+	db.command("add-key <path>")
+		.description("Upload an SSH public key to the bastion for this instance")
+		.action(async (path: string) => {
+			guardOssMode();
+			let publicKey: string;
+			try {
+				publicKey = (await Bun.file(path).text()).trim();
+			} catch (err) {
+				logError(
+					`Could not read ${path}: ${err instanceof Error ? err.message : String(err)}`,
+				);
+				process.exit(1);
+			}
+			if (!publicKey) {
+				logError(`${path} is empty`);
+				process.exit(1);
+			}
+			try {
+				await httpPlatform<{ slug: string; user: string }>(
+					"/api/tenants/me/db-access/key",
+					{ method: "POST", body: { publicKey } },
+				);
+				success("Bastion key installed. You can now open the SSH tunnel.");
+			} catch (err) {
+				handleInstanceError(err, "upload bastion key");
+			}
+		});
+
+	db.command("revoke-key")
+		.description("Revoke bastion access for this instance")
+		.option("-y, --yes", "Skip confirmation")
+		.action(async (opts: { yes?: boolean }) => {
+			guardOssMode();
+			if (!opts.yes) {
+				const ok = await confirm({
+					message: "Revoke bastion access for this instance?",
+					default: false,
+				});
+				if (!ok) return;
+			}
+			try {
+				await httpPlatform<{ slug: string; removed: boolean }>(
+					"/api/tenants/me/db-access/key",
+					{ method: "DELETE" },
+				);
+				success("Bastion access revoked.");
+			} catch (err) {
+				handleInstanceError(err, "revoke bastion key");
+			}
+		});
 }
 
 // ── helpers ───────────────────────────────────────────────────────────

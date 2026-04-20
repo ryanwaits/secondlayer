@@ -1,0 +1,13 @@
+[Unit]
+Description=Upload Secondlayer backups to Storage Box hourly
+
+[Timer]
+# :45 past the hour — after dump (:00–:05) and prune (:30).
+OnCalendar=*:45:00
+RandomizedDelaySec=300
+AccuracySec=1min
+Persistent=true
+Unit=secondlayer-backup-upload.service
+
+[Install]
+WantedBy=timers.target

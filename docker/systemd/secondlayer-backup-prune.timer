@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Secondlayer tenant backup pruner hourly
+
+[Timer]
+# Fires at :30 past each hour so hourly dumps (running near :00) have settled.
+OnCalendar=*:30:00
+AccuracySec=1min
+Persistent=true
+Unit=secondlayer-backup-prune.service
+
+[Install]
+WantedBy=timers.target

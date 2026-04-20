@@ -83,6 +83,24 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  bastion:
+    container_name: secondlayer-bastion
+    build:
+      context: ./bastion
+      dockerfile: Dockerfile
+    # 2222:22 — public SSH entry point. Only port forwarding is permitted.
+    ports:
+      - "2222:22"
+    # Needs sl-tenants so `sl-pg-<slug>` resolves when a tenant's SSH session
+    # requests a tunnel to its pg.
+    networks:
+      - sl-tenants
+    volumes:
+      - ${DATA_DIR:-/opt/secondlayer/data}/bastion:/var/bastion-state
+    restart: unless-stopped
+    labels:
+      secondlayer.role: bastion
+
   agent:
     container_name: secondlayer-agent
     build:

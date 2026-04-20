@@ -45,6 +45,7 @@ export interface ContainerStatus {
 	restartCount: number;
 	running: boolean;
 	startedAt?: number;
+	health?: "healthy" | "unhealthy" | "starting" | "none";
 }
 
 export interface PatternMatch {

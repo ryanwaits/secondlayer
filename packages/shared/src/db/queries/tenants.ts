@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
 import type { Database, InsertTenant, Tenant, TenantStatus } from "../types.ts";
 
@@ -151,6 +151,48 @@ export async function recordHealthCheck(
 		})
 		.where("slug", "=", slug)
 		.execute();
+}
+
+/**
+ * Record a storage measurement into the current calendar month's bucket.
+ * Maintains peak, running average, and the most recent value in a single
+ * upsert. Billing will consume this later; for now the table just gives
+ * us evidence of usage over time.
+ */
+export async function recordMonthlyUsage(
+	db: Kysely<Database>,
+	tenantId: string,
+	storageMb: number,
+): Promise<void> {
+	// Bucket is the first day of the current month (UTC), so the unique
+	// (tenant_id, period_month) constraint groups all samples cleanly.
+	const now = new Date();
+	const periodMonth = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+	);
+
+	// Running mean: avg_new = (avg_old * n + x) / (n + 1). Doing it in SQL
+	// keeps the write atomic — no read-modify-write race between ticks.
+	await sql`
+		INSERT INTO tenant_usage_monthly (
+			tenant_id, period_month,
+			storage_peak_mb, storage_avg_mb, storage_last_mb,
+			measurements, first_at, last_at
+		) VALUES (
+			${tenantId}, ${periodMonth},
+			${storageMb}, ${storageMb}, ${storageMb},
+			1, now(), now()
+		)
+		ON CONFLICT (tenant_id, period_month) DO UPDATE SET
+			storage_peak_mb = GREATEST(tenant_usage_monthly.storage_peak_mb, EXCLUDED.storage_last_mb),
+			storage_avg_mb = (
+				(tenant_usage_monthly.storage_avg_mb * tenant_usage_monthly.measurements + EXCLUDED.storage_last_mb)
+				/ (tenant_usage_monthly.measurements + 1)
+			),
+			storage_last_mb = EXCLUDED.storage_last_mb,
+			measurements = tenant_usage_monthly.measurements + 1,
+			last_at = now()
+	`.execute(db);
 }
 
 export async function updateTenantPlan(

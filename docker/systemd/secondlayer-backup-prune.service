@@ -1,0 +1,10 @@
+[Unit]
+Description=Secondlayer tenant backup retention pruner
+After=secondlayer-backup-tenant.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/backup-prune.sh
+StandardOutput=append:/var/log/secondlayer-backup-prune.log
+StandardError=append:/var/log/secondlayer-backup-prune.log

@@ -14,6 +14,7 @@
 
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
 import {
 	bumpTenantKeyGen,
 	deleteTenant,
@@ -24,13 +25,15 @@ import {
 	updateTenantKeys,
 	updateTenantPlan,
 } from "@secondlayer/shared/db/queries/tenants";
-import { mintEphemeralServiceJwt } from "../lib/ephemeral-jwt.ts";
 import { Hono } from "hono";
+import { mintEphemeralServiceJwt } from "../lib/ephemeral-jwt.ts";
 import { getAccountId } from "../lib/ownership.ts";
 import {
 	ProvisionerError,
 	getTenantStatus,
+	addBastionUser as provisionerAddBastionUser,
 	provisionTenant as provisionerProvision,
+	removeBastionUser as provisionerRemoveBastionUser,
 	resizeTenant as provisionerResize,
 	resumeTenant as provisionerResume,
 	rotateTenantKeys as provisionerRotate,
@@ -76,10 +79,27 @@ app.post("/", async (c) => {
 	}
 	const plan = body.plan as PlanId;
 
+	await recordProvisioningAudit(getDb(), {
+		accountId,
+		actor: `account:${accountId}`,
+		event: "provision.start",
+		status: "ok",
+		detail: { plan },
+	});
+
 	let provisioned: Awaited<ReturnType<typeof provisionerProvision>>;
 	try {
 		provisioned = await provisionerProvision({ accountId, plan });
 	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		await recordProvisioningAudit(getDb(), {
+			accountId,
+			actor: `account:${accountId}`,
+			event: "provision.failure",
+			status: "error",
+			detail: { plan },
+			error: msg,
+		});
 		if (err instanceof ProvisionerError) {
 			return c.json(
 				{
@@ -123,6 +143,16 @@ app.post("/", async (c) => {
 		slug: tenant.slug,
 		plan,
 		accountId,
+	});
+
+	await recordProvisioningAudit(getDb(), {
+		tenantId: tenant.id,
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "provision.success",
+		status: "ok",
+		detail: { plan },
 	});
 
 	return c.json(
@@ -187,6 +217,16 @@ app.post("/me/resize", async (c) => {
 	try {
 		await provisionerResize(tenant.slug, newPlan);
 	} catch (err) {
+		await recordProvisioningAudit(getDb(), {
+			tenantId: tenant.id,
+			tenantSlug: tenant.slug,
+			accountId,
+			actor: `account:${accountId}`,
+			event: "resize",
+			status: "error",
+			detail: { from: tenant.plan, to: newPlan },
+			error: err instanceof Error ? err.message : String(err),
+		});
 		if (err instanceof ProvisionerError) {
 			return c.json({ error: "Resize failed", detail: err.body }, 502);
 		}
@@ -202,6 +242,16 @@ app.post("/me/resize", async (c) => {
 		alloc.memoryMb,
 		alloc.storageLimitMb,
 	);
+
+	await recordProvisioningAudit(getDb(), {
+		tenantId: tenant.id,
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "resize",
+		status: "ok",
+		detail: { from: tenant.plan, to: newPlan },
+	});
 
 	const refreshed = await getTenantByAccount(getDb(), accountId);
 	if (!refreshed) {
@@ -226,12 +276,29 @@ app.post("/me/suspend", async (c) => {
 	try {
 		await provisionerSuspend(tenant.slug);
 	} catch (err) {
+		await recordProvisioningAudit(getDb(), {
+			tenantId: tenant.id,
+			tenantSlug: tenant.slug,
+			accountId,
+			actor: `account:${accountId}`,
+			event: "suspend",
+			status: "error",
+			error: err instanceof Error ? err.message : String(err),
+		});
 		if (err instanceof ProvisionerError) {
 			return c.json({ error: "Suspend failed", detail: err.body }, 502);
 		}
 		throw err;
 	}
 	await setTenantStatus(getDb(), tenant.slug, "suspended");
+	await recordProvisioningAudit(getDb(), {
+		tenantId: tenant.id,
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "suspend",
+		status: "ok",
+	});
 	const refreshed = await getTenantByAccount(getDb(), accountId);
 	return c.json({ tenant: publicView(refreshed ?? tenant) });
 });
@@ -251,12 +318,29 @@ app.post("/me/resume", async (c) => {
 	try {
 		await provisionerResume(tenant.slug);
 	} catch (err) {
+		await recordProvisioningAudit(getDb(), {
+			tenantId: tenant.id,
+			tenantSlug: tenant.slug,
+			accountId,
+			actor: `account:${accountId}`,
+			event: "resume",
+			status: "error",
+			error: err instanceof Error ? err.message : String(err),
+		});
 		if (err instanceof ProvisionerError) {
 			return c.json({ error: "Resume failed", detail: err.body }, 502);
 		}
 		throw err;
 	}
 	await setTenantStatus(getDb(), tenant.slug, "active");
+	await recordProvisioningAudit(getDb(), {
+		tenantId: tenant.id,
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "resume",
+		status: "ok",
+	});
 	const refreshed = await getTenantByAccount(getDb(), accountId);
 	return c.json({ tenant: publicView(refreshed ?? tenant) });
 });
@@ -299,6 +383,16 @@ app.post("/me/keys/rotate", async (c) => {
 			newAnonGen: newGens.anonGen,
 		});
 	} catch (err) {
+		await recordProvisioningAudit(getDb(), {
+			tenantId: tenant.id,
+			tenantSlug: tenant.slug,
+			accountId,
+			actor: `account:${accountId}`,
+			event: "keys.rotate",
+			status: "error",
+			detail: { type },
+			error: err instanceof Error ? err.message : String(err),
+		});
 		if (err instanceof ProvisionerError) {
 			return c.json({ error: "Rotate failed", detail: err.body }, 502);
 		}
@@ -308,6 +402,16 @@ app.post("/me/keys/rotate", async (c) => {
 	// Persist new encrypted key(s) so future requests for tenant creds
 	// surface the current values.
 	await updateTenantKeys(getDb(), tenant.slug, rotated);
+
+	await recordProvisioningAudit(getDb(), {
+		tenantId: tenant.id,
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "keys.rotate",
+		status: "ok",
+		detail: { type, serviceGen: newGens.serviceGen, anonGen: newGens.anonGen },
+	});
 
 	return c.json({
 		type,
@@ -348,6 +452,130 @@ app.post("/me/keys/mint-ephemeral", async (c) => {
 	});
 });
 
+// ── GET /api/tenants/me/db-access — SSH-tunnel connection details ─────
+//
+// Returns everything the CLI needs to print a working `ssh -L` + DATABASE_URL
+// template. Tenant pg is never exposed publicly; users tunnel through the
+// bastion which enforces per-user PermitOpen. This endpoint does NOT add
+// the user's pubkey — `POST /api/tenants/me/db-access/key` does that.
+
+app.get("/me/db-access", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const tenant = await getTenantByAccount(getDb(), accountId);
+	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+
+	const creds = await getTenantCredentials(getDb(), tenant.slug);
+	if (!creds) return c.json({ error: "Tenant credentials unavailable" }, 500);
+
+	// Parse the stored target URL to pull out just the password — the host
+	// portion is the in-cluster `sl-pg-<slug>` alias which isn't useful
+	// client-side. Rewrite to a localhost-tunneled URL at `localPort`.
+	const parsed = new URL(creds.targetDatabaseUrl);
+	const password = decodeURIComponent(parsed.password);
+	const bastionHost =
+		process.env.BASTION_PUBLIC_HOST ??
+		`bastion.${process.env.BASE_DOMAIN ?? "secondlayer.tools"}`;
+	const bastionPort = Number(process.env.BASTION_PUBLIC_PORT ?? 2222);
+	const localPort = 5432;
+	const pgContainer = `sl-pg-${tenant.slug}`;
+	const bastionUser = `tenant-${tenant.slug}`;
+
+	return c.json({
+		slug: tenant.slug,
+		bastionHost,
+		bastionPort,
+		bastionUser,
+		pgContainer,
+		localPort,
+		sshCommand: `ssh -N -L ${localPort}:${pgContainer}:5432 ${bastionUser}@${bastionHost} -p ${bastionPort}`,
+		databaseUrl: `postgres://secondlayer:${encodeURIComponent(password)}@localhost:${localPort}/secondlayer`,
+	});
+});
+
+// ── POST /api/tenants/me/db-access/key — upload/rotate bastion pubkey ──
+
+app.post("/me/db-access/key", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const tenant = await getTenantByAccount(getDb(), accountId);
+	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+
+	const body = (await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	})) as { publicKey?: unknown };
+	if (typeof body.publicKey !== "string" || !body.publicKey.trim()) {
+		return c.json({ error: "publicKey is required" }, 400);
+	}
+
+	try {
+		await provisionerAddBastionUser(tenant.slug, body.publicKey);
+	} catch (err) {
+		await recordProvisioningAudit(getDb(), {
+			tenantId: tenant.id,
+			tenantSlug: tenant.slug,
+			accountId,
+			actor: `account:${accountId}`,
+			event: "bastion.key.upload",
+			status: "error",
+			error: err instanceof Error ? err.message : String(err),
+		});
+		if (err instanceof ProvisionerError) {
+			return c.json({ error: "Bastion update failed", detail: err.body }, 502);
+		}
+		throw err;
+	}
+
+	await recordProvisioningAudit(getDb(), {
+		tenantId: tenant.id,
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "bastion.key.upload",
+		status: "ok",
+	});
+	return c.json({ slug: tenant.slug, user: `tenant-${tenant.slug}` });
+});
+
+// ── DELETE /api/tenants/me/db-access/key — revoke bastion access ─────
+
+app.delete("/me/db-access/key", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const tenant = await getTenantByAccount(getDb(), accountId);
+	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+
+	try {
+		await provisionerRemoveBastionUser(tenant.slug);
+	} catch (err) {
+		await recordProvisioningAudit(getDb(), {
+			tenantId: tenant.id,
+			tenantSlug: tenant.slug,
+			accountId,
+			actor: `account:${accountId}`,
+			event: "bastion.key.revoke",
+			status: "error",
+			error: err instanceof Error ? err.message : String(err),
+		});
+		if (err instanceof ProvisionerError) {
+			return c.json({ error: "Bastion update failed", detail: err.body }, 502);
+		}
+		throw err;
+	}
+	await recordProvisioningAudit(getDb(), {
+		tenantId: tenant.id,
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "bastion.key.revoke",
+		status: "ok",
+	});
+	return c.json({ slug: tenant.slug, removed: true });
+});
+
 // ── DELETE /api/tenants/me — hard teardown + row removal ─────────────
 
 app.delete("/me", async (c) => {
@@ -360,6 +588,15 @@ app.delete("/me", async (c) => {
 	try {
 		await provisionerTeardown(tenant.slug, true);
 	} catch (err) {
+		await recordProvisioningAudit(getDb(), {
+			tenantId: tenant.id,
+			tenantSlug: tenant.slug,
+			accountId,
+			actor: `account:${accountId}`,
+			event: "teardown",
+			status: "error",
+			error: err instanceof Error ? err.message : String(err),
+		});
 		if (err instanceof ProvisionerError) {
 			return c.json({ error: "Teardown failed", detail: err.body }, 502);
 		}
@@ -367,6 +604,15 @@ app.delete("/me", async (c) => {
 	}
 
 	await deleteTenant(getDb(), tenant.slug);
+	// Record AFTER deleteTenant so the FK cascade (ON DELETE SET NULL for
+	// tenant_id) leaves the audit row intact with the slug preserved.
+	await recordProvisioningAudit(getDb(), {
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "teardown",
+		status: "ok",
+	});
 	return c.json({
 		message: `Tenant ${tenant.slug} deleted.`,
 	});

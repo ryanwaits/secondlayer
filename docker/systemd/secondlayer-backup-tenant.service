@@ -1,0 +1,11 @@
+[Unit]
+Description=Secondlayer per-tenant Postgres backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/backup-tenant-pg.sh
+StandardOutput=append:/var/log/secondlayer-backup-tenant.log
+StandardError=append:/var/log/secondlayer-backup-tenant.log

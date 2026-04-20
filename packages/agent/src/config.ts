@@ -22,6 +22,7 @@ export interface AgentConfig {
 	aiEnabled: boolean;
 	dryRun: boolean;
 	nodeServerUrl: string;
+	tenantBackupRoot: string;
 }
 
 export const SAFE_RESTART = [
@@ -84,5 +85,7 @@ export function loadConfig(): AgentConfig {
 		aiEnabled: process.env.AGENT_AI_ENABLED !== "false",
 		dryRun: process.env.AGENT_DRY_RUN === "true",
 		nodeServerUrl: process.env.NODE_SERVER_URL ?? "http://37.27.171.220",
+		tenantBackupRoot:
+			process.env.TENANT_BACKUP_ROOT ?? "/opt/secondlayer/data/backups/tenants",
 	};
 }

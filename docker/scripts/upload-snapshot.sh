@@ -59,4 +59,10 @@ if [ -d "${BACKUP_DIR}/chainstate" ]; then
   rsync "${RSYNC_OPTS[@]}" "${BACKUP_DIR}/chainstate/" "${STORAGEBOX_USER}@${STORAGEBOX_HOST}:${STORAGEBOX_PATH}/chainstate/"
 fi
 
+# Upload per-tenant postgres backups
+if [ -d "${BACKUP_DIR}/tenants" ]; then
+  log "Syncing tenant backups..."
+  rsync "${RSYNC_OPTS[@]}" "${BACKUP_DIR}/tenants/" "${STORAGEBOX_USER}@${STORAGEBOX_HOST}:${STORAGEBOX_PATH}/tenants/"
+fi
+
 log "Upload complete"

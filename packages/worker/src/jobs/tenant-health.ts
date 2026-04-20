@@ -16,6 +16,7 @@ import {
 	getTenantCredentials,
 	listTenantsByStatus,
 	recordHealthCheck,
+	recordMonthlyUsage,
 	setTenantStatus,
 } from "@secondlayer/shared/db/queries/tenants";
 import { getInstanceMode } from "@secondlayer/shared/mode";
@@ -77,6 +78,7 @@ async function checkAllTenants(): Promise<void> {
 			);
 
 			await recordHealthCheck(db, tenant.slug, storage.sizeMb);
+			await recordMonthlyUsage(db, tenant.id, storage.sizeMb);
 
 			if (
 				tenant.storage_limit_mb > 0 &&

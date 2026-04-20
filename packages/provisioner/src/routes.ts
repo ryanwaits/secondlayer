@@ -8,6 +8,7 @@
  */
 
 import { Hono, type MiddlewareHandler } from "hono";
+import { addBastionUser, removeBastionUser } from "./bastion.ts";
 import { getConfig } from "./config.ts";
 import { containerInspect } from "./docker.ts";
 import {
@@ -192,6 +193,34 @@ export function buildRoutes(): Hono {
 		}
 		await resizeTenant(slug, body.newPlan);
 		return c.json({ slug, plan: body.newPlan });
+	});
+
+	// POST /tenants/:slug/bastion — add or rotate the tenant's SSH pubkey on
+	// the bastion. Idempotent: rerunning with a different pubkey rotates.
+	app.post("/tenants/:slug/bastion", async (c) => {
+		const slug = c.req.param("slug");
+		if (!isValidSlug(slug)) return c.json({ error: "invalid slug" }, 400);
+		const body = (await c.req.json().catch(() => null)) as {
+			publicKey?: unknown;
+		} | null;
+		if (!body || typeof body.publicKey !== "string") {
+			return c.json({ error: "publicKey required" }, 400);
+		}
+		try {
+			await addBastionUser(slug, body.publicKey);
+			return c.json({ slug, user: `tenant-${slug}` });
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			return c.json({ error: msg }, 400);
+		}
+	});
+
+	// DELETE /tenants/:slug/bastion — remove the tenant's bastion user.
+	app.delete("/tenants/:slug/bastion", async (c) => {
+		const slug = c.req.param("slug");
+		if (!isValidSlug(slug)) return c.json({ error: "invalid slug" }, 400);
+		await removeBastionUser(slug);
+		return c.json({ slug, removed: true });
 	});
 
 	// GET /tenants/:slug/storage — pg_database_size in MB. Caller passes the

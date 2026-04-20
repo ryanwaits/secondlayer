@@ -1,4 +1,5 @@
 import { logger } from "@secondlayer/shared";
+import { removeBastionUser } from "./bastion.ts";
 import { containerRemove, containerStop, volumeRemove } from "./docker.ts";
 import { allContainerNames, volumeName as buildVolumeName } from "./names.ts";
 
@@ -44,6 +45,17 @@ export async function teardownTenant(
 				error: err instanceof Error ? err.message : String(err),
 			});
 		}
+	}
+
+	// Bastion cleanup — best-effort. Bastion may be down or never had a
+	// user for this tenant; the remove script is idempotent.
+	try {
+		await removeBastionUser(slug);
+	} catch (err) {
+		logger.warn("Failed to remove bastion user", {
+			slug,
+			error: err instanceof Error ? err.message : String(err),
+		});
 	}
 
 	if (opts.deleteVolume) {

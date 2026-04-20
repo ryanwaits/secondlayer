@@ -1,0 +1,13 @@
+[Unit]
+Description=Run Secondlayer per-tenant Postgres backup hourly
+
+[Timer]
+OnCalendar=hourly
+# Drift start by up to 5 min so multiple instances don't all dump at :00.
+RandomizedDelaySec=300
+AccuracySec=1min
+Persistent=true
+Unit=secondlayer-backup-tenant.service
+
+[Install]
+WantedBy=timers.target

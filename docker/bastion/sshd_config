@@ -1,0 +1,42 @@
+# Secondlayer bastion sshd config.
+#
+# Tenants authenticate as Unix users `tenant-<slug>` with pubkey. Default
+# policy denies everything; each tenant drop-in below grants port-forward
+# access to that tenant's pg container only.
+
+Port 22
+Protocol 2
+AddressFamily inet
+
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+
+# Locked-down defaults — drop-ins can relax these per-user.
+PermitRootLogin no
+PasswordAuthentication no
+ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+UsePAM no
+StrictModes yes
+
+AllowTcpForwarding no
+GatewayPorts no
+PermitTunnel no
+X11Forwarding no
+PermitTTY no
+AllowAgentForwarding no
+
+ClientAliveInterval 60
+ClientAliveCountMax 3
+MaxAuthTries 3
+MaxSessions 4
+LoginGraceTime 30
+
+SyslogFacility AUTH
+LogLevel INFO
+
+AuthorizedKeysFile /etc/ssh/authorized_keys.d/%u
+
+# Per-tenant Match blocks.
+Include /etc/ssh/sshd_config.d/*.conf

@@ -24,6 +24,10 @@ import {
 } from "./monitor/health-poller.ts";
 import { LogWatcher } from "./monitor/log-watcher.ts";
 import {
+	detectStaleBackups,
+	scanTenantBackups,
+} from "./monitor/tenant-backup-monitor.ts";
+import {
 	buildAlertBlocksWithButtons,
 	buildDiagnosisBlocks,
 } from "./notify/slack-blocks.ts";
@@ -381,6 +385,16 @@ async function main(): Promise<void> {
 
 			// Detect anomalies
 			const anomalies = detectAnomalies(currentState, previousState);
+
+			// Tenant backup freshness (only alert for slugs whose pg container is running)
+			const runningSlugs = new Set<string>();
+			for (const c of metrics.containers) {
+				const m = c.name.match(/^sl-pg-(.+?)(?:-1)?$/);
+				if (m && c.running) runningSlugs.add(m[1]);
+			}
+			const backupStatuses = scanTenantBackups(config.tenantBackupRoot);
+			anomalies.push(...detectStaleBackups(backupStatuses, runningSlugs));
+
 			for (const anomaly of anomalies) {
 				await handleMatch(anomaly);
 			}

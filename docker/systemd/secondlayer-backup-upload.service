@@ -1,0 +1,11 @@
+[Unit]
+Description=Secondlayer backup upload to Storage Box
+After=secondlayer-backup-prune.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/upload-snapshot.sh
+StandardOutput=append:/var/log/secondlayer-backup-upload.log
+StandardError=append:/var/log/secondlayer-backup-upload.log

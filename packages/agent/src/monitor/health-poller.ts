@@ -130,12 +130,12 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 				s.MemUsage?.split("/")[1]?.replace(/[^0-9.]/g, "") ?? "0",
 			);
 
-			// Get restart count + started time
+			// Get restart count + started time + health (empty string if no healthcheck)
 			const inspectResult = Bun.spawnSync([
 				"docker",
 				"inspect",
 				"--format",
-				"{{.RestartCount}}|{{.State.StartedAt}}",
+				"{{.RestartCount}}|{{.State.StartedAt}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}",
 				s.Name,
 			]);
 			const inspectParts = inspectResult.stdout.toString().trim().split("|");
@@ -143,6 +143,13 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 			const startedAt = inspectParts[1]
 				? new Date(inspectParts[1]).getTime() || undefined
 				: undefined;
+			const rawHealth = (inspectParts[2] ?? "none").trim();
+			const health =
+				rawHealth === "healthy" ||
+				rawHealth === "unhealthy" ||
+				rawHealth === "starting"
+					? rawHealth
+					: "none";
 
 			containers.push({
 				name: s.Name,
@@ -152,6 +159,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 				restartCount,
 				running: true,
 				startedAt,
+				health,
 			});
 		} catch {
 			// skip malformed lines
@@ -253,6 +261,50 @@ export function detectAnomalies(
 				line: "",
 				timestamp: now,
 			});
+		}
+	}
+
+	// Tenant-container-specific checks (sl-api-<slug>, sl-pg-<slug>, sl-worker-<slug>).
+	// Tenant containers are commodity from the platform's perspective: restart-loop
+	// and service-down checks above already cover them by name, but unhealthy docker
+	// healthchecks and memory pressure are tenant-specific signals worth surfacing
+	// without being lumped in with platform services.
+	for (const c of current.metrics.containers) {
+		const m = c.name.match(/^sl-(api|pg|worker)-(.+?)(?:-1)?$/);
+		if (!m) continue;
+		const [, role, slug] = m;
+		const svc = `tenant:${slug}:${role}`;
+
+		if (c.health === "unhealthy") {
+			anomalies.push({
+				name: "tenant_unhealthy",
+				severity: "error",
+				action: "alert_only",
+				service: svc,
+				message: `Tenant ${slug} ${role} container is unhealthy`,
+				line: "",
+				timestamp: now,
+			});
+		}
+
+		// Memory pressure: >90% of limit sustained across two polls.
+		if (c.memLimitMb > 0 && c.memUsageMb / c.memLimitMb > 0.9) {
+			const prev = previous?.metrics.containers.find((p) => p.name === c.name);
+			if (
+				prev &&
+				prev.memLimitMb > 0 &&
+				prev.memUsageMb / prev.memLimitMb > 0.9
+			) {
+				anomalies.push({
+					name: "tenant_mem_pressure",
+					severity: "warn",
+					action: "alert_only",
+					service: svc,
+					message: `Tenant ${slug} ${role} memory at ${Math.round((c.memUsageMb / c.memLimitMb) * 100)}% of limit`,
+					line: "",
+					timestamp: now,
+				});
+			}
 		}
 	}
 

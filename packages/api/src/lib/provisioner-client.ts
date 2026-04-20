@@ -169,3 +169,17 @@ export async function getTenantStorage(
 		`/tenants/${slug}/storage?url=${encodeURIComponent(targetDatabaseUrl)}`,
 	);
 }
+
+export async function addBastionUser(
+	slug: string,
+	publicKey: string,
+): Promise<{ slug: string; user: string }> {
+	return request<{ slug: string; user: string }>(`/tenants/${slug}/bastion`, {
+		method: "POST",
+		body: { publicKey },
+	});
+}
+
+export async function removeBastionUser(slug: string): Promise<void> {
+	await request(`/tenants/${slug}/bastion`, { method: "DELETE" });
+}
