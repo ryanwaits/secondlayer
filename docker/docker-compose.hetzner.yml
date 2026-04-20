@@ -116,15 +116,13 @@ volumes:
   caddy_config:
 
 networks:
-  # Named so docker creates them with stable names (not project-prefixed).
-  # Provisioner declares both in `names.ts` and calls networkEnsure(), so these
-  # declarations must match exactly.
+  # Both networks are created by the provisioner (`networkEnsure` in
+  # docker.ts / names.ts). Compose references them as `external: true` so
+  # compose won't try to create/adopt them (which fails with "network exists
+  # but has incorrect labels"). The provisioner remains the canonical creator.
   sl-tenants:
     name: sl-tenants
-    driver: bridge
-  # sl-source: shared-indexer source network. Tenant api/processor containers
-  # join it (via provisioner) to read blocks/txs/events from the platform pg.
-  # Shared postgres joins it here with alias `postgres:5432` for DNS.
+    external: true
   sl-source:
     name: sl-source
-    driver: bridge
+    external: true
