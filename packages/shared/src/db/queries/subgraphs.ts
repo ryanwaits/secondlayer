@@ -34,7 +34,7 @@ export async function registerSubgraph(
 		.values({
 			name: data.name,
 			version: data.version,
-			definition: jsonb(data.definition) as any,
+			definition: jsonb<Record<string, unknown>>(data.definition),
 			schema_hash: data.schemaHash,
 			handler_path: data.handlerPath,
 			account_id: data.accountId ?? "",
@@ -46,7 +46,7 @@ export async function registerSubgraph(
 		.onConflict((oc) =>
 			oc.columns(["name", "account_id"]).doUpdateSet({
 				version: data.version,
-				definition: jsonb(data.definition) as any,
+				definition: jsonb<Record<string, unknown>>(data.definition),
 				schema_hash: data.schemaHash,
 				handler_path: data.handlerPath,
 				handler_code: data.handlerCode ?? null,
