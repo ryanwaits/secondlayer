@@ -8,6 +8,7 @@ import {
 	containerStats,
 	containerStop,
 } from "./docker.ts";
+import { mintSingleKey } from "./jwt.ts";
 import {
 	NETWORK_SOURCE,
 	NETWORK_TENANTS,
@@ -19,6 +20,13 @@ import {
 } from "./names.ts";
 import { type PlanId, getPlan } from "./plans.ts";
 import type { ContainerStatus, TenantStatus } from "./types.ts";
+
+export type KeyRotateType = "service" | "anon" | "both";
+
+export interface RotateResult {
+	serviceKey?: string;
+	anonKey?: string;
+}
 
 /** Stop all tenant containers. Preserves the data volume. */
 export async function suspendTenant(slug: string): Promise<void> {
@@ -142,6 +150,89 @@ export async function resizeTenant(
 	await containerStart(procId);
 
 	logger.info("Tenant resized", { slug, plan: plan.id });
+}
+
+/**
+ * Rotate one or both tenant JWTs by bumping `SERVICE_GEN` / `ANON_GEN` on
+ * the tenant API container + minting replacement keys with the new gen.
+ *
+ * Caller (platform API) owns the gen counters in the tenants table and
+ * passes in the NEW values post-bump. The signing secret stays the same
+ * — it's recovered from the existing container env so we never have to
+ * transit it over HTTP. Only the API container is recreated; PG + processor
+ * are untouched. ~5s tenant-API downtime per rotation.
+ */
+export async function rotateTenantKeys(
+	slug: string,
+	plan: PlanId,
+	type: KeyRotateType,
+	newGens: { serviceGen: number; anonGen: number },
+): Promise<RotateResult> {
+	const cfg = getConfig();
+	const planDef = getPlan(plan);
+	logger.info("Rotating tenant keys", { slug, type });
+
+	const apiName = apiContainerName(slug);
+	const current = await containerInspect(apiName);
+	if (!current) {
+		throw new Error(`Tenant ${slug} has no API container — cannot rotate keys`);
+	}
+	const env = await extractEnv(apiName);
+	const jwtSecret = env.TENANT_JWT_SECRET;
+	if (!jwtSecret) {
+		throw new Error(
+			`Tenant ${slug} API container missing TENANT_JWT_SECRET — corrupt state`,
+		);
+	}
+
+	// Recreate API container with new gens. PG + processor keep running.
+	const { containerRemove } = await import("./docker.ts");
+	await containerStop(apiName, 15).catch(() => {});
+	await containerRemove(apiName).catch(() => {});
+
+	const nextEnv: Record<string, string> = {
+		...env,
+		SERVICE_GEN: String(newGens.serviceGen),
+		ANON_GEN: String(newGens.anonGen),
+	};
+
+	const apiId = await containerCreate(
+		buildApiSpec({
+			name: apiName,
+			image: imageName(cfg, "api"),
+			slug,
+			plan: plan,
+			memoryMb: planDef.containers.api.memoryMb,
+			cpus: planDef.containers.api.cpus,
+			env: nextEnv,
+		}),
+	);
+	await containerStart(apiId);
+
+	const { waitForHealthy } = await import("./docker.ts");
+	await waitForHealthy(apiName, 30_000);
+
+	// Mint the replacement key(s). Only return what was rotated.
+	const result: RotateResult = {};
+	if (type === "service" || type === "both") {
+		result.serviceKey = await mintSingleKey(
+			slug,
+			jwtSecret,
+			"service",
+			newGens.serviceGen,
+		);
+	}
+	if (type === "anon" || type === "both") {
+		result.anonKey = await mintSingleKey(
+			slug,
+			jwtSecret,
+			"anon",
+			newGens.anonGen,
+		);
+	}
+
+	logger.info("Tenant keys rotated", { slug, type });
+	return result;
 }
 
 /**

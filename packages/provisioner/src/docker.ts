@@ -144,6 +144,34 @@ export async function networkEnsure(name: string): Promise<string> {
 	return created.Id;
 }
 
+/**
+ * Attach a container to a network with a specific DNS alias. Idempotent —
+ * if the container is already connected on this network, silently succeeds.
+ * Used for the "shared postgres joins sl-source as `postgres:5432`" wiring
+ * that belongs in the network topology, independent of compose config.
+ */
+export async function networkConnectWithAlias(
+	networkName: string,
+	containerName: string,
+	alias: string,
+): Promise<void> {
+	try {
+		await request(`/networks/${networkName}/connect`, {
+			method: "POST",
+			body: {
+				Container: containerName,
+				EndpointConfig: { Aliases: [alias] },
+			},
+		});
+	} catch (err) {
+		// Docker returns 403 "already exists" when the container is on this
+		// network already. That's our idempotent success path.
+		const msg = err instanceof Error ? err.message : String(err);
+		if (/already exists/i.test(msg)) return;
+		throw err;
+	}
+}
+
 // --- Volumes ---
 
 interface VolumeInspectResponse {

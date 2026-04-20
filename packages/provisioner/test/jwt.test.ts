@@ -20,7 +20,7 @@ describe("jwt", () => {
 
 	test("signHs256Jwt produces 3-part token", async () => {
 		const token = await signHs256Jwt(
-			{ role: "anon", sub: "test0001", iat: 0 },
+			{ role: "anon", sub: "test0001", gen: 1, iat: 0 },
 			"secret".repeat(8),
 		);
 		expect(token.split(".").length).toBe(3);
@@ -28,7 +28,10 @@ describe("jwt", () => {
 
 	test("mintTenantKeys produces distinct anon + service tokens", async () => {
 		const secret = generateTenantSecret();
-		const { anonKey, serviceKey } = await mintTenantKeys("abc12345", secret);
+		const { anonKey, serviceKey } = await mintTenantKeys("abc12345", secret, {
+			serviceGen: 1,
+			anonGen: 1,
+		});
 		expect(anonKey).not.toBe(serviceKey);
 		// Both have 3 parts.
 		expect(anonKey.split(".").length).toBe(3);
@@ -39,7 +42,10 @@ describe("jwt", () => {
 		// Round-trip: mint here, verify with the same HS256 approach used by
 		// packages/api/src/middleware/auth-modes.ts.
 		const secret = generateTenantSecret();
-		const { anonKey } = await mintTenantKeys("abc12345", secret);
+		const { anonKey } = await mintTenantKeys("abc12345", secret, {
+			serviceGen: 1,
+			anonGen: 1,
+		});
 
 		const [headerB64, payloadB64, sigB64] = anonKey.split(".");
 		const enc = new TextEncoder();
@@ -59,6 +65,21 @@ describe("jwt", () => {
 		const payload = JSON.parse(base64UrlDecode(payloadB64));
 		expect(payload.role).toBe("anon");
 		expect(payload.sub).toBe("abc12345");
+		expect(payload.gen).toBe(1);
+	});
+
+	test("mintTenantKeys embeds gen claim independently per role", async () => {
+		const secret = generateTenantSecret();
+		const { anonKey, serviceKey } = await mintTenantKeys("abc12345", secret, {
+			serviceGen: 7,
+			anonGen: 3,
+		});
+		const anonPayload = JSON.parse(base64UrlDecode(anonKey.split(".")[1]));
+		const servicePayload = JSON.parse(
+			base64UrlDecode(serviceKey.split(".")[1]),
+		);
+		expect(anonPayload.gen).toBe(3);
+		expect(servicePayload.gen).toBe(7);
 	});
 });
 

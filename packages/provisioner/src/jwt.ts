@@ -3,6 +3,11 @@
  *
  * Verification happens in `packages/api/src/middleware/auth-modes.ts` —
  * keep the payload shape in sync with `TenantJwtPayload` there.
+ *
+ * The `gen` claim carries the role's current generation counter. The
+ * tenant API reads `SERVICE_GEN` + `ANON_GEN` from its env at startup
+ * and rejects JWTs whose `gen` doesn't match. Bumping a gen counter +
+ * recreating the API container invalidates all prior JWTs of that role.
  */
 
 import { randomBytes } from "node:crypto";
@@ -12,6 +17,7 @@ export type TenantRole = "anon" | "service";
 interface TenantJwtPayload {
 	role: TenantRole;
 	sub: string;
+	gen: number;
 	iat: number;
 	exp?: number;
 }
@@ -56,15 +62,26 @@ export function generateTenantSecret(): string {
 export async function mintTenantKeys(
 	slug: string,
 	secret: string,
+	gens: { serviceGen: number; anonGen: number },
 ): Promise<{ anonKey: string; serviceKey: string }> {
 	const now = Math.floor(Date.now() / 1000);
 	const anonKey = await signHs256Jwt(
-		{ role: "anon", sub: slug, iat: now },
+		{ role: "anon", sub: slug, gen: gens.anonGen, iat: now },
 		secret,
 	);
 	const serviceKey = await signHs256Jwt(
-		{ role: "service", sub: slug, iat: now },
+		{ role: "service", sub: slug, gen: gens.serviceGen, iat: now },
 		secret,
 	);
 	return { anonKey, serviceKey };
+}
+
+export async function mintSingleKey(
+	slug: string,
+	secret: string,
+	role: TenantRole,
+	gen: number,
+): Promise<string> {
+	const now = Math.floor(Date.now() / 1000);
+	return signHs256Jwt({ role, sub: slug, gen, iat: now }, secret);
 }

@@ -436,6 +436,8 @@ export interface TenantsTable {
 	trial_ends_at: Date;
 	suspended_at: Date | null;
 	last_health_check_at: Date | null;
+	service_gen: Generated<number>;
+	anon_gen: Generated<number>;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }

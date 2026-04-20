@@ -126,6 +126,21 @@ export async function resumeTenant(slug: string): Promise<void> {
 	await request(`/tenants/${slug}/resume`, { method: "POST" });
 }
 
+export async function rotateTenantKeys(
+	slug: string,
+	input: {
+		type: "service" | "anon" | "both";
+		plan: string;
+		newServiceGen: number;
+		newAnonGen: number;
+	},
+): Promise<{ serviceKey?: string; anonKey?: string }> {
+	return request<{ serviceKey?: string; anonKey?: string }>(
+		`/tenants/${slug}/keys/rotate`,
+		{ method: "POST", body: input },
+	);
+}
+
 export async function resizeTenant(
 	slug: string,
 	newPlan: "launch" | "grow" | "scale" | "enterprise",

@@ -53,6 +53,18 @@ export interface ResizeRequest {
 	newPlan: PlanId;
 }
 
+export type ProvisionErrorCode =
+	/** GHCR (or other registry) denied the image pull — likely wrong owner/tag or private repo w/o creds. */
+	| "image_denied"
+	/** Registry returned 404 / manifest not found. */
+	| "image_not_found"
+	/** Docker network issue (creating/connecting networks). */
+	| "network_error"
+	/** Container healthcheck never turned healthy within the wait window. */
+	| "health_failed"
+	/** Anything else — unclassified failure bubble-up. */
+	| "internal";
+
 export interface ProvisionError extends Error {
 	stage:
 		| "slug"
@@ -65,12 +77,57 @@ export interface ProvisionError extends Error {
 		| "processor";
 	slug: string;
 	cleanupAttempted: boolean;
+	code: ProvisionErrorCode;
 }
 
 export function isProvisionError(e: unknown): e is ProvisionError {
 	return (
 		e instanceof Error && "stage" in e && "slug" in e && "cleanupAttempted" in e
 	);
+}
+
+/**
+ * Map a stage + underlying Docker/runtime error message to a
+ * {@link ProvisionErrorCode}. Kept here so both the error-thrower (provision.ts)
+ * and the route-layer classifier agree on the taxonomy.
+ */
+export function classifyProvisionError(
+	stage: ProvisionError["stage"],
+	message: string,
+): ProvisionErrorCode {
+	const lower = message.toLowerCase();
+	if (
+		lower.includes("error from registry") ||
+		lower.includes("denied") ||
+		lower.includes("unauthorized")
+	) {
+		return "image_denied";
+	}
+	if (lower.includes("manifest unknown") || lower.includes("not found")) {
+		if (stage === "api" || stage === "processor") return "image_not_found";
+	}
+	if (lower.includes("became unhealthy") || lower.includes("timed out")) {
+		return "health_failed";
+	}
+	if (stage === "network") return "network_error";
+	return "internal";
+}
+
+/** HTTP status code to use when surfacing a {@link ProvisionError}. */
+export function httpStatusForProvisionError(
+	code: ProvisionErrorCode,
+): 400 | 404 | 502 | 503 | 500 {
+	switch (code) {
+		case "image_denied":
+		case "image_not_found":
+			return 502; // dependency (registry) failed
+		case "network_error":
+			return 503; // infra-level, likely transient
+		case "health_failed":
+			return 502; // dependency (container) didn't come up
+		default:
+			return 500;
+	}
 }
 
 export type { Plan, PlanId } from "./plans.ts";

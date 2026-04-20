@@ -15,9 +15,12 @@
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import {
+	bumpTenantKeyGen,
+	deleteTenant,
 	getTenantByAccount,
 	insertTenant,
 	setTenantStatus,
+	updateTenantKeys,
 	updateTenantPlan,
 } from "@secondlayer/shared/db/queries/tenants";
 import { Hono } from "hono";
@@ -27,6 +30,9 @@ import {
 	getTenantStatus,
 	provisionTenant as provisionerProvision,
 	resizeTenant as provisionerResize,
+	resumeTenant as provisionerResume,
+	rotateTenantKeys as provisionerRotate,
+	suspendTenant as provisionerSuspend,
 	teardownTenant as provisionerTeardown,
 } from "../lib/provisioner-client.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -203,7 +209,113 @@ app.post("/me/resize", async (c) => {
 	return c.json({ tenant: publicView(refreshed) });
 });
 
-// ── DELETE /api/tenants/me — soft teardown (volume preserved 30d) ────
+// ── POST /api/tenants/me/suspend — stop containers, keep volume ───────
+
+app.post("/me/suspend", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const tenant = await getTenantByAccount(getDb(), accountId);
+	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+	if (tenant.status === "suspended") {
+		return c.json({ tenant: publicView(tenant), unchanged: true });
+	}
+
+	try {
+		await provisionerSuspend(tenant.slug);
+	} catch (err) {
+		if (err instanceof ProvisionerError) {
+			return c.json({ error: "Suspend failed", detail: err.body }, 502);
+		}
+		throw err;
+	}
+	await setTenantStatus(getDb(), tenant.slug, "suspended");
+	const refreshed = await getTenantByAccount(getDb(), accountId);
+	return c.json({ tenant: publicView(refreshed ?? tenant) });
+});
+
+// ── POST /api/tenants/me/resume — start containers ───────────────────
+
+app.post("/me/resume", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const tenant = await getTenantByAccount(getDb(), accountId);
+	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+	if (tenant.status === "active") {
+		return c.json({ tenant: publicView(tenant), unchanged: true });
+	}
+
+	try {
+		await provisionerResume(tenant.slug);
+	} catch (err) {
+		if (err instanceof ProvisionerError) {
+			return c.json({ error: "Resume failed", detail: err.body }, 502);
+		}
+		throw err;
+	}
+	await setTenantStatus(getDb(), tenant.slug, "active");
+	const refreshed = await getTenantByAccount(getDb(), accountId);
+	return c.json({ tenant: publicView(refreshed ?? tenant) });
+});
+
+// ── POST /api/tenants/me/keys/rotate — rotate JWT(s) ─────────────────
+//
+// Body: `{ type: "service" | "anon" | "both" }`. Bumps gen counter(s) in
+// platform DB, forwards to provisioner which recreates the tenant API
+// container with new SERVICE_GEN / ANON_GEN env + mints replacements.
+// Returns the rotated key(s) ONCE — caller must persist client-side.
+
+app.post("/me/keys/rotate", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const tenant = await getTenantByAccount(getDb(), accountId);
+	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+
+	const body = (await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	})) as { type?: unknown };
+	if (body.type !== "service" && body.type !== "anon" && body.type !== "both") {
+		return c.json({ error: "type must be: service, anon, or both" }, 400);
+	}
+	const type = body.type;
+
+	// Bump gen counters first so if the provisioner call fails, the old
+	// tokens are still invalid-to-be (the tenant API container still has the
+	// old gen until it's recreated, so old tokens keep working — but the
+	// NEW expected gen is already on file). Acceptable race: a rotate that
+	// fails mid-flight can be retried with the same `type`, no drift.
+	const newGens = await bumpTenantKeyGen(getDb(), tenant.slug, type);
+
+	let rotated: { serviceKey?: string; anonKey?: string };
+	try {
+		rotated = await provisionerRotate(tenant.slug, {
+			type,
+			plan: tenant.plan,
+			newServiceGen: newGens.serviceGen,
+			newAnonGen: newGens.anonGen,
+		});
+	} catch (err) {
+		if (err instanceof ProvisionerError) {
+			return c.json({ error: "Rotate failed", detail: err.body }, 502);
+		}
+		throw err;
+	}
+
+	// Persist new encrypted key(s) so future requests for tenant creds
+	// surface the current values.
+	await updateTenantKeys(getDb(), tenant.slug, rotated);
+
+	return c.json({
+		type,
+		rotated,
+		serviceGen: newGens.serviceGen,
+		anonGen: newGens.anonGen,
+	});
+});
+
+// ── DELETE /api/tenants/me — hard teardown + row removal ─────────────
 
 app.delete("/me", async (c) => {
 	const accountId = getAccountId(c);
@@ -213,7 +325,7 @@ app.delete("/me", async (c) => {
 	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
 
 	try {
-		await provisionerTeardown(tenant.slug, false);
+		await provisionerTeardown(tenant.slug, true);
 	} catch (err) {
 		if (err instanceof ProvisionerError) {
 			return c.json({ error: "Teardown failed", detail: err.body }, 502);
@@ -221,9 +333,9 @@ app.delete("/me", async (c) => {
 		throw err;
 	}
 
-	await setTenantStatus(getDb(), tenant.slug, "suspended");
+	await deleteTenant(getDb(), tenant.slug);
 	return c.json({
-		message: `Tenant ${tenant.slug} suspended. Data preserved for 30 days.`,
+		message: `Tenant ${tenant.slug} deleted.`,
 	});
 });
 

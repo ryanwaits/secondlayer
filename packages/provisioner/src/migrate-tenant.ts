@@ -395,6 +395,7 @@ async function main(): Promise<void> {
 		const { anonKey, serviceKey } = await mintTenantKeys(
 			slug,
 			tenant.tenantJwtSecret,
+			{ serviceGen: 1, anonGen: 1 },
 		);
 		await insertTenant(db, {
 			accountId: args.accountId,

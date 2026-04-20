@@ -172,6 +172,67 @@ export async function updateTenantPlan(
 		.execute();
 }
 
+export type RotateType = "service" | "anon" | "both";
+
+/**
+ * Bump the selected gen counter(s) by 1 and return the new values.
+ * Used by the key-rotate endpoint to force the tenant API to reject
+ * previously-issued tokens of the rotated role(s).
+ */
+export async function bumpTenantKeyGen(
+	db: Kysely<Database>,
+	slug: string,
+	type: RotateType,
+): Promise<{ serviceGen: number; anonGen: number }> {
+	const bumpService = type === "service" || type === "both";
+	const bumpAnon = type === "anon" || type === "both";
+	const row = await db
+		.updateTable("tenants")
+		.set((eb) => ({
+			service_gen: bumpService
+				? eb("service_gen", "+", 1)
+				: eb.ref("service_gen"),
+			anon_gen: bumpAnon ? eb("anon_gen", "+", 1) : eb.ref("anon_gen"),
+			updated_at: new Date(),
+		}))
+		.where("slug", "=", slug)
+		.returning(["service_gen", "anon_gen"])
+		.executeTakeFirstOrThrow();
+	return { serviceGen: row.service_gen, anonGen: row.anon_gen };
+}
+
+/**
+ * Replace the encrypted key columns after a successful rotate. Only the
+ * rotated column(s) are written — the other stays untouched.
+ */
+export async function updateTenantKeys(
+	db: Kysely<Database>,
+	slug: string,
+	keys: { serviceKey?: string; anonKey?: string },
+): Promise<void> {
+	const patch: Record<string, unknown> = { updated_at: new Date() };
+	if (keys.serviceKey) patch.service_key_enc = encryptSecret(keys.serviceKey);
+	if (keys.anonKey) patch.anon_key_enc = encryptSecret(keys.anonKey);
+	if (Object.keys(patch).length === 1) return; // only updated_at — nothing to write
+	await db.updateTable("tenants").set(patch).where("slug", "=", slug).execute();
+}
+
+/**
+ * Hard-delete a tenant row. Call only AFTER the provisioner has torn down
+ * containers + volume; otherwise orphaned resources linger. Returns whether
+ * a row was actually deleted.
+ */
+export async function deleteTenant(
+	db: Kysely<Database>,
+	slug: string,
+): Promise<boolean> {
+	const res = await db
+		.deleteFrom("tenants")
+		.where("slug", "=", slug)
+		.executeTakeFirst();
+	return (res.numDeletedRows ?? 0n) > 0n;
+}
+
 export interface TenantCredentials {
 	slug: string;
 	targetDatabaseUrl: string;

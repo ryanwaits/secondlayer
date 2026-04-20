@@ -6806,100 +6806,580 @@ html.force-light .tabbed-code-tab.active {
 
 /* ════════════════════════════════════════════════
    Instance page (platform/instance) — tenant mgmt
+   Mock reference: apps/web/mocks/instance-states.html
    ════════════════════════════════════════════════ */
-.instance-view h2 {
-	font-family: var(--font-heading-stack);
-	font-size: 18px;
-	font-weight: 500;
-	letter-spacing: -0.02em;
-	margin: 0;
+
+/* ── Status banner (trial/expiring/resource/suspended) ── */
+.instance-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 11px 14px;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	font-size: 13px;
+	margin-bottom: 20px;
 }
-.instance-view h3 {
+.instance-banner .banner-body {
+	flex: 1;
+	line-height: 1.45;
+}
+.instance-banner .banner-body strong {
+	font-weight: 500;
+}
+.instance-banner .banner-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+.instance-banner.info {
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
+}
+.instance-banner.info .banner-dot {
+	background: var(--accent);
+}
+.instance-banner.warning {
+	border-color: rgba(234, 179, 8, 0.3);
+	background: var(--yellow-bg);
+}
+.instance-banner.warning .banner-dot {
+	background: var(--yellow);
+}
+.instance-banner.danger {
+	border-color: rgba(239, 68, 68, 0.3);
+	background: var(--red-bg);
+}
+.instance-banner.danger .banner-dot {
+	background: var(--red);
+}
+
+/* ── Overview key/value table ── */
+.instance-kv {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.instance-kv .row {
+	display: grid;
+	grid-template-columns: 110px 1fr;
+	gap: 16px;
+	padding: 10px 14px;
+	font-size: 13px;
+	border-bottom: 1px solid var(--border);
+}
+.instance-kv .row:last-child {
+	border-bottom: none;
+}
+.instance-kv .row .key {
+	color: var(--text-muted);
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	letter-spacing: 0.01em;
+}
+.instance-kv .row .val {
+	color: var(--text-main);
+}
+.instance-kv .row .val.mono {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+}
+
+/* ── Status pills ── */
+.pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	font-weight: 500;
+	letter-spacing: 0.02em;
+	padding: 3px 8px;
+	border-radius: 999px;
+}
+.pill .dot {
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+}
+.pill-success {
+	color: var(--green);
+	background: var(--green-bg);
+}
+.pill-success .dot {
+	background: var(--green);
+}
+.pill-warn {
+	color: var(--yellow);
+	background: var(--yellow-bg);
+}
+.pill-warn .dot {
+	background: var(--yellow);
+}
+.pill-muted {
+	color: var(--text-muted);
+	background: var(--code-bg);
+}
+.pill-muted .dot {
+	background: var(--text-muted);
+}
+
+/* ── Resource usage gauges ── */
+.instance-gauge {
+	display: grid;
+	grid-template-columns: 60px 1fr auto;
+	align-items: center;
+	gap: 14px;
+	padding: 8px 0;
+	font-size: 12.5px;
+}
+.instance-gauge .label {
+	color: var(--text-muted);
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	letter-spacing: 0.02em;
+}
+.instance-gauge .bar {
+	height: 4px;
+	background: var(--code-bg);
+	border-radius: 2px;
+	overflow: hidden;
+	position: relative;
+}
+.instance-gauge .fill {
+	position: absolute;
+	inset: 0 auto 0 0;
+	background: var(--text-main);
+	border-radius: 2px;
+	transition: width 0.3s;
+}
+.instance-gauge.warn .fill {
+	background: var(--yellow);
+}
+.instance-gauge.danger .fill {
+	background: var(--red);
+}
+.instance-gauge .caption {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-muted);
+	letter-spacing: 0.02em;
+	min-width: 92px;
+	text-align: right;
+}
+.instance-gauge-empty {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 14px;
+	border: 1px dashed var(--border);
+	border-radius: 8px;
+	font-size: 12.5px;
+	color: var(--text-muted);
+	font-style: italic;
+}
+.instance-gauge-empty .pulse {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--text-dim);
+	animation: pulse-dot 1.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+	0%,
+	100% {
+		opacity: 0.3;
+	}
+	50% {
+		opacity: 0.9;
+	}
+}
+
+/* ── Connect snippet (url + tabs + code) ── */
+.connect-url {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	padding: 9px 12px;
+	background: var(--code-block-bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+.connect-url .url {
+	color: var(--text-main);
+}
+.connect-url .copy-btn {
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 4px;
+}
+.connect-url .copy-btn:hover {
+	color: var(--text-main);
+	background: var(--code-bg);
+}
+.connect-tabs {
+	display: flex;
+	gap: 3px;
+	margin-bottom: 8px;
+}
+.connect-tab {
+	padding: 5px 11px;
+	border-radius: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.connect-tab.active {
+	background: var(--code-bg);
+	color: var(--text-main);
+	border-color: var(--border);
+}
+.connect-code {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	background: var(--code-block-bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 14px;
+	line-height: 1.6;
+	color: var(--text-main);
+	white-space: pre-wrap;
+	position: relative;
+}
+.connect-code .masked {
+	background: var(--code-bg);
+	color: var(--text-muted);
+	padding: 1px 6px;
+	border-radius: 3px;
+	letter-spacing: 0.15em;
+}
+.connect-code .reveal-link {
+	display: inline-block;
+	margin-left: 8px;
+	font-family: var(--font-sans-stack);
+	font-size: 11.5px;
+	color: var(--accent);
+	text-decoration: none;
+	cursor: pointer;
+	border-bottom: 1px solid currentColor;
+	opacity: 0.9;
+}
+.connect-code .reveal-link:hover {
+	opacity: 1;
+}
+.connect-code .tok {
+	color: var(--accent);
+}
+
+/* ── Keys section: rotate-per-key rows (extends .settings-key-row) ── */
+.settings-key-row .key-meta {
+	flex: 1;
+}
+.settings-key-row .key-name {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-main);
+	margin-bottom: 2px;
+}
+.settings-key-row .key-hint {
+	font-size: 11.5px;
+	color: var(--text-muted);
+}
+.settings-key-row .key-hint code {
+	font-family: var(--font-mono-stack);
+	background: var(--code-bg);
+	padding: 1px 5px;
+	border-radius: 3px;
+	font-size: 10.5px;
+}
+
+/* ── Plan cards (TrialStart) ── */
+.instance-plan-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 10px;
+	margin-bottom: 20px;
+}
+@media (max-width: 600px) {
+	.instance-plan-grid {
+		grid-template-columns: 1fr;
+	}
+}
+.instance-plan-card {
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 14px 14px 16px;
+	cursor: pointer;
+	transition: border-color 0.15s, background 0.15s;
+	position: relative;
+	background: transparent;
+	text-align: left;
+	font: inherit;
+	color: inherit;
+}
+.instance-plan-card:hover {
+	border-color: var(--border-hover);
+}
+.instance-plan-card[data-selected="true"] {
+	border-color: var(--text-main);
+	background: var(--nudge-bg);
+}
+.instance-plan-card[data-selected="true"]::before {
+	content: "";
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--text-main);
+}
+.instance-plan-card[data-selected="true"] .tag {
+	display: none;
+}
+.instance-plan-card .tag {
+	position: absolute;
+	top: 12px;
+	right: 14px;
+	font-family: var(--font-mono-stack);
+	font-size: 9.5px;
+	font-weight: 500;
+	color: var(--text-muted);
+	opacity: 0.8;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.instance-plan-card .name {
+	font-family: var(--font-heading-stack);
+	font-size: 14px;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	margin-bottom: 2px;
+}
+.instance-plan-card .price {
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--text-muted);
+	margin-bottom: 14px;
+}
+.instance-plan-card .specs {
+	font-size: 11.5px;
+	line-height: 1.7;
+	color: var(--text-muted);
+}
+.instance-plan-card .specs span {
+	color: var(--text-main);
+}
+
+/* ── Provision progress step list ── */
+.provision-progress {
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 22px 22px 20px;
+	background: var(--nudge-bg);
+}
+.provision-progress .step {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	padding: 7px 0;
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	color: var(--text-muted);
+}
+.provision-progress .step .check {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: transparent;
+	border: 1px solid var(--border);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	font-size: 9px;
+}
+.provision-progress .step.done .check {
+	background: var(--text-main);
+	border-color: var(--text-main);
+	color: var(--bg);
+}
+.provision-progress .step.done {
+	color: var(--text-main);
+}
+.provision-progress .step.active .check {
+	border-color: var(--text-main);
+	border-top-color: transparent;
+	animation: spin-check 1s linear infinite;
+}
+.provision-progress .step.active {
+	color: var(--text-main);
+}
+@keyframes spin-check {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ── Key-reveal modal (provision + rotate) ── */
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100;
+	padding: 24px;
+}
+.modal-panel {
+	width: 100%;
+	max-width: 440px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 22px 22px 18px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.modal-title {
 	font-family: var(--font-heading-stack);
 	font-size: 15px;
 	font-weight: 500;
-	letter-spacing: -0.02em;
-	margin: 0 0 8px;
+	letter-spacing: -0.01em;
+	margin-bottom: 3px;
 }
-.instance-view h4 {
+.modal-subtitle {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-bottom: 18px;
+}
+.modal-warn {
+	display: flex;
+	gap: 9px;
+	align-items: flex-start;
+	padding: 10px 12px;
+	border-radius: 6px;
+	background: var(--yellow-bg);
+	border: 1px solid rgba(234, 179, 8, 0.25);
+	font-size: 11.5px;
+	line-height: 1.45;
+	margin-bottom: 16px;
+	color: var(--text-main);
+}
+.modal-warn .icon {
+	flex-shrink: 0;
+	color: var(--yellow);
+	font-weight: 600;
+	font-family: var(--font-mono-stack);
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: var(--yellow-bg);
+	border: 1px solid var(--yellow);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 9px;
+}
+.key-reveal-row {
+	margin-bottom: 14px;
+}
+.key-reveal-row .label {
 	font-family: var(--font-mono-stack);
 	font-size: 10px;
 	font-weight: 600;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.05em;
 	text-transform: uppercase;
 	color: var(--text-muted);
-	margin: 0 0 6px;
+	margin-bottom: 5px;
 }
-.instance-view section > p {
-	color: var(--text-muted);
-	font-size: 13px;
-	margin: 0 0 12px;
-}
-.instance-view code {
+.key-reveal-row .value-box {
+	position: relative;
 	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	color: var(--text-main);
-	background: transparent;
-}
-
-.kv-table {
-	width: 100%;
-	border-collapse: collapse;
-	font-size: 13px;
-}
-.kv-table td {
-	padding: 6px 0;
-	vertical-align: top;
-	color: var(--text-main);
-}
-.kv-table td:first-child {
-	width: 120px;
-	color: var(--text-muted);
-	font-size: 12px;
-}
-
-.alert {
-	font-size: 13px;
-	padding: 10px 12px;
-	border-radius: 6px;
+	font-size: 11.5px;
+	padding: 9px 40px 9px 12px;
+	border-radius: 5px;
+	background: var(--code-block-bg);
 	border: 1px solid var(--border);
+	word-break: break-all;
+	line-height: 1.5;
 	color: var(--text-main);
-	background: transparent;
 }
-.alert-warning {
-	border-color: color-mix(in oklab, var(--text-main), transparent 70%);
+.key-reveal-row .copy-btn {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 3px 7px;
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	color: var(--text-muted);
+	cursor: pointer;
 }
-.alert-error {
-	border-color: color-mix(in oklab, #ef4444, transparent 50%);
-	color: #f87171;
+.key-reveal-row .copy-btn:hover {
+	color: var(--text-main);
+}
+.key-reveal-row .copy-btn.copied {
+	color: var(--green);
+}
+.modal-gate {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 11px 0 14px;
+	font-size: 12px;
+	color: var(--text-main);
+	border-top: 1px solid var(--border);
+	margin-top: 4px;
+	cursor: pointer;
+}
+.modal-gate input[type="checkbox"] {
+	accent-color: var(--text-main);
+	width: 14px;
+	height: 14px;
+}
+.modal-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
 }
 
-.btn {
-	font-family: var(--font-sans-stack);
+/* ── Danger zone cards (suspend + delete) ── */
+.danger-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 12px 14px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+.danger-card .title {
 	font-size: 13px;
 	font-weight: 500;
-	line-height: 1;
-	border: 1px solid var(--border);
-	border-radius: 6px;
-	padding: 8px 14px;
-	background: transparent;
-	color: var(--text-main);
-	cursor: pointer;
-	transition: opacity 0.15s, border-color 0.15s;
+	margin-bottom: 2px;
 }
-.btn:hover:not(:disabled) {
-	border-color: color-mix(in oklab, var(--text-main), transparent 50%);
+.danger-card .desc {
+	font-size: 11.5px;
+	color: var(--text-muted);
 }
-.btn:disabled {
-	opacity: 0.4;
-	cursor: not-allowed;
-}
-.btn.btn-primary {
-	background: var(--text-main);
-	color: var(--bg);
-	border-color: transparent;
-}
-.btn.btn-primary:hover:not(:disabled) {
-	opacity: 0.9;
-	border-color: transparent;
+
+/* ── Small button variant (used in instance surfaces) ── */
+.settings-btn.small {
+	padding: 5px 10px;
+	font-size: 11.5px;
 }

@@ -11,9 +11,11 @@ import { Hono, type MiddlewareHandler } from "hono";
 import { getConfig } from "./config.ts";
 import { containerInspect } from "./docker.ts";
 import {
+	type KeyRotateType,
 	getTenantStatus,
 	resizeTenant,
 	resumeTenant,
+	rotateTenantKeys,
 	suspendTenant,
 } from "./lifecycle.ts";
 import { apiContainerName, isValidSlug } from "./names.ts";
@@ -21,7 +23,11 @@ import { type PlanId, isValidPlanId } from "./plans.ts";
 import { provisionTenant } from "./provision.ts";
 import { measureStorageMb } from "./storage.ts";
 import { teardownTenant } from "./teardown.ts";
-import { isProvisionError } from "./types.ts";
+import { httpStatusForProvisionError, isProvisionError } from "./types.ts";
+
+function isValidRotateType(v: unknown): v is KeyRotateType {
+	return v === "service" || v === "anon" || v === "both";
+}
 
 function requireSecret(): MiddlewareHandler {
 	const { secret } = getConfig();
@@ -88,11 +94,12 @@ export function buildRoutes(): Hono {
 				return c.json(
 					{
 						error: err.message,
+						code: err.code,
 						stage: err.stage,
 						slug: err.slug,
 						cleanupAttempted: err.cleanupAttempted,
 					},
-					500,
+					httpStatusForProvisionError(err.code),
 				);
 			}
 			throw err;
@@ -132,6 +139,41 @@ export function buildRoutes(): Hono {
 		if (!isValidSlug(slug)) return c.json({ error: "invalid slug" }, 400);
 		await resumeTenant(slug);
 		return c.json({ slug, status: "resumed" });
+	});
+
+	// POST /tenants/:slug/keys/rotate — mint new JWT(s) with bumped gen.
+	// Platform API owns the gen counters; passes newServiceGen + newAnonGen
+	// post-bump. Provisioner recreates the API container w/ new env + mints.
+	app.post("/tenants/:slug/keys/rotate", async (c) => {
+		const slug = c.req.param("slug");
+		if (!isValidSlug(slug)) return c.json({ error: "invalid slug" }, 400);
+		const body = (await c.req.json().catch(() => null)) as {
+			type?: unknown;
+			plan?: unknown;
+			newServiceGen?: unknown;
+			newAnonGen?: unknown;
+		} | null;
+		if (!body) return c.json({ error: "body required" }, 400);
+		if (!isValidRotateType(body.type)) {
+			return c.json({ error: "type must be one of: service, anon, both" }, 400);
+		}
+		if (typeof body.plan !== "string" || !isValidPlanId(body.plan)) {
+			return c.json({ error: "plan required" }, 400);
+		}
+		if (
+			typeof body.newServiceGen !== "number" ||
+			typeof body.newAnonGen !== "number"
+		) {
+			return c.json(
+				{ error: "newServiceGen + newAnonGen required (numbers)" },
+				400,
+			);
+		}
+		const result = await rotateTenantKeys(slug, body.plan, body.type, {
+			serviceGen: body.newServiceGen,
+			anonGen: body.newAnonGen,
+		});
+		return c.json(result);
 	});
 
 	// POST /tenants/:slug/resize — recreate with new plan's limits.

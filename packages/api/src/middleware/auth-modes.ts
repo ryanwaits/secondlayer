@@ -52,6 +52,7 @@ export function staticKeyAuth(): MiddlewareHandler {
 interface TenantJwtPayload {
 	role: "anon" | "service";
 	sub?: string;
+	gen?: number;
 	exp?: number;
 	iat?: number;
 }
@@ -62,6 +63,13 @@ type TenantRole = TenantJwtPayload["role"];
  * Dedicated-mode auth. Requires JWT signed with `TENANT_JWT_SECRET` using
  * HS256. Sets `c.var.tenantRole` to `"anon"` or `"service"`. Anon keys are
  * allowed for GET requests only; non-GET requires `service`.
+ *
+ * The `gen` claim is matched against `SERVICE_GEN` / `ANON_GEN` env vars,
+ * which the provisioner bumps on key rotation and injects at container
+ * create time. Mismatched gen = token issued before the last rotation =
+ * 401. Missing `gen` claim is treated as gen=1 (pre-rotation grandfathered
+ * tokens; no prior version of this API shipped `gen` so there's no legacy
+ * to break).
  */
 export function dedicatedAuth(): MiddlewareHandler {
 	return async (c, next) => {
@@ -71,6 +79,9 @@ export function dedicatedAuth(): MiddlewareHandler {
 				"TENANT_JWT_SECRET env var is required in dedicated mode",
 			);
 		}
+		const serviceGen = Number.parseInt(process.env.SERVICE_GEN ?? "1", 10);
+		const anonGen = Number.parseInt(process.env.ANON_GEN ?? "1", 10);
+
 		const auth = c.req.header("authorization");
 		if (!auth?.startsWith("Bearer ")) {
 			throw new AuthenticationError("Missing or invalid Authorization header");
@@ -92,6 +103,12 @@ export function dedicatedAuth(): MiddlewareHandler {
 
 		if (payload.role !== "anon" && payload.role !== "service") {
 			throw new AuthenticationError("Invalid role claim");
+		}
+
+		const expectedGen = payload.role === "service" ? serviceGen : anonGen;
+		const tokenGen = payload.gen ?? 1;
+		if (tokenGen !== expectedGen) {
+			throw new AuthenticationError("Token has been rotated");
 		}
 
 		// Anon keys are read-only; gate non-GET methods.

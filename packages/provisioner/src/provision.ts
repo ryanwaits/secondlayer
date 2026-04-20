@@ -5,6 +5,7 @@ import {
 	type ContainerSpec,
 	containerCreate,
 	containerStart,
+	networkConnectWithAlias,
 	networkEnsure,
 	pullImage,
 	volumeEnsure,
@@ -25,7 +26,11 @@ import {
 import { type PlanId, getPlan } from "./plans.ts";
 import { buildSourceReadonlyUrl } from "./readonly-role.ts";
 import { teardownTenant } from "./teardown.ts";
-import type { ProvisionError, TenantResources } from "./types.ts";
+import {
+	type ProvisionError,
+	type TenantResources,
+	classifyProvisionError,
+} from "./types.ts";
 
 export interface ProvisionOptions {
 	accountId: string;
@@ -62,6 +67,21 @@ export async function provisionTenant(
 		await stage("network", slug, async () => {
 			await networkEnsure(NETWORK_TENANTS);
 			await networkEnsure(NETWORK_SOURCE);
+			// Shared platform postgres needs to be reachable as `postgres:5432`
+			// from tenant containers on sl-source. Compose does this in
+			// docker-compose.hetzner.yml, but this connect is idempotent
+			// belt-and-suspenders for fresh hosts where compose hasn't yet
+			// declared the alias.
+			await networkConnectWithAlias(
+				NETWORK_SOURCE,
+				"secondlayer-postgres-1",
+				"postgres",
+			).catch((err) => {
+				logger.warn(
+					"Could not attach secondlayer-postgres-1 to sl-source — tenant may fail to reach source DB",
+					{ error: err instanceof Error ? err.message : String(err) },
+				);
+			});
 		});
 
 		// 2. Pull images (idempotent; skipped if cached).
@@ -136,7 +156,10 @@ export async function provisionTenant(
 			await waitForHealthy(procName, 20_000);
 		});
 
-		const { anonKey, serviceKey } = await mintTenantKeys(slug, jwtSecret);
+		const { anonKey, serviceKey } = await mintTenantKeys(slug, jwtSecret, {
+			serviceGen: 1,
+			anonGen: 1,
+		});
 
 		return {
 			slug,
@@ -179,6 +202,7 @@ async function stage<T>(
 		wrapped.stage = name;
 		wrapped.slug = slug;
 		wrapped.cleanupAttempted = false;
+		wrapped.code = classifyProvisionError(name, msg);
 		throw wrapped;
 	}
 }
@@ -186,14 +210,21 @@ async function stage<T>(
 function annotateProvisionError(err: unknown, slug: string): ProvisionError {
 	if (err instanceof Error && "stage" in err) {
 		(err as ProvisionError).cleanupAttempted = true;
+		// `code` is set by `stage()`; keep it if already present.
+		if (!(err as ProvisionError).code) {
+			(err as ProvisionError).code = classifyProvisionError(
+				(err as ProvisionError).stage,
+				err.message,
+			);
+		}
 		return err as ProvisionError;
 	}
-	const wrapped = new Error(
-		err instanceof Error ? err.message : String(err),
-	) as ProvisionError;
+	const msg = err instanceof Error ? err.message : String(err);
+	const wrapped = new Error(msg) as ProvisionError;
 	wrapped.stage = "api";
 	wrapped.slug = slug;
 	wrapped.cleanupAttempted = true;
+	wrapped.code = classifyProvisionError("api", msg);
 	return wrapped;
 }
 
@@ -247,6 +278,8 @@ interface ApiSpecInput {
 	targetDatabaseUrl: string;
 	sourceDatabaseUrl: string;
 	jwtSecret: string;
+	serviceGen?: number;
+	anonGen?: number;
 }
 
 function buildApiSpec(input: ApiSpecInput): ContainerSpec {
@@ -260,6 +293,8 @@ function buildApiSpec(input: ApiSpecInput): ContainerSpec {
 			TARGET_DATABASE_URL: input.targetDatabaseUrl,
 			TENANT_JWT_SECRET: input.jwtSecret,
 			TENANT_SLUG: input.slug,
+			SERVICE_GEN: String(input.serviceGen ?? 1),
+			ANON_GEN: String(input.anonGen ?? 1),
 			PORT: "3800",
 			NODE_ENV: "production",
 			LOG_LEVEL: "info",
