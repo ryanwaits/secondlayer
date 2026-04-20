@@ -1,7 +1,11 @@
 "use client";
 
 import { CopyButton } from "@/components/copy-button";
-import { useApiKeys, useCreateApiKey, useRevokeApiKey } from "@/lib/queries/api-keys";
+import {
+	useApiKeys,
+	useCreateApiKey,
+	useRevokeApiKey,
+} from "@/lib/queries/api-keys";
 import type { ApiKey } from "@/lib/types";
 import { useCallback, useRef, useState } from "react";
 
@@ -71,15 +75,31 @@ export function KeysList({
 
 	return (
 		<>
-			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+			<div
+				style={{
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "space-between",
+					marginBottom: 4,
+				}}
+			>
 				<div>
 					<h1 className="settings-title">API Keys</h1>
-					<p className="settings-desc">Manage keys for authenticating with the secondlayer API. Keep these secret.</p>
+					<p className="settings-desc">
+						Manage keys for authenticating with the secondlayer API. Keep these
+						secret.
+					</p>
 				</div>
 			</div>
 
 			{!showForm && status !== "done" && (
-				<div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+				<div
+					style={{
+						display: "flex",
+						justifyContent: "flex-end",
+						marginBottom: 16,
+					}}
+				>
 					<button
 						type="button"
 						className="settings-btn primary"
@@ -89,7 +109,18 @@ export function KeysList({
 							setTimeout(() => inputRef.current?.focus(), 0);
 						}}
 					>
-						<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8" /></svg>
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 12 12"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.5"
+							strokeLinecap="round"
+							aria-hidden="true"
+						>
+							<path d="M6 2v8M2 6h8" />
+						</svg>
 						Create key
 					</button>
 				</div>
@@ -97,8 +128,18 @@ export function KeysList({
 
 			{/* Inline create form */}
 			{showForm && status !== "done" && (
-				<div style={{ padding: "14px 16px", border: "1px solid var(--border)", borderRadius: 8, marginBottom: 16 }}>
-					<form onSubmit={handleCreate} style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+				<div
+					style={{
+						padding: "14px 16px",
+						border: "1px solid var(--border)",
+						borderRadius: 8,
+						marginBottom: 16,
+					}}
+				>
+					<form
+						onSubmit={handleCreate}
+						style={{ display: "flex", alignItems: "flex-end", gap: 10 }}
+					>
 						<label style={{ flex: 1 }}>
 							<span className="settings-label">Key name</span>
 							<input
@@ -111,10 +152,21 @@ export function KeysList({
 								autoFocus
 							/>
 						</label>
-						<button type="submit" className="settings-btn primary" disabled={status === "creating"}>
+						<button
+							type="submit"
+							className="settings-btn primary"
+							disabled={status === "creating"}
+						>
 							{status === "creating" ? "..." : "Create"}
 						</button>
-						<button type="button" className="settings-btn ghost" onClick={() => { setShowForm(false); setName(""); }}>
+						<button
+							type="button"
+							className="settings-btn ghost"
+							onClick={() => {
+								setShowForm(false);
+								setName("");
+							}}
+						>
 							Cancel
 						</button>
 					</form>
@@ -128,18 +180,77 @@ export function KeysList({
 
 			{/* Success banner */}
 			{status === "done" && newRawKey && (
-				<div style={{ padding: "14px 16px", border: "1px solid var(--green)", borderRadius: 8, marginBottom: 16, background: "var(--green-bg)" }}>
-					<div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-						<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--green)" strokeWidth="2" aria-hidden="true"><path d="M4 8l3 3 5-5" /></svg>
-						<span style={{ fontSize: 13, fontWeight: 500 }}>{name || "Key"} created</span>
+				<div
+					style={{
+						padding: "14px 16px",
+						border: "1px solid var(--green)",
+						borderRadius: 8,
+						marginBottom: 16,
+						background: "var(--green-bg)",
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 8,
+							marginBottom: 8,
+						}}
+					>
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 16 16"
+							fill="none"
+							stroke="var(--green)"
+							strokeWidth="2"
+							aria-hidden="true"
+						>
+							<path d="M4 8l3 3 5-5" />
+						</svg>
+						<span style={{ fontSize: 13, fontWeight: 500 }}>
+							{name || "Key"} created
+						</span>
 						<span style={{ flex: 1 }} />
-						<button type="button" className="settings-btn ghost" onClick={dismissSuccess}>Dismiss</button>
+						<button
+							type="button"
+							className="settings-btn ghost"
+							onClick={dismissSuccess}
+						>
+							Dismiss
+						</button>
 					</div>
-					<div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--code-bg)", borderRadius: 6 }}>
-						<span style={{ flex: 1, fontFamily: "var(--font-mono-stack)", fontSize: 12, wordBreak: "break-all" }}>{newRawKey}</span>
-						<button type="button" className="settings-btn ghost" onClick={handleCopy}>{copied ? "Copied" : "Copy"}</button>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 8,
+							padding: "6px 10px",
+							background: "var(--code-bg)",
+							borderRadius: 6,
+						}}
+					>
+						<span
+							style={{
+								flex: 1,
+								fontFamily: "var(--font-mono-stack)",
+								fontSize: 12,
+								wordBreak: "break-all",
+							}}
+						>
+							{newRawKey}
+						</span>
+						<button
+							type="button"
+							className="settings-btn ghost"
+							onClick={handleCopy}
+						>
+							{copied ? "Copied" : "Copy"}
+						</button>
 					</div>
-					<div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
+					<div
+						style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}
+					>
 						Copy this key now — it won&apos;t be shown again.
 					</div>
 				</div>
@@ -150,7 +261,17 @@ export function KeysList({
 				{keys.length === 0 && !showForm ? (
 					<div className="ov-empty">
 						No API keys yet.{" "}
-						<button type="button" className="ov-section-link" onClick={() => setShowForm(true)} style={{ cursor: "pointer", background: "none", border: "none", font: "inherit" }}>
+						<button
+							type="button"
+							className="ov-section-link"
+							onClick={() => setShowForm(true)}
+							style={{
+								cursor: "pointer",
+								background: "none",
+								border: "none",
+								font: "inherit",
+							}}
+						>
 							Create your first key &rarr;
 						</button>
 					</div>
@@ -160,13 +281,21 @@ export function KeysList({
 							<div className="settings-key-name">{key.name || key.prefix}</div>
 							<div className="settings-key-prefix">{key.prefix}</div>
 							<div className="settings-key-created">
-								{new Date(key.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+								{new Date(key.createdAt).toLocaleDateString("en-US", {
+									month: "short",
+									day: "numeric",
+								})}
 							</div>
 							<button
 								type="button"
 								className="settings-key-revoke"
-								style={key.status !== "active" ? { visibility: "hidden" } : undefined}
-								onClick={() => { if (confirm("Revoke this key? This cannot be undone.")) revokeKey.mutate(key.id); }}
+								style={
+									key.status !== "active" ? { visibility: "hidden" } : undefined
+								}
+								onClick={() => {
+									if (confirm("Revoke this key? This cannot be undone."))
+										revokeKey.mutate(key.id);
+								}}
 							>
 								Revoke
 							</button>
@@ -179,9 +308,31 @@ export function KeysList({
 
 			<div className="settings-section">
 				<div className="settings-section-title">Rate limits</div>
-				<div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
-					Each key allows <span style={{ fontFamily: "var(--font-mono-stack)", fontSize: 12, color: "var(--text-main)", fontWeight: 500 }}>1,000</span> requests per minute.
-					Exceeding this limit returns <span style={{ fontFamily: "var(--font-mono-stack)", fontSize: 12, color: "var(--text-main)" }}>429 Too Many Requests</span>.
+				<div
+					style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}
+				>
+					Each key allows{" "}
+					<span
+						style={{
+							fontFamily: "var(--font-mono-stack)",
+							fontSize: 12,
+							color: "var(--text-main)",
+							fontWeight: 500,
+						}}
+					>
+						1,000
+					</span>{" "}
+					requests per minute. Exceeding this limit returns{" "}
+					<span
+						style={{
+							fontFamily: "var(--font-mono-stack)",
+							fontSize: 12,
+							color: "var(--text-main)",
+						}}
+					>
+						429 Too Many Requests
+					</span>
+					.
 				</div>
 			</div>
 		</>

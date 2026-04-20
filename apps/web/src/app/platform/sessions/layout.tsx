@@ -1,6 +1,9 @@
 "use client";
 
-import { SessionTabBar, SessionTabsProvider } from "@/components/console/tab-bar";
+import {
+	SessionTabBar,
+	SessionTabsProvider,
+} from "@/components/console/tab-bar";
 
 export default function SessionsLayout({
 	children,
@@ -10,7 +13,16 @@ export default function SessionsLayout({
 	return (
 		<SessionTabsProvider>
 			<SessionTabBar />
-			<div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>{children}</div>
+			<div
+				style={{
+					flex: 1,
+					display: "flex",
+					flexDirection: "column",
+					minHeight: 0,
+				}}
+			>
+				{children}
+			</div>
 		</SessionTabsProvider>
 	);
 }

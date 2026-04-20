@@ -104,7 +104,13 @@ export function SubgraphReindexForm({
 						Backfill gaps
 					</button>
 					{message && (
-						<p style={{ marginTop: 12, fontSize: 12, color: "var(--text-muted)" }}>
+						<p
+							style={{
+								marginTop: 12,
+								fontSize: 12,
+								color: "var(--text-muted)",
+							}}
+						>
 							{message}
 						</p>
 					)}
@@ -161,7 +167,13 @@ export function SubgraphReindexForm({
 						Reindex
 					</button>
 					{message && (
-						<p style={{ marginTop: 12, fontSize: 12, color: "var(--text-muted)" }}>
+						<p
+							style={{
+								marginTop: 12,
+								fontSize: 12,
+								color: "var(--text-muted)",
+							}}
+						>
 							{message}
 						</p>
 					)}

@@ -40,10 +40,7 @@ export function useTeamMembers(projectSlug: string) {
 export function useUpdateProject() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: ({
-			slug,
-			data,
-		}: { slug: string; data: Partial<Project> }) =>
+		mutationFn: ({ slug, data }: { slug: string; data: Partial<Project> }) =>
 			fetchJson<Project>(`/api/projects/${slug}`, {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },

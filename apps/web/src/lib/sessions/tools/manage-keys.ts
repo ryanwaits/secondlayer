@@ -10,9 +10,7 @@ export const manageKeys = tool({
 	description:
 		"Revoke or create API keys. Renders a confirmation card in the UI — the user must click to confirm. ALWAYS use this tool (never describe steps in text) when the user wants to revoke or clean up keys. Call check_keys first to show current keys, then call this with the targets.",
 	inputSchema: z.object({
-		action: z
-			.enum(["revoke", "create"])
-			.describe("The action to perform"),
+		action: z.enum(["revoke", "create"]).describe("The action to perform"),
 		targets: z
 			.array(
 				z.object({

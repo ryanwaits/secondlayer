@@ -85,10 +85,9 @@ export async function listRecentSessions(
 		created_at: string;
 	}>
 > {
-	const res = await fetch(
-		`${API_URL}/api/chat-sessions?limit=${limit}`,
-		{ headers: { Authorization: `Bearer ${sessionToken}` } },
-	);
+	const res = await fetch(`${API_URL}/api/chat-sessions?limit=${limit}`, {
+		headers: { Authorization: `Bearer ${sessionToken}` },
+	});
 	if (!res.ok) return [];
 	const data = await res.json();
 	return data.sessions ?? [];
@@ -108,7 +107,12 @@ export async function loadMessages(
 	if (!res.ok) return [];
 	const data = await res.json();
 	return (data.messages ?? []).map(
-		(m: { id: string; role: string; parts: unknown[]; metadata?: unknown }) => ({
+		(m: {
+			id: string;
+			role: string;
+			parts: unknown[];
+			metadata?: unknown;
+		}) => ({
 			id: m.id,
 			role: m.role as UIMessage["role"],
 			parts: m.parts,

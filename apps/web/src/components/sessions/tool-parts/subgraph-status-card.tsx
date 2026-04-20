@@ -71,8 +71,7 @@ export function SubgraphStatusCard({ subgraphs }: SubgraphStatusCardProps) {
 						{s.lastProcessedBlock != null
 							? `block ${s.lastProcessedBlock.toLocaleString()}`
 							: "—"}
-						{s.totalProcessed > 0 &&
-							` · ${formatCount(s.totalProcessed)} rows`}
+						{s.totalProcessed > 0 && ` · ${formatCount(s.totalProcessed)} rows`}
 					</span>
 				</div>
 			))}

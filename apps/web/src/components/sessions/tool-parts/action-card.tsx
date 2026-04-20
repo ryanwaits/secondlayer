@@ -50,9 +50,7 @@ export function ActionCard({
 				<div key={t.id} className="tool-action-row">
 					<div className="tool-action-detail">
 						<span className="tool-status-name">{t.name}</span>
-						{t.reason && (
-							<span className="tool-action-reason">{t.reason}</span>
-						)}
+						{t.reason && <span className="tool-action-reason">{t.reason}</span>}
 					</div>
 					<span className="tool-badge error">{label}</span>
 				</div>

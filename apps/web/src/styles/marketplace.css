@@ -369,10 +369,8 @@
 }
 
 .mkt-btn-primary:hover {
-	box-shadow:
-		0 2px 4px rgba(99, 68, 245, 0.4),
-		0 8px 24px rgba(99, 68, 245, 0.2),
-		inset 0 1px 0 rgba(255, 255, 255, 0.2);
+	box-shadow: 0 2px 4px rgba(99, 68, 245, 0.4), 0 8px 24px
+		rgba(99, 68, 245, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .mkt-btn-count {

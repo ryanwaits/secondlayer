@@ -2,7 +2,6 @@
 // Derived from @secondlayer/shared/schemas — kept as plain strings
 // so the agent can reason about real schema shapes.
 
-
 export function getApiKeyDocs(): string {
 	return `## API Keys
 

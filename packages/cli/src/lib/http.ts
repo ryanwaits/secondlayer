@@ -115,6 +115,30 @@ export async function httpTenant<T>(
 }
 
 /**
+ * Like `httpTenant` but handles the key-rotation race. If the ephemeral JWT
+ * lands at the tenant AFTER a rotation (gen mismatch), the server returns
+ * 401 with `code: "KEY_ROTATED"`. The CLI calls `remint` once and retries.
+ * Second 401 surfaces normally.
+ */
+export async function httpTenantWithRetry<T>(
+	tenantUrl: string,
+	path: string,
+	bearer: string,
+	remint: () => Promise<{ apiUrl: string; ephemeralKey: string }>,
+	opts: HttpOptions = {},
+): Promise<T> {
+	try {
+		return await httpTenant<T>(tenantUrl, path, bearer, opts);
+	} catch (err) {
+		if (err instanceof CliHttpError && err.code === "KEY_ROTATED") {
+			const fresh = await remint();
+			return httpTenant<T>(fresh.apiUrl, path, fresh.ephemeralKey, opts);
+		}
+		throw err;
+	}
+}
+
+/**
  * Platform API request without auth — used by `sl login` before a session
  * exists (magic-link + verify endpoints).
  */

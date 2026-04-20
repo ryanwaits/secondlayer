@@ -35,19 +35,18 @@ export default function CliPage() {
 					code={`bun add -g @secondlayer/cli
 
 sl --version
-sl auth login`}
+sl login`}
 					lang="bash"
 				/>
 
 				<SectionHeading id="auth">Auth</SectionHeading>
 
 				<CodeBlock
-					code={`# Login — magic link, creates API key stored in ~/.secondlayer/config.json
-sl auth login
+					code={`# Login — magic-link email with 6-digit code. Session cached at ~/.secondlayer/session.json.
+sl login
 
-sl auth status
-sl auth rotate
-sl auth logout`}
+sl whoami
+sl logout`}
 					lang="bash"
 				/>
 

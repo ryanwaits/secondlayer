@@ -13,9 +13,7 @@ export interface SessionSummary {
  * Extract a condensed summary of what happened in a session
  * from the message parts. Used for cross-session recall.
  */
-export function extractSessionSummary(
-	messages: UIMessage[],
-): SessionSummary {
+export function extractSessionSummary(messages: UIMessage[]): SessionSummary {
 	const toolCalls: SessionSummary["toolCalls"] = [];
 	const topicSet = new Set<string>();
 

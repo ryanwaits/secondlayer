@@ -1,6 +1,7 @@
 import {
 	AuthenticationError,
 	AuthorizationError,
+	KeyRotatedError,
 } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
 
@@ -108,7 +109,7 @@ export function dedicatedAuth(): MiddlewareHandler {
 		const expectedGen = payload.role === "service" ? serviceGen : anonGen;
 		const tokenGen = payload.gen ?? 1;
 		if (tokenGen !== expectedGen) {
-			throw new AuthenticationError("Token has been rotated");
+			throw new KeyRotatedError();
 		}
 
 		// Anon keys are read-only; gate non-GET methods.

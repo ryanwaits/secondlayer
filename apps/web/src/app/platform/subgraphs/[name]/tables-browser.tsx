@@ -36,7 +36,9 @@ function SchemaView({ columns }: { columns: Record<string, ColumnInfo> }) {
 			</div>
 			{Object.entries(columns).map(([colName, col]) => (
 				<div key={colName} className="sg-schema-col-row">
-					<span className={`sg-col-name${colName.startsWith("_") ? " system" : ""}`}>
+					<span
+						className={`sg-col-name${colName.startsWith("_") ? " system" : ""}`}
+					>
 						{colName}
 					</span>
 					<span className="sg-col-type">{col.type}</span>
@@ -69,9 +71,7 @@ export function SubgraphTablesBrowser({
 	if (!tableNames.length) return null;
 
 	const currentTable = tables[activeTable];
-	const colCount = currentTable
-		? Object.keys(currentTable.columns).length
-		: 0;
+	const colCount = currentTable ? Object.keys(currentTable.columns).length : 0;
 
 	const metaText =
 		view === "schema"

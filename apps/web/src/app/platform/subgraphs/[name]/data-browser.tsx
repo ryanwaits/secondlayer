@@ -171,9 +171,7 @@ export function SubgraphDataBrowser({
 									<tr key={String(row._id ?? row.tx_id ?? row.contract_id)}>
 										{columns.map((col) => (
 											<td key={col}>
-												<span className="mono">
-													{String(row[col] ?? "—")}
-												</span>
+												<span className="mono">{String(row[col] ?? "—")}</span>
 											</td>
 										))}
 									</tr>

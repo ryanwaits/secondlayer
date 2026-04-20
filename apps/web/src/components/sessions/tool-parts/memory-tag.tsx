@@ -34,9 +34,7 @@ export function MemoryRecallCard({ sessions }: MemoryRecallCardProps) {
 			{sessions.map((s) => (
 				<div key={s.id} className="tool-status-row">
 					<div className="tool-action-detail">
-						<span className="tool-status-name">
-							{s.title || "Untitled"}
-						</span>
+						<span className="tool-status-name">{s.title || "Untitled"}</span>
 						<span className="tool-action-reason">{s.summary}</span>
 					</div>
 					<span className="memory-date">{formatDate(s.createdAt)}</span>

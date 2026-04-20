@@ -7,11 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const SUGGESTIONS = [
-	"Check my subgraphs",
-	"Deploy a subgraph",
-	"Show usage",
-];
+const SUGGESTIONS = ["Check my subgraphs", "Deploy a subgraph", "Show usage"];
 
 const GREETINGS = [
 	(n: string) => `What are you building, ${n}?`,
@@ -75,7 +71,8 @@ export default function SessionsPage() {
 	}, []);
 
 	const greeting = useMemo(() => {
-		const name = account?.displayName || account?.email?.split("@")[0] || "there";
+		const name =
+			account?.displayName || account?.email?.split("@")[0] || "there";
 		return pickGreeting(name);
 	}, [account]);
 
@@ -88,7 +85,15 @@ export default function SessionsPage() {
 	);
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 24px", flex: 1 }}>
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				alignItems: "center",
+				padding: "0 24px",
+				flex: 1,
+			}}
+		>
 			<div className="sessions-hero">
 				{/* Logo */}
 				<div className="sessions-brand-mark">
@@ -100,7 +105,11 @@ export default function SessionsPage() {
 
 				<h1 className="sessions-greeting">{greeting}</h1>
 
-				<ChatInput onSend={navigate} placeholder="Message secondlayer..." variant="welcome" />
+				<ChatInput
+					onSend={navigate}
+					placeholder="Message secondlayer..."
+					variant="welcome"
+				/>
 
 				<div className="sessions-chips">
 					{SUGGESTIONS.map((s) => (
@@ -136,7 +145,15 @@ export default function SessionsPage() {
 									className="sessions-recent-delete"
 									onClick={() => deleteSession(s.id)}
 								>
-									<svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+									<svg
+										width="8"
+										height="8"
+										viewBox="0 0 8 8"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="1.2"
+										strokeLinecap="round"
+									>
 										<path d="M1.5 1.5l5 5M6.5 1.5l-5 5" />
 									</svg>
 								</button>

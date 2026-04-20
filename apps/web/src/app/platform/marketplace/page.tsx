@@ -3,12 +3,31 @@ import Link from "next/link";
 import { CATEGORIES, MARKETPLACE_SUBGRAPHS } from "./mock-data";
 
 const TABLE_ICON = (
-	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-		<rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2 7h12" />
+	<svg
+		width="11"
+		height="11"
+		viewBox="0 0 16 16"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="1.5"
+		strokeLinecap="round"
+		aria-hidden="true"
+	>
+		<rect x="2" y="3" width="12" height="10" rx="1.5" />
+		<path d="M2 7h12" />
 	</svg>
 );
 const CHART_ICON = (
-	<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+	<svg
+		width="11"
+		height="11"
+		viewBox="0 0 16 16"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="1.5"
+		strokeLinecap="round"
+		aria-hidden="true"
+	>
 		<path d="M3 12l3-4 3 2 4-5" />
 	</svg>
 );
@@ -29,11 +48,25 @@ export default function MarketplacePage() {
 					{/* Search */}
 					<div className="mp-search-wrap">
 						<span className="mp-search-icon">
-							<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-								<circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5L14 14" />
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								aria-hidden="true"
+							>
+								<circle cx="7" cy="7" r="4.5" />
+								<path d="M10.5 10.5L14 14" />
 							</svg>
 						</span>
-						<input className="mp-search" type="text" placeholder="Search subgraphs..." />
+						<input
+							className="mp-search"
+							type="text"
+							placeholder="Search subgraphs..."
+						/>
 					</div>
 
 					{/* Filters + sort */}
@@ -77,17 +110,21 @@ export default function MarketplacePage() {
 											</span>
 										</div>
 										<div className="mp-card-desc">{sg.description}</div>
-										<div className="mp-card-author">
-											by @{sg.creatorHandle}
-										</div>
+										<div className="mp-card-author">by @{sg.creatorHandle}</div>
 										<div className="mp-card-tags">
 											{sg.tags.map((t) => (
-												<span key={t} className="mp-tag">{t}</span>
+												<span key={t} className="mp-tag">
+													{t}
+												</span>
 											))}
 										</div>
 										<div className="mp-card-stats">
-											<span>{TABLE_ICON} {sg.tables} tables</span>
-											<span>{CHART_ICON} {sg.queriesWeek} queries/7d</span>
+											<span>
+												{TABLE_ICON} {sg.tables} tables
+											</span>
+											<span>
+												{CHART_ICON} {sg.queriesWeek} queries/7d
+											</span>
 										</div>
 									</Link>
 								))}

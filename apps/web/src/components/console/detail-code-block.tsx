@@ -86,9 +86,7 @@ export function DetailCodeBlock({
 					{actions}
 				</div>
 			</div>
-			<div className="sg-code-body">
-				{children || <code>{code}</code>}
-			</div>
+			<div className="sg-code-body">{children || <code>{code}</code>}</div>
 		</div>
 	);
 }

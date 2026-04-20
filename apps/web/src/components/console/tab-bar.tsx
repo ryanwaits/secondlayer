@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useState,
+} from "react";
 
 const STORAGE_KEY = "sl-session-tabs";
 
@@ -46,7 +52,9 @@ function saveTabs(tabs: Tab[]) {
 	} catch {}
 }
 
-export function SessionTabsProvider({ children }: { children: React.ReactNode }) {
+export function SessionTabsProvider({
+	children,
+}: { children: React.ReactNode }) {
 	const [tabs, setTabs] = useState<Tab[]>([]);
 
 	// Hydrate from sessionStorage on mount
@@ -60,12 +68,19 @@ export function SessionTabsProvider({ children }: { children: React.ReactNode })
 	}, [tabs]);
 
 	const addTab = useCallback((tab: Tab) => {
-		setTabs((prev) => (prev.some((t) => t.id === tab.id) ? prev : [...prev, tab]));
+		setTabs((prev) =>
+			prev.some((t) => t.id === tab.id) ? prev : [...prev, tab],
+		);
 	}, []);
 
-	const updateTab = useCallback((id: string, updates: Partial<Pick<Tab, "label">>) => {
-		setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
-	}, []);
+	const updateTab = useCallback(
+		(id: string, updates: Partial<Pick<Tab, "label">>) => {
+			setTabs((prev) =>
+				prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+			);
+		},
+		[],
+	);
 
 	const removeTab = useCallback((id: string) => {
 		setTabs((prev) => prev.filter((t) => t.id !== id));
@@ -100,8 +115,7 @@ export function SessionTabBar() {
 		<div className="session-tab-bar">
 			{tabs.map((tab, i) => {
 				const active =
-					pathname === tab.href ||
-					pathname === `/platform${tab.href}`;
+					pathname === tab.href || pathname === `/platform${tab.href}`;
 				return (
 					<Link
 						key={tab.id}
@@ -118,7 +132,15 @@ export function SessionTabBar() {
 								handleClose(tab.id, i);
 							}}
 						>
-							<svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+							<svg
+								width="8"
+								height="8"
+								viewBox="0 0 8 8"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.2"
+								strokeLinecap="round"
+							>
 								<path d="M1.5 1.5l5 5M6.5 1.5l-5 5" />
 							</svg>
 						</button>
@@ -127,7 +149,15 @@ export function SessionTabBar() {
 			})}
 
 			<Link href="/sessions" className="session-tab-new" title="New session">
-				<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+				<svg
+					width="12"
+					height="12"
+					viewBox="0 0 12 12"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+				>
 					<path d="M6 2v8M2 6h8" />
 				</svg>
 			</Link>

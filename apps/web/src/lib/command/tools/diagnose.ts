@@ -5,9 +5,7 @@ export const diagnose = tool({
 	description:
 		"Diagnose the health of a subgraph. The resource data is in your context (instructions). Analyze the resources for: error state, stalled/behind chain tip (>50 blocks). Returns a reminder to analyze — use the answer tool with your diagnosis.",
 	inputSchema: z.object({
-		resourceType: z
-			.enum(["subgraph"])
-			.describe("Type of resource to diagnose"),
+		resourceType: z.enum(["subgraph"]).describe("Type of resource to diagnose"),
 		resourceId: z
 			.string()
 			.optional()

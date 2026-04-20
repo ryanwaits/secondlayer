@@ -195,7 +195,10 @@ export function SubgraphUrlSection({ tables, apiKeyPrefix }: Props) {
 
 	// Extract subgraph name from path for SDK example
 	const pathParts = relativePath.split("/").filter(Boolean);
-	const subgraphSlug = pathParts.length >= 2 ? pathParts[pathParts.length - 2] : pathParts[0] ?? "";
+	const subgraphSlug =
+		pathParts.length >= 2
+			? pathParts[pathParts.length - 2]
+			: (pathParts[0] ?? "");
 
 	return (
 		<DetailSection title={title}>

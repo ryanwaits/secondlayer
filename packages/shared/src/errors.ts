@@ -7,6 +7,12 @@ export const ErrorCodes = {
 	FORBIDDEN: "FORBIDDEN",
 	VERSION_CONFLICT: "VERSION_CONFLICT",
 	NOT_FOUND: "NOT_FOUND",
+	// Tenant lifecycle (CLI surfaces these verbatim)
+	KEY_ROTATED: "KEY_ROTATED",
+	TRIAL_EXPIRED: "TRIAL_EXPIRED",
+	TENANT_SUSPENDED: "TENANT_SUSPENDED",
+	NO_TENANT_FOR_PROJECT: "NO_TENANT_FOR_PROJECT",
+	INSTANCE_EXISTS: "INSTANCE_EXISTS",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -97,6 +103,24 @@ export class VersionConflictError extends SecondLayerError {
 	}
 }
 
+export class KeyRotatedError extends SecondLayerError {
+	constructor(message = "Token has been rotated") {
+		super("KEY_ROTATED", message);
+	}
+}
+
+export class TrialExpiredError extends SecondLayerError {
+	constructor(message: string) {
+		super("TRIAL_EXPIRED", message);
+	}
+}
+
+export class TenantSuspendedError extends SecondLayerError {
+	constructor(message = "Instance is suspended") {
+		super("TENANT_SUSPENDED", message);
+	}
+}
+
 /** Error code → HTTP status. Used by API middleware for code-based matching
  *  (avoids cross-bundle instanceof failures from bunup class duplication). */
 type MappedCode = Extract<
@@ -107,14 +131,27 @@ type MappedCode = Extract<
 	| "FORBIDDEN"
 	| "NOT_FOUND"
 	| "VALIDATION_ERROR"
+	| "KEY_ROTATED"
+	| "TRIAL_EXPIRED"
+	| "TENANT_SUSPENDED"
+	| "NO_TENANT_FOR_PROJECT"
+	| "INSTANCE_EXISTS"
 >;
-export const CODE_TO_STATUS: Record<MappedCode, 400 | 401 | 403 | 404 | 429> = {
+export const CODE_TO_STATUS: Record<
+	MappedCode,
+	400 | 401 | 402 | 403 | 404 | 409 | 423 | 429
+> = {
 	AUTHENTICATION_ERROR: 401,
 	AUTHORIZATION_ERROR: 403,
 	RATE_LIMIT_ERROR: 429,
 	FORBIDDEN: 403,
 	NOT_FOUND: 404,
 	VALIDATION_ERROR: 400,
+	KEY_ROTATED: 401,
+	TRIAL_EXPIRED: 402,
+	TENANT_SUSPENDED: 423,
+	NO_TENANT_FOR_PROJECT: 404,
+	INSTANCE_EXISTS: 409,
 } as const;
 
 export function getErrorMessage(err: unknown): string {

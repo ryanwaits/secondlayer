@@ -6,7 +6,11 @@ interface DetailSectionProps {
 	children: ReactNode;
 }
 
-export function DetailSection({ title, actions, children }: DetailSectionProps) {
+export function DetailSection({
+	title,
+	actions,
+	children,
+}: DetailSectionProps) {
 	return (
 		<div className="sg-detail-section">
 			<div className="sg-detail-header">

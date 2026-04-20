@@ -11,10 +11,7 @@ export function createQuerySubgraph(sessionToken: string) {
 			tableName: z.string().describe("Name of the table to query"),
 			limit: z.number().default(10).describe("Number of rows to return"),
 			sort: z.string().optional().describe("Column to sort by"),
-			order: z
-				.enum(["asc", "desc"])
-				.default("desc")
-				.describe("Sort order"),
+			order: z.enum(["asc", "desc"]).default("desc").describe("Sort order"),
 		}),
 		execute: async ({ subgraphName, tableName, limit, sort, order }) => {
 			const params = new URLSearchParams({

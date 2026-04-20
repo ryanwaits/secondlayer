@@ -9,7 +9,13 @@ interface IndexRowProps {
 	stats?: { label: string; value: string }[];
 }
 
-export function IndexRow({ href, name, badge, description, stats }: IndexRowProps) {
+export function IndexRow({
+	href,
+	name,
+	badge,
+	description,
+	stats,
+}: IndexRowProps) {
 	return (
 		<Link href={href} className="index-row">
 			<span className="index-row-name">{name}</span>

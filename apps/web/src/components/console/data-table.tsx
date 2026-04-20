@@ -49,9 +49,7 @@ export function DataTable<T extends Record<string, unknown>>({
 									.filter(Boolean)
 									.join(" ")}
 							>
-								{col.render
-									? col.render(row)
-									: (row[col.key] as ReactNode)}
+								{col.render ? col.render(row) : (row[col.key] as ReactNode)}
 							</td>
 						))}
 					</tr>

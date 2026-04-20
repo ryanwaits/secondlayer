@@ -45,7 +45,10 @@ export const errorHandler: ErrorHandler = (error, c) => {
 	if ("code" in error && typeof error.code === "string") {
 		const code = error.code;
 		const status = (
-			CODE_TO_STATUS as Record<string, 400 | 401 | 403 | 404 | 429>
+			CODE_TO_STATUS as Record<
+				string,
+				400 | 401 | 402 | 403 | 404 | 409 | 423 | 429
+			>
 		)[code];
 		if (status) {
 			return c.json({ error: error.message, code }, status);

@@ -15,7 +15,7 @@ const STEPS: Step[] = [
 	{
 		label: "Install the CLI",
 		desc: "Install the Secondlayer CLI and authenticate with your account.",
-		code: "npm i -g @secondlayer/cli && sl auth login",
+		code: "npm i -g @secondlayer/cli && sl login",
 	},
 	{
 		label: "Deploy your first subgraph",

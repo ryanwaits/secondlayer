@@ -34,7 +34,16 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 						>
 							{p.name}
 							<span className="org-popover-check">
-								<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+								<svg
+									width="12"
+									height="12"
+									viewBox="0 0 16 16"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
 									<path d="M3 8.5l3.5 3.5 6.5-8" />
 								</svg>
 							</span>
@@ -42,7 +51,15 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 					))}
 					<div className="org-popover-divider" />
 					<div className="org-popover-create" onClick={() => setOpen(false)}>
-						<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 12 12"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.5"
+							strokeLinecap="round"
+						>
 							<path d="M6 2v8M2 6h8" />
 						</svg>
 						Create new project
@@ -52,7 +69,15 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 			<div className="org-trigger" onClick={() => setOpen(!open)}>
 				<span className="org-name">{current?.name ?? "my-project"}</span>
 				<span className="org-chevron">
-					<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+					<svg
+						width="10"
+						height="10"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+					>
 						<path d="M4 6l4 4 4-4" />
 					</svg>
 				</span>

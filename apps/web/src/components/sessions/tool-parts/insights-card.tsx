@@ -24,7 +24,15 @@ export function InsightsCard({ insights }: InsightsCardProps) {
 	return (
 		<div className="tool-card">
 			<div className="tool-card-header">
-				<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+				<svg
+					width="12"
+					height="12"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+				>
 					<circle cx="8" cy="8" r="6" />
 					<path d="M8 5v3" />
 					<circle cx="8" cy="11" r="0.5" fill="currentColor" />

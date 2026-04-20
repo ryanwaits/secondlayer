@@ -166,16 +166,12 @@ function PaletteResults({
 }) {
 	if (query && results.length === 0) {
 		return (
-			<div className="palette-empty">
-				No results for &ldquo;{query}&rdquo;
-			</div>
+			<div className="palette-empty">No results for &ldquo;{query}&rdquo;</div>
 		);
 	}
 
 	// Group by category
-	const categories = getActionsByCategory(
-		results.map((r) => r.action),
-	);
+	const categories = getActionsByCategory(results.map((r) => r.action));
 
 	let idx = 0;
 	const elements: React.ReactNode[] = [];

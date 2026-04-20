@@ -10,10 +10,9 @@ export async function GET(req: Request) {
 	}
 
 	try {
-		const res = await fetch(
-			`${API_URL}/api/chat-sessions?limit=10`,
-			{ headers: { Authorization: `Bearer ${sessionToken}` } },
-		);
+		const res = await fetch(`${API_URL}/api/chat-sessions?limit=10`, {
+			headers: { Authorization: `Bearer ${sessionToken}` },
+		});
 		if (!res.ok) return NextResponse.json({ sessions: [] });
 		const data = await res.json();
 		return NextResponse.json({ sessions: data.sessions ?? [] });

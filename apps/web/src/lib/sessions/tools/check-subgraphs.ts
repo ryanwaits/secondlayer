@@ -19,9 +19,7 @@ export function createCheckSubgraphs(sessionToken: string) {
 				{ sessionToken },
 			);
 			const all = data.data ?? [];
-			const filtered = name
-				? all.filter((s) => s.name === name)
-				: all;
+			const filtered = name ? all.filter((s) => s.name === name) : all;
 
 			return {
 				subgraphs: filtered.map((s) => ({

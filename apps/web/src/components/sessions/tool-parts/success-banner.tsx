@@ -5,7 +5,10 @@ interface SuccessBannerProps {
 	tone?: "success" | "error" | "info";
 }
 
-export function SuccessBanner({ message, tone = "success" }: SuccessBannerProps) {
+export function SuccessBanner({
+	message,
+	tone = "success",
+}: SuccessBannerProps) {
 	return (
 		<div className={`tool-success-banner tone-${tone}`}>
 			<svg

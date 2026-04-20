@@ -53,7 +53,9 @@ export function TopbarProvider({ children }: { children: React.ReactNode }) {
 		return () => clearInterval(id);
 	}, []);
 
-	const refreshLabel = REFRESH_OPTIONS.find((o) => o.value === autoRefresh)?.label ?? "Auto-refresh off";
+	const refreshLabel =
+		REFRESH_OPTIONS.find((o) => o.value === autoRefresh)?.label ??
+		"Auto-refresh off";
 
 	return (
 		<TopbarCtx.Provider

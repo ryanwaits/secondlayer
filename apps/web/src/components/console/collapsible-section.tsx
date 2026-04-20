@@ -19,10 +19,7 @@ export function CollapsibleSection({
 
 	return (
 		<div className={`ov-section${open ? "" : " collapsed"}`}>
-			<div
-				className="ov-section-header"
-				onClick={() => setOpen(!open)}
-			>
+			<div className="ov-section-header" onClick={() => setOpen(!open)}>
 				<span className="ov-section-chevron">
 					<svg
 						width="12"
@@ -37,9 +34,7 @@ export function CollapsibleSection({
 					</svg>
 				</span>
 				<span className="ov-section-title">{title}</span>
-				{count != null && (
-					<span className="ov-section-count">{count}</span>
-				)}
+				{count != null && <span className="ov-section-count">{count}</span>}
 			</div>
 			<div className="ov-section-body">{children}</div>
 		</div>

@@ -15,7 +15,8 @@ export const MARKETPLACE_SUBGRAPHS: MarketplaceSubgraph[] = [
 	{
 		slug: "velar-dex",
 		name: "velar-dex",
-		description: "Velar DEX trading data — swaps, liquidity pool changes, and volume by pair across all Velar markets.",
+		description:
+			"Velar DEX trading data — swaps, liquidity pool changes, and volume by pair across all Velar markets.",
 		creator: "James",
 		creatorHandle: "jamesbuilds",
 		status: "syncing",
@@ -27,7 +28,8 @@ export const MARKETPLACE_SUBGRAPHS: MarketplaceSubgraph[] = [
 	{
 		slug: "sbtc-yield-vaults",
 		name: "sbtc-yield-vaults",
-		description: "sBTC yield vault deposits, withdrawals, and APY snapshots across DeFi protocols integrating sBTC.",
+		description:
+			"sBTC yield vault deposits, withdrawals, and APY snapshots across DeFi protocols integrating sBTC.",
 		creator: "StacksDev",
 		creatorHandle: "stacksdev",
 		status: "active",
@@ -39,7 +41,8 @@ export const MARKETPLACE_SUBGRAPHS: MarketplaceSubgraph[] = [
 	{
 		slug: "sbtc-transfers",
 		name: "sbtc-transfers",
-		description: "sBTC peg-in and peg-out tracking — deposit requests, mints, burns, and BTC reserve movements.",
+		description:
+			"sBTC peg-in and peg-out tracking — deposit requests, mints, burns, and BTC reserve movements.",
 		creator: "StacksDev",
 		creatorHandle: "stacksdev",
 		status: "active",
@@ -51,7 +54,8 @@ export const MARKETPLACE_SUBGRAPHS: MarketplaceSubgraph[] = [
 	{
 		slug: "alex-orderbook",
 		name: "alex-orderbook",
-		description: "ALEX DEX orderbook data — limit orders, fills, and liquidity depth across all trading pairs.",
+		description:
+			"ALEX DEX orderbook data — limit orders, fills, and liquidity depth across all trading pairs.",
 		creator: "Alex Lab",
 		creatorHandle: "alexlab",
 		status: "active",
@@ -63,7 +67,8 @@ export const MARKETPLACE_SUBGRAPHS: MarketplaceSubgraph[] = [
 	{
 		slug: "stacking-dao-pool",
 		name: "stacking-dao-pool",
-		description: "StackingDAO liquid stacking pool data — deposits, withdrawals, stSTX supply, and reward distributions.",
+		description:
+			"StackingDAO liquid stacking pool data — deposits, withdrawals, stSTX supply, and reward distributions.",
 		creator: "StackingDAO",
 		creatorHandle: "stackingdao",
 		status: "active",
@@ -75,7 +80,8 @@ export const MARKETPLACE_SUBGRAPHS: MarketplaceSubgraph[] = [
 	{
 		slug: "cycle-rewards",
 		name: "cycle-rewards",
-		description: "Per-cycle stacking reward tracking — BTC rewards by stacker, pool distributions, and APY calculations.",
+		description:
+			"Per-cycle stacking reward tracking — BTC rewards by stacker, pool distributions, and APY calculations.",
 		creator: "Ryan Waits",
 		creatorHandle: "ryanwaits",
 		status: "active",
@@ -86,4 +92,13 @@ export const MARKETPLACE_SUBGRAPHS: MarketplaceSubgraph[] = [
 	},
 ];
 
-export const CATEGORIES = ["All", "DeFi", "Stacking", "NFTs", "Identity", "Governance", "Analytics", "Tokens"];
+export const CATEGORIES = [
+	"All",
+	"DeFi",
+	"Stacking",
+	"NFTs",
+	"Identity",
+	"Governance",
+	"Analytics",
+	"Tokens",
+];

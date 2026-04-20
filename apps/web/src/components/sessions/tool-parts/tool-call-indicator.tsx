@@ -57,12 +57,8 @@ export function ToolCallIndicator({
 			</div>
 			{expanded && !isLoading && (
 				<div className="tool-call-detail">
-					{input !== undefined && (
-						<div>input: {formatCompact(input)}</div>
-					)}
-					{output !== undefined && (
-						<div>output: {formatCompact(output)}</div>
-					)}
+					{input !== undefined && <div>input: {formatCompact(input)}</div>}
+					{output !== undefined && <div>output: {formatCompact(output)}</div>}
 				</div>
 			)}
 		</>
