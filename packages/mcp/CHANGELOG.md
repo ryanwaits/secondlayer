@@ -1,5 +1,12 @@
 # @secondlayer/mcp
 
+## 1.1.0
+
+### Minor Changes
+
+- [`437ffff`](https://github.com/ryanwaits/secondlayer/commit/437fffff1dda97ee9e226f5b7b165d68d341128f) Thanks [@ryanwaits](https://github.com/ryanwaits)! - - Accept `SL_SERVICE_KEY` as the canonical env var name. `SECONDLAYER_API_KEY` keeps working as a deprecated alias and logs a one-time warning per process so existing integrations don't break.
+  - Register workflow tools on the MCP server (`workflows_list`, `workflows_get`, `workflows_trigger`, `workflows_pause`, `workflows_resume`, `workflows_runs`, and the deploy/scaffold/rollback variants). Previously defined but not wired into `createServer`.
+
 ## 1.0.2
 
 ### Patch Changes

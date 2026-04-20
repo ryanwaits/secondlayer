@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 3.1.1
+
+### Patch Changes
+
+- [`ca3feb0`](https://github.com/ryanwaits/secondlayer/commit/ca3feb00f85a58fa899ce873e9d2e0b7828c928c) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Ship a README with the CLI — documents the current command surface (auth, project, instance, subgraphs) + env vars + typed error codes. The npm page previously had no README because `README.md` wasn't in the package's `files` array.
+
 ## 3.1.0
 
 ### Minor Changes
