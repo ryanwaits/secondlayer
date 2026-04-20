@@ -359,9 +359,8 @@ app.post("/subgraphs/:name/fork", requireAuth(), async (c) => {
 	// Auth context
 	const apiKeyId = getApiKeyId(c);
 	const accountId = getAccountId(c);
-	const accountPrefix = accountId?.slice(0, 8);
 
-	// Name collision check (account-scoped)
+	// Name collision check (tenant-scoped — one subgraph namespace per tenant DB)
 	const existing = await getSubgraph(db, newName, accountId);
 	if (existing) {
 		return c.json({ error: `Subgraph "${newName}" already exists` }, 409);
@@ -395,9 +394,7 @@ app.post("/subgraphs/:name/fork", requireAuth(), async (c) => {
 	def.name = newName;
 
 	// Deploy schema (creates PG schema + tables + registers subgraph)
-	const schemaName = accountPrefix
-		? pgSchemaName(newName, accountPrefix)
-		: pgSchemaName(newName);
+	const schemaName = pgSchemaName(newName);
 
 	const { deploySchema } = await import("@secondlayer/subgraphs");
 	const result = await deploySchema(db, def, newHandlerPath, {

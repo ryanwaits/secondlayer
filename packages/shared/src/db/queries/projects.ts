@@ -29,16 +29,18 @@ export async function getProjectBySlug(
 export async function getTeamMembers(
 	db: Kysely<Database>,
 	projectId: string,
-): Promise<Array<{
-	id: string;
-	role: string;
-	created_at: Date;
-	account_id: string;
-	email: string;
-	display_name: string | null;
-	avatar_url: string | null;
-	account_slug: string | null;
-}>> {
+): Promise<
+	Array<{
+		id: string;
+		role: string;
+		created_at: Date;
+		account_id: string;
+		email: string;
+		display_name: string | null;
+		avatar_url: string | null;
+		account_slug: string | null;
+	}>
+> {
 	return db
 		.selectFrom("team_members")
 		.innerJoin("accounts", "accounts.id", "team_members.account_id")

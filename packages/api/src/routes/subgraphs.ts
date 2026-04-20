@@ -141,11 +141,7 @@ app.post("/", async (c) => {
 	const apiKeyId = getApiKeyId(c);
 	const accountId = getAccountId(c);
 
-	// Compute account-scoped schema name using first 8 chars of account_id
-	const accountPrefix = accountId?.slice(0, 8);
-	const schemaName = accountPrefix
-		? pgSchemaName(name, accountPrefix)
-		: pgSchemaName(name);
+	const schemaName = pgSchemaName(name);
 
 	const { deploySchema } = await import("@secondlayer/subgraphs");
 	const db = getDb();

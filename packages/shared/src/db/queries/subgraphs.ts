@@ -4,19 +4,13 @@ import type { Database, Subgraph } from "../types.ts";
 
 /**
  * Convert a subgraph name to its PostgreSQL schema name.
- * With accountPrefix (first 8 chars of account_id): "subgraph_{prefix}_{name}"
- * Without prefix: "subgraph_{name}" (backward compat / local dev)
+ * Every tenant DB has its own isolated schema namespace, so there's no
+ * account-prefix disambiguation needed — every subgraph within a tenant
+ * just maps to `subgraph_{safeName}`.
  */
-export function pgSchemaName(
-	subgraphName: string,
-	accountPrefix?: string,
-): string {
+export function pgSchemaName(subgraphName: string): string {
 	const safeName = subgraphName.replace(/-/g, "_");
-	if (!accountPrefix) {
-		return `subgraph_${safeName}`;
-	}
-	const safePrefix = accountPrefix.replace(/-/g, "_");
-	return `subgraph_${safePrefix}_${safeName}`;
+	return `subgraph_${safeName}`;
 }
 
 export async function registerSubgraph(
@@ -44,7 +38,6 @@ export async function registerSubgraph(
 			definition: jsonb(data.definition) as any,
 			schema_hash: data.schemaHash,
 			handler_path: data.handlerPath,
-			api_key_id: data.apiKeyId ?? null,
 			account_id: data.accountId ?? "",
 			handler_code: data.handlerCode ?? null,
 			source_code: data.sourceCode ?? null,
@@ -60,7 +53,6 @@ export async function registerSubgraph(
 				handler_path: data.handlerPath,
 				handler_code: data.handlerCode ?? null,
 				source_code: data.sourceCode ?? null,
-				api_key_id: data.apiKeyId ?? null,
 				schema_name: data.schemaName ?? null,
 				start_block: data.startBlock ?? 0,
 				updated_at: new Date(),

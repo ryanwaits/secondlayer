@@ -147,26 +147,5 @@ services:
     restart: unless-stopped
     profiles: ["platform"]
 
-  # Subgraph processor service
-  subgraph-processor:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: api
-    command: ["bun", "run", "packages/subgraphs/src/service.ts"]
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      NODE_ENV: production
-      DATA_DIR: /data
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      disable: true
-    restart: unless-stopped
-
 volumes:
   postgres_data:

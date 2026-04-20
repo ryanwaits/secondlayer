@@ -462,14 +462,14 @@ Order:
 |---|---|---|
 | 1 | `git fetch origin main; git reset --hard origin/main` | Source update |
 | 2 | `exec bash ...` (re-exec self) | Avoids bash buffering old script content against new compose files |
-| 3 | `docker compose build --no-cache api indexer worker subgraph-processor agent migrate` | Rebuild images |
-| 4 | `docker compose stop api subgraph-processor agent worker` | Only services that hold locks on migrated tables. Indexer stays up (its tables — blocks/transactions/events/index_progress — are independent of subgraphs/workflow_* tables that migrations touch). |
+| 3 | `docker compose build --no-cache api indexer worker agent migrate` + platform-profile `provisioner` | Rebuild images |
+| 4 | `docker compose stop api agent worker` | Only services that hold locks on migrated tables. Indexer stays up (its tables — blocks/transactions/events/index_progress — are independent of control-plane tables that migrations touch). |
 | 5 | `docker rm -f secondlayer-view-processor-1 secondlayer-workflow-runner-1` | Force-remove orphan containers from removed services — old workflow-runner, etc. |
 | 6 | `docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com.docker.compose.service=migrate" -q \| xargs -r docker rm -f` | Zombie migrate containers from prior deploys killed by SSH timeout — hold kysely's advisory migration lock. |
 | 7 | `pg_terminate_backend(pid)` for every non-self session | TCP-half-closed session cleanup. Indexer (which we kept running) auto-reconnects. |
 | 8 | `docker compose run --rm migrate` | Migrations. The migrate entrypoint sets `statement_timeout=60s` + `lock_timeout=30s` so failure is loud and quick. |
 | 9 | Diagnostic `pg_stat_activity` dump on failure | See who held the lock when we timed out. |
-| 10 | `docker compose up -d --remove-orphans api indexer worker subgraph-processor agent caddy` | Restart |
+| 10 | `docker compose up -d --remove-orphans api indexer worker agent caddy` + platform-profile `provisioner` | Restart |
 | 11 | Curl `/health` with retry | Verify api + indexer come back |
 
 Typical deploy: 60-90s. Failures now surface in ≤60s, not silent 5-min timeouts.
@@ -576,7 +576,6 @@ What's **running right now on the Hetzner app server** (`INSTANCE_MODE=platform`
 | `secondlayer-postgres-1` | Shared indexer + control-plane DB | Will become the "source" DB once dedicated hosting activates |
 | `secondlayer-api-1` | Platform API | All routes mounted including `/api/tenants/*` |
 | `secondlayer-indexer-1` | Block/tx/event ingestion | Writes to shared DB |
-| `secondlayer-subgraph-processor-1` | Shared processor | Will be decommissioned once all users migrate (Sprint 8) |
 | `secondlayer-worker-1` | Storage cron + tenant trial/health crons (latter short-circuit with 0 tenants) | |
 | `secondlayer-agent-1` | AI ops monitoring + Slack | |
 | `secondlayer-caddy-1` | TLS proxy for `api.{BASE_DOMAIN}` + wildcard `*.{BASE_DOMAIN}` on-demand TLS |

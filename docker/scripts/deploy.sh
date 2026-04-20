@@ -27,22 +27,21 @@ fi
 cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
-APP_SERVICES="api indexer worker subgraph-processor agent caddy"
+APP_SERVICES="api indexer worker agent caddy"
+PLATFORM_SERVICES="provisioner"
 
 # Services that hold locks on tables migrations mutate. Indexer stays up
 # because its tables (blocks/transactions/events/index_progress) are
-# independent of the subgraphs/workflow_* tables migrations touch.
-# Worker is stopped because `measureStorage` joins subgraphs -> api_keys
-# hourly and races with ALTER TABLE subgraphs.
-MIGRATION_LOCK_HOLDERS="api subgraph-processor agent worker"
+# independent of control-plane tables that migrations touch.
+MIGRATION_LOCK_HOLDERS="api agent worker"
 
-# Build app images — --no-cache ensures source code changes are always picked up
-# subgraph-processor shares the api target but is listed explicitly for clarity
-$COMPOSE build --no-cache api indexer worker subgraph-processor agent migrate
+# Build app + platform images — --no-cache ensures source changes always land.
+$COMPOSE build --no-cache api indexer worker agent migrate
+$COMPOSE --profile platform build --no-cache provisioner
 
-# Stop only the services that hold locks on migrated tables. DDL will then
-# acquire ACCESS EXCLUSIVE without racing subgraph-processor's 5s poll or
-# the api subgraphs-cache listener. postgres + indexer + stacks-node stay up.
+# Stop only the services that hold locks on migrated tables. DDL then
+# acquires ACCESS EXCLUSIVE without racing the api subgraphs-cache
+# listener. postgres + indexer + stacks-node stay up.
 echo "🛑 Stopping lock-holders so migrations can acquire ACCESS EXCLUSIVE..."
 $COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
 
@@ -87,6 +86,11 @@ docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docke
 # weren't stopped (indexer, worker, caddy) pick up new images via recreate.
 # NEVER touch stacks-node, postgres, hiro-postgres, hiro-api.
 $COMPOSE up -d --remove-orphans $APP_SERVICES
+
+# Platform-mode services (provisioner, behind --profile platform). Must be
+# recreated separately so compose changes to the provisioner land on deploy
+# instead of requiring a manual `--force-recreate provisioner` after.
+$COMPOSE --profile platform up -d --remove-orphans $PLATFORM_SERVICES
 
 # Health check with retry
 check_health() {

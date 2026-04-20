@@ -42,10 +42,6 @@ services:
         limits:
           memory: 2G
 
-  subgraph-processor:
-    volumes:
-      - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
-
   indexer:
     environment:
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}

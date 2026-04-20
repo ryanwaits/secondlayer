@@ -6,7 +6,9 @@ import { type RawBuilder, sql } from "kysely";
  * with ::jsonb casts. This uses sql.raw to inline a properly escaped literal.
  */
 export function jsonb(value: unknown): RawBuilder<unknown> {
-	const escaped = JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? v.toString() : v)).replace(/'/g, "''");
+	const escaped = JSON.stringify(value, (_k, v) =>
+		typeof v === "bigint" ? v.toString() : v,
+	).replace(/'/g, "''");
 	return sql`${sql.raw(`'${escaped}'::jsonb`)}`;
 }
 

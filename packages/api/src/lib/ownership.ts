@@ -1,4 +1,3 @@
-import { ForbiddenError } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
@@ -23,31 +22,23 @@ export async function getAccountKeyIds(
 }
 
 /**
- * Assert the authenticated account owns the given subgraph.
- * Returns the subgraph row on success.
- * Throws 404 if not found, 403 if owned by another account.
+ * Assert the authenticated session has visibility into the given subgraph.
+ * Post-cutover, subgraph routes only mount in dedicated/oss mode — each tenant
+ * DB is its own isolated namespace, so ownership is a no-op (the caller already
+ * proved tenant membership via JWT or static key at middleware time). Returns
+ * the row if it exists, `null` if not.
  */
 export async function assertSubgraphOwnership(
 	db: Kysely<Database>,
 	subgraphName: string,
-	accountId: string | undefined,
+	_accountId: string | undefined,
 ) {
 	const subgraph = await db
 		.selectFrom("subgraphs")
 		.selectAll()
 		.where("name", "=", subgraphName)
 		.executeTakeFirst();
-
-	if (!subgraph) return null;
-
-	// oss/dedicated modes skip ownership — single-tenant context.
-	if (!isPlatformMode()) return subgraph;
-
-	if (accountId && subgraph.account_id && subgraph.account_id !== accountId) {
-		throw new ForbiddenError("Subgraph belongs to another account");
-	}
-
-	return subgraph;
+	return subgraph ?? null;
 }
 
 /** Extract api_key_id from Hono context, or undefined in DEV_MODE */

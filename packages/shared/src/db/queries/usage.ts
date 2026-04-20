@@ -133,9 +133,8 @@ export async function checkLimits(
 
 	const subgraphCount = await db
 		.selectFrom("subgraphs")
-		.innerJoin("api_keys", "subgraphs.api_key_id", "api_keys.id")
 		.select(sql<number>`count(*)`.as("count"))
-		.where("api_keys.account_id", "=", accountId)
+		.where("account_id", "=", accountId)
 		.executeTakeFirst();
 
 	const current = {
@@ -167,9 +166,8 @@ export async function measureStorage(db: Kysely<Database>): Promise<void> {
 	// Get all accounts with subgraphs
 	const accountSubgraphs = await db
 		.selectFrom("subgraphs")
-		.innerJoin("api_keys", "subgraphs.api_key_id", "api_keys.id")
-		.select(["api_keys.account_id", "subgraphs.schema_name"])
-		.where("subgraphs.schema_name", "is not", null)
+		.select(["account_id", "schema_name"])
+		.where("schema_name", "is not", null)
 		.execute();
 
 	// Group schemas by account

@@ -76,10 +76,13 @@ if (mode === "platform") {
 	app.route("/api/admin", adminRouter);
 }
 
-// Resource routes — mounted in every mode.
-// Auth behavior: platform uses session/API-key auth, dedicated uses JWT,
-// oss is pass-through (or static-key when configured).
-const RESOURCE_PATHS = [
+// Resource paths per mode.
+// - Platform: control plane only (accounts, projects, tenants, chat, insights,
+//   auth/logout, marketplace, admin). NO /api/subgraphs — subgraphs live on
+//   per-tenant dedicated containers now.
+// - Dedicated: serves /api/subgraphs on its tenant DB; /api/node read-through.
+// - OSS: full single-tenant deployment.
+const DEDICATED_PATHS = [
 	"/status",
 	"/api/subgraphs",
 	"/api/subgraphs/*",
@@ -87,9 +90,8 @@ const RESOURCE_PATHS = [
 	"/api/node/*",
 ];
 
-// Platform-only resource paths (accounts, insights, projects, chat sessions,
-// auth/logout, tenants — tied to cross-tenant user identity / control plane).
-const PLATFORM_RESOURCE_PATHS = [
+const PLATFORM_PATHS = [
+	"/status",
 	"/api/accounts",
 	"/api/accounts/*",
 	"/api/insights",
@@ -103,10 +105,7 @@ const PLATFORM_RESOURCE_PATHS = [
 	"/api/auth/logout",
 ];
 
-const paths =
-	mode === "platform"
-		? [...RESOURCE_PATHS, ...PLATFORM_RESOURCE_PATHS]
-		: RESOURCE_PATHS;
+const paths = mode === "platform" ? PLATFORM_PATHS : DEDICATED_PATHS;
 
 for (const path of paths) {
 	app.use(path, resourceAuth());
@@ -116,8 +115,12 @@ for (const path of paths) {
 	}
 }
 
-app.route("/api/subgraphs", subgraphsRouter);
-app.route("/api/node", nodeRouter);
+// Subgraph + node routes run in dedicated/oss mode only — platform is a pure
+// control plane post-cutover.
+if (mode !== "platform") {
+	app.route("/api/subgraphs", subgraphsRouter);
+	app.route("/api/node", nodeRouter);
+}
 if (mode === "platform") {
 	app.route("/api/accounts", accountsRouter);
 	app.route("/api/insights", insightsRouter);
@@ -132,73 +135,79 @@ const PORT = Number.parseInt(process.env.PORT || "3800");
 
 logger.info("Starting API service", { port: PORT, mode });
 
-// Start subgraph registry cache (LISTEN for subgraph_changes)
-startSubgraphCache().catch((err) => {
-	logger.warn("Failed to start subgraph cache, subgraphs will load on-demand", {
-		error: String(err),
+// Start subgraph registry cache (LISTEN for subgraph_changes) — only in modes
+// that actually have a `subgraphs` table on their DB (dedicated / oss).
+if (mode !== "platform") {
+	startSubgraphCache().catch((err) => {
+		logger.warn(
+			"Failed to start subgraph cache, subgraphs will load on-demand",
+			{ error: String(err) },
+		);
 	});
-});
+}
 
 const server = Bun.serve({
 	port: PORT,
 	fetch: app.fetch,
 });
 
-// Auto-resume stale reindexes on startup
-(async () => {
-	try {
-		const db = getDb();
-		const stale = await db
-			.selectFrom("subgraphs")
-			.selectAll()
-			.where("status", "=", "reindexing")
-			.execute();
+// Auto-resume stale reindexes on startup — dedicated/oss only (platform has
+// no subgraphs table post-cutover).
+if (mode !== "platform")
+	(async () => {
+		try {
+			const db = getDb();
+			const stale = await db
+				.selectFrom("subgraphs")
+				.selectAll()
+				.where("status", "=", "reindexing")
+				.execute();
 
-		if (stale.length === 0) return;
+			if (stale.length === 0) return;
 
-		logger.info("Found stale reindexing subgraphs, resuming", {
-			count: stale.length,
-			names: stale.map((s) => s.name),
-		});
+			logger.info("Found stale reindexing subgraphs, resuming", {
+				count: stale.length,
+				names: stale.map((s) => s.name),
+			});
 
-		for (const row of stale) {
-			const controller = new AbortController();
-			activeAbortControllers.set(row.name, controller);
+			for (const row of stale) {
+				const controller = new AbortController();
+				activeAbortControllers.set(row.name, controller);
 
-			(async () => {
-				try {
-					const { resumeReindex } = await import("@secondlayer/subgraphs");
+				(async () => {
+					try {
+						const { resumeReindex } = await import("@secondlayer/subgraphs");
 
-					// Write handler file from DB (ensures latest code after redeploys)
-					if (row.handler_path && row.handler_code) {
-						const { mkdirSync, writeFileSync } = await import("node:fs");
-						const { dirname } = await import("node:path");
-						mkdirSync(dirname(row.handler_path), { recursive: true });
-						writeFileSync(row.handler_path, row.handler_code);
+						// Write handler file from DB (ensures latest code after redeploys)
+						if (row.handler_path && row.handler_code) {
+							const { mkdirSync, writeFileSync } = await import("node:fs");
+							const { dirname } = await import("node:path");
+							mkdirSync(dirname(row.handler_path), { recursive: true });
+							writeFileSync(row.handler_path, row.handler_code);
+						}
+
+						const mod = await import(`${row.handler_path}?v=${Date.now()}`);
+						const def = mod.default ?? mod;
+						await resumeReindex(def, {
+							schemaName: row.schema_name ?? row.name,
+							signal: controller.signal,
+						});
+					} catch (err) {
+						logger.error("Failed to resume reindex", {
+							subgraph: row.name,
+							error: String(err),
+						});
+					} finally {
+						activeAbortControllers.delete(row.name);
 					}
-
-					const mod = await import(`${row.handler_path}?v=${Date.now()}`);
-					const def = mod.default ?? mod;
-					await resumeReindex(def, {
-						schemaName: row.schema_name ?? row.name,
-						signal: controller.signal,
-					});
-				} catch (err) {
-					logger.error("Failed to resume reindex", {
-						subgraph: row.name,
-						error: String(err),
-					});
-				} finally {
-					activeAbortControllers.delete(row.name);
-				}
-			})();
+				})();
+			}
+		} catch (err) {
+			logger.error("Failed to check for stale reindexes", {
+				error: String(err),
+			});
 		}
-	} catch (err) {
-		logger.error("Failed to check for stale reindexes", {
-			error: String(err),
-		});
-	}
-})();
+	})();
 
 // Graceful shutdown — abort active reindexes, wait for drain
 const SHUTDOWN_TIMEOUT = 30_000;

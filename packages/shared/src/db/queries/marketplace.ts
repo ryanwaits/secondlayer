@@ -13,14 +13,16 @@ export async function listPublicSubgraphs(
 		search?: string;
 		sort?: "recent" | "popular" | "name";
 	} = {},
-): Promise<{ data: any[]; meta: { total: number; limit: number; offset: number } }> {
+): Promise<{
+	data: any[];
+	meta: { total: number; limit: number; offset: number };
+}> {
 	const limit = Math.min(Math.max(1, opts.limit ?? 50), 100);
 	const offset = Math.max(0, opts.offset ?? 0);
 
 	let query = db
 		.selectFrom("subgraphs")
-		.innerJoin("api_keys", "api_keys.id", "subgraphs.api_key_id")
-		.innerJoin("accounts", "accounts.id", "api_keys.account_id")
+		.innerJoin("accounts", "accounts.id", "subgraphs.account_id")
 		.select([
 			"subgraphs.id",
 			"subgraphs.name",
@@ -36,8 +38,12 @@ export async function listPublicSubgraphs(
 			"subgraphs.forked_from_id",
 			"accounts.display_name",
 			"accounts.slug",
-			sql<number>`(SELECT COALESCE(SUM(query_count), 0) FROM subgraph_usage_daily WHERE subgraph_id = subgraphs.id AND date >= CURRENT_DATE - 7)::int`.as("queries_7d"),
-			sql<number>`(SELECT COUNT(*) FROM subgraphs s2 WHERE s2.forked_from_id = subgraphs.id)::int`.as("fork_count"),
+			sql<number>`(SELECT COALESCE(SUM(query_count), 0) FROM subgraph_usage_daily WHERE subgraph_id = subgraphs.id AND date >= CURRENT_DATE - 7)::int`.as(
+				"queries_7d",
+			),
+			sql<number>`(SELECT COUNT(*) FROM subgraphs s2 WHERE s2.forked_from_id = subgraphs.id)::int`.as(
+				"fork_count",
+			),
 		])
 		.where("subgraphs.is_public", "=", true);
 
@@ -83,10 +89,7 @@ export async function listPublicSubgraphs(
 	if (opts.search) {
 		const term = `%${opts.search}%`;
 		countQuery = countQuery.where((eb) =>
-			eb.or([
-				eb("name", "ilike", term),
-				eb("description", "ilike", term),
-			]),
+			eb.or([eb("name", "ilike", term), eb("description", "ilike", term)]),
 		);
 	}
 
@@ -104,11 +107,13 @@ export async function listPublicSubgraphs(
 /**
  * Get a single public subgraph by name with creator info.
  */
-export async function getPublicSubgraph(db: Kysely<Database>, name: string): Promise<any | undefined> {
+export async function getPublicSubgraph(
+	db: Kysely<Database>,
+	name: string,
+): Promise<any | undefined> {
 	return db
 		.selectFrom("subgraphs")
-		.innerJoin("api_keys", "api_keys.id", "subgraphs.api_key_id")
-		.innerJoin("accounts", "accounts.id", "api_keys.account_id")
+		.innerJoin("accounts", "accounts.id", "subgraphs.account_id")
 		.selectAll("subgraphs")
 		.select(["accounts.display_name", "accounts.slug"])
 		.where("subgraphs.name", "=", name)
@@ -119,7 +124,10 @@ export async function getPublicSubgraph(db: Kysely<Database>, name: string): Pro
 /**
  * Get a creator profile by slug with their public subgraphs.
  */
-export async function getCreatorProfile(db: Kysely<Database>, slug: string): Promise<{ account: any; subgraphs: any[] } | null> {
+export async function getCreatorProfile(
+	db: Kysely<Database>,
+	slug: string,
+): Promise<{ account: any; subgraphs: any[] } | null> {
 	const account = await db
 		.selectFrom("accounts")
 		.select(["id", "display_name", "bio", "avatar_url", "slug"])
@@ -130,7 +138,6 @@ export async function getCreatorProfile(db: Kysely<Database>, slug: string): Pro
 
 	const subgraphs = await db
 		.selectFrom("subgraphs")
-		.innerJoin("api_keys", "api_keys.id", "subgraphs.api_key_id")
 		.select([
 			"subgraphs.id",
 			"subgraphs.name",
@@ -143,9 +150,11 @@ export async function getCreatorProfile(db: Kysely<Database>, slug: string): Pro
 			"subgraphs.start_block",
 			"subgraphs.total_processed",
 			"subgraphs.created_at",
-			sql<number>`(SELECT COALESCE(SUM(query_count), 0) FROM subgraph_usage_daily WHERE subgraph_id = subgraphs.id AND date >= CURRENT_DATE - 7)::int`.as("queries_7d"),
+			sql<number>`(SELECT COALESCE(SUM(query_count), 0) FROM subgraph_usage_daily WHERE subgraph_id = subgraphs.id AND date >= CURRENT_DATE - 7)::int`.as(
+				"queries_7d",
+			),
 		])
-		.where("api_keys.account_id", "=", account.id)
+		.where("subgraphs.account_id", "=", account.id)
 		.where("subgraphs.is_public", "=", true)
 		.orderBy("subgraphs.created_at", "desc")
 		.execute();

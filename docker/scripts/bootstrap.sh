@@ -6,7 +6,7 @@
 # Phases:
 #   0. Provision (system packages, Docker, UFW, fail2ban, systemd)
 #   1. Pre-flight checks
-#   2. Core services (postgres, migrate, api, indexer, worker, subgraph-processor)
+#   2. Core services (postgres, migrate, api, indexer, worker)
 #   3. Caddy
 #   4. Print status
 #
@@ -215,7 +215,7 @@ $COMPOSE up -d postgres
 wait_healthy postgres
 
 $COMPOSE up migrate
-$COMPOSE up -d api indexer worker subgraph-processor
+$COMPOSE up -d api indexer worker
 
 wait_healthy api
 wait_healthy indexer
