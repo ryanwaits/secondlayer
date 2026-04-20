@@ -198,6 +198,13 @@ export interface ContainerSpec {
 		retries: number;
 		startPeriod?: string;
 	};
+	/**
+	 * When true, disable any healthcheck inherited from the image by sending
+	 * `Test: ["NONE"]` to Docker. Needed when we reuse an image (e.g. the
+	 * `api` target) for a container with a different entrypoint that doesn't
+	 * serve the image's healthcheck endpoint.
+	 */
+	disableHealthCheck?: boolean;
 	restartPolicy?: "no" | "always" | "unless-stopped" | "on-failure";
 }
 
@@ -251,7 +258,9 @@ function buildContainerBody(spec: ContainerSpec): unknown {
 					? nanosFromDuration(spec.healthCheck.startPeriod)
 					: 0,
 			}
-		: undefined;
+		: spec.disableHealthCheck
+			? { Test: ["NONE"] }
+			: undefined;
 
 	return {
 		Image: spec.image,

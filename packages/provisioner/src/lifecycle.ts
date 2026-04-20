@@ -320,5 +320,6 @@ function buildProcessorSpec(input: {
 		},
 		memoryMb: input.memoryMb,
 		cpus: input.cpus,
+		disableHealthCheck: true,
 	};
 }

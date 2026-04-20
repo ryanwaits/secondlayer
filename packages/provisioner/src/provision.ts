@@ -312,6 +312,9 @@ function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
 		},
 		memoryMb: input.alloc.memoryMb,
 		cpus: input.alloc.cpus,
+		// Reusing the `api` image — the processor doesn't serve /health, so
+		// disable the inherited image healthcheck.
+		disableHealthCheck: true,
 	};
 }
 
