@@ -1,5 +1,12 @@
 # @secondlayer/mcp
 
+## 1.0.2
+
+### Patch Changes
+
+- Updated dependencies [[`2024259`](https://github.com/ryanwaits/secondlayer/commit/2024259c0a474dcede50fa8d6fb4018877632435)]:
+  - @secondlayer/sdk@2.0.0
+
 ## 1.0.1
 
 ### Patch Changes
