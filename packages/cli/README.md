@@ -123,6 +123,83 @@ Every tenant-scoped failure surfaces a typed code and an action hint:
 | `NO_TENANT_FOR_PROJECT` | `Project has no instance. Run: sl instance create --plan launch` |
 | `KEY_ROTATED` | Handled transparently — `http.ts` re-mints and retries once |
 
+## Code generation (`sl generate`)
+
+Generate type-safe interfaces, functions, and optional React hooks from
+Clarity contracts — works against local `.clar` files, deployed contracts
+(network inferred from address prefix), or glob patterns.
+
+```bash
+# Local .clar files
+sl generate ./contracts/token.clar -o ./src/generated.ts
+
+# Deployed contracts (SP/SM → mainnet, ST/SN → testnet)
+sl generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
+
+# Glob
+sl generate "./contracts/*.clar" -o ./src/generated.ts
+```
+
+Config-driven mode:
+
+```bash
+sl init          # creates secondlayer.config.ts
+sl generate      # regenerates from the config
+```
+
+```typescript
+// secondlayer.config.ts
+import { defineConfig } from "@secondlayer/cli"
+import { clarinet, actions, react } from "@secondlayer/cli/plugins"
+
+export default defineConfig({
+  out: "src/generated.ts",
+  plugins: [clarinet(), actions(), react()],
+})
+```
+
+### Plugins
+
+| Plugin | What it adds |
+|---|---|
+| `clarinet()` | Parse local Clarinet project |
+| `actions()` | `read.*` + `write.*` helpers on each contract |
+| `react()` | Typed React Query hooks (`useTokenTransfer`, `useTokenBalance`, etc.) |
+| `testing()` | Clarinet SDK test helpers |
+
+### Usage examples
+
+```typescript
+import { token } from "./generated/contracts"
+import { makeContractCall, fetchCallReadOnlyFunction } from "@stacks/transactions"
+
+// Works with @stacks/transactions directly:
+await makeContractCall({
+  ...token.transfer({ amount: 100n, recipient: "SP..." }),
+  network: "mainnet",
+})
+
+// With actions() plugin — read/write helpers:
+const balance = await token.read.getBalance({ account: "SP..." })
+await token.write.transfer({ amount: 100n, recipient: "SP..." })
+
+// Maps / vars / constants:
+const supply = await token.vars.totalSupply.get()
+const bal = await token.maps.balances.get("SP...")
+const max = await token.constants.maxSupply.get()
+```
+
+```typescript
+// With react() plugin:
+import { useTokenTransfer, useTokenBalance } from "./generated/hooks"
+
+function App() {
+  const { transfer, isRequestPending } = useTokenTransfer()
+  const { data: balance } = useTokenBalance("SP...")
+  // ...
+}
+```
+
 ## License
 
 MIT

@@ -72,10 +72,6 @@ export interface SubgraphsTable {
 	handler_code: string | null;
 	source_code: string | null;
 	project_id: string | null;
-	is_public: Generated<boolean>;
-	tags: Generated<string[]>;
-	description: string | null;
-	forked_from_id: string | null;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }

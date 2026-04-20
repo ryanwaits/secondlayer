@@ -1,215 +1,109 @@
-# @secondlayer/cli
+# Secondlayer
 
-Type-safe contract interfaces, functions, and React hooks for Clarity smart contracts.
+Dedicated Stacks indexing and real-time subgraphs. Turn onchain events into
+typed, queryable views of the chain — pick the events your app needs, shape
+them into tables, query over HTTP or GraphQL.
 
-## Install
+- **Dedicated hosting** — each project gets a managed Postgres + API +
+  subgraph processor. No shared schema, no `api_key_id` filtering, no
+  noisy-neighbor surprises.
+- **Open source** — self-host the whole stack with `docker compose up`, or
+  use the hosted platform at `https://api.secondlayer.tools`.
+- **One surface, three front-ends** — CLI, SDK, and MCP server all hit the
+  same API and share the same auth model.
+
+## Quickstart
 
 ```bash
 bun add -g @secondlayer/cli
+
+sl login                            # magic-link email
+sl project create my-app
+sl project use my-app
+sl instance create --plan launch    # provisions a dedicated tenant
+sl subgraphs deploy ./my-subgraph.ts
 ```
 
-## Quick Start
+Full command reference: [packages/cli/README.md](packages/cli/README.md).
 
-Generate from local files or deployed contracts—no config required:
+## Packages
 
-```bash
-# Local .clar files
-secondlayer generate ./contracts/token.clar -o ./src/generated.ts
+| Package | Description |
+|---|---|
+| [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — auth, project/instance lifecycle, subgraph deploy, Clarity code-gen |
+| [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — typed subgraph queries, workflow triggers, webhooks |
+| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — exposes subgraphs, workflows, scaffolding to AI agents |
+| [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS, triggers, AI-SDK tools |
+| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema + event handlers |
+| [`@secondlayer/workflows`](packages/workflows/README.md) | `defineWorkflow()` — durable onchain automation |
+| [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, auth primitives |
+| [`@secondlayer/api`](packages/api/README.md) | REST API — platform + dedicated + OSS modes |
 
-# Deployed contracts (network inferred from address)
-secondlayer generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
-
-# Glob patterns
-secondlayer generate "./contracts/*.clar" -o ./src/generated.ts
-```
-
-## With Config
-
-```bash
-secondlayer init  # creates secondlayer.config.ts
-secondlayer generate
-```
-
-```typescript
-// secondlayer.config.ts
-import { defineConfig } from '@secondlayer/cli'
-import { clarinet, actions, react } from '@secondlayer/cli/plugins'
-
-export default defineConfig({
-  out: 'src/generated.ts',
-  plugins: [
-    clarinet(),  // parse local Clarinet project
-    actions(),   // add read/write helpers
-    react(),     // generate React hooks
-  ],
-})
-```
-
-## Usage
-
-### Contract Calls
-
-```typescript
-import { token } from './generated/contracts'
-import { makeContractCall, fetchCallReadOnlyFunction } from '@stacks/transactions'
-
-// works with @stacks/transactions directly
-await makeContractCall({
-  ...token.transfer({ amount: 100n, recipient: "SP..." }),
-  network: 'mainnet',
-})
-
-await fetchCallReadOnlyFunction({
-  ...token.getBalance({ account: "SP..." }),
-  network: 'mainnet',
-})
-```
-
-### Read/Write Helpers
-
-Requires `actions()` plugin:
-
-```typescript
-// read-only
-const balance = await token.read.getBalance({ account: "SP..." })
-
-// write (uses STX_SENDER_KEY env var)
-await token.write.transfer({ amount: 100n, recipient: "SP..." })
-
-// or pass senderKey explicitly
-await token.write.transfer({ amount: 100n, recipient: "SP..." }, "<sender-key>")
-
-// with additional options
-await token.write.transfer({ amount: 100n, recipient: "SP..." }, "<sender-key>", { network: 'testnet' })
-```
-
-### Contract State
-
-Access maps, variables, constants directly:
-
-```typescript
-// maps
-const balance = await token.maps.balances.get("SP...")
-
-// variables
-const supply = await token.vars.totalSupply.get()
-
-// constants
-const max = await token.constants.maxSupply.get()
-
-// network override
-const devBalance = await token.maps.balances.get("SP...", { network: 'devnet' })
-```
-
-### React Hooks
-
-Requires `react()` plugin:
-
-```typescript
-import { useTokenTransfer, useTokenBalances, useTokenTotalSupply } from './generated/hooks'
-
-function App() {
-  const { transfer, isRequestPending } = useTokenTransfer()
-  const { data: balance } = useTokenBalances("SP...")
-  const { data: supply } = useTokenTotalSupply()
-
-  return (
-    <button onClick={() => transfer({ amount: 100n, recipient: "SP..." })} disabled={isRequestPending}>
-      Transfer
-    </button>
-  )
-}
-```
-
-### Testing Helpers
-
-Requires `testing()` plugin:
-
-```typescript
-import { getContracts } from './helpers'
-
-const simnet = await initSimnet()
-const { token } = getContracts(simnet)
-
-// call functions
-const result = token.transfer({ amount: 100n, recipient: "ST..." }, "wallet_1")
-expect(result.result).toBeOk(Cl.bool(true))
-
-// read state
-const supply = token.vars.totalSupply()
-const balance = token.maps.balances("ST...")
-```
-
-## Plugins
-
-| Plugin | Description |
-|--------|-------------|
-| `clarinet()` | Parse local Clarinet project |
-| `actions()` | Add `read`/`write` helpers |
-| `react()` | Generate React hooks |
-| `testing()` | Generate Clarinet SDK test helpers |
-
-## Network Inference
-
-Address prefix determines network:
-- `SP`/`SM` → mainnet
-- `ST`/`SN` → testnet
-
----
-
-## Platform
-
-Second Layer also provides a hosted indexing platform with subgraphs and contract discovery.
+## Surfaces
 
 ### CLI
 
 ```bash
-bun add -g @secondlayer/cli
-
-sl login                         # authenticate via magic link
-sl project use <slug>            # bind cwd to a project
-sl subgraphs list                # manage subgraphs
-sl subgraphs deploy my-sg.ts     # deploy a subgraph
+sl login
+sl project use my-app
+sl subgraphs deploy ./my-subgraph.ts
+sl subgraphs query my-subgraph transfers --sort _block_height --order desc
 ```
-
-All commands support `--json` for machine-readable output.
 
 ### SDK
 
-```bash
-bun add @secondlayer/sdk
-```
-
 ```typescript
-import { SecondLayer } from "@secondlayer/sdk";
+import { SecondLayer } from "@secondlayer/sdk"
 
-const sl = new SecondLayer({ apiKey: "sk-sl_..." });
+const sl = new SecondLayer({
+  baseUrl: "https://<slug>.secondlayer.tools",
+  apiKey: process.env.SL_SERVICE_KEY,
+})
 
-// List subgraphs
-const { data } = await sl.subgraphs.list();
+const { data } = await sl.subgraphs.queryTable("transfers", "events", {
+  filters: { sender: "SP1234..." },
+  sort: "_block_height",
+  order: "desc",
+  limit: 25,
+})
 ```
 
 ### REST API
 
-Base URL: `https://api.secondlayer.tools`
-
 ```bash
-# List subgraphs
-curl -H "Authorization: Bearer $TOKEN" \
-  "https://api.secondlayer.tools/api/subgraphs"
+curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
+  "https://<slug>.secondlayer.tools/api/subgraphs/transfers/events?_sort=_block_height&_order=desc&_limit=25"
 ```
 
-See [packages/api/README.md](packages/api/README.md) and [packages/sdk/README.md](packages/sdk/README.md) for full docs.
+### MCP (AI agents)
 
-### MCP (AI Agents)
+Point Claude Desktop, Cursor, or any MCP client at `npx @secondlayer/mcp`
+with `SL_SERVICE_KEY` set. See [packages/mcp/README.md](packages/mcp/README.md).
 
-Connect AI agents to Second Layer via MCP:
+## Self-hosting
 
 ```bash
-bun add @secondlayer/mcp
+git clone https://github.com/ryanwaits/secondlayer
+cd secondlayer
+cp docker/.env.example docker/.env   # fill in secrets
+docker compose -f docker/docker-compose.yml up -d
 ```
 
-See [packages/mcp/README.md](packages/mcp/README.md) for IDE and HTTP setup.
+See [docker/oss/README.md](docker/oss/README.md) for the OSS-mode quickstart
+and [docker/docs/](docker/docs/) for operations, backups, and dedicated
+hosting internals.
+
+## Development
+
+```bash
+bun install
+bun run build
+bun run typecheck
+bun run test
+```
+
+Releases flow through [Changesets](https://github.com/changesets/changesets) —
+`bun run version` to bump, `bun run release` to publish.
 
 ## License
 

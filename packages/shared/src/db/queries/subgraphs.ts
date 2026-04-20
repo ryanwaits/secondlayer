@@ -25,7 +25,6 @@ export async function registerSubgraph(
 		accountId?: string;
 		schemaName?: string;
 		startBlock?: number;
-		forkedFromId?: string;
 		handlerCode?: string;
 		sourceCode?: string;
 	},
@@ -43,7 +42,6 @@ export async function registerSubgraph(
 			source_code: data.sourceCode ?? null,
 			schema_name: data.schemaName ?? null,
 			start_block: data.startBlock ?? 0,
-			forked_from_id: data.forkedFromId ?? null,
 		})
 		.onConflict((oc) =>
 			oc.columns(["name", "account_id"]).doUpdateSet({
