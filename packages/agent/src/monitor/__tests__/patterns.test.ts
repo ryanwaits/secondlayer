@@ -2,15 +2,25 @@ import { describe, expect, test } from "bun:test";
 import { matchPatterns } from "../patterns.ts";
 
 describe("matchPatterns", () => {
-	test("detects OOM kill", () => {
+	test("detects OOM kill on kernel-signature log line", () => {
 		const matches = matchPatterns(
-			"Killed process 1234 (node) Out of memory",
+			"Out of memory: Killed process 1234 (node), UID 1000",
 			"indexer",
 		);
 		expect(matches).toHaveLength(1);
 		expect(matches[0].name).toBe("oom_kill");
 		expect(matches[0].severity).toBe("critical");
 		expect(matches[0].action).toBe("restart_service");
+	});
+
+	test("does NOT fire oom_kill on bare 'OOM' token", () => {
+		// A Caddy access log or upstream error that happens to contain "OOM"
+		// should not trigger the critical kernel-OOM pattern.
+		const matches = matchPatterns(
+			'caddy | GET /search?q=OOM 200 "ok"',
+			"caddy",
+		);
+		expect(matches.filter((m) => m.name === "oom_kill")).toHaveLength(0);
 	});
 
 	test("detects disk full", () => {
@@ -54,15 +64,6 @@ describe("matchPatterns", () => {
 		expect(matches[0].action).toBe("escalate");
 	});
 
-	test("detects backup failure", () => {
-		const matches = matchPatterns(
-			"pg_dump failed with exit code 1",
-			"postgres",
-		);
-		expect(matches).toHaveLength(1);
-		expect(matches[0].name).toBe("backup_failed");
-	});
-
 	test("returns empty for clean logs", () => {
 		const matches = matchPatterns(
 			"INFO: Block 12345 indexed successfully",
@@ -73,7 +74,7 @@ describe("matchPatterns", () => {
 
 	test("multiple matches on single line", () => {
 		const matches = matchPatterns(
-			"Out of memory: No space left on device",
+			"Out of memory: Killed process 1234. No space left on device",
 			"worker",
 		);
 		expect(matches.length).toBeGreaterThanOrEqual(2);

@@ -11,8 +11,13 @@ export interface PatternRule {
 
 export const PATTERN_RULES: PatternRule[] = [
 	{
+		// Kernel OOM-killer signature — anchors on specific phrases the kernel
+		// or systemd emits, not the bare token "OOM" which hits too many
+		// innocent log lines (e.g. Caddy access logs that happen to contain
+		// "BOOM"/"ROOM" or upstream error strings).
 		name: "oom_kill",
-		regex: /(?:Out of memory|OOM|oom-kill|Killed process)/i,
+		regex:
+			/(?:Out of memory: Killed process|invoked oom-killer|oom-kill:|Memory cgroup out of memory)/i,
 		severity: "critical",
 		action: "restart_service",
 		message: (_, svc) => `OOM kill detected in ${svc}`,
@@ -62,13 +67,12 @@ export const PATTERN_RULES: PatternRule[] = [
 		action: "escalate",
 		message: (_, svc) => `Unhandled error in ${svc} — escalating to AI`,
 	},
-	{
-		name: "backup_failed",
-		regex: /(?:backup|pg_dump|rsync).+?(?:failed|error|FATAL)/i,
-		severity: "error",
-		action: "alert_only",
-		message: () => "Backup failure detected",
-	},
+	// Note: backup health is covered by the `tenant_backup_stale` anomaly in
+	// monitor/tenant-backup-monitor.ts — it scans `$DATA_DIR/backups/tenants/`
+	// and alerts when the newest dump for a running tenant is stale. That's a
+	// tighter signal than scraping log lines for "backup ... failed", which
+	// was prone to false positives (any Caddy log containing those words could
+	// match).
 ];
 
 export function matchPatterns(line: string, service: string): PatternMatch[] {
