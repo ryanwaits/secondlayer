@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Subgraphs — Rebrand explorations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=Fraunces:ital,opsz,wght@0,9..144,500..800;1,9..144,500..800&family=Geist:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0a0a;
+        --surface: #141414;
+        --surface-2: #1a1a1a;
+        --text: #f0f0f0;
+        --text-muted: #8a8a8a;
+        --text-dim: #555;
+        --border: rgba(255, 255, 255, 0.1);
+        --border-hover: rgba(255, 255, 255, 0.22);
+        --sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .container {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 0 40px;
+      }
+
+      /* ---- Header ---- */
+      .header {
+        padding: 80px 0 48px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .meta-row {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 28px;
+      }
+
+      .meta-row .dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--text);
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      h1 {
+        font-family: var(--sans);
+        font-size: 54px;
+        font-weight: 600;
+        letter-spacing: -0.035em;
+        line-height: 1;
+        margin: 0 0 20px;
+      }
+
+      .subtitle {
+        font-size: 17px;
+        color: var(--text-muted);
+        max-width: 62ch;
+        margin: 0;
+      }
+
+      .brief {
+        margin-top: 32px;
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 16px 40px;
+        font-size: 14px;
+        color: var(--text);
+      }
+
+      .brief dt {
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-muted);
+        padding-top: 2px;
+      }
+
+      .brief dd {
+        margin: 0;
+        color: var(--text);
+      }
+
+      .brief dd strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      /* ---- Directions grid ---- */
+      .directions {
+        padding: 56px 0 32px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+
+      @media (max-width: 1100px) {
+        .directions {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 32px 28px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+        transition:
+          border-color 0.25s ease,
+          transform 0.35s cubic-bezier(0.19, 1, 0.22, 1);
+      }
+
+      .card:hover {
+        border-color: var(--border-hover);
+        transform: translateY(-2px);
+      }
+
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .card-letter {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text-muted);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .card-name {
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 2px 0 0;
+      }
+
+      .card-name .accent-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-left: 6px;
+        vertical-align: 4px;
+      }
+
+      .thesis {
+        color: var(--text-muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .thesis strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      /* ---- Palette strip ---- */
+      .palette {
+        display: flex;
+        gap: 6px;
+      }
+
+      .swatch {
+        flex: 1;
+        height: 44px;
+        border-radius: 6px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: flex-end;
+        padding: 5px 7px;
+      }
+
+      .swatch .hex {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.06em;
+        line-height: 1;
+        mix-blend-mode: difference;
+        color: #fff;
+        opacity: 0.92;
+      }
+
+      /* ---- Type specimen ---- */
+      .type {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        border-left: 1px solid var(--border);
+        padding-left: 16px;
+      }
+
+      .type-display {
+        font-size: 28px;
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      .type-body {
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+
+      .type-mono {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 2px;
+      }
+
+      /* Per-direction type overrides */
+      .dir-A .type-display {
+        font-family: "Bricolage Grotesque", sans-serif;
+        font-weight: 700;
+        font-variation-settings: "wdth" 85;
+      }
+      .dir-A .type-body {
+        font-family: "Inter", sans-serif;
+      }
+
+      .dir-B .type-display {
+        font-family: "Fraunces", serif;
+        font-style: italic;
+        font-weight: 600;
+      }
+      .dir-B .type-body {
+        font-family: "Inter", sans-serif;
+      }
+
+      .dir-C .type-display {
+        font-family: "Geist", sans-serif;
+        font-weight: 600;
+      }
+      .dir-C .type-body {
+        font-family: "Geist", sans-serif;
+      }
+
+      /* ---- Signature moves ---- */
+      .moves {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .moves li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 13.5px;
+        line-height: 1.5;
+        color: var(--text);
+      }
+
+      .moves .tick {
+        flex-shrink: 0;
+        width: 14px;
+        height: 14px;
+        margin-top: 4px;
+        border-radius: 3px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        position: relative;
+      }
+
+      .moves .tick::after {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border-radius: 1px;
+      }
+
+      .dir-A .moves .tick::after {
+        background: #ff6b3d;
+      }
+      .dir-B .moves .tick::after {
+        background: #e94b35;
+      }
+      .dir-C .moves .tick::after {
+        background: #c4ff3d;
+      }
+
+      /* ---- Open button ---- */
+      .open {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: auto;
+        padding: 14px 18px;
+        border-radius: 10px;
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        transition: all 0.2s ease;
+        border: 1px solid var(--border);
+      }
+
+      .dir-A .open {
+        background: #ff6b3d;
+        color: #0e1014;
+        border-color: #ff6b3d;
+      }
+      .dir-A .open:hover {
+        background: #ff855b;
+        border-color: #ff855b;
+      }
+
+      .dir-B .open {
+        background: #1a1613;
+        color: #f4eddd;
+        border-color: #e94b35;
+      }
+      .dir-B .open:hover {
+        background: #e94b35;
+        color: #f4eddd;
+      }
+
+      .dir-C .open {
+        background: #c4ff3d;
+        color: #07080a;
+        border-color: #c4ff3d;
+      }
+      .dir-C .open:hover {
+        background: #d3ff63;
+        border-color: #d3ff63;
+      }
+
+      .open .arrow {
+        transition: transform 0.2s ease;
+      }
+
+      .open:hover .arrow {
+        transform: translateX(3px);
+      }
+
+      /* ---- Preview iframes ---- */
+      .previews {
+        margin-top: 48px;
+        padding: 40px 0 80px;
+        border-top: 1px solid var(--border);
+      }
+
+      .previews h2 {
+        font-size: 14px;
+        font-weight: 500;
+        font-family: var(--mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin: 0 0 24px;
+      }
+
+      .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+
+      @media (max-width: 1100px) {
+        .preview-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .preview {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        position: relative;
+        aspect-ratio: 1 / 1.15;
+      }
+
+      .preview-label {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        z-index: 2;
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(12px);
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        color: #fff;
+      }
+
+      .preview-iframe-wrap {
+        width: 1440px;
+        height: 1600px;
+        transform: scale(0.35);
+        transform-origin: 0 0;
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      }
+
+      .preview iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: var(--surface);
+      }
+
+      .preview-link {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        display: block;
+      }
+
+      /* ---- Decision rubric ---- */
+      .rubric {
+        padding: 56px 0 96px;
+        border-top: 1px solid var(--border);
+      }
+
+      .rubric h2 {
+        font-size: 14px;
+        font-weight: 500;
+        font-family: var(--mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin: 0 0 28px;
+      }
+
+      .rubric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 40px;
+        font-size: 14px;
+        color: var(--text);
+      }
+
+      @media (max-width: 900px) {
+        .rubric-grid {
+          grid-template-columns: 1fr;
+          gap: 28px;
+        }
+      }
+
+      .rubric-grid h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 10px;
+      }
+
+      .rubric-grid p {
+        margin: 0 0 10px;
+        color: var(--text-muted);
+        line-height: 1.55;
+      }
+
+      .rubric-grid strong {
+        color: var(--text);
+      }
+
+      /* ---- Footer ---- */
+      .footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--border);
+        font-family: var(--mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--text-dim);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      @media (max-width: 720px) {
+        .container {
+          padding: 0 24px;
+        }
+        h1 {
+          font-size: 40px;
+        }
+        .brief {
+          grid-template-columns: 1fr;
+          gap: 4px 0;
+        }
+        .brief dt {
+          margin-top: 14px;
+        }
+        .header {
+          padding: 56px 0 36px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="header">
+      <div class="container">
+        <div class="meta-row">
+          <span><span class="dot"></span>Second Layer · Brand Exploration</span>
+          <span>2026-04-21 · v1</span>
+        </div>
+
+        <h1>Subgraphs — rebrand explorations</h1>
+
+        <p class="subtitle">
+          Three directions for the Subgraphs sub-brand. Parent Second Layer
+          identity stays editorial/minimal; Subgraphs gets its own playful
+          energy, jam.dev-adjacent, committed fully to one accent per direction.
+        </p>
+
+        <dl class="brief">
+          <dt>Product</dt>
+          <dd>
+            <strong>Subgraphs.</strong> Turn onchain events into queryable
+            Postgres tables. <code style="font-family: var(--mono); font-size: 12px; color: var(--text-muted)">defineSubgraph({ sources, schema, handlers })</code>.
+          </dd>
+
+          <dt>Reference</dt>
+          <dd>
+            <strong>jam.dev</strong> — restrained playfulness, one ownable
+            accent, product-as-hero, community-noun move, laminated shimmer on
+            the emotional word.
+          </dd>
+
+          <dt>Scope</dt>
+          <dd>
+            Sub-brand only. Parent <strong>secondlayer.tools</strong> identity
+            unchanged. This is a landing-page rebrand, not a system rewrite.
+          </dd>
+
+          <dt>Constraint</dt>
+          <dd>
+            Each direction commits to ONE accent color. No purple gradients, no
+            Inter-only pairings, no centered-sans-on-white. Real product copy,
+            real screenshots, real code.
+          </dd>
+        </dl>
+      </div>
+    </header>
+
+    <section class="directions">
+      <div class="container" style="padding: 0">
+        <div class="directions" style="padding: 0">
+          <!-- Direction A -->
+          <article class="card dir-A">
+            <div class="card-head">
+              <div>
+                <div class="card-letter">Direction A</div>
+                <h2 class="card-name">
+                  Blockhouse<span
+                    class="accent-dot"
+                    style="background: #ff6b3d"
+                  ></span>
+                </h2>
+              </div>
+            </div>
+
+            <p class="thesis">
+              Dark, confident, jam-adjacent. Hot terracotta as the ownable
+              accent. <strong>Restrained playfulness</strong> — the feeling jam
+              leaves you with, but the color that lives in your head is orange.
+            </p>
+
+            <div class="palette">
+              <div class="swatch" style="background: #0e1014">
+                <span class="hex">0E1014</span>
+              </div>
+              <div class="swatch" style="background: #161923">
+                <span class="hex">161923</span>
+              </div>
+              <div class="swatch" style="background: #ff6b3d">
+                <span class="hex">FF6B3D</span>
+              </div>
+              <div class="swatch" style="background: #8cffb0">
+                <span class="hex">8CFFB0</span>
+              </div>
+              <div class="swatch" style="background: #ff5ea8">
+                <span class="hex">FF5EA8</span>
+              </div>
+            </div>
+
+            <div class="type">
+              <span class="type-display">Blockhouse</span>
+              <span class="type-body">Subgraphs for Stacks builders.</span>
+              <span class="type-mono"
+                >Bricolage Grotesque · Inter · JetBrains Mono</span
+              >
+            </div>
+
+            <ul class="moves">
+              <li>
+                <span class="tick"></span>Laminated shimmer on hero verbs
+              </li>
+              <li>
+                <span class="tick"></span>Product-as-hero + PM speech-bubble
+                roleplay
+              </li>
+              <li>
+                <span class="tick"></span>Community noun: "Indexers"
+              </li>
+              <li>
+                <span class="tick"></span>One orange pricing card on a dark grid
+              </li>
+              <li>
+                <span class="tick"></span>One 12° INDEXED ✶ sticker
+              </li>
+            </ul>
+
+            <a class="open" href="./A-blockhouse.html" target="_blank">
+              <span>Open full mock</span>
+              <span class="arrow">→</span>
+            </a>
+          </article>
+
+          <!-- Direction B -->
+          <article class="card dir-B">
+            <div class="card-head">
+              <div>
+                <div class="card-letter">Direction B</div>
+                <h2 class="card-name">
+                  Indexer Zine<span
+                    class="accent-dot"
+                    style="background: #e94b35"
+                  ></span>
+                </h2>
+              </div>
+            </div>
+
+            <p class="thesis">
+              Paper-cream editorial with heavy personality. Fraunces italic,
+              hand-drawn annotations, a mascot named Dex. <strong
+                >Max-personality direction</strong
+              > — the one visitors remember by character, not interface.
+            </p>
+
+            <div class="palette">
+              <div class="swatch" style="background: #f4eddd">
+                <span class="hex" style="color: #1a1613; mix-blend-mode: normal"
+                  >F4EDDD</span
+                >
+              </div>
+              <div class="swatch" style="background: #1a1613">
+                <span class="hex">1A1613</span>
+              </div>
+              <div class="swatch" style="background: #e94b35">
+                <span class="hex">E94B35</span>
+              </div>
+              <div class="swatch" style="background: #ffe88a">
+                <span class="hex" style="color: #1a1613; mix-blend-mode: normal"
+                  >FFE88A</span
+                >
+              </div>
+              <div class="swatch" style="background: #3c5bfa">
+                <span class="hex">3C5BFA</span>
+              </div>
+            </div>
+
+            <div class="type">
+              <span class="type-display">Indexer Zine</span>
+              <span class="type-body"
+                >Know your chain. Not just read it.</span
+              >
+              <span class="type-mono"
+                >Fraunces italic · Inter · Caveat · JetBrains Mono</span
+              >
+            </div>
+
+            <ul class="moves">
+              <li>
+                <span class="tick"></span>Fraunces italic + strikethrough hero
+              </li>
+              <li>
+                <span class="tick"></span>Hand-drawn circles + Caveat annotations
+              </li>
+              <li>
+                <span class="tick"></span>Highlighter yellow over prose words
+              </li>
+              <li>
+                <span class="tick"></span>"Dex the Block-Miner" mascot (3 sizes)
+              </li>
+              <li>
+                <span class="tick"></span>Dot-matrix SQL printout with tape
+              </li>
+            </ul>
+
+            <a class="open" href="./B-indexer-zine.html" target="_blank">
+              <span>Open full mock</span>
+              <span class="arrow">→</span>
+            </a>
+          </article>
+
+          <!-- Direction C -->
+          <article class="card dir-C">
+            <div class="card-head">
+              <div>
+                <div class="card-letter">Direction C</div>
+                <h2 class="card-name">
+                  Slipstream<span
+                    class="accent-dot"
+                    style="background: #c4ff3d"
+                  ></span>
+                </h2>
+              </div>
+            </div>
+
+            <p class="thesis">
+              Glassy, dark-futurist. Acid lime on near-black. Geist throughout.
+              Playfulness lives in <strong>motion and process-state UI</strong>,
+              not illustration. Most mature / craft-forward of the three.
+            </p>
+
+            <div class="palette">
+              <div class="swatch" style="background: #07080a">
+                <span class="hex">07080A</span>
+              </div>
+              <div class="swatch" style="background: #151820">
+                <span class="hex">151820</span>
+              </div>
+              <div class="swatch" style="background: #c4ff3d">
+                <span class="hex" style="color: #07080a; mix-blend-mode: normal"
+                  >C4FF3D</span
+                >
+              </div>
+              <div class="swatch" style="background: #4de7ff">
+                <span class="hex" style="color: #07080a; mix-blend-mode: normal"
+                  >4DE7FF</span
+                >
+              </div>
+              <div
+                class="swatch"
+                style="
+                  background: radial-gradient(
+                    circle at 40% 40%,
+                    rgba(196, 255, 61, 0.25),
+                    transparent 70%
+                  ),
+                    rgba(255, 255, 255, 0.03);
+                  border: 1px solid rgba(255, 255, 255, 0.06);
+                "
+              >
+                <span class="hex">GLASS</span>
+              </div>
+            </div>
+
+            <div class="type">
+              <span class="type-display">Slipstream</span>
+              <span class="type-body"
+                >Onchain data, materialized in real time.</span
+              >
+              <span class="type-mono">Geist · Geist Mono</span>
+            </div>
+
+            <ul class="moves">
+              <li>
+                <span class="tick"></span>Stacked glass panels with blur
+              </li>
+              <li>
+                <span class="tick"></span>Live event stream + materializing bar
+              </li>
+              <li>
+                <span class="tick"></span>3D stacked-panes metaphor w/ lime halo
+              </li>
+              <li>
+                <span class="tick"></span>Keycap motif for the CLI
+              </li>
+              <li>
+                <span class="tick"></span>IntersectionObserver scroll reveal
+              </li>
+            </ul>
+
+            <a class="open" href="./C-slipstream.html" target="_blank">
+              <span>Open full mock</span>
+              <span class="arrow">→</span>
+            </a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="previews">
+      <div class="container">
+        <h2>Live previews</h2>
+        <div class="preview-grid">
+          <div class="preview">
+            <span class="preview-label">A · Blockhouse</span>
+            <div class="preview-iframe-wrap">
+              <iframe
+                src="./A-blockhouse.html"
+                loading="lazy"
+                title="Direction A preview"
+              ></iframe>
+            </div>
+            <a
+              class="preview-link"
+              href="./A-blockhouse.html"
+              target="_blank"
+              aria-label="Open Direction A"
+            ></a>
+          </div>
+
+          <div class="preview">
+            <span class="preview-label">B · Indexer Zine</span>
+            <div class="preview-iframe-wrap">
+              <iframe
+                src="./B-indexer-zine.html"
+                loading="lazy"
+                title="Direction B preview"
+              ></iframe>
+            </div>
+            <a
+              class="preview-link"
+              href="./B-indexer-zine.html"
+              target="_blank"
+              aria-label="Open Direction B"
+            ></a>
+          </div>
+
+          <div class="preview">
+            <span class="preview-label">C · Slipstream</span>
+            <div class="preview-iframe-wrap">
+              <iframe
+                src="./C-slipstream.html"
+                loading="lazy"
+                title="Direction C preview"
+              ></iframe>
+            </div>
+            <a
+              class="preview-link"
+              href="./C-slipstream.html"
+              target="_blank"
+              aria-label="Open Direction C"
+            ></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="rubric">
+      <div class="container">
+        <h2>How to pick</h2>
+        <div class="rubric-grid">
+          <div>
+            <h3>Pick A if…</h3>
+            <p>
+              You want <strong>jam.dev's feeling</strong> but an accent nobody
+              else in blockchain has taken. Safest-bold direction — familiar
+              dark-dev-tool language, distinctive in palette only. Ships fast.
+            </p>
+            <p>
+              <strong>Risk:</strong> may read as "a dark dev tool with orange"
+              — leans on craft to feel different.
+            </p>
+          </div>
+
+          <div>
+            <h3>Pick B if…</h3>
+            <p>
+              You want the brand people <strong>quote</strong>. Dex, chapters,
+              hand-drawn circles, zine vocabulary — a lot to own. Gives the
+              content team a long leash: mascot evolves, pull quotes, merch,
+              chapter drops.
+            </p>
+            <p>
+              <strong>Risk:</strong> most investment to maintain (mascot assets,
+              voice discipline). Can skew precious if prose isn't sharp.
+            </p>
+          </div>
+
+          <div>
+            <h3>Pick C if…</h3>
+            <p>
+              You want <strong>"serious + beautiful"</strong> over "playful +
+              memorable". Closest to Raycast/Linear/Vercel-Geist category code.
+              Motion and process-state do all the personality work — no
+              mascots, no stickers.
+            </p>
+            <p>
+              <strong>Risk:</strong> least differentiated from category; relies
+              on execution quality (glass, motion timing) to stand out. Lime is
+              the one thing keeping it off the generic rail.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="container" style="display: flex; justify-content: space-between; width: 100%">
+        <span>Second Layer · Subgraphs</span>
+        <span>3 directions · ~7,700 lines · all inline, zero deps</span>
+      </div>
+    </footer>
+  </body>
+</html>

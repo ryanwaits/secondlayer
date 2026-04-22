@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/workflows",
-	"version": "1.1.0",
+	"version": "2.0.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -13,13 +13,9 @@
 			"types": "./dist/types.d.ts",
 			"import": "./dist/types.js"
 		},
-		"./validate": {
-			"types": "./dist/validate.d.ts",
-			"import": "./dist/validate.js"
-		},
-		"./schedule-policy": {
-			"types": "./dist/schedule-policy.d.ts",
-			"import": "./dist/schedule-policy.js"
+		"./ai": {
+			"types": "./dist/ai.d.ts",
+			"import": "./dist/ai.js"
 		}
 	},
 	"files": ["dist"],
@@ -30,20 +26,11 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/subgraphs": "^0.11.7",
+		"@ai-sdk/anthropic": "3.0.71",
 		"ai": "6.0.167",
 		"zod": "^4.3.6"
 	},
-	"peerDependencies": {
-		"@json-render/core": "0.18.0"
-	},
-	"peerDependenciesMeta": {
-		"@json-render/core": {
-			"optional": true
-		}
-	},
 	"devDependencies": {
-		"@secondlayer/bundler": "workspace:*",
 		"@types/bun": "latest",
 		"typescript": "^5"
 	},

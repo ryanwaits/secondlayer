@@ -1,35 +1,21 @@
-import type {
-	WorkflowContext,
-	WorkflowDefinition,
-	WorkflowTrigger,
-} from "./types.ts";
+import type { WorkflowDefinition } from "./types.ts";
 
 /**
- * Extract the event payload type carried by a typed trigger's phantom
- * `__event` marker (produced by `@secondlayer/stacks/triggers`). Falls back
- * to `Record<string, unknown>` for untyped triggers, schedule, and manual.
+ * Identity function that preserves type parameters for inference.
+ *
+ * ```ts
+ * export const myWorkflow = defineWorkflow({
+ *   name: "my-workflow",
+ *   input: MyInputSchema,              // optional zod type
+ *   run: async ({ step, input }) => {
+ *     const x = await step.run("load", () => fetch(input.url))
+ *     return x
+ *   },
+ * })
+ * ```
  */
-export type InferEventFromTrigger<T> = T extends { __event?: infer E }
-	? E extends undefined
-		? Record<string, unknown>
-		: E
-	: Record<string, unknown>;
-
-/**
- * Identity function that preserves trigger type literals for type inference
- * and narrows `ctx.event` in the handler when the trigger was produced by
- * a typed helper (e.g. `on.stxTransfer(…)` from `@secondlayer/stacks/triggers`).
- */
-export function defineWorkflow<T extends WorkflowTrigger>(
-	def: Omit<WorkflowDefinition, "trigger" | "handler"> & {
-		trigger: T;
-		handler: (
-			ctx: WorkflowContext<InferEventFromTrigger<T>>,
-		) => Promise<unknown>;
-	},
-): Omit<WorkflowDefinition, "trigger" | "handler"> & {
-	trigger: T;
-	handler: (ctx: WorkflowContext<InferEventFromTrigger<T>>) => Promise<unknown>;
-} {
+export function defineWorkflow<TInput = unknown, TOutput = unknown>(
+	def: WorkflowDefinition<TInput, TOutput>,
+): WorkflowDefinition<TInput, TOutput> {
 	return def;
 }
