@@ -40,18 +40,17 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		db,
 	);
 
+	// Drop the old PK first — it includes tenant_id, which blocks the
+	// subsequent DROP NOT NULL.
+	await sql`
+		ALTER TABLE workflow_ai_usage_daily
+			DROP CONSTRAINT workflow_ai_usage_daily_pkey
+	`.execute(db);
+
 	await sql`
 		ALTER TABLE workflow_ai_usage_daily
 			ALTER COLUMN account_id SET NOT NULL,
 			ALTER COLUMN tenant_id DROP NOT NULL
-	`.execute(db);
-
-	// PK can't contain a nullable column. Drop the PK and use a unique
-	// index with NULLS NOT DISTINCT (PG 15+) so account+day rows with
-	// NULL tenant_id still enforce uniqueness.
-	await sql`
-		ALTER TABLE workflow_ai_usage_daily
-			DROP CONSTRAINT workflow_ai_usage_daily_pkey
 	`.execute(db);
 
 	await sql`
