@@ -45,4 +45,20 @@
 	handle {
 		reverse_proxy sl-api-{labels.2}:3800
 	}
+
+	# Fail-hook: dial failures (paused tenant container) fall into
+	# handle_errors. We proxy the error path to the provisioner's resume
+	# endpoint, which kicks off an async container restart and returns a
+	# 503 with `Retry-After: 30` for the caller. Next retry lands on a
+	# healthy tenant. Idempotent — if the tenant was already running the
+	# provisioner short-circuits.
+	handle_errors {
+		@upstream_down expression `{err.status_code} >= 502 && {err.status_code} <= 504`
+		handle @upstream_down {
+			rewrite * /internal/resume/{labels.2}
+			reverse_proxy http://provisioner:3850 {
+				method POST
+			}
+		}
+	}
 }

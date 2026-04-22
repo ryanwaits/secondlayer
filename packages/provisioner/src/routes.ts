@@ -66,6 +66,35 @@ export function buildRoutes(): Hono {
 		return c.text("ok", 200);
 	});
 
+	// Resume-by-slug — called from Caddy's handle_errors block when a
+	// proxy attempt to sl-api-<slug> fails (paused tenant). Response is
+	// what the caller's client sees, so:
+	//   - Paused → 503 with `Retry-After: 30` + a friendly body. Caller
+	//     retries, tenant is healthy by then (resume takes ~20s).
+	//   - Already running → 503 anyway; the upstream was supposed to
+	//     answer but something else failed. Retry gets them unstuck.
+	//   - Unknown slug → 404.
+	//
+	// Resume is fire-and-forget: we don't await the containers coming
+	// up so Caddy's handle_errors block returns fast.
+	app.post("/internal/resume/:slug", async (c) => {
+		const slug = c.req.param("slug");
+		if (!isValidSlug(slug)) {
+			return c.text("invalid slug", 404);
+		}
+		const info = await containerInspect(apiContainerName(slug));
+		if (!info) {
+			return c.text("unknown tenant", 404);
+		}
+		if (!info.State.Running) {
+			resumeTenant(slug).catch(() => {
+				// logged inside lifecycle — don't crash the endpoint
+			});
+		}
+		c.header("Retry-After", "30");
+		return c.text("Tenant is resuming. Retry in a moment.", 503);
+	});
+
 	app.use("*", requireSecret());
 
 	// POST /tenants — provision a new tenant.
