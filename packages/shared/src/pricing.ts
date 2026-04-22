@@ -108,8 +108,12 @@ export function getAiCapForPlan(plan: string): AiCap {
 
 const BYTES_PER_GB = 1024 ** 3;
 
+// Hobby has no compute-hour cap — auto-pause after 7d idle is the cap.
+// Paid tiers bill Stripe-metered hours past the included credit; the
+// hour equivalents below are approximate display values. Real billing
+// uses the `compute_hours` meter in Stripe, not these numbers.
 const COMPUTE_ALLOWANCE_BY_PLAN: Record<string, number> = {
-	hobby: 50,
+	hobby: Number.POSITIVE_INFINITY,
 	launch: 500,
 	grow: 1000,
 	scale: 2500,

@@ -8,6 +8,8 @@ interface Props {
 	pct: number;
 	sparkData: SparklinePoint[];
 	color?: "accent" | "teal";
+	/** Hide the percentage label — use when the axis has no cap (unlimited). */
+	hidePct?: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export function AxisCard({
 	pct,
 	sparkData,
 	color = "accent",
+	hidePct = false,
 }: Props) {
 	const { fill, stroke } = buildSparklinePaths(sparkData);
 	const pctLabel = `${pct >= 10 ? Math.round(pct) : pct.toFixed(1)}%`;
@@ -51,7 +54,7 @@ export function AxisCard({
 		<div className="axis-card">
 			<div className="axis-head">
 				<div className="axis-label">{label}</div>
-				<div className="axis-pct">{pctLabel}</div>
+				{!hidePct ? <div className="axis-pct">{pctLabel}</div> : null}
 			</div>
 			<div className="axis-value">
 				{value}

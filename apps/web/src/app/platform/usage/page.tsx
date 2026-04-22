@@ -111,11 +111,14 @@ export default async function UsagePage() {
 							of={
 								Number.isFinite(compute.allowanceHours)
 									? `of ${formatNum(compute.allowanceHours)} h / mo`
-									: "unlimited"
+									: plan.tier === "hobby"
+										? "active · auto-pauses after 7d idle"
+										: "unmetered"
 							}
 							pct={compute.pct}
 							sparkData={compute.sparkline}
 							color="accent"
+							hidePct={!Number.isFinite(compute.allowanceHours)}
 						/>
 						<AxisCard
 							label="Storage"
@@ -123,11 +126,12 @@ export default async function UsagePage() {
 							of={
 								Number.isFinite(storage.allowanceBytes)
 									? `of ${formatBytes(storage.allowanceBytes)}`
-									: "unlimited"
+									: "unmetered"
 							}
 							pct={storage.pct}
 							sparkData={storage.sparkline}
 							color="teal"
+							hidePct={!Number.isFinite(storage.allowanceBytes)}
 						/>
 						<AxisCard
 							label="AI evals"
@@ -136,11 +140,12 @@ export default async function UsagePage() {
 							of={
 								Number.isFinite(aiEvals.dailyCap)
 									? `of ${formatNum(aiEvals.dailyCap)} / day · resets 00:00 UTC`
-									: "unlimited"
+									: "unmetered"
 							}
 							pct={aiEvals.pct}
 							sparkData={aiEvals.sparkline}
 							color="accent"
+							hidePct={!Number.isFinite(aiEvals.dailyCap)}
 						/>
 					</div>
 
