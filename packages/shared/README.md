@@ -39,4 +39,3 @@ DATABASE_URL=... bun run migrate
 | `@secondlayer/shared/crypto` | HMAC signing |
 | `@secondlayer/shared/node` | Stacks node client |
 | `@secondlayer/shared/node/hiro-pg-client` | Direct PG queries against Hiro DB |
-| `@secondlayer/shared/lib/plans` | Plan definitions |

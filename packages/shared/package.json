@@ -41,10 +41,6 @@
 			"types": "./dist/src/db/schema.d.ts",
 			"import": "./dist/src/db/schema.js"
 		},
-		"./lib/plans": {
-			"types": "./dist/src/lib/plans.d.ts",
-			"import": "./dist/src/lib/plans.js"
-		},
 		"./queue/listener": {
 			"types": "./dist/src/queue/listener.d.ts",
 			"import": "./dist/src/queue/listener.js"

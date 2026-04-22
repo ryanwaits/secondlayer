@@ -17,7 +17,6 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/workflow-ai-usage.ts",
 		"src/db/jsonb.ts",
 		"src/db/schema.ts",
-		"src/lib/plans.ts",
 		"src/queue/listener.ts",
 		"src/schemas/index.ts",
 		"src/schemas/accounts.ts",

@@ -43,11 +43,6 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
-	test("lib/plans export", async () => {
-		const mod = await import("@secondlayer/shared/lib/plans");
-		expect(mod).toBeDefined();
-	});
-
 	test("queue/listener export", async () => {
 		const mod = await import("@secondlayer/shared/queue/listener");
 		expect(mod).toBeDefined();
