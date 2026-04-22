@@ -7,7 +7,26 @@ import { useState } from "react";
 const BROWSER_API_URL =
 	process.env.NEXT_PUBLIC_SL_API_URL || "http://localhost:3800";
 
-type Kind = "large-outflow" | "permission-change";
+type Kind =
+	| "large-outflow"
+	| "permission-change"
+	| "ft-outflow"
+	| "contract-deployment"
+	| "print-event-match";
+
+const KIND_LABELS: Record<Kind, string> = {
+	"large-outflow": "Large outflow — watch for STX transfers above threshold",
+	"permission-change": "Permission change — watch for admin function calls",
+	"ft-outflow": "FT outflow — watch for large SIP-010 token transfers",
+	"contract-deployment":
+		"Contract deployment — alert when a principal deploys a new contract",
+	"print-event-match":
+		"Print event — match a specific contract print (e.g. liquidation, drain)",
+};
+
+type BuildResult =
+	| { ok: true; config: Record<string, unknown> }
+	| { ok: false; error: string };
 
 export default function NewSentryPage() {
 	const router = useRouter();
@@ -18,35 +37,84 @@ export default function NewSentryPage() {
 	const [adminFunctions, setAdminFunctions] = useState(
 		"set-owner, set-admin, transfer-ownership",
 	);
+	const [assetIdentifier, setAssetIdentifier] = useState("");
+	const [thresholdAmount, setThresholdAmount] = useState("1000000");
+	const [printTopic, setPrintTopic] = useState("");
 	const [webhook, setWebhook] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	const buildConfig = (): BuildResult => {
+		if (kind === "large-outflow") {
+			const stxDigits = thresholdStx.replace(/[^0-9]/g, "");
+			if (!stxDigits || stxDigits === "0") {
+				return {
+					ok: false,
+					error: "Threshold must be a whole number of STX greater than 0",
+				};
+			}
+			return {
+				ok: true,
+				config: { principal, thresholdMicroStx: `${stxDigits}000000` },
+			};
+		}
+
+		if (kind === "permission-change") {
+			const fns = adminFunctions
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean);
+			if (fns.length === 0) {
+				return { ok: false, error: "Provide at least one admin function name" };
+			}
+			return { ok: true, config: { principal, adminFunctions: fns } };
+		}
+
+		if (kind === "ft-outflow") {
+			if (!assetIdentifier.includes("::")) {
+				return {
+					ok: false,
+					error:
+						"Asset identifier must include ::, e.g. SP...CONTRACT.token-name::token-symbol",
+				};
+			}
+			const digits = thresholdAmount.replace(/[^0-9]/g, "");
+			if (!digits || digits === "0") {
+				return { ok: false, error: "Threshold amount must be greater than 0" };
+			}
+			return {
+				ok: true,
+				config: { principal, assetIdentifier, thresholdAmount: digits },
+			};
+		}
+
+		if (kind === "contract-deployment") {
+			return { ok: true, config: { principal } };
+		}
+
+		if (kind === "print-event-match") {
+			return {
+				ok: true,
+				config: {
+					principal,
+					topic: printTopic.trim() ? printTopic.trim() : null,
+				},
+			};
+		}
+
+		return { ok: false, error: "Unknown sentry kind" };
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError(null);
 		setSubmitting(true);
 
-		let config: Record<string, unknown>;
-		if (kind === "large-outflow") {
-			const stxDigits = thresholdStx.replace(/[^0-9]/g, "");
-			if (!stxDigits || stxDigits === "0") {
-				setError("Threshold must be a whole number of STX greater than 0");
-				setSubmitting(false);
-				return;
-			}
-			config = { principal, thresholdMicroStx: `${stxDigits}000000` };
-		} else {
-			const fns = adminFunctions
-				.split(",")
-				.map((s) => s.trim())
-				.filter(Boolean);
-			if (fns.length === 0) {
-				setError("Provide at least one admin function name");
-				setSubmitting(false);
-				return;
-			}
-			config = { principal, adminFunctions: fns };
+		const result = buildConfig();
+		if (!result.ok) {
+			setError(result.error);
+			setSubmitting(false);
+			return;
 		}
 
 		try {
@@ -57,7 +125,7 @@ export default function NewSentryPage() {
 				body: JSON.stringify({
 					kind,
 					name,
-					config,
+					config: result.config,
 					delivery_webhook: webhook,
 					active: true,
 				}),
@@ -78,6 +146,16 @@ export default function NewSentryPage() {
 			setError(err instanceof Error ? err.message : "failed");
 			setSubmitting(false);
 		}
+	};
+
+	const principalHint: Record<Kind, string> = {
+		"large-outflow": "Alerts fire on any STX transfer to or from this address.",
+		"permission-change": "Contract principal whose admin functions we watch.",
+		"ft-outflow":
+			"Principal involved in token transfers (sender or recipient).",
+		"contract-deployment":
+			"Principal (deployer address) we watch for new contract deployments.",
+		"print-event-match": "Contract principal whose `print` events we watch.",
 	};
 
 	return (
@@ -118,12 +196,11 @@ export default function NewSentryPage() {
 									value={kind}
 									onChange={(e) => setKind(e.target.value as Kind)}
 								>
-									<option value="large-outflow">
-										Large outflow — watch for transfers above threshold
-									</option>
-									<option value="permission-change">
-										Permission change — watch for admin function calls
-									</option>
+									{(Object.keys(KIND_LABELS) as Kind[]).map((k) => (
+										<option key={k} value={k}>
+											{KIND_LABELS[k]}
+										</option>
+									))}
 								</select>
 							</div>
 						</div>
@@ -144,18 +221,16 @@ export default function NewSentryPage() {
 									placeholder={
 										kind === "large-outflow"
 											? "SP... or SP....contract-name"
-											: "SP....contract-name"
+											: kind === "contract-deployment"
+												? "SP... (deployer address)"
+												: "SP....contract-name"
 									}
 									pattern="^S[PMT][0-9A-Z]+(\.[A-Za-z][A-Za-z0-9-]*)?$"
 								/>
-								<div className="settings-hint">
-									{kind === "large-outflow"
-										? "Alerts fire on any STX transfer to or from this address."
-										: "Contract principal whose admin functions we watch."}
-								</div>
+								<div className="settings-hint">{principalHint[kind]}</div>
 							</div>
 
-							{kind === "large-outflow" ? (
+							{kind === "large-outflow" && (
 								<div className="settings-field">
 									<label className="settings-label" htmlFor="sentry-threshold">
 										Threshold (STX)
@@ -173,7 +248,9 @@ export default function NewSentryPage() {
 										Alert only on transfers larger than this.
 									</div>
 								</div>
-							) : (
+							)}
+
+							{kind === "permission-change" && (
 								<div className="settings-field">
 									<label className="settings-label" htmlFor="sentry-admin-fns">
 										Admin functions
@@ -189,6 +266,76 @@ export default function NewSentryPage() {
 									<div className="settings-hint">
 										Comma-separated function names. Alerts fire on any
 										successful call to these.
+									</div>
+								</div>
+							)}
+
+							{kind === "ft-outflow" && (
+								<>
+									<div className="settings-field">
+										<label className="settings-label" htmlFor="sentry-asset-id">
+											Asset identifier
+										</label>
+										<input
+											id="sentry-asset-id"
+											className="settings-input mono"
+											required
+											value={assetIdentifier}
+											onChange={(e) => setAssetIdentifier(e.target.value)}
+											placeholder="SP2...CONTRACT.token-name::token-symbol"
+										/>
+										<div className="settings-hint">
+											SIP-010 asset identifier — the full
+											<code> principal.contract::symbol</code> form.
+										</div>
+									</div>
+									<div className="settings-field">
+										<label
+											className="settings-label"
+											htmlFor="sentry-ft-threshold"
+										>
+											Threshold amount (raw, pre-decimal)
+										</label>
+										<input
+											id="sentry-ft-threshold"
+											className="settings-input"
+											type="number"
+											min="1"
+											required
+											value={thresholdAmount}
+											onChange={(e) => setThresholdAmount(e.target.value)}
+										/>
+										<div className="settings-hint">
+											Raw token amount. For a 6-decimal token, 1 million = 1.0
+											token.
+										</div>
+									</div>
+								</>
+							)}
+
+							{kind === "contract-deployment" && (
+								<div className="settings-hint" style={{ marginTop: -8 }}>
+									No extra config needed. Any contract deployment by the watched
+									principal fires an alert.
+								</div>
+							)}
+
+							{kind === "print-event-match" && (
+								<div className="settings-field">
+									<label className="settings-label" htmlFor="sentry-topic">
+										Topic (optional)
+									</label>
+									<input
+										id="sentry-topic"
+										className="settings-input mono"
+										value={printTopic}
+										onChange={(e) => setPrintTopic(e.target.value)}
+										placeholder="e.g. liquidation, pool-drain"
+									/>
+									<div className="settings-hint">
+										If set, only prints with this exact topic match. Leave empty
+										to match every print on the contract (noisy on chatty
+										contracts).
 									</div>
 								</div>
 							)}

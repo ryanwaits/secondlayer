@@ -142,7 +142,7 @@ export default async function SentryDetailPage({
 									<code>{String(sentry.config.principal ?? "—")}</code>
 								</dd>
 							</div>
-							{sentry.kind === "large-outflow" ? (
+							{sentry.kind === "large-outflow" && (
 								<div style={{ display: "flex", marginBottom: 6 }}>
 									<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
 										Threshold
@@ -154,7 +154,8 @@ export default async function SentryDetailPage({
 										µSTX
 									</dd>
 								</div>
-							) : sentry.kind === "permission-change" ? (
+							)}
+							{sentry.kind === "permission-change" && (
 								<div style={{ display: "flex", marginBottom: 6 }}>
 									<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
 										Admin functions
@@ -167,7 +168,45 @@ export default async function SentryDetailPage({
 										</code>
 									</dd>
 								</div>
-							) : null}
+							)}
+							{sentry.kind === "ft-outflow" && (
+								<>
+									<div style={{ display: "flex", marginBottom: 6 }}>
+										<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
+											Asset
+										</dt>
+										<dd style={{ margin: 0 }}>
+											<code>
+												{String(sentry.config.assetIdentifier ?? "—")}
+											</code>
+										</dd>
+									</div>
+									<div style={{ display: "flex", marginBottom: 6 }}>
+										<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
+											Threshold
+										</dt>
+										<dd style={{ margin: 0 }}>
+											<code>
+												{String(sentry.config.thresholdAmount ?? "—")}
+											</code>
+										</dd>
+									</div>
+								</>
+							)}
+							{sentry.kind === "print-event-match" && (
+								<div style={{ display: "flex", marginBottom: 6 }}>
+									<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
+										Topic
+									</dt>
+									<dd style={{ margin: 0 }}>
+										<code>
+											{sentry.config.topic
+												? String(sentry.config.topic)
+												: "(any)"}
+										</code>
+									</dd>
+								</div>
+							)}
 							<div style={{ display: "flex", marginBottom: 6 }}>
 								<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
 									Delivery

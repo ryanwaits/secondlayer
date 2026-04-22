@@ -1,6 +1,9 @@
 import {
+	type ContractDeploymentInput,
+	type FtOutflowInput,
 	type LargeOutflowInput,
 	type PermissionChangeInput,
+	type PrintEventMatchInput,
 	WORKFLOW_NAME_BY_KIND,
 } from "@secondlayer/sentries";
 import { logger } from "@secondlayer/shared";
@@ -263,6 +266,13 @@ app.get("/:id/runs/:runId", async (c) => {
 	return c.json({ run });
 });
 
+type SentryTestInput =
+	| LargeOutflowInput
+	| PermissionChangeInput
+	| FtOutflowInput
+	| ContractDeploymentInput
+	| PrintEventMatchInput;
+
 function buildTestInput(
 	kind: string,
 	common: {
@@ -270,7 +280,7 @@ function buildTestInput(
 		config: Record<string, unknown>;
 		deliveryWebhook: string;
 	},
-): LargeOutflowInput | PermissionChangeInput | null {
+): SentryTestInput | null {
 	const principal = String(common.config.principal ?? "");
 	if (!principal) return null;
 
@@ -294,6 +304,43 @@ function buildTestInput(
 			sentryId: common.sentryId,
 			principal,
 			adminFunctions: fns,
+			deliveryWebhook: common.deliveryWebhook,
+			sinceIso: null,
+			testMode: true,
+		};
+	}
+
+	if (kind === "ft-outflow") {
+		const assetIdentifier = String(common.config.assetIdentifier ?? "");
+		const thresholdAmount = String(common.config.thresholdAmount ?? "0");
+		if (!assetIdentifier) return null;
+		return {
+			sentryId: common.sentryId,
+			principal,
+			assetIdentifier,
+			thresholdAmount,
+			deliveryWebhook: common.deliveryWebhook,
+			sinceIso: null,
+			testMode: true,
+		};
+	}
+
+	if (kind === "contract-deployment") {
+		return {
+			sentryId: common.sentryId,
+			principal,
+			deliveryWebhook: common.deliveryWebhook,
+			sinceIso: null,
+			testMode: true,
+		};
+	}
+
+	if (kind === "print-event-match") {
+		const topic = common.config.topic;
+		return {
+			sentryId: common.sentryId,
+			principal,
+			topic: typeof topic === "string" && topic.length > 0 ? topic : null,
 			deliveryWebhook: common.deliveryWebhook,
 			sinceIso: null,
 			testMode: true,
