@@ -9,7 +9,6 @@ export const ErrorCodes = {
 	NOT_FOUND: "NOT_FOUND",
 	// Tenant lifecycle (CLI surfaces these verbatim)
 	KEY_ROTATED: "KEY_ROTATED",
-	TRIAL_EXPIRED: "TRIAL_EXPIRED",
 	TENANT_SUSPENDED: "TENANT_SUSPENDED",
 	NO_TENANT_FOR_PROJECT: "NO_TENANT_FOR_PROJECT",
 	INSTANCE_EXISTS: "INSTANCE_EXISTS",
@@ -109,12 +108,6 @@ export class KeyRotatedError extends SecondLayerError {
 	}
 }
 
-export class TrialExpiredError extends SecondLayerError {
-	constructor(message: string) {
-		super("TRIAL_EXPIRED", message);
-	}
-}
-
 export class TenantSuspendedError extends SecondLayerError {
 	constructor(message = "Instance is suspended") {
 		super("TENANT_SUSPENDED", message);
@@ -132,14 +125,13 @@ type MappedCode = Extract<
 	| "NOT_FOUND"
 	| "VALIDATION_ERROR"
 	| "KEY_ROTATED"
-	| "TRIAL_EXPIRED"
 	| "TENANT_SUSPENDED"
 	| "NO_TENANT_FOR_PROJECT"
 	| "INSTANCE_EXISTS"
 >;
 export const CODE_TO_STATUS: Record<
 	MappedCode,
-	400 | 401 | 402 | 403 | 404 | 409 | 423 | 429
+	400 | 401 | 403 | 404 | 409 | 423 | 429
 > = {
 	AUTHENTICATION_ERROR: 401,
 	AUTHORIZATION_ERROR: 403,
@@ -148,7 +140,6 @@ export const CODE_TO_STATUS: Record<
 	NOT_FOUND: 404,
 	VALIDATION_ERROR: 400,
 	KEY_ROTATED: 401,
-	TRIAL_EXPIRED: 402,
 	TENANT_SUSPENDED: 423,
 	NO_TENANT_FOR_PROJECT: 404,
 	INSTANCE_EXISTS: 409,

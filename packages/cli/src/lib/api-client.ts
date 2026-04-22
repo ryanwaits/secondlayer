@@ -25,11 +25,6 @@ export function handleApiError(err: unknown, action: string): never {
 			console.error("Session expired. Run: sl login");
 			process.exit(1);
 		}
-		if (err.code === "TRIAL_EXPIRED") {
-			console.error(err.message);
-			console.error("Run: sl instance resize --plan <...> and add payment");
-			process.exit(1);
-		}
 		if (err.code === "TENANT_SUSPENDED") {
 			console.error("Tenant is suspended. Run: sl instance resume");
 			process.exit(1);

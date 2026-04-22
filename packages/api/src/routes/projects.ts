@@ -364,8 +364,6 @@ app.post("/:slug/instance", async (c) => {
 		throw err;
 	}
 
-	const TRIAL_DAYS = 14;
-	const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 3600 * 1000);
 	const alloc = {
 		launch: { cpus: 1, memoryMb: 2048, storageLimitMb: 10240 },
 		grow: { cpus: 2, memoryMb: 4096, storageLimitMb: 51200 },
@@ -389,7 +387,6 @@ app.post("/:slug/instance", async (c) => {
 		serviceKey: provisioned.serviceKey,
 		apiUrlInternal: provisioned.apiUrlInternal,
 		apiUrlPublic: provisioned.apiUrlPublic,
-		trialEndsAt,
 		projectId: project.id,
 	});
 
@@ -409,7 +406,6 @@ app.post("/:slug/instance", async (c) => {
 				memoryMb: tenant.memory_mb,
 				storageLimitMb: tenant.storage_limit_mb,
 				apiUrl: tenant.api_url_public,
-				trialEndsAt: tenant.trial_ends_at,
 				createdAt: tenant.created_at,
 				projectId: tenant.project_id,
 			},

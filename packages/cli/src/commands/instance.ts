@@ -22,7 +22,6 @@ interface TenantSummary {
 	plan: Plan;
 	status: string;
 	apiUrl: string;
-	trialEndsAt: string;
 	createdAt: string;
 	cpus?: number;
 	memoryMb?: number;
@@ -374,19 +373,11 @@ async function renderInstanceInfo(): Promise<void> {
 			return;
 		}
 		const t = res.tenant;
-		const trialDays = Math.max(
-			0,
-			Math.ceil(
-				(new Date(t.trialEndsAt).getTime() - Date.now()) /
-					(24 * 60 * 60 * 1000),
-			),
-		);
 		console.log(
 			formatKeyValue([
 				["URL", t.apiUrl],
 				["Plan", t.plan],
 				["Status", t.status],
-				["Trial", `${trialDays} day${trialDays === 1 ? "" : "s"} left`],
 				["Created", new Date(t.createdAt).toLocaleString()],
 			]),
 		);
@@ -427,13 +418,6 @@ function handleInstanceError(err: unknown, action: string): never {
 	if (err instanceof CliHttpError) {
 		if (err.code === "SESSION_EXPIRED") {
 			logError("Session expired. Run: sl login");
-			process.exit(1);
-		}
-		if (err.code === "TRIAL_EXPIRED") {
-			logError(err.message);
-			logError(
-				"Add a payment method at the dashboard to keep your instance running.",
-			);
 			process.exit(1);
 		}
 		if (err.code === "TENANT_SUSPENDED") {

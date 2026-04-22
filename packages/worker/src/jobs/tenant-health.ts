@@ -13,6 +13,7 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import {
+	bumpTenantActivity,
 	getTenantCredentials,
 	listTenantsByStatus,
 	recordHealthCheck,
@@ -79,6 +80,29 @@ async function checkAllTenants(): Promise<void> {
 
 			await recordHealthCheck(db, tenant.slug, storage.sizeMb);
 			await recordMonthlyUsage(db, tenant.id, storage.sizeMb);
+
+			// Activity heartbeat — the tenant API tracks lastRequestAt in-memory
+			// and exposes it at /internal/activity. If it moved past our stored
+			// `last_active_at`, bump. Best-effort: failures don't block health.
+			try {
+				const res = await fetch(`${tenant.api_url_internal}/internal/activity`);
+				if (res.ok) {
+					const { lastRequestAt } = (await res.json()) as {
+						lastRequestAt: string | null;
+					};
+					if (
+						lastRequestAt &&
+						new Date(lastRequestAt) > tenant.last_active_at
+					) {
+						await bumpTenantActivity(db, tenant.slug);
+					}
+				}
+			} catch (err) {
+				logger.debug("Tenant activity fetch failed", {
+					slug: tenant.slug,
+					error: getErrorMessage(err),
+				});
+			}
 
 			if (
 				tenant.storage_limit_mb > 0 &&

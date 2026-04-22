@@ -413,7 +413,6 @@ async function main(): Promise<void> {
 			serviceKey,
 			apiUrlInternal: tenant.apiUrlInternal,
 			apiUrlPublic: tenant.apiUrlPublic,
-			trialEndsAt: new Date(Date.now() + 14 * 24 * 3600 * 1000),
 		});
 		console.log(`   ✓ Provisioned: slug=${slug}`);
 	}

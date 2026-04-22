@@ -35,7 +35,7 @@ export interface ProvisionResponse {
 	credentials: { apiUrl: string; anonKey: string; serviceKey: string };
 }
 
-export function TrialStart({
+export function ProvisionStart({
 	sessionToken,
 	onProvisioned,
 	onProvisioning,
@@ -44,7 +44,7 @@ export function TrialStart({
 	onProvisioned: (resp: ProvisionResponse) => void;
 	onProvisioning: () => void;
 }) {
-	// Pre-select Launch — cheapest, most accessible for first-time trial.
+	// Pre-select Launch — cheapest, most accessible entry compute.
 	const [selected, setSelected] = useState<string>("launch");
 	const [state, setState] = useState<"idle" | "provisioning" | "error">("idle");
 	const [error, setError] = useState<string | null>(null);
@@ -76,7 +76,7 @@ export function TrialStart({
 
 	return (
 		<div>
-			<h1 className="settings-title">Start your 14-day trial</h1>
+			<h1 className="settings-title">Provision your instance</h1>
 			<p className="settings-desc">
 				Pick a plan. We'll provision your dedicated Postgres, API, and subgraph
 				processor. Takes about a minute.
@@ -106,7 +106,7 @@ export function TrialStart({
 			</div>
 
 			<div className="settings-hint" style={{ marginBottom: 20 }}>
-				No charge until day 15. Cancel anytime.
+				Pay for compute, not features. Cancel anytime.
 			</div>
 
 			{error && (
@@ -123,7 +123,7 @@ export function TrialStart({
 					disabled={state === "provisioning"}
 					onClick={handleStart}
 				>
-					{state === "provisioning" ? "Provisioning…" : "Start 14-day trial"}
+					{state === "provisioning" ? "Provisioning…" : "Create instance"}
 				</button>
 				<span className="settings-hint" style={{ marginTop: 0 }}>
 					Provisioning usually completes in under a minute.

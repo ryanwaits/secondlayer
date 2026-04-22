@@ -13,6 +13,10 @@ import { requireAdmin } from "./middleware/admin.ts";
 import { dedicatedAuth, staticKeyAuth } from "./middleware/auth-modes.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
+import {
+	getLastRequestAtMs,
+	trackTenantActivity,
+} from "./middleware/tenant-activity.ts";
 import { countApiRequests } from "./middleware/usage.ts";
 import accountsRouter from "./routes/accounts.ts";
 import adminRouter from "./routes/admin.ts";
@@ -51,6 +55,19 @@ function resourceAuth(): MiddlewareHandler {
 	if (mode === "dedicated") return dedicatedAuth();
 	if (mode === "oss") return staticKeyAuth();
 	return requireAuth();
+}
+
+// Dedicated-mode-only: track tenant activity + expose it to the worker
+// health cron so the control plane can auto-pause idle Hobby tenants.
+if (mode === "dedicated") {
+	app.use("*", trackTenantActivity());
+	app.get("/internal/activity", (c) => {
+		const lastRequestAtMs = getLastRequestAtMs();
+		return c.json({
+			lastRequestAt:
+				lastRequestAtMs > 0 ? new Date(lastRequestAtMs).toISOString() : null,
+		});
+	});
 }
 
 // Platform-only routes — skipped in oss/dedicated modes.

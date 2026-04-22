@@ -16,7 +16,6 @@ interface TenantSummary {
 	plan: string;
 	status: string;
 	apiUrl: string;
-	trialEndsAt: string;
 }
 
 /**
@@ -94,16 +93,6 @@ export default function SettingsPage() {
 			alert(e instanceof Error ? e.message : "Failed to delete project");
 		}
 	}, [project, tenant, deleteProject]);
-
-	const trialDaysLeft = tenant
-		? Math.max(
-				0,
-				Math.ceil(
-					(new Date(tenant.trialEndsAt).getTime() - Date.now()) /
-						(24 * 3600 * 1000),
-				),
-			)
-		: 0;
 
 	return (
 		<>
@@ -208,8 +197,6 @@ export default function SettingsPage() {
 										}}
 									>
 										{tenant.apiUrl}
-										{tenant.status === "active" &&
-											` · Trial: ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left`}
 									</div>
 								</div>
 								<Link className="settings-btn ghost small" href="/instance">

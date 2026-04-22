@@ -1,7 +1,7 @@
 import { getEnv, logger } from "@secondlayer/shared";
 import { startStorageMeasurement } from "./jobs/measure-storage.ts";
 import { startTenantHealthCron } from "./jobs/tenant-health.ts";
-import { startTenantTrialCron } from "./jobs/tenant-trial.ts";
+import { startTenantIdlePauseCron } from "./jobs/tenant-idle-pause.ts";
 
 let running = true;
 
@@ -11,8 +11,8 @@ async function runWorker() {
 
 	const stops = [
 		startStorageMeasurement(),
-		startTenantTrialCron(),
 		startTenantHealthCron(),
+		startTenantIdlePauseCron(),
 	];
 
 	logger.info("Worker ready");

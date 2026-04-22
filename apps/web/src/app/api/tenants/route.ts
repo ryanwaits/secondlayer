@@ -33,7 +33,6 @@ interface TenantSummary {
 	storageLimitMb: number;
 	storageUsedMb: number | null;
 	apiUrl: string;
-	trialEndsAt: string;
 	suspendedAt: string | null;
 	createdAt: string;
 }

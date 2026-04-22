@@ -54,23 +54,12 @@ export function registerWhoamiCommand(program: Command): void {
 						plan: string;
 						status: string;
 						apiUrl: string;
-						trialEndsAt: string;
 					} | null;
 				}>("/api/tenants/me");
 				if (tenant.tenant) {
-					const trialDays = Math.max(
-						0,
-						Math.ceil(
-							(new Date(tenant.tenant.trialEndsAt).getTime() - Date.now()) /
-								(24 * 60 * 60 * 1000),
-						),
-					);
 					rows.push(["Instance", tenant.tenant.apiUrl]);
+					rows.push(["Plan", tenant.tenant.plan]);
 					rows.push(["Status", tenant.tenant.status]);
-					rows.push([
-						"Trial",
-						`${trialDays} day${trialDays === 1 ? "" : "s"} left`,
-					]);
 				} else {
 					rows.push([
 						"Instance",

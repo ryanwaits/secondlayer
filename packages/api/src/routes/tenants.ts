@@ -46,8 +46,6 @@ const VALID_PLANS = new Set(["launch", "grow", "scale", "enterprise"]);
 
 type PlanId = "launch" | "grow" | "scale" | "enterprise";
 
-const TRIAL_DAYS = 14;
-
 const app = new Hono();
 
 // ── POST /api/tenants — provision a new tenant ─────────────────────────
@@ -113,8 +111,6 @@ app.post("/", async (c) => {
 		throw err;
 	}
 
-	const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 3600 * 1000);
-
 	// Match plan alloc from packages/provisioner/src/plans.ts. Safe to
 	// hardcode here — plan IDs are stable and we'd notice a drift on deploy
 	// (provisioner would return a shape mismatch long before this).
@@ -136,7 +132,6 @@ app.post("/", async (c) => {
 		serviceKey: provisioned.serviceKey,
 		apiUrlInternal: provisioned.apiUrlInternal,
 		apiUrlPublic: provisioned.apiUrlPublic,
-		trialEndsAt,
 	});
 
 	logger.info("Tenant provisioned", {
@@ -632,8 +627,8 @@ function publicView(tenant: NonNullable<TenantRow>) {
 		storageLimitMb: tenant.storage_limit_mb,
 		storageUsedMb: tenant.storage_used_mb,
 		apiUrl: tenant.api_url_public,
-		trialEndsAt: tenant.trial_ends_at,
 		suspendedAt: tenant.suspended_at,
+		lastActiveAt: tenant.last_active_at,
 		createdAt: tenant.created_at,
 	};
 }

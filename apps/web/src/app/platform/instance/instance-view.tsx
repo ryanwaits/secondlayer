@@ -5,7 +5,7 @@ import { DangerZone } from "./danger-zone";
 import { DbAccessSection } from "./db-access";
 import { KeyRevealModal } from "./key-reveal-modal";
 import { ProvisionProgress } from "./provision-progress";
-import { type ProvisionResponse, TrialStart } from "./trial-start";
+import { type ProvisionResponse, ProvisionStart } from "./provision-start";
 
 interface TenantSummary {
 	slug: string;
@@ -16,7 +16,6 @@ interface TenantSummary {
 	storageLimitMb: number;
 	storageUsedMb: number | null;
 	apiUrl: string;
-	trialEndsAt: string;
 	suspendedAt: string | null;
 	createdAt: string;
 }
@@ -84,7 +83,7 @@ export function InstanceView({
 
 	if (!tenant) {
 		return (
-			<TrialStart
+			<ProvisionStart
 				sessionToken={sessionToken}
 				onProvisioning={() => setProvisioningView(true)}
 				onProvisioned={(resp: ProvisionResponse) => {
@@ -100,9 +99,6 @@ export function InstanceView({
 						storageLimitMb: 0,
 						storageUsedMb: null,
 						apiUrl: resp.tenant.apiUrl,
-						trialEndsAt: new Date(
-							Date.now() + 14 * 24 * 3600 * 1000,
-						).toISOString(),
 						suspendedAt: null,
 						createdAt: new Date().toISOString(),
 					});
@@ -204,23 +200,14 @@ function ActiveView({
 	onSuspended: () => void;
 	onDeleted: () => void;
 }) {
-	const trialInfo = trialState(tenant);
-
 	return (
 		<>
 			<h1 className="settings-title">Instance</h1>
 			<p className="settings-desc">
 				{tenant.status === "suspended"
 					? "Containers stopped. Data preserved. Resume to bring everything back online in ~20s."
-					: trialInfo.label}
+					: "Your dedicated Postgres, API, and subgraph processor."}
 			</p>
-
-			{trialInfo.banner && (
-				<div className={`instance-banner ${trialInfo.banner}`}>
-					<span className="banner-dot" />
-					<div className="banner-body">{trialInfo.bannerText}</div>
-				</div>
-			)}
 
 			<OverviewSection tenant={tenant} />
 			<ResourceGauges tenant={tenant} runtime={runtime} />
@@ -247,38 +234,6 @@ function ActiveView({
 			/>
 		</>
 	);
-}
-
-function trialState(tenant: TenantSummary): {
-	label: string;
-	banner: "" | "warning" | "info";
-	bannerText: string;
-} {
-	if (tenant.status === "suspended") {
-		return { label: "", banner: "info", bannerText: "" };
-	}
-	const end = new Date(tenant.trialEndsAt).getTime();
-	const daysLeft = Math.ceil((end - Date.now()) / (24 * 3600 * 1000));
-	if (daysLeft <= 0) {
-		return {
-			label: "Your trial has ended.",
-			banner: "warning",
-			bannerText:
-				"Trial expired. Add a payment method to keep your instance running.",
-		};
-	}
-	if (daysLeft <= 3) {
-		return {
-			label: "Your dedicated Postgres, API, and subgraph processor.",
-			banner: "warning",
-			bannerText: `Trial ends in ${daysLeft} day${daysLeft === 1 ? "" : "s"}. Add a payment method to keep your instance running — no interruption, no data loss.`,
-		};
-	}
-	return {
-		label: `Your dedicated Postgres, API, and subgraph processor. Trial ends in ${daysLeft} days.`,
-		banner: "",
-		bannerText: "",
-	};
 }
 
 // ─── Overview ────────────────────────────────────────────────────────

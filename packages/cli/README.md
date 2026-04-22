@@ -26,7 +26,7 @@ sl subgraphs deploy ./x.ts       # deploy to your instance
 |---|---|
 | `sl login` | Magic-link email → 6-digit code → writes session to `~/.secondlayer/session.json` |
 | `sl logout` | Revokes the session and clears the local file |
-| `sl whoami` | Prints account, active project, instance URL, trial days left |
+| `sl whoami` | Prints account, active project, instance URL, plan, status |
 
 ### Project
 
@@ -50,7 +50,7 @@ One instance per project. The platform API spawns a dedicated `sl-pg-{slug}`,
 | Command | What it does |
 |---|---|
 | `sl instance create --plan <launch\|grow\|scale>` | Provision containers. Boxed reveal of `serviceKey` + `anonKey` (shown once). |
-| `sl instance info` | Plan, status, resource usage, trial days left |
+| `sl instance info` | Plan, status, resource usage |
 | `sl instance resize --plan <...>` | Recreate containers with new CPU/memory (~30s downtime) |
 | `sl instance suspend` / `resume` | Stop/start containers, volume preserved |
 | `sl instance keys rotate [--service\|--anon\|--both]` | Bump JWT gen, recreate API container, mint replacement key(s) |
@@ -95,7 +95,7 @@ invocation. No long-lived key on disk.
 |---|---|
 | `sl generate [files...]` (aliases: `gen`, `codegen`) | Generate TS interfaces from Clarity contracts |
 | `sl init` | Scaffold `secondlayer.config.ts` |
-| `sl doctor` | Session + project + instance reachability + trial status check |
+| `sl doctor` | Session + project + instance reachability check |
 | `sl status` | Platform/instance health |
 | `sl account profile` | Update display name / bio / slug |
 | `sl config show/set/reset/clear` | Inspect or reset local config |
@@ -117,7 +117,6 @@ Every tenant-scoped failure surfaces a typed code and an action hint:
 | Code | CLI hint |
 |---|---|
 | `SESSION_EXPIRED` | `Session expired. Run: sl login` |
-| `TRIAL_EXPIRED` | `Your trial expired. Run: sl instance resize --plan <...> and add payment` |
 | `TENANT_SUSPENDED` | `Instance is suspended. Run: sl instance resume` |
 | `NO_ACTIVE_PROJECT` | `No project selected. Run: sl project use <slug>` |
 | `NO_TENANT_FOR_PROJECT` | `Project has no instance. Run: sl instance create --plan launch` |

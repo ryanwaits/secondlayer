@@ -11,8 +11,8 @@ import { readSession } from "./session.ts";
  * has already minted an ephemeral service JWT.
  *
  * Both functions throw `CliHttpError` on non-2xx with a typed `code` so
- * command handlers can match on specific backend codes (`TRIAL_EXPIRED`,
- * `TENANT_SUSPENDED`, `SESSION_EXPIRED`, `KEY_ROTATED`, etc.).
+ * command handlers can match on specific backend codes (`TENANT_SUSPENDED`,
+ * `SESSION_EXPIRED`, `KEY_ROTATED`, etc.).
  */
 
 export interface CliHttpErrorBody {

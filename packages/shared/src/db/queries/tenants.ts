@@ -27,7 +27,6 @@ export interface NewTenantInput {
 	serviceKey: string;
 	apiUrlInternal: string;
 	apiUrlPublic: string;
-	trialEndsAt: Date;
 	projectId?: string;
 }
 
@@ -52,7 +51,6 @@ export async function insertTenant(
 		service_key_enc: encryptSecret(input.serviceKey),
 		api_url_internal: input.apiUrlInternal,
 		api_url_public: input.apiUrlPublic,
-		trial_ends_at: input.trialEndsAt,
 		project_id: input.projectId ?? null,
 	};
 	return db
@@ -99,15 +97,37 @@ export async function listTenantsByStatus(
 		.execute();
 }
 
-export async function listExpiredTrials(
+/**
+ * Tenants considered "idle" for auto-pause on the Hobby tier. Active = any
+ * successful tenant-API query OR workflow run wrote `last_active_at` within
+ * the threshold.
+ */
+export async function listIdleHobbyTenants(
 	db: Kysely<Database>,
-	now: Date = new Date(),
+	idleSince: Date,
 ): Promise<Tenant[]> {
 	return db
 		.selectFrom("tenants")
 		.selectAll()
-		.where("status", "in", ["provisioning", "active"])
-		.where("trial_ends_at", "<", now)
+		.where("status", "=", "active")
+		.where("plan", "=", "hobby")
+		.where("last_active_at", "<", idleSince)
+		.execute();
+}
+
+/**
+ * Bump `last_active_at` for a tenant. Callers are expected to throttle
+ * (don't hammer on every request) — the activity middleware + workflow-
+ * runner enforce a 60s per-tenant min between writes.
+ */
+export async function bumpTenantActivity(
+	db: Kysely<Database>,
+	slug: string,
+): Promise<void> {
+	await db
+		.updateTable("tenants")
+		.set({ last_active_at: new Date() })
+		.where("slug", "=", slug)
 		.execute();
 }
 

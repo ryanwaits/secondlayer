@@ -137,6 +137,7 @@ export interface MagicLinksTable {
 
 export interface UsageDailyTable {
 	account_id: string;
+	tenant_id: string | null;
 	date: string;
 	api_requests: Generated<number>;
 	deliveries: Generated<number>;
@@ -430,9 +431,9 @@ export interface TenantsTable {
 	service_key_enc: Buffer;
 	api_url_internal: string;
 	api_url_public: string;
-	trial_ends_at: Date;
 	suspended_at: Date | null;
 	last_health_check_at: Date | null;
+	last_active_at: Generated<Date>;
 	service_gen: Generated<number>;
 	anon_gen: Generated<number>;
 	project_id: string | null;
