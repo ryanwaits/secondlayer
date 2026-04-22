@@ -36,6 +36,7 @@ const SETTINGS_CHILDREN = [
 	{ href: "/api-keys", label: "API Keys" },
 	{ href: "/team", label: "Team" },
 	{ href: "/usage", label: "Usage" },
+	{ href: "/billing", label: "Billing" },
 	{ href: "/instance", label: "Instance" },
 ];
 
