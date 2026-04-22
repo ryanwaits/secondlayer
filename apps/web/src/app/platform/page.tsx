@@ -2,6 +2,7 @@ import { CollapsibleSection } from "@/components/console/collapsible-section";
 import { OnboardingCard } from "@/components/console/onboarding-card";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
+import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 
@@ -60,10 +61,10 @@ export default async function DashboardPage() {
 
 	if (session) {
 		const [subgraphsResult, sessionsResult] = await Promise.allSettled([
-			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
-				sessionToken: session,
-				tags: ["subgraphs"],
-			}),
+			fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
+				session,
+				"/api/subgraphs",
+			),
 			apiRequest<{ sessions: RecentSession[] }>("/api/chat-sessions?limit=10", {
 				sessionToken: session,
 				tags: ["sessions"],

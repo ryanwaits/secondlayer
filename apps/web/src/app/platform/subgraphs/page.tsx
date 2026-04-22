@@ -2,6 +2,7 @@ import { IndexRow } from "@/components/console/index-row";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
+import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 
@@ -25,10 +26,10 @@ export default async function SubgraphsPage() {
 
 	if (session) {
 		const [subgraphsResult, statusResult] = await Promise.allSettled([
-			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
-				sessionToken: session,
-				tags: ["subgraphs"],
-			}),
+			fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
+				session,
+				"/api/subgraphs",
+			),
 			apiRequest<{ chainTip: number | null }>("/status", {
 				sessionToken: session,
 				tags: ["status"],

@@ -1,4 +1,5 @@
-import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
+import { getSessionFromRequest } from "@/lib/api";
+import { fetchFromTenant } from "@/lib/tenant-api";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -11,17 +12,9 @@ export async function GET(
 	}
 
 	const { name, table } = await params;
-
-	try {
-		const data = await apiRequest<{ count: number }>(
-			`/api/subgraphs/${name}/${table}/count`,
-			{ sessionToken },
-		);
-		return NextResponse.json(data);
-	} catch (e) {
-		if (e instanceof ApiError) {
-			return NextResponse.json({ error: e.message }, { status: e.status });
-		}
-		return NextResponse.json({ error: "Internal error" }, { status: 500 });
-	}
+	const { ok, status, data } = await fetchFromTenant<{ count: number }>(
+		sessionToken,
+		`/api/subgraphs/${name}/${table}/count`,
+	);
+	return NextResponse.json(data, { status: ok ? 200 : status });
 }

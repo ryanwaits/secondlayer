@@ -4,6 +4,7 @@ import { MetaGrid } from "@/components/console/meta-grid";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
+import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { ApiKey, SubgraphDetail, SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -30,15 +31,13 @@ export default async function SubgraphDetailPage({
 	let allSubgraphs: SubgraphSummary[] = [];
 
 	try {
+		if (!session) notFound();
 		const [sgResult, listResult] = await Promise.allSettled([
-			apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
-				sessionToken: session ?? undefined,
-				tags: ["subgraphs", `subgraph-${name}`],
-			}),
-			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
-				sessionToken: session ?? undefined,
-				tags: ["subgraphs"],
-			}),
+			fetchFromTenantOrThrow<SubgraphDetail>(session, `/api/subgraphs/${name}`),
+			fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
+				session,
+				"/api/subgraphs",
+			),
 		]);
 
 		if (sgResult.status === "rejected") {
