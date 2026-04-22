@@ -1,5 +1,4 @@
 import { type Kysely, sql } from "kysely";
-import { getPlanLimits } from "../../lib/plans.ts";
 import type { Database } from "../types.ts";
 
 /** Increment API request counter for today. Fire-and-forget safe. */
@@ -36,7 +35,7 @@ export async function getUsage(
 	accountId: string,
 ): Promise<UsageSummary> {
 	const today = new Date().toISOString().slice(0, 10);
-	const monthStart = today.slice(0, 7) + "-01"; // YYYY-MM-01
+	const monthStart = `${today.slice(0, 7)}-01`; // YYYY-MM-01
 
 	// Today's API requests
 	const dailyRow = await db
@@ -70,94 +69,6 @@ export async function getUsage(
 	};
 }
 
-export interface DailyUsage {
-	date: string;
-	apiRequests: number;
-	deliveries: number;
-}
-
-/** Get last 7 days of daily usage, filling missing days with 0. */
-export async function getDailyUsage(
-	db: Kysely<Database>,
-	accountId: string,
-): Promise<DailyUsage[]> {
-	const rows = await db
-		.selectFrom("usage_daily")
-		.select(["date", "api_requests", "deliveries"])
-		.where("account_id", "=", accountId)
-		.where("date", ">=", sql<string>`NOW()::date - 6`)
-		.orderBy("date", "asc")
-		.execute();
-
-	// Fill missing days with 0 (normalize date to YYYY-MM-DD string)
-	const byDate = new Map(
-		rows.map((r) => {
-			const d = r.date as unknown;
-			const key =
-				d instanceof Date
-					? d.toISOString().slice(0, 10)
-					: String(d).slice(0, 10);
-			return [key, r];
-		}),
-	);
-	const result: DailyUsage[] = [];
-	for (let i = 6; i >= 0; i--) {
-		const d = new Date();
-		d.setDate(d.getDate() - i);
-		const dateStr = d.toISOString().slice(0, 10);
-		const row = byDate.get(dateStr);
-		result.push({
-			date: dateStr,
-			apiRequests: row?.api_requests ?? 0,
-			deliveries: row?.deliveries ?? 0,
-		});
-	}
-	return result;
-}
-
-export interface LimitCheck {
-	allowed: boolean;
-	limits: ReturnType<typeof getPlanLimits>;
-	current: UsageSummary & { subgraphs: number };
-	exceeded?: string;
-}
-
-/** Check if an account is within plan limits. */
-export async function checkLimits(
-	db: Kysely<Database>,
-	accountId: string,
-	plan: string,
-): Promise<LimitCheck> {
-	const limits = getPlanLimits(plan);
-	const usage = await getUsage(db, accountId);
-
-	const subgraphCount = await db
-		.selectFrom("subgraphs")
-		.select(sql<number>`count(*)`.as("count"))
-		.where("account_id", "=", accountId)
-		.executeTakeFirst();
-
-	const current = {
-		...usage,
-		subgraphs: Number(subgraphCount?.count ?? 0),
-	};
-
-	if (current.subgraphs >= limits.subgraphs) {
-		return { allowed: false, limits, current, exceeded: "subgraphs" };
-	}
-	if (current.apiRequestsToday >= limits.apiRequestsPerDay) {
-		return { allowed: false, limits, current, exceeded: "api_requests" };
-	}
-	if (current.deliveriesThisMonth >= limits.deliveriesPerMonth) {
-		return { allowed: false, limits, current, exceeded: "deliveries" };
-	}
-	if (current.storageBytes >= limits.storageBytes) {
-		return { allowed: false, limits, current, exceeded: "storage" };
-	}
-
-	return { allowed: true, limits, current };
-}
-
 /**
  * Measure storage for all accounts by querying pg_total_relation_size
  * for each tenant's subgraph schemas.
@@ -186,7 +97,8 @@ export async function measureStorage(db: Kysely<Database>): Promise<void> {
           SELECT COALESCE(SUM(pg_total_relation_size(quote_ident(schemaname) || '.' || quote_ident(tablename))), 0)::text as size
           FROM pg_tables WHERE schemaname = ${schema}
         `.execute(db);
-				totalBytes += Number((result.rows[0] as any)?.size ?? 0);
+				const row = result.rows[0] as { size?: string } | undefined;
+				totalBytes += Number(row?.size ?? 0);
 			} catch {
 				// Schema may not exist
 			}

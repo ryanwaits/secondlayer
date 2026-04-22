@@ -1,52 +1,23 @@
+import { AxisCard } from "@/components/console/axis-card";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
-import { Sparkline } from "@/components/console/sparkline";
+import { ProjectUsageTable } from "@/components/console/project-usage-table";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import { formatBytes, formatNum } from "@/lib/format";
-
-interface DailyUsage {
-	date: string;
-	apiRequests: number;
-	deliveries: number;
-}
-
-interface UsageData {
-	plan: string;
-	limits: {
-		subgraphs: number;
-		apiRequestsPerDay: number;
-		deliveriesPerMonth: number;
-		storageBytes: number;
-	};
-	current: {
-		subgraphs: number;
-		apiRequestsToday: number;
-		deliveriesThisMonth: number;
-		storageBytes: number;
-	};
-	daily?: DailyUsage[];
-}
-
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function formatDayLabel(dateStr: string): string {
-	const d = new Date(`${dateStr}T00:00:00`);
-	const today = new Date();
-	if (d.toDateString() === today.toDateString()) return "Today";
-	return DAY_NAMES[d.getDay()];
-}
-
-function pct(current: number, limit: number) {
-	if (limit <= 0) return 0;
-	return Math.min((current / limit) * 100, 100);
-}
+import {
+	type UsageResponse,
+	formatBytes,
+	formatCents,
+	formatHours,
+	formatNum,
+} from "@/lib/usage";
+import Link from "next/link";
 
 export default async function UsagePage() {
 	const session = await getSessionFromCookies();
-	let usage: UsageData | null = null;
+	let usage: UsageResponse | null = null;
 
 	if (session) {
 		try {
-			usage = await apiRequest<UsageData>("/api/accounts/usage", {
+			usage = await apiRequest<UsageResponse>("/api/accounts/usage", {
 				sessionToken: session,
 			});
 		} catch {}
@@ -66,10 +37,16 @@ export default async function UsagePage() {
 		);
 	}
 
-	const sparkData = (usage.daily ?? []).map((d) => ({
-		label: formatDayLabel(d.date),
-		value: d.apiRequests,
-	}));
+	const { period, plan, spend, compute, storage, aiEvals, projects } = usage;
+
+	const periodLabel = formatPeriod(period.startIso, period.endIso);
+	const capStripClass = spend.frozen
+		? "over"
+		: spend.thresholdHit
+			? "hot"
+			: spend.capCents == null
+				? "none"
+				: "";
 
 	return (
 		<>
@@ -78,127 +55,222 @@ export default async function UsagePage() {
 				<div className="settings-inner">
 					<h1 className="settings-title">Usage</h1>
 					<p className="settings-desc">
-						Resource consumption for the current billing period.
+						Resource consumption ·{" "}
+						<span className="period-chip">
+							<span className="dot" />
+							{periodLabel}
+							{period.daysRemaining > 0
+								? ` · ${period.daysRemaining} days remaining`
+								: " · last day"}
+						</span>
 					</p>
 
-					{/* Stat cards */}
-					<div className="usage-stat-grid">
-						<div className="usage-stat">
-							<div className="usage-stat-label">Events Indexed</div>
-							<div className="usage-stat-value">
-								{formatNum(usage.current.deliveriesThisMonth)}
-							</div>
-							<div className="usage-stat-sub">
-								of {formatNum(usage.limits.deliveriesPerMonth)} included
+					{spend.thresholdHit && spend.capCents != null ? (
+						<div className="alert-row" role="alert">
+							<svg
+								className="alert-icon"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<title>Threshold warning</title>
+								<path d="M8 2l6 11H2L8 2z" />
+								<path d="M8 6v4" />
+								<circle cx="8" cy="12" r="0.5" fill="currentColor" />
+							</svg>
+							<div>
+								<div className="alert-title">
+									Spend at{" "}
+									{Math.round((spend.projectedCents / spend.capCents) * 100)}%
+									of cap
+								</div>
+								<div className="alert-body">
+									{formatCents(spend.projectedCents)} projected of{" "}
+									{formatCents(spend.capCents)} — {period.daysRemaining} day
+									{period.daysRemaining === 1 ? "" : "s"} to go.{" "}
+									<Link
+										href="/platform/billing"
+										style={{ color: "var(--text-main)", fontWeight: 500 }}
+									>
+										Raise cap or upgrade →
+									</Link>
+								</div>
 							</div>
 						</div>
-						<div className="usage-stat">
-							<div className="usage-stat-label">API Requests</div>
-							<div className="usage-stat-value">
-								{formatNum(usage.current.apiRequestsToday)}
-							</div>
-							<div className="usage-stat-sub">
-								of {formatNum(usage.limits.apiRequestsPerDay)} / day
-							</div>
-						</div>
-						<div className="usage-stat">
-							<div className="usage-stat-label">Storage</div>
-							<div className="usage-stat-value">
-								{formatBytes(usage.current.storageBytes)}
-							</div>
-							<div className="usage-stat-sub">
-								of {formatBytes(usage.limits.storageBytes)}
-							</div>
-						</div>
+					) : null}
+
+					<div className="axis-grid">
+						<AxisCard
+							label="Compute"
+							value={formatHours(compute.usedHours)}
+							unit="h"
+							of={
+								Number.isFinite(compute.allowanceHours)
+									? `of ${formatNum(compute.allowanceHours)} h / mo`
+									: "unlimited"
+							}
+							pct={compute.pct}
+							sparkData={compute.sparkline}
+							color="accent"
+						/>
+						<AxisCard
+							label="Storage"
+							value={formatBytes(storage.usedBytes)}
+							of={
+								Number.isFinite(storage.allowanceBytes)
+									? `of ${formatBytes(storage.allowanceBytes)}`
+									: "unlimited"
+							}
+							pct={storage.pct}
+							sparkData={storage.sparkline}
+							color="teal"
+						/>
+						<AxisCard
+							label="AI evals"
+							value={formatNum(aiEvals.todayCount)}
+							unit="today"
+							of={
+								Number.isFinite(aiEvals.dailyCap)
+									? `of ${formatNum(aiEvals.dailyCap)} / day · resets 00:00 UTC`
+									: "unlimited"
+							}
+							pct={aiEvals.pct}
+							sparkData={aiEvals.sparkline}
+							color="accent"
+						/>
 					</div>
 
-					{/* Sparkline */}
-					{sparkData.length > 0 && (
-						<div className="settings-section">
-							<div className="settings-section-title">
-								API calls — last 7 days
-							</div>
-							<Sparkline data={sparkData} />
-						</div>
-					)}
+					<CapStrip
+						currentCents={spend.currentCents}
+						projectedCents={spend.projectedCents}
+						capCents={spend.capCents}
+						thresholdHit={spend.thresholdHit}
+						frozen={spend.frozen}
+						stripClass={capStripClass}
+					/>
 
-					{/* Resource limits */}
 					<div className="settings-section">
-						<div className="settings-section-title">Resource limits</div>
-
-						<div className="usage-row">
-							<div className="usage-label">
-								<span className="usage-label-name">Subgraphs</span>
-								<span className="usage-label-value">
-									{usage.current.subgraphs} / {usage.limits.subgraphs}
-								</span>
-							</div>
-							<div className="usage-bar">
-								<div
-									className="usage-bar-fill accent"
-									style={{
-										width: `${pct(usage.current.subgraphs, usage.limits.subgraphs)}%`,
-									}}
-								/>
-							</div>
+						<div className="settings-section-title">
+							Projects ({projects.length})
 						</div>
-
-						<div className="usage-row">
-							<div className="usage-label">
-								<span className="usage-label-name">Storage</span>
-								<span className="usage-label-value">
-									{formatBytes(usage.current.storageBytes)} /{" "}
-									{formatBytes(usage.limits.storageBytes)}
-								</span>
-							</div>
-							<div className="usage-bar">
-								<div
-									className="usage-bar-fill green"
-									style={{
-										width: `${pct(usage.current.storageBytes, usage.limits.storageBytes)}%`,
-									}}
-								/>
-							</div>
-						</div>
+						<ProjectUsageTable projects={projects} />
 					</div>
 
 					<div className="settings-divider" />
 
-					{/* Plan */}
 					<div className="settings-section">
 						<div className="settings-section-title">Plan</div>
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "space-between",
-								padding: "12px 14px",
-								border: "1px solid var(--border)",
-								borderRadius: 8,
-							}}
-						>
+						<div className="plan-card">
 							<div>
-								<div style={{ fontSize: 13, fontWeight: 500 }}>
-									{usage.plan}
+								<div className="plan-card-name">
+									{plan.name} <span className="tier-badge">{plan.tier}</span>
 								</div>
-								<div
-									style={{
-										fontSize: 12,
-										color: "var(--text-muted)",
-										marginTop: 2,
-									}}
-								>
-									{usage.limits.subgraphs} subgraphs,{" "}
-									{formatNum(usage.limits.apiRequestsPerDay)} API req/day
+								<div className="plan-card-sub">
+									{plan.basePriceUsd > 0
+										? `$${plan.basePriceUsd}/mo · `
+										: "Free · "}
+									{Number.isFinite(compute.allowanceHours)
+										? `${formatNum(compute.allowanceHours)} h compute, `
+										: "unlimited compute, "}
+									{Number.isFinite(storage.allowanceBytes)
+										? `${formatBytes(storage.allowanceBytes)} storage, `
+										: "unlimited storage, "}
+									{Number.isFinite(aiEvals.dailyCap)
+										? `${formatNum(aiEvals.dailyCap)} AI/day`
+										: "unlimited AI"}
 								</div>
 							</div>
-							<button type="button" className="settings-btn ghost">
+							<Link
+								href="/platform/billing"
+								className="settings-btn ghost"
+								style={{ textDecoration: "none" }}
+							>
 								Manage plan
-							</button>
+							</Link>
 						</div>
 					</div>
 				</div>
 			</div>
 		</>
 	);
+}
+
+// ── Inlined subcomponents ──────────────────────────────────────────
+
+function CapStrip({
+	currentCents,
+	projectedCents,
+	capCents,
+	thresholdHit,
+	frozen,
+	stripClass,
+}: {
+	currentCents: number;
+	projectedCents: number;
+	capCents: number | null;
+	thresholdHit: boolean;
+	frozen: boolean;
+	stripClass: string;
+}) {
+	if (capCents == null) {
+		return (
+			<div className="cap-strip none">
+				<div className="cap-strip-label">
+					<span>No spend cap set</span>
+					<span className="pct">— {formatCents(currentCents)} this period</span>
+				</div>
+				<Link href="/platform/billing" className="cap-strip-action">
+					Set cap →
+				</Link>
+			</div>
+		);
+	}
+
+	const useProjected = projectedCents > currentCents;
+	const displayCents = useProjected ? projectedCents : currentCents;
+	const usedPct = Math.min((displayCents / capCents) * 100, 100);
+	const label = frozen
+		? "Frozen at cap"
+		: useProjected
+			? "Projected this period"
+			: "Spend this period";
+
+	const fillClass = frozen ? "red" : thresholdHit ? "yellow" : "accent";
+
+	return (
+		<div className={`cap-strip ${stripClass}`}>
+			<div className="cap-strip-label">
+				<span>{label}</span>
+				<span className="pct">
+					{formatCents(displayCents)} / {formatCents(capCents)} ·{" "}
+					{Math.round(usedPct)}%{thresholdHit ? " ⚠" : ""}
+					{frozen ? " 🔒" : ""}
+				</span>
+			</div>
+			<div className="cap-strip-bar">
+				<div className="usage-bar">
+					<div
+						className={`usage-bar-fill ${fillClass}`}
+						style={{ width: `${usedPct}%` }}
+					/>
+				</div>
+			</div>
+			<Link href="/platform/billing" className="cap-strip-action">
+				{frozen ? "Unfreeze →" : "Change →"}
+			</Link>
+		</div>
+	);
+}
+
+function formatPeriod(startIso: string, endIso: string): string {
+	const start = new Date(startIso);
+	const end = new Date(endIso);
+	const m = (d: Date) =>
+		d.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+	const day = (d: Date) => d.getUTCDate();
+	return `${m(start)} ${day(start)} – ${m(end)} ${day(end)}`;
 }

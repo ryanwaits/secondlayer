@@ -89,6 +89,10 @@
 			"types": "./dist/src/db/queries/sentries.d.ts",
 			"import": "./dist/src/db/queries/sentries.js"
 		},
+		"./db/queries/account-usage": {
+			"types": "./dist/src/db/queries/account-usage.d.ts",
+			"import": "./dist/src/db/queries/account-usage.js"
+		},
 		"./schemas/sentries": {
 			"types": "./dist/src/schemas/sentries.d.ts",
 			"import": "./dist/src/schemas/sentries.js"

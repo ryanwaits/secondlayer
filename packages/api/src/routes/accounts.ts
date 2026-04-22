@@ -1,14 +1,22 @@
 import { getDb } from "@secondlayer/shared/db";
+import { getCaps } from "@secondlayer/shared/db/queries/account-spend-caps";
+import {
+	getAiUsage,
+	getComputeUsage,
+	getProjectBreakdown,
+	getStorageUsage,
+} from "@secondlayer/shared/db/queries/account-usage";
 import {
 	getAccountById,
 	isSlugTaken,
 	updateAccountProfile,
 } from "@secondlayer/shared/db/queries/accounts";
-import {
-	checkLimits,
-	getDailyUsage,
-} from "@secondlayer/shared/db/queries/usage";
 import { AuthenticationError } from "@secondlayer/shared/errors";
+import {
+	getBasePriceCents,
+	getPlanDisplayName,
+	hasStorageOverage,
+} from "@secondlayer/shared/pricing";
 import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/accounts";
 import { type Context, Hono } from "hono";
 
@@ -20,7 +28,8 @@ function requireAccountId(c: Context): string {
 	return accountId;
 }
 
-// GET /api/accounts/me
+// ── /me ──────────────────────────────────────────────────────────
+
 app.get("/me", async (c) => {
 	const accountId = requireAccountId(c);
 	const db = getDb();
@@ -39,32 +48,107 @@ app.get("/me", async (c) => {
 	});
 });
 
-// GET /api/accounts/usage
+// ── /usage — three-axis org/compute/storage model ────────────────
+
 app.get("/usage", async (c) => {
 	const accountId = requireAccountId(c);
 	const db = getDb();
 	const account = await getAccountById(db, accountId);
 	if (!account) throw new AuthenticationError("Account not found");
 
-	const [result, daily] = await Promise.all([
-		checkLimits(db, accountId, account.plan),
-		getDailyUsage(db, accountId),
+	const now = new Date();
+	const periodStart = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+	);
+	const periodEnd = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999),
+	);
+	const msPerDay = 24 * 60 * 60 * 1000;
+	const daysInPeriod = Math.round(
+		(periodEnd.getTime() - periodStart.getTime() + 1) / msPerDay,
+	);
+	const daysElapsed = Math.max(
+		1,
+		Math.floor((now.getTime() - periodStart.getTime()) / msPerDay) + 1,
+	);
+	const daysRemaining = Math.max(0, daysInPeriod - daysElapsed);
+
+	const plan = account.plan;
+
+	const [compute, storage, ai, projects, caps] = await Promise.all([
+		getComputeUsage(db, accountId, plan, periodStart, now),
+		getStorageUsage(db, accountId, plan, now),
+		getAiUsage(db, accountId, plan, periodStart, now),
+		getProjectBreakdown(db, accountId, plan, periodStart, now),
+		getCaps(db, accountId),
 	]);
 
+	// Crude spend approximation — matches what Stripe metering will bill.
+	// Compute overage: $0.015/hr (1.5¢). Storage overage: $2/GB (200¢/GB).
+	// Hobby has hard caps so overage is always 0.
+	const computeOverageHours = Math.max(
+		0,
+		compute.usedHours - compute.allowanceHours,
+	);
+	const storageOverageBytes = Math.max(
+		0,
+		storage.usedBytes - storage.allowanceBytes,
+	);
+	const bytesPerGb = 1024 ** 3;
+	const computeOverageCents = Math.round(computeOverageHours * 1.5);
+	const storageOverageCents = hasStorageOverage(plan)
+		? Math.round((storageOverageBytes / bytesPerGb) * 200)
+		: 0;
+	const basePriceCents = getBasePriceCents(plan);
+	const currentCents =
+		basePriceCents + computeOverageCents + storageOverageCents;
+
+	// Project EOM spend. Clamp day 1-2 (tiny denominator → false positives).
+	const projectedCents =
+		daysElapsed >= 3
+			? Math.max(
+					currentCents,
+					Math.round(currentCents * (daysInPeriod / daysElapsed)),
+				)
+			: currentCents;
+
+	const capCents = caps?.monthly_cap_cents ?? null;
+	const thresholdPct = caps?.alert_threshold_pct ?? 80;
+	const thresholdHit =
+		capCents != null &&
+		daysElapsed >= 3 &&
+		projectedCents >= (capCents * thresholdPct) / 100;
+	const frozen = caps?.frozen_at != null;
+
 	return c.json({
-		plan: account.plan,
-		limits: result.limits,
-		current: {
-			subgraphs: result.current.subgraphs,
-			apiRequestsToday: result.current.apiRequestsToday,
-			deliveriesThisMonth: result.current.deliveriesThisMonth,
-			storageBytes: result.current.storageBytes,
+		period: {
+			startIso: periodStart.toISOString(),
+			endIso: periodEnd.toISOString(),
+			daysRemaining,
+			daysElapsed,
 		},
-		daily,
+		plan: {
+			tier: plan,
+			name: getPlanDisplayName(plan),
+			basePriceUsd: basePriceCents / 100,
+		},
+		spend: {
+			currentCents,
+			projectedCents,
+			capCents,
+			thresholdPct,
+			thresholdHit,
+			frozen,
+		},
+		compute,
+		storage,
+		aiEvals: ai,
+		projects,
 	});
 });
 
-// PATCH /api/accounts/me — update profile (display_name, bio, slug)
+// ── /me (PATCH) ───────────────────────────────────────────────────
+
 app.patch("/me", async (c) => {
 	const accountId = requireAccountId(c);
 	const db = getDb();
@@ -77,7 +161,6 @@ app.patch("/me", async (c) => {
 
 	const data = parsed.data;
 
-	// Check slug uniqueness if changing
 	if (data.slug) {
 		const taken = await isSlugTaken(db, data.slug, accountId);
 		if (taken) {

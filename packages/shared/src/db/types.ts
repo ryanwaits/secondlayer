@@ -354,6 +354,7 @@ export interface Database {
 	tenants: TenantsTable;
 	tenant_usage_monthly: TenantUsageMonthlyTable;
 	tenant_compute_addons: TenantComputeAddonsTable;
+	workflow_ai_usage_daily: WorkflowAiUsageDailyTable;
 	account_spend_caps: AccountSpendCapsTable;
 	provisioning_audit_log: ProvisioningAuditLogTable;
 	sentries: SentriesTable;
@@ -480,6 +481,24 @@ export type UpdateTenantComputeAddon = Updateable<TenantComputeAddonsTable>;
 // Runner bumps this on every step.ai/generateText/generateObject call.
 // Caps enforced by `getAiCapForPlan()` from `src/pricing.ts`; hit the
 // cap → runner throws AI_CAP_REACHED and degrades the step cleanly.
+
+// --- Workflow AI usage (per-tenant, per-day) ---
+//
+// Incremented by the workflow-runner's wrapped AI SDK provider on every
+// generateObject/generateText call. Keyed by (tenant_id, day UTC). Used
+// by the usage page's AI axis card. Migration 0051.
+export interface WorkflowAiUsageDailyTable {
+	tenant_id: string;
+	day: string; // 'YYYY-MM-DD'
+	evals: Generated<number>;
+	cost_usd_cents: Generated<number>;
+	first_at: Generated<Date>;
+	last_at: Generated<Date>;
+}
+
+export type WorkflowAiUsageDaily = Selectable<WorkflowAiUsageDailyTable>;
+export type InsertWorkflowAiUsageDaily = Insertable<WorkflowAiUsageDailyTable>;
+export type UpdateWorkflowAiUsageDaily = Updateable<WorkflowAiUsageDailyTable>;
 
 // --- Account spend caps (soft cap + threshold alerts) ---
 //

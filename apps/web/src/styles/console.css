@@ -3466,6 +3466,289 @@ html.force-light .tabbed-code-tab.active {
 .usage-bar-fill.green {
 	background: var(--teal);
 }
+.usage-bar-fill.yellow {
+	background: var(--yellow);
+}
+.usage-bar-fill.red {
+	background: var(--red);
+}
+.usage-bar-fill.dim {
+	background: var(--text-dim);
+}
+
+/* Usage page — Option B (three-axis cards + projects + spend cap) */
+
+.period-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-muted);
+	padding: 4px 10px;
+	border: 1px solid var(--border);
+	border-radius: 100px;
+	background: var(--bg-elevated);
+}
+.period-chip .dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--green);
+}
+
+.axis-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 12px;
+	margin-bottom: 28px;
+}
+.axis-card {
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 16px;
+	background: var(--bg-elevated);
+}
+.axis-card .axis-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 4px;
+}
+.axis-card .axis-label {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.axis-card .axis-pct {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-muted);
+}
+.axis-card .axis-value {
+	font-family: var(--font-heading-stack);
+	font-size: 26px;
+	font-weight: 600;
+	letter-spacing: -0.03em;
+	line-height: 1.1;
+}
+.axis-card .axis-value .unit {
+	font-size: 12px;
+	color: var(--text-muted);
+	font-family: var(--font-mono-stack);
+	margin-left: 4px;
+}
+.axis-card .axis-of {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-top: 2px;
+	margin-bottom: 12px;
+}
+.axis-card .axis-spark {
+	margin-top: 10px;
+}
+.axis-spark svg {
+	display: block;
+	height: 24px;
+	width: 100%;
+	overflow: visible;
+}
+.axis-spark svg path.fill {
+	opacity: 0.12;
+}
+.axis-spark svg path.stroke {
+	fill: none;
+	stroke-width: 1.4;
+}
+.axis-spark.accent path.fill {
+	fill: var(--accent);
+}
+.axis-spark.accent path.stroke {
+	stroke: var(--accent);
+}
+.axis-spark.teal path.fill {
+	fill: var(--teal);
+}
+.axis-spark.teal path.stroke {
+	stroke: var(--teal);
+}
+
+.cap-strip {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 14px;
+	border: 1px solid var(--accent-border);
+	border-radius: 8px;
+	margin-bottom: 24px;
+	background: var(--accent-bg);
+}
+.cap-strip.hot {
+	background: var(--yellow-bg);
+	border-color: rgba(234, 179, 8, 0.25);
+}
+.cap-strip.over {
+	background: var(--red-bg);
+	border-color: rgba(239, 68, 68, 0.25);
+}
+.cap-strip.none {
+	background: transparent;
+	border-color: var(--border);
+}
+.cap-strip-label {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-main);
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.cap-strip-label .pct {
+	color: var(--text-muted);
+}
+.cap-strip-bar {
+	flex: 1;
+	margin: 0 16px;
+	max-width: 220px;
+}
+.cap-strip-action {
+	font-size: 11px;
+	color: var(--text-main);
+	text-decoration: none;
+	font-weight: 500;
+}
+.cap-strip-action:hover {
+	text-decoration: underline;
+}
+
+.alert-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 12px;
+	border: 1px solid var(--yellow);
+	background: var(--yellow-bg);
+	border-radius: 8px;
+	margin-bottom: 20px;
+	font-size: 13px;
+}
+.alert-row .alert-icon {
+	flex-shrink: 0;
+	width: 16px;
+	height: 16px;
+	margin-top: 1px;
+	color: var(--yellow);
+}
+.alert-row .alert-title {
+	font-weight: 500;
+}
+.alert-row .alert-body {
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+
+.project-table {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--bg-elevated);
+}
+.project-table-head {
+	display: grid;
+	grid-template-columns: 1.4fr 1fr 1fr 1fr;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-chrome);
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.project-row {
+	display: grid;
+	grid-template-columns: 1.4fr 1fr 1fr 1fr;
+	align-items: center;
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--border);
+	font-size: 13px;
+}
+.project-row:last-child {
+	border-bottom: 0;
+}
+.project-row.paused {
+	opacity: 0.7;
+}
+.project-row .tenant-name {
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.project-row .tenant-name .status-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--green);
+}
+.project-row .tenant-name .status-dot.paused {
+	background: var(--text-dim);
+}
+.project-row .tenant-name .status-dot.error {
+	background: var(--red);
+}
+.project-row .tenant-name .status-dot.provisioning {
+	background: var(--yellow);
+}
+.project-row .num {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-main);
+}
+.project-row .num .sub {
+	display: block;
+	font-size: 10px;
+	color: var(--text-muted);
+}
+
+.plan-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 14px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-elevated);
+}
+.plan-card-name {
+	font-weight: 500;
+	font-size: 14px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.plan-card-name .tier-badge {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	padding: 3px 8px;
+	background: var(--accent-bg);
+	color: var(--accent);
+	border: 1px solid var(--accent-border);
+	border-radius: 100px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-weight: 600;
+}
+.plan-card-sub {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-top: 3px;
+}
 
 /* ════════════════════════════════════════════════
    REDESIGN: Sidebar
