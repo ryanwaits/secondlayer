@@ -1,6 +1,9 @@
 import type { Database } from "@secondlayer/shared/db";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
+import { bumpAiUsage } from "@secondlayer/shared/db/queries/account-usage";
 import { logger } from "@secondlayer/shared/logger";
+import { workflowAls } from "@secondlayer/workflows";
+import { setAiUsageRecorder } from "@secondlayer/workflows/ai";
 import type { Kysely } from "kysely";
 import {
 	claimJob,
@@ -31,6 +34,21 @@ export interface ProcessorOptions {
 export function startWorkflowProcessor(opts: ProcessorOptions): () => void {
 	const poll = opts.pollIntervalMs ?? 1000;
 	const staleRecovery = opts.staleRecoveryIntervalMs ?? 60_000;
+
+	setAiUsageRecorder(async (record) => {
+		await bumpAiUsage(opts.db, {
+			accountId: record.accountId,
+			tenantId: record.tenantId,
+			provider: record.provider,
+			modelId: record.modelId,
+			usage: record.usage,
+		}).catch((err) => {
+			logger.warn("workflow.ai_usage.bump_failed", {
+				runId: record.runId,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		});
+	});
 
 	let stopped = false;
 	const inFlight = new Set<Promise<void>>();
@@ -136,17 +154,27 @@ async function handleJob(
 				const childId = await enqueueWorkflowRun(opts.db, {
 					workflowName,
 					input: childInput,
+					accountId: job.accountId,
+					tenantId: job.tenantId,
 				});
 				return { runId: childId, workflow: workflowName };
 			},
 		});
 
-		const output = await def.run({
-			input,
-			runId: job.runId,
-			env: process.env,
-			step,
-		});
+		const output = await workflowAls.run(
+			{
+				runId: job.runId,
+				accountId: job.accountId,
+				tenantId: job.tenantId,
+			},
+			() =>
+				def.run({
+					input,
+					runId: job.runId,
+					env: process.env,
+					step,
+				}),
+		);
 
 		await opts.db
 			.updateTable("workflow_runs")

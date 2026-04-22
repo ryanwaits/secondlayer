@@ -16,6 +16,7 @@
 
 import {
 	type LargeOutflowInput,
+	type PermissionChangeInput,
 	WORKFLOW_NAME_BY_KIND,
 } from "@secondlayer/sentries";
 import { getErrorMessage, logger } from "@secondlayer/shared";
@@ -70,18 +71,25 @@ async function runTick(): Promise<void> {
 		}
 
 		const config = parseJsonb<Record<string, unknown>>(sentry.config);
-		const input: LargeOutflowInput = {
+		const input = buildInput(sentry.kind, {
 			sentryId: sentry.id,
-			principal: String(config.principal ?? ""),
-			thresholdMicroStx: String(config.thresholdMicroStx ?? "0"),
+			config,
 			deliveryWebhook: sentry.delivery_webhook,
 			sinceIso: sentry.last_check_at?.toISOString() ?? null,
-		};
+		});
+		if (!input) {
+			logger.warn("sentry.bad_config", {
+				sentryId: sentry.id,
+				kind: sentry.kind,
+			});
+			continue;
+		}
 
 		try {
 			await enqueueWorkflowRun(db, {
 				workflowName,
 				input,
+				accountId: sentry.account_id,
 			});
 			enqueued += 1;
 		} catch (err) {
@@ -96,4 +104,43 @@ async function runTick(): Promise<void> {
 		total: sentries.length,
 		enqueued,
 	});
+}
+
+function buildInput(
+	kind: string,
+	common: {
+		sentryId: string;
+		config: Record<string, unknown>;
+		deliveryWebhook: string;
+		sinceIso: string | null;
+	},
+): LargeOutflowInput | PermissionChangeInput | null {
+	const principal = String(common.config.principal ?? "");
+	if (!principal) return null;
+
+	if (kind === "large-outflow") {
+		return {
+			sentryId: common.sentryId,
+			principal,
+			thresholdMicroStx: String(common.config.thresholdMicroStx ?? "0"),
+			deliveryWebhook: common.deliveryWebhook,
+			sinceIso: common.sinceIso,
+		};
+	}
+
+	if (kind === "permission-change") {
+		const fns = Array.isArray(common.config.adminFunctions)
+			? (common.config.adminFunctions as unknown[]).map(String).filter(Boolean)
+			: [];
+		if (fns.length === 0) return null;
+		return {
+			sentryId: common.sentryId,
+			principal,
+			adminFunctions: fns,
+			deliveryWebhook: common.deliveryWebhook,
+			sinceIso: common.sinceIso,
+		};
+	}
+
+	return null;
 }

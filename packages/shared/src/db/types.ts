@@ -291,6 +291,8 @@ export interface WorkflowRunsTable {
 	started_at: Date | null;
 	completed_at: Date | null;
 	created_at: Generated<Date>;
+	account_id: string | null;
+	tenant_id: string | null;
 }
 
 export interface WorkflowStepsTable {
@@ -488,7 +490,8 @@ export type UpdateTenantComputeAddon = Updateable<TenantComputeAddonsTable>;
 // generateObject/generateText call. Keyed by (tenant_id, day UTC). Used
 // by the usage page's AI axis card. Migration 0051.
 export interface WorkflowAiUsageDailyTable {
-	tenant_id: string;
+	account_id: string;
+	tenant_id: string | null;
 	day: string; // 'YYYY-MM-DD'
 	evals: Generated<number>;
 	cost_usd_cents: Generated<number>;

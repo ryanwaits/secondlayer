@@ -89,6 +89,10 @@
 			"types": "./dist/src/db/queries/account-usage.d.ts",
 			"import": "./dist/src/db/queries/account-usage.js"
 		},
+		"./db/queries/workflow-runs": {
+			"types": "./dist/src/db/queries/workflow-runs.d.ts",
+			"import": "./dist/src/db/queries/workflow-runs.js"
+		},
 		"./schemas/sentries": {
 			"types": "./dist/src/schemas/sentries.d.ts",
 			"import": "./dist/src/schemas/sentries.js"

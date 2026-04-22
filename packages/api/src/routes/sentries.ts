@@ -1,5 +1,6 @@
 import {
 	type LargeOutflowInput,
+	type PermissionChangeInput,
 	WORKFLOW_NAME_BY_KIND,
 } from "@secondlayer/sentries";
 import { logger } from "@secondlayer/shared";
@@ -13,6 +14,10 @@ import {
 	listSentryAlerts,
 	updateSentry,
 } from "@secondlayer/shared/db/queries/sentries";
+import {
+	getRunWithSteps,
+	listRunsForSentry,
+} from "@secondlayer/shared/db/queries/workflow-runs";
 import {
 	CreateSentryRequestSchema,
 	type SentryKind,
@@ -195,19 +200,20 @@ app.post("/:id/test", async (c) => {
 	}
 
 	const config = parseJsonb<Record<string, unknown>>(sentry.config);
-	const input: LargeOutflowInput = {
+	const input = buildTestInput(sentry.kind, {
 		sentryId: sentry.id,
-		principal: String(config.principal ?? ""),
-		thresholdMicroStx: String(config.thresholdMicroStx ?? "0"),
+		config,
 		deliveryWebhook: sentry.delivery_webhook,
-		sinceIso: null,
-		testMode: true,
-	};
+	});
+	if (!input) {
+		return c.json({ error: "bad_sentry_config" }, 400);
+	}
 
 	try {
 		const runId = await enqueueWorkflowRun(db, {
 			workflowName,
 			input,
+			accountId: sentry.account_id,
 		});
 		logger.info("sentry.test.enqueued", { sentryId: id, runId });
 		return c.json({ ok: true, runId });
@@ -217,5 +223,84 @@ app.post("/:id/test", async (c) => {
 		return c.json({ ok: false, error: message }, 500);
 	}
 });
+
+// ── Run inspector: list + detail ────────────────────────────────────
+
+app.get("/:id/runs", async (c) => {
+	const auth = requireAccountId(c);
+	if (!auth.ok) return auth.response;
+
+	const id = c.req.param("id");
+	const db = getDb();
+	const sentry = await getSentryById(db, id, auth.accountId);
+	if (!sentry) return c.json({ error: "not_found" }, 404);
+
+	const runs = await listRunsForSentry(db, {
+		sentryId: id,
+		accountId: auth.accountId,
+		limit: 20,
+	});
+	return c.json({ data: runs });
+});
+
+app.get("/:id/runs/:runId", async (c) => {
+	const auth = requireAccountId(c);
+	if (!auth.ok) return auth.response;
+
+	const id = c.req.param("id");
+	const runId = c.req.param("runId");
+	const db = getDb();
+
+	const sentry = await getSentryById(db, id, auth.accountId);
+	if (!sentry) return c.json({ error: "not_found" }, 404);
+
+	const run = await getRunWithSteps(db, {
+		runId,
+		accountId: auth.accountId,
+	});
+	if (!run) return c.json({ error: "not_found" }, 404);
+
+	return c.json({ run });
+});
+
+function buildTestInput(
+	kind: string,
+	common: {
+		sentryId: string;
+		config: Record<string, unknown>;
+		deliveryWebhook: string;
+	},
+): LargeOutflowInput | PermissionChangeInput | null {
+	const principal = String(common.config.principal ?? "");
+	if (!principal) return null;
+
+	if (kind === "large-outflow") {
+		return {
+			sentryId: common.sentryId,
+			principal,
+			thresholdMicroStx: String(common.config.thresholdMicroStx ?? "0"),
+			deliveryWebhook: common.deliveryWebhook,
+			sinceIso: null,
+			testMode: true,
+		};
+	}
+
+	if (kind === "permission-change") {
+		const fns = Array.isArray(common.config.adminFunctions)
+			? (common.config.adminFunctions as unknown[]).map(String).filter(Boolean)
+			: [];
+		if (fns.length === 0) return null;
+		return {
+			sentryId: common.sentryId,
+			principal,
+			adminFunctions: fns,
+			deliveryWebhook: common.deliveryWebhook,
+			sinceIso: null,
+			testMode: true,
+		};
+	}
+
+	return null;
+}
 
 export default app;

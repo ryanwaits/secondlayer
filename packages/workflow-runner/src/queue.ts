@@ -22,6 +22,8 @@ export async function enqueueWorkflowRun(
 		input?: unknown;
 		scheduledFor?: Date;
 		maxAttempts?: number;
+		accountId?: string | null;
+		tenantId?: string | null;
 	},
 ): Promise<string> {
 	const run = await db
@@ -30,6 +32,8 @@ export async function enqueueWorkflowRun(
 			workflow_name: opts.workflowName,
 			input: jsonb((opts.input ?? {}) as Record<string, unknown>),
 			status: "queued",
+			account_id: opts.accountId ?? null,
+			tenant_id: opts.tenantId ?? null,
 		})
 		.returning(["id"])
 		.executeTakeFirstOrThrow();
@@ -76,6 +80,8 @@ export interface ClaimedJob {
 	maxAttempts: number;
 	workflowName: string;
 	input: unknown;
+	accountId: string | null;
+	tenantId: string | null;
 }
 
 /** Claim the next pending job using SKIP LOCKED. */
@@ -89,6 +95,8 @@ export async function claimJob(
 		max_attempts: number;
 		workflow_name: string;
 		input: unknown;
+		account_id: string | null;
+		tenant_id: string | null;
 	}>`
 		WITH claimed AS (
 			UPDATE workflow_queue
@@ -107,7 +115,7 @@ export async function claimJob(
 			RETURNING id, run_id, attempts, max_attempts
 		)
 		SELECT c.id, c.run_id, c.attempts, c.max_attempts,
-			r.workflow_name, r.input
+			r.workflow_name, r.input, r.account_id, r.tenant_id
 		FROM claimed c
 		JOIN workflow_runs r ON r.id = c.run_id
 	`.execute(db);
@@ -122,6 +130,8 @@ export async function claimJob(
 		maxAttempts: row.max_attempts,
 		workflowName: row.workflow_name,
 		input: row.input,
+		accountId: row.account_id,
+		tenantId: row.tenant_id,
 	};
 }
 

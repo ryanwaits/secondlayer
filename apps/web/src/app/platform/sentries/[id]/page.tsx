@@ -27,6 +27,17 @@ interface SentryDetail {
 	}>;
 }
 
+interface RunRow {
+	id: string;
+	workflowName: string;
+	status: string;
+	startedAt: string | null;
+	completedAt: string | null;
+	createdAt: string;
+	durationMs: number | null;
+	stepCount: number;
+}
+
 function formatDate(ts: string | null): string {
 	if (!ts) return "never";
 	return new Date(ts).toLocaleString();
@@ -50,13 +61,20 @@ export default async function SentryDetailPage({
 	const session = await getSessionFromCookies();
 	if (!session) notFound();
 
-	const data = await apiRequest<SentryDetail>(`/api/sentries/${id}`, {
-		sessionToken: session,
-		tags: ["sentries", id],
-	}).catch(() => null);
+	const [data, runsResp] = await Promise.all([
+		apiRequest<SentryDetail>(`/api/sentries/${id}`, {
+			sessionToken: session,
+			tags: ["sentries", id],
+		}).catch(() => null),
+		apiRequest<{ data: RunRow[] }>(`/api/sentries/${id}/runs`, {
+			sessionToken: session,
+			tags: ["sentries", id, "runs"],
+		}).catch(() => ({ data: [] as RunRow[] })),
+	]);
 
 	if (!data) notFound();
 	const { sentry, alerts } = data;
+	const runs = runsResp.data;
 
 	return (
 		<>
@@ -124,15 +142,32 @@ export default async function SentryDetailPage({
 									<code>{String(sentry.config.principal ?? "—")}</code>
 								</dd>
 							</div>
-							<div style={{ display: "flex", marginBottom: 6 }}>
-								<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
-									Threshold
-								</dt>
-								<dd style={{ margin: 0 }}>
-									<code>{String(sentry.config.thresholdMicroStx ?? "—")}</code>{" "}
-									µSTX
-								</dd>
-							</div>
+							{sentry.kind === "large-outflow" ? (
+								<div style={{ display: "flex", marginBottom: 6 }}>
+									<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
+										Threshold
+									</dt>
+									<dd style={{ margin: 0 }}>
+										<code>
+											{String(sentry.config.thresholdMicroStx ?? "—")}
+										</code>{" "}
+										µSTX
+									</dd>
+								</div>
+							) : sentry.kind === "permission-change" ? (
+								<div style={{ display: "flex", marginBottom: 6 }}>
+									<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
+										Admin functions
+									</dt>
+									<dd style={{ margin: 0 }}>
+										<code>
+											{Array.isArray(sentry.config.adminFunctions)
+												? (sentry.config.adminFunctions as string[]).join(", ")
+												: "—"}
+										</code>
+									</dd>
+								</div>
+							) : null}
 							<div style={{ display: "flex", marginBottom: 6 }}>
 								<dt style={{ minWidth: 140, color: "var(--fg-muted)" }}>
 									Delivery
@@ -219,8 +254,74 @@ export default async function SentryDetailPage({
 							</div>
 						)}
 					</section>
+
+					<section style={{ marginTop: 24 }}>
+						<h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
+							Recent runs
+						</h2>
+						{runs.length === 0 ? (
+							<div
+								style={{
+									padding: 20,
+									border: "1px dashed var(--border)",
+									borderRadius: 6,
+									textAlign: "center",
+									fontSize: 13,
+									color: "var(--fg-muted)",
+								}}
+							>
+								No runs yet. Runs appear here after the next tick, or click
+								"Send test alert" above.
+							</div>
+						) : (
+							<div
+								style={{
+									border: "1px solid var(--border)",
+									borderRadius: 6,
+									overflow: "hidden",
+								}}
+							>
+								{runs.map((r) => (
+									<Link
+										key={r.id}
+										href={`/sentries/${id}/runs/${r.id}`}
+										className="index-row"
+										style={{ padding: 12 }}
+									>
+										<div className="index-row-main">
+											<div className="index-row-name">
+												<span
+													className={`badge ${runStatusClass(r.status)}`}
+													style={{ marginRight: 8 }}
+												>
+													{r.status}
+												</span>
+												<code style={{ fontSize: 12 }}>{r.id.slice(0, 8)}</code>
+											</div>
+											<div
+												className="index-row-desc"
+												style={{ fontSize: 11, color: "var(--fg-muted)" }}
+											>
+												{formatDate(r.createdAt)} ·{" "}
+												{r.durationMs != null
+													? `${(r.durationMs / 1000).toFixed(1)}s`
+													: "—"}{" "}
+												· {r.stepCount} step{r.stepCount === 1 ? "" : "s"}
+											</div>
+										</div>
+									</Link>
+								))}
+							</div>
+						)}
+					</section>
 				</div>
 			</div>
 		</>
 	);
+}
+
+function runStatusClass(status: string): string {
+	if (status === "completed") return "active";
+	if (status === "failed") return "danger";
+	return "";
 }
