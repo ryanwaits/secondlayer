@@ -27,7 +27,7 @@ function getConfig(): ProvisionerConfig {
 // Matches `TenantResources` from packages/provisioner/src/types.ts.
 export interface ProvisionedTenant {
 	slug: string;
-	plan: "launch" | "grow" | "scale" | "enterprise";
+	plan: "hobby" | "launch" | "grow" | "scale" | "enterprise";
 	apiUrlInternal: string;
 	apiUrlPublic: string;
 	targetDatabaseUrl: string;
@@ -101,7 +101,7 @@ export class ProvisionerError extends Error {
 
 export async function provisionTenant(input: {
 	accountId: string;
-	plan: "launch" | "grow" | "scale" | "enterprise";
+	plan: "hobby" | "launch" | "grow" | "scale" | "enterprise";
 }): Promise<ProvisionedTenant> {
 	return request<ProvisionedTenant>("/tenants", {
 		method: "POST",
@@ -143,7 +143,7 @@ export async function rotateTenantKeys(
 
 export async function resizeTenant(
 	slug: string,
-	newPlan: "launch" | "grow" | "scale" | "enterprise",
+	newPlan: "hobby" | "launch" | "grow" | "scale" | "enterprise",
 ): Promise<void> {
 	await request(`/tenants/${slug}/resize`, {
 		method: "POST",

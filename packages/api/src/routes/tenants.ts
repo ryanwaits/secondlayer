@@ -42,9 +42,9 @@ import {
 } from "../lib/provisioner-client.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
-const VALID_PLANS = new Set(["launch", "grow", "scale", "enterprise"]);
+const VALID_PLANS = new Set(["hobby", "launch", "grow", "scale", "enterprise"]);
 
-type PlanId = "launch" | "grow" | "scale" | "enterprise";
+type PlanId = "hobby" | "launch" | "grow" | "scale" | "enterprise";
 
 const app = new Hono();
 
@@ -71,7 +71,7 @@ app.post("/", async (c) => {
 	})) as { plan?: unknown };
 	if (typeof body.plan !== "string" || !VALID_PLANS.has(body.plan)) {
 		return c.json(
-			{ error: "plan must be one of: launch, grow, scale, enterprise" },
+			{ error: "plan must be one of: hobby, launch, grow, scale, enterprise" },
 			400,
 		);
 	}
@@ -199,7 +199,7 @@ app.post("/me/resize", async (c) => {
 	})) as { plan?: unknown };
 	if (typeof body.plan !== "string" || !VALID_PLANS.has(body.plan)) {
 		return c.json(
-			{ error: "plan must be one of: launch, grow, scale, enterprise" },
+			{ error: "plan must be one of: hobby, launch, grow, scale, enterprise" },
 			400,
 		);
 	}
@@ -422,6 +422,13 @@ app.post("/me/keys/rotate", async (c) => {
 // tenant directly. Signed with the tenant's stored `tenant_jwt_secret`
 // + current `service_gen`, so the tenant API's existing auth middleware
 // validates it without any new code path.
+//
+// Auto-resume: if the tenant is a Hobby instance that was auto-paused for
+// idleness, resume it BEFORE minting. Every tenant-scoped CLI command
+// passes through this endpoint, so a paused Hobby tenant transparently
+// wakes up on the user's next `sl subgraphs list` / `sl workflows run` /
+// etc. Paid-tier suspensions (manual `sl instance suspend`) are not
+// auto-resumed — that was a deliberate user action.
 
 app.post("/me/keys/mint-ephemeral", async (c) => {
 	const accountId = getAccountId(c);
@@ -429,6 +436,40 @@ app.post("/me/keys/mint-ephemeral", async (c) => {
 
 	const tenant = await getTenantByAccount(getDb(), accountId);
 	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+
+	if (tenant.status === "suspended" && tenant.plan === "hobby") {
+		logger.info("Auto-resuming idle Hobby tenant for mint-ephemeral", {
+			slug: tenant.slug,
+		});
+		try {
+			await provisionerResume(tenant.slug);
+			await setTenantStatus(getDb(), tenant.slug, "active");
+			await recordProvisioningAudit(getDb(), {
+				tenantId: tenant.id,
+				tenantSlug: tenant.slug,
+				accountId,
+				actor: `auto-resume:${accountId}`,
+				event: "resume",
+				status: "ok",
+				detail: { reason: "hobby_auto_resume_on_mint" },
+			});
+		} catch (err) {
+			await recordProvisioningAudit(getDb(), {
+				tenantId: tenant.id,
+				tenantSlug: tenant.slug,
+				accountId,
+				actor: `auto-resume:${accountId}`,
+				event: "resume",
+				status: "error",
+				detail: { reason: "hobby_auto_resume_on_mint" },
+				error: err instanceof Error ? err.message : String(err),
+			});
+			if (err instanceof ProvisionerError) {
+				return c.json({ error: "Resume failed", detail: err.body }, 502);
+			}
+			throw err;
+		}
+	}
 
 	const creds = await getTenantCredentials(getDb(), tenant.slug);
 	if (!creds) {
@@ -640,6 +681,7 @@ const PLAN_ALLOCATIONS: Record<
 	PlanId,
 	{ cpus: number; memoryMb: number; storageLimitMb: number }
 > = {
+	hobby: { cpus: 0.5, memoryMb: 512, storageLimitMb: 5120 },
 	launch: { cpus: 1, memoryMb: 2048, storageLimitMb: 10240 },
 	grow: { cpus: 2, memoryMb: 4096, storageLimitMb: 51200 },
 	scale: { cpus: 4, memoryMb: 8192, storageLimitMb: 204800 },

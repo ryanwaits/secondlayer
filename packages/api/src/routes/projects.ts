@@ -300,7 +300,7 @@ app.patch("/:slug/team/:memberId", async (c) => {
 // Platform control plane manages the project_id → tenant linkage; provisioner
 // creates Docker resources and is unaware of projects.
 //
-// Body: `{ plan: "launch" | "grow" | "scale" | "enterprise" }`.
+// Body: `{ plan: "hobby" | "launch" | "grow" | "scale" | "enterprise" }`.
 // Returns: `{ tenant, credentials: { apiUrl, anonKey, serviceKey } }` — same
 // shape as POST /api/tenants so the dashboard/CLI can share response handling.
 //
@@ -318,14 +318,19 @@ app.post("/:slug/instance", async (c) => {
 	})) as { plan?: unknown };
 	if (
 		typeof body.plan !== "string" ||
-		!["launch", "grow", "scale", "enterprise"].includes(body.plan)
+		!["hobby", "launch", "grow", "scale", "enterprise"].includes(body.plan)
 	) {
 		return c.json(
-			{ error: "plan must be one of: launch, grow, scale, enterprise" },
+			{ error: "plan must be one of: hobby, launch, grow, scale, enterprise" },
 			400,
 		);
 	}
-	const plan = body.plan as "launch" | "grow" | "scale" | "enterprise";
+	const plan = body.plan as
+		| "hobby"
+		| "launch"
+		| "grow"
+		| "scale"
+		| "enterprise";
 
 	// Enforce 1 project : 1 tenant today. The `project_id` FK is on
 	// `tenants`, so walk there and reject if one already exists for this
@@ -365,6 +370,7 @@ app.post("/:slug/instance", async (c) => {
 	}
 
 	const alloc = {
+		hobby: { cpus: 0.5, memoryMb: 512, storageLimitMb: 5120 },
 		launch: { cpus: 1, memoryMb: 2048, storageLimitMb: 10240 },
 		grow: { cpus: 2, memoryMb: 4096, storageLimitMb: 51200 },
 		scale: { cpus: 4, memoryMb: 8192, storageLimitMb: 204800 },

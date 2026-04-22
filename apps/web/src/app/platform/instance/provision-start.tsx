@@ -4,6 +4,14 @@ import { useState } from "react";
 
 const PLANS = [
 	{
+		id: "hobby",
+		name: "Hobby",
+		price: "Free",
+		tag: "Try it out",
+		specs: { cpu: "0.5", ram: "512 MB", storage: "5 GB" },
+		note: "Pauses after 7 days idle. Resumes on first query.",
+	},
+	{
 		id: "launch",
 		name: "Launch",
 		price: "$99/mo",
@@ -44,8 +52,9 @@ export function ProvisionStart({
 	onProvisioned: (resp: ProvisionResponse) => void;
 	onProvisioning: () => void;
 }) {
-	// Pre-select Launch — cheapest, most accessible entry compute.
-	const [selected, setSelected] = useState<string>("launch");
+	// Default to Hobby — zero-friction starting point. Users self-select
+	// Launch+ when they need more compute or want to skip the auto-pause.
+	const [selected, setSelected] = useState<string>("hobby");
 	const [state, setState] = useState<"idle" | "provisioning" | "error">("idle");
 	const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +88,7 @@ export function ProvisionStart({
 			<h1 className="settings-title">Provision your instance</h1>
 			<p className="settings-desc">
 				Pick a plan. We'll provision your dedicated Postgres, API, and subgraph
-				processor. Takes about a minute.
+				processor. Takes about a minute. Start free, resize anytime.
 			</p>
 
 			<div className="instance-plan-grid">
@@ -101,6 +110,18 @@ export function ProvisionStart({
 							<br />
 							<span>{plan.specs.storage}</span> storage
 						</div>
+						{"note" in plan && plan.note && (
+							<div
+								style={{
+									fontSize: 11,
+									color: "var(--text-muted)",
+									marginTop: 8,
+									lineHeight: 1.4,
+								}}
+							>
+								{plan.note}
+							</div>
+						)}
 					</button>
 				))}
 			</div>

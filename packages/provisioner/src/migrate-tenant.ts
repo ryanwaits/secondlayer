@@ -74,7 +74,7 @@ function parseArgs(): Args {
 		);
 		process.exit(1);
 	}
-	if (!["launch", "grow", "scale", "enterprise"].includes(plan)) {
+	if (!["hobby", "launch", "grow", "scale", "enterprise"].includes(plan)) {
 		console.error(`Invalid plan: ${plan}`);
 		process.exit(1);
 	}

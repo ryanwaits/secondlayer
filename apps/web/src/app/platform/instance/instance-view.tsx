@@ -205,7 +205,9 @@ function ActiveView({
 			<h1 className="settings-title">Instance</h1>
 			<p className="settings-desc">
 				{tenant.status === "suspended"
-					? "Containers stopped. Data preserved. Resume to bring everything back online in ~20s."
+					? tenant.plan === "hobby"
+						? "Paused after 7 days idle. Data preserved. The next CLI command auto-resumes, or click Resume below."
+						: "Containers stopped. Data preserved. Resume to bring everything back online in ~20s."
 					: "Your dedicated Postgres, API, and subgraph processor."}
 			</p>
 

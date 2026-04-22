@@ -15,7 +15,7 @@ import {
 import { readActiveProject } from "../lib/project-file.ts";
 import { isOssMode } from "../lib/resolve-tenant.ts";
 
-type Plan = "launch" | "grow" | "scale" | "enterprise";
+type Plan = "hobby" | "launch" | "grow" | "scale" | "enterprise";
 
 interface TenantSummary {
 	slug: string;
@@ -46,13 +46,19 @@ export function registerInstanceCommand(program: Command): void {
 	instance
 		.command("create")
 		.description("Provision a new dedicated instance for the active project")
-		.option("--plan <plan>", "Plan: launch | grow | scale", "launch")
+		.option(
+			"--plan <plan>",
+			"Plan: hobby (free) | launch | grow | scale",
+			"hobby",
+		)
 		.action(async (opts: { plan: string }) => {
 			guardOssMode();
 			const activeSlug = await requireActiveProject();
 			const plan = opts.plan as Plan;
-			if (!["launch", "grow", "scale"].includes(plan)) {
-				logError(`Invalid plan: ${plan} (expected launch, grow, or scale)`);
+			if (!["hobby", "launch", "grow", "scale"].includes(plan)) {
+				logError(
+					`Invalid plan: ${plan} (expected hobby, launch, grow, or scale)`,
+				);
 				process.exit(1);
 			}
 
@@ -82,7 +88,7 @@ export function registerInstanceCommand(program: Command): void {
 	instance
 		.command("resize")
 		.description("Change your instance plan (brief downtime)")
-		.option("--plan <plan>", "Target plan: launch | grow | scale")
+		.option("--plan <plan>", "Target plan: hobby | launch | grow | scale")
 		.option("--yes", "Skip confirm")
 		.action(async (opts: { plan?: string; yes?: boolean }) => {
 			guardOssMode();
@@ -91,6 +97,10 @@ export function registerInstanceCommand(program: Command): void {
 				const answer = await select({
 					message: "Target plan",
 					choices: [
+						{
+							value: "hobby",
+							name: "Hobby — free (0.5 vCPU · 512 MB · 5 GB, auto-pause after 7d idle)",
+						},
 						{
 							value: "launch",
 							name: "Launch — $99/mo (1 vCPU · 2 GB · 10 GB)",
