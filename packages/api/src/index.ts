@@ -26,6 +26,7 @@ import chatSessionsRouter from "./routes/chat-sessions.ts";
 import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
+import sentriesRouter from "./routes/sentries.ts";
 import statusRouter from "./routes/status.ts";
 import subgraphsRouter, {
 	abortAllOperations,
@@ -149,6 +150,7 @@ if (mode === "platform") {
 	app.route("/api/projects", projectsRouter);
 	app.route("/api/chat-sessions", chatSessionsRouter);
 	app.route("/api/tenants", tenantsRouter);
+	app.route("/api/sentries", sentriesRouter);
 }
 app.route("/", statusRouter);
 

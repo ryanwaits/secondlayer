@@ -2,7 +2,10 @@ import { BetaBracket } from "@/components/beta-badge";
 import { SiteLink } from "@/components/site-link";
 import { HomeAnnotations } from "./home-annotations";
 
-const products = [{ name: "Subgraphs", href: "/subgraphs" }];
+const products = [
+	{ name: "Subgraphs", href: "/subgraphs" },
+	{ name: "Sentries", href: "/sentries" },
+];
 
 const interfaces = [
 	{ name: "CLI", href: "/cli", version: "3.1.0" },

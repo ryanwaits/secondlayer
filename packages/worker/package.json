@@ -11,6 +11,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
+		"@secondlayer/sentries": "workspace:*",
 		"@secondlayer/shared": "^2.1.0",
 		"@secondlayer/stacks": "^0.3.0",
 		"kysely": "0.28.15",

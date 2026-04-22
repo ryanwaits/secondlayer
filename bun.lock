@@ -67,6 +67,7 @@
       "dependencies": {
         "@secondlayer/auth": "^0.1.16",
         "@secondlayer/bundler": "^0.3.0",
+        "@secondlayer/sentries": "workspace:*",
         "@secondlayer/shared": "^2.1.0",
         "@secondlayer/subgraphs": "^0.11.8",
         "hono": "^4.0.0",
@@ -243,6 +244,21 @@
         "typescript": "^5",
       },
     },
+    "packages/sentries": {
+      "name": "@secondlayer/sentries",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ai-sdk/anthropic": "3.0.71",
+        "@secondlayer/shared": "^2.1.0",
+        "ai": "6.0.167",
+        "kysely": "0.28.15",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5",
+      },
+    },
     "packages/shared": {
       "name": "@secondlayer/shared",
       "version": "2.1.0",
@@ -323,6 +339,7 @@
       "name": "@secondlayer/worker",
       "version": "1.0.3",
       "dependencies": {
+        "@secondlayer/sentries": "workspace:*",
         "@secondlayer/shared": "^2.1.0",
         "@secondlayer/stacks": "^0.3.0",
         "kysely": "0.28.15",
@@ -763,6 +780,8 @@
     "@secondlayer/scaffold": ["@secondlayer/scaffold@workspace:packages/scaffold"],
 
     "@secondlayer/sdk": ["@secondlayer/sdk@workspace:packages/sdk"],
+
+    "@secondlayer/sentries": ["@secondlayer/sentries@workspace:packages/sentries"],
 
     "@secondlayer/shared": ["@secondlayer/shared@workspace:packages/shared"],
 

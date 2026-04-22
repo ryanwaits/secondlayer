@@ -97,6 +97,14 @@
 			"types": "./dist/src/db/queries/workflow-ai-usage.d.ts",
 			"import": "./dist/src/db/queries/workflow-ai-usage.js"
 		},
+		"./db/queries/sentries": {
+			"types": "./dist/src/db/queries/sentries.d.ts",
+			"import": "./dist/src/db/queries/sentries.js"
+		},
+		"./schemas/sentries": {
+			"types": "./dist/src/schemas/sentries.d.ts",
+			"import": "./dist/src/schemas/sentries.js"
+		},
 		"./types": {
 			"types": "./dist/src/types.d.ts",
 			"import": "./dist/src/types.js"

@@ -1,0 +1,30 @@
+{
+	"name": "@secondlayer/sentries",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./types": "./src/types.ts",
+		"./runtime": "./src/runtime.ts",
+		"./registry": "./src/registry.ts",
+		"./delivery": "./src/delivery.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@ai-sdk/anthropic": "3.0.71",
+		"@secondlayer/shared": "^2.1.0",
+		"ai": "6.0.167",
+		"kysely": "0.28.15",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5"
+	}
+}

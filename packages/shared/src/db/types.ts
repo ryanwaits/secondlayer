@@ -405,7 +405,42 @@ export interface Database {
 	workflow_ai_usage_daily: WorkflowAiUsageDailyTable;
 	account_spend_caps: AccountSpendCapsTable;
 	provisioning_audit_log: ProvisioningAuditLogTable;
+	sentries: SentriesTable;
+	sentry_alerts: SentryAlertsTable;
 }
+
+// ── Protocol Sentry ───────────────────────────────────────────────────
+
+export interface SentriesTable {
+	id: Generated<string>;
+	account_id: string;
+	kind: string;
+	name: string;
+	config: unknown;
+	active: Generated<boolean>;
+	last_check_at: Date | null;
+	delivery_webhook: string;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
+}
+
+export type Sentry = Selectable<SentriesTable>;
+export type InsertSentry = Insertable<SentriesTable>;
+export type UpdateSentry = Updateable<SentriesTable>;
+
+export interface SentryAlertsTable {
+	id: Generated<string>;
+	sentry_id: string;
+	idempotency_key: string;
+	fired_at: Generated<Date>;
+	payload: unknown;
+	delivery_status: Generated<string>;
+	delivery_error: string | null;
+}
+
+export type SentryAlert = Selectable<SentryAlertsTable>;
+export type InsertSentryAlert = Insertable<SentryAlertsTable>;
+export type UpdateSentryAlert = Updateable<SentryAlertsTable>;
 
 // --- Tenants (dedicated hosting) ---
 
