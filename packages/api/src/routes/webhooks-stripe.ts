@@ -3,8 +3,7 @@
  *
  * Signature is verified against STRIPE_WEBHOOK_SECRET — bodies that don't
  * verify are rejected 400 (Stripe will retry). Verified events are
- * audited; state reconciliation (subscription lifecycle, meter
- * cancellation, etc.) lands with the metering + caps work.
+ * audited; subscription lifecycle events write `accounts.plan`.
  *
  * Important: Hono's default body parser reads JSON, but Stripe signatures
  * are computed over the RAW bytes. We use `c.req.text()` then verify
@@ -14,10 +13,15 @@
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { clearFreeze } from "@secondlayer/shared/db/queries/account-spend-caps";
+import {
+	getAccountByStripeCustomerId,
+	setAccountPlan,
+} from "@secondlayer/shared/db/queries/accounts";
 import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
 import { Hono } from "hono";
 import type Stripe from "stripe";
 import { getStripe, getStripeWebhookSecret } from "../lib/stripe.ts";
+import { getTierForPriceId } from "../lib/tier-mapping.ts";
 
 const app = new Hono();
 
@@ -47,32 +51,42 @@ app.post("/", async (c) => {
 		livemode: event.livemode,
 	});
 
-	// Handle the events we care about. `invoice.paid` at cycle rollover
-	// clears any `frozen_at` the spend-cap cron set — fresh cycle, start
-	// metering again. Other events just get audited for now.
-	if (event.type === "invoice.paid") {
-		const invoice = event.data.object as Stripe.Invoice;
-		const customerId =
-			typeof invoice.customer === "string"
-				? invoice.customer
-				: invoice.customer?.id;
-		if (customerId) {
-			await onInvoicePaid(customerId).catch((err) => {
-				logger.warn("Failed to clear freeze on invoice.paid", {
-					id: event.id,
-					customerId,
-					error: err instanceof Error ? err.message : String(err),
-				});
-			});
+	try {
+		if (event.type === "invoice.paid") {
+			const invoice = event.data.object as Stripe.Invoice;
+			const customerId =
+				typeof invoice.customer === "string"
+					? invoice.customer
+					: invoice.customer?.id;
+			if (customerId) await onInvoicePaid(customerId);
+		} else if (
+			event.type === "customer.subscription.created" ||
+			event.type === "customer.subscription.updated"
+		) {
+			await onSubscriptionActive(
+				event.data.object as Stripe.Subscription,
+				event.id,
+			);
+		} else if (event.type === "customer.subscription.deleted") {
+			await onSubscriptionDeleted(
+				event.data.object as Stripe.Subscription,
+				event.id,
+			);
 		}
+	} catch (err) {
+		// Always 200 below even on handler error — Stripe retries on
+		// non-2xx and a handler bug shouldn't cause a retry storm.
+		logger.warn("Stripe webhook handler error", {
+			id: event.id,
+			type: event.type,
+			error: err instanceof Error ? err.message : String(err),
+		});
 	}
 
 	// Best-effort audit trail.
 	await recordProvisioningAudit(getDb(), {
 		actor: "stripe:webhook",
-		event: "provision.start", // reusing enum bucket — not exactly right, but
-		// keeps the audit query helper usable. Replace with a dedicated
-		// `stripe.webhook.received` event once the enum is broadened.
+		event: "provision.start", // reusing enum bucket; broaden later.
 		status: "ok",
 		detail: {
 			stripeEventId: event.id,
@@ -80,30 +94,19 @@ app.post("/", async (c) => {
 			livemode: event.livemode,
 		},
 	}).catch((err) => {
-		// Never let audit logging fail the webhook — Stripe will retry on
-		// any non-2xx response and we don't want a DB hiccup to spam events.
 		logger.warn("Failed to audit Stripe webhook", {
 			id: event.id,
 			error: err instanceof Error ? err.message : String(err),
 		});
 	});
 
-	// Stripe expects a 2xx within 30s or it retries. We always respond
-	// immediately; heavy reconciliation happens async via dedicated jobs.
 	return c.json({ received: true });
 });
 
-/**
- * Resolve Stripe customer → Secondlayer account + clear any cap freeze.
- * Extracted so the route handler stays readable.
- */
+/** invoice.paid — clear any cap freeze at cycle rollover. */
 async function onInvoicePaid(stripeCustomerId: string): Promise<void> {
 	const db = getDb();
-	const account = await db
-		.selectFrom("accounts")
-		.select("id")
-		.where("stripe_customer_id", "=", stripeCustomerId)
-		.executeTakeFirst();
+	const account = await getAccountByStripeCustomerId(db, stripeCustomerId);
 	if (!account) {
 		logger.warn("invoice.paid: no account matches stripe_customer_id", {
 			stripeCustomerId,
@@ -112,6 +115,106 @@ async function onInvoicePaid(stripeCustomerId: string): Promise<void> {
 	}
 	await clearFreeze(db, account.id);
 	logger.info("Cleared spend-cap freeze on invoice.paid", {
+		accountId: account.id,
+	});
+}
+
+/**
+ * customer.subscription.{created,updated} — resolve first line-item
+ * price id to a tier and write `accounts.plan`.
+ *
+ * Status filter:
+ *   active / trialing → set plan to tier
+ *   canceled / unpaid / incomplete_expired → revert to hobby
+ *   past_due / incomplete → no-op (don't demote mid-dispute)
+ */
+async function onSubscriptionActive(
+	sub: Stripe.Subscription,
+	eventId: string,
+): Promise<void> {
+	const db = getDb();
+	const customerId =
+		typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+
+	const account = await getAccountByStripeCustomerId(db, customerId);
+	if (!account) {
+		logger.warn("stripe.webhook.subscription.no_account", {
+			eventId,
+			customerId,
+		});
+		return;
+	}
+
+	const status = sub.status;
+	const firstItem = sub.items.data[0];
+	const priceId = firstItem?.price.id;
+
+	if (!priceId) {
+		logger.warn("stripe.webhook.subscription.no_price", {
+			eventId,
+			subscriptionId: sub.id,
+		});
+		return;
+	}
+
+	if (status === "active" || status === "trialing") {
+		const tier = getTierForPriceId(priceId);
+		if (!tier) {
+			logger.warn("stripe.webhook.subscription.unknown_price", {
+				eventId,
+				priceId,
+				subscriptionId: sub.id,
+				status,
+			});
+			return;
+		}
+		await setAccountPlan(db, account.id, tier);
+		logger.info("stripe.webhook.subscription.resolved", {
+			eventId,
+			accountId: account.id,
+			tier,
+			status,
+		});
+	} else if (
+		status === "canceled" ||
+		status === "unpaid" ||
+		status === "incomplete_expired"
+	) {
+		await setAccountPlan(db, account.id, "hobby");
+		logger.info("stripe.webhook.subscription.reverted", {
+			eventId,
+			accountId: account.id,
+			status,
+		});
+	} else {
+		logger.info("stripe.webhook.subscription.skipped", {
+			eventId,
+			accountId: account.id,
+			status,
+			reason: "status not actionable",
+		});
+	}
+}
+
+/** customer.subscription.deleted — always revert to hobby. */
+async function onSubscriptionDeleted(
+	sub: Stripe.Subscription,
+	eventId: string,
+): Promise<void> {
+	const db = getDb();
+	const customerId =
+		typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+	const account = await getAccountByStripeCustomerId(db, customerId);
+	if (!account) {
+		logger.warn("stripe.webhook.subscription.no_account", {
+			eventId,
+			customerId,
+		});
+		return;
+	}
+	await setAccountPlan(db, account.id, "hobby");
+	logger.info("stripe.webhook.subscription.deleted", {
+		eventId,
 		accountId: account.id,
 	});
 }

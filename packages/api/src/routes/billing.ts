@@ -1,7 +1,7 @@
 /**
  * Billing routes — session-authed entry points for upgrade + portal.
  *
- *   POST /api/billing/upgrade   body: { tier: "pro" }
+ *   POST /api/billing/upgrade   body: { tier: "launch" | "grow" | "scale" }
  *     Returns a Stripe Checkout Session URL. Lazy-creates the Stripe
  *     customer if this account has never upgraded before.
  *
@@ -20,19 +20,21 @@ import {
 } from "@secondlayer/shared/db/queries/account-spend-caps";
 import {
 	getAccountById,
+	setAccountPlan,
 	setStripeCustomerId,
 } from "@secondlayer/shared/db/queries/accounts";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripe } from "../lib/stripe.ts";
+import {
+	UPGRADEABLE_TIERS,
+	getPriceIdForTier,
+	getTierForPriceId,
+	isUpgradeableTier,
+} from "../lib/tier-mapping.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
-
-// Tier → price env var. Enterprise is custom-quoted, no self-serve path.
-const TIER_PRICE_ENV: Record<string, string> = {
-	pro: "STRIPE_PRICE_PRO",
-};
 
 function dashboardBaseUrl(): string {
 	return process.env.DASHBOARD_URL ?? "https://secondlayer.tools";
@@ -46,22 +48,19 @@ app.post("/upgrade", async (c) => {
 		throw new InvalidJSONError();
 	})) as { tier?: unknown };
 
-	if (typeof body.tier !== "string" || !(body.tier in TIER_PRICE_ENV)) {
+	if (typeof body.tier !== "string" || !isUpgradeableTier(body.tier)) {
 		return c.json(
 			{
-				error:
-					"tier must be 'pro'. Enterprise subscriptions are custom-quoted — contact sales.",
+				error: `tier must be one of ${UPGRADEABLE_TIERS.join(", ")}. Enterprise subscriptions are custom-quoted — contact sales.`,
 			},
 			400,
 		);
 	}
 
-	const priceEnvVar = TIER_PRICE_ENV[body.tier];
-	const priceId = process.env[priceEnvVar];
+	const priceId = getPriceIdForTier(body.tier);
 	if (!priceId) {
 		logger.error("Upgrade attempted without configured price id", {
 			tier: body.tier,
-			envVar: priceEnvVar,
 		});
 		return c.json(
 			{ error: "Billing is not fully configured yet. Contact support." },
@@ -91,18 +90,84 @@ app.post("/upgrade", async (c) => {
 		});
 	}
 
+	// Stripe-hosted redirects bypass our Next middleware, so the return
+	// URLs must use the raw filesystem path (/platform/billing) rather
+	// than the clean URL (/billing) that only works through the middleware
+	// rewrite when navigated client-side.
 	const session = await stripe.checkout.sessions.create({
 		mode: "subscription",
 		customer: stripeCustomerId,
 		line_items: [{ price: priceId, quantity: 1 }],
-		success_url: `${dashboardBaseUrl()}/settings?upgrade=success`,
-		cancel_url: `${dashboardBaseUrl()}/settings?upgrade=cancelled`,
+		success_url: `${dashboardBaseUrl()}/platform/billing?upgrade=success`,
+		cancel_url: `${dashboardBaseUrl()}/platform/billing?upgrade=cancelled`,
 		subscription_data: {
 			metadata: { secondlayer_account_id: account.id, tier: body.tier },
 		},
 	});
 
 	return c.json({ url: session.url });
+});
+
+/**
+ * POST /api/billing/resolve
+ *
+ * Called by the billing page's "fast-resolve" after a successful Checkout
+ * redirect. Does a one-shot Stripe read of the customer's active
+ * subscription, reverse-looks up the tier, writes `accounts.plan` if
+ * different, returns the resolved plan.
+ *
+ * Eliminates the webhook race on the happy path — if Stripe hasn't fired
+ * `customer.subscription.created` by the time the user lands on the
+ * success URL, we catch up synchronously.
+ *
+ * Returns 200 always (even when nothing resolved): `{plan, resolved}`.
+ * Caller falls back to whatever `accounts.plan` already was.
+ */
+app.post("/resolve", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const db = getDb();
+	const account = await getAccountById(db, accountId);
+	if (!account) return c.json({ error: "Account not found" }, 404);
+
+	if (!account.stripe_customer_id) {
+		return c.json({ plan: account.plan, resolved: false });
+	}
+
+	try {
+		const stripe = getStripe();
+		const subs = await stripe.subscriptions.list({
+			customer: account.stripe_customer_id,
+			status: "active",
+			limit: 1,
+		});
+		const sub = subs.data[0];
+		if (!sub) return c.json({ plan: account.plan, resolved: false });
+
+		const priceId = sub.items.data[0]?.price.id;
+		if (!priceId) return c.json({ plan: account.plan, resolved: false });
+
+		const tier = getTierForPriceId(priceId);
+		if (!tier) return c.json({ plan: account.plan, resolved: false });
+
+		if (account.plan !== tier) {
+			await setAccountPlan(db, account.id, tier);
+			logger.info("billing.resolve.plan_updated", {
+				accountId: account.id,
+				from: account.plan,
+				to: tier,
+			});
+		}
+
+		return c.json({ plan: tier, resolved: true });
+	} catch (err) {
+		logger.warn("billing.resolve.stripe_failed", {
+			accountId: account.id,
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return c.json({ plan: account.plan, resolved: false });
+	}
 });
 
 app.get("/caps", async (c) => {
@@ -198,7 +263,7 @@ app.get("/portal", async (c) => {
 	const stripe = getStripe();
 	const session = await stripe.billingPortal.sessions.create({
 		customer: account.stripe_customer_id,
-		return_url: `${dashboardBaseUrl()}/settings`,
+		return_url: `${dashboardBaseUrl()}/platform/billing`,
 	});
 
 	return c.json({ url: session.url });

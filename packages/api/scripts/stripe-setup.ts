@@ -81,7 +81,7 @@ async function upsertTierPrice(
 interface MeterDef {
 	eventName: string;
 	displayName: string;
-	aggregation: Stripe.Billing.MeterCreateParams.DefaultAggregation.Formula;
+	aggregation: "sum" | "count" | "last";
 }
 
 const METERS: MeterDef[] = [
@@ -139,7 +139,11 @@ async function upsertMeteredPrice(
 			usage_type: "metered",
 			meter: meterId,
 		},
-		unit_amount_decimal: perUnitCents.toString(),
+		// SDK types `unit_amount_decimal` as a branded Decimal, but the
+		// runtime accepts a plain string. Cast narrows the compiler while
+		// keeping the original intent.
+		// biome-ignore lint/suspicious/noExplicitAny: Stripe Decimal branded type.
+		unit_amount_decimal: perUnitCents.toString() as any,
 		lookup_key: lookupKey,
 	});
 }
@@ -151,14 +155,37 @@ async function main() {
 	const product = await upsertProduct();
 	console.log(`  product=${product.id}`);
 
-	console.log("→ Upserting Pro tier price…");
+	console.log("→ Upserting Pro tier price (legacy, kept for back-compat)…");
 	const proPrice = await upsertTierPrice(
 		product.id,
 		"secondlayer_pro_monthly",
 		2500, // $25.00
 		"Pro monthly",
 	);
-	console.log(`  price=${proPrice.id}`);
+	console.log(`  price(pro)=${proPrice.id}`);
+
+	console.log("→ Upserting tier prices (Launch / Grow / Scale)…");
+	const launchPrice = await upsertTierPrice(
+		product.id,
+		"secondlayer_launch_monthly",
+		14900, // $149.00
+		"Launch monthly",
+	);
+	const growPrice = await upsertTierPrice(
+		product.id,
+		"secondlayer_grow_monthly",
+		34900, // $349.00
+		"Grow monthly",
+	);
+	const scalePrice = await upsertTierPrice(
+		product.id,
+		"secondlayer_scale_monthly",
+		79900, // $799.00
+		"Scale monthly",
+	);
+	console.log(`  price(launch)=${launchPrice.id}`);
+	console.log(`  price(grow)=${growPrice.id}`);
+	console.log(`  price(scale)=${scalePrice.id}`);
 
 	console.log("→ Upserting meters…");
 	const meters: Record<string, Stripe.Billing.Meter> = {};
@@ -197,7 +224,10 @@ async function main() {
 	console.log(`  price(ai)=${aiPrice.id}`);
 
 	console.log("\n─── Paste into .env ───");
-	console.log(`STRIPE_PRICE_PRO=${proPrice.id}`);
+	console.log(`STRIPE_PRICE_LAUNCH=${launchPrice.id}`);
+	console.log(`STRIPE_PRICE_GROW=${growPrice.id}`);
+	console.log(`STRIPE_PRICE_SCALE=${scalePrice.id}`);
+	console.log(`STRIPE_PRICE_PRO=${proPrice.id}  # legacy, optional`);
 	console.log(`STRIPE_METER_COMPUTE=${meters.compute_hours.id}`);
 	console.log(`STRIPE_METER_STORAGE=${meters.storage_gb_months.id}`);
 	console.log(`STRIPE_METER_AI_EVALS=${meters.ai_evals.id}`);

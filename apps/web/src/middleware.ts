@@ -7,9 +7,11 @@ const DUAL_PATHS = ["/subgraphs", "/workflows"];
 const AUTH_REQUIRED = [
 	"/api-keys",
 	"/usage",
+	"/billing",
 	"/team",
 	"/settings",
 	"/sessions",
+	"/sentries",
 	"/instance",
 	"/admin",
 ];
@@ -75,6 +77,10 @@ export const config = {
 		"/settings/:path*",
 		"/sessions",
 		"/sessions/:path*",
+		"/sentries",
+		"/sentries/:path*",
+		"/billing",
+		"/billing/:path*",
 		"/workflows",
 		"/workflows/:path*",
 		"/instance",

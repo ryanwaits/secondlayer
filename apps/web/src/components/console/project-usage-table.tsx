@@ -21,7 +21,7 @@ export function ProjectUsageTable({ projects }: Props) {
 			>
 				No projects yet.{" "}
 				<Link
-					href="/platform/instance"
+					href="/instance"
 					style={{ color: "var(--text-main)", fontWeight: 500 }}
 				>
 					Create one →

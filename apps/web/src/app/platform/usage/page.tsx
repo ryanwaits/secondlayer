@@ -93,7 +93,7 @@ export default async function UsagePage() {
 									{formatCents(spend.capCents)} — {period.daysRemaining} day
 									{period.daysRemaining === 1 ? "" : "s"} to go.{" "}
 									<Link
-										href="/platform/billing"
+										href="/billing"
 										style={{ color: "var(--text-main)", fontWeight: 500 }}
 									>
 										Raise cap or upgrade →
@@ -190,7 +190,7 @@ export default async function UsagePage() {
 								</div>
 							</div>
 							<Link
-								href="/platform/billing"
+								href="/billing"
 								className="settings-btn ghost"
 								style={{ textDecoration: "none" }}
 							>
@@ -228,7 +228,7 @@ function CapStrip({
 					<span>No spend cap set</span>
 					<span className="pct">— {formatCents(currentCents)} this period</span>
 				</div>
-				<Link href="/platform/billing" className="cap-strip-action">
+				<Link href="/billing" className="cap-strip-action">
 					Set cap →
 				</Link>
 			</div>
@@ -264,7 +264,7 @@ function CapStrip({
 					/>
 				</div>
 			</div>
-			<Link href="/platform/billing" className="cap-strip-action">
+			<Link href="/billing" className="cap-strip-action">
 				{frozen ? "Unfreeze →" : "Change →"}
 			</Link>
 		</div>

@@ -4,7 +4,9 @@ import { type BillingCaps, TIER_META, type TierMeta } from "@/lib/billing";
 import { type UsageResponse, formatCents } from "@/lib/usage";
 import Link from "next/link";
 import { CapForm } from "./cap-form";
-import { DisabledPortalRow, DisabledUpgradeButton } from "./disabled-cta";
+import { PortalLink } from "./portal-link";
+import { resolvePlanFromStripe } from "./resolve-plan";
+import { UpgradeButton } from "./upgrade-button";
 
 interface Account {
 	id: string;
@@ -12,7 +14,11 @@ interface Account {
 	plan: string;
 }
 
-export default async function BillingPage() {
+export default async function BillingPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ upgrade?: string }>;
+}) {
 	const session = await getSessionFromCookies();
 	if (!session) {
 		return (
@@ -52,6 +58,19 @@ export default async function BillingPage() {
 				</div>
 			</>
 		);
+	}
+
+	// Fast-resolve: when the user returns from a successful Stripe
+	// Checkout, the webhook may not have fired yet. Do a one-shot Stripe
+	// read + plan write synchronously so the Paid view renders on first
+	// paint. On any failure we fall through to whatever `account.plan`
+	// currently is (webhook will catch up async).
+	const sp = await searchParams;
+	if (sp.upgrade === "success" && account.plan === "hobby") {
+		const resolved = await resolvePlanFromStripe(session);
+		if (resolved && resolved !== "hobby") {
+			account.plan = resolved;
+		}
 	}
 
 	const isHobby = account.plan === "hobby";
@@ -128,16 +147,13 @@ function HobbyView({ currentPlan }: { currentPlan: string }) {
 									<li key={f}>{f}</li>
 								))}
 							</ul>
-							<DisabledUpgradeButton
+							<UpgradeButton
+								tier={t.tier as "launch" | "grow" | "scale"}
 								label={`Upgrade to ${t.name}`}
 								variant={t.tier === "launch" ? "primary" : "ghost"}
 							/>
 						</div>
 					))}
-				</div>
-				<div className="soon-note">
-					Self-serve billing launches soon.{" "}
-					<a href="mailto:hey@secondlayer.tools">Email us for early access</a>.
 				</div>
 			</div>
 
@@ -249,8 +265,7 @@ function PaidView({
 							<span className="tier-badge">{planMeta.tier}</span>
 						</div>
 						<div className="plan-card-sub">
-							${planMeta.priceUsd}/mo · billing starts at next cycle · live
-							after Stripe launch
+							${planMeta.priceUsd}/mo · manage in Stripe portal below
 						</div>
 					</div>
 				</div>
@@ -278,18 +293,17 @@ function PaidView({
 			<div className="settings-section">
 				<div className="settings-section-title">Everything else</div>
 				<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-					<DisabledPortalRow
+					<PortalLink
 						label="Payment methods & invoices"
 						sub="Update card · download invoices · view receipts (via Stripe)"
 					/>
-					<DisabledPortalRow
+					<PortalLink
 						label="Cancel or change subscription"
 						sub="Downgrade · cancel · pause · change email"
 					/>
 				</div>
 				<div className="soon-note">
-					Stripe portal activates after billing launch.{" "}
-					<Link href="/platform/usage" style={{ color: "var(--text-main)" }}>
+					<Link href="/usage" style={{ color: "var(--text-main)" }}>
 						View usage →
 					</Link>
 				</div>

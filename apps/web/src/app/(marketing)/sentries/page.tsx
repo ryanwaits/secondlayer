@@ -38,7 +38,7 @@ export default function SentriesPage() {
 
 				<div style={{ margin: "32px 0" }}>
 					<Link
-						href="/platform/sentries"
+						href="/sentries"
 						className="btn btn-primary"
 						style={{ fontSize: 14 }}
 					>

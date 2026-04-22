@@ -64,6 +64,38 @@ export async function setStripeCustomerId(
 		.execute();
 }
 
+/**
+ * Set the plan tier on an account. Called by the Stripe webhook on
+ * subscription lifecycle events + by the billing page's fast-resolve
+ * after a successful Checkout redirect. Returns true if a row was
+ * updated (account exists).
+ */
+export async function setAccountPlan(
+	db: Kysely<Database>,
+	accountId: string,
+	plan: string,
+): Promise<boolean> {
+	const result = await db
+		.updateTable("accounts")
+		.set({ plan })
+		.where("id", "=", accountId)
+		.executeTakeFirst();
+	return (result.numUpdatedRows ?? 0n) > 0n;
+}
+
+/** Resolve an account by its Stripe customer id. Null if no match. */
+export async function getAccountByStripeCustomerId(
+	db: Kysely<Database>,
+	stripeCustomerId: string,
+): Promise<{ id: string } | null> {
+	const row = await db
+		.selectFrom("accounts")
+		.select("id")
+		.where("stripe_customer_id", "=", stripeCustomerId)
+		.executeTakeFirst();
+	return row ?? null;
+}
+
 export async function isSlugTaken(
 	db: Kysely<Database>,
 	slug: string,
