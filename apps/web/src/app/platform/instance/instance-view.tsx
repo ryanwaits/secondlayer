@@ -547,7 +547,10 @@ function ResizeSection({
 	sessionToken: string;
 	onResized: (tenant: TenantSummary) => void;
 }) {
-	const [target, setTarget] = useState<string>(currentPlan);
+	const RESIZE_OPTIONS = ["launch", "grow", "scale"];
+	const [target, setTarget] = useState<string>(
+		RESIZE_OPTIONS.includes(currentPlan) ? currentPlan : "launch",
+	);
 	const [state, setState] = useState<
 		"idle" | "confirming" | "resizing" | "error"
 	>("idle");
