@@ -95,7 +95,7 @@ export default function SentryActions({ sentryId, active }: Props) {
 			<div style={{ display: "flex", gap: 8 }}>
 				<button
 					type="button"
-					className="btn"
+					className="settings-btn ghost"
 					onClick={sendTest}
 					disabled={testing}
 				>
@@ -103,7 +103,7 @@ export default function SentryActions({ sentryId, active }: Props) {
 				</button>
 				<button
 					type="button"
-					className="btn"
+					className="settings-btn ghost"
 					onClick={toggle}
 					disabled={toggling}
 				>
@@ -111,10 +111,9 @@ export default function SentryActions({ sentryId, active }: Props) {
 				</button>
 				<button
 					type="button"
-					className="btn"
+					className="settings-btn danger"
 					onClick={remove}
 					disabled={deleting}
-					style={{ color: "var(--error-fg, #933)" }}
 				>
 					{deleting ? "…" : "Delete"}
 				</button>

@@ -21,15 +21,13 @@ export default function NewSentryPage() {
 		setError(null);
 		setSubmitting(true);
 
-		// Convert STX → µSTX as decimal string (10^6). Keep everything string-
-		// based so we don't need BigInt literals (tsconfig target is ES2017).
 		const stxDigits = thresholdStx.replace(/[^0-9]/g, "");
 		if (!stxDigits || stxDigits === "0") {
 			setError("Threshold must be a whole number of STX greater than 0");
 			setSubmitting(false);
 			return;
 		}
-		const thresholdMicroStx = `${stxDigits}000000`;
+		const config = { principal, thresholdMicroStx: `${stxDigits}000000` };
 
 		try {
 			const res = await fetch(`${BROWSER_API_URL}/api/sentries`, {
@@ -39,7 +37,7 @@ export default function NewSentryPage() {
 				body: JSON.stringify({
 					kind: "large-outflow",
 					name,
-					config: { principal, thresholdMicroStx },
+					config,
 					delivery_webhook: webhook,
 					active: true,
 				}),
@@ -64,122 +62,139 @@ export default function NewSentryPage() {
 
 	return (
 		<>
-			<OverviewTopbar page="New sentry" />
-			<div style={{ flex: 1, overflowY: "auto" }}>
-				<div
-					className="overview-inner"
-					style={{ maxWidth: 600, margin: "0 auto" }}
-				>
-					<h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 24 }}>
-						Enable a sentry
-					</h1>
-					<form
-						onSubmit={handleSubmit}
-						style={{ display: "flex", flexDirection: "column", gap: 16 }}
-					>
-						<label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-							<span style={{ fontSize: 13, fontWeight: 500 }}>Name</span>
-							<input
-								className="input"
-								required
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-								placeholder="e.g. treasury watch"
-							/>
-						</label>
+			<OverviewTopbar path="Sentries" page="New sentry" showRefresh={false} />
+			<div className="settings-scroll">
+				<div className="settings-inner">
+					<h1 className="settings-title">Enable a sentry</h1>
+					<p className="settings-desc">
+						Sentries watch your Stacks contracts and triage anomalies with AI.
+					</p>
 
-						<label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-							<span style={{ fontSize: 13, fontWeight: 500 }}>Kind</span>
-							<select className="input" disabled>
-								<option>
-									Large outflow (watch for transfers above threshold)
-								</option>
-							</select>
-							<span style={{ fontSize: 11, color: "var(--fg-muted)" }}>
-								More kinds coming soon
-							</span>
-						</label>
+					<form onSubmit={handleSubmit}>
+						<div className="settings-section">
+							<div className="settings-section-title">Basics</div>
 
-						<label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-							<span style={{ fontSize: 13, fontWeight: 500 }}>
-								Principal to watch
-							</span>
-							<input
-								className="input"
-								required
-								value={principal}
-								onChange={(e) => setPrincipal(e.target.value)}
-								placeholder="SP... or SP....contract-name"
-								pattern="^S[PMT][0-9A-Z]+(\.[A-Za-z][A-Za-z0-9-]*)?$"
-							/>
-							<span style={{ fontSize: 11, color: "var(--fg-muted)" }}>
-								Alerts fire on any STX transfer to or from this address.
-							</span>
-						</label>
+							<div className="settings-field">
+								<label className="settings-label" htmlFor="sentry-name">
+									Name
+								</label>
+								<input
+									id="sentry-name"
+									className="settings-input"
+									required
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+									placeholder="e.g. treasury watch"
+								/>
+							</div>
 
-						<label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-							<span style={{ fontSize: 13, fontWeight: 500 }}>
-								Threshold (STX)
-							</span>
-							<input
-								className="input"
-								type="number"
-								min="1"
-								required
-								value={thresholdStx}
-								onChange={(e) => setThresholdStx(e.target.value)}
-							/>
-							<span style={{ fontSize: 11, color: "var(--fg-muted)" }}>
-								Alert only on transfers larger than this.
-							</span>
-						</label>
+							<div className="settings-field">
+								<label className="settings-label" htmlFor="sentry-kind">
+									Kind
+								</label>
+								<select
+									id="sentry-kind"
+									className="settings-input"
+									disabled
+									value="large-outflow"
+								>
+									<option value="large-outflow">
+										Large outflow — watch for transfers above threshold
+									</option>
+								</select>
+								<div className="settings-hint">More kinds coming soon.</div>
+							</div>
+						</div>
 
-						<label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-							<span style={{ fontSize: 13, fontWeight: 500 }}>
-								Delivery webhook
-							</span>
-							<input
-								className="input"
-								type="url"
-								required
-								value={webhook}
-								onChange={(e) => setWebhook(e.target.value)}
-								placeholder="https://hooks.slack.com/services/…"
-								pattern="https://.*"
-							/>
-							<span style={{ fontSize: 11, color: "var(--fg-muted)" }}>
-								Slack incoming webhook, Discord webhook, or any Slack-compatible
-								endpoint.
-							</span>
-						</label>
+						<div className="settings-section">
+							<div className="settings-section-title">Target</div>
+
+							<div className="settings-field">
+								<label className="settings-label" htmlFor="sentry-principal">
+									Principal to watch
+								</label>
+								<input
+									id="sentry-principal"
+									className="settings-input mono"
+									required
+									value={principal}
+									onChange={(e) => setPrincipal(e.target.value)}
+									placeholder="SP... or SP....contract-name"
+									pattern="^S[PMT][0-9A-Z]+(\.[A-Za-z][A-Za-z0-9-]*)?$"
+								/>
+								<div className="settings-hint">
+									Alerts fire on any STX transfer to or from this address.
+								</div>
+							</div>
+
+							<div className="settings-field">
+								<label className="settings-label" htmlFor="sentry-threshold">
+									Threshold (STX)
+								</label>
+								<input
+									id="sentry-threshold"
+									className="settings-input"
+									type="number"
+									min="1"
+									required
+									value={thresholdStx}
+									onChange={(e) => setThresholdStx(e.target.value)}
+								/>
+								<div className="settings-hint">
+									Alert only on transfers larger than this.
+								</div>
+							</div>
+						</div>
+
+						<div className="settings-section">
+							<div className="settings-section-title">Delivery</div>
+
+							<div className="settings-field">
+								<label className="settings-label" htmlFor="sentry-webhook">
+									Webhook URL
+								</label>
+								<input
+									id="sentry-webhook"
+									className="settings-input mono"
+									type="url"
+									required
+									value={webhook}
+									onChange={(e) => setWebhook(e.target.value)}
+									placeholder="https://hooks.slack.com/services/…"
+									pattern="https://.*"
+								/>
+								<div className="settings-hint">
+									Slack incoming webhook, Discord webhook, or any
+									Slack-compatible endpoint.
+								</div>
+							</div>
+						</div>
 
 						{error && (
 							<div
-								style={{
-									padding: 12,
-									background: "var(--error-bg, #fee)",
-									border: "1px solid var(--error-border, #fcc)",
-									borderRadius: 6,
-									color: "var(--error-fg, #933)",
-									fontSize: 13,
-								}}
+								className="callout error"
+								role="alert"
+								style={{ marginBottom: 16 }}
 							>
-								{error}
+								<div className="callout-body">
+									<div className="callout-title">Could not create sentry</div>
+									<div className="callout-sub">{error}</div>
+								</div>
 							</div>
 						)}
 
-						<div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+						<div style={{ display: "flex", gap: 8 }}>
 							<button
 								type="submit"
 								disabled={submitting}
-								className="btn btn-primary"
+								className="settings-btn primary"
 							>
 								{submitting ? "Creating…" : "Create sentry"}
 							</button>
 							<button
 								type="button"
 								onClick={() => router.push("/sentries")}
-								className="btn"
+								className="settings-btn ghost"
 							>
 								Cancel
 							</button>

@@ -56,7 +56,7 @@ export default async function SentriesPage() {
 										{sentries.length} sentr{sentries.length === 1 ? "y" : "ies"}
 									</span>
 								</div>
-								<Link href="/sentries/new" className="btn btn-primary">
+								<Link href="/sentries/new" className="settings-btn primary">
 									New sentry
 								</Link>
 							</div>
@@ -100,7 +100,7 @@ export default async function SentriesPage() {
 								anomalies with AI and page you before exploits compound.
 							</p>
 							<div style={{ marginTop: 24 }}>
-								<Link href="/sentries/new" className="btn btn-primary">
+								<Link href="/sentries/new" className="settings-btn primary">
 									Enable a sentry
 								</Link>
 							</div>
