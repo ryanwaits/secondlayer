@@ -33,6 +33,7 @@ COPY packages/workflow-runner/package.json ./packages/workflow-runner/
 COPY packages/bundler/package.json ./packages/bundler/
 COPY packages/scaffold/package.json ./packages/scaffold/
 COPY packages/provisioner/package.json ./packages/provisioner/
+COPY packages/sentries/package.json ./packages/sentries/
 # Install dependencies
 RUN bun install
 
@@ -53,6 +54,7 @@ COPY packages/workflows ./packages/workflows
 COPY packages/workflow-runner ./packages/workflow-runner
 COPY packages/bundler ./packages/bundler
 COPY packages/provisioner ./packages/provisioner
+COPY packages/sentries ./packages/sentries
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
@@ -73,6 +75,7 @@ COPY --from=builder /app/packages/auth ./packages/auth
 COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
 COPY --from=builder /app/packages/workflows ./packages/workflows
 COPY --from=builder /app/packages/bundler ./packages/bundler
+COPY --from=builder /app/packages/sentries ./packages/sentries
 COPY --from=builder /app/packages/api ./packages/api
 COPY --from=builder /app/package.json ./
 
@@ -123,6 +126,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/packages/sentries ./packages/sentries
 COPY --from=builder /app/packages/worker ./packages/worker
 COPY --from=builder /app/package.json ./
 
