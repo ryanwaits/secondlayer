@@ -6,6 +6,7 @@ import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
 import { startStorageMeteringCron } from "./jobs/storage-metering.ts";
 import { startTenantHealthCron } from "./jobs/tenant-health.ts";
 import { startTenantIdlePauseCron } from "./jobs/tenant-idle-pause.ts";
+import { startWorkflowRuntime } from "./jobs/workflow-runtime.ts";
 
 let running = true;
 
@@ -20,6 +21,7 @@ async function runWorker() {
 		startComputeMeteringCron(),
 		startStorageMeteringCron(),
 		startSpendCapAlertCron(),
+		startWorkflowRuntime(),
 		startSentryTickCron(),
 	];
 

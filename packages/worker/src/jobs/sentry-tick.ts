@@ -3,26 +3,30 @@
  *
  * Every 60s (platform mode only):
  *   1. Load active sentries from platform DB
- *   2. For each (bounded concurrency 5, skipping in-flight), run detect +
- *      triage + deliver via @secondlayer/sentries runSentryOnce
- *   3. Update last_check_at per-sentry so next tick picks up where we left
- *      off
+ *   2. For each, enqueue a new workflow run (`sentry-<kind>`) with the
+ *      sentry config + `sinceIso = last_check_at` as input. The workflow
+ *      runtime (running in-process in the worker) dequeues and executes.
  *
- * In-memory `inFlight` guard prevents a slow AI triage from causing
- * concurrent runs of the same sentry when the next tick fires.
+ * We don't gate for in-flight tick overlap here anymore — the runtime's
+ * own step memoization + run-level retry gives us durable-by-default
+ * semantics. A second enqueue while the first is still processing just
+ * means two runs; each run's `insertAlert` dedupes via the UNIQUE
+ * (sentry_id, idempotency_key) constraint on `sentry_alerts`.
  */
 
-import { runSentryOnce } from "@secondlayer/sentries";
+import {
+	type LargeOutflowInput,
+	WORKFLOW_NAME_BY_KIND,
+} from "@secondlayer/sentries";
 import { getErrorMessage, logger } from "@secondlayer/shared";
-import { getSourceDb, getTargetDb } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
+import { parseJsonb } from "@secondlayer/shared/db/jsonb";
 import { listActiveSentries } from "@secondlayer/shared/db/queries/sentries";
 import { getInstanceMode } from "@secondlayer/shared/mode";
+import { enqueueWorkflowRun } from "@secondlayer/workflow-runner";
 
 const INTERVAL_MS = 60_000;
 const INITIAL_DELAY_MS = 5_000;
-const CONCURRENCY = 5;
-
-const inFlight = new Set<string>();
 
 export function startSentryTickCron(): () => void {
 	if (getInstanceMode() !== "platform") {
@@ -31,22 +35,17 @@ export function startSentryTickCron(): () => void {
 	}
 
 	const tick = async () => {
-		const start = Date.now();
 		try {
 			await runTick();
 		} catch (err) {
 			logger.error("sentry-tick error", { error: getErrorMessage(err) });
 		}
-		logger.debug?.("sentry-tick done", { ms: Date.now() - start });
 	};
 
 	const initial = setTimeout(tick, INITIAL_DELAY_MS);
 	const interval = setInterval(tick, INTERVAL_MS);
 
-	logger.info("Sentry tick cron started", {
-		intervalMs: INTERVAL_MS,
-		concurrency: CONCURRENCY,
-	});
+	logger.info("Sentry tick cron started", { intervalMs: INTERVAL_MS });
 
 	return () => {
 		clearTimeout(initial);
@@ -55,56 +54,46 @@ export function startSentryTickCron(): () => void {
 }
 
 async function runTick(): Promise<void> {
-	const platformDb = getTargetDb();
-	const sourceDb = getSourceDb();
-
-	const sentries = await listActiveSentries(platformDb);
+	const db = getDb();
+	const sentries = await listActiveSentries(db);
 	if (sentries.length === 0) return;
 
-	const pending = sentries.filter((s) => !inFlight.has(s.id));
-	if (pending.length === 0) return;
-
-	let index = 0;
-	let delivered = 0;
-	let deduped = 0;
-	let errored = 0;
-
-	const runNext = async (): Promise<void> => {
-		while (index < pending.length) {
-			const sentry = pending[index++];
-			if (!sentry) continue;
-			inFlight.add(sentry.id);
-			try {
-				const result = await runSentryOnce(platformDb, sourceDb, sentry.id, {
-					logger,
-				});
-				delivered += result.delivered;
-				deduped += result.deduped;
-				errored += result.errors.length;
-			} catch (err) {
-				logger.error("sentry.run.unhandled", {
-					sentryId: sentry.id,
-					error: getErrorMessage(err),
-				});
-				errored += 1;
-			} finally {
-				inFlight.delete(sentry.id);
-			}
+	let enqueued = 0;
+	for (const sentry of sentries) {
+		const workflowName = WORKFLOW_NAME_BY_KIND[sentry.kind];
+		if (!workflowName) {
+			logger.warn("sentry.unknown_kind", {
+				sentryId: sentry.id,
+				kind: sentry.kind,
+			});
+			continue;
 		}
-	};
 
-	const workers = Array.from(
-		{ length: Math.min(CONCURRENCY, pending.length) },
-		() => runNext(),
-	);
-	await Promise.allSettled(workers);
+		const config = parseJsonb<Record<string, unknown>>(sentry.config);
+		const input: LargeOutflowInput = {
+			sentryId: sentry.id,
+			principal: String(config.principal ?? ""),
+			thresholdMicroStx: String(config.thresholdMicroStx ?? "0"),
+			deliveryWebhook: sentry.delivery_webhook,
+			sinceIso: sentry.last_check_at?.toISOString() ?? null,
+		};
 
-	logger.info("sentry-tick processed", {
+		try {
+			await enqueueWorkflowRun(db, {
+				workflowName,
+				input,
+			});
+			enqueued += 1;
+		} catch (err) {
+			logger.error("sentry.enqueue.failed", {
+				sentryId: sentry.id,
+				error: getErrorMessage(err),
+			});
+		}
+	}
+
+	logger.info("sentry-tick enqueued", {
 		total: sentries.length,
-		ran: pending.length,
-		skippedInFlight: sentries.length - pending.length,
-		delivered,
-		deduped,
-		errored,
+		enqueued,
 	});
 }

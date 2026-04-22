@@ -7,6 +7,6 @@ const config: DefineConfigItem = defineConfig({
 	sourcemap: "linked",
 	minify: false,
 	splitting: false,
-	external: ["esbuild", "@secondlayer/subgraphs", "@secondlayer/workflows"],
+	external: ["esbuild", "@secondlayer/subgraphs"],
 }) as DefineConfigItem;
 export default config;

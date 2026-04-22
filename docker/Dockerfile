@@ -74,6 +74,7 @@ COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/auth ./packages/auth
 COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
 COPY --from=builder /app/packages/workflows ./packages/workflows
+COPY --from=builder /app/packages/workflow-runner ./packages/workflow-runner
 COPY --from=builder /app/packages/bundler ./packages/bundler
 COPY --from=builder /app/packages/sentries ./packages/sentries
 COPY --from=builder /app/packages/api ./packages/api
@@ -126,33 +127,16 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/packages/workflows ./packages/workflows
+COPY --from=builder /app/packages/workflow-runner ./packages/workflow-runner
 COPY --from=builder /app/packages/sentries ./packages/sentries
 COPY --from=builder /app/packages/worker ./packages/worker
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
-
-CMD ["bun", "run", "packages/worker/src/index.ts"]
-
-# =============================================================================
-# Workflow runner service
-# =============================================================================
-FROM base AS workflow-runner
-
-WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/packages/stacks ./packages/stacks
-COPY --from=builder /app/packages/shared ./packages/shared
-COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
-COPY --from=builder /app/packages/workflows ./packages/workflows
-COPY --from=builder /app/packages/workflow-runner ./packages/workflow-runner
-COPY --from=builder /app/package.json ./
-
-ENV NODE_ENV=production
 ENV WORKFLOW_CONCURRENCY=5
 
-CMD ["bun", "run", "packages/workflow-runner/src/index.ts"]
+CMD ["bun", "run", "packages/worker/src/index.ts"]
 
 # =============================================================================
 # Indexer service

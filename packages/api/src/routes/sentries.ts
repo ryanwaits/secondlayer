@@ -1,7 +1,9 @@
-import { runTestAlert } from "@secondlayer/sentries";
-import { UnknownSentryKindError, getKind } from "@secondlayer/sentries";
+import {
+	type LargeOutflowInput,
+	WORKFLOW_NAME_BY_KIND,
+} from "@secondlayer/sentries";
 import { logger } from "@secondlayer/shared";
-import { getDb, getSourceDb } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import { parseJsonb } from "@secondlayer/shared/db/jsonb";
 import {
 	createSentry,
@@ -13,8 +15,11 @@ import {
 } from "@secondlayer/shared/db/queries/sentries";
 import {
 	CreateSentryRequestSchema,
+	type SentryKind,
 	UpdateSentryRequestSchema,
+	getConfigSchemaForKind,
 } from "@secondlayer/shared/schemas/sentries";
+import { enqueueWorkflowRun } from "@secondlayer/workflow-runner";
 import { type Context, Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -87,18 +92,12 @@ app.post("/", async (c) => {
 
 	const { kind, name, config, delivery_webhook, active } = parsed.data;
 
-	// Per-kind config validation.
-	let kindImpl: ReturnType<typeof getKind>;
-	try {
-		kindImpl = getKind(kind);
-	} catch (err) {
-		if (err instanceof UnknownSentryKindError) {
-			return c.json({ error: { kind: [err.message] } }, 400);
-		}
-		throw err;
+	if (!WORKFLOW_NAME_BY_KIND[kind]) {
+		return c.json({ error: { kind: [`unknown kind: ${kind}`] } }, 400);
 	}
 
-	const configParse = kindImpl.configSchema.safeParse(config);
+	const configSchema = getConfigSchemaForKind(kind as SentryKind);
+	const configParse = configSchema.safeParse(config);
 	if (!configParse.success) {
 		return c.json(
 			{ error: { config: configParse.error.flatten().fieldErrors } },
@@ -145,10 +144,9 @@ app.patch("/:id", async (c) => {
 	const existing = await getSentryById(db, id, auth.accountId);
 	if (!existing) return c.json({ error: "not_found" }, 404);
 
-	// If config is being updated, revalidate against the kind's schema.
 	if (parsed.data.config !== undefined) {
-		const kindImpl = getKind(existing.kind);
-		const configParse = kindImpl.configSchema.safeParse(parsed.data.config);
+		const schema = getConfigSchemaForKind(existing.kind as SentryKind);
+		const configParse = schema.safeParse(parsed.data.config);
 		if (!configParse.success) {
 			return c.json(
 				{ error: { config: configParse.error.flatten().fieldErrors } },
@@ -180,7 +178,7 @@ app.delete("/:id", async (c) => {
 	return c.json({ ok: true });
 });
 
-// ── Send test alert ─────────────────────────────────────────────────
+// ── Send test alert (enqueues a testMode workflow run) ──────────────
 
 app.post("/:id/test", async (c) => {
 	const auth = requireAccountId(c);
@@ -191,26 +189,33 @@ app.post("/:id/test", async (c) => {
 	const sentry = await getSentryById(db, id, auth.accountId);
 	if (!sentry) return c.json({ error: "not_found" }, 404);
 
-	const result = await runTestAlert(
-		getSourceDb(),
-		{
-			id: sentry.id,
-			kind: sentry.kind,
-			config: parseJsonb(sentry.config),
-			delivery_webhook: sentry.delivery_webhook,
-		},
-		{ logger },
-	);
-
-	if (!result.ok) {
-		logger.warn("sentry.test.failed", {
-			sentryId: id,
-			error: result.error,
-		});
-		return c.json({ ok: false, error: result.error }, 502);
+	const workflowName = WORKFLOW_NAME_BY_KIND[sentry.kind];
+	if (!workflowName) {
+		return c.json({ error: `unknown kind: ${sentry.kind}` }, 400);
 	}
 
-	return c.json({ ok: true });
+	const config = parseJsonb<Record<string, unknown>>(sentry.config);
+	const input: LargeOutflowInput = {
+		sentryId: sentry.id,
+		principal: String(config.principal ?? ""),
+		thresholdMicroStx: String(config.thresholdMicroStx ?? "0"),
+		deliveryWebhook: sentry.delivery_webhook,
+		sinceIso: null,
+		testMode: true,
+	};
+
+	try {
+		const runId = await enqueueWorkflowRun(db, {
+			workflowName,
+			input,
+		});
+		logger.info("sentry.test.enqueued", { sentryId: id, runId });
+		return c.json({ ok: true, runId });
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		logger.warn("sentry.test.failed", { sentryId: id, error: message });
+		return c.json({ ok: false, error: message }, 500);
+	}
 });
 
 export default app;

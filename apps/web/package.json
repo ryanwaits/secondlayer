@@ -15,7 +15,6 @@
 		"@json-render/react": "0.18.0",
 		"@secondlayer/scaffold": "workspace:*",
 		"@secondlayer/stacks": "workspace:*",
-		"@secondlayer/workflows": "workspace:*",
 		"@tanstack/react-query": "5.90.21",
 		"ai": "6.0.167",
 		"diff": "8.0.4",

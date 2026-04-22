@@ -65,14 +65,6 @@
 			"types": "./dist/src/schemas/accounts.d.ts",
 			"import": "./dist/src/schemas/accounts.js"
 		},
-		"./schemas/workflows": {
-			"types": "./dist/src/schemas/workflows.d.ts",
-			"import": "./dist/src/schemas/workflows.js"
-		},
-		"./db/queries/workflows": {
-			"types": "./dist/src/db/queries/workflows.d.ts",
-			"import": "./dist/src/db/queries/workflows.js"
-		},
 		"./db/queries/tenants": {
 			"types": "./dist/src/db/queries/tenants.d.ts",
 			"import": "./dist/src/db/queries/tenants.js"
@@ -92,10 +84,6 @@
 		"./db/queries/account-spend-caps": {
 			"types": "./dist/src/db/queries/account-spend-caps.d.ts",
 			"import": "./dist/src/db/queries/account-spend-caps.js"
-		},
-		"./db/queries/workflow-ai-usage": {
-			"types": "./dist/src/db/queries/workflow-ai-usage.d.ts",
-			"import": "./dist/src/db/queries/workflow-ai-usage.js"
 		},
 		"./db/queries/sentries": {
 			"types": "./dist/src/db/queries/sentries.d.ts",

@@ -1,7 +1,7 @@
 import { input } from "@inquirer/prompts";
 import type { Command } from "commander";
 import { CliHttpError, httpPlatformAnon } from "../lib/http.ts";
-import { dim, error as logError, info, success } from "../lib/output.ts";
+import { dim, info, error as logError, success } from "../lib/output.ts";
 import { writeSession } from "../lib/session.ts";
 
 /**

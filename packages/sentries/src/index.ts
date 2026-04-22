@@ -1,11 +1,19 @@
-export { runSentryOnce, runTestAlert } from "./runtime.ts";
-export type { RunSentryResult, RunSentryOptions } from "./runtime.ts";
-export { getKind, listKindNames, UnknownSentryKindError } from "./registry.ts";
+import { WorkflowRegistry } from "@secondlayer/workflow-runner";
+import { largeOutflowWorkflow } from "./kinds/large-outflow.ts";
+
+export { largeOutflowWorkflow } from "./kinds/large-outflow.ts";
+export type { LargeOutflowInput } from "./kinds/large-outflow.ts";
 export { postToWebhook } from "./delivery.ts";
-export type {
-	SentryKind,
-	Triage,
-	SlackMessage,
-	DetectContext,
-	TriageContext,
-} from "./types.ts";
+export type { SlackMessage } from "./types.ts";
+
+/** Build a workflow registry with every sentry kind registered. */
+export function buildSentryRegistry(): WorkflowRegistry {
+	const registry = new WorkflowRegistry();
+	registry.register(largeOutflowWorkflow);
+	return registry;
+}
+
+/** The workflow name for each sentry kind, keyed by the DB `kind` value. */
+export const WORKFLOW_NAME_BY_KIND: Record<string, string> = {
+	"large-outflow": largeOutflowWorkflow.name,
+};

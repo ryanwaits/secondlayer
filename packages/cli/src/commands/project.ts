@@ -4,9 +4,9 @@ import { loadConfig } from "../lib/config.ts";
 import { CliHttpError, httpPlatform } from "../lib/http.ts";
 import {
 	dim,
-	error as logError,
 	formatTable,
 	info,
+	error as logError,
 	success,
 } from "../lib/output.ts";
 import { readActiveProject, writeActiveProject } from "../lib/project-file.ts";
@@ -53,7 +53,7 @@ export function registerProjectCommand(program: Command): void {
 				// for the common "I just made a project, now I want to use it" flow.
 				const path = await writeActiveProject(res.project.slug, process.cwd());
 				info(dim(`Bound to this directory → ${path}`));
-				info(dim(`Next: sl instance create --plan launch`));
+				info(dim("Next: sl instance create --plan launch"));
 			} catch (err) {
 				handleProjectError(err);
 			}

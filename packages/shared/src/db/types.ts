@@ -279,57 +279,31 @@ export interface ChatMessagesTable {
 	created_at: Generated<Date>;
 }
 
-// ── Workflow tables ──────────────────────────────────────────────────
-
-export interface WorkflowDefinitionsTable {
-	id: Generated<string>;
-	name: string;
-	version: Generated<string>;
-	status: Generated<string>;
-	trigger_type: string;
-	trigger_config: unknown;
-	handler_path: string;
-	source_code: string | null;
-	retries_config: unknown | null;
-	timeout_ms: number | null;
-	api_key_id: string;
-	project_id: string | null;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-}
+// ── Workflow runtime tables (v3, minimal) ────────────────────────────
 
 export interface WorkflowRunsTable {
 	id: Generated<string>;
-	definition_id: string;
+	workflow_name: string;
+	input: unknown;
 	status: Generated<string>;
-	trigger_type: string;
-	trigger_data: unknown | null;
-	dedup_key: string | null;
+	output: unknown;
 	error: string | null;
 	started_at: Date | null;
 	completed_at: Date | null;
-	duration_ms: number | null;
-	total_ai_tokens: Generated<number>;
 	created_at: Generated<Date>;
 }
 
 export interface WorkflowStepsTable {
 	id: Generated<string>;
 	run_id: string;
-	step_index: number;
 	step_id: string;
-	step_type: string;
+	memo_key: string;
 	status: Generated<string>;
-	input: unknown | null;
-	output: unknown | null;
+	output: unknown;
 	error: string | null;
-	retry_count: Generated<number>;
-	ai_tokens_used: Generated<number>;
+	attempts: Generated<number>;
 	started_at: Date | null;
 	completed_at: Date | null;
-	duration_ms: number | null;
-	memo_key: string | null;
-	parent_step_id: string | null;
 	created_at: Generated<Date>;
 }
 
@@ -345,23 +319,6 @@ export interface WorkflowQueueTable {
 	error: string | null;
 	created_at: Generated<Date>;
 	completed_at: Date | null;
-}
-
-export interface WorkflowSchedulesTable {
-	id: Generated<string>;
-	definition_id: string;
-	cron_expr: string;
-	timezone: Generated<string>;
-	next_run_at: Date;
-	last_run_at: Date | null;
-	enabled: Generated<boolean>;
-	created_at: Generated<Date>;
-}
-
-export interface WorkflowCursorsTable {
-	name: string;
-	block_height: Generated<number>;
-	updated_at: Generated<Date>;
 }
 
 // ── Database interface ────────────────────────────────────────────────
@@ -391,18 +348,12 @@ export interface Database {
 	team_invitations: TeamInvitationsTable;
 	chat_sessions: ChatSessionsTable;
 	chat_messages: ChatMessagesTable;
-	workflow_definitions: WorkflowDefinitionsTable;
 	workflow_runs: WorkflowRunsTable;
 	workflow_steps: WorkflowStepsTable;
 	workflow_queue: WorkflowQueueTable;
-	workflow_schedules: WorkflowSchedulesTable;
-	workflow_cursors: WorkflowCursorsTable;
-	workflow_signer_secrets: WorkflowSignerSecretsTable;
-	workflow_budgets: WorkflowBudgetsTable;
 	tenants: TenantsTable;
 	tenant_usage_monthly: TenantUsageMonthlyTable;
 	tenant_compute_addons: TenantComputeAddonsTable;
-	workflow_ai_usage_daily: WorkflowAiUsageDailyTable;
 	account_spend_caps: AccountSpendCapsTable;
 	provisioning_audit_log: ProvisioningAuditLogTable;
 	sentries: SentriesTable;
@@ -530,19 +481,6 @@ export type UpdateTenantComputeAddon = Updateable<TenantComputeAddonsTable>;
 // Caps enforced by `getAiCapForPlan()` from `src/pricing.ts`; hit the
 // cap → runner throws AI_CAP_REACHED and degrades the step cleanly.
 
-export interface WorkflowAiUsageDailyTable {
-	tenant_id: string;
-	day: string; // 'yyyy-mm-dd'
-	evals: Generated<number>;
-	cost_usd_cents: Generated<number>;
-	first_at: Generated<Date>;
-	last_at: Generated<Date>;
-}
-
-export type WorkflowAiUsageDaily = Selectable<WorkflowAiUsageDailyTable>;
-export type InsertWorkflowAiUsageDaily = Insertable<WorkflowAiUsageDailyTable>;
-export type UpdateWorkflowAiUsageDaily = Updateable<WorkflowAiUsageDailyTable>;
-
 // --- Account spend caps (soft cap + threshold alerts) ---
 //
 // One row per account. Null caps = "no cap" for that dimension.
@@ -596,32 +534,6 @@ export interface ProvisioningAuditLogTable {
 
 export type ProvisioningAuditLog = Selectable<ProvisioningAuditLogTable>;
 export type InsertProvisioningAuditLog = Insertable<ProvisioningAuditLogTable>;
-
-export interface WorkflowBudgetsTable {
-	id: Generated<string>;
-	workflow_definition_id: string;
-	/** Period key: "daily:YYYY-MM-DD" | "weekly:YYYY-Www" | "per-run:<uuid>". */
-	period: string;
-	ai_usd_used: Generated<string>;
-	ai_tokens_used: Generated<string>;
-	chain_microstx_used: Generated<string>;
-	chain_tx_count: Generated<number>;
-	run_count: Generated<number>;
-	step_count: Generated<number>;
-	reset_at: Date;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-}
-
-export interface WorkflowSignerSecretsTable {
-	id: Generated<string>;
-	account_id: string;
-	name: string;
-	/** AES-GCM ciphertext bytes produced by the runner's KMS on write. */
-	encrypted_value: Buffer;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-}
 
 // ── Convenience types ─────────────────────────────────────────────────
 
@@ -677,10 +589,6 @@ export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
 export type SubgraphUsageDaily = Selectable<SubgraphUsageDailyTable>;
 export type InsertSubgraphUsageDaily = Insertable<SubgraphUsageDailyTable>;
 
-export type WorkflowDefinition = Selectable<WorkflowDefinitionsTable>;
-export type InsertWorkflowDefinition = Insertable<WorkflowDefinitionsTable>;
-export type UpdateWorkflowDefinition = Updateable<WorkflowDefinitionsTable>;
-
 export type WorkflowRun = Selectable<WorkflowRunsTable>;
 export type InsertWorkflowRun = Insertable<WorkflowRunsTable>;
 export type UpdateWorkflowRun = Updateable<WorkflowRunsTable>;
@@ -691,20 +599,6 @@ export type UpdateWorkflowStep = Updateable<WorkflowStepsTable>;
 
 export type WorkflowQueueItem = Selectable<WorkflowQueueTable>;
 export type InsertWorkflowQueueItem = Insertable<WorkflowQueueTable>;
-
-export type WorkflowSchedule = Selectable<WorkflowSchedulesTable>;
-export type InsertWorkflowSchedule = Insertable<WorkflowSchedulesTable>;
-export type UpdateWorkflowSchedule = Updateable<WorkflowSchedulesTable>;
-
-export type WorkflowCursor = Selectable<WorkflowCursorsTable>;
-
-export type WorkflowSignerSecret = Selectable<WorkflowSignerSecretsTable>;
-export type InsertWorkflowSignerSecret = Insertable<WorkflowSignerSecretsTable>;
-export type UpdateWorkflowSignerSecret = Updateable<WorkflowSignerSecretsTable>;
-
-export type WorkflowBudget = Selectable<WorkflowBudgetsTable>;
-export type InsertWorkflowBudget = Insertable<WorkflowBudgetsTable>;
-export type UpdateWorkflowBudget = Updateable<WorkflowBudgetsTable>;
 
 export type Project = Selectable<ProjectsTable>;
 export type InsertProject = Insertable<ProjectsTable>;

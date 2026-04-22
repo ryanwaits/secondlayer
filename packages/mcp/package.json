@@ -32,7 +32,6 @@
 		"@secondlayer/scaffold": "^1.0.0",
 		"@secondlayer/sdk": "^2.0.0",
 		"@secondlayer/subgraphs": "^0.11.7",
-		"@secondlayer/workflows": "^1.1.0",
 		"diff": "^8.0.4",
 		"zod": "^4.3.6"
 	},

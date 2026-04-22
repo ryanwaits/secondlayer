@@ -1,5 +1,5 @@
-import { CliHttpError, httpPlatform } from "./http.ts";
 import { loadConfig } from "./config.ts";
+import { CliHttpError, httpPlatform } from "./http.ts";
 import { readActiveProject } from "./project-file.ts";
 
 /**

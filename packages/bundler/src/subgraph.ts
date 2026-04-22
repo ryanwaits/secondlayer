@@ -39,7 +39,6 @@ export async function bundleSubgraphCode(
 	}
 	if (outputFile.contents.byteLength > SUBGRAPH_BUNDLE_MAX_BYTES) {
 		throw new BundleSizeError(
-			"subgraph",
 			outputFile.contents.byteLength,
 			SUBGRAPH_BUNDLE_MAX_BYTES,
 		);

@@ -1,25 +1,18 @@
 {
 	"name": "@secondlayer/workflow-runner",
-	"version": "1.0.1",
+	"version": "2.0.0",
 	"private": true,
 	"type": "module",
+	"main": "./src/index.ts",
 	"exports": {
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"start": "bun run src/index.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@ai-sdk/anthropic": "3.0.71",
-		"@json-render/core": "0.18.0",
-		"@json-render/react": "0.18.0",
-		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@secondlayer/shared": "^2.0.0",
-		"@secondlayer/subgraphs": "^0.11.8",
-		"@secondlayer/workflows": "^1.0.0",
-		"ai": "6.0.167",
-		"cron-parser": "^5.5.0",
+		"@secondlayer/workflows": "workspace:*",
 		"kysely": "0.28.15"
 	},
 	"devDependencies": {
