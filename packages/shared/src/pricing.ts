@@ -56,3 +56,39 @@ export function computeUsdCost(
 		(usage.outputTokens * p.outputPerMTokens) / 1_000_000
 	);
 }
+
+// ── Per-tier AI eval caps (workflow-runner) ───────────────────────────
+//
+// Daily `step.ai` budget by tier. Hit the cap → runner throws
+// AI_CAP_REACHED and the step fails cleanly so condition-only paths
+// continue. Overage (past cap) bills to the `ai_evals` Stripe meter on
+// paid tiers.
+//
+// Caps set conservatively so Pro Micro stays margin-positive at
+// realistic AI utilization. Raise based on data, not aspiration.
+
+export interface AiCap {
+	/** Max step.ai / generateText / generateObject calls per UTC day. */
+	evalsPerDay: number;
+	/** Stripe meter events emitted for overage past this cap. */
+	overageMeterEventName: "ai_evals";
+}
+
+const AI_CAP_UNLIMITED: AiCap = {
+	evalsPerDay: Number.POSITIVE_INFINITY,
+	overageMeterEventName: "ai_evals",
+};
+
+const AI_CAPS_BY_PLAN: Record<string, AiCap> = {
+	hobby: { evalsPerDay: 50, overageMeterEventName: "ai_evals" },
+	launch: { evalsPerDay: 500, overageMeterEventName: "ai_evals" },
+	grow: { evalsPerDay: 1000, overageMeterEventName: "ai_evals" },
+	scale: { evalsPerDay: 2500, overageMeterEventName: "ai_evals" },
+	enterprise: AI_CAP_UNLIMITED,
+};
+
+/** Resolve the daily AI eval cap for a plan. Unknown plans get Hobby's
+ *  cap so a stray DB value can't accidentally become unlimited. */
+export function getAiCapForPlan(plan: string): AiCap {
+	return AI_CAPS_BY_PLAN[plan] ?? AI_CAPS_BY_PLAN.hobby;
+}

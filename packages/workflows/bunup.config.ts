@@ -1,7 +1,13 @@
 import { type DefineConfigItem, defineConfig } from "bunup";
 
 const config: DefineConfigItem = defineConfig({
-	entry: ["src/index.ts", "src/types.ts", "src/validate.ts", "src/define.ts"],
+	entry: [
+		"src/index.ts",
+		"src/types.ts",
+		"src/validate.ts",
+		"src/define.ts",
+		"src/schedule-policy.ts",
+	],
 	format: ["esm"],
 	dts: true,
 	sourcemap: "linked",

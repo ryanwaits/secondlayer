@@ -93,6 +93,10 @@
 			"types": "./dist/src/db/queries/account-spend-caps.d.ts",
 			"import": "./dist/src/db/queries/account-spend-caps.js"
 		},
+		"./db/queries/workflow-ai-usage": {
+			"types": "./dist/src/db/queries/workflow-ai-usage.d.ts",
+			"import": "./dist/src/db/queries/workflow-ai-usage.js"
+		},
 		"./types": {
 			"types": "./dist/src/types.d.ts",
 			"import": "./dist/src/types.js"

@@ -14,6 +14,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/provisioning-audit.ts",
 		"src/db/queries/tenant-compute-addons.ts",
 		"src/db/queries/account-spend-caps.ts",
+		"src/db/queries/workflow-ai-usage.ts",
 		"src/db/jsonb.ts",
 		"src/db/schema.ts",
 		"src/lib/plans.ts",

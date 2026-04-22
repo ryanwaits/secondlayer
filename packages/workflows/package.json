@@ -16,11 +16,13 @@
 		"./validate": {
 			"types": "./dist/validate.d.ts",
 			"import": "./dist/validate.js"
+		},
+		"./schedule-policy": {
+			"types": "./dist/schedule-policy.d.ts",
+			"import": "./dist/schedule-policy.js"
 		}
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
