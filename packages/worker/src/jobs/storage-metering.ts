@@ -15,6 +15,7 @@
 
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import { listFrozenAccountIds } from "@secondlayer/shared/db/queries/account-spend-caps";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { getStripe, shouldMeterTenant } from "./stripe.ts";
 
@@ -63,6 +64,7 @@ async function meterOverages(): Promise<void> {
 			"tenants.slug",
 			"tenants.storage_used_mb",
 			"tenants.storage_limit_mb",
+			"accounts.id as account_id",
 			"accounts.stripe_customer_id",
 		])
 		.where("tenants.status", "=", "active")
@@ -70,6 +72,7 @@ async function meterOverages(): Promise<void> {
 
 	if (rows.length === 0) return;
 
+	const frozen = await listFrozenAccountIds(db);
 	const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
 
 	let pushed = 0;
@@ -77,6 +80,7 @@ async function meterOverages(): Promise<void> {
 		if (!shouldMeterTenant({ stripeCustomerId: row.stripe_customer_id })) {
 			continue;
 		}
+		if (frozen.has(row.account_id)) continue;
 		// Enterprise unlimited storage — no overage path.
 		if (row.storage_limit_mb === -1) continue;
 

@@ -15,6 +15,7 @@
 
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import { listFrozenAccountIds } from "@secondlayer/shared/db/queries/account-spend-caps";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { getStripe, shouldMeterTenant } from "./stripe.ts";
 
@@ -64,11 +65,20 @@ async function meterActiveTenants(): Promise<void> {
 	const rows = await db
 		.selectFrom("tenants")
 		.innerJoin("accounts", "accounts.id", "tenants.account_id")
-		.select(["tenants.slug", "tenants.cpus", "accounts.stripe_customer_id"])
+		.select([
+			"tenants.slug",
+			"tenants.cpus",
+			"accounts.id as account_id",
+			"accounts.stripe_customer_id",
+		])
 		.where("tenants.status", "=", "active")
 		.execute();
 
 	if (rows.length === 0) return;
+
+	// Frozen accounts skip metering entirely — cap hit, no more billable
+	// events this cycle. The threshold cron flips frozen_at on/off.
+	const frozen = await listFrozenAccountIds(db);
 
 	// Bucket by the hour we just closed (not current) — cleaner mental
 	// model than "partial hours" and matches Stripe's 1h minimum meter
@@ -83,6 +93,7 @@ async function meterActiveTenants(): Promise<void> {
 		if (!shouldMeterTenant({ stripeCustomerId: row.stripe_customer_id })) {
 			continue;
 		}
+		if (frozen.has(row.account_id)) continue;
 		const cpus = Number(row.cpus);
 		if (!Number.isFinite(cpus) || cpus <= 0) continue;
 

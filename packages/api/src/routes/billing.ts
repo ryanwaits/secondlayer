@@ -15,6 +15,10 @@
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import {
+	getCaps,
+	upsertCaps,
+} from "@secondlayer/shared/db/queries/account-spend-caps";
+import {
 	getAccountById,
 	setStripeCustomerId,
 } from "@secondlayer/shared/db/queries/accounts";
@@ -99,6 +103,81 @@ app.post("/upgrade", async (c) => {
 	});
 
 	return c.json({ url: session.url });
+});
+
+app.get("/caps", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+	const caps = await getCaps(getDb(), accountId);
+	return c.json({
+		monthlyCapCents: caps?.monthly_cap_cents ?? null,
+		computeCapCents: caps?.compute_cap_cents ?? null,
+		storageCapCents: caps?.storage_cap_cents ?? null,
+		aiCapCents: caps?.ai_cap_cents ?? null,
+		alertThresholdPct: caps?.alert_threshold_pct ?? 80,
+		frozenAt: caps?.frozen_at ?? null,
+		alertSentAt: caps?.alert_sent_at ?? null,
+	});
+});
+
+app.patch("/caps", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const body = (await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	})) as {
+		monthlyCapCents?: number | null;
+		computeCapCents?: number | null;
+		storageCapCents?: number | null;
+		aiCapCents?: number | null;
+		alertThresholdPct?: number;
+	};
+
+	// Normalize the input. Callers send cents directly; null explicitly
+	// clears a cap.
+	const patch: Parameters<typeof upsertCaps>[2] = {};
+	if (body.monthlyCapCents !== undefined)
+		patch.monthly_cap_cents = body.monthlyCapCents;
+	if (body.computeCapCents !== undefined)
+		patch.compute_cap_cents = body.computeCapCents;
+	if (body.storageCapCents !== undefined)
+		patch.storage_cap_cents = body.storageCapCents;
+	if (body.aiCapCents !== undefined) patch.ai_cap_cents = body.aiCapCents;
+	if (body.alertThresholdPct !== undefined) {
+		if (body.alertThresholdPct < 1 || body.alertThresholdPct > 100) {
+			return c.json(
+				{ error: "alertThresholdPct must be between 1 and 100" },
+				400,
+			);
+		}
+		patch.alert_threshold_pct = body.alertThresholdPct;
+	}
+
+	// Raising the cap mid-cycle unfreezes the account — user explicitly
+	// said "yes, bill more." Lowering it doesn't auto-freeze; the alert
+	// cron will re-check and freeze if the new cap is already exceeded.
+	const existing = await getCaps(getDb(), accountId);
+	if (
+		existing?.frozen_at &&
+		patch.monthly_cap_cents != null &&
+		existing.monthly_cap_cents != null &&
+		patch.monthly_cap_cents > existing.monthly_cap_cents
+	) {
+		patch.frozen_at = null;
+		patch.alert_sent_at = null;
+	}
+
+	const updated = await upsertCaps(getDb(), accountId, patch);
+	return c.json({
+		monthlyCapCents: updated.monthly_cap_cents,
+		computeCapCents: updated.compute_cap_cents,
+		storageCapCents: updated.storage_cap_cents,
+		aiCapCents: updated.ai_cap_cents,
+		alertThresholdPct: updated.alert_threshold_pct,
+		frozenAt: updated.frozen_at,
+		alertSentAt: updated.alert_sent_at,
+	});
 });
 
 app.get("/portal", async (c) => {

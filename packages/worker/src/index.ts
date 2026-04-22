@@ -1,6 +1,7 @@
 import { getEnv, logger } from "@secondlayer/shared";
 import { startComputeMeteringCron } from "./jobs/compute-metering.ts";
 import { startStorageMeasurement } from "./jobs/measure-storage.ts";
+import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
 import { startStorageMeteringCron } from "./jobs/storage-metering.ts";
 import { startTenantHealthCron } from "./jobs/tenant-health.ts";
 import { startTenantIdlePauseCron } from "./jobs/tenant-idle-pause.ts";
@@ -17,6 +18,7 @@ async function runWorker() {
 		startTenantIdlePauseCron(),
 		startComputeMeteringCron(),
 		startStorageMeteringCron(),
+		startSpendCapAlertCron(),
 	];
 
 	logger.info("Worker ready");

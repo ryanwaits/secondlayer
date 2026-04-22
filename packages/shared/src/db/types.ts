@@ -402,6 +402,7 @@ export interface Database {
 	tenants: TenantsTable;
 	tenant_usage_monthly: TenantUsageMonthlyTable;
 	tenant_compute_addons: TenantComputeAddonsTable;
+	account_spend_caps: AccountSpendCapsTable;
 	provisioning_audit_log: ProvisioningAuditLogTable;
 }
 
@@ -486,6 +487,28 @@ export interface TenantComputeAddonsTable {
 export type TenantComputeAddon = Selectable<TenantComputeAddonsTable>;
 export type InsertTenantComputeAddon = Insertable<TenantComputeAddonsTable>;
 export type UpdateTenantComputeAddon = Updateable<TenantComputeAddonsTable>;
+
+// --- Account spend caps (soft cap + threshold alerts) ---
+//
+// One row per account. Null caps = "no cap" for that dimension.
+// `frozen_at` is set when a cap is hit; cleared on invoice.paid webhook
+// at cycle rollover. While frozen, metering events stop accumulating.
+
+export interface AccountSpendCapsTable {
+	account_id: string;
+	monthly_cap_cents: number | null;
+	compute_cap_cents: number | null;
+	storage_cap_cents: number | null;
+	ai_cap_cents: number | null;
+	alert_threshold_pct: Generated<number>;
+	alert_sent_at: Date | null;
+	frozen_at: Date | null;
+	updated_at: Generated<Date>;
+}
+
+export type AccountSpendCap = Selectable<AccountSpendCapsTable>;
+export type InsertAccountSpendCap = Insertable<AccountSpendCapsTable>;
+export type UpdateAccountSpendCap = Updateable<AccountSpendCapsTable>;
 
 // --- Provisioning audit log ---
 

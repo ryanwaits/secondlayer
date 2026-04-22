@@ -13,6 +13,7 @@
 
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import { clearFreeze } from "@secondlayer/shared/db/queries/account-spend-caps";
 import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
 import { Hono } from "hono";
 import type Stripe from "stripe";
@@ -46,9 +47,27 @@ app.post("/", async (c) => {
 		livemode: event.livemode,
 	});
 
-	// Best-effort audit trail. Lookups + reconciliation logic get added
-	// when the metering + cap work lands; for now the receipt itself is
-	// the signal.
+	// Handle the events we care about. `invoice.paid` at cycle rollover
+	// clears any `frozen_at` the spend-cap cron set — fresh cycle, start
+	// metering again. Other events just get audited for now.
+	if (event.type === "invoice.paid") {
+		const invoice = event.data.object as Stripe.Invoice;
+		const customerId =
+			typeof invoice.customer === "string"
+				? invoice.customer
+				: invoice.customer?.id;
+		if (customerId) {
+			await onInvoicePaid(customerId).catch((err) => {
+				logger.warn("Failed to clear freeze on invoice.paid", {
+					id: event.id,
+					customerId,
+					error: err instanceof Error ? err.message : String(err),
+				});
+			});
+		}
+	}
+
+	// Best-effort audit trail.
 	await recordProvisioningAudit(getDb(), {
 		actor: "stripe:webhook",
 		event: "provision.start", // reusing enum bucket — not exactly right, but
@@ -73,5 +92,28 @@ app.post("/", async (c) => {
 	// immediately; heavy reconciliation happens async via dedicated jobs.
 	return c.json({ received: true });
 });
+
+/**
+ * Resolve Stripe customer → Secondlayer account + clear any cap freeze.
+ * Extracted so the route handler stays readable.
+ */
+async function onInvoicePaid(stripeCustomerId: string): Promise<void> {
+	const db = getDb();
+	const account = await db
+		.selectFrom("accounts")
+		.select("id")
+		.where("stripe_customer_id", "=", stripeCustomerId)
+		.executeTakeFirst();
+	if (!account) {
+		logger.warn("invoice.paid: no account matches stripe_customer_id", {
+			stripeCustomerId,
+		});
+		return;
+	}
+	await clearFreeze(db, account.id);
+	logger.info("Cleared spend-cap freeze on invoice.paid", {
+		accountId: account.id,
+	});
+}
 
 export default app;
