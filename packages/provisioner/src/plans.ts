@@ -133,3 +133,18 @@ export function getPlan(id: string): Plan {
 export function isValidPlanId(id: string): id is PlanId {
 	return id in PLANS;
 }
+
+/**
+ * Split a compute envelope across (postgres, processor, api) containers.
+ * Auto-biases to PG-heavy (60/25/15) for sub-1GB totals so PG 17's default
+ * `shared_buffers` has headroom. Used by `resizeTenant` when the caller
+ * passes explicit compute (plan base + add-ons), not just a plan id.
+ */
+export function allocForTotals(
+	totalMemoryMb: number,
+	totalCpus: number,
+): Plan["containers"] {
+	return totalMemoryMb < 1024
+		? allocTight(totalMemoryMb, totalCpus)
+		: alloc(totalMemoryMb, totalCpus);
+}

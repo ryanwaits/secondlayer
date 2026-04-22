@@ -52,9 +52,14 @@ async function request<T>(
 export async function getTenantStatus(
 	slug: string,
 	plan: string,
+	storageLimitMb: number,
 ): Promise<TenantStatusResponse> {
+	const qs = new URLSearchParams({
+		plan,
+		storageLimitMb: String(storageLimitMb),
+	});
 	const res = await request<TenantStatusResponse>(
-		`/tenants/${slug}?plan=${encodeURIComponent(plan)}`,
+		`/tenants/${slug}?${qs.toString()}`,
 	);
 	if (!res) throw new Error(`Provisioner returned no body for ${slug} status`);
 	return res;

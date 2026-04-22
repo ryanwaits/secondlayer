@@ -12,6 +12,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/subgraph-gaps.ts",
 		"src/db/queries/projects.ts",
 		"src/db/queries/provisioning-audit.ts",
+		"src/db/queries/tenant-compute-addons.ts",
 		"src/db/jsonb.ts",
 		"src/db/schema.ts",
 		"src/lib/plans.ts",

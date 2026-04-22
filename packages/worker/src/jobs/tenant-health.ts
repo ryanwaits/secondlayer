@@ -56,7 +56,11 @@ async function checkAllTenants(): Promise<void> {
 
 	for (const tenant of active) {
 		try {
-			const status = await getTenantStatus(tenant.slug, tenant.plan);
+			const status = await getTenantStatus(
+				tenant.slug,
+				tenant.plan,
+				tenant.storage_limit_mb,
+			);
 			const unhealthy = status.containers.find(
 				(c) => c.state !== "running" && c.state !== "restarting",
 			);

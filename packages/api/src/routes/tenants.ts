@@ -15,6 +15,7 @@
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
+import { computeEffectiveCompute } from "@secondlayer/shared/db/queries/tenant-compute-addons";
 import {
 	bumpTenantKeyGen,
 	deleteTenant,
@@ -174,7 +175,11 @@ app.get("/me", async (c) => {
 
 	let status: Awaited<ReturnType<typeof getTenantStatus>> | null = null;
 	try {
-		status = await getTenantStatus(tenant.slug, tenant.plan);
+		status = await getTenantStatus(
+			tenant.slug,
+			tenant.plan,
+			tenant.storage_limit_mb,
+		);
 	} catch (err) {
 		logger.warn("Provisioner status fetch failed", {
 			slug: tenant.slug,
@@ -209,8 +214,24 @@ app.post("/me/resize", async (c) => {
 		return c.json({ tenant: publicView(tenant), unchanged: true });
 	}
 
+	// Compose target spec: new plan's base compute + any active add-ons
+	// the tenant still has. Add-ons survive plan changes (a Pro user who
+	// bought +4GB stays +4GB when they downgrade to Launch or upgrade to
+	// Scale). Billing will catch up separately.
+	const baseAlloc = PLAN_ALLOCATIONS[newPlan];
+	const effective = await computeEffectiveCompute(getDb(), tenant.id, {
+		cpus: baseAlloc.cpus,
+		memoryMb: baseAlloc.memoryMb,
+		storageLimitMb: baseAlloc.storageLimitMb,
+	});
+
 	try {
-		await provisionerResize(tenant.slug, newPlan);
+		await provisionerResize(tenant.slug, {
+			plan: newPlan,
+			totalCpus: effective.cpus,
+			totalMemoryMb: effective.memoryMb,
+			storageLimitMb: effective.storageLimitMb,
+		});
 	} catch (err) {
 		await recordProvisioningAudit(getDb(), {
 			tenantId: tenant.id,
@@ -228,14 +249,16 @@ app.post("/me/resize", async (c) => {
 		throw err;
 	}
 
-	const alloc = PLAN_ALLOCATIONS[newPlan];
+	// Cache effective compute on the tenants row — dashboard + billing read
+	// from here without re-querying add-ons. Source of truth stays the
+	// add-on table (if they get out of sync, `computeEffectiveCompute` wins).
 	await updateTenantPlan(
 		getDb(),
 		tenant.slug,
 		newPlan,
-		alloc.cpus,
-		alloc.memoryMb,
-		alloc.storageLimitMb,
+		effective.cpus,
+		effective.memoryMb,
+		effective.storageLimitMb,
 	);
 
 	await recordProvisioningAudit(getDb(), {

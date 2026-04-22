@@ -400,6 +400,7 @@ export interface Database {
 	workflow_budgets: WorkflowBudgetsTable;
 	tenants: TenantsTable;
 	tenant_usage_monthly: TenantUsageMonthlyTable;
+	tenant_compute_addons: TenantComputeAddonsTable;
 	provisioning_audit_log: ProvisioningAuditLogTable;
 }
 
@@ -462,6 +463,28 @@ export interface TenantUsageMonthlyTable {
 export type TenantUsageMonthly = Selectable<TenantUsageMonthlyTable>;
 export type InsertTenantUsageMonthly = Insertable<TenantUsageMonthlyTable>;
 export type UpdateTenantUsageMonthly = Updateable<TenantUsageMonthlyTable>;
+
+// --- Tenant compute add-ons (Sprint C.1) ---
+//
+// Compute extras purchased on top of a plan's base spec. Each row = one
+// add-on bundle. Effective compute for a tenant = plan base +
+// SUM(*_delta columns where effective_until IS NULL OR > now()).
+
+export interface TenantComputeAddonsTable {
+	id: Generated<string>;
+	tenant_id: string;
+	memory_mb_delta: Generated<number>;
+	cpu_delta: Generated<number | string>;
+	storage_mb_delta: Generated<number>;
+	effective_from: Generated<Date>;
+	effective_until: Date | null;
+	stripe_subscription_item_id: string | null;
+	created_at: Generated<Date>;
+}
+
+export type TenantComputeAddon = Selectable<TenantComputeAddonsTable>;
+export type InsertTenantComputeAddon = Insertable<TenantComputeAddonsTable>;
+export type UpdateTenantComputeAddon = Updateable<TenantComputeAddonsTable>;
 
 // --- Provisioning audit log ---
 

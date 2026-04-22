@@ -18,7 +18,7 @@ import {
 	processorContainerName,
 	volumeName,
 } from "./names.ts";
-import { type PlanId, getPlan } from "./plans.ts";
+import { type PlanId, allocForTotals } from "./plans.ts";
 import type { ContainerStatus, TenantStatus } from "./types.ts";
 
 export type KeyRotateType = "service" | "anon" | "both";
@@ -62,18 +62,37 @@ export async function resumeTenant(slug: string): Promise<void> {
 	}
 }
 
+export interface ResizeSpec {
+	/** Plan id carried as a label (container `secondlayer.plan`) and for
+	 * billing/display. Actual compute sizing comes from the explicit fields
+	 * below, which represent `plan base + active add-ons`. */
+	plan: PlanId;
+	totalCpus: number;
+	totalMemoryMb: number;
+	storageLimitMb: number;
+}
+
 /**
- * Resize tenant containers to a new plan's resource limits.
+ * Resize tenant containers to a new compute envelope.
  * Data volume preserved; JWT secret + DB password recovered by inspecting
  * the existing API container's env. Brief downtime (typically <30s).
+ *
+ * Compute is provided explicitly (decoupled from plan in Sprint C.1) so
+ * the caller can fold in `tenant_compute_addons` before invoking.
  */
 export async function resizeTenant(
 	slug: string,
-	newPlan: PlanId,
+	spec: ResizeSpec,
 ): Promise<void> {
 	const cfg = getConfig();
-	const plan = getPlan(newPlan);
-	logger.info("Resizing tenant", { slug, plan: plan.id });
+	logger.info("Resizing tenant", {
+		slug,
+		plan: spec.plan,
+		totalCpus: spec.totalCpus,
+		totalMemoryMb: spec.totalMemoryMb,
+	});
+
+	const containers = allocForTotals(spec.totalMemoryMb, spec.totalCpus);
 
 	// Recover existing creds from the API container env. If it's missing,
 	// the tenant wasn't properly provisioned — fail clearly.
@@ -113,9 +132,9 @@ export async function resizeTenant(
 			name: pgContainerName(slug),
 			slug,
 			password: pgPassword,
-			plan: plan.id,
-			memoryMb: plan.containers.postgres.memoryMb,
-			cpus: plan.containers.postgres.cpus,
+			plan: spec.plan,
+			memoryMb: containers.postgres.memoryMb,
+			cpus: containers.postgres.cpus,
 		}),
 	);
 	await containerStart(pgId);
@@ -128,9 +147,9 @@ export async function resizeTenant(
 			name: apiName,
 			image: imageName(cfg, "api"),
 			slug,
-			plan: plan.id,
-			memoryMb: plan.containers.api.memoryMb,
-			cpus: plan.containers.api.cpus,
+			plan: spec.plan,
+			memoryMb: containers.api.memoryMb,
+			cpus: containers.api.cpus,
 			env,
 		}),
 	);
@@ -142,14 +161,14 @@ export async function resizeTenant(
 			name: processorContainerName(slug),
 			image: imageName(cfg, "api"),
 			slug,
-			memoryMb: plan.containers.processor.memoryMb,
-			cpus: plan.containers.processor.cpus,
+			memoryMb: containers.processor.memoryMb,
+			cpus: containers.processor.cpus,
 			env,
 		}),
 	);
 	await containerStart(procId);
 
-	logger.info("Tenant resized", { slug, plan: plan.id });
+	logger.info("Tenant resized", { slug, plan: spec.plan });
 }
 
 /**
@@ -169,7 +188,6 @@ export async function rotateTenantKeys(
 	newGens: { serviceGen: number; anonGen: number },
 ): Promise<RotateResult> {
 	const cfg = getConfig();
-	const planDef = getPlan(plan);
 	logger.info("Rotating tenant keys", { slug, type });
 
 	const apiName = apiContainerName(slug);
@@ -184,6 +202,15 @@ export async function rotateTenantKeys(
 			`Tenant ${slug} API container missing TENANT_JWT_SECRET — corrupt state`,
 		);
 	}
+
+	// Preserve the existing API container's compute — rotation only
+	// touches the JWT env, not sizing. Reading from docker inspect avoids
+	// recomputing from plan + add-ons and drifting if anything changed.
+	const memoryLimitBytes = current.HostConfig?.Memory ?? 0;
+	const nanoCpus = current.HostConfig?.NanoCpus ?? 0;
+	const currentMemoryMb =
+		memoryLimitBytes > 0 ? Math.round(memoryLimitBytes / (1024 * 1024)) : 256;
+	const currentCpus = nanoCpus > 0 ? nanoCpus / 1_000_000_000 : 0.5;
 
 	// Recreate API container with new gens. PG + processor keep running.
 	const { containerRemove } = await import("./docker.ts");
@@ -201,9 +228,9 @@ export async function rotateTenantKeys(
 			name: apiName,
 			image: imageName(cfg, "api"),
 			slug,
-			plan: plan,
-			memoryMb: planDef.containers.api.memoryMb,
-			cpus: planDef.containers.api.cpus,
+			plan,
+			memoryMb: currentMemoryMb,
+			cpus: currentCpus,
 			env: nextEnv,
 		}),
 	);
@@ -237,12 +264,16 @@ export async function rotateTenantKeys(
 
 /**
  * Current status + live stats for a tenant. Reads docker — no control-plane DB.
+ *
+ * `plan` + `storageLimitMb` are passed through from the caller's tenant
+ * record so the response matches the tenant's effective spec (plan +
+ * add-ons), not the plan's base spec.
  */
 export async function getTenantStatus(
 	slug: string,
 	plan: PlanId,
+	storageLimitMb: number,
 ): Promise<TenantStatus> {
-	const planDef = getPlan(plan);
 	const containers: ContainerStatus[] = [];
 	for (const name of allContainerNames(slug)) {
 		const info = await containerInspect(name);
@@ -266,7 +297,7 @@ export async function getTenantStatus(
 		slug,
 		plan,
 		containers,
-		storageLimitMb: planDef.storageLimitMb,
+		storageLimitMb,
 	};
 }
 

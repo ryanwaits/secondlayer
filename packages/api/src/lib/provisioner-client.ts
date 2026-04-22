@@ -112,10 +112,13 @@ export async function provisionTenant(input: {
 export async function getTenantStatus(
 	slug: string,
 	plan: string,
+	storageLimitMb: number,
 ): Promise<TenantStatusResponse> {
-	return request<TenantStatusResponse>(
-		`/tenants/${slug}?plan=${encodeURIComponent(plan)}`,
-	);
+	const qs = new URLSearchParams({
+		plan,
+		storageLimitMb: String(storageLimitMb),
+	});
+	return request<TenantStatusResponse>(`/tenants/${slug}?${qs.toString()}`);
 }
 
 export async function suspendTenant(slug: string): Promise<void> {
@@ -141,13 +144,20 @@ export async function rotateTenantKeys(
 	);
 }
 
+export interface ResizeComputeSpec {
+	plan: "hobby" | "launch" | "grow" | "scale" | "enterprise";
+	totalCpus: number;
+	totalMemoryMb: number;
+	storageLimitMb: number;
+}
+
 export async function resizeTenant(
 	slug: string,
-	newPlan: "hobby" | "launch" | "grow" | "scale" | "enterprise",
+	spec: ResizeComputeSpec,
 ): Promise<void> {
 	await request(`/tenants/${slug}/resize`, {
 		method: "POST",
-		body: { newPlan },
+		body: spec,
 	});
 }
 

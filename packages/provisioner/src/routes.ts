@@ -108,12 +108,15 @@ export function buildRoutes(): Hono {
 	});
 
 	// GET /tenants/:slug — live status + resource usage.
+	// Caller passes `storageLimitMb` via query (from tenants row — already
+	// folds in active add-ons). `plan` is carried as a label.
 	app.get("/tenants/:slug", async (c) => {
 		const slug = c.req.param("slug");
 		if (!isValidSlug(slug)) return c.json({ error: "invalid slug" }, 400);
 		const plan = (c.req.query("plan") ?? "launch") as PlanId;
 		if (!isValidPlanId(plan)) return c.json({ error: "invalid plan" }, 400);
-		const status = await getTenantStatus(slug, plan);
+		const storageLimitMb = Number(c.req.query("storageLimitMb") ?? -1);
+		const status = await getTenantStatus(slug, plan, storageLimitMb);
 		return c.json(status);
 	});
 
@@ -177,22 +180,42 @@ export function buildRoutes(): Hono {
 		return c.json(result);
 	});
 
-	// POST /tenants/:slug/resize — recreate with new plan's limits.
+	// POST /tenants/:slug/resize — recreate with an explicit compute envelope.
+	// Body: { plan, totalCpus, totalMemoryMb, storageLimitMb }.
+	// `plan` is a label; sizing comes from `totalCpus`/`totalMemoryMb` so the
+	// platform API can fold in `tenant_compute_addons` before calling.
 	app.post("/tenants/:slug/resize", async (c) => {
 		const slug = c.req.param("slug");
 		if (!isValidSlug(slug)) return c.json({ error: "invalid slug" }, 400);
 		const body = (await c.req.json().catch(() => null)) as {
-			newPlan?: unknown;
+			plan?: unknown;
+			totalCpus?: unknown;
+			totalMemoryMb?: unknown;
+			storageLimitMb?: unknown;
 		} | null;
-		if (
-			!body ||
-			typeof body.newPlan !== "string" ||
-			!isValidPlanId(body.newPlan)
-		) {
-			return c.json({ error: "newPlan is required" }, 400);
+		if (!body || typeof body.plan !== "string" || !isValidPlanId(body.plan)) {
+			return c.json({ error: "plan is required" }, 400);
 		}
-		await resizeTenant(slug, body.newPlan);
-		return c.json({ slug, plan: body.newPlan });
+		if (
+			typeof body.totalCpus !== "number" ||
+			typeof body.totalMemoryMb !== "number" ||
+			typeof body.storageLimitMb !== "number"
+		) {
+			return c.json(
+				{
+					error:
+						"totalCpus, totalMemoryMb, and storageLimitMb are required (numbers)",
+				},
+				400,
+			);
+		}
+		await resizeTenant(slug, {
+			plan: body.plan,
+			totalCpus: body.totalCpus,
+			totalMemoryMb: body.totalMemoryMb,
+			storageLimitMb: body.storageLimitMb,
+		});
+		return c.json({ slug, plan: body.plan });
 	});
 
 	// POST /tenants/:slug/bastion — add or rotate the tenant's SSH pubkey on
