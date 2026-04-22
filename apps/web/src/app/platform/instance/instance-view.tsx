@@ -264,7 +264,7 @@ function OverviewSection({ tenant }: { tenant: TenantSummary }) {
 				</div>
 				<div className="row">
 					<div className="key">created</div>
-					<div className="val">
+					<div className="val" suppressHydrationWarning>
 						{new Date(tenant.createdAt).toLocaleString()}
 					</div>
 				</div>
