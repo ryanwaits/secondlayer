@@ -21,6 +21,7 @@ import { countApiRequests } from "./middleware/usage.ts";
 import accountsRouter from "./routes/accounts.ts";
 import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
+import billingRouter from "./routes/billing.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
 import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
@@ -34,6 +35,7 @@ import subgraphsRouter, {
 } from "./routes/subgraphs.ts";
 import tenantsRouter from "./routes/tenants.ts";
 import waitlistRouter from "./routes/waitlist.ts";
+import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 
 const mode = getInstanceMode();
 const app = new Hono();
@@ -82,6 +84,11 @@ if (mode === "platform") {
 	// Waitlist (no auth required)
 	app.route("/api/waitlist", waitlistRouter);
 
+	// Stripe webhook — no auth; signature is verified inside the route.
+	// IP rate limiting intentionally skipped (Stripe's egress is trusted
+	// and they retry aggressively on non-2xx).
+	app.route("/api/webhooks/stripe", webhooksStripeRouter);
+
 	// Admin routes — auth + admin guard
 	app.use("/api/admin/*", requireAuth());
 	app.use("/api/admin/*", requireAdmin());
@@ -106,6 +113,8 @@ const PLATFORM_PATHS = [
 	"/status",
 	"/api/accounts",
 	"/api/accounts/*",
+	"/api/billing",
+	"/api/billing/*",
 	"/api/insights",
 	"/api/insights/*",
 	"/api/projects",
@@ -135,6 +144,7 @@ if (mode !== "platform") {
 }
 if (mode === "platform") {
 	app.route("/api/accounts", accountsRouter);
+	app.route("/api/billing", billingRouter);
 	app.route("/api/insights", insightsRouter);
 	app.route("/api/projects", projectsRouter);
 	app.route("/api/chat-sessions", chatSessionsRouter);

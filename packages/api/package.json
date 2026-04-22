@@ -8,7 +8,8 @@
 		"start": "bun run src/index.ts",
 		"dev": "bun run --watch src/index.ts",
 		"typecheck": "tsc --noEmit",
-		"test": "bun test"
+		"test": "bun test",
+		"stripe:setup": "bun run scripts/stripe-setup.ts"
 	},
 	"dependencies": {
 		"@secondlayer/auth": "^0.1.16",
@@ -16,6 +17,7 @@
 		"@secondlayer/shared": "^2.1.0",
 		"@secondlayer/subgraphs": "^0.11.8",
 		"hono": "^4.0.0",
+		"stripe": "^22.0.2",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

@@ -51,6 +51,19 @@ export async function updateAccountProfile(
 		.executeTakeFirstOrThrow();
 }
 
+/** Persist the Stripe customer id on first upgrade (lazy customer model). */
+export async function setStripeCustomerId(
+	db: Kysely<Database>,
+	accountId: string,
+	stripeCustomerId: string,
+): Promise<void> {
+	await db
+		.updateTable("accounts")
+		.set({ stripe_customer_id: stripeCustomerId })
+		.where("id", "=", accountId)
+		.execute();
+}
+
 export async function isSlugTaken(
 	db: Kysely<Database>,
 	slug: string,

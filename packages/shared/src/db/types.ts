@@ -109,6 +109,7 @@ export interface AccountsTable {
 	bio: string | null;
 	avatar_url: string | null;
 	slug: string | null;
+	stripe_customer_id: string | null;
 	created_at: Generated<Date>;
 }
 

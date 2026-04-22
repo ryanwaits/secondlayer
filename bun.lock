@@ -50,7 +50,7 @@
     },
     "packages/agent": {
       "name": "@secondlayer/agent",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.2.63",
         "@anthropic-ai/sdk": "^0.78.0",
@@ -63,13 +63,14 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "dependencies": {
-        "@secondlayer/auth": "^0.1.15",
-        "@secondlayer/bundler": "^0.2.0",
-        "@secondlayer/shared": "^1.0.0",
-        "@secondlayer/subgraphs": "^0.11.6",
+        "@secondlayer/auth": "^0.1.16",
+        "@secondlayer/bundler": "^0.3.0",
+        "@secondlayer/shared": "^2.1.0",
+        "@secondlayer/subgraphs": "^0.11.8",
         "hono": "^4.0.0",
+        "stripe": "^22.0.2",
         "zod": "^4.3.6",
       },
       "devDependencies": {
@@ -79,9 +80,9 @@
     },
     "packages/auth": {
       "name": "@secondlayer/auth",
-      "version": "0.1.15",
+      "version": "0.1.16",
       "dependencies": {
-        "@secondlayer/shared": "^1.0.0",
+        "@secondlayer/shared": "^2.0.0",
         "hono": "^4.0.0",
         "zod": "^4.3.6",
       },
@@ -114,7 +115,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "2.2.0",
+      "version": "3.1.1",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -148,7 +149,7 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "dependencies": {
         "@secondlayer/shared": "^1.0.0",
         "@secondlayer/stacks": "^0.2.2",
@@ -161,7 +162,7 @@
     },
     "packages/konsole": {
       "name": "konsole",
-      "version": "0.0.18",
+      "version": "0.0.20",
       "bin": {
         "konsole": "./src/index.ts",
       },
@@ -179,7 +180,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -204,7 +205,7 @@
     },
     "packages/provisioner": {
       "name": "@secondlayer/provisioner",
-      "version": "0.1.0",
+      "version": "0.3.0",
       "dependencies": {
         "@secondlayer/shared": "^1.1.0",
         "hono": "^4.10.5",
@@ -231,7 +232,7 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "dependencies": {
         "@secondlayer/shared": "^1.0.0",
         "@secondlayer/subgraphs": "^0.11.6",
@@ -244,7 +245,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "1.1.0",
+      "version": "2.1.0",
       "dependencies": {
         "@secondlayer/stacks": "^0.3.0",
         "kysely": "0.28.15",
@@ -305,9 +306,9 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "0.11.7",
+      "version": "0.11.8",
       "dependencies": {
-        "@secondlayer/shared": "^1.1.0",
+        "@secondlayer/shared": "^2.0.0",
         "@secondlayer/stacks": "^0.3.0",
         "kysely": "0.28.15",
         "postgres": "^3.4.6",
@@ -320,7 +321,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.0.1",
+      "version": "1.0.3",
       "dependencies": {
         "@secondlayer/shared": "^1.0.0",
         "@secondlayer/stacks": "^0.2.2",
@@ -333,7 +334,7 @@
     },
     "packages/workflow-runner": {
       "name": "@secondlayer/workflow-runner",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.71",
         "@json-render/core": "0.18.0",
@@ -1357,6 +1358,8 @@
     "strip-final-newline": ["strip-final-newline@4.0.0", "", {}, "sha512-aulFJcD6YK8V1G7iRB5tigAP4TsHBZZrOV8pjV++zdUwmeV8uzbY7yn6h9MswN62adStNZFuCIx4haBnRuMDaw=="],
 
     "strip-json-comments": ["strip-json-comments@5.0.3", "", {}, "sha512-1tB5mhVo7U+ETBKNf92xT4hrQa3pm0MZ0PQvuDnWgAAGHDsfp4lPSpiS6psrSiet87wyGPh9ft6wmhOMQ0hDiw=="],
+
+    "stripe": ["stripe@22.0.2", "", { "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-2/BLrQ3oB1zlNfeL/LfHFjTGx6EQn0j+ztrrTJHuDjV5VVIpk92oSDaxyKLUr3pG3dnee2LZqhFUv2Bf0G1/3g=="],
 
     "styled-jsx": ["styled-jsx@5.1.6", "", { "dependencies": { "client-only": "0.0.1" }, "peerDependencies": { "react": ">= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0" } }, "sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA=="],
 
