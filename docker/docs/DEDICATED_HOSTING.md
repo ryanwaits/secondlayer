@@ -943,23 +943,16 @@ Source DB outage means tenant processors can't read blocks — but tenant API co
 
 ## 10. What's not yet done (Sprint 8 + beyond)
 
-### 10.1 Migration script — **forthcoming** (Sprint 8, in progress)
+### 10.1 Migration script — **obsolete**
 
-The tool that migrates an existing single-DB subgraph data into a per-tenant DB. Rough plan (from `~/.claude/plans/lexical-toasting-shannon.md`):
+The platform DB's `subgraphs` table was manually dropped after migration 0041 as part of the shared→dedicated cutover, and no rows ever reached prod that needed migrating. The `packages/provisioner/src/migrate-tenant.ts` entrypoint was deleted. If a self-hoster ever needs to migrate shared-DB subgraphs, the flow is documented below for reference but would need to be re-implemented:
 
-Per account:
 1. Provision a dedicated instance (reuse `provisionTenant`)
 2. `pg_dump --schema="subgraph_{prefix}_{name}"` from the shared source DB
 3. `pg_restore` to the tenant target DB
 4. `ALTER SCHEMA "subgraph_{prefix}_{name}" RENAME TO "subgraph_{name}"` in tenant DB
 5. Export `subgraph` + related rows filtered by `api_key_id`; import to tenant
-6. Update `subgraphs.schema_name` to drop the prefix
-7. Copy handler files to the tenant volume
-8. Start tenant services (already started by provisioner step 1)
-
-Compatibility proxy (Sprint 8.2): old API keys continue to work via platform-API lookup → proxy to tenant endpoint. 30-day overlap period.
-
-Will be added to `packages/provisioner/src/migrate-tenant.ts`. This section of the doc will be filled in once that lands.
+6. Copy handler files to the tenant volume
 
 ### 10.2 Shared-tenancy removal — **forthcoming** (Sprint 8.3)
 

@@ -7404,7 +7404,7 @@ html.force-light .tabbed-code-tab.active {
    Mock reference: apps/web/mocks/instance-states.html
    ════════════════════════════════════════════════ */
 
-/* ── Status banner (trial/expiring/resource/suspended) ── */
+/* ── Status banner (warning/error/info — spend caps, resource limits, suspended) ── */
 .instance-banner {
 	display: flex;
 	align-items: center;
@@ -7700,7 +7700,7 @@ html.force-light .tabbed-code-tab.active {
 	font-size: 10.5px;
 }
 
-/* ── Plan cards (TrialStart) ── */
+/* ── Plan cards (initial provision / tier selector) ── */
 .instance-plan-grid {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);

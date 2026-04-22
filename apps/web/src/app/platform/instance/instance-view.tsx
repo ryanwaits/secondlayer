@@ -547,9 +547,9 @@ function ResizeSection({
 	sessionToken: string;
 	onResized: (tenant: TenantSummary) => void;
 }) {
-	const RESIZE_OPTIONS = ["launch", "grow", "scale"];
+	const RESIZE_OPTIONS = ["hobby", "launch", "grow", "scale"];
 	const [target, setTarget] = useState<string>(
-		RESIZE_OPTIONS.includes(currentPlan) ? currentPlan : "launch",
+		RESIZE_OPTIONS.includes(currentPlan) ? currentPlan : "hobby",
 	);
 	const [state, setState] = useState<
 		"idle" | "confirming" | "resizing" | "error"
@@ -627,6 +627,10 @@ function ResizeSection({
 						style={{ flex: 1, maxWidth: 320, height: 34 }}
 						disabled={state === "resizing"}
 					>
+						<option value="hobby">
+							Hobby — free (0.5 vCPU · 512 MB · 5 GB · auto-pauses after 7d
+							idle)
+						</option>
 						<option value="launch">
 							Launch — $99/mo (1 vCPU · 2 GB · 10 GB)
 						</option>
