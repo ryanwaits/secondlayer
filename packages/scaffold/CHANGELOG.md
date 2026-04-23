@@ -1,5 +1,14 @@
 # @secondlayer/scaffold
 
+## 1.0.2
+
+### Patch Changes
+
+- Remove workflow residuals from scaffold output; add regression test.
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@1.1.0
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @secondlayer/sdk
 
+## 3.0.1
+
+### Patch Changes
+
+- Minor error-message nits and README updates.
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.0.0
+  - @secondlayer/subgraphs@1.1.0
+
 ## 3.0.0
 
 ### Major Changes

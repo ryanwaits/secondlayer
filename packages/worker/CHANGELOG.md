@@ -1,5 +1,12 @@
 # @secondlayer/worker
 
+## 1.1.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.0.0
+
 ## 1.1.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/provisioner",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -11,7 +11,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^3.0.0",
+		"@secondlayer/shared": "^4.0.0",
 		"hono": "^4.10.5",
 		"postgres": "^3.4.6"
 	},

@@ -1,5 +1,15 @@
 # @secondlayer/mcp
 
+## 2.0.1
+
+### Patch Changes
+
+- README switched to `bunx` invocation; added agent golden-path section. Minor `tools/subgraphs.ts` nit.
+
+- Updated dependencies []:
+  - @secondlayer/scaffold@1.0.2
+  - @secondlayer/sdk@3.0.1
+
 ## 2.0.0
 
 ### Major Changes

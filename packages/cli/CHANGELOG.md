@@ -1,5 +1,17 @@
 # @secondlayer/cli
 
+## 3.2.1
+
+### Patch Changes
+
+- Subscription template prose cleanup (Cloudflare Workflows disambiguation, Inngest claim tightened); `resolve-tenant` doc updated for subscriptions surface.
+
+- Updated dependencies []:
+  - @secondlayer/sdk@3.0.1
+  - @secondlayer/shared@4.0.0
+  - @secondlayer/stacks@1.0.1
+  - @secondlayer/subgraphs@1.1.0
+
 ## 3.2.0
 
 ### Minor Changes

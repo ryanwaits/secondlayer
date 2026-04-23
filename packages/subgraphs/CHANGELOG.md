@@ -1,5 +1,17 @@
 # @secondlayer/subgraphs
 
+## 1.1.0
+
+### Minor Changes
+
+- Runtime hardening: SSRF v6 blocking, deterministic replay IDs, claim lock on dispatch, atomic circuit-breaker increments, decrypt errors surfaced to callers, matcher boot retry, bigint matcher support, standard-webhooks timestamp on dispatch.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.0.0
+  - @secondlayer/stacks@1.0.1
+
 ## 1.0.0
 
 ### Major Changes

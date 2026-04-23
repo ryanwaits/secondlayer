@@ -1,5 +1,14 @@
 # @secondlayer/stacks
 
+## 1.0.1
+
+### Patch Changes
+
+- Doc prose cleanup (multisig "flows") and triggers index nit.
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@1.1.0
+
 ## 1.0.0
 
 ### Major Changes

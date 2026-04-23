@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 4.0.0
+
+### Major Changes
+
+- Drop AI eval tracking, caps, and token pricing. Removes `ai_cap_cents` from `AccountSpendCapsTable`, deletes `AiUsage` / `getAiUsage`, `MODEL_PRICING` / `computeUsdCost` / `TokenUsage` / `ModelPricing`, and per-tier AI caps (`getAiCapForPlan`). Also drops the `@deprecated hashApiKey` alias. Migration 0058 drops the `ai_cap_cents` column.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@1.0.1
+
 ## 3.0.0
 
 ### Major Changes

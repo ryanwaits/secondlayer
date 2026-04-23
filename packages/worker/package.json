@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/worker",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -11,7 +11,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^3.0.0",
+		"@secondlayer/shared": "^4.0.0",
 		"kysely": "0.28.15",
 		"stripe": "^22.0.2"
 	},

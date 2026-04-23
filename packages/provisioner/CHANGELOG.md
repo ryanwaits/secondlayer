@@ -1,5 +1,12 @@
 # @secondlayer/provisioner
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.0.0
+
 ## 0.4.0
 
 ### Minor Changes
