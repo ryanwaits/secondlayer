@@ -14,6 +14,20 @@ interface WriteOp {
 	set?: Record<string, unknown>;
 }
 
+export interface FlushWrite {
+	op: "insert" | "update" | "delete";
+	table: string;
+	/** Full row data (for inserts) or where+set merged (for updates). Bigints stringified. */
+	row: Record<string, unknown>;
+	/** Stable identifier for dedup — `{blockHeight, txId, rowIndex}` */
+	pk: { blockHeight: number; txId: string; rowIndex: number };
+}
+
+export interface FlushManifest {
+	count: number;
+	writes: FlushWrite[];
+}
+
 export interface BlockMeta {
 	height: number;
 	hash: string;
@@ -322,16 +336,19 @@ export class SubgraphContext {
 	/**
 	 * Execute all batched writes in a single transaction.
 	 * Auto-populates _block_height, _tx_id, _created_at on inserts.
+	 *
+	 * Returns a {@link FlushManifest} describing every write so downstream
+	 * consumers (subscription emitter) can fan out outbox rows atomically
+	 * with the flush itself.
 	 */
-	async flush(): Promise<number> {
-		if (this.ops.length === 0) return 0;
+	async flush(): Promise<FlushManifest> {
+		if (this.ops.length === 0) return { count: 0, writes: [] };
 
 		const opsToFlush = [...this.ops];
 		this.ops.length = 0;
 
 		const statements = this.buildStatements(opsToFlush);
 
-		// If db is already a transaction, execute directly
 		if ("isTransaction" in this.db) {
 			for (const stmt of statements) {
 				await sql.raw(stmt).execute(this.db);
@@ -344,7 +361,26 @@ export class SubgraphContext {
 			});
 		}
 
-		return opsToFlush.length;
+		const writes: FlushWrite[] = opsToFlush.map((op, rowIndex) => {
+			const blockHeight =
+				(op.data._block_height as number | undefined) ?? this.block.height;
+			const txId =
+				(op.data._tx_id as string | undefined) ?? this._tx.txId;
+			const baseRow =
+				op.kind === "update" ? { ...op.data, ...(op.set ?? {}) } : { ...op.data };
+			// Strip upsert control keys — not part of the row shape
+			delete (baseRow as Record<string, unknown>)._upsert_keys;
+			delete (baseRow as Record<string, unknown>)._upsert_fallback_keys;
+			delete (baseRow as Record<string, unknown>)._upsert_fallback_set;
+			return {
+				op: op.kind,
+				table: op.table,
+				row: jsonSafe(baseRow),
+				pk: { blockHeight, txId, rowIndex },
+			};
+		});
+
+		return { count: opsToFlush.length, writes };
 	}
 
 	/** Prepare a single insert row, returning its data, columns, upsert key for batching. */
@@ -491,6 +527,15 @@ export class SubgraphContext {
 }
 
 // --- Helpers ---
+
+/** Coerce a row for JSON serialization — bigints become strings. */
+function jsonSafe(row: Record<string, unknown>): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(row)) {
+		out[k] = typeof v === "bigint" ? v.toString() : v;
+	}
+	return out;
+}
 
 function escapeLiteral(value: unknown): string {
 	if (value === null || value === undefined) return "NULL";
