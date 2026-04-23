@@ -15,11 +15,8 @@ import { decryptSecret } from "@secondlayer/shared/crypto/secrets";
 function resolveBearer(sub: Subscription): string | null {
 	const cfg = sub.auth_config as { token?: string; tokenEnc?: string };
 	if (cfg.tokenEnc) {
-		try {
-			return decryptSecret(Buffer.from(cfg.tokenEnc, "base64"));
-		} catch {
-			return null;
-		}
+		// Let decrypt errors propagate — see trigger.ts comment.
+		return decryptSecret(Buffer.from(cfg.tokenEnc, "base64"));
 	}
 	return cfg.token ?? null;
 }

@@ -61,6 +61,7 @@ describe("format dispatcher", () => {
 	it("standard-webhooks emits 3 signed headers + SW body shape", () => {
 		const s = sub({ format: "standard-webhooks" });
 		const out = outbox();
+		const nowSeconds = Math.floor(Date.now() / 1000);
 		const { body, headers } = buildForFormat(out, s, "whsec_dGVzdA==");
 		const parsed = JSON.parse(body);
 		expect(parsed.type).toBe("bitcoin.transfers.created");
@@ -70,9 +71,10 @@ describe("format dispatcher", () => {
 			amount: "100",
 		});
 		expect(headers["webhook-id"]).toBe(out.id);
-		expect(headers["webhook-timestamp"]).toBe(
-			String(Math.floor(FIXED_CREATED_AT.getTime() / 1000)),
-		);
+		// Timestamp stamped at dispatch time, not outbox creation — retries
+		// must fall within the receiver's tolerance window (default 300s).
+		const ts = Number.parseInt(headers["webhook-timestamp"]!, 10);
+		expect(Math.abs(ts - nowSeconds)).toBeLessThan(5);
 		expect(headers["webhook-signature"]).toMatch(/^v1,/);
 		expect(headers["content-type"]).toBe("application/json");
 	});

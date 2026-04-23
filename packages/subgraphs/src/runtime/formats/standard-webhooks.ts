@@ -7,8 +7,13 @@ import type { SubscriptionOutbox } from "@secondlayer/shared/db";
  *
  * Body shape: `{ type, timestamp, data }`
  *   - `type` — `<subgraph>.<table>.<verb>` (e.g. `bitcoin.transfers.created`)
- *   - `timestamp` — ISO 8601 when the subgraph block was processed
- *   - `data` — the row payload (bigints already stringified by flush manifest)
+ *   - `timestamp` — ISO 8601 at DISPATCH time (not row creation). Receivers
+ *     verify `webhook-timestamp` against a tolerance window (default 300s per
+ *     Svix); stamping at creation would fail verification on every retry
+ *     beyond the first, since retries fire up to 72h after the row was
+ *     written. The `webhook-id` header stays stable across retries for
+ *     receiver dedup.
+ *   - `data` — row payload (bigints already stringified by flush manifest).
  *
  * Headers: the three standardwebhooks.com headers + Content-Type.
  */
@@ -23,17 +28,16 @@ export function buildStandardWebhooks(
 	outboxRow: SubscriptionOutbox,
 	signingSecret: string,
 ): { body: string; headers: Record<string, string> } {
+	const nowSeconds = Math.floor(Date.now() / 1000);
 	const payload: StandardWebhooksPayload = {
 		type: outboxRow.event_type,
-		timestamp: new Date(outboxRow.created_at).toISOString(),
+		timestamp: new Date(nowSeconds * 1000).toISOString(),
 		data: outboxRow.payload as Record<string, unknown>,
 	};
 	const body = JSON.stringify(payload);
 	const sigHeaders = sign(body, signingSecret, {
 		id: outboxRow.id,
-		timestampSeconds: Math.floor(
-			new Date(outboxRow.created_at).getTime() / 1000,
-		),
+		timestampSeconds: nowSeconds,
 	});
 	return {
 		body,

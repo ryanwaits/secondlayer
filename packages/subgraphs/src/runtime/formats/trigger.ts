@@ -22,11 +22,11 @@ function resolveBearer(sub: Subscription): string | null {
 		tokenEnc?: string;
 	};
 	if (cfg.tokenEnc) {
-		try {
-			return decryptSecret(Buffer.from(cfg.tokenEnc, "base64"));
-		} catch {
-			return null;
-		}
+		// Let decrypt errors propagate — silently sending unauthenticated
+		// requests produces downstream 401s with no hint the secret failed
+		// to decrypt. Surface as a dispatch-time error so the delivery log
+		// records the real cause.
+		return decryptSecret(Buffer.from(cfg.tokenEnc, "base64"));
 	}
 	return cfg.token ?? null;
 }

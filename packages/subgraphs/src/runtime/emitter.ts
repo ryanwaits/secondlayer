@@ -36,6 +36,13 @@ const BATCH_SIZE = 50;
 const LIVE_SHARE = 0.9; // 90% of batch to non-replay, 10% to replay
 const BACKOFF_SECONDS = [30, 120, 600, 3600, 21600, 86400, 259200];
 const CIRCUIT_THRESHOLD = 20;
+/**
+ * When a batch is claimed the outbox row's `next_attempt_at` is pushed
+ * `LOCK_WINDOW_MS` into the future. Any crash between claim + settle
+ * leaves the row re-claimable after this window expires — the SSOT for
+ * double-dispatch prevention.
+ */
+const LOCK_WINDOW_MS = 60_000;
 
 interface RunningState {
 	running: boolean;
@@ -218,24 +225,34 @@ async function settleFailed(
 			.where("id", "=", outboxRow.id)
 			.execute();
 
-		const newFailures = sub.circuit_failures + 1;
+		// Atomic increment — concurrent failures must not clobber each other.
+		// `RETURNING circuit_failures` gives us the post-increment value to
+		// decide whether this failure tripped the circuit.
+		const incResult = await sql<{ circuit_failures: number }>`
+			UPDATE subscriptions
+			SET circuit_failures = circuit_failures + 1,
+				last_delivery_at = NOW(),
+				last_error = ${errText.slice(0, 500)},
+				updated_at = NOW()
+			WHERE id = ${sub.id}
+			RETURNING circuit_failures
+		`.execute(tx);
+		const newFailures = incResult.rows[0]?.circuit_failures ?? sub.circuit_failures + 1;
 		const shouldTripCircuit = newFailures >= CIRCUIT_THRESHOLD;
 
-		await tx
-			.updateTable("subscriptions")
-			.set({
-				last_delivery_at: new Date(),
-				last_error: errText.slice(0, 500),
-				circuit_failures: newFailures,
-				...(shouldTripCircuit
-					? { status: "paused", circuit_opened_at: new Date() }
-					: {}),
-				updated_at: new Date(),
-			})
-			.where("id", "=", outboxRow.subscription_id)
-			.execute();
-
 		if (shouldTripCircuit) {
+			// Transition to paused only on the first failure that crossed
+			// the threshold — additional failures in-flight harmlessly
+			// re-set the same fields.
+			await tx
+				.updateTable("subscriptions")
+				.set({
+					status: "paused",
+					circuit_opened_at: new Date(),
+					updated_at: new Date(),
+				})
+				.where("id", "=", sub.id)
+				.execute();
 			logger.warn("Subscription circuit tripped — paused after consecutive failures", {
 				subscription: sub.name,
 				failures: newFailures,
@@ -281,11 +298,21 @@ async function claimAndDrain(
 				const combined = [...live.rows, ...replay.rows];
 				if (combined.length === 0) return [];
 
+				// Push `next_attempt_at` forward by the lock window. This is
+				// the only defense against double-dispatch if the emitter
+				// process crashes mid-HTTP-call: the row won't be re-claimable
+				// until `LOCK_WINDOW_MS` elapses, giving us a stale-lock
+				// recovery window. `settleDelivered`/`settleFailed` overrides
+				// this on the success/failure path.
 				const now = new Date();
-				const lockUntil = new Date(now.getTime() + 60_000); // 1-minute lock window
+				const lockUntil = new Date(now.getTime() + LOCK_WINDOW_MS);
 				await tx
 					.updateTable("subscription_outbox")
-					.set({ locked_by: emitterId, locked_until: lockUntil })
+					.set({
+						locked_by: emitterId,
+						locked_until: lockUntil,
+						next_attempt_at: lockUntil,
+					})
 					.where(
 						"id",
 						"in",
@@ -415,12 +442,35 @@ export async function startEmitter(
 
 	logger.info("[emitter] started", { id: emitterId });
 
-	// Bootstrap matcher from active subs.
-	await refreshMatcher(db).catch((err) => {
-		logger.error("[emitter] initial matcher refresh failed", {
-			error: err instanceof Error ? err.message : String(err),
-		});
-	});
+	// Bootstrap matcher from active subs. Retry with backoff — if this
+	// stays broken, fail loud rather than run with an empty matcher (which
+	// would silently drop every block's outbox emissions until the next
+	// subscription CRUD fired `subscriptions:changed`).
+	const MATCHER_BOOT_ATTEMPTS = 5;
+	let lastErr: unknown = null;
+	for (let i = 0; i < MATCHER_BOOT_ATTEMPTS; i++) {
+		try {
+			await refreshMatcher(db);
+			lastErr = null;
+			break;
+		} catch (err) {
+			lastErr = err;
+			const delayMs = 500 * 2 ** i; // 500ms, 1s, 2s, 4s, 8s
+			logger.warn("[emitter] matcher refresh failed, retrying", {
+				attempt: i + 1,
+				delayMs,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			await new Promise((r) => setTimeout(r, delayMs));
+		}
+	}
+	if (lastErr) {
+		throw new Error(
+			`[emitter] matcher refresh failed ${MATCHER_BOOT_ATTEMPTS}×; aborting boot: ${
+				lastErr instanceof Error ? lastErr.message : String(lastErr)
+			}`,
+		);
+	}
 
 	// LISTEN on new outbox + sub changes
 	const stopNew = await listen(
