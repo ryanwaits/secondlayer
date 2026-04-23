@@ -279,50 +279,6 @@ export interface ChatMessagesTable {
 	created_at: Generated<Date>;
 }
 
-// ── Workflow runtime tables (v3, minimal) ────────────────────────────
-
-export interface WorkflowRunsTable {
-	id: Generated<string>;
-	workflow_name: string;
-	input: unknown;
-	status: Generated<string>;
-	output: unknown;
-	error: string | null;
-	started_at: Date | null;
-	completed_at: Date | null;
-	created_at: Generated<Date>;
-	account_id: string | null;
-	tenant_id: string | null;
-}
-
-export interface WorkflowStepsTable {
-	id: Generated<string>;
-	run_id: string;
-	step_id: string;
-	memo_key: string;
-	status: Generated<string>;
-	output: unknown;
-	error: string | null;
-	attempts: Generated<number>;
-	started_at: Date | null;
-	completed_at: Date | null;
-	created_at: Generated<Date>;
-}
-
-export interface WorkflowQueueTable {
-	id: Generated<string>;
-	run_id: string;
-	status: Generated<string>;
-	attempts: Generated<number>;
-	max_attempts: Generated<number>;
-	scheduled_for: Generated<Date>;
-	locked_at: Date | null;
-	locked_by: string | null;
-	error: string | null;
-	created_at: Generated<Date>;
-	completed_at: Date | null;
-}
-
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -350,51 +306,12 @@ export interface Database {
 	team_invitations: TeamInvitationsTable;
 	chat_sessions: ChatSessionsTable;
 	chat_messages: ChatMessagesTable;
-	workflow_runs: WorkflowRunsTable;
-	workflow_steps: WorkflowStepsTable;
-	workflow_queue: WorkflowQueueTable;
 	tenants: TenantsTable;
 	tenant_usage_monthly: TenantUsageMonthlyTable;
 	tenant_compute_addons: TenantComputeAddonsTable;
-	workflow_ai_usage_daily: WorkflowAiUsageDailyTable;
 	account_spend_caps: AccountSpendCapsTable;
 	provisioning_audit_log: ProvisioningAuditLogTable;
-	sentries: SentriesTable;
-	sentry_alerts: SentryAlertsTable;
 }
-
-// ── Protocol Sentry ───────────────────────────────────────────────────
-
-export interface SentriesTable {
-	id: Generated<string>;
-	account_id: string;
-	kind: string;
-	name: string;
-	config: unknown;
-	active: Generated<boolean>;
-	last_check_at: Date | null;
-	delivery_webhook: string;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-}
-
-export type Sentry = Selectable<SentriesTable>;
-export type InsertSentry = Insertable<SentriesTable>;
-export type UpdateSentry = Updateable<SentriesTable>;
-
-export interface SentryAlertsTable {
-	id: Generated<string>;
-	sentry_id: string;
-	idempotency_key: string;
-	fired_at: Generated<Date>;
-	payload: unknown;
-	delivery_status: Generated<string>;
-	delivery_error: string | null;
-}
-
-export type SentryAlert = Selectable<SentryAlertsTable>;
-export type InsertSentryAlert = Insertable<SentryAlertsTable>;
-export type UpdateSentryAlert = Updateable<SentryAlertsTable>;
 
 // --- Tenants (dedicated hosting) ---
 
@@ -477,31 +394,6 @@ export interface TenantComputeAddonsTable {
 export type TenantComputeAddon = Selectable<TenantComputeAddonsTable>;
 export type InsertTenantComputeAddon = Insertable<TenantComputeAddonsTable>;
 export type UpdateTenantComputeAddon = Updateable<TenantComputeAddonsTable>;
-
-// --- Workflow AI usage (per-tenant, per-day) ---
-//
-// Runner bumps this on every step.ai/generateText/generateObject call.
-// Caps enforced by `getAiCapForPlan()` from `src/pricing.ts`; hit the
-// cap → runner throws AI_CAP_REACHED and degrades the step cleanly.
-
-// --- Workflow AI usage (per-tenant, per-day) ---
-//
-// Incremented by the workflow-runner's wrapped AI SDK provider on every
-// generateObject/generateText call. Keyed by (tenant_id, day UTC). Used
-// by the usage page's AI axis card. Migration 0051.
-export interface WorkflowAiUsageDailyTable {
-	account_id: string;
-	tenant_id: string | null;
-	day: string; // 'YYYY-MM-DD'
-	evals: Generated<number>;
-	cost_usd_cents: Generated<number>;
-	first_at: Generated<Date>;
-	last_at: Generated<Date>;
-}
-
-export type WorkflowAiUsageDaily = Selectable<WorkflowAiUsageDailyTable>;
-export type InsertWorkflowAiUsageDaily = Insertable<WorkflowAiUsageDailyTable>;
-export type UpdateWorkflowAiUsageDaily = Updateable<WorkflowAiUsageDailyTable>;
 
 // --- Account spend caps (soft cap + threshold alerts) ---
 //
@@ -610,17 +502,6 @@ export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
 
 export type SubgraphUsageDaily = Selectable<SubgraphUsageDailyTable>;
 export type InsertSubgraphUsageDaily = Insertable<SubgraphUsageDailyTable>;
-
-export type WorkflowRun = Selectable<WorkflowRunsTable>;
-export type InsertWorkflowRun = Insertable<WorkflowRunsTable>;
-export type UpdateWorkflowRun = Updateable<WorkflowRunsTable>;
-
-export type WorkflowStep = Selectable<WorkflowStepsTable>;
-export type InsertWorkflowStep = Insertable<WorkflowStepsTable>;
-export type UpdateWorkflowStep = Updateable<WorkflowStepsTable>;
-
-export type WorkflowQueueItem = Selectable<WorkflowQueueTable>;
-export type InsertWorkflowQueueItem = Insertable<WorkflowQueueTable>;
 
 export type Project = Selectable<ProjectsTable>;
 export type InsertProject = Insertable<ProjectsTable>;

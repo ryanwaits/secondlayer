@@ -78,56 +78,6 @@ export interface SystemStatus {
 	timestamp: string;
 }
 
-export interface WorkflowSummary {
-	name: string;
-	version: number;
-	status: "active" | "paused";
-	triggerType: string;
-	totalRuns: number;
-	lastRunAt: string | null;
-	createdAt: string;
-	updatedAt: string;
-}
-
-export interface WorkflowDetail extends WorkflowSummary {
-	triggerConfig: Record<string, unknown>;
-	retriesConfig: Record<string, unknown> | null;
-	timeoutMs: number | null;
-}
-
-export interface WorkflowRun {
-	id: string;
-	status: string;
-	triggerType: string;
-	error: string | null;
-	startedAt: string | null;
-	completedAt: string | null;
-	durationMs: number | null;
-	totalAiTokens: number | null;
-	createdAt: string;
-}
-
-export interface WorkflowStep {
-	id: string;
-	stepIndex: number;
-	stepId: string;
-	stepType: string;
-	status: string;
-	output: unknown;
-	error: string | null;
-	retryCount: number;
-	aiTokensUsed: number | null;
-	startedAt: string | null;
-	completedAt: string | null;
-	durationMs: number | null;
-}
-
-export interface WorkflowRunDetail extends WorkflowRun {
-	workflowName: string;
-	triggerData: unknown;
-	steps: WorkflowStep[];
-}
-
 // ── Admin ──
 
 export interface WaitlistEntry {

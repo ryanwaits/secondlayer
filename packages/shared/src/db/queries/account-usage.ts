@@ -1,7 +1,5 @@
 import { type Kysely, sql } from "kysely";
 import {
-	type TokenUsage,
-	computeUsdCost,
 	getAiCapForPlan,
 	getComputeAllowanceHours,
 	getStorageAllowanceBytes,
@@ -193,79 +191,16 @@ export async function getStorageUsage(
 }
 
 export async function getAiUsage(
-	db: Kysely<Database>,
-	accountId: string,
+	_db: Kysely<Database>,
+	_accountId: string,
 	plan: string,
-	periodStart: Date,
+	_periodStart: Date,
 	now: Date = new Date(),
 ): Promise<AiUsage> {
-	const cap = getAiCapForPlan(plan);
-	const dailyCap = cap.evalsPerDay;
-	const todayKey = toDayKey(now);
-	const periodStartKey = toDayKey(periodStart);
-
-	const rows = await db
-		.selectFrom("workflow_ai_usage_daily")
-		.select(["day", sql<string>`SUM(evals)`.as("evals")])
-		.where("account_id", "=", accountId)
-		.where("day", ">=", periodStartKey)
-		.groupBy("day")
-		.execute();
-
-	const byDay = new Map<string, number>();
-	for (const r of rows) byDay.set(String(r.day), Number(r.evals));
-
-	const todayCount = byDay.get(todayKey) ?? 0;
-	let periodCount = 0;
-	for (const v of byDay.values()) periodCount += v;
-
+	const dailyCap = getAiCapForPlan(plan).evalsPerDay;
 	const sparkline: SparklinePoint[] = [];
-	for (const day of lastNDays(14, now)) {
-		sparkline.push({ day, value: byDay.get(day) ?? 0 });
-	}
-
-	return {
-		todayCount,
-		periodCount,
-		dailyCap,
-		pct: pct(todayCount, dailyCap),
-		sparkline,
-	};
-}
-
-/**
- * Fire-and-forget UPSERT that bumps today's AI usage counter. Called
- * from the `workflows/ai.ts` middleware after every generate call.
- * Costs come from the provider pricing table in `pricing.ts`; unknown
- * (provider, model) pairs don't bump `cost_usd_cents`.
- */
-export async function bumpAiUsage(
-	db: Kysely<Database>,
-	opts: {
-		accountId: string;
-		tenantId: string | null;
-		provider: string;
-		modelId: string;
-		usage: TokenUsage;
-	},
-): Promise<void> {
-	const today = new Date().toISOString().slice(0, 10);
-	const costUsd = computeUsdCost(opts.provider, opts.modelId, opts.usage) ?? 0;
-	const costCents = Math.round(costUsd * 100);
-
-	// Use raw SQL because Kysely's onConflict doesn't support
-	// `NULLS NOT DISTINCT` — which we need for (account_id, NULL, day)
-	// uniqueness on sentry runs.
-	await sql`
-		INSERT INTO workflow_ai_usage_daily
-			(account_id, tenant_id, day, evals, cost_usd_cents)
-		VALUES
-			(${opts.accountId}, ${opts.tenantId}, ${today}, 1, ${costCents})
-		ON CONFLICT (account_id, tenant_id, day) DO UPDATE SET
-			evals = workflow_ai_usage_daily.evals + 1,
-			cost_usd_cents = workflow_ai_usage_daily.cost_usd_cents + EXCLUDED.cost_usd_cents,
-			last_at = NOW()
-	`.execute(db);
+	for (const day of lastNDays(14, now)) sparkline.push({ day, value: 0 });
+	return { todayCount: 0, periodCount: 0, dailyCap, pct: 0, sparkline };
 }
 
 export async function getProjectBreakdown(
@@ -293,19 +228,7 @@ export async function getProjectBreakdown(
 
 	if (tenants.length === 0) return [];
 
-	const tenantIds = tenants.map((t) => t.id);
-	const todayKey = toDayKey(now);
-
-	// AI today per tenant
-	const aiRows = await db
-		.selectFrom("workflow_ai_usage_daily")
-		.select(["tenant_id", sql<string>`SUM(evals)`.as("evals")])
-		.where("tenant_id", "in", tenantIds)
-		.where("day", "=", todayKey)
-		.groupBy("tenant_id")
-		.execute();
 	const aiByTenant = new Map<string, number>();
-	for (const r of aiRows) aiByTenant.set(String(r.tenant_id), Number(r.evals));
 
 	const computeAllowance = getComputeAllowanceHours(plan);
 	const storageAllowance = getStorageAllowanceBytes(plan);
