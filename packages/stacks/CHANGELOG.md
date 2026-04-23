@@ -1,5 +1,44 @@
 # @secondlayer/stacks
 
+## 1.0.0
+
+### Major Changes
+
+- [`281ab8c`](https://github.com/ryanwaits/secondlayer/commit/281ab8c05b88255b22d5f5e2585ce3cd88f77ff3) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Inline `EventTrigger`; drop `@secondlayer/workflows` dependency. Declaring stable (1.0) alongside the product pivot — stacks is the agent-native chain SDK going forward.
+
+- [`8f2d720`](https://github.com/ryanwaits/secondlayer/commit/8f2d72038c28aca7bd91efb4b0c93f72bac469d3) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Strip all workflow-runner-only code.
+
+  - Removed `broadcast()`, `broadcastContext`, `BroadcastOptions/Result/Runtime` — was tied to the AsyncLocalStorage-bound workflow runner that no longer exists.
+  - Removed `TxRejectedError`, `TxTimeoutError`, `TxSignerRefusedError`, `TxRejectionReason` — broadcast-only error classes.
+  - Removed `tx.transfer/contractCall/deploy/multiSend` intent builders + `TxIntent` types — intent shapes for workflow handlers.
+  - Removed `/ui` subpath + all json-render atoms (`address`, `amount`, `blockHeight`, `bnsName`, `nftAsset`, `principal`, `token`, `txStatus`, `defineCatalog`, `atomComponentMap`) — was for `step.render()` only.
+  - Removed `/ui/schemas` subpath + its Zod schema exports.
+  - Dropped React + @json-render peer deps (no longer needed).
+
+  For transaction broadcasts from receiver code, use `buildTokenTransfer`, `buildContractCall`, `buildContractDeploy` from `@secondlayer/stacks/transactions` — standalone, no runtime context required.
+
+### Minor Changes
+
+- GA — stable release.
+
+  Subgraphs + subscriptions + stacks SDK + MCP + CLI scaffolder all land on `latest` dist-tag:
+
+  - `@secondlayer/sdk@3.0.0` — `sl.subgraphs.*` + `sl.subscriptions.*` (CRUD, rotateSecret, replay, dead-letter requeue, recent deliveries)
+  - `@secondlayer/shared@3.0.0` — tables + queries for subgraphs, subscriptions, outbox, deliveries; Standard Webhooks helper; OSS secrets bootstrap
+  - `@secondlayer/subgraphs@1.0.0` — typed subgraph runtime + post-flush emitter with LISTEN, FOR UPDATE SKIP LOCKED, per-sub concurrency, circuit breaker, backoff, 6-format dispatcher, replay, retention, SSRF egress guard
+  - `@secondlayer/stacks@1.0.0` — viem-style Stacks client; workflow-runner-era broadcast/tx/ui surfaces removed
+  - `@secondlayer/mcp@2.0.0` — subgraph + subscription tools (including replay + recent_deliveries)
+  - `@secondlayer/cli@3.2.0` — `sl create subscription --runtime <inngest|trigger|cloudflare|node>` scaffolder
+
+  Perf baseline (200 blocks × 20 subs, local): `emitMs` p95 ≈ 52ms, `deliveryMs` p95 ≈ 6ms, 100% delivery rate. Failure modes tested: receiver-kill mid-batch, processor tx rollback, clock-skew replay-attack reject. SSRF guard on by default (opt-out via `SECONDLAYER_ALLOW_PRIVATE_EGRESS=true` for self-host + local dev).
+
+  Previous workflow-era `@secondlayer/sdk@2.0.0` and earlier remain on npm but are not the default `latest` anymore.
+
+### Patch Changes
+
+- Updated dependencies [[`281ab8c`](https://github.com/ryanwaits/secondlayer/commit/281ab8c05b88255b22d5f5e2585ce3cd88f77ff3), [`d16a3dd`](https://github.com/ryanwaits/secondlayer/commit/d16a3dd64e12d9c683ca4c5dcbb2c44837bdd5c6), [`1fe6d2b`](https://github.com/ryanwaits/secondlayer/commit/1fe6d2b168dba2e634bf87b69f155f25ad94a127), [`e7d93b3`](https://github.com/ryanwaits/secondlayer/commit/e7d93b3e054cd9e2656dfa1202c90b08ac5e7fa8)]:
+  - @secondlayer/subgraphs@1.0.0
+
 ## 1.0.0-beta.1
 
 ### Major Changes

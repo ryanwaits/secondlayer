@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/bundler",
-	"version": "0.3.1-alpha.0",
+	"version": "0.3.1",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -22,7 +22,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/subgraphs": "^1.0.0-alpha.0",
+		"@secondlayer/subgraphs": "^1.0.0",
 		"esbuild": "^0.27.4"
 	},
 	"devDependencies": {

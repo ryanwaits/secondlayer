@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "1.1.1-alpha.0",
+	"version": "1.1.1",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -12,10 +12,10 @@
 		"stripe:setup": "bun run scripts/stripe-setup.ts"
 	},
 	"dependencies": {
-		"@secondlayer/auth": "^0.1.17-alpha.0",
-		"@secondlayer/bundler": "^0.3.1-alpha.0",
-		"@secondlayer/shared": "^3.0.0-alpha.0",
-		"@secondlayer/subgraphs": "^1.0.0-alpha.0",
+		"@secondlayer/auth": "^0.1.17",
+		"@secondlayer/bundler": "^0.3.1",
+		"@secondlayer/shared": "^3.0.0",
+		"@secondlayer/subgraphs": "^1.0.0",
 		"hono": "^4.0.0",
 		"stripe": "^22.0.2",
 		"zod": "^4.3.6"

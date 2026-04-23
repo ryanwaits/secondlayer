@@ -1,6 +1,6 @@
 {
 	"name": "konsole",
-	"version": "0.0.21-beta.2",
+	"version": "0.0.21",
 	"private": true,
 	"type": "module",
 	"main": "./dist/index.js",

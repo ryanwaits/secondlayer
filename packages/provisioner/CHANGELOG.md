@@ -1,5 +1,33 @@
 # @secondlayer/provisioner
 
+## 0.4.0
+
+### Minor Changes
+
+- [`5da9026`](https://github.com/ryanwaits/secondlayer/commit/5da9026271e4a3c7832af8c14579c2ad3b414db4) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Pricing Sprint C.1 — decouple compute from plan for add-ons.
+
+  - Migration 0048 adds `tenant_compute_addons` table. Each row = one add-on bundle (memory/cpu/storage deltas with optional effective window + Stripe subscription_item_id). Effective compute = plan base + SUM(active deltas).
+  - New `@secondlayer/shared/db/queries/tenant-compute-addons` module: `listActiveAddonsForTenant`, `computeEffectiveCompute(tenantId, base)`.
+  - `@secondlayer/provisioner` breaking changes:
+    - `resizeTenant(slug, planId)` → `resizeTenant(slug, { plan, totalCpus, totalMemoryMb, storageLimitMb })`. Plan stays as a label; sizing is explicit.
+    - `getTenantStatus(slug, plan)` → `getTenantStatus(slug, plan, storageLimitMb)`. Caller passes the effective storage limit from the tenants row.
+    - `rotateTenantKeys` preserves existing container sizing by reading from `docker inspect` instead of recomputing from the plan — so it stays correct for tenants with add-ons.
+    - `POST /tenants/:slug/resize` body shape: `{ plan, totalCpus, totalMemoryMb, storageLimitMb }`.
+    - `GET /tenants/:slug` now reads `storageLimitMb` query param.
+  - New exported `allocForTotals(totalMemoryMb, totalCpus)` from `packages/provisioner/src/plans.ts` — auto-biases to PG-heavy split below 1 GB, default split above.
+  - Platform API `POST /api/tenants/me/resize` now composes plan base + active add-ons via `computeEffectiveCompute` before calling the provisioner. `tenants.cpus/memory_mb/storage_limit_mb` cache the effective values for dashboard + billing.
+  - Add-on CRUD + Stripe wiring land in Sprint C.2/C.3; this sprint is data-model + plumbing only.
+
+### Patch Changes
+
+- [`bb380bc`](https://github.com/ryanwaits/secondlayer/commit/bb380bc23c4e2a5fd514108f21f1cceb3178a610) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Auto-resume paused Hobby tenants on direct-API traffic.
+
+  - New `POST /internal/resume/:slug` on the provisioner. Kicks off an async `resumeTenant` for suspended containers and returns `503 Retry-After: 30` so the caller retries after the containers are healthy (~20s). Already-running containers short-circuit to 503 too — next retry lands on the upstream. Unknown slugs → 404. No auth; same internal-network gating as `/internal/caddy/ask`.
+  - Caddyfile gains a `handle_errors` block on the wildcard tenant route that proxies upstream dial failures (502/503/504) to the resume endpoint. Idempotent; duplicate resume calls cost nothing. Completes the Hobby resume story: dashboard had a button, CLI had mint-ephemeral transparent resume, direct-API callers now auto-resume too.
+
+- Updated dependencies [[`9fb9990`](https://github.com/ryanwaits/secondlayer/commit/9fb9990e99bbac053f15e6070a8c3c24da0c7c11), [`281ab8c`](https://github.com/ryanwaits/secondlayer/commit/281ab8c05b88255b22d5f5e2585ce3cd88f77ff3), [`c201da9`](https://github.com/ryanwaits/secondlayer/commit/c201da96874da2ed34c3ab854b40344dd94d794c), [`5da9026`](https://github.com/ryanwaits/secondlayer/commit/5da9026271e4a3c7832af8c14579c2ad3b414db4), [`0459580`](https://github.com/ryanwaits/secondlayer/commit/04595805ece434021eca8e295c32c14e418d27d8), [`79f04c0`](https://github.com/ryanwaits/secondlayer/commit/79f04c06db14b22b053ac908eb68cbbaaa0d92d2), [`e7d93b3`](https://github.com/ryanwaits/secondlayer/commit/e7d93b3e054cd9e2656dfa1202c90b08ac5e7fa8), [`a74b01d`](https://github.com/ryanwaits/secondlayer/commit/a74b01d04ad901270a8592beef1a04db2250bb64)]:
+  - @secondlayer/shared@3.0.0
+
 ## 0.4.0-alpha.0
 
 ### Minor Changes

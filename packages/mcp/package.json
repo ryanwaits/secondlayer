@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/mcp",
-	"version": "2.0.0-beta.1",
+	"version": "2.0.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -28,10 +28,10 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
-		"@secondlayer/bundler": "^0.3.1-alpha.0",
-		"@secondlayer/scaffold": "^1.0.1-alpha.0",
-		"@secondlayer/sdk": "^3.0.0-beta.2",
-		"@secondlayer/subgraphs": "^1.0.0-beta.3",
+		"@secondlayer/bundler": "^0.3.1",
+		"@secondlayer/scaffold": "^1.0.1",
+		"@secondlayer/sdk": "^3.0.0",
+		"@secondlayer/subgraphs": "^1.0.0",
 		"diff": "^8.0.4",
 		"zod": "^4.3.6"
 	},

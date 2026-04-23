@@ -1,5 +1,12 @@
 # @secondlayer/clarity-docs
 
+## 0.3.7
+
+### Patch Changes
+
+- Updated dependencies [[`281ab8c`](https://github.com/ryanwaits/secondlayer/commit/281ab8c05b88255b22d5f5e2585ce3cd88f77ff3), [`8f2d720`](https://github.com/ryanwaits/secondlayer/commit/8f2d72038c28aca7bd91efb4b0c93f72bac469d3)]:
+  - @secondlayer/stacks@1.0.0
+
 ## 0.3.7-alpha.0
 
 ### Patch Changes
