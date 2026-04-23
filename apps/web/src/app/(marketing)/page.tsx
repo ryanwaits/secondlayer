@@ -2,10 +2,7 @@ import { BetaBracket } from "@/components/beta-badge";
 import { SiteLink } from "@/components/site-link";
 import { HomeAnnotations } from "./home-annotations";
 
-const products = [
-	{ name: "Subgraphs", href: "/subgraphs" },
-	{ name: "Sentries", href: "/sentries" },
-];
+const products = [{ name: "Subgraphs", href: "/subgraphs" }];
 
 const interfaces = [
 	{ name: "CLI", href: "/cli", version: "3.1.0" },
@@ -14,8 +11,6 @@ const interfaces = [
 ];
 
 const foundation = [{ name: "Stacks", href: "/stacks", version: "0.3.0" }];
-
-const resources = [{ name: "Pricing", href: "/pricing" }];
 
 function IndexItem({
 	item,
@@ -67,15 +62,6 @@ export default function HomePage() {
 					<div className="index-year">Foundation</div>
 					<ul className="index-list">
 						{foundation.map((item) => (
-							<IndexItem key={item.href} item={item} />
-						))}
-					</ul>
-				</div>
-
-				<div className="index-year-group">
-					<div className="index-year">Resources</div>
-					<ul className="index-list">
-						{resources.map((item) => (
 							<IndexItem key={item.href} item={item} />
 						))}
 					</ul>

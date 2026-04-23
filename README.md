@@ -8,7 +8,6 @@ Two ways to run it:
 
 - **Hosted** — dedicated per-project Postgres + API + subgraph processor.
   Hobby is free (auto-pauses after 7d idle); paid tiers start at $149/mo.
-  Pricing: [secondlayer.tools/pricing](https://secondlayer.tools/pricing).
 - **Self-host** — the whole stack is MIT-licensed. `docker compose up` gets
   you indexer + API + processor on your own hardware. See
   [`docker/oss/README.md`](docker/oss/README.md).
