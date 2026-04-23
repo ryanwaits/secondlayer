@@ -13,6 +13,16 @@ import { SubgraphReindexForm } from "./reindex-form";
 import { SubgraphTablesBrowser } from "./tables-browser";
 import { SubgraphUrlSection } from "./url-section";
 
+interface SubscriptionSummary {
+	id: string;
+	name: string;
+	status: "active" | "paused" | "error";
+	subgraphName: string;
+	circuitOpenedAt: string | null;
+	lastDeliveryAt: string | null;
+}
+
+
 function statusBadgeClass(status: string) {
 	if (status === "active") return "active";
 	if (status === "syncing" || status === "reindexing") return "syncing";
@@ -57,6 +67,23 @@ export default async function SubgraphDetailPage({
 		sessionToken: session ?? undefined,
 		tags: ["keys"],
 	}).catch(() => ({ keys: [] as ApiKey[] }));
+
+	// Subscriptions summary for this subgraph
+	let subsForSubgraph: SubscriptionSummary[] = [];
+	try {
+		const subsResult = await fetchFromTenantOrThrow<{
+			data: SubscriptionSummary[];
+		}>(session, "/api/subscriptions");
+		subsForSubgraph = subsResult.data.filter((s) => s.subgraphName === name);
+	} catch {
+		subsForSubgraph = [];
+	}
+	const subsCount = subsForSubgraph.length;
+	const circuitPausedCount = subsForSubgraph.filter(
+		(s) => s.circuitOpenedAt !== null,
+	).length;
+	const activeCount = subsForSubgraph.filter((s) => s.status === "active")
+		.length;
 
 	const primaryKey = keysResult.keys
 		.filter((k) => k.status === "active")
@@ -204,6 +231,46 @@ export default async function SubgraphDetailPage({
 							sessionToken={session ?? ""}
 						/>
 					)}
+
+					{/* Subscriptions summary */}
+					<DetailSection
+						title="Subscriptions"
+						actions={
+							subsCount > 0 ? (
+								<Link
+									href={`/subgraphs/${name}/subscriptions`}
+									className="btn-secondary"
+								>
+									View all →
+								</Link>
+							) : undefined
+						}
+					>
+						{subsCount === 0 ? (
+							<p className="detail-desc">
+								No subscriptions attached to this subgraph. Create one from your
+								terminal:{" "}
+								<code
+									style={{
+										fontSize: 12,
+										background: "var(--code-bg)",
+										padding: "1px 5px",
+										borderRadius: 3,
+									}}
+								>
+									sl create subscription &lt;name&gt; --runtime
+									&lt;inngest|trigger|cloudflare|node&gt;
+								</code>
+							</p>
+						) : (
+							<p className="detail-desc">
+								<Link href={`/subgraphs/${name}/subscriptions`}>
+									{subsCount} subscription{subsCount !== 1 ? "s" : ""}
+								</Link>{" "}
+								· {activeCount} active · {circuitPausedCount} circuit-paused
+							</p>
+						)}
+					</DetailSection>
 
 					{/* Backfill / Reindex */}
 					<DetailSection title="Backfill &amp; Reindex">

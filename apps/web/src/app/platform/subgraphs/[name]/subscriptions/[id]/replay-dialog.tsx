@@ -95,7 +95,8 @@ export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 			{err && <p style={{ color: "var(--error)", marginTop: 8 }}>{err}</p>}
 			{result && (
 				<p style={{ color: "var(--success)", marginTop: 8 }}>
-					Enqueued {result.enqueuedCount} of {result.scannedCount} scanned rows.
+					Enqueued {result.enqueuedCount} of {result.scannedCount} scanned
+					rows.
 				</p>
 			)}
 			<div style={{ marginTop: 12, display: "flex", gap: 8 }}>

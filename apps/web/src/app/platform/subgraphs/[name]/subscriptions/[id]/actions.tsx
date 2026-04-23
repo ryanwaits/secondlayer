@@ -5,9 +5,11 @@ import { useState } from "react";
 
 export function SubscriptionActions({
 	id,
+	subgraphName,
 	status,
 }: {
 	id: string;
+	subgraphName: string;
 	status: "active" | "paused" | "error";
 }) {
 	const router = useRouter();
@@ -45,7 +47,9 @@ export function SubscriptionActions({
 
 	async function onRotate() {
 		if (
-			!confirm("Rotate signing secret? Any receiver using the old secret will fail verification until updated.")
+			!confirm(
+				"Rotate signing secret? Any receiver using the old secret will fail verification until updated.",
+			)
 		) {
 			return;
 		}
@@ -62,7 +66,7 @@ export function SubscriptionActions({
 			return;
 		}
 		const body = await call(`/api/subscriptions/${id}`, "DELETE");
-		if (body !== null) router.push("/subscriptions");
+		if (body !== null) router.push(`/subgraphs/${subgraphName}/subscriptions`);
 	}
 
 	return (
@@ -95,9 +99,7 @@ export function SubscriptionActions({
 				</button>
 			</div>
 			{err && (
-				<p style={{ color: "var(--error)", marginTop: 8 }}>
-					{err}
-				</p>
+				<p style={{ color: "var(--error)", marginTop: 8 }}>{err}</p>
 			)}
 			{rotatedSecret && (
 				<div style={{ marginTop: 16 }}>

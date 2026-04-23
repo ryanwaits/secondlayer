@@ -20,9 +20,12 @@ export function DeliveryLog({ subscriptionId }: { subscriptionId: string }) {
 		let cancelled = false;
 		async function poll() {
 			try {
-				const res = await fetch(`/api/subscriptions/${subscriptionId}/deliveries`, {
-					credentials: "same-origin",
-				});
+				const res = await fetch(
+					`/api/subscriptions/${subscriptionId}/deliveries`,
+					{
+						credentials: "same-origin",
+					},
+				);
 				const body = (await res.json()) as {
 					data?: Delivery[];
 					error?: string;
