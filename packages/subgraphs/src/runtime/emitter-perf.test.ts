@@ -167,10 +167,14 @@ describe("emitter perf", () => {
 			// eslint-disable-next-line no-console
 			console.log("[perf]", JSON.stringify(report, null, 2));
 
-			// Soft targets — generous because CI runners vary. Tighten later.
-			expect(report.emitMs.p95).toBeLessThan(200);
-			expect(report.deliveryMs.p95).toBeLessThan(5_000);
-			expect(delivered).toBeGreaterThan(expectedDeliveries * 0.95);
+			// Targets — tight enough to catch regressions without CI noise.
+			// Local baseline: emitMs p95 ~50ms, deliveryMs p95 ~10ms.
+			expect(report.emitMs.p95).toBeLessThan(100);
+			expect(report.deliveryMs.p95).toBeLessThan(1_000);
+			// Upper AND lower bound — catches double-delivery regressions
+			// where `received` exceeds `attempted`.
+			expect(delivered).toBe(expectedDeliveries);
+			expect(received).toBe(expectedDeliveries);
 		} finally {
 			server.stop();
 		}

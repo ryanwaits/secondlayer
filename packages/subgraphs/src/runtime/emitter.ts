@@ -68,6 +68,13 @@ const PRIVATE_V4_PATTERNS = [
 	/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT 100.64/10
 ];
 
+/**
+ * Reject hostnames that resolve to, or are spelled as, private IPs.
+ * Covers v4 literal, v6 literal, IPv4-mapped IPv6 (`::ffff:127.0.0.1`),
+ * and the `localhost` alias. DNS-level rebinding still bypasses this
+ * check (hostname that resolves to a private IP at egress time) — mitigate
+ * with an egress allowlist at the network level if that matters.
+ */
 function isPrivateEgress(url: string): boolean {
 	let parsed: URL;
 	try {
@@ -78,10 +85,35 @@ function isPrivateEgress(url: string): boolean {
 	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
 		return true;
 	}
-	const host = parsed.hostname.toLowerCase();
-	if (host === "localhost") return true;
-	if (host === "::1" || host === "[::1]") return true;
-	if (host.startsWith("fd") || host.startsWith("fe80:")) return true;
+
+	// Strip brackets from IPv6 literals.
+	const raw = parsed.hostname.toLowerCase();
+	const host = raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
+
+	if (host === "localhost" || host === "0.0.0.0") return true;
+	if (host === "::" || host === "::1") return true;
+	// Unique-local (fc00::/7) + link-local (fe80::/10)
+	if (/^f[cd][0-9a-f]{2}:/.test(host)) return true;
+	if (/^fe[89ab][0-9a-f]:/.test(host)) return true;
+
+	// IPv4-mapped IPv6 — `::ffff:127.0.0.1` or `::ffff:7f00:0001`
+	const mapped = host.match(/^::ffff:(.+)$/);
+	if (mapped) {
+		const inner = mapped[1]!;
+		// Dotted form: rerun v4 checks.
+		if (/^\d+\.\d+\.\d+\.\d+$/.test(inner)) {
+			for (const p of PRIVATE_V4_PATTERNS) if (p.test(inner)) return true;
+		}
+		// Hex form: 7f00:0001 → 127.0.0.1
+		const hex = inner.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+		if (hex) {
+			const a = Number.parseInt(hex[1]!, 16);
+			const b = Number.parseInt(hex[2]!, 16);
+			const dotted = `${(a >> 8) & 0xff}.${a & 0xff}.${(b >> 8) & 0xff}.${b & 0xff}`;
+			for (const p of PRIVATE_V4_PATTERNS) if (p.test(dotted)) return true;
+		}
+	}
+
 	for (const p of PRIVATE_V4_PATTERNS) {
 		if (p.test(host)) return true;
 	}

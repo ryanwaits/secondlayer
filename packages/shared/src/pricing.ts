@@ -57,15 +57,16 @@ export function computeUsdCost(
 	);
 }
 
-// ── Per-tier AI eval caps (workflow-runner) ───────────────────────────
+// ── Per-tier AI eval caps ─────────────────────────────────────────────
 //
-// Daily `step.ai` budget by tier. Hit the cap → runner throws
-// AI_CAP_REACHED and the step fails cleanly so condition-only paths
-// continue. Overage (past cap) bills to the `ai_evals` Stripe meter on
-// paid tiers.
+// Daily budget by tier. The caps table is surfaced on the dashboard's
+// usage page; billing enforcement lives on the AI provider side (the
+// product doesn't host AI inference itself post-pivot). Overage above
+// cap bills to the `ai_evals` Stripe meter on paid tiers when we wire
+// subscription-receiver-driven AI usage metering.
 //
 // Caps set conservatively so Pro Micro stays margin-positive at
-// realistic AI utilization. Raise based on data, not aspiration.
+// realistic utilization. Raise based on data, not aspiration.
 
 export interface AiCap {
 	/** Max step.ai / generateText / generateObject calls per UTC day. */

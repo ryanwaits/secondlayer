@@ -2,16 +2,11 @@
  * Hobby auto-pause cron.
  *
  * Every hour, suspend Hobby-tier tenants whose `last_active_at` is older
- * than IDLE_DAYS. Activity is written by:
- *   - tenant API middleware on successful 2xx responses
- *   - workflow-runner when a run transitions to `running`
+ * than IDLE_DAYS. Activity is written by the tenant API middleware on
+ * successful 2xx responses.
  *
  * Platform-mode only. In oss/dedicated modes there's no tenant control
  * plane to enumerate against.
- *
- * Sprint-A note: this cron ships wired up but matches zero rows until
- * Sprint B adds `plan = 'hobby'`. Scaffolding it now means the pause
- * mechanic is in place the moment the first Hobby tenant is provisioned.
  */
 
 import { getErrorMessage, logger } from "@secondlayer/shared";

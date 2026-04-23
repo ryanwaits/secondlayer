@@ -24,6 +24,6 @@ const config: DefineConfigItem = defineConfig({
 	sourcemap: "linked",
 	minify: false,
 	splitting: false,
-	external: ["@secondlayer/shared", "kysely", "postgres", "zod"],
+	external: ["@secondlayer/shared", "kysely", "zod"],
 }) as DefineConfigItem;
 export default config;

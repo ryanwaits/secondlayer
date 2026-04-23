@@ -43,6 +43,22 @@ describe("SSRF egress guard", () => {
 				url: "http://169.254.169.254/hook",
 				name: `linklocal-${randomUUID().slice(0, 8)}`,
 			},
+			{
+				url: "http://[::ffff:127.0.0.1]/hook",
+				name: `v6mapv4-${randomUUID().slice(0, 8)}`,
+			},
+			{
+				url: "http://[::ffff:7f00:0001]/hook",
+				name: `v6maphex-${randomUUID().slice(0, 8)}`,
+			},
+			{
+				url: "http://[::1]/hook",
+				name: `v6loop-${randomUUID().slice(0, 8)}`,
+			},
+			{
+				url: "http://0.0.0.0/hook",
+				name: `any-${randomUUID().slice(0, 8)}`,
+			},
 		];
 
 		const subs: string[] = [];

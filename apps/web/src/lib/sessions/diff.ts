@@ -27,8 +27,7 @@ async function highlightLine(content: string): Promise<string> {
 
 /**
  * Build a server-rendered unified diff between two TypeScript sources.
- * Shared between the workflow and subgraph chat edit flows — both display the
- * result in the same `DiffCard` component.
+ * Used by the subgraph chat edit flow; result renders in `DiffCard`.
  */
 export async function buildUnifiedDiff(
 	currentSource: string,

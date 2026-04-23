@@ -40,6 +40,7 @@ npx @secondlayer/mcp-http
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `SL_SERVICE_KEY` | Yes | — | Tenant service key. `SECONDLAYER_API_KEY` is still accepted as a deprecated alias. |
+| `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base URL for the tenant API. Point at a local instance for dev. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
 
@@ -47,7 +48,7 @@ npx @secondlayer/mcp-http
 
 | Domain | Tools |
 | --- | --- |
-| **Subgraphs** (6) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy` |
+| **Subgraphs** (7) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy`, `subgraphs_read_source` |
 | **Subscriptions** (7) | `subscriptions_list`, `subscriptions_get`, `subscriptions_create`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_replay`, `subscriptions_recent_deliveries` |
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
 | **Account** (1) | `account_whoami` |

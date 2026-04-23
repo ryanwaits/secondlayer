@@ -16,10 +16,10 @@ export async function POST(req: Request, { params }: RouteParams) {
 	if (!body) {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
-	const { ok, status, data } = await fetchFromTenant(
+	const { status, data } = await fetchFromTenant(
 		sessionToken,
 		`/api/subscriptions/${id}/replay`,
 		{ method: "POST", body },
 	);
-	return NextResponse.json(data, { status: ok ? 202 : status });
+	return NextResponse.json(data, { status });
 }

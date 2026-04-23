@@ -12,8 +12,6 @@ export const ErrorCodes = {
 	TENANT_SUSPENDED: "TENANT_SUSPENDED",
 	NO_TENANT_FOR_PROJECT: "NO_TENANT_FOR_PROJECT",
 	INSTANCE_EXISTS: "INSTANCE_EXISTS",
-	// Workflow runtime caps (runner throws; step fails cleanly)
-	AI_CAP_REACHED: "AI_CAP_REACHED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -113,21 +111,6 @@ export class KeyRotatedError extends SecondLayerError {
 export class TenantSuspendedError extends SecondLayerError {
 	constructor(message = "Instance is suspended") {
 		super("TENANT_SUSPENDED", message);
-	}
-}
-
-/**
- * Thrown by the workflow-runner when a step.ai / generateText /
- * generateObject call would exceed the tenant's daily AI eval cap.
- * The step fails cleanly; the workflow's condition-only path (if any)
- * continues. Surface to users as "AI budget reached — increase tier or
- * wait for daily reset".
- */
-export class AiCapReachedError extends SecondLayerError {
-	constructor(
-		message = "Daily AI eval cap reached for this tenant's plan tier",
-	) {
-		super("AI_CAP_REACHED", message);
 	}
 }
 

@@ -15,12 +15,6 @@ import type { MiddlewareHandler } from "hono";
  *
  * Module-local state isolated to this container (no cross-tenant risk —
  * every tenant runs its own `sl-api-<slug>` process).
- *
- * TODO (workflows): when the workflow-runner is resurrected, a workflow
- * run transitioning to `running` must also bump `lastRequestAtMs` —
- * scheduled crons are "active" even with zero API queries. Simplest
- * wiring: runner hits its tenant API's `/internal/activity` POST (to be
- * added) on each run start.
  */
 let lastRequestAtMs = 0;
 

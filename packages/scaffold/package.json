@@ -25,8 +25,6 @@
 		"@secondlayer/subgraphs": "^1.0.0"
 	},
 	"devDependencies": {
-		"@secondlayer/bundler": "workspace:*",
-		"@secondlayer/shared": "workspace:*",
 		"@types/bun": "latest",
 		"typescript": "^5"
 	},

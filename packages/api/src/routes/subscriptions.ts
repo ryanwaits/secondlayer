@@ -409,6 +409,8 @@ app.post("/:id/replay", async (c) => {
 			subscriptionId: c.req.param("id"),
 			fromBlock,
 			toBlock,
+			replayIdSuffix:
+				typeof body.force === "string" ? body.force : undefined,
 		});
 		return c.json(result, 202);
 	} catch (err) {

@@ -5,9 +5,9 @@ const API_URL = process.env.SL_API_URL || "http://localhost:3800";
 
 /**
  * Thin passthrough to the Hetzner API's server-side subgraph bundler.
- * Mirrors apps/web/src/app/api/sessions/bundle-workflow/route.ts — Vercel
- * can't reliably run esbuild + data-URI imports, so the chat authoring loop
- * delegates bundling to the Hetzner API which has a warm workspace.
+ * Vercel can't reliably run esbuild + data-URI imports, so the chat
+ * authoring loop delegates bundling to the Hetzner API which has a warm
+ * workspace.
  */
 export async function POST(req: Request) {
 	const session = getSessionFromRequest(req);
