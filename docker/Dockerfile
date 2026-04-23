@@ -28,12 +28,9 @@ COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
 COPY packages/agent/package.json ./packages/agent/
-COPY packages/workflows/package.json ./packages/workflows/
-COPY packages/workflow-runner/package.json ./packages/workflow-runner/
 COPY packages/bundler/package.json ./packages/bundler/
 COPY packages/scaffold/package.json ./packages/scaffold/
 COPY packages/provisioner/package.json ./packages/provisioner/
-COPY packages/sentries/package.json ./packages/sentries/
 # Install dependencies
 RUN bun install
 
@@ -50,15 +47,12 @@ COPY packages/subgraphs ./packages/subgraphs
 COPY packages/api ./packages/api
 COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
-COPY packages/workflows ./packages/workflows
-COPY packages/workflow-runner ./packages/workflow-runner
 COPY packages/bundler ./packages/bundler
 COPY packages/provisioner ./packages/provisioner
-COPY packages/sentries ./packages/sentries
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
-RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/subgraphs' --filter '@secondlayer/workflows' --filter '@secondlayer/bundler' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
+RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/subgraphs' --filter '@secondlayer/bundler' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
 
 # =============================================================================
 # API service
@@ -73,10 +67,7 @@ COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/auth ./packages/auth
 COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
-COPY --from=builder /app/packages/workflows ./packages/workflows
-COPY --from=builder /app/packages/workflow-runner ./packages/workflow-runner
 COPY --from=builder /app/packages/bundler ./packages/bundler
-COPY --from=builder /app/packages/sentries ./packages/sentries
 COPY --from=builder /app/packages/api ./packages/api
 COPY --from=builder /app/package.json ./
 
@@ -127,14 +118,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
-COPY --from=builder /app/packages/workflows ./packages/workflows
-COPY --from=builder /app/packages/workflow-runner ./packages/workflow-runner
-COPY --from=builder /app/packages/sentries ./packages/sentries
 COPY --from=builder /app/packages/worker ./packages/worker
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
-ENV WORKFLOW_CONCURRENCY=5
 
 CMD ["bun", "run", "packages/worker/src/index.ts"]
 
