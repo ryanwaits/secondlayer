@@ -1,5 +1,12 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import {
+	appendFileSync,
+	closeSync,
+	existsSync,
+	openSync,
+	readFileSync,
+	unlinkSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import { getInstanceMode } from "../mode.ts";
 
@@ -25,27 +32,75 @@ const KEY_ENV = "SECONDLAYER_SECRETS_KEY";
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
+function readExistingKey(envPath: string): string | null {
+	if (!existsSync(envPath)) return null;
+	const contents = readFileSync(envPath, "utf8");
+	const match = contents.match(/^SECONDLAYER_SECRETS_KEY=([a-fA-F0-9]{64})/m);
+	return match ? match[1]! : null;
+}
+
+/**
+ * Atomic file lock via `openSync(..., "wx")` — O_CREAT | O_EXCL. If two
+ * processes race on cold-compose start, exactly one creates the lock
+ * file; the loser polls until the winner finishes writing `.env.local`,
+ * then reads the winner's key. Stale locks (process crashed mid-write)
+ * are cleaned after `STALE_LOCK_MS`.
+ */
+const STALE_LOCK_MS = 10_000;
+const POLL_MS = 25;
+
 function bootstrapOssKey(): string {
 	const envPath = resolve(process.cwd(), ".env.local");
 
-	// Check existing .env.local first — prior run may have written it.
-	if (existsSync(envPath)) {
-		const contents = readFileSync(envPath, "utf8");
-		const match = contents.match(/^SECONDLAYER_SECRETS_KEY=([a-fA-F0-9]{64})/m);
-		if (match) {
-			process.env[KEY_ENV] = match[1];
-			return match[1];
-		}
+	// Fast path — key already on disk from a prior run.
+	const existing = readExistingKey(envPath);
+	if (existing) {
+		process.env[KEY_ENV] = existing;
+		return existing;
 	}
 
-	const hex = randomBytes(32).toString("hex");
-	const line = `${existsSync(envPath) ? "\n" : ""}${KEY_ENV}=${hex}\n`;
-	appendFileSync(envPath, line, { mode: 0o600 });
-	process.env[KEY_ENV] = hex;
-	console.log(
-		`[secondlayer] generated ${KEY_ENV}; saved to ${envPath} (mode 0600)`,
-	);
-	return hex;
+	const lockPath = `${envPath}.secret-bootstrap.lock`;
+	let lockFd: number | null = null;
+	try {
+		lockFd = openSync(lockPath, "wx", 0o600);
+	} catch (err) {
+		const e = err as NodeJS.ErrnoException;
+		if (e.code !== "EEXIST") throw err;
+	}
+
+	if (lockFd === null) {
+		// Another process is bootstrapping. Poll for its result.
+		const deadline = Date.now() + STALE_LOCK_MS;
+		while (Date.now() < deadline) {
+			const key = readExistingKey(envPath);
+			if (key) {
+				process.env[KEY_ENV] = key;
+				return key;
+			}
+			Bun.sleepSync(POLL_MS);
+		}
+		// Lock holder died mid-write — force-clean and retry once.
+		try {
+			unlinkSync(lockPath);
+		} catch {}
+		return bootstrapOssKey();
+	}
+
+	try {
+		const hex = randomBytes(32).toString("hex");
+		const line = `${existsSync(envPath) ? "\n" : ""}${KEY_ENV}=${hex}\n`;
+		appendFileSync(envPath, line, { mode: 0o600 });
+		process.env[KEY_ENV] = hex;
+		console.log(
+			`[secondlayer] generated ${KEY_ENV}; saved to ${envPath} (mode 0600)`,
+		);
+		return hex;
+	} finally {
+		closeSync(lockFd);
+		try {
+			unlinkSync(lockPath);
+		} catch {}
+	}
 }
 
 function loadKey(): Buffer {

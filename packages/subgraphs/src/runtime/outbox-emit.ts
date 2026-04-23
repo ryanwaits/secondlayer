@@ -96,7 +96,9 @@ export async function emitSubscriptionOutbox(
 				subgraph_name: subgraphName,
 				table_name: write.table,
 				block_height: blockHeight,
-				tx_id: write.pk.txId || null,
+				// Nullish-only — an empty-string txId is still a value (block-level
+				// write with no specific tx), not "no tx".
+				tx_id: write.pk.txId ?? null,
 				row_pk: write.pk,
 				event_type: eventType,
 				payload: write.row,

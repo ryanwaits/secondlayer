@@ -372,6 +372,9 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 			failed_at: null,
 			locked_by: null,
 			locked_until: null,
+			// Clear replay flag so a manual requeue drains at live priority,
+			// not throttled through the 10% replay share.
+			is_replay: false,
 		})
 		.where("id", "=", c.req.param("outboxId"))
 		.where("subscription_id", "=", sub.id)

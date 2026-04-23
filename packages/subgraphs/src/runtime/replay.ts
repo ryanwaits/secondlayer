@@ -74,7 +74,12 @@ async function resolveSchemaName(
 		.select("schema_name")
 		.where("name", "=", subgraphName)
 		.executeTakeFirst();
-	return row?.schema_name ?? defaultSchemaName(subgraphName);
+	if (!row) {
+		throw new Error(
+			`Subgraph "${subgraphName}" not registered — cannot replay its rows. Deploy the subgraph first.`,
+		);
+	}
+	return row.schema_name ?? defaultSchemaName(subgraphName);
 }
 
 export async function replaySubscription(

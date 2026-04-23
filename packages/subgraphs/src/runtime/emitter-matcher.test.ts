@@ -115,6 +115,30 @@ describe("matchesFilter", () => {
 		expect(matchesFilter({ active: true }, { active: true })).toBe(true);
 		expect(matchesFilter({ active: true }, { active: false })).toBe(false);
 	});
+
+	it("bigint compares past 2^53 retain precision (no Number() loss)", () => {
+		// 2^54 + small offset — Number() rounds these to the same float
+		const a = 18_014_398_509_481_985n; // 2^54 + 1
+		const b = 18_014_398_509_481_984n; // 2^54 exactly
+		expect(matchesFilter({ v: { gt: b.toString() } }, { v: a })).toBe(true);
+		expect(matchesFilter({ v: { gt: a.toString() } }, { v: b })).toBe(false);
+		// String-form row value against bigint-level compare
+		expect(
+			matchesFilter({ v: { gte: a.toString() } }, { v: a.toString() }),
+		).toBe(true);
+	});
+
+	it("rejects non-primitive row values explicitly", () => {
+		// Without the explicit reject, String({x:1}) === "[object Object]"
+		// would match filter `{ v: "[object Object]" }`.
+		expect(matchesFilter({ v: "[object Object]" }, { v: { x: 1 } })).toBe(
+			false,
+		);
+		// Arrays also rejected
+		expect(matchesFilter({ v: "x" }, { v: ["x"] })).toBe(false);
+		// Numeric operators against non-primitive row → no match, not crash
+		expect(matchesFilter({ v: { gt: 1 } }, { v: { x: 5 } })).toBe(false);
+	});
 });
 
 describe("SubscriptionMatcher cache", () => {

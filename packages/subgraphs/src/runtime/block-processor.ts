@@ -246,8 +246,14 @@ export async function processBlock(
 					});
 				}
 			}
-		} catch {
-			// Table may not exist yet
+		} catch (err) {
+			// Expected: table may not exist yet (fresh subgraph, first few
+			// blocks before DDL runs). Log at debug so real errors —
+			// connection, permissions, query plan — aren't invisible.
+			logger.debug("Row count sample failed", {
+				subgraph: subgraphName,
+				error: err instanceof Error ? err.message : String(err),
+			});
 		}
 	}
 
