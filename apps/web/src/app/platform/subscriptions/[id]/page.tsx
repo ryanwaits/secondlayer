@@ -4,6 +4,8 @@ import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import { notFound } from "next/navigation";
 import { SubscriptionActions } from "./actions";
 import { DeliveryLog } from "./delivery-log";
+import { Dlq } from "./dlq";
+import { ReplayDialog } from "./replay-dialog";
 
 interface SubscriptionDetail {
 	id: string;
@@ -116,11 +118,25 @@ export default async function SubscriptionDetailPage({
 					<SubscriptionActions id={sub.id} status={sub.status} />
 
 					<div className="detail-section">
+						<h2>Replay</h2>
+						<ReplayDialog subscriptionId={sub.id} />
+					</div>
+
+					<div className="detail-section">
 						<h2>Delivery log</h2>
 						<p className="detail-desc">
 							Last 100 attempts, refreshing every 5s.
 						</p>
 						<DeliveryLog subscriptionId={sub.id} />
+					</div>
+
+					<div className="detail-section">
+						<h2>Dead letter queue</h2>
+						<p className="detail-desc">
+							Outbox rows that exhausted all retries. Requeue after fixing the
+							receiver.
+						</p>
+						<Dlq subscriptionId={sub.id} />
 					</div>
 				</div>
 			</div>

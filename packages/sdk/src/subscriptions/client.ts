@@ -73,6 +73,33 @@ export interface RotateSecretResponse {
 	signingSecret: string;
 }
 
+export interface DeliveryRow {
+	id: string;
+	attempt: number;
+	statusCode: number | null;
+	errorMessage: string | null;
+	durationMs: number | null;
+	responseBody: string | null;
+	dispatchedAt: string;
+}
+
+export interface ReplayResult {
+	replayId: string;
+	enqueuedCount: number;
+	scannedCount: number;
+}
+
+export interface DeadRow {
+	id: string;
+	eventType: string;
+	attempt: number;
+	blockHeight: number;
+	txId: string | null;
+	payload: Record<string, unknown>;
+	failedAt: string | null;
+	createdAt: string;
+}
+
 export class Subscriptions extends BaseClient {
 	async list(): Promise<{ data: SubscriptionSummary[] }> {
 		return this.request<{ data: SubscriptionSummary[] }>(
@@ -128,6 +155,38 @@ export class Subscriptions extends BaseClient {
 		return this.request<RotateSecretResponse>(
 			"POST",
 			`/api/subscriptions/${id}/rotate-secret`,
+		);
+	}
+
+	async recentDeliveries(id: string): Promise<{ data: DeliveryRow[] }> {
+		return this.request<{ data: DeliveryRow[] }>(
+			"GET",
+			`/api/subscriptions/${id}/deliveries`,
+		);
+	}
+
+	async replay(
+		id: string,
+		range: { fromBlock: number; toBlock: number },
+	): Promise<ReplayResult> {
+		return this.request<ReplayResult>(
+			"POST",
+			`/api/subscriptions/${id}/replay`,
+			range,
+		);
+	}
+
+	async dead(id: string): Promise<{ data: DeadRow[] }> {
+		return this.request<{ data: DeadRow[] }>(
+			"GET",
+			`/api/subscriptions/${id}/dead`,
+		);
+	}
+
+	async requeueDead(id: string, outboxId: string): Promise<{ ok: true }> {
+		return this.request<{ ok: true }>(
+			"POST",
+			`/api/subscriptions/${id}/dead/${outboxId}/requeue`,
 		);
 	}
 }
