@@ -12,8 +12,10 @@ import { type Transaction, sql } from "kysely";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
 import { type BlockMeta, SubgraphContext, type TxMeta } from "./context.ts";
+import { emitSubscriptionOutbox } from "./outbox-emit.ts";
 import { runHandlers } from "./runner.ts";
 import { matchSources } from "./source-matcher.ts";
+import { matcher } from "./subscription-state.ts";
 
 // Cache schema_name per subgraph to avoid per-block DB lookups
 const schemaNameCache = new Map<string, string>();
@@ -177,10 +179,19 @@ export async function processBlock(
 		result.processed = runResult.processed;
 		result.errors = runResult.errors;
 
-		// 5. Flush writes
+		// 5. Flush writes + emit subscription outbox atomically in-tx.
 		if (ctx.pendingOps > 0) {
 			const flushStart = performance.now();
-			await ctx.flush();
+			const manifest = await ctx.flush();
+			if (manifest.count > 0) {
+				await emitSubscriptionOutbox(
+					tx,
+					subgraphName,
+					manifest,
+					matcher,
+					block.height,
+				);
+			}
 			flushMs = performance.now() - flushStart;
 		}
 

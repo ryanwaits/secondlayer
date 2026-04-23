@@ -81,21 +81,17 @@
 			"types": "./dist/src/db/queries/account-spend-caps.d.ts",
 			"import": "./dist/src/db/queries/account-spend-caps.js"
 		},
-		"./db/queries/sentries": {
-			"types": "./dist/src/db/queries/sentries.d.ts",
-			"import": "./dist/src/db/queries/sentries.js"
-		},
 		"./db/queries/account-usage": {
 			"types": "./dist/src/db/queries/account-usage.d.ts",
 			"import": "./dist/src/db/queries/account-usage.js"
 		},
-		"./db/queries/workflow-runs": {
-			"types": "./dist/src/db/queries/workflow-runs.d.ts",
-			"import": "./dist/src/db/queries/workflow-runs.js"
+		"./db/queries/subscriptions": {
+			"types": "./dist/src/db/queries/subscriptions.d.ts",
+			"import": "./dist/src/db/queries/subscriptions.js"
 		},
-		"./schemas/sentries": {
-			"types": "./dist/src/schemas/sentries.d.ts",
-			"import": "./dist/src/schemas/sentries.js"
+		"./crypto/standard-webhooks": {
+			"types": "./dist/src/crypto/standard-webhooks.d.ts",
+			"import": "./dist/src/crypto/standard-webhooks.js"
 		},
 		"./types": {
 			"types": "./dist/src/types.d.ts",

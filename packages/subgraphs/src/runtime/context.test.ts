@@ -11,7 +11,7 @@ process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5432/secondlayer";
 
-const schema: SubgraphSchema = {
+const schema = {
 	transfers: {
 		columns: {
 			sender: { type: "string" },
@@ -19,7 +19,7 @@ const schema: SubgraphSchema = {
 			amount: { type: "uint" },
 		},
 	},
-};
+} as unknown as SubgraphSchema;
 
 let db: Kysely<Database>;
 let pgSchemaName: string;
