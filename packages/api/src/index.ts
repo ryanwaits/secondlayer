@@ -27,6 +27,7 @@ import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
+import subscriptionsRouter from "./routes/subscriptions.ts";
 import subgraphsRouter, {
 	abortAllOperations,
 	activeAbortControllers,
@@ -105,6 +106,8 @@ const DEDICATED_PATHS = [
 	"/status",
 	"/api/subgraphs",
 	"/api/subgraphs/*",
+	"/api/subscriptions",
+	"/api/subscriptions/*",
 	"/api/node",
 	"/api/node/*",
 ];
@@ -136,10 +139,11 @@ for (const path of paths) {
 	}
 }
 
-// Subgraph + node routes run in dedicated/oss mode only — platform is a pure
-// control plane post-cutover.
+// Subgraph + subscription + node routes run in dedicated/oss mode only —
+// platform is a pure control plane post-cutover.
 if (mode !== "platform") {
 	app.route("/api/subgraphs", subgraphsRouter);
+	app.route("/api/subscriptions", subscriptionsRouter);
 	app.route("/api/node", nodeRouter);
 }
 if (mode === "platform") {
