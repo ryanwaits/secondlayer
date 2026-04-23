@@ -301,6 +301,24 @@ async function drainForSub(
 export interface StartEmitterOptions {
 	/** Interval for the background poll (ms). Defaults to 2 minutes. */
 	pollIntervalMs?: number;
+	/** Retention sweep interval (ms). Defaults to 1 hour. */
+	retentionIntervalMs?: number;
+}
+
+async function runRetention(db: Kysely<Database>): Promise<void> {
+	// delivered outbox >7d, deliveries >30d, dead outbox >90d
+	await sql`
+		DELETE FROM subscription_outbox
+		WHERE status = 'delivered' AND delivered_at < NOW() - interval '7 days'
+	`.execute(db);
+	await sql`
+		DELETE FROM subscription_deliveries
+		WHERE dispatched_at < NOW() - interval '30 days'
+	`.execute(db);
+	await sql`
+		DELETE FROM subscription_outbox
+		WHERE status = 'dead' AND failed_at < NOW() - interval '90 days'
+	`.execute(db);
 }
 
 export async function startEmitter(
@@ -314,6 +332,7 @@ export async function startEmitter(
 		claimInFlight: false,
 	};
 	const pollIntervalMs = opts?.pollIntervalMs ?? 120_000;
+	const retentionIntervalMs = opts?.retentionIntervalMs ?? 60 * 60_000;
 
 	logger.info("[emitter] started", { id: emitterId });
 
@@ -362,9 +381,20 @@ export async function startEmitter(
 	// Kick once on startup so any rows that arrived before we started drain.
 	void claimAndDrain(db, state, emitterId);
 
+	// Retention sweep — hourly by default.
+	const retention = setInterval(() => {
+		if (!state.running) return;
+		void runRetention(db).catch((err) =>
+			logger.error("[emitter] retention failed", {
+				error: err instanceof Error ? err.message : String(err),
+			}),
+		);
+	}, retentionIntervalMs);
+
 	return async () => {
 		state.running = false;
 		clearInterval(poll);
+		clearInterval(retention);
 		await stopNew();
 		await stopChanged();
 		logger.info("[emitter] stopped", { id: emitterId });

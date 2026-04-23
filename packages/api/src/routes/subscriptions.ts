@@ -296,6 +296,34 @@ app.post("/:id/rotate-secret", async (c) => {
 	});
 });
 
+// ── GET /api/subscriptions/:id/deliveries ───────────────────────────────
+
+app.get("/:id/deliveries", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+
+	const rows = await getDb()
+		.selectFrom("subscription_deliveries")
+		.selectAll()
+		.where("subscription_id", "=", sub.id)
+		.orderBy("dispatched_at", "desc")
+		.limit(100)
+		.execute();
+	return c.json({
+		data: rows.map((r) => ({
+			id: r.id,
+			attempt: r.attempt,
+			statusCode: r.status_code,
+			errorMessage: r.error_message,
+			durationMs: r.duration_ms,
+			responseBody: r.response_body,
+			dispatchedAt: r.dispatched_at.toISOString(),
+		})),
+	});
+});
+
 // ── DELETE /api/subscriptions/:id ───────────────────────────────────────
 
 app.delete("/:id", async (c) => {

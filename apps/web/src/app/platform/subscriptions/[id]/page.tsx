@@ -3,6 +3,7 @@ import { ApiError, getSessionFromCookies } from "@/lib/api";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import { notFound } from "next/navigation";
 import { SubscriptionActions } from "./actions";
+import { DeliveryLog } from "./delivery-log";
 
 interface SubscriptionDetail {
 	id: string;
@@ -117,10 +118,9 @@ export default async function SubscriptionDetailPage({
 					<div className="detail-section">
 						<h2>Delivery log</h2>
 						<p className="detail-desc">
-							Per-attempt dispatch log lands in Sprint 3 when the emitter
-							worker ships. Expect status code, duration, and truncated
-							response body per delivery.
+							Last 100 attempts, refreshing every 5s.
 						</p>
+						<DeliveryLog subscriptionId={sub.id} />
 					</div>
 				</div>
 			</div>

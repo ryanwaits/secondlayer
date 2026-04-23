@@ -19,6 +19,16 @@ Without a restart, calls to the removed sentry tools will surface as "tool not f
 
 ## What replaces it
 
-Subgraph typed event subscriptions (Sprint 3+) emit HTTP webhooks to your runtime of choice. `sl create subscription <name> --runtime <inngest|trigger|cloudflare|node>` scaffolds a receiver project wired to a subscription.
+Subgraph typed event subscriptions emit HTTP webhooks to your runtime of choice. `sl create subscription <name> --runtime <inngest|trigger|cloudflare|node>` (Sprint 4) scaffolds a receiver project wired to a subscription.
+
+## ⚠️ Postgres connection mode
+
+The subscription emitter keeps a persistent `LISTEN` on `subscriptions:new_outbox` and `subscriptions:changed`, so it MUST connect through a **session-mode** pool. pgbouncer's **transaction-mode** pool silently breaks `LISTEN` because server connections are swapped between transactions.
+
+- docker-compose local dev: default `postgres://` goes straight to Postgres, no pooler — works out of the box.
+- Dedicated hosting: each tenant container gets a direct session-mode connection from the provisioner.
+- Self-host with pgbouncer: run the emitter against the **session-mode** port (often `:6432` with `pool_mode=session`), NOT the transaction-mode port.
+
+If you see the emitter logging `[emitter] started` but no deliveries fire when you insert outbox rows, verify your pooler mode.
 
 Full guide lands in Sprint 7 under `/docs/migration/v1-to-v2`.

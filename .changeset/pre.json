@@ -34,6 +34,7 @@
     "pricing-sprint-c1",
     "spend-caps",
     "stripe-scaffold",
+    "subscription-emitter",
     "subscriptions-crud",
     "usage-metering"
   ]

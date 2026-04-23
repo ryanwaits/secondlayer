@@ -22,7 +22,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/subgraphs": "^1.0.0-alpha.0"
+		"@secondlayer/subgraphs": "^1.0.0-beta.1"
 	},
 	"devDependencies": {
 		"@secondlayer/bundler": "workspace:*",
