@@ -48,9 +48,9 @@ export interface BroadcastResult {
 }
 
 /**
- * Runtime contract implemented by `@secondlayer/workflow-runner`. The stacks
- * package is a pure library — it holds no keys, no DB, and no network —
- * so actual broadcasting is delegated to whatever runtime bound the context.
+ * Runtime contract for broadcasting. The stacks package is a pure library —
+ * no keys, no DB, no network — so broadcasting is delegated to whatever
+ * runtime bound the context.
  */
 export interface BroadcastRuntime {
 	broadcast(intent: TxIntent, opts: BroadcastOptions): Promise<BroadcastResult>;
