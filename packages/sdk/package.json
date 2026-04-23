@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/sdk",
-	"version": "3.0.0-beta.1",
+	"version": "3.0.0-beta.2",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -26,7 +26,7 @@
 	},
 	"dependencies": {
 		"@secondlayer/shared": "^3.0.0-beta.1",
-		"@secondlayer/subgraphs": "^1.0.0-alpha.0"
+		"@secondlayer/subgraphs": "^1.0.0-beta.3"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

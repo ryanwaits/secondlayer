@@ -33,6 +33,7 @@
     "pricing-sprint-a",
     "pricing-sprint-b",
     "pricing-sprint-c1",
+    "replay-dlq-mcp",
     "spend-caps",
     "stripe-scaffold",
     "subscription-emitter",
