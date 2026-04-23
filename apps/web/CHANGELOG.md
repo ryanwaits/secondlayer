@@ -1,5 +1,13 @@
 # @secondlayer/web
 
+## 0.1.3-alpha.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@1.0.0-alpha.0
+  - @secondlayer/scaffold@1.0.1-alpha.0
+
 ## 0.1.2
 
 ### Patch Changes

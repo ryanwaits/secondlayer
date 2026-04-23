@@ -1,5 +1,35 @@
 # @secondlayer/cli
 
+## 3.1.2-alpha.0
+
+### Patch Changes
+
+- [`9fb9990`](https://github.com/ryanwaits/secondlayer/commit/9fb9990e99bbac053f15e6070a8c3c24da0c7c11) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Extend the README with a full `sl generate` section covering code generation against local `.clar` files, deployed contracts, and the plugin system (`clarinet`, `actions`, `react`, `testing`). Remove unused `secrets.ts` + `workflows.ts` command stubs that were never registered.
+
+- [`c201da9`](https://github.com/ryanwaits/secondlayer/commit/c201da96874da2ed34c3ab854b40344dd94d794c) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Pricing foundation (Sprint A) — switch from 14-day trial to activity-based auto-pause, org-level billing prep.
+
+  - Migration 0046 drops `tenants.trial_ends_at` + index, adds `tenants.last_active_at timestamptz NOT NULL DEFAULT now()` with index `(plan, last_active_at) WHERE status = 'active'`
+  - Migration 0047 adds nullable `tenant_id` to `usage_daily` (+ best-effort backfill for single-tenant accounts), widens the unique key to `(account_id, tenant_id, date)` so Sprint-C Stripe metering can bill per-tenant
+  - `TrialExpiredError` + `TRIAL_EXPIRED` code dropped (dead after trial removal)
+  - New `bumpTenantActivity(slug)` + `listIdleHobbyTenants(idleSince)` query helpers
+  - CLI drops trial-days-left from `sl instance info` and `sl whoami`, drops `TRIAL_EXPIRED` handlers
+
+- [`9f7e3e6`](https://github.com/ryanwaits/secondlayer/commit/9f7e3e6299720c8883b03bbde55bd763d93d576c) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Pricing Sprint B — introduce the Hobby (free) plan + Nano compute.
+
+  - New `hobby` PlanId in the provisioner + API routes + CLI. Nano spec: 0.5 vCPU / 512 MB RAM / 5 GB storage.
+  - Biased container allocation (60/25/15, PG-heavy) for sub-1GB plans so Postgres's default `shared_buffers` isn't starved.
+  - `sl instance create` defaults to `--plan hobby` (zero-friction entry). `sl instance resize` interactive prompt lists Hobby as the first option.
+  - Dashboard `ProvisionStart` adds a Hobby card pre-selected by default.
+  - Auto-resume on mint-ephemeral: every tenant-scoped CLI command that mints a 5-min JWT now transparently resumes a Hobby tenant that was auto-paused for idleness. Paid-tier manual suspensions (`sl instance suspend`) are never auto-resumed.
+  - Dashboard banner copy differentiates Hobby auto-pause ("next CLI command auto-resumes") from paid-tier manual suspension.
+
+- Updated dependencies [[`9fb9990`](https://github.com/ryanwaits/secondlayer/commit/9fb9990e99bbac053f15e6070a8c3c24da0c7c11), [`c201da9`](https://github.com/ryanwaits/secondlayer/commit/c201da96874da2ed34c3ab854b40344dd94d794c), [`5da9026`](https://github.com/ryanwaits/secondlayer/commit/5da9026271e4a3c7832af8c14579c2ad3b414db4), [`0459580`](https://github.com/ryanwaits/secondlayer/commit/04595805ece434021eca8e295c32c14e418d27d8), [`79f04c0`](https://github.com/ryanwaits/secondlayer/commit/79f04c06db14b22b053ac908eb68cbbaaa0d92d2)]:
+  - @secondlayer/shared@3.0.0-alpha.0
+  - @secondlayer/sdk@3.0.0-alpha.0
+  - @secondlayer/stacks@1.0.0-alpha.0
+  - @secondlayer/subgraphs@1.0.0-alpha.0
+  - @secondlayer/bundler@0.3.1-alpha.0
+
 ## 3.1.1
 
 ### Patch Changes

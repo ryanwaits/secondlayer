@@ -1,5 +1,35 @@
 # @secondlayer/worker
 
+## 1.1.0-alpha.0
+
+### Minor Changes
+
+- [`0459580`](https://github.com/ryanwaits/secondlayer/commit/04595805ece434021eca8e295c32c14e418d27d8) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Soft spend caps with 80% threshold alerts — the core anti-surprise-bill differentiator.
+
+  - Migration 0050 adds `account_spend_caps` table (one row per account): monthly + per-line (compute/storage/ai) caps in cents, configurable `alert_threshold_pct` (default 80), `frozen_at`, `alert_sent_at`.
+  - New `@secondlayer/shared/db/queries/account-spend-caps` module: `getCaps`, `upsertCaps`, `freezeAccount`, `clearFreeze`, `listFrozenAccountIds`.
+  - Worker cron `spend-cap-alert.ts` runs daily: fetches each paid account's upcoming invoice, sends a Resend email at threshold, sets `frozen_at` at 100%. Alert email debounced per billing cycle via `alert_sent_at` comparison to `period_start`.
+  - Compute + storage metering crons now read `listFrozenAccountIds` at the top of each tick and skip frozen accounts entirely. Capped accounts keep running but stop accruing billable usage until the next cycle.
+  - Stripe `invoice.paid` webhook clears `frozen_at` + `alert_sent_at` on the paying account, unfreezing metering for the new cycle.
+  - Session-authed dashboard endpoints `GET /api/billing/caps` + `PATCH /api/billing/caps`. Raising a monthly cap mid-cycle auto-clears an active freeze (user explicitly said "yes, bill more").
+
+- [`cb937cd`](https://github.com/ryanwaits/secondlayer/commit/cb937cd03790a0f33c7d6914bd519e0add50c3bb) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Usage metering for paid tenants.
+
+  Two new worker cron jobs push Stripe billing meter events with deterministic idempotency identifiers:
+
+  - **Hourly compute hours** (`compute-metering.ts`) — enumerates active tenants with a Stripe customer id, pushes `compute_hours` = `cpus × 1` per hour. Suspended tenants produce no events. Identifier `compute:<slug>:<yyyy-mm-ddThh>` so replays dedupe.
+  - **Daily storage overage** (`storage-metering.ts`) — for each active paid tenant where `storage_used_mb > storage_limit_mb`, pushes `storage_gb_months` prorated to 1/30 per day (Stripe SUMs to GB-months by period end). Enterprise unlimited (`storage_limit_mb = -1`) is exempt. Identifier `storage:<slug>:<yyyy-mm-dd>`.
+
+  Both crons no-op cleanly when `STRIPE_SECRET_KEY` is unset (local dev, OSS mode) or `INSTANCE_MODE` isn't `platform`. Hobby tenants skipped automatically — they never have a Stripe customer id (lazy customer creation).
+
+  AI eval metering (`ai_evals` meter) is wired at the meter level in the setup script but not yet emitted — lands with the workflow-runner revival.
+
+### Patch Changes
+
+- Updated dependencies [[`9fb9990`](https://github.com/ryanwaits/secondlayer/commit/9fb9990e99bbac053f15e6070a8c3c24da0c7c11), [`c201da9`](https://github.com/ryanwaits/secondlayer/commit/c201da96874da2ed34c3ab854b40344dd94d794c), [`5da9026`](https://github.com/ryanwaits/secondlayer/commit/5da9026271e4a3c7832af8c14579c2ad3b414db4), [`0459580`](https://github.com/ryanwaits/secondlayer/commit/04595805ece434021eca8e295c32c14e418d27d8), [`79f04c0`](https://github.com/ryanwaits/secondlayer/commit/79f04c06db14b22b053ac908eb68cbbaaa0d92d2)]:
+  - @secondlayer/shared@3.0.0-alpha.0
+  - @secondlayer/stacks@1.0.0-alpha.0
+
 ## 1.0.3
 
 ### Patch Changes

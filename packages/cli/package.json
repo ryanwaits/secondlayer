@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "3.1.1",
+	"version": "3.1.2-alpha.0",
 	"description": "CLI for subgraphs and blockchain indexing on Stacks",
 	"type": "module",
 	"bin": {
@@ -42,11 +42,11 @@
 	"license": "MIT",
 	"dependencies": {
 		"@inquirer/prompts": "^8.2.0",
-		"@secondlayer/bundler": "^0.3.0",
-		"@secondlayer/sdk": "^2.0.0",
-		"@secondlayer/shared": "^2.1.0",
-		"@secondlayer/stacks": "^0.3.0",
-		"@secondlayer/subgraphs": "^0.11.8",
+		"@secondlayer/bundler": "^0.3.1-alpha.0",
+		"@secondlayer/sdk": "^3.0.0-alpha.0",
+		"@secondlayer/shared": "^3.0.0-alpha.0",
+		"@secondlayer/stacks": "^1.0.0-alpha.0",
+		"@secondlayer/subgraphs": "^1.0.0-alpha.0",
 		"@biomejs/js-api": "^0.7.0",
 		"@biomejs/wasm-nodejs": "^1.9.0",
 		"esbuild": "^0.19.0",

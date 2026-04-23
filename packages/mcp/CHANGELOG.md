@@ -1,5 +1,19 @@
 # @secondlayer/mcp
 
+## 2.0.0-alpha.0
+
+### Major Changes
+
+- Drop sentry tools (`manage_sentries`, `check_sentries`, `list_sentry_kinds`). MCP clients must restart after upgrade so the tool schema cache refreshes.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/sdk@3.0.0-alpha.0
+  - @secondlayer/subgraphs@1.0.0-alpha.0
+  - @secondlayer/scaffold@1.0.1-alpha.0
+  - @secondlayer/bundler@0.3.1-alpha.0
+
 ## 1.1.0
 
 ### Minor Changes

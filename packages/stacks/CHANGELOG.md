@@ -1,5 +1,16 @@
 # @secondlayer/stacks
 
+## 1.0.0-alpha.0
+
+### Major Changes
+
+- Inline `EventTrigger`; drop `@secondlayer/workflows` dependency. Declaring stable (1.0) alongside the product pivot — stacks is the agent-native chain SDK going forward.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@1.0.0-alpha.0
+
 ## 0.3.0
 
 ### Minor Changes

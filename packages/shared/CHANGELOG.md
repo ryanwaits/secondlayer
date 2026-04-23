@@ -1,5 +1,59 @@
 # @secondlayer/shared
 
+## 3.0.0-alpha.0
+
+### Major Changes
+
+- Drop workflow + sentry tables, query helpers, and schemas. Migration 0056 demolishes residual tables (`workflow_runs`, `workflow_steps`, `workflow_queue`, `workflow_ai_usage_daily`, `sentries`, `sentry_alerts`, `tx_confirmed_notify`).
+
+### Minor Changes
+
+- [`c201da9`](https://github.com/ryanwaits/secondlayer/commit/c201da96874da2ed34c3ab854b40344dd94d794c) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Pricing foundation (Sprint A) — switch from 14-day trial to activity-based auto-pause, org-level billing prep.
+
+  - Migration 0046 drops `tenants.trial_ends_at` + index, adds `tenants.last_active_at timestamptz NOT NULL DEFAULT now()` with index `(plan, last_active_at) WHERE status = 'active'`
+  - Migration 0047 adds nullable `tenant_id` to `usage_daily` (+ best-effort backfill for single-tenant accounts), widens the unique key to `(account_id, tenant_id, date)` so Sprint-C Stripe metering can bill per-tenant
+  - `TrialExpiredError` + `TRIAL_EXPIRED` code dropped (dead after trial removal)
+  - New `bumpTenantActivity(slug)` + `listIdleHobbyTenants(idleSince)` query helpers
+  - CLI drops trial-days-left from `sl instance info` and `sl whoami`, drops `TRIAL_EXPIRED` handlers
+
+- [`5da9026`](https://github.com/ryanwaits/secondlayer/commit/5da9026271e4a3c7832af8c14579c2ad3b414db4) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Pricing Sprint C.1 — decouple compute from plan for add-ons.
+
+  - Migration 0048 adds `tenant_compute_addons` table. Each row = one add-on bundle (memory/cpu/storage deltas with optional effective window + Stripe subscription_item_id). Effective compute = plan base + SUM(active deltas).
+  - New `@secondlayer/shared/db/queries/tenant-compute-addons` module: `listActiveAddonsForTenant`, `computeEffectiveCompute(tenantId, base)`.
+  - `@secondlayer/provisioner` breaking changes:
+    - `resizeTenant(slug, planId)` → `resizeTenant(slug, { plan, totalCpus, totalMemoryMb, storageLimitMb })`. Plan stays as a label; sizing is explicit.
+    - `getTenantStatus(slug, plan)` → `getTenantStatus(slug, plan, storageLimitMb)`. Caller passes the effective storage limit from the tenants row.
+    - `rotateTenantKeys` preserves existing container sizing by reading from `docker inspect` instead of recomputing from the plan — so it stays correct for tenants with add-ons.
+    - `POST /tenants/:slug/resize` body shape: `{ plan, totalCpus, totalMemoryMb, storageLimitMb }`.
+    - `GET /tenants/:slug` now reads `storageLimitMb` query param.
+  - New exported `allocForTotals(totalMemoryMb, totalCpus)` from `packages/provisioner/src/plans.ts` — auto-biases to PG-heavy split below 1 GB, default split above.
+  - Platform API `POST /api/tenants/me/resize` now composes plan base + active add-ons via `computeEffectiveCompute` before calling the provisioner. `tenants.cpus/memory_mb/storage_limit_mb` cache the effective values for dashboard + billing.
+  - Add-on CRUD + Stripe wiring land in Sprint C.2/C.3; this sprint is data-model + plumbing only.
+
+- [`0459580`](https://github.com/ryanwaits/secondlayer/commit/04595805ece434021eca8e295c32c14e418d27d8) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Soft spend caps with 80% threshold alerts — the core anti-surprise-bill differentiator.
+
+  - Migration 0050 adds `account_spend_caps` table (one row per account): monthly + per-line (compute/storage/ai) caps in cents, configurable `alert_threshold_pct` (default 80), `frozen_at`, `alert_sent_at`.
+  - New `@secondlayer/shared/db/queries/account-spend-caps` module: `getCaps`, `upsertCaps`, `freezeAccount`, `clearFreeze`, `listFrozenAccountIds`.
+  - Worker cron `spend-cap-alert.ts` runs daily: fetches each paid account's upcoming invoice, sends a Resend email at threshold, sets `frozen_at` at 100%. Alert email debounced per billing cycle via `alert_sent_at` comparison to `period_start`.
+  - Compute + storage metering crons now read `listFrozenAccountIds` at the top of each tick and skip frozen accounts entirely. Capped accounts keep running but stop accruing billable usage until the next cycle.
+  - Stripe `invoice.paid` webhook clears `frozen_at` + `alert_sent_at` on the paying account, unfreezing metering for the new cycle.
+  - Session-authed dashboard endpoints `GET /api/billing/caps` + `PATCH /api/billing/caps`. Raising a monthly cap mid-cycle auto-clears an active freeze (user explicitly said "yes, bill more").
+
+- [`79f04c0`](https://github.com/ryanwaits/secondlayer/commit/79f04c06db14b22b053ac908eb68cbbaaa0d92d2) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Lay Stripe billing foundation on the platform control plane.
+
+  - Migration 0049 adds nullable `accounts.stripe_customer_id` with a partial unique index (ignores NULLs so Hobby users stay out of Stripe entirely — customer records materialize on first upgrade).
+  - New `setStripeCustomerId(accountId, id)` query helper + `stripe_customer_id` on the `Account` type.
+  - Platform API gains a lazy Stripe SDK singleton (`packages/api/src/lib/stripe.ts`), webhook endpoint (`POST /api/webhooks/stripe`) with raw-body signature verification + audit trail, and session-authed billing routes (`POST /api/billing/upgrade`, `GET /api/billing/portal`) that lazy-create the Stripe customer on first upgrade and return Checkout/Portal URLs.
+  - Idempotent setup script (`bun run stripe:setup` in `@secondlayer/api`) upserts one "Secondlayer" product, a Pro monthly price (`$25/mo`, lookup_key `secondlayer_pro_monthly`), and billing meters + metered prices for compute hours, storage GB-months, and AI eval overages. Enterprise remains custom-quoted per deal.
+  - Docker `.env.example` documents the new env surface: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_METER_*`, `STRIPE_PRICE_*_OVERAGE`.
+
+### Patch Changes
+
+- [`9fb9990`](https://github.com/ryanwaits/secondlayer/commit/9fb9990e99bbac053f15e6070a8c3c24da0c7c11) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Drop the marketplace-era columns from `subgraphs` (`is_public`, `tags`, `description`, `forked_from_id`) via migration `0045`. The columns were added by `0022_marketplace` and have been unused since the marketplace feature was removed in 2.1.0. Types updated accordingly.
+
+- Updated dependencies []:
+  - @secondlayer/stacks@1.0.0-alpha.0
+
 ## 2.1.0
 
 ### Minor Changes

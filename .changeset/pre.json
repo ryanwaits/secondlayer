@@ -1,0 +1,39 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@secondlayer/web": "0.1.2",
+    "@secondlayer/agent": "0.2.1",
+    "@secondlayer/api": "1.1.0",
+    "@secondlayer/auth": "0.1.16",
+    "@secondlayer/bundler": "0.3.0",
+    "@secondlayer/clarity-docs": "0.3.6",
+    "@secondlayer/cli": "3.1.1",
+    "@secondlayer/indexer": "1.0.2",
+    "konsole": "0.0.20",
+    "@secondlayer/mcp": "1.1.0",
+    "@secondlayer/provisioner": "0.3.0",
+    "@secondlayer/scaffold": "1.0.0",
+    "@secondlayer/sdk": "2.0.0",
+    "@secondlayer/shared": "2.1.0",
+    "@secondlayer/stacks": "0.3.0",
+    "@secondlayer/subgraphs": "0.11.8",
+    "@secondlayer/worker": "1.0.3"
+  },
+  "changesets": [
+    "caddy-resume-hook",
+    "cli-codegen-docs",
+    "drop-marketplace-columns",
+    "drop-workflows-sentries-mcp",
+    "drop-workflows-sentries-sdk",
+    "drop-workflows-sentries-shared",
+    "drop-workflows-sentries-stacks",
+    "drop-workflows-sentries-subgraphs",
+    "pricing-sprint-a",
+    "pricing-sprint-b",
+    "pricing-sprint-c1",
+    "spend-caps",
+    "stripe-scaffold",
+    "usage-metering"
+  ]
+}

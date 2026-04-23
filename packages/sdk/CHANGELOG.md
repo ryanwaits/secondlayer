@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 3.0.0-alpha.0
+
+### Major Changes
+
+- Drop `sl.sentries` client; subgraphs-only surface. Workflows and sentries packages removed from the repo.
+
+### Patch Changes
+
+- Updated dependencies [[`9fb9990`](https://github.com/ryanwaits/secondlayer/commit/9fb9990e99bbac053f15e6070a8c3c24da0c7c11), [`c201da9`](https://github.com/ryanwaits/secondlayer/commit/c201da96874da2ed34c3ab854b40344dd94d794c), [`5da9026`](https://github.com/ryanwaits/secondlayer/commit/5da9026271e4a3c7832af8c14579c2ad3b414db4), [`0459580`](https://github.com/ryanwaits/secondlayer/commit/04595805ece434021eca8e295c32c14e418d27d8), [`79f04c0`](https://github.com/ryanwaits/secondlayer/commit/79f04c06db14b22b053ac908eb68cbbaaa0d92d2)]:
+  - @secondlayer/shared@3.0.0-alpha.0
+  - @secondlayer/subgraphs@1.0.0-alpha.0
+
 ## 2.0.0
 
 ### Major Changes

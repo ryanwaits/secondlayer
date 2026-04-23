@@ -1,5 +1,12 @@
 # @secondlayer/bundler
 
+## 0.3.1-alpha.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@1.0.0-alpha.0
+
 ## 0.3.0
 
 ### Minor Changes

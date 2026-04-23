@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/indexer",
-	"version": "1.0.2",
+	"version": "1.0.3-alpha.0",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -11,8 +11,8 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^2.0.0",
-		"@secondlayer/stacks": "^0.3.0",
+		"@secondlayer/shared": "^3.0.0-alpha.0",
+		"@secondlayer/stacks": "^1.0.0-alpha.0",
 		"hono": "^4.0.0"
 	},
 	"devDependencies": {
