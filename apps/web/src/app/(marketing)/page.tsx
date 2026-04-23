@@ -15,6 +15,8 @@ const interfaces = [
 
 const foundation = [{ name: "Stacks", href: "/stacks", version: "0.3.0" }];
 
+const resources = [{ name: "Pricing", href: "/pricing" }];
+
 function IndexItem({
 	item,
 }: { item: { name: string; href: string; version?: string } }) {
@@ -65,6 +67,15 @@ export default function HomePage() {
 					<div className="index-year">Foundation</div>
 					<ul className="index-list">
 						{foundation.map((item) => (
+							<IndexItem key={item.href} item={item} />
+						))}
+					</ul>
+				</div>
+
+				<div className="index-year-group">
+					<div className="index-year">Resources</div>
+					<ul className="index-list">
+						{resources.map((item) => (
 							<IndexItem key={item.href} item={item} />
 						))}
 					</ul>

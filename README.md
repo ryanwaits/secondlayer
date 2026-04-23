@@ -1,18 +1,30 @@
 # Secondlayer
 
-Dedicated Stacks indexing and real-time subgraphs. Turn onchain events into
-typed, queryable views of the chain — pick the events your app needs, shape
-them into tables, query over HTTP or GraphQL.
+Agent-native developer tools for Stacks. Dedicated indexing + real-time
+subgraphs + packaged protocol monitoring — all exposed through one API, one
+auth model, and three interchangeable front-ends (CLI, SDK, MCP).
 
-- **Dedicated hosting** — each project gets a managed Postgres + API +
-  subgraph processor. No shared schema, no `api_key_id` filtering, no
-  noisy-neighbor surprises.
-- **Open source** — self-host the whole stack with `docker compose up`, or
-  use the hosted platform at `https://api.secondlayer.tools`.
-- **One surface, three front-ends** — CLI, SDK, and MCP server all hit the
-  same API and share the same auth model.
+Two ways to run it:
 
-## Quickstart
+- **Hosted** — dedicated per-project Postgres + API + subgraph processor.
+  Hobby is free (auto-pauses after 7d idle); paid tiers start at $149/mo.
+  Pricing: [secondlayer.tools/pricing](https://secondlayer.tools/pricing).
+- **Self-host** — the whole stack is MIT-licensed. `docker compose up` gets
+  you indexer + API + processor on your own hardware. See
+  [`docker/oss/README.md`](docker/oss/README.md).
+
+## What's shipped
+
+- **Subgraphs** — `defineSubgraph()` declares event filters + column schema;
+  the processor indexes the chain into a typed Postgres view you query over
+  REST.
+- **Sentries** — packaged monitoring for protocols (whale transfers, admin
+  role changes, contract deployments, custom print events). AI-triaged
+  alerts delivered to a Slack-compatible webhook.
+- **Workflows SDK** — `defineWorkflow()` with three durable step primitives
+  (`step.run`, `step.sleep`, `step.invoke`) for writing your own automation.
+
+## Quickstart (hosted)
 
 ```bash
 bun add -g @secondlayer/cli
@@ -20,7 +32,7 @@ bun add -g @secondlayer/cli
 sl login                            # magic-link email
 sl project create my-app
 sl project use my-app
-sl instance create --plan launch    # provisions a dedicated tenant
+sl instance create --plan hobby     # free tier; upgrade anytime
 sl subgraphs deploy ./my-subgraph.ts
 ```
 
