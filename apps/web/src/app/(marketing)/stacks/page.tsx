@@ -113,8 +113,8 @@ const txId = await callContract(wallet, {
 // Batch multiple reads in one call
 const results = await multicall(publicClient, {
   calls: [
-    { contract: "SP...::token-a", functionName: "get-balance", args: [Cl.standardPrincipal("SP...")] },
-    { contract: "SP...::token-b", functionName: "get-balance", args: [Cl.standardPrincipal("SP...")] },
+    { contract: "SPXXX.token-a", functionName: "get-balance", args: [Cl.standardPrincipal("SP...")] },
+    { contract: "SPXXX.token-b", functionName: "get-balance", args: [Cl.standardPrincipal("SP...")] },
   ],
 })`}
 				/>

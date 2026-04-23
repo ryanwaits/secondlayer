@@ -48,6 +48,7 @@ npx @secondlayer/mcp-http
 | Domain | Tools |
 | --- | --- |
 | **Subgraphs** (6) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy` |
+| **Subscriptions** (7) | `subscriptions_list`, `subscriptions_get`, `subscriptions_create`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_replay`, `subscriptions_recent_deliveries` |
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
 | **Account** (1) | `account_whoami` |
 

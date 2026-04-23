@@ -1,6 +1,6 @@
 # @secondlayer/shared
 
-Foundational utilities for Second Layer services: DB layer (Kysely+Postgres), Zod schemas, HMAC signing, Stacks node clients.
+Foundational utilities for Second Layer services: DB layer (Kysely + postgres-js), Zod schemas, crypto (Standard Webhooks signing, AES-GCM secret envelope), logger, pricing, env/mode utils, Stacks node clients.
 
 ## Testing
 
@@ -36,6 +36,8 @@ DATABASE_URL=... bun run migrate
 | `@secondlayer/shared/env` | Environment config |
 | `@secondlayer/shared/logger` | Logger |
 | `@secondlayer/shared/errors` | Error types |
-| `@secondlayer/shared/crypto` | HMAC signing |
+| `@secondlayer/shared/crypto` | HMAC helpers, Standard Webhooks signing, AES-GCM secret envelope |
+| `@secondlayer/shared/pricing` | Plan definitions + billing helpers |
+| `@secondlayer/shared/mode` | INSTANCE_MODE dispatch (platform / dedicated / oss) |
 | `@secondlayer/shared/node` | Stacks node client |
 | `@secondlayer/shared/node/hiro-pg-client` | Direct PG queries against Hiro DB |

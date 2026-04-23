@@ -8,13 +8,13 @@ const products = [
 ];
 
 const interfaces = [
-	{ name: "CLI", href: "/cli", version: "3.2.0-beta.1" },
-	{ name: "SDK", href: "/sdk", version: "3.0.0-beta.2" },
-	{ name: "MCP", href: "/mcp", version: "2.0.0-beta.1" },
+	{ name: "CLI", href: "/cli", version: "3.2.0" },
+	{ name: "SDK", href: "/sdk", version: "3.0.0" },
+	{ name: "MCP", href: "/mcp", version: "2.0.0" },
 ];
 
 const foundation = [
-	{ name: "Stacks", href: "/stacks", version: "1.0.0-beta.1" },
+	{ name: "Stacks", href: "/stacks", version: "1.0.0" },
 ];
 
 function IndexItem({

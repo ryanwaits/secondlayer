@@ -59,6 +59,12 @@ One instance per project. The platform API spawns a dedicated `sl-pg-{slug}`,
 | `sl instance db add-key <path>` | Upload an SSH pubkey to the bastion |
 | `sl instance db revoke-key` | Revoke your bastion access |
 
+### Create (scaffolders)
+
+| Command | What it does |
+|---|---|
+| `sl create subscription <name> --runtime <inngest\|trigger\|cloudflare\|node>` | Scaffold a receiver project wired to a new subscription. Copies the runtime template into `./<name>/`, provisions the subscription on the active instance, and wires the signing secret so the dev server starts consuming events immediately. |
+
 ### Subgraphs (tenant-scoped)
 
 All tenant-scoped commands auto-mint a 5-minute ephemeral service JWT per

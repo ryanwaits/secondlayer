@@ -1,6 +1,6 @@
 # @secondlayer/api
 
-REST API for Second Layer — subgraphs and workflows.
+REST API for Second Layer — subgraphs and subscriptions.
 
 Base URL: `https://api.secondlayer.tools`
 
@@ -23,6 +23,25 @@ GET    /api/subgraphs/:name          # get
 DELETE /api/subgraphs/:name          # delete
 POST   /api/subgraphs/:name/reindex  # reindex
 GET    /api/subgraphs/:name/:table   # query table
+```
+
+## Subscriptions
+
+Per-row HTTP webhooks from subgraph tables.
+
+```
+GET    /api/subscriptions                       # list
+POST   /api/subscriptions                       # create
+GET    /api/subscriptions/:id                   # get
+PATCH  /api/subscriptions/:id                   # update
+DELETE /api/subscriptions/:id                   # delete
+POST   /api/subscriptions/:id/pause             # pause
+POST   /api/subscriptions/:id/resume            # resume
+POST   /api/subscriptions/:id/rotate-secret     # rotate signing secret
+GET    /api/subscriptions/:id/deliveries        # recent delivery attempts
+GET    /api/subscriptions/:id/dead              # dead-letter outbox rows
+POST   /api/subscriptions/:id/dead/:outboxId/requeue
+POST   /api/subscriptions/:id/replay            # replay a block range
 ```
 
 ## Error Codes

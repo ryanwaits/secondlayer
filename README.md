@@ -17,6 +17,11 @@ Two ways to run it:
 - **Subgraphs** — `defineSubgraph()` declares event filters + column schema;
   the processor indexes the chain into a typed Postgres view you query over
   REST.
+- **Subscriptions** — per-row HTTP webhooks from subgraph tables. Signed
+  Standard Webhooks POSTs, 7× retries with backoff, circuit-breaks at 20
+  consecutive failures, 6 wire formats (`standard-webhooks`, `inngest`,
+  `trigger`, `cloudflare`, `cloudevents`, `raw`), historical replay by
+  block range.
 - **`@secondlayer/stacks`** — viem-style chain SDK: typed contract calls,
   wallets, BNS, AI-SDK `tool({...})` values, broadcast with caps.
 

@@ -153,7 +153,7 @@ sl subgraphs deploy subgraphs/token-transfers.ts
 sl subgraphs dev subgraphs/token-transfers.ts
 
 # Scaffold from a deployed contract's ABI
-sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts
+sl subgraphs scaffold SP1234ABCD.my-contract --output subgraphs/my-contract.ts
 
 # Force reindex
 sl subgraphs reindex token-transfers`}
@@ -172,7 +172,7 @@ sl subgraphs reindex token-transfers`}
 
 				<CodeBlock
 					lang="typescript"
-					code={`const { data, meta } = await client.subgraphs.queryTable(
+					code={`const rows = await client.subgraphs.queryTable(
   "token-transfers",
   "transfers",
   {

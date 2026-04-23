@@ -139,7 +139,7 @@ app.post("/webhooks/sl", async (c) => {
 				<div className="prose">
 					<p>
 						Scalar-only JSON filter, evaluated against each row before delivery.
-						Multiple keys AND together; OR is not supported in v1.
+						Multiple keys AND together; OR is not supported.
 					</p>
 				</div>
 

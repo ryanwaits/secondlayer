@@ -41,15 +41,15 @@ export default function SdkPage() {
 const client = new SecondLayer({ apiKey: "sk-sl_..." })
 
 client.subgraphs       // deploy, query, reindex
-client.subscriptions   // create, list, update, delete`}
+client.subscriptions   // create, list, update, pause, resume, replay, delete`}
 				/>
 
 				<SectionHeading id="subgraphs">Subgraphs</SectionHeading>
 
 				<CodeBlock
 					lang="typescript"
-					code={`// Query a table
-const { data, meta } = await client.subgraphs.queryTable(
+					code={`// Query a table — returns rows directly
+const rows = await client.subgraphs.queryTable(
   "token-transfers",
   "transfers",
   {
@@ -110,20 +110,22 @@ const total = await typed.transfers.count({ sender: { eq: "SP1234..." } })`}
 				<CodeBlock
 					lang="typescript"
 					code={`// Create a subscription
-const sub = await client.subscriptions.create({
-  subgraph: "token-transfers",
-  table: "transfers",
-  event: "insert",                           // insert | update | delete
+const { subscription, signingSecret } = await client.subscriptions.create({
+  name: "whale-alerts",
+  subgraphName: "token-transfers",
+  tableName: "transfers",
   url: "https://example.com/hooks/transfers",
   format: "standard-webhooks",               // default
   filter: { amount: { gte: "1000000000" } }, // scalar DSL
 })
 
-console.log(sub.signingSecret)               // use to verify signatures
+console.log(signingSecret)                   // returned ONCE — store server-side
 
-await client.subscriptions.list({ subgraph: "token-transfers" })
-await client.subscriptions.update(sub.id, { paused: true })
-await client.subscriptions.delete(sub.id)`}
+await client.subscriptions.list()
+await client.subscriptions.pause(subscription.id)
+await client.subscriptions.resume(subscription.id)
+await client.subscriptions.update(subscription.id, { url: "https://..." })
+await client.subscriptions.delete(subscription.id)`}
 				/>
 
 				<SectionHeading id="error-handling">Error handling</SectionHeading>

@@ -92,7 +92,7 @@ sl subgraphs status token-transfers
 sl subgraphs query token-transfers transfers --sort _block_height --order desc
 sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
 sl subgraphs reindex token-transfers
-sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts
+sl subgraphs scaffold SP1234ABCD.my-contract --output subgraphs/my-contract.ts
 sl subgraphs delete token-transfers`}
 					lang="bash"
 				/>
