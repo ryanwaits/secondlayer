@@ -124,6 +124,8 @@ const PLATFORM_PATHS = [
 	"/api/chat-sessions/*",
 	"/api/tenants",
 	"/api/tenants/*",
+	"/api/sentries",
+	"/api/sentries/*",
 	"/api/auth/logout",
 ];
 
