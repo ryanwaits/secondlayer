@@ -7,7 +7,7 @@ const toc: TocItem[] = [
 	{ label: "Getting started", href: "#getting-started" },
 	{ label: "Subgraphs", href: "#subgraphs" },
 	{ label: "Typed subgraphs", href: "#typed-subgraphs" },
-	{ label: "Workflows", href: "#workflows" },
+	{ label: "Subscriptions", href: "#subscriptions" },
 	{ label: "Error handling", href: "#error-handling" },
 ];
 
@@ -23,9 +23,9 @@ export default function SdkPage() {
 
 				<div className="prose">
 					<p>
-						Both primitives as a TypeScript client. Deploy subgraphs, query
-						tables, trigger workflows — same auth, same operations as the CLI
-						and MCP server.
+						A TypeScript client for the platform. Deploy subgraphs, query
+						tables, manage row-change subscriptions — same auth, same
+						operations as the CLI and MCP server.
 					</p>
 					<p>
 						Install with <code>bun add @secondlayer/sdk</code>.
@@ -40,8 +40,8 @@ export default function SdkPage() {
 
 const client = new SecondLayer({ apiKey: "sk-sl_..." })
 
-client.subgraphs    // deploy, query, reindex
-client.workflows    // deploy, trigger, manage`}
+client.subgraphs       // deploy, query, reindex
+client.subscriptions   // create, list, update, delete`}
 				/>
 
 				<SectionHeading id="subgraphs">Subgraphs</SectionHeading>
@@ -94,32 +94,36 @@ const rows = await typed.transfers.findMany({
 const total = await typed.transfers.count({ sender: { eq: "SP1234..." } })`}
 				/>
 
-				<SectionHeading id="workflows">Workflows</SectionHeading>
+				<SectionHeading id="subscriptions">Subscriptions</SectionHeading>
+
+				<div className="prose">
+					<p>
+						Subscribe to row changes on any subgraph table. The emitter POSTs
+						signed payloads (Standard Webhooks by default — verify with any
+						Svix library) with retries and a per-subscription circuit breaker.
+						Supported wire formats: <code>standard-webhooks</code>,{" "}
+						<code>inngest</code>, <code>trigger</code>, <code>cloudflare</code>,
+						<code>cloudevents</code>, <code>raw</code>.
+					</p>
+				</div>
 
 				<CodeBlock
 					lang="typescript"
-					code={`import { SecondLayer, VersionConflictError } from "@secondlayer/sdk"
+					code={`// Create a subscription
+const sub = await client.subscriptions.create({
+  subgraph: "token-transfers",
+  table: "transfers",
+  event: "insert",                           // insert | update | delete
+  url: "https://example.com/hooks/transfers",
+  format: "standard-webhooks",               // default
+  filter: { amount: { gte: "1000000000" } }, // scalar DSL
+})
 
-// Deploy
-try {
-  const result = await client.workflows.deploy({
-    name: "whale-alerts",
-    trigger: { type: "event", filter: { type: "stx_transfer" } },
-    handlerCode: bundledCode,
-    sourceCode: tsSource,
-    expectedVersion: "1.0.3",  // 409 if stale
-  })
-  console.log(result.version)  // "1.0.4"
-} catch (err) {
-  if (err instanceof VersionConflictError) {
-    console.log("current is", err.currentVersion)
-  }
-}
+console.log(sub.signingSecret)               // use to verify signatures
 
-// Trigger a manual run
-const { runId } = await client.workflows.trigger("whale-alerts", {
-  contractId: "SP1234...",
-})`}
+await client.subscriptions.list({ subgraph: "token-transfers" })
+await client.subscriptions.update(sub.id, { paused: true })
+await client.subscriptions.delete(sub.id)`}
 				/>
 
 				<SectionHeading id="error-handling">Error handling</SectionHeading>

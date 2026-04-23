@@ -21,8 +21,9 @@ export default function McpPage() {
 				<div className="prose">
 					<p>
 						The same operations as the CLI and SDK, exposed as MCP tools — so
-						any agent that speaks MCP can deploy subgraphs, trigger workflows,
-						query data, and scaffold from contracts without leaving its loop.
+						any agent that speaks MCP can deploy subgraphs, manage
+						subscriptions, query data, and scaffold from contracts without
+						leaving its loop.
 					</p>
 					<p>
 						Install with <code>bun add @secondlayer/mcp</code>.
@@ -105,30 +106,34 @@ export default function McpPage() {
 						</span>
 					</div>
 
-					<div className="props-group-title">Workflows</div>
+					<div className="props-group-title">Subscriptions</div>
 					<div className="prop-row">
-						<span className="prop-name">workflows_list</span>
-						<span className="prop-type">List deployed workflows</span>
+						<span className="prop-name">subscriptions_list</span>
+						<span className="prop-type">List subscriptions for a subgraph</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">workflows_get</span>
-						<span className="prop-type">Get workflow details</span>
+						<span className="prop-name">subscriptions_get</span>
+						<span className="prop-type">Get subscription details</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">workflows_trigger</span>
-						<span className="prop-type">Trigger a run with optional input</span>
+						<span className="prop-name">subscriptions_create</span>
+						<span className="prop-type">
+							Create a webhook subscription with filter + wire format
+						</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">workflows_runs</span>
-						<span className="prop-type">List run history</span>
+						<span className="prop-name">subscriptions_update</span>
+						<span className="prop-type">Pause, resume, or edit a subscription</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">workflows_pause</span>
-						<span className="prop-type">Pause a workflow</span>
+						<span className="prop-name">subscriptions_delete</span>
+						<span className="prop-type">Delete a subscription</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">workflows_resume</span>
-						<span className="prop-type">Resume a workflow</span>
+						<span className="prop-name">subscriptions_deliveries</span>
+						<span className="prop-type">
+							List recent delivery attempts with status codes
+						</span>
 					</div>
 
 					<div className="props-group-title">Scaffold</div>

@@ -9,6 +9,7 @@ const toc: TocItem[] = [
 	{ label: "Project", href: "#project" },
 	{ label: "Instance", href: "#instance" },
 	{ label: "Subgraphs", href: "#subgraphs" },
+	{ label: "Subscriptions", href: "#subscriptions" },
 ];
 
 export default function CliPage() {
@@ -93,6 +94,30 @@ sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
 sl subgraphs reindex token-transfers
 sl subgraphs scaffold SP1234...::my-contract --output subgraphs/my-contract.ts
 sl subgraphs delete token-transfers`}
+					lang="bash"
+				/>
+
+				<SectionHeading id="subscriptions">Subscriptions</SectionHeading>
+
+				<CodeBlock
+					code={`# Scaffold a receiver project for your runtime of choice.
+sl create subscription whale-alerts --runtime inngest
+sl create subscription whale-alerts --runtime trigger
+sl create subscription whale-alerts --runtime cloudflare
+sl create subscription whale-alerts --runtime node
+
+# Manage subscriptions on a deployed subgraph.
+sl subscriptions create token-transfers transfers \\
+  --event insert \\
+  --url https://example.com/hooks/transfers \\
+  --format standard-webhooks \\
+  --filter 'amount.gte=1000000000'
+
+sl subscriptions list token-transfers
+sl subscriptions pause <id>
+sl subscriptions resume <id>
+sl subscriptions deliveries <id>    # recent attempts + status
+sl subscriptions delete <id>`}
 					lang="bash"
 				/>
 			</main>

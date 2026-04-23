@@ -24,6 +24,10 @@
 		"./runtime/source-matcher": {
 			"types": "./dist/src/runtime/source-matcher.d.ts",
 			"import": "./dist/src/runtime/source-matcher.js"
+		},
+		"./runtime/replay": {
+			"types": "./dist/src/runtime/replay.d.ts",
+			"import": "./dist/src/runtime/replay.js"
 		}
 	},
 	"files": [

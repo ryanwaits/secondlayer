@@ -16,6 +16,7 @@ import type {
 	SubscriptionFormat,
 	SubscriptionRuntime,
 } from "@secondlayer/shared/db";
+import { replaySubscription } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -322,6 +323,99 @@ app.get("/:id/deliveries", async (c) => {
 			dispatchedAt: r.dispatched_at.toISOString(),
 		})),
 	});
+});
+
+// ── GET /api/subscriptions/:id/dead — DLQ preview ──────────────────────
+
+app.get("/:id/dead", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+
+	const rows = await getDb()
+		.selectFrom("subscription_outbox")
+		.selectAll()
+		.where("subscription_id", "=", sub.id)
+		.where("status", "=", "dead")
+		.orderBy("failed_at", "desc")
+		.limit(100)
+		.execute();
+	return c.json({
+		data: rows.map((r) => ({
+			id: r.id,
+			eventType: r.event_type,
+			attempt: r.attempt,
+			blockHeight: Number(r.block_height),
+			txId: r.tx_id,
+			payload: r.payload,
+			failedAt: r.failed_at?.toISOString() ?? null,
+			createdAt: r.created_at.toISOString(),
+		})),
+	});
+});
+
+// ── POST /api/subscriptions/:id/dead/:outboxId/requeue ─────────────────
+
+app.post("/:id/dead/:outboxId/requeue", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+
+	const res = await getDb()
+		.updateTable("subscription_outbox")
+		.set({
+			status: "pending",
+			attempt: 0,
+			next_attempt_at: new Date(),
+			failed_at: null,
+			locked_by: null,
+			locked_until: null,
+		})
+		.where("id", "=", c.req.param("outboxId"))
+		.where("subscription_id", "=", sub.id)
+		.where("status", "=", "dead")
+		.executeTakeFirst();
+	const ok = Number(res.numUpdatedRows ?? 0) > 0;
+	if (!ok) return c.json({ error: "Dead row not found" }, 404);
+	return c.json({ ok: true });
+});
+
+// ── POST /api/subscriptions/:id/replay ──────────────────────────────────
+
+app.post("/:id/replay", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	let body: Record<string, unknown>;
+	try {
+		body = await c.req.json();
+	} catch {
+		throw new InvalidJSONError();
+	}
+	const fromBlock = Number(body.fromBlock);
+	const toBlock = Number(body.toBlock);
+	if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) {
+		return c.json(
+			{ error: "fromBlock and toBlock required (numbers)" },
+			400,
+		);
+	}
+
+	try {
+		const result = await replaySubscription({
+			accountId,
+			subscriptionId: c.req.param("id"),
+			fromBlock,
+			toBlock,
+		});
+		return c.json(result, 202);
+	} catch (err) {
+		const msg = getErrorMessage(err);
+		const status = msg === "Subscription not found" ? 404 : 400;
+		return c.json({ error: msg }, status);
+	}
 });
 
 // ── DELETE /api/subscriptions/:id ───────────────────────────────────────

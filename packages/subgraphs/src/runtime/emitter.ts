@@ -33,6 +33,7 @@ import { refreshMatcher } from "./subscription-state.ts";
  */
 
 const BATCH_SIZE = 50;
+const LIVE_SHARE = 0.9; // 90% of batch to non-replay, 10% to replay
 const BACKOFF_SECONDS = [30, 120, 600, 3600, 21600, 86400, 259200];
 const CIRCUIT_THRESHOLD = 20;
 
@@ -190,18 +191,33 @@ async function claimAndDrain(
 	state.claimInFlight = true;
 	try {
 		// FOR UPDATE SKIP LOCKED — multiple emitters split the batch.
+		// 90/10 live vs replay so a big replay doesn't starve live emits.
+		const liveLimit = Math.max(1, Math.round(BATCH_SIZE * LIVE_SHARE));
+		const replayLimit = BATCH_SIZE - liveLimit;
 		const claimed = await db
 			.transaction()
 			.execute(async (tx) => {
-				const rows = await sql<SubscriptionOutbox>`
+				const live = await sql<SubscriptionOutbox>`
 					SELECT * FROM subscription_outbox
-					WHERE status = 'pending' AND next_attempt_at <= NOW()
+					WHERE status = 'pending'
+						AND next_attempt_at <= NOW()
+						AND is_replay = FALSE
 					ORDER BY next_attempt_at ASC
 					FOR UPDATE SKIP LOCKED
-					LIMIT ${sql.lit(BATCH_SIZE)}
+					LIMIT ${sql.lit(liveLimit)}
+				`.execute(tx);
+				const replay = await sql<SubscriptionOutbox>`
+					SELECT * FROM subscription_outbox
+					WHERE status = 'pending'
+						AND next_attempt_at <= NOW()
+						AND is_replay = TRUE
+					ORDER BY next_attempt_at ASC
+					FOR UPDATE SKIP LOCKED
+					LIMIT ${sql.lit(replayLimit)}
 				`.execute(tx);
 
-				if (rows.rows.length === 0) return [];
+				const combined = [...live.rows, ...replay.rows];
+				if (combined.length === 0) return [];
 
 				const now = new Date();
 				const lockUntil = new Date(now.getTime() + 60_000); // 1-minute lock window
@@ -211,10 +227,10 @@ async function claimAndDrain(
 					.where(
 						"id",
 						"in",
-						rows.rows.map((r) => r.id),
+						combined.map((r) => r.id),
 					)
 					.execute();
-				return rows.rows;
+				return combined;
 			});
 
 		if (claimed.length === 0) return 0;

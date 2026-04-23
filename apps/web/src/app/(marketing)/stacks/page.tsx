@@ -11,13 +11,9 @@ const toc: TocItem[] = [
 	{ label: "Transfers", href: "#transfers" },
 	{ label: "Subscriptions", href: "#subscriptions" },
 	{ label: "BNS", href: "#bns" },
-	{ label: "In workflows", href: "#in-workflows" },
+	{ label: "For agents", href: "#for-agents" },
 	{ label: "Tools", href: "#tools" },
 	{ label: "Bitcoin tools", href: "#btc-tools" },
-	{ label: "Triggers", href: "#triggers" },
-	{ label: "Tx intents", href: "#tx" },
-	{ label: "UI schemas", href: "#ui-schemas" },
-	{ label: "UI atoms", href: "#ui" },
 ];
 
 export default function StacksPage() {
@@ -185,13 +181,12 @@ const txId = await walletWithBns.bns.claimFast({
 })`}
 				/>
 
-				<SectionHeading id="in-workflows">In workflows</SectionHeading>
+				<SectionHeading id="for-agents">For agents</SectionHeading>
 
 				<div className="prose">
 					<p>
-						Subpaths built for workflows: AI-SDK tools, typed event triggers,
-						unsigned tx intents for <code>broadcast()</code>, and React-free
-						schemas plus atoms for dashboard rendering.
+						Subpaths built for agents: AI-SDK tools for Stacks reads and
+						Bitcoin-side lookups. Pass them straight to any model call.
 					</p>
 				</div>
 
@@ -200,7 +195,7 @@ const txId = await walletWithBns.bns.claimFast({
 				<div className="prose">
 					<p>
 						Twelve read-only tools compatible with AI SDK v6. Pass them straight
-						to <code>step.generateText</code> so models can query balances,
+						to <code>generateText</code> so models can query balances,
 						contracts, transactions, and BNS on their own.
 					</p>
 				</div>
@@ -216,7 +211,7 @@ const txId = await walletWithBns.bns.claimFast({
   getAccountHistory,
 } from "@secondlayer/stacks/tools"
 
-const { text } = await step.generateText("analyze", {
+const { text } = await generateText({
   model: anthropic("claude-sonnet-4-6"),
   tools: { getStxBalance, readContract, bnsResolve },
   prompt: "What's alice.btc's STX balance and recent activity?",
@@ -228,8 +223,7 @@ const { text } = await step.generateText("analyze", {
 				<div className="prose">
 					<p>
 						Five Bitcoin-side reads for sBTC flows and confirmation tracking.
-						Same AI-SDK shape — drop into any <code>step.generateText</code>{" "}
-						call.
+						Same AI-SDK shape — drop into any <code>generateText</code> call.
 					</p>
 				</div>
 
@@ -241,97 +235,6 @@ const { text } = await step.generateText("analyze", {
   btcFeeEstimate,
   btcBlockHeight,
 } from "@secondlayer/stacks/tools/btc"`}
-				/>
-
-				<SectionHeading id="triggers">Triggers</SectionHeading>
-
-				<div className="prose">
-					<p>
-						Typed <code>on.*</code> helpers for workflow event filters. Each
-						returns a narrowed event type so the handler gets exact fields for
-						the match.
-					</p>
-				</div>
-
-				<CodeBlock
-					code={`import { on } from "@secondlayer/stacks/triggers"
-
-export default defineWorkflow({
-  name: "big-transfers",
-  trigger: on.stxTransfer({ minAmount: 100_000_000_000n }),
-  handler: async ({ event, step }) => {
-    // event is typed: { sender, recipient, amount, memo, ... }
-  },
-})
-
-// Other helpers
-on.contractCall({ contractId: "SP...::pool", functionName: "swap" })
-on.nftMint({ assetIdentifier: "SP...::collection" })`}
-				/>
-
-				<SectionHeading id="tx">Tx intents</SectionHeading>
-
-				<div className="prose">
-					<p>
-						Unsigned transaction intents — plain objects consumed by workflow{" "}
-						<code>broadcast()</code> (or signed manually). No keys in the
-						workflow; signing happens at the edge.
-					</p>
-				</div>
-
-				<CodeBlock
-					code={`import { tx } from "@secondlayer/stacks/tx"
-
-const intent = tx.transfer({
-  recipient: "SP5678...",
-  amount: 1_000_000n,
-  memo: "payout",
-})
-
-await step.broadcast("send", intent)
-
-// Also: tx.contractCall, tx.deploy, tx.multisend`}
-				/>
-
-				<SectionHeading id="ui-schemas">UI schemas</SectionHeading>
-
-				<div className="prose">
-					<p>
-						React-free Zod schemas describing renderable values — addresses,
-						amounts, tx statuses, BNS names. Workflows return these in
-						json-render catalogs; the dashboard resolves them to atoms.
-					</p>
-				</div>
-
-				<CodeBlock
-					code={`import { AddressProps, AmountProps, TxStatusProps } from "@secondlayer/stacks/ui/schemas"
-
-// Props are Zod schemas — use them to validate/serialize render payloads.
-const payload = {
-  from: AddressProps.parse({ value: "SP1234..." }),
-  value: AmountProps.parse({ value: 1_000_000n, token: "STX" }),
-  status: TxStatusProps.parse({ txId: "0xabc..." }),
-}`}
-				/>
-
-				<SectionHeading id="ui">UI atoms</SectionHeading>
-
-				<div className="prose">
-					<p>
-						React components that render the schemas above: <code>Address</code>
-						, <code>Amount</code>, <code>TxStatus</code>, <code>Principal</code>
-						, <code>BnsName</code>, <code>NftAsset</code>,{" "}
-						<code>BlockHeight</code>, <code>Token</code>. Used by the dashboard
-						runtime and available for custom views.
-					</p>
-				</div>
-
-				<CodeBlock
-					code={`import { Address, Amount, TxStatus } from "@secondlayer/stacks/ui"
-
-<Address value="SP1234..." />
-<Amount value={1_000_000n} token="STX" />
-<TxStatus txId="0xabc..." />`}
 				/>
 			</main>
 		</div>
