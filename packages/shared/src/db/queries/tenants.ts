@@ -98,9 +98,9 @@ export async function listTenantsByStatus(
 }
 
 /**
- * Tenants considered "idle" for auto-pause on the Hobby tier. Active = any
- * successful tenant-API query OR workflow run wrote `last_active_at` within
- * the threshold.
+ * Tenants considered "idle" for auto-pause on the Hobby tier. Active =
+ * any successful tenant-API request bumped `last_active_at` within the
+ * threshold.
  */
 export async function listIdleHobbyTenants(
 	db: Kysely<Database>,
@@ -117,8 +117,8 @@ export async function listIdleHobbyTenants(
 
 /**
  * Bump `last_active_at` for a tenant. Callers are expected to throttle
- * (don't hammer on every request) — the activity middleware + workflow-
- * runner enforce a 60s per-tenant min between writes.
+ * (don't hammer on every request) — the tenant-API activity middleware
+ * enforces a 60s per-tenant min between writes.
  */
 export async function bumpTenantActivity(
 	db: Kysely<Database>,

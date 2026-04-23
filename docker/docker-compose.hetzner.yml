@@ -36,7 +36,6 @@ services:
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
-      - ${DATA_DIR:-/opt/secondlayer/data}/workflows:/data/workflows
     deploy:
       resources:
         limits:

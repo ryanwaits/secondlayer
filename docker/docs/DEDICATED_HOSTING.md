@@ -138,7 +138,7 @@ Example for a Launch tenant (2 GB, 1 vCPU):
 - Processor: 614 MB, 0.3 vCPU
 - API: 409 MB, 0.2 vCPU
 
-Worker containers are **not** per-tenant — there's one shared worker on the app server that runs tenant-trial + tenant-health crons. Worker jobs were descoped from the per-tenant model (see `packages/shared/migrations/0038_drop_workflow_tables.ts` — workflows went on the back burner, simplifying the tenant footprint).
+Worker containers are **not** per-tenant — there's one shared worker on the app server that runs tenant-trial + tenant-health crons. The per-tenant footprint is Postgres + API + subgraph processor only.
 
 Allocations computed by `alloc()` in `packages/provisioner/src/plans.ts:35-50`.
 
@@ -466,7 +466,7 @@ Order:
 | 2 | `exec bash ...` (re-exec self) | Avoids bash buffering old script content against new compose files |
 | 3 | `docker compose build --no-cache api indexer worker agent migrate` + platform-profile `provisioner` | Rebuild images |
 | 4 | `docker compose stop api agent worker` | Only services that hold locks on migrated tables. Indexer stays up (its tables — blocks/transactions/events/index_progress — are independent of control-plane tables that migrations touch). |
-| 5 | `docker rm -f secondlayer-view-processor-1 secondlayer-workflow-runner-1` | Force-remove orphan containers from removed services — old workflow-runner, etc. |
+| 5 | `docker rm -f secondlayer-view-processor-1` | Force-remove orphan containers from removed services. |
 | 6 | `docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com.docker.compose.service=migrate" -q \| xargs -r docker rm -f` | Zombie migrate containers from prior deploys killed by SSH timeout — hold kysely's advisory migration lock. |
 | 7 | `pg_terminate_backend(pid)` for every non-self session | TCP-half-closed session cleanup. Indexer (which we kept running) auto-reconnects. |
 | 8 | `docker compose run --rm migrate` | Migrations. The migrate entrypoint sets `statement_timeout=60s` + `lock_timeout=30s` so failure is loud and quick. |

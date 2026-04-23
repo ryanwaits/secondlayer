@@ -449,7 +449,7 @@ app.post("/me/keys/rotate", async (c) => {
 // Auto-resume: if the tenant is a Hobby instance that was auto-paused for
 // idleness, resume it BEFORE minting. Every tenant-scoped CLI command
 // passes through this endpoint, so a paused Hobby tenant transparently
-// wakes up on the user's next `sl subgraphs list` / `sl workflows run` /
+// wakes up on the user's next `sl subgraphs list` / dashboard access /
 // etc. Paid-tier suspensions (manual `sl instance suspend`) are not
 // auto-resumed — that was a deliberate user action.
 

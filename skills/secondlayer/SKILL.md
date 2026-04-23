@@ -2,9 +2,10 @@
 name: secondlayer
 description: Install, configure, and build on Second Layer — a Stacks blockchain
   indexing platform. Use this skill when scaffolding/deploying subgraphs (custom
-  indexers), authoring workflows, querying indexed data, or managing API keys.
-  Triggers on tasks involving Stacks blockchain data, custom indexers, workflows,
-  blockchain event filtering, or the `secondlayer` CLI (`sl` shorthand).
+  indexers), wiring per-row HTTP subscriptions, querying indexed data, or
+  managing API keys. Triggers on tasks involving Stacks blockchain data, custom
+  indexers, webhooks/subscriptions, blockchain event filtering, or the
+  `secondlayer` CLI (`sl` shorthand).
 license: MIT
 metadata:
   author: secondlayer
@@ -13,14 +14,17 @@ metadata:
 
 # Second Layer
 
-Stacks blockchain indexing platform. Two primitives:
+Stacks blockchain indexing platform. One core primitive + one delivery channel:
 
-| | Subgraphs | Workflows |
-|--|-----------|-----------|
-| **Model** | Indexes events into SQL tables you query via REST | Event- or cron-driven handlers with memoized steps |
-| **Use when** | Historical queries (dashboards, APIs, analytics) | Reactions, notifications, AI analysis, delivery |
-| **Define with** | TypeScript (`defineSubgraph` + handlers) | TypeScript (`defineWorkflow` + steps) |
-| **State** | Persisted tables | Memoized step outputs per run |
+- **Subgraphs** — typed on-chain indexing. `defineSubgraph()` declares event
+  filters + column schema; the processor indexes the chain into typed Postgres
+  tables you query over REST or SQL.
+- **Subscriptions** — per-row HTTP webhooks from subgraph tables. Every insert
+  atomically enqueues an outbox row for each matching subscription; the emitter
+  delivers signed POSTs with retries + circuit breaker. Six wire formats
+  (`standard-webhooks`, `inngest`, `trigger`, `cloudflare`, `cloudevents`,
+  `raw`). Subscriptions depend on subgraphs — create the subgraph first, then
+  subscribe its tables to whatever runtime consumes events.
 
 ## Install & Auth
 
@@ -52,7 +56,7 @@ secondlayer auth keys rotate              # rotate active key
 
 ## Event Filters
 
-Subgraphs and workflows both match on-chain activity with the same filter types. Common patterns:
+Both subgraph sources and subscription filters use the same scalar filter DSL for on-chain activity. Common patterns:
 
 ```typescript
 // STX transfers over 100 STX
@@ -419,7 +423,7 @@ secondlayer subgraphs generate my-subgraph -o src/subgraphs/my-subgraph-client.t
 
 ## MCP Server
 
-`@secondlayer/mcp` exposes all platform tools to AI agents via MCP (Model Context Protocol). Tools + 3 resources across subgraphs, workflows, scaffold, templates, and account.
+`@secondlayer/mcp` exposes all platform tools to AI agents via MCP (Model Context Protocol). Tools + 2 resources across subgraphs, subscriptions, scaffold, and account.
 
 ### Setup — IDE (stdio)
 
@@ -444,7 +448,7 @@ Add to your MCP client config (Claude Desktop, Cursor, VS Code):
 ```bash
 export SECONDLAYER_API_KEY=sl_live_...
 export SECONDLAYER_MCP_SECRET=your-bearer-secret
-npx @secondlayer/mcp-http
+npx -p @secondlayer/mcp mcp-http
 # Listening on port 3100
 ```
 
@@ -454,10 +458,9 @@ Endpoint: `POST/GET/DELETE /mcp`. Auth via `Authorization: Bearer <secret>`. Ses
 
 | Domain | Tools |
 |--------|-------|
-| Subgraphs | `list`, `get`, `query`, `reindex`, `delete`, `deploy` |
-| Workflows | `list`, `get`, `trigger`, `pause`, `resume`, `runs` |
+| Subgraphs | `list`, `get`, `query`, `reindex`, `delete`, `deploy`, `read_source` |
+| Subscriptions | `list`, `get`, `create`, `update`, `delete`, `replay`, `recent_deliveries` |
 | Scaffold | `from_contract`, `from_abi` |
-| Templates | `list`, `get` |
 | Account | `whoami` |
 
 `subgraphs_query` supports `fields` (column projection), `count` (row count), and filter operators (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`). Max limit: 200.
@@ -468,7 +471,6 @@ Endpoint: `POST/GET/DELETE /mcp`. Auth via `Authorization: Bearer <secret>`. Ses
 |-----|-------------|
 | `secondlayer://filters` | Filter types reference |
 | `secondlayer://column-types` | Column type mappings and options |
-| `secondlayer://templates` | Available subgraph templates |
 
 ### MCP Error Handling
 

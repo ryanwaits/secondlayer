@@ -5,9 +5,9 @@ import subgraphsRouter from "../src/routes/subgraphs.ts";
 
 /**
  * Integration tests for POST /api/subgraphs/bundle — the server-side bundler
- * that powers the web chat authoring loop for subgraphs. Mirrors
- * workflows-bundle.test.ts: mount the router behind a tiny stand-in middleware
- * so `getApiKeyId(c)` succeeds without touching the real auth stack.
+ * that powers the web chat authoring loop for subgraphs. Mount the router
+ * behind a tiny stand-in middleware so `getApiKeyId(c)` succeeds without
+ * touching the real auth stack.
  */
 
 type TestVariables = {

@@ -5,23 +5,21 @@ For day-to-day operations, see [docker/docs/OPERATIONS.md](docker/docs/OPERATION
 ## Architecture
 
 ```
-Internet → Caddy (:443) → API (:3800) ← Subgraph Processor
+Internet → Caddy (:443) → API (:3800) ← Subgraph Processor + Emitter
                                               │
 Stacks Node ──event observer──→ Indexer (:3700) → Postgres
-                                     │                 ↑
-                               Tip Follower     Workflow Runner
-                            (Hiro remote fallback)  (AI, MCP, delivery)
+                                     │
+                               Tip Follower (Hiro remote fallback)
 ```
 
 | Service | Port | Description |
 |---------|------|-------------|
 | **Stacks Node** | 20443/20444 | Full node, pushes blocks via event observer |
 | **Indexer** | 3700 | Receives blocks, parses txs/events, stores in DB |
-| **API** | 3800 | REST API for subgraphs and workflows |
-| **Subgraph Processor** | — | Computes subgraphs |
-| **Postgres** | 5432 | Stores blocks, transactions, events |
+| **API** | 3800 | REST API for subgraphs + subscriptions |
+| **Subgraph Processor** | — | Indexes blocks, runs subgraph handlers, drives the subscription emitter |
+| **Postgres** | 5432 | Stores blocks, transactions, events, subgraph tables, subscription outbox |
 | **Caddy** | 80/443 | TLS termination, reverse proxy |
-| **Workflow Runner** | — | Executes workflow steps (AI, MCP, delivery) |
 | **Agent** | 3900 | AI DevOps monitoring + Slack alerts |
 
 ### Block Data Flow
@@ -48,10 +46,6 @@ HIRO_API_URL=https://api.mainnet.hiro.so
 HIRO_API_KEY=                    # Optional, for better rate limits
 ENABLE_TX_DECODE_FALLBACK=false  # Hit Hiro API for decode failures
 BACKFILL_SOURCE=hiro             # "local" for reprocessing from own DB
-
-# Workflow Runner
-WORKFLOW_CONCURRENCY=5
-ANTHROPIC_API_KEY=              # Required for step.ai()
 
 # API
 PORT=3800
@@ -132,9 +126,9 @@ See individual service setup:
 1. **PostgreSQL** — Render managed DB
 2. **API** — Web Service, Docker target `api`, port 10000
 3. **Indexer** — Web Service, Docker target `indexer`, port 10000
-4. **Workflow Runner** — Background Worker, Docker target `workflow-runner`
+4. **Subgraph Processor** — Background Worker, Docker target `processor`
 
-All need `DATABASE_URL`. The indexer needs a public URL for event observer. The workflow runner needs `ANTHROPIC_API_KEY` for AI steps.
+All need `DATABASE_URL`. The indexer needs a public URL for event observer.
 
 ---
 

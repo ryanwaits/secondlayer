@@ -48,9 +48,9 @@ $COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
 # Force-remove orphan containers from removed/renamed services. These are
 # live containers from older deploys whose service no longer exists in the
 # compose files — `docker compose stop` misses them. Without this, an
-# orphan (e.g. old workflow-runner) can hold locks on tables migrations
-# want to drop or alter, causing indefinite hangs.
-docker rm -f secondlayer-view-processor-1 secondlayer-workflow-runner-1 2>/dev/null || true
+# orphan can hold locks on tables migrations want to drop or alter,
+# causing indefinite hangs.
+docker rm -f secondlayer-view-processor-1 2>/dev/null || true
 
 # Force-remove any zombie one-off migrate containers from prior deploys.
 # If a previous `docker compose run --rm migrate` was killed mid-flight by

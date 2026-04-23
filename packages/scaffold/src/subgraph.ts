@@ -190,13 +190,19 @@ export function generateSubgraphCode(
 
 	const schemaBlock = tableDefs.join(",\n");
 
-	const sourceEntries: string[] = [`{ contract: '${contractId}' }`];
-
+	// `defineSubgraph` expects `sources` keyed by handler name + `handlers`
+	// keyed by the same name. Each event gets a `print_event` filter; each
+	// public function gets a `contract_call` filter. The key is the table
+	// name (snake-case), which is also what the handler inserts into.
+	const sourceEntries: string[] = [];
 	const handlerEntries: string[] = [];
 
 	if (hasEvents) {
 		for (const ev of events) {
 			const tableName = toSnake(ev.name);
+			sourceEntries.push(
+				`    ${tableName}: { type: 'print_event', contractId: '${contractId}', topic: '${ev.name}' }`,
+			);
 			let insertCall: string;
 			if (isAbiTuple(ev.value)) {
 				insertCall = buildInsertCall(tableName, ev.value.tuple);
@@ -204,26 +210,32 @@ export function generateSubgraphCode(
 				insertCall = `      ctx.insert('${tableName}', {\n        value: event.value,\n      });`;
 			}
 			handlerEntries.push(
-				`    '${contractId}::${ev.name}': async (event, ctx) => {\n${insertCall}\n    }`,
+				`    ${tableName}: async (event, ctx) => {\n${insertCall}\n    }`,
 			);
 		}
 	}
 
 	for (const fn of publicFunctions) {
 		const tableName = toSnake(fn.name);
+		sourceEntries.push(
+			`    ${tableName}: { type: 'contract_call', contractId: '${contractId}', functionName: '${fn.name}' }`,
+		);
 		const insertCall = buildInsertCall(tableName, fn.args);
 		handlerEntries.push(
-			`    '${contractId}::${fn.name}': async (event, ctx) => {\n${insertCall}\n    }`,
+			`    ${tableName}: async (event, ctx) => {\n${insertCall}\n    }`,
 		);
 	}
 
+	const sourcesBlock = sourceEntries.join(",\n");
 	const handlersBlock = handlerEntries.join(",\n\n");
 
 	return `import { defineSubgraph } from '@secondlayer/subgraphs';
 
 export default defineSubgraph({
   name: '${name}',
-  sources: [${sourceEntries.join(", ")}],
+  sources: {
+${sourcesBlock}
+  },
   schema: {
 ${schemaBlock}
   },

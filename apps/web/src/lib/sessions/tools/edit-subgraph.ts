@@ -6,9 +6,9 @@ import { z } from "zod";
  * The client fetches a server-rendered diff and shows it on the action card.
  * Confirming triggers the same bundle → deploy path as deploy_subgraph.
  *
- * Note: unlike workflows, subgraphs don't currently support expectedVersion
- * stale-write protection; concurrent dashboard edits could race. Instruct
- * agents to read_subgraph immediately before proposing an edit.
+ * Note: subgraphs don't currently support `expectedVersion` stale-write
+ * protection; concurrent dashboard edits could race. Instruct agents to
+ * read_subgraph immediately before proposing an edit.
  */
 export const editSubgraph = tool({
 	description:

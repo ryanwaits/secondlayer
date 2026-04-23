@@ -2,7 +2,7 @@
  * Instance modes for the Secondlayer platform.
  *
  * - `oss`: self-hosted, single-tenant. No auth middleware, no platform routes
- *   (projects, admin, workflows). Everything runs against a single
+ *   (projects, admin, tenants). Everything runs against a single
  *   `DATABASE_URL`. Intended for `docker compose up`.
  *
  * - `dedicated`: per-customer managed instance. JWT-based auth (anon =

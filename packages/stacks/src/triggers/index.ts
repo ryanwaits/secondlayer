@@ -128,8 +128,8 @@ export interface PrintEventEvent {
 
 /**
  * Phantom-typed EventTrigger. Runtime shape is identical to `EventTrigger`;
- * the `__event` field only exists at the type level for `defineWorkflow`
- * to infer the handler's `event` parameter.
+ * the `__event` field only exists at the type level, letting subscription
+ * definitions infer the handler's `event` parameter from the filter.
  */
 export type TypedEventTrigger<TEvent> = EventTrigger & {
 	readonly __event?: TEvent;

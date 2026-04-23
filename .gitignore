@@ -59,3 +59,5 @@ plans/
 
 # Claude Code local state
 .claude/
+
+.scaffold-test-*

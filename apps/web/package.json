@@ -11,8 +11,6 @@
 	"dependencies": {
 		"@ai-sdk/anthropic": "3.0.71",
 		"@ai-sdk/react": "3.0.148",
-		"@json-render/core": "0.18.0",
-		"@json-render/react": "0.18.0",
 		"@secondlayer/scaffold": "workspace:*",
 		"@secondlayer/stacks": "workspace:*",
 		"@tanstack/react-query": "5.90.21",

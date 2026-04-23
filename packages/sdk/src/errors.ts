@@ -27,8 +27,8 @@ export class ApiError extends Error {
 }
 
 /**
- * Thrown by {@link Workflows.deploy} when the server rejects a deploy because the
- * provided `expectedVersion` does not match the current stored version.
+ * Thrown on optimistic-concurrency conflict when a deploy supplies an
+ * `expectedVersion` that no longer matches the server's stored version.
  */
 export class VersionConflictError extends ApiError {
 	constructor(
