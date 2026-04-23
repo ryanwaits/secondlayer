@@ -9,6 +9,7 @@ import { logger } from "@secondlayer/shared/logger";
 import { listen } from "@secondlayer/shared/queue/listener";
 import type { SubgraphDefinition } from "../types.ts";
 import { catchUpSubgraph } from "./catchup.ts";
+import { startEmitter } from "./emitter.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
@@ -200,6 +201,11 @@ export async function startSubgraphProcessor(opts?: {
 		}
 	}, POLL_INTERVAL_MS);
 
+	// Boot subscription emitter in same process — shares pool, shares
+	// LISTEN connection. Platform mode is control plane only and does not
+	// need the emitter, but processor itself isn't started there.
+	const stopEmitter = await startEmitter();
+
 	logger.info("Subgraph processor ready");
 
 	// Return shutdown function
@@ -208,6 +214,7 @@ export async function startSubgraphProcessor(opts?: {
 		clearInterval(pollInterval);
 		await stopListening();
 		await stopReorgListening();
+		await stopEmitter();
 		logger.info("Subgraph processor stopped");
 	};
 }
