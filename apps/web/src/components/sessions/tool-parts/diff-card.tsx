@@ -1,6 +1,6 @@
 "use client";
 
-import type { DiffHunk, DiffLine } from "@/lib/sessions/diff-workflow";
+import type { DiffHunk, DiffLine } from "@/lib/sessions/diff";
 
 interface DiffCardProps {
 	name: string;
