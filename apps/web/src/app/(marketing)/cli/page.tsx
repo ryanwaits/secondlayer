@@ -99,25 +99,24 @@ sl subgraphs delete token-transfers`}
 
 				<SectionHeading id="subscriptions">Subscriptions</SectionHeading>
 
+				<p className="prose">
+					Scaffold a receiver project for your runtime. The CLI drops a ready-
+					to-run template into <code>./&lt;name&gt;/</code>, provisions the
+					subscription via the SDK, and writes the one-time signing secret
+					into <code>.env</code>. Manage existing subscriptions from the
+					dashboard or SDK.
+				</p>
+
 				<CodeBlock
-					code={`# Scaffold a receiver project for your runtime of choice.
+					code={`# Pick a runtime — scaffolds package.json, src/, README, tsconfig.
 sl create subscription whale-alerts --runtime inngest
 sl create subscription whale-alerts --runtime trigger
 sl create subscription whale-alerts --runtime cloudflare
 sl create subscription whale-alerts --runtime node
 
-# Manage subscriptions on a deployed subgraph.
-sl subscriptions create token-transfers transfers \\
-  --event insert \\
-  --url https://example.com/hooks/transfers \\
-  --format standard-webhooks \\
-  --filter 'amount.gte=1000000000'
-
-sl subscriptions list token-transfers
-sl subscriptions pause <id>
-sl subscriptions resume <id>
-sl subscriptions deliveries <id>    # recent attempts + status
-sl subscriptions delete <id>`}
+# Flags (all optional; prompts if omitted):
+#   --subgraph <name>    --table <name>    --url <https://...>
+#   --service-key <key>  --base-url <url>  --skip-api`}
 					lang="bash"
 				/>
 			</main>

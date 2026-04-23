@@ -109,7 +109,7 @@ export default function McpPage() {
 					<div className="props-group-title">Subscriptions</div>
 					<div className="prop-row">
 						<span className="prop-name">subscriptions_list</span>
-						<span className="prop-type">List subscriptions for a subgraph</span>
+						<span className="prop-type">List subscriptions for the account</span>
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">subscriptions_get</span>
@@ -123,16 +123,22 @@ export default function McpPage() {
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">subscriptions_update</span>
-						<span className="prop-type">Pause, resume, or edit a subscription</span>
+						<span className="prop-type">Edit url, filter, or format</span>
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">subscriptions_delete</span>
 						<span className="prop-type">Delete a subscription</span>
 					</div>
 					<div className="prop-row">
-						<span className="prop-name">subscriptions_deliveries</span>
+						<span className="prop-name">subscriptions_replay</span>
 						<span className="prop-type">
-							List recent delivery attempts with status codes
+							Re-enqueue a block range for this subscription
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">subscriptions_recent_deliveries</span>
+						<span className="prop-type">
+							Last 100 attempts with status codes + duration
 						</span>
 					</div>
 

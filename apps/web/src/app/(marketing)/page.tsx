@@ -2,15 +2,20 @@ import { BetaBracket } from "@/components/beta-badge";
 import { SiteLink } from "@/components/site-link";
 import { HomeAnnotations } from "./home-annotations";
 
-const products = [{ name: "Subgraphs", href: "/subgraphs" }];
-
-const interfaces = [
-	{ name: "CLI", href: "/cli", version: "3.1.0" },
-	{ name: "SDK", href: "/sdk", version: "2.0.0" },
-	{ name: "MCP", href: "/mcp", version: "1.0.2" },
+const products = [
+	{ name: "Subgraphs", href: "/subgraphs" },
+	{ name: "Subscriptions", href: "/subscriptions" },
 ];
 
-const foundation = [{ name: "Stacks", href: "/stacks", version: "0.3.0" }];
+const interfaces = [
+	{ name: "CLI", href: "/cli", version: "3.2.0-beta.1" },
+	{ name: "SDK", href: "/sdk", version: "3.0.0-beta.2" },
+	{ name: "MCP", href: "/mcp", version: "2.0.0-beta.1" },
+];
+
+const foundation = [
+	{ name: "Stacks", href: "/stacks", version: "1.0.0-beta.1" },
+];
 
 function IndexItem({
 	item,
