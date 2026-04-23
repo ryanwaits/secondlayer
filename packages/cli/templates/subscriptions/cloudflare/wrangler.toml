@@ -1,0 +1,8 @@
+name = "{{NAME}}"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[workflows]]
+name = "{{NAME}}"
+binding = "MY_WORKFLOW"
+class_name = "OnSubgraphEvent"

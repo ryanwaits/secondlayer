@@ -4,6 +4,7 @@ import pkg from "../package.json" with { type: "json" };
 import {
 	registerAccountCommand,
 	registerConfigCommand,
+	registerCreateCommand,
 	registerDbCommand,
 	registerDoctorCommand,
 	registerInstanceCommand,
@@ -81,6 +82,7 @@ registerInstanceCommand(program);
 
 // Workload (tenant-scoped via resolver)
 registerSubgraphsCommand(program);
+registerCreateCommand(program);
 
 // Ops / inspection
 registerStatusCommand(program);

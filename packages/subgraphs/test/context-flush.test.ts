@@ -125,7 +125,8 @@ describe("context flush statement building", () => {
 			block,
 			tx,
 		);
-		const count = await ctx.flush();
-		expect(count).toBe(0);
+		const manifest = await ctx.flush();
+		expect(manifest.count).toBe(0);
+		expect(manifest.writes).toEqual([]);
 	});
 });
