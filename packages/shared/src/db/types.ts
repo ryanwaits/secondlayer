@@ -311,6 +311,9 @@ export interface Database {
 	tenant_compute_addons: TenantComputeAddonsTable;
 	account_spend_caps: AccountSpendCapsTable;
 	provisioning_audit_log: ProvisioningAuditLogTable;
+	subscriptions: SubscriptionsTable;
+	subscription_outbox: SubscriptionOutboxTable;
+	subscription_deliveries: SubscriptionDeliveriesTable;
 }
 
 // --- Tenants (dedicated hosting) ---
@@ -519,3 +522,98 @@ export type UpdateChatSession = Updateable<ChatSessionsTable>;
 
 export type ChatMessage = Selectable<ChatMessagesTable>;
 export type InsertChatMessage = Insertable<ChatMessagesTable>;
+
+// ── Subscriptions (subgraph event subscriptions) ─────────────────────
+
+export type SubscriptionStatus = "active" | "paused" | "error";
+export type SubscriptionFormat =
+	| "standard-webhooks"
+	| "inngest"
+	| "trigger"
+	| "cloudflare"
+	| "cloudevents"
+	| "raw";
+export type SubscriptionRuntime = "inngest" | "trigger" | "cloudflare" | "node";
+
+export interface SubscriptionsTable {
+	id: Generated<string>;
+	account_id: string;
+	project_id: string | null;
+	name: string;
+	status: ColumnType<
+		SubscriptionStatus,
+		SubscriptionStatus | undefined,
+		SubscriptionStatus
+	>;
+	subgraph_name: string;
+	table_name: string;
+	filter: Generated<unknown>;
+	format: ColumnType<
+		SubscriptionFormat,
+		SubscriptionFormat | undefined,
+		SubscriptionFormat
+	>;
+	runtime: SubscriptionRuntime | null;
+	url: string;
+	signing_secret_enc: Buffer;
+	auth_config: Generated<unknown>;
+	max_retries: Generated<number>;
+	timeout_ms: Generated<number>;
+	concurrency: Generated<number>;
+	circuit_failures: Generated<number>;
+	circuit_opened_at: Date | null;
+	last_delivery_at: Date | null;
+	last_success_at: Date | null;
+	last_error: string | null;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
+}
+
+export type Subscription = Selectable<SubscriptionsTable>;
+export type InsertSubscription = Insertable<SubscriptionsTable>;
+export type UpdateSubscription = Updateable<SubscriptionsTable>;
+
+export type OutboxStatus = "pending" | "delivered" | "dead";
+
+export interface SubscriptionOutboxTable {
+	id: Generated<string>;
+	subscription_id: string;
+	subgraph_name: string;
+	table_name: string;
+	block_height: number | bigint;
+	tx_id: string | null;
+	row_pk: unknown;
+	event_type: string;
+	payload: unknown;
+	dedup_key: string;
+	attempt: Generated<number>;
+	next_attempt_at: Generated<Date>;
+	status: ColumnType<OutboxStatus, OutboxStatus | undefined, OutboxStatus>;
+	is_replay: Generated<boolean>;
+	delivered_at: Date | null;
+	failed_at: Date | null;
+	locked_by: string | null;
+	locked_until: Date | null;
+	created_at: Generated<Date>;
+}
+
+export type SubscriptionOutbox = Selectable<SubscriptionOutboxTable>;
+export type InsertSubscriptionOutbox = Insertable<SubscriptionOutboxTable>;
+export type UpdateSubscriptionOutbox = Updateable<SubscriptionOutboxTable>;
+
+export interface SubscriptionDeliveriesTable {
+	id: Generated<string>;
+	outbox_id: string;
+	subscription_id: string;
+	attempt: number;
+	status_code: number | null;
+	response_headers: unknown | null;
+	response_body: string | null;
+	error_message: string | null;
+	duration_ms: number | null;
+	dispatched_at: Generated<Date>;
+}
+
+export type SubscriptionDelivery = Selectable<SubscriptionDeliveriesTable>;
+export type InsertSubscriptionDelivery =
+	Insertable<SubscriptionDeliveriesTable>;
