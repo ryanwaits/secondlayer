@@ -1,5 +1,12 @@
 # konsole
 
+## 0.0.21-beta.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@3.0.0-beta.1
+
 ## 0.0.21-alpha.0
 
 ### Patch Changes

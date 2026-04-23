@@ -1,24 +1,24 @@
 {
   "mode": "pre",
-  "tag": "alpha",
+  "tag": "beta",
   "initialVersions": {
-    "@secondlayer/web": "0.1.2",
+    "@secondlayer/web": "0.1.3-alpha.0",
     "@secondlayer/agent": "0.2.1",
-    "@secondlayer/api": "1.1.0",
-    "@secondlayer/auth": "0.1.16",
-    "@secondlayer/bundler": "0.3.0",
-    "@secondlayer/clarity-docs": "0.3.6",
-    "@secondlayer/cli": "3.1.1",
-    "@secondlayer/indexer": "1.0.2",
-    "konsole": "0.0.20",
-    "@secondlayer/mcp": "1.1.0",
-    "@secondlayer/provisioner": "0.3.0",
-    "@secondlayer/scaffold": "1.0.0",
-    "@secondlayer/sdk": "2.0.0",
-    "@secondlayer/shared": "2.1.0",
-    "@secondlayer/stacks": "0.3.0",
-    "@secondlayer/subgraphs": "0.11.8",
-    "@secondlayer/worker": "1.0.3"
+    "@secondlayer/api": "1.1.1-alpha.0",
+    "@secondlayer/auth": "0.1.17-alpha.0",
+    "@secondlayer/bundler": "0.3.1-alpha.0",
+    "@secondlayer/clarity-docs": "0.3.7-alpha.0",
+    "@secondlayer/cli": "3.1.2-alpha.0",
+    "@secondlayer/indexer": "1.0.3-alpha.0",
+    "konsole": "0.0.21-alpha.0",
+    "@secondlayer/mcp": "2.0.0-alpha.0",
+    "@secondlayer/provisioner": "0.4.0-alpha.0",
+    "@secondlayer/scaffold": "1.0.1-alpha.0",
+    "@secondlayer/sdk": "3.0.0-alpha.0",
+    "@secondlayer/shared": "3.0.0-alpha.0",
+    "@secondlayer/stacks": "1.0.0-alpha.0",
+    "@secondlayer/subgraphs": "1.0.0-alpha.0",
+    "@secondlayer/worker": "1.1.0-alpha.0"
   },
   "changesets": [
     "caddy-resume-hook",
@@ -34,6 +34,7 @@
     "pricing-sprint-c1",
     "spend-caps",
     "stripe-scaffold",
+    "subscriptions-crud",
     "usage-metering"
   ]
 }
