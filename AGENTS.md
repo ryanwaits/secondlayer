@@ -3,13 +3,13 @@
 ## Monorepo Structure
 
 - **apps/**: Web app
-- **packages/**: CLI, SDK, API, indexer, worker, subgraphs, workflows, workflow-runner, shared utils, etc.
+- **packages/**: CLI, SDK, API, indexer, worker, subgraphs, stacks, shared utils, etc.
 - **scripts/**: Dev orchestration
 
 Build order matters:
 ```bash
 # Correct sequence (root package.json encodes this)
-bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:sdk && bun run build:subgraphs && bun run build:workflows && bun run build:cli
+bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:subgraphs && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:cli
 ```
 
 ## Development Commands
@@ -51,11 +51,9 @@ Always prefer `bunx` over `npx`.
 |---------|------------|-------|
 | `@secondlayer/stacks` | — | Foundational, build first |
 | `@secondlayer/shared` | stacks | DB utils, shared types |
-| `@secondlayer/sdk` | shared | Client SDK (subgraphs, workflows) |
+| `@secondlayer/sdk` | shared | Client SDK (subgraphs) |
 | `@secondlayer/subgraphs` | shared, sdk | Subgraph processing |
-| `@secondlayer/workflows` | subgraphs | Workflow definitions, types, validation |
-| `@secondlayer/workflow-runner` | workflows, shared, subgraphs | Runtime executor (AI, MCP, delivery) |
-| `@secondlayer/cli` | sdk, shared, subgraphs, stacks, workflows | CLI tool |
+| `@secondlayer/cli` | sdk, shared, subgraphs, stacks | CLI tool |
 
 ## CI/CD Requirements
 

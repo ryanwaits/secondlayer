@@ -24,7 +24,7 @@ DATABASE_URL=... bun run migrate
 |------|-------------|
 | `@secondlayer/shared` | Core utilities |
 | `@secondlayer/shared/db` | Kysely database layer |
-| `@secondlayer/shared/db/queries/*` | Query helpers (integrity, accounts, usage, subgraphs, projects, subgraph-gaps, workflows, tenants, provisioning-audit) |
+| `@secondlayer/shared/db/queries/*` | Query helpers (integrity, accounts, usage, subgraphs, projects, subgraph-gaps, tenants, provisioning-audit) |
 | `@secondlayer/shared/db/schema` | Database schema |
 | `@secondlayer/shared/db/jsonb` | JSONB helpers |
 | `@secondlayer/shared/schemas` | Zod schemas |

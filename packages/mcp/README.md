@@ -45,12 +45,9 @@ npx @secondlayer/mcp-http
 
 ## Tools
 
-Tools across 4 domains.
-
 | Domain | Tools |
 | --- | --- |
 | **Subgraphs** (6) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy` |
-| **Workflows** (6) | `workflows_list`, `workflows_get`, `workflows_trigger`, `workflows_pause`, `workflows_resume`, `workflows_runs` |
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
 | **Account** (1) | `account_whoami` |
 

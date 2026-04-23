@@ -1,8 +1,8 @@
 # Secondlayer
 
 Agent-native developer tools for Stacks. Dedicated indexing + real-time
-subgraphs + packaged protocol monitoring — all exposed through one API, one
-auth model, and three interchangeable front-ends (CLI, SDK, MCP).
+subgraphs + a viem-style chain SDK — exposed through one API, one auth model,
+and three interchangeable front-ends (CLI, SDK, MCP).
 
 Two ways to run it:
 
@@ -17,11 +17,8 @@ Two ways to run it:
 - **Subgraphs** — `defineSubgraph()` declares event filters + column schema;
   the processor indexes the chain into a typed Postgres view you query over
   REST.
-- **Sentries** — packaged monitoring for protocols (whale transfers, admin
-  role changes, contract deployments, custom print events). AI-triaged
-  alerts delivered to a Slack-compatible webhook.
-- **Workflows SDK** — `defineWorkflow()` with three durable step primitives
-  (`step.run`, `step.sleep`, `step.invoke`) for writing your own automation.
+- **`@secondlayer/stacks`** — viem-style chain SDK: typed contract calls,
+  wallets, BNS, AI-SDK `tool({...})` values, broadcast with caps.
 
 ## Quickstart (hosted)
 
@@ -42,11 +39,10 @@ Full command reference: [packages/cli/README.md](packages/cli/README.md).
 | Package | Description |
 |---|---|
 | [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — auth, project/instance lifecycle, subgraph deploy, Clarity code-gen |
-| [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — typed subgraph queries, workflow triggers, webhooks |
-| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — exposes subgraphs, workflows, scaffolding to AI agents |
+| [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — typed subgraph queries, webhooks |
+| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — exposes subgraphs + scaffolding to AI agents |
 | [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS, triggers, AI-SDK tools |
 | [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema + event handlers |
-| [`@secondlayer/workflows`](packages/workflows/README.md) | `defineWorkflow()` — durable onchain automation |
 | [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, auth primitives |
 | [`@secondlayer/api`](packages/api/README.md) | REST API — platform + dedicated + OSS modes |
 
