@@ -10,7 +10,7 @@ import {
 import { logger } from "@secondlayer/shared/logger";
 import { listen } from "@secondlayer/shared/queue/listener";
 import { type Kysely, sql } from "kysely";
-import { buildStandardWebhooks } from "./formats/standard-webhooks.ts";
+import { buildForFormat } from "./formats/index.ts";
 import { refreshMatcher } from "./subscription-state.ts";
 
 /**
@@ -51,8 +51,9 @@ async function dispatchOne(
 	outboxRow: SubscriptionOutbox,
 	sub: Subscription,
 ): Promise<{ ok: boolean; statusCode: number | null; error: string | null; durationMs: number }> {
-	const { body, headers } = buildStandardWebhooks(
+	const { body, headers } = buildForFormat(
 		outboxRow,
+		sub,
 		getSubscriptionSigningSecret(sub),
 	);
 
