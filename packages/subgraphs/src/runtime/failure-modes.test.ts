@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { sign, verify } from "@secondlayer/shared/crypto/standard-webhooks";
-import { closeDb, getDb } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
 import { startEmitter } from "./emitter.ts";
 
@@ -20,12 +20,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+	// Don't closeDb() — see emitter.test.ts comment.
 	await stopEmitter?.();
 	await db
 		.deleteFrom("subscriptions")
 		.where("account_id", "=", accountId)
 		.execute();
-	await closeDb();
 });
 
 describe("failure modes", () => {

@@ -1,9 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { closeDb, getDb } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
 import { verify } from "@secondlayer/shared/crypto/standard-webhooks";
 import { startEmitter } from "./emitter.ts";
+
+// Per-suite afterAll only cleans up its own data. Never call `closeDb()` —
+// it destroys the shared Kysely singleton and breaks sibling test files
+// when `bun test` runs them together. Process exit handles pool cleanup.
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
@@ -56,7 +60,6 @@ beforeAll(async () => {
 afterAll(async () => {
 	await stopEmitter?.();
 	await db.deleteFrom("subscriptions").where("account_id", "=", accountId).execute();
-	await closeDb();
 });
 
 describe("startEmitter end-to-end", () => {

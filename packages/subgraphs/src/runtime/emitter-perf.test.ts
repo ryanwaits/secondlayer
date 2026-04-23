@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { closeDb, getDb } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
 import { SubscriptionMatcher } from "./emitter-matcher.ts";
 import { startEmitter } from "./emitter.ts";
@@ -29,8 +29,11 @@ const db = getDb();
 const accountId = randomUUID();
 let stopEmitter: (() => Promise<void>) | null = null;
 
-const SUB_COUNT = Number.parseInt(process.env.PERF_SUBS ?? "50", 10);
-const BLOCK_COUNT = Number.parseInt(process.env.PERF_BLOCKS ?? "200", 10);
+// Defaults chosen so the full `bun test` completes under 60s without
+// timing out beforeAll/afterAll hooks. Override for real perf runs:
+//   PERF_SUBS=50 PERF_BLOCKS=200 bun test emitter-perf
+const SUB_COUNT = Number.parseInt(process.env.PERF_SUBS ?? "20", 10);
+const BLOCK_COUNT = Number.parseInt(process.env.PERF_BLOCKS ?? "50", 10);
 
 function percentile(values: number[], p: number): number {
 	if (values.length === 0) return 0;
@@ -47,12 +50,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+	// Don't closeDb() — see emitter.test.ts comment.
 	await stopEmitter?.();
 	await db
 		.deleteFrom("subscriptions")
 		.where("account_id", "=", accountId)
 		.execute();
-	await closeDb();
 });
 
 describe("emitter perf", () => {

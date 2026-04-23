@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { closeDb, getDb, sql } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
 import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
 import type { Kysely } from "kysely";
 import type { Database } from "@secondlayer/shared/db";
@@ -22,11 +22,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+	// Don't closeDb() — see emitter.test.ts comment. Per-suite cleanup only.
 	await db
 		.deleteFrom("subscriptions")
 		.where("account_id", "=", accountId)
 		.execute();
-	await closeDb();
 });
 
 describe("emitSubscriptionOutbox", () => {

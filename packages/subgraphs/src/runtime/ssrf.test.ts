@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { closeDb, getDb } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
 import { startEmitter } from "./emitter.ts";
 
@@ -9,24 +9,31 @@ process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5432/secondlayer";
 
-// This test exercises the refusal path — do NOT set ALLOW_PRIVATE_EGRESS.
-delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
-
 const db = getDb();
 const accountId = randomUUID();
 let stopEmitter: (() => Promise<void>) | null = null;
+// Scope the env-var mutation to this suite's lifecycle. Sibling test
+// files set ALLOW_PRIVATE_EGRESS=true at module load; a bare
+// `delete process.env.X` at this file's module load would race them
+// (bun loads modules in arbitrary order before running tests).
+let priorAllowEnv: string | undefined;
 
 beforeAll(async () => {
+	priorAllowEnv = process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
 	stopEmitter = await startEmitter({ pollIntervalMs: 500 });
 });
 
 afterAll(async () => {
+	// Don't closeDb() — see emitter.test.ts comment.
 	await stopEmitter?.();
 	await db
 		.deleteFrom("subscriptions")
 		.where("account_id", "=", accountId)
 		.execute();
-	await closeDb();
+	if (priorAllowEnv !== undefined) {
+		process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEnv;
+	}
 });
 
 describe("SSRF egress guard", () => {

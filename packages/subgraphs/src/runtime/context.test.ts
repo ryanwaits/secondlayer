@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { closeDb, getDb, sql } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 import type { Database } from "@secondlayer/shared/db";
 import type { SubgraphSchema } from "../types.ts";
@@ -90,7 +90,5 @@ describe("SubgraphContext flush manifest", () => {
 
 		expect(manifest.writes[0].row.sender).toBe("SP1");
 		expect(manifest.writes[2].row.recipient).toBe("SP1");
-
-		await closeDb();
 	});
 });

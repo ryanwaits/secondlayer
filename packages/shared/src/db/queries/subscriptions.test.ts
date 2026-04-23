@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { closeDb, getDb } from "../index.ts";
+import { getDb } from "../index.ts";
 import {
 	createSubscription,
 	deleteSubscription,
@@ -32,8 +32,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+	// Don't closeDb() — destroying the shared singleton breaks sibling
+	// test files when `bun test` runs them together.
 	await db.deleteFrom("subscriptions").where("account_id", "=", accountId).execute();
-	await closeDb();
 });
 
 beforeEach(async () => {
