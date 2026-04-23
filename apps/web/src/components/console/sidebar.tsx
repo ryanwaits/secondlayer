@@ -22,6 +22,11 @@ const NAV_ITEMS: NavItem[] = [
 		icon: "subgraph",
 		badgeKey: "subgraphs",
 	},
+	{
+		href: "/subscriptions",
+		label: "Subscriptions",
+		icon: "subscription",
+	},
 	{ href: "/sessions", label: "Sessions", icon: "sessions" },
 ];
 
@@ -81,6 +86,22 @@ const ICONS: Record<string, React.ReactNode> = {
 			<rect x="9" y="2" width="5" height="5" rx="1" />
 			<rect x="2" y="9" width="5" height="5" rx="1" />
 			<rect x="9" y="9" width="5" height="5" rx="1" />
+		</svg>
+	),
+	subscription: (
+		<svg
+			width="16"
+			height="16"
+			viewBox="0 0 16 16"
+			fill="none"
+			aria-hidden="true"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<path d="M2 4h12v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" />
+			<path d="M2 4l6 4 6-4" />
 		</svg>
 	),
 	settings: (
