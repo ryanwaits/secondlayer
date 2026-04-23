@@ -69,12 +69,10 @@ export function MessageList({
 /** Tools that render visible UI cards (vs invisible helper tools) */
 const VISIBLE_TOOLS = new Set([
 	"check_subgraphs",
-	"check_sentries",
 	"check_keys",
 	"check_insights",
 	"manage_keys",
 	"manage_subgraphs",
-	"manage_sentries",
 	"scaffold_subgraph",
 	"scaffold_workflow",
 	"deploy_workflow",
@@ -106,9 +104,6 @@ const TOOL_STEP_LABELS: Record<string, string> = {
 	query_subgraph: "Querying subgraph data",
 	manage_keys: "Managing API keys",
 	manage_subgraphs: "Managing subgraphs",
-	manage_sentries: "Managing sentries",
-	check_sentries: "Listing sentries",
-	list_sentry_kinds: "Looking up sentry kinds",
 	show_code: "Generating code example",
 };
 

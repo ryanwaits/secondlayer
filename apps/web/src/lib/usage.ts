@@ -72,7 +72,6 @@ export interface UsageProject {
 	name: string;
 	status: TenantStatus;
 	subgraphCount: number;
-	sentryCount: number;
 	compute: { hours: number; pct: number };
 	storage: { bytes: number; pct: number };
 	aiEvals: { todayCount: number; pct: number };

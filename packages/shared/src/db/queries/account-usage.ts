@@ -59,7 +59,6 @@ export interface ProjectRow {
 	name: string;
 	status: string;
 	subgraphCount: number;
-	sentryCount: number;
 	compute: { hours: number; pct: number };
 	storage: { bytes: number; pct: number };
 	aiEvals: { todayCount: number; pct: number };
@@ -327,11 +326,9 @@ export async function getProjectBreakdown(
 			slug: t.slug,
 			name: t.slug,
 			status: String(t.status),
-			// subgraphCount + sentryCount: not tracked at account-DB level
-			// (subgraphs live on per-tenant DBs). Left at 0 for now — a
-			// later pass can ping each tenant API for its count.
+			// subgraphCount not tracked at account-DB level (subgraphs live on
+			// per-tenant DBs). Left at 0; later pass can ping each tenant API.
 			subgraphCount: 0,
-			sentryCount: 0,
 			compute: { hours, pct: pct(hours, computeAllowance) },
 			storage: { bytes, pct: pct(bytes, storageAllowance) },
 			aiEvals: { todayCount: todayAi, pct: pct(todayAi, aiDailyCap) },

@@ -22,12 +22,6 @@ const NAV_ITEMS: NavItem[] = [
 		icon: "subgraph",
 		badgeKey: "subgraphs",
 	},
-	{
-		href: "/sentries",
-		label: "Sentries",
-		icon: "sentry",
-		badgeKey: "sentries",
-	},
 	{ href: "/sessions", label: "Sessions", icon: "sessions" },
 ];
 
@@ -87,41 +81,6 @@ const ICONS: Record<string, React.ReactNode> = {
 			<rect x="9" y="2" width="5" height="5" rx="1" />
 			<rect x="2" y="9" width="5" height="5" rx="1" />
 			<rect x="9" y="9" width="5" height="5" rx="1" />
-		</svg>
-	),
-	workflows: (
-		<svg
-			width="16"
-			height="16"
-			viewBox="0 0 16 16"
-			fill="none"
-			aria-hidden="true"
-			stroke="currentColor"
-			strokeWidth="1.5"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<circle cx="3" cy="8" r="2" />
-			<circle cx="13" cy="4" r="2" />
-			<circle cx="13" cy="12" r="2" />
-			<path d="M5 8l6-3M5 8l6 3" />
-		</svg>
-	),
-	sentry: (
-		<svg
-			width="16"
-			height="16"
-			viewBox="0 0 16 16"
-			fill="none"
-			aria-hidden="true"
-			stroke="currentColor"
-			strokeWidth="1.5"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<path d="M8 1.5l5.5 2v4c0 3.3-2.3 6.2-5.5 7-3.2-.8-5.5-3.7-5.5-7v-4L8 1.5z" />
-			<path d="M8 6v3" />
-			<circle cx="8" cy="11" r="0.6" fill="currentColor" />
 		</svg>
 	),
 	settings: (

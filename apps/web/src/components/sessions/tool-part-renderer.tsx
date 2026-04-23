@@ -42,7 +42,6 @@ interface ToolPartRendererProps {
 const HUMAN_IN_LOOP_TOOLS = new Set([
 	"manage_keys",
 	"manage_subgraphs",
-	"manage_sentries",
 	"manage_workflows",
 	"deploy_workflow",
 	"edit_workflow",
@@ -306,9 +305,7 @@ export function ToolPartRenderer({
 				? "keys"
 				: toolName === "manage_subgraphs"
 					? "subgraphs"
-					: toolName === "manage_sentries"
-						? "sentries"
-						: "workflows";
+					: "workflows";
 		return (
 			<>
 				<ToolCallIndicator
@@ -329,17 +326,6 @@ export function ToolPartRenderer({
 								input.action,
 								input.targets,
 								input.triggerInput,
-							);
-							addToolOutput({
-								toolCallId: part.toolCallId,
-								output: result,
-							});
-							return;
-						}
-						if (toolName === "manage_sentries") {
-							const result = await executeManageSentries(
-								input.action,
-								input.targets as ManageSentriesTarget[],
 							);
 							addToolOutput({
 								toolCallId: part.toolCallId,
@@ -427,33 +413,6 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 				/>
 			);
 
-		case "check_sentries": {
-			const sentries = (output.sentries ?? []) as Array<{
-				id: string;
-				kind: string;
-				name: string;
-				active: boolean;
-				principal: string;
-				lastCheckAt: string | null;
-			}>;
-			if (sentries.length === 0) {
-				return (
-					<SuccessBanner tone="info" message="No sentries configured yet." />
-				);
-			}
-			const summary = sentries
-				.map(
-					(s) =>
-						`• ${s.active ? "✓" : "⏸"} ${s.name} — ${s.kind} on ${s.principal.slice(0, 12)}…`,
-				)
-				.join("\n");
-			return (
-				<SuccessBanner
-					message={`${sentries.length} sentr${sentries.length === 1 ? "y" : "ies"}:\n${summary}`}
-				/>
-			);
-		}
-
 		case "check_keys":
 			return (
 				<KeysCard
@@ -487,7 +446,6 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 
 		case "manage_keys":
 		case "manage_subgraphs":
-		case "manage_sentries":
 		case "manage_workflows": {
 			const msg = (output as { message?: string }).message;
 			if ((output as { confirmed?: boolean }).confirmed === false) {
@@ -914,226 +872,6 @@ type DeployWorkflowResponse = {
 	message: string;
 };
 
-interface ManageSentriesTarget {
-	id?: string;
-	name: string;
-	kind?: string;
-	config?: Record<string, unknown>;
-	deliveryWebhook?: string;
-	active?: boolean;
-	reason?: string;
-}
-
-/**
- * Handler for `manage_sentries` HIL confirms. Sentry payloads are
- * richer than the generic `{id, name}` shape so we need a dedicated
- * dispatcher (parallel to `executeManageWorkflows`).
- */
-async function executeManageSentries(
-	action: string,
-	targets: ManageSentriesTarget[],
-): Promise<{
-	confirmed: boolean;
-	ok: boolean;
-	action: string;
-	name?: string;
-	id?: string;
-	runId?: string;
-	message?: string;
-	error?: string;
-}> {
-	const first = targets[0];
-	if (!first) {
-		return {
-			confirmed: true,
-			ok: false,
-			action,
-			error: "No sentry targets provided",
-		};
-	}
-
-	try {
-		if (action === "create") {
-			if (!first.kind || !first.config || !first.deliveryWebhook) {
-				return {
-					confirmed: true,
-					ok: false,
-					action,
-					name: first.name,
-					error: "create requires kind, config, and deliveryWebhook",
-				};
-			}
-			const res = await fetch("/api/sentries", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				credentials: "same-origin",
-				body: JSON.stringify({
-					kind: first.kind,
-					name: first.name,
-					config: first.config,
-					delivery_webhook: first.deliveryWebhook,
-					active: true,
-				}),
-			});
-			const body = (await res.json().catch(() => ({}))) as {
-				sentry?: { id: string };
-				error?: string;
-			};
-			if (!res.ok) {
-				return {
-					confirmed: true,
-					ok: false,
-					action,
-					name: first.name,
-					error: body.error ?? `HTTP ${res.status}`,
-				};
-			}
-			return {
-				confirmed: true,
-				ok: true,
-				action,
-				name: first.name,
-				id: body.sentry?.id,
-				message: `Created sentry ${first.name}`,
-			};
-		}
-
-		if (action === "update") {
-			if (!first.id) {
-				return {
-					confirmed: true,
-					ok: false,
-					action,
-					error: "update requires id",
-				};
-			}
-			const patch: Record<string, unknown> = {};
-			if (first.name) patch.name = first.name;
-			if (first.config) patch.config = first.config;
-			if (first.deliveryWebhook) patch.delivery_webhook = first.deliveryWebhook;
-			if (typeof first.active === "boolean") patch.active = first.active;
-			const res = await fetch(`/api/sentries/${first.id}`, {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				credentials: "same-origin",
-				body: JSON.stringify(patch),
-			});
-			const body = (await res.json().catch(() => ({}))) as {
-				error?: string;
-			};
-			if (!res.ok) {
-				return {
-					confirmed: true,
-					ok: false,
-					action,
-					id: first.id,
-					name: first.name,
-					error: body.error ?? `HTTP ${res.status}`,
-				};
-			}
-			return {
-				confirmed: true,
-				ok: true,
-				action,
-				id: first.id,
-				name: first.name,
-				message: `Updated sentry ${first.name}`,
-			};
-		}
-
-		if (action === "delete") {
-			if (!first.id) {
-				return {
-					confirmed: true,
-					ok: false,
-					action,
-					error: "delete requires id",
-				};
-			}
-			const res = await fetch(`/api/sentries/${first.id}`, {
-				method: "DELETE",
-				credentials: "same-origin",
-			});
-			if (!res.ok) {
-				const body = (await res.json().catch(() => ({}))) as {
-					error?: string;
-				};
-				return {
-					confirmed: true,
-					ok: false,
-					action,
-					id: first.id,
-					name: first.name,
-					error: body.error ?? `HTTP ${res.status}`,
-				};
-			}
-			return {
-				confirmed: true,
-				ok: true,
-				action,
-				id: first.id,
-				name: first.name,
-				message: `Deleted sentry ${first.name}`,
-			};
-		}
-
-		if (action === "test") {
-			if (!first.id) {
-				return {
-					confirmed: true,
-					ok: false,
-					action,
-					error: "test requires id",
-				};
-			}
-			const res = await fetch(`/api/sentries/${first.id}/test`, {
-				method: "POST",
-				credentials: "same-origin",
-			});
-			const body = (await res.json().catch(() => ({}))) as {
-				ok?: boolean;
-				runId?: string;
-				error?: string;
-			};
-			if (!res.ok || body.ok === false) {
-				return {
-					confirmed: true,
-					ok: false,
-					action,
-					id: first.id,
-					name: first.name,
-					error: body.error ?? `HTTP ${res.status}`,
-				};
-			}
-			return {
-				confirmed: true,
-				ok: true,
-				action,
-				id: first.id,
-				name: first.name,
-				runId: body.runId,
-				message: body.runId
-					? `Test alert queued for ${first.name} — run ${body.runId}`
-					: `Test alert queued for ${first.name}`,
-			};
-		}
-
-		return {
-			confirmed: true,
-			ok: false,
-			action,
-			error: `Unknown action: ${action}`,
-		};
-	} catch (err) {
-		return {
-			confirmed: true,
-			ok: false,
-			action,
-			name: first.name,
-			error: err instanceof Error ? err.message : "Request failed",
-		};
-	}
-}
 
 async function bundleAndDeployWorkflow(input: {
 	code: string;
