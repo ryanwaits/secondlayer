@@ -1,6 +1,6 @@
 # @secondlayer/mcp
 
-MCP server for the Second Layer indexing platform.
+MCP server for Secondlayer's agent-native subgraph platform.
 
 ## Install
 
@@ -16,8 +16,8 @@ Add to your Claude Desktop or Cursor config:
 {
   "mcpServers": {
     "secondlayer": {
-      "command": "npx",
-      "args": ["@secondlayer/mcp"],
+      "command": "bunx",
+      "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
         "SL_SERVICE_KEY": "sl_live_..."
       }
@@ -31,9 +31,15 @@ Add to your Claude Desktop or Cursor config:
 ```bash
 export SL_SERVICE_KEY=sl_live_...
 export SECONDLAYER_MCP_SECRET=your-secret
-npx @secondlayer/mcp-http
+bunx -p @secondlayer/mcp secondlayer-mcp-http
 # Listening on port 3100
 ```
+
+## Agent Golden Path
+
+Use MCP when the agent should do the full loop: scaffold a subgraph from a
+contract, deploy it, query generated tables, create a table subscription, and
+replay deliveries by block range when needed.
 
 ## Environment Variables
 

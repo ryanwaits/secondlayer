@@ -15,7 +15,7 @@ import type { Kysely, Sql } from "kysely";
  * 
  * Associated code changes:
  * - PG NOTIFY channel renamed from "streams:new_job" to "indexer:new_block"
- *   (used by workflow-runner and subgraph processor for block notifications)
+ *   for subgraph processor block notifications.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
 	// Drop child tables first (in dependency order)

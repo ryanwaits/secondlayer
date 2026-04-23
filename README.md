@@ -39,6 +39,15 @@ sl subgraphs deploy ./my-subgraph.ts
 
 Full command reference: [packages/cli/README.md](packages/cli/README.md).
 
+## Agent-native golden path
+
+1. Give an agent the contract address and the events or calls you care about.
+2. The agent scaffolds a `defineSubgraph()` from the contract ABI, validates it,
+   and deploys it to your dedicated instance.
+3. Query the generated table over REST, SDK, CLI, or MCP.
+4. Add a subscription on that table when the rows should trigger another system.
+5. Replay by block range when a receiver changes or misses deliveries.
+
 ## Packages
 
 | Package | Description |
@@ -89,7 +98,7 @@ curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
 
 ### MCP (AI agents)
 
-Point Claude Desktop, Cursor, or any MCP client at `npx @secondlayer/mcp`
+Point Claude Desktop, Cursor, or any MCP client at `bunx -p @secondlayer/mcp secondlayer-mcp`
 with `SL_SERVICE_KEY` set. See [packages/mcp/README.md](packages/mcp/README.md).
 
 ## Self-hosting

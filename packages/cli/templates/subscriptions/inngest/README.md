@@ -2,7 +2,7 @@
 
 Inngest Dev Server with a function wired to `{{EVENT_NAME}}`. Events come
 from your Secondlayer subscription — Inngest handles retries, concurrency,
-and durable execution.
+and step-level state.
 
 ## Run
 

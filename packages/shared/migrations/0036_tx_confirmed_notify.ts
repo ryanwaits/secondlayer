@@ -2,9 +2,8 @@ import { type Kysely, sql } from "kysely";
 
 /**
  * pg_notify trigger on the core `transactions` table. Fires on INSERT and
- * publishes the txid on the `tx:confirmed` channel. The workflow runner's
- * `confirmation/subgraph.ts` listens on this channel to resolve pending
- * `broadcast({ awaitConfirmation: true })` promises.
+ * publishes the txid on the `tx:confirmed` channel so listeners can resolve
+ * pending transaction confirmations.
  *
  * Payload is just the tx_id — listeners dedupe + look up details
  * themselves. Keeping the payload small keeps pg_notify throughput high.

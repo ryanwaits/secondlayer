@@ -28,7 +28,7 @@ interface Env {
 export default {
 	async fetch(_req: Request): Promise<Response> {
 		return new Response(
-			"This worker is a Workflow receiver — trigger it via the Cloudflare API.",
+			"Cloudflare Workflows receiver — trigger via the `workflows/instances` API.",
 		);
 	},
 };

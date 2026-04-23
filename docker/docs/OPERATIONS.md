@@ -21,7 +21,7 @@ $COMPOSE up -d --force-recreate api indexer worker agent
 | Var | Used by | Purpose |
 |---|---|---|
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres, all services | DB auth |
-| `SECONDLAYER_SECRETS_KEY` | api, worker, workflow-runner (deprecated) | 32-byte hex — AES-GCM envelope key for encrypted DB columns (tenant JWT secrets, future). Rotate = re-encrypt every row + swap env. Do NOT lose this value — encrypted columns become unreadable. |
+| `SECONDLAYER_SECRETS_KEY` | api, worker, indexer | 32-byte hex — AES-GCM envelope key for encrypted DB columns (subscription signing secrets, tenant JWT secrets). Rotate = re-encrypt every row + swap env. Do NOT lose this value — encrypted columns become unreadable. OSS auto-generates on first boot into `./data/secrets/master.key`. |
 | `RESEND_API_KEY` | api | Magic-link email |
 | `STACKS_NODE_RPC_URL` | api, indexer | Node server endpoint |
 | `NODE_SERVER_URL` | agent | AI-ops monitoring |
@@ -166,7 +166,7 @@ The new migrate.ts prints `pg_stat_activity` on failure. Look for:
 Found orphan containers ([secondlayer-X-1]) for this project.
 ```
 
-Means service `X` was removed from compose but the container is still running. Deploy.sh removes known ones (`view-processor`, `workflow-runner`). If you see a NEW orphan:
+Means service `X` was removed from compose but the container is still running. Deploy.sh removes known legacy ones (`view-processor`). If you see a NEW orphan:
 ```bash
 docker rm -f secondlayer-X-1
 # Then add it to the `docker rm -f` list in deploy.sh so future deploys clean it.

@@ -27,7 +27,7 @@ export interface ResolveOptions {
 
 /**
  * Mint + return an ephemeral service JWT for the caller's active tenant.
- * Used by every tenant-scoped command (subgraphs, workflows, secrets, db).
+ * Used by every tenant-scoped command (subgraphs, subscriptions, db).
  */
 export async function resolveActiveTenant(
 	opts: ResolveOptions = {},

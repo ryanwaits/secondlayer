@@ -1,7 +1,9 @@
-# {{NAME}} — Cloudflare Workflows subscription receiver
+# {{NAME}} — Cloudflare subscription receiver
 
-A Cloudflare Workflow triggered by a Secondlayer subscription via the
-`workflows/instances` REST API.
+A [Cloudflare Workflows](https://developers.cloudflare.com/workflows/)
+instance triggered by a Secondlayer subscription via Cloudflare's
+`workflows/instances` REST API. "Workflows" here refers to Cloudflare's
+durable-execution product; it's separate from anything Secondlayer runs.
 
 ## Run
 
@@ -28,9 +30,9 @@ The token must have `Workflows: Edit` scope.
 
 ## Signature verification
 
-Cloudflare authenticates the API call with the bearer token. Inside your
-workflow the `event.payload.params._outboxId` is a stable dedup key if
-you want idempotent replay handling.
+Cloudflare authenticates the API call with the bearer token. Inside the
+Workflows entrypoint, `event.payload.params._outboxId` is a stable dedup
+key if you want idempotent replay handling.
 
 ## Deploy
 

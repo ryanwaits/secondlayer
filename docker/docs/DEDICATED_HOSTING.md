@@ -898,7 +898,6 @@ Source DB outage means tenant processors can't read blocks — but tenant API co
 | Dual-DB getters | `packages/shared/src/db/index.ts` |
 | Tenants table schema | `packages/shared/migrations/0039_tenants.ts` |
 | Nullable api_key_id (cutover precursor) | `packages/shared/migrations/0037_nullable_api_key.ts` |
-| Workflow table drop (setup for tenant model) | `packages/shared/migrations/0038_drop_workflow_tables.ts` |
 | Drop api_key_id from subgraphs (post-cutover) | `packages/shared/migrations/0041_subgraphs_drop_api_key_id.ts` |
 | Tenant→project FK | `packages/shared/migrations/0042_tenant_project_id.ts` |
 | Monthly usage snapshots | `packages/shared/migrations/0043_tenant_usage_monthly.ts` |
@@ -979,7 +978,7 @@ Current state:
 Missing:
 - Slack notification when a tenant hits status=error
 - Email to account owner on trial expiry warning (7d/3d/1d)
-- PagerDuty/Sentry hook for provision failures
+- PagerDuty (or equivalent) hook for provision failures
 
 The platform agent container (`packages/agent`) has working Slack wiring — extending it to consume tenant-specific events is the natural path.
 

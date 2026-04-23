@@ -13,11 +13,11 @@ export type MultiSigClientConfig = Omit<ClientConfig, "account"> & {
 	hashMode?: MultiSigHashMode;
 };
 
-/** A client pre-extended with {@link MultiSigActions} for m-of-n signing workflows. */
+/** A client pre-extended with {@link MultiSigActions} for m-of-n signing flows. */
 export type MultiSigClient = Client<MultiSigActions> & MultiSigActions;
 
 /**
- * Create a client for multi-sig transaction workflows.
+ * Create a client for multi-sig transaction flows.
  * Builds unsigned transactions that can be signed by each party then broadcast.
  */
 export function createMultiSigClient(

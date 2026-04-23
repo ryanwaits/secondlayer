@@ -7,9 +7,8 @@ import { type Kysely, sql } from "kysely";
  * - Drop `tenants.trial_ends_at` + its supporting index. The trial model
  *   is gone; no grandfathering (pre-launch, zero external users).
  * - Add `tenants.last_active_at timestamptz NOT NULL DEFAULT now()`. Bumped
- *   by tenant API middleware on 2xx responses + workflow-runner on run
- *   start. The new `tenant-idle-pause` cron suspends Hobby tenants idle
- *   beyond a threshold.
+ *   by tenant API middleware on 2xx responses. The new `tenant-idle-pause`
+ *   cron suspends Hobby tenants idle beyond a threshold.
  * - Add `tenants_last_active_idx` for the cron's WHERE clause (plan +
  *   last_active_at).
  */

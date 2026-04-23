@@ -1,7 +1,7 @@
 import { type Kysely, sql } from "kysely";
 
 /**
- * Subgraph event subscriptions — the new core surface after the workflow pivot.
+ * Subgraph event subscriptions — the row-level delivery surface for subgraphs.
  *
  * Three tables:
  *   - `subscriptions`: user-facing configuration. One row per subscription.

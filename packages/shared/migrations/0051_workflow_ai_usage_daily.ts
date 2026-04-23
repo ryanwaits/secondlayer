@@ -1,16 +1,12 @@
 import { type Kysely, sql } from "kysely";
 
 /**
- * Per-tenant-per-day AI eval counter.
+ * Legacy per-tenant-per-day model-call counter.
  *
- * The workflow-runner bumps this on every `step.ai` / `step.generateText`
- * / `step.generateObject` call. A daily per-tier cap (see `pricing.ts`
- * helpers) gates new AI calls — when the cap is hit, `step.ai` throws
- * and workflows degrade to their condition-only path.
+ * The removed automation runtime bumped this on every model call. A daily
+ * per-tier cap gated new calls when the cap was hit.
  *
- * The runner package is currently dead (tables dropped in migration
- * 0038); when it returns, these rows are the source of truth for cap
- * enforcement + AI overage metering to Stripe.
+ * The runtime package is gone and these tables are dropped by later cleanup.
  *
  * PK on (tenant_id, day) — one row per tenant per UTC day. `evals` is
  * the call count, `cost_usd_cents` is our internal cost estimate for

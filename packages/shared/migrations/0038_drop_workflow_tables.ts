@@ -14,9 +14,9 @@ import { type Kysely, sql } from "kysely";
  *   workflow_cursors, workflow_signer_secrets, workflow_budgets,
  *   workflow_definitions
  *
- * Also drops `tx_confirmed_notify` — nobody listens on `tx:confirmed` now
- * that workflow-runner is unmounted. The trigger fires on every
- * transactions insert (indexer hot path), so leaving it is wasted work.
+ * Also drops `tx_confirmed_notify` — nobody listens on `tx:confirmed` now.
+ * The trigger fires on every transactions insert (indexer hot path), so
+ * leaving it is wasted work.
  *
  * `down` is intentionally a no-op. When workflows revive, they get fresh
  * migrations designed for the tenant model — don't try to reverse into the
