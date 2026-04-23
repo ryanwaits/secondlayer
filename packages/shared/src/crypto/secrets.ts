@@ -1,30 +1,63 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { getInstanceMode } from "../mode.ts";
 
 /**
- * AES-256-GCM symmetric envelope for workflow signer secrets.
+ * AES-256-GCM symmetric envelope for encrypted secrets at rest (tenant keys,
+ * subscription signing secrets, etc.).
  *
  * Ciphertext layout: `iv (12 bytes) || authTag (16 bytes) || ciphertext`
  *
- * The key comes from `SECONDLAYER_SECRETS_KEY` — 32 bytes hex. Callers must
- * load + cache the key once per process. Rotation strategy: when a customer
- * wants to rotate keys, re-encrypt all rows with the new key and swap the
- * env var. Not zero-downtime, but acceptable at v2 scale.
+ * The key comes from `SECONDLAYER_SECRETS_KEY` — 32 bytes hex. In OSS mode,
+ * if the env var is unset on first use we autogenerate a key and persist it
+ * to `.env.local` in the current working directory so subsequent restarts
+ * pick it up without user intervention. Dedicated/platform modes throw —
+ * those runtimes must provision the key explicitly.
  *
- * For real KMS (AWS KMS, HashiCorp Vault, GCP KMS), wrap the same byte
- * layout behind an `EncryptSecret` / `DecryptSecret` interface in the
- * runner and swap the implementation at startup.
+ * Rotation strategy: re-encrypt all rows with the new key and swap the env
+ * var. Not zero-downtime, but acceptable at v2 scale. For real KMS (AWS
+ * KMS, Vault, GCP KMS), wrap the same byte layout behind an
+ * `EncryptSecret`/`DecryptSecret` interface and swap at startup.
  */
 
 const KEY_ENV = "SECONDLAYER_SECRETS_KEY";
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
+function bootstrapOssKey(): string {
+	const envPath = resolve(process.cwd(), ".env.local");
+
+	// Check existing .env.local first — prior run may have written it.
+	if (existsSync(envPath)) {
+		const contents = readFileSync(envPath, "utf8");
+		const match = contents.match(/^SECONDLAYER_SECRETS_KEY=([a-fA-F0-9]{64})/m);
+		if (match) {
+			process.env[KEY_ENV] = match[1];
+			return match[1];
+		}
+	}
+
+	const hex = randomBytes(32).toString("hex");
+	const line = `${existsSync(envPath) ? "\n" : ""}${KEY_ENV}=${hex}\n`;
+	appendFileSync(envPath, line, { mode: 0o600 });
+	process.env[KEY_ENV] = hex;
+	console.log(
+		`[secondlayer] generated ${KEY_ENV}; saved to ${envPath} (mode 0600)`,
+	);
+	return hex;
+}
+
 function loadKey(): Buffer {
-	const hex = process.env[KEY_ENV];
+	let hex = process.env[KEY_ENV];
 	if (!hex) {
-		throw new Error(
-			`${KEY_ENV} not set. Generate one with: openssl rand -hex 32`,
-		);
+		if (getInstanceMode() === "oss") {
+			hex = bootstrapOssKey();
+		} else {
+			throw new Error(
+				`${KEY_ENV} not set. Generate one with: openssl rand -hex 32`,
+			);
+		}
 	}
 	const key = Buffer.from(hex, "hex");
 	if (key.length !== 32) {
