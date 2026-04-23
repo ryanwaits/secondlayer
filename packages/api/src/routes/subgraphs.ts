@@ -96,7 +96,7 @@ app.post("/", async (c) => {
 		return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
 	}
 
-	const { name, handlerCode, reindex } = parsed.data;
+	const { name, handlerCode } = parsed.data;
 	const subgraphsDir = join(DATA_DIR, "subgraphs");
 	if (!existsSync(subgraphsDir)) {
 		mkdirSync(subgraphsDir, { recursive: true });
@@ -141,7 +141,6 @@ app.post("/", async (c) => {
 	const { deploySchema } = await import("@secondlayer/subgraphs");
 	const db = getDb();
 	const result = await deploySchema(db, def, handlerPath, {
-		forceReindex: reindex,
 		apiKeyId,
 		accountId,
 		schemaName,

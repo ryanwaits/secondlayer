@@ -153,22 +153,16 @@ export function registerSubgraphTools(server: McpServer) {
 		},
 	);
 
-	defineTool<{ code: string; reindex?: boolean }>(
+	defineTool<{ code: string }>(
 		server,
 		"subgraphs_deploy",
-		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed.",
+		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Call `subgraphs_reindex` separately if you need a forced reindex.",
 		{
 			code: z
 				.string()
 				.describe("TypeScript source code containing a defineSubgraph() call"),
-			reindex: z
-				.boolean()
-				.optional()
-				.describe(
-					"Force reindex on breaking schema change (drops and rebuilds all data)",
-				),
 		},
-		async ({ code, reindex }) => {
+		async ({ code }) => {
 			const bundled = await bundleSubgraphCode(code);
 			const result = await getClient().subgraphs.deploy({
 				name: bundled.name,
@@ -178,7 +172,6 @@ export function registerSubgraphTools(server: McpServer) {
 				schema: bundled.schema,
 				handlerCode: bundled.handlerCode,
 				sourceCode: code,
-				reindex,
 			});
 			return {
 				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

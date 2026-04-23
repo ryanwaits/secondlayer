@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { generateApiKey, hashApiKey } from "./keys.ts";
+import { generateApiKey, hashToken } from "./keys.ts";
 
 test("generated key has correct prefix format", () => {
 	const { raw, prefix } = generateApiKey();
@@ -10,7 +10,7 @@ test("generated key has correct prefix format", () => {
 
 test("hash is deterministic", () => {
 	const { raw, hash } = generateApiKey();
-	expect(hashApiKey(raw)).toBe(hash);
+	expect(hashToken(raw)).toBe(hash);
 });
 
 test("1000 keys are unique", () => {

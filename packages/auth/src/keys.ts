@@ -7,9 +7,6 @@ export function hashToken(raw: string): string {
 	return hasher.digest("hex");
 }
 
-/** @deprecated Use hashToken */
-export const hashApiKey = hashToken;
-
 function generateToken(prefix: string): {
 	raw: string;
 	hash: string;

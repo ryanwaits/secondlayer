@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Hono } from "hono";
-import { generateApiKey, hashApiKey } from "./keys.ts";
+import { generateApiKey, hashToken } from "./keys.ts";
 import { requireAuth } from "./middleware.ts";
 
 // Mock DB — injected via requireAuth({ getDb }) instead of mock.module
@@ -86,7 +86,7 @@ describe("requireAuth middleware", () => {
 		const keyRecord = {
 			id: "test-id",
 			status: "active",
-			key_hash: hashApiKey(raw),
+			key_hash: hashToken(raw),
 			rate_limit: 120,
 		};
 		mockExecuteTakeFirst.mockResolvedValue(keyRecord as any);

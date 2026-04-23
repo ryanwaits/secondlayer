@@ -1,7 +1,6 @@
 export {
 	generateApiKey,
 	generateSessionToken,
-	hashApiKey,
 	hashToken,
 } from "./keys.ts";
 export { requireAuth } from "./middleware.ts";

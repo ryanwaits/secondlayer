@@ -11,8 +11,6 @@ export interface DeploySubgraphRequest {
 	handlerCode: string;
 	/** Original TypeScript source, persisted so chat can read/diff/edit later. */
 	sourceCode?: string;
-	/** @deprecated Use server auto-reindex on breaking changes instead */
-	reindex?: boolean;
 }
 
 export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
@@ -35,7 +33,6 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 			.string()
 			.max(1_048_576, "source code exceeds 1MB limit")
 			.optional(),
-		reindex: z.boolean().optional(),
 	});
 
 export interface DeploySubgraphResponse {
