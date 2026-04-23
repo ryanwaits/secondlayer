@@ -5,7 +5,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerResources } from "./resources.ts";
 import { registerAccountTools } from "./tools/account.ts";
 import { registerScaffoldTools } from "./tools/scaffold.ts";
-import { registerSentryTools } from "./tools/sentries.ts";
 import { registerSubgraphTools } from "./tools/subgraphs.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,7 +20,6 @@ export function createServer(): McpServer {
 
 	registerScaffoldTools(server);
 	registerSubgraphTools(server);
-	registerSentryTools(server);
 	registerAccountTools(server);
 	registerResources(server);
 
