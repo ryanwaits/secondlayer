@@ -60,7 +60,7 @@ export default function McpPage() {
 
 				<CodeBlock
 					lang="bash"
-					code={`SL_SERVICE_KEY=sk-sl_... npx @secondlayer/mcp-http
+					code={`SL_SERVICE_KEY=sk-sl_... npx -p @secondlayer/mcp mcp-http
 # Listening on port 3100`}
 				/>
 
