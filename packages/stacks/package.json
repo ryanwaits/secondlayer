@@ -77,16 +77,6 @@
 			"import": "./dist/src/connect/walletconnect/index.js",
 			"require": "./dist/src/connect/walletconnect/index.cjs"
 		},
-		"./ui": {
-			"types": "./dist/src/ui/index.d.ts",
-			"import": "./dist/src/ui/index.js",
-			"require": "./dist/src/ui/index.cjs"
-		},
-		"./ui/schemas": {
-			"types": "./dist/src/ui/schemas.d.ts",
-			"import": "./dist/src/ui/schemas.js",
-			"require": "./dist/src/ui/schemas.cjs"
-		},
 		"./tools": {
 			"types": "./dist/src/tools/index.d.ts",
 			"import": "./dist/src/tools/index.js",
@@ -101,11 +91,6 @@
 			"types": "./dist/src/triggers/index.d.ts",
 			"import": "./dist/src/triggers/index.js",
 			"require": "./dist/src/triggers/index.cjs"
-		},
-		"./tx": {
-			"types": "./dist/src/tx/index.d.ts",
-			"import": "./dist/src/tx/index.js",
-			"require": "./dist/src/tx/index.cjs"
 		}
 	},
 	"files": [
@@ -121,28 +106,10 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@json-render/core": "0.18.0",
-		"@json-render/react": "0.18.0",
-		"@types/bun": "latest",
-		"@types/react": "^19.1.0",
-		"react": "^19.2.4"
+		"@types/bun": "latest"
 	},
 	"peerDependencies": {
-		"@json-render/core": "0.18.0",
-		"@json-render/react": "0.18.0",
-		"react": "^19.2.3",
 		"typescript": "^5"
-	},
-	"peerDependenciesMeta": {
-		"@json-render/core": {
-			"optional": true
-		},
-		"@json-render/react": {
-			"optional": true
-		},
-		"react": {
-			"optional": true
-		}
 	},
 	"dependencies": {
 		"@noble/hashes": "2.0.1",

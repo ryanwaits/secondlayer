@@ -1,14 +1,18 @@
 /**
- * Bitcoin read tools, callable from a Stacks workflow. Useful for sBTC
- * peg-in/peg-out flows, BTC-collateralized lending, and anywhere a Stacks
- * contract's behaviour depends on BTC state.
+ * Bitcoin read tools for AI SDK tool calls. Useful for sBTC peg-in/peg-out
+ * flows, BTC-collateralized lending, and anywhere a Stacks contract's
+ * behaviour depends on BTC state.
  *
- * Backed by mempool.space by default. Override per-tool call is not
- * supported today; swap endpoints by setting `BTC_MEMPOOL_URL` in the
- * workflow runtime env. Reads only — no BTC writes.
+ * Backed by mempool.space by default. Swap endpoints by setting
+ * `BTC_MEMPOOL_URL` in the caller's env. Reads only — no BTC writes.
  *
+ *   import { generateText } from "ai"
  *   import { btcConfirmations, btcBalance } from "@secondlayer/stacks/tools/btc"
- *   await step.generateText("research", { tools: { btcConfirmations, btcBalance }, … })
+ *   await generateText({
+ *     model: anthropic("claude-sonnet-4-6"),
+ *     tools: { btcConfirmations, btcBalance },
+ *     prompt: "…",
+ *   })
  */
 
 import { type Tool, tool } from "ai";

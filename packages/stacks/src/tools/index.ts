@@ -3,15 +3,17 @@
  *
  * Each tool is a `tool()` from `ai@^6` with a Zod input schema + async
  * execute that calls the underlying `@secondlayer/stacks` public action.
+ * Works with `generateText`, `streamText`, or any other AI SDK caller.
  *
  * Two usage modes:
  *
  * 1. **Bare exports** — use the default public client (reads `STACKS_RPC_URL`
- *    + `STACKS_CHAIN` env vars). Zero-config, fine for most workflows:
+ *    + `STACKS_CHAIN` env vars). Zero-config:
  *
  *    ```ts
+ *    import { generateText } from "ai"
  *    import { getStxBalance, bnsReverse } from "@secondlayer/stacks/tools"
- *    await step.generateText("enrich", {
+ *    await generateText({
  *      model: anthropic("claude-sonnet-4-6"),
  *      tools: { getStxBalance, bnsReverse },
  *      prompt: "…",
