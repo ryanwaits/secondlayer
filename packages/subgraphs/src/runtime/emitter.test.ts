@@ -9,6 +9,8 @@ process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5432/secondlayer";
+// Tests spin up localhost receivers — opt in to private egress.
+process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = "true";
 
 const db = getDb();
 const accountId = randomUUID();

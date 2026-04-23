@@ -47,6 +47,44 @@ function nextDelaySeconds(attempt: number): number {
 	return BACKOFF_SECONDS[Math.min(attempt, BACKOFF_SECONDS.length - 1)]!;
 }
 
+// ── SSRF guard ────────────────────────────────────────────────────────
+// Block deliveries to private/loopback/link-local ranges unless
+// SECONDLAYER_ALLOW_PRIVATE_EGRESS=true (self-host + local-dev opt-in).
+
+const PRIVATE_V4_PATTERNS = [
+	/^127\./, // loopback
+	/^10\./, // private class A
+	/^172\.(1[6-9]|2\d|3[01])\./, // private class B
+	/^192\.168\./, // private class C
+	/^169\.254\./, // link-local
+	/^0\./, // "this" network
+	/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT 100.64/10
+];
+
+function isPrivateEgress(url: string): boolean {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return true; // malformed URL: reject
+	}
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+		return true;
+	}
+	const host = parsed.hostname.toLowerCase();
+	if (host === "localhost") return true;
+	if (host === "::1" || host === "[::1]") return true;
+	if (host.startsWith("fd") || host.startsWith("fe80:")) return true;
+	for (const p of PRIVATE_V4_PATTERNS) {
+		if (p.test(host)) return true;
+	}
+	return false;
+}
+
+function allowPrivateEgress(): boolean {
+	return process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS === "true";
+}
+
 async function dispatchOne(
 	db: Kysely<Database>,
 	outboxRow: SubscriptionOutbox,
@@ -64,6 +102,30 @@ async function dispatchOne(
 	let ok = false;
 	let responseBody = "";
 	let responseHeaders: Record<string, string> = {};
+
+	if (isPrivateEgress(sub.url) && !allowPrivateEgress()) {
+		error = "refused private egress (set SECONDLAYER_ALLOW_PRIVATE_EGRESS=true to allow)";
+		logger.warn("[emitter] refused private egress", {
+			subscription: sub.name,
+			url: sub.url,
+		});
+		const durationMs = 0;
+		const attempt = outboxRow.attempt + 1;
+		await db
+			.insertInto("subscription_deliveries")
+			.values({
+				outbox_id: outboxRow.id,
+				subscription_id: outboxRow.subscription_id,
+				attempt,
+				status_code: null,
+				response_headers: null,
+				response_body: null,
+				error_message: error,
+				duration_ms: durationMs,
+			})
+			.execute();
+		return { ok: false, statusCode: null, error, durationMs };
+	}
 
 	try {
 		const res = await fetch(sub.url, {
