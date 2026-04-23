@@ -1,4 +1,4 @@
-import { formatBytes, formatHours, formatNum } from "@/lib/usage";
+import { formatBytes, formatHours } from "@/lib/usage";
 import type { UsageProject } from "@/lib/usage";
 import Link from "next/link";
 
@@ -36,7 +36,6 @@ export function ProjectUsageTable({ projects }: Props) {
 				<div>Name</div>
 				<div>Compute</div>
 				<div>Storage</div>
-				<div>AI /day</div>
 			</div>
 			{projects.map((p) => (
 				<div
@@ -54,10 +53,6 @@ export function ProjectUsageTable({ projects }: Props) {
 					<div className="num">
 						{formatBytes(p.storage.bytes)}
 						<span className="sub">{Math.round(p.storage.pct)}%</span>
-					</div>
-					<div className="num">
-						{formatNum(p.aiEvals.todayCount)}
-						<span className="sub">{Math.round(p.aiEvals.pct)}%</span>
 					</div>
 				</div>
 			))}

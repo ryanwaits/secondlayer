@@ -1,6 +1,5 @@
 import { type Kysely, sql } from "kysely";
 import {
-	getAiCapForPlan,
 	getComputeAllowanceHours,
 	getStorageAllowanceBytes,
 } from "../../pricing.ts";
@@ -43,14 +42,6 @@ export interface StorageUsage {
 	sparkline: SparklinePoint[];
 }
 
-export interface AiUsage {
-	todayCount: number;
-	periodCount: number;
-	dailyCap: number;
-	pct: number;
-	sparkline: SparklinePoint[];
-}
-
 export interface ProjectRow {
 	id: string;
 	slug: string;
@@ -59,7 +50,6 @@ export interface ProjectRow {
 	subgraphCount: number;
 	compute: { hours: number; pct: number };
 	storage: { bytes: number; pct: number };
-	aiEvals: { todayCount: number; pct: number };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -190,19 +180,6 @@ export async function getStorageUsage(
 	};
 }
 
-export async function getAiUsage(
-	_db: Kysely<Database>,
-	_accountId: string,
-	plan: string,
-	_periodStart: Date,
-	now: Date = new Date(),
-): Promise<AiUsage> {
-	const dailyCap = getAiCapForPlan(plan).evalsPerDay;
-	const sparkline: SparklinePoint[] = [];
-	for (const day of lastNDays(14, now)) sparkline.push({ day, value: 0 });
-	return { todayCount: 0, periodCount: 0, dailyCap, pct: 0, sparkline };
-}
-
 export async function getProjectBreakdown(
 	db: Kysely<Database>,
 	accountId: string,
@@ -228,11 +205,8 @@ export async function getProjectBreakdown(
 
 	if (tenants.length === 0) return [];
 
-	const aiByTenant = new Map<string, number>();
-
 	const computeAllowance = getComputeAllowanceHours(plan);
 	const storageAllowance = getStorageAllowanceBytes(plan);
-	const aiDailyCap = getAiCapForPlan(plan).evalsPerDay;
 
 	return tenants.map((t) => {
 		const hours =
@@ -242,7 +216,6 @@ export async function getProjectBreakdown(
 				status: String(t.status),
 			}) * Number(t.cpus);
 		const bytes = Number(t.storage_used_mb ?? 0) * BYTES_PER_MB;
-		const todayAi = aiByTenant.get(t.id) ?? 0;
 
 		return {
 			id: t.id,
@@ -254,7 +227,6 @@ export async function getProjectBreakdown(
 			subgraphCount: 0,
 			compute: { hours, pct: pct(hours, computeAllowance) },
 			storage: { bytes, pct: pct(bytes, storageAllowance) },
-			aiEvals: { todayCount: todayAi, pct: pct(todayAi, aiDailyCap) },
 		};
 	});
 }

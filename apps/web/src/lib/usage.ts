@@ -58,14 +58,6 @@ export interface UsageStorage {
 	sparkline: SparklinePoint[];
 }
 
-export interface UsageAiEvals {
-	todayCount: number;
-	periodCount: number;
-	dailyCap: number;
-	pct: number;
-	sparkline: SparklinePoint[];
-}
-
 export interface UsageProject {
 	id: string;
 	slug: string;
@@ -74,7 +66,6 @@ export interface UsageProject {
 	subgraphCount: number;
 	compute: { hours: number; pct: number };
 	storage: { bytes: number; pct: number };
-	aiEvals: { todayCount: number; pct: number };
 }
 
 export interface UsageResponse {
@@ -83,7 +74,6 @@ export interface UsageResponse {
 	spend: UsageSpend;
 	compute: UsageCompute;
 	storage: UsageStorage;
-	aiEvals: UsageAiEvals;
 	projects: UsageProject[];
 }
 

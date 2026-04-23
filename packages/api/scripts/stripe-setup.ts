@@ -14,7 +14,7 @@
  * What it creates:
  *   - Product "Secondlayer" (single product, per-tier prices attach here)
  *   - Price: Pro monthly, $25/mo recurring, lookup_key=secondlayer_pro_monthly
- *   - Meters: compute_hours, storage_gb_months, ai_evals (metered usage)
+ *   - Meters: compute_hours, storage_gb_months (metered usage)
  *   - Prices attached to each meter for overage billing
  *
  * Enterprise: intentionally NOT created here. Enterprise is custom-quoted
@@ -93,11 +93,6 @@ const METERS: MeterDef[] = [
 	{
 		eventName: "storage_gb_months",
 		displayName: "Storage GB-months",
-		aggregation: "sum",
-	},
-	{
-		eventName: "ai_evals",
-		displayName: "AI evaluations (overage)",
 		aggregation: "sum",
 	},
 ];
@@ -212,16 +207,8 @@ async function main() {
 		200, // $2.00/GB-month
 		"Storage overage",
 	);
-	const aiPrice = await upsertMeteredPrice(
-		product.id,
-		"secondlayer_ai_overage",
-		meters.ai_evals.id,
-		1, // $0.01/eval (fill in real per-eval cost later)
-		"AI eval overage",
-	);
 	console.log(`  price(compute)=${computePrice.id}`);
 	console.log(`  price(storage)=${storagePrice.id}`);
-	console.log(`  price(ai)=${aiPrice.id}`);
 
 	console.log("\n─── Paste into .env ───");
 	console.log(`STRIPE_PRICE_LAUNCH=${launchPrice.id}`);
@@ -230,10 +217,8 @@ async function main() {
 	console.log(`STRIPE_PRICE_PRO=${proPrice.id}  # legacy, optional`);
 	console.log(`STRIPE_METER_COMPUTE=${meters.compute_hours.id}`);
 	console.log(`STRIPE_METER_STORAGE=${meters.storage_gb_months.id}`);
-	console.log(`STRIPE_METER_AI_EVALS=${meters.ai_evals.id}`);
 	console.log(`STRIPE_PRICE_COMPUTE_OVERAGE=${computePrice.id}`);
 	console.log(`STRIPE_PRICE_STORAGE_OVERAGE=${storagePrice.id}`);
-	console.log(`STRIPE_PRICE_AI_OVERAGE=${aiPrice.id}`);
 }
 
 main().catch((err) => {

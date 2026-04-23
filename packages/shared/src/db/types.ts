@@ -409,7 +409,6 @@ export interface AccountSpendCapsTable {
 	monthly_cap_cents: number | null;
 	compute_cap_cents: number | null;
 	storage_cap_cents: number | null;
-	ai_cap_cents: number | null;
 	alert_threshold_pct: Generated<number>;
 	alert_sent_at: Date | null;
 	frozen_at: Date | null;

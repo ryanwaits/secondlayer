@@ -1,7 +1,6 @@
 import { getDb } from "@secondlayer/shared/db";
 import { getCaps } from "@secondlayer/shared/db/queries/account-spend-caps";
 import {
-	getAiUsage,
 	getComputeUsage,
 	getProjectBreakdown,
 	getStorageUsage,
@@ -48,7 +47,7 @@ app.get("/me", async (c) => {
 	});
 });
 
-// ── /usage — three-axis org/compute/storage model ────────────────
+// ── /usage — compute/storage usage model ─────────────────────────
 
 app.get("/usage", async (c) => {
 	const accountId = requireAccountId(c);
@@ -75,10 +74,9 @@ app.get("/usage", async (c) => {
 
 	const plan = account.plan;
 
-	const [compute, storage, ai, projects, caps] = await Promise.all([
+	const [compute, storage, projects, caps] = await Promise.all([
 		getComputeUsage(db, accountId, plan, periodStart, now),
 		getStorageUsage(db, accountId, plan, now),
-		getAiUsage(db, accountId, plan, periodStart, now),
 		getProjectBreakdown(db, accountId, plan, periodStart, now),
 		getCaps(db, accountId),
 	]);
@@ -142,7 +140,6 @@ app.get("/usage", async (c) => {
 		},
 		compute,
 		storage,
-		aiEvals: ai,
 		projects,
 	});
 });

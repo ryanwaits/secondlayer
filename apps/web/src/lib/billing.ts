@@ -3,7 +3,6 @@ export interface BillingCaps {
 	monthlyCapCents: number | null;
 	computeCapCents: number | null;
 	storageCapCents: number | null;
-	aiCapCents: number | null;
 	alertThresholdPct: number;
 	frozenAt: string | null;
 	alertSentAt: string | null;
@@ -29,7 +28,7 @@ export const TIER_META: Record<Exclude<BillingTier, "enterprise">, TierMeta> = {
 		features: [
 			"1 project · Nano compute",
 			"5 GB storage · auto-pause 7d",
-			"50 AI evals / day",
+			"Subgraphs + subscriptions",
 			"Community support",
 		],
 	},
@@ -41,7 +40,7 @@ export const TIER_META: Record<Exclude<BillingTier, "enterprise">, TierMeta> = {
 		features: [
 			"Unlimited projects",
 			"500 h compute · 50 GB storage",
-			"500 AI evals / day",
+			"Subgraph subscriptions + replay",
 			"Spend caps + alerts",
 			"Email support",
 		],
@@ -53,7 +52,7 @@ export const TIER_META: Record<Exclude<BillingTier, "enterprise">, TierMeta> = {
 		tagline: "Scale with confidence",
 		features: [
 			"2× Launch compute + storage",
-			"1,000 AI evals / day",
+			"Higher subscription throughput",
 			"24h SLA",
 			"Priority support",
 		],
@@ -65,7 +64,7 @@ export const TIER_META: Record<Exclude<BillingTier, "enterprise">, TierMeta> = {
 		tagline: "High-throughput workloads",
 		features: [
 			"5× Launch compute + storage",
-			"2,500 AI evals / day",
+			"High-volume subgraph hosting",
 			"1h SLA",
 			"Dedicated success engineer",
 		],

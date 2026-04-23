@@ -37,7 +37,7 @@ export default async function UsagePage() {
 		);
 	}
 
-	const { period, plan, spend, compute, storage, aiEvals, projects } = usage;
+	const { period, plan, spend, compute, storage, projects } = usage;
 
 	const periodLabel = formatPeriod(period.startIso, period.endIso);
 	const capStripClass = spend.frozen
@@ -133,20 +133,6 @@ export default async function UsagePage() {
 							color="teal"
 							hidePct={!Number.isFinite(storage.allowanceBytes)}
 						/>
-						<AxisCard
-							label="AI evals"
-							value={formatNum(aiEvals.todayCount)}
-							unit="today"
-							of={
-								Number.isFinite(aiEvals.dailyCap)
-									? `of ${formatNum(aiEvals.dailyCap)} / day · resets 00:00 UTC`
-									: "unmetered"
-							}
-							pct={aiEvals.pct}
-							sparkData={aiEvals.sparkline}
-							color="accent"
-							hidePct={!Number.isFinite(aiEvals.dailyCap)}
-						/>
 					</div>
 
 					<CapStrip
@@ -182,11 +168,8 @@ export default async function UsagePage() {
 										? `${formatNum(compute.allowanceHours)} h compute, `
 										: "unlimited compute, "}
 									{Number.isFinite(storage.allowanceBytes)
-										? `${formatBytes(storage.allowanceBytes)} storage, `
-										: "unlimited storage, "}
-									{Number.isFinite(aiEvals.dailyCap)
-										? `${formatNum(aiEvals.dailyCap)} AI/day`
-										: "unlimited AI"}
+										? `${formatBytes(storage.allowanceBytes)} storage`
+										: "unlimited storage"}
 								</div>
 							</div>
 							<Link

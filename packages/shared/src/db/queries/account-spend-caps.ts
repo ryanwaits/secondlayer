@@ -37,7 +37,6 @@ export async function upsertCaps(
 		monthly_cap_cents: patch.monthly_cap_cents ?? null,
 		compute_cap_cents: patch.compute_cap_cents ?? null,
 		storage_cap_cents: patch.storage_cap_cents ?? null,
-		ai_cap_cents: patch.ai_cap_cents ?? null,
 		alert_threshold_pct: patch.alert_threshold_pct ?? 80,
 		alert_sent_at: patch.alert_sent_at ?? null,
 		frozen_at: patch.frozen_at ?? null,

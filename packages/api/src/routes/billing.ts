@@ -178,7 +178,6 @@ app.get("/caps", async (c) => {
 		monthlyCapCents: caps?.monthly_cap_cents ?? null,
 		computeCapCents: caps?.compute_cap_cents ?? null,
 		storageCapCents: caps?.storage_cap_cents ?? null,
-		aiCapCents: caps?.ai_cap_cents ?? null,
 		alertThresholdPct: caps?.alert_threshold_pct ?? 80,
 		frozenAt: caps?.frozen_at ?? null,
 		alertSentAt: caps?.alert_sent_at ?? null,
@@ -195,7 +194,6 @@ app.patch("/caps", async (c) => {
 		monthlyCapCents?: number | null;
 		computeCapCents?: number | null;
 		storageCapCents?: number | null;
-		aiCapCents?: number | null;
 		alertThresholdPct?: number;
 	};
 
@@ -208,7 +206,6 @@ app.patch("/caps", async (c) => {
 		patch.compute_cap_cents = body.computeCapCents;
 	if (body.storageCapCents !== undefined)
 		patch.storage_cap_cents = body.storageCapCents;
-	if (body.aiCapCents !== undefined) patch.ai_cap_cents = body.aiCapCents;
 	if (body.alertThresholdPct !== undefined) {
 		if (body.alertThresholdPct < 1 || body.alertThresholdPct > 100) {
 			return c.json(
@@ -238,7 +235,6 @@ app.patch("/caps", async (c) => {
 		monthlyCapCents: updated.monthly_cap_cents,
 		computeCapCents: updated.compute_cap_cents,
 		storageCapCents: updated.storage_cap_cents,
-		aiCapCents: updated.ai_cap_cents,
 		alertThresholdPct: updated.alert_threshold_pct,
 		frozenAt: updated.frozen_at,
 		alertSentAt: updated.alert_sent_at,

@@ -109,8 +109,8 @@ function HobbyView({ currentPlan }: { currentPlan: string }) {
 				<div className="hero-label">Upgrade your plan</div>
 				<h2 className="hero-title">Launch brings real production capacity.</h2>
 				<p className="hero-desc">
-					500 compute hours a month, 50 GB storage, 500 AI triages per day, and
-					spend caps that never surprise you. Cancel anytime.
+					500 compute hours a month, 50 GB storage, subgraph subscriptions with
+					replay, and spend caps that never surprise you. Cancel anytime.
 				</p>
 			</div>
 
@@ -122,7 +122,7 @@ function HobbyView({ currentPlan }: { currentPlan: string }) {
 							Hobby <span className="tier-badge free">Free</span>
 						</div>
 						<div className="plan-card-sub">
-							$0/mo · auto-pauses after 7d idle · 5 GB storage · 50 AI/day
+							$0/mo · auto-pauses after 7d idle · 5 GB storage · subgraphs
 						</div>
 					</div>
 				</div>

@@ -3499,7 +3499,7 @@ html.force-light .tabbed-code-tab.active {
 
 .axis-grid {
 	display: grid;
-	grid-template-columns: repeat(3, 1fr);
+	grid-template-columns: repeat(2, 1fr);
 	gap: 12px;
 	margin-bottom: 28px;
 }
@@ -3659,7 +3659,7 @@ html.force-light .tabbed-code-tab.active {
 }
 .project-table-head {
 	display: grid;
-	grid-template-columns: 1.4fr 1fr 1fr 1fr;
+	grid-template-columns: 1.4fr 1fr 1fr;
 	padding: 10px 14px;
 	border-bottom: 1px solid var(--border);
 	background: var(--bg-chrome);
@@ -3672,7 +3672,7 @@ html.force-light .tabbed-code-tab.active {
 }
 .project-row {
 	display: grid;
-	grid-template-columns: 1.4fr 1fr 1fr 1fr;
+	grid-template-columns: 1.4fr 1fr 1fr;
 	align-items: center;
 	padding: 12px 14px;
 	border-bottom: 1px solid var(--border);
