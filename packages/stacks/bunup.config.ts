@@ -106,7 +106,7 @@ const config: DefineConfigItem[] = defineConfig([
 		splitting: false,
 		sourcemap: "linked",
 		minify: false,
-		external: ["@secondlayer/subgraphs", "@secondlayer/workflows"],
+		external: ["@secondlayer/subgraphs"],
 	},
 	{
 		name: "tx",

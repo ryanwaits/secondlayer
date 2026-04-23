@@ -1,20 +1,7 @@
 /**
- * Typed event-trigger helpers for workflows.
- *
- *   import { defineWorkflow } from "@secondlayer/workflows"
- *   import { on } from "@secondlayer/stacks/triggers"
- *
- *   export default defineWorkflow({
- *     name: "whale-alert",
- *     trigger: on.stxTransfer({ minAmount: 100_000_000_000n }),
- *     handler: async ({ event, step }) => {
- *       // event is StxTransferEvent — sender, recipient, amount, tx all typed
- *     },
- *   })
- *
- * Each helper returns a standard `EventTrigger` (what the runner consumes)
- * plus a phantom `__event` type that `defineWorkflow` reads via conditional
- * type inference. The phantom carries no runtime value.
+ * Typed event-trigger helpers. Each helper returns a standard `EventTrigger`
+ * plus a phantom `__event` type used for inference at consumer sites. The
+ * phantom carries no runtime value.
  */
 
 import type {
@@ -32,7 +19,7 @@ import type {
 	StxMintFilter,
 	StxTransferFilter,
 } from "@secondlayer/subgraphs/types";
-import type { EventTrigger } from "@secondlayer/workflows/types";
+import type { EventTrigger } from "./types";
 
 // --- Per-filter event payload shapes ---
 
