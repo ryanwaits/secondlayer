@@ -186,11 +186,60 @@ export class ActionExecutor {
 	}
 
 	private async pruneDocker(): Promise<ExecuteResult> {
+		// Pre-check: note running container count. Doesn't block — `docker
+		// system prune -f` is safe against live containers (only removes
+		// stopped/dangling), but a 0 count means something's already wrong
+		// and the prune should still proceed. Logged into the outcome so
+		// we can correlate post-incident.
+		const runningBefore = this.countRunningContainers();
+		const diskBefore = this.readDiskAvailBytes();
+
 		const result = Bun.spawnSync(["docker", "system", "prune", "-f"]);
-		if (result.exitCode === 0) {
-			return { outcome: "success", detail: result.stdout.toString().trim() };
+		if (result.exitCode !== 0) {
+			return { outcome: "failed", detail: result.stderr.toString() };
 		}
-		return { outcome: "failed", detail: result.stderr.toString() };
+
+		// Post-check: compute freed space so the decision record captures
+		// whether the prune actually helped. If delta is ~0, the disk
+		// pressure was driven by something prune can't touch (real data
+		// growth, chainstate) — future signal for the Haiku analyzer.
+		const diskAfter = this.readDiskAvailBytes();
+		const freedBytes =
+			diskBefore != null && diskAfter != null
+				? Math.max(0, diskAfter - diskBefore)
+				: null;
+
+		const summary = [
+			result.stdout.toString().trim(),
+			`running_before=${runningBefore}`,
+			freedBytes != null ? `freed_bytes=${freedBytes}` : null,
+		]
+			.filter(Boolean)
+			.join(" | ");
+
+		return { outcome: "success", detail: summary };
+	}
+
+	private countRunningContainers(): number | null {
+		const r = Bun.spawnSync([
+			"docker",
+			"ps",
+			"--filter",
+			"status=running",
+			"--quiet",
+		]);
+		if (r.exitCode !== 0) return null;
+		const lines = r.stdout.toString().split("\n").filter(Boolean);
+		return lines.length;
+	}
+
+	private readDiskAvailBytes(): number | null {
+		// `df -B1 --output=avail /` → "Avail\n<bytes>\n"
+		const r = Bun.spawnSync(["df", "-B1", "--output=avail", "/"]);
+		if (r.exitCode !== 0) return null;
+		const line = r.stdout.toString().split("\n")[1]?.trim();
+		const n = line ? Number.parseInt(line, 10) : Number.NaN;
+		return Number.isFinite(n) ? n : null;
 	}
 
 	private async clearDockerLogs(service: string): Promise<ExecuteResult> {
