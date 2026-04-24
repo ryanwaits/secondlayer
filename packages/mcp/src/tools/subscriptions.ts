@@ -1,4 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type {
+	CreateSubscriptionRequest,
+	UpdateSubscriptionRequest,
+} from "@secondlayer/sdk";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
@@ -86,7 +90,9 @@ export function registerSubscriptionTools(
 				),
 		},
 		async (input) => {
-			const res = await clientProvider().subscriptions.create(input);
+			const res = await clientProvider().subscriptions.create(
+				input as CreateSubscriptionRequest,
+			);
 			return {
 				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
 			};
@@ -135,7 +141,10 @@ export function registerSubscriptionTools(
 			concurrency: z.number().int().min(1).optional(),
 		},
 		async ({ id, ...patch }) => {
-			const res = await clientProvider().subscriptions.update(id, patch);
+			const res = await clientProvider().subscriptions.update(
+				id,
+				patch as UpdateSubscriptionRequest,
+			);
 			return {
 				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
 			};

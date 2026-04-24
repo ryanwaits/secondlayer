@@ -11,6 +11,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { input, select } from "@inquirer/prompts";
 import { SecondLayer } from "@secondlayer/sdk";
+import type { CreateSubscriptionRequest } from "@secondlayer/sdk";
 import type { Command } from "commander";
 import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import { blue, dim, error, info, success, warn } from "../lib/output.ts";
@@ -196,7 +197,7 @@ export async function createSubscription(
 					| "standard-webhooks",
 				runtime,
 				...(filter ? { filter } : {}),
-			});
+			} as CreateSubscriptionRequest);
 			signingSecret = res.signingSecret;
 			success(`Subscription provisioned: ${blue(res.subscription.id)}`);
 		} catch (err) {
