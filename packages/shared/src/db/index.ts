@@ -1,6 +1,7 @@
 import { Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
+import { logger } from "../logger.ts";
 import type { Database } from "./types.ts";
 
 const DEFAULT_URL =
@@ -57,6 +58,24 @@ function getOrCreatePool(url: string): PoolEntry {
 	});
 	const db = new Kysely<Database>({
 		dialect: new PostgresJSDialect({ postgres: rawClient }),
+		// Diagnostic hook: surface the failing SQL whenever postgres rejects
+		// with code 42P10 (ON CONFLICT target doesn't match any unique
+		// constraint). Temporary — remove once we've caught the culprit
+		// query in prod logs and fixed the schema drift.
+		log: (event) => {
+			if (event.level !== "error") return;
+			const err = event.error as {
+				code?: string;
+				message?: string;
+			} | null;
+			if (err?.code !== "42P10") return;
+			logger.warn("db.on_conflict_constraint_missing", {
+				code: err.code,
+				message: err.message,
+				sql: event.query.sql,
+				params: event.query.parameters,
+			});
+		},
 	});
 	const entry: PoolEntry = { db, rawClient };
 	pools.set(url, entry);
