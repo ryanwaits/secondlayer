@@ -1,66 +1,84 @@
-# Column Types Reference
+# Column Types
 
-## Clarity → Subgraph Column Mapping
+## Subgraph Column Types
 
-| Clarity Type | Subgraph Column | PostgreSQL Type | Notes |
-|-------------|----------------|-----------------|-------|
-| `uint128` | `uint` | `bigint` | Token amounts, counters, IDs |
-| `int128` | `int` | `bigint` | Signed integers |
-| `principal` | `principal` | `text` | Stacks addresses (SP.../ST...) |
-| `trait_reference` | `principal` | `text` | Trait implementations |
-| `bool` | `boolean` | `boolean` | True/false flags |
-| `string-ascii` | `text` | `text` | ASCII strings |
-| `string-utf8` | `text` | `text` | UTF-8 strings |
-| `buff` | `text` | `text` | Hex-encoded buffer data |
-| `optional<T>` | (mapped type) | varies | Inner type + `nullable: true` |
-| `tuple` | `jsonb` | `jsonb` | Stored as JSON object |
-| `list` | `jsonb` | `jsonb` | Stored as JSON array |
-| `response` | `jsonb` | `jsonb` | Complex response types |
+| Type | PostgreSQL | Use for |
+| --- | --- | --- |
+| `text` | `text` | strings, contract ids, labels |
+| `uint` | `bigint` | token amounts, counters, ids |
+| `int` | `bigint` | signed amounts and deltas |
+| `principal` | `text` | Stacks addresses and principals |
+| `boolean` | `boolean` | flags |
+| `timestamp` | `timestamptz` | dates and block times |
+| `jsonb` | `jsonb` | nested data |
 
 ## Column Options
 
 ```typescript
 columns: {
-  name: {
-    type: "text",          // required
-    nullable: true,        // allows NULL values (default: false)
-    indexed: true,         // creates B-tree index for faster lookups
-    search: true,          // enables ILIKE queries via ?name.like=pattern
-    default: "unnamed",    // default value for inserts
-  }
+  sender: {
+    type: "principal",
+    indexed: true,
+  },
+  memo: {
+    type: "text",
+    nullable: true,
+    search: true,
+  },
+  amount: {
+    type: "uint",
+    default: "0",
+  },
 }
 ```
 
-## Additional Column Types
+Options:
 
-| Subgraph Type | PostgreSQL Type | Use For |
-|--------------|-----------------|---------|
-| `serial` | `serial` | Auto-incrementing IDs |
-| `timestamp` | `timestamptz` | Dates and times |
-| `jsonb` | `jsonb` | Arbitrary nested data |
-
-## System Columns (Auto-populated)
-
-Every row automatically gets:
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `_id` | `serial` | Unique row identifier |
-| `_block_height` | `bigint` | Block where row was inserted |
-| `_tx_id` | `text` | Transaction ID that triggered the insert |
-| `_created_at` | `timestamptz` | Timestamp of insertion |
+- `nullable` — allows null values.
+- `indexed` — creates a B-tree index.
+- `search` — enables text search with `.like`.
+- `default` — default insert value.
 
 ## Schema Options
 
 ```typescript
 schema: {
-  my_table: {
-    columns: { ... },
-    indexes: [["col_a", "col_b"]],       // composite index
-    uniqueKeys: [["col_a", "col_b"]],    // enables ctx.upsert()
-  }
+  balances: {
+    columns: {
+      address: { type: "principal", indexed: true },
+      token: { type: "text", indexed: true },
+      amount: { type: "uint" },
+    },
+    indexes: [["token", "amount"]],
+    uniqueKeys: [["address", "token"]],
+  },
 }
 ```
 
-- `indexes`: array of column name arrays for composite B-tree indexes
-- `uniqueKeys`: array of column name arrays for unique constraints (required for `ctx.upsert()`)
+- `indexes` are composite indexes.
+- `uniqueKeys` are unique constraints required by `ctx.upsert()`.
+
+## System Columns
+
+Every table gets:
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `_id` | serial-like id | row identifier |
+| `_block_height` | `bigint` | block where the row was inserted |
+| `_tx_id` | `text` | transaction id |
+| `_created_at` | `timestamptz` | row insertion time |
+
+## Clarity Mapping
+
+| Clarity | Column |
+| --- | --- |
+| `uint128` | `uint` |
+| `int128` | `int` |
+| `principal` | `principal` |
+| `trait_reference` | `principal` |
+| `bool` | `boolean` |
+| `string-ascii` / `string-utf8` | `text` |
+| `buff` | `text` |
+| `optional<T>` | inner mapped type plus `nullable: true` |
+| `tuple` / `list` / `response` | `jsonb` |

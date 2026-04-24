@@ -1,114 +1,76 @@
-# Event Filter Types
+# Event Filters
 
-13 filter types, discriminated by `type` field. All fields besides `type` are optional.
+Subgraph sources use 13 filter types. Every filter has a required `type` and
+optional narrowing fields.
 
-## STX Transfers
+Use filters inside named `sources`:
 
-```json
-{ "type": "stx_transfer", "sender": "SP...", "recipient": "SP...", "minAmount": 1000000, "maxAmount": 5000000 }
-```
-Amounts in microSTX (1 STX = 1,000,000 microSTX).
-
-## STX Mint
-
-```json
-{ "type": "stx_mint", "recipient": "SP...", "minAmount": 1000000 }
+```typescript
+sources: {
+  transfer: { type: "stx_transfer", minAmount: 100000000n },
+}
 ```
 
-## STX Burn
+## STX
 
-```json
-{ "type": "stx_burn", "sender": "SP...", "minAmount": 1000000 }
+```typescript
+{ type: "stx_transfer", sender: "SP...", recipient: "SP...", minAmount: 1000000n, maxAmount: 5000000n }
+{ type: "stx_mint", recipient: "SP...", minAmount: 1000000n }
+{ type: "stx_burn", sender: "SP...", minAmount: 1000000n }
+{ type: "stx_lock", lockedAddress: "SP...", minAmount: 1000000n }
 ```
 
-## STX Lock
+Amounts are microSTX.
 
-```json
-{ "type": "stx_lock", "lockedAddress": "SP...", "minAmount": 1000000 }
+## Fungible Tokens
+
+```typescript
+{ type: "ft_transfer", assetIdentifier: "SP123.token::token", sender: "SP...", recipient: "SP...", minAmount: 100n }
+{ type: "ft_mint", assetIdentifier: "SP123.token::token", recipient: "SP...", minAmount: 100n }
+{ type: "ft_burn", assetIdentifier: "SP123.token::token", sender: "SP...", minAmount: 100n }
 ```
 
-## Fungible Token Transfer
+## NFTs
 
-```json
-{ "type": "ft_transfer", "sender": "SP...", "recipient": "SP...", "assetIdentifier": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.token-wstx", "minAmount": 100 }
+```typescript
+{ type: "nft_transfer", assetIdentifier: "SP123.collection::asset", sender: "SP...", recipient: "SP..." }
+{ type: "nft_mint", assetIdentifier: "SP123.collection::asset", recipient: "SP..." }
+{ type: "nft_burn", assetIdentifier: "SP123.collection::asset", sender: "SP..." }
 ```
 
-## Fungible Token Mint
+## Contracts
 
-```json
-{ "type": "ft_mint", "recipient": "SP...", "assetIdentifier": "SP...::token", "minAmount": 100 }
+```typescript
+{ type: "contract_call", contractId: "SP123.marketplace", functionName: "buy", caller: "SP..." }
+{ type: "contract_deploy", deployer: "SP...", contractName: "token-*" }
+{ type: "print_event", contractId: "SP123.marketplace", topic: "sale" }
 ```
 
-## Fungible Token Burn
+`contractId`, `functionName`, and `contractName` support wildcards such as
+`"SP123.*"` and `"swap*"`.
 
-```json
-{ "type": "ft_burn", "sender": "SP...", "assetIdentifier": "SP...::token", "minAmount": 100 }
+## Patterns
+
+Track whale STX transfers:
+
+```typescript
+{ type: "stx_transfer", minAmount: 100000000n }
 ```
 
-## Non-Fungible Token Transfer
+Track a DEX contract:
 
-```json
-{ "type": "nft_transfer", "sender": "SP...", "recipient": "SP...", "assetIdentifier": "SP...::nft-collection", "tokenId": "0x01000000000000000000000000000001" }
-```
-`tokenId` is the Clarity value encoded as hex.
-
-## Non-Fungible Token Mint
-
-```json
-{ "type": "nft_mint", "recipient": "SP...", "assetIdentifier": "SP...::nft-collection", "tokenId": "0x..." }
+```typescript
+{
+  swaps: { type: "print_event", contractId: "SP123.amm-pool", topic: "swap" },
+  calls: { type: "contract_call", contractId: "SP123.amm-pool" },
+}
 ```
 
-## Non-Fungible Token Burn
+Track NFT marketplace sales:
 
-```json
-{ "type": "nft_burn", "sender": "SP...", "assetIdentifier": "SP...::nft-collection", "tokenId": "0x..." }
-```
-
-## Contract Call
-
-```json
-{ "type": "contract_call", "contractId": "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01", "functionName": "swap-helper", "caller": "SP..." }
-```
-`contractId` and `functionName` support wildcards: `"SP102*::amm-*"`, `"swap*"`.
-
-## Contract Deploy
-
-```json
-{ "type": "contract_deploy", "deployer": "SP...", "contractName": "my-token*" }
-```
-`contractName` supports wildcards.
-
-## Print Event (Smart Contract Events)
-
-```json
-{ "type": "print_event", "contractId": "SP...::marketplace", "topic": "listing-created", "contains": "nft" }
-```
-`contains` does substring search in event data.
-
-## Common Patterns
-
-**Track whale STX transfers (>100 STX)**:
-```json
-[{ "type": "stx_transfer", "minAmount": 100000000 }]
-```
-
-**Track all activity on a DEX contract**:
-```json
-[
-  { "type": "contract_call", "contractId": "SP102...::amm-pool-v2-01" },
-  { "type": "print_event", "contractId": "SP102...::amm-pool-v2-01" }
-]
-```
-
-**Track NFT sales on a marketplace**:
-```json
-[
-  { "type": "nft_transfer" },
-  { "type": "print_event", "contractId": "SP...::marketplace", "topic": "sale" }
-]
-```
-
-**Track new contract deployments**:
-```json
-[{ "type": "contract_deploy" }]
+```typescript
+{
+  sale: { type: "print_event", contractId: "SP123.marketplace", topic: "sale" },
+  nftMoves: { type: "nft_transfer", assetIdentifier: "SP123.collection::nft" },
+}
 ```

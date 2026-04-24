@@ -1,0 +1,16 @@
+name: secondlayer
+display_name: Secondlayer
+description: Build and operate Stacks subgraphs, row-change subscriptions, CLI, SDK, and MCP workflows on Secondlayer.
+entrypoint: ../SKILL.md
+tags:
+  - stacks
+  - subgraphs
+  - subscriptions
+  - webhooks
+  - mcp
+  - sdk
+  - cli
+surfaces:
+  - coding
+  - debugging
+  - operations
