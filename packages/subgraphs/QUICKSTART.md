@@ -209,31 +209,29 @@ Filter DSL:
 List subscriptions:
 
 ```bash
-curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
-  "$SL_API_URL/api/subscriptions"
+sl subscriptions list
+sl subscriptions get large-stx-transfers
 ```
 
 Inspect recent delivery attempts:
 
 ```bash
-curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
-  "$SL_API_URL/api/subscriptions/$SUBSCRIPTION_ID/deliveries"
+sl subscriptions deliveries large-stx-transfers
+sl subscriptions doctor large-stx-transfers
+sl subscriptions test large-stx-transfers --signing-secret "$SIGNING_SECRET"
 ```
 
 Replay a block range:
 
 ```bash
-curl -X POST \
-  -H "Authorization: Bearer $SL_SERVICE_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"fromBlock":123000,"toBlock":124000}' \
-  "$SL_API_URL/api/subscriptions/$SUBSCRIPTION_ID/replay"
+sl subscriptions replay large-stx-transfers \
+  --from-block 123000 \
+  --to-block 124000
 ```
 
 Replay scans existing subgraph rows in that range and enqueues them as replay deliveries. Re-running the same range is idempotent unless the API caller passes a force suffix.
 
-## Product gaps to review
-
-- `sl create subscription` now provisions through the same active-project path as `sl subgraphs ...`, but the CLI still only covers create. List/update/replay currently require SDK, REST, MCP, or dashboard support.
-- CLI filters support equality/comparison operators, but not the SDK/REST-only `in` operator.
-- The dashboard is useful for inspection, but the strongest golden path is still CLI/MCP/SDK first: scaffold, deploy, query, subscribe, replay.
+Operational commands accept either subscription id or unique name and support
+`--json`. Destructive commands prompt unless `--yes` is passed. CLI create and
+update filters are schema-aware, and the API repeats table/field/operator
+validation as the source of truth.

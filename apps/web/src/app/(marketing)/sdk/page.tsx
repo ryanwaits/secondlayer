@@ -24,8 +24,8 @@ export default function SdkPage() {
 				<div className="prose">
 					<p>
 						A TypeScript client for the platform. Deploy subgraphs, query
-						tables, manage row-change subscriptions — same auth, same
-						operations as the CLI and MCP server.
+						tables, manage row-change subscriptions — same auth, same operations
+						as the CLI and MCP server.
 					</p>
 					<p>
 						Install with <code>bun add @secondlayer/sdk</code>.
@@ -99,8 +99,8 @@ const total = await typed.transfers.count({ sender: { eq: "SP1234..." } })`}
 				<div className="prose">
 					<p>
 						Subscribe to row changes on any subgraph table. The emitter POSTs
-						signed payloads (Standard Webhooks by default — verify with any
-						Svix library) with retries and a per-subscription circuit breaker.
+						signed payloads (Standard Webhooks by default — verify with any Svix
+						library) with retries and a per-subscription circuit breaker.
 						Supported wire formats: <code>standard-webhooks</code>,{" "}
 						<code>inngest</code>, <code>trigger</code>, <code>cloudflare</code>,
 						<code>cloudevents</code>, <code>raw</code>.
@@ -125,6 +125,10 @@ await client.subscriptions.list()
 await client.subscriptions.pause(subscription.id)
 await client.subscriptions.resume(subscription.id)
 await client.subscriptions.update(subscription.id, { url: "https://..." })
+await client.subscriptions.rotateSecret(subscription.id)
+await client.subscriptions.recentDeliveries(subscription.id)
+await client.subscriptions.dead(subscription.id)
+await client.subscriptions.replay(subscription.id, { fromBlock: 180000, toBlock: 181000 })
 await client.subscriptions.delete(subscription.id)`}
 				/>
 

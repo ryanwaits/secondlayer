@@ -102,9 +102,11 @@ sl subgraphs delete token-transfers`}
 				<p className="prose">
 					Scaffold a receiver project for your runtime. The CLI drops a ready-
 					to-run template into <code>./&lt;name&gt;/</code>, provisions the
-					subscription via the SDK, and writes the one-time signing secret
-					into <code>.env</code>. Manage existing subscriptions from the
-					dashboard or SDK.
+					subscription via the SDK, and writes the one-time signing secret into{" "}
+					<code>.env</code>. Manage existing subscriptions with{" "}
+					<code>sl subscriptions</code>: update filters, pause, resume, rotate
+					secrets, inspect deliveries, replay ranges, run doctor, and generate
+					signed test fixtures.
 				</p>
 
 				<CodeBlock
@@ -116,7 +118,12 @@ sl create subscription whale-alerts --runtime node
 
 # Flags (all optional; prompts if omitted):
 #   --subgraph <name>    --table <name>    --url <https://...>
-#   --service-key <key>  --base-url <url>  --skip-api`}
+#   --service-key <key>  --base-url <url>  --skip-api
+
+sl subscriptions list
+sl subscriptions doctor whale-alerts
+sl subscriptions test whale-alerts --signing-secret "$SIGNING_SECRET"
+sl subscriptions replay whale-alerts --from-block 123000 --to-block 124000`}
 					lang="bash"
 				/>
 			</main>

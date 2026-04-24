@@ -72,10 +72,10 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
 
 				<div className="prose">
 					<p>
-						The dashboard at <code>/subgraphs/&lt;name&gt;/subscriptions</code>{" "}
-						is observe-only — pause, resume, rotate, replay, inspect
-						delivery log + dead-letter queue. Creation happens via CLI, SDK,
-						or MCP tools; the dashboard never asks you to fill out a form.
+						Create subscriptions from the CLI, SDK, or MCP tools. Operational
+						controls are available from <code>sl subscriptions</code>, SDK, MCP,
+						and the subgraph subscription pages: pause, resume, rotate, replay,
+						inspect delivery logs, and drain the dead-letter queue.
 					</p>
 				</div>
 

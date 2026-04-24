@@ -109,7 +109,9 @@ export default function McpPage() {
 					<div className="props-group-title">Subscriptions</div>
 					<div className="prop-row">
 						<span className="prop-name">subscriptions_list</span>
-						<span className="prop-type">List subscriptions for the account</span>
+						<span className="prop-type">
+							List subscriptions for the account
+						</span>
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">subscriptions_get</span>
@@ -126,13 +128,41 @@ export default function McpPage() {
 						<span className="prop-type">Edit url, filter, or format</span>
 					</div>
 					<div className="prop-row">
+						<span className="prop-name">subscriptions_pause</span>
+						<span className="prop-type">
+							Pause delivery without deleting config
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">subscriptions_resume</span>
+						<span className="prop-type">
+							Resume delivery and reset circuit failures
+						</span>
+					</div>
+					<div className="prop-row">
 						<span className="prop-name">subscriptions_delete</span>
 						<span className="prop-type">Delete a subscription</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">subscriptions_rotate_secret</span>
+						<span className="prop-type">
+							Rotate and return a new signing secret once
+						</span>
 					</div>
 					<div className="prop-row">
 						<span className="prop-name">subscriptions_replay</span>
 						<span className="prop-type">
 							Re-enqueue a block range for this subscription
+						</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">subscriptions_dead</span>
+						<span className="prop-type">Inspect dead-letter outbox rows</span>
+					</div>
+					<div className="prop-row">
+						<span className="prop-name">subscriptions_requeue_dead</span>
+						<span className="prop-type">
+							Requeue one dead-letter outbox row
 						</span>
 					</div>
 					<div className="prop-row">
