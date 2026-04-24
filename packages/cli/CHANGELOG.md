@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 3.3.1
+
+### Patch Changes
+
+- Align subscription create/update request typing with the current SDK contract.
+
 ## 3.3.0
 
 ### Minor Changes

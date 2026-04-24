@@ -8,9 +8,9 @@ const products = [
 ];
 
 const interfaces = [
-	{ name: "CLI", href: "/cli", version: "3.3.0" },
+	{ name: "CLI", href: "/cli", version: "3.3.1" },
 	{ name: "SDK", href: "/sdk", version: "3.1.0" },
-	{ name: "MCP", href: "/mcp", version: "2.1.0" },
+	{ name: "MCP", href: "/mcp", version: "2.1.1" },
 ];
 
 const foundation = [{ name: "Stacks", href: "/stacks", version: "1.0.0" }];

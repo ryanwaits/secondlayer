@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 2.1.1
+
+### Patch Changes
+
+- Align subscription create/update request typing with the current SDK contract.
+
 ## 2.1.0
 
 ### Minor Changes
