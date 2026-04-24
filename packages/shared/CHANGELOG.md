@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 4.0.1
+
+### Patch Changes
+
+- Migration 0058 `down` now throws instead of silently re-adding the `ai_cap_cents` column without data. Matches the `0056` one-way-drop pattern.
+
 ## 4.0.0
 
 ### Major Changes
