@@ -153,3 +153,60 @@ export interface SubgraphDetail {
 	createdAt: string;
 	updatedAt: string;
 }
+
+export type SubscriptionStatus = "active" | "paused" | "error";
+export type SubscriptionFormat =
+	| "standard-webhooks"
+	| "inngest"
+	| "trigger"
+	| "cloudflare"
+	| "cloudevents"
+	| "raw";
+export type SubscriptionRuntime = "inngest" | "trigger" | "cloudflare" | "node";
+
+export interface SubscriptionSummary {
+	id: string;
+	name: string;
+	status: SubscriptionStatus;
+	subgraphName: string;
+	tableName: string;
+	format: SubscriptionFormat;
+	runtime: SubscriptionRuntime | null;
+	url: string;
+	lastDeliveryAt: string | null;
+	lastSuccessAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface SubscriptionDetail extends SubscriptionSummary {
+	filter: Record<string, unknown>;
+	authConfig: Record<string, unknown>;
+	maxRetries: number;
+	timeoutMs: number;
+	concurrency: number;
+	circuitFailures: number;
+	circuitOpenedAt: string | null;
+	lastError: string | null;
+}
+
+export interface DeliveryRow {
+	id: string;
+	attempt: number;
+	statusCode: number | null;
+	errorMessage: string | null;
+	durationMs: number | null;
+	responseBody: string | null;
+	dispatchedAt: string;
+}
+
+export interface DeadRow {
+	id: string;
+	eventType: string;
+	attempt: number;
+	blockHeight: number;
+	txId: string | null;
+	payload: Record<string, unknown>;
+	failedAt: string | null;
+	createdAt: string;
+}

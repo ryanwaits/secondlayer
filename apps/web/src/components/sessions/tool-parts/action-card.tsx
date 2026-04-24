@@ -17,6 +17,9 @@ const ACTION_LABELS: Record<string, string> = {
 	pause: "Pause",
 	resume: "Resume",
 	delete: "Delete",
+	"rotate-secret": "Rotate Secret",
+	replay: "Replay",
+	requeue: "Requeue",
 	"replay-failed": "Replay Failed",
 };
 
@@ -37,6 +40,7 @@ export function ActionCard({
 					height="12"
 					viewBox="0 0 16 16"
 					fill="none"
+					aria-hidden="true"
 					stroke="currentColor"
 					strokeWidth="1.5"
 					strokeLinecap="round"

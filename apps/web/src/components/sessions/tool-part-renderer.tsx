@@ -21,8 +21,14 @@ import { DiffCard } from "./tool-parts/diff-card";
 import { InsightsCard } from "./tool-parts/insights-card";
 import { KeysCard } from "./tool-parts/keys-card";
 import { MemoryRecallCard } from "./tool-parts/memory-tag";
+import { SignedTestFixtureCard } from "./tool-parts/signed-test-fixture-card";
 import { SubgraphStatusCard } from "./tool-parts/subgraph-status-card";
 import { SubgraphSyncLive } from "./tool-parts/subgraph-sync-live";
+import { SubscriptionCreateCard } from "./tool-parts/subscription-create-card";
+import { SubscriptionDeliveryCard } from "./tool-parts/subscription-delivery-card";
+import { SubscriptionDiagnosticsCard } from "./tool-parts/subscription-diagnostics-card";
+import { SubscriptionSecretCard } from "./tool-parts/subscription-secret-card";
+import { SubscriptionStatusCard } from "./tool-parts/subscription-status-card";
 import { SuccessBanner } from "./tool-parts/success-banner";
 import { ToolCallIndicator } from "./tool-parts/tool-call-indicator";
 
@@ -39,6 +45,9 @@ interface ToolPartRendererProps {
 const HUMAN_IN_LOOP_TOOLS = new Set([
 	"manage_keys",
 	"manage_subgraphs",
+	"manage_subscriptions",
+	"create_subscription",
+	"requeue_dead_subscription",
 	"deploy_subgraph",
 	"edit_subgraph",
 ]);
@@ -132,14 +141,93 @@ export function ToolPartRenderer({
 		);
 	}
 
+	if (state === "input-available" && toolName === "create_subscription") {
+		const input = part.input as SubscriptionCreateInput;
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<SubscriptionCreateCard
+					input={input}
+					onConfirm={async () => {
+						const result = await executeCreateSubscription(input);
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output: result,
+						});
+					}}
+					onCancel={() =>
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output: {
+								confirmed: false,
+								cancelled: true,
+								message: "Subscription creation cancelled",
+							},
+						})
+					}
+				/>
+			</>
+		);
+	}
+
+	if (state === "input-available" && toolName === "requeue_dead_subscription") {
+		const input = part.input as {
+			subscriptionId: string;
+			subscriptionName: string;
+			outboxId: string;
+			reason?: string;
+		};
+		return (
+			<>
+				<ToolCallIndicator
+					toolName={toolName}
+					state={state}
+					input={part.input}
+				/>
+				<ActionCard
+					action="requeue"
+					targets={[
+						{
+							id: input.outboxId,
+							name: `${input.subscriptionName} · ${input.outboxId}`,
+							reason: input.reason,
+						},
+					]}
+					onConfirm={async () => {
+						const result = await executeRequeueDeadSubscription(input);
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output: result,
+						});
+					}}
+					onCancel={() =>
+						addToolOutput({
+							toolCallId: part.toolCallId,
+							output: { confirmed: false, message: "Requeue cancelled" },
+						})
+					}
+				/>
+			</>
+		);
+	}
+
 	// Human-in-the-loop tools — show indicator + action card
 	if (state === "input-available" && HUMAN_IN_LOOP_TOOLS.has(toolName)) {
 		const input = part.input as {
 			action: string;
-			targets: Array<{ id?: string; name: string; reason?: string }>;
+			targets: ActionTargetInput[];
 			triggerInput?: string;
 		};
-		const resourceType = toolName === "manage_keys" ? "keys" : "subgraphs";
+		const resourceType =
+			toolName === "manage_keys"
+				? "keys"
+				: toolName === "manage_subscriptions"
+					? "subscriptions"
+					: "subgraphs";
 		return (
 			<>
 				<ToolCallIndicator
@@ -155,10 +243,14 @@ export function ToolPartRenderer({
 						reason: t.reason,
 					}))}
 					onConfirm={async () => {
-						await executeAction(toolName, input.action, input.targets);
+						const result = await executeAction(
+							toolName,
+							input.action,
+							input.targets,
+						);
 						addToolOutput({
 							toolCallId: part.toolCallId,
-							output: {
+							output: result ?? {
 								confirmed: true,
 								message: `${input.targets.length} ${resourceType} ${input.action}d successfully`,
 							},
@@ -235,6 +327,24 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 				/>
 			);
 
+		case "check_subscriptions":
+			return (
+				<SubscriptionStatusCard
+					subscriptions={
+						output.subscriptions as Array<{
+							id: string;
+							name: string;
+							status: string;
+							target: string;
+							format: string;
+							runtime: string | null;
+							lastDeliveryAt: string | null;
+							lastSuccessAt: string | null;
+						}>
+					}
+				/>
+			);
+
 		case "check_keys":
 			return (
 				<KeysCard
@@ -267,16 +377,28 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			);
 
 		case "manage_keys":
-		case "manage_subgraphs": {
+		case "manage_subgraphs":
+		case "manage_subscriptions":
+		case "requeue_dead_subscription":
+		case "create_subscription": {
 			const msg = (output as { message?: string }).message;
+			const errored = (output as { error?: string }).error;
+			if (errored) {
+				return <SuccessBanner tone="error" message={errored} />;
+			}
 			if ((output as { confirmed?: boolean }).confirmed === false) {
 				return (
 					<SuccessBanner tone="info" message={msg ?? "Action cancelled"} />
 				);
 			}
-			const errored = (output as { error?: string }).error;
-			if (errored) {
-				return <SuccessBanner tone="error" message={errored} />;
+			const secret = toSecretCardData(output);
+			if (secret.length > 0) {
+				return (
+					<>
+						<SuccessBanner message={msg ?? "Action completed"} />
+						<SubscriptionSecretCard secrets={secret} />
+					</>
+				);
 			}
 			return <SuccessBanner message={msg ?? "Action completed"} />;
 		}
@@ -405,6 +527,88 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			return <DiagnosticsCard findings={findings} />;
 		}
 
+		case "diagnose_subscription": {
+			const subscription = output.subscription as {
+				name: string;
+				status: string;
+				subgraphName?: string;
+				tableName?: string;
+			};
+			return (
+				<>
+					<SubscriptionDiagnosticsCard
+						subscription={{
+							name: subscription.name,
+							status: subscription.status,
+							target:
+								subscription.subgraphName && subscription.tableName
+									? `${subscription.subgraphName}.${subscription.tableName}`
+									: undefined,
+						}}
+						deliverySummary={
+							output.deliverySummary as {
+								total: number;
+								successful: number;
+								failed: number;
+								last: {
+									statusCode: number | null;
+									dispatchedAt: string;
+								} | null;
+							}
+						}
+						findings={
+							output.findings as Array<{
+								resource: string;
+								resourceType: string;
+								severity: "danger" | "warning" | "info";
+								title: string;
+								description: string;
+								suggestion: string;
+							}>
+						}
+					/>
+					<SubscriptionDeliveryCard
+						deliveries={
+							(output.deliveries ?? []) as Array<{
+								id: string;
+								attempt: number;
+								statusCode: number | null;
+								errorMessage: string | null;
+								durationMs: number | null;
+								dispatchedAt: string;
+							}>
+						}
+						deadRows={
+							(output.deadRows ?? []) as Array<{
+								id: string;
+								eventType: string;
+								attempt: number;
+								blockHeight: number;
+								failedAt: string | null;
+							}>
+						}
+					/>
+				</>
+			);
+		}
+
+		case "test_subscription": {
+			return (
+				<SignedTestFixtureCard
+					subscription={
+						output.subscription as {
+							name: string;
+							target: string;
+							url: string;
+						}
+					}
+					body={output.body as string}
+					headers={output.headers as Record<string, string>}
+					curl={output.curl as string}
+				/>
+			);
+		}
+
 		case "show_code": {
 			if ((output as { error?: boolean }).error) return null;
 			const tabs = (output.tabs ?? []) as CodeTab[];
@@ -418,23 +622,144 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 	}
 }
 
+interface ActionTargetInput {
+	id?: string;
+	name: string;
+	reason?: string;
+	fromBlock?: number;
+	toBlock?: number;
+}
+
+interface SubscriptionCreateInput {
+	name: string;
+	subgraphName: string;
+	tableName: string;
+	url: string;
+	format?: string;
+	runtime?: string | null;
+	filter?: Record<string, unknown>;
+	reason?: string;
+}
+
+function toSecretCardData(output: Record<string, unknown>) {
+	const secrets: Array<{
+		subscriptionName: string;
+		subscriptionId: string;
+		signingSecret: string;
+	}> = [];
+	const signingSecret = output.signingSecret;
+	const subscription = output.subscription as
+		| { id?: string; name?: string }
+		| undefined;
+	if (
+		typeof signingSecret === "string" &&
+		typeof subscription?.id === "string" &&
+		typeof subscription?.name === "string"
+	) {
+		secrets.push({
+			subscriptionId: subscription.id,
+			subscriptionName: subscription.name,
+			signingSecret,
+		});
+	}
+
+	const rotated = output.rotatedSecrets;
+	if (Array.isArray(rotated)) {
+		for (const item of rotated) {
+			const row = item as {
+				subscriptionId?: string;
+				subscriptionName?: string;
+				signingSecret?: string;
+			};
+			if (row.subscriptionId && row.subscriptionName && row.signingSecret) {
+				secrets.push({
+					subscriptionId: row.subscriptionId,
+					subscriptionName: row.subscriptionName,
+					signingSecret: row.signingSecret,
+				});
+			}
+		}
+	}
+	return secrets;
+}
+
+async function executeCreateSubscription(input: SubscriptionCreateInput) {
+	const res = await fetch("/api/subscriptions", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		credentials: "same-origin",
+		body: JSON.stringify({
+			name: input.name,
+			subgraphName: input.subgraphName,
+			tableName: input.tableName,
+			url: input.url,
+			format: input.format ?? "standard-webhooks",
+			runtime: input.runtime ?? null,
+			filter: input.filter ?? {},
+		}),
+	});
+	const body = (await res.json().catch(() => ({}))) as {
+		error?: string;
+		subscription?: { id: string; name: string };
+		signingSecret?: string;
+	};
+	if (!res.ok) {
+		return {
+			confirmed: false,
+			error: body.error ?? `Create failed (HTTP ${res.status})`,
+		};
+	}
+	return {
+		confirmed: true,
+		message: `Created subscription ${body.subscription?.name ?? input.name}`,
+		...body,
+	};
+}
+
+async function executeRequeueDeadSubscription(input: {
+	subscriptionId: string;
+	subscriptionName: string;
+	outboxId: string;
+}) {
+	const res = await fetch(
+		`/api/subscriptions/${input.subscriptionId}/dead/${input.outboxId}/requeue`,
+		{ method: "POST", credentials: "same-origin" },
+	);
+	const body = (await res.json().catch(() => ({}))) as { error?: string };
+	if (!res.ok) {
+		return {
+			confirmed: false,
+			error: body.error ?? `Requeue failed (HTTP ${res.status})`,
+		};
+	}
+	return {
+		confirmed: true,
+		message: `Requeued ${input.outboxId} for ${input.subscriptionName}`,
+	};
+}
+
 async function executeAction(
 	toolName: string,
 	action: string,
-	targets: Array<{ id?: string; name: string }>,
+	targets: ActionTargetInput[],
 ) {
-	const calls: Promise<Response>[] = [];
+	const rotatedSecrets: Array<{
+		subscriptionId: string;
+		subscriptionName: string;
+		signingSecret: string;
+	}> = [];
+	const errors: string[] = [];
+	let successCount = 0;
 
 	for (const t of targets) {
 		switch (toolName) {
 			case "manage_keys": {
 				if (action === "revoke") {
-					calls.push(
-						fetch(`/api/keys/${t.id}`, {
-							method: "DELETE",
-							credentials: "same-origin",
-						}),
-					);
+					const result = await callJson(`/api/keys/${t.id}`, {
+						method: "DELETE",
+					});
+					if (result.ok) successCount++;
+					else errors.push(result.error);
 				}
 				break;
 			}
@@ -445,19 +770,113 @@ async function executeAction(
 					stop: { method: "POST", path: `/api/subgraphs/${t.name}/stop` },
 				};
 				const call = pathMap[action];
-				if (call)
-					calls.push(
-						fetch(call.path, {
-							method: call.method,
-							credentials: "same-origin",
-						}),
-					);
+				if (call) {
+					const result = await callJson(call.path, { method: call.method });
+					if (result.ok) successCount++;
+					else errors.push(result.error);
+				}
+				break;
+			}
+			case "manage_subscriptions": {
+				if (!t.id) {
+					errors.push(`Missing subscription id for ${t.name}`);
+					break;
+				}
+				const call = subscriptionActionRequest(action, t);
+				if (!call) {
+					errors.push(`Unsupported subscription action: ${action}`);
+					break;
+				}
+				const result = await callJson(call.path, {
+					method: call.method,
+					body: call.body,
+				});
+				if (!result.ok) {
+					errors.push(result.error);
+					break;
+				}
+				successCount++;
+				const body = result.body as {
+					subscription?: { id: string; name: string };
+					signingSecret?: string;
+				};
+				if (action === "rotate-secret" && body.signingSecret) {
+					rotatedSecrets.push({
+						subscriptionId: body.subscription?.id ?? t.id,
+						subscriptionName: body.subscription?.name ?? t.name,
+						signingSecret: body.signingSecret,
+					});
+				}
 				break;
 			}
 		}
 	}
 
-	await Promise.allSettled(calls);
+	if (errors.length > 0) {
+		return {
+			confirmed: false,
+			error: errors.join("; "),
+		};
+	}
+
+	return {
+		confirmed: true,
+		message: `${successCount} ${toolName === "manage_subscriptions" ? "subscription" : toolName === "manage_keys" ? "key" : "subgraph"}${successCount === 1 ? "" : "s"} ${action} completed`,
+		rotatedSecrets,
+	};
+}
+
+async function callJson(
+	path: string,
+	options: { method: string; body?: unknown },
+): Promise<{ ok: true; body: unknown } | { ok: false; error: string }> {
+	const res = await fetch(path, {
+		method: options.method,
+		credentials: "same-origin",
+		headers:
+			options.body !== undefined
+				? { "Content-Type": "application/json" }
+				: undefined,
+		body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+	});
+	const body = (await res.json().catch(() => ({}))) as { error?: string };
+	if (!res.ok) {
+		return {
+			ok: false,
+			error: body.error ?? `HTTP ${res.status}`,
+		};
+	}
+	return { ok: true, body };
+}
+
+function subscriptionActionRequest(action: string, target: ActionTargetInput) {
+	switch (action) {
+		case "pause":
+		case "resume":
+			return {
+				method: "POST",
+				path: `/api/subscriptions/${target.id}/${action}`,
+			};
+		case "delete":
+			return { method: "DELETE", path: `/api/subscriptions/${target.id}` };
+		case "rotate-secret":
+			return {
+				method: "POST",
+				path: `/api/subscriptions/${target.id}/rotate-secret`,
+			};
+		case "replay":
+			if (target.fromBlock == null || target.toBlock == null) return null;
+			return {
+				method: "POST",
+				path: `/api/subscriptions/${target.id}/replay`,
+				body: {
+					fromBlock: target.fromBlock,
+					toBlock: target.toBlock,
+				},
+			};
+		default:
+			return null;
+	}
 }
 
 type BundleSubgraphResult = {
@@ -661,4 +1080,3 @@ function EditSubgraphCardWrapper({
 		/>
 	);
 }
-

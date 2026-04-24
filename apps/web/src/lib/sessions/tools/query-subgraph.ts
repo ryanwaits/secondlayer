@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -19,10 +19,12 @@ export function createQuerySubgraph(sessionToken: string) {
 				_sort: sort ?? "_id",
 				_order: order,
 			});
-			const data = await apiRequest<{ data: unknown[]; meta?: unknown }>(
-				`/api/subgraphs/${subgraphName}/${tableName}?${params}`,
-				{ sessionToken },
-			);
+			const data = await fetchFromTenantOrThrow<{
+				data: unknown[];
+				meta?: unknown;
+			}>(sessionToken, `/api/subgraphs/${subgraphName}/${tableName}`, {
+				query: params,
+			});
 			return {
 				subgraph: subgraphName,
 				table: tableName,

@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubgraphSummary } from "@/lib/types";
 import { tool } from "ai";
 import { z } from "zod";
@@ -14,9 +14,9 @@ export function createCheckSubgraphs(sessionToken: string) {
 				.describe("Specific subgraph name to check. Omit to check all."),
 		}),
 		execute: async ({ name }) => {
-			const data = await apiRequest<{ data: SubgraphSummary[] }>(
+			const data = await fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
+				sessionToken,
 				"/api/subgraphs",
-				{ sessionToken },
 			);
 			const all = data.data ?? [];
 			const filtered = name ? all.filter((s) => s.name === name) : all;
