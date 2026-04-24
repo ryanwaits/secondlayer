@@ -9,8 +9,9 @@
 #   - `docker image prune -f`: remove dangling images only (images not
 #     tagged and not referenced by any container). Safe — does NOT touch
 #     images tagged for running or stopped services.
-#   - `docker builder prune -f --keep-storage 2gb`: trim buildkit cache
+#   - `docker builder prune -f --reserved-space 2gb`: trim buildkit cache
 #     older than the 2GB cap. Keeps recent cache warm for fast rebuilds.
+#     (`--keep-storage` is the old alias, deprecated in newer docker.)
 #
 # What this does NOT do:
 #   - `docker system prune -a` (deletes ALL unused images, including
@@ -31,8 +32,8 @@ df -h / | tail -1
 log "Dangling images:"
 docker image prune -f 2>&1 | sed 's/^/  /'
 
-log "Build cache (keep-storage 2gb):"
-docker builder prune -f --keep-storage 2gb 2>&1 | sed 's/^/  /'
+log "Build cache (reserved-space 2gb):"
+docker builder prune -f --reserved-space 2gb 2>&1 | sed 's/^/  /'
 
 log "Disk after:"
 df -h / | tail -1
