@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 4.0.2
+
+### Patch Changes
+
+- [`de7f867`](https://github.com/ryanwaits/secondlayer/commit/de7f867fa5681df67f014c01a63df3428d122459) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Diagnostic: Kysely `log` hook logs failing SQL + params whenever postgres rejects with code 42P10 (ON CONFLICT target doesn't match a unique constraint). Temporary — will be reverted in a follow-up patch once the culprit query is identified in prod logs.
+
 ## 4.0.1
 
 ### Patch Changes

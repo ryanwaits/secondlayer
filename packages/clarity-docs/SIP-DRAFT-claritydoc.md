@@ -835,7 +835,7 @@ const savings = estimateStrippingSavings(source, { keepErrors: true });
 console.log(`Saved ${savings.savedBytes} bytes (${savings.savingsPercent.toFixed(1)}%)`);
 ```
 
-### Recommended Workflow
+### Recommended Process
 
 1. **Development**: Full documentation with all tags
 2. **Testnet**: Full documentation (cost is minimal)

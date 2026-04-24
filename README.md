@@ -48,6 +48,8 @@ Full command reference: [packages/cli/README.md](packages/cli/README.md).
 4. Add a subscription on that table when the rows should trigger another system.
 5. Replay by block range when a receiver changes or misses deliveries.
 
+Reviewable walkthrough: [packages/subgraphs/QUICKSTART.md](packages/subgraphs/QUICKSTART.md).
+
 ## Packages
 
 | Package | Description |
