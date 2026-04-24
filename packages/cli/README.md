@@ -65,6 +65,32 @@ One instance per project. The platform API spawns a dedicated `sl-pg-{slug}`,
 |---|---|
 | `sl create subscription <name> --runtime <inngest\|trigger\|cloudflare\|node> [--filter key=value]` | Scaffold a receiver project wired to a new subscription. Copies the runtime template into `./<name>/`, provisions through the active project/instance, supports scalar filters, and wires the signing secret so the dev server starts consuming events immediately. |
 
+### Subscriptions (tenant-scoped)
+
+`sl create subscription` is the receiver scaffolder. `sl subscriptions ...` is
+the operational surface for existing subscriptions. All commands resolve the
+active project/instance the same way as `sl subgraphs ...`; `SL_API_URL` and
+`SL_SERVICE_KEY` still bypass platform resolution for OSS or CI.
+
+| Command | What it does |
+|---|---|
+| `sl subscriptions list` | List subscriptions with status, target table, format, and last success |
+| `sl subscriptions get <id\|name>` | Show full config, filter, retry/circuit state |
+| `sl subscriptions update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, runtime, retry, timeout, concurrency |
+| `sl subscriptions pause/resume <id\|name>` | Stop or restart delivery |
+| `sl subscriptions rotate-secret <id\|name>` | Rotate signing secret and print the new value once |
+| `sl subscriptions deliveries <id\|name>` | Last 100 delivery attempts |
+| `sl subscriptions dead <id\|name>` | Dead-letter rows |
+| `sl subscriptions requeue <id\|name> <outboxId>` | Requeue one dead-letter row |
+| `sl subscriptions replay <id\|name> --from-block <n> --to-block <n>` | Enqueue historical rows from a block range |
+| `sl subscriptions doctor <id\|name>` | Config, circuit state, recent delivery health, linked subgraph gaps, next-step hints |
+| `sl subscriptions test <id\|name> --signing-secret <secret> [--post]` | Build a signed Standard Webhooks fixture from the latest row or a synthetic row |
+
+Read/action commands support `--json`. Destructive commands prompt unless
+`--yes` is passed. CLI filters are schema-aware: unknown tables, unknown
+columns, unsupported operators, and non-scalar columns are rejected before the
+API call; the server repeats the same validation as the source of truth.
+
 ### Subgraphs (tenant-scoped)
 
 All tenant-scoped commands auto-mint a 5-minute ephemeral service JWT per

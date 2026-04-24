@@ -14,6 +14,7 @@ import {
 	registerProjectCommand,
 	registerStackCommand,
 	registerStatusCommand,
+	registerSubscriptionsCommand,
 	registerSubgraphsCommand,
 	registerWhoamiCommand,
 } from "./commands/index.ts";
@@ -83,6 +84,7 @@ registerInstanceCommand(program);
 // Workload (tenant-scoped via resolver)
 registerSubgraphsCommand(program);
 registerCreateCommand(program);
+registerSubscriptionsCommand(program);
 
 // Ops / inspection
 registerStatusCommand(program);

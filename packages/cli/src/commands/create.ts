@@ -15,6 +15,7 @@ import type { Command } from "commander";
 import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import { blue, dim, error, info, success, warn } from "../lib/output.ts";
 import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
+import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
 
 /**
  * `sl create subscription <name> --runtime <runtime>`
@@ -146,6 +147,21 @@ export async function createSubscription(
 		process.exit(1);
 	}
 
+	let sl: SecondLayer | null = null;
+	if (!opts.skipApi) {
+		try {
+			sl = await getSubscriptionClient(opts);
+			await validateSubscriptionTargetFromApi(sl, {
+				subgraphName: subgraph,
+				tableName: table,
+				filter,
+			});
+		} catch (err) {
+			error(err instanceof Error ? err.message : String(err));
+			process.exit(1);
+		}
+	}
+
 	const eventName = `${subgraph}.${table}.created`;
 	const targetDir = resolve(process.cwd(), name);
 	if (existsSync(targetDir)) {
@@ -167,7 +183,7 @@ export async function createSubscription(
 	let signingSecret: string | null = null;
 	if (!opts.skipApi) {
 		try {
-			const sl = await getSubscriptionClient(opts);
+			if (!sl) sl = await getSubscriptionClient(opts);
 			const res = await sl.subscriptions.create({
 				name,
 				subgraphName: subgraph,
@@ -226,7 +242,7 @@ export async function createSubscription(
 	success(`Done. Next:\n  cd ${name}\n  bun install\n  bun run dev`);
 }
 
-type SubscriptionClientOptions = Pick<
+export type SubscriptionClientOptions = Pick<
 	CreateSubscriptionOptions,
 	"baseUrl" | "serviceKey"
 >;
@@ -274,8 +290,8 @@ export function resolveSubscriptionClientConfig(
 	return { needsTenantResolution: false, baseUrl, apiKey };
 }
 
-async function getSubscriptionClient(
-	opts: CreateSubscriptionOptions,
+export async function getSubscriptionClient(
+	opts: SubscriptionClientOptions,
 ): Promise<SecondLayer> {
 	const config = resolveSubscriptionClientConfig(opts);
 	if (!config.needsTenantResolution) {
