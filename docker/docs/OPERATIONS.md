@@ -246,6 +246,18 @@ bash /opt/secondlayer/docker/scripts/backup-postgres.sh
 ls -lh /opt/secondlayer/data/backups/ | tail -5
 ```
 
+### Scheduled host jobs (crontab -l)
+
+| Time (UTC) | Job | Script |
+|---|---|---|
+| `*/5 * * * *` | WAL sync to Storage Box | `sync-wal.sh` |
+| `0 2 * * *` | Docker image + build cache prune | `prune-docker-images.sh` |
+| `0 3 * * *` | Postgres logical backup | `backup-postgres.sh` |
+| `0 4 * * 0` | Weekly pg_basebackup (Sun) | `backup-basebackup.sh` |
+| `0 5 * * *` | Upload snapshots to Storage Box | `upload-snapshot.sh` |
+
+All output under `/opt/secondlayer/data/backups/*.log`. `prune-docker-images.sh` is safe — dangling images + build-cache cap only, never touches tagged images or volumes.
+
 ---
 
 ## 6. Dedicated-hosting lifecycle
