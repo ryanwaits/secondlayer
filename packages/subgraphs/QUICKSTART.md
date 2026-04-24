@@ -35,7 +35,7 @@ sl instance create --plan hobby
 sl whoami
 ```
 
-Save the instance URL and service key shown by `sl instance create`. Subgraph CLI commands use your logged-in session, but SDK/API subscription calls need the tenant URL and service key:
+CLI commands use your logged-in session and active project to mint short-lived tenant credentials. Save the instance URL and service key shown by `sl instance create` only if you want to use SDK or raw REST calls:
 
 ```bash
 export SL_API_URL="https://<your-instance>.secondlayer.tools"
@@ -129,10 +129,11 @@ sl create subscription transfer-hook \
   --runtime node \
   --subgraph stx-transfers \
   --table transfers \
-  --url https://<your-public-host>/webhook
+  --url https://<your-public-host>/webhook \
+  --filter amount.gte=1000000
 ```
 
-The command scaffolds a receiver into `./transfer-hook`, provisions the subscription, and writes the one-time signing secret into the receiver `.env` when `SL_API_URL` and `SL_SERVICE_KEY` are set.
+Omit `--filter` to receive every new row. The command scaffolds a receiver into `./transfer-hook`, provisions the subscription through your active project, and writes the one-time signing secret into the receiver `.env`.
 
 Run the receiver:
 
@@ -158,9 +159,19 @@ Each delivery is a signed Standard Webhooks event:
 }
 ```
 
-## 5. Create a filtered subscription with the SDK
+## 5. Filter syntax and SDK setup
 
-The CLI scaffolder creates match-all subscriptions today. Use the SDK when you want row filters:
+CLI filters use the same `key=value` shape as subgraph queries:
+
+```bash
+--filter sender=SP...
+--filter amount.gte=1000000
+--filter amount.lt=5000000
+```
+
+Supported CLI suffixes: `.eq`, `.neq`, `.gt`, `.gte`, `.lt`, `.lte`. Bare `key=value` is equality. Multiple fields are ANDed together.
+
+Use the SDK when you want programmatic setup or richer JSON filters:
 
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
@@ -190,7 +201,7 @@ Filter DSL:
 
 - `{ sender: "SP..." }` means equality.
 - `{ amount: { gte: "1000000" } }` supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`.
-- `{ sender: { in: ["SP...", "SP..."] } }` matches any listed scalar.
+- `{ sender: { in: ["SP...", "SP..."] } }` matches any listed scalar through SDK/REST.
 - Multiple fields are ANDed together.
 
 ## 6. Inspect deliveries and replay history
@@ -223,6 +234,6 @@ Replay scans existing subgraph rows in that range and enqueues them as replay de
 
 ## Product gaps to review
 
-- `sl subgraphs ...` commands auto-resolve the active instance through the platform session. `sl create subscription ...` currently needs `SL_API_URL` and `SL_SERVICE_KEY` for API provisioning. That works, but it is not as agent-native as the subgraph commands.
-- The CLI scaffolder does not expose subscription filters yet. Filtered subscriptions require SDK, REST, MCP, or dashboard support.
+- `sl create subscription` now provisions through the same active-project path as `sl subgraphs ...`, but the CLI still only covers create. List/update/replay currently require SDK, REST, MCP, or dashboard support.
+- CLI filters support equality/comparison operators, but not the SDK/REST-only `in` operator.
 - The dashboard is useful for inspection, but the strongest golden path is still CLI/MCP/SDK first: scaffold, deploy, query, subscribe, replay.
