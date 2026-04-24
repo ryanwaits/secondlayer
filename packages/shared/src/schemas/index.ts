@@ -1,3 +1,43 @@
 export * from "./accounts.ts";
 export * from "./filters.ts";
 export * from "./subgraphs.ts";
+export {
+	SUBSCRIPTION_FILTER_OPERATORS,
+	SUBSCRIPTION_FORMATS,
+	SUBSCRIPTION_RUNTIMES,
+	SUBSCRIPTION_STATUSES,
+	CreateSubscriptionRequestSchema,
+	ReplaySubscriptionRequestSchema,
+	SubscriptionFilterClauseSchema,
+	SubscriptionFilterOperatorSchema,
+	SubscriptionFilterPrimitiveSchema,
+	SubscriptionFilterSchema,
+	SubscriptionFormatSchema,
+	SubscriptionRuntimeSchema,
+	SubscriptionStatusSchema,
+	UpdateSubscriptionRequestSchema,
+	formatSubscriptionSchemaErrors,
+	validateSubscriptionFilterForTable,
+} from "./subscriptions.ts";
+export type {
+	CreateSubscriptionRequest,
+	CreateSubscriptionResponse,
+	DeadRow,
+	DeliveryRow,
+	ParsedCreateSubscriptionRequest,
+	ParsedReplaySubscriptionRequest,
+	ParsedUpdateSubscriptionRequest,
+	ReplayResult,
+	ReplaySubscriptionRequest,
+	RotateSecretResponse,
+	SubscriptionDetail,
+	SubscriptionFilter,
+	SubscriptionFilterClause,
+	SubscriptionFilterOperator,
+	SubscriptionFilterPrimitive,
+	SubscriptionSchemaColumn,
+	SubscriptionSchemaTable,
+	SubscriptionSchemaTables,
+	SubscriptionSummary,
+	UpdateSubscriptionRequest,
+} from "./subscriptions.ts";

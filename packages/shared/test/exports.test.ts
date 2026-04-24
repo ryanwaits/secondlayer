@@ -32,6 +32,11 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
+	test("db/queries/subscriptions export", async () => {
+		const mod = await import("@secondlayer/shared/db/queries/subscriptions");
+		expect(mod).toBeDefined();
+	});
+
 	test("db/jsonb export", async () => {
 		const mod = await import("@secondlayer/shared/db/jsonb");
 		expect(mod).toBeDefined();
@@ -61,6 +66,12 @@ describe("package exports", () => {
 	test("schemas/subgraphs export", async () => {
 		const mod = await import("@secondlayer/shared/schemas/subgraphs");
 		expect(mod).toBeDefined();
+	});
+
+	test("schemas/subscriptions export", async () => {
+		const mod = await import("@secondlayer/shared/schemas/subscriptions");
+		expect(mod).toBeDefined();
+		expect(mod.CreateSubscriptionRequestSchema).toBeDefined();
 	});
 
 	test("types export", async () => {
