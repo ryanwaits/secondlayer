@@ -188,14 +188,31 @@ export function detectAnomalies(
 	const anomalies: PatternMatch[] = [];
 	const now = Date.now();
 
-	// Disk >85%
-	if (current.metrics.diskUsedPct > 85) {
+	// Disk pressure. Critical (>95%) fires immediately — a real disaster
+	// shouldn't wait for confirmation. Warn (>85%) requires two consecutive
+	// polls above the threshold to avoid flapping on transient spikes
+	// (bulk writes, docker pull, short-lived CI layers). Mirrors the
+	// tenant_mem_pressure hysteresis below.
+	if (current.metrics.diskUsedPct > 95) {
 		anomalies.push({
 			name: "disk_high",
-			severity: current.metrics.diskUsedPct > 95 ? "critical" : "warn",
+			severity: "critical",
 			action: "prune_docker",
 			service: "system",
 			message: `Disk usage at ${current.metrics.diskUsedPct}%`,
+			line: "",
+			timestamp: now,
+		});
+	} else if (
+		current.metrics.diskUsedPct > 85 &&
+		(previous?.metrics.diskUsedPct ?? 0) > 85
+	) {
+		anomalies.push({
+			name: "disk_high",
+			severity: "warn",
+			action: "prune_docker",
+			service: "system",
+			message: `Disk usage at ${current.metrics.diskUsedPct}% (2 polls)`,
 			line: "",
 			timestamp: now,
 		});
