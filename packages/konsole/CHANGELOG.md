@@ -1,5 +1,12 @@
 # konsole
 
+## 0.0.25
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.1.0
+
 ## 0.0.24
 
 ### Patch Changes

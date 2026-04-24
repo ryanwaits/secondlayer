@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 3.1.0
+
+### Minor Changes
+
+- Add the agent-native subscription golden path: shared subscription schemas, schema-aware API and CLI validation, first-class `sl subscriptions` lifecycle commands, MCP lifecycle parity, and updated subscription docs.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.1.0
+
 ## 3.0.1
 
 ### Patch Changes
