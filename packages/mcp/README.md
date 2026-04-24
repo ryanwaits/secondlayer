@@ -55,7 +55,7 @@ replay deliveries by block range when needed.
 | Domain | Tools |
 | --- | --- |
 | **Subgraphs** (7) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy`, `subgraphs_read_source` |
-| **Subscriptions** (7) | `subscriptions_list`, `subscriptions_get`, `subscriptions_create`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_replay`, `subscriptions_recent_deliveries` |
+| **Subscriptions** (12) | `subscriptions_list`, `subscriptions_get`, `subscriptions_create`, `subscriptions_update`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_delete`, `subscriptions_rotate_secret`, `subscriptions_replay`, `subscriptions_recent_deliveries`, `subscriptions_dead`, `subscriptions_requeue_dead` |
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
 | **Account** (1) | `account_whoami` |
 

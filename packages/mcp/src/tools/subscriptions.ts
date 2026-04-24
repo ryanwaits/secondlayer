@@ -3,19 +3,24 @@ import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
 
+type SubscriptionClientProvider = typeof getClient;
+
 /**
  * Subscription MCP tools — let agents list, configure, test, and replay
  * subgraph event subscriptions. Mirrors the HTTP API 1:1; structured
  * errors bubble through the SDK's ApiError.
  */
-export function registerSubscriptionTools(server: McpServer) {
+export function registerSubscriptionTools(
+	server: McpServer,
+	clientProvider: SubscriptionClientProvider = getClient,
+) {
 	defineTool<Record<string, never>>(
 		server,
 		"subscriptions_list",
 		"List all subscriptions for the current account. Returns summary fields (no secrets).",
 		{},
 		async () => {
-			const { data } = await getClient().subscriptions.list();
+			const { data } = await clientProvider().subscriptions.list();
 			return {
 				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
 			};
@@ -28,7 +33,7 @@ export function registerSubscriptionTools(server: McpServer) {
 		"Get full detail for a subscription (filter, auth, retry config, circuit state).",
 		{ id: z.string().describe("Subscription id") },
 		async ({ id }) => {
-			const detail = await getClient().subscriptions.get(id);
+			const detail = await clientProvider().subscriptions.get(id);
 			return {
 				content: [{ type: "text", text: JSON.stringify(detail, null, 2) }],
 			};
@@ -81,7 +86,7 @@ export function registerSubscriptionTools(server: McpServer) {
 				),
 		},
 		async (input) => {
-			const res = await getClient().subscriptions.create(input);
+			const res = await clientProvider().subscriptions.create(input);
 			return {
 				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
 			};
@@ -99,10 +104,14 @@ export function registerSubscriptionTools(server: McpServer) {
 			| "cloudflare"
 			| "cloudevents"
 			| "raw";
+		runtime?: "inngest" | "trigger" | "cloudflare" | "node" | null;
+		maxRetries?: number;
+		timeoutMs?: number;
+		concurrency?: number;
 	}>(
 		server,
 		"subscriptions_update",
-		"Patch a subscription (url, filter, format). Other config fields via dashboard.",
+		"Patch a subscription (url, filter, format, runtime, retry, timeout, concurrency).",
 		{
 			id: z.string(),
 			url: z.string().optional(),
@@ -117,9 +126,42 @@ export function registerSubscriptionTools(server: McpServer) {
 					"raw",
 				])
 				.optional(),
+			runtime: z
+				.enum(["inngest", "trigger", "cloudflare", "node"])
+				.nullable()
+				.optional(),
+			maxRetries: z.number().int().min(0).optional(),
+			timeoutMs: z.number().int().min(100).optional(),
+			concurrency: z.number().int().min(1).optional(),
 		},
 		async ({ id, ...patch }) => {
-			const res = await getClient().subscriptions.update(id, patch);
+			const res = await clientProvider().subscriptions.update(id, patch);
+			return {
+				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ id: string }>(
+		server,
+		"subscriptions_pause",
+		"Pause a subscription. Pending rows remain queued until resumed.",
+		{ id: z.string() },
+		async ({ id }) => {
+			const res = await clientProvider().subscriptions.pause(id);
+			return {
+				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ id: string }>(
+		server,
+		"subscriptions_resume",
+		"Resume a paused or circuit-open subscription and reset circuit failures.",
+		{ id: z.string() },
+		async ({ id }) => {
+			const res = await clientProvider().subscriptions.resume(id);
 			return {
 				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
 			};
@@ -132,7 +174,20 @@ export function registerSubscriptionTools(server: McpServer) {
 		"Delete a subscription. Pending outbox rows are cascade-deleted.",
 		{ id: z.string() },
 		async ({ id }) => {
-			const res = await getClient().subscriptions.delete(id);
+			const res = await clientProvider().subscriptions.delete(id);
+			return {
+				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ id: string }>(
+		server,
+		"subscriptions_rotate_secret",
+		"Rotate a subscription signing secret. Returns the new plaintext secret once.",
+		{ id: z.string() },
+		async ({ id }) => {
+			const res = await clientProvider().subscriptions.rotateSecret(id);
 			return {
 				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
 			};
@@ -149,10 +204,42 @@ export function registerSubscriptionTools(server: McpServer) {
 			toBlock: z.number().int().nonnegative(),
 		},
 		async ({ id, fromBlock, toBlock }) => {
-			const res = await getClient().subscriptions.replay(id, {
+			const res = await clientProvider().subscriptions.replay(id, {
 				fromBlock,
 				toBlock,
 			});
+			return {
+				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ id: string }>(
+		server,
+		"subscriptions_dead",
+		"Return the last 100 dead-letter outbox rows for a subscription.",
+		{ id: z.string() },
+		async ({ id }) => {
+			const { data } = await clientProvider().subscriptions.dead(id);
+			return {
+				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ id: string; outboxId: string }>(
+		server,
+		"subscriptions_requeue_dead",
+		"Requeue one dead-letter outbox row for delivery retry.",
+		{
+			id: z.string(),
+			outboxId: z.string(),
+		},
+		async ({ id, outboxId }) => {
+			const res = await clientProvider().subscriptions.requeueDead(
+				id,
+				outboxId,
+			);
 			return {
 				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
 			};
@@ -165,7 +252,8 @@ export function registerSubscriptionTools(server: McpServer) {
 		"Return the last 100 delivery attempts (attempt #, status code, duration, truncated response).",
 		{ id: z.string() },
 		async ({ id }) => {
-			const { data } = await getClient().subscriptions.recentDeliveries(id);
+			const { data } =
+				await clientProvider().subscriptions.recentDeliveries(id);
 			return {
 				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
 			};
