@@ -61,8 +61,12 @@ export const PATTERN_RULES: PatternRule[] = [
 		message: (_, svc) => `Sync stall detected in ${svc}`,
 	},
 	{
+		// Anchors on the literal strings Bun/Node emit when an error escapes
+		// the process boundary. The previous broad regex matched any log line
+		// containing "unhandled" + "error" (including user prose, auth logs,
+		// caddy request strings), which drove false positives.
 		name: "unhandled_error",
-		regex: /(?:unhandled|uncaught)\s+(?:error|exception|rejection)/i,
+		regex: /(?:Unhandled error:|uncaught\s+(?:Error|Exception|Rejection)\b)/,
 		severity: "error",
 		action: "escalate",
 		message: (_, svc) => `Unhandled error in ${svc} — escalating to AI`,

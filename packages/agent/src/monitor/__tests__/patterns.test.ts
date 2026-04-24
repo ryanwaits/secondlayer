@@ -54,14 +54,44 @@ describe("matchPatterns", () => {
 		expect(apiMatches).toHaveLength(0);
 	});
 
-	test("detects unhandled error", () => {
+	test("detects unhandled error on Bun's 'Unhandled error:' literal", () => {
 		const matches = matchPatterns(
-			"Unhandled error in request handler: TypeError",
+			"Unhandled error: TypeError: Cannot read property x",
 			"api",
 		);
 		expect(matches).toHaveLength(1);
 		expect(matches[0].name).toBe("unhandled_error");
 		expect(matches[0].action).toBe("escalate");
+	});
+
+	test("detects 'uncaught Error' / 'uncaught Exception' / 'uncaught Rejection'", () => {
+		for (const phrase of [
+			"uncaught Error: boom",
+			"uncaught Exception: x",
+			"uncaught Rejection: promise",
+		]) {
+			const matches = matchPatterns(phrase, "api");
+			expect(matches.filter((m) => m.name === "unhandled_error")).toHaveLength(
+				1,
+			);
+		}
+	});
+
+	test("does NOT fire unhandled_error on prose containing the words", () => {
+		// Tightened regex requires the specific `Unhandled error:` / `uncaught X`
+		// tokens — narrative prose or 404 pages that merely mention these words
+		// should not trigger the escalation pipeline.
+		for (const line of [
+			"user reported an unhandled error during signup",
+			"404 error: page not found",
+			"logging an uncaught error in the background",
+			"warn: possibly unhandled exception in downstream call",
+		]) {
+			const matches = matchPatterns(line, "api");
+			expect(matches.filter((m) => m.name === "unhandled_error")).toHaveLength(
+				0,
+			);
+		}
 	});
 
 	test("returns empty for clean logs", () => {
