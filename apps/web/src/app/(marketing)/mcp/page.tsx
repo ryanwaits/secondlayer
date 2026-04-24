@@ -1,7 +1,9 @@
 import { CodeBlock } from "@/components/code-block";
+import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
+import { getAgentPrompt } from "@/lib/agent-prompts";
 
 const toc: TocItem[] = [
 	{ label: "Install", href: "#install" },
@@ -30,6 +32,12 @@ export default function McpPage() {
 					</p>
 				</div>
 
+				<AgentPromptBlock
+					title="Install MCP with your agent."
+					code={getAgentPrompt("mcp-install")}
+					collapsible
+				/>
+
 				<SectionHeading id="install">Install</SectionHeading>
 
 				<div className="prose">
@@ -44,7 +52,7 @@ export default function McpPage() {
 					code={`{
   "mcpServers": {
     "secondlayer": {
-      "command": "npx",
+      "command": "bunx",
       "args": ["@secondlayer/mcp"],
       "env": {
         "SL_SERVICE_KEY": "sk-sl_..."
@@ -60,7 +68,7 @@ export default function McpPage() {
 
 				<CodeBlock
 					lang="bash"
-					code={`SL_SERVICE_KEY=sk-sl_... npx -p @secondlayer/mcp mcp-http
+					code={`SL_SERVICE_KEY=sk-sl_... bunx --package @secondlayer/mcp mcp-http
 # Listening on port 3100`}
 				/>
 

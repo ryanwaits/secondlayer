@@ -2968,6 +2968,16 @@ a {
 	margin-top: var(--spacing-xs);
 }
 
+.agent-prompt-list {
+	display: grid;
+	gap: var(--spacing-md);
+	margin: var(--spacing-lg) 0;
+}
+
+.agent-prompt-list .agent-prompt {
+	margin: 0;
+}
+
 .agent-prompt-header {
 	padding: 20px 22px 0;
 	display: flex;

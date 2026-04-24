@@ -1,8 +1,13 @@
 import { BoxBadge } from "@/components/box-badge";
 import { CodeBlock } from "@/components/code-block";
+import { AgentPromptList } from "@/components/console/agent-prompt-list";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
+import {
+	MARKETING_SUBSCRIPTIONS_PROMPTS,
+	getAgentPrompt,
+} from "@/lib/agent-prompts";
 
 const toc: TocItem[] = [
 	{ label: "Quick start", href: "#quick-start" },
@@ -33,6 +38,13 @@ export default function SubscriptionsPage() {
 						receiver runs.
 					</p>
 				</div>
+
+				<AgentPromptList
+					prompts={MARKETING_SUBSCRIPTIONS_PROMPTS.map((prompt) => ({
+						title: prompt.title,
+						code: getAgentPrompt(prompt.id),
+					}))}
+				/>
 
 				<SectionHeading id="quick-start">Quick start</SectionHeading>
 

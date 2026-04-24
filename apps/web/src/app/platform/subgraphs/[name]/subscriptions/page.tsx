@@ -1,5 +1,7 @@
 import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
+import { PromptActions } from "@/components/console/prompt-actions";
+import { getAgentPrompt } from "@/lib/agent-prompts";
 import { ApiError, getSessionFromCookies } from "@/lib/api";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubgraphSummary } from "@/lib/types";
@@ -64,6 +66,7 @@ export default async function SubgraphSubscriptionsPage({
 		name: sg.name,
 		href: `/subgraphs/${sg.name}`,
 	}));
+	const knownTables = allSubgraphs.find((sg) => sg.name === name)?.tables ?? [];
 
 	return (
 		<>
@@ -111,8 +114,14 @@ export default async function SubgraphSubscriptionsPage({
 							<p className="empty-desc">
 								Subscriptions deliver typed subgraph events to webhooks —
 								Inngest, Trigger.dev, Cloudflare Workflows, or any HTTPS
-								endpoint. Create one from your terminal.
+								endpoint. The agent already knows this subgraph and its tables.
 							</p>
+							<PromptActions
+								prompt={getAgentPrompt("subscription-create", {
+									subgraphName: name,
+									tables: knownTables,
+								})}
+							/>
 							<div className="empty-divider">
 								<span className="empty-divider-text">Get started</span>
 							</div>
@@ -147,9 +156,7 @@ export default async function SubgraphSubscriptionsPage({
 								{subs.map((s) => (
 									<tr key={s.id}>
 										<td>
-											<Link
-												href={`/subgraphs/${name}/subscriptions/${s.id}`}
-											>
+											<Link href={`/subgraphs/${name}/subscriptions/${s.id}`}>
 												{s.name}
 											</Link>
 										</td>
@@ -161,9 +168,7 @@ export default async function SubgraphSubscriptionsPage({
 										</td>
 										<td>{s.runtime ?? "—"}</td>
 										<td>
-											<span
-												className={`status-badge ${statusBadge(s.status)}`}
-											>
+											<span className={`status-badge ${statusBadge(s.status)}`}>
 												{s.status}
 											</span>
 										</td>

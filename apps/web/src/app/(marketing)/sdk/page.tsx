@@ -1,7 +1,9 @@
 import { CodeBlock } from "@/components/code-block";
+import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
+import { getAgentPrompt } from "@/lib/agent-prompts";
 
 const toc: TocItem[] = [
 	{ label: "Getting started", href: "#getting-started" },
@@ -31,6 +33,12 @@ export default function SdkPage() {
 						Install with <code>bun add @secondlayer/sdk</code>.
 					</p>
 				</div>
+
+				<AgentPromptBlock
+					title="Wire the SDK with your agent."
+					code={getAgentPrompt("sdk-wire")}
+					collapsible
+				/>
 
 				<SectionHeading id="getting-started">Getting started</SectionHeading>
 

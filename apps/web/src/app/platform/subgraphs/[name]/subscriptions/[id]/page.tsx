@@ -2,6 +2,8 @@ import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { DetailSection } from "@/components/console/detail-section";
 import { MetaGrid } from "@/components/console/meta-grid";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
+import { PromptActions } from "@/components/console/prompt-actions";
+import { getAgentPrompt } from "@/lib/agent-prompts";
 import { ApiError, getSessionFromCookies } from "@/lib/api";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import Link from "next/link";
@@ -40,6 +42,10 @@ interface SubscriptionSummary {
 	subgraphName: string;
 }
 
+interface DeadRow {
+	id: string;
+}
+
 function statusBadgeClass(status: string) {
 	if (status === "active") return "active";
 	if (status === "paused") return "syncing";
@@ -57,8 +63,9 @@ export default async function SubscriptionDetailPage({
 
 	let sub: SubscriptionDetail;
 	let siblings: SubscriptionSummary[] = [];
+	let deadRows: DeadRow[] = [];
 	try {
-		const [detailResult, listResult] = await Promise.allSettled([
+		const [detailResult, listResult, deadResult] = await Promise.allSettled([
 			fetchFromTenantOrThrow<SubscriptionDetail>(
 				session,
 				`/api/subscriptions/${id}`,
@@ -66,6 +73,10 @@ export default async function SubscriptionDetailPage({
 			fetchFromTenantOrThrow<{ data: SubscriptionSummary[] }>(
 				session,
 				"/api/subscriptions",
+			),
+			fetchFromTenantOrThrow<{ data: DeadRow[] }>(
+				session,
+				`/api/subscriptions/${id}/dead`,
 			),
 		]);
 		if (detailResult.status === "rejected") {
@@ -81,6 +92,9 @@ export default async function SubscriptionDetailPage({
 		if (sub.subgraphName !== name) notFound();
 		if (listResult.status === "fulfilled") {
 			siblings = listResult.value.data.filter((s) => s.subgraphName === name);
+		}
+		if (deadResult.status === "fulfilled") {
+			deadRows = deadResult.value.data;
 		}
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 404) notFound();
@@ -135,9 +149,7 @@ export default async function SubscriptionDetailPage({
 							{
 								label: "Status",
 								value: (
-									<span
-										className={`badge ${statusBadgeClass(sub.status)}`}
-									>
+									<span className={`badge ${statusBadgeClass(sub.status)}`}>
 										{sub.status}
 									</span>
 								),
@@ -203,6 +215,40 @@ export default async function SubscriptionDetailPage({
 						subgraphName={name}
 						status={sub.status}
 					/>
+
+					<DetailSection title="Agent tools">
+						<p className="detail-desc">
+							Use chat to generate safe operational steps from the current
+							subscription state.
+						</p>
+						{(sub.status === "paused" || sub.status === "error") && (
+							<PromptActions
+								prompt={getAgentPrompt("subscription-diagnose", {
+									subscriptionId: sub.id,
+									subscriptionName: sub.name,
+								})}
+								openLabel="Run doctor in chat"
+							/>
+						)}
+						<PromptActions
+							prompt={getAgentPrompt("subscription-test", {
+								subscriptionId: sub.id,
+								subscriptionName: sub.name,
+							})}
+							openLabel="Generate signed test fixture"
+						/>
+						{deadRows.length > 0 && (
+							<PromptActions
+								prompt={`${getAgentPrompt("subscription-diagnose", {
+									subscriptionId: sub.id,
+									subscriptionName: sub.name,
+								})}
+
+There are ${deadRows.length} dead-letter rows. Inspect them and propose requeueing one selected row only after I confirm the outbox id.`}
+								openLabel="Inspect dead letters"
+							/>
+						)}
+					</DetailSection>
 
 					<DetailSection title="Replay">
 						<ReplayDialog subscriptionId={sub.id} />

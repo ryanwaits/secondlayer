@@ -2,6 +2,8 @@ import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { DetailSection } from "@/components/console/detail-section";
 import { MetaGrid } from "@/components/console/meta-grid";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
+import { PromptActions } from "@/components/console/prompt-actions";
+import { getAgentPrompt } from "@/lib/agent-prompts";
 import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
@@ -21,7 +23,6 @@ interface SubscriptionSummary {
 	circuitOpenedAt: string | null;
 	lastDeliveryAt: string | null;
 }
-
 
 function statusBadgeClass(status: string) {
 	if (status === "active") return "active";
@@ -82,8 +83,9 @@ export default async function SubgraphDetailPage({
 	const circuitPausedCount = subsForSubgraph.filter(
 		(s) => s.circuitOpenedAt !== null,
 	).length;
-	const activeCount = subsForSubgraph.filter((s) => s.status === "active")
-		.length;
+	const activeCount = subsForSubgraph.filter(
+		(s) => s.status === "active",
+	).length;
 
 	const primaryKey = keysResult.keys
 		.filter((k) => k.status === "active")
@@ -247,21 +249,18 @@ export default async function SubgraphDetailPage({
 						}
 					>
 						{subsCount === 0 ? (
-							<p className="detail-desc">
-								No subscriptions attached to this subgraph. Create one from your
-								terminal:{" "}
-								<code
-									style={{
-										fontSize: 12,
-										background: "var(--code-bg)",
-										padding: "1px 5px",
-										borderRadius: 3,
-									}}
-								>
-									sl create subscription &lt;name&gt; --runtime
-									&lt;inngest|trigger|cloudflare|node&gt;
-								</code>
-							</p>
+							<>
+								<p className="detail-desc">
+									No subscriptions attached to this subgraph. Create a receiver
+									and webhook for one of its tables.
+								</p>
+								<PromptActions
+									prompt={getAgentPrompt("subscription-create", {
+										subgraphName: name,
+										tables: Object.keys(subgraph.tables),
+									})}
+								/>
+							</>
 						) : (
 							<p className="detail-desc">
 								<Link href={`/subgraphs/${name}/subscriptions`}>

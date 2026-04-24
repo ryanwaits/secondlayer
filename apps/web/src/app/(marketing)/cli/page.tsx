@@ -1,7 +1,9 @@
 import { CodeBlock } from "@/components/code-block";
+import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
+import { getAgentPrompt } from "@/lib/agent-prompts";
 
 const toc: TocItem[] = [
 	{ label: "Install", href: "#install" },
@@ -29,6 +31,12 @@ export default function CliPage() {
 						globally with <code>bun add -g @secondlayer/cli</code>.
 					</p>
 				</div>
+
+				<AgentPromptBlock
+					title="Operate through sl with your agent."
+					code={getAgentPrompt("cli-operate")}
+					collapsible
+				/>
 
 				<SectionHeading id="install">Install</SectionHeading>
 

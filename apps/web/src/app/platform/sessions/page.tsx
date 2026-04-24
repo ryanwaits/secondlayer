@@ -1,13 +1,18 @@
 "use client";
 
-import { ChatInput } from "@/components/sessions/chat-input";
 import { useSessionTabs } from "@/components/console/tab-bar";
+import { ChatInput } from "@/components/sessions/chat-input";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const SUGGESTIONS = ["Check my subgraphs", "Deploy a subgraph", "Show usage"];
+const SUGGESTIONS = [
+	"Create a subgraph from a contract",
+	"Create a webhook from a table",
+	"Diagnose subscription delivery",
+	"Check subgraph sync status",
+];
 
 const GREETINGS = [
 	(n: string) => `What are you building, ${n}?`,
@@ -97,7 +102,13 @@ export default function SessionsPage() {
 			<div className="sessions-hero">
 				{/* Logo */}
 				<div className="sessions-brand-mark">
-					<svg viewBox="4 7 40 28" width="44" height="30" fill="none">
+					<svg
+						viewBox="4 7 40 28"
+						width="44"
+						height="30"
+						fill="none"
+						aria-hidden="true"
+					>
 						<polygon points="8,25 28,17 42,25 22,33" className="logo-echo" />
 						<polygon points="8,19 28,11 42,19 22,27" className="logo-primary" />
 					</svg>
@@ -150,6 +161,7 @@ export default function SessionsPage() {
 										height="8"
 										viewBox="0 0 8 8"
 										fill="none"
+										aria-hidden="true"
 										stroke="currentColor"
 										strokeWidth="1.2"
 										strokeLinecap="round"

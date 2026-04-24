@@ -1,5 +1,7 @@
 import { IndexRow } from "@/components/console/index-row";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
+import { PromptActions } from "@/components/console/prompt-actions";
+import { getAgentPrompt } from "@/lib/agent-prompts";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
@@ -61,9 +63,10 @@ export default async function SubgraphsPage() {
 						<div className="empty-inner" style={{ padding: "40px 0 0" }}>
 							<h1 className="empty-title">No subgraphs yet</h1>
 							<p className="empty-desc">
-								Subgraphs index on-chain data into queryable tables. Create one
-								from your terminal or SDK.
+								Subgraphs index on-chain data into queryable tables. Start from
+								a contract scaffold, review the handlers, then deploy.
 							</p>
+							<PromptActions prompt={getAgentPrompt("subgraph-create")} />
 							<div className="empty-divider">
 								<span className="empty-divider-text">Get started</span>
 							</div>
@@ -171,9 +174,21 @@ export default async function SubgraphsPage() {
 													borderRadius: 3,
 												}}
 											>
-												npx secondlayer subgraph create
+												sl subgraphs scaffold SP123.contract --output
+												subgraphs/my-subgraph.ts
 											</code>{" "}
-											to scaffold and deploy a subgraph from your terminal.
+											then deploy with{" "}
+											<code
+												style={{
+													fontSize: 12,
+													background: "var(--code-bg)",
+													padding: "1px 5px",
+													borderRadius: 3,
+												}}
+											>
+												sl subgraphs deploy subgraphs/my-subgraph.ts
+											</code>
+											.
 										</div>
 									</div>
 								</div>
