@@ -12,7 +12,9 @@ import { fileURLToPath } from "node:url";
 import { input, select } from "@inquirer/prompts";
 import { SecondLayer } from "@secondlayer/sdk";
 import type { Command } from "commander";
+import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import { blue, dim, error, info, success, warn } from "../lib/output.ts";
+import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
 
 /**
  * `sl create subscription <name> --runtime <runtime>`
@@ -70,7 +72,7 @@ function copyTemplate(
 	}
 }
 
-interface CreateSubscriptionOptions {
+export interface CreateSubscriptionOptions {
 	runtime?: Runtime;
 	subgraph?: string;
 	table?: string;
@@ -78,6 +80,7 @@ interface CreateSubscriptionOptions {
 	serviceKey?: string;
 	baseUrl?: string;
 	skipApi?: boolean;
+	filter?: string[];
 }
 
 async function promptFor(
@@ -135,6 +138,13 @@ export async function createSubscription(
 	opts: CreateSubscriptionOptions,
 ): Promise<void> {
 	const { runtime, subgraph, table, url } = await promptFor(name, opts);
+	let filter: Record<string, unknown> | undefined;
+	try {
+		filter = parseSubscriptionFilter(opts.filter);
+	} catch (err) {
+		error(err instanceof Error ? err.message : String(err));
+		process.exit(1);
+	}
 
 	const eventName = `${subgraph}.${table}.created`;
 	const targetDir = resolve(process.cwd(), name);
@@ -157,35 +167,22 @@ export async function createSubscription(
 	let signingSecret: string | null = null;
 	if (!opts.skipApi) {
 		try {
-			const serviceKey = opts.serviceKey ?? process.env.SL_SERVICE_KEY;
-			const baseUrl = opts.baseUrl ?? process.env.SL_API_URL;
-			if (!serviceKey) {
-				warn(
-					"SL_SERVICE_KEY not set — template copied but subscription not provisioned.",
-				);
-				info(
-					"Provision it from the dashboard or re-run with SL_SERVICE_KEY set.",
-				);
-			} else {
-				const sl = new SecondLayer({
-					apiKey: serviceKey,
-					...(baseUrl ? { baseUrl } : {}),
-				});
-				const res = await sl.subscriptions.create({
-					name,
-					subgraphName: subgraph,
-					tableName: table,
-					url,
-					format: FORMAT_BY_RUNTIME[runtime] as
-						| "inngest"
-						| "trigger"
-						| "cloudflare"
-						| "standard-webhooks",
-					runtime,
-				});
-				signingSecret = res.signingSecret;
-				success(`Subscription provisioned: ${blue(res.subscription.id)}`);
-			}
+			const sl = await getSubscriptionClient(opts);
+			const res = await sl.subscriptions.create({
+				name,
+				subgraphName: subgraph,
+				tableName: table,
+				url,
+				format: FORMAT_BY_RUNTIME[runtime] as
+					| "inngest"
+					| "trigger"
+					| "cloudflare"
+					| "standard-webhooks",
+				runtime,
+				...(filter ? { filter } : {}),
+			});
+			signingSecret = res.signingSecret;
+			success(`Subscription provisioned: ${blue(res.subscription.id)}`);
 		} catch (err) {
 			warn(
 				`Subscription provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -229,6 +226,78 @@ export async function createSubscription(
 	success(`Done. Next:\n  cd ${name}\n  bun install\n  bun run dev`);
 }
 
+type SubscriptionClientOptions = Pick<
+	CreateSubscriptionOptions,
+	"baseUrl" | "serviceKey"
+>;
+
+type SubscriptionClientEnv = {
+	[key: string]: string | undefined;
+	SL_API_URL?: string;
+	SL_SERVICE_KEY?: string;
+};
+
+type ResolvedTenantCredentials = Awaited<
+	ReturnType<typeof resolveActiveTenant>
+>;
+
+type SubscriptionClientConfig =
+	| { needsTenantResolution: true }
+	| { needsTenantResolution: false; baseUrl: string; apiKey: string };
+
+export function resolveSubscriptionClientConfig(
+	opts: SubscriptionClientOptions,
+	env: SubscriptionClientEnv = process.env,
+	resolved?: ResolvedTenantCredentials,
+): SubscriptionClientConfig {
+	const needsResolvedKey = !opts.serviceKey && !env.SL_SERVICE_KEY;
+	const needsResolvedUrl = !opts.baseUrl && !env.SL_API_URL;
+	if ((needsResolvedKey || needsResolvedUrl) && !resolved) {
+		return { needsTenantResolution: true };
+	}
+
+	const apiKey =
+		opts.serviceKey ?? env.SL_SERVICE_KEY ?? resolved?.ephemeralKey;
+	const baseUrl = opts.baseUrl ?? env.SL_API_URL ?? resolved?.apiUrl;
+
+	if (!apiKey) {
+		throw new Error(
+			"No service key available. Run `sl login` from an active project or pass --service-key.",
+		);
+	}
+	if (!baseUrl) {
+		throw new Error(
+			"No tenant API URL available. Run `sl project use <slug>` or pass --base-url.",
+		);
+	}
+
+	return { needsTenantResolution: false, baseUrl, apiKey };
+}
+
+async function getSubscriptionClient(
+	opts: CreateSubscriptionOptions,
+): Promise<SecondLayer> {
+	const config = resolveSubscriptionClientConfig(opts);
+	if (!config.needsTenantResolution) {
+		return new SecondLayer({ baseUrl: config.baseUrl, apiKey: config.apiKey });
+	}
+
+	const resolved = await resolveActiveTenant();
+	const resolvedConfig = resolveSubscriptionClientConfig(
+		opts,
+		process.env,
+		resolved,
+	);
+	if (resolvedConfig.needsTenantResolution) {
+		throw new Error("Could not resolve active tenant credentials.");
+	}
+
+	return new SecondLayer({
+		baseUrl: resolvedConfig.baseUrl,
+		apiKey: resolvedConfig.apiKey,
+	});
+}
+
 export function registerCreateCommand(program: Command): void {
 	const create = program
 		.command("create")
@@ -241,6 +310,10 @@ export function registerCreateCommand(program: Command): void {
 		.option("-s, --subgraph <name>", "Subgraph to subscribe to")
 		.option("-t, --table <name>", "Table to subscribe to")
 		.option("-u, --url <url>", "Webhook URL")
+		.option(
+			"--filter <kv...>",
+			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",
+		)
 		.option("--service-key <key>", "SL_SERVICE_KEY override")
 		.option("--base-url <url>", "SL_API_URL override")
 		.option("--skip-api", "Copy template only, don't call the API")

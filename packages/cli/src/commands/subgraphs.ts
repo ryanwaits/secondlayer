@@ -19,6 +19,7 @@ import {
 } from "../lib/api-client.ts";
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
+import { parseQueryFilters } from "../lib/filter-params.ts";
 import { writeTextFile } from "../lib/fs.ts";
 import {
 	dim,
@@ -558,16 +559,12 @@ export function registerSubgraphsCommand(program: Command): void {
 				},
 			) => {
 				try {
-					const filters: Record<string, string> = {};
-					if (options.filter) {
-						for (const kv of options.filter) {
-							const eqIndex = kv.indexOf("=");
-							if (eqIndex === -1) {
-								error(`Invalid filter format: "${kv}". Use key=value.`);
-								process.exit(1);
-							}
-							filters[kv.slice(0, eqIndex)] = kv.slice(eqIndex + 1);
-						}
+					let filters: Record<string, string> | undefined;
+					try {
+						filters = parseQueryFilters(options.filter);
+					} catch (err) {
+						error(err instanceof Error ? err.message : String(err));
+						process.exit(1);
 					}
 
 					const params: SubgraphQueryParams = {
@@ -578,7 +575,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							? Number.parseInt(options.offset, 10)
 							: undefined,
 						fields: options.fields,
-						filters: Object.keys(filters).length > 0 ? filters : undefined,
+						filters,
 					};
 
 					if (options.count) {
