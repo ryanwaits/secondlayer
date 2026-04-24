@@ -25,7 +25,7 @@ import {
 } from "@secondlayer/shared/db/queries/accounts";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
-import { getStripe } from "../lib/stripe.ts";
+import { getStripeOrNull } from "../lib/stripe.ts";
 import {
 	UPGRADEABLE_TIERS,
 	getPriceIdForTier,
@@ -68,11 +68,15 @@ app.post("/upgrade", async (c) => {
 		);
 	}
 
+	const stripe = getStripeOrNull();
+	if (!stripe) {
+		logger.info("Upgrade called but Stripe not configured");
+		return c.json({ error: "billing_not_configured" }, 503);
+	}
+
 	const db = getDb();
 	const account = await getAccountById(db, accountId);
 	if (!account) return c.json({ error: "Account not found" }, 404);
-
-	const stripe = getStripe();
 
 	// Lazy customer creation — first upgrade materializes the Stripe
 	// Customer and persists the id. Returning users already have one.
@@ -136,7 +140,10 @@ app.post("/resolve", async (c) => {
 	}
 
 	try {
-		const stripe = getStripe();
+		const stripe = getStripeOrNull();
+		if (!stripe) {
+			return c.json({ plan: account.plan, resolved: false });
+		}
 		const subs = await stripe.subscriptions.list({
 			customer: account.stripe_customer_id,
 			status: "active",
@@ -256,7 +263,11 @@ app.get("/portal", async (c) => {
 		);
 	}
 
-	const stripe = getStripe();
+	const stripe = getStripeOrNull();
+	if (!stripe) {
+		logger.info("Portal called but Stripe not configured");
+		return c.json({ error: "billing_not_configured" }, 503);
+	}
 	const session = await stripe.billingPortal.sessions.create({
 		customer: account.stripe_customer_id,
 		return_url: `${dashboardBaseUrl()}/platform/billing`,

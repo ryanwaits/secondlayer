@@ -20,7 +20,10 @@ import {
 import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
 import { Hono } from "hono";
 import type Stripe from "stripe";
-import { getStripe, getStripeWebhookSecret } from "../lib/stripe.ts";
+import {
+	getStripeOrNull,
+	getStripeWebhookSecretOrNull,
+} from "../lib/stripe.ts";
 import { getTierForPriceId } from "../lib/tier-mapping.ts";
 
 const app = new Hono();
@@ -31,9 +34,17 @@ app.post("/", async (c) => {
 		return c.json({ error: "Missing stripe-signature header" }, 400);
 	}
 
+	const stripe = getStripeOrNull();
+	const secret = getStripeWebhookSecretOrNull();
+	if (!stripe || !secret) {
+		logger.info("Stripe webhook received but billing not configured", {
+			hasKey: Boolean(stripe),
+			hasSecret: Boolean(secret),
+		});
+		return c.json({ error: "billing_not_configured" }, 503);
+	}
+
 	const raw = await c.req.text();
-	const stripe = getStripe();
-	const secret = getStripeWebhookSecret();
 
 	let event: Stripe.Event;
 	try {
