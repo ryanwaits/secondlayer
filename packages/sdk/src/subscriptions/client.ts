@@ -1,104 +1,30 @@
+import type {
+	CreateSubscriptionRequest,
+	CreateSubscriptionResponse,
+	DeadRow,
+	DeliveryRow,
+	ReplayResult,
+	RotateSecretResponse,
+	SubscriptionDetail,
+	SubscriptionSummary,
+	UpdateSubscriptionRequest,
+} from "@secondlayer/shared/schemas/subscriptions";
 import { BaseClient } from "../base.ts";
 
-export type SubscriptionStatus = "active" | "paused" | "error";
-export type SubscriptionFormat =
-	| "standard-webhooks"
-	| "inngest"
-	| "trigger"
-	| "cloudflare"
-	| "cloudevents"
-	| "raw";
-export type SubscriptionRuntime = "inngest" | "trigger" | "cloudflare" | "node";
-
-export interface SubscriptionSummary {
-	id: string;
-	name: string;
-	status: SubscriptionStatus;
-	subgraphName: string;
-	tableName: string;
-	format: SubscriptionFormat;
-	runtime: SubscriptionRuntime | null;
-	url: string;
-	lastDeliveryAt: string | null;
-	lastSuccessAt: string | null;
-	createdAt: string;
-	updatedAt: string;
-}
-
-export interface SubscriptionDetail extends SubscriptionSummary {
-	filter: Record<string, unknown>;
-	authConfig: Record<string, unknown>;
-	maxRetries: number;
-	timeoutMs: number;
-	concurrency: number;
-	circuitFailures: number;
-	circuitOpenedAt: string | null;
-	lastError: string | null;
-}
-
-export interface CreateSubscriptionRequest {
-	name: string;
-	subgraphName: string;
-	tableName: string;
-	url: string;
-	filter?: Record<string, unknown>;
-	format?: SubscriptionFormat;
-	runtime?: SubscriptionRuntime;
-	authConfig?: Record<string, unknown>;
-	maxRetries?: number;
-	timeoutMs?: number;
-	concurrency?: number;
-}
-
-export interface CreateSubscriptionResponse {
-	subscription: SubscriptionDetail;
-	/** Plaintext signing secret — surfaced ONCE. Store it server-side. */
-	signingSecret: string;
-}
-
-export interface UpdateSubscriptionRequest {
-	name?: string;
-	url?: string;
-	filter?: Record<string, unknown>;
-	format?: SubscriptionFormat;
-	runtime?: SubscriptionRuntime | null;
-	authConfig?: Record<string, unknown>;
-	maxRetries?: number;
-	timeoutMs?: number;
-	concurrency?: number;
-}
-
-export interface RotateSecretResponse {
-	subscription: SubscriptionDetail;
-	signingSecret: string;
-}
-
-export interface DeliveryRow {
-	id: string;
-	attempt: number;
-	statusCode: number | null;
-	errorMessage: string | null;
-	durationMs: number | null;
-	responseBody: string | null;
-	dispatchedAt: string;
-}
-
-export interface ReplayResult {
-	replayId: string;
-	enqueuedCount: number;
-	scannedCount: number;
-}
-
-export interface DeadRow {
-	id: string;
-	eventType: string;
-	attempt: number;
-	blockHeight: number;
-	txId: string | null;
-	payload: Record<string, unknown>;
-	failedAt: string | null;
-	createdAt: string;
-}
+export type {
+	CreateSubscriptionRequest,
+	CreateSubscriptionResponse,
+	DeadRow,
+	DeliveryRow,
+	ReplayResult,
+	RotateSecretResponse,
+	SubscriptionDetail,
+	SubscriptionFormat,
+	SubscriptionRuntime,
+	SubscriptionStatus,
+	SubscriptionSummary,
+	UpdateSubscriptionRequest,
+} from "@secondlayer/shared/schemas/subscriptions";
 
 export class Subscriptions extends BaseClient {
 	async list(): Promise<{ data: SubscriptionSummary[] }> {

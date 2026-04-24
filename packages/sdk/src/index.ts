@@ -12,6 +12,9 @@ export type {
 	CreateSubscriptionResponse,
 	UpdateSubscriptionRequest,
 	RotateSecretResponse,
+	DeliveryRow,
+	ReplayResult,
+	DeadRow,
 } from "./subscriptions/client.ts";
 export { ApiError, VersionConflictError } from "./errors.ts";
 export { verifyWebhookSignature } from "./webhooks.ts";

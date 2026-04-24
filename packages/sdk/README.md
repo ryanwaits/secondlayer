@@ -61,9 +61,11 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
 });
 
 // Lifecycle
+await sl.subscriptions.update(id, { filter: { amount: { gte: "1000000" } } });
 await sl.subscriptions.pause(id);
 await sl.subscriptions.resume(id);
 await sl.subscriptions.rotateSecret(id); // returns new signing secret once
+const { data: deliveries } = await sl.subscriptions.recentDeliveries(id);
 
 // Replay historical block range
 await sl.subscriptions.replay(id, { fromBlock: 180000, toBlock: 181000 });

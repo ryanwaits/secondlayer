@@ -1,5 +1,7 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import type { Subscription } from "@secondlayer/shared/db";
+import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import {
 	createSubscription,
 	deleteSubscription,
@@ -11,11 +13,14 @@ import {
 	toggleSubscriptionStatus,
 	updateSubscription,
 } from "@secondlayer/shared/db/queries/subscriptions";
-import type {
-	Subscription,
-	SubscriptionFormat,
-	SubscriptionRuntime,
-} from "@secondlayer/shared/db";
+import {
+	CreateSubscriptionRequestSchema,
+	ReplaySubscriptionRequestSchema,
+	type SubscriptionSchemaTables,
+	UpdateSubscriptionRequestSchema,
+	formatSubscriptionSchemaErrors,
+	validateSubscriptionFilterForTable,
+} from "@secondlayer/shared/schemas/subscriptions";
 import { replaySubscription } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
@@ -28,22 +33,6 @@ import { InvalidJSONError } from "../middleware/error.ts";
  * on create + rotate.
  */
 const app = new Hono();
-
-const VALID_FORMATS: SubscriptionFormat[] = [
-	"standard-webhooks",
-	"inngest",
-	"trigger",
-	"cloudflare",
-	"cloudevents",
-	"raw",
-];
-
-const VALID_RUNTIMES: SubscriptionRuntime[] = [
-	"inngest",
-	"trigger",
-	"cloudflare",
-	"node",
-];
 
 function toSummary(sub: Subscription) {
 	return {
@@ -76,6 +65,38 @@ function toDetail(sub: Subscription) {
 	};
 }
 
+function getDefinitionSchema(subgraph: {
+	definition: Record<string, unknown>;
+}): SubscriptionSchemaTables {
+	const schema = subgraph.definition.schema;
+	if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+		return {};
+	}
+	return schema as SubscriptionSchemaTables;
+}
+
+async function validateSubscriptionTarget(input: {
+	accountId: string;
+	subgraphName: string;
+	tableName: string;
+	filter?: unknown;
+}): Promise<string[]> {
+	const subgraph = await getSubgraph(
+		getDb(),
+		input.subgraphName,
+		input.accountId,
+	);
+	if (!subgraph) {
+		return [`Subgraph not found: ${input.subgraphName}`];
+	}
+	return validateSubscriptionFilterForTable({
+		subgraphName: input.subgraphName,
+		tableName: input.tableName,
+		filter: input.filter,
+		tables: getDefinitionSchema(subgraph),
+	});
+}
+
 // ── GET /api/subscriptions ──────────────────────────────────────────────
 
 app.get("/", async (c) => {
@@ -102,67 +123,51 @@ app.post("/", async (c) => {
 		throw new InvalidJSONError();
 	}
 
-	const name = String(body.name ?? "").trim();
-	const subgraphName = String(body.subgraphName ?? "").trim();
-	const tableName = String(body.tableName ?? "").trim();
-	const url = String(body.url ?? "").trim();
-	if (!name || !subgraphName || !tableName || !url) {
+	const parsed = CreateSubscriptionRequestSchema.safeParse(body);
+	if (!parsed.success) {
+		const details = formatSubscriptionSchemaErrors(parsed.error);
+		return c.json({ error: details.join("; "), details }, 400);
+	}
+	const input = parsed.data;
+
+	const validationErrors = await validateSubscriptionTarget({
+		accountId,
+		subgraphName: input.subgraphName,
+		tableName: input.tableName,
+		filter: input.filter,
+	});
+	if (validationErrors.length > 0) {
 		return c.json(
-			{
-				error:
-					"Missing required fields: name, subgraphName, tableName, url",
-			},
+			{ error: validationErrors.join("; "), details: validationErrors },
 			400,
 		);
 	}
 
-	const format =
-		body.format !== undefined ? String(body.format) : "standard-webhooks";
-	if (!VALID_FORMATS.includes(format as SubscriptionFormat)) {
-		return c.json(
-			{ error: `format must be one of: ${VALID_FORMATS.join(", ")}` },
-			400,
-		);
-	}
-	const runtime = body.runtime != null ? String(body.runtime) : null;
-	if (runtime && !VALID_RUNTIMES.includes(runtime as SubscriptionRuntime)) {
-		return c.json(
-			{ error: `runtime must be one of: ${VALID_RUNTIMES.join(", ")}` },
-			400,
-		);
-	}
-
-	const existing = await getSubscriptionByName(getDb(), accountId, name);
+	const existing = await getSubscriptionByName(getDb(), accountId, input.name);
 	if (existing) {
-		return c.json({ error: `Subscription "${name}" already exists` }, 409);
+		return c.json(
+			{ error: `Subscription "${input.name}" already exists` },
+			409,
+		);
 	}
 
 	try {
 		const { subscription, signingSecret } = await createSubscription(getDb(), {
 			accountId,
-			name,
-			subgraphName,
-			tableName,
-			url,
-			format: format as SubscriptionFormat,
-			runtime: runtime as SubscriptionRuntime | null,
-			filter:
-				body.filter && typeof body.filter === "object" ? body.filter : {},
-			authConfig:
-				body.authConfig && typeof body.authConfig === "object"
-					? body.authConfig
-					: {},
-			maxRetries:
-				typeof body.maxRetries === "number" ? body.maxRetries : undefined,
-			timeoutMs: typeof body.timeoutMs === "number" ? body.timeoutMs : undefined,
-			concurrency:
-				typeof body.concurrency === "number" ? body.concurrency : undefined,
+			name: input.name,
+			subgraphName: input.subgraphName,
+			tableName: input.tableName,
+			url: input.url,
+			format: input.format,
+			runtime: input.runtime ?? null,
+			filter: input.filter ?? {},
+			authConfig: input.authConfig ?? {},
+			maxRetries: input.maxRetries,
+			timeoutMs: input.timeoutMs,
+			concurrency: input.concurrency,
 		});
 		await notifySubscriptionsChanged(getDb(), accountId);
-		return c.json(
-			{ subscription: toDetail(subscription), signingSecret },
-			201,
-		);
+		return c.json({ subscription: toDetail(subscription), signingSecret }, 201);
 	} catch (err) {
 		logger.error("createSubscription failed", { error: getErrorMessage(err) });
 		return c.json({ error: getErrorMessage(err) }, 500);
@@ -196,51 +201,40 @@ app.patch("/:id", async (c) => {
 		throw new InvalidJSONError();
 	}
 
-	if (body.format !== undefined) {
-		if (!VALID_FORMATS.includes(String(body.format) as SubscriptionFormat)) {
+	const parsed = UpdateSubscriptionRequestSchema.safeParse(body);
+	if (!parsed.success) {
+		const details = formatSubscriptionSchemaErrors(parsed.error);
+		return c.json({ error: details.join("; "), details }, 400);
+	}
+	const patch = parsed.data;
+
+	if (patch.filter !== undefined) {
+		const current = await getSubscription(getDb(), accountId, id);
+		if (!current) return c.json({ error: "Subscription not found" }, 404);
+		const validationErrors = await validateSubscriptionTarget({
+			accountId,
+			subgraphName: current.subgraph_name,
+			tableName: current.table_name,
+			filter: patch.filter,
+		});
+		if (validationErrors.length > 0) {
 			return c.json(
-				{ error: `format must be one of: ${VALID_FORMATS.join(", ")}` },
+				{ error: validationErrors.join("; "), details: validationErrors },
 				400,
 			);
 		}
 	}
-	if (
-		body.runtime !== undefined &&
-		body.runtime !== null &&
-		!VALID_RUNTIMES.includes(String(body.runtime) as SubscriptionRuntime)
-	) {
-		return c.json(
-			{ error: `runtime must be one of: ${VALID_RUNTIMES.join(", ")}` },
-			400,
-		);
-	}
 
 	const updated = await updateSubscription(getDb(), accountId, id, {
-		name: typeof body.name === "string" ? body.name : undefined,
-		url: typeof body.url === "string" ? body.url : undefined,
-		format:
-			body.format !== undefined
-				? (String(body.format) as SubscriptionFormat)
-				: undefined,
-		runtime:
-			body.runtime !== undefined
-				? (body.runtime === null
-						? null
-						: (String(body.runtime) as SubscriptionRuntime))
-				: undefined,
-		filter:
-			body.filter !== undefined && typeof body.filter === "object"
-				? body.filter
-				: undefined,
-		authConfig:
-			body.authConfig !== undefined && typeof body.authConfig === "object"
-				? body.authConfig
-				: undefined,
-		maxRetries:
-			typeof body.maxRetries === "number" ? body.maxRetries : undefined,
-		timeoutMs: typeof body.timeoutMs === "number" ? body.timeoutMs : undefined,
-		concurrency:
-			typeof body.concurrency === "number" ? body.concurrency : undefined,
+		name: patch.name,
+		url: patch.url,
+		format: patch.format,
+		runtime: patch.runtime,
+		filter: patch.filter,
+		authConfig: patch.authConfig,
+		maxRetries: patch.maxRetries,
+		timeoutMs: patch.timeoutMs,
+		concurrency: patch.concurrency,
 	});
 	if (!updated) return c.json({ error: "Subscription not found" }, 404);
 	await notifySubscriptionsChanged(getDb(), accountId);
@@ -397,14 +391,12 @@ app.post("/:id/replay", async (c) => {
 	} catch {
 		throw new InvalidJSONError();
 	}
-	const fromBlock = Number(body.fromBlock);
-	const toBlock = Number(body.toBlock);
-	if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) {
-		return c.json(
-			{ error: "fromBlock and toBlock required (numbers)" },
-			400,
-		);
+	const parsed = ReplaySubscriptionRequestSchema.safeParse(body);
+	if (!parsed.success) {
+		const details = formatSubscriptionSchemaErrors(parsed.error);
+		return c.json({ error: details.join("; "), details }, 400);
 	}
+	const { fromBlock, toBlock, force } = parsed.data;
 
 	try {
 		const result = await replaySubscription({
@@ -412,8 +404,7 @@ app.post("/:id/replay", async (c) => {
 			subscriptionId: c.req.param("id"),
 			fromBlock,
 			toBlock,
-			replayIdSuffix:
-				typeof body.force === "string" ? body.force : undefined,
+			replayIdSuffix: force,
 		});
 		return c.json(result, 202);
 	} catch (err) {
