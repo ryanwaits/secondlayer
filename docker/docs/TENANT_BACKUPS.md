@@ -41,7 +41,7 @@ Upstream Storage Box uses `rsync --delete` so deletions propagate.
 
 ## Monitoring
 
-The agent (`@secondlayer/agent`) runs `scanTenantBackups()` every poll
+The ops agent (`tools/ops/agent`) runs `scanTenantBackups()` every poll
 (default 5 min). For any running tenant whose newest dump is >90 min old
 it emits a `tenant_backup_stale` anomaly. Slack alert routes through the
 normal dedup path (1/hr per service).

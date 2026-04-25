@@ -57,6 +57,7 @@ Deploy via CLI (`sl subgraphs deploy path/to/definition.ts`), SDK (`sl.subgraphs
 | `./types` | All schema + filter + handler types (`SubgraphDefinition`, `SubgraphFilter`, `StxTransferFilter`, etc.) |
 | `./schema` | Generator + deployer internals |
 | `./validate` | Shape + filter validation for deploys |
+| `./triggers` | Typed `on.*` helpers for all `SubgraphFilter` variants |
 | `./runtime/source-matcher` | Pure fn: match txs+events against a `SubgraphFilter` — used by the processor hot path |
 | `./runtime/replay` | `replaySubscription({ accountId, subscriptionId, fromBlock, toBlock })` — re-enqueue historical rows as outbox entries |
 

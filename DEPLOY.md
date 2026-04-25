@@ -126,7 +126,7 @@ See individual service setup:
 1. **PostgreSQL** — Render managed DB
 2. **API** — Web Service, Docker target `api`, port 10000
 3. **Indexer** — Web Service, Docker target `indexer`, port 10000
-4. **Subgraph Processor** — Background Worker, Docker target `processor`
+4. **Subgraph Processor** — Background Worker, Docker target `api`, command `bun run packages/subgraphs/src/service.ts`
 
 All need `DATABASE_URL`. The indexer needs a public URL for event observer.
 

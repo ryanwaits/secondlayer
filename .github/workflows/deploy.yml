@@ -16,9 +16,14 @@ on:
     paths-ignore:
       - "*.md"
       - "docs/**"
-      - "packages/docs/**"
+      - "docker/docs/**"
       - "packages/clarity-docs/**"
+      - "packages/*/README.md"
+      - "packages/*/CHANGELOG.md"
+      - "tools/ops/*/README.md"
+      - "tools/ops/*/CHANGELOG.md"
       - "plans/**"
+      - "skills/**"
       - "LICENSE"
   workflow_dispatch:
 

@@ -107,7 +107,7 @@ curl -s http://localhost:3700/health | jq
 ```bash
 # Tenant rows
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
-  -c "SELECT slug, plan, status, trial_ends_at, storage_used_mb, storage_limit_mb FROM tenants;"
+  -c "SELECT slug, plan, status, last_active_at, storage_used_mb, storage_limit_mb FROM tenants;"
 
 # Running tenant containers
 docker ps --filter "label=secondlayer.slug" --format \

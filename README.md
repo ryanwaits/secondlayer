@@ -23,7 +23,7 @@ Two ways to run it:
   `trigger`, `cloudflare`, `cloudevents`, `raw`), historical replay by
   block range.
 - **`@secondlayer/stacks`** — viem-style chain SDK: typed contract calls,
-  wallets, BNS, AI-SDK `tool({...})` values, broadcast with caps.
+  wallets, BNS, transaction builders, and AI-SDK `tool({...})` values.
 
 ## Quickstart (hosted)
 
@@ -59,7 +59,7 @@ Reviewable walkthrough: [packages/subgraphs/QUICKSTART.md](packages/subgraphs/QU
 | [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — exposes subgraphs + scaffolding to AI agents |
 | [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS, AI-SDK tools |
 | [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema, triggers + event handlers |
-| [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, auth primitives |
+| [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, crypto helpers |
 | [`@secondlayer/api`](packages/api/README.md) | REST API — platform + dedicated + OSS modes |
 
 ## Surfaces

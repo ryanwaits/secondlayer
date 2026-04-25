@@ -13,7 +13,7 @@ Audience: someone with SSH to the Hetzner app server who has never seen this cod
 - §1 What this is
 - §2 Architecture overview
 - §3 Components (deep dive)
-- §4 End-to-end flow — clicking "Start 14-Day Trial"
+- §4 End-to-end flow — provisioning an instance
 - §5 Current activation state (end of Sprint 7)
 - §6 Activation checklist
 - §7 Troubleshooting
@@ -38,7 +38,7 @@ The containers share nothing between customers (no multi-tenant schema prefixing
 | Scale | $599 | 4 | 8 GB | 200 GB | ~$12 |
 | Enterprise | custom | 8+ | 32+ GB | unlimited | ~$80+ |
 
-Overage: `$2/GB/mo` beyond plan storage. No feature limits (unlimited subgraphs, streams, API calls) — Docker memory + CPU caps are the real limits.
+Overage: `$2/GB/mo` beyond plan storage. No feature limits (unlimited subgraphs, subscriptions, API calls) — Docker memory + CPU caps are the real limits.
 
 Plan definitions live in `packages/provisioner/src/plans.ts`.
 
@@ -92,14 +92,14 @@ Set per container. The app-server platform API runs with `platform`. Each tenant
 
 | Mode value | Where it runs | Key effects |
 |---|---|---|
-| `oss` | Customer self-host | Auth is static-key or pass-through. No platform routes. Single DB. No tenant trial/health crons. |
+| `oss` | Customer self-host | Auth is static-key or pass-through. No platform routes. Single DB. No tenant idle-pause/health crons. |
 | `dedicated` | Tenant containers | JWT auth with anon/service roles. Platform routes not mounted. Dual DB (source + target). |
-| `platform` | App server only | Magic-link + API-key auth. All routes mounted. Tenants routes, trial + health crons active. |
+| `platform` | App server only | Magic-link + API-key auth. All routes mounted. Tenant routes, idle-pause + health crons active. |
 
 Mode is resolved in `packages/shared/src/mode.ts`. Gating logic is scattered through:
 - `packages/api/src/index.ts` — route mounting
 - `packages/api/src/lib/ownership.ts` — `api_key_id` filtering becomes a no-op in non-platform mode
-- `packages/worker/src/jobs/tenant-trial.ts:26` + `tenant-health.ts:28` — crons short-circuit outside platform mode
+- `packages/worker/src/jobs/tenant-idle-pause.ts:23` + `tenant-health.ts:28` — crons short-circuit outside platform mode
 
 ### 2.2 Dual-DB model
 
@@ -138,7 +138,7 @@ Example for a Launch tenant (2 GB, 1 vCPU):
 - Processor: 614 MB, 0.3 vCPU
 - API: 409 MB, 0.2 vCPU
 
-Worker containers are **not** per-tenant — there's one shared worker on the app server that runs tenant-trial + tenant-health crons. The per-tenant footprint is Postgres + API + subgraph processor only.
+Worker containers are **not** per-tenant — there's one shared worker on the app server that runs tenant idle-pause + tenant-health crons. The per-tenant footprint is Postgres + API + subgraph processor only.
 
 Allocations computed by `alloc()` in `packages/provisioner/src/plans.ts:35-50`.
 
@@ -334,9 +334,11 @@ CREATE TABLE tenants (
   api_url_internal text NOT NULL,
   api_url_public text NOT NULL,
 
-  trial_ends_at timestamptz NOT NULL,
   suspended_at timestamptz,
   last_health_check_at timestamptz,
+  last_active_at timestamptz NOT NULL DEFAULT now(),
+  service_gen integer NOT NULL DEFAULT 1,
+  anon_gen integer NOT NULL DEFAULT 1,
 
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -346,11 +348,11 @@ CREATE TABLE tenants (
 Three indexes (partial, for cron performance):
 - `tenants_account_idx` on `(account_id)`
 - `tenants_status_idx` on `(status) WHERE status <> 'deleted'`
-- `tenants_trial_ends_idx` on `(trial_ends_at) WHERE status IN ('provisioning', 'active')`
+- `tenants_last_active_idx` on `(plan, last_active_at) WHERE status = 'active'`
 
 Status lifecycle:
 ```
-provisioning ──(provision OK)──▶ active ──(trial expires)──▶ suspended ──(30d)──▶ deleted
+provisioning ──(provision OK)──▶ active ──(idle/manual pause)──▶ suspended ──(delete)──▶ deleted
      │                               │                           │
      └─(provision fail)──▶ error     └─(health check fail)──▶ error
 ```
@@ -362,7 +364,8 @@ Query helpers: `packages/shared/src/db/queries/tenants.ts`:
 - `getTenantByAccount`
 - `getTenantBySlug`
 - `listTenantsByStatus`
-- `listExpiredTrials`
+- `listIdleHobbyTenants`
+- `bumpTenantActivity`
 - `listSuspendedOlderThan`
 - `setTenantStatus` (auto-fills `suspended_at` on transition)
 - `recordHealthCheck`
@@ -371,14 +374,13 @@ Query helpers: `packages/shared/src/db/queries/tenants.ts`:
 
 ### 3.4 Worker crons — `packages/worker/src/jobs/`
 
-Two crons, both gated on `getInstanceMode() === 'platform'`. They share the thin provisioner client `provisioner-rpc.ts` (a stripped-down copy of the API-side client, to avoid cross-service package imports).
+Two tenant crons, both gated on `getInstanceMode() === 'platform'`. They share the thin provisioner client `provisioner-rpc.ts` (a stripped-down copy of the API-side client, to avoid cross-service package imports).
 
-#### tenant-trial.ts — hourly
+#### tenant-idle-pause.ts — hourly
 
 | Tick | Action |
 |---|---|
-| Every 1h (first run 1min post-boot) | `suspendExpiredTrials()` — select tenants where `trial_ends_at < now()` and status in `(provisioning, active)`; call provisioner's `POST /tenants/{slug}/suspend`; set status to `suspended`. |
-| Every 1h | `purgeOldSuspended()` — select tenants where `suspended_at < now() - 30d` and status = `suspended`; call provisioner's `DELETE /tenants/{slug}?deleteVolume=true`; set status to `deleted`. |
+| Every 1h (first run 1min post-boot) | `listIdleHobbyTenants()` — select active Hobby tenants whose `last_active_at` is older than the idle window; call provisioner's `POST /tenants/{slug}/suspend`; set status to `suspended`. |
 
 Lazy import of the provisioner-rpc module — `await import("./provisioner-rpc.ts")` only when there's work to do. Keeps the OSS boot path from requiring `PROVISIONER_URL`.
 
@@ -401,18 +403,19 @@ Routing: the URL is `/instance`, which Next.js middleware (`apps/web/src/middlew
 Component tree when no tenant exists:
 ```
 <InstanceView/>
-  └── <TrialStart/>
+  └── <ProvisionStart/>
         ├── Plan radio group (launch/grow/scale)
-        └── "Start 14-Day Trial" button  ───POST /api/tenants───▶
+        └── provision button  ───POST /api/tenants───▶
 ```
 
 Component tree when tenant exists:
 ```
 <InstanceView/>
-  ├── <TrialBanner/>        (warning when ≤3 days left; error when expired/suspended)
-  ├── <InstanceSummary/>    (slug, plan, cpus/RAM/storage specs, status, created_at)
+  ├── <ActiveView/>         (status copy differentiates Hobby auto-pause from manual suspension)
+  ├── <OverviewSection/>    (slug, plan, cpus/RAM/storage specs, status, created_at)
   ├── <ResourceGauges/>     (CPU%, Memory%, Storage% from runtime stats)
   ├── <ConnectionSnippets/> (tabs: curl | node | cli)
+  ├── <KeysSection/>        (service/anon key rotation)
   └── <ResizeSection/>      (plan dropdown → POST /api/tenants/me/resize)
 ```
 
@@ -432,7 +435,7 @@ command. See `packages/cli/src/lib/resolve-tenant.ts` for the decision tree.
 | Command | Action |
 |---|---|
 | `sl instance create --plan <launch\|grow\|scale>` | Provisions the tenant for the active project. Boxed reveal with `serviceKey` + `anonKey` (shown once). |
-| `sl instance info` | Plan, status, resource usage, trial days left. |
+| `sl instance info` | Plan, status, resource usage, and tenant connection details. |
 | `sl instance resize --plan <...>` | Recreates tenant containers with new resource limits. Brief downtime (~30s). |
 | `sl instance suspend` / `resume` | Stop/start containers, volume preserved. |
 | `sl instance keys rotate --service \| --anon \| --both` | Bumps `SERVICE_GEN` / `ANON_GEN`, recreates tenant API container, mints replacement keys. Old JWTs return `KEY_ROTATED` (401). |
@@ -478,13 +481,13 @@ Typical deploy: 60-90s. Failures now surface in ≤60s, not silent 5-min timeout
 
 ---
 
-## 4. End-to-end flow — "Start 14-Day Trial"
+## 4. End-to-end flow — provision an instance
 
 Starting from a fresh account with no tenant. User clicks the button in the dashboard. Here's every step, file by file.
 
 ### Step 1 — Browser click
 
-`apps/web/src/app/platform/instance/instance-view.tsx:116-138` (`TrialStart.handleStart`):
+`apps/web/src/app/platform/instance/provision-start.tsx` (`ProvisionStart.handleStart`):
 ```typescript
 const res = await fetch("/api/tenants", {
   method: "POST",
@@ -525,9 +528,8 @@ On any failure: `teardownTenant(slug, { deleteVolume: true })` runs best-effort,
 
 ### Step 5 — Platform API persists
 
-Back in `packages/api/src/routes/tenants.ts:88-112`:
+Back in `packages/api/src/routes/tenants.ts`:
 ```typescript
-const trialEndsAt = new Date(Date.now() + 14 * 24 * 3600 * 1000);
 const alloc = PLAN_ALLOCATIONS[plan];
 
 const tenant = await insertTenant(getDb(), {
@@ -542,7 +544,6 @@ const tenant = await insertTenant(getDb(), {
   serviceKey: provisioned.serviceKey,                     // will be encrypted
   apiUrlInternal: provisioned.apiUrlInternal,
   apiUrlPublic: provisioned.apiUrlPublic,
-  trialEndsAt,
 });
 ```
 
@@ -578,7 +579,7 @@ What's **running right now on the Hetzner app server** (`INSTANCE_MODE=platform`
 | `secondlayer-postgres-1` | Shared indexer + control-plane DB | Will become the "source" DB once dedicated hosting activates |
 | `secondlayer-api-1` | Platform API | All routes mounted including `/api/tenants/*` |
 | `secondlayer-indexer-1` | Block/tx/event ingestion | Writes to shared DB |
-| `secondlayer-worker-1` | Storage cron + tenant trial/health crons (latter short-circuit with 0 tenants) | |
+| `secondlayer-worker-1` | Storage cron + tenant idle-pause/health crons (latter short-circuit with 0 tenants) | |
 | `secondlayer-agent-1` | AI ops monitoring + Slack | |
 | `secondlayer-caddy-1` | TLS proxy for `api.{BASE_DOMAIN}` + wildcard `*.{BASE_DOMAIN}` on-demand TLS |
 
@@ -588,9 +589,9 @@ What's **deployed but dormant**:
 |---|---|---|
 | `tenants` table | Migrated (`0039_tenants`), empty | Just usage — creating a tenant |
 | `/api/tenants/*` routes | Mounted in API | Nobody's calling them yet |
-| Worker tenant-trial cron | Running, short-circuits (no tenants in DB) | — |
+| Worker tenant-idle-pause cron | Running, short-circuits (no tenants in DB) | — |
 | Worker tenant-health cron | Running, short-circuits (no tenants in DB) | — |
-| Instance dashboard page | Deployed at `/instance` | Currently 404s with `{tenant: null}` — `TrialStart` view. Fully functional for provisioning if provisioner were running. |
+| Instance dashboard page | Deployed at `/instance` | Currently 404s with `{tenant: null}` — `ProvisionStart` view. Fully functional for provisioning if provisioner were running. |
 | Caddy wildcard block for `*.{BASE_DOMAIN}` | Ships in Caddyfile; inert until first tenant is provisioned | Just usage |
 
 What's **NOT deployed**:
@@ -600,7 +601,7 @@ What's **NOT deployed**:
 | Provisioner service | Behind `--profile platform` in base compose; current `deploy.sh` doesn't include that profile |
 | Tenant containers | Can't exist without a running provisioner |
 
-**Net effect**: if a user navigates to `/instance` right now and clicks "Start 14-Day Trial", the platform API will try to call the provisioner at `http://provisioner:3850`, fail (no DNS resolution — no provisioner running), and return a 502 with `"Provisioner rejected the request"`. Non-destructive — no tenant state was created.
+**Net effect**: if a user navigates to `/instance` right now and starts provisioning, the platform API will try to call the provisioner at `http://provisioner:3850`, fail if no provisioner is running, and return a 502 with `"Provisioner rejected the request"`. Non-destructive — no tenant state was created.
 
 ---
 
@@ -769,16 +770,19 @@ Look at `docker logs secondlayer-worker-1 --tail 50`.
 
 When the provisioner is unavailable, the cron loses that tick but `try/catch` inside `tick()` prevents the loop from dying. It'll try again next interval.
 
-### Trial banner shows wrong state
+### Hobby auto-pause shows wrong state
 
-Client-side calc: `daysLeft = ceil((trial_ends_at - now()) / 86400000)`.
-- If banner shows "Trial expires in -X days" or similar: `trial_ends_at` is in the past but status is still `active` → tenant-trial cron hasn't run yet, or isn't running. Check worker logs.
-- If banner is absent when it should show: check `tenant.status` — banner only renders when status is `suspended` or `daysLeft ≤ 3`.
+The dashboard distinguishes Hobby auto-pause from paid-tier manual suspension.
+If a Hobby tenant should have paused but still shows `active`, check the worker
+logs for the tenant-idle-pause cron and confirm `last_active_at` is older than
+the configured idle window.
 
-Fix expired-but-not-suspended tenants manually:
+Pause an idle Hobby tenant manually:
 ```sql
 UPDATE tenants SET status = 'suspended', suspended_at = now()
-WHERE status = 'active' AND trial_ends_at < now();
+WHERE status = 'active'
+  AND plan = 'hobby'
+  AND last_active_at < now() - interval '7 days';
 ```
 Then call provisioner suspend explicitly:
 ```bash
@@ -909,7 +913,7 @@ Source DB outage means tenant processors can't read blocks — but tenant API co
 | Tenant lifecycle routes | `packages/api/src/routes/tenants.ts` |
 | Platform-to-provisioner HTTP client | `packages/api/src/lib/provisioner-client.ts` |
 | Worker-to-provisioner HTTP client | `packages/worker/src/jobs/provisioner-rpc.ts` |
-| Trial expiry cron | `packages/worker/src/jobs/tenant-trial.ts` |
+| Hobby idle-pause cron | `packages/worker/src/jobs/tenant-idle-pause.ts` |
 | Health + storage cron | `packages/worker/src/jobs/tenant-health.ts` |
 | Provisioner config | `packages/provisioner/src/config.ts` |
 | Compute plans + allocation | `packages/provisioner/src/plans.ts` |
@@ -973,11 +977,11 @@ Stubbed out. Built with Stripe in mind (plan IDs match a subscription product st
 Current state:
 - Storage > 80% → `logger.warn` (shows up in worker logs, nothing else)
 - Container unhealthy → `logger.error` + `setTenantStatus('error')`
-- Trial expiring → banner on dashboard only
+- Hobby auto-pause/manual suspension → banner on dashboard only
 
 Missing:
 - Slack notification when a tenant hits status=error
-- Email to account owner on trial expiry warning (7d/3d/1d)
+- Email to account owner when Hobby tenants approach auto-pause
 - PagerDuty (or equivalent) hook for provision failures
 
 The platform agent container (`tools/ops/agent`) has working Slack wiring — extending it to consume tenant-specific events is the natural path.
@@ -1006,7 +1010,7 @@ Out of scope for now — a single Hetzner AX52 fits a lot of Launch tenants.
 
 ```sql
 -- All tenants, most recent first
-SELECT slug, plan, status, trial_ends_at, storage_used_mb, storage_limit_mb,
+SELECT slug, plan, status, last_active_at, storage_used_mb, storage_limit_mb,
        last_health_check_at, suspended_at, created_at
 FROM tenants
 ORDER BY created_at DESC;
@@ -1018,10 +1022,12 @@ FROM tenants
 WHERE status = 'active' AND storage_limit_mb > 0
   AND storage_used_mb > (storage_limit_mb * 0.8);
 
--- Expired trials still marked active (cron hasn't run, or is broken)
-SELECT slug, trial_ends_at, now() - trial_ends_at AS overdue
+-- Idle Hobby tenants still marked active (cron hasn't run, or is broken)
+SELECT slug, last_active_at, now() - last_active_at AS idle_for
 FROM tenants
-WHERE status IN ('provisioning', 'active') AND trial_ends_at < now();
+WHERE status = 'active'
+  AND plan = 'hobby'
+  AND last_active_at < now() - interval '7 days';
 
 -- Long-suspended tenants past retention (should be purged)
 SELECT slug, suspended_at, now() - suspended_at AS suspended_for

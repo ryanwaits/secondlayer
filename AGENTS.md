@@ -4,12 +4,13 @@
 
 - **apps/**: Web app
 - **packages/**: CLI, SDK, API, indexer, worker, subgraphs, stacks, shared utils, etc.
+- **tools/ops/**: Ops-only tools, including agent and konsole
 - **scripts/**: Dev orchestration
 
 Build order matters:
 ```bash
 # Correct sequence (root package.json encodes this)
-bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:subgraphs && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:cli
+bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:subgraphs && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:mcp && bun run build:cli
 ```
 
 ## Development Commands
@@ -24,12 +25,14 @@ bun run migrate        # Run migrations
 bun run db:reset       # Wipe and recreate
 
 # Testing
-bun run test           # All packages
+bun run test           # All workspace packages
 bun run test:cli       # Single package
+bun run test:ops       # Ops tools under tools/ops
 bun test               # Current package only (uses bun:test)
 
 # Type checking
-bun run typecheck      # All packages
+bun run typecheck      # All workspace packages
+bun run typecheck:ops  # Ops tools under tools/ops
 
 # Build
 bun run build          # Full build with dependency order
@@ -52,7 +55,7 @@ Always prefer `bunx` over `npx`.
 | `@secondlayer/stacks` | — | Foundational, build first |
 | `@secondlayer/shared` | stacks | DB utils, shared types |
 | `@secondlayer/sdk` | shared | Client SDK (subgraphs) |
-| `@secondlayer/subgraphs` | shared, sdk | Subgraph processing |
+| `@secondlayer/subgraphs` | shared, stacks | Subgraph processing |
 | `@secondlayer/cli` | sdk, shared, subgraphs, stacks | CLI tool |
 
 ## CI/CD Requirements
