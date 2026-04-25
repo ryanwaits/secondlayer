@@ -75,7 +75,7 @@ sl project list`}
 
 				<CodeBlock
 					code={`# Provision a dedicated Postgres + API + subgraph processor for the active project.
-sl instance create --plan launch     # or grow, scale
+sl instance create --plan hobby      # or launch, grow, scale
 
 sl instance info
 sl instance resize --plan grow
@@ -93,14 +93,14 @@ sl instance db                       # prints ssh -L command + DATABASE_URL`}
 				<SectionHeading id="subgraphs">Subgraphs</SectionHeading>
 
 				<CodeBlock
-					code={`sl subgraphs deploy subgraphs/token-transfers.ts
+					code={`sl subgraphs scaffold SP1234ABCD.my-contract --output subgraphs/my-contract.ts
+sl subgraphs deploy subgraphs/token-transfers.ts --start-block <recent-block>
 sl subgraphs dev subgraphs/token-transfers.ts       # watch + hot-redeploy
 sl subgraphs list
 sl subgraphs status token-transfers
 sl subgraphs query token-transfers transfers --sort _block_height --order desc
 sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
 sl subgraphs reindex token-transfers
-sl subgraphs scaffold SP1234ABCD.my-contract --output subgraphs/my-contract.ts
 sl subgraphs delete token-transfers`}
 					lang="bash"
 				/>
@@ -120,15 +120,16 @@ sl subgraphs delete token-transfers`}
 				<CodeBlock
 					code={`# Pick a runtime — scaffolds package.json, src/, README, tsconfig.
 sl create subscription whale-alerts --runtime inngest
-sl create subscription whale-alerts --runtime trigger
-sl create subscription whale-alerts --runtime cloudflare
+sl create subscription whale-alerts --runtime trigger --auth-token tr_secret_...
+sl create subscription whale-alerts --runtime cloudflare --auth-token <cf-token>
 sl create subscription whale-alerts --runtime node
 
 # Flags (all optional; prompts if omitted):
 #   --subgraph <name>    --table <name>    --url <https://...>
-#   --service-key <key>  --base-url <url>  --skip-api
+#   --auth-token <token> --service-key <key> --base-url <url> --skip-api
 
 sl subscriptions list
+sl subscriptions update whale-alerts --auth-token <new-token>
 sl subscriptions doctor whale-alerts
 sl subscriptions test whale-alerts --signing-secret "$SIGNING_SECRET"
 sl subscriptions replay whale-alerts --from-block 123000 --to-block 124000`}

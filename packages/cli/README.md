@@ -8,14 +8,33 @@ bun add -g @secondlayer/cli
 sl --version
 ```
 
-## Quickstart
+## Beta Quickstart
+
+Use this path for a first hosted demo. The CLI stores your login session,
+binds the current directory to a project, provisions a dedicated tenant, then
+deploys and queries a subgraph through short-lived tenant credentials.
 
 ```bash
-sl login                         # magic-link auth, session cached at ~/.secondlayer/session.json
-sl project create my-app         # scaffold a project
-sl project use my-app            # bind cwd to the project (writes ./.secondlayer/project)
-sl instance create --plan launch # provision dedicated Postgres + API + processor
-sl subgraphs deploy ./x.ts       # deploy to your instance
+bun add -g @secondlayer/cli
+
+sl login
+sl project create my-app
+sl project use my-app
+sl instance create --plan hobby
+
+sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
+sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
+sl subgraphs query my-contract <table> --sort _block_height --order desc
+```
+
+Then wire a receiver:
+
+```bash
+sl create subscription my-hook \
+  --runtime node \
+  --subgraph my-contract \
+  --table <table> \
+  --url https://<receiver-host>/webhook
 ```
 
 ## Command surface
@@ -49,7 +68,7 @@ One instance per project. The platform API spawns a dedicated `sl-pg-{slug}`,
 
 | Command | What it does |
 |---|---|
-| `sl instance create --plan <launch\|grow\|scale>` | Provision containers. Boxed reveal of `serviceKey` + `anonKey` (shown once). |
+| `sl instance create --plan <hobby\|launch\|grow\|scale>` | Provision containers. Boxed reveal of `serviceKey` + `anonKey` (shown once). |
 | `sl instance info` | Plan, status, resource usage |
 | `sl instance resize --plan <...>` | Recreate containers with new CPU/memory (~30s downtime) |
 | `sl instance suspend` / `resume` | Stop/start containers, volume preserved |

@@ -25,18 +25,37 @@ Two ways to run it:
 - **`@secondlayer/stacks`** — viem-style chain SDK: typed contract calls,
   wallets, BNS, transaction builders, and AI-SDK `tool({...})` values.
 
-## Quickstart (hosted)
+## Beta Quickstart (Hosted)
+
+This path gets a new beta user from zero to a live indexed table and webhook
+receiver. The CLI resolves your active project and mints short-lived tenant
+credentials for each command, so you do not need to copy service keys unless
+you are using the SDK, MCP, or raw REST.
 
 ```bash
 bun add -g @secondlayer/cli
 
-sl login                            # magic-link email
+sl login
 sl project create my-app
 sl project use my-app
-sl instance create --plan hobby     # free tier; upgrade anytime
-sl subgraphs deploy ./my-subgraph.ts
+sl instance create --plan hobby
+
+sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
+sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
+sl subgraphs query my-contract <table> --sort _block_height --order desc
+
+sl create subscription my-hook \
+  --runtime node \
+  --subgraph my-contract \
+  --table <table> \
+  --url https://<receiver-host>/webhook
 ```
 
+Use `--start-block` for fast demos; it overrides the definition for that deploy
+without rewriting your source file. For Trigger.dev or Cloudflare receivers,
+add `--auth-token <token>` when creating or updating the subscription.
+
+Full walkthrough: [packages/subgraphs/QUICKSTART.md](packages/subgraphs/QUICKSTART.md).
 Full command reference: [packages/cli/README.md](packages/cli/README.md).
 
 ## Agent-native golden path
@@ -69,8 +88,9 @@ Reviewable walkthrough: [packages/subgraphs/QUICKSTART.md](packages/subgraphs/QU
 ```bash
 sl login
 sl project use my-app
-sl subgraphs deploy ./my-subgraph.ts
+sl subgraphs deploy ./my-subgraph.ts --start-block <recent-block>
 sl subgraphs query my-subgraph transfers --sort _block_height --order desc
+sl create subscription transfer-hook --runtime node --subgraph my-subgraph --table transfers --url https://example.com/webhook
 ```
 
 ### SDK
@@ -101,7 +121,8 @@ curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
 ### MCP (AI agents)
 
 Point Claude Desktop, Cursor, or any MCP client at `bunx -p @secondlayer/mcp secondlayer-mcp`
-with `SL_SERVICE_KEY` set. See [packages/mcp/README.md](packages/mcp/README.md).
+with `SECONDLAYER_API_URL=https://<slug>.secondlayer.tools` and
+`SL_SERVICE_KEY` set. See [packages/mcp/README.md](packages/mcp/README.md).
 
 ## Self-hosting
 

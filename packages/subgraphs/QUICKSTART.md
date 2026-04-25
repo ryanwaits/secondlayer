@@ -1,29 +1,31 @@
-# Subgraphs + Subscriptions Quickstart
+# Beta Quickstart: Subgraphs + Subscriptions
 
-This is the shortest path to prove the new product loop:
+This guide is the shortest complete onboarding loop for a hosted beta user:
 
-1. Create a dedicated instance.
-2. Deploy a subgraph that writes rows into a typed table.
-3. Query that table.
-4. Attach a subscription that delivers each matching row to a receiver.
-5. Replay a block range when a receiver changes or misses events.
+1. Create a project and dedicated tenant.
+2. Deploy a subgraph from a recent block so rows appear quickly.
+3. Query the generated table.
+4. Add a receiver subscription.
+5. Inspect deliveries and replay a block range when needed.
 
-## Mental model
+## Mental Model
 
-A **subgraph** is a small indexer definition:
+A **subgraph** is a TypeScript definition with three parts:
 
-- `sources` decide which chain events or calls match.
-- `schema` declares the Postgres tables Secondlayer should maintain.
-- `handlers` convert matched chain activity into rows with `ctx.insert()`, `ctx.upsert()`, etc.
+- `sources` name the chain events or calls to match.
+- `schema` declares the Postgres tables Secondlayer maintains.
+- `handlers` turn matched chain activity into rows with `ctx.insert()`,
+  `ctx.upsert()`, `ctx.patch()`, and related helpers.
 
-A **subscription** is a row-level delivery rule on a subgraph table:
+A **subscription** is a delivery rule on one subgraph table:
 
-- It watches one `subgraphName + tableName`.
-- It can optionally filter rows with scalar conditions.
-- It writes delivery work into `subscription_outbox` in the same transaction as the subgraph row.
-- The emitter signs and POSTs the event, retries failures, circuit-breaks bad receivers, and can replay old block ranges.
+- It watches `subgraphName + tableName`.
+- It can filter rows with scalar conditions.
+- It enqueues delivery work in the same transaction as the subgraph row.
+- It POSTs to your receiver with retries, circuit breaking, delivery logs,
+  dead-letter requeue, and historical replay.
 
-## 1. Create a project and instance
+## 1. Create A Tenant
 
 ```bash
 bun add -g @secondlayer/cli
@@ -35,22 +37,32 @@ sl instance create --plan hobby
 sl whoami
 ```
 
-CLI commands use your logged-in session and active project to mint short-lived tenant credentials. Save the instance URL and service key shown by `sl instance create` only if you want to use SDK or raw REST calls:
+The CLI uses your login session and active project to mint short-lived tenant
+credentials for `sl subgraphs` and `sl subscriptions` commands. Save the
+instance URL and service key printed by `sl instance create` only when you want
+SDK, MCP, or raw REST access:
 
 ```bash
-export SL_API_URL="https://<your-instance>.secondlayer.tools"
+export SECONDLAYER_API_URL="https://<slug>.secondlayer.tools"
+export SL_API_URL="$SECONDLAYER_API_URL"
 export SL_SERVICE_KEY="sl_live_..."
 ```
 
-If you lost the service key, rotate it:
+If you lose the service key:
 
 ```bash
 sl instance keys rotate --service
 ```
 
-## 2. Write a subgraph
+## 2. Create A Subgraph
 
-Create `subgraphs/stx-transfers.ts`:
+Scaffold from a contract ABI when you have a specific contract:
+
+```bash
+sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
+```
+
+Or create `subgraphs/stx-transfers.ts` manually:
 
 ```ts
 import { defineSubgraph } from "@secondlayer/subgraphs";
@@ -58,7 +70,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 export default defineSubgraph({
   name: "stx-transfers",
   version: "1.0.0",
-  // Use a recent block for a fast first run; use 0 only if you want full history.
   startBlock: 0,
 
   sources: {
@@ -87,14 +98,22 @@ export default defineSubgraph({
 });
 ```
 
-Deploy it:
+For beta demos, deploy from a recent block so catch-up is fast. The override is
+deploy-time only; it does not rewrite the source file.
 
 ```bash
-sl subgraphs deploy subgraphs/stx-transfers.ts
+sl subgraphs deploy subgraphs/stx-transfers.ts --start-block <recent-block>
 sl subgraphs status stx-transfers
 ```
 
-## 3. Query rows
+Use the file's `startBlock` when you want the definition to be the source of
+truth:
+
+```bash
+sl subgraphs deploy subgraphs/stx-transfers.ts
+```
+
+## 3. Query Rows
 
 ```bash
 sl subgraphs query stx-transfers transfers \
@@ -103,7 +122,7 @@ sl subgraphs query stx-transfers transfers \
   --limit 10
 ```
 
-With filters:
+Add filters as rows arrive:
 
 ```bash
 sl subgraphs query stx-transfers transfers \
@@ -113,72 +132,110 @@ sl subgraphs query stx-transfers transfers \
   --order desc
 ```
 
-Over HTTP:
+With REST:
 
 ```bash
 curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
-  "$SL_API_URL/api/subgraphs/stx-transfers/transfers?_sort=_block_height&_order=desc&_limit=10"
+  "$SECONDLAYER_API_URL/api/subgraphs/stx-transfers/transfers?_sort=_block_height&_order=desc&_limit=10"
 ```
 
-## 4. Create a subscription receiver
+## 4. Add A Receiver
 
-For local testing, expose port `3000` with a public tunnel and use the public HTTPS URL as the subscription URL. Production receivers can run anywhere that accepts HTTPS POSTs.
+For local testing, expose your receiver with a public HTTPS tunnel and use that
+URL in the subscription. Production receivers can run anywhere that accepts
+HTTPS POSTs.
+
+Standard Webhooks receiver:
 
 ```bash
 sl create subscription transfer-hook \
   --runtime node \
   --subgraph stx-transfers \
   --table transfers \
-  --url https://<your-public-host>/webhook \
+  --url https://<receiver-host>/webhook \
   --filter amount.gte=1000000
-```
 
-Omit `--filter` to receive every new row. The command scaffolds a receiver into `./transfer-hook`, provisions the subscription through your active project, and writes the one-time signing secret into the receiver `.env`.
-
-Run the receiver:
-
-```bash
 cd transfer-hook
 bun install
 bun run dev
 ```
 
-Each delivery is a signed Standard Webhooks event:
+The generated Node receiver verifies Standard Webhooks signatures. The signing
+secret is shown once by the API and written into the generated `.env`.
 
-```json
-{
-  "type": "stx-transfers.transfers.created",
-  "timestamp": "2026-04-24T00:00:00.000Z",
-  "data": {
-    "sender": "SP...",
-    "recipient": "SP...",
-    "amount": "1000000",
-    "_block_height": 123456,
-    "_tx_id": "0x..."
-  }
-}
-```
-
-## 5. Filter syntax and SDK setup
-
-CLI filters use the same `key=value` shape as subgraph queries:
+Trigger.dev receiver:
 
 ```bash
---filter sender=SP...
---filter amount.gte=1000000
---filter amount.lt=5000000
+sl create subscription transfer-trigger \
+  --runtime trigger \
+  --subgraph stx-transfers \
+  --table transfers \
+  --url https://api.trigger.dev/api/v1/tasks/<task-id>/trigger \
+  --auth-token tr_secret_...
 ```
 
-Supported CLI suffixes: `.eq`, `.neq`, `.gt`, `.gte`, `.lt`, `.lte`. Bare `key=value` is equality. Multiple fields are ANDed together.
+Cloudflare Workflows receiver:
 
-Use the SDK when you want programmatic setup or richer JSON filters:
+```bash
+sl create subscription transfer-workflow \
+  --runtime cloudflare \
+  --subgraph stx-transfers \
+  --table transfers \
+  --url https://api.cloudflare.com/client/v4/accounts/<account-id>/workflows/<workflow>/instances \
+  --auth-token <cloudflare-api-token>
+```
+
+Patch an existing receiver without touching JSON:
+
+```bash
+sl subscriptions update transfer-trigger --auth-token tr_secret_next
+sl subscriptions update transfer-hook --url https://<new-host>/webhook
+```
+
+## 5. Inspect Deliveries
+
+```bash
+sl subscriptions list
+sl subscriptions get transfer-hook
+sl subscriptions deliveries transfer-hook
+sl subscriptions doctor transfer-hook
+```
+
+Generate a signed test request for a Standard Webhooks receiver:
+
+```bash
+sl subscriptions test transfer-hook --signing-secret "$SIGNING_SECRET"
+sl subscriptions test transfer-hook --signing-secret "$SIGNING_SECRET" --post
+```
+
+Replay a historical range after a receiver changes or misses events:
+
+```bash
+sl subscriptions replay transfer-hook \
+  --from-block 123000 \
+  --to-block 124000
+```
+
+Replay scans existing subgraph rows in the range and enqueues replay
+deliveries. Operational commands accept either subscription id or unique name
+and support `--json`.
+
+## SDK And MCP Setup
+
+Use the SDK when setup needs to live in application code:
 
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
-  baseUrl: process.env.SL_API_URL!,
+  baseUrl: process.env.SECONDLAYER_API_URL!,
   apiKey: process.env.SL_SERVICE_KEY!,
+});
+
+const { data } = await sl.subgraphs.queryTable("stx-transfers", "transfers", {
+  sort: "_block_height",
+  order: "desc",
+  limit: 10,
 });
 
 const { subscription, signingSecret } = await sl.subscriptions.create({
@@ -188,50 +245,42 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
   url: "https://example.com/webhook",
   format: "standard-webhooks",
   runtime: "node",
-  filter: {
-    amount: { gte: "1000000" },
-  },
+  filter: { amount: { gte: "1000000" } },
 });
 
-console.log(subscription.id);
-console.log(signingSecret); // Store once; rotate if lost.
+console.log(data.length, subscription.id, signingSecret);
 ```
 
-Filter DSL:
+Use MCP when an agent should scaffold, deploy, query, and subscribe:
 
-- `{ sender: "SP..." }` means equality.
-- `{ amount: { gte: "1000000" } }` supports `eq`, `neq`, `gt`, `gte`, `lt`, `lte`.
-- `{ sender: { in: ["SP...", "SP..."] } }` matches any listed scalar through SDK/REST.
-- Multiple fields are ANDed together.
+```json
+{
+  "mcpServers": {
+    "secondlayer": {
+      "command": "bunx",
+      "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
+      "env": {
+        "SECONDLAYER_API_URL": "https://<slug>.secondlayer.tools",
+        "SL_SERVICE_KEY": "sl_live_..."
+      }
+    }
+  }
+}
+```
 
-## 6. Inspect deliveries and replay history
+The `subgraphs_deploy` tool also accepts `startBlock` for fast beta demos.
 
-List subscriptions:
+## Filter Syntax
+
+CLI filters:
 
 ```bash
-sl subscriptions list
-sl subscriptions get large-stx-transfers
+--filter sender=SP...
+--filter amount.gte=1000000
+--filter amount.lt=5000000
 ```
 
-Inspect recent delivery attempts:
-
-```bash
-sl subscriptions deliveries large-stx-transfers
-sl subscriptions doctor large-stx-transfers
-sl subscriptions test large-stx-transfers --signing-secret "$SIGNING_SECRET"
-```
-
-Replay a block range:
-
-```bash
-sl subscriptions replay large-stx-transfers \
-  --from-block 123000 \
-  --to-block 124000
-```
-
-Replay scans existing subgraph rows in that range and enqueues them as replay deliveries. Re-running the same range is idempotent unless the API caller passes a force suffix.
-
-Operational commands accept either subscription id or unique name and support
-`--json`. Destructive commands prompt unless `--yes` is passed. CLI create and
-update filters are schema-aware, and the API repeats table/field/operator
-validation as the source of truth.
+Supported CLI suffixes: `.eq`, `.neq`, `.gt`, `.gte`, `.lt`, `.lte`. Bare
+`key=value` is equality. Multiple fields are ANDed together. CLI create and
+update filters are schema-aware, and the API repeats table, field, and
+operator validation as the source of truth.

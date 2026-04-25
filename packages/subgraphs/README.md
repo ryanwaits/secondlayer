@@ -12,6 +12,10 @@ bun add @secondlayer/subgraphs
 
 ## Quick Start
 
+For the full hosted beta loop, including project setup, fast deploys with
+`--start-block`, querying, and subscriptions, start with
+[QUICKSTART.md](QUICKSTART.md).
+
 ```typescript
 import { defineSubgraph } from "@secondlayer/subgraphs";
 

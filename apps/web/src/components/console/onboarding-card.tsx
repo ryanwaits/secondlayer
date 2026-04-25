@@ -18,10 +18,20 @@ const STEPS: Step[] = [
 		code: "bun add -g @secondlayer/cli && sl login",
 	},
 	{
+		label: "Create a tenant",
+		desc: "Bind this directory to a project and provision a dedicated beta instance.",
+		code: "sl project create my-app\nsl project use my-app\nsl instance create --plan hobby",
+	},
+	{
 		label: "Deploy your first subgraph",
-		desc: "Index on-chain data into queryable tables.",
-		code: "sl subgraphs deploy ./my-subgraph.ts",
+		desc: "Scaffold from a contract, deploy from a recent block, then query rows.",
+		code: "sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts\nsl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>\nsl subgraphs query my-contract <table> --sort _block_height --order desc",
 		agentPrompt: true,
+	},
+	{
+		label: "Add a receiver",
+		desc: "Create a subscription when new rows should call another system.",
+		code: "sl create subscription my-hook --runtime node --subgraph my-contract --table <table> --url https://<receiver-host>/webhook",
 	},
 ];
 
