@@ -1,6 +1,18 @@
 import { type Kysely, sql } from "kysely";
 
+async function tableExists(db: Kysely<unknown>, tableName: string) {
+	const { rows } = await sql<{ exists: boolean }>`
+		SELECT to_regclass(${`public.${tableName}`}) IS NOT NULL AS exists
+	`.execute(db);
+	return rows[0]?.exists === true;
+}
+
 export async function up(db: Kysely<unknown>): Promise<void> {
+	if (!(await tableExists(db, "subgraphs"))) {
+		console.log("Skipping subgraph_operations; subgraphs table is absent");
+		return;
+	}
+
 	await sql`
 		CREATE TABLE IF NOT EXISTS subgraph_operations (
 			id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -75,6 +87,10 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
+	if (!(await tableExists(db, "subgraph_operations"))) {
+		return;
+	}
+
 	await sql`
 		DROP TRIGGER IF EXISTS subgraph_operations_cancel_notify ON subgraph_operations
 	`.execute(db);
