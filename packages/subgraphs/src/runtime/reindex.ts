@@ -18,9 +18,9 @@ import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
-const DEFAULT_BATCH_SIZE = 500;
-const MIN_BATCH_SIZE = 100;
-const MAX_BATCH_SIZE = 1000;
+const DEFAULT_BATCH_SIZE = 50;
+const MIN_BATCH_SIZE = 25;
+const MAX_BATCH_SIZE = 100;
 
 type ReindexResumeRow = {
 	last_processed_block: number | string;
