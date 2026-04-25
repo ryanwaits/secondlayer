@@ -347,6 +347,31 @@ describe("matchSources", () => {
 		expect(matched[0]!.events[0]!.type).toBe("smart_contract_event");
 	});
 
+	test("matches print_event from indexed contract_event rows", () => {
+		const sources: Record<string, SubgraphFilter> = {
+			prints: {
+				type: "print_event",
+				contractId: "SP000.nft-marketplace",
+			},
+		};
+		const indexedEvents = [
+			{
+				id: "e7",
+				tx_id: "tx1",
+				type: "contract_event",
+				event_index: 0,
+				data: {
+					contract_identifier: "SP000.nft-marketplace",
+					topic: "print",
+					value: "0x01",
+				},
+			},
+		];
+		const matched = matchSources(sources, txs, indexedEvents);
+		expect(matched.length).toBe(1);
+		expect(matched[0]!.events[0]!.type).toBe("contract_event");
+	});
+
 	test("matches print_event with wildcard contractId", () => {
 		const sources: Record<string, SubgraphFilter> = {
 			allPrints: { type: "print_event", contractId: "SP000.*" },

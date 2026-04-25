@@ -240,7 +240,8 @@ function matchFilter(
 			for (const tx of transactions) {
 				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
 				const matched = txEvents.filter((e) => {
-					if (e.type !== "smart_contract_event") return false;
+					if (e.type !== "smart_contract_event" && e.type !== "contract_event")
+						return false;
 					const data = e.data as Record<string, unknown> | null;
 					if (!data) return false;
 					if (data.topic !== "print") return false;
