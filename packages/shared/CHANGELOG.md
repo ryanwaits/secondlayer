@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 4.3.1
+
+### Patch Changes
+
+- Skip subgraph operation migration on control-plane databases without tenant subgraph tables.
+
 ## 4.3.0
 
 ### Minor Changes
