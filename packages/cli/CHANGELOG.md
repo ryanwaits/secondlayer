@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 3.3.2
+
+### Patch Changes
+
+- Stabilize the CLI build by using one multi-entry bunup config so the published `./plugins` export is emitted under `dist/plugins`.
+
+- Updated dependencies []:
+  - @secondlayer/stacks@2.0.0
+  - @secondlayer/subgraphs@1.2.0
+  - @secondlayer/shared@4.1.1
+
 ## 3.3.1
 
 ### Patch Changes

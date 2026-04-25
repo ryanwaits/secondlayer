@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 4.1.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@2.0.0
+
 ## 4.1.0
 
 ### Minor Changes

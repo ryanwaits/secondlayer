@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/clarity-docs",
-	"version": "0.3.7",
+	"version": "0.3.8",
 	"description": "ClarityDoc - Documentation comment standard and tooling for Clarity smart contracts",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -33,7 +33,7 @@
 	"author": "Ryan Waits",
 	"license": "MIT",
 	"dependencies": {
-		"@secondlayer/stacks": "^1.0.0"
+		"@secondlayer/stacks": "^2.0.0"
 	},
 	"devDependencies": {},
 	"engines": {

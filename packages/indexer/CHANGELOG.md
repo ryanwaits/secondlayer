@@ -1,5 +1,13 @@
 # @secondlayer/indexer
 
+## 1.0.5
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@2.0.0
+  - @secondlayer/shared@4.1.1
+
 ## 1.0.4
 
 ### Patch Changes

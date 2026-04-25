@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/shared",
-	"version": "4.1.0",
+	"version": "4.1.1",
 	"type": "module",
 	"main": "./dist/src/index.js",
 	"types": "./dist/src/index.d.ts",
@@ -176,7 +176,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/stacks": "^1.0.1",
+		"@secondlayer/stacks": "^2.0.0",
 		"kysely": "0.28.15",
 		"kysely-postgres-js": "3.0.0",
 		"postgres": "^3.4.6",

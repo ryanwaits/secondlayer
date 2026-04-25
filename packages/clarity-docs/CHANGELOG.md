@@ -1,5 +1,12 @@
 # @secondlayer/clarity-docs
 
+## 0.3.8
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@2.0.0
+
 ## 0.3.7
 
 ### Patch Changes
