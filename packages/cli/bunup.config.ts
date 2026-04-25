@@ -16,34 +16,15 @@ const sharedConfig = {
 	target: "node" as const,
 };
 
-const config: DefineConfigItem[] = defineConfig([
-	{
-		name: "main",
-		entry: ["src/index.ts"],
-		format: ["esm"],
-		dts: true,
-		...sharedConfig,
-	},
-	{
-		name: "cli",
-		entry: ["src/cli.ts"],
-		format: ["esm"],
-		dts: false,
-		...sharedConfig,
-	},
-	{
-		name: "plugins",
-		entry: ["src/plugins/index.ts"],
-		format: ["esm"],
-		dts: true,
-		...sharedConfig,
-	},
-	{
-		name: "plugin-manager",
-		entry: ["src/core/plugin-manager.ts"],
-		format: ["esm"],
-		dts: true,
-		...sharedConfig,
-	},
-]) as DefineConfigItem[];
+const config: DefineConfigItem = defineConfig({
+	entry: [
+		"src/index.ts",
+		"src/cli.ts",
+		"src/plugins/index.ts",
+		"src/core/plugin-manager.ts",
+	],
+	format: ["esm"],
+	dts: true,
+	...sharedConfig,
+});
 export default config;
