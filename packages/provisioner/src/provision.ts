@@ -146,6 +146,7 @@ export async function provisionTenant(
 					name: procName,
 					image: imageName(cfg, "api"),
 					slug,
+					plan: plan.id,
 					alloc: plan.containers.processor,
 					targetDatabaseUrl,
 					sourceDatabaseUrl,
@@ -293,6 +294,7 @@ function buildApiSpec(input: ApiSpecInput): ContainerSpec {
 			TARGET_DATABASE_URL: input.targetDatabaseUrl,
 			TENANT_JWT_SECRET: input.jwtSecret,
 			TENANT_SLUG: input.slug,
+			TENANT_PLAN: input.plan,
 			SERVICE_GEN: String(input.serviceGen ?? 1),
 			ANON_GEN: String(input.anonGen ?? 1),
 			PORT: "3800",
@@ -322,6 +324,7 @@ interface ProcessorSpecInput {
 	name: string;
 	image: string;
 	slug: string;
+	plan: PlanId;
 	alloc: { memoryMb: number; cpus: number };
 	targetDatabaseUrl: string;
 	sourceDatabaseUrl: string;
@@ -337,6 +340,7 @@ function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
 			DATABASE_URL: input.targetDatabaseUrl,
 			SOURCE_DATABASE_URL: input.sourceDatabaseUrl,
 			TARGET_DATABASE_URL: input.targetDatabaseUrl,
+			TENANT_PLAN: input.plan,
 			NODE_ENV: "production",
 			LOG_LEVEL: "info",
 		},
@@ -344,6 +348,7 @@ function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
 		labels: {
 			"secondlayer.role": "processor",
 			"secondlayer.slug": input.slug,
+			"secondlayer.plan": input.plan,
 		},
 		memoryMb: input.alloc.memoryMb,
 		cpus: input.alloc.cpus,

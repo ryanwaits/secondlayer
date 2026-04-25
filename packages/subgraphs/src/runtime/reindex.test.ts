@@ -1,8 +1,47 @@
 import { describe, expect, test } from "bun:test";
 import {
 	initialReindexProgressBlock,
+	resolveReindexBatchConfig,
 	resolveReindexResumeBlock,
 } from "./reindex.ts";
+
+describe("reindex batch config", () => {
+	test("hobby plan resolves low-memory batch bounds", () => {
+		expect(resolveReindexBatchConfig({ TENANT_PLAN: "hobby" })).toEqual({
+			defaultBatchSize: 50,
+			minBatchSize: 25,
+			maxBatchSize: 100,
+		});
+	});
+
+	test("non-hobby and default plans preserve larger batch bounds", () => {
+		expect(resolveReindexBatchConfig({ TENANT_PLAN: "launch" })).toEqual({
+			defaultBatchSize: 500,
+			minBatchSize: 100,
+			maxBatchSize: 1000,
+		});
+		expect(resolveReindexBatchConfig({})).toEqual({
+			defaultBatchSize: 500,
+			minBatchSize: 100,
+			maxBatchSize: 1000,
+		});
+	});
+
+	test("env override clamps default batch size to resolved bounds", () => {
+		expect(
+			resolveReindexBatchConfig({
+				TENANT_PLAN: "hobby",
+				SUBGRAPH_REINDEX_BATCH_SIZE: "500",
+				SUBGRAPH_REINDEX_MIN_BATCH_SIZE: "10",
+				SUBGRAPH_REINDEX_MAX_BATCH_SIZE: "80",
+			}),
+		).toEqual({
+			defaultBatchSize: 80,
+			minBatchSize: 10,
+			maxBatchSize: 80,
+		});
+	});
+});
 
 describe("reindex resume cursor", () => {
 	test("initial cursor starts before the reindex range", () => {

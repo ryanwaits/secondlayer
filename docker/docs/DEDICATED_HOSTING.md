@@ -519,8 +519,8 @@ const res = await fetch("/api/tenants", {
 | 3 | `volume` | `volumeEnsure('sl-data-{slug}')` |
 | 4 | `postgres` | Build spec → `containerCreate` → `containerStart` → `waitForHealthy(60s)` on `pg_isready` |
 | 5 | `migrate` | Spawn short-lived `sl-pg-{slug}-migrator` container running `bun run packages/shared/src/db/migrate.ts` against tenant DB; wait for exit; remove |
-| 6 | `api` | Build spec (env: `INSTANCE_MODE=dedicated`, dual-DB URLs, `TENANT_JWT_SECRET`) → create → start → `waitForHealthy(30s)` on `/health` |
-| 7 | `processor` | Same image, `cmd: bun run packages/subgraphs/src/service.ts` → create → start → `waitForHealthy(20s)` |
+| 6 | `api` | Build spec (env: `INSTANCE_MODE=dedicated`, dual-DB URLs, `TENANT_JWT_SECRET`, `TENANT_PLAN`) → create → start → `waitForHealthy(30s)` on `/health` |
+| 7 | `processor` | Same image with `TENANT_PLAN`, `cmd: bun run packages/subgraphs/src/service.ts` → create → start → `waitForHealthy(20s)` |
 | 8 | — | `mintTenantKeys(slug, jwtSecret)` → `{anonKey, serviceKey}` |
 | 9 | — | Return `TenantResources` |
 

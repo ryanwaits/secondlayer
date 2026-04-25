@@ -131,6 +131,7 @@ export async function refreshTenantRuntime(slug: string): Promise<void> {
 			name: procName,
 			image,
 			slug,
+			plan,
 			memoryMb: procAlloc.memoryMb,
 			cpus: procAlloc.cpus,
 			env,
@@ -238,6 +239,7 @@ export async function resizeTenant(
 			name: processorContainerName(slug),
 			image: imageName(cfg, "api"),
 			slug,
+			plan: spec.plan,
 			memoryMb: containers.processor.memoryMb,
 			cpus: containers.processor.cpus,
 			env,
@@ -496,7 +498,7 @@ function buildApiSpec(input: {
 	return {
 		name: input.name,
 		image: input.image,
-		env: input.env,
+		env: { ...input.env, TENANT_PLAN: input.plan },
 		exposedPorts: ["3800/tcp"],
 		networks: [NETWORK_TENANTS, NETWORK_SOURCE],
 		labels: {
@@ -520,6 +522,7 @@ function buildProcessorSpec(input: {
 	name: string;
 	image: string;
 	slug: string;
+	plan: PlanId;
 	memoryMb: number;
 	cpus: number;
 	env: Record<string, string>;
@@ -528,11 +531,12 @@ function buildProcessorSpec(input: {
 		name: input.name,
 		image: input.image,
 		cmd: ["bun", "run", "packages/subgraphs/src/service.ts"],
-		env: input.env,
+		env: { ...input.env, TENANT_PLAN: input.plan },
 		networks: [NETWORK_TENANTS, NETWORK_SOURCE],
 		labels: {
 			"secondlayer.role": "processor",
 			"secondlayer.slug": input.slug,
+			"secondlayer.plan": input.plan,
 		},
 		memoryMb: input.memoryMb,
 		cpus: input.cpus,

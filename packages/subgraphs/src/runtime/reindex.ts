@@ -18,9 +18,28 @@ import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
-const DEFAULT_BATCH_SIZE = 50;
-const MIN_BATCH_SIZE = 25;
-const MAX_BATCH_SIZE = 100;
+const HOBBY_REINDEX_BATCH_CONFIG = {
+	defaultBatchSize: 50,
+	minBatchSize: 25,
+	maxBatchSize: 100,
+};
+const STANDARD_REINDEX_BATCH_CONFIG = {
+	defaultBatchSize: 500,
+	minBatchSize: 100,
+	maxBatchSize: 1000,
+};
+
+type ReindexBatchConfig = {
+	defaultBatchSize: number;
+	minBatchSize: number;
+	maxBatchSize: number;
+};
+type ReindexBatchEnv = {
+	TENANT_PLAN?: string;
+	SUBGRAPH_REINDEX_BATCH_SIZE?: string;
+	SUBGRAPH_REINDEX_MIN_BATCH_SIZE?: string;
+	SUBGRAPH_REINDEX_MAX_BATCH_SIZE?: string;
+};
 
 type ReindexResumeRow = {
 	last_processed_block: number | string;
@@ -43,6 +62,36 @@ export function resolveReindexResumeBlock(
 	const reindexFromBlock = Number(row.reindex_from_block);
 
 	return Math.max(lastProcessedBlock + 1, reindexFromBlock);
+}
+
+function parsePositiveInt(value: string | undefined): number | undefined {
+	if (value == null || value.trim() === "") return undefined;
+	const parsed = Number.parseInt(value, 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+export function resolveReindexBatchConfig(
+	env: ReindexBatchEnv = process.env as ReindexBatchEnv,
+): ReindexBatchConfig {
+	const base =
+		env.TENANT_PLAN?.trim().toLowerCase() === "hobby"
+			? HOBBY_REINDEX_BATCH_CONFIG
+			: STANDARD_REINDEX_BATCH_CONFIG;
+	const minBatchSize =
+		parsePositiveInt(env.SUBGRAPH_REINDEX_MIN_BATCH_SIZE) ?? base.minBatchSize;
+	const maxBatchSize =
+		parsePositiveInt(env.SUBGRAPH_REINDEX_MAX_BATCH_SIZE) ?? base.maxBatchSize;
+	const defaultBatchSize =
+		parsePositiveInt(env.SUBGRAPH_REINDEX_BATCH_SIZE) ?? base.defaultBatchSize;
+
+	return {
+		minBatchSize,
+		maxBatchSize,
+		defaultBatchSize: Math.min(
+			Math.max(defaultBatchSize, minBatchSize),
+			maxBatchSize,
+		),
+	};
 }
 
 /**
@@ -113,7 +162,8 @@ async function processBlockRange(
 	let blocksProcessed = 0;
 	let totalEventsProcessed = 0;
 	let totalErrors = 0;
-	let batchSize = DEFAULT_BATCH_SIZE;
+	const batchConfig = resolveReindexBatchConfig();
+	let batchSize = batchConfig.defaultBatchSize;
 	let currentHeight = fromBlock;
 	let aborted = false;
 
@@ -233,9 +283,15 @@ async function processBlockRange(
 		// Adaptive batch sizing
 		const avg = avgEventsPerBlock(batch);
 		if (avg > 50)
-			batchSize = Math.max(Math.round(batchSize * 0.5), MIN_BATCH_SIZE);
+			batchSize = Math.max(
+				Math.round(batchSize * 0.5),
+				batchConfig.minBatchSize,
+			);
 		else if (avg < 10)
-			batchSize = Math.min(Math.round(batchSize * 1.5), MAX_BATCH_SIZE);
+			batchSize = Math.min(
+				Math.round(batchSize * 1.5),
+				batchConfig.maxBatchSize,
+			);
 
 		currentHeight = batchEnd + 1;
 	}
