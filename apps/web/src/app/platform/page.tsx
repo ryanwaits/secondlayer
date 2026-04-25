@@ -98,8 +98,8 @@ export default async function DashboardPage() {
 		<>
 			<OverviewTopbar page="Overview" />
 			<div style={{ flex: 1, overflowY: "auto" }}>
+				<OnboardingCard />
 				<div className="overview-inner">
-					<OnboardingCard />
 
 					{/* Subgraphs */}
 					<CollapsibleSection title="Subgraphs" count={subgraphs.length}>
