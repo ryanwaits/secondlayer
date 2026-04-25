@@ -206,7 +206,13 @@ function buildEventPayload(
 
 		// ── Print event ──
 		case "print_event": {
-			const rawValue = decoded.value;
+			const decodedRawValue = decoded.raw_value;
+			const rawValue =
+				decodedRawValue &&
+				typeof decodedRawValue === "object" &&
+				!Array.isArray(decodedRawValue)
+					? decodedRawValue
+					: decoded.value;
 			// Extract topic from decoded Clarity value (not raw event topic which is always "print")
 			const clarityObj =
 				rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)

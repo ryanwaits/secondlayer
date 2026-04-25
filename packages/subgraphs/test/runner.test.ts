@@ -123,6 +123,87 @@ describe("runHandlers", () => {
 		expect(seenTxIds).toEqual(["tx1", "tx1"]);
 	});
 
+	test("uses raw_value for indexed contract_event print payloads", async () => {
+		let seen: any;
+		const sg = makeSg(
+			{
+				print: (event: any) => {
+					seen = event;
+				},
+			},
+			{
+				print: {
+					type: "print_event",
+					contractId:
+						"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+				},
+			},
+		);
+		const ctx = mockCtx();
+		const result = await runHandlers(
+			sg,
+			[
+				{
+					tx: {
+						tx_id:
+							"0xbfd1bbdaddc9a1ce8e91c799dade596a7253c0257a27586798164a6b6c4a8c90",
+						type: "contract_call",
+						sender: "SM9C599D8ZY6KN2F4W1VD041RQ4X3M585CY7QKNF",
+						status: "success",
+						contract_id:
+							"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-deposit",
+						function_name: "complete-deposit-wrapper",
+					},
+					events: [
+						{
+							id: "e1",
+							tx_id:
+								"0xbfd1bbdaddc9a1ce8e91c799dade596a7253c0257a27586798164a6b6c4a8c90",
+							type: "contract_event",
+							event_index: 1,
+							data: {
+								topic: "print",
+								value: {
+									Tuple: {
+										data_map: {
+											topic: {
+												Sequence: {
+													String: {
+														ASCII: {
+															data: [
+																99, 111, 109, 112, 108, 101, 116, 101,
+																100, 45, 100, 101, 112, 111, 115, 105,
+																116,
+															],
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+								raw_value:
+									"0x0c0000000706616d6f756e74010000000000000000000000000000737c0c626974636f696e2d747869640200000020f87818576eb7792900db76f81fde0c07122176ce8029bea50abfefe7327c8fc4096275726e2d686173680200000020000000000000000000015d5a7280c3c9009a3b6e07ffcf6521a0bd6d4b9b1f780b6275726e2d68656967687401000000000000000000000000000e71600c6f75747075742d696e64657801000000000000000000000000000000000a73776565702d74786964020000002043d56d48e00d41e20c3dc0f5cd48f0294921f4a02fafcb77b4024d7b9ea45ea505746f7069630d00000011636f6d706c657465642d6465706f736974",
+								contract_identifier:
+									"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+							},
+						},
+					],
+					sourceName: "print",
+				},
+			],
+			ctx as any,
+		);
+
+		expect(result.errors).toBe(0);
+		expect(result.processed).toBe(1);
+		expect(seen.topic).toBe("completed-deposit");
+		expect(seen.data.bitcoinTxid).toBe(
+			"0xf87818576eb7792900db76f81fde0c07122176ce8029bea50abfefe7327c8fc4",
+		);
+		expect(seen.data.outputIndex).toBe(0n);
+	});
+
 	test("catches handler errors and continues", async () => {
 		let callCount = 0;
 		const sg = makeSg({

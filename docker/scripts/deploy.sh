@@ -125,3 +125,39 @@ check_health() {
 sleep 5
 check_health api http://localhost:3800/health
 check_health indexer http://localhost:3700/health
+check_health provisioner http://localhost:3850/health
+
+refresh_active_tenants() {
+  if [ -z "${PROVISIONER_SECRET:-}" ]; then
+    echo "⚠️  PROVISIONER_SECRET unset; skipping tenant runtime refresh"
+    return 0
+  fi
+
+  echo "🔄 Refreshing active tenant runtimes..."
+  local slugs
+  slugs=$(docker exec secondlayer-postgres-1 psql \
+    -U "${POSTGRES_USER:-secondlayer}" \
+    -d "${POSTGRES_DB:-secondlayer}" \
+    -Atc "SELECT slug FROM tenants WHERE status = 'active' ORDER BY slug;" \
+    2>/dev/null || true)
+
+  if [ -z "$slugs" ]; then
+    echo "No active tenants to refresh."
+    return 0
+  fi
+
+  while IFS= read -r slug; do
+    [ -z "$slug" ] && continue
+    echo "Refreshing tenant ${slug}..."
+    if ! curl -sfS \
+      -X POST "http://localhost:3850/tenants/${slug}/resume" \
+      -H "x-provisioner-secret: ${PROVISIONER_SECRET}" \
+      >/dev/null; then
+      echo "⚠️  Tenant ${slug} refresh failed"
+    fi
+  done <<< "$slugs"
+
+  return 0
+}
+
+refresh_active_tenants
