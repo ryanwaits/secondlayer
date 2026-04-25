@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/subgraphs",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"type": "module",
 	"main": "./dist/src/index.js",
 	"types": "./dist/src/index.d.ts",
@@ -20,6 +20,10 @@
 		"./validate": {
 			"types": "./dist/src/validate.d.ts",
 			"import": "./dist/src/validate.js"
+		},
+		"./triggers": {
+			"types": "./dist/src/triggers/index.d.ts",
+			"import": "./dist/src/triggers/index.js"
 		},
 		"./runtime/source-matcher": {
 			"types": "./dist/src/runtime/source-matcher.d.ts",
@@ -41,8 +45,8 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^4.0.0",
-		"@secondlayer/stacks": "^1.0.1",
+		"@secondlayer/shared": "^4.1.1",
+		"@secondlayer/stacks": "^2.0.0",
 		"kysely": "0.28.15",
 		"zod": "^4.3.6"
 	},

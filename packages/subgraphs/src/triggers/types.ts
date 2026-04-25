@@ -1,4 +1,4 @@
-import type { SubgraphFilter } from "@secondlayer/subgraphs/types";
+import type { SubgraphFilter } from "../types.ts";
 
 export interface EventTrigger {
 	type: "event";

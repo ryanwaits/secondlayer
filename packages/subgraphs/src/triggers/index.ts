@@ -18,8 +18,8 @@ import type {
 	StxLockFilter,
 	StxMintFilter,
 	StxTransferFilter,
-} from "@secondlayer/subgraphs/types";
-import type { EventTrigger } from "./types";
+} from "../types.ts";
+import type { EventTrigger } from "./types.ts";
 
 // --- Per-filter event payload shapes ---
 

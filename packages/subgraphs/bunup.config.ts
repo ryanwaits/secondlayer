@@ -5,6 +5,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/index.ts",
 		"src/types.ts",
 		"src/validate.ts",
+		"src/triggers/index.ts",
 		"src/schema/index.ts",
 		"src/runtime/reindex.ts",
 		"src/runtime/block-processor.ts",

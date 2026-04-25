@@ -67,16 +67,5 @@ const config: DefineConfigItem[] = defineConfig([
 		minify: false,
 		external: ["ai", "zod"],
 	},
-	{
-		name: "triggers",
-		entry: ["src/triggers/index.ts"],
-		outDir: "dist/src/triggers",
-		format: ["esm", "cjs"],
-		dts: true,
-		splitting: false,
-		sourcemap: "linked",
-		minify: false,
-		external: ["@secondlayer/subgraphs"],
-	},
 ]) as DefineConfigItem[];
 export default config;

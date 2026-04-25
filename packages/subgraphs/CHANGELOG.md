@@ -1,5 +1,19 @@
 # @secondlayer/subgraphs
 
+## 1.2.0
+
+### Minor Changes
+
+- Move typed trigger helpers from `@secondlayer/stacks/triggers` to `@secondlayer/subgraphs/triggers`.
+
+  `@secondlayer/stacks` no longer exports `./triggers` and no longer depends on `@secondlayer/subgraphs`.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/stacks@2.0.0
+  - @secondlayer/shared@4.1.1
+
 ## 1.1.0
 
 ### Minor Changes
