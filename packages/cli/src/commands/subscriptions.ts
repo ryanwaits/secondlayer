@@ -23,7 +23,10 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
-import { getSubscriptionClient } from "./create.ts";
+import {
+	buildSubscriptionAuthConfig,
+	getSubscriptionClient,
+} from "./create.ts";
 
 interface CommonOptions {
 	baseUrl?: string;
@@ -35,6 +38,7 @@ interface CommonOptions {
 interface UpdateOptions extends CommonOptions {
 	name?: string;
 	url?: string;
+	authToken?: string;
 	format?: string;
 	runtime?: string;
 	filter?: string[];
@@ -140,6 +144,8 @@ export function buildUpdatePatch(
 	const patch: UpdateSubscriptionRequest = {};
 	if (options.name) patch.name = options.name;
 	if (options.url) patch.url = options.url;
+	const authConfig = buildSubscriptionAuthConfig(options.authToken);
+	if (authConfig) patch.authConfig = authConfig;
 	if (options.format) {
 		patch.format = options.format as UpdateSubscriptionRequest["format"];
 	}
@@ -593,6 +599,7 @@ export function registerSubscriptionsCommand(program: Command): void {
 			.description("Update subscription config")
 			.option("--name <name>", "Rename subscription")
 			.option("--url <url>", "Webhook URL")
+			.option("--auth-token <token>", "Set bearer token auth config")
 			.option(
 				"--format <format>",
 				"standard-webhooks | inngest | trigger | cloudflare | cloudevents | raw",

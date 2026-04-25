@@ -7,7 +7,7 @@ A Trigger.dev v3 task that receives subgraph events via the
 
 ```bash
 bun install
-npx trigger.dev@latest init      # follow prompts
+bunx trigger.dev@latest init     # follow prompts
 bun run dev
 ```
 
@@ -18,11 +18,14 @@ Secondlayer subscription URL should point at:
 https://api.trigger.dev/api/v1/tasks/{{TASK_ID}}/trigger
 ```
 
-Set the `TRIGGER_SECRET_KEY` on the subscription via `auth_config`:
+Provision the subscription with bearer auth:
 
-```json
-{ "authType": "bearer", "token": "tr_secret_abc..." }
+```bash
+sl create subscription {{NAME}} --runtime trigger --auth-token tr_secret_abc...
 ```
+
+You can also patch an existing subscription with
+`sl subscriptions update {{NAME}} --auth-token tr_secret_abc...`.
 
 ## Signature verification
 
@@ -32,4 +35,4 @@ needed.
 
 ## Deploy
 
-Run `npx trigger.dev deploy` to push to Trigger Cloud.
+Run `bunx trigger.dev@latest deploy` to push to Trigger Cloud.

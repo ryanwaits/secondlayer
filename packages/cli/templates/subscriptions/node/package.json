@@ -8,7 +8,7 @@
 		"start": "bun src/index.ts"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^3.0.0-beta.0",
+		"@secondlayer/shared": "^4.2.0",
 		"hono": "^4.6.0"
 	},
 	"devDependencies": {

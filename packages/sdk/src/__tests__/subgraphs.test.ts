@@ -85,15 +85,21 @@ describe("Subgraphs", () => {
 		expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs/my-subgraph/events`);
 	});
 
-	test("deploy sends POST to /api/subgraphs", async () => {
-		const deployData = { name: "test-subgraph", query: "SELECT 1" };
+	test("deploy sends POST to /api/subgraphs with startBlock", async () => {
+		const deployData = {
+			name: "test-subgraph",
+			sources: { events: { type: "print_event" } },
+			schema: { events: { columns: { sender: { type: "principal" } } } },
+			handlerCode: "export default {}",
+			startBlock: 123,
+		};
 		globalThis.fetch = mockFetch({
 			ok: true,
 			status: 200,
 			body: { name: "test-subgraph", status: "deploying" },
 		});
 
-		await subgraphs.deploy(deployData as any);
+		await subgraphs.deploy(deployData);
 
 		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
 		const [calledUrl, calledOpts] = fetchMock.mock.calls[0] as [
@@ -102,5 +108,6 @@ describe("Subgraphs", () => {
 		];
 		expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs`);
 		expect(calledOpts.method).toBe("POST");
+		expect(JSON.parse(calledOpts.body as string).startBlock).toBe(123);
 	});
 });

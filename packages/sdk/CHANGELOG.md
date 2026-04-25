@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 3.2.0
+
+### Minor Changes
+
+- Add CLI bearer-token subscription auth, deploy-time subgraph startBlock overrides, and MCP deploy startBlock support.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.2.0
+
 ## 3.1.0
 
 ### Minor Changes

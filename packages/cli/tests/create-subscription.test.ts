@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { resolveSubscriptionClientConfig } from "../src/commands/create.ts";
+import {
+	buildSubscriptionAuthConfig,
+	resolveSubscriptionClientConfig,
+} from "../src/commands/create.ts";
 
 const resolvedTenant = {
 	apiUrl: "https://tenant.secondlayer.tools",
@@ -8,6 +11,17 @@ const resolvedTenant = {
 };
 
 describe("create subscription tenant resolution", () => {
+	it("builds bearer auth config from --auth-token", () => {
+		expect(buildSubscriptionAuthConfig(" tr_secret_abc ")).toEqual({
+			authType: "bearer",
+			token: "tr_secret_abc",
+		});
+		expect(buildSubscriptionAuthConfig()).toBeUndefined();
+		expect(() => buildSubscriptionAuthConfig("   ")).toThrow(
+			"--auth-token must not be empty",
+		);
+	});
+
 	it("uses explicit flags without tenant resolution", () => {
 		expect(
 			resolveSubscriptionClientConfig(

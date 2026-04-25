@@ -89,6 +89,7 @@ describe("subscriptions command helpers", () => {
 		expect(
 			buildUpdatePatch({
 				url: "https://example.com/next",
+				authToken: "receiver-token",
 				runtime: "none",
 				filter: ["amount.gte=1000"],
 				maxRetries: "3",
@@ -97,6 +98,7 @@ describe("subscriptions command helpers", () => {
 			}),
 		).toEqual({
 			url: "https://example.com/next",
+			authConfig: { authType: "bearer", token: "receiver-token" },
 			runtime: null,
 			filter: { amount: { gte: "1000" } },
 			maxRetries: 3,

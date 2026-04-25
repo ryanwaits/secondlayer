@@ -19,6 +19,7 @@ Add to your Claude Desktop or Cursor config:
       "command": "bunx",
       "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
+        "SECONDLAYER_API_URL": "https://<slug>.secondlayer.tools",
         "SL_SERVICE_KEY": "sl_live_..."
       }
     }
@@ -29,6 +30,7 @@ Add to your Claude Desktop or Cursor config:
 ## Quick Start — HTTP (Remote)
 
 ```bash
+export SECONDLAYER_API_URL=https://<slug>.secondlayer.tools
 export SL_SERVICE_KEY=sl_live_...
 export SECONDLAYER_MCP_SECRET=your-secret
 bunx -p @secondlayer/mcp secondlayer-mcp-http
@@ -46,7 +48,7 @@ replay deliveries by block range when needed.
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `SL_SERVICE_KEY` | Yes | — | Tenant service key. `SECONDLAYER_API_KEY` is still accepted as a deprecated alias. |
-| `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base URL for the tenant API. Point at a local instance for dev. |
+| `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base URL for the tenant API. Use `https://<slug>.secondlayer.tools` for a dedicated tenant or point at a local instance for dev. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
 

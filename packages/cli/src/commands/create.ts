@@ -79,6 +79,7 @@ export interface CreateSubscriptionOptions {
 	subgraph?: string;
 	table?: string;
 	url?: string;
+	authToken?: string;
 	serviceKey?: string;
 	baseUrl?: string;
 	skipApi?: boolean;
@@ -135,14 +136,27 @@ async function promptFor(
 	return { runtime, subgraph, table, url };
 }
 
+export function buildSubscriptionAuthConfig(
+	authToken?: string,
+): Record<string, unknown> | undefined {
+	if (authToken === undefined) return undefined;
+	const token = authToken.trim();
+	if (token.length === 0) {
+		throw new Error("--auth-token must not be empty");
+	}
+	return { authType: "bearer", token };
+}
+
 export async function createSubscription(
 	name: string,
 	opts: CreateSubscriptionOptions,
 ): Promise<void> {
 	const { runtime, subgraph, table, url } = await promptFor(name, opts);
 	let filter: Record<string, unknown> | undefined;
+	let authConfig: Record<string, unknown> | undefined;
 	try {
 		filter = parseSubscriptionFilter(opts.filter);
+		authConfig = buildSubscriptionAuthConfig(opts.authToken);
 	} catch (err) {
 		error(err instanceof Error ? err.message : String(err));
 		process.exit(1);
@@ -197,6 +211,7 @@ export async function createSubscription(
 					| "standard-webhooks",
 				runtime,
 				...(filter ? { filter } : {}),
+				...(authConfig ? { authConfig } : {}),
 			} as CreateSubscriptionRequest);
 			signingSecret = res.signingSecret;
 			success(`Subscription provisioned: ${blue(res.subscription.id)}`);
@@ -327,6 +342,7 @@ export function registerCreateCommand(program: Command): void {
 		.option("-s, --subgraph <name>", "Subgraph to subscribe to")
 		.option("-t, --table <name>", "Table to subscribe to")
 		.option("-u, --url <url>", "Webhook URL")
+		.option("--auth-token <token>", "Bearer token for receiver API auth")
 		.option(
 			"--filter <kv...>",
 			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",

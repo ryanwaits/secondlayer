@@ -9,8 +9,8 @@ durable-execution product; it's separate from anything Secondlayer runs.
 
 ```bash
 bun install
-npx wrangler login
-npx wrangler dev
+bunx wrangler login
+bunx wrangler dev
 ```
 
 `wrangler dev` spins up a local runtime. Your subscription URL should
@@ -20,11 +20,14 @@ point at Cloudflare's API:
 https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/workflows/{{NAME}}/instances
 ```
 
-With `auth_config`:
+Provision the subscription with bearer auth:
 
-```json
-{ "authType": "bearer", "token": "<CF_API_TOKEN>" }
+```bash
+sl create subscription {{NAME}} --runtime cloudflare --auth-token <CF_API_TOKEN>
 ```
+
+You can also patch an existing subscription with
+`sl subscriptions update {{NAME}} --auth-token <CF_API_TOKEN>`.
 
 The token must have `Workflows: Edit` scope.
 
@@ -37,5 +40,5 @@ key if you want idempotent replay handling.
 ## Deploy
 
 ```bash
-npx wrangler deploy
+bunx wrangler deploy
 ```

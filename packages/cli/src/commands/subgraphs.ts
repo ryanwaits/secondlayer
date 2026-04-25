@@ -38,6 +38,19 @@ import { generateSubgraphTemplate } from "../templates/subgraph.ts";
 import { StacksApiClient } from "../utils/api.ts";
 import { inferNetwork } from "../utils/network.ts";
 
+export function parseStartBlockOption(value?: string): number | undefined {
+	if (value === undefined) return undefined;
+	const trimmed = value.trim();
+	if (!/^(0|[1-9]\d*)$/.test(trimmed)) {
+		throw new Error("--start-block must be a nonnegative integer");
+	}
+	const parsed = Number(trimmed);
+	if (!Number.isSafeInteger(parsed)) {
+		throw new Error("--start-block must be a safe integer");
+	}
+	return parsed;
+}
+
 export function registerSubgraphsCommand(program: Command): void {
 	const subgraphs = program
 		.command("subgraphs")
@@ -164,21 +177,36 @@ export function registerSubgraphsCommand(program: Command): void {
 			"--version <semver>",
 			"Explicit version (default: auto-increment patch)",
 		)
+		.option(
+			"--start-block <n>",
+			"Override the subgraph definition startBlock for this deploy",
+		)
 		.option("--force", "Skip confirmation prompt for reindex operations")
 		.action(
-			async (file: string, options: { version?: string; force?: boolean }) => {
+			async (
+				file: string,
+				options: { version?: string; startBlock?: string; force?: boolean },
+			) => {
 				try {
 					const absPath = resolve(file);
 					const config = await loadConfig();
+					const startBlock = parseStartBlockOption(options.startBlock);
+					if (startBlock !== undefined) {
+						warn(
+							`--start-block ${startBlock} overrides the definition's startBlock for this deploy.`,
+						);
+					}
 
 					// Load and validate locally for fast feedback
 					info(`Loading subgraph from ${absPath}`);
 					const mod = await import(absPath);
 					const def = mod.default ?? mod;
+					const effectiveDef =
+						startBlock === undefined ? def : { ...def, startBlock };
 					const { validateSubgraphDefinition } = await import(
 						"@secondlayer/subgraphs/validate"
 					);
-					validateSubgraphDefinition(def);
+					validateSubgraphDefinition(effectiveDef);
 
 					if (config.network !== "local") {
 						// ── Remote deploy ──────────────────────────────────────
@@ -193,21 +221,27 @@ export function registerSubgraphsCommand(program: Command): void {
 						// Dry-run first to check if reindex needed (action would be reindexed/created)
 						// We pass the version but let the server decide
 						const result = await deploySubgraphApi({
-							name: def.name,
+							name: effectiveDef.name,
 							version: options.version,
-							description: def.description,
-							sources: def.sources as Record<string, Record<string, unknown>>,
-							schema: def.schema,
+							description: effectiveDef.description,
+							sources: effectiveDef.sources as Record<
+								string,
+								Record<string, unknown>
+							>,
+							schema: effectiveDef.schema,
 							handlerCode,
+							...(startBlock !== undefined ? { startBlock } : {}),
 						});
 
 						if (result.action === "unchanged") {
 							info(
-								`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`,
+								`Subgraph "${effectiveDef.name}" is up to date (v${result.version} — no changes)`,
 							);
 						} else if (result.action === "created") {
 							// Fresh deploy — no existing data to drop, no confirmation needed
-							success(`Subgraph "${def.name}" created → v${result.version}`);
+							success(
+								`Subgraph "${effectiveDef.name}" created → v${result.version}`,
+							);
 						} else if (result.action === "reindexed") {
 							// Show diff if available
 							if (result.diff) {
@@ -237,7 +271,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							}
 
 							success(
-								`Subgraph "${def.name}" updated → v${result.version} (reindexing)`,
+								`Subgraph "${effectiveDef.name}" updated → v${result.version} (reindexing)`,
 							);
 						} else {
 							// "updated" — additive changes, no confirmation needed
@@ -249,7 +283,9 @@ export function registerSubgraphsCommand(program: Command): void {
 									info(`  + columns: ${t}.${cols.join(", ")}`);
 								}
 							}
-							success(`Subgraph "${def.name}" updated → v${result.version}`);
+							success(
+								`Subgraph "${effectiveDef.name}" updated → v${result.version}`,
+							);
 						}
 					} else {
 						// ── Local deploy ───────────────────────────────────────
@@ -257,22 +293,27 @@ export function registerSubgraphsCommand(program: Command): void {
 						const { getDb, closeDb } = await import("@secondlayer/shared/db");
 
 						const db = getDb();
-						const result = await deploySchema(db, def, absPath, {
+						const result = await deploySchema(db, effectiveDef, absPath, {
 							version: options.version,
+							forceReindex: startBlock !== undefined,
 						});
 
 						if (result.action === "unchanged") {
 							info(
-								`Subgraph "${def.name}" is up to date (v${result.version} — no changes)`,
+								`Subgraph "${effectiveDef.name}" is up to date (v${result.version} — no changes)`,
 							);
 						} else if (result.action === "created") {
-							success(`Subgraph "${def.name}" created → v${result.version}`);
+							success(
+								`Subgraph "${effectiveDef.name}" created → v${result.version}`,
+							);
 						} else if (result.action === "reindexed") {
 							success(
-								`Subgraph "${def.name}" updated → v${result.version} (reindexing)`,
+								`Subgraph "${effectiveDef.name}" updated → v${result.version} (reindexing)`,
 							);
 						} else {
-							success(`Subgraph "${def.name}" updated → v${result.version}`);
+							success(
+								`Subgraph "${effectiveDef.name}" updated → v${result.version}`,
+							);
 						}
 
 						await closeDb();

@@ -63,7 +63,7 @@ One instance per project. The platform API spawns a dedicated `sl-pg-{slug}`,
 
 | Command | What it does |
 |---|---|
-| `sl create subscription <name> --runtime <inngest\|trigger\|cloudflare\|node> [--filter key=value]` | Scaffold a receiver project wired to a new subscription. Copies the runtime template into `./<name>/`, provisions through the active project/instance, supports scalar filters, and wires the signing secret so the dev server starts consuming events immediately. |
+| `sl create subscription <name> --runtime <inngest\|trigger\|cloudflare\|node> [--auth-token <token>] [--filter key=value]` | Scaffold a receiver project wired to a new subscription. Copies the runtime template into `./<name>/`, provisions through the active project/instance, supports scalar filters and bearer auth, and wires the signing secret so the dev server starts consuming events immediately. |
 
 ### Subscriptions (tenant-scoped)
 
@@ -76,7 +76,7 @@ active project/instance the same way as `sl subgraphs ...`; `SL_API_URL` and
 |---|---|
 | `sl subscriptions list` | List subscriptions with status, target table, format, and last success |
 | `sl subscriptions get <id\|name>` | Show full config, filter, retry/circuit state |
-| `sl subscriptions update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, runtime, retry, timeout, concurrency |
+| `sl subscriptions update <id\|name> --url <url> [--auth-token <token>] [--filter key.gte=value]` | Patch URL, bearer auth, filter, format, runtime, retry, timeout, concurrency |
 | `sl subscriptions pause/resume <id\|name>` | Stop or restart delivery |
 | `sl subscriptions rotate-secret <id\|name>` | Rotate signing secret and print the new value once |
 | `sl subscriptions deliveries <id\|name>` | Last 100 delivery attempts |
@@ -99,7 +99,7 @@ invocation. No long-lived key on disk.
 | Command | What it does |
 |---|---|
 | `sl subgraphs new <name>` | Scaffold a subgraph definition file |
-| `sl subgraphs deploy <file>` | Deploy to the active instance |
+| `sl subgraphs deploy <file> [--start-block <n>]` | Deploy to the active instance; `--start-block` overrides the definition start block for that deploy |
 | `sl subgraphs dev <file>` | Watch + hot-redeploy |
 | `sl subgraphs list` | List deployed subgraphs |
 | `sl subgraphs status <name>` | Indexing progress, row counts, gaps |

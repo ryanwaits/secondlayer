@@ -86,6 +86,13 @@ function getOwnedSubgraph(
 
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
+export function applyDeployStartBlockOverride(
+	def: SubgraphDefinition,
+	startBlock?: number,
+): SubgraphDefinition {
+	return startBlock === undefined ? def : { ...def, startBlock };
+}
+
 app.post("/", async (c) => {
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
@@ -109,7 +116,10 @@ app.post("/", async (c) => {
 	let def: SubgraphDefinition;
 	try {
 		const mod = await import(`${handlerPath}?t=${Date.now()}`);
-		def = mod.default ?? mod;
+		def = applyDeployStartBlockOverride(
+			mod.default ?? mod,
+			parsed.data.startBlock,
+		);
 	} catch (err) {
 		return c.json(
 			{
@@ -147,6 +157,7 @@ app.post("/", async (c) => {
 		version: parsed.data.version,
 		handlerCode: parsed.data.handlerCode,
 		sourceCode: parsed.data.sourceCode,
+		forceReindex: parsed.data.startBlock !== undefined,
 	});
 
 	await cache.refresh();

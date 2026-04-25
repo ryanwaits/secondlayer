@@ -9,6 +9,8 @@ export interface DeploySubgraphRequest {
 	sources: Record<string, Record<string, unknown>>;
 	schema: Record<string, unknown>;
 	handlerCode: string;
+	/** Override the definition's startBlock for this deploy only. */
+	startBlock?: number;
 	/** Original TypeScript source, persisted so chat can read/diff/edit later. */
 	sourceCode?: string;
 }
@@ -29,6 +31,7 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 			),
 		schema: z.record(z.string(), z.unknown()),
 		handlerCode: z.string().max(1_048_576, "handler code exceeds 1MB limit"),
+		startBlock: z.number().int().nonnegative().optional(),
 		sourceCode: z
 			.string()
 			.max(1_048_576, "source code exceeds 1MB limit")

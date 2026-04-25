@@ -5,14 +5,19 @@ import { getClient } from "../lib/client.ts";
 import { formatSubgraphSummary, withCap } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";
 
-export function registerSubgraphTools(server: McpServer) {
+type SubgraphClientProvider = typeof getClient;
+
+export function registerSubgraphTools(
+	server: McpServer,
+	clientProvider: SubgraphClientProvider = getClient,
+) {
 	defineTool<Record<string, never>>(
 		server,
 		"subgraphs_list",
 		"List all deployed subgraphs. Returns summary fields only.",
 		{},
 		async () => {
-			const { data } = await getClient().subgraphs.list();
+			const { data } = await clientProvider().subgraphs.list();
 			return {
 				content: [
 					{
@@ -30,7 +35,7 @@ export function registerSubgraphTools(server: McpServer) {
 		"Get full details of a subgraph including schema, health, and table columns.",
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
-			const detail = await getClient().subgraphs.get(name);
+			const detail = await clientProvider().subgraphs.get(name);
 			return {
 				content: [{ type: "text", text: JSON.stringify(detail, null, 2) }],
 			};
@@ -91,7 +96,7 @@ export function registerSubgraphTools(server: McpServer) {
 			count,
 		}) => {
 			if (count) {
-				const result = await getClient().subgraphs.queryTableCount(
+				const result = await clientProvider().subgraphs.queryTableCount(
 					name,
 					table,
 					{ filters, sort, order },
@@ -100,7 +105,7 @@ export function registerSubgraphTools(server: McpServer) {
 					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
 				};
 			}
-			const rows = await getClient().subgraphs.queryTable(name, table, {
+			const rows = await clientProvider().subgraphs.queryTable(name, table, {
 				filters,
 				sort,
 				order,
@@ -132,7 +137,7 @@ export function registerSubgraphTools(server: McpServer) {
 			toBlock: z.number().optional().describe("End block (defaults to latest)"),
 		},
 		async ({ name, fromBlock, toBlock }) => {
-			const result = await getClient().subgraphs.reindex(name, {
+			const result = await clientProvider().subgraphs.reindex(name, {
 				fromBlock,
 				toBlock,
 			});
@@ -148,23 +153,29 @@ export function registerSubgraphTools(server: McpServer) {
 		"Delete a subgraph permanently.",
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
-			const result = await getClient().subgraphs.delete(name);
+			const result = await clientProvider().subgraphs.delete(name);
 			return { content: [{ type: "text", text: result.message }] };
 		},
 	);
 
-	defineTool<{ code: string }>(
+	defineTool<{ code: string; startBlock?: number }>(
 		server,
 		"subgraphs_deploy",
-		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Call `subgraphs_reindex` separately if you need a forced reindex.",
+		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Optional startBlock overrides the source definition for this deploy. Call `subgraphs_reindex` separately if you need a forced reindex.",
 		{
 			code: z
 				.string()
 				.describe("TypeScript source code containing a defineSubgraph() call"),
+			startBlock: z
+				.number()
+				.int()
+				.nonnegative()
+				.optional()
+				.describe("Override the definition startBlock for this deploy"),
 		},
-		async ({ code }) => {
+		async ({ code, startBlock }) => {
 			const bundled = await bundleSubgraphCode(code);
-			const result = await getClient().subgraphs.deploy({
+			const result = await clientProvider().subgraphs.deploy({
 				name: bundled.name,
 				version: bundled.version,
 				description: bundled.description,
@@ -172,6 +183,7 @@ export function registerSubgraphTools(server: McpServer) {
 				schema: bundled.schema,
 				handlerCode: bundled.handlerCode,
 				sourceCode: code,
+				...(startBlock !== undefined ? { startBlock } : {}),
 			});
 			return {
 				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -185,7 +197,7 @@ export function registerSubgraphTools(server: McpServer) {
 		"Fetch the deployed TypeScript source of a subgraph (plus its stored version). Returns a readOnly payload for subgraphs deployed before source capture — in that case the caller should redeploy via CLI before editing.",
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
-			const source = await getClient().subgraphs.getSource(name);
+			const source = await clientProvider().subgraphs.getSource(name);
 			return {
 				content: [{ type: "text", text: JSON.stringify(source, null, 2) }],
 			};
