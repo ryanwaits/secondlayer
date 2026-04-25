@@ -15,8 +15,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@secondlayer/auth": "workspace:*",
-		"@secondlayer/shared": "workspace:*",
+		"@secondlayer/shared": "^4.0.0",
 		"kysely": "0.28.15",
 		"kysely-postgres-js": "3.0.0",
 		"pluralize": "^8.0.0",

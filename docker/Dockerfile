@@ -21,13 +21,11 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/api/package.json ./packages/api/
 COPY packages/worker/package.json ./packages/worker/
 COPY packages/indexer/package.json ./packages/indexer/
-COPY packages/auth/package.json ./packages/auth/
 COPY packages/subgraphs/package.json ./packages/subgraphs/
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
-COPY packages/agent/package.json ./packages/agent/
 COPY packages/bundler/package.json ./packages/bundler/
 COPY packages/scaffold/package.json ./packages/scaffold/
 COPY packages/provisioner/package.json ./packages/provisioner/
@@ -42,7 +40,6 @@ FROM deps AS builder
 # Copy source code
 COPY packages/stacks ./packages/stacks
 COPY packages/shared ./packages/shared
-COPY packages/auth ./packages/auth
 COPY packages/subgraphs ./packages/subgraphs
 COPY packages/api ./packages/api
 COPY packages/worker ./packages/worker
@@ -52,7 +49,7 @@ COPY packages/provisioner ./packages/provisioner
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
-RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/auth' --filter '@secondlayer/subgraphs' --filter '@secondlayer/bundler' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
+RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/subgraphs' --filter '@secondlayer/bundler' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
 
 # =============================================================================
 # API service
@@ -65,7 +62,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
-COPY --from=builder /app/packages/auth ./packages/auth
 COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
 COPY --from=builder /app/packages/bundler ./packages/bundler
 COPY --from=builder /app/packages/api ./packages/api
@@ -162,7 +158,7 @@ RUN apk add --no-cache docker-cli bash
 # Copy dependencies and agent code
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./
-COPY packages/agent ./packages/agent
+COPY tools/ops/agent ./tools/ops/agent
 
 ENV NODE_ENV=production
 
@@ -171,4 +167,4 @@ EXPOSE 3900
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3900/health || exit 1
 
-CMD ["bun", "run", "packages/agent/src/index.ts"]
+CMD ["bun", "run", "tools/ops/agent/src/index.ts"]

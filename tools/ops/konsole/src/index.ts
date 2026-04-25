@@ -11,7 +11,7 @@ import { introspectSchema } from "./schema/introspect.ts";
 
 // Load .env files — docker/.env first, root .env can override
 for (const rel of ["docker/.env", ".env"]) {
-	const envPath = resolve(import.meta.dir, "../../..", rel);
+	const envPath = resolve(import.meta.dir, "../../../..", rel);
 	if (existsSync(envPath)) {
 		const text = await Bun.file(envPath).text();
 		for (const line of text.split("\n")) {

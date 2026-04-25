@@ -1,7 +1,8 @@
 import * as readline from "node:readline";
-import { sendApprovalNotification } from "@secondlayer/auth/email";
+import type { Database } from "@secondlayer/shared/db";
 import { approveWaitlistEntry } from "@secondlayer/shared/db/queries/accounts";
 import { type Kysely, sql } from "kysely";
+import { sendApprovalNotification } from "../../../../../packages/api/src/auth/email.ts";
 import type { ModelRegistry } from "../model/types.ts";
 import type { AssociationMap } from "../schema/associations.ts";
 import type { SchemaInfo } from "../schema/types.ts";
@@ -12,7 +13,7 @@ import { evalExpr, rubyToJs } from "./eval.ts";
 import { printResult } from "./printer.ts";
 
 export interface ReplOptions {
-	db: Kysely<any>;
+	db: Kysely<Database>;
 	schema: SchemaInfo;
 	associations: AssociationMap;
 	models: ModelRegistry;
@@ -108,8 +109,8 @@ export function startRepl(opts: ReplOptions) {
 				const result = await evalExpr(expr, ctx);
 				ctx[name] = result;
 				printResult(result);
-			} catch (e: any) {
-				console.log(red(`  ${e.message}`));
+			} catch (e: unknown) {
+				console.log(red(`  ${e instanceof Error ? e.message : String(e)}`));
 			}
 			return;
 		}
@@ -118,8 +119,8 @@ export function startRepl(opts: ReplOptions) {
 		try {
 			const result = await evalExpr(line, ctx);
 			printResult(result);
-		} catch (e: any) {
-			console.log(red(`  ${e.message}`));
+		} catch (e: unknown) {
+			console.log(red(`  ${e instanceof Error ? e.message : String(e)}`));
 		}
 	}
 
