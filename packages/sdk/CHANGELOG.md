@@ -1,5 +1,15 @@
 # @secondlayer/sdk
 
+## 3.2.1
+
+### Patch Changes
+
+- Add optional subgraph operation fields to reindex, backfill, deploy, and stop response typings.
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.3.0
+  - @secondlayer/subgraphs@1.3.0
+
 ## 3.2.0
 
 ### Minor Changes

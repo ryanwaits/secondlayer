@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 4.3.0
+
+### Minor Changes
+
+- Move subgraph reindex and backfill lifecycle tracking into durable tenant operation records.
+
 ## 4.2.0
 
 ### Minor Changes

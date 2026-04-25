@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 1.3.0
+
+### Minor Changes
+
+- Run durable subgraph reindex and backfill operations from the tenant processor, including claim, cancel, heartbeat, stale-lock recovery, and legacy resume handling.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @secondlayer/shared@4.3.0
+
 ## 1.2.2
 
 ### Patch Changes
