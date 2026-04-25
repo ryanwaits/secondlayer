@@ -58,6 +58,9 @@ FROM base AS api
 
 WORKDIR /app
 
+ARG SECONDLAYER_API_SOURCE_DIGEST=unknown
+LABEL org.opencontainers.image.secondlayer.api-source-digest=$SECONDLAYER_API_SOURCE_DIGEST
+
 # Copy dependencies and built code
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks

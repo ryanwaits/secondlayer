@@ -36,22 +36,41 @@ fi
 
 APP_SERVICES="api indexer worker agent caddy"
 PLATFORM_SERVICES="provisioner"
+TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
+TENANT_API_IMAGE="ghcr.io/${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${PROVISIONER_IMAGE_TAG:-latest}"
+TENANT_API_DIGEST_PATHS=(
+	package.json
+	bun.lock
+	tsconfig.json
+	docker/Dockerfile
+	packages/stacks
+	packages/shared
+	packages/subgraphs
+	packages/bundler
+	packages/api
+)
 
 # Services that hold locks on tables migrations mutate. Indexer stays up
 # because its tables (blocks/transactions/events/index_progress) are
 # independent of control-plane tables that migrations touch.
 MIGRATION_LOCK_HOLDERS="api agent worker"
 
+tenant_api_source_digest() {
+	git -C /opt/secondlayer ls-tree -r HEAD -- "${TENANT_API_DIGEST_PATHS[@]}" \
+		| git -C /opt/secondlayer hash-object --stdin
+}
+
+TENANT_API_SOURCE_DIGEST="$(tenant_api_source_digest)"
+echo "Tenant API source digest: ${TENANT_API_SOURCE_DIGEST}"
+
 # Build app + platform images — --no-cache ensures source changes always land.
-$COMPOSE build --no-cache api indexer worker agent migrate
+$COMPOSE build --no-cache --build-arg SECONDLAYER_API_SOURCE_DIGEST="${TENANT_API_SOURCE_DIGEST}" api indexer worker agent migrate
 $COMPOSE --profile platform build --no-cache provisioner
 
 # Tenant containers are created by the provisioner from the configured API image
 # name. Tag the freshly built local API image so tenant refresh/resume uses this
 # exact deploy, without racing GHCR's async `latest` publication workflow.
-docker tag \
-	secondlayer-api:latest \
-	"ghcr.io/${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${PROVISIONER_IMAGE_TAG:-latest}"
+docker tag secondlayer-api:latest "$TENANT_API_IMAGE"
 
 # Stop only the services that hold locks on migrated tables. DDL then
 # acquires ACCESS EXCLUSIVE without racing the api subgraphs-cache
@@ -133,7 +152,18 @@ refresh_active_tenants() {
     return 0
   fi
 
-  echo "🔄 Refreshing active tenant runtimes..."
+  local target_digest
+  target_digest=$(docker image inspect "$TENANT_API_IMAGE" \
+    --format "{{ index .Config.Labels \"${TENANT_API_DIGEST_LABEL}\" }}" \
+    2>/dev/null || true)
+
+  if [ -z "$target_digest" ] || [ "$target_digest" = "<no value>" ]; then
+    echo "⚠️  Target tenant API image has no source digest label; refreshing active tenants"
+  else
+    echo "Tenant API target digest: ${target_digest}"
+  fi
+
+  echo "🔎 Checking active tenant runtimes..."
   local slugs
   slugs=$(docker exec secondlayer-postgres-1 psql \
     -U "${POSTGRES_USER:-secondlayer}" \
@@ -148,7 +178,25 @@ refresh_active_tenants() {
 
   while IFS= read -r slug; do
     [ -z "$slug" ] && continue
-    echo "Refreshing tenant ${slug}..."
+    local image_id current_digest
+    image_id=$(docker inspect "sl-api-${slug}" --format '{{ .Image }}' 2>/dev/null || true)
+    current_digest=""
+    if [ -n "$image_id" ]; then
+      current_digest=$(docker image inspect "$image_id" \
+        --format "{{ index .Config.Labels \"${TENANT_API_DIGEST_LABEL}\" }}" \
+        2>/dev/null || true)
+    fi
+
+    if [ -n "$target_digest" ] && [ "$target_digest" != "<no value>" ] && [ "$current_digest" = "$target_digest" ]; then
+      echo "Tenant ${slug} already on current API image; skipping refresh."
+      continue
+    fi
+
+    if [ -z "$current_digest" ] || [ "$current_digest" = "<no value>" ]; then
+      echo "Refreshing tenant ${slug} (missing current API digest)..."
+    else
+      echo "Refreshing tenant ${slug} (${current_digest} -> ${target_digest})..."
+    fi
     if ! curl -sfS \
       -X POST "http://localhost:3850/tenants/${slug}/resume" \
       -H "x-provisioner-secret: ${PROVISIONER_SECRET}" \
