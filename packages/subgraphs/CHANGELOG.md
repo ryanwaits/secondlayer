@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 1.2.2
+
+### Patch Changes
+
+- Make subgraph reindex batch sizing tenant-plan aware so Hobby runtimes use low-memory bounds while paid and default runtimes retain standard throughput.
+
 ## 1.2.1
 
 ### Patch Changes
