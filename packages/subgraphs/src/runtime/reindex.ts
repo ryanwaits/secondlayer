@@ -22,6 +22,29 @@ const DEFAULT_BATCH_SIZE = 500;
 const MIN_BATCH_SIZE = 100;
 const MAX_BATCH_SIZE = 1000;
 
+type ReindexResumeRow = {
+	last_processed_block: number | string;
+	reindex_from_block: number | string | null;
+	reindex_to_block: number | string | null;
+};
+
+export function initialReindexProgressBlock(fromBlock: number): number {
+	return Math.max(0, fromBlock - 1);
+}
+
+export function resolveReindexResumeBlock(
+	row: ReindexResumeRow,
+): number | null {
+	if (row.reindex_from_block == null || row.reindex_to_block == null) {
+		return null;
+	}
+
+	const lastProcessedBlock = Number(row.last_processed_block);
+	const reindexFromBlock = Number(row.reindex_from_block);
+
+	return Math.max(lastProcessedBlock + 1, reindexFromBlock);
+}
+
 /**
  * Coalesce individual block heights + reasons into contiguous gap ranges.
  */
@@ -295,13 +318,6 @@ export async function reindexSubgraph(
 			return { processed: 0 };
 		}
 
-		// Store reindex range so we can resume after a crash
-		await targetDb
-			.updateTable("subgraphs")
-			.set({ reindex_from_block: fromBlock, reindex_to_block: toBlock })
-			.where("name", "=", subgraphName)
-			.execute();
-
 		// Drop and recreate schema + tables (tenant-side DDL)
 		await client.unsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
 		const { statements } = generateSubgraphSQL(def, schemaName);
@@ -309,6 +325,19 @@ export async function reindexSubgraph(
 			await client.unsafe(stmt);
 		}
 		logger.info("Schema recreated for reindex", { subgraph: subgraphName });
+
+		// Store reindex range after DDL is ready. A crash before this point falls
+		// back to a fresh reindex, which safely drops/recreates the schema again.
+		await targetDb
+			.updateTable("subgraphs")
+			.set({
+				last_processed_block: initialReindexProgressBlock(fromBlock),
+				reindex_from_block: fromBlock,
+				reindex_to_block: toBlock,
+				updated_at: new Date(),
+			})
+			.where("name", "=", subgraphName)
+			.execute();
 
 		logger.info("Reindexing blocks", {
 			subgraph: subgraphName,
@@ -411,8 +440,11 @@ export async function resumeReindex(
 
 	if (!row) throw new Error(`Subgraph "${subgraphName}" not found`);
 
+	const fromBlock = resolveReindexResumeBlock(row);
+	const toBlock = Number(row.reindex_to_block);
+
 	// Legacy: no reindex metadata — fall back to full reindex
-	if (row.reindex_from_block == null || row.reindex_to_block == null) {
+	if (fromBlock == null) {
 		logger.info("No reindex metadata, starting fresh reindex", {
 			subgraph: subgraphName,
 		});
@@ -421,12 +453,6 @@ export async function resumeReindex(
 			signal: opts.signal,
 		});
 	}
-
-	const fromBlock = Math.max(
-		row.last_processed_block + 1,
-		row.reindex_from_block,
-	);
-	const toBlock = row.reindex_to_block;
 
 	if (fromBlock > toBlock) {
 		logger.info("Resume: no remaining blocks", { subgraph: subgraphName });
