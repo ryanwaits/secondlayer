@@ -1,18 +1,5 @@
 import type { ThemeRegistrationRaw } from "shiki";
 
-/**
- * Custom monotone syntax theme with sparing purple accents.
- *
- * Light palette:
- *   bg        #f8f8f8    fg        #3a3a3a
- *   gray-1    #999999    gray-2    #666666    gray-3    #444444
- *   dark      #1a1a1a    purple    #7a7a3a
- *
- * Dark palette:
- *   bg        #1c1c1c    fg        #c8c8c8
- *   gray-1    #707070    gray-2    #909090    gray-3    #b0b0b0
- *   light     #e0e0e0    purple    #9a9450
- */
 export const monotonePurple: ThemeRegistrationRaw = {
 	name: "monotone-purple",
 	type: "light",
@@ -37,7 +24,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				fontStyle: "italic",
 			},
 		},
-		// Keywords & storage (the purple accent)
+		// Keywords & storage (accent)
 		{
 			scope: [
 				"keyword",
@@ -48,7 +35,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				"keyword.operator.expression",
 			],
 			settings: {
-				foreground: "#7a7a3a",
+				foreground: "#2563EB",
 			},
 		},
 		// Import/export/from
@@ -60,7 +47,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				"keyword.control.as",
 			],
 			settings: {
-				foreground: "#7a7a3a",
+				foreground: "#2563EB",
 			},
 		},
 		// Strings
@@ -90,7 +77,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				"variable.language.this",
 			],
 			settings: {
-				foreground: "#7a7a3a",
+				foreground: "#2563EB",
 			},
 		},
 		// Function names / calls
@@ -116,7 +103,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				"punctuation.definition.variable",
 			],
 			settings: {
-				foreground: "#7a7a3a",
+				foreground: "#2563EB",
 			},
 		},
 		// Pipes and redirects
@@ -193,7 +180,7 @@ export const monotonePurple: ThemeRegistrationRaw = {
 		{
 			scope: ["punctuation.definition.template-expression"],
 			settings: {
-				foreground: "#7a7a3a",
+				foreground: "#2563EB",
 			},
 		},
 		// Tags (JSX/HTML)
@@ -221,14 +208,14 @@ export const monotonePurple: ThemeRegistrationRaw = {
 		{
 			scope: ["meta.decorator", "punctuation.decorator"],
 			settings: {
-				foreground: "#7a7a3a",
+				foreground: "#2563EB",
 			},
 		},
 		// Markdown — inline code
 		{
 			scope: ["markup.inline.raw", "markup.raw"],
 			settings: {
-				foreground: "#7a7a3a",
+				foreground: "#2563EB",
 			},
 		},
 		// Markdown — list markers
@@ -290,7 +277,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"keyword.control.from",
 				"keyword.control.as",
 			],
-			settings: { foreground: "#9a9450" },
+			settings: { foreground: "#1FD5F9" },
 		},
 		{
 			scope: [
@@ -311,7 +298,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"constant.language.boolean",
 				"variable.language.this",
 			],
-			settings: { foreground: "#9a9450" },
+			settings: { foreground: "#1FD5F9" },
 		},
 		{
 			scope: ["entity.name.function", "support.function", "meta.function-call"],
@@ -329,7 +316,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"variable.other.normal",
 				"punctuation.definition.variable",
 			],
-			settings: { foreground: "#9a9450" },
+			settings: { foreground: "#1FD5F9" },
 		},
 		// Pipes and redirects
 		{
@@ -384,7 +371,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		},
 		{
 			scope: ["punctuation.definition.template-expression"],
-			settings: { foreground: "#9a9450" },
+			settings: { foreground: "#1FD5F9" },
 		},
 		{
 			scope: ["entity.name.tag", "punctuation.definition.tag"],
@@ -400,12 +387,12 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		},
 		{
 			scope: ["meta.decorator", "punctuation.decorator"],
-			settings: { foreground: "#9a9450" },
+			settings: { foreground: "#1FD5F9" },
 		},
 		// Markdown — inline code
 		{
 			scope: ["markup.inline.raw", "markup.raw"],
-			settings: { foreground: "#9a9450" },
+			settings: { foreground: "#1FD5F9" },
 		},
 		// Markdown — list markers
 		{
