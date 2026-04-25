@@ -39,6 +39,14 @@ MIGRATION_LOCK_HOLDERS="api agent worker"
 $COMPOSE build --no-cache api indexer worker agent migrate
 $COMPOSE --profile platform build --no-cache provisioner
 
+# Tenant containers are created by the provisioner from the configured API image
+# name. Tag the freshly built local API image so tenant refresh/resume uses this
+# exact deploy, without racing GHCR's async `latest` publication workflow.
+API_IMAGE_ID="$($COMPOSE images -q api | head -n 1)"
+if [ -n "$API_IMAGE_ID" ]; then
+	docker tag "$API_IMAGE_ID" "ghcr.io/${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${PROVISIONER_IMAGE_TAG:-latest}"
+fi
+
 # Stop only the services that hold locks on migrated tables. DDL then
 # acquires ACCESS EXCLUSIVE without racing the api subgraphs-cache
 # listener. postgres + indexer + stacks-node stay up.

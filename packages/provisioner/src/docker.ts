@@ -348,6 +348,11 @@ export async function containerRemove(id: string): Promise<void> {
 interface ContainerInspectResponse {
 	Id: string;
 	Name: string;
+	Config?: {
+		Env?: string[];
+		Image?: string;
+		Labels?: Record<string, string>;
+	};
 	State: {
 		Status: string;
 		Running: boolean;

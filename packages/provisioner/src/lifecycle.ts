@@ -4,11 +4,14 @@ import {
 	type ContainerSpec,
 	containerCreate,
 	containerInspect,
+	containerRemove,
 	containerStart,
 	containerStats,
 	containerStop,
+	waitForHealthy,
 } from "./docker.ts";
 import { mintSingleKey } from "./jwt.ts";
+import { runMigrations } from "./migrations.ts";
 import {
 	NETWORK_SOURCE,
 	NETWORK_TENANTS,
@@ -18,7 +21,12 @@ import {
 	processorContainerName,
 	volumeName,
 } from "./names.ts";
-import { type PlanId, allocForTotals } from "./plans.ts";
+import {
+	type PlanId,
+	allocForTotals,
+	getPlan,
+	isValidPlanId,
+} from "./plans.ts";
 import type { ContainerStatus, TenantStatus } from "./types.ts";
 
 export type KeyRotateType = "service" | "anon" | "both";
@@ -50,16 +58,88 @@ export async function suspendTenant(slug: string): Promise<void> {
 /** Start all tenant containers in dependency order. */
 export async function resumeTenant(slug: string): Promise<void> {
 	logger.info("Resuming tenant", { slug });
-	// PG first so API + processor can reach it on startup.
-	for (const name of allContainerNames(slug)) {
-		await containerStart(name).catch((err) => {
-			logger.warn("Failed to start container during resume", {
-				slug,
-				container: name,
-				error: err instanceof Error ? err.message : String(err),
-			});
+	const pgName = pgContainerName(slug);
+	await containerStart(pgName).catch((err) => {
+		logger.warn("Failed to start postgres during resume", {
+			slug,
+			container: pgName,
+			error: err instanceof Error ? err.message : String(err),
 		});
+	});
+	await waitForHealthy(pgName, 60_000);
+
+	// Resume is also the operator-controlled path used after platform deploys.
+	// Recreate the app containers so paused tenants pick up the current API image.
+	await refreshTenantRuntime(slug);
+}
+
+/**
+ * Recreate the tenant API + subgraph processor from the current API image.
+ * Preserves tenant Postgres data and secrets recovered from the existing API
+ * container. Intended for deploy upgrades and resume.
+ */
+export async function refreshTenantRuntime(slug: string): Promise<void> {
+	const cfg = getConfig();
+	const apiName = apiContainerName(slug);
+	const procName = processorContainerName(slug);
+
+	const currentApi = await containerInspect(apiName);
+	if (!currentApi) {
+		throw new Error(
+			`Tenant ${slug} has no API container — cannot refresh runtime`,
+		);
 	}
+
+	const env = await extractEnv(apiName);
+	const targetDatabaseUrl = env.TARGET_DATABASE_URL ?? env.DATABASE_URL;
+	const sourceDatabaseUrl = env.SOURCE_DATABASE_URL;
+	if (!targetDatabaseUrl || !sourceDatabaseUrl) {
+		throw new Error(
+			`Tenant ${slug} API container missing database env — cannot refresh runtime`,
+		);
+	}
+
+	const plan = planFromLabels(currentApi.Config?.Labels);
+	const planDefaults = getPlan(plan).containers;
+	const currentProc = await containerInspect(procName);
+	const apiAlloc = allocFromInspect(currentApi, planDefaults.api);
+	const procAlloc = allocFromInspect(currentProc, planDefaults.processor);
+	const image = imageName(cfg, "api");
+
+	await containerStop(apiName, 15).catch(() => {});
+	await containerStop(procName, 15).catch(() => {});
+	await runMigrations(cfg, slug, targetDatabaseUrl, [NETWORK_TENANTS]);
+	await containerRemove(apiName).catch(() => {});
+	await containerRemove(procName).catch(() => {});
+
+	const apiId = await containerCreate(
+		buildApiSpec({
+			name: apiName,
+			image,
+			slug,
+			plan,
+			memoryMb: apiAlloc.memoryMb,
+			cpus: apiAlloc.cpus,
+			env,
+		}),
+	);
+	await containerStart(apiId);
+	await waitForHealthy(apiName, 30_000);
+
+	const procId = await containerCreate(
+		buildProcessorSpec({
+			name: procName,
+			image,
+			slug,
+			memoryMb: procAlloc.memoryMb,
+			cpus: procAlloc.cpus,
+			env,
+		}),
+	);
+	await containerStart(procId);
+	await waitForHealthy(procName, 20_000);
+
+	logger.info("Tenant runtime refreshed", { slug, image });
 }
 
 export interface ResizeSpec {
@@ -122,7 +202,6 @@ export async function resizeTenant(
 	// Tear down containers (keep volume).
 	await suspendTenant(slug);
 	for (const name of allContainerNames(slug)) {
-		const { containerRemove } = await import("./docker.ts");
 		await containerRemove(name).catch(() => {});
 	}
 
@@ -138,8 +217,6 @@ export async function resizeTenant(
 		}),
 	);
 	await containerStart(pgId);
-
-	const { waitForHealthy } = await import("./docker.ts");
 	await waitForHealthy(pgContainerName(slug), 60_000);
 
 	const apiId = await containerCreate(
@@ -213,7 +290,6 @@ export async function rotateTenantKeys(
 	const currentCpus = nanoCpus > 0 ? nanoCpus / 1_000_000_000 : 0.5;
 
 	// Recreate API container with new gens. PG + processor keep running.
-	const { containerRemove } = await import("./docker.ts");
 	await containerStop(apiName, 15).catch(() => {});
 	await containerRemove(apiName).catch(() => {});
 
@@ -235,8 +311,6 @@ export async function rotateTenantKeys(
 		}),
 	);
 	await containerStart(apiId);
-
-	const { waitForHealthy } = await import("./docker.ts");
 	await waitForHealthy(apiName, 30_000);
 
 	// Mint the replacement key(s). Only return what was rotated.
@@ -345,6 +419,26 @@ function parsePasswordFromUrl(url: string): string | null {
 	} catch {
 		return null;
 	}
+}
+
+function planFromLabels(labels: Record<string, string> | undefined): PlanId {
+	const plan = labels?.["secondlayer.plan"];
+	return plan && isValidPlanId(plan) ? plan : "hobby";
+}
+
+function allocFromInspect(
+	info: Awaited<ReturnType<typeof containerInspect>> | null,
+	fallback: { memoryMb: number; cpus: number },
+): { memoryMb: number; cpus: number } {
+	const memoryLimitBytes = info?.HostConfig?.Memory ?? 0;
+	const nanoCpus = info?.HostConfig?.NanoCpus ?? 0;
+	return {
+		memoryMb:
+			memoryLimitBytes > 0
+				? Math.round(memoryLimitBytes / (1024 * 1024))
+				: fallback.memoryMb,
+		cpus: nanoCpus > 0 ? nanoCpus / 1_000_000_000 : fallback.cpus,
+	};
 }
 
 // --- Spec builders for resize (simplified copies of provision.ts versions) ---
