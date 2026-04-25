@@ -4589,8 +4589,8 @@ html.force-light .tabbed-code-tab.active {
 	margin-bottom: 8px;
 	padding-bottom: 24px;
 	border-bottom: 1px solid var(--border);
-	background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1px);
-	background-size: 20px 20px;
+	background-image: radial-gradient(circle, var(--dot-color) 0.5px, transparent 0.5px);
+	background-size: 8px 8px;
 }
 .onboarding-header {
 	display: flex;
