@@ -91,6 +91,15 @@ export function handlerImportUrl(handlerPath: string, cacheBust = Date.now()) {
 	return `${pathToFileURL(resolve(handlerPath)).href}?t=${cacheBust}`;
 }
 
+async function restoreHandlerFile(subgraph: Subgraph): Promise<void> {
+	if (!subgraph.handler_code) return;
+	const handlerPath = subgraph.handler_path;
+	if (!handlerPath) return;
+	const { dirname } = await import("node:path");
+	mkdirSync(dirname(handlerPath), { recursive: true });
+	await Bun.write(handlerPath, subgraph.handler_code);
+}
+
 export function applyDeployStartBlockOverride(
 	def: SubgraphDefinition,
 	startBlock?: number,
@@ -338,6 +347,7 @@ app.post("/:subgraphName/reindex", async (c) => {
 	(async () => {
 		try {
 			const { reindexSubgraph } = await import("@secondlayer/subgraphs");
+			await restoreHandlerFile(subgraph);
 			const mod = await import(handlerImportUrl(subgraph.handler_path));
 			const def = mod.default ?? mod;
 			await reindexSubgraph(def, {
@@ -434,6 +444,7 @@ app.post("/:subgraphName/backfill", async (c) => {
 	(async () => {
 		try {
 			const { backfillSubgraph } = await import("@secondlayer/subgraphs");
+			await restoreHandlerFile(subgraph);
 			const mod = await import(handlerImportUrl(subgraph.handler_path));
 			const def = mod.default ?? mod;
 			await backfillSubgraph(def, {
