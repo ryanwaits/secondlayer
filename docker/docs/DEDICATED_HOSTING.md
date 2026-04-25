@@ -182,7 +182,7 @@ Defined in `packages/api/src/middleware/auth-modes.ts`. Applied by `resourceAuth
 | `noAuth()` | Never mounted by index.ts (available for future use) | Pass-through |
 | `staticKeyAuth()` | `oss` | If `API_KEY` env unset → pass-through. If set → requires `Authorization: Bearer $API_KEY`. |
 | `dedicatedAuth()` | `dedicated` | Verifies HS256 JWT using `TENANT_JWT_SECRET`. Role claim = `anon` (GET-only) or `service` (all methods). Sets `c.var.tenantRole`. |
-| `requireAuth()` (from `@secondlayer/auth`) | `platform` | Magic-link sessions + `sk-sl_` API keys. |
+| `requireAuth()` (from `packages/api/src/auth`) | `platform` | Magic-link sessions + `sk-sl_` API keys. |
 
 JWT payload shape (see `packages/provisioner/src/jwt.ts:12`):
 
@@ -980,7 +980,7 @@ Missing:
 - Email to account owner on trial expiry warning (7d/3d/1d)
 - PagerDuty (or equivalent) hook for provision failures
 
-The platform agent container (`packages/agent`) has working Slack wiring — extending it to consume tenant-specific events is the natural path.
+The platform agent container (`tools/ops/agent`) has working Slack wiring — extending it to consume tenant-specific events is the natural path.
 
 ### 10.5 Regenerate service key flow
 

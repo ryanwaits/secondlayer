@@ -11,7 +11,7 @@ import { z } from "zod/v4";
  * ever land on disk — they're minted ephemerally per-command via the
  * platform API's mint-ephemeral endpoint.
  *
- * Auto-refresh: the server-side auth middleware (packages/auth/src/middleware.ts)
+ * Auto-refresh: the server-side auth middleware (packages/api/src/auth/middleware.ts)
  * already runs a sliding-window 90-day expiry extension on every authed
  * request. The CLI just uses the stored token; the server keeps it fresh.
  */

@@ -57,8 +57,8 @@ Reviewable walkthrough: [packages/subgraphs/QUICKSTART.md](packages/subgraphs/QU
 | [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — auth, project/instance lifecycle, subgraph deploy, Clarity code-gen |
 | [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — typed subgraph queries, webhooks |
 | [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — exposes subgraphs + scaffolding to AI agents |
-| [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS, triggers, AI-SDK tools |
-| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema + event handlers |
+| [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS, AI-SDK tools |
+| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema, triggers + event handlers |
 | [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, auth primitives |
 | [`@secondlayer/api`](packages/api/README.md) | REST API — platform + dedicated + OSS modes |
 

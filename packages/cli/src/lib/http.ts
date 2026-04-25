@@ -4,7 +4,7 @@ import { readSession } from "./session.ts";
  * Typed HTTP client for the platform API and per-tenant APIs.
  *
  * `httpPlatform` uses the stored session token; the server auto-extends the
- * 90d expiry on every request (sliding window in packages/auth/src/middleware.ts),
+ * 90d expiry on every request (sliding window in packages/api/src/auth/middleware.ts),
  * so no refresh logic lives here.
  *
  * `httpTenant` takes an explicit bearer — the caller (usually the resolver)
