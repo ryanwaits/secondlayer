@@ -10,10 +10,11 @@
 	--bg-chrome: #f0f0f0;
 	--bg-tab-active: #fdfdfc;
 	--accent-pink: #ff00aa;
-	--accent: #b5a836;
-	--accent-bg: rgba(181, 168, 54, 0.06);
-	--accent-border: rgba(181, 168, 54, 0.25);
-	--accent-glow: rgba(181, 168, 54, 0.1);
+	--accent: #2563EB;
+	--accent-bg: rgba(37, 99, 235, 0.06);
+	--accent-border: rgba(37, 99, 235, 0.2);
+	--accent-glow: rgba(37, 99, 235, 0.06);
+	--dot-color: rgba(0, 0, 0, 0.1);
 	--code-bg: rgba(0, 0, 0, 0.04);
 	--code-block-bg: #f8f8f8;
 	--nudge-bg: rgba(0, 0, 0, 0.02);
@@ -58,7 +59,7 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--bg: #1a1a1a;
+		--bg: #111111;
 		--text-main: #ececec;
 		--text-prose: #ececec;
 		--text-muted: rgba(255, 255, 255, 0.4);
@@ -68,9 +69,10 @@
 		--bg-elevated: #1a1a1a;
 		--bg-chrome: #0c0c0c;
 		--bg-tab-active: #141414;
-		--accent-bg: rgba(138, 130, 64, 0.08);
-		--accent-border: rgba(138, 130, 64, 0.3);
-		--accent-glow: rgba(138, 130, 64, 0.08);
+		--accent-bg: rgba(31, 213, 249, 0.08);
+		--accent-border: rgba(31, 213, 249, 0.2);
+		--accent-glow: rgba(31, 213, 249, 0.06);
+		--dot-color: rgba(255, 255, 255, 0.07);
 		--code-bg: rgba(255, 255, 255, 0.08);
 		--code-block-bg: #1c1c1c;
 		--nudge-bg: rgba(255, 255, 255, 0.02);
@@ -82,7 +84,7 @@
 		--copy-btn: rgba(255, 255, 255, 0.25);
 		--copy-btn-hover: rgba(255, 255, 255, 0.5);
 		--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
-		--accent: #8a8240;
+		--accent: #1FD5F9;
 		--focus-ring: rgba(60, 160, 255, 0.5);
 
 		--green: #22c55e;
@@ -100,7 +102,7 @@
 
 /* Force dark via class (user preference override) */
 html.force-dark {
-	--bg: #1a1a1a;
+	--bg: #111111;
 	--text-main: #ececec;
 	--text-prose: #ececec;
 	--text-muted: rgba(255, 255, 255, 0.4);
@@ -110,9 +112,10 @@ html.force-dark {
 	--bg-elevated: #1a1a1a;
 	--bg-chrome: #0c0c0c;
 	--bg-tab-active: #141414;
-	--accent-bg: rgba(138, 130, 64, 0.08);
-	--accent-border: rgba(138, 130, 64, 0.3);
-	--accent-glow: rgba(138, 130, 64, 0.08);
+	--accent-bg: rgba(31, 213, 249, 0.08);
+	--accent-border: rgba(31, 213, 249, 0.2);
+	--accent-glow: rgba(31, 213, 249, 0.06);
+	--dot-color: rgba(255, 255, 255, 0.07);
 	--code-bg: rgba(255, 255, 255, 0.08);
 	--code-block-bg: #1c1c1c;
 	--nudge-bg: rgba(255, 255, 255, 0.02);
@@ -124,7 +127,7 @@ html.force-dark {
 	--copy-btn: rgba(255, 255, 255, 0.25);
 	--copy-btn-hover: rgba(255, 255, 255, 0.5);
 	--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
-	--accent: #8a8240;
+	--accent: #1FD5F9;
 	--focus-ring: rgba(60, 160, 255, 0.5);
 	--green: #22c55e;
 	--green-bg: rgba(34, 197, 94, 0.08);
@@ -150,9 +153,10 @@ html.force-light {
 	--bg-elevated: #fff;
 	--bg-chrome: #f0f0f0;
 	--bg-tab-active: #fdfdfc;
-	--accent-bg: rgba(181, 168, 54, 0.06);
-	--accent-border: rgba(181, 168, 54, 0.25);
-	--accent-glow: rgba(181, 168, 54, 0.1);
+	--accent-bg: rgba(37, 99, 235, 0.06);
+	--accent-border: rgba(37, 99, 235, 0.2);
+	--accent-glow: rgba(37, 99, 235, 0.06);
+	--dot-color: rgba(0, 0, 0, 0.1);
 	--code-bg: rgba(0, 0, 0, 0.04);
 	--code-block-bg: #f8f8f8;
 	--nudge-bg: rgba(0, 0, 0, 0.02);
@@ -164,7 +168,7 @@ html.force-light {
 	--copy-btn: rgba(0, 0, 0, 0.25);
 	--copy-btn-hover: rgba(0, 0, 0, 0.5);
 	--copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
-	--accent: #b5a836;
+	--accent: #2563EB;
 	--focus-ring: rgba(0, 122, 255, 0.5);
 	--green: #22c55e;
 	--green-bg: rgba(34, 197, 94, 0.08);
@@ -1661,8 +1665,8 @@ a {
 	font-size: 12px;
 	font-weight: 500;
 	color: var(--accent);
-	background: rgba(99, 68, 245, 0.06);
-	border: 1px solid rgba(99, 68, 245, 0.15);
+	background: var(--accent-bg);
+	border: 1px solid var(--accent-border);
 	border-radius: 4px;
 	padding: 2px 6px 2px 8px;
 	white-space: nowrap;
@@ -2049,8 +2053,8 @@ a {
 
 .filter-pill.active {
 	color: var(--accent);
-	border-color: rgba(99, 68, 245, 0.4);
-	background: rgba(99, 68, 245, 0.06);
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
 }
 
 .dash-badge {
@@ -2503,8 +2507,8 @@ a {
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	color: var(--accent);
-	background: rgba(99, 68, 245, 0.08);
-	border: 1px solid rgba(99, 68, 245, 0.18);
+	background: var(--accent-bg);
+	border: 1px solid var(--accent-border);
 	border-radius: 4px;
 	padding: 1px 6px;
 	flex-shrink: 0;
@@ -2530,7 +2534,7 @@ a {
 	padding: 10px 12px;
 	border-radius: 6px;
 	border-left: 3px solid var(--accent);
-	background: rgba(99, 68, 245, 0.06);
+	background: var(--accent-bg);
 	font-size: 12px;
 	color: var(--text-muted);
 	line-height: 1.6;
@@ -2599,7 +2603,7 @@ a {
 }
 
 .insight-action-primary {
-	background: rgba(99, 68, 245, 0.15);
+	background: var(--accent-bg);
 	color: var(--accent);
 }
 

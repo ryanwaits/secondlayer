@@ -225,8 +225,8 @@ body:has(.dash) .auth-bar {
 	min-width: 200px;
 }
 .quick-action:hover {
-	border-color: var(--accent-border, rgba(99, 68, 245, 0.15));
-	background: var(--accent-bg, rgba(99, 68, 245, 0.04));
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
 }
 .quick-action-icon {
 	width: 28px;
@@ -463,7 +463,7 @@ html.force-light .tabbed-code-tab.active {
 	font-size: 9px;
 	font-weight: 600;
 	color: var(--accent);
-	background: rgba(99, 68, 245, 0.06);
+	background: var(--accent-bg);
 	padding: 1px 6px;
 	border-radius: 3px;
 }
@@ -932,7 +932,7 @@ html.force-light .tabbed-code-tab.active {
 }
 .dash-badge.free {
 	color: var(--accent);
-	background: rgba(99, 68, 245, 0.06);
+	background: var(--accent-bg);
 }
 .dash-badge.version {
 	color: var(--text-muted);
@@ -1246,14 +1246,14 @@ html.force-light .tabbed-code-tab.active {
 
 .filter-pill:focus-visible,
 .filter-pill.kb-focused {
-	outline: 2px solid rgba(99, 68, 245, 0.5);
+	outline: 2px solid var(--accent-border);
 	outline-offset: 1px;
 }
 
 .filter-pill.active {
 	color: var(--accent);
 	border-color: var(--accent);
-	background: rgba(99, 68, 245, 0.04);
+	background: var(--accent-bg);
 }
 
 .filter-pill mark {
@@ -1261,7 +1261,7 @@ html.force-light .tabbed-code-tab.active {
 	color: var(--accent);
 	font-weight: 500;
 	text-decoration: underline;
-	text-decoration-color: rgba(99, 68, 245, 0.4);
+	text-decoration-color: var(--accent-border);
 	text-underline-offset: 2px;
 }
 
@@ -1306,10 +1306,10 @@ html.force-light .tabbed-code-tab.active {
 	color: var(--text-muted);
 }
 .dash-data-table tr.selected td {
-	background: rgba(99, 68, 245, 0.04);
+	background: var(--accent-bg);
 }
 .dash-data-link {
-	color: var(--accent, #6344f5);
+	color: var(--accent);
 	text-decoration: none;
 	font-weight: 500;
 }
@@ -1993,13 +1993,7 @@ html.force-light .tabbed-code-tab.active {
 }
 
 .action-dropdown-icon.purple {
-	background: rgba(99, 68, 245, 0.06);
-}
-
-@media (prefers-color-scheme: dark) {
-	.action-dropdown-icon.purple {
-		background: rgba(139, 127, 240, 0.08);
-	}
+	background: var(--accent-bg);
 }
 
 .action-dropdown-text {
@@ -2285,6 +2279,12 @@ html.force-light .tabbed-code-tab.active {
 	padding: 14px 28px;
 	border-bottom: 1px solid var(--border);
 	flex-shrink: 0;
+	background: color-mix(in srgb, var(--bg) 80%, transparent);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	position: sticky;
+	top: 0;
+	z-index: 10;
 }
 .overview-breadcrumb-project {
 	font-size: 12px;
@@ -4571,6 +4571,9 @@ html.force-light .tabbed-code-tab.active {
 	flex-direction: column;
 	min-width: 0;
 	overflow: hidden;
+	position: relative;
+	background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1px);
+	background-size: 20px 20px;
 }
 
 /* ════════════════════════════════════════════════
@@ -4581,6 +4584,8 @@ html.force-light .tabbed-code-tab.active {
 	max-width: 1100px;
 	margin: 0 auto;
 	padding: 24px 28px 80px;
+	position: relative;
+	z-index: 1;
 }
 
 /* Collapsible sections */
@@ -6724,7 +6729,7 @@ html.force-light .tabbed-code-tab.active {
 }
 
 .tool-btn.primary:hover {
-	background: rgba(181, 168, 54, 0.18);
+	background: var(--accent-border);
 }
 
 .tool-btn.danger {
