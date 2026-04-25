@@ -27,6 +27,13 @@ fi
 cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
+if [ -f .env ]; then
+	set -a
+	# shellcheck disable=SC1091
+	source .env
+	set +a
+fi
+
 APP_SERVICES="api indexer worker agent caddy"
 PLATFORM_SERVICES="provisioner"
 

@@ -7,20 +7,12 @@ export async function incrementApiRequests(
 	accountId: string,
 ): Promise<void> {
 	const today = new Date().toISOString().slice(0, 10);
-	await db
-		.insertInto("usage_daily")
-		.values({
-			account_id: accountId,
-			date: today,
-			api_requests: 1,
-			deliveries: 0,
-		})
-		.onConflict((oc) =>
-			oc.columns(["account_id", "date"]).doUpdateSet({
-				api_requests: sql`usage_daily.api_requests + 1`,
-			}),
-		)
-		.execute();
+	await sql`
+		INSERT INTO usage_daily (account_id, tenant_id, date, api_requests, deliveries)
+		VALUES (${accountId}, NULL, ${today}, 1, 0)
+		ON CONFLICT (account_id, date) WHERE tenant_id IS NULL
+		DO UPDATE SET api_requests = usage_daily.api_requests + 1
+	`.execute(db);
 }
 
 export interface UsageSummary {

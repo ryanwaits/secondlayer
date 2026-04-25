@@ -324,19 +324,26 @@ await db
 		accountRows.flatMap((a) => [
 			{
 				account_id: a.id,
+				tenant_id: null,
 				date: today,
 				api_requests: 50 + Math.floor(Math.random() * 200),
 				deliveries: 10 + Math.floor(Math.random() * 100),
 			},
 			{
 				account_id: a.id,
+				tenant_id: null,
 				date: yesterday,
 				api_requests: 80 + Math.floor(Math.random() * 300),
 				deliveries: 20 + Math.floor(Math.random() * 150),
 			},
 		]),
 	)
-	.onConflict((oc) => oc.columns(["account_id", "date"]).doNothing())
+	.onConflict((oc) =>
+		oc
+			.columns(["account_id", "date"])
+			.where("tenant_id", "is", null)
+			.doNothing(),
+	)
 	.execute();
 
 console.log(`  usage_daily: ${accountRows.length * 2}`);
