@@ -1,5 +1,16 @@
 # @secondlayer/bundler
 
+## 0.3.2
+
+### Patch Changes
+
+- [`4462afd`](https://github.com/ryanwaits/secondlayer/commit/4462afded306504a9cac1bf4559333bf3d79e6d8) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Stabilize subgraph deploys by importing generated handlers through file URLs,
+  evaluating bundled subgraphs from temporary modules instead of data URIs, and
+  adding a CLI deploy dry-run preview. ABI scaffolding now reports the actual
+  Secondlayer node source and fails quickly when contract fetches are unavailable.
+- Updated dependencies [[`4462afd`](https://github.com/ryanwaits/secondlayer/commit/4462afded306504a9cac1bf4559333bf3d79e6d8)]:
+  - @secondlayer/subgraphs@1.2.1
+
 ## 0.3.1
 
 ### Patch Changes
