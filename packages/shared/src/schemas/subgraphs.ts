@@ -43,6 +43,8 @@ export interface DeploySubgraphResponse {
 	subgraphId: string;
 	version: string;
 	message: string;
+	operationId?: string;
+	reindexStarted?: boolean;
 	diff?: {
 		addedTables: string[];
 		removedTables: string[];
@@ -139,6 +141,8 @@ export interface ReindexResponse {
 	message: string;
 	fromBlock: number;
 	toBlock: number | string;
+	operationId?: string;
+	status?: "queued" | "running" | "cancel_requested";
 }
 
 export interface SubgraphQueryParams {

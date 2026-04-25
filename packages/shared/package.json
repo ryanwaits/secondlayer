@@ -33,6 +33,10 @@
 			"types": "./dist/src/db/queries/subgraph-gaps.d.ts",
 			"import": "./dist/src/db/queries/subgraph-gaps.js"
 		},
+		"./db/queries/subgraph-operations": {
+			"types": "./dist/src/db/queries/subgraph-operations.d.ts",
+			"import": "./dist/src/db/queries/subgraph-operations.js"
+		},
 		"./db/jsonb": {
 			"types": "./dist/src/db/jsonb.d.ts",
 			"import": "./dist/src/db/jsonb.js"

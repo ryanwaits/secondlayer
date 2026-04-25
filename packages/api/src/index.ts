@@ -1,5 +1,5 @@
 import { logger } from "@secondlayer/shared";
-import { closeDb, getDb } from "@secondlayer/shared/db";
+import { closeDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
@@ -28,9 +28,6 @@ import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
 import subgraphsRouter, {
-	abortAllOperations,
-	activeAbortControllers,
-	handlerImportUrl,
 	startSubgraphCache,
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
@@ -178,91 +175,8 @@ const server = Bun.serve({
 	fetch: app.fetch,
 });
 
-// Auto-resume stale reindexes on startup — dedicated/oss only (platform has
-// no subgraphs table post-cutover).
-if (mode !== "platform")
-	(async () => {
-		try {
-			const db = getDb();
-			const stale = await db
-				.selectFrom("subgraphs")
-				.selectAll()
-				.where("status", "=", "reindexing")
-				.execute();
-
-			if (stale.length === 0) return;
-
-			logger.info("Found stale reindexing subgraphs, resuming", {
-				count: stale.length,
-				names: stale.map((s) => s.name),
-			});
-
-			for (const row of stale) {
-				const controller = new AbortController();
-				activeAbortControllers.set(row.name, controller);
-
-				(async () => {
-					try {
-						const { resumeReindex } = await import("@secondlayer/subgraphs");
-
-						// Write handler file from DB (ensures latest code after redeploys)
-						if (row.handler_path && row.handler_code) {
-							const { mkdirSync, writeFileSync } = await import("node:fs");
-							const { dirname } = await import("node:path");
-							mkdirSync(dirname(row.handler_path), { recursive: true });
-							writeFileSync(row.handler_path, row.handler_code);
-						}
-
-						const mod = await import(handlerImportUrl(row.handler_path));
-						const def = mod.default ?? mod;
-						await resumeReindex(def, {
-							schemaName: row.schema_name ?? row.name,
-							signal: controller.signal,
-						});
-					} catch (err) {
-						logger.error("Failed to resume reindex", {
-							subgraph: row.name,
-							error: String(err),
-						});
-					} finally {
-						activeAbortControllers.delete(row.name);
-					}
-				})();
-			}
-		} catch (err) {
-			logger.error("Failed to check for stale reindexes", {
-				error: String(err),
-			});
-		}
-	})();
-
-// Graceful shutdown — abort active reindexes, wait for drain
-const SHUTDOWN_TIMEOUT = 30_000;
-
 const shutdown = async () => {
 	logger.info("Shutting down API service...");
-
-	// Signal all active reindex/backfill operations to stop
-	abortAllOperations("shutdown");
-
-	// Wait for active operations to drain
-	if (activeAbortControllers.size > 0) {
-		logger.info("Waiting for active operations to drain", {
-			count: activeAbortControllers.size,
-		});
-		const start = Date.now();
-		while (
-			activeAbortControllers.size > 0 &&
-			Date.now() - start < SHUTDOWN_TIMEOUT
-		) {
-			await new Promise((r) => setTimeout(r, 500));
-		}
-		if (activeAbortControllers.size > 0) {
-			logger.warn("Shutdown timeout, forcing exit", {
-				remaining: activeAbortControllers.size,
-			});
-		}
-	}
 
 	await stopSubgraphCache();
 	await closeDb();

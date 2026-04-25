@@ -11,8 +11,14 @@ import {
 	getGapSummaryBySubgraph,
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import {
+	createSubgraphOperation,
+	isActiveSubgraphOperationConflict,
+	requestSubgraphOperationCancel,
+} from "@secondlayer/shared/db/queries/subgraph-operations";
+import {
 	listSubgraphs,
 	pgSchemaName,
+	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
@@ -89,15 +95,6 @@ const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
 export function handlerImportUrl(handlerPath: string, cacheBust = Date.now()) {
 	return `${pathToFileURL(resolve(handlerPath)).href}?t=${cacheBust}`;
-}
-
-async function restoreHandlerFile(subgraph: Subgraph): Promise<void> {
-	if (!subgraph.handler_code) return;
-	const handlerPath = subgraph.handler_path;
-	if (!handlerPath) return;
-	const { dirname } = await import("node:path");
-	mkdirSync(dirname(handlerPath), { recursive: true });
-	await Bun.write(handlerPath, subgraph.handler_code);
 }
 
 export function applyDeployStartBlockOverride(
@@ -177,25 +174,29 @@ app.post("/", async (c) => {
 	await cache.refresh();
 
 	// Auto-trigger reindex for new deploys and breaking schema changes
+	let operationId: string | undefined;
 	if (result.action === "created" || result.action === "reindexed") {
-		const controller = new AbortController();
-		activeAbortControllers.set(name, controller);
-
-		(async () => {
-			try {
-				const { reindexSubgraph } = await import("@secondlayer/subgraphs");
-				await reindexSubgraph(def, {
-					schemaName,
-					signal: controller.signal,
-				});
-			} catch (err) {
-				console.error(
-					`Auto-reindex failed for ${name}: ${getErrorMessage(err)}`,
+		try {
+			const operation = await createSubgraphOperation(db, {
+				subgraphId: result.subgraphId,
+				subgraphName: name,
+				accountId,
+				kind: "reindex",
+			});
+			operationId = operation.id;
+			await updateSubgraphStatus(db, name, "reindexing");
+		} catch (err) {
+			if (isActiveSubgraphOperationConflict(err)) {
+				return c.json(
+					{
+						error: `A reindex or backfill is already running for "${name}". Wait for it to complete.`,
+						code: "OPERATION_IN_PROGRESS",
+					},
+					409,
 				);
-			} finally {
-				activeAbortControllers.delete(name);
 			}
-		})();
+			throw err;
+		}
 	}
 
 	const status = result.action === "created" ? 201 : 200;
@@ -207,7 +208,7 @@ app.post("/", async (c) => {
 			message: `Subgraph "${name}" ${result.action}`,
 			...(result.diff ? { diff: result.diff } : {}),
 			...(result.action === "created" || result.action === "reindexed"
-				? { reindexStarted: true }
+				? { reindexStarted: true, operationId }
 				: {}),
 		},
 		status,
@@ -296,79 +297,47 @@ app.post("/bundle", async (c) => {
 
 // ── Reindex / backfill operations ─────────────────────────────────────
 
-const MAX_CONCURRENT_OPERATIONS = 2;
-export const activeAbortControllers = new Map<string, AbortController>();
-
-export function abortAllOperations(reason: string): void {
-	for (const [, controller] of activeAbortControllers) {
-		controller.abort(reason);
-	}
-}
-
-function getActiveOperationCount(): number {
-	return activeAbortControllers.size;
-}
-
 app.post("/:subgraphName/reindex", async (c) => {
 	const { subgraphName } = c.req.param();
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
 
-	if (activeAbortControllers.has(subgraphName)) {
-		return c.json(
-			{
-				error: `A reindex or backfill is already running for "${subgraphName}". Wait for it to complete.`,
-				code: "OPERATION_IN_PROGRESS",
-			},
-			409,
-		);
-	}
-
-	if (getActiveOperationCount() >= MAX_CONCURRENT_OPERATIONS) {
-		return c.json(
-			{
-				error: `Too many concurrent operations (max ${MAX_CONCURRENT_OPERATIONS}). Try again later.`,
-				code: "OPERATION_LIMIT",
-				activeOperations: getActiveOperationCount(),
-			},
-			429,
-		);
-	}
-
 	const body = await c.req.json().catch(() => ({}));
 	const fromBlock =
 		typeof body.fromBlock === "number" ? body.fromBlock : undefined;
 	const toBlock = typeof body.toBlock === "number" ? body.toBlock : undefined;
+	const db = getDb();
 
-	const controller = new AbortController();
-	activeAbortControllers.set(subgraphName, controller);
+	try {
+		const operation = await createSubgraphOperation(db, {
+			subgraphId: subgraph.id,
+			subgraphName,
+			accountId,
+			kind: "reindex",
+			fromBlock,
+			toBlock,
+		});
+		await updateSubgraphStatus(db, subgraphName, "reindexing");
 
-	// Fire and forget — load handler + reindex runs in background
-	(async () => {
-		try {
-			const { reindexSubgraph } = await import("@secondlayer/subgraphs");
-			await restoreHandlerFile(subgraph);
-			const mod = await import(handlerImportUrl(subgraph.handler_path));
-			const def = mod.default ?? mod;
-			await reindexSubgraph(def, {
-				fromBlock,
-				toBlock,
-				schemaName: subgraphSchemaName(subgraph),
-				signal: controller.signal,
-			});
-		} catch (err) {
-			const msg = getErrorMessage(err);
-			console.error(`Reindex failed for ${subgraphName}: ${msg}`);
-		} finally {
-			activeAbortControllers.delete(subgraphName);
+		return c.json({
+			message: `Reindex queued for subgraph "${subgraphName}"`,
+			fromBlock: fromBlock ?? 1,
+			toBlock: toBlock ?? "chain tip",
+			operationId: operation.id,
+			status: "queued",
+		});
+	} catch (err) {
+		if (isActiveSubgraphOperationConflict(err)) {
+			return c.json(
+				{
+					error: `A reindex or backfill is already running for "${subgraphName}". Wait for it to complete.`,
+					code: "OPERATION_IN_PROGRESS",
+				},
+				409,
+			);
 		}
-	})();
-
-	return c.json({
-		message: `Reindex started for subgraph "${subgraphName}"`,
-		fromBlock: fromBlock ?? 1,
-		toBlock: toBlock ?? "chain tip",
-	});
+		throw err;
+	}
 });
 
 // ── Stop a running reindex/backfill ──────────────────────────────────
@@ -376,10 +345,11 @@ app.post("/:subgraphName/reindex", async (c) => {
 app.post("/:subgraphName/stop", async (c) => {
 	const { subgraphName } = c.req.param();
 	const accountId = getAccountId(c);
-	getOwnedSubgraph(subgraphName, accountId);
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
 
-	const controller = activeAbortControllers.get(subgraphName);
-	if (!controller) {
+	const db = getDb();
+	const operation = await requestSubgraphOperationCancel(db, subgraph.id);
+	if (!operation) {
 		return c.json(
 			{
 				error: `No active operation found for "${subgraphName}"`,
@@ -389,9 +359,10 @@ app.post("/:subgraphName/stop", async (c) => {
 		);
 	}
 
-	controller.abort("user-cancelled");
 	return c.json({
 		message: `Stop requested for "${subgraphName}"`,
+		operationId: operation.id,
+		status: "cancel_requested",
 	});
 });
 
@@ -401,27 +372,6 @@ app.post("/:subgraphName/backfill", async (c) => {
 	const { subgraphName } = c.req.param();
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-
-	if (activeAbortControllers.has(subgraphName)) {
-		return c.json(
-			{
-				error: `A reindex or backfill is already running for "${subgraphName}". Wait for it to complete.`,
-				code: "OPERATION_IN_PROGRESS",
-			},
-			409,
-		);
-	}
-
-	if (getActiveOperationCount() >= MAX_CONCURRENT_OPERATIONS) {
-		return c.json(
-			{
-				error: `Too many concurrent operations (max ${MAX_CONCURRENT_OPERATIONS}). Try again later.`,
-				code: "OPERATION_LIMIT",
-				activeOperations: getActiveOperationCount(),
-			},
-			429,
-		);
-	}
 
 	const body = await c.req.json().catch(() => ({}));
 	const fromBlock =
@@ -437,35 +387,37 @@ app.post("/:subgraphName/backfill", async (c) => {
 			400,
 		);
 	}
+	const db = getDb();
 
-	const controller = new AbortController();
-	activeAbortControllers.set(subgraphName, controller);
+	try {
+		const operation = await createSubgraphOperation(db, {
+			subgraphId: subgraph.id,
+			subgraphName,
+			accountId,
+			kind: "backfill",
+			fromBlock,
+			toBlock,
+		});
 
-	(async () => {
-		try {
-			const { backfillSubgraph } = await import("@secondlayer/subgraphs");
-			await restoreHandlerFile(subgraph);
-			const mod = await import(handlerImportUrl(subgraph.handler_path));
-			const def = mod.default ?? mod;
-			await backfillSubgraph(def, {
-				fromBlock,
-				toBlock,
-				schemaName: subgraphSchemaName(subgraph),
-				signal: controller.signal,
-			});
-		} catch (err) {
-			const msg = getErrorMessage(err);
-			console.error(`Backfill failed for ${subgraphName}: ${msg}`);
-		} finally {
-			activeAbortControllers.delete(subgraphName);
+		return c.json({
+			message: `Backfill queued for subgraph "${subgraphName}"`,
+			fromBlock,
+			toBlock,
+			operationId: operation.id,
+			status: "queued",
+		});
+	} catch (err) {
+		if (isActiveSubgraphOperationConflict(err)) {
+			return c.json(
+				{
+					error: `A reindex or backfill is already running for "${subgraphName}". Wait for it to complete.`,
+					code: "OPERATION_IN_PROGRESS",
+				},
+				409,
+			);
 		}
-	})();
-
-	return c.json({
-		message: `Backfill started for subgraph "${subgraphName}"`,
-		fromBlock,
-		toBlock,
-	});
+		throw err;
+	}
 });
 
 // ── Delete a subgraph ────────────────────────────────────────────────────

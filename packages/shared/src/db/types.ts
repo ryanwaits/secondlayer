@@ -87,6 +87,42 @@ export interface SubgraphGapsTable {
 	resolved_at: Date | null;
 }
 
+export type SubgraphOperationKind = "reindex" | "backfill";
+export type SubgraphOperationStatus =
+	| "queued"
+	| "running"
+	| "completed"
+	| "failed"
+	| "cancelled";
+
+export interface SubgraphOperationsTable {
+	id: Generated<string>;
+	subgraph_id: string;
+	subgraph_name: string;
+	account_id: string | null;
+	kind: ColumnType<
+		SubgraphOperationKind,
+		SubgraphOperationKind,
+		SubgraphOperationKind
+	>;
+	status: ColumnType<
+		SubgraphOperationStatus,
+		SubgraphOperationStatus | undefined,
+		SubgraphOperationStatus
+	>;
+	from_block: number | null;
+	to_block: number | null;
+	cancel_requested: Generated<boolean>;
+	locked_by: string | null;
+	locked_until: Date | null;
+	started_at: Date | null;
+	finished_at: Date | null;
+	processed_blocks: number | null;
+	error: string | null;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
+}
+
 export interface ApiKeysTable {
 	id: Generated<string>;
 	key_hash: string;
@@ -300,6 +336,7 @@ export interface Database {
 	subgraph_processing_stats: SubgraphProcessingStatsTable;
 	subgraph_table_snapshots: SubgraphTableSnapshotsTable;
 	subgraph_gaps: SubgraphGapsTable;
+	subgraph_operations: SubgraphOperationsTable;
 	subgraph_usage_daily: SubgraphUsageDailyTable;
 	projects: ProjectsTable;
 	team_members: TeamMembersTable;
@@ -472,6 +509,10 @@ export type UpdateIndexProgress = Updateable<IndexProgressTable>;
 export type Subgraph = Selectable<SubgraphsTable>;
 export type InsertSubgraph = Insertable<SubgraphsTable>;
 export type UpdateSubgraph = Updateable<SubgraphsTable>;
+
+export type SubgraphOperation = Selectable<SubgraphOperationsTable>;
+export type InsertSubgraphOperation = Insertable<SubgraphOperationsTable>;
+export type UpdateSubgraphOperation = Updateable<SubgraphOperationsTable>;
 
 export type ApiKey = Selectable<ApiKeysTable>;
 export type InsertApiKey = Insertable<ApiKeysTable>;
