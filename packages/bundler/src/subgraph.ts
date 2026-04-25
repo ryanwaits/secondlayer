@@ -1,3 +1,7 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { validateSubgraphDefinition } from "@secondlayer/subgraphs/validate";
 import esbuild from "esbuild";
 import { BundleSizeError, SUBGRAPH_BUNDLE_MAX_BYTES } from "./errors.ts";
@@ -46,13 +50,18 @@ export async function bundleSubgraphCode(
 	const handlerCode = new TextDecoder().decode(outputFile.contents);
 
 	let mod: Record<string, unknown>;
+	let tempDir: string | undefined;
 	try {
-		const dataUri = `data:text/javascript;base64,${Buffer.from(handlerCode).toString("base64")}`;
-		mod = await import(dataUri);
+		tempDir = await mkdtemp(join(tmpdir(), "secondlayer-subgraph-"));
+		const tempFile = join(tempDir, "handler.mjs");
+		await writeFile(tempFile, handlerCode);
+		mod = await import(`${pathToFileURL(tempFile).href}?t=${Date.now()}`);
 	} catch (err: unknown) {
 		throw new Error(
 			`Module evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
 		);
+	} finally {
+		if (tempDir) await rm(tempDir, { recursive: true, force: true });
 	}
 	const def = mod.default ?? mod;
 

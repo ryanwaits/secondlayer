@@ -14,8 +14,8 @@ import {
 	registerProjectCommand,
 	registerStackCommand,
 	registerStatusCommand,
-	registerSubscriptionsCommand,
 	registerSubgraphsCommand,
+	registerSubscriptionsCommand,
 	registerWhoamiCommand,
 } from "./commands/index.ts";
 
@@ -57,7 +57,7 @@ program
 		"-o, --out <path>",
 		"Output file path (required when using direct files)",
 	)
-	.option("-k, --api-key <key>", "Hiro API key (or set HIRO_API_KEY env var)")
+	.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
 	.option("-w, --watch", "Watch for changes")
 	.action(async (files, options) => {
 		const { generate } = await import("./commands/generate");

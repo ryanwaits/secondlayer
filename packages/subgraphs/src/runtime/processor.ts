@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { getErrorMessage } from "@secondlayer/shared";
 import { getTargetDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
@@ -15,6 +17,10 @@ import { handleSubgraphReorg } from "./reorg.ts";
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const DEFAULT_CONCURRENCY = 5;
 const POLL_INTERVAL_MS = 5_000;
+
+function handlerImportUrl(handlerPath: string, cacheBust = Date.now()) {
+	return `${pathToFileURL(resolve(handlerPath)).href}?t=${cacheBust}`;
+}
 
 /**
  * URL to LISTEN on for indexer-fired channels (`indexer:new_block`,
@@ -66,7 +72,7 @@ async function loadSubgraphDefinition(
 		writeFileSync(sg.handler_path, sg.handler_code);
 	}
 
-	const mod = await import(`${sg.handler_path}?v=${Date.now()}`);
+	const mod = await import(handlerImportUrl(sg.handler_path));
 	const def = mod.default ?? mod;
 
 	const prevVersion = knownVersions.get(sg.name);

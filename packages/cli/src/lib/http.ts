@@ -37,6 +37,7 @@ export class CliHttpError extends Error {
 
 const PLATFORM_API_URL =
 	process.env.SL_PLATFORM_API_URL ?? "https://api.secondlayer.tools";
+const REQUEST_TIMEOUT_MS = 30_000;
 
 export interface HttpOptions {
 	method?: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
@@ -58,6 +59,7 @@ async function request<T>(
 		method: opts.method ?? "GET",
 		headers,
 		body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 	});
 
 	if (!res.ok) {

@@ -30,6 +30,7 @@ import statusRouter from "./routes/status.ts";
 import subgraphsRouter, {
 	abortAllOperations,
 	activeAbortControllers,
+	handlerImportUrl,
 	startSubgraphCache,
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
@@ -212,7 +213,7 @@ if (mode !== "platform")
 							writeFileSync(row.handler_path, row.handler_code);
 						}
 
-						const mod = await import(`${row.handler_path}?v=${Date.now()}`);
+						const mod = await import(handlerImportUrl(row.handler_path));
 						const def = mod.default ?? mod;
 						await resumeReindex(def, {
 							schemaName: row.schema_name ?? row.name,

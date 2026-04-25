@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
-import { applyDeployStartBlockOverride } from "../src/routes/subgraphs.ts";
+import {
+	applyDeployStartBlockOverride,
+	handlerImportUrl,
+} from "../src/routes/subgraphs.ts";
 
 const def = {
 	name: "demo-subgraph",
@@ -30,5 +35,12 @@ describe("subgraph deploy helpers", () => {
 
 	test("keeps imported definition unchanged without request startBlock", () => {
 		expect(applyDeployStartBlockOverride(def)).toBe(def);
+	});
+
+	test("builds file URLs for relative handler imports", () => {
+		const handlerPath = "data/subgraphs/sbtc-activity.js";
+		expect(handlerImportUrl(handlerPath, 123)).toBe(
+			`${pathToFileURL(resolve(handlerPath)).href}?t=123`,
+		);
 	});
 });

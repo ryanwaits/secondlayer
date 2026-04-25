@@ -4,13 +4,12 @@ import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
 import type { NetworkName } from "../types/config";
 import { parseContractId } from "./contract-id";
 
-const gotWithRetry = got.extend({
-	timeout: { request: 30000 },
+const contractFetch = got.extend({
+	timeout: { request: 15000 },
 	retry: {
-		limit: 3,
+		limit: 0,
 		methods: ["GET", "POST"],
 		statusCodes: [408, 429, 500, 502, 503, 504],
-		calculateDelay: ({ attemptCount }) => attemptCount * 1000,
 	},
 });
 
@@ -34,7 +33,7 @@ export class StacksApiClient {
 		this.useProxy = !apiUrl && network !== "devnet";
 
 		if (this.useProxy) {
-			this.baseUrl = slApiUrl || "";
+			this.baseUrl = slApiUrl?.replace(/\/$/, "") || "";
 			this.headers = {};
 		} else {
 			this.baseUrl =
@@ -47,8 +46,13 @@ export class StacksApiClient {
 	private async ensureProxy(): Promise<void> {
 		if (!this.useProxy || this.baseUrl) return;
 		const { apiUrl, ephemeralKey } = await resolveActiveTenant();
-		this.baseUrl = apiUrl;
+		this.baseUrl = apiUrl.replace(/\/$/, "");
 		this.headers = { authorization: `Bearer ${ephemeralKey}` };
+	}
+
+	describeContractInfoSource(): string {
+		if (this.useProxy) return "Secondlayer node";
+		return `Stacks node RPC at ${this.baseUrl}`;
 	}
 
 	private async fetchWithErrorHandling<T>(
@@ -57,20 +61,31 @@ export class StacksApiClient {
 		resourceId: string,
 	): Promise<T> {
 		try {
-			const response = await gotWithRetry(url, {
+			const response = await contractFetch(url, {
 				headers: this.headers,
 				responseType: "json",
 			});
 			return response.body as T;
-		} catch (error: any) {
-			if (error.response?.statusCode === 401) {
+		} catch (error: unknown) {
+			const statusCode =
+				typeof error === "object" &&
+				error !== null &&
+				"response" in error &&
+				typeof error.response === "object" &&
+				error.response !== null &&
+				"statusCode" in error.response
+					? error.response.statusCode
+					: undefined;
+			const message = error instanceof Error ? error.message : String(error);
+
+			if (statusCode === 401) {
 				throw new Error("Authentication required. Run: secondlayer auth login");
 			}
-			if (error.response?.statusCode === 404) {
+			if (statusCode === 404) {
 				throw new Error(`${resourceType} not found: ${resourceId}`);
 			}
 			throw new Error(
-				`Failed to fetch ${resourceType.toLowerCase()}: ${error.message}`,
+				`Failed to fetch ${resourceType.toLowerCase()}: ${message}`,
 			);
 		}
 	}

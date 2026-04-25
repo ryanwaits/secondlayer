@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, watch } from "node:fs";
 import { resolve } from "node:path";
 import { confirm } from "@inquirer/prompts";
+import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import type { Command } from "commander";
 import { generateSubgraphScaffold } from "../generators/subgraph-scaffold.ts";
 import { generateSubgraphConsumer } from "../generators/subgraphs.ts";
@@ -49,6 +50,73 @@ export function parseStartBlockOption(value?: string): number | undefined {
 		throw new Error("--start-block must be a safe integer");
 	}
 	return parsed;
+}
+
+export interface SubgraphDeployPreview {
+	name: string;
+	version: string;
+	description: string;
+	startBlock: string;
+	sources: string;
+	handlers: string;
+	tables: string;
+	tableColumns: string[];
+	bundleSize?: string;
+}
+
+export function createSubgraphDeployPreview(
+	def: SubgraphDefinition,
+	options: { bundleBytes?: number } = {},
+): SubgraphDeployPreview {
+	const tableColumns = Object.entries(def.schema).map(
+		([table, schema]) =>
+			`${table}: ${Object.keys(schema.columns).join(", ") || "(no columns)"}`,
+	);
+
+	return {
+		name: def.name,
+		version: def.version ?? "(auto)",
+		description: def.description ?? "",
+		startBlock: String(def.startBlock ?? 1),
+		sources: Object.keys(def.sources).join(", ") || "(none)",
+		handlers: Object.keys(def.handlers).join(", ") || "(none)",
+		tables: Object.keys(def.schema).join(", ") || "(none)",
+		tableColumns,
+		...(options.bundleBytes !== undefined
+			? { bundleSize: `${options.bundleBytes} bytes` }
+			: {}),
+	};
+}
+
+function printSubgraphDeployPreview(
+	preview: SubgraphDeployPreview,
+	context: { network: string; file: string; bundled: boolean },
+): void {
+	success("Subgraph deploy dry run passed");
+	const pairs: [string, string][] = [
+		["File", context.file],
+		["Network", context.network],
+		["Name", preview.name],
+		["Version", preview.version],
+		["Start Block", preview.startBlock],
+		["Sources", preview.sources],
+		["Handlers", preview.handlers],
+		["Tables", preview.tables],
+	];
+	if (preview.bundleSize) pairs.push(["Bundle Size", preview.bundleSize]);
+
+	console.log(formatKeyValue(pairs));
+
+	if (preview.description) {
+		console.log(`\n${dim("Description")}  ${preview.description}`);
+	}
+	if (preview.tableColumns.length > 0) {
+		console.log(`\n${dim("Columns")}`);
+		for (const line of preview.tableColumns) console.log(`  ${line}`);
+	}
+
+	const deployTarget = context.bundled ? "tenant API" : "local database";
+	info(`Dry run only. No ${deployTarget} changes were made.`);
 }
 
 export function registerSubgraphsCommand(program: Command): void {
@@ -181,15 +249,24 @@ export function registerSubgraphsCommand(program: Command): void {
 			"--start-block <n>",
 			"Override the subgraph definition startBlock for this deploy",
 		)
+		.option("--dry-run", "Validate and preview deploy without writing changes")
+		.option("--preview", "Alias for --dry-run")
 		.option("--force", "Skip confirmation prompt for reindex operations")
 		.action(
 			async (
 				file: string,
-				options: { version?: string; startBlock?: string; force?: boolean },
+				options: {
+					version?: string;
+					startBlock?: string;
+					dryRun?: boolean;
+					preview?: boolean;
+					force?: boolean;
+				},
 			) => {
 				try {
 					const absPath = resolve(file);
 					const config = await loadConfig();
+					const dryRun = options.dryRun || options.preview;
 					const startBlock = parseStartBlockOption(options.startBlock);
 					if (startBlock !== undefined) {
 						warn(
@@ -206,11 +283,13 @@ export function registerSubgraphsCommand(program: Command): void {
 					const { validateSubgraphDefinition } = await import(
 						"@secondlayer/subgraphs/validate"
 					);
-					validateSubgraphDefinition(effectiveDef);
+					const validated = validateSubgraphDefinition(effectiveDef);
 
 					if (config.network !== "local") {
 						// ── Remote deploy ──────────────────────────────────────
-						info(`Bundling for remote deploy (${config.network})...`);
+						info(
+							`${dryRun ? "Bundling for remote deploy dry run" : "Bundling for remote deploy"} (${config.network})...`,
+						);
 
 						const { readFile } = await import("node:fs/promises");
 						const source = await readFile(absPath, "utf8");
@@ -218,8 +297,27 @@ export function registerSubgraphsCommand(program: Command): void {
 						const bundled = await bundleSubgraphCode(source);
 						const handlerCode = bundled.handlerCode;
 
-						// Dry-run first to check if reindex needed (action would be reindexed/created)
-						// We pass the version but let the server decide
+						if (dryRun) {
+							printSubgraphDeployPreview(
+								createSubgraphDeployPreview(
+									{
+										...validated,
+										version: options.version ?? validated.version,
+									},
+									{
+										bundleBytes: Buffer.byteLength(handlerCode, "utf8"),
+									},
+								),
+								{
+									network: config.network,
+									file: absPath,
+									bundled: true,
+								},
+							);
+							return;
+						}
+
+						// The server decides whether this creates, updates, or reindexes.
 						const result = await deploySubgraphApi({
 							name: effectiveDef.name,
 							version: options.version,
@@ -289,6 +387,21 @@ export function registerSubgraphsCommand(program: Command): void {
 						}
 					} else {
 						// ── Local deploy ───────────────────────────────────────
+						if (dryRun) {
+							printSubgraphDeployPreview(
+								createSubgraphDeployPreview({
+									...validated,
+									version: options.version ?? validated.version,
+								}),
+								{
+									network: config.network,
+									file: absPath,
+									bundled: false,
+								},
+							);
+							return;
+						}
+
 						const { deploySchema } = await import("@secondlayer/subgraphs");
 						const { getDb, closeDb } = await import("@secondlayer/shared/db");
 
@@ -695,7 +808,7 @@ export function registerSubgraphsCommand(program: Command): void {
 		.command("scaffold <contractAddress>")
 		.description("Scaffold a defineSubgraph() file from a contract ABI")
 		.option("-o, --output <path>", "Output file path (required)")
-		.option("--api-key <key>", "Hiro API key")
+		.option("--api-key <key>", "Stacks node API key for direct RPC URLs")
 		.action(
 			async (
 				contractAddress: string,
@@ -709,10 +822,15 @@ export function registerSubgraphsCommand(program: Command): void {
 
 					const outPath = resolve(options.output);
 					const network = inferNetwork(contractAddress) ?? "mainnet";
-					const apiKey = options.apiKey ?? process.env.HIRO_API_KEY;
+					const apiKey =
+						options.apiKey ??
+						process.env.STACKS_NODE_API_KEY ??
+						process.env.HIRO_API_KEY;
 
-					info(`Fetching ABI for ${contractAddress}...`);
 					const client = new StacksApiClient(network, apiKey);
+					info(
+						`Fetching ABI for ${contractAddress} via ${client.describeContractInfoSource()}...`,
+					);
 					const contractInfo = await client.getContractInfo(contractAddress);
 					const abi = parseApiResponse(contractInfo);
 

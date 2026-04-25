@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { BundleSizeError, bundleSubgraphCode } from "@secondlayer/bundler";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
@@ -86,6 +87,10 @@ function getOwnedSubgraph(
 
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
+export function handlerImportUrl(handlerPath: string, cacheBust = Date.now()) {
+	return `${pathToFileURL(resolve(handlerPath)).href}?t=${cacheBust}`;
+}
+
 export function applyDeployStartBlockOverride(
 	def: SubgraphDefinition,
 	startBlock?: number,
@@ -115,7 +120,7 @@ app.post("/", async (c) => {
 	// Import the handler to get a full SubgraphDefinition with handler functions
 	let def: SubgraphDefinition;
 	try {
-		const mod = await import(`${handlerPath}?t=${Date.now()}`);
+		const mod = await import(handlerImportUrl(handlerPath));
 		def = applyDeployStartBlockOverride(
 			mod.default ?? mod,
 			parsed.data.startBlock,
@@ -333,7 +338,7 @@ app.post("/:subgraphName/reindex", async (c) => {
 	(async () => {
 		try {
 			const { reindexSubgraph } = await import("@secondlayer/subgraphs");
-			const mod = await import(`${subgraph.handler_path}?v=${Date.now()}`);
+			const mod = await import(handlerImportUrl(subgraph.handler_path));
 			const def = mod.default ?? mod;
 			await reindexSubgraph(def, {
 				fromBlock,
@@ -429,7 +434,7 @@ app.post("/:subgraphName/backfill", async (c) => {
 	(async () => {
 		try {
 			const { backfillSubgraph } = await import("@secondlayer/subgraphs");
-			const mod = await import(`${subgraph.handler_path}?v=${Date.now()}`);
+			const mod = await import(handlerImportUrl(subgraph.handler_path));
 			const def = mod.default ?? mod;
 			await backfillSubgraph(def, {
 				fromBlock,
