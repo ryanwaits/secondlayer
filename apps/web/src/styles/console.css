@@ -4571,9 +4571,6 @@ html.force-light .tabbed-code-tab.active {
 	flex-direction: column;
 	min-width: 0;
 	overflow: hidden;
-	position: relative;
-	background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1px);
-	background-size: 20px 20px;
 }
 
 /* ════════════════════════════════════════════════
@@ -4584,8 +4581,100 @@ html.force-light .tabbed-code-tab.active {
 	max-width: 1100px;
 	margin: 0 auto;
 	padding: 24px 28px 80px;
+}
+
+/* Onboarding: Get started section */
+.onboarding-section {
 	position: relative;
-	z-index: 1;
+	margin-bottom: 28px;
+	padding: 20px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background-color: var(--bg);
+	background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1px);
+	background-size: 20px 20px;
+	overflow: hidden;
+}
+.onboarding-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+}
+.onboarding-title {
+	font-family: var(--font-heading-stack);
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+.onboarding-dismiss {
+	font-family: var(--font-sans-stack);
+	font-size: 12px;
+	color: var(--text-muted);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px 0;
+}
+.onboarding-dismiss:hover {
+	color: var(--text-main);
+}
+.onboarding-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 10px;
+}
+.onboarding-card {
+	display: flex;
+	flex-direction: column;
+	padding: 18px 16px;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: var(--bg);
+	text-decoration: none;
+	color: inherit;
+	transition: border-color 0.15s, background 0.15s;
+}
+.onboarding-card:hover {
+	border-color: var(--border-hover);
+	background: var(--code-bg);
+}
+.onboarding-card-icon {
+	color: var(--text-muted);
+	margin-bottom: 12px;
+	opacity: 0.7;
+}
+.onboarding-card-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text-main);
+	margin-bottom: 4px;
+}
+.onboarding-external-arrow {
+	font-size: 11px;
+	opacity: 0.5;
+}
+.onboarding-card-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	line-height: 1.45;
+	flex: 1;
+}
+.onboarding-card-arrow {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-top: 8px;
+	opacity: 0.4;
+}
+@media (max-width: 900px) {
+	.onboarding-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+@media (max-width: 500px) {
+	.onboarding-grid {
+		grid-template-columns: 1fr;
+	}
 }
 
 /* Collapsible sections */

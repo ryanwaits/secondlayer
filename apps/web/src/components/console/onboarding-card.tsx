@@ -1,272 +1,84 @@
 "use client";
 
-import { useAuth } from "@/lib/auth";
 import { usePreferences } from "@/lib/preferences";
-import { useCallback, useState } from "react";
 
-interface Step {
-	label: string;
-	desc: string;
-	code: string;
-	agentPrompt?: boolean;
-}
-
-const STEPS: Step[] = [
+const CARDS = [
 	{
-		label: "Install the CLI",
-		desc: "Install the Secondlayer CLI and authenticate with your account.",
-		code: "bun add -g @secondlayer/cli && sl login",
+		icon: (
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+				<rect x="4" y="4" width="16" height="16" rx="2" />
+				<path d="M9 12l2 2 4-4" />
+			</svg>
+		),
+		title: "Create API key",
+		desc: "Create and manage access keys to integrate Secondlayer into your app.",
+		href: "/platform/api-keys",
 	},
 	{
-		label: "Create a tenant",
-		desc: "Bind this directory to a project and provision a dedicated beta instance.",
-		code: "sl project create my-app\nsl project use my-app\nsl instance create --plan hobby",
+		icon: (
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+				<circle cx="12" cy="12" r="8" />
+				<path d="M12 8v4l2 2" />
+			</svg>
+		),
+		title: "Deploy subgraph",
+		desc: "Deploy your first subgraph and start indexing blockchain events.",
+		href: "/platform/subgraphs",
 	},
 	{
-		label: "Deploy your first subgraph",
-		desc: "Scaffold from a contract, deploy from a recent block, then query rows.",
-		code: "sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts\nsl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>\nsl subgraphs query my-contract <table> --sort _block_height --order desc",
-		agentPrompt: true,
+		icon: (
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+				<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+			</svg>
+		),
+		title: "Set up subscriptions",
+		desc: "Stream real-time events to your backend via webhooks or WebSocket.",
+		href: "https://docs.secondlayer.dev/subscriptions",
+		external: true,
 	},
 	{
-		label: "Add a receiver",
-		desc: "Create a subscription when new rows should call another system.",
-		code: "sl create subscription my-hook --runtime node --subgraph my-contract --table <table> --url https://<receiver-host>/webhook",
+		icon: (
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+				<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+				<polyline points="14,2 14,8 20,8" />
+			</svg>
+		),
+		title: "View documentation",
+		desc: "Read the full API reference and quickstart guides.",
+		href: "https://docs.secondlayer.dev",
+		external: true,
 	},
 ];
 
-function CopyBtn({ text }: { text: string }) {
-	const [copied, setCopied] = useState(false);
-	const handleCopy = useCallback(async () => {
-		await navigator.clipboard.writeText(text);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 1500);
-	}, [text]);
-
-	return (
-		<button
-			type="button"
-			onClick={handleCopy}
-			style={{
-				fontFamily: "var(--font-sans-stack)",
-				fontSize: 11,
-				fontWeight: 500,
-				color: "var(--text-muted)",
-				background: "none",
-				border: "none",
-				padding: "2px 6px",
-				borderRadius: 3,
-				cursor: "pointer",
-				flexShrink: 0,
-			}}
-		>
-			{copied ? "Copied" : "Copy"}
-		</button>
-	);
-}
-
 export function OnboardingCard() {
 	const { showOnboarding, completeOnboarding } = usePreferences();
-	const { account } = useAuth();
-	const [expanded, setExpanded] = useState<number | null>(null);
 
 	if (!showOnboarding) return null;
 
-	const name = account?.displayName ?? account?.email?.split("@")[0] ?? "";
-
 	return (
-		<div
-			style={{
-				border: "1px solid var(--accent-border)",
-				borderRadius: 10,
-				padding: 24,
-				marginBottom: 28,
-				background: "var(--accent-bg)",
-			}}
-		>
-			{/* Header */}
-			<div
-				style={{
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "space-between",
-					marginBottom: 20,
-				}}
-			>
-				<div
-					style={{
-						fontFamily: "var(--font-heading-stack)",
-						fontSize: 16,
-						fontWeight: 600,
-						letterSpacing: "-0.02em",
-					}}
-				>
-					Welcome to Secondlayer{name ? `, ${name}` : ""}
-				</div>
-				<button
-					type="button"
-					onClick={completeOnboarding}
-					style={{
-						fontSize: 11,
-						color: "var(--text-muted)",
-						background: "none",
-						border: "none",
-						cursor: "pointer",
-						textDecoration: "underline",
-						textUnderlineOffset: 2,
-						textDecorationColor: "transparent",
-					}}
-					onMouseEnter={(e) => {
-						(e.target as HTMLElement).style.textDecorationColor =
-							"var(--text-muted)";
-					}}
-					onMouseLeave={(e) => {
-						(e.target as HTMLElement).style.textDecorationColor = "transparent";
-					}}
-				>
+		<div className="onboarding-section">
+			<div className="onboarding-header">
+				<span className="onboarding-title">Get started</span>
+				<button type="button" className="onboarding-dismiss" onClick={completeOnboarding}>
 					Dismiss
 				</button>
 			</div>
-
-			{/* Checklist */}
-			<div style={{ display: "flex", flexDirection: "column" }}>
-				{STEPS.map((step, i) => (
-					<button
-						type="button"
-						key={step.label}
-						style={{
-							display: "flex",
-							gap: 14,
-							padding: "14px 0",
-							borderBottom:
-								i < STEPS.length - 1
-									? "1px solid var(--accent-border)"
-									: "none",
-							cursor: "pointer",
-							background: "none",
-							border: "none",
-							color: "inherit",
-							textAlign: "left",
-							width: "100%",
-							fontFamily: "inherit",
-						}}
-						onClick={() => setExpanded(expanded === i ? null : i)}
+			<div className="onboarding-grid">
+				{CARDS.map((card) => (
+					<a
+						key={card.title}
+						href={card.href}
+						className="onboarding-card"
+						{...(card.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
 					>
-						{/* Circle */}
-						<div
-							style={{
-								width: 20,
-								height: 20,
-								borderRadius: "50%",
-								border: "1.5px solid var(--border)",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								flexShrink: 0,
-								marginTop: 1,
-								background: "var(--bg)",
-							}}
-						>
-							<svg
-								width="10"
-								height="10"
-								viewBox="0 0 16 16"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								style={{ opacity: 0.2 }}
-								aria-hidden="true"
-							>
-								<title>Step indicator</title>
-								<path d="M3 8h10" />
-							</svg>
+						<div className="onboarding-card-icon">{card.icon}</div>
+						<div className="onboarding-card-title">
+							{card.title}
+							{card.external && <span className="onboarding-external-arrow"> ↗</span>}
 						</div>
-
-						{/* Body */}
-						<div style={{ flex: 1 }}>
-							<div style={{ fontSize: 13, fontWeight: 560, marginBottom: 4 }}>
-								{step.label}
-							</div>
-							<div
-								style={{
-									fontSize: 12,
-									color: "var(--text-muted)",
-									lineHeight: 1.5,
-								}}
-							>
-								{step.desc}
-							</div>
-
-							{expanded === i && (
-								<div
-									style={{
-										marginTop: 10,
-										display: "flex",
-										alignItems: "center",
-										flexWrap: "wrap",
-										gap: 6,
-									}}
-									onClick={(e) => e.stopPropagation()}
-									onKeyDown={(e) => e.stopPropagation()}
-								>
-									<div
-										style={{
-											display: "inline-flex",
-											alignItems: "center",
-											gap: 8,
-											background: "var(--code-block-bg)",
-											border: "1px solid var(--border)",
-											borderRadius: 6,
-											padding: "6px 10px",
-											fontFamily: "var(--font-mono-stack)",
-											fontSize: 11,
-										}}
-									>
-										<span
-											style={{
-												color: "var(--text-muted)",
-												userSelect: "none",
-											}}
-										>
-											$
-										</span>
-										<code>{step.code}</code>
-										<CopyBtn text={step.code} />
-									</div>
-									{step.agentPrompt && (
-										<>
-											<span
-												style={{
-													fontSize: 11,
-													color: "var(--text-muted)",
-													margin: "0 4px",
-												}}
-											>
-												or
-											</span>
-											<a
-												href="/sessions"
-												style={{
-													fontFamily: "var(--font-sans-stack)",
-													fontSize: 11,
-													fontWeight: 560,
-													color: "var(--accent)",
-													border: "1px solid var(--accent-border)",
-													borderRadius: 6,
-													padding: "5px 12px",
-													textDecoration: "none",
-													whiteSpace: "nowrap",
-												}}
-											>
-												Create with Agent →
-											</a>
-										</>
-									)}
-								</div>
-							)}
-						</div>
-					</button>
+						<div className="onboarding-card-desc">{card.desc}</div>
+						<span className="onboarding-card-arrow">→</span>
+					</a>
 				))}
 			</div>
 		</div>
