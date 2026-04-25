@@ -6,17 +6,10 @@
 		"paths": {
 			"@secondlayer/shared": ["../shared/src/index.ts"],
 			"@secondlayer/shared/*": ["../shared/src/*"],
-			"@secondlayer/auth": ["../auth/src/index.ts"],
-			"@secondlayer/auth/*": ["../auth/src/*"],
 			"@secondlayer/subgraphs": ["../subgraphs/src/index.ts"],
 			"@secondlayer/subgraphs/*": ["../subgraphs/src/*"]
 		}
 	},
-	"include": [
-		"src/**/*",
-		"../shared/src/**/*",
-		"../auth/src/**/*",
-		"../subgraphs/src/**/*"
-	],
+	"include": ["src/**/*", "../shared/src/**/*", "../subgraphs/src/**/*"],
 	"exclude": ["node_modules", "dist"]
 }

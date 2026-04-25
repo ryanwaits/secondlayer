@@ -1,4 +1,3 @@
-import { sendApprovalNotification } from "@secondlayer/auth/email";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	approveWaitlistEntry,
@@ -7,6 +6,7 @@ import {
 } from "@secondlayer/shared/db/queries/accounts";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import { sendApprovalNotification } from "../auth/email.ts";
 
 const app = new Hono();
 

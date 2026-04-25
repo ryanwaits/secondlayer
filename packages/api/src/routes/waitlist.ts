@@ -1,7 +1,7 @@
-import { sendWaitlistConfirmation } from "@secondlayer/auth/email";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { z } from "zod/v4";
+import { sendWaitlistConfirmation } from "../auth/email.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();

@@ -1,14 +1,14 @@
-import {
-	ipRateLimit,
-	keysRouter,
-	rateLimit,
-	requireAuth,
-} from "@secondlayer/auth";
 import { logger } from "@secondlayer/shared";
 import { closeDb, getDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
+import {
+	ipRateLimit,
+	keysRouter,
+	rateLimit,
+	requireAuth,
+} from "./auth/index.ts";
 import { requireAdmin } from "./middleware/admin.ts";
 import { dedicatedAuth, staticKeyAuth } from "./middleware/auth-modes.ts";
 import { errorHandler } from "./middleware/error.ts";
@@ -27,13 +27,13 @@ import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
-import subscriptionsRouter from "./routes/subscriptions.ts";
 import subgraphsRouter, {
 	abortAllOperations,
 	activeAbortControllers,
 	startSubgraphCache,
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
+import subscriptionsRouter from "./routes/subscriptions.ts";
 import tenantsRouter from "./routes/tenants.ts";
 import waitlistRouter from "./routes/waitlist.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";

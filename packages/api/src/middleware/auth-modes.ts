@@ -15,7 +15,7 @@ import type { MiddlewareHandler } from "hono";
  *   `TENANT_JWT_SECRET`; extracts `role: "anon" | "service"` from the payload.
  *   `anon` = read-only (GET only); `service` = full access.
  *
- * Platform mode uses `requireAuth()` from `@secondlayer/auth` directly — see
+ * Platform mode uses `requireAuth()` from `packages/api/src/auth` directly — see
  * `packages/api/src/index.ts` mounting logic.
  */
 

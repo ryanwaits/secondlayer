@@ -1,5 +1,15 @@
 # @secondlayer/api
 
+## 1.1.3
+
+### Patch Changes
+
+- Inline the private `@secondlayer/auth` package under the API package so auth routes, middleware, rate limiting, key helpers, and email helpers are owned by `@secondlayer/api`.
+
+- Updated dependencies []:
+  - @secondlayer/subgraphs@1.2.0
+  - @secondlayer/shared@4.1.1
+
 ## 1.1.2
 
 ### Patch Changes

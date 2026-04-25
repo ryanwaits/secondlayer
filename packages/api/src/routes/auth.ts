@@ -1,6 +1,3 @@
-import { sendMagicLink } from "@secondlayer/auth/email";
-import { getClientIp } from "@secondlayer/auth/http";
-import { generateSessionToken, hashToken } from "@secondlayer/auth/keys";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	createMagicLink,
@@ -12,6 +9,9 @@ import {
 import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { z } from "zod/v4";
+import { sendMagicLink } from "../auth/email.ts";
+import { getClientIp } from "../auth/http.ts";
+import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
