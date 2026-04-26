@@ -262,10 +262,13 @@ export async function POST(req: Request) {
 					<p>
 						Failed deliveries retry up to 7 times with backoff{" "}
 						<code>30s → 2m → 10m → 1h → 6h → 24h → 72h</code>; after that, the
-						delivery is marked <code>dead</code>. After 20 consecutive failures,
-						the subscription's circuit trips — status flips to{" "}
-						<code>paused</code> with <code>circuit_opened_at</code> set, and no
-						further rows emit until you resume from the dashboard or call{" "}
+						delivery is marked <code>dead</code>.
+					</p>
+					<p>
+						After 20 consecutive failures, the subscription's circuit trips —
+						status flips to <code>paused</code> with{" "}
+						<code>circuit_opened_at</code> set, and no further rows emit until
+						you resume from the dashboard or call{" "}
 						<code>sl.subscriptions.resume(id)</code>. Resuming drains the
 						pending backlog.
 					</p>
