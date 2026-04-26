@@ -1,19 +1,17 @@
 import { BoxBadge } from "@/components/box-badge";
 import { CodeBlock } from "@/components/code-block";
-import { AgentPromptList } from "@/components/console/agent-prompt-list";
+import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
-import {
-	MARKETING_SUBSCRIPTIONS_PROMPTS,
-	getAgentPrompt,
-} from "@/lib/agent-prompts";
+import { MARKETING_SUBSCRIPTIONS_PROMPT } from "@/lib/agent-prompts";
 
 const toc: TocItem[] = [
 	{ label: "Quick start", href: "#quick-start" },
 	{ label: "Verify", href: "#verify" },
 	{ label: "Formats", href: "#formats" },
 	{ label: "Filters", href: "#filters" },
+	{ label: "Response", href: "#response" },
 	{ label: "Retries", href: "#retries" },
 ];
 
@@ -39,11 +37,10 @@ export default function SubscriptionsPage() {
 					</p>
 				</div>
 
-				<AgentPromptList
-					prompts={MARKETING_SUBSCRIPTIONS_PROMPTS.map((prompt) => ({
-						title: prompt.title,
-						code: getAgentPrompt(prompt.id),
-					}))}
+				<AgentPromptBlock
+					title="Set up subscriptions with your agent."
+					code={MARKETING_SUBSCRIPTIONS_PROMPT}
+					collapsible
 				/>
 
 				<SectionHeading id="quick-start">Quick start</SectionHeading>
@@ -154,7 +151,8 @@ app.post("/webhooks/sl", async (c) => {
 				<div className="prose">
 					<p>
 						Scalar-only JSON filter, evaluated against each row before delivery.
-						Multiple keys AND together; OR is not supported.
+						Multiple keys AND together; OR is not supported. Use filters on
+						deterministic subgraph fields to keep response workflows focused.
 					</p>
 				</div>
 
@@ -167,6 +165,95 @@ app.post("/webhooks/sl", async (c) => {
 }
 
 // Operators: eq, neq, gt, gte, lt, lte, in. Bare values are shorthand for eq.`}
+				/>
+
+				<SectionHeading id="response">Response workflows</SectionHeading>
+
+				<div className="prose">
+					<p>
+						A common pattern is to let the subgraph compute the rule, then have
+						the subscription deliver only violations. For example, alert when a
+						DAO proposal is submitted by an unapproved sender.
+					</p>
+				</div>
+
+				<CodeBlock
+					code={`const { signingSecret } = await sl.subscriptions.create({
+  name: "unapproved-dao-proposal",
+  subgraphName: "dao-proposals",
+  tableName: "proposals",
+  url: "https://your-app.com/api/secondlayer/webhook",
+  format: "standard-webhooks",
+  runtime: "node",
+  filter: { approved_sender: false },
+})
+
+// Save signingSecret once as SECONDLAYER_WEBHOOK_SECRET.`}
+				/>
+
+				<div className="prose">
+					<p>
+						The receiver verifies the raw body, asks the model to classify the
+						structured row, and routes high-signal results to Slack, Linear,
+						PagerDuty, Inngest, or Trigger.dev.
+					</p>
+				</div>
+
+				<CodeBlock
+					code={`import { verify } from "@secondlayer/shared/crypto/standard-webhooks"
+import { openai } from "@ai-sdk/openai"
+import { generateObject } from "ai"
+import { z } from "zod"
+
+export async function POST(req: Request) {
+  const raw = await req.text()
+  const headers = Object.fromEntries(req.headers)
+
+  if (!verify(raw, headers, process.env.SECONDLAYER_WEBHOOK_SECRET!)) {
+    return new Response("invalid signature", { status: 401 })
+  }
+
+  const event = JSON.parse(raw) as {
+    type: string
+    data: {
+      sender: string
+      approved_sender: boolean
+      title: string
+      tx_id: string
+    }
+  }
+
+  const { object } = await generateObject({
+    model: openai("gpt-4.1-mini"),
+    schema: z.object({
+      severity: z.enum(["low", "medium", "high", "critical"]),
+      summary: z.string(),
+      recommendedAction: z.string(),
+      needsHumanReview: z.boolean(),
+    }),
+    system:
+      "Triage Stacks onchain events. Be conservative. Never invent missing transaction facts.",
+    prompt: JSON.stringify(event.data),
+  })
+
+  if (object.needsHumanReview) {
+    await fetch(process.env.SLACK_WEBHOOK_URL!, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text: [
+          "Suspicious DAO proposal: " + object.severity.toUpperCase(),
+          "Sender: " + event.data.sender,
+          "Tx: " + event.data.tx_id,
+          "Summary: " + object.summary,
+          "Action: " + object.recommendedAction,
+        ].join("\\n"),
+      }),
+    })
+  }
+
+  return Response.json({ ok: true, triage: object })
+}`}
 				/>
 
 				<SectionHeading id="retries">Retries & circuit breaker</SectionHeading>

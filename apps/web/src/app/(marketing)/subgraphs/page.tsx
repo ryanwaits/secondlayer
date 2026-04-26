@@ -10,6 +10,7 @@ const toc: TocItem[] = [
 	{ label: "Getting started", href: "#getting-started" },
 	{ label: "Schema", href: "#schema" },
 	{ label: "Handlers", href: "#handlers" },
+	{ label: "Monitoring", href: "#monitoring" },
 	{ label: "Deploy", href: "#deploy" },
 	{ label: "Querying", href: "#querying" },
 ];
@@ -138,6 +139,62 @@ export default defineSubgraph({
     ctx.block.height     // current block height
     ctx.tx.txId          // transaction id
     ctx.tx.sender        // transaction sender
+  },
+}`}
+				/>
+
+				<SectionHeading id="monitoring">Monitoring signals</SectionHeading>
+
+				<div className="prose">
+					<p>
+						For monitoring and response, keep hard facts in the subgraph:
+						extract the protocol-specific sender, compute fields such as{" "}
+						<code>approved_sender</code>, and store transaction evidence. A
+						subscription can then wake a Slack, Inngest, Trigger.dev, or AI
+						workflow only when that deterministic rule is violated.
+					</p>
+				</div>
+
+				<CodeBlock
+					code={`const APPROVED_SENDERS = new Set([
+  "SP123.dao-core",
+  "SP456.approved-proposal-factory",
+])
+
+schema: {
+  proposals: {
+    columns: {
+      proposal_id: { type: "text", indexed: true },
+      sender: { type: "principal", indexed: true },
+      approved_sender: { type: "boolean", indexed: true },
+      title: { type: "text", search: true },
+      tx_id: { type: "text", indexed: true },
+      block_height: { type: "uint", indexed: true },
+      raw: { type: "jsonb" },
+    },
+    uniqueKeys: [["proposal_id"]],
+  },
+},
+handlers: {
+  proposalCreated(event, ctx) {
+    const value = event.value as Record<string, unknown>
+    const sender = String(
+      value.sender ?? value.proposer ?? ctx.tx.sender,
+    )
+
+    ctx.upsert(
+      "proposals",
+      { proposal_id: String(value["proposal-id"] ?? ctx.tx.txId) },
+      {
+        proposal_id: String(value["proposal-id"] ?? ctx.tx.txId),
+        sender,
+        approved_sender: APPROVED_SENDERS.has(sender),
+        title: String(value.title ?? ""),
+        tx_id: ctx.tx.txId,
+        block_height: ctx.block.height,
+        raw: value,
+      },
+    )
   },
 }`}
 				/>

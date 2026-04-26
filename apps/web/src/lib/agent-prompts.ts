@@ -211,8 +211,6 @@ export const QUICK_SUBGRAPH_PROMPT = getAgentPrompt("subgraph-alex-swaps");
 export const DROPDOWN_DEPLOY_SUBGRAPH = getAgentPrompt("subgraph-create");
 export const DASHBOARD_SUBGRAPHS_PROMPT = getAgentPrompt("subgraph-create");
 export const MARKETING_SUBGRAPHS_PROMPT = getAgentPrompt("subgraph-create");
-export const MARKETING_SUBSCRIPTIONS_PROMPTS = [
-	getAgentPromptDefinition("subscription-create"),
-	getAgentPromptDefinition("subscription-diagnose"),
-	getAgentPromptDefinition("subscription-test"),
-];
+export const MARKETING_SUBSCRIPTIONS_PROMPT = getAgentPrompt(
+	"subscription-create",
+);
