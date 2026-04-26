@@ -118,7 +118,11 @@ export default async function SubgraphDetailPage({
 			? `${(((totalProcessed - totalErrors) / totalProcessed) * 100).toFixed(1)}%`
 			: "—";
 
+	const isReindexing =
+		subgraph.sync.status === "reindexing" || subgraph.sync.mode === "reindex";
 	const { blocksRemaining } = subgraph.sync;
+	const targetBlock = subgraph.sync.targetBlock ?? subgraph.sync.chainTip;
+	const reindexProgress = `${(subgraph.sync.progress * 100).toFixed(1)}%`;
 	const lagSeconds = blocksRemaining * 10;
 	const latency =
 		blocksRemaining === 0
@@ -192,24 +196,38 @@ export default async function SubgraphDetailPage({
 								tooltip: "Current deployed version of this subgraph",
 							},
 							{
-								label: "Last Indexed Block",
+								label: isReindexing ? "Reindex Cursor" : "Last Indexed Block",
 								value: subgraph.lastProcessedBlock
 									? `#${subgraph.lastProcessedBlock.toLocaleString()}`
 									: "—",
 								mono: true,
-								tooltip:
-									"Most recent block processed by this subgraph. May lag behind chain tip while catching up.",
+								tooltip: isReindexing
+									? "Most recent block replayed during the current reindex."
+									: "Most recent block processed by this subgraph. May lag behind chain tip while catching up.",
+							},
+							...(isReindexing
+								? [
+										{
+											label: "Reindex Target",
+											value: targetBlock
+												? `#${targetBlock.toLocaleString()}`
+												: "—",
+											mono: true,
+											tooltip: "Block the current reindex is replaying toward.",
+										},
+									]
+								: []),
+							{
+								label: isReindexing ? "Reindex Progress" : "Latency",
+								value: isReindexing ? reindexProgress : latency,
+								tooltip: isReindexing
+									? "Percent of the current reindex range replayed."
+									: "Estimated time behind chain tip, based on blocks remaining × ~10s avg block time",
 							},
 							{
 								label: "Total Rows",
 								value: totalRows.toLocaleString(),
 								tooltip: "Total records across all tables in this subgraph",
-							},
-							{
-								label: "Latency",
-								value: latency,
-								tooltip:
-									"Estimated time behind chain tip, based on blocks remaining × ~10s avg block time",
 							},
 							{
 								label: "Uptime",

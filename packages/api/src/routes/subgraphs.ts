@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { BundleSizeError, bundleSubgraphCode } from "@secondlayer/bundler";
 import { getErrorMessage, logger } from "@secondlayer/shared";
-import { getDb, getRawClient } from "@secondlayer/shared/db";
+import { getDb, getRawClient, getSourceDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
 import {
 	countSubgraphMissingBlocks,
@@ -75,6 +75,97 @@ class SubgraphNotFoundError extends Error {
 		super(`Subgraph not found: ${subgraphName}`);
 		this.name = "SubgraphNotFoundError";
 	}
+}
+
+type SubgraphSyncSource = {
+	status: string;
+	start_block: number | string | null;
+	last_processed_block: number | string;
+	reindex_from_block?: number | string | null;
+	reindex_to_block?: number | string | null;
+};
+
+function toBlockNumber(
+	value: number | string | null | undefined,
+): number | null {
+	if (value == null) return null;
+	const n = Number(value);
+	return Number.isFinite(n) ? n : null;
+}
+
+function buildSyncInfo(
+	live: SubgraphSyncSource,
+	chainTip: number,
+	gaps: {
+		count: number;
+		totalMissingBlocks: number;
+		ranges: Array<{
+			start: number;
+			end: number;
+			size: number;
+			reason: string;
+		}>;
+	},
+	integrity: "complete" | "gaps_detected",
+) {
+	const status = live.status;
+	const lastProcessedBlock = toBlockNumber(live.last_processed_block) ?? 0;
+	const reindexFromBlock = toBlockNumber(live.reindex_from_block);
+	const reindexToBlock = toBlockNumber(live.reindex_to_block);
+	const isReindexing = status === "reindexing" && reindexToBlock != null;
+	const startBlock =
+		(isReindexing ? reindexFromBlock : toBlockNumber(live.start_block)) ?? 0;
+	const targetBlock = isReindexing ? reindexToBlock : chainTip;
+	const totalBlocks = Math.max(0, targetBlock - startBlock + 1);
+	const processedBlocks =
+		totalBlocks > 0
+			? Math.max(0, Math.min(totalBlocks, lastProcessedBlock - startBlock + 1))
+			: 0;
+	const blocksRemaining = Math.max(0, targetBlock - lastProcessedBlock);
+	const progress =
+		totalBlocks > 0
+			? Number.parseFloat(Math.min(1, processedBlocks / totalBlocks).toFixed(4))
+			: 1;
+
+	let syncStatus: "synced" | "catching_up" | "reindexing" | "error";
+	if (status === "reindexing") syncStatus = "reindexing";
+	else if (status === "error") syncStatus = "error";
+	else if (blocksRemaining > 0) syncStatus = "catching_up";
+	else syncStatus = "synced";
+
+	return {
+		status: syncStatus,
+		mode: isReindexing ? "reindex" : "sync",
+		startBlock,
+		lastProcessedBlock,
+		// Backward compatibility: older clients render lastProcessedBlock / chainTip.
+		// During reindex, the useful denominator is the reindex target block.
+		chainTip: targetBlock,
+		sourceChainTip: chainTip,
+		targetBlock,
+		blocksRemaining,
+		processedBlocks,
+		totalBlocks,
+		progress,
+		gaps,
+		integrity,
+	};
+}
+
+async function getChainTip(): Promise<number> {
+	const network = process.env.NETWORK ?? "mainnet";
+	const selectTip = (db: ReturnType<typeof getDb>) =>
+		db
+			.selectFrom("index_progress")
+			.select(["highest_seen_block", "last_contiguous_block"])
+			.where("network", "=", network)
+			.executeTakeFirst()
+			.catch(() => null);
+
+	const progressRow =
+		(await selectTip(getSourceDb()).catch(() => null)) ??
+		(await selectTip(getDb()).catch(() => null));
+	return progressRow?.highest_seen_block ?? 0;
 }
 
 /** Look up a subgraph from cache with account-level ownership check */
@@ -459,7 +550,7 @@ app.get("/", async (c) => {
 
 	// Fetch live stats, chain tip, and gap summaries in parallel
 	const db = getDb();
-	const [liveResult, progressRow, gapSummaries] = await Promise.all([
+	const [liveResult, chainTip, gapSummaries] = await Promise.all([
 		db
 			.selectFrom("subgraphs")
 			.select([
@@ -469,16 +560,13 @@ app.get("/", async (c) => {
 				"total_processed",
 				"total_errors",
 				"status",
+				"reindex_from_block",
+				"reindex_to_block",
 			])
 			.execute()
 			// biome-ignore lint/suspicious/noExplicitAny: fallback empty array
 			.catch(() => [] as any[]),
-		db
-			.selectFrom("index_progress")
-			.select("highest_seen_block")
-			.where("network", "=", process.env.NETWORK ?? "mainnet")
-			.executeTakeFirst()
-			.catch(() => null),
+		getChainTip(),
 		getGapSummaryBySubgraph(db).catch(() => []),
 	]);
 
@@ -504,37 +592,36 @@ app.get("/", async (c) => {
 		}
 	} catch {}
 
-	const chainTip = progressRow?.highest_seen_block ?? 0;
-
 	return c.json({
 		data: allSubgraphs.map((v) => {
 			const live = liveStats.get(v.id);
-			const lastProcessedBlock =
-				live?.last_processed_block ?? v.last_processed_block;
-			const startBlock = live?.start_block ?? 0;
-			const totalRange = chainTip - startBlock;
-			const progress =
-				totalRange > 0
-					? Number.parseFloat(
-							Math.min(
-								1,
-								(lastProcessedBlock - startBlock) / totalRange,
-							).toFixed(4),
-						)
-					: 1;
 			const gaps = gapMap.get(v.name);
+			const sync = buildSyncInfo(
+				live ?? v,
+				chainTip,
+				{
+					count: gaps?.gapCount ?? 0,
+					totalMissingBlocks: gaps?.totalMissingBlocks ?? 0,
+					ranges: [],
+				},
+				(gaps?.gapCount ?? 0) > 0 ? "gaps_detected" : "complete",
+			);
 
 			return {
 				name: v.name,
 				version: v.version,
 				status: live?.status ?? v.status,
-				lastProcessedBlock,
+				lastProcessedBlock: sync.lastProcessedBlock,
 				totalProcessed: live?.total_processed ?? v.total_processed,
 				totalRows: rowCountMap.get(subgraphSchemaName(v)) ?? 0,
 				totalErrors: live?.total_errors ?? v.total_errors,
 				tables: Object.keys(getSubgraphSchema(v)),
-				chainTip,
-				progress,
+				chainTip: sync.chainTip,
+				sourceChainTip: sync.sourceChainTip,
+				targetBlock: sync.targetBlock,
+				progress: sync.progress,
+				blocksRemaining: sync.blocksRemaining,
+				syncMode: sync.mode,
 				gapCount: gaps?.gapCount ?? 0,
 				integrity: (gaps?.gapCount ?? 0) > 0 ? "gaps_detected" : "complete",
 				createdAt: v.created_at.toISOString(),
@@ -559,7 +646,7 @@ app.get("/:subgraphName", async (c) => {
 
 	// Fetch live stats, COUNT queries, chain tip, and gaps in parallel
 	const db = getDb();
-	const [countResults, liveRow, progressRow, gapResult] = await Promise.all([
+	const [countResults, liveRow, chainTip, gapResult] = await Promise.all([
 		Promise.allSettled(
 			schemaEntries.map(([tableName]) =>
 				query(
@@ -578,16 +665,13 @@ app.get("/:subgraphName", async (c) => {
 				"last_error",
 				"last_error_at",
 				"updated_at",
+				"reindex_from_block",
+				"reindex_to_block",
 			])
 			.where("id", "=", subgraph.id)
 			.executeTakeFirst()
 			.catch(() => null),
-		db
-			.selectFrom("index_progress")
-			.select(["highest_seen_block", "last_contiguous_block"])
-			.where("network", "=", process.env.NETWORK ?? "mainnet")
-			.executeTakeFirst()
-			.catch(() => null),
+		getChainTip(),
 		findSubgraphGaps(db, subgraphName, {
 			limit: 10,
 			unresolvedOnly: true,
@@ -632,28 +716,23 @@ app.get("/:subgraphName", async (c) => {
 	const errorRate = totalProcessed > 0 ? totalErrors / totalProcessed : 0;
 
 	// Build sync object
-	const chainTip = progressRow?.highest_seen_block ?? 0;
-	const startBlock = live.start_block ?? 0;
-	const lastProcessedBlock = live.last_processed_block;
-	const totalRange = chainTip - startBlock;
-	const blocksRemaining = Math.max(0, chainTip - lastProcessedBlock);
-	const progress =
-		totalRange > 0
-			? Number.parseFloat(
-					Math.min(1, (lastProcessedBlock - startBlock) / totalRange).toFixed(
-						4,
-					),
-				)
-			: 1;
-
 	const totalMissingBlocks = gapResult.gaps.reduce((sum, g) => sum + g.size, 0);
 	const hasGaps = gapResult.total > 0;
-
-	let syncStatus: string;
-	if (live.status === "reindexing") syncStatus = "reindexing";
-	else if (live.status === "error") syncStatus = "error";
-	else if (blocksRemaining > 0) syncStatus = "catching_up";
-	else syncStatus = "synced";
+	const sync = buildSyncInfo(
+		live,
+		chainTip,
+		{
+			count: gapResult.total,
+			totalMissingBlocks,
+			ranges: gapResult.gaps.map((g) => ({
+				start: g.gapStart,
+				end: g.gapEnd,
+				size: g.size,
+				reason: g.reason,
+			})),
+		},
+		hasGaps ? "gaps_detected" : "complete",
+	);
 
 	const def = subgraph.definition as Record<string, unknown> | null;
 	const sources = def?.sources ?? null;
@@ -663,7 +742,7 @@ app.get("/:subgraphName", async (c) => {
 		name: subgraph.name,
 		version: subgraph.version,
 		status: live.status,
-		lastProcessedBlock,
+		lastProcessedBlock: sync.lastProcessedBlock,
 		...(description && { description }),
 		...(sources && { sources }),
 		definition: def,
@@ -674,25 +753,7 @@ app.get("/:subgraphName", async (c) => {
 			lastError: live.last_error ?? null,
 			lastErrorAt: live.last_error_at?.toISOString() ?? null,
 		},
-		sync: {
-			status: syncStatus,
-			startBlock,
-			lastProcessedBlock,
-			chainTip,
-			blocksRemaining,
-			progress,
-			gaps: {
-				count: gapResult.total,
-				totalMissingBlocks,
-				ranges: gapResult.gaps.map((g) => ({
-					start: g.gapStart,
-					end: g.gapEnd,
-					size: g.size,
-					reason: g.reason,
-				})),
-			},
-			integrity: hasGaps ? "gaps_detected" : "complete",
-		},
+		sync,
 		tables,
 		createdAt: subgraph.created_at.toISOString(),
 		updatedAt:

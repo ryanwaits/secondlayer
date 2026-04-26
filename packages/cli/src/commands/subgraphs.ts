@@ -119,6 +119,49 @@ function printSubgraphDeployPreview(
 	info(`Dry run only. No ${deployTarget} changes were made.`);
 }
 
+function formatSubgraphSync(sync: {
+	status: string;
+	mode?: "sync" | "reindex";
+	lastProcessedBlock: number;
+	chainTip: number;
+	targetBlock?: number;
+	sourceChainTip?: number;
+	blocksRemaining: number;
+	processedBlocks?: number;
+	totalBlocks?: number;
+	progress: number;
+}): { line: string; remainingLabel: string; remaining: string } {
+	const targetBlock = sync.targetBlock ?? sync.chainTip;
+	const totalBlocks = sync.totalBlocks;
+	const processedBlocks = sync.processedBlocks;
+	const progress = `${(sync.progress * 100).toFixed(1)}%`;
+
+	if (sync.status === "reindexing" || sync.mode === "reindex") {
+		if (targetBlock <= 0) {
+			return {
+				line: `reindexing — cursor #${sync.lastProcessedBlock} (target unavailable from API)`,
+				remainingLabel: "Reindex Remaining",
+				remaining: "N/A",
+			};
+		}
+		const range =
+			processedBlocks !== undefined && totalBlocks !== undefined
+				? `${processedBlocks} / ${totalBlocks} blocks`
+				: `${sync.lastProcessedBlock} / ${targetBlock}`;
+		return {
+			line: `reindexing — ${progress} (${range}, target #${targetBlock})`,
+			remainingLabel: "Reindex Remaining",
+			remaining: String(sync.blocksRemaining),
+		};
+	}
+
+	return {
+		line: `${sync.status} — ${progress} (${sync.lastProcessedBlock} / ${targetBlock})`,
+		remainingLabel: "Blocks Remaining",
+		remaining: String(sync.blocksRemaining),
+	};
+}
+
 export function registerSubgraphsCommand(program: Command): void {
 	const subgraphs = program
 		.command("subgraphs")
@@ -503,12 +546,14 @@ export function registerSubgraphsCommand(program: Command): void {
 						? `${(subgraph.health.errorRate * 100).toFixed(2)}%`
 						: "N/A";
 
-				// Sync progress line
 				const sync = subgraph.sync;
-				const syncStatus = sync
-					? `${sync.status} — ${(sync.progress * 100).toFixed(1)}% (${sync.lastProcessedBlock} / ${sync.chainTip})`
-					: "unknown";
-				const blocksRemaining = sync ? String(sync.blocksRemaining) : "N/A";
+				const syncDisplay = sync
+					? formatSubgraphSync(sync)
+					: {
+							line: "unknown",
+							remainingLabel: "Blocks Remaining",
+							remaining: "N/A",
+						};
 
 				// Gap summary
 				const gapSummary =
@@ -522,13 +567,13 @@ export function registerSubgraphsCommand(program: Command): void {
 						["Name", subgraph.name],
 						["Version", subgraph.version],
 						["Status", subgraph.status],
-						["Sync", syncStatus],
-						["Blocks Remaining", blocksRemaining],
+						["Sync", syncDisplay.line],
+						[syncDisplay.remainingLabel, syncDisplay.remaining],
 						["Integrity", integrity],
 						["Gaps", gapSummary],
 						["Last Block", String(subgraph.lastProcessedBlock)],
 						["Row Count", rowCounts],
-						["Total Processed", String(subgraph.health.totalProcessed)],
+						["Total Events", String(subgraph.health.totalProcessed)],
 						["Total Errors", String(subgraph.health.totalErrors)],
 						["Error Rate", errorRate],
 						["Last Error", subgraph.health.lastError ?? "none"],

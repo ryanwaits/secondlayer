@@ -64,7 +64,11 @@ export interface SubgraphSummary {
 	totalErrors: number;
 	tables: string[];
 	chainTip: number;
+	sourceChainTip?: number;
+	targetBlock?: number;
 	progress: number;
+	blocksRemaining?: number;
+	syncMode?: "sync" | "reindex";
 	gapCount: number;
 	integrity: "complete" | "gaps_detected";
 	createdAt: string;
@@ -79,10 +83,19 @@ export interface SubgraphGapRange {
 
 export interface SubgraphSyncInfo {
 	status: "synced" | "catching_up" | "reindexing" | "error";
+	mode?: "sync" | "reindex";
 	startBlock: number;
 	lastProcessedBlock: number;
+	/**
+	 * Backward-compatible denominator for progress displays. During reindexing,
+	 * this is the reindex target block rather than the live source chain tip.
+	 */
 	chainTip: number;
+	sourceChainTip?: number;
+	targetBlock?: number;
 	blocksRemaining: number;
+	processedBlocks?: number;
+	totalBlocks?: number;
 	progress: number;
 	gaps: {
 		count: number;

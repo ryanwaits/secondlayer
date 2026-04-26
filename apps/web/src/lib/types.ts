@@ -126,8 +126,16 @@ export interface SubgraphDetail {
 		lastErrorAt: string | null;
 	};
 	sync: {
+		status?: "synced" | "catching_up" | "reindexing" | "error";
+		mode?: "sync" | "reindex";
+		startBlock?: number;
+		lastProcessedBlock?: number;
 		blocksRemaining: number;
 		chainTip: number | null;
+		sourceChainTip?: number | null;
+		targetBlock?: number | null;
+		processedBlocks?: number;
+		totalBlocks?: number;
 		progress: number;
 	};
 	tables: Record<
