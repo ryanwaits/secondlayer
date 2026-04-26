@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 1.3.1
+
+### Patch Changes
+
+- [`230e4cf`](https://github.com/ryanwaits/secondlayer/commit/230e4cf8ad8c3a7da9a39226a7cab8ac6c621b5d) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Reset reindex health counters for fresh reindexes and flush event/error totals during long reindex and backfill operations.
+
 ## 1.3.0
 
 ### Minor Changes
