@@ -18,6 +18,7 @@ import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
+const HEALTH_FLUSH_INTERVAL = 1000;
 const HOBBY_REINDEX_BATCH_CONFIG = {
 	defaultBatchSize: 50,
 	minBatchSize: 25,
@@ -162,10 +163,29 @@ async function processBlockRange(
 	let blocksProcessed = 0;
 	let totalEventsProcessed = 0;
 	let totalErrors = 0;
+	let pendingEventsProcessed = 0;
+	let pendingErrors = 0;
+	let pendingLastError: string | undefined;
+	let lastHealthFlushBlock = 0;
 	const batchConfig = resolveReindexBatchConfig();
 	let batchSize = batchConfig.defaultBatchSize;
 	let currentHeight = fromBlock;
 	let aborted = false;
+
+	const flushHealth = async () => {
+		if (pendingEventsProcessed === 0 && pendingErrors === 0) return;
+		await recordSubgraphProcessed(
+			targetDb,
+			subgraphName,
+			pendingEventsProcessed,
+			pendingErrors,
+			pendingLastError,
+		);
+		pendingEventsProcessed = 0;
+		pendingErrors = 0;
+		pendingLastError = undefined;
+		lastHealthFlushBlock = blocksProcessed;
+	};
 
 	// Pipeline: start loading first batch and track the prefetched range.
 	// batchEnd must match what was actually loaded — not recalculated from a
@@ -225,21 +245,21 @@ async function processBlockRange(
 					status,
 					height,
 				).catch(() => {});
-				await recordSubgraphProcessed(
-					targetDb,
-					subgraphName,
-					0,
-					1,
-					errorMsg,
-				).catch(() => {});
 				blocksProcessed++;
 				totalErrors++;
+				pendingErrors++;
+				pendingLastError = errorMsg;
 				continue;
 			}
 
 			blocksProcessed++;
 			totalEventsProcessed += result.processed;
 			totalErrors += result.errors;
+			pendingEventsProcessed += result.processed;
+			pendingErrors += result.errors;
+			if (result.errors > 0) {
+				pendingLastError = `${result.errors} error(s) while processing block ${height}`;
+			}
 
 			if (result.timing) {
 				stats.record(result.timing, result.processed);
@@ -265,6 +285,10 @@ async function processBlockRange(
 					},
 				);
 			}
+		}
+
+		if (blocksProcessed - lastHealthFlushBlock >= HEALTH_FLUSH_INTERVAL) {
+			await flushHealth();
 		}
 
 		// Record any gaps from this batch
@@ -297,6 +321,7 @@ async function processBlockRange(
 	}
 
 	await stats.flush(targetDb);
+	await flushHealth();
 	return { blocksProcessed, totalEventsProcessed, totalErrors, aborted };
 }
 
@@ -390,6 +415,10 @@ export async function reindexSubgraph(
 				last_processed_block: initialReindexProgressBlock(fromBlock),
 				reindex_from_block: fromBlock,
 				reindex_to_block: toBlock,
+				total_processed: 0,
+				total_errors: 0,
+				last_error: null,
+				last_error_at: null,
 				updated_at: new Date(),
 			})
 			.where("name", "=", subgraphName)
@@ -432,22 +461,6 @@ export async function reindexSubgraph(
 				});
 			}
 			return { processed: result.blocksProcessed };
-		}
-
-		// Write final health metrics
-		const { recordSubgraphProcessed } = await import(
-			"@secondlayer/shared/db/queries/subgraphs"
-		);
-		if (result.totalEventsProcessed > 0 || result.totalErrors > 0) {
-			await recordSubgraphProcessed(
-				targetDb,
-				subgraphName,
-				result.totalEventsProcessed,
-				result.totalErrors,
-				result.totalErrors > 0
-					? `${result.totalErrors} error(s) during reindex`
-					: undefined,
-			);
 		}
 
 		await updateSubgraphStatus(targetDb, subgraphName, "active", toBlock);
@@ -549,21 +562,6 @@ export async function resumeReindex(
 			return { processed: result.blocksProcessed };
 		}
 
-		const { recordSubgraphProcessed } = await import(
-			"@secondlayer/shared/db/queries/subgraphs"
-		);
-		if (result.totalEventsProcessed > 0 || result.totalErrors > 0) {
-			await recordSubgraphProcessed(
-				targetDb,
-				subgraphName,
-				result.totalEventsProcessed,
-				result.totalErrors,
-				result.totalErrors > 0
-					? `${result.totalErrors} error(s) during resumed reindex`
-					: undefined,
-			);
-		}
-
 		await updateSubgraphStatus(targetDb, subgraphName, "active", toBlock);
 		await clearReindexMetadata(targetDb, subgraphName);
 		logger.info("Resumed reindex complete", {
@@ -638,22 +636,6 @@ export async function backfillSubgraph(
 				subgraph: subgraphName,
 				resolved,
 			});
-		}
-
-		// Write final health metrics
-		const { recordSubgraphProcessed } = await import(
-			"@secondlayer/shared/db/queries/subgraphs"
-		);
-		if (result.totalEventsProcessed > 0 || result.totalErrors > 0) {
-			await recordSubgraphProcessed(
-				targetDb,
-				subgraphName,
-				result.totalEventsProcessed,
-				result.totalErrors,
-				result.totalErrors > 0
-					? `${result.totalErrors} error(s) during backfill`
-					: undefined,
-			);
 		}
 
 		logger.info("Backfill complete", {
