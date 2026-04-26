@@ -371,7 +371,9 @@ a {
 
 /* ── Content area ────────────────────────────────────────────────── */
 .content-area {
+	width: 100%;
 	max-width: 36.375rem;
+	min-width: 0;
 	margin: 0 auto;
 }
 
@@ -499,6 +501,7 @@ a {
 .code-block-wrapper {
 	margin-top: var(--spacing-xs);
 	position: relative;
+	min-width: 0;
 }
 
 .copy-button {
@@ -537,6 +540,9 @@ a {
 	line-height: 1.55;
 	padding: var(--spacing-xs);
 	border-radius: 6px;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
 	overflow-x: auto;
 	margin: 0;
 }
@@ -2965,6 +2971,7 @@ a {
 	border: 1px solid var(--border);
 	border-radius: 12px;
 	position: relative;
+	min-width: 0;
 }
 
 .content-area .agent-prompt,
@@ -2974,8 +2981,10 @@ a {
 
 .agent-prompt-list {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: var(--spacing-md);
 	margin: var(--spacing-lg) 0;
+	min-width: 0;
 }
 
 .agent-prompt-list .agent-prompt {
@@ -3004,6 +3013,7 @@ a {
 	margin: 14px 22px 20px;
 	border: 1px solid var(--border);
 	border-radius: 8px;
+	overflow: hidden;
 }
 
 .agent-prompt-code.code-block-wrapper pre {
@@ -3012,6 +3022,7 @@ a {
 
 .agent-prompt-scroll {
 	overflow: hidden;
+	min-width: 0;
 	transition: max-height 0.3s ease;
 }
 
