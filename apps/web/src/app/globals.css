@@ -11,6 +11,7 @@
 	--bg-tab-active: #fdfdfc;
 	--accent-pink: #ff00aa;
 	--accent: #2563EB;
+	--accent-contrast: #fff;
 	--accent-bg: rgba(37, 99, 235, 0.06);
 	--accent-border: rgba(37, 99, 235, 0.2);
 	--accent-glow: rgba(37, 99, 235, 0.06);
@@ -85,6 +86,7 @@
 		--copy-btn-hover: rgba(255, 255, 255, 0.5);
 		--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
 		--accent: #1FD5F9;
+		--accent-contrast: #071316;
 		--focus-ring: rgba(60, 160, 255, 0.5);
 
 		--green: #22c55e;
@@ -128,6 +130,7 @@ html.force-dark {
 	--copy-btn-hover: rgba(255, 255, 255, 0.5);
 	--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
 	--accent: #1FD5F9;
+	--accent-contrast: #071316;
 	--focus-ring: rgba(60, 160, 255, 0.5);
 	--green: #22c55e;
 	--green-bg: rgba(34, 197, 94, 0.08);
@@ -169,6 +172,7 @@ html.force-light {
 	--copy-btn-hover: rgba(0, 0, 0, 0.5);
 	--copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
 	--accent: #2563EB;
+	--accent-contrast: #fff;
 	--focus-ring: rgba(0, 122, 255, 0.5);
 	--green: #22c55e;
 	--green-bg: rgba(34, 197, 94, 0.08);
@@ -1257,13 +1261,13 @@ a {
 	font-family: var(--font-sans-stack);
 	font-size: 12px;
 	font-weight: 560;
-	color: white;
+	color: var(--accent-contrast);
 	border: none;
 	border-radius: 6px;
 	padding: 5px 14px;
 	cursor: pointer;
 	white-space: nowrap;
-	background: var(--text-main);
+	background: var(--accent);
 	box-shadow: none;
 	transition: all var(--duration-snappy) var(--ease-snappy);
 }
@@ -1331,8 +1335,6 @@ a {
 	}
 
 	.auth-bar-cta {
-		background: var(--text-main);
-		color: var(--bg);
 		box-shadow: none;
 	}
 }
