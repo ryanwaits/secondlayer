@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 3.5.1
+
+### Patch Changes
+
+- [`2bb1f85`](https://github.com/ryanwaits/secondlayer/commit/2bb1f85fecd9774fbd34b17ff28e876094279208) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Clarify subgraph reindex status output with reindex-aware progress fields and CLI labels.
+
+- Updated dependencies [[`2bb1f85`](https://github.com/ryanwaits/secondlayer/commit/2bb1f85fecd9774fbd34b17ff28e876094279208)]:
+  - @secondlayer/shared@4.3.2
+
 ## 3.5.0
 
 ### Minor Changes
