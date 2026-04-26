@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 3.5.2
+
+### Patch Changes
+
+- [`83988c9`](https://github.com/ryanwaits/secondlayer/commit/83988c9aa9da0cfd9bddeac4d4d7ad4e4368a362) Thanks [@ryanwaits](https://github.com/ryanwaits)! - Remove the confusing Total Events line from subgraph status output.
+
 ## 3.5.1
 
 ### Patch Changes
