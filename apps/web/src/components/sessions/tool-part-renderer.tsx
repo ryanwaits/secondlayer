@@ -320,7 +320,7 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 							name: string;
 							status: string;
 							lastProcessedBlock: number | null;
-							totalProcessed: number;
+							totalRows?: number;
 							totalErrors: number;
 						}>
 					}

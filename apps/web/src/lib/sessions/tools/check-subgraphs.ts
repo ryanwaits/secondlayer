@@ -26,7 +26,7 @@ export function createCheckSubgraphs(sessionToken: string) {
 					name: s.name,
 					status: s.status,
 					lastProcessedBlock: s.lastProcessedBlock,
-					totalProcessed: s.totalProcessed,
+					totalRows: s.totalRows,
 					totalErrors: s.totalErrors,
 					tables: s.tables,
 				})),

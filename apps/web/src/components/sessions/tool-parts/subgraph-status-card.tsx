@@ -4,7 +4,7 @@ interface SubgraphStatus {
 	name: string;
 	status: string;
 	lastProcessedBlock: number | null;
-	totalProcessed: number;
+	totalRows?: number;
 	totalErrors: number;
 	tables?: string[];
 }
@@ -71,7 +71,7 @@ export function SubgraphStatusCard({ subgraphs }: SubgraphStatusCardProps) {
 						{s.lastProcessedBlock != null
 							? `block ${s.lastProcessedBlock.toLocaleString()}`
 							: "—"}
-						{s.totalProcessed > 0 && ` · ${formatCount(s.totalProcessed)} rows`}
+						{s.totalRows != null && ` · ${formatCount(s.totalRows)} rows`}
 					</span>
 				</div>
 			))}

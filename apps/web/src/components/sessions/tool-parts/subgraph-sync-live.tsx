@@ -13,7 +13,6 @@ interface SyncSnapshot {
 	processedBlocks?: number;
 	totalBlocks?: number;
 	errorRate: number;
-	totalProcessed: number;
 	lastError: string | null;
 }
 
@@ -63,7 +62,6 @@ export function SubgraphSyncLive({ name }: SubgraphSyncLiveProps) {
 					};
 					health?: {
 						errorRate: number;
-						totalProcessed: number;
 						lastError: string | null;
 					};
 				};
@@ -79,7 +77,6 @@ export function SubgraphSyncLive({ name }: SubgraphSyncLiveProps) {
 					processedBlocks: data.sync?.processedBlocks,
 					totalBlocks: data.sync?.totalBlocks,
 					errorRate: data.health?.errorRate ?? 0,
-					totalProcessed: data.health?.totalProcessed ?? 0,
 					lastError: data.health?.lastError ?? null,
 				};
 				setSnapshot(snap);
@@ -130,8 +127,7 @@ export function SubgraphSyncLive({ name }: SubgraphSyncLiveProps) {
 						</span>
 						<span className="tool-action-reason">
 							{(snapshot.progress * 100).toFixed(1)}% ·{" "}
-							{snapshot.blocksRemaining.toLocaleString()} blocks remaining ·{" "}
-							{snapshot.totalProcessed.toLocaleString()} events indexed
+							{snapshot.blocksRemaining.toLocaleString()} blocks remaining
 						</span>
 					</div>
 				</div>

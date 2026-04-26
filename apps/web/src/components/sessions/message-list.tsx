@@ -262,7 +262,7 @@ function InlineToolCard({ part }: { part: UIMessage["parts"][number] }) {
 				name: string;
 				status: string;
 				lastProcessedBlock: number | null;
-				totalProcessed: number;
+				totalRows?: number;
 			}>;
 			return (
 				<div className="tool-card">
@@ -278,6 +278,8 @@ function InlineToolCard({ part }: { part: UIMessage["parts"][number] }) {
 								{s.lastProcessedBlock != null
 									? `block ${s.lastProcessedBlock.toLocaleString()}`
 									: "—"}
+								{s.totalRows != null &&
+									` · ${s.totalRows.toLocaleString()} rows`}
 							</span>
 						</div>
 					))}

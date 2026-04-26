@@ -573,7 +573,6 @@ export function registerSubgraphsCommand(program: Command): void {
 						["Gaps", gapSummary],
 						["Last Block", String(subgraph.lastProcessedBlock)],
 						["Row Count", rowCounts],
-						["Total Events", String(subgraph.health.totalProcessed)],
 						["Total Errors", String(subgraph.health.totalErrors)],
 						["Error Rate", errorRate],
 						["Last Error", subgraph.health.lastError ?? "none"],
