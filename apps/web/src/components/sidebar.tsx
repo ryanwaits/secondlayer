@@ -20,7 +20,6 @@ export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 	const [activeId, setActiveId] = useState<string>("");
 	const [titleVisible, setTitleVisible] = useState(false);
 	const headerVisible = useRef(true);
-	const visibleSections = useRef(new Set<string>());
 
 	useEffect(() => {
 		if (!toc || toc.length === 0) return;
@@ -29,9 +28,51 @@ export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 		const firstId = ids[0] ?? "";
 
 		let headerObserver: IntersectionObserver | null = null;
-		let sectionObserver: IntersectionObserver | null = null;
 		let mutationObserver: MutationObserver | null = null;
 		let observedIds = new Set<string>();
+		let frame: number | null = null;
+
+		function updateActiveSection() {
+			frame = null;
+			if (headerVisible.current) {
+				setActiveId("");
+				return;
+			}
+
+			const elements = ids
+				.map((id) => document.getElementById(id))
+				.filter(Boolean) as HTMLElement[];
+			if (elements.length === 0) return;
+
+			const page = document.documentElement;
+			const bottomTolerance = 96;
+			const atBottom =
+				window.scrollY + window.innerHeight >=
+				page.scrollHeight - bottomTolerance;
+
+			if (atBottom) {
+				setActiveId(ids[ids.length - 1] ?? "");
+				return;
+			}
+
+			const activationLine = Math.min(window.innerHeight * 0.35, 220);
+			let active = firstId;
+
+			for (const element of elements) {
+				if (element.getBoundingClientRect().top <= activationLine) {
+					active = element.id;
+				} else {
+					break;
+				}
+			}
+
+			setActiveId(active);
+		}
+
+		function scheduleActiveSectionUpdate() {
+			if (frame !== null) return;
+			frame = window.requestAnimationFrame(updateActiveSection);
+		}
 
 		function setup() {
 			const header = document.querySelector(".page-header");
@@ -49,7 +90,7 @@ export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 						if (entry.isIntersecting) {
 							setActiveId("");
 						} else if (firstId) {
-							setActiveId((prev) => prev || firstId);
+							scheduleActiveSectionUpdate();
 						}
 					},
 					{ threshold: 0 },
@@ -57,36 +98,14 @@ export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 				headerObserver.observe(header);
 			}
 
-			// Section observer — only updates active when header is out of view
-			if (!sectionObserver) {
-				sectionObserver = new IntersectionObserver(
-					(entries) => {
-						for (const entry of entries) {
-							if (entry.isIntersecting) {
-								visibleSections.current.add(entry.target.id);
-							} else {
-								visibleSections.current.delete(entry.target.id);
-							}
-						}
-
-						if (headerVisible.current) return;
-
-						const active = ids.find((id) => visibleSections.current.has(id));
-						if (active) {
-							setActiveId(active);
-						}
-					},
-					{ rootMargin: "0px 0px -60% 0px", threshold: 0 },
-				);
-			}
-
 			// Observe any new elements that appeared
 			for (const el of elements) {
 				if (!observedIds.has(el.id)) {
-					sectionObserver.observe(el);
 					observedIds.add(el.id);
 				}
 			}
+
+			scheduleActiveSectionUpdate();
 
 			// Stop watching DOM once all sections are found
 			if (observedIds.size === ids.length && mutationObserver) {
@@ -106,11 +125,17 @@ export function Sidebar({ title, toc, backHref, backLabel }: SidebarProps) {
 			});
 		}
 
+		window.addEventListener("scroll", scheduleActiveSectionUpdate, {
+			passive: true,
+		});
+		window.addEventListener("resize", scheduleActiveSectionUpdate);
+
 		return () => {
+			if (frame !== null) window.cancelAnimationFrame(frame);
+			window.removeEventListener("scroll", scheduleActiveSectionUpdate);
+			window.removeEventListener("resize", scheduleActiveSectionUpdate);
 			headerObserver?.disconnect();
-			sectionObserver?.disconnect();
 			mutationObserver?.disconnect();
-			visibleSections.current.clear();
 			observedIds = new Set();
 		};
 	}, [toc]);
