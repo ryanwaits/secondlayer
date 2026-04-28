@@ -108,7 +108,7 @@ export default async function DashboardPage() {
 					</div>
 
 					<div className="ov-stats-grid">
-						<Link href="/platform/subgraphs" className="ov-card">
+						<Link href="/subgraphs" className="ov-card">
 							<div className="ov-card-label">
 								Active Subgraphs <InfoTip text="Number of deployed subgraphs" />
 							</div>
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
 							</div>
 						</Link>
 
-						<Link href="/platform/subgraphs" className="ov-card">
+						<Link href="/subgraphs" className="ov-card">
 							<div className="ov-card-label">
 								Rows Indexed{" "}
 								<InfoTip text="Total rows stored across all subgraph tables" />
@@ -158,7 +158,7 @@ export default async function DashboardPage() {
 							</div>
 						</div>
 
-						<Link href="/platform/subgraphs" className="ov-card">
+						<Link href="/subgraphs" className="ov-card">
 							<div className="ov-card-label">
 								Uptime{" "}
 								<InfoTip text="Percentage of blocks processed without error" />
@@ -186,7 +186,7 @@ export default async function DashboardPage() {
 					<div className="ov-act-section">
 						<div className="ov-act-header">
 							<span className="ov-act-title">Subgraphs</span>
-							<Link href="/platform/subgraphs" className="ov-section-link">
+							<Link href="/subgraphs" className="ov-section-link">
 								View all &rarr;
 							</Link>
 						</div>
@@ -195,7 +195,7 @@ export default async function DashboardPage() {
 								{subgraphs.slice(0, 5).map((sg) => (
 									<Link
 										key={sg.name}
-										href={`/platform/subgraphs/${sg.name}`}
+										href={`/subgraphs/${sg.name}`}
 										className="ov-act-item"
 									>
 										<span className={`ov-act-dot ${dotColor(sg.status)}`} />
@@ -217,7 +217,7 @@ export default async function DashboardPage() {
 						) : (
 							<div className="ov-empty">
 								No subgraphs yet.{" "}
-								<Link href="/platform/subgraphs" className="ov-section-link">
+								<Link href="/subgraphs" className="ov-section-link">
 									Deploy one &rarr;
 								</Link>
 							</div>
@@ -234,7 +234,7 @@ export default async function DashboardPage() {
 								{subscriptions.slice(0, 5).map((sub) => (
 									<Link
 										key={sub.id}
-										href={`/platform/subgraphs/${sub.subgraphName}/subscriptions/${sub.id}`}
+										href={`/subgraphs/${sub.subgraphName}/subscriptions/${sub.id}`}
 										className="ov-act-item"
 									>
 										<span className={`ov-act-dot ${dotColor(sub.status)}`} />
