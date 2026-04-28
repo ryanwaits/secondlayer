@@ -4586,7 +4586,11 @@ html.force-light .tabbed-code-tab.active {
 	position: relative;
 	padding: 20px 28px 24px;
 	border-bottom: 1px solid var(--border);
-	background-image: radial-gradient(circle, var(--dot-color) 0.5px, transparent 0.5px);
+	background-image: radial-gradient(
+		circle,
+		var(--dot-color) 0.5px,
+		transparent 0.5px
+	);
 	background-size: 8px 8px;
 }
 .onboarding-header {
@@ -4844,6 +4848,175 @@ html.force-light .tabbed-code-tab.active {
 	color: var(--text-dim);
 	border: 1px dashed var(--border);
 	border-radius: 8px;
+}
+
+/* ── Overview: Stats Grid ──────────────────────────────────────── */
+.ov-stats-label {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-dim);
+	margin-bottom: 12px;
+	margin-top: 8px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.ov-stats-label .info {
+	opacity: 0.4;
+	cursor: help;
+}
+
+.ov-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 10px;
+	margin-bottom: 32px;
+}
+
+.ov-stat-sub-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 10px;
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 10px;
+}
+.ov-stat-sub-pill.green {
+	color: var(--green);
+	background: var(--green-bg);
+}
+.ov-stat-sub-pill.yellow {
+	color: var(--yellow);
+	background: var(--yellow-bg);
+}
+.ov-stat-sub-pill.red {
+	color: var(--red);
+	background: var(--red-bg);
+}
+
+/* ── Overview: Activity List ───────────────────────────────────── */
+.ov-act-section {
+	margin-top: 8px;
+	margin-bottom: 24px;
+}
+.ov-act-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+.ov-act-title {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--text-main);
+}
+.ov-act-list {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.ov-act-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--border);
+	transition: background 0.1s;
+	text-decoration: none;
+	color: inherit;
+}
+.ov-act-item:last-child {
+	border-bottom: none;
+}
+.ov-act-item:hover {
+	background: var(--code-bg);
+}
+.ov-act-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+.ov-act-dot.green {
+	background: var(--green);
+}
+.ov-act-dot.blue {
+	background: var(--accent);
+}
+.ov-act-dot.yellow {
+	background: var(--yellow);
+}
+.ov-act-dot.red {
+	background: var(--red);
+}
+.ov-act-dot.muted {
+	background: var(--text-dim);
+}
+.ov-act-content {
+	flex: 1;
+	min-width: 0;
+}
+.ov-act-name {
+	font-size: 13px;
+	color: var(--text-main);
+}
+.ov-act-name code {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	background: var(--code-bg);
+	padding: 1px 5px;
+	border-radius: 3px;
+	color: var(--accent);
+}
+.ov-act-meta {
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+.ov-act-badge {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 10px;
+	flex-shrink: 0;
+}
+.ov-act-badge.active {
+	color: var(--green);
+	background: var(--green-bg);
+}
+.ov-act-badge.syncing,
+.ov-act-badge.reindexing,
+.ov-act-badge.paused {
+	color: var(--yellow);
+	background: var(--yellow-bg);
+}
+.ov-act-badge.error,
+.ov-act-badge.failed {
+	color: var(--red);
+	background: var(--red-bg);
+}
+.ov-act-time {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-dim);
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+	.ov-stats-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+@media (max-width: 500px) {
+	.ov-stats-grid {
+		grid-template-columns: 1fr 1fr;
+	}
 }
 
 /* ════════════════════════════════════════════════
