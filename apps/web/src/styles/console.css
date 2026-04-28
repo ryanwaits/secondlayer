@@ -4886,8 +4886,8 @@ html.force-light .tabbed-code-tab.active {
 	border-radius: 10px;
 }
 .ov-stat-sub-pill.green {
-	color: var(--green);
-	background: var(--green-bg);
+	color: var(--accent);
+	background: var(--accent-bg);
 }
 .ov-stat-sub-pill.yellow {
 	color: var(--yellow);
@@ -4942,7 +4942,7 @@ html.force-light .tabbed-code-tab.active {
 	flex-shrink: 0;
 }
 .ov-act-dot.green {
-	background: var(--green);
+	background: var(--accent);
 }
 .ov-act-dot.blue {
 	background: var(--accent);
@@ -4986,8 +4986,8 @@ html.force-light .tabbed-code-tab.active {
 	flex-shrink: 0;
 }
 .ov-act-badge.active {
-	color: var(--green);
-	background: var(--green-bg);
+	color: var(--text-muted);
+	background: none;
 }
 .ov-act-badge.syncing,
 .ov-act-badge.reindexing,

@@ -170,7 +170,7 @@ export default async function DashboardPage() {
 										uptime === null
 											? undefined
 											: uptime >= 99
-												? "var(--green)"
+												? "var(--accent)"
 												: uptime >= 95
 													? "var(--yellow)"
 													: "var(--red)",
