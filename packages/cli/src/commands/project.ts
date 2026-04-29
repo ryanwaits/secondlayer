@@ -19,6 +19,10 @@ interface ProjectSummary {
 	createdAt: string;
 }
 
+interface ProjectCreateOptions {
+	slug?: string;
+}
+
 /**
  * `sl project` — account-scoped project management.
  *
@@ -34,7 +38,8 @@ export function registerProjectCommand(program: Command): void {
 	project
 		.command("create [name]")
 		.description("Create a new project")
-		.action(async (nameArg?: string) => {
+		.option("--slug <slug>", "Project URL identifier")
+		.action(async (nameArg?: string, options: ProjectCreateOptions = {}) => {
 			const name =
 				nameArg ??
 				(await input({
@@ -42,16 +47,22 @@ export function registerProjectCommand(program: Command): void {
 					validate: (v: string) =>
 						v.length >= 2 ? true : "Name must be at least 2 characters",
 				}));
+			const slug = options.slug ?? slugifyProjectName(name);
+			const validation = validateProjectSlug(slug);
+			if (validation !== true) {
+				logError(`${validation}. Pass --slug <slug> to choose one explicitly.`);
+				process.exit(1);
+			}
 
 			try {
-				const res = await httpPlatform<{ project: ProjectSummary }>(
-					"/api/projects",
-					{ method: "POST", body: { name } },
-				);
-				success(`Created project ${res.project.name} (${res.project.slug})`);
+				const res = await httpPlatform<ProjectSummary>("/api/projects", {
+					method: "POST",
+					body: { name, slug },
+				});
+				success(`Created project ${res.name} (${res.slug})`);
 				// Auto-bind the new project to this directory — reduces friction
 				// for the common "I just made a project, now I want to use it" flow.
-				const path = await writeActiveProject(res.project.slug, process.cwd());
+				const path = await writeActiveProject(res.slug, process.cwd());
 				info(dim(`Bound to this directory → ${path}`));
 				info(dim("Next: sl instance create --plan launch"));
 			} catch (err) {
@@ -149,4 +160,23 @@ function handleProjectError(err: unknown): never {
 	}
 	logError(err instanceof Error ? err.message : String(err));
 	process.exit(1);
+}
+
+export function slugifyProjectName(name: string): string {
+	return name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.slice(0, 63)
+		.replace(/-+$/g, "");
+}
+
+export function validateProjectSlug(slug: string): true | string {
+	if (slug.length < 2 || slug.length > 63) {
+		return "Project slug must be 2-63 characters";
+	}
+	if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(slug)) {
+		return "Project slug must use lowercase letters, numbers, and hyphens, and start/end with a letter or number";
+	}
+	return true;
 }
