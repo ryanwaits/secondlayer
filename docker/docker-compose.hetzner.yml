@@ -56,6 +56,8 @@ services:
     # measurement; default to reach secondlayer-postgres-1 for the readonly
     # role bootstrap. Also used to talk to the Docker daemon via the socket
     # passthrough in the base compose file.
+    environment:
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
     networks:
       default: {}
       sl-tenants:

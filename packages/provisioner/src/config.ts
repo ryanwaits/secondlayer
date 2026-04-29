@@ -30,6 +30,8 @@ export interface ProvisionerConfig {
 	imageOwner: string;
 	/** Base domain for tenant public URLs (`https://{slug}.{base}`). */
 	tenantBaseDomain: string;
+	/** Stacks node RPC URL injected into tenant API/processor containers. */
+	stacksNodeRpcUrl: string | null;
 	/** Docker Engine API socket path. */
 	dockerSocketPath: string;
 }
@@ -45,6 +47,11 @@ function required(name: string): string {
 function optional(name: string, fallback: string): string {
 	const v = process.env[name];
 	return v && v.trim() !== "" ? v : fallback;
+}
+
+function optionalNullable(name: string): string | null {
+	const v = process.env[name];
+	return v && v.trim() !== "" ? v : null;
 }
 
 let cached: ProvisionerConfig | null = null;
@@ -66,6 +73,7 @@ export function getConfig(): ProvisionerConfig {
 			"PROVISIONER_TENANT_BASE_DOMAIN",
 			"secondlayer.tools",
 		),
+		stacksNodeRpcUrl: optionalNullable("STACKS_NODE_RPC_URL"),
 		dockerSocketPath: optional("DOCKER_SOCKET", "/var/run/docker.sock"),
 	};
 	return cached;

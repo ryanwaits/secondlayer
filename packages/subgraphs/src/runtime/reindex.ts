@@ -287,6 +287,10 @@ async function processBlockRange(
 			}
 		}
 
+		if (status === "reindexing" && blocksProcessed > 0) {
+			await updateSubgraphStatus(targetDb, subgraphName, status, batchEnd);
+		}
+
 		if (blocksProcessed - lastHealthFlushBlock >= HEALTH_FLUSH_INTERVAL) {
 			await flushHealth();
 		}

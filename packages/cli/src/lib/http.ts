@@ -43,6 +43,7 @@ export interface HttpOptions {
 	method?: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
 	body?: unknown;
 	headers?: Record<string, string>;
+	timeoutMs?: number;
 }
 
 async function request<T>(
@@ -59,7 +60,7 @@ async function request<T>(
 		method: opts.method ?? "GET",
 		headers,
 		body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+		signal: AbortSignal.timeout(opts.timeoutMs ?? REQUEST_TIMEOUT_MS),
 	});
 
 	if (!res.ok) {

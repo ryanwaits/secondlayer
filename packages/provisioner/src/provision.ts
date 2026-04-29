@@ -131,6 +131,7 @@ export async function provisionTenant(
 					targetDatabaseUrl,
 					sourceDatabaseUrl,
 					jwtSecret,
+					stacksNodeRpcUrl: cfg.stacksNodeRpcUrl,
 				}),
 			);
 			await containerStart(apiId);
@@ -150,6 +151,7 @@ export async function provisionTenant(
 					alloc: plan.containers.processor,
 					targetDatabaseUrl,
 					sourceDatabaseUrl,
+					stacksNodeRpcUrl: cfg.stacksNodeRpcUrl,
 				}),
 			);
 			await containerStart(procId);
@@ -279,6 +281,7 @@ interface ApiSpecInput {
 	targetDatabaseUrl: string;
 	sourceDatabaseUrl: string;
 	jwtSecret: string;
+	stacksNodeRpcUrl?: string | null;
 	serviceGen?: number;
 	anonGen?: number;
 }
@@ -297,6 +300,9 @@ function buildApiSpec(input: ApiSpecInput): ContainerSpec {
 			TENANT_PLAN: input.plan,
 			SERVICE_GEN: String(input.serviceGen ?? 1),
 			ANON_GEN: String(input.anonGen ?? 1),
+			...(input.stacksNodeRpcUrl
+				? { STACKS_NODE_RPC_URL: input.stacksNodeRpcUrl }
+				: {}),
 			PORT: "3800",
 			NODE_ENV: "production",
 			LOG_LEVEL: "info",
@@ -328,6 +334,7 @@ interface ProcessorSpecInput {
 	alloc: { memoryMb: number; cpus: number };
 	targetDatabaseUrl: string;
 	sourceDatabaseUrl: string;
+	stacksNodeRpcUrl?: string | null;
 }
 
 function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
@@ -340,6 +347,9 @@ function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
 			DATABASE_URL: input.targetDatabaseUrl,
 			SOURCE_DATABASE_URL: input.sourceDatabaseUrl,
 			TARGET_DATABASE_URL: input.targetDatabaseUrl,
+			...(input.stacksNodeRpcUrl
+				? { STACKS_NODE_RPC_URL: input.stacksNodeRpcUrl }
+				: {}),
 			TENANT_PLAN: input.plan,
 			NODE_ENV: "production",
 			LOG_LEVEL: "info",

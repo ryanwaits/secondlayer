@@ -1,5 +1,5 @@
 import { logger } from "@secondlayer/shared";
-import { getConfig, imageName } from "./config.ts";
+import { type ProvisionerConfig, getConfig, imageName } from "./config.ts";
 import {
 	type ContainerSpec,
 	containerCreate,
@@ -90,7 +90,7 @@ export async function refreshTenantRuntime(slug: string): Promise<void> {
 		);
 	}
 
-	const env = await extractEnv(apiName);
+	const env = withProvisionerRuntimeEnv(await extractEnv(apiName), cfg);
 	const targetDatabaseUrl = env.TARGET_DATABASE_URL ?? env.DATABASE_URL;
 	const sourceDatabaseUrl = env.SOURCE_DATABASE_URL;
 	if (!targetDatabaseUrl || !sourceDatabaseUrl) {
@@ -184,7 +184,7 @@ export async function resizeTenant(
 			`Tenant ${slug} has no API container — cannot recover credentials to resize`,
 		);
 	}
-	const env = await extractEnv(apiName);
+	const env = withProvisionerRuntimeEnv(await extractEnv(apiName), cfg);
 	const jwtSecret = env.TENANT_JWT_SECRET;
 	const targetDatabaseUrl = env.TARGET_DATABASE_URL;
 	const sourceDatabaseUrl = env.SOURCE_DATABASE_URL;
@@ -274,7 +274,7 @@ export async function rotateTenantKeys(
 	if (!current) {
 		throw new Error(`Tenant ${slug} has no API container — cannot rotate keys`);
 	}
-	const env = await extractEnv(apiName);
+	const env = withProvisionerRuntimeEnv(await extractEnv(apiName), cfg);
 	const jwtSecret = env.TENANT_JWT_SECRET;
 	if (!jwtSecret) {
 		throw new Error(
@@ -412,6 +412,14 @@ async function extractEnv(nameOrId: string): Promise<Record<string, string>> {
 		env[entry.slice(0, idx)] = entry.slice(idx + 1);
 	}
 	return env;
+}
+
+function withProvisionerRuntimeEnv(
+	env: Record<string, string>,
+	cfg: ProvisionerConfig,
+): Record<string, string> {
+	if (!cfg.stacksNodeRpcUrl || env.STACKS_NODE_RPC_URL) return env;
+	return { ...env, STACKS_NODE_RPC_URL: cfg.stacksNodeRpcUrl };
 }
 
 function parsePasswordFromUrl(url: string): string | null {

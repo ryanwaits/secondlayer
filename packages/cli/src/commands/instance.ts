@@ -69,6 +69,7 @@ export function registerInstanceCommand(program: Command): void {
 				}>(`/api/projects/${encodeURIComponent(activeSlug)}/instance`, {
 					method: "POST",
 					body: { plan },
+					timeoutMs: 180_000,
 				});
 				success(`Instance provisioned: ${res.tenant.slug}`);
 				printKeyReveal(res.tenant, res.credentials);
