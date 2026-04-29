@@ -16,6 +16,7 @@ import { readActiveProject } from "../lib/project-file.ts";
 import { isOssMode } from "../lib/resolve-tenant.ts";
 
 type Plan = "hobby" | "launch" | "grow" | "scale" | "enterprise";
+const INSTANCE_CREATE_TIMEOUT_MS = 180_000;
 
 interface TenantSummary {
 	slug: string;
@@ -62,6 +63,9 @@ export function registerInstanceCommand(program: Command): void {
 				process.exit(1);
 			}
 
+			const spinner = createSpinner(
+				"Provisioning your instance (~60s; safe to interrupt — instance will still be created; check `sl instance info`)",
+			);
 			try {
 				const res = await httpPlatform<{
 					tenant: TenantSummary;
@@ -69,11 +73,19 @@ export function registerInstanceCommand(program: Command): void {
 				}>(`/api/projects/${encodeURIComponent(activeSlug)}/instance`, {
 					method: "POST",
 					body: { plan },
-					timeoutMs: 180_000,
+					timeoutMs: INSTANCE_CREATE_TIMEOUT_MS,
 				});
-				success(`Instance provisioned: ${res.tenant.slug}`);
+				spinner.succeed(`Instance provisioned: ${res.tenant.slug}`);
 				printKeyReveal(res.tenant, res.credentials);
 			} catch (err) {
+				if (isTimeoutError(err)) {
+					spinner.fail("Provision request timed out after 3 minutes.");
+					logError(
+						"Provisioning may still finish server-side. Run `sl instance info` to check before retrying.",
+					);
+					process.exit(1);
+				}
+				spinner.fail("Provision failed.");
 				handleInstanceError(err, "provision instance");
 			}
 		});
@@ -419,6 +431,53 @@ function printKeyReveal(
 		dim("Run `sl subgraphs deploy <file>` to deploy your first subgraph."),
 	);
 	console.log("");
+}
+
+function createSpinner(message: string): {
+	succeed: (message: string) => void;
+	fail: (message: string) => void;
+} {
+	if (!process.stderr.isTTY) {
+		info(message);
+		return {
+			succeed: success,
+			fail: logError,
+		};
+	}
+
+	const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+	let index = 0;
+	const render = () => {
+		const frame = frames[index % frames.length] ?? frames[0];
+		index += 1;
+		process.stderr.write(`\r${blue(frame)} ${message}`);
+	};
+	const clear = () => {
+		clearInterval(timer);
+		process.stderr.write("\r\x1b[2K");
+	};
+	const timer = setInterval(render, 80);
+	render();
+
+	return {
+		succeed(message: string) {
+			clear();
+			success(message);
+		},
+		fail(message: string) {
+			clear();
+			logError(message);
+		},
+	};
+}
+
+function isTimeoutError(err: unknown): boolean {
+	if (!(err instanceof Error)) return false;
+	return (
+		err.name === "TimeoutError" ||
+		err.name === "AbortError" ||
+		err.message.toLowerCase().includes("timeout")
+	);
 }
 
 function warn_box(message: string): string {
