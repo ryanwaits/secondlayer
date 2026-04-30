@@ -5,6 +5,8 @@ import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import {
 	applyDeployStartBlockOverride,
 	handlerImportUrl,
+	hasDeployStartBlockChanged,
+	resolveDeployStartBlock,
 } from "../src/routes/subgraphs.ts";
 
 const def = {
@@ -35,6 +37,32 @@ describe("subgraph deploy helpers", () => {
 
 	test("keeps imported definition unchanged without request startBlock", () => {
 		expect(applyDeployStartBlockOverride(def)).toBe(def);
+	});
+
+	test("resolves deploy start block defaults and explicit zero", () => {
+		expect(resolveDeployStartBlock({ ...def, startBlock: undefined })).toBe(1);
+		expect(resolveDeployStartBlock({ ...def, startBlock: 0 })).toBe(0);
+	});
+
+	test("detects start-block-only redeploys as reindex-worthy", () => {
+		expect(
+			hasDeployStartBlockChanged({
+				existingStartBlock: 1,
+				definitionStartBlock: 7799262,
+			}),
+		).toBe(true);
+		expect(
+			hasDeployStartBlockChanged({
+				existingStartBlock: 7799262,
+				definitionStartBlock: 7799262,
+			}),
+		).toBe(false);
+		expect(
+			hasDeployStartBlockChanged({
+				existingStartBlock: 1,
+				definitionStartBlock: undefined,
+			}),
+		).toBe(false);
 	});
 
 	test("builds file URLs for relative handler imports", () => {

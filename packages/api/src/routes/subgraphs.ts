@@ -17,6 +17,7 @@ import {
 	requestSubgraphOperationsCancelForDelete,
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
+	getSubgraph,
 	listSubgraphs,
 	pgSchemaName,
 	updateSubgraphStatus,
@@ -196,6 +197,20 @@ export function applyDeployStartBlockOverride(
 	return startBlock === undefined ? def : { ...def, startBlock };
 }
 
+export function resolveDeployStartBlock(def: SubgraphDefinition): number {
+	return def.startBlock ?? 1;
+}
+
+export function hasDeployStartBlockChanged(input: {
+	existingStartBlock: number | string | null | undefined;
+	definitionStartBlock: number | undefined;
+}): boolean {
+	return (
+		input.definitionStartBlock !== undefined &&
+		toBlockNumber(input.existingStartBlock) !== input.definitionStartBlock
+	);
+}
+
 app.post("/", async (c) => {
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
@@ -207,6 +222,23 @@ app.post("/", async (c) => {
 	}
 
 	const { name, handlerCode } = parsed.data;
+	const chainTip = await getChainTip();
+	if (
+		parsed.data.startBlock !== undefined &&
+		chainTip > 0 &&
+		parsed.data.startBlock > chainTip
+	) {
+		return c.json(
+			{
+				error: `startBlock past chain tip: ${parsed.data.startBlock} > ${chainTip}`,
+				code: "START_BLOCK_PAST_TIP",
+				startBlock: parsed.data.startBlock,
+				chainTip,
+			},
+			400,
+		);
+	}
+
 	const subgraphsDir = join(DATA_DIR, "subgraphs");
 	if (!existsSync(subgraphsDir)) {
 		mkdirSync(subgraphsDir, { recursive: true });
@@ -253,6 +285,26 @@ app.post("/", async (c) => {
 
 	const { deploySchema } = await import("@secondlayer/subgraphs");
 	const db = getDb();
+	const existing = await getSubgraph(db, name, accountId);
+	const deployStartBlock = resolveDeployStartBlock(def);
+	if (chainTip > 0 && deployStartBlock > chainTip) {
+		return c.json(
+			{
+				error: `startBlock past chain tip: ${deployStartBlock} > ${chainTip}`,
+				code: "START_BLOCK_PAST_TIP",
+				startBlock: deployStartBlock,
+				chainTip,
+			},
+			400,
+		);
+	}
+	const existingStartBlock = toBlockNumber(existing?.start_block);
+	const startBlockChanged =
+		existing != null &&
+		hasDeployStartBlockChanged({
+			existingStartBlock,
+			definitionStartBlock: def.startBlock,
+		});
 	const result = await deploySchema(db, def, handlerPath, {
 		apiKeyId,
 		accountId,
@@ -260,7 +312,7 @@ app.post("/", async (c) => {
 		version: parsed.data.version,
 		handlerCode: parsed.data.handlerCode,
 		sourceCode: parsed.data.sourceCode,
-		forceReindex: parsed.data.startBlock !== undefined,
+		forceReindex: parsed.data.startBlock !== undefined || startBlockChanged,
 	});
 
 	await cache.refresh();
@@ -274,6 +326,8 @@ app.post("/", async (c) => {
 				subgraphName: name,
 				accountId,
 				kind: "reindex",
+				fromBlock: deployStartBlock,
+				toBlock: chainTip > 0 ? chainTip : undefined,
 			});
 			operationId = operation.id;
 			await updateSubgraphStatus(db, name, "reindexing");
