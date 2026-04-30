@@ -113,7 +113,9 @@ export function AuthBar() {
 				<span className="auth-bar-nav-label">Login</span>
 			</Link>
 			{status === "done" ? (
-				<span className="auth-bar-done">You&apos;re in for early access ✓</span>
+				<span className="auth-bar-done">
+					You&apos;re on the list. We approve daily and email within 24h.
+				</span>
 			) : (
 				<form
 					className={`auth-bar-notify ${expanded ? "expanded" : ""}`}

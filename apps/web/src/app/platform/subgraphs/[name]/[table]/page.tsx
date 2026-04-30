@@ -1,7 +1,7 @@
 import { CollapsibleSection } from "@/components/console/collapsible-section";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, getSessionFromCookies } from "@/lib/api";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { fetchFromTenantOrThrow, getTenantApiUrl } from "@/lib/tenant-api";
 import type { SubgraphDetail } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,11 +18,14 @@ export default async function TableDetailPage({
 	if (!session) notFound();
 
 	let subgraph: SubgraphDetail;
+	let tenantApiUrl = "";
 	try {
-		subgraph = await fetchFromTenantOrThrow<SubgraphDetail>(
-			session,
-			`/api/subgraphs/${name}`,
-		);
+		const [subgraphResult, tenantUrlResult] = await Promise.all([
+			fetchFromTenantOrThrow<SubgraphDetail>(session, `/api/subgraphs/${name}`),
+			getTenantApiUrl(session),
+		]);
+		subgraph = subgraphResult;
+		tenantApiUrl = tenantUrlResult;
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 404) notFound();
 		throw e;
@@ -73,7 +76,7 @@ export default async function TableDetailPage({
 					<div className="sg-ep">
 						<span className="sg-ep-method">GET</span>
 						<span className="sg-ep-url">
-							https://api.secondlayer.tools/api/subgraphs/{name}/
+							{tenantApiUrl}/api/subgraphs/{name}/
 							<span className="hl">{table}</span>
 						</span>
 						<a

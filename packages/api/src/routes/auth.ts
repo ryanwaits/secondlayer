@@ -55,7 +55,14 @@ app.post("/magic-link", async (c) => {
 		process.env.DEV_MODE === "true" || (await isEmailAllowed(db, parsed.email));
 
 	if (!allowed) {
-		return c.json({ message: "Magic link sent. Check your email." });
+		return c.json(
+			{
+				error:
+					"We don't recognize this email yet. Join the early access list to request access.",
+				code: "WAITLIST_REQUIRED",
+			},
+			403,
+		);
 	}
 
 	// Generate secure magic link token (for URL)

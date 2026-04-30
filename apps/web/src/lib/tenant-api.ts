@@ -27,6 +27,11 @@ async function mintTenantKey(sessionToken: string): Promise<EphemeralKey> {
 	});
 }
 
+export async function getTenantApiUrl(sessionToken: string): Promise<string> {
+	const key = await mintTenantKey(sessionToken);
+	return key.apiUrl;
+}
+
 export interface TenantFetchOptions {
 	method?: string;
 	body?: unknown;

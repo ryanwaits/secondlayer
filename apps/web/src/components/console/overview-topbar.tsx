@@ -1,5 +1,6 @@
 "use client";
 
+import { useProjects } from "@/lib/queries/projects";
 import { useStatus } from "@/lib/queries/status";
 import {
 	REFRESH_OPTIONS,
@@ -108,7 +109,7 @@ interface OverviewTopbarProps {
 }
 
 export function OverviewTopbar({
-	project = "my-project",
+	project,
 	path,
 	page,
 	showMeta = true,
@@ -116,7 +117,9 @@ export function OverviewTopbar({
 	lastUpdated,
 }: OverviewTopbarProps) {
 	const { data: status } = useStatus();
+	const { data: projects } = useProjects();
 	const { autoRefresh, setAutoRefresh, autoRefreshLabel, now } = useTopbar();
+	const projectLabel = project ?? projects?.[0]?.name ?? null;
 
 	const blockHeight = status?.chainTip ? formatBlock(status.chainTip) : "—";
 
@@ -135,7 +138,8 @@ export function OverviewTopbar({
 		<div className="overview-topbar">
 			<div className="overview-breadcrumb">
 				<div className="overview-breadcrumb-project">
-					{project} / {path ? <>{path} / </> : null}
+					{projectLabel ? <>{projectLabel} / </> : null}
+					{path ? <>{path} / </> : null}
 				</div>
 				<div className="overview-breadcrumb-page">{page}</div>
 			</div>

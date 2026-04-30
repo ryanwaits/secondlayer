@@ -3,7 +3,7 @@ import { CollapsibleSection } from "@/components/console/collapsible-section";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { fetchFromTenantOrThrow, getTenantApiUrl } from "@/lib/tenant-api";
 import type { SubgraphDetail, SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -56,15 +56,17 @@ export default async function SubgraphDetailPage({
 
 	let subgraph: SubgraphDetail;
 	let allSubgraphs: SubgraphSummary[] = [];
+	let tenantApiUrl = "";
 
 	try {
 		if (!session) notFound();
-		const [sgResult, listResult] = await Promise.allSettled([
+		const [sgResult, listResult, tenantUrlResult] = await Promise.allSettled([
 			fetchFromTenantOrThrow<SubgraphDetail>(session, `/api/subgraphs/${name}`),
 			fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
 				session,
 				"/api/subgraphs",
 			),
+			getTenantApiUrl(session),
 		]);
 
 		if (sgResult.status === "rejected") {
@@ -75,6 +77,8 @@ export default async function SubgraphDetailPage({
 		subgraph = sgResult.value;
 		allSubgraphs =
 			listResult.status === "fulfilled" ? listResult.value.data : [];
+		tenantApiUrl =
+			tenantUrlResult.status === "fulfilled" ? tenantUrlResult.value : "";
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 404) notFound();
 		throw e;
@@ -182,7 +186,7 @@ export default async function SubgraphDetailPage({
 					<div className="sg-ep">
 						<span className="sg-ep-method">GET</span>
 						<span className="sg-ep-url">
-							https://api.secondlayer.tools/api/subgraphs/{name}/
+							{tenantApiUrl}/api/subgraphs/{name}/
 							<span className="hl">{"<table>"}</span>
 						</span>
 						<a

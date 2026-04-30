@@ -4263,11 +4263,15 @@ html.force-light .tabbed-code-tab.active {
 	align-items: center;
 	gap: 8px;
 	padding: 6px 8px;
+	border: 0;
 	border-radius: 7px;
+	background: transparent;
 	cursor: pointer;
 	transition: background 0.12s;
 	flex: 1;
 	min-width: 0;
+	font: inherit;
+	text-align: left;
 }
 .org-trigger:hover {
 	background: var(--code-bg);
@@ -4336,12 +4340,16 @@ html.force-light .tabbed-code-tab.active {
 	align-items: center;
 	gap: 8px;
 	padding: 7px 8px;
+	width: 100%;
+	border: 0;
 	border-radius: 5px;
+	background: transparent;
 	font-size: 13px;
 	font-weight: 460;
 	color: var(--text-muted);
 	cursor: pointer;
 	transition: background 0.1s;
+	text-align: left;
 }
 .org-popover-item:hover {
 	background: var(--code-bg);
@@ -4369,12 +4377,17 @@ html.force-light .tabbed-code-tab.active {
 	align-items: center;
 	gap: 8px;
 	padding: 7px 8px;
+	width: 100%;
+	border: 0;
 	border-radius: 5px;
+	background: transparent;
 	font-size: 13px;
 	font-weight: 460;
 	color: var(--text-muted);
 	cursor: pointer;
 	transition: background 0.1s;
+	font-family: inherit;
+	text-align: left;
 }
 .org-popover-create:hover {
 	background: var(--code-bg);

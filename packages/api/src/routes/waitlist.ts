@@ -30,7 +30,9 @@ app.post("/", async (c) => {
 		await sendWaitlistConfirmation(email);
 	}
 
-	return c.json({ message: "You're on the list." });
+	return c.json({
+		message: "You're on the list. We approve daily and email within 24h.",
+	});
 });
 
 export default app;

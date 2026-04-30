@@ -1,7 +1,7 @@
 "use client";
 
 import { useProjects } from "@/lib/queries/projects";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 	const [open, setOpen] = useState(false);
@@ -27,7 +27,8 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 				<div className="org-popover">
 					<div className="org-popover-title">Projects</div>
 					{(projects ?? []).map((p) => (
-						<div
+						<button
+							type="button"
 							key={p.id}
 							className={`org-popover-item${p.id === current?.id ? " active" : ""}`}
 							onClick={() => setOpen(false)}
@@ -35,6 +36,7 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 							{p.name}
 							<span className="org-popover-check">
 								<svg
+									aria-hidden="true"
 									width="12"
 									height="12"
 									viewBox="0 0 16 16"
@@ -47,11 +49,19 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 									<path d="M3 8.5l3.5 3.5 6.5-8" />
 								</svg>
 							</span>
-						</div>
+						</button>
 					))}
+					{projects?.length === 0 && (
+						<div className="org-popover-item">No projects yet</div>
+					)}
 					<div className="org-popover-divider" />
-					<div className="org-popover-create" onClick={() => setOpen(false)}>
+					<button
+						type="button"
+						className="org-popover-create"
+						onClick={() => setOpen(false)}
+					>
 						<svg
+							aria-hidden="true"
 							width="12"
 							height="12"
 							viewBox="0 0 12 12"
@@ -63,13 +73,18 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 							<path d="M6 2v8M2 6h8" />
 						</svg>
 						Create new project
-					</div>
+					</button>
 				</div>
 			)}
-			<div className="org-trigger" onClick={() => setOpen(!open)}>
-				<span className="org-name">{current?.name ?? "my-project"}</span>
+			<button
+				type="button"
+				className="org-trigger"
+				onClick={() => setOpen(!open)}
+			>
+				<span className="org-name">{current?.name ?? "No project"}</span>
 				<span className="org-chevron">
 					<svg
+						aria-hidden="true"
 						width="10"
 						height="10"
 						viewBox="0 0 16 16"
@@ -81,7 +96,7 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 						<path d="M4 6l4 4 4-4" />
 					</svg>
 				</span>
-			</div>
+			</button>
 			{avatar}
 		</div>
 	);

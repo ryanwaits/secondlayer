@@ -1,5 +1,9 @@
 import { BetaBracket } from "@/components/beta-badge";
 import { SiteLink } from "@/components/site-link";
+import cliPackage from "../../../../../packages/cli/package.json";
+import mcpPackage from "../../../../../packages/mcp/package.json";
+import sdkPackage from "../../../../../packages/sdk/package.json";
+import stacksPackage from "../../../../../packages/stacks/package.json";
 import { HomeAnnotations } from "./home-annotations";
 
 const products = [
@@ -8,12 +12,14 @@ const products = [
 ];
 
 const interfaces = [
-	{ name: "CLI", href: "/cli", version: "3.3.1" },
-	{ name: "SDK", href: "/sdk", version: "3.1.0" },
-	{ name: "MCP", href: "/mcp", version: "2.1.1" },
+	{ name: "CLI", href: "/cli", version: cliPackage.version },
+	{ name: "SDK", href: "/sdk", version: sdkPackage.version },
+	{ name: "MCP", href: "/mcp", version: mcpPackage.version },
 ];
 
-const foundation = [{ name: "Stacks", href: "/stacks", version: "1.0.0" }];
+const foundation = [
+	{ name: "Stacks", href: "/stacks", version: stacksPackage.version },
+];
 
 function IndexItem({
 	item,
