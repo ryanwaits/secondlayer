@@ -75,6 +75,7 @@ beforeEach(() => {
 		}),
 		signingSecret: SECRET,
 		anthropicApiKey: "sk-test",
+		sonnetPermissionMode: "bypassPermissions",
 	};
 });
 

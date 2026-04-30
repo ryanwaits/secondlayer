@@ -47,6 +47,7 @@ async function main(): Promise<void> {
 	log(`  pollInterval: ${config.pollIntervalMs}ms`);
 	log(`  dryRun: ${config.dryRun}`);
 	log(`  aiEnabled: ${config.aiEnabled}`);
+	log(`  sonnetPermissionMode: ${config.sonnetPermissionMode}`);
 	log(`  services: ${config.services.map((s) => s.name).join(", ")}`);
 
 	// Ensure data dir exists
@@ -265,6 +266,7 @@ async function main(): Promise<void> {
 				batch,
 				{ health: health ?? undefined, recentDecisions, latestSnapshot },
 				config.anthropicApiKey,
+				config.sonnetPermissionMode,
 			);
 
 			insertDecision(db, {
@@ -478,6 +480,7 @@ async function main(): Promise<void> {
 		slack,
 		signingSecret: config.slackSigningSecret,
 		anthropicApiKey: config.anthropicApiKey,
+		sonnetPermissionMode: config.sonnetPermissionMode,
 	};
 	const server = Bun.serve({
 		port: 3900,

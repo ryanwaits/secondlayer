@@ -1,6 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { HookInput } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod/v4";
+import type { AgentPermissionMode } from "../config.ts";
 import type {
 	Decision,
 	HealthStatus,
@@ -114,6 +115,7 @@ export async function diagnoseWithSonnet(
 		latestSnapshot?: Snapshot | null;
 	},
 	apiKey: string,
+	permissionMode: AgentPermissionMode = "bypassPermissions",
 ): Promise<{ diagnosis: SonnetDiagnosis; costUsd: number }> {
 	const userMessage = `Investigate this issue:
 
@@ -135,7 +137,9 @@ Use the available tools to gather more information, then provide your diagnosis 
 				maxTurns: 5,
 				systemPrompt: SYSTEM_PROMPT,
 				tools: ["Bash", "Read", "Grep"],
-				permissionMode: "default",
+				permissionMode,
+				allowDangerouslySkipPermissions:
+					permissionMode === "bypassPermissions" ? true : undefined,
 				env: {
 					ANTHROPIC_API_KEY: apiKey,
 				},

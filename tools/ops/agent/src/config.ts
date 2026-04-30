@@ -5,6 +5,13 @@ export interface ServiceConfig {
 	autoRestart: boolean;
 }
 
+export type AgentPermissionMode =
+	| "default"
+	| "acceptEdits"
+	| "bypassPermissions"
+	| "plan"
+	| "dontAsk";
+
 export interface AgentConfig {
 	dataDir: string;
 	dbPath: string;
@@ -21,6 +28,7 @@ export interface AgentConfig {
 	services: ServiceConfig[];
 	aiEnabled: boolean;
 	dryRun: boolean;
+	sonnetPermissionMode: AgentPermissionMode;
 	nodeServerUrl: string;
 	tenantBackupRoot: string;
 }
@@ -61,6 +69,24 @@ const DEFAULT_SERVICES: ServiceConfig[] = [
 	// stacks-node runs on node server (remote) — not accessible via Docker DNS
 ];
 
+const PERMISSION_MODES = new Set<AgentPermissionMode>([
+	"default",
+	"acceptEdits",
+	"bypassPermissions",
+	"plan",
+	"dontAsk",
+]);
+
+function getPermissionMode(value: string | undefined): AgentPermissionMode {
+	if (!value) return "bypassPermissions";
+	if (PERMISSION_MODES.has(value as AgentPermissionMode)) {
+		return value as AgentPermissionMode;
+	}
+	throw new Error(
+		`Invalid AGENT_SONNET_PERMISSION_MODE "${value}". Expected one of: ${Array.from(PERMISSION_MODES).join(", ")}`,
+	);
+}
+
 export function loadConfig(): AgentConfig {
 	const dataDir = process.env.AGENT_DATA_DIR ?? "/data/agent";
 	const composeDir = process.env.COMPOSE_DIR ?? "/opt/secondlayer/docker";
@@ -84,6 +110,9 @@ export function loadConfig(): AgentConfig {
 		services: DEFAULT_SERVICES,
 		aiEnabled: process.env.AGENT_AI_ENABLED !== "false",
 		dryRun: process.env.AGENT_DRY_RUN === "true",
+		sonnetPermissionMode: getPermissionMode(
+			process.env.AGENT_SONNET_PERMISSION_MODE,
+		),
 		nodeServerUrl: process.env.NODE_SERVER_URL ?? "http://37.27.171.220",
 		tenantBackupRoot:
 			process.env.TENANT_BACKUP_ROOT ?? "/opt/secondlayer/data/backups/tenants",

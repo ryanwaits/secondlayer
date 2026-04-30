@@ -148,6 +148,7 @@ WARN_RESTART:    postgres  (alert only, no auto-restart)
 - **WARN_RESTART**: Restart requests for `postgres` are downgraded to `alert_only`.
 - **Budget cap**: $5/day default for AI API spend. When exceeded, AI analysis is skipped and a budget alert is sent.
 - **Dry run mode**: All actions are logged but not executed.
+- **Sonnet permission mode**: `bypassPermissions` by default for Agent SDK sessions. Override with `AGENT_SONNET_PERMISSION_MODE` (`default`, `acceptEdits`, `bypassPermissions`, `plan`, or `dontAsk`).
 
 ---
 

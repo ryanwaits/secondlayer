@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import type { ActionExecutor } from "../actions/executor.ts";
 import { diagnoseWithSonnet } from "../ai/sonnet-escalator.ts";
+import type { AgentPermissionMode } from "../config.ts";
 import { getAlertById, resolveAlert } from "../db/queries.ts";
 import type { PatternMatch } from "../types.ts";
 import { addResolvedFooter, buildDiagnosisBlocks } from "./slack-blocks.ts";
@@ -18,13 +19,21 @@ export interface CallbackDeps {
 	slack: SlackClient;
 	signingSecret: string;
 	anthropicApiKey: string;
+	sonnetPermissionMode: AgentPermissionMode;
 }
 
 export async function handleSlackCallback(
 	req: Request,
 	deps: CallbackDeps,
 ): Promise<Response> {
-	const { db, executor, slack, signingSecret, anthropicApiKey } = deps;
+	const {
+		db,
+		executor,
+		slack,
+		signingSecret,
+		anthropicApiKey,
+		sonnetPermissionMode,
+	} = deps;
 
 	// Read body
 	const body = await req.text();
@@ -154,6 +163,7 @@ export async function handleSlackCallback(
 						[match],
 						{},
 						anthropicApiKey,
+						sonnetPermissionMode,
 					);
 
 					if (messageTs) {
