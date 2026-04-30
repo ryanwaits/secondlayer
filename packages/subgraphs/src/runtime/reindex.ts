@@ -19,6 +19,7 @@ import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
 const HEALTH_FLUSH_INTERVAL = 1000;
+const PROGRESS_FLUSH_INTERVAL_MS = 5_000;
 const HOBBY_REINDEX_BATCH_CONFIG = {
 	defaultBatchSize: 50,
 	minBatchSize: 25,
@@ -167,6 +168,8 @@ async function processBlockRange(
 	let pendingErrors = 0;
 	let pendingLastError: string | undefined;
 	let lastHealthFlushBlock = 0;
+	let lastHealthFlushAt = Date.now();
+	let lastProgressFlushAt = Date.now();
 	const batchConfig = resolveReindexBatchConfig();
 	let batchSize = batchConfig.defaultBatchSize;
 	let currentHeight = fromBlock;
@@ -185,6 +188,7 @@ async function processBlockRange(
 		pendingErrors = 0;
 		pendingLastError = undefined;
 		lastHealthFlushBlock = blocksProcessed;
+		lastHealthFlushAt = Date.now();
 	};
 
 	// Pipeline: start loading first batch and track the prefetched range.
@@ -268,9 +272,13 @@ async function processBlockRange(
 				}
 			}
 
-			// Batch progress updates
-			if (blocksProcessed % 100 === 0) {
+			const now = Date.now();
+			const shouldFlushProgress =
+				blocksProcessed % 100 === 0 ||
+				now - lastProgressFlushAt >= PROGRESS_FLUSH_INTERVAL_MS;
+			if (shouldFlushProgress) {
 				await updateSubgraphStatus(targetDb, subgraphName, status, height);
+				lastProgressFlushAt = now;
 			}
 
 			if (blocksProcessed % LOG_INTERVAL === 0) {
@@ -291,7 +299,10 @@ async function processBlockRange(
 			await updateSubgraphStatus(targetDb, subgraphName, status, batchEnd);
 		}
 
-		if (blocksProcessed - lastHealthFlushBlock >= HEALTH_FLUSH_INTERVAL) {
+		const shouldFlushHealth =
+			blocksProcessed - lastHealthFlushBlock >= HEALTH_FLUSH_INTERVAL ||
+			Date.now() - lastHealthFlushAt >= PROGRESS_FLUSH_INTERVAL_MS;
+		if (shouldFlushHealth) {
 			await flushHealth();
 		}
 

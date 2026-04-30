@@ -540,6 +540,10 @@ export function registerSubgraphsCommand(program: Command): void {
 								`${t}: ${info.rowCount}`,
 						)
 						.join(", ") || "N/A";
+				const totalRows = Object.values(subgraph.tables).reduce(
+					(sum, info: { rowCount: number }) => sum + info.rowCount,
+					0,
+				);
 
 				const errorRate =
 					subgraph.health.totalProcessed > 0
@@ -572,7 +576,8 @@ export function registerSubgraphsCommand(program: Command): void {
 						["Integrity", integrity],
 						["Gaps", gapSummary],
 						["Last Block", String(subgraph.lastProcessedBlock)],
-						["Row Count", rowCounts],
+						["Rows Indexed", totalRows.toLocaleString()],
+						["Table Rows", rowCounts],
 						["Total Errors", String(subgraph.health.totalErrors)],
 						["Error Rate", errorRate],
 						["Last Error", subgraph.health.lastError ?? "none"],

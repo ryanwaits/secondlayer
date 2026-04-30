@@ -98,6 +98,10 @@ export default async function SubgraphDetailPage({
 	).length;
 
 	const tableEntries = Object.entries(subgraph.tables);
+	const totalRows = tableEntries.reduce(
+		(sum, [, table]) => sum + table.rowCount,
+		0,
+	);
 	const displayStatus = getDisplayStatus(
 		{
 			...subgraph,
@@ -249,6 +253,17 @@ export default async function SubgraphDetailPage({
 										{blocksRemaining.toLocaleString()} blocks behind tip
 									</div>
 								)}
+							</div>
+
+							{/* Rows indexed */}
+							<div className="sg-card">
+								<div className="sg-card-label">
+									Rows Indexed{" "}
+									<InfoTip text="Total rows stored across this subgraph's tables" />
+								</div>
+								<div className="sg-card-big neutral">
+									{totalRows.toLocaleString()}
+								</div>
 							</div>
 
 							{/* Tables mini-table */}
