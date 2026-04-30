@@ -418,8 +418,12 @@ function withProvisionerRuntimeEnv(
 	env: Record<string, string>,
 	cfg: ProvisionerConfig,
 ): Record<string, string> {
-	if (!cfg.stacksNodeRpcUrl || env.STACKS_NODE_RPC_URL) return env;
-	return { ...env, STACKS_NODE_RPC_URL: cfg.stacksNodeRpcUrl };
+	return {
+		...env,
+		STACKS_NODE_RPC_URL: cfg.stacksNodeRpcUrl,
+		...(cfg.hiroApiUrl ? { HIRO_API_URL: cfg.hiroApiUrl } : {}),
+		...(cfg.hiroApiKey ? { HIRO_API_KEY: cfg.hiroApiKey } : {}),
+	};
 }
 
 function parsePasswordFromUrl(url: string): string | null {

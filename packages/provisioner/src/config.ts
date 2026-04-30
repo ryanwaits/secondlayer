@@ -31,7 +31,11 @@ export interface ProvisionerConfig {
 	/** Base domain for tenant public URLs (`https://{slug}.{base}`). */
 	tenantBaseDomain: string;
 	/** Stacks node RPC URL injected into tenant API/processor containers. */
-	stacksNodeRpcUrl: string | null;
+	stacksNodeRpcUrl: string;
+	/** Optional Hiro API base URL injected into tenant API/processor containers. */
+	hiroApiUrl: string | null;
+	/** Optional Hiro API key injected into tenant API/processor containers. */
+	hiroApiKey: string | null;
 	/** Docker Engine API socket path. */
 	dockerSocketPath: string;
 }
@@ -73,7 +77,9 @@ export function getConfig(): ProvisionerConfig {
 			"PROVISIONER_TENANT_BASE_DOMAIN",
 			"secondlayer.tools",
 		),
-		stacksNodeRpcUrl: optionalNullable("STACKS_NODE_RPC_URL"),
+		stacksNodeRpcUrl: required("STACKS_NODE_RPC_URL"),
+		hiroApiUrl: optionalNullable("HIRO_API_URL"),
+		hiroApiKey: optionalNullable("HIRO_API_KEY"),
 		dockerSocketPath: optional("DOCKER_SOCKET", "/var/run/docker.sock"),
 	};
 	return cached;

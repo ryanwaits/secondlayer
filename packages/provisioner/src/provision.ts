@@ -132,6 +132,8 @@ export async function provisionTenant(
 					sourceDatabaseUrl,
 					jwtSecret,
 					stacksNodeRpcUrl: cfg.stacksNodeRpcUrl,
+					hiroApiUrl: cfg.hiroApiUrl,
+					hiroApiKey: cfg.hiroApiKey,
 				}),
 			);
 			await containerStart(apiId);
@@ -152,6 +154,8 @@ export async function provisionTenant(
 					targetDatabaseUrl,
 					sourceDatabaseUrl,
 					stacksNodeRpcUrl: cfg.stacksNodeRpcUrl,
+					hiroApiUrl: cfg.hiroApiUrl,
+					hiroApiKey: cfg.hiroApiKey,
 				}),
 			);
 			await containerStart(procId);
@@ -284,6 +288,8 @@ interface ApiSpecInput {
 	stacksNodeRpcUrl?: string | null;
 	serviceGen?: number;
 	anonGen?: number;
+	hiroApiUrl?: string | null;
+	hiroApiKey?: string | null;
 }
 
 function buildApiSpec(input: ApiSpecInput): ContainerSpec {
@@ -303,6 +309,8 @@ function buildApiSpec(input: ApiSpecInput): ContainerSpec {
 			...(input.stacksNodeRpcUrl
 				? { STACKS_NODE_RPC_URL: input.stacksNodeRpcUrl }
 				: {}),
+			...(input.hiroApiUrl ? { HIRO_API_URL: input.hiroApiUrl } : {}),
+			...(input.hiroApiKey ? { HIRO_API_KEY: input.hiroApiKey } : {}),
 			PORT: "3800",
 			NODE_ENV: "production",
 			LOG_LEVEL: "info",
@@ -335,6 +343,8 @@ interface ProcessorSpecInput {
 	targetDatabaseUrl: string;
 	sourceDatabaseUrl: string;
 	stacksNodeRpcUrl?: string | null;
+	hiroApiUrl?: string | null;
+	hiroApiKey?: string | null;
 }
 
 function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
@@ -350,6 +360,8 @@ function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
 			...(input.stacksNodeRpcUrl
 				? { STACKS_NODE_RPC_URL: input.stacksNodeRpcUrl }
 				: {}),
+			...(input.hiroApiUrl ? { HIRO_API_URL: input.hiroApiUrl } : {}),
+			...(input.hiroApiKey ? { HIRO_API_KEY: input.hiroApiKey } : {}),
 			TENANT_PLAN: input.plan,
 			NODE_ENV: "production",
 			LOG_LEVEL: "info",

@@ -33,7 +33,9 @@ services:
 
   api:
     environment:
-      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
+      HIRO_API_URL: ${HIRO_API_URL:-}
+      HIRO_API_KEY: ${HIRO_API_KEY:-}
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
     deploy:

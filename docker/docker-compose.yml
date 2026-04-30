@@ -131,6 +131,8 @@ services:
       PROVISIONER_IMAGE_OWNER: ${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}
       PROVISIONER_TENANT_BASE_DOMAIN: ${PROVISIONER_TENANT_BASE_DOMAIN:-secondlayer.tools}
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
+      HIRO_API_URL: ${HIRO_API_URL:-}
+      HIRO_API_KEY: ${HIRO_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
     volumes:

@@ -274,6 +274,9 @@ PROVISIONER_SOURCE_DB_NAME=secondlayer                # default secondlayer
 PROVISIONER_IMAGE_TAG=latest                          # GHCR tag for tenant images
 PROVISIONER_IMAGE_OWNER=secondlayer-labs              # GHCR owner
 PROVISIONER_TENANT_BASE_DOMAIN=secondlayer.tools      # apiUrlPublic = https://{slug}.{base}
+STACKS_NODE_RPC_URL=http://...                        # required; injected into tenant API/processor for ABI fetches
+HIRO_API_URL=https://api.mainnet.hiro.so               # optional; injected into tenant API/processor
+HIRO_API_KEY=<hiro-key>                                # optional; injected into tenant API/processor
 DOCKER_SOCKET=/var/run/docker.sock                    # override for non-standard socket paths
 PROVISIONER_PORT=3850                                 # override if you need a different port
 ```

@@ -38,6 +38,8 @@ $COMPOSE up -d --force-recreate api indexer worker agent
 | `PROVISIONER_IMAGE_OWNER` | `secondlayer-labs` | GHCR owner. |
 | `PROVISIONER_TENANT_BASE_DOMAIN` | `secondlayer.tools` | Base domain for `{slug}.{base}` tenant URLs. |
 | `PROVISIONER_SOURCE_DB_HOST` | `postgres:5432` | Docker-network hostname for the source DB. Tenant containers connect here. |
+| `STACKS_NODE_RPC_URL` | — (required when provisioner runs) | Node RPC injected into tenant API and processor containers for ABI fetches and Stacks reads. |
+| `HIRO_API_URL` / `HIRO_API_KEY` | optional | Hiro API settings injected into tenant API and processor containers. |
 
 **NOT required yet** because the provisioner service is behind `--profile platform` and the current deploy script doesn't start it. The routes `/api/tenants/*` and worker trial/health crons are already deployed but all short-circuit when no tenants exist (zero provisioner calls). Set these before activating the provisioner.
 
