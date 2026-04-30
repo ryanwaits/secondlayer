@@ -67,7 +67,7 @@ export async function getSubgraph(
 ): Promise<Subgraph | null> {
 	let query = db.selectFrom("subgraphs").selectAll().where("name", "=", name);
 
-	if (accountId) {
+	if (accountId !== undefined) {
 		query = query.where("account_id", "=", accountId);
 	}
 
@@ -79,7 +79,7 @@ export async function listSubgraphs(
 	accountId?: string,
 ): Promise<Subgraph[]> {
 	let query = db.selectFrom("subgraphs").selectAll();
-	if (accountId) {
+	if (accountId !== undefined) {
 		query = query.where("account_id", "=", accountId);
 	}
 	return query.execute();

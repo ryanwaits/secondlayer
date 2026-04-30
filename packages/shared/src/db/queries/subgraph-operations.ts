@@ -77,6 +77,19 @@ export async function requestSubgraphOperationCancel(
 	);
 }
 
+export async function requestSubgraphOperationsCancelForDelete(
+	db: Kysely<Database>,
+	subgraphId: string,
+): Promise<SubgraphOperation[]> {
+	return await db
+		.updateTable("subgraph_operations")
+		.set({ cancel_requested: true, updated_at: new Date() })
+		.where("subgraph_id", "=", subgraphId)
+		.where("status", "in", ACTIVE_STATUSES)
+		.returningAll()
+		.execute();
+}
+
 export async function claimSubgraphOperation(
 	db: Kysely<Database>,
 	lockedBy: string,

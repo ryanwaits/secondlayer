@@ -241,7 +241,7 @@ export async function startSubgraphOperationRunner(opts?: {
 		const cancelPoll = setInterval(() => {
 			getSubgraphOperation(db, operation.id)
 				.then((row) => {
-					if (row?.cancel_requested && !controller.signal.aborted) {
+					if ((!row || row.cancel_requested) && !controller.signal.aborted) {
 						controller.abort("user-cancelled");
 					}
 				})

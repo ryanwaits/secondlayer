@@ -13,7 +13,6 @@ import {
 	toggleSubscriptionStatus,
 	updateSubscription,
 } from "@secondlayer/shared/db/queries/subscriptions";
-import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
 	CreateSubscriptionRequestSchema,
 	ReplaySubscriptionRequestSchema,
@@ -23,8 +22,8 @@ import {
 	validateSubscriptionFilterForTable,
 } from "@secondlayer/shared/schemas/subscriptions";
 import { replaySubscription } from "@secondlayer/subgraphs/runtime/replay";
-import { type Context, Hono } from "hono";
-import { getAccountId } from "../lib/ownership.ts";
+import { Hono } from "hono";
+import { getTenantScopedAccountId } from "../lib/request-scope.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 /**
@@ -33,12 +32,6 @@ import { InvalidJSONError } from "../middleware/error.ts";
  * subscriptions are stored with the empty account id.
  */
 const app = new Hono();
-
-function getSubscriptionAccountId(c: Context): string | null {
-	const accountId = getAccountId(c);
-	if (isPlatformMode()) return accountId ?? null;
-	return accountId ?? "";
-}
 
 function toSummary(sub: Subscription) {
 	return {
@@ -106,7 +99,7 @@ async function validateSubscriptionTarget(input: {
 // ── GET /api/subscriptions ──────────────────────────────────────────────
 
 app.get("/", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
@@ -117,7 +110,7 @@ app.get("/", async (c) => {
 // ── POST /api/subscriptions ─────────────────────────────────────────────
 
 app.post("/", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
@@ -183,7 +176,7 @@ app.post("/", async (c) => {
 // ── GET /api/subscriptions/:id ──────────────────────────────────────────
 
 app.get("/:id", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
@@ -196,7 +189,7 @@ app.get("/:id", async (c) => {
 // ── PATCH /api/subscriptions/:id ────────────────────────────────────────
 
 app.patch("/:id", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 	const id = c.req.param("id");
 
@@ -250,7 +243,7 @@ app.patch("/:id", async (c) => {
 // ── POST /api/subscriptions/:id/pause ───────────────────────────────────
 
 app.post("/:id/pause", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 	const sub = await toggleSubscriptionStatus(
 		getDb(),
@@ -266,7 +259,7 @@ app.post("/:id/pause", async (c) => {
 // ── POST /api/subscriptions/:id/resume ──────────────────────────────────
 
 app.post("/:id/resume", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 	const sub = await toggleSubscriptionStatus(
 		getDb(),
@@ -282,7 +275,7 @@ app.post("/:id/resume", async (c) => {
 // ── POST /api/subscriptions/:id/rotate-secret ───────────────────────────
 
 app.post("/:id/rotate-secret", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 	const result = await rotateSubscriptionSecret(
 		getDb(),
@@ -300,7 +293,7 @@ app.post("/:id/rotate-secret", async (c) => {
 // ── GET /api/subscriptions/:id/deliveries ───────────────────────────────
 
 app.get("/:id/deliveries", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Subscription not found" }, 404);
@@ -328,7 +321,7 @@ app.get("/:id/deliveries", async (c) => {
 // ── GET /api/subscriptions/:id/dead — DLQ preview ──────────────────────
 
 app.get("/:id/dead", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Subscription not found" }, 404);
@@ -358,7 +351,7 @@ app.get("/:id/dead", async (c) => {
 // ── POST /api/subscriptions/:id/dead/:outboxId/requeue ─────────────────
 
 app.post("/:id/dead/:outboxId/requeue", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Subscription not found" }, 404);
@@ -388,7 +381,7 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 // ── POST /api/subscriptions/:id/replay ──────────────────────────────────
 
 app.post("/:id/replay", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 
 	let body: Record<string, unknown>;
@@ -423,7 +416,7 @@ app.post("/:id/replay", async (c) => {
 // ── DELETE /api/subscriptions/:id ───────────────────────────────────────
 
 app.delete("/:id", async (c) => {
-	const accountId = getSubscriptionAccountId(c);
+	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 	const ok = await deleteSubscription(getDb(), accountId, c.req.param("id"));
 	if (!ok) return c.json({ error: "Subscription not found" }, 404);

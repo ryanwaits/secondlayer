@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
+import { createSubgraphOperation } from "@secondlayer/shared/db/queries/subgraph-operations";
 import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import subgraphsRouter, {
+	cache,
 	startSubgraphCache,
 	stopSubgraphCache,
 } from "../src/routes/subgraphs.ts";
@@ -410,5 +412,48 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(body.message).toContain("Reindex started");
 		expect(body.fromBlock).toBe(1);
 		expect(body.toBlock).toBe("chain tip");
+	});
+
+	test("DELETE /subgraphs/:subgraphName cancels active operations before cleanup", async () => {
+		const db = getDb();
+		const name = "delete-api-subgraph";
+		const schemaName = "view_delete_api_subgraph";
+		await sql.raw(`DROP SCHEMA IF EXISTS ${schemaName} CASCADE`).execute(db);
+		await db.deleteFrom("subgraphs").where("name", "=", name).execute();
+
+		const subgraph = await registerSubgraph(db, {
+			...subgraphDef,
+			name,
+			schemaHash: "delete-test-hash",
+			handlerPath: "/tmp/missing-delete-api-subgraph.js",
+		});
+		await sql.raw(`CREATE SCHEMA ${schemaName}`).execute(db);
+		await createSubgraphOperation(db, {
+			subgraphId: subgraph.id,
+			subgraphName: name,
+			kind: "reindex",
+			fromBlock: 1,
+			toBlock: 10,
+		});
+		await cache.refresh();
+
+		const res = await app.request(`/subgraphs/${name}?force=true`, {
+			method: "DELETE",
+		});
+		expect(res.status).toBe(200);
+		expect(
+			await db
+				.selectFrom("subgraphs")
+				.select("id")
+				.where("id", "=", subgraph.id)
+				.executeTakeFirst(),
+		).toBeUndefined();
+		expect(
+			await db
+				.selectFrom("subgraph_operations")
+				.select("id")
+				.where("subgraph_id", "=", subgraph.id)
+				.executeTakeFirst(),
+		).toBeUndefined();
 	});
 });

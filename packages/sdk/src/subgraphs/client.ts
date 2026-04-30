@@ -110,10 +110,14 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
-	async delete(name: string): Promise<{ message: string }> {
+	async delete(
+		name: string,
+		options?: { force?: boolean },
+	): Promise<{ message: string }> {
+		const qs = options?.force ? "?force=true" : "";
 		return this.request<{ message: string }>(
 			"DELETE",
-			`/api/subgraphs/${name}`,
+			`/api/subgraphs/${name}${qs}`,
 		);
 	}
 
@@ -212,9 +216,12 @@ export class Subgraphs extends BaseClient {
 								`orderBy supports only one column; remove extra keys: ${extra}`,
 							);
 						}
-						const [col, dir] = entries[0]!;
-						sort = resolveOrderByColumn(col);
-						order = dir ?? "asc";
+						const first = entries[0];
+						if (first) {
+							const [col, dir] = first;
+							sort = resolveOrderByColumn(col);
+							order = dir ?? "asc";
+						}
 					}
 				}
 

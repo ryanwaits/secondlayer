@@ -14,6 +14,7 @@ import {
 	createSubgraphOperation,
 	isActiveSubgraphOperationConflict,
 	requestSubgraphOperationCancel,
+	requestSubgraphOperationsCancelForDelete,
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	listSubgraphs,
@@ -517,9 +518,21 @@ app.delete("/:subgraphName", async (c) => {
 	const { subgraphName } = c.req.param();
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const force = c.req.query("force") === "true";
 
 	const db = getDb();
 	const sn = subgraphSchemaName(subgraph);
+	const cancelledOperations = await requestSubgraphOperationsCancelForDelete(
+		db,
+		subgraph.id,
+	);
+	if (cancelledOperations.length > 0) {
+		logger.info("Cancelled subgraph operations before delete", {
+			subgraph: subgraphName,
+			count: cancelledOperations.length,
+			force,
+		});
+	}
 
 	// Drop the subgraph's schema (all tables) and remove registry entry
 	const client = getRawClient();
