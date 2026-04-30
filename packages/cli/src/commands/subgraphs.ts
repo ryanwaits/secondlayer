@@ -1,5 +1,12 @@
-import { existsSync, mkdirSync, watch } from "node:fs";
-import { resolve } from "node:path";
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	watch,
+	writeFileSync,
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { confirm } from "@inquirer/prompts";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import type { Command } from "commander";
@@ -50,6 +57,55 @@ export function parseStartBlockOption(value?: string): number | undefined {
 		throw new Error("--start-block must be a safe integer");
 	}
 	return parsed;
+}
+
+function readCliSubgraphsDependency(): string {
+	const here = dirname(fileURLToPath(import.meta.url));
+	const candidates = [
+		resolve(here, "..", "..", "package.json"),
+		resolve(here, "..", "package.json"),
+	];
+	for (const candidate of candidates) {
+		if (!existsSync(candidate)) continue;
+		const pkg = JSON.parse(readFileSync(candidate, "utf8")) as {
+			dependencies?: Record<string, string>;
+		};
+		const dep = pkg.dependencies?.["@secondlayer/subgraphs"];
+		if (dep) return dep;
+	}
+	return "^1.3.2";
+}
+
+export function ensureScaffoldPackageJson(dir: string): void {
+	const packagePath = join(dir, "package.json");
+	const subgraphsDep = readCliSubgraphsDependency();
+	if (!existsSync(packagePath)) {
+		writeFileSync(
+			packagePath,
+			`${JSON.stringify(
+				{
+					type: "module",
+					dependencies: {
+						"@secondlayer/subgraphs": subgraphsDep,
+					},
+				},
+				null,
+				2,
+			)}\n`,
+			"utf8",
+		);
+		return;
+	}
+
+	const pkg = JSON.parse(readFileSync(packagePath, "utf8")) as {
+		dependencies?: Record<string, string>;
+	};
+	if (pkg.dependencies?.["@secondlayer/subgraphs"]) return;
+	pkg.dependencies = {
+		...(pkg.dependencies ?? {}),
+		"@secondlayer/subgraphs": subgraphsDep,
+	};
+	writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
 }
 
 export interface SubgraphDeployPreview {
@@ -371,6 +427,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							>,
 							schema: effectiveDef.schema,
 							handlerCode,
+							sourceCode: source,
 							...(startBlock !== undefined ? { startBlock } : {}),
 						});
 
@@ -897,6 +954,7 @@ export function registerSubgraphsCommand(program: Command): void {
 					const dir = resolve(outPath, "..");
 					if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 					await writeTextFile(outPath, content);
+					ensureScaffoldPackageJson(dir);
 
 					success(`Created ${outPath}`);
 					info(`Next: sl subgraphs deploy ${options.output}`);

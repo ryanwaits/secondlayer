@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
 	createSubgraphDeployPreview,
+	ensureScaffoldPackageJson,
 	parseStartBlockOption,
 } from "../src/commands/subgraphs.ts";
 
@@ -59,5 +63,34 @@ describe("subgraphs command helpers", () => {
 			bundleSize: "2048 bytes",
 		});
 		expect(preview.tableColumns).toEqual(["deposits: tx_id, amount"]);
+	});
+
+	it("creates a module package file for scaffold output directories", () => {
+		const dir = mkdtempSync(join(tmpdir(), "sl-scaffold-"));
+		try {
+			ensureScaffoldPackageJson(dir);
+			const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+			expect(pkg.type).toBe("module");
+			expect(pkg.dependencies["@secondlayer/subgraphs"]).toBeString();
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("adds the subgraphs dependency without overwriting existing package type", () => {
+		const dir = mkdtempSync(join(tmpdir(), "sl-scaffold-"));
+		try {
+			writeFileSync(
+				join(dir, "package.json"),
+				JSON.stringify({ type: "commonjs", dependencies: { zod: "^4.0.0" } }),
+			);
+			ensureScaffoldPackageJson(dir);
+			const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+			expect(pkg.type).toBe("commonjs");
+			expect(pkg.dependencies.zod).toBe("^4.0.0");
+			expect(pkg.dependencies["@secondlayer/subgraphs"]).toBeString();
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

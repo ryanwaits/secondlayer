@@ -196,6 +196,7 @@ export async function createSubscription(
 	// Provision the subscription via SDK unless --skip-api was passed (useful
 	// for offline template scaffolding while the user sets up auth first).
 	let signingSecret: string | null = null;
+	let provisioningFailed = false;
 	if (!opts.skipApi) {
 		try {
 			if (!sl) sl = await getSubscriptionClient(opts);
@@ -216,11 +217,12 @@ export async function createSubscription(
 			signingSecret = res.signingSecret;
 			success(`Subscription provisioned: ${blue(res.subscription.id)}`);
 		} catch (err) {
+			provisioningFailed = true;
 			warn(
 				`Subscription provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
 			);
 			info(
-				"Template copied — fix auth + run again, or provision via dashboard.",
+				"Template copied, but the subscription was not created. Provision it in the dashboard, or remove the template directory and rerun this command after fixing the API error.",
 			);
 		}
 	}
@@ -255,6 +257,10 @@ export async function createSubscription(
 	}
 
 	console.log();
+	if (provisioningFailed) {
+		error("Subscription was not created.");
+		process.exit(1);
+	}
 	success(`Done. Next:\n  cd ${name}\n  bun install\n  bun run dev`);
 }
 
