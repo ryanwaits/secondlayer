@@ -54,6 +54,17 @@ describe("matchPatterns", () => {
 		expect(apiMatches).toHaveLength(0);
 	});
 
+	test("ignores benign postgres FATAL disconnect/admin lines", () => {
+		for (const line of [
+			"FATAL: connection to client lost",
+			"FATAL: terminating connection due to administrator command",
+			"FATAL: canceling authentication due to timeout",
+		]) {
+			const matches = matchPatterns(line, "postgres");
+			expect(matches.filter((m) => m.name === "pg_fatal")).toHaveLength(0);
+		}
+	});
+
 	test("detects unhandled error on Bun's 'Unhandled error:' literal", () => {
 		const matches = matchPatterns(
 			"Unhandled error: TypeError: Cannot read property x",

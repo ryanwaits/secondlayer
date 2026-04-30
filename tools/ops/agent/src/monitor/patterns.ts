@@ -6,6 +6,7 @@ export interface PatternRule {
 	severity: Severity;
 	action: ActionType;
 	services?: string[];
+	ignore?: (match: RegExpMatchArray, line: string, service: string) => boolean;
 	message: (match: RegExpMatchArray, service: string) => string;
 }
 
@@ -42,6 +43,10 @@ export const PATTERN_RULES: PatternRule[] = [
 		severity: "critical",
 		action: "alert_only",
 		services: ["postgres"],
+		ignore: (m) =>
+			/^(?:connection to client lost|terminating connection due to administrator command|canceling authentication due to timeout)$/i.test(
+				m[1].trim(),
+			),
 		message: (m) => `Postgres fatal: ${m[1]}`,
 	},
 	{
@@ -87,6 +92,7 @@ export function matchPatterns(line: string, service: string): PatternMatch[] {
 
 		const m = line.match(rule.regex);
 		if (!m) continue;
+		if (rule.ignore?.(m, line, service)) continue;
 
 		matches.push({
 			name: rule.name,
