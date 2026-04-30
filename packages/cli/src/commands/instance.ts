@@ -192,6 +192,12 @@ export function registerInstanceCommand(program: Command): void {
 			const slug = info_.tenant.slug;
 
 			if (!opts.yes) {
+				if (!process.stdin.isTTY) {
+					logError(
+						`Refusing to prompt in a non-interactive terminal. Re-run with --yes to delete instance "${slug}".`,
+					);
+					process.exit(1);
+				}
 				const typed = await input({
 					message: `Type the slug "${slug}" to confirm permanent deletion`,
 					validate: (v: string) =>
@@ -500,11 +506,13 @@ function handleInstanceError(err: unknown, action: string): never {
 			);
 			process.exit(1);
 		}
-		logError(err.message);
+		logError(err.message || `Failed to ${action}.`);
 		process.exit(1);
 	}
 	logError(
-		`Failed to ${action}: ${err instanceof Error ? err.message : String(err)}`,
+		`Failed to ${action}: ${
+			err instanceof Error ? err.message || "Unknown error" : String(err)
+		}`,
 	);
 	process.exit(1);
 }

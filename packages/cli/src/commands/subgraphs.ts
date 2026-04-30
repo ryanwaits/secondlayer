@@ -832,25 +832,30 @@ export function registerSubgraphsCommand(program: Command): void {
 		.command("delete <name>")
 		.description("Delete a subgraph and its data")
 		.option("-y, --yes", "Skip confirmation")
-		.action(async (name: string, options: { yes?: boolean }) => {
-			try {
-				if (!options.yes) {
-					const { confirm } = await import("@inquirer/prompts");
-					const ok = await confirm({
-						message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
-					});
-					if (!ok) {
-						info("Cancelled");
-						return;
+		.option("--force", "Cancel active operations and force delete")
+		.action(
+			async (name: string, options: { yes?: boolean; force?: boolean }) => {
+				try {
+					if (!options.yes && !options.force) {
+						const { confirm } = await import("@inquirer/prompts");
+						const ok = await confirm({
+							message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
+						});
+						if (!ok) {
+							info("Cancelled");
+							return;
+						}
 					}
-				}
 
-				const result = await deleteSubgraphApi(name);
-				success(result.message);
-			} catch (err) {
-				handleApiError(err, "delete subgraph");
-			}
-		});
+					const result = await deleteSubgraphApi(name, {
+						force: options.force,
+					});
+					success(result.message);
+				} catch (err) {
+					handleApiError(err, "delete subgraph");
+				}
+			},
+		);
 
 	// --- scaffold ---
 	subgraphs

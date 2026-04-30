@@ -135,8 +135,9 @@ export async function stopSubgraphApi(
 
 export async function deleteSubgraphApi(
 	name: string,
+	options?: { force?: boolean },
 ): Promise<{ message: string }> {
-	return (await getTenantClient()).subgraphs.delete(name);
+	return (await getTenantClient()).subgraphs.delete(name, options);
 }
 
 export async function deploySubgraphApi(

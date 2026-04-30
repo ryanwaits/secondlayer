@@ -10,6 +10,10 @@ const colors = {
 	dim: "\x1b[2m",
 	bold: "\x1b[1m",
 } as const;
+const ANSI_ESCAPE_PATTERN = new RegExp(
+	`${String.fromCharCode(27)}\\[[0-9;]*m`,
+	"g",
+);
 
 export function red(text: string): string {
 	return `${colors.red}${text}${colors.reset}`;
@@ -48,7 +52,8 @@ export function success(message: string): void {
 }
 
 export function error(message: string): void {
-	console.error(red(`✗ ${message}`));
+	const text = message.trim() || "Command failed.";
+	console.error(red(`✗ ${text}`));
 }
 
 export function warn(message: string): void {
@@ -61,7 +66,7 @@ export function info(message: string): void {
 
 // Strip ANSI codes for length calculation
 function stripAnsi(text: string): string {
-	return text.replace(/\x1b\[[0-9;]*m/g, "");
+	return text.replace(ANSI_ESCAPE_PATTERN, "");
 }
 
 export function formatTable(headers: string[], rows: string[][]): string {
@@ -72,14 +77,14 @@ export function formatTable(headers: string[], rows: string[][]): string {
 	});
 
 	// Format header
-	const headerRow = headers.map((h, i) => h.padEnd(widths[i]!)).join("  ");
+	const headerRow = headers.map((h, i) => h.padEnd(widths[i] ?? 0)).join("  ");
 	const separator = widths.map((w) => "-".repeat(w)).join("  ");
 
 	// Format data rows
 	const dataRows = rows.map((row) =>
 		row
 			.map((cell, i) => {
-				const width = widths[i]!;
+				const width = widths[i] ?? 0;
 				const padding = width - stripAnsi(cell).length;
 				return cell + " ".repeat(Math.max(0, padding));
 			})
