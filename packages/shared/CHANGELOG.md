@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 4.3.3
+
+### Patch Changes
+
+- 1a3a80d: Harden tenant runtime environment injection, subgraph operation cleanup, subscription scoping, and destructive CLI error handling.
+
 ## 4.3.2
 
 ### Patch Changes

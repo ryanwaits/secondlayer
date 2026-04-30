@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 1.3.2
+
+### Patch Changes
+
+- 1a3a80d: Harden tenant runtime environment injection, subgraph operation cleanup, subscription scoping, and destructive CLI error handling.
+- Updated dependencies [1a3a80d]
+  - @secondlayer/shared@4.3.3
+
 ## 1.3.1
 
 ### Patch Changes
