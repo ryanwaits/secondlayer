@@ -11,11 +11,74 @@ import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
-const DEFAULT_BATCH_SIZE = 500;
-const MIN_BATCH_SIZE = 100;
-const MAX_BATCH_SIZE = 1000;
+const HOBBY_CATCHUP_BATCH_CONFIG = {
+	defaultBatchSize: 50,
+	minBatchSize: 25,
+	maxBatchSize: 100,
+	prefetch: false,
+};
+const STANDARD_CATCHUP_BATCH_CONFIG = {
+	defaultBatchSize: 500,
+	minBatchSize: 100,
+	maxBatchSize: 1000,
+	prefetch: true,
+};
 
 const catchingUp = new Set<string>();
+
+type CatchupBatchConfig = {
+	defaultBatchSize: number;
+	minBatchSize: number;
+	maxBatchSize: number;
+	prefetch: boolean;
+};
+
+type CatchupBatchEnv = {
+	TENANT_PLAN?: string;
+	SUBGRAPH_CATCHUP_BATCH_SIZE?: string;
+	SUBGRAPH_CATCHUP_MIN_BATCH_SIZE?: string;
+	SUBGRAPH_CATCHUP_MAX_BATCH_SIZE?: string;
+	SUBGRAPH_CATCHUP_PREFETCH?: string;
+};
+
+function parsePositiveInt(value: string | undefined): number | undefined {
+	if (value == null || value.trim() === "") return undefined;
+	const parsed = Number.parseInt(value, 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseBoolean(value: string | undefined): boolean | undefined {
+	if (value == null || value.trim() === "") return undefined;
+	const normalized = value.trim().toLowerCase();
+	if (normalized === "true") return true;
+	if (normalized === "false") return false;
+	return undefined;
+}
+
+export function resolveCatchupBatchConfig(
+	env: CatchupBatchEnv = process.env as CatchupBatchEnv,
+): CatchupBatchConfig {
+	const base =
+		env.TENANT_PLAN?.trim().toLowerCase() === "hobby"
+			? HOBBY_CATCHUP_BATCH_CONFIG
+			: STANDARD_CATCHUP_BATCH_CONFIG;
+	const minBatchSize =
+		parsePositiveInt(env.SUBGRAPH_CATCHUP_MIN_BATCH_SIZE) ?? base.minBatchSize;
+	const maxBatchSize =
+		parsePositiveInt(env.SUBGRAPH_CATCHUP_MAX_BATCH_SIZE) ?? base.maxBatchSize;
+	const defaultBatchSize =
+		parsePositiveInt(env.SUBGRAPH_CATCHUP_BATCH_SIZE) ?? base.defaultBatchSize;
+
+	return {
+		minBatchSize,
+		maxBatchSize,
+		defaultBatchSize: Math.min(
+			Math.max(defaultBatchSize, minBatchSize),
+			maxBatchSize,
+		),
+		prefetch: parseBoolean(env.SUBGRAPH_CATCHUP_PREFETCH) ?? base.prefetch,
+	};
+}
 
 /**
  * Coalesce individual block heights + reasons into contiguous gap ranges.
@@ -50,18 +113,22 @@ function coalesceGaps(
  * Adjust batch size based on event density.
  * Sparse blocks (early chain) → larger batches. Dense blocks → smaller batches.
  */
-function adjustBatchSize(current: number, avgEvents: number): number {
+function adjustBatchSize(
+	current: number,
+	avgEvents: number,
+	config: CatchupBatchConfig,
+): number {
 	if (avgEvents > 50)
-		return Math.max(Math.round(current * 0.5), MIN_BATCH_SIZE);
+		return Math.max(Math.round(current * 0.5), config.minBatchSize);
 	if (avgEvents < 10)
-		return Math.min(Math.round(current * 1.5), MAX_BATCH_SIZE);
+		return Math.min(Math.round(current * 1.5), config.maxBatchSize);
 	return current;
 }
 
 /**
  * Catch a subgraph up from its last_processed_block to the chain tip.
  * Uses batch loading (3 queries per batch instead of 3 per block) and
- * pipeline prefetching (loads next batch while processing current).
+ * plan-aware pipeline prefetching.
  */
 export async function catchUpSubgraph(
 	subgraph: SubgraphDefinition,
@@ -104,18 +171,17 @@ export async function catchUpSubgraph(
 
 		const stats = new StatsAccumulator(subgraphName, true);
 		let processed = 0;
-		let batchSize = DEFAULT_BATCH_SIZE;
+		const batchConfig = resolveCatchupBatchConfig();
+		let batchSize = batchConfig.defaultBatchSize;
 		let currentHeight = startBlock;
 
 		// Pipeline: start loading first batch and track the prefetched range.
 		// batchEnd must match what was actually loaded — not recalculated from a
 		// potentially resized batchSize (adaptive sizing can change it between iterations).
-		let nextBatchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
-		let nextBatchPromise = loadBlockRange(
-			sourceDb,
-			currentHeight,
-			nextBatchEnd,
-		);
+		let prefetchedBatchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
+		let nextBatchPromise = batchConfig.prefetch
+			? loadBlockRange(sourceDb, currentHeight, prefetchedBatchEnd)
+			: undefined;
 
 		while (currentHeight <= chainTip) {
 			// Check if subgraph status changed (e.g. reindex started) — bail if so
@@ -128,15 +194,29 @@ export async function catchUpSubgraph(
 				break;
 			}
 
-			// Await current batch
-			const batch = await nextBatchPromise;
-			const batchEnd = nextBatchEnd;
+			let batchEnd: number;
+			let batch: Awaited<ReturnType<typeof loadBlockRange>>;
+			if (nextBatchPromise) {
+				batch = await nextBatchPromise;
+				batchEnd = prefetchedBatchEnd;
 
-			// Start prefetching next batch while we process this one
-			const nextStart = batchEnd + 1;
-			if (nextStart <= chainTip) {
-				nextBatchEnd = Math.min(nextStart + batchSize - 1, chainTip);
-				nextBatchPromise = loadBlockRange(sourceDb, nextStart, nextBatchEnd);
+				// Start prefetching next batch while we process this one.
+				const nextStart = batchEnd + 1;
+				if (nextStart <= chainTip) {
+					prefetchedBatchEnd = Math.min(nextStart + batchSize - 1, chainTip);
+					nextBatchPromise = loadBlockRange(
+						sourceDb,
+						nextStart,
+						prefetchedBatchEnd,
+					);
+				} else {
+					nextBatchPromise = undefined;
+				}
+			} else {
+				// Low-memory mode: load only the current batch, process it, then size
+				// and load the next batch after this iteration completes.
+				batchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
+				batch = await loadBlockRange(sourceDb, currentHeight, batchEnd);
 			}
 
 			// Process each block from pre-loaded data
@@ -214,7 +294,7 @@ export async function catchUpSubgraph(
 
 			// Adaptive batch sizing based on event density
 			const avg = avgEventsPerBlock(batch);
-			batchSize = adjustBatchSize(batchSize, avg);
+			batchSize = adjustBatchSize(batchSize, avg, batchConfig);
 
 			currentHeight = batchEnd + 1;
 		}

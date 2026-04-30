@@ -7,6 +7,38 @@ import type {
 
 const TIMEOUT = 5_000;
 
+type TenantContainer = {
+	slug: string;
+	role: "api" | "pg" | "processor" | "worker";
+	service: string;
+};
+
+function parseTenantContainerName(name: string): TenantContainer | null {
+	const m = name.match(/^sl-(api|pg|proc|worker)-(.+?)(?:-1)?$/);
+	if (!m) return null;
+	const rawRole = m[1];
+	const slug = m[2];
+	let role: TenantContainer["role"];
+	switch (rawRole) {
+		case "api":
+		case "pg":
+		case "worker":
+			role = rawRole;
+			break;
+		case "proc":
+			role = "processor";
+			break;
+		default:
+			return null;
+	}
+
+	return {
+		slug,
+		role,
+		service: `tenant:${slug}:${role}`,
+	};
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
 	const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) });
 	return res.json() as Promise<T>;
@@ -139,7 +171,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 				"docker",
 				"inspect",
 				"--format",
-				"{{.RestartCount}}|{{.State.StartedAt}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}",
+				"{{.RestartCount}}|{{.State.StartedAt}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.State.OOMKilled}}",
 				s.Name,
 			]);
 			const inspectParts = inspectResult.stdout.toString().trim().split("|");
@@ -154,6 +186,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 				rawHealth === "starting"
 					? rawHealth
 					: "none";
+			const oomKilled = (inspectParts[3] ?? "").trim() === "true";
 
 			containers.push({
 				name: s.Name,
@@ -165,6 +198,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 				running: true,
 				startedAt,
 				health,
+				oomKilled,
 			});
 		} catch {
 			// skip malformed lines
@@ -271,6 +305,27 @@ export function detectAnomalies(
 		});
 	}
 
+	// Docker records OOM kills even when logs miss the kernel line. Emit this
+	// before restart_loop so the alert explains the cause when both are present.
+	for (const c of current.metrics.containers) {
+		if (!c.oomKilled) continue;
+		const tenant = parseTenantContainerName(c.name);
+		const isTenantContainer =
+			tenant && ["api", "pg", "processor"].includes(tenant.role);
+
+		anomalies.push({
+			name: "oom_kill",
+			severity: "critical",
+			action: "alert_only",
+			service: tenant?.service ?? c.name,
+			message: isTenantContainer
+				? `Container ${c.name} for tenant ${tenant.slug} ${tenant.role} was OOM killed`
+				: `Container ${c.name} was OOM killed`,
+			line: "",
+			timestamp: now,
+		});
+	}
+
 	// Restart count >3/hr for any container
 	for (const c of current.metrics.containers) {
 		if (c.restartCount > 3) {
@@ -286,16 +341,15 @@ export function detectAnomalies(
 		}
 	}
 
-	// Tenant-container-specific checks (sl-api-<slug>, sl-pg-<slug>, sl-worker-<slug>).
+	// Tenant-container-specific checks (sl-api-<slug>, sl-proc-<slug>, sl-pg-<slug>).
 	// Tenant containers are commodity from the platform's perspective: restart-loop
 	// and service-down checks above already cover them by name, but unhealthy docker
 	// healthchecks and memory pressure are tenant-specific signals worth surfacing
 	// without being lumped in with platform services.
 	for (const c of current.metrics.containers) {
-		const m = c.name.match(/^sl-(api|pg|worker)-(.+?)(?:-1)?$/);
-		if (!m) continue;
-		const [, role, slug] = m;
-		const svc = `tenant:${slug}:${role}`;
+		const tenant = parseTenantContainerName(c.name);
+		if (!tenant) continue;
+		const { role, slug, service: svc } = tenant;
 
 		if (c.health === "unhealthy") {
 			anomalies.push({

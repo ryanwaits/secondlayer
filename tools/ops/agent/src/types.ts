@@ -50,6 +50,7 @@ export interface ContainerStatus {
 	running: boolean;
 	startedAt?: number;
 	health?: "healthy" | "unhealthy" | "starting" | "none";
+	oomKilled?: boolean;
 }
 
 export interface PatternMatch {
