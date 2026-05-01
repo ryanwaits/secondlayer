@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/stacks",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "A viem-style SDK for the Stacks blockchain",
 	"type": "module",
 	"main": "./dist/src/index.cjs",
@@ -88,7 +88,9 @@
 			"require": "./dist/src/tools/btc/index.cjs"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"test": "bun test",

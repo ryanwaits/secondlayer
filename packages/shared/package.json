@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/shared",
-	"version": "4.4.0",
+	"version": "5.0.0",
 	"type": "module",
 	"main": "./dist/src/index.js",
 	"types": "./dist/src/index.d.ts",
@@ -170,7 +170,10 @@
 			"import": "./dist/src/node/archive-client.js"
 		}
 	},
-	"files": ["dist", "migrations"],
+	"files": [
+		"dist",
+		"migrations"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -181,7 +184,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/stacks": "^2.0.0",
+		"@secondlayer/stacks": "^2.0.1",
 		"kysely": "0.28.15",
 		"kysely-postgres-js": "3.0.0",
 		"postgres": "^3.4.6",

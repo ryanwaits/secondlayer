@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/clarity-docs",
-	"version": "0.3.8",
+	"version": "0.3.9",
 	"description": "ClarityDoc - Documentation comment standard and tooling for Clarity smart contracts",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -11,7 +11,10 @@
 			"import": "./dist/index.js"
 		}
 	},
-	"files": ["dist", "src"],
+	"files": [
+		"dist",
+		"src"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -30,7 +33,7 @@
 	"author": "Ryan Waits",
 	"license": "MIT",
 	"dependencies": {
-		"@secondlayer/stacks": "^2.0.0"
+		"@secondlayer/stacks": "^2.0.1"
 	},
 	"devDependencies": {},
 	"engines": {
