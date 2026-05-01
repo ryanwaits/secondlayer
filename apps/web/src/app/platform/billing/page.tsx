@@ -1,5 +1,5 @@
 import { OverviewTopbar } from "@/components/console/overview-topbar";
-import { apiRequest, getSessionFromCookies } from "@/lib/api";
+import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import { type BillingCaps, TIER_META, type TierMeta } from "@/lib/billing";
 import { type UsageResponse, formatCents } from "@/lib/usage";
 import Link from "next/link";
@@ -12,6 +12,12 @@ interface Account {
 	id: string;
 	email: string;
 	plan: string;
+}
+
+interface TenantSummary {
+	slug: string;
+	plan: string;
+	status: string;
 }
 
 export default async function BillingPage({
@@ -34,10 +40,19 @@ export default async function BillingPage({
 		);
 	}
 
-	const [account, caps, usage] = await Promise.all([
+	const [account, tenant, caps, usage] = await Promise.all([
 		apiRequest<Account>("/api/accounts/me", { sessionToken: session }).catch(
 			() => null,
 		),
+		apiRequest<{ tenant: TenantSummary }>("/api/tenants/me", {
+			sessionToken: session,
+			tags: ["tenant"],
+		})
+			.then((r) => r.tenant)
+			.catch((err) => {
+				if (err instanceof ApiError && err.status === 404) return null;
+				return null;
+			}),
 		apiRequest<BillingCaps>("/api/billing/caps", {
 			sessionToken: session,
 		}).catch(() => null),
@@ -74,6 +89,7 @@ export default async function BillingPage({
 	}
 
 	const isHobby = account.plan === "hobby";
+	const hasInstance = tenant !== null;
 
 	return (
 		<>
@@ -82,17 +98,50 @@ export default async function BillingPage({
 				<div className="settings-inner">
 					<h1 className="settings-title">Billing</h1>
 					<p className="settings-desc">
-						{isHobby
-							? "You're on the Free plan. No payment on file — upgrade to unlock production capacity and spend controls."
-							: "Manage your plan and spend controls. Payment, invoices, and cancellation live in the Stripe portal."}
+						{!hasInstance
+							? "Create an instance before managing plan capacity, spend controls, or payment details."
+							: isHobby
+								? "You're on the Free plan. No payment on file — upgrade to unlock production capacity and spend controls."
+								: "Manage your plan and spend controls. Payment, invoices, and cancellation live in the Stripe portal."}
 					</p>
 
-					{isHobby ? (
+					{!hasInstance ? (
+						<NoInstanceView />
+					) : isHobby ? (
 						<HobbyView currentPlan={account.plan} />
 					) : (
 						<PaidView account={account} caps={caps} usage={usage} />
 					)}
 				</div>
+			</div>
+		</>
+	);
+}
+
+// ── No instance view ────────────────────────────────────────────────
+
+function NoInstanceView() {
+	return (
+		<>
+			<div className="settings-section">
+				<div className="settings-section-title">Current instance</div>
+				<div className="plan-card">
+					<div>
+						<div className="plan-card-name">No instance provisioned</div>
+						<div className="plan-card-sub">
+							Provision a dedicated Postgres, API, and subgraph processor before
+							choosing paid capacity or configuring spend controls.
+						</div>
+					</div>
+					<Link href="/instance" className="settings-btn primary small">
+						Create instance
+					</Link>
+				</div>
+			</div>
+
+			<div className="settings-hint">
+				Start with Hobby for free, then resize to Launch, Grow, or Scale from
+				the Instance page when you need more capacity.
 			</div>
 		</>
 	);

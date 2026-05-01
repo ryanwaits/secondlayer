@@ -6,7 +6,6 @@ import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubgraphSummary } from "@/lib/types";
-import Link from "next/link";
 
 function statusLabel(sg: SubgraphSummary, chainTip: number | null) {
 	const s = getDisplayStatus(sg, chainTip);
@@ -79,13 +78,6 @@ export default async function SubgraphsPage() {
 									? "Subgraphs deploy to your dedicated Secondlayer instance. Create one, then scaffold from a contract and deploy."
 									: "Subgraphs index on-chain data into queryable tables. Start from a contract scaffold, review the handlers, then deploy."}
 							</p>
-							{hasInstance === false && (
-								<div className="prompt-actions">
-									<Link href="/instance" className="btn-secondary">
-										Create instance
-									</Link>
-								</div>
-							)}
 							<PromptActions prompt={getAgentPrompt("subgraph-create")} />
 							<div className="empty-divider">
 								<span className="empty-divider-text">Get started</span>
