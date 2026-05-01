@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secondlayer — Unified Instance Page (Mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;560;600&family=Fira+Code:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fafafa;
+  --bg-elevated: #fff;
+  --bg-chrome: #f3f3f3;
+  --text-main: #111;
+  --text-muted: rgba(0,0,0,0.45);
+  --text-dim: rgba(0,0,0,0.28);
+  --text-faint: rgba(0,0,0,0.12);
+  --border: #e5e5e5;
+  --border-hover: #d0d0d0;
+  --code-bg: rgba(0,0,0,0.04);
+  --accent: #2563EB;
+  --accent-bg: rgba(37,99,235,0.08);
+  --accent-border: rgba(37,99,235,0.22);
+  --green: #16a34a;
+  --green-bg: rgba(22,163,74,0.08);
+  --yellow: #ca8a04;
+  --yellow-bg: rgba(202,138,4,0.10);
+  --red: #dc2626;
+  --red-bg: rgba(220,38,38,0.08);
+  --red-border: rgba(220,38,38,0.25);
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111;
+    --bg-elevated: #1a1a1a;
+    --bg-chrome: #0a0a0a;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.45);
+    --text-dim: rgba(255,255,255,0.28);
+    --text-faint: rgba(255,255,255,0.10);
+    --border: #2a2a2a;
+    --border-hover: #3a3a3a;
+    --code-bg: rgba(255,255,255,0.05);
+    --accent: #1FD5F9;
+    --accent-bg: rgba(31,213,249,0.08);
+    --accent-border: rgba(31,213,249,0.22);
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.10);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.10);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.10);
+    --red-border: rgba(239,68,68,0.30);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg-chrome);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-wrap { max-width: 1480px; margin: 0 auto; padding: 28px 20px 80px; }
+.page-h1 { font-family: var(--font-heading); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 4px; }
+.page-sub { color: var(--text-muted); font-size: 12.5px; margin: 0 0 22px; max-width: 720px; }
+
+.scene-label {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 36px 0 4px;
+  display: flex; align-items: center; gap: 10px;
+}
+.scene-label .num {
+  font-family: var(--font-mono); font-size: 10px;
+  border: 1px solid var(--border); background: var(--bg);
+  padding: 1px 7px; border-radius: 3px; color: var(--text-muted);
+  letter-spacing: 0;
+}
+.scene-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.scene-caption { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px; max-width: 800px; }
+.scene-caption strong { color: var(--text-main); font-weight: 560; }
+.note {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 20px;
+  max-width: 760px;
+  border-left: 2px solid var(--accent);
+  padding: 7px 12px;
+  background: var(--accent-bg);
+  border-radius: 0 6px 6px 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Shell (sidebar + main)
+   ────────────────────────────────────────────────────────────────── */
+.shell {
+  display: flex;
+  height: 980px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 6px 24px -10px rgba(0,0,0,0.06);
+}
+.shell.short { height: 720px; }
+
+.sidebar {
+  width: 224px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  padding: 14px 10px;
+  gap: 14px;
+}
+.sb-logo {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-heading);
+  font-size: 13.5px; font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.sb-logo svg .logo-primary { fill: var(--accent); }
+.sb-logo svg .logo-echo { fill: var(--accent); opacity: 0.3; }
+.sb-proj {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 9px;
+  border: 1px solid var(--border); border-radius: 7px;
+  font-size: 12px;
+}
+.sb-proj-l { display: flex; align-items: center; gap: 8px; }
+.sb-proj-icon {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-border));
+}
+.sb-proj-cv { color: var(--text-dim); }
+
+.sb-nav { display: flex; flex-direction: column; gap: 1px; }
+.sb-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 9px; border-radius: 6px;
+  font-size: 12.5px; color: var(--text-muted);
+  text-decoration: none; cursor: pointer;
+  position: relative;
+}
+.sb-item:hover { background: var(--code-bg); color: var(--text-main); }
+.sb-item.active { background: var(--code-bg); color: var(--text-main); font-weight: 540; }
+.sb-item.active::before {
+  content: ""; position: absolute;
+  left: -10px; top: 6px; bottom: 6px;
+  width: 2px; background: var(--accent); border-radius: 2px;
+}
+.sb-item-icon { display: inline-flex; opacity: 0.7; }
+.sb-item.active .sb-item-icon { opacity: 1; color: var(--accent); }
+.sb-item-badge {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 10px;
+  background: var(--code-bg);
+  padding: 1px 6px; border-radius: 3px;
+}
+.sb-acc-children { display: flex; flex-direction: column; padding-left: 24px; gap: 1px; }
+.sb-acc-children .sb-item { padding: 4px 9px; font-size: 12px; }
+.sb-acc-children .sb-item.active::before { left: -2px; top: 4px; bottom: 4px; }
+.sb-acc-children .sb-item.removed {
+  color: var(--text-faint);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.sb-acc-children .sb-item.removed::after {
+  content: "removed";
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--red);
+  background: var(--red-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+}
+.sb-spacer { flex: 1; }
+.sb-user {
+  display: flex; align-items: center; gap: 9px;
+  border-top: 1px solid var(--border);
+  margin: 0 -10px -14px;
+  padding: 12px 18px;
+}
+.sb-user-avatar {
+  width: 22px; height: 22px;
+  border-radius: 50%; background: var(--code-bg);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 600;
+}
+.sb-user-name { font-size: 12px; color: var(--text-main); }
+
+/* Main col */
+.main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.main-scroll { flex: 1; overflow: auto; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 22px;
+  height: 44px;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-crumb { display: flex; align-items: center; font-size: 12.5px; }
+.topbar-crumb .ctx { color: var(--text-muted); }
+.topbar-crumb .sep { color: var(--text-faint); margin: 0 7px; }
+.topbar-crumb .pg { color: var(--text-main); font-weight: 540; }
+.topbar-meta { display: flex; align-items: center; gap: 12px; font-size: 11.5px; color: var(--text-muted); }
+.topbar-meta .mono { font-family: var(--font-mono); color: var(--text-main); font-size: 11px; }
+
+/* Layout: content + sticky right rail */
+.inner {
+  padding: 22px 24px 60px;
+  display: grid;
+  grid-template-columns: 1fr 184px;
+  gap: 28px;
+  align-items: start;
+}
+.content { min-width: 0; }
+.rail {
+  position: sticky; top: 22px;
+  display: flex; flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+}
+.rail-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.rail a {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-left: 1.5px solid var(--border);
+  font-size: 12px;
+  transition: color .12s;
+}
+.rail a:hover { color: var(--text-main); border-left-color: var(--border-hover); }
+.rail a.active { color: var(--text-main); border-left-color: var(--accent); font-weight: 540; }
+.rail .danger { color: var(--red); opacity: 0.7; }
+
+/* Page header — quiet */
+.pg-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.pg-hdr-id { display: flex; align-items: center; gap: 10px; }
+.pg-hdr-name {
+  font-family: var(--font-heading);
+  font-size: 18px; font-weight: 600;
+  letter-spacing: -0.018em;
+}
+.pg-hdr-slug {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--code-bg);
+  padding: 2px 7px; border-radius: 4px;
+}
+.pg-hdr-desc {
+  font-size: 12px; color: var(--text-muted);
+  margin: 0 0 22px;
+}
+
+/* Section */
+.sec { margin-bottom: 28px; }
+.sec-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-h-l { display: flex; align-items: baseline; gap: 10px; }
+.sec-h-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: -0.005em;
+}
+.sec-h-sub { font-size: 11.5px; color: var(--text-muted); }
+
+/* KV rows (Overview, Access) */
+.kv {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  row-gap: 0;
+}
+.kv-row {
+  display: contents;
+}
+.kv-row > .k {
+  padding: 9px 0 9px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+.kv-row:first-child > .k,
+.kv-row:first-child > .v,
+.kv-row:first-child > .a { border-top: none; padding-top: 0; }
+.kv-row > .v {
+  padding: 9px 0;
+  font-size: 12.5px;
+  color: var(--text-main);
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kv-row > .a {
+  padding: 7px 0;
+  display: flex; align-items: center; gap: 4px;
+  border-top: 1px solid var(--border);
+}
+.kv-row .v.mono { font-family: var(--font-mono); font-size: 11.5px; }
+.kv-row .v .sub { color: var(--text-muted); margin-left: 8px; font-size: 11.5px; }
+
+/* Pills */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  padding: 2px 8px; border-radius: 4px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.pill.ok { color: var(--green); background: var(--green-bg); }
+.pill.warn { color: var(--yellow); background: var(--yellow-bg); }
+.pill.muted { color: var(--text-muted); background: var(--code-bg); }
+.pill.err { color: var(--red); background: var(--red-bg); }
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 11.5px; font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 9px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { color: var(--text-main); border-color: var(--border-hover); }
+.btn.primary {
+  color: var(--accent-contrast, #fff);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+  .btn.primary { color: #071316; }
+}
+.btn.primary:hover { color: var(--accent-contrast, #fff); opacity: 0.9; }
+.btn.danger { color: var(--red); border-color: var(--red-border); }
+.btn.danger:hover { color: var(--red); background: var(--red-bg); }
+
+/* Health row — compact horizontal gauges */
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.health-cell {
+  padding: 12px 14px;
+  border-right: 1px solid var(--border);
+}
+.health-cell:last-child { border-right: none; }
+.health-cell .label {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 7px;
+}
+.health-cell .big {
+  font-family: var(--font-heading);
+  font-size: 18px; font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+.health-cell .big .unit {
+  font-family: var(--font-sans); font-size: 12px; font-weight: 400;
+  color: var(--text-muted); margin-left: 2px;
+}
+.health-cell .sub {
+  font-size: 11px; color: var(--text-muted);
+  margin-top: 2px;
+}
+.health-bar-wrap {
+  height: 4px; background: var(--code-bg);
+  border-radius: 2px; overflow: hidden; margin-top: 8px;
+}
+.health-bar { height: 100%; background: var(--accent); border-radius: 2px; }
+.health-bar.warn { background: var(--yellow); }
+.health-bar.danger { background: var(--red); }
+
+/* Plan & capacity — comparison row */
+.plan-table {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.plan-row {
+  display: grid;
+  grid-template-columns: 110px 90px 80px 80px 100px 1fr auto;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  gap: 10px;
+}
+.plan-row.head {
+  border-top: none;
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--code-bg);
+}
+.plan-row.current {
+  background: var(--accent-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.plan-row .name {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.plan-row.current .name { color: var(--accent); }
+.plan-row .price {
+  font-family: var(--font-mono);
+  color: var(--text-main);
+}
+.plan-row .price .free { color: var(--green); }
+.plan-row .spec {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+.plan-row .note {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+.plan-row .action { justify-self: end; }
+.plan-row .badge-current {
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  padding: 3px 8px; border-radius: 4px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.plan-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px;
+  background: var(--code-bg);
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.plan-foot svg { color: var(--yellow); flex-shrink: 0; }
+
+/* Resize confirmation banner */
+.confirm-banner {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px;
+  background: var(--yellow-bg);
+  border: 1px solid rgba(202,138,4,0.25);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+}
+.confirm-banner .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%; background: var(--yellow);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.confirm-banner .body { flex: 1; }
+.confirm-banner .body strong { color: var(--text-main); font-weight: 600; }
+.confirm-banner .body em { color: var(--text-muted); font-style: normal; }
+
+/* Spend strip */
+.spend-strip {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.spend-strip-h {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+}
+.spend-strip-h .l { color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.spend-strip-h .r { font-family: var(--font-mono); font-size: 12px; color: var(--text-main); }
+.spend-strip-h .r .pct { color: var(--text-muted); margin-left: 6px; }
+.spend-bar { height: 6px; background: var(--code-bg); border-radius: 3px; overflow: hidden; }
+.spend-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+.spend-bar-fill.warn { background: var(--yellow); }
+.spend-bar-fill.danger { background: var(--red); }
+
+/* Spend form */
+.spend-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.field {
+  display: flex; flex-direction: column; gap: 5px;
+}
+.field-label {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.field-input {
+  display: flex; align-items: center; gap: 8px;
+}
+.field-input input,
+.field-input select {
+  flex: 1;
+  height: 32px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-main);
+}
+.field-input input:focus,
+.field-input select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+.field-hint { font-size: 11px; color: var(--text-muted); }
+
+/* Callouts */
+.callout {
+  display: flex; gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: 8px;
+  margin-bottom: 18px;
+}
+.callout.err { border-color: var(--red-border); background: var(--red-bg); }
+.callout.warn { border-color: rgba(202,138,4,0.25); background: var(--yellow-bg); }
+.callout-icon {
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  margin-top: 1px;
+}
+.callout.err .callout-icon { color: var(--red); }
+.callout.warn .callout-icon { color: var(--yellow); }
+.callout-title { font-weight: 600; font-size: 12.5px; color: var(--text-main); }
+.callout-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Payment row — list pattern */
+.list-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.list-row:last-child { margin-bottom: 0; }
+.list-row .meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.list-row .name { font-size: 13px; font-weight: 540; color: var(--text-main); }
+.list-row .desc { font-size: 11.5px; color: var(--text-muted); }
+.list-row .desc code {
+  font-family: var(--font-mono); font-size: 10.5px;
+  background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+}
+
+/* Danger zone */
+.danger-list .list-row { border-color: var(--border); }
+.danger-list .list-row.delete { border-color: var(--red-border); background: var(--red-bg); }
+.danger-list .list-row.delete .name { color: var(--red); }
+
+/* Tab strip variant (state toggles) */
+.state-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 18px;
+}
+.state-tab {
+  font-family: var(--font-sans);
+  font-size: 12px; font-weight: 500;
+  color: var(--text-muted);
+  background: none; border: none;
+  border-bottom: 1.5px solid transparent;
+  padding: 7px 14px 9px;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.state-tab.active { color: var(--text-main); border-bottom-color: var(--accent); }
+
+/* Mobile collapse note */
+.mobile-note {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  background: var(--bg);
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.mobile-note h4 {
+  font-family: var(--font-heading);
+  font-size: 13px; font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--text-main);
+}
+.mobile-note ul { margin: 0; padding-left: 18px; font-size: 12.5px; }
+.mobile-note ul li { margin-bottom: 4px; }
+.mobile-note ul li strong { color: var(--text-main); font-weight: 540; }
+
+.mobile-frame {
+  width: 220px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+  background: var(--bg-chrome);
+  font-size: 11px;
+}
+.mf-screen { background: var(--bg); border-radius: 8px; padding: 12px; }
+.mf-h {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+}
+.mf-h .pill.ok { padding: 1px 5px; font-size: 8.5px; }
+.mf-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin: 0 -12px 8px; padding: 0 6px; }
+.mf-tab { padding: 4px 6px; font-size: 9.5px; color: var(--text-muted); border-bottom: 1.5px solid transparent; }
+.mf-tab.active { color: var(--text-main); border-bottom-color: var(--accent); }
+.mf-kv { display: grid; grid-template-columns: 50px 1fr; row-gap: 4px; font-size: 10px; padding: 4px 0; }
+.mf-kv .k { color: var(--text-muted); font-family: var(--font-mono); font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.06em; }
+.mf-kv .v { color: var(--text-main); font-family: var(--font-mono); font-size: 9.5px; }
+.mf-health { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 6px 0; }
+.mf-health-cell { border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px; font-size: 9px; }
+.mf-health-cell .lbl { color: var(--text-dim); font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--font-mono); }
+.mf-health-cell .num { font-family: var(--font-heading); font-weight: 600; font-size: 11px; color: var(--text-main); }
+
+/* Recommendation panel */
+.reco {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.reco-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--bg);
+}
+.reco-card h4 {
+  font-family: var(--font-heading);
+  font-size: 12.5px; font-weight: 600;
+  margin: 0 0 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.reco-card .badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 600;
+  padding: 2px 7px; border-radius: 4px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.reco-card .badge.pick { color: var(--green); background: var(--green-bg); }
+.reco-card .badge.skip { color: var(--text-muted); background: var(--code-bg); }
+.reco-card p { font-size: 12px; color: var(--text-muted); margin: 0 0 6px; }
+.reco-card code {
+  font-family: var(--font-mono); font-size: 11px;
+  background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+}
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <h1 class="page-h1">Unified Instance · Plan · Spend</h1>
+  <p class="page-sub">One operational surface for the dedicated instance, the plan that defines its capacity, and the spend controls that gate it. Replaces the separate Billing page.</p>
+
+  <div class="note">
+    <strong>Recommendation summary.</strong> Drop <code style="font-family:var(--font-mono); font-size:11px;">/billing</code> from the sidebar. Rename the Instance entry to <strong>Instance</strong> (unchanged label, broader scope). Keep <code style="font-family:var(--font-mono); font-size:11px;">/platform/billing</code> as a server redirect to <code style="font-family:var(--font-mono); font-size:11px;">/platform/instance?upgrade=success#plan</code> so the Stripe webhook return URL keeps working without code changes upstream. Usage analytics stays at <code style="font-family:var(--font-mono); font-size:11px;">/usage</code>.
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 1 — Paid instance, healthy state, full shell
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">01</span> Paid instance · healthy · full shell</div>
+  <p class="scene-caption">Page sections stack vertically. A right rail holds anchor links so operators can jump between sections without scrolling. <strong>Plan & Capacity</strong> is a comparison table — not card grid — keyed off the same <code style="font-family:var(--font-mono); font-size:11px;">TIER_META</code> source-of-truth that drives the resize endpoint, so pricing/capacity stays in lock-step. <strong>Payment</strong> is two utility links to the Stripe portal — never a hero.</p>
+
+  <div class="shell">
+    <!-- Sidebar with Billing crossed out to show what changes -->
+    <nav class="sidebar">
+      <div class="sb-logo">
+        <svg viewBox="4 7 40 28" width="22" height="14"><polygon points="8,25 28,17 42,25 22,33" class="logo-echo"/><polygon points="8,19 28,11 42,19 22,27" class="logo-primary"/></svg>
+        secondlayer
+      </div>
+
+      <div class="sb-proj">
+        <div class="sb-proj-l"><div class="sb-proj-icon"></div><span style="font-weight: 500;">stacks-mainnet</span></div>
+        <svg class="sb-proj-cv" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7l3-3 3 3M5 9l3 3 3-3"/></svg>
+      </div>
+
+      <div class="sb-nav">
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5L8 2l6 4.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6.5z"/></svg></span>
+          <span>Home</span>
+        </a>
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="8" cy="12" r="2"/><path d="M5 5l2 5M11 5L9 10"/></svg></span>
+          <span>Subgraphs</span>
+          <span class="sb-item-badge">12</span>
+        </a>
+        <a class="sb-item"><span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/></svg></span><span>Sessions</span></a>
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg></span>
+          <span>Settings</span>
+          <svg style="margin-left:auto" width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+        </a>
+        <div class="sb-acc-children">
+          <a class="sb-item">Project</a>
+          <a class="sb-item">API Keys</a>
+          <a class="sb-item">Team</a>
+          <a class="sb-item">Usage</a>
+          <a class="sb-item removed">Billing</a>
+          <a class="sb-item active">Instance</a>
+        </div>
+      </div>
+
+      <div class="sb-spacer"></div>
+      <div class="sb-user">
+        <span class="sb-user-avatar">R</span>
+        <span class="sb-user-name">ryan@secondlayer.dev</span>
+      </div>
+    </nav>
+
+    <div class="main-col">
+      <div class="topbar">
+        <div class="topbar-crumb">
+          <span class="ctx">Settings</span>
+          <span class="sep">/</span>
+          <span class="pg">Instance</span>
+        </div>
+        <div class="topbar-meta">
+          <span>Last updated <span class="mono">5s ago</span></span>
+        </div>
+      </div>
+
+      <div class="main-scroll">
+        <div class="inner">
+          <div class="content">
+
+            <!-- Page header -->
+            <div class="pg-hdr">
+              <div class="pg-hdr-id">
+                <span class="pg-hdr-name">Instance</span>
+                <span class="pg-hdr-slug">acme</span>
+                <span class="pill ok"><span class="dot"></span>active</span>
+              </div>
+            </div>
+            <p class="pg-hdr-desc">Your dedicated Postgres, API, and subgraph processor. Plan defines capacity; spend caps gate billing.</p>
+
+            <!-- ── 1. Overview ── -->
+            <section class="sec" id="overview">
+              <div class="sec-h">
+                <div class="sec-h-l">
+                  <span class="sec-h-title">Overview</span>
+                </div>
+              </div>
+              <div class="kv">
+                <div class="kv-row">
+                  <div class="k">api url</div>
+                  <div class="v mono">https://acme.secondlayer.tools</div>
+                  <div class="a"><button class="btn">Copy</button></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">plan</div>
+                  <div class="v">Grow <span class="sub">2 vCPU · 4 GB RAM · 50 GB · $249/mo</span></div>
+                  <div class="a"><a class="btn" href="#plan">Resize</a></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">created</div>
+                  <div class="v">Mar 12, 2026 at 9:14 AM</div>
+                  <div class="a"></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">region</div>
+                  <div class="v">us-east-1 <span class="sub">primary</span></div>
+                  <div class="a"></div>
+                </div>
+              </div>
+
+              <div style="height: 12px;"></div>
+
+              <div class="health-grid">
+                <div class="health-cell">
+                  <div class="label">CPU</div>
+                  <div class="big">38<span class="unit">%</span></div>
+                  <div class="health-bar-wrap"><div class="health-bar" style="width: 38%"></div></div>
+                  <div class="sub">avg across 3 containers</div>
+                </div>
+                <div class="health-cell">
+                  <div class="label">Memory</div>
+                  <div class="big">2.1<span class="unit">/4 GB</span></div>
+                  <div class="health-bar-wrap"><div class="health-bar" style="width: 53%"></div></div>
+                  <div class="sub">53% utilized</div>
+                </div>
+                <div class="health-cell">
+                  <div class="label">Storage</div>
+                  <div class="big">14.2<span class="unit">/50 GB</span></div>
+                  <div class="health-bar-wrap"><div class="health-bar" style="width: 28%"></div></div>
+                  <div class="sub">subgraphs + WAL</div>
+                </div>
+                <div class="health-cell">
+                  <div class="label">Containers</div>
+                  <div class="big">3<span class="unit">/3</span></div>
+                  <div class="sub" style="margin-top: 4px;">postgres · api · indexer</div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ── 2. Plan & Capacity ── -->
+            <section class="sec" id="plan">
+              <div class="sec-h">
+                <div class="sec-h-l">
+                  <span class="sec-h-title">Plan &amp; Capacity</span>
+                  <span class="sec-h-sub">Resizing recreates containers · ~30s of API downtime · data preserved</span>
+                </div>
+                <a class="btn" href="mailto:hey@secondlayer.tools">Talk to us about Enterprise →</a>
+              </div>
+
+              <div class="plan-table">
+                <div class="plan-row head">
+                  <span>Plan</span>
+                  <span>Price</span>
+                  <span>vCPU</span>
+                  <span>RAM</span>
+                  <span>Storage</span>
+                  <span>Notes</span>
+                  <span></span>
+                </div>
+                <div class="plan-row">
+                  <span class="name">Hobby</span>
+                  <span class="price"><span class="free">Free</span></span>
+                  <span class="spec">0.5</span>
+                  <span class="spec">512 MB</span>
+                  <span class="spec">5 GB</span>
+                  <span class="note">Auto-pauses after 7d idle</span>
+                  <span class="action"><button class="btn">Downgrade</button></span>
+                </div>
+                <div class="plan-row">
+                  <span class="name">Launch</span>
+                  <span class="price">$99/mo</span>
+                  <span class="spec">1</span>
+                  <span class="spec">2 GB</span>
+                  <span class="spec">10 GB</span>
+                  <span class="note">Always-on production</span>
+                  <span class="action"><button class="btn">Downsize</button></span>
+                </div>
+                <div class="plan-row current">
+                  <span class="name">Grow</span>
+                  <span class="price">$249/mo</span>
+                  <span class="spec">2</span>
+                  <span class="spec">4 GB</span>
+                  <span class="spec">50 GB</span>
+                  <span class="note">Subscriptions + replay</span>
+                  <span class="action"><span class="badge-current">Current</span></span>
+                </div>
+                <div class="plan-row">
+                  <span class="name">Scale</span>
+                  <span class="price">$599/mo</span>
+                  <span class="spec">4</span>
+                  <span class="spec">8 GB</span>
+                  <span class="spec">200 GB</span>
+                  <span class="note">High-throughput indexers</span>
+                  <span class="action"><button class="btn primary">Resize to Scale</button></span>
+                </div>
+                <div class="plan-row">
+                  <span class="name">Enterprise</span>
+                  <span class="price" style="color: var(--text-muted);">custom</span>
+                  <span class="spec">—</span>
+                  <span class="spec">—</span>
+                  <span class="spec">—</span>
+                  <span class="note">SLAs · regions · SSO · dedicated</span>
+                  <span class="action"><a class="btn" href="mailto:hey@secondlayer.tools">Contact us</a></span>
+                </div>
+                <div class="plan-foot">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M8 2l6 11H2L8 2z"/><path d="M8 6v4"/><circle cx="8" cy="12" r="0.5" fill="currentColor"/>
+                  </svg>
+                  Resizing applies immediately. Brief API downtime (~30s) while containers recreate. Plan price prorates this billing period.
+                </div>
+              </div>
+            </section>
+
+            <!-- ── 3. Spend Controls ── -->
+            <section class="sec" id="spend">
+              <div class="sec-h">
+                <div class="sec-h-l">
+                  <span class="sec-h-title">Spend Controls</span>
+                  <span class="sec-h-sub">Cap and threshold are independent of plan price</span>
+                </div>
+                <a class="btn" href="#usage">View usage →</a>
+              </div>
+
+              <div class="spend-strip">
+                <div class="spend-strip-h">
+                  <span class="l">This period · resets May 31</span>
+                  <span class="r">$162.40 / $500.00 <span class="pct">· 32%</span></span>
+                </div>
+                <div class="spend-bar"><div class="spend-bar-fill" style="width: 32%"></div></div>
+              </div>
+
+              <div class="spend-form">
+                <div class="field">
+                  <span class="field-label">Monthly cap</span>
+                  <div class="field-input">
+                    <input type="text" value="$500.00">
+                    <button class="btn primary">Apply</button>
+                  </div>
+                  <span class="field-hint">When hit, services freeze until invoice.paid resets the counter.</span>
+                </div>
+                <div class="field">
+                  <span class="field-label">Alert threshold</span>
+                  <div class="field-input">
+                    <select>
+                      <option>50% of cap</option>
+                      <option selected>80% of cap</option>
+                      <option>90% of cap</option>
+                      <option>off</option>
+                    </select>
+                  </div>
+                  <span class="field-hint">Sends email to billing contact. No action taken on services.</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- ── 4. Payment ── -->
+            <section class="sec" id="payment">
+              <div class="sec-h">
+                <div class="sec-h-l">
+                  <span class="sec-h-title">Payment</span>
+                  <span class="sec-h-sub">Card, invoices, and cancellation handled by Stripe</span>
+                </div>
+              </div>
+
+              <div class="list-row">
+                <div class="meta">
+                  <div class="name">Payment methods &amp; invoices</div>
+                  <div class="desc">Update card · download invoices · view receipts · billed as <code>billing@acme.io</code></div>
+                </div>
+                <a class="btn" href="#">Open Stripe portal ↗</a>
+              </div>
+              <div class="list-row">
+                <div class="meta">
+                  <div class="name">Cancel or change subscription</div>
+                  <div class="desc">Downgrade, cancel, pause, or change billing email — handled in the Stripe portal</div>
+                </div>
+                <a class="btn" href="#">Open Stripe portal ↗</a>
+              </div>
+            </section>
+
+            <!-- ── 5. Access ── -->
+            <section class="sec" id="access">
+              <div class="sec-h">
+                <div class="sec-h-l">
+                  <span class="sec-h-title">Access</span>
+                  <span class="sec-h-sub">API keys, Postgres credentials, and tunnel config</span>
+                </div>
+              </div>
+              <div class="kv">
+                <div class="kv-row">
+                  <div class="k">api url</div>
+                  <div class="v mono">https://acme.secondlayer.tools</div>
+                  <div class="a"><button class="btn">Copy</button></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">service key</div>
+                  <div class="v">Full access · server-side only <span class="sub mono">last rotated 18d ago</span></div>
+                  <div class="a"><button class="btn">Rotate</button></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">anon key</div>
+                  <div class="v">Read-only · safe to embed <span class="sub mono">last rotated 4d ago</span></div>
+                  <div class="a"><button class="btn">Rotate</button></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">postgres</div>
+                  <div class="v mono">postgresql://acme.db.secondlayer.tools:5432/db</div>
+                  <div class="a"><button class="btn">Generate creds</button></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">ssh tunnel</div>
+                  <div class="v mono">ssh -L 5432:localhost:5432 acme@tunnel.secondlayer.tools</div>
+                  <div class="a"><button class="btn">Copy</button></div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ── 6. Danger Zone ── -->
+            <section class="sec" id="danger">
+              <div class="sec-h">
+                <div class="sec-h-l">
+                  <span class="sec-h-title" style="color: var(--red);">Danger Zone</span>
+                  <span class="sec-h-sub">Destructive actions · confirm twice</span>
+                </div>
+              </div>
+              <div class="danger-list">
+                <div class="list-row">
+                  <div class="meta">
+                    <div class="name">Suspend instance</div>
+                    <div class="desc">Containers stop · data preserved · resume in ~20s. Subscriptions pause; live API returns 503.</div>
+                  </div>
+                  <button class="btn">Suspend</button>
+                </div>
+                <div class="list-row">
+                  <div class="meta">
+                    <div class="name">Rotate all keys</div>
+                    <div class="desc">Service + anon keys regenerate. Old keys invalidate immediately. New keys shown once.</div>
+                  </div>
+                  <button class="btn danger">Rotate all</button>
+                </div>
+                <div class="list-row delete">
+                  <div class="meta">
+                    <div class="name">Delete instance</div>
+                    <div class="desc">Tears down Postgres, API, processor. <strong>All data is permanently destroyed.</strong> Subscription cancels at period end.</div>
+                  </div>
+                  <button class="btn danger">Delete</button>
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- Right rail (anchors) -->
+          <aside class="rail">
+            <div class="rail-label">On this page</div>
+            <a href="#overview" class="active">Overview</a>
+            <a href="#plan">Plan &amp; Capacity</a>
+            <a href="#spend">Spend Controls</a>
+            <a href="#payment">Payment</a>
+            <a href="#access">Access</a>
+            <a href="#danger" class="danger">Danger Zone</a>
+          </aside>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 2 — Hobby state · upgrade affordances inline
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">02</span> Hobby instance · upgrade lives in the plan table, not in a hero</div>
+  <p class="scene-caption">Free users see the same page shape. The plan table marks Hobby as <strong>current</strong>; the Launch/Grow/Scale rows show <strong>Upgrade to …</strong> buttons (one of them styled primary). Spend Controls is hidden — there's nothing to cap on Free. Payment shows a single "Add a card to upgrade" affordance instead of Stripe portal links.</p>
+
+  <div class="shell short">
+    <nav class="sidebar">
+      <div class="sb-logo"><svg viewBox="4 7 40 28" width="22" height="14"><polygon points="8,25 28,17 42,25 22,33" class="logo-echo"/><polygon points="8,19 28,11 42,19 22,27" class="logo-primary"/></svg>secondlayer</div>
+      <div class="sb-proj"><div class="sb-proj-l"><div class="sb-proj-icon"></div><span style="font-weight:500;">my-project</span></div></div>
+      <div class="sb-nav">
+        <a class="sb-item"><span>Home</span></a>
+        <a class="sb-item"><span>Subgraphs</span></a>
+        <a class="sb-item"><span>Sessions</span></a>
+        <a class="sb-item"><span>Settings</span></a>
+        <div class="sb-acc-children">
+          <a class="sb-item">Project</a>
+          <a class="sb-item">API Keys</a>
+          <a class="sb-item">Team</a>
+          <a class="sb-item">Usage</a>
+          <a class="sb-item active">Instance</a>
+        </div>
+      </div>
+      <div class="sb-spacer"></div>
+    </nav>
+
+    <div class="main-col">
+      <div class="topbar">
+        <div class="topbar-crumb"><span class="ctx">Settings</span><span class="sep">/</span><span class="pg">Instance</span></div>
+        <div class="topbar-meta"><span>Last updated <span class="mono">just now</span></span></div>
+      </div>
+
+      <div class="main-scroll">
+        <div class="inner">
+          <div class="content">
+
+            <div class="pg-hdr">
+              <div class="pg-hdr-id">
+                <span class="pg-hdr-name">Instance</span>
+                <span class="pg-hdr-slug">my-project</span>
+                <span class="pill warn"><span class="dot"></span>paused · idle 2d</span>
+              </div>
+            </div>
+            <p class="pg-hdr-desc">On Hobby. Auto-paused after 7d idle. Next CLI command auto-resumes — or click Resume.</p>
+
+            <section class="sec">
+              <div class="sec-h"><div class="sec-h-l"><span class="sec-h-title">Overview</span></div><button class="btn primary">Resume</button></div>
+              <div class="kv">
+                <div class="kv-row">
+                  <div class="k">api url</div>
+                  <div class="v mono">https://my-project.secondlayer.tools</div>
+                  <div class="a"><button class="btn">Copy</button></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">plan</div>
+                  <div class="v">Hobby <span class="sub">0.5 vCPU · 512 MB · 5 GB · Free</span></div>
+                  <div class="a"><a class="btn" href="#">Upgrade</a></div>
+                </div>
+                <div class="kv-row">
+                  <div class="k">created</div>
+                  <div class="v">Apr 28, 2026 at 4:02 PM</div>
+                  <div class="a"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec">
+              <div class="sec-h">
+                <div class="sec-h-l">
+                  <span class="sec-h-title">Plan &amp; Capacity</span>
+                  <span class="sec-h-sub">Upgrading provisions a paid instance · billing starts immediately</span>
+                </div>
+              </div>
+
+              <div class="plan-table">
+                <div class="plan-row head">
+                  <span>Plan</span><span>Price</span><span>vCPU</span><span>RAM</span><span>Storage</span><span>Notes</span><span></span>
+                </div>
+                <div class="plan-row current">
+                  <span class="name">Hobby</span>
+                  <span class="price"><span class="free">Free</span></span>
+                  <span class="spec">0.5</span><span class="spec">512 MB</span><span class="spec">5 GB</span>
+                  <span class="note">Auto-pauses after 7d idle</span>
+                  <span class="action"><span class="badge-current">Current</span></span>
+                </div>
+                <div class="plan-row">
+                  <span class="name">Launch</span>
+                  <span class="price">$99/mo</span>
+                  <span class="spec">1</span><span class="spec">2 GB</span><span class="spec">10 GB</span>
+                  <span class="note">Always-on production</span>
+                  <span class="action"><button class="btn primary">Upgrade to Launch</button></span>
+                </div>
+                <div class="plan-row">
+                  <span class="name">Grow</span>
+                  <span class="price">$249/mo</span>
+                  <span class="spec">2</span><span class="spec">4 GB</span><span class="spec">50 GB</span>
+                  <span class="note">Subscriptions + replay</span>
+                  <span class="action"><button class="btn">Upgrade to Grow</button></span>
+                </div>
+                <div class="plan-row">
+                  <span class="name">Scale</span>
+                  <span class="price">$599/mo</span>
+                  <span class="spec">4</span><span class="spec">8 GB</span><span class="spec">200 GB</span>
+                  <span class="note">High-throughput indexers</span>
+                  <span class="action"><button class="btn">Upgrade to Scale</button></span>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec">
+              <div class="sec-h"><div class="sec-h-l"><span class="sec-h-title">Payment</span><span class="sec-h-sub">Add a card to upgrade beyond Hobby</span></div></div>
+              <div class="list-row">
+                <div class="meta">
+                  <div class="name">No payment method on file</div>
+                  <div class="desc">Pick a paid plan above to add a card via Stripe Checkout.</div>
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          <aside class="rail">
+            <div class="rail-label">On this page</div>
+            <a href="#" class="active">Overview</a>
+            <a href="#">Plan &amp; Capacity</a>
+            <a href="#">Payment</a>
+            <a href="#">Access</a>
+            <a href="#" class="danger">Danger Zone</a>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 3 — Frozen / cap-hit state — top-of-page callout
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">03</span> Spend cap hit · services frozen</div>
+  <p class="scene-caption">When the cap is hit, the Overview status pill flips to <strong>frozen</strong> and a red callout sits above the page header. The Spend Controls section gets the same treatment with a <strong>Raise cap</strong> action surfaced. No other section is hidden — the operator may still rotate keys, suspend, etc.</p>
+
+  <div class="shell short">
+    <nav class="sidebar">
+      <div class="sb-logo"><svg viewBox="4 7 40 28" width="22" height="14"><polygon points="8,25 28,17 42,25 22,33" class="logo-echo"/><polygon points="8,19 28,11 42,19 22,27" class="logo-primary"/></svg>secondlayer</div>
+      <div class="sb-proj"><div class="sb-proj-l"><div class="sb-proj-icon"></div><span style="font-weight:500;">stacks-mainnet</span></div></div>
+      <div class="sb-nav">
+        <a class="sb-item"><span>Home</span></a>
+        <a class="sb-item"><span>Subgraphs</span></a>
+        <a class="sb-item"><span>Settings</span></a>
+        <div class="sb-acc-children">
+          <a class="sb-item">Usage</a>
+          <a class="sb-item active">Instance</a>
+        </div>
+      </div>
+      <div class="sb-spacer"></div>
+    </nav>
+
+    <div class="main-col">
+      <div class="topbar">
+        <div class="topbar-crumb"><span class="ctx">Settings</span><span class="sep">/</span><span class="pg">Instance</span></div>
+        <div class="topbar-meta"><span class="pill err"><span class="dot"></span>frozen</span></div>
+      </div>
+
+      <div class="main-scroll">
+        <div class="inner">
+          <div class="content">
+
+            <div class="callout err" role="alert">
+              <svg class="callout-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M6 7V5a2 2 0 0 1 4 0v2"/></svg>
+              <div>
+                <div class="callout-title">Services frozen — spend cap hit</div>
+                <div class="callout-sub">$500 cap reached on Apr 29. API returning 402. Raise the cap below or wait for the next billing cycle (cap resets with <code style="font-family:var(--font-mono); font-size:11px;">invoice.paid</code>).</div>
+              </div>
+            </div>
+
+            <div class="pg-hdr">
+              <div class="pg-hdr-id">
+                <span class="pg-hdr-name">Instance</span>
+                <span class="pg-hdr-slug">acme</span>
+                <span class="pill err"><span class="dot"></span>frozen</span>
+              </div>
+            </div>
+            <p class="pg-hdr-desc">Grow plan · 2 vCPU · 4 GB RAM · 50 GB. Containers running but API gated by spend cap.</p>
+
+            <section class="sec">
+              <div class="sec-h">
+                <div class="sec-h-l">
+                  <span class="sec-h-title">Spend Controls</span>
+                  <span class="sec-h-sub" style="color: var(--red);">Cap reached · API returning 402</span>
+                </div>
+                <button class="btn primary">Raise cap to $750</button>
+              </div>
+
+              <div class="spend-strip" style="border-color: var(--red-border); background: var(--red-bg);">
+                <div class="spend-strip-h">
+                  <span class="l" style="color: var(--red);">This period · frozen Apr 29</span>
+                  <span class="r">$500.00 / $500.00 <span class="pct" style="color: var(--red);">· 100% 🔒</span></span>
+                </div>
+                <div class="spend-bar"><div class="spend-bar-fill danger" style="width: 100%"></div></div>
+              </div>
+
+              <div class="spend-form">
+                <div class="field">
+                  <span class="field-label">Monthly cap</span>
+                  <div class="field-input">
+                    <input type="text" value="$500.00">
+                    <button class="btn primary">Raise cap</button>
+                  </div>
+                  <span class="field-hint">Lifting the cap immediately unfreezes services. Stripe is charged at next invoice.</span>
+                </div>
+                <div class="field">
+                  <span class="field-label">Alert threshold</span>
+                  <div class="field-input">
+                    <select><option>80% of cap</option></select>
+                  </div>
+                  <span class="field-hint">Was triggered Apr 26 at $400.</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="sec">
+              <div class="sec-h"><div class="sec-h-l"><span class="sec-h-title">Plan &amp; Capacity</span><span class="sec-h-sub">Upgrading immediately raises included spend allowance</span></div></div>
+              <div class="plan-table">
+                <div class="plan-row head"><span>Plan</span><span>Price</span><span>vCPU</span><span>RAM</span><span>Storage</span><span>Notes</span><span></span></div>
+                <div class="plan-row current">
+                  <span class="name">Grow</span><span class="price">$249/mo</span>
+                  <span class="spec">2</span><span class="spec">4 GB</span><span class="spec">50 GB</span>
+                  <span class="note">Current</span>
+                  <span class="action"><span class="badge-current">Current</span></span>
+                </div>
+                <div class="plan-row">
+                  <span class="name">Scale</span><span class="price">$599/mo</span>
+                  <span class="spec">4</span><span class="spec">8 GB</span><span class="spec">200 GB</span>
+                  <span class="note">Higher base allowance · less likely to hit caps</span>
+                  <span class="action"><button class="btn primary">Resize to Scale</button></span>
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          <aside class="rail">
+            <div class="rail-label">On this page</div>
+            <a href="#">Overview</a>
+            <a href="#" class="active">Spend Controls</a>
+            <a href="#">Plan &amp; Capacity</a>
+            <a href="#">Payment</a>
+            <a href="#">Access</a>
+            <a href="#" class="danger">Danger Zone</a>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 4 — Resize confirmation banner inline
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">04</span> Resize confirmation · inline</div>
+  <p class="scene-caption">Clicking <strong>Resize to Scale</strong> from the plan table swaps the plan section header for a confirmation banner. No modal. Cancel returns to the plain table.</p>
+
+  <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--bg); padding: 22px 24px;">
+    <div class="confirm-banner">
+      <span class="dot"></span>
+      <div class="body">
+        <strong>Resize Grow → Scale?</strong> Containers recreate over ~30s. The API returns 503 during the swap; subscriptions pause and replay catches up after. <em>Data and connections preserved. Billing prorates today.</em>
+      </div>
+      <button class="btn primary">Confirm resize</button>
+      <button class="btn">Cancel</button>
+    </div>
+    <div class="plan-table">
+      <div class="plan-row head"><span>Plan</span><span>Price</span><span>vCPU</span><span>RAM</span><span>Storage</span><span>Notes</span><span></span></div>
+      <div class="plan-row" style="opacity: 0.5;">
+        <span class="name">Grow</span><span class="price">$249/mo</span>
+        <span class="spec">2</span><span class="spec">4 GB</span><span class="spec">50 GB</span>
+        <span class="note">Stepping down from current</span>
+        <span class="action"></span>
+      </div>
+      <div class="plan-row" style="background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent);">
+        <span class="name" style="color: var(--accent);">Scale</span><span class="price">$599/mo</span>
+        <span class="spec">4</span><span class="spec">8 GB</span><span class="spec">200 GB</span>
+        <span class="note">Selected · pending confirm</span>
+        <span class="action"><span class="badge-current" style="background: var(--accent); color: var(--accent-contrast, #fff);">Selected</span></span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 5 — Mobile collapse
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">05</span> Mobile · how the page collapses</div>
+  <div class="mobile-note">
+    <div class="mobile-frame">
+      <div class="mf-screen">
+        <div class="mf-h">
+          Instance
+          <span class="pill ok"><span class="dot"></span>active</span>
+        </div>
+        <div class="mf-tabs">
+          <span class="mf-tab active">Overview</span>
+          <span class="mf-tab">Plan</span>
+          <span class="mf-tab">Spend</span>
+          <span class="mf-tab">···</span>
+        </div>
+        <div class="mf-kv">
+          <span class="k">url</span><span class="v">acme.secondlayer.tools</span>
+          <span class="k">plan</span><span class="v">Grow · 2 vCPU</span>
+          <span class="k">storage</span><span class="v">14.2 / 50 GB</span>
+        </div>
+        <div class="mf-health">
+          <div class="mf-health-cell"><div class="lbl">CPU</div><div class="num">38%</div></div>
+          <div class="mf-health-cell"><div class="lbl">MEM</div><div class="num">2.1G</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h4>Mobile-specific behavior</h4>
+      <ul>
+        <li><strong>Right rail anchors</strong> collapse into a horizontal scrolling tab strip pinned below the topbar (Overview · Plan · Spend · Payment · Access · Danger). Treat sections as discrete views, not anchor-jumps.</li>
+        <li><strong>Plan table</strong> rows reflow vertical: each plan becomes a stacked card (name · price on row 1; vCPU/RAM/Storage on row 2; notes + action on row 3). Still no card-in-card — the plan list itself is the only card.</li>
+        <li><strong>Health grid</strong> goes from 4 cells in a row to a 2×2 grid. Container list collapses to a single line: <em>3/3 healthy · postgres · api · indexer</em>.</li>
+        <li><strong>KV rows</strong> (Overview / Access) reflow: key on its own line above the value. Action buttons drop to the right of the value or below if they overflow.</li>
+        <li><strong>Spend form</strong> stacks vertically (cap, then threshold).</li>
+        <li><strong>Confirm-resize banner</strong> stacks the buttons vertically and increases tap target to ~44px.</li>
+      </ul>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 6 — Sidebar Billing entry: keep / rename / redirect
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">06</span> What happens to the old Billing sidebar item</div>
+
+  <div class="reco">
+    <div class="reco-card">
+      <h4>Remove from sidebar <span class="badge pick">pick</span></h4>
+      <p>Drop the Billing entry under Settings entirely. The unified Instance page now owns plan, spend, and payment.</p>
+      <p>Sidebar gains zero new entries; it just loses one.</p>
+    </div>
+    <div class="reco-card">
+      <h4>Redirect <code>/platform/billing</code> <span class="badge pick">pick</span></h4>
+      <p>Server redirect to <code>/platform/instance#payment</code>, preserving query params. This protects the Stripe Checkout return URL (<code>?upgrade=success</code>) and any in-flight email links.</p>
+      <p>Old route stays addressable for ~3 months, then we drop the file.</p>
+    </div>
+    <div class="reco-card">
+      <h4>Rename to "Instance &amp; Billing" <span class="badge skip">skip</span></h4>
+      <p>Reads as a marketing label, not an operations one. The page is fundamentally about the instance — billing is a tab inside it.</p>
+      <p>Keep the label simply <strong>Instance</strong>.</p>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

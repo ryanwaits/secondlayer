@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secondlayer — Instance + Billing hybrid (Mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;560;600&family=Fira+Code:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ──────────────────────────────────────────────────────────────────
+   Tokens — mirrored verbatim from globals.css so existing classes
+   render identically inside this mock.
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --bg: #fafafa;
+  --bg-elevated: #fff;
+  --bg-chrome: #f0f0f0;
+  --code-block-bg: #f8f8f8;
+  --text-main: #111;
+  --text-muted: rgba(0,0,0,0.4);
+  --text-dim: rgba(0,0,0,0.28);
+  --border: #e5e5e5;
+  --border-hover: #ddd;
+  --code-bg: rgba(0,0,0,0.04);
+  --accent: #2563EB;
+  --accent-bg: rgba(37,99,235,0.06);
+  --accent-border: rgba(37,99,235,0.2);
+  --accent-glow: rgba(37,99,235,0.06);
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.08);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.10);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.08);
+  --font-sans-stack: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading-stack: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono-stack: "Fira Code", "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111;
+    --bg-elevated: #1a1a1a;
+    --bg-chrome: #0c0c0c;
+    --code-block-bg: #1c1c1c;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.4);
+    --text-dim: rgba(255,255,255,0.25);
+    --border: #2e2e2e;
+    --border-hover: #3a3a3a;
+    --code-bg: rgba(255,255,255,0.06);
+    --accent: #1FD5F9;
+    --accent-bg: rgba(31,213,249,0.08);
+    --accent-border: rgba(31,213,249,0.22);
+    --accent-glow: rgba(31,213,249,0.08);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg-chrome);
+  color: var(--text-main);
+  font-family: var(--font-sans-stack);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+.page-h1 { font-family: var(--font-heading-stack); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 4px; }
+.page-sub { color: var(--text-muted); font-size: 12.5px; margin: 0 0 20px; max-width: 720px; }
+
+.scene-label {
+  font-family: var(--font-mono-stack);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 36px 0 4px;
+  display: flex; align-items: center; gap: 10px;
+}
+.scene-label .num {
+  font-family: var(--font-mono-stack); font-size: 10px;
+  border: 1px solid var(--border); background: var(--bg);
+  padding: 1px 7px; border-radius: 3px; color: var(--text-muted);
+  letter-spacing: 0;
+}
+.scene-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.scene-caption { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px; max-width: 800px; }
+.scene-caption strong { color: var(--text-main); font-weight: 540; }
+.scene-caption code {
+  font-family: var(--font-mono-stack); font-size: 11.5px;
+  background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+}
+
+.frame {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 32px 36px;
+}
+
+/* Section-anchor labels in the margin */
+.section-marker {
+  position: relative;
+}
+.section-marker::before {
+  content: attr(data-step);
+  position: absolute;
+  left: -40px;
+  top: 0;
+  font-family: var(--font-mono-stack);
+  font-size: 9.5px; font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  width: 30px; text-align: right;
+}
+@media (max-width: 1100px) {
+  .section-marker::before { display: none; }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Existing classes — mirrored verbatim from console.css
+   ────────────────────────────────────────────────────────────────── */
+.settings-title {
+  font-family: var(--font-heading-stack);
+  font-size: 16px; font-weight: 500;
+  letter-spacing: -0.02em; margin-bottom: 4px;
+}
+.settings-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+.settings-section { margin-bottom: 28px; }
+.settings-section-title {
+  font-family: var(--font-mono-stack);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-muted); opacity: 0.7;
+  margin-bottom: 12px;
+}
+.settings-divider { height: 1px; background: var(--border); margin: 24px 0; }
+.settings-hint { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.settings-input {
+  width: 100%; height: 36px;
+  background: transparent;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 0 10px;
+  font-family: var(--font-sans-stack); font-size: 13px;
+  color: var(--text-main); outline: none;
+}
+.settings-input:focus { border-color: var(--accent-border); }
+.settings-btn {
+  font-family: var(--font-sans-stack); font-size: 13px; font-weight: 500;
+  border: none; border-radius: 6px; padding: 7px 18px;
+  cursor: pointer;
+}
+.settings-btn.primary { color: #fff; background: var(--accent); border: 1px solid var(--accent); }
+.settings-btn.ghost { color: var(--text-muted); background: transparent; border: 1px solid var(--border); }
+.settings-btn.ghost:hover { color: var(--text-main); border-color: var(--border-hover); }
+.settings-btn.danger { color: var(--red); border: 1px solid rgba(239,68,68,0.3); background: transparent; }
+.settings-btn.danger:hover { background: var(--red-bg); }
+.settings-btn.small { padding: 5px 10px; font-size: 11.5px; }
+.settings-key-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.settings-key-row:last-child { border-bottom: none; }
+.settings-key-row .key-meta { flex: 1; }
+.settings-key-row .key-name { font-size: 13px; font-weight: 500; color: var(--text-main); margin-bottom: 2px; }
+.settings-key-row .key-hint { font-size: 11.5px; color: var(--text-muted); }
+.settings-key-row .key-hint code {
+  font-family: var(--font-mono-stack); background: var(--code-bg);
+  padding: 1px 5px; border-radius: 3px; font-size: 10.5px;
+}
+
+/* Instance KV */
+.instance-kv {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.instance-kv .row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 16px;
+  padding: 10px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.instance-kv .row:last-child { border-bottom: none; }
+.instance-kv .row .key {
+  color: var(--text-muted);
+  font-family: var(--font-mono-stack);
+  font-size: 11.5px;
+}
+.instance-kv .row .val { color: var(--text-main); }
+.instance-kv .row .val.mono { font-family: var(--font-mono-stack); font-size: 12.5px; }
+
+/* Pills */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono-stack);
+  font-size: 10.5px; font-weight: 500;
+  padding: 3px 8px; border-radius: 999px;
+}
+.pill .dot { width: 5px; height: 5px; border-radius: 50%; }
+.pill-success { color: var(--green); background: var(--green-bg); }
+.pill-success .dot { background: var(--green); }
+.pill-warn { color: var(--yellow); background: var(--yellow-bg); }
+.pill-warn .dot { background: var(--yellow); }
+.pill-muted { color: var(--text-muted); background: var(--code-bg); }
+.pill-muted .dot { background: var(--text-muted); }
+.pill-error { color: var(--red); background: var(--red-bg); }
+.pill-error .dot { background: var(--red); }
+
+/* Resource gauges */
+.instance-gauge {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  align-items: center; gap: 14px;
+  padding: 8px 0;
+  font-size: 12.5px;
+}
+.instance-gauge .label {
+  color: var(--text-muted);
+  font-family: var(--font-mono-stack);
+  font-size: 11px;
+}
+.instance-gauge .bar {
+  height: 4px;
+  background: var(--code-bg);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.instance-gauge .fill {
+  position: absolute; inset: 0 auto 0 0;
+  background: var(--text-main);
+  border-radius: 2px;
+}
+.instance-gauge.warn .fill { background: var(--yellow); }
+.instance-gauge.danger .fill { background: var(--red); }
+.instance-gauge .caption {
+  font-family: var(--font-mono-stack);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  min-width: 92px; text-align: right;
+}
+
+/* Connect snippet */
+.connect-url {
+  font-family: var(--font-mono-stack);
+  font-size: 12.5px;
+  padding: 9px 12px;
+  background: var(--code-block-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.connect-url .url { color: var(--text-main); }
+.connect-url .copy-btn {
+  background: transparent; border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono-stack);
+  font-size: 10.5px; cursor: pointer;
+  padding: 2px 6px; border-radius: 4px;
+}
+.connect-tabs { display: flex; gap: 3px; margin-bottom: 8px; }
+.connect-tab {
+  padding: 5px 11px; border-radius: 6px;
+  font-family: var(--font-mono-stack); font-size: 11px;
+  background: transparent; border: 1px solid transparent;
+  color: var(--text-muted); cursor: pointer;
+}
+.connect-tab.active { background: var(--code-bg); color: var(--text-main); border-color: var(--border); }
+.connect-code {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  background: var(--code-block-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.connect-code .tok { color: var(--accent); }
+
+/* Plan card */
+.plan-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+}
+.plan-card-name {
+  font-weight: 500; font-size: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.plan-card-name .tier-badge {
+  font-family: var(--font-mono-stack);
+  font-size: 10px; padding: 3px 8px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.plan-card-name .tier-badge.free {
+  background: var(--code-bg);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.plan-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+/* Tier grid (from billing — Hobby state) */
+.tier-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.tier-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  background: var(--bg-elevated);
+  display: flex; flex-direction: column;
+}
+.tier-card.featured {
+  border-color: var(--text-main);
+  box-shadow: 0 0 0 1px var(--text-main);
+}
+.tier-card .tier-label {
+  font-family: var(--font-mono-stack);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.tier-card .tier-price {
+  font-family: var(--font-heading-stack);
+  font-size: 26px; font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1; margin-bottom: 4px;
+}
+.tier-card .tier-price .unit {
+  font-family: var(--font-mono-stack);
+  font-size: 12px; color: var(--text-muted);
+  font-weight: 400; margin-left: 4px;
+}
+.tier-card .tier-tag { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+.tier-card ul { list-style: none; padding: 0; margin: 0 0 20px; flex: 1; font-size: 12.5px; }
+.tier-card ul li {
+  padding: 5px 0;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.tier-card ul li::before {
+  content: "›";
+  color: var(--accent);
+  font-family: var(--font-mono-stack);
+  font-weight: 600;
+}
+
+/* Cap strip */
+.cap-strip {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  background: var(--accent-bg);
+}
+.cap-strip.hot { background: var(--yellow-bg); border-color: rgba(234,179,8,0.25); }
+.cap-strip.over { background: var(--red-bg); border-color: rgba(239,68,68,0.25); }
+.cap-strip-label {
+  font-family: var(--font-mono-stack);
+  font-size: 11px;
+  display: flex; align-items: center; gap: 8px;
+}
+.cap-strip-label .pct { color: var(--text-muted); }
+.cap-strip-bar { flex: 1; margin: 0 16px; max-width: 220px; }
+.usage-bar { height: 6px; background: var(--code-bg); border-radius: 3px; overflow: hidden; }
+.usage-bar-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+.usage-bar-fill.yellow { background: var(--yellow); }
+.usage-bar-fill.red { background: var(--red); }
+
+/* Cap form (mirrors CapForm component shape) */
+.cap-form {
+  display: grid;
+  grid-template-columns: 1fr 200px auto;
+  gap: 10px;
+  align-items: end;
+}
+.cap-form .field-label {
+  font-family: var(--font-mono-stack);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-muted); opacity: 0.7;
+  margin-bottom: 6px; display: block;
+}
+
+/* Callouts (frozen / threshold) */
+.callout {
+  display: flex; gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.callout.warn { border-color: rgba(234,179,8,0.3); background: var(--yellow-bg); }
+.callout.error { border-color: rgba(239,68,68,0.3); background: var(--red-bg); }
+.callout-icon { flex-shrink: 0; width: 16px; height: 16px; margin-top: 1px; }
+.callout.warn .callout-icon { color: var(--yellow); }
+.callout.error .callout-icon { color: var(--red); }
+.callout-title { font-weight: 500; }
+.callout-sub { color: var(--text-muted); margin-top: 2px; font-size: 12.5px; }
+
+/* Resize confirmation banner */
+.instance-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.instance-banner.warning { border-color: rgba(234,179,8,0.3); background: var(--yellow-bg); }
+.instance-banner .banner-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.instance-banner.warning .banner-dot { background: var(--yellow); }
+.instance-banner .banner-body { flex: 1; line-height: 1.45; }
+.instance-banner .banner-body strong { font-weight: 500; }
+
+/* Stripe portal link rows */
+.portal-link {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--text-main);
+}
+.portal-link:hover { border-color: var(--border-hover); }
+.portal-link .meta .name { font-weight: 500; }
+.portal-link .meta .desc { font-size: 11.5px; color: var(--text-muted); }
+.portal-link .arrow { color: var(--text-muted); font-family: var(--font-mono-stack); font-size: 12px; }
+
+.soon-note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.soon-note a { color: var(--text-main); text-decoration: none; }
+.soon-note a:hover { text-decoration: underline; }
+
+/* Danger card */
+.danger-card {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.danger-card .title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.danger-card .desc { font-size: 11.5px; color: var(--text-muted); }
+.danger-card.delete { border-color: rgba(239,68,68,0.25); }
+
+/* Resize select row */
+.resize-row { display: flex; gap: 8px; align-items: center; }
+.resize-row select { flex: 1; max-width: 420px; height: 34px; }
+
+/* Footer "billed as" */
+.billed-as { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+.billed-as code {
+  font-family: var(--font-mono-stack);
+  background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+}
+
+/* Section marker styling for nav-style breadcrumb */
+.fake-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 24px;
+  font-size: 12.5px;
+}
+.fake-topbar .crumb { color: var(--text-muted); }
+.fake-topbar .crumb .pg { color: var(--text-main); font-weight: 500; }
+.fake-topbar .crumb .sep { color: var(--text-dim); margin: 0 7px; }
+
+/* Sidebar diff note */
+.sb-diff {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  background: var(--bg);
+}
+.sb-diff h4 {
+  font-family: var(--font-heading-stack);
+  font-size: 13px; font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--text-main);
+}
+.sb-diff pre {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+.sb-diff .add { color: var(--green); }
+.sb-diff .del { color: var(--red); text-decoration: line-through; }
+
+.note-box {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 18px;
+  max-width: 760px;
+  border-left: 2px solid var(--accent);
+  padding: 7px 12px;
+  background: var(--accent-bg);
+  border-radius: 0 6px 6px 0;
+}
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <h1 class="page-h1">Instance + Billing · hybrid</h1>
+  <p class="page-sub">Existing components, existing classes — Billing's sections folded into the existing Instance page in the order an operator reads them. No new layouts, no new card patterns.</p>
+
+  <div class="note-box">
+    <strong>What changes:</strong> Billing's <code style="font-family:var(--font-mono-stack);font-size:11px;">.upgrade-hero</code>, <code style="font-family:var(--font-mono-stack);font-size:11px;">.cap-strip</code>, <code style="font-family:var(--font-mono-stack);font-size:11px;">.tier-grid</code>, <code style="font-family:var(--font-mono-stack);font-size:11px;">CapForm</code>, and Stripe portal links move into Instance. <strong>What stays:</strong> every component renders identically — same classes, same shapes, same buttons. Only the section order shifts and the page lives at <code style="font-family:var(--font-mono-stack);font-size:11px;">/instance</code>.
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 1 — Paid hybrid (full page, healthy)
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">01</span> Paid · healthy · full page</div>
+  <p class="scene-caption">Section order: <strong>Overview · Resource usage · Connect · Plan · Spend controls · Keys · DB Access · Payment · (divider) · Danger Zone</strong>. Everything before "Plan" is the existing Instance page untouched. Everything from "Plan" forward is Billing's existing sections, preserving the exact <code>.plan-card</code>, <code>.cap-strip</code>, <code>CapForm</code>, and Stripe portal patterns.</p>
+
+  <div class="frame">
+    <!-- Topbar (fake — just shows breadcrumb shape) -->
+    <div class="fake-topbar">
+      <div class="crumb">
+        <span>Settings</span>
+        <span class="sep">/</span>
+        <span class="pg">Instance</span>
+      </div>
+      <div style="font-size: 11.5px; color: var(--text-muted);">
+        Last updated <span style="font-family: var(--font-mono-stack); color: var(--text-main);">5s ago</span>
+      </div>
+    </div>
+
+    <h1 class="settings-title">Instance</h1>
+    <p class="settings-desc">Your dedicated Postgres, API, and subgraph processor.</p>
+
+    <!-- ── Overview ── -->
+    <section class="settings-section section-marker" data-step="01">
+      <div class="settings-section-title">Overview</div>
+      <div class="instance-kv">
+        <div class="row">
+          <div class="key">url</div>
+          <div class="val mono">https://acme.secondlayer.tools</div>
+        </div>
+        <div class="row">
+          <div class="key">plan</div>
+          <div class="val">Grow · 2 vCPU · 4 GB RAM · 50 GB storage</div>
+        </div>
+        <div class="row">
+          <div class="key">status</div>
+          <div class="val"><span class="pill pill-success"><span class="dot"></span>active</span></div>
+        </div>
+        <div class="row">
+          <div class="key">created</div>
+          <div class="val">Mar 12, 2026 at 9:14 AM</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Resource usage ── -->
+    <section class="settings-section section-marker" data-step="02">
+      <div class="settings-section-title">Resource usage</div>
+      <div class="instance-gauge">
+        <div class="label">CPU</div>
+        <div class="bar"><div class="fill" style="width: 38%"></div></div>
+        <div class="caption">38%</div>
+      </div>
+      <div class="instance-gauge">
+        <div class="label">Memory</div>
+        <div class="bar"><div class="fill" style="width: 53%"></div></div>
+        <div class="caption">2.1 GB / 4.0 GB</div>
+      </div>
+      <div class="instance-gauge">
+        <div class="label">Storage</div>
+        <div class="bar"><div class="fill" style="width: 28%"></div></div>
+        <div class="caption">14.2 GB / 50 GB</div>
+      </div>
+    </section>
+
+    <!-- ── Connect ── -->
+    <section class="settings-section section-marker" data-step="03">
+      <div class="settings-section-title">Connect</div>
+      <div class="connect-url">
+        <span class="url">https://acme.secondlayer.tools</span>
+        <button class="copy-btn">copy</button>
+      </div>
+      <div class="connect-tabs">
+        <button class="connect-tab active">curl</button>
+        <button class="connect-tab">node</button>
+        <button class="connect-tab">cli</button>
+      </div>
+<pre class="connect-code">curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
+  https://acme.secondlayer.tools/api/subgraphs</pre>
+    </section>
+
+    <!-- ── Plan (was 'Resize' on Instance + 'Current plan' on Billing — merged) ── -->
+    <section class="settings-section section-marker" data-step="04">
+      <div class="settings-section-title">Plan</div>
+      <div class="plan-card" style="margin-bottom: 12px;">
+        <div>
+          <div class="plan-card-name">
+            Grow <span class="tier-badge">grow</span>
+          </div>
+          <div class="plan-card-sub">$249/mo · 2 vCPU · 4 GB RAM · 50 GB storage</div>
+        </div>
+      </div>
+
+      <div class="resize-row">
+        <select class="settings-input" style="flex: 1; max-width: 420px; height: 34px;">
+          <option>Hobby — free (0.5 vCPU · 512 MB · 5 GB · auto-pauses after 7d idle)</option>
+          <option>Launch — $99/mo (1 vCPU · 2 GB · 10 GB)</option>
+          <option selected>Grow — $249/mo (2 vCPU · 4 GB · 50 GB)</option>
+          <option>Scale — $599/mo (4 vCPU · 8 GB · 200 GB)</option>
+        </select>
+        <button class="settings-btn primary small" disabled>Apply</button>
+      </div>
+      <div class="settings-hint">Resize recreates containers — ~30s API downtime, data preserved.</div>
+    </section>
+
+    <!-- ── Spend controls (from Billing, unchanged) ── -->
+    <section class="settings-section section-marker" data-step="05">
+      <div class="settings-section-title">Spend controls</div>
+
+      <div class="cap-strip">
+        <div class="cap-strip-label">
+          <span>This period</span>
+          <span class="pct">$162.40 / $500.00 · 32%</span>
+        </div>
+        <div class="cap-strip-bar">
+          <div class="usage-bar"><div class="usage-bar-fill" style="width: 32%"></div></div>
+        </div>
+      </div>
+
+      <div class="cap-form">
+        <div>
+          <span class="field-label">Monthly cap</span>
+          <input class="settings-input" value="$500.00">
+        </div>
+        <div>
+          <span class="field-label">Alert at</span>
+          <select class="settings-input">
+            <option>50% of cap</option>
+            <option selected>80% of cap</option>
+            <option>90% of cap</option>
+            <option>off</option>
+          </select>
+        </div>
+        <button class="settings-btn primary">Save caps</button>
+      </div>
+      <div class="settings-hint">When the cap is hit, services freeze until the next invoice resets the counter.</div>
+    </section>
+
+    <!-- ── Keys (from Instance, unchanged) ── -->
+    <section class="settings-section section-marker" data-step="06">
+      <div class="settings-section-title">Keys</div>
+      <div class="settings-key-row">
+        <div class="key-meta">
+          <div class="key-name">Service key</div>
+          <div class="key-hint">Full access — server-side only. <code>Bearer $SL_SERVICE_KEY</code></div>
+        </div>
+        <button class="settings-btn ghost small">Rotate</button>
+      </div>
+      <div class="settings-key-row">
+        <div class="key-meta">
+          <div class="key-name">Anon key</div>
+          <div class="key-hint">Read-only — safe to embed in client code.</div>
+        </div>
+        <button class="settings-btn ghost small">Rotate</button>
+      </div>
+      <div class="settings-hint">Rotating invalidates the old key immediately. The new one is shown once.</div>
+    </section>
+
+    <!-- ── DB Access (from Instance, unchanged shape) ── -->
+    <section class="settings-section section-marker" data-step="07">
+      <div class="settings-section-title">DB access</div>
+      <div class="instance-kv">
+        <div class="row">
+          <div class="key">postgres</div>
+          <div class="val mono">postgresql://acme.db.secondlayer.tools:5432/db</div>
+        </div>
+        <div class="row">
+          <div class="key">tunnel</div>
+          <div class="val mono">ssh -L 5432:localhost:5432 acme@tunnel.secondlayer.tools</div>
+        </div>
+      </div>
+      <div style="margin-top: 10px; display: flex; gap: 6px;">
+        <button class="settings-btn ghost small">Generate read-only creds</button>
+        <button class="settings-btn ghost small">Copy tunnel command</button>
+      </div>
+    </section>
+
+    <!-- ── Payment (from Billing's "Everything else") ── -->
+    <section class="settings-section section-marker" data-step="08">
+      <div class="settings-section-title">Payment</div>
+      <a class="portal-link" href="#">
+        <div class="meta">
+          <div class="name">Payment methods &amp; invoices</div>
+          <div class="desc">Update card · download invoices · view receipts (via Stripe)</div>
+        </div>
+        <span class="arrow">↗</span>
+      </a>
+      <a class="portal-link" href="#">
+        <div class="meta">
+          <div class="name">Cancel or change subscription</div>
+          <div class="desc">Downgrade · cancel · pause · change email</div>
+        </div>
+        <span class="arrow">↗</span>
+      </a>
+      <div class="soon-note">
+        <a href="#">View usage →</a>
+      </div>
+    </section>
+
+    <div class="settings-divider"></div>
+
+    <!-- ── Danger Zone (from Instance, unchanged) ── -->
+    <section class="settings-section section-marker" data-step="09">
+      <div class="settings-section-title" style="color: var(--red);">Danger zone</div>
+      <div class="danger-card">
+        <div>
+          <div class="title">Suspend instance</div>
+          <div class="desc">Containers stop · data preserved · resume in ~20s.</div>
+        </div>
+        <button class="settings-btn ghost small">Suspend</button>
+      </div>
+      <div class="danger-card">
+        <div>
+          <div class="title">Rotate all keys</div>
+          <div class="desc">Service + anon keys regenerate. Old keys invalidate immediately.</div>
+        </div>
+        <button class="settings-btn danger small">Rotate all</button>
+      </div>
+      <div class="danger-card delete">
+        <div>
+          <div class="title">Delete instance</div>
+          <div class="desc">Tears down Postgres, API, processor. <strong>All data permanently destroyed.</strong></div>
+        </div>
+        <button class="settings-btn danger small">Delete</button>
+      </div>
+    </section>
+
+    <div class="billed-as">Billed as: <code>billing@acme.io</code></div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 2 — Hobby hybrid (no marketing hero, tier grid kept)
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">02</span> Hobby · same shape, no <code>.upgrade-hero</code></div>
+  <p class="scene-caption">Same section order. The Billing page's <code>.upgrade-hero</code> block is dropped — that's the one part of the existing Billing surface that doesn't fit the operations tone. Everything else (current plan card, <code>.tier-grid</code>, "Talk to us about Enterprise") is preserved as-is. Spend controls is hidden because there's nothing to cap on Free.</p>
+
+  <div class="frame">
+    <div class="fake-topbar">
+      <div class="crumb"><span>Settings</span><span class="sep">/</span><span class="pg">Instance</span></div>
+      <div style="font-size: 11.5px; color: var(--text-muted);">
+        Last updated <span style="font-family: var(--font-mono-stack); color: var(--text-main);">just now</span>
+      </div>
+    </div>
+
+    <h1 class="settings-title">Instance</h1>
+    <p class="settings-desc">On Hobby. Auto-pauses after 7 days idle. Next CLI command auto-resumes.</p>
+
+    <section class="settings-section">
+      <div class="settings-section-title">Overview</div>
+      <div class="instance-kv">
+        <div class="row"><div class="key">url</div><div class="val mono">https://my-project.secondlayer.tools</div></div>
+        <div class="row"><div class="key">plan</div><div class="val">Hobby · 0.5 vCPU · 512 MB RAM · 5 GB</div></div>
+        <div class="row"><div class="key">status</div><div class="val"><span class="pill pill-warn"><span class="dot"></span>paused · idle 2d</span></div></div>
+        <div class="row"><div class="key">created</div><div class="val">Apr 28, 2026 at 4:02 PM</div></div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section-title">Plan</div>
+      <div class="plan-card" style="margin-bottom: 16px;">
+        <div>
+          <div class="plan-card-name">
+            Hobby <span class="tier-badge free">Free</span>
+          </div>
+          <div class="plan-card-sub">$0/mo · auto-pauses after 7d idle · 5 GB storage · subgraphs</div>
+        </div>
+      </div>
+
+      <div style="font-family: var(--font-mono-stack); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); opacity: 0.7; margin-bottom: 12px;">Compare paid plans</div>
+
+      <div class="tier-grid">
+        <div class="tier-card featured">
+          <div class="tier-label">Launch</div>
+          <div class="tier-price">$99<span class="unit">/mo</span></div>
+          <div class="tier-tag">Always-on production</div>
+          <ul>
+            <li>1 vCPU · 2 GB RAM</li>
+            <li>10 GB storage</li>
+            <li>500 compute hrs / mo</li>
+            <li>Subscriptions + replay</li>
+          </ul>
+          <button class="settings-btn primary">Upgrade to Launch</button>
+        </div>
+        <div class="tier-card">
+          <div class="tier-label">Grow</div>
+          <div class="tier-price">$249<span class="unit">/mo</span></div>
+          <div class="tier-tag">Production at volume</div>
+          <ul>
+            <li>2 vCPU · 4 GB RAM</li>
+            <li>50 GB storage</li>
+            <li>2,000 compute hrs / mo</li>
+            <li>Spend caps</li>
+          </ul>
+          <button class="settings-btn ghost">Upgrade to Grow</button>
+        </div>
+        <div class="tier-card">
+          <div class="tier-label">Scale</div>
+          <div class="tier-price">$599<span class="unit">/mo</span></div>
+          <div class="tier-tag">High-throughput indexers</div>
+          <ul>
+            <li>4 vCPU · 8 GB RAM</li>
+            <li>200 GB storage</li>
+            <li>10,000 compute hrs / mo</li>
+            <li>Priority support</li>
+          </ul>
+          <button class="settings-btn ghost">Upgrade to Scale</button>
+        </div>
+      </div>
+      <div style="text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+        Need something custom? <a href="mailto:hey@secondlayer.tools" style="color: var(--text-main); font-weight: 500;">Talk to us about Enterprise</a>
+      </div>
+    </section>
+
+    <!-- Connect / Keys / DB Access stay the same — omitted for brevity in this state -->
+    <section class="settings-section">
+      <div class="settings-section-title">Connect</div>
+      <div class="connect-url">
+        <span class="url">https://my-project.secondlayer.tools</span>
+        <button class="copy-btn">copy</button>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section-title">Keys</div>
+      <div class="settings-key-row">
+        <div class="key-meta">
+          <div class="key-name">Service key</div>
+          <div class="key-hint">Full access — server-side only.</div>
+        </div>
+        <button class="settings-btn ghost small">Rotate</button>
+      </div>
+      <div class="settings-key-row">
+        <div class="key-meta">
+          <div class="key-name">Anon key</div>
+          <div class="key-hint">Read-only — safe to embed in client code.</div>
+        </div>
+        <button class="settings-btn ghost small">Rotate</button>
+      </div>
+    </section>
+
+    <div class="settings-divider"></div>
+
+    <section class="settings-section">
+      <div class="settings-section-title" style="color: var(--red);">Danger zone</div>
+      <div class="danger-card delete">
+        <div>
+          <div class="title">Delete instance</div>
+          <div class="desc">Removes Postgres, API, processor. Data permanently destroyed.</div>
+        </div>
+        <button class="settings-btn danger small">Delete</button>
+      </div>
+    </section>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 3 — Frozen state (cap hit)
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">03</span> Frozen · cap hit · top-of-page callout</div>
+  <p class="scene-caption">Same shape. The existing Billing <code>.callout.error</code> moves to the top of Instance, above <code>.settings-title</code>. The cap-strip uses its existing <code>.over</code> variant. Plan section gets a contextual <strong>Upgrade for higher allowance</strong> hint — no new component, just a hint line.</p>
+
+  <div class="frame">
+    <div class="fake-topbar">
+      <div class="crumb"><span>Settings</span><span class="sep">/</span><span class="pg">Instance</span></div>
+      <div><span class="pill pill-error"><span class="dot"></span>frozen</span></div>
+    </div>
+
+    <div class="callout error" role="alert">
+      <svg class="callout-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="7" width="10" height="7" rx="1"/>
+        <path d="M6 7V5a2 2 0 0 1 4 0v2"/>
+      </svg>
+      <div class="callout-body">
+        <div class="callout-title">Services frozen — spend cap hit</div>
+        <div class="callout-sub">Raise the cap below or wait for the next billing cycle (cap resets with <code style="font-family:var(--font-mono-stack);font-size:11px;">invoice.paid</code>).</div>
+      </div>
+    </div>
+
+    <h1 class="settings-title">Instance</h1>
+    <p class="settings-desc">Containers running but API gated by spend cap.</p>
+
+    <section class="settings-section">
+      <div class="settings-section-title">Overview</div>
+      <div class="instance-kv">
+        <div class="row"><div class="key">url</div><div class="val mono">https://acme.secondlayer.tools</div></div>
+        <div class="row"><div class="key">plan</div><div class="val">Grow · 2 vCPU · 4 GB · 50 GB</div></div>
+        <div class="row"><div class="key">status</div><div class="val"><span class="pill pill-error"><span class="dot"></span>frozen</span></div></div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section-title">Spend controls</div>
+
+      <div class="cap-strip over">
+        <div class="cap-strip-label">
+          <span>This period</span>
+          <span class="pct">$500.00 / $500.00 · 100% 🔒</span>
+        </div>
+        <div class="cap-strip-bar">
+          <div class="usage-bar"><div class="usage-bar-fill red" style="width: 100%"></div></div>
+        </div>
+      </div>
+
+      <div class="cap-form">
+        <div>
+          <span class="field-label">Monthly cap</span>
+          <input class="settings-input" value="$500.00">
+        </div>
+        <div>
+          <span class="field-label">Alert at</span>
+          <select class="settings-input"><option>80% of cap</option></select>
+        </div>
+        <button class="settings-btn primary">Raise cap</button>
+      </div>
+      <div class="settings-hint">Lifting the cap immediately unfreezes services.</div>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-section-title">Plan</div>
+      <div class="plan-card" style="margin-bottom: 12px;">
+        <div>
+          <div class="plan-card-name">Grow <span class="tier-badge">grow</span></div>
+          <div class="plan-card-sub">$249/mo · resize for higher base allowance · less likely to hit caps</div>
+        </div>
+      </div>
+      <div class="resize-row">
+        <select class="settings-input" style="flex: 1; max-width: 420px; height: 34px;">
+          <option>Grow — $249/mo (current)</option>
+          <option>Scale — $599/mo (4 vCPU · 8 GB · 200 GB)</option>
+        </select>
+        <button class="settings-btn primary small">Resize</button>
+      </div>
+    </section>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 4 — Resize confirmation (existing Instance pattern)
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">04</span> Resize confirmation · existing <code>.instance-banner.warning</code> pattern</div>
+  <p class="scene-caption">Pulled straight from <code>instance-view.tsx</code> — resize stays in-section, replaces the select with a confirmation banner + Confirm/Cancel buttons. No modal.</p>
+
+  <div class="frame" style="padding: 22px 28px;">
+    <section class="settings-section" style="margin-bottom: 0;">
+      <div class="settings-section-title">Plan</div>
+      <div class="instance-banner warning">
+        <span class="banner-dot"></span>
+        <div class="banner-body">
+          <strong>Resize grow → scale?</strong> Brief downtime (~30s) while containers recreate. Data is preserved.
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="settings-btn primary small">Confirm resize</button>
+        <button class="settings-btn ghost small">Cancel</button>
+      </div>
+    </section>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 5 — Sidebar diff
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">05</span> Sidebar diff · what changes in <code>sidebar.tsx</code></div>
+
+  <div class="sb-diff">
+    <h4>Drop Billing from <code style="font-family:var(--font-mono-stack);">SETTINGS_CHILDREN</code></h4>
+    <pre>const SETTINGS_CHILDREN = [
+  { href: "/settings", label: "Project" },
+  { href: "/api-keys", label: "API Keys" },
+  { href: "/team",     label: "Team" },
+  { href: "/usage",    label: "Usage" },
+<span class="del">  { href: "/billing",  label: "Billing" },</span>
+  { href: "/instance", label: "Instance" },
+];</pre>
+    <p style="margin: 4px 0 0;">Add a server redirect at <code style="font-family:var(--font-mono-stack);">/platform/billing/page.tsx</code> → <code style="font-family:var(--font-mono-stack);">/platform/instance</code>, preserving query params (so the Stripe Checkout return URL <code style="font-family:var(--font-mono-stack);">?upgrade=success</code> still resolves on the merged page). The existing <code style="font-family:var(--font-mono-stack);">resolvePlanFromStripe</code> fast-resolve logic moves into the Instance page.</p>
+  </div>
+
+</div>
+
+</body>
+</html>
