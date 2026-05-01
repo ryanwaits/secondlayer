@@ -313,6 +313,7 @@ export function ToolPartRenderer({
 function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 	switch (toolName) {
 		case "check_subgraphs":
+			if (output.setupRequired) return renderSetupRequiredCard(output);
 			return (
 				<SubgraphStatusCard
 					subgraphs={
@@ -328,6 +329,7 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 			);
 
 		case "check_subscriptions":
+			if (output.setupRequired) return renderSetupRequiredCard(output);
 			return (
 				<SubscriptionStatusCard
 					subscriptions={
@@ -620,6 +622,28 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 		default:
 			return null;
 	}
+}
+
+function renderSetupRequiredCard(output: Record<string, unknown>) {
+	return (
+		<DiagnosticsCard
+			findings={[
+				{
+					resource: String(output.missing ?? "setup"),
+					resourceType: "setup",
+					severity: "warning",
+					title: "Instance required",
+					description: String(
+						output.message ??
+							"Create a Secondlayer instance before using this tool.",
+					),
+					suggestion: Array.isArray(output.nextActions)
+						? output.nextActions.map(String).join(" ")
+						: "",
+				},
+			]}
+		/>
+	);
 }
 
 interface ActionTargetInput {

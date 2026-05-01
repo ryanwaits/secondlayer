@@ -2,7 +2,7 @@ import { IndexRow } from "@/components/console/index-row";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { PromptActions } from "@/components/console/prompt-actions";
 import { getAgentPrompt } from "@/lib/agent-prompts";
-import { apiRequest, getSessionFromCookies } from "@/lib/api";
+import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubgraphSummary } from "@/lib/types";
@@ -25,6 +25,7 @@ export default async function SubgraphsPage() {
 	const session = await getSessionFromCookies();
 	let subgraphs: SubgraphSummary[] = [];
 	let chainTip: number | null = null;
+	let hasInstance: boolean | null = null;
 
 	if (session) {
 		const [subgraphsResult, statusResult] = await Promise.allSettled([
@@ -39,6 +40,13 @@ export default async function SubgraphsPage() {
 		]);
 		subgraphs =
 			subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
+		hasInstance =
+			subgraphsResult.status === "fulfilled"
+				? true
+				: subgraphsResult.reason instanceof ApiError &&
+						subgraphsResult.reason.status === 404
+					? false
+					: null;
 		chainTip =
 			statusResult.status === "fulfilled" ? statusResult.value.chainTip : null;
 	}
@@ -61,11 +69,23 @@ export default async function SubgraphsPage() {
 
 					{subgraphs.length === 0 ? (
 						<div className="empty-inner" style={{ padding: "40px 0 0" }}>
-							<h1 className="empty-title">No subgraphs yet</h1>
+							<h1 className="empty-title">
+								{hasInstance === false
+									? "Create an instance first"
+									: "No subgraphs yet"}
+							</h1>
 							<p className="empty-desc">
-								Subgraphs index on-chain data into queryable tables. Start from
-								a contract scaffold, review the handlers, then deploy.
+								{hasInstance === false
+									? "Subgraphs deploy to your dedicated Secondlayer instance. Create one, then scaffold from a contract and deploy."
+									: "Subgraphs index on-chain data into queryable tables. Start from a contract scaffold, review the handlers, then deploy."}
 							</p>
+							{hasInstance === false && (
+								<div className="prompt-actions">
+									<Link href="/instance" className="btn-secondary">
+										Create instance
+									</Link>
+								</div>
+							)}
 							<PromptActions prompt={getAgentPrompt("subgraph-create")} />
 							<div className="empty-divider">
 								<span className="empty-divider-text">Get started</span>

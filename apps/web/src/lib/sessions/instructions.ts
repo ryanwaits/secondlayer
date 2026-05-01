@@ -11,7 +11,7 @@ export function buildSessionInstructions(
 	resources: AccountResources,
 	recentSessions?: RecentSessionInfo[],
 ): string {
-	const { subgraphs, subscriptions, keys, chainTip } = resources;
+	const { instance, subgraphs, subscriptions, keys, chainTip } = resources;
 
 	const subgraphList = subgraphs.length
 		? subgraphs
@@ -60,6 +60,7 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - Never repeat what the tool card already shows.
 
 ## Tool behavior
+- If the account has no instance yet, tenant-scoped tools return \`setupRequired: true\`. Tell the user to create an instance from the Instance page or with \`sl instance create --plan hobby\`; do not tell an already logged-in dashboard user to run \`sl login\` again.
 - When the user asks about resources, ALWAYS call the check tool first — never describe state from memory.
 - For mutations (revoke, delete, pause), call the manage tool which shows a confirmation card.
 - For subscription lifecycle mutations, use create_subscription, manage_subscriptions, or requeue_dead_subscription so the UI shows a confirmation card.
@@ -111,6 +112,9 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 
 ## User's current resources
 
+### Instance
+${formatInstance(instance)}
+
 ### Subgraphs
 ${subgraphList}
 
@@ -122,6 +126,16 @@ ${keyList}
 
 ${chainTip != null ? `### Chain tip\nBlock ${chainTip.toLocaleString()}` : ""}
 ${buildRecentSessionsSection(recentSessions)}`;
+}
+
+function formatInstance(resources: AccountResources["instance"]): string {
+	if (resources.exists === false) {
+		return "No instance exists for this account. Tenant-scoped operations require creating one first.";
+	}
+	if (resources.exists === null) {
+		return "Instance status unavailable.";
+	}
+	return `slug:${resources.slug} plan:${resources.plan} status:${resources.status} apiUrl:${resources.apiUrl}`;
 }
 
 function buildRecentSessionsSection(sessions?: RecentSessionInfo[]): string {
