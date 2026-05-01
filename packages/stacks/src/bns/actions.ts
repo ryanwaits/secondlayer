@@ -250,9 +250,9 @@ export async function preorder(
 			stxToBurn: price,
 		},
 		{
-			postConditions: [
-				Pc.principal(client.account!.address).willSendLte(price).ustx(),
-			],
+			postConditions: client.account?.address
+				? [Pc.principal(client.account.address).willSendLte(price).ustx()]
+				: [],
 		},
 	);
 

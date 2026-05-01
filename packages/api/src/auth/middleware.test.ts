@@ -1,7 +1,13 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { Hono } from "hono";
 import { generateApiKey, hashToken } from "./keys.ts";
 import { requireAuth } from "./middleware.ts";
+
+// Local dev `.env` typically sets DEV_MODE=true to bypass auth — but this
+// test exercises the auth path, so force it off.
+beforeAll(() => {
+	process.env.DEV_MODE = "false";
+});
 
 // Mock DB — injected via requireAuth({ getDb }) instead of mock.module
 const mockExecuteTakeFirst = mock(() => Promise.resolve(null));
@@ -23,6 +29,7 @@ const mockDb = {
 	}),
 };
 
+// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 const mockGetDb = () => mockDb as any;
 
 function createApp() {
@@ -30,14 +37,17 @@ function createApp() {
 	app.onError((err, c) => {
 		if (err.message.includes("revoked"))
 			return c.json({ error: err.message }, 403);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		if ((err as any).code === "AUTHENTICATION_ERROR")
 			return c.json({ error: err.message }, 401);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		if ((err as any).code === "AUTHORIZATION_ERROR")
 			return c.json({ error: err.message }, 403);
 		return c.json({ error: err.message }, 500);
 	});
 	app.use("/*", requireAuth({ getDb: mockGetDb }));
 	app.get("/test", (c) =>
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		c.json({ ok: true, apiKey: (c as any).get("apiKey") }),
 	);
 	return app;
@@ -72,6 +82,7 @@ describe("requireAuth middleware", () => {
 			id: "test-id",
 			status: "revoked",
 			key_hash: "x",
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		} as any);
 		const res = await app.request("/test", {
 			headers: {
@@ -89,7 +100,9 @@ describe("requireAuth middleware", () => {
 			key_hash: hashToken(raw),
 			rate_limit: 120,
 		};
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		mockExecuteTakeFirst.mockResolvedValue(keyRecord as any);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		mockExecute.mockResolvedValue([] as any);
 
 		const app = createApp();
@@ -97,6 +110,7 @@ describe("requireAuth middleware", () => {
 			headers: { Authorization: `Bearer ${raw}` },
 		});
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.apiKey.id).toBe("test-id");
 	});

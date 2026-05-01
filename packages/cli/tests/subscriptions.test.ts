@@ -62,6 +62,7 @@ const deadRow: DeadRow = {
 describe("subscriptions command helpers", () => {
 	it("resolves subscription refs by id, name, then direct get fallback", async () => {
 		const calls: string[] = [];
+		// Partial mock — `resolveSubscriptionRef` only calls list + get.
 		const client = {
 			subscriptions: {
 				list: async () => ({
@@ -75,7 +76,7 @@ describe("subscriptions command helpers", () => {
 					return { ...baseDetail, id, name: id };
 				},
 			},
-		};
+		} as unknown as Pick<SecondLayer, "subscriptions">;
 
 		expect((await resolveSubscriptionRef(client, "sub-1")).id).toBe("sub-1");
 		expect((await resolveSubscriptionRef(client, "two")).id).toBe("sub-2");

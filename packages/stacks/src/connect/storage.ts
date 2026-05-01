@@ -19,7 +19,7 @@ function toHex(str: string): string {
 
 function fromHex(hex: string): string {
 	const bytes = new Uint8Array(
-		hex.match(/.{1,2}/g)!.map((byte) => Number.parseInt(byte, 16)),
+		hex.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)) ?? [],
 	);
 	return new TextDecoder().decode(bytes);
 }

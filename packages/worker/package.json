@@ -8,7 +8,7 @@
 		"start": "bun run src/index.ts",
 		"dev": "bun run --watch src/index.ts",
 		"typecheck": "tsc --noEmit",
-		"test": "bun test"
+		"test": "echo 'no tests yet'"
 	},
 	"dependencies": {
 		"@secondlayer/shared": "^4.0.0",

@@ -5,6 +5,7 @@ import { createSubgraphOperation } from "@secondlayer/shared/db/queries/subgraph
 import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import { errorHandler } from "../src/middleware/error.ts";
 import subgraphsRouter, {
 	cache,
 	startSubgraphCache,
@@ -29,7 +30,8 @@ describe("parseQueryParams (via route behavior)", () => {
 // ── Integration tests ───────────────────────────────────────────────────
 
 const SUBGRAPH_NAME = "test-api-subgraph";
-const PG_SCHEMA = "view_test_api_subgraph";
+// Mirrors `pgSchemaName` from @secondlayer/shared/db/queries/subgraphs.
+const PG_SCHEMA = "subgraph_test_api_subgraph";
 
 const subgraphDef = {
 	name: SUBGRAPH_NAME,
@@ -55,6 +57,7 @@ const subgraphDef = {
 
 describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	const app = new Hono();
+	app.onError(errorHandler);
 	app.route("/subgraphs", subgraphsRouter);
 
 	beforeAll(async () => {
@@ -108,6 +111,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	test("GET /subgraphs lists all subgraphs", async () => {
 		const res = await app.request("/subgraphs");
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data).toBeArray();
 		expect(body.data.length).toBe(1);
@@ -120,13 +124,14 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	test("GET /subgraphs/:subgraphName returns subgraph metadata with table docs", async () => {
 		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.name).toBe(SUBGRAPH_NAME);
 		expect(body.status).toBe("active");
 		expect(body.tables.listings).toBeDefined();
-		expect(body.tables.listings.columns.nft_id).toBe("text");
-		expect(body.tables.listings.columns.price).toBe("uint");
-		expect(body.tables.listings.columns._id).toBe("serial");
+		expect(body.tables.listings.columns.nft_id.type).toBe("text");
+		expect(body.tables.listings.columns.price.type).toBe("uint");
+		expect(body.tables.listings.columns._id.type).toBe("serial");
 		expect(body.tables.listings.rowCount).toBe(4);
 		expect(body.tables.listings.endpoint).toBe(
 			`/subgraphs/${SUBGRAPH_NAME}/listings`,
@@ -144,6 +149,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	test("GET /subgraphs/:subgraphName/:tableName lists rows", async () => {
 		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings`);
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data).toBeArray();
 		expect(body.data.length).toBe(4);
@@ -156,6 +162,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?status=active`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(3);
 		expect(body.meta.total).toBe(3);
@@ -168,6 +175,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?seller=SP_ALICE`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(2);
 	});
@@ -176,6 +184,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?price.gte=1000000`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(3);
 	});
@@ -184,6 +193,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?price.gt=2000000`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(1);
 		expect(body.data[0].nft_id).toBe("nft-4");
@@ -193,6 +203,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_block_height.lte=100`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(2);
 	});
@@ -201,6 +212,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?seller=SP_ALICE&status=active`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(1);
 		expect(body.data[0].nft_id).toBe("nft-1");
@@ -210,6 +222,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_sort=price&_order=desc`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data[0].price).toBe("3000000"); // bigint comes back as string
 	});
@@ -218,6 +231,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_sort=price&_order=asc`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data[0].price).toBe("500000");
 	});
@@ -226,6 +240,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=2&_offset=0`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(2);
 		expect(body.meta.total).toBe(4);
@@ -237,6 +252,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=2&_offset=2`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(2);
 		expect(body.meta.offset).toBe(2);
@@ -246,6 +262,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=2&_offset=3`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(1);
 	});
@@ -254,6 +271,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_fields=nft_id,price`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data.length).toBe(4);
 		// Should only have selected fields
@@ -269,6 +287,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 			`/subgraphs/${SUBGRAPH_NAME}/listings?nonexistent=foo`,
 		);
 		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.code).toBe("INVALID_COLUMN");
 	});
@@ -278,6 +297,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_sort=nonexistent`,
 		);
 		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.code).toBe("INVALID_COLUMN");
 	});
@@ -292,6 +312,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	test("unknown table returns 404", async () => {
 		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/nonexistent`);
 		expect(res.status).toBe(404);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.code).toBe("TABLE_NOT_FOUND");
 	});
@@ -299,6 +320,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	test("unknown subgraph returns 404", async () => {
 		const res = await app.request("/subgraphs/nonexistent/listings");
 		expect(res.status).toBe(404);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.code).toBe("SUBGRAPH_NOT_FOUND");
 	});
@@ -310,11 +332,13 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const listRes = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=1`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const listBody = (await listRes.json()) as any;
 		const id = listBody.data[0]._id;
 
 		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/${id}`);
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.data._id).toBe(id);
 		expect(body.data.nft_id).toBeDefined();
@@ -325,6 +349,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 			`/subgraphs/${SUBGRAPH_NAME}/listings/999999`,
 		);
 		expect(res.status).toBe(404);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.code).toBe("ROW_NOT_FOUND");
 	});
@@ -334,6 +359,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	test("count returns total rows", async () => {
 		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/count`);
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.count).toBe(4);
 	});
@@ -343,6 +369,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 			`/subgraphs/${SUBGRAPH_NAME}/listings/count?status=active`,
 		);
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.count).toBe(3);
 	});
@@ -351,6 +378,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings/count?price.gte=2000000`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.count).toBe(2);
 	});
@@ -361,6 +389,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=5000`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.meta.limit).toBe(1000);
 	});
@@ -369,6 +398,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=0`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.meta.limit).toBe(50);
 	});
@@ -377,6 +407,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=-1`,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.meta.limit).toBe(1);
 	});
@@ -397,19 +428,27 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 			body: JSON.stringify({ fromBlock: 1, toBlock: 10 }),
 		});
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
-		expect(body.message).toContain("Reindex started");
+		expect(body.message).toContain("Reindex queued");
 		expect(body.fromBlock).toBe(1);
 		expect(body.toBlock).toBe(10);
 	});
 
 	test("POST /subgraphs/:subgraphName/reindex works without body", async () => {
+		// Clear any operation left pending by the previous reindex test —
+		// the route 409s if one's in flight.
+		await getDb()
+			.deleteFrom("subgraph_operations")
+			.where("subgraph_name", "=", SUBGRAPH_NAME)
+			.execute();
 		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/reindex`, {
 			method: "POST",
 		});
 		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
-		expect(body.message).toContain("Reindex started");
+		expect(body.message).toContain("Reindex queued");
 		expect(body.fromBlock).toBe(1);
 		expect(body.toBlock).toBe("chain tip");
 	});

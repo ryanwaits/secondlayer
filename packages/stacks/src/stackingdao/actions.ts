@@ -105,9 +105,13 @@ export async function deposit(
 			pool: params.pool ?? null,
 		},
 		{
-			postConditions: [
-				Pc.principal(client.account!.address).willSendEq(params.amount).ustx(),
-			],
+			postConditions: client.account?.address
+				? [
+						Pc.principal(client.account.address)
+							.willSendEq(params.amount)
+							.ustx(),
+					]
+				: [],
 		},
 	);
 }
@@ -125,11 +129,13 @@ export async function initWithdraw(
 			ststxAmount: params.ststxAmount,
 		},
 		{
-			postConditions: [
-				Pc.principal(client.account!.address)
-					.willSendEq(params.ststxAmount)
-					.ft(`${ststx.address}.${ststx.name}`, "ststx"),
-			],
+			postConditions: client.account?.address
+				? [
+						Pc.principal(client.account.address)
+							.willSendEq(params.ststxAmount)
+							.ft(`${ststx.address}.${ststx.name}`, "ststx"),
+					]
+				: [],
 		},
 	);
 }
@@ -162,11 +168,13 @@ export async function withdrawIdle(
 			ststxAmount: params.ststxAmount,
 		},
 		{
-			postConditions: [
-				Pc.principal(client.account!.address)
-					.willSendEq(params.ststxAmount)
-					.ft(`${ststx.address}.${ststx.name}`, "ststx"),
-			],
+			postConditions: client.account?.address
+				? [
+						Pc.principal(client.account.address)
+							.willSendEq(params.ststxAmount)
+							.ft(`${ststx.address}.${ststx.name}`, "ststx"),
+					]
+				: [],
 		},
 	);
 }

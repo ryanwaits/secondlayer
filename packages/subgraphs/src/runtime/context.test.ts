@@ -1,15 +1,15 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb, sql } from "@secondlayer/shared/db";
-import type { Kysely } from "kysely";
 import type { Database } from "@secondlayer/shared/db";
+import type { Kysely } from "kysely";
 import type { SubgraphSchema } from "../types.ts";
 import { SubgraphContext } from "./context.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
-	"postgresql://postgres:postgres@127.0.0.1:5432/secondlayer";
+	"postgresql://postgres:postgres@127.0.0.1:5435/secondlayer";
 
 const schema = {
 	transfers: {
@@ -54,7 +54,12 @@ describe("SubgraphContext flush manifest", () => {
 				timestamp: 1700000000,
 				burnBlockHeight: 900,
 			},
-			{ txId: "0xdeadbeef", sender: "SP1", type: "contract_call", status: "success" },
+			{
+				txId: "0xdeadbeef",
+				sender: "SP1",
+				type: "contract_call",
+				status: "success",
+			},
 		);
 
 		ctx.insert("transfers", {
@@ -78,6 +83,7 @@ describe("SubgraphContext flush manifest", () => {
 		expect(manifest.writes).toHaveLength(3);
 
 		for (let i = 0; i < 3; i++) {
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const w = manifest.writes[i]!;
 			expect(w.op).toBe("insert");
 			expect(w.table).toBe("transfers");

@@ -22,7 +22,7 @@ import { emitSubscriptionOutbox } from "./outbox-emit.ts";
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
-	"postgresql://postgres:postgres@127.0.0.1:5432/secondlayer";
+	"postgresql://postgres:postgres@127.0.0.1:5435/secondlayer";
 process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = "true";
 
 const db = getDb();
@@ -42,6 +42,7 @@ function percentile(values: number[], p: number): number {
 		sorted.length - 1,
 		Math.floor((sorted.length - 1) * (p / 100)),
 	);
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	return sorted[idx]!;
 }
 
@@ -117,7 +118,10 @@ describe("emitter perf", () => {
 				const row = await db
 					.selectFrom("subscription_outbox")
 					.select((eb) =>
-						eb.fn.count<number>("id").filterWhere("status", "=", "delivered").as("c"),
+						eb.fn
+							.count<number>("id")
+							.filterWhere("status", "=", "delivered")
+							.as("c"),
 					)
 					.where(
 						"subscription_id",

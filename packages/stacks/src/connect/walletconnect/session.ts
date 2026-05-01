@@ -106,6 +106,7 @@ export class WcSession {
 
 		const approval = new Promise<WcSessionSettled>((resolve, reject) => {
 			this.relay
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				.subscribe(this.pairingTopic!, (msg) => {
 					try {
 						this.handlePairingMessage(msg.message, resolve, reject);
@@ -136,12 +137,14 @@ export class WcSession {
 			},
 		};
 
+		const sessionData = this.sessionData;
+		const sessionSymKey = this.sessionSymKey;
 		return new Promise((resolve, reject) => {
 			this.pending.set(id, { resolve, reject });
 			this.relay
 				.publishEncrypted(
-					this.sessionData!.topic,
-					this.sessionSymKey!,
+					sessionData.topic,
+					sessionSymKey,
 					payload,
 					1108, // tag for session request
 					SESSION_EXPIRY,
@@ -260,7 +263,9 @@ export class WcSession {
 			};
 
 			await this.relay.publishEncrypted(
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				this.pairingTopic!,
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				this.pairingSymKey!,
 				approvePayload,
 				1101, // tag for session propose response
@@ -315,6 +320,7 @@ export class WcSession {
 
 				// Response to our request
 				if ("id" in rpc && this.pending.has(rpc.id)) {
+					// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 					const p = this.pending.get(rpc.id)!;
 					this.pending.delete(rpc.id);
 					if (rpc.error) {

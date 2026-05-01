@@ -7,7 +7,7 @@ import { startEmitter } from "./emitter.ts";
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
-	"postgresql://postgres:postgres@127.0.0.1:5432/secondlayer";
+	"postgresql://postgres:postgres@127.0.0.1:5435/secondlayer";
 
 const db = getDb();
 const accountId = randomUUID();
@@ -20,7 +20,7 @@ let priorAllowEnv: string | undefined;
 
 beforeAll(async () => {
 	priorAllowEnv = process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
-	delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = undefined;
 	stopEmitter = await startEmitter({ pollIntervalMs: 500 });
 });
 
@@ -39,9 +39,18 @@ afterAll(async () => {
 describe("SSRF egress guard", () => {
 	it("refuses localhost + 127.0.0.1 by default, writes delivery row with error", async () => {
 		const cases = [
-			{ url: "http://127.0.0.1:9999/hook", name: `loopback-${randomUUID().slice(0, 8)}` },
-			{ url: "http://localhost/hook", name: `localhost-${randomUUID().slice(0, 8)}` },
-			{ url: "http://10.1.2.3/hook", name: `priva10-${randomUUID().slice(0, 8)}` },
+			{
+				url: "http://127.0.0.1:9999/hook",
+				name: `loopback-${randomUUID().slice(0, 8)}`,
+			},
+			{
+				url: "http://localhost/hook",
+				name: `localhost-${randomUUID().slice(0, 8)}`,
+			},
+			{
+				url: "http://10.1.2.3/hook",
+				name: `priva10-${randomUUID().slice(0, 8)}`,
+			},
 			{
 				url: "http://192.168.1.1/hook",
 				name: `priva192-${randomUUID().slice(0, 8)}`,

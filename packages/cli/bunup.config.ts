@@ -16,7 +16,7 @@ const sharedConfig = {
 	target: "node" as const,
 };
 
-const config: DefineConfigItem = defineConfig({
+const config: DefineConfigItem | DefineConfigItem[] = defineConfig({
 	entry: [
 		"src/index.ts",
 		"src/cli.ts",

@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb } from "../index.ts";
 import {
@@ -18,7 +25,7 @@ import {
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
-	"postgresql://postgres:postgres@127.0.0.1:5432/secondlayer";
+	"postgresql://postgres:postgres@127.0.0.1:5435/secondlayer";
 
 const db = getDb();
 
@@ -34,11 +41,17 @@ beforeAll(async () => {
 afterAll(async () => {
 	// Don't closeDb() — destroying the shared singleton breaks sibling
 	// test files when `bun test` runs them together.
-	await db.deleteFrom("subscriptions").where("account_id", "=", accountId).execute();
+	await db
+		.deleteFrom("subscriptions")
+		.where("account_id", "=", accountId)
+		.execute();
 });
 
 beforeEach(async () => {
-	await db.deleteFrom("subscriptions").where("account_id", "=", accountId).execute();
+	await db
+		.deleteFrom("subscriptions")
+		.where("account_id", "=", accountId)
+		.execute();
 });
 
 describe("subscriptions queries", () => {
@@ -127,10 +140,15 @@ describe("subscriptions queries", () => {
 			db,
 			baseInput(),
 		);
-		const rotated = await rotateSubscriptionSecret(db, accountId, subscription.id);
-		expect(rotated?.signingSecret).not.toBe(signingSecret);
-		expect(getSubscriptionSigningSecret(rotated!.subscription)).toBe(
-			rotated!.signingSecret,
+		const rotated = await rotateSubscriptionSecret(
+			db,
+			accountId,
+			subscription.id,
+		);
+		if (!rotated) throw new Error("rotateSubscriptionSecret returned null");
+		expect(rotated.signingSecret).not.toBe(signingSecret);
+		expect(getSubscriptionSigningSecret(rotated.subscription)).toBe(
+			rotated.signingSecret,
 		);
 	});
 

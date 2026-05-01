@@ -170,11 +170,7 @@ async function runCli(
 	args: string[],
 ): Promise<{ exitCode: number; output: string }> {
 	const proc = Bun.spawn({
-		cmd: [
-			"bun",
-			resolve("packages/cli/tests/fixtures/project-cli.ts"),
-			...args,
-		],
+		cmd: ["bun", resolve(import.meta.dir, "fixtures/project-cli.ts"), ...args],
 		cwd: env.cwd,
 		env: {
 			...process.env,

@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb, sql } from "@secondlayer/shared/db";
+import type { Database } from "@secondlayer/shared/db";
 import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
 import type { Kysely } from "kysely";
-import type { Database } from "@secondlayer/shared/db";
 import { SubscriptionMatcher } from "./emitter-matcher.ts";
 import { emitSubscriptionOutbox } from "./outbox-emit.ts";
 import { refreshMatcher } from "./subscription-state.ts";
@@ -11,7 +11,7 @@ import { refreshMatcher } from "./subscription-state.ts";
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
-	"postgresql://postgres:postgres@127.0.0.1:5432/secondlayer";
+	"postgresql://postgres:postgres@127.0.0.1:5435/secondlayer";
 
 let db: Kysely<Database>;
 let accountId: string;
@@ -140,7 +140,7 @@ describe("emitSubscriptionOutbox", () => {
 				expect(n).toBe(0);
 			});
 		} finally {
-			delete process.env.SECONDLAYER_EMIT_OUTBOX;
+			process.env.SECONDLAYER_EMIT_OUTBOX = undefined;
 		}
 
 		const rows = await db
