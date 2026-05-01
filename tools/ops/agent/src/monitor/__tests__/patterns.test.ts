@@ -33,10 +33,21 @@ describe("matchPatterns", () => {
 		expect(matches[0].action).toBe("prune_docker");
 	});
 
-	test("detects connection refused", () => {
+	test("detects connection refused as restartable for app services", () => {
 		const matches = matchPatterns("connect ECONNREFUSED 127.0.0.1:5432", "api");
 		expect(matches).toHaveLength(1);
 		expect(matches[0].name).toBe("conn_refused");
+		expect(matches[0].action).toBe("restart_service");
+	});
+
+	test("downgrades caddy connection refused to alert only", () => {
+		const matches = matchPatterns(
+			"connect ECONNREFUSED 172.19.0.23:3800",
+			"caddy",
+		);
+		expect(matches).toHaveLength(1);
+		expect(matches[0].name).toBe("conn_refused");
+		expect(matches[0].action).toBe("alert_only");
 	});
 
 	test("detects postgres FATAL only for pg services", () => {

@@ -34,7 +34,16 @@ export const PATTERN_RULES: PatternRule[] = [
 		name: "conn_refused",
 		regex: /(?:ECONNREFUSED|Connection refused|connect ECONNREFUSED)/i,
 		severity: "warn",
+		action: "alert_only",
+		services: ["caddy"],
+		message: (_, svc) => `Connection refused in ${svc}`,
+	},
+	{
+		name: "conn_refused",
+		regex: /(?:ECONNREFUSED|Connection refused|connect ECONNREFUSED)/i,
+		severity: "warn",
 		action: "restart_service",
+		ignore: (_, __, svc) => svc === "caddy",
 		message: (_, svc) => `Connection refused in ${svc}`,
 	},
 	{
