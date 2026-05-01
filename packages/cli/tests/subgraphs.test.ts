@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	chmodSync,
+	mkdtempSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -96,15 +103,58 @@ describe("subgraphs command helpers", () => {
 	});
 
 	it("runs bun install for scaffold output by default", async () => {
-		const calls: string[] = [];
-		const result = await installScaffoldDependencies("/tmp/example", {
-			installer: async (dir) => {
-				calls.push(dir);
-			},
-		});
+		const dir = mkdtempSync(join(tmpdir(), "sl-scaffold-"));
+		const binDir = mkdtempSync(join(tmpdir(), "sl-fake-bun-"));
+		const originalPath = process.env.PATH;
+		try {
+			const callsPath = join(dir, "bun-call.json");
+			const fakeBun = join(binDir, "bun");
+			writeFileSync(
+				fakeBun,
+				`#!/bin/sh
+printf '{"cwd":"%s","args":"%s"}\\n' "$PWD" "$*" > "${callsPath}"
+`,
+				"utf8",
+			);
+			chmodSync(fakeBun, 0o755);
+			process.env.PATH = `${binDir}:${originalPath ?? ""}`;
 
-		expect(result).toBe("installed");
-		expect(calls).toEqual(["/tmp/example"]);
+			const result = await installScaffoldDependencies(dir);
+
+			expect(result).toBe("installed");
+			const call = JSON.parse(readFileSync(callsPath, "utf8"));
+			expect(call).toEqual({ cwd: realpathSync(dir), args: "install" });
+		} finally {
+			process.env.PATH = originalPath;
+			rmSync(dir, { recursive: true, force: true });
+			rmSync(binDir, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects when default scaffold dependency installation fails", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "sl-scaffold-"));
+		const binDir = mkdtempSync(join(tmpdir(), "sl-fake-bun-"));
+		const originalPath = process.env.PATH;
+		try {
+			const fakeBun = join(binDir, "bun");
+			writeFileSync(
+				fakeBun,
+				`#!/bin/sh
+exit 42
+`,
+				"utf8",
+			);
+			chmodSync(fakeBun, 0o755);
+			process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+
+			await expect(installScaffoldDependencies(dir)).rejects.toThrow(
+				"bun install exited with code 42",
+			);
+		} finally {
+			process.env.PATH = originalPath;
+			rmSync(dir, { recursive: true, force: true });
+			rmSync(binDir, { recursive: true, force: true });
+		}
 	});
 
 	it("can skip scaffold dependency installation", async () => {

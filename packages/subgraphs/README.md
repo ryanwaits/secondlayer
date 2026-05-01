@@ -51,7 +51,7 @@ export default defineSubgraph({
 });
 ```
 
-Deploy via CLI (`sl subgraphs deploy path/to/definition.ts`), SDK (`sl.subgraphs.deploy({...})`), or MCP (`subgraphs_deploy`). The dashboard is read-only — creation always happens through an API surface.
+Deploy via CLI (`sl subgraphs deploy path/to/definition.ts`), SDK (`sl.subgraphs.deploy({...})`), or MCP (`subgraphs_deploy`). The CLI can also scaffold from a deployed contract with `sl subgraphs scaffold <contract> -o subgraphs/name.ts`; scaffold writes or amends `package.json` and runs `bun install` unless `--no-install` is passed. The dashboard is read-only — creation always happens through an API surface.
 
 ## Exports
 

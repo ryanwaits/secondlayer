@@ -27,6 +27,11 @@ sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 sl subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
+`sl subgraphs scaffold` writes the definition file, creates or updates
+`package.json`, and runs `bun install` by default so the generated import is
+deployable immediately. Pass `--no-install` to skip the install and run
+`bun install` manually in the output directory.
+
 Then wire a receiver:
 
 ```bash
@@ -128,7 +133,7 @@ invocation. No long-lived key on disk.
 | `sl subgraphs stop <name>` | Pause processing |
 | `sl subgraphs gaps <name>` | List missing block ranges |
 | `sl subgraphs delete <name>` | Drop the subgraph + its schema |
-| `sl subgraphs scaffold <SP...::contract>` | Generate a starter subgraph from a deployed contract |
+| `sl subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a starter subgraph from a deployed contract, write/amend `package.json`, and install dependencies unless skipped |
 | `sl subgraphs generate <name>` | Regenerate TS types for an existing subgraph |
 
 ### Local dev + OSS

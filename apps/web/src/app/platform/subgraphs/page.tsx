@@ -177,7 +177,8 @@ export default async function SubgraphsPage() {
 												sl subgraphs scaffold SP123.contract --output
 												subgraphs/my-subgraph.ts
 											</code>{" "}
-											then deploy with{" "}
+											to create the file and install dependencies, then deploy
+											with{" "}
 											<code
 												style={{
 													fontSize: 12,

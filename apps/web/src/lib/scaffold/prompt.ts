@@ -39,7 +39,7 @@ export function generateAgentPrompt(
 	lines.push("");
 	lines.push(
 		`Use \`sl subgraphs scaffold ${contractId} -o subgraphs/${contractName}.ts\``,
-		"to generate the base scaffold, then customize the handlers.",
+		"to generate the base scaffold and install dependencies, then customize the handlers.",
 	);
 
 	return lines.join("\n");

@@ -203,14 +203,14 @@ handlers: {
 
 				<CodeBlock
 					lang="bash"
-					code={`# Deploy to Second Layer
+					code={`# Scaffold from a deployed contract's ABI; writes package.json + runs bun install
+sl subgraphs scaffold SP1234ABCD.token-transfers --output subgraphs/token-transfers.ts
+
+# Deploy to Second Layer
 sl subgraphs deploy subgraphs/token-transfers.ts
 
 # Dev mode — watches for changes, auto-redeploys
 sl subgraphs dev subgraphs/token-transfers.ts
-
-# Scaffold from a deployed contract's ABI
-sl subgraphs scaffold SP1234ABCD.my-contract --output subgraphs/my-contract.ts
 
 # Force reindex
 sl subgraphs reindex token-transfers`}

@@ -106,9 +106,9 @@ Filter types: stx_transfer, ft_transfer, ft_mint, ft_burn, nft_transfer, nft_min
 
 ### CLI
 \`\`\`bash
-sl subgraphs scaffold SP...contract -o subgraphs/name.ts
+sl subgraphs scaffold SP...contract -o subgraphs/name.ts  # writes package.json + runs bun install
 sl subgraphs deploy subgraphs/name.ts
-sl subgraphs dev subgraphs/name.ts  # watch mode
+sl subgraphs dev subgraphs/name.ts                        # watch mode
 \`\`\``;
 }
 

@@ -74,6 +74,10 @@ export SL_SERVICE_KEY=<your-key>   # only if API_KEY is set in the OSS .env
 sl subgraphs deploy ./my-subgraph.ts
 ```
 
+For contract ABI scaffolds, `sl subgraphs scaffold <contract> -o my-subgraph.ts`
+creates the module `package.json` and runs `bun install` by default. Use
+`--no-install` only if you will run `bun install` manually before deploy.
+
 Or via curl:
 
 ```bash

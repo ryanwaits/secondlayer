@@ -62,6 +62,10 @@ Scaffold from a contract ABI when you have a specific contract:
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 ```
 
+The scaffolder also creates or updates the module `package.json` in the output
+directory and runs `bun install` by default. If you pass `--no-install`, run
+`bun install` in that directory before deploying.
+
 Or create `subgraphs/stx-transfers.ts` manually:
 
 ```ts

@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import {
 	existsSync,
 	mkdirSync,
@@ -111,15 +112,25 @@ export function ensureScaffoldPackageJson(dir: string): void {
 export type ScaffoldDependencyInstaller = (dir: string) => Promise<void>;
 
 async function runBunInstall(dir: string): Promise<void> {
-	const proc = Bun.spawn(["bun", "install"], {
-		cwd: dir,
-		stdout: "inherit",
-		stderr: "inherit",
+	await new Promise<void>((resolvePromise, reject) => {
+		const proc = spawn("bun", ["install"], {
+			cwd: dir,
+			stdio: "inherit",
+		});
+
+		proc.on("error", reject);
+		proc.on("close", (exitCode, signal) => {
+			if (exitCode === 0) {
+				resolvePromise();
+				return;
+			}
+			if (exitCode !== null) {
+				reject(new Error(`bun install exited with code ${exitCode}`));
+				return;
+			}
+			reject(new Error(`bun install exited with signal ${signal}`));
+		});
 	});
-	const exitCode = await proc.exited;
-	if (exitCode !== 0) {
-		throw new Error(`bun install exited with code ${exitCode}`);
-	}
 }
 
 export async function installScaffoldDependencies(

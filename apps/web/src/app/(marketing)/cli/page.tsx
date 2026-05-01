@@ -93,7 +93,7 @@ sl instance db                       # prints ssh -L command + DATABASE_URL`}
 				<SectionHeading id="subgraphs">Subgraphs</SectionHeading>
 
 				<CodeBlock
-					code={`sl subgraphs scaffold SP1234ABCD.my-contract --output subgraphs/my-contract.ts
+					code={`sl subgraphs scaffold SP1234ABCD.token-transfers --output subgraphs/token-transfers.ts  # writes package.json + runs bun install
 sl subgraphs deploy subgraphs/token-transfers.ts --start-block <recent-block>
 sl subgraphs dev subgraphs/token-transfers.ts       # watch + hot-redeploy
 sl subgraphs list

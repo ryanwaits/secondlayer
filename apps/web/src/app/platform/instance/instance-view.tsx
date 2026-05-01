@@ -408,7 +408,8 @@ const sl = createClient({
 const { data } = await sl.subgraphs.list();`,
 		cli: `sl login
 sl project use ${tenant.slug}
-sl subgraphs deploy ./my-subgraph.ts`,
+sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-subgraph.ts
+sl subgraphs deploy subgraphs/my-subgraph.ts`,
 	}[tab];
 
 	const handleCopyUrl = async () => {

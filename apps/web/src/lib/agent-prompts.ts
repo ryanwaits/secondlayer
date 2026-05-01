@@ -86,7 +86,7 @@ export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 		build: () =>
 			withSetup(`${SUBGRAPHS_INTRO}
 
-/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`sl subgraphs scaffold\`, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`sl subgraphs deploy\`, query recent rows, then ask whether I want a subscription webhook.`),
+/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`sl subgraphs scaffold\` so the module package and dependencies are prepared, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`sl subgraphs deploy\`, query recent rows, then ask whether I want a subscription webhook.`),
 	},
 	{
 		id: "subgraph-alex-swaps",

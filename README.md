@@ -51,6 +51,10 @@ sl create subscription my-hook \
   --url https://<receiver-host>/webhook
 ```
 
+`sl subgraphs scaffold` writes `subgraphs/my-contract.ts`, creates or updates
+the local `package.json`, and runs `bun install` by default. Use
+`--no-install` only when you want to run `bun install` yourself before deploy.
+
 Use `--start-block` for fast demos; it overrides the definition for that deploy
 without rewriting your source file. For Trigger.dev or Cloudflare receivers,
 add `--auth-token <token>` when creating or updating the subscription.
