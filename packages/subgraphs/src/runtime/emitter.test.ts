@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
+import { verify } from "@secondlayer/shared/crypto/standard-webhooks";
 import { getDb } from "@secondlayer/shared/db";
 import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
-import { verify } from "@secondlayer/shared/crypto/standard-webhooks";
 import { startEmitter } from "./emitter.ts";
 
 // Per-suite afterAll only cleans up its own data. Never call `closeDb()` —
@@ -59,7 +59,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	await stopEmitter?.();
-	await db.deleteFrom("subscriptions").where("account_id", "=", accountId).execute();
+	await db
+		.deleteFrom("subscriptions")
+		.where("account_id", "=", accountId)
+		.execute();
 });
 
 describe("startEmitter end-to-end", () => {
@@ -100,17 +103,17 @@ describe("startEmitter end-to-end", () => {
 
 			expect(receiver.received.length).toBeGreaterThanOrEqual(1);
 			const [delivered] = receiver.received;
-			expect(delivered).toBeDefined();
-			expect(delivered!.headers["content-type"]).toBe("application/json");
-			expect(delivered!.headers["webhook-id"]).toBeTruthy();
-			expect(delivered!.headers["webhook-timestamp"]).toBeTruthy();
-			expect(delivered!.headers["webhook-signature"]).toContain("v1,");
+			if (!delivered) throw new Error("Expected a delivered webhook request");
+			expect(delivered.headers["content-type"]).toBe("application/json");
+			expect(delivered.headers["webhook-id"]).toBeTruthy();
+			expect(delivered.headers["webhook-timestamp"]).toBeTruthy();
+			expect(delivered.headers["webhook-signature"]).toContain("v1,");
 
 			// Signature verifies with the returned plaintext secret.
-			const ok = verify(delivered!.body, delivered!.headers, signingSecret);
+			const ok = verify(delivered.body, delivered.headers, signingSecret);
 			expect(ok).toBe(true);
 
-			const parsed = JSON.parse(delivered!.body) as {
+			const parsed = JSON.parse(delivered.body) as {
 				type: string;
 				data: { sender: string };
 			};
@@ -193,4 +196,83 @@ describe("startEmitter end-to-end", () => {
 			await receiver.stop();
 		}
 	}, 10_000);
+
+	it("opens the circuit after 20 real failing outbox deliveries", async () => {
+		const receiver = await startMockReceiver(() => "fail");
+		try {
+			const { subscription } = await createSubscription(db, {
+				accountId,
+				name: `circuit-${randomUUID().slice(0, 8)}`,
+				subgraphName: "bitcoin",
+				tableName: "transfers",
+				url: receiver.url,
+				timeoutMs: 3_000,
+				concurrency: 20,
+			});
+
+			await db
+				.insertInto("subscription_outbox")
+				.values(
+					Array.from({ length: 20 }, (_, rowIndex) => ({
+						subscription_id: subscription.id,
+						subgraph_name: "bitcoin",
+						table_name: "transfers",
+						block_height: 3000 + rowIndex,
+						tx_id: `0xcircuit${rowIndex}`,
+						row_pk: {
+							blockHeight: 3000 + rowIndex,
+							txId: `0xcircuit${rowIndex}`,
+							rowIndex,
+						},
+						event_type: "bitcoin.transfers.created",
+						payload: { sender: "SP9", recipient: "SP10", amount: "5" },
+						dedup_key: `test-circuit-${randomUUID().slice(0, 12)}`,
+					})),
+				)
+				.execute();
+
+			const start = Date.now();
+			while (receiver.received.length < 20 && Date.now() - start < 8_000) {
+				await new Promise((r) => setTimeout(r, 100));
+			}
+			expect(receiver.received.length).toBeGreaterThanOrEqual(20);
+
+			let sub:
+				| {
+						status: string;
+						circuit_failures: number;
+						circuit_opened_at: Date | null;
+				  }
+				| undefined;
+			while (Date.now() - start < 10_000) {
+				sub = await db
+					.selectFrom("subscriptions")
+					.select(["status", "circuit_failures", "circuit_opened_at"])
+					.where("id", "=", subscription.id)
+					.executeTakeFirstOrThrow();
+				if (
+					sub.status === "paused" &&
+					sub.circuit_failures >= 20 &&
+					sub.circuit_opened_at
+				) {
+					break;
+				}
+				await new Promise((r) => setTimeout(r, 100));
+			}
+
+			expect(sub?.circuit_failures).toBeGreaterThanOrEqual(20);
+			expect(sub?.status).toBe("paused");
+			expect(sub?.circuit_opened_at).not.toBeNull();
+
+			const deliveryCount = await db
+				.selectFrom("subscription_deliveries")
+				.select(db.fn.countAll<number>().as("count"))
+				.where("subscription_id", "=", subscription.id)
+				.where("status_code", "=", 500)
+				.executeTakeFirstOrThrow();
+			expect(Number(deliveryCount.count)).toBeGreaterThanOrEqual(20);
+		} finally {
+			await receiver.stop();
+		}
+	}, 12_000);
 });
