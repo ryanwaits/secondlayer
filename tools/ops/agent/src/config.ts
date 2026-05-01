@@ -37,7 +37,7 @@ export const SAFE_RESTART = [
 	"indexer",
 	"api",
 	"worker",
-	"subgraph-processor",
+	"provisioner",
 	"caddy",
 ] as const;
 
@@ -60,8 +60,9 @@ const DEFAULT_SERVICES: ServiceConfig[] = [
 	},
 	{ name: "worker", container: "secondlayer-worker-1", autoRestart: true },
 	{
-		name: "subgraph-processor",
-		container: "secondlayer-subgraph-processor-1",
+		name: "provisioner",
+		container: "secondlayer-provisioner-1",
+		healthUrl: "http://localhost:3850/health",
 		autoRestart: true,
 	},
 	{ name: "postgres", container: "secondlayer-postgres-1", autoRestart: false },

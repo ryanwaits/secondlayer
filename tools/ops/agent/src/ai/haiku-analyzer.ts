@@ -35,7 +35,7 @@ App server (this machine):
 - indexer: Block indexer (port 3700) — safe to restart
 - api: REST API (port 3800) — safe to restart
 - worker: Job processor — safe to restart
-- subgraph-processor: Subgraph computation — safe to restart
+- provisioner: Tenant Docker lifecycle API (port 3850) — safe to restart
 - postgres: Main database — WARN before restart
 - caddy: Reverse proxy / TLS — safe to restart
 - agent: This monitoring agent

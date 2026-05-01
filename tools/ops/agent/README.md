@@ -16,7 +16,7 @@ Autonomous AI DevOps monitoring agent for a Stacks blockchain indexing deploymen
   |   indexer -------+               +------------------+    |
   |   api -----------+  docker logs  |                  |    |
   |   worker --------+  --follow     |   Log Watcher    |    |
-  |   subgraph-processor+  -------->  |   (6 services)   |    |
+  |   provisioner ---+  -------->    |   (6 services)   |    |
   |   postgres ------+               |                  |    |
   |                                  +--------+---------+    |
   |   caddy ---------+                  Pattern Match        |
@@ -84,7 +84,7 @@ Autonomous AI DevOps monitoring agent for a Stacks blockchain indexing deploymen
 | indexer | secondlayer-indexer-1 | `localhost:3700/health` | Yes |
 | api | secondlayer-api-1 | `localhost:3800/health` | Yes |
 | worker | secondlayer-worker-1 | -- | Yes |
-| subgraph-processor | secondlayer-subgraph-processor-1 | -- | Yes |
+| provisioner | secondlayer-provisioner-1 | `localhost:3850/health` | Yes |
 | postgres | secondlayer-postgres-1 | -- | No |
 | caddy | secondlayer-caddy-1 | -- | Yes |
 | **stacks-node** | **secondlayer-stacks-node-1** | **RPC only** | **Never** |
@@ -136,7 +136,7 @@ Plus system-level collection:
 ### Restart Classification
 
 ```
-SAFE_RESTART:    indexer, api, worker, subgraph-processor, caddy
+SAFE_RESTART:    indexer, api, worker, provisioner, caddy
 NEVER_RESTART:   stacks-node
 WARN_RESTART:    postgres  (alert only, no auto-restart)
 ```
@@ -426,7 +426,7 @@ AI-driven alerts include a confidence percentage and are prefixed with `[AI]` or
 +--------------------------------------------------+
 | :chart_with_upwards_trend: Daily Summary          |
 +--------------------------------------------------+
-| Services:  6/7 healthy  | Actions Today:  4      |
+| Services:  6/6 healthy  | Actions Today:  4      |
 | AI Spend:  $0.0042      | Gaps:  0               |
 +--------------------------------------------------+
 ```
