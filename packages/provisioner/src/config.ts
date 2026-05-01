@@ -36,6 +36,8 @@ export interface ProvisionerConfig {
 	hiroApiUrl: string | null;
 	/** Optional Hiro API key injected into tenant API/processor containers. */
 	hiroApiKey: string | null;
+	/** AES-GCM key for tenant/runtime secret encryption. */
+	secretsKey: string;
 	/** Docker Engine API socket path. */
 	dockerSocketPath: string;
 }
@@ -80,9 +82,14 @@ export function getConfig(): ProvisionerConfig {
 		stacksNodeRpcUrl: required("STACKS_NODE_RPC_URL"),
 		hiroApiUrl: optionalNullable("HIRO_API_URL"),
 		hiroApiKey: optionalNullable("HIRO_API_KEY"),
+		secretsKey: required("SECONDLAYER_SECRETS_KEY"),
 		dockerSocketPath: optional("DOCKER_SOCKET", "/var/run/docker.sock"),
 	};
 	return cached;
+}
+
+export function resetConfigForTests(): void {
+	cached = null;
 }
 
 /** Image name for a tenant service. */

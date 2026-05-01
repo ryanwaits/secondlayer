@@ -134,6 +134,7 @@ export async function provisionTenant(
 					stacksNodeRpcUrl: cfg.stacksNodeRpcUrl,
 					hiroApiUrl: cfg.hiroApiUrl,
 					hiroApiKey: cfg.hiroApiKey,
+					secretsKey: cfg.secretsKey,
 				}),
 			);
 			await containerStart(apiId);
@@ -156,6 +157,7 @@ export async function provisionTenant(
 					stacksNodeRpcUrl: cfg.stacksNodeRpcUrl,
 					hiroApiUrl: cfg.hiroApiUrl,
 					hiroApiKey: cfg.hiroApiKey,
+					secretsKey: cfg.secretsKey,
 				}),
 			);
 			await containerStart(procId);
@@ -290,9 +292,10 @@ interface ApiSpecInput {
 	anonGen?: number;
 	hiroApiUrl?: string | null;
 	hiroApiKey?: string | null;
+	secretsKey: string;
 }
 
-function buildApiSpec(input: ApiSpecInput): ContainerSpec {
+export function buildApiSpec(input: ApiSpecInput): ContainerSpec {
 	return {
 		name: input.name,
 		image: input.image,
@@ -306,6 +309,7 @@ function buildApiSpec(input: ApiSpecInput): ContainerSpec {
 			TENANT_PLAN: input.plan,
 			SERVICE_GEN: String(input.serviceGen ?? 1),
 			ANON_GEN: String(input.anonGen ?? 1),
+			SECONDLAYER_SECRETS_KEY: input.secretsKey,
 			...(input.stacksNodeRpcUrl
 				? { STACKS_NODE_RPC_URL: input.stacksNodeRpcUrl }
 				: {}),
@@ -345,9 +349,10 @@ interface ProcessorSpecInput {
 	stacksNodeRpcUrl?: string | null;
 	hiroApiUrl?: string | null;
 	hiroApiKey?: string | null;
+	secretsKey: string;
 }
 
-function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
+export function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
 	return {
 		name: input.name,
 		image: input.image,
@@ -357,6 +362,7 @@ function buildProcessorSpec(input: ProcessorSpecInput): ContainerSpec {
 			DATABASE_URL: input.targetDatabaseUrl,
 			SOURCE_DATABASE_URL: input.sourceDatabaseUrl,
 			TARGET_DATABASE_URL: input.targetDatabaseUrl,
+			SECONDLAYER_SECRETS_KEY: input.secretsKey,
 			...(input.stacksNodeRpcUrl
 				? { STACKS_NODE_RPC_URL: input.stacksNodeRpcUrl }
 				: {}),

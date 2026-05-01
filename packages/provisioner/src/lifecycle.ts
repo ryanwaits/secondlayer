@@ -414,13 +414,14 @@ async function extractEnv(nameOrId: string): Promise<Record<string, string>> {
 	return env;
 }
 
-function withProvisionerRuntimeEnv(
+export function withProvisionerRuntimeEnv(
 	env: Record<string, string>,
 	cfg: ProvisionerConfig,
 ): Record<string, string> {
 	return {
 		...env,
 		STACKS_NODE_RPC_URL: cfg.stacksNodeRpcUrl,
+		SECONDLAYER_SECRETS_KEY: cfg.secretsKey,
 		...(cfg.hiroApiUrl ? { HIRO_API_URL: cfg.hiroApiUrl } : {}),
 		...(cfg.hiroApiKey ? { HIRO_API_KEY: cfg.hiroApiKey } : {}),
 	};

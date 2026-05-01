@@ -60,6 +60,7 @@ services:
     # passthrough in the base compose file.
     environment:
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
     networks:
       default: {}
       sl-tenants:
