@@ -54,6 +54,32 @@ export default defineSubgraph({
 });
 `;
 
+const invalidIndexSource = `
+import { defineSubgraph } from "@secondlayer/subgraphs";
+export default defineSubgraph({
+	name: "bad-indexes",
+	sources: {
+		transfers: {
+			type: "contract_call",
+			contractId: "SP123.demo",
+			functionName: "transfer",
+		},
+	},
+	schema: {
+		transfers: {
+			columns: {
+				sender: { type: "principal" },
+				recipient: { type: "principal" },
+			},
+			indexes: [{ columns: ["sender"] }],
+		},
+	},
+	handlers: {
+		transfers: () => {},
+	},
+});
+`;
+
 describe("POST /api/subgraphs/bundle", () => {
 	test("happy path: valid source returns bundled handler + metadata", async () => {
 		const app = buildApp();
@@ -153,5 +179,25 @@ export default defineSubgraph({
 		const body = (await res.json()) as { ok: boolean; code: string };
 		expect(body.ok).toBe(false);
 		expect(body.code).toBe("BUNDLE_FAILED");
+	});
+
+	test("object-shaped indexes return a repair hint", async () => {
+		const app = buildApp();
+		const res = await app.request("/subgraphs/bundle", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ code: invalidIndexSource }),
+		});
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as {
+			ok: boolean;
+			code: string;
+			error: string;
+		};
+		expect(body.ok).toBe(false);
+		expect(body.code).toBe("BUNDLE_FAILED");
+		expect(body.error).toContain(
+			'Subgraph schema hint: use indexes: [["sender"], ["recipient"]], not indexes: [{ columns: ["sender"] }].',
+		);
 	});
 });

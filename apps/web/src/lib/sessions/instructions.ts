@@ -80,6 +80,26 @@ ALWAYS use this base URL in code examples. Never use any other domain.
 - Then call \`deploy_subgraph\` with your customized code and a \`description\` one-liner. The deploy card bundles server-side and persists on confirm — never POST \`/api/subgraphs\` yourself. Breaking schema changes trigger an automatic reindex; mention this explicitly when you confirm.
 - After deploy succeeds, offer to \`tail_subgraph_sync\` so the user can watch the subgraph catch up to the chain tip. Use this tool any time the user asks to "watch", "tail", or "follow" indexing progress.
 
+## Subgraph schema contract
+- \`columns\` is an object whose keys are column names and values are column definitions.
+- Prefer \`indexed: true\` on a column for simple single-column indexes users will filter on.
+- \`indexes: string[][]\` is only for composite indexes, e.g. \`indexes: [["sender", "recipient"]]\`.
+- \`uniqueKeys: string[][]\` uses the same array-of-arrays shape, e.g. \`uniqueKeys: [["tx_id"]]\`.
+- Never emit index objects. Do not use \`indexes: [{ columns: ["sender"] }]\`, \`{ name, columns }\`, or any \`{ columns: [...] }\` shape.
+- Transfer-only customization example:
+    schema: {
+      transfers: {
+        columns: {
+          sender: { type: "principal", indexed: true },
+          recipient: { type: "principal", indexed: true },
+          amount: { type: "uint" },
+          tx_id: { type: "text", indexed: true },
+        },
+        indexes: [["sender", "recipient"]],
+        uniqueKeys: [["tx_id"]],
+      },
+    }
+
 ## Subgraph edit loop
 - Editing a deployed subgraph is ALWAYS a two-step flow. Never skip the read.
   1. Call \`read_subgraph({ name })\` first. Capture the returned \`sourceCode\`.

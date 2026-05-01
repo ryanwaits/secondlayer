@@ -64,4 +64,22 @@ describe("buildSessionInstructions", () => {
 		expect(text).toContain("setupRequired: true");
 		expect(text).toContain("do not tell an already logged-in dashboard user");
 	});
+
+	test("includes canonical subgraph schema contract for session authoring", () => {
+		const resources: AccountResources = {
+			instance: { exists: true, slug: "alex", status: "active" },
+			subgraphs: [],
+			subscriptions: [],
+			keys: [],
+			chainTip: null,
+		};
+		const text = buildSessionInstructions(resources);
+		expect(text).toContain("## Subgraph schema contract");
+		expect(text).toContain("`indexes: string[][]`");
+		expect(text).toContain("`uniqueKeys: string[][]`");
+		expect(text).toContain('indexes: [{ columns: ["sender"] }]');
+		expect(text).toContain("`{ name, columns }`");
+		expect(text).toContain('indexes: [["sender", "recipient"]]');
+		expect(text).toContain('uniqueKeys: [["tx_id"]]');
+	});
 });

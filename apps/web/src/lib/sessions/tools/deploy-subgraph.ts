@@ -9,7 +9,7 @@ import { z } from "zod";
  */
 export const deploySubgraph = tool({
 	description:
-		"Propose deploying a subgraph. Requires user confirmation — the client renders a deploy card with bundle size and a one-line description. Always run scaffold_subgraph (or read_subgraph) first so you're passing the exact TypeScript source the user just saw. Deploy creates or upserts the subgraph definition and triggers a reindex when the schema changes.",
+		'Propose deploying a subgraph. Requires user confirmation — the client renders a deploy card with bundle size and a one-line description. Always run scaffold_subgraph (or read_subgraph) first so you\'re passing the exact TypeScript source the user just saw. Before calling this tool, verify the schema contract: columns is an object, simple indexes use indexed: true on columns, indexes is string[][] only for composite indexes like [["sender", "recipient"]], and uniqueKeys is string[][]. Never emit index objects like { columns: ["sender"] }. Deploy creates or upserts the subgraph definition and triggers a reindex when the schema changes.',
 	inputSchema: z.object({
 		name: z
 			.string()

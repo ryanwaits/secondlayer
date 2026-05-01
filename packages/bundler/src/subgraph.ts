@@ -7,6 +7,9 @@ import esbuild from "esbuild";
 import { BundleSizeError, SUBGRAPH_BUNDLE_MAX_BYTES } from "./errors.ts";
 import { stubPackagesPlugin } from "./stub-plugin.ts";
 
+const INDEX_SHAPE_HINT =
+	'Subgraph schema hint: use indexes: [["sender"], ["recipient"]], not indexes: [{ columns: ["sender"] }].';
+
 export interface SubgraphBundleResult {
 	name: string;
 	version?: string;
@@ -69,9 +72,11 @@ export async function bundleSubgraphCode(
 	try {
 		validated = validateSubgraphDefinition(def);
 	} catch (err: unknown) {
-		throw new Error(
-			`Validation failed: ${err instanceof Error ? err.message : String(err)}`,
-		);
+		const message = err instanceof Error ? err.message : String(err);
+		const hint = shouldShowIndexShapeHint(message)
+			? `\n\n${INDEX_SHAPE_HINT}`
+			: "";
+		throw new Error(`Validation failed: ${message}${hint}`);
 	}
 
 	return {
@@ -85,4 +90,12 @@ export async function bundleSubgraphCode(
 		schema: validated.schema,
 		handlerCode,
 	};
+}
+
+function shouldShowIndexShapeHint(message: string): boolean {
+	return (
+		message.includes('"indexes"') &&
+		message.includes('"expected": "array"') &&
+		message.includes('"invalid_type"')
+	);
 }
