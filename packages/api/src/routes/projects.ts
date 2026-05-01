@@ -7,6 +7,7 @@ import {
 	getTeamInvitations,
 	getTeamMembers,
 } from "@secondlayer/shared/db/queries/projects";
+import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
 import {
 	getTenantByAccount,
 	insertTenant,
@@ -20,6 +21,32 @@ import {
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
+
+const PLAN_ALLOCATIONS: Record<
+	"hobby" | "launch" | "grow" | "scale" | "enterprise",
+	{ cpus: number; memoryMb: number; storageLimitMb: number }
+> = {
+	hobby: { cpus: 0.5, memoryMb: 512, storageLimitMb: 5120 },
+	launch: { cpus: 1, memoryMb: 2048, storageLimitMb: 10240 },
+	grow: { cpus: 2, memoryMb: 4096, storageLimitMb: 51200 },
+	scale: { cpus: 4, memoryMb: 8192, storageLimitMb: 204800 },
+	enterprise: { cpus: 8, memoryMb: 32_768, storageLimitMb: -1 },
+};
+
+function projectProvisioningDetail(input: {
+	projectId: string;
+	projectSlug: string;
+	plan: string;
+	extra?: Record<string, unknown>;
+}): Record<string, unknown> {
+	return {
+		route: "projects.instance",
+		projectId: input.projectId,
+		projectSlug: input.projectSlug,
+		plan: input.plan,
+		...(input.extra ?? {}),
+	};
+}
 
 function requireAccountId(c: Context): string {
 	const accountId = c.get("accountId") as string | undefined;
@@ -353,53 +380,149 @@ app.post("/:slug/instance", async (c) => {
 	}
 
 	let provisioned: Awaited<ReturnType<typeof provisionerProvision>>;
+	await recordProvisioningAudit(db, {
+		accountId,
+		actor: `account:${accountId}`,
+		event: "provision.start",
+		status: "ok",
+		detail: projectProvisioningDetail({
+			projectId: project.id,
+			projectSlug: project.slug,
+			plan,
+		}),
+	});
+
 	try {
 		provisioned = await provisionerProvision({ accountId, plan });
 	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
 		if (err instanceof ProvisionerError) {
+			const detail = err.body.slice(0, 500);
+			await recordProvisioningAudit(db, {
+				accountId,
+				actor: `account:${accountId}`,
+				event: "provision.failure",
+				status: "error",
+				detail: projectProvisioningDetail({
+					projectId: project.id,
+					projectSlug: project.slug,
+					plan,
+					extra: {
+						provisioner: {
+							status: err.status,
+							body: detail,
+						},
+					},
+				}),
+				error: msg,
+			});
 			return c.json(
 				{
 					error: "Provisioner rejected the request",
-					detail: err.body.slice(0, 500),
+					code: "PROVISIONER_REJECTED",
+					detail,
 					status: err.status,
+					projectSlug: project.slug,
+					plan,
 				},
 				502,
 			);
 		}
-		throw err;
+		await recordProvisioningAudit(db, {
+			accountId,
+			actor: `account:${accountId}`,
+			event: "provision.failure",
+			status: "error",
+			detail: projectProvisioningDetail({
+				projectId: project.id,
+				projectSlug: project.slug,
+				plan,
+			}),
+			error: msg,
+		});
+		return c.json(
+			{
+				error: "Instance provisioning failed",
+				code: "INSTANCE_PROVISION_FAILED",
+				projectSlug: project.slug,
+				plan,
+			},
+			500,
+		);
 	}
 
-	const alloc = {
-		hobby: { cpus: 0.5, memoryMb: 512, storageLimitMb: 5120 },
-		launch: { cpus: 1, memoryMb: 2048, storageLimitMb: 10240 },
-		grow: { cpus: 2, memoryMb: 4096, storageLimitMb: 51200 },
-		scale: { cpus: 4, memoryMb: 8192, storageLimitMb: 204800 },
-		enterprise: { cpus: 8, memoryMb: 32_768, storageLimitMb: -1 },
-	}[plan];
+	const alloc = PLAN_ALLOCATIONS[plan];
 
-	const tenant = await insertTenant(db, {
-		accountId,
-		slug: provisioned.slug,
-		plan,
-		cpus: alloc.cpus,
-		memoryMb: alloc.memoryMb,
-		storageLimitMb: alloc.storageLimitMb,
-		pgContainerId: provisioned.containerIds.postgres,
-		apiContainerId: provisioned.containerIds.api,
-		processorContainerId: provisioned.containerIds.processor,
-		targetDatabaseUrl: provisioned.targetDatabaseUrl,
-		tenantJwtSecret: provisioned.tenantJwtSecret,
-		anonKey: provisioned.anonKey,
-		serviceKey: provisioned.serviceKey,
-		apiUrlInternal: provisioned.apiUrlInternal,
-		apiUrlPublic: provisioned.apiUrlPublic,
-		projectId: project.id,
-	});
+	let tenant: Awaited<ReturnType<typeof insertTenant>>;
+	try {
+		tenant = await insertTenant(db, {
+			accountId,
+			slug: provisioned.slug,
+			plan,
+			cpus: alloc.cpus,
+			memoryMb: alloc.memoryMb,
+			storageLimitMb: alloc.storageLimitMb,
+			pgContainerId: provisioned.containerIds.postgres,
+			apiContainerId: provisioned.containerIds.api,
+			processorContainerId: provisioned.containerIds.processor,
+			targetDatabaseUrl: provisioned.targetDatabaseUrl,
+			tenantJwtSecret: provisioned.tenantJwtSecret,
+			anonKey: provisioned.anonKey,
+			serviceKey: provisioned.serviceKey,
+			apiUrlInternal: provisioned.apiUrlInternal,
+			apiUrlPublic: provisioned.apiUrlPublic,
+			projectId: project.id,
+		});
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		await recordProvisioningAudit(db, {
+			tenantSlug: provisioned.slug,
+			accountId,
+			actor: `account:${accountId}`,
+			event: "provision.failure",
+			status: "error",
+			detail: projectProvisioningDetail({
+				projectId: project.id,
+				projectSlug: project.slug,
+				plan,
+				extra: {
+					tenantSlug: provisioned.slug,
+					containerIds: provisioned.containerIds,
+				},
+			}),
+			error: msg,
+		});
+		return c.json(
+			{
+				error:
+					"Instance was provisioned, but the instance record could not be saved",
+				code: "INSTANCE_RECORD_FAILED",
+				projectSlug: project.slug,
+				plan,
+				tenantSlug: provisioned.slug,
+			},
+			500,
+		);
+	}
 
 	logger.info("Tenant provisioned for project", {
 		slug: tenant.slug,
 		projectSlug: project.slug,
 		accountId,
+	});
+
+	await recordProvisioningAudit(db, {
+		tenantId: tenant.id,
+		tenantSlug: tenant.slug,
+		accountId,
+		actor: `account:${accountId}`,
+		event: "provision.success",
+		status: "ok",
+		detail: projectProvisioningDetail({
+			projectId: project.id,
+			projectSlug: project.slug,
+			plan,
+		}),
 	});
 
 	return c.json(

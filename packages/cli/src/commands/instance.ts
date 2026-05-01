@@ -520,6 +520,15 @@ function handleInstanceError(err: unknown, action: string): never {
 			);
 			process.exit(1);
 		}
+		if (
+			err.code === "PROVISIONER_REJECTED" ||
+			err.code === "INSTANCE_RECORD_FAILED" ||
+			err.code === "INSTANCE_PROVISION_FAILED"
+		) {
+			logError(err.message || `Failed to ${action}.`);
+			logError("Run: sl instance info before retrying.");
+			process.exit(1);
+		}
 		logError(err.message || `Failed to ${action}.`);
 		process.exit(1);
 	}
