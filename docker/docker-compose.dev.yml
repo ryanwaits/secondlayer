@@ -6,7 +6,10 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: secondlayer
     ports:
-      - "127.0.0.1:5432:5432"
+      # 5432 + 5433 + 5434 are commonly squatted by other local PG instances;
+      # use 5435 to avoid conflicts. Update DATABASE_URL in package.json +
+      # any per-package .env to match if you change this.
+      - "127.0.0.1:5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

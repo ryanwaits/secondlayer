@@ -19,7 +19,7 @@
 		"db": "docker compose -f docker/docker-compose.dev.yml up -d --wait",
 		"db:stop": "docker compose -f docker/docker-compose.dev.yml down",
 		"db:reset": "docker compose -f docker/docker-compose.dev.yml down -v && bun run db && bun run migrate",
-		"migrate": "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/secondlayer bun run packages/shared/src/db/migrate.ts",
+		"migrate": "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5435/secondlayer bun run packages/shared/src/db/migrate.ts",
 		"dev": "bun run --filter '*' dev",
 		"test": "bun run --filter '*' test",
 		"test:cli": "bun run --filter @secondlayer/cli test",
