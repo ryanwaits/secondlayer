@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secondlayer — Spec Viewer Integration (Mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;560;600&family=Fira+Code:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fafafa;
+  --bg-elevated: #fff;
+  --bg-chrome: #f4f4f4;
+  --bg-tab-active: #fdfdfc;
+  --text-main: #111;
+  --text-muted: rgba(0,0,0,0.45);
+  --text-dim: rgba(0,0,0,0.28);
+  --text-faint: rgba(0,0,0,0.12);
+  --border: #e5e5e5;
+  --border-hover: #d0d0d0;
+  --code-bg: rgba(0,0,0,0.04);
+  --code-block-bg: #f6f6f5;
+  --accent: #2563EB;
+  --accent-bg: rgba(37,99,235,0.08);
+  --accent-border: rgba(37,99,235,0.22);
+  --green: #16a34a;
+  --green-bg: rgba(22,163,74,0.08);
+  --yellow: #ca8a04;
+  --yellow-bg: rgba(202,138,4,0.10);
+  --red: #dc2626;
+  --red-bg: rgba(220,38,38,0.08);
+
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+
+  --syn-key: #953800;
+  --syn-string: #0a3069;
+  --syn-num: #0550ae;
+  --syn-punct: rgba(0,0,0,0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111;
+    --bg-elevated: #1a1a1a;
+    --bg-chrome: #0a0a0a;
+    --bg-tab-active: #181818;
+    --text-main: #ececec;
+    --text-muted: rgba(255,255,255,0.45);
+    --text-dim: rgba(255,255,255,0.28);
+    --text-faint: rgba(255,255,255,0.10);
+    --border: #2a2a2a;
+    --border-hover: #3a3a3a;
+    --code-bg: rgba(255,255,255,0.05);
+    --code-block-bg: #161616;
+    --accent: #1FD5F9;
+    --accent-bg: rgba(31,213,249,0.08);
+    --accent-border: rgba(31,213,249,0.22);
+    --syn-key: #ffa657;
+    --syn-string: #a5d6ff;
+    --syn-num: #79c0ff;
+    --syn-punct: rgba(255,255,255,0.45);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg-chrome);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-wrap {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+}
+
+.page-h1 {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+}
+.page-sub { color: var(--text-muted); font-size: 12.5px; margin: 0 0 8px; max-width: 720px; }
+.page-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 4px 0 24px;
+  max-width: 760px;
+  border-left: 2px solid var(--accent);
+  padding: 6px 12px;
+  background: var(--accent-bg);
+  border-radius: 0 6px 6px 0;
+}
+
+.scene-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 36px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.scene-label .num {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 1px 7px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  letter-spacing: 0;
+}
+.scene-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.scene-caption {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+  max-width: 800px;
+}
+.scene-caption strong { color: var(--text-main); font-weight: 560; }
+
+/* ──────────────────────────────────────────────────────────────────
+   Dashboard shell (mirrors .dash + .sidebar + .main-col)
+   ────────────────────────────────────────────────────────────────── */
+.shell {
+  display: flex;
+  height: 760px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 6px 24px -10px rgba(0,0,0,0.06);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 224px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  gap: 14px;
+}
+.sb-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-heading);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+.sb-logo svg .logo-primary { fill: var(--accent); }
+.sb-logo svg .logo-echo { fill: var(--accent); opacity: 0.3; }
+
+.sb-proj {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--text-main);
+  cursor: pointer;
+}
+.sb-proj-l { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sb-proj-icon {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-border));
+  flex-shrink: 0;
+}
+.sb-proj-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-proj-cv { color: var(--text-dim); flex-shrink: 0; }
+
+.sb-nav { display: flex; flex-direction: column; gap: 1px; }
+.sb-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+}
+.sb-item:hover { background: var(--code-bg); color: var(--text-main); }
+.sb-item.active {
+  background: var(--code-bg);
+  color: var(--text-main);
+  font-weight: 540;
+}
+.sb-item.active::before {
+  content: "";
+  position: absolute;
+  left: -10px; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.sb-item-icon { display: inline-flex; opacity: 0.7; }
+.sb-item.active .sb-item-icon { opacity: 1; color: var(--accent); }
+.sb-item-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--text-muted);
+}
+.sb-section-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 9px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.sb-spacer { flex: 1; }
+.sb-user {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px;
+  border-top: 1px solid var(--border);
+  margin: 0 -10px -14px;
+  padding: 12px 18px;
+  cursor: pointer;
+}
+.sb-user-avatar {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--code-bg);
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.sb-user-name { font-size: 12px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Main column */
+.main-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.main-scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  height: 44px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.topbar-crumb {
+  display: flex;
+  align-items: center;
+  font-size: 12.5px;
+}
+.topbar-crumb .ctx { color: var(--text-muted); }
+.topbar-crumb .sep { color: var(--text-faint); margin: 0 7px; }
+.topbar-crumb .pg { color: var(--text-main); font-weight: 540; }
+.topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.topbar-meta .mono { font-family: var(--font-mono); color: var(--text-main); font-size: 11px; }
+.topbar-meta .div { width: 1px; height: 12px; background: var(--border); }
+
+/* Inner page padding */
+.inner { padding: 22px 24px 60px; }
+
+/* ──────────────────────────────────────────────────────────────────
+   Subgraph header (reused .sg-hdr style)
+   ────────────────────────────────────────────────────────────────── */
+.sg-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.sg-hdr-id { display: flex; align-items: center; gap: 10px; }
+.sg-hdr-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.sg-hdr-name {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+}
+.sg-hdr-version {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--code-bg);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.sg-hdr-actions { display: flex; gap: 6px; }
+.sg-hdr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 11px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.sg-hdr-btn:hover { color: var(--text-main); border-color: var(--border-hover); }
+
+/* ──────────────────────────────────────────────────────────────────
+   Sub-tab strip — NEW (Overview / API / Subscriptions / Settings)
+   ────────────────────────────────────────────────────────────────── */
+.sub-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 22px;
+  position: relative;
+}
+.sub-tab {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 1.5px solid transparent;
+  padding: 9px 16px 11px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+}
+.sub-tab:hover { color: var(--text-main); }
+.sub-tab.active {
+  color: var(--text-main);
+  border-bottom-color: var(--accent);
+}
+.sub-tab.active .sub-tab-icon { color: var(--accent); }
+.sub-tab-icon { opacity: 0.7; display: inline-flex; }
+.sub-tab.active .sub-tab-icon { opacity: 1; }
+.sub-tab-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--text-muted);
+}
+
+/* Endpoint bar */
+.sg-ep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  margin-bottom: 18px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.sg-ep-method {
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.sg-ep-url { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sg-ep-url .hl { color: var(--accent); }
+
+/* ──────────────────────────────────────────────────────────────────
+   Overview cards (existing pattern)
+   ────────────────────────────────────────────────────────────────── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+}
+.card-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.65;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-big {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -0.03em;
+  margin-top: auto;
+}
+.card-big.neutral { color: var(--text-main); }
+.card-big .unit { font-size: 14px; font-weight: 400; color: var(--text-muted); margin-left: 2px; }
+.card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* API entry-point card (NEW) */
+.card.api-card {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: all .15s;
+}
+.card.api-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.card.api-card .card-label { color: var(--accent); opacity: 1; }
+.api-formats {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 12px;
+}
+.api-fmt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-main);
+}
+.api-fmt-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.api-fmt-ext { color: var(--text-dim); }
+.api-arrow {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Section header for collapsible look */
+.ov-sec {
+  margin-bottom: 18px;
+}
+.ov-sec-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text-main);
+  padding: 8px 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.ov-sec-h .chev { color: var(--text-dim); }
+.ov-sec-h .count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+/* Tables grid mini */
+.tbl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.tbl-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+.tbl-card-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.tbl-card-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 540;
+}
+.tbl-card-stats { font-size: 11px; color: var(--text-muted); display: flex; gap: 10px; }
+.tbl-card-stats strong { color: var(--text-main); font-weight: 540; }
+.tbl-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tbl-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--code-bg);
+}
+.tbl-chip.idx { color: var(--accent); border-color: var(--accent-border); background: var(--accent-bg); }
+.tbl-chip.sys { opacity: 0.5; }
+
+/* ──────────────────────────────────────────────────────────────────
+   Spec viewer (compact-fit reuse)
+   ────────────────────────────────────────────────────────────────── */
+.spec-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.spec-tabs { display: flex; gap: 0; }
+.spec-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  font-family: var(--font-sans);
+  background: none;
+  border: none;
+  border-bottom: 1.5px solid transparent;
+  padding: 7px 14px 9px;
+  cursor: pointer;
+  color: var(--text-muted);
+  margin-bottom: -1px;
+}
+.spec-tab:hover { color: var(--text-main); }
+.spec-tab .label { font-size: 12px; font-weight: 540; }
+.spec-tab .ext { font-family: var(--font-mono); font-size: 9.5px; color: var(--text-dim); }
+.spec-tab.active { color: var(--text-main); border-bottom-color: var(--accent); }
+.spec-tab.active .ext { color: var(--accent); opacity: 0.85; }
+.spec-toolbar { display: flex; gap: 4px; padding-bottom: 5px; }
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.tool-btn:hover { color: var(--text-main); border-color: var(--border-hover); }
+
+.spec-body {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  gap: 14px;
+}
+.side-sec {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.side-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 11px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+.side-label .cnt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0;
+}
+.ep-list { list-style: none; margin: 0; padding: 4px 0; }
+.ep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.ep:hover { background: var(--code-bg); }
+.ep-method {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  min-width: 36px;
+  text-align: center;
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+.ep-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tbl-list { list-style: none; margin: 0; padding: 4px 0; }
+.tbl-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 11px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.tbl-row:hover { background: var(--code-bg); }
+.tbl-row.active {
+  background: var(--accent-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.tbl-row.active .tbl-name { color: var(--accent); }
+.tbl-name { font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--text-main); }
+.tbl-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); }
+
+.code-pane {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--code-block-bg);
+  overflow: hidden;
+  max-height: 460px;
+}
+.code-pane pre {
+  margin: 0;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-main);
+  white-space: pre;
+  overflow: auto;
+  height: 100%;
+}
+.code-pane .k { color: var(--syn-key); }
+.code-pane .s { color: var(--syn-string); }
+.code-pane .n { color: var(--syn-num); }
+.code-pane .p { color: var(--syn-punct); }
+
+/* ──────────────────────────────────────────────────────────────────
+   Variant: 2-tab consolidated form
+   ────────────────────────────────────────────────────────────────── */
+.format-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-left: 10px;
+}
+.format-toggle button {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.format-toggle button.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.format-toggle button + button { border-left: 1px solid var(--border); }
+
+/* Comparison table for the option panel */
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.compare-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: var(--bg);
+}
+.compare-card h4 {
+  font-family: var(--font-heading);
+  font-size: 13.5px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compare-card h4 .recommend {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--green);
+  background: var(--green-bg);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.compare-card p { color: var(--text-muted); font-size: 12px; margin: 0 0 10px; }
+.compare-card ul { margin: 0 0 4px; padding-left: 18px; font-size: 12px; color: var(--text-muted); }
+.compare-card ul li { margin-bottom: 3px; }
+.compare-card ul li strong { color: var(--text-main); font-weight: 540; }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <h1 class="page-h1">Spec Viewer · Dashboard Integration</h1>
+  <p class="page-sub">How the API spec surface lands inside the existing platform shell — entry points, navigation, and reasoning about how many format options to expose.</p>
+
+  <div class="page-note">
+    <strong>Recommendation:</strong> add a sub-tab strip to the subgraph detail page (Overview / API / Subscriptions / Settings) and keep all three format tabs inside the API view. The three formats target distinct consumers (Postman/codegen · MCP-LLM tool-use · paste-into-Cursor), share a generator, and cost ~zero. The entry point on Overview is a single quiet card — not three links.
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 1 — Subgraph Overview with new sub-tab strip + API entry card
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">01</span> Subgraph overview · entry point on the existing page</div>
+  <p class="scene-caption">The existing overview gets a quiet sub-tab strip beneath the header and a single <strong>API spec</strong> card slotted into the cards grid. The card previews the three formats so you know what's there without clicking. No marketing, no separate page — it sits next to Uptime/Latency.</p>
+
+  <div class="shell">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sb-logo">
+        <svg viewBox="4 7 40 28" width="22" height="14"><polygon points="8,25 28,17 42,25 22,33" class="logo-echo"/><polygon points="8,19 28,11 42,19 22,27" class="logo-primary"/></svg>
+        secondlayer
+      </div>
+
+      <div class="sb-proj">
+        <div class="sb-proj-l">
+          <div class="sb-proj-icon"></div>
+          <span class="sb-proj-name">stacks-mainnet</span>
+        </div>
+        <svg class="sb-proj-cv" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7l3-3 3 3M5 9l3 3 3-3"/></svg>
+      </div>
+
+      <div class="sb-nav">
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5L8 2l6 4.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6.5z"/><path d="M6 14V9h4v5"/></svg></span>
+          <span>Home</span>
+        </a>
+        <a class="sb-item active">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="8" cy="12" r="2"/><path d="M5 5l2 5M11 5L9 10"/></svg></span>
+          <span>Subgraphs</span>
+          <span class="sb-item-badge">12</span>
+        </a>
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12"/></svg></span>
+          <span>Sessions</span>
+        </a>
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg></span>
+          <span>Settings</span>
+          <svg style="margin-left:auto" width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+        </a>
+      </div>
+
+      <div class="sb-spacer"></div>
+      <div class="sb-user">
+        <span class="sb-user-avatar">R</span>
+        <span class="sb-user-name">ryan@secondlayer.dev</span>
+      </div>
+    </nav>
+
+    <!-- Main column -->
+    <div class="main-col">
+      <div class="topbar">
+        <div class="topbar-crumb">
+          <span class="ctx">Subgraphs</span>
+          <span class="sep">/</span>
+          <span class="pg">pox-stacking</span>
+        </div>
+        <div class="topbar-meta">
+          <span>Last updated <span class="mono">2 min ago</span></span>
+          <span class="div"></span>
+          <span>Block <span class="mono">#891,402</span></span>
+        </div>
+      </div>
+
+      <div class="main-scroll">
+        <div class="inner">
+          <!-- Identity row -->
+          <div class="sg-hdr">
+            <div class="sg-hdr-id">
+              <span class="sg-hdr-dot"></span>
+              <span class="sg-hdr-name">pox-stacking</span>
+              <span class="sg-hdr-version">v3.1.0</span>
+            </div>
+          </div>
+
+          <!-- NEW sub-tab strip -->
+          <div class="sub-tabs">
+            <a class="sub-tab active">
+              <span class="sub-tab-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></svg></span>
+              Overview
+            </a>
+            <a class="sub-tab">
+              <span class="sub-tab-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v3H3zM3 8h10v3H3z"/></svg></span>
+              API
+            </a>
+            <a class="sub-tab">
+              <span class="sub-tab-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><path d="M5.5 5.5L10.5 10.5"/></svg></span>
+              Subscriptions
+              <span class="sub-tab-badge">3</span>
+            </a>
+            <a class="sub-tab">
+              <span class="sub-tab-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2"/></svg></span>
+              Settings
+            </a>
+          </div>
+
+          <!-- Endpoint bar -->
+          <div class="sg-ep">
+            <span class="sg-ep-method">GET</span>
+            <span class="sg-ep-url">https://acme.secondlayer.tools/api/subgraphs/pox-stacking/<span class="hl">&lt;table&gt;</span></span>
+          </div>
+
+          <!-- Cards grid with API entry card -->
+          <div class="cards">
+            <div class="card">
+              <div class="card-label">Uptime</div>
+              <div class="card-big">99.8<span class="unit">%</span></div>
+            </div>
+            <div class="card">
+              <div class="card-label">Latency</div>
+              <div class="card-big neutral">~12s</div>
+              <div class="card-sub">2 blocks behind tip</div>
+            </div>
+            <div class="card">
+              <div class="card-label">Rows indexed</div>
+              <div class="card-big neutral">1.28M</div>
+            </div>
+
+            <!-- NEW: API spec entry card -->
+            <a class="card api-card" href="#">
+              <div class="card-label">API spec</div>
+              <div class="api-formats">
+                <span class="api-fmt"><span class="api-fmt-dot"></span>OpenAPI <span class="api-fmt-ext">.json</span></span>
+                <span class="api-fmt"><span class="api-fmt-dot"></span>Agent Schema <span class="api-fmt-ext">.json</span></span>
+                <span class="api-fmt"><span class="api-fmt-dot"></span>Markdown <span class="api-fmt-ext">.md</span></span>
+              </div>
+              <div class="api-arrow">View spec →</div>
+            </a>
+          </div>
+
+          <!-- Tables section -->
+          <div class="ov-sec">
+            <div class="ov-sec-h">
+              <span class="chev"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg></span>
+              Tables
+              <span class="count">4</span>
+            </div>
+            <div class="tbl-grid">
+              <a class="tbl-card">
+                <div class="tbl-card-h">
+                  <span class="tbl-card-name">stacking_events</span>
+                  <span class="tbl-card-stats"><span><strong>847k</strong> rows</span><span><strong>9</strong> cols</span></span>
+                </div>
+                <div class="tbl-chips">
+                  <span class="tbl-chip sys">_id</span>
+                  <span class="tbl-chip sys idx">_block_height</span>
+                  <span class="tbl-chip idx">stacker</span>
+                  <span class="tbl-chip">amount_ustx</span>
+                  <span class="tbl-chip idx">cycle</span>
+                  <span class="tbl-chip">lock_period</span>
+                </div>
+              </a>
+              <a class="tbl-card">
+                <div class="tbl-card-h">
+                  <span class="tbl-card-name">cycle_rewards</span>
+                  <span class="tbl-card-stats"><span><strong>12.8k</strong> rows</span><span><strong>7</strong> cols</span></span>
+                </div>
+                <div class="tbl-chips">
+                  <span class="tbl-chip sys">_id</span>
+                  <span class="tbl-chip idx">cycle</span>
+                  <span class="tbl-chip">total_ustx</span>
+                  <span class="tbl-chip">slots_filled</span>
+                  <span class="tbl-chip">reward_addr</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 2 — Spec Viewer active, full shell, dark
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">02</span> API tab active · spec viewer in shell</div>
+  <p class="scene-caption">Same subgraph, sub-tab switched to <strong>API</strong>. The route is <span style="font-family:var(--font-mono); font-size: 11.5px; background: var(--code-bg); padding: 1px 6px; border-radius: 3px;">/platform/subgraphs/pox-stacking/spec</span>. The viewer keeps the same identity row + endpoint bar so context never disappears, then loads tabs for OpenAPI / Agent Schema / Markdown.</p>
+
+  <div class="shell">
+    <nav class="sidebar">
+      <div class="sb-logo">
+        <svg viewBox="4 7 40 28" width="22" height="14"><polygon points="8,25 28,17 42,25 22,33" class="logo-echo"/><polygon points="8,19 28,11 42,19 22,27" class="logo-primary"/></svg>
+        secondlayer
+      </div>
+
+      <div class="sb-proj">
+        <div class="sb-proj-l">
+          <div class="sb-proj-icon"></div>
+          <span class="sb-proj-name">stacks-mainnet</span>
+        </div>
+        <svg class="sb-proj-cv" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7l3-3 3 3M5 9l3 3 3-3"/></svg>
+      </div>
+
+      <div class="sb-nav">
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5L8 2l6 4.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6.5z"/><path d="M6 14V9h4v5"/></svg></span>
+          <span>Home</span>
+        </a>
+        <a class="sb-item active">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="8" cy="12" r="2"/><path d="M5 5l2 5M11 5L9 10"/></svg></span>
+          <span>Subgraphs</span>
+          <span class="sb-item-badge">12</span>
+        </a>
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12"/></svg></span>
+          <span>Sessions</span>
+        </a>
+        <a class="sb-item">
+          <span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg></span>
+          <span>Settings</span>
+        </a>
+      </div>
+
+      <div class="sb-spacer"></div>
+      <div class="sb-user">
+        <span class="sb-user-avatar">R</span>
+        <span class="sb-user-name">ryan@secondlayer.dev</span>
+      </div>
+    </nav>
+
+    <div class="main-col">
+      <div class="topbar">
+        <div class="topbar-crumb">
+          <span class="ctx">Subgraphs</span>
+          <span class="sep">/</span>
+          <span class="ctx">pox-stacking</span>
+          <span class="sep">/</span>
+          <span class="pg">API</span>
+        </div>
+        <div class="topbar-meta">
+          <span>Block <span class="mono">#891,402</span></span>
+        </div>
+      </div>
+
+      <div class="main-scroll">
+        <div class="inner">
+          <div class="sg-hdr">
+            <div class="sg-hdr-id">
+              <span class="sg-hdr-dot"></span>
+              <span class="sg-hdr-name">pox-stacking</span>
+              <span class="sg-hdr-version">v3.1.0</span>
+            </div>
+          </div>
+
+          <div class="sub-tabs">
+            <a class="sub-tab">Overview</a>
+            <a class="sub-tab active">
+              <span class="sub-tab-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v3H3zM3 8h10v3H3z"/></svg></span>
+              API
+            </a>
+            <a class="sub-tab">Subscriptions <span class="sub-tab-badge">3</span></a>
+            <a class="sub-tab">Settings</a>
+          </div>
+
+          <div class="spec-tabs-row">
+            <div class="spec-tabs">
+              <button class="spec-tab active">
+                <span class="label">OpenAPI</span>
+                <span class="ext">openapi.json</span>
+              </button>
+              <button class="spec-tab">
+                <span class="label">Agent Schema</span>
+                <span class="ext">schema.json</span>
+              </button>
+              <button class="spec-tab">
+                <span class="label">Markdown</span>
+                <span class="ext">docs.md</span>
+              </button>
+            </div>
+            <div class="spec-toolbar">
+              <button class="tool-btn">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                Copy
+              </button>
+              <button class="tool-btn">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8"/><path d="M4 8l4 4 4-4"/><path d="M2 14h12"/></svg>
+                Download
+              </button>
+            </div>
+          </div>
+
+          <div class="sg-ep">
+            <span class="sg-ep-method">GET</span>
+            <span class="sg-ep-url">https://acme.secondlayer.tools/api/subgraphs/pox-stacking/<span class="hl">openapi.json</span></span>
+          </div>
+
+          <div class="spec-body">
+            <aside>
+              <div class="side-sec">
+                <div class="side-label">Endpoints<span class="cnt">8</span></div>
+                <ul class="ep-list">
+                  <li class="ep"><span class="ep-method">GET</span><span class="ep-path">/stacking_events</span></li>
+                  <li class="ep"><span class="ep-method">GET</span><span class="ep-path">/cycle_rewards</span></li>
+                  <li class="ep"><span class="ep-method">GET</span><span class="ep-path">/delegations</span></li>
+                  <li class="ep"><span class="ep-method">GET</span><span class="ep-path">/stackers</span></li>
+                </ul>
+              </div>
+              <div class="side-sec">
+                <div class="side-label">Tables<span class="cnt">4</span></div>
+                <ul class="tbl-list">
+                  <li><button class="tbl-row active"><span class="tbl-name">stacking_events</span><span class="tbl-meta">847k</span></button></li>
+                  <li><button class="tbl-row"><span class="tbl-name">cycle_rewards</span><span class="tbl-meta">12.8k</span></button></li>
+                  <li><button class="tbl-row"><span class="tbl-name">delegations</span><span class="tbl-meta">301k</span></button></li>
+                  <li><button class="tbl-row"><span class="tbl-name">stackers</span><span class="tbl-meta">123k</span></button></li>
+                </ul>
+              </div>
+            </aside>
+
+            <section class="code-pane">
+<pre><span class="p">{</span>
+  <span class="k">"openapi"</span><span class="p">:</span> <span class="s">"3.1.0"</span><span class="p">,</span>
+  <span class="k">"info"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="k">"title"</span><span class="p">:</span> <span class="s">"pox-stacking"</span><span class="p">,</span>
+    <span class="k">"version"</span><span class="p">:</span> <span class="s">"3.1.0"</span>
+  <span class="p">},</span>
+  <span class="k">"servers"</span><span class="p">:</span> <span class="p">[{</span> <span class="k">"url"</span><span class="p">:</span> <span class="s">"https://acme.secondlayer.tools"</span> <span class="p">}],</span>
+  <span class="k">"paths"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="k">"/api/subgraphs/pox-stacking/stacking_events"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="k">"get"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="k">"summary"</span><span class="p">:</span> <span class="s">"Query pox-stacking.stacking_events"</span><span class="p">,</span>
+        <span class="k">"operationId"</span><span class="p">:</span> <span class="s">"query_pox_stacking_stacking_events"</span><span class="p">,</span>
+        <span class="k">"parameters"</span><span class="p">:</span> <span class="p">[</span>
+          <span class="p">{</span> <span class="k">"name"</span><span class="p">:</span> <span class="s">"_limit"</span><span class="p">,</span>  <span class="k">"in"</span><span class="p">:</span> <span class="s">"query"</span><span class="p">,</span> <span class="k">"schema"</span><span class="p">:</span> <span class="p">{</span> <span class="k">"type"</span><span class="p">:</span> <span class="s">"integer"</span><span class="p">,</span> <span class="k">"default"</span><span class="p">:</span> <span class="n">100</span> <span class="p">}</span> <span class="p">},</span>
+          <span class="p">{</span> <span class="k">"name"</span><span class="p">:</span> <span class="s">"_offset"</span><span class="p">,</span> <span class="k">"in"</span><span class="p">:</span> <span class="s">"query"</span><span class="p">,</span> <span class="k">"schema"</span><span class="p">:</span> <span class="p">{</span> <span class="k">"type"</span><span class="p">:</span> <span class="s">"integer"</span> <span class="p">}</span> <span class="p">},</span>
+          <span class="p">{</span> <span class="k">"name"</span><span class="p">:</span> <span class="s">"stacker"</span><span class="p">,</span> <span class="k">"in"</span><span class="p">:</span> <span class="s">"query"</span><span class="p">,</span> <span class="k">"schema"</span><span class="p">:</span> <span class="p">{</span> <span class="k">"type"</span><span class="p">:</span> <span class="s">"string"</span> <span class="p">}</span> <span class="p">},</span>
+          <span class="p">{</span> <span class="k">"name"</span><span class="p">:</span> <span class="s">"cycle"</span><span class="p">,</span> <span class="k">"in"</span><span class="p">:</span> <span class="s">"query"</span><span class="p">,</span> <span class="k">"schema"</span><span class="p">:</span> <span class="p">{</span> <span class="k">"type"</span><span class="p">:</span> <span class="s">"integer"</span> <span class="p">}</span> <span class="p">}</span>
+        <span class="p">],</span>
+        <span class="k">"responses"</span><span class="p">:</span> <span class="p">{</span>
+          <span class="k">"200"</span><span class="p">:</span> <span class="p">{</span> <span class="k">"description"</span><span class="p">:</span> <span class="s">"Rows from the table."</span> <span class="p">}</span>
+        <span class="p">}</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span></pre>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       SCENE 3 — Three options, side by side, "do we really show all"
+       ════════════════════════════════════════════════════════════ -->
+  <div class="scene-label"><span class="num">03</span> Should we expose all three formats?</div>
+  <p class="scene-caption">Two viable shapes for the format picker. They share the same identity row, URL bar, copy/download — only the format affordance differs.</p>
+
+  <div class="compare">
+    <div class="compare-card">
+      <h4>Three tabs <span class="recommend">recommended</span></h4>
+      <p>Each tab is an explicit affordance for a different consumer. Operator can scan and copy without thinking.</p>
+      <ul>
+        <li><strong>OpenAPI</strong> — import into Postman / Insomnia / generate clients</li>
+        <li><strong>Agent Schema</strong> — drop into MCP / LLM tool-use config (the differentiator)</li>
+        <li><strong>Markdown</strong> — paste into Cursor / Claude / ChatGPT chat</li>
+      </ul>
+    </div>
+    <div class="compare-card">
+      <h4>Two tabs · Schema (json toggle) + Markdown</h4>
+      <p>Collapses both JSON specs behind a small format toggle. Lighter UI, but hides the agent schema's identity.</p>
+      <ul>
+        <li><strong>Schema</strong> with <code style="font-family:var(--font-mono); font-size:11px;">OpenAPI ↔ Agent</code> toggle</li>
+        <li><strong>Markdown</strong> stays separate</li>
+        <li>Risk: agent-schema discoverability drops; this is what makes the platform AI-native</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 2-tab variant in shell -->
+  <div class="shell" style="height: 540px;">
+    <nav class="sidebar">
+      <div class="sb-logo">
+        <svg viewBox="4 7 40 28" width="22" height="14"><polygon points="8,25 28,17 42,25 22,33" class="logo-echo"/><polygon points="8,19 28,11 42,19 22,27" class="logo-primary"/></svg>
+        secondlayer
+      </div>
+      <div class="sb-proj">
+        <div class="sb-proj-l"><div class="sb-proj-icon"></div><span class="sb-proj-name">stacks-mainnet</span></div>
+      </div>
+      <div class="sb-nav">
+        <a class="sb-item"><span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5L8 2l6 4.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6.5z"/></svg></span><span>Home</span></a>
+        <a class="sb-item active"><span class="sb-item-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="8" cy="12" r="2"/></svg></span><span>Subgraphs</span><span class="sb-item-badge">12</span></a>
+        <a class="sb-item"><span>Sessions</span></a>
+        <a class="sb-item"><span>Settings</span></a>
+      </div>
+      <div class="sb-spacer"></div>
+    </nav>
+
+    <div class="main-col">
+      <div class="topbar">
+        <div class="topbar-crumb">
+          <span class="ctx">Subgraphs</span><span class="sep">/</span><span class="ctx">pox-stacking</span><span class="sep">/</span><span class="pg">API</span>
+        </div>
+        <div class="topbar-meta"><span>Block <span class="mono">#891,402</span></span></div>
+      </div>
+
+      <div class="main-scroll">
+        <div class="inner">
+          <div class="sg-hdr">
+            <div class="sg-hdr-id">
+              <span class="sg-hdr-dot"></span>
+              <span class="sg-hdr-name">pox-stacking</span>
+              <span class="sg-hdr-version">v3.1.0</span>
+            </div>
+          </div>
+
+          <div class="sub-tabs">
+            <a class="sub-tab">Overview</a>
+            <a class="sub-tab active">API</a>
+            <a class="sub-tab">Subscriptions</a>
+            <a class="sub-tab">Settings</a>
+          </div>
+
+          <!-- 2-tab variant — Schema (with toggle) + Markdown -->
+          <div class="spec-tabs-row">
+            <div class="spec-tabs" style="align-items: center;">
+              <button class="spec-tab active" style="display:flex; flex-direction:row; align-items:center; gap: 0;">
+                <span class="label">Schema</span>
+                <span class="format-toggle">
+                  <button class="active">OPENAPI</button>
+                  <button>AGENT</button>
+                </span>
+              </button>
+              <button class="spec-tab"><span class="label">Markdown</span><span class="ext">docs.md</span></button>
+            </div>
+            <div class="spec-toolbar">
+              <button class="tool-btn">Copy</button>
+              <button class="tool-btn">Download</button>
+            </div>
+          </div>
+
+          <div class="sg-ep">
+            <span class="sg-ep-method">GET</span>
+            <span class="sg-ep-url">https://acme.secondlayer.tools/api/subgraphs/pox-stacking/<span class="hl">openapi.json</span></span>
+          </div>
+
+          <div class="spec-body">
+            <aside>
+              <div class="side-sec">
+                <div class="side-label">Endpoints<span class="cnt">8</span></div>
+                <ul class="ep-list">
+                  <li class="ep"><span class="ep-method">GET</span><span class="ep-path">/stacking_events</span></li>
+                  <li class="ep"><span class="ep-method">GET</span><span class="ep-path">/cycle_rewards</span></li>
+                  <li class="ep"><span class="ep-method">GET</span><span class="ep-path">/delegations</span></li>
+                  <li class="ep"><span class="ep-method">GET</span><span class="ep-path">/stackers</span></li>
+                </ul>
+              </div>
+            </aside>
+            <section class="code-pane" style="max-height: 280px;">
+<pre><span class="p">{</span>
+  <span class="k">"openapi"</span><span class="p">:</span> <span class="s">"3.1.0"</span><span class="p">,</span>
+  <span class="k">"info"</span><span class="p">:</span> <span class="p">{</span> <span class="k">"title"</span><span class="p">:</span> <span class="s">"pox-stacking"</span><span class="p">,</span> <span class="k">"version"</span><span class="p">:</span> <span class="s">"3.1.0"</span> <span class="p">},</span>
+  <span class="k">"paths"</span><span class="p">:</span> <span class="p">{</span> <span class="p">…</span> <span class="p">}</span>
+<span class="p">}</span></pre>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
