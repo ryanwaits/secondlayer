@@ -11,7 +11,7 @@
  * the Stripe-side cleanup (archive lookup_key), and update env vars.
  */
 
-const BYTES_PER_GB = 1024 ** 3;
+const BYTES_PER_GB: number = 1024 ** 3;
 
 export type PlanId = "hobby" | "launch" | "scale" | "enterprise";
 
