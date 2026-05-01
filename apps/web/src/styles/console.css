@@ -1500,6 +1500,74 @@ html.force-light .tabbed-code-tab.active {
 	border-color: #ef4444;
 }
 
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 30px;
+	padding: 6px 12px;
+	border: 1px solid;
+	border-radius: 6px;
+	font-family: var(--font-sans-stack);
+	font-size: 12px;
+	font-weight: 560;
+	line-height: 1;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-danger:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.btn-primary {
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
+	color: var(--accent);
+}
+
+.btn-primary:hover:not(:disabled) {
+	background: var(--accent-border);
+}
+
+.btn-secondary {
+	background: transparent;
+	border-color: var(--border);
+	color: var(--text-main);
+}
+
+.btn-secondary:hover:not(:disabled) {
+	background: var(--nudge-bg);
+	border-color: var(--border-hover);
+}
+
+.btn-danger {
+	background: var(--red-bg);
+	border-color: rgba(239, 68, 68, 0.2);
+	color: var(--red);
+}
+
+.btn-danger:hover:not(:disabled) {
+	background: rgba(239, 68, 68, 0.18);
+}
+
+.prompt-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 16px;
+}
+
 .dash-form-row {
 	display: flex;
 	gap: 12px;

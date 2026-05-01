@@ -29,7 +29,7 @@ export function PromptActions({
 	}, [prompt]);
 
 	return (
-		<div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
+		<div className="prompt-actions">
 			<button type="button" className="btn-secondary" onClick={open}>
 				{openLabel}
 			</button>
