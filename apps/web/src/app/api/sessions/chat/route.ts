@@ -1,5 +1,6 @@
 import { getSessionFromRequest } from "@/lib/api";
 import { buildSessionInstructions } from "@/lib/sessions/instructions";
+import { emitAiEval } from "@/lib/sessions/meter";
 import {
 	createChatSession,
 	listRecentSessions,
@@ -83,7 +84,12 @@ export async function POST(req: Request) {
 			}
 			return {};
 		},
-		onFinish: async () => {
+		onFinish: async ({ usage }) => {
+			// Emit AI eval meter event — fire-and-forget. Sums input + output
+			// tokens; the platform API resolves the customer + posts to Stripe.
+			const tokens = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
+			emitAiEval(sessionToken, tokens);
+
 			// Create session row + extract summary (messages persisted client-side)
 			const persistWork = async () => {
 				try {

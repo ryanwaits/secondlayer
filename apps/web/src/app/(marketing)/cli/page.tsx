@@ -75,10 +75,10 @@ sl project list`}
 
 				<CodeBlock
 					code={`# Provision a dedicated Postgres + API + subgraph processor for the active project.
-sl instance create --plan hobby      # or launch, grow, scale
+sl instance create --plan hobby      # or launch, scale
 
 sl instance info
-sl instance resize --plan grow
+sl instance resize --plan scale
 sl instance suspend
 sl instance resume
 sl instance keys rotate --service    # bump JWT gen + mint new key

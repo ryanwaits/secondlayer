@@ -1,10 +1,9 @@
 "use client";
 
-import type { BillingTier } from "@/lib/billing";
 import { useState } from "react";
 
 interface Props {
-	tier: Exclude<BillingTier, "hobby" | "enterprise">;
+	tier: "launch" | "scale";
 	label: string;
 	variant?: "primary" | "ghost";
 }

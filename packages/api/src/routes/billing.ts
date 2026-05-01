@@ -1,7 +1,7 @@
 /**
  * Billing routes — session-authed entry points for upgrade + portal.
  *
- *   POST /api/billing/upgrade   body: { tier: "launch" | "grow" | "scale" }
+ *   POST /api/billing/upgrade   body: { tier: "launch" | "scale" }
  *     Returns a Stripe Checkout Session URL. Lazy-creates the Stripe
  *     customer if this account has never upgraded before.
  *

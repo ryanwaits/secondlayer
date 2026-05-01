@@ -14,6 +14,7 @@
 
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
 import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
 import { computeEffectiveCompute } from "@secondlayer/shared/db/queries/tenant-compute-addons";
 import {
@@ -26,6 +27,7 @@ import {
 	updateTenantKeys,
 	updateTenantPlan,
 } from "@secondlayer/shared/db/queries/tenants";
+import { getPlan } from "@secondlayer/shared/pricing";
 import { Hono } from "hono";
 import { mintEphemeralServiceJwt } from "../lib/ephemeral-jwt.ts";
 import { getAccountId } from "../lib/ownership.ts";
@@ -41,11 +43,24 @@ import {
 	suspendTenant as provisionerSuspend,
 	teardownTenant as provisionerTeardown,
 } from "../lib/provisioner-client.ts";
+import { getStripeOrNull, resolveSubscriptionItem } from "../lib/stripe.ts";
+import { getPriceIdForTier, isUpgradeableTier } from "../lib/tier-mapping.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
-const VALID_PLANS = new Set(["hobby", "launch", "grow", "scale", "enterprise"]);
+const VALID_PLANS = new Set(["hobby", "launch", "scale", "enterprise"]);
 
-type PlanId = "hobby" | "launch" | "grow" | "scale" | "enterprise";
+/**
+ * Plans a tenant owner is allowed to self-select via these endpoints.
+ * Enterprise is intentionally excluded — it's custom-quoted per deal and
+ * must be granted out-of-band (admin DB write or future admin endpoint).
+ * Without this gate, any authenticated user could call POST /api/tenants
+ * or /me/resize with `plan: "enterprise"` and get 8 vCPU / 32 GB RAM /
+ * unlimited storage at no cost (enterprise has `monthlyPriceCents: null`,
+ * so the Stripe sync block in /me/resize skips it entirely).
+ */
+const SELF_SERVE_PLANS = new Set(["hobby", "launch", "scale"]);
+
+type PlanId = "hobby" | "launch" | "scale" | "enterprise";
 
 const app = new Hono();
 
@@ -72,8 +87,18 @@ app.post("/", async (c) => {
 	})) as { plan?: unknown };
 	if (typeof body.plan !== "string" || !VALID_PLANS.has(body.plan)) {
 		return c.json(
-			{ error: "plan must be one of: hobby, launch, grow, scale, enterprise" },
+			{ error: "plan must be one of: hobby, launch, scale, enterprise" },
 			400,
+		);
+	}
+	if (!SELF_SERVE_PLANS.has(body.plan)) {
+		return c.json(
+			{
+				error:
+					"Enterprise is custom-quoted per deal — email hey@secondlayer.tools.",
+				code: "PLAN_REQUIRES_SALES",
+			},
+			403,
 		);
 	}
 	const plan = body.plan as PlanId;
@@ -112,10 +137,12 @@ app.post("/", async (c) => {
 		throw err;
 	}
 
-	// Match plan alloc from packages/provisioner/src/plans.ts. Safe to
-	// hardcode here — plan IDs are stable and we'd notice a drift on deploy
-	// (provisioner would return a shape mismatch long before this).
-	const alloc = PLAN_ALLOCATIONS[plan];
+	const planDef = getPlan(plan);
+	const alloc = {
+		cpus: planDef.totalCpus,
+		memoryMb: planDef.totalMemoryMb,
+		storageLimitMb: planDef.storageLimitMb,
+	};
 
 	const tenant = await insertTenant(getDb(), {
 		accountId,
@@ -204,8 +231,31 @@ app.post("/me/resize", async (c) => {
 	})) as { plan?: unknown };
 	if (typeof body.plan !== "string" || !VALID_PLANS.has(body.plan)) {
 		return c.json(
-			{ error: "plan must be one of: hobby, launch, grow, scale, enterprise" },
+			{ error: "plan must be one of: hobby, launch, scale, enterprise" },
 			400,
+		);
+	}
+	if (!SELF_SERVE_PLANS.has(body.plan)) {
+		return c.json(
+			{
+				error:
+					"Enterprise resizes are handled by sales — email hey@secondlayer.tools.",
+				code: "PLAN_REQUIRES_SALES",
+			},
+			403,
+		);
+	}
+	// Once a tenant is on enterprise (admin-granted), resize via this
+	// endpoint is also locked — there's almost certainly a custom contract
+	// behind it that shouldn't be silently downgraded.
+	if (tenant.plan === "enterprise") {
+		return c.json(
+			{
+				error:
+					"Resizing off enterprise requires sales review — email hey@secondlayer.tools.",
+				code: "PLAN_REQUIRES_SALES",
+			},
+			403,
 		);
 	}
 	const newPlan = body.plan as PlanId;
@@ -214,14 +264,80 @@ app.post("/me/resize", async (c) => {
 		return c.json({ tenant: publicView(tenant), unchanged: true });
 	}
 
+	// Stripe-side update for paid → paid resize (swap the line item) or
+	// paid → hobby (cancel). Hobby → paid must go through the Stripe
+	// Checkout flow at /api/billing/upgrade so we collect a payment method;
+	// returning 409 here tells the dashboard to redirect the user.
+	const oldIsPaid = tenant.plan !== "hobby" && tenant.plan !== "enterprise";
+	const newIsPaid = newPlan !== "hobby" && newPlan !== "enterprise";
+
+	if (!oldIsPaid && newIsPaid) {
+		return c.json(
+			{
+				error:
+					"Use POST /api/billing/upgrade to add a payment method before moving to a paid plan.",
+				code: "USE_UPGRADE_FLOW",
+			},
+			409,
+		);
+	}
+
+	if (oldIsPaid && (newIsPaid || newPlan === "hobby")) {
+		const stripe = getStripeOrNull();
+		const account = await getAccountById(getDb(), accountId);
+		if (stripe && account?.stripe_customer_id) {
+			const sub = await resolveSubscriptionItem(
+				stripe,
+				account.stripe_customer_id,
+			);
+			if (sub) {
+				try {
+					if (newIsPaid && isUpgradeableTier(newPlan)) {
+						const newPriceId = getPriceIdForTier(newPlan);
+						if (!newPriceId) {
+							return c.json(
+								{
+									error: `Stripe price for ${newPlan} not configured (set STRIPE_PRICE_${newPlan.toUpperCase()})`,
+								},
+								503,
+							);
+						}
+						await stripe.subscriptions.update(sub.subscriptionId, {
+							items: [{ id: sub.itemId, price: newPriceId }],
+							proration_behavior: "create_prorations",
+						});
+					} else if (newPlan === "hobby") {
+						await stripe.subscriptions.cancel(sub.subscriptionId, {
+							invoice_now: true,
+							prorate: true,
+						});
+					}
+				} catch (err) {
+					logger.error("Stripe subscription update failed during resize", {
+						accountId,
+						from: tenant.plan,
+						to: newPlan,
+						err: err instanceof Error ? err.message : String(err),
+					});
+					return c.json(
+						{
+							error: "Stripe subscription update failed",
+							detail: err instanceof Error ? err.message : String(err),
+						},
+						502,
+					);
+				}
+			}
+		}
+	}
+
 	// Compose target spec: new plan's base compute + any active add-ons
-	// the tenant still has. Add-ons survive plan changes (a Pro user who
-	// bought +4GB stays +4GB when they downgrade to Launch or upgrade to
-	// Scale). Billing will catch up separately.
-	const baseAlloc = PLAN_ALLOCATIONS[newPlan];
+	// the tenant still has. Add-ons survive plan changes — billing-side
+	// price item is swapped above, container resize happens below.
+	const baseAlloc = getPlan(newPlan);
 	const effective = await computeEffectiveCompute(getDb(), tenant.id, {
-		cpus: baseAlloc.cpus,
-		memoryMb: baseAlloc.memoryMb,
+		cpus: baseAlloc.totalCpus,
+		memoryMb: baseAlloc.totalMemoryMb,
 		storageLimitMb: baseAlloc.storageLimitMb,
 	});
 
@@ -696,19 +812,5 @@ function publicView(tenant: NonNullable<TenantRow>) {
 		createdAt: tenant.created_at,
 	};
 }
-
-// Kept in sync with packages/provisioner/src/plans.ts. A mismatch would
-// surface at provision time when the provisioner returns containers sized
-// differently than what we record — monitoring should flag that drift.
-const PLAN_ALLOCATIONS: Record<
-	PlanId,
-	{ cpus: number; memoryMb: number; storageLimitMb: number }
-> = {
-	hobby: { cpus: 0.5, memoryMb: 512, storageLimitMb: 5120 },
-	launch: { cpus: 1, memoryMb: 2048, storageLimitMb: 10240 },
-	grow: { cpus: 2, memoryMb: 4096, storageLimitMb: 51200 },
-	scale: { cpus: 4, memoryMb: 8192, storageLimitMb: 204800 },
-	enterprise: { cpus: 8, memoryMb: 32_768, storageLimitMb: -1 },
-};
 
 export default app;

@@ -15,7 +15,7 @@ import {
 import { readActiveProject } from "../lib/project-file.ts";
 import { isOssMode } from "../lib/resolve-tenant.ts";
 
-type Plan = "hobby" | "launch" | "grow" | "scale" | "enterprise";
+type Plan = "hobby" | "launch" | "scale" | "enterprise";
 const INSTANCE_CREATE_TIMEOUT_MS = 180_000;
 
 interface TenantSummary {
@@ -47,19 +47,13 @@ export function registerInstanceCommand(program: Command): void {
 	instance
 		.command("create")
 		.description("Provision a new dedicated instance for the active project")
-		.option(
-			"--plan <plan>",
-			"Plan: hobby (free) | launch | grow | scale",
-			"hobby",
-		)
+		.option("--plan <plan>", "Plan: hobby (free) | launch | scale", "hobby")
 		.action(async (opts: { plan: string }) => {
 			guardOssMode();
 			const activeSlug = await requireActiveProject();
 			const plan = opts.plan as Plan;
-			if (!["hobby", "launch", "grow", "scale"].includes(plan)) {
-				logError(
-					`Invalid plan: ${plan} (expected hobby, launch, grow, or scale)`,
-				);
+			if (!["hobby", "launch", "scale"].includes(plan)) {
+				logError(`Invalid plan: ${plan} (expected hobby, launch, or scale)`);
 				process.exit(1);
 			}
 
@@ -101,7 +95,7 @@ export function registerInstanceCommand(program: Command): void {
 	instance
 		.command("resize")
 		.description("Change your instance plan (brief downtime)")
-		.option("--plan <plan>", "Target plan: hobby | launch | grow | scale")
+		.option("--plan <plan>", "Target plan: hobby | launch | scale")
 		.option("--yes", "Skip confirm")
 		.action(async (opts: { plan?: string; yes?: boolean }) => {
 			guardOssMode();
@@ -116,12 +110,11 @@ export function registerInstanceCommand(program: Command): void {
 						},
 						{
 							value: "launch",
-							name: "Launch — $99/mo (1 vCPU · 2 GB · 10 GB)",
+							name: "Launch — $50/mo (1 vCPU · 2 GB · 25 GB)",
 						},
-						{ value: "grow", name: "Grow — $249/mo (2 vCPU · 4 GB · 50 GB)" },
 						{
 							value: "scale",
-							name: "Scale — $599/mo (4 vCPU · 8 GB · 200 GB)",
+							name: "Scale — $200/mo (4 vCPU · 8 GB · 100 GB)",
 						},
 					],
 				});

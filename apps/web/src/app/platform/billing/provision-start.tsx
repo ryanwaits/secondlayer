@@ -1,38 +1,36 @@
 "use client";
 
+import { PLANS as ALL_PLANS, type Plan } from "@/lib/billing";
 import { useState } from "react";
 
-const PLANS = [
-	{
-		id: "hobby",
-		name: "Hobby",
-		price: "Free",
-		tag: "Try it out",
-		specs: { cpu: "0.5", ram: "512 MB", storage: "5 GB" },
-		note: "Pauses after 7 days idle. Resumes on first query.",
-	},
-	{
-		id: "launch",
-		name: "Launch",
-		price: "$99/mo",
-		tag: "Hobbyist",
-		specs: { cpu: "1", ram: "2 GB", storage: "10 GB" },
-	},
-	{
-		id: "grow",
-		name: "Grow",
-		price: "$249/mo",
-		tag: "Most popular",
-		specs: { cpu: "2", ram: "4 GB", storage: "50 GB" },
-	},
-	{
-		id: "scale",
-		name: "Scale",
-		price: "$599/mo",
-		tag: "Production",
-		specs: { cpu: "4", ram: "8 GB", storage: "200 GB" },
-	},
-] as const;
+// Provisioning picker excludes Enterprise (custom-quoted, not self-serve).
+const PROVISION_PLANS: readonly Plan[] = [
+	ALL_PLANS.hobby,
+	ALL_PLANS.launch,
+	ALL_PLANS.scale,
+];
+
+function formatPrice(p: Plan): string {
+	if (p.monthlyPriceCents == null) return "Custom";
+	if (p.monthlyPriceCents === 0) return "Free";
+	return `$${p.monthlyPriceCents / 100}/mo`;
+}
+
+function formatSpecs(p: Plan): { cpu: string; ram: string; storage: string } {
+	return {
+		cpu: String(p.totalCpus),
+		ram:
+			p.totalMemoryMb >= 1024
+				? `${p.totalMemoryMb / 1024} GB`
+				: `${p.totalMemoryMb} MB`,
+		storage:
+			p.storageLimitMb < 0
+				? "unlimited"
+				: p.storageLimitMb >= 1024
+					? `${p.storageLimitMb / 1024} GB`
+					: `${p.storageLimitMb} MB`,
+	};
+}
 
 export interface ProvisionResponse {
 	tenant: {
@@ -92,38 +90,41 @@ export function ProvisionStart({
 			</p>
 
 			<div className="instance-plan-grid">
-				{PLANS.map((plan) => (
-					<button
-						type="button"
-						key={plan.id}
-						className="instance-plan-card"
-						data-selected={selected === plan.id}
-						onClick={() => setSelected(plan.id)}
-					>
-						<div className="tag">{plan.tag}</div>
-						<div className="name">{plan.name}</div>
-						<div className="price">{plan.price}</div>
-						<div className="specs">
-							<span>{plan.specs.cpu}</span> vCPU
-							<br />
-							<span>{plan.specs.ram}</span> RAM
-							<br />
-							<span>{plan.specs.storage}</span> storage
-						</div>
-						{"note" in plan && plan.note && (
-							<div
-								style={{
-									fontSize: 11,
-									color: "var(--text-muted)",
-									marginTop: 8,
-									lineHeight: 1.4,
-								}}
-							>
-								{plan.note}
+				{PROVISION_PLANS.map((plan) => {
+					const specs = formatSpecs(plan);
+					return (
+						<button
+							type="button"
+							key={plan.id}
+							className="instance-plan-card"
+							data-selected={selected === plan.id}
+							onClick={() => setSelected(plan.id)}
+						>
+							<div className="tag">{plan.tagline}</div>
+							<div className="name">{plan.displayName}</div>
+							<div className="price">{formatPrice(plan)}</div>
+							<div className="specs">
+								<span>{specs.cpu}</span> vCPU
+								<br />
+								<span>{specs.ram}</span> RAM
+								<br />
+								<span>{specs.storage}</span> storage
 							</div>
-						)}
-					</button>
-				))}
+							{plan.id === "hobby" && (
+								<div
+									style={{
+										fontSize: 11,
+										color: "var(--text-muted)",
+										marginTop: 8,
+										lineHeight: 1.4,
+									}}
+								>
+									Pauses after 7 days idle. Resumes on first query.
+								</div>
+							)}
+						</button>
+					);
+				})}
 			</div>
 
 			<div className="settings-hint" style={{ marginBottom: 20 }}>

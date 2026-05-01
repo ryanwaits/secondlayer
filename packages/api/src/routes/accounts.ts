@@ -18,6 +18,7 @@ import {
 } from "@secondlayer/shared/pricing";
 import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/accounts";
 import { type Context, Hono } from "hono";
+import { emitMeterEvent } from "../lib/stripe-meter.ts";
 
 const app = new Hono();
 
@@ -175,6 +176,57 @@ app.patch("/me", async (c) => {
 		slug: updated.slug,
 		avatarUrl: updated.avatar_url,
 	});
+});
+
+// ── POST /me/meter — emit a Stripe billing meter event ───────────
+//
+// Called by user-facing surfaces (the AI session chat + title routes)
+// to record usage that gets billed via overage prices. Fire-and-forget
+// from the caller's perspective: this endpoint always returns 204 even
+// when Stripe is unconfigured or the account has no customer record
+// (Hobby tenants who never upgraded — they accrue zero charges, the
+// meter call is a no-op).
+
+const ALLOWED_METER_EVENTS = new Set(["ai_evals", "storage_gb_months"]);
+
+// Per-call ceiling on metered values. Defensive — even though the caller
+// can only inflate their *own* bill, capping protects against bugs in
+// upstream emitters and against direct curl shenanigans (the endpoint is
+// reachable to any authenticated session; the chat/title routes are the
+// only intended callers but the surface is open).
+//
+// Anthropic's largest current model context is ~200k tokens, so 1M is
+// 5× headroom for input+output combined. Storage GB-months realistically
+// stays well under this for any single emission.
+const METER_VALUE_MAX = 1_000_000;
+
+app.post("/me/meter", async (c) => {
+	const accountId = requireAccountId(c);
+	const body = (await c.req.json().catch(() => ({}))) as {
+		eventName?: unknown;
+		value?: unknown;
+	};
+	if (
+		typeof body.eventName !== "string" ||
+		!ALLOWED_METER_EVENTS.has(body.eventName) ||
+		typeof body.value !== "number" ||
+		!Number.isFinite(body.value) ||
+		body.value < 0 ||
+		body.value > METER_VALUE_MAX
+	) {
+		return c.json(
+			{
+				error: "invalid eventName or value (value must be 0..1_000_000)",
+			},
+			400,
+		);
+	}
+	await emitMeterEvent(
+		accountId,
+		body.eventName as "ai_evals" | "storage_gb_months",
+		body.value,
+	);
+	return c.body(null, 204);
 });
 
 export default app;

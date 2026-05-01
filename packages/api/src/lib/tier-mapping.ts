@@ -11,17 +11,15 @@
  * env (missing or typo) fall through to undefined — callers log + skip.
  */
 
-export type UpgradeableTier = "launch" | "grow" | "scale";
+export type UpgradeableTier = "launch" | "scale";
 
 export const TIER_PRICE_ENV: Record<UpgradeableTier, string> = {
 	launch: "STRIPE_PRICE_LAUNCH",
-	grow: "STRIPE_PRICE_GROW",
 	scale: "STRIPE_PRICE_SCALE",
 };
 
 export const UPGRADEABLE_TIERS: readonly UpgradeableTier[] = [
 	"launch",
-	"grow",
 	"scale",
 ];
 

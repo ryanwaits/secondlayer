@@ -13,6 +13,7 @@ import {
 	insertTenant,
 } from "@secondlayer/shared/db/queries/tenants";
 import { AuthenticationError } from "@secondlayer/shared/errors";
+import { getPlan } from "@secondlayer/shared/pricing";
 import { type Context, Hono } from "hono";
 import {
 	ProvisionerError,
@@ -21,17 +22,6 @@ import {
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
-
-const PLAN_ALLOCATIONS: Record<
-	"hobby" | "launch" | "grow" | "scale" | "enterprise",
-	{ cpus: number; memoryMb: number; storageLimitMb: number }
-> = {
-	hobby: { cpus: 0.5, memoryMb: 512, storageLimitMb: 5120 },
-	launch: { cpus: 1, memoryMb: 2048, storageLimitMb: 10240 },
-	grow: { cpus: 2, memoryMb: 4096, storageLimitMb: 51200 },
-	scale: { cpus: 4, memoryMb: 8192, storageLimitMb: 204800 },
-	enterprise: { cpus: 8, memoryMb: 32_768, storageLimitMb: -1 },
-};
 
 function projectProvisioningDetail(input: {
 	projectId: string;
@@ -327,7 +317,7 @@ app.patch("/:slug/team/:memberId", async (c) => {
 // Platform control plane manages the project_id → tenant linkage; provisioner
 // creates Docker resources and is unaware of projects.
 //
-// Body: `{ plan: "hobby" | "launch" | "grow" | "scale" | "enterprise" }`.
+// Body: `{ plan: "hobby" | "launch" | "scale" | "enterprise" }`.
 // Returns: `{ tenant, credentials: { apiUrl, anonKey, serviceKey } }` — same
 // shape as POST /api/tenants so the dashboard/CLI can share response handling.
 //
@@ -345,19 +335,27 @@ app.post("/:slug/instance", async (c) => {
 	})) as { plan?: unknown };
 	if (
 		typeof body.plan !== "string" ||
-		!["hobby", "launch", "grow", "scale", "enterprise"].includes(body.plan)
+		!["hobby", "launch", "scale", "enterprise"].includes(body.plan)
 	) {
 		return c.json(
-			{ error: "plan must be one of: hobby, launch, grow, scale, enterprise" },
+			{ error: "plan must be one of: hobby, launch, scale, enterprise" },
 			400,
 		);
 	}
-	const plan = body.plan as
-		| "hobby"
-		| "launch"
-		| "grow"
-		| "scale"
-		| "enterprise";
+	// Enterprise is custom-quoted per deal and must be granted out-of-band
+	// (admin DB write or future admin endpoint). Self-serve provisioning
+	// would bypass billing entirely (enterprise has no Stripe price).
+	if (!["hobby", "launch", "scale"].includes(body.plan)) {
+		return c.json(
+			{
+				error:
+					"Enterprise is custom-quoted per deal — email hey@secondlayer.tools.",
+				code: "PLAN_REQUIRES_SALES",
+			},
+			403,
+		);
+	}
+	const plan = body.plan as "hobby" | "launch" | "scale" | "enterprise";
 
 	// Enforce 1 project : 1 tenant today. The `project_id` FK is on
 	// `tenants`, so walk there and reject if one already exists for this
@@ -451,7 +449,12 @@ app.post("/:slug/instance", async (c) => {
 		);
 	}
 
-	const alloc = PLAN_ALLOCATIONS[plan];
+	const planDef = getPlan(plan);
+	const alloc = {
+		cpus: planDef.totalCpus,
+		memoryMb: planDef.totalMemoryMb,
+		storageLimitMb: planDef.storageLimitMb,
+	};
 
 	let tenant: Awaited<ReturnType<typeof insertTenant>>;
 	try {

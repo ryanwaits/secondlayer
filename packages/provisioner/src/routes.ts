@@ -108,7 +108,7 @@ export function buildRoutes(): Hono {
 		}
 		if (typeof body.plan !== "string" || !isValidPlanId(body.plan)) {
 			return c.json(
-				{ error: "plan must be one of: launch, grow, scale, enterprise" },
+				{ error: "plan must be one of: launch, scale, enterprise" },
 				400,
 			);
 		}

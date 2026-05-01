@@ -1,7 +1,7 @@
 "use client";
 
 import { CollapsibleSection } from "@/components/console/collapsible-section";
-import { type BillingCaps, TIER_META, type TierMeta } from "@/lib/billing";
+import { type BillingCaps, PLANS, PLAN_IDS, type Plan } from "@/lib/billing";
 import { type UsageResponse, formatCents } from "@/lib/usage";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -12,6 +12,7 @@ import { KeyRevealModal } from "./key-reveal-modal";
 import { PortalLink } from "./portal-link";
 import { ProvisionProgress } from "./provision-progress";
 import { type ProvisionResponse, ProvisionStart } from "./provision-start";
+import { ResizeTierButton } from "./resize-tier-button";
 import { UpgradeButton } from "./upgrade-button";
 
 interface Account {
@@ -319,7 +320,6 @@ function ActiveView({
 
 			<PlanSection
 				tenant={tenant}
-				account={account}
 				sessionToken={sessionToken}
 				onResized={onTenantChanged}
 			/>
@@ -364,7 +364,9 @@ function ActiveView({
 			</CollapsibleSection>
 
 			{!isHobby && (
-				<div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 24 }}>
+				<div
+					style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 24 }}
+				>
 					Billed as: <code>{account.email}</code>
 				</div>
 			)}
@@ -496,7 +498,9 @@ function resourceSummary(
 			? `${formatBytes(totalMem)}/${formatBytes(totalMemLimit)}`
 			: "—";
 
-	const healthy = runtime.containers.filter((c) => c.state === "running").length;
+	const healthy = runtime.containers.filter(
+		(c) => c.state === "running",
+	).length;
 
 	return `CPU ${cpuPct.toFixed(0)}% · Mem ${memStr} · Storage ${storageStr} · ${healthy}/${runtime.containers.length} healthy`;
 }
@@ -535,209 +539,122 @@ function formatMb(mb: number): string {
 
 function PlanSection({
 	tenant,
-	account,
 	sessionToken,
 	onResized,
 }: {
 	tenant: TenantSummary;
-	account: Account;
 	sessionToken: string;
 	onResized: (updated: TenantSummary) => void;
 }) {
-	const isHobby = account.plan === "hobby";
-	const planMeta =
-		(TIER_META as Record<string, TierMeta | undefined>)[tenant.plan] ??
-		TIER_META.hobby;
-
 	return (
 		<section className="settings-section">
 			<div className="settings-section-title">Plan</div>
-			<div className="plan-card" style={{ marginBottom: 12 }}>
-				<div>
-					<div className="plan-card-name">
-						{planMeta.name}{" "}
-						<span
-							className={`tier-badge${tenant.plan === "hobby" ? " free" : ""}`}
-						>
-							{tenant.plan === "hobby" ? "Free" : planMeta.tier}
-						</span>
-					</div>
-					<div className="plan-card-sub">
-						{tenant.plan === "hobby"
-							? "$0/mo · auto-pauses after 7d idle · 5 GB storage"
-							: `$${planMeta.priceUsd}/mo · manage in Stripe portal below`}
-					</div>
-				</div>
-			</div>
-
-			<ResizeControls
-				currentPlan={tenant.plan}
-				sessionToken={sessionToken}
-				onResized={onResized}
-			/>
-
-			{isHobby && (
-				<div style={{ marginTop: 24 }}>
-					<div className="settings-section-title">Compare paid plans</div>
-					<div className="tier-grid">
-						{[TIER_META.launch, TIER_META.grow, TIER_META.scale].map((t) => (
-							<div
-								key={t.tier}
-								className={`tier-card ${t.tier === "launch" ? "featured" : ""}`}
-							>
-								<div className="tier-label">{t.name}</div>
-								<div className="tier-price">
-									${t.priceUsd}
-									<span className="unit">/mo</span>
-								</div>
-								<div className="tier-tag">{t.tagline}</div>
-								<ul>
-									{t.features.map((f) => (
-										<li key={f}>{f}</li>
-									))}
-								</ul>
-								<UpgradeButton
-									tier={t.tier as "launch" | "grow" | "scale"}
-									label={`Upgrade to ${t.name}`}
-									variant={t.tier === "launch" ? "primary" : "ghost"}
-								/>
+			<div className="tier-grid">
+				{PLAN_IDS.map((id) => {
+					const plan = PLANS[id];
+					const isCurrent = tenant.plan === id;
+					return (
+						<div key={id} className={`tier-card${isCurrent ? " current" : ""}`}>
+							<div className="tier-label">
+								<span>{plan.displayName}</span>
+								{isCurrent && <span className="current-badge">Current</span>}
 							</div>
-						))}
-					</div>
-					<div
-						style={{
-							textAlign: "center",
-							fontSize: 12,
-							color: "var(--text-muted)",
-							marginTop: 8,
-						}}
-					>
-						Need something custom?{" "}
-						<a
-							href="mailto:hey@secondlayer.tools"
-							style={{ color: "var(--text-main)", fontWeight: 500 }}
-						>
-							Talk to us about Enterprise
-						</a>
-					</div>
-				</div>
-			)}
+							<div className="tier-price">
+								{plan.monthlyPriceCents == null ? (
+									<span style={{ fontSize: 18 }}>Custom</span>
+								) : plan.monthlyPriceCents === 0 ? (
+									<>
+										Free
+										<span className="unit" />
+									</>
+								) : (
+									<>
+										${plan.monthlyPriceCents / 100}
+										<span className="unit">/mo</span>
+									</>
+								)}
+							</div>
+							<div className="tier-tag">{plan.tagline}</div>
+							<ul>
+								{plan.features.map((f) => (
+									<li key={f}>{f}</li>
+								))}
+							</ul>
+							<TierAction
+								plan={plan}
+								tenantPlan={tenant.plan}
+								sessionToken={sessionToken}
+								onResized={onResized}
+							/>
+						</div>
+					);
+				})}
+			</div>
 		</section>
 	);
 }
 
-function ResizeControls({
-	currentPlan,
+function TierAction({
+	plan,
+	tenantPlan,
 	sessionToken,
 	onResized,
 }: {
-	currentPlan: string;
+	plan: Plan;
+	tenantPlan: string;
 	sessionToken: string;
-	onResized: (tenant: TenantSummary) => void;
+	onResized: (updated: TenantSummary) => void;
 }) {
-	const RESIZE_OPTIONS = ["hobby", "launch", "grow", "scale"];
-	const [target, setTarget] = useState<string>(
-		RESIZE_OPTIONS.includes(currentPlan) ? currentPlan : "hobby",
-	);
-	const [state, setState] = useState<
-		"idle" | "confirming" | "resizing" | "error"
-	>("idle");
-	const [error, setError] = useState<string | null>(null);
+	const isCurrent = plan.id === tenantPlan;
+	const isHobbyTenant = tenantPlan === "hobby";
 
-	const handleApply = () => {
-		if (target === currentPlan) return;
-		setState("confirming");
-	};
+	if (isCurrent) return null;
 
-	const handleConfirm = async () => {
-		setState("resizing");
-		setError(null);
-		try {
-			const res = await fetch("/api/tenants/me/resize", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${sessionToken}`,
-				},
-				body: JSON.stringify({ plan: target }),
-			});
-			if (!res.ok) {
-				const body = await res.json().catch(() => ({}));
-				throw new Error(body.error ?? `Resize failed (${res.status})`);
-			}
-			const data = (await res.json()) as { tenant: TenantSummary };
-			onResized(data.tenant);
-			setState("idle");
-		} catch (e) {
-			setError(e instanceof Error ? e.message : "Resize failed");
-			setState("error");
-		}
-	};
-
-	if (state === "confirming") {
+	if (plan.id === "enterprise") {
 		return (
-			<>
-				<div className="instance-banner warning" style={{ marginBottom: 12 }}>
-					<span className="banner-dot" />
-					<div className="banner-body">
-						<strong>
-							Resize {currentPlan} → {target}?
-						</strong>{" "}
-						Brief downtime (~30s) while containers recreate. Data is preserved.
-					</div>
-				</div>
-				<div style={{ display: "flex", gap: 8 }}>
-					<button
-						type="button"
-						className="settings-btn primary small"
-						onClick={handleConfirm}
-					>
-						Confirm resize
-					</button>
-					<button
-						type="button"
-						className="settings-btn ghost small"
-						onClick={() => setState("idle")}
-					>
-						Cancel
-					</button>
-				</div>
-			</>
+			<a
+				href="mailto:hey@secondlayer.tools"
+				className="settings-btn ghost"
+				style={{ textAlign: "center" }}
+			>
+				Contact us
+			</a>
+		);
+	}
+
+	if (plan.id === "hobby") {
+		// Paid → Hobby: route through Stripe portal (cancellation lives there)
+		return (
+			<a
+				href="#payment"
+				className="settings-btn ghost"
+				style={{ textAlign: "center" }}
+			>
+				Downgrade in portal
+			</a>
+		);
+	}
+
+	// Paid tier card — Launch or Scale
+	if (isHobbyTenant) {
+		return (
+			<UpgradeButton
+				tier={plan.id as "launch" | "scale"}
+				label={`Upgrade to ${plan.displayName}`}
+				variant={plan.id === "launch" ? "primary" : "ghost"}
+			/>
 		);
 	}
 
 	return (
-		<>
-			<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-				<select
-					className="settings-input"
-					value={target}
-					onChange={(e) => setTarget(e.target.value)}
-					style={{ flex: 1, maxWidth: 360, height: 34 }}
-					disabled={state === "resizing"}
-				>
-					<option value="hobby">
-						Hobby — free (0.5 vCPU · 512 MB · 5 GB · auto-pauses after 7d idle)
-					</option>
-					<option value="launch">Launch — $99/mo (1 vCPU · 2 GB · 10 GB)</option>
-					<option value="grow">Grow — $249/mo (2 vCPU · 4 GB · 50 GB)</option>
-					<option value="scale">Scale — $599/mo (4 vCPU · 8 GB · 200 GB)</option>
-				</select>
-				<button
-					type="button"
-					className="settings-btn primary small"
-					onClick={handleApply}
-					disabled={target === currentPlan || state === "resizing"}
-				>
-					{state === "resizing" ? "Resizing…" : "Apply"}
-				</button>
-			</div>
-			{error && (
-				<div className="settings-hint" style={{ color: "var(--red)" }}>
-					{error}
-				</div>
-			)}
-		</>
+		<ResizeTierButton
+			targetPlan={plan.id as "launch" | "scale"}
+			currentPlan={tenantPlan}
+			label={`Resize to ${plan.displayName}`}
+			variant={plan.id === "launch" ? "ghost" : "primary"}
+			sessionToken={sessionToken}
+			onResized={onResized}
+		/>
 	);
 }
 

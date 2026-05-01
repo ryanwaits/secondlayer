@@ -13,12 +13,13 @@
  *
  * What it creates:
  *   - Product "Secondlayer" (single product, per-tier prices attach here)
- *   - Price: Pro monthly, $25/mo recurring, lookup_key=secondlayer_pro_monthly
- *   - Meters: compute_hours, storage_gb_months (metered usage)
- *   - Prices attached to each meter for overage billing
+ *   - Tier prices: Launch $50/mo, Scale $200/mo
+ *   - Meters: storage_gb_months, ai_evals (metered usage)
+ *   - Metered prices: storage overage ($2/GB-month), AI eval overage ($0.01/unit)
  *
- * Enterprise: intentionally NOT created here. Enterprise is custom-quoted
- * per deal; operator creates those subscriptions by hand in the dashboard.
+ * Hobby is intentionally not in Stripe — free tier means no subscription.
+ * Enterprise is not in this script — custom-quoted per deal; operator
+ * creates those subscriptions by hand in the dashboard.
  */
 
 import Stripe from "stripe";
@@ -86,13 +87,13 @@ interface MeterDef {
 
 const METERS: MeterDef[] = [
 	{
-		eventName: "compute_hours",
-		displayName: "Compute hours",
+		eventName: "storage_gb_months",
+		displayName: "Storage GB-months",
 		aggregation: "sum",
 	},
 	{
-		eventName: "storage_gb_months",
-		displayName: "Storage GB-months",
+		eventName: "ai_evals",
+		displayName: "AI evaluations",
 		aggregation: "sum",
 	},
 ];
@@ -150,36 +151,20 @@ async function main() {
 	const product = await upsertProduct();
 	console.log(`  product=${product.id}`);
 
-	console.log("→ Upserting Pro tier price (legacy, kept for back-compat)…");
-	const proPrice = await upsertTierPrice(
-		product.id,
-		"secondlayer_pro_monthly",
-		2500, // $25.00
-		"Pro monthly",
-	);
-	console.log(`  price(pro)=${proPrice.id}`);
-
-	console.log("→ Upserting tier prices (Launch / Grow / Scale)…");
+	console.log("→ Upserting tier prices (Launch / Scale)…");
 	const launchPrice = await upsertTierPrice(
 		product.id,
 		"secondlayer_launch_monthly",
-		14900, // $149.00
+		5000, // $50.00
 		"Launch monthly",
-	);
-	const growPrice = await upsertTierPrice(
-		product.id,
-		"secondlayer_grow_monthly",
-		34900, // $349.00
-		"Grow monthly",
 	);
 	const scalePrice = await upsertTierPrice(
 		product.id,
 		"secondlayer_scale_monthly",
-		79900, // $799.00
+		20000, // $200.00
 		"Scale monthly",
 	);
 	console.log(`  price(launch)=${launchPrice.id}`);
-	console.log(`  price(grow)=${growPrice.id}`);
 	console.log(`  price(scale)=${scalePrice.id}`);
 
 	console.log("→ Upserting meters…");
@@ -191,15 +176,6 @@ async function main() {
 	}
 
 	console.log("→ Upserting metered prices…");
-	// Per-unit pricing is placeholder — revisit in the metering sprint
-	// once we've calibrated overage rates against actual infra cost.
-	const computePrice = await upsertMeteredPrice(
-		product.id,
-		"secondlayer_compute_overage",
-		meters.compute_hours.id,
-		5, // $0.05/hour
-		"Compute overage",
-	);
 	const storagePrice = await upsertMeteredPrice(
 		product.id,
 		"secondlayer_storage_overage",
@@ -207,18 +183,23 @@ async function main() {
 		200, // $2.00/GB-month
 		"Storage overage",
 	);
-	console.log(`  price(compute)=${computePrice.id}`);
+	const aiEvalPrice = await upsertMeteredPrice(
+		product.id,
+		"secondlayer_ai_eval_overage",
+		meters.ai_evals.id,
+		1, // $0.01/unit (1 unit = 1 input+output token)
+		"AI eval overage",
+	);
 	console.log(`  price(storage)=${storagePrice.id}`);
+	console.log(`  price(ai_eval)=${aiEvalPrice.id}`);
 
 	console.log("\n─── Paste into .env ───");
 	console.log(`STRIPE_PRICE_LAUNCH=${launchPrice.id}`);
-	console.log(`STRIPE_PRICE_GROW=${growPrice.id}`);
 	console.log(`STRIPE_PRICE_SCALE=${scalePrice.id}`);
-	console.log(`STRIPE_PRICE_PRO=${proPrice.id}  # legacy, optional`);
-	console.log(`STRIPE_METER_COMPUTE=${meters.compute_hours.id}`);
 	console.log(`STRIPE_METER_STORAGE=${meters.storage_gb_months.id}`);
-	console.log(`STRIPE_PRICE_COMPUTE_OVERAGE=${computePrice.id}`);
+	console.log(`STRIPE_METER_AI_EVAL=${meters.ai_evals.id}`);
 	console.log(`STRIPE_PRICE_STORAGE_OVERAGE=${storagePrice.id}`);
+	console.log(`STRIPE_PRICE_AI_EVAL_OVERAGE=${aiEvalPrice.id}`);
 }
 
 main().catch((err) => {
