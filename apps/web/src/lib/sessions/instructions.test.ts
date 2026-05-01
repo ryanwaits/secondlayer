@@ -67,7 +67,13 @@ describe("buildSessionInstructions", () => {
 
 	test("includes canonical subgraph schema contract for session authoring", () => {
 		const resources: AccountResources = {
-			instance: { exists: true, slug: "alex", status: "active" },
+			instance: {
+				exists: true,
+				slug: "alex",
+				plan: "hobby",
+				status: "active",
+				apiUrl: "https://alex.secondlayer.tools",
+			},
 			subgraphs: [],
 			subscriptions: [],
 			keys: [],
