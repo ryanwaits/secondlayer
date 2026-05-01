@@ -64,7 +64,7 @@ export async function fetchAccountResources(
 		apiRequest<{ keys: ApiKey[] }>("/api/keys", { sessionToken })
 			.then((r) => r.keys)
 			.catch(() => [] as ApiKey[]),
-		apiRequest<{ chainTip?: number }>("/api/status", { sessionToken })
+		apiRequest<{ chainTip?: number }>("/status", { sessionToken })
 			.then((r) => r.chainTip ?? null)
 			.catch(() => null as number | null),
 	]);

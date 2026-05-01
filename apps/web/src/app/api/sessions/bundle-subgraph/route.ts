@@ -1,12 +1,11 @@
 import { getSessionFromRequest } from "@/lib/api";
+import { fetchFromTenant } from "@/lib/tenant-api";
 import { NextResponse } from "next/server";
 
-const API_URL = process.env.SL_API_URL || "http://localhost:3800";
-
 /**
- * Thin passthrough to the Hetzner API's server-side subgraph bundler.
+ * Thin passthrough to the tenant API's server-side subgraph bundler.
  * Vercel can't reliably run esbuild + data-URI imports, so the chat
- * authoring loop delegates bundling to the Hetzner API which has a warm
+ * authoring loop delegates bundling to the tenant API which has a warm
  * workspace.
  */
 export async function POST(req: Request) {
@@ -28,38 +27,12 @@ export async function POST(req: Request) {
 		);
 	}
 
-	try {
-		const upstream = await fetch(`${API_URL}/api/subgraphs/bundle`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${session}`,
-				"x-sl-origin": "session",
-			},
-			body: JSON.stringify({ code: body.code }),
-		});
-		const text = await upstream.text();
-		try {
-			const json = JSON.parse(text);
-			return NextResponse.json(json, { status: upstream.status });
-		} catch {
-			return NextResponse.json(
-				{
-					ok: false,
-					error: text || `Upstream HTTP ${upstream.status}`,
-					code: "UPSTREAM_INVALID_RESPONSE",
-				},
-				{ status: upstream.status || 502 },
-			);
-		}
-	} catch (err) {
-		return NextResponse.json(
-			{
-				ok: false,
-				error: err instanceof Error ? err.message : String(err),
-				code: "UPSTREAM_UNREACHABLE",
-			},
-			{ status: 502 },
-		);
-	}
+	const result = await fetchFromTenant(session, "/api/subgraphs/bundle", {
+		method: "POST",
+		headers: { "x-sl-origin": "session" },
+		body: { code: body.code },
+	});
+	return NextResponse.json(result.data, {
+		status: result.ok ? 200 : result.status,
+	});
 }

@@ -7,6 +7,19 @@ import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { ApiKey, SubgraphSummary } from "@/lib/types";
 import { NextResponse } from "next/server";
 
+interface CommandToolStep {
+	toolResults?: Array<{
+		toolName?: string;
+		result?: unknown;
+	}>;
+}
+
+interface ScaffoldToolResult {
+	error?: unknown;
+	contractId?: string;
+	code?: string;
+}
+
 function buildInstructions(
 	path: string,
 	subgraphs: SubgraphSummary[],
@@ -134,7 +147,7 @@ export async function POST(req: Request) {
 		apiRequest<{ keys: ApiKey[] }>("/api/keys", { sessionToken })
 			.then((r) => r.keys)
 			.catch(() => [] as ApiKey[]),
-		apiRequest<{ chainTip?: number }>("/api/status", { sessionToken })
+		apiRequest<{ chainTip?: number }>("/status", { sessionToken })
 			.then((r) => r.chainTip ?? null)
 			.catch(() => null as number | null),
 	]);
@@ -158,8 +171,16 @@ export async function POST(req: Request) {
 			lastStep?.toolCalls[lastStep.toolCalls.length - 1];
 
 		if (!terminalCall) {
-			const scaffoldResult = findToolResult(result.steps, "scaffold");
-			if (scaffoldResult && !scaffoldResult.error) {
+			const scaffoldResult = findToolResult<ScaffoldToolResult>(
+				result.steps,
+				"scaffold",
+			);
+			if (
+				scaffoldResult &&
+				!scaffoldResult.error &&
+				typeof scaffoldResult.contractId === "string" &&
+				typeof scaffoldResult.code === "string"
+			) {
 				return NextResponse.json({
 					type: "code",
 					title: `Scaffold for ${scaffoldResult.contractId}`,
@@ -192,12 +213,14 @@ export async function POST(req: Request) {
 	}
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function findToolResult(steps: any[], toolName: string): any | null {
+function findToolResult<T>(
+	steps: CommandToolStep[],
+	toolName: string,
+): T | null {
 	for (const step of steps) {
 		const results = step.toolResults ?? [];
 		for (const tr of results) {
-			if (tr.toolName === toolName && tr.result) return tr.result;
+			if (tr.toolName === toolName && tr.result) return tr.result as T;
 		}
 	}
 	return null;
@@ -206,7 +229,7 @@ function findToolResult(steps: any[], toolName: string): any | null {
 function mapToolCall(
 	toolName: string,
 	input: Record<string, unknown>,
-	agentResult?: any,
+	agentResult?: { steps: CommandToolStep[] },
 ): CommandResponse {
 	switch (toolName) {
 		case "navigate":
@@ -274,8 +297,16 @@ function mapToolCall(
 
 		default: {
 			if (agentResult?.steps) {
-				const sr = findToolResult(agentResult.steps, "scaffold");
-				if (sr && !sr.error) {
+				const sr = findToolResult<ScaffoldToolResult>(
+					agentResult.steps,
+					"scaffold",
+				);
+				if (
+					sr &&
+					!sr.error &&
+					typeof sr.contractId === "string" &&
+					typeof sr.code === "string"
+				) {
 					return {
 						type: "code",
 						title: `Scaffold for ${sr.contractId}`,

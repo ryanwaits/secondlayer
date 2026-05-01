@@ -36,6 +36,7 @@ export interface TenantFetchOptions {
 	method?: string;
 	body?: unknown;
 	query?: URLSearchParams | string;
+	headers?: Record<string, string>;
 }
 
 export interface TenantFetchResult<T> {
@@ -78,6 +79,7 @@ export async function fetchFromTenant<T = unknown>(
 		headers: {
 			Authorization: `Bearer ${key.serviceKey}`,
 			"Content-Type": "application/json",
+			...options.headers,
 		},
 		body: options.body != null ? JSON.stringify(options.body) : undefined,
 	});
