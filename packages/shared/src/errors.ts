@@ -116,21 +116,12 @@ export class TenantSuspendedError extends SecondLayerError {
 
 /** Error code → HTTP status. Used by API middleware for code-based matching
  *  (avoids cross-bundle instanceof failures from bunup class duplication). */
-type MappedCode = Extract<
-	ErrorCode,
-	| "AUTHENTICATION_ERROR"
-	| "AUTHORIZATION_ERROR"
-	| "RATE_LIMIT_ERROR"
-	| "FORBIDDEN"
-	| "NOT_FOUND"
-	| "VALIDATION_ERROR"
-	| "KEY_ROTATED"
-	| "TENANT_SUSPENDED"
-	| "NO_TENANT_FOR_PROJECT"
-	| "INSTANCE_EXISTS"
->;
+// String literal map — codes don't have to be in the central ErrorCode
+// enum (route-local error classes can supply any code; we just map the
+// HTTP status here). This keeps cross-bundle instanceof failures out of
+// the equation.
 export const CODE_TO_STATUS: Record<
-	MappedCode,
+	string,
 	400 | 401 | 403 | 404 | 409 | 423 | 429
 > = {
 	AUTHENTICATION_ERROR: 401,
@@ -143,6 +134,7 @@ export const CODE_TO_STATUS: Record<
 	TENANT_SUSPENDED: 423,
 	NO_TENANT_FOR_PROJECT: 404,
 	INSTANCE_EXISTS: 409,
+	SUBGRAPH_NOT_FOUND: 404,
 } as const;
 
 export function getErrorMessage(err: unknown): string {
