@@ -25,6 +25,7 @@ sl instance create --plan hobby
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 sl subgraphs query my-contract <table> --sort _block_height --order desc
+sl subgraphs spec my-contract --format openapi -o openapi.json
 ```
 
 `sl subgraphs scaffold` writes the definition file, creates or updates
@@ -128,6 +129,8 @@ invocation. No long-lived key on disk.
 | `sl subgraphs list` | List deployed subgraphs |
 | `sl subgraphs status <name>` | Indexing progress, row counts, gaps |
 | `sl subgraphs query <name> <table>` | Query a subgraph table with filters, sort, pagination |
+| `sl subgraphs spec <name> [--format openapi\|agent\|markdown] [-o <path>] [--server <url>]` | Export generated API docs for a deployed subgraph |
+| `sl subgraphs inspect <file> [--format openapi\|agent\|markdown] [-o <path>] [--server <url>]` | Generate API docs from a local `defineSubgraph()` file before deploy |
 | `sl subgraphs reindex <name>` | Drop + re-process from the tip backwards |
 | `sl subgraphs backfill <name>` | Fill a specific block range |
 | `sl subgraphs stop <name>` | Pause processing |
@@ -135,6 +138,32 @@ invocation. No long-lived key on disk.
 | `sl subgraphs delete <name>` | Drop the subgraph + its schema |
 | `sl subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a starter subgraph from a deployed contract, write/amend `package.json`, and install dependencies unless skipped |
 | `sl subgraphs generate <name>` | Regenerate TS types for an existing subgraph |
+
+#### Subgraph API specs
+
+Use `spec` when the subgraph is already deployed to the active project
+instance. Use `inspect` when you want the same documentation contract from a
+local TypeScript definition before deploy.
+
+```bash
+# Deployed subgraph docs from the active project instance
+sl subgraphs spec token-transfers --format openapi -o openapi.json
+sl subgraphs spec token-transfers --format agent
+sl subgraphs spec token-transfers --format markdown -o API.md
+
+# Local pre-deploy docs from a defineSubgraph() file
+sl subgraphs inspect subgraphs/token-transfers.ts --format agent
+sl subgraphs inspect subgraphs/token-transfers.ts --format openapi \
+  --server https://<your-slug>.secondlayer.tools
+```
+
+Formats:
+
+| Format | Use |
+|---|---|
+| `openapi` | OpenAPI 3.1 JSON for docs tooling, client generators, and API catalogs |
+| `agent` | Compact JSON schema for agents that need table, column, filter, and endpoint context |
+| `markdown` | Human-readable API reference for docs pages or repository docs |
 
 ### Local dev + OSS
 

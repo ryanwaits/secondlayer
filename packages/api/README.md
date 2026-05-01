@@ -22,8 +22,38 @@ POST   /api/subgraphs                # deploy
 GET    /api/subgraphs/:name          # get
 DELETE /api/subgraphs/:name          # delete
 POST   /api/subgraphs/:name/reindex  # reindex
+GET    /api/subgraphs/:name/openapi.json # generated OpenAPI 3.1 spec
+GET    /api/subgraphs/:name/schema.json  # compact agent schema
+GET    /api/subgraphs/:name/docs.md      # generated Markdown reference
 GET    /api/subgraphs/:name/:table   # query table
 ```
+
+### Generated subgraph API specs
+
+The API can generate documentation from the deployed subgraph schema. These
+routes use the same authentication and ownership checks as
+`GET /api/subgraphs/:name`.
+
+```bash
+curl -H "Authorization: Bearer sk-sl_..." \
+  https://api.secondlayer.tools/api/subgraphs/token-transfers/openapi.json
+
+curl -H "Authorization: Bearer sk-sl_..." \
+  https://api.secondlayer.tools/api/subgraphs/token-transfers/schema.json
+
+curl -H "Authorization: Bearer sk-sl_..." \
+  https://api.secondlayer.tools/api/subgraphs/token-transfers/docs.md
+```
+
+Formats:
+
+| Route | Format | Use |
+|---|---|---|
+| `/openapi.json` | OpenAPI 3.1 JSON | Docs systems, client generators, API catalogs |
+| `/schema.json` | Compact JSON | Agent context with tables, columns, filters, endpoints, and static examples |
+| `/docs.md` | Markdown | Human-readable API reference |
+
+Pass `?server=<url>` to override the server URL embedded in generated docs.
 
 ## Subscriptions
 
