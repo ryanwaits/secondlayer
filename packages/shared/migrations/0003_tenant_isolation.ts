@@ -1,5 +1,6 @@
 import { type Kysely, sql } from "kysely";
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// 1. Drop PG schemas for views with null api_key_id (orphaned pre-product data)
 	const orphanedViews = await db
@@ -79,10 +80,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 	// 4. Drop unique constraint on views(name), replace with views(name, api_key_id)
 	// The original unique constraint is from the initial migration on "name"
 	await sql
-		.raw(`ALTER TABLE views DROP CONSTRAINT IF EXISTS views_name_key`)
+		.raw("ALTER TABLE views DROP CONSTRAINT IF EXISTS views_name_key")
 		.execute(db);
 	await sql
-		.raw(`ALTER TABLE views DROP CONSTRAINT IF EXISTS views_name_unique`)
+		.raw("ALTER TABLE views DROP CONSTRAINT IF EXISTS views_name_unique")
 		.execute(db);
 
 	await db.schema
@@ -106,6 +107,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.execute();
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropIndex("views_api_key_id_idx").ifExists().execute();
 	await db.schema.dropIndex("streams_api_key_id_idx").ifExists().execute();
@@ -116,7 +118,7 @@ export async function down(db: Kysely<any>): Promise<void> {
 
 	// Restore original unique constraint on name
 	await sql
-		.raw(`ALTER TABLE views ADD CONSTRAINT views_name_key UNIQUE (name)`)
+		.raw("ALTER TABLE views ADD CONSTRAINT views_name_key UNIQUE (name)")
 		.execute(db);
 
 	await db.schema.alterTable("views").dropColumn("schema_name").execute();

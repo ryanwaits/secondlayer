@@ -12,15 +12,18 @@ const mockLocalStorage = {
 };
 
 function setProvider(provider: WalletProvider) {
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).window = { StacksProvider: provider };
 }
 
 function clearProvider() {
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).window = {};
 }
 
 beforeEach(() => {
 	store.clear();
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).localStorage = mockLocalStorage;
 	clearProvider();
 });

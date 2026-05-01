@@ -6,6 +6,7 @@ import type { Kysely } from "kysely";
  * without re-hydrating from a file. Nullable: rows deployed before this
  * migration remain read-only until their next redeploy.
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.alterTable("workflow_definitions")
@@ -13,6 +14,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.execute();
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.alterTable("workflow_definitions")

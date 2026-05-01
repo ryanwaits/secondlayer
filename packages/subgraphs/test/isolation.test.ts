@@ -9,15 +9,19 @@ function mockCtx() {
 		calls,
 		block: { height: 100, hash: "0x", timestamp: 0, burnBlockHeight: 0 },
 		tx: { txId: "", sender: "", type: "", status: "" },
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		setTx(tx: any) {
 			this.tx = tx;
 		},
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		insert(table: string, row: any) {
 			calls.push({ method: "insert", args: [table, row] });
 		},
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		update(table: string, where: any, set: any) {
 			calls.push({ method: "update", args: [table, where, set] });
 		},
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		delete(table: string, where: any) {
 			calls.push({ method: "delete", args: [table, where] });
 		},
@@ -48,7 +52,10 @@ describe("subgraph isolation", () => {
 		let callCount = 0;
 		const sg: SubgraphDefinition = {
 			name: "slow-subgraph",
-			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
+			sources: {
+				handler: { type: "contract_call", contractId: "SP::c" },
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			} as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
 				handler: async () => {
@@ -81,6 +88,7 @@ describe("subgraph isolation", () => {
 		];
 
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const result = await runHandlers(sg, manyEvents, ctx as any, {
 			errorThreshold: 3,
 		});
@@ -93,7 +101,10 @@ describe("subgraph isolation", () => {
 
 		const failingSubgraph: SubgraphDefinition = {
 			name: "failing-subgraph",
-			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
+			sources: {
+				handler: { type: "contract_call", contractId: "SP::c" },
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			} as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
 				handler: () => {
@@ -104,7 +115,10 @@ describe("subgraph isolation", () => {
 
 		const healthySubgraph: SubgraphDefinition = {
 			name: "healthy-subgraph",
-			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
+			sources: {
+				handler: { type: "contract_call", contractId: "SP::c" },
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			} as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
 				handler: () => {
@@ -117,15 +131,18 @@ describe("subgraph isolation", () => {
 		const outcomes = await Promise.allSettled([
 			(async () => {
 				const ctx = mockCtx();
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 				return runHandlers(failingSubgraph, matched, ctx as any);
 			})(),
 			(async () => {
 				const ctx = mockCtx();
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 				return runHandlers(healthySubgraph, matched, ctx as any);
 			})(),
 		]);
 
 		// Failing subgraph should have errors but not crash
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const failResult = outcomes[0]!;
 		expect(failResult.status).toBe("fulfilled");
 		if (failResult.status === "fulfilled") {
@@ -133,6 +150,7 @@ describe("subgraph isolation", () => {
 		}
 
 		// Healthy subgraph should process normally
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const healthyResult = outcomes[1]!;
 		expect(healthyResult.status).toBe("fulfilled");
 		if (healthyResult.status === "fulfilled") {
@@ -146,7 +164,10 @@ describe("subgraph isolation", () => {
 	test("empty block (0 matched events) does not error", async () => {
 		const sg: SubgraphDefinition = {
 			name: "empty-block-subgraph",
-			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
+			sources: {
+				handler: { type: "contract_call", contractId: "SP::c" },
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			} as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
 				handler: () => {
@@ -156,6 +177,7 @@ describe("subgraph isolation", () => {
 		};
 
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const result = await runHandlers(sg, [], ctx as any);
 		expect(result.processed).toBe(0);
 		expect(result.errors).toBe(0);
@@ -166,7 +188,10 @@ describe("subgraph isolation", () => {
 
 		const subgraph1: SubgraphDefinition = {
 			name: "subgraph-a",
-			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
+			sources: {
+				handler: { type: "contract_call", contractId: "SP::c" },
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			} as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
 				handler: () => {
@@ -177,7 +202,10 @@ describe("subgraph isolation", () => {
 
 		const subgraph2: SubgraphDefinition = {
 			name: "subgraph-b",
-			sources: { handler: { type: "contract_call", contractId: "SP::c" } } as any,
+			sources: {
+				handler: { type: "contract_call", contractId: "SP::c" },
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			} as any,
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: {
 				handler: () => {
@@ -189,16 +217,18 @@ describe("subgraph isolation", () => {
 		const outcomes = await Promise.allSettled([
 			(async () => {
 				const ctx = mockCtx();
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 				return runHandlers(subgraph1, matched, ctx as any);
 			})(),
 			(async () => {
 				const ctx = mockCtx();
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 				return runHandlers(subgraph2, matched, ctx as any);
 			})(),
 		]);
 
-		expect(outcomes[0]!.status).toBe("fulfilled");
-		expect(outcomes[1]!.status).toBe("fulfilled");
+		expect(outcomes[0]?.status).toBe("fulfilled");
+		expect(outcomes[1]?.status).toBe("fulfilled");
 		expect(results).toContain("subgraph-a");
 		expect(results).toContain("subgraph-b");
 		expect(results.length).toBe(2);

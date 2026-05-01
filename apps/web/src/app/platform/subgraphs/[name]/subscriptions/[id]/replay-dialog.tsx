@@ -67,10 +67,9 @@ export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 		<div className="detail-section">
 			<h3>Replay block range</h3>
 			<p className="detail-desc">
-				Re-emit rows from this subgraph table in the given block range.
-				Replays drain at 10% of batch capacity so live deliveries aren't
-				starved. Receivers must be idempotent — dedup on the `webhook-id`
-				header.
+				Re-emit rows from this subgraph table in the given block range. Replays
+				drain at 10% of batch capacity so live deliveries aren't starved.
+				Receivers must be idempotent — dedup on the `webhook-id` header.
 			</p>
 			<div style={{ display: "flex", gap: 8, marginTop: 8 }}>
 				<label className="form-field" style={{ flex: 1 }}>
@@ -95,8 +94,7 @@ export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 			{err && <p style={{ color: "var(--error)", marginTop: 8 }}>{err}</p>}
 			{result && (
 				<p style={{ color: "var(--success)", marginTop: 8 }}>
-					Enqueued {result.enqueuedCount} of {result.scannedCount} scanned
-					rows.
+					Enqueued {result.enqueuedCount} of {result.scannedCount} scanned rows.
 				</p>
 			)}
 			<div style={{ marginTop: 12, display: "flex", gap: 8 }}>

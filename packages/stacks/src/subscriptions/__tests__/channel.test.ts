@@ -12,8 +12,10 @@ class MockWebSocket {
 	url: string;
 	sent: string[] = [];
 
-	private listeners: Record<string, Array<{ fn: Function; once: boolean }>> =
-		{};
+	private listeners: Record<
+		string,
+		Array<{ fn: (...args: unknown[]) => unknown; once: boolean }>
+	> = {};
 
 	constructor(url: string) {
 		this.url = url;
@@ -24,12 +26,16 @@ class MockWebSocket {
 		});
 	}
 
-	addEventListener(event: string, fn: Function, opts?: { once?: boolean }) {
+	addEventListener(
+		event: string,
+		fn: (...args: unknown[]) => unknown,
+		opts?: { once?: boolean },
+	) {
 		if (!this.listeners[event]) this.listeners[event] = [];
 		this.listeners[event].push({ fn, once: opts?.once ?? false });
 	}
 
-	removeEventListener(event: string, fn: Function) {
+	removeEventListener(event: string, fn: (...args: unknown[]) => unknown) {
 		if (!this.listeners[event]) return;
 		this.listeners[event] = this.listeners[event].filter((l) => l.fn !== fn);
 	}
@@ -71,6 +77,7 @@ let originalWebSocket: typeof globalThis.WebSocket;
 
 beforeEach(() => {
 	originalWebSocket = globalThis.WebSocket;
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket = MockWebSocket;
 });
 

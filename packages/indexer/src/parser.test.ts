@@ -16,10 +16,10 @@ describe("parseTransaction", () => {
 		const result = await parseTransaction(tx, 100);
 
 		expect(result).not.toBeNull();
-		expect(result!.type).toBe("token_transfer");
-		expect(result!.sender).toBe("SP3SBQ9PZEMBNBAWTR7FRPE3XK0EFW9JWVX4G80S2");
-		expect(result!.tx_id).toBe(tx.txid);
-		expect(result!.block_height).toBe(100);
+		expect(result?.type).toBe("token_transfer");
+		expect(result?.sender).toBe("SP3SBQ9PZEMBNBAWTR7FRPE3XK0EFW9JWVX4G80S2");
+		expect(result?.tx_id).toBe(tx.txid);
+		expect(result?.block_height).toBe(100);
 	});
 
 	test("returns null for malformed tx without txid", async () => {
@@ -45,8 +45,8 @@ describe("parseTransaction", () => {
 		const result = await parseTransaction(tx, 100);
 
 		expect(result).not.toBeNull();
-		expect(result!.type).toBe("unknown");
-		expect(result!.sender).toBe("unknown");
+		expect(result?.type).toBe("unknown");
+		expect(result?.sender).toBe("unknown");
 	});
 
 	test("uses payload tx_type and sender_address as fallback when API unavailable", async () => {
@@ -66,8 +66,8 @@ describe("parseTransaction", () => {
 
 		expect(result).not.toBeNull();
 		// API fetch fails in test environment, so we fall back to payload values
-		expect(result!.type).toBe("token_transfer");
-		expect(result!.sender).toBe("SP123456");
+		expect(result?.type).toBe("token_transfer");
+		expect(result?.sender).toBe("SP123456");
 	});
 
 	test("decodes contract_call from raw_tx", async () => {
@@ -83,11 +83,11 @@ describe("parseTransaction", () => {
 		const result = await parseTransaction(tx, 100);
 
 		expect(result).not.toBeNull();
-		expect(result!.type).toBe("contract_call");
-		expect(result!.sender).toBe("SP1H01PPFJBVEQ6MMF7RMCQDJSK38EH6HP8E7M10M");
-		expect(result!.contract_id).toBe(
+		expect(result?.type).toBe("contract_call");
+		expect(result?.sender).toBe("SP1H01PPFJBVEQ6MMF7RMCQDJSK38EH6HP8E7M10M");
+		expect(result?.contract_id).toBe(
 			"SP3YBY0BH4ANC0Q35QB6PD163F943FVFVDFM1SH7S.gl-api",
 		);
-		expect(result!.function_name).toBe("open");
+		expect(result?.function_name).toBe("open");
 	});
 });

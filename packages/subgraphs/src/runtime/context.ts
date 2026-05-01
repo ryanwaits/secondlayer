@@ -364,14 +364,15 @@ export class SubgraphContext {
 		const writes: FlushWrite[] = opsToFlush.map((op, rowIndex) => {
 			const blockHeight =
 				(op.data._block_height as number | undefined) ?? this.block.height;
-			const txId =
-				(op.data._tx_id as string | undefined) ?? this._tx.txId;
+			const txId = (op.data._tx_id as string | undefined) ?? this._tx.txId;
 			const baseRow =
-				op.kind === "update" ? { ...op.data, ...(op.set ?? {}) } : { ...op.data };
+				op.kind === "update"
+					? { ...op.data, ...(op.set ?? {}) }
+					: { ...op.data };
 			// Strip upsert control keys — not part of the row shape
-			delete (baseRow as Record<string, unknown>)._upsert_keys;
-			delete (baseRow as Record<string, unknown>)._upsert_fallback_keys;
-			delete (baseRow as Record<string, unknown>)._upsert_fallback_set;
+			(baseRow as Record<string, unknown>)._upsert_keys = undefined;
+			(baseRow as Record<string, unknown>)._upsert_fallback_keys = undefined;
+			(baseRow as Record<string, unknown>)._upsert_fallback_set = undefined;
 			return {
 				op: op.kind,
 				table: op.table,

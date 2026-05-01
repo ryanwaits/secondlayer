@@ -32,6 +32,9 @@ export function StatusPill() {
 					<div
 						className="status-pill-backdrop"
 						onClick={() => setExpanded(false)}
+						onKeyDown={(e) => {
+							if (e.key === "Escape") setExpanded(false);
+						}}
 					/>
 					<div className="status-pill-expanded">
 						<div className="status-pill-expanded-row">
@@ -59,6 +62,7 @@ export function StatusPill() {
 				</>
 			)}
 			<button
+				type="button"
 				className="status-pill-trigger"
 				onClick={() => setExpanded(!expanded)}
 			>

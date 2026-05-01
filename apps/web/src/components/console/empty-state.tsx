@@ -15,7 +15,7 @@ export function EmptyState({
 					{action.href ? (
 						<Link href={action.href}>{action.label}</Link>
 					) : (
-						<a>{action.label}</a>
+						<span>{action.label}</span>
 					)}
 				</div>
 			)}

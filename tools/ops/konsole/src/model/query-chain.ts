@@ -68,9 +68,13 @@ export function wrapChain(chain: QueryChain): QueryChain {
 					if (n !== undefined) return wrapChain(target[methodName](n));
 					return wrapped;
 				};
+				// biome-ignore lint/suspicious/noThenProperty: hybrid object is intentionally thenable so `await chain.first` works
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				(hybrid as any).then = (resolve: any, reject: any) =>
 					wrapped.then(resolve, reject);
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				(hybrid as any)[Symbol.for("nodejs.util.inspect.custom")] = () =>
+					// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 					(singleChain as any)[Symbol.for("nodejs.util.inspect.custom")]();
 				return hybrid;
 			}
@@ -78,6 +82,7 @@ export function wrapChain(chain: QueryChain): QueryChain {
 			if (CHAIN_PROPS.has(prop) || prop.startsWith("_")) {
 				const value = Reflect.get(target, prop, receiver);
 				if (typeof value === "function") {
+					// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 					return (...args: any[]) => {
 						const result = value.apply(target, args);
 						return result instanceof QueryChain ? wrapChain(result) : result;
@@ -90,11 +95,15 @@ export function wrapChain(chain: QueryChain): QueryChain {
 			// Unknown property → attribute projection
 			const attrName = prop as string;
 			return {
+				// biome-ignore lint/suspicious/noThenProperty: thenable so attribute projection is awaitable
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				then(resolve: any, reject: any) {
+					// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 					return target._execute().then((result: any) => {
 						if (result === null || result === undefined) return resolve(null);
 						if (Array.isArray(result)) {
 							return resolve(
+								// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 								result.map((r: any) =>
 									r instanceof Record ? r.attributes[attrName] : r[attrName],
 								),
@@ -114,6 +123,7 @@ export function wrapChain(chain: QueryChain): QueryChain {
 }
 
 export class QueryChain {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	_db: Kysely<any>;
 	_table: string;
 	_primaryKey: string;
@@ -130,6 +140,7 @@ export class QueryChain {
 	_distinct = false;
 
 	constructor(
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		db: Kysely<any>,
 		table: string,
 		primaryKey: string,
@@ -375,13 +386,14 @@ export class QueryChain {
 	get count(): Promise<number> {
 		return (async () => {
 			const countExpr = this._distinct
-				? sql`count(distinct ${sql.ref(this._table + "." + this._primaryKey)})`.as(
+				? sql`count(distinct ${sql.ref(`${this._table}.${this._primaryKey}`)})`.as(
 						"count",
 					)
 				: sql`count(*)`.as("count");
 			let q = this._db.selectFrom(this._table).select(countExpr);
 			q = this._applyJoins(q);
 			q = this._applyWheres(q);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const row = await (q as any).executeTakeFirst();
 			return Number(row?.count ?? 0);
 		})();
@@ -396,14 +408,17 @@ export class QueryChain {
 
 	pluck(column: string): Promise<unknown[]> {
 		return (async () => {
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			let q = this._db.selectFrom(this._table).select(column as any);
 			q = this._applyJoins(q);
 			q = this._applyWheres(q);
 			if (this._distinct) q = q.distinct();
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			for (const [col, dir] of this._orderBys) q = q.orderBy(col as any, dir);
 			if (this._limitN) q = q.limit(this._limitN);
 			if (this._offsetN) q = q.offset(this._offsetN);
 			const rows = await q.execute();
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			return rows.map((r: any) => r[column]);
 		})();
 	}
@@ -415,9 +430,11 @@ export class QueryChain {
 	// Mutation methods
 
 	async update(attrs: Row): Promise<number> {
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		let q = this._db.updateTable(this._table).set(attrs as any);
 		q = this._applyWheres(q);
 		const result = await q.execute();
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		return Number((result as any)[0]?.numUpdatedRows ?? 0);
 	}
 
@@ -425,6 +442,7 @@ export class QueryChain {
 		let q = this._db.deleteFrom(this._table);
 		q = this._applyWheres(q);
 		const result = await q.execute();
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		return Number((result as any)[0]?.numDeletedRows ?? 0);
 	}
 
@@ -433,10 +451,12 @@ export class QueryChain {
 	toSql(): { sql: string; parameters: readonly unknown[] } {
 		let q = this._db
 			.selectFrom(this._table)
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			.selectAll(this._table as any) as any;
 		q = this._applyJoins(q);
 		q = this._applyWheres(q);
 		if (this._distinct) q = q.distinct();
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		for (const [col, dir] of this._orderBys) q = q.orderBy(col as any, dir);
 		if (this._limitN) q = q.limit(this._limitN);
 		if (this._offsetN) q = q.offset(this._offsetN);
@@ -445,6 +465,8 @@ export class QueryChain {
 
 	// Thenable
 
+	// biome-ignore lint/suspicious/noThenProperty: QueryChain is intentionally thenable so it can be awaited directly
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	then(resolve: (value: any) => any, reject?: (reason: any) => any) {
 		return this._execute().then(resolve, reject);
 	}
@@ -457,32 +479,40 @@ export class QueryChain {
 
 	// Internal
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	_applyJoins(q: any): any {
+		let cur = q;
 		for (const join of this._joins) {
 			if (join.type === "left") {
-				q = q.leftJoin(join.table, join.on[0], join.on[1]);
+				cur = cur.leftJoin(join.table, join.on[0], join.on[1]);
 			} else {
-				q = q.innerJoin(join.table, join.on[0], join.on[1]);
+				cur = cur.innerJoin(join.table, join.on[0], join.on[1]);
 			}
 		}
-		return q;
+		return cur;
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	_applyWheres(q: any): any {
+		let cur = q;
 		for (const [col, op, val] of this._wheres) {
-			q = q.where(col as any, op as any, val);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+			cur = cur.where(col as any, op as any, val);
 		}
-		return q;
+		return cur;
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	_execute(): Promise<any> {
 		return (async () => {
 			let q = this._db
 				.selectFrom(this._table)
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				.selectAll(this._table as any) as any;
 			q = this._applyJoins(q);
 			q = this._applyWheres(q);
 			if (this._distinct) q = q.distinct();
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			for (const [col, dir] of this._orderBys) q = q.orderBy(col as any, dir);
 			if (this._limitN) q = q.limit(this._limitN);
 			if (this._offsetN) q = q.offset(this._offsetN);

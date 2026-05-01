@@ -40,6 +40,7 @@ export interface SecondLayerConfig {
 	/**
 	 * Plugins to use for generation
 	 */
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	plugins?: any[]; // Will be properly typed when plugins are imported
 
 	/**

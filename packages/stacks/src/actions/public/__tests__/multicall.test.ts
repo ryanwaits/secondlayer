@@ -4,15 +4,18 @@ import type { Client } from "../../../clients/types.ts";
 import { multicall } from "../multicall.ts";
 
 function createMockClient(
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	requestHandler: (path: string, init?: any) => Promise<any>,
 ): Client {
 	return {
 		transport: {
 			type: "custom" as const,
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			config: {} as any,
 			request: async () => ({}),
 		},
 		request: requestHandler,
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		extend: () => ({}) as any,
 	};
 }
@@ -84,7 +87,9 @@ describe("multicall", () => {
 		const results = await multicall(client, { calls });
 
 		expect(results).toHaveLength(3);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((results[0] as any).status).toBe("success");
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((results[2] as any).status).toBe("failure");
 	});
 
@@ -97,8 +102,8 @@ describe("multicall", () => {
 		const results = await multicall(client, { calls, allowFailure: false });
 
 		expect(results).toHaveLength(3);
-		results.forEach((r) => {
+		for (const r of results) {
 			expect(r).toBeDefined();
-		});
+		}
 	});
 });

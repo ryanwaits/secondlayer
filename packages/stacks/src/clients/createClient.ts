@@ -9,14 +9,17 @@ const BASE_KEYS = new Set([
 ]);
 
 function bindExtend(base: Client): Client["extend"] {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	return ((fn: any) => {
 		const extensions = fn(base);
 		const next = { ...base };
 		for (const [key, value] of Object.entries(extensions)) {
 			if (BASE_KEYS.has(key)) continue;
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			(next as any)[key] = value;
 		}
 		next.extend = bindExtend(next);
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		return next as any;
 	}) as Client["extend"];
 }
@@ -35,6 +38,7 @@ export function createClient<
 		account: config.account,
 		transport,
 		request: transport.request,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		extend: null as any,
 	};
 

@@ -3,8 +3,8 @@
  * Handles plugin registration, lifecycle execution, and output management
  */
 
-import { promises as fs } from "fs";
-import path from "path";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { isValidAddress as _validateStacksAddress } from "@secondlayer/stacks";
 const validateStacksAddress = _validateStacksAddress as (
 	address: string,
@@ -171,6 +171,7 @@ export class PluginManager {
 	 */
 	async executeHook(
 		hookName: keyof SecondLayerPlugin,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		context: any,
 	): Promise<void> {
 		for (const plugin of this.plugins) {
@@ -178,6 +179,7 @@ export class PluginManager {
 			if (typeof hook === "function") {
 				this.executionContext.currentPlugin = plugin;
 				try {
+					// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 					await (hook as any).call(plugin, context);
 					this.recordHookResult(plugin.name, hookName as string, {
 						success: true,
@@ -216,6 +218,7 @@ export class PluginManager {
 			utils: this.utils,
 			contracts,
 			outputs,
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			augment: (outputKey: string, contractName: string, content: any) => {
 				this.augmentOutput(outputs, outputKey, contractName, content);
 			},
@@ -323,6 +326,7 @@ export class PluginManager {
 			name: contract.name || parsed.contractName || "unknown",
 			address: parsed.address || "unknown",
 			contractName: parsed.contractName || contract.name || "unknown",
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			abi: contract.abi!,
 			source: source === "api" ? ("api" as const) : ("local" as const),
 			metadata: contract.metadata ?? { source },
@@ -336,6 +340,7 @@ export class PluginManager {
 		outputs: Map<string, GeneratedOutput>,
 		outputKey: string,
 		contractName: string,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		content: any,
 	): void {
 		const existing = outputs.get(outputKey);

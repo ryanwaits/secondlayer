@@ -1,9 +1,9 @@
 "use client";
 
+import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
 	const { login, verify } = useAuth();

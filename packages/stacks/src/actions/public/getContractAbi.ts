@@ -8,6 +8,7 @@ export type GetContractAbiParams = {
 export async function getContractAbi(
 	client: Client,
 	params: GetContractAbiParams,
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 ): Promise<any> {
 	const [address, name] = parseContractId(params.contract);
 	return client.request(`/v2/contracts/interface/${address}/${name}`, {

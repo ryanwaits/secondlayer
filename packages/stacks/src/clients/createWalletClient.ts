@@ -13,5 +13,6 @@ export type WalletClientConfig = ClientConfig & {
 export function createWalletClient(
 	config: WalletClientConfig,
 ): Client<WalletActions> & WalletActions & { account: Account } {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	return createClient(config).extend(walletActions) as any;
 }

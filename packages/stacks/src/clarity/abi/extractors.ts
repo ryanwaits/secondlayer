@@ -23,6 +23,7 @@ export type ExtractFunctionArgs<
 	C extends AbiContract,
 	N extends ExtractFunctionNames<C>,
 > = ExtractFunction<C, N> extends {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	args: infer Args extends ReadonlyArray<{ name: string; type: any }>;
 }
 	? {

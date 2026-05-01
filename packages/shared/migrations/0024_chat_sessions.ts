@@ -1,5 +1,6 @@
-import { sql, type Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable("chat_sessions")
@@ -43,6 +44,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	);
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await sql`DROP INDEX IF EXISTS chat_messages_session_idx`.execute(db);
 	await db.schema.dropTable("chat_messages").execute();

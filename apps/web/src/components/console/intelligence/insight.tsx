@@ -39,6 +39,7 @@ export function Insight({
 					{actions?.map((a) => (
 						<button
 							key={a.label}
+							type="button"
 							className={`insight-action ${a.primary ? "insight-action-primary" : ""}`}
 							onClick={a.onClick}
 						>
@@ -46,7 +47,7 @@ export function Insight({
 						</button>
 					))}
 					{id && (
-						<button className="insight-action" onClick={dismiss}>
+						<button type="button" className="insight-action" onClick={dismiss}>
 							Dismiss
 						</button>
 					)}

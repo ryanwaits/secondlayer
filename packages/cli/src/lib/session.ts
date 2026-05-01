@@ -48,7 +48,7 @@ export async function writeSession(session: Session): Promise<void> {
 	await mkdir(dirname(SESSION_PATH), { recursive: true });
 	await writeFile(
 		SESSION_PATH,
-		JSON.stringify(session, null, 2) + "\n",
+		`${JSON.stringify(session, null, 2)}\n`,
 		"utf8",
 	);
 	await chmod(SESSION_PATH, 0o600);

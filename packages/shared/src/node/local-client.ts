@@ -99,9 +99,10 @@ export class LocalClient {
 				};
 				// Include function_args if stored (for contract_call txs)
 				if (tx.function_args) {
-					const args = typeof tx.function_args === "string"
-						? JSON.parse(tx.function_args)
-						: tx.function_args;
+					const args =
+						typeof tx.function_args === "string"
+							? JSON.parse(tx.function_args)
+							: tx.function_args;
 					if (Array.isArray(args)) {
 						entry.contract_call = { function_args: args };
 					}

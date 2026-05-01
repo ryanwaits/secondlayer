@@ -8,6 +8,7 @@ export type GetBlockParams = {
 export async function getBlock(
 	client: Client,
 	params?: GetBlockParams,
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 ): Promise<any> {
 	if (params?.hash) {
 		return client.request(`/extended/v2/blocks/${params.hash}`, {

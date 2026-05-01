@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { listRecentSessions } from "../persistence";
-import { formatSummaryForPrompt, type SessionSummary } from "../summary";
+import { type SessionSummary, formatSummaryForPrompt } from "../summary";
 
 export function createRecallSessions(sessionToken: string) {
 	return tool({

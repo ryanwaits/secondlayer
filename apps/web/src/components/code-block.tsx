@@ -12,6 +12,7 @@ export async function CodeBlock({ code, lang = "typescript" }: CodeBlockProps) {
 	return (
 		<div className="code-block-wrapper">
 			<CopyButton code={code.trim()} />
+			{/* biome-ignore lint/security/noDangerouslySetInnerHtml: shiki-highlighted server-rendered HTML */}
 			<div dangerouslySetInnerHTML={{ __html: html }} />
 		</div>
 	);

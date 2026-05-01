@@ -170,10 +170,7 @@
 			"import": "./dist/src/node/archive-client.js"
 		}
 	},
-	"files": [
-		"dist",
-		"migrations"
-	],
+	"files": ["dist", "migrations"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",

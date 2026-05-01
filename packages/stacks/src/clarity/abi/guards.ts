@@ -30,6 +30,7 @@ export function isBool(value: unknown): value is boolean {
 export function isPrincipal(value: unknown): value is string {
 	if (typeof value !== "string") return false;
 	const parts = value.split(".");
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const address = parts[0]!;
 	const contractName = parts[1];
 	if (!validateStacksAddress(address)) return false;
@@ -49,7 +50,9 @@ export function isContractPrincipal(value: unknown): value is string {
 	if (typeof value !== "string") return false;
 	if (!value.includes(".")) return false;
 	const parts = value.split(".");
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const address = parts[0]!;
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const contractName = parts[1]!;
 	if (!validateStacksAddress(address)) return false;
 	return CONTRACT_NAME_REGEX.test(contractName);
@@ -82,12 +85,14 @@ export function isOptional<T>(
 }
 
 export function isOkResponse<T>(
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	response: { ok: T } | { err: any },
 ): response is ResponseOk<T> {
 	return "ok" in response && !("err" in response);
 }
 
 export function isErrResponse<E>(
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	response: { ok: any } | { err: E },
 ): response is ResponseErr<E> {
 	return "err" in response && !("ok" in response);

@@ -59,12 +59,12 @@ async function runMigrations() {
 
 	try {
 		const { error, results } = await migrator.migrateToLatest();
-		results?.forEach((r) => {
+		for (const r of results ?? []) {
 			if (r.status === "Success") console.log(`✅ ${r.migrationName}`);
 			else if (r.status === "Error") console.error(`❌ ${r.migrationName}`);
 			else if (r.status === "NotExecuted")
 				console.warn(`⏭️  ${r.migrationName} (not executed — earlier failure)`);
-		});
+		}
 		if (error) throw error;
 		console.log("✅ Migrations completed successfully");
 	} catch (error) {

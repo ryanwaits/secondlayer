@@ -217,6 +217,7 @@ export async function parseTransaction(
 	// If decoding failed but payload has contract info, use that as fallback
 	if (!decoded) {
 		if (tx.tx_type === "contract_call") {
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const contractCall = (tx as any).contract_call;
 			if (contractCall) {
 				contractId = contractCall.contract_id;
@@ -231,6 +232,7 @@ export async function parseTransaction(
 				}
 			}
 		} else if (tx.tx_type === "smart_contract") {
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const smartContract = (tx as any).smart_contract;
 			if (smartContract) {
 				contractId = smartContract.contract_id;

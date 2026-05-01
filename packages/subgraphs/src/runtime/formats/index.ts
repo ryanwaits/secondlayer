@@ -36,10 +36,13 @@ export function buildForFormat(
 		case "standard-webhooks":
 			return buildStandardWebhooks(outboxRow, signingSecret);
 		default:
-			logger.warn("Unknown subscription format, falling back to standard-webhooks", {
-				format: sub.format,
-				subscriptionId: sub.id,
-			});
+			logger.warn(
+				"Unknown subscription format, falling back to standard-webhooks",
+				{
+					format: sub.format,
+					subscriptionId: sub.id,
+				},
+			);
 			return buildStandardWebhooks(outboxRow, signingSecret);
 	}
 }

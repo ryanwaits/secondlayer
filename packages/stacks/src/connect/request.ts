@@ -16,7 +16,9 @@ function isClarityValue(obj: unknown): obj is { type: string } {
 		typeof obj === "object" &&
 		obj !== null &&
 		"type" in obj &&
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		typeof (obj as any).type === "string" &&
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		!POST_CONDITION_TYPES.has((obj as any).type)
 	);
 }
@@ -29,9 +31,11 @@ function serializeParams(value: unknown): unknown {
 	if (typeof value === "object") {
 		if (value instanceof Uint8Array) return value;
 
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		if (POST_CONDITION_TYPES.has((value as any).type)) return value;
 
 		if (isClarityValue(value)) {
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			return bytesToHex(serializeCVBytes(value as any));
 		}
 
@@ -56,9 +60,11 @@ export async function request<M extends keyof Methods>(
 	const params = args[0];
 	const serialized = params ? serializeParams(params) : undefined;
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	let result: any;
 	try {
 		result = await provider.request(method as string, serialized);
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	} catch (err: any) {
 		if (err?.code !== undefined) {
 			throw new JsonRpcError(err.message ?? String(err), err.code, {

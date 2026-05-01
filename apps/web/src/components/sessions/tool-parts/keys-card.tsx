@@ -20,6 +20,7 @@ export function KeysCard({ keys }: KeysCardProps) {
 		<div className="tool-card">
 			<div className="tool-card-header">
 				<svg
+					aria-hidden="true"
 					width="12"
 					height="12"
 					viewBox="0 0 16 16"

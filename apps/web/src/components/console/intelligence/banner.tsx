@@ -19,7 +19,7 @@ export function Banner({ variant = "info", children, action }: BannerProps) {
 		<div className={`sl-banner ${variantClass[variant] ?? ""}`}>
 			<div className="sl-banner-text">{children}</div>
 			{action && (
-				<button className="dash-btn" onClick={action.onClick}>
+				<button type="button" className="dash-btn" onClick={action.onClick}>
 					{action.label}
 				</button>
 			)}

@@ -1,9 +1,9 @@
-import { randomBytes } from "crypto";
-import { promises as fs } from "fs";
-import { createRequire } from "module";
-import { tmpdir } from "os";
-import path from "path";
-import { pathToFileURL } from "url";
+import { randomBytes } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { PluginManager } from "../core/plugin-manager";
 import type { ConfigDefiner, SecondLayerConfig } from "../types/config";
 import type { ResolvedConfig } from "../types/plugin";
@@ -44,6 +44,7 @@ export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
 		);
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	let config: any;
 
 	if (resolvedPath.endsWith(".ts")) {
@@ -129,6 +130,7 @@ export function validateConfig(
 		throw new Error("Config must be an object");
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const c = config as any;
 
 	// Contracts are optional now since plugins can provide them

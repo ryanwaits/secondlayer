@@ -68,7 +68,7 @@ export function SecondLayerQueryProvider({
 
 	return (
 		<QueryClientProvider client={client}>
-			<SecondLayerProvider config={config} children={children} />
+			<SecondLayerProvider config={config}>{children}</SecondLayerProvider>
 		</QueryClientProvider>
 	);
 }

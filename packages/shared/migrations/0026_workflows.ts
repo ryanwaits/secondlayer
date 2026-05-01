@@ -1,5 +1,6 @@
-import { sql, type Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// ── workflow_definitions ──────────────────────────────────────────
 	await db.schema
@@ -137,10 +138,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 			c.primaryKey().defaultTo(sql`gen_random_uuid()`),
 		)
 		.addColumn("definition_id", "uuid", (c) =>
-			c
-				.notNull()
-				.references("workflow_definitions.id")
-				.onDelete("cascade"),
+			c.notNull().references("workflow_definitions.id").onDelete("cascade"),
 		)
 		.addColumn("cron_expr", "text", (c) => c.notNull())
 		.addColumn("timezone", "text", (c) => c.notNull().defaultTo("UTC"))
@@ -176,6 +174,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	`.execute(db);
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await sql`DROP TRIGGER IF EXISTS workflow_queue_notify ON workflow_queue`.execute(
 		db,

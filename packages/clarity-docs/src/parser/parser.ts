@@ -143,6 +143,7 @@ export function extractParams(tags: DocTag[]): ParamDoc[] {
 	return tags
 		.filter((t) => t.tag === "param" && t.name)
 		.map((t) => ({
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			name: t.name!,
 			description: t.description,
 		}));
@@ -153,6 +154,7 @@ export function extractErrs(tags: DocTag[]): ErrDoc[] {
 	return tags
 		.filter((t) => t.tag === "err" && t.name)
 		.map((t) => ({
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			code: t.name!,
 			description: t.description,
 		}));
@@ -163,6 +165,7 @@ export function extractPosts(tags: DocTag[]): PostDoc[] {
 	return tags
 		.filter((t) => t.tag === "post" && t.name)
 		.map((t) => ({
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			asset: t.name!,
 			description: t.description,
 		}));
@@ -177,12 +180,14 @@ export function extractPrints(tags: DocTag[]): PrintDoc[] {
 			const typeMatch = t.description.match(/^\{([^}]+)\}\s*(.*)/);
 			if (typeMatch) {
 				return {
+					// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 					name: t.name!,
 					type: typeMatch[1],
 					description: typeMatch[2],
 				};
 			}
 			return {
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				name: t.name!,
 				description: t.description,
 			};
@@ -229,6 +234,7 @@ export function extractCalls(tags: DocTag[]): CallDoc[] {
 			const description = parts.slice(1).join(" ") || undefined;
 			return {
 				contract,
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				function: t.name!,
 				description,
 			};

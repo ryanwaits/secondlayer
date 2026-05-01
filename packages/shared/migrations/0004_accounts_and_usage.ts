@@ -1,5 +1,6 @@
 import { type Kysely, sql } from "kysely";
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// 1. Create accounts table
 	await db.schema
@@ -83,6 +84,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.execute();
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropIndex("api_keys_account_id_idx").ifExists().execute();
 	await sql`ALTER TABLE api_keys ALTER COLUMN account_id DROP NOT NULL`.execute(

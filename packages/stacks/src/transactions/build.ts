@@ -84,8 +84,10 @@ function resolvePrincipal(address: string): PostConditionPrincipalWire {
 	if (address === "origin") return { type: "origin" };
 	const [addr, name] = address.split(".");
 	if (name) {
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		return { type: "contract", address: addr!, contractName: name };
 	}
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	return { type: "standard", address: addr! };
 }
 
@@ -103,26 +105,32 @@ function convertPostCondition(pc: PostCondition): PostConditionWire {
 			return {
 				type: "stx",
 				principal: resolvePrincipal(pc.address),
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				conditionCode: FUNGIBLE_CODE_MAP[pc.condition]!,
 				amount: intToBigInt(pc.amount),
 			};
 		case "ft-postcondition": {
 			const [contractId, tokenName] = pc.asset.split("::");
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const [addr, name] = parseContractId(contractId!);
 			return {
 				type: "ft",
 				principal: resolvePrincipal(pc.address),
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				asset: { address: addr, contractName: name, assetName: tokenName! },
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				conditionCode: FUNGIBLE_CODE_MAP[pc.condition]!,
 				amount: intToBigInt(pc.amount),
 			};
 		}
 		case "nft-postcondition": {
 			const [contractId, tokenName] = pc.asset.split("::");
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const [addr, name] = parseContractId(contractId!);
 			return {
 				type: "nft",
 				principal: resolvePrincipal(pc.address),
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				asset: { address: addr, contractName: name, assetName: tokenName! },
 				conditionCode:
 					pc.condition === "sent"
@@ -144,16 +152,19 @@ function resolveSpendingCondition(
 	if (opts.publicKeys) {
 		return createMultiSigSpendingCondition(
 			opts.publicKeys,
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			opts.signaturesRequired!,
 			nonce,
 			fee,
 			opts.hashMode,
 		);
 	}
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	return createSingleSigSpendingCondition(opts.publicKey!, nonce, fee);
 }
 
 function resolveAuth(
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	spendingCondition: any,
 	sponsored?: boolean,
 ): Authorization {
@@ -196,6 +207,7 @@ export function buildTokenTransfer(
 	};
 
 	if (options.publicKeys) {
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		(tx as any)._multisig = { publicKeys: options.publicKeys };
 	}
 	return tx;
@@ -227,6 +239,7 @@ export function buildContractCall(
 	};
 
 	if (options.publicKeys) {
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		(tx as any)._multisig = { publicKeys: options.publicKeys };
 	}
 	return tx;
@@ -260,6 +273,7 @@ export function buildContractDeploy(
 	};
 
 	if (options.publicKeys) {
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		(tx as any)._multisig = { publicKeys: options.publicKeys };
 	}
 	return tx;

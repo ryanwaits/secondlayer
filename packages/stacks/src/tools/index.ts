@@ -36,6 +36,7 @@ import { z } from "zod";
 
 // biome-ignore lint/suspicious/noExplicitAny: Tool's input-schema generic is
 // too precise for isolated-declarations output — AI SDK validates at runtime.
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 type LooseTool = Tool<any, any>;
 import { estimateFee as _estimateFee } from "../actions/public/estimateFee.ts";
 import { getAccountInfo as _getAccountInfo } from "../actions/public/getAccountInfo.ts";
@@ -278,7 +279,6 @@ export function createStacksTools(client: StacksReadClient): StacksTools {
 		}),
 	};
 }
-
 
 // --- Bare exports using the default (env-configured) client ---
 

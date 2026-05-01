@@ -16,7 +16,7 @@ const SCHEMA = "stacks_blockchain_api";
 // Hiro DB stores bytea; we need 0x-prefixed hex strings
 function toHex(buf: Buffer | Uint8Array | null): string {
 	if (!buf) return "0x";
-	return "0x" + Buffer.from(buf).toString("hex");
+	return `0x${Buffer.from(buf).toString("hex")}`;
 }
 
 // asset_event_type_id mapping: 1=transfer, 2=mint, 3=burn
@@ -150,6 +150,7 @@ export class HiroPgClient {
 	async getBlockForIndexer(
 		height: number,
 		options?: { includeRawTx?: boolean },
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	): Promise<any | null> {
 		// 1. Block metadata
 		const blocks = await this.sql<BlockRow[]>`
@@ -174,6 +175,7 @@ export class HiroPgClient {
 
 		const transactions = txs.map((tx) => {
 			const txType = mapTxTypeId(tx.type_id);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const entry: any = {
 				txid: toHex(tx.tx_id),
 				raw_tx: options?.includeRawTx ? toHex(tx.raw_tx) : "0x00",
@@ -197,6 +199,7 @@ export class HiroPgClient {
 		});
 
 		// 3. Events — query all event tables by block_height (fast, indexed)
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		const events: any[] = [];
 
 		// STX events
@@ -208,6 +211,7 @@ export class HiroPgClient {
     `;
 		for (const e of stxEvents) {
 			const type = stxEventType(e.asset_event_type_id);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const evt: any = {
 				txid: toHex(e.tx_id),
 				event_index: e.event_index,
@@ -265,6 +269,7 @@ export class HiroPgClient {
     `;
 		for (const e of ftEvents) {
 			const type = ftEventType(e.asset_event_type_id);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const evt: any = {
 				txid: toHex(e.tx_id),
 				event_index: e.event_index,
@@ -303,6 +308,7 @@ export class HiroPgClient {
     `;
 		for (const e of nftEvents) {
 			const type = nftEventType(e.asset_event_type_id);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const evt: any = {
 				txid: toHex(e.tx_id),
 				event_index: e.event_index,
@@ -377,6 +383,7 @@ export class HiroPgClient {
 	async getBlockBatch(
 		heights: number[],
 		options?: { includeRawTx?: boolean },
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	): Promise<any[]> {
 		if (heights.length === 0) return [];
 
@@ -390,6 +397,7 @@ export class HiroPgClient {
     `;
 
 		if (blocks.length === 0) return [];
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		const blockMap = new Map<number, any>();
 		for (const b of blocks) {
 			blockMap.set(b.block_height, { ...b, transactions: [], events: [] });
@@ -407,6 +415,7 @@ export class HiroPgClient {
 			const block = blockMap.get(tx.block_height);
 			if (!block) continue;
 			const txType = mapTxTypeId(tx.type_id);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const entry: any = {
 				txid: toHex(tx.tx_id),
 				raw_tx: options?.includeRawTx ? toHex(tx.raw_tx) : "0x00",
@@ -437,6 +446,7 @@ export class HiroPgClient {
 			const block = blockMap.get(e.block_height);
 			if (!block) continue;
 			const type = stxEventType(e.asset_event_type_id);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const evt: any = {
 				txid: toHex(e.tx_id),
 				event_index: e.event_index,
@@ -496,6 +506,7 @@ export class HiroPgClient {
 			const block = blockMap.get(e.block_height);
 			if (!block) continue;
 			const type = ftEventType(e.asset_event_type_id);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const evt: any = {
 				txid: toHex(e.tx_id),
 				event_index: e.event_index,
@@ -535,6 +546,7 @@ export class HiroPgClient {
 			const block = blockMap.get(e.block_height);
 			if (!block) continue;
 			const type = nftEventType(e.asset_event_type_id);
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const evt: any = {
 				txid: toHex(e.tx_id),
 				event_index: e.event_index,
@@ -591,6 +603,7 @@ export class HiroPgClient {
 		return heights
 			.filter((h) => blockMap.has(h))
 			.map((h) => {
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				const b = blockMap.get(h)!;
 				return {
 					block_hash: toHex(b.block_hash),

@@ -36,10 +36,7 @@ function generateReadHelpers(
 		) {
 			return false;
 		}
-		if (
-			options.excludeFunctions &&
-			options.excludeFunctions.includes(func.name)
-		) {
+		if (options.excludeFunctions?.includes(func.name)) {
 			return false;
 		}
 		return true;
@@ -101,10 +98,7 @@ function generateWriteHelpers(
 		) {
 			return false;
 		}
-		if (
-			options.excludeFunctions &&
-			options.excludeFunctions.includes(func.name)
-		) {
+		if (options.excludeFunctions?.includes(func.name)) {
 			return false;
 		}
 		return true;

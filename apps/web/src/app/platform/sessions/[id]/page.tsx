@@ -36,7 +36,7 @@ function SessionLoader({ id }: { id: string }) {
 			fetch(`/api/sessions/${id}/messages`, { credentials: "same-origin" })
 				.then((r) => (r.ok ? r.json() : { messages: [] }))
 				.catch(() => ({ messages: [] })),
-			fetch(`/api/sessions/list`, { credentials: "same-origin" })
+			fetch("/api/sessions/list", { credentials: "same-origin" })
 				.then((r) => (r.ok ? r.json() : { sessions: [] }))
 				.catch(() => ({ sessions: [] })),
 		]).then(([msgData, listData]) => {
@@ -140,6 +140,7 @@ function SessionChat({
 	});
 
 	// Send initial query or restore tab on first render
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional run-once effect; init flag guards re-runs
 	useEffect(() => {
 		if (initialized.current) return;
 		initialized.current = true;

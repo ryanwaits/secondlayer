@@ -69,6 +69,7 @@ export interface ContractConfig {
 	address?: string | Partial<Record<NetworkName, string>>;
 	source?: string;
 	abi?: AbiContract;
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	metadata?: Record<string, any>;
 }
 
@@ -117,6 +118,7 @@ export function isDirectFileContract(
  */
 export interface ProcessedContract extends ResolvedContract {
 	/** Additional metadata added by plugins */
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	metadata?: Record<string, any>;
 }
 
@@ -174,6 +176,7 @@ export interface GenerateContext extends PluginContext {
 	outputs: Map<string, GeneratedOutput>;
 
 	/** Function to augment existing outputs */
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	augment: (outputKey: string, contractName: string, content: any) => void;
 
 	/** Function to add new outputs */
@@ -232,6 +235,7 @@ export interface PluginUtils {
 /**
  * Plugin factory function type for creating plugins with options
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export type PluginFactory<TOptions = any> = (
 	options?: TOptions,
 ) => SecondLayerPlugin;
@@ -253,6 +257,7 @@ export interface PluginOptions {
 /**
  * Hook execution result
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export interface HookResult<T = any> {
 	/** Whether the hook was successful */
 	success: boolean;

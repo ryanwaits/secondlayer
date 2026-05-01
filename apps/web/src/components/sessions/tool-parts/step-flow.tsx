@@ -16,7 +16,7 @@ export function StepFlow({ steps }: StepFlowProps) {
 	return (
 		<div className="step-flow">
 			{steps.map((step, i) => (
-				<div key={`step-${i}`} className={`step ${step.state}`}>
+				<div key={`${step.label}-${i}`} className={`step ${step.state}`}>
 					<div className="step-line">
 						<div className="step-dot" />
 						{i < steps.length - 1 && <div className="step-connector" />}

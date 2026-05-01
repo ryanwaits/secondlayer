@@ -119,8 +119,8 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.tx_id).toBe("tx1");
-		expect(matched[0]!.sourceName).toBe("listing");
+		expect(matched[0]?.tx.tx_id).toBe("tx1");
+		expect(matched[0]?.sourceName).toBe("listing");
 	});
 
 	test("matches contract_call by contractId + functionName", () => {
@@ -133,7 +133,7 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.function_name).toBe("list-item");
+		expect(matched[0]?.tx.function_name).toBe("list-item");
 	});
 
 	test("filters out non-matching function name", () => {
@@ -176,8 +176,8 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.tx_id).toBe("tx4");
-		expect(matched[0]!.sourceName).toBe("deploy");
+		expect(matched[0]?.tx.tx_id).toBe("tx4");
+		expect(matched[0]?.sourceName).toBe("deploy");
 	});
 
 	test("matches contract_deploy by deployer", () => {
@@ -215,9 +215,9 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.tx_id).toBe("tx2");
-		expect(matched[0]!.events.length).toBe(1);
-		expect(matched[0]!.events[0]!.type).toBe("ft_transfer_event");
+		expect(matched[0]?.tx.tx_id).toBe("tx2");
+		expect(matched[0]?.events.length).toBe(1);
+		expect(matched[0]?.events[0]?.type).toBe("ft_transfer_event");
 	});
 
 	test("matches ft_mint by assetIdentifier", () => {
@@ -229,7 +229,7 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.events[0]!.type).toBe("ft_mint_event");
+		expect(matched[0]?.events[0]?.type).toBe("ft_mint_event");
 	});
 
 	test("matches ft_burn by assetIdentifier", () => {
@@ -241,7 +241,7 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.events[0]!.type).toBe("ft_burn_event");
+		expect(matched[0]?.events[0]?.type).toBe("ft_burn_event");
 	});
 
 	test("matches ft_transfer with wildcard assetIdentifier", () => {
@@ -296,7 +296,7 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.events[0]!.type).toBe("nft_transfer_event");
+		expect(matched[0]?.events[0]?.type).toBe("nft_transfer_event");
 	});
 
 	// ── STX event filters ──
@@ -307,7 +307,7 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.tx.tx_id).toBe("tx3");
+		expect(matched[0]?.tx.tx_id).toBe("tx3");
 	});
 
 	test("matches stx_transfer with minAmount", () => {
@@ -343,8 +343,8 @@ describe("matchSources", () => {
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.events.length).toBe(1);
-		expect(matched[0]!.events[0]!.type).toBe("smart_contract_event");
+		expect(matched[0]?.events.length).toBe(1);
+		expect(matched[0]?.events[0]?.type).toBe("smart_contract_event");
 	});
 
 	test("matches print_event from indexed contract_event rows", () => {
@@ -369,7 +369,7 @@ describe("matchSources", () => {
 		];
 		const matched = matchSources(sources, txs, indexedEvents);
 		expect(matched.length).toBe(1);
-		expect(matched[0]!.events[0]!.type).toBe("contract_event");
+		expect(matched[0]?.events[0]?.type).toBe("contract_event");
 	});
 
 	test("matches print_event with wildcard contractId", () => {
@@ -410,8 +410,8 @@ describe("matchSources", () => {
 		const matched = matchSources(sources, txs, events);
 		// Same tx matched by two different source names — both kept (different sourceName)
 		expect(matched.length).toBe(2);
-		expect(matched[0]!.sourceName).toBe("a");
-		expect(matched[1]!.sourceName).toBe("b");
+		expect(matched[0]?.sourceName).toBe("a");
+		expect(matched[1]?.sourceName).toBe("b");
 	});
 
 	test("returns empty for no matches", () => {

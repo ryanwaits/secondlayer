@@ -25,7 +25,7 @@ export function ConfirmCard({
 			{description && <div className="palette-confirm-desc">{description}</div>}
 			<div className="palette-confirm-list">
 				{resources.map((item, i) => (
-					<div key={i} className="palette-confirm-item">
+					<div key={`${item.name}-${i}`} className="palette-confirm-item">
 						{item.status && (
 							<span className={`palette-dot palette-dot-${item.status}`} />
 						)}
@@ -37,10 +37,11 @@ export function ConfirmCard({
 				))}
 			</div>
 			<div className="palette-confirm-actions">
-				<button className="palette-btn" onClick={onCancel}>
+				<button type="button" className="palette-btn" onClick={onCancel}>
 					Cancel
 				</button>
 				<button
+					type="button"
 					className={`palette-btn ${destructive ? "palette-btn-danger" : ""}`}
 					onClick={onExecute}
 				>

@@ -40,6 +40,7 @@ const tx: TxMeta = {
 describe("SubgraphContext", () => {
 	test("validates table names on insert", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -53,6 +54,7 @@ describe("SubgraphContext", () => {
 
 	test("validates table names on update", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -66,6 +68,7 @@ describe("SubgraphContext", () => {
 
 	test("validates table names on delete", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -79,6 +82,7 @@ describe("SubgraphContext", () => {
 
 	test("accepts valid table names", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -92,6 +96,7 @@ describe("SubgraphContext", () => {
 
 	test("batches operations until flush", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -106,6 +111,7 @@ describe("SubgraphContext", () => {
 
 	test("exposes block metadata", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -118,6 +124,7 @@ describe("SubgraphContext", () => {
 
 	test("exposes and updates tx metadata", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -138,6 +145,7 @@ describe("SubgraphContext", () => {
 
 	test("upsert adds to pending ops", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -150,6 +158,7 @@ describe("SubgraphContext", () => {
 
 	test("error message lists available tables", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,

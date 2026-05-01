@@ -175,6 +175,7 @@ describe("Bug 3: Contract call args always empty {}", () => {
 		expect(args.maxFee).toBeUndefined();
 
 		// event.result is null
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((payload.result as any)?.ok).toBeUndefined(); // → 0n fallback
 
 		// All withdrawals get request_id = 0n, amount = 0n, max_fee = 0n

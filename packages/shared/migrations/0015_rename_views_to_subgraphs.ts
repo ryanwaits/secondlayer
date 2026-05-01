@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// Drop old trigger + function
 	await sql`DROP TRIGGER IF EXISTS views_notify_trigger ON "views"`.execute(db);
@@ -103,6 +104,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	);
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	// Drop new trigger + function
 	await sql`DROP TRIGGER IF EXISTS subgraphs_notify_trigger ON "subgraphs"`.execute(

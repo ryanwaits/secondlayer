@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import * as fs from "fs";
+import * as fs from "node:fs";
 import { validateSubgraphDefinition } from "../src/validate.ts";
 
 const EXAMPLES_DIR = `${import.meta.dir}/../../../examples/subgraphs`;

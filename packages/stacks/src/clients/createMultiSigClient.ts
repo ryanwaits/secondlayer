@@ -26,11 +26,13 @@ export function createMultiSigClient(
 	const client = createClient(config);
 
 	// Attach multi-sig config for the decorator to read
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	(client as any)._multisigConfig = {
 		signers: config.signers,
 		requiredSignatures: config.requiredSignatures,
 		hashMode: config.hashMode,
 	};
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	return client.extend(multisigActions) as any;
 }

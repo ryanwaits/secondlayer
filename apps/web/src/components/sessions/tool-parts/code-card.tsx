@@ -45,6 +45,7 @@ export function CodeCard({
 			</div>
 			<div className="tool-code-body">
 				{html ? (
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki-highlighted code HTML
 					<div dangerouslySetInnerHTML={{ __html: html }} />
 				) : (
 					<pre>

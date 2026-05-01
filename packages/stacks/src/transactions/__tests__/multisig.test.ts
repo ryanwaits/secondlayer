@@ -95,7 +95,7 @@ describe("multi-sig", () => {
 				.spendingCondition as MultiSigSpendingCondition;
 			// Should have 1 signature field
 			expect(partialCond.fields.length).toBe(1);
-			expect(partialCond.fields[0]!.type).toBe("signature");
+			expect(partialCond.fields[0]?.type).toBe("signature");
 
 			// Second signer (key2 at index 1) — should auto-finalize since 2 of 2 required
 			const full = signMultiSig(partial, KEY2, publicKeys);
@@ -103,9 +103,9 @@ describe("multi-sig", () => {
 
 			// Should have 3 fields total: sig, sig, pubkey (auto-finalized)
 			expect(fullCond.fields.length).toBe(3);
-			expect(fullCond.fields[0]!.type).toBe("signature");
-			expect(fullCond.fields[1]!.type).toBe("signature");
-			expect(fullCond.fields[2]!.type).toBe("publicKey");
+			expect(fullCond.fields[0]?.type).toBe("signature");
+			expect(fullCond.fields[1]?.type).toBe("signature");
+			expect(fullCond.fields[2]?.type).toBe("publicKey");
 		});
 
 		test("non-sequential signing fills pubkey gaps", () => {
@@ -125,9 +125,9 @@ describe("multi-sig", () => {
 
 			// Should have: sig(key1), pubkey(key2), sig(key3) = 3 fields
 			expect(cond.fields.length).toBe(3);
-			expect(cond.fields[0]!.type).toBe("signature");
-			expect(cond.fields[1]!.type).toBe("publicKey"); // gap filled
-			expect(cond.fields[2]!.type).toBe("signature");
+			expect(cond.fields[0]?.type).toBe("signature");
+			expect(cond.fields[1]?.type).toBe("publicKey"); // gap filled
+			expect(cond.fields[2]?.type).toBe("signature");
 		});
 
 		test("error: signing with non-member key", () => {
@@ -171,7 +171,7 @@ describe("multi-sig", () => {
 				.spendingCondition as MultiSigSpendingCondition;
 			const acctCond = withAccount.auth
 				.spendingCondition as MultiSigSpendingCondition;
-			expect(keyCond.fields[0]!.data).toBe(acctCond.fields[0]!.data);
+			expect(keyCond.fields[0]?.data).toBe(acctCond.fields[0]?.data);
 		});
 	});
 
@@ -197,8 +197,8 @@ describe("multi-sig", () => {
 			const finalCond = finalized.auth
 				.spendingCondition as MultiSigSpendingCondition;
 			expect(finalCond.fields.length).toBe(3);
-			expect(finalCond.fields[1]!.type).toBe("publicKey");
-			expect(finalCond.fields[2]!.type).toBe("publicKey");
+			expect(finalCond.fields[1]?.type).toBe("publicKey");
+			expect(finalCond.fields[2]?.type).toBe("publicKey");
 		});
 	});
 
@@ -227,9 +227,9 @@ describe("multi-sig", () => {
 
 			expect(cond.signaturesRequired).toBe(2);
 			expect(cond.fields.length).toBe(3);
-			expect(cond.fields[0]!.type).toBe("signature");
-			expect(cond.fields[1]!.type).toBe("signature");
-			expect(cond.fields[2]!.type).toBe("publicKey");
+			expect(cond.fields[0]?.type).toBe("signature");
+			expect(cond.fields[1]?.type).toBe("signature");
+			expect(cond.fields[2]?.type).toBe("publicKey");
 			expect(cond.signer).toBe(
 				(full.auth.spendingCondition as MultiSigSpendingCondition).signer,
 			);
@@ -247,7 +247,9 @@ describe("multi-sig", () => {
 				signaturesRequired: 2,
 			});
 
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			expect((tx as any)._multisig).toBeDefined();
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			expect((tx as any)._multisig.publicKeys).toEqual(publicKeys);
 		});
 
@@ -260,6 +262,7 @@ describe("multi-sig", () => {
 				publicKey: pubkey1,
 			});
 
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			expect((tx as any)._multisig).toBeUndefined();
 		});
 	});
@@ -301,14 +304,14 @@ describe("multi-sig", () => {
 			const partialCond = partial.auth
 				.spendingCondition as MultiSigSpendingCondition;
 			expect(partialCond.fields.length).toBe(1);
-			expect(partialCond.fields[0]!.type).toBe("signature");
+			expect(partialCond.fields[0]?.type).toBe("signature");
 
 			const full = signMultiSig(partial, KEY2, publicKeys);
 			const fullCond = full.auth.spendingCondition as MultiSigSpendingCondition;
 			// Non-sequential: only signature fields, no pubkey gap-filling
 			expect(fullCond.fields.length).toBe(2);
-			expect(fullCond.fields[0]!.type).toBe("signature");
-			expect(fullCond.fields[1]!.type).toBe("signature");
+			expect(fullCond.fields[0]?.type).toBe("signature");
+			expect(fullCond.fields[1]?.type).toBe("signature");
 		});
 
 		test("independent signing produces same signatures", () => {
@@ -324,10 +327,10 @@ describe("multi-sig", () => {
 
 			const sig1Independent = (
 				signed1.auth.spendingCondition as MultiSigSpendingCondition
-			).fields[0]!.data;
+			).fields[0]?.data;
 			const sig1PassThrough = (
 				passThrough2.auth.spendingCondition as MultiSigSpendingCondition
-			).fields[0]!.data;
+			).fields[0]?.data;
 			expect(sig1Independent).toBe(sig1PassThrough);
 		});
 
@@ -341,16 +344,16 @@ describe("multi-sig", () => {
 			const cond = combined.auth.spendingCondition as MultiSigSpendingCondition;
 
 			expect(cond.fields.length).toBe(2);
-			expect(cond.fields[0]!.type).toBe("signature");
-			expect(cond.fields[1]!.type).toBe("signature");
+			expect(cond.fields[0]?.type).toBe("signature");
+			expect(cond.fields[1]?.type).toBe("signature");
 
 			// Signatures match the independent ones
 			const sig1 = (signed1.auth.spendingCondition as MultiSigSpendingCondition)
-				.fields[0]!.data;
+				.fields[0]?.data;
 			const sig2 = (signed2.auth.spendingCondition as MultiSigSpendingCondition)
-				.fields[0]!.data;
-			expect(cond.fields[0]!.data).toBe(sig1);
-			expect(cond.fields[1]!.data).toBe(sig2);
+				.fields[0]?.data;
+			expect(cond.fields[0]?.data).toBe(sig1);
+			expect(cond.fields[1]?.data).toBe(sig2);
 		});
 
 		test("combineMultiSigSignatures deduplicates", () => {
@@ -411,8 +414,8 @@ describe("multi-sig", () => {
 			expect(cond.hashMode).toBe(0x05);
 			expect(cond.signaturesRequired).toBe(2);
 			expect(cond.fields.length).toBe(2);
-			expect(cond.fields[0]!.type).toBe("signature");
-			expect(cond.fields[1]!.type).toBe("signature");
+			expect(cond.fields[0]?.type).toBe("signature");
+			expect(cond.fields[1]?.type).toBe("signature");
 			expect(cond.signer).toBe(
 				(combined.auth.spendingCondition as MultiSigSpendingCondition).signer,
 			);
@@ -436,8 +439,8 @@ describe("multi-sig", () => {
 				.spendingCondition as MultiSigSpendingCondition;
 
 			// Same signature data for both signers
-			expect(ptCond.fields[0]!.data).toBe(cbCond.fields[0]!.data);
-			expect(ptCond.fields[1]!.data).toBe(cbCond.fields[1]!.data);
+			expect(ptCond.fields[0]?.data).toBe(cbCond.fields[0]?.data);
+			expect(ptCond.fields[1]?.data).toBe(cbCond.fields[1]?.data);
 		});
 	});
 });

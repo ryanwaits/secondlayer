@@ -200,7 +200,7 @@ export function jsToClarity(type: AbiType, value: unknown): unknown {
 		);
 	}
 
-	throw new ClarityConversionError(`Unknown Clarity type`, type, value);
+	throw new ClarityConversionError("Unknown Clarity type", type, value);
 }
 
 export function prepareArgs<F extends AbiFunction>(

@@ -30,6 +30,7 @@ export function defineTool<T>(
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : String(err);
 			const status =
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				err instanceof Error && "status" in err ? (err as any).status : 0;
 			const type =
 				status === 401
@@ -52,5 +53,10 @@ export function defineTool<T>(
 			};
 		}
 	};
-	(server.tool as Function)(name, description, schema, wrappedHandler);
+	(server.tool as (...args: unknown[]) => unknown)(
+		name,
+		description,
+		schema,
+		wrappedHandler,
+	);
 }

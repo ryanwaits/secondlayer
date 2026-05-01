@@ -41,15 +41,18 @@ const TEST_ABI = {
 } as const satisfies AbiContract;
 
 function createMockClient(
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	requestHandler: (path: string, init?: any) => Promise<any>,
 ): Client {
 	return {
 		transport: {
 			type: "custom" as const,
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			config: {} as any,
 			request: async () => ({}),
 		},
 		request: requestHandler,
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		extend: () => ({}) as any,
 	};
 }

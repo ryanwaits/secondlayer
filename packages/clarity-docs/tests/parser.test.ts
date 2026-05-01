@@ -604,6 +604,7 @@ describe("extractor", () => {
 			const result = extractDocs(source);
 
 			expect(result.functions.has("increment")).toBe(true);
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const func = result.functions.get("increment")!;
 			expect(func.desc).toBe("Increment the counter");
 			expect(func.params).toEqual([
@@ -625,6 +626,7 @@ describe("extractor", () => {
 			const result = extractDocs(source);
 
 			expect(result.maps.has("balances")).toBe(true);
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const map = result.maps.get("balances")!;
 			expect(map.desc).toBe("User balances");
 			expect(map.key).toBe("principal The user address");
@@ -639,6 +641,7 @@ describe("extractor", () => {
 			const result = extractDocs(source);
 
 			expect(result.variables.has("counter")).toBe(true);
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const variable = result.variables.get("counter")!;
 			expect(variable.desc).toBe("The counter value");
 			expect(variable.dev).toBe("Initialized to zero");
@@ -651,6 +654,7 @@ describe("extractor", () => {
 			const result = extractDocs(source);
 
 			expect(result.constants.has("MAX_VALUE")).toBe(true);
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const constant = result.constants.get("MAX_VALUE")!;
 			expect(constant.desc).toBe("Maximum allowed value");
 		});

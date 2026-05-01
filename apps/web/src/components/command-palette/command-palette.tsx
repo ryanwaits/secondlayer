@@ -87,6 +87,7 @@ export function CommandPalette() {
 		[closePalette, results, selectedIdx, executeAction],
 	);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset selection only when query string changes
 	useEffect(() => {
 		setSelectedIdx(0);
 	}, [query]);
@@ -105,6 +106,7 @@ export function CommandPalette() {
 	if (!open) return null;
 
 	return (
+		// biome-ignore lint/a11y/useKeyWithClickEvents: overlay backdrop is a visual affordance; Escape is handled at modal level
 		<div className="palette-overlay" onClick={closePalette}>
 			<div
 				className="palette"
@@ -228,11 +230,18 @@ function PaletteItem({
 			ref={itemRef}
 			className={`palette-item ${selected ? "selected" : ""}`}
 			onClick={onClick}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") onClick();
+			}}
 			onMouseEnter={onMouseEnter}
 		>
 			<span className="palette-item-label">
 				{parts.map((p, i) =>
-					typeof p === "string" ? p : <mark key={i}>{p.text}</mark>,
+					typeof p === "string" ? (
+						p
+					) : (
+						<mark key={`${p.text}-${i}`}>{p.text}</mark>
+					),
 				)}
 			</span>
 			<span className="palette-item-type">{action.category.toLowerCase()}</span>
@@ -243,6 +252,7 @@ function PaletteItem({
 function SearchIcon() {
 	return (
 		<svg
+			aria-hidden="true"
 			className="palette-search-icon"
 			width="16"
 			height="16"

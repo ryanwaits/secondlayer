@@ -141,10 +141,10 @@ export function generateClarityConversion(
 	}
 
 	if (isAbiResponse(type)) {
-		const okConversion = generateClarityConversion(`responseValue.ok`, {
+		const okConversion = generateClarityConversion("responseValue.ok", {
 			type: type.response.ok,
 		});
-		const errConversion = generateClarityConversion(`responseValue.err`, {
+		const errConversion = generateClarityConversion("responseValue.err", {
 			type: type.response.error,
 		});
 		return `(() => {

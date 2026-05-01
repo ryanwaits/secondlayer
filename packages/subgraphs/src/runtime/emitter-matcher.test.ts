@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { Subscription } from "@secondlayer/shared/db";
-import {
-	SubscriptionMatcher,
-	matchesFilter,
-} from "./emitter-matcher.ts";
+import { SubscriptionMatcher, matchesFilter } from "./emitter-matcher.ts";
 
 function sub(overrides: Partial<Subscription>): Subscription {
 	const base: Subscription = {
@@ -74,12 +71,8 @@ describe("matchesFilter", () => {
 	});
 
 	it("ANDs multiple conditions", () => {
-		expect(
-			matchesFilter({ a: 1, b: { gt: 5 } }, { a: 1, b: 10 }),
-		).toBe(true);
-		expect(
-			matchesFilter({ a: 1, b: { gt: 5 } }, { a: 1, b: 3 }),
-		).toBe(false);
+		expect(matchesFilter({ a: 1, b: { gt: 5 } }, { a: 1, b: 10 })).toBe(true);
+		expect(matchesFilter({ a: 1, b: { gt: 5 } }, { a: 1, b: 3 })).toBe(false);
 	});
 
 	it("bigint row values compare numerically", () => {
@@ -94,17 +87,14 @@ describe("matchesFilter", () => {
 	it("rejects nested-object filter values", () => {
 		// nested unknown operators should never match
 		expect(
-			matchesFilter(
-				{ a: { weird: { nested: 1 } } } as never,
-				{ a: 1 },
-			),
+			matchesFilter({ a: { weird: { nested: 1 } } } as never, { a: 1 }),
 		).toBe(false);
 	});
 
 	it("rejects filter where op object has >1 keys", () => {
-		expect(
-			matchesFilter({ n: { gt: 1, lt: 10 } } as never, { n: 5 }),
-		).toBe(false);
+		expect(matchesFilter({ n: { gt: 1, lt: 10 } } as never, { n: 5 })).toBe(
+			false,
+		);
 	});
 
 	it("missing row column never matches eq", () => {

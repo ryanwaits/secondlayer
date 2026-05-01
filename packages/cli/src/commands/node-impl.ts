@@ -99,7 +99,7 @@ export async function runSetupWizard(): Promise<void> {
 				default: "3700",
 				validate: (value) => {
 					const port = Number.parseInt(value);
-					if (isNaN(port) || port < 1 || port > 65535) {
+					if (Number.isNaN(port) || port < 1 || port > 65535) {
 						return "Invalid port number";
 					}
 					return true;
@@ -138,12 +138,12 @@ export async function runSetupWizard(): Promise<void> {
 	console.log("");
 	console.log(dim("Next steps:"));
 	console.log(
-		"  " + green("sl local node start") + dim("  - Start the Stacks node"),
+		`  ${green("sl local node start")}${dim("  - Start the Stacks node")}`,
 	);
 	console.log(
-		"  " + green("sl local node status") + dim(" - Check sync progress"),
+		`  ${green("sl local node status")}${dim(" - Check sync progress")}`,
 	);
-	console.log("  " + green("sl local node logs") + dim("   - View logs"));
+	console.log(`  ${green("sl local node logs")}${dim("   - View logs")}`);
 	console.log("");
 }
 
@@ -206,7 +206,7 @@ export async function startNode(
 	// Optionally start indexer
 	if (withIndexer) {
 		const port = config.ports?.indexer || 3700;
-		console.log(dim(`Tip: Start indexer with: sl local start`));
+		console.log(dim("Tip: Start indexer with: sl local start"));
 		console.log(
 			dim(
 				`    Or manually: PORT=${port} bun run packages/indexer/src/index.ts`,
@@ -217,9 +217,9 @@ export async function startNode(
 
 	console.log(dim("Next steps:"));
 	console.log(
-		"  " + green("sl local node status") + dim(" - Check sync progress"),
+		`  ${green("sl local node status")}${dim(" - Check sync progress")}`,
 	);
-	console.log("  " + green("sl local node logs -f") + dim(" - Follow logs"));
+	console.log(`  ${green("sl local node logs -f")}${dim(" - Follow logs")}`);
 	console.log("");
 }
 
@@ -318,9 +318,9 @@ export async function restartNode(
 	console.log("");
 	console.log(dim("Next steps:"));
 	console.log(
-		"  " + green("sl local node status") + dim(" - Check sync progress"),
+		`  ${green("sl local node status")}${dim(" - Check sync progress")}`,
 	);
-	console.log("  " + green("sl local node logs -f") + dim(" - Follow logs"));
+	console.log(`  ${green("sl local node logs -f")}${dim(" - Follow logs")}`);
 	console.log("");
 }
 
@@ -472,7 +472,7 @@ export async function showStatus(
 			console.log(
 				`  ${dim("-")} ${dim(`Not running (expected on port ${indexerPort})`)}`,
 			);
-			console.log(dim(`    Start with: sl local start`));
+			console.log(dim("    Start with: sl local start"));
 			console.log("");
 		}
 	}

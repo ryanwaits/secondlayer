@@ -5,7 +5,9 @@ import type { SubgraphDefinition } from "../src/types.ts";
 test("defineSubgraph returns the same definition", () => {
 	const def: SubgraphDefinition = {
 		name: "test-subgraph",
-		sources: { transfer: { type: "ft_transfer", assetIdentifier: "SP000::my-contract" } },
+		sources: {
+			transfer: { type: "ft_transfer", assetIdentifier: "SP000::my-contract" },
+		},
 		schema: {
 			transfers: {
 				columns: {
@@ -28,7 +30,9 @@ test("defineSubgraph preserves optional fields", () => {
 		name: "versioned",
 		version: "2.0.0",
 		description: "A test subgraph",
-		sources: { handler: { type: "contract_call", contractId: "SP000::contract" } },
+		sources: {
+			handler: { type: "contract_call", contractId: "SP000::contract" },
+		},
 		schema: {
 			data: { columns: { value: { type: "text" } } },
 		},
@@ -42,7 +46,9 @@ test("defineSubgraph preserves optional fields", () => {
 test("defineSubgraph supports multiple tables", () => {
 	const def = defineSubgraph({
 		name: "marketplace",
-		sources: { handler: { type: "contract_call", contractId: "SP000::nft-marketplace" } },
+		sources: {
+			handler: { type: "contract_call", contractId: "SP000::nft-marketplace" },
+		},
 		schema: {
 			listings: {
 				columns: {

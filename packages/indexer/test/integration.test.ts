@@ -60,8 +60,8 @@ describe.skipIf(!CAN_RUN)("Indexer Integration Test", () => {
 			.executeTakeFirst();
 
 		expect(block).toBeDefined();
-		expect(block!.hash).toBe(fixture.block_hash);
-		expect(block!.canonical).toBe(true);
+		expect(block?.hash).toBe(fixture.block_hash);
+		expect(block?.canonical).toBe(true);
 	});
 
 	test("POST /new_block stores transactions", async () => {
@@ -102,8 +102,8 @@ describe.skipIf(!CAN_RUN)("Indexer Integration Test", () => {
 			.executeTakeFirst();
 
 		expect(progress).toBeDefined();
-		expect(progress!.last_indexed_block).toBe(142800);
-		expect(progress!.highest_seen_block).toBe(142800);
+		expect(progress?.last_indexed_block).toBe(142800);
+		expect(progress?.highest_seen_block).toBe(142800);
 	});
 
 	test("duplicate POST is idempotent", async () => {
@@ -122,7 +122,7 @@ describe.skipIf(!CAN_RUN)("Indexer Integration Test", () => {
 		const { rows } = await sql<{
 			count: number;
 		}>`SELECT count(*) as count FROM blocks WHERE height = 142800`.execute(db);
-		expect(Number(rows[0]!.count)).toBe(1);
+		expect(Number(rows[0]?.count)).toBe(1);
 	});
 
 	afterAll(async () => {

@@ -7,7 +7,7 @@ class MockWebSocket {
 	static CONNECTING = 0;
 	readyState = 0;
 	url: string;
-	private listeners = new Map<string, Set<Function>>();
+	private listeners = new Map<string, Set<(...args: unknown[]) => unknown>>();
 	sent: string[] = [];
 
 	constructor(url: string) {
@@ -19,18 +19,23 @@ class MockWebSocket {
 		}, 0);
 	}
 
-	addEventListener(event: string, fn: Function, opts?: { once?: boolean }) {
+	addEventListener(
+		event: string,
+		fn: (...args: unknown[]) => unknown,
+		opts?: { once?: boolean },
+	) {
 		if (!this.listeners.has(event)) this.listeners.set(event, new Set());
 		const wrapped = opts?.once
-			? (...args: any[]) => {
+			? // biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+				(...args: any[]) => {
 					this.listeners.get(event)?.delete(wrapped);
 					fn(...args);
 				}
 			: fn;
-		this.listeners.get(event)!.add(wrapped);
+		this.listeners.get(event)?.add(wrapped);
 	}
 
-	removeEventListener(event: string, fn: Function) {
+	removeEventListener(event: string, fn: (...args: unknown[]) => unknown) {
 		this.listeners.get(event)?.delete(fn);
 	}
 
@@ -43,6 +48,7 @@ class MockWebSocket {
 	}
 
 	// Test helpers
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	emit(event: string, data: any) {
 		for (const fn of this.listeners.get(event) ?? []) fn(data);
 	}
@@ -57,17 +63,21 @@ const origWebSocket = globalThis.WebSocket;
 
 beforeEach(() => {
 	wsInstances = [];
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket = class extends MockWebSocket {
 		constructor(url: string) {
 			super(url);
 			wsInstances.push(this);
 		}
 	};
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket.OPEN = 1;
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket.CONNECTING = 0;
 });
 
 afterEach(() => {
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket = origWebSocket;
 });
 
@@ -135,6 +145,7 @@ describe("WcRelay", () => {
 
 	test("subscription handler receives server push", async () => {
 		const relay = new WcRelay("pid");
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const received: any[] = [];
 
 		const subPromise = relay.subscribe("my-topic", (msg) => received.push(msg));

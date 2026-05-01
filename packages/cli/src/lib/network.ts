@@ -75,8 +75,9 @@ export async function validateNetworkConsistency(
 			const match = envStr.match(/STACKS_CHAIN_ID=(0x[0-9a-fA-F]+|\d+)/);
 			if (match) {
 				const containerId = Number.parseInt(
+					// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 					match[1]!,
-					match[1]!.startsWith("0x") ? 16 : 10,
+					match[1]?.startsWith("0x") ? 16 : 10,
 				);
 				if (containerId !== expected) {
 					issues.push(
@@ -98,8 +99,9 @@ export async function validateNetworkConsistency(
 				const match = content.match(/STACKS_CHAIN_ID=(0x[0-9a-fA-F]+|\d+)/);
 				if (match) {
 					const fileId = Number.parseInt(
+						// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 						match[1]!,
-						match[1]!.startsWith("0x") ? 16 : 10,
+						match[1]?.startsWith("0x") ? 16 : 10,
 					);
 					if (fileId !== expected) {
 						issues.push(

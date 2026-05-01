@@ -118,7 +118,7 @@ function migrateConfig(raw: unknown): Config {
 		};
 		// Only include node if installPath is set
 		if (!(migrated.node as { installPath: string }).installPath) {
-			delete migrated.node;
+			migrated.node = undefined;
 		}
 	}
 
@@ -199,7 +199,7 @@ function applyEnvOverrides(config: Config): Config {
 	// SL_API_PORT
 	if (process.env.SL_API_PORT) {
 		const port = Number.parseInt(process.env.SL_API_PORT, 10);
-		if (!isNaN(port) && port > 0 && port <= 65535) {
+		if (!Number.isNaN(port) && port > 0 && port <= 65535) {
 			result.ports = { ...result.ports, api: port };
 		}
 	}
@@ -207,7 +207,7 @@ function applyEnvOverrides(config: Config): Config {
 	// SL_INDEXER_PORT
 	if (process.env.SL_INDEXER_PORT) {
 		const port = Number.parseInt(process.env.SL_INDEXER_PORT, 10);
-		if (!isNaN(port) && port > 0 && port <= 65535) {
+		if (!Number.isNaN(port) && port > 0 && port <= 65535) {
 			result.ports = { ...result.ports, indexer: port };
 		}
 	}
@@ -239,7 +239,7 @@ export async function saveConfig(config: Config): Promise<void> {
 	// Validate before saving
 	const validated = ConfigSchema.parse(config);
 	await ensureConfigDir();
-	await writeTextFile(CONFIG_PATH, JSON.stringify(validated, null, 2) + "\n");
+	await writeTextFile(CONFIG_PATH, `${JSON.stringify(validated, null, 2)}\n`);
 }
 
 /**
@@ -256,6 +256,7 @@ export async function setConfigValue(
 	// Navigate to parent and set value
 	let current: Record<string, unknown> = config as Record<string, unknown>;
 	for (let i = 0; i < keys.length - 1; i++) {
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const k = keys[i]!;
 		if (current[k] === undefined) {
 			current[k] = {};
@@ -263,6 +264,7 @@ export async function setConfigValue(
 		current = current[k] as Record<string, unknown>;
 	}
 
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const finalKey = keys[keys.length - 1]!;
 
 	// Parse value to appropriate type
@@ -287,7 +289,7 @@ function parseValue(value: unknown): unknown {
 
 	// Number
 	const num = Number(value);
-	if (!isNaN(num) && value.trim() !== "") {
+	if (!Number.isNaN(num) && value.trim() !== "") {
 		return num;
 	}
 
@@ -358,9 +360,9 @@ export async function requireLocalNetwork(): Promise<Config> {
 		console.error(`Error: 'sl local' commands require local mode.`);
 		console.error(`  Current context: ${config.network} (hosted)`);
 		console.error("");
-		console.error(`  To check system status, use: sl status`);
+		console.error("  To check system status, use: sl status");
 		console.error("");
-		console.error(`  To switch to local mode: sl config set network local`);
+		console.error("  To switch to local mode: sl config set network local");
 		process.exit(1);
 	}
 	return config;

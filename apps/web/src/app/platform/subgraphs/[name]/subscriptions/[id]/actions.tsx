@@ -98,9 +98,7 @@ export function SubscriptionActions({
 					Delete
 				</button>
 			</div>
-			{err && (
-				<p style={{ color: "var(--error)", marginTop: 8 }}>{err}</p>
-			)}
+			{err && <p style={{ color: "var(--error)", marginTop: 8 }}>{err}</p>}
 			{rotatedSecret && (
 				<div style={{ marginTop: 16 }}>
 					<p className="detail-desc">

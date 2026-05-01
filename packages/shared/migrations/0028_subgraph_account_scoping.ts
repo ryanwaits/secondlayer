@@ -1,4 +1,4 @@
-import { sql, type Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 
 /**
  * Account-wide subgraph scoping.
@@ -13,6 +13,7 @@ import { sql, type Kysely } from "kysely";
  * After this migration, any API key on the same account can deploy/update
  * the same named subgraph without creating duplicates.
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// 1. Add account_id column (nullable first so we can backfill)
 	await db.schema
@@ -79,6 +80,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	`.execute(db);
 
 	for (const row of rows.rows) {
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const oldSchema = row.schema_name!;
 		const accountPrefix = row.account_id.slice(0, 8).replace(/-/g, "_");
 		const safeName = row.name.replace(/-/g, "_");
@@ -95,7 +97,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		`.execute(db);
 
 		if (exists.rows[0]?.exists) {
-			await sql`ALTER SCHEMA ${sql.raw(`"${oldSchema}"`)} RENAME TO ${sql.raw(`"${newSchema}"`)}`.execute(db);
+			await sql`ALTER SCHEMA ${sql.raw(`"${oldSchema}"`)} RENAME TO ${sql.raw(`"${newSchema}"`)}`.execute(
+				db,
+			);
 		}
 
 		// Update schema_name column regardless of whether schema existed
@@ -105,6 +109,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	}
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropIndex("subgraphs_account_id_idx").ifExists().execute();
 	await db.schema

@@ -34,8 +34,10 @@ export class SlidingWindow {
 
 		if (timestamps.length >= limit) {
 			const retryAfter = Math.ceil(
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				(timestamps[0]! + this.windowMs - now) / 1000,
 			);
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const resetAt = Math.ceil((timestamps[0]! + this.windowMs) / 1000);
 			return { allowed: false, count: timestamps.length, retryAfter, resetAt };
 		}

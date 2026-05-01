@@ -31,6 +31,7 @@ export function MessageList({
 	const len = messages.length;
 	const lastMsg = messages[len - 1];
 	const lastPartCount = lastMsg?.parts.length ?? 0;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll only when message count or last-part count changes
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [len, lastPartCount]);
@@ -293,7 +294,13 @@ function InlineToolCard({ part }: { part: UIMessage["parts"][number] }) {
 
 function MiniLogo() {
 	return (
-		<svg viewBox="4 7 40 28" width="18" height="12" fill="none">
+		<svg
+			aria-hidden="true"
+			viewBox="4 7 40 28"
+			width="18"
+			height="12"
+			fill="none"
+		>
 			<polygon points="8,25 28,17 42,25 22,33" fill="rgba(255,255,255,0.15)" />
 			<polygon points="8,19 28,11 42,19 22,27" fill="rgba(255,255,255,0.4)" />
 		</svg>
@@ -313,9 +320,9 @@ function parseTextWithCodeBlocks(
 	> = [];
 	const fenceRegex = /^```(\w*)\s*\n([\s\S]*?)^```\s*$/gm;
 	let lastIndex = 0;
-	let match: RegExpExecArray | null;
+	let match: RegExpExecArray | null = fenceRegex.exec(text);
 
-	while ((match = fenceRegex.exec(text)) !== null) {
+	while (match !== null) {
 		// Prose before this code block
 		if (match.index > lastIndex) {
 			parts.push({
@@ -329,6 +336,7 @@ function parseTextWithCodeBlocks(
 			lang: match[1] || "text",
 		});
 		lastIndex = match.index + match[0].length;
+		match = fenceRegex.exec(text);
 	}
 
 	// Remaining prose after last code block
@@ -379,6 +387,7 @@ function MessageTextContent({ text }: { text: string }) {
 		return (
 			<div
 				className="msg-content"
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: rendering server-formatted markdown HTML
 				dangerouslySetInnerHTML={{ __html: formatMarkdown(chunks[0].content) }}
 			/>
 		);
@@ -390,7 +399,7 @@ function MessageTextContent({ text }: { text: string }) {
 				if (chunk.type === "code") {
 					return (
 						<SessionCodeBlock
-							key={`code-${i}`}
+							key={`code-${i}-${chunk.lang}-${chunk.code.slice(0, 24)}`}
 							code={chunk.code}
 							html={htmlByIndex[i]}
 							lang={chunk.lang}
@@ -400,8 +409,9 @@ function MessageTextContent({ text }: { text: string }) {
 				if (!chunk.content.trim()) return null;
 				return (
 					<div
-						key={`prose-${i}`}
+						key={`prose-${i}-${chunk.content.slice(0, 24)}`}
 						className="msg-content"
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: rendering server-formatted markdown HTML
 						dangerouslySetInnerHTML={{ __html: formatMarkdown(chunk.content) }}
 					/>
 				);

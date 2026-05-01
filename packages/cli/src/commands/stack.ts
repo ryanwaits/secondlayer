@@ -163,7 +163,7 @@ async function stackStart(options: {
 			const args = [
 				"bun",
 				"run",
-				import.meta.dir + "/../../bin/secondlayer.ts",
+				`${import.meta.dir}/../../bin/secondlayer.ts`,
 				"dev",
 				"start",
 			];
@@ -202,7 +202,7 @@ async function stackStop(options: {
 				[
 					"bun",
 					"run",
-					import.meta.dir + "/../../bin/secondlayer.ts",
+					`${import.meta.dir}/../../bin/secondlayer.ts`,
 					"dev",
 					"stop",
 				],

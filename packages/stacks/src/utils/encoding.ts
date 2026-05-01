@@ -11,13 +11,13 @@ export function bytesToHex(bytes: Uint8Array): string {
 }
 
 export function hexToBytes(hex: string): Uint8Array {
-	hex = without0x(hex);
-	if (hex.length % 2) hex = `0${hex}`;
+	let h = without0x(hex);
+	if (h.length % 2) h = `0${h}`;
 
-	const array = new Uint8Array(hex.length / 2);
+	const array = new Uint8Array(h.length / 2);
 	for (let i = 0; i < array.length; i++) {
 		const j = i * 2;
-		const byte = Number.parseInt(hex.slice(j, j + 2), 16);
+		const byte = Number.parseInt(h.slice(j, j + 2), 16);
 		if (Number.isNaN(byte) || byte < 0)
 			throw new Error("Invalid byte sequence");
 		array[i] = byte;
@@ -54,6 +54,7 @@ export function bytesToAscii(bytes: Uint8Array): string {
 }
 
 export function concatBytes(...arrays: Uint8Array[]): Uint8Array {
+	// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 	if (arrays.length === 1) return arrays[0]!;
 	const length = arrays.reduce((a, arr) => a + arr.length, 0);
 	const result = new Uint8Array(length);
@@ -131,9 +132,13 @@ export function writeUInt32BE(value: number): Uint8Array {
 
 export function readUInt32BE(bytes: Uint8Array, offset = 0): number {
 	return (
+		// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 		((bytes[offset]! << 24) |
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 			(bytes[offset + 1]! << 16) |
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 			(bytes[offset + 2]! << 8) |
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 			bytes[offset + 3]!) >>>
 		0
 	);
@@ -147,6 +152,7 @@ export function writeUInt16BE(value: number): Uint8Array {
 }
 
 export function readUInt16BE(bytes: Uint8Array, offset = 0): number {
+	// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 	return ((bytes[offset]! << 8) | bytes[offset + 1]!) >>> 0;
 }
 

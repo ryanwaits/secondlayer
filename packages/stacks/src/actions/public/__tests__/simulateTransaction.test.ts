@@ -18,6 +18,7 @@ import type {
 import { simulateTransaction } from "../simulateTransaction.ts";
 
 function createMockClient(
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	requestHandler: (path: string, init?: any) => Promise<any>,
 	chain = mainnet,
 ): Client {
@@ -25,10 +26,12 @@ function createMockClient(
 		chain,
 		transport: {
 			type: "custom" as const,
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			config: {} as any,
 			request: async () => ({}),
 		},
 		request: requestHandler,
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		extend: () => ({}) as any,
 	};
 }
@@ -36,6 +39,7 @@ function createMockClient(
 // Mainnet singleSig version=22, signer hash160 for SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7
 const TEST_SIGNER = "a46ff88886c2ef9762d970b4d2c63678835b93cc";
 
+// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 function makeTxBase(payload: any): StacksTransaction {
 	return {
 		version: 0x00,
@@ -146,6 +150,7 @@ describe("simulateTransaction", () => {
 		expect(result.type).toBe("token-transfer");
 		expect(result.fees).toHaveLength(1);
 		expect(result.fees[0].fee).toBe(180);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((result as any).execution).toBeUndefined();
 	});
 
@@ -161,10 +166,12 @@ describe("simulateTransaction", () => {
 		expect(result.type).toBe("contract-deploy");
 		expect(result.fees).toHaveLength(1);
 		expect(result.fees[0].fee).toBe(5000);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((result as any).execution).toBeUndefined();
 	});
 
 	it("sender override works for contract call", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		let capturedBody: any;
 		const client = createMockClient(async (path, init) => {
 			if (path.includes("/v2/contracts/call-read/")) {
@@ -185,6 +192,7 @@ describe("simulateTransaction", () => {
 	});
 
 	it("default sender extracted from tx auth", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		let capturedBody: any;
 		const client = createMockClient(async (path, init) => {
 			if (path.includes("/v2/contracts/call-read/")) {

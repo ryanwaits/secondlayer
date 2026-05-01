@@ -3,6 +3,7 @@
 import { isWalletInstalled } from "../provider.ts";
 import { qrSvg } from "./qr.ts";
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 declare const document: any;
 
 const MODAL_ID = "sl-wc-modal";
@@ -82,6 +83,7 @@ export function showModal(opts: ModalOptions): () => void {
 	}
 
 	overlay.appendChild(box);
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	overlay.onclick = (e: any) => {
 		if (e.target === overlay) dismiss();
 	};

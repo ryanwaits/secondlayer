@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from "crypto";
+import { createHmac, randomBytes } from "node:crypto";
 
 /**
  * Generate a random secret for delivery signing
@@ -78,7 +78,7 @@ export function verifySignatureHeader(
 	}
 
 	const ts = Number.parseInt(timestamp, 10);
-	if (isNaN(ts)) {
+	if (Number.isNaN(ts)) {
 		return false;
 	}
 

@@ -100,6 +100,7 @@ export function SubgraphDataBrowser({
 	});
 
 	// Reset page when controlled table changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: only react to external (controlled) table changes, not internal ones
 	useEffect(() => {
 		setPage(0);
 	}, [controlledTable]);

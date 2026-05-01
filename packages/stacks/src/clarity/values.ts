@@ -39,11 +39,12 @@ const MAX_I128 = BigInt("0x7fffffffffffffffffffffffffffffff");
 // Primitives
 
 export function intCV(value: IntegerType): IntCV {
-	if (typeof value === "string" && value.toLowerCase().startsWith("0x")) {
-		value = bytesToTwosBigInt(hexToBytes(value));
+	let v: IntegerType = value;
+	if (typeof v === "string" && v.toLowerCase().startsWith("0x")) {
+		v = bytesToTwosBigInt(hexToBytes(v));
 	}
-	if (value instanceof Uint8Array) value = bytesToTwosBigInt(value);
-	const n = intToBigInt(value);
+	if (v instanceof Uint8Array) v = bytesToTwosBigInt(v);
+	const n = intToBigInt(v);
 	if (n > MAX_I128) throw new RangeError(`Int exceeds max i128: ${MAX_I128}`);
 	if (n < MIN_I128) throw new RangeError(`Int below min i128: ${MIN_I128}`);
 	return { type: "int", value: n };

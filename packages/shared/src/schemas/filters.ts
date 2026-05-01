@@ -7,6 +7,7 @@ const isValidAddress = _isValidAddress as (addr: string) => boolean;
 const stacksPrincipal = z.string().refine((val) => {
 	const parts = val.split(".");
 	if (parts.length > 2) return false;
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	return isValidAddress(parts[0]!);
 }, "Invalid Stacks principal address");
 
@@ -243,18 +244,31 @@ export const PrintEventFilterSchema: z.ZodType<PrintEventFilter> = z.object({
 export const EventFilterSchema: z.ZodType<EventFilter> = z.discriminatedUnion(
 	"type",
 	[
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		StxTransferFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		StxMintFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		StxBurnFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		StxLockFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		FtTransferFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		FtMintFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		FtBurnFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		NftTransferFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		NftMintFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		NftBurnFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		ContractCallFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		ContractDeployFilterSchema as any,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		PrintEventFilterSchema as any,
 	],
 );

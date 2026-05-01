@@ -1,5 +1,5 @@
-import { serve } from "inngest/hono";
 import { Hono } from "hono";
+import { serve } from "inngest/hono";
 import { inngest, onSubgraphEvent } from "./inngest.ts";
 
 const app = new Hono();

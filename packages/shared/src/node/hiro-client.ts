@@ -201,7 +201,7 @@ export class HiroClient {
 			if (res.ok || res.status === 404) return res;
 
 			if (res.status === 429 || res.status >= 500) {
-				const delay = Math.min(1000 * Math.pow(2, attempt), 10_000);
+				const delay = Math.min(1000 * 2 ** attempt, 10_000);
 				logger.info("Rate limited, retrying", {
 					url: url.split("/").slice(-2).join("/"),
 					attempt,
@@ -237,15 +237,16 @@ export class HiroClient {
 	): Promise<NewBlockPayload | null> {
 		// 1. Fetch block metadata (try primary, fallback on 404)
 		let block = await this.fetchBlock(height);
+		const fallbackUrl = this.fallbackUrl;
 		let usingFallback = false;
-		if (!block && this.fallbackUrl) {
-			block = await this.fetchBlock(height, this.fallbackUrl);
+		if (!block && fallbackUrl) {
+			block = await this.fetchBlock(height, fallbackUrl);
 			if (block) usingFallback = true;
 		}
 		if (!block) return null;
 
 		// 2. Fetch all transactions via v2 block/transactions endpoint
-		const baseUrl = usingFallback ? this.fallbackUrl! : this.apiUrl;
+		const baseUrl = usingFallback && fallbackUrl ? fallbackUrl : this.apiUrl;
 		const hiroTxs = await this.fetchBlockTransactions(height, baseUrl);
 
 		const txPayloads: TransactionPayload[] = [];
@@ -515,9 +516,9 @@ function convertHiroEvent(hEvent: HiroEvent): TransactionEventPayload | null {
 					...base,
 					type: "stx_transfer_event",
 					stx_transfer_event: {
-						sender: a.sender!,
-						recipient: a.recipient!,
-						amount: a.amount!,
+						sender: a.sender ?? "",
+						recipient: a.recipient ?? "",
+						amount: a.amount ?? "0",
 						memo: a.memo,
 					},
 				};
@@ -525,22 +526,25 @@ function convertHiroEvent(hEvent: HiroEvent): TransactionEventPayload | null {
 				return {
 					...base,
 					type: "stx_mint_event",
-					stx_mint_event: { recipient: a.recipient!, amount: a.amount! },
+					stx_mint_event: {
+						recipient: a.recipient ?? "",
+						amount: a.amount ?? "0",
+					},
 				};
 			case "burn":
 				return {
 					...base,
 					type: "stx_burn_event",
-					stx_burn_event: { sender: a.sender!, amount: a.amount! },
+					stx_burn_event: { sender: a.sender ?? "", amount: a.amount ?? "0" },
 				};
 			case "lock":
 				return {
 					...base,
 					type: "stx_lock_event",
 					stx_lock_event: {
-						locked_amount: a.amount!,
+						locked_amount: a.amount ?? "0",
 						unlock_height: "0",
-						locked_address: a.sender!,
+						locked_address: a.sender ?? "",
 					},
 				};
 		}
@@ -556,9 +560,9 @@ function convertHiroEvent(hEvent: HiroEvent): TransactionEventPayload | null {
 					type: "ft_transfer_event",
 					ft_transfer_event: {
 						asset_identifier: assetId,
-						sender: a.sender!,
-						recipient: a.recipient!,
-						amount: a.amount!,
+						sender: a.sender ?? "",
+						recipient: a.recipient ?? "",
+						amount: a.amount ?? "0",
 					},
 				};
 			case "mint":
@@ -567,8 +571,8 @@ function convertHiroEvent(hEvent: HiroEvent): TransactionEventPayload | null {
 					type: "ft_mint_event",
 					ft_mint_event: {
 						asset_identifier: assetId,
-						recipient: a.recipient!,
-						amount: a.amount!,
+						recipient: a.recipient ?? "",
+						amount: a.amount ?? "0",
 					},
 				};
 			case "burn":
@@ -577,8 +581,8 @@ function convertHiroEvent(hEvent: HiroEvent): TransactionEventPayload | null {
 					type: "ft_burn_event",
 					ft_burn_event: {
 						asset_identifier: assetId,
-						sender: a.sender!,
-						amount: a.amount!,
+						sender: a.sender ?? "",
+						amount: a.amount ?? "0",
 					},
 				};
 		}
@@ -594,8 +598,8 @@ function convertHiroEvent(hEvent: HiroEvent): TransactionEventPayload | null {
 					type: "nft_transfer_event",
 					nft_transfer_event: {
 						asset_identifier: assetId,
-						sender: a.sender!,
-						recipient: a.recipient!,
+						sender: a.sender ?? "",
+						recipient: a.recipient ?? "",
 						value: a.value,
 					},
 				};
@@ -605,7 +609,7 @@ function convertHiroEvent(hEvent: HiroEvent): TransactionEventPayload | null {
 					type: "nft_mint_event",
 					nft_mint_event: {
 						asset_identifier: assetId,
-						recipient: a.recipient!,
+						recipient: a.recipient ?? "",
 						value: a.value,
 					},
 				};
@@ -615,7 +619,7 @@ function convertHiroEvent(hEvent: HiroEvent): TransactionEventPayload | null {
 					type: "nft_burn_event",
 					nft_burn_event: {
 						asset_identifier: assetId,
-						sender: a.sender!,
+						sender: a.sender ?? "",
 						value: a.value,
 					},
 				};

@@ -22,6 +22,7 @@ export function useCommandAI(
 	}, []);
 
 	// Switch to agent-ready mode when no fuzzy results, back to actions when there are
+	// biome-ignore lint/correctness/useExhaustiveDependencies: react only to query/result changes; mode is read-current to avoid loops
 	useEffect(() => {
 		if (!hasFuzzyResults && query.length > 0) {
 			// Only switch to agent if we're in a passive state
@@ -33,7 +34,7 @@ export function useCommandAI(
 				setMode("actions");
 			}
 		}
-	}, [query, hasFuzzyResults]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [query, hasFuzzyResults]);
 
 	// Submit query to AI — called explicitly by palette on Enter
 	const submit = useCallback(() => {

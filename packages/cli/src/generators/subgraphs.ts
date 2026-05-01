@@ -27,7 +27,7 @@ export async function generateSubgraphConsumer(
 	// Build row interfaces
 	const rowInterfaces = tables.map(
 		([tableName, tableDef]: [string, TableDef]) => {
-			const typeName = toPascalCase(tableName) + "Row";
+			const typeName = `${toPascalCase(tableName)}Row`;
 			const fields = Object.entries(tableDef.columns)
 				.map(([colName, colMeta]: [string, ColMeta]) => {
 					const tsType = subgraphTypeToTS(colMeta.type);

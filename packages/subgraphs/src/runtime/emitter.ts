@@ -1,12 +1,10 @@
 import {
 	type Database,
-	getTargetDb,
 	type Subscription,
 	type SubscriptionOutbox,
+	getTargetDb,
 } from "@secondlayer/shared/db";
-import {
-	getSubscriptionSigningSecret,
-} from "@secondlayer/shared/db/queries/subscriptions";
+import { getSubscriptionSigningSecret } from "@secondlayer/shared/db/queries/subscriptions";
 import { logger } from "@secondlayer/shared/logger";
 import { listen } from "@secondlayer/shared/queue/listener";
 import { type Kysely, sql } from "kysely";
@@ -51,6 +49,7 @@ interface RunningState {
 }
 
 function nextDelaySeconds(attempt: number): number {
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	return BACKOFF_SECONDS[Math.min(attempt, BACKOFF_SECONDS.length - 1)]!;
 }
 
@@ -88,7 +87,8 @@ function isPrivateEgress(url: string): boolean {
 
 	// Strip brackets from IPv6 literals.
 	const raw = parsed.hostname.toLowerCase();
-	const host = raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
+	const host =
+		raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
 
 	if (host === "localhost" || host === "0.0.0.0") return true;
 	if (host === "::" || host === "::1") return true;
@@ -99,6 +99,7 @@ function isPrivateEgress(url: string): boolean {
 	// IPv4-mapped IPv6 — `::ffff:127.0.0.1` or `::ffff:7f00:0001`
 	const mapped = host.match(/^::ffff:(.+)$/);
 	if (mapped) {
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const inner = mapped[1]!;
 		// Dotted form: rerun v4 checks.
 		if (/^\d+\.\d+\.\d+\.\d+$/.test(inner)) {
@@ -107,7 +108,9 @@ function isPrivateEgress(url: string): boolean {
 		// Hex form: 7f00:0001 → 127.0.0.1
 		const hex = inner.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
 		if (hex) {
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const a = Number.parseInt(hex[1]!, 16);
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const b = Number.parseInt(hex[2]!, 16);
 			const dotted = `${(a >> 8) & 0xff}.${a & 0xff}.${(b >> 8) & 0xff}.${b & 0xff}`;
 			for (const p of PRIVATE_V4_PATTERNS) if (p.test(dotted)) return true;
@@ -128,7 +131,12 @@ async function dispatchOne(
 	db: Kysely<Database>,
 	outboxRow: SubscriptionOutbox,
 	sub: Subscription,
-): Promise<{ ok: boolean; statusCode: number | null; error: string | null; durationMs: number }> {
+): Promise<{
+	ok: boolean;
+	statusCode: number | null;
+	error: string | null;
+	durationMs: number;
+}> {
 	const { body, headers } = buildForFormat(
 		outboxRow,
 		sub,
@@ -143,7 +151,8 @@ async function dispatchOne(
 	let responseHeaders: Record<string, string> = {};
 
 	if (isPrivateEgress(sub.url) && !allowPrivateEgress()) {
-		error = "refused private egress (set SECONDLAYER_ALLOW_PRIVATE_EGRESS=true to allow)";
+		error =
+			"refused private egress (set SECONDLAYER_ALLOW_PRIVATE_EGRESS=true to allow)";
 		logger.warn("[emitter] refused private egress", {
 			subscription: sub.name,
 			url: sub.url,
@@ -241,7 +250,9 @@ async function settleFailed(
 ): Promise<void> {
 	const attempt = outboxRow.attempt + 1;
 	const isDead = attempt >= sub.max_retries;
-	const nextAt = isDead ? null : new Date(Date.now() + nextDelaySeconds(outboxRow.attempt) * 1000);
+	const nextAt = isDead
+		? null
+		: new Date(Date.now() + nextDelaySeconds(outboxRow.attempt) * 1000);
 
 	await db.transaction().execute(async (tx) => {
 		await tx
@@ -269,7 +280,8 @@ async function settleFailed(
 			WHERE id = ${sub.id}
 			RETURNING circuit_failures
 		`.execute(tx);
-		const newFailures = incResult.rows[0]?.circuit_failures ?? sub.circuit_failures + 1;
+		const newFailures =
+			incResult.rows[0]?.circuit_failures ?? sub.circuit_failures + 1;
 		const shouldTripCircuit = newFailures >= CIRCUIT_THRESHOLD;
 
 		if (shouldTripCircuit) {
@@ -285,10 +297,13 @@ async function settleFailed(
 				})
 				.where("id", "=", sub.id)
 				.execute();
-			logger.warn("Subscription circuit tripped — paused after consecutive failures", {
-				subscription: sub.name,
-				failures: newFailures,
-			});
+			logger.warn(
+				"Subscription circuit tripped — paused after consecutive failures",
+				{
+					subscription: sub.name,
+					failures: newFailures,
+				},
+			);
 		}
 	});
 }
@@ -305,10 +320,8 @@ async function claimAndDrain(
 		// 90/10 live vs replay so a big replay doesn't starve live emits.
 		const liveLimit = Math.max(1, Math.round(BATCH_SIZE * LIVE_SHARE));
 		const replayLimit = BATCH_SIZE - liveLimit;
-		const claimed = await db
-			.transaction()
-			.execute(async (tx) => {
-				const live = await sql<SubscriptionOutbox>`
+		const claimed = await db.transaction().execute(async (tx) => {
+			const live = await sql<SubscriptionOutbox>`
 					SELECT * FROM subscription_outbox
 					WHERE status = 'pending'
 						AND next_attempt_at <= NOW()
@@ -317,7 +330,7 @@ async function claimAndDrain(
 					FOR UPDATE SKIP LOCKED
 					LIMIT ${sql.lit(liveLimit)}
 				`.execute(tx);
-				const replay = await sql<SubscriptionOutbox>`
+			const replay = await sql<SubscriptionOutbox>`
 					SELECT * FROM subscription_outbox
 					WHERE status = 'pending'
 						AND next_attempt_at <= NOW()
@@ -327,32 +340,32 @@ async function claimAndDrain(
 					LIMIT ${sql.lit(replayLimit)}
 				`.execute(tx);
 
-				const combined = [...live.rows, ...replay.rows];
-				if (combined.length === 0) return [];
+			const combined = [...live.rows, ...replay.rows];
+			if (combined.length === 0) return [];
 
-				// Push `next_attempt_at` forward by the lock window. This is
-				// the only defense against double-dispatch if the emitter
-				// process crashes mid-HTTP-call: the row won't be re-claimable
-				// until `LOCK_WINDOW_MS` elapses, giving us a stale-lock
-				// recovery window. `settleDelivered`/`settleFailed` overrides
-				// this on the success/failure path.
-				const now = new Date();
-				const lockUntil = new Date(now.getTime() + LOCK_WINDOW_MS);
-				await tx
-					.updateTable("subscription_outbox")
-					.set({
-						locked_by: emitterId,
-						locked_until: lockUntil,
-						next_attempt_at: lockUntil,
-					})
-					.where(
-						"id",
-						"in",
-						combined.map((r) => r.id),
-					)
-					.execute();
-				return combined;
-			});
+			// Push `next_attempt_at` forward by the lock window. This is
+			// the only defense against double-dispatch if the emitter
+			// process crashes mid-HTTP-call: the row won't be re-claimable
+			// until `LOCK_WINDOW_MS` elapses, giving us a stale-lock
+			// recovery window. `settleDelivered`/`settleFailed` overrides
+			// this on the success/failure path.
+			const now = new Date();
+			const lockUntil = new Date(now.getTime() + LOCK_WINDOW_MS);
+			await tx
+				.updateTable("subscription_outbox")
+				.set({
+					locked_by: emitterId,
+					locked_until: lockUntil,
+					next_attempt_at: lockUntil,
+				})
+				.where(
+					"id",
+					"in",
+					combined.map((r) => r.id),
+				)
+				.execute();
+			return combined;
+		});
 
 		if (claimed.length === 0) return 0;
 
@@ -375,6 +388,7 @@ async function claimAndDrain(
 
 		await Promise.all(
 			subIds.map((subId) =>
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				drainForSub(db, state, subById.get(subId)!, bySubId.get(subId)!),
 			),
 		);
@@ -505,28 +519,22 @@ export async function startEmitter(
 	}
 
 	// LISTEN on new outbox + sub changes
-	const stopNew = await listen(
-		"subscriptions:new_outbox",
-		() => {
-			if (!state.running) return;
-			void claimAndDrain(db, state, emitterId).catch((err) =>
-				logger.error("[emitter] claim failed", {
-					error: err instanceof Error ? err.message : String(err),
-				}),
-			);
-		},
-	);
-	const stopChanged = await listen(
-		"subscriptions:changed",
-		() => {
-			if (!state.running) return;
-			void refreshMatcher(db).catch((err) =>
-				logger.error("[emitter] matcher refresh failed", {
-					error: err instanceof Error ? err.message : String(err),
-				}),
-			);
-		},
-	);
+	const stopNew = await listen("subscriptions:new_outbox", () => {
+		if (!state.running) return;
+		void claimAndDrain(db, state, emitterId).catch((err) =>
+			logger.error("[emitter] claim failed", {
+				error: err instanceof Error ? err.message : String(err),
+			}),
+		);
+	});
+	const stopChanged = await listen("subscriptions:changed", () => {
+		if (!state.running) return;
+		void refreshMatcher(db).catch((err) =>
+			logger.error("[emitter] matcher refresh failed", {
+				error: err instanceof Error ? err.message : String(err),
+			}),
+		);
+	});
 
 	// Poll every pollIntervalMs as a safety net for missed notifications +
 	// backoff wakeups (rows whose next_attempt_at has passed).

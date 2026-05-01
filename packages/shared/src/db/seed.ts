@@ -187,10 +187,10 @@ for (const tx of txRows) {
 			data.recipient = pick(stxAddresses);
 			data.amount = String(Math.floor(Math.random() * 10000000));
 			if (type === "ft_transfer")
-				data.asset_identifier = pick(contractIds.filter(Boolean)) + "::token";
+				data.asset_identifier = `${pick(contractIds.filter(Boolean))}::token`;
 		} else if (type === "nft_mint") {
 			data.recipient = tx.sender;
-			data.asset_identifier = pick(contractIds.filter(Boolean)) + "::nft";
+			data.asset_identifier = `${pick(contractIds.filter(Boolean))}::nft`;
 			data.value = {
 				type: "uint",
 				value: String(Math.floor(Math.random() * 10000)),
@@ -213,6 +213,7 @@ for (const tx of txRows) {
 			block_height: tx.block_height,
 			event_index: j,
 			type,
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			data: jsonb(data) as any,
 		});
 	}
@@ -260,6 +261,7 @@ await db
 				key.key_prefix.replace("sk-sl_", "").slice(0, 8);
 			return {
 				name: v.name,
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				definition: jsonb(v.def) as any,
 				schema_hash: randomHex(16),
 				handler_path: v.handler,
@@ -296,7 +298,7 @@ await db
 	)
 	.execute();
 
-console.log(`  index_progress: 1`);
+console.log("  index_progress: 1");
 
 // ── 8. Sessions ─────────────────────────────────────────────────────
 await db
@@ -312,7 +314,7 @@ await db
 	)
 	.execute();
 
-console.log(`  sessions: 3`);
+console.log("  sessions: 3");
 
 // ── 9. Usage Daily ──────────────────────────────────────────────────
 const today = new Date().toISOString().slice(0, 10);

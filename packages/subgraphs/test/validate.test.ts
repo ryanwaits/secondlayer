@@ -21,7 +21,9 @@ test("SubgraphNameSchema accepts valid names", () => {
 test("validateSubgraphDefinition accepts valid definition", () => {
 	const def = {
 		name: "test-subgraph",
-		sources: { handler: { type: "contract_call", contractId: "SP000::contract" } },
+		sources: {
+			handler: { type: "contract_call", contractId: "SP000::contract" },
+		},
 		schema: {
 			data: { columns: { amount: { type: "uint" } } },
 		},
@@ -58,6 +60,7 @@ test("validateSubgraphDefinition rejects source with neither contract nor type",
 	expect(() =>
 		validateSubgraphDefinition({
 			name: "bad",
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			sources: { bad: { event: "transfer" } as any },
 			schema: { data: { columns: { x: { type: "text" } } } },
 			handlers: { bad: () => {} },
@@ -109,7 +112,7 @@ test("validateSubgraphDefinition accepts type-based source", () => {
 		},
 		handlers: { stx: () => {} },
 	});
-	expect(result.sources.stx!.type).toBe("stx_transfer");
+	expect(result.sources.stx?.type).toBe("stx_transfer");
 });
 
 test("validateSubgraphDefinition accepts multiple sources", () => {

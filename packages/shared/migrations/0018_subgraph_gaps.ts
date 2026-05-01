@@ -1,5 +1,6 @@
 import { type Kysely, sql } from "kysely";
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// Add start_block to subgraphs (the intended first block from definition)
 	await sql`ALTER TABLE "subgraphs" ADD COLUMN "start_block" bigint NOT NULL DEFAULT 0`.execute(
@@ -33,6 +34,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	);
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await sql`DROP TABLE IF EXISTS "subgraph_gaps"`.execute(db);
 	await sql`ALTER TABLE "subgraphs" DROP COLUMN "start_block"`.execute(db);

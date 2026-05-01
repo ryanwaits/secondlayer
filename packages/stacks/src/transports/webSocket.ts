@@ -23,6 +23,7 @@ export type WebSocketTransport = Transport & {
 	type: "webSocket";
 	subscribe: (
 		params: WsSubscribeParams,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		callback: (data: any) => void,
 	) => Promise<Subscription>;
 	destroy: () => void;
@@ -50,6 +51,7 @@ type JsonRpcNotification = {
 
 type SubEntry = {
 	params: WsSubscribeParams;
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	callbacks: Set<(data: any) => void>;
 };
 
@@ -103,8 +105,8 @@ export class WebSocketChannel {
 						}),
 					);
 				};
-				this.ws!.addEventListener("open", onOpen, { once: true });
-				this.ws!.addEventListener("error", onError, { once: true });
+				this.ws?.addEventListener("open", onOpen, { once: true });
+				this.ws?.addEventListener("error", onError, { once: true });
 			});
 		}
 
@@ -258,6 +260,7 @@ export class WebSocketChannel {
 
 	async subscribe(
 		params: WsSubscribeParams,
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		callback: (data: any) => void,
 	): Promise<Subscription> {
 		if (this.destroyed) {
@@ -322,7 +325,7 @@ export class WebSocketChannel {
 }
 
 function deriveWsUrl(httpUrl: string): string {
-	return httpUrl.replace(/^http/, "ws").replace(/\/$/, "") + "/extended/v1/ws";
+	return `${httpUrl.replace(/^http/, "ws").replace(/\/$/, "")}/extended/v1/ws`;
 }
 
 /**

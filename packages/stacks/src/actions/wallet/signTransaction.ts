@@ -33,6 +33,7 @@ export async function signTransactionAction(
 	const condition = params.transaction.auth.spendingCondition;
 	if ("fields" in condition) {
 		const publicKeys =
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			params.signers ?? (params.transaction as any)._multisig?.publicKeys;
 		if (!publicKeys)
 			throw new Error("Multi-sig signing requires signers (publicKeys)");

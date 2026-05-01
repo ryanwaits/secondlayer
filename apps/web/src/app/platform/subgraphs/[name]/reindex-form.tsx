@@ -119,6 +119,7 @@ export function SubgraphReindexForm({
 				<div className="sg-reindex-form">
 					<div className="sg-reindex-warning">
 						<svg
+							aria-hidden="true"
 							width="16"
 							height="16"
 							viewBox="0 0 16 16"

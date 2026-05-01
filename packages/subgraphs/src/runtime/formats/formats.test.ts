@@ -73,6 +73,7 @@ describe("format dispatcher", () => {
 		expect(headers["webhook-id"]).toBe(out.id);
 		// Timestamp stamped at dispatch time, not outbox creation — retries
 		// must fall within the receiver's tolerance window (default 300s).
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const ts = Number.parseInt(headers["webhook-timestamp"]!, 10);
 		expect(Math.abs(ts - nowSeconds)).toBeLessThan(5);
 		expect(headers["webhook-signature"]).toMatch(/^v1,/);

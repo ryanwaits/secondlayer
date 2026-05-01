@@ -7,7 +7,8 @@ export function HomeAnnotations() {
 			<p>
 				Define subgraphs that turn contract calls, events, and transfers into
 				structured API tables. Subscribe to the rows that matter with signed
-				webhooks, then route them into workflows that alert, triage, and respond.
+				webhooks, then route them into workflows that alert, triage, and
+				respond.
 			</p>
 			<p>
 				Use the same primitives from the CLI, SDK, or MCP server: deploy

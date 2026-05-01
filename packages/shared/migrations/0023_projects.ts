@@ -1,10 +1,11 @@
-import { sql, type Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 
 /**
  * Add projects, team_members, and team_invitations tables.
  * Add project_id to streams and subgraphs.
  * Backfill: create a default project per account and assign existing resources.
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// Projects table
 	await db.schema
@@ -134,6 +135,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	);
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await sql`DROP INDEX IF EXISTS subgraphs_project_id_idx`.execute(db);
 	await sql`DROP INDEX IF EXISTS streams_project_id_idx`.execute(db);

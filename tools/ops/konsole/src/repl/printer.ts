@@ -6,8 +6,10 @@ function toPlain(obj: unknown): Record<string, unknown> {
 		obj &&
 		typeof obj === "object" &&
 		"attributes" in obj &&
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		typeof (obj as any).attributes === "object"
 	) {
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		return (obj as any).attributes;
 	}
 	return obj as Record<string, unknown>;
@@ -43,7 +45,7 @@ export function printTable(rows: Record<string, unknown>[]) {
 				const v = row[k];
 				if (v === null) return dim("NULL".padEnd(widths[i]));
 				let s = fmt(v);
-				if (s.length > 40) s = s.slice(0, 37) + "...";
+				if (s.length > 40) s = `${s.slice(0, 37)}...`;
 				return s.padEnd(widths[i]);
 			})
 			.join(dim("  |  "));

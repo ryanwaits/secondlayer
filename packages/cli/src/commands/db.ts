@@ -186,9 +186,7 @@ async function showBlocks(limit: number, json: boolean): Promise<void> {
 			const time = new Date(row.timestamp * 1000).toLocaleTimeString();
 			const canonicalMark = row.canonical ? "" : yellow(" (reorg)");
 			console.log(
-				`  ${row.height.toString().padEnd(10)}` +
-					`${row.hash.slice(0, 20)}... `.padEnd(24) +
-					`${time}${canonicalMark}`,
+				`  ${row.height.toString().padEnd(10)}${`${row.hash.slice(0, 20)}... `.padEnd(24)}${time}${canonicalMark}`,
 			);
 		}
 		console.log("");
@@ -240,10 +238,7 @@ async function showTransactions(limit: number, json: boolean): Promise<void> {
 				: "-";
 
 			console.log(
-				`  ${statusColor(row.block_height.toString().padEnd(8))}` +
-					`${row.type.padEnd(18)}` +
-					`${row.sender.slice(0, 18)}... `.padEnd(20) +
-					`${contractInfo}`,
+				`  ${statusColor(row.block_height.toString().padEnd(8))}${row.type.padEnd(18)}${`${row.sender.slice(0, 18)}... `.padEnd(20)}${contractInfo}`,
 			);
 		}
 		console.log("");
@@ -532,9 +527,7 @@ async function resyncDatabase(
 			info(`Node tip: block ${tip}. Fetching blocks 1 to ${tip}...`);
 			console.log(
 				dim(
-					"This may take a while. Run 'sl sync --from 1 --to " +
-						tip +
-						"' if interrupted.",
+					`This may take a while. Run 'sl sync --from 1 --to ${tip}' if interrupted.`,
 				),
 			);
 			console.log("");

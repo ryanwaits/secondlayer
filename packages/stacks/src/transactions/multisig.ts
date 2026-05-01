@@ -241,6 +241,7 @@ function signSequential(
 		const pubKeyField: TransactionAuthField = {
 			type: "publicKey",
 			pubKeyEncoding: PubKeyEncoding.Compressed,
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			data: publicKeys[i]!,
 		};
 		fields.push(pubKeyField);
@@ -384,6 +385,7 @@ async function signSequentialWithAccount(
 		const pubKeyField: TransactionAuthField = {
 			type: "publicKey",
 			pubKeyEncoding: PubKeyEncoding.Compressed,
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			data: publicKeys[i]!,
 		};
 		fields.push(pubKeyField);
@@ -488,6 +490,7 @@ function finalizeMultiSigCondition(
 		const pubKeyField: TransactionAuthField = {
 			type: "publicKey",
 			pubKeyEncoding: PubKeyEncoding.Compressed,
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			data: publicKeys[i]!,
 		};
 		fields.push(pubKeyField);

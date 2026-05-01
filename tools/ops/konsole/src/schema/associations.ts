@@ -33,8 +33,8 @@ function findJoinTables(schema: SchemaInfo): Set<string> {
 	for (const fk of schema.foreignKeys) {
 		if (!fksByTable.has(fk.fromTable)) fksByTable.set(fk.fromTable, []);
 		fksByTable
-			.get(fk.fromTable)!
-			.push({ fromColumn: fk.fromColumn, toTable: fk.toTable });
+			.get(fk.fromTable)
+			?.push({ fromColumn: fk.fromColumn, toTable: fk.toTable });
 	}
 
 	for (const [tableName, fks] of fksByTable) {
@@ -69,8 +69,8 @@ export function inferAssociations(schema: SchemaInfo): AssociationMap {
 	for (const fk of schema.foreignKeys) {
 		if (!fksByTable.has(fk.fromTable)) fksByTable.set(fk.fromTable, []);
 		fksByTable
-			.get(fk.fromTable)!
-			.push({ fromColumn: fk.fromColumn, toTable: fk.toTable });
+			.get(fk.fromTable)
+			?.push({ fromColumn: fk.fromColumn, toTable: fk.toTable });
 	}
 
 	for (const fk of schema.foreignKeys) {

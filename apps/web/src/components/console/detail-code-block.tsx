@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 
 interface DetailCodeBlockProps {
 	label: string;
@@ -33,6 +33,7 @@ export function DetailCodeBlock({
 					{label}{" "}
 					<span className="info">
 						<svg
+							aria-hidden="true"
 							width="10"
 							height="10"
 							viewBox="0 0 16 16"
@@ -51,6 +52,7 @@ export function DetailCodeBlock({
 					{showCopy && (
 						<button type="button" className="sg-code-btn" onClick={handleCopy}>
 							<svg
+								aria-hidden="true"
 								width="10"
 								height="10"
 								viewBox="0 0 16 16"
@@ -68,6 +70,7 @@ export function DetailCodeBlock({
 					{showOpenInEditor && (
 						<button type="button" className="sg-code-btn">
 							<svg
+								aria-hidden="true"
 								width="10"
 								height="10"
 								viewBox="0 0 16 16"

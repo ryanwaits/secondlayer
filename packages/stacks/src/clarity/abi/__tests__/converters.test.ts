@@ -19,9 +19,11 @@ describe("jsToClarity", () => {
 
 	it("should throw on invalid primitives", () => {
 		expect(() => jsToClarity("uint128", -1n)).toThrow(ClarityConversionError);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect(() => jsToClarity("bool", "true" as any)).toThrow(
 			ClarityConversionError,
 		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect(() => jsToClarity("principal", "invalid" as any)).toThrow(
 			ClarityConversionError,
 		);

@@ -23,8 +23,13 @@ export function ToolCallIndicator({
 			<div
 				className={`tool-call-indicator ${expanded ? "expanded" : ""}`}
 				onClick={() => !isLoading && setExpanded(!expanded)}
+				onKeyDown={(e) => {
+					if ((e.key === "Enter" || e.key === " ") && !isLoading)
+						setExpanded(!expanded);
+				}}
 			>
 				<svg
+					aria-hidden="true"
 					className="tool-call-icon"
 					viewBox="0 0 16 16"
 					fill="none"
@@ -44,6 +49,7 @@ export function ToolCallIndicator({
 					</div>
 				) : (
 					<svg
+						aria-hidden="true"
 						className="tool-call-chevron"
 						viewBox="0 0 8 8"
 						fill="none"

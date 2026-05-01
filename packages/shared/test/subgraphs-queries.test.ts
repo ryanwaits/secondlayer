@@ -74,7 +74,7 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 
 		const subgraph = await getSubgraph(db, "test-subgraph");
 		expect(subgraph).not.toBeNull();
-		expect(subgraph!.name).toBe("test-subgraph");
+		expect(subgraph?.name).toBe("test-subgraph");
 	});
 
 	test("getSubgraph returns null for unknown name", async () => {
@@ -98,7 +98,7 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 
 		await updateSubgraphStatus(db, "test-subgraph", "error");
 		const subgraph = await getSubgraph(db, "test-subgraph");
-		expect(subgraph!.status).toBe("error");
+		expect(subgraph?.status).toBe("error");
 	});
 
 	test("updateSubgraphStatus updates last_processed_block", async () => {
@@ -107,7 +107,7 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 
 		await updateSubgraphStatus(db, "test-subgraph", "active", 5000);
 		const subgraph = await getSubgraph(db, "test-subgraph");
-		expect(Number(subgraph!.last_processed_block)).toBe(5000);
+		expect(Number(subgraph?.last_processed_block)).toBe(5000);
 	});
 
 	test("deleteSubgraph removes subgraph and drops schema", async () => {
@@ -121,7 +121,7 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 
 		const deleted = await deleteSubgraph(db, "test-subgraph");
 		expect(deleted).not.toBeNull();
-		expect(deleted!.name).toBe("test-subgraph");
+		expect(deleted?.name).toBe("test-subgraph");
 
 		const subgraph = await getSubgraph(db, "test-subgraph");
 		expect(subgraph).toBeNull();

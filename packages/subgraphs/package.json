@@ -34,9 +34,7 @@
 			"import": "./dist/src/runtime/replay.js"
 		}
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",

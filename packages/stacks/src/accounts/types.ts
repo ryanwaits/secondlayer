@@ -20,6 +20,7 @@ export type CustomAccount = {
 
 /** Browser wallet provider interface (e.g. Leather, Xverse). */
 export type StacksProvider = {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	request(method: string, params?: any): Promise<any>;
 };
 

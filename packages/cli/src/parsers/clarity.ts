@@ -1,4 +1,4 @@
-import { promises as fs } from "fs";
+import { promises as fs } from "node:fs";
 import type {
 	AbiContract,
 	AbiFunction,
@@ -19,17 +19,14 @@ export async function parseClarityFile(filePath: string): Promise<AbiContract> {
 
 		if (result.functions.length === 0) {
 			console.warn(
-				`⚠️  No functions found in ${filePath}. ` +
-					`For complex contracts, deploy first and use the contract address instead.`,
+				`⚠️  No functions found in ${filePath}. For complex contracts, deploy first and use the contract address instead.`,
 			);
 		}
 
 		return result;
 	} catch (error) {
 		throw new Error(
-			`Unable to parse ${filePath}. ` +
-				`For complex contracts, deploy first and use the contract address instead.\n` +
-				`Original error: ${error}`,
+			`Unable to parse ${filePath}. For complex contracts, deploy first and use the contract address instead.\nOriginal error: ${error}`,
 		);
 	}
 }
@@ -40,13 +37,15 @@ export function parseClarityContent(content: string): AbiContract {
 	const functionRegex =
 		/\(define-(public|read-only|private)\s+\(([^)]+)\)([\s\S]*?)\)\s*$/gm;
 
-	let match;
-	while ((match = functionRegex.exec(content)) !== null) {
+	let match: RegExpExecArray | null = functionRegex.exec(content);
+	while (match !== null) {
 		const [, access, signature, body] = match;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		const func = parseFunctionSignature(signature, access as any, body);
 		if (func) {
 			functions.push(func);
 		}
+		match = functionRegex.exec(content);
 	}
 
 	return { functions };
@@ -86,10 +85,10 @@ function parseFunctionSignature(
 }
 
 function parseType(typeStr: string): AbiType | null {
-	typeStr = typeStr.replace(/[()]/g, "").trim();
+	const cleaned = typeStr.replace(/[()]/g, "").trim();
 
 	// Basic type mappings
-	switch (typeStr) {
+	switch (cleaned) {
 		case "uint":
 		case "uint128":
 			return "uint128";
@@ -104,13 +103,13 @@ function parseType(typeStr: string): AbiType | null {
 			return "principal";
 		default:
 			// Handle complex types (simplified)
-			if (typeStr.startsWith("string-ascii")) {
+			if (cleaned.startsWith("string-ascii")) {
 				return { "string-ascii": { length: 256 } };
 			}
-			if (typeStr.startsWith("string-utf8")) {
+			if (cleaned.startsWith("string-utf8")) {
 				return { "string-utf8": { length: 256 } };
 			}
-			if (typeStr.startsWith("buff")) {
+			if (cleaned.startsWith("buff")) {
 				return { buff: { length: 32 } };
 			}
 			// Default to uint128 for unknown types
@@ -142,6 +141,7 @@ function inferReturnType(body: string): AbiType {
  * Parse ABI from API response
  * Uses the abi-compat normalization layer for consistent handling of different ABI formats
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export function parseApiResponse(apiResponse: any): AbiContract {
 	try {
 		return normalizeAbi(apiResponse);

@@ -71,9 +71,11 @@ export type PublicActions = {
 	getNonce: (params: GetNonceParams) => Promise<bigint>;
 	getBalance: (params: GetBalanceParams) => Promise<bigint>;
 	getAccountInfo: (params: GetAccountInfoParams) => Promise<AccountInfo>;
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	getBlock: (params: GetBlockParams) => Promise<any>;
 	getBlockHeight: () => Promise<number>;
 	readContract: (params: ReadContractParams) => Promise<ClarityValue>;
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	getContractAbi: (params: GetContractAbiParams) => Promise<any>;
 	getMapEntry: (params: GetMapEntryParams) => Promise<ClarityValue>;
 	estimateFee: (params: EstimateFeeParams) => Promise<FeeEstimation[]>;

@@ -48,6 +48,7 @@ const httpServer = createHttpServer(
 				}
 				chunks.push(chunk as Buffer);
 			}
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			let body: any;
 			try {
 				body = JSON.parse(Buffer.concat(chunks).toString());
@@ -88,7 +89,7 @@ const httpServer = createHttpServer(
 					.end(JSON.stringify({ error: "Invalid or missing session ID" }));
 				return;
 			}
-			await sessions.get(sessionId)!.handleRequest(req, res, body);
+			await sessions.get(sessionId)?.handleRequest(req, res, body);
 		} else if (req.method === "GET") {
 			// SSE stream for existing session
 			if (!sessionId || !sessions.has(sessionId)) {
@@ -97,10 +98,11 @@ const httpServer = createHttpServer(
 					.end(JSON.stringify({ error: "Invalid or missing session ID" }));
 				return;
 			}
-			await sessions.get(sessionId)!.handleRequest(req, res);
+			await sessions.get(sessionId)?.handleRequest(req, res);
 		} else if (req.method === "DELETE") {
 			// Session teardown
 			if (sessionId && sessions.has(sessionId)) {
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				const transport = sessions.get(sessionId)!;
 				await transport.handleRequest(req, res);
 				await transport.close();

@@ -20,6 +20,7 @@ export function DiagnosticsCard({ findings }: DiagnosticsCardProps) {
 		<div className="tool-card">
 			<div className="tool-card-header">
 				<svg
+					aria-hidden="true"
 					width="12"
 					height="12"
 					viewBox="0 0 16 16"
@@ -39,6 +40,7 @@ export function DiagnosticsCard({ findings }: DiagnosticsCardProps) {
 					<div className={`diag-icon ${f.severity}`}>
 						{f.severity === "info" ? (
 							<svg
+								aria-hidden="true"
 								viewBox="0 0 16 16"
 								fill="none"
 								stroke="currentColor"
@@ -49,6 +51,7 @@ export function DiagnosticsCard({ findings }: DiagnosticsCardProps) {
 							</svg>
 						) : (
 							<svg
+								aria-hidden="true"
 								viewBox="0 0 16 16"
 								fill="none"
 								stroke="currentColor"
@@ -66,6 +69,7 @@ export function DiagnosticsCard({ findings }: DiagnosticsCardProps) {
 						{f.suggestion && (
 							<div className="diag-action">
 								<svg
+									aria-hidden="true"
 									viewBox="0 0 16 16"
 									fill="none"
 									stroke="currentColor"

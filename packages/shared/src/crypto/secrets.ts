@@ -36,6 +36,7 @@ function readExistingKey(envPath: string): string | null {
 	if (!existsSync(envPath)) return null;
 	const contents = readFileSync(envPath, "utf8");
 	const match = contents.match(/^SECONDLAYER_SECRETS_KEY=([a-fA-F0-9]{64})/m);
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	return match ? match[1]! : null;
 }
 

@@ -4,7 +4,9 @@ import type { SubgraphDefinition } from "../src/types.ts";
 
 const baseDef: SubgraphDefinition = {
 	name: "token-transfers",
-	sources: { transfer: { type: "ft_transfer", assetIdentifier: "SP000::token" } },
+	sources: {
+		transfer: { type: "ft_transfer", assetIdentifier: "SP000::token" },
+	},
 	schema: {
 		transfers: {
 			columns: {
@@ -27,6 +29,7 @@ test("generates CREATE SCHEMA statement", () => {
 
 test("generates CREATE TABLE with auto-columns", () => {
 	const { statements } = generateSubgraphSQL(baseDef);
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const createTable = statements[1]!;
 	expect(createTable).toContain("subgraph_token_transfers.transfers");
 	expect(createTable).toContain("_id BIGSERIAL PRIMARY KEY");
@@ -39,6 +42,7 @@ test("generates CREATE TABLE with auto-columns", () => {
 
 test("maps column types correctly", () => {
 	const { statements } = generateSubgraphSQL(baseDef);
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const createTable = statements[1]!;
 	expect(createTable).toContain("sender TEXT NOT NULL");
 	expect(createTable).toContain("amount NUMERIC NOT NULL");
@@ -66,7 +70,7 @@ test("hash changes when schema changes", () => {
 		schema: {
 			transfers: {
 				columns: {
-					...baseDef.schema.transfers!.columns,
+					...baseDef.schema.transfers?.columns,
 					newcol: { type: "boolean" },
 				},
 			},
@@ -102,6 +106,7 @@ test("generates all column types", () => {
 		handlers: { handler: () => {} },
 	};
 	const { statements } = generateSubgraphSQL(def);
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const table = statements[1]!;
 	expect(table).toContain("a TEXT");
 	expect(table).toContain("b NUMERIC");

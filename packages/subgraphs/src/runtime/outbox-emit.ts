@@ -34,10 +34,7 @@ function dedupKey(
 	// block (unique constraint on (subscription_id, dedup_key) catches
 	// duplicate emits if the block is reprocessed).
 	const canonical = `${subgraphName}:${tableName}:${blockHeight}:${txId}:${rowIndex}:${stableStringify(row)}`;
-	return createHash("sha256")
-		.update(canonical)
-		.digest("hex")
-		.slice(0, 32);
+	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }
 
 function stableStringify(obj: Record<string, unknown>): string {
@@ -59,9 +56,7 @@ export async function emitSubscriptionOutbox(
 ): Promise<number> {
 	if (!isEmitOutboxEnabled()) {
 		if (!loggedKillSwitch) {
-			logger.warn(
-				"SECONDLAYER_EMIT_OUTBOX=false — outbox emission bypassed",
-			);
+			logger.warn("SECONDLAYER_EMIT_OUTBOX=false — outbox emission bypassed");
 			loggedKillSwitch = true;
 		}
 		return 0;

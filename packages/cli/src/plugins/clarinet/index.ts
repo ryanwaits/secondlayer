@@ -46,16 +46,17 @@ async function isUserDefinedContract(
 
 	try {
 		// Read Clarinet.toml to get user-defined contracts
-		const { promises: fs } = await import("fs");
+		const { promises: fs } = await import("node:fs");
 		const tomlContent = await fs.readFile(manifestPath, "utf-8");
 
 		// Simple TOML parsing to find [contracts.CONTRACT_NAME] sections
 		const contractSectionRegex = /^\[contracts\.([^\]]+)\]/gm;
 		const userContracts = new Set<string>();
 
-		let match;
-		while ((match = contractSectionRegex.exec(tomlContent)) !== null) {
+		let match: RegExpExecArray | null = contractSectionRegex.exec(tomlContent);
+		while (match !== null) {
 			userContracts.add(match[1]);
+			match = contractSectionRegex.exec(tomlContent);
 		}
 
 		// If the contract is explicitly defined in Clarinet.toml, it's user-defined
@@ -100,6 +101,7 @@ export const clarinet: PluginFactory<ClarinetPluginOptions> = (
 	options = {},
 ) => {
 	const manifestPath = options.path || "./Clarinet.toml";
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	let simnet: any;
 
 	return {
@@ -130,7 +132,7 @@ export const clarinet: PluginFactory<ClarinetPluginOptions> = (
 					if (options.include && !options.include.includes(contractName)) {
 						continue;
 					}
-					if (options.exclude && options.exclude.includes(contractName)) {
+					if (options.exclude?.includes(contractName)) {
 						continue;
 					}
 
@@ -207,7 +209,7 @@ export async function hasClarinetProject(
 	path = "./Clarinet.toml",
 ): Promise<boolean> {
 	try {
-		const { promises: fs } = await import("fs");
+		const { promises: fs } = await import("node:fs");
 		await fs.access(path);
 		return true;
 	} catch {

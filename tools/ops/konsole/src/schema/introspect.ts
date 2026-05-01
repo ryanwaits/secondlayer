@@ -19,6 +19,7 @@ function isIgnored(name: string): boolean {
 }
 
 export async function introspectSchema(
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	db: Kysely<any>,
 	pgSchema = "public",
 ): Promise<SchemaInfo> {
@@ -92,7 +93,7 @@ export async function introspectSchema(
 		if (row.constraint_type === "UNIQUE") {
 			if (!uniqueMap.has(row.table_name))
 				uniqueMap.set(row.table_name, new Set());
-			uniqueMap.get(row.table_name)!.add(row.column_name);
+			uniqueMap.get(row.table_name)?.add(row.column_name);
 		}
 	}
 
@@ -100,7 +101,7 @@ export async function introspectSchema(
 	const colsMap = new Map<string, ColumnInfo[]>();
 	for (const row of colRows) {
 		if (!colsMap.has(row.table_name)) colsMap.set(row.table_name, []);
-		colsMap.get(row.table_name)!.push({
+		colsMap.get(row.table_name)?.push({
 			name: row.column_name,
 			dataType: row.data_type,
 			nullable: row.is_nullable === "YES",

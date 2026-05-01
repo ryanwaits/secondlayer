@@ -1,9 +1,10 @@
-import { sql, type Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 
 /**
  * Add marketplace columns to subgraphs and accounts.
  * Create per-subgraph usage tracking table.
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// Subgraph marketplace columns
 	await db.schema
@@ -48,10 +49,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn("date", "date", (c) => c.notNull())
 		.addColumn("query_count", "integer", (c) => c.notNull().defaultTo(0))
-		.addPrimaryKeyConstraint("subgraph_usage_daily_pk", [
-			"subgraph_id",
-			"date",
-		])
+		.addPrimaryKeyConstraint("subgraph_usage_daily_pk", ["subgraph_id", "date"])
 		.execute();
 
 	// Indexes
@@ -66,6 +64,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	);
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropTable("subgraph_usage_daily").execute();
 

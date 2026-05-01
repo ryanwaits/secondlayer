@@ -1,4 +1,4 @@
-import { isToolUIPart, getToolName, type UIMessage } from "ai";
+import { type UIMessage, getToolName, isToolUIPart } from "ai";
 
 export interface SessionSummary {
 	toolCalls: Array<{

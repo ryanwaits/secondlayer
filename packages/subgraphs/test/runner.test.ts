@@ -10,15 +10,19 @@ function mockCtx() {
 		calls,
 		block: { height: 100, hash: "0x", timestamp: 0, burnBlockHeight: 0 },
 		tx: { txId: "", sender: "", type: "", status: "" },
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		setTx(tx: any) {
 			this.tx = tx;
 		},
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		insert(table: string, row: any) {
 			calls.push({ method: "insert", args: [table, row] });
 		},
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		update(table: string, where: any, set: any) {
 			calls.push({ method: "update", args: [table, where, set] });
 		},
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		delete(table: string, where: any) {
 			calls.push({ method: "delete", args: [table, where] });
 		},
@@ -74,11 +78,13 @@ const matched: MatchedTx[] = [
 ];
 
 function makeSg(
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	handlers: Record<string, any>,
 	srcs?: Record<string, SubgraphFilter>,
 ): SubgraphDefinition {
 	return {
 		name: "test",
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		sources: (srcs ?? sources) as any,
 		schema: { data: { columns: { x: { type: "text" } } } },
 		handlers,
@@ -88,8 +94,13 @@ function makeSg(
 describe("runHandlers", () => {
 	test("calls handler for each event", async () => {
 		let callCount = 0;
-		const sg = makeSg({ transfer: () => { callCount++; } });
+		const sg = makeSg({
+			transfer: () => {
+				callCount++;
+			},
+		});
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const result = await runHandlers(sg, matched, ctx as any);
 		expect(callCount).toBe(2);
 		expect(result.processed).toBe(2);
@@ -98,8 +109,13 @@ describe("runHandlers", () => {
 
 	test("falls back to catch-all handler", async () => {
 		let callCount = 0;
-		const sg = makeSg({ "*": () => { callCount++; } });
+		const sg = makeSg({
+			"*": () => {
+				callCount++;
+			},
+		});
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		await runHandlers(sg, matched, ctx as any);
 		expect(callCount).toBe(2);
 	});
@@ -107,6 +123,7 @@ describe("runHandlers", () => {
 	test("skips when no matching handler", async () => {
 		const sg = makeSg({ other: () => {} });
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const result = await runHandlers(sg, matched, ctx as any);
 		expect(result.processed).toBe(0);
 	});
@@ -114,19 +131,23 @@ describe("runHandlers", () => {
 	test("sets tx context per matched tx", async () => {
 		const seenTxIds: string[] = [];
 		const sg = makeSg({
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			transfer: (_event: any, ctx: any) => {
 				seenTxIds.push(ctx.tx.txId);
 			},
 		});
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		await runHandlers(sg, matched, ctx as any);
 		expect(seenTxIds).toEqual(["tx1", "tx1"]);
 	});
 
 	test("uses raw_value for indexed contract_event print payloads", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		let seen: any;
 		const sg = makeSg(
 			{
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 				print: (event: any) => {
 					seen = event;
 				},
@@ -134,8 +155,7 @@ describe("runHandlers", () => {
 			{
 				print: {
 					type: "print_event",
-					contractId:
-						"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+					contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
 				},
 			},
 		);
@@ -171,9 +191,8 @@ describe("runHandlers", () => {
 													String: {
 														ASCII: {
 															data: [
-																99, 111, 109, 112, 108, 101, 116, 101,
-																100, 45, 100, 101, 112, 111, 115, 105,
-																116,
+																99, 111, 109, 112, 108, 101, 116, 101, 100, 45,
+																100, 101, 112, 111, 115, 105, 116,
 															],
 														},
 													},
@@ -192,6 +211,7 @@ describe("runHandlers", () => {
 					sourceName: "print",
 				},
 			],
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			ctx as any,
 		);
 
@@ -213,6 +233,7 @@ describe("runHandlers", () => {
 			},
 		});
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const result = await runHandlers(sg, matched, ctx as any);
 		expect(callCount).toBe(2);
 		expect(result.processed).toBe(1);
@@ -241,13 +262,19 @@ describe("runHandlers", () => {
 					tx_id: "tx1",
 					type: "ft_transfer_event",
 					event_index: i,
-					data: { sender: "SP1", recipient: "SP2", amount: "100", asset_identifier: "SP::c::token" },
+					data: {
+						sender: "SP1",
+						recipient: "SP2",
+						amount: "100",
+						asset_identifier: "SP::c::token",
+					},
 				})),
 				sourceName: "transfer",
 			},
 		];
 
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const result = await runHandlers(sg, manyEvents, ctx as any, {
 			errorThreshold: 3,
 		});
@@ -258,19 +285,24 @@ describe("runHandlers", () => {
 	test("builds typed ft_transfer payload", async () => {
 		const received: Record<string, unknown>[] = [];
 		const sg = makeSg({
-			transfer: (event: any) => { received.push(event); },
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			transfer: (event: any) => {
+				received.push(event);
+			},
 		});
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		await runHandlers(sg, matched, ctx as any);
 		expect(received.length).toBe(2);
-		expect(received[0]!.sender).toBe("SP1");
-		expect(received[0]!.recipient).toBe("SP2");
-		expect(received[0]!.amount).toBe(1000n);
-		expect(received[0]!.assetIdentifier).toBe("SP::c::token");
-		expect((received[0]!.tx as any).txId).toBe("tx1");
+		expect(received[0]?.sender).toBe("SP1");
+		expect(received[0]?.recipient).toBe("SP2");
+		expect(received[0]?.amount).toBe(1000n);
+		expect(received[0]?.assetIdentifier).toBe("SP::c::token");
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		expect((received[0]?.tx as any).txId).toBe("tx1");
 		// Second event
-		expect(received[1]!.recipient).toBe("SP3");
-		expect(received[1]!.amount).toBe(2000n);
+		expect(received[1]?.recipient).toBe("SP3");
+		expect(received[1]?.amount).toBe(2000n);
 	});
 
 	test("calls handler with tx-level data when no events", async () => {
@@ -278,7 +310,15 @@ describe("runHandlers", () => {
 		const callSources: Record<string, SubgraphFilter> = {
 			call: { type: "contract_call", contractId: "SP::c" },
 		};
-		const sg = makeSg({ call: (event: any) => { received = event; } }, callSources);
+		const sg = makeSg(
+			{
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+				call: (event: any) => {
+					received = event;
+				},
+			},
+			callSources,
+		);
 
 		const noEvents: MatchedTx[] = [
 			{
@@ -296,10 +336,14 @@ describe("runHandlers", () => {
 		];
 
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		await runHandlers(sg, noEvents, ctx as any);
 		expect(received).not.toBeNull();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((received as any).tx.txId).toBe("tx1");
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((received as any).contractId).toBe("SP::c");
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((received as any).functionName).toBe("swap");
 	});
 
@@ -308,7 +352,15 @@ describe("runHandlers", () => {
 		const deploySources: Record<string, SubgraphFilter> = {
 			deploy: { type: "contract_deploy" },
 		};
-		const sg = makeSg({ deploy: (event: any) => { received = event; } }, deploySources);
+		const sg = makeSg(
+			{
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+				deploy: (event: any) => {
+					received = event;
+				},
+			},
+			deploySources,
+		);
 
 		const deployMatch: MatchedTx[] = [
 			{
@@ -325,9 +377,12 @@ describe("runHandlers", () => {
 		];
 
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		await runHandlers(sg, deployMatch, ctx as any);
 		expect(received).not.toBeNull();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((received as any).contractId).toBe("SP4.my-contract");
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((received as any).deployer).toBe("SP4");
 	});
 
@@ -335,16 +390,20 @@ describe("runHandlers", () => {
 		let seenContractId: string | null = null;
 		let seenFunctionName: string | null = null;
 		const sg = makeSg({
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			transfer: (_event: any, ctx: any) => {
 				seenContractId = ctx.tx.contractId;
 				seenFunctionName = ctx.tx.functionName;
 			},
 		});
 		const ctx = mockCtx();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		await runHandlers(sg, matched, ctx as any);
 		expect(seenContractId).not.toBeNull();
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		expect(seenContractId!).toBe("SP::c");
 		expect(seenFunctionName).not.toBeNull();
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		expect(seenFunctionName!).toBe("transfer");
 	});
 });

@@ -44,6 +44,7 @@ export function Notation({
 				if (entry.isIntersecting && !shown) {
 					setShown(true);
 
+					// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 					const annotation = annotate(ref.current!, {
 						type,
 						color,
@@ -122,6 +123,7 @@ export function NotationBlock({
 				if (entry.isIntersecting && !shown) {
 					setShown(true);
 
+					// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 					const annotation = annotate(ref.current!, {
 						type,
 						color,

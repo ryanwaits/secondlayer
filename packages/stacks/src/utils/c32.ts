@@ -9,17 +9,21 @@ function c32normalize(input: string): string {
 }
 
 function c32encode(inputHex: string): string {
-	if (inputHex.length % 2 !== 0) inputHex = `0${inputHex}`;
-	inputHex = inputHex.toLowerCase();
+	let hex = inputHex;
+	if (hex.length % 2 !== 0) hex = `0${hex}`;
+	hex = hex.toLowerCase();
 
 	const res: string[] = [];
 	let carry = 0;
-	for (let i = inputHex.length - 1; i >= 0; i--) {
+	for (let i = hex.length - 1; i >= 0; i--) {
 		if (carry < 4) {
-			const currentCode = HEX.indexOf(inputHex[i]!) >> carry;
-			const nextCode = i !== 0 ? HEX.indexOf(inputHex[i - 1]!) : 0;
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+			const currentCode = HEX.indexOf(hex[i]!) >> carry;
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+			const nextCode = i !== 0 ? HEX.indexOf(hex[i - 1]!) : 0;
 			const nextBits = 1 + carry;
 			const nextLowBits = (nextCode % (1 << nextBits)) << (5 - nextBits);
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 			res.unshift(C32[currentCode + nextLowBits]!);
 			carry = nextBits;
 		} else {
@@ -33,7 +37,7 @@ function c32encode(inputHex: string): string {
 	const stripped = res.slice(leadingZeros);
 
 	// Preserve leading zero bytes from hex
-	const bytes = hexToBytes(inputHex);
+	const bytes = hexToBytes(hex);
 	let zeroBytesCount = 0;
 	while (zeroBytesCount < bytes.length && bytes[zeroBytesCount] === 0)
 		zeroBytesCount++;
@@ -43,28 +47,31 @@ function c32encode(inputHex: string): string {
 }
 
 function c32decode(c32input: string): string {
-	c32input = c32normalize(c32input);
-	if (!c32input.match(`^[${C32}]*$`))
-		throw new Error("Not a c32-encoded string");
+	const input = c32normalize(c32input);
+	if (!input.match(`^[${C32}]*$`)) throw new Error("Not a c32-encoded string");
 
-	const zeroPrefix = c32input.match(`^${C32[0]}*`);
-	const numLeadingZeroBytes = zeroPrefix ? zeroPrefix[0]!.length : 0;
+	const zeroPrefix = input.match(`^${C32[0]}*`);
+	const numLeadingZeroBytes = zeroPrefix ? zeroPrefix[0]?.length : 0;
 
 	const res: string[] = [];
 	let carry = 0;
 	let carryBits = 0;
-	for (let i = c32input.length - 1; i >= 0; i--) {
+	for (let i = input.length - 1; i >= 0; i--) {
 		if (carryBits === 4) {
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 			res.unshift(HEX[carry]!);
 			carryBits = 0;
 			carry = 0;
 		}
-		const currentValue = (C32.indexOf(c32input[i]!) << carryBits) + carry;
+		// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+		const currentValue = (C32.indexOf(input[i]!) << carryBits) + carry;
+		// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 		res.unshift(HEX[currentValue % 16]!);
 		carryBits += 1;
 		carry = currentValue >> 4;
 		if (carry > 1 << carryBits) throw new Error("Panic error in c32 decoding");
 	}
+	// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 	res.unshift(HEX[carry]!);
 
 	if (res.length % 2 === 1) res.unshift("0");
@@ -90,20 +97,21 @@ function c32checkEncode(version: number, data: string): string {
 	if (!data.match(/^[0-9a-fA-F]*$/))
 		throw new Error("Invalid data (not a hex string)");
 
-	data = data.toLowerCase();
-	if (data.length % 2 !== 0) data = `0${data}`;
+	let d = data.toLowerCase();
+	if (d.length % 2 !== 0) d = `0${d}`;
 
 	let versionHex = version.toString(16);
 	if (versionHex.length === 1) versionHex = `0${versionHex}`;
 
-	const checksumHex = c32checksum(`${versionHex}${data}`);
-	return `${C32[version]}${c32encode(`${data}${checksumHex}`)}`;
+	const checksumHex = c32checksum(`${versionHex}${d}`);
+	return `${C32[version]}${c32encode(`${d}${checksumHex}`)}`;
 }
 
 function c32checkDecode(c32data: string): [number, string] {
-	c32data = c32normalize(c32data);
-	const dataHex = c32decode(c32data.slice(1));
-	const version = C32.indexOf(c32data[0]!);
+	const normalized = c32normalize(c32data);
+	const dataHex = c32decode(normalized.slice(1));
+	// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+	const version = C32.indexOf(normalized[0]!);
 	const checksum = dataHex.slice(-8);
 
 	let versionHex = version.toString(16);

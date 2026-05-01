@@ -35,9 +35,9 @@ export function Dlq({ subscriptionId }: { subscriptionId: string }) {
 		}
 	}
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: load is stable closure; only reload when subscription id changes
 	useEffect(() => {
 		void load();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [subscriptionId]);
 
 	async function requeue(outboxId: string) {
@@ -73,7 +73,7 @@ export function Dlq({ subscriptionId }: { subscriptionId: string }) {
 					<th>Block</th>
 					<th>Failed</th>
 					<th>Payload</th>
-					<th></th>
+					<th />
 				</tr>
 			</thead>
 			<tbody>

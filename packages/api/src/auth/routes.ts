@@ -15,6 +15,7 @@ const app = new Hono();
 app.post("/", requireAuth(), async (c) => {
 	const body = await c.req.json().catch(() => ({}));
 	const parsed = CreateKeySchema.parse(body);
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const accountId = (c as any).get("accountId");
 
 	const db = getDb();
@@ -46,6 +47,7 @@ app.post("/", requireAuth(), async (c) => {
 
 // List keys (requires auth, scoped to account)
 app.get("/", requireAuth(), async (c) => {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const accountId = (c as any).get("accountId");
 	const db = getDb();
 
@@ -78,6 +80,7 @@ app.get("/", requireAuth(), async (c) => {
 // Revoke key (requires auth, same account)
 app.delete("/:id", requireAuth(), async (c) => {
 	const { id } = c.req.param();
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const accountId = (c as any).get("accountId");
 	const db = getDb();
 

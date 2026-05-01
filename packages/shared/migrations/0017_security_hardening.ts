@@ -1,5 +1,6 @@
 import { type Kysely, sql } from "kysely";
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	// Magic link: add failed attempt tracking
 	await sql`ALTER TABLE "magic_links" ADD COLUMN "failed_attempts" integer NOT NULL DEFAULT 0`.execute(
@@ -19,6 +20,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 	);
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
 	await sql`ALTER TABLE "magic_links" DROP COLUMN "failed_attempts"`.execute(
 		db,

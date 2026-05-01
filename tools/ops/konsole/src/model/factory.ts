@@ -22,6 +22,7 @@ function parseDynamicFinder(prop: string): string[] | null {
 }
 
 function createModel(
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	db: Kysely<any>,
 	table: string,
 	primaryKey: string,
@@ -72,6 +73,7 @@ function createModel(
 		async create(attrs: Row) {
 			const row = await db
 				.insertInto(table)
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				.values(attrs as any)
 				.returningAll()
 				.executeTakeFirstOrThrow();
@@ -125,6 +127,7 @@ function createModel(
 }
 
 export function createModelsFromSchema(
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	db: Kysely<any>,
 	schema: SchemaInfo,
 	associationMap: AssociationMap,

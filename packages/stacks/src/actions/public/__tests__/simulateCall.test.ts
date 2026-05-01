@@ -5,15 +5,18 @@ import { SimulationError } from "../../../errors/simulation.ts";
 import { simulateCall } from "../simulateCall.ts";
 
 function createMockClient(
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	requestHandler: (path: string, init?: any) => Promise<any>,
 ): Client {
 	return {
 		transport: {
 			type: "custom" as const,
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			config: {} as any,
 			request: async () => ({}),
 		},
 		request: requestHandler,
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		extend: () => ({}) as any,
 	};
 }
@@ -97,6 +100,7 @@ describe("simulateCall", () => {
 	});
 
 	it("defaults sender to contract deployer", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		let capturedBody: any;
 		const client = createMockClient(async (_path, init) => {
 			capturedBody = init?.body;
@@ -111,6 +115,7 @@ describe("simulateCall", () => {
 	});
 
 	it("uses explicit sender when provided", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		let capturedBody: any;
 		const client = createMockClient(async (_path, init) => {
 			capturedBody = init?.body;
@@ -157,6 +162,7 @@ describe("simulateCall", () => {
 	});
 
 	it("serializes args correctly", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		let capturedBody: any;
 		const client = createMockClient(async (_path, init) => {
 			capturedBody = init?.body;
@@ -173,9 +179,9 @@ describe("simulateCall", () => {
 		});
 
 		expect(capturedBody.arguments).toHaveLength(2);
-		capturedBody.arguments.forEach((arg: string) => {
+		for (const arg of capturedBody.arguments as string[]) {
 			expect(arg.startsWith("0x")).toBe(true);
-		});
+		}
 	});
 
 	it("builds correct request path", async () => {

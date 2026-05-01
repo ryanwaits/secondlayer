@@ -105,6 +105,7 @@ export interface NftTransferEvent {
 		asset_identifier: string;
 		sender: string;
 		recipient: string;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		value: any; // Clarity value
 	};
 }
@@ -115,6 +116,7 @@ export interface NftMintEvent {
 	nft_mint_event: {
 		asset_identifier: string;
 		recipient: string;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		value: any; // Clarity value
 	};
 }
@@ -125,6 +127,7 @@ export interface NftBurnEvent {
 	nft_burn_event: {
 		asset_identifier: string;
 		sender: string;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		value: any; // Clarity value
 	};
 }
@@ -135,6 +138,7 @@ export interface SmartContractEvent {
 	smart_contract_event: {
 		contract_identifier: string;
 		topic: string;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		value: any; // Clarity value
 	};
 }
@@ -241,21 +245,25 @@ export interface TransactionEvent {
 		asset_identifier: string;
 		sender: string;
 		recipient: string;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		value: any;
 	};
 	nft_mint_event?: {
 		asset_identifier: string;
 		recipient: string;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		value: any;
 	};
 	nft_burn_event?: {
 		asset_identifier: string;
 		sender: string;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		value: any;
 	};
 	smart_contract_event?: {
 		contract_identifier: string;
 		topic: string;
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		value: any;
 	};
 }

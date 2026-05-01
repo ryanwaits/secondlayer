@@ -148,13 +148,13 @@ describe("BaseClient", () => {
 	describe("authHeaders", () => {
 		test("includes Bearer when apiKey present", () => {
 			const headers = BaseClient.authHeaders("my-key");
-			expect(headers["Authorization"]).toBe("Bearer my-key");
+			expect(headers.Authorization).toBe("Bearer my-key");
 			expect(headers["Content-Type"]).toBe("application/json");
 		});
 
 		test("omits Authorization when no apiKey", () => {
 			const headers = BaseClient.authHeaders();
-			expect(headers["Authorization"]).toBeUndefined();
+			expect(headers.Authorization).toBeUndefined();
 			expect(headers["Content-Type"]).toBe("application/json");
 		});
 	});

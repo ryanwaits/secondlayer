@@ -300,7 +300,7 @@ describe("payload type: NakamotoCoinbase (0x08)", () => {
 
 		const payload = tx.payload as NakamotoCoinbasePayload;
 		expect(payload.recipient).not.toBeNull();
-		expect(payload.recipient!.type).toBe("address");
+		expect(payload.recipient?.type).toBe("address");
 	});
 
 	test("serialization roundtrip (no recipient)", () => {

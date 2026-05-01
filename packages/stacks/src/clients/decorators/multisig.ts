@@ -77,6 +77,7 @@ export type MultiSigActions = {
 
 /** Decorator that binds {@link MultiSigActions} to a multi-sig client. */
 export function multisigActions(client: Client): MultiSigActions {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const msConfig = (client as any)._multisigConfig as {
 		signers: string[];
 		requiredSignatures: number;
@@ -120,6 +121,7 @@ export function multisigActions(client: Client): MultiSigActions {
 				const estimates = await estimateFee(client, { transaction: unsigned });
 				const mid = estimates[1] ?? estimates[0];
 				if (mid) {
+					// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 					(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
 				}
 			}
@@ -150,6 +152,7 @@ export function multisigActions(client: Client): MultiSigActions {
 				const estimates = await estimateFee(client, { transaction: unsigned });
 				const mid = estimates[1] ?? estimates[0];
 				if (mid) {
+					// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 					(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
 				}
 			}
@@ -178,6 +181,7 @@ export function multisigActions(client: Client): MultiSigActions {
 				const estimates = await estimateFee(client, { transaction: unsigned });
 				const mid = estimates[1] ?? estimates[0];
 				if (mid) {
+					// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 					(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
 				}
 			}

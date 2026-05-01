@@ -10,7 +10,7 @@
 	--bg-chrome: #f0f0f0;
 	--bg-tab-active: #fdfdfc;
 	--accent-pink: #ff00aa;
-	--accent: #2563EB;
+	--accent: #2563eb;
 	--accent-contrast: #fff;
 	--accent-bg: rgba(37, 99, 235, 0.06);
 	--accent-border: rgba(37, 99, 235, 0.2);
@@ -85,7 +85,7 @@
 		--copy-btn: rgba(255, 255, 255, 0.25);
 		--copy-btn-hover: rgba(255, 255, 255, 0.5);
 		--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
-		--accent: #1FD5F9;
+		--accent: #1fd5f9;
 		--accent-contrast: #071316;
 		--focus-ring: rgba(60, 160, 255, 0.5);
 
@@ -129,7 +129,7 @@ html.force-dark {
 	--copy-btn: rgba(255, 255, 255, 0.25);
 	--copy-btn-hover: rgba(255, 255, 255, 0.5);
 	--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
-	--accent: #1FD5F9;
+	--accent: #1fd5f9;
 	--accent-contrast: #071316;
 	--focus-ring: rgba(60, 160, 255, 0.5);
 	--green: #22c55e;
@@ -171,7 +171,7 @@ html.force-light {
 	--copy-btn: rgba(0, 0, 0, 0.25);
 	--copy-btn-hover: rgba(0, 0, 0, 0.5);
 	--copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
-	--accent: #2563EB;
+	--accent: #2563eb;
 	--accent-contrast: #fff;
 	--focus-ring: rgba(0, 122, 255, 0.5);
 	--green: #22c55e;

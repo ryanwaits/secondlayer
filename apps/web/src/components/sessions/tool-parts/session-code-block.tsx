@@ -53,6 +53,7 @@ export function SessionCodeBlock({
 			</div>
 			<div className="session-code-body">
 				{html ? (
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki-highlighted code HTML
 					<div dangerouslySetInnerHTML={{ __html: html }} />
 				) : (
 					<pre>

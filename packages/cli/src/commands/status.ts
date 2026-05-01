@@ -49,6 +49,7 @@ export function registerStatusCommand(program: Command): void {
 		});
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 function printStatus(status: any): void {
 	console.log("");
 
@@ -84,7 +85,7 @@ function printStatus(status: any): void {
 				const filled = Math.round((pct / 100) * barWidth);
 				const empty = barWidth - filled;
 				const bar = `${"█".repeat(filled)}${"░".repeat(empty)}`;
-				const pctStr = pct.toFixed(1) + "%";
+				const pctStr = `${pct.toFixed(1)}%`;
 				const color = pct >= 99.9 ? green : pct >= 50 ? yellow : red;
 				console.log(
 					`  ${dim("chain:")} ${color(bar)} ${color(pctStr)} ${dim(`(tip: ${status.chainTip.toLocaleString()})`)}`,

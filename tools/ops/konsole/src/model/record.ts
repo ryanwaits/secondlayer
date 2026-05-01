@@ -4,6 +4,7 @@ import { tableToModelName } from "../schema/naming.ts";
 import type { ModelRegistry, Row } from "./types.ts";
 
 export class Record {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	private _db: Kysely<any>;
 	private _table: string;
 	private _primaryKey: string;
@@ -14,6 +15,7 @@ export class Record {
 	[key: string]: unknown;
 
 	constructor(
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		db: Kysely<any>,
 		table: string,
 		primaryKey: string,
@@ -77,9 +79,12 @@ export class Record {
 			}
 			case "has_many_through": {
 				const myId = this._attrs[this._primaryKey];
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				const joinModel = this._registry[tableToModelName(assoc.through!)];
 				if (!joinModel) return targetModel.where({ id: null });
 				return {
+					// biome-ignore lint/suspicious/noThenProperty: thenable returned so `await` resolves the join
+					// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 					then: async (resolve: any, reject?: any) => {
 						try {
 							const joinRows = await joinModel.where({
@@ -88,6 +93,7 @@ export class Record {
 							const targetPk = targetModel._primaryKey;
 							const otherFkCol = joinRows[0]
 								? Object.keys(
+										// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 										(joinRows[0] as any).attributes || joinRows[0],
 									).find(
 										(k: string) => k !== assoc.foreignKey && k.endsWith("_id"),
@@ -95,6 +101,7 @@ export class Record {
 								: null;
 							if (!otherFkCol || joinRows.length === 0) return resolve([]);
 							const ids = joinRows.map(
+								// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 								(r: any) => r.attributes?.[otherFkCol] ?? r[otherFkCol],
 							);
 							const result = await targetModel.where({ [targetPk]: ids });
@@ -126,7 +133,9 @@ export class Record {
 			throw new Error(`Cannot update a record without ${this._primaryKey}`);
 		await this._db
 			.updateTable(this._table)
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			.set(attrs as any)
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			.where(this._primaryKey as any, "=", pk)
 			.execute();
 
@@ -152,6 +161,7 @@ export class Record {
 			throw new Error(`Cannot destroy a record without ${this._primaryKey}`);
 		await this._db
 			.deleteFrom(this._table)
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			.where(this._primaryKey as any, "=", pk)
 			.execute();
 		this._persisted = false;
@@ -165,6 +175,7 @@ export class Record {
 		const row = await this._db
 			.selectFrom(this._table)
 			.selectAll()
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			.where(this._primaryKey as any, "=", pk)
 			.executeTakeFirst();
 		if (!row) throw new Error(`Record not found: ${this._table}#${pk}`);

@@ -135,7 +135,7 @@ export async function runBackground(options: DevOptions): Promise<void> {
 		const reachable = await isDatabaseReachable(databaseUrl);
 		if (!reachable) {
 			info(
-				`Configured DATABASE_URL not reachable, starting PostgreSQL container...`,
+				"Configured DATABASE_URL not reachable, starting PostgreSQL container...",
 			);
 			databaseUrl = undefined;
 		}
@@ -368,7 +368,7 @@ export async function runForeground(options: DevOptions): Promise<void> {
 			const reachable = await isDatabaseReachable(databaseUrl);
 			if (!reachable) {
 				info(
-					`Configured DATABASE_URL not reachable, starting PostgreSQL container...`,
+					"Configured DATABASE_URL not reachable, starting PostgreSQL container...",
 				);
 				databaseUrl = undefined;
 			}
@@ -484,16 +484,21 @@ function formatLogLine(service: string, line: string): string {
 
 	if (match) {
 		const [, timestamp, level, message] = match;
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const dimTimestamp = dim(timestamp!);
 
 		if (level === "ERROR") {
-			return `${prefix} ${dimTimestamp} ${red(level + ":")} ${message}`;
-		} else if (level === "WARN") {
-			return `${prefix} ${dimTimestamp} ${yellow(level + ":")} ${message}`;
-		} else if (level === "INFO") {
-			return `${prefix} ${dimTimestamp} ${green(level + ":")} ${message}`;
-		} else if (level === "DEBUG") {
-			return `${prefix} ${dimTimestamp} ${dim(level + ":")} ${dim(message!)}`;
+			return `${prefix} ${dimTimestamp} ${red(`${level}:`)} ${message}`;
+		}
+		if (level === "WARN") {
+			return `${prefix} ${dimTimestamp} ${yellow(`${level}:`)} ${message}`;
+		}
+		if (level === "INFO") {
+			return `${prefix} ${dimTimestamp} ${green(`${level}:`)} ${message}`;
+		}
+		if (level === "DEBUG") {
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
+			return `${prefix} ${dimTimestamp} ${dim(`${level}:`)} ${dim(message!)}`;
 		}
 	}
 
@@ -515,6 +520,7 @@ async function showStaticLogs(
 			for (const line of fileLines) {
 				// Try to extract timestamp from log line
 				const tsMatch = line.match(/^\[(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\]/);
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				const timestamp = tsMatch ? new Date(tsMatch[1]!) : new Date(0);
 				allLines.push({ service: name, line, timestamp });
 			}
@@ -541,7 +547,7 @@ async function followLogs(
 	const procs: ReturnType<typeof Bun.spawn>[] = [];
 
 	for (const [name, service] of services) {
-		const proc = Bun.spawn(["tail", "-f", "-n", "0", service!.logFile], {
+		const proc = Bun.spawn(["tail", "-f", "-n", "0", service?.logFile], {
 			stdout: "pipe",
 			stderr: "pipe",
 		});
@@ -835,7 +841,7 @@ function printBanner(): void {
 	console.log("");
 	console.log(blue("  ╔═══════════════════════════════════════╗"));
 	console.log(
-		blue("  ║") + "          Secondlayer Dev Server       " + blue("║"),
+		`${blue("  ║")}          Secondlayer Dev Server       ${blue("║")}`,
 	);
 	console.log(blue("  ╚═══════════════════════════════════════╝"));
 	console.log("");
@@ -846,13 +852,13 @@ function printBanner(): void {
 function printUrls(indexerPort: number, apiPort: number): void {
 	console.log(dim("  ─────────────────────────────────────────"));
 	console.log("");
-	console.log("  " + blue("API:"));
+	console.log(`  ${blue("API:")}`);
 	console.log(
 		`    List subgraphs: curl http://localhost:${apiPort}/api/subgraphs`,
 	);
 	console.log(`    Health check:   curl http://localhost:${apiPort}/health`);
 	console.log("");
-	console.log("  " + blue("Indexer:"));
+	console.log(`  ${blue("Indexer:")}`);
 	console.log(
 		`    Health check:   curl http://localhost:${indexerPort}/health`,
 	);
@@ -861,13 +867,13 @@ function printUrls(indexerPort: number, apiPort: number): void {
 	);
 	console.log("");
 
-	console.log("  " + blue("Stacks Node Config:"));
+	console.log(`  ${blue("Stacks Node Config:")}`);
 	console.log(dim("    Add to your Stacks node Config.toml:"));
 	console.log("");
-	console.log(yellow(`    [[events_observer]]`));
+	console.log(yellow("    [[events_observer]]"));
 	console.log(yellow(`    endpoint = "host.docker.internal:${indexerPort}"`));
 	console.log(yellow(`    events_keys = ["*"]`));
-	console.log(yellow(`    timeout_ms = 300_000`));
+	console.log(yellow("    timeout_ms = 300_000"));
 	console.log("");
 	console.log(dim("  ─────────────────────────────────────────"));
 }

@@ -1,5 +1,5 @@
-import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
 import { decryptSecret } from "@secondlayer/shared/crypto/secrets";
+import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
 
 /**
  * Cloudflare Workflows — https://developers.cloudflare.com/workflows/build/events-and-parameters/

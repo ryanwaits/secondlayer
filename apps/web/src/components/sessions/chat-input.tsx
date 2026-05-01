@@ -130,6 +130,7 @@ export function ChatInput({
 function ArrowUpIcon() {
 	return (
 		<svg
+			aria-hidden="true"
 			width="14"
 			height="14"
 			viewBox="0 0 16 16"
@@ -147,6 +148,7 @@ function ArrowUpIcon() {
 function MicIcon() {
 	return (
 		<svg
+			aria-hidden="true"
 			width="14"
 			height="14"
 			viewBox="0 0 16 16"

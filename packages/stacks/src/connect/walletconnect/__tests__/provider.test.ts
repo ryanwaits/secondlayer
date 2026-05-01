@@ -7,7 +7,7 @@ class MockWebSocket {
 	static OPEN = 1;
 	readyState = 0;
 	url: string;
-	private listeners = new Map<string, Set<Function>>();
+	private listeners = new Map<string, Set<(...args: unknown[]) => unknown>>();
 	sent: string[] = [];
 
 	constructor(url: string) {
@@ -18,15 +18,20 @@ class MockWebSocket {
 		}, 0);
 	}
 
-	addEventListener(event: string, fn: Function, opts?: { once?: boolean }) {
+	addEventListener(
+		event: string,
+		fn: (...args: unknown[]) => unknown,
+		opts?: { once?: boolean },
+	) {
 		if (!this.listeners.has(event)) this.listeners.set(event, new Set());
 		const wrapped = opts?.once
-			? (...args: any[]) => {
+			? // biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+				(...args: any[]) => {
 					this.listeners.get(event)?.delete(wrapped);
 					fn(...args);
 				}
 			: fn;
-		this.listeners.get(event)!.add(wrapped);
+		this.listeners.get(event)?.add(wrapped);
 	}
 	removeEventListener() {}
 	send(data: string) {
@@ -35,6 +40,7 @@ class MockWebSocket {
 	close() {
 		this.readyState = 3;
 	}
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	emit(event: string, data: any) {
 		for (const fn of this.listeners.get(event) ?? []) fn(data);
 	}
@@ -44,12 +50,11 @@ const origWS = globalThis.WebSocket;
 const storage = new Map<string, string>();
 
 beforeEach(() => {
-	(globalThis as any).WebSocket = class extends MockWebSocket {
-		constructor(url: string) {
-			super(url);
-		}
-	};
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+	(globalThis as any).WebSocket = class extends MockWebSocket {};
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket.OPEN = 1;
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).localStorage = {
 		getItem: (k: string) => storage.get(k) ?? null,
 		setItem: (k: string, v: string) => storage.set(k, v),
@@ -59,8 +64,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket = origWS;
-	delete (globalThis as any).localStorage;
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+	(globalThis as any).localStorage = undefined;
 });
 
 describe("WalletConnectProvider", () => {

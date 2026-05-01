@@ -26,10 +26,11 @@ export async function estimateFee(
 		method: "POST",
 		body: {
 			estimated_len: Math.ceil(txHex.length / 2),
-			transaction_payload: "0x" + payloadHex,
+			transaction_payload: `0x${payloadHex}`,
 		},
 	});
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	return (data.estimations ?? []).map((e: any) => ({
 		feeRate: e.fee_rate,
 		fee: e.fee,

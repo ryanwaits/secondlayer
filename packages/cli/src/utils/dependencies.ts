@@ -1,5 +1,5 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { detect } from "@antfu/ni";
 import chalk from "chalk";
 import { execa } from "execa";
@@ -52,6 +52,7 @@ export async function hasPackageJson(targetDir: string): Promise<boolean> {
 /**
  * Read and parse package.json
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function readPackageJson(targetDir: string): Promise<any> {
 	const packageJsonPath = path.join(targetDir, "package.json");
 	const content = await fs.readFile(packageJsonPath, "utf-8");

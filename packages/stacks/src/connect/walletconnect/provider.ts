@@ -21,6 +21,7 @@ export class WalletConnectProvider implements WalletProvider {
 		return this.session.pair();
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	async request(method: string, params?: any): Promise<any> {
 		return this.session.request(method, params);
 	}

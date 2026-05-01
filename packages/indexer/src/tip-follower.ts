@@ -46,9 +46,7 @@ export function startTipFollower(intervalMs?: number): () => void {
 			if (tipFollowerState.mode !== "polling") {
 				tipFollowerState.mode = "polling";
 				logger.info(
-					"Tip follower: no block for " +
-						Math.round(silenceMs / 1000) +
-						"s, switching to polling",
+					`Tip follower: no block for ${Math.round(silenceMs / 1000)}s, switching to polling`,
 				);
 			}
 

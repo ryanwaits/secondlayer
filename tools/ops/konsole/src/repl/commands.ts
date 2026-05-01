@@ -7,6 +7,7 @@ import { cyan, dim, green } from "./colors.ts";
 import { printTable } from "./printer.ts";
 
 export function createCommands(
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	db: Kysely<any>,
 	schema: SchemaInfo,
 	associations: AssociationMap,

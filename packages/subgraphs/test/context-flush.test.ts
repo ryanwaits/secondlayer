@@ -38,6 +38,7 @@ const tx: TxMeta = {
 describe("context flush statement building", () => {
 	test("insert auto-populates _block_height, _tx_id, _created_at", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -50,6 +51,7 @@ describe("context flush statement building", () => {
 
 	test("update batches correctly", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -62,6 +64,7 @@ describe("context flush statement building", () => {
 
 	test("delete batches correctly", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -74,6 +77,7 @@ describe("context flush statement building", () => {
 
 	test("upsert with uniqueKeys uses ON CONFLICT path", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -86,6 +90,7 @@ describe("context flush statement building", () => {
 
 	test("upsert without uniqueKeys falls back (logs warning)", () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,
@@ -106,6 +111,7 @@ describe("context flush statement building", () => {
 			},
 		};
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			badSchema,
@@ -119,6 +125,7 @@ describe("context flush statement building", () => {
 
 	test("flush returns 0 for empty ops", async () => {
 		const ctx = new SubgraphContext(
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			null as any,
 			"subgraph_test",
 			schema,

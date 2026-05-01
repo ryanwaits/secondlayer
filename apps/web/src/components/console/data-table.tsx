@@ -35,8 +35,16 @@ export function DataTable<T extends Record<string, unknown>>({
 			<tbody>
 				{data.map((row, i) => (
 					<tr
+						// biome-ignore lint/suspicious/noArrayIndexKey: generic table; row shape unknown so no stable id
 						key={i}
 						onClick={onRowClick ? () => onRowClick(row) : undefined}
+						onKeyDown={
+							onRowClick
+								? (e) => {
+										if (e.key === "Enter" || e.key === " ") onRowClick(row);
+									}
+								: undefined
+						}
 						style={onRowClick ? { cursor: "pointer" } : undefined}
 					>
 						{columns.map((col) => (

@@ -25,7 +25,7 @@ function base58Decode(str: string): Uint8Array {
 
 	// Convert bigint to bytes
 	const hex = num.toString(16).padStart(2, "0");
-	const padded = hex.length % 2 ? "0" + hex : hex;
+	const padded = hex.length % 2 ? `0${hex}` : hex;
 	const rawBytes = hexToBytes(padded);
 
 	// Count leading zeros
@@ -67,6 +67,7 @@ function parseSegwitAddress(address: string): PoxAddress {
 		decoded = bech32m.decode(address as `${string}1${string}`);
 	}
 
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const witnessVersion = decoded.words[0]!;
 	const data = bech32.fromWords(decoded.words.slice(1));
 	const hashbytes = new Uint8Array(data);
@@ -107,6 +108,7 @@ function parseLegacyAddress(address: string): PoxAddress {
 		throw new Error(`Invalid legacy address length: ${decoded.length}`);
 	}
 
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const versionByte = decoded[0]!;
 	const hashbytes = decoded.slice(1, 21);
 

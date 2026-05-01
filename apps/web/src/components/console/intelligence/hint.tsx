@@ -14,7 +14,13 @@ export function Hint({ children, id }: HintProps) {
 	return (
 		<div className="hint">
 			<div className="hint-text">{children}</div>
-			<span className="hint-dismiss" onClick={dismiss}>
+			<span
+				className="hint-dismiss"
+				onClick={dismiss}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") dismiss();
+				}}
+			>
 				×
 			</span>
 		</div>

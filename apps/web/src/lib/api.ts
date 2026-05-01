@@ -28,7 +28,7 @@ export async function apiRequest<T>(
 	};
 
 	if (sessionToken) {
-		headers["Authorization"] = `Bearer ${sessionToken}`;
+		headers.Authorization = `Bearer ${sessionToken}`;
 	}
 
 	const nextOptions: Record<string, unknown> = tags

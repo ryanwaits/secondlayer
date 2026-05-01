@@ -267,6 +267,7 @@ const server = Bun.serve({
 						await tx
 							.insertInto("blocks")
 							.values(block)
+							// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 							.onConflict((oc: any) =>
 								oc.column("height").doUpdateSet({
 									hash: block.hash,
@@ -282,6 +283,7 @@ const server = Bun.serve({
 							await tx
 								.insertInto("transactions")
 								.values(txs.slice(i, i + TX_CHUNK_SIZE))
+								// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 								.onConflict((oc: any) => oc.doNothing())
 								.execute();
 						}
@@ -290,6 +292,7 @@ const server = Bun.serve({
 							await tx
 								.insertInto("events")
 								.values(evts.slice(i, i + EVT_CHUNK_SIZE))
+								// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 								.onConflict((oc: any) => oc.doNothing())
 								.execute();
 						}
@@ -334,6 +337,7 @@ const server = Bun.serve({
 								last_contiguous_block: newContiguous,
 								highest_seen_block: payload.block_height,
 							})
+							// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 							.onConflict((oc: any) =>
 								oc.column("network").doUpdateSet({
 									last_indexed_block: sql`GREATEST(index_progress.last_indexed_block, ${payload.block_height})`,
@@ -345,18 +349,18 @@ const server = Bun.serve({
 							.execute();
 					});
 
-				logger.info("Block indexed successfully", {
-					height: payload.block_height,
-					transactions: txs.length,
-					events: evts.length,
-				});
+					logger.info("Block indexed successfully", {
+						height: payload.block_height,
+						transactions: txs.length,
+						events: evts.length,
+					});
 
-				return Response.json({
-					status: "ok",
-					block_height: payload.block_height,
-					transactions: txs.length,
-					events: evts.length,
-				});
+					return Response.json({
+						status: "ok",
+						block_height: payload.block_height,
+						transactions: txs.length,
+						events: evts.length,
+					});
 				} catch (error) {
 					logger.error("Error processing new_block", {
 						error:

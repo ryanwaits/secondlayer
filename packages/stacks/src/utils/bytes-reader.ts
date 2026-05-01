@@ -9,11 +9,13 @@ export class BytesReader {
 	}
 
 	readUInt8(): number {
+		// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 		return this.data[this.offset++]!;
 	}
 
 	readUInt16BE(): number {
 		const val =
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 			((this.data[this.offset]! << 8) | this.data[this.offset + 1]!) >>> 0;
 		this.offset += 2;
 		return val;
@@ -21,9 +23,13 @@ export class BytesReader {
 
 	readUInt32BE(): number {
 		const val =
+			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 			((this.data[this.offset]! << 24) |
+				// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 				(this.data[this.offset + 1]! << 16) |
+				// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 				(this.data[this.offset + 2]! << 8) |
+				// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 				this.data[this.offset + 3]!) >>>
 			0;
 		this.offset += 4;

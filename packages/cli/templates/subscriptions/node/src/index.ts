@@ -10,7 +10,9 @@ import { Hono } from "hono";
 
 const SIGNING_SECRET = process.env.SIGNING_SECRET;
 if (!SIGNING_SECRET) {
-	console.error("SIGNING_SECRET not set. Copy .env.example → .env and fill it in.");
+	console.error(
+		"SIGNING_SECRET not set. Copy .env.example → .env and fill it in.",
+	);
 	process.exit(1);
 }
 

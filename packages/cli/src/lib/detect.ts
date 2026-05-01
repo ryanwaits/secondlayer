@@ -175,7 +175,7 @@ interface Mount {
 function getParentPath(path: string): string {
 	const parts = path.split("/").filter(Boolean);
 	parts.pop();
-	return "/" + parts.join("/");
+	return `/${parts.join("/")}`;
 }
 
 /**
@@ -208,7 +208,7 @@ function detectNetworkFromContainer(container: {
 	// Check labels
 	if (config?.Labels) {
 		const networkLabel =
-			config.Labels["network"] || config.Labels["stacks.network"];
+			config.Labels.network || config.Labels["stacks.network"];
 		if (networkLabel === "testnet") {
 			return "testnet";
 		}

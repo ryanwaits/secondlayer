@@ -90,6 +90,6 @@ export async function writeActiveProject(
 	const dir = join(resolve(cwd), DIRNAME);
 	await mkdir(dir, { recursive: true });
 	const file = join(dir, FILENAME);
-	await writeFile(file, JSON.stringify({ slug }, null, 2) + "\n", "utf8");
+	await writeFile(file, `${JSON.stringify({ slug }, null, 2)}\n`, "utf8");
 	return file;
 }

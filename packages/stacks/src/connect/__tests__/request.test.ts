@@ -12,15 +12,18 @@ const mockLocalStorage = {
 };
 
 function setProvider(provider: WalletProvider) {
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).window = { StacksProvider: provider };
 }
 
 function clearProvider() {
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).window = {};
 }
 
 beforeEach(() => {
 	store.clear();
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).localStorage = mockLocalStorage;
 	clearProvider();
 });
@@ -56,6 +59,7 @@ describe("request", () => {
 			recipient: "SP123",
 			amount: "1000",
 			network: "mainnet",
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		} as any);
 
 		// bigint in nested objects would be serialized
@@ -149,6 +153,7 @@ describe("request", () => {
 			network: "mainnet",
 		});
 
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((mockRequest.mock.calls[0] as any)[1]).toEqual({
 			contract: "SP123.my-contract",
 			functionName: "transfer",
@@ -164,10 +169,12 @@ describe("request", () => {
 		await request("stx_callContract", {
 			contract: "SP123.test",
 			functionName: "foo",
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			functionArgs: [100n as any],
 			network: "mainnet",
 		});
 
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const sentArgs = ((mockRequest.mock.calls[0] as any)[1] as any)
 			.functionArgs;
 		expect(sentArgs[0]).toBe("100");
@@ -184,8 +191,10 @@ describe("request", () => {
 			functionArgs: [],
 			network: "mainnet",
 			postConditions: [pc],
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		} as any);
 
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const sent = (mockRequest.mock.calls[0] as any)[1] as any;
 		expect(sent.postConditions[0]).toEqual(pc);
 	});

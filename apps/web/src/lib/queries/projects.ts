@@ -1,6 +1,6 @@
 "use client";
 
-import type { Project, TeamMember, TeamInvitation } from "@/lib/types";
+import type { Project, TeamInvitation, TeamMember } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "./fetch";
 import { queryKeys } from "./keys";

@@ -50,8 +50,8 @@ describe("inferAssociations", () => {
 
 		const assocs = inferAssociations(schema);
 
-		expect(assocs["posts"]).toHaveLength(1);
-		expect(assocs["posts"][0]).toMatchObject({
+		expect(assocs.posts).toHaveLength(1);
+		expect(assocs.posts[0]).toMatchObject({
 			type: "belongs_to",
 			name: "user",
 			fromTable: "posts",
@@ -59,8 +59,8 @@ describe("inferAssociations", () => {
 			foreignKey: "user_id",
 		});
 
-		expect(assocs["users"]).toHaveLength(1);
-		expect(assocs["users"][0]).toMatchObject({
+		expect(assocs.users).toHaveLength(1);
+		expect(assocs.users[0]).toMatchObject({
 			type: "has_many",
 			name: "posts",
 			fromTable: "users",
@@ -95,11 +95,11 @@ describe("inferAssociations", () => {
 		};
 
 		const assocs = inferAssociations(schema);
-		expect(assocs["users"][0]).toMatchObject({
+		expect(assocs.users[0]).toMatchObject({
 			type: "has_one",
 			name: "profile",
 		});
-		expect(assocs["profiles"][0]).toMatchObject({
+		expect(assocs.profiles[0]).toMatchObject({
 			type: "belongs_to",
 			name: "user",
 		});
@@ -144,7 +144,7 @@ describe("inferAssociations", () => {
 		const assocs = inferAssociations(schema);
 
 		// students has_many_through courses
-		const studentAssocs = assocs["students"];
+		const studentAssocs = assocs.students;
 		expect(studentAssocs).toContainEqual(
 			expect.objectContaining({
 				type: "has_many_through",
@@ -155,7 +155,7 @@ describe("inferAssociations", () => {
 		);
 
 		// courses has_many_through students
-		const courseAssocs = assocs["courses"];
+		const courseAssocs = assocs.courses;
 		expect(courseAssocs).toContainEqual(
 			expect.objectContaining({
 				type: "has_many_through",
@@ -198,7 +198,7 @@ describe("inferAssociations", () => {
 		};
 
 		const assocs = inferAssociations(schema);
-		expect(assocs["articles"]).toContainEqual(
+		expect(assocs.articles).toContainEqual(
 			expect.objectContaining({
 				type: "has_many_through",
 				through: "article_tags",
@@ -241,17 +241,17 @@ describe("inferAssociations", () => {
 
 		const assocs = inferAssociations(schema);
 		// Should be regular belongs_to/has_many, not through
-		expect(assocs["memberships"]).toContainEqual(
+		expect(assocs.memberships).toContainEqual(
 			expect.objectContaining({ type: "belongs_to", name: "user" }),
 		);
-		expect(assocs["memberships"]).toContainEqual(
+		expect(assocs.memberships).toContainEqual(
 			expect.objectContaining({ type: "belongs_to", name: "team" }),
 		);
-		expect(assocs["users"]).toContainEqual(
+		expect(assocs.users).toContainEqual(
 			expect.objectContaining({ type: "has_many", name: "memberships" }),
 		);
 		// No has_many_through
-		expect(assocs["users"]).not.toContainEqual(
+		expect(assocs.users).not.toContainEqual(
 			expect.objectContaining({ type: "has_many_through" }),
 		);
 	});

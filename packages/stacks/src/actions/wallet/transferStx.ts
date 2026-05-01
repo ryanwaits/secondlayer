@@ -56,6 +56,7 @@ export async function transferStx(
 		const estimates = await estimateFee(client, { transaction: unsigned });
 		const mid = estimates[1] ?? estimates[0];
 		if (mid) {
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
 		}
 	}

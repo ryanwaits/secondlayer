@@ -42,7 +42,7 @@ export function filterByOptions<T extends { name: string }>(
 
 	if (options.include && options.include.length > 0) {
 		filtered = filtered.filter((item) =>
-			options.include!.some(
+			options.include?.some(
 				(pattern) =>
 					item.name.includes(pattern) || item.name.match(new RegExp(pattern)),
 			),
@@ -52,7 +52,7 @@ export function filterByOptions<T extends { name: string }>(
 	if (options.exclude && options.exclude.length > 0) {
 		filtered = filtered.filter(
 			(item) =>
-				!options.exclude!.some(
+				!options.exclude?.some(
 					(pattern) =>
 						item.name.includes(pattern) || item.name.match(new RegExp(pattern)),
 				),

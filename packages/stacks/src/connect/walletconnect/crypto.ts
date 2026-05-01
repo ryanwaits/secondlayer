@@ -43,6 +43,7 @@ export function symKeyToTopic(symKey: Uint8Array): string {
 
 export function encodeBase64(data: Uint8Array): string {
 	let binary = "";
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	for (let i = 0; i < data.length; i++) binary += String.fromCharCode(data[i]!);
 	return btoa(binary);
 }

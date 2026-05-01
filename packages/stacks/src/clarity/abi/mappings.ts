@@ -19,11 +19,14 @@ export type AbiToTS<T extends AbiType> = T extends "none"
 					? string
 					: T extends "trait_reference"
 						? string
-						: T extends { "string-ascii": any }
+						: // biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+							T extends { "string-ascii": any }
 							? string
-							: T extends { "string-utf8": any }
+							: // biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+								T extends { "string-utf8": any }
 								? string
-								: T extends { buff: any }
+								: // biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+									T extends { buff: any }
 									? Uint8Array
 									: T extends { list: { type: infer U extends AbiType } }
 										? Array<AbiToTS<U>>

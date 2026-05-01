@@ -13,6 +13,7 @@ interface ActionItem {
 const ICONS = {
 	subgraph: (
 		<svg
+			aria-hidden="true"
 			width="12"
 			height="12"
 			viewBox="0 0 16 16"
@@ -77,9 +78,14 @@ export function ActionDropdown({
 
 	return (
 		<div className="action-dropdown-wrap" ref={ref}>
-			<button className="dash-btn prompts-btn" onClick={() => setOpen(!open)}>
+			<button
+				type="button"
+				className="dash-btn prompts-btn"
+				onClick={() => setOpen(!open)}
+			>
 				Actions
 				<svg
+					aria-hidden="true"
 					width="12"
 					height="12"
 					viewBox="0 0 16 16"
@@ -104,6 +110,9 @@ export function ActionDropdown({
 							key={item.label}
 							className="action-dropdown-item"
 							onClick={() => handleCopy(item)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") handleCopy(item);
+							}}
 							style={{ cursor: "pointer" }}
 						>
 							{item.icon && (

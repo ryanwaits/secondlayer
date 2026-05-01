@@ -35,6 +35,7 @@ export function DataTableCard({
 			<div className="tool-card">
 				<div className="tool-card-header">
 					<svg
+						aria-hidden="true"
 						width="12"
 						height="12"
 						viewBox="0 0 16 16"
@@ -61,6 +62,7 @@ export function DataTableCard({
 		<div className="tool-card">
 			<div className="tool-card-header">
 				<svg
+					aria-hidden="true"
 					width="12"
 					height="12"
 					viewBox="0 0 16 16"
@@ -85,6 +87,7 @@ export function DataTableCard({
 					</thead>
 					<tbody>
 						{rows.map((row, i) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: row shape is dynamic; no stable id available
 							<tr key={i}>
 								{columns.map((col) => (
 									<td

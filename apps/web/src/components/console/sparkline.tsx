@@ -12,7 +12,7 @@ export function Sparkline({
 			<div className="spark-row">
 				{data.map((d, i) => (
 					<div
-						key={i}
+						key={`${d.label}-${i}`}
 						className="spark-bar"
 						style={{
 							height: `${Math.max((d.value / max) * 100, 2)}%`,
@@ -24,7 +24,7 @@ export function Sparkline({
 			</div>
 			<div className="spark-labels">
 				{data.map((d, i) => (
-					<span key={i}>{d.label}</span>
+					<span key={`${d.label}-${i}`}>{d.label}</span>
 				))}
 			</div>
 		</div>

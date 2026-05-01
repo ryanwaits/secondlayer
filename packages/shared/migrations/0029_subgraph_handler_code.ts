@@ -8,6 +8,7 @@ import type { Kysely } from "kysely";
  * writable layer and are lost on container recreation (e.g. CI deploys).
  * With handler_code stored in DB, the API can restore the file on startup.
  */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.alterTable("subgraphs")
@@ -15,9 +16,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.execute();
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export async function down(db: Kysely<any>): Promise<void> {
-	await db.schema
-		.alterTable("subgraphs")
-		.dropColumn("handler_code")
-		.execute();
+	await db.schema.alterTable("subgraphs").dropColumn("handler_code").execute();
 }

@@ -46,7 +46,7 @@ export const actions: PluginFactory<ActionsPluginOptions> = (options = {}) => {
 				if (options.include && !options.include.includes(contract.name)) {
 					return false;
 				}
-				if (options.exclude && options.exclude.includes(contract.name)) {
+				if (options.exclude?.includes(contract.name)) {
 					return false;
 				}
 				return true;

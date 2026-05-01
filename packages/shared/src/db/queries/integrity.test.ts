@@ -10,6 +10,7 @@ import {
 const HAS_DB = !!process.env.DATABASE_URL;
 
 describe.skipIf(!HAS_DB)("integrity queries", () => {
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	const db = HAS_DB ? getDb() : (null as any);
 
 	beforeAll(async () => {
@@ -35,6 +36,7 @@ describe.skipIf(!HAS_DB)("integrity queries", () => {
 				timestamp: Math.floor(Date.now() / 1000),
 				canonical: true,
 			})
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			.onConflict((oc: any) => oc.column("height").doNothing())
 			.execute();
 	}
@@ -55,7 +57,7 @@ describe.skipIf(!HAS_DB)("integrity queries", () => {
 	test("findGaps respects limit", async () => {
 		const gaps = await findGaps(db, 1);
 		expect(gaps).toHaveLength(1);
-		expect(gaps[0]!.gapStart).toBe(4);
+		expect(gaps[0]?.gapStart).toBe(4);
 	});
 
 	test("countMissingBlocks sums gap sizes", async () => {

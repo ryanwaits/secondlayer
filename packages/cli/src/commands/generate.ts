@@ -1,4 +1,4 @@
-import path from "path";
+import path from "node:path";
 import { getErrorMessage } from "@secondlayer/shared";
 import { toCamelCase } from "@secondlayer/stacks/clarity";
 import chalk from "chalk";
@@ -115,9 +115,7 @@ async function buildConfigFromInputs(
 	if (parsedInputs.files.length > 0 && !defaultAddress) {
 		console.warn(
 			chalk.yellow(
-				`⚠️  Using placeholder address (${deployer}) for local contracts.\n` +
-					`   Generated contract addresses won't match deployed addresses.\n` +
-					`   Set defaultAddress in config or use deployed contract addresses.`,
+				`⚠️  Using placeholder address (${deployer}) for local contracts.\n   Generated contract addresses won't match deployed addresses.\n   Set defaultAddress in config or use deployed contract addresses.`,
 			),
 		);
 	}
@@ -247,8 +245,11 @@ export async function generate(files: string[], options: GenerateOptions) {
 				name: contract.name,
 				address: contract.address,
 				source: contract.source,
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				abi: (contract as any).abi, // Include ABI if it exists (from plugins)
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				_clarinetSource: (contract as any)._clarinetSource, // Include plugin flags
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				_directFile: (contract as any)._directFile, // Include direct file flag
 			}),
 		);

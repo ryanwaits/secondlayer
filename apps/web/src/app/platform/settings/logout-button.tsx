@@ -13,6 +13,7 @@ export function LogoutButton() {
 
 	return (
 		<button
+			type="button"
 			onClick={handleLogout}
 			className="dash-empty-action"
 			style={{

@@ -278,10 +278,12 @@ function formatLogLine(line: string): string | null {
 	const [, level, timestamp, _source, _thread, message] = match;
 
 	// Convert unix timestamp to ISO
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const date = new Date(Number.parseFloat(timestamp!) * 1000);
 	const isoTime = date.toISOString();
 
 	// Truncate message if too long, extract key info
+	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 	const shortMessage = extractKeyInfo(message!);
 
 	return `[stacks-node] [${isoTime}] ${level}: ${shortMessage}`;
@@ -291,7 +293,7 @@ function extractKeyInfo(message: string): string {
 	// Clean up common verbose messages
 	if (message.includes("Advanced to new tip")) {
 		const hashMatch = message.match(/([a-f0-9]{64})/);
-		const hash = hashMatch ? hashMatch[1]!.slice(0, 16) + "..." : "";
+		const hash = hashMatch ? `${hashMatch[1]?.slice(0, 16)}...` : "";
 		return `Advanced to new tip ${hash}`;
 	}
 
@@ -301,7 +303,7 @@ function extractKeyInfo(message: string): string {
 
 	// Truncate long messages
 	if (message.length > 120) {
-		return message.slice(0, 117) + "...";
+		return `${message.slice(0, 117)}...`;
 	}
 
 	return message;

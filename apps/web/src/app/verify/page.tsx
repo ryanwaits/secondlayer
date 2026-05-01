@@ -1,12 +1,11 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 function VerifyContent() {
 	const searchParams = useSearchParams();
-	const router = useRouter();
 	const { verify } = useAuth();
 	const token = searchParams.get("token");
 	const [error, setError] = useState<string | null>(null);
@@ -34,7 +33,7 @@ function VerifyContent() {
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Verification failed");
 		}
-	}, [token, verify, router]);
+	}, [token, verify]);
 
 	useEffect(() => {
 		doVerify();

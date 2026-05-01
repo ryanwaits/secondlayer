@@ -24,7 +24,7 @@ import {
 // Ensure sync signing is available
 etc.hmacSha256Sync = (key: Uint8Array, ...msgs: Uint8Array[]) => {
 	const h = hmac.create(sha256, key);
-	msgs.forEach((msg) => h.update(msg));
+	for (const msg of msgs) h.update(msg);
 	return h.digest();
 };
 

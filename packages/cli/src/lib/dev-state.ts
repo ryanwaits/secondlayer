@@ -55,7 +55,7 @@ export async function loadDevState(): Promise<DevState | null> {
 
 export async function saveDevState(state: DevState): Promise<void> {
 	await ensureDirs();
-	await Bun.write(DEV_STATE_PATH, JSON.stringify(state, null, 2) + "\n");
+	await Bun.write(DEV_STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
 }
 
 export async function clearDevState(): Promise<void> {

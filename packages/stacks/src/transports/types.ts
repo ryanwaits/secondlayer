@@ -4,6 +4,7 @@ import type { StacksChain } from "../chains/types.ts";
 export type RequestFn = (
 	path: string,
 	options?: RequestOptions,
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 ) => Promise<any>;
 
 /** Options for a transport-level HTTP request. */

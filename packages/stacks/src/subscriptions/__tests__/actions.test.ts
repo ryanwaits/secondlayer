@@ -12,11 +12,14 @@ import {
 import type { Subscription, WsSubscribeParams } from "../types.ts";
 
 function mockWsClient(): Client & {
-	subscribeCalls: Array<{ params: WsSubscribeParams; callback: Function }>;
+	subscribeCalls: Array<{
+		params: WsSubscribeParams;
+		callback: (...args: unknown[]) => unknown;
+	}>;
 } {
 	const subscribeCalls: Array<{
 		params: WsSubscribeParams;
-		callback: Function;
+		callback: (...args: unknown[]) => unknown;
 	}> = [];
 
 	const transport: WebSocketTransport = {
@@ -26,6 +29,7 @@ function mockWsClient(): Client & {
 		subscribe: mock(
 			(
 				params: WsSubscribeParams,
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 				callback: (data: any) => void,
 			): Promise<Subscription> => {
 				subscribeCalls.push({ params, callback });
@@ -38,6 +42,7 @@ function mockWsClient(): Client & {
 	return {
 		transport,
 		request: transport.request,
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		extend: () => ({}) as any,
 		subscribeCalls,
 	};
@@ -51,6 +56,7 @@ function mockHttpClient(): Client {
 			config: {},
 		},
 		request: mock(() => Promise.resolve({})),
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		extend: () => ({}) as any,
 	};
 }

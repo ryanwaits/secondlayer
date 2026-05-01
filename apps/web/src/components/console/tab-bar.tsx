@@ -133,6 +133,7 @@ export function SessionTabBar() {
 							}}
 						>
 							<svg
+								aria-hidden="true"
 								width="8"
 								height="8"
 								viewBox="0 0 8 8"
@@ -150,6 +151,7 @@ export function SessionTabBar() {
 
 			<Link href="/sessions" className="session-tab-new" title="New session">
 				<svg
+					aria-hidden="true"
 					width="12"
 					height="12"
 					viewBox="0 0 12 12"

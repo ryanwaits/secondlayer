@@ -44,10 +44,14 @@ export function UserModal({ open, onClose }: UserModalProps) {
 			onClick={(e) => {
 				if (e.target === e.currentTarget) onClose();
 			}}
+			onKeyDown={(e) => {
+				if (e.key === "Escape") onClose();
+			}}
 		>
 			<div className="user-modal">
 				<button type="button" className="user-modal-close" onClick={onClose}>
 					<svg
+						aria-hidden="true"
 						width="14"
 						height="14"
 						viewBox="0 0 16 16"
@@ -90,6 +94,7 @@ export function UserModal({ open, onClose }: UserModalProps) {
 							onClick={() => setTheme("light")}
 						>
 							<svg
+								aria-hidden="true"
 								width="14"
 								height="14"
 								viewBox="0 0 16 16"
@@ -109,6 +114,7 @@ export function UserModal({ open, onClose }: UserModalProps) {
 							onClick={() => setTheme("dark")}
 						>
 							<svg
+								aria-hidden="true"
 								width="14"
 								height="14"
 								viewBox="0 0 16 16"
@@ -127,6 +133,7 @@ export function UserModal({ open, onClose }: UserModalProps) {
 							onClick={() => setTheme("system")}
 						>
 							<svg
+								aria-hidden="true"
 								width="14"
 								height="14"
 								viewBox="0 0 16 16"

@@ -97,7 +97,7 @@ describe("recoverPublicKey", () => {
 		const msgHash = sha256(utf8ToBytes("hello world"));
 		const sig = await signAsync(msgHash, privKey);
 
-		const v = sig.recovery!.toString(16).padStart(2, "0");
+		const v = sig.recovery?.toString(16).padStart(2, "0");
 		const vrs = v + sig.toCompactHex();
 
 		const recovered = recoverPublicKey(msgHash, vrs, true);
@@ -165,7 +165,7 @@ describe("verifyMessageSignature", () => {
 		const msgHash = sha256(encoded);
 
 		const sig = await signAsync(msgHash, privKey);
-		const v = sig.recovery!.toString(16).padStart(2, "0");
+		const v = sig.recovery?.toString(16).padStart(2, "0");
 		const vrs = v + sig.toCompactHex();
 
 		expect(verifyMessageSignature(message, vrs, pubKey)).toBe(true);
@@ -185,7 +185,7 @@ describe("verifyMessageSignature", () => {
 		const msgHash = sha256(encoded);
 
 		const sig = await signAsync(msgHash, privKey);
-		const v = sig.recovery!.toString(16).padStart(2, "0");
+		const v = sig.recovery?.toString(16).padStart(2, "0");
 		const vrs = v + sig.toCompactHex();
 
 		expect(verifyMessageSignature("Wrong Message", vrs, pubKey)).toBe(false);

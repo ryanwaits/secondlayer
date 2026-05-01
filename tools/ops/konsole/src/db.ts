@@ -3,6 +3,7 @@ import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 
 export function connectDb(url: string): {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	db: Kysely<any>;
 	close: () => Promise<void>;
 } {
@@ -18,6 +19,7 @@ export function connectDb(url: string): {
 				},
 	});
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const db = new Kysely<any>({
 		dialect: new PostgresJSDialect({ postgres: client }),
 	});

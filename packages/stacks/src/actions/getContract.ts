@@ -27,6 +27,7 @@ import { callContract } from "./wallet/callContract.ts";
 // --- Type helpers for unwrapping response types ---
 
 /** Unwrap `(response ok err)` → just the `ok` branch type */
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 type UnwrapResponse<T> = T extends { ok: infer O } | { err: any } ? O : T;
 
 type ReadMethodReturn<

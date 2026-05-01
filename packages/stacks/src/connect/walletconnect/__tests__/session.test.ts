@@ -15,7 +15,7 @@ class MockWebSocket {
 	static OPEN = 1;
 	readyState = 0;
 	url: string;
-	private listeners = new Map<string, Set<Function>>();
+	private listeners = new Map<string, Set<(...args: unknown[]) => unknown>>();
 	sent: string[] = [];
 	private respondedIds = new Set<number>();
 
@@ -28,15 +28,20 @@ class MockWebSocket {
 		});
 	}
 
-	addEventListener(event: string, fn: Function, opts?: { once?: boolean }) {
+	addEventListener(
+		event: string,
+		fn: (...args: unknown[]) => unknown,
+		opts?: { once?: boolean },
+	) {
 		if (!this.listeners.has(event)) this.listeners.set(event, new Set());
 		const wrapped = opts?.once
-			? (...args: any[]) => {
+			? // biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+				(...args: any[]) => {
 					this.listeners.get(event)?.delete(wrapped);
 					fn(...args);
 				}
 			: fn;
-		this.listeners.get(event)!.add(wrapped);
+		this.listeners.get(event)?.add(wrapped);
 	}
 	removeEventListener() {}
 	send(data: string) {
@@ -59,6 +64,7 @@ class MockWebSocket {
 	close() {
 		this.readyState = 3;
 	}
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	emit(event: string, data: any) {
 		for (const fn of this.listeners.get(event) ?? []) fn(data);
 	}
@@ -80,13 +86,16 @@ const mockStorage = {
 beforeEach(() => {
 	wsInstances = [];
 	storage.clear();
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket = class extends MockWebSocket {
 		constructor(url: string) {
 			super(url);
 			wsInstances.push(this);
 		}
 	};
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket.OPEN = 1;
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).localStorage = mockStorage;
 });
 
@@ -94,8 +103,10 @@ afterEach(() => {
 	// Close all WS instances to prevent stale microtask callbacks
 	for (const ws of wsInstances) ws.close();
 	wsInstances = [];
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).WebSocket = origWS;
-	delete (globalThis as any).localStorage;
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+	(globalThis as any).localStorage = undefined;
 });
 
 const TEST_CONFIG = {
@@ -129,6 +140,7 @@ describe("WcSession", () => {
 		const [topicPart, queryPart] = uri.replace("wc:", "").split("@2?");
 		const pairingTopic = topicPart;
 		const params = new URLSearchParams(queryPart);
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const pairingSymKey = hexToBytes(params.get("symKey")!);
 
 		// Allow the subscribe RPC to complete
@@ -227,7 +239,7 @@ describe("WcSession", () => {
 		const session = new WcSession(TEST_CONFIG);
 		expect(session.restore()).toBe(true);
 		expect(session.session).not.toBeNull();
-		expect(session.session!.topic).toBe("abc123");
+		expect(session.session?.topic).toBe("abc123");
 		session.disconnect();
 	});
 

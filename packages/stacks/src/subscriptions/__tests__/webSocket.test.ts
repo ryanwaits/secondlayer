@@ -9,7 +9,9 @@ describe("webSocket transport factory", () => {
 
 		expect(transport.type).toBe("webSocket");
 		expect(transport.request).toBeFunction();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((transport as any).subscribe).toBeFunction();
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		expect((transport as any).destroy).toBeFunction();
 	});
 
@@ -70,6 +72,7 @@ describe("webSocket transport factory", () => {
 		const transport = factory();
 
 		// Should not throw
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		(transport as any).destroy();
 	});
 });

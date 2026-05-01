@@ -1,5 +1,5 @@
-import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
 import { decryptSecret } from "@secondlayer/shared/crypto/secrets";
+import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
 
 /**
  * Trigger.dev v3 task trigger — https://trigger.dev/docs/tasks/overview

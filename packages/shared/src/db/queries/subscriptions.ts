@@ -57,7 +57,9 @@ export async function createSubscription(
 		url: input.url,
 		signing_secret_enc: encryptSecret(signingSecret),
 		auth_config: input.authConfig ?? {},
-		...(input.maxRetries !== undefined ? { max_retries: input.maxRetries } : {}),
+		...(input.maxRetries !== undefined
+			? { max_retries: input.maxRetries }
+			: {}),
 		...(input.timeoutMs !== undefined ? { timeout_ms: input.timeoutMs } : {}),
 		...(input.concurrency !== undefined
 			? { concurrency: input.concurrency }
@@ -223,5 +225,7 @@ export async function notifySubscriptionsChanged(
 	db: Kysely<Database>,
 	accountId: string,
 ): Promise<void> {
-	await sql`SELECT pg_notify('subscriptions:changed', ${accountId})`.execute(db);
+	await sql`SELECT pg_notify('subscriptions:changed', ${accountId})`.execute(
+		db,
+	);
 }

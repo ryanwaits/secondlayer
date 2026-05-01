@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { ApiError, apiRequest } from "@/lib/api";
 import type { Account, ApiKey } from "@/lib/types";
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
 	try {

@@ -40,6 +40,7 @@ export function InfoPanel({ title, markdown, docUrl }: InfoPanelProps) {
 		<div className="palette-info">
 			<div
 				className="palette-info-markdown"
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: DOMPurify-sanitized markdown HTML
 				dangerouslySetInnerHTML={{ __html: html }}
 			/>
 			{docUrl && (

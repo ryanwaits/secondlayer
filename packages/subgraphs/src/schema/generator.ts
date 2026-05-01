@@ -42,7 +42,7 @@ export function generateSubgraphSQL(
 	);
 
 	if (needsTrgm) {
-		statements.push(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+		statements.push("CREATE EXTENSION IF NOT EXISTS pg_trgm");
 	}
 
 	// Schema namespace
@@ -54,10 +54,10 @@ export function generateSubgraphSQL(
 
 		// Auto-columns + user columns
 		const columnDefs: string[] = [
-			`_id BIGSERIAL PRIMARY KEY`,
-			`_block_height BIGINT NOT NULL`,
-			`_tx_id TEXT NOT NULL`,
-			`_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+			"_id BIGSERIAL PRIMARY KEY",
+			"_block_height BIGINT NOT NULL",
+			"_tx_id TEXT NOT NULL",
+			"_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
 		];
 
 		for (const [colName, col] of Object.entries(tableDef.columns)) {
@@ -103,6 +103,7 @@ export function generateSubgraphSQL(
 		// Composite indexes
 		if (tableDef.indexes) {
 			for (let i = 0; i < tableDef.indexes.length; i++) {
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				const cols = tableDef.indexes[i]!;
 				const idxName = `idx_${schemaName}_${tableName}_composite_${i}`;
 				statements.push(
@@ -114,6 +115,7 @@ export function generateSubgraphSQL(
 		// Unique constraints (required for upsert ON CONFLICT)
 		if (tableDef.uniqueKeys) {
 			for (let i = 0; i < tableDef.uniqueKeys.length; i++) {
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				const cols = tableDef.uniqueKeys[i]!;
 				const constraintName = `uq_${schemaName}_${tableName}_${cols.join("_")}`;
 				statements.push(

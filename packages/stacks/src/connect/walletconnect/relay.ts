@@ -144,6 +144,7 @@ export class WcRelay {
 	}
 
 	private handleMessage(raw: string) {
+		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		let msg: any;
 		try {
 			msg = JSON.parse(raw);
@@ -153,6 +154,7 @@ export class WcRelay {
 
 		// RPC response
 		if ("id" in msg && msg.id != null && this.pending.has(msg.id)) {
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const p = this.pending.get(msg.id)!;
 			this.pending.delete(msg.id);
 			if (msg.error) {

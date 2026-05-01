@@ -13,6 +13,7 @@ export function parseFQN(fqn: string): FullyQualifiedName {
 
 	if (parts.length === 1) {
 		return {
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			name: parts[0]!,
 			namespace: DEFAULT_NAMESPACE,
 		};
@@ -20,7 +21,9 @@ export function parseFQN(fqn: string): FullyQualifiedName {
 
 	if (parts.length === 2) {
 		return {
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			name: parts[0]!,
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			namespace: parts[1]!,
 		};
 	}

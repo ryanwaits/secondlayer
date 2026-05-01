@@ -53,10 +53,19 @@ export const SubgraphSchemaSchema: z.ZodType<Record<string, SubgraphTable>> = z
 	) as z.ZodType<Record<string, SubgraphTable>>;
 
 const VALID_FILTER_TYPES = [
-	"stx_transfer", "stx_mint", "stx_burn", "stx_lock",
-	"ft_transfer", "ft_mint", "ft_burn",
-	"nft_transfer", "nft_mint", "nft_burn",
-	"contract_call", "contract_deploy", "print_event",
+	"stx_transfer",
+	"stx_mint",
+	"stx_burn",
+	"stx_lock",
+	"ft_transfer",
+	"ft_mint",
+	"ft_burn",
+	"nft_transfer",
+	"nft_mint",
+	"nft_burn",
+	"contract_call",
+	"contract_deploy",
+	"print_event",
 ] as const;
 
 export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> = z

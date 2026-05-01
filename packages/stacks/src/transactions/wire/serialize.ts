@@ -92,10 +92,9 @@ function serializeAuthField(field: TransactionAuthField): Uint8Array {
 	if (field.type === "publicKey") {
 		const typeId = field.pubKeyEncoding === 0x00 ? 0x00 : 0x01;
 		return concatBytes(writeUInt8(typeId), hexToBytes(field.data));
-	} else {
-		const typeId = field.pubKeyEncoding === 0x00 ? 0x02 : 0x03;
-		return concatBytes(writeUInt8(typeId), hexToBytes(field.data));
 	}
+	const typeId = field.pubKeyEncoding === 0x00 ? 0x02 : 0x03;
+	return concatBytes(writeUInt8(typeId), hexToBytes(field.data));
 }
 
 function serializeAuthorization(auth: Authorization): Uint8Array {

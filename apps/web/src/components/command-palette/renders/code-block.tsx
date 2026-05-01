@@ -36,13 +36,14 @@ export function PaletteCodeBlock({ code, lang, title }: PaletteCodeBlockProps) {
 			{html ? (
 				<div
 					className="palette-code-block"
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: pre-rendered shiki HTML for syntax highlighting
 					dangerouslySetInnerHTML={{ __html: html }}
 				/>
 			) : (
 				<pre className="palette-code-block palette-code-raw">{code}</pre>
 			)}
 			<div className="palette-code-actions">
-				<button className="palette-btn" onClick={copyToClipboard}>
+				<button type="button" className="palette-btn" onClick={copyToClipboard}>
 					{copied ? "Copied" : "Copy"}
 				</button>
 			</div>

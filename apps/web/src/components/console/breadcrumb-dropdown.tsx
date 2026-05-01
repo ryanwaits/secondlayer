@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 interface BreadcrumbDropdownProps {
 	current: string;
@@ -34,10 +34,14 @@ export function BreadcrumbDropdown({
 			<span
 				className="breadcrumb-dropdown-trigger"
 				onClick={() => setOpen(!open)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") setOpen(!open);
+				}}
 			>
 				<span>{current}</span>
 				<span className="breadcrumb-dropdown-chevron">
 					<svg
+						aria-hidden="true"
 						width="10"
 						height="10"
 						viewBox="0 0 16 16"
@@ -62,6 +66,7 @@ export function BreadcrumbDropdown({
 							{item.name}
 							<span className="check">
 								<svg
+									aria-hidden="true"
 									width="10"
 									height="10"
 									viewBox="0 0 16 16"

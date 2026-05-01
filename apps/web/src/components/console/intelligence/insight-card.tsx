@@ -43,7 +43,11 @@ export function InsightCard({
 				<span style={{ display: "block", marginTop: 2 }}>{insight.body}</span>
 			</div>
 			<div className="insight-actions">
-				<button className="insight-action" onClick={handleDismiss}>
+				<button
+					type="button"
+					className="insight-action"
+					onClick={handleDismiss}
+				>
 					Dismiss
 				</button>
 			</div>

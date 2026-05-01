@@ -19,9 +19,16 @@ export function CollapsibleSection({
 
 	return (
 		<div className={`ov-section${open ? "" : " collapsed"}`}>
-			<div className="ov-section-header" onClick={() => setOpen(!open)}>
+			<div
+				className="ov-section-header"
+				onClick={() => setOpen(!open)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") setOpen(!open);
+				}}
+			>
 				<span className="ov-section-chevron">
 					<svg
+						aria-hidden="true"
 						width="12"
 						height="12"
 						viewBox="0 0 16 16"

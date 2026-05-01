@@ -46,6 +46,7 @@ export function AgentPromptBlock({
 					style={isCollapsed ? { maxHeight: CODE_PREVIEW_HEIGHT } : undefined}
 				>
 					{html ? (
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki-highlighted code HTML
 						<div dangerouslySetInnerHTML={{ __html: html }} />
 					) : (
 						<pre>
@@ -56,6 +57,7 @@ export function AgentPromptBlock({
 			</div>
 			{needsCollapse && !expanded && (
 				<button
+					type="button"
 					className="agent-prompt-toggle"
 					onClick={() => setExpanded(true)}
 				>

@@ -376,6 +376,7 @@ async function showStaticCombinedLogs(
 					for (const line of fileLines) {
 						if (!line.trim()) continue;
 						const tsMatch = line.match(/^\[(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\]/);
+						// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 						const timestamp = tsMatch ? new Date(tsMatch[1]!) : new Date(0);
 						allLines.push({ service: name, line, timestamp });
 					}
@@ -392,6 +393,7 @@ async function showStaticCombinedLogs(
 		for await (const line of logs) {
 			// Parse timestamp from formatted line: [service] [timestamp] LEVEL: message
 			const tsMatch = line.match(/\[(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\]/);
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const timestamp = tsMatch ? new Date(tsMatch[1]!) : new Date(0);
 			allLines.push({ service: "node", line, timestamp });
 		}
@@ -502,16 +504,21 @@ function formatLogLine(service: string, line: string): string {
 
 	if (match) {
 		const [, timestamp, level, message] = match;
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const dimTimestamp = dim(timestamp!);
 
 		if (level === "ERROR") {
-			return `${prefix} ${dimTimestamp} ${red(level + ":")} ${message}`;
-		} else if (level === "WARN") {
-			return `${prefix} ${dimTimestamp} ${yellow(level + ":")} ${message}`;
-		} else if (level === "INFO") {
-			return `${prefix} ${dimTimestamp} ${green(level + ":")} ${message}`;
-		} else if (level === "DEBUG") {
-			return `${prefix} ${dimTimestamp} ${dim(level + ":")} ${dim(message!)}`;
+			return `${prefix} ${dimTimestamp} ${red(`${level}:`)} ${message}`;
+		}
+		if (level === "WARN") {
+			return `${prefix} ${dimTimestamp} ${yellow(`${level}:`)} ${message}`;
+		}
+		if (level === "INFO") {
+			return `${prefix} ${dimTimestamp} ${green(`${level}:`)} ${message}`;
+		}
+		if (level === "DEBUG") {
+			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
+			return `${prefix} ${dimTimestamp} ${dim(`${level}:`)} ${dim(message!)}`;
 		}
 	}
 

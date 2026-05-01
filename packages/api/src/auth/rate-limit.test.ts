@@ -5,9 +5,6 @@ import { _resetRateLimits, rateLimit } from "./rate-limit.ts";
 mock.module("@secondlayer/shared/errors", () => ({
 	RateLimitError: class RateLimitError extends Error {
 		code = "RATE_LIMIT_ERROR";
-		constructor(msg: string) {
-			super(msg);
-		}
 	},
 }));
 
@@ -16,6 +13,7 @@ function createApp(limit = 120) {
 
 	// Simulate auth middleware setting apiKey
 	app.use("/*", async (c, next) => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		(c as any).set("apiKey", { key_hash: "test-hash", rate_limit: limit });
 		await next();
 	});
@@ -24,6 +22,7 @@ function createApp(limit = 120) {
 
 	// Error handler to catch RateLimitError
 	app.onError((err, c) => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		if ((err as any).code === "RATE_LIMIT_ERROR") {
 			return c.json({ error: err.message }, 429);
 		}

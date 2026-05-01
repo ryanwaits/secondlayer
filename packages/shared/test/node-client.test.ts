@@ -69,8 +69,8 @@ describe("StacksNodeClient", () => {
 	test("getBlock returns block data", async () => {
 		const block = await client.getBlock(1);
 		expect(block).not.toBeNull();
-		expect(block!.height).toBe(1);
-		expect(block!.hash).toBe("0xblock1");
+		expect(block?.height).toBe(1);
+		expect(block?.hash).toBe("0xblock1");
 	});
 
 	test("getBlock returns null for missing block", async () => {

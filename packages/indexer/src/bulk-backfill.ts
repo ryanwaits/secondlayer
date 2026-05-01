@@ -143,6 +143,7 @@ async function insertBatch(
 			await tx
 				.insertInto("blocks")
 				.values(block)
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				.onConflict((oc: any) =>
 					oc.column("height").doUpdateSet({
 						hash: block.hash,
@@ -160,6 +161,7 @@ async function insertBatch(
 			await tx
 				.insertInto("transactions")
 				.values(allTxs.slice(i, i + TX_CHUNK_SIZE))
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				.onConflict((oc: any) => oc.doNothing())
 				.execute();
 		}
@@ -169,6 +171,7 @@ async function insertBatch(
 			await tx
 				.insertInto("events")
 				.values(allEvts.slice(i, i + EVT_CHUNK_SIZE))
+				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 				.onConflict((oc: any) => oc.doNothing())
 				.execute();
 		}
@@ -183,6 +186,7 @@ async function insertBatch(
 				last_contiguous_block: 0,
 				highest_seen_block: maxHeight,
 			})
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			.onConflict((oc: any) =>
 				oc.column("network").doUpdateSet({
 					last_indexed_block: sql`GREATEST(index_progress.last_indexed_block, ${maxHeight})`,

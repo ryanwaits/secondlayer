@@ -101,6 +101,7 @@ export function serializeCVBytes(value: ClarityValue): Uint8Array {
 			const parts: Uint8Array[] = [writeUInt32BE(keys.length)];
 			for (const key of keys) {
 				parts.push(serializeLPString(key));
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				parts.push(serializeCVBytes(value.value[key]!));
 			}
 			return withTypeId(value.type, concatBytes(...parts));
@@ -123,7 +124,7 @@ export function serializeCVBytes(value: ClarityValue): Uint8Array {
 		}
 
 		default:
-			throw new Error(`Cannot serialize unknown clarity type`);
+			throw new Error("Cannot serialize unknown clarity type");
 	}
 }
 

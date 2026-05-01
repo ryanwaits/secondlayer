@@ -49,6 +49,7 @@ export async function generateSubgraphScaffold(
 	// Build schema tables — one per public function
 	const tables = publicFunctions.map((fn) => {
 		const columns = fn.args
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			.map((arg: { name: string; type: any }) => {
 				const mapped = clarityTypeToSubgraphColumn(arg.type);
 				const nullable = mapped.nullable ? ", nullable: true" : "";

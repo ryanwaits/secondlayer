@@ -128,6 +128,7 @@ function generateContract(contract: ResolvedContract): string {
 	return `${abiCode}\n\n${contractCode}`;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 function generateAbiConstant(name: string, abi: any): string {
 	const abiJson = JSON.stringify(abi, null, 2)
 		.replace(/"([a-zA-Z_$][a-zA-Z0-9_$]*)":/g, "$1:") // Only remove quotes from valid JS identifiers
@@ -174,6 +175,7 @@ function generateMethod(
   }`;
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	type Arg = { name: string; type: any };
 	const argsList = func.args
 		.map((arg: Arg) => toCamelCase(arg.name))

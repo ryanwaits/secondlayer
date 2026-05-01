@@ -18,6 +18,7 @@ export function MemoryRecallCard({ sessions }: MemoryRecallCardProps) {
 		<div className="tool-card">
 			<div className="tool-card-header">
 				<svg
+					aria-hidden="true"
 					width="12"
 					height="12"
 					viewBox="0 0 16 16"
@@ -48,6 +49,7 @@ export function MemoryTag({ date }: { date: string }) {
 	return (
 		<span className="memory-tag">
 			<svg
+				aria-hidden="true"
 				width="8"
 				height="8"
 				viewBox="0 0 16 16"

@@ -40,6 +40,7 @@ export function prettyPrint(
 			return `(list ${val.value.map((v) => prettyPrint(v, encoding)).join(" ")})`;
 		case "tuple":
 			return `(tuple ${Object.keys(val.value)
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				.map((key) => `(${key} ${prettyPrint(val.value[key]!, encoding)})`)
 				.join(" ")})`;
 		case "ascii":
@@ -49,6 +50,7 @@ export function prettyPrint(
 	}
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export function cvToJSON(val: ClarityValue): any {
 	switch (val.type) {
 		case "true":
@@ -67,7 +69,7 @@ export function cvToJSON(val: ClarityValue): any {
 		case "none":
 			return { type: "(optional none)", value: null };
 		case "some":
-			return { type: `(optional)`, value: cvToJSON(val.value) };
+			return { type: "(optional)", value: cvToJSON(val.value) };
 		case "ok":
 			return { type: "(response)", value: cvToJSON(val.value), success: true };
 		case "err":
@@ -78,8 +80,10 @@ export function cvToJSON(val: ClarityValue): any {
 		case "list":
 			return { type: "(list)", value: val.value.map(cvToJSON) };
 		case "tuple": {
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const result: Record<string, any> = {};
 			for (const key of Object.keys(val.value)) {
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				result[key] = cvToJSON(val.value[key]!);
 			}
 			return { type: "(tuple)", value: result };
@@ -97,6 +101,7 @@ export function cvToJSON(val: ClarityValue): any {
 	}
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export function cvToValue(val: ClarityValue): any {
 	switch (val.type) {
 		case "true":
@@ -121,8 +126,10 @@ export function cvToValue(val: ClarityValue): any {
 		case "list":
 			return val.value.map(cvToValue);
 		case "tuple": {
+			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 			const result: Record<string, any> = {};
 			for (const key of Object.keys(val.value)) {
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 				result[key] = cvToValue(val.value[key]!);
 			}
 			return result;

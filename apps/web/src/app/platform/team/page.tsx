@@ -2,9 +2,9 @@
 
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import {
+	useInviteTeamMember,
 	useProjects,
 	useTeamMembers,
-	useInviteTeamMember,
 } from "@/lib/queries/projects";
 import { useCallback, useState } from "react";
 

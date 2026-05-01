@@ -17,6 +17,7 @@ const mockLocalStorage = {
 
 beforeEach(() => {
 	store.clear();
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 	(globalThis as any).localStorage = mockLocalStorage;
 });
 
@@ -54,6 +55,7 @@ describe("storage", () => {
 			version: "0.0.1",
 			updatedAt: 1,
 		});
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const raw = store.get("@secondlayer/connect")!;
 		// hex-encoded — should not contain '{' directly
 		expect(raw).not.toContain("{");
@@ -80,6 +82,7 @@ describe("storage", () => {
 			{ address: "ST456", publicKey: "b" },
 			{ address: "bc1q...", publicKey: "c" },
 		]);
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const data = getStorageData()!;
 		expect(data.addresses.stx).toHaveLength(2);
 		expect(data.addresses.btc).toHaveLength(1);
@@ -90,6 +93,7 @@ describe("storage", () => {
 	test("cacheAddresses overwrites previous data", () => {
 		cacheAddresses([{ address: "SP1", publicKey: "x" }]);
 		cacheAddresses([{ address: "SP2", publicKey: "y" }]);
+		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const data = getStorageData()!;
 		expect(data.addresses.stx).toHaveLength(1);
 		expect(data.addresses.stx[0].address).toBe("SP2");

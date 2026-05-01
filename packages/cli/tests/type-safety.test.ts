@@ -265,6 +265,7 @@ describe("Type Safety - clarityTypeToTS", () => {
 	describe("Edge Cases", () => {
 		it("returns any for unknown types", () => {
 			expect(clarityTypeToTS("unknown-type" as AbiType)).toBe("any");
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			expect(clarityTypeToTS({ unknownProperty: true } as any)).toBe("any");
 		});
 

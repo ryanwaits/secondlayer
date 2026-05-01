@@ -262,7 +262,7 @@ async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
 		if (result.exitCode === 0) {
 			const lines = result.stdout.toString().trim().split("\n");
 			if (lines.length >= 2) {
-				const parts = lines[1]!.split(/\s+/);
+				const parts = lines[1]?.split(/\s+/);
 				const used = parts[2];
 				const avail = parts[3];
 				const pct = parts[4];

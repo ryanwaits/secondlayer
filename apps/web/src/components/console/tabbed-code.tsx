@@ -64,7 +64,8 @@ export function TabbedCode({ tabs }: { tabs: CodeTab[] }) {
 				<div className="tabbed-code-tabs">
 					{tabs.map((t, i) => (
 						<button
-							key={i}
+							key={`${t.label}-${i}`}
+							type="button"
 							className={`tabbed-code-tab${i === active ? " active" : ""}`}
 							onClick={() => setActive(i)}
 						>
@@ -76,6 +77,7 @@ export function TabbedCode({ tabs }: { tabs: CodeTab[] }) {
 			<div className="tabbed-code-body">
 				<CopyButton code={tab.copyCode ?? tab.code} />
 				{activeHtml ? (
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki-highlighted code HTML
 					<div dangerouslySetInnerHTML={{ __html: activeHtml }} />
 				) : (
 					<pre>
