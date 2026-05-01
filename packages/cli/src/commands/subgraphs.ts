@@ -9,6 +9,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { confirm } from "@inquirer/prompts";
+import type { SubgraphDetail } from "@secondlayer/shared/schemas";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import type { Command } from "commander";
 import { generateSubgraphScaffold } from "../generators/subgraph-scaffold.ts";
@@ -17,8 +18,11 @@ import {
 	backfillSubgraphApi,
 	deleteSubgraphApi,
 	deploySubgraphApi,
+	getSubgraphAgentSchema,
 	getSubgraphApi,
 	getSubgraphGaps,
+	getSubgraphMarkdown,
+	getSubgraphOpenApi,
 	handleApiError,
 	listSubgraphsApi,
 	querySubgraphTable,
@@ -27,6 +31,7 @@ import {
 	stopSubgraphApi,
 } from "../lib/api-client.ts";
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
+type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
 import { writeTextFile } from "../lib/fs.ts";
@@ -58,6 +63,118 @@ export function parseStartBlockOption(value?: string): number | undefined {
 		throw new Error("--start-block must be a safe integer");
 	}
 	return parsed;
+}
+
+export function parseSubgraphSpecFormat(value?: string): SubgraphSpecFormat {
+	const format = value ?? "openapi";
+	if (format === "openapi" || format === "agent" || format === "markdown") {
+		return format;
+	}
+	throw new Error("--format must be one of: openapi, agent, markdown");
+}
+
+function formatSubgraphSpecOutput(
+	spec: unknown,
+	format: SubgraphSpecFormat,
+): string {
+	if (typeof spec === "string") return spec;
+	if (format === "markdown") return String(spec);
+	return `${JSON.stringify(spec, null, 2)}\n`;
+}
+
+async function writeOrPrintSubgraphSpec(
+	spec: unknown,
+	format: SubgraphSpecFormat,
+	output?: string,
+): Promise<void> {
+	const text = formatSubgraphSpecOutput(spec, format);
+	if (!output) {
+		process.stdout.write(text);
+		return;
+	}
+	const outPath = resolve(output);
+	const dir = resolve(outPath, "..");
+	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+	await writeTextFile(outPath, text);
+	success(`Created ${outPath}`);
+}
+
+function createLocalSubgraphDetail(input: {
+	name: string;
+	version?: string;
+	description?: string;
+	sources: Record<string, Record<string, unknown>>;
+	schema: Record<string, unknown>;
+	schemaHash: string;
+}): SubgraphDetail {
+	const tables: SubgraphDetail["tables"] = {};
+	for (const [tableName, rawTable] of Object.entries(input.schema)) {
+		const table = rawTable as {
+			columns?: Record<
+				string,
+				{
+					type?: string;
+					nullable?: boolean;
+					indexed?: boolean;
+					search?: boolean;
+					default?: string | number | boolean;
+				}
+			>;
+			indexes?: string[][];
+			uniqueKeys?: string[][];
+		};
+		const columns: SubgraphDetail["tables"][string]["columns"] = {};
+		for (const [columnName, column] of Object.entries(table.columns ?? {})) {
+			columns[columnName] = {
+				type: column.type ?? "text",
+				...(column.nullable && { nullable: true }),
+				...(column.indexed && { indexed: true }),
+				...(column.search && { searchable: true }),
+				...(column.default !== undefined && { default: column.default }),
+			};
+		}
+		columns._id = { type: "serial" };
+		columns._block_height = { type: "bigint" };
+		columns._tx_id = { type: "text" };
+		columns._created_at = { type: "timestamp" };
+		tables[tableName] = {
+			endpoint: `/subgraphs/${input.name}/${tableName}`,
+			columns,
+			rowCount: 0,
+			example: `/subgraphs/${input.name}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
+			...(table.indexes && { indexes: table.indexes }),
+			...(table.uniqueKeys && { uniqueKeys: table.uniqueKeys }),
+		};
+	}
+	return {
+		name: input.name,
+		version: input.version ?? "0.0.0",
+		schemaHash: input.schemaHash,
+		status: "local",
+		lastProcessedBlock: 0,
+		...(input.description && { description: input.description }),
+		sources: input.sources,
+		health: {
+			totalProcessed: 0,
+			totalErrors: 0,
+			errorRate: 0,
+			lastError: null,
+			lastErrorAt: null,
+		},
+		sync: {
+			status: "synced",
+			startBlock: 0,
+			lastProcessedBlock: 0,
+			chainTip: 0,
+			blocksRemaining: 0,
+			progress: 1,
+			gaps: { count: 0, totalMissingBlocks: 0, ranges: [] },
+			integrity: "complete",
+		},
+		tables,
+		createdAt: new Date(0).toISOString(),
+		updatedAt: new Date(0).toISOString(),
+	};
 }
 
 function readCliSubgraphsDependency(): string {
@@ -700,6 +817,117 @@ export function registerSubgraphsCommand(program: Command): void {
 				handleApiError(err, "get subgraph status");
 			}
 		});
+
+	// --- spec ---
+	subgraphs
+		.command("spec <name>")
+		.description("Output API documentation for a deployed subgraph")
+		.option(
+			"--format <format>",
+			"Output format: openapi, agent, markdown",
+			"openapi",
+		)
+		.option("-o, --output <path>", "Write output to a file")
+		.option("--server <url>", "Override the server URL in generated docs")
+		.action(
+			async (
+				name: string,
+				options: { format?: string; output?: string; server?: string },
+			) => {
+				try {
+					const format = parseSubgraphSpecFormat(options.format);
+					const specOptions = options.server
+						? { serverUrl: options.server }
+						: undefined;
+					const spec =
+						format === "openapi"
+							? await getSubgraphOpenApi(name, specOptions)
+							: format === "agent"
+								? await getSubgraphAgentSchema(name, specOptions)
+								: await getSubgraphMarkdown(name, specOptions);
+					await writeOrPrintSubgraphSpec(spec, format, options.output);
+				} catch (err) {
+					if (err instanceof Error && err.message.startsWith("--format")) {
+						error(err.message);
+						process.exit(1);
+					}
+					handleApiError(err, "generate subgraph spec");
+				}
+			},
+		);
+
+	// --- inspect ---
+	subgraphs
+		.command("inspect <file>")
+		.description("Output API documentation for a local subgraph file")
+		.option(
+			"--format <format>",
+			"Output format: openapi, agent, markdown",
+			"agent",
+		)
+		.option("-o, --output <path>", "Write output to a file")
+		.option("--server <url>", "Override the server URL in generated docs")
+		.action(
+			async (
+				file: string,
+				options: { format?: string; output?: string; server?: string },
+			) => {
+				try {
+					const format = parseSubgraphSpecFormat(options.format);
+					const absPath = resolve(file);
+					if (!existsSync(absPath)) {
+						error(`File not found: ${absPath}`);
+						process.exit(1);
+					}
+					const { readFile } = await import("node:fs/promises");
+					const { bundleSubgraphCode } = await import("@secondlayer/bundler");
+					const { generateSubgraphSQL } = await import(
+						"@secondlayer/subgraphs"
+					);
+					const {
+						generateSubgraphAgentSchema,
+						generateSubgraphMarkdown,
+						generateSubgraphOpenApi,
+					} = await import("@secondlayer/shared/subgraphs/spec");
+					const source = await readFile(absPath, "utf8");
+					const bundled = await bundleSubgraphCode(source);
+					const { hash } = generateSubgraphSQL({
+						name: bundled.name,
+						version: bundled.version,
+						description: bundled.description,
+						sources:
+							bundled.sources as unknown as SubgraphDefinition["sources"],
+						schema: bundled.schema as SubgraphDefinition["schema"],
+						handlers: {},
+					});
+					const detail = createLocalSubgraphDetail({
+						name: bundled.name,
+						version: bundled.version,
+						description: bundled.description,
+						sources: bundled.sources,
+						schema: bundled.schema,
+						schemaHash: hash,
+					});
+					const specOptions = options.server
+						? { serverUrl: options.server }
+						: undefined;
+					const spec =
+						format === "openapi"
+							? generateSubgraphOpenApi(detail, specOptions)
+							: format === "agent"
+								? generateSubgraphAgentSchema(detail, specOptions)
+								: generateSubgraphMarkdown(detail, specOptions);
+					await writeOrPrintSubgraphSpec(spec, format, options.output);
+				} catch (err) {
+					if (err instanceof Error && err.message.startsWith("--format")) {
+						error(err.message);
+						process.exit(1);
+					}
+					error(`Failed to inspect subgraph: ${err}`);
+					process.exit(1);
+				}
+			},
+		);
 
 	// --- reindex ---
 	subgraphs

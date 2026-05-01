@@ -1,6 +1,11 @@
 export { SecondLayer } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
+export type {
+	SubgraphAgentSchema,
+	SubgraphSpecFormat,
+	SubgraphSpecOptions,
+} from "@secondlayer/shared/subgraphs/spec";
 export { Subscriptions } from "./subscriptions/client.ts";
 export type {
 	SubscriptionStatus,

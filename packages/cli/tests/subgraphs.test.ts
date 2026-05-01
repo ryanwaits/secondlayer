@@ -14,6 +14,7 @@ import {
 	ensureScaffoldPackageJson,
 	installScaffoldDependencies,
 	parseStartBlockOption,
+	parseSubgraphSpecFormat,
 } from "../src/commands/subgraphs.ts";
 
 describe("subgraphs command helpers", () => {
@@ -33,6 +34,16 @@ describe("subgraphs command helpers", () => {
 		expect(() =>
 			parseStartBlockOption(String(Number.MAX_SAFE_INTEGER + 1)),
 		).toThrow("--start-block must be a safe integer");
+	});
+
+	it("parses subgraph spec formats", () => {
+		expect(parseSubgraphSpecFormat()).toBe("openapi");
+		expect(parseSubgraphSpecFormat("openapi")).toBe("openapi");
+		expect(parseSubgraphSpecFormat("agent")).toBe("agent");
+		expect(parseSubgraphSpecFormat("markdown")).toBe("markdown");
+		expect(() => parseSubgraphSpecFormat("yaml")).toThrow(
+			"--format must be one of: openapi, agent, markdown",
+		);
 	});
 
 	it("summarizes deploy dry-run metadata", () => {

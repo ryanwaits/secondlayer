@@ -39,4 +39,23 @@ describe("subgraph MCP tools", () => {
 		expect(startBlock.safeParse(-1).success).toBe(false);
 		expect(startBlock.safeParse(1.5).success).toBe(false);
 	});
+
+	it("registers subgraphs_spec with agent default format", async () => {
+		const tools: RegisteredTool[] = [];
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					subgraphs: {
+						schema: async () => ({ name: "test-subgraph" }),
+					},
+				}) as never,
+		);
+
+		const spec = tools.find((tool) => tool.name === "subgraphs_spec");
+		expect(spec).toBeDefined();
+		if (!spec) throw new Error("subgraphs_spec tool not registered");
+		const result = await spec.handler({ name: "test-subgraph" });
+		expect(result.content[0]?.text).toContain("test-subgraph");
+	});
 });

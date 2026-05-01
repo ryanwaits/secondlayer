@@ -10,6 +10,10 @@ import type {
 	DeploySubgraphResponse,
 } from "@secondlayer/shared/schemas/subgraphs";
 import type {
+	SubgraphAgentSchema,
+	SubgraphSpecOptions,
+} from "@secondlayer/shared/subgraphs/spec";
+import type {
 	FindManyOptions,
 	InferSubgraphClient,
 	WhereInput,
@@ -54,6 +58,13 @@ function buildSubgraphQueryString(params: SubgraphQueryParams): string {
 	return str ? `?${str}` : "";
 }
 
+function buildSpecQueryString(options?: SubgraphSpecOptions): string {
+	const qs = new URLSearchParams();
+	if (options?.serverUrl) qs.set("server", options.serverUrl);
+	const str = qs.toString();
+	return str ? `?${str}` : "";
+}
+
 export class Subgraphs extends BaseClient {
 	async list(): Promise<{ data: SubgraphSummary[] }> {
 		return this.request<{ data: SubgraphSummary[] }>("GET", "/api/subgraphs");
@@ -61,6 +72,33 @@ export class Subgraphs extends BaseClient {
 
 	async get(name: string): Promise<SubgraphDetail> {
 		return this.request<SubgraphDetail>("GET", `/api/subgraphs/${name}`);
+	}
+
+	async openapi(
+		name: string,
+		options?: SubgraphSpecOptions,
+	): Promise<Record<string, unknown>> {
+		return this.request<Record<string, unknown>>(
+			"GET",
+			`/api/subgraphs/${name}/openapi.json${buildSpecQueryString(options)}`,
+		);
+	}
+
+	async schema(
+		name: string,
+		options?: SubgraphSpecOptions,
+	): Promise<SubgraphAgentSchema> {
+		return this.request<SubgraphAgentSchema>(
+			"GET",
+			`/api/subgraphs/${name}/schema.json${buildSpecQueryString(options)}`,
+		);
+	}
+
+	async markdown(name: string, options?: SubgraphSpecOptions): Promise<string> {
+		return this.requestText(
+			"GET",
+			`/api/subgraphs/${name}/docs.md${buildSpecQueryString(options)}`,
+		);
 	}
 
 	async reindex(

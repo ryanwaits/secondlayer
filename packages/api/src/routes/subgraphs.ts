@@ -23,7 +23,10 @@ import {
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
-import { DeploySubgraphRequestSchema } from "@secondlayer/shared/schemas/subgraphs";
+import {
+	DeploySubgraphRequestSchema,
+	type SubgraphDetail,
+} from "@secondlayer/shared/schemas/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
 import { sql } from "kysely";
@@ -42,6 +45,11 @@ import {
 } from "./subgraph-query-helpers.ts";
 
 const app = new Hono();
+
+type SubgraphSpecOptions = {
+	serverUrl?: string;
+	generatedAt?: string;
+};
 
 // Resource limits are enforced by Docker compute caps (memory/CPU/storage).
 // No application-level count check — if a tenant hits their limits, PG
@@ -699,6 +707,178 @@ app.get("/", async (c) => {
 
 // ── Subgraph metadata + docs ────────────────────────────────────────────
 
+async function buildSubgraphDetailPayload(
+	subgraphName: string,
+	accountId: string | undefined,
+): Promise<SubgraphDetail> {
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+
+	const subgraphSchema = getSubgraphSchema(subgraph);
+	const tables: SubgraphDetail["tables"] = {};
+	const sn = subgraphSchemaName(subgraph);
+
+	const schemaEntries = Object.entries(subgraphSchema);
+	const db = getDb();
+	const [countResults, liveRow, chainTip, gapResult] = await Promise.all([
+		Promise.allSettled(
+			schemaEntries.map(([tableName]) =>
+				query(
+					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
+				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
+			),
+		),
+		db
+			.selectFrom("subgraphs")
+			.select([
+				"start_block",
+				"last_processed_block",
+				"total_processed",
+				"total_errors",
+				"status",
+				"last_error",
+				"last_error_at",
+				"updated_at",
+				"reindex_from_block",
+				"reindex_to_block",
+			])
+			.where("id", "=", subgraph.id)
+			.executeTakeFirst()
+			.catch(() => null),
+		getChainTip(),
+		findSubgraphGaps(db, subgraphName, {
+			limit: 10,
+			unresolvedOnly: true,
+		}).catch(() => ({ gaps: [], total: 0 })),
+	]);
+
+	for (let i = 0; i < schemaEntries.length; i++) {
+		const [tableName, tableDef] = schemaEntries[i];
+		const cr = countResults[i];
+		const rowCount = cr.status === "fulfilled" ? cr.value : 0;
+		const columns: SubgraphDetail["tables"][string]["columns"] = {};
+		for (const [colName, col] of Object.entries(tableDef.columns)) {
+			columns[colName] = {
+				type: col.type,
+				...(col.nullable && { nullable: true }),
+				...(col.indexed && { indexed: true }),
+				...(col.search && { searchable: true }),
+				...(col.default !== undefined && { default: col.default }),
+			};
+		}
+		columns._id = { type: "serial" };
+		columns._block_height = { type: "bigint" };
+		columns._tx_id = { type: "text" };
+		columns._created_at = { type: "timestamp" };
+
+		tables[tableName] = {
+			endpoint: `/subgraphs/${subgraphName}/${tableName}`,
+			columns,
+			rowCount,
+			example: `/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
+			...(tableDef.indexes && { indexes: tableDef.indexes }),
+			...(tableDef.uniqueKeys && { uniqueKeys: tableDef.uniqueKeys }),
+		};
+	}
+
+	const live = liveRow ?? subgraph;
+	const totalProcessed = live.total_processed;
+	const totalErrors = live.total_errors;
+	const errorRate = totalProcessed > 0 ? totalErrors / totalProcessed : 0;
+	const totalMissingBlocks = gapResult.gaps.reduce((sum, g) => sum + g.size, 0);
+	const hasGaps = gapResult.total > 0;
+	const sync = buildSyncInfo(
+		live,
+		chainTip,
+		{
+			count: gapResult.total,
+			totalMissingBlocks,
+			ranges: gapResult.gaps.map((g) => ({
+				start: g.gapStart,
+				end: g.gapEnd,
+				size: g.size,
+				reason: g.reason,
+			})),
+		},
+		hasGaps ? "gaps_detected" : "complete",
+	) as SubgraphDetail["sync"];
+
+	const def = subgraph.definition as Record<string, unknown> | null;
+	const sources = def?.sources as Record<string, unknown> | undefined;
+	const description =
+		typeof def?.description === "string" ? def.description : undefined;
+
+	return {
+		name: subgraph.name,
+		version: subgraph.version,
+		schemaHash: subgraph.schema_hash,
+		status: live.status,
+		lastProcessedBlock: sync.lastProcessedBlock,
+		...(description && { description }),
+		...(sources && { sources }),
+		...(def && { definition: def }),
+		health: {
+			totalProcessed,
+			totalErrors,
+			errorRate: Number.parseFloat(errorRate.toFixed(4)),
+			lastError: live.last_error ?? null,
+			lastErrorAt: live.last_error_at?.toISOString() ?? null,
+		},
+		sync,
+		tables,
+		createdAt: subgraph.created_at.toISOString(),
+		updatedAt:
+			live.updated_at?.toISOString() ?? subgraph.updated_at.toISOString(),
+	};
+}
+
+function readSpecOptions(c: {
+	req: { url: string; query(name: string): string | undefined };
+}): SubgraphSpecOptions {
+	const server = c.req.query("server");
+	return {
+		serverUrl: server || new URL(c.req.url).origin,
+	};
+}
+
+app.get("/:subgraphName/openapi.json", async (c) => {
+	const { subgraphName } = c.req.param();
+	const detail = await buildSubgraphDetailPayload(
+		subgraphName,
+		getAccountId(c),
+	);
+	const { generateSubgraphOpenApi } = await import(
+		"@secondlayer/shared/subgraphs/spec"
+	);
+	return c.json(generateSubgraphOpenApi(detail, readSpecOptions(c)));
+});
+
+app.get("/:subgraphName/schema.json", async (c) => {
+	const { subgraphName } = c.req.param();
+	const detail = await buildSubgraphDetailPayload(
+		subgraphName,
+		getAccountId(c),
+	);
+	const { generateSubgraphAgentSchema } = await import(
+		"@secondlayer/shared/subgraphs/spec"
+	);
+	return c.json(generateSubgraphAgentSchema(detail, readSpecOptions(c)));
+});
+
+app.get("/:subgraphName/docs.md", async (c) => {
+	const { subgraphName } = c.req.param();
+	const detail = await buildSubgraphDetailPayload(
+		subgraphName,
+		getAccountId(c),
+	);
+	const { generateSubgraphMarkdown } = await import(
+		"@secondlayer/shared/subgraphs/spec"
+	);
+	const markdown = generateSubgraphMarkdown(detail, readSpecOptions(c));
+	return c.text(markdown, 200, {
+		"Content-Type": "text/markdown; charset=utf-8",
+	});
+});
+
 app.get("/:subgraphName", async (c) => {
 	const { subgraphName } = c.req.param();
 	const accountId = getAccountId(c);
@@ -808,6 +988,7 @@ app.get("/:subgraphName", async (c) => {
 	return c.json({
 		name: subgraph.name,
 		version: subgraph.version,
+		schemaHash: subgraph.schema_hash,
 		status: live.status,
 		lastProcessedBlock: sync.lastProcessedBlock,
 		...(description && { description }),

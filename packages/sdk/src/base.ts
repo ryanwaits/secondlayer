@@ -37,6 +37,29 @@ export abstract class BaseClient {
 		path: string,
 		body?: unknown,
 	): Promise<T> {
+		const response = await this.fetchResponse(method, path, body);
+
+		if (response.status === 204) {
+			return undefined as T;
+		}
+
+		return response.json() as Promise<T>;
+	}
+
+	protected async requestText(
+		method: string,
+		path: string,
+		body?: unknown,
+	): Promise<string> {
+		const response = await this.fetchResponse(method, path, body);
+		return response.text();
+	}
+
+	private async fetchResponse(
+		method: string,
+		path: string,
+		body?: unknown,
+	): Promise<Response> {
 		const url = `${this.baseUrl}${path}`;
 		const headers = BaseClient.authHeaders(this.apiKey);
 		headers["x-sl-origin"] = this.origin;
@@ -93,10 +116,6 @@ export abstract class BaseClient {
 			throw new ApiError(response.status, message, parsedBody);
 		}
 
-		if (response.status === 204) {
-			return undefined as T;
-		}
-
-		return response.json() as Promise<T>;
+		return response;
 	}
 }

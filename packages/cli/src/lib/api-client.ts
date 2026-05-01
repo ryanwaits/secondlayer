@@ -10,6 +10,10 @@ import type {
 	DeploySubgraphRequest,
 	DeploySubgraphResponse,
 } from "@secondlayer/shared/schemas/subgraphs";
+import type {
+	SubgraphAgentSchema,
+	SubgraphSpecOptions,
+} from "@secondlayer/shared/subgraphs/spec";
 import { CliHttpError, httpPlatform } from "./http.ts";
 import { resolveActiveTenant } from "./resolve-tenant.ts";
 
@@ -111,6 +115,27 @@ export async function listSubgraphsApi(): Promise<{ data: SubgraphSummary[] }> {
 
 export async function getSubgraphApi(name: string): Promise<SubgraphDetail> {
 	return (await getTenantClient()).subgraphs.get(name);
+}
+
+export async function getSubgraphOpenApi(
+	name: string,
+	options?: SubgraphSpecOptions,
+): Promise<Record<string, unknown>> {
+	return (await getTenantClient()).subgraphs.openapi(name, options);
+}
+
+export async function getSubgraphAgentSchema(
+	name: string,
+	options?: SubgraphSpecOptions,
+): Promise<SubgraphAgentSchema> {
+	return (await getTenantClient()).subgraphs.schema(name, options);
+}
+
+export async function getSubgraphMarkdown(
+	name: string,
+	options?: SubgraphSpecOptions,
+): Promise<string> {
+	return (await getTenantClient()).subgraphs.markdown(name, options);
 }
 
 export async function reindexSubgraphApi(

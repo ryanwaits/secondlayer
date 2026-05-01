@@ -113,6 +113,7 @@ export interface SubgraphFilter {
 export interface SubgraphDetail {
 	name: string;
 	version: string;
+	schemaHash?: string;
 	status: string;
 	lastProcessedBlock: number | null;
 	description?: string;

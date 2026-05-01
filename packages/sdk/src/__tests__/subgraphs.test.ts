@@ -110,4 +110,37 @@ describe("Subgraphs", () => {
 		expect(calledOpts.method).toBe("POST");
 		expect(JSON.parse(calledOpts.body as string).startBlock).toBe(123);
 	});
+
+	test("openapi builds spec URL with server override", async () => {
+		globalThis.fetch = mockFetch({
+			ok: true,
+			status: 200,
+			body: { openapi: "3.1.0" },
+		});
+
+		await subgraphs.openapi("my-subgraph", {
+			serverUrl: "https://tenant.example.test",
+		});
+
+		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+		const calledUrl = fetchMock.mock.calls[0][0] as string;
+		expect(calledUrl).toBe(
+			`${BASE_URL}/api/subgraphs/my-subgraph/openapi.json?server=https%3A%2F%2Ftenant.example.test`,
+		);
+	});
+
+	test("markdown returns text response", async () => {
+		globalThis.fetch = mockFetch({
+			ok: true,
+			status: 200,
+			body: "# docs\n",
+		});
+
+		const result = await subgraphs.markdown("my-subgraph");
+
+		expect(result).toBe("# docs\n");
+		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+		const calledUrl = fetchMock.mock.calls[0][0] as string;
+		expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs/my-subgraph/docs.md`);
+	});
 });

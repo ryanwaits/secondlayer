@@ -44,6 +44,45 @@ export function registerSubgraphTools(
 
 	defineTool<{
 		name: string;
+		format?: "agent" | "openapi" | "markdown";
+		serverUrl?: string;
+	}>(
+		server,
+		"subgraphs_spec",
+		"Get generated API documentation for a subgraph. Defaults to compact agent schema; supports OpenAPI JSON and Markdown.",
+		{
+			name: z.string().describe("Subgraph name"),
+			format: z
+				.enum(["agent", "openapi", "markdown"])
+				.optional()
+				.describe("Spec format to return. Defaults to agent."),
+			serverUrl: z
+				.string()
+				.optional()
+				.describe("Override the server URL embedded in generated docs."),
+		},
+		async ({ name, format = "agent", serverUrl }) => {
+			const options = serverUrl ? { serverUrl } : undefined;
+			const spec =
+				format === "openapi"
+					? await clientProvider().subgraphs.openapi(name, options)
+					: format === "markdown"
+						? await clientProvider().subgraphs.markdown(name, options)
+						: await clientProvider().subgraphs.schema(name, options);
+			return {
+				content: [
+					{
+						type: "text",
+						text:
+							typeof spec === "string" ? spec : JSON.stringify(spec, null, 2),
+					},
+				],
+			};
+		},
+	);
+
+	defineTool<{
+		name: string;
 		table: string;
 		filters?: Record<string, string>;
 		sort?: string;

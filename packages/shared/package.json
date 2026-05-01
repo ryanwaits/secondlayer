@@ -61,6 +61,10 @@
 			"types": "./dist/src/schemas/subgraphs.d.ts",
 			"import": "./dist/src/schemas/subgraphs.js"
 		},
+		"./subgraphs/spec": {
+			"types": "./dist/src/subgraphs/spec.d.ts",
+			"import": "./dist/src/subgraphs/spec.js"
+		},
 		"./schemas/subscriptions": {
 			"types": "./dist/src/schemas/subscriptions.d.ts",
 			"import": "./dist/src/schemas/subscriptions.js"

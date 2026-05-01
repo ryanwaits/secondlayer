@@ -108,8 +108,12 @@ export interface SubgraphSyncInfo {
 export interface SubgraphDetail {
 	name: string;
 	version: string;
+	schemaHash?: string;
 	status: string;
 	lastProcessedBlock: number;
+	description?: string;
+	sources?: Record<string, unknown>;
+	definition?: Record<string, unknown>;
 	health: {
 		totalProcessed: number;
 		totalErrors: number;
@@ -122,9 +126,20 @@ export interface SubgraphDetail {
 		string,
 		{
 			endpoint: string;
-			columns: Record<string, { type: string; nullable?: boolean }>;
+			columns: Record<
+				string,
+				{
+					type: string;
+					nullable?: boolean;
+					indexed?: boolean;
+					searchable?: boolean;
+					default?: string | number | boolean;
+				}
+			>;
 			rowCount: number;
 			example: string;
+			indexes?: string[][];
+			uniqueKeys?: string[][];
 		}
 	>;
 	createdAt: string;
