@@ -108,6 +108,32 @@ export function ensureScaffoldPackageJson(dir: string): void {
 	writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
 }
 
+export type ScaffoldDependencyInstaller = (dir: string) => Promise<void>;
+
+async function runBunInstall(dir: string): Promise<void> {
+	const proc = Bun.spawn(["bun", "install"], {
+		cwd: dir,
+		stdout: "inherit",
+		stderr: "inherit",
+	});
+	const exitCode = await proc.exited;
+	if (exitCode !== 0) {
+		throw new Error(`bun install exited with code ${exitCode}`);
+	}
+}
+
+export async function installScaffoldDependencies(
+	dir: string,
+	options: {
+		install?: boolean;
+		installer?: ScaffoldDependencyInstaller;
+	} = {},
+): Promise<"installed" | "skipped"> {
+	if (options.install === false) return "skipped";
+	await (options.installer ?? runBunInstall)(dir);
+	return "installed";
+}
+
 export interface SubgraphDeployPreview {
 	name: string;
 	version: string;
@@ -920,10 +946,11 @@ export function registerSubgraphsCommand(program: Command): void {
 		.description("Scaffold a defineSubgraph() file from a contract ABI")
 		.option("-o, --output <path>", "Output file path (required)")
 		.option("--api-key <key>", "Stacks node API key for direct RPC URLs")
+		.option("--no-install", "Skip bun install after writing package.json")
 		.action(
 			async (
 				contractAddress: string,
-				options: { output?: string; apiKey?: string },
+				options: { output?: string; apiKey?: string; install?: boolean },
 			) => {
 				try {
 					if (!options.output) {
@@ -957,6 +984,20 @@ export function registerSubgraphsCommand(program: Command): void {
 					ensureScaffoldPackageJson(dir);
 
 					success(`Created ${outPath}`);
+					if (options.install === false) {
+						info(`Run: cd ${dir} && bun install`);
+					} else {
+						info("Installing dependencies with bun install...");
+						try {
+							await installScaffoldDependencies(dir);
+						} catch (err) {
+							error(
+								`Dependency install failed: ${err instanceof Error ? err.message : String(err)}`,
+							);
+							info(`Run: cd ${dir} && bun install`);
+							process.exit(1);
+						}
+					}
 					info(`Next: sl subgraphs deploy ${options.output}`);
 				} catch (err) {
 					error(`Failed to scaffold subgraph: ${err}`);

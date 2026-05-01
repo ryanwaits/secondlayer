@@ -182,14 +182,12 @@ export function registerInstanceCommand(program: Command): void {
 		.option("--yes", "Skip typed-slug confirm")
 		.action(async (opts: { yes?: boolean }) => {
 			guardOssMode();
-			const info_ = await httpPlatform<{
-				tenant: TenantSummary | null;
-			}>("/api/tenants/me").catch(() => null);
-			if (!info_?.tenant) {
+			const tenant = await fetchCurrentTenant();
+			if (!tenant) {
 				warn("No instance to delete.");
 				return;
 			}
-			const slug = info_.tenant.slug;
+			const slug = tenant.slug;
 
 			if (!opts.yes) {
 				if (!process.stdin.isTTY) {
@@ -210,6 +208,11 @@ export function registerInstanceCommand(program: Command): void {
 				await httpPlatform("/api/tenants/me", { method: "DELETE" });
 				success("Instance deleted.");
 			} catch (err) {
+				const afterDelete = await fetchCurrentTenant().catch(() => undefined);
+				if (afterDelete === null) {
+					success("Instance deleted.");
+					return;
+				}
 				handleInstanceError(err, "delete");
 			}
 		});
@@ -390,24 +393,35 @@ async function requireActiveProject(): Promise<string> {
 	return active.slug;
 }
 
-async function renderInstanceInfo(): Promise<void> {
+async function fetchCurrentTenant(): Promise<TenantSummary | null> {
 	try {
 		const res = await httpPlatform<{ tenant: TenantSummary | null }>(
 			"/api/tenants/me",
 		);
-		if (!res.tenant) {
+		return res.tenant;
+	} catch (err) {
+		if (err instanceof CliHttpError && err.status === 404) {
+			return null;
+		}
+		throw err;
+	}
+}
+
+async function renderInstanceInfo(): Promise<void> {
+	try {
+		const tenant = await fetchCurrentTenant();
+		if (!tenant) {
 			info(
 				"No instance for the active project. Run `sl instance create --plan launch`.",
 			);
 			return;
 		}
-		const t = res.tenant;
 		console.log(
 			formatKeyValue([
-				["URL", t.apiUrl],
-				["Plan", t.plan],
-				["Status", t.status],
-				["Created", new Date(t.createdAt).toLocaleString()],
+				["URL", tenant.apiUrl],
+				["Plan", tenant.plan],
+				["Status", tenant.status],
+				["Created", new Date(tenant.createdAt).toLocaleString()],
 			]),
 		);
 	} catch (err) {

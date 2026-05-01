@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
 	createSubgraphDeployPreview,
 	ensureScaffoldPackageJson,
+	installScaffoldDependencies,
 	parseStartBlockOption,
 } from "../src/commands/subgraphs.ts";
 
@@ -92,5 +93,30 @@ describe("subgraphs command helpers", () => {
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
+	});
+
+	it("runs bun install for scaffold output by default", async () => {
+		const calls: string[] = [];
+		const result = await installScaffoldDependencies("/tmp/example", {
+			installer: async (dir) => {
+				calls.push(dir);
+			},
+		});
+
+		expect(result).toBe("installed");
+		expect(calls).toEqual(["/tmp/example"]);
+	});
+
+	it("can skip scaffold dependency installation", async () => {
+		let called = false;
+		const result = await installScaffoldDependencies("/tmp/example", {
+			install: false,
+			installer: async () => {
+				called = true;
+			},
+		});
+
+		expect(result).toBe("skipped");
+		expect(called).toBe(false);
 	});
 });

@@ -84,7 +84,10 @@ async function request<T>(
 		});
 		throw new ProvisionerError(res.status, opts.method ?? "GET", path, body);
 	}
-	return (await res.json()) as T;
+	if (res.status === 204) return undefined as T;
+	const text = await res.text();
+	if (!text.trim()) return undefined as T;
+	return JSON.parse(text) as T;
 }
 
 export class ProvisionerError extends Error {
