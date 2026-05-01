@@ -439,6 +439,16 @@ async function main(): Promise<void> {
 	}
 
 	let consecutivePollFailures = 0;
+	let pollInFlight: Promise<void> | null = null;
+
+	function runPollLoop(): Promise<void> {
+		if (!pollInFlight) {
+			pollInFlight = pollLoop().finally(() => {
+				pollInFlight = null;
+			});
+		}
+		return pollInFlight;
+	}
 
 	// --- Log watcher ---
 	const watcher = new LogWatcher(handleMatch);
@@ -446,7 +456,9 @@ async function main(): Promise<void> {
 	log("Log watchers started");
 
 	// --- Intervals ---
-	const pollInterval = setInterval(pollLoop, config.pollIntervalMs);
+	const pollInterval = setInterval(() => {
+		void runPollLoop();
+	}, config.pollIntervalMs);
 
 	// Daily summary at 5am UTC — guarded by timestamp to prevent double-fire
 	let lastDailySummaryDate = "";
@@ -455,6 +467,7 @@ async function main(): Promise<void> {
 		const todayStr = now.toISOString().slice(0, 10);
 		if (now.getUTCHours() >= 5 && lastDailySummaryDate !== todayStr) {
 			lastDailySummaryDate = todayStr;
+			await runPollLoop();
 			const snapshot = getLatestSnapshot(db);
 			const decisions = getRecentDecisions(db, 100);
 			const todayDecisions = decisions.filter((d) => {
@@ -462,7 +475,7 @@ async function main(): Promise<void> {
 				return created.toDateString() === now.toDateString();
 			});
 			await slack.sendDailySummary(snapshot, todayDecisions);
-			log("Daily summary sent");
+			log(`Daily summary sent from snapshot #${snapshot?.id ?? "none"}`);
 		}
 	}, 300_000); // Check every 5 min
 
@@ -510,7 +523,7 @@ async function main(): Promise<void> {
 	log(`Health server listening on :${server.port}`);
 
 	// --- Initial poll ---
-	await pollLoop();
+	await runPollLoop();
 
 	// --- Graceful shutdown ---
 	function shutdown(): void {
