@@ -11,7 +11,6 @@ const AUTH_REQUIRED = [
 	"/team",
 	"/settings",
 	"/sessions",
-	"/instance",
 	"/admin",
 ];
 
@@ -71,8 +70,6 @@ export const config = {
 		"/sessions/:path*",
 		"/billing",
 		"/billing/:path*",
-		"/instance",
-		"/instance/:path*",
 		"/admin",
 		"/admin/:path*",
 	],

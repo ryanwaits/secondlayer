@@ -199,7 +199,7 @@ export default function SettingsPage() {
 										{tenant.apiUrl}
 									</div>
 								</div>
-								<Link className="settings-btn ghost small" href="/instance">
+								<Link className="settings-btn ghost small" href="/billing">
 									Manage →
 								</Link>
 							</div>
@@ -228,7 +228,7 @@ export default function SettingsPage() {
 										Provision a dedicated Postgres + API + processor.
 									</div>
 								</div>
-								<Link className="settings-btn primary small" href="/instance">
+								<Link className="settings-btn primary small" href="/billing">
 									Create instance →
 								</Link>
 							</div>

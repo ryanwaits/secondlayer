@@ -13,7 +13,6 @@ const PLATFORM_PATHS = [
 	"/billing",
 	"/settings",
 	"/sessions",
-	"/instance",
 ];
 
 export function AuthBar() {

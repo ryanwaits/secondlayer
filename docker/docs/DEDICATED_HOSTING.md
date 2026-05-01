@@ -395,31 +395,35 @@ Lazy import of the provisioner-rpc module — `await import("./provisioner-rpc.t
 
 Current alert plumbing: `logger.warn(...)` only. Formal alerting (Slack/email) is TBD — the platform agent already wires up Slack, but tenant-specific hooks aren't routed through it yet. Post-MVP.
 
-### 3.5 Dashboard Instance page — `apps/web/src/app/platform/instance/`
+### 3.5 Dashboard Billing page — `apps/web/src/app/platform/billing/`
 
-Two files:
-- `page.tsx` (server) — reads session cookie, calls `apiRequest("/api/tenants/me")`, passes `{tenant, runtime}` into the client component.
-- `instance-view.tsx` (client) — the whole user-facing flow.
+Instance + Billing were unified into a single surface at `/billing`. Two key files:
+- `page.tsx` (server) — reads session cookie, calls `apiRequest("/api/tenants/me")` + `/api/billing/caps` + `/api/accounts/usage`, passes everything into the client component.
+- `billing-view.tsx` (client) — the whole user-facing flow (provision, plan, spend, payment, keys, resize, danger zone).
 
-Routing: the URL is `/instance`, which Next.js middleware (`apps/web/src/middleware.ts:53-56`) rewrites to `/platform/instance`. Unauthenticated visits redirect to `/`. `/instance` is in both `AUTH_REQUIRED` (line 13) and the matcher (lines 82-83).
+Routing: the URL is `/billing`, which Next.js middleware rewrites to `/platform/billing`. Unauthenticated visits redirect to `/`. `/billing` is in both `AUTH_REQUIRED` and the matcher.
 
 Component tree when no tenant exists:
 ```
-<InstanceView/>
+<BillingView/>
   └── <ProvisionStart/>
         ├── Plan radio group (launch/grow/scale)
         └── provision button  ───POST /api/tenants───▶
 ```
 
-Component tree when tenant exists:
+Component tree when tenant exists (`<ActiveView/>`):
 ```
-<InstanceView/>
-  ├── <ActiveView/>         (status copy differentiates Hobby auto-pause from manual suspension)
-  ├── <OverviewSection/>    (slug, plan, cpus/RAM/storage specs, status, created_at)
-  ├── <ResourceGauges/>     (CPU%, Memory%, Storage% from runtime stats)
-  ├── <ConnectionSnippets/> (tabs: curl | node | cli)
-  ├── <KeysSection/>        (service/anon key rotation)
-  └── <ResizeSection/>      (plan dropdown → POST /api/tenants/me/resize)
+Always visible:
+  ├── <OverviewSection/>    (url, plan, status + Resume button when suspended, resources summary, created)
+  ├── <PlanSection/>        (current plan card + resize select; tier-grid for Hobby)
+  ├── <SpendControlsSection/> (paid only: cap-strip + CapForm)
+  └── <PaymentSection/>     (paid only: Stripe portal links)
+
+Disclosures (closed by default, via <CollapsibleSection/>):
+  ├── Connection            (<ConnectSection/>: curl | node | cli tabs)
+  ├── Keys                  (<KeysSection/>: service/anon rotation)
+  ├── Database access       (<DbAccessSection/>: SSH tunnel + DATABASE_URL)
+  └── Danger zone           (<DangerZone/>: suspend/resume/rotate-all/delete)
 ```
 
 **Credential display**: after provision, `showCredsOnce()` writes `{apiUrl, anonKey, serviceKey, ts}` to `window.sessionStorage` under key `sl.creds.oneshot` and logs to console. There is currently no modal — the reveal is informal. User is expected to read from console or sessionStorage within the first minute. TODO in the code. Regeneration path not yet implemented either — `ConnectionSnippets` notes "Regenerate at any time from this page" but the button isn't wired up.
@@ -490,7 +494,7 @@ Starting from a fresh account with no tenant. User clicks the button in the dash
 
 ### Step 1 — Browser click
 
-`apps/web/src/app/platform/instance/provision-start.tsx` (`ProvisionStart.handleStart`):
+`apps/web/src/app/platform/billing/provision-start.tsx` (`ProvisionStart.handleStart`):
 ```typescript
 const res = await fetch("/api/tenants", {
   method: "POST",
@@ -594,7 +598,7 @@ What's **deployed but dormant**:
 | `/api/tenants/*` routes | Mounted in API | Nobody's calling them yet |
 | Worker tenant-idle-pause cron | Running, short-circuits (no tenants in DB) | — |
 | Worker tenant-health cron | Running, short-circuits (no tenants in DB) | — |
-| Instance dashboard page | Deployed at `/instance` | Currently 404s with `{tenant: null}` — `ProvisionStart` view. Fully functional for provisioning if provisioner were running. |
+| Billing dashboard page | Deployed at `/billing` | Currently 404s with `{tenant: null}` — `ProvisionStart` view. Fully functional for provisioning if provisioner were running. |
 | Caddy wildcard block for `*.{BASE_DOMAIN}` | Ships in Caddyfile; inert until first tenant is provisioned | Just usage |
 
 What's **NOT deployed**:
@@ -604,7 +608,7 @@ What's **NOT deployed**:
 | Provisioner service | Behind `--profile platform` in base compose; current `deploy.sh` doesn't include that profile |
 | Tenant containers | Can't exist without a running provisioner |
 
-**Net effect**: if a user navigates to `/instance` right now and starts provisioning, the platform API will try to call the provisioner at `http://provisioner:3850`, fail if no provisioner is running, and return a 502 with `"Provisioner rejected the request"`. Non-destructive — no tenant state was created.
+**Net effect**: if a user navigates to `/billing` right now and starts provisioning, the platform API will try to call the provisioner at `http://provisioner:3850`, fail if no provisioner is running, and return a 502 with `"Provisioner rejected the request"`. Non-destructive — no tenant state was created.
 
 ---
 
@@ -937,10 +941,10 @@ Source DB outage means tenant processors can't read blocks — but tenant API co
 | Caddy config (platform + wildcard tenant routing) | `docker/Caddyfile` |
 | Dockerfile (all targets incl. `provisioner`) | `docker/Dockerfile` |
 | Deploy script | `docker/scripts/deploy.sh` |
-| Instance dashboard page | `apps/web/src/app/platform/instance/page.tsx` |
-| Instance dashboard client | `apps/web/src/app/platform/instance/instance-view.tsx` |
+| Billing dashboard page | `apps/web/src/app/platform/billing/page.tsx` |
+| Billing dashboard client | `apps/web/src/app/platform/billing/billing-view.tsx` |
 | Dashboard-side proxy routes | `apps/web/src/app/api/tenants/route.ts` + `me/route.ts` + `me/resize/route.ts` |
-| `/instance` rewrite | `apps/web/src/middleware.ts` |
+| `/billing` rewrite | `apps/web/src/middleware.ts` |
 | CLI instance commands | `packages/cli/src/commands/instance.ts` |
 | Operations runbook (env vars + prod runbook) | `docker/docs/OPERATIONS.md` |
 | This doc | `docker/docs/DEDICATED_HOSTING.md` |
