@@ -148,6 +148,32 @@ export async function deleteSubgraph(
 	// Use stored schema_name if available, otherwise compute
 	const schemaName = subgraph.schema_name ?? pgSchemaName(name);
 
+	// Cascade to subscriptions: a subscription pointing at a deleted
+	// subgraph + table will throw `relation does not exist` on every
+	// subsequent emission. Pause active subs and purge any pending outbox
+	// rows so receivers don't get phantom replays. We don't delete the
+	// subscriptions themselves — operators may want to repoint them at a
+	// resurrected subgraph; we just stop them firing.
+	await db
+		.updateTable("subscriptions")
+		.set({
+			status: "paused",
+			last_error: `Subgraph "${name}" deleted; subscription auto-paused.`,
+			updated_at: new Date(),
+		})
+		.where("subgraph_name", "=", name)
+		.execute();
+	await db
+		.deleteFrom("subscription_outbox")
+		.where("status", "=", "pending")
+		.where("subscription_id", "in", (qb) =>
+			qb
+				.selectFrom("subscriptions")
+				.select("id")
+				.where("subgraph_name", "=", name),
+		)
+		.execute();
+
 	// Drop the subgraph's schema (CASCADE drops all tables within)
 	await sql`DROP SCHEMA IF EXISTS ${sql.raw(`"${schemaName}"`)} CASCADE`.execute(
 		db,
