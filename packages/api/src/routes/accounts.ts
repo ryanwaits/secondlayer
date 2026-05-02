@@ -195,10 +195,10 @@ const ALLOWED_METER_EVENTS = new Set(["ai_evals", "storage_gb_months"]);
 // reachable to any authenticated session; the chat/title routes are the
 // only intended callers but the surface is open).
 //
-// Anthropic's largest current model context is ~200k tokens, so 1M is
-// 5× headroom for input+output combined. Storage GB-months realistically
-// stays well under this for any single emission.
-const METER_VALUE_MAX = 1_000_000;
+// Units after `aiEvalUnits` conversion: 1 unit = 1k tokens for `ai_evals`,
+// 1 unit = 1 GB-month for storage. 50,000 units is 50M tokens or 25,000
+// GB-months in a single emission — well above any legitimate single call.
+const METER_VALUE_MAX = 50_000;
 
 app.post("/me/meter", async (c) => {
 	const accountId = requireAccountId(c);
@@ -216,7 +216,8 @@ app.post("/me/meter", async (c) => {
 	) {
 		return c.json(
 			{
-				error: "invalid eventName or value (value must be 0..1_000_000)",
+				error:
+					"invalid eventName or value (value must be 0..50_000 units; ai_evals = 1 unit per 1k tokens)",
 			},
 			400,
 		);
