@@ -2,12 +2,31 @@ import { CodeBlock } from "@/components/code-block";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
+import { PLAN_IDS, PLANS } from "@secondlayer/shared/pricing";
 
 const toc: TocItem[] = [
 	{ label: "Tiers", href: "#tiers" },
 	{ label: "Metering", href: "#metering" },
 	{ label: "Self-host", href: "#self-host" },
 ];
+
+function formatPrice(cents: number | null): string {
+	if (cents === null) return "Custom";
+	if (cents === 0) return "Free";
+	return `$${cents / 100}`;
+}
+
+function formatStorage(mb: number): string {
+	if (mb < 0) return "Unlimited";
+	if (mb >= 1024) return `${mb / 1024} GB`;
+	return `${mb} MB`;
+}
+
+function formatCompute(plan: (typeof PLANS)[keyof typeof PLANS]): string {
+	if (plan.id === "hobby") return "Auto-pause after 7d idle";
+	if (plan.id === "enterprise") return "Custom";
+	return `${plan.totalCpus} vCPU · ${plan.totalMemoryMb / 1024} GB RAM`;
+}
 
 export default function PricingPage() {
 	return (
@@ -21,8 +40,10 @@ export default function PricingPage() {
 
 				<div className="prose">
 					<p>
-						Hosted subgraphs + dedicated Postgres. Free Hobby tier,
-						Supabase-style metered paid plans. Self-host is MIT-licensed.
+						Hosted subgraphs + dedicated Postgres. Free Hobby tier, two paid
+						tiers, custom Enterprise. Pay for compute; subgraphs and
+						subscriptions are unlimited on every paid tier. Self-host is
+						MIT-licensed.
 					</p>
 				</div>
 
@@ -35,40 +56,21 @@ export default function PricingPage() {
 								<th>Plan</th>
 								<th>Compute</th>
 								<th>Storage</th>
-								<th>Monthly base</th>
+								<th>Monthly</th>
 							</tr>
 						</thead>
 						<tbody>
-							<tr>
-								<td>Hobby</td>
-								<td>Auto-pause after 7d idle</td>
-								<td>5 GB</td>
-								<td>Free</td>
-							</tr>
-							<tr>
-								<td>Launch</td>
-								<td>500 compute-hours</td>
-								<td>50 GB</td>
-								<td>$149</td>
-							</tr>
-							<tr>
-								<td>Grow</td>
-								<td>1,000 compute-hours</td>
-								<td>200 GB</td>
-								<td>$349</td>
-							</tr>
-							<tr>
-								<td>Scale</td>
-								<td>2,500 compute-hours</td>
-								<td>1 TB</td>
-								<td>$799</td>
-							</tr>
-							<tr>
-								<td>Enterprise</td>
-								<td>Unlimited</td>
-								<td>Unlimited</td>
-								<td>Custom</td>
-							</tr>
+							{PLAN_IDS.map((id) => {
+								const p = PLANS[id];
+								return (
+									<tr key={id}>
+										<td>{p.displayName}</td>
+										<td>{formatCompute(p)}</td>
+										<td>{formatStorage(p.storageLimitMb)}</td>
+										<td>{formatPrice(p.monthlyPriceCents)}</td>
+									</tr>
+								);
+							})}
 						</tbody>
 					</table>
 				</div>
@@ -77,10 +79,16 @@ export default function PricingPage() {
 
 				<div className="prose">
 					<p>
-						Paid tiers include a base compute + storage allowance. Overage bills
-						per Stripe meter: compute-hours past allowance, and{" "}
-						<code>$2/GB</code> for storage over allowance. Hobby has a hard 5 GB
-						cap (no overage billing) and auto-pauses idle projects after 7 days.
+						Compute is hard-capped per tier (Docker enforces vCPU + memory) —
+						upgrade for more, no surprise compute overage. Storage past the
+						plan limit bills at <code>$2/GB-month</code> via Stripe meter.
+						Hobby has a hard 5 GB cap with no overage billing and auto-pauses
+						idle projects after 7 days.
+					</p>
+					<p>
+						AI sessions on the dashboard bill metered against the{" "}
+						<code>ai_evals</code> meter — you only pay for what your sessions
+						use. Spend caps + alert thresholds are configurable per account.
 					</p>
 				</div>
 
@@ -95,7 +103,7 @@ export default function PricingPage() {
 
 				<CodeBlock
 					lang="bash"
-					code={`git clone https://github.com/secondlayer/secondlayer
+					code={`git clone https://github.com/ryanwaits/secondlayer
 cd secondlayer/docker/oss
 docker compose up`}
 				/>
@@ -103,7 +111,7 @@ docker compose up`}
 				<div className="prose">
 					<p>
 						See{" "}
-						<a href="https://github.com/secondlayer/secondlayer/blob/main/docker/oss/README.md">
+						<a href="https://github.com/ryanwaits/secondlayer/blob/main/docker/oss/README.md">
 							<code>docker/oss/README.md</code>
 						</a>{" "}
 						for the full setup.
