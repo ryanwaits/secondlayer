@@ -42,6 +42,14 @@
 
 	# labels.2 = leftmost label (the tenant slug). For `abc12345.secondlayer.tools`:
 	#   labels.0=tools  labels.1=secondlayer  labels.2=abc12345
+	#
+	# `/internal/*` paths on tenant API containers are intra-cluster only
+	# (e.g. `/internal/activity` for the activity probe). Block them at
+	# Caddy so the public tenant subdomain can never reach them, regardless
+	# of whether the route is added today or in the future.
+	handle /internal/* {
+		respond "Not Found" 404
+	}
 	handle {
 		reverse_proxy sl-api-{labels.2}:3800
 	}
