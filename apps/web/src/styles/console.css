@@ -2810,11 +2810,53 @@ html.force-light .tabbed-code-tab.active {
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
 	color: var(--text-main);
+	font-variant-numeric: tabular-nums;
 }
 .sg-table .type {
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
 	font-weight: 500;
+	color: var(--accent);
+}
+
+/* Smart cell renderers */
+.sg-table .sg-cell-empty {
+	color: var(--text-dim);
+}
+.sg-table .sg-cell-num {
+	font-variant-numeric: tabular-nums;
+}
+.sg-table .sg-cell-time {
+	font-size: 12px;
+	color: var(--text-main);
+	white-space: nowrap;
+	cursor: help;
+}
+.sg-table .sg-cell-copy {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	background: none;
+	border: 0;
+	padding: 0;
+	margin: 0;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	white-space: nowrap;
+}
+.sg-table .sg-cell-copy:hover .mono {
+	color: var(--text-main);
+	text-decoration: underline;
+	text-decoration-color: var(--border-hover);
+	text-underline-offset: 3px;
+}
+.sg-table .sg-cell-copy:active .mono {
+	opacity: 0.6;
+}
+.sg-table .sg-cell-contract {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
 	color: var(--accent);
 }
 

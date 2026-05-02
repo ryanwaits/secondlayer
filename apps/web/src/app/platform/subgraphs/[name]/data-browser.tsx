@@ -37,6 +37,92 @@ function fetchPage(
 	};
 }
 
+const HEX_RE = /^0x[0-9a-fA-F]{8,}$/;
+const STX_ADDR_RE = /^S[PMNT][0-9A-Z]{38,40}(?:\.[a-zA-Z][a-zA-Z0-9-_]*)?$/;
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+
+function truncateMiddle(s: string, head: number, tail: number) {
+	if (s.length <= head + tail + 1) return s;
+	return `${s.slice(0, head)}…${s.slice(-tail)}`;
+}
+
+function relTime(iso: string) {
+	const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+	if (diff < 5) return "just now";
+	if (diff < 60) return `${diff}s ago`;
+	if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+	if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+	return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function copy(value: string) {
+	if (typeof navigator !== "undefined" && navigator.clipboard) {
+		void navigator.clipboard.writeText(value);
+	}
+}
+
+function prettyHeader(col: string) {
+	return col.replace(/^_+/, "").replace(/_/g, " ");
+}
+
+function Cell({ value }: { value: unknown }) {
+	if (value === null || value === undefined || value === "") {
+		return <span className="sg-cell-empty">—</span>;
+	}
+	if (typeof value === "boolean") {
+		return <span className="mono">{value ? "true" : "false"}</span>;
+	}
+	const s = String(value);
+
+	if (HEX_RE.test(s)) {
+		return (
+			<button
+				type="button"
+				className="sg-cell-copy"
+				title={`${s}\nclick to copy`}
+				onClick={() => copy(s)}
+			>
+				<span className="mono">{truncateMiddle(s, 6, 4)}</span>
+			</button>
+		);
+	}
+
+	if (STX_ADDR_RE.test(s)) {
+		const dot = s.indexOf(".");
+		const addr = dot === -1 ? s : s.slice(0, dot);
+		const contract = dot === -1 ? null : s.slice(dot);
+		return (
+			<button
+				type="button"
+				className="sg-cell-copy"
+				title={`${s}\nclick to copy`}
+				onClick={() => copy(s)}
+			>
+				<span className="mono">{truncateMiddle(addr, 5, 4)}</span>
+				{contract && <span className="sg-cell-contract">{contract}</span>}
+			</button>
+		);
+	}
+
+	if (ISO_RE.test(s)) {
+		return (
+			<span className="sg-cell-time" title={s}>
+				{relTime(s)}
+			</span>
+		);
+	}
+
+	if (typeof value === "number" || (/^-?\d+$/.test(s) && s.length < 16)) {
+		const n = Number(s);
+		if (Number.isFinite(n) && Math.abs(n) >= 1000) {
+			return <span className="mono sg-cell-num">{n.toLocaleString()}</span>;
+		}
+		return <span className="mono sg-cell-num">{s}</span>;
+	}
+
+	return <span className="mono">{s}</span>;
+}
+
 const SKELETON_HEADERS = Array.from({ length: SKELETON_COLS }, (_, i) => ({
 	id: `sk-h-${i}`,
 	width: 60 + (i % 3) * 20,
@@ -163,7 +249,7 @@ export function SubgraphDataBrowser({
 							<thead>
 								<tr>
 									{columns.map((col) => (
-										<th key={col}>{col}</th>
+										<th key={col}>{prettyHeader(col)}</th>
 									))}
 								</tr>
 							</thead>
@@ -172,7 +258,7 @@ export function SubgraphDataBrowser({
 									<tr key={String(row._id ?? row.tx_id ?? row.contract_id)}>
 										{columns.map((col) => (
 											<td key={col}>
-												<span className="mono">{String(row[col] ?? "—")}</span>
+												<Cell value={row[col]} />
 											</td>
 										))}
 									</tr>
