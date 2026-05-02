@@ -19,11 +19,7 @@
 			"import": "./dist/plugins/index.js"
 		}
 	},
-	"files": [
-		"dist",
-		"templates",
-		"README.md"
-	],
+	"files": ["dist", "templates", "README.md"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -31,13 +27,7 @@
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "bun run build"
 	},
-	"keywords": [
-		"stacks",
-		"clarity",
-		"blockchain",
-		"smart-contracts",
-		"cli"
-	],
+	"keywords": ["stacks", "clarity", "blockchain", "smart-contracts", "cli"],
 	"author": "",
 	"license": "MIT",
 	"dependencies": {

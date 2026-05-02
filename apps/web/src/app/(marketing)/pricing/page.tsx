@@ -2,7 +2,7 @@ import { CodeBlock } from "@/components/code-block";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
-import { PLAN_IDS, PLANS } from "@secondlayer/shared/pricing";
+import { PLANS, PLAN_IDS } from "@secondlayer/shared/pricing";
 
 const toc: TocItem[] = [
 	{ label: "Tiers", href: "#tiers" },
@@ -80,10 +80,10 @@ export default function PricingPage() {
 				<div className="prose">
 					<p>
 						Compute is hard-capped per tier (Docker enforces vCPU + memory) —
-						upgrade for more, no surprise compute overage. Storage past the
-						plan limit bills at <code>$2/GB-month</code> via Stripe meter.
-						Hobby has a hard 5 GB cap with no overage billing and auto-pauses
-						idle projects after 7 days.
+						upgrade for more, no surprise compute overage. Storage past the plan
+						limit bills at <code>$2/GB-month</code> via Stripe meter. Hobby has
+						a hard 5 GB cap with no overage billing and auto-pauses idle
+						projects after 7 days.
 					</p>
 					<p>
 						AI sessions on the dashboard bill metered against the{" "}

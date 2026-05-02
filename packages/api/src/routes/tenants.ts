@@ -170,11 +170,14 @@ app.post("/", async (c) => {
 		});
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : String(err);
-		logger.error("insertTenant failed after successful provision; tearing down", {
-			slug: provisioned.slug,
-			accountId,
-			error: msg,
-		});
+		logger.error(
+			"insertTenant failed after successful provision; tearing down",
+			{
+				slug: provisioned.slug,
+				accountId,
+				error: msg,
+			},
+		);
 		await provisionerTeardown(provisioned.slug, true).catch((teardownErr) => {
 			logger.error("teardown after insertTenant failure also failed", {
 				slug: provisioned.slug,

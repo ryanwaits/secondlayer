@@ -88,9 +88,7 @@
 			"require": "./dist/src/tools/btc/index.cjs"
 		}
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"scripts": {
 		"build": "bunup",
 		"test": "bun test",

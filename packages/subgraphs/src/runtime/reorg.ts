@@ -105,9 +105,7 @@ export async function handleSubgraphReorg(
 									)
 									.as("payload"),
 								eb2
-									.val(
-										`reorg:${sg.name}:${tableName}:${blockHeight}`,
-									)
+									.val(`reorg:${sg.name}:${tableName}:${blockHeight}`)
 									.as("dedup_key"),
 								eb2
 									.val({
@@ -128,15 +126,12 @@ export async function handleSubgraphReorg(
 						// Don't fail the reorg cleanup if the revert event
 						// emission errors — subscriptions can't be more
 						// broken than they were pre-reorg.
-						logger.warn(
-							"Failed to emit revert event for subscriptions",
-							{
-								subgraph: sg.name,
-								table: tableName,
-								blockHeight,
-								error: getErrorMessage(err),
-							},
-						);
+						logger.warn("Failed to emit revert event for subscriptions", {
+							subgraph: sg.name,
+							table: tableName,
+							blockHeight,
+							error: getErrorMessage(err),
+						});
 					});
 			}
 
