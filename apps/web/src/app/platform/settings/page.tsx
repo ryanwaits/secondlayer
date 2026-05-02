@@ -83,7 +83,7 @@ export default function SettingsPage() {
 	const handleDelete = useCallback(async () => {
 		if (!project) return;
 		const warning = tenant
-			? `Delete project "${project.slug}"? Your instance (${tenant.slug}) will stay running and unlinked. Go to the Instance page to tear it down separately.`
+			? `Delete project "${project.slug}"? Your instance (${tenant.slug}) will stay running and unlinked. Go to Billing to tear it down separately.`
 			: `Delete project "${project.slug}"? This cannot be undone.`;
 		if (!confirm(warning)) return;
 		try {
@@ -279,7 +279,7 @@ export default function SettingsPage() {
 									}}
 								>
 									{tenant
-										? "Removes the project record. The instance keeps running — delete it separately from the Instance page."
+										? "Removes the project record. The instance keeps running — delete it separately from Billing."
 										: "Permanently remove this project. Cannot be undone."}
 								</div>
 							</div>

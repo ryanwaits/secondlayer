@@ -6,6 +6,7 @@ import { z } from "zod";
 // real resource names instead of emitting {table-name} / your-api-key.
 // Allowed: real values like sk-sl_7b3719eb, contracts-registry, etc.
 const PLACEHOLDER_PATTERNS: Array<{ re: RegExp; label: string }> = [
+	{ re: /\{\{[a-z][a-z0-9_-]*\}\}/i, label: "{{placeholder}}" },
 	{ re: /\{[a-z][a-z0-9_-]*\}/i, label: "{placeholder}" },
 	{ re: /\byour[-_][a-z0-9_-]+\b/i, label: "your-*" },
 	{ re: /\bYOUR_[A-Z0-9_]+\b/, label: "YOUR_*" },
@@ -21,7 +22,7 @@ function findPlaceholder(code: string): string | null {
 
 export const showCode = tool({
 	description:
-		"Display a tabbed code example card to the user. Use for multi-language examples with tabs: curl, Node.js, SDK (@secondlayer/sdk). Do NOT include Python. Each tab gets syntax highlighting and a copy button. CRITICAL: every tab's code must use concrete resource values from the user's account (real subgraph name, real table name, real API key prefix). Never emit placeholder tokens like {table-name}, your-api-key, or <id> — the tool will reject them.",
+		"Display a tabbed code example card to the user. Use for multi-language examples with tabs: curl, Node.js, SDK (@secondlayer/sdk). Do NOT include Python. Each tab gets syntax highlighting and a copy button. CRITICAL: every tab's code must use concrete resource values from the user's account (real subgraph name, real table name, real API key prefix, real tenant/API URL). Never emit placeholder tokens like {table-name}, {{tableName}}, your-api-key, or <id> — the tool will reject them.",
 	inputSchema: z.object({
 		tabs: z
 			.array(
@@ -43,7 +44,7 @@ export const showCode = tool({
 			if (hit) {
 				return {
 					error: true,
-					message: `Tab "${t.label}" contains placeholder token (${hit}). Rewrite using concrete values from the user's resources — real subgraph name, real table name, real API key prefix. Do not use {braces}, <angles>, or your-* / YOUR_* tokens.`,
+					message: `Tab "${t.label}" contains placeholder token (${hit}). Rewrite using concrete values from the user's resources — real subgraph name, real table name, real API key prefix. Do not use {braces}, {{braces}}, <angles>, or your-* / YOUR_* tokens.`,
 				};
 			}
 		}
