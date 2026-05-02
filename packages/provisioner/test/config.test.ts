@@ -6,7 +6,9 @@ import { buildApiSpec, buildProcessorSpec } from "../src/provision.ts";
 const ORIGINAL_ENV = { ...process.env };
 
 function setRequiredEnv(overrides: Record<string, string | undefined> = {}) {
-	process.env.PROVISIONER_SECRET = "secret";
+	// 64 hex chars — passes the requireStrongSecret 32-char minimum and
+	// doesn't match any of the placeholder rejects in config.ts.
+	process.env.PROVISIONER_SECRET = "a".repeat(64);
 	process.env.PROVISIONER_SOURCE_DB_ADMIN_URL =
 		"postgres://secondlayer:pw@postgres:5432/secondlayer";
 	process.env.PROVISIONER_SOURCE_DB_READONLY_PASSWORD = "readonly";
