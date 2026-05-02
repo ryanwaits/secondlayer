@@ -171,7 +171,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 				"docker",
 				"inspect",
 				"--format",
-				"{{.RestartCount}}|{{.State.StartedAt}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.State.OOMKilled}}",
+				"{{.RestartCount}}|{{.State.StartedAt}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.State.OOMKilled}}|{{.State.ExitCode}}",
 				s.Name,
 			]);
 			const inspectParts = inspectResult.stdout.toString().trim().split("|");
@@ -187,6 +187,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 					? rawHealth
 					: "none";
 			const oomKilled = (inspectParts[3] ?? "").trim() === "true";
+			const exitCode = Number.parseInt(inspectParts[4] ?? "", 10);
 
 			containers.push({
 				name: s.Name,
@@ -199,6 +200,7 @@ export async function collectSystemMetrics(): Promise<SystemMetrics> {
 				startedAt,
 				health,
 				oomKilled,
+				...(Number.isFinite(exitCode) && { exitCode }),
 			});
 		} catch {
 			// skip malformed lines
@@ -319,8 +321,8 @@ export function detectAnomalies(
 			action: "alert_only",
 			service: tenant?.service ?? c.name,
 			message: isTenantContainer
-				? `Container ${c.name} for tenant ${tenant.slug} ${tenant.role} was OOM killed`
-				: `Container ${c.name} was OOM killed`,
+				? `Container ${c.name} for tenant ${tenant.slug} ${tenant.role} was OOM killed${c.exitCode ? ` (exit ${c.exitCode})` : ""}`
+				: `Container ${c.name} was OOM killed${c.exitCode ? ` (exit ${c.exitCode})` : ""}`,
 			line: "",
 			timestamp: now,
 		});
@@ -329,12 +331,13 @@ export function detectAnomalies(
 	// Restart count >3/hr for any container
 	for (const c of current.metrics.containers) {
 		if (c.restartCount > 3) {
+			const tenant = parseTenantContainerName(c.name);
 			anomalies.push({
 				name: "restart_loop",
 				severity: "error",
 				action: "alert_only",
-				service: c.name,
-				message: `Container ${c.name} restarted ${c.restartCount} times`,
+				service: tenant?.service ?? c.name,
+				message: `Container ${c.name} restarted ${c.restartCount} times${c.exitCode ? ` (last exit ${c.exitCode})` : ""}`,
 				line: "",
 				timestamp: now,
 			});

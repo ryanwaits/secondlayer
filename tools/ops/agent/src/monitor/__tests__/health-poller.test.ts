@@ -92,6 +92,7 @@ describe("detectAnomalies — container OOM and tenant parsing", () => {
 			container({
 				name: "sl-proc-acme",
 				oomKilled: true,
+				exitCode: 137,
 				restartCount: 4,
 			}),
 		];
@@ -113,6 +114,7 @@ describe("detectAnomalies — container OOM and tenant parsing", () => {
 		expect(oom?.message).toContain("sl-proc-acme");
 		expect(oom?.message).toContain("acme");
 		expect(oom?.message).toContain("processor");
+		expect(oom?.message).toContain("exit 137");
 		expect(oomIndex).toBeGreaterThanOrEqual(0);
 		expect(restartLoopIndex).toBeGreaterThanOrEqual(0);
 		expect(oomIndex).toBeLessThan(restartLoopIndex);
@@ -159,5 +161,25 @@ describe("detectAnomalies — container OOM and tenant parsing", () => {
 		const restartLoop = matches.filter((m) => m.name === "restart_loop");
 		expect(restartLoop).toHaveLength(1);
 		expect(restartLoop[0].service).toBe("secondlayer-api-1");
+	});
+
+	test("tenant restart-loop uses tenant service and includes exit code", () => {
+		const currentMetrics = metrics(20);
+		currentMetrics.containers = [
+			container({
+				name: "sl-proc-acme",
+				restartCount: 4,
+				exitCode: 137,
+			}),
+		];
+
+		const matches = detectAnomalies({
+			health: okHealth,
+			metrics: currentMetrics,
+		});
+		const restartLoop = matches.find((m) => m.name === "restart_loop");
+
+		expect(restartLoop?.service).toBe("tenant:acme:processor");
+		expect(restartLoop?.message).toContain("last exit 137");
 	});
 });

@@ -51,6 +51,7 @@ export interface ContainerStatus {
 	startedAt?: number;
 	health?: "healthy" | "unhealthy" | "starting" | "none";
 	oomKilled?: boolean;
+	exitCode?: number;
 }
 
 export interface PatternMatch {
