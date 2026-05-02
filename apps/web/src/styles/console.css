@@ -4160,18 +4160,11 @@ html.force-light .tabbed-code-tab.active {
 	color: var(--text-main);
 }
 .logo-primary {
-	fill: #555;
+	fill: var(--accent);
 }
 .logo-echo {
-	fill: #bbb;
-}
-@media (prefers-color-scheme: dark) {
-	.logo-primary {
-		fill: #999;
-	}
-	.logo-echo {
-		fill: #444;
-	}
+	fill: var(--accent);
+	opacity: 0.24;
 }
 .sidebar-nav {
 	flex: 1;
