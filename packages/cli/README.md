@@ -74,7 +74,7 @@ One instance per project. The platform API spawns a dedicated `sl-pg-{slug}`,
 
 | Command | What it does |
 |---|---|
-| `sl instance create --plan <hobby\|launch\|grow\|scale>` | Provision containers. Boxed reveal of `serviceKey` + `anonKey` (shown once). |
+| `sl instance create --plan <hobby\|launch\|scale>` | Provision containers. Boxed reveal of `serviceKey` + `anonKey` (shown once). |
 | `sl instance info` | Plan, status, resource usage |
 | `sl instance resize --plan <...>` | Recreate containers with new CPU/memory (~30s downtime) |
 | `sl instance suspend` / `resume` | Stop/start containers, volume preserved |

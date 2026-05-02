@@ -593,6 +593,11 @@ function PlanSection({
 								)}
 							</div>
 							<div className="tier-tag">{plan.tagline}</div>
+							{plan.annualPriceCents ? (
+								<div className="settings-hint" style={{ marginTop: -4 }}>
+									${plan.annualPriceCents / 100}/yr · 2 months free
+								</div>
+							) : null}
 							<ul>
 								{plan.features.map((f) => (
 									<li key={f}>{f}</li>
@@ -656,11 +661,21 @@ function TierAction({
 	// Paid tier card — Launch or Scale
 	if (isHobbyTenant) {
 		return (
-			<UpgradeButton
-				tier={plan.id as "launch" | "scale"}
-				label={`Upgrade to ${plan.displayName}`}
-				variant={plan.id === "launch" ? "primary" : "ghost"}
-			/>
+			<div style={{ display: "grid", gap: 8 }}>
+				<UpgradeButton
+					tier={plan.id as "launch" | "scale"}
+					label={`Upgrade to ${plan.displayName}`}
+					variant={plan.id === "launch" ? "primary" : "ghost"}
+				/>
+				{plan.annualPriceCents ? (
+					<UpgradeButton
+						tier={plan.id as "launch" | "scale"}
+						interval="year"
+						label={`Annual · $${plan.annualPriceCents / 100}/yr`}
+						variant="ghost"
+					/>
+				) : null}
+			</div>
 		);
 	}
 

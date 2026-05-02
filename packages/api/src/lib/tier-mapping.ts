@@ -12,10 +12,20 @@
  */
 
 export type UpgradeableTier = "launch" | "scale";
+export type BillingInterval = "month" | "year";
 
-export const TIER_PRICE_ENV: Record<UpgradeableTier, string> = {
-	launch: "STRIPE_PRICE_LAUNCH",
-	scale: "STRIPE_PRICE_SCALE",
+export const TIER_PRICE_ENV: Record<
+	UpgradeableTier,
+	Record<BillingInterval, string>
+> = {
+	launch: {
+		month: "STRIPE_PRICE_LAUNCH",
+		year: "STRIPE_PRICE_LAUNCH_YEARLY",
+	},
+	scale: {
+		month: "STRIPE_PRICE_SCALE",
+		year: "STRIPE_PRICE_SCALE_YEARLY",
+	},
 };
 
 export const UPGRADEABLE_TIERS: readonly UpgradeableTier[] = [
@@ -28,8 +38,11 @@ export function isUpgradeableTier(s: string): s is UpgradeableTier {
 }
 
 /** Resolve a plan tier to its Stripe price id, or undefined if env unset. */
-export function getPriceIdForTier(tier: UpgradeableTier): string | undefined {
-	const envVar = TIER_PRICE_ENV[tier];
+export function getPriceIdForTier(
+	tier: UpgradeableTier,
+	interval: BillingInterval = "month",
+): string | undefined {
+	const envVar = TIER_PRICE_ENV[tier][interval];
 	const value = process.env[envVar];
 	return value && value.length > 0 ? value : undefined;
 }
@@ -45,16 +58,19 @@ let reverseCache: {
 } | null = null;
 
 function buildReverseMap(): Map<string, UpgradeableTier> {
-	const snapshot = UPGRADEABLE_TIERS.map(
-		(t) => process.env[TIER_PRICE_ENV[t]],
-	).join("|");
+	const snapshot = UPGRADEABLE_TIERS.flatMap((t) => [
+		process.env[TIER_PRICE_ENV[t].month],
+		process.env[TIER_PRICE_ENV[t].year],
+	]).join("|");
 	if (reverseCache && reverseCache.snapshot === snapshot) {
 		return reverseCache.map;
 	}
 	const map = new Map<string, UpgradeableTier>();
 	for (const tier of UPGRADEABLE_TIERS) {
-		const priceId = getPriceIdForTier(tier);
-		if (priceId) map.set(priceId, tier);
+		const monthlyPriceId = getPriceIdForTier(tier, "month");
+		if (monthlyPriceId) map.set(monthlyPriceId, tier);
+		const yearlyPriceId = getPriceIdForTier(tier, "year");
+		if (yearlyPriceId) map.set(yearlyPriceId, tier);
 	}
 	reverseCache = { snapshot, map };
 	return map;

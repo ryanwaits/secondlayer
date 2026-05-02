@@ -7,7 +7,7 @@ and three interchangeable front-ends (CLI, SDK, MCP).
 Two ways to run it:
 
 - **Hosted** — dedicated per-project Postgres + API + subgraph processor.
-  Hobby is free (auto-pauses after 7d idle); paid tiers start at $149/mo.
+  Hobby is free (auto-pauses after 7d idle); paid tiers start at $99/mo.
 - **Self-host** — the whole stack is MIT-licensed. `docker compose up` gets
   you indexer + API + processor on your own hardware. See
   [`docker/oss/README.md`](docker/oss/README.md).

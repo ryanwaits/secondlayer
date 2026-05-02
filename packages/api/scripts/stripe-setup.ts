@@ -4,6 +4,8 @@
  *
  * Run once per environment (sandbox, then live) against the corresponding
  * STRIPE_SECRET_KEY. Reruns are safe — uses `lookup_key` to find or create.
+ * Stripe prices are immutable, so changed amounts archive the old price and
+ * create a new one with the same lookup key.
  *
  * Usage:
  *   STRIPE_SECRET_KEY=rk_test_... bun run packages/api/scripts/stripe-setup.ts
@@ -13,7 +15,7 @@
  *
  * What it creates:
  *   - Product "Secondlayer" (single product, per-tier prices attach here)
- *   - Tier prices: Launch $50/mo, Scale $200/mo
+ *   - Tier prices: Launch $99/mo or $990/yr, Scale $299/mo or $2,990/yr
  *   - Meters: storage_gb_months, ai_evals (metered usage)
  *   - Metered prices: storage overage ($2/GB-month), AI eval overage ($0.01/unit)
  *
@@ -60,17 +62,29 @@ async function upsertTierPrice(
 	lookupKey: string,
 	amountCents: number,
 	nickname: string,
+	interval: "month" | "year",
 ): Promise<Stripe.Price> {
 	const existing = await stripe.prices.list({ lookup_keys: [lookupKey] });
-	if (existing.data[0]) return existing.data[0];
+	const current = existing.data[0];
+	if (
+		current &&
+		current.unit_amount === amountCents &&
+		current.recurring?.interval === interval
+	) {
+		return current;
+	}
+	if (current) {
+		await stripe.prices.update(current.id, { active: false });
+	}
 
 	return stripe.prices.create({
 		product: productId,
 		nickname,
 		unit_amount: amountCents,
 		currency: "usd",
-		recurring: { interval: "month" },
+		recurring: { interval },
 		lookup_key: lookupKey,
+		transfer_lookup_key: Boolean(current),
 	});
 }
 
@@ -155,17 +169,35 @@ async function main() {
 	const launchPrice = await upsertTierPrice(
 		product.id,
 		"secondlayer_launch_monthly",
-		5000, // $50.00
+		9900, // $99.00
 		"Launch monthly",
+		"month",
+	);
+	const launchYearlyPrice = await upsertTierPrice(
+		product.id,
+		"secondlayer_launch_yearly",
+		99000, // $990.00, 2 months free
+		"Launch yearly",
+		"year",
 	);
 	const scalePrice = await upsertTierPrice(
 		product.id,
 		"secondlayer_scale_monthly",
-		20000, // $200.00
+		29900, // $299.00
 		"Scale monthly",
+		"month",
 	);
-	console.log(`  price(launch)=${launchPrice.id}`);
-	console.log(`  price(scale)=${scalePrice.id}`);
+	const scaleYearlyPrice = await upsertTierPrice(
+		product.id,
+		"secondlayer_scale_yearly",
+		299000, // $2,990.00, 2 months free
+		"Scale yearly",
+		"year",
+	);
+	console.log(`  price(launch monthly)=${launchPrice.id}`);
+	console.log(`  price(launch yearly)=${launchYearlyPrice.id}`);
+	console.log(`  price(scale monthly)=${scalePrice.id}`);
+	console.log(`  price(scale yearly)=${scaleYearlyPrice.id}`);
 
 	console.log("→ Upserting meters…");
 	const meters: Record<string, Stripe.Billing.Meter> = {};
@@ -195,7 +227,9 @@ async function main() {
 
 	console.log("\n─── Paste into .env ───");
 	console.log(`STRIPE_PRICE_LAUNCH=${launchPrice.id}`);
+	console.log(`STRIPE_PRICE_LAUNCH_YEARLY=${launchYearlyPrice.id}`);
 	console.log(`STRIPE_PRICE_SCALE=${scalePrice.id}`);
+	console.log(`STRIPE_PRICE_SCALE_YEARLY=${scaleYearlyPrice.id}`);
 	console.log(`STRIPE_METER_STORAGE=${meters.storage_gb_months.id}`);
 	console.log(`STRIPE_METER_AI_EVAL=${meters.ai_evals.id}`);
 	console.log(`STRIPE_PRICE_STORAGE_OVERAGE=${storagePrice.id}`);

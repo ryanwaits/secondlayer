@@ -106,15 +106,15 @@ export function registerInstanceCommand(program: Command): void {
 					choices: [
 						{
 							value: "hobby",
-							name: "Hobby — free (0.5 vCPU · 512 MB · 5 GB, auto-pause after 7d idle)",
+							name: "Hobby — free (0.5 vCPU · 1 GB · 10 GB, auto-pause after 7d idle)",
 						},
 						{
 							value: "launch",
-							name: "Launch — $50/mo (1 vCPU · 2 GB · 25 GB)",
+							name: "Launch — $99/mo (2 vCPU · 6 GB · 100 GB)",
 						},
 						{
 							value: "scale",
-							name: "Scale — $200/mo (4 vCPU · 8 GB · 100 GB)",
+							name: "Scale — $299/mo (8 vCPU · 24 GB · 500 GB)",
 						},
 					],
 				});

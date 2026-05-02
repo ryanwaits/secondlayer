@@ -1,7 +1,7 @@
 /**
  * Billing routes — session-authed entry points for upgrade + portal.
  *
- *   POST /api/billing/upgrade   body: { tier: "launch" | "scale" }
+ *   POST /api/billing/upgrade   body: { tier: "launch" | "scale", interval?: "month" | "year" }
  *     Returns a Stripe Checkout Session URL. Lazy-creates the Stripe
  *     customer if this account has never upgraded before.
  *
@@ -27,6 +27,7 @@ import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
 import {
+	type BillingInterval,
 	UPGRADEABLE_TIERS,
 	getPriceIdForTier,
 	getTierForPriceId,
@@ -46,7 +47,7 @@ app.post("/upgrade", async (c) => {
 
 	const body = (await c.req.json().catch(() => {
 		throw new InvalidJSONError();
-	})) as { tier?: unknown };
+	})) as { tier?: unknown; interval?: unknown };
 
 	if (typeof body.tier !== "string" || !isUpgradeableTier(body.tier)) {
 		return c.json(
@@ -57,10 +58,12 @@ app.post("/upgrade", async (c) => {
 		);
 	}
 
-	const priceId = getPriceIdForTier(body.tier);
+	const interval: BillingInterval = body.interval === "year" ? "year" : "month";
+	const priceId = getPriceIdForTier(body.tier, interval);
 	if (!priceId) {
 		logger.error("Upgrade attempted without configured price id", {
 			tier: body.tier,
+			interval,
 		});
 		return c.json(
 			{ error: "Billing is not fully configured yet. Contact support." },
@@ -105,7 +108,11 @@ app.post("/upgrade", async (c) => {
 		success_url: `${dashboardBaseUrl()}/platform/billing?upgrade=success`,
 		cancel_url: `${dashboardBaseUrl()}/platform/billing?upgrade=cancelled`,
 		subscription_data: {
-			metadata: { secondlayer_account_id: account.id, tier: body.tier },
+			metadata: {
+				secondlayer_account_id: account.id,
+				tier: body.tier,
+				interval,
+			},
 		},
 	});
 

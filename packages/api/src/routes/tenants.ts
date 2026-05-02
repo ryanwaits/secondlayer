@@ -54,7 +54,7 @@ const VALID_PLANS = new Set(["hobby", "launch", "scale", "enterprise"]);
  * Enterprise is intentionally excluded — it's custom-quoted per deal and
  * must be granted out-of-band (admin DB write or future admin endpoint).
  * Without this gate, any authenticated user could call POST /api/tenants
- * or /me/resize with `plan: "enterprise"` and get 8 vCPU / 32 GB RAM /
+ * or /me/resize with `plan: "enterprise"` and get custom high-capacity RAM /
  * unlimited storage at no cost (enterprise has `monthlyPriceCents: null`,
  * so the Stripe sync block in /me/resize skips it entirely).
  */

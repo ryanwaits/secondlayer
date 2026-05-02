@@ -5,10 +5,16 @@ import { useState } from "react";
 interface Props {
 	tier: "launch" | "scale";
 	label: string;
+	interval?: "month" | "year";
 	variant?: "primary" | "ghost";
 }
 
-export function UpgradeButton({ tier, label, variant = "primary" }: Props) {
+export function UpgradeButton({
+	tier,
+	label,
+	interval = "month",
+	variant = "primary",
+}: Props) {
 	const [state, setState] = useState<
 		{ kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
 	>({ kind: "idle" });
@@ -23,7 +29,7 @@ export function UpgradeButton({ tier, label, variant = "primary" }: Props) {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
-				body: JSON.stringify({ tier }),
+				body: JSON.stringify({ tier, interval }),
 			});
 			if (!res.ok) {
 				const body = (await res.json().catch(() => ({}))) as {

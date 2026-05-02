@@ -25,6 +25,8 @@ export interface Plan {
 	displayName: string;
 	/** Monthly subscription price in cents. null = custom (Enterprise). */
 	monthlyPriceCents: number | null;
+	/** Annual subscription price in cents. null = no self-serve annual price. */
+	annualPriceCents: number | null;
 	totalCpus: number;
 	totalMemoryMb: number;
 	/** Hard cap. -1 = unlimited (Enterprise). Storage overage bills past this. */
@@ -38,20 +40,22 @@ export interface Plan {
 	tagline: string;
 	/** Display-only. Bullet list on the plan card. */
 	features: string[];
-	/** Stripe `lookup_key` for the recurring tier price. null for hobby/enterprise. */
+	/** Stripe `lookup_key` for monthly recurring tier price. null for hobby/enterprise. */
 	stripeLookupKey: string | null;
+	/** Stripe `lookup_key` for annual recurring tier price. null for hobby/enterprise. */
+	stripeAnnualLookupKey: string | null;
 }
 
 // ── Allocation helpers ──────────────────────────────────────────────
 //
 // Allocation within a plan (3 containers per tenant):
 //   Default split (paid tiers)   — PG 50% / proc 30% / api 20%
-//   Sub-1GB total (Hobby)        — PG 60% / proc 25% / api 15%
+//   Sub-1GB total                — PG 60% / proc 25% / api 15%
 //
 // Biased toward PG on Hobby because PG 17's default `shared_buffers` is
-// 128MB — a naive 50/30/20 split on 512MB leaves PG with 256MB RAM, which
-// is technically workable but crashes if `shared_buffers` isn't also
-// shrunk. The 60/25/15 split gives PG 307MB, more headroom.
+// 128MB — a naive 50/30/20 split on tiny plans leaves PG too little RAM if
+// `shared_buffers` isn't also shrunk. Hobby now sits at 1GB and uses the
+// default paid split.
 //
 // Docker memory limit is a hard cap (OOM kill on overage). CPU is a soft
 // cap via `--cpus` (throttling, not killing). Storage is monitored
@@ -115,71 +119,79 @@ export const PLANS: Record<PlanId, Plan> = {
 		id: "hobby",
 		displayName: "Hobby",
 		monthlyPriceCents: 0,
+		annualPriceCents: null,
 		totalCpus: 0.5,
-		totalMemoryMb: 512,
-		storageLimitMb: 5_120,
-		containers: allocTight(512, 0.5),
-		tagline: "Free, forever",
+		totalMemoryMb: 1_024,
+		storageLimitMb: 10_240,
+		containers: alloc(1_024, 0.5),
+		tagline: "MVP/demo/side project",
 		features: [
-			"0.5 vCPU · 512 MB RAM",
-			"5 GB storage · auto-pause 7d",
-			"Starter subgraphs + subscriptions",
+			"0.5 vCPU · 1 GB RAM",
+			"10 GB storage · auto-pause 7d",
+			"MVP demos + side projects",
 			"Recent-range reindexing",
 			"Community support",
 		],
 		stripeLookupKey: null,
+		stripeAnnualLookupKey: null,
 	},
 	launch: {
 		id: "launch",
 		displayName: "Launch",
-		monthlyPriceCents: 5_000, // $50
-		totalCpus: 1,
-		totalMemoryMb: 2_048,
-		storageLimitMb: 25_600, // 25 GB
-		containers: alloc(2_048, 1),
-		tagline: "Production-ready",
+		monthlyPriceCents: 9_900, // $99
+		annualPriceCents: 99_000, // 2 months free
+		totalCpus: 2,
+		totalMemoryMb: 6_144,
+		storageLimitMb: 102_400, // 100 GB
+		containers: alloc(6_144, 2),
+		tagline: "Real product",
 		features: [
-			"1 vCPU · 2 GB RAM",
-			"25 GB storage · always-on",
-			"Unlimited subgraphs + subscriptions",
-			"Larger reindex windows",
+			"2 vCPU · 6 GB RAM",
+			"100 GB storage · always-on",
+			"3-5 contracts",
+			"Production reindex windows",
 			"Spend caps + alerts",
 			"Email support",
 		],
 		stripeLookupKey: "secondlayer_launch_monthly",
+		stripeAnnualLookupKey: "secondlayer_launch_yearly",
 	},
 	scale: {
 		id: "scale",
 		displayName: "Scale",
-		monthlyPriceCents: 20_000, // $200
-		totalCpus: 4,
-		totalMemoryMb: 8_192,
-		storageLimitMb: 102_400, // 100 GB
-		containers: alloc(8_192, 4),
-		tagline: "Scale with confidence",
+		monthlyPriceCents: 29_900, // $299
+		annualPriceCents: 299_000, // 2 months free
+		totalCpus: 8,
+		totalMemoryMb: 24_576,
+		storageLimitMb: 512_000, // 500 GB
+		containers: alloc(24_576, 8),
+		tagline: "Full indexing",
 		features: [
-			"4 vCPU · 8 GB RAM",
-			"100 GB storage · always-on",
-			"Higher throughput + replay",
+			"8 vCPU · 24 GB RAM",
+			"500 GB storage · always-on",
+			"Heavy history + replay",
 			"24h SLA · priority support",
 		],
 		stripeLookupKey: "secondlayer_scale_monthly",
+		stripeAnnualLookupKey: "secondlayer_scale_yearly",
 	},
 	enterprise: {
 		id: "enterprise",
 		displayName: "Enterprise",
 		monthlyPriceCents: null,
-		totalCpus: 8,
-		totalMemoryMb: 32_768,
+		annualPriceCents: null,
+		totalCpus: 16,
+		totalMemoryMb: 65_536,
 		storageLimitMb: -1,
-		containers: alloc(32_768, 8),
-		tagline: "Custom workloads",
+		containers: alloc(65_536, 16),
+		tagline: "Whatever needed",
 		features: [
 			"Custom compute + storage",
 			"SLAs · regions · SSO",
 			"Dedicated success engineer",
 		],
 		stripeLookupKey: null,
+		stripeAnnualLookupKey: null,
 	},
 };
 

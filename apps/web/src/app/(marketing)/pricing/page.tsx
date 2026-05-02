@@ -16,6 +16,11 @@ function formatPrice(cents: number | null): string {
 	return `$${cents / 100}`;
 }
 
+function formatMonthly(cents: number | null): string {
+	if (cents === null || cents === 0) return formatPrice(cents);
+	return `${formatPrice(cents)}/mo`;
+}
+
 function formatStorage(mb: number): string {
 	if (mb < 0) return "Unlimited";
 	if (mb >= 1024) return `${mb / 1024} GB`;
@@ -23,9 +28,13 @@ function formatStorage(mb: number): string {
 }
 
 function formatCompute(plan: (typeof PLANS)[keyof typeof PLANS]): string {
-	if (plan.id === "hobby") return "Auto-pause after 7d idle";
 	if (plan.id === "enterprise") return "Custom";
 	return `${plan.totalCpus} vCPU · ${plan.totalMemoryMb / 1024} GB RAM`;
+}
+
+function formatAnnual(cents: number | null): string {
+	if (cents === null) return "—";
+	return `$${cents / 100}/yr`;
 }
 
 export default function PricingPage() {
@@ -41,9 +50,9 @@ export default function PricingPage() {
 				<div className="prose">
 					<p>
 						Hosted subgraphs + dedicated Postgres. Free Hobby tier, two paid
-						tiers, custom Enterprise. Pay for compute; subgraphs and
-						subscriptions are unlimited on every paid tier. Self-host is
-						MIT-licensed.
+						tiers, custom Enterprise. Annual paid plans include 2 months free.
+						Pay for compute; subgraphs and subscriptions are unlimited on every
+						paid tier. Self-host is MIT-licensed.
 					</p>
 				</div>
 
@@ -57,6 +66,7 @@ export default function PricingPage() {
 								<th>Compute</th>
 								<th>Storage</th>
 								<th>Monthly</th>
+								<th>Annual</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -67,7 +77,8 @@ export default function PricingPage() {
 										<td>{p.displayName}</td>
 										<td>{formatCompute(p)}</td>
 										<td>{formatStorage(p.storageLimitMb)}</td>
-										<td>{formatPrice(p.monthlyPriceCents)}</td>
+										<td>{formatMonthly(p.monthlyPriceCents)}</td>
+										<td>{formatAnnual(p.annualPriceCents)}</td>
 									</tr>
 								);
 							})}
@@ -82,7 +93,7 @@ export default function PricingPage() {
 						Compute is hard-capped per tier (Docker enforces vCPU + memory) —
 						upgrade for more, no surprise compute overage. Storage past the plan
 						limit bills at <code>$2/GB-month</code> via Stripe meter. Hobby has
-						a hard 5 GB cap with no overage billing and auto-pauses idle
+						a hard 10 GB cap with no overage billing and auto-pauses idle
 						projects after 7 days.
 					</p>
 					<p>

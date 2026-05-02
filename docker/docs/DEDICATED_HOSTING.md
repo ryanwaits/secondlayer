@@ -33,14 +33,14 @@ The containers share nothing between customers (no multi-tenant schema prefixing
 
 | Plan | Price/mo | vCPU | RAM | Storage | Tenant monthly cost (our side) |
 |---|---|---|---|---|---|
-| Launch | $99 | 1 | 2 GB | 10 GB | ~$3 |
-| Grow | $249 | 2 | 4 GB | 50 GB | ~$6 |
-| Scale | $599 | 4 | 8 GB | 200 GB | ~$12 |
-| Enterprise | custom | 8+ | 32+ GB | unlimited | ~$80+ |
+| Hobby | $0 | 0.5 | 1 GB | 10 GB | shared/free pool |
+| Launch | $99 | 2 | 6 GB | 100 GB | TBD |
+| Scale | $299 | 8 | 24 GB | 500 GB | TBD |
+| Enterprise | custom | custom | custom | unlimited | custom |
 
-Overage: `$2/GB/mo` beyond plan storage. No feature limits (unlimited subgraphs, subscriptions, API calls) — Docker memory + CPU caps are the real limits.
+Annual Launch is $990/yr and annual Scale is $2,990/yr (2 months free). Overage: `$2/GB/mo` beyond paid plan storage. Hobby storage is hard-capped. No feature limits (unlimited subgraphs, subscriptions, API calls) — Docker memory + CPU caps are the real limits.
 
-Plan definitions live in `packages/provisioner/src/plans.ts`.
+Plan definitions live in `packages/shared/src/pricing.ts`.
 
 ### How it differs from other modes
 
@@ -133,10 +133,10 @@ Three containers per tenant:
 | `sl-api-{slug}` | `ghcr.io/{owner}/secondlayer-api:{tag}` | API in dedicated mode. Gets TENANT_JWT_SECRET, TENANT_SLUG, SOURCE_DATABASE_URL (readonly), TARGET_DATABASE_URL. Health `/health`. | 20% RAM + 20% CPU |
 | `sl-proc-{slug}` | Same image, `cmd: bun run packages/subgraphs/src/service.ts` | Subgraph processor. Dual-DB: reads blocks from source, writes subgraph data to target. | 30% RAM + 30% CPU |
 
-Example for a Launch tenant (2 GB, 1 vCPU):
-- PG: 1024 MB, 0.5 vCPU
-- Processor: 614 MB, 0.3 vCPU
-- API: 409 MB, 0.2 vCPU
+Example for a Launch tenant (6 GB, 2 vCPU):
+- PG: 3072 MB, 1 vCPU
+- Processor: 1843 MB, 0.6 vCPU
+- API: 1228 MB, 0.4 vCPU
 
 Worker containers are **not** per-tenant — there's one shared worker on the app server that runs tenant idle-pause + tenant-health crons. The per-tenant footprint is Postgres + API + subgraph processor only.
 
@@ -407,7 +407,7 @@ Component tree when no tenant exists:
 ```
 <BillingView/>
   └── <ProvisionStart/>
-        ├── Plan radio group (launch/grow/scale)
+        ├── Plan radio group (hobby/launch/scale)
         └── provision button  ───POST /api/tenants───▶
 ```
 
@@ -441,7 +441,7 @@ command. See `packages/cli/src/lib/resolve-tenant.ts` for the decision tree.
 
 | Command | Action |
 |---|---|
-| `sl instance create --plan <launch\|grow\|scale>` | Provisions the tenant for the active project. Boxed reveal with `serviceKey` + `anonKey` (shown once). |
+| `sl instance create --plan <hobby\|launch\|scale>` | Provisions the tenant for the active project. Boxed reveal with `serviceKey` + `anonKey` (shown once). |
 | `sl instance info` | Plan, status, resource usage, and tenant connection details. |
 | `sl instance resize --plan <...>` | Recreates tenant containers with new resource limits. Brief downtime (~30s). |
 | `sl instance suspend` / `resume` | Stop/start containers, volume preserved. |
@@ -723,7 +723,7 @@ docker inspect sl-pg-{slug} | jq '.[0].State'
 docker stats --no-stream sl-pg-{slug}
 ```
 
-Fix: use a smaller plan (Launch is 2 GB total, PG gets 1 GB). If host is already tight, consider whether you have room for another tenant.
+Fix: use a smaller plan (Launch is 6 GB total, PG gets 3 GB). If host is already tight, consider whether you have room for another tenant.
 
 ### Tenant provision fails at `migrate` stage
 
@@ -1044,10 +1044,10 @@ WHERE status = 'suspended' AND suspended_at < now() - interval '30 days';
 -- Mismatch between recorded plan and storage_limit
 SELECT slug, plan, memory_mb, cpus, storage_limit_mb
 FROM tenants
-WHERE (plan = 'launch'     AND (memory_mb <> 2048  OR storage_limit_mb <> 10240))
-   OR (plan = 'grow'       AND (memory_mb <> 4096  OR storage_limit_mb <> 51200))
-   OR (plan = 'scale'      AND (memory_mb <> 8192  OR storage_limit_mb <> 204800))
-   OR (plan = 'enterprise' AND (memory_mb <> 32768 OR storage_limit_mb <> -1));
+WHERE (plan = 'hobby'      AND (memory_mb <> 1024  OR storage_limit_mb <> 10240))
+   OR (plan = 'launch'     AND (memory_mb <> 6144  OR storage_limit_mb <> 102400))
+   OR (plan = 'scale'      AND (memory_mb <> 24576 OR storage_limit_mb <> 512000))
+   OR (plan = 'enterprise' AND (storage_limit_mb <> -1));
 
 -- Tenant containers visible via Docker labels
 -- (run from shell, not SQL)
@@ -1086,7 +1086,7 @@ curl -X POST -H "x-provisioner-secret: $SECRET" $BASE/tenants/{slug}/resume
 
 # Resize
 curl -X POST -H "x-provisioner-secret: $SECRET" -H "content-type: application/json" \
-  -d '{"newPlan":"grow"}' \
+  -d '{"newPlan":"scale"}' \
   $BASE/tenants/{slug}/resize
 
 # Teardown (soft — keeps volume)
