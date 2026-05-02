@@ -7,6 +7,13 @@ interface SubgraphStatus {
 	totalRows?: number;
 	totalErrors: number;
 	tables?: string[];
+	resourceWarning?: {
+		code: "HOBBY_LARGE_REINDEX";
+		message: string;
+		blockRange: number;
+		processorMemoryMb: number;
+		recommendedPlan: "launch";
+	};
 }
 
 interface SubgraphStatusCardProps {
@@ -63,17 +70,26 @@ export function SubgraphStatusCard({ subgraphs }: SubgraphStatusCardProps) {
 				Subgraphs
 			</div>
 			{subgraphs.map((s) => (
-				<div key={s.name} className="tool-status-row">
-					<span className="tool-status-name">{s.name}</span>
-					<span className={statusBadgeClass(s.status)}>
-						{statusLabel(s.status)}
-					</span>
-					<span className="tool-status-meta">
-						{s.lastProcessedBlock != null
-							? `block ${s.lastProcessedBlock.toLocaleString()}`
-							: "—"}
-						{s.totalRows != null && ` · ${formatCount(s.totalRows)} rows`}
-					</span>
+				<div key={s.name}>
+					<div className="tool-status-row">
+						<span className="tool-status-name">{s.name}</span>
+						<span className={statusBadgeClass(s.status)}>
+							{statusLabel(s.status)}
+						</span>
+						<span className="tool-status-meta">
+							{s.lastProcessedBlock != null
+								? `block ${s.lastProcessedBlock.toLocaleString()}`
+								: "—"}
+							{s.totalRows != null && ` · ${formatCount(s.totalRows)} rows`}
+						</span>
+					</div>
+					{s.resourceWarning && (
+						<div className="tool-error-body">
+							{s.resourceWarning.message} Current processor limit:{" "}
+							{s.resourceWarning.processorMemoryMb} MB; range:{" "}
+							{s.resourceWarning.blockRange.toLocaleString()} blocks.
+						</div>
+					)}
 				</div>
 			))}
 		</div>

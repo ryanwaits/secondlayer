@@ -14,6 +14,13 @@ interface SyncSnapshot {
 	totalBlocks?: number;
 	errorRate: number;
 	lastError: string | null;
+	resourceWarning?: {
+		code: "HOBBY_LARGE_REINDEX";
+		message: string;
+		blockRange: number;
+		processorMemoryMb: number;
+		recommendedPlan: "launch";
+	};
 }
 
 interface SubgraphSyncLiveProps {
@@ -59,6 +66,7 @@ export function SubgraphSyncLive({ name }: SubgraphSyncLiveProps) {
 						totalBlocks?: number;
 						status: string;
 						mode?: "sync" | "reindex";
+						resourceWarning?: SyncSnapshot["resourceWarning"];
 					};
 					health?: {
 						errorRate: number;
@@ -78,6 +86,7 @@ export function SubgraphSyncLive({ name }: SubgraphSyncLiveProps) {
 					totalBlocks: data.sync?.totalBlocks,
 					errorRate: data.health?.errorRate ?? 0,
 					lastError: data.health?.lastError ?? null,
+					resourceWarning: data.sync?.resourceWarning,
 				};
 				setSnapshot(snap);
 				if (snap.status === "synced" || snap.blocksRemaining <= 3) {
@@ -140,6 +149,13 @@ export function SubgraphSyncLive({ name }: SubgraphSyncLiveProps) {
 			)}
 			{snapshot?.lastError && (
 				<div className="tool-error-body">{snapshot.lastError}</div>
+			)}
+			{snapshot?.resourceWarning && (
+				<div className="tool-error-body">
+					{snapshot.resourceWarning.message} Current processor limit:{" "}
+					{snapshot.resourceWarning.processorMemoryMb} MB; range:{" "}
+					{snapshot.resourceWarning.blockRange.toLocaleString()} blocks.
+				</div>
 			)}
 			{error && <div className="tool-error-body">{error}</div>}
 		</div>

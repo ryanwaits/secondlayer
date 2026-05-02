@@ -23,6 +23,7 @@ import {
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
+import { PLANS } from "@secondlayer/shared/pricing";
 import {
 	DeploySubgraphRequestSchema,
 	type SubgraphDetail,
@@ -45,6 +46,11 @@ import {
 } from "./subgraph-query-helpers.ts";
 
 const app = new Hono();
+
+const HOBBY_LARGE_REINDEX_BLOCKS = Number.parseInt(
+	process.env.HOBBY_LARGE_REINDEX_BLOCKS ?? "500000",
+	10,
+);
 
 type SubgraphSpecOptions = {
 	serverUrl?: string;
@@ -136,6 +142,11 @@ function buildSyncInfo(
 		totalBlocks > 0
 			? Number.parseFloat(Math.min(1, processedBlocks / totalBlocks).toFixed(4))
 			: 1;
+	const resourceWarning = getReindexResourceWarning({
+		startBlock,
+		targetBlock,
+		mode: isReindexing ? "reindex" : "sync",
+	});
 
 	let syncStatus: "synced" | "catching_up" | "reindexing" | "error";
 	if (status === "reindexing") syncStatus = "reindexing";
@@ -157,8 +168,51 @@ function buildSyncInfo(
 		processedBlocks,
 		totalBlocks,
 		progress,
+		...(resourceWarning && { resourceWarning }),
 		gaps,
 		integrity,
+	};
+}
+
+function getReindexResourceWarning(input: {
+	startBlock: number;
+	targetBlock: number;
+	mode: "sync" | "reindex";
+}) {
+	if (input.mode !== "reindex") return null;
+	if ((process.env.TENANT_PLAN ?? "").toLowerCase() !== "hobby") return null;
+	const blockRange = Math.max(0, input.targetBlock - input.startBlock + 1);
+	if (blockRange < HOBBY_LARGE_REINDEX_BLOCKS) return null;
+	return {
+		code: "HOBBY_LARGE_REINDEX" as const,
+		message:
+			"This reindex is larger than the Hobby processor envelope. Use a recent startBlock or resize to Launch before running a full-chain reindex.",
+		plan: "hobby" as const,
+		blockRange,
+		processorMemoryMb: PLANS.hobby.containers.processor.memoryMb,
+		recommendedPlan: "launch" as const,
+	};
+}
+
+function buildLargeReindexResponse(input: {
+	fromBlock: number;
+	toBlock: number;
+}) {
+	const warning = getReindexResourceWarning({
+		startBlock: input.fromBlock,
+		targetBlock: input.toBlock,
+		mode: "reindex",
+	});
+	if (!warning) return null;
+	return {
+		error: warning.message,
+		code: warning.code,
+		fromBlock: input.fromBlock,
+		toBlock: input.toBlock,
+		blockRange: warning.blockRange,
+		plan: warning.plan,
+		processorMemoryMb: warning.processorMemoryMb,
+		recommendedPlan: warning.recommendedPlan,
 	};
 }
 
@@ -313,6 +367,17 @@ app.post("/", async (c) => {
 			existingStartBlock,
 			definitionStartBlock: def.startBlock,
 		});
+	if (
+		existing == null ||
+		parsed.data.startBlock !== undefined ||
+		startBlockChanged
+	) {
+		const largeReindex = buildLargeReindexResponse({
+			fromBlock: deployStartBlock,
+			toBlock: chainTip > 0 ? chainTip : deployStartBlock,
+		});
+		if (largeReindex) return c.json(largeReindex, 422);
+	}
 	const result = await deploySchema(db, def, handlerPath, {
 		apiKeyId,
 		accountId,
@@ -461,6 +526,14 @@ app.post("/:subgraphName/reindex", async (c) => {
 		typeof body.fromBlock === "number" ? body.fromBlock : undefined;
 	const toBlock = typeof body.toBlock === "number" ? body.toBlock : undefined;
 	const db = getDb();
+	const chainTip = await getChainTip();
+	const reindexFromBlock = fromBlock ?? 1;
+	const reindexToBlock = toBlock ?? chainTip;
+	const largeReindex = buildLargeReindexResponse({
+		fromBlock: reindexFromBlock,
+		toBlock: reindexToBlock,
+	});
+	if (largeReindex) return c.json(largeReindex, 422);
 
 	try {
 		const operation = await createSubgraphOperation(db, {
@@ -696,6 +769,7 @@ app.get("/", async (c) => {
 				targetBlock: sync.targetBlock,
 				progress: sync.progress,
 				blocksRemaining: sync.blocksRemaining,
+				resourceWarning: sync.resourceWarning,
 				syncMode: sync.mode,
 				gapCount: gaps?.gapCount ?? 0,
 				integrity: (gaps?.gapCount ?? 0) > 0 ? "gaps_detected" : "complete",

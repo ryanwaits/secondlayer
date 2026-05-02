@@ -123,7 +123,8 @@ export const PLANS: Record<PlanId, Plan> = {
 		features: [
 			"0.5 vCPU · 512 MB RAM",
 			"5 GB storage · auto-pause 7d",
-			"Subgraphs + subscriptions",
+			"Starter subgraphs + subscriptions",
+			"Recent-range reindexing",
 			"Community support",
 		],
 		stripeLookupKey: null,
@@ -141,6 +142,7 @@ export const PLANS: Record<PlanId, Plan> = {
 			"1 vCPU · 2 GB RAM",
 			"25 GB storage · always-on",
 			"Unlimited subgraphs + subscriptions",
+			"Larger reindex windows",
 			"Spend caps + alerts",
 			"Email support",
 		],

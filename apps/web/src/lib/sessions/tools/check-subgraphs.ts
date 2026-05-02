@@ -56,6 +56,7 @@ export function createCheckSubgraphs(
 					totalRows: s.totalRows,
 					totalErrors: s.totalErrors,
 					tables: s.tables,
+					resourceWarning: s.resourceWarning,
 				})),
 			};
 		},

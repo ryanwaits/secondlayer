@@ -69,6 +69,7 @@ export interface SubgraphSummary {
 	progress: number;
 	blocksRemaining?: number;
 	syncMode?: "sync" | "reindex";
+	resourceWarning?: SubgraphResourceWarning;
 	gapCount: number;
 	integrity: "complete" | "gaps_detected";
 	createdAt: string;
@@ -97,12 +98,22 @@ export interface SubgraphSyncInfo {
 	processedBlocks?: number;
 	totalBlocks?: number;
 	progress: number;
+	resourceWarning?: SubgraphResourceWarning;
 	gaps: {
 		count: number;
 		totalMissingBlocks: number;
 		ranges: SubgraphGapRange[];
 	};
 	integrity: "complete" | "gaps_detected";
+}
+
+export interface SubgraphResourceWarning {
+	code: "HOBBY_LARGE_REINDEX";
+	message: string;
+	plan: "hobby";
+	blockRange: number;
+	processorMemoryMb: number;
+	recommendedPlan: "launch";
 }
 
 export interface SubgraphDetail {

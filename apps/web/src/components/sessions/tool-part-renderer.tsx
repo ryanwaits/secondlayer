@@ -323,6 +323,13 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 							lastProcessedBlock: number | null;
 							totalRows?: number;
 							totalErrors: number;
+							resourceWarning?: {
+								code: "HOBBY_LARGE_REINDEX";
+								message: string;
+								blockRange: number;
+								processorMemoryMb: number;
+								recommendedPlan: "launch";
+							};
 						}>
 					}
 				/>
