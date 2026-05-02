@@ -1,15 +1,21 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 const SUBGRAPH = "stx-transfers-proof";
 const TABLE = "transfers";
 const OK_SUBSCRIPTION = "row-positive-ok";
 const FAIL_SUBSCRIPTION = "row-positive-fail";
-const MIN_ROWS = 25;
-const INITIAL_LOOKBACK = 2_000;
-const RETRY_LOOKBACK = 10_000;
+const MIN_ROWS = Number.parseInt(process.env.ROW_POSITIVE_MIN_ROWS ?? "25", 10);
+const INITIAL_LOOKBACK = Number.parseInt(
+	process.env.ROW_POSITIVE_LOOKBACK ?? "60",
+	10,
+);
+const RETRY_LOOKBACK = Number.parseInt(
+	process.env.ROW_POSITIVE_RETRY_LOOKBACK ?? "500",
+	10,
+);
 
 interface CommandResult {
 	stdout: string;
@@ -28,6 +34,42 @@ function cliBase(): string[] {
 	return ["bunx", "@secondlayer/cli@latest"];
 }
 
+async function readSessionToken(): Promise<string | null> {
+	try {
+		const raw = await readFile(
+			join(homedir(), ".secondlayer/session.json"),
+			"utf8",
+		);
+		const parsed = JSON.parse(raw) as { token?: unknown };
+		return typeof parsed.token === "string" ? parsed.token : null;
+	} catch {
+		return null;
+	}
+}
+
+async function deleteProject(slug: string): Promise<void> {
+	const token = await readSessionToken();
+	if (!token) {
+		console.warn(`Could not delete project ${slug}: no CLI session token`);
+		return;
+	}
+	const apiUrl =
+		process.env.SL_PLATFORM_API_URL ?? "https://api.secondlayer.tools";
+	const res = await fetch(
+		`${apiUrl}/api/projects/${encodeURIComponent(slug)}`,
+		{
+			method: "DELETE",
+			headers: { authorization: `Bearer ${token}` },
+		},
+	);
+	if (res.ok || res.status === 404) {
+		console.log(`Project ${slug} deleted`);
+		return;
+	}
+	const body = await res.text().catch(() => "");
+	console.warn(`Could not delete project ${slug}: HTTP ${res.status} ${body}`);
+}
+
 async function runCli(
 	cwd: string,
 	args: string[],
@@ -37,11 +79,15 @@ async function runCli(
 	if (!cmd) throw new Error("SL_CLI_COMMAND resolved to an empty command");
 	const fullArgs = [...baseArgs, ...args];
 	console.log(`$ ${[cmd, ...fullArgs].join(" ")}`);
+	const env = { ...process.env };
+	if (!env.SL_SERVICE_KEY && env.SL_ROW_ALLOW_ENV_TENANT !== "true") {
+		env.SL_API_URL = undefined;
+	}
 
 	return new Promise((resolve, reject) => {
 		const child = spawn(cmd, fullArgs, {
 			cwd,
-			env: process.env,
+			env,
 			stdio: ["ignore", "pipe", "pipe"],
 		});
 		let stdout = "";
@@ -422,6 +468,7 @@ async function main(): Promise<void> {
 				allowFailure: true,
 			});
 		}
+		await deleteProject(projectSlug);
 		await rm(cwd, { recursive: true, force: true });
 	}
 }

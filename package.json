@@ -26,6 +26,8 @@
 		"test:ops": "bun test tools/ops/agent tools/ops/konsole",
 		"test:stacks": "bun run --filter @secondlayer/stacks test",
 		"test:docs": "bun run --filter @secondlayer/clarity-docs test",
+		"dry-run:webhook": "bun run scripts/dry-run/webhook-receiver.ts",
+		"dry-run:row-positive": "bun run scripts/dry-run/row-positive-subscriptions.ts",
 		"typecheck": "bun run --filter '*' typecheck",
 		"typecheck:ops": "bun run --cwd tools/ops/agent typecheck && bun run --cwd tools/ops/konsole typecheck",
 		"typecheck:docs": "bun run --filter @secondlayer/clarity-docs typecheck",
