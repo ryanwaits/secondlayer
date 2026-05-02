@@ -1,14 +1,7 @@
 "use client";
 
-import { PLANS as ALL_PLANS, type Plan } from "@/lib/billing";
+import type { Plan, PlanId } from "@secondlayer/shared/pricing";
 import { useState } from "react";
-
-// Provisioning picker excludes Enterprise (custom-quoted, not self-serve).
-const PROVISION_PLANS: readonly Plan[] = [
-	ALL_PLANS.hobby,
-	ALL_PLANS.launch,
-	ALL_PLANS.scale,
-];
 
 function formatPrice(p: Plan): string {
 	if (p.monthlyPriceCents == null) return "Custom";
@@ -43,13 +36,21 @@ export interface ProvisionResponse {
 
 export function ProvisionStart({
 	sessionToken,
+	plans,
 	onProvisioned,
 	onProvisioning,
 }: {
 	sessionToken: string;
+	plans: Record<PlanId, Plan>;
 	onProvisioned: (resp: ProvisionResponse) => void;
 	onProvisioning: () => void;
 }) {
+	const provisionPlans: readonly Plan[] = [
+		plans.hobby,
+		plans.launch,
+		plans.scale,
+	];
+
 	// Default to Hobby — zero-friction starting point. Users self-select
 	// Launch+ when they need more compute or want to skip the auto-pause.
 	const [selected, setSelected] = useState<string>("hobby");
@@ -90,7 +91,7 @@ export function ProvisionStart({
 			</p>
 
 			<div className="instance-plan-grid">
-				{PROVISION_PLANS.map((plan) => {
+				{provisionPlans.map((plan) => {
 					const specs = formatSpecs(plan);
 					return (
 						<button

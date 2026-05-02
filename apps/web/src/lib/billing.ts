@@ -8,14 +8,4 @@ export interface BillingCaps {
 	alertSentAt: string | null;
 }
 
-// Plan tiers re-exported from the canonical source so every dashboard
-// surface reads the same record. Add tiers in `@secondlayer/shared/pricing`.
-export {
-	type Plan,
-	type PlanId,
-	type PlanId as BillingTier,
-	PLANS,
-	PLAN_IDS,
-	getPlan,
-	isValidPlanId,
-} from "@secondlayer/shared/pricing";
+export type BillingTier = "hobby" | "launch" | "scale" | "enterprise";

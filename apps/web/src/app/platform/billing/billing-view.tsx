@@ -1,8 +1,9 @@
 "use client";
 
 import { CollapsibleSection } from "@/components/console/collapsible-section";
-import { type BillingCaps, PLANS, PLAN_IDS, type Plan } from "@/lib/billing";
+import type { BillingCaps } from "@/lib/billing";
 import { type UsageResponse, formatCents } from "@/lib/usage";
+import type { Plan, PlanId } from "@secondlayer/shared/pricing";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CapForm } from "./cap-form";
@@ -63,6 +64,8 @@ export function BillingView({
 	caps,
 	usage,
 	sessionToken,
+	plans,
+	planIds,
 }: {
 	initialTenant: TenantSummary | null;
 	initialRuntime: TenantRuntime | null;
@@ -70,6 +73,8 @@ export function BillingView({
 	caps: BillingCaps | null;
 	usage: UsageResponse | null;
 	sessionToken: string;
+	plans: Record<PlanId, Plan>;
+	planIds: readonly PlanId[];
 }) {
 	const [tenant, setTenant] = useState<TenantSummary | null>(initialTenant);
 	const [runtime, setRuntime] = useState<TenantRuntime | null>(initialRuntime);
@@ -109,6 +114,7 @@ export function BillingView({
 				</p>
 				<ProvisionStart
 					sessionToken={sessionToken}
+					plans={plans}
 					onProvisioning={() => setProvisioningView(true)}
 					onProvisioned={(resp: ProvisionResponse) => {
 						setProvisioningView(false);
@@ -165,6 +171,8 @@ export function BillingView({
 				caps={caps}
 				usage={usage}
 				sessionToken={sessionToken}
+				plans={plans}
+				planIds={planIds}
 				onTenantChanged={(updated) => {
 					setTenant(updated);
 					setRuntime(null);
@@ -219,6 +227,8 @@ function ActiveView({
 	caps,
 	usage,
 	sessionToken,
+	plans,
+	planIds,
 	onTenantChanged,
 	onKeyRotated,
 	onDeleted,
@@ -229,6 +239,8 @@ function ActiveView({
 	caps: BillingCaps | null;
 	usage: UsageResponse | null;
 	sessionToken: string;
+	plans: Record<PlanId, Plan>;
+	planIds: readonly PlanId[];
 	onTenantChanged: (updated: TenantSummary) => void;
 	onKeyRotated: (
 		type: RotateType,
@@ -321,6 +333,8 @@ function ActiveView({
 			<PlanSection
 				tenant={tenant}
 				sessionToken={sessionToken}
+				plans={plans}
+				planIds={planIds}
 				onResized={onTenantChanged}
 			/>
 
@@ -540,18 +554,22 @@ function formatMb(mb: number): string {
 function PlanSection({
 	tenant,
 	sessionToken,
+	plans,
+	planIds,
 	onResized,
 }: {
 	tenant: TenantSummary;
 	sessionToken: string;
+	plans: Record<PlanId, Plan>;
+	planIds: readonly PlanId[];
 	onResized: (updated: TenantSummary) => void;
 }) {
 	return (
 		<section className="settings-section">
 			<div className="settings-section-title">Plan</div>
 			<div className="tier-grid">
-				{PLAN_IDS.map((id) => {
-					const plan = PLANS[id];
+				{planIds.map((id) => {
+					const plan = plans[id];
 					const isCurrent = tenant.plan === id;
 					return (
 						<div key={id} className={`tier-card${isCurrent ? " current" : ""}`}>

@@ -2,6 +2,7 @@ import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { BillingCaps } from "@/lib/billing";
 import type { UsageResponse } from "@/lib/usage";
+import { PLANS, PLAN_IDS } from "@secondlayer/shared/pricing";
 import { BillingView } from "./billing-view";
 import { resolvePlanFromStripe } from "./resolve-plan";
 
@@ -117,6 +118,8 @@ export default async function BillingPage({
 						caps={caps}
 						usage={usage}
 						sessionToken={session}
+						plans={PLANS}
+						planIds={PLAN_IDS}
 					/>
 				</div>
 			</div>
