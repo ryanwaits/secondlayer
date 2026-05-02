@@ -1,3 +1,5 @@
+import { isDevMode } from "../lib/dev-mode.ts";
+
 const FROM =
 	process.env.EMAIL_FROM ?? "secondlayer <noreply@secondlayer.tools>";
 
@@ -36,7 +38,7 @@ export async function sendMagicLink(
 	token: string,
 	code: string,
 ): Promise<void> {
-	if (process.env.DEV_MODE === "true") {
+	if (isDevMode()) {
 		console.log(`\n[DEV] Magic link token for ${email}: ${token}`);
 		console.log(`[DEV] Code: ${code}\n`);
 		return;
@@ -74,7 +76,7 @@ export async function sendMagicLink(
  * Waitlist confirmation email. Uses Resend in production, logs to console in DEV_MODE.
  */
 export async function sendWaitlistConfirmation(email: string): Promise<void> {
-	if (process.env.DEV_MODE === "true") {
+	if (isDevMode()) {
 		console.log(`\n[DEV] Waitlist confirmation for ${email}\n`);
 		console.log(
 			`[DEV] Preview HTML at: data:text/html,${encodeURIComponent(waitlistHtml())}\n`,
@@ -102,7 +104,7 @@ export async function sendApprovalNotification(
 	email: string,
 	token: string,
 ): Promise<void> {
-	if (process.env.DEV_MODE === "true") {
+	if (isDevMode()) {
 		console.log(
 			`\n[DEV] Approval notification for ${email}, token: ${token}\n`,
 		);

@@ -12,6 +12,7 @@ import { z } from "zod/v4";
 import { sendMagicLink } from "../auth/email.ts";
 import { getClientIp } from "../auth/http.ts";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
+import { isDevMode } from "../lib/dev-mode.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
@@ -51,8 +52,7 @@ app.post("/magic-link", async (c) => {
 	const parsed = MagicLinkSchema.parse(body);
 	const db = getDb();
 
-	const allowed =
-		process.env.DEV_MODE === "true" || (await isEmailAllowed(db, parsed.email));
+	const allowed = isDevMode() || (await isEmailAllowed(db, parsed.email));
 
 	if (!allowed) {
 		return c.json(
@@ -81,7 +81,7 @@ app.post("/magic-link", async (c) => {
 
 	return c.json({
 		message: "Check your email for a login code.",
-		...(process.env.DEV_MODE === "true" && { token, code }),
+		...(isDevMode() && { token, code }),
 	});
 });
 
@@ -107,8 +107,7 @@ app.post("/verify", async (c) => {
 		throw new ValidationError("Invalid or expired code");
 	}
 
-	const allowed =
-		process.env.DEV_MODE === "true" || (await isEmailAllowed(db, email));
+	const allowed = isDevMode() || (await isEmailAllowed(db, email));
 	if (!allowed) {
 		throw new ValidationError("Invalid or expired token");
 	}

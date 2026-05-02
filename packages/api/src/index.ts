@@ -37,10 +37,43 @@ import waitlistRouter from "./routes/waitlist.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 
 const mode = getInstanceMode();
+
+// Refuse to boot if DEV_MODE leaked into production. DEV_MODE bypasses
+// auth (`packages/api/src/auth/middleware.ts:18`) and leaks magic-link
+// tokens in response bodies (`auth.ts:84`); a single typo on the host
+// would mean total compromise. Catch it at startup, not at runtime.
+if (process.env.NODE_ENV === "production" && process.env.DEV_MODE === "true") {
+	logger.error(
+		"DEV_MODE=true is set in NODE_ENV=production — refusing to start",
+	);
+	process.exit(1);
+}
+
 const app = new Hono();
 
 // Global middleware
-app.use("*", cors());
+//
+// CORS is restricted to the dashboard origins. The platform API is
+// session-authed (Bearer + cookie); a wildcard origin would let any
+// page on any host invoke billing/keys/auth flows from a victim's
+// browser. Tenant API runs under a different mode and may want a more
+// open policy — that lives in dedicated/oss code paths.
+const dashboardOrigins = (
+	process.env.DASHBOARD_ORIGINS ||
+	"https://secondlayer.tools,https://www.secondlayer.tools,http://localhost:3000"
+)
+	.split(",")
+	.map((s) => s.trim())
+	.filter(Boolean);
+app.use(
+	"*",
+	cors({
+		origin: dashboardOrigins,
+		credentials: true,
+		allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+		allowHeaders: ["Authorization", "Content-Type", "X-Provisioner-Secret"],
+	}),
+);
 app.use("*", requestLogger);
 
 // Global error handler

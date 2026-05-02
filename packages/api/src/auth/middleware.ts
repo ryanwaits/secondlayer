@@ -4,6 +4,7 @@ import {
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
+import { isDevMode } from "../lib/dev-mode.ts";
 import { hashToken } from "./keys.ts";
 
 // Debounce last_used_at updates: tokenHash → last DB write timestamp
@@ -14,8 +15,9 @@ export function requireAuth(opts?: {
 }): MiddlewareHandler {
 	const getDb = opts?.getDb ?? _getDb;
 	return async (c, next) => {
-		// DEV_MODE bypass — local dev without auth
-		if (process.env.DEV_MODE === "true") {
+		// DEV_MODE bypass — local dev without auth. Forced false in
+		// `NODE_ENV=production` by `isDevMode()`.
+		if (isDevMode()) {
 			// Still try to resolve accountId from token if present
 			const devAuth = c.req.header("authorization");
 			if (devAuth?.startsWith("Bearer ")) {
