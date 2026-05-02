@@ -21,10 +21,15 @@ import {
 	setTenantStatus,
 } from "@secondlayer/shared/db/queries/tenants";
 import { getInstanceMode } from "@secondlayer/shared/mode";
-import { getTenantStatus, getTenantStorage } from "./provisioner-rpc.ts";
+import {
+	getTenantStatus,
+	getTenantStorage,
+	suspendTenant,
+} from "./provisioner-rpc.ts";
 
 const INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 const STORAGE_WARN_PCT = 80;
+const STORAGE_PAUSE_PCT = 95;
 
 export function startTenantHealthCron(): () => void {
 	if (getInstanceMode() !== "platform") {
@@ -51,10 +56,13 @@ export function startTenantHealthCron(): () => void {
 
 async function checkAllTenants(): Promise<void> {
 	const db = getDb();
-	const active = await listTenantsByStatus(db, "active");
-	if (active.length === 0) return;
+	const tenants = [
+		...(await listTenantsByStatus(db, "active")),
+		...(await listTenantsByStatus(db, "limit_warning")),
+	];
+	if (tenants.length === 0) return;
 
-	for (const tenant of active) {
+	for (const tenant of tenants) {
 		try {
 			const status = await getTenantStatus(
 				tenant.slug,
@@ -65,6 +73,17 @@ async function checkAllTenants(): Promise<void> {
 				(c) => c.state !== "running" && c.state !== "restarting",
 			);
 			if (unhealthy) {
+				if (tenant.plan === "hobby" && unhealthy.name.includes("proc")) {
+					await suspendTenant(tenant.slug);
+					await setTenantStatus(db, tenant.slug, "paused_limit");
+					logger.error("Hobby tenant processor failed; paused at plan limit", {
+						slug: tenant.slug,
+						container: unhealthy.name,
+						state: unhealthy.state,
+						action: "paused_limit",
+					});
+					continue;
+				}
 				logger.error("Tenant container unhealthy", {
 					slug: tenant.slug,
 					container: unhealthy.name,
@@ -108,14 +127,39 @@ async function checkAllTenants(): Promise<void> {
 				});
 			}
 
-			if (
-				tenant.storage_limit_mb > 0 &&
-				storage.sizeMb > (tenant.storage_limit_mb * STORAGE_WARN_PCT) / 100
-			) {
-				logger.warn("Tenant storage over 80% of limit", {
+			if (tenant.plan !== "hobby" || tenant.storage_limit_mb <= 0) {
+				continue;
+			}
+
+			const usagePct = (storage.sizeMb / tenant.storage_limit_mb) * 100;
+			if (usagePct >= STORAGE_PAUSE_PCT) {
+				await suspendTenant(tenant.slug);
+				await setTenantStatus(db, tenant.slug, "paused_limit");
+				logger.error("Hobby tenant paused at storage limit", {
 					slug: tenant.slug,
 					sizeMb: storage.sizeMb,
 					limitMb: tenant.storage_limit_mb,
+					usagePct,
+					action: "paused_limit",
+				});
+			} else if (usagePct >= STORAGE_WARN_PCT) {
+				if (tenant.status !== "limit_warning") {
+					await setTenantStatus(db, tenant.slug, "limit_warning");
+				}
+				logger.warn("Hobby tenant storage near limit", {
+					slug: tenant.slug,
+					sizeMb: storage.sizeMb,
+					limitMb: tenant.storage_limit_mb,
+					usagePct,
+					action: "limit_warning",
+				});
+			} else if (tenant.status === "limit_warning") {
+				await setTenantStatus(db, tenant.slug, "active");
+				logger.info("Hobby tenant storage back under warning threshold", {
+					slug: tenant.slug,
+					sizeMb: storage.sizeMb,
+					limitMb: tenant.storage_limit_mb,
+					usagePct,
 				});
 			}
 		} catch (err) {

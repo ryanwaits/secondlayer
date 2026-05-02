@@ -80,6 +80,10 @@ export async function suspendTenant(slug: string): Promise<void> {
 	await request(`/tenants/${slug}/suspend`, "POST");
 }
 
+export async function resumeTenant(slug: string): Promise<void> {
+	await request(`/tenants/${slug}/resume`, "POST");
+}
+
 export async function teardownTenant(
 	slug: string,
 	deleteVolume = false,

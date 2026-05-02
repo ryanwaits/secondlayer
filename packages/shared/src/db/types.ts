@@ -365,6 +365,8 @@ export interface Database {
 export type TenantStatus =
 	| "provisioning"
 	| "active"
+	| "limit_warning"
+	| "paused_limit"
 	| "suspended"
 	| "error"
 	| "deleted";

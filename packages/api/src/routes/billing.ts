@@ -26,6 +26,7 @@ import {
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
+import { syncTenantToPaidPlan } from "../lib/tenant-plan-sync.ts";
 import {
 	type BillingInterval,
 	UPGRADEABLE_TIERS,
@@ -173,8 +174,21 @@ app.post("/resolve", async (c) => {
 				to: tier,
 			});
 		}
+		const tenantSync = await syncTenantToPaidPlan({
+			accountId: account.id,
+			targetPlan: tier,
+			actor: `account:${account.id}`,
+			reason: "billing_resolve",
+		}).catch((err) => {
+			logger.error("billing.resolve.tenant_sync_failed", {
+				accountId: account.id,
+				tier,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			return { status: "noop" as const, reason: "tenant_sync_failed" };
+		});
 
-		return c.json({ plan: tier, resolved: true });
+		return c.json({ plan: tier, resolved: true, tenantSync });
 	} catch (err) {
 		logger.warn("billing.resolve.stripe_failed", {
 			accountId: account.id,

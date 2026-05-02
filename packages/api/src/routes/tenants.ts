@@ -513,6 +513,16 @@ app.post("/me/resume", async (c) => {
 	if (tenant.status === "active") {
 		return c.json({ tenant: publicView(tenant), unchanged: true });
 	}
+	if (tenant.status === "paused_limit") {
+		return c.json(
+			{
+				error:
+					"Tenant is paused at the Hobby limit. Upgrade to Launch to resume processing from the last processed block.",
+				code: "LIMIT_UPGRADE_REQUIRED",
+			},
+			409,
+		);
+	}
 
 	try {
 		await provisionerResume(tenant.slug);
@@ -900,6 +910,12 @@ app.delete("/me", async (c) => {
 type TenantRow = Awaited<ReturnType<typeof getTenantByAccount>>;
 
 function publicView(tenant: NonNullable<TenantRow>) {
+	const limitReason =
+		tenant.status === "limit_warning"
+			? "Hobby storage is above 80% of the plan limit. Upgrade to Launch before processing pauses."
+			: tenant.status === "paused_limit"
+				? "Hobby limit reached. Processing is paused until the tenant is upgraded."
+				: null;
 	return {
 		slug: tenant.slug,
 		plan: tenant.plan,
@@ -910,6 +926,7 @@ function publicView(tenant: NonNullable<TenantRow>) {
 		storageUsedMb: tenant.storage_used_mb,
 		apiUrl: tenant.api_url_public,
 		suspendedAt: tenant.suspended_at,
+		limitReason,
 		lastActiveAt: tenant.last_active_at,
 		createdAt: tenant.created_at,
 	};

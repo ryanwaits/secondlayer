@@ -76,7 +76,7 @@ function computeActiveHours(
 		status: string;
 	},
 ): number {
-	if (tenant.status !== "active") return 0;
+	if (tenant.status !== "active" && tenant.status !== "limit_warning") return 0;
 	const rangeStart = Math.max(
 		periodStart.getTime(),
 		tenant.created_at.getTime(),

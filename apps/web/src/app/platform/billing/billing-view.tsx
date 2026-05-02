@@ -32,6 +32,7 @@ interface TenantSummary {
 	storageUsedMb: number | null;
 	apiUrl: string;
 	suspendedAt: string | null;
+	limitReason: string | null;
 	createdAt: string;
 }
 
@@ -128,6 +129,7 @@ export function BillingView({
 							storageUsedMb: null,
 							apiUrl: resp.tenant.apiUrl,
 							suspendedAt: null,
+							limitReason: null,
 							createdAt: new Date().toISOString(),
 						});
 						setReveal({
@@ -404,6 +406,7 @@ function OverviewSection({
 	const [resuming, setResuming] = useState(false);
 	const [resumeError, setResumeError] = useState<string | null>(null);
 	const isSuspended = tenant.status === "suspended";
+	const isLimitPaused = tenant.status === "paused_limit";
 
 	const handleResume = async () => {
 		if (resuming) return;
@@ -472,6 +475,13 @@ function OverviewSection({
 					</div>
 				</div>
 			</div>
+			{tenant.limitReason && (
+				<div
+					className={`settings-hint ${isLimitPaused ? "limit-alert" : "limit-warn"}`}
+				>
+					{tenant.limitReason}
+				</div>
+			)}
 			{resumeError && (
 				<div className="settings-hint" style={{ color: "var(--red)" }}>
 					{resumeError}
@@ -525,7 +535,9 @@ function StatusPill({ status }: { status: string }) {
 			? "pill-success"
 			: status === "suspended"
 				? "pill-muted"
-				: "pill-warn";
+				: status === "paused_limit"
+					? "pill-danger"
+					: "pill-warn";
 	return (
 		<span className={`pill ${variant}`}>
 			<span className="dot" />

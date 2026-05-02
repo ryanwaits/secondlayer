@@ -67,7 +67,7 @@ async function meterOverages(): Promise<void> {
 			"accounts.id as account_id",
 			"accounts.stripe_customer_id",
 		])
-		.where("tenants.status", "=", "active")
+		.where("tenants.status", "in", ["active", "limit_warning"])
 		.execute();
 
 	if (rows.length === 0) return;

@@ -12,6 +12,7 @@ interface TenantSummary {
 	storageUsedMb: number | null;
 	apiUrl: string;
 	suspendedAt: string | null;
+	limitReason: string | null;
 	createdAt: string;
 }
 

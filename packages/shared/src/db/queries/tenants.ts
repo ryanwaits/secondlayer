@@ -109,7 +109,7 @@ export async function listIdleHobbyTenants(
 	return db
 		.selectFrom("tenants")
 		.selectAll()
-		.where("status", "=", "active")
+		.where("status", "in", ["active", "limit_warning"])
 		.where("plan", "=", "hobby")
 		.where("last_active_at", "<", idleSince)
 		.execute();
@@ -152,7 +152,9 @@ export async function setTenantStatus(
 		status,
 		updated_at: new Date(),
 	};
-	if (status === "suspended") patch.suspended_at = new Date();
+	if (status === "suspended" || status === "paused_limit") {
+		patch.suspended_at = new Date();
+	}
 	if (status === "active") patch.suspended_at = null;
 	await db.updateTable("tenants").set(patch).where("slug", "=", slug).execute();
 }

@@ -22,6 +22,7 @@ interface TenantSummary {
 	storageUsedMb: number | null;
 	apiUrl: string;
 	suspendedAt: string | null;
+	limitReason: string | null;
 	createdAt: string;
 }
 
@@ -99,7 +100,7 @@ export default async function BillingPage({
 	// the webhook may not have fired yet. Do a one-shot Stripe read + plan
 	// write synchronously so the paid view renders on first paint.
 	const sp = await searchParams;
-	if (sp.upgrade === "success" && account.plan === "hobby") {
+	if (sp.upgrade === "success") {
 		const resolved = await resolvePlanFromStripe(session);
 		if (resolved && resolved !== "hobby") {
 			account.plan = resolved;

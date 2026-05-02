@@ -24,6 +24,7 @@ import {
 	getStripeOrNull,
 	getStripeWebhookSecretOrNull,
 } from "../lib/stripe.ts";
+import { syncTenantToPaidPlan } from "../lib/tenant-plan-sync.ts";
 import { getTierForPriceId } from "../lib/tier-mapping.ts";
 
 const app = new Hono();
@@ -202,6 +203,19 @@ async function onSubscriptionActive(
 			return;
 		}
 		await setAccountPlan(db, account.id, tier);
+		await syncTenantToPaidPlan({
+			accountId: account.id,
+			targetPlan: tier,
+			actor: "stripe:webhook",
+			reason: `subscription:${sub.id}:${eventId}`,
+		}).catch((err) => {
+			logger.error("stripe.webhook.subscription.tenant_sync_failed", {
+				eventId,
+				accountId: account.id,
+				tier,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		});
 		logger.info("stripe.webhook.subscription.resolved", {
 			eventId,
 			accountId: account.id,
