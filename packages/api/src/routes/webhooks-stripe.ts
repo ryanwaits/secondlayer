@@ -62,6 +62,28 @@ app.post("/", async (c) => {
 		livemode: event.livemode,
 	});
 
+	// Idempotency. Stripe redelivers events on any non-2xx and on its own
+	// retry policy; we may also see a late replay of an old `invoice.paid`
+	// arriving days after the cycle it billed. INSERT ON CONFLICT DO
+	// NOTHING into `processed_stripe_events` and bail if the event_id is
+	// already there — the original processing had its chance.
+	const inserted = await getDb()
+		.insertInto("processed_stripe_events")
+		.values({
+			event_id: event.id,
+			event_type: event.type,
+		})
+		.onConflict((oc) => oc.column("event_id").doNothing())
+		.executeTakeFirst();
+	const isDuplicate = (inserted.numInsertedOrUpdatedRows ?? 0n) === 0n;
+	if (isDuplicate) {
+		logger.info("Stripe webhook event already processed — skipping", {
+			id: event.id,
+			type: event.type,
+		});
+		return c.body(null, 200);
+	}
+
 	try {
 		if (event.type === "invoice.paid") {
 			const invoice = event.data.object as Stripe.Invoice;

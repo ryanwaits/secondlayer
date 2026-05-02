@@ -315,6 +315,12 @@ export interface ChatMessagesTable {
 	created_at: Generated<Date>;
 }
 
+export interface ProcessedStripeEventsTable {
+	event_id: string;
+	event_type: string;
+	processed_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -343,6 +349,7 @@ export interface Database {
 	team_invitations: TeamInvitationsTable;
 	chat_sessions: ChatSessionsTable;
 	chat_messages: ChatMessagesTable;
+	processed_stripe_events: ProcessedStripeEventsTable;
 	tenants: TenantsTable;
 	tenant_usage_monthly: TenantUsageMonthlyTable;
 	tenant_compute_addons: TenantComputeAddonsTable;
