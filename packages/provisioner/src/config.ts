@@ -3,6 +3,19 @@
  *
  * All sensitive values (source DB admin creds, shared secret) come from env;
  * this module fails fast if any required value is missing.
+ *
+ * SECURITY NOTE — provisioner network reachability:
+ * Tenant API + processor containers join `sl-tenants`, and the provisioner
+ * is also on `sl-tenants` (per `docker-compose.hetzner.yml` — needed so the
+ * provisioner can reach `sl-pg-{slug}` for storage measurement). That means
+ * a malicious subgraph handler with outbound HTTP can fetch
+ * `http://provisioner:3850/...` and trip our auth. The shared
+ * `PROVISIONER_SECRET` is the only thing standing between that traffic and
+ * a `DELETE /tenants/:slug?deleteVolume=true`. The `requireStrongSecret`
+ * gate below ensures the secret is meaningful; the proper fix (move
+ * provisioner to its own `sl-control` network with tenant PGs joined to
+ * both, so tenant API/processor can't see the provisioner at all) is a
+ * larger refactor tracked separately.
  */
 
 export interface ProvisionerConfig {
@@ -50,6 +63,35 @@ function required(name: string): string {
 	return v;
 }
 
+/**
+ * Refuse to boot if `PROVISIONER_SECRET` is shorter than 32 characters or
+ * looks like a placeholder. The secret is the only auth between platform
+ * API and provisioner; a weak secret + a tenant container that can reach
+ * `provisioner:3850` is a full container-control compromise. 32 chars of
+ * random bytes is the bar; explicitly reject obvious dev defaults so a
+ * forgotten override can't ship to prod.
+ */
+function requireStrongSecret(name: string): string {
+	const v = required(name);
+	if (v.length < 32) {
+		throw new Error(
+			`${name} is too short (${v.length} chars). Use 32+ random bytes — \`openssl rand -hex 32\`.`,
+		);
+	}
+	const lc = v.toLowerCase();
+	if (
+		lc === "secret" ||
+		lc === "changeme" ||
+		lc === "insecure" ||
+		lc.startsWith("dev-")
+	) {
+		throw new Error(
+			`${name} looks like a placeholder (${v.slice(0, 8)}…). Generate a real one — \`openssl rand -hex 32\`.`,
+		);
+	}
+	return v;
+}
+
 function optional(name: string, fallback: string): string {
 	const v = process.env[name];
 	return v && v.trim() !== "" ? v : fallback;
@@ -66,7 +108,7 @@ export function getConfig(): ProvisionerConfig {
 	if (cached) return cached;
 	cached = {
 		port: Number.parseInt(optional("PROVISIONER_PORT", "3850"), 10),
-		secret: required("PROVISIONER_SECRET"),
+		secret: requireStrongSecret("PROVISIONER_SECRET"),
 		sourceDbAdminUrl: required("PROVISIONER_SOURCE_DB_ADMIN_URL"),
 		sourceDbReadonlyPassword: required(
 			"PROVISIONER_SOURCE_DB_READONLY_PASSWORD",
