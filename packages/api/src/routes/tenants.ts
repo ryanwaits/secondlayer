@@ -144,23 +144,57 @@ app.post("/", async (c) => {
 		storageLimitMb: planDef.storageLimitMb,
 	};
 
-	const tenant = await insertTenant(getDb(), {
-		accountId,
-		slug: provisioned.slug,
-		plan,
-		cpus: alloc.cpus,
-		memoryMb: alloc.memoryMb,
-		storageLimitMb: alloc.storageLimitMb,
-		pgContainerId: provisioned.containerIds.postgres,
-		apiContainerId: provisioned.containerIds.api,
-		processorContainerId: provisioned.containerIds.processor,
-		targetDatabaseUrl: provisioned.targetDatabaseUrl,
-		tenantJwtSecret: provisioned.tenantJwtSecret,
-		anonKey: provisioned.anonKey,
-		serviceKey: provisioned.serviceKey,
-		apiUrlInternal: provisioned.apiUrlInternal,
-		apiUrlPublic: provisioned.apiUrlPublic,
-	});
+	// Provisioner has already created containers + volumes + JWT secret on
+	// the host. If the DB row insert fails (FK conflict, encryption error,
+	// transient outage), those resources would be orphaned forever — and
+	// the customer's Stripe customer/sub would still bill against a tenant
+	// that doesn't formally exist. Tear down on insert failure.
+	let tenant: Awaited<ReturnType<typeof insertTenant>>;
+	try {
+		tenant = await insertTenant(getDb(), {
+			accountId,
+			slug: provisioned.slug,
+			plan,
+			cpus: alloc.cpus,
+			memoryMb: alloc.memoryMb,
+			storageLimitMb: alloc.storageLimitMb,
+			pgContainerId: provisioned.containerIds.postgres,
+			apiContainerId: provisioned.containerIds.api,
+			processorContainerId: provisioned.containerIds.processor,
+			targetDatabaseUrl: provisioned.targetDatabaseUrl,
+			tenantJwtSecret: provisioned.tenantJwtSecret,
+			anonKey: provisioned.anonKey,
+			serviceKey: provisioned.serviceKey,
+			apiUrlInternal: provisioned.apiUrlInternal,
+			apiUrlPublic: provisioned.apiUrlPublic,
+		});
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		logger.error("insertTenant failed after successful provision; tearing down", {
+			slug: provisioned.slug,
+			accountId,
+			error: msg,
+		});
+		await provisionerTeardown(provisioned.slug, true).catch((teardownErr) => {
+			logger.error("teardown after insertTenant failure also failed", {
+				slug: provisioned.slug,
+				accountId,
+				error:
+					teardownErr instanceof Error
+						? teardownErr.message
+						: String(teardownErr),
+			});
+		});
+		await recordProvisioningAudit(getDb(), {
+			accountId,
+			actor: `account:${accountId}`,
+			event: "provision.failure",
+			status: "error",
+			detail: { plan, slug: provisioned.slug, stage: "insertTenant" },
+			error: msg,
+		});
+		throw err;
+	}
 
 	logger.info("Tenant provisioned", {
 		slug: tenant.slug,
@@ -264,10 +298,19 @@ app.post("/me/resize", async (c) => {
 		return c.json({ tenant: publicView(tenant), unchanged: true });
 	}
 
-	// Stripe-side update for paid → paid resize (swap the line item) or
-	// paid → hobby (cancel). Hobby → paid must go through the Stripe
-	// Checkout flow at /api/billing/upgrade so we collect a payment method;
-	// returning 409 here tells the dashboard to redirect the user.
+	// Tier transitions:
+	//   hobby → paid     — must go through Stripe Checkout (collect card).
+	//                      Return 409 so the UI redirects to /billing/upgrade.
+	//   paid → paid      — provisioner resize, then Stripe sub item swap.
+	//   paid → hobby     — provisioner resize, then Stripe sub cancel.
+	//   hobby → hobby    — no-op container resize, no Stripe op.
+	//
+	// **Provisioner runs BEFORE Stripe** so a Stripe failure doesn't leave
+	// the customer paying for a tier they don't have. If Stripe fails after
+	// a successful provisioner resize, the customer keeps the resource they
+	// got (good UX), and we surface a "needs_billing_sync" alert for ops to
+	// reconcile manually. Inverting this order produces the much-worse
+	// "customer paid, didn't get the upgrade" state.
 	const oldIsPaid = tenant.plan !== "hobby" && tenant.plan !== "enterprise";
 	const newIsPaid = newPlan !== "hobby" && newPlan !== "enterprise";
 
@@ -282,58 +325,18 @@ app.post("/me/resize", async (c) => {
 		);
 	}
 
-	if (oldIsPaid && (newIsPaid || newPlan === "hobby")) {
-		const stripe = getStripeOrNull();
-		const account = await getAccountById(getDb(), accountId);
-		if (stripe && account?.stripe_customer_id) {
-			const sub = await resolveSubscriptionItem(
-				stripe,
-				account.stripe_customer_id,
-			);
-			if (sub) {
-				try {
-					if (newIsPaid && isUpgradeableTier(newPlan)) {
-						const newPriceId = getPriceIdForTier(newPlan);
-						if (!newPriceId) {
-							return c.json(
-								{
-									error: `Stripe price for ${newPlan} not configured (set STRIPE_PRICE_${newPlan.toUpperCase()})`,
-								},
-								503,
-							);
-						}
-						await stripe.subscriptions.update(sub.subscriptionId, {
-							items: [{ id: sub.itemId, price: newPriceId }],
-							proration_behavior: "create_prorations",
-						});
-					} else if (newPlan === "hobby") {
-						await stripe.subscriptions.cancel(sub.subscriptionId, {
-							invoice_now: true,
-							prorate: true,
-						});
-					}
-				} catch (err) {
-					logger.error("Stripe subscription update failed during resize", {
-						accountId,
-						from: tenant.plan,
-						to: newPlan,
-						err: err instanceof Error ? err.message : String(err),
-					});
-					return c.json(
-						{
-							error: "Stripe subscription update failed",
-							detail: err instanceof Error ? err.message : String(err),
-						},
-						502,
-					);
-				}
-			}
-		}
+	// If we'll need a Stripe price ID later, fail fast before we resize —
+	// no point recreating containers if the env is misconfigured.
+	if (newIsPaid && isUpgradeableTier(newPlan) && !getPriceIdForTier(newPlan)) {
+		return c.json(
+			{
+				error: `Stripe price for ${newPlan} not configured (set STRIPE_PRICE_${newPlan.toUpperCase()})`,
+			},
+			503,
+		);
 	}
 
-	// Compose target spec: new plan's base compute + any active add-ons
-	// the tenant still has. Add-ons survive plan changes — billing-side
-	// price item is swapped above, container resize happens below.
+	// Provisioner resize first.
 	const baseAlloc = getPlan(newPlan);
 	const effective = await computeEffectiveCompute(getDb(), tenant.id, {
 		cpus: baseAlloc.totalCpus,
@@ -376,6 +379,65 @@ app.post("/me/resize", async (c) => {
 		effective.memoryMb,
 		effective.storageLimitMb,
 	);
+
+	// Stripe second. If this fails the resize itself succeeded; the
+	// customer has the new resources and we're now under-billing them
+	// until ops reconciles. Log loudly but don't return failure — that
+	// would tell the user "your resize failed" when in fact they did
+	// get the new resources.
+	if (oldIsPaid && (newIsPaid || newPlan === "hobby")) {
+		const stripe = getStripeOrNull();
+		const account = await getAccountById(getDb(), accountId);
+		if (stripe && account?.stripe_customer_id) {
+			try {
+				const sub = await resolveSubscriptionItem(
+					stripe,
+					account.stripe_customer_id,
+				);
+				if (sub) {
+					if (newIsPaid && isUpgradeableTier(newPlan)) {
+						// biome-ignore lint/style/noNonNullAssertion: pre-checked above
+						const newPriceId = getPriceIdForTier(newPlan)!;
+						await stripe.subscriptions.update(sub.subscriptionId, {
+							items: [{ id: sub.itemId, price: newPriceId }],
+							proration_behavior: "create_prorations",
+						});
+					} else if (newPlan === "hobby") {
+						await stripe.subscriptions.cancel(sub.subscriptionId, {
+							invoice_now: true,
+							prorate: true,
+						});
+					}
+				}
+			} catch (err) {
+				logger.error(
+					"Stripe sync FAILED after successful provisioner resize — needs ops reconciliation",
+					{
+						accountId,
+						slug: tenant.slug,
+						from: tenant.plan,
+						to: newPlan,
+						err: err instanceof Error ? err.message : String(err),
+					},
+				);
+				await recordProvisioningAudit(getDb(), {
+					tenantId: tenant.id,
+					tenantSlug: tenant.slug,
+					accountId,
+					actor: `account:${accountId}`,
+					event: "resize",
+					status: "error",
+					detail: {
+						from: tenant.plan,
+						to: newPlan,
+						stage: "stripe_sync",
+						needs_billing_sync: true,
+					},
+					error: err instanceof Error ? err.message : String(err),
+				});
+			}
+		}
+	}
 
 	await recordProvisioningAudit(getDb(), {
 		tenantId: tenant.id,
@@ -759,6 +821,43 @@ app.delete("/me", async (c) => {
 
 	const tenant = await getTenantByAccount(getDb(), accountId);
 	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
+
+	// Cancel the Stripe subscription BEFORE teardown. Without this, a
+	// paid customer who deletes their instance keeps getting billed
+	// (containers gone, sub still active) until they notice — sometimes
+	// months. Best-effort: log + continue if Stripe fails. Operator can
+	// reconcile from `accounts.stripe_customer_id` lookup.
+	const stripe = getStripeOrNull();
+	if (stripe) {
+		try {
+			const account = await getAccountById(getDb(), accountId);
+			if (account?.stripe_customer_id) {
+				const sub = await resolveSubscriptionItem(
+					stripe,
+					account.stripe_customer_id,
+				);
+				if (sub) {
+					await stripe.subscriptions.cancel(sub.subscriptionId, {
+						invoice_now: true,
+						prorate: true,
+					});
+					logger.info("Cancelled Stripe subscription on tenant delete", {
+						accountId,
+						subscriptionId: sub.subscriptionId,
+					});
+				}
+			}
+		} catch (err) {
+			logger.error("Stripe sub cancel failed during tenant delete", {
+				accountId,
+				slug: tenant.slug,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			// Continue with teardown — leaving the customer with both an
+			// active sub AND no service is worse than a billing error we
+			// can reconcile.
+		}
+	}
 
 	try {
 		await provisionerTeardown(tenant.slug, true);

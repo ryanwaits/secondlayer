@@ -18,6 +18,7 @@ import { type Context, Hono } from "hono";
 import {
 	ProvisionerError,
 	provisionTenant as provisionerProvision,
+	teardownTenant as provisionerTeardown,
 } from "../lib/provisioner-client.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
@@ -478,6 +479,18 @@ app.post("/:slug/instance", async (c) => {
 		});
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : String(err);
+		// Containers + volumes were created on the host; without a row
+		// nothing tracks them. Tear down or they're orphaned forever.
+		await provisionerTeardown(provisioned.slug, true).catch((teardownErr) => {
+			logger.error("teardown after insertTenant failure also failed", {
+				projectSlug: project.slug,
+				tenantSlug: provisioned.slug,
+				error:
+					teardownErr instanceof Error
+						? teardownErr.message
+						: String(teardownErr),
+			});
+		});
 		await recordProvisioningAudit(db, {
 			tenantSlug: provisioned.slug,
 			accountId,
@@ -491,6 +504,7 @@ app.post("/:slug/instance", async (c) => {
 				extra: {
 					tenantSlug: provisioned.slug,
 					containerIds: provisioned.containerIds,
+					stage: "insertTenant",
 				},
 			}),
 			error: msg,
@@ -498,11 +512,10 @@ app.post("/:slug/instance", async (c) => {
 		return c.json(
 			{
 				error:
-					"Instance was provisioned, but the instance record could not be saved",
+					"Instance provisioning failed during finalization — please retry",
 				code: "INSTANCE_RECORD_FAILED",
 				projectSlug: project.slug,
 				plan,
-				tenantSlug: provisioned.slug,
 			},
 			500,
 		);
