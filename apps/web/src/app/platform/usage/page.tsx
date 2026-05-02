@@ -9,6 +9,7 @@ import {
 	formatHours,
 	formatNum,
 } from "@/lib/usage";
+import { PLANS } from "@secondlayer/shared/pricing";
 import Link from "next/link";
 
 export default async function UsagePage() {
@@ -38,6 +39,7 @@ export default async function UsagePage() {
 	}
 
 	const { period, plan, spend, compute, storage, projects } = usage;
+	const planSpec = getPlanSpec(plan.tier);
 
 	const periodLabel = formatPeriod(period.startIso, period.endIso);
 	const capStripClass = spend.frozen
@@ -164,9 +166,13 @@ export default async function UsagePage() {
 									{plan.basePriceUsd > 0
 										? `$${plan.basePriceUsd}/mo · `
 										: "Free · "}
-									{Number.isFinite(compute.allowanceHours)
-										? `${formatNum(compute.allowanceHours)} h compute, `
-										: "unlimited compute, "}
+									{planSpec
+										? `${planSpec.totalCpus} vCPU · ${formatBytes(
+												planSpec.totalMemoryMb * 1024 * 1024,
+											)} RAM, `
+										: Number.isFinite(compute.allowanceHours)
+											? `${formatNum(compute.allowanceHours)} h compute, `
+											: "custom compute, "}
 									{Number.isFinite(storage.allowanceBytes)
 										? `${formatBytes(storage.allowanceBytes)} storage`
 										: "unlimited storage"}
@@ -188,6 +194,10 @@ export default async function UsagePage() {
 }
 
 // ── Inlined subcomponents ──────────────────────────────────────────
+
+function getPlanSpec(tier: string) {
+	return tier in PLANS ? PLANS[tier as keyof typeof PLANS] : null;
+}
 
 function CapStrip({
 	currentCents,

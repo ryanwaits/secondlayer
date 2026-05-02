@@ -83,24 +83,18 @@ app.get("/usage", async (c) => {
 	]);
 
 	// Crude spend approximation — matches what Stripe metering will bill.
-	// Compute overage: $0.015/hr (1.5¢). Storage overage: $2/GB (200¢/GB).
-	// Hobby has hard caps so overage is always 0.
-	const computeOverageHours = Math.max(
-		0,
-		compute.usedHours - compute.allowanceHours,
-	);
+	// Compute is hard-capped by Docker, so no compute overage. Storage
+	// overage is $2/GB (200¢/GB). Hobby has hard caps so overage is 0.
 	const storageOverageBytes = Math.max(
 		0,
 		storage.usedBytes - storage.allowanceBytes,
 	);
 	const bytesPerGb = 1024 ** 3;
-	const computeOverageCents = Math.round(computeOverageHours * 1.5);
 	const storageOverageCents = hasStorageOverage(plan)
 		? Math.round((storageOverageBytes / bytesPerGb) * 200)
 		: 0;
 	const basePriceCents = getBasePriceCents(plan);
-	const currentCents =
-		basePriceCents + computeOverageCents + storageOverageCents;
+	const currentCents = basePriceCents + storageOverageCents;
 
 	// Project EOM spend. Clamp day 1-2 (tiny denominator → false positives).
 	const projectedCents =
