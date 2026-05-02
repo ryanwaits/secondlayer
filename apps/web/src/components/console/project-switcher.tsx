@@ -10,6 +10,7 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 
 	// For now, first project is "active" — will be route-based later
 	const current = projects?.[0];
+	const visibleProjects = current ? [current] : [];
 
 	useEffect(() => {
 		function handleClick(e: MouseEvent) {
@@ -26,7 +27,7 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 			{open && (
 				<div className="org-popover">
 					<div className="org-popover-title">Projects</div>
-					{(projects ?? []).map((p) => (
+					{visibleProjects.map((p) => (
 						<button
 							type="button"
 							key={p.id}
@@ -54,26 +55,6 @@ export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
 					{projects?.length === 0 && (
 						<div className="org-popover-item">No projects yet</div>
 					)}
-					<div className="org-popover-divider" />
-					<button
-						type="button"
-						className="org-popover-create"
-						onClick={() => setOpen(false)}
-					>
-						<svg
-							aria-hidden="true"
-							width="12"
-							height="12"
-							viewBox="0 0 12 12"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-						>
-							<path d="M6 2v8M2 6h8" />
-						</svg>
-						Create new project
-					</button>
 				</div>
 			)}
 			<button
