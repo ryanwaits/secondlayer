@@ -3,6 +3,7 @@ import {
 	STREAMS_EVENT_TYPES,
 	type ReadCanonicalStreamsEventsParams,
 	type ReadCanonicalStreamsEventsResult,
+	type StreamsEvent,
 	type StreamsEventType,
 } from "@secondlayer/indexer/streams-events";
 import { ValidationError } from "@secondlayer/shared/errors";
@@ -21,6 +22,13 @@ export type StreamsEventsQuery = {
 	types?: readonly StreamsEventType[];
 	limit: number;
 	cursorPastTip: boolean;
+};
+
+export type StreamsEventsResponse = {
+	events: StreamsEvent[];
+	next_cursor: string | null;
+	tip: StreamsTip;
+	reorgs: [];
 };
 
 const STREAMS_EVENT_TYPE_SET = new Set<string>(STREAMS_EVENT_TYPES);
@@ -112,7 +120,7 @@ export async function getStreamsEventsResponse(opts: {
 	query: URLSearchParams;
 	tip: StreamsTip;
 	readEvents?: StreamsEventsReader;
-}) {
+}): Promise<StreamsEventsResponse> {
 	const parsed = parseStreamsEventsQuery(opts.query, opts.tip);
 
 	if (parsed.cursorPastTip) {
@@ -120,7 +128,8 @@ export async function getStreamsEventsResponse(opts: {
 			events: [],
 			next_cursor: parsed.cursorRaw ?? null,
 			tip: opts.tip,
-			reorg: null,
+			// reorgs stays empty until reorg detection lands; see PRD 0001 reorg endpoint task.
+			reorgs: [],
 		};
 	}
 
@@ -137,6 +146,7 @@ export async function getStreamsEventsResponse(opts: {
 		events: result.events,
 		next_cursor: result.next_cursor,
 		tip: opts.tip,
-		reorg: null,
+		// reorgs stays empty until reorg detection lands; see PRD 0001 reorg endpoint task.
+		reorgs: [],
 	};
 }

@@ -123,7 +123,7 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 			db,
 		});
 
-		expect(page.next_cursor).toBeNull();
+		expect(page.next_cursor).toBe("2:0");
 		expect(page.events.map((event) => event.cursor)).toEqual([
 			"1:0",
 			"1:1",
@@ -142,5 +142,188 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 			topic: "print",
 			value: { repr: "u1" },
 		});
+	});
+
+	test("types filter walks through excluded pages to later matching events", async () => {
+		if (!db) throw new Error("missing db");
+
+		await db
+			.insertInto("blocks")
+			.values([
+				{
+					height: 1,
+					hash: "0x01",
+					parent_hash: "0x00",
+					burn_block_height: 101,
+					timestamp: 1000,
+					canonical: true,
+				},
+				{
+					height: 2,
+					hash: "0x02",
+					parent_hash: "0x01",
+					burn_block_height: 102,
+					timestamp: 1001,
+					canonical: true,
+				},
+			])
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values([
+				{
+					tx_id: "tx-filter-1",
+					block_height: 1,
+					tx_index: 0,
+					type: "token_transfer",
+					sender: "SP1",
+					status: "success",
+					contract_id: null,
+					raw_tx: "0x01",
+				},
+				{
+					tx_id: "tx-filter-2",
+					block_height: 1,
+					tx_index: 1,
+					type: "token_transfer",
+					sender: "SP2",
+					status: "success",
+					contract_id: null,
+					raw_tx: "0x02",
+				},
+				{
+					tx_id: "tx-filter-3",
+					block_height: 2,
+					tx_index: 0,
+					type: "contract_call",
+					sender: "SP3",
+					status: "success",
+					contract_id: "SP3.print",
+					raw_tx: "0x03",
+				},
+			])
+			.execute();
+		await db
+			.insertInto("events")
+			.values([
+				{
+					tx_id: "tx-filter-1",
+					block_height: 1,
+					event_index: 0,
+					type: "stx_transfer_event",
+					data: { sender: "SP1", recipient: "SP2", amount: "1" },
+				},
+				{
+					tx_id: "tx-filter-2",
+					block_height: 1,
+					event_index: 0,
+					type: "stx_mint_event",
+					data: { recipient: "SP2", amount: "2" },
+				},
+				{
+					tx_id: "tx-filter-3",
+					block_height: 2,
+					event_index: 0,
+					type: "smart_contract_event",
+					data: {
+						contract_identifier: "SP3.print",
+						topic: "print",
+						value: { repr: "u3" },
+					},
+				},
+			])
+			.execute();
+
+		const firstPage = await readCanonicalStreamsEvents({
+			fromHeight: 1,
+			toHeight: 2,
+			types: ["print"],
+			limit: 2,
+			db,
+		});
+		expect(firstPage.events).toEqual([]);
+		expect(firstPage.next_cursor).toBe("1:1");
+
+		const secondPage = await readCanonicalStreamsEvents({
+			after: { block_height: 1, event_index: 1 },
+			toHeight: 2,
+			types: ["print"],
+			limit: 2,
+			db,
+		});
+		expect(secondPage.events.map((event) => event.event_type)).toEqual(["print"]);
+		expect(secondPage.events.map((event) => event.cursor)).toEqual(["2:0"]);
+		expect(secondPage.next_cursor).toBe("2:0");
+	});
+
+	test("types filter advances cursor when exact tail page is fully excluded", async () => {
+		if (!db) throw new Error("missing db");
+
+		await db
+			.insertInto("blocks")
+			.values({
+				height: 1,
+				hash: "0x01",
+				parent_hash: "0x00",
+				burn_block_height: 101,
+				timestamp: 1000,
+				canonical: true,
+			})
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values([
+				{
+					tx_id: "tx-tail-1",
+					block_height: 1,
+					tx_index: 0,
+					type: "token_transfer",
+					sender: "SP1",
+					status: "success",
+					contract_id: null,
+					raw_tx: "0x01",
+				},
+				{
+					tx_id: "tx-tail-2",
+					block_height: 1,
+					tx_index: 1,
+					type: "token_transfer",
+					sender: "SP2",
+					status: "success",
+					contract_id: null,
+					raw_tx: "0x02",
+				},
+			])
+			.execute();
+		await db
+			.insertInto("events")
+			.values([
+				{
+					tx_id: "tx-tail-1",
+					block_height: 1,
+					event_index: 0,
+					type: "stx_transfer_event",
+					data: { sender: "SP1", recipient: "SP2", amount: "1" },
+				},
+				{
+					tx_id: "tx-tail-2",
+					block_height: 1,
+					event_index: 0,
+					type: "stx_mint_event",
+					data: { recipient: "SP2", amount: "2" },
+				},
+			])
+			.execute();
+
+		const page = await readCanonicalStreamsEvents({
+			fromHeight: 1,
+			toHeight: 1,
+			types: ["print"],
+			limit: 2,
+			db,
+		});
+
+		expect(page.events).toEqual([]);
+		expect(page.next_cursor).toBe("1:1");
 	});
 });

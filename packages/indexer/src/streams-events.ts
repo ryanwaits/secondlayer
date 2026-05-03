@@ -232,13 +232,12 @@ export async function readCanonicalStreamsEvents(
 		.map(normalizeRow)
 		.filter((event) => !requestedTypes || requestedTypes.has(event.event_type));
 	const lastScannedRow = pageRows.at(-1);
-	const next_cursor =
-		rows.length > params.limit && lastScannedRow
-			? encodeStreamsEventCursor({
-					block_height: Number(lastScannedRow.block_height),
-					event_index: Number(lastScannedRow.stream_event_index),
-				})
-			: null;
+	const next_cursor = lastScannedRow
+		? encodeStreamsEventCursor({
+				block_height: Number(lastScannedRow.block_height),
+				event_index: Number(lastScannedRow.stream_event_index),
+			})
+		: null;
 
 	return { events, next_cursor };
 }

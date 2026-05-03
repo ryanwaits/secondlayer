@@ -43,6 +43,7 @@ export function streamsRetentionWindow(opts: {
 		c.set("streamsTip", tip);
 
 		const cursor = c.req.query("cursor");
+		// TODO(PRD 0001): deprecate one of from_block/from_height or document both.
 		const fromHeightParam =
 			c.req.query("from_height") !== undefined ? "from_height" : "from_block";
 		const fromHeight = c.req.query(fromHeightParam);

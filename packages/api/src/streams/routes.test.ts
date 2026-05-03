@@ -154,7 +154,8 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const body = (await res.json()) as { events: unknown[] };
+		const body = (await res.json()) as { events: unknown[]; reorgs: unknown[] };
 		expect(body.events).toHaveLength(1000);
+		expect(body.reorgs).toEqual([]);
 	});
 });

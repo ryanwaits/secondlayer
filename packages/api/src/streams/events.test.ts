@@ -46,6 +46,7 @@ describe("Streams events route helpers", () => {
 			"stx_transfer",
 			"print",
 		]);
+		expect(body.reorgs).toEqual([]);
 	});
 
 	test("full pagination walk over fixture range ends with null cursor", async () => {
@@ -100,6 +101,7 @@ describe("Streams events route helpers", () => {
 		expect(body.events).toEqual([]);
 		expect(body.next_cursor).toBe("99:0");
 		expect(body.tip).toEqual(TIP);
+		expect(body.reorgs).toEqual([]);
 	});
 
 	test("types filter can return no events while advancing the cursor", async () => {
@@ -114,6 +116,7 @@ describe("Streams events route helpers", () => {
 
 		expect(body.events).toEqual([]);
 		expect(body.next_cursor).toBe("1:99");
+		expect(body.reorgs).toEqual([]);
 	});
 
 	test("unknown types return a 400-class validation error", async () => {

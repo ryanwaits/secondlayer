@@ -46,7 +46,7 @@ Ordered by sequence. Stop work and re-plan if a task slips by more than a day.
 - [x] Cursor decode/encode helpers.
 - [x] Query path against L1 store with `cursor`, `limit`, `types`, `from_height`, `to_height`.
 - [x] Hard cap `limit` at 1000.
-- [x] Returns `{ events, next_cursor, tip, reorg }` shape from PRD 0001 task 4.
+- [x] Returns `{ events, next_cursor, tip, reorgs }` shape from PRD 0001 task 4.
 - [x] Replay test path covered by fixture pagination walk; staging DB replay remains the deployment gate.
 
 **Done when:** Replay test green; manual `curl` walks 10K events without losing or duplicating any cursor.
