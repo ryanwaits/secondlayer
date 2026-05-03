@@ -89,4 +89,14 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 		expect(res.status).toBe(403);
 	});
+
+	test("/tip returns 200 with the expected shape", async () => {
+		const app = createApp();
+		const res = await app.request("/v1/streams/tip", {
+			headers: authHeaders(FREE_KEY),
+		});
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toEqual(TEST_TIP);
+	});
 });

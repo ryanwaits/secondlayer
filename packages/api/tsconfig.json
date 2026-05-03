@@ -4,12 +4,20 @@
 		"outDir": "./dist",
 		"baseUrl": ".",
 		"paths": {
+			"@secondlayer/indexer/streams-tip": [
+				"../indexer/src/streams-tip.ts"
+			],
 			"@secondlayer/shared": ["../shared/src/index.ts"],
 			"@secondlayer/shared/*": ["../shared/src/*"],
 			"@secondlayer/subgraphs": ["../subgraphs/src/index.ts"],
 			"@secondlayer/subgraphs/*": ["../subgraphs/src/*"]
 		}
 	},
-	"include": ["src/**/*", "../shared/src/**/*", "../subgraphs/src/**/*"],
+	"include": [
+		"src/**/*",
+		"../indexer/src/streams-tip.ts",
+		"../shared/src/**/*",
+		"../subgraphs/src/**/*"
+	],
 	"exclude": ["node_modules", "dist"]
 }

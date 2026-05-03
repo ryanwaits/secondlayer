@@ -13,6 +13,7 @@
 	},
 	"dependencies": {
 		"@secondlayer/bundler": "^0.3.5",
+		"@secondlayer/indexer": "^1.0.7",
 		"@secondlayer/shared": "^6.0.0",
 		"@secondlayer/subgraphs": "^2.0.0",
 		"hono": "^4.0.0",

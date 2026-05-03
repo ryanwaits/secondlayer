@@ -36,9 +36,9 @@ Ordered by sequence. Stop work and re-plan if a task slips by more than a day.
 **Done when:** A test tenant key on the Free tier gets 429'd at 11 req/s; a Build key passes through at 50.
 
 ### 3. Implement `GET /tip` (Tue)
-- [ ] Cheap endpoint. Reads from indexer's tip cache.
-- [ ] Includes `lag_seconds`.
-- [ ] Wire into the (still-internal) status page draft.
+- [x] Cheap endpoint. Reads from indexer's tip cache.
+- [x] Includes `lag_seconds`.
+- [x] Wire into the (still-internal) status page draft.
 
 **Done when:** `/v1/streams/tip` returns within 50ms p95 in staging.
 
@@ -91,7 +91,7 @@ Append a short bullet at the end of each day. Two lines max per day. The next-se
 
 - **Mon May 4:** Shipped PR #14 locking Stacks Streams L1 schema/cursor contract, PRD resolutions, 100-event fixture, and cursor regression test.
 - **Mon May 4:** Wired Streams bearer auth, per-tier req/s limits, retention gate, and `/events` + `/tip` stubs; `bun test` and API typecheck green.
-- **Tue May 5:** —
+- **Tue May 5:** Implemented real `/v1/streams/tip` from indexer canonical tip, 500ms cache, lag clamp, status wiring, and tests; `bun test` + API/indexer typecheck green.
 - **Wed May 6:** —
 - **Thu May 7:** —
 - **Fri May 8:** —
