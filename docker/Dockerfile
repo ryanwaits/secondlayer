@@ -67,6 +67,7 @@ COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
 COPY --from=builder /app/packages/bundler ./packages/bundler
+COPY --from=builder /app/packages/indexer ./packages/indexer
 COPY --from=builder /app/packages/api ./packages/api
 COPY --from=builder /app/package.json ./
 
