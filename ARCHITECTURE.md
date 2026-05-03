@@ -9,7 +9,7 @@ This document describes the runtime architecture, the data layers, the delivery 
 ## Design principles
 
 1. **One pipeline, many products.** A single ingest path produces every dataset. Products are views, not separate stacks.
-2. **Layered primitives.** Raw events → decoded transactions → user-defined subgraphs. Each layer is independently queryable and independently priced.
+2. **Layered primitives.** Raw events → decoded events → user-defined subgraphs. Each layer is independently queryable and independently priced.
 3. **Read-only at the edges.** Public surfaces are read APIs and managed subscriptions. We do not deliver webhooks from raw events; that lane belongs to Hiro Chainhooks.
 4. **Expose data, not a database.** Customers don't inherit our storage choices. Subgraphs let them define their own schema; the SDK is decoupled from storage; downstream consumers are free to use Postgres, PlanetScale, Prisma, DuckDB, or whatever fits their stack.
 5. **Calm infrastructure.** Hot-spare nodes, idempotent ingest, deterministic replays. Status page is the product.
@@ -76,18 +76,20 @@ Raw, ordered, append-only chain events. The lowest layer the platform exposes.
 
 ### L2 — Stacks Index
 
-Decoded transactions and contract calls. The layer most app developers actually want.
+Decoded chain events. The layer most app developers actually want.
 
-- **Source:** L1 + ABI registry. Decoders are versioned; re-decoding is a deterministic replay over L1.
-- **Shape:** Normalized tables for `transactions`, `contract_calls`, `ft_events`, `nft_events`, `print_events`, `stx_transfers`.
+- **Source:** Stacks Streams (L1) + ABI registry. Decoders are versioned; re-decoding is a deterministic replay over L1.
+- **Shape:** Normalized decoded-event tables such as `ft_events`, `nft_events`, `print_events`, and `stx_transfers`.
 - **Access:** REST endpoints with the standard query grammar (filter, sort, paginate). SQL read replica available on Scale and Enterprise.
 - **Guarantees:** Decoded view is eventually consistent with L1; lag SLO published on status page (target <5s p95).
+
+The existing `transactions` table and `parseTransaction` path are legacy indexer-internal artifacts from before the layer split. They are not the L2 public contract and will be retired under a future PRD.
 
 ### L3 — Stacks Subgraphs
 
 User-defined materialized views over L1+L2. Tenants write a subgraph manifest; the platform compiles it, backfills, and keeps it tailing.
 
-- **Source:** Subgraph runtime (`packages/subgraphs`), consuming L1 events and L2 decoded calls.
+- **Source:** Subgraph runtime (`packages/subgraphs`), consuming L1 events and L2 decoded events.
 - **Shape:** Tenant-defined schema. Stored in per-tenant Postgres for isolation.
 - **Access:** REST endpoint per subgraph, with the platform's standard filter/sort/paginate query grammar. SQL read access on Scale+.
 - **Operations:** Backfill jobs are checkpointed and resumable; auto-pause after 7 days of zero queries on Free tier.
@@ -101,7 +103,7 @@ These are the products users interact with. Each is a thin layer over the data l
 | Surface | Layer | Transport | Purpose |
 |---|---|---|---|
 | Stacks Streams API | L1 | HTTPS, cursor pagination | Raw event feed for indexers, archivers, custom pipelines |
-| Stacks Index API | L2 | HTTPS, REST | Decoded transactions and events for app developers |
+| Stacks Index API | L2 | HTTPS, REST | Decoded events for app developers |
 | Stacks Subgraphs | L3 | REST | Materialized, app-specific views |
 | Subscriptions | L2/L3 | Server-Sent Events, long-poll | Managed tail of any L2 query or L3 subgraph |
 | MCP Server | L1/L2/L3 | Model Context Protocol | Read access for AI agents and IDEs |

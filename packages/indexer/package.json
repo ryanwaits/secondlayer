@@ -16,6 +16,18 @@
 		"./streams-events": {
 			"types": "./src/streams-events.ts",
 			"import": "./src/streams-events.ts"
+		},
+		"./l2/decoder": {
+			"types": "./src/l2/decoder.ts",
+			"import": "./src/l2/decoder.ts"
+		},
+		"./l2/streams-client": {
+			"types": "./src/l2/streams-client.ts",
+			"import": "./src/l2/streams-client.ts"
+		},
+		"./l2/ft-transfer-decoder": {
+			"types": "./src/l2/ft-transfer-decoder.ts",
+			"import": "./src/l2/ft-transfer-decoder.ts"
 		}
 	},
 	"scripts": {

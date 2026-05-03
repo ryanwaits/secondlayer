@@ -321,6 +321,24 @@ export interface ProcessedStripeEventsTable {
 	processed_at: Generated<Date>;
 }
 
+export interface DecodedEventsTable {
+	cursor: string;
+	block_height: number;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	event_type: string;
+	decoded_payload: unknown;
+	source_cursor: string;
+	created_at: Generated<Date>;
+}
+
+export interface L2DecoderCheckpointsTable {
+	decoder_name: string;
+	last_cursor: string | null;
+	updated_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -358,6 +376,8 @@ export interface Database {
 	subscriptions: SubscriptionsTable;
 	subscription_outbox: SubscriptionOutboxTable;
 	subscription_deliveries: SubscriptionDeliveriesTable;
+	decoded_events: DecodedEventsTable;
+	l2_decoder_checkpoints: L2DecoderCheckpointsTable;
 }
 
 // --- Tenants (dedicated hosting) ---
