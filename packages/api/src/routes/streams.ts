@@ -1,0 +1,43 @@
+import { Hono } from "hono";
+import {
+	DEFAULT_STREAMS_TOKENS,
+	streamsBearerAuth,
+	type StreamsEnv,
+	type StreamsTokenStore,
+} from "../streams/auth.ts";
+import { streamsRateLimit } from "../streams/rate-limit.ts";
+import { streamsRetentionWindow } from "../streams/retention.ts";
+import { getStubStreamsTip, type StreamsTipProvider } from "../streams/tip.ts";
+
+export type StreamsRouterOptions = {
+	tokens?: StreamsTokenStore;
+	getTip?: StreamsTipProvider;
+};
+
+export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
+	const getTip = opts.getTip ?? getStubStreamsTip;
+	const router = new Hono<StreamsEnv>();
+
+	router.use(
+		"*",
+		streamsBearerAuth({ tokens: opts.tokens ?? DEFAULT_STREAMS_TOKENS }),
+	);
+	router.use("*", streamsRateLimit());
+	router.use("/events", streamsRetentionWindow({ getTip }));
+
+	router.get("/events", async (c) => {
+		const tip = c.get("streamsTip");
+		return c.json({
+			events: [],
+			next_cursor: null,
+			tip,
+			reorgs: [],
+		});
+	});
+
+	router.get("/tip", async (c) => c.json(await getTip()));
+
+	return router;
+}
+
+export default createStreamsRouter();

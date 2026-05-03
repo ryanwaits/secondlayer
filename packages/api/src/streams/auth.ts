@@ -1,0 +1,97 @@
+import {
+	AuthenticationError,
+	AuthorizationError,
+} from "@secondlayer/shared/errors";
+import type { MiddlewareHandler } from "hono";
+import type { StreamsTip } from "./tip.ts";
+import type { StreamsTier } from "./tiers.ts";
+
+export const STREAMS_READ_SCOPE = "streams:read";
+
+export type StreamsTenant = {
+	tenant_id: string;
+	tier: StreamsTier;
+	scopes: readonly string[];
+};
+
+export type StreamsEnv = {
+	Variables: {
+		streamsTenant: StreamsTenant;
+		streamsTip: StreamsTip;
+	};
+};
+
+export type StreamsTokenStore = ReadonlyMap<string, StreamsTenant>;
+
+// TODO: replace this in-memory seed map with hashed API key lookup from the
+// control-plane key store once Streams keys are provisioned through Console.
+export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
+	[
+		"sk-sl_streams_free_test",
+		{
+			tenant_id: "tenant_streams_free",
+			tier: "free",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_build_test",
+		{
+			tenant_id: "tenant_streams_build",
+			tier: "build",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_scale_test",
+		{
+			tenant_id: "tenant_streams_scale",
+			tier: "scale",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_enterprise_test",
+		{
+			tenant_id: "tenant_streams_enterprise",
+			tier: "enterprise",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_wrong_scope_test",
+		{
+			tenant_id: "tenant_streams_wrong_scope",
+			tier: "build",
+			scopes: [],
+		},
+	],
+]);
+
+export function streamsBearerAuth(opts?: {
+	tokens?: StreamsTokenStore;
+	requiredScope?: string;
+}): MiddlewareHandler<StreamsEnv> {
+	const tokens = opts?.tokens ?? DEFAULT_STREAMS_TOKENS;
+	const requiredScope = opts?.requiredScope ?? STREAMS_READ_SCOPE;
+
+	return async (c, next) => {
+		const authHeader = c.req.header("authorization");
+		if (!authHeader?.startsWith("Bearer ")) {
+			throw new AuthenticationError("Missing or invalid Authorization header");
+		}
+
+		const rawToken = authHeader.slice(7);
+		const tenant = tokens.get(rawToken);
+		if (!tenant) {
+			throw new AuthenticationError("Invalid API key");
+		}
+
+		if (!tenant.scopes.includes(requiredScope)) {
+			throw new AuthorizationError(`Missing required scope: ${requiredScope}`);
+		}
+
+		c.set("streamsTenant", tenant);
+		await next();
+	};
+}
