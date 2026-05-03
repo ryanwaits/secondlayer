@@ -35,6 +35,14 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 		},
 	],
 	[
+		"sk-sl_streams_status_public",
+		{
+			tenant_id: "tenant_streams_status_public",
+			tier: "free",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
 		"sk-sl_streams_build_test",
 		{
 			tenant_id: "tenant_streams_build",

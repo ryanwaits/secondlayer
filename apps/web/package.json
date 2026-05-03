@@ -13,6 +13,7 @@
 		"@ai-sdk/anthropic": "3.0.71",
 		"@ai-sdk/react": "3.0.148",
 		"@secondlayer/scaffold": "workspace:*",
+		"@secondlayer/sdk": "workspace:*",
 		"@secondlayer/stacks": "workspace:*",
 		"@tanstack/react-query": "5.90.21",
 		"ai": "6.0.167",

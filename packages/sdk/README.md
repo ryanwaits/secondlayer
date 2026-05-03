@@ -23,6 +23,9 @@ const sl = new SecondLayer({
 
 Typed HTTP client.
 
+`sk-sl_streams_status_public` is a public, non-secret Free-tier key used by the
+Second Layer status page. Production apps should use their own Streams API key.
+
 ```typescript
 import { createStreamsClient } from "@secondlayer/sdk";
 

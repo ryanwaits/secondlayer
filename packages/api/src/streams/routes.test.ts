@@ -7,6 +7,7 @@ import type { StreamsTip } from "./tip.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
 
 const FREE_KEY = "sk-sl_streams_free_test";
+const STATUS_KEY = "sk-sl_streams_status_public";
 const BUILD_KEY = "sk-sl_streams_build_test";
 const WRONG_SCOPE_KEY = "sk-sl_streams_wrong_scope_test";
 
@@ -101,6 +102,16 @@ describe("Stacks Streams gateway middleware", () => {
 		const app = createApp();
 		const res = await app.request("/v1/streams/tip", {
 			headers: authHeaders(FREE_KEY),
+		});
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toEqual(TEST_TIP);
+	});
+
+	test("public status key can read /tip", async () => {
+		const app = createApp();
+		const res = await app.request("/v1/streams/tip", {
+			headers: authHeaders(STATUS_KEY),
 		});
 
 		expect(res.status).toBe(200);

@@ -48,6 +48,10 @@ Decoded chain events as a REST API.
 
 TypeScript SDK for Stacks developers building on Second Layer. It is more than a thin HTTP wrapper: v0 starts the Kourier helper-function surface with typed Streams access, a tailing consumer, `isFtTransfer`, and `decodeFtTransfer`, so developers can filter and process Stacks idioms without rebuilding decoders.
 
+## Public status page
+
+Operational surface for developers checking Second Layer before integrating. v0 shows Stacks Streams API health, current chain tip, ingest lag, and the current incident note from the repository. It is not a priced product.
+
 ## Stacks Subgraphs
 
 User-defined materialized views.
