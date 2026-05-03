@@ -26,7 +26,7 @@ Streams is **read-only**. It is not a webhook system. It is not a filter DSL. Pu
 
 - Push delivery, SSE, or webhooks over raw events.
 - A filter DSL beyond a small set of dimensions.
-- Decoded transactions (that's Stacks Index).
+- Decoded events (that's Stacks Index).
 - Subgraph-style materialized views (that's Stacks Subgraphs).
 - Historical archive beyond the per-tier window in this release. Full archive is an Enterprise SKU.
 
@@ -34,7 +34,7 @@ Streams is **read-only**. It is not a webhook system. It is not a filter DSL. Pu
 
 - Teams building their own indexers, archivers, or custom decoders.
 - Researchers pulling historical event slices.
-- Internal use: Stacks Index decoders read Streams as their input.
+- Internal use: Stacks Index event decoders read Streams as their input; the first dogfood decoder is `ft_transfer`.
 
 ## API surface
 
@@ -176,7 +176,7 @@ Parquet files on S3, partitioned by block-height range. Refreshed continuously; 
 | `nft_burn` | SIP-009 | non-fungible token burn |
 | `print` | core | Clarity `print` events |
 
-Only chain-emitted events appear in this table. `contract_call` is a transaction and belongs in Stacks Index. Reorgs are response-envelope metadata, not events.
+Only chain-emitted events appear in this table. `contract_call` is a transaction and stays outside Streams; the legacy transaction path remains indexer-internal until a future PRD retires or replaces it. Reorgs are response-envelope metadata, not events.
 
 ### Cursor format
 

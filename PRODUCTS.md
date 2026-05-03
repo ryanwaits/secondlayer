@@ -35,9 +35,9 @@ Raw, ordered, append-only Stacks chain events. Two access modes — cursor API f
 
 ## Stacks Index
 
-Decoded transactions and contract events as a REST API.
+Decoded chain events as a REST API.
 
-- **What it is.** Every Stacks transaction, decoded against the registered ABIs. Normalized tables for transfers, contract calls, FT/NFT events, prints.
+- **What it is.** Stacks Streams events decoded against registered ABIs and protocol-specific rules. Normalized tables for transfers, FT/NFT events, prints, and other decoded event classes as they land.
 - **What it isn't.** A custom view engine. For app-specific shapes, use Subgraphs.
 - **Who uses it.** App developers, dashboards, explorers, anyone who wants "show me all sBTC transfers for address X" without writing decoders.
 - **Shape.** REST. Standard filter/sort/paginate grammar. SQL read replica on Scale+.

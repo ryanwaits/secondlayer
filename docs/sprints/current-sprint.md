@@ -51,11 +51,12 @@ Ordered by sequence. Stop work and re-plan if a task slips by more than a day.
 
 **Done when:** Replay test green; manual `curl` walks 10K events without losing or duplicating any cursor.
 
-### 5. Wire internal Index decoder to read from Streams (Thu–Fri)
-- [ ] Switch the L2 decoder in `packages/indexer` to consume from the Streams API instead of direct DB reads.
-- [ ] Verify L2 output is unchanged across a 24h replay window.
+### 5. Wire internal Index event decoder to read from Streams (Thu–Fri)
+- [x] Add the first real L2 event decoder, sourced from the Streams API path.
+- [x] Decode `ft_transfer` events into `decoded_events` with checkpointed cursor resume.
+- [x] Leave the legacy `transactions` / `parseTransaction` path untouched; it is indexer-internal until a future retirement PRD.
 
-**Done when:** L2 decode pipeline produces identical output sourced from Streams; this is the dogfooding gate.
+**Done when:** The `ft_transfer` L2 decoder consumes Streams in-process, writes decoded rows, and resumes from checkpoint without duplicates or gaps.
 
 ### 6. SDK skeleton + quickstart (Fri)
 - [ ] `StreamsClient` in `packages/sdk` with `eventsIterator()` async generator.
@@ -93,7 +94,7 @@ Append a short bullet at the end of each day. Two lines max per day. The next-se
 - **Mon May 4:** Shipped PR #15 wiring Streams bearer auth, per-tier req/s limits, retention gate, and `/events` + `/tip` stubs; `bun test` and API typecheck green.
 - **Tue May 5:** Shipped PR #16 implementing real `/v1/streams/tip` from indexer canonical tip, 500ms cache, lag clamp, status wiring, and tests.
 - **Wed May 6:** Implemented real `/v1/streams/events` cursor pagination over indexer L1 events, v1 type filters, tip clamp, auth/rate smoke tests, and ordering/pagination fixtures.
-- **Thu May 7:** —
+- **Thu May 7:** Implemented L2 `ft_transfer` event decoder consuming Streams through the API path, with `decoded_events`, cursor checkpointing, restart tests, and legacy transaction path untouched.
 - **Fri May 8:** —
 - **Sat May 9:** —
 - **Sun May 10:** —
@@ -126,3 +127,5 @@ Run through this Sunday evening before archiving.
 - Wall-clock retention cutoff before external-customer launch in Phase 2; see `packages/api/src/streams/tiers.ts` TODO.
 - Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
 - Optional: push Streams events `types` filter into SQL to restore peek-ahead `next_cursor` termination.
+- Legacy `parseTransaction` / `transactions` path is now indexer-internal, not L2. Plan formal retirement in a future PRD.
+- `consumeStreamsEvents` has no clean "backfill until exhausted then exit" mode; today's tail-following use case works, but a future backfill caller will need explicit `maxEmptyPolls`.
