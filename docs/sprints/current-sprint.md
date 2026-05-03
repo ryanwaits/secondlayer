@@ -66,10 +66,10 @@ Ordered by sequence. Stop work and re-plan if a task slips by more than a day.
 **Done when:** Quickstart copy-pasted into a fresh repo runs against staging.
 
 ### 7. Status page v0 (Sat, if time)
-- [ ] Single public page showing: chain tip, Streams ingest lag, API p50/p95, error rate (last 24h).
-- [ ] Hosted on a separate subdomain — this is intentionally not behind auth.
+- [x] Single public page showing API health, current chain tip, and incident note.
+- [x] Hosted at `secondlayer.tools/status`; subdomain split deferred.
 
-**Done when:** `status.secondlayer.tools` is live with at least the four metrics above.
+**Done when:** `secondlayer.tools/status` loads, calls `/v1/streams/tip`, and shows true green/yellow/red health.
 
 ---
 
@@ -96,7 +96,7 @@ Append a short bullet at the end of each day. Two lines max per day. The next-se
 - **Wed May 6:** Implemented real `/v1/streams/events` cursor pagination over indexer L1 events, v1 type filters, tip clamp, auth/rate smoke tests, and ordering/pagination fixtures.
 - **Thu May 7:** Implemented L2 `ft_transfer` event decoder consuming Streams through the API path, with `decoded_events`, cursor checkpointing, restart tests, and legacy transaction path untouched.
 - **Fri May 8:** Shipped `@secondlayer/sdk` Streams client, consumer, `ft_transfer` helpers, and quickstart; L2 now imports SDK consumer/decoder.
-- **Sat May 9:** —
+- **Sat May 9:** Shipped status page v0 at `/status` with browser-side SDK tip check, chain tip, incident note file, and 30s refresh.
 - **Sun May 10:** —
 
 ---

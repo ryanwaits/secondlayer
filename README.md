@@ -1,5 +1,7 @@
 # Secondlayer
 
+[![Status](https://img.shields.io/badge/status-public-111111)](https://secondlayer.tools/status)
+
 Agent-native developer tools for Stacks. Dedicated indexing + real-time
 subgraphs + a viem-style chain SDK — exposed through one API, one auth model,
 and three interchangeable front-ends (CLI, SDK, MCP).
