@@ -12,6 +12,10 @@
 		"./streams-tip": {
 			"types": "./src/streams-tip.ts",
 			"import": "./src/streams-tip.ts"
+		},
+		"./streams-events": {
+			"types": "./src/streams-events.ts",
+			"import": "./src/streams-events.ts"
 		}
 	},
 	"scripts": {

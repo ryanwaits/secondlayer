@@ -5,6 +5,10 @@ import {
 	type StreamsEnv,
 	type StreamsTokenStore,
 } from "../streams/auth.ts";
+import {
+	getStreamsEventsResponse,
+	type StreamsEventsReader,
+} from "../streams/events.ts";
 import { streamsRateLimit } from "../streams/rate-limit.ts";
 import { streamsRetentionWindow } from "../streams/retention.ts";
 import { getStreamsTip, type StreamsTipProvider } from "../streams/tip.ts";
@@ -12,6 +16,7 @@ import { getStreamsTip, type StreamsTipProvider } from "../streams/tip.ts";
 export type StreamsRouterOptions = {
 	tokens?: StreamsTokenStore;
 	getTip?: StreamsTipProvider;
+	readEvents?: StreamsEventsReader;
 };
 
 export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
@@ -27,12 +32,13 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 
 	router.get("/events", async (c) => {
 		const tip = c.get("streamsTip");
-		return c.json({
-			events: [],
-			next_cursor: null,
-			tip,
-			reorgs: [],
-		});
+		return c.json(
+			await getStreamsEventsResponse({
+				query: new URL(c.req.url).searchParams,
+				tip,
+				readEvents: opts.readEvents,
+			}),
+		);
 	});
 
 	router.get("/tip", async (c) => c.json(await getTip()));

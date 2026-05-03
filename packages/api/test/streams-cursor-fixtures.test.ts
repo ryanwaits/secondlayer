@@ -29,6 +29,18 @@ describe("Stacks Streams cursor fixtures", () => {
 		}
 	});
 
+	test("cursor parse/serialize round-trips edge values", () => {
+		const cases = [
+			{ block_height: 0, event_index: 0 },
+			{ block_height: 9_007_199_254_740_991, event_index: 0 },
+			{ block_height: 9_007_199_254_740_991, event_index: 9_007_199_254_740_991 },
+		];
+
+		for (const cursor of cases) {
+			expect(decodeStreamsCursor(encodeStreamsCursor(cursor))).toEqual(cursor);
+		}
+	});
+
 	test("rejects non-canonical cursor spellings", () => {
 		expect(() => decodeStreamsCursor("00182431:14")).toThrow(
 			"Invalid Streams cursor",
