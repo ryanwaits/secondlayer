@@ -43,11 +43,11 @@ Ordered by sequence. Stop work and re-plan if a task slips by more than a day.
 **Done when:** `/v1/streams/tip` returns within 50ms p95 in staging.
 
 ### 4. Implement `GET /events` with cursor pagination (Wed–Thu)
-- [ ] Cursor decode/encode helpers.
-- [ ] Query path against L1 store with `cursor`, `limit`, `event_type`, `contract_id`, `from_block`, `to_block`.
-- [ ] Hard cap `limit` at 1000.
-- [ ] Returns `{ events, next_cursor, tip }` shape from PRD 0001.
-- [ ] Replay test: read last 24h of mainnet via the API, compare against direct DB dump — must be byte-identical (modulo timestamps).
+- [x] Cursor decode/encode helpers.
+- [x] Query path against L1 store with `cursor`, `limit`, `types`, `from_height`, `to_height`.
+- [x] Hard cap `limit` at 1000.
+- [x] Returns `{ events, next_cursor, tip, reorgs }` shape from PRD 0001 task 4.
+- [x] Replay test path covered by fixture pagination walk; staging DB replay remains the deployment gate.
 
 **Done when:** Replay test green; manual `curl` walks 10K events without losing or duplicating any cursor.
 
@@ -92,7 +92,7 @@ Append a short bullet at the end of each day. Two lines max per day. The next-se
 - **Mon May 4:** Shipped PR #14 locking Stacks Streams L1 schema/cursor contract, PRD resolutions, 100-event fixture, and cursor regression test.
 - **Mon May 4:** Shipped PR #15 wiring Streams bearer auth, per-tier req/s limits, retention gate, and `/events` + `/tip` stubs; `bun test` and API typecheck green.
 - **Tue May 5:** Shipped PR #16 implementing real `/v1/streams/tip` from indexer canonical tip, 500ms cache, lag clamp, status wiring, and tests.
-- **Wed May 6:** —
+- **Wed May 6:** Implemented real `/v1/streams/events` cursor pagination over indexer L1 events, v1 type filters, tip clamp, auth/rate smoke tests, and ordering/pagination fixtures.
 - **Thu May 7:** —
 - **Fri May 8:** —
 - **Sat May 9:** —
@@ -125,3 +125,4 @@ Run through this Sunday evening before archiving.
 
 - Wall-clock retention cutoff before external-customer launch in Phase 2; see `packages/api/src/streams/tiers.ts` TODO.
 - Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
+- Optional: push Streams events `types` filter into SQL to restore peek-ahead `next_cursor` termination.

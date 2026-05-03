@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
+import type { StreamsEventsReader } from "./events.ts";
 import type { StreamsTip } from "./tip.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
 
@@ -17,13 +18,19 @@ const TEST_TIP: StreamsTip = {
 	lag_seconds: 0,
 };
 
-function createApp() {
+const EMPTY_EVENTS_READER: StreamsEventsReader = async () => ({
+	events: [],
+	next_cursor: null,
+});
+
+function createApp(readEvents: StreamsEventsReader = EMPTY_EVENTS_READER) {
 	const app = new Hono();
 	app.onError(errorHandler);
 	app.route(
 		"/v1/streams",
 		createStreamsRouter({
 			getTip: () => TEST_TIP,
+			readEvents,
 		}),
 	);
 	return app;
@@ -98,5 +105,57 @@ describe("Stacks Streams gateway middleware", () => {
 
 		expect(res.status).toBe(200);
 		await expect(res.json()).resolves.toEqual(TEST_TIP);
+	});
+
+	test("/events rejects from_height with cursor", async () => {
+		const app = createApp();
+		const res = await app.request(
+			"/v1/streams/events?cursor=9999:0&from_height=9999",
+			{
+				headers: authHeaders(BUILD_KEY),
+			},
+		);
+
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("mutually exclusive");
+	});
+
+	test("/events rejects malformed cursors", async () => {
+		const app = createApp();
+		const res = await app.request("/v1/streams/events?cursor=0001:0", {
+			headers: authHeaders(BUILD_KEY),
+		});
+
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("<block_height>:<event_index>");
+	});
+
+	test("/events clamps limit to 1000", async () => {
+		const app = createApp(async ({ limit }) => ({
+			events: Array.from({ length: limit }, (_, i) => ({
+				cursor: `1:${i}`,
+				block_height: 1,
+				index_block_hash: TEST_TIP.index_block_hash,
+				burn_block_height: TEST_TIP.burn_block_height,
+				tx_id: `0x${i}`,
+				tx_index: i,
+				event_index: i,
+				event_type: "stx_transfer",
+				contract_id: null,
+				payload: {},
+				ts: "2026-05-02T21:43:00.000Z",
+			})),
+			next_cursor: "1:999",
+		}));
+		const res = await app.request("/v1/streams/events?limit=5000", {
+			headers: authHeaders(BUILD_KEY),
+		});
+
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { events: unknown[]; reorgs: unknown[] };
+		expect(body.events).toHaveLength(1000);
+		expect(body.reorgs).toEqual([]);
 	});
 });

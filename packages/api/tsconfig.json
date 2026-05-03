@@ -7,6 +7,9 @@
 			"@secondlayer/indexer/streams-tip": [
 				"../indexer/src/streams-tip.ts"
 			],
+			"@secondlayer/indexer/streams-events": [
+				"../indexer/src/streams-events.ts"
+			],
 			"@secondlayer/shared": ["../shared/src/index.ts"],
 			"@secondlayer/shared/*": ["../shared/src/*"],
 			"@secondlayer/subgraphs": ["../subgraphs/src/index.ts"],
@@ -15,6 +18,7 @@
 	},
 	"include": [
 		"src/**/*",
+		"../indexer/src/streams-events.ts",
 		"../indexer/src/streams-tip.ts",
 		"../shared/src/**/*",
 		"../subgraphs/src/**/*"

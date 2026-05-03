@@ -5,14 +5,14 @@ import type { StreamsEnv } from "./auth.ts";
 import { getStreamsRetentionCutoff, STREAMS_TIER_CONFIG } from "./tiers.ts";
 import type { StreamsTipProvider } from "./tip.ts";
 
-function parseBlockHeight(value: string): number {
+function parseBlockHeight(value: string, name: string): number {
 	if (!/^(0|[1-9]\d*)$/.test(value)) {
-		throw new ValidationError("from_block must be a non-negative integer");
+		throw new ValidationError(`${name} must be a non-negative integer`);
 	}
 
 	const height = Number(value);
 	if (!Number.isSafeInteger(height)) {
-		throw new ValidationError("from_block must be a non-negative integer");
+		throw new ValidationError(`${name} must be a non-negative integer`);
 	}
 
 	return height;
@@ -43,10 +43,14 @@ export function streamsRetentionWindow(opts: {
 		c.set("streamsTip", tip);
 
 		const cursor = c.req.query("cursor");
+		// TODO(PRD 0001): deprecate one of from_block/from_height or document both.
+		const fromHeightParam =
+			c.req.query("from_height") !== undefined ? "from_height" : "from_block";
+		const fromHeight = c.req.query(fromHeightParam);
 		const requestedHeight = cursor
 			? parseCursorBlockHeight(cursor)
-			: c.req.query("from_block")
-				? parseBlockHeight(c.req.query("from_block") as string)
+			: fromHeight
+				? parseBlockHeight(fromHeight, fromHeightParam)
 				: null;
 
 		if (requestedHeight !== null) {
