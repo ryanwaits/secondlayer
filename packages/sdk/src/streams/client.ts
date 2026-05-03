@@ -1,15 +1,19 @@
 import {
+	consumeStreamsEvents,
+	streamStreamsEvents,
+	type StreamsEventsFetcher,
+} from "./consumer.ts";
+import {
 	AuthError,
 	RateLimitError,
 	StreamsServerError,
 	ValidationError,
 } from "./errors.ts";
-import { streamStreamsEvents } from "./consumer.ts";
 import type {
 	FetchLike,
 	StreamsClient,
 	StreamsEventsEnvelope,
-	StreamsEventsFetcher,
+	StreamsEventsConsumeParams,
 	StreamsEventsListParams,
 	StreamsEventsStreamParams,
 	StreamsTip,
@@ -129,6 +133,19 @@ export function createStreamsClient(
 	return {
 		events: {
 			list: listEvents,
+			consume(params: StreamsEventsConsumeParams) {
+				return consumeStreamsEvents({
+					fromCursor: params.fromCursor,
+					types: params.types,
+					batchSize: params.batchSize ?? 100,
+					fetchEvents,
+					onBatch: params.onBatch,
+					emptyBackoffMs: params.emptyBackoffMs,
+					maxPages: params.maxPages,
+					maxEmptyPolls: params.maxEmptyPolls,
+					signal: params.signal,
+				});
+			},
 			stream(params: StreamsEventsStreamParams = {}) {
 				return streamStreamsEvents({
 					fromCursor: params.fromCursor,
@@ -143,27 +160,4 @@ export function createStreamsClient(
 			return request<StreamsTip>("/v1/streams/tip");
 		},
 	};
-}
-
-function defaultInternalStreamsApiKey(): string {
-	const apiKey = process.env.STREAMS_INTERNAL_API_KEY;
-	if (apiKey) return apiKey;
-	if (process.env.NODE_ENV === "production") {
-		throw new Error("STREAMS_INTERNAL_API_KEY is required in production");
-	}
-	return "sk-sl_streams_enterprise_test";
-}
-
-export function createHttpStreamsEventsFetcher(opts?: {
-	baseUrl?: string;
-	apiKey?: string;
-	fetchImpl?: FetchLike;
-}): StreamsEventsFetcher {
-	const client = createStreamsClient({
-		baseUrl: opts?.baseUrl ?? process.env.STREAMS_API_URL,
-		apiKey: opts?.apiKey ?? defaultInternalStreamsApiKey(),
-		fetchImpl: opts?.fetchImpl,
-	});
-
-	return (params) => client.events.list(params);
 }

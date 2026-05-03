@@ -66,17 +66,25 @@ export type StreamsEventsStreamParams = {
 	signal?: AbortSignal;
 };
 
-export type StreamsEventsFetchParams = {
-	cursor?: string | null;
-	limit: number;
+export type StreamsEventsConsumeParams = {
+	fromCursor?: string | null;
 	types?: readonly StreamsEventType[];
+	batchSize?: number;
+	onBatch: (
+		events: StreamsEvent[],
+		envelope: StreamsEventsEnvelope,
+	) => Promise<string | null | undefined> | string | null | undefined;
+	emptyBackoffMs?: number;
+	maxPages?: number;
+	maxEmptyPolls?: number;
+	signal?: AbortSignal;
 };
 
-export type StreamsEventsFetcher = (
-	params: StreamsEventsFetchParams,
-) => Promise<StreamsEventsEnvelope>;
-
-export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>;
+export type StreamsEventsConsumeResult = {
+	cursor: string | null;
+	pages: number;
+	emptyPolls: number;
+};
 
 export type FetchLike = (
 	input: string | URL | Request,
@@ -86,6 +94,22 @@ export type FetchLike = (
 export type StreamsClient = {
 	events: {
 		list(params?: StreamsEventsListParams): Promise<StreamsEventsEnvelope>;
+		/**
+		 * Pull pages from Streams and call `onBatch` after each page.
+		 *
+		 * Use `consume` for indexers and ETL jobs that own checkpointing. Return
+		 * the checkpoint cursor from `onBatch`; the consumer exits when `maxPages`,
+		 * `maxEmptyPolls`, or `signal` stops it.
+		 */
+		consume(
+			params: StreamsEventsConsumeParams,
+		): Promise<StreamsEventsConsumeResult>;
+		/**
+		 * Follow Streams as an async iterator.
+		 *
+		 * Use `stream` for live processors and watch-style apps. It tails
+		 * indefinitely and stops when its `AbortSignal` is aborted.
+		 */
 		stream(params?: StreamsEventsStreamParams): AsyncIterable<StreamsEvent>;
 	};
 	tip(): Promise<StreamsTip>;

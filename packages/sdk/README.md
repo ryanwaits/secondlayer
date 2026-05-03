@@ -40,7 +40,36 @@ const page = await client.events.list({
 console.log({ tip, firstCursor: page.events[0]?.cursor });
 ```
 
-Streaming consumer.
+Checkpointed consumer.
+
+Use `client.events.consume` for indexers and ETL jobs. Write your database rows
+inside `onBatch`, then return the cursor you committed. It exits when
+`maxPages`, `maxEmptyPolls`, or `signal` stops it.
+
+```typescript
+import { createStreamsClient } from "@secondlayer/sdk";
+
+const client = createStreamsClient({
+  apiKey: process.env.SECONDLAYER_API_KEY!,
+});
+
+await client.events.consume({
+  types: ["ft_transfer"],
+  batchSize: 100,
+  maxPages: 1,
+  onBatch: async (events, envelope) => {
+    for (const event of events) {
+      console.log(event.cursor, event.tx_id);
+    }
+    return envelope.next_cursor;
+  },
+});
+```
+
+Live stream.
+
+Use `client.events.stream` for live processors and watch-style apps. It follows
+the tip indefinitely. Stop it with an `AbortSignal`.
 
 ```typescript
 import { createStreamsClient } from "@secondlayer/sdk";

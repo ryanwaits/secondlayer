@@ -53,7 +53,7 @@ function createApp(readEvents: StreamsEventsReader) {
 }
 
 describe("@secondlayer/sdk Streams integration", () => {
-	test("exercises HTTP client, stream consumer, and ft_transfer helper", async () => {
+	test("exercises HTTP client, consumers, and ft_transfer helper", async () => {
 		const events = [event("1:0", 0), event("1:1", 1)];
 		const app = createApp(async ({ after, limit }) => {
 			const start = after ? after.event_index + 1 : 0;
@@ -95,5 +95,18 @@ describe("@secondlayer/sdk Streams integration", () => {
 		}
 
 		expect(seen).toEqual(["1:0", "1:1"]);
+
+		const consumed: string[] = [];
+		await client.events.consume({
+			types: ["ft_transfer"],
+			batchSize: 1,
+			maxPages: 2,
+			onBatch: (items, page) => {
+				consumed.push(...items.map((item) => item.cursor));
+				return page.next_cursor;
+			},
+		});
+
+		expect(consumed).toEqual(["1:0", "1:1"]);
 	});
 });

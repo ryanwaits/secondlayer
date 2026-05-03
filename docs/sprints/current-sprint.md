@@ -128,5 +128,5 @@ Run through this Sunday evening before archiving.
 - Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
 - Optional: push Streams events `types` filter into SQL to restore peek-ahead `next_cursor` termination.
 - Legacy `parseTransaction` / `transactions` path is now indexer-internal, not L2. Plan formal retirement in a future PRD.
-- `consumeStreamsEvents` has no clean "backfill until exhausted then exit" mode; today's tail-following use case works, but a future backfill caller will need explicit `maxEmptyPolls`.
+- `client.events.stream()` tails until aborted, while `client.events.consume()` exposes `maxPages` / `maxEmptyPolls` for bounded ETL runs. Track whether that asymmetry should stay intentional or become a shared option model.
 - SDK helper backlog: add pure helpers/decoders for `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, and `print`.

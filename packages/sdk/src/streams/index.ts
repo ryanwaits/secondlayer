@@ -1,9 +1,4 @@
-export { createStreamsClient, createHttpStreamsEventsFetcher } from "./client.ts";
-export {
-	consumeStreamsEvents,
-	defaultSleep,
-	streamStreamsEvents,
-} from "./consumer.ts";
+export { createStreamsClient } from "./client.ts";
 export {
 	AuthError,
 	RateLimitError,
@@ -21,13 +16,12 @@ export type {
 export { STREAMS_EVENT_TYPES } from "./types.ts";
 export type {
 	FetchLike,
-	Sleep,
 	StreamsClient,
 	StreamsEvent,
 	StreamsEventPayload,
+	StreamsEventsConsumeParams,
+	StreamsEventsConsumeResult,
 	StreamsEventsEnvelope,
-	StreamsEventsFetcher,
-	StreamsEventsFetchParams,
 	StreamsEventsListParams,
 	StreamsEventsStreamParams,
 	StreamsEventType,

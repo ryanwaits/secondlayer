@@ -1,10 +1,20 @@
 import type {
-	Sleep,
 	StreamsEvent,
 	StreamsEventsEnvelope,
-	StreamsEventsFetcher,
 	StreamsEventType,
 } from "./types.ts";
+
+type StreamsEventsFetchParams = {
+	cursor?: string | null;
+	limit: number;
+	types?: readonly StreamsEventType[];
+};
+
+export type StreamsEventsFetcher = (
+	params: StreamsEventsFetchParams,
+) => Promise<StreamsEventsEnvelope>;
+
+export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>;
 
 export async function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
 	if (signal?.aborted) return;
