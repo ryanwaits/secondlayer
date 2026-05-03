@@ -9,6 +9,9 @@ export function streamsRateLimit(opts?: {
 }): MiddlewareHandler<StreamsEnv> {
 	// TODO: replace process-local windows with Redis-backed counters before
 	// running multiple API gateway instances.
+	// TODO: SlidingWindow uses real time. Tests rely on Bun being fast
+	// enough to fit 11 requests inside a 1s window. Inject a clock
+	// function so tests can advance time deterministically.
 	const window = opts?.window ?? new SlidingWindow(1_000);
 
 	return async (c, next) => {

@@ -120,3 +120,8 @@ Run through this Sunday evening before archiving.
 - Cursor format is a 1.0 contract — do not change it without explicit approval and a migration plan.
 - Streams is read-only. If a task feels like push semantics, you've drifted into the wrong product. Stop.
 - Naming: it's "Stacks Streams," never "Streaming," never "Stream API."
+
+## Tech debt
+
+- Wall-clock retention cutoff before external-customer launch in Phase 2; see `packages/api/src/streams/tiers.ts` TODO.
+- Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
