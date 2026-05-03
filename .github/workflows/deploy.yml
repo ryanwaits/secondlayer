@@ -53,7 +53,8 @@ jobs:
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$HOME/.bun/bin" && bash /opt/secondlayer/docker/scripts/deploy.sh
-          command_timeout: 5m
+          # 20m to accommodate cold Docker builds across 5 images. See incident on 2026-05-03.
+          command_timeout: 20m
 
   notify:
     needs: [typecheck, deploy]
