@@ -78,10 +78,12 @@ Raw, ordered, append-only chain events. The lowest layer the platform exposes.
 
 Decoded chain events. The layer most app developers actually want.
 
-- **Source:** Stacks Streams (L1) + ABI registry. Decoders are versioned; re-decoding is a deterministic replay over L1.
+- **Source:** Stacks Streams (L1) through `@secondlayer/sdk` + ABI registry. Decoders are versioned; re-decoding is a deterministic replay over L1.
 - **Shape:** Normalized decoded-event tables such as `ft_events`, `nft_events`, `print_events`, and `stx_transfers`.
 - **Access:** REST endpoints with the standard query grammar (filter, sort, paginate). SQL read replica available on Scale and Enterprise.
 - **Guarantees:** Decoded view is eventually consistent with L1; lag SLO published on status page (target <5s p95).
+
+Stacks Index dogfoods the same SDK code path external customers use. No special client, no private decoder fork.
 
 The existing `transactions` table and `parseTransaction` path are legacy indexer-internal artifacts from before the layer split. They are not the L2 public contract and will be retired under a future PRD.
 

@@ -13,9 +13,8 @@
 			"@secondlayer/indexer/l2/decoder": [
 				"../indexer/src/l2/decoder.ts"
 			],
-			"@secondlayer/indexer/l2/streams-client": [
-				"../indexer/src/l2/streams-client.ts"
-			],
+			"@secondlayer/sdk": ["../sdk/src/index.ts"],
+			"@secondlayer/sdk/*": ["../sdk/src/*"],
 			"@secondlayer/shared": ["../shared/src/index.ts"],
 			"@secondlayer/shared/*": ["../shared/src/*"],
 			"@secondlayer/subgraphs": ["../subgraphs/src/index.ts"],
@@ -27,6 +26,7 @@
 		"../indexer/src/l2/**/*",
 		"../indexer/src/streams-events.ts",
 		"../indexer/src/streams-tip.ts",
+		"../sdk/src/**/*",
 		"../shared/src/**/*",
 		"../subgraphs/src/**/*"
 	],

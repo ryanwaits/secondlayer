@@ -19,6 +19,104 @@ const sl = new SecondLayer({
 });
 ```
 
+## Stacks Streams
+
+Typed HTTP client.
+
+```typescript
+import { createStreamsClient } from "@secondlayer/sdk";
+
+const client = createStreamsClient({
+  apiKey: process.env.SECONDLAYER_API_KEY!,
+  baseUrl: process.env.SECONDLAYER_API_URL,
+});
+
+const tip = await client.tip();
+const page = await client.events.list({
+  types: ["ft_transfer"],
+  limit: 10,
+});
+
+console.log({ tip, firstCursor: page.events[0]?.cursor });
+```
+
+Checkpointed consumer.
+
+Use `client.events.consume` for indexers and ETL jobs. Write your database rows
+inside `onBatch`, then return the cursor you committed. It exits when
+`maxPages`, `maxEmptyPolls`, or `signal` stops it.
+
+```typescript
+import { createStreamsClient } from "@secondlayer/sdk";
+
+const client = createStreamsClient({
+  apiKey: process.env.SECONDLAYER_API_KEY!,
+});
+
+await client.events.consume({
+  types: ["ft_transfer"],
+  batchSize: 100,
+  maxPages: 1,
+  onBatch: async (events, envelope) => {
+    for (const event of events) {
+      console.log(event.cursor, event.tx_id);
+    }
+    return envelope.next_cursor;
+  },
+});
+```
+
+Live stream.
+
+Use `client.events.stream` for live processors and watch-style apps. It follows
+the tip indefinitely. Stop it with an `AbortSignal`.
+
+```typescript
+import { createStreamsClient } from "@secondlayer/sdk";
+
+const client = createStreamsClient({
+  apiKey: process.env.SECONDLAYER_API_KEY!,
+});
+
+const abort = new AbortController();
+process.once("SIGINT", () => abort.abort());
+
+for await (const event of client.events.stream({
+  types: ["ft_transfer"],
+  batchSize: 100,
+  signal: abort.signal,
+})) {
+  console.log(event.cursor, event.tx_id);
+}
+```
+
+Decoder helper.
+
+```typescript
+import {
+  createStreamsClient,
+  decodeFtTransfer,
+  isFtTransfer,
+} from "@secondlayer/sdk";
+
+const client = createStreamsClient({
+  apiKey: process.env.SECONDLAYER_API_KEY!,
+});
+
+for await (const event of client.events.stream({ types: ["ft_transfer"] })) {
+  if (!isFtTransfer(event)) continue;
+  const transfer = decodeFtTransfer(event);
+  console.log(transfer.decoded_payload);
+  break;
+}
+```
+
+Helper convention: each event helper is a pure function with no shared state.
+Use `is<EventName>(event)` as the type guard and `decode<EventName>(event)` as
+the decoder. Decoders throw when the event type or payload is malformed. Add new
+helpers beside `src/streams/ft-transfer.ts` and export them through
+`src/streams/index.ts`.
+
 ## Subgraphs
 
 Deploy and query subgraphs (custom indexers).

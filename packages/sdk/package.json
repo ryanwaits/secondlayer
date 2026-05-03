@@ -9,6 +9,10 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
 		},
+		"./streams": {
+			"types": "./dist/streams/index.d.ts",
+			"import": "./dist/streams/index.js"
+		},
 		"./subgraphs": {
 			"types": "./dist/subgraphs/index.d.ts",
 			"import": "./dist/subgraphs/index.js"

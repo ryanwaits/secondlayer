@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { consumeFtTransferDecodedEvents } from "@secondlayer/indexer/l2/decoder";
-import { createHttpStreamsEventsFetcher } from "@secondlayer/indexer/l2/streams-client";
+import { createStreamsClient } from "@secondlayer/sdk";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
@@ -119,7 +119,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			.execute();
 	});
 
-	function inProcessFetcher() {
+	function inProcessClient(apiKey = INTERNAL_STREAMS_KEY) {
 		const app = new Hono();
 		app.onError(errorHandler);
 		app.route(
@@ -135,9 +135,9 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			}),
 		);
 
-		return createHttpStreamsEventsFetcher({
+		return createStreamsClient({
 			baseUrl: "http://secondlayer.test",
-			apiKey: INTERNAL_STREAMS_KEY,
+			apiKey,
 			fetchImpl: async (input, init) => {
 				const request =
 					input instanceof Request
@@ -154,34 +154,10 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		await expect(
 			consumeFtTransferDecodedEvents({
 				db,
-				fetchEvents: createHttpStreamsEventsFetcher({
-					baseUrl: "http://secondlayer.test",
-					apiKey: "sk-sl_streams_bad_internal_test",
-					fetchImpl: async (input, init) => {
-						const app = new Hono();
-						app.onError(errorHandler);
-						app.route(
-							"/v1/streams",
-							createStreamsRouter({
-								tokens: INTERNAL_STREAMS_TOKENS,
-								getTip: () => ({
-									block_height: 1,
-									index_block_hash: "0x01",
-									burn_block_height: 101,
-									lag_seconds: 0,
-								}),
-							}),
-						);
-						const request =
-							input instanceof Request
-								? input
-								: new Request(input.toString(), init);
-						return app.fetch(request);
-					},
-				}),
+				streamsClient: inProcessClient("sk-sl_streams_bad_internal_test"),
 				maxPages: 1,
 			}),
-		).rejects.toThrow("Streams /events returned 401");
+		).rejects.toThrow("API key");
 	});
 
 	test("consumes /events in-process and writes decoded ft_transfer rows", async () => {
@@ -189,7 +165,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 
 		const result = await consumeFtTransferDecodedEvents({
 			db,
-			fetchEvents: inProcessFetcher(),
+			streamsClient: inProcessClient(),
 			batchSize: 10,
 			maxPages: 1,
 		});
@@ -215,17 +191,17 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 
 	test("restart resumes from checkpoint without duplicates or gaps", async () => {
 		if (!db) throw new Error("missing db");
-		const fetchEvents = inProcessFetcher();
+		const streamsClient = inProcessClient();
 
 		await consumeFtTransferDecodedEvents({
 			db,
-			fetchEvents,
+			streamsClient,
 			batchSize: 1,
 			maxPages: 1,
 		});
 		await consumeFtTransferDecodedEvents({
 			db,
-			fetchEvents,
+			streamsClient,
 			batchSize: 1,
 			maxPages: 2,
 		});

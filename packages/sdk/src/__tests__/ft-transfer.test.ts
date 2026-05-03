@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { StreamsEvent } from "../streams-events.ts";
-import { decodeFtTransfer } from "./ft-transfer-decoder.ts";
+import {
+	decodeFtTransfer,
+	isFtTransfer,
+	type StreamsEvent,
+} from "../index.ts";
 
 function ftTransfer(payload: Record<string, unknown>): StreamsEvent {
 	return {
@@ -18,7 +21,19 @@ function ftTransfer(payload: Record<string, unknown>): StreamsEvent {
 	};
 }
 
-describe("decodeFtTransfer", () => {
+describe("ft_transfer helpers", () => {
+	test("narrows ft_transfer events", () => {
+		const event = ftTransfer({
+			asset_identifier: "SP1.token::sbtc",
+			sender: "SP1",
+			recipient: "SP2",
+			amount: "250000",
+		});
+
+		expect(isFtTransfer(event)).toBe(true);
+		expect(isFtTransfer({ ...event, event_type: "print" })).toBe(false);
+	});
+
 	test("maps Streams payload to decoded ft_transfer shape", () => {
 		const decoded = decodeFtTransfer(
 			ftTransfer({
@@ -46,6 +61,12 @@ describe("decodeFtTransfer", () => {
 				amount: "250000",
 			},
 		});
+	});
+
+	test("rejects non-ft_transfer events", () => {
+		expect(() =>
+			decodeFtTransfer({ ...ftTransfer({}), event_type: "print" }),
+		).toThrow("Expected ft_transfer");
 	});
 
 	test("rejects missing asset_identifier", () => {

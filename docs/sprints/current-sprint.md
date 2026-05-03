@@ -59,9 +59,9 @@ Ordered by sequence. Stop work and re-plan if a task slips by more than a day.
 **Done when:** The `ft_transfer` L2 decoder consumes Streams in-process, writes decoded rows, and resumes from checkpoint without duplicates or gaps.
 
 ### 6. SDK skeleton + quickstart (Fri)
-- [ ] `StreamsClient` in `packages/sdk` with `eventsIterator()` async generator.
-- [ ] One worked example committed: `examples/sbtc-transfer-indexer/` (50 lines, reads sBTC `ft_transfer` events).
-- [ ] README quickstart page.
+- [x] `StreamsClient` in `packages/sdk` with `events.stream()` async generator.
+- [ ] One worked example committed: deferred until it has CI coverage.
+- [x] README quickstart page.
 
 **Done when:** Quickstart copy-pasted into a fresh repo runs against staging.
 
@@ -95,7 +95,7 @@ Append a short bullet at the end of each day. Two lines max per day. The next-se
 - **Tue May 5:** Shipped PR #16 implementing real `/v1/streams/tip` from indexer canonical tip, 500ms cache, lag clamp, status wiring, and tests.
 - **Wed May 6:** Implemented real `/v1/streams/events` cursor pagination over indexer L1 events, v1 type filters, tip clamp, auth/rate smoke tests, and ordering/pagination fixtures.
 - **Thu May 7:** Implemented L2 `ft_transfer` event decoder consuming Streams through the API path, with `decoded_events`, cursor checkpointing, restart tests, and legacy transaction path untouched.
-- **Fri May 8:** —
+- **Fri May 8:** Shipped `@secondlayer/sdk` Streams client, consumer, `ft_transfer` helpers, and quickstart; L2 now imports SDK consumer/decoder.
 - **Sat May 9:** —
 - **Sun May 10:** —
 
@@ -128,4 +128,5 @@ Run through this Sunday evening before archiving.
 - Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
 - Optional: push Streams events `types` filter into SQL to restore peek-ahead `next_cursor` termination.
 - Legacy `parseTransaction` / `transactions` path is now indexer-internal, not L2. Plan formal retirement in a future PRD.
-- `consumeStreamsEvents` has no clean "backfill until exhausted then exit" mode; today's tail-following use case works, but a future backfill caller will need explicit `maxEmptyPolls`.
+- `client.events.stream()` tails until aborted, while `client.events.consume()` exposes `maxPages` / `maxEmptyPolls` for bounded ETL runs. Track whether that asymmetry should stay intentional or become a shared option model.
+- SDK helper backlog: add pure helpers/decoders for `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, and `print`.
