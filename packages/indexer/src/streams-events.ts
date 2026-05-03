@@ -49,6 +49,23 @@ const DB_TO_STREAMS_EVENT_TYPE: Record<
 	smart_contract_event: "print",
 };
 
+const STREAMS_TO_DB_EVENT_TYPE: Record<
+	StreamsEventType,
+	(typeof STREAMS_DB_EVENT_TYPES)[number]
+> = {
+	stx_transfer: "stx_transfer_event",
+	stx_mint: "stx_mint_event",
+	stx_burn: "stx_burn_event",
+	stx_lock: "stx_lock_event",
+	ft_transfer: "ft_transfer_event",
+	ft_mint: "ft_mint_event",
+	ft_burn: "ft_burn_event",
+	nft_transfer: "nft_transfer_event",
+	nft_mint: "nft_mint_event",
+	nft_burn: "nft_burn_event",
+	print: "smart_contract_event",
+};
+
 export type StreamsEventCursor = {
 	block_height: number;
 	event_index: number;
@@ -109,6 +126,16 @@ function contractIdFromAssetIdentifier(value: unknown): string | null {
 	return typeof value === "string" ? (value.split("::")[0] ?? null) : null;
 }
 
+function withoutContractIdentifier(
+	payload: Record<string, unknown>,
+): Record<string, unknown> {
+	const rest: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(payload)) {
+		if (key !== "contract_identifier") rest[key] = value;
+	}
+	return rest;
+}
+
 function normalizePayload(
 	eventType: StreamsEventType,
 	data: unknown,
@@ -121,8 +148,7 @@ function normalizePayload(
 				: typeof payload.contract_id === "string"
 					? payload.contract_id
 					: null;
-		const rest = { ...payload };
-		delete rest.contract_identifier;
+		const rest = withoutContractIdentifier(payload);
 		return {
 			payload: contractId ? { ...rest, contract_id: contractId } : rest,
 			contract_id: contractId,
@@ -179,8 +205,17 @@ export async function readCanonicalStreamsEvents(
 		return { events: [], next_cursor: null };
 	}
 
-	const dbEventTypes = sql.join(
+	if (params.types?.length === 0) {
+		return { events: [], next_cursor: null };
+	}
+
+	const allDbEventTypes = sql.join(
 		STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
+	);
+	const selectedDbEventTypes = sql.join(
+		(params.types ?? STREAMS_EVENT_TYPES).map(
+			(eventType) => sql`${STREAMS_TO_DB_EVENT_TYPE[eventType]}`,
+		),
 	);
 	const cursorFilter = params.after
 		? sql`
@@ -206,15 +241,25 @@ export async function readCanonicalStreamsEvents(
         e.event_index AS source_event_index,
         e.type AS db_event_type,
         e.data,
-        ROW_NUMBER() OVER (
-          PARTITION BY e.block_height
-          ORDER BY t.tx_index ASC, e.event_index ASC
-        ) - 1 AS stream_event_index
+        (
+          SELECT COUNT(*)::integer - 1
+          FROM events e2
+          INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
+          WHERE e2.block_height = e.block_height
+            AND e2.type IN (${allDbEventTypes})
+            AND (
+              t2.tx_index < t.tx_index
+              OR (
+                t2.tx_index = t.tx_index
+                AND e2.event_index <= e.event_index
+              )
+            )
+        ) AS stream_event_index
       FROM events e
       INNER JOIN transactions t ON t.tx_id = e.tx_id
       INNER JOIN blocks b ON b.height = e.block_height
       WHERE b.canonical = true
-        AND e.type IN (${dbEventTypes})
+        AND e.type IN (${selectedDbEventTypes})
         AND e.block_height >= ${lowerHeight}
         AND e.block_height <= ${params.toHeight}
     )
@@ -227,10 +272,7 @@ export async function readCanonicalStreamsEvents(
   `.execute(db);
 
 	const pageRows = rows.slice(0, params.limit);
-	const requestedTypes = params.types ? new Set(params.types) : null;
-	const events = pageRows
-		.map(normalizeRow)
-		.filter((event) => !requestedTypes || requestedTypes.has(event.event_type));
+	const events = pageRows.map(normalizeRow);
 	const lastScannedRow = pageRows.at(-1);
 	const next_cursor = lastScannedRow
 		? encodeStreamsEventCursor({

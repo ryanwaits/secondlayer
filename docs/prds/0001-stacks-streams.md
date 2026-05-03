@@ -48,12 +48,14 @@ The primary endpoint. Returns events in strict on-chain order.
 
 | Parameter | Type | Default | Notes |
 |---|---|---|---|
-| `cursor` | string | `null` | `<block_height>:<event_index>`. If null, starts at the beginning of the tier's retention window. |
+| `cursor` / `from_cursor` | string | `null` | `<block_height>:<event_index>`. Explicit cursor wins over the default window. |
 | `limit` | int | 200 | Max 1000. |
-| `event_type` | string[] | all | Repeatable. e.g. `stx_transfer`, `ft_transfer`, `nft_transfer`, `print`. |
+| `types` | string[] | all | Comma-separated. e.g. `stx_transfer,print`. Applied in SQL. |
 | `contract_id` | string | null | Filter to events emitted by a specific Clarity contract. |
-| `from_block` | int | tier window start | Inclusive. |
-| `to_block` | int | tip | Inclusive. If `cursor` is provided, `from_block` is ignored. |
+| `from_height` | int | `tip - STREAMS_BLOCKS_PER_DAY` | Inclusive. If neither `from_height` nor a cursor is provided, `/events` returns the last 24h of events from tip. Explicit `from_height=0` starts at genesis, subject to tier retention. |
+| `to_height` | int | tip | Inclusive. If `cursor` is provided, `from_height` is ignored. |
+
+Default window is server-side behavior. The response does not echo a synthetic `from_height`; clients that need the exact start read the first event's `block_height`. Customers that need full-history pagination must pass `from_height=0` or `from_cursor=0:0` explicitly, subject to tier retention.
 
 **Response**
 

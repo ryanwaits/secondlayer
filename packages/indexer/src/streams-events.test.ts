@@ -142,9 +142,22 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 			topic: "print",
 			value: { repr: "u1" },
 		});
+
+		const filteredPage = await readCanonicalStreamsEvents({
+			fromHeight: 1,
+			toHeight: 2,
+			types: ["ft_transfer"],
+			limit: 10,
+			db,
+		});
+
+		expect(filteredPage.events.map((event) => event.cursor)).toEqual(["1:1"]);
+		expect(filteredPage.events.map((event) => event.event_type)).toEqual([
+			"ft_transfer",
+		]);
 	});
 
-	test("types filter walks through excluded pages to later matching events", async () => {
+	test("types filter returns matching events without scanning excluded pages", async () => {
 		if (!db) throw new Error("missing db");
 
 		await db
@@ -241,22 +254,24 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 			limit: 2,
 			db,
 		});
-		expect(firstPage.events).toEqual([]);
-		expect(firstPage.next_cursor).toBe("1:1");
+		expect(firstPage.events.map((event) => event.event_type)).toEqual([
+			"print",
+		]);
+		expect(firstPage.events.map((event) => event.cursor)).toEqual(["2:0"]);
+		expect(firstPage.next_cursor).toBe("2:0");
 
 		const secondPage = await readCanonicalStreamsEvents({
-			after: { block_height: 1, event_index: 1 },
+			after: { block_height: 2, event_index: 0 },
 			toHeight: 2,
 			types: ["print"],
 			limit: 2,
 			db,
 		});
-		expect(secondPage.events.map((event) => event.event_type)).toEqual(["print"]);
-		expect(secondPage.events.map((event) => event.cursor)).toEqual(["2:0"]);
-		expect(secondPage.next_cursor).toBe("2:0");
+		expect(secondPage.events).toEqual([]);
+		expect(secondPage.next_cursor).toBeNull();
 	});
 
-	test("types filter advances cursor when exact tail page is fully excluded", async () => {
+	test("types filter returns null cursor when no selected types match", async () => {
 		if (!db) throw new Error("missing db");
 
 		await db
@@ -324,6 +339,6 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		});
 
 		expect(page.events).toEqual([]);
-		expect(page.next_cursor).toBe("1:1");
+		expect(page.next_cursor).toBeNull();
 	});
 });

@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-	getStreamsEventsResponse,
 	type StreamsEventsReader,
+	getStreamsEventsResponse,
 } from "./events.ts";
+import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
 const TIP: StreamsTip = {
@@ -18,6 +19,69 @@ function params(query: string) {
 }
 
 describe("Streams events route helpers", () => {
+	test("defaults to the last day when no explicit height or cursor is provided", async () => {
+		let seenFromHeight: number | undefined;
+		const body = await getStreamsEventsResponse({
+			query: params(""),
+			tip: { ...TIP, block_height: 10_000 },
+			readEvents: async ({ fromHeight }) => {
+				seenFromHeight = fromHeight;
+				return {
+					events: [
+						{
+							cursor: "9999:0",
+							block_height: 9999,
+							index_block_hash: TIP.index_block_hash,
+							burn_block_height: TIP.burn_block_height,
+							tx_id: "0x01",
+							tx_index: 0,
+							event_index: 0,
+							event_type: "stx_transfer",
+							contract_id: null,
+							payload: {},
+							ts: "2026-05-02T21:43:00.000Z",
+						},
+					],
+					next_cursor: "9999:0",
+				};
+			},
+		});
+
+		expect(seenFromHeight).toBe(10_000 - STREAMS_BLOCKS_PER_DAY);
+		expect(body.next_cursor).toBe("9999:0");
+	});
+
+	test("explicit from_height=0 bypasses the default window", async () => {
+		let seenFromHeight: number | undefined;
+		await getStreamsEventsResponse({
+			query: params("?from_height=0"),
+			tip: { ...TIP, block_height: 10_000 },
+			readEvents: async ({ fromHeight }) => {
+				seenFromHeight = fromHeight;
+				return { events: [], next_cursor: null };
+			},
+		});
+
+		expect(seenFromHeight).toBe(0);
+	});
+
+	test("explicit from_cursor=0:0 bypasses the default window", async () => {
+		let seenFromHeight: number | undefined = -1;
+		let seenAfter: unknown;
+		await getStreamsEventsResponse({
+			query: params("?from_cursor=0:0"),
+			tip: { ...TIP, block_height: 10_000 },
+			readEvents: async ({ after, fromHeight }) => {
+				seenAfter = after;
+				seenFromHeight = fromHeight;
+				return { events: [], next_cursor: null };
+			},
+		});
+
+		expect(seenAfter).toEqual({ block_height: 0, event_index: 0 });
+		expect(seenFromHeight).toBeUndefined();
+	});
+
 	test("types filter returns only requested types", async () => {
 		const readEvents: StreamsEventsReader = async ({ types }) => ({
 			events: (types ?? []).map((eventType, i) => ({
@@ -69,7 +133,7 @@ describe("Streams events route helpers", () => {
 			const nextEvent = allEvents[start + limit];
 			return {
 				events,
-				next_cursor: nextEvent ? events.at(-1)?.cursor ?? null : null,
+				next_cursor: nextEvent ? (events.at(-1)?.cursor ?? null) : null,
 			};
 		};
 

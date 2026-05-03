@@ -1,8 +1,11 @@
-import { AuthorizationError, ValidationError } from "@secondlayer/shared/errors";
+import {
+	AuthorizationError,
+	ValidationError,
+} from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
-import { decodeStreamsCursor } from "./cursor.ts";
 import type { StreamsEnv } from "./auth.ts";
-import { getStreamsRetentionCutoff, STREAMS_TIER_CONFIG } from "./tiers.ts";
+import { decodeStreamsCursor } from "./cursor.ts";
+import { STREAMS_TIER_CONFIG, getStreamsRetentionCutoff } from "./tiers.ts";
 import type { StreamsTipProvider } from "./tip.ts";
 
 function parseBlockHeight(value: string, name: string): number {
@@ -42,7 +45,7 @@ export function streamsRetentionWindow(opts: {
 		const tip = await opts.getTip();
 		c.set("streamsTip", tip);
 
-		const cursor = c.req.query("cursor");
+		const cursor = c.req.query("from_cursor") ?? c.req.query("cursor");
 		// TODO(PRD 0001): deprecate one of from_block/from_height or document both.
 		const fromHeightParam =
 			c.req.query("from_height") !== undefined ? "from_height" : "from_block";

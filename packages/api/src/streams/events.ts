@@ -1,13 +1,14 @@
 import {
-	readCanonicalStreamsEvents,
-	STREAMS_EVENT_TYPES,
 	type ReadCanonicalStreamsEventsParams,
 	type ReadCanonicalStreamsEventsResult,
+	STREAMS_EVENT_TYPES,
 	type StreamsEvent,
 	type StreamsEventType,
+	readCanonicalStreamsEvents,
 } from "@secondlayer/indexer/streams-events";
 import { ValidationError } from "@secondlayer/shared/errors";
-import { decodeStreamsCursor, type StreamsCursorInput } from "./cursor.ts";
+import { type StreamsCursorInput, decodeStreamsCursor } from "./cursor.ts";
+import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
 export type StreamsEventsReader = (
@@ -15,8 +16,17 @@ export type StreamsEventsReader = (
 ) => Promise<ReadCanonicalStreamsEventsResult>;
 
 export type StreamsEventsQuery = {
+	/**
+	 * Explicit cursor wins over the server default window. `from_cursor=0:0`
+	 * and `cursor=0:0` start at genesis, subject to tier retention.
+	 */
 	cursor?: StreamsCursorInput;
 	cursorRaw?: string;
+	/**
+	 * If neither `from_height` nor a cursor is provided, the handler sets this to
+	 * `tip.block_height - STREAMS_BLOCKS_PER_DAY`. Explicit `from_height=0`
+	 * is preserved and bypasses the default window.
+	 */
 	fromHeight?: number;
 	toHeight: number;
 	types?: readonly StreamsEventType[];
@@ -60,7 +70,9 @@ function parseLimit(value: string | undefined): number {
 	return Math.min(1000, Math.max(1, parsed));
 }
 
-function parseTypes(value: string | undefined): readonly StreamsEventType[] | undefined {
+function parseTypes(
+	value: string | undefined,
+): readonly StreamsEventType[] | undefined {
 	if (value === undefined) return undefined;
 	const types = value.split(",").map((part) => part.trim());
 	if (types.length === 0 || types.some((type) => type.length === 0)) {
@@ -83,7 +95,13 @@ export function parseStreamsEventsQuery(
 	query: URLSearchParams,
 	tip: StreamsTip,
 ): StreamsEventsQuery {
-	const cursorRaw = query.get("cursor") ?? undefined;
+	const cursorParamRaw = query.get("cursor") ?? undefined;
+	const fromCursorRaw = query.get("from_cursor") ?? undefined;
+	if (cursorParamRaw !== undefined && fromCursorRaw !== undefined) {
+		throw new ValidationError("cursor and from_cursor are mutually exclusive");
+	}
+
+	const cursorRaw = fromCursorRaw ?? cursorParamRaw;
 	const fromHeightRaw = query.get("from_height") ?? undefined;
 
 	if (cursorRaw && fromHeightRaw !== undefined) {
@@ -104,11 +122,15 @@ export function parseStreamsEventsQuery(
 		requestedToHeight === undefined
 			? clampedTipHeight
 			: Math.min(requestedToHeight, clampedTipHeight);
+	const defaultFromHeight =
+		cursorRaw === undefined && fromHeightRaw === undefined
+			? Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY)
+			: undefined;
 
 	return {
 		cursor,
 		cursorRaw,
-		fromHeight,
+		fromHeight: fromHeight ?? defaultFromHeight,
 		toHeight,
 		types: parseTypes(query.get("types") ?? undefined),
 		limit: parseLimit(query.get("limit") ?? undefined),
