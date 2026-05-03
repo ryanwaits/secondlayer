@@ -128,3 +128,4 @@ Run through this Sunday evening before archiving.
 - Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
 - Optional: push Streams events `types` filter into SQL to restore peek-ahead `next_cursor` termination.
 - Legacy `parseTransaction` / `transactions` path is now indexer-internal, not L2. Plan formal retirement in a future PRD.
+- `consumeStreamsEvents` has no clean "backfill until exhausted then exit" mode; today's tail-following use case works, but a future backfill caller will need explicit `maxEmptyPolls`.
