@@ -2,6 +2,7 @@ import { getDb } from "@secondlayer/shared/db";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import { getStreamsTip, type StreamsTip } from "../streams/tip.ts";
 
 const app = new Hono();
 
@@ -18,6 +19,7 @@ app.get("/status", async (c) => {
 		indexerResult,
 		subgraphResult,
 		gapSummaryResult,
+		streamsTipResult,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		db.selectFrom("index_progress").selectAll().execute(),
@@ -30,6 +32,7 @@ app.get("/status", async (c) => {
 		),
 		db.selectFrom("subgraphs").selectAll().execute(),
 		getGapSummaryBySubgraph(db),
+		getStreamsTip(),
 	]);
 
 	const dbStatus = dbResult.status === "fulfilled" ? "ok" : "error";
@@ -110,6 +113,8 @@ app.get("/status", async (c) => {
 		progress.every((p) => p.lastContiguousBlock >= p.lastIndexedBlock)
 			? "complete"
 			: "gaps_detected";
+	const streamsTip: StreamsTip | null =
+		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
 
 	return c.json({
 		status: dbStatus === "ok" ? "healthy" : "degraded",
@@ -120,7 +125,11 @@ app.get("/status", async (c) => {
 		gaps: [],
 		totalMissingBlocks: 0,
 		blocksReceivedOutOfOrder,
-		chainTip,
+		chainTip: streamsTip?.block_height ?? chainTip,
+		streams: {
+			status: streamsTip ? "ok" : "unavailable",
+			tip: streamsTip,
+		},
 		activeSubgraphs: subgraphHealth.filter((v) => v.status === "active").length,
 		subgraphs: subgraphHealth,
 		timestamp: new Date().toISOString(),

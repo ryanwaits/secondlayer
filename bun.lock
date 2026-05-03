@@ -55,6 +55,7 @@
       "version": "1.1.2",
       "dependencies": {
         "@secondlayer/bundler": "^0.3.1",
+        "@secondlayer/indexer": "^1.0.7",
         "@secondlayer/shared": "^4.0.0",
         "@secondlayer/subgraphs": "^1.1.0",
         "hono": "^4.0.0",

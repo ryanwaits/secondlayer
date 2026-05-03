@@ -7,7 +7,7 @@ import {
 } from "../streams/auth.ts";
 import { streamsRateLimit } from "../streams/rate-limit.ts";
 import { streamsRetentionWindow } from "../streams/retention.ts";
-import { getStubStreamsTip, type StreamsTipProvider } from "../streams/tip.ts";
+import { getStreamsTip, type StreamsTipProvider } from "../streams/tip.ts";
 
 export type StreamsRouterOptions = {
 	tokens?: StreamsTokenStore;
@@ -15,7 +15,7 @@ export type StreamsRouterOptions = {
 };
 
 export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
-	const getTip = opts.getTip ?? getStubStreamsTip;
+	const getTip = opts.getTip ?? getStreamsTip;
 	const router = new Hono<StreamsEnv>();
 
 	router.use(
