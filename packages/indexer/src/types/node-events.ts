@@ -288,9 +288,11 @@ export interface NewBlockPayload {
 	parent_index_block_hash: string;
 	burn_block_hash: string;
 	burn_block_height: number;
-	burn_block_timestamp: number;
+	burn_block_time?: number;
+	burn_block_timestamp?: number;
+	block_time?: number;
 	miner_txid: string;
-	timestamp: number;
+	timestamp?: number;
 	transactions: TransactionPayload[];
 	events: TransactionEvent[];
 	matured_miner_rewards?: MaturedMinerReward[];

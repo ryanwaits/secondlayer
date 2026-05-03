@@ -160,14 +160,28 @@ function decodeRawTx(
 	}
 }
 
+function blockTimestamp(payload: NewBlockPayload): number {
+	for (const value of [
+		payload.timestamp,
+		payload.block_time,
+		payload.burn_block_time,
+		payload.burn_block_timestamp,
+	]) {
+		if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+			return value;
+		}
+	}
+	return 0;
+}
+
 export function parseBlock(payload: NewBlockPayload): InsertBlock {
 	return {
 		height: payload.block_height,
 		hash: payload.block_hash,
 		parent_hash: payload.parent_block_hash,
 		burn_block_height: payload.burn_block_height,
-		// Genesis block may have no timestamp - use 0 as default
-		timestamp: payload.timestamp ?? 0,
+		// Live node events use burn_block_time; replay sources use timestamp/block_time.
+		timestamp: blockTimestamp(payload),
 		canonical: true,
 	};
 }

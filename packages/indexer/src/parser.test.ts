@@ -1,6 +1,51 @@
 import { describe, expect, test } from "bun:test";
-import { parseTransaction } from "./parser";
-import type { TransactionPayload } from "./types/node-events";
+import { parseBlock, parseTransaction } from "./parser";
+import type { NewBlockPayload, TransactionPayload } from "./types/node-events";
+
+function blockPayload(overrides: Partial<NewBlockPayload>): NewBlockPayload {
+	return {
+		block_hash: "0xblock",
+		block_height: 123,
+		index_block_hash: "0xindex",
+		parent_block_hash: "0xparent",
+		parent_index_block_hash: "0xparentindex",
+		burn_block_hash: "0xburn",
+		burn_block_height: 456,
+		miner_txid: "0xminer",
+		transactions: [],
+		events: [],
+		...overrides,
+	};
+}
+
+describe("parseBlock", () => {
+	test("uses timestamp from replay payloads", () => {
+		const block = parseBlock(blockPayload({ timestamp: 1700000000 }));
+
+		expect(block.timestamp).toBe(1700000000);
+	});
+
+	test("falls back to live node burn_block_time", () => {
+		const block = parseBlock(blockPayload({ burn_block_time: 1700000001 }));
+
+		expect(block.timestamp).toBe(1700000001);
+	});
+
+	test("falls back to block_time and burn_block_timestamp aliases", () => {
+		expect(parseBlock(blockPayload({ block_time: 1700000002 })).timestamp).toBe(
+			1700000002,
+		);
+		expect(
+			parseBlock(blockPayload({ burn_block_timestamp: 1700000003 })).timestamp,
+		).toBe(1700000003);
+	});
+
+	test("keeps genesis-style missing timestamps as zero", () => {
+		const block = parseBlock(blockPayload({}));
+
+		expect(block.timestamp).toBe(0);
+	});
+});
 
 describe("parseTransaction", () => {
 	test("decodes token_transfer from raw_tx", async () => {
