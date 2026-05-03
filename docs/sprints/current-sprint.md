@@ -125,3 +125,4 @@ Run through this Sunday evening before archiving.
 
 - Wall-clock retention cutoff before external-customer launch in Phase 2; see `packages/api/src/streams/tiers.ts` TODO.
 - Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
+- Optional: push Streams events `types` filter into SQL to restore peek-ahead `next_cursor` termination.
