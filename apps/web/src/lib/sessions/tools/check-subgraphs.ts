@@ -10,10 +10,10 @@ const NO_INSTANCE_RESULT = {
 	setupRequired: true,
 	missing: "instance",
 	message:
-		"No Secondlayer instance exists for this account yet. Create one from the Billing page or run `sl instance create --plan hobby` before deploying or querying subgraphs.",
+		"No Secondlayer instance exists for this account yet. Start a trial from Billing or run `sl instance create --plan launch` before deploying or querying subgraphs.",
 	nextActions: [
 		"Open `/billing` and create an instance.",
-		"Or run `sl instance create --plan hobby` from the CLI after login.",
+		"Or run `sl instance create --plan launch` from the CLI after login.",
 	],
 };
 

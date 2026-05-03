@@ -20,11 +20,6 @@ import { StatsAccumulator } from "./stats.ts";
 const LOG_INTERVAL = 1000;
 const HEALTH_FLUSH_INTERVAL = 1000;
 const PROGRESS_FLUSH_INTERVAL_MS = 5_000;
-const HOBBY_REINDEX_BATCH_CONFIG = {
-	defaultBatchSize: 50,
-	minBatchSize: 25,
-	maxBatchSize: 100,
-};
 const STANDARD_REINDEX_BATCH_CONFIG = {
 	defaultBatchSize: 500,
 	minBatchSize: 100,
@@ -37,7 +32,6 @@ type ReindexBatchConfig = {
 	maxBatchSize: number;
 };
 type ReindexBatchEnv = {
-	TENANT_PLAN?: string;
 	SUBGRAPH_REINDEX_BATCH_SIZE?: string;
 	SUBGRAPH_REINDEX_MIN_BATCH_SIZE?: string;
 	SUBGRAPH_REINDEX_MAX_BATCH_SIZE?: string;
@@ -75,10 +69,7 @@ function parsePositiveInt(value: string | undefined): number | undefined {
 export function resolveReindexBatchConfig(
 	env: ReindexBatchEnv = process.env as ReindexBatchEnv,
 ): ReindexBatchConfig {
-	const base =
-		env.TENANT_PLAN?.trim().toLowerCase() === "hobby"
-			? HOBBY_REINDEX_BATCH_CONFIG
-			: STANDARD_REINDEX_BATCH_CONFIG;
+	const base = STANDARD_REINDEX_BATCH_CONFIG;
 	const minBatchSize =
 		parsePositiveInt(env.SUBGRAPH_REINDEX_MIN_BATCH_SIZE) ?? base.minBatchSize;
 	const maxBatchSize =

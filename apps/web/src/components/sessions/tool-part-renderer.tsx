@@ -324,7 +324,7 @@ function renderOutputCard(toolName: string, output: Record<string, unknown>) {
 							totalRows?: number;
 							totalErrors: number;
 							resourceWarning?: {
-								code: "HOBBY_LARGE_REINDEX";
+								code: string;
 								message: string;
 								blockRange: number;
 								processorMemoryMb: number;

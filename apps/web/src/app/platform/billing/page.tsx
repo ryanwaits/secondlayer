@@ -102,7 +102,7 @@ export default async function BillingPage({
 	const sp = await searchParams;
 	if (sp.upgrade === "success") {
 		const resolved = await resolvePlanFromStripe(session);
-		if (resolved && resolved !== "hobby") {
+		if (resolved) {
 			account.plan = resolved;
 		}
 	}

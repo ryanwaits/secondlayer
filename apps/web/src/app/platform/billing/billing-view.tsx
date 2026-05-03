@@ -14,7 +14,6 @@ import { PortalLink } from "./portal-link";
 import { ProvisionProgress } from "./provision-progress";
 import { type ProvisionResponse, ProvisionStart } from "./provision-start";
 import { ResizeTierButton } from "./resize-tier-button";
-import { UpgradeButton } from "./upgrade-button";
 
 interface Account {
 	id: string;
@@ -115,6 +114,7 @@ export function BillingView({
 				</p>
 				<ProvisionStart
 					sessionToken={sessionToken}
+					accountPlan={account.plan}
 					plans={plans}
 					onProvisioning={() => setProvisioningView(true)}
 					onProvisioned={(resp: ProvisionResponse) => {
@@ -251,8 +251,6 @@ function ActiveView({
 	onDeleted: () => void;
 }) {
 	const isSuspended = tenant.status === "suspended";
-	const isHobby = account.plan === "hobby";
-
 	const currentCents = usage?.spend.currentCents ?? 0;
 	const frozenAt = caps?.frozenAt ?? null;
 	const capCents = caps?.monthlyCapCents ?? null;
@@ -260,19 +258,15 @@ function ActiveView({
 	const thresholdHit = usage?.spend.thresholdHit ?? false;
 
 	const desc = isSuspended
-		? isHobby
-			? "Paused after 7 days idle. Data preserved. The next CLI command auto-resumes, or click Resume below."
-			: "Containers stopped — data preserved. Resume below to bring everything back online in ~20s."
-		: isHobby
-			? "You're on the Free plan. Upgrade to unlock production capacity and spend controls."
-			: "Manage your instance, plan, and spend controls. Payment, invoices, and cancellation live in the Stripe portal.";
+		? "Containers stopped — data preserved. Resume below to bring everything back online in ~20s."
+		: "Manage your instance, plan, and spend controls. Payment, invoices, and cancellation live in the Stripe portal.";
 
 	return (
 		<>
 			<h1 className="settings-title">Billing</h1>
 			<p className="settings-desc">{desc}</p>
 
-			{!isHobby && frozenAt ? (
+			{frozenAt ? (
 				<div className="callout error" role="alert">
 					<svg
 						className="callout-icon"
@@ -296,7 +290,7 @@ function ActiveView({
 						</div>
 					</div>
 				</div>
-			) : !isHobby && thresholdHit && capCents != null ? (
+			) : thresholdHit && capCents != null ? (
 				<div className="callout warn" role="alert">
 					<svg
 						className="callout-icon"
@@ -340,17 +334,15 @@ function ActiveView({
 				onResized={onTenantChanged}
 			/>
 
-			{!isHobby && (
-				<SpendControlsSection
-					capCents={capCents}
-					currentCents={currentCents}
-					thresholdHit={thresholdHit}
-					thresholdPct={thresholdPct}
-					frozen={!!frozenAt}
-				/>
-			)}
+			<SpendControlsSection
+				capCents={capCents}
+				currentCents={currentCents}
+				thresholdHit={thresholdHit}
+				thresholdPct={thresholdPct}
+				frozen={!!frozenAt}
+			/>
 
-			{!isHobby && <PaymentSection />}
+			<PaymentSection />
 
 			<CollapsibleSection title="Connection" defaultOpen={false}>
 				<ConnectSection tenant={tenant} />
@@ -379,13 +371,9 @@ function ActiveView({
 				/>
 			</CollapsibleSection>
 
-			{!isHobby && (
-				<div
-					style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 24 }}
-				>
-					Billed as: <code>{account.email}</code>
-				</div>
-			)}
+			<div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 24 }}>
+				Billed as: <code>{account.email}</code>
+			</div>
 		</>
 	);
 }
@@ -641,7 +629,6 @@ function TierAction({
 	onResized: (updated: TenantSummary) => void;
 }) {
 	const isCurrent = plan.id === tenantPlan;
-	const isHobbyTenant = tenantPlan === "hobby";
 
 	if (isCurrent) return null;
 
@@ -654,40 +641,6 @@ function TierAction({
 			>
 				Contact us
 			</a>
-		);
-	}
-
-	if (plan.id === "hobby") {
-		// Paid → Hobby: route through Stripe portal (cancellation lives there)
-		return (
-			<a
-				href="#payment"
-				className="settings-btn ghost"
-				style={{ textAlign: "center" }}
-			>
-				Downgrade in portal
-			</a>
-		);
-	}
-
-	// Paid tier card — Launch or Scale
-	if (isHobbyTenant) {
-		return (
-			<div style={{ display: "grid", gap: 8 }}>
-				<UpgradeButton
-					tier={plan.id as "launch" | "scale"}
-					label={`Upgrade to ${plan.displayName}`}
-					variant={plan.id === "launch" ? "primary" : "ghost"}
-				/>
-				{plan.annualPriceCents ? (
-					<UpgradeButton
-						tier={plan.id as "launch" | "scale"}
-						interval="year"
-						label={`Annual · $${plan.annualPriceCents / 100}/yr`}
-						variant="ghost"
-					/>
-				) : null}
-			</div>
 		);
 	}
 

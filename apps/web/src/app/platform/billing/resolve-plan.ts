@@ -6,7 +6,7 @@ import type { BillingTier } from "@/lib/billing";
 /**
  * After a successful Stripe Checkout redirect (`?upgrade=success`),
  * the subscription webhook may not have fired yet — leaving the
- * account on plan=hobby for a few seconds to minutes. To avoid the
+ * account on plan=none for a few seconds to minutes. To avoid the
  * user seeing Hobby on the "thank you" view, the billing page calls
  * this helper which asks the platform API to do a one-shot Stripe
  * read + write plan synchronously.

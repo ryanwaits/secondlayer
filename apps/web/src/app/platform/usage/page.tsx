@@ -113,9 +113,7 @@ export default async function UsagePage() {
 							of={
 								Number.isFinite(compute.allowanceHours)
 									? `of ${formatNum(compute.allowanceHours)} h / mo`
-									: plan.tier === "hobby"
-										? "active · auto-pauses after 7d idle"
-										: "unmetered"
+									: "unmetered"
 							}
 							pct={compute.pct}
 							sparkData={compute.sparkline}

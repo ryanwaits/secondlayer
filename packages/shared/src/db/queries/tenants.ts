@@ -98,24 +98,6 @@ export async function listTenantsByStatus(
 }
 
 /**
- * Tenants considered "idle" for auto-pause on the Hobby tier. Active =
- * any successful tenant-API request bumped `last_active_at` within the
- * threshold.
- */
-export async function listIdleHobbyTenants(
-	db: Kysely<Database>,
-	idleSince: Date,
-): Promise<Tenant[]> {
-	return db
-		.selectFrom("tenants")
-		.selectAll()
-		.where("status", "in", ["active", "limit_warning"])
-		.where("plan", "=", "hobby")
-		.where("last_active_at", "<", idleSince)
-		.execute();
-}
-
-/**
  * Bump `last_active_at` for a tenant. Callers are expected to throttle
  * (don't hammer on every request) — the tenant-API activity middleware
  * enforces a 60s per-tenant min between writes.

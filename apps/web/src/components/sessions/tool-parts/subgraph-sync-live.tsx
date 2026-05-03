@@ -15,7 +15,7 @@ interface SyncSnapshot {
 	errorRate: number;
 	lastError: string | null;
 	resourceWarning?: {
-		code: "HOBBY_LARGE_REINDEX";
+		code: string;
 		message: string;
 		blockRange: number;
 		processorMemoryMb: number;

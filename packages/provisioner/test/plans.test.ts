@@ -14,16 +14,16 @@ describe("plans", () => {
 		}
 	});
 
-	test("PG gets 50% of RAM on launch (1024MB of 2048MB)", () => {
-		expect(PLANS.launch.containers.postgres.memoryMb).toBe(1024);
+	test("PG gets 50% of RAM on launch", () => {
+		expect(PLANS.launch.containers.postgres.memoryMb).toBe(3072);
 	});
 
-	test("processor gets 30% of RAM on scale (2457MB of 8192MB)", () => {
-		expect(PLANS.scale.containers.processor.memoryMb).toBe(2457);
+	test("processor gets 30% of RAM on scale", () => {
+		expect(PLANS.scale.containers.processor.memoryMb).toBe(7372);
 	});
 
-	test("api gets 20% of RAM on scale (1638MB of 8192MB)", () => {
-		expect(PLANS.scale.containers.api.memoryMb).toBe(1638);
+	test("api gets 20% of RAM on scale", () => {
+		expect(PLANS.scale.containers.api.memoryMb).toBe(4915);
 	});
 
 	test("enterprise has unlimited storage (-1 sentinel)", () => {
@@ -39,7 +39,7 @@ describe("plans", () => {
 	});
 
 	test("isValidPlanId narrows correctly", () => {
-		expect(isValidPlanId("hobby")).toBe(true);
+		expect(isValidPlanId("hobby")).toBe(false);
 		expect(isValidPlanId("launch")).toBe(true);
 		expect(isValidPlanId("scale")).toBe(true);
 		expect(isValidPlanId("enterprise")).toBe(true);

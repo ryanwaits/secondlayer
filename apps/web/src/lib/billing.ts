@@ -8,4 +8,4 @@ export interface BillingCaps {
 	alertSentAt: string | null;
 }
 
-export type BillingTier = "hobby" | "launch" | "scale" | "enterprise";
+export type BillingTier = "none" | "launch" | "scale" | "enterprise";

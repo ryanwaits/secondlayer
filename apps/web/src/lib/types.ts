@@ -28,9 +28,9 @@ export interface SubgraphSummary {
 	totalErrors: number;
 	tables: string[];
 	resourceWarning?: {
-		code: "HOBBY_LARGE_REINDEX";
+		code: string;
 		message: string;
-		plan: "hobby";
+		plan?: string;
 		blockRange: number;
 		processorMemoryMb: number;
 		recommendedPlan: "launch";

@@ -8,7 +8,7 @@ describe("buildSessionInstructions", () => {
 			instance: {
 				exists: true,
 				slug: "alex",
-				plan: "hobby",
+				plan: "launch",
 				status: "active",
 				apiUrl: "https://alex.secondlayer.tools",
 			},
@@ -70,7 +70,7 @@ describe("buildSessionInstructions", () => {
 			instance: {
 				exists: true,
 				slug: "alex",
-				plan: "hobby",
+				plan: "launch",
 				status: "active",
 				apiUrl: "https://alex.secondlayer.tools",
 			},

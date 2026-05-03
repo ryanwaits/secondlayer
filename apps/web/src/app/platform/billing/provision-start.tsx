@@ -1,7 +1,8 @@
 "use client";
 
 import type { Plan, PlanId } from "@secondlayer/shared/pricing";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { UpgradeButton } from "./upgrade-button";
 
 function formatPrice(p: Plan): string {
 	if (p.monthlyPriceCents == null) return "Custom";
@@ -36,28 +37,26 @@ export interface ProvisionResponse {
 
 export function ProvisionStart({
 	sessionToken,
+	accountPlan,
 	plans,
 	onProvisioned,
 	onProvisioning,
 }: {
 	sessionToken: string;
+	accountPlan: string;
 	plans: Record<PlanId, Plan>;
 	onProvisioned: (resp: ProvisionResponse) => void;
 	onProvisioning: () => void;
 }) {
-	const provisionPlans: readonly Plan[] = [
-		plans.hobby,
-		plans.launch,
-		plans.scale,
-	];
+	const provisionPlans: readonly Plan[] = [plans.launch, plans.scale];
 
-	// Default to Hobby — zero-friction starting point. Users self-select
-	// Launch+ when they need more compute or want to skip the auto-pause.
-	const [selected, setSelected] = useState<string>("hobby");
+	const [selected, setSelected] = useState<string>(
+		accountPlan === "scale" ? "scale" : "launch",
+	);
 	const [state, setState] = useState<"idle" | "provisioning" | "error">("idle");
 	const [error, setError] = useState<string | null>(null);
 
-	const handleStart = async () => {
+	const handleStart = useCallback(async () => {
 		setState("provisioning");
 		setError(null);
 		onProvisioning();
@@ -80,14 +79,25 @@ export function ProvisionStart({
 			setError(err instanceof Error ? err.message : "Unknown error");
 			setState("error");
 		}
-	};
+	}, [onProvisioned, onProvisioning, selected, sessionToken]);
+
+	useEffect(() => {
+		if (state !== "idle" || accountPlan !== selected) return;
+		if (
+			new URLSearchParams(window.location.search).get("upgrade") !== "success"
+		) {
+			return;
+		}
+		void handleStart();
+	}, [accountPlan, handleStart, selected, state]);
 
 	return (
 		<div>
 			<h1 className="settings-title">Provision your instance</h1>
 			<p className="settings-desc">
 				Pick a plan. We'll provision your dedicated Postgres, API, and subgraph
-				processor. Takes about a minute. Start free, resize anytime.
+				processor. Start with a 30-day trial, then keep the same instance when
+				billing begins.
 			</p>
 
 			<div className="instance-plan-grid">
@@ -111,25 +121,13 @@ export function ProvisionStart({
 								<br />
 								<span>{specs.storage}</span> storage
 							</div>
-							{plan.id === "hobby" && (
-								<div
-									style={{
-										fontSize: 11,
-										color: "var(--text-muted)",
-										marginTop: 8,
-										lineHeight: 1.4,
-									}}
-								>
-									Pauses after 7 days idle. Resumes on first query.
-								</div>
-							)}
 						</button>
 					);
 				})}
 			</div>
 
 			<div className="settings-hint" style={{ marginBottom: 20 }}>
-				Pay for compute, not features. Cancel anytime.
+				Card required. Trial runs 30 days, then billing starts automatically.
 			</div>
 
 			{error && (
@@ -140,14 +138,22 @@ export function ProvisionStart({
 			)}
 
 			<div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-				<button
-					type="button"
-					className="settings-btn primary"
-					disabled={state === "provisioning"}
-					onClick={handleStart}
-				>
-					{state === "provisioning" ? "Provisioning…" : "Create instance"}
-				</button>
+				{accountPlan === selected ? (
+					<button
+						type="button"
+						className="settings-btn primary"
+						disabled={state === "provisioning"}
+						onClick={handleStart}
+					>
+						{state === "provisioning" ? "Provisioning…" : "Create instance"}
+					</button>
+				) : (
+					<UpgradeButton
+						tier={selected as "launch" | "scale"}
+						label={`Start 30-day ${plans[selected as PlanId].displayName} trial`}
+						variant="primary"
+					/>
+				)}
 				<span className="settings-hint" style={{ marginTop: 0 }}>
 					Provisioning usually completes in under a minute.
 				</span>

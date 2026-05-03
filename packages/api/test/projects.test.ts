@@ -59,7 +59,7 @@ describe.skipIf(SKIP)("Projects API tenant ownership", () => {
 	test("account B cannot provision an instance for account A's project", async () => {
 		const res = await app.request(`/projects/${PROJECT_SLUG}/instance`, {
 			method: "POST",
-			body: JSON.stringify({ plan: "hobby" }),
+			body: JSON.stringify({ plan: "launch" }),
 		});
 
 		expect(res.status).toBe(404);
@@ -92,7 +92,11 @@ describe.skipIf(SKIP)("Projects API instance provisioning audit", () => {
 		await cleanupAuditFixture();
 		await db
 			.insertInto("accounts")
-			.values({ id: ACCOUNT_C, email: "project-audit@example.com" })
+			.values({
+				id: ACCOUNT_C,
+				email: "project-audit@example.com",
+				plan: "launch",
+			})
 			.execute();
 		await db
 			.insertInto("projects")
@@ -136,7 +140,7 @@ describe.skipIf(SKIP)("Projects API instance provisioning audit", () => {
 
 		const res = await app.request(`/projects/${AUDIT_PROJECT_SLUG}/instance`, {
 			method: "POST",
-			body: JSON.stringify({ plan: "hobby" }),
+			body: JSON.stringify({ plan: "launch" }),
 		});
 
 		expect(res.status).toBe(502);
@@ -146,7 +150,7 @@ describe.skipIf(SKIP)("Projects API instance provisioning audit", () => {
 			status: 503,
 			detail: "capacity unavailable",
 			projectSlug: AUDIT_PROJECT_SLUG,
-			plan: "hobby",
+			plan: "launch",
 		});
 
 		const rows = await getDb()
@@ -163,12 +167,12 @@ describe.skipIf(SKIP)("Projects API instance provisioning audit", () => {
 		expect(rows[0]?.detail).toMatchObject({
 			route: "projects.instance",
 			projectSlug: AUDIT_PROJECT_SLUG,
-			plan: "hobby",
+			plan: "launch",
 		});
 		expect(rows[1]?.detail).toMatchObject({
 			route: "projects.instance",
 			projectSlug: AUDIT_PROJECT_SLUG,
-			plan: "hobby",
+			plan: "launch",
 			provisioner: { status: 503, body: "capacity unavailable" },
 		});
 	});
@@ -181,7 +185,7 @@ describe.skipIf(SKIP)("Projects API instance provisioning audit", () => {
 		startProvisioner(() =>
 			Response.json({
 				slug: "audit-tenant-ok",
-				plan: "hobby",
+				plan: "launch",
 				apiUrlInternal: "http://audit-tenant-ok-api:3000",
 				apiUrlPublic: "https://audit-tenant-ok.secondlayer.tools",
 				targetDatabaseUrl:
@@ -201,14 +205,14 @@ describe.skipIf(SKIP)("Projects API instance provisioning audit", () => {
 
 		const res = await app.request(`/projects/${AUDIT_PROJECT_SLUG}/instance`, {
 			method: "POST",
-			body: JSON.stringify({ plan: "hobby" }),
+			body: JSON.stringify({ plan: "launch" }),
 		});
 
 		expect(res.status).toBe(201);
 		expect(await res.json()).toMatchObject({
 			tenant: {
 				slug: "audit-tenant-ok",
-				plan: "hobby",
+				plan: "launch",
 				projectId: expect.any(String),
 			},
 			credentials: {
@@ -233,7 +237,7 @@ describe.skipIf(SKIP)("Projects API instance provisioning audit", () => {
 		expect(rows[1]?.detail).toMatchObject({
 			route: "projects.instance",
 			projectSlug: AUDIT_PROJECT_SLUG,
-			plan: "hobby",
+			plan: "launch",
 		});
 	});
 

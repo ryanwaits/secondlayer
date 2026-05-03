@@ -11,12 +11,6 @@ import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
-const HOBBY_CATCHUP_BATCH_CONFIG = {
-	defaultBatchSize: 50,
-	minBatchSize: 25,
-	maxBatchSize: 100,
-	prefetch: false,
-};
 const STANDARD_CATCHUP_BATCH_CONFIG = {
 	defaultBatchSize: 500,
 	minBatchSize: 100,
@@ -34,7 +28,6 @@ type CatchupBatchConfig = {
 };
 
 type CatchupBatchEnv = {
-	TENANT_PLAN?: string;
 	SUBGRAPH_CATCHUP_BATCH_SIZE?: string;
 	SUBGRAPH_CATCHUP_MIN_BATCH_SIZE?: string;
 	SUBGRAPH_CATCHUP_MAX_BATCH_SIZE?: string;
@@ -58,10 +51,7 @@ function parseBoolean(value: string | undefined): boolean | undefined {
 export function resolveCatchupBatchConfig(
 	env: CatchupBatchEnv = process.env as CatchupBatchEnv,
 ): CatchupBatchConfig {
-	const base =
-		env.TENANT_PLAN?.trim().toLowerCase() === "hobby"
-			? HOBBY_CATCHUP_BATCH_CONFIG
-			: STANDARD_CATCHUP_BATCH_CONFIG;
+	const base = STANDARD_CATCHUP_BATCH_CONFIG;
 	const minBatchSize =
 		parsePositiveInt(env.SUBGRAPH_CATCHUP_MIN_BATCH_SIZE) ?? base.minBatchSize;
 	const maxBatchSize =

@@ -438,7 +438,7 @@ function parsePasswordFromUrl(url: string): string | null {
 
 function planFromLabels(labels: Record<string, string> | undefined): PlanId {
 	const plan = labels?.["secondlayer.plan"];
-	return plan && isValidPlanId(plan) ? plan : "hobby";
+	return plan && isValidPlanId(plan) ? plan : "launch";
 }
 
 function allocFromInspect(

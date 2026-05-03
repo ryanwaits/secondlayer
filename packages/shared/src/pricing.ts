@@ -13,7 +13,8 @@
 
 const BYTES_PER_GB: number = 1024 ** 3;
 
-export type PlanId = "hobby" | "launch" | "scale" | "enterprise";
+export type AccountPlanId = "none" | PlanId;
+export type PlanId = "launch" | "scale" | "enterprise";
 
 export interface ContainerAlloc {
 	memoryMb: number;
@@ -40,9 +41,9 @@ export interface Plan {
 	tagline: string;
 	/** Display-only. Bullet list on the plan card. */
 	features: string[];
-	/** Stripe `lookup_key` for monthly recurring tier price. null for hobby/enterprise. */
+	/** Stripe `lookup_key` for monthly recurring tier price. null for enterprise. */
 	stripeLookupKey: string | null;
-	/** Stripe `lookup_key` for annual recurring tier price. null for hobby/enterprise. */
+	/** Stripe `lookup_key` for annual recurring tier price. null for enterprise. */
 	stripeAnnualLookupKey: string | null;
 }
 
@@ -51,11 +52,6 @@ export interface Plan {
 // Allocation within a plan (3 containers per tenant):
 //   Default split (paid tiers)   — PG 50% / proc 30% / api 20%
 //   Sub-1GB total                — PG 60% / proc 25% / api 15%
-//
-// Biased toward PG on Hobby because PG 17's default `shared_buffers` is
-// 128MB — a naive 50/30/20 split on tiny plans leaves PG too little RAM if
-// `shared_buffers` isn't also shrunk. Hobby now sits at 1GB and uses the
-// default paid split.
 //
 // Docker memory limit is a hard cap (OOM kill on overage). CPU is a soft
 // cap via `--cpus` (throttling, not killing). Storage is monitored
@@ -115,26 +111,6 @@ export function allocForTotals(
 // ── Canonical plan data ─────────────────────────────────────────────
 
 export const PLANS: Record<PlanId, Plan> = {
-	hobby: {
-		id: "hobby",
-		displayName: "Hobby",
-		monthlyPriceCents: 0,
-		annualPriceCents: null,
-		totalCpus: 0.5,
-		totalMemoryMb: 1_024,
-		storageLimitMb: 10_240,
-		containers: alloc(1_024, 0.5),
-		tagline: "MVP/demo/side project",
-		features: [
-			"0.5 vCPU · 1 GB RAM",
-			"10 GB storage · auto-pause 7d",
-			"MVP demos + side projects",
-			"Recent-range reindexing",
-			"Community support",
-		],
-		stripeLookupKey: null,
-		stripeAnnualLookupKey: null,
-	},
 	launch: {
 		id: "launch",
 		displayName: "Launch",
@@ -195,12 +171,7 @@ export const PLANS: Record<PlanId, Plan> = {
 	},
 };
 
-export const PLAN_IDS: readonly PlanId[] = [
-	"hobby",
-	"launch",
-	"scale",
-	"enterprise",
-];
+export const PLAN_IDS: readonly PlanId[] = ["launch", "scale", "enterprise"];
 
 export function getPlan(id: string): Plan {
 	const plan = (PLANS as Record<string, Plan | undefined>)[id];
@@ -230,14 +201,14 @@ export function getComputeAllowanceHours(_plan: string): number {
 
 export function getStorageAllowanceBytes(plan: string): number {
 	const planDef = (PLANS as Record<string, Plan | undefined>)[plan];
-	if (!planDef) return PLANS.hobby.storageLimitMb * 1024 * 1024;
+	if (!planDef) return 0;
 	if (planDef.storageLimitMb < 0) return Number.POSITIVE_INFINITY;
 	return planDef.storageLimitMb * 1024 * 1024;
 }
 
-/** Hobby has a hard cap (no overage billing); paid tiers bill $2/GB over allowance. */
+/** Paid tiers bill $2/GB over allowance. Accounts with no plan do not accrue overage. */
 export function hasStorageOverage(plan: string): boolean {
-	return plan !== "hobby" && plan !== "enterprise";
+	return plan !== "none" && plan !== "enterprise";
 }
 
 export function getBasePriceCents(plan: string): number {

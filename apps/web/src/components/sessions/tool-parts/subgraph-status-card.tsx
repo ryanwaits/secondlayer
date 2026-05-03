@@ -8,7 +8,7 @@ interface SubgraphStatus {
 	totalErrors: number;
 	tables?: string[];
 	resourceWarning?: {
-		code: "HOBBY_LARGE_REINDEX";
+		code: string;
 		message: string;
 		blockRange: number;
 		processorMemoryMb: number;

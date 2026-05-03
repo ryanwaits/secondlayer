@@ -14,7 +14,10 @@
 
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
+import {
+	getAccountById,
+	setAccountPlan,
+} from "@secondlayer/shared/db/queries/accounts";
 import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
 import { computeEffectiveCompute } from "@secondlayer/shared/db/queries/tenant-compute-addons";
 import {
@@ -47,7 +50,7 @@ import { getStripeOrNull, resolveSubscriptionItem } from "../lib/stripe.ts";
 import { getPriceIdForTier, isUpgradeableTier } from "../lib/tier-mapping.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
-const VALID_PLANS = new Set(["hobby", "launch", "scale", "enterprise"]);
+const VALID_PLANS = new Set(["launch", "scale", "enterprise"]);
 
 /**
  * Plans a tenant owner is allowed to self-select via these endpoints.
@@ -58,9 +61,9 @@ const VALID_PLANS = new Set(["hobby", "launch", "scale", "enterprise"]);
  * unlimited storage at no cost (enterprise has `monthlyPriceCents: null`,
  * so the Stripe sync block in /me/resize skips it entirely).
  */
-const SELF_SERVE_PLANS = new Set(["hobby", "launch", "scale"]);
+const SELF_SERVE_PLANS = new Set(["launch", "scale"]);
 
-type PlanId = "hobby" | "launch" | "scale" | "enterprise";
+type PlanId = "launch" | "scale" | "enterprise";
 
 const app = new Hono();
 
@@ -87,7 +90,7 @@ app.post("/", async (c) => {
 	})) as { plan?: unknown };
 	if (typeof body.plan !== "string" || !VALID_PLANS.has(body.plan)) {
 		return c.json(
-			{ error: "plan must be one of: hobby, launch, scale, enterprise" },
+			{ error: "plan must be one of: launch, scale, enterprise" },
 			400,
 		);
 	}
@@ -102,6 +105,20 @@ app.post("/", async (c) => {
 		);
 	}
 	const plan = body.plan as PlanId;
+	const account = await getAccountById(getDb(), accountId);
+	if (!account) return c.json({ error: "Account not found" }, 404);
+	if (account.plan !== plan) {
+		return c.json(
+			{
+				error:
+					"Start a 30-day trial or activate a subscription before provisioning this plan.",
+				code: "SUBSCRIPTION_REQUIRED",
+				accountPlan: account.plan,
+				requestedPlan: plan,
+			},
+			409,
+		);
+	}
 
 	await recordProvisioningAudit(getDb(), {
 		accountId,
@@ -268,7 +285,7 @@ app.post("/me/resize", async (c) => {
 	})) as { plan?: unknown };
 	if (typeof body.plan !== "string" || !VALID_PLANS.has(body.plan)) {
 		return c.json(
-			{ error: "plan must be one of: hobby, launch, scale, enterprise" },
+			{ error: "plan must be one of: launch, scale, enterprise" },
 			400,
 		);
 	}
@@ -301,32 +318,14 @@ app.post("/me/resize", async (c) => {
 		return c.json({ tenant: publicView(tenant), unchanged: true });
 	}
 
-	// Tier transitions:
-	//   hobby → paid     — must go through Stripe Checkout (collect card).
-	//                      Return 409 so the UI redirects to /billing/upgrade.
-	//   paid → paid      — provisioner resize, then Stripe sub item swap.
-	//   paid → hobby     — provisioner resize, then Stripe sub cancel.
-	//   hobby → hobby    — no-op container resize, no Stripe op.
-	//
 	// **Provisioner runs BEFORE Stripe** so a Stripe failure doesn't leave
 	// the customer paying for a tier they don't have. If Stripe fails after
 	// a successful provisioner resize, the customer keeps the resource they
 	// got (good UX), and we surface a "needs_billing_sync" alert for ops to
 	// reconcile manually. Inverting this order produces the much-worse
 	// "customer paid, didn't get the upgrade" state.
-	const oldIsPaid = tenant.plan !== "hobby" && tenant.plan !== "enterprise";
-	const newIsPaid = newPlan !== "hobby" && newPlan !== "enterprise";
-
-	if (!oldIsPaid && newIsPaid) {
-		return c.json(
-			{
-				error:
-					"Use POST /api/billing/upgrade to add a payment method before moving to a paid plan.",
-				code: "USE_UPGRADE_FLOW",
-			},
-			409,
-		);
-	}
+	const oldIsPaid = tenant.plan !== "enterprise";
+	const newIsPaid = newPlan !== "enterprise";
 
 	// If we'll need a Stripe price ID later, fail fast before we resize —
 	// no point recreating containers if the env is misconfigured.
@@ -388,7 +387,7 @@ app.post("/me/resize", async (c) => {
 	// until ops reconciles. Log loudly but don't return failure — that
 	// would tell the user "your resize failed" when in fact they did
 	// get the new resources.
-	if (oldIsPaid && (newIsPaid || newPlan === "hobby")) {
+	if (oldIsPaid && newIsPaid) {
 		const stripe = getStripeOrNull();
 		const account = await getAccountById(getDb(), accountId);
 		if (stripe && account?.stripe_customer_id) {
@@ -404,11 +403,6 @@ app.post("/me/resize", async (c) => {
 						await stripe.subscriptions.update(sub.subscriptionId, {
 							items: [{ id: sub.itemId, price: newPriceId }],
 							proration_behavior: "create_prorations",
-						});
-					} else if (newPlan === "hobby") {
-						await stripe.subscriptions.cancel(sub.subscriptionId, {
-							invoice_now: true,
-							prorate: true,
 						});
 					}
 				}
@@ -517,7 +511,7 @@ app.post("/me/resume", async (c) => {
 		return c.json(
 			{
 				error:
-					"Tenant is paused at the Hobby limit. Upgrade to Launch to resume processing from the last processed block.",
+					"Tenant is paused at its plan limit. Upgrade to resume processing from the last processed block.",
 				code: "LIMIT_UPGRADE_REQUIRED",
 			},
 			409,
@@ -637,53 +631,12 @@ app.post("/me/keys/rotate", async (c) => {
 // + current `service_gen`, so the tenant API's existing auth middleware
 // validates it without any new code path.
 //
-// Auto-resume: if the tenant is a Hobby instance that was auto-paused for
-// idleness, resume it BEFORE minting. Every tenant-scoped CLI command
-// passes through this endpoint, so a paused Hobby tenant transparently
-// wakes up on the user's next `sl subgraphs list` / dashboard access /
-// etc. Paid-tier suspensions (manual `sl instance suspend`) are not
-// auto-resumed — that was a deliberate user action.
-
 app.post("/me/keys/mint-ephemeral", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 
 	const tenant = await getTenantByAccount(getDb(), accountId);
 	if (!tenant) return c.json({ error: "No tenant for this account" }, 404);
-
-	if (tenant.status === "suspended" && tenant.plan === "hobby") {
-		logger.info("Auto-resuming idle Hobby tenant for mint-ephemeral", {
-			slug: tenant.slug,
-		});
-		try {
-			await provisionerResume(tenant.slug);
-			await setTenantStatus(getDb(), tenant.slug, "active");
-			await recordProvisioningAudit(getDb(), {
-				tenantId: tenant.id,
-				tenantSlug: tenant.slug,
-				accountId,
-				actor: `auto-resume:${accountId}`,
-				event: "resume",
-				status: "ok",
-				detail: { reason: "hobby_auto_resume_on_mint" },
-			});
-		} catch (err) {
-			await recordProvisioningAudit(getDb(), {
-				tenantId: tenant.id,
-				tenantSlug: tenant.slug,
-				accountId,
-				actor: `auto-resume:${accountId}`,
-				event: "resume",
-				status: "error",
-				detail: { reason: "hobby_auto_resume_on_mint" },
-				error: err instanceof Error ? err.message : String(err),
-			});
-			if (err instanceof ProvisionerError) {
-				return c.json({ error: "Resume failed", detail: err.body }, 502);
-			}
-			throw err;
-		}
-	}
 
 	const creds = await getTenantCredentials(getDb(), tenant.slug);
 	if (!creds) {
@@ -891,6 +844,7 @@ app.delete("/me", async (c) => {
 	}
 
 	await deleteTenant(getDb(), tenant.slug);
+	await setAccountPlan(getDb(), accountId, "none");
 	// Record AFTER deleteTenant so the FK cascade (ON DELETE SET NULL for
 	// tenant_id) leaves the audit row intact with the slug preserved.
 	await recordProvisioningAudit(getDb(), {
@@ -912,9 +866,9 @@ type TenantRow = Awaited<ReturnType<typeof getTenantByAccount>>;
 function publicView(tenant: NonNullable<TenantRow>) {
 	const limitReason =
 		tenant.status === "limit_warning"
-			? "Hobby storage is above 80% of the plan limit. Upgrade to Launch before processing pauses."
+			? "Storage is above 80% of the plan limit. Upgrade before processing pauses."
 			: tenant.status === "paused_limit"
-				? "Hobby limit reached. Processing is paused until the tenant is upgraded."
+				? "Plan limit reached. Processing is paused until the tenant is upgraded."
 				: null;
 	return {
 		slug: tenant.slug,

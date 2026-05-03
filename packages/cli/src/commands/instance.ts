@@ -15,7 +15,8 @@ import {
 import { readActiveProject } from "../lib/project-file.ts";
 import { isOssMode } from "../lib/resolve-tenant.ts";
 
-type Plan = "hobby" | "launch" | "scale" | "enterprise";
+type Plan = "launch" | "scale" | "enterprise";
+type SelfServePlan = "launch" | "scale";
 const INSTANCE_CREATE_TIMEOUT_MS = 180_000;
 
 interface TenantSummary {
@@ -47,13 +48,13 @@ export function registerInstanceCommand(program: Command): void {
 	instance
 		.command("create")
 		.description("Provision a new dedicated instance for the active project")
-		.option("--plan <plan>", "Plan: hobby (free) | launch | scale", "hobby")
+		.option("--plan <plan>", "Plan: launch | scale", "launch")
 		.action(async (opts: { plan: string }) => {
 			guardOssMode();
 			const activeSlug = await requireActiveProject();
-			const plan = opts.plan as Plan;
-			if (!["hobby", "launch", "scale"].includes(plan)) {
-				logError(`Invalid plan: ${plan} (expected hobby, launch, or scale)`);
+			const plan = opts.plan as SelfServePlan;
+			if (!["launch", "scale"].includes(plan)) {
+				logError(`Invalid plan: ${plan} (expected launch or scale)`);
 				process.exit(1);
 			}
 
@@ -79,6 +80,14 @@ export function registerInstanceCommand(program: Command): void {
 					);
 					process.exit(1);
 				}
+				if (
+					err instanceof CliHttpError &&
+					err.code === "SUBSCRIPTION_REQUIRED"
+				) {
+					spinner.fail("Trial required before provisioning.");
+					await printTrialCheckoutUrl(plan);
+					process.exit(1);
+				}
 				spinner.fail("Provision failed.");
 				handleInstanceError(err, "provision instance");
 			}
@@ -95,19 +104,15 @@ export function registerInstanceCommand(program: Command): void {
 	instance
 		.command("resize")
 		.description("Change your instance plan (brief downtime)")
-		.option("--plan <plan>", "Target plan: hobby | launch | scale")
+		.option("--plan <plan>", "Target plan: launch | scale")
 		.option("--yes", "Skip confirm")
 		.action(async (opts: { plan?: string; yes?: boolean }) => {
 			guardOssMode();
-			let target = opts.plan as Plan | undefined;
+			let target = opts.plan as SelfServePlan | undefined;
 			if (!target) {
 				const answer = await select({
 					message: "Target plan",
 					choices: [
-						{
-							value: "hobby",
-							name: "Hobby — free (0.5 vCPU · 1 GB · 10 GB, auto-pause after 7d idle)",
-						},
 						{
 							value: "launch",
 							name: "Launch — $99/mo (2 vCPU · 6 GB · 100 GB)",
@@ -118,7 +123,11 @@ export function registerInstanceCommand(program: Command): void {
 						},
 					],
 				});
-				target = answer as Plan;
+				target = answer as SelfServePlan;
+			}
+			if (!["launch", "scale"].includes(target)) {
+				logError(`Invalid plan: ${target} (expected launch or scale)`);
+				process.exit(1);
 			}
 
 			if (!opts.yes) {
@@ -361,6 +370,19 @@ export function registerInstanceCommand(program: Command): void {
 				handleInstanceError(err, "revoke bastion key");
 			}
 		});
+}
+
+async function printTrialCheckoutUrl(plan: "launch" | "scale"): Promise<void> {
+	const res = await httpPlatform<{ url?: string }>("/api/billing/upgrade", {
+		method: "POST",
+		body: { tier: plan },
+	});
+	if (!res.url) {
+		logError("No checkout URL returned. Open Billing in the dashboard.");
+		return;
+	}
+	info("Start your 30-day trial, then rerun this command:");
+	console.log(green(res.url));
 }
 
 // ── helpers ───────────────────────────────────────────────────────────

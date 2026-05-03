@@ -19,7 +19,6 @@ type SyncResult =
 	| { status: "noop"; reason: string; slug?: string };
 
 const PLAN_RANK: Record<string, number> = {
-	hobby: 0,
 	launch: 1,
 	scale: 2,
 	enterprise: 3,

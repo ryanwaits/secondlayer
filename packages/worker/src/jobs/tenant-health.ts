@@ -21,11 +21,7 @@ import {
 	setTenantStatus,
 } from "@secondlayer/shared/db/queries/tenants";
 import { getInstanceMode } from "@secondlayer/shared/mode";
-import {
-	getTenantStatus,
-	getTenantStorage,
-	suspendTenant,
-} from "./provisioner-rpc.ts";
+import { getTenantStatus, getTenantStorage } from "./provisioner-rpc.ts";
 
 const INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 const STORAGE_WARN_PCT = 80;
@@ -73,17 +69,6 @@ async function checkAllTenants(): Promise<void> {
 				(c) => c.state !== "running" && c.state !== "restarting",
 			);
 			if (unhealthy) {
-				if (tenant.plan === "hobby" && unhealthy.name.includes("proc")) {
-					await suspendTenant(tenant.slug);
-					await setTenantStatus(db, tenant.slug, "paused_limit");
-					logger.error("Hobby tenant processor failed; paused at plan limit", {
-						slug: tenant.slug,
-						container: unhealthy.name,
-						state: unhealthy.state,
-						action: "paused_limit",
-					});
-					continue;
-				}
 				logger.error("Tenant container unhealthy", {
 					slug: tenant.slug,
 					container: unhealthy.name,
@@ -127,15 +112,14 @@ async function checkAllTenants(): Promise<void> {
 				});
 			}
 
-			if (tenant.plan !== "hobby" || tenant.storage_limit_mb <= 0) {
+			if (tenant.storage_limit_mb <= 0) {
 				continue;
 			}
 
 			const usagePct = (storage.sizeMb / tenant.storage_limit_mb) * 100;
 			if (usagePct >= STORAGE_PAUSE_PCT) {
-				await suspendTenant(tenant.slug);
 				await setTenantStatus(db, tenant.slug, "paused_limit");
-				logger.error("Hobby tenant paused at storage limit", {
+				logger.error("Tenant paused at storage limit", {
 					slug: tenant.slug,
 					sizeMb: storage.sizeMb,
 					limitMb: tenant.storage_limit_mb,
@@ -146,7 +130,7 @@ async function checkAllTenants(): Promise<void> {
 				if (tenant.status !== "limit_warning") {
 					await setTenantStatus(db, tenant.slug, "limit_warning");
 				}
-				logger.warn("Hobby tenant storage near limit", {
+				logger.warn("Tenant storage near limit", {
 					slug: tenant.slug,
 					sizeMb: storage.sizeMb,
 					limitMb: tenant.storage_limit_mb,
@@ -155,7 +139,7 @@ async function checkAllTenants(): Promise<void> {
 				});
 			} else if (tenant.status === "limit_warning") {
 				await setTenantStatus(db, tenant.slug, "active");
-				logger.info("Hobby tenant storage back under warning threshold", {
+				logger.info("Tenant storage back under warning threshold", {
 					slug: tenant.slug,
 					sizeMb: storage.sizeMb,
 					limitMb: tenant.storage_limit_mb,

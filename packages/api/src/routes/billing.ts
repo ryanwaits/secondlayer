@@ -105,10 +105,12 @@ app.post("/upgrade", async (c) => {
 	const session = await stripe.checkout.sessions.create({
 		mode: "subscription",
 		customer: stripeCustomerId,
+		payment_method_collection: "always",
 		line_items: [{ price: priceId, quantity: 1 }],
 		success_url: `${dashboardBaseUrl()}/platform/billing?upgrade=success`,
 		cancel_url: `${dashboardBaseUrl()}/platform/billing?upgrade=cancelled`,
 		subscription_data: {
+			trial_period_days: 30,
 			metadata: {
 				secondlayer_account_id: account.id,
 				tier: body.tier,

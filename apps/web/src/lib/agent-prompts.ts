@@ -53,7 +53,7 @@ export const AGENT_SETUP = `Ensure setup once, skipping any step already done:
 - Skill: \`bunx skills add ryanwaits/secondlayer --skill secondlayer -y\`
 - CLI: \`bun add -g @secondlayer/cli\`
 - Auth: \`sl login\` then \`sl whoami\`
-- Instance: \`sl instance info\`; if missing, create one with \`sl instance create --plan hobby\``;
+- Instance: \`sl instance info\`; if missing, start a trial from Billing or run \`sl instance create --plan launch\``;
 
 function withSetup(body: string): string {
 	return `${AGENT_SETUP}

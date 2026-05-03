@@ -20,7 +20,7 @@ bun add -g @secondlayer/cli
 sl login
 sl project create my-app
 sl project use my-app
-sl instance create --plan hobby
+sl instance create --plan launch
 
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
@@ -74,7 +74,7 @@ One instance per project. The platform API spawns a dedicated `sl-pg-{slug}`,
 
 | Command | What it does |
 |---|---|
-| `sl instance create --plan <hobby\|launch\|scale>` | Provision containers. Boxed reveal of `serviceKey` + `anonKey` (shown once). |
+| `sl instance create --plan <launch\|scale>` | Provision containers after trial/subscription activation. Boxed reveal of `serviceKey` + `anonKey` (shown once). |
 | `sl instance info` | Plan, status, resource usage |
 | `sl instance resize --plan <...>` | Recreate containers with new CPU/memory (~30s downtime) |
 | `sl instance suspend` / `resume` | Stop/start containers, volume preserved |

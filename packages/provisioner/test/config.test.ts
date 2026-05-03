@@ -57,7 +57,7 @@ describe("provisioner runtime secrets config", () => {
 		const common = {
 			image: "secondlayer-api:latest",
 			slug: "tenant1",
-			plan: "hobby" as const,
+			plan: "launch" as const,
 			alloc: { memoryMb: 256, cpus: 0.5 },
 			targetDatabaseUrl: "postgres://target",
 			sourceDatabaseUrl: "postgres://source",

@@ -33,7 +33,7 @@ bun add -g @secondlayer/cli
 sl login
 sl project create my-app
 sl project use my-app
-sl instance create --plan hobby
+sl instance create --plan launch
 sl whoami
 ```
 
