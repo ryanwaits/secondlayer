@@ -27,6 +27,7 @@ import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
+import streamsRouter from "./routes/streams.ts";
 import subgraphsRouter, {
 	startSubgraphCache,
 	stopSubgraphCache,
@@ -186,6 +187,7 @@ if (mode === "platform") {
 	app.route("/api/tenants", tenantsRouter);
 }
 app.route("/", statusRouter);
+app.route("/v1/streams", streamsRouter);
 
 // Start server
 const PORT = Number.parseInt(process.env.PORT || "3800");

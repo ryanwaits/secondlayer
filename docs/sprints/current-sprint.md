@@ -29,9 +29,9 @@ Ordered by sequence. Stop work and re-plan if a task slips by more than a day.
 **Done when:** Schema doc merged; fixture test passes locally.
 
 ### 2. Paid auth + rate limit at the gateway (Mon–Tue)
-- [ ] Wire bearer-token auth into `packages/api`. Scopes: `streams:read`.
-- [ ] Per-tier rate limit middleware (10 / 50 / 250 req/s).
-- [ ] Per-tier retention window enforcement (7 / 30 / 90 days). For now, hard-code the windows; billing aggregation comes later in the phase.
+- [x] Wire bearer-token auth into `packages/api`. Scopes: `streams:read`.
+- [x] Per-tier rate limit middleware (10 / 50 / 250 req/s).
+- [x] Per-tier retention window enforcement (7 / 30 / 90 days). For now, hard-code the windows; billing aggregation comes later in the phase.
 
 **Done when:** A test tenant key on the Free tier gets 429'd at 11 req/s; a Build key passes through at 50.
 
@@ -90,6 +90,7 @@ If anything from this list creeps into the week, push back and link to this sect
 Append a short bullet at the end of each day. Two lines max per day. The next-session agent should be able to read this and know exactly where things stand.
 
 - **Mon May 4:** Shipped PR #14 locking Stacks Streams L1 schema/cursor contract, PRD resolutions, 100-event fixture, and cursor regression test.
+- **Mon May 4:** Wired Streams bearer auth, per-tier req/s limits, retention gate, and `/events` + `/tip` stubs; `bun test` and API typecheck green.
 - **Tue May 5:** —
 - **Wed May 6:** —
 - **Thu May 7:** —
@@ -119,3 +120,8 @@ Run through this Sunday evening before archiving.
 - Cursor format is a 1.0 contract — do not change it without explicit approval and a migration plan.
 - Streams is read-only. If a task feels like push semantics, you've drifted into the wrong product. Stop.
 - Naming: it's "Stacks Streams," never "Streaming," never "Stream API."
+
+## Tech debt
+
+- Wall-clock retention cutoff before external-customer launch in Phase 2; see `packages/api/src/streams/tiers.ts` TODO.
+- Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
