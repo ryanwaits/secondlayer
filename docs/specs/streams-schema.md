@@ -30,7 +30,7 @@ L1 event types are exactly those the chain natively emits. Platform-level signal
 
 Cursor format is `<block_height>:<event_index>`. `event_index` is the Nth real chain-emitted event in a block, monotonic across all transactions in canonical transaction order, starting at 0. No synthetic slots. No nulls. No tagged unions. This is a 1.0 contract.
 
-`tx_index` is the 0-indexed position of the parent transaction within the block. Use it to group events by transaction without adding synthetic records.
+`tx_index` is the 0-indexed position of the parent transaction within the block. `tx_index` covers every transaction in canonical block order, including coinbase, 0-indexed. Use it to group events by transaction without adding synthetic records.
 
 ## Event Types
 
@@ -43,9 +43,9 @@ Cursor format is `<block_height>:<event_index>`. `event_index` is the Nth real c
 | `ft_transfer` | SIP-010 | `{ asset_identifier, sender, recipient, amount }` | `{ "asset_identifier": "SP...token::sbtc", "sender": "SP...", "recipient": "SP...", "amount": "42" }` |
 | `ft_mint` | SIP-010 | `{ asset_identifier, recipient, amount }` | `{ "asset_identifier": "SP...token::sbtc", "recipient": "SP...", "amount": "42" }` |
 | `ft_burn` | SIP-010 | `{ asset_identifier, sender, amount }` | `{ "asset_identifier": "SP...token::sbtc", "sender": "SP...", "amount": "42" }` |
-| `nft_transfer` | SIP-009 | `{ asset_identifier, sender, recipient, value }` | `{ "asset_identifier": "SP...nft::id", "sender": "SP...", "recipient": "SP...", "value": { "repr": "u1" } }` |
-| `nft_mint` | SIP-009 | `{ asset_identifier, recipient, value }` | `{ "asset_identifier": "SP...nft::id", "recipient": "SP...", "value": { "repr": "u1" } }` |
-| `nft_burn` | SIP-009 | `{ asset_identifier, sender, value }` | `{ "asset_identifier": "SP...nft::id", "sender": "SP...", "value": { "repr": "u1" } }` |
+| `nft_transfer` | SIP-009 | `{ asset_identifier, sender, recipient, value: { hex, repr } }` | `{ "asset_identifier": "SP...nft::id", "sender": "SP...", "recipient": "SP...", "value": { "hex": "0x0100000000000000000000000000000001", "repr": "u1" } }` |
+| `nft_mint` | SIP-009 | `{ asset_identifier, recipient, value: { hex, repr } }` | `{ "asset_identifier": "SP...nft::id", "recipient": "SP...", "value": { "hex": "0x0100000000000000000000000000000001", "repr": "u1" } }` |
+| `nft_burn` | SIP-009 | `{ asset_identifier, sender, value: { hex, repr } }` | `{ "asset_identifier": "SP...nft::id", "sender": "SP...", "value": { "hex": "0x0100000000000000000000000000000001", "repr": "u1" } }` |
 | `print` | core | `{ contract_id, topic, value }` | `{ "contract_id": "SP...contract", "topic": "print", "value": { "hex": "0x...", "repr": "(tuple ...)" } }` |
 
 ## Reorg Metadata
@@ -90,6 +90,32 @@ Client loop: call `/events?cursor=<last>`, process events, invalidate local stat
     "sender": "SP2C2YFP3X7QVRGQ08B7SK7M16B6AN7F7B0Z6YZER",
     "recipient": "SP1Q1D3K3V7W7W8YJ6RM62C6F2G5V8MEQ7J8D1R3H",
     "amount": "250000"
+  },
+  "ts": "2026-05-02T21:43:00Z"
+}
+```
+
+NFT values use the same `{ hex, repr }` shape as print values:
+
+```json
+{
+  "cursor": "182431:15",
+  "block_height": 182431,
+  "index_block_hash": "0x8d7bece71b8b2ec71d102e7a95c0e3b4aaf55fb9e1df3b9844dc728d89b98e74",
+  "burn_block_height": 871233,
+  "tx_id": "0x70bc8f5c8bd17f9b818c5ab9c5e87024b6d0efb8c6c3a905551a3e6d01f92db0",
+  "tx_index": 3,
+  "event_index": 15,
+  "event_type": "nft_transfer",
+  "contract_id": "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.example-nft",
+  "payload": {
+    "asset_identifier": "SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.example-nft::token-id",
+    "sender": "SP2C2YFP3X7QVRGQ08B7SK7M16B6AN7F7B0Z6YZER",
+    "recipient": "SP1Q1D3K3V7W7W8YJ6RM62C6F2G5V8MEQ7J8D1R3H",
+    "value": {
+      "hex": "0x0100000000000000000000000000000001",
+      "repr": "u1"
+    }
   },
   "ts": "2026-05-02T21:43:00Z"
 }

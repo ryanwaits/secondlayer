@@ -28,4 +28,13 @@ describe("Stacks Streams cursor fixtures", () => {
 			});
 		}
 	});
+
+	test("rejects non-canonical cursor spellings", () => {
+		expect(() => decodeStreamsCursor("00182431:14")).toThrow(
+			"Invalid Streams cursor",
+		);
+		expect(() => decodeStreamsCursor("182431:014")).toThrow(
+			"Invalid Streams cursor",
+		);
+	});
 });
