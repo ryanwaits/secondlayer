@@ -1,7 +1,7 @@
 import { getTargetDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import type { DecodedEventRow } from "@secondlayer/sdk";
 import type { Generated, Kysely } from "kysely";
-import type { DecodedEventRow } from "./ft-transfer-decoder.ts";
 
 export const FT_TRANSFER_DECODER_NAME = "l2.ft_transfer.v1";
 

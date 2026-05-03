@@ -11,6 +11,7 @@ Second Layer ships a small, opinionated set of products. Every product is a thin
 | Stacks Streams | L1 | Indexers, archivers, infra teams | Phase 1 |
 | Stacks Index | L2 | App developers | Phase 1 |
 | Stacks Subgraphs | L3 | App developers building custom views | Live |
+| `@secondlayer/sdk` | L1 / L2 / L3 | TypeScript developers | Phase 1 |
 | Subscriptions | L2 / L3 | App developers needing tail/push semantics | Live |
 | MCP Server | L1 / L2 / L3 | AI agents, IDE integrations | Live (hosted on Scale+) |
 | Stacks Datasets | L2 | Ecosystem, researchers, dashboards | Phase 2 |
@@ -42,6 +43,10 @@ Decoded chain events as a REST API.
 - **Who uses it.** App developers, dashboards, explorers, anyone who wants "show me all sBTC transfers for address X" without writing decoders.
 - **Shape.** REST. Standard filter/sort/paginate grammar. SQL read replica on Scale+.
 - **Guarantees.** Eventually consistent with L1, target lag <5s p95, published on status page.
+
+## `@secondlayer/sdk`
+
+TypeScript SDK for Stacks developers building on Second Layer. It is more than a thin HTTP wrapper: v0 starts the Kourier helper-function surface with typed Streams access, a tailing consumer, `isFtTransfer`, and `decodeFtTransfer`, so developers can filter and process Stacks idioms without rebuilding decoders.
 
 ## Stacks Subgraphs
 

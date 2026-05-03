@@ -1,4 +1,16 @@
-import type { StreamsEvent } from "../streams-events.ts";
+import type { StreamsEvent } from "./types.ts";
+
+export type FtTransferPayload = {
+	asset_identifier: string;
+	sender: string;
+	recipient: string;
+	amount: string;
+};
+
+export type FtTransferEvent = StreamsEvent & {
+	event_type: "ft_transfer";
+	payload: FtTransferPayload;
+};
 
 export type DecodedFtTransferPayload = {
 	asset_identifier: string;
@@ -9,20 +21,22 @@ export type DecodedFtTransferPayload = {
 	amount: string;
 };
 
-export type DecodedEventRow = {
+export type DecodedFtTransfer = {
 	cursor: string;
 	block_height: number;
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
-	event_type: string;
+	event_type: "ft_transfer";
 	decoded_payload: DecodedFtTransferPayload;
 	source_cursor: string;
 };
 
+export type DecodedEventRow = DecodedFtTransfer;
+
 function requireString(
 	payload: Record<string, unknown>,
-	field: string,
+	field: keyof FtTransferPayload,
 ): string {
 	const value = payload[field];
 	if (typeof value !== "string" || value.length === 0) {
@@ -45,8 +59,14 @@ function parseAssetIdentifier(assetIdentifier: string): {
 	};
 }
 
-export function decodeFtTransfer(event: StreamsEvent): DecodedEventRow | null {
-	if (event.event_type !== "ft_transfer") return null;
+export function isFtTransfer(event: StreamsEvent): event is FtTransferEvent {
+	return event.event_type === "ft_transfer";
+}
+
+export function decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer {
+	if (!isFtTransfer(event)) {
+		throw new Error(`Expected ft_transfer event, got ${event.event_type}`);
+	}
 
 	const payload = event.payload;
 	const assetIdentifier = requireString(payload, "asset_identifier");

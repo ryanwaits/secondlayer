@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { consumeFtTransferDecodedEvents } from "@secondlayer/indexer/l2/decoder";
-import { createHttpStreamsEventsFetcher } from "@secondlayer/indexer/l2/streams-client";
+import { createHttpStreamsEventsFetcher } from "@secondlayer/sdk";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
@@ -181,7 +181,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 				}),
 				maxPages: 1,
 			}),
-		).rejects.toThrow("Streams /events returned 401");
+		).rejects.toThrow("API key");
 	});
 
 	test("consumes /events in-process and writes decoded ft_transfer rows", async () => {

@@ -223,6 +223,7 @@ Clients dedupe by cursor and treat inline `/events` `reorgs` records as a signal
 ## SDK and docs
 
 - TypeScript SDK in `packages/sdk` ships a `StreamsClient` with cursor-paginated iteration helpers and a reference dedupe-by-cursor pattern.
+- v1 ships `@secondlayer/sdk` with the first Kourier-style helper: `isFtTransfer` and `decodeFtTransfer` over `ft_transfer` Streams events.
 - Reference docs include: quickstart, schema for every `event_type`, reorg handling guide, tier limits page.
 - One worked example: "Build a custom sBTC transfer indexer in 50 lines."
 

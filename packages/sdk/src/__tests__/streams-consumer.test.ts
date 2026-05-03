@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { StreamsEvent } from "../streams-events.ts";
 import {
 	consumeStreamsEvents,
+	type StreamsEvent,
 	type StreamsEventsEnvelope,
-} from "./streams-client.ts";
+} from "../index.ts";
 
 const TIP = {
 	block_height: 10,

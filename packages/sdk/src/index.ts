@@ -23,3 +23,34 @@ export type {
 } from "./subscriptions/client.ts";
 export { ApiError, VersionConflictError } from "./errors.ts";
 export { verifyWebhookSignature } from "./webhooks.ts";
+export {
+	createStreamsClient,
+	createHttpStreamsEventsFetcher,
+	consumeStreamsEvents,
+	decodeFtTransfer,
+	isFtTransfer,
+	AuthError,
+	RateLimitError,
+	StreamsServerError,
+	ValidationError,
+} from "./streams/index.ts";
+export type {
+	DecodedEventRow,
+	DecodedFtTransfer,
+	DecodedFtTransferPayload,
+	FetchLike,
+	FtTransferEvent,
+	FtTransferPayload,
+	Sleep,
+	StreamsClient,
+	StreamsEvent,
+	StreamsEventPayload,
+	StreamsEventsEnvelope,
+	StreamsEventsFetcher,
+	StreamsEventsFetchParams,
+	StreamsEventsListParams,
+	StreamsEventsStreamParams,
+	StreamsEventType,
+	StreamsReorg,
+	StreamsTip,
+} from "./streams/index.ts";

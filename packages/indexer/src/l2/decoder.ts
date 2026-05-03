@@ -1,12 +1,12 @@
 import type { Database } from "@secondlayer/shared/db/schema";
-import type { Kysely } from "kysely";
-import { decodeFtTransfer } from "./ft-transfer-decoder.ts";
 import {
 	consumeStreamsEvents,
 	createHttpStreamsEventsFetcher,
+	decodeFtTransfer,
 	type Sleep,
 	type StreamsEventsFetcher,
-} from "./streams-client.ts";
+} from "@secondlayer/sdk";
+import type { Kysely } from "kysely";
 import {
 	FT_TRANSFER_DECODER_NAME,
 	readDecoderCheckpoint,
@@ -45,8 +45,8 @@ export async function consumeFtTransferDecodedEvents(opts?: {
 		maxEmptyPolls: opts?.maxEmptyPolls,
 		onBatch: async (events, envelope) => {
 			const rows = events
-				.map((event) => decodeFtTransfer(event))
-				.filter((event): event is NonNullable<typeof event> => event !== null);
+				.filter((event) => event.event_type === "ft_transfer")
+				.map((event) => decodeFtTransfer(event));
 			await writeDecodedEvents(rows, { db });
 			decoded += rows.length;
 
