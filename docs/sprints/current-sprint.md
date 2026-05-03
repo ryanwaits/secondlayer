@@ -130,3 +130,7 @@ Run through this Sunday evening before archiving.
 - Legacy `parseTransaction` / `transactions` path is now indexer-internal, not L2. Plan formal retirement in a future PRD.
 - `client.events.stream()` tails until aborted, while `client.events.consume()` exposes `maxPages` / `maxEmptyPolls` for bounded ETL runs. Track whether that asymmetry should stay intentional or become a shared option model.
 - SDK helper backlog: add pure helpers/decoders for `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, and `print`.
+- Runtime Streams token store: adding or rotating shared/public keys still requires editing `DEFAULT_STREAMS_TOKENS` and redeploying API. Move to DB-backed or env-backed lookup when there is a second public/shared key.
+- Status incident file resolution: `readIncidentFile` checks candidate `process.cwd()` paths and silently falls back to "No active incidents". Replace with one explicit path and hard failure if the file is missing.
+- Status last-checked UX: absolute UTC is v0; relative display ("checked 2m ago") is v0.5.
+- SDK docs: keep `sk-sl_streams_status_public` documented as a public, non-secret Free-tier status-page key.
