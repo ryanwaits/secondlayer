@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/scaffold",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -10,7 +10,10 @@
 			"import": "./dist/index.js"
 		}
 	},
-	"files": ["dist", "README.md"],
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -19,7 +22,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/subgraphs": "^1.3.3"
+		"@secondlayer/subgraphs": "^2.0.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
