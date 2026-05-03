@@ -3,36 +3,28 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { consumeFtTransferDecodedEvents } from "@secondlayer/indexer/l2/decoder";
 import { createHttpStreamsEventsFetcher } from "@secondlayer/indexer/l2/streams-client";
+import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
+const INTERNAL_STREAMS_KEY = "sk-sl_streams_l2_enterprise_test";
+const INTERNAL_STREAMS_TOKENS: StreamsTokenStore = new Map([
+	[
+		INTERNAL_STREAMS_KEY,
+		{
+			tenant_id: "tenant_streams_l2_internal",
+			tier: "enterprise",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+]);
 
 describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 	const db = HAS_DB ? getDb() : null;
 
 	beforeEach(async () => {
 		if (!db) return;
-		await sql`
-      CREATE TABLE IF NOT EXISTS decoded_events (
-        cursor text PRIMARY KEY,
-        block_height bigint NOT NULL,
-        tx_id text NOT NULL,
-        tx_index integer NOT NULL,
-        event_index integer NOT NULL,
-        event_type text NOT NULL,
-        decoded_payload jsonb NOT NULL,
-        source_cursor text NOT NULL,
-        created_at timestamp NOT NULL DEFAULT now()
-      )
-    `.execute(db);
-		await sql`
-      CREATE TABLE IF NOT EXISTS l2_decoder_checkpoints (
-        decoder_name text PRIMARY KEY,
-        last_cursor text,
-        updated_at timestamp NOT NULL DEFAULT now()
-      )
-    `.execute(db);
 		await sql`DELETE FROM decoded_events`.execute(db);
 		await sql`DELETE FROM l2_decoder_checkpoints`.execute(db);
 		await sql`DELETE FROM events`.execute(db);
@@ -133,6 +125,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		app.route(
 			"/v1/streams",
 			createStreamsRouter({
+				tokens: INTERNAL_STREAMS_TOKENS,
 				getTip: () => ({
 					block_height: 1,
 					index_block_hash: "0x01",
@@ -144,7 +137,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 
 		return createHttpStreamsEventsFetcher({
 			baseUrl: "http://secondlayer.test",
-			apiKey: "sk-sl_streams_enterprise_test",
+			apiKey: INTERNAL_STREAMS_KEY,
 			fetchImpl: async (input, init) => {
 				const request =
 					input instanceof Request
@@ -154,6 +147,42 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			},
 		});
 	}
+
+	test("rejects the decoder when its internal Streams key is not authorized", async () => {
+		if (!db) throw new Error("missing db");
+
+		await expect(
+			consumeFtTransferDecodedEvents({
+				db,
+				fetchEvents: createHttpStreamsEventsFetcher({
+					baseUrl: "http://secondlayer.test",
+					apiKey: "sk-sl_streams_bad_internal_test",
+					fetchImpl: async (input, init) => {
+						const app = new Hono();
+						app.onError(errorHandler);
+						app.route(
+							"/v1/streams",
+							createStreamsRouter({
+								tokens: INTERNAL_STREAMS_TOKENS,
+								getTip: () => ({
+									block_height: 1,
+									index_block_hash: "0x01",
+									burn_block_height: 101,
+									lag_seconds: 0,
+								}),
+							}),
+						);
+						const request =
+							input instanceof Request
+								? input
+								: new Request(input.toString(), init);
+						return app.fetch(request);
+					},
+				}),
+				maxPages: 1,
+			}),
+		).rejects.toThrow("Streams /events returned 401");
+	});
 
 	test("consumes /events in-process and writes decoded ft_transfer rows", async () => {
 		if (!db) throw new Error("missing db");

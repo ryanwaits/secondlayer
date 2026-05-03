@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { StreamsEvent } from "../streams-events.ts";
-import { consumeStreamsEvents, type StreamsEventsEnvelope } from "./streams-client.ts";
+import {
+	consumeStreamsEvents,
+	type StreamsEventsEnvelope,
+} from "./streams-client.ts";
 
 const TIP = {
 	block_height: 10,
@@ -78,6 +81,31 @@ describe("consumeStreamsEvents", () => {
 			},
 		});
 
+		expect(result.emptyPolls).toBe(2);
+		expect(sleeps).toEqual([500, 500]);
+	});
+
+	test("backs off when Streams echoes the input cursor at the clamped tip", async () => {
+		const sleeps: number[] = [];
+
+		const result = await consumeStreamsEvents({
+			fromCursor: "99:0",
+			batchSize: 100,
+			emptyBackoffMs: 500,
+			maxEmptyPolls: 2,
+			fetchEvents: async () => ({
+				events: [],
+				next_cursor: "99:0",
+				tip: TIP,
+				reorgs: [],
+			}),
+			onBatch: () => undefined,
+			sleep: async (ms) => {
+				sleeps.push(ms);
+			},
+		});
+
+		expect(result.cursor).toBe("99:0");
 		expect(result.emptyPolls).toBe(2);
 		expect(sleeps).toEqual([500, 500]);
 	});

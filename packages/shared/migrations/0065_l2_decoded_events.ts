@@ -27,6 +27,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.on("decoded_events")
 		.column("event_type")
 		.execute();
+	await db.schema
+		.createIndex("decoded_events_tx_id_event_index_idx")
+		.on("decoded_events")
+		.columns(["tx_id", "event_index"])
+		.execute();
 
 	await db.schema
 		.createTable("l2_decoder_checkpoints")

@@ -105,7 +105,7 @@ export async function consumeStreamsEvents(opts: {
 			continue;
 		}
 
-		if (envelope.events.length === 0 && envelope.next_cursor === null) {
+		if (envelope.events.length === 0) {
 			emptyPolls++;
 			await sleep(emptyBackoffMs);
 			continue;
