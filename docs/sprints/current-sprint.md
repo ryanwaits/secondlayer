@@ -90,8 +90,8 @@ If anything from this list creeps into the week, push back and link to this sect
 Append a short bullet at the end of each day. Two lines max per day. The next-session agent should be able to read this and know exactly where things stand.
 
 - **Mon May 4:** Shipped PR #14 locking Stacks Streams L1 schema/cursor contract, PRD resolutions, 100-event fixture, and cursor regression test.
-- **Mon May 4:** Wired Streams bearer auth, per-tier req/s limits, retention gate, and `/events` + `/tip` stubs; `bun test` and API typecheck green.
-- **Tue May 5:** Implemented real `/v1/streams/tip` from indexer canonical tip, 500ms cache, lag clamp, status wiring, and tests; `bun test` + API/indexer typecheck green.
+- **Mon May 4:** Shipped PR #15 wiring Streams bearer auth, per-tier req/s limits, retention gate, and `/events` + `/tip` stubs; `bun test` and API typecheck green.
+- **Tue May 5:** Shipped PR #16 implementing real `/v1/streams/tip` from indexer canonical tip, 500ms cache, lag clamp, status wiring, and tests.
 - **Wed May 6:** —
 - **Thu May 7:** —
 - **Fri May 8:** —
