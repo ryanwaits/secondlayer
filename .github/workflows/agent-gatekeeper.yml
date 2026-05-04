@@ -61,14 +61,46 @@ jobs:
           set -euo pipefail
           grep -q 'bash -nu' .github/workflows/deploy.yml
 
-  adr-coverage:
-    name: ADR coverage
+  commit-message-hygiene:
+    name: Commit message hygiene
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check architectural commits
+      - name: Check commit messages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base="${{ github.event.before }}"
+          head="${{ github.sha }}"
+          if [[ "$base" =~ ^0+$ ]]; then
+            base="$(git rev-list --max-parents=0 "$head")"
+          fi
+
+          pattern='ADR-[0-9]{4}|(^|[[:space:]])(sprint|phase)([[:space:]]|:|$)'
+          failed=0
+
+          while IFS= read -r commit; do
+            subject="$(git log -1 --format=%s "$commit")"
+            if grep -Eiq "$pattern" <<<"$subject"; then
+              echo "$commit uses internal planning or decision tokens in the commit subject."
+              echo "Use a code-specific commit message."
+              failed=1
+            fi
+          done < <(git rev-list --reverse "$base..$head")
+
+          exit "$failed"
+
+  decision-log-presence:
+    name: Decision log presence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Confirm decision log for architectural changes
         shell: bash
         run: |
           set -euo pipefail
@@ -80,22 +112,15 @@ jobs:
           fi
 
           arch_pattern='(^|/)(migrations|schema|routes)/|packages/shared/src/db/types\.ts|packages/api/src/(routes|index|streams)/|packages/indexer/src/l2/|packages/indexer/src/reorg\.ts'
-          failed=0
 
-          while IFS= read -r commit; do
-            message="$(git log -1 --format=%B "$commit")"
-            if grep -Eq 'ADR-[0-9]{4}|\[no-adr\]' <<<"$message"; then
-              continue
+          if git diff --name-only "$base" "$head" | grep -Eq "$arch_pattern"; then
+            if [[ ! -s .agents/DECISIONS.md ]]; then
+              echo "Architectural changes require .agents/DECISIONS.md as the decision source of truth."
+              exit 1
             fi
+          fi
 
-            if git show --name-only --format= "$commit" | grep -Eq "$arch_pattern"; then
-              echo "$commit touches architectural paths without ADR coverage."
-              echo "Reference an ADR from .agents/DECISIONS.md or use [no-adr] for trivial changes."
-              failed=1
-            fi
-          done < <(git rev-list --reverse "$base..$head")
-
-          exit "$failed"
+          echo "Decision log present."
 
   smoke-hook:
     name: Smoke wiring check

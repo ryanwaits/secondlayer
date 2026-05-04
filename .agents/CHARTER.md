@@ -41,9 +41,9 @@ CI is the second gatekeeper. `/check` runs locally. CI re-runs the same gates pl
 
 Continuous services require a smoke test in `tests/smoke/`. New endpoints require a contract test or a documented N/A reason in `.agents/current-sprint.md`. Smoke tests are part of the local green bar.
 
-Commit messages are standalone-readable. No `wip`, no vague fixes, no review-response messages. `/done` enforces this.
+Commit messages are standalone-readable and code-specific. No `wip`, no vague fixes, no review-response messages. Do not include internal governance tokens, sprint names, phase names, or task numbers. `/done` enforces this.
 
-Commit message ADR coverage is enforced for architectural paths. Use an `ADR-NNNN` reference in the commit body when the change touches migrations, schemas, route handlers, or public API shape. Use `[no-adr]` only for trivial changes.
+Architectural decision coverage lives in `.agents/DECISIONS.md`, not commit messages. If an implementation needs a new decision, commit the decision log update first, then commit the code with a code-specific message.
 
 ## Slash Command Reference
 
