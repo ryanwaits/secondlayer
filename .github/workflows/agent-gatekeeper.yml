@@ -1,0 +1,105 @@
+name: Agent Gatekeeper
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  voice-naming-lint:
+    name: Voice and naming lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check changed files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base="${{ github.event.before }}"
+          head="${{ github.sha }}"
+          if [[ "$base" =~ ^0+$ ]]; then
+            base="$(git rev-list --max-parents=0 "$head")"
+          fi
+
+          term_a="$(printf 's%s' 'crape')"
+          term_b="$(printf 'c%s' 'rawl')"
+          term_c="$(printf 'v%s' 's Hiro')"
+          term_d="$(printf 'Streaming%s' ' API')"
+          term_e="$(printf 'Stream%s' ' API')"
+          pattern="${term_a}|${term_b}|${term_c}|${term_d}|${term_e}"
+
+          failed=0
+          while IFS= read -r file; do
+            [[ -f "$file" ]] || continue
+            case "$file" in
+              docs/references/*) continue ;;
+              .agents/*|docs/*|README*|*/README*|*.ts|*.tsx|*.js|*.jsx|*.sh|*.yml|*.yaml) ;;
+              *) continue ;;
+            esac
+            if grep -Eni "$pattern" -- "$file"; then
+              echo "Use approved Second Layer voice and product names in $file."
+              failed=1
+            fi
+          done < <(git diff --name-only "$base" "$head")
+
+          exit "$failed"
+
+  bash-lint-presence:
+    name: Confirm deploy bash lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm H1 remains wired
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'bash -nu' .github/workflows/deploy.yml
+
+  adr-coverage:
+    name: ADR coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check architectural commits
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base="${{ github.event.before }}"
+          head="${{ github.sha }}"
+          if [[ "$base" =~ ^0+$ ]]; then
+            base="$(git rev-list --max-parents=0 "$head")"
+          fi
+
+          arch_pattern='(^|/)(migrations|schema|routes)/|packages/shared/src/db/types\.ts|packages/api/src/(routes|index|streams)/|packages/indexer/src/l2/|packages/indexer/src/reorg\.ts'
+          failed=0
+
+          while IFS= read -r commit; do
+            message="$(git log -1 --format=%B "$commit")"
+            if grep -Eq 'ADR-[0-9]{4}|\[no-adr\]' <<<"$message"; then
+              continue
+            fi
+
+            if git show --name-only --format= "$commit" | grep -Eq "$arch_pattern"; then
+              echo "$commit touches architectural paths without ADR coverage."
+              echo "Reference an ADR from .agents/DECISIONS.md or use [no-adr] for trivial changes."
+              failed=1
+            fi
+          done < <(git rev-list --reverse "$base..$head")
+
+          exit "$failed"
+
+  smoke-hook:
+    name: Smoke harness hook
+    runs-on: ubuntu-latest
+    steps:
+      - name: H3 placeholder
+        run: echo "smoke harness wiring lands in H3"
