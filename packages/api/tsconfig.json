@@ -4,14 +4,13 @@
 		"outDir": "./dist",
 		"baseUrl": ".",
 		"paths": {
-			"@secondlayer/indexer/streams-tip": [
-				"../indexer/src/streams-tip.ts"
-			],
+			"@secondlayer/indexer/streams-tip": ["../indexer/src/streams-tip.ts"],
 			"@secondlayer/indexer/streams-events": [
 				"../indexer/src/streams-events.ts"
 			],
-			"@secondlayer/indexer/l2/decoder": [
-				"../indexer/src/l2/decoder.ts"
+			"@secondlayer/indexer/l2/decoder": ["../indexer/src/l2/decoder.ts"],
+			"@secondlayer/indexer/l2/internal-auth": [
+				"../indexer/src/l2/internal-auth.ts"
 			],
 			"@secondlayer/sdk": ["../sdk/src/index.ts"],
 			"@secondlayer/sdk/*": ["../sdk/src/*"],
