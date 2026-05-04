@@ -19,7 +19,9 @@ function params(query: string) {
 describe("Index nft-transfers helpers", () => {
 	test("defaults to last day when no explicit height or cursor is provided", () => {
 		const parsed = parseNftTransfersQuery(params(""), TIP);
-		expect(parsed.fromHeight).toBe(TIP.block_height - STREAMS_BLOCKS_PER_DAY);
+		expect(parsed.fromHeight).toBe(
+			Math.max(0, TIP.block_height - STREAMS_BLOCKS_PER_DAY),
+		);
 	});
 
 	test("from_height=0 bypasses default window", () => {

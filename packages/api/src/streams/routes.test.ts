@@ -13,7 +13,7 @@ const ENTERPRISE_KEY = "sk-sl_streams_enterprise_test";
 const WRONG_SCOPE_KEY = "sk-sl_streams_wrong_scope_test";
 
 const TEST_TIP: StreamsTip = {
-	block_height: 10_000,
+	block_height: 200_000,
 	index_block_hash:
 		"0x0000000000000000000000000000000000000000000000000000000000000001",
 	burn_block_height: 20_000,
@@ -203,7 +203,9 @@ describe("Stacks Streams gateway middleware", () => {
 
 		expect(res.status).toBe(200);
 		expect(elapsedMs).toBeLessThan(1000);
-		expect(seenFromHeight).toBe(TEST_TIP.block_height - STREAMS_BLOCKS_PER_DAY);
+		expect(seenFromHeight).toBe(
+			Math.max(0, TEST_TIP.block_height - STREAMS_BLOCKS_PER_DAY),
+		);
 		const body = (await res.json()) as { next_cursor: string | null };
 		expect(body.next_cursor).toBe("9999:0");
 	});

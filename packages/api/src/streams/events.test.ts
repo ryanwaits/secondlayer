@@ -47,7 +47,7 @@ describe("Streams events route helpers", () => {
 			},
 		});
 
-		expect(seenFromHeight).toBe(10_000 - STREAMS_BLOCKS_PER_DAY);
+		expect(seenFromHeight).toBe(Math.max(0, 10_000 - STREAMS_BLOCKS_PER_DAY));
 		expect(body.next_cursor).toBe("9999:0");
 	});
 
