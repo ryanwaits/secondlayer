@@ -1,0 +1,22 @@
+name: Staging Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+concurrency:
+  group: staging-health
+  cancel-in-progress: true
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check staging health
+        env:
+          STAGING_API_URL: ${{ vars.STAGING_API_URL || vars.SECOND_LAYER_API_URL || 'https://api.secondlayer.tools' }}
+          STAGING_STATUS_API_KEY: ${{ secrets.STAGING_STATUS_API_KEY }}
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: bash scripts/ci/staging-health.sh

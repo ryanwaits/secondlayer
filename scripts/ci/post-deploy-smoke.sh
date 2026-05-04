@@ -44,7 +44,11 @@ check_json_field() {
 	local url="${API_URL%/}${path}"
 	local body
 
-	body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" --header "Authorization: Bearer ${token}" "$url" || true)"
+	if [[ -n "$token" ]]; then
+		body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" --header "Authorization: Bearer ${token}" "$url" || true)"
+	else
+		body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" "$url" || true)"
+	fi
 	if ! SMOKE_BODY="$body" python3 - "$field" <<'PY'
 import json
 import os
@@ -70,6 +74,11 @@ PY
 
 	echo "${label}: JSON field ${field}"
 }
+
+check_status "api health" "200" "/health"
+check_status "public status" "200" "/public/status"
+check_json_field "public status streams freshness" "/public/status" "" "streams.tip.lag_seconds"
+check_json_field "public status index freshness" "/public/status" "" "index.decoders"
 
 check_status "streams events build" "200" "/v1/streams/events?limit=1" "$STREAMS_KEY"
 check_status "streams events missing auth" "401" "/v1/streams/events?limit=1"
