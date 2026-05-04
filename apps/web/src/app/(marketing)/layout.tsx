@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { CssStudioDev } from "./css-studio-dev";
 
 function EscBack() {
 	const router = useRouter();
@@ -31,6 +32,7 @@ export default function MarketingLayout({
 	return (
 		<div className="marketing">
 			<EscBack />
+			<CssStudioDev />
 			{children}
 		</div>
 	);
