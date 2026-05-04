@@ -1,6 +1,6 @@
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 
 export const STREAMS_EVENT_TYPES = [
 	"stx_transfer",
@@ -217,59 +217,23 @@ export async function readCanonicalStreamsEvents(
 			(eventType) => sql`${STREAMS_TO_DB_EVENT_TYPE[eventType]}`,
 		),
 	);
-	const cursorFilter = params.after
-		? sql`
-        AND (
-          block_height > ${params.after.block_height}
-          OR (
-            block_height = ${params.after.block_height}
-            AND stream_event_index > ${params.after.event_index}
-          )
-        )
-      `
-		: sql``;
-
-	const { rows } = await sql<StreamsEventRow>`
-    WITH ordered_events AS (
-      SELECT
-        e.block_height,
-        b.hash AS index_block_hash,
-        b.burn_block_height,
-        b.timestamp,
-        e.tx_id,
-        t.tx_index,
-        e.event_index AS source_event_index,
-        e.type AS db_event_type,
-        e.data,
-        (
-          SELECT COUNT(*)::integer - 1
-          FROM events e2
-          INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
-          WHERE e2.block_height = e.block_height
-            AND e2.type IN (${allDbEventTypes})
-            AND (
-              t2.tx_index < t.tx_index
-              OR (
-                t2.tx_index = t.tx_index
-                AND e2.event_index <= e.event_index
-              )
-            )
-        ) AS stream_event_index
-      FROM events e
-      INNER JOIN transactions t ON t.tx_id = e.tx_id
-      INNER JOIN blocks b ON b.height = e.block_height
-      WHERE b.canonical = true
-        AND e.type IN (${selectedDbEventTypes})
-        AND e.block_height >= ${lowerHeight}
-        AND e.block_height <= ${params.toHeight}
-    )
-    SELECT *
-    FROM ordered_events
-    WHERE true
-      ${cursorFilter}
-    ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
-    LIMIT ${params.limit + 1}
-  `.execute(db);
+	const rows = params.after
+		? await readCanonicalStreamsEventsAfterCursor({
+				db,
+				after: params.after,
+				toHeight: params.toHeight,
+				limit: params.limit,
+				allDbEventTypes,
+				selectedDbEventTypes,
+			})
+		: await readCanonicalStreamsEventsFromHeight({
+				db,
+				fromHeight: lowerHeight,
+				toHeight: params.toHeight,
+				limit: params.limit,
+				allDbEventTypes,
+				selectedDbEventTypes,
+			});
 
 	const pageRows = rows.slice(0, params.limit);
 	const events = pageRows.map(normalizeRow);
@@ -282,4 +246,166 @@ export async function readCanonicalStreamsEvents(
 		: null;
 
 	return { events, next_cursor };
+}
+
+async function readCanonicalStreamsEventsFromHeight(opts: {
+	db: Kysely<Database>;
+	fromHeight: number;
+	toHeight: number;
+	limit: number;
+	allDbEventTypes: RawBuilder<unknown>;
+	selectedDbEventTypes: RawBuilder<unknown>;
+}): Promise<StreamsEventRow[]> {
+	const { rows } = await sql<StreamsEventRow>`
+    WITH candidate_events AS (
+      SELECT
+        e.block_height,
+        b.hash AS index_block_hash,
+        b.burn_block_height,
+        b.timestamp,
+        e.tx_id,
+        t.tx_index,
+        e.event_index AS source_event_index,
+        e.type AS db_event_type,
+        e.data
+      FROM events e
+      INNER JOIN transactions t ON t.tx_id = e.tx_id
+      INNER JOIN blocks b ON b.height = e.block_height
+      WHERE b.canonical = true
+        AND e.type IN (${opts.selectedDbEventTypes})
+        AND e.block_height >= ${opts.fromHeight}
+        AND e.block_height <= ${opts.toHeight}
+      ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
+      LIMIT ${opts.limit + 1}
+    ),
+    ordered_events AS (
+      SELECT
+        c.block_height,
+        c.index_block_hash,
+        c.burn_block_height,
+        c.timestamp,
+        c.tx_id,
+        c.tx_index,
+        c.source_event_index,
+        c.db_event_type,
+        c.data,
+        (
+          SELECT COUNT(*)::integer - 1
+          FROM events e2
+          INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
+          WHERE e2.block_height = c.block_height
+            AND e2.type IN (${opts.allDbEventTypes})
+            AND (
+              t2.tx_index < c.tx_index
+              OR (
+                t2.tx_index = c.tx_index
+                AND e2.event_index <= c.source_event_index
+              )
+            )
+        ) AS stream_event_index
+      FROM candidate_events c
+    )
+    SELECT *
+    FROM ordered_events
+    ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
+    LIMIT ${opts.limit + 1}
+  `.execute(opts.db);
+
+	return rows;
+}
+
+async function readCanonicalStreamsEventsAfterCursor(opts: {
+	db: Kysely<Database>;
+	after: StreamsEventCursor;
+	toHeight: number;
+	limit: number;
+	allDbEventTypes: RawBuilder<unknown>;
+	selectedDbEventTypes: RawBuilder<unknown>;
+}): Promise<StreamsEventRow[]> {
+	const { rows } = await sql<StreamsEventRow>`
+    WITH same_block_events AS (
+      SELECT
+        e.block_height,
+        b.hash AS index_block_hash,
+        b.burn_block_height,
+        b.timestamp,
+        e.tx_id,
+        t.tx_index,
+        e.event_index AS source_event_index,
+        e.type AS db_event_type,
+        e.data
+      FROM events e
+      INNER JOIN transactions t ON t.tx_id = e.tx_id
+      INNER JOIN blocks b ON b.height = e.block_height
+      WHERE b.canonical = true
+        AND e.type IN (${opts.selectedDbEventTypes})
+        AND e.block_height = ${opts.after.block_height}
+        AND e.block_height <= ${opts.toHeight}
+    ),
+    future_events AS (
+      SELECT
+        e.block_height,
+        b.hash AS index_block_hash,
+        b.burn_block_height,
+        b.timestamp,
+        e.tx_id,
+        t.tx_index,
+        e.event_index AS source_event_index,
+        e.type AS db_event_type,
+        e.data
+      FROM events e
+      INNER JOIN transactions t ON t.tx_id = e.tx_id
+      INNER JOIN blocks b ON b.height = e.block_height
+      WHERE b.canonical = true
+        AND e.type IN (${opts.selectedDbEventTypes})
+        AND e.block_height > ${opts.after.block_height}
+        AND e.block_height <= ${opts.toHeight}
+      ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
+      LIMIT ${opts.limit + 1}
+    ),
+    candidate_events AS (
+      SELECT * FROM same_block_events
+      UNION ALL
+      SELECT * FROM future_events
+    ),
+    ordered_events AS (
+      SELECT
+        c.block_height,
+        c.index_block_hash,
+        c.burn_block_height,
+        c.timestamp,
+        c.tx_id,
+        c.tx_index,
+        c.source_event_index,
+        c.db_event_type,
+        c.data,
+        (
+          SELECT COUNT(*)::integer - 1
+          FROM events e2
+          INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
+          WHERE e2.block_height = c.block_height
+            AND e2.type IN (${opts.allDbEventTypes})
+            AND (
+              t2.tx_index < c.tx_index
+              OR (
+                t2.tx_index = c.tx_index
+                AND e2.event_index <= c.source_event_index
+              )
+            )
+        ) AS stream_event_index
+      FROM candidate_events c
+    )
+    SELECT *
+    FROM ordered_events
+    WHERE
+      block_height > ${opts.after.block_height}
+      OR (
+        block_height = ${opts.after.block_height}
+        AND stream_event_index > ${opts.after.event_index}
+      )
+    ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
+    LIMIT ${opts.limit + 1}
+  `.execute(opts.db);
+
+	return rows;
 }
