@@ -31,6 +31,10 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ vars.DEPLOY_IMAGE_OWNER || github.repository_owner }}
+
 jobs:
   typecheck:
     runs-on: ubuntu-latest
@@ -54,8 +58,75 @@ jobs:
       - run: bun run build
       - run: bun run typecheck
 
-  deploy:
+  build-images:
     needs: typecheck
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api
+          - indexer
+          - worker
+          - agent
+          - provisioner
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute API source digest
+        id: api-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(
+            git ls-tree -r HEAD -- \
+              package.json \
+              bun.lock \
+              tsconfig.json \
+              docker/Dockerfile \
+              packages/stacks \
+              packages/shared \
+              packages/subgraphs \
+              packages/bundler \
+              packages/api \
+              | git hash-object --stdin
+          )"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/secondlayer-${{ matrix.service }}
+          tags: |
+            type=raw,value=${{ github.sha }}
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SECONDLAYER_API_SOURCE_DIGEST=${{ steps.api-source.outputs.digest }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,scope=${{ matrix.service }},mode=max
+
+  deploy:
+    needs: [typecheck, build-images]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,12 +134,14 @@ jobs:
         env:
           DEPLOY_UNIT: secondlayer-deploy-${{ github.run_id }}-${{ github.run_attempt }}
           DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_IMAGE_OWNER: ${{ env.IMAGE_OWNER }}
+          DEPLOY_IMAGE_TAG: ${{ github.sha }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script_path: scripts/ci/remote-deploy-systemd.sh
-          envs: DEPLOY_UNIT,DEPLOY_SHA
+          envs: DEPLOY_UNIT,DEPLOY_SHA,DEPLOY_IMAGE_OWNER,DEPLOY_IMAGE_TAG
           # Wrapper polls systemd for 45m. Keep SSH observation slightly longer.
           command_timeout: 50m
 

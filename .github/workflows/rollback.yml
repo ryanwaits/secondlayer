@@ -1,0 +1,31 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: "Full image SHA tag to roll back to. Leave blank to use the previous successful deploy."
+        required: false
+        type: string
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        env:
+          ROLLBACK_UNIT: secondlayer-rollback-${{ github.run_id }}-${{ github.run_attempt }}
+          ROLLBACK_IMAGE_TAG: ${{ inputs.image_sha }}
+          DEPLOY_IMAGE_OWNER: ${{ vars.DEPLOY_IMAGE_OWNER || github.repository_owner }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_path: scripts/ci/remote-rollback-systemd.sh
+          envs: ROLLBACK_UNIT,ROLLBACK_IMAGE_TAG,DEPLOY_IMAGE_OWNER
+          command_timeout: 35m

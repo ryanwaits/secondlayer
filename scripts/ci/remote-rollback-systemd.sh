@@ -1,25 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${DEPLOY_UNIT:?DEPLOY_UNIT is required}"
-: "${DEPLOY_SHA:?DEPLOY_SHA is required}"
+: "${ROLLBACK_UNIT:?ROLLBACK_UNIT is required}"
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME:-/root}/.bun/bin:${PATH:-}"
 
-DEPLOY_SCRIPT="/opt/secondlayer/docker/scripts/deploy.sh"
-POLL_TIMEOUT_SECONDS="${DEPLOY_POLL_TIMEOUT_SECONDS:-2700}"
-POLL_INTERVAL_SECONDS="${DEPLOY_POLL_INTERVAL_SECONDS:-15}"
-DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-$DEPLOY_SHA}"
+ROLLBACK_SCRIPT="/opt/secondlayer/docker/scripts/rollback.sh"
+POLL_TIMEOUT_SECONDS="${ROLLBACK_POLL_TIMEOUT_SECONDS:-1800}"
+POLL_INTERVAL_SECONDS="${ROLLBACK_POLL_INTERVAL_SECONDS:-15}"
 
-if [[ ! "$DEPLOY_UNIT" =~ ^[A-Za-z0-9_.:@-]+$ ]]; then
-	echo "DEPLOY_UNIT contains unsupported characters: ${DEPLOY_UNIT}"
+if [[ ! "$ROLLBACK_UNIT" =~ ^[A-Za-z0-9_.:@-]+$ ]]; then
+	echo "ROLLBACK_UNIT contains unsupported characters: ${ROLLBACK_UNIT}"
 	exit 2
 fi
 
-if [[ "$DEPLOY_UNIT" == *.service ]]; then
-	UNIT_NAME="$DEPLOY_UNIT"
+if [[ "$ROLLBACK_UNIT" == *.service ]]; then
+	UNIT_NAME="$ROLLBACK_UNIT"
 else
-	UNIT_NAME="${DEPLOY_UNIT}.service"
+	UNIT_NAME="${ROLLBACK_UNIT}.service"
 fi
 
 for cmd in systemd-run systemctl journalctl; do
@@ -29,8 +27,8 @@ for cmd in systemd-run systemctl journalctl; do
 	fi
 done
 
-if [[ ! -f "$DEPLOY_SCRIPT" ]]; then
-	echo "ERROR: deploy script not found at ${DEPLOY_SCRIPT}"
+if [[ ! -f "$ROLLBACK_SCRIPT" ]]; then
+	echo "ERROR: rollback script not found at ${ROLLBACK_SCRIPT}"
 	exit 1
 fi
 
@@ -53,25 +51,24 @@ fail_from_unit() {
 	local result="$3"
 	local exec_main_status="$4"
 
-	echo "Deploy unit ${UNIT_NAME} failed: ActiveState=${active_state:-unknown} SubState=${sub_state:-unknown} Result=${result:-unknown} ExecMainStatus=${exec_main_status:-unknown}"
+	echo "Rollback unit ${UNIT_NAME} failed: ActiveState=${active_state:-unknown} SubState=${sub_state:-unknown} Result=${result:-unknown} ExecMainStatus=${exec_main_status:-unknown}"
 	print_journal_tail 200
 	exit 1
 }
 
-echo "Starting deploy ${DEPLOY_SHA} as transient systemd unit ${UNIT_NAME}"
+echo "Starting rollback as transient systemd unit ${UNIT_NAME}"
 systemd-run \
-	--unit="$DEPLOY_UNIT" \
-	--description="Second Layer deploy ${DEPLOY_SHA}" \
+	--unit="$ROLLBACK_UNIT" \
+	--description="Second Layer rollback ${ROLLBACK_IMAGE_TAG:-previous}" \
 	--property=Type=exec \
 	--property=RemainAfterExit=yes \
 	--property=WorkingDirectory=/opt/secondlayer \
-	--setenv=DEPLOY_SHA="$DEPLOY_SHA" \
-	--setenv=DEPLOY_IMAGE_TAG="$DEPLOY_IMAGE_TAG" \
+	--setenv=ROLLBACK_IMAGE_TAG="${ROLLBACK_IMAGE_TAG:-}" \
 	--setenv=DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-}" \
 	--setenv=DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-}" \
 	--setenv=HOME="${HOME:-/root}" \
 	--setenv=PATH="$PATH" \
-	/bin/bash "$DEPLOY_SCRIPT"
+	/bin/bash "$ROLLBACK_SCRIPT"
 
 deadline=$((SECONDS + POLL_TIMEOUT_SECONDS))
 
@@ -81,7 +78,7 @@ while ((SECONDS < deadline)); do
 	result="$(unit_property Result)"
 	exec_main_status="$(unit_property ExecMainStatus)"
 
-	echo "Deploy unit ${UNIT_NAME}: ActiveState=${active_state:-unknown} SubState=${sub_state:-unknown} Result=${result:-unknown} ExecMainStatus=${exec_main_status:-unknown}"
+	echo "Rollback unit ${UNIT_NAME}: ActiveState=${active_state:-unknown} SubState=${sub_state:-unknown} Result=${result:-unknown} ExecMainStatus=${exec_main_status:-unknown}"
 
 	if [[ "$active_state" == "failed" ]]; then
 		fail_from_unit "$active_state" "$sub_state" "$result" "$exec_main_status"
@@ -97,7 +94,7 @@ while ((SECONDS < deadline)); do
 
 	if [[ "$sub_state" == "exited" || "$active_state" == "inactive" ]]; then
 		if [[ "${result:-success}" == "success" && "${exec_main_status:-0}" == "0" ]]; then
-			echo "Deploy unit ${UNIT_NAME} completed successfully"
+			echo "Rollback unit ${UNIT_NAME} completed successfully"
 			exit 0
 		fi
 		fail_from_unit "$active_state" "$sub_state" "$result" "$exec_main_status"

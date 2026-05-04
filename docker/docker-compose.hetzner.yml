@@ -114,6 +114,7 @@ services:
 
   agent:
     container_name: secondlayer-agent
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-agent:${DEPLOY_IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile

@@ -34,8 +34,9 @@ $COMPOSE up -d --force-recreate api indexer worker agent
 | `INSTANCE_MODE` | `platform` | `platform` = shared multi-tenant (current). `oss` = self-host. `dedicated` = per-tenant. Must be `platform` on the main app server. |
 | `PROVISIONER_SECRET` | — (required when provisioner runs) | Shared secret platform-API ↔ provisioner. `openssl rand -hex 32`. |
 | `PROVISIONER_SOURCE_DB_READONLY_PASSWORD` | — (required when provisioner runs) | Password for the `secondlayer_readonly` role the provisioner creates on the source DB. Tenants get URLs built with this role. Rotate = provisioner restart. `openssl rand -hex 24`. |
-| `PROVISIONER_IMAGE_TAG` | `latest` | GHCR tag for tenant container images. |
-| `PROVISIONER_IMAGE_OWNER` | `secondlayer-labs` | GHCR owner. |
+| `DEPLOY_IMAGE_OWNER` / `PROVISIONER_IMAGE_OWNER` | `secondlayer-labs` | GHCR owner for platform and tenant images. Deploy sets `PROVISIONER_IMAGE_OWNER` from `DEPLOY_IMAGE_OWNER`. |
+| `DEPLOY_IMAGE_TAG` / `PROVISIONER_IMAGE_TAG` | commit SHA | GHCR image tag for platform and tenant images. Deploy sets `PROVISIONER_IMAGE_TAG` from the exact deployed SHA. |
+| `DEPLOY_STATE_DIR` | `/opt/secondlayer/data/deploy` | Stores `current`, `previous`, and deploy metadata for image-only rollback. |
 | `PROVISIONER_TENANT_BASE_DOMAIN` | `secondlayer.tools` | Base domain for `{slug}.{base}` tenant URLs. |
 | `PROVISIONER_SOURCE_DB_HOST` | `postgres:5432` | Docker-network hostname for the source DB. Tenant containers connect here. |
 | `STACKS_NODE_RPC_URL` | — (required when provisioner runs) | Node RPC injected into tenant API and processor containers for ABI fetches and Stacks reads. |
@@ -134,9 +135,9 @@ docker rm -f <name>
 
 ## 3. Deploy flow (what happens on every push to main)
 
-GitHub starts deploys over SSH through `scripts/ci/remote-deploy-systemd.sh`. The wrapper creates a transient systemd unit named like `secondlayer-deploy-<run_id>-<run_attempt>` and runs `/opt/secondlayer/docker/scripts/deploy.sh` inside that unit. The deploy script remains the source of truth for build, migration, restart, tenant refresh, and health checks.
+GitHub builds and pushes GHCR images for `api`, `indexer`, `worker`, `agent`, and `provisioner` before deploy starts. Images are tagged with the full commit SHA. GitHub then starts deploys over SSH through `scripts/ci/remote-deploy-systemd.sh`. The wrapper creates a transient systemd unit named like `secondlayer-deploy-<run_id>-<run_attempt>` and runs `/opt/secondlayer/docker/scripts/deploy.sh` inside that unit. The deploy script remains the source of truth for image pull, migration, restart, tenant refresh, and health checks.
 
-An SSH interruption no longer kills the Docker build, migration, or restart process. The GitHub job may still fail if it cannot observe completion, but the host unit keeps running and can be inspected.
+An SSH interruption no longer kills image pulls, migration, or restart. The GitHub job may still fail if it cannot observe completion, but the host unit keeps running and can be inspected.
 
 ```bash
 # Replace with the unit name printed by the GitHub deploy job.
@@ -144,21 +145,28 @@ systemctl status secondlayer-deploy-<run_id>-<run_attempt>.service
 journalctl -u secondlayer-deploy-<run_id>-<run_attempt>.service -f
 ```
 
-As of Sprint 5, `/opt/secondlayer/docker/scripts/deploy.sh` does:
+`/opt/secondlayer/docker/scripts/deploy.sh` does:
 
 1. **git fetch + reset** (source update)
 2. **exec-reload** — re-exec the updated deploy.sh so we don't run old buffered content
-3. **build** — `--no-cache` for 6 services
-4. **stop lock-holders** — `api`, `agent`, `worker` (indexer kept running)
+3. **pull exact images** — GHCR images tagged by `DEPLOY_IMAGE_TAG`
+4. **stop lock-holders** — `api`, `indexer`, `l2-decoder`, `agent`, `worker`
 5. **force-remove orphan containers** — named-removed services from old deploys
 6. **clean zombie migrate containers** — prior `--rm` runs killed by SSH timeout
 7. **terminate DB sessions** — every non-self session on the DB, clean slate for DDL
-8. **run migrations** — `--rm migrate` with `SET statement_timeout=60s` + `lock_timeout=30s`
-9. **diagnostic dump on failure** — `pg_stat_activity` printed if migrate fails
-10. **up -d** — restart all app services
-11. **health check** — curl api + indexer health endpoints
+8. **run migrations** — `--rm migrate` from the pulled API image
+9. **up -d --no-build** — restart all app services
+10. **health check** — curl api, indexer, provisioner, and l2-decoder health
+11. **tenant refresh** — active tenants resume onto the exact deployed API image
+12. **record state** — write current/previous deploy SHAs under `DEPLOY_STATE_DIR`
 
-Typical deploy: 60-90s. If it hangs, it'll fail loud in ≤60s now, not silent-timeout at 5min.
+Deploy fails before stopping services if any required image for the SHA is missing from GHCR.
+
+If GHCR packages are private, the app server must be logged in before deploy:
+
+```bash
+docker login ghcr.io
+```
 
 ---
 
@@ -199,6 +207,23 @@ $COMPOSE logs --tail 200 worker | grep -i error
 $COMPOSE up -d --force-recreate api
 ```
 
+### Image-only rollback
+
+Use the manual `Rollback` GitHub workflow. Leave `image_sha` blank to roll back to the previous successful deploy recorded on the host, or pass a full SHA tag explicitly.
+
+Rollback pulls exact images, recreates app/platform services with `--no-build --no-deps`, health-checks them, and refreshes active tenants. It does not run migrations. Treat rollback as unsafe when the previous image is not compatible with already-applied forward migrations.
+
+```bash
+# Inspect host-side deploy state.
+cat /opt/secondlayer/data/deploy/current
+cat /opt/secondlayer/data/deploy/previous
+cat /opt/secondlayer/data/deploy/last-success.env
+
+# Replace with the unit name printed by the GitHub rollback job.
+systemctl status secondlayer-rollback-<run_id>-<run_attempt>.service
+journalctl -u secondlayer-rollback-<run_id>-<run_attempt>.service -f
+```
+
 ### "Postgres won't start"
 
 Check disk space first:
@@ -218,13 +243,15 @@ docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
 
 ## 5. Manual operations cheatsheet
 
-### Rebuild only one service
+### Recreate one service from the deployed SHA
 
 ```bash
 cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
-$COMPOSE build --no-cache api
-$COMPOSE up -d --force-recreate api
+export DEPLOY_IMAGE_OWNER=secondlayer-labs
+export DEPLOY_IMAGE_TAG="$(cat /opt/secondlayer/data/deploy/current)"
+$COMPOSE pull api
+$COMPOSE up -d --no-build --force-recreate api
 ```
 
 ### Run a migration manually (outside deploy)

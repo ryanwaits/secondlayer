@@ -31,10 +31,7 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 
 ## Tech Debt Accepted Into Next Sprint
 
-- Detach Docker build from SSH session.
-- Layer-cache Docker builds.
 - Migration safety doc / dual-write pattern.
-- Document `sk-sl_streams_status_public` is non-secret in SDK README.
 - Standardize missing-env-var defaults pattern.
 
 ## Daily Log
@@ -55,6 +52,7 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 - **Hardening - Streams retention:** Updated `STREAMS_BLOCKS_PER_DAY` to the post-Nakamoto five-second cadence approximation (`17,280`) while keeping the public tip shape unchanged. Focused Streams/Index window tests and API typecheck pass.
 - **Hardening - deploy detachment:** GitHub deploy now starts `/opt/secondlayer/docker/scripts/deploy.sh` through a transient systemd unit via `scripts/ci/remote-deploy-systemd.sh`; operations docs include `systemctl status` and `journalctl -u` inspection commands.
 - **Closeout verification:** `sk-sl_streams_status_public` is documented as public/non-secret in the SDK README. Local `5435` was occupied by an unrelated Postgres container, so migrations and DB-backed API/indexer tests ran against isolated Postgres on `127.0.0.1:55435`. API, indexer, SDK, and web tests/typechecks pass; bash nounset checks pass; `actionlint` was unavailable locally.
+- **Hardening - image deploys:** Deploy CI now builds and pushes SHA-tagged GHCR images for `api`, `indexer`, `worker`, `agent`, and `provisioner`; production deploy pulls exact images and runs `up --no-build`. Added host deploy state tracking plus a manual image-only rollback workflow. Bash nounset checks, deploy/rollback workflow YAML parse, compose config, full build, and full typecheck pass locally.
 
 ## Notes
 

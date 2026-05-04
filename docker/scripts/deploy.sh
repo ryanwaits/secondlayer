@@ -37,44 +37,29 @@ fi
 APP_SERVICES="api indexer l2-decoder worker agent caddy"
 PLATFORM_SERVICES="provisioner"
 TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
-TENANT_API_IMAGE="ghcr.io/${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${PROVISIONER_IMAGE_TAG:-latest}"
-TENANT_API_DIGEST_PATHS=(
-	package.json
-	bun.lock
-	tsconfig.json
-	docker/Dockerfile
-	packages/stacks
-	packages/shared
-	packages/subgraphs
-	packages/bundler
-	packages/api
-)
+DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}}"
+DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
+DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
+export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
+export PROVISIONER_IMAGE_OWNER="$DEPLOY_IMAGE_OWNER"
+export PROVISIONER_IMAGE_TAG="$DEPLOY_IMAGE_TAG"
+TENANT_API_IMAGE="ghcr.io/${DEPLOY_IMAGE_OWNER}/secondlayer-api:${DEPLOY_IMAGE_TAG}"
 
-# Services that hold locks on tables migrations mutate. Indexer writes L2
-# decoded_events, so destructive L2 migrations must complete before it restarts
-# on new code.
+# Services that hold locks on tables migrations mutate. Indexer and l2-decoder
+# write L1/L2 tables, so migrations must complete before they restart on new code.
 MIGRATION_LOCK_HOLDERS="api indexer l2-decoder agent worker"
 
-tenant_api_source_digest() {
-	git -C /opt/secondlayer ls-tree -r HEAD -- "${TENANT_API_DIGEST_PATHS[@]}" \
-		| git -C /opt/secondlayer hash-object --stdin
-}
+echo "Deploy image owner: ${DEPLOY_IMAGE_OWNER}"
+echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
+echo "Tenant API image: ${TENANT_API_IMAGE}"
 
-TENANT_API_SOURCE_DIGEST="$(tenant_api_source_digest)"
-echo "Tenant API source digest: ${TENANT_API_SOURCE_DIGEST}"
+# Pull exact CI-built images before stopping services. If GHCR is missing any
+# image for this SHA, fail while the current deployment is still running.
+$COMPOSE pull api indexer l2-decoder worker agent migrate
+$COMPOSE --profile platform pull provisioner
 
-# Build app + platform images — --no-cache ensures source changes always land.
-$COMPOSE build --no-cache --build-arg SECONDLAYER_API_SOURCE_DIGEST="${TENANT_API_SOURCE_DIGEST}" api indexer l2-decoder worker agent migrate
-$COMPOSE --profile platform build --no-cache provisioner
-
-# Tenant containers are created by the provisioner from the configured API image
-# name. Tag the freshly built local API image so tenant refresh/resume uses this
-# exact deploy, without racing GHCR's async `latest` publication workflow.
-docker tag secondlayer-api:latest "$TENANT_API_IMAGE"
-
-# Stop only the services that hold locks on migrated tables. DDL then
-# acquires ACCESS EXCLUSIVE without racing the api subgraphs-cache
-# listener. postgres + indexer + stacks-node stay up.
+# Stop only the services that hold locks on migrated tables. DDL then acquires
+# ACCESS EXCLUSIVE without racing app or indexer sessions.
 echo "🛑 Stopping lock-holders so migrations can acquire ACCESS EXCLUSIVE..."
 $COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
 
@@ -99,8 +84,7 @@ docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com
 # sessions alive for minutes — and prior diagnostic runs showed ~20 stuck
 # `select * from subgraphs` queries queued behind our ALTER. Killing them
 # now guarantees ACCESS EXCLUSIVE on subgraphs can be acquired immediately.
-# Indexer (which we kept running) auto-reconnects via postgres.js on next
-# statement — zero block loss, by design.
+# Services auto-reconnect via postgres.js on their next statement after restart.
 echo "🔌 Terminating zombie sessions on tenant DB..."
 docker exec secondlayer-postgres-1 psql -U "${POSTGRES_USER:-secondlayer}" -d "${POSTGRES_DB:-secondlayer}" -c "
   SELECT pg_terminate_backend(pid)
@@ -115,15 +99,14 @@ $COMPOSE run --rm migrate
 # Clean up stale one-off containers (from manual `docker compose run` without --rm)
 docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docker rm -f 2>/dev/null || true
 
-# Restart ALL app services — ensures any new code lands, and services that
-# weren't stopped (indexer, worker, caddy) pick up new images via recreate.
+# Restart all app services so every runtime picks up the pulled image tag.
 # NEVER touch stacks-node, postgres, hiro-postgres, hiro-api.
-$COMPOSE up -d --remove-orphans $APP_SERVICES
+$COMPOSE up -d --no-build --remove-orphans $APP_SERVICES
 
 # Platform-mode services (provisioner, behind --profile platform). Must be
 # recreated separately so compose changes to the provisioner land on deploy
 # instead of requiring a manual `--force-recreate provisioner` after.
-$COMPOSE --profile platform up -d --remove-orphans $PLATFORM_SERVICES
+$COMPOSE --profile platform up -d --no-build --remove-orphans $PLATFORM_SERVICES
 
 # Health check with retry
 check_health() {
@@ -229,3 +212,32 @@ refresh_active_tenants() {
 }
 
 refresh_active_tenants
+
+record_successful_deploy() {
+  mkdir -p "$DEPLOY_STATE_DIR"
+
+  local current_path="${DEPLOY_STATE_DIR}/current"
+  local previous_path="${DEPLOY_STATE_DIR}/previous"
+  local metadata_path="${DEPLOY_STATE_DIR}/last-success.env"
+  local current=""
+
+  if [ -f "$current_path" ]; then
+    current="$(cat "$current_path")"
+  fi
+
+  if [ -n "$current" ] && [ "$current" != "$DEPLOY_IMAGE_TAG" ]; then
+    printf '%s\n' "$current" > "$previous_path"
+  fi
+
+  printf '%s\n' "$DEPLOY_IMAGE_TAG" > "$current_path"
+  {
+    printf 'DEPLOY_IMAGE_OWNER=%q\n' "$DEPLOY_IMAGE_OWNER"
+    printf 'DEPLOY_IMAGE_TAG=%q\n' "$DEPLOY_IMAGE_TAG"
+    printf 'DEPLOY_SHA=%q\n' "${DEPLOY_SHA:-}"
+    printf 'DEPLOY_RECORDED_AT=%q\n' "$(date -Iseconds)"
+  } > "$metadata_path"
+
+  echo "Recorded successful deploy state in ${DEPLOY_STATE_DIR}"
+}
+
+record_successful_deploy

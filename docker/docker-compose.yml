@@ -19,6 +19,7 @@ services:
 
   # Database migrations
   migrate:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -33,6 +34,7 @@ services:
 
   # API service
   api:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -77,6 +79,7 @@ services:
 
   # Indexer service
   indexer:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-indexer:${DEPLOY_IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -103,6 +106,7 @@ services:
 
   # Continuous L2 decoder service
   l2-decoder:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-indexer:${DEPLOY_IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -133,6 +137,7 @@ services:
   # Worker service — scheduled background jobs (storage measurement + tenant
   # trial/health crons in platform mode).
   worker:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-worker:${DEPLOY_IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -159,6 +164,7 @@ services:
   # Provisioner service — tenant Docker lifecycle (platform mode only).
   # Activated via `--profile platform`. OSS users never run this.
   provisioner:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-provisioner:${DEPLOY_IMAGE_TAG:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile

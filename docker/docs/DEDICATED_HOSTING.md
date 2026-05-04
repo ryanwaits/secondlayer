@@ -474,15 +474,15 @@ Order:
 |---|---|---|
 | 1 | `git fetch origin main; git reset --hard origin/main` | Source update |
 | 2 | `exec bash ...` (re-exec self) | Avoids bash buffering old script content against new compose files |
-| 3 | `docker compose build --no-cache api indexer worker agent migrate` + platform-profile `provisioner` | Rebuild images |
-| 4 | `docker compose stop api agent worker` | Only services that hold locks on migrated tables. Indexer stays up (its tables — blocks/transactions/events/index_progress — are independent of control-plane tables that migrations touch). |
+| 3 | `docker compose pull api indexer l2-decoder worker agent migrate` + platform-profile `provisioner` | Pull exact GHCR images tagged by the deployed commit SHA |
+| 4 | `docker compose stop api indexer l2-decoder agent worker` | Stop services that can hold locks on migrated tables before DDL. |
 | 5 | `docker rm -f secondlayer-view-processor-1` | Force-remove orphan containers from removed services. |
 | 6 | `docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com.docker.compose.service=migrate" -q \| xargs -r docker rm -f` | Zombie migrate containers from prior deploys killed by SSH timeout — hold kysely's advisory migration lock. |
-| 7 | `pg_terminate_backend(pid)` for every non-self session | TCP-half-closed session cleanup. Indexer (which we kept running) auto-reconnects. |
+| 7 | `pg_terminate_backend(pid)` for every non-self session | TCP-half-closed session cleanup. Services reconnect after restart. |
 | 8 | `docker compose run --rm migrate` | Migrations. The migrate entrypoint sets `statement_timeout=60s` + `lock_timeout=30s` so failure is loud and quick. |
 | 9 | Diagnostic `pg_stat_activity` dump on failure | See who held the lock when we timed out. |
-| 10 | `docker compose up -d --remove-orphans api indexer worker agent caddy` + platform-profile `provisioner` | Restart |
-| 11 | Curl `/health` with retry | Verify api + indexer come back |
+| 10 | `docker compose up -d --no-build --remove-orphans api indexer l2-decoder worker agent caddy` + platform-profile `provisioner` | Restart from pulled images |
+| 11 | Curl `/health` with retry | Verify api, indexer, provisioner, and l2-decoder come back |
 
 Typical deploy: 60-90s. Failures now surface in ≤60s, not silent 5-min timeouts.
 
