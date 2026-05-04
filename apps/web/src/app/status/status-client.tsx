@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { determineApiHealth } from "@/lib/status-page";
+import { determinePublicStatusHealth } from "@/lib/status-page";
 import type { SystemStatus } from "@/lib/types";
 import { StatusGridView, type StatusSnapshot } from "./status-grid-view";
 
@@ -17,6 +17,10 @@ const initialSnapshot: StatusSnapshot = {
 	},
 	tip: null,
 	index: null,
+	api: null,
+	node: null,
+	services: [],
+	reorgs: null,
 	lastChecked: null,
 	error: null,
 };
@@ -36,19 +40,25 @@ export function StatusClient({ incidentHeading }: { incidentHeading: string }) {
 			const status = (await response.json()) as SystemStatus;
 			const tip = status.streams?.tip ?? null;
 			setSnapshot({
-				health: tip
-					? determineApiHealth({ ok: true, tip })
-					: determineApiHealth({ ok: false }),
+				health: determinePublicStatusHealth(status),
 				tip,
 				index: status.index ?? null,
+				api: status.api ?? null,
+				node: status.node ?? null,
+				services: status.services ?? [],
+				reorgs: status.reorgs ?? null,
 				lastChecked: checkedAt,
 				error: null,
 			});
 		} catch (error) {
 			setSnapshot({
-				health: determineApiHealth({ ok: false, error }),
+				health: determinePublicStatusHealth(null),
 				tip: null,
 				index: null,
+				api: null,
+				node: null,
+				services: [],
+				reorgs: null,
 				lastChecked: checkedAt,
 				error:
 					error instanceof Error ? error.message : "Status request failed.",

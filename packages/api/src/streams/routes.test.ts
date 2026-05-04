@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
+import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 import type { StreamsEventsReader } from "./events.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
@@ -33,6 +34,52 @@ function createApp(readEvents: StreamsEventsReader = EMPTY_EVENTS_READER) {
 		createStreamsRouter({
 			getTip: () => TEST_TIP,
 			readEvents,
+		}),
+	);
+	return app;
+}
+
+function createMeteredApp(opts: {
+	readEvents?: StreamsEventsReader;
+	recordEventsReturned: (accountId: string, quantity: number) => Promise<void>;
+}) {
+	const app = new Hono();
+	app.onError(errorHandler);
+	const tokens: StreamsTokenStore = new Map([
+		[
+			"sk-sl_metered_streams",
+			{
+				tenant_id: "account:acct_streams",
+				account_id: "acct_streams",
+				tier: "build",
+				scopes: [STREAMS_READ_SCOPE],
+			},
+		],
+		[
+			"sk-sl_unmetered_streams",
+			{
+				tenant_id: "tenant_static",
+				tier: "build",
+				scopes: [STREAMS_READ_SCOPE],
+			},
+		],
+		[
+			"sk-sl_metered_wrong_scope",
+			{
+				tenant_id: "account:acct_streams",
+				account_id: "acct_streams",
+				tier: "build",
+				scopes: [],
+			},
+		],
+	]);
+	app.route(
+		"/v1/streams",
+		createStreamsRouter({
+			tokens,
+			getTip: () => TEST_TIP,
+			readEvents: opts.readEvents ?? EMPTY_EVENTS_READER,
+			recordEventsReturned: opts.recordEventsReturned,
 		}),
 	);
 	return app;
@@ -226,5 +273,92 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.status).toBe(200);
 		expect(seenAfter).toEqual({ block_height: 0, event_index: 0 });
 		expect(seenFromHeight).toBeUndefined();
+	});
+
+	test("meters successful authenticated Streams events returned", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		const app = createMeteredApp({
+			recordEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+			readEvents: async () => ({
+				events: [
+					{
+						cursor: "9999:0",
+						block_height: 9999,
+						index_block_hash: TEST_TIP.index_block_hash,
+						burn_block_height: TEST_TIP.burn_block_height,
+						tx_id: "0x01",
+						tx_index: 0,
+						event_index: 0,
+						event_type: "stx_transfer",
+						contract_id: null,
+						payload: {},
+						ts: "2026-05-02T21:43:00.000Z",
+					},
+					{
+						cursor: "9999:1",
+						block_height: 9999,
+						index_block_hash: TEST_TIP.index_block_hash,
+						burn_block_height: TEST_TIP.burn_block_height,
+						tx_id: "0x02",
+						tx_index: 1,
+						event_index: 1,
+						event_type: "print",
+						contract_id: "SP123.contract",
+						payload: {},
+						ts: "2026-05-02T21:43:01.000Z",
+					},
+				],
+				next_cursor: "9999:1",
+			}),
+		});
+
+		const res = await app.request("/v1/streams/events", {
+			headers: authHeaders("sk-sl_metered_streams"),
+		});
+
+		expect(res.status).toBe(200);
+		expect(metered).toEqual([{ accountId: "acct_streams", quantity: 2 }]);
+	});
+
+	test("does not meter static keys, failed auth, wrong scope, or /tip", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		const app = createMeteredApp({
+			recordEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+			readEvents: async () => ({
+				events: [
+					{
+						cursor: "9999:0",
+						block_height: 9999,
+						index_block_hash: TEST_TIP.index_block_hash,
+						burn_block_height: TEST_TIP.burn_block_height,
+						tx_id: "0x01",
+						tx_index: 0,
+						event_index: 0,
+						event_type: "stx_transfer",
+						contract_id: null,
+						payload: {},
+						ts: "2026-05-02T21:43:00.000Z",
+					},
+				],
+				next_cursor: "9999:0",
+			}),
+		});
+
+		await app.request("/v1/streams/events", {
+			headers: authHeaders("sk-sl_unmetered_streams"),
+		});
+		await app.request("/v1/streams/events");
+		await app.request("/v1/streams/events", {
+			headers: authHeaders("sk-sl_metered_wrong_scope"),
+		});
+		await app.request("/v1/streams/tip", {
+			headers: authHeaders("sk-sl_metered_streams"),
+		});
+
+		expect(metered).toEqual([]);
 	});
 });

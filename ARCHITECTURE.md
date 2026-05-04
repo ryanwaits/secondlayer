@@ -12,7 +12,7 @@ This document describes the runtime architecture, the data layers, the delivery 
 2. **Layered primitives.** Raw events → decoded events → user-defined subgraphs. Each layer is independently queryable and independently priced.
 3. **Read-only at the edges.** Public surfaces are read APIs and managed subscriptions. We do not deliver webhooks from raw events; that lane belongs to Hiro Chainhooks.
 4. **Expose data, not a database.** Customers don't inherit our storage choices. Subgraphs let them define their own schema; the SDK is decoupled from storage; downstream consumers are free to use Postgres, PlanetScale, Prisma, DuckDB, or whatever fits their stack.
-5. **Calm infrastructure.** Hot-spare nodes, idempotent ingest, deterministic replays. Status page is the product.
+5. **Calm infrastructure.** Idempotent ingest, deterministic replays, backups, recovery drills, and funded redundancy when the business can support it. Status page is the product.
 6. **Generous to the ecosystem.** Foundation Datasets are public goods. SDKs and CLI are open source. We monetize hosted, supported infrastructure — not access to public chain data.
 
 ---
@@ -21,8 +21,9 @@ This document describes the runtime architecture, the data layers, the delivery 
 
 ```
                        ┌──────────────────────────────────┐
-                       │         Stacks node fleet         │
-                       │  (primary + hot spare, Hetzner)   │
+                       │      Stacks node/server layer      │
+                       │ (single live server in Phase 1;    │
+                       │      hot spare deferred)           │
                        └──────────────┬───────────────────┘
                                       │ events, blocks, microblocks
                                       ▼
@@ -145,7 +146,7 @@ Quota enforcement happens at the API gateway. Billing meters (rows scanned, webh
 
 ## Reliability posture
 
-- **Nodes:** Two Hetzner machines today (primary + hot spare). Failover is manual but rehearsed; target automated within Phase 1.
+- **Nodes:** One live production server/node path in Phase 1. Reliability hardening focuses on status, deploy rollback, backup verification, operator runbooks, and non-destructive recovery drills. Hot-spare infrastructure and failover rehearsal are deferred until funded second-node capacity exists.
 - **Reorg handling:** Indexer reverts L1 writes on reorg, replays from fork point, re-emits decoded L2 rows. Subscriptions emit explicit reorg markers.
 - **Status page:** Public. Tracks node health, ingest lag, L2 decode lag, API p50/p95, error rate. Goes live in Phase 1.
 - **SLAs:** None on Free. 99.5% target on Build. 99.9% on Scale. Custom on Enterprise.
@@ -156,7 +157,7 @@ Quota enforcement happens at the API gateway. Billing meters (rows scanned, webh
 ## Security and compliance
 
 - API keys per tenant, scoped per product.
-- All public traffic over TLS. Internal traffic over WireGuard between Hetzner hosts.
+- All public traffic over TLS. Internal traffic uses private links or WireGuard where multiple hosts are present.
 - No PII collected beyond billing email and account metadata.
 - SOC2 deferred until an enterprise customer requires it. Note in sales conversations as "on roadmap, ready to start when contract value justifies it."
 

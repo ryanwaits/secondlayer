@@ -5,6 +5,7 @@ export type ProductTier = "free" | "build" | "scale" | "enterprise";
 
 export type ProductTenant<TTier extends ProductTier = ProductTier> = {
 	tenant_id: string;
+	account_id?: string;
 	tier: TTier;
 	scopes: readonly string[];
 };
@@ -81,6 +82,7 @@ export function createRuntimeProductTokenStore<TTenant extends ProductTenant>(
 
 			return {
 				tenant_id: `account:${key.account_id}`,
+				account_id: key.account_id,
 				tier: accountPlanToProductTier(key.plan),
 				scopes: [opts.requiredScope],
 			} as unknown as TTenant;

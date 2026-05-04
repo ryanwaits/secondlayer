@@ -10,7 +10,7 @@ This document complements `VISION.md` (where we're going), `ARCHITECTURE.md` (ho
 
 | Phase | Weeks | Headline outcome |
 |---|---|---|
-| Phase 1 — Reliability + Surfaces | 1–3 | Streams + Index live, status page public, hot-spare failover rehearsed |
+| Phase 1 — Reliability + Surfaces | 1–3 | Streams + Index live, status page public, single-server recovery ready |
 | Phase 2 — Datasets + Console | 4–6 | Five Foundation Datasets shipped, Console v1 live |
 | Phase 3 — Foundation + Hiro motion | 7–9 | Grant submitted, architecture article published, Hiro one-pager delivered |
 | Phase 4 — Partner Platform | months 4–6 | Multi-tenant platform demo-ready for Hiro |
@@ -22,20 +22,21 @@ This document complements `VISION.md` (where we're going), `ARCHITECTURE.md` (ho
 The engine is 90% built. Phase 1 is about exposing what already exists and shoring up the operational story so partners and paying customers can trust it.
 
 **Deliverables**
-- Hot-spare node automated failover, rehearsed twice.
-- Public status page covering node health, ingest lag, L2 decode lag, API p50/p95.
+- Public status page covering current live node/service health, ingest lag, L2 decode lag, API p50/p95, and error rate.
 - Stacks Streams API: cursor-paginated read endpoint over L1 events. Auth, rate limit, metering.
-- Stacks Index API: REST endpoints over decoded transactions and events. Auth, rate limit, metering.
+- Stacks Index API: REST endpoints over decoded events. Auth, rate limit, metering.
 - Documentation site updated with Streams + Index reference, quickstarts, and migration notes from Subgraphs-only.
 - Pricing page updated to reflect Build / Scale / Enterprise with the locked numbers.
+- Current live server inventory, operator recovery runbook, backup verification, deploy rollback path, and one non-destructive recovery drill.
 
 **Out of scope this phase**
 - Console UI (that's Phase 2).
 - Datasets (Phase 2).
 - Webhook delivery from raw events (not on roadmap).
+- Hot-spare failover automation and rehearsal. This requires funded second-node infrastructure.
 
 **Decision gate (end of week 3)**
-- Are Streams and Index live, metered, and behind paid auth? If no, extend Phase 1 by one week before starting Phase 2. Do not start Phase 2 with broken or missing surfaces.
+- Are Streams and Index live, observable, metered, documented, recoverable, and behind paid auth? If no, extend Phase 1 by one week before starting Phase 2. Do not start Phase 2 with broken or missing surfaces.
 
 ---
 
@@ -113,13 +114,17 @@ Cost grows in step with phases. Numbers are monthly run-rate.
 
 | Stage | Approx cost | Drivers |
 |---|---|---|
-| Today | $300–400 | 2 Hetzner machines |
-| End of Phase 1 | ~$1,000 | Hot-spare, status page infra, more storage |
+| Today | $300–400 | Current live server and supporting services |
+| End of Phase 1 | ~$400–700 | Status page telemetry, smoke checks, backup verification, storage growth |
 | End of Phase 2 | ~$1,500 | Datasets pipelines, Console hosting, Stripe |
 | End of Phase 3 | ~$2,500 | Reference customer load, marketing CDN, more storage tiers |
 | End of Phase 4 | ~$4,000–5,500 | Partner Platform tenancy, dedicated replicas, SLA headroom |
 
 Cost discipline: every new line item is justified against either a paying customer cohort or the Foundation grant. No speculative provisioning.
+
+## Deferred reliability milestone
+
+Hot-spare infrastructure is deferred until there is budget for a second node/server. The future milestone should include funded spare capacity, operator-confirmed failover, rollback, alerting, and at least two rehearsals with recovery-time evidence. Automatic promotion is not part of the v0 failover model.
 
 ---
 

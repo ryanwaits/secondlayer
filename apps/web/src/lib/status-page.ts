@@ -1,5 +1,11 @@
 import type { StreamsTip } from "@secondlayer/sdk/streams";
-import type { IndexDecoderFreshness, IndexFreshnessStatus } from "./types";
+import type {
+	ApiTelemetryStatus,
+	IndexDecoderFreshness,
+	IndexFreshnessStatus,
+	ServiceHealthStatus,
+	SystemStatus,
+} from "./types";
 
 export type StatusState = "checking" | "ok" | "degraded" | "down";
 export type FreshnessColor = "green" | "yellow" | "muted";
@@ -35,6 +41,24 @@ export function determineApiHealth(probe: TipProbe): ApiHealth {
 		state: "ok",
 		label: "OK",
 		description: "The API is reachable and ingest lag is under 60 seconds.",
+	};
+}
+
+export function determinePublicStatusHealth(
+	status: SystemStatus | null,
+): ApiHealth {
+	if (!status) return determineApiHealth({ ok: false });
+	if (status.status === "degraded") {
+		return {
+			state: "degraded",
+			label: "Degraded",
+			description: "One or more public health checks are degraded.",
+		};
+	}
+	return {
+		state: "ok",
+		label: "OK",
+		description: "Public API health checks are passing.",
 	};
 }
 
@@ -94,6 +118,49 @@ export function truncateHash(hash: string | null | undefined): string {
 	if (!hash) return "Unknown";
 	if (hash.length <= 18) return hash;
 	return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
+}
+
+export function formatLatencyMs(value: number | null | undefined): string {
+	if (value == null || !Number.isFinite(value)) return "Unknown";
+	return `${Math.max(0, Math.round(value))}ms`;
+}
+
+export function formatErrorRate(value: number | null | undefined): string {
+	if (value == null || !Number.isFinite(value)) return "Unknown";
+	return `${(Math.max(0, value) * 100).toFixed(2)}%`;
+}
+
+export function serviceStatusColor(status: ServiceHealthStatus): FreshnessColor {
+	if (status === "ok") return "green";
+	if (status === "degraded") return "yellow";
+	return "muted";
+}
+
+export function serviceDisplayName(name: string): string {
+	switch (name) {
+		case "api":
+			return "API";
+		case "database":
+			return "Database";
+		case "indexer":
+			return "Indexer service";
+		case "l2_decoder":
+			return "L2 decoder";
+		default:
+			return name.replace(/_/g, " ");
+	}
+}
+
+export function apiTelemetryOrEmpty(
+	api: ApiTelemetryStatus | null | undefined,
+): Pick<ApiTelemetryStatus, "latency" | "error_rate" | "requests"> {
+	return (
+		api ?? {
+			latency: { p50_ms: null, p95_ms: null },
+			error_rate: 0,
+			requests: 0,
+		}
+	);
 }
 
 export function readIncidentHeading(markdown: string): string {

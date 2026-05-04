@@ -2,7 +2,6 @@ import { CodeBlock } from "@/components/code-block";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
-import { PLANS, PLAN_IDS } from "@secondlayer/shared/pricing";
 
 const toc: TocItem[] = [
 	{ label: "Tiers", href: "#tiers" },
@@ -10,32 +9,48 @@ const toc: TocItem[] = [
 	{ label: "Self-host", href: "#self-host" },
 ];
 
-function formatPrice(cents: number | null): string {
-	if (cents === null) return "Custom";
-	if (cents === 0) return "Free";
-	return `$${cents / 100}`;
-}
-
-function formatMonthly(cents: number | null): string {
-	if (cents === null || cents === 0) return formatPrice(cents);
-	return `${formatPrice(cents)}/mo`;
-}
-
-function formatStorage(mb: number): string {
-	if (mb < 0) return "Unlimited";
-	if (mb >= 1024) return `${mb / 1024} GB`;
-	return `${mb} MB`;
-}
-
-function formatCompute(plan: (typeof PLANS)[keyof typeof PLANS]): string {
-	if (plan.id === "enterprise") return "Custom";
-	return `${plan.totalCpus} vCPU · ${plan.totalMemoryMb / 1024} GB RAM`;
-}
-
-function formatAnnual(cents: number | null): string {
-	if (cents === null) return "—";
-	return `$${cents / 100}/yr`;
-}
+const tiers = [
+	{
+		name: "Free",
+		price: "$0",
+		streamsWindow: "7 days",
+		indexRows: "100K / mo",
+		subgraphs: "1",
+		subscriptions: "1 SSE",
+		mcp: "self-host",
+		sla: "best effort",
+	},
+	{
+		name: "Build",
+		price: "$99/mo",
+		streamsWindow: "30 days",
+		indexRows: "2M / mo",
+		subgraphs: "5",
+		subscriptions: "10, 1M events / mo",
+		mcp: "self-host",
+		sla: "99.5%",
+	},
+	{
+		name: "Scale",
+		price: "$499/mo",
+		streamsWindow: "90 days",
+		indexRows: "25M / mo",
+		subgraphs: "25",
+		subscriptions: "100, 10M events / mo",
+		mcp: "hosted",
+		sla: "99.9%",
+	},
+	{
+		name: "Enterprise",
+		price: "Custom",
+		streamsWindow: "Full archive",
+		indexRows: "Custom",
+		subgraphs: "Custom",
+		subscriptions: "Custom",
+		mcp: "hosted",
+		sla: "Custom",
+	},
+];
 
 export default function PricingPage() {
 	return (
@@ -49,10 +64,9 @@ export default function PricingPage() {
 
 				<div className="prose">
 					<p>
-						Hosted subgraphs + dedicated Postgres. Free Hobby tier, two paid
-						tiers, custom Enterprise. Annual paid plans include 2 months free.
-						Pay for compute; subgraphs and subscriptions are unlimited on every
-						paid tier. Self-host is MIT-licensed.
+						Second Layer prices the data plane in layers. Stacks Streams is the
+						raw event feed. Stacks Index is decoded event access. Stacks
+						Subgraphs, Subscriptions, and MCP Server sit above those reads.
 					</p>
 				</div>
 
@@ -63,22 +77,27 @@ export default function PricingPage() {
 						<thead>
 							<tr>
 								<th>Plan</th>
-								<th>Compute</th>
-								<th>Storage</th>
-								<th>Monthly</th>
-								<th>Annual</th>
+								<th>Price</th>
+								<th>Streams window</th>
+								<th>Index rows</th>
+								<th>Subgraphs</th>
+								<th>Subscriptions</th>
+								<th>MCP Server</th>
+								<th>SLA</th>
 							</tr>
 						</thead>
 						<tbody>
-							{PLAN_IDS.map((id) => {
-								const p = PLANS[id];
+							{tiers.map((tier) => {
 								return (
-									<tr key={id}>
-										<td>{p.displayName}</td>
-										<td>{formatCompute(p)}</td>
-										<td>{formatStorage(p.storageLimitMb)}</td>
-										<td>{formatMonthly(p.monthlyPriceCents)}</td>
-										<td>{formatAnnual(p.annualPriceCents)}</td>
+									<tr key={tier.name}>
+										<td>{tier.name}</td>
+										<td>{tier.price}</td>
+										<td>{tier.streamsWindow}</td>
+										<td>{tier.indexRows}</td>
+										<td>{tier.subgraphs}</td>
+										<td>{tier.subscriptions}</td>
+										<td>{tier.mcp}</td>
+										<td>{tier.sla}</td>
 									</tr>
 								);
 							})}
@@ -90,16 +109,14 @@ export default function PricingPage() {
 
 				<div className="prose">
 					<p>
-						Compute is hard-capped per tier (Docker enforces vCPU + memory) —
-						upgrade for more, no surprise compute overage. Storage past the plan
-						limit bills at <code>$2/GB-month</code> via Stripe meter. Hobby has
-						a hard 10 GB cap with no overage billing and auto-pauses idle
-						projects after 7 days.
+						Stacks Streams meters events returned. Stacks Index meters decoded
+						events returned. Subscriptions meter delivered events. Stacks
+						Subgraphs meter storage above the tier allowance.
 					</p>
 					<p>
-						AI sessions on the dashboard bill metered against the{" "}
-						<code>ai_evals</code> meter — you only pay for what your sessions
-						use. Spend caps + alert thresholds are configurable per account.
+						Overages are $4 per additional 100K Stacks Index rows, $1 per
+						additional 100K subscription events, and $0.50/GB-month for
+						Subgraphs storage above the tier limit.
 					</p>
 				</div>
 
@@ -107,8 +124,9 @@ export default function PricingPage() {
 
 				<div className="prose">
 					<p>
-						The whole stack is MIT-licensed. Run indexer + API + processor on
-						your own hardware, free forever.
+						The open-source packages can run on your own hardware. Hosted
+						operation, support, retained Streams windows, and hosted MCP Server
+						come from the paid tiers.
 					</p>
 				</div>
 

@@ -50,6 +50,57 @@ function createApp(readFtTransfers: FtTransfersReader = EMPTY_READER) {
 	return app;
 }
 
+function createMeteredIndexApp(opts: {
+	readFtTransfers?: FtTransfersReader;
+	readNftTransfers?: NftTransfersReader;
+	recordDecodedEventsReturned: (
+		accountId: string,
+		quantity: number,
+	) => Promise<void>;
+}) {
+	const app = new Hono();
+	app.onError(errorHandler);
+	const tokens: IndexTokenStore = new Map([
+		[
+			"sk-sl_metered_index",
+			{
+				tenant_id: "account:acct_index",
+				account_id: "acct_index",
+				tier: "build",
+				scopes: [INDEX_READ_SCOPE],
+			},
+		],
+		[
+			"sk-sl_unmetered_index",
+			{
+				tenant_id: "tenant_static_index",
+				tier: "build",
+				scopes: [INDEX_READ_SCOPE],
+			},
+		],
+		[
+			"sk-sl_metered_index_wrong_scope",
+			{
+				tenant_id: "account:acct_index",
+				account_id: "acct_index",
+				tier: "build",
+				scopes: [],
+			},
+		],
+	]);
+	app.route(
+		"/v1/index",
+		createIndexRouter({
+			tokens,
+			getTip: () => TIP,
+			readFtTransfers: opts.readFtTransfers ?? EMPTY_READER,
+			readNftTransfers: opts.readNftTransfers ?? EMPTY_NFT_READER,
+			recordDecodedEventsReturned: opts.recordDecodedEventsReturned,
+		}),
+	);
+	return app;
+}
+
 describe("Stacks Index gateway middleware", () => {
 	test("free tier is rejected for Index", async () => {
 		const res = await createApp().request("/v1/index/ft-transfers", {
@@ -150,5 +201,117 @@ describe("Stacks Index gateway middleware", () => {
 			});
 			expect(res.status).toBe(200);
 		}
+	});
+
+	test("meters successful authenticated Index decoded events returned", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		const app = createMeteredIndexApp({
+			recordDecodedEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+			readFtTransfers: async () => ({
+				events: [
+					{
+						cursor: "10:0",
+						block_height: 10,
+						tx_id: "0x01",
+						tx_index: 0,
+						event_index: 0,
+						event_type: "ft_transfer",
+						contract_id: "SP123.token",
+						asset_identifier: "SP123.token::coin",
+						sender: "SP123.sender",
+						recipient: "SP123.recipient",
+						amount: "1",
+					},
+				],
+				next_cursor: "10:0",
+			}),
+			readNftTransfers: async () => ({
+				events: [
+					{
+						cursor: "11:0",
+						block_height: 11,
+						tx_id: "0x02",
+						tx_index: 0,
+						event_index: 0,
+						event_type: "nft_transfer",
+						contract_id: "SP123.nft",
+						asset_identifier: "SP123.nft::item",
+						sender: "SP123.sender",
+						recipient: "SP123.recipient",
+						value: "u1",
+					},
+					{
+						cursor: "11:1",
+						block_height: 11,
+						tx_id: "0x03",
+						tx_index: 1,
+						event_index: 1,
+						event_type: "nft_transfer",
+						contract_id: "SP123.nft",
+						asset_identifier: "SP123.nft::item",
+						sender: "SP123.sender",
+						recipient: "SP123.recipient",
+						value: "u2",
+					},
+				],
+				next_cursor: "11:1",
+			}),
+		});
+
+		await app.request("/v1/index/ft-transfers", {
+			headers: authHeaders("sk-sl_metered_index"),
+		});
+		await app.request("/v1/index/nft-transfers", {
+			headers: authHeaders("sk-sl_metered_index"),
+		});
+
+		expect(metered).toEqual([
+			{ accountId: "acct_index", quantity: 1 },
+			{ accountId: "acct_index", quantity: 2 },
+		]);
+	});
+
+	test("does not meter static keys, failed auth, wrong scope, or rate limit responses", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		const app = createMeteredIndexApp({
+			recordDecodedEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+			readFtTransfers: async () => ({
+				events: [
+					{
+						cursor: "10:0",
+						block_height: 10,
+						tx_id: "0x01",
+						tx_index: 0,
+						event_index: 0,
+						event_type: "ft_transfer",
+						contract_id: "SP123.token",
+						asset_identifier: "SP123.token::coin",
+						sender: "SP123.sender",
+						recipient: "SP123.recipient",
+						amount: "1",
+					},
+				],
+				next_cursor: "10:0",
+			}),
+		});
+
+		await app.request("/v1/index/ft-transfers", {
+			headers: authHeaders("sk-sl_unmetered_index"),
+		});
+		await app.request("/v1/index/ft-transfers");
+		await app.request("/v1/index/ft-transfers", {
+			headers: authHeaders("sk-sl_metered_index_wrong_scope"),
+		});
+		for (let i = 0; i < 51; i++) {
+			await app.request("/v1/index/ft-transfers", {
+				headers: authHeaders("sk-sl_unmetered_index"),
+			});
+		}
+
+		expect(metered).toEqual([]);
 	});
 });

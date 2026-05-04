@@ -2,6 +2,8 @@
 
 Living checklist for operating the production stack as we roll out dedicated hosting. Covers env vars you need to set, commands to verify state, and what's coming in upcoming sprints.
 
+For Phase 1 single-server recovery, backup verification, post-recovery smoke checks, and drill evidence, use [`PHASE1_RECOVERY_RUNBOOK.md`](PHASE1_RECOVERY_RUNBOOK.md).
+
 Last updated after dedicated-hosting cutover + Phase 4 hardening (per-tenant backups, bastion, audit log).
 
 ---

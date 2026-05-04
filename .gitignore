@@ -49,6 +49,8 @@ tmp/
 docs/*
 !docs/prds/
 !docs/prds/**
+!docs/audits/
+!docs/audits/**
 !docs/sprints/
 !docs/sprints/**
 !docker/docs/

@@ -34,6 +34,7 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
+import { apiTelemetry } from "./telemetry/api.ts";
 import tenantsRouter from "./routes/tenants.ts";
 import waitlistRouter from "./routes/waitlist.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
@@ -77,6 +78,7 @@ app.use(
 	}),
 );
 app.use("*", requestLogger);
+app.use("*", apiTelemetry());
 
 // Global error handler
 app.onError(errorHandler);

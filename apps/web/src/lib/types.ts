@@ -82,6 +82,14 @@ export interface TeamInvitation {
 export interface SystemStatus {
 	status: "healthy" | "degraded";
 	chainTip: number | null;
+	api?: ApiTelemetryStatus;
+	node?: {
+		status: ServiceHealthStatus;
+	};
+	services?: ServiceHealth[];
+	reorgs?: {
+		last_24h: number | null;
+	};
 	streams?: {
 		status: "ok" | "unavailable";
 		tip: {
@@ -94,6 +102,28 @@ export interface SystemStatus {
 	index?: IndexFreshnessStatus;
 	recentDeliveries: number;
 	timestamp: string;
+}
+
+export type ServiceHealthStatus = "ok" | "degraded" | "unavailable";
+
+export interface ServiceHealth {
+	name: "api" | "database" | "indexer" | "l2_decoder" | string;
+	status: ServiceHealthStatus;
+}
+
+export interface ApiTelemetryStats {
+	latency: {
+		p50_ms: number | null;
+		p95_ms: number | null;
+	};
+	error_rate: number;
+	requests: number;
+	errors_5xx: number;
+}
+
+export interface ApiTelemetryStatus extends ApiTelemetryStats {
+	groups: Record<string, ApiTelemetryStats>;
+	window_seconds: number;
 }
 
 export interface IndexDecoderFreshness {

@@ -45,6 +45,32 @@ import sys
 body = json.loads(os.environ["STATUS_BODY"])
 failures = []
 
+api = body.get("api") or {}
+latency = api.get("latency") or {}
+if "p50_ms" not in latency:
+    failures.append("missing api.latency.p50_ms")
+if "p95_ms" not in latency:
+    failures.append("missing api.latency.p95_ms")
+if "error_rate" not in api:
+    failures.append("missing api.error_rate")
+
+node = body.get("node") or {}
+if node.get("status") not in ("ok", "degraded", "unavailable"):
+    failures.append("missing node.status")
+
+services = body.get("services")
+if not isinstance(services, list) or not services:
+    failures.append("missing services")
+else:
+    service_names = {service.get("name") for service in services}
+    for required in ("api", "database", "indexer", "l2_decoder"):
+        if required not in service_names:
+            failures.append(f"missing {required} service")
+
+reorgs = body.get("reorgs") or {}
+if "last_24h" not in reorgs:
+    failures.append("missing reorgs.last_24h")
+
 streams_lag = (((body.get("streams") or {}).get("tip") or {}).get("lag_seconds"))
 if streams_lag is None:
     failures.append("missing streams.tip.lag_seconds")

@@ -1,3 +1,5 @@
+import { getDb } from "@secondlayer/shared/db";
+import { incrementIndexDecodedEventsReturned } from "@secondlayer/shared/db/queries/usage";
 import { Hono } from "hono";
 import {
 	DEFAULT_INDEX_TOKEN_STORE,
@@ -21,10 +23,18 @@ export type IndexRouterOptions = {
 	getTip?: IndexTipProvider;
 	readFtTransfers?: FtTransfersReader;
 	readNftTransfers?: NftTransfersReader;
+	recordDecodedEventsReturned?: (
+		accountId: string,
+		quantity: number,
+	) => Promise<void>;
 };
 
 export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	const getTip = opts.getTip ?? getIndexTip;
+	const recordDecodedEventsReturned =
+		opts.recordDecodedEventsReturned ??
+		((accountId, quantity) =>
+			incrementIndexDecodedEventsReturned(getDb(), accountId, quantity));
 	const router = new Hono<IndexEnv>();
 
 	router.use(
@@ -36,25 +46,31 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	router.get("/ft-transfers", async (c) => {
 		const tip = await getTip();
 		c.set("indexTip", tip);
-		return c.json(
-			await getFtTransfersResponse({
-				query: new URL(c.req.url).searchParams,
-				tip,
-				readTransfers: opts.readFtTransfers,
-			}),
-		);
+		const response = await getFtTransfersResponse({
+			query: new URL(c.req.url).searchParams,
+			tip,
+			readTransfers: opts.readFtTransfers,
+		});
+		const accountId = c.get("indexTenant").account_id;
+		if (accountId && response.events.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.events.length);
+		}
+		return c.json(response);
 	});
 
 	router.get("/nft-transfers", async (c) => {
 		const tip = await getTip();
 		c.set("indexTip", tip);
-		return c.json(
-			await getNftTransfersResponse({
-				query: new URL(c.req.url).searchParams,
-				tip,
-				readTransfers: opts.readNftTransfers,
-			}),
-		);
+		const response = await getNftTransfersResponse({
+			query: new URL(c.req.url).searchParams,
+			tip,
+			readTransfers: opts.readNftTransfers,
+		});
+		const accountId = c.get("indexTenant").account_id;
+		if (accountId && response.events.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.events.length);
+		}
+		return c.json(response);
 	});
 
 	return router;

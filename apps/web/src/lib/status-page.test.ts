@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import {
 	determineApiHealth,
+	determinePublicStatusHealth,
 	formatLag,
+	formatErrorRate,
 	formatLastChecked,
+	formatLatencyMs,
 	indexFreshnessColor,
 	indexFreshnessLabel,
 	readIncidentHeading,
+	serviceDisplayName,
+	serviceStatusColor,
 	truncateHash,
 } from "./status-page";
 
@@ -28,6 +33,26 @@ describe("status page helpers", () => {
 		expect(determineApiHealth({ ok: false, status: 500 }).state).toBe("down");
 	});
 
+	test("derives public status health from the aggregate public contract", () => {
+		expect(determinePublicStatusHealth(null).state).toBe("down");
+		expect(
+			determinePublicStatusHealth({
+				status: "healthy",
+				chainTip: 1,
+				timestamp: "2026-05-03T20:30:45Z",
+				recentDeliveries: 0,
+			}).state,
+		).toBe("ok");
+		expect(
+			determinePublicStatusHealth({
+				status: "degraded",
+				chainTip: 1,
+				timestamp: "2026-05-03T20:30:45Z",
+				recentDeliveries: 0,
+			}).state,
+		).toBe("degraded");
+	});
+
 	test("formats lag for seconds, minutes, and hours", () => {
 		expect(formatLag(4)).toBe("4s");
 		expect(formatLag(65)).toBe("1m 5s");
@@ -46,6 +71,16 @@ describe("status page helpers", () => {
 		expect(truncateHash("0x1234567890abcdef1234567890abcdef")).toBe(
 			"0x12345678...abcdef",
 		);
+	});
+
+	test("formats telemetry and service health labels", () => {
+		expect(formatLatencyMs(24.4)).toBe("24ms");
+		expect(formatLatencyMs(null)).toBe("Unknown");
+		expect(formatErrorRate(0.0125)).toBe("1.25%");
+		expect(serviceStatusColor("ok")).toBe("green");
+		expect(serviceStatusColor("degraded")).toBe("yellow");
+		expect(serviceStatusColor("unavailable")).toBe("muted");
+		expect(serviceDisplayName("l2_decoder")).toBe("L2 decoder");
 	});
 
 	test("reads the incident heading from markdown", () => {

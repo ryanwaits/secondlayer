@@ -15,6 +15,48 @@ export async function incrementApiRequests(
 	`.execute(db);
 }
 
+async function incrementAccountDailyCounter(
+	db: Kysely<Database>,
+	accountId: string,
+	column: "streams_events_returned" | "index_decoded_events_returned",
+	quantity: number,
+): Promise<void> {
+	if (quantity <= 0) return;
+	const today = new Date().toISOString().slice(0, 10);
+	await sql`
+		INSERT INTO usage_daily (account_id, tenant_id, date, api_requests, deliveries, ${sql.raw(column)})
+		VALUES (${accountId}, NULL, ${today}, 0, 0, ${quantity})
+		ON CONFLICT (account_id, date) WHERE tenant_id IS NULL
+		DO UPDATE SET ${sql.raw(column)} = usage_daily.${sql.raw(column)} + ${quantity}
+	`.execute(db);
+}
+
+export async function incrementStreamsEventsReturned(
+	db: Kysely<Database>,
+	accountId: string,
+	quantity: number,
+): Promise<void> {
+	await incrementAccountDailyCounter(
+		db,
+		accountId,
+		"streams_events_returned",
+		quantity,
+	);
+}
+
+export async function incrementIndexDecodedEventsReturned(
+	db: Kysely<Database>,
+	accountId: string,
+	quantity: number,
+): Promise<void> {
+	await incrementAccountDailyCounter(
+		db,
+		accountId,
+		"index_decoded_events_returned",
+		quantity,
+	);
+}
+
 export interface UsageSummary {
 	apiRequestsToday: number;
 	deliveriesThisMonth: number;

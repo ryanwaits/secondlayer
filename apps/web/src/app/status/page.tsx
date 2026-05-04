@@ -6,7 +6,7 @@ import { StatusPageView } from "./status-page-view";
 
 export const metadata: Metadata = {
 	title: "Status | secondlayer",
-	description: "Public status for Second Layer Stacks Streams.",
+	description: "Public status for Second Layer Stacks Streams and Stacks Index.",
 };
 
 function readIncidentFile(): string {

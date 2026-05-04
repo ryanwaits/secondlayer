@@ -47,6 +47,7 @@ describe("runtime product token store", () => {
 
 		await expect(store.get(raw)).resolves.toEqual({
 			tenant_id: "account:acct_runtime",
+			account_id: "acct_runtime",
 			tier: "scale",
 			scopes: [REQUIRED_SCOPE],
 		});

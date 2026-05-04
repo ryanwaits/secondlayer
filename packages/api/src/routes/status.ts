@@ -7,6 +7,7 @@ import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { type StreamsTip, getStreamsTip } from "../streams/tip.ts";
+import { getApiTelemetrySnapshot } from "../telemetry/api.ts";
 
 const app = new Hono();
 
@@ -25,6 +26,13 @@ type PublicIndexDecoder = {
 type PublicIndexStatus = {
 	status: PublicIndexDecoderStatus;
 	decoders: PublicIndexDecoder[];
+};
+
+type SemanticHealthStatus = "ok" | "degraded" | "unavailable";
+
+type PublicServiceHealth = {
+	name: "api" | "database" | "indexer" | "l2_decoder";
+	status: SemanticHealthStatus;
 };
 
 const INDEX_DECODERS: Array<{
@@ -87,29 +95,88 @@ export function publicIndexStatusFromL2Health(
 	return { status, decoders };
 }
 
+function serviceStatusFromPublicIndex(
+	index: PublicIndexStatus,
+): SemanticHealthStatus {
+	if (index.status === "ok") return "ok";
+	if (index.status === "degraded") return "degraded";
+	return "unavailable";
+}
+
+function nodeStatusFromStreamsTip(
+	streamsTip: StreamsTip | null,
+): SemanticHealthStatus {
+	if (!streamsTip) return "unavailable";
+	if (streamsTip.lag_seconds >= 60) return "degraded";
+	return "ok";
+}
+
+function overallPublicStatus(services: PublicServiceHealth[]): "healthy" | "degraded" {
+	return services.every((service) => service.status === "ok")
+		? "healthy"
+		: "degraded";
+}
+
+async function getIndexerHealth(): Promise<{
+	blocksReceivedOutOfOrder?: number;
+} | null> {
+	return fetch(`${process.env.INDEXER_URL || "http://localhost:3700"}/health`, {
+		signal: AbortSignal.timeout(1000),
+	}).then((r) =>
+		r.ok ? (r.json() as Promise<{ blocksReceivedOutOfOrder?: number }>) : null,
+	);
+}
+
 app.get("/health", async (c) => {
 	return c.json({ status: "ok" });
 });
 
 app.get("/public/status", async (c) => {
 	const db = getDb();
-	const [streamsTipResult, l2DecodersResult] = await Promise.allSettled([
-		getStreamsTip(),
-		getL2DecodersHealth({ db }),
-	]);
+	const [dbResult, indexerResult, streamsTipResult, l2DecodersResult] =
+		await Promise.allSettled([
+			sql`SELECT 1`.execute(db),
+			getIndexerHealth(),
+			getStreamsTip(),
+			getL2DecodersHealth({ db }),
+		]);
 	const streamsTip: StreamsTip | null =
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
 	const l2DecodersHealth: L2DecodersHealth | null =
 		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
+	const index = publicIndexStatusFromL2Health(l2DecodersHealth);
+	const services: PublicServiceHealth[] = [
+		{ name: "api", status: "ok" },
+		{
+			name: "database",
+			status: dbResult.status === "fulfilled" ? "ok" : "unavailable",
+		},
+		{
+			name: "indexer",
+			status:
+				indexerResult.status === "fulfilled" && indexerResult.value
+					? "ok"
+					: "unavailable",
+		},
+		{ name: "l2_decoder", status: serviceStatusFromPublicIndex(index) },
+	];
 
 	return c.json({
-		status: streamsTip ? "healthy" : "degraded",
+		status: overallPublicStatus(services),
 		chainTip: streamsTip?.block_height ?? null,
 		streams: {
 			status: streamsTip ? "ok" : "unavailable",
 			tip: streamsTip,
 		},
-		index: publicIndexStatusFromL2Health(l2DecodersHealth),
+		index,
+		api: getApiTelemetrySnapshot(),
+		node: {
+			status: nodeStatusFromStreamsTip(streamsTip),
+		},
+		services,
+		reorgs: {
+			last_24h: null,
+		},
 		timestamp: new Date().toISOString(),
 	});
 });
@@ -128,13 +195,7 @@ app.get("/status", async (c) => {
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		db.selectFrom("index_progress").selectAll().execute(),
-		fetch(`${process.env.INDEXER_URL || "http://localhost:3700"}/health`, {
-			signal: AbortSignal.timeout(1000),
-		}).then((r) =>
-			r.ok
-				? (r.json() as Promise<{ blocksReceivedOutOfOrder?: number }>)
-				: null,
-		),
+		getIndexerHealth(),
 		db.selectFrom("subgraphs").selectAll().execute(),
 		getGapSummaryBySubgraph(db),
 		getStreamsTip(),
@@ -223,11 +284,32 @@ app.get("/status", async (c) => {
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
 	const l2DecodersHealth: L2DecodersHealth | null =
 		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
+	const index = publicIndexStatusFromL2Health(l2DecodersHealth);
+	const services: PublicServiceHealth[] = [
+		{ name: "api", status: "ok" },
+		{
+			name: "database",
+			status: dbStatus === "ok" ? "ok" : "unavailable",
+		},
+		{
+			name: "indexer",
+			status:
+				indexerResult.status === "fulfilled" && indexerResult.value
+					? "ok"
+					: "unavailable",
+		},
+		{ name: "l2_decoder", status: serviceStatusFromPublicIndex(index) },
+	];
 
 	return c.json({
-		status: dbStatus === "ok" ? "healthy" : "degraded",
+		status: overallPublicStatus(services),
 		network: process.env.STACKS_NETWORK || "mainnet",
 		database: { status: dbStatus },
+		api: getApiTelemetrySnapshot(),
+		node: {
+			status: nodeStatusFromStreamsTip(streamsTip),
+		},
+		services,
 		indexProgress: progress,
 		integrity,
 		gaps: [],
@@ -238,7 +320,10 @@ app.get("/status", async (c) => {
 			status: streamsTip ? "ok" : "unavailable",
 			tip: streamsTip,
 		},
-		index: publicIndexStatusFromL2Health(l2DecodersHealth),
+		index,
+		reorgs: {
+			last_24h: null,
+		},
 		activeSubgraphs: subgraphHealth.filter((v) => v.status === "active").length,
 		subgraphs: subgraphHealth,
 		timestamp: new Date().toISOString(),

@@ -178,6 +178,8 @@ export interface UsageDailyTable {
 	date: string;
 	api_requests: Generated<number>;
 	deliveries: Generated<number>;
+	streams_events_returned: Generated<number>;
+	index_decoded_events_returned: Generated<number>;
 }
 
 export interface UsageSnapshotsTable {

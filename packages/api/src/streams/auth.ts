@@ -15,6 +15,7 @@ export const STREAMS_READ_SCOPE = "streams:read";
 
 export type StreamsTenant = {
 	tenant_id: string;
+	account_id?: string;
 	tier: StreamsTier;
 	scopes: readonly string[];
 };

@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { L2DecodersHealth } from "@secondlayer/indexer/l2/health";
 import { publicIndexStatusFromL2Health } from "./status.ts";
+import {
+	getApiTelemetrySnapshot,
+	recordApiTelemetrySample,
+	resetApiTelemetryForTests,
+} from "../telemetry/api.ts";
 
 const HEALTHY_INDEX: L2DecodersHealth = {
 	status: "healthy",
@@ -80,5 +85,24 @@ describe("/status Index freshness", () => {
 		expect(
 			status.decoders.every((decoder) => decoder.status === "unavailable"),
 		).toBe(true);
+	});
+});
+
+describe("/status API telemetry shape", () => {
+	test("exposes public p50, p95, and error rate names", () => {
+		resetApiTelemetryForTests();
+		recordApiTelemetrySample({
+			group: "streams",
+			durationMs: 42,
+			status: 200,
+			now: 1_000,
+		});
+
+		const api = getApiTelemetrySnapshot(1_000);
+		expect(api.latency.p50_ms).toBe(42);
+		expect(api.latency.p95_ms).toBe(42);
+		expect(api.error_rate).toBe(0);
+		expect(api.groups.streams.requests).toBe(1);
+		expect(api.groups.index.requests).toBe(0);
 	});
 });

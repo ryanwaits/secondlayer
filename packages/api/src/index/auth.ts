@@ -11,6 +11,7 @@ export const INDEX_READ_SCOPE = "index:read";
 
 export type IndexTenant = {
 	tenant_id: string;
+	account_id?: string;
 	tier: IndexTier;
 	scopes: readonly string[];
 };

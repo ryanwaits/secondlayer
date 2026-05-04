@@ -53,6 +53,31 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 - **Hardening - deploy detachment:** GitHub deploy now starts `/opt/secondlayer/docker/scripts/deploy.sh` through a transient systemd unit via `scripts/ci/remote-deploy-systemd.sh`; operations docs include `systemctl status` and `journalctl -u` inspection commands.
 - **Closeout verification:** `sk-sl_streams_status_public` is documented as public/non-secret in the SDK README. Local `5435` was occupied by an unrelated Postgres container, so migrations and DB-backed API/indexer tests ran against isolated Postgres on `127.0.0.1:55435`. API, indexer, SDK, and web tests/typechecks pass; bash nounset checks pass; `actionlint` was unavailable locally.
 - **Hardening - image deploys:** Deploy CI now builds and pushes SHA-tagged GHCR images for `api`, `indexer`, `worker`, `agent`, and `provisioner`; production deploy pulls exact images and runs `up --no-build`. Added host deploy state tracking plus a manual image-only rollback workflow. Bash nounset checks, deploy/rollback workflow YAML parse, compose config, full build, and full typecheck pass locally.
+- **Closeout verification follow-up:** Broader API, SDK, and web verification is clean. `bun run --cwd packages/api test`, `bun run --cwd packages/sdk test`, `bun run --cwd apps/web test`, and matching typechecks all pass.
+- **Phase 1 hardening planning:** Audited remaining reliability gate work and drafted `docs/prds/0003-phase-1-reliability-hardening.md`. The gaps are public status completeness, product usage metering, pricing/docs alignment, and recovery-readiness evidence.
+- **PRD 0003 rescope:** Rescoped Phase 1 reliability hardening from hot-spare failover closeout to single-server production reliability closeout. Hot-spare automation is deferred until funded second-node capacity exists.
+- **Phase 1 reliability implementation:** Added rolling API telemetry, expanded `/public/status` and `/status`, public status UI coverage, product usage counters/metering for Streams and Index, locked pricing copy, expanded smoke checks, and `docker/docs/PHASE1_RECOVERY_RUNBOOK.md`.
+- **Recovery drill prep:** Runbook/checklist/log template is ready. Phase 1 closeout still needs Ryan-recorded non-destructive production drill evidence.
+- **Phase 1 recovery drill evidence:** Ran a non-destructive production drill on May 4, 2026 at 22:23–22:24 UTC via `ryan@claude-mini` -> `app-server` as Ryan requested. Containers were running (`api`, `indexer`, `l2-decoder`, `postgres`, `agent`, `provisioner` healthy; `worker` running). `/health`, `/public/status`, `/v1/streams/tip`, one Stacks Streams read, and one Stacks Index read all returned HTTP 200. No restart or rollback was exercised.
+- **Recovery drill follow-ups:** The live `/public/status` is still the pre-telemetry shape, so expanded fields (`api`, `node`, `services`, `reorgs`) need deployment before the status acceptance item can pass in prod. Backup verification found root cron scheduling rather than systemd timers; weekly `pg_basebackup` completed May 3, 2026 at 04:48 +02:00 and remote upload completed May 4, 2026 at 05:02 +02:00, but the May 4 daily `pg_dump` failed on `events` and `sync-wal.log` has not updated since April 19. Treat backup freshness as partial until pg_dump/WAL follow-up is fixed or explicitly accepted.
+
+## Phase 1 Recovery Drill - May 4, 2026
+
+- Date/time: May 4, 2026, 22:23:49–22:24:21 UTC.
+- Operator: Codex on Ryan's behalf.
+- Environment: production, non-destructive.
+- Checklist used: `docker/docs/PHASE1_RECOVERY_RUNBOOK.md`.
+- Health inspection result: `api`, `indexer`, `l2-decoder`, `postgres`, `agent`, and `provisioner` running healthy; `worker` running.
+- Backup freshness result: weekly basebackup complete on May 3, 2026; remote upload complete on May 4, 2026; daily pg_dump failed on May 4, 2026; WAL sync log stale since April 19, 2026.
+- Service restart exercised: none.
+- Rollback exercised: no.
+- `/health` result: HTTP 200.
+- `/public/status` result: HTTP 200, current pre-telemetry production shape.
+- `/v1/streams/tip` result: HTTP 200.
+- Stacks Streams read result: `/v1/streams/events?limit=1` HTTP 200.
+- Stacks Index read result: `/v1/index/ft-transfers?limit=1` HTTP 200.
+- Manual intervention required: none during drill.
+- Follow-up items: deploy expanded status contract; fix or formally accept daily pg_dump and WAL sync backup gaps.
 
 ## Notes
 
