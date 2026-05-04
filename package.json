@@ -24,6 +24,7 @@
 		"test": "bun run --filter '*' test",
 		"test:cli": "bun run --filter @secondlayer/cli test",
 		"test:ops": "bun test tools/ops/agent tools/ops/konsole",
+		"test:smoke": "bun test tests/smoke",
 		"test:stacks": "bun run --filter @secondlayer/stacks test",
 		"test:docs": "bun run --filter @secondlayer/clarity-docs test",
 		"dry-run:webhook": "bun run scripts/dry-run/webhook-receiver.ts",
