@@ -6,13 +6,6 @@ export type IndexTip = {
 	lag_seconds: number;
 };
 
-export type IndexReorg = {
-	detected_at: string;
-	fork_point_height: number;
-	orphaned_range: { from: string; to: string };
-	new_canonical_tip: string;
-};
-
 export type FtTransfer = {
 	cursor: string;
 	block_height: number;
@@ -31,7 +24,8 @@ export type FtTransfersEnvelope = {
 	events: FtTransfer[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	reorgs: IndexReorg[];
+	// Reserved envelope field. v1 currently always emits [].
+	reorgs: never[];
 };
 
 export type FtTransfersListParams = {
