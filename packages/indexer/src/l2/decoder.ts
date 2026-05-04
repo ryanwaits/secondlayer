@@ -6,6 +6,7 @@ import {
 } from "@secondlayer/sdk";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { defaultInternalStreamsApiKey } from "./internal-auth.ts";
 import {
 	FT_TRANSFER_DECODER_NAME,
 	readDecoderCheckpoint,
@@ -80,13 +81,4 @@ function createInternalStreamsClient(): StreamsClient {
 		baseUrl: process.env.STREAMS_API_URL,
 		apiKey: defaultInternalStreamsApiKey(),
 	});
-}
-
-function defaultInternalStreamsApiKey(): string {
-	const apiKey = process.env.STREAMS_INTERNAL_API_KEY;
-	if (apiKey) return apiKey;
-	if (process.env.NODE_ENV === "production") {
-		throw new Error("STREAMS_INTERNAL_API_KEY is required in production");
-	}
-	return "sk-sl_streams_enterprise_test";
 }

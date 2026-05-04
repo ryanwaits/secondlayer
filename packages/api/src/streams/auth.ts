@@ -1,4 +1,8 @@
 import {
+	L2_INTERNAL_STREAMS_TENANT_ID,
+	defaultInternalStreamsApiKey,
+} from "@secondlayer/indexer/l2/internal-auth";
+import {
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
@@ -76,16 +80,14 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 	],
 ]);
 
-if (process.env.STREAMS_INTERNAL_API_KEY) {
-	(DEFAULT_STREAMS_TOKENS as Map<string, StreamsTenant>).set(
-		process.env.STREAMS_INTERNAL_API_KEY,
-		{
-			tenant_id: "tenant_streams_l2_internal",
-			tier: "enterprise",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	);
-}
+(DEFAULT_STREAMS_TOKENS as Map<string, StreamsTenant>).set(
+	defaultInternalStreamsApiKey(),
+	{
+		tenant_id: L2_INTERNAL_STREAMS_TENANT_ID,
+		tier: "enterprise",
+		scopes: [STREAMS_READ_SCOPE],
+	},
+);
 
 export function streamsBearerAuth(opts?: {
 	tokens?: StreamsTokenStore;
