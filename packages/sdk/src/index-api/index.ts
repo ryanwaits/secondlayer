@@ -3,5 +3,10 @@ export type {
 	FtTransfer,
 	FtTransfersEnvelope,
 	FtTransfersListParams,
+	FtTransfersWalkParams,
 	IndexTip,
+	NftTransfer,
+	NftTransfersEnvelope,
+	NftTransfersListParams,
+	NftTransfersWalkParams,
 } from "./client.ts";

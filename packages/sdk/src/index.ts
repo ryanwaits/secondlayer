@@ -5,7 +5,12 @@ export type {
 	FtTransfer,
 	FtTransfersEnvelope,
 	FtTransfersListParams,
+	FtTransfersWalkParams,
 	IndexTip,
+	NftTransfer,
+	NftTransfersEnvelope,
+	NftTransfersListParams,
+	NftTransfersWalkParams,
 } from "./index-api/index.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
 export type {
