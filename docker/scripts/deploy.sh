@@ -50,10 +50,10 @@ TENANT_API_DIGEST_PATHS=(
 	packages/api
 )
 
-# Services that hold locks on tables migrations mutate. Indexer stays up
-# because its tables (blocks/transactions/events/index_progress) are
-# independent of control-plane tables that migrations touch.
-MIGRATION_LOCK_HOLDERS="api agent worker"
+# Services that hold locks on tables migrations mutate. Indexer writes L2
+# decoded_events, so destructive L2 migrations must complete before it restarts
+# on new code.
+MIGRATION_LOCK_HOLDERS="api indexer agent worker"
 
 tenant_api_source_digest() {
 	git -C /opt/secondlayer ls-tree -r HEAD -- "${TENANT_API_DIGEST_PATHS[@]}" \

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { getDb, sql } from "@secondlayer/shared/db";
-import { Hono } from "hono";
 import { consumeFtTransferDecodedEvents } from "@secondlayer/indexer/l2/decoder";
 import { createStreamsClient } from "@secondlayer/sdk";
-import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
+import { getDb, sql } from "@secondlayer/shared/db";
+import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
+import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const INTERNAL_STREAMS_KEY = "sk-sl_streams_l2_enterprise_test";
@@ -179,13 +179,12 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		expect(result.decoded).toBe(2);
 		expect(rows.map((row) => row.cursor)).toEqual(["1:0", "1:2"]);
 		expect(rows.map((row) => row.source_cursor)).toEqual(["1:0", "1:2"]);
-		expect(rows[0]?.decoded_payload).toEqual({
-			asset_identifier: "SP1.token::sbtc",
+		expect(rows[0]).toMatchObject({
 			contract_id: "SP1.token",
-			token_name: "sbtc",
 			sender: "SP1",
 			recipient: "SP2",
 			amount: "10",
+			asset_identifier: "SP1.token::sbtc",
 		});
 	});
 
