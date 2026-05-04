@@ -53,6 +53,8 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 - **Hardening - staging health:** Added scheduled/manual `.github/workflows/staging-health.yml` and `scripts/ci/staging-health.sh`. The monitor checks public Streams lag, FT/NFT decoder freshness, optional authorized DB status, and optional recent canonical `timestamp=0` blocks through Postgres. `bash -nu scripts/ci/staging-health.sh` passes.
 - **Hardening - bounded Streams SDK:** Added `mode: "bounded"` to `consumeStreamsEvents` and exposed `emptyBackoffMs`, `maxPages`, and `maxEmptyPolls` on the async Streams iterator. Focused Streams SDK tests and SDK typecheck pass.
 - **Hardening - Streams retention:** Updated `STREAMS_BLOCKS_PER_DAY` to the post-Nakamoto five-second cadence approximation (`17,280`) while keeping the public tip shape unchanged. Focused Streams/Index window tests and API typecheck pass.
+- **Hardening - deploy detachment:** GitHub deploy now starts `/opt/secondlayer/docker/scripts/deploy.sh` through a transient systemd unit via `scripts/ci/remote-deploy-systemd.sh`; operations docs include `systemctl status` and `journalctl -u` inspection commands.
+- **Closeout verification:** `sk-sl_streams_status_public` is documented as public/non-secret in the SDK README. Local `5435` was occupied by an unrelated Postgres container, so migrations and DB-backed API/indexer tests ran against isolated Postgres on `127.0.0.1:55435`. API, indexer, SDK, and web tests/typechecks pass; bash nounset checks pass; `actionlint` was unavailable locally.
 
 ## Notes
 
