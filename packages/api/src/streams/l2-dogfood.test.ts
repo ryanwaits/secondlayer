@@ -3,7 +3,10 @@ import { consumeFtTransferDecodedEvents } from "@secondlayer/indexer/l2/decoder"
 import { createStreamsClient } from "@secondlayer/sdk";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
+import { INDEX_READ_SCOPE, type IndexTokenStore } from "../index/auth.ts";
+import { readFtTransfers } from "../index/ft-transfers.ts";
 import { errorHandler } from "../middleware/error.ts";
+import { createIndexRouter } from "../routes/index.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 
@@ -16,6 +19,17 @@ const INTERNAL_STREAMS_TOKENS: StreamsTokenStore = new Map([
 			tenant_id: "tenant_streams_l2_internal",
 			tier: "enterprise",
 			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+]);
+const INDEX_KEY = "sk-sl_index_build_test";
+const INDEX_TOKENS: IndexTokenStore = new Map([
+	[
+		INDEX_KEY,
+		{
+			tenant_id: "tenant_index_build",
+			tier: "build",
+			scopes: [INDEX_READ_SCOPE],
 		},
 	],
 ]);
@@ -221,5 +235,55 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			{ cursor: "1:2", source_cursor: "1:2" },
 		]);
 		expect(checkpoint?.last_cursor).toBe("1:2");
+	});
+
+	test("bounded decoder rows are returned by /v1/index/ft-transfers with pagination", async () => {
+		if (!db) throw new Error("missing db");
+
+		await consumeFtTransferDecodedEvents({
+			db,
+			streamsClient: inProcessClient(),
+			batchSize: 10,
+			maxPages: 1,
+		});
+
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens: INDEX_TOKENS,
+				getTip: () => ({ block_height: 1, lag_seconds: 0 }),
+				readFtTransfers: (params) => readFtTransfers({ ...params, db }),
+			}),
+		);
+
+		const first = await app.request(
+			"/v1/index/ft-transfers?from_height=0&limit=1",
+			{
+				headers: { Authorization: `Bearer ${INDEX_KEY}` },
+			},
+		);
+		expect(first.status).toBe(200);
+		const firstBody = (await first.json()) as {
+			events: Array<{ cursor: string }>;
+			next_cursor: string | null;
+			reorgs: unknown[];
+		};
+		expect(firstBody.events.map((event) => event.cursor)).toEqual(["1:0"]);
+		expect(firstBody.next_cursor).toBe("1:0");
+		expect(firstBody.reorgs).toEqual([]);
+
+		const second = await app.request(
+			`/v1/index/ft-transfers?cursor=${firstBody.next_cursor}&limit=10`,
+			{
+				headers: { Authorization: `Bearer ${INDEX_KEY}` },
+			},
+		);
+		expect(second.status).toBe(200);
+		const secondBody = (await second.json()) as {
+			events: Array<{ cursor: string }>;
+		};
+		expect(secondBody.events.map((event) => event.cursor)).toEqual(["1:2"]);
 	});
 });

@@ -54,6 +54,12 @@ services:
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/archive:/data/archive
 
+  l2-decoder:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
   provisioner:
     # Provisioner needs sl-tenants to reach `sl-pg-<slug>` for storage
     # measurement; default to reach secondlayer-postgres-1 for the readonly

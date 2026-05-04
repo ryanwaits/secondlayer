@@ -34,7 +34,7 @@ if [ -f .env ]; then
 	set +a
 fi
 
-APP_SERVICES="api indexer worker agent caddy"
+APP_SERVICES="api indexer l2-decoder worker agent caddy"
 PLATFORM_SERVICES="provisioner"
 TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
 TENANT_API_IMAGE="ghcr.io/${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${PROVISIONER_IMAGE_TAG:-latest}"
@@ -53,7 +53,7 @@ TENANT_API_DIGEST_PATHS=(
 # Services that hold locks on tables migrations mutate. Indexer writes L2
 # decoded_events, so destructive L2 migrations must complete before it restarts
 # on new code.
-MIGRATION_LOCK_HOLDERS="api indexer agent worker"
+MIGRATION_LOCK_HOLDERS="api indexer l2-decoder agent worker"
 
 tenant_api_source_digest() {
 	git -C /opt/secondlayer ls-tree -r HEAD -- "${TENANT_API_DIGEST_PATHS[@]}" \
@@ -64,7 +64,7 @@ TENANT_API_SOURCE_DIGEST="$(tenant_api_source_digest)"
 echo "Tenant API source digest: ${TENANT_API_SOURCE_DIGEST}"
 
 # Build app + platform images — --no-cache ensures source changes always land.
-$COMPOSE build --no-cache --build-arg SECONDLAYER_API_SOURCE_DIGEST="${TENANT_API_SOURCE_DIGEST}" api indexer worker agent migrate
+$COMPOSE build --no-cache --build-arg SECONDLAYER_API_SOURCE_DIGEST="${TENANT_API_SOURCE_DIGEST}" api indexer l2-decoder worker agent migrate
 $COMPOSE --profile platform build --no-cache provisioner
 
 # Tenant containers are created by the provisioner from the configured API image
@@ -145,6 +145,25 @@ sleep 5
 check_health api http://localhost:3800/health
 check_health indexer http://localhost:3700/health
 check_health provisioner http://localhost:3850/health
+
+check_container_health() {
+	local service=$1 container="secondlayer-${service}-1" retries=10 delay=6
+	for i in $(seq 1 $retries); do
+		local health
+		health=$(docker inspect "$container" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null || true)
+		if [ "$health" = "healthy" ] || [ "$health" = "running" ]; then
+			echo "$service: ${health}"
+			return 0
+		fi
+		echo "$service: health=${health:-missing}, attempt $i/$retries, retrying in ${delay}s..."
+		sleep $delay
+	done
+	echo "$service: UNHEALTHY after $retries attempts"
+	docker logs "$container" --tail 50 2>&1 || true
+	return 1
+}
+
+check_container_health l2-decoder
 
 refresh_active_tenants() {
   if [ -z "${PROVISIONER_SECRET:-}" ]; then

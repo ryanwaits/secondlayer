@@ -3,8 +3,8 @@ import {
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
-import type { StreamsTip } from "./tip.ts";
 import type { StreamsTier } from "./tiers.ts";
+import type { StreamsTip } from "./tip.ts";
 
 export const STREAMS_READ_SCOPE = "streams:read";
 
@@ -75,6 +75,17 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 		},
 	],
 ]);
+
+if (process.env.STREAMS_INTERNAL_API_KEY) {
+	(DEFAULT_STREAMS_TOKENS as Map<string, StreamsTenant>).set(
+		process.env.STREAMS_INTERNAL_API_KEY,
+		{
+			tenant_id: "tenant_streams_l2_internal",
+			tier: "enterprise",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	);
+}
 
 export function streamsBearerAuth(opts?: {
 	tokens?: StreamsTokenStore;

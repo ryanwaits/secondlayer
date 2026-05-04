@@ -1,9 +1,10 @@
-import type { Database } from "@secondlayer/shared/db/schema";
 import {
+	type StreamsClient,
+	type StreamsEventType,
 	createStreamsClient,
 	decodeFtTransfer,
-	type StreamsClient,
 } from "@secondlayer/sdk";
+import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import {
 	FT_TRANSFER_DECODER_NAME,
@@ -11,6 +12,8 @@ import {
 	writeDecodedEvents,
 	writeDecoderCheckpoint,
 } from "./storage.ts";
+
+export { FT_TRANSFER_DECODER_NAME } from "./storage.ts";
 
 export async function consumeFtTransferDecodedEvents(opts?: {
 	db?: Kysely<Database>;
@@ -22,6 +25,12 @@ export async function consumeFtTransferDecodedEvents(opts?: {
 	maxEmptyPolls?: number;
 	signal?: AbortSignal;
 	decoderName?: string;
+	types?: readonly StreamsEventType[];
+	onProgress?: (stats: {
+		decoded: number;
+		cursor: string | null;
+		lagSeconds: number;
+	}) => void | Promise<void>;
 }): Promise<{ cursor: string | null; pages: number; decoded: number }> {
 	const db = opts?.db;
 	const decoderName = opts?.decoderName ?? FT_TRANSFER_DECODER_NAME;
@@ -35,7 +44,7 @@ export async function consumeFtTransferDecodedEvents(opts?: {
 	const result = await streamsClient.events.consume({
 		fromCursor: startCursor,
 		batchSize: opts?.batchSize ?? 500,
-		types: ["ft_transfer"],
+		types: opts?.types,
 		emptyBackoffMs: opts?.emptyBackoffMs,
 		maxPages: opts?.maxPages,
 		maxEmptyPolls: opts?.maxEmptyPolls,
@@ -54,6 +63,11 @@ export async function consumeFtTransferDecodedEvents(opts?: {
 					decoderName,
 				});
 			}
+			await opts?.onProgress?.({
+				decoded: rows.length,
+				cursor: envelope.next_cursor,
+				lagSeconds: envelope.tip.lag_seconds,
+			});
 			return envelope.next_cursor;
 		},
 	});
