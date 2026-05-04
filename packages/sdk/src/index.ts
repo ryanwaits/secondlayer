@@ -5,7 +5,6 @@ export type {
 	FtTransfer,
 	FtTransfersEnvelope,
 	FtTransfersListParams,
-	IndexReorg,
 	IndexTip,
 } from "./index-api/index.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
