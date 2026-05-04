@@ -52,11 +52,11 @@ export async function consumeFtTransferDecodedEvents(opts?: {
 	const result = await streamsClient.events.consume({
 		fromCursor: startCursor,
 		batchSize: opts?.batchSize ?? 500,
-		types: opts?.types,
 		emptyBackoffMs: opts?.emptyBackoffMs,
 		maxPages: opts?.maxPages,
 		maxEmptyPolls: opts?.maxEmptyPolls,
 		signal: opts?.signal,
+		types: opts?.types ?? ["ft_transfer"],
 		onBatch: async (events, envelope) => {
 			const rows = events
 				.filter((event) => event.event_type === "ft_transfer")
@@ -112,11 +112,11 @@ export async function consumeNftTransferDecodedEvents(opts?: {
 	const result = await streamsClient.events.consume({
 		fromCursor: startCursor,
 		batchSize: opts?.batchSize ?? 500,
-		types: opts?.types,
 		emptyBackoffMs: opts?.emptyBackoffMs,
 		maxPages: opts?.maxPages,
 		maxEmptyPolls: opts?.maxEmptyPolls,
 		signal: opts?.signal,
+		types: opts?.types ?? ["nft_transfer"],
 		onBatch: async (events, envelope) => {
 			const rows = events.flatMap((event) => {
 				if (event.event_type !== "nft_transfer") return [];
