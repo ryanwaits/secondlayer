@@ -98,8 +98,13 @@ jobs:
           exit "$failed"
 
   smoke-hook:
-    name: Smoke harness hook
+    name: Smoke wiring check
     runs-on: ubuntu-latest
     steps:
-      - name: H3 placeholder
-        run: echo "smoke harness wiring lands in H3"
+      - uses: actions/checkout@v4
+      - name: Confirm H3 remains wired
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f scripts/ci/post-deploy-smoke.sh
+          grep -q 'post-deploy-smoke' .github/workflows/deploy.yml

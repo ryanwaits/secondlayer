@@ -42,6 +42,11 @@ jobs:
           for script in docker/scripts/*.sh; do
             bash -nu "$script"
           done
+      - name: Lint CI scripts under nounset
+        run: |
+          for script in scripts/ci/*.sh; do
+            bash -nu "$script"
+          done
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.10"
@@ -62,8 +67,24 @@ jobs:
           # 20m to accommodate cold Docker builds across 5 images. See incident on 2026-05-03.
           command_timeout: 20m
 
+  post-deploy-smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run post-deploy smoke checks
+        env:
+          SECOND_LAYER_API_URL: ${{ vars.SECOND_LAYER_API_URL || 'https://api.secondlayer.tools' }}
+          STREAMS_SMOKE_KEY: ${{ secrets.STREAMS_SMOKE_KEY || 'sk-sl_streams_build_test' }}
+          STREAMS_STATUS_SMOKE_KEY: ${{ secrets.STREAMS_STATUS_SMOKE_KEY || 'sk-sl_streams_status_public' }}
+          STREAMS_WRONG_SCOPE_SMOKE_KEY: ${{ secrets.STREAMS_WRONG_SCOPE_SMOKE_KEY || 'sk-sl_streams_wrong_scope_test' }}
+          INDEX_SMOKE_KEY: ${{ secrets.INDEX_SMOKE_KEY || 'sk-sl_index_build_test' }}
+          INDEX_FREE_SMOKE_KEY: ${{ secrets.INDEX_FREE_SMOKE_KEY || 'sk-sl_index_free_test' }}
+          INDEX_WRONG_SCOPE_SMOKE_KEY: ${{ secrets.INDEX_WRONG_SCOPE_SMOKE_KEY || 'sk-sl_index_wrong_scope_test' }}
+        run: bash scripts/ci/post-deploy-smoke.sh
+
   notify:
-    needs: [typecheck, deploy]
+    needs: [typecheck, deploy, post-deploy-smoke]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -74,13 +95,13 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "${{ needs.deploy.result == 'success' && '✅' || '❌' }} Deploy ${{ needs.deploy.result }}: ${{ github.event.head_commit.message }}",
+              "text": "${{ needs.deploy.result == 'success' && needs.post-deploy-smoke.result == 'success' && '✅' || '❌' }} Deploy ${{ needs.deploy.result }}, smoke ${{ needs.post-deploy-smoke.result }}: ${{ github.event.head_commit.message }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "${{ needs.deploy.result == 'success' && ':white_check_mark:' || ':x:' }} *Deploy ${{ needs.deploy.result }}*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run> · `${{ github.sha }}`\n${{ github.event.head_commit.message }}"
+                    "text": "${{ needs.deploy.result == 'success' && needs.post-deploy-smoke.result == 'success' && ':white_check_mark:' || ':x:' }} *Deploy ${{ needs.deploy.result }} · Smoke ${{ needs.post-deploy-smoke.result }}*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run> · `${{ github.sha }}`\n${{ github.event.head_commit.message }}"
                   }
                 }
               ]

@@ -36,6 +36,6 @@ Override with `DATABASE_URL`.
 
 ## CI
 
-Today the gatekeeper workflow has a passing smoke hook.
+The deploy workflow runs `scripts/ci/post-deploy-smoke.sh` after deploy.
 
-H3 wires post-deploy checks for `/events`, `/index`, and `/tip` with auth variants.
+It checks `/v1/streams/events`, `/v1/index/ft-transfers`, and `/v1/streams/tip` with auth variants.

@@ -15,11 +15,11 @@ Complete the Stacks Index MVP: decoded_events schema, ft-transfers and nft-trans
 - Task 2 - /v1/index/ft-transfers + continuous l2-decoder + SDK list (PR #28, hotfixes #30-#34)
 - H1 - CI lints docker scripts under nounset (PR #35)
 - H2 - Continuous-service smoke harness (commit a0bb763)
-- Sprint-zero - Agent operating harness (this work, commits 40caa47 and 5d3835e; remaining commits pending)
+- H3 - Post-deploy CI smoke check on /events, /index, /tip with auth variants (this work)
+- Sprint-zero - Agent operating harness (commits 40caa47, 5d3835e, 6ded35b, 39ab645)
 
 ## Pending
 
-- H3 - Post-deploy CI smoke check on /events, /index, /tip with auth variants
 - Task 3 - /v1/index/nft-transfers
 - Task 4 - SDK async iterator + nft methods
 - Task 5 - Stacks Index docs page + status tiles
