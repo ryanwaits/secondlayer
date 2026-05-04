@@ -1,12 +1,14 @@
 import { BetaBracket } from "@/components/beta-badge";
 import { SiteLink } from "@/components/site-link";
-import { indexFreshnessColor, indexFreshnessLabel } from "@/lib/status-page";
 import type { SystemStatus } from "@/lib/types";
 import cliPackage from "../../../../../packages/cli/package.json";
 import mcpPackage from "../../../../../packages/mcp/package.json";
 import sdkPackage from "../../../../../packages/sdk/package.json";
 import stacksPackage from "../../../../../packages/stacks/package.json";
 import { HomeAnnotations } from "./home-annotations";
+import { HomeStatusBadge } from "./home-status-toolbar";
+
+export { HomeStatusBadge } from "./home-status-toolbar";
 
 const STATUS_API_URL = process.env.SL_API_URL || "http://localhost:3800";
 const STATUS_API_KEY =
@@ -56,43 +58,6 @@ async function readStatusSnapshot(): Promise<SystemStatus | null> {
 	} catch {
 		return null;
 	}
-}
-
-export function HomeStatusBadge({ status }: { status: SystemStatus | null }) {
-	const ftDecoder = status?.index?.decoders.find(
-		(decoder) => decoder.eventType === "ft_transfer",
-	);
-	const nftDecoder = status?.index?.decoders.find(
-		(decoder) => decoder.eventType === "nft_transfer",
-	);
-
-	return (
-		<aside className="home-status-badge" aria-label="Streams and Index status">
-			<span
-				className={`home-status-item home-status-${status?.chainTip == null ? "muted" : "green"}`}
-			>
-				<span className="home-status-dot" aria-hidden="true" />
-				Block{" "}
-				<strong>
-					{status?.chainTip == null
-						? "unavailable"
-						: `#${status.chainTip.toLocaleString()}`}
-				</strong>
-			</span>
-			<span
-				className={`home-status-item home-status-${indexFreshnessColor(ftDecoder)}`}
-			>
-				<span className="home-status-dot" aria-hidden="true" />
-				{indexFreshnessLabel("ft_transfer", status?.index)}
-			</span>
-			<span
-				className={`home-status-item home-status-${indexFreshnessColor(nftDecoder)}`}
-			>
-				<span className="home-status-dot" aria-hidden="true" />
-				{indexFreshnessLabel("nft_transfer", status?.index)}
-			</span>
-		</aside>
-	);
 }
 
 export default async function HomePage() {
