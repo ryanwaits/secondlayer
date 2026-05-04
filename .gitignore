@@ -46,7 +46,11 @@ coverage/
 *.tmp
 *.temp
 tmp/
-docs/
+docs/*
+!docs/prds/
+!docs/prds/**
+!docs/sprints/
+!docs/sprints/**
 !docker/docs/
 
 # Config files (users should create their own)

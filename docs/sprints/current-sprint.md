@@ -1,136 +1,55 @@
-# Current Sprint — Phase 1, Week 1
+# Current Sprint - Phase 1, Week 2
 
 **Phase:** 1 (Reliability + Surfaces)
-**Week:** 1 of 3
-**Dates:** May 4 – May 10, 2026
-**Headline goal:** Land the Streams API skeleton in production behind paid auth, with at least the `/tip` and `/events` endpoints serving real cursor-paginated data.
-
-This is the only sprint doc that should exist at any given time. When the week ends, archive this to `.claude/sprints/archive/2026-05-04.md` and write the next one.
-
----
-
-## North star for the week
-
-By Sunday May 10, an authenticated `curl https://api.secondlayer.tools/v1/streams/events?cursor=<x>` against staging returns a real cursor-paginated event stream. Internal Index decoder is wired to read from it.
-
-If that one sentence is true at end of week, the sprint succeeded.
+**Week:** 2 of 3
+**Dates:** May 11 - May 17, 2026
+**Headline goal:** Ship the Stacks Index public surface for decoded transfer events.
+**Active PRD:** `docs/prds/0002-stacks-index.md`
 
 ---
+
+## North Star
+
+By end of week, paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/v1/index/*`, with SDK support, docs, and status freshness.
 
 ## Tasks
 
-Ordered by sequence. Stop work and re-plan if a task slips by more than a day.
+### 1. L2 schema + decoded events table
+- [x] Decide shared `decoded_events` shape.
+- [x] Add PRD 0002.
+- [x] Add migration and DB-backed forward/down regression test.
 
-### 1. Lock the Streams cursor + event schema (Mon)
-- [x] Finalize cursor format `<block_height>:<event_index>` and write a 1-page schema doc at `docs/specs/streams-schema.md`.
-- [x] Decide v1 event types (default: include `print`, exclude microblocks).
-- [x] Open a fixture-test PR with 100 canonical events and their expected cursors.
+**Done when:** PR merged with public columns, required indexes, and no endpoint changes.
 
-**Done when:** Schema doc merged; fixture test passes locally.
+### 2. `/v1/index/ft-transfers`
+- [ ] Paid auth.
+- [ ] Filters: `contract_id`, `sender`, `recipient`, `from_height`, `to_height`.
+- [ ] Cursor pagination with `reorgs: []`.
 
-### 2. Paid auth + rate limit at the gateway (Mon–Tue)
-- [x] Wire bearer-token auth into `packages/api`. Scopes: `streams:read`.
-- [x] Per-tier rate limit middleware (10 / 50 / 250 req/s).
-- [x] Per-tier retention window enforcement (7 / 30 / 90 days). For now, hard-code the windows; billing aggregation comes later in the phase.
+### 3. `/v1/index/nft-transfers`
+- [ ] Paid auth.
+- [ ] Filters: `contract_id`, `sender`, `recipient`, `asset_identifier`, `from_height`, `to_height`.
+- [ ] Cursor pagination with `reorgs: []`.
 
-**Done when:** A test tenant key on the Free tier gets 429'd at 11 req/s; a Build key passes through at 50.
+### 4. SDK L2 methods
+- [ ] `client.index.ftTransfers.list`.
+- [ ] `client.index.nftTransfers.list`.
+- [ ] Async iterator for history walks.
 
-### 3. Implement `GET /tip` (Tue)
-- [x] Cheap endpoint. Reads from indexer's tip cache.
-- [x] Includes `lag_seconds`.
-- [x] Wire into the (still-internal) status page draft.
-
-**Done when:** `/v1/streams/tip` returns within 50ms p95 in staging.
-
-### 4. Implement `GET /events` with cursor pagination (Wed–Thu)
-- [x] Cursor decode/encode helpers.
-- [x] Query path against L1 store with `cursor`, `limit`, `types`, `from_height`, `to_height`.
-- [x] Hard cap `limit` at 1000.
-- [x] Returns `{ events, next_cursor, tip, reorgs }` shape from PRD 0001 task 4.
-- [x] Replay test path covered by fixture pagination walk; staging DB replay remains the deployment gate.
-
-**Done when:** Replay test green; manual `curl` walks 10K events without losing or duplicating any cursor.
-
-### 5. Wire internal Index event decoder to read from Streams (Thu–Fri)
-- [x] Add the first real L2 event decoder, sourced from the Streams API path.
-- [x] Decode `ft_transfer` events into `decoded_events` with checkpointed cursor resume.
-- [x] Leave the legacy `transactions` / `parseTransaction` path untouched; it is indexer-internal until a future retirement PRD.
-
-**Done when:** The `ft_transfer` L2 decoder consumes Streams in-process, writes decoded rows, and resumes from checkpoint without duplicates or gaps.
-
-### 6. SDK skeleton + quickstart (Fri)
-- [x] `StreamsClient` in `packages/sdk` with `events.stream()` async generator.
-- [ ] One worked example committed: deferred until it has CI coverage.
-- [x] README quickstart page.
-
-**Done when:** Quickstart copy-pasted into a fresh repo runs against staging.
-
-### 7. Status page v0 (Sat, if time)
-- [x] Single public page showing API health, current chain tip, and incident note.
-- [x] Hosted at `secondlayer.tools/status`; subdomain split deferred.
-
-**Done when:** `secondlayer.tools/status` loads, calls `/v1/streams/tip`, and shows true green/yellow/red health.
+### 5. Docs + status
+- [ ] L2 docs page.
+- [ ] Status tiles for FT and NFT freshness.
 
 ---
 
-## Explicitly deferred this week
+## Daily Log
 
-- Reorg fuzzer in staging (week 2).
-- `/events/{tx_id}` and `/blocks/{height}/events` convenience endpoints (week 2).
-- Billing meter aggregation — count it, but don't bill yet (week 3).
-- Console UI work — Phase 2.
-- Datasets — Phase 2.
-- Hot-spare automated failover — week 2.
+- **Week 2 kickoff:** Locked Task 1 decisions: one shared table, full `contract_id`, text `amount`, raw NFT `value`, L1-style `reorgs: []`, separate Index rate-limit bucket.
+- **Task 1:** Drafted PRD 0002 and L2 schema migration. Paused for deploy hotfix verification, then resumed.
 
-If anything from this list creeps into the week, push back and link to this section.
+## Notes
 
----
-
-## Daily log
-
-Append a short bullet at the end of each day. Two lines max per day. The next-session agent should be able to read this and know exactly where things stand.
-
-- **Mon May 4:** Shipped PR #14 locking Stacks Streams L1 schema/cursor contract, PRD resolutions, 100-event fixture, and cursor regression test.
-- **Mon May 4:** Shipped PR #15 wiring Streams bearer auth, per-tier req/s limits, retention gate, and `/events` + `/tip` stubs; `bun test` and API typecheck green.
-- **Tue May 5:** Shipped PR #16 implementing real `/v1/streams/tip` from indexer canonical tip, 500ms cache, lag clamp, status wiring, and tests.
-- **Wed May 6:** Implemented real `/v1/streams/events` cursor pagination over indexer L1 events, v1 type filters, tip clamp, auth/rate smoke tests, and ordering/pagination fixtures.
-- **Thu May 7:** Implemented L2 `ft_transfer` event decoder consuming Streams through the API path, with `decoded_events`, cursor checkpointing, restart tests, and legacy transaction path untouched.
-- **Fri May 8:** Shipped `@secondlayer/sdk` Streams client, consumer, `ft_transfer` helpers, and quickstart; L2 now imports SDK consumer/decoder.
-- **Sat May 9:** Shipped status page v0 at `/status` with browser-side SDK tip check, chain tip, incident note file, and 30s refresh.
-- **Sun May 10:** —
-
----
-
-## End-of-week checklist
-
-Run through this Sunday evening before archiving.
-
-- [ ] Did the north-star sentence become true?
-- [ ] Are tasks 1–6 marked done?
-- [ ] Is the L2 decoder running off Streams in staging?
-- [ ] Are there any cursor or schema bugs we'd be embarrassed to ship to a paying customer? If yes, fix before week 2.
-- [ ] Update `ROADMAP.md` Phase 1 progress note.
-- [ ] Archive this file to `.claude/sprints/archive/2026-05-04.md`.
-- [ ] Write next sprint doc covering: reorg fuzzer, convenience endpoints, hot-spare failover, status page hardening, billing meter aggregation.
-
----
-
-## Notes for the next-session agent
-
-- PRD reference: `docs/prds/0001-stacks-streams.md`. Architecture: `ARCHITECTURE.md` §L1.
-- Cursor format is a 1.0 contract — do not change it without explicit approval and a migration plan.
-- Streams is read-only. If a task feels like push semantics, you've drifted into the wrong product. Stop.
-- Naming: it's "Stacks Streams," never "Streaming," never "Stream API."
-
-## Tech debt
-
-- Wall-clock retention cutoff before external-customer launch in Phase 2; see `packages/api/src/streams/tiers.ts` TODO.
-- Deterministic clock for `SlidingWindow` tests before external-customer launch in Phase 2.
-- Optional: push Streams events `types` filter into SQL to restore peek-ahead `next_cursor` termination.
-- Legacy `parseTransaction` / `transactions` path is now indexer-internal, not L2. Plan formal retirement in a future PRD.
-- `client.events.stream()` tails until aborted, while `client.events.consume()` exposes `maxPages` / `maxEmptyPolls` for bounded ETL runs. Track whether that asymmetry should stay intentional or become a shared option model.
-- SDK helper backlog: add pure helpers/decoders for `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, and `print`.
-- Runtime Streams token store: adding or rotating shared/public keys still requires editing `DEFAULT_STREAMS_TOKENS` and redeploying API. Move to DB-backed or env-backed lookup when there is a second public/shared key.
-- Status incident file resolution: `readIncidentFile` checks candidate `process.cwd()` paths and silently falls back to "No active incidents". Replace with one explicit path and hard failure if the file is missing.
-- Status last-checked UX: absolute UTC is v0; relative display ("checked 2m ago") is v0.5.
-- SDK docs: keep `sk-sl_streams_status_public` documented as a public, non-secret Free-tier status-page key.
+- L2 is decoded events, not transactions.
+- Endpoints are Task 2/3. Do not add them in Task 1.
+- Cursor format stays `<block_height>:<event_index>`.
+- Every successful Index response returns top-level `reorgs` as an array.

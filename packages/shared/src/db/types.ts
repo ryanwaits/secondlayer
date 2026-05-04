@@ -328,7 +328,15 @@ export interface DecodedEventsTable {
 	tx_index: number;
 	event_index: number;
 	event_type: string;
-	decoded_payload: unknown;
+	microblock_hash: string | null;
+	canonical: Generated<boolean>;
+	contract_id: string | null;
+	sender: string | null;
+	recipient: string | null;
+	amount: string | null;
+	asset_identifier: string | null;
+	value: string | null;
+	memo: string | null;
 	source_cursor: string;
 	created_at: Generated<Date>;
 }

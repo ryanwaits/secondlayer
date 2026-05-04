@@ -1,6 +1,6 @@
+import type { DecodedEventRow } from "@secondlayer/sdk";
 import { getTargetDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
-import type { DecodedEventRow } from "@secondlayer/sdk";
 import type { Generated, Kysely } from "kysely";
 
 export const FT_TRANSFER_DECODER_NAME = "l2.ft_transfer.v1";
@@ -13,7 +13,15 @@ type L2Database = Database & {
 		tx_index: number;
 		event_index: number;
 		event_type: string;
-		decoded_payload: unknown;
+		microblock_hash: string | null;
+		canonical: Generated<boolean>;
+		contract_id: string | null;
+		sender: string | null;
+		recipient: string | null;
+		amount: string | null;
+		asset_identifier: string | null;
+		value: string | null;
+		memo: string | null;
 		source_cursor: string;
 		created_at: Generated<Date>;
 	};
@@ -81,7 +89,13 @@ export async function writeDecodedEvents(
 				tx_index: event.tx_index,
 				event_index: event.event_index,
 				event_type: event.event_type,
-				decoded_payload: event.decoded_payload,
+				contract_id: event.decoded_payload.contract_id,
+				sender: event.decoded_payload.sender,
+				recipient: event.decoded_payload.recipient,
+				amount: event.decoded_payload.amount,
+				asset_identifier: event.decoded_payload.asset_identifier,
+				value: null,
+				memo: null,
 				source_cursor: event.source_cursor,
 			})),
 		)
