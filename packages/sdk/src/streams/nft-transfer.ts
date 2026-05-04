@@ -1,46 +1,66 @@
 import type { StreamsEvent } from "./types.ts";
 
-export type FtTransferPayload = {
+export type NftTransferPayload = {
 	asset_identifier: string;
 	sender: string;
 	recipient: string;
-	amount: string;
+	value: string | { hex: string };
 };
 
-export type FtTransferEvent = StreamsEvent & {
-	event_type: "ft_transfer";
-	payload: FtTransferPayload;
+export type NftTransferEvent = StreamsEvent & {
+	event_type: "nft_transfer";
+	payload: NftTransferPayload;
 };
 
-export type DecodedFtTransferPayload = {
+export type DecodedNftTransferPayload = {
 	asset_identifier: string;
 	contract_id: string;
 	token_name: string | null;
 	sender: string;
 	recipient: string;
-	amount: string;
+	value: string;
 };
 
-export type DecodedFtTransfer = {
+export type DecodedNftTransfer = {
 	cursor: string;
 	block_height: number;
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
-	event_type: "ft_transfer";
-	decoded_payload: DecodedFtTransferPayload;
+	event_type: "nft_transfer";
+	decoded_payload: DecodedNftTransferPayload;
 	source_cursor: string;
 };
 
 function requireString(
 	payload: Record<string, unknown>,
-	field: keyof FtTransferPayload,
+	field: "asset_identifier" | "sender" | "recipient",
 ): string {
 	const value = payload[field];
 	if (typeof value !== "string" || value.length === 0) {
-		throw new Error(`ft_transfer payload missing ${field}`);
+		throw new Error(`nft_transfer payload missing ${field}`);
 	}
 	return value;
+}
+
+function requireHexValue(payload: Record<string, unknown>): string {
+	const value = payload.value;
+	const hex =
+		typeof value === "string"
+			? value
+			: value &&
+					typeof value === "object" &&
+					typeof (value as { hex?: unknown }).hex === "string"
+				? (value as { hex: string }).hex
+				: null;
+
+	if (!hex) {
+		throw new Error("nft_transfer payload missing value");
+	}
+	if (!/^0x[0-9a-fA-F]*$/.test(hex)) {
+		throw new Error("nft_transfer payload has malformed value");
+	}
+	return hex;
 }
 
 function parseAssetIdentifier(assetIdentifier: string): {
@@ -49,7 +69,7 @@ function parseAssetIdentifier(assetIdentifier: string): {
 } {
 	const [contractId, tokenName] = assetIdentifier.split("::");
 	if (!contractId) {
-		throw new Error("ft_transfer payload has malformed asset_identifier");
+		throw new Error("nft_transfer payload has malformed asset_identifier");
 	}
 	return {
 		contract_id: contractId,
@@ -57,24 +77,20 @@ function parseAssetIdentifier(assetIdentifier: string): {
 	};
 }
 
-export function isFtTransfer(event: StreamsEvent): event is FtTransferEvent {
-	return event.event_type === "ft_transfer";
+export function isNftTransfer(event: StreamsEvent): event is NftTransferEvent {
+	return event.event_type === "nft_transfer";
 }
 
-export function decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer {
-	if (!isFtTransfer(event)) {
-		throw new Error(`Expected ft_transfer event, got ${event.event_type}`);
+export function decodeNftTransfer(event: StreamsEvent): DecodedNftTransfer {
+	if (!isNftTransfer(event)) {
+		throw new Error(`Expected nft_transfer event, got ${event.event_type}`);
 	}
 
 	const payload = event.payload;
 	const assetIdentifier = requireString(payload, "asset_identifier");
 	const sender = requireString(payload, "sender");
 	const recipient = requireString(payload, "recipient");
-	const amount = requireString(payload, "amount");
-	if (!/^(0|[1-9]\d*)$/.test(amount)) {
-		throw new Error("ft_transfer payload has malformed amount");
-	}
-
+	const value = requireHexValue(payload);
 	const { contract_id, token_name } = parseAssetIdentifier(assetIdentifier);
 
 	return {
@@ -90,7 +106,7 @@ export function decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer {
 			token_name,
 			sender,
 			recipient,
-			amount,
+			value,
 		},
 		source_cursor: event.cursor,
 	};

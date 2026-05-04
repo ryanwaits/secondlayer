@@ -38,4 +38,4 @@ Override with `DATABASE_URL`.
 
 The deploy workflow runs `scripts/ci/post-deploy-smoke.sh` after deploy.
 
-It checks `/v1/streams/events`, `/v1/index/ft-transfers`, and `/v1/streams/tip` with auth variants.
+It checks `/v1/streams/events`, `/v1/index/ft-transfers`, `/v1/index/nft-transfers`, and `/v1/streams/tip` with auth variants.

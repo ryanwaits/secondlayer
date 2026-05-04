@@ -8,10 +8,12 @@ import { STREAMS_READ_SCOPE } from "../streams/auth.ts";
 import type { StreamsTip } from "../streams/tip.ts";
 import { INDEX_READ_SCOPE, type IndexTokenStore } from "./auth.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
+import type { NftTransfersReader } from "./nft-transfers.ts";
 import type { IndexTip } from "./tip.ts";
 
 const BUILD_KEY = "sk-sl_index_build_test";
 const FREE_KEY = "sk-sl_index_free_test";
+const SCALE_KEY = "sk-sl_index_scale_test";
 const WRONG_SCOPE_KEY = "sk-sl_index_wrong_scope_test";
 const TIP: IndexTip = { block_height: 10_000, lag_seconds: 1 };
 const STREAMS_TIP: StreamsTip = {
@@ -25,6 +27,10 @@ const EMPTY_READER: FtTransfersReader = async () => ({
 	events: [],
 	next_cursor: null,
 });
+const EMPTY_NFT_READER: NftTransfersReader = async () => ({
+	events: [],
+	next_cursor: null,
+});
 
 function authHeaders(token: string) {
 	return { Authorization: `Bearer ${token}` };
@@ -35,7 +41,11 @@ function createApp(readFtTransfers: FtTransfersReader = EMPTY_READER) {
 	app.onError(errorHandler);
 	app.route(
 		"/v1/index",
-		createIndexRouter({ getTip: () => TIP, readFtTransfers }),
+		createIndexRouter({
+			getTip: () => TIP,
+			readFtTransfers,
+			readNftTransfers: EMPTY_NFT_READER,
+		}),
 	);
 	return app;
 }
@@ -58,6 +68,16 @@ describe("Stacks Index gateway middleware", () => {
 		expect(res.status).toBe(403);
 		const body = (await res.json()) as { error: string };
 		expect(body.error).toContain(INDEX_READ_SCOPE);
+	});
+
+	test("nft-transfers uses the same paid Index gateway", async () => {
+		const res = await createApp().request("/v1/index/nft-transfers", {
+			headers: authHeaders(SCALE_KEY),
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { events: unknown[]; reorgs: unknown[] };
+		expect(body.events).toEqual([]);
+		expect(body.reorgs).toEqual([]);
 	});
 
 	test("build tier gets 50 req/s on Index", async () => {
@@ -114,6 +134,7 @@ describe("Stacks Index gateway middleware", () => {
 				tokens: indexTokens,
 				getTip: () => TIP,
 				readFtTransfers: EMPTY_READER,
+				readNftTransfers: EMPTY_NFT_READER,
 			}),
 		);
 

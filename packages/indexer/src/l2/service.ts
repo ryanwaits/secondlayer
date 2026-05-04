@@ -1,12 +1,21 @@
 import { closeDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
-import { consumeFtTransferDecodedEvents } from "./decoder.ts";
-import { getL2DecoderHealth } from "./health.ts";
+import {
+	consumeFtTransferDecodedEvents,
+	consumeNftTransferDecodedEvents,
+} from "./decoder.ts";
+import { getL2DecodersHealth } from "./health.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
-let decodedTotal = 0;
-let decodedThisMinute = 0;
+const decodedTotals: Record<string, number> = {
+	"l2.ft_transfer.v1": 0,
+	"l2.nft_transfer.v1": 0,
+};
+const decodedThisMinute: Record<string, number> = {
+	"l2.ft_transfer.v1": 0,
+	"l2.nft_transfer.v1": 0,
+};
 
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 	if (signal?.aborted) return;
@@ -25,26 +34,34 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 async function logProgress(): Promise<void> {
 	try {
-		const health = await getL2DecoderHealth();
+		const health = await getL2DecodersHealth();
 		logger.info("l2_decoder.progress", {
-			decoder: health.decoder,
-			writes_per_minute: decodedThisMinute,
-			decoded_total: decodedTotal,
-			lag_seconds: health.lag_seconds,
-			checkpoint: health.checkpoint,
 			status: health.status,
+			decoders: health.decoders.map((decoder) => ({
+				decoder: decoder.decoder,
+				writes_per_minute: decodedThisMinute[decoder.decoder] ?? 0,
+				decoded_total: decodedTotals[decoder.decoder] ?? 0,
+				lag_seconds: decoder.lag_seconds,
+				checkpoint: decoder.checkpoint,
+				status: decoder.status,
+			})),
 		});
-		decodedThisMinute = 0;
+		for (const decoder of Object.keys(decodedThisMinute)) {
+			decodedThisMinute[decoder] = 0;
+		}
 	} catch (error) {
 		logger.warn("l2_decoder.progress_failed", { error: String(error) });
 	}
 }
 
-async function runDecoder(): Promise<void> {
+async function runDecoder(
+	decoderName: string,
+	consume: typeof consumeFtTransferDecodedEvents,
+): Promise<void> {
 	while (!controller.signal.aborted) {
-		const before = decodedTotal;
+		const before = decodedTotals[decoderName] ?? 0;
 		try {
-			await consumeFtTransferDecodedEvents({
+			await consume({
 				batchSize: Number.parseInt(
 					process.env.L2_DECODER_BATCH_SIZE ?? "500",
 					10,
@@ -55,18 +72,30 @@ async function runDecoder(): Promise<void> {
 				),
 				signal: controller.signal,
 				onProgress: ({ decoded }) => {
-					decodedTotal += decoded;
-					decodedThisMinute += decoded;
+					decodedTotals[decoderName] =
+						(decodedTotals[decoderName] ?? 0) + decoded;
+					decodedThisMinute[decoderName] =
+						(decodedThisMinute[decoderName] ?? 0) + decoded;
 				},
 			});
 		} catch (error) {
 			if (controller.signal.aborted) return;
-			logger.error("l2_decoder.error", { error: String(error) });
+			logger.error("l2_decoder.error", {
+				decoder: decoderName,
+				error: String(error),
+			});
 			await sleep(5_000, controller.signal);
 		} finally {
-			if (decodedTotal !== before) await logProgress();
+			if ((decodedTotals[decoderName] ?? 0) !== before) await logProgress();
 		}
 	}
+}
+
+async function runDecoders(): Promise<void> {
+	await Promise.all([
+		runDecoder("l2.ft_transfer.v1", consumeFtTransferDecodedEvents),
+		runDecoder("l2.nft_transfer.v1", consumeNftTransferDecodedEvents),
+	]);
 }
 
 const progressTimer = setInterval(() => {
@@ -83,7 +112,7 @@ const server = Bun.serve({
 		}
 
 		try {
-			const health = await getL2DecoderHealth();
+			const health = await getL2DecodersHealth();
 			return Response.json(health, {
 				status: health.status === "healthy" ? 200 : 503,
 			});
@@ -97,7 +126,7 @@ const server = Bun.serve({
 });
 
 logger.info("Starting L2 decoder service", { port: PORT });
-void runDecoder();
+void runDecoders();
 
 async function shutdown() {
 	logger.info("Shutting down L2 decoder service");

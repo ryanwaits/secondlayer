@@ -86,6 +86,12 @@ check_status "index ft transfers free" "403" "/v1/index/ft-transfers?limit=1" "$
 check_status "index ft transfers wrong scope" "403" "/v1/index/ft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
 check_json_field "index ft transfers envelope" "/v1/index/ft-transfers?limit=1" "$INDEX_KEY" "reorgs"
 
+check_status "index nft transfers build" "200" "/v1/index/nft-transfers?limit=1" "$INDEX_KEY"
+check_status "index nft transfers missing auth" "401" "/v1/index/nft-transfers?limit=1"
+check_status "index nft transfers free" "403" "/v1/index/nft-transfers?limit=1" "$INDEX_FREE_KEY"
+check_status "index nft transfers wrong scope" "403" "/v1/index/nft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
+check_json_field "index nft transfers envelope" "/v1/index/nft-transfers?limit=1" "$INDEX_KEY" "reorgs"
+
 if [[ "$failures" -gt 0 ]]; then
 	echo "post-deploy smoke failed: ${failures}"
 	exit 1

@@ -9,6 +9,10 @@ import {
 	type FtTransfersReader,
 	getFtTransfersResponse,
 } from "../index/ft-transfers.ts";
+import {
+	type NftTransfersReader,
+	getNftTransfersResponse,
+} from "../index/nft-transfers.ts";
 import { indexRateLimit } from "../index/rate-limit.ts";
 import { type IndexTipProvider, getIndexTip } from "../index/tip.ts";
 
@@ -16,6 +20,7 @@ export type IndexRouterOptions = {
 	tokens?: IndexTokenStore;
 	getTip?: IndexTipProvider;
 	readFtTransfers?: FtTransfersReader;
+	readNftTransfers?: NftTransfersReader;
 };
 
 export function createIndexRouter(opts: IndexRouterOptions = {}) {
@@ -36,6 +41,18 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 				query: new URL(c.req.url).searchParams,
 				tip,
 				readTransfers: opts.readFtTransfers,
+			}),
+		);
+	});
+
+	router.get("/nft-transfers", async (c) => {
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		return c.json(
+			await getNftTransfersResponse({
+				query: new URL(c.req.url).searchParams,
+				tip,
+				readTransfers: opts.readNftTransfers,
 			}),
 		);
 	});

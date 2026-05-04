@@ -70,6 +70,12 @@ describe("continuous service smoke: l2-decoder", () => {
 					`[l2-decoder smoke] rows_written=${summary.outputRowsWritten} checkpoint_delta=${summary.checkpointDelta.before ?? "null"}->${summary.checkpointDelta.after ?? "null"} event_type_counts=${JSON.stringify(summary.after.eventTypeCounts ?? {})}`,
 				);
 				expect(summary.elapsedMs).toBeGreaterThanOrEqual(60_000);
+				expect(
+					summary.after.eventTypeCounts?.ft_transfer ?? 0,
+				).toBeGreaterThanOrEqual(2);
+				expect(
+					summary.after.eventTypeCounts?.nft_transfer ?? 0,
+				).toBeGreaterThanOrEqual(1);
 			} finally {
 				apiServer?.stop();
 				await smokeDb.drop();
@@ -171,6 +177,16 @@ async function seedL2DecoderSourceFeed(db: Kysely<Database>): Promise<void> {
 				contract_id: null,
 				raw_tx: "0x04",
 			},
+			{
+				tx_id: "tx-smoke-nft-1",
+				block_height: 2,
+				tx_index: 1,
+				type: "contract_call",
+				sender: "SP7SMOKE",
+				status: "success",
+				contract_id: "SP7SMOKE.collection",
+				raw_tx: "0x05",
+			},
 		])
 		.execute();
 
@@ -222,6 +238,18 @@ async function seedL2DecoderSourceFeed(db: Kysely<Database>): Promise<void> {
 					sender: "SP5SMOKE",
 					recipient: "SP6SMOKE",
 					amount: "30",
+				},
+			},
+			{
+				tx_id: "tx-smoke-nft-1",
+				block_height: 2,
+				event_index: 0,
+				type: "nft_transfer_event",
+				data: {
+					asset_identifier: "SP7SMOKE.collection::SMOKE",
+					sender: "SP7SMOKE",
+					recipient: "SP8SMOKE",
+					value: "0x0100000000000000000000000000000001",
 				},
 			},
 		])

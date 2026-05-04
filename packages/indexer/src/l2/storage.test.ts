@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import {
 	FT_TRANSFER_DECODER_NAME,
+	NFT_TRANSFER_DECODER_NAME,
 	handleDecodedEventsReorg,
 	writeDecodedEvents,
 } from "./storage.ts";
@@ -39,14 +40,27 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			.select("last_cursor")
 			.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
 			.executeTakeFirst();
+		const nftCheckpoint = await db
+			.selectFrom("l2_decoder_checkpoints")
+			.select("last_cursor")
+			.where("decoder_name", "=", NFT_TRANSFER_DECODER_NAME)
+			.executeTakeFirst();
 
-		expect(result).toEqual({ markedNonCanonical: 2, checkpoint: "9:0" });
+		expect(result).toEqual({
+			markedNonCanonical: 2,
+			checkpoint: "9:0",
+			checkpoints: {
+				[FT_TRANSFER_DECODER_NAME]: "9:0",
+				[NFT_TRANSFER_DECODER_NAME]: null,
+			},
+		});
 		expect(rows).toEqual([
 			{ cursor: "10:0", canonical: false },
 			{ cursor: "11:0", canonical: false },
 			{ cursor: "9:0", canonical: true },
 		]);
 		expect(checkpoint?.last_cursor).toBe("9:0");
+		expect(nftCheckpoint?.last_cursor).toBeNull();
 	});
 
 	test("writeDecodedEvents reactivates canonical row after re-decode", async () => {
@@ -92,6 +106,45 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			sender: "SP3",
 			recipient: "SP4",
 			amount: "25",
+		});
+	});
+
+	test("writeDecodedEvents stores raw nft_transfer values", async () => {
+		if (!db) throw new Error("missing db");
+
+		await writeDecodedEvents(
+			[
+				{
+					cursor: "12:0",
+					block_height: 12,
+					tx_id: "tx-nft",
+					tx_index: 0,
+					event_index: 0,
+					event_type: "nft_transfer",
+					decoded_payload: {
+						contract_id: "SP1.collection",
+						asset_identifier: "SP1.collection::token",
+						token_name: "token",
+						sender: "SP1",
+						recipient: "SP2",
+						value: "0x0100000000000000000000000000000001",
+					},
+					source_cursor: "12:0",
+				},
+			],
+			{ db },
+		);
+
+		const inserted = await db
+			.selectFrom("decoded_events")
+			.select(["event_type", "amount", "value"])
+			.where("cursor", "=", "12:0")
+			.executeTakeFirstOrThrow();
+
+		expect(inserted).toEqual({
+			event_type: "nft_transfer",
+			amount: null,
+			value: "0x0100000000000000000000000000000001",
 		});
 	});
 });

@@ -4,6 +4,19 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import type { Generated, Kysely } from "kysely";
 
 export const FT_TRANSFER_DECODER_NAME = "l2.ft_transfer.v1";
+export const NFT_TRANSFER_DECODER_NAME = "l2.nft_transfer.v1";
+
+export const L2_DECODER_NAMES = [
+	FT_TRANSFER_DECODER_NAME,
+	NFT_TRANSFER_DECODER_NAME,
+] as const;
+
+export type L2DecoderName = (typeof L2_DECODER_NAMES)[number];
+
+export const L2_DECODER_EVENT_TYPES: Record<L2DecoderName, string> = {
+	[FT_TRANSFER_DECODER_NAME]: "ft_transfer",
+	[NFT_TRANSFER_DECODER_NAME]: "nft_transfer",
+};
 
 type L2Database = Database & {
 	decoded_events: {
@@ -92,9 +105,15 @@ export async function writeDecodedEvents(
 				contract_id: event.decoded_payload.contract_id,
 				sender: event.decoded_payload.sender,
 				recipient: event.decoded_payload.recipient,
-				amount: event.decoded_payload.amount,
+				amount:
+					event.event_type === "ft_transfer"
+						? event.decoded_payload.amount
+						: null,
 				asset_identifier: event.decoded_payload.asset_identifier,
-				value: null,
+				value:
+					event.event_type === "nft_transfer"
+						? event.decoded_payload.value
+						: null,
 				memo: null,
 				source_cursor: event.source_cursor,
 			})),
@@ -123,10 +142,14 @@ export async function writeDecodedEvents(
 
 export async function handleDecodedEventsReorg(
 	blockHeight: number,
-	opts?: { db?: Kysely<Database>; decoderName?: string },
-): Promise<{ markedNonCanonical: number; checkpoint: string | null }> {
+	opts?: { db?: Kysely<Database>; decoderNames?: readonly L2DecoderName[] },
+): Promise<{
+	markedNonCanonical: number;
+	checkpoints: Record<L2DecoderName, string | null>;
+	checkpoint: string | null;
+}> {
 	const db = l2Db(opts?.db);
-	const decoderName = opts?.decoderName ?? FT_TRANSFER_DECODER_NAME;
+	const decoderNames = opts?.decoderNames ?? L2_DECODER_NAMES;
 
 	const result = await db
 		.updateTable("decoded_events")
@@ -135,26 +158,43 @@ export async function handleDecodedEventsReorg(
 		.where("canonical", "=", true)
 		.executeTakeFirst();
 
-	const checkpointRow = await db
+	const checkpoints = {} as Record<L2DecoderName, string | null>;
+	for (const decoderName of decoderNames) {
+		const checkpoint = await readCanonicalCheckpointBeforeBlock(
+			blockHeight,
+			L2_DECODER_EVENT_TYPES[decoderName],
+			opts?.db,
+		);
+		checkpoints[decoderName] = checkpoint;
+
+		await writeDecoderCheckpoint({
+			cursor: checkpoint,
+			db: opts?.db,
+			decoderName,
+		});
+	}
+
+	return {
+		markedNonCanonical: Number(result.numUpdatedRows ?? 0),
+		checkpoints,
+		checkpoint: checkpoints[FT_TRANSFER_DECODER_NAME] ?? null,
+	};
+}
+
+async function readCanonicalCheckpointBeforeBlock(
+	blockHeight: number,
+	eventType: string,
+	db?: Kysely<Database>,
+): Promise<string | null> {
+	const row = await l2Db(db)
 		.selectFrom("decoded_events")
 		.select("source_cursor")
 		.where("block_height", "<", blockHeight)
-		.where("event_type", "=", "ft_transfer")
+		.where("event_type", "=", eventType)
 		.where("canonical", "=", true)
 		.orderBy("block_height", "desc")
 		.orderBy("event_index", "desc")
 		.limit(1)
 		.executeTakeFirst();
-	const checkpoint = checkpointRow?.source_cursor ?? null;
-
-	await writeDecoderCheckpoint({
-		cursor: checkpoint,
-		db: opts?.db,
-		decoderName,
-	});
-
-	return {
-		markedNonCanonical: Number(result.numUpdatedRows ?? 0),
-		checkpoint,
-	};
+	return row?.source_cursor ?? null;
 }

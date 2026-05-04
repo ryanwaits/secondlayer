@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { consumeFtTransferDecodedEvents } from "@secondlayer/indexer/l2/decoder";
+import {
+	consumeFtTransferDecodedEvents,
+	consumeNftTransferDecodedEvents,
+} from "@secondlayer/indexer/l2/decoder";
 import { createStreamsClient } from "@secondlayer/sdk";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { INDEX_READ_SCOPE, type IndexTokenStore } from "../index/auth.ts";
 import { readFtTransfers } from "../index/ft-transfers.ts";
+import { readNftTransfers } from "../index/nft-transfers.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { createIndexRouter } from "../routes/index.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
@@ -89,6 +93,16 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 					contract_id: null,
 					raw_tx: "0x03",
 				},
+				{
+					tx_id: "tx-nft-1",
+					block_height: 1,
+					tx_index: 3,
+					type: "contract_call",
+					sender: "SP5",
+					status: "success",
+					contract_id: "SP5.collection",
+					raw_tx: "0x04",
+				},
 			])
 			.execute();
 		await db
@@ -127,6 +141,18 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 						sender: "SP3",
 						recipient: "SP4",
 						amount: "20",
+					},
+				},
+				{
+					tx_id: "tx-nft-1",
+					block_height: 1,
+					event_index: 0,
+					type: "nft_transfer_event",
+					data: {
+						asset_identifier: "SP5.collection::token",
+						sender: "SP5",
+						recipient: "SP6",
+						value: "0x0100000000000000000000000000000001",
 					},
 				},
 			])
@@ -202,6 +228,34 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		});
 	});
 
+	test("consumes /events in-process and writes decoded nft_transfer rows", async () => {
+		if (!db) throw new Error("missing db");
+
+		const result = await consumeNftTransferDecodedEvents({
+			db,
+			streamsClient: inProcessClient(),
+			batchSize: 10,
+			maxPages: 1,
+		});
+
+		const rows = await db
+			.selectFrom("decoded_events")
+			.selectAll()
+			.orderBy("cursor")
+			.execute();
+
+		expect(result.decoded).toBe(1);
+		expect(rows.map((row) => row.cursor)).toEqual(["1:3"]);
+		expect(rows[0]).toMatchObject({
+			event_type: "nft_transfer",
+			contract_id: "SP5.collection",
+			sender: "SP5",
+			recipient: "SP6",
+			asset_identifier: "SP5.collection::token",
+			value: "0x0100000000000000000000000000000001",
+		});
+	});
+
 	test("restart resumes from checkpoint without duplicates or gaps", async () => {
 		if (!db) throw new Error("missing db");
 		const streamsClient = inProcessClient();
@@ -255,6 +309,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 				tokens: INDEX_TOKENS,
 				getTip: () => ({ block_height: 1, lag_seconds: 0 }),
 				readFtTransfers: (params) => readFtTransfers({ ...params, db }),
+				readNftTransfers: (params) => readNftTransfers({ ...params, db }),
 			}),
 		);
 
@@ -285,5 +340,49 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			events: Array<{ cursor: string }>;
 		};
 		expect(secondBody.events.map((event) => event.cursor)).toEqual(["1:2"]);
+	});
+
+	test("bounded decoder rows are returned by /v1/index/nft-transfers with pagination", async () => {
+		if (!db) throw new Error("missing db");
+
+		await consumeNftTransferDecodedEvents({
+			db,
+			streamsClient: inProcessClient(),
+			batchSize: 10,
+			maxPages: 1,
+		});
+
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				tokens: INDEX_TOKENS,
+				getTip: () => ({ block_height: 1, lag_seconds: 0 }),
+				readFtTransfers: (params) => readFtTransfers({ ...params, db }),
+				readNftTransfers: (params) => readNftTransfers({ ...params, db }),
+			}),
+		);
+
+		const res = await app.request(
+			"/v1/index/nft-transfers?from_height=0&limit=1",
+			{
+				headers: { Authorization: `Bearer ${INDEX_KEY}` },
+			},
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			events: Array<{ cursor: string; value: string }>;
+			next_cursor: string | null;
+			reorgs: unknown[];
+		};
+		expect(body.events).toMatchObject([
+			{
+				cursor: "1:3",
+				value: "0x0100000000000000000000000000000001",
+			},
+		]);
+		expect(body.next_cursor).toBe("1:3");
+		expect(body.reorgs).toEqual([]);
 	});
 });

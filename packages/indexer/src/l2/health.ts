@@ -1,7 +1,12 @@
 import { getTargetDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
-import { FT_TRANSFER_DECODER_NAME } from "./storage.ts";
+import {
+	FT_TRANSFER_DECODER_NAME,
+	type L2DecoderName,
+	L2_DECODER_EVENT_TYPES,
+	L2_DECODER_NAMES,
+} from "./storage.ts";
 
 export type L2DecoderHealth = {
 	status: "healthy" | "unhealthy";
@@ -14,6 +19,11 @@ export type L2DecoderHealth = {
 	writes_recent: boolean;
 };
 
+export type L2DecodersHealth = {
+	status: "healthy" | "unhealthy";
+	decoders: L2DecoderHealth[];
+};
+
 function cursorBlockHeight(cursor: string | null): number | null {
 	if (!cursor) return null;
 	const [height] = cursor.split(":");
@@ -23,11 +33,12 @@ function cursorBlockHeight(cursor: string | null): number | null {
 
 export async function getL2DecoderHealth(opts?: {
 	db?: Kysely<Database>;
-	decoderName?: string;
+	decoderName?: L2DecoderName;
 	now?: Date;
 }): Promise<L2DecoderHealth> {
 	const db = opts?.db ?? getTargetDb();
 	const decoderName = opts?.decoderName ?? FT_TRANSFER_DECODER_NAME;
+	const eventType = L2_DECODER_EVENT_TYPES[decoderName];
 	const now = opts?.now ?? new Date();
 
 	const checkpoint = await db
@@ -50,7 +61,7 @@ export async function getL2DecoderHealth(opts?: {
 	const latestDecoded = await db
 		.selectFrom("decoded_events")
 		.select(["created_at"])
-		.where("event_type", "=", "ft_transfer")
+		.where("event_type", "=", eventType)
 		.where("canonical", "=", true)
 		.orderBy("created_at", "desc")
 		.limit(1)
@@ -86,5 +97,25 @@ export async function getL2DecoderHealth(opts?: {
 		lag_seconds: checkpointLagSeconds,
 		last_decoded_at: lastDecodedAt?.toISOString() ?? null,
 		writes_recent: writesRecent,
+	};
+}
+
+export async function getL2DecodersHealth(opts?: {
+	db?: Kysely<Database>;
+	decoderNames?: readonly L2DecoderName[];
+	now?: Date;
+}): Promise<L2DecodersHealth> {
+	const decoderNames = opts?.decoderNames ?? L2_DECODER_NAMES;
+	const decoders = await Promise.all(
+		decoderNames.map((decoderName) =>
+			getL2DecoderHealth({ db: opts?.db, decoderName, now: opts?.now }),
+		),
+	);
+
+	return {
+		status: decoders.every((decoder) => decoder.status === "healthy")
+			? "healthy"
+			: "unhealthy",
+		decoders,
 	};
 }
