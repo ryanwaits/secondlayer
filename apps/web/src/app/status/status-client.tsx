@@ -1,14 +1,11 @@
 "use client";
 
-import { createStreamsClient, type StreamsTip } from "@secondlayer/sdk/streams";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { determineApiHealth } from "@/lib/status-page";
+import type { SystemStatus } from "@/lib/types";
 import { StatusGridView, type StatusSnapshot } from "./status-grid-view";
 
-const STREAMS_STATUS_API_KEY =
-	process.env.NEXT_PUBLIC_STREAMS_STATUS_API_KEY ??
-	"sk-sl_streams_status_public";
-const STREAMS_API_URL =
+const STATUS_API_URL =
 	process.env.NEXT_PUBLIC_STREAMS_API_URL ?? "https://api.secondlayer.tools";
 const REFRESH_MS = 30_000;
 
@@ -19,28 +16,31 @@ const initialSnapshot: StatusSnapshot = {
 		description: "The first tip request has not completed.",
 	},
 	tip: null,
+	index: null,
 	lastChecked: null,
 	error: null,
 };
 
 export function StatusClient({ incidentHeading }: { incidentHeading: string }) {
-	const client = useMemo(
-		() =>
-			createStreamsClient({
-				apiKey: STREAMS_STATUS_API_KEY,
-				baseUrl: STREAMS_API_URL,
-			}),
-		[],
-	);
+	const statusUrl = useMemo(() => `${STATUS_API_URL}/public/status`, []);
 	const [snapshot, setSnapshot] = useState<StatusSnapshot>(initialSnapshot);
 
 	const refresh = useCallback(async () => {
 		const checkedAt = new Date();
 		try {
-			const tip = await client.tip();
+			const response = await fetch(statusUrl, { cache: "no-store" });
+			if (!response.ok) {
+				throw new Error(`Status request failed with HTTP ${response.status}.`);
+			}
+
+			const status = (await response.json()) as SystemStatus;
+			const tip = status.streams?.tip ?? null;
 			setSnapshot({
-				health: determineApiHealth({ ok: true, tip }),
+				health: tip
+					? determineApiHealth({ ok: true, tip })
+					: determineApiHealth({ ok: false }),
 				tip,
+				index: status.index ?? null,
 				lastChecked: checkedAt,
 				error: null,
 			});
@@ -48,11 +48,13 @@ export function StatusClient({ incidentHeading }: { incidentHeading: string }) {
 			setSnapshot({
 				health: determineApiHealth({ ok: false, error }),
 				tip: null,
+				index: null,
 				lastChecked: checkedAt,
-				error: error instanceof Error ? error.message : "Tip request failed.",
+				error:
+					error instanceof Error ? error.message : "Status request failed.",
 			});
 		}
-	}, [client]);
+	}, [statusUrl]);
 
 	useEffect(() => {
 		void refresh();

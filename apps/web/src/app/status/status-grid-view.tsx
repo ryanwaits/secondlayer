@@ -2,13 +2,17 @@ import type { StreamsTip } from "@secondlayer/sdk/streams";
 import {
 	formatLag,
 	formatLastChecked,
+	indexFreshnessColor,
+	indexFreshnessLabel,
 	truncateHash,
 	type ApiHealth,
 } from "@/lib/status-page";
+import type { IndexFreshnessStatus } from "@/lib/types";
 
 export type StatusSnapshot = {
 	health: ApiHealth;
 	tip: StreamsTip | null;
+	index: IndexFreshnessStatus | null;
 	lastChecked: Date | null;
 	error: string | null;
 };
@@ -56,6 +60,32 @@ export function StatusGridView({
 							{truncateHash(snapshot.tip?.index_block_hash)}
 						</dd>
 					</div>
+				</dl>
+			</div>
+
+			<div className="status-block">
+				<div className="status-block-kicker">Stacks Index freshness</div>
+				<dl className="status-metrics">
+					{(["ft_transfer", "nft_transfer"] as const).map((eventType) => {
+						const decoder =
+							snapshot.index?.decoders.find(
+								(item) => item.eventType === eventType,
+							) ?? null;
+						const color = indexFreshnessColor(decoder);
+
+						return (
+							<div key={eventType}>
+								<dt>
+									<span
+										className={`status-freshness-dot status-freshness-${color}`}
+										aria-hidden="true"
+									/>
+									{eventType === "ft_transfer" ? "FT decoder" : "NFT decoder"}
+								</dt>
+								<dd>{indexFreshnessLabel(eventType, snapshot.index)}</dd>
+							</div>
+						);
+					})}
 				</dl>
 			</div>
 

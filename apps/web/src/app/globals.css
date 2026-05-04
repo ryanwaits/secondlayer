@@ -941,6 +941,9 @@ a {
 }
 
 .status-metrics dt {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
 	font-size: 0.8125rem;
 }
 
@@ -954,6 +957,26 @@ a {
 
 .status-hash {
 	overflow-wrap: anywhere;
+}
+
+.status-freshness-dot {
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background: var(--text-muted);
+	flex: 0 0 auto;
+}
+
+.status-freshness-green {
+	background: var(--green);
+}
+
+.status-freshness-yellow {
+	background: var(--yellow);
+}
+
+.status-freshness-muted {
+	background: var(--text-muted);
 }
 
 .status-footer {

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { StatusGridView } from "./status-grid-view";
 
 describe("status page visual smoke", () => {
-	test("renders all three public signals", () => {
+	test("renders public Streams and Index signals", () => {
 		const html = renderToStaticMarkup(
 			<StatusGridView
 				incidentHeading="No active incidents"
@@ -20,6 +20,29 @@ describe("status page visual smoke", () => {
 						index_block_hash: "0x1234567890abcdef1234567890abcdef",
 						lag_seconds: 3,
 					},
+					index: {
+						status: "ok",
+						decoders: [
+							{
+								decoder: "l2.ft_transfer.v1",
+								eventType: "ft_transfer",
+								status: "ok",
+								lagSeconds: 12,
+								checkpointBlockHeight: 182446,
+								tipBlockHeight: 182447,
+								lastDecodedAt: "2026-05-11T12:00:00.000Z",
+							},
+							{
+								decoder: "l2.nft_transfer.v1",
+								eventType: "nft_transfer",
+								status: "degraded",
+								lagSeconds: 60,
+								checkpointBlockHeight: 182445,
+								tipBlockHeight: 182447,
+								lastDecodedAt: "2026-05-11T12:00:01.000Z",
+							},
+						],
+					},
 					lastChecked: new Date("2026-05-03T20:30:45Z"),
 					error: null,
 				}}
@@ -28,6 +51,9 @@ describe("status page visual smoke", () => {
 
 		expect(html).toContain("API health");
 		expect(html).toContain("Current chain tip");
+		expect(html).toContain("Stacks Index freshness");
+		expect(html).toContain("FT 12s");
+		expect(html).toContain("NFT 1m");
 		expect(html).toContain("Incident note");
 		expect(html).toContain("No active incidents");
 		expect(html).toContain("182,447");
