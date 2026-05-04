@@ -63,5 +63,9 @@ plans/
 
 # Claude Code local state
 .claude/
+!/.claude/
+/.claude/*
+!/.claude/sprints/
+!/.claude/sprints/current-sprint.md
 
 .scaffold-test-*
