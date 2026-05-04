@@ -116,7 +116,7 @@ export async function consumeNftTransferDecodedEvents(opts?: {
 		maxPages: opts?.maxPages,
 		maxEmptyPolls: opts?.maxEmptyPolls,
 		signal: opts?.signal,
-		types: opts?.types ?? ["nft_transfer"],
+		types: opts?.types,
 		onBatch: async (events, envelope) => {
 			const rows = events.flatMap((event) => {
 				if (event.event_type !== "nft_transfer") return [];

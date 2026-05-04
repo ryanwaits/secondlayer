@@ -41,7 +41,7 @@ describe("L2 decoder Streams filters", () => {
 		expect(seenTypes).toEqual(["ft_transfer"]);
 	});
 
-	test("NFT decoder requests only nft_transfer Streams events by default", async () => {
+	test("NFT decoder tails the full stream by default to advance through sparse ranges", async () => {
 		let seenTypes: readonly StreamsEventType[] | undefined;
 
 		await consumeNftTransferDecodedEvents({
@@ -52,7 +52,7 @@ describe("L2 decoder Streams filters", () => {
 			maxPages: 1,
 		});
 
-		expect(seenTypes).toEqual(["nft_transfer"]);
+		expect(seenTypes).toBeUndefined();
 	});
 });
 
