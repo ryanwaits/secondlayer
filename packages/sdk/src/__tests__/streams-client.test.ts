@@ -167,4 +167,49 @@ describe("createStreamsClient", () => {
 
 		expect(seen).toEqual([]);
 	});
+
+	test("stream stops at maxPages", async () => {
+		const pages = [
+			{ events: [event("1:0", 0)], next_cursor: "1:0", tip: TIP, reorgs: [] },
+			{ events: [event("1:1", 1)], next_cursor: "1:1", tip: TIP, reorgs: [] },
+		];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () => jsonResponse(pages.shift()),
+		});
+		const seen: string[] = [];
+
+		for await (const item of client.events.stream({
+			batchSize: 1,
+			maxPages: 1,
+		})) {
+			seen.push(item.cursor);
+		}
+
+		expect(seen).toEqual(["1:0"]);
+		expect(pages).toHaveLength(1);
+	});
+
+	test("stream stops at maxEmptyPolls", async () => {
+		let requests = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () => {
+				requests++;
+				return jsonResponse({ events: [], next_cursor: null, tip: TIP, reorgs: [] });
+			},
+		});
+		const seen: StreamsEvent[] = [];
+
+		for await (const item of client.events.stream({
+			batchSize: 10,
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 2,
+		})) {
+			seen.push(item);
+		}
+
+		expect(seen).toEqual([]);
+		expect(requests).toBe(2);
+	});
 });

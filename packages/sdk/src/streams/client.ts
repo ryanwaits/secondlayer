@@ -136,6 +136,7 @@ export function createStreamsClient(
 			consume(params: StreamsEventsConsumeParams) {
 				return consumeStreamsEvents({
 					fromCursor: params.fromCursor,
+					mode: params.mode,
 					types: params.types,
 					batchSize: params.batchSize ?? 100,
 					fetchEvents,
@@ -151,6 +152,9 @@ export function createStreamsClient(
 					fromCursor: params.fromCursor,
 					types: params.types,
 					batchSize: params.batchSize ?? 100,
+					emptyBackoffMs: params.emptyBackoffMs,
+					maxPages: params.maxPages,
+					maxEmptyPolls: params.maxEmptyPolls,
 					signal: params.signal,
 					fetchEvents,
 				});

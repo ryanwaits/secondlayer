@@ -111,6 +111,32 @@ describe("client.events.consume", () => {
 		expect(result.cursor).toBe("99:0");
 		expect(result.emptyPolls).toBe(2);
 	});
+
+	test("bounded mode exits on the first empty page", async () => {
+		let requests = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () => {
+				requests++;
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
+			},
+		});
+
+		const result = await client.events.consume({
+			mode: "bounded",
+			fromCursor: "1:2",
+			batchSize: 100,
+			onBatch: () => undefined,
+		});
+
+		expect(requests).toBe(1);
+		expect(result.emptyPolls).toBe(1);
+	});
 });
 
 function jsonResponse(body: unknown, status = 200): Response {

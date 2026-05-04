@@ -63,11 +63,15 @@ export type StreamsEventsStreamParams = {
 	fromCursor?: string | null;
 	types?: readonly StreamsEventType[];
 	batchSize?: number;
+	emptyBackoffMs?: number;
+	maxPages?: number;
+	maxEmptyPolls?: number;
 	signal?: AbortSignal;
 };
 
 export type StreamsEventsConsumeParams = {
 	fromCursor?: string | null;
+	mode?: "tail" | "bounded";
 	types?: readonly StreamsEventType[];
 	batchSize?: number;
 	onBatch: (
@@ -98,8 +102,10 @@ export type StreamsClient = {
 		 * Pull pages from Streams and call `onBatch` after each page.
 		 *
 		 * Use `consume` for indexers and ETL jobs that own checkpointing. Return
-		 * the checkpoint cursor from `onBatch`; the consumer exits when `maxPages`,
-		 * `maxEmptyPolls`, or `signal` stops it.
+		 * the checkpoint cursor from `onBatch`. Default `mode: "tail"` keeps
+		 * polling when caught up; `mode: "bounded"` exits on the first empty page.
+		 * The consumer also exits when `maxPages`, `maxEmptyPolls`, or `signal`
+		 * stops it.
 		 */
 		consume(
 			params: StreamsEventsConsumeParams,
@@ -108,7 +114,8 @@ export type StreamsClient = {
 		 * Follow Streams as an async iterator.
 		 *
 		 * Use `stream` for live processors and watch-style apps. It tails
-		 * indefinitely and stops when its `AbortSignal` is aborted.
+		 * indefinitely by default and stops when its `AbortSignal`, `maxPages`, or
+		 * `maxEmptyPolls` stops it.
 		 */
 		stream(params?: StreamsEventsStreamParams): AsyncIterable<StreamsEvent>;
 	};

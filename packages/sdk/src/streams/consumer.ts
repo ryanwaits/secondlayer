@@ -35,6 +35,7 @@ export async function defaultSleep(ms: number, signal?: AbortSignal): Promise<vo
 
 export async function consumeStreamsEvents(opts: {
 	fromCursor?: string | null;
+	mode?: "tail" | "bounded";
 	batchSize: number;
 	types?: readonly StreamsEventType[];
 	fetchEvents: StreamsEventsFetcher;
@@ -49,6 +50,7 @@ export async function consumeStreamsEvents(opts: {
 	signal?: AbortSignal;
 }): Promise<{ cursor: string | null; pages: number; emptyPolls: number }> {
 	const sleep = opts.sleep ?? defaultSleep;
+	const mode = opts.mode ?? "tail";
 	const emptyBackoffMs = opts.emptyBackoffMs ?? 500;
 	const maxPages = opts.maxPages ?? Number.POSITIVE_INFINITY;
 	const maxEmptyPolls = opts.maxEmptyPolls ?? Number.POSITIVE_INFINITY;
@@ -79,6 +81,9 @@ export async function consumeStreamsEvents(opts: {
 
 		if (envelope.events.length === 0) {
 			emptyPolls++;
+			if (mode === "bounded") {
+				return { cursor, pages, emptyPolls };
+			}
 			await sleep(emptyBackoffMs, opts.signal);
 			continue;
 		}
@@ -96,18 +101,29 @@ export async function* streamStreamsEvents(opts: {
 	fetchEvents: StreamsEventsFetcher;
 	sleep?: Sleep;
 	emptyBackoffMs?: number;
+	maxPages?: number;
+	maxEmptyPolls?: number;
 	signal?: AbortSignal;
 }): AsyncGenerator<StreamsEvent> {
 	const sleep = opts.sleep ?? defaultSleep;
 	const emptyBackoffMs = opts.emptyBackoffMs ?? 500;
+	const maxPages = opts.maxPages ?? Number.POSITIVE_INFINITY;
+	const maxEmptyPolls = opts.maxEmptyPolls ?? Number.POSITIVE_INFINITY;
 	let cursor = opts.fromCursor ?? null;
+	let pages = 0;
+	let emptyPolls = 0;
 
-	while (!opts.signal?.aborted) {
+	while (
+		pages < maxPages &&
+		emptyPolls < maxEmptyPolls &&
+		!opts.signal?.aborted
+	) {
 		const envelope = await opts.fetchEvents({
 			cursor,
 			limit: opts.batchSize,
 			types: opts.types,
 		});
+		pages++;
 
 		for (const event of envelope.events) {
 			if (opts.signal?.aborted) return;
@@ -117,12 +133,17 @@ export async function* streamStreamsEvents(opts: {
 		const nextCursor = envelope.next_cursor;
 		if (nextCursor && nextCursor !== cursor) {
 			cursor = nextCursor;
+			emptyPolls = 0;
 			continue;
 		}
 
 		if (envelope.events.length === 0) {
+			emptyPolls++;
+			if (emptyPolls >= maxEmptyPolls || pages >= maxPages) return;
 			await sleep(emptyBackoffMs, opts.signal);
 			continue;
 		}
+
+		return;
 	}
 }
