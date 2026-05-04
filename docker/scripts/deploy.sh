@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Ensure PATH includes essential directories (fixes broken .bashrc on some systems)
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$HOME/.bun/bin:$PATH"
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME:-/root}/.bun/bin:${PATH:-}"
 
 # Verify critical commands exist
 for cmd in git docker curl; do
