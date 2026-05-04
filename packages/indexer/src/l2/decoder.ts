@@ -45,7 +45,7 @@ export async function consumeFtTransferDecodedEvents(opts?: {
 	const result = await streamsClient.events.consume({
 		fromCursor: startCursor,
 		batchSize: opts?.batchSize ?? 500,
-		types: opts?.types,
+		types: opts?.types ?? ["ft_transfer"],
 		emptyBackoffMs: opts?.emptyBackoffMs,
 		maxPages: opts?.maxPages,
 		maxEmptyPolls: opts?.maxEmptyPolls,
