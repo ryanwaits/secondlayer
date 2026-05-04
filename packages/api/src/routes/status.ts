@@ -91,6 +91,29 @@ app.get("/health", async (c) => {
 	return c.json({ status: "ok" });
 });
 
+app.get("/public/status", async (c) => {
+	const db = getDb();
+	const [streamsTipResult, l2DecodersResult] = await Promise.allSettled([
+		getStreamsTip(),
+		getL2DecodersHealth({ db }),
+	]);
+	const streamsTip: StreamsTip | null =
+		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
+	const l2DecodersHealth: L2DecodersHealth | null =
+		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
+
+	return c.json({
+		status: streamsTip ? "healthy" : "degraded",
+		chainTip: streamsTip?.block_height ?? null,
+		streams: {
+			status: streamsTip ? "ok" : "unavailable",
+			tip: streamsTip,
+		},
+		index: publicIndexStatusFromL2Health(l2DecodersHealth),
+		timestamp: new Date().toISOString(),
+	});
+});
+
 app.get("/status", async (c) => {
 	const db = getDb();
 

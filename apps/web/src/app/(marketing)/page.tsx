@@ -11,6 +11,7 @@ import { HomeAnnotations } from "./home-annotations";
 const STATUS_API_URL = process.env.SL_API_URL || "http://localhost:3800";
 const STATUS_API_KEY =
 	process.env.SL_STATUS_API_KEY || process.env.SL_SERVICE_KEY;
+const STATUS_PATH = STATUS_API_KEY ? "/status" : "/public/status";
 
 export const homeProducts = [
 	{ name: "Stacks Streams", href: "/stacks-streams" },
@@ -46,7 +47,7 @@ async function readStatusSnapshot(): Promise<SystemStatus | null> {
 	try {
 		const headers: Record<string, string> = {};
 		if (STATUS_API_KEY) headers.Authorization = `Bearer ${STATUS_API_KEY}`;
-		const res = await fetch(`${STATUS_API_URL}/status`, {
+		const res = await fetch(`${STATUS_API_URL}${STATUS_PATH}`, {
 			headers,
 			cache: "no-store",
 		});
