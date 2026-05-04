@@ -9,6 +9,7 @@
 
 services:
   postgres:
+    shm_size: 1gb
     # WAL archiving disabled until backfill is complete and DB is worth archiving
     # command:
     #   - "postgres"
