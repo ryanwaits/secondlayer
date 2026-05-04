@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import {
-	DEFAULT_INDEX_TOKENS,
+	DEFAULT_INDEX_TOKEN_STORE,
 	type IndexEnv,
 	type IndexTokenStore,
 	indexBearerAuth,
@@ -29,7 +29,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 
 	router.use(
 		"*",
-		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKENS }),
+		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
 	);
 	router.use("*", indexRateLimit());
 

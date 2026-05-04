@@ -2,6 +2,7 @@ import {
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
+import { createRuntimeProductTokenStore } from "../auth/product-token-store.ts";
 import type { MiddlewareHandler } from "hono";
 import type { IndexTier } from "./tiers.ts";
 import type { IndexTip } from "./tip.ts";
@@ -21,7 +22,9 @@ export type IndexEnv = {
 	};
 };
 
-export type IndexTokenStore = ReadonlyMap<string, IndexTenant>;
+export type IndexTokenStore = {
+	get(rawToken: string): IndexTenant | undefined | Promise<IndexTenant | undefined>;
+};
 
 export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 	[
@@ -66,11 +69,17 @@ export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 	],
 ]);
 
+export const DEFAULT_INDEX_TOKEN_STORE: IndexTokenStore =
+	createRuntimeProductTokenStore({
+		staticTokens: DEFAULT_INDEX_TOKENS,
+		requiredScope: INDEX_READ_SCOPE,
+	});
+
 export function indexBearerAuth(opts?: {
 	tokens?: IndexTokenStore;
 	requiredScope?: string;
 }): MiddlewareHandler<IndexEnv> {
-	const tokens = opts?.tokens ?? DEFAULT_INDEX_TOKENS;
+	const tokens = opts?.tokens ?? DEFAULT_INDEX_TOKEN_STORE;
 	const requiredScope = opts?.requiredScope ?? INDEX_READ_SCOPE;
 
 	return async (c, next) => {
@@ -80,7 +89,7 @@ export function indexBearerAuth(opts?: {
 		}
 
 		const rawToken = authHeader.slice(7);
-		const tenant = tokens.get(rawToken);
+		const tenant = await tokens.get(rawToken);
 		if (!tenant) {
 			throw new AuthenticationError("Invalid API key");
 		}

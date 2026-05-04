@@ -6,6 +6,7 @@ import {
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
+import { createRuntimeProductTokenStore } from "../auth/product-token-store.ts";
 import type { MiddlewareHandler } from "hono";
 import type { StreamsTier } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
@@ -25,7 +26,11 @@ export type StreamsEnv = {
 	};
 };
 
-export type StreamsTokenStore = ReadonlyMap<string, StreamsTenant>;
+export type StreamsTokenStore = {
+	get(
+		rawToken: string,
+	): StreamsTenant | undefined | Promise<StreamsTenant | undefined>;
+};
 
 // TODO: replace this in-memory seed map with hashed API key lookup from the
 // control-plane key store once Streams keys are provisioned through Console.
@@ -89,11 +94,17 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 	},
 );
 
+export const DEFAULT_STREAMS_TOKEN_STORE: StreamsTokenStore =
+	createRuntimeProductTokenStore({
+		staticTokens: DEFAULT_STREAMS_TOKENS,
+		requiredScope: STREAMS_READ_SCOPE,
+	});
+
 export function streamsBearerAuth(opts?: {
 	tokens?: StreamsTokenStore;
 	requiredScope?: string;
 }): MiddlewareHandler<StreamsEnv> {
-	const tokens = opts?.tokens ?? DEFAULT_STREAMS_TOKENS;
+	const tokens = opts?.tokens ?? DEFAULT_STREAMS_TOKEN_STORE;
 	const requiredScope = opts?.requiredScope ?? STREAMS_READ_SCOPE;
 
 	return async (c, next) => {
@@ -103,7 +114,7 @@ export function streamsBearerAuth(opts?: {
 		}
 
 		const rawToken = authHeader.slice(7);
-		const tenant = tokens.get(rawToken);
+		const tenant = await tokens.get(rawToken);
 		if (!tenant) {
 			throw new AuthenticationError("Invalid API key");
 		}

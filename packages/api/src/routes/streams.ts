@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import {
-	DEFAULT_STREAMS_TOKENS,
+	DEFAULT_STREAMS_TOKEN_STORE,
 	streamsBearerAuth,
 	type StreamsEnv,
 	type StreamsTokenStore,
@@ -25,7 +25,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 
 	router.use(
 		"*",
-		streamsBearerAuth({ tokens: opts.tokens ?? DEFAULT_STREAMS_TOKENS }),
+		streamsBearerAuth({ tokens: opts.tokens ?? DEFAULT_STREAMS_TOKEN_STORE }),
 	);
 	router.use("*", streamsRateLimit());
 	router.use("/events", streamsRetentionWindow({ getTip }));
