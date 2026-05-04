@@ -21,6 +21,10 @@
 			"types": "./src/l2/decoder.ts",
 			"import": "./src/l2/decoder.ts"
 		},
+		"./l2/health": {
+			"types": "./src/l2/health.ts",
+			"import": "./src/l2/health.ts"
+		},
 		"./l2/internal-auth": {
 			"types": "./src/l2/internal-auth.ts",
 			"import": "./src/l2/internal-auth.ts"

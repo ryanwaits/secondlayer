@@ -82,8 +82,33 @@ export interface TeamInvitation {
 export interface SystemStatus {
 	status: "healthy" | "degraded";
 	chainTip: number | null;
+	streams?: {
+		status: "ok" | "unavailable";
+		tip: {
+			block_height: number;
+			index_block_hash: string;
+			burn_block_height: number;
+			lag_seconds: number;
+		} | null;
+	};
+	index?: IndexFreshnessStatus;
 	recentDeliveries: number;
 	timestamp: string;
+}
+
+export interface IndexDecoderFreshness {
+	decoder: string;
+	eventType: "ft_transfer" | "nft_transfer";
+	status: "ok" | "degraded" | "unavailable";
+	lagSeconds: number | null;
+	checkpointBlockHeight: number | null;
+	tipBlockHeight: number | null;
+	lastDecodedAt: string | null;
+}
+
+export interface IndexFreshnessStatus {
+	status: "ok" | "degraded" | "unavailable";
+	decoders: IndexDecoderFreshness[];
 }
 
 // ── Admin ──

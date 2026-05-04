@@ -1,6 +1,8 @@
 import type { StreamsTip } from "@secondlayer/sdk/streams";
+import type { IndexDecoderFreshness, IndexFreshnessStatus } from "./types";
 
 export type StatusState = "checking" | "ok" | "degraded" | "down";
+export type FreshnessColor = "green" | "yellow" | "muted";
 
 export type ApiHealth = {
 	state: StatusState;
@@ -51,12 +53,41 @@ export function formatLag(seconds: number | null | undefined): string {
 
 	const hours = Math.floor(minutes / 60);
 	const remainingMinutes = minutes % 60;
-	return remainingMinutes === 0 ? `${hours}h` : `${hours}h ${remainingMinutes}m`;
+	return remainingMinutes === 0
+		? `${hours}h`
+		: `${hours}h ${remainingMinutes}m`;
+}
+
+export function indexFreshnessColor(
+	decoder:
+		| Pick<IndexDecoderFreshness, "lagSeconds" | "status">
+		| null
+		| undefined,
+): FreshnessColor {
+	if (!decoder || decoder.status === "unavailable") return "muted";
+	if (decoder.lagSeconds == null || !Number.isFinite(decoder.lagSeconds)) {
+		return "muted";
+	}
+	return decoder.lagSeconds >= 60 ? "yellow" : "green";
+}
+
+export function indexFreshnessLabel(
+	eventType: IndexDecoderFreshness["eventType"],
+	status: IndexFreshnessStatus | null | undefined,
+): string {
+	const decoder = status?.decoders.find((item) => item.eventType === eventType);
+	const prefix = eventType === "ft_transfer" ? "FT" : "NFT";
+	if (!decoder || decoder.status === "unavailable")
+		return `${prefix} unavailable`;
+	return `${prefix} ${formatLag(decoder.lagSeconds)}`;
 }
 
 export function formatLastChecked(date: Date | null): string {
 	if (!date) return "Not checked yet";
-	return date.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
+	return date
+		.toISOString()
+		.replace("T", " ")
+		.replace(/\.\d{3}Z$/, " UTC");
 }
 
 export function truncateHash(hash: string | null | undefined): string {

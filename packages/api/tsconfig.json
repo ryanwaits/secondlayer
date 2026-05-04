@@ -9,6 +9,7 @@
 				"../indexer/src/streams-events.ts"
 			],
 			"@secondlayer/indexer/l2/decoder": ["../indexer/src/l2/decoder.ts"],
+			"@secondlayer/indexer/l2/health": ["../indexer/src/l2/health.ts"],
 			"@secondlayer/indexer/l2/internal-auth": [
 				"../indexer/src/l2/internal-auth.ts"
 			],

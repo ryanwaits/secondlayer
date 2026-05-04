@@ -47,6 +47,7 @@ By end of week, paid customers can query decoded `ft_transfer` and `nft_transfer
 - **Week 2 kickoff:** Locked Task 1 decisions: one shared table, full `contract_id`, text `amount`, raw NFT `value`, L1-style `reorgs: []`, separate Index rate-limit bucket.
 - **Task 1:** Drafted PRD 0002 and L2 schema migration. Paused for deploy hotfix verification, then resumed.
 - **Task 2:** Added `/v1/index/ft-transfers`, SDK list method, separate Index rate-limit bucket, and continuous `l2-decoder` compose service with checkpoint health.
+- **Task 5:** Added `/stacks-index` docs, marketing home freshness badge, and `/status` Index decoder freshness.
 
 ## Notes
 

@@ -1,10 +1,91 @@
+import {
+	type L2DecodersHealth,
+	getL2DecodersHealth,
+} from "@secondlayer/indexer/l2/health";
 import { getDb } from "@secondlayer/shared/db";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { Hono } from "hono";
 import { sql } from "kysely";
-import { getStreamsTip, type StreamsTip } from "../streams/tip.ts";
+import { type StreamsTip, getStreamsTip } from "../streams/tip.ts";
 
 const app = new Hono();
+
+type PublicIndexDecoderStatus = "ok" | "degraded" | "unavailable";
+
+type PublicIndexDecoder = {
+	decoder: string;
+	eventType: "ft_transfer" | "nft_transfer";
+	status: PublicIndexDecoderStatus;
+	lagSeconds: number | null;
+	checkpointBlockHeight: number | null;
+	tipBlockHeight: number | null;
+	lastDecodedAt: string | null;
+};
+
+type PublicIndexStatus = {
+	status: PublicIndexDecoderStatus;
+	decoders: PublicIndexDecoder[];
+};
+
+const INDEX_DECODERS: Array<{
+	decoder: string;
+	eventType: "ft_transfer" | "nft_transfer";
+}> = [
+	{ decoder: "l2.ft_transfer.v1", eventType: "ft_transfer" },
+	{ decoder: "l2.nft_transfer.v1", eventType: "nft_transfer" },
+];
+
+export function publicIndexStatusFromL2Health(
+	health: L2DecodersHealth | null,
+): PublicIndexStatus {
+	if (!health) {
+		return {
+			status: "unavailable",
+			decoders: INDEX_DECODERS.map((decoder) => ({
+				...decoder,
+				status: "unavailable",
+				lagSeconds: null,
+				checkpointBlockHeight: null,
+				tipBlockHeight: null,
+				lastDecodedAt: null,
+			})),
+		};
+	}
+
+	const byName = new Map(
+		health.decoders.map((decoder) => [decoder.decoder, decoder]),
+	);
+	const decoders: PublicIndexDecoder[] = INDEX_DECODERS.map((decoder) => {
+		const source = byName.get(decoder.decoder);
+		if (!source) {
+			return {
+				...decoder,
+				status: "unavailable" as const,
+				lagSeconds: null,
+				checkpointBlockHeight: null,
+				tipBlockHeight: null,
+				lastDecodedAt: null,
+			};
+		}
+
+		return {
+			...decoder,
+			status: source.status === "healthy" ? "ok" : "degraded",
+			lagSeconds: source.lag_seconds,
+			checkpointBlockHeight: source.checkpoint_block_height,
+			tipBlockHeight: source.tip_block_height,
+			lastDecodedAt: source.last_decoded_at,
+		};
+	});
+
+	const status = decoders.every((decoder) => decoder.status === "ok")
+		? "ok"
+		: decoders.every((decoder) => decoder.status === "unavailable")
+			? "unavailable"
+			: "degraded";
+
+	return { status, decoders };
+}
 
 app.get("/health", async (c) => {
 	return c.json({ status: "ok" });
@@ -20,6 +101,7 @@ app.get("/status", async (c) => {
 		subgraphResult,
 		gapSummaryResult,
 		streamsTipResult,
+		l2DecodersResult,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		db.selectFrom("index_progress").selectAll().execute(),
@@ -33,6 +115,7 @@ app.get("/status", async (c) => {
 		db.selectFrom("subgraphs").selectAll().execute(),
 		getGapSummaryBySubgraph(db),
 		getStreamsTip(),
+		getL2DecodersHealth({ db }),
 	]);
 
 	const dbStatus = dbResult.status === "fulfilled" ? "ok" : "error";
@@ -115,6 +198,8 @@ app.get("/status", async (c) => {
 			: "gaps_detected";
 	const streamsTip: StreamsTip | null =
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
+	const l2DecodersHealth: L2DecodersHealth | null =
+		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
 
 	return c.json({
 		status: dbStatus === "ok" ? "healthy" : "degraded",
@@ -130,6 +215,7 @@ app.get("/status", async (c) => {
 			status: streamsTip ? "ok" : "unavailable",
 			tip: streamsTip,
 		},
+		index: publicIndexStatusFromL2Health(l2DecodersHealth),
 		activeSubgraphs: subgraphHealth.filter((v) => v.status === "active").length,
 		subgraphs: subgraphHealth,
 		timestamp: new Date().toISOString(),
