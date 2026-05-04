@@ -9,7 +9,10 @@ import {
 import type { IndexTip } from "./tip.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const TIP: IndexTip = { block_height: 10_000, lag_seconds: 3 };
+const TIP: IndexTip = { block_height: 30_000, lag_seconds: 3 };
+const OUTSIDE_DEFAULT_WINDOW_HEIGHT =
+	TIP.block_height - STREAMS_BLOCKS_PER_DAY - 1;
+const INSIDE_DEFAULT_WINDOW_HEIGHT = TIP.block_height - 100;
 
 function params(query: string) {
 	return new URL(`http://localhost/v1/index/nft-transfers${query}`)
@@ -157,8 +160,22 @@ describe.skipIf(!HAS_DB)("Index nft-transfers DB reads", () => {
 		await db
 			.insertInto("decoded_events")
 			.values([
-				row("9800:0", 9800, "SP1.collection", "SP1", "SP2", "0x01"),
-				row("9900:0", 9900, "SP1.collection", "SP1", "SP2", "0x02"),
+				row(
+					`${OUTSIDE_DEFAULT_WINDOW_HEIGHT}:0`,
+					OUTSIDE_DEFAULT_WINDOW_HEIGHT,
+					"SP1.collection",
+					"SP1",
+					"SP2",
+					"0x01",
+				),
+				row(
+					`${INSIDE_DEFAULT_WINDOW_HEIGHT}:0`,
+					INSIDE_DEFAULT_WINDOW_HEIGHT,
+					"SP1.collection",
+					"SP1",
+					"SP2",
+					"0x02",
+				),
 			])
 			.execute();
 
@@ -174,11 +191,11 @@ describe.skipIf(!HAS_DB)("Index nft-transfers DB reads", () => {
 		});
 
 		expect(defaultResponse.events.map((event) => event.cursor)).toEqual([
-			"9900:0",
+			`${INSIDE_DEFAULT_WINDOW_HEIGHT}:0`,
 		]);
 		expect(fullResponse.events.map((event) => event.cursor)).toEqual([
-			"9800:0",
-			"9900:0",
+			`${OUTSIDE_DEFAULT_WINDOW_HEIGHT}:0`,
+			`${INSIDE_DEFAULT_WINDOW_HEIGHT}:0`,
 		]);
 		expect(defaultResponse.reorgs).toEqual([]);
 		expect(fullResponse.reorgs).toEqual([]);
