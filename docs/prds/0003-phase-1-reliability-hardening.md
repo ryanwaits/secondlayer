@@ -1,9 +1,9 @@
 # PRD 0003 - Phase 1 Reliability Hardening
 
-**Status:** Draft
+**Status:** Implemented; production acceptance pending
 **Owner:** Ryan
 **Last updated:** May 4, 2026
-**Related docs:** `VISION.md` -> Calm infrastructure, `ARCHITECTURE.md` -> Reliability posture, `PRODUCTS.md` -> Public status page, `ROADMAP.md` Phase 1, `docs/audits/phase-1-reliability-hardening-audit.html`
+**Related docs:** `VISION.md` -> Calm infrastructure, `ARCHITECTURE.md` -> Reliability posture, `PRODUCTS.md` -> Public status page, `ROADMAP.md` Phase 1, `docs/audits/phase-1-reliability-hardening-audit.html`, `docs/adr/0001-phase-1-reliability-closeout.md`
 
 ---
 
@@ -49,6 +49,9 @@ Hot-spare failover remains strategically correct, but it is no longer a Phase 1 
 | Product usage storage | Extend existing `usage_daily` with product usage units. Do not add a second daily usage table in Phase 1. |
 | Hot-spare availability | No hot spare exists today. Hot-spare automation and rehearsals are deferred until there is budget for a second node/server. |
 | Future failover mode | Future failover should alert and require operator confirmation. It should not auto-promote in v0. |
+| Decoder health gate | Staging Health gates on decoder `status`, not FT/NFT `lagSeconds`. Sparse event activity remains visible but does not fail the gate by itself. |
+| Backup/deploy coordination | Daily `pg_dump` and deploy migrations share a host DB maintenance lock. Deploy must not terminate an active backup session. |
+| WAL archiving | WAL archiving is enabled in the Hetzner compose override and requires one controlled Postgres restart on deploy. |
 
 ## Current state from audit
 
@@ -64,12 +67,18 @@ Already in place:
 
 Gaps:
 
-- No public API p50/p95 or error-rate metrics.
-- Public status does not expose current live node/service health or recent reorg signal.
-- Product usage metering is not yet durable for Streams events returned and Index decoded rows returned.
-- Pricing page still reflects older Launch/Scale dedicated-hosting copy instead of the locked product catalog.
-- Current live server inventory and operator recovery steps are not documented in one runbook.
-- Backup verification and recovery drill evidence are not recorded.
+- Production still needs the latest compose/scripts deployed so `/public/status.services[]` can report the indexer service through `INDEXER_URL=http://indexer:3700`.
+- Daily `pg_dump` and WAL sync need fresh production evidence after the backup/deploy lock and WAL archiving changes land.
+- Phase 1 remains open until two consecutive Staging Health runs pass after deploy and backup evidence is recorded.
+
+Implemented:
+
+- Public API p50/p95, error-rate metrics, node/service health, and reorg signal fields.
+- Durable Streams and Index usage metering.
+- Locked pricing/docs copy.
+- Current live server inventory, operator recovery runbook, and non-destructive drill evidence.
+- Atomic daily `pg_dump`, backup/deploy coordination lock, WAL archiving config, and robust WAL env loading.
+- Staging Health decoder gating based on decoder `status` while printing `lagSeconds` for visibility.
 
 ## Scope
 
@@ -287,6 +296,18 @@ Future implementation tests:
 - Usage metering tests for Stacks Streams events returned and Stacks Index decoded rows returned.
 - Smoke checks for expanded `/public/status`.
 - Recovery drill checklist with recorded output.
+
+## Production acceptance evidence
+
+Pending before this PRD can move to accepted:
+
+- Deploy the compose/script changes to production.
+- Confirm `/public/status` includes `api`, `node`, `services`, `streams`, `index`, and `reorgs`.
+- Confirm `services` reports `api`, `database`, `indexer`, and `l2_decoder` as `ok`.
+- Run two consecutive Staging Health checks after deploy.
+- Run one manual `backup-postgres.sh` and verify the resulting gzip file.
+- Force one WAL switch, run `sync-wal.sh`, and record a fresh sync log entry.
+- Record latest local backup and latest remote upload timestamps.
 
 ## Risks
 

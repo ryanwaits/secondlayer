@@ -40,6 +40,8 @@ TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
 DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
+DB_MAINTENANCE_LOCK_FILE="${DB_MAINTENANCE_LOCK_FILE:-${DATA_DIR:-/opt/secondlayer/data}/db-maintenance.lock}"
+DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS="${DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS:-900}"
 export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
 export PROVISIONER_IMAGE_OWNER="$DEPLOY_IMAGE_OWNER"
 export PROVISIONER_IMAGE_TAG="$DEPLOY_IMAGE_TAG"
@@ -60,6 +62,14 @@ $COMPOSE --profile platform pull provisioner
 
 # Stop only the services that hold locks on migrated tables. DDL then acquires
 # ACCESS EXCLUSIVE without racing app or indexer sessions.
+mkdir -p "$(dirname "$DB_MAINTENANCE_LOCK_FILE")"
+exec 9>"$DB_MAINTENANCE_LOCK_FILE"
+echo "🔒 Waiting for DB maintenance lock ${DB_MAINTENANCE_LOCK_FILE}..."
+if ! flock -w "$DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS" 9; then
+  echo "ERROR: timed out waiting for DB maintenance lock after ${DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS}s"
+  exit 1
+fi
+
 echo "🛑 Stopping lock-holders so migrations can acquire ACCESS EXCLUSIVE..."
 $COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
 
@@ -102,6 +112,8 @@ docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docke
 # Restart all app services so every runtime picks up the pulled image tag.
 # NEVER touch stacks-node, postgres, hiro-postgres, hiro-api.
 $COMPOSE up -d --no-build --remove-orphans $APP_SERVICES
+
+flock -u 9
 
 # Platform-mode services (provisioner, behind --profile platform). Must be
 # recreated separately so compose changes to the provisioner land on deploy

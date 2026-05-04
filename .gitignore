@@ -51,6 +51,8 @@ docs/*
 !docs/prds/**
 !docs/audits/
 !docs/audits/**
+!docs/adr/
+!docs/adr/**
 !docs/sprints/
 !docs/sprints/**
 !docker/docs/

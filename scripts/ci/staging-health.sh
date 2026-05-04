@@ -6,7 +6,6 @@ STATUS_KEY="${STAGING_STATUS_API_KEY:-${SL_STATUS_API_KEY:-}}"
 DATABASE_URL="${STAGING_DATABASE_URL:-${DATABASE_URL:-}}"
 TIMEOUT_SECONDS="${STAGING_HEALTH_TIMEOUT_SECONDS:-15}"
 STREAMS_LAG_WARN_SECONDS="${STREAMS_LAG_WARN_SECONDS:-60}"
-INDEX_LAG_WARN_SECONDS="${INDEX_LAG_WARN_SECONDS:-60}"
 ZERO_TIMESTAMP_LOOKBACK_BLOCKS="${ZERO_TIMESTAMP_LOOKBACK_BLOCKS:-5000}"
 
 failures=0
@@ -37,13 +36,14 @@ check_public_status() {
 	local body
 	body="$(fetch_json "public status" "/public/status")" || return
 
-	if ! STATUS_BODY="$body" STREAMS_LAG_WARN_SECONDS="$STREAMS_LAG_WARN_SECONDS" INDEX_LAG_WARN_SECONDS="$INDEX_LAG_WARN_SECONDS" python3 <<'PY'
+	if ! STATUS_BODY="$body" STREAMS_LAG_WARN_SECONDS="$STREAMS_LAG_WARN_SECONDS" python3 <<'PY'
 import json
 import os
 import sys
 
 body = json.loads(os.environ["STATUS_BODY"])
 failures = []
+notices = []
 
 api = body.get("api") or {}
 latency = api.get("latency") or {}
@@ -62,10 +62,15 @@ services = body.get("services")
 if not isinstance(services, list) or not services:
     failures.append("missing services")
 else:
-    service_names = {service.get("name") for service in services}
+    service_by_name = {service.get("name"): service for service in services}
     for required in ("api", "database", "indexer", "l2_decoder"):
-        if required not in service_names:
+        service = service_by_name.get(required)
+        if not service:
             failures.append(f"missing {required} service")
+            continue
+        status = service.get("status")
+        if status != "ok":
+            failures.append(f"{required} service status {status!r}")
 
 reorgs = body.get("reorgs") or {}
 if "last_24h" not in reorgs:
@@ -84,14 +89,18 @@ for event_type in ("ft_transfer", "nft_transfer"):
     if not decoder:
         failures.append(f"missing {event_type} decoder")
         continue
-    if decoder.get("status") == "unavailable":
-        failures.append(f"{event_type} decoder unavailable")
+    status = decoder.get("status")
+    lag = decoder.get("lagSeconds")
+    notices.append(f"{event_type} decoder status={status!r} lagSeconds={lag!r}")
+    if status != "ok":
+        failures.append(f"{event_type} decoder status {status!r}")
+        continue
     lag = decoder.get("lagSeconds")
     if lag is None:
-        failures.append(f"{event_type} lag unknown")
-    elif lag > int(os.environ["INDEX_LAG_WARN_SECONDS"]):
-        failures.append(f"{event_type} lag {lag}s")
+        notices.append(f"{event_type} lag unknown")
 
+for notice in notices:
+    print(notice)
 if failures:
     print("; ".join(failures))
     sys.exit(1)
@@ -102,7 +111,7 @@ PY
 		return
 	fi
 
-	echo "public status: streams and index freshness healthy"
+	echo "public status: streams freshness and decoder status healthy"
 }
 
 check_authorized_status() {

@@ -75,6 +75,51 @@ PY
 	echo "${label}: JSON field ${field}"
 }
 
+check_public_status_services_ok() {
+	local url="${API_URL%/}/public/status"
+	local body
+
+	body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" "$url" || true)"
+	if ! SMOKE_BODY="$body" python3 <<'PY'
+import json
+import os
+import sys
+
+try:
+    body = json.loads(os.environ["SMOKE_BODY"])
+except json.JSONDecodeError:
+    print("invalid public status JSON")
+    sys.exit(1)
+
+services = body.get("services")
+if not isinstance(services, list):
+    print("services is not a list")
+    sys.exit(1)
+
+by_name = {service.get("name"): service for service in services}
+failures = []
+for name in ("api", "database", "indexer", "l2_decoder"):
+    service = by_name.get(name)
+    if not service:
+        failures.append(f"missing {name}")
+        continue
+    status = service.get("status")
+    if status != "ok":
+        failures.append(f"{name}={status!r}")
+
+if failures:
+    print("; ".join(failures))
+    sys.exit(1)
+PY
+	then
+		echo "public status required services: unhealthy"
+		failures=$((failures + 1))
+		return
+	fi
+
+	echo "public status required services: ok"
+}
+
 check_status "api health" "200" "/health"
 check_status "public status" "200" "/public/status"
 check_json_field "public status streams freshness" "/public/status" "" "streams.tip.lag_seconds"
@@ -84,6 +129,7 @@ check_json_field "public status API p95" "/public/status" "" "api.latency.p95_ms
 check_json_field "public status API error rate" "/public/status" "" "api.error_rate"
 check_json_field "public status node health" "/public/status" "" "node.status"
 check_json_field "public status service health" "/public/status" "" "services"
+check_public_status_services_ok
 check_json_field "public status reorg signal" "/public/status" "" "reorgs.last_24h"
 
 check_status "streams events build" "200" "/v1/streams/events?limit=1" "$STREAMS_KEY"

@@ -28,6 +28,7 @@ Backup mechanisms:
 
 - Postgres logical/base backup scripts in `docker/scripts/`.
 - WAL sync through `docker/scripts/sync-wal.sh` where configured.
+- Daily `pg_dump` and deploy migrations share `$DATA_DIR/db-maintenance.lock` by default.
 - Snapshot upload and pruning through `secondlayer-backup-*` systemd timers.
 - Current production may use root cron instead of systemd timers. Check both.
 
@@ -115,6 +116,21 @@ tail -80 /opt/secondlayer/data/backups/backup-postgres.log
 tail -80 /opt/secondlayer/data/backups/backup-basebackup.log
 tail -80 /opt/secondlayer/data/backups/upload-snapshot.log
 tail -80 /opt/secondlayer/data/backups/sync-wal.log
+```
+
+Run and verify one manual logical backup when closing a reliability gate.
+
+```bash
+DATA_DIR=/opt/secondlayer/data /opt/secondlayer/docker/scripts/backup-postgres.sh
+gzip -t "$(find /opt/secondlayer/data/backups/postgres -name 'postgres-*.sql.gz' -type f -print | sort | tail -1)"
+```
+
+After WAL archiving is enabled, force one switch and sync the archive.
+
+```bash
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -c "SELECT pg_switch_wal();"
+DATA_DIR=/opt/secondlayer/data /opt/secondlayer/docker/scripts/sync-wal.sh
+tail -20 /opt/secondlayer/data/backups/sync-wal.log
 ```
 
 If object storage is configured, verify the latest remote object timestamp with the configured provider CLI. Do not paste credentials or signed URLs into the drill log.

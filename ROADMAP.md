@@ -38,6 +38,8 @@ The engine is 90% built. Phase 1 is about exposing what already exists and shori
 **Decision gate (end of week 3)**
 - Are Streams and Index live, observable, metered, documented, recoverable, and behind paid auth? If no, extend Phase 1 by one week before starting Phase 2. Do not start Phase 2 with broken or missing surfaces.
 
+**Gate status, May 4, 2026:** Implementation is complete locally, but Phase 1 is not green until the final reliability patch is deployed and verified. The open production evidence is: `/public/status.services[]` must report `indexer: ok`, two consecutive Staging Health runs must pass after deploy, and daily `pg_dump` plus WAL sync freshness must be recorded.
+
 ---
 
 ## Phase 2 — Foundation Datasets, Console, Streams bulk dumps (weeks 4–6)

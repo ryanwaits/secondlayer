@@ -59,7 +59,9 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 - **Phase 1 reliability implementation:** Added rolling API telemetry, expanded `/public/status` and `/status`, public status UI coverage, product usage counters/metering for Streams and Index, locked pricing copy, expanded smoke checks, and `docker/docs/PHASE1_RECOVERY_RUNBOOK.md`.
 - **Recovery drill prep:** Runbook/checklist/log template is ready. Phase 1 closeout still needs Ryan-recorded non-destructive production drill evidence.
 - **Phase 1 recovery drill evidence:** Ran a non-destructive production drill on May 4, 2026 at 22:23–22:24 UTC via `ryan@claude-mini` -> `app-server` as Ryan requested. Containers were running (`api`, `indexer`, `l2-decoder`, `postgres`, `agent`, `provisioner` healthy; `worker` running). `/health`, `/public/status`, `/v1/streams/tip`, one Stacks Streams read, and one Stacks Index read all returned HTTP 200. No restart or rollback was exercised.
-- **Recovery drill follow-ups:** The live `/public/status` is still the pre-telemetry shape, so expanded fields (`api`, `node`, `services`, `reorgs`) need deployment before the status acceptance item can pass in prod. Backup verification found root cron scheduling rather than systemd timers; weekly `pg_basebackup` completed May 3, 2026 at 04:48 +02:00 and remote upload completed May 4, 2026 at 05:02 +02:00, but the May 4 daily `pg_dump` failed on `events` and `sync-wal.log` has not updated since April 19. Treat backup freshness as partial until pg_dump/WAL follow-up is fixed or explicitly accepted.
+- **Recovery drill follow-ups:** The live `/public/status` now has the expanded status shape, but `services[]` still reports `indexer: unavailable` until the API gets the internal `INDEXER_URL` setting in production. Backup verification found root cron scheduling rather than systemd timers; weekly `pg_basebackup` completed May 3, 2026 at 04:48 +02:00 and remote upload completed May 4, 2026 at 05:02 +02:00, but the May 4 daily `pg_dump` failed on `events` and `sync-wal.log` has not updated since April 19. Treat backup freshness as partial until pg_dump/WAL follow-up is fixed or explicitly accepted.
+- **Reliability closeout patch:** Added `INDEXER_URL=http://indexer:3700` to the API container, changed Staging Health to gate FT/NFT decoders on public `status` while printing `lagSeconds`, and tightened required service checks so `indexer: unavailable` fails the gate. Made shared Postgres `pg_dump` atomic and gzip-verified, added the DB maintenance lock shared with deploy, enabled WAL archiving in the Hetzner compose override, and made WAL env loading tolerate unquoted `.env` values.
+- **Reliability closeout verification:** Individual `bash -nu` checks pass for deploy, backup, WAL sync, Staging Health, and post-deploy smoke scripts. Compose config renders the API `INDEXER_URL` and Postgres WAL archive settings. Focused API/indexer status tests and API typecheck pass. Current production `/public/status` still reports `indexer: unavailable`, so Phase 1 remains open until this patch is deployed and backup/WAL evidence is recorded.
 
 ## Phase 1 Recovery Drill - May 4, 2026
 
@@ -77,7 +79,7 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 - Stacks Streams read result: `/v1/streams/events?limit=1` HTTP 200.
 - Stacks Index read result: `/v1/index/ft-transfers?limit=1` HTTP 200.
 - Manual intervention required: none during drill.
-- Follow-up items: deploy expanded status contract; fix or formally accept daily pg_dump and WAL sync backup gaps.
+- Follow-up items: deploy final reliability patch; confirm `/public/status.services[]` reports `indexer: ok`; record two consecutive green Staging Health runs; record fresh daily pg_dump and WAL sync evidence.
 
 ## Notes
 
