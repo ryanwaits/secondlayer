@@ -99,6 +99,62 @@ export async function writeDecodedEvents(
 				source_cursor: event.source_cursor,
 			})),
 		)
-		.onConflict((oc) => oc.column("cursor").doNothing())
+		.onConflict((oc) =>
+			oc.column("cursor").doUpdateSet((eb) => ({
+				block_height: eb.ref("excluded.block_height"),
+				tx_id: eb.ref("excluded.tx_id"),
+				tx_index: eb.ref("excluded.tx_index"),
+				event_index: eb.ref("excluded.event_index"),
+				event_type: eb.ref("excluded.event_type"),
+				microblock_hash: eb.ref("excluded.microblock_hash"),
+				canonical: true,
+				contract_id: eb.ref("excluded.contract_id"),
+				sender: eb.ref("excluded.sender"),
+				recipient: eb.ref("excluded.recipient"),
+				amount: eb.ref("excluded.amount"),
+				asset_identifier: eb.ref("excluded.asset_identifier"),
+				value: eb.ref("excluded.value"),
+				memo: eb.ref("excluded.memo"),
+				source_cursor: eb.ref("excluded.source_cursor"),
+			})),
+		)
 		.execute();
+}
+
+export async function handleDecodedEventsReorg(
+	blockHeight: number,
+	opts?: { db?: Kysely<Database>; decoderName?: string },
+): Promise<{ markedNonCanonical: number; checkpoint: string | null }> {
+	const db = l2Db(opts?.db);
+	const decoderName = opts?.decoderName ?? FT_TRANSFER_DECODER_NAME;
+
+	const result = await db
+		.updateTable("decoded_events")
+		.set({ canonical: false })
+		.where("block_height", ">=", blockHeight)
+		.where("canonical", "=", true)
+		.executeTakeFirst();
+
+	const checkpointRow = await db
+		.selectFrom("decoded_events")
+		.select("source_cursor")
+		.where("block_height", "<", blockHeight)
+		.where("event_type", "=", "ft_transfer")
+		.where("canonical", "=", true)
+		.orderBy("block_height", "desc")
+		.orderBy("event_index", "desc")
+		.limit(1)
+		.executeTakeFirst();
+	const checkpoint = checkpointRow?.source_cursor ?? null;
+
+	await writeDecoderCheckpoint({
+		cursor: checkpoint,
+		db: opts?.db,
+		decoderName,
+	});
+
+	return {
+		markedNonCanonical: Number(result.numUpdatedRows ?? 0),
+		checkpoint,
+	};
 }

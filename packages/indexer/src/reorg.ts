@@ -3,6 +3,7 @@ import { getDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
+import { handleDecodedEventsReorg } from "./l2/storage.ts";
 
 export async function handleReorg(
 	blockHeight: number,
@@ -40,7 +41,9 @@ export async function handleReorg(
 			tx,
 		);
 
-		logger.info("Reorganization handled", { blockHeight });
+		const l2Reorg = await handleDecodedEventsReorg(blockHeight, { db: tx });
+
+		logger.info("Reorganization handled", { blockHeight, l2Reorg });
 	});
 }
 

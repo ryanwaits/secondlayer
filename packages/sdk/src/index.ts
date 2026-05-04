@@ -1,5 +1,13 @@
 export { SecondLayer } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
+export { Index } from "./index-api/index.ts";
+export type {
+	FtTransfer,
+	FtTransfersEnvelope,
+	FtTransfersListParams,
+	IndexReorg,
+	IndexTip,
+} from "./index-api/index.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
 export type {
 	SubgraphAgentSchema,

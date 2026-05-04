@@ -59,6 +59,7 @@ services:
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
       PROVISIONER_URL: ${PROVISIONER_URL:-http://provisioner:3850}
       PROVISIONER_SECRET: ${PROVISIONER_SECRET:-}
+      STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
     ports:
       - "${API_PORT:-3800}:3800"
     depends_on:
@@ -97,6 +98,35 @@ services:
       interval: 30s
       timeout: 3s
       start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Continuous L2 decoder service
+  l2-decoder:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: indexer
+    command: ["bun", "run", "packages/indexer/src/l2/service.ts"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      STREAMS_API_URL: http://api:3800
+      STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
+      PORT: 3710
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3710/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 60s
       retries: 3
     restart: unless-stopped
 
