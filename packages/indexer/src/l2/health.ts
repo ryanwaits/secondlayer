@@ -17,6 +17,7 @@ export type L2DecoderHealth = {
 	lag_seconds: number | null;
 	last_decoded_at: string | null;
 	writes_recent: boolean;
+	checkpoint_recent: boolean;
 };
 
 export type L2DecodersHealth = {
@@ -43,7 +44,7 @@ export async function getL2DecoderHealth(opts?: {
 
 	const checkpoint = await db
 		.selectFrom("l2_decoder_checkpoints")
-		.select("last_cursor")
+		.select(["last_cursor", "updated_at"])
 		.where("decoder_name", "=", decoderName)
 		.executeTakeFirst();
 	const checkpointBlockHeight = cursorBlockHeight(
@@ -85,11 +86,15 @@ export async function getL2DecoderHealth(opts?: {
 	const writesRecent = lastDecodedAt
 		? now.getTime() - lastDecodedAt.getTime() <= 5 * 60_000
 		: false;
+	const checkpointRecent = checkpoint?.updated_at
+		? now.getTime() - checkpoint.updated_at.getTime() <= 5 * 60_000
+		: false;
 	const nearTip =
 		checkpointLagSeconds !== null ? checkpointLagSeconds <= 60 : false;
 
 	return {
-		status: nearTip || writesRecent ? "healthy" : "unhealthy",
+		status:
+			nearTip || writesRecent || checkpointRecent ? "healthy" : "unhealthy",
 		decoder: decoderName,
 		checkpoint: checkpoint?.last_cursor ?? null,
 		checkpoint_block_height: checkpointBlockHeight,
@@ -97,6 +102,7 @@ export async function getL2DecoderHealth(opts?: {
 		lag_seconds: checkpointLagSeconds,
 		last_decoded_at: lastDecodedAt?.toISOString() ?? null,
 		writes_recent: writesRecent,
+		checkpoint_recent: checkpointRecent,
 	};
 }
 

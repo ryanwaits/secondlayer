@@ -50,6 +50,7 @@ By end of week, paid customers can query decoded `ft_transfer` and `nft_transfer
 - **Task 5:** Added `/stacks-index` docs, marketing home freshness badge, and `/status` Index decoder freshness.
 - **Task 5 follow-up:** Added `/stacks-streams` docs, moved the home freshness badge to the bottom-right viewport, and made its status source public-only.
 - **Deploy hotfix:** NFT decoder now skips malformed NFT transfer rows with missing raw value and checkpoints past them.
+- **Deploy hotfix 2:** L2 decoder health now counts recent checkpoint movement, so catch-up without valid NFT writes passes readiness.
 
 ## Notes
 

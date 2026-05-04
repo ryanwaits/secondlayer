@@ -14,6 +14,7 @@ const HEALTHY_INDEX: L2DecodersHealth = {
 			lag_seconds: 12,
 			last_decoded_at: "2026-05-11T12:00:00.000Z",
 			writes_recent: true,
+			checkpoint_recent: true,
 		},
 		{
 			status: "healthy",
@@ -24,6 +25,7 @@ const HEALTHY_INDEX: L2DecodersHealth = {
 			lag_seconds: 18,
 			last_decoded_at: "2026-05-11T12:00:01.000Z",
 			writes_recent: true,
+			checkpoint_recent: true,
 		},
 	],
 };
