@@ -48,6 +48,7 @@ By end of week, paid customers can query decoded `ft_transfer` and `nft_transfer
 - **Task 1:** Drafted PRD 0002 and L2 schema migration. Paused for deploy hotfix verification, then resumed.
 - **Task 2:** Added `/v1/index/ft-transfers`, SDK list method, separate Index rate-limit bucket, and continuous `l2-decoder` compose service with checkpoint health.
 - **Task 5:** Added `/stacks-index` docs, marketing home freshness badge, and `/status` Index decoder freshness.
+- **Task 5 follow-up:** Added `/stacks-streams` docs and moved the home freshness badge to the bottom-right viewport.
 
 ## Notes
 

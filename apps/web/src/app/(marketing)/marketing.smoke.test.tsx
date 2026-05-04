@@ -2,9 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HomeStatusBadge, homeProducts } from "./page";
 import { StacksIndexContent } from "./stacks-index/page";
+import { StacksStreamsContent } from "./stacks-streams/page";
 
 describe("marketing routes", () => {
-	test("home renders Stacks Index and freshness badge", () => {
+	test("home renders Streams, Index, and freshness badge", () => {
 		const html = renderToStaticMarkup(
 			<HomeStatusBadge
 				status={{
@@ -38,14 +39,25 @@ describe("marketing routes", () => {
 				}}
 			/>,
 		);
+		const productNames = homeProducts.map((product) => product.name);
 
-		expect(homeProducts.map((product) => product.name)).toContain(
-			"Stacks Index",
-		);
+		expect(productNames).toContain("Stacks Streams");
+		expect(productNames).toContain("Stacks Index");
 		expect(html).toContain("Block");
 		expect(html).toContain("#182,447");
 		expect(html).toContain("FT 12s");
 		expect(html).toContain("NFT 18s");
+		expect(html).toContain("home-status-dot");
+	});
+
+	test("/stacks-streams renders key docs copy", () => {
+		const html = renderToStaticMarkup(<StacksStreamsContent />);
+
+		expect(html).toContain("streams:read");
+		expect(html).toContain("/v1/streams/events");
+		expect(html).toContain("/v1/streams/tip");
+		expect(html).toContain("/v1/streams/canonical/");
+		expect(html).toContain("reorgs: []");
 	});
 
 	test("/stacks-index renders key docs copy", () => {

@@ -290,22 +290,31 @@ a {
 }
 
 .home-status-badge {
-	position: absolute;
-	top: 82px;
-	right: -18rem;
+	position: fixed;
+	right: 24px;
+	bottom: 24px;
+	z-index: 120;
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
+	justify-content: flex-end;
 	gap: 10px;
 	color: var(--text-muted);
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
+	max-width: min(32rem, calc(100vw - 48px));
+	padding: 8px 10px;
+	background: color-mix(in srgb, var(--bg) 88%, transparent);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	backdrop-filter: blur(10px);
 }
 
 .home-status-item {
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
+	gap: 5px;
+	white-space: nowrap;
 }
 
 .home-status-item strong {
@@ -313,26 +322,26 @@ a {
 	font-weight: 520;
 }
 
-.home-status-item::before {
-	content: "";
+.home-status-dot {
 	width: 6px;
 	height: 6px;
+	flex: 0 0 6px;
 	border-radius: 999px;
 	background: var(--text-muted);
 	opacity: 0.45;
 }
 
-.home-status-green::before {
+.home-status-green .home-status-dot {
 	background: #147d42;
 	opacity: 1;
 }
 
-.home-status-yellow::before {
+.home-status-yellow .home-status-dot {
 	background: #b7791f;
 	opacity: 1;
 }
 
-.home-status-muted::before {
+.home-status-muted .home-status-dot {
 	background: var(--text-muted);
 	opacity: 0.35;
 }
@@ -1168,11 +1177,10 @@ a {
 	}
 
 	.home-status-badge {
-		position: static;
-		flex-wrap: wrap;
+		right: 16px;
+		bottom: 16px;
 		gap: 8px 12px;
-		margin-bottom: 18px;
-		white-space: normal;
+		max-width: calc(100vw - 32px);
 	}
 
 	.page-title {

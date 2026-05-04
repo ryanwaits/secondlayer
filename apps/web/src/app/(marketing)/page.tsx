@@ -13,6 +13,7 @@ const STATUS_API_KEY =
 	process.env.SL_STATUS_API_KEY || process.env.SL_SERVICE_KEY;
 
 export const homeProducts = [
+	{ name: "Stacks Streams", href: "/stacks-streams" },
 	{ name: "Stacks Index", href: "/stacks-index" },
 	{ name: "Subgraphs", href: "/subgraphs" },
 	{ name: "Subscriptions", href: "/subscriptions" },
@@ -66,7 +67,10 @@ export function HomeStatusBadge({ status }: { status: SystemStatus | null }) {
 
 	return (
 		<aside className="home-status-badge" aria-label="Streams and Index status">
-			<span className="home-status-item">
+			<span
+				className={`home-status-item home-status-${status?.chainTip == null ? "muted" : "green"}`}
+			>
+				<span className="home-status-dot" aria-hidden="true" />
 				Block{" "}
 				<strong>
 					{status?.chainTip == null
@@ -77,11 +81,13 @@ export function HomeStatusBadge({ status }: { status: SystemStatus | null }) {
 			<span
 				className={`home-status-item home-status-${indexFreshnessColor(ftDecoder)}`}
 			>
+				<span className="home-status-dot" aria-hidden="true" />
 				{indexFreshnessLabel("ft_transfer", status?.index)}
 			</span>
 			<span
 				className={`home-status-item home-status-${indexFreshnessColor(nftDecoder)}`}
 			>
+				<span className="home-status-dot" aria-hidden="true" />
 				{indexFreshnessLabel("nft_transfer", status?.index)}
 			</span>
 		</aside>
