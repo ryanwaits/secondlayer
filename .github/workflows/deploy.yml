@@ -58,14 +58,19 @@ jobs:
     needs: typecheck
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        env:
+          DEPLOY_UNIT: secondlayer-deploy-${{ github.run_id }}-${{ github.run_attempt }}
+          DEPLOY_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$HOME/.bun/bin" && bash /opt/secondlayer/docker/scripts/deploy.sh
-          # 20m to accommodate cold Docker builds across 5 images. See incident on 2026-05-03.
-          command_timeout: 20m
+          script_path: scripts/ci/remote-deploy-systemd.sh
+          envs: DEPLOY_UNIT,DEPLOY_SHA
+          # Wrapper polls systemd for 45m. Keep SSH observation slightly longer.
+          command_timeout: 50m
 
   post-deploy-smoke:
     needs: deploy

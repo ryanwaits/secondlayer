@@ -134,7 +134,17 @@ docker rm -f <name>
 
 ## 3. Deploy flow (what happens on every push to main)
 
-The SSH-action on GitHub runs `/opt/secondlayer/docker/scripts/deploy.sh`. As of Sprint 5, the script does:
+GitHub starts deploys over SSH through `scripts/ci/remote-deploy-systemd.sh`. The wrapper creates a transient systemd unit named like `secondlayer-deploy-<run_id>-<run_attempt>` and runs `/opt/secondlayer/docker/scripts/deploy.sh` inside that unit. The deploy script remains the source of truth for build, migration, restart, tenant refresh, and health checks.
+
+An SSH interruption no longer kills the Docker build, migration, or restart process. The GitHub job may still fail if it cannot observe completion, but the host unit keeps running and can be inspected.
+
+```bash
+# Replace with the unit name printed by the GitHub deploy job.
+systemctl status secondlayer-deploy-<run_id>-<run_attempt>.service
+journalctl -u secondlayer-deploy-<run_id>-<run_attempt>.service -f
+```
+
+As of Sprint 5, `/opt/secondlayer/docker/scripts/deploy.sh` does:
 
 1. **git fetch + reset** (source update)
 2. **exec-reload** — re-exec the updated deploy.sh so we don't run old buffered content
