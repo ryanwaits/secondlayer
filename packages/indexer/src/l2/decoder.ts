@@ -6,6 +6,7 @@ import {
 	decodeNftTransfer,
 } from "@secondlayer/sdk";
 import type { Database } from "@secondlayer/shared/db/schema";
+import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import { defaultInternalStreamsApiKey } from "./internal-auth.ts";
 import {
@@ -117,9 +118,20 @@ export async function consumeNftTransferDecodedEvents(opts?: {
 		maxEmptyPolls: opts?.maxEmptyPolls,
 		signal: opts?.signal,
 		onBatch: async (events, envelope) => {
-			const rows = events
-				.filter((event) => event.event_type === "nft_transfer")
-				.map((event) => decodeNftTransfer(event));
+			const rows = events.flatMap((event) => {
+				if (event.event_type !== "nft_transfer") return [];
+				try {
+					return [decodeNftTransfer(event)];
+				} catch (error) {
+					logger.warn("l2_decoder.decode_skipped", {
+						decoder: decoderName,
+						cursor: event.cursor,
+						tx_id: event.tx_id,
+						error: String(error),
+					});
+					return [];
+				}
+			});
 			await writeDecodedEvents(rows, { db });
 			decoded += rows.length;
 

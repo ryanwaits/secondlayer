@@ -103,6 +103,16 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 					contract_id: "SP5.collection",
 					raw_tx: "0x04",
 				},
+				{
+					tx_id: "tx-nft-bad",
+					block_height: 1,
+					tx_index: 4,
+					type: "contract_call",
+					sender: "SP7",
+					status: "success",
+					contract_id: "SP7.collection",
+					raw_tx: "0x05",
+				},
 			])
 			.execute();
 		await db
@@ -153,6 +163,17 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 						sender: "SP5",
 						recipient: "SP6",
 						value: "0x0100000000000000000000000000000001",
+					},
+				},
+				{
+					tx_id: "tx-nft-bad",
+					block_height: 1,
+					event_index: 0,
+					type: "nft_transfer_event",
+					data: {
+						asset_identifier: "SP7.collection::token",
+						sender: "SP7",
+						recipient: "SP8",
 					},
 				},
 			])
@@ -254,6 +275,13 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			asset_identifier: "SP5.collection::token",
 			value: "0x0100000000000000000000000000000001",
 		});
+
+		const checkpoint = await db
+			.selectFrom("l2_decoder_checkpoints")
+			.select("last_cursor")
+			.where("decoder_name", "=", "l2.nft_transfer.v1")
+			.executeTakeFirstOrThrow();
+		expect(checkpoint.last_cursor).toBe("1:4");
 	});
 
 	test("restart resumes from checkpoint without duplicates or gaps", async () => {
