@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Second Layer Status Toolbar Prototype</title>
+		<style>
+			:root {
+				--bg: #fafafa;
+				--surface: rgba(255, 255, 255, 0.86);
+				--surface-solid: #ffffff;
+				--surface-soft: #f6f7f8;
+				--text: #151719;
+				--muted: #6d737a;
+				--faint: #a9afb6;
+				--line: #dfe3e7;
+				--line-strong: #cfd5db;
+				--green: #159947;
+				--green-soft: #e9f8ee;
+				--yellow: #b7791f;
+				--yellow-soft: #fff5db;
+				--red: #c7362f;
+				--red-soft: #fff0ee;
+				--blue: #3167ff;
+				--shadow: 0 18px 44px rgba(12, 18, 28, 0.16),
+					0 2px 8px rgba(12, 18, 28, 0.08);
+				--font-sans: "Public Sans", "Avenir Next", ui-sans-serif, system-ui,
+					sans-serif;
+				--font-mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				min-height: 100vh;
+				margin: 0;
+				color: var(--text);
+				background:
+					radial-gradient(circle at 82% 82%, rgba(113, 224, 196, 0.34), transparent 24rem),
+					linear-gradient(180deg, #f7f8f9 0%, #fbfbfb 48%, #f1f5f3 100%);
+				font-family: var(--font-sans);
+				letter-spacing: 0;
+			}
+
+			.prototype-shell {
+				width: min(980px, calc(100vw - 40px));
+				margin: 0 auto;
+				padding: 72px 0 160px;
+			}
+
+			.brand-line {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 24px;
+				border-bottom: 1px solid var(--line);
+				padding-bottom: 28px;
+			}
+
+			.brand-name {
+				margin: 0;
+				font-size: 15px;
+				font-weight: 540;
+			}
+
+			.scenario-switcher {
+				display: inline-grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 4px;
+				padding: 4px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				background: rgba(255, 255, 255, 0.72);
+			}
+
+			.scenario-switcher button {
+				min-height: 36px;
+				border: 0;
+				border-radius: 5px;
+				padding: 0 13px;
+				background: transparent;
+				color: var(--muted);
+				font: inherit;
+				font-size: 12px;
+				cursor: pointer;
+			}
+
+			.scenario-switcher button[aria-pressed="true"] {
+				background: var(--text);
+				color: #fff;
+			}
+
+			.canvas-card {
+				margin-top: 56px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				background: rgba(255, 255, 255, 0.58);
+				min-height: 420px;
+				padding: 28px;
+				position: relative;
+				overflow: hidden;
+			}
+
+			.canvas-card::before {
+				content: "";
+				position: absolute;
+				inset: 0;
+				background-image:
+					linear-gradient(var(--line) 1px, transparent 1px),
+					linear-gradient(90deg, var(--line) 1px, transparent 1px);
+				background-size: 48px 48px;
+				opacity: 0.22;
+			}
+
+			.mock-list {
+				position: relative;
+				display: grid;
+				gap: 14px;
+				width: min(420px, 100%);
+			}
+
+			.mock-line {
+				height: 13px;
+				border-radius: 3px;
+				background: color-mix(in srgb, var(--text) 9%, transparent);
+			}
+
+			.mock-line:nth-child(2) {
+				width: 74%;
+			}
+
+			.mock-line:nth-child(3) {
+				width: 58%;
+			}
+
+			.status-widget {
+				position: fixed;
+				right: 24px;
+				bottom: 24px;
+				z-index: 20;
+				width: min(392px, calc(100vw - 32px));
+				font-variant-numeric: tabular-nums;
+			}
+
+			.status-panel {
+				position: absolute;
+				right: 0;
+				bottom: calc(100% + 10px);
+				width: min(392px, calc(100vw - 32px));
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				background: var(--surface);
+				box-shadow: var(--shadow);
+				backdrop-filter: blur(18px);
+				opacity: 0;
+				transform: translateY(8px) scale(0.985);
+				transform-origin: 90% 100%;
+				pointer-events: none;
+				transition:
+					opacity 180ms ease-out,
+					transform 180ms ease-out;
+			}
+
+			.status-widget[data-open="true"] .status-panel {
+				opacity: 1;
+				transform: translateY(0) scale(1);
+				pointer-events: auto;
+			}
+
+			.status-panel-header {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 16px;
+				padding: 16px 16px 11px;
+				border-bottom: 1px solid var(--line);
+			}
+
+			.status-title {
+				margin: 0;
+				font-size: 14px;
+				font-weight: 650;
+			}
+
+			.status-subtitle {
+				margin: 4px 0 0;
+				color: var(--muted);
+				font-size: 12px;
+			}
+
+			.icon-button {
+				display: inline-grid;
+				place-items: center;
+				width: 36px;
+				height: 36px;
+				border: 0;
+				border-radius: 6px;
+				background: transparent;
+				color: var(--muted);
+				cursor: pointer;
+			}
+
+			.icon-button:focus-visible,
+			.status-trigger:focus-visible,
+			.scenario-switcher button:focus-visible {
+				outline: 2px solid rgba(49, 103, 255, 0.45);
+				outline-offset: 2px;
+			}
+
+			.status-progress {
+				height: 3px;
+				background: var(--line);
+				overflow: hidden;
+			}
+
+			.status-progress span {
+				display: block;
+				width: var(--freshness, 100%);
+				height: 100%;
+				background: var(--progress-color, var(--green));
+				transition:
+					width 180ms ease-out,
+					background-color 180ms ease;
+			}
+
+			.status-rows {
+				display: grid;
+				padding: 8px 0;
+			}
+
+			.status-row {
+				display: grid;
+				grid-template-columns: 24px 1fr auto;
+				align-items: center;
+				gap: 10px;
+				min-height: 46px;
+				padding: 0 16px;
+			}
+
+			.status-row + .status-row {
+				border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+			}
+
+			.row-icon {
+				display: inline-grid;
+				place-items: center;
+				width: 18px;
+				height: 18px;
+				border-radius: 999px;
+				background: var(--state-soft);
+				color: var(--state);
+			}
+
+			.row-icon svg {
+				width: 12px;
+				height: 12px;
+			}
+
+			.row-label {
+				display: grid;
+				gap: 2px;
+				min-width: 0;
+			}
+
+			.row-name {
+				font-size: 13px;
+				font-weight: 560;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			.row-detail {
+				color: var(--muted);
+				font-size: 11px;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			.row-value {
+				color: var(--muted);
+				font-family: var(--font-mono);
+				font-size: 11px;
+				white-space: nowrap;
+			}
+
+			.status-row[data-state="green"] {
+				--state: var(--green);
+				--state-soft: var(--green-soft);
+			}
+
+			.status-row[data-state="yellow"] {
+				--state: var(--yellow);
+				--state-soft: var(--yellow-soft);
+			}
+
+			.status-row[data-state="red"] {
+				--state: var(--red);
+				--state-soft: var(--red-soft);
+			}
+
+			.status-row[data-state="muted"] {
+				--state: var(--faint);
+				--state-soft: var(--surface-soft);
+			}
+
+			.status-footer {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				padding: 12px 16px 14px;
+				border-top: 1px solid var(--line);
+				color: var(--muted);
+				font-size: 11px;
+			}
+
+			.status-link {
+				color: var(--text);
+				text-decoration: underline;
+				text-decoration-color: var(--line-strong);
+				text-underline-offset: 3px;
+			}
+
+			.status-trigger {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				width: 100%;
+				min-height: 44px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				padding: 7px 9px 7px 12px;
+				background: var(--surface);
+				box-shadow: 0 8px 22px rgba(12, 18, 28, 0.08);
+				backdrop-filter: blur(18px);
+				color: var(--text);
+				cursor: pointer;
+				font: inherit;
+				text-align: left;
+			}
+
+			.trigger-summary {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				min-width: 0;
+			}
+
+			.status-cluster {
+				display: flex;
+				align-items: center;
+				gap: 7px;
+				min-width: 0;
+			}
+
+			.status-dot {
+				width: 6px;
+				height: 6px;
+				flex: 0 0 6px;
+				border-radius: 999px;
+				background: var(--dot);
+			}
+
+			.status-chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				color: var(--muted);
+				font-size: 12px;
+				white-space: nowrap;
+			}
+
+			.status-chip strong {
+				color: var(--text);
+				font-weight: 560;
+			}
+
+			.status-chip[data-state="green"] {
+				--dot: var(--green);
+			}
+
+			.status-chip[data-state="yellow"] {
+				--dot: var(--yellow);
+			}
+
+			.status-chip[data-state="red"] {
+				--dot: var(--red);
+			}
+
+			.status-chip[data-state="muted"] {
+				--dot: var(--faint);
+			}
+
+			.chevron {
+				display: inline-grid;
+				place-items: center;
+				width: 28px;
+				height: 28px;
+				border-radius: 5px;
+				color: var(--muted);
+				transition: transform 180ms ease-out;
+			}
+
+			.status-widget[data-open="true"] .chevron {
+				transform: rotate(180deg);
+			}
+
+			@media (hover: hover) {
+				.status-trigger:hover,
+				.icon-button:hover,
+				.scenario-switcher button:hover {
+					background: color-mix(in srgb, var(--surface-soft) 82%, white);
+				}
+			}
+
+			@media (max-width: 640px) {
+				.prototype-shell {
+					width: calc(100vw - 28px);
+					padding-top: 36px;
+				}
+
+				.brand-line {
+					align-items: flex-start;
+					flex-direction: column;
+				}
+
+				.scenario-switcher {
+					width: 100%;
+				}
+
+				.status-widget {
+					right: 14px;
+					bottom: 14px;
+					width: calc(100vw - 28px);
+				}
+
+				.status-panel {
+					width: calc(100vw - 28px);
+				}
+
+				.status-cluster {
+					gap: 8px;
+					overflow-x: auto;
+					scrollbar-width: none;
+				}
+
+				.status-cluster::-webkit-scrollbar {
+					display: none;
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				* {
+					animation-duration: 0.01ms !important;
+					animation-iteration-count: 1 !important;
+					scroll-behavior: auto !important;
+					transition-duration: 0.01ms !important;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<main class="prototype-shell">
+			<div class="brand-line">
+				<h1 class="brand-name">secondlayer</h1>
+				<div class="scenario-switcher" aria-label="Prototype scenario">
+					<button type="button" data-scenario="fresh" aria-pressed="true">
+						Fresh
+					</button>
+					<button type="button" data-scenario="catching" aria-pressed="false">
+						Catching up
+					</button>
+					<button type="button" data-scenario="incident" aria-pressed="false">
+						Incident
+					</button>
+				</div>
+			</div>
+			<section class="canvas-card" aria-label="Marketing page canvas">
+				<div class="mock-list" aria-hidden="true">
+					<div class="mock-line"></div>
+					<div class="mock-line"></div>
+					<div class="mock-line"></div>
+				</div>
+			</section>
+		</main>
+
+		<section class="status-widget" data-open="false">
+			<div
+				class="status-panel"
+				id="status-panel"
+				role="region"
+				aria-label="Second Layer status detail"
+			>
+				<header class="status-panel-header">
+					<div>
+						<h2 class="status-title">Network status</h2>
+						<p class="status-subtitle" data-summary>All systems fresh</p>
+					</div>
+					<button class="icon-button" type="button" data-close aria-label="Close status detail">
+						<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+							<path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+						</svg>
+					</button>
+				</header>
+				<div class="status-progress" aria-hidden="true">
+					<span data-progress></span>
+				</div>
+				<div class="status-rows" data-rows></div>
+				<footer class="status-footer">
+					<span data-updated>Updated just now</span>
+					<a class="status-link" href="/status">Status page</a>
+				</footer>
+			</div>
+
+			<button
+				class="status-trigger"
+				type="button"
+				aria-expanded="false"
+				aria-controls="status-panel"
+				data-trigger
+			>
+				<span class="trigger-summary">
+					<span class="status-cluster" data-cluster></span>
+				</span>
+				<span class="chevron" aria-hidden="true">
+					<svg viewBox="0 0 16 16" width="14" height="14" fill="none">
+						<path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</span>
+			</button>
+		</section>
+
+		<script>
+			const scenarios = {
+				fresh: {
+					summary: "All systems fresh",
+					progress: 100,
+					progressColor: "var(--green)",
+					updated: "Updated 12s ago",
+					chips: [
+						{ label: "Block", value: "#7,850,941", state: "green" },
+						{ label: "FT", value: "48s", state: "green" },
+						{ label: "NFT", value: "39s", state: "green" },
+					],
+					rows: [
+						{ name: "Stacks Streams", detail: "Raw ingest", value: "16s", state: "green" },
+						{ name: "Canonical tip", detail: "Block #7,850,941", value: "current", state: "green" },
+						{ name: "FT decoder", detail: "SIP-010 transfers", value: "48s", state: "green" },
+						{ name: "NFT decoder", detail: "SIP-009 transfers", value: "39s", state: "green" },
+						{ name: "Public API", detail: "Health endpoint", value: "200", state: "green" },
+					],
+				},
+				catching: {
+					summary: "Index is catching up",
+					progress: 68,
+					progressColor: "var(--yellow)",
+					updated: "Updated 8s ago",
+					chips: [
+						{ label: "Block", value: "#7,850,931", state: "green" },
+						{ label: "FT", value: "2m 44s", state: "yellow" },
+						{ label: "NFT", value: "2m 44s", state: "yellow" },
+					],
+					rows: [
+						{ name: "Stacks Streams", detail: "Raw ingest", value: "11s", state: "green" },
+						{ name: "Canonical tip", detail: "Block #7,850,931", value: "current", state: "green" },
+						{ name: "FT decoder", detail: "SIP-010 transfers", value: "2m 44s", state: "yellow" },
+						{ name: "NFT decoder", detail: "SIP-009 transfers", value: "2m 44s", state: "yellow" },
+						{ name: "Public API", detail: "Health endpoint", value: "200", state: "green" },
+					],
+				},
+				incident: {
+					summary: "NFT decoder lag elevated",
+					progress: 38,
+					progressColor: "var(--red)",
+					updated: "Updated 4s ago",
+					chips: [
+						{ label: "Block", value: "#7,850,980", state: "green" },
+						{ label: "FT", value: "51s", state: "green" },
+						{ label: "NFT", value: "24m", state: "red" },
+					],
+					rows: [
+						{ name: "Stacks Streams", detail: "Raw ingest", value: "18s", state: "green" },
+						{ name: "Canonical tip", detail: "Block #7,850,980", value: "current", state: "green" },
+						{ name: "FT decoder", detail: "SIP-010 transfers", value: "51s", state: "green" },
+						{ name: "NFT decoder", detail: "SIP-009 transfers", value: "24m", state: "red" },
+						{ name: "Public API", detail: "Health endpoint", value: "200", state: "green" },
+					],
+				},
+			};
+
+			const widget = document.querySelector(".status-widget");
+			const trigger = document.querySelector("[data-trigger]");
+			const closeButton = document.querySelector("[data-close]");
+			const cluster = document.querySelector("[data-cluster]");
+			const rows = document.querySelector("[data-rows]");
+			const summary = document.querySelector("[data-summary]");
+			const progress = document.querySelector("[data-progress]");
+			const updated = document.querySelector("[data-updated]");
+			const scenarioButtons = document.querySelectorAll("[data-scenario]");
+
+			const icons = {
+				green: '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 8.2l2.5 2.5L12 5.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+				yellow: '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.1v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 11.7h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+				red: '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+				muted: '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 8h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+			};
+
+			function setOpen(open) {
+				widget.dataset.open = String(open);
+				trigger.setAttribute("aria-expanded", String(open));
+			}
+
+			function renderScenario(name) {
+				const data = scenarios[name];
+				summary.textContent = data.summary;
+				updated.textContent = data.updated;
+				progress.style.setProperty("--freshness", `${data.progress}%`);
+				progress.style.setProperty("--progress-color", data.progressColor);
+				cluster.innerHTML = data.chips
+					.map(
+						(chip) => `
+							<span class="status-chip" data-state="${chip.state}">
+								<span class="status-dot" aria-hidden="true"></span>
+								${chip.label} <strong>${chip.value}</strong>
+							</span>
+						`,
+					)
+					.join("");
+				rows.innerHTML = data.rows
+					.map(
+						(row) => `
+							<div class="status-row" data-state="${row.state}">
+								<span class="row-icon">${icons[row.state]}</span>
+								<span class="row-label">
+									<span class="row-name">${row.name}</span>
+									<span class="row-detail">${row.detail}</span>
+								</span>
+								<span class="row-value">${row.value}</span>
+							</div>
+						`,
+					)
+					.join("");
+
+				for (const button of scenarioButtons) {
+					button.setAttribute("aria-pressed", String(button.dataset.scenario === name));
+				}
+			}
+
+			trigger.addEventListener("click", () => {
+				setOpen(widget.dataset.open !== "true");
+			});
+
+			closeButton.addEventListener("click", () => {
+				setOpen(false);
+				trigger.focus();
+			});
+
+			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape") setOpen(false);
+			});
+
+			for (const button of scenarioButtons) {
+				button.addEventListener("click", () => {
+					renderScenario(button.dataset.scenario);
+				});
+			}
+
+			renderScenario("fresh");
+		</script>
+	</body>
+</html>
