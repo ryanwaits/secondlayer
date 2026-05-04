@@ -147,7 +147,8 @@ check_health indexer http://localhost:3700/health
 check_health provisioner http://localhost:3850/health
 
 check_container_health() {
-	local service=$1 container="secondlayer-${service}-1" retries=10 delay=6
+	local service=$1
+	local container="secondlayer-${service}-1" retries=10 delay=6
 	for i in $(seq 1 $retries); do
 		local health
 		health=$(docker inspect "$container" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null || true)
