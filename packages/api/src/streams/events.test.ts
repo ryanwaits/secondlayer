@@ -113,6 +113,20 @@ describe("Streams events route helpers", () => {
 		expect(body.reorgs).toEqual([]);
 	});
 
+	test("passes contract_id filter to the reader", async () => {
+		let seenContractId: string | undefined;
+		await getStreamsEventsResponse({
+			query: params("?contract_id=SP123.token"),
+			tip: TIP,
+			readEvents: async ({ contractId }) => {
+				seenContractId = contractId;
+				return { events: [], next_cursor: null };
+			},
+		});
+
+		expect(seenContractId).toBe("SP123.token");
+	});
+
 	test("full pagination walk over fixture range ends with null cursor", async () => {
 		const allEvents = Array.from({ length: 5 }, (_, i) => ({
 			cursor: `1:${i}`,

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { StreamsEvent } from "@secondlayer/indexer/streams-events";
 import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
@@ -34,6 +35,7 @@ function createApp(readEvents: StreamsEventsReader = EMPTY_EVENTS_READER) {
 		createStreamsRouter({
 			getTip: () => TEST_TIP,
 			readEvents,
+			readReorgs: async () => [],
 		}),
 	);
 	return app;
@@ -79,6 +81,7 @@ function createMeteredApp(opts: {
 			tokens,
 			getTip: () => TEST_TIP,
 			readEvents: opts.readEvents ?? EMPTY_EVENTS_READER,
+			readReorgs: async () => [],
 			recordEventsReturned: opts.recordEventsReturned,
 		}),
 	);
@@ -87,6 +90,23 @@ function createMeteredApp(opts: {
 
 function authHeaders(token: string) {
 	return { Authorization: `Bearer ${token}` };
+}
+
+function streamsEvent(overrides: Partial<StreamsEvent> = {}): StreamsEvent {
+	return {
+		cursor: "100:0",
+		block_height: 100,
+		index_block_hash: TEST_TIP.index_block_hash,
+		burn_block_height: TEST_TIP.burn_block_height,
+		tx_id: "0xtx",
+		tx_index: 0,
+		event_index: 0,
+		event_type: "stx_transfer",
+		contract_id: null,
+		payload: {},
+		ts: "2026-05-02T21:43:00.000Z",
+		...overrides,
+	};
 }
 
 describe("Stacks Streams gateway middleware", () => {
@@ -154,6 +174,148 @@ describe("Stacks Streams gateway middleware", () => {
 
 		expect(res.status).toBe(200);
 		await expect(res.json()).resolves.toEqual(TEST_TIP);
+	});
+
+	test("/canonical/:height returns canonical block with nullable burn hash", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/streams",
+			createStreamsRouter({
+				getTip: () => TEST_TIP,
+				readEvents: EMPTY_EVENTS_READER,
+				readReorgs: async () => [],
+				readCanonicalBlock: async (height) => ({
+					block_height: height,
+					index_block_hash: "0xabc",
+					burn_block_height: 77,
+					burn_block_hash: null,
+					is_canonical: true,
+				}),
+			}),
+		);
+
+		const res = await app.request("/v1/streams/canonical/100", {
+			headers: authHeaders(BUILD_KEY),
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("ETag")).toBe('"0xabc"');
+		await expect(res.json()).resolves.toEqual({
+			block_height: 100,
+			index_block_hash: "0xabc",
+			burn_block_height: 77,
+			burn_block_hash: null,
+			is_canonical: true,
+		});
+	});
+
+	test("/events/:tx_id returns tx events with overlapping reorgs", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/streams",
+			createStreamsRouter({
+				getTip: () => TEST_TIP,
+				readEvents: EMPTY_EVENTS_READER,
+				readEventsByTxId: async ({ txId }) => ({
+					events: [
+						streamsEvent({ tx_id: txId, cursor: "100:0", event_index: 0 }),
+						streamsEvent({ tx_id: txId, cursor: "100:1", event_index: 1 }),
+					],
+				}),
+				readReorgs: async (range) => [
+					{
+						id: "reorg-1",
+						detected_at: "2026-05-03T12:30:00.000Z",
+						fork_point_height: range.from.block_height,
+						old_index_block_hash: "0xold",
+						new_index_block_hash: "0xnew",
+						orphaned_range: { from: "100:0", to: "100:1" },
+						new_canonical_tip: "100:0",
+					},
+				],
+			}),
+		);
+
+		const res = await app.request("/v1/streams/events/0xtx", {
+			headers: authHeaders(BUILD_KEY),
+		});
+
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			events: Array<{ tx_id: string }>;
+			reorgs: unknown[];
+		};
+		expect(body.events).toHaveLength(2);
+		expect(body.events[0]?.tx_id).toBe("0xtx");
+		expect(body.reorgs).toHaveLength(1);
+	});
+
+	test("/blocks/:heightOrHash/events returns block events by hash", async () => {
+		let seenHash: string | undefined;
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/streams",
+			createStreamsRouter({
+				getTip: () => TEST_TIP,
+				readEvents: EMPTY_EVENTS_READER,
+				readBlockEvents: async ({ indexBlockHash }) => {
+					seenHash = indexBlockHash;
+					return { events: [streamsEvent({ index_block_hash: "0xblock" })] };
+				},
+				readReorgs: async () => [],
+			}),
+		);
+
+		const res = await app.request("/v1/streams/blocks/0xblock/events", {
+			headers: authHeaders(BUILD_KEY),
+		});
+
+		expect(res.status).toBe(200);
+		expect(seenHash).toBe("0xblock");
+		const body = (await res.json()) as { events: unknown[] };
+		expect(body.events).toHaveLength(1);
+	});
+
+	test("/reorgs validates since and returns next_since", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/streams",
+			createStreamsRouter({
+				getTip: () => TEST_TIP,
+				readEvents: EMPTY_EVENTS_READER,
+				readReorgs: async () => [],
+				readReorgsSince: async ({ since, limit }) => {
+					expect(since).toBeInstanceOf(Date);
+					expect(limit).toBe(2);
+					return [
+						{
+							id: "reorg-1",
+							detected_at: "2026-05-03T12:30:00.000Z",
+							fork_point_height: 100,
+							old_index_block_hash: "0xold",
+							new_index_block_hash: "0xnew",
+							orphaned_range: { from: "100:0", to: "101:3" },
+							new_canonical_tip: "101:0",
+						},
+					];
+				},
+			}),
+		);
+
+		const res = await app.request(
+			"/v1/streams/reorgs?since=2026-05-03T00:00:00.000Z&limit=2",
+			{ headers: authHeaders(BUILD_KEY) },
+		);
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toMatchObject({
+			reorgs: [{ id: "reorg-1" }],
+			next_since: "2026-05-03T12:30:00.000Z",
+		});
 	});
 
 	test("public status key can read /tip", async () => {

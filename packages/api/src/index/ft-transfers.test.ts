@@ -45,6 +45,44 @@ describe("Index ft-transfers helpers", () => {
 		});
 		expect(response.reorgs).toEqual([]);
 	});
+
+	test("successful responses include overlapping reorgs", async () => {
+		const response = await getFtTransfersResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readTransfers: async () => ({
+				events: [
+					{
+						cursor: "10:0",
+						block_height: 10,
+						tx_id: "0x01",
+						tx_index: 0,
+						event_index: 0,
+						event_type: "ft_transfer",
+						contract_id: "SP123.token",
+						asset_identifier: "SP123.token::coin",
+						sender: "SP123.sender",
+						recipient: "SP123.recipient",
+						amount: "1",
+					},
+				],
+				next_cursor: "10:0",
+			}),
+			readReorgs: async (range) => [
+				{
+					id: "reorg-1",
+					detected_at: "2026-05-03T12:30:00.000Z",
+					fork_point_height: range.from.block_height,
+					old_index_block_hash: "0xold",
+					new_index_block_hash: "0xnew",
+					orphaned_range: { from: "10:0", to: "10:0" },
+					new_canonical_tip: "10:0",
+				},
+			],
+		});
+
+		expect(response.reorgs.map((reorg) => reorg.id)).toEqual(["reorg-1"]);
+	});
 });
 
 describe.skipIf(!HAS_DB)("Index ft-transfers DB reads", () => {

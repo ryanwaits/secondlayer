@@ -47,6 +47,7 @@ function createApp(readEvents: StreamsEventsReader) {
 		createStreamsRouter({
 			getTip: () => TIP,
 			readEvents,
+			readReorgs: async () => [],
 		}),
 	);
 	return app;
@@ -61,7 +62,7 @@ describe("@secondlayer/sdk Streams integration", () => {
 			const hasMore = start + limit < events.length;
 			return {
 				events: page,
-				next_cursor: hasMore ? page.at(-1)?.cursor ?? null : null,
+				next_cursor: hasMore ? (page.at(-1)?.cursor ?? null) : null,
 			};
 		});
 		const client = createStreamsClient({
@@ -69,7 +70,9 @@ describe("@secondlayer/sdk Streams integration", () => {
 			baseUrl: "http://secondlayer.test",
 			fetchImpl: async (input, init) => {
 				const request =
-					input instanceof Request ? input : new Request(input.toString(), init);
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
 				return app.fetch(request);
 			},
 		});

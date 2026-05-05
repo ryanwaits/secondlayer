@@ -45,6 +45,7 @@ function createApp(readFtTransfers: FtTransfersReader = EMPTY_READER) {
 			getTip: () => TIP,
 			readFtTransfers,
 			readNftTransfers: EMPTY_NFT_READER,
+			readReorgs: async () => [],
 		}),
 	);
 	return app;
@@ -95,6 +96,7 @@ function createMeteredIndexApp(opts: {
 			getTip: () => TIP,
 			readFtTransfers: opts.readFtTransfers ?? EMPTY_READER,
 			readNftTransfers: opts.readNftTransfers ?? EMPTY_NFT_READER,
+			readReorgs: async () => [],
 			recordDecodedEventsReturned: opts.recordDecodedEventsReturned,
 		}),
 	);
@@ -186,6 +188,7 @@ describe("Stacks Index gateway middleware", () => {
 				getTip: () => TIP,
 				readFtTransfers: EMPTY_READER,
 				readNftTransfers: EMPTY_NFT_READER,
+				readReorgs: async () => [],
 			}),
 		);
 

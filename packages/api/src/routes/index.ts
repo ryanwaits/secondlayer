@@ -17,12 +17,17 @@ import {
 } from "../index/nft-transfers.ts";
 import { indexRateLimit } from "../index/rate-limit.ts";
 import { type IndexTipProvider, getIndexTip } from "../index/tip.ts";
+import {
+	DEFAULT_STREAMS_REORGS_READER,
+	type StreamsReorgsReader,
+} from "../streams/reorgs.ts";
 
 export type IndexRouterOptions = {
 	tokens?: IndexTokenStore;
 	getTip?: IndexTipProvider;
 	readFtTransfers?: FtTransfersReader;
 	readNftTransfers?: NftTransfersReader;
+	readReorgs?: StreamsReorgsReader;
 	recordDecodedEventsReturned?: (
 		accountId: string,
 		quantity: number,
@@ -31,6 +36,7 @@ export type IndexRouterOptions = {
 
 export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	const getTip = opts.getTip ?? getIndexTip;
+	const readReorgs = opts.readReorgs ?? DEFAULT_STREAMS_REORGS_READER;
 	const recordDecodedEventsReturned =
 		opts.recordDecodedEventsReturned ??
 		((accountId, quantity) =>
@@ -50,6 +56,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			query: new URL(c.req.url).searchParams,
 			tip,
 			readTransfers: opts.readFtTransfers,
+			readReorgs,
 		});
 		const accountId = c.get("indexTenant").account_id;
 		if (accountId && response.events.length > 0) {
@@ -65,6 +72,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			query: new URL(c.req.url).searchParams,
 			tip,
 			readTransfers: opts.readNftTransfers,
+			readReorgs,
 		});
 		const accountId = c.get("indexTenant").account_id;
 		if (accountId && response.events.length > 0) {

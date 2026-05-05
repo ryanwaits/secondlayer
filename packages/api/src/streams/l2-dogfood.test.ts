@@ -193,6 +193,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 					burn_block_height: 101,
 					lag_seconds: 0,
 				}),
+				readReorgs: async () => [],
 			}),
 		);
 
@@ -338,6 +339,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 				getTip: () => ({ block_height: 1, lag_seconds: 0 }),
 				readFtTransfers: (params) => readFtTransfers({ ...params, db }),
 				readNftTransfers: (params) => readNftTransfers({ ...params, db }),
+				readReorgs: async () => [],
 			}),
 		);
 
@@ -389,6 +391,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 				getTip: () => ({ block_height: 1, lag_seconds: 0 }),
 				readFtTransfers: (params) => readFtTransfers({ ...params, db }),
 				readNftTransfers: (params) => readNftTransfers({ ...params, db }),
+				readReorgs: async () => [],
 			}),
 		);
 

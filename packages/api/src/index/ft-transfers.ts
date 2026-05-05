@@ -3,6 +3,11 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
 import { decodeStreamsCursor } from "../streams/cursor.ts";
+import {
+	EMPTY_STREAMS_REORGS_READER,
+	type StreamsReorg,
+	type StreamsReorgsReader,
+} from "../streams/reorgs.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import type { IndexTip } from "./tip.ts";
 
@@ -41,7 +46,7 @@ export type FtTransfersResponse = {
 	events: FtTransferEvent[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	reorgs: [];
+	reorgs: StreamsReorg[];
 };
 
 export type ReadFtTransfersParams = {
@@ -273,6 +278,7 @@ export async function getFtTransfersResponse(opts: {
 	query: URLSearchParams;
 	tip: IndexTip;
 	readTransfers?: FtTransfersReader;
+	readReorgs?: StreamsReorgsReader;
 }): Promise<FtTransfersResponse> {
 	const parsed = parseFtTransfersQuery(opts.query, opts.tip);
 
@@ -295,11 +301,27 @@ export async function getFtTransfersResponse(opts: {
 		sender: parsed.sender,
 		recipient: parsed.recipient,
 	});
+	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
+	const firstEvent = result.events.at(0);
+	const lastEvent = result.events.at(-1);
+	const reorgs =
+		firstEvent && lastEvent
+			? await readReorgs({
+					from: {
+						block_height: firstEvent.block_height,
+						event_index: firstEvent.event_index,
+					},
+					to: {
+						block_height: lastEvent.block_height,
+						event_index: lastEvent.event_index,
+					},
+				})
+			: [];
 
 	return {
 		events: result.events,
 		next_cursor: result.next_cursor,
 		tip: opts.tip,
-		reorgs: [],
+		reorgs,
 	};
 }

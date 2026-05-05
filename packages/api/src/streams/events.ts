@@ -8,6 +8,11 @@ import {
 } from "@secondlayer/indexer/streams-events";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { type StreamsCursorInput, decodeStreamsCursor } from "./cursor.ts";
+import {
+	EMPTY_STREAMS_REORGS_READER,
+	type StreamsReorg,
+	type StreamsReorgsReader,
+} from "./reorgs.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -30,6 +35,7 @@ export type StreamsEventsQuery = {
 	fromHeight?: number;
 	toHeight: number;
 	types?: readonly StreamsEventType[];
+	contractId?: string;
 	limit: number;
 	cursorPastTip: boolean;
 };
@@ -38,7 +44,7 @@ export type StreamsEventsResponse = {
 	events: StreamsEvent[];
 	next_cursor: string | null;
 	tip: StreamsTip;
-	reorgs: [];
+	reorgs: StreamsReorg[];
 };
 
 const STREAMS_EVENT_TYPE_SET = new Set<string>(STREAMS_EVENT_TYPES);
@@ -87,6 +93,14 @@ function parseTypes(
 	return types as StreamsEventType[];
 }
 
+function parseContractId(value: string | undefined): string | undefined {
+	if (value === undefined) return undefined;
+	if (value.length === 0) {
+		throw new ValidationError("contract_id must not be empty");
+	}
+	return value;
+}
+
 export function getClampedStreamsTipHeight(tip: StreamsTip): number {
 	return Math.max(0, tip.block_height - tip.lag_seconds);
 }
@@ -133,6 +147,7 @@ export function parseStreamsEventsQuery(
 		fromHeight: fromHeight ?? defaultFromHeight,
 		toHeight,
 		types: parseTypes(query.get("types") ?? undefined),
+		contractId: parseContractId(query.get("contract_id") ?? undefined),
 		limit: parseLimit(query.get("limit") ?? undefined),
 		cursorPastTip: cursor ? cursor.block_height > clampedTipHeight : false,
 	};
@@ -142,6 +157,7 @@ export async function getStreamsEventsResponse(opts: {
 	query: URLSearchParams;
 	tip: StreamsTip;
 	readEvents?: StreamsEventsReader;
+	readReorgs?: StreamsReorgsReader;
 }): Promise<StreamsEventsResponse> {
 	const parsed = parseStreamsEventsQuery(opts.query, opts.tip);
 
@@ -161,14 +177,30 @@ export async function getStreamsEventsResponse(opts: {
 		fromHeight: parsed.fromHeight,
 		toHeight: parsed.toHeight,
 		types: parsed.types,
+		contractId: parsed.contractId,
 		limit: parsed.limit,
 	});
+	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
+	const firstEvent = result.events.at(0);
+	const lastEvent = result.events.at(-1);
+	const reorgs =
+		firstEvent && lastEvent
+			? await readReorgs({
+					from: {
+						block_height: firstEvent.block_height,
+						event_index: firstEvent.event_index,
+					},
+					to: {
+						block_height: lastEvent.block_height,
+						event_index: lastEvent.event_index,
+					},
+				})
+			: [];
 
 	return {
 		events: result.events,
 		next_cursor: result.next_cursor,
 		tip: opts.tip,
-		// reorgs stays empty until reorg detection lands; see PRD 0001 reorg endpoint task.
-		reorgs: [],
+		reorgs,
 	};
 }
