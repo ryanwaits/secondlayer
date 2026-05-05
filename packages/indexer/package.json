@@ -37,6 +37,8 @@
 		"test": "bun test"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1042.0",
+		"@dsnp/parquetjs": "^1.8.7",
 		"@secondlayer/sdk": "^3.3.2",
 		"@secondlayer/shared": "^6.0.0",
 		"@secondlayer/stacks": "^2.0.1"

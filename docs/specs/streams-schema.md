@@ -72,6 +72,10 @@ Cursor format is `<block_height>:<event_index>`. `event_index` is the Nth real c
 
 Client loop: call `/events?cursor=<last>`, process events, invalidate local state for each `reorgs[].orphaned_range`, advance to `next_cursor`, repeat. Store processed event cursors and make writes idempotent by cursor.
 
+## Bulk Dumps
+
+Phase 2 adds private/staging parquet bulk dumps for historical backfills. The v0 draft contract is documented in [`streams-bulk-dumps.md`](streams-bulk-dumps.md). The intended workflow is to sync parquet history, read the manifest `latest_finalized_cursor`, then tail `GET /v1/streams/events` from that cursor while deduping by `cursor`.
+
 ## Worked Example
 
 ```json

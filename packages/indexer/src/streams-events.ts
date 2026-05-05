@@ -18,7 +18,7 @@ export const STREAMS_EVENT_TYPES = [
 
 export type StreamsEventType = (typeof STREAMS_EVENT_TYPES)[number];
 
-const STREAMS_DB_EVENT_TYPES = [
+export const STREAMS_DB_EVENT_TYPES = [
 	"stx_transfer_event",
 	"stx_mint_event",
 	"stx_burn_event",
@@ -32,7 +32,7 @@ const STREAMS_DB_EVENT_TYPES = [
 	"smart_contract_event",
 ] as const;
 
-const DB_TO_STREAMS_EVENT_TYPE: Record<
+export const DB_TO_STREAMS_EVENT_TYPE: Record<
 	(typeof STREAMS_DB_EVENT_TYPES)[number],
 	StreamsEventType
 > = {
@@ -49,7 +49,7 @@ const DB_TO_STREAMS_EVENT_TYPE: Record<
 	smart_contract_event: "print",
 };
 
-const STREAMS_TO_DB_EVENT_TYPE: Record<
+export const STREAMS_TO_DB_EVENT_TYPE: Record<
 	StreamsEventType,
 	(typeof STREAMS_DB_EVENT_TYPES)[number]
 > = {
@@ -154,7 +154,7 @@ function withoutContractIdentifier(
 	return rest;
 }
 
-function normalizePayload(
+export function normalizeStreamsEventPayload(
 	eventType: StreamsEventType,
 	data: unknown,
 ): { payload: Record<string, unknown>; contract_id: string | null } {
@@ -194,7 +194,10 @@ function normalizeRow(row: StreamsEventRow): StreamsEvent {
 	const eventType = DB_TO_STREAMS_EVENT_TYPE[row.db_event_type];
 	const eventIndex = Number(row.stream_event_index);
 	const blockHeight = Number(row.block_height);
-	const { payload, contract_id } = normalizePayload(eventType, row.data);
+	const { payload, contract_id } = normalizeStreamsEventPayload(
+		eventType,
+		row.data,
+	);
 
 	return {
 		cursor: encodeStreamsEventCursor({

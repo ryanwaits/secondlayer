@@ -65,11 +65,11 @@ Required v0:
 
 Open decisions before implementation:
 
-- Object storage provider and bucket naming.
-- Public URL shape.
-- Block partition size.
-- Manifest schema and versioning rules.
-- Reorg/finality policy for when a range is safe to publish.
+- **Resolved for private/staging v0:** Cloudflare R2 with S3-compatible APIs.
+- **Resolved for private/staging v0:** object prefix `stacks-streams/mainnet/v0`; public domain remains deferred until launch approval.
+- **Resolved for private/staging v0:** 10,000 Stacks blocks per parquet file, partitioned by Stacks block-height range.
+- **Resolved for private/staging v0:** JSON manifest with `latest.json`, historical manifests, `schema.json`, SHA-256 checksums, row counts, byte sizes, min/max cursors, block coverage, generated timestamp, schema version, network, and producer version.
+- **Resolved for private/staging v0:** publish only complete ranges at least 144 Stacks blocks behind tip; rows contain canonical events only.
 
 ### Stacks Datasets
 
