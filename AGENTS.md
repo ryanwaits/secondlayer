@@ -159,9 +159,9 @@ Run by the user, but agents should know what it is so they can prep for it.
 This section is updated weekly. Keep it short — link out for detail.
 
 - **Phase:** 1 (Reliability + Surfaces), week 1 of 3.
-- **Active PRD:** `docs/prds/0002-stacks-index.md`.
+- **Active PRD:** `docs/prds/0004-phase-1-api-sdk-dx-completion.md`.
 - **Active sprint:** `.claude/sprints/current-sprint.md` (May 4–10).
-- **Next focus:** Phase 1 hardening after Stacks Index closeout.
+- **Next focus:** Additive API, SDK, and DX completion across Stacks Streams, Stacks Index, and Stacks Subgraphs.
 - **Decision gate ahead:** end of Phase 1 — Streams + Index live, metered, behind paid auth.
 
 ---

@@ -1,16 +1,16 @@
-# Current Sprint - Phase 1, Stacks Index Closeout
+# Current Sprint - Phase 1 API, SDK, and DX Completion
 
 **Phase:** 1 (Reliability + Surfaces)
-**Sprint:** Sprint 2 - Stacks Index MVP
+**Sprint:** Sprint 2 - Layered API Completion
 **Dates:** May 4 - May 10, 2026
-**Headline goal:** Close the Stacks Index public surface, then move into Phase 1 hardening.
-**Active PRD:** `docs/prds/0002-stacks-index.md`
+**Headline goal:** Close the additive API, SDK, and DX gaps across Stacks Streams, Stacks Index, and Stacks Subgraphs.
+**Active PRD:** `docs/prds/0004-phase-1-api-sdk-dx-completion.md`
 
 ---
 
 ## North Star
 
-Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/v1/index/*`, with SDK support, docs, and public status freshness. Once closed, hardening work proceeds in priority order.
+Developers can start from one mental model: Stacks Streams for raw ordered L1 events, Stacks Index for decoded FT/NFT L2 events, and Stacks Subgraphs for app-specific L3 tables. The API, SDK, and docs expose that model without requiring source-code reading.
 
 ## Completed
 
@@ -26,8 +26,10 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 
 ## Current Priority
 
-1. Broader verification across touched API, SDK, and web surfaces.
-2. Review git diff for accidental scope creep.
+1. Add the PRD 0001 Streams read conveniences and shared reorg metadata lookup.
+2. Align the SDK root client around `sl.streams`, `sl.index`, and `sl.subgraphs`.
+3. Refresh API, SDK, and product docs around the three-layer model.
+4. Run focused API, SDK, and web verification.
 
 ## Tech Debt Accepted Into Next Sprint
 
@@ -36,6 +38,7 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 
 ## Daily Log
 
+- **Sprint rescope:** Added PRD 0004 for Phase 1 API, SDK, and DX completion. Active sprint now prioritizes additive Stacks Streams, Stacks Index, and Stacks Subgraphs surface completion. Reliability code/status work is treated as green for sprint planning; production backup/PITR proof and server expansion stay deferred to the funded infrastructure milestone.
 - **Week kickoff:** Sprint dates corrected to May 4 - May 10, 2026. Canonical sprint source moved to `.claude/sprints/current-sprint.md` to match `AGENTS.md`.
 - **Task 1:** Drafted PRD 0002 and L2 schema migration. Paused for deploy hotfix verification, then resumed.
 - **Task 2:** Added `/v1/index/ft-transfers`, SDK list method, separate Index rate-limit bucket, and continuous `l2-decoder` compose service with checkpoint health.
@@ -62,6 +65,8 @@ Paid customers can query decoded `ft_transfer` and `nft_transfer` events from `/
 - **Recovery drill follow-ups:** The live `/public/status` now has the expanded status shape, but `services[]` still reports `indexer: unavailable` until the API gets the internal `INDEXER_URL` setting in production. Backup verification found root cron scheduling rather than systemd timers; weekly `pg_basebackup` completed May 3, 2026 at 04:48 +02:00 and remote upload completed May 4, 2026 at 05:02 +02:00, but the May 4 daily `pg_dump` failed on `events` and `sync-wal.log` has not updated since April 19. Treat backup freshness as partial until pg_dump/WAL follow-up is fixed or explicitly accepted.
 - **Reliability closeout patch:** Added `INDEXER_URL=http://indexer:3700` to the API container, changed Staging Health to gate FT/NFT decoders on public `status` while printing `lagSeconds`, and tightened required service checks so `indexer: unavailable` fails the gate. Made shared Postgres `pg_dump` atomic and gzip-verified, added the DB maintenance lock shared with deploy, enabled WAL archiving in the Hetzner compose override, and made WAL env loading tolerate unquoted `.env` values.
 - **Reliability closeout verification:** Individual `bash -nu` checks pass for deploy, backup, WAL sync, Staging Health, and post-deploy smoke scripts. Compose config renders the API `INDEXER_URL` and Postgres WAL archive settings. Focused API/indexer status tests and API typecheck pass. Current production `/public/status` still reports `indexer: unavailable`, so Phase 1 remains open until this patch is deployed and backup/WAL evidence is recorded.
+- **API/SDK/DX completion:** Added Stacks Streams canonical, transaction events, block events, and reorg listing routes; added `chain_reorgs` storage, reorg handler writes, shared overlap lookup, Index reorg envelopes, and `burn_block_hash` storage for new blocks.
+- **SDK/docs alignment:** Added root `sl.streams`, Streams convenience SDK methods, and docs for the Stacks Streams / Stacks Index / Stacks Subgraphs mental model. Focused API, SDK, shared, indexer, and web tests/typechecks pass locally.
 
 ## Phase 1 Recovery Drill - May 4, 2026
 

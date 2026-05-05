@@ -81,6 +81,12 @@ export function StacksStreamsContent() {
 					<code>contract_id</code>, <code>from_height</code>, and{" "}
 					<code>to_height</code>.
 				</p>
+				<p>
+					Use <code>GET /v1/streams/events/{"{tx_id}"}</code> for transaction
+					events and{" "}
+					<code>GET /v1/streams/blocks/{"{heightOrHash}"}/events</code> for
+					block replay checks.
+				</p>
 			</div>
 
 			<InlineCodeBlock>
@@ -171,6 +177,10 @@ for await (const event of client.events.stream({
 					Every event response includes <code>reorgs: []</code>. When a reorg
 					overlaps the response range, the envelope identifies the affected
 					cursor range so clients can invalidate downstream state.
+				</p>
+				<p>
+					<code>GET /v1/streams/reorgs?since=...</code> returns recorded reorg
+					metadata ordered by detection time.
 				</p>
 			</div>
 		</main>

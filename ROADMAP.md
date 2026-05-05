@@ -38,7 +38,7 @@ The engine is 90% built. Phase 1 is about exposing what already exists and shori
 **Decision gate (end of week 3)**
 - Are Streams and Index live, observable, metered, documented, recoverable, and behind paid auth? If no, extend Phase 1 by one week before starting Phase 2. Do not start Phase 2 with broken or missing surfaces.
 
-**Gate status, May 4, 2026:** Implementation is complete locally, but Phase 1 is not green until the final reliability patch is deployed and verified. The open production evidence is: `/public/status.services[]` must report `indexer: ok`, two consecutive Staging Health runs must pass after deploy, and daily `pg_dump` plus WAL sync freshness must be recorded.
+**Gate status, May 5, 2026:** Reliability code and local status gates are green for sprint planning. The remaining production evidence is deferred to the funded infrastructure milestone: full backup/PITR proof, remote restore drill, server expansion, hot-spare capacity, and failover rehearsal. Phase 1 execution is currently focused on additive API, SDK, and DX completion across Stacks Streams, Stacks Index, and Stacks Subgraphs.
 
 ---
 
@@ -124,9 +124,9 @@ Cost grows in step with phases. Numbers are monthly run-rate.
 
 Cost discipline: every new line item is justified against either a paying customer cohort or the Foundation grant. No speculative provisioning.
 
-## Deferred reliability milestone
+## Deferred funded infrastructure milestone
 
-Hot-spare infrastructure is deferred until there is budget for a second node/server. The future milestone should include funded spare capacity, operator-confirmed failover, rollback, alerting, and at least two rehearsals with recovery-time evidence. Automatic promotion is not part of the v0 failover model.
+Heavy reliability proof is deferred until there is budget for a second node/server and dedicated operator time. The future milestone should include full backup/PITR proof, remote restore drills, funded spare capacity, operator-confirmed failover, rollback, alerting, and at least two rehearsals with recovery-time evidence. Automatic promotion is not part of the v0 failover model.
 
 ---
 

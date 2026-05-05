@@ -1,6 +1,6 @@
 # PRD 0003 - Phase 1 Reliability Hardening
 
-**Status:** Implemented; production acceptance pending
+**Status:** Implemented locally; heavy production proof deferred
 **Owner:** Ryan
 **Last updated:** May 4, 2026
 **Related docs:** `VISION.md` -> Calm infrastructure, `ARCHITECTURE.md` -> Reliability posture, `PRODUCTS.md` -> Public status page, `ROADMAP.md` Phase 1, `docs/audits/phase-1-reliability-hardening-audit.html`, `docs/adr/0001-phase-1-reliability-closeout.md`
@@ -65,11 +65,14 @@ Already in place:
 - Post-deploy smoke checks for health, auth variants, freshness shape, and response envelopes.
 - SHA-tagged image deploys, host-side systemd deploy units, and image-only rollback.
 
-Gaps:
+Deferred production evidence:
 
-- Production still needs the latest compose/scripts deployed so `/public/status.services[]` can report the indexer service through `INDEXER_URL=http://indexer:3700`.
-- Daily `pg_dump` and WAL sync need fresh production evidence after the backup/deploy lock and WAL archiving changes land.
-- Phase 1 remains open until two consecutive Staging Health runs pass after deploy and backup evidence is recorded.
+- Full backup/PITR proof.
+- Remote restore drill.
+- Server expansion and funded spare capacity.
+- Hot-spare failover rehearsal.
+
+These items move to the funded infrastructure milestone. They no longer block the API, SDK, and DX completion sprint.
 
 Implemented:
 
@@ -297,17 +300,15 @@ Future implementation tests:
 - Smoke checks for expanded `/public/status`.
 - Recovery drill checklist with recorded output.
 
-## Production acceptance evidence
+## Deferred production evidence
 
-Pending before this PRD can move to accepted:
+Deferred to the funded infrastructure milestone:
 
-- Deploy the compose/script changes to production.
-- Confirm `/public/status` includes `api`, `node`, `services`, `streams`, `index`, and `reorgs`.
-- Confirm `services` reports `api`, `database`, `indexer`, and `l2_decoder` as `ok`.
-- Run two consecutive Staging Health checks after deploy.
-- Run one manual `backup-postgres.sh` and verify the resulting gzip file.
-- Force one WAL switch, run `sync-wal.sh`, and record a fresh sync log entry.
-- Record latest local backup and latest remote upload timestamps.
+- Confirm full backup/PITR evidence.
+- Run a remote restore drill.
+- Provision funded spare server capacity.
+- Rehearse operator-confirmed failover at least twice.
+- Record latest local backup, remote upload, WAL freshness, and recovery-time evidence.
 
 ## Risks
 

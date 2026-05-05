@@ -18,19 +18,20 @@ const toc: TocItem[] = [
 export default function SubgraphsPage() {
 	return (
 		<div className="article-layout">
-			<Sidebar title="Subgraphs" toc={toc} />
+			<Sidebar title="Stacks Subgraphs" toc={toc} />
 
 			<main className="content-area">
 				<header className="page-header">
 					<h1 className="page-title">
-						Subgraphs <BoxBadge>Beta</BoxBadge>
+						Stacks Subgraphs <BoxBadge>Beta</BoxBadge>
 					</h1>
 				</header>
 
 				<div className="prose">
 					<p>
-						Subgraphs turn onchain events into custom views of the chain — pick
-						the events your app needs and shape them into a queryable API.
+						Stacks Subgraphs turn onchain events into custom views of the chain.
+						Pick the events your app needs and shape them into a queryable L3
+						API.
 					</p>
 					<p>
 						Install with <code>bun add @secondlayer/subgraphs</code>.
@@ -221,9 +222,15 @@ sl subgraphs reindex token-transfers`}
 				<div className="prose">
 					<p>
 						Query via the SDK, CLI, or HTTP API. Supports filtering, comparison
-						operators, ordering, and pagination. For typed queries with
-						autocompletion, see{" "}
-						<a href="/sdk#typed-subgraphs">typed subgraphs</a> in the SDK docs.
+						operators, ordering, and pagination. Table list routes return{" "}
+						<code>{"{ data, meta }"}</code>; count routes return{" "}
+						<code>{"{ count }"}</code>. For typed queries with autocompletion,
+						see <a href="/sdk#typed-subgraphs">typed subgraphs</a> in the SDK
+						docs.
+					</p>
+					<p>
+						Each deployed Stacks Subgraph also exposes detail, source, gaps,
+						generated OpenAPI, compact schema, and Markdown reference routes.
 					</p>
 				</div>
 
@@ -246,7 +253,13 @@ sl subgraphs query token-transfers transfers --filter sender=SP1234... --count
 
 // HTTP API
 curl -H "Authorization: Bearer $SL_SERVICE_KEY" \\
-  "https://<your-slug>.secondlayer.tools/api/subgraphs/token-transfers/transfers?_sort=_block_height&_order=desc&_limit=25&sender=SP1234...&amount.gte=1000000"`}
+  "https://<your-slug>.secondlayer.tools/api/subgraphs/token-transfers/transfers?_sort=_block_height&_order=desc&_limit=25&sender=SP1234...&amount.gte=1000000"
+
+curl -H "Authorization: Bearer $SL_SERVICE_KEY" \\
+  "https://<your-slug>.secondlayer.tools/api/subgraphs/token-transfers/transfers/count?sender=SP1234..."
+
+curl -H "Authorization: Bearer $SL_SERVICE_KEY" \\
+  "https://<your-slug>.secondlayer.tools/api/subgraphs/token-transfers/openapi.json"`}
 				/>
 			</main>
 		</div>

@@ -19,28 +19,48 @@ const sl = new SecondLayer({
 });
 ```
 
+## Mental model
+
+- `sl.streams` reads raw ordered L1 events from Stacks Streams.
+- `sl.index` reads decoded L2 FT/NFT transfer events from Stacks Index.
+- `sl.subgraphs` reads app-specific L3 tables from Stacks Subgraphs.
+
 ## Stacks Streams
 
-Typed HTTP client.
+Typed L1 HTTP client.
 
 `sk-sl_streams_status_public` is a public, non-secret Free-tier key used by the
 Second Layer status page. Production apps should use their own Streams API key.
 
 ```typescript
-import { createStreamsClient } from "@secondlayer/sdk";
-
-const client = createStreamsClient({
-  apiKey: process.env.SECONDLAYER_API_KEY!,
-  baseUrl: process.env.SECONDLAYER_API_URL,
-});
-
-const tip = await client.tip();
-const page = await client.events.list({
+const tip = await sl.streams.tip();
+const page = await sl.streams.events.list({
   types: ["ft_transfer"],
+  contractId: "SP...sbtc-token",
   limit: 10,
 });
 
 console.log({ tip, firstCursor: page.events[0]?.cursor });
+```
+
+`createStreamsClient` remains available for focused Streams-only consumers:
+
+```typescript
+import { createStreamsClient } from "@secondlayer/sdk";
+
+const streams = createStreamsClient({
+  apiKey: process.env.SECONDLAYER_API_KEY!,
+});
+```
+
+Convenience reads:
+
+```typescript
+await sl.streams.canonical(182431);
+await sl.streams.events.byTxId("0x...");
+await sl.streams.blocks.events(182431);
+await sl.streams.blocks.events("0xindex-block-hash");
+await sl.streams.reorgs.list({ since: "2026-05-03T00:00:00.000Z" });
 ```
 
 Checkpointed consumer.
@@ -120,9 +140,37 @@ the decoder. Decoders throw when the event type or payload is malformed. Add new
 helpers beside `src/streams/ft-transfer.ts` and export them through
 `src/streams/index.ts`.
 
-## Subgraphs
+## Stacks Index
 
-Deploy and query subgraphs (custom indexers).
+Decoded L2 transfer events.
+
+```typescript
+const ftPage = await sl.index.ftTransfers.list({
+  contractId: "SP...sbtc-token",
+  sender: "SP...",
+  limit: 100,
+});
+
+const nftPage = await sl.index.nftTransfers.list({
+  assetIdentifier: "SP...collection::token",
+  recipient: "SP...",
+});
+```
+
+Backfill with SDK walkers:
+
+```typescript
+for await (const transfer of sl.index.ftTransfers.walk({
+  fromHeight: 0,
+  batchSize: 500,
+})) {
+  console.log(transfer.cursor, transfer.amount);
+}
+```
+
+## Stacks Subgraphs
+
+Deploy and query app-specific L3 tables.
 
 ```typescript
 // List
@@ -137,6 +185,15 @@ const rows = await sl.subgraphs.queryTable("my-subgraph", "transfers", {
   order: "desc",
   limit: 50,
 });
+
+const { count } = await sl.subgraphs.queryTableCount(
+  "my-subgraph",
+  "transfers",
+);
+
+const spec = await sl.subgraphs.openapi("my-subgraph");
+const source = await sl.subgraphs.getSource("my-subgraph");
+const gaps = await sl.subgraphs.gaps("my-subgraph");
 
 // Deploy
 const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode });
