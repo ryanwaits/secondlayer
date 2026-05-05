@@ -26,10 +26,10 @@ Developers can start from one mental model: Stacks Streams for raw ordered L1 ev
 
 ## Current Priority
 
-1. Add the PRD 0001 Streams read conveniences and shared reorg metadata lookup.
-2. Align the SDK root client around `sl.streams`, `sl.index`, and `sl.subgraphs`.
-3. Refresh API, SDK, and product docs around the three-layer model.
-4. Run focused API, SDK, and web verification.
+1. Keep Phase 1 production smoke and Staging Health green after deploy.
+2. Draft the Phase 2-adjacent PRD for Stacks Datasets, Console v1, and Streams bulk dumps.
+3. Identify irreversible decisions before implementation: dataset schemas, parquet manifest/partition contract, object storage provider, and Console billing surface.
+4. Avoid writing the next sprint doc before Sunday; keep this sprint as the active tactical source until archive.
 
 ## Tech Debt Accepted Into Next Sprint
 
@@ -68,6 +68,10 @@ Developers can start from one mental model: Stacks Streams for raw ordered L1 ev
 - **API/SDK/DX completion:** Added Stacks Streams canonical, transaction events, block events, and reorg listing routes; added `chain_reorgs` storage, reorg handler writes, shared overlap lookup, Index reorg envelopes, and `burn_block_hash` storage for new blocks.
 - **SDK/docs alignment:** Added root `sl.streams`, Streams convenience SDK methods, and docs for the Stacks Streams / Stacks Index / Stacks Subgraphs mental model. Focused API, SDK, shared, indexer, and web tests/typechecks pass locally.
 - **Product docs/deploy lock follow-up:** Refreshed the Stacks Streams, Stacks Index, and Stacks Subgraphs marketing pages with L1/L2/L3 positioning, SDK root-client examples, Index reorg-envelope wording, and exact Subgraphs routes. Increased deploy/backup lock waits to cover the normal `03:00-03:45 CEST` backup window and documented the shared `/opt/secondlayer/data/db-maintenance.lock`. Web tests/typecheck and deploy shell nounset checks pass.
+- **Production verification after deploy:** On May 5, 2026, production `post-deploy-smoke.sh` passed. Focused checks verified Stacks Streams canonical, tx events, block events, `reorgs?since`, required `400` for `/v1/streams/reorgs` without `since`, and top-level Index FT/NFT `reorgs` arrays. `https://secondlayer.tools/stacks-streams`, `/stacks-index`, and `/subgraphs` returned 200 and included the new L1/L2/L3 docs copy.
+- **Production reliability evidence:** Two consecutive Staging Health runs passed on May 5, 2026. `/public/status.services[]` reported required services `api`, `database`, `indexer`, and `l2_decoder` as `ok`. The May 5 logical backup completed at `03:41:20 CEST`, the latest backup artifact `postgres-20260505-030001.sql.gz` passed `gzip -t`, and WAL sync was fresh at `04:15:02 CEST`. Latest remote upload evidence remained May 4 at `05:02:26 CEST`; the May 5 scheduled upload was not yet due at observation time.
+- **Phase 1 gate decision:** Ryan accepted the Phase 1 gate as closed enough on May 5, 2026. Full backup/PITR proof, remote restore drill, server expansion, hot-spare capacity, and failover rehearsal remain deferred to the funded infrastructure milestone.
+- **Phase 2 planning kickoff:** Drafted PRD 0005 for Phase 2-adjacent work across Stacks Datasets, Console v1, and Streams bulk dumps. No future sprint doc was created.
 
 ## Phase 1 Recovery Drill - May 4, 2026
 
@@ -76,7 +80,7 @@ Developers can start from one mental model: Stacks Streams for raw ordered L1 ev
 - Environment: production, non-destructive.
 - Checklist used: `docker/docs/PHASE1_RECOVERY_RUNBOOK.md`.
 - Health inspection result: `api`, `indexer`, `l2-decoder`, `postgres`, `agent`, and `provisioner` running healthy; `worker` running.
-- Backup freshness result: weekly basebackup complete on May 3, 2026; remote upload complete on May 4, 2026; daily pg_dump failed on May 4, 2026; WAL sync log stale since April 19, 2026.
+- Backup freshness result: weekly basebackup complete on May 3, 2026; remote upload complete on May 4, 2026; daily pg_dump failed on May 4, 2026; WAL sync log stale since April 19, 2026. Follow-up verification on May 5, 2026 superseded the daily backup and WAL concerns: pg_dump completed at `03:41:20 CEST`, the gzip artifact verified, and WAL sync was fresh at `04:15:02 CEST`.
 - Service restart exercised: none.
 - Rollback exercised: no.
 - `/health` result: HTTP 200.
@@ -85,7 +89,7 @@ Developers can start from one mental model: Stacks Streams for raw ordered L1 ev
 - Stacks Streams read result: `/v1/streams/events?limit=1` HTTP 200.
 - Stacks Index read result: `/v1/index/ft-transfers?limit=1` HTTP 200.
 - Manual intervention required: none during drill.
-- Follow-up items: deploy final reliability patch; confirm `/public/status.services[]` reports `indexer: ok`; record two consecutive green Staging Health runs; record fresh daily pg_dump and WAL sync evidence.
+- Follow-up items: production deploy completed; `/public/status.services[]` reports `indexer: ok`; two consecutive Staging Health runs recorded; fresh daily pg_dump and WAL sync evidence recorded. Remaining deferred reliability work is full backup/PITR proof, remote restore drill, server expansion, hot-spare capacity, and failover rehearsal under the funded infrastructure milestone.
 
 ## Notes
 
