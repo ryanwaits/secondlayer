@@ -50,6 +50,10 @@ export function StacksIndexContent() {
 					starts with fungible token and NFT transfer history, normalized from
 					Stacks Streams.
 				</p>
+				<p>
+					Use Stacks Index when you want token and NFT transfer rows without
+					running ABI decoders or replaying raw L1 events yourself.
+				</p>
 			</div>
 
 			<SectionHeading id="auth">Auth</SectionHeading>
@@ -93,6 +97,24 @@ export function StacksIndexContent() {
   "tip": { "block_height": 182447, "lag_seconds": 3 },
   "reorgs": []
 }`}
+			</InlineCodeBlock>
+
+			<InlineCodeBlock>
+				{`import { SecondLayer } from "@secondlayer/sdk"
+
+const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY! })
+
+const ft = await sl.index.ftTransfers.list({
+  contractId: "SP...sbtc-token",
+  limit: 100,
+})
+
+const nft = await sl.index.nftTransfers.list({
+  assetIdentifier: "SP...collection::token",
+  limit: 100,
+})
+
+console.log(ft.events.length, nft.events.length)`}
 			</InlineCodeBlock>
 
 			<SectionHeading id="nft-transfers">NFT transfers</SectionHeading>
@@ -141,14 +163,22 @@ export function StacksIndexContent() {
 			<InlineCodeBlock>
 				{`import { SecondLayer } from "@secondlayer/sdk"
 
-const client = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY! })
+const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY! })
 
-for await (const transfer of client.index.ftTransfers.walk({
+for await (const transfer of sl.index.ftTransfers.walk({
   contractId: "SP...sbtc-token",
   fromHeight: 0,
   batchSize: 500,
 })) {
   console.log(transfer.cursor, transfer.amount)
+}
+
+for await (const transfer of sl.index.nftTransfers.walk({
+  assetIdentifier: "SP...collection::token",
+  fromHeight: 0,
+  batchSize: 500,
+})) {
+  console.log(transfer.cursor, transfer.value)
 }`}
 			</InlineCodeBlock>
 
@@ -156,10 +186,11 @@ for await (const transfer of client.index.ftTransfers.walk({
 
 			<div className="prose">
 				<p>
-					Every Index response includes <code>reorgs: []</code>. The field is
-					empty unless a reorg overlaps the response range. Treat it like the
-					Stacks Streams envelope and invalidate downstream state in the
-					affected cursor range.
+					Every Index response includes top-level <code>reorgs</code>. The
+					array is populated only when the returned cursor range overlaps
+					recorded reorg metadata; otherwise it is <code>reorgs: []</code>.
+					Treat it like the Stacks Streams envelope and invalidate downstream
+					state in the affected cursor range.
 				</p>
 			</div>
 		</main>

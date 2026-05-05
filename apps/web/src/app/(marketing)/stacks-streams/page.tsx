@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 const toc: TocItem[] = [
 	{ label: "Overview", href: "#overview" },
+	{ label: "Use this when", href: "#use-this-when" },
 	{ label: "Auth", href: "#auth" },
 	{ label: "Events", href: "#events" },
 	{ label: "Tip", href: "#tip" },
@@ -52,8 +53,20 @@ export function StacksStreamsContent() {
 					and canonical block checks.
 				</p>
 				<p>
-					Streams is read-only. It is for indexers, archives, backfills, and
-					custom decoders. Decoded token history starts at Stacks Index.
+					Stacks Streams is read-only. It is for indexers, archives,
+					backfills, and custom decoders. Decoded token history starts at
+					Stacks Index.
+				</p>
+			</div>
+
+			<SectionHeading id="use-this-when">Use this when</SectionHeading>
+
+			<div className="prose">
+				<p>
+					Use Stacks Streams when you need raw ordered L1 events, not decoded
+					application tables. It is the right layer for custom indexers,
+					archive mirrors, historical backfills, and decoders that need to own
+					their own interpretation of chain data.
 				</p>
 			</div>
 
@@ -105,6 +118,20 @@ export function StacksStreamsContent() {
   "tip": { "block_height": 182447, "lag_seconds": 3 },
   "reorgs": []
 }`}
+			</InlineCodeBlock>
+
+			<InlineCodeBlock>
+				{`import { SecondLayer } from "@secondlayer/sdk"
+
+const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY! })
+
+const page = await sl.streams.events.list({ limit: 100 })
+const canonical = await sl.streams.canonical(182431)
+const txEvents = await sl.streams.events.byTxId("0x...")
+const blockEvents = await sl.streams.blocks.events(182431)
+
+console.log(page.events.length, canonical.index_block_hash)
+console.log(txEvents.events.length, blockEvents.events.length)`}
 			</InlineCodeBlock>
 
 			<SectionHeading id="tip">Tip</SectionHeading>
@@ -180,9 +207,21 @@ for await (const event of client.events.stream({
 				</p>
 				<p>
 					<code>GET /v1/streams/reorgs?since=...</code> returns recorded reorg
-					metadata ordered by detection time.
+					metadata ordered by detection time. The <code>since</code> parameter
+					is required; omit it and the API returns <code>400</code>.
 				</p>
 			</div>
+
+			<InlineCodeBlock>
+				{`const reorgs = await sl.streams.reorgs.list({
+  since: "2026-05-05T00:00:00.000Z",
+  limit: 100,
+})
+
+for (const reorg of reorgs.reorgs) {
+  console.log(reorg.orphaned_range.from, reorg.orphaned_range.to)
+}`}
+			</InlineCodeBlock>
 		</main>
 	);
 }
