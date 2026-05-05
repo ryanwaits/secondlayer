@@ -139,7 +139,9 @@ docker rm -f <name>
 
 GitHub builds and pushes GHCR images for `api`, `indexer`, `worker`, `agent`, and `provisioner` before deploy starts. Images are tagged with the full commit SHA. GitHub then starts deploys over SSH through `scripts/ci/remote-deploy-systemd.sh`. The wrapper creates a transient systemd unit named like `secondlayer-deploy-<run_id>-<run_attempt>` and runs `/opt/secondlayer/docker/scripts/deploy.sh` inside that unit. The deploy script remains the source of truth for image pull, migration, restart, tenant refresh, and health checks.
 
-An SSH interruption no longer kills image pulls, migration, or restart. The GitHub job may still fail if it cannot observe completion, but the host unit keeps running and can be inspected.
+An SSH interruption no longer kills image pulls, migration, or restart. The wrapper observes the host unit for up to 60 minutes, and the GitHub SSH command allows 65 minutes. If GitHub still cannot observe completion, the host unit keeps running and can be inspected.
+
+Daily shared Postgres backup validation normally runs around `03:00-03:45 CEST`. Deploy waits on `/opt/secondlayer/data/db-maintenance.lock` for up to 45 minutes before stopping database writers or terminating sessions. It must wait for an active backup instead of interrupting `pg_dump`.
 
 ```bash
 # Replace with the unit name printed by the GitHub deploy job.
@@ -152,15 +154,16 @@ journalctl -u secondlayer-deploy-<run_id>-<run_attempt>.service -f
 1. **git fetch + reset** (source update)
 2. **exec-reload** — re-exec the updated deploy.sh so we don't run old buffered content
 3. **pull exact images** — GHCR images tagged by `DEPLOY_IMAGE_TAG`
-4. **stop lock-holders** — `api`, `indexer`, `l2-decoder`, `agent`, `worker`
-5. **force-remove orphan containers** — named-removed services from old deploys
-6. **clean zombie migrate containers** — prior `--rm` runs killed by SSH timeout
-7. **terminate DB sessions** — every non-self session on the DB, clean slate for DDL
-8. **run migrations** — `--rm migrate` from the pulled API image
-9. **up -d --no-build** — restart all app services
-10. **health check** — curl api, indexer, provisioner, and l2-decoder health
-11. **tenant refresh** — active tenants resume onto the exact deployed API image
-12. **record state** — write current/previous deploy SHAs under `DEPLOY_STATE_DIR`
+4. **wait for DB maintenance lock** — `/opt/secondlayer/data/db-maintenance.lock`, shared with daily backup validation
+5. **stop lock-holders** — `api`, `indexer`, `l2-decoder`, `agent`, `worker`
+6. **force-remove orphan containers** — named-removed services from old deploys
+7. **clean zombie migrate containers** — prior `--rm` runs killed by SSH timeout
+8. **terminate DB sessions** — every non-self session on the DB, clean slate for DDL
+9. **run migrations** — `--rm migrate` from the pulled API image
+10. **up -d --no-build** — restart all app services
+11. **health check** — curl api, indexer, provisioner, and l2-decoder health
+12. **tenant refresh** — active tenants resume onto the exact deployed API image
+13. **record state** — write current/previous deploy SHAs under `DEPLOY_STATE_DIR`
 
 Deploy fails before stopping services if any required image for the SHA is missing from GHCR.
 

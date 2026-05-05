@@ -29,6 +29,7 @@ Backup mechanisms:
 - Postgres logical/base backup scripts in `docker/scripts/`.
 - WAL sync through `docker/scripts/sync-wal.sh` where configured.
 - Daily `pg_dump` and deploy migrations share `$DATA_DIR/db-maintenance.lock` by default.
+- The expected daily backup collision window is roughly `03:00-03:45 CEST`; deploy waits on `/opt/secondlayer/data/db-maintenance.lock` and must not interrupt an active backup.
 - Snapshot upload and pruning through `secondlayer-backup-*` systemd timers.
 - Current production may use root cron instead of systemd timers. Check both.
 

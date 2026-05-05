@@ -50,7 +50,7 @@ Hot-spare failover remains strategically correct, but it is no longer a Phase 1 
 | Hot-spare availability | No hot spare exists today. Hot-spare automation and rehearsals are deferred until there is budget for a second node/server. |
 | Future failover mode | Future failover should alert and require operator confirmation. It should not auto-promote in v0. |
 | Decoder health gate | Staging Health gates on decoder `status`, not FT/NFT `lagSeconds`. Sparse event activity remains visible but does not fail the gate by itself. |
-| Backup/deploy coordination | Daily `pg_dump` and deploy migrations share a host DB maintenance lock. Deploy must not terminate an active backup session. |
+| Backup/deploy coordination | Daily `pg_dump` and deploy migrations share `/opt/secondlayer/data/db-maintenance.lock`. Deploy waits up to 45 minutes and must not terminate an active backup session. The normal collision window is roughly `03:00-03:45 CEST`. |
 | WAL archiving | WAL archiving is enabled in the Hetzner compose override and requires one controlled Postgres restart on deploy. |
 
 ## Current state from audit
@@ -80,7 +80,7 @@ Implemented:
 - Durable Streams and Index usage metering.
 - Locked pricing/docs copy.
 - Current live server inventory, operator recovery runbook, and non-destructive drill evidence.
-- Atomic daily `pg_dump`, backup/deploy coordination lock, WAL archiving config, and robust WAL env loading.
+- Atomic daily `pg_dump`, backup/deploy coordination lock, WAL archiving config, robust WAL env loading, and deploy waits long enough for normal daily backup validation.
 - Staging Health decoder gating based on decoder `status` while printing `lagSeconds` for visibility.
 
 ## Scope

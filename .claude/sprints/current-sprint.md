@@ -67,6 +67,7 @@ Developers can start from one mental model: Stacks Streams for raw ordered L1 ev
 - **Reliability closeout verification:** Individual `bash -nu` checks pass for deploy, backup, WAL sync, Staging Health, and post-deploy smoke scripts. Compose config renders the API `INDEXER_URL` and Postgres WAL archive settings. Focused API/indexer status tests and API typecheck pass. Current production `/public/status` still reports `indexer: unavailable`, so Phase 1 remains open until this patch is deployed and backup/WAL evidence is recorded.
 - **API/SDK/DX completion:** Added Stacks Streams canonical, transaction events, block events, and reorg listing routes; added `chain_reorgs` storage, reorg handler writes, shared overlap lookup, Index reorg envelopes, and `burn_block_hash` storage for new blocks.
 - **SDK/docs alignment:** Added root `sl.streams`, Streams convenience SDK methods, and docs for the Stacks Streams / Stacks Index / Stacks Subgraphs mental model. Focused API, SDK, shared, indexer, and web tests/typechecks pass locally.
+- **Product docs/deploy lock follow-up:** Refreshed the Stacks Streams, Stacks Index, and Stacks Subgraphs marketing pages with L1/L2/L3 positioning, SDK root-client examples, Index reorg-envelope wording, and exact Subgraphs routes. Increased deploy/backup lock waits to cover the normal `03:00-03:45 CEST` backup window and documented the shared `/opt/secondlayer/data/db-maintenance.lock`. Web tests/typecheck and deploy shell nounset checks pass.
 
 ## Phase 1 Recovery Drill - May 4, 2026
 

@@ -7,7 +7,7 @@ set -euo pipefail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME:-/root}/.bun/bin:${PATH:-}"
 
 DEPLOY_SCRIPT="/opt/secondlayer/docker/scripts/deploy.sh"
-POLL_TIMEOUT_SECONDS="${DEPLOY_POLL_TIMEOUT_SECONDS:-2700}"
+POLL_TIMEOUT_SECONDS="${DEPLOY_POLL_TIMEOUT_SECONDS:-3600}"
 POLL_INTERVAL_SECONDS="${DEPLOY_POLL_INTERVAL_SECONDS:-15}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-$DEPLOY_SHA}"
 

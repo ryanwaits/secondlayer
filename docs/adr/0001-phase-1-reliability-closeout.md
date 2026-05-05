@@ -11,7 +11,7 @@ Phase 1 closes on reliability evidence for the current single-server production 
 
 Staging Health gates FT/NFT decoders on their public decoder `status`. It still prints `lagSeconds` for operator visibility, but sparse-event lag does not fail the gate by itself.
 
-Daily `pg_dump` and deploy migrations use one shared host DB maintenance lock. `backup-postgres.sh` writes to a temporary gzip, verifies it with `gzip -t`, atomically promotes it, and applies retention only after success. Deploy waits for the same lock before stopping DB writers, terminating stale sessions, and running migrations.
+Daily `pg_dump` and deploy migrations use one shared host DB maintenance lock at `/opt/secondlayer/data/db-maintenance.lock`. `backup-postgres.sh` writes to a temporary gzip, verifies it with `gzip -t`, atomically promotes it, and applies retention only after success. Deploy waits for the same lock before stopping DB writers, terminating stale sessions, and running migrations. The normal daily backup collision window is roughly `03:00-03:45 CEST`.
 
 WAL archiving is enabled in the Hetzner compose override with `/wal_archive`, `archive_mode=on`, an idempotent `archive_command`, and `archive_timeout=300`.
 
@@ -19,6 +19,6 @@ WAL archiving is enabled in the Hetzner compose override with `/wal_archive`, `a
 
 - Decoder health reflects decoder activity rather than sparse FT/NFT event frequency.
 - Public `/public/status` remains unchanged; the gate consumes existing fields differently.
-- A deploy will wait instead of killing an active `pg_dump`.
+- A deploy will wait up to 45 minutes instead of killing an active `pg_dump`.
 - Enabling WAL archiving requires one controlled Postgres restart.
 - Phase 1 can close only after production deploy, two consecutive green Staging Health runs, and fresh backup/WAL evidence.
