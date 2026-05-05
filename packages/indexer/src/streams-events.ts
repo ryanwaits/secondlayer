@@ -90,6 +90,7 @@ export type ReadCanonicalStreamsEventsParams = {
 	fromHeight?: number;
 	toHeight: number;
 	types?: readonly StreamsEventType[];
+	contractId?: string;
 	limit: number;
 	db?: Kysely<Database>;
 };
@@ -97,6 +98,23 @@ export type ReadCanonicalStreamsEventsParams = {
 export type ReadCanonicalStreamsEventsResult = {
 	events: StreamsEvent[];
 	next_cursor: string | null;
+};
+
+export type ReadStreamsEventsByTxIdParams = {
+	txId: string;
+	limit?: number;
+	db?: Kysely<Database>;
+};
+
+export type ReadStreamsBlockEventsParams = {
+	blockHeight?: number;
+	indexBlockHash?: string;
+	limit?: number;
+	db?: Kysely<Database>;
+};
+
+export type ReadStreamsEventsListResult = {
+	events: StreamsEvent[];
 };
 
 type StreamsEventRow = {
@@ -217,6 +235,7 @@ export async function readCanonicalStreamsEvents(
 			(eventType) => sql`${STREAMS_TO_DB_EVENT_TYPE[eventType]}`,
 		),
 	);
+	const contractPredicate = contractIdPredicate(params.contractId);
 	const rows = params.after
 		? await readCanonicalStreamsEventsAfterCursor({
 				db,
@@ -225,6 +244,7 @@ export async function readCanonicalStreamsEvents(
 				limit: params.limit,
 				allDbEventTypes,
 				selectedDbEventTypes,
+				contractPredicate,
 			})
 		: await readCanonicalStreamsEventsFromHeight({
 				db,
@@ -233,6 +253,7 @@ export async function readCanonicalStreamsEvents(
 				limit: params.limit,
 				allDbEventTypes,
 				selectedDbEventTypes,
+				contractPredicate,
 			});
 
 	const pageRows = rows.slice(0, params.limit);
@@ -248,6 +269,167 @@ export async function readCanonicalStreamsEvents(
 	return { events, next_cursor };
 }
 
+function contractIdPredicate(
+	contractId: string | undefined,
+): RawBuilder<unknown> {
+	if (!contractId) return sql``;
+	return sql`
+		AND (
+			(
+				e.type = 'smart_contract_event'
+				AND (
+					e.data->>'contract_identifier' = ${contractId}
+					OR e.data->>'contract_id' = ${contractId}
+				)
+			)
+			OR (
+				e.type IN (
+					'ft_transfer_event',
+					'ft_mint_event',
+					'ft_burn_event',
+					'nft_transfer_event',
+					'nft_mint_event',
+					'nft_burn_event'
+				)
+				AND split_part(e.data->>'asset_identifier', '::', 1) = ${contractId}
+			)
+		)
+	`;
+}
+
+export async function readCanonicalStreamsEventsByTxId(
+	params: ReadStreamsEventsByTxIdParams,
+): Promise<ReadStreamsEventsListResult> {
+	const db = params.db ?? getSourceDb();
+	const allDbEventTypes = sql.join(
+		STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
+	);
+	const { rows } = await sql<StreamsEventRow>`
+		WITH candidate_events AS (
+			SELECT
+				e.block_height,
+				b.hash AS index_block_hash,
+				b.burn_block_height,
+				b.timestamp,
+				e.tx_id,
+				t.tx_index,
+				e.event_index AS source_event_index,
+				e.type AS db_event_type,
+				e.data
+			FROM events e
+			INNER JOIN transactions t ON t.tx_id = e.tx_id
+			INNER JOIN blocks b ON b.height = e.block_height
+			WHERE b.canonical = true
+				AND e.type IN (${allDbEventTypes})
+				AND e.tx_id = ${params.txId}
+			ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
+			LIMIT ${params.limit ?? 1000}
+		),
+		ordered_events AS (
+			SELECT
+				c.block_height,
+				c.index_block_hash,
+				c.burn_block_height,
+				c.timestamp,
+				c.tx_id,
+				c.tx_index,
+				c.source_event_index,
+				c.db_event_type,
+				c.data,
+				(
+					SELECT COUNT(*)::integer - 1
+					FROM events e2
+					INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
+					WHERE e2.block_height = c.block_height
+						AND e2.type IN (${allDbEventTypes})
+						AND (
+							t2.tx_index < c.tx_index
+							OR (
+								t2.tx_index = c.tx_index
+								AND e2.event_index <= c.source_event_index
+							)
+						)
+				) AS stream_event_index
+			FROM candidate_events c
+		)
+		SELECT *
+		FROM ordered_events
+		ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
+	`.execute(db);
+
+	return { events: rows.map(normalizeRow) };
+}
+
+export async function readCanonicalStreamsBlockEvents(
+	params: ReadStreamsBlockEventsParams,
+): Promise<ReadStreamsEventsListResult> {
+	const db = params.db ?? getSourceDb();
+	if (params.blockHeight === undefined && !params.indexBlockHash) {
+		return { events: [] };
+	}
+	const allDbEventTypes = sql.join(
+		STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
+	);
+	const blockPredicate =
+		params.blockHeight !== undefined
+			? sql`b.height = ${params.blockHeight}`
+			: sql`b.hash = ${params.indexBlockHash}`;
+	const { rows } = await sql<StreamsEventRow>`
+		WITH candidate_events AS (
+			SELECT
+				e.block_height,
+				b.hash AS index_block_hash,
+				b.burn_block_height,
+				b.timestamp,
+				e.tx_id,
+				t.tx_index,
+				e.event_index AS source_event_index,
+				e.type AS db_event_type,
+				e.data
+			FROM events e
+			INNER JOIN transactions t ON t.tx_id = e.tx_id
+			INNER JOIN blocks b ON b.height = e.block_height
+			WHERE b.canonical = true
+				AND e.type IN (${allDbEventTypes})
+				AND ${blockPredicate}
+			ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
+			LIMIT ${params.limit ?? 1000}
+		),
+		ordered_events AS (
+			SELECT
+				c.block_height,
+				c.index_block_hash,
+				c.burn_block_height,
+				c.timestamp,
+				c.tx_id,
+				c.tx_index,
+				c.source_event_index,
+				c.db_event_type,
+				c.data,
+				(
+					SELECT COUNT(*)::integer - 1
+					FROM events e2
+					INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
+					WHERE e2.block_height = c.block_height
+						AND e2.type IN (${allDbEventTypes})
+						AND (
+							t2.tx_index < c.tx_index
+							OR (
+								t2.tx_index = c.tx_index
+								AND e2.event_index <= c.source_event_index
+							)
+						)
+				) AS stream_event_index
+			FROM candidate_events c
+		)
+		SELECT *
+		FROM ordered_events
+		ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
+	`.execute(db);
+
+	return { events: rows.map(normalizeRow) };
+}
+
 async function readCanonicalStreamsEventsFromHeight(opts: {
 	db: Kysely<Database>;
 	fromHeight: number;
@@ -255,6 +437,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
 	limit: number;
 	allDbEventTypes: RawBuilder<unknown>;
 	selectedDbEventTypes: RawBuilder<unknown>;
+	contractPredicate: RawBuilder<unknown>;
 }): Promise<StreamsEventRow[]> {
 	const { rows } = await sql<StreamsEventRow>`
     WITH candidate_events AS (
@@ -273,6 +456,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
       INNER JOIN blocks b ON b.height = e.block_height
       WHERE b.canonical = true
         AND e.type IN (${opts.selectedDbEventTypes})
+        ${opts.contractPredicate}
         AND e.block_height >= ${opts.fromHeight}
         AND e.block_height <= ${opts.toHeight}
       ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
@@ -321,6 +505,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
 	limit: number;
 	allDbEventTypes: RawBuilder<unknown>;
 	selectedDbEventTypes: RawBuilder<unknown>;
+	contractPredicate: RawBuilder<unknown>;
 }): Promise<StreamsEventRow[]> {
 	const { rows } = await sql<StreamsEventRow>`
     WITH same_block_events AS (
@@ -339,6 +524,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
       INNER JOIN blocks b ON b.height = e.block_height
       WHERE b.canonical = true
         AND e.type IN (${opts.selectedDbEventTypes})
+        ${opts.contractPredicate}
         AND e.block_height = ${opts.after.block_height}
         AND e.block_height <= ${opts.toHeight}
     ),
@@ -358,6 +544,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
       INNER JOIN blocks b ON b.height = e.block_height
       WHERE b.canonical = true
         AND e.type IN (${opts.selectedDbEventTypes})
+        ${opts.contractPredicate}
         AND e.block_height > ${opts.after.block_height}
         AND e.block_height <= ${opts.toHeight}
       ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC

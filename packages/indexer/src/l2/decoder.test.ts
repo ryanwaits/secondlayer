@@ -16,12 +16,34 @@ function streamsClientSpy(
 				tip: tip(),
 				reorgs: [],
 			}),
+			byTxId: async () => ({
+				events: [],
+				tip: tip(),
+				reorgs: [],
+			}),
 			consume: async (params) => {
 				onTypes(params.types);
 				return { cursor: null, pages: 0, emptyPolls: 0 };
 			},
 			stream: async function* () {},
 		},
+		blocks: {
+			events: async () => ({
+				events: [],
+				tip: tip(),
+				reorgs: [],
+			}),
+		},
+		reorgs: {
+			list: async () => ({ reorgs: [], next_since: null }),
+		},
+		canonical: async (height) => ({
+			block_height: height,
+			index_block_hash: "0x01",
+			burn_block_height: 1,
+			burn_block_hash: null,
+			is_canonical: true,
+		}),
 		tip: async () => tip(),
 	};
 }

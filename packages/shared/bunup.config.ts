@@ -8,6 +8,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/integrity.ts",
 		"src/db/queries/accounts.ts",
 		"src/db/queries/usage.ts",
+		"src/db/queries/chain-reorgs.ts",
 		"src/db/queries/subgraphs.ts",
 		"src/db/queries/subgraph-gaps.ts",
 		"src/db/queries/subgraph-operations.ts",

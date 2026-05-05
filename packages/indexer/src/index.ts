@@ -273,6 +273,7 @@ const server = Bun.serve({
 									hash: block.hash,
 									parent_hash: block.parent_hash,
 									burn_block_height: block.burn_block_height,
+									burn_block_hash: block.burn_block_hash,
 									timestamp: block.timestamp,
 									canonical: true,
 								}),

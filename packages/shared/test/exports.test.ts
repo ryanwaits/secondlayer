@@ -27,6 +27,12 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
+	test("db/queries/chain-reorgs export", async () => {
+		const mod = await import("@secondlayer/shared/db/queries/chain-reorgs");
+		expect(mod).toBeDefined();
+		expect(mod.readChainReorgsForRange).toBeDefined();
+	});
+
 	test("db/queries/subgraphs export", async () => {
 		const mod = await import("@secondlayer/shared/db/queries/subgraphs");
 		expect(mod).toBeDefined();

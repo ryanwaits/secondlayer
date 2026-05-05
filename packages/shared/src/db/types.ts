@@ -13,6 +13,11 @@ export interface BlocksTable {
 	hash: string;
 	parent_hash: string;
 	burn_block_height: number;
+	burn_block_hash: ColumnType<
+		string | null,
+		string | null | undefined,
+		string | null
+	>;
 	timestamp: number;
 	canonical: Generated<boolean>;
 	created_at: Generated<Date>;
@@ -349,6 +354,21 @@ export interface L2DecoderCheckpointsTable {
 	updated_at: Generated<Date>;
 }
 
+export interface ChainReorgsTable {
+	id: Generated<string>;
+	detected_at: Generated<Date>;
+	fork_point_height: number;
+	old_index_block_hash: string | null;
+	new_index_block_hash: string | null;
+	orphaned_from_height: number;
+	orphaned_from_event_index: number;
+	orphaned_to_height: number;
+	orphaned_to_event_index: number;
+	new_canonical_height: number;
+	new_canonical_event_index: number;
+	created_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -388,6 +408,7 @@ export interface Database {
 	subscription_deliveries: SubscriptionDeliveriesTable;
 	decoded_events: DecodedEventsTable;
 	l2_decoder_checkpoints: L2DecoderCheckpointsTable;
+	chain_reorgs: ChainReorgsTable;
 }
 
 // --- Tenants (dedicated hosting) ---

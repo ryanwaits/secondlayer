@@ -180,6 +180,7 @@ export function parseBlock(payload: NewBlockPayload): InsertBlock {
 		hash: payload.block_hash,
 		parent_hash: payload.parent_block_hash,
 		burn_block_height: payload.burn_block_height,
+		burn_block_hash: payload.burn_block_hash ?? null,
 		// Live node events use burn_block_time; replay sources use timestamp/block_time.
 		timestamp: blockTimestamp(payload),
 		canonical: true,
