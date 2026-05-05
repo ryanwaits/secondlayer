@@ -37,6 +37,14 @@ export type StreamsTip = {
 	lag_seconds: number;
 };
 
+export type StreamsCanonicalBlock = {
+	block_height: number;
+	index_block_hash: string;
+	burn_block_height: number;
+	burn_block_hash: string | null;
+	is_canonical: true;
+};
+
 export type StreamsReorg = {
 	detected_at: string;
 	fork_point_height: number;
@@ -51,11 +59,27 @@ export type StreamsEventsEnvelope = {
 	reorgs: StreamsReorg[];
 };
 
+export type StreamsEventsListEnvelope = Omit<
+	StreamsEventsEnvelope,
+	"next_cursor"
+>;
+
+export type StreamsReorgsListParams = {
+	since: string;
+	limit?: number;
+};
+
+export type StreamsReorgsListEnvelope = {
+	reorgs: StreamsReorg[];
+	next_since: string | null;
+};
+
 export type StreamsEventsListParams = {
 	cursor?: string | null;
 	fromHeight?: number;
 	toHeight?: number;
 	types?: readonly StreamsEventType[];
+	contractId?: string;
 	limit?: number;
 };
 
@@ -98,6 +122,7 @@ export type FetchLike = (
 export type StreamsClient = {
 	events: {
 		list(params?: StreamsEventsListParams): Promise<StreamsEventsEnvelope>;
+		byTxId(txId: string): Promise<StreamsEventsListEnvelope>;
 		/**
 		 * Pull pages from Streams and call `onBatch` after each page.
 		 *
@@ -119,5 +144,12 @@ export type StreamsClient = {
 		 */
 		stream(params?: StreamsEventsStreamParams): AsyncIterable<StreamsEvent>;
 	};
+	blocks: {
+		events(heightOrHash: number | string): Promise<StreamsEventsListEnvelope>;
+	};
+	reorgs: {
+		list(params: StreamsReorgsListParams): Promise<StreamsReorgsListEnvelope>;
+	};
+	canonical(height: number): Promise<StreamsCanonicalBlock>;
 	tip(): Promise<StreamsTip>;
 };

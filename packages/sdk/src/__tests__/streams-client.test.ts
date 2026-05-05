@@ -55,9 +55,16 @@ describe("createStreamsClient", () => {
 			baseUrl: "http://secondlayer.test",
 			fetchImpl: async (input, init) => {
 				const request =
-					input instanceof Request ? input : new Request(input.toString(), init);
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
 				requests.push(request);
-				return jsonResponse({ events: [], next_cursor: null, tip: TIP, reorgs: [] });
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
 			},
 		});
 
@@ -66,6 +73,7 @@ describe("createStreamsClient", () => {
 			fromHeight: 1,
 			toHeight: 2,
 			types: ["ft_transfer"],
+			contractId: "SP1.token",
 			limit: 10,
 		});
 
@@ -75,8 +83,55 @@ describe("createStreamsClient", () => {
 		expect(url.searchParams.get("from_height")).toBe("1");
 		expect(url.searchParams.get("to_height")).toBe("2");
 		expect(url.searchParams.get("types")).toBe("ft_transfer");
+		expect(url.searchParams.get("contract_id")).toBe("SP1.token");
 		expect(url.searchParams.get("limit")).toBe("10");
 		expect(requests[0]?.headers.get("Authorization")).toBe("Bearer sk-test");
+	});
+
+	test("builds convenience endpoint URLs with auth", async () => {
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				requests.push(request);
+				if (request.url.includes("/canonical/100")) {
+					return jsonResponse({
+						block_height: 100,
+						index_block_hash: "0x01",
+						burn_block_height: 200,
+						burn_block_hash: null,
+						is_canonical: true,
+					});
+				}
+				if (request.url.includes("/reorgs")) {
+					return jsonResponse({ reorgs: [], next_since: null });
+				}
+				return jsonResponse({ events: [], tip: TIP, reorgs: [] });
+			},
+		});
+
+		await client.canonical(100);
+		await client.events.byTxId("0xtx");
+		await client.blocks.events("0xblock");
+		await client.reorgs.list({ since: "2026-05-03T00:00:00.000Z", limit: 5 });
+
+		expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+			"/v1/streams/canonical/100",
+			"/v1/streams/events/0xtx",
+			"/v1/streams/blocks/0xblock/events",
+			"/v1/streams/reorgs",
+		]);
+		expect(new URL(requests[3]?.url ?? "").searchParams.get("limit")).toBe("5");
+		expect(
+			requests.every(
+				(request) => request.headers.get("Authorization") === "Bearer sk-test",
+			),
+		).toBe(true);
 	});
 
 	test("maps 401 to AuthError", async () => {
@@ -119,12 +174,19 @@ describe("createStreamsClient", () => {
 			fetchImpl: async () => jsonResponse({ error: "down" }, 500),
 		});
 
-		await expect(client.events.list()).rejects.toBeInstanceOf(StreamsServerError);
+		await expect(client.events.list()).rejects.toBeInstanceOf(
+			StreamsServerError,
+		);
 	});
 
 	test("stream yields paginated events in order", async () => {
 		const pages = [
-			{ events: [event("1:0", 0), event("1:1", 1)], next_cursor: "1:1", tip: TIP, reorgs: [] },
+			{
+				events: [event("1:0", 0), event("1:1", 1)],
+				next_cursor: "1:1",
+				tip: TIP,
+				reorgs: [],
+			},
 			{ events: [event("1:2", 2)], next_cursor: "1:2", tip: TIP, reorgs: [] },
 		];
 		const requestedCursors: Array<string | null> = [];
@@ -153,7 +215,12 @@ describe("createStreamsClient", () => {
 			apiKey: "sk-test",
 			fetchImpl: async () => {
 				controller.abort();
-				return jsonResponse({ events: [], next_cursor: null, tip: TIP, reorgs: [] });
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
 			},
 		});
 		const seen: StreamsEvent[] = [];
@@ -196,7 +263,12 @@ describe("createStreamsClient", () => {
 			apiKey: "sk-test",
 			fetchImpl: async () => {
 				requests++;
-				return jsonResponse({ events: [], next_cursor: null, tip: TIP, reorgs: [] });
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
 			},
 		});
 		const seen: StreamsEvent[] = [];

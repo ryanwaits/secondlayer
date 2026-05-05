@@ -12,10 +12,14 @@ import {
 import type {
 	FetchLike,
 	StreamsClient,
+	StreamsCanonicalBlock,
 	StreamsEventsEnvelope,
 	StreamsEventsConsumeParams,
+	StreamsEventsListEnvelope,
 	StreamsEventsListParams,
 	StreamsEventsStreamParams,
+	StreamsReorgsListEnvelope,
+	StreamsReorgsListParams,
 	StreamsTip,
 } from "./types.ts";
 
@@ -120,6 +124,7 @@ export function createStreamsClient(
 		appendSearchParam(searchParams, "from_height", params.fromHeight);
 		appendSearchParam(searchParams, "to_height", params.toHeight);
 		appendSearchParam(searchParams, "limit", params.limit);
+		appendSearchParam(searchParams, "contract_id", params.contractId);
 		if (params.types?.length) {
 			searchParams.set("types", params.types.join(","));
 		}
@@ -133,6 +138,11 @@ export function createStreamsClient(
 	return {
 		events: {
 			list: listEvents,
+			byTxId(txId: string) {
+				return request<StreamsEventsListEnvelope>(
+					`/v1/streams/events/${encodeURIComponent(txId)}`,
+				);
+			},
 			consume(params: StreamsEventsConsumeParams) {
 				return consumeStreamsEvents({
 					fromCursor: params.fromCursor,
@@ -159,6 +169,27 @@ export function createStreamsClient(
 					fetchEvents,
 				});
 			},
+		},
+		blocks: {
+			events(heightOrHash: number | string) {
+				return request<StreamsEventsListEnvelope>(
+					`/v1/streams/blocks/${encodeURIComponent(String(heightOrHash))}/events`,
+				);
+			},
+		},
+		reorgs: {
+			list(params: StreamsReorgsListParams) {
+				const searchParams = new URLSearchParams();
+				appendSearchParam(searchParams, "since", params.since);
+				appendSearchParam(searchParams, "limit", params.limit);
+				const query = searchParams.toString();
+				return request<StreamsReorgsListEnvelope>(
+					`/v1/streams/reorgs${query ? `?${query}` : ""}`,
+				);
+			},
+		},
+		canonical(height: number) {
+			return request<StreamsCanonicalBlock>(`/v1/streams/canonical/${height}`);
 		},
 		tip() {
 			return request<StreamsTip>("/v1/streams/tip");

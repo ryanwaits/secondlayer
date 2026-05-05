@@ -27,14 +27,18 @@ export { STREAMS_EVENT_TYPES } from "./types.ts";
 export type {
 	FetchLike,
 	StreamsClient,
+	StreamsCanonicalBlock,
 	StreamsEvent,
 	StreamsEventPayload,
 	StreamsEventsConsumeParams,
 	StreamsEventsConsumeResult,
 	StreamsEventsEnvelope,
+	StreamsEventsListEnvelope,
 	StreamsEventsListParams,
 	StreamsEventsStreamParams,
 	StreamsEventType,
 	StreamsReorg,
+	StreamsReorgsListEnvelope,
+	StreamsReorgsListParams,
 	StreamsTip,
 } from "./types.ts";

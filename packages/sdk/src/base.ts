@@ -1,10 +1,17 @@
 import { ApiError } from "./errors.ts";
 
+export type FetchLike = (
+	input: string | URL | Request,
+	init?: RequestInit,
+) => Promise<Response>;
+
 export interface SecondLayerOptions {
 	/** Base URL of the Secondlayer API (trailing slashes are stripped). */
 	baseUrl: string;
 	/** Bearer token for authenticated requests. */
 	apiKey?: string;
+	/** Fetch implementation. Tests and edge runtimes can provide their own. */
+	fetchImpl?: FetchLike;
 	/** Deploy origin label sent as `x-sl-origin` (telemetry). Defaults to `cli`. */
 	origin?: "cli" | "mcp" | "session";
 }
