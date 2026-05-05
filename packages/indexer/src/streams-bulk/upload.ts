@@ -1,4 +1,4 @@
-import { createReadStream } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import {
 	GetObjectCommand,
 	HeadObjectCommand,
@@ -98,12 +98,17 @@ export async function putFileObject(params: {
 	path: string;
 	contentType: string;
 }): Promise<void> {
+	const [body, fileStat] = await Promise.all([
+		readFile(params.path),
+		stat(params.path),
+	]);
 	await params.client.send(
 		new PutObjectCommand({
 			Bucket: params.bucket,
 			Key: params.key,
-			Body: createReadStream(params.path),
+			Body: body,
 			ContentType: params.contentType,
+			ContentLength: fileStat.size,
 		}),
 	);
 }
