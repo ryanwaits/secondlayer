@@ -83,6 +83,14 @@ Implemented:
 - Atomic daily `pg_dump`, backup/deploy coordination lock, WAL archiving config, robust WAL env loading, and deploy waits long enough for normal daily backup validation.
 - Staging Health decoder gating based on decoder `status` while printing `lagSeconds` for visibility.
 
+Production evidence recorded May 5, 2026:
+
+- Production post-deploy smoke passed.
+- `/public/status.services[]` reports `api`, `database`, `indexer`, and `l2_decoder` as `ok`.
+- Two consecutive Staging Health runs passed.
+- The May 5 logical backup completed at `03:41:20 CEST`, the latest `postgres-20260505-030001.sql.gz` artifact passed `gzip -t`, and WAL sync was fresh at `04:15:02 CEST`.
+- Latest remote upload evidence was May 4 at `05:02:26 CEST`; the May 5 scheduled upload was not yet due at observation time.
+
 ## Scope
 
 ### 1. Public status completeness

@@ -38,7 +38,7 @@ The engine is 90% built. Phase 1 is about exposing what already exists and shori
 **Decision gate (end of week 3)**
 - Are Streams and Index live, observable, metered, documented, recoverable, and behind paid auth? If no, extend Phase 1 by one week before starting Phase 2. Do not start Phase 2 with broken or missing surfaces.
 
-**Gate status, May 5, 2026:** Reliability code and local status gates are green for sprint planning. The remaining production evidence is deferred to the funded infrastructure milestone: full backup/PITR proof, remote restore drill, server expansion, hot-spare capacity, and failover rehearsal. Phase 1 execution is currently focused on additive API, SDK, and DX completion across Stacks Streams, Stacks Index, and Stacks Subgraphs.
+**Gate status, May 5, 2026:** Closed enough to proceed. Streams and Index production smoke is green. `/public/status.services[]` reports `api`, `database`, `indexer`, and `l2_decoder` as `ok`; two consecutive Staging Health runs passed; fresh logical backup and WAL sync evidence is recorded. Full backup/PITR proof, remote restore drill, server expansion, hot-spare capacity, and failover rehearsal remain deferred to the funded infrastructure milestone. Phase 2-adjacent planning is starting under `docs/prds/0005-phase-2-datasets-console-streams-bulk-dumps.md`.
 
 ---
 
