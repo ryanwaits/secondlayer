@@ -137,6 +137,8 @@ export interface ApiKeysTable {
 	rate_limit: Generated<number>;
 	ip_address: string;
 	account_id: string;
+	product: Generated<"account" | "streams" | "index">;
+	tier: "free" | "build" | "scale" | "enterprise" | null;
 	last_used_at: Date | null;
 	revoked_at: Date | null;
 	created_at: Generated<Date>;
