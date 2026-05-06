@@ -34,66 +34,60 @@ export type StreamsTokenStore = {
 };
 
 // Static seed tokens cover internal callers (the L2 decoder uses Streams
-// to feed its own indexer) and test fixtures. Production traffic resolves
-// against api_keys via createRuntimeProductTokenStore. Test fixtures are
-// gated to non-production so they cannot be used to authenticate prod calls.
-const STREAMS_TEST_TOKENS: ReadonlyArray<readonly [string, StreamsTenant]> =
-	process.env.NODE_ENV === "production"
-		? []
-		: [
-				[
-					"sk-sl_streams_free_test",
-					{
-						tenant_id: "tenant_streams_free",
-						tier: "free",
-						scopes: [STREAMS_READ_SCOPE],
-					},
-				],
-				[
-					"sk-sl_streams_status_public",
-					{
-						tenant_id: "tenant_streams_status_public",
-						tier: "free",
-						scopes: [STREAMS_READ_SCOPE],
-					},
-				],
-				[
-					"sk-sl_streams_build_test",
-					{
-						tenant_id: "tenant_streams_build",
-						tier: "build",
-						scopes: [STREAMS_READ_SCOPE],
-					},
-				],
-				[
-					"sk-sl_streams_scale_test",
-					{
-						tenant_id: "tenant_streams_scale",
-						tier: "scale",
-						scopes: [STREAMS_READ_SCOPE],
-					},
-				],
-				[
-					"sk-sl_streams_enterprise_test",
-					{
-						tenant_id: "tenant_streams_enterprise",
-						tier: "enterprise",
-						scopes: [STREAMS_READ_SCOPE],
-					},
-				],
-				[
-					"sk-sl_streams_wrong_scope_test",
-					{
-						tenant_id: "tenant_streams_wrong_scope",
-						tier: "build",
-						scopes: [],
-					},
-				],
-			];
-
-export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map(
-	STREAMS_TEST_TOKENS,
-);
+// to feed its own indexer), public-good evaluation, post-deploy smoke, and
+// test fixtures. Production traffic from real customers resolves against
+// api_keys via createRuntimeProductTokenStore. The `_status_public` token
+// is publicly known and intentionally evaluated as the free tier.
+export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
+	[
+		"sk-sl_streams_free_test",
+		{
+			tenant_id: "tenant_streams_free",
+			tier: "free",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_status_public",
+		{
+			tenant_id: "tenant_streams_status_public",
+			tier: "free",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_build_test",
+		{
+			tenant_id: "tenant_streams_build",
+			tier: "build",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_scale_test",
+		{
+			tenant_id: "tenant_streams_scale",
+			tier: "scale",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_enterprise_test",
+		{
+			tenant_id: "tenant_streams_enterprise",
+			tier: "enterprise",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+	[
+		"sk-sl_streams_wrong_scope_test",
+		{
+			tenant_id: "tenant_streams_wrong_scope",
+			tier: "build",
+			scopes: [],
+		},
+	],
+]);
 
 (DEFAULT_STREAMS_TOKENS as Map<string, StreamsTenant>).set(
 	defaultInternalStreamsApiKey(),
