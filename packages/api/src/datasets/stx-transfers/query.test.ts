@@ -9,12 +9,21 @@ import {
 const TIP = { block_height: 200_000 };
 
 describe("parseStxTransfersQuery", () => {
-	test("defaults to full canonical range and limit 200", () => {
+	test("defaults to one-day window and limit 200", () => {
 		const parsed = parseStxTransfersQuery(new URLSearchParams(), TIP);
-		expect(parsed.fromBlock).toBe(0);
+		// 17_280 blocks ≈ one day at 5s tenure cadence
+		expect(parsed.fromBlock).toBe(200_000 - 17_280);
 		expect(parsed.toBlock).toBe(200_000);
 		expect(parsed.limit).toBe(200);
 		expect(parsed.cursor).toBeUndefined();
+	});
+
+	test("cursor without from_block scans full range", () => {
+		const parsed = parseStxTransfersQuery(
+			new URLSearchParams({ cursor: "1:0" }),
+			TIP,
+		);
+		expect(parsed.fromBlock).toBe(0);
 	});
 
 	test("parses sender/recipient filters", () => {
@@ -85,7 +94,7 @@ describe("getStxTransfersResponse", () => {
 			query: new URLSearchParams(),
 			tip: TIP,
 			readTransfers: async (params) => {
-				expect(params.fromBlock).toBe(0);
+				expect(params.fromBlock).toBe(200_000 - 17_280);
 				expect(params.toBlock).toBe(200_000);
 				return { events: [sampleRow], next_cursor: "180000:42" };
 			},

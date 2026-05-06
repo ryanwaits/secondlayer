@@ -3,6 +3,7 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
 import { decodeStreamsCursor } from "../../streams/cursor.ts";
+import { STREAMS_BLOCKS_PER_DAY } from "../../streams/tiers.ts";
 
 export type StxTransferRow = {
 	cursor: string;
@@ -96,10 +97,16 @@ export function parseStxTransfersQuery(
 	}
 
 	const cursor = cursorRaw ? parseCursor(cursorRaw) : undefined;
+	// Bound the default scan window to roughly one day of blocks so an
+	// unfiltered request doesn't sweep the full event history. Callers that
+	// need older data must pass `from_block` or a `cursor` explicitly.
+	const defaultFromBlock = Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY);
 	const fromBlock =
 		fromBlockRaw !== undefined
 			? parseNonNegativeInteger(fromBlockRaw, "from_block")
-			: 0;
+			: cursorRaw !== undefined
+				? 0
+				: defaultFromBlock;
 	const toBlock =
 		toBlockRaw !== undefined
 			? Math.min(
