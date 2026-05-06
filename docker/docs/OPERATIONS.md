@@ -388,7 +388,116 @@ Zero-downtime:
 
 ---
 
-## 8. Quick reference: what's running on the app server
+## 8. Phase 2: Streams bulk + dataset publishers
+
+The indexer service runs two in-process loops that export canonical chain data to the public R2 bucket as parquet, then update a JSON manifest. Consumers read `manifest/latest.json` to discover which files exist, sync the parquet they want, and then tail `/v1/streams/events` from `latest_finalized_cursor`.
+
+### What runs where
+
+- **Streams bulk publisher** — `packages/indexer/src/streams-bulk/scheduler.ts`. Exports raw L1 events.
+- **STX transfers publisher** — `packages/indexer/src/datasets/stx-transfers/scheduler.ts`. Exports the dataset-shaped STX transfer rows.
+
+Both loops are **forward-only**: each tick computes the latest complete 10,000-block range that's at least 144 blocks behind tip, HEAD-probes R2, and exports + uploads only if the parquet doesn't already exist. They never reach back to fill gaps. Genesis seeding is a separate operator job (see "Genesis backfill" below).
+
+### Env vars (already set in prod)
+
+On `/opt/secondlayer/docker/.env`:
+
+```bash
+# Indexer
+STREAMS_BULK_PUBLISHER_ENABLED=true
+STX_TRANSFERS_PUBLISHER_ENABLED=true
+STREAMS_BULK_R2_ENDPOINT=...
+STREAMS_BULK_R2_ACCESS_KEY_ID=...
+STREAMS_BULK_R2_SECRET_ACCESS_KEY=...
+STREAMS_BULK_R2_BUCKET=...
+STREAMS_BULK_PREFIX=stacks-streams/mainnet/v0
+STREAMS_BULK_NETWORK=mainnet
+STREAMS_BULK_RANGE_SIZE_BLOCKS=10000
+STREAMS_BULK_FINALITY_LAG_BLOCKS=144
+
+# API (for the proxied public manifest + freshness signals)
+STREAMS_BULK_PUBLIC_BASE_URL=https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-streams/mainnet/v0
+DATASETS_PUBLIC_BASE_URL=https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0
+```
+
+The compose env wiring lives in `docker/docker-compose.yml` under `api.environment` and `indexer.environment`.
+
+### Verifying state
+
+Indexer health (both publishers reported):
+
+```bash
+ssh app-server "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\$PATH && docker exec secondlayer-indexer-1 wget -qO- http://localhost:3700/health" | jq .streamsBulkPublisher,.stxTransfersPublisher
+```
+
+Public manifest:
+
+```bash
+curl -s https://api.secondlayer.tools/public/streams/dumps/manifest | jq '.coverage,.latest_finalized_cursor,.files | length'
+```
+
+Public freshness signal:
+
+```bash
+curl -s https://api.secondlayer.tools/public/status | jq '.streams.dumps,.datasets'
+```
+
+`lag_blocks` is the gap between current chain tip and the last published range. In steady state, expect 10K-30K blocks (one publish cycle is ~28 hours).
+
+### Genesis backfill
+
+The publishers fill forward from whatever the bucket already has. To populate the historical range (block 0 → first forward-published range), run a one-shot CLI per range. **This is optional** — only do it when a customer wants the full archive in parquet form, or when a Foundation grant artifact needs "Stacks chain available as a public DuckDB-readable archive."
+
+Cost picture:
+- ~786 ranges of 10K blocks each (genesis to ~7.86M blocks).
+- ~5-30s per range depending on row density.
+- Total ~6 hours of indexer-side query/export/upload, sequential.
+- R2 storage: ~3-5 GB total per dataset.
+
+Run on the indexer host:
+
+```bash
+# Streams bulk dumps — historical range
+docker exec secondlayer-indexer-1 bun run packages/indexer/src/streams-bulk/export.ts \
+  --from-block 0 --to-block 9999 --upload
+
+# STX transfers dataset — historical range
+docker exec secondlayer-indexer-1 bun run packages/indexer/src/datasets/stx-transfers/export.ts \
+  --from-block 0 --to-block 9999 --upload
+```
+
+Iterate `--from-block`/`--to-block` over each 10K range. The exports are idempotent — re-running an already-published range fails by default (use `--force` only for staging recovery, never prod).
+
+A simple wrapper to backfill a contiguous span:
+
+```bash
+for start in $(seq 0 10000 7859999); do
+  end=$((start + 9999))
+  docker exec secondlayer-indexer-1 bun run packages/indexer/src/streams-bulk/export.ts \
+    --from-block $start --to-block $end --upload
+done
+```
+
+The forward loop runs alongside backfill without conflict (different ranges). Watch `/health` between runs — `streamsBulkPublisher.publishedTotal` should keep ticking.
+
+### Disabling the publishers
+
+If R2 outages or cost concerns require pausing exports, set either flag to `false` in `.env` and recreate the indexer:
+
+```bash
+ssh app-server
+cd /opt/secondlayer/docker
+sed -i 's/^STREAMS_BULK_PUBLISHER_ENABLED=.*/STREAMS_BULK_PUBLISHER_ENABLED=false/' .env
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
+$COMPOSE up -d --force-recreate indexer
+```
+
+The forward-only design means the bucket coverage simply stops advancing. When you re-enable, the loop catches up automatically (publishes any ranges that became eligible while disabled).
+
+---
+
+## 9. Quick reference: what's running on the app server
 
 - `secondlayer-postgres-1` (control-plane DB — accounts, projects, tenants registry)
 - `secondlayer-api-1` (platform API, `INSTANCE_MODE=platform`)

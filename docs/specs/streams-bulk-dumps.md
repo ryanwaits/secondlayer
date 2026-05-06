@@ -153,7 +153,7 @@ Each tick:
 3. HEAD-probe R2 for the parquet object. If present, sleep until the next tick.
 4. If absent, run `exportStreamsBulkRange` — write parquet locally, upload parquet + schema + history manifest, replace `manifest/latest.json`.
 
-Genesis-to-tip seeding stays a one-shot operator job via the CLI above. The publisher only fills forward from whatever the bucket already has.
+Genesis-to-tip seeding stays a one-shot operator job via the CLI above. The publisher only fills forward from whatever the bucket already has — there is no automatic backfill of historical ranges. See [`docker/docs/OPERATIONS.md` §8](../../docker/docs/OPERATIONS.md) for when and how to run a backfill.
 
 Health is exposed on the indexer's `/health`:
 
