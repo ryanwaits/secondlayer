@@ -1,9 +1,15 @@
 "use client";
 
-import type { ApiKey } from "@/lib/types";
+import type { ApiKey, ApiKeyProduct, ApiKeyTier } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "./fetch";
 import { queryKeys } from "./keys";
+
+export type CreateApiKeyInput = {
+	name?: string;
+	product?: ApiKeyProduct;
+	tier?: ApiKeyTier;
+};
 
 export function useApiKeys(initialData?: ApiKey[]) {
 	return useQuery({
@@ -29,21 +35,31 @@ export function useRevokeApiKey() {
 export function useCreateApiKey() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: (name?: string) =>
-			fetchJson<{ key: string; id: string; prefix: string; createdAt: string }>(
-				"/api/keys",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ name: name || undefined }),
-				},
-			),
-		onSuccess: (data, name) => {
+		mutationFn: (input: CreateApiKeyInput | undefined) =>
+			fetchJson<{
+				key: string;
+				id: string;
+				prefix: string;
+				product: ApiKeyProduct;
+				tier: ApiKeyTier | null;
+				createdAt: string;
+			}>("/api/keys", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					name: input?.name || undefined,
+					product: input?.product ?? "account",
+					tier: input?.tier,
+				}),
+			}),
+		onSuccess: (data, input) => {
 			const newKey: ApiKey = {
 				id: data.id,
 				prefix: data.prefix,
-				name: name || "",
+				name: input?.name || "",
 				status: "active",
+				product: data.product,
+				tier: data.tier,
 				createdAt: data.createdAt,
 				lastUsedAt: null,
 			};

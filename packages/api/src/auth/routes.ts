@@ -7,6 +7,8 @@ import { requireAuth } from "./middleware.ts";
 
 const CreateKeySchema = z.object({
 	name: z.string().max(255).optional(),
+	product: z.enum(["account", "streams", "index"]).default("account"),
+	tier: z.enum(["free", "build", "scale", "enterprise"]).optional(),
 });
 
 const app = new Hono();
@@ -30,6 +32,8 @@ app.post("/", requireAuth(), async (c) => {
 			ip_address: getClientIp(c),
 			account_id: accountId,
 			status: "active",
+			product: parsed.product,
+			tier: parsed.tier ?? null,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
@@ -39,6 +43,8 @@ app.post("/", requireAuth(), async (c) => {
 			key: raw,
 			prefix,
 			id: key.id,
+			product: key.product,
+			tier: key.tier,
 			createdAt: key.created_at.toISOString(),
 		},
 		201,
@@ -58,6 +64,8 @@ app.get("/", requireAuth(), async (c) => {
 			"key_prefix",
 			"name",
 			"status",
+			"product",
+			"tier",
 			"created_at",
 			"last_used_at",
 		])
@@ -71,6 +79,8 @@ app.get("/", requireAuth(), async (c) => {
 			prefix: k.key_prefix,
 			name: k.name,
 			status: k.status,
+			product: k.product,
+			tier: k.tier,
 			createdAt: k.created_at.toISOString(),
 			lastUsedAt: k.last_used_at?.toISOString() ?? null,
 		})),

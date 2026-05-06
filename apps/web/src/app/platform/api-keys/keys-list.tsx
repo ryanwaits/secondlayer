@@ -6,8 +6,21 @@ import {
 	useCreateApiKey,
 	useRevokeApiKey,
 } from "@/lib/queries/api-keys";
-import type { ApiKey } from "@/lib/types";
+import type { ApiKey, ApiKeyProduct, ApiKeyTier } from "@/lib/types";
 import { useCallback, useRef, useState } from "react";
+
+const PRODUCT_LABELS: Record<ApiKeyProduct, string> = {
+	account: "Account (any)",
+	streams: "Streams",
+	index: "Index",
+};
+
+const TIER_OPTIONS: ApiKeyTier[] = ["free", "build", "scale", "enterprise"];
+
+function productBadge(product: ApiKeyProduct, tier: ApiKeyTier | null): string {
+	if (product === "account") return "account";
+	return tier ? `${product} · ${tier}` : product;
+}
 
 function timeAgo(dateStr: string | null): string {
 	if (!dateStr) return "never";
@@ -35,6 +48,8 @@ export function KeysList({
 	const revokeKey = useRevokeApiKey();
 	const [showForm, setShowForm] = useState(false);
 	const [name, setName] = useState("");
+	const [product, setProduct] = useState<ApiKeyProduct>("account");
+	const [tier, setTier] = useState<ApiKeyTier | "">("");
 	const [newRawKey, setNewRawKey] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -50,13 +65,20 @@ export function KeysList({
 	const handleCreate = useCallback(
 		(e: React.FormEvent) => {
 			e.preventDefault();
-			createKey.mutate(name || undefined, {
-				onSuccess: (data) => {
-					setNewRawKey(data.key);
+			createKey.mutate(
+				{
+					name: name || undefined,
+					product,
+					tier: tier || undefined,
 				},
-			});
+				{
+					onSuccess: (data) => {
+						setNewRawKey(data.key);
+					},
+				},
+			);
 		},
-		[name, createKey],
+		[name, product, tier, createKey],
 	);
 
 	const handleCopy = useCallback(async () => {
@@ -70,6 +92,8 @@ export function KeysList({
 		setNewRawKey(null);
 		setShowForm(false);
 		setName("");
+		setProduct("account");
+		setTier("");
 		createKey.reset();
 	}, [createKey]);
 
@@ -138,37 +162,77 @@ export function KeysList({
 				>
 					<form
 						onSubmit={handleCreate}
-						style={{ display: "flex", alignItems: "flex-end", gap: 10 }}
+						style={{ display: "flex", flexDirection: "column", gap: 10 }}
 					>
-						<label style={{ flex: 1 }}>
-							<span className="settings-label">Key name</span>
-							<input
-								ref={inputRef}
-								className="settings-input"
-								type="text"
-								placeholder="e.g. production"
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-								autoFocus
-							/>
-						</label>
-						<button
-							type="submit"
-							className="settings-btn primary"
-							disabled={status === "creating"}
-						>
-							{status === "creating" ? "..." : "Create"}
-						</button>
-						<button
-							type="button"
-							className="settings-btn ghost"
-							onClick={() => {
-								setShowForm(false);
-								setName("");
-							}}
-						>
-							Cancel
-						</button>
+						<div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+							<label style={{ flex: 1 }}>
+								<span className="settings-label">Key name</span>
+								<input
+									ref={inputRef}
+									className="settings-input"
+									type="text"
+									placeholder="e.g. production"
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+									autoFocus
+								/>
+							</label>
+							<label style={{ width: 160 }}>
+								<span className="settings-label">Product</span>
+								<select
+									className="settings-input"
+									value={product}
+									onChange={(e) =>
+										setProduct(e.target.value as ApiKeyProduct)
+									}
+								>
+									{(["account", "streams", "index"] as ApiKeyProduct[]).map(
+										(p) => (
+											<option key={p} value={p}>
+												{PRODUCT_LABELS[p]}
+											</option>
+										),
+									)}
+								</select>
+							</label>
+							<label style={{ width: 140 }}>
+								<span className="settings-label">Tier (optional)</span>
+								<select
+									className="settings-input"
+									value={tier}
+									onChange={(e) => setTier(e.target.value as ApiKeyTier | "")}
+									disabled={product === "account"}
+								>
+									<option value="">Inherit from plan</option>
+									{TIER_OPTIONS.map((t) => (
+										<option key={t} value={t}>
+											{t}
+										</option>
+									))}
+								</select>
+							</label>
+						</div>
+						<div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+							<button
+								type="button"
+								className="settings-btn ghost"
+								onClick={() => {
+									setShowForm(false);
+									setName("");
+									setProduct("account");
+									setTier("");
+								}}
+							>
+								Cancel
+							</button>
+							<button
+								type="submit"
+								className="settings-btn primary"
+								disabled={status === "creating"}
+							>
+								{status === "creating" ? "..." : "Create"}
+							</button>
+						</div>
 					</form>
 					{status === "error" && (
 						<p style={{ fontSize: 12, color: "var(--red)", marginTop: 8 }}>
@@ -280,6 +344,16 @@ export function KeysList({
 						<div key={key.id} className="settings-key-row">
 							<div className="settings-key-name">{key.name || key.prefix}</div>
 							<div className="settings-key-prefix">{key.prefix}</div>
+							<div
+								className="settings-key-prefix"
+								style={{
+									fontFamily: "var(--font-mono-stack)",
+									fontSize: 12,
+									color: "var(--text-muted)",
+								}}
+							>
+								{productBadge(key.product, key.tier)}
+							</div>
 							<div className="settings-key-created">
 								{new Date(key.createdAt).toLocaleDateString("en-US", {
 									month: "short",
