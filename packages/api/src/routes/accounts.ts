@@ -5,6 +5,7 @@ import {
 	getProjectBreakdown,
 	getStorageUsage,
 } from "@secondlayer/shared/db/queries/account-usage";
+import { getProductUsage } from "@secondlayer/shared/db/queries/usage";
 import {
 	getAccountById,
 	isSlugTaken,
@@ -136,6 +137,72 @@ app.get("/usage", async (c) => {
 		compute,
 		storage,
 		projects,
+	});
+});
+
+// ── /usage/products — Streams + Index event counts ───────────────
+
+const STREAMS_TIER_LIMITS: Record<
+	"free" | "build" | "scale" | "enterprise",
+	{ rateLimitPerSecond: number | null; retentionDays: number | null }
+> = {
+	free: { rateLimitPerSecond: 10, retentionDays: 7 },
+	build: { rateLimitPerSecond: 50, retentionDays: 30 },
+	scale: { rateLimitPerSecond: 250, retentionDays: 90 },
+	enterprise: { rateLimitPerSecond: null, retentionDays: null },
+};
+
+const INDEX_TIER_LIMITS: Record<
+	"free" | "build" | "scale" | "enterprise",
+	{ rateLimitPerSecond: number | null }
+> = {
+	free: { rateLimitPerSecond: 0 },
+	build: { rateLimitPerSecond: 50 },
+	scale: { rateLimitPerSecond: 250 },
+	enterprise: { rateLimitPerSecond: null },
+};
+
+function planToTier(
+	plan: string,
+): "free" | "build" | "scale" | "enterprise" {
+	switch (plan.toLowerCase()) {
+		case "enterprise":
+			return "enterprise";
+		case "scale":
+			return "scale";
+		case "build":
+		case "launch":
+		case "pro":
+		case "builder":
+			return "build";
+		default:
+			return "free";
+	}
+}
+
+app.get("/usage/products", async (c) => {
+	const accountId = requireAccountId(c);
+	const db = getDb();
+	const account = await getAccountById(db, accountId);
+	if (!account) throw new AuthenticationError("Account not found");
+
+	const tier = planToTier(account.plan);
+	const usage = await getProductUsage(db, accountId);
+
+	return c.json({
+		streams: {
+			tier,
+			rateLimitPerSecond: STREAMS_TIER_LIMITS[tier].rateLimitPerSecond,
+			retentionDays: STREAMS_TIER_LIMITS[tier].retentionDays,
+			eventsToday: usage.streamsEventsToday,
+			eventsThisMonth: usage.streamsEventsThisMonth,
+		},
+		index: {
+			tier,
+			rateLimitPerSecond: INDEX_TIER_LIMITS[tier].rateLimitPerSecond,
+			decodedEventsToday: usage.indexDecodedEventsToday,
+			decodedEventsThisMonth: usage.indexDecodedEventsThisMonth,
+		},
 	});
 });
 

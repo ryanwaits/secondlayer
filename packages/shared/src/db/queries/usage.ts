@@ -103,6 +103,52 @@ export async function getUsage(
 	};
 }
 
+export interface ProductUsageBreakdown {
+	streamsEventsToday: number;
+	streamsEventsThisMonth: number;
+	indexDecodedEventsToday: number;
+	indexDecodedEventsThisMonth: number;
+}
+
+/** Get per-product event counts (today + this month) for an account. */
+export async function getProductUsage(
+	db: Kysely<Database>,
+	accountId: string,
+): Promise<ProductUsageBreakdown> {
+	const today = new Date().toISOString().slice(0, 10);
+	const monthStart = `${today.slice(0, 7)}-01`;
+
+	const dailyRow = await db
+		.selectFrom("usage_daily")
+		.select(["streams_events_returned", "index_decoded_events_returned"])
+		.where("account_id", "=", accountId)
+		.where("date", "=", today)
+		.executeTakeFirst();
+
+	const monthlyRow = await db
+		.selectFrom("usage_daily")
+		.select([
+			sql<number>`COALESCE(SUM(streams_events_returned), 0)`.as(
+				"streams_total",
+			),
+			sql<number>`COALESCE(SUM(index_decoded_events_returned), 0)`.as(
+				"index_total",
+			),
+		])
+		.where("account_id", "=", accountId)
+		.where("date", ">=", monthStart)
+		.executeTakeFirst();
+
+	return {
+		streamsEventsToday: Number(dailyRow?.streams_events_returned ?? 0),
+		streamsEventsThisMonth: Number(monthlyRow?.streams_total ?? 0),
+		indexDecodedEventsToday: Number(
+			dailyRow?.index_decoded_events_returned ?? 0,
+		),
+		indexDecodedEventsThisMonth: Number(monthlyRow?.index_total ?? 0),
+	};
+}
+
 /**
  * Measure storage for all accounts by querying pg_total_relation_size
  * for each tenant's subgraph schemas.
