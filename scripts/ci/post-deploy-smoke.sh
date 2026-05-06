@@ -153,6 +153,27 @@ check_status "index nft transfers free" "403" "/v1/index/nft-transfers?limit=1" 
 check_status "index nft transfers wrong scope" "403" "/v1/index/nft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
 check_json_field "index nft transfers envelope" "/v1/index/nft-transfers?limit=1" "$INDEX_KEY" "reorgs"
 
+# Phase 2: Datasets + bulk dumps
+check_status "datasets stx-transfers public" "200" "/v1/datasets/stx-transfers?limit=1"
+check_json_field "datasets stx-transfers envelope" "/v1/datasets/stx-transfers?limit=1" "" "tip"
+check_json_field "datasets stx-transfers events" "/v1/datasets/stx-transfers?limit=1" "" "events"
+
+check_status "datasets network-health public" "200" "/v1/datasets/network-health/summary?days=7"
+check_json_field "datasets network-health days" "/v1/datasets/network-health/summary?days=7" "" "days"
+
+check_json_field "public status datasets" "/public/status" "" "datasets"
+check_json_field "public status streams dumps" "/public/status" "" "streams.dumps"
+
+# Streams dumps manifest is 200 when STREAMS_BULK_PUBLIC_BASE_URL is set, else 503.
+# Either is acceptable; we just check the route exists.
+manifest_status="$(curl --silent --output /tmp/secondlayer-smoke-body --write-out '%{http_code}' --max-time "$TIMEOUT_SECONDS" "${API_URL%/}/public/streams/dumps/manifest" || true)"
+if [[ "$manifest_status" == "200" || "$manifest_status" == "503" ]]; then
+	echo "streams dumps manifest endpoint: $manifest_status"
+else
+	echo "streams dumps manifest endpoint: unexpected ${manifest_status}"
+	failures=$((failures + 1))
+fi
+
 if [[ "$failures" -gt 0 ]]; then
 	echo "post-deploy smoke failed: ${failures}"
 	exit 1

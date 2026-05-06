@@ -14,7 +14,9 @@ Smoke tests live in `tests/smoke/`.
 
 The reusable continuous-service harness is `tests/smoke/continuous-service.ts`.
 
-Current coverage: `tests/smoke/l2-decoder.smoke.test.ts`.
+Current coverage:
+- `tests/smoke/l2-decoder.smoke.test.ts` — continuous-service harness for the L2 FT decoder.
+- `tests/smoke/phase-2-datasets.smoke.test.ts` — dataset surface checks against a deployed `SECOND_LAYER_API_URL` (datasets API shape, public status fields, manifest reachability, optional parquet checksum verification).
 
 The harness creates an isolated Postgres database, runs migrations, starts the service, waits at least 60 seconds, checks progress, stops the service, and drops the database.
 
@@ -38,4 +40,4 @@ Override with `DATABASE_URL`.
 
 The deploy workflow runs `scripts/ci/post-deploy-smoke.sh` after deploy.
 
-It checks `/v1/streams/events`, `/v1/index/ft-transfers`, `/v1/index/nft-transfers`, and `/v1/streams/tip` with auth variants.
+It checks `/v1/streams/events`, `/v1/index/ft-transfers`, `/v1/index/nft-transfers`, `/v1/streams/tip`, `/v1/datasets/stx-transfers`, `/v1/datasets/network-health/summary`, `/public/streams/dumps/manifest`, plus auth variants and `/public/status` shape (`streams.dumps`, `datasets[]`).

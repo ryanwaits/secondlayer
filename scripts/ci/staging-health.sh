@@ -82,6 +82,28 @@ if streams_lag is None:
 elif streams_lag > int(os.environ["STREAMS_LAG_WARN_SECONDS"]):
     failures.append(f"streams lag {streams_lag}s")
 
+dumps = (body.get("streams") or {}).get("dumps")
+if dumps is None:
+    failures.append("missing streams.dumps")
+else:
+    for key in ("status", "latest_finalized_cursor", "lag_blocks"):
+        if key not in dumps:
+            failures.append(f"missing streams.dumps.{key}")
+    notices.append(
+        f"streams.dumps status={dumps.get('status')!r} lag_blocks={dumps.get('lag_blocks')!r}"
+    )
+
+datasets = body.get("datasets")
+if not isinstance(datasets, list):
+    failures.append("missing datasets[] on /public/status")
+else:
+    notices.append(f"datasets[] count={len(datasets)}")
+    for entry in datasets:
+        slug = entry.get("slug")
+        for key in ("status", "latest_finalized_cursor", "generated_at", "lag_blocks"):
+            if key not in entry:
+                failures.append(f"datasets[{slug}] missing {key}")
+
 index = body.get("index") or {}
 decoders = {d.get("eventType"): d for d in index.get("decoders") or []}
 for event_type in ("ft_transfer", "nft_transfer"):
