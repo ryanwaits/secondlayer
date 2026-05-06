@@ -14,8 +14,8 @@ Second Layer ships a small, opinionated set of products. Every product is a thin
 | `@secondlayer/sdk` | L1 / L2 / L3 | TypeScript developers | Phase 1 |
 | Subscriptions | L2 / L3 | App developers needing tail/push semantics | Live |
 | MCP Server | L1 / L2 / L3 | AI agents, IDE integrations | Live (hosted on Scale+) |
-| Stacks Datasets | L2 | Ecosystem, researchers, dashboards | Phase 2 |
-| Console | — | All paid tenants | Phase 2 |
+| Stacks Datasets | L2 | Ecosystem, researchers, dashboards | Phase 2 (STX transfers + Network Health live) |
+| Console | — | All paid tenants | Phase 2 (keys + per-product usage live) |
 | Partner Platform | All | Platform owners (e.g., Hiro) | Phase 4 |
 
 ---
@@ -96,15 +96,16 @@ Curated, public-good datasets maintained by Second Layer.
 
 - **What it is.** A small shelf of canonical, query-ready datasets. Five for v1: STX transfers, PoX-4 / Stacking, sBTC, BNS, network health.
 - **Why we ship it.** Public good for the ecosystem; demand-generation for paid products; concrete artifact for the Stacks Foundation grant pitch.
-- **Access.** Free read API, parquet downloads on S3, dashboard. Heavy programmatic use rolls into paid tiers. Same parquet pipeline that powers Streams bulk dumps.
+- **Access.** Free read API at `/v1/datasets/<name>`, parquet downloads on R2, dashboard. Anonymous IP rate limit on read APIs; heavy programmatic use rolls into paid tiers via the standard API key path. Same parquet pipeline that powers Streams bulk dumps.
+- **Status (Phase 2).** STX Transfers (full schema + parquet + API + dashboard) and Network Health (API + dashboard, no parquet for v0) are shipped. PoX-4, sBTC, and BNS are in scope but require per-dataset decoder + schema review before each lands.
 - **Future.** NFT marketplaces, DeFi protocols, mining stats. Driven by ecosystem demand and Foundation input.
 
 ## Console
 
 The web dashboard.
 
-- API keys, usage metrics, billing, subgraph management, subscription management, dataset browser.
-- Phase 2. Until then, CLI + email is the management surface.
+- API keys (with product scope: account / streams / index, plus optional tier override), usage metrics (per-product breakdown for Streams + Index), billing, subgraph management, subscription management, dataset browser.
+- Phase 2 v1 is live: product-scoped key issuance + per-product usage tab. Tier-aware Stripe sync (new Streams/Index keys auto-tracking plan upgrades) is the next iteration.
 
 ## Partner Platform
 

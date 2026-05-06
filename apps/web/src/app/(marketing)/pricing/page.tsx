@@ -5,6 +5,7 @@ import type { TocItem } from "@/components/sidebar";
 
 const toc: TocItem[] = [
 	{ label: "Tiers", href: "#tiers" },
+	{ label: "Datasets", href: "#datasets" },
 	{ label: "Metering", href: "#metering" },
 	{ label: "Self-host", href: "#self-host" },
 ];
@@ -103,6 +104,17 @@ export default function PricingPage() {
 							})}
 						</tbody>
 					</table>
+				</div>
+
+				<SectionHeading id="datasets">Datasets</SectionHeading>
+
+				<div className="prose">
+					<p>
+						Stacks Datasets are public goods. Read APIs are free for low-volume
+						use behind an anonymous IP rate limit. Heavy programmatic use rolls
+						into Build or Scale via the standard API key path. Parquet
+						downloads stay free regardless of tier.
+					</p>
 				</div>
 
 				<SectionHeading id="metering">Metering</SectionHeading>

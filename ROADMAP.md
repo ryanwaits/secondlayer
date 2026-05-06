@@ -68,6 +68,20 @@ Public artifact, self-serve, and the parquet pipeline that powers both.
 **Decision gate (end of week 6)**
 - Datasets shipped and indexed by search? Streams parquet dumps live with manifest? Console handling self-serve checkout end-to-end? If yes, proceed to Phase 3. If Console is partial, ship what's done and continue Console work in the background through Phase 3.
 
+**Gate status, May 6, 2026:** Partial. Pipeline + first-of-five datasets shipped; remaining decoders deferred to per-dataset PRs.
+
+Shipped:
+- **Streams bulk dumps:** in-process incremental publisher in `@secondlayer/indexer` (env-gated `STREAMS_BULK_PUBLISHER_ENABLED`); manifest format locked; public manifest endpoint at `/public/streams/dumps/manifest`; freshness on `/public/status.streams.dumps`. Operator runs `export.ts --from-block N --to-block M --upload` for genesis seed; the loop fills forward.
+- **Stacks Datasets:** STX Transfers full vertical (schema doc, parquet exporter + publisher loop `STX_TRANSFERS_PUBLISHER_ENABLED`, `/v1/datasets/stx-transfers` read API with sender/recipient/range filters, marketing detail page). Network Health API + dashboard (no parquet for v0; rollup is small enough to recompute on demand). `/public/status.datasets[]` returns per-dataset freshness.
+- **Console v1:** product-scoped API keys (`account` / `streams` / `index`) with optional tier override, surfaced in `/platform/api-keys` UI. Per-product usage tab in `/platform/usage` showing rate limits, retention window, and event counts (today + this period) for Streams and Index. `api_keys` migration `0069` adds `product` + `tier` columns; static test tokens are now `NODE_ENV !== 'production'` only.
+
+Deferred (carried forward as scoped PRs):
+- **PoX-4, sBTC, BNS datasets** — each requires real protocol decoders + dedicated tables + schema review. Listed as `planned` on the datasets shelf.
+- **Console D4** — Stripe webhook → product-key tier sync. Today, `tier` is a manual override; full reactive sync is the next iteration.
+- **Production smoke verification** — `scripts/ci/post-deploy-smoke.sh` and `scripts/ci/staging-health.sh` extended with Phase 2 checks (datasets API shape, manifest reachability, `/public/status` freshness fields). Live verification needs a deploy with `STREAMS_BULK_PUBLISHER_ENABLED=true`, `STX_TRANSFERS_PUBLISHER_ENABLED=true`, and `STREAMS_BULK_PUBLIC_BASE_URL` / `DATASETS_PUBLIC_BASE_URL` set.
+
+Phase 3 entry remains conditional on the above deferred items not blocking the Foundation grant + Hiro motion. The shipped surfaces (one full dataset, Network Health, bulk dumps, Console v1) are enough material for both.
+
 ---
 
 ## Phase 3 — Foundation grant and Hiro motion (weeks 7–9)
@@ -149,4 +163,4 @@ Heavy reliability proof is deferred until there is budget for a second node/serv
 
 ---
 
-*Last reviewed: May 2026. Next review: end of Phase 1.*
+*Last reviewed: May 6, 2026. Next review: when PoX-4 / sBTC / BNS dataset PRs land or when Phase 3 begins.*
