@@ -4,6 +4,8 @@ Status: private/staging v0 contract draft.
 
 Stacks Streams bulk dumps are the cold backfill path for L1 events. They are parquet files generated from canonical Stacks Streams events, published with a machine-readable manifest. Public URLs are not launched until the manifest, partition, URL, and finality contracts are explicitly approved.
 
+For consumer walkthrough, see [`docs/guides/streams-bulk-dumps.md`](../guides/streams-bulk-dumps.md).
+
 ## Layout
 
 Object prefix:
@@ -128,3 +130,43 @@ Smoke check the uploaded manifest and one parquet object:
 ```bash
 bun run packages/indexer/src/streams-bulk/smoke.ts
 ```
+
+## Incremental Publisher
+
+`@secondlayer/indexer` runs an in-process publisher loop that exports each new finalized range as the chain advances. It is gated behind an env flag so the indexer can run without R2 credentials.
+
+Enable on the indexer service:
+
+```bash
+STREAMS_BULK_PUBLISHER_ENABLED=true
+STREAMS_BULK_PUBLISHER_INTERVAL_MS=60000   # optional, default 60_000
+STREAMS_BULK_R2_ENDPOINT=...
+STREAMS_BULK_R2_ACCESS_KEY_ID=...
+STREAMS_BULK_R2_SECRET_ACCESS_KEY=...
+STREAMS_BULK_R2_BUCKET=...
+```
+
+Each tick:
+
+1. Read the canonical chain tip from Postgres.
+2. Compute the latest complete finalized 10,000-block range with the 144-block finality lag.
+3. HEAD-probe R2 for the parquet object. If present, sleep until the next tick.
+4. If absent, run `exportStreamsBulkRange` — write parquet locally, upload parquet + schema + history manifest, replace `manifest/latest.json`.
+
+Genesis-to-tip seeding stays a one-shot operator job via the CLI above. The publisher only fills forward from whatever the bucket already has.
+
+Health is exposed on the indexer's `/health`:
+
+```json
+{
+  "streamsBulkPublisher": {
+    "enabled": true,
+    "publishedTotal": 12,
+    "lastPublishedRange": { "fromBlock": 7490000, "toBlock": 7499999 },
+    "lastPublishedSecondsAgo": 384,
+    "lastError": null
+  }
+}
+```
+
+The API service surfaces a public freshness signal through `/public/status` (`streams.dumps`) and a proxied manifest at `/public/streams/dumps/manifest`. Both require `STREAMS_BULK_PUBLIC_BASE_URL` set on the API to a base URL that serves the manifest (e.g., the bucket's public R2 dev domain).
