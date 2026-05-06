@@ -33,58 +33,67 @@ export type StreamsTokenStore = {
 	): StreamsTenant | undefined | Promise<StreamsTenant | undefined>;
 };
 
-// TODO: replace this in-memory seed map with hashed API key lookup from the
-// control-plane key store once Streams keys are provisioned through Console.
-export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
-	[
-		"sk-sl_streams_free_test",
-		{
-			tenant_id: "tenant_streams_free",
-			tier: "free",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_streams_status_public",
-		{
-			tenant_id: "tenant_streams_status_public",
-			tier: "free",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_streams_build_test",
-		{
-			tenant_id: "tenant_streams_build",
-			tier: "build",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_streams_scale_test",
-		{
-			tenant_id: "tenant_streams_scale",
-			tier: "scale",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_streams_enterprise_test",
-		{
-			tenant_id: "tenant_streams_enterprise",
-			tier: "enterprise",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_streams_wrong_scope_test",
-		{
-			tenant_id: "tenant_streams_wrong_scope",
-			tier: "build",
-			scopes: [],
-		},
-	],
-]);
+// Static seed tokens cover internal callers (the L2 decoder uses Streams
+// to feed its own indexer) and test fixtures. Production traffic resolves
+// against api_keys via createRuntimeProductTokenStore. Test fixtures are
+// gated to non-production so they cannot be used to authenticate prod calls.
+const STREAMS_TEST_TOKENS: ReadonlyArray<readonly [string, StreamsTenant]> =
+	process.env.NODE_ENV === "production"
+		? []
+		: [
+				[
+					"sk-sl_streams_free_test",
+					{
+						tenant_id: "tenant_streams_free",
+						tier: "free",
+						scopes: [STREAMS_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_streams_status_public",
+					{
+						tenant_id: "tenant_streams_status_public",
+						tier: "free",
+						scopes: [STREAMS_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_streams_build_test",
+					{
+						tenant_id: "tenant_streams_build",
+						tier: "build",
+						scopes: [STREAMS_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_streams_scale_test",
+					{
+						tenant_id: "tenant_streams_scale",
+						tier: "scale",
+						scopes: [STREAMS_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_streams_enterprise_test",
+					{
+						tenant_id: "tenant_streams_enterprise",
+						tier: "enterprise",
+						scopes: [STREAMS_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_streams_wrong_scope_test",
+					{
+						tenant_id: "tenant_streams_wrong_scope",
+						tier: "build",
+						scopes: [],
+					},
+				],
+			];
+
+export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map(
+	STREAMS_TEST_TOKENS,
+);
 
 (DEFAULT_STREAMS_TOKENS as Map<string, StreamsTenant>).set(
 	defaultInternalStreamsApiKey(),
@@ -99,6 +108,7 @@ export const DEFAULT_STREAMS_TOKEN_STORE: StreamsTokenStore =
 	createRuntimeProductTokenStore({
 		staticTokens: DEFAULT_STREAMS_TOKENS,
 		requiredScope: STREAMS_READ_SCOPE,
+		product: "streams",
 	});
 
 export function streamsBearerAuth(opts?: {

@@ -19,6 +19,7 @@ describe("runtime product token store", () => {
 		const store = createRuntimeProductTokenStore({
 			staticTokens: new Map([["sk-sl_seeded", seededTenant]]),
 			requiredScope: REQUIRED_SCOPE,
+			product: "index",
 			lookupApiKey: async () => {
 				lookupCalls++;
 				return null;
@@ -35,12 +36,15 @@ describe("runtime product token store", () => {
 		const store = createRuntimeProductTokenStore({
 			staticTokens: new Map(),
 			requiredScope: REQUIRED_SCOPE,
+			product: "index",
 			lookupApiKey: async (tokenHash) => {
 				seenHash = tokenHash;
 				return {
 					account_id: "acct_runtime",
 					plan: "scale",
 					status: "active",
+					product: "account",
+					tier: null,
 				};
 			},
 		});
@@ -59,15 +63,56 @@ describe("runtime product token store", () => {
 		const store = createRuntimeProductTokenStore({
 			staticTokens: new Map(),
 			requiredScope: REQUIRED_SCOPE,
+			product: "index",
 			lookupApiKey: async () => ({
 				account_id: "acct_runtime",
 				plan: "build",
 				status: "revoked",
+				product: "account",
+				tier: null,
 			}),
 		});
 
 		await expect(store.get(raw)).resolves.toBeUndefined();
 		await expect(store.get("not-an-api-key")).resolves.toBeUndefined();
+	});
+
+	test("uses api_keys.tier override when present", async () => {
+		const { raw } = generateApiKey();
+		const store = createRuntimeProductTokenStore({
+			staticTokens: new Map(),
+			requiredScope: REQUIRED_SCOPE,
+			product: "streams",
+			lookupApiKey: async () => ({
+				account_id: "acct_runtime",
+				plan: "build",
+				status: "active",
+				product: "streams",
+				tier: "scale",
+			}),
+		});
+
+		const tenant = await store.get(raw);
+		expect(tenant?.tier).toBe("scale");
+	});
+
+	test("falls back to account plan when key tier is null", async () => {
+		const { raw } = generateApiKey();
+		const store = createRuntimeProductTokenStore({
+			staticTokens: new Map(),
+			requiredScope: REQUIRED_SCOPE,
+			product: "streams",
+			lookupApiKey: async () => ({
+				account_id: "acct_runtime",
+				plan: "build",
+				status: "active",
+				product: "streams",
+				tier: null,
+			}),
+		});
+
+		const tenant = await store.get(raw);
+		expect(tenant?.tier).toBe("build");
 	});
 
 	test("maps account plans to product tiers", () => {

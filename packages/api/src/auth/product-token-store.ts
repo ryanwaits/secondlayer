@@ -18,14 +18,20 @@ type AccountApiKeyRecord = {
 	account_id: string;
 	plan: string;
 	status: string;
+	product: "account" | "streams" | "index";
+	tier: ProductTier | null;
 };
+
+export type ProductScope = "streams" | "index";
 
 type ProductTokenStoreOptions<TTenant extends ProductTenant> = {
 	staticTokens: ProductTokenStore<TTenant>;
 	requiredScope: string;
+	product: ProductScope;
 	getDb?: typeof defaultGetDb;
 	lookupApiKey?: (
 		tokenHash: string,
+		product: ProductScope,
 		getDb: typeof defaultGetDb,
 	) => Promise<AccountApiKeyRecord | null>;
 };
@@ -48,6 +54,7 @@ export function accountPlanToProductTier(plan: string): ProductTier {
 
 async function lookupAccountApiKey(
 	tokenHash: string,
+	product: ProductScope,
 	getDb: typeof defaultGetDb,
 ): Promise<AccountApiKeyRecord | null> {
 	const db = getDb();
@@ -57,12 +64,22 @@ async function lookupAccountApiKey(
 		.select([
 			"api_keys.account_id as account_id",
 			"api_keys.status as status",
+			"api_keys.product as product",
+			"api_keys.tier as tier",
 			"accounts.plan as plan",
 		])
 		.where("api_keys.key_hash", "=", tokenHash)
+		.where("api_keys.product", "in", ["account", product])
 		.executeTakeFirst();
 
-	return row ?? null;
+	if (!row) return null;
+	return {
+		account_id: row.account_id,
+		status: row.status,
+		plan: row.plan,
+		product: row.product as "account" | "streams" | "index",
+		tier: (row.tier as ProductTier | null) ?? null,
+	};
 }
 
 export function createRuntimeProductTokenStore<TTenant extends ProductTenant>(
@@ -77,13 +94,13 @@ export function createRuntimeProductTokenStore<TTenant extends ProductTenant>(
 			if (seeded) return seeded;
 			if (!rawToken.startsWith("sk-sl_")) return undefined;
 
-			const key = await lookupApiKey(hashToken(rawToken), getDb);
+			const key = await lookupApiKey(hashToken(rawToken), opts.product, getDb);
 			if (!key || key.status !== "active") return undefined;
 
 			return {
 				tenant_id: `account:${key.account_id}`,
 				account_id: key.account_id,
-				tier: accountPlanToProductTier(key.plan),
+				tier: key.tier ?? accountPlanToProductTier(key.plan),
 				scopes: [opts.requiredScope],
 			} as unknown as TTenant;
 		},

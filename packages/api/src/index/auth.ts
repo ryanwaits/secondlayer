@@ -27,53 +27,59 @@ export type IndexTokenStore = {
 	get(rawToken: string): IndexTenant | undefined | Promise<IndexTenant | undefined>;
 };
 
-export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
-	[
-		"sk-sl_index_free_test",
-		{
-			tenant_id: "tenant_index_free",
-			tier: "free",
-			scopes: [INDEX_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_index_build_test",
-		{
-			tenant_id: "tenant_index_build",
-			tier: "build",
-			scopes: [INDEX_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_index_scale_test",
-		{
-			tenant_id: "tenant_index_scale",
-			tier: "scale",
-			scopes: [INDEX_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_index_enterprise_test",
-		{
-			tenant_id: "tenant_index_enterprise",
-			tier: "enterprise",
-			scopes: [INDEX_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_index_wrong_scope_test",
-		{
-			tenant_id: "tenant_index_wrong_scope",
-			tier: "build",
-			scopes: [],
-		},
-	],
-]);
+const INDEX_TEST_TOKENS: ReadonlyArray<readonly [string, IndexTenant]> =
+	process.env.NODE_ENV === "production"
+		? []
+		: [
+				[
+					"sk-sl_index_free_test",
+					{
+						tenant_id: "tenant_index_free",
+						tier: "free",
+						scopes: [INDEX_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_index_build_test",
+					{
+						tenant_id: "tenant_index_build",
+						tier: "build",
+						scopes: [INDEX_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_index_scale_test",
+					{
+						tenant_id: "tenant_index_scale",
+						tier: "scale",
+						scopes: [INDEX_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_index_enterprise_test",
+					{
+						tenant_id: "tenant_index_enterprise",
+						tier: "enterprise",
+						scopes: [INDEX_READ_SCOPE],
+					},
+				],
+				[
+					"sk-sl_index_wrong_scope_test",
+					{
+						tenant_id: "tenant_index_wrong_scope",
+						tier: "build",
+						scopes: [],
+					},
+				],
+			];
+
+export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map(INDEX_TEST_TOKENS);
 
 export const DEFAULT_INDEX_TOKEN_STORE: IndexTokenStore =
 	createRuntimeProductTokenStore({
 		staticTokens: DEFAULT_INDEX_TOKENS,
 		requiredScope: INDEX_READ_SCOPE,
+		product: "index",
 	});
 
 export function indexBearerAuth(opts?: {
