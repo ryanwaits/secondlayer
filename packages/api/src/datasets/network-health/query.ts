@@ -46,18 +46,21 @@ export async function readNetworkHealth(
 		block_count: string | number;
 		avg_block_time_seconds: string | number | null;
 	}>`
-		WITH daily_blocks AS (
+		WITH ordered_blocks AS (
 			SELECT
-				to_char(to_timestamp(timestamp), 'YYYY-MM-DD') AS date,
-				COUNT(*)::bigint AS block_count,
-				AVG(timestamp - lag(timestamp) OVER (ORDER BY height))::numeric AS avg_block_time_seconds
+				height,
+				timestamp AS ts,
+				timestamp - lag(timestamp) OVER (ORDER BY height) AS gap_seconds
 			FROM blocks
 			WHERE canonical = true
 				AND timestamp >= ${sinceSeconds}
-			GROUP BY 1
 		)
-		SELECT date, block_count, avg_block_time_seconds
-		FROM daily_blocks
+		SELECT
+			to_char(to_timestamp(ts), 'YYYY-MM-DD') AS date,
+			COUNT(*)::bigint AS block_count,
+			AVG(gap_seconds)::numeric AS avg_block_time_seconds
+		FROM ordered_blocks
+		GROUP BY 1
 		ORDER BY date DESC
 	`.execute(db);
 
