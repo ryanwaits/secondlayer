@@ -6,6 +6,15 @@ import { getDb } from "@secondlayer/shared/db";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import {
+	getDatasetsFreshness,
+	type DatasetFreshness,
+} from "../datasets/manifests.ts";
+import {
+	getStreamsBulkManifest,
+	streamsDumpsFreshness,
+	type StreamsDumpsFreshness,
+} from "../streams/dumps.ts";
 import { type StreamsTip, getStreamsTip } from "../streams/tip.ts";
 import { getApiTelemetrySnapshot } from "../telemetry/api.ts";
 
@@ -133,18 +142,37 @@ app.get("/health", async (c) => {
 
 app.get("/public/status", async (c) => {
 	const db = getDb();
-	const [dbResult, indexerResult, streamsTipResult, l2DecodersResult] =
-		await Promise.allSettled([
-			sql`SELECT 1`.execute(db),
-			getIndexerHealth(),
-			getStreamsTip(),
-			getL2DecodersHealth({ db }),
-		]);
+	const [
+		dbResult,
+		indexerResult,
+		streamsTipResult,
+		l2DecodersResult,
+		dumpsManifestResult,
+	] = await Promise.allSettled([
+		sql`SELECT 1`.execute(db),
+		getIndexerHealth(),
+		getStreamsTip(),
+		getL2DecodersHealth({ db }),
+		getStreamsBulkManifest(),
+	]);
 	const streamsTip: StreamsTip | null =
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
+	const chainTip = streamsTip?.block_height ?? null;
 	const l2DecodersHealth: L2DecodersHealth | null =
 		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
 	const index = publicIndexStatusFromL2Health(l2DecodersHealth);
+	const dumps: StreamsDumpsFreshness = streamsDumpsFreshness({
+		manifest:
+			dumpsManifestResult.status === "fulfilled"
+				? dumpsManifestResult.value.manifest
+				: null,
+		chainTip,
+	});
+	const datasetsResult = await Promise.allSettled([
+		getDatasetsFreshness({ chainTip }),
+	]);
+	const datasets: DatasetFreshness[] =
+		datasetsResult[0].status === "fulfilled" ? datasetsResult[0].value : [];
 	const services: PublicServiceHealth[] = [
 		{ name: "api", status: "ok" },
 		{
@@ -163,12 +191,14 @@ app.get("/public/status", async (c) => {
 
 	return c.json({
 		status: overallPublicStatus(services),
-		chainTip: streamsTip?.block_height ?? null,
+		chainTip,
 		streams: {
 			status: streamsTip ? "ok" : "unavailable",
 			tip: streamsTip,
+			dumps,
 		},
 		index,
+		datasets,
 		api: getApiTelemetrySnapshot(),
 		node: {
 			status: nodeStatusFromStreamsTip(streamsTip),
@@ -179,6 +209,19 @@ app.get("/public/status", async (c) => {
 		},
 		timestamp: new Date().toISOString(),
 	});
+});
+
+app.get("/public/streams/dumps/manifest", async (c) => {
+	const snapshot = await getStreamsBulkManifest();
+	if (!snapshot.manifest) {
+		return c.json(
+			{ status: "unavailable", message: "manifest not available" },
+			503,
+		);
+	}
+	c.header("Cache-Control", "public, max-age=30, s-maxage=30");
+	c.header("Content-Type", "application/json; charset=utf-8");
+	return c.json(snapshot.manifest);
 });
 
 app.get("/status", async (c) => {

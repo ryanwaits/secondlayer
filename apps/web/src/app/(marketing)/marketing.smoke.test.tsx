@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { DatasetsContent, datasets } from "./datasets/page";
+import { NetworkHealthDatasetContent } from "./datasets/network-health/page";
+import { StxTransfersDatasetContent } from "./datasets/stx-transfers/page";
 import { HomeStatusBadge, homeProducts } from "./page";
 import { StacksIndexContent } from "./stacks-index/page";
 import { StacksStreamsContent } from "./stacks-streams/page";
@@ -80,6 +83,36 @@ describe("marketing routes", () => {
 		expect(html).toContain("raw Clarity-serialized");
 		expect(html).toContain("reorgs: []");
 		expect(html).toContain("populated only when");
+	});
+
+	test("/datasets lists the five-dataset shelf", () => {
+		const html = renderToStaticMarkup(<DatasetsContent />);
+		expect(html).toContain("Stacks Datasets");
+		expect(html).toContain("STX Transfers");
+		expect(html).toContain("PoX-4");
+		expect(html).toContain("sBTC");
+		expect(html).toContain("BNS");
+		expect(html).toContain("Network Health");
+		expect(datasets.find((d) => d.slug === "stx-transfers")?.status).toBe(
+			"shipped",
+		);
+	});
+
+	test("/datasets/stx-transfers renders schema + API + parquet docs", () => {
+		const html = renderToStaticMarkup(<StxTransfersDatasetContent />);
+		expect(html).toContain("STX Transfers");
+		expect(html).toContain("/v1/datasets/stx-transfers");
+		expect(html).toContain("stacks-datasets/mainnet/v0/stx-transfers");
+		expect(html).toContain("microSTX");
+		expect(html).toContain("manifest/latest.json");
+	});
+
+	test("/datasets/network-health renders summary endpoint", () => {
+		const html = renderToStaticMarkup(<NetworkHealthDatasetContent />);
+		expect(html).toContain("Network Health");
+		expect(html).toContain("/v1/datasets/network-health/summary");
+		expect(html).toContain("avg_block_time_seconds");
+		expect(html).toContain("reorg_count");
 	});
 
 	test("/subgraphs renders L3 route docs copy", () => {

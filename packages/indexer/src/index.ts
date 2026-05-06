@@ -20,6 +20,14 @@ import {
 } from "./parser.ts";
 import { detectReorg, handleReorg } from "./reorg.ts";
 import {
+	startStxTransfersPublisher,
+	stxTransfersPublisherState,
+} from "./datasets/stx-transfers/scheduler.ts";
+import {
+	startStreamsBulkPublisher,
+	streamsBulkPublisherState,
+} from "./streams-bulk/scheduler.ts";
+import {
 	recordBlockReceived,
 	startTipFollower,
 	tipFollowerState,
@@ -107,6 +115,32 @@ const server = Bun.serve({
 					(Date.now() - tipFollowerState.lastBlockReceivedAt) / 1000,
 				),
 				blocksFetchedViaPoll: tipFollowerState.blocksFetchedViaPoll,
+				streamsBulkPublisher: {
+					enabled: streamsBulkPublisherState.enabled,
+					publishedTotal: streamsBulkPublisherState.publishedTotal,
+					lastPublishedRange: streamsBulkPublisherState.lastPublishedRange,
+					lastPublishedSecondsAgo:
+						streamsBulkPublisherState.lastPublishedAt > 0
+							? Math.round(
+									(Date.now() - streamsBulkPublisherState.lastPublishedAt) /
+										1000,
+								)
+							: null,
+					lastError: streamsBulkPublisherState.lastError,
+				},
+				stxTransfersPublisher: {
+					enabled: stxTransfersPublisherState.enabled,
+					publishedTotal: stxTransfersPublisherState.publishedTotal,
+					lastPublishedRange: stxTransfersPublisherState.lastPublishedRange,
+					lastPublishedSecondsAgo:
+						stxTransfersPublisherState.lastPublishedAt > 0
+							? Math.round(
+									(Date.now() - stxTransfersPublisherState.lastPublishedAt) /
+										1000,
+								)
+							: null,
+					lastError: stxTransfersPublisherState.lastError,
+				},
 			}),
 
 		"/health/integrity": async () => {
@@ -433,9 +467,17 @@ const stopIntegrityLoop = startIntegrityLoop();
 // Start tip follower (auto-fallback when node stops pushing blocks)
 const stopTipFollower = startTipFollower();
 
+// Start streams bulk publisher (gated on STREAMS_BULK_PUBLISHER_ENABLED)
+const stopStreamsBulkPublisher = startStreamsBulkPublisher();
+
+// Start STX transfers dataset publisher (gated on STX_TRANSFERS_PUBLISHER_ENABLED)
+const stopStxTransfersPublisher = startStxTransfersPublisher();
+
 // Graceful shutdown
 const shutdown = () => {
 	logger.info("Shutting down indexer service...");
+	stopStxTransfersPublisher();
+	stopStreamsBulkPublisher();
 	stopTipFollower();
 	stopIntegrityLoop();
 	server.stop();

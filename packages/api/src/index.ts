@@ -23,6 +23,7 @@ import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
 import billingRouter from "./routes/billing.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
+import datasetsRouter from "./routes/datasets.ts";
 import indexRouter from "./routes/index.ts";
 import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
@@ -192,6 +193,7 @@ if (mode === "platform") {
 app.route("/", statusRouter);
 app.route("/v1/streams", streamsRouter);
 app.route("/v1/index", indexRouter);
+app.route("/v1/datasets", datasetsRouter);
 
 // Start server
 const PORT = Number.parseInt(process.env.PORT || "3800");
