@@ -5,6 +5,7 @@ import cliPackage from "../../../../../packages/cli/package.json";
 import mcpPackage from "../../../../../packages/mcp/package.json";
 import sdkPackage from "../../../../../packages/sdk/package.json";
 import stacksPackage from "../../../../../packages/stacks/package.json";
+import { writings } from "./writings/posts";
 import { HomeAnnotations } from "./home-annotations";
 import { HomeStatusBadge } from "./home-status-toolbar";
 
@@ -18,17 +19,12 @@ const STATUS_PATH = STATUS_API_KEY ? "/status" : "/public/status";
 export const homeProducts = [
 	{ name: "Stacks Streams", href: "/stacks-streams" },
 	{ name: "Stacks Index", href: "/stacks-index" },
+	{ name: "Stacks Datasets", href: "/datasets" },
 	{ name: "Subgraphs", href: "/subgraphs" },
 	{ name: "Subscriptions", href: "/subscriptions" },
-];
-
-const interfaces = [
+	{ name: "MCP", href: "/mcp", version: mcpPackage.version },
 	{ name: "CLI", href: "/cli", version: cliPackage.version },
 	{ name: "SDK", href: "/sdk", version: sdkPackage.version },
-	{ name: "MCP", href: "/mcp", version: mcpPackage.version },
-];
-
-const foundation = [
 	{ name: "Stacks", href: "/stacks", version: stacksPackage.version },
 ];
 
@@ -62,6 +58,7 @@ async function readStatusSnapshot(): Promise<SystemStatus | null> {
 
 export default async function HomePage() {
 	const status = await readStatusSnapshot();
+	const homeWritings = writings.slice(0, 5);
 
 	return (
 		<div className="homepage">
@@ -87,23 +84,23 @@ export default async function HomePage() {
 					</BetaBracket>
 				</div>
 
-				<div className="index-year-group">
-					<div className="index-year">Interfaces</div>
-					<ul className="index-list">
-						{interfaces.map((item) => (
-							<IndexItem key={item.href} item={item} />
-						))}
-					</ul>
-				</div>
-
-				<div className="index-year-group">
-					<div className="index-year">Foundation</div>
-					<ul className="index-list">
-						{foundation.map((item) => (
-							<IndexItem key={item.href} item={item} />
-						))}
-					</ul>
-				</div>
+				{homeWritings.length > 0 && (
+					<div className="index-year-group">
+						<div className="index-year">Writings</div>
+						<ul className="index-list">
+							{homeWritings.map((post) => (
+								<IndexItem
+									key={post.slug}
+									item={{
+										name: post.title,
+										href: `/writings/${post.slug}`,
+										version: post.date,
+									}}
+								/>
+							))}
+						</ul>
+					</div>
+				)}
 			</section>
 		</div>
 	);

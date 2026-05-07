@@ -7,6 +7,9 @@ import { HomeStatusBadge, homeProducts } from "./page";
 import { StacksIndexContent } from "./stacks-index/page";
 import { StacksStreamsContent } from "./stacks-streams/page";
 import { SubgraphQueryShapeNote, SubgraphRouteList } from "./subgraphs/page";
+import { WritingsIndexContent } from "./writings/page";
+import { WritingsPostContent } from "./writings/[slug]/page";
+import { writings } from "./writings/posts";
 
 describe("marketing routes", () => {
 	test("home renders Streams, Index, and freshness badge", () => {
@@ -47,11 +50,38 @@ describe("marketing routes", () => {
 
 		expect(productNames).toContain("Stacks Streams");
 		expect(productNames).toContain("Stacks Index");
+		expect(productNames).toContain("Stacks Datasets");
+		expect(productNames).toContain("CLI");
+		expect(productNames).toContain("SDK");
+		expect(productNames).toContain("MCP");
+		expect(productNames).toContain("Stacks");
 		expect(html).toContain("Block");
 		expect(html).toContain("#182,447");
 		expect(html).toContain("FT 12s");
 		expect(html).toContain("NFT 18s");
 		expect(html).toContain("home-status-dot");
+	});
+
+	test("/writings renders yearly groups", () => {
+		const html = renderToStaticMarkup(<WritingsIndexContent />);
+		expect(html).toContain("Writings");
+		const years = new Set(writings.map((p) => String(p.year)));
+		for (const year of years) {
+			expect(html).toContain(year);
+		}
+		for (const post of writings) {
+			expect(html).toContain(post.title);
+			expect(html).toContain(`/writings/${post.slug}`);
+		}
+	});
+
+	test("/writings/[slug] renders the welcome post", () => {
+		const post = writings.find((p) => p.slug === "welcome");
+		if (!post) throw new Error("welcome post fixture missing");
+		const html = renderToStaticMarkup(<WritingsPostContent post={post} />);
+		expect(html).toContain(post.title);
+		expect(html).toContain(post.date);
+		expect(html).toContain("Writings section");
 	});
 
 	test("/stacks-streams renders key docs copy", () => {

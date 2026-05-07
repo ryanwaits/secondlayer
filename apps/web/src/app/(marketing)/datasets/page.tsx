@@ -19,11 +19,17 @@ const toc: TocItem[] = [
 export type DatasetEntry = {
 	slug: string;
 	name: string;
-	status: "shipped" | "planned";
+	status: "shipped" | "coming-soon" | "planned";
 	summary: string;
 	apiPath: string | null;
 	parquetPrefix: string | null;
 	href: string | null;
+};
+
+const STATUS_LABELS: Record<DatasetEntry["status"], string> = {
+	shipped: "Shipped",
+	"coming-soon": "Coming soon",
+	planned: "Planned",
 };
 
 export const datasets: DatasetEntry[] = [
@@ -40,9 +46,9 @@ export const datasets: DatasetEntry[] = [
 	{
 		slug: "pox-4",
 		name: "PoX-4 / Stacking",
-		status: "planned",
+		status: "coming-soon",
 		summary:
-			"Cycles, delegations, and signer metrics decoded from PoX-4 contract events.",
+			"Solo, delegated, aggregated stacking calls — every PoX-4 contract call decoded with cycle math, BTC payout addresses, and signer keys.",
 		apiPath: null,
 		parquetPrefix: null,
 		href: null,
@@ -50,9 +56,9 @@ export const datasets: DatasetEntry[] = [
 	{
 		slug: "sbtc",
 		name: "sBTC",
-		status: "planned",
+		status: "coming-soon",
 		summary:
-			"Mints, burns, transfers, and supply snapshots for the sBTC asset.",
+			"Deposits, withdrawals (create/accept/reject), signer-set rotations, governance hooks, plus SIP-010 mint/burn/transfer on sbtc-token.",
 		apiPath: null,
 		parquetPrefix: null,
 		href: null,
@@ -60,9 +66,9 @@ export const datasets: DatasetEntry[] = [
 	{
 		slug: "bns",
 		name: "BNS",
-		status: "planned",
+		status: "coming-soon",
 		summary:
-			"Names, namespaces, ownership history, and renewals from the BNS contracts.",
+			"BNS-V2 names, namespaces, marketplace listings, plus a current-state projection for fast resolve(fqn).",
 		apiPath: null,
 		parquetPrefix: null,
 		href: null,
@@ -171,7 +177,7 @@ export function DatasetsList() {
 								)}
 								<div style={{ opacity: 0.7 }}>{dataset.summary}</div>
 							</td>
-							<td>{dataset.status === "shipped" ? "Shipped" : "Planned"}</td>
+							<td>{STATUS_LABELS[dataset.status]}</td>
 							<td>
 								{dataset.apiPath ? <code>{dataset.apiPath}</code> : "—"}
 							</td>
