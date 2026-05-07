@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DatasetsContent, datasets } from "./datasets/page";
 import { NetworkHealthDatasetContent } from "./datasets/network-health/page";
+import { DatasetsContent, datasets } from "./datasets/page";
 import { SbtcDatasetContent } from "./datasets/sbtc/page";
 import { StxTransfersDatasetContent } from "./datasets/stx-transfers/page";
 import { HomeStatusBadge, homeProducts } from "./page";
 import { StacksIndexContent } from "./stacks-index/page";
 import { StacksStreamsContent } from "./stacks-streams/page";
 import { SubgraphQueryShapeNote, SubgraphRouteList } from "./subgraphs/page";
-import { WritingsIndexContent } from "./writings/page";
 import { WritingsPostContent } from "./writings/[slug]/page";
+import { WritingsIndexContent } from "./writings/page";
 import { writings } from "./writings/posts";
 
 describe("marketing routes", () => {
@@ -146,7 +146,7 @@ describe("marketing routes", () => {
 		expect(html).toContain("reorg_count");
 	});
 
-	test("/datasets/sbtc renders schema + topics + API", () => {
+	test("/datasets/sbtc renders schema + topics + API + parquet", () => {
 		const html = renderToStaticMarkup(<SbtcDatasetContent />);
 		expect(html).toContain("sBTC");
 		expect(html).toContain("/v1/datasets/sbtc/events");
@@ -154,6 +154,9 @@ describe("marketing routes", () => {
 		expect(html).toContain("completed-deposit");
 		expect(html).toContain("withdrawal-create");
 		expect(html).toContain("sbtc-registry");
+		expect(html).toContain("stacks-datasets/mainnet/v0/sbtc/events");
+		expect(html).toContain("stacks-datasets/mainnet/v0/sbtc/token-events");
+		expect(html).toContain("manifest/latest.json");
 	});
 
 	test("/subgraphs renders L3 route docs copy", () => {

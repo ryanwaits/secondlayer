@@ -60,7 +60,7 @@ export const datasets: DatasetEntry[] = [
 		summary:
 			"Deposits, withdrawals (create/accept/reject), signer-set rotations, governance hooks, plus SIP-010 mint/burn/transfer on sbtc-token.",
 		apiPath: "/v1/datasets/sbtc/events",
-		parquetPrefix: null,
+		parquetPrefix: "stacks-datasets/mainnet/v0/sbtc",
 		href: "/datasets/sbtc",
 	},
 	{
@@ -178,9 +178,7 @@ export function DatasetsList() {
 								<div style={{ opacity: 0.7 }}>{dataset.summary}</div>
 							</td>
 							<td>{STATUS_LABELS[dataset.status]}</td>
-							<td>
-								{dataset.apiPath ? <code>{dataset.apiPath}</code> : "—"}
-							</td>
+							<td>{dataset.apiPath ? <code>{dataset.apiPath}</code> : "—"}</td>
 							<td>
 								{dataset.parquetPrefix ? (
 									<code>{dataset.parquetPrefix}</code>
