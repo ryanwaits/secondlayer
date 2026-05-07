@@ -85,6 +85,7 @@ describe("datasetSources", () => {
 		expect(sources).toEqual([
 			{ slug: "stx-transfers", manifestUrl: null },
 			{ slug: "sbtc-events", manifestUrl: null },
+			{ slug: "sbtc-token-events", manifestUrl: null },
 		]);
 	});
 
@@ -94,6 +95,12 @@ describe("datasetSources", () => {
 		const sources = datasetSources();
 		expect(sources[0]?.manifestUrl).toBe(
 			"https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0/stx-transfers/manifest/latest.json",
+		);
+		expect(sources[1]?.manifestUrl).toBe(
+			"https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0/sbtc/events/manifest/latest.json",
+		);
+		expect(sources[2]?.manifestUrl).toBe(
+			"https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0/sbtc/token-events/manifest/latest.json",
 		);
 	});
 });

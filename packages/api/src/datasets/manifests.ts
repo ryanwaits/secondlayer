@@ -113,12 +113,19 @@ function datasetsBaseUrl(): string | null {
 	return raw.replace(/\/+$/, "");
 }
 
+// slug → object-path under DATASETS_PUBLIC_BASE_URL. Path differs from slug
+// for datasets whose families live under a parent directory (e.g. sBTC).
+const DATASET_PATHS: Array<{ slug: string; path: string }> = [
+	{ slug: "stx-transfers", path: "stx-transfers" },
+	{ slug: "sbtc-events", path: "sbtc/events" },
+	{ slug: "sbtc-token-events", path: "sbtc/token-events" },
+];
+
 export function datasetSources(): DatasetSource[] {
 	const base = datasetsBaseUrl();
-	const slugs = ["stx-transfers", "sbtc-events"];
-	return slugs.map((slug) => ({
+	return DATASET_PATHS.map(({ slug, path }) => ({
 		slug,
-		manifestUrl: base ? `${base}/${slug}/manifest/latest.json` : null,
+		manifestUrl: base ? `${base}/${path}/manifest/latest.json` : null,
 	}));
 }
 
