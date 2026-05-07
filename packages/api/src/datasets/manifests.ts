@@ -115,7 +115,7 @@ function datasetsBaseUrl(): string | null {
 
 export function datasetSources(): DatasetSource[] {
 	const base = datasetsBaseUrl();
-	const slugs = ["stx-transfers"];
+	const slugs = ["stx-transfers", "sbtc-events"];
 	return slugs.map((slug) => ({
 		slug,
 		manifestUrl: base ? `${base}/${slug}/manifest/latest.json` : null,

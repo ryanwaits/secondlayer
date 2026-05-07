@@ -161,6 +161,12 @@ check_json_field "datasets stx-transfers events" "/v1/datasets/stx-transfers?lim
 check_status "datasets network-health public" "200" "/v1/datasets/network-health/summary?days=7"
 check_json_field "datasets network-health days" "/v1/datasets/network-health/summary?days=7" "" "days"
 
+check_status "datasets sbtc events public" "200" "/v1/datasets/sbtc/events?limit=1"
+check_json_field "datasets sbtc events envelope" "/v1/datasets/sbtc/events?limit=1" "" "tip"
+check_json_field "datasets sbtc events array" "/v1/datasets/sbtc/events?limit=1" "" "events"
+check_status "datasets sbtc token-events public" "200" "/v1/datasets/sbtc/token-events?limit=1"
+check_json_field "datasets sbtc token-events array" "/v1/datasets/sbtc/token-events?limit=1" "" "events"
+
 check_json_field "public status datasets" "/public/status" "" "datasets"
 check_json_field "public status streams dumps" "/public/status" "" "streams.dumps"
 

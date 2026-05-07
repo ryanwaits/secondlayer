@@ -82,7 +82,10 @@ describe("datasetSources", () => {
 	test("returns null manifestUrl when env unset", () => {
 		delete process.env.DATASETS_PUBLIC_BASE_URL;
 		const sources = datasetSources();
-		expect(sources).toEqual([{ slug: "stx-transfers", manifestUrl: null }]);
+		expect(sources).toEqual([
+			{ slug: "stx-transfers", manifestUrl: null },
+			{ slug: "sbtc-events", manifestUrl: null },
+		]);
 	});
 
 	test("strips trailing slash and appends per-dataset path", () => {

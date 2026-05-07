@@ -56,12 +56,12 @@ export const datasets: DatasetEntry[] = [
 	{
 		slug: "sbtc",
 		name: "sBTC",
-		status: "coming-soon",
+		status: "shipped",
 		summary:
 			"Deposits, withdrawals (create/accept/reject), signer-set rotations, governance hooks, plus SIP-010 mint/burn/transfer on sbtc-token.",
-		apiPath: null,
+		apiPath: "/v1/datasets/sbtc/events",
 		parquetPrefix: null,
-		href: null,
+		href: "/datasets/sbtc",
 	},
 	{
 		slug: "bns",
