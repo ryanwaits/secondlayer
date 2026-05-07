@@ -1,5 +1,13 @@
 import { Hono } from "hono";
 import { ipRateLimit } from "../auth/index.ts";
+import {
+	getBnsMarketplaceEventsResponse,
+	getBnsNameEventsResponse,
+	getBnsNamesResponse,
+	getBnsNamespaceEventsResponse,
+	getBnsNamespacesResponse,
+	getBnsResolveResponse,
+} from "../datasets/bns/query.ts";
 import { getNetworkHealthResponse } from "../datasets/network-health/query.ts";
 import {
 	type Pox4CallsReader,
@@ -102,6 +110,62 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 			readCalls: opts.readPox4Calls,
 		});
 		return c.json(response);
+	});
+
+	router.get("/bns/name-events", async (c) => {
+		const tip = await getTip();
+		if (!tip) {
+			return c.json({ events: [], next_cursor: null, tip: null }, 503);
+		}
+		const response = await getBnsNameEventsResponse({
+			query: new URL(c.req.url).searchParams,
+			tip: { block_height: tip.block_height },
+		});
+		return c.json(response);
+	});
+
+	router.get("/bns/namespace-events", async (c) => {
+		const tip = await getTip();
+		if (!tip) {
+			return c.json({ events: [], next_cursor: null, tip: null }, 503);
+		}
+		const response = await getBnsNamespaceEventsResponse({
+			query: new URL(c.req.url).searchParams,
+			tip: { block_height: tip.block_height },
+		});
+		return c.json(response);
+	});
+
+	router.get("/bns/marketplace-events", async (c) => {
+		const tip = await getTip();
+		if (!tip) {
+			return c.json({ events: [], next_cursor: null, tip: null }, 503);
+		}
+		const response = await getBnsMarketplaceEventsResponse({
+			query: new URL(c.req.url).searchParams,
+			tip: { block_height: tip.block_height },
+		});
+		return c.json(response);
+	});
+
+	router.get("/bns/names", async (c) => {
+		const response = await getBnsNamesResponse({
+			query: new URL(c.req.url).searchParams,
+		});
+		return c.json(response);
+	});
+
+	router.get("/bns/namespaces", async (c) => {
+		const response = await getBnsNamespacesResponse();
+		return c.json(response);
+	});
+
+	router.get("/bns/resolve", async (c) => {
+		const result = await getBnsResolveResponse({
+			query: new URL(c.req.url).searchParams,
+		});
+		if (!result) return c.json({ error: "not found" }, 404);
+		return c.json(result);
 	});
 
 	return router;
