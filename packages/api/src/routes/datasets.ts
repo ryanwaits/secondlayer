@@ -2,6 +2,10 @@ import { Hono } from "hono";
 import { ipRateLimit } from "../auth/index.ts";
 import { getNetworkHealthResponse } from "../datasets/network-health/query.ts";
 import {
+	type Pox4CallsReader,
+	getPox4CallsResponse,
+} from "../datasets/pox-4/query.ts";
+import {
 	type SbtcEventsReader,
 	type SbtcTokenEventsReader,
 	getSbtcEventsResponse,
@@ -23,6 +27,7 @@ export type DatasetsRouterOptions = {
 	readStxTransfers?: StxTransfersReader;
 	readSbtcEvents?: SbtcEventsReader;
 	readSbtcTokenEvents?: SbtcTokenEventsReader;
+	readPox4Calls?: Pox4CallsReader;
 };
 
 export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
@@ -63,10 +68,7 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	router.get("/sbtc/events", async (c) => {
 		const tip = await getTip();
 		if (!tip) {
-			return c.json(
-				{ events: [], next_cursor: null, tip: null },
-				503,
-			);
+			return c.json({ events: [], next_cursor: null, tip: null }, 503);
 		}
 		const response = await getSbtcEventsResponse({
 			query: new URL(c.req.url).searchParams,
@@ -79,15 +81,25 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	router.get("/sbtc/token-events", async (c) => {
 		const tip = await getTip();
 		if (!tip) {
-			return c.json(
-				{ events: [], next_cursor: null, tip: null },
-				503,
-			);
+			return c.json({ events: [], next_cursor: null, tip: null }, 503);
 		}
 		const response = await getSbtcTokenEventsResponse({
 			query: new URL(c.req.url).searchParams,
 			tip: { block_height: tip.block_height },
 			readEvents: opts.readSbtcTokenEvents,
+		});
+		return c.json(response);
+	});
+
+	router.get("/pox-4/calls", async (c) => {
+		const tip = await getTip();
+		if (!tip) {
+			return c.json({ calls: [], next_cursor: null, tip: null }, 503);
+		}
+		const response = await getPox4CallsResponse({
+			query: new URL(c.req.url).searchParams,
+			tip: { block_height: tip.block_height },
+			readCalls: opts.readPox4Calls,
 		});
 		return c.json(response);
 	});
