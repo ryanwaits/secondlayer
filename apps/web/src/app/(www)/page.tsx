@@ -33,7 +33,7 @@ const LAYERS: Array<{
 	name: string;
 	one: string;
 	for: string;
-	href: string;
+	href?: string;
 }> = [
 	{
 		num: "01",
@@ -47,14 +47,12 @@ const LAYERS: Array<{
 		name: "Streams",
 		one: "Raw event firehose. Cursor-paginated reads, idempotent ingest, deterministic replay.",
 		for: "for indexers, archivers, backfill",
-		href: "/stacks-streams",
 	},
 	{
 		num: "03",
 		name: "Index",
 		one: "Decoded transaction-level read API. Joinable shapes for FTs, NFTs, contract calls.",
 		for: "for app backends, search",
-		href: "/stacks-index",
 	},
 	{
 		num: "04",
@@ -68,7 +66,6 @@ const LAYERS: Array<{
 		name: "Subscriptions",
 		one: "Push delivery to your webhook. Inngest, Trigger.dev, Cloudflare, Node-native runtimes.",
 		for: "for event-driven app loops",
-		href: "/subscriptions",
 	},
 ];
 
@@ -199,7 +196,11 @@ export default async function WwwLandingPage() {
 								<div className="www-layer-num">{layer.num}</div>
 								<div className="www-layer-body">
 									<h3 className="www-layer-name">
-										<Link href={layer.href}>{layer.name}</Link>
+										{layer.href ? (
+											<Link href={layer.href}>{layer.name}</Link>
+										) : (
+											<span>{layer.name}</span>
+										)}
 									</h3>
 									<p className="www-layer-one">{layer.one}</p>
 									<p className="www-layer-for">{layer.for}</p>

@@ -7,7 +7,6 @@ import sdkPackage from "../../../../../../packages/sdk/package.json";
 import stacksPackage from "../../../../../../packages/stacks/package.json";
 import { HomeAnnotations } from "./home-annotations";
 import { HomeStatusBadge } from "./home-status-toolbar";
-import { writings } from "./writings/posts";
 
 export { HomeStatusBadge } from "./home-status-toolbar";
 
@@ -17,14 +16,10 @@ const STATUS_API_KEY =
 const STATUS_PATH = STATUS_API_KEY ? "/status" : "/public/status";
 
 export const homeProducts = [
-	{ name: "Stacks Streams", href: "/docs/stacks-streams" },
-	{ name: "Stacks Index", href: "/docs/stacks-index" },
-	{ name: "Stacks Datasets", href: "/docs/datasets" },
 	{ name: "Subgraphs", href: "/docs/subgraphs" },
-	{ name: "Subscriptions", href: "/docs/subscriptions" },
-	{ name: "MCP", href: "/docs/mcp", version: mcpPackage.version },
-	{ name: "CLI", href: "/docs/cli", version: cliPackage.version },
 	{ name: "SDK", href: "/docs/sdk", version: sdkPackage.version },
+	{ name: "CLI", href: "/docs/cli", version: cliPackage.version },
+	{ name: "MCP", href: "/docs/mcp", version: mcpPackage.version },
 	{ name: "Stacks", href: "/docs/stacks", version: stacksPackage.version },
 ];
 
@@ -58,7 +53,6 @@ async function readStatusSnapshot(): Promise<SystemStatus | null> {
 
 export default async function HomePage() {
 	const status = await readStatusSnapshot();
-	const homeWritings = writings.slice(0, 5);
 
 	return (
 		<div className="homepage">
@@ -83,24 +77,6 @@ export default async function HomePage() {
 						</ul>
 					</BetaBracket>
 				</div>
-
-				{homeWritings.length > 0 && (
-					<div className="index-year-group">
-						<div className="index-year">Writings</div>
-						<ul className="index-list">
-							{homeWritings.map((post) => (
-								<IndexItem
-									key={post.slug}
-									item={{
-										name: post.title,
-										href: `/docs/writings/${post.slug}`,
-										version: post.date,
-									}}
-								/>
-							))}
-						</ul>
-					</div>
-				)}
 			</section>
 		</div>
 	);

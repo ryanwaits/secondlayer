@@ -22,19 +22,10 @@ const nextConfig: NextConfig = {
 	// Old top-level reference paths now live under /docs/*. Permanent
 	// redirects so existing inbound links + tweets keep working.
 	async redirects() {
-		const docPaths = [
-			"cli",
-			"sdk",
-			"mcp",
-			"stacks",
-			"stacks-streams",
-			"stacks-index",
-			"subgraphs",
-			"subscriptions",
-			"quickstart",
-			"datasets",
-			"writings",
-		];
+		// Old top-level reference paths that still exist under /docs/*.
+		// Deleted routes (writings, stacks-streams, stacks-index, subscriptions,
+		// quickstart) are intentionally absent — those URLs now 404 cleanly.
+		const docPaths = ["cli", "sdk", "mcp", "stacks", "subgraphs", "datasets"];
 		return [
 			...docPaths.map((p) => ({
 				source: `/${p}`,
