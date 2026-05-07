@@ -11,6 +11,18 @@ import {
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
+import {
+	sbtcEventsPublisherState,
+	startSbtcEventsPublisher,
+} from "./datasets/sbtc/events/scheduler.ts";
+import {
+	sbtcTokenEventsPublisherState,
+	startSbtcTokenEventsPublisher,
+} from "./datasets/sbtc/token-events/scheduler.ts";
+import {
+	startStxTransfersPublisher,
+	stxTransfersPublisherState,
+} from "./datasets/stx-transfers/scheduler.ts";
 import { integrityState, startIntegrityLoop } from "./integrity.ts";
 import {
 	parseBlock,
@@ -19,10 +31,6 @@ import {
 	stripNullBytes,
 } from "./parser.ts";
 import { detectReorg, handleReorg } from "./reorg.ts";
-import {
-	startStxTransfersPublisher,
-	stxTransfersPublisherState,
-} from "./datasets/stx-transfers/scheduler.ts";
 import {
 	startStreamsBulkPublisher,
 	streamsBulkPublisherState,
@@ -140,6 +148,32 @@ const server = Bun.serve({
 								)
 							: null,
 					lastError: stxTransfersPublisherState.lastError,
+				},
+				sbtcEventsPublisher: {
+					enabled: sbtcEventsPublisherState.enabled,
+					publishedTotal: sbtcEventsPublisherState.publishedTotal,
+					lastPublishedRange: sbtcEventsPublisherState.lastPublishedRange,
+					lastPublishedSecondsAgo:
+						sbtcEventsPublisherState.lastPublishedAt > 0
+							? Math.round(
+									(Date.now() - sbtcEventsPublisherState.lastPublishedAt) /
+										1000,
+								)
+							: null,
+					lastError: sbtcEventsPublisherState.lastError,
+				},
+				sbtcTokenEventsPublisher: {
+					enabled: sbtcTokenEventsPublisherState.enabled,
+					publishedTotal: sbtcTokenEventsPublisherState.publishedTotal,
+					lastPublishedRange: sbtcTokenEventsPublisherState.lastPublishedRange,
+					lastPublishedSecondsAgo:
+						sbtcTokenEventsPublisherState.lastPublishedAt > 0
+							? Math.round(
+									(Date.now() - sbtcTokenEventsPublisherState.lastPublishedAt) /
+										1000,
+								)
+							: null,
+					lastError: sbtcTokenEventsPublisherState.lastError,
 				},
 			}),
 
@@ -473,9 +507,15 @@ const stopStreamsBulkPublisher = startStreamsBulkPublisher();
 // Start STX transfers dataset publisher (gated on STX_TRANSFERS_PUBLISHER_ENABLED)
 const stopStxTransfersPublisher = startStxTransfersPublisher();
 
+// Start sBTC dataset publishers (both gated on SBTC_PUBLISHER_ENABLED)
+const stopSbtcEventsPublisher = startSbtcEventsPublisher();
+const stopSbtcTokenEventsPublisher = startSbtcTokenEventsPublisher();
+
 // Graceful shutdown
 const shutdown = () => {
 	logger.info("Shutting down indexer service...");
+	stopSbtcTokenEventsPublisher();
+	stopSbtcEventsPublisher();
 	stopStxTransfersPublisher();
 	stopStreamsBulkPublisher();
 	stopTipFollower();
