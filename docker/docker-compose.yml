@@ -144,6 +144,13 @@ services:
       PORT: 3710
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
+      STACKS_NETWORK: ${STACKS_NETWORK:-mainnet}
+      SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-false}
+      # PoX-4 transaction-result decoder. Mainnet-only; auto-seeds checkpoint
+      # to tip on first enable (no historical replay).
+      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
+      POX4_DECODER_INTERVAL_MS: ${POX4_DECODER_INTERVAL_MS:-30000}
+      POX4_DECODER_BATCH_SIZE: ${POX4_DECODER_BATCH_SIZE:-500}
     depends_on:
       migrate:
         condition: service_completed_successfully
