@@ -48,7 +48,12 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
-import { generateSubgraphTemplate } from "../templates/subgraph.ts";
+import {
+	SUBGRAPH_TEMPLATE_DESCRIPTIONS,
+	SUBGRAPH_TEMPLATE_SLUGS,
+	type SubgraphTemplateSlug,
+	generateSubgraphTemplate,
+} from "../templates/subgraph.ts";
 import { StacksApiClient } from "../utils/api.ts";
 import { inferNetwork } from "../utils/network.ts";
 
@@ -381,7 +386,21 @@ export function registerSubgraphsCommand(program: Command): void {
 	subgraphs
 		.command("new <name>")
 		.description("Scaffold a new subgraph definition file")
-		.action(async (name: string) => {
+		.option(
+			"--template <slug>",
+			`Foundation Dataset starter (one of: ${SUBGRAPH_TEMPLATE_SLUGS.join(", ")})`,
+		)
+		.action(async (name: string, opts: { template?: string }) => {
+			const slug = (opts.template ?? "basic") as SubgraphTemplateSlug;
+			if (!SUBGRAPH_TEMPLATE_SLUGS.includes(slug)) {
+				error(
+					`Unknown template "${opts.template}". Available templates:\n${SUBGRAPH_TEMPLATE_SLUGS.map(
+						(s) => `  ${s.padEnd(20)} ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[s]}`,
+					).join("\n")}`,
+				);
+				process.exit(1);
+			}
+
 			const dir = resolve("subgraphs");
 			const filePath = resolve(dir, `${name}.ts`);
 
@@ -394,10 +413,13 @@ export function registerSubgraphsCommand(program: Command): void {
 				mkdirSync(dir, { recursive: true });
 			}
 
-			const content = generateSubgraphTemplate(name);
+			const content = generateSubgraphTemplate(name, slug);
 			await writeTextFile(filePath, content);
 
 			success(`Created ${filePath}`);
+			if (slug !== "basic") {
+				info(`Template: ${slug} — ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[slug]}`);
+			}
 			info(`Next: sl subgraphs deploy subgraphs/${name}.ts`);
 		});
 
