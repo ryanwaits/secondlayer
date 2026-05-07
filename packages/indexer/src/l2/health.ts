@@ -1,6 +1,7 @@
 import { getTargetDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { BNS_DECODER_NAME } from "./bns-storage.ts";
 import { POX4_DECODER_NAME } from "./pox4-storage.ts";
 import { SBTC_DECODER_NAME } from "./sbtc-storage.ts";
 import {
@@ -136,6 +137,15 @@ async function readLatestDecodedAt(opts: {
 	if (opts.decoderName === POX4_DECODER_NAME) {
 		return opts.db
 			.selectFrom("pox4_calls")
+			.select(["created_at"])
+			.where("canonical", "=", true)
+			.orderBy("created_at", "desc")
+			.limit(1)
+			.executeTakeFirst();
+	}
+	if (opts.decoderName === BNS_DECODER_NAME) {
+		return opts.db
+			.selectFrom("bns_name_events")
 			.select(["created_at"])
 			.where("canonical", "=", true)
 			.orderBy("created_at", "desc")

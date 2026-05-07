@@ -151,6 +151,10 @@ services:
       POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
       POX4_DECODER_INTERVAL_MS: ${POX4_DECODER_INTERVAL_MS:-30000}
       POX4_DECODER_BATCH_SIZE: ${POX4_DECODER_BATCH_SIZE:-500}
+      # BNS-V2 print-event decoder. Subscribes to BNS-V2 contract prints,
+      # writes name/namespace/marketplace events + maintains current-state
+      # projections (bns_names, bns_namespaces).
+      BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
     depends_on:
       migrate:
         condition: service_completed_successfully

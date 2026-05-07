@@ -4,6 +4,7 @@ import {
 	consumeFtTransferDecodedEvents,
 	consumeNftTransferDecodedEvents,
 } from "./decoder.ts";
+import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
 import { consumePox4DecodedEvents } from "./decoders/pox-4.ts";
 import { consumeSbtcDecodedEvents } from "./decoders/sbtc.ts";
 import { getL2DecodersHealth } from "./health.ts";
@@ -12,17 +13,20 @@ const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
 const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED === "true";
 const POX4_ENABLED = process.env.POX4_DECODER_ENABLED === "true";
+const BNS_ENABLED = process.env.BNS_DECODER_ENABLED === "true";
 const decodedTotals: Record<string, number> = {
 	"l2.ft_transfer.v1": 0,
 	"l2.nft_transfer.v1": 0,
 	...(SBTC_ENABLED ? { "l2.sbtc.v1": 0 } : {}),
 	...(POX4_ENABLED ? { "l2.pox4.v1": 0 } : {}),
+	...(BNS_ENABLED ? { "l2.bns.v1": 0 } : {}),
 };
 const decodedThisMinute: Record<string, number> = {
 	"l2.ft_transfer.v1": 0,
 	"l2.nft_transfer.v1": 0,
 	...(SBTC_ENABLED ? { "l2.sbtc.v1": 0 } : {}),
 	...(POX4_ENABLED ? { "l2.pox4.v1": 0 } : {}),
+	...(BNS_ENABLED ? { "l2.bns.v1": 0 } : {}),
 };
 
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -125,6 +129,11 @@ async function runDecoders(): Promise<void> {
 	} else {
 		logger.info("l2_decoder.pox4_disabled");
 	}
+	if (BNS_ENABLED) {
+		tasks.push(runDecoder("l2.bns.v1", consumeBnsDecodedEvents));
+	} else {
+		logger.info("l2_decoder.bns_disabled");
+	}
 	await Promise.all(tasks);
 }
 
@@ -148,6 +157,7 @@ const server = Bun.serve({
 			];
 			if (SBTC_ENABLED) decoderNames.push("l2.sbtc.v1");
 			if (POX4_ENABLED) decoderNames.push("l2.pox4.v1");
+			if (BNS_ENABLED) decoderNames.push("l2.bns.v1");
 			const health = await getL2DecodersHealth({ decoderNames });
 			return Response.json(health, {
 				status: health.status === "healthy" ? 200 : 503,
