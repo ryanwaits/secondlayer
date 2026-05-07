@@ -108,7 +108,7 @@ export default async function DashboardPage() {
 					</div>
 
 					<div className="ov-stats-grid">
-						<Link href="/subgraphs" className="ov-card">
+						<Link href="/platform/subgraphs" className="ov-card">
 							<div className="ov-card-label">
 								Active Subgraphs <InfoTip text="Number of deployed subgraphs" />
 							</div>
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
 							</div>
 						</Link>
 
-						<Link href="/subgraphs" className="ov-card">
+						<Link href="/platform/subgraphs" className="ov-card">
 							<div className="ov-card-label">
 								Rows Indexed{" "}
 								<InfoTip text="Total rows stored across all subgraph tables" />
@@ -158,7 +158,7 @@ export default async function DashboardPage() {
 							</div>
 						</div>
 
-						<Link href="/subgraphs" className="ov-card">
+						<Link href="/platform/subgraphs" className="ov-card">
 							<div className="ov-card-label">
 								Uptime{" "}
 								<InfoTip text="Percentage of blocks processed without error" />
@@ -186,7 +186,7 @@ export default async function DashboardPage() {
 					<div className="ov-act-section">
 						<div className="ov-act-header">
 							<span className="ov-act-title">Subgraphs</span>
-							<Link href="/subgraphs" className="ov-section-link">
+							<Link href="/platform/subgraphs" className="ov-section-link">
 								View all &rarr;
 							</Link>
 						</div>
@@ -217,7 +217,7 @@ export default async function DashboardPage() {
 						) : (
 							<div className="ov-empty">
 								No subgraphs yet.{" "}
-								<Link href="/subgraphs" className="ov-section-link">
+								<Link href="/platform/subgraphs" className="ov-section-link">
 									Deploy one &rarr;
 								</Link>
 							</div>

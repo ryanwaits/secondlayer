@@ -19,6 +19,35 @@ const nextConfig: NextConfig = {
 			},
 		];
 	},
+	// Old top-level reference paths now live under /docs/*. Permanent
+	// redirects so existing inbound links + tweets keep working.
+	async redirects() {
+		const docPaths = [
+			"cli",
+			"sdk",
+			"mcp",
+			"stacks",
+			"stacks-streams",
+			"stacks-index",
+			"subgraphs",
+			"subscriptions",
+			"quickstart",
+			"datasets",
+			"writings",
+		];
+		return [
+			...docPaths.map((p) => ({
+				source: `/${p}`,
+				destination: `/docs/${p}`,
+				permanent: true,
+			})),
+			...docPaths.map((p) => ({
+				source: `/${p}/:path*`,
+				destination: `/docs/${p}/:path*`,
+				permanent: true,
+			})),
+		];
+	},
 };
 
 export default nextConfig;

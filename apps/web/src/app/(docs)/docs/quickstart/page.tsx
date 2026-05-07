@@ -176,26 +176,26 @@ json.NewDecoder(res.Body).Decode(&body)`}
 				</p>
 				<ul>
 					<li>
-						<a href="/datasets/stx-transfers">STX Transfers</a> — every
+						<a href="/docs/datasets/stx-transfers">STX Transfers</a> — every
 						canonical STX transfer event.
 					</li>
 					<li>
-						<a href="/datasets/sbtc">sBTC</a> — deposits, withdrawals, signer
-						rotations, plus SIP-010 mint/burn/transfer.
+						<a href="/docs/datasets/sbtc">sBTC</a> — deposits, withdrawals,
+						signer rotations, plus SIP-010 mint/burn/transfer.
 					</li>
 					<li>
-						<a href="/datasets/pox-4">PoX-4 / Stacking</a> — every Stacking
+						<a href="/docs/datasets/pox-4">PoX-4 / Stacking</a> — every Stacking
 						lifecycle call decoded with cycle math, BTC payout addresses, and
 						signer keys.
 					</li>
 					<li>
-						<a href="/datasets/bns">BNS</a> — BNS-V2 names, namespaces,
+						<a href="/docs/datasets/bns">BNS</a> — BNS-V2 names, namespaces,
 						marketplace listings, plus a current-state <code>resolve(fqn)</code>{" "}
 						projection.
 					</li>
 					<li>
-						<a href="/datasets/network-health">Network Health</a> — daily block
-						count, average block time, reorg counts.
+						<a href="/docs/datasets/network-health">Network Health</a> — daily
+						block count, average block time, reorg counts.
 					</li>
 				</ul>
 			</div>
@@ -242,19 +242,20 @@ sl subgraphs query my-balances balances`}
 			<div className="prose">
 				<ul>
 					<li>
-						<a href="/datasets">Browse the dataset shelf</a> — every endpoint,
-						every filter, every schema column.
+						<a href="/docs/datasets">Browse the dataset shelf</a> — every
+						endpoint, every filter, every schema column.
 					</li>
 					<li>
-						<a href="/cli">CLI reference</a> — full <code>sl</code> command
+						<a href="/docs/cli">CLI reference</a> — full <code>sl</code> command
 						surface for projects, instances, subgraphs, and subscriptions.
 					</li>
 					<li>
-						<a href="/sdk">SDK</a> — typed TypeScript client for Streams, Index,
-						and subgraph queries.
+						<a href="/docs/sdk">SDK</a> — typed TypeScript client for Streams,
+						Index, and subgraph queries.
 					</li>
 					<li>
-						<a href="/subgraphs">Subgraphs</a> — full subgraph definition guide.
+						<a href="/docs/subgraphs">Subgraphs</a> — full subgraph definition
+						guide.
 					</li>
 					<li>
 						<a href="/pricing">Pricing</a> — Hobby (free), Launch, Grow, Scale

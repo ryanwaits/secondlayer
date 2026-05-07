@@ -43,7 +43,7 @@ export default async function TableDetailPage({
 				path={
 					<>
 						<Link
-							href="/subgraphs"
+							href="/platform/subgraphs"
 							style={{ color: "inherit", textDecoration: "none" }}
 						>
 							Subgraphs

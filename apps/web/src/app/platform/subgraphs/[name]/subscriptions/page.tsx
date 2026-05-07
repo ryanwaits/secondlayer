@@ -74,7 +74,7 @@ export default async function SubgraphSubscriptionsPage({
 				path={
 					<>
 						<Link
-							href="/subgraphs"
+							href="/platform/subgraphs"
 							style={{ color: "inherit", textDecoration: "none" }}
 						>
 							Subgraphs

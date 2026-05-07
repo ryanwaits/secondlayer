@@ -147,7 +147,7 @@ export default async function SubgraphDetailPage({
 			<OverviewTopbar
 				path={
 					<Link
-						href="/subgraphs"
+						href="/platform/subgraphs"
 						style={{ color: "inherit", textDecoration: "none" }}
 					>
 						Subgraphs
