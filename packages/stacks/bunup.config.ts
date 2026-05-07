@@ -14,6 +14,7 @@ const config: DefineConfigItem[] = defineConfig([
 			"src/utils/index.ts",
 			"src/bns/index.ts",
 			"src/pox/index.ts",
+			"src/sbtc/index.ts",
 			"src/stackingdao/index.ts",
 			"src/subscriptions/index.ts",
 		],

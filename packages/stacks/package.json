@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/stacks",
-	"version": "2.0.1",
+	"version": "2.1.0",
 	"description": "A viem-style SDK for the Stacks blockchain",
 	"type": "module",
 	"main": "./dist/src/index.cjs",
@@ -62,6 +62,11 @@
 			"import": "./dist/src/pox/index.js",
 			"require": "./dist/src/pox/index.cjs"
 		},
+		"./sbtc": {
+			"types": "./dist/src/sbtc/index.d.ts",
+			"import": "./dist/src/sbtc/index.js",
+			"require": "./dist/src/sbtc/index.cjs"
+		},
 		"./stackingdao": {
 			"types": "./dist/src/stackingdao/index.d.ts",
 			"import": "./dist/src/stackingdao/index.js",
@@ -88,7 +93,9 @@
 			"require": "./dist/src/tools/btc/index.cjs"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"test": "bun test",
