@@ -28,12 +28,10 @@ export const SBTC_CONTRACTS = {
 export type SbtcNetwork = keyof typeof SBTC_CONTRACTS;
 
 /** Asset identifier for `sbtc-token` (mainnet). */
-export const SBTC_ASSET_IDENTIFIER_MAINNET =
-	`${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.token}::sbtc-token` as const;
+export const SBTC_ASSET_IDENTIFIER_MAINNET: string = `${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.token}::sbtc-token`;
 
 /** Asset identifier for `sbtc-token` (testnet). */
-export const SBTC_ASSET_IDENTIFIER_TESTNET =
-	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.token}::sbtc-token` as const;
+export const SBTC_ASSET_IDENTIFIER_TESTNET: string = `${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.token}::sbtc-token`;
 
 /** All print-event topic strings emitted by `sbtc-registry`. */
 export const SBTC_EVENT_TOPICS = [
