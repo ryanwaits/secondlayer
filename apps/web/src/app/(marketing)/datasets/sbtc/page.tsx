@@ -1,3 +1,4 @@
+import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -119,12 +120,47 @@ export function SbtcDatasetContent() {
 				</p>
 			</div>
 
-			<InlineCodeBlock>
-				{`curl "https://api.secondlayer.tools/v1/datasets/sbtc/events?topic=completed-deposit&limit=5"`}
-			</InlineCodeBlock>
+			<DatasetSandbox
+				endpoint="/v1/datasets/sbtc/events"
+				title="Try sbtc/events"
+				filters={[
+					{
+						name: "topic",
+						type: "enum",
+						options: [
+							"completed-deposit",
+							"withdrawal-create",
+							"withdrawal-accept",
+							"withdrawal-reject",
+							"key-rotation",
+							"update-protocol-contract",
+						],
+						default: "completed-deposit",
+					},
+					{ name: "limit", type: "number", default: "5", placeholder: "5" },
+					{ name: "request_id", type: "number" },
+					{ name: "sender", type: "string", placeholder: "SP1..." },
+					{ name: "bitcoin_txid", type: "string", placeholder: "0xabc..." },
+				]}
+			/>
+
+			<DatasetSandbox
+				endpoint="/v1/datasets/sbtc/token-events"
+				title="Try sbtc/token-events"
+				filters={[
+					{
+						name: "event_type",
+						type: "enum",
+						options: ["transfer", "mint", "burn"],
+					},
+					{ name: "limit", type: "number", default: "5", placeholder: "5" },
+					{ name: "sender", type: "string", placeholder: "SP1..." },
+					{ name: "recipient", type: "string", placeholder: "SP2..." },
+				]}
+			/>
 
 			<div className="prose">
-				<p>Response:</p>
+				<p>Sample response shape:</p>
 			</div>
 
 			<InlineCodeBlock>

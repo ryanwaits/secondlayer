@@ -1,3 +1,4 @@
+import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -155,9 +156,41 @@ export function BnsDatasetContent() {
 				</ul>
 			</div>
 
-			<InlineCodeBlock>
-				{`curl "https://api.secondlayer.tools/v1/datasets/bns/name-events?topic=new-name&limit=5"`}
-			</InlineCodeBlock>
+			<DatasetSandbox
+				endpoint="/v1/datasets/bns/name-events"
+				title="Try bns/name-events"
+				filters={[
+					{
+						name: "topic",
+						type: "enum",
+						options: [
+							"new-name",
+							"transfer-name",
+							"renew-name",
+							"burn-name",
+							"new-airdrop",
+						],
+						default: "new-name",
+					},
+					{ name: "limit", type: "number", default: "5", placeholder: "5" },
+					{ name: "namespace", type: "string", placeholder: "btc" },
+					{ name: "name", type: "string", placeholder: "alice" },
+					{ name: "owner", type: "string", placeholder: "SP1..." },
+				]}
+			/>
+
+			<DatasetSandbox
+				endpoint="/v1/datasets/bns/resolve"
+				title="Try bns/resolve"
+				filters={[
+					{
+						name: "fqn",
+						type: "string",
+						default: "alice.btc",
+						placeholder: "alice.btc",
+					},
+				]}
+			/>
 
 			<SectionHeading id="resolver">Resolver</SectionHeading>
 

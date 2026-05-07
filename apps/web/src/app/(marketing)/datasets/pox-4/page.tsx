@@ -1,3 +1,4 @@
+import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -134,12 +135,39 @@ export function Pox4DatasetContent() {
 				</p>
 			</div>
 
-			<InlineCodeBlock>
-				{`curl "https://api.secondlayer.tools/v1/datasets/pox-4/calls?function_name=stack-stx&limit=5"`}
-			</InlineCodeBlock>
+			<DatasetSandbox
+				endpoint="/v1/datasets/pox-4/calls"
+				title="Try pox-4/calls"
+				filters={[
+					{
+						name: "function_name",
+						type: "enum",
+						options: [
+							"stack-stx",
+							"stack-extend",
+							"stack-increase",
+							"delegate-stx",
+							"revoke-delegate-stx",
+							"delegate-stack-stx",
+							"delegate-stack-extend",
+							"delegate-stack-increase",
+							"stack-aggregation-commit",
+							"stack-aggregation-commit-indexed",
+							"stack-aggregation-increase",
+							"set-signer-key-authorization",
+						],
+						default: "stack-stx",
+					},
+					{ name: "limit", type: "number", default: "5", placeholder: "5" },
+					{ name: "stacker", type: "string", placeholder: "SP1..." },
+					{ name: "delegate_to", type: "string", placeholder: "SP2..." },
+					{ name: "signer_key", type: "string", placeholder: "0x..." },
+					{ name: "reward_cycle", type: "number", placeholder: "87" },
+				]}
+			/>
 
 			<div className="prose">
-				<p>Response:</p>
+				<p>Sample response shape:</p>
 			</div>
 
 			<InlineCodeBlock>

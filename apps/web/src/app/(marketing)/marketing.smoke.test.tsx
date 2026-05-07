@@ -7,6 +7,7 @@ import { Pox4DatasetContent } from "./datasets/pox-4/page";
 import { SbtcDatasetContent } from "./datasets/sbtc/page";
 import { StxTransfersDatasetContent } from "./datasets/stx-transfers/page";
 import { HomeStatusBadge, homeProducts } from "./page";
+import { QuickstartContent } from "./quickstart/page";
 import { StacksIndexContent } from "./stacks-index/page";
 import { StacksStreamsContent } from "./stacks-streams/page";
 import { SubgraphQueryShapeNote, SubgraphRouteList } from "./subgraphs/page";
@@ -118,6 +119,28 @@ describe("marketing routes", () => {
 		expect(html).toContain("populated only when");
 	});
 
+	test("/quickstart renders 5-min onboarding path", () => {
+		const html = renderToStaticMarkup(<QuickstartContent />);
+		expect(html).toContain("Quickstart");
+		expect(html).toContain("30 seconds");
+		expect(html).toContain("api.secondlayer.tools/v1/datasets/sbtc/events");
+		expect(html).toContain("/v1/datasets/stx-transfers");
+		expect(html).toContain("/v1/datasets/pox-4/calls");
+		expect(html).toContain("/v1/datasets/bns/resolve");
+		expect(html).toContain("/v1/datasets/network-health/summary");
+		// language snippets
+		expect(html).toContain("await fetch(");
+		expect(html).toContain("import requests");
+		expect(html).toContain("http.Get");
+		// CLI escalation
+		expect(html).toContain("bun add -g @secondlayer/cli");
+		expect(html).toContain("sl subgraphs new");
+		expect(html).toContain("sip-010-balances");
+		// interactive sandbox renders on /quickstart
+		expect(html).toContain("dataset-sandbox");
+		expect(html).toContain("Try it live");
+	});
+
 	test("/datasets lists the five-dataset shelf", () => {
 		const html = renderToStaticMarkup(<DatasetsContent />);
 		expect(html).toContain("Stacks Datasets");
@@ -162,6 +185,10 @@ describe("marketing routes", () => {
 		expect(html).toContain("bns_namespaces");
 		expect(html).toContain("alice.btc");
 		expect(html).toContain("transfer-name");
+		// sandbox embedded
+		expect(html).toContain("dataset-sandbox");
+		expect(html).toContain("Try bns/name-events");
+		expect(html).toContain("Try bns/resolve");
 	});
 
 	test("/datasets/pox-4 renders source + tables + API", () => {
@@ -174,6 +201,9 @@ describe("marketing routes", () => {
 		expect(html).toContain("stack-aggregation-commit");
 		expect(html).toContain("set-signer-key-authorization");
 		expect(html).toContain("pox4_calls");
+		// sandbox embedded
+		expect(html).toContain("dataset-sandbox");
+		expect(html).toContain("Try pox-4/calls");
 	});
 
 	test("/datasets/sbtc renders schema + topics + API + parquet", () => {
@@ -187,6 +217,10 @@ describe("marketing routes", () => {
 		expect(html).toContain("stacks-datasets/mainnet/v0/sbtc/events");
 		expect(html).toContain("stacks-datasets/mainnet/v0/sbtc/token-events");
 		expect(html).toContain("manifest/latest.json");
+		// sandbox embedded
+		expect(html).toContain("dataset-sandbox");
+		expect(html).toContain("Try sbtc/events");
+		expect(html).toContain("Try sbtc/token-events");
 	});
 
 	test("/subgraphs renders L3 route docs copy", () => {
