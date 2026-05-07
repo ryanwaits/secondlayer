@@ -371,6 +371,259 @@ export interface ChainReorgsTable {
 	created_at: Generated<Date>;
 }
 
+// ── Phase 2 datasets: PoX-4 / sBTC / BNS ─────────────────────────────
+
+export type Pox4FunctionName =
+	| "stack-stx"
+	| "delegate-stx"
+	| "stack-extend"
+	| "stack-increase"
+	| "revoke-delegate-stx"
+	| "delegate-stack-stx"
+	| "delegate-stack-extend"
+	| "delegate-stack-increase"
+	| "stack-aggregation-commit"
+	| "stack-aggregation-commit-indexed"
+	| "stack-aggregation-increase"
+	| "set-signer-key-authorization";
+
+export interface Pox4CallsTable {
+	cursor: string;
+	block_height: number;
+	block_time: Date;
+	burn_block_height: number;
+	tx_id: string;
+	tx_index: number;
+	function_name: Pox4FunctionName;
+	caller: string;
+	stacker: string | null;
+	delegate_to: string | null;
+	amount_ustx: string | null;
+	lock_period: number | null;
+	pox_addr_version: number | null;
+	pox_addr_hashbytes: string | null;
+	pox_addr_btc: string | null;
+	start_cycle: number | null;
+	end_cycle: number | null;
+	signer_key: string | null;
+	signer_signature: string | null;
+	auth_id: string | null;
+	max_amount: string | null;
+	reward_cycle: number | null;
+	aggregated_amount_ustx: string | null;
+	aggregated_signer_index: number | null;
+	auth_period: number | null;
+	auth_topic: string | null;
+	auth_allowed: boolean | null;
+	result_ok: boolean;
+	result_raw: string;
+	canonical: Generated<boolean>;
+	source_cursor: string;
+	created_at: Generated<Date>;
+}
+
+export interface Pox4CyclesDailyTable {
+	date: string;
+	reward_cycle: number;
+	total_stacked_ustx: Generated<string>;
+	solo_stackers: Generated<number>;
+	delegated_principals: Generated<number>;
+	unique_pools: Generated<number>;
+	unique_signers: Generated<number>;
+	calls_today: Generated<number>;
+	updated_at: Generated<Date>;
+}
+
+export interface Pox4SignersDailyTable {
+	date: string;
+	reward_cycle: number;
+	signer_key: string;
+	weight_ustx: Generated<string>;
+	stacker_count: Generated<number>;
+	aggregation_calls: Generated<number>;
+	updated_at: Generated<Date>;
+}
+
+export type SbtcEventTopic =
+	| "completed-deposit"
+	| "withdrawal-create"
+	| "withdrawal-accept"
+	| "withdrawal-reject"
+	| "key-rotation"
+	| "update-protocol-contract";
+
+export interface SbtcEventsTable {
+	cursor: string;
+	block_height: number;
+	block_time: Date;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	topic: SbtcEventTopic;
+	request_id: number | null;
+	amount: string | null;
+	sender: string | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+	bitcoin_txid: string | null;
+	output_index: number | null;
+	sweep_txid: string | null;
+	burn_hash: string | null;
+	burn_height: number | null;
+	signer_bitmap: string | null;
+	max_fee: string | null;
+	fee: string | null;
+	block_height_at_request: number | null;
+	governance_contract_type: number | null;
+	governance_new_contract: string | null;
+	signer_aggregate_pubkey: string | null;
+	signer_threshold: number | null;
+	signer_address: string | null;
+	signer_keys_count: number | null;
+	canonical: Generated<boolean>;
+	source_cursor: string;
+	created_at: Generated<Date>;
+}
+
+export type SbtcTokenEventType = "transfer" | "mint" | "burn";
+
+export interface SbtcTokenEventsTable {
+	cursor: string;
+	block_height: number;
+	block_time: Date;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	event_type: SbtcTokenEventType;
+	sender: string | null;
+	recipient: string | null;
+	amount: string;
+	memo: string | null;
+	canonical: Generated<boolean>;
+	source_cursor: string;
+	created_at: Generated<Date>;
+}
+
+export interface SbtcSupplySnapshotsTable {
+	date: string;
+	total_supply: Generated<string>;
+	mints_today: Generated<string>;
+	burns_today: Generated<string>;
+	deposit_count: Generated<number>;
+	withdrawal_create_count: Generated<number>;
+	withdrawal_accept_count: Generated<number>;
+	withdrawal_reject_count: Generated<number>;
+	updated_at: Generated<Date>;
+}
+
+export type BnsNameEventTopic =
+	| "new-name"
+	| "transfer-name"
+	| "renew-name"
+	| "burn-name"
+	| "new-airdrop";
+
+export interface BnsNameEventsTable {
+	cursor: string;
+	block_height: number;
+	block_time: Date;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	topic: BnsNameEventTopic;
+	namespace: string;
+	name: string;
+	fqn: string;
+	owner: string | null;
+	bns_id: string;
+	registered_at: number | null;
+	imported_at: number | null;
+	renewal_height: number | null;
+	stx_burn: string | null;
+	preordered_by: string | null;
+	hashed_salted_fqn_preorder: string | null;
+	canonical: Generated<boolean>;
+	source_cursor: string;
+	created_at: Generated<Date>;
+}
+
+export type BnsNamespaceEventStatus =
+	| "launch"
+	| "transfer-manager"
+	| "freeze-manager"
+	| "update-price-manager"
+	| "freeze-price-manager"
+	| "turn-off-manager-transfers";
+
+export interface BnsNamespaceEventsTable {
+	cursor: string;
+	block_height: number;
+	block_time: Date;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	status: BnsNamespaceEventStatus;
+	namespace: string;
+	manager: string | null;
+	manager_frozen: boolean | null;
+	manager_transfers_disabled: boolean | null;
+	price_function: string | null;
+	price_frozen: boolean | null;
+	lifetime: number | null;
+	revealed_at: number | null;
+	launched_at: number | null;
+	canonical: Generated<boolean>;
+	source_cursor: string;
+	created_at: Generated<Date>;
+}
+
+export type BnsMarketplaceAction =
+	| "list-in-ustx"
+	| "unlist-in-ustx"
+	| "buy-in-ustx";
+
+export interface BnsMarketplaceEventsTable {
+	cursor: string;
+	block_height: number;
+	block_time: Date;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	action: BnsMarketplaceAction;
+	bns_id: string;
+	price_ustx: string | null;
+	commission: string | null;
+	canonical: Generated<boolean>;
+	source_cursor: string;
+	created_at: Generated<Date>;
+}
+
+export interface BnsNamesTable {
+	fqn: string;
+	namespace: string;
+	name: string;
+	owner: string;
+	bns_id: string;
+	registered_at: number | null;
+	renewal_height: number | null;
+	last_event_cursor: string;
+	last_event_at: Date;
+	updated_at: Generated<Date>;
+}
+
+export interface BnsNamespacesTable {
+	namespace: string;
+	manager: string | null;
+	manager_frozen: Generated<boolean>;
+	price_frozen: Generated<boolean>;
+	lifetime: number | null;
+	launched_at: number | null;
+	last_event_cursor: string;
+	last_event_at: Date;
+	name_count: Generated<number>;
+	updated_at: Generated<Date>;
+}
+
 // ── Database interface ────────────────────────────────────────────────
 
 export interface Database {
@@ -411,6 +664,17 @@ export interface Database {
 	decoded_events: DecodedEventsTable;
 	l2_decoder_checkpoints: L2DecoderCheckpointsTable;
 	chain_reorgs: ChainReorgsTable;
+	pox4_calls: Pox4CallsTable;
+	pox4_cycles_daily: Pox4CyclesDailyTable;
+	pox4_signers_daily: Pox4SignersDailyTable;
+	sbtc_events: SbtcEventsTable;
+	sbtc_token_events: SbtcTokenEventsTable;
+	sbtc_supply_snapshots: SbtcSupplySnapshotsTable;
+	bns_name_events: BnsNameEventsTable;
+	bns_namespace_events: BnsNamespaceEventsTable;
+	bns_marketplace_events: BnsMarketplaceEventsTable;
+	bns_names: BnsNamesTable;
+	bns_namespaces: BnsNamespacesTable;
 }
 
 // --- Tenants (dedicated hosting) ---
