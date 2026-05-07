@@ -97,7 +97,21 @@ export async function consumePox4DecodedEvents(
 		if (opts.signal?.aborted) break;
 
 		const rows = await fetchTxBatch(sourceDb, cursor, batchSize);
-		if (rows.length === 0) break;
+		if (rows.length === 0) {
+			// Caught up to tip with no pox-4 txs in range. Advance checkpoint to
+			// latest canonical block so health check sees a recent checkpoint —
+			// otherwise the decoder appears stale during the long quiet windows
+			// between cycle prep events.
+			const tipCursor = await seedCheckpointToTip(sourceDb);
+			if (tipCursor !== null && tipCursor !== cursor) {
+				cursor = tipCursor;
+				await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
+			} else {
+				// No movement — still bump updated_at so health stays fresh.
+				await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
+			}
+			break;
+		}
 
 		const decodedRows: Pox4CallRow[] = [];
 		for (const row of rows) {
