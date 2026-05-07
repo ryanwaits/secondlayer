@@ -170,6 +170,37 @@ check_json_field "datasets sbtc token-events array" "/v1/datasets/sbtc/token-eve
 check_json_field "public status datasets" "/public/status" "" "datasets"
 check_json_field "public status streams dumps" "/public/status" "" "streams.dumps"
 
+check_public_status_datasets_registered() {
+	local url="${API_URL%/}/public/status"
+	local body
+	body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" "$url" || true)"
+	if ! SMOKE_BODY="$body" python3 <<'PY'
+import json, os, sys
+try:
+    body = json.loads(os.environ["SMOKE_BODY"])
+except json.JSONDecodeError:
+    print("invalid public status JSON")
+    sys.exit(1)
+datasets = body.get("datasets")
+if not isinstance(datasets, list):
+    print("datasets is not a list")
+    sys.exit(1)
+slugs = {entry.get("slug") for entry in datasets if isinstance(entry, dict)}
+required = {"stx-transfers", "sbtc-events", "sbtc-token-events"}
+missing = required - slugs
+if missing:
+    print(f"missing dataset slugs: {sorted(missing)}")
+    sys.exit(1)
+PY
+	then
+		echo "public status datasets registered: missing slugs"
+		failures=$((failures + 1))
+		return
+	fi
+	echo "public status datasets registered: ok"
+}
+check_public_status_datasets_registered
+
 # Streams dumps manifest is 200 when STREAMS_BULK_PUBLIC_BASE_URL is set, else 503.
 # Either is acceptable; we just check the route exists.
 manifest_status="$(curl --silent --output /tmp/secondlayer-smoke-body --write-out '%{http_code}' --max-time "$TIMEOUT_SECONDS" "${API_URL%/}/public/streams/dumps/manifest" || true)"
