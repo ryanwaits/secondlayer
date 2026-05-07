@@ -690,6 +690,27 @@ a {
 	font-weight: 460;
 }
 
+.page-sub {
+	font-size: 0.8125rem;
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+/* ── /www manifest accent ────────────────────────────────────────
+   Single accent moment in the marketing landing's prose: the
+   "public goods, free forever" claim. Pink dashed underline,
+   used once per page. */
+.www-manifest .pink {
+	color: var(--text-main);
+	border-bottom: 1px dashed var(--accent-pink);
+	padding-bottom: 1px;
+}
+
+.www-manifest em {
+	font-style: italic;
+	color: var(--text-main);
+}
+
 /* ── Section titles with thin rule ───────────────────────────────── */
 .section-title {
 	font-size: 14px;
