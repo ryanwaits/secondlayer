@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { NetworkHealthDatasetContent } from "./datasets/network-health/page";
 import { DatasetsContent, datasets } from "./datasets/page";
+import { Pox4DatasetContent } from "./datasets/pox-4/page";
 import { SbtcDatasetContent } from "./datasets/sbtc/page";
 import { StxTransfersDatasetContent } from "./datasets/stx-transfers/page";
 import { HomeStatusBadge, homeProducts } from "./page";
@@ -127,6 +128,7 @@ describe("marketing routes", () => {
 		expect(datasets.find((d) => d.slug === "stx-transfers")?.status).toBe(
 			"shipped",
 		);
+		expect(datasets.find((d) => d.slug === "pox-4")?.status).toBe("shipped");
 	});
 
 	test("/datasets/stx-transfers renders schema + API + parquet docs", () => {
@@ -144,6 +146,18 @@ describe("marketing routes", () => {
 		expect(html).toContain("/v1/datasets/network-health/summary");
 		expect(html).toContain("avg_block_time_seconds");
 		expect(html).toContain("reorg_count");
+	});
+
+	test("/datasets/pox-4 renders source + tables + API", () => {
+		const html = renderToStaticMarkup(<Pox4DatasetContent />);
+		expect(html).toContain("PoX-4");
+		expect(html).toContain("/v1/datasets/pox-4/calls");
+		expect(html).toContain("SP000000000000000000002Q6VF78.pox-4");
+		expect(html).toContain("stack-stx");
+		expect(html).toContain("delegate-stx");
+		expect(html).toContain("stack-aggregation-commit");
+		expect(html).toContain("set-signer-key-authorization");
+		expect(html).toContain("pox4_calls");
 	});
 
 	test("/datasets/sbtc renders schema + topics + API + parquet", () => {

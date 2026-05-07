@@ -46,12 +46,12 @@ export const datasets: DatasetEntry[] = [
 	{
 		slug: "pox-4",
 		name: "PoX-4 / Stacking",
-		status: "coming-soon",
+		status: "shipped",
 		summary:
 			"Solo, delegated, aggregated stacking calls — every PoX-4 contract call decoded with cycle math, BTC payout addresses, and signer keys.",
-		apiPath: null,
+		apiPath: "/v1/datasets/pox-4/calls",
 		parquetPrefix: null,
-		href: null,
+		href: "/datasets/pox-4",
 	},
 	{
 		slug: "sbtc",
