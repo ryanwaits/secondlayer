@@ -1,6 +1,7 @@
 import { getTargetDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { SBTC_DECODER_NAME } from "./sbtc-storage.ts";
 import {
 	FT_TRANSFER_DECODER_NAME,
 	type L2DecoderName,
@@ -34,12 +35,11 @@ function cursorBlockHeight(cursor: string | null): number | null {
 
 export async function getL2DecoderHealth(opts?: {
 	db?: Kysely<Database>;
-	decoderName?: L2DecoderName;
+	decoderName?: string;
 	now?: Date;
 }): Promise<L2DecoderHealth> {
 	const db = opts?.db ?? getTargetDb();
 	const decoderName = opts?.decoderName ?? FT_TRANSFER_DECODER_NAME;
-	const eventType = L2_DECODER_EVENT_TYPES[decoderName];
 	const now = opts?.now ?? new Date();
 
 	const checkpoint = await db
@@ -59,14 +59,7 @@ export async function getL2DecoderHealth(opts?: {
 		.limit(1)
 		.executeTakeFirst();
 
-	const latestDecoded = await db
-		.selectFrom("decoded_events")
-		.select(["created_at"])
-		.where("event_type", "=", eventType)
-		.where("canonical", "=", true)
-		.orderBy("created_at", "desc")
-		.limit(1)
-		.executeTakeFirst();
+	const latestDecoded = await readLatestDecodedAt({ db, decoderName });
 
 	const checkpointBlock =
 		checkpointBlockHeight === null
@@ -108,7 +101,7 @@ export async function getL2DecoderHealth(opts?: {
 
 export async function getL2DecodersHealth(opts?: {
 	db?: Kysely<Database>;
-	decoderNames?: readonly L2DecoderName[];
+	decoderNames?: readonly string[];
 	now?: Date;
 }): Promise<L2DecodersHealth> {
 	const decoderNames = opts?.decoderNames ?? L2_DECODER_NAMES;
@@ -124,4 +117,30 @@ export async function getL2DecodersHealth(opts?: {
 			: "unhealthy",
 		decoders,
 	};
+}
+
+async function readLatestDecodedAt(opts: {
+	db: Kysely<Database>;
+	decoderName: string;
+}): Promise<{ created_at: Date } | undefined> {
+	if (opts.decoderName === SBTC_DECODER_NAME) {
+		return opts.db
+			.selectFrom("sbtc_events")
+			.select(["created_at"])
+			.where("canonical", "=", true)
+			.orderBy("created_at", "desc")
+			.limit(1)
+			.executeTakeFirst();
+	}
+	const eventType =
+		L2_DECODER_EVENT_TYPES[opts.decoderName as L2DecoderName] ??
+		opts.decoderName;
+	return opts.db
+		.selectFrom("decoded_events")
+		.select(["created_at"])
+		.where("event_type", "=", eventType)
+		.where("canonical", "=", true)
+		.orderBy("created_at", "desc")
+		.limit(1)
+		.executeTakeFirst();
 }

@@ -4,17 +4,21 @@ import {
 	consumeFtTransferDecodedEvents,
 	consumeNftTransferDecodedEvents,
 } from "./decoder.ts";
+import { consumeSbtcDecodedEvents } from "./decoders/sbtc.ts";
 import { getL2DecodersHealth } from "./health.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
+const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED === "true";
 const decodedTotals: Record<string, number> = {
 	"l2.ft_transfer.v1": 0,
 	"l2.nft_transfer.v1": 0,
+	...(SBTC_ENABLED ? { "l2.sbtc.v1": 0 } : {}),
 };
 const decodedThisMinute: Record<string, number> = {
 	"l2.ft_transfer.v1": 0,
 	"l2.nft_transfer.v1": 0,
+	...(SBTC_ENABLED ? { "l2.sbtc.v1": 0 } : {}),
 };
 
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -92,10 +96,16 @@ async function runDecoder(
 }
 
 async function runDecoders(): Promise<void> {
-	await Promise.all([
+	const tasks = [
 		runDecoder("l2.ft_transfer.v1", consumeFtTransferDecodedEvents),
 		runDecoder("l2.nft_transfer.v1", consumeNftTransferDecodedEvents),
-	]);
+	];
+	if (SBTC_ENABLED) {
+		tasks.push(runDecoder("l2.sbtc.v1", consumeSbtcDecodedEvents));
+	} else {
+		logger.info("l2_decoder.sbtc_disabled");
+	}
+	await Promise.all(tasks);
 }
 
 const progressTimer = setInterval(() => {
@@ -112,7 +122,12 @@ const server = Bun.serve({
 		}
 
 		try {
-			const health = await getL2DecodersHealth();
+			const decoderNames: string[] = [
+				"l2.ft_transfer.v1",
+				"l2.nft_transfer.v1",
+			];
+			if (SBTC_ENABLED) decoderNames.push("l2.sbtc.v1");
+			const health = await getL2DecodersHealth({ decoderNames });
 			return Response.json(health, {
 				status: health.status === "healthy" ? 200 : 503,
 			});
