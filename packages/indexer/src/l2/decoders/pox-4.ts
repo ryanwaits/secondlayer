@@ -87,6 +87,10 @@ export async function consumePox4DecodedEvents(
 				});
 				logger.info("PoX-4 decoder: seeded checkpoint to tip", { cursor });
 			}
+		} else {
+			// Bump checkpoint updated_at on container restart so the health
+			// endpoint reports `checkpoint_recent: true` before the first tick.
+			await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
 		}
 	}
 

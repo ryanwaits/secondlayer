@@ -3,6 +3,7 @@ import {
 	type StreamsEvent,
 	createStreamsClient,
 } from "@secondlayer/sdk";
+import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type {
 	BnsMarketplaceAction,
 	BnsNameEventTopic,
@@ -80,10 +81,29 @@ export async function consumeBnsDecodedEvents(
 	const db = opts.db;
 	const decoderName = opts.decoderName ?? BNS_DECODER_NAME;
 	const streamsClient = opts.streamsClient ?? createInternalStreamsClient();
-	const startCursor =
+	let startCursor =
 		opts.fromCursor !== undefined
 			? opts.fromCursor
 			: await readDecoderCheckpoint({ db, decoderName });
+	if (startCursor === null) {
+		// First-time enable: seed checkpoint to current canonical tip so the
+		// streams subscription has a meaningful starting point and the health
+		// endpoint sees a recent checkpoint immediately. BNS-V2 prints are
+		// sparse — without seeding, the decoder can sit silent for hours
+		// before the first batch arrives.
+		startCursor = await seedCheckpointToTip();
+		if (startCursor !== null) {
+			await writeDecoderCheckpoint({ db, decoderName, cursor: startCursor });
+			logger.info("BNS decoder: seeded checkpoint to tip", {
+				cursor: startCursor,
+			});
+		}
+	} else {
+		// Subsequent runs: bump checkpoint updated_at so health endpoint
+		// reports `checkpoint_recent: true` immediately on container restart,
+		// even before the streams subscription delivers its first batch.
+		await writeDecoderCheckpoint({ db, decoderName, cursor: startCursor });
+	}
 	let decoded = 0;
 
 	const result = await streamsClient.events.consume({
@@ -180,6 +200,23 @@ function createInternalStreamsClient(): StreamsClient {
 		baseUrl: process.env.STREAMS_API_URL,
 		apiKey: defaultInternalStreamsApiKey(),
 	});
+}
+
+async function seedCheckpointToTip(): Promise<string | null> {
+	const sourceDb = getSourceDb();
+	const { rows } = await sql<{ height: number; max_event: number | null }>`
+		SELECT b.height, max(e.event_index) AS max_event
+		FROM blocks b
+		LEFT JOIN events e ON e.block_height = b.height
+		WHERE b.canonical = true
+		GROUP BY b.height
+		ORDER BY b.height DESC
+		LIMIT 1
+	`.execute(sourceDb);
+	const row = rows[0];
+	if (!row) return null;
+	const eventIndex = row.max_event ?? 0;
+	return `${row.height}:${eventIndex}`;
 }
 
 // ── Name-event decoder (topic discriminator) ────────────────────────────────
