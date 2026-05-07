@@ -66,12 +66,12 @@ export const datasets: DatasetEntry[] = [
 	{
 		slug: "bns",
 		name: "BNS",
-		status: "coming-soon",
+		status: "shipped",
 		summary:
 			"BNS-V2 names, namespaces, marketplace listings, plus a current-state projection for fast resolve(fqn).",
-		apiPath: null,
+		apiPath: "/v1/datasets/bns/name-events",
 		parquetPrefix: null,
-		href: null,
+		href: "/datasets/bns",
 	},
 	{
 		slug: "network-health",

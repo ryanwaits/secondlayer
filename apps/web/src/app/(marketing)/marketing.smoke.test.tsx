@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { BnsDatasetContent } from "./datasets/bns/page";
 import { NetworkHealthDatasetContent } from "./datasets/network-health/page";
 import { DatasetsContent, datasets } from "./datasets/page";
 import { Pox4DatasetContent } from "./datasets/pox-4/page";
@@ -129,6 +130,7 @@ describe("marketing routes", () => {
 			"shipped",
 		);
 		expect(datasets.find((d) => d.slug === "pox-4")?.status).toBe("shipped");
+		expect(datasets.find((d) => d.slug === "bns")?.status).toBe("shipped");
 	});
 
 	test("/datasets/stx-transfers renders schema + API + parquet docs", () => {
@@ -146,6 +148,20 @@ describe("marketing routes", () => {
 		expect(html).toContain("/v1/datasets/network-health/summary");
 		expect(html).toContain("avg_block_time_seconds");
 		expect(html).toContain("reorg_count");
+	});
+
+	test("/datasets/bns renders source + 3 event tables + resolver", () => {
+		const html = renderToStaticMarkup(<BnsDatasetContent />);
+		expect(html).toContain("BNS");
+		expect(html).toContain("/v1/datasets/bns/name-events");
+		expect(html).toContain("BNS-V2");
+		expect(html).toContain("bns_name_events");
+		expect(html).toContain("bns_namespace_events");
+		expect(html).toContain("bns_marketplace_events");
+		expect(html).toContain("bns_names");
+		expect(html).toContain("bns_namespaces");
+		expect(html).toContain("alice.btc");
+		expect(html).toContain("transfer-name");
 	});
 
 	test("/datasets/pox-4 renders source + tables + API", () => {
