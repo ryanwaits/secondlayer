@@ -250,8 +250,12 @@ export function decodeNameEvent(
 	}
 	const topic = topicRaw as BnsNameEventTopic;
 
-	const namespace = decodeBuffUtf8(tuple.namespace);
-	const name = decodeBuffUtf8(tuple.name);
+	// Live BNS-V2 emits the name as a nested tuple `{name: <buff>, namespace:
+	// <buff>}` (per the on-chain contract). Earlier fixtures used flat keys —
+	// support both so test fixtures keep working.
+	const nameTuple = asRecord(tuple.name);
+	const namespace = decodeBuffUtf8(nameTuple?.namespace ?? tuple.namespace);
+	const name = decodeBuffUtf8(nameTuple?.name ?? tuple.name);
 	if (!namespace || !name) return null;
 	const fqn = `${name}.${namespace}`;
 
