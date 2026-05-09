@@ -30,8 +30,14 @@ import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
 
 export { BNS_DECODER_NAME };
 
+// v0 ships mainnet only; testnet kept here so the client-side filter still
+// excludes it if the upstream node ever delivers testnet events through this
+// stream. Server-side `contractId` filter (passed below in `consume`) targets
+// the mainnet contract — that drives the actual fetch volume.
+const BNS_V2_MAINNET_CONTRACT =
+	"SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2";
 const BNS_V2_CONTRACTS: readonly string[] = [
-	"SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2",
+	BNS_V2_MAINNET_CONTRACT,
 	"ST2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2",
 ];
 
@@ -114,6 +120,10 @@ export async function consumeBnsDecodedEvents(
 		maxEmptyPolls: opts.maxEmptyPolls,
 		signal: opts.signal,
 		types: ["print"],
+		// Server-side filter — without this the streams API scans every print
+		// event in the cursor range across all contracts, which on a backfill
+		// from a stale checkpoint causes socket timeouts.
+		contractId: BNS_V2_MAINNET_CONTRACT,
 		onBatch: async (events, envelope) => {
 			const nameRows: BnsNameEventRow[] = [];
 			const namespaceRows: BnsNamespaceEventRow[] = [];

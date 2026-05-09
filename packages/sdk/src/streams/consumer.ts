@@ -1,13 +1,14 @@
 import type {
 	StreamsEvent,
-	StreamsEventsEnvelope,
 	StreamsEventType,
+	StreamsEventsEnvelope,
 } from "./types.ts";
 
 type StreamsEventsFetchParams = {
 	cursor?: string | null;
 	limit: number;
 	types?: readonly StreamsEventType[];
+	contractId?: string;
 };
 
 export type StreamsEventsFetcher = (
@@ -16,7 +17,10 @@ export type StreamsEventsFetcher = (
 
 export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>;
 
-export async function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
+export async function defaultSleep(
+	ms: number,
+	signal?: AbortSignal,
+): Promise<void> {
 	if (signal?.aborted) return;
 
 	await new Promise<void>((resolve) => {
@@ -38,6 +42,7 @@ export async function consumeStreamsEvents(opts: {
 	mode?: "tail" | "bounded";
 	batchSize: number;
 	types?: readonly StreamsEventType[];
+	contractId?: string;
 	fetchEvents: StreamsEventsFetcher;
 	onBatch: (
 		events: StreamsEvent[],
@@ -67,6 +72,7 @@ export async function consumeStreamsEvents(opts: {
 			cursor,
 			limit: opts.batchSize,
 			types: opts.types,
+			contractId: opts.contractId,
 		});
 		pages++;
 
@@ -98,6 +104,7 @@ export async function* streamStreamsEvents(opts: {
 	fromCursor?: string | null;
 	batchSize: number;
 	types?: readonly StreamsEventType[];
+	contractId?: string;
 	fetchEvents: StreamsEventsFetcher;
 	sleep?: Sleep;
 	emptyBackoffMs?: number;
@@ -122,6 +129,7 @@ export async function* streamStreamsEvents(opts: {
 			cursor,
 			limit: opts.batchSize,
 			types: opts.types,
+			contractId: opts.contractId,
 		});
 		pages++;
 

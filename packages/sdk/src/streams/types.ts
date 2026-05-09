@@ -86,6 +86,7 @@ export type StreamsEventsListParams = {
 export type StreamsEventsStreamParams = {
 	fromCursor?: string | null;
 	types?: readonly StreamsEventType[];
+	contractId?: string;
 	batchSize?: number;
 	emptyBackoffMs?: number;
 	maxPages?: number;
@@ -97,6 +98,7 @@ export type StreamsEventsConsumeParams = {
 	fromCursor?: string | null;
 	mode?: "tail" | "bounded";
 	types?: readonly StreamsEventType[];
+	contractId?: string;
 	batchSize?: number;
 	onBatch: (
 		events: StreamsEvent[],

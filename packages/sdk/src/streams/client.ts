@@ -1,7 +1,7 @@
 import {
+	type StreamsEventsFetcher,
 	consumeStreamsEvents,
 	streamStreamsEvents,
-	type StreamsEventsFetcher,
 } from "./consumer.ts";
 import {
 	AuthError,
@@ -11,10 +11,10 @@ import {
 } from "./errors.ts";
 import type {
 	FetchLike,
-	StreamsClient,
 	StreamsCanonicalBlock,
-	StreamsEventsEnvelope,
+	StreamsClient,
 	StreamsEventsConsumeParams,
+	StreamsEventsEnvelope,
 	StreamsEventsListEnvelope,
 	StreamsEventsListParams,
 	StreamsEventsStreamParams,
@@ -112,8 +112,9 @@ export function createStreamsClient(
 		cursor,
 		limit,
 		types,
+		contractId,
 	}) => {
-		return listEvents({ cursor, limit, types });
+		return listEvents({ cursor, limit, types, contractId });
 	};
 
 	async function listEvents(
@@ -148,6 +149,7 @@ export function createStreamsClient(
 					fromCursor: params.fromCursor,
 					mode: params.mode,
 					types: params.types,
+					contractId: params.contractId,
 					batchSize: params.batchSize ?? 100,
 					fetchEvents,
 					onBatch: params.onBatch,
@@ -161,6 +163,7 @@ export function createStreamsClient(
 				return streamStreamsEvents({
 					fromCursor: params.fromCursor,
 					types: params.types,
+					contractId: params.contractId,
 					batchSize: params.batchSize ?? 100,
 					emptyBackoffMs: params.emptyBackoffMs,
 					maxPages: params.maxPages,
