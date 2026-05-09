@@ -4,18 +4,15 @@ import {
 	type StreamsEventType,
 	createStreamsClient,
 } from "@secondlayer/sdk";
-import {
-	cvToValue,
-	deserializeCV,
-} from "@secondlayer/stacks/clarity";
+import type { Database } from "@secondlayer/shared/db/schema";
+import { logger } from "@secondlayer/shared/logger";
+import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import {
 	SBTC_ASSET_IDENTIFIER_MAINNET,
 	SBTC_CONTRACTS,
 	SBTC_EVENT_TOPICS,
 	type SbtcEventTopic,
 } from "@secondlayer/stacks/sbtc";
-import type { Database } from "@secondlayer/shared/db/schema";
-import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import { defaultInternalStreamsApiKey } from "../internal-auth.ts";
 import {
@@ -25,10 +22,7 @@ import {
 	writeSbtcEvents,
 	writeSbtcTokenEvents,
 } from "../sbtc-storage.ts";
-import {
-	readDecoderCheckpoint,
-	writeDecoderCheckpoint,
-} from "../storage.ts";
+import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
 
 export { SBTC_DECODER_NAME };
 
@@ -288,7 +282,9 @@ export function decodeRegistryPrint(event: StreamsEvent): SbtcEventRow | null {
 	}
 }
 
-export function decodeTokenEvent(event: StreamsEvent): SbtcTokenEventRow | null {
+export function decodeTokenEvent(
+	event: StreamsEvent,
+): SbtcTokenEventRow | null {
 	const payload = event.payload as Record<string, unknown>;
 	const eventType: SbtcTokenEventRow["event_type"] | null =
 		event.event_type === "ft_transfer"
@@ -323,6 +319,11 @@ export function decodeTokenEvent(event: StreamsEvent): SbtcTokenEventRow | null 
 }
 
 function decodeClarityPayload(payload: Record<string, unknown>): unknown {
+	// Prefer canonical hex form (raw_value) over structured `value`.
+	// See bns.decodeClarityPayload for rationale.
+	if (typeof payload.raw_value === "string") {
+		return decodeClarityHex(payload.raw_value);
+	}
 	const value = payload.value;
 	if (value && typeof value === "object" && !Array.isArray(value)) {
 		const v = value as Record<string, unknown>;
@@ -350,7 +351,8 @@ function asHex(value: unknown): string | null {
 	if (typeof value === "string") {
 		return value.startsWith("0x") ? value : `0x${value}`;
 	}
-	if (value instanceof Uint8Array) return `0x${Buffer.from(value).toString("hex")}`;
+	if (value instanceof Uint8Array)
+		return `0x${Buffer.from(value).toString("hex")}`;
 	return null;
 }
 

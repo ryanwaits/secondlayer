@@ -443,6 +443,13 @@ async function applyNamespaceProjection(
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function decodeClarityPayload(payload: Record<string, unknown>): unknown {
+	// Prefer the canonical hex form (`raw_value`) — the streams API also
+	// returns a `value` field with a structured `{Tuple: {data_map: ...}}`
+	// shape that's tied to internal representation; consumers like the BNS
+	// decoder need a flat record to dispatch on `topic`/`status`/`a`.
+	if (typeof payload.raw_value === "string") {
+		return decodeClarityHex(payload.raw_value);
+	}
 	const value = payload.value;
 	if (value && typeof value === "object" && !Array.isArray(value)) {
 		const v = value as Record<string, unknown>;
