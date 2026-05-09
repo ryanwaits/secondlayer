@@ -47,6 +47,7 @@ import {
 	warn,
 	yellow,
 } from "../lib/output.ts";
+import { requireAuth } from "../lib/require-auth.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
 import {
 	SUBGRAPH_TEMPLATE_DESCRIPTIONS,
@@ -541,6 +542,11 @@ export function registerSubgraphsCommand(program: Command): void {
 				try {
 					const absPath = resolve(file);
 					const config = await loadConfig();
+					if (config.network !== "local") {
+						// Remote deploys hit the platform API; prompt for login if no
+						// session rather than failing with a generic 401 mid-flow.
+						await requireAuth();
+					}
 					const dryRun = options.dryRun || options.preview;
 					const startBlock = parseStartBlockOption(options.startBlock);
 					if (startBlock !== undefined) {
