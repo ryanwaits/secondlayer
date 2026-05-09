@@ -66,6 +66,13 @@ services:
       STREAMS_BULK_PUBLIC_BASE_URL: ${STREAMS_BULK_PUBLIC_BASE_URL:-}
       DATASETS_PUBLIC_BASE_URL: ${DATASETS_PUBLIC_BASE_URL:-}
       DATASETS_IP_RATE_LIMIT: ${DATASETS_IP_RATE_LIMIT:-60}
+      # L2 decoder enable flags — read by api/src/routes/status.ts
+      # (via getEnabledL2DecoderNames) so /public/status reports every
+      # enabled decoder, not just ft+nft. Mirror the values set on the
+      # l2-decoder service.
+      SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-false}
+      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
+      BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
     ports:
       - "${API_PORT:-3800}:3800"
     depends_on:
