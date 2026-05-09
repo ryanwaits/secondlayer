@@ -1,4 +1,4 @@
-import { DatasetSandbox } from "@/components/dataset-sandbox";
+import { ParquetSnippet } from "@/components/parquet-snippet";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -104,63 +104,30 @@ export function SbtcDatasetContent() {
 				</p>
 			</div>
 
-			<SectionHeading id="api">API</SectionHeading>
+			<SectionHeading id="api">Access</SectionHeading>
 
 			<div className="prose">
 				<p>
-					<code>GET /v1/datasets/sbtc/events</code> — protocol events. Filters:{" "}
-					<code>topic</code>, <code>request_id</code>, <code>bitcoin_txid</code>
-					, <code>sender</code>, <code>from_block</code>, <code>to_block</code>.
-					Pagination via <code>cursor</code>.
-				</p>
-				<p>
-					<code>GET /v1/datasets/sbtc/token-events</code> — SIP-010 events.
-					Filters: <code>event_type</code> (transfer/mint/burn),{" "}
-					<code>sender</code>, <code>recipient</code>.
+					sBTC is distributed as parquet on R2 — pull a finalized block range
+					with DuckDB or any parquet reader. Discover the latest available range
+					via the per-family <code>manifest/latest.json</code>.
 				</p>
 			</div>
 
-			<DatasetSandbox
-				endpoint="/v1/datasets/sbtc/events"
-				title="Try sbtc/events"
-				filters={[
-					{
-						name: "topic",
-						type: "enum",
-						options: [
-							"completed-deposit",
-							"withdrawal-create",
-							"withdrawal-accept",
-							"withdrawal-reject",
-							"key-rotation",
-							"update-protocol-contract",
-						],
-						default: "completed-deposit",
-					},
-					{ name: "limit", type: "number", default: "5", placeholder: "5" },
-					{ name: "request_id", type: "number" },
-					{ name: "sender", type: "string", placeholder: "SP1..." },
-					{ name: "bitcoin_txid", type: "string", placeholder: "0xabc..." },
-				]}
+			<ParquetSnippet
+				dataset="sbtc/events"
+				title="sbtc/events"
+				description="Protocol-state events: completed-deposit, withdrawal-create / accept / reject, key-rotation, update-protocol-contract."
 			/>
 
-			<DatasetSandbox
-				endpoint="/v1/datasets/sbtc/token-events"
-				title="Try sbtc/token-events"
-				filters={[
-					{
-						name: "event_type",
-						type: "enum",
-						options: ["transfer", "mint", "burn"],
-					},
-					{ name: "limit", type: "number", default: "5", placeholder: "5" },
-					{ name: "sender", type: "string", placeholder: "SP1..." },
-					{ name: "recipient", type: "string", placeholder: "SP2..." },
-				]}
+			<ParquetSnippet
+				dataset="sbtc/token-events"
+				title="sbtc/token-events"
+				description="SIP-010 movements on sbtc-token: transfer, mint, burn."
 			/>
 
 			<div className="prose">
-				<p>Sample response shape:</p>
+				<p>Sample row shape (one row per registry event):</p>
 			</div>
 
 			<InlineCodeBlock>
