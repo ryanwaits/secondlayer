@@ -40,8 +40,22 @@ export type {
 	RequestOptions,
 } from "./transports/types.ts";
 
-// Subscriptions
+// Subscriptions (WebSocket address watchers)
 export type { Subscription } from "./subscriptions/types.ts";
+
+// `on.*` filter factories for @secondlayer/sdk subscriptions.
+// Usage: `import { on } from "@secondlayer/stacks"; on.transferTo(target, ...)`.
+export * as on from "./on/index.ts";
+export type {
+	BnsAction,
+	FactoryTarget,
+	Filter,
+	FilterClause,
+	FilterOperator,
+	FilterPrimitive,
+	PoxFunction,
+	SubscriptionFilterSpec,
+} from "./on/index.ts";
 
 // Accounts
 export { providerToAccount } from "./accounts/providerToAccount.ts";
