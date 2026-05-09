@@ -214,6 +214,11 @@ if (mode !== "platform") {
 const server = Bun.serve({
 	port: PORT,
 	fetch: app.fetch,
+	// Default is 10s, which closes the socket on slow streams queries —
+	// the BNS print scan against unindexed jsonb regularly takes 5–20s
+	// during backfill, surfacing as `socket connection was closed
+	// unexpectedly` errors in downstream consumers (l2-decoder).
+	idleTimeout: 60,
 });
 
 const shutdown = async () => {
