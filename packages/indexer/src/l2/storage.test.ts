@@ -3,11 +3,47 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import {
 	FT_TRANSFER_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
+	getEnabledL2DecoderNames,
 	handleDecodedEventsReorg,
 	writeDecodedEvents,
 } from "./storage.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
+
+describe("getEnabledL2DecoderNames", () => {
+	test("ft + nft only when no flags set", () => {
+		expect(getEnabledL2DecoderNames({})).toEqual([
+			"l2.ft_transfer.v1",
+			"l2.nft_transfer.v1",
+		]);
+	});
+
+	test("includes sbtc/pox4/bns when their flags are 'true'", () => {
+		expect(
+			getEnabledL2DecoderNames({
+				SBTC_DECODER_ENABLED: "true",
+				POX4_DECODER_ENABLED: "true",
+				BNS_DECODER_ENABLED: "true",
+			}),
+		).toEqual([
+			"l2.ft_transfer.v1",
+			"l2.nft_transfer.v1",
+			"l2.sbtc.v1",
+			"l2.pox4.v1",
+			"l2.bns.v1",
+		]);
+	});
+
+	test("flag values other than 'true' are ignored", () => {
+		expect(
+			getEnabledL2DecoderNames({
+				SBTC_DECODER_ENABLED: "1",
+				POX4_DECODER_ENABLED: "yes",
+				BNS_DECODER_ENABLED: "TRUE",
+			}),
+		).toEqual(["l2.ft_transfer.v1", "l2.nft_transfer.v1"]);
+	});
+});
 
 describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 	const db = HAS_DB ? getDb() : null;

@@ -8,7 +8,7 @@ import {
 	FT_TRANSFER_DECODER_NAME,
 	type L2DecoderName,
 	L2_DECODER_EVENT_TYPES,
-	L2_DECODER_NAMES,
+	getEnabledL2DecoderNames,
 } from "./storage.ts";
 
 export type L2DecoderHealth = {
@@ -106,7 +106,7 @@ export async function getL2DecodersHealth(opts?: {
 	decoderNames?: readonly string[];
 	now?: Date;
 }): Promise<L2DecodersHealth> {
-	const decoderNames = opts?.decoderNames ?? L2_DECODER_NAMES;
+	const decoderNames = opts?.decoderNames ?? getEnabledL2DecoderNames();
 	const decoders = await Promise.all(
 		decoderNames.map((decoderName) =>
 			getL2DecoderHealth({ db: opts?.db, decoderName, now: opts?.now }),

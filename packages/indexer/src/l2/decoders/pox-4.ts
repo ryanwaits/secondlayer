@@ -197,9 +197,16 @@ async function fetchTxBatch(
 	`.execute(sourceDb);
 	return rows.map((r) => ({
 		...r,
-		block_time:
-			r.block_time instanceof Date ? r.block_time : new Date(r.block_time),
+		block_time: coerceBlockTime(r.block_time),
 	}));
+}
+
+// `blocks.timestamp` is bigint epoch-seconds; pg returns bigint as a string
+// of digits, which `new Date(string)` parses as a date *string* → Invalid Date.
+export function coerceBlockTime(value: unknown): Date {
+	if (value instanceof Date) return value;
+	const seconds = Number(value);
+	return new Date(seconds * 1000);
 }
 
 export function encodePox4Cursor(blockHeight: number, txIndex: number): string {

@@ -18,6 +18,22 @@ export const L2_DECODER_EVENT_TYPES: Record<L2DecoderName, string> = {
 	[NFT_TRANSFER_DECODER_NAME]: "nft_transfer",
 };
 
+// Returns ft+nft (always on) plus sbtc/pox4/bns conditional on env flags.
+// Both indexer and api containers read the same docker .env, so this view is
+// consistent across processes. Used as the default for `getL2DecodersHealth`
+// so /public/status reports every enabled decoder, not just the hardcoded two.
+export function getEnabledL2DecoderNames(
+	env: NodeJS.ProcessEnv = process.env,
+): readonly string[] {
+	const names: string[] = [FT_TRANSFER_DECODER_NAME, NFT_TRANSFER_DECODER_NAME];
+	// String literals here (not imports) to keep storage.ts free of cycles
+	// with sbtc-/pox4-/bns-storage.ts; the canonical defs live in those files.
+	if (env.SBTC_DECODER_ENABLED === "true") names.push("l2.sbtc.v1");
+	if (env.POX4_DECODER_ENABLED === "true") names.push("l2.pox4.v1");
+	if (env.BNS_DECODER_ENABLED === "true") names.push("l2.bns.v1");
+	return names;
+}
+
 type L2Database = Database & {
 	decoded_events: {
 		cursor: string;

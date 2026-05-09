@@ -118,6 +118,8 @@ export async function consumeBnsDecodedEvents(
 			const nameRows: BnsNameEventRow[] = [];
 			const namespaceRows: BnsNamespaceEventRow[] = [];
 			const marketplaceRows: BnsMarketplaceEventRow[] = [];
+			// TEMP T7a.3a: BNS prod diagnosis — remove after T7a.3c root-cause fix.
+			let bnsContractMatched = 0;
 
 			for (const event of events) {
 				try {
@@ -128,6 +130,7 @@ export async function consumeBnsDecodedEvents(
 					) {
 						continue;
 					}
+					bnsContractMatched += 1;
 					const payload = decodeClarityPayload(event.payload);
 					if (
 						!payload ||
@@ -161,6 +164,15 @@ export async function consumeBnsDecodedEvents(
 					});
 				}
 			}
+
+			// TEMP T7a.3a: BNS prod diagnosis — remove after T7a.3c root-cause fix.
+			logger.info("bns_decoder.batch", {
+				received: events.length,
+				bns_contract_matched: bnsContractMatched,
+				rows_decoded:
+					nameRows.length + namespaceRows.length + marketplaceRows.length,
+				next_cursor: envelope.next_cursor,
+			});
 
 			if (nameRows.length > 0) await writeBnsNameEvents(nameRows, { db });
 			if (namespaceRows.length > 0)

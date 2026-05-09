@@ -151,14 +151,7 @@ const server = Bun.serve({
 		}
 
 		try {
-			const decoderNames: string[] = [
-				"l2.ft_transfer.v1",
-				"l2.nft_transfer.v1",
-			];
-			if (SBTC_ENABLED) decoderNames.push("l2.sbtc.v1");
-			if (POX4_ENABLED) decoderNames.push("l2.pox4.v1");
-			if (BNS_ENABLED) decoderNames.push("l2.bns.v1");
-			const health = await getL2DecodersHealth({ decoderNames });
+			const health = await getL2DecodersHealth();
 			return Response.json(health, {
 				status: health.status === "healthy" ? 200 : 503,
 			});

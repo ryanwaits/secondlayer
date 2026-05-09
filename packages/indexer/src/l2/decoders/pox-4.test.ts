@@ -16,6 +16,7 @@ import {
 } from "@secondlayer/stacks/clarity";
 import {
 	type Pox4TxRow,
+	coerceBlockTime,
 	decodePox4Cursor,
 	decodePox4Tx,
 	encodePox4Cursor,
@@ -57,6 +58,25 @@ function fixtureTx(overrides: Partial<Pox4TxRow> = {}): Pox4TxRow {
 		...overrides,
 	};
 }
+
+describe("coerceBlockTime", () => {
+	test("passes through Date", () => {
+		const d = new Date("2026-05-07T00:00:00.000Z");
+		expect(coerceBlockTime(d)).toBe(d);
+	});
+
+	test("treats bigint-string (pg bigint) as epoch seconds", () => {
+		// pg returns blocks.timestamp (bigint epoch-seconds) as a string of digits.
+		// new Date("1746813000") would be Invalid Date — must convert via Number()*1000.
+		const got = coerceBlockTime("1746813000");
+		expect(got.getTime()).toBe(1_746_813_000_000);
+		expect(Number.isNaN(got.getTime())).toBe(false);
+	});
+
+	test("treats numeric epoch seconds as seconds", () => {
+		expect(coerceBlockTime(1_746_813_000).getTime()).toBe(1_746_813_000_000);
+	});
+});
 
 describe("encode/decodePox4Cursor", () => {
 	test("round-trips", () => {
