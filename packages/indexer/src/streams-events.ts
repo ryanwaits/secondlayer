@@ -29,7 +29,13 @@ export const STREAMS_DB_EVENT_TYPES = [
 	"nft_transfer_event",
 	"nft_mint_event",
 	"nft_burn_event",
+	// Print events have two DB labels: `smart_contract_event` (legacy, frozen
+	// after the upstream node renamed) and `contract_event` (current). Both
+	// carry identical payload shape — `topic`, `value`, `contract_identifier`.
+	// Both must be queryable so consumers see prints across the rename
+	// boundary (~block 7828030 on mainnet).
 	"smart_contract_event",
+	"contract_event",
 ] as const;
 
 export const DB_TO_STREAMS_EVENT_TYPE: Record<
@@ -47,23 +53,26 @@ export const DB_TO_STREAMS_EVENT_TYPE: Record<
 	nft_mint_event: "nft_mint",
 	nft_burn_event: "nft_burn",
 	smart_contract_event: "print",
+	contract_event: "print",
 };
 
-export const STREAMS_TO_DB_EVENT_TYPE: Record<
+// Each streams type maps to one or more DB type labels. Print maps to two
+// (see comment on STREAMS_DB_EVENT_TYPES); all other types are 1:1.
+export const STREAMS_TO_DB_EVENT_TYPES: Record<
 	StreamsEventType,
-	(typeof STREAMS_DB_EVENT_TYPES)[number]
+	readonly (typeof STREAMS_DB_EVENT_TYPES)[number][]
 > = {
-	stx_transfer: "stx_transfer_event",
-	stx_mint: "stx_mint_event",
-	stx_burn: "stx_burn_event",
-	stx_lock: "stx_lock_event",
-	ft_transfer: "ft_transfer_event",
-	ft_mint: "ft_mint_event",
-	ft_burn: "ft_burn_event",
-	nft_transfer: "nft_transfer_event",
-	nft_mint: "nft_mint_event",
-	nft_burn: "nft_burn_event",
-	print: "smart_contract_event",
+	stx_transfer: ["stx_transfer_event"],
+	stx_mint: ["stx_mint_event"],
+	stx_burn: ["stx_burn_event"],
+	stx_lock: ["stx_lock_event"],
+	ft_transfer: ["ft_transfer_event"],
+	ft_mint: ["ft_mint_event"],
+	ft_burn: ["ft_burn_event"],
+	nft_transfer: ["nft_transfer_event"],
+	nft_mint: ["nft_mint_event"],
+	nft_burn: ["nft_burn_event"],
+	print: ["smart_contract_event", "contract_event"],
 };
 
 export type StreamsEventCursor = {
@@ -234,8 +243,8 @@ export async function readCanonicalStreamsEvents(
 		STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
 	);
 	const selectedDbEventTypes = sql.join(
-		(params.types ?? STREAMS_EVENT_TYPES).map(
-			(eventType) => sql`${STREAMS_TO_DB_EVENT_TYPE[eventType]}`,
+		(params.types ?? STREAMS_EVENT_TYPES).flatMap((eventType) =>
+			STREAMS_TO_DB_EVENT_TYPES[eventType].map((dbType) => sql`${dbType}`),
 		),
 	);
 	const contractPredicate = contractIdPredicate(params.contractId);
@@ -279,7 +288,7 @@ function contractIdPredicate(
 	return sql`
 		AND (
 			(
-				e.type = 'smart_contract_event'
+				e.type IN ('smart_contract_event', 'contract_event')
 				AND (
 					e.data->>'contract_identifier' = ${contractId}
 					OR e.data->>'contract_id' = ${contractId}
