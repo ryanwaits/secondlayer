@@ -114,7 +114,12 @@ export async function consumeBnsDecodedEvents(
 
 	const result = await streamsClient.events.consume({
 		fromCursor: startCursor,
-		batchSize: opts.batchSize ?? 500,
+		// Smaller than the FT/NFT decoders (500) because the streams print
+		// query relies on a jsonb predicate on `data->>'contract_identifier'`
+		// that is not well-indexed; limit=500 reliably hits a 5-10s response
+		// window, which exceeds Bun's fetch socket timeout. limit=100 returns
+		// in ~2s on prod for the BNS-V2 mainnet contract.
+		batchSize: opts.batchSize ?? 100,
 		emptyBackoffMs: opts.emptyBackoffMs,
 		maxPages: opts.maxPages,
 		maxEmptyPolls: opts.maxEmptyPolls,
