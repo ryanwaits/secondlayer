@@ -1,5 +1,6 @@
 import {
 	type L2DecodersHealth,
+	getEnabledL2DecoderNames,
 	getL2DecodersHealth,
 } from "@secondlayer/indexer/l2/health";
 import { getDb } from "@secondlayer/shared/db";
@@ -7,13 +8,13 @@ import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph
 import { Hono } from "hono";
 import { sql } from "kysely";
 import {
-	getDatasetsFreshness,
 	type DatasetFreshness,
+	getDatasetsFreshness,
 } from "../datasets/manifests.ts";
 import {
+	type StreamsDumpsFreshness,
 	getStreamsBulkManifest,
 	streamsDumpsFreshness,
-	type StreamsDumpsFreshness,
 } from "../streams/dumps.ts";
 import { type StreamsTip, getStreamsTip } from "../streams/tip.ts";
 import { getApiTelemetrySnapshot } from "../telemetry/api.ts";
@@ -24,7 +25,7 @@ type PublicIndexDecoderStatus = "ok" | "degraded" | "unavailable";
 
 type PublicIndexDecoder = {
 	decoder: string;
-	eventType: "ft_transfer" | "nft_transfer";
+	eventType: string;
 	status: PublicIndexDecoderStatus;
 	lagSeconds: number | null;
 	checkpointBlockHeight: number | null;
@@ -44,13 +45,22 @@ type PublicServiceHealth = {
 	status: SemanticHealthStatus;
 };
 
-const INDEX_DECODERS: Array<{
-	decoder: string;
-	eventType: "ft_transfer" | "nft_transfer";
-}> = [
-	{ decoder: "l2.ft_transfer.v1", eventType: "ft_transfer" },
-	{ decoder: "l2.nft_transfer.v1", eventType: "nft_transfer" },
-];
+// Built per-request from env flags so the public status response surfaces
+// every enabled L2 decoder, not just the always-on ft + nft pair.
+const DECODER_EVENT_TYPE: Record<string, string> = {
+	"l2.ft_transfer.v1": "ft_transfer",
+	"l2.nft_transfer.v1": "nft_transfer",
+	"l2.sbtc.v1": "sbtc",
+	"l2.pox4.v1": "pox4_call",
+	"l2.bns.v1": "bns_print",
+};
+
+function indexDecoders(): Array<{ decoder: string; eventType: string }> {
+	return getEnabledL2DecoderNames().map((decoder) => ({
+		decoder,
+		eventType: DECODER_EVENT_TYPE[decoder] ?? decoder,
+	}));
+}
 
 export function publicIndexStatusFromL2Health(
 	health: L2DecodersHealth | null,
@@ -58,7 +68,7 @@ export function publicIndexStatusFromL2Health(
 	if (!health) {
 		return {
 			status: "unavailable",
-			decoders: INDEX_DECODERS.map((decoder) => ({
+			decoders: indexDecoders().map((decoder) => ({
 				...decoder,
 				status: "unavailable",
 				lagSeconds: null,
@@ -72,7 +82,7 @@ export function publicIndexStatusFromL2Health(
 	const byName = new Map(
 		health.decoders.map((decoder) => [decoder.decoder, decoder]),
 	);
-	const decoders: PublicIndexDecoder[] = INDEX_DECODERS.map((decoder) => {
+	const decoders: PublicIndexDecoder[] = indexDecoders().map((decoder) => {
 		const source = byName.get(decoder.decoder);
 		if (!source) {
 			return {
@@ -120,7 +130,9 @@ function nodeStatusFromStreamsTip(
 	return "ok";
 }
 
-function overallPublicStatus(services: PublicServiceHealth[]): "healthy" | "degraded" {
+function overallPublicStatus(
+	services: PublicServiceHealth[],
+): "healthy" | "degraded" {
 	return services.every((service) => service.status === "ok")
 		? "healthy"
 		: "degraded";
