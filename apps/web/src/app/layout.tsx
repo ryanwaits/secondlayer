@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 	// Without this, per-page `openGraph.images` like "/og/sbtc.png" resolve
 	// relative to the request URL, which breaks Twitter/Slack/iMessage card
 	// previews on shared links.
-	metadataBase: new URL("https://secondlayer.tools"),
+	metadataBase: new URL("https://www.secondlayer.tools"),
 	title: "secondlayer",
 	description: "Developer tools for Stacks",
 	openGraph: {

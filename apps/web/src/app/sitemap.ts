@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const BASE = "https://secondlayer.tools";
+const BASE = "https://www.secondlayer.tools";
 
 const ROUTES = [
 	"/",

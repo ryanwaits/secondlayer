@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
 				disallow: ["/admin/", "/platform/", "/login", "/verify"],
 			},
 		],
-		sitemap: "https://secondlayer.tools/sitemap.xml",
+		sitemap: "https://www.secondlayer.tools/sitemap.xml",
 	};
 }
