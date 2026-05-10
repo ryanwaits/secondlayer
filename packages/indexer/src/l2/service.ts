@@ -70,6 +70,7 @@ async function logProgress(): Promise<void> {
 type DecoderConsumeFn = (opts: {
 	batchSize?: number;
 	emptyBackoffMs?: number;
+	maxEmptyPolls?: number;
 	signal?: AbortSignal;
 	onProgress?: (stats: {
 		decoded: number;
@@ -92,6 +93,15 @@ async function runDecoder(
 				),
 				emptyBackoffMs: Number.parseInt(
 					process.env.L2_DECODER_EMPTY_BACKOFF_MS ?? "1000",
+					10,
+				),
+				// Force `consume()` to return after a small empty-poll budget
+				// so `runDecoder`'s `finally` block runs the liveness ping and
+				// progress log. Without this, a stream that returns no events
+				// (e.g. sparse contract filter at-tip) keeps the SDK consumer
+				// looping forever and `updated_at` goes stale.
+				maxEmptyPolls: Number.parseInt(
+					process.env.L2_DECODER_MAX_EMPTY_POLLS ?? "1",
 					10,
 				),
 				signal: controller.signal,

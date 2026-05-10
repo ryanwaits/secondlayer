@@ -268,10 +268,13 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 			db,
 		});
 		expect(secondPage.events).toEqual([]);
-		expect(secondPage.next_cursor).toBeNull();
+		// Empty filtered scan must advance past `toHeight`, not return null.
+		// Otherwise the SDK consumer pins at the previous cursor and spins
+		// in `consume()` forever (the May 2026 BNS / FT freeze).
+		expect(secondPage.next_cursor).toBe(`2:${Number.MAX_SAFE_INTEGER}`);
 	});
 
-	test("types filter returns null cursor when no selected types match", async () => {
+	test("types filter advances cursor past toHeight when no selected types match", async () => {
 		if (!db) throw new Error("missing db");
 
 		await db
@@ -339,6 +342,81 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		});
 
 		expect(page.events).toEqual([]);
-		expect(page.next_cursor).toBeNull();
+		expect(page.next_cursor).toBe(`1:${Number.MAX_SAFE_INTEGER}`);
+	});
+
+	test("contractId filter advances cursor past empty ranges", async () => {
+		if (!db) throw new Error("missing db");
+
+		await db
+			.insertInto("blocks")
+			.values([
+				{
+					height: 10,
+					hash: "0x10",
+					parent_hash: "0x09",
+					burn_block_height: 110,
+					timestamp: 2000,
+					canonical: true,
+				},
+				{
+					height: 11,
+					hash: "0x11",
+					parent_hash: "0x10",
+					burn_block_height: 111,
+					timestamp: 2001,
+					canonical: true,
+				},
+				{
+					height: 12,
+					hash: "0x12",
+					parent_hash: "0x11",
+					burn_block_height: 112,
+					timestamp: 2002,
+					canonical: true,
+				},
+			])
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: "tx-other-print",
+				block_height: 10,
+				tx_index: 0,
+				type: "contract_call",
+				sender: "SP1",
+				status: "success",
+				contract_id: "SP1.other",
+				raw_tx: "0x10",
+			})
+			.execute();
+		await db
+			.insertInto("events")
+			.values({
+				tx_id: "tx-other-print",
+				block_height: 10,
+				event_index: 0,
+				type: "smart_contract_event",
+				data: {
+					contract_identifier: "SP1.other",
+					topic: "print",
+					value: { repr: "u1" },
+				},
+			})
+			.execute();
+
+		// Filter eliminates the only event in range; without the cursor-
+		// advancement fix the consumer would pin at the previous cursor.
+		const page = await readCanonicalStreamsEvents({
+			after: { block_height: 9, event_index: 0 },
+			toHeight: 12,
+			types: ["print"],
+			contractId: "SP2.target",
+			limit: 100,
+			db,
+		});
+
+		expect(page.events).toEqual([]);
+		expect(page.next_cursor).toBe(`12:${Number.MAX_SAFE_INTEGER}`);
 	});
 });

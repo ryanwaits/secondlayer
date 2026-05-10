@@ -271,12 +271,21 @@ export async function readCanonicalStreamsEvents(
 	const pageRows = rows.slice(0, params.limit);
 	const events = pageRows.map(normalizeRow);
 	const lastScannedRow = pageRows.at(-1);
+	// When the filtered scan returned matches, anchor the cursor on the
+	// last delivered event so the consumer keeps strict ordering. When it
+	// returned nothing, advance past `toHeight` instead of returning null —
+	// otherwise a contract_id or types filter that eliminates every event
+	// in the scanned range pins the consumer at the previous cursor and
+	// it spins in `consume()` forever (BNS / FT decoder freeze, May 2026).
 	const next_cursor = lastScannedRow
 		? encodeStreamsEventCursor({
 				block_height: Number(lastScannedRow.block_height),
 				event_index: Number(lastScannedRow.stream_event_index),
 			})
-		: null;
+		: encodeStreamsEventCursor({
+				block_height: params.toHeight,
+				event_index: Number.MAX_SAFE_INTEGER,
+			});
 
 	return { events, next_cursor };
 }
