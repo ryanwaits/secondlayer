@@ -10,12 +10,14 @@ describe("www marketing routes", () => {
 		expect(html).toContain('class="homepage"');
 		expect(html).toContain('class="page-title"');
 		expect(html).toContain("secondlayer");
-		expect(html).toContain("the data plane for Stacks");
+		expect(html).toContain("the agent-native data plane for Stacks");
 		expect(html).toContain("launching May 27");
-		// Intro prose (utility framing + public-goods accent).
-		expect(html).toContain("rebuilds the same indexing");
-		expect(html).toContain("public goods, free forever");
-		expect(html).toContain('class="pink"');
+		// Intro prose: agent-native framing + chain-events thesis.
+		expect(html).toContain("agent-native data plane for Stacks");
+		expect(html).toContain("apps and agents need them in any shape");
+		expect(html).toContain("Public goods, free forever");
+		// <mark> on Foundation Datasets is the only chromatic moment.
+		expect(html).toContain("<mark>Foundation Datasets</mark>");
 		// Single Products row group.
 		expect(html).toContain(">Products<");
 		expect(html).toContain('href="/streams"');

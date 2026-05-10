@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-	title: "secondlayer · the data plane for Stacks",
+	title: "secondlayer · the agent-native data plane for Stacks",
 	description:
-		"Streams, Subgraphs, Subscriptions, Foundation Datasets. Public APIs free forever, hosted infrastructure on top. Launching May 27.",
+		"The agent-native data plane for Stacks. Pull with Streams, index with Subgraphs, push with Subscriptions, query five Foundation Datasets directly. Public goods, free forever.",
 };
 
 const products = [
@@ -30,22 +30,25 @@ export default function Home() {
 		<div className="homepage">
 			<header className="page-header">
 				<h1 className="page-title">secondlayer</h1>
-				<p className="page-sub">the data plane for Stacks · launching May 27</p>
+				<p className="page-sub">
+					the agent-native data plane for Stacks · launching May 27
+				</p>
 			</header>
 
 			<div className="prose www-manifest">
 				<p>
-					Every team building on Stacks rebuilds the same indexing
-					infrastructure — own nodes, own decoders, own reorg handling, own
-					schemas. That work is undifferentiated; it should be a utility. We run
-					that utility.
+					Secondlayer is the agent-native data plane for Stacks.{" "}
+					<em>
+						The chain produces events; apps and agents need them in any shape.
+					</em>
 				</p>
 				<p>
-					Streams for raw events, Subgraphs for typed indexers, Subscriptions
-					for push delivery, and five{" "}
-					<Link href="/datasets">Foundation Datasets</Link> as{" "}
-					<span className="pink">public goods, free forever</span>. Hosted
-					infrastructure on top.
+					Pull them with Streams, index them with Subgraphs, push them with
+					Subscriptions, or query five{" "}
+					<Link href="/datasets">
+						<mark>Foundation Datasets</mark>
+					</Link>{" "}
+					directly. Public goods, free forever. Hosted infrastructure on top.
 				</p>
 			</div>
 
