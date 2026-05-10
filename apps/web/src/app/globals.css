@@ -3741,7 +3741,9 @@ a {
 	border-radius: 4px;
 	border: 1px solid var(--border);
 	background: var(--accent, #2563eb);
-	color: #fff;
+	/* Use the theme-aware accent contrast so dark mode flips to dark text
+	   on the cyan accent (matches the auth-bar "Get early access" CTA). */
+	color: var(--accent-contrast, #fff);
 	cursor: pointer;
 	font-weight: 600;
 }
