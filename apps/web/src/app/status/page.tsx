@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Metadata } from "next";
 import { readIncidentHeading } from "@/lib/status-page";
+import type { Metadata } from "next";
 import { StatusPageView } from "./status-page-view";
 
 export const metadata: Metadata = {
 	title: "Status | secondlayer",
-	description: "Public status for Second Layer Stacks Streams and Stacks Index.",
+	description:
+		"Public status: Streams API, Index decoders, Foundation Dataset freshness, parquet lag.",
 };
 
 function readIncidentFile(): string {

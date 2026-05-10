@@ -9,10 +9,10 @@ export function StatusPageView({ incidentHeading }: { incidentHeading: string })
 				</a>
 				<div>
 					<p className="status-eyebrow">Public status</p>
-					<h1>Stacks Streams + Index</h1>
+					<h1>secondlayer</h1>
 					<p className="status-intro">
-						Live health for the public Streams API and Index decoder
-						freshness. The page refreshes every 30 seconds.
+						Live health for Streams, Index decoders, the five Foundation
+						Datasets, and parquet freshness. Refreshes every 30 seconds.
 					</p>
 				</div>
 			</header>
