@@ -684,6 +684,19 @@ a {
 	color: var(--text-main);
 }
 
+.page-title-with-logo {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+}
+.page-title-with-logo .logo-primary {
+	fill: var(--accent);
+}
+.page-title-with-logo .logo-echo {
+	fill: var(--accent);
+	opacity: 0.24;
+}
+
 .page-date {
 	color: var(--text-muted);
 	font-size: 14px;

@@ -58,10 +58,25 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 		<div className="homepage">
 			<HomeStatusBadge status={status} />
 			<header className="page-header">
-				<h1 className="page-title">secondlayer</h1>
-				<p className="page-sub">
-					the agent-native data plane for Stacks · launching May 27
-				</p>
+				<h1 className="page-title page-title-with-logo">
+					<svg
+						viewBox="4 7 40 28"
+						width="24"
+						height="16"
+						fill="none"
+						aria-hidden="true"
+					>
+						<polygon
+							points="8,25 28,17 42,25 22,33"
+							className="logo-echo"
+						/>
+						<polygon
+							points="8,19 28,11 42,19 22,27"
+							className="logo-primary"
+						/>
+					</svg>
+					<span>secondlayer</span>
+				</h1>
 			</header>
 
 			<div className="prose www-manifest">
@@ -74,10 +89,8 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 				<p>
 					Pull them with Streams, index them with Subgraphs, push them with
 					Subscriptions, or query five{" "}
-					<Link href="/datasets">
-						<mark>Foundation Datasets</mark>
-					</Link>{" "}
-					directly. Public goods, free forever. Hosted infrastructure on top.
+					<Link href="/datasets">Foundation Datasets</Link> directly. Public
+					goods, free forever. Hosted infrastructure on top.
 				</p>
 			</div>
 

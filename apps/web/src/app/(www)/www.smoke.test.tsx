@@ -8,16 +8,16 @@ describe("www marketing routes", () => {
 		const html = renderToStaticMarkup(<HomeView status={null} />);
 		// Page chrome.
 		expect(html).toContain('class="homepage"');
-		expect(html).toContain('class="page-title"');
+		expect(html).toContain("page-title");
 		expect(html).toContain("secondlayer");
-		expect(html).toContain("the agent-native data plane for Stacks");
-		expect(html).toContain("launching May 27");
+		// Logo renders inline next to the wordmark.
+		expect(html).toContain("page-title-with-logo");
+		expect(html).toContain("logo-primary");
 		// Intro prose: agent-native framing + chain-events thesis.
 		expect(html).toContain("agent-native data plane for Stacks");
 		expect(html).toContain("apps and agents need them in any shape");
 		expect(html).toContain("Public goods, free forever");
-		// <mark> on Foundation Datasets is the only chromatic moment.
-		expect(html).toContain("<mark>Foundation Datasets</mark>");
+		expect(html).toContain("Foundation Datasets");
 		// Single Products row group.
 		expect(html).toContain(">Products<");
 		expect(html).toContain('href="/streams"');
