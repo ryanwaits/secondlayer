@@ -271,7 +271,7 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		// Empty filtered scan must advance past `toHeight`, not return null.
 		// Otherwise the SDK consumer pins at the previous cursor and spins
 		// in `consume()` forever (the May 2026 BNS / FT freeze).
-		expect(secondPage.next_cursor).toBe(`2:${Number.MAX_SAFE_INTEGER}`);
+		expect(secondPage.next_cursor).toBe("2:2147483647");
 	});
 
 	test("types filter advances cursor past toHeight when no selected types match", async () => {
@@ -342,7 +342,7 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		});
 
 		expect(page.events).toEqual([]);
-		expect(page.next_cursor).toBe(`1:${Number.MAX_SAFE_INTEGER}`);
+		expect(page.next_cursor).toBe("1:2147483647");
 	});
 
 	test("contractId filter advances cursor past empty ranges", async () => {
@@ -417,6 +417,6 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		});
 
 		expect(page.events).toEqual([]);
-		expect(page.next_cursor).toBe(`12:${Number.MAX_SAFE_INTEGER}`);
+		expect(page.next_cursor).toBe("12:2147483647");
 	});
 });

@@ -277,6 +277,11 @@ export async function readCanonicalStreamsEvents(
 	// otherwise a contract_id or types filter that eliminates every event
 	// in the scanned range pins the consumer at the previous cursor and
 	// it spins in `consume()` forever (BNS / FT decoder freeze, May 2026).
+	//
+	// Sentinel must fit in Postgres int4 (the column type for
+	// `stream_event_index`) — `Number.MAX_SAFE_INTEGER` overflows and
+	// turns the next fetch into a 500. int4 max is plenty: real blocks
+	// have <1k events, never billions.
 	const next_cursor = lastScannedRow
 		? encodeStreamsEventCursor({
 				block_height: Number(lastScannedRow.block_height),
@@ -284,11 +289,13 @@ export async function readCanonicalStreamsEvents(
 			})
 		: encodeStreamsEventCursor({
 				block_height: params.toHeight,
-				event_index: Number.MAX_SAFE_INTEGER,
+				event_index: EMPTY_RANGE_EVENT_INDEX_SENTINEL,
 			});
 
 	return { events, next_cursor };
 }
+
+const EMPTY_RANGE_EVENT_INDEX_SENTINEL = 2_147_483_647;
 
 function contractIdPredicate(
 	contractId: string | undefined,
