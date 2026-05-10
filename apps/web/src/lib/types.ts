@@ -92,9 +92,6 @@ export interface SystemStatus {
 		status: ServiceHealthStatus;
 	};
 	services?: ServiceHealth[];
-	reorgs?: {
-		last_24h: number | null;
-	};
 	streams?: {
 		status: "ok" | "unavailable";
 		tip: {
@@ -133,7 +130,7 @@ export interface ApiTelemetryStatus extends ApiTelemetryStats {
 
 export interface IndexDecoderFreshness {
 	decoder: string;
-	eventType: "ft_transfer" | "nft_transfer";
+	eventType: string;
 	status: "ok" | "degraded" | "unavailable";
 	lagSeconds: number | null;
 	checkpointBlockHeight: number | null;

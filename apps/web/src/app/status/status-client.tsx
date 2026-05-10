@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { determinePublicStatusHealth } from "@/lib/status-page";
 import type { SystemStatus } from "@/lib/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { StatusGridView, type StatusSnapshot } from "./status-grid-view";
 
 const STATUS_API_URL =
@@ -20,7 +20,6 @@ const initialSnapshot: StatusSnapshot = {
 	api: null,
 	node: null,
 	services: [],
-	reorgs: null,
 	lastChecked: null,
 	error: null,
 };
@@ -46,7 +45,6 @@ export function StatusClient({ incidentHeading }: { incidentHeading: string }) {
 				api: status.api ?? null,
 				node: status.node ?? null,
 				services: status.services ?? [],
-				reorgs: status.reorgs ?? null,
 				lastChecked: checkedAt,
 				error: null,
 			});
@@ -58,7 +56,6 @@ export function StatusClient({ incidentHeading }: { incidentHeading: string }) {
 				api: null,
 				node: null,
 				services: [],
-				reorgs: null,
 				lastChecked: checkedAt,
 				error:
 					error instanceof Error ? error.message : "Status request failed.",

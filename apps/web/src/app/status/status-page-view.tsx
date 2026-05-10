@@ -1,6 +1,8 @@
 import { StatusClient } from "./status-client";
 
-export function StatusPageView({ incidentHeading }: { incidentHeading: string }) {
+export function StatusPageView({
+	incidentHeading,
+}: { incidentHeading: string }) {
 	return (
 		<main className="status-page">
 			<header className="status-header">
@@ -11,8 +13,8 @@ export function StatusPageView({ incidentHeading }: { incidentHeading: string })
 					<p className="status-eyebrow">Public status</p>
 					<h1>secondlayer</h1>
 					<p className="status-intro">
-						Live health for Streams, Index decoders, the five Foundation
-						Datasets, and parquet freshness. Refreshes every 30 seconds.
+						Live health for the API, Index decoders, the Foundation Datasets,
+						and parquet freshness. Refreshes every 30 seconds.
 					</p>
 				</div>
 			</header>

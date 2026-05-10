@@ -216,9 +216,6 @@ app.get("/public/status", async (c) => {
 			status: nodeStatusFromStreamsTip(streamsTip),
 		},
 		services,
-		reorgs: {
-			last_24h: null,
-		},
 		timestamp: new Date().toISOString(),
 	});
 });
@@ -376,9 +373,6 @@ app.get("/status", async (c) => {
 			tip: streamsTip,
 		},
 		index,
-		reorgs: {
-			last_24h: null,
-		},
 		activeSubgraphs: subgraphHealth.filter((v) => v.status === "active").length,
 		subgraphs: subgraphHealth,
 		timestamp: new Date().toISOString(),

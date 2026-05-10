@@ -1,6 +1,7 @@
-import type { StreamsTip } from "@secondlayer/sdk/streams";
 import {
+	type ApiHealth,
 	apiTelemetryOrEmpty,
+	decoderRowLabel,
 	formatErrorRate,
 	formatLag,
 	formatLastChecked,
@@ -10,13 +11,13 @@ import {
 	serviceDisplayName,
 	serviceStatusColor,
 	truncateHash,
-	type ApiHealth,
 } from "@/lib/status-page";
 import type {
 	ApiTelemetryStatus,
 	IndexFreshnessStatus,
 	ServiceHealth,
 } from "@/lib/types";
+import type { StreamsTip } from "@secondlayer/sdk/streams";
 
 export type StatusSnapshot = {
 	health: ApiHealth;
@@ -25,7 +26,6 @@ export type StatusSnapshot = {
 	api: ApiTelemetryStatus | null;
 	node: { status: "ok" | "degraded" | "unavailable" } | null;
 	services: ServiceHealth[];
-	reorgs: { last_24h: number | null } | null;
 	lastChecked: Date | null;
 	error: string | null;
 };
@@ -104,23 +104,20 @@ export function StatusGridView({
 			<div className="status-block">
 				<div className="status-block-kicker">Stacks Index freshness</div>
 				<dl className="status-metrics">
-					{(["ft_transfer", "nft_transfer"] as const).map((eventType) => {
-						const decoder =
-							snapshot.index?.decoders.find(
-								(item) => item.eventType === eventType,
-							) ?? null;
+					{(snapshot.index?.decoders ?? []).map((decoder) => {
 						const color = indexFreshnessColor(decoder);
-
 						return (
-							<div key={eventType}>
+							<div key={decoder.decoder}>
 								<dt>
 									<span
 										className={`status-freshness-dot status-freshness-${color}`}
 										aria-hidden="true"
 									/>
-									{eventType === "ft_transfer" ? "FT decoder" : "NFT decoder"}
+									{decoderRowLabel(decoder.eventType)}
 								</dt>
-								<dd>{indexFreshnessLabel(eventType, snapshot.index)}</dd>
+								<dd>
+									{indexFreshnessLabel(decoder.eventType, snapshot.index)}
+								</dd>
 							</div>
 						);
 					})}
@@ -152,10 +149,6 @@ export function StatusGridView({
 							<dd>{service.status}</dd>
 						</div>
 					))}
-					<div>
-						<dt>Reorgs last 24h</dt>
-						<dd>{snapshot.reorgs?.last_24h ?? "Unavailable"}</dd>
-					</div>
 				</dl>
 			</div>
 

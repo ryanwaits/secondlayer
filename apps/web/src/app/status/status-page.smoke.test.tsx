@@ -58,7 +58,6 @@ describe("status page visual smoke", () => {
 						{ name: "indexer", status: "ok" },
 						{ name: "l2_decoder", status: "degraded" },
 					],
-					reorgs: { last_24h: null },
 					lastChecked: new Date("2026-05-03T20:30:45Z"),
 					error: null,
 				}}
@@ -76,7 +75,6 @@ describe("status page visual smoke", () => {
 		expect(html).toContain("91ms");
 		expect(html).toContain("0.25%");
 		expect(html).toContain("Stacks node");
-		expect(html).toContain("Reorgs last 24h");
 		expect(html).toContain("Incident note");
 		expect(html).toContain("No active incidents");
 		expect(html).toContain("182,447");

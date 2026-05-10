@@ -95,12 +95,28 @@ export function indexFreshnessColor(
 	return decoder.lagSeconds >= 60 ? "yellow" : "green";
 }
 
+const DECODER_SHORT_NAME: Record<string, string> = {
+	ft_transfer: "FT",
+	nft_transfer: "NFT",
+	pox4_call: "PoX-4",
+	bns_print: "BNS",
+	sbtc: "sBTC",
+};
+
+export function decoderShortName(eventType: string): string {
+	return DECODER_SHORT_NAME[eventType] ?? eventType;
+}
+
+export function decoderRowLabel(eventType: string): string {
+	return `${decoderShortName(eventType)} decoder`;
+}
+
 export function indexFreshnessLabel(
 	eventType: IndexDecoderFreshness["eventType"],
 	status: IndexFreshnessStatus | null | undefined,
 ): string {
 	const decoder = status?.decoders.find((item) => item.eventType === eventType);
-	const prefix = eventType === "ft_transfer" ? "FT" : "NFT";
+	const prefix = decoderShortName(eventType);
 	if (!decoder || decoder.status === "unavailable")
 		return `${prefix} unavailable`;
 	return `${prefix} ${formatLag(decoder.lagSeconds)}`;
@@ -130,7 +146,9 @@ export function formatErrorRate(value: number | null | undefined): string {
 	return `${(Math.max(0, value) * 100).toFixed(2)}%`;
 }
 
-export function serviceStatusColor(status: ServiceHealthStatus): FreshnessColor {
+export function serviceStatusColor(
+	status: ServiceHealthStatus,
+): FreshnessColor {
 	if (status === "ok") return "green";
 	if (status === "degraded") return "yellow";
 	return "muted";
