@@ -16,7 +16,9 @@ const STATUS_API_KEY =
 const STATUS_PATH = STATUS_API_KEY ? "/status" : "/public/status";
 
 export const homeProducts = [
+	{ name: "Streams", href: "/docs/streams" },
 	{ name: "Subgraphs", href: "/docs/subgraphs" },
+	{ name: "Subscriptions", href: "/docs/subscriptions" },
 	{ name: "SDK", href: "/docs/sdk", version: sdkPackage.version },
 	{ name: "CLI", href: "/docs/cli", version: cliPackage.version },
 	{ name: "MCP", href: "/docs/mcp", version: mcpPackage.version },

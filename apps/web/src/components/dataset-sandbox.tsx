@@ -28,6 +28,8 @@ export type DatasetSandboxProps = {
 	apiBase?: string;
 	/** Optional title shown above the panel. */
 	title?: string;
+	/** When true, render an API key input + send `Authorization: Bearer <key>`. */
+	requiresApiKey?: boolean;
 };
 
 const DEFAULT_API_BASE = "https://api.secondlayer.tools";
@@ -48,6 +50,7 @@ export function DatasetSandbox({
 	filters,
 	apiBase = DEFAULT_API_BASE,
 	title,
+	requiresApiKey = false,
 }: DatasetSandboxProps) {
 	const [values, setValues] = useState<Record<string, string>>(() => {
 		const initial: Record<string, string> = {};
@@ -56,12 +59,18 @@ export function DatasetSandbox({
 		}
 		return initial;
 	});
+	const [apiKey, setApiKey] = useState("");
 	const [response, setResponse] = useState<ResponseState>({ kind: "idle" });
 
 	const queryString = useMemo(() => buildQuery(values), [values]);
 	const fullUrl = `${apiBase}${endpoint}${queryString}`;
-	const curlSnippet = `curl "${fullUrl}"`;
-	const fetchSnippet = `const res = await fetch(\n  "${fullUrl}",\n);\nconst data = await res.json();`;
+	const authHeaderForSnippet = requiresApiKey
+		? ` \\\n  -H "Authorization: Bearer ${apiKey || "<your-key>"}"`
+		: "";
+	const curlSnippet = `curl "${fullUrl}"${authHeaderForSnippet}`;
+	const fetchSnippet = requiresApiKey
+		? `const res = await fetch(\n  "${fullUrl}",\n  { headers: { Authorization: \`Bearer \${process.env.SL_STREAMS_API_KEY}\` } },\n);\nconst data = await res.json();`
+		: `const res = await fetch(\n  "${fullUrl}",\n);\nconst data = await res.json();`;
 
 	const handleChange = useCallback((name: string, value: string) => {
 		setValues((prev) => {
@@ -81,9 +90,13 @@ export function DatasetSandbox({
 			setResponse({ kind: "loading" });
 			const started = performance.now();
 			try {
-				const res = await fetch(fullUrl, {
-					headers: { accept: "application/json" },
-				});
+				const headers: Record<string, string> = {
+					accept: "application/json",
+				};
+				if (requiresApiKey && apiKey) {
+					headers.Authorization = `Bearer ${apiKey}`;
+				}
+				const res = await fetch(fullUrl, { headers });
 				const latencyMs = Math.round(performance.now() - started);
 				const text = await res.text();
 				let body: unknown;
@@ -115,7 +128,7 @@ export function DatasetSandbox({
 				});
 			}
 		},
-		[fullUrl],
+		[fullUrl, apiKey, requiresApiKey],
 	);
 
 	const responseBody = formatResponseBody(response);
@@ -132,6 +145,30 @@ export function DatasetSandbox({
 						{queryString || ""}
 					</code>
 				</div>
+
+				{requiresApiKey ? (
+					<label
+						className="dataset-sandbox-filter"
+						htmlFor="dataset-sandbox-api-key"
+					>
+						<span className="dataset-sandbox-filter-label">
+							Streams API key
+							<span className="dataset-sandbox-filter-helper">
+								{" "}
+								(Bearer; create at /platform/api-keys)
+							</span>
+						</span>
+						<input
+							id="dataset-sandbox-api-key"
+							type="password"
+							autoComplete="off"
+							value={apiKey}
+							onChange={(e) => setApiKey(e.target.value)}
+							placeholder="sk-sl_streams_..."
+							className="dataset-sandbox-filter-input"
+						/>
+					</label>
+				) : null}
 
 				{filters.length > 0 ? (
 					<div className="dataset-sandbox-filters">

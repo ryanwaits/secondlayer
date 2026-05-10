@@ -14,6 +14,7 @@ import {
 	registerProjectCommand,
 	registerStackCommand,
 	registerStatusCommand,
+	registerStreamsCommand,
 	registerSubgraphsCommand,
 	registerSubscriptionsCommand,
 	registerWhoamiCommand,
@@ -85,6 +86,7 @@ registerInstanceCommand(program);
 registerSubgraphsCommand(program);
 registerCreateCommand(program);
 registerSubscriptionsCommand(program);
+registerStreamsCommand(program);
 
 // Ops / inspection
 registerStatusCommand(program);

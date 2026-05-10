@@ -25,8 +25,17 @@ const nextConfig: NextConfig = {
 		// Old top-level reference paths that still exist under /docs/*.
 		// Deleted routes (writings, stacks-streams, stacks-index, subscriptions,
 		// quickstart) are intentionally absent — those URLs now 404 cleanly.
-		const docPaths = ["cli", "sdk", "mcp", "stacks", "subgraphs", "datasets"];
-		return [
+		const docPaths = [
+			"cli",
+			"sdk",
+			"mcp",
+			"stacks",
+			"streams",
+			"subgraphs",
+			"subscriptions",
+			"datasets",
+		];
+		const docRedirects = [
 			...docPaths.map((p) => ({
 				source: `/${p}`,
 				destination: `/docs/${p}`,
@@ -38,6 +47,41 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			})),
 		];
+		// Workflow + sentry packages were deprecated in the 2026-04-23 pivot;
+		// inbound traffic should land on Subscriptions or the migration guide.
+		const deprecatedRedirects = [
+			{
+				source: "/workflows",
+				destination: "/docs/subscriptions",
+				permanent: true,
+			},
+			{
+				source: "/workflows/:path*",
+				destination: "/docs/subscriptions",
+				permanent: true,
+			},
+			{
+				source: "/sentries",
+				destination: "/docs/subscriptions",
+				permanent: true,
+			},
+			{
+				source: "/sentries/:path*",
+				destination: "/docs/subscriptions",
+				permanent: true,
+			},
+			{
+				source: "/docs/workflows",
+				destination: "/docs/migration/v1-to-v2",
+				permanent: true,
+			},
+			{
+				source: "/docs/sentries",
+				destination: "/docs/migration/v1-to-v2",
+				permanent: true,
+			},
+		];
+		return [...docRedirects, ...deprecatedRedirects];
 	},
 };
 
