@@ -44,8 +44,8 @@ export function NetworkHealthDatasetContent() {
 
 			<div className="prose">
 				<p>
-					Daily rollups of canonical Stacks chain activity: how many blocks
-					were produced, the average block-time gap, and how many reorgs were
+					Daily rollups of canonical Stacks chain activity: how many blocks were
+					produced, the average block-time gap, and how many reorgs were
 					detected.
 				</p>
 				<p>

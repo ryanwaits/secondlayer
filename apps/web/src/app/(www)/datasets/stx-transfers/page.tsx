@@ -163,7 +163,11 @@ export function StxTransfersDatasetContent() {
 				<p>
 					<code>GET /v1/datasets/stx-transfers</code>
 				</p>
-				<p>Filters: <code>sender</code>, <code>recipient</code>, <code>from_block</code>, <code>to_block</code>. Pagination: <code>cursor</code>.</p>
+				<p>
+					Filters: <code>sender</code>, <code>recipient</code>,{" "}
+					<code>from_block</code>, <code>to_block</code>. Pagination:{" "}
+					<code>cursor</code>.
+				</p>
 			</div>
 
 			<InlineCodeBlock>
@@ -229,7 +233,8 @@ LIMIT 20;`}
 
 			<div className="prose">
 				<p>
-					<code>/public/status.datasets[]</code> includes a <code>stx-transfers</code> entry with{" "}
+					<code>/public/status.datasets[]</code> includes a{" "}
+					<code>stx-transfers</code> entry with{" "}
 					<code>latest_finalized_cursor</code>, <code>generated_at</code>, and{" "}
 					<code>lag_blocks</code> against the chain tip. Expect ~10K + 144
 					blocks of lag in steady state.

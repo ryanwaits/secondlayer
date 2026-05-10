@@ -25,11 +25,11 @@ export default function NotFound() {
 							<Link href="/">Home</Link> · the manifest and the five layers.
 						</p>
 						<p>
-							<Link href="/docs">Docs</Link> · subgraphs, SDK, CLI, MCP, Stacks
+							<Link href="/tools">Docs</Link> · subgraphs, SDK, CLI, MCP, Stacks
 							helpers.
 						</p>
 						<p>
-							<Link href="/docs/datasets">Datasets</Link> · STX transfers, sBTC,
+							<Link href="/datasets">Datasets</Link> · STX transfers, sBTC,
 							PoX-4, BNS, network health.
 						</p>
 					</div>

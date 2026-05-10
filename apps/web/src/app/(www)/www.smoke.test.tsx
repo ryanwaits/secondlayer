@@ -4,31 +4,33 @@ import WwwLandingPage from "./page";
 import PricingPage from "./pricing/page";
 
 describe("www marketing routes", () => {
-	test("/ renders the manifest teaser", () => {
+	test("/ renders the product-led scroller", () => {
 		const html = renderToStaticMarkup(<WwwLandingPage />);
-		// Page chrome (matches the docs home primitives).
+		// Page chrome.
 		expect(html).toContain('class="homepage"');
 		expect(html).toContain('class="page-title"');
 		expect(html).toContain("secondlayer");
 		expect(html).toContain("the data plane for Stacks");
 		expect(html).toContain("launching May 27");
-		// Manifest section.
-		expect(html).toContain('class="index-year">Manifest');
-		expect(html).toContain("www-manifest");
-		// Five-layer narrative — names mentioned, Subgraphs links to docs.
-		expect(html).toContain("Streams");
-		expect(html).toContain("Index");
-		expect(html).toContain("/docs/subgraphs");
-		expect(html).toContain("Subscriptions");
-		// Foundation Datasets links — all five.
-		expect(html).toContain("/docs/datasets");
-		expect(html).toContain("/docs/datasets/stx-transfers");
-		expect(html).toContain("/docs/datasets/sbtc");
-		expect(html).toContain("/docs/datasets/pox-4");
-		expect(html).toContain("/docs/datasets/bns");
-		expect(html).toContain("/docs/datasets/network-health");
-		// The single accent moment.
-		expect(html).toContain("public goods, free forever");
+		// Each product section anchored.
+		expect(html).toContain('id="streams"');
+		expect(html).toContain('id="subgraphs"');
+		expect(html).toContain('id="subscriptions"');
+		expect(html).toContain('id="datasets"');
+		expect(html).toContain('id="tools"');
+		// Per-product links exist at top level (no /docs prefix).
+		expect(html).toContain('href="/streams"');
+		expect(html).toContain('href="/subgraphs"');
+		expect(html).toContain('href="/subscriptions"');
+		expect(html).toContain('href="/tools"');
+		// Foundation Datasets — all five linked.
+		expect(html).toContain("/datasets/stx-transfers");
+		expect(html).toContain("/datasets/sbtc");
+		expect(html).toContain("/datasets/pox-4");
+		expect(html).toContain("/datasets/bns");
+		expect(html).toContain("/datasets/network-health");
+		// Public-goods accent on Foundation Datasets section.
+		expect(html).toContain("Public goods, free forever");
 		expect(html).toContain('class="pink"');
 		// Mailto CTA.
 		expect(html).toContain("mailto:hi@secondlayer.tools");

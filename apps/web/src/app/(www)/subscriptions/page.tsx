@@ -33,7 +33,7 @@ export default function SubscriptionsPage() {
 						Push matched events to your webhook URL. Subscriptions bind to a
 						subgraph table — every row your handler writes that matches the
 						filter triggers a signed HTTP POST. For pull semantics see{" "}
-						<a href="/docs/streams">Streams</a>.
+						<a href="/streams">Streams</a>.
 					</p>
 				</div>
 

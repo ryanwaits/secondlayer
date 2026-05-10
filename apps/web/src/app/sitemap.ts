@@ -5,21 +5,18 @@ const BASE = "https://www.secondlayer.tools";
 const ROUTES = [
 	"/",
 	"/pricing",
-	"/docs",
-	"/docs/cli",
-	"/docs/sdk",
-	"/docs/mcp",
-	"/docs/stacks",
-	"/docs/streams",
-	"/docs/subgraphs",
-	"/docs/subscriptions",
-	"/docs/migration/v1-to-v2",
-	"/docs/datasets",
-	"/docs/datasets/stx-transfers",
-	"/docs/datasets/sbtc",
-	"/docs/datasets/pox-4",
-	"/docs/datasets/bns",
-	"/docs/datasets/network-health",
+	"/streams",
+	"/subgraphs",
+	"/subscriptions",
+	"/datasets",
+	"/datasets/stx-transfers",
+	"/datasets/sbtc",
+	"/datasets/pox-4",
+	"/datasets/bns",
+	"/datasets/network-health",
+	"/tools",
+	"/migration/v1-to-v2",
+	"/status",
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -28,6 +25,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		url: `${BASE}${path}`,
 		lastModified,
 		changeFrequency: path === "/" || path === "/pricing" ? "weekly" : "monthly",
-		priority: path === "/" ? 1 : path.startsWith("/docs/datasets/") ? 0.8 : 0.6,
+		priority: path === "/" ? 1 : path.startsWith("/datasets/") ? 0.8 : 0.6,
 	}));
 }

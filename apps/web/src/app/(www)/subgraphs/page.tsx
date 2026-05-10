@@ -147,8 +147,8 @@ export function SubgraphsContent({
 				</ol>
 				<p>
 					Want a webhook to fire when your subgraph writes a row? Pair this with
-					a <a href="/docs/subscriptions">Subscription</a> — bind a typed filter
-					via <code>on.transferTo({"{ subgraph, table }"}, ...)</code> and POST
+					a <a href="/subscriptions">Subscription</a> — bind a typed filter via{" "}
+					<code>on.transferTo({"{ subgraph, table }"}, ...)</code> and POST
 					signed events to your endpoint.
 				</p>
 			</div>

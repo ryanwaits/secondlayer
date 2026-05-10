@@ -15,7 +15,7 @@ export function SiteFooter() {
 				<span>
 					<Link href="/status">status</Link>
 					{" · "}
-					<Link href="/docs">docs</Link>
+					<Link href="/tools">tools</Link>
 					{" · "}
 					<Link href="/pricing">pricing</Link>
 					{" · "}

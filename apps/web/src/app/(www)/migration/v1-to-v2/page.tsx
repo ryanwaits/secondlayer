@@ -30,10 +30,10 @@ export default function MigrationPage() {
 					<p>
 						<code>@secondlayer/workflows</code>, <code>workflow-runner</code>,
 						and <code>sentries</code> are deprecated. Push semantics for chain
-						events live on <a href="/docs/subscriptions">Subscriptions</a>.
-						Durable execution isn't our edge — Inngest, Trigger.dev, and
-						Cloudflare Workflows already nailed it. We deliver typed signed
-						events into your runtime.
+						events live on <a href="/subscriptions">Subscriptions</a>. Durable
+						execution isn't our edge — Inngest, Trigger.dev, and Cloudflare
+						Workflows already nailed it. We deliver typed signed events into
+						your runtime.
 					</p>
 				</div>
 

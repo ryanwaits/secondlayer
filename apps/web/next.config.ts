@@ -19,69 +19,67 @@ const nextConfig: NextConfig = {
 			},
 		];
 	},
-	// Old top-level reference paths now live under /docs/*. Permanent
-	// redirects so existing inbound links + tweets keep working.
+	// /docs was collapsed back into the marketing surface; everything lives at
+	// the root now. Old inbound links (tweets, READMEs, MCP server defaults)
+	// 301 to the new top-level paths.
 	async redirects() {
-		// Old top-level reference paths that still exist under /docs/*.
-		// Deleted routes (writings, stacks-streams, stacks-index, subscriptions,
-		// quickstart) are intentionally absent — those URLs now 404 cleanly.
-		const docPaths = [
-			"cli",
-			"sdk",
-			"mcp",
-			"stacks",
+		// /docs/<product>          → /<product>
+		// /docs/datasets/<slug>    → /datasets/<slug>
+		// /docs/migration/<slug>   → /migration/<slug>
+		const productPaths = [
 			"streams",
 			"subgraphs",
 			"subscriptions",
 			"datasets",
+			"migration",
 		];
-		const docRedirects = [
-			...docPaths.map((p) => ({
-				source: `/${p}`,
-				destination: `/docs/${p}`,
+		// /docs/cli, /docs/sdk, /docs/mcp, /docs/stacks all consolidated into /tools.
+		const toolsPaths = ["cli", "sdk", "mcp", "stacks"];
+		const docsRedirects = [
+			{ source: "/docs", destination: "/", permanent: true },
+			...productPaths.map((p) => ({
+				source: `/docs/${p}`,
+				destination: `/${p}`,
 				permanent: true,
 			})),
-			...docPaths.map((p) => ({
-				source: `/${p}/:path*`,
-				destination: `/docs/${p}/:path*`,
+			...productPaths.map((p) => ({
+				source: `/docs/${p}/:path*`,
+				destination: `/${p}/:path*`,
+				permanent: true,
+			})),
+			...toolsPaths.map((p) => ({
+				source: `/docs/${p}`,
+				destination: `/tools#${p}`,
 				permanent: true,
 			})),
 		];
 		// Workflow + sentry packages were deprecated in the 2026-04-23 pivot;
-		// inbound traffic should land on Subscriptions or the migration guide.
+		// inbound traffic lands on Subscriptions or the migration guide.
 		const deprecatedRedirects = [
-			{
-				source: "/workflows",
-				destination: "/docs/subscriptions",
-				permanent: true,
-			},
+			{ source: "/workflows", destination: "/subscriptions", permanent: true },
 			{
 				source: "/workflows/:path*",
-				destination: "/docs/subscriptions",
+				destination: "/subscriptions",
 				permanent: true,
 			},
-			{
-				source: "/sentries",
-				destination: "/docs/subscriptions",
-				permanent: true,
-			},
+			{ source: "/sentries", destination: "/subscriptions", permanent: true },
 			{
 				source: "/sentries/:path*",
-				destination: "/docs/subscriptions",
+				destination: "/subscriptions",
 				permanent: true,
 			},
 			{
 				source: "/docs/workflows",
-				destination: "/docs/migration/v1-to-v2",
+				destination: "/migration/v1-to-v2",
 				permanent: true,
 			},
 			{
 				source: "/docs/sentries",
-				destination: "/docs/migration/v1-to-v2",
+				destination: "/migration/v1-to-v2",
 				permanent: true,
 			},
 		];
-		return [...docRedirects, ...deprecatedRedirects];
+		return [...docsRedirects, ...deprecatedRedirects];
 	},
 };
 

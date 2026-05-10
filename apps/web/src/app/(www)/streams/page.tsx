@@ -34,7 +34,7 @@ export default function StreamsPage() {
 						Raw chain event firehose — cursor-paginated REST, idempotent,
 						replayable. The same surface every Foundation Dataset decoder
 						consumes internally. For push semantics see{" "}
-						<a href="/docs/subscriptions">Subscriptions</a>.
+						<a href="/subscriptions">Subscriptions</a>.
 					</p>
 				</div>
 
