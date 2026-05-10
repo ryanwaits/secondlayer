@@ -156,40 +156,38 @@ export function DatasetsContent() {
 
 export function DatasetsList() {
 	return (
-		<div className="prose">
-			<table>
-				<thead>
-					<tr>
-						<th>Dataset</th>
-						<th>Status</th>
-						<th>API</th>
-						<th>Parquet</th>
-					</tr>
-				</thead>
-				<tbody>
-					{datasets.map((dataset) => (
-						<tr key={dataset.slug}>
-							<td>
-								{dataset.href ? (
-									<a href={dataset.href}>{dataset.name}</a>
-								) : (
-									dataset.name
-								)}
-								<div style={{ opacity: 0.7 }}>{dataset.summary}</div>
-							</td>
-							<td>{STATUS_LABELS[dataset.status]}</td>
-							<td>{dataset.apiPath ? <code>{dataset.apiPath}</code> : "—"}</td>
-							<td>
-								{dataset.parquetPrefix ? (
-									<code>{dataset.parquetPrefix}</code>
-								) : (
-									"—"
-								)}
-							</td>
-						</tr>
-					))}
-				</tbody>
-			</table>
-		</div>
+		<ul className="dataset-shelf">
+			{datasets.map((dataset) => (
+				<li key={dataset.slug} className="dataset-shelf-row">
+					<div className="dataset-shelf-head">
+						{dataset.href ? (
+							<a href={dataset.href} className="dataset-shelf-name">
+								{dataset.name}
+							</a>
+						) : (
+							<span className="dataset-shelf-name">{dataset.name}</span>
+						)}
+						<span className="dataset-shelf-status">
+							{STATUS_LABELS[dataset.status]}
+						</span>
+					</div>
+					<p className="dataset-shelf-summary">{dataset.summary}</p>
+					<div className="dataset-shelf-meta">
+						{dataset.apiPath ? (
+							<span>
+								<span className="dataset-shelf-meta-label">API</span>{" "}
+								<code>{dataset.apiPath}</code>
+							</span>
+						) : null}
+						{dataset.parquetPrefix ? (
+							<span>
+								<span className="dataset-shelf-meta-label">parquet</span>{" "}
+								<code>{dataset.parquetPrefix}</code>
+							</span>
+						) : null}
+					</div>
+				</li>
+			))}
+		</ul>
 	);
 }

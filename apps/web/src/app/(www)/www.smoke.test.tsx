@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import WwwLandingPage from "./page";
+import { HomeView } from "./page";
 import PricingPage from "./pricing/page";
 
 describe("www marketing routes", () => {
 	test("/ renders the product index", () => {
-		const html = renderToStaticMarkup(<WwwLandingPage />);
+		const html = renderToStaticMarkup(<HomeView status={null} />);
 		// Page chrome.
 		expect(html).toContain('class="homepage"');
 		expect(html).toContain('class="page-title"');

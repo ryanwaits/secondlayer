@@ -798,6 +798,156 @@ a {
 	text-decoration-color: var(--link-underline-hover);
 }
 
+/* ── Inline editorial primitives ─────────────────────────────────── */
+/* <em> — italic accent. Browser default looks fine on dense type. */
+.prose em {
+	font-style: italic;
+	color: var(--text-main);
+}
+
+/* <mark> — theme-aware highlighter. Uses accent + accent-contrast so the
+   text stays readable in dark mode (where default browser yellow + white
+   text is unreadable). Tight inline padding, square corners — feels like
+   a marker swipe, not a sticker. */
+.prose mark {
+	background: var(--accent);
+	color: var(--accent-contrast);
+	padding: 0 0.1875rem;
+	border-radius: 1px;
+}
+
+.prose mark a,
+a mark {
+	color: inherit;
+	text-decoration: none;
+}
+
+/* ── Lists — dashed bullets, indented properly ───────────────────── */
+.prose ul,
+.prose ol {
+	margin: var(--spacing-xs) 0;
+	padding-left: 1.25rem;
+	list-style: none;
+}
+
+.prose ul li,
+.prose ol li {
+	position: relative;
+	margin-bottom: 0.375rem;
+	padding-left: 0.25rem;
+}
+
+.prose ul li:last-child,
+.prose ol li:last-child { margin-bottom: 0; }
+
+.prose ul > li::before {
+	content: "—";
+	position: absolute;
+	left: -1.25rem;
+	color: var(--text-muted);
+	font-weight: 460;
+	font-variant-numeric: tabular-nums;
+}
+
+/* nested ul gets a fainter dash */
+.prose ul ul > li::before { color: var(--text-soft); }
+
+/* ordered lists — tabular numerals */
+.prose ol {
+	counter-reset: prose-ol;
+}
+
+.prose ol > li {
+	counter-increment: prose-ol;
+}
+
+.prose ol > li::before {
+	content: counter(prose-ol) ".";
+	position: absolute;
+	left: -1.25rem;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	min-width: 1rem;
+}
+
+/* ── Datasets shelf — list of dataset rows, replaces the old table ── */
+.dataset-shelf {
+	list-style: none;
+	margin: var(--spacing-sm) 0 0;
+	padding: 0;
+}
+
+.dataset-shelf-row {
+	padding: var(--spacing-sm) 0;
+	border-bottom: 1px solid var(--border);
+	transition: opacity var(--duration-smooth) var(--ease-smooth);
+}
+
+.dataset-shelf-row:last-child { border-bottom: none; }
+
+.dataset-shelf-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 0.375rem;
+}
+
+.dataset-shelf-name {
+	font-size: 0.9375rem;
+	font-weight: 500;
+	color: var(--text-main);
+	text-decoration: none;
+}
+
+a.dataset-shelf-name { transition: color var(--duration-snappy) var(--ease-smooth); }
+a.dataset-shelf-name:hover { color: var(--text-prose); }
+
+.dataset-shelf-status {
+	color: var(--text-muted);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	font-variant-numeric: tabular-nums;
+}
+
+.dataset-shelf-summary {
+	margin: 0 0 0.5rem;
+	color: var(--text-prose);
+	font-size: 0.875rem;
+	line-height: 1.4;
+	max-width: 36rem;
+}
+
+.dataset-shelf-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.25rem;
+	font-family: var(--font-mono-stack);
+	font-size: 0.75rem;
+	color: var(--text-muted);
+}
+
+.dataset-shelf-meta code {
+	font-family: inherit;
+	background: none;
+	padding: 0;
+	color: var(--text-prose);
+}
+
+.dataset-shelf-meta-label {
+	color: var(--text-soft);
+	font-size: 0.6875rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	margin-right: 0.25rem;
+}
+
+/* hover dim like benji.org */
+.dataset-shelf:hover .dataset-shelf-row { opacity: 0.5; }
+.dataset-shelf:hover .dataset-shelf-row:hover { opacity: 1; }
+
 /* ── Public status page ──────────────────────────────────────────── */
 .status-page {
 	width: min(100%, 64rem);

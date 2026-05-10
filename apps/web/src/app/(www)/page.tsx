@@ -1,3 +1,5 @@
+import { HomeStatusBadge } from "@/components/status/home-status-badge";
+import type { SystemStatus } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -25,9 +27,36 @@ function IndexRow({ item }: { item: { name: string; href: string } }) {
 	);
 }
 
-export default function Home() {
+const STATUS_API_URL = process.env.SL_API_URL || "https://api.secondlayer.tools";
+const STATUS_API_KEY =
+	process.env.SL_STATUS_API_KEY || process.env.SL_SERVICE_KEY;
+const STATUS_PATH = STATUS_API_KEY ? "/status" : "/public/status";
+
+async function readStatusSnapshot(): Promise<SystemStatus | null> {
+	try {
+		const headers: Record<string, string> = {};
+		if (STATUS_API_KEY) headers.Authorization = `Bearer ${STATUS_API_KEY}`;
+		const res = await fetch(`${STATUS_API_URL}${STATUS_PATH}`, {
+			headers,
+			cache: "no-store",
+		});
+		if (!res.ok) return null;
+		return (await res.json()) as SystemStatus;
+	} catch {
+		return null;
+	}
+}
+
+export default async function Home() {
+	const status = await readStatusSnapshot();
+	return <HomeView status={status} />;
+}
+
+// Sync inner view, exported for the smoke test (renderToStaticMarkup is sync).
+export function HomeView({ status }: { status: SystemStatus | null }) {
 	return (
 		<div className="homepage">
+			<HomeStatusBadge status={status} />
 			<header className="page-header">
 				<h1 className="page-title">secondlayer</h1>
 				<p className="page-sub">

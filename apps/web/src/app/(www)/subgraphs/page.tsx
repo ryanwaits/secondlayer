@@ -7,7 +7,6 @@ import type { TocItem } from "@/components/sidebar";
 import { MARKETING_SUBGRAPHS_PROMPT } from "@/lib/agent-prompts";
 
 const toc: TocItem[] = [
-	{ label: "30-minute quickstart", href: "#quickstart" },
 	{ label: "Getting started", href: "#getting-started" },
 	{ label: "Schema", href: "#schema" },
 	{ label: "Handlers", href: "#handlers" },
@@ -96,62 +95,6 @@ export function SubgraphsContent({
 					collapsible
 				/>
 			) : null}
-
-			<SectionHeading id="quickstart">30-minute quickstart</SectionHeading>
-
-			<div className="prose">
-				<p>
-					From a clean shell to a working query in five steps. Total time
-					depends mostly on backfill scope — the CLI does the rest.
-				</p>
-				<ol>
-					<li>
-						<strong>Log in (1 min).</strong> <code>sl login</code> — magic-link
-						email + 6-digit code. Persists a session at{" "}
-						<code>~/.secondlayer/session.json</code>. (Or skip — the deploy step
-						prompts you if no session.)
-					</li>
-					<li>
-						<strong>Scaffold (1 min).</strong>{" "}
-						<code>sl subgraphs new mywatcher --template sip-010-balances</code>{" "}
-						— writes a typed subgraph file with handler + schema. Other
-						templates: <code>sbtc-flows</code>, <code>pox-stacking</code>,{" "}
-						<code>bns-names</code>, <code>basic</code>.
-					</li>
-					<li>
-						<strong>Edit (5 min).</strong> Open <code>mywatcher.ts</code>. The
-						file's header comment lists what to edit. Most users tweak the
-						filter (which contract / asset to watch) and add columns to the
-						schema.
-					</li>
-					<li>
-						<strong>Deploy (3 min wait).</strong>{" "}
-						<code>sl subgraphs deploy mywatcher.ts</code> bundles your handler,
-						uploads it, and starts indexing. The CLI prints the URL for the
-						subgraph dashboard.
-					</li>
-					<li>
-						<strong>
-							Wait for sync (10–15 min on testnet, longer on mainnet from
-							genesis).
-						</strong>{" "}
-						<code>sl subgraphs status mywatcher</code> shows progress. To skip
-						chain history, redeploy with{" "}
-						<code>--start-block &lt;tip-100&gt;</code>.
-					</li>
-					<li>
-						<strong>Query (1 min).</strong>{" "}
-						<code>sl subgraphs query mywatcher transfers</code> — or hit the
-						auto-generated REST endpoint shown in the deploy output.
-					</li>
-				</ol>
-				<p>
-					Want a webhook to fire when your subgraph writes a row? Pair this with
-					a <a href="/subscriptions">Subscription</a> — bind a typed filter via{" "}
-					<code>on.transferTo({"{ subgraph, table }"}, ...)</code> and POST
-					signed events to your endpoint.
-				</p>
-			</div>
 
 			<SectionHeading id="getting-started">Getting started</SectionHeading>
 
