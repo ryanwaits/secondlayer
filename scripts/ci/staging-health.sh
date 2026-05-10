@@ -5,7 +5,10 @@ API_URL="${STAGING_API_URL:-${SECOND_LAYER_API_URL:-https://api.secondlayer.tool
 STATUS_KEY="${STAGING_STATUS_API_KEY:-${SL_STATUS_API_KEY:-}}"
 DATABASE_URL="${STAGING_DATABASE_URL:-${DATABASE_URL:-}}"
 TIMEOUT_SECONDS="${STAGING_HEALTH_TIMEOUT_SECONDS:-15}"
-STREAMS_LAG_WARN_SECONDS="${STREAMS_LAG_WARN_SECONDS:-60}"
+# 60s = one Stacks block, way too tight — quiet chain periods drift past
+# this routinely. 600s catches "decoder is genuinely stuck" without
+# alerting on every momentary slow batch.
+STREAMS_LAG_WARN_SECONDS="${STREAMS_LAG_WARN_SECONDS:-600}"
 ZERO_TIMESTAMP_LOOKBACK_BLOCKS="${ZERO_TIMESTAMP_LOOKBACK_BLOCKS:-5000}"
 
 failures=0
@@ -69,8 +72,12 @@ else:
             failures.append(f"missing {required} service")
             continue
         status = service.get("status")
-        if status != "ok":
-            failures.append(f"{required} service status {status!r}")
+        # `degraded` is normal during chain-quiet periods or right after
+        # deploys — only a hard `unavailable` is an outage signal.
+        if status == "unavailable":
+            failures.append(f"{required} service unavailable")
+        elif status != "ok":
+            notices.append(f"{required} service status {status!r}")
 
 reorgs = body.get("reorgs") or {}
 if "last_24h" not in reorgs:
@@ -114,8 +121,10 @@ for event_type in ("ft_transfer", "nft_transfer"):
     status = decoder.get("status")
     lag = decoder.get("lagSeconds")
     notices.append(f"{event_type} decoder status={status!r} lagSeconds={lag!r}")
-    if status != "ok":
-        failures.append(f"{event_type} decoder status {status!r}")
+    # `degraded` for a decoder = lag past threshold; that's expected during
+    # chain-quiet periods. Only `unavailable` is a real outage.
+    if status == "unavailable":
+        failures.append(f"{event_type} decoder unavailable")
         continue
     lag = decoder.get("lagSeconds")
     if lag is None:
