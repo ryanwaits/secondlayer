@@ -101,6 +101,24 @@ export async function writeDecoderCheckpoint(opts: {
 		.execute();
 }
 
+/**
+ * Bump `updated_at` on a decoder checkpoint without touching `last_cursor`.
+ * Used as a liveness signal — the runDecoder loop calls this every poll so
+ * the health endpoint can tell "decoder process alive but no new work" apart
+ * from "decoder process stuck/crashed."
+ */
+export async function bumpDecoderCheckpoint(opts: {
+	db?: Kysely<Database>;
+	decoderName: string;
+}): Promise<void> {
+	const db = l2Db(opts.db);
+	await db
+		.updateTable("l2_decoder_checkpoints")
+		.set({ updated_at: new Date() })
+		.where("decoder_name", "=", opts.decoderName)
+		.execute();
+}
+
 export async function writeDecodedEvents(
 	events: readonly DecodedEventRow[],
 	opts?: { db?: Kysely<Database> },

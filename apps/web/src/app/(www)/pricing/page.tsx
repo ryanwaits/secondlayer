@@ -294,19 +294,6 @@ export default function PricingPage() {
 					</div>
 				</section>
 			</main>
-
-			<footer className="www-footer">
-				<div className="www-footer-line">
-					<span>secondlayer · the data plane for Stacks</span>
-					<span>
-						<Link href="/public/status">status</Link>
-						{" · "}
-						<Link href="/docs">docs</Link>
-						{" · "}
-						<Link href="/">home</Link>
-					</span>
-				</div>
-			</footer>
 		</div>
 	);
 }

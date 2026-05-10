@@ -57,6 +57,8 @@ docs/*
 !docs/sprints/**
 !docs/marketing/
 !docs/marketing/**
+!docs/runbook/
+!docs/runbook/**
 !docker/docs/
 
 # Config files (users should create their own)

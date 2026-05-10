@@ -35,18 +35,47 @@ export function generateSubgraphTemplate(
 	name: string,
 	slug: SubgraphTemplateSlug = "basic",
 ): string {
-	switch (slug) {
-		case "sip-010-balances":
-			return sip010Balances(name);
-		case "sbtc-flows":
-			return sbtcFlows(name);
-		case "pox-stacking":
-			return poxStacking(name);
-		case "bns-names":
-			return bnsNames(name);
-		default:
-			return basic(name);
-	}
+	const body = (() => {
+		switch (slug) {
+			case "sip-010-balances":
+				return sip010Balances(name);
+			case "sbtc-flows":
+				return sbtcFlows(name);
+			case "pox-stacking":
+				return poxStacking(name);
+			case "bns-names":
+				return bnsNames(name);
+			default:
+				return basic(name);
+		}
+	})();
+	return `${nextStepsHeader(name)}\n${body}`;
+}
+
+/**
+ * Header comment shown at the top of every scaffolded subgraph file. Five
+ * numbered steps a new user follows after `sl subgraphs new`. Mirrors the
+ * "30-minute quickstart" section in /docs/subgraphs.
+ */
+function nextStepsHeader(name: string): string {
+	return `// ───────────────────────────────────────────────────────────────────
+// What to do next
+//
+//   1. Edit the source filter + schema below to match what you want to track.
+//   2. Edit the handler at the bottom — it runs once per matching event.
+//   3. Deploy:   sl subgraphs deploy ${name}.ts
+//      (You'll be prompted to log in if this is your first remote deploy.)
+//   4. Wait for sync:   sl subgraphs status ${name}
+//      Mainnet backfill from genesis can take an hour or more depending on
+//      your filter scope. Use --start-block to skip ahead.
+//   5. Query:    sl subgraphs query ${name} <table-name>
+//      Or hit the auto-generated REST endpoint listed in the deploy output.
+//
+// Bind a typed Subscription to any table you write here — see
+// https://www.secondlayer.tools/docs/subscriptions
+// ───────────────────────────────────────────────────────────────────
+
+`;
 }
 
 // ── basic ─────────────────────────────────────────────────────────────

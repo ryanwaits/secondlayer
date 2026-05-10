@@ -8,6 +8,7 @@ import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
 import { consumePox4DecodedEvents } from "./decoders/pox-4.ts";
 import { consumeSbtcDecodedEvents } from "./decoders/sbtc.ts";
 import { getL2DecodersHealth } from "./health.ts";
+import { bumpDecoderCheckpoint } from "./storage.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
@@ -109,6 +110,16 @@ async function runDecoder(
 			});
 			await sleep(5_000, controller.signal);
 		} finally {
+			// Liveness ping: bump checkpoint updated_at every iteration so the
+			// health endpoint can tell "process alive, no new events" apart
+			// from "process stuck or crashed." Keeps deploys from bailing when
+			// a decoder finishes its work and quietly polls at-tip.
+			try {
+				await bumpDecoderCheckpoint({ decoderName });
+			} catch {
+				// Best-effort; if the DB is down the health endpoint already
+				// reports the larger problem.
+			}
 			if ((decodedTotals[decoderName] ?? 0) !== before) await logProgress();
 		}
 	}
