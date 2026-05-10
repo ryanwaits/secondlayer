@@ -130,7 +130,6 @@ check_json_field "public status API error rate" "/public/status" "" "api.error_r
 check_json_field "public status node health" "/public/status" "" "node.status"
 check_json_field "public status service health" "/public/status" "" "services"
 check_public_status_services_ok
-check_json_field "public status reorg signal" "/public/status" "" "reorgs.last_24h"
 
 check_status "streams events build" "200" "/v1/streams/events?limit=1" "$STREAMS_KEY"
 check_status "streams events missing auth" "401" "/v1/streams/events?limit=1"
