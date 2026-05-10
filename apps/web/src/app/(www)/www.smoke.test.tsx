@@ -12,26 +12,17 @@ describe("www marketing routes", () => {
 		expect(html).toContain("secondlayer");
 		expect(html).toContain("the data plane for Stacks");
 		expect(html).toContain("launching May 27");
-		// Three index groups: Products, Datasets, More.
+		// Intro prose (utility framing + public-goods accent).
+		expect(html).toContain("rebuilds the same indexing");
+		expect(html).toContain("public goods, free forever");
+		expect(html).toContain('class="pink"');
+		// Single Products row group.
 		expect(html).toContain(">Products<");
-		expect(html).toContain(">Datasets<");
-		expect(html).toContain(">More<");
-		// Per-product rows at top level (no /docs prefix).
 		expect(html).toContain('href="/streams"');
 		expect(html).toContain('href="/subgraphs"');
 		expect(html).toContain('href="/subscriptions"');
 		expect(html).toContain('href="/datasets"');
 		expect(html).toContain('href="/tools"');
-		// Foundation Datasets — all five linked.
-		expect(html).toContain("/datasets/stx-transfers");
-		expect(html).toContain("/datasets/sbtc");
-		expect(html).toContain("/datasets/pox-4");
-		expect(html).toContain("/datasets/bns");
-		expect(html).toContain("/datasets/network-health");
-		// More section: pricing + status + mailto.
-		expect(html).toContain('href="/pricing"');
-		expect(html).toContain('href="/status"');
-		expect(html).toContain("mailto:hi@secondlayer.tools");
 	});
 
 	test("/pricing renders five tiers + compute ladder + soft-cap callout", () => {
