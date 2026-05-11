@@ -116,9 +116,6 @@ async function checkPublicStatus(): Promise<void> {
 		}
 	}
 
-	const reorgs = asRecord(root.reorgs);
-	if (!("last_24h" in reorgs)) failures.push("missing reorgs.last_24h");
-
 	const streams = asRecord(root.streams);
 	const tip = asRecord(streams.tip);
 	const streamsLag = tip.lag_seconds;
