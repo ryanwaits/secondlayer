@@ -116,7 +116,10 @@ export async function consumeNftTransferDecodedEvents(opts?: {
 		maxPages: opts?.maxPages,
 		maxEmptyPolls: opts?.maxEmptyPolls,
 		signal: opts?.signal,
-		types: opts?.types,
+		// Server-side filter — without this the streams query scans every
+		// event type in the cursor range, which times out the API on big
+		// backlogs and stalls the NFT decoder. Mirrors FT's default.
+		types: opts?.types ?? ["nft_transfer"],
 		onBatch: async (events, envelope) => {
 			const rows = events.flatMap((event) => {
 				if (event.event_type !== "nft_transfer") return [];
