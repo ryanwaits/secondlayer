@@ -164,8 +164,19 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 		const result = await getBnsResolveResponse({
 			query: new URL(c.req.url).searchParams,
 		});
-		if (!result) return c.json({ error: "not found" }, 404);
-		return c.json(result);
+		if (result.status === "found") return c.json(result.name);
+		if (result.status === "not_indexed") {
+			return c.json(
+				{
+					error: "not_indexed",
+					code: "BACKFILL_PENDING",
+					reason: `Name not in indexed range (currently block ${result.earliest_indexed_block}+). If registered earlier, history is being reprocessed.`,
+					earliest_indexed_block: result.earliest_indexed_block,
+				},
+				503,
+			);
+		}
+		return c.json({ error: "not found", code: "NOT_FOUND" }, 404);
 	});
 
 	return router;

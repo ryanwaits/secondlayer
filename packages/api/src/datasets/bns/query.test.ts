@@ -100,4 +100,54 @@ describe("getBnsResolveResponse", () => {
 			}),
 		).rejects.toThrow(ValidationError);
 	});
+
+	test("returns found when name exists", async () => {
+		const row = {
+			fqn: "alice.btc",
+			namespace: "btc",
+			name: "alice",
+			owner: "SP1",
+			bns_id: "1",
+			registered_at: 100,
+			renewal_height: 1000,
+			last_event_cursor: "100:0",
+			last_event_at: "2026-05-12T00:00:00.000Z",
+		};
+		const result = await getBnsResolveResponse({
+			query: new URLSearchParams({ fqn: "alice.btc" }),
+			resolveName: async () => row,
+			readEarliestIndexedBlock: async () => 7_800_000,
+		});
+		expect(result).toEqual({ status: "found", name: row });
+	});
+
+	test("returns not_indexed when no match and earliest indexed block is past gap threshold", async () => {
+		const result = await getBnsResolveResponse({
+			query: new URLSearchParams({ fqn: "muneeb.btc" }),
+			resolveName: async () => null,
+			readEarliestIndexedBlock: async () => 7_800_000,
+		});
+		expect(result).toEqual({
+			status: "not_indexed",
+			earliest_indexed_block: 7_800_000,
+		});
+	});
+
+	test("returns not_found when no match and projection covers from early blocks", async () => {
+		const result = await getBnsResolveResponse({
+			query: new URLSearchParams({ fqn: "ghost.btc" }),
+			resolveName: async () => null,
+			readEarliestIndexedBlock: async () => 100,
+		});
+		expect(result).toEqual({ status: "not_found" });
+	});
+
+	test("returns not_found when projection is empty (earliest = null)", async () => {
+		const result = await getBnsResolveResponse({
+			query: new URLSearchParams({ fqn: "ghost.btc" }),
+			resolveName: async () => null,
+			readEarliestIndexedBlock: async () => null,
+		});
+		expect(result).toEqual({ status: "not_found" });
+	});
 });

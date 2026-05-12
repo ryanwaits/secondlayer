@@ -829,9 +829,41 @@ export async function resolveBnsName(params: {
 	return first ? normalizeNameRow(first) : null;
 }
 
+// Earliest block_height present in the indexed bns_names projection. Used to
+// disambiguate "name does not exist" from "name predates indexed range" — the
+// latter happens because backfill currently only covers block 7800000+ on
+// prod (older history pending reprocess).
+export async function readBnsNamesEarliestIndexedBlock(params: {
+	db?: Kysely<Database>;
+}): Promise<number | null> {
+	const db = params.db ?? getSourceDb();
+	const { rows } = await sql<{ earliest: string | number | null }>`
+		SELECT MIN(CAST(split_part(last_event_cursor, ':', 1) AS BIGINT)) AS earliest
+		FROM bns_names
+	`.execute(db);
+	return num(rows[0]?.earliest ?? null);
+}
+
+// When earliest_indexed_block > this threshold, we know the projection has a
+// backfill gap and should return BACKFILL_PENDING rather than 404. BNS-V2 names
+// exist from early Stacks history; any earliest above ~1M means coverage is
+// truncated.
+const BNS_BACKFILL_GAP_THRESHOLD_BLOCK = 1_000_000;
+
+export type BnsResolveResult =
+	| { status: "found"; name: BnsNameRow }
+	| { status: "not_indexed"; earliest_indexed_block: number }
+	| { status: "not_found" };
+
+export type BnsResolveReader = (fqn: string) => Promise<BnsNameRow | null>;
+export type BnsEarliestIndexedBlockReader = () => Promise<number | null>;
+
 export async function getBnsResolveResponse(opts: {
 	query: URLSearchParams;
-}): Promise<BnsNameRow | null> {
+	db?: Kysely<Database>;
+	resolveName?: BnsResolveReader;
+	readEarliestIndexedBlock?: BnsEarliestIndexedBlockReader;
+}): Promise<BnsResolveResult> {
 	const fqn = opts.query.get("fqn");
 	if (!fqn) {
 		throw new ValidationError("fqn query parameter is required");
@@ -839,5 +871,16 @@ export async function getBnsResolveResponse(opts: {
 	if (!/^[a-z0-9._-]+$/i.test(fqn) || !fqn.includes(".")) {
 		throw new ValidationError("fqn must be of the form name.namespace");
 	}
-	return resolveBnsName({ fqn });
+	const resolveName: BnsResolveReader =
+		opts.resolveName ?? ((f) => resolveBnsName({ fqn: f, db: opts.db }));
+	const readEarliest: BnsEarliestIndexedBlockReader =
+		opts.readEarliestIndexedBlock ??
+		(() => readBnsNamesEarliestIndexedBlock({ db: opts.db }));
+	const name = await resolveName(fqn);
+	if (name) return { status: "found", name };
+	const earliest = await readEarliest();
+	if (earliest !== null && earliest > BNS_BACKFILL_GAP_THRESHOLD_BLOCK) {
+		return { status: "not_indexed", earliest_indexed_block: earliest };
+	}
+	return { status: "not_found" };
 }
