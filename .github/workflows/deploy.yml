@@ -153,6 +153,10 @@ jobs:
       - name: Run post-deploy smoke checks
         env:
           SECOND_LAYER_API_URL: ${{ vars.SECOND_LAYER_API_URL || 'https://api.secondlayer.tools' }}
+          # Asserts /health.image_sha matches the SHA we just deployed. Catches the
+          # silent-redeploy-old-SHA failure mode where deploy.sh used to source .env
+          # after env vars were set, letting the previous deploy's tag win.
+          EXPECTED_DEPLOY_SHA: ${{ github.sha }}
           STREAMS_SMOKE_KEY: ${{ secrets.STREAMS_SMOKE_KEY || 'sk-sl_streams_build_test' }}
           STREAMS_STATUS_SMOKE_KEY: ${{ secrets.STREAMS_STATUS_SMOKE_KEY || 'sk-sl_streams_status_public' }}
           STREAMS_WRONG_SCOPE_SMOKE_KEY: ${{ secrets.STREAMS_WRONG_SCOPE_SMOKE_KEY || 'sk-sl_streams_wrong_scope_test' }}

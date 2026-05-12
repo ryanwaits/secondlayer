@@ -121,6 +121,34 @@ PY
 }
 
 check_status "api health" "200" "/health"
+
+check_deploy_sha_match() {
+	if [[ -z "${EXPECTED_DEPLOY_SHA:-}" ]]; then
+		echo "deploy sha match: skipped (EXPECTED_DEPLOY_SHA unset)"
+		return
+	fi
+	local url="${API_URL%/}/health"
+	local body
+	body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" "$url" || true)"
+	local got
+	got="$(SMOKE_BODY="$body" python3 - <<'PY'
+import json, os, sys
+try:
+    body = json.loads(os.environ["SMOKE_BODY"])
+except json.JSONDecodeError:
+    sys.exit(1)
+sys.stdout.write(str(body.get("image_sha") or ""))
+PY
+	)"
+	if [[ "$got" != "$EXPECTED_DEPLOY_SHA" ]]; then
+		echo "deploy sha match: expected ${EXPECTED_DEPLOY_SHA}, got ${got:-<missing>} — the deploy may have silently rolled the previous SHA"
+		failures=$((failures + 1))
+		return
+	fi
+	echo "deploy sha match: ${got}"
+}
+check_deploy_sha_match
+
 check_status "public status" "200" "/public/status"
 check_json_field "public status streams freshness" "/public/status" "" "streams.tip.lag_seconds"
 check_json_field "public status index freshness" "/public/status" "" "index.decoders"

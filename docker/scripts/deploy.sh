@@ -27,12 +27,29 @@ fi
 cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
+# Snapshot vars supplied by the deploy invocation (CI workflow env or manual
+# operator export) BEFORE sourcing .env. `record_successful_deploy` persists
+# these keys into .env at the end of every successful deploy, so once a deploy
+# has run on this host the .env values are baked-in and would silently
+# override anything the next deploy passes in. Treat .env as defaults, not
+# higher-priority overrides.
+_DEPLOY_IMAGE_OWNER_OVERRIDE="${DEPLOY_IMAGE_OWNER:-}"
+_DEPLOY_IMAGE_TAG_OVERRIDE="${DEPLOY_IMAGE_TAG:-}"
+_DEPLOY_SHA_OVERRIDE="${DEPLOY_SHA:-}"
+
 if [ -f .env ]; then
 	set -a
 	# shellcheck disable=SC1091
 	source .env
 	set +a
 fi
+
+# Re-apply overrides on top of .env defaults. Empty override means "fall back
+# to whatever .env or builtin defaults produced."
+[ -n "$_DEPLOY_IMAGE_OWNER_OVERRIDE" ] && DEPLOY_IMAGE_OWNER="$_DEPLOY_IMAGE_OWNER_OVERRIDE"
+[ -n "$_DEPLOY_IMAGE_TAG_OVERRIDE" ] && DEPLOY_IMAGE_TAG="$_DEPLOY_IMAGE_TAG_OVERRIDE"
+[ -n "$_DEPLOY_SHA_OVERRIDE" ] && DEPLOY_SHA="$_DEPLOY_SHA_OVERRIDE"
+unset _DEPLOY_IMAGE_OWNER_OVERRIDE _DEPLOY_IMAGE_TAG_OVERRIDE _DEPLOY_SHA_OVERRIDE
 
 APP_SERVICES="api indexer l2-decoder worker agent caddy"
 PLATFORM_SERVICES="provisioner"
