@@ -28,20 +28,23 @@ export type {
 
 export class Subscriptions extends BaseClient {
 	async list(): Promise<{ data: SubscriptionSummary[] }> {
-		return this.request<{ data: SubscriptionSummary[] }>(
+		return this.requestAtTenant<{ data: SubscriptionSummary[] }>(
 			"GET",
 			"/api/subscriptions",
 		);
 	}
 
 	async get(id: string): Promise<SubscriptionDetail> {
-		return this.request<SubscriptionDetail>("GET", `/api/subscriptions/${id}`);
+		return this.requestAtTenant<SubscriptionDetail>(
+			"GET",
+			`/api/subscriptions/${id}`,
+		);
 	}
 
 	async create(
 		input: CreateSubscriptionRequest,
 	): Promise<CreateSubscriptionResponse> {
-		return this.request<CreateSubscriptionResponse>(
+		return this.requestAtTenant<CreateSubscriptionResponse>(
 			"POST",
 			"/api/subscriptions",
 			input,
@@ -52,7 +55,7 @@ export class Subscriptions extends BaseClient {
 		id: string,
 		patch: UpdateSubscriptionRequest,
 	): Promise<SubscriptionDetail> {
-		return this.request<SubscriptionDetail>(
+		return this.requestAtTenant<SubscriptionDetail>(
 			"PATCH",
 			`/api/subscriptions/${id}`,
 			patch,
@@ -60,32 +63,35 @@ export class Subscriptions extends BaseClient {
 	}
 
 	async pause(id: string): Promise<SubscriptionDetail> {
-		return this.request<SubscriptionDetail>(
+		return this.requestAtTenant<SubscriptionDetail>(
 			"POST",
 			`/api/subscriptions/${id}/pause`,
 		);
 	}
 
 	async resume(id: string): Promise<SubscriptionDetail> {
-		return this.request<SubscriptionDetail>(
+		return this.requestAtTenant<SubscriptionDetail>(
 			"POST",
 			`/api/subscriptions/${id}/resume`,
 		);
 	}
 
 	async delete(id: string): Promise<{ ok: true }> {
-		return this.request<{ ok: true }>("DELETE", `/api/subscriptions/${id}`);
+		return this.requestAtTenant<{ ok: true }>(
+			"DELETE",
+			`/api/subscriptions/${id}`,
+		);
 	}
 
 	async rotateSecret(id: string): Promise<RotateSecretResponse> {
-		return this.request<RotateSecretResponse>(
+		return this.requestAtTenant<RotateSecretResponse>(
 			"POST",
 			`/api/subscriptions/${id}/rotate-secret`,
 		);
 	}
 
 	async recentDeliveries(id: string): Promise<{ data: DeliveryRow[] }> {
-		return this.request<{ data: DeliveryRow[] }>(
+		return this.requestAtTenant<{ data: DeliveryRow[] }>(
 			"GET",
 			`/api/subscriptions/${id}/deliveries`,
 		);
@@ -95,7 +101,7 @@ export class Subscriptions extends BaseClient {
 		id: string,
 		range: { fromBlock: number; toBlock: number },
 	): Promise<ReplayResult> {
-		return this.request<ReplayResult>(
+		return this.requestAtTenant<ReplayResult>(
 			"POST",
 			`/api/subscriptions/${id}/replay`,
 			range,
@@ -103,14 +109,14 @@ export class Subscriptions extends BaseClient {
 	}
 
 	async dead(id: string): Promise<{ data: DeadRow[] }> {
-		return this.request<{ data: DeadRow[] }>(
+		return this.requestAtTenant<{ data: DeadRow[] }>(
 			"GET",
 			`/api/subscriptions/${id}/dead`,
 		);
 	}
 
 	async requeueDead(id: string, outboxId: string): Promise<{ ok: true }> {
-		return this.request<{ ok: true }>(
+		return this.requestAtTenant<{ ok: true }>(
 			"POST",
 			`/api/subscriptions/${id}/dead/${outboxId}/requeue`,
 		);

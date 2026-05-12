@@ -67,18 +67,24 @@ function buildSpecQueryString(options?: SubgraphSpecOptions): string {
 
 export class Subgraphs extends BaseClient {
 	async list(): Promise<{ data: SubgraphSummary[] }> {
-		return this.request<{ data: SubgraphSummary[] }>("GET", "/api/subgraphs");
+		return this.requestAtTenant<{ data: SubgraphSummary[] }>(
+			"GET",
+			"/api/subgraphs",
+		);
 	}
 
 	async get(name: string): Promise<SubgraphDetail> {
-		return this.request<SubgraphDetail>("GET", `/api/subgraphs/${name}`);
+		return this.requestAtTenant<SubgraphDetail>(
+			"GET",
+			`/api/subgraphs/${name}`,
+		);
 	}
 
 	async openapi(
 		name: string,
 		options?: SubgraphSpecOptions,
 	): Promise<Record<string, unknown>> {
-		return this.request<Record<string, unknown>>(
+		return this.requestAtTenant<Record<string, unknown>>(
 			"GET",
 			`/api/subgraphs/${name}/openapi.json${buildSpecQueryString(options)}`,
 		);
@@ -88,14 +94,14 @@ export class Subgraphs extends BaseClient {
 		name: string,
 		options?: SubgraphSpecOptions,
 	): Promise<SubgraphAgentSchema> {
-		return this.request<SubgraphAgentSchema>(
+		return this.requestAtTenant<SubgraphAgentSchema>(
 			"GET",
 			`/api/subgraphs/${name}/schema.json${buildSpecQueryString(options)}`,
 		);
 	}
 
 	async markdown(name: string, options?: SubgraphSpecOptions): Promise<string> {
-		return this.requestText(
+		return this.requestTextAtTenant(
 			"GET",
 			`/api/subgraphs/${name}/docs.md${buildSpecQueryString(options)}`,
 		);
@@ -105,7 +111,7 @@ export class Subgraphs extends BaseClient {
 		name: string,
 		options?: { fromBlock?: number; toBlock?: number },
 	): Promise<ReindexResponse> {
-		return this.request<ReindexResponse>(
+		return this.requestAtTenant<ReindexResponse>(
 			"POST",
 			`/api/subgraphs/${name}/reindex`,
 			options,
@@ -115,7 +121,7 @@ export class Subgraphs extends BaseClient {
 	async stop(
 		name: string,
 	): Promise<{ message: string; operationId?: string; status?: string }> {
-		return this.request<{
+		return this.requestAtTenant<{
 			message: string;
 			operationId?: string;
 			status?: string;
@@ -126,7 +132,7 @@ export class Subgraphs extends BaseClient {
 		name: string,
 		options: { fromBlock: number; toBlock: number },
 	): Promise<ReindexResponse> {
-		return this.request<ReindexResponse>(
+		return this.requestAtTenant<ReindexResponse>(
 			"POST",
 			`/api/subgraphs/${name}/backfill`,
 			options,
@@ -142,7 +148,7 @@ export class Subgraphs extends BaseClient {
 		if (opts?.offset !== undefined) qs.set("_offset", String(opts.offset));
 		if (opts?.resolved !== undefined) qs.set("resolved", String(opts.resolved));
 		const query = qs.toString();
-		return this.request<SubgraphGapsResponse>(
+		return this.requestAtTenant<SubgraphGapsResponse>(
 			"GET",
 			`/api/subgraphs/${name}/gaps${query ? `?${query}` : ""}`,
 		);
@@ -153,18 +159,25 @@ export class Subgraphs extends BaseClient {
 		options?: { force?: boolean },
 	): Promise<{ message: string }> {
 		const qs = options?.force ? "?force=true" : "";
-		return this.request<{ message: string }>(
+		return this.requestAtTenant<{ message: string }>(
 			"DELETE",
 			`/api/subgraphs/${name}${qs}`,
 		);
 	}
 
 	async deploy(data: DeploySubgraphRequest): Promise<DeploySubgraphResponse> {
-		return this.request<DeploySubgraphResponse>("POST", "/api/subgraphs", data);
+		return this.requestAtTenant<DeploySubgraphResponse>(
+			"POST",
+			"/api/subgraphs",
+			data,
+		);
 	}
 
 	async getSource(name: string): Promise<SubgraphSource> {
-		return this.request<SubgraphSource>("GET", `/api/subgraphs/${name}/source`);
+		return this.requestAtTenant<SubgraphSource>(
+			"GET",
+			`/api/subgraphs/${name}/source`,
+		);
 	}
 
 	/**
@@ -172,7 +185,7 @@ export class Subgraphs extends BaseClient {
 	 * authoring loop so Vercel's serverless runtime doesn't have to run esbuild.
 	 */
 	async bundle(data: { code: string }): Promise<BundleSubgraphResponse> {
-		return this.request<BundleSubgraphResponse>(
+		return this.requestAtTenant<BundleSubgraphResponse>(
 			"POST",
 			"/api/subgraphs/bundle",
 			data,
@@ -184,7 +197,7 @@ export class Subgraphs extends BaseClient {
 		table: string,
 		params: SubgraphQueryParams = {},
 	): Promise<unknown[]> {
-		const result = await this.request<{ data: unknown[] } | unknown[]>(
+		const result = await this.requestAtTenant<{ data: unknown[] } | unknown[]>(
 			"GET",
 			`/api/subgraphs/${name}/${table}${buildSubgraphQueryString(params)}`,
 		);
@@ -196,7 +209,7 @@ export class Subgraphs extends BaseClient {
 		table: string,
 		params: SubgraphQueryParams = {},
 	): Promise<{ count: number }> {
-		return this.request<{ count: number }>(
+		return this.requestAtTenant<{ count: number }>(
 			"GET",
 			`/api/subgraphs/${name}/${table}/count${buildSubgraphQueryString(params)}`,
 		);

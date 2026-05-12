@@ -6,10 +6,16 @@ export type FetchLike = (
 ) => Promise<Response>;
 
 export interface SecondLayerOptions {
-	/** Base URL of the Secondlayer API (trailing slashes are stripped). */
+	/** Base URL of the Secondlayer platform API (trailing slashes are stripped). */
 	baseUrl: string;
 	/** Bearer token for authenticated requests. */
 	apiKey?: string;
+	/**
+	 * Explicit tenant API base URL — bypass the auto-resolution that calls
+	 * `/api/tenants/me` on first tenant-resource request. Use when you already
+	 * know your tenant URL (OSS, staging, or any custom routing setup).
+	 */
+	tenantBaseUrl?: string;
 	/** Fetch implementation. Tests and edge runtimes can provide their own. */
 	fetchImpl?: FetchLike;
 	/** Deploy origin label sent as `x-sl-origin` (telemetry). Defaults to `cli`. */
@@ -18,15 +24,27 @@ export interface SecondLayerOptions {
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
+type TenantMeResponse = {
+	tenant: {
+		slug: string;
+		apiUrl: string | null;
+		suspendedAt: string | null;
+		limitReason: string | null;
+	};
+};
+
 export abstract class BaseClient {
 	protected baseUrl: string;
 	protected apiKey?: string;
 	protected origin: "cli" | "mcp" | "session";
+	protected tenantBaseUrlOverride?: string;
+	private _tenantBaseUrlPromise: Promise<string> | null = null;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
 		this.apiKey = options.apiKey;
 		this.origin = options.origin ?? "cli";
+		this.tenantBaseUrlOverride = options.tenantBaseUrl?.replace(/\/+$/, "");
 	}
 
 	static authHeaders(apiKey?: string): Record<string, string> {
@@ -44,7 +62,16 @@ export abstract class BaseClient {
 		path: string,
 		body?: unknown,
 	): Promise<T> {
-		const response = await this.fetchResponse(method, path, body);
+		return this.requestAt<T>(this.baseUrl, method, path, body);
+	}
+
+	protected async requestAt<T>(
+		baseUrl: string,
+		method: string,
+		path: string,
+		body?: unknown,
+	): Promise<T> {
+		const response = await this.fetchResponse(baseUrl, method, path, body);
 
 		if (response.status === 204) {
 			return undefined as T;
@@ -58,16 +85,82 @@ export abstract class BaseClient {
 		path: string,
 		body?: unknown,
 	): Promise<string> {
-		const response = await this.fetchResponse(method, path, body);
+		const response = await this.fetchResponse(this.baseUrl, method, path, body);
+		return response.text();
+	}
+
+	/**
+	 * Resolve and cache the tenant API base URL for tenant-resource calls
+	 * (subgraphs, subscriptions). On the platform API, those routes are not
+	 * mounted — they live on per-tenant containers at
+	 * `https://<slug>.api.secondlayer.tools`. This method asks
+	 * `/api/tenants/me` (against the platform baseUrl) for the apiUrl that
+	 * belongs to the authenticated account.
+	 *
+	 * The result is cached on the client instance. Failures are NOT cached, so
+	 * a flaky platform call doesn't permanently break the SDK.
+	 */
+	protected getTenantBaseUrl(): Promise<string> {
+		if (this.tenantBaseUrlOverride) {
+			return Promise.resolve(this.tenantBaseUrlOverride);
+		}
+		if (!this._tenantBaseUrlPromise) {
+			this._tenantBaseUrlPromise = this.resolveTenantBaseUrl().catch((err) => {
+				this._tenantBaseUrlPromise = null;
+				throw err;
+			});
+		}
+		return this._tenantBaseUrlPromise;
+	}
+
+	private async resolveTenantBaseUrl(): Promise<string> {
+		const body = await this.request<TenantMeResponse>("GET", "/api/tenants/me");
+		const tenant = body.tenant;
+		if (tenant.suspendedAt) {
+			throw new ApiError(
+				403,
+				`Tenant ${tenant.slug} is suspended${tenant.limitReason ? `: ${tenant.limitReason}` : ""}.`,
+				body,
+				"TENANT_SUSPENDED",
+			);
+		}
+		if (!tenant.apiUrl) {
+			throw new ApiError(
+				404,
+				"No tenant API URL available for this account. Provision a tenant at https://secondlayer.tools/platform.",
+				body,
+				"NO_TENANT",
+			);
+		}
+		return tenant.apiUrl.replace(/\/+$/, "");
+	}
+
+	protected async requestAtTenant<T>(
+		method: string,
+		path: string,
+		body?: unknown,
+	): Promise<T> {
+		const tenantUrl = await this.getTenantBaseUrl();
+		return this.requestAt<T>(tenantUrl, method, path, body);
+	}
+
+	protected async requestTextAtTenant(
+		method: string,
+		path: string,
+		body?: unknown,
+	): Promise<string> {
+		const tenantUrl = await this.getTenantBaseUrl();
+		const response = await this.fetchResponse(tenantUrl, method, path, body);
 		return response.text();
 	}
 
 	private async fetchResponse(
+		baseUrl: string,
 		method: string,
 		path: string,
 		body?: unknown,
 	): Promise<Response> {
-		const url = `${this.baseUrl}${path}`;
+		const url = `${baseUrl}${path}`;
 		const headers = BaseClient.authHeaders(this.apiKey);
 		headers["x-sl-origin"] = this.origin;
 
@@ -81,7 +174,7 @@ export abstract class BaseClient {
 		} catch {
 			throw new ApiError(
 				0,
-				`Cannot reach API at ${this.baseUrl}. Check your connection or try again.`,
+				`Cannot reach API at ${baseUrl}. Check your connection or try again.`,
 			);
 		}
 
@@ -101,13 +194,14 @@ export abstract class BaseClient {
 			if (response.status >= 500) {
 				throw new ApiError(
 					response.status,
-					`Server error. Try again or check status at ${this.baseUrl}/health`,
+					`Server error. Try again or check status at ${baseUrl}/health`,
 				);
 			}
 
 			const errorBody = await response.text();
 			let message = `HTTP ${response.status}`;
 			let parsedBody: unknown = errorBody;
+			let code: string | undefined;
 			try {
 				const json = JSON.parse(errorBody);
 				parsedBody = json;
@@ -117,10 +211,13 @@ export abstract class BaseClient {
 				} else if (err && typeof err === "object") {
 					message = JSON.stringify(err);
 				}
+				if (typeof json.code === "string") {
+					code = json.code;
+				}
 			} catch {
 				if (errorBody) message = errorBody;
 			}
-			throw new ApiError(response.status, message, parsedBody);
+			throw new ApiError(response.status, message, parsedBody, code);
 		}
 
 		return response;

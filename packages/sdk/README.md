@@ -172,6 +172,17 @@ for await (const transfer of sl.index.ftTransfers.walk({
 
 Deploy and query app-specific L3 tables.
 
+Subgraphs and subscriptions live on per-tenant containers (`https://<slug>.api.secondlayer.tools`), not on the platform `api.secondlayer.tools`. The SDK transparently resolves your tenant URL on the first subgraph or subscription call by hitting `/api/tenants/me` with your API key, then caches the result. You don't need to know the URL — just pass your normal `apiKey`.
+
+If you already know your tenant URL (OSS, staging, or a custom routing setup), skip the lookup with `tenantBaseUrl`:
+
+```typescript
+const sl = new SecondLayer({
+  apiKey: "sk-sl_...",
+  tenantBaseUrl: "https://myslug.api.secondlayer.tools", // optional
+});
+```
+
 ```typescript
 // List
 const { data } = await sl.subgraphs.list();
@@ -243,7 +254,14 @@ try {
 } catch (err) {
   if (err instanceof ApiError) {
     console.log(err.status);  // 404
-    console.log(err.message); // "Contract not found"
+    console.log(err.code);    // "NOT_FOUND" (from API's {error, code} envelope, if present)
+    console.log(err.message); // "Subgraph not found"
+    console.log(err.body);    // full parsed envelope
   }
 }
 ```
+
+Tenant-resolution failures surface as `ApiError` with distinctive codes:
+
+- `code: "TENANT_SUSPENDED"` — your tenant is suspended (see `err.message` for the limit reason)
+- `code: "NO_TENANT"` — your account has no provisioned tenant yet

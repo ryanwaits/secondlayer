@@ -20,6 +20,8 @@ export class ApiError extends Error {
 		message: string,
 		/** Raw response body (parsed JSON if possible) — preserved for callers that need error details. */
 		public body?: unknown,
+		/** Stable machine-readable code from the API's `{error, code}` error envelope. */
+		public code?: string,
 	) {
 		super(message);
 		this.name = "ApiError";
