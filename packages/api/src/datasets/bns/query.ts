@@ -845,10 +845,42 @@ export async function readBnsNamespaces(params: {
 	return { namespaces: rows.map(normalizeNamespaceRow) };
 }
 
-export async function getBnsNamespacesResponse(): Promise<{
+export type BnsNamespacesReader = () => Promise<{
 	namespaces: BnsNamespaceRow[];
-}> {
-	return readBnsNamespaces({});
+}>;
+
+export type BnsNamespacesResponse =
+	| { namespaces: BnsNamespaceRow[] }
+	| {
+			namespaces: BnsNamespaceRow[];
+			status: "backfill_pending";
+			earliest_indexed_block: number;
+	  };
+
+export async function getBnsNamespacesResponse(opts?: {
+	readNamespaces?: BnsNamespacesReader;
+	readEarliestIndexedBlock?: BnsEarliestIndexedBlockReader;
+}): Promise<BnsNamespacesResponse> {
+	const readNamespaces: BnsNamespacesReader =
+		opts?.readNamespaces ?? (() => readBnsNamespaces({}));
+	const result = await readNamespaces();
+	if (result.namespaces.length > 0) return result;
+	// Empty projection — disambiguate "no namespace events ever" from "backfill
+	// hasn't reached the era when .btc / .id were created." The same
+	// `bns_names` earliest cursor signals both: BNS decoder writes both tables
+	// in one pass, so the indexed range is identical.
+	const readEarliest: BnsEarliestIndexedBlockReader =
+		opts?.readEarliestIndexedBlock ??
+		(() => readBnsNamesEarliestIndexedBlock({}));
+	const earliest = await readEarliest();
+	if (earliest !== null && earliest > BNS_BACKFILL_GAP_THRESHOLD_BLOCK) {
+		return {
+			namespaces: [],
+			status: "backfill_pending",
+			earliest_indexed_block: earliest,
+		};
+	}
+	return result;
 }
 
 // ── /v1/datasets/bns/resolve ──────────────────────────────────────

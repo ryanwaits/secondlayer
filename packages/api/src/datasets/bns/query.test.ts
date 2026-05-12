@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ValidationError } from "@secondlayer/shared/errors";
 import {
 	getBnsNamesResponse,
+	getBnsNamespacesResponse,
 	getBnsResolveResponse,
 	parseBnsMarketplaceEventsQuery,
 	parseBnsNameEventsQuery,
@@ -202,5 +203,55 @@ describe("getBnsNamesResponse", () => {
 			readNames: async () => ({ names: [ROW], next_cursor: "42" }),
 		});
 		expect(result).toEqual({ names: [ROW], next_cursor: "42" });
+	});
+});
+
+describe("getBnsNamespacesResponse", () => {
+	const NS_ROW = {
+		namespace: "btc",
+		manager: null,
+		manager_frozen: false,
+		price_frozen: false,
+		lifetime: null,
+		launched_at: null,
+		last_event_cursor: "100:0",
+		last_event_at: "2026-05-12T00:00:00.000Z",
+		name_count: 1234,
+	};
+
+	test("returns rows when projection is populated", async () => {
+		const result = await getBnsNamespacesResponse({
+			readNamespaces: async () => ({ namespaces: [NS_ROW] }),
+			readEarliestIndexedBlock: async () => 7_800_000,
+		});
+		expect(result).toEqual({ namespaces: [NS_ROW] });
+	});
+
+	test("flags backfill_pending when empty + earliest past threshold", async () => {
+		const result = await getBnsNamespacesResponse({
+			readNamespaces: async () => ({ namespaces: [] }),
+			readEarliestIndexedBlock: async () => 7_800_000,
+		});
+		expect(result).toEqual({
+			namespaces: [],
+			status: "backfill_pending",
+			earliest_indexed_block: 7_800_000,
+		});
+	});
+
+	test("returns plain empty when projection covers from early blocks", async () => {
+		const result = await getBnsNamespacesResponse({
+			readNamespaces: async () => ({ namespaces: [] }),
+			readEarliestIndexedBlock: async () => 100,
+		});
+		expect(result).toEqual({ namespaces: [] });
+	});
+
+	test("returns plain empty when projection has no data at all", async () => {
+		const result = await getBnsNamespacesResponse({
+			readNamespaces: async () => ({ namespaces: [] }),
+			readEarliestIndexedBlock: async () => null,
+		});
+		expect(result).toEqual({ namespaces: [] });
 	});
 });
