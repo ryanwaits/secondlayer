@@ -1,4 +1,5 @@
 export { registerAccountCommand } from "./account.ts";
+export { registerBillingCommand } from "./billing.ts";
 export { registerConfigCommand } from "./config.ts";
 export { registerCreateCommand } from "./create.ts";
 export { registerStatusCommand } from "./status.ts";

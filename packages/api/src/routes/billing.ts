@@ -201,6 +201,117 @@ app.post("/resolve", async (c) => {
 	}
 });
 
+/**
+ * GET /api/billing/status
+ *
+ * Read-only snapshot of an account's billing state — plan from the DB
+ * plus the latest Stripe subscription (status, trial end, current period
+ * end, discount). Lets a customer verify post-checkout that the webhook
+ * landed and the gate has cleared, without having to retry `sl instance
+ * create` blindly.
+ *
+ * Falls back to DB-only response when Stripe is unconfigured or the
+ * customer has never upgraded. Stripe read failures degrade to DB-only
+ * rather than 500ing — billing introspection should never block.
+ */
+app.get("/status", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const db = getDb();
+	const account = await getAccountById(db, accountId);
+	if (!account) return c.json({ error: "Account not found" }, 404);
+
+	const base = {
+		plan: account.plan,
+		stripeCustomerId: account.stripe_customer_id ?? null,
+	};
+
+	if (!account.stripe_customer_id) {
+		return c.json({ ...base, subscription: null });
+	}
+
+	const stripe = getStripeOrNull();
+	if (!stripe) return c.json({ ...base, subscription: null });
+
+	try {
+		const subs = await stripe.subscriptions.list({
+			customer: account.stripe_customer_id,
+			status: "all",
+			limit: 5,
+			expand: ["data.discounts.source.coupon", "data.discounts.promotion_code"],
+		});
+		// Prefer the live one (active/trialing); fall back to most recent so
+		// canceled accounts still see history rather than `null`.
+		const sub =
+			subs.data.find((s) => s.status === "active" || s.status === "trialing") ??
+			subs.data[0];
+		if (!sub) return c.json({ ...base, subscription: null });
+
+		const item = sub.items.data[0];
+		const priceId = item?.price.id ?? null;
+		const tier = priceId ? getTierForPriceId(priceId) : null;
+		const interval = item?.price.recurring?.interval ?? null;
+		const amountCents = item?.price.unit_amount ?? null;
+		const toIso = (epoch: number | null | undefined) =>
+			epoch ? new Date(epoch * 1000).toISOString() : null;
+
+		// Stripe returns `discounts` as `Array<string | Discount>`. With
+		// `expand[]=data.discounts.source.coupon` the Discount is hydrated
+		// and `source.coupon` is the full Coupon. Walk both narrows.
+		const firstDiscount = sub.discounts?.find(
+			(d): d is Exclude<typeof d, string> => typeof d !== "string",
+		);
+		const coupon =
+			firstDiscount && typeof firstDiscount.source.coupon !== "string"
+				? firstDiscount.source.coupon
+				: null;
+		const promoCode =
+			firstDiscount && typeof firstDiscount.promotion_code !== "string"
+				? (firstDiscount.promotion_code?.code ?? null)
+				: null;
+		const discount = coupon
+			? {
+					name: coupon.name ?? null,
+					code: promoCode,
+					percentOff: coupon.percent_off ?? null,
+					amountOff: coupon.amount_off ?? null,
+					duration: coupon.duration,
+				}
+			: null;
+
+		// `current_period_end` lives on the subscription in older API
+		// versions and on each item in newer ones — read both.
+		const currentPeriodEnd =
+			(sub as unknown as { current_period_end?: number }).current_period_end ??
+			(item as unknown as { current_period_end?: number } | undefined)
+				?.current_period_end ??
+			null;
+
+		return c.json({
+			...base,
+			subscription: {
+				id: sub.id,
+				status: sub.status,
+				tier,
+				interval,
+				amountCents,
+				trialEnd: toIso(sub.trial_end),
+				currentPeriodEnd: toIso(currentPeriodEnd),
+				cancelAt: toIso(sub.cancel_at),
+				cancelAtPeriodEnd: sub.cancel_at_period_end,
+				discount,
+			},
+		});
+	} catch (err) {
+		logger.warn("billing.status.stripe_failed", {
+			accountId,
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return c.json({ ...base, subscription: null });
+	}
+});
+
 app.get("/caps", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);

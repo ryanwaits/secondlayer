@@ -3,6 +3,7 @@ import { program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
 	registerAccountCommand,
+	registerBillingCommand,
 	registerConfigCommand,
 	registerCreateCommand,
 	registerDbCommand,
@@ -100,5 +101,6 @@ registerLocalCommand(program);
 
 // Account
 registerAccountCommand(program);
+registerBillingCommand(program);
 
 program.parse();
