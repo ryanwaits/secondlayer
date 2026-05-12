@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ValidationError } from "@secondlayer/shared/errors";
 import {
+	getBnsNamesResponse,
 	getBnsResolveResponse,
 	parseBnsMarketplaceEventsQuery,
 	parseBnsNameEventsQuery,
@@ -149,5 +150,57 @@ describe("getBnsResolveResponse", () => {
 			readEarliestIndexedBlock: async () => null,
 		});
 		expect(result).toEqual({ status: "not_found" });
+	});
+});
+
+describe("getBnsNamesResponse", () => {
+	const ROW = {
+		fqn: "alice.btc",
+		namespace: "btc",
+		name: "alice",
+		owner: "SP1",
+		bns_id: "42",
+		registered_at: 100,
+		renewal_height: 1000,
+		last_event_cursor: "100:0",
+		last_event_at: "2026-05-12T00:00:00.000Z",
+	};
+
+	test("rejects offset param with helpful message", async () => {
+		await expect(
+			getBnsNamesResponse({
+				query: new URLSearchParams({ offset: "10" }),
+				readNames: async () => ({ names: [], next_cursor: null }),
+			}),
+		).rejects.toThrow(ValidationError);
+	});
+
+	test("rejects non-numeric cursor", async () => {
+		await expect(
+			getBnsNamesResponse({
+				query: new URLSearchParams({ cursor: "not-a-number" }),
+				readNames: async () => ({ names: [], next_cursor: null }),
+			}),
+		).rejects.toThrow(ValidationError);
+	});
+
+	test("passes parsed cursor to reader as afterBnsId", async () => {
+		let captured: { afterBnsId?: string } = {};
+		await getBnsNamesResponse({
+			query: new URLSearchParams({ cursor: "42" }),
+			readNames: async (params) => {
+				captured = params;
+				return { names: [], next_cursor: null };
+			},
+		});
+		expect(captured.afterBnsId).toBe("42");
+	});
+
+	test("returns next_cursor when reader signals more rows", async () => {
+		const result = await getBnsNamesResponse({
+			query: new URLSearchParams({ limit: "1" }),
+			readNames: async () => ({ names: [ROW], next_cursor: "42" }),
+		});
+		expect(result).toEqual({ names: [ROW], next_cursor: "42" });
 	});
 });

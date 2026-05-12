@@ -715,16 +715,32 @@ function normalizeNameRow(row: BnsNameDbRow): BnsNameRow {
 	};
 }
 
+export type BnsNamesPageResult = {
+	names: BnsNameRow[];
+	next_cursor: string | null;
+};
+
+export type BnsNamesReader = (params: {
+	namespace?: string;
+	owner?: string;
+	afterBnsId?: string;
+	limit: number;
+}) => Promise<BnsNamesPageResult>;
+
 export async function readBnsNames(params: {
 	namespace?: string;
 	owner?: string;
+	afterBnsId?: string;
 	limit: number;
 	db?: Kysely<Database>;
-}): Promise<{ names: BnsNameRow[] }> {
+}): Promise<BnsNamesPageResult> {
 	const db = params.db ?? getSourceDb();
 	const predicates: RawBuilder<unknown>[] = [];
 	if (params.namespace) predicates.push(sql`namespace = ${params.namespace}`);
 	if (params.owner) predicates.push(sql`owner = ${params.owner}`);
+	if (params.afterBnsId !== undefined) {
+		predicates.push(sql`bns_id > ${params.afterBnsId}`);
+	}
 	const where =
 		predicates.length === 0
 			? sql``
@@ -734,22 +750,46 @@ export async function readBnsNames(params: {
 			registered_at, renewal_height, last_event_cursor, last_event_at
 		FROM bns_names
 		${where}
-		ORDER BY fqn
-		LIMIT ${params.limit}
+		ORDER BY bns_id ASC
+		LIMIT ${params.limit + 1}
 	`.execute(db);
-	return { names: rows.map(normalizeNameRow) };
+	const pageRows = rows.slice(0, params.limit);
+	const next =
+		rows.length > params.limit ? (pageRows.at(-1)?.bns_id ?? null) : null;
+	return {
+		names: pageRows.map(normalizeNameRow),
+		next_cursor: next,
+	};
+}
+
+// Cursor format: opaque `bns_id` string. Stable because `bns_id` is the
+// on-chain mint sequence — strictly monotonic and globally unique.
+function parseBnsNamesCursor(value: string): string {
+	if (!/^\d+$/.test(value)) {
+		throw new ValidationError("cursor must be a numeric bns_id");
+	}
+	return value;
 }
 
 export async function getBnsNamesResponse(opts: {
 	query: URLSearchParams;
-}): Promise<{ names: BnsNameRow[] }> {
+	readNames?: BnsNamesReader;
+}): Promise<BnsNamesPageResult> {
+	if (opts.query.get("offset") !== null) {
+		throw new ValidationError(
+			"offset is not supported; use cursor pagination via ?cursor=<bns_id>",
+		);
+	}
 	const limit = parseLimit(opts.query.get("limit") ?? undefined);
 	const namespace = parseFilter(
 		opts.query.get("namespace") ?? undefined,
 		"namespace",
 	);
 	const owner = parseFilter(opts.query.get("owner") ?? undefined, "owner");
-	return readBnsNames({ namespace, owner, limit });
+	const cursorRaw = opts.query.get("cursor") ?? undefined;
+	const afterBnsId = cursorRaw ? parseBnsNamesCursor(cursorRaw) : undefined;
+	const readNames: BnsNamesReader = opts.readNames ?? readBnsNames;
+	return readNames({ namespace, owner, afterBnsId, limit });
 }
 
 // ── /v1/datasets/bns/namespaces ───────────────────────────────────
