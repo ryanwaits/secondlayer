@@ -12,7 +12,10 @@ import { bumpDecoderCheckpoint } from "./storage.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
-const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED === "true";
+// sbtc defaults to enabled — the `/v1/datasets/sbtc/events` endpoint is
+// part of the public dataset surface, so the decoder that fills it must
+// run unless explicitly opted out with `SBTC_DECODER_ENABLED=false`.
+const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED !== "false";
 const POX4_ENABLED = process.env.POX4_DECODER_ENABLED === "true";
 const BNS_ENABLED = process.env.BNS_DECODER_ENABLED === "true";
 const decodedTotals: Record<string, number> = {

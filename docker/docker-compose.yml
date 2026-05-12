@@ -70,7 +70,7 @@ services:
       # (via getEnabledL2DecoderNames) so /public/status reports every
       # enabled decoder, not just ft+nft. Mirror the values set on the
       # l2-decoder service.
-      SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-false}
+      SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
       POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
     ports:
@@ -152,7 +152,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       STACKS_NETWORK: ${STACKS_NETWORK:-mainnet}
-      SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-false}
+      SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
       # PoX-4 transaction-result decoder. Mainnet-only; auto-seeds checkpoint
       # to tip on first enable (no historical replay).
       POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
