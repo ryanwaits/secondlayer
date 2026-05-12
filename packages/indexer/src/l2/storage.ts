@@ -28,7 +28,13 @@ export function getEnabledL2DecoderNames(
 	const names: string[] = [FT_TRANSFER_DECODER_NAME, NFT_TRANSFER_DECODER_NAME];
 	// String literals here (not imports) to keep storage.ts free of cycles
 	// with sbtc-/pox4-/bns-storage.ts; the canonical defs live in those files.
-	if (env.SBTC_DECODER_ENABLED === "true") names.push("l2.sbtc.v1");
+	// sbtc defaults to enabled (see service.ts) — only suppressed via
+	// explicit `SBTC_DECODER_ENABLED=false`. Mirrors that policy here so
+	// /public/status surfaces the same decoder set the indexer actually
+	// runs.
+	if (env.SBTC_DECODER_ENABLED !== "false") {
+		names.push("l2.sbtc.v1", "l2.sbtc_token.v1");
+	}
 	if (env.POX4_DECODER_ENABLED === "true") names.push("l2.pox4.v1");
 	if (env.BNS_DECODER_ENABLED === "true") names.push("l2.bns.v1");
 	return names;

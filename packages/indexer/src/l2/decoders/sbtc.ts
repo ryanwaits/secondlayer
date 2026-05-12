@@ -17,6 +17,7 @@ import type { Kysely } from "kysely";
 import { defaultInternalStreamsApiKey } from "../internal-auth.ts";
 import {
 	SBTC_DECODER_NAME,
+	SBTC_TOKEN_DECODER_NAME,
 	type SbtcEventRow,
 	type SbtcTokenEventRow,
 	writeSbtcEvents,
@@ -24,7 +25,7 @@ import {
 } from "../sbtc-storage.ts";
 import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
 
-export { SBTC_DECODER_NAME };
+export { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME };
 
 const SBTC_REGISTRY_CONTRACTS: readonly string[] = [
 	`${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.registry}`,
@@ -36,8 +37,28 @@ const SBTC_TOKEN_ASSET_IDS: readonly string[] = [
 	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.token}::sbtc-token`,
 ];
 
-const STREAM_TYPES: StreamsEventType[] = [
-	"print",
+// Per-network contract IDs for the server-side streams filter. Without
+// this filter the streams API scans every event of the requested type
+// across all contracts; on a fresh backfill from genesis the response
+// exceeds the upstream socket timeout and the consumer sees
+// "socket connection was closed unexpectedly". Mirrors the BNS decoder's
+// fix at packages/indexer/src/l2/decoders/bns.ts.
+function pickNetwork(): "mainnet" | "testnet" {
+	return process.env.STACKS_NETWORK === "testnet" ? "testnet" : "mainnet";
+}
+
+function registryContractId(): string {
+	const net = pickNetwork();
+	return `${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].registry}`;
+}
+
+function tokenContractId(): string {
+	const net = pickNetwork();
+	return `${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].token}`;
+}
+
+const REGISTRY_STREAM_TYPES: StreamsEventType[] = ["print"];
+const TOKEN_STREAM_TYPES: StreamsEventType[] = [
 	"ft_transfer",
 	"ft_mint",
 	"ft_burn",
@@ -62,7 +83,17 @@ export type ConsumeSbtcOptions = {
 	}) => void | Promise<void>;
 };
 
-export async function consumeSbtcDecodedEvents(
+/**
+ * Registry-events decoder — `print` events on `<network>.sbtc-registry`.
+ * Writes to `sbtc_events`. Tracks via the `l2.sbtc.v1` checkpoint.
+ *
+ * Uses `batchSize: 100` and a server-side `contractId` filter for the
+ * same reason BNS does: limit=500 against the broader streams scan
+ * exceeds Bun's fetch socket timeout, and an unfiltered scan from a
+ * stale checkpoint compounds it. See `decoders/bns.ts` for the original
+ * lesson learned.
+ */
+export async function consumeSbtcRegistryDecodedEvents(
 	opts: ConsumeSbtcOptions = {},
 ): Promise<{ cursor: string | null; pages: number; decoded: number }> {
 	const db = opts.db;
@@ -76,37 +107,26 @@ export async function consumeSbtcDecodedEvents(
 
 	const result = await streamsClient.events.consume({
 		fromCursor: startCursor,
-		batchSize: opts.batchSize ?? 500,
+		batchSize: opts.batchSize ?? 100,
 		emptyBackoffMs: opts.emptyBackoffMs,
 		maxPages: opts.maxPages,
 		maxEmptyPolls: opts.maxEmptyPolls,
 		signal: opts.signal,
-		types: STREAM_TYPES,
+		types: REGISTRY_STREAM_TYPES,
+		contractId: registryContractId(),
 		onBatch: async (events, envelope) => {
-			const registryRows: SbtcEventRow[] = [];
-			const tokenRows: SbtcTokenEventRow[] = [];
-
+			const rows: SbtcEventRow[] = [];
 			for (const event of events) {
 				try {
 					if (
-						event.event_type === "print" &&
-						event.contract_id !== null &&
-						SBTC_REGISTRY_CONTRACTS.includes(event.contract_id)
+						event.event_type !== "print" ||
+						event.contract_id === null ||
+						!SBTC_REGISTRY_CONTRACTS.includes(event.contract_id)
 					) {
-						const row = decodeRegistryPrint(event);
-						if (row) registryRows.push(row);
 						continue;
 					}
-
-					if (
-						(event.event_type === "ft_transfer" ||
-							event.event_type === "ft_mint" ||
-							event.event_type === "ft_burn") &&
-						isSbtcTokenAsset(event)
-					) {
-						const row = decodeTokenEvent(event);
-						if (row) tokenRows.push(row);
-					}
+					const row = decodeRegistryPrint(event);
+					if (row) rows.push(row);
 				} catch (error) {
 					logger.warn("l2_decoder.decode_skipped", {
 						decoder: decoderName,
@@ -118,9 +138,8 @@ export async function consumeSbtcDecodedEvents(
 				}
 			}
 
-			if (registryRows.length > 0) await writeSbtcEvents(registryRows, { db });
-			if (tokenRows.length > 0) await writeSbtcTokenEvents(tokenRows, { db });
-			decoded += registryRows.length + tokenRows.length;
+			if (rows.length > 0) await writeSbtcEvents(rows, { db });
+			decoded += rows.length;
 
 			if (envelope.next_cursor) {
 				await writeDecoderCheckpoint({
@@ -130,7 +149,80 @@ export async function consumeSbtcDecodedEvents(
 				});
 			}
 			await opts.onProgress?.({
-				decoded: registryRows.length + tokenRows.length,
+				decoded: rows.length,
+				cursor: envelope.next_cursor,
+				lagSeconds: envelope.tip.lag_seconds,
+			});
+			return envelope.next_cursor;
+		},
+	});
+
+	return { cursor: result.cursor, pages: result.pages, decoded };
+}
+
+/**
+ * Token-events decoder — `ft_transfer/mint/burn` against the sbtc-token
+ * contract. Writes to `sbtc_token_events`. Tracks via the
+ * `l2.sbtc_token.v1` checkpoint.
+ */
+export async function consumeSbtcTokenDecodedEvents(
+	opts: ConsumeSbtcOptions = {},
+): Promise<{ cursor: string | null; pages: number; decoded: number }> {
+	const db = opts.db;
+	const decoderName = opts.decoderName ?? SBTC_TOKEN_DECODER_NAME;
+	const streamsClient = opts.streamsClient ?? createInternalStreamsClient();
+	const startCursor =
+		opts.fromCursor !== undefined
+			? opts.fromCursor
+			: await readDecoderCheckpoint({ db, decoderName });
+	let decoded = 0;
+
+	const result = await streamsClient.events.consume({
+		fromCursor: startCursor,
+		batchSize: opts.batchSize ?? 100,
+		emptyBackoffMs: opts.emptyBackoffMs,
+		maxPages: opts.maxPages,
+		maxEmptyPolls: opts.maxEmptyPolls,
+		signal: opts.signal,
+		types: TOKEN_STREAM_TYPES,
+		contractId: tokenContractId(),
+		onBatch: async (events, envelope) => {
+			const rows: SbtcTokenEventRow[] = [];
+			for (const event of events) {
+				try {
+					if (
+						(event.event_type !== "ft_transfer" &&
+							event.event_type !== "ft_mint" &&
+							event.event_type !== "ft_burn") ||
+						!isSbtcTokenAsset(event)
+					) {
+						continue;
+					}
+					const row = decodeTokenEvent(event);
+					if (row) rows.push(row);
+				} catch (error) {
+					logger.warn("l2_decoder.decode_skipped", {
+						decoder: decoderName,
+						cursor: event.cursor,
+						tx_id: event.tx_id,
+						event_type: event.event_type,
+						error: String(error),
+					});
+				}
+			}
+
+			if (rows.length > 0) await writeSbtcTokenEvents(rows, { db });
+			decoded += rows.length;
+
+			if (envelope.next_cursor) {
+				await writeDecoderCheckpoint({
+					cursor: envelope.next_cursor,
+					db,
+					decoderName,
+				});
+			}
+			await opts.onProgress?.({
+				decoded: rows.length,
 				cursor: envelope.next_cursor,
 				lagSeconds: envelope.tip.lag_seconds,
 			});

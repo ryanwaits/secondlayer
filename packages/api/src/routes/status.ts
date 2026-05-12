@@ -51,6 +51,7 @@ const DECODER_EVENT_TYPE: Record<string, string> = {
 	"l2.ft_transfer.v1": "ft_transfer",
 	"l2.nft_transfer.v1": "nft_transfer",
 	"l2.sbtc.v1": "sbtc",
+	"l2.sbtc_token.v1": "sbtc_token",
 	"l2.pox4.v1": "pox4_call",
 	"l2.bns.v1": "bns_print",
 };

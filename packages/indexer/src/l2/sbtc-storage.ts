@@ -1,9 +1,13 @@
 import { getTargetDb } from "@secondlayer/shared/db";
+import type {
+	SbtcEventTopic,
+	SbtcTokenEventType,
+} from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
-import type { SbtcEventTopic, SbtcTokenEventType } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
 export const SBTC_DECODER_NAME = "l2.sbtc.v1";
+export const SBTC_TOKEN_DECODER_NAME = "l2.sbtc_token.v1";
 
 export type SbtcEventRow = {
 	cursor: string;

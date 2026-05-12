@@ -3,7 +3,7 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { BNS_DECODER_NAME } from "./bns-storage.ts";
 import { POX4_DECODER_NAME } from "./pox4-storage.ts";
-import { SBTC_DECODER_NAME } from "./sbtc-storage.ts";
+import { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME } from "./sbtc-storage.ts";
 import {
 	FT_TRANSFER_DECODER_NAME,
 	type L2DecoderName,
@@ -130,6 +130,15 @@ async function readLatestDecodedAt(opts: {
 	if (opts.decoderName === SBTC_DECODER_NAME) {
 		return opts.db
 			.selectFrom("sbtc_events")
+			.select(["created_at"])
+			.where("canonical", "=", true)
+			.orderBy("created_at", "desc")
+			.limit(1)
+			.executeTakeFirst();
+	}
+	if (opts.decoderName === SBTC_TOKEN_DECODER_NAME) {
+		return opts.db
+			.selectFrom("sbtc_token_events")
 			.select(["created_at"])
 			.where("canonical", "=", true)
 			.orderBy("created_at", "desc")
