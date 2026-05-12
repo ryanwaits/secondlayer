@@ -150,7 +150,14 @@ async function getIndexerHealth(): Promise<{
 }
 
 app.get("/health", async (c) => {
-	return c.json({ status: "ok" });
+	// `image_sha` lets operators detect deploy drift without shelling in —
+	// `curl /health` shows which commit the running API was built from.
+	// Sourced from `DEPLOY_IMAGE_TAG` env (the git SHA the Deploy workflow
+	// pinned when starting this container).
+	return c.json({
+		status: "ok",
+		image_sha: process.env.DEPLOY_IMAGE_TAG ?? null,
+	});
 });
 
 app.get("/public/status", async (c) => {

@@ -73,6 +73,10 @@ services:
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
       POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
+      # Surfaced on /health so deploy drift is detectable without docker ps.
+      # Set by the Deploy workflow + persisted into .env by deploy.sh's
+      # record_successful_deploy step.
+      DEPLOY_IMAGE_TAG: ${DEPLOY_IMAGE_TAG:-unknown}
     ports:
       - "${API_PORT:-3800}:3800"
     depends_on:

@@ -42,6 +42,10 @@ coverage/
 .env.local
 .env.*.local
 
+# `sl project use` writes the active project binding here. Per-checkout local
+# state — never useful in version control.
+.secondlayer/
+
 # Temporary files
 *.tmp
 *.temp

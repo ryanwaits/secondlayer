@@ -249,7 +249,31 @@ record_successful_deploy() {
     printf 'DEPLOY_RECORDED_AT=%q\n' "$(date -Iseconds)"
   } > "$metadata_path"
 
+  # Pin DEPLOY_IMAGE_OWNER / DEPLOY_IMAGE_TAG into /opt/secondlayer/docker/.env
+  # so any subsequent `docker compose up -d <service>` run by hand uses the
+  # same images this deploy installed. Without this, compose substitutes the
+  # baked-in defaults (`secondlayer-labs` / `:latest`), silently rolling the
+  # service back to a different image. Idempotent upsert per key.
+  local env_file="/opt/secondlayer/docker/.env"
+  if [ -f "$env_file" ]; then
+    _upsert_env_var "$env_file" DEPLOY_IMAGE_OWNER "$DEPLOY_IMAGE_OWNER" || true
+    _upsert_env_var "$env_file" DEPLOY_IMAGE_TAG "$DEPLOY_IMAGE_TAG" || true
+  fi
+
   echo "Recorded successful deploy state in ${DEPLOY_STATE_DIR}"
+}
+
+_upsert_env_var() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  if grep -qE "^${key}=" "$file"; then
+    # sed -i requires no-arg suffix on GNU; macOS would need -i ''. Server is
+    # ubuntu so GNU sed is fine.
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$file"
+  fi
 }
 
 record_successful_deploy
