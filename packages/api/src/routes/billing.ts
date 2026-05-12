@@ -106,6 +106,7 @@ app.post("/upgrade", async (c) => {
 		mode: "subscription",
 		customer: stripeCustomerId,
 		payment_method_collection: "always",
+		allow_promotion_codes: true,
 		line_items: [{ price: priceId, quantity: 1 }],
 		success_url: `${dashboardBaseUrl()}/platform/billing?upgrade=success`,
 		cancel_url: `${dashboardBaseUrl()}/platform/billing?upgrade=cancelled`,
