@@ -44,6 +44,17 @@ function requireString(
 }
 
 function requireHexValue(payload: Record<string, unknown>): string {
+	// Live streams emits the token id as a typed Clarity value at `value`
+	// (e.g. `{UInt: 52}`) and the canonical hex at `raw_value`. Prefer raw_value
+	// when available — mirrors the sbtc/bns decoder fix in indexer 1.3.7.
+	const rawValue = payload.raw_value;
+	if (typeof rawValue === "string") {
+		if (!/^0x[0-9a-fA-F]*$/.test(rawValue)) {
+			throw new Error("nft_transfer payload has malformed value");
+		}
+		return rawValue;
+	}
+
 	const value = payload.value;
 	const hex =
 		typeof value === "string"
