@@ -15,6 +15,7 @@ import {
 	isActiveSubgraphOperationConflict,
 	requestSubgraphOperationCancel,
 	requestSubgraphOperationsCancelForDelete,
+	waitForSubgraphOperationsClear,
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	getSubgraph,
@@ -601,6 +602,24 @@ app.delete("/:subgraphName", async (c) => {
 			count: cancelledOperations.length,
 			force,
 		});
+		// Wait for the processor to observe `cancel_requested` and release its
+		// row + advisory locks. Without this, `DROP SCHEMA ... CASCADE` blocks
+		// behind the live reindex transaction and the API socket-times-out
+		// into a 500 — the bug surfaced by `sl subgraphs delete <name>` while
+		// a reindex was running.
+		const cleared = await waitForSubgraphOperationsClear(db, subgraph.id, {
+			timeoutMs: 30_000,
+			pollMs: 500,
+		});
+		if (!cleared) {
+			logger.warn(
+				"Active operations did not clear within timeout; proceeding with DROP SCHEMA may block",
+				{
+					subgraph: subgraphName,
+					force,
+				},
+			);
+		}
 	}
 
 	// Drop the subgraph's schema (all tables) and remove registry entry

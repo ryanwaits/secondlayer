@@ -90,6 +90,36 @@ export async function requestSubgraphOperationsCancelForDelete(
 		.execute();
 }
 
+/**
+ * Poll until no active subgraph operations remain for the subgraph or until
+ * `timeoutMs` elapses. Returns true if all active operations cleared, false
+ * if we timed out. Callers should use this before `DROP SCHEMA` so the active
+ * processor has a chance to observe `cancel_requested` and release its row /
+ * advisory locks. Without this, the DROP blocks behind the live transaction
+ * and the API socket times out before the lock releases.
+ */
+export async function waitForSubgraphOperationsClear(
+	db: Kysely<Database>,
+	subgraphId: string,
+	opts?: { timeoutMs?: number; pollMs?: number },
+): Promise<boolean> {
+	const timeoutMs = opts?.timeoutMs ?? 30_000;
+	const pollMs = opts?.pollMs ?? 500;
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		const active = await db
+			.selectFrom("subgraph_operations")
+			.select("id")
+			.where("subgraph_id", "=", subgraphId)
+			.where("status", "in", ACTIVE_STATUSES)
+			.limit(1)
+			.executeTakeFirst();
+		if (!active) return true;
+		await new Promise((r) => setTimeout(r, pollMs));
+	}
+	return false;
+}
+
 export async function claimSubgraphOperation(
 	db: Kysely<Database>,
 	lockedBy: string,
