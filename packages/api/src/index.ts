@@ -35,10 +35,10 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
-import { apiTelemetry } from "./telemetry/api.ts";
 import tenantsRouter from "./routes/tenants.ts";
 import waitlistRouter from "./routes/waitlist.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
+import { apiTelemetry } from "./telemetry/api.ts";
 
 const mode = getInstanceMode();
 
@@ -214,6 +214,21 @@ if (mode !== "platform") {
 const server = Bun.serve({
 	port: PORT,
 	fetch: app.fetch,
+	// Bun's default `idleTimeout` is 10s. We have legitimate long-tail
+	// requests that exceed that:
+	//   - BNS print scans against unindexed jsonb (5–20s during backfill)
+	//   - `DELETE /api/subgraphs/<name>` waiting for active reindex ops to
+	//     drain via `waitForSubgraphOperationsClear` (up to 30s)
+	//   - sBTC/streams pagination over dense contract ranges
+	// Closing the socket mid-response surfaces as either
+	// `socket connection closed unexpectedly` (downstream consumers) or a
+	// generic 5xx in the SDK (DELETE finishes server-side but the client
+	// already gave up). 90s comfortably covers both cases.
+	//
+	// 🛑 Don't revert without also lengthening the wait-for-clear timeout in
+	// `routes/subgraphs.ts` and tuning streams page sizes. This was silently
+	// reverted in commit 9a4c8d35 after first landing in 0650816b — keep it.
+	idleTimeout: 90,
 });
 
 const shutdown = async () => {
