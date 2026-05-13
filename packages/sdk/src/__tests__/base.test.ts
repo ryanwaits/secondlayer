@@ -235,23 +235,25 @@ describe("BaseClient", () => {
 		});
 	});
 
-	describe("tenant baseUrl auto-resolution", () => {
+	describe("tenant session auto-resolution (mint-ephemeral)", () => {
 		const TENANT_URL = "https://myslug-abc.api.secondlayer.tools";
+		const TENANT_JWT = "eyJhbGc.eyJyb2xlIjoic2VydmljZSJ9.signature";
 
-		test("requestAtTenant calls /api/tenants/me then uses returned apiUrl", async () => {
+		function freshEphemeralBody(ttlMs = 5 * 60_000) {
+			return {
+				apiUrl: TENANT_URL,
+				serviceKey: TENANT_JWT,
+				expiresAt: new Date(Date.now() + ttlMs).toISOString(),
+			};
+		}
+
+		test("requestAtTenant mints ephemeral and uses returned apiUrl + serviceKey", async () => {
 			const { fetch: fetchMock, calls } = recordingMockFetch([
 				{
-					match: (u) => u.endsWith("/api/tenants/me"),
+					match: (u) => u.endsWith("/api/tenants/me/keys/mint-ephemeral"),
 					ok: true,
 					status: 200,
-					body: {
-						tenant: {
-							slug: "myslug",
-							apiUrl: TENANT_URL,
-							suspendedAt: null,
-							limitReason: null,
-						},
-					},
+					body: freshEphemeralBody(),
 				},
 				{
 					match: (u) => u.startsWith(TENANT_URL),
@@ -268,24 +270,22 @@ describe("BaseClient", () => {
 			);
 			expect(result).toEqual({ data: [] });
 			expect(calls.length).toBe(2);
-			expect(calls[0]?.url).toBe(`${BASE_URL}/api/tenants/me`);
+			expect(calls[0]?.url).toBe(
+				`${BASE_URL}/api/tenants/me/keys/mint-ephemeral`,
+			);
 			expect(calls[1]?.url).toBe(`${TENANT_URL}/api/subgraphs`);
+			const tenantAuth = (calls[1]?.init?.headers as Record<string, string>)
+				?.Authorization;
+			expect(tenantAuth).toBe(`Bearer ${TENANT_JWT}`);
 		});
 
-		test("second call reuses cached tenant URL (no second /api/tenants/me)", async () => {
+		test("subsequent tenant calls reuse the cached ephemeral session", async () => {
 			const { fetch: fetchMock, calls } = recordingMockFetch([
 				{
-					match: (u) => u.endsWith("/api/tenants/me"),
+					match: (u) => u.endsWith("/api/tenants/me/keys/mint-ephemeral"),
 					ok: true,
 					status: 200,
-					body: {
-						tenant: {
-							slug: "myslug",
-							apiUrl: TENANT_URL,
-							suspendedAt: null,
-							limitReason: null,
-						},
-					},
+					body: freshEphemeralBody(),
 				},
 				{
 					match: (u) => u.startsWith(TENANT_URL),
@@ -299,25 +299,20 @@ describe("BaseClient", () => {
 			await client.doRequestAtTenant("GET", "/api/subgraphs");
 			await client.doRequestAtTenant("GET", "/api/subscriptions");
 
-			const meCalls = calls.filter((c) => c.url.endsWith("/api/tenants/me"));
-			expect(meCalls.length).toBe(1);
+			const mintCalls = calls.filter((c) =>
+				c.url.endsWith("/api/tenants/me/keys/mint-ephemeral"),
+			);
+			expect(mintCalls.length).toBe(1);
 			expect(calls.length).toBe(3);
 		});
 
-		test("concurrent first calls share one /api/tenants/me request", async () => {
+		test("concurrent first calls share a single mint round-trip", async () => {
 			const { fetch: fetchMock, calls } = recordingMockFetch([
 				{
-					match: (u) => u.endsWith("/api/tenants/me"),
+					match: (u) => u.endsWith("/api/tenants/me/keys/mint-ephemeral"),
 					ok: true,
 					status: 200,
-					body: {
-						tenant: {
-							slug: "myslug",
-							apiUrl: TENANT_URL,
-							suspendedAt: null,
-							limitReason: null,
-						},
-					},
+					body: freshEphemeralBody(),
 				},
 				{
 					match: (u) => u.startsWith(TENANT_URL),
@@ -334,11 +329,50 @@ describe("BaseClient", () => {
 				client.doRequestAtTenant("GET", "/api/subgraphs/foo"),
 			]);
 
-			const meCalls = calls.filter((c) => c.url.endsWith("/api/tenants/me"));
-			expect(meCalls.length).toBe(1);
+			const mintCalls = calls.filter((c) =>
+				c.url.endsWith("/api/tenants/me/keys/mint-ephemeral"),
+			);
+			expect(mintCalls.length).toBe(1);
 		});
 
-		test("tenantBaseUrl override skips /api/tenants/me entirely", async () => {
+		test("session near expiry triggers a refresh", async () => {
+			let mintCount = 0;
+			const fetchMock = ((input: unknown) => {
+				const url = String(input);
+				if (url.endsWith("/api/tenants/me/keys/mint-ephemeral")) {
+					mintCount += 1;
+					// First mint: only 5s of life remaining (well inside the
+					// 30s refresh buffer).
+					const ttlMs = mintCount === 1 ? 5_000 : 5 * 60_000;
+					return Promise.resolve({
+						ok: true,
+						status: 200,
+						headers: new Headers(),
+						json: () =>
+							Promise.resolve({
+								apiUrl: TENANT_URL,
+								serviceKey: `${TENANT_JWT}-v${mintCount}`,
+								expiresAt: new Date(Date.now() + ttlMs).toISOString(),
+							}),
+						text: () => Promise.resolve(""),
+					} as Response);
+				}
+				return Promise.resolve({
+					ok: true,
+					status: 200,
+					headers: new Headers(),
+					json: () => Promise.resolve({ data: [] }),
+					text: () => Promise.resolve(""),
+				} as Response);
+			}) as unknown as typeof fetch;
+			globalThis.fetch = fetchMock;
+
+			await client.doRequestAtTenant("GET", "/api/subgraphs"); // mint #1, near-expiry
+			await client.doRequestAtTenant("GET", "/api/subscriptions"); // should re-mint
+			expect(mintCount).toBe(2);
+		});
+
+		test("tenantBaseUrl override skips minting entirely", async () => {
 			const c2 = new TestClient({
 				baseUrl: BASE_URL,
 				apiKey: API_KEY,
@@ -357,19 +391,20 @@ describe("BaseClient", () => {
 			await c2.doRequestAtTenant("GET", "/api/subgraphs");
 			expect(calls.length).toBe(1);
 			expect(calls[0]?.url).toBe(`${TENANT_URL}/api/subgraphs`);
+			// Override falls back to the platform apiKey as the Bearer.
+			const auth = (calls[0]?.init?.headers as Record<string, string>)
+				?.Authorization;
+			expect(auth).toBe(`Bearer ${API_KEY}`);
 		});
 
-		test("suspended tenant throws ApiError with TENANT_SUSPENDED code", async () => {
+		test("mint response without serviceKey throws NO_TENANT_TOKEN", async () => {
 			globalThis.fetch = mockFetch({
 				ok: true,
 				status: 200,
 				body: {
-					tenant: {
-						slug: "myslug",
-						apiUrl: TENANT_URL,
-						suspendedAt: "2026-05-12T00:00:00Z",
-						limitReason: "soft-cap exceeded",
-					},
+					apiUrl: TENANT_URL,
+					serviceKey: "",
+					expiresAt: new Date(Date.now() + 60_000).toISOString(),
 				},
 			});
 
@@ -378,22 +413,18 @@ describe("BaseClient", () => {
 				expect.unreachable("should have thrown");
 			} catch (err) {
 				expect(err).toBeInstanceOf(ApiError);
-				expect((err as ApiError).code).toBe("TENANT_SUSPENDED");
-				expect((err as ApiError).message).toContain("soft-cap exceeded");
+				expect((err as ApiError).code).toBe("NO_TENANT_TOKEN");
 			}
 		});
 
-		test("missing apiUrl throws ApiError with NO_TENANT code", async () => {
+		test("mint response without apiUrl throws NO_TENANT", async () => {
 			globalThis.fetch = mockFetch({
 				ok: true,
 				status: 200,
 				body: {
-					tenant: {
-						slug: "myslug",
-						apiUrl: null,
-						suspendedAt: null,
-						limitReason: null,
-					},
+					apiUrl: "",
+					serviceKey: TENANT_JWT,
+					expiresAt: new Date(Date.now() + 60_000).toISOString(),
 				},
 			});
 
@@ -406,13 +437,13 @@ describe("BaseClient", () => {
 			}
 		});
 
-		test("failed resolution is NOT cached — next call retries", async () => {
-			let meCallCount = 0;
+		test("failed mint is NOT cached — next call retries", async () => {
+			let mintCount = 0;
 			const fetchMock = ((input: unknown) => {
 				const url = String(input);
-				if (url.endsWith("/api/tenants/me")) {
-					meCallCount += 1;
-					if (meCallCount === 1) {
+				if (url.endsWith("/api/tenants/me/keys/mint-ephemeral")) {
+					mintCount += 1;
+					if (mintCount === 1) {
 						return Promise.resolve({
 							ok: false,
 							status: 401,
@@ -425,15 +456,7 @@ describe("BaseClient", () => {
 						ok: true,
 						status: 200,
 						headers: new Headers(),
-						json: () =>
-							Promise.resolve({
-								tenant: {
-									slug: "myslug",
-									apiUrl: TENANT_URL,
-									suspendedAt: null,
-									limitReason: null,
-								},
-							}),
+						json: () => Promise.resolve(freshEphemeralBody()),
 						text: () => Promise.resolve(""),
 					} as Response);
 				}
@@ -451,13 +474,12 @@ describe("BaseClient", () => {
 				client.doRequestAtTenant("GET", "/api/subgraphs"),
 			).rejects.toBeInstanceOf(ApiError);
 
-			// Second call should re-attempt /api/tenants/me, not reuse failed promise.
 			const result = await client.doRequestAtTenant<{ data: unknown[] }>(
 				"GET",
 				"/api/subgraphs",
 			);
 			expect(result).toEqual({ data: [] });
-			expect(meCallCount).toBe(2);
+			expect(mintCount).toBe(2);
 		});
 
 		test("plain request() does not trigger tenant resolution", async () => {
@@ -474,7 +496,9 @@ describe("BaseClient", () => {
 			await client.doRequest("GET", "/v1/streams/tip");
 			expect(calls.length).toBe(1);
 			expect(
-				calls.find((c) => c.url.endsWith("/api/tenants/me")),
+				calls.find((c) =>
+					c.url.endsWith("/api/tenants/me/keys/mint-ephemeral"),
+				),
 			).toBeUndefined();
 		});
 	});

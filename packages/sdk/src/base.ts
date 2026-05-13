@@ -24,13 +24,20 @@ export interface SecondLayerOptions {
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
-type TenantMeResponse = {
-	tenant: {
-		slug: string;
-		apiUrl: string | null;
-		suspendedAt: string | null;
-		limitReason: string | null;
-	};
+// Refresh the ephemeral JWT this far before its `expiresAt` to avoid sending
+// requests with a token that expires mid-flight.
+const TENANT_JWT_REFRESH_BUFFER_MS = 30_000;
+
+type MintEphemeralResponse = {
+	apiUrl: string;
+	serviceKey: string;
+	expiresAt: string;
+};
+
+type TenantSession = {
+	apiUrl: string;
+	token: string;
+	expiresAtMs: number;
 };
 
 export abstract class BaseClient {
@@ -38,7 +45,8 @@ export abstract class BaseClient {
 	protected apiKey?: string;
 	protected origin: "cli" | "mcp" | "session";
 	protected tenantBaseUrlOverride?: string;
-	private _tenantBaseUrlPromise: Promise<string> | null = null;
+	private _tenantSession: TenantSession | null = null;
+	private _tenantSessionPromise: Promise<TenantSession> | null = null;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
@@ -70,8 +78,15 @@ export abstract class BaseClient {
 		method: string,
 		path: string,
 		body?: unknown,
+		authToken?: string,
 	): Promise<T> {
-		const response = await this.fetchResponse(baseUrl, method, path, body);
+		const response = await this.fetchResponse(
+			baseUrl,
+			method,
+			path,
+			body,
+			authToken,
+		);
 
 		if (response.status === 204) {
 			return undefined as T;
@@ -90,41 +105,57 @@ export abstract class BaseClient {
 	}
 
 	/**
-	 * Resolve and cache the tenant API base URL for tenant-resource calls
-	 * (subgraphs, subscriptions). On the platform API, those routes are not
-	 * mounted — they live on per-tenant containers at
-	 * `https://<slug>.api.secondlayer.tools`. This method asks
-	 * `/api/tenants/me` (against the platform baseUrl) for the apiUrl that
-	 * belongs to the authenticated account.
+	 * Resolve + cache a tenant session for tenant-resource calls (subgraphs,
+	 * subscriptions). On the platform API, those routes are not mounted —
+	 * they live on per-tenant containers at `https://<slug>.api.secondlayer.tools`,
+	 * which expect a short-lived HS256 JWT (not the platform `sk-sl_*` key).
 	 *
-	 * The result is cached on the client instance. Failures are NOT cached, so
-	 * a flaky platform call doesn't permanently break the SDK.
+	 * `POST /api/tenants/me/keys/mint-ephemeral` returns both the tenant `apiUrl`
+	 * and a 5-min `serviceKey` JWT in one round-trip. We cache the session and
+	 * refresh before expiry. Failures are NOT cached, so a flaky platform call
+	 * doesn't permanently break the SDK.
+	 *
+	 * Bypass via `tenantBaseUrl` constructor option for OSS / staging / custom
+	 * routing where the same `apiKey` works against both surfaces.
 	 */
-	protected getTenantBaseUrl(): Promise<string> {
+	protected async getTenantSession(): Promise<TenantSession> {
 		if (this.tenantBaseUrlOverride) {
-			return Promise.resolve(this.tenantBaseUrlOverride);
+			return {
+				apiUrl: this.tenantBaseUrlOverride,
+				token: this.apiKey ?? "",
+				expiresAtMs: Number.POSITIVE_INFINITY,
+			};
 		}
-		if (!this._tenantBaseUrlPromise) {
-			this._tenantBaseUrlPromise = this.resolveTenantBaseUrl().catch((err) => {
-				this._tenantBaseUrlPromise = null;
+		const cached = this._tenantSession;
+		if (
+			cached &&
+			cached.expiresAtMs - Date.now() > TENANT_JWT_REFRESH_BUFFER_MS
+		) {
+			return cached;
+		}
+		if (!this._tenantSessionPromise) {
+			this._tenantSessionPromise = this.mintTenantSession().catch((err) => {
+				this._tenantSessionPromise = null;
 				throw err;
 			});
 		}
-		return this._tenantBaseUrlPromise;
+		return this._tenantSessionPromise;
 	}
 
-	private async resolveTenantBaseUrl(): Promise<string> {
-		const body = await this.request<TenantMeResponse>("GET", "/api/tenants/me");
-		const tenant = body.tenant;
-		if (tenant.suspendedAt) {
-			throw new ApiError(
-				403,
-				`Tenant ${tenant.slug} is suspended${tenant.limitReason ? `: ${tenant.limitReason}` : ""}.`,
-				body,
-				"TENANT_SUSPENDED",
-			);
-		}
-		if (!tenant.apiUrl) {
+	/**
+	 * Returns just the tenant API base URL. Convenience wrapper around
+	 * `getTenantSession` for callers that don't need the auth token (e.g. tests).
+	 */
+	protected async getTenantBaseUrl(): Promise<string> {
+		return (await this.getTenantSession()).apiUrl;
+	}
+
+	private async mintTenantSession(): Promise<TenantSession> {
+		const body = await this.request<MintEphemeralResponse>(
+			"POST",
+			"/api/tenants/me/keys/mint-ephemeral",
+		);
+		if (!body.apiUrl) {
 			throw new ApiError(
 				404,
 				"No tenant API URL available for this account. Provision a tenant at https://secondlayer.tools/platform.",
@@ -132,7 +163,22 @@ export abstract class BaseClient {
 				"NO_TENANT",
 			);
 		}
-		return tenant.apiUrl.replace(/\/+$/, "");
+		if (!body.serviceKey) {
+			throw new ApiError(
+				500,
+				"Tenant mint-ephemeral returned no serviceKey.",
+				body,
+				"NO_TENANT_TOKEN",
+			);
+		}
+		const session: TenantSession = {
+			apiUrl: body.apiUrl.replace(/\/+$/, ""),
+			token: body.serviceKey,
+			expiresAtMs: Date.parse(body.expiresAt),
+		};
+		this._tenantSession = session;
+		this._tenantSessionPromise = null;
+		return session;
 	}
 
 	protected async requestAtTenant<T>(
@@ -140,8 +186,8 @@ export abstract class BaseClient {
 		path: string,
 		body?: unknown,
 	): Promise<T> {
-		const tenantUrl = await this.getTenantBaseUrl();
-		return this.requestAt<T>(tenantUrl, method, path, body);
+		const session = await this.getTenantSession();
+		return this.requestAt<T>(session.apiUrl, method, path, body, session.token);
 	}
 
 	protected async requestTextAtTenant(
@@ -149,8 +195,14 @@ export abstract class BaseClient {
 		path: string,
 		body?: unknown,
 	): Promise<string> {
-		const tenantUrl = await this.getTenantBaseUrl();
-		const response = await this.fetchResponse(tenantUrl, method, path, body);
+		const session = await this.getTenantSession();
+		const response = await this.fetchResponse(
+			session.apiUrl,
+			method,
+			path,
+			body,
+			session.token,
+		);
 		return response.text();
 	}
 
@@ -159,9 +211,10 @@ export abstract class BaseClient {
 		method: string,
 		path: string,
 		body?: unknown,
+		authToken?: string,
 	): Promise<Response> {
 		const url = `${baseUrl}${path}`;
-		const headers = BaseClient.authHeaders(this.apiKey);
+		const headers = BaseClient.authHeaders(authToken ?? this.apiKey);
 		headers["x-sl-origin"] = this.origin;
 
 		let response: Response;
