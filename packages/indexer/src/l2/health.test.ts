@@ -111,7 +111,7 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 			checkpoint_recent: true,
 			writes_recent: false,
 		});
-		expect(health.lag_seconds).toBeGreaterThan(60);
+		expect(health.lag_seconds).toBeGreaterThan(300);
 	});
 
 	test("checkpoint block with timestamp=0 returns lag_seconds=null (bug 2)", async () => {
@@ -155,6 +155,55 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 		});
 
 		expect(health.lag_seconds).toBeNull();
+	});
+
+	test("sparse decoder slightly behind tip with no recent writes is healthy", async () => {
+		if (!db) throw new Error("missing db");
+		const now = new Date();
+		const nowSec = Math.floor(now.getTime() / 1000);
+
+		// Checkpoint block is ~4 min behind tip — over the old 60s threshold,
+		// well within the new 300s threshold. Decoder has no recent writes
+		// (events for its filter are sparse). Should report healthy.
+		await db
+			.insertInto("blocks")
+			.values([
+				{
+					height: 1,
+					hash: "0x01",
+					parent_hash: "0x00",
+					burn_block_height: 101,
+					timestamp: nowSec - 240,
+					canonical: true,
+				},
+				{
+					height: 10,
+					hash: "0x10",
+					parent_hash: "0x09",
+					burn_block_height: 110,
+					timestamp: nowSec,
+					canonical: true,
+				},
+			])
+			.execute();
+		await writeDecoderCheckpoint({
+			cursor: "1:0",
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+		});
+
+		const health = await getL2DecoderHealth({
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+			now,
+		});
+
+		expect(health).toMatchObject({
+			status: "healthy",
+			checkpoint_recent: true,
+			writes_recent: false,
+		});
+		expect(health.lag_seconds).toBe(240);
 	});
 
 	test("missing checkpoint reports unhealthy with no heartbeat", async () => {

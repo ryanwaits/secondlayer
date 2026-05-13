@@ -91,8 +91,13 @@ export async function getL2DecoderHealth(opts?: {
 	const checkpointRecent = checkpoint?.updated_at
 		? now.getTime() - checkpoint.updated_at.getTime() <= 5 * 60_000
 		: false;
+	// 5-min `nearTip` window (was 60s): under the stricter AND-logic added in
+	// the same patch as this constant, a 60s threshold flags any sparse decoder
+	// that drifts more than a few blocks behind tip as unhealthy. 300s tolerates
+	// normal block-time variance + sparse event arrival without masking truly
+	// stuck decoders, which sit hours behind.
 	const nearTip =
-		checkpointLagSeconds !== null ? checkpointLagSeconds <= 60 : false;
+		checkpointLagSeconds !== null ? checkpointLagSeconds <= 300 : false;
 
 	// `checkpointRecent` is a per-iteration heartbeat (`bumpDecoderCheckpoint`
 	// in `service.ts` finally-block) — it only proves the process is alive, not
