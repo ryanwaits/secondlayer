@@ -1,7 +1,7 @@
 import { input } from "@inquirer/prompts";
 import type { Command } from "commander";
-import { CliHttpError, httpPlatform, httpPlatformAnon } from "../lib/http.ts";
-import { cyan, dim, info, error as logError, success } from "../lib/output.ts";
+import { CliHttpError, httpPlatformAnon } from "../lib/http.ts";
+import { dim, info, error as logError, success } from "../lib/output.ts";
 import { writeSession } from "../lib/session.ts";
 
 /**
@@ -65,13 +65,7 @@ export async function runLoginFlow(): Promise<void> {
 			expiresAt,
 		});
 		success(`Logged in as ${verified.account.email}`);
-
-		// Print tailored next-step block based on provisioning state. Returning
-		// users with a fully set-up account see only the success line; first-time
-		// users see the exact commands to get to a working deploy. We DON'T
-		// auto-provision (costs real money + plan choice is the user's call) but
-		// we don't make them go read docs either.
-		await printPostLoginHints();
+		info(dim("Run 'sl whoami' to see your account status."));
 	} catch (err) {
 		if (err instanceof CliHttpError) {
 			logError(err.message);
@@ -80,69 +74,6 @@ export async function runLoginFlow(): Promise<void> {
 		}
 		process.exit(1);
 	}
-}
-
-/**
- * After login, returning users (who already have a tenant) see only the
- * generic `sl whoami` hint — same as before. Fresh accounts (no tenant) get
- * the full four-step walkthrough so they don't have to read docs to find
- * their next command. We deliberately don't auto-provision (Launch is $99/mo;
- * plan choice is the user's call).
- *
- * Network failures fall back to the generic hint — login already succeeded,
- * the nudge is a nice-to-have.
- */
-async function printPostLoginHints(): Promise<void> {
-	let hasTenant = false;
-
-	try {
-		const tenant = await httpPlatform<{ tenant: { apiUrl: string } | null }>(
-			"/api/tenants/me",
-		);
-		hasTenant = Boolean(tenant.tenant?.apiUrl);
-	} catch (err) {
-		// 404 from `/api/tenants/me` = no tenant yet (expected for fresh
-		// accounts) — fall through to the walkthrough. Anything else is real
-		// trouble; degrade to the generic hint.
-		if (!(err instanceof CliHttpError && err.status === 404)) {
-			info(dim("Run 'sl whoami' to see your account status."));
-			return;
-		}
-	}
-
-	if (hasTenant) {
-		// Returning user — keep the message minimal.
-		info(dim("Run 'sl whoami' to see your account status."));
-		return;
-	}
-
-	// Fresh account — walk the full sequence so they don't have to hunt.
-	console.log();
-	info("First time? Here's the path to your first query:");
-	console.log();
-	console.log(dim("  1. ") + cyan("sl project create my-app"));
-	console.log(
-		dim("     ") + dim("# scopes your data and routing — pick any name"),
-	);
-	console.log();
-	console.log(dim("  2. ") + cyan("sl instance create --plan launch"));
-	console.log(
-		dim("     ") +
-			dim("# $99/mo · 2 vCPU / 6GB · run `sl --help` for other plans"),
-	);
-	console.log();
-	console.log(
-		dim("  3. ") +
-			cyan("sl subgraphs new my-watcher --template sip-010-balances"),
-	);
-	console.log(dim("     ") + dim("# five templates ship with the CLI"));
-	console.log();
-	console.log(
-		dim("  4. ") + cyan("sl subgraphs deploy subgraphs/my-watcher.ts"),
-	);
-	console.log(dim("     ") + dim("# six seconds, backfill auto-starts"));
-	console.log();
-	info(dim("Run `sl whoami` at any time to see where you are in the flow."));
 }
 
 export function registerLoginCommand(program: Command): void {
