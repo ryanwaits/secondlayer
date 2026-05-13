@@ -1,9 +1,7 @@
 import { input } from "@inquirer/prompts";
 import type { Command } from "commander";
-import { loadConfig } from "../lib/config.ts";
 import { CliHttpError, httpPlatform, httpPlatformAnon } from "../lib/http.ts";
 import { cyan, dim, info, error as logError, success } from "../lib/output.ts";
-import { readActiveProject } from "../lib/project-file.ts";
 import { writeSession } from "../lib/session.ts";
 
 /**
@@ -85,30 +83,17 @@ export async function runLoginFlow(): Promise<void> {
 }
 
 /**
- * Inspect post-login state (active project in cwd, tenant on account) and
- * print the appropriate next-step block. Best-effort — any network failure
- * silently degrades to the generic `sl whoami` hint.
+ * After login, returning users (who already have a tenant) see only the
+ * generic `sl whoami` hint — same as before. Fresh accounts (no tenant) get
+ * the full four-step walkthrough so they don't have to read docs to find
+ * their next command. We deliberately don't auto-provision (Launch is $99/mo;
+ * plan choice is the user's call).
  *
- * Four states:
- *   1. Has project bound + instance running → show the deploy command.
- *   2. Has instance but no project bound in cwd → suggest `sl project use`.
- *   3. Has project but no instance → suggest `sl instance create`.
- *   4. Fresh account, neither → walk the full sequence.
+ * Network failures fall back to the generic hint — login already succeeded,
+ * the nudge is a nice-to-have.
  */
 async function printPostLoginHints(): Promise<void> {
-	let activeSlug: string | null = null;
 	let hasTenant = false;
-
-	try {
-		const config = await loadConfig();
-		const active = await readActiveProject(
-			process.cwd(),
-			config.defaultProject,
-		);
-		activeSlug = active?.slug ?? null;
-	} catch {
-		// loadConfig / readActiveProject failures shouldn't block login UX.
-	}
 
 	try {
 		const tenant = await httpPlatform<{ tenant: { apiUrl: string } | null }>(
@@ -116,54 +101,23 @@ async function printPostLoginHints(): Promise<void> {
 		);
 		hasTenant = Boolean(tenant.tenant?.apiUrl);
 	} catch (err) {
-		// 404 from `/api/tenants/me` is the EXPECTED state for a fresh account
-		// (no tenant has been provisioned yet) — fall through so the State-4
-		// walkthrough fires. Any other error (5xx, network) is real; degrade to
-		// the generic hint.
-		if (err instanceof CliHttpError && err.status === 404) {
-			hasTenant = false;
-		} else {
+		// 404 from `/api/tenants/me` = no tenant yet (expected for fresh
+		// accounts) — fall through to the walkthrough. Anything else is real
+		// trouble; degrade to the generic hint.
+		if (!(err instanceof CliHttpError && err.status === 404)) {
 			info(dim("Run 'sl whoami' to see your account status."));
 			return;
 		}
 	}
 
+	if (hasTenant) {
+		// Returning user — keep the message minimal.
+		info(dim("Run 'sl whoami' to see your account status."));
+		return;
+	}
+
+	// Fresh account — walk the full sequence so they don't have to hunt.
 	console.log();
-	if (hasTenant && activeSlug) {
-		// State 1 — fully set up. Skip nudges; advanced user just relogged.
-		info(
-			dim(
-				`Active project: ${activeSlug}. Try ${cyan("sl subgraphs new --template basic")}`,
-			),
-		);
-		return;
-	}
-
-	if (hasTenant && !activeSlug) {
-		// State 2 — has instance but not bound in this dir.
-		info("Your account has an instance. Bind a project to this directory:");
-		console.log(
-			dim("    ") +
-				cyan("sl project use <slug>") +
-				dim("        # list options with `sl project list`"),
-		);
-		return;
-	}
-
-	if (!hasTenant && activeSlug) {
-		// State 3 — has a project but no instance.
-		info(
-			`Project "${activeSlug}" is bound. Provision an instance to start indexing:`,
-		);
-		console.log(
-			dim("    ") +
-				cyan("sl instance create --plan launch") +
-				dim("   # $99/mo, 2 vCPU / 6GB"),
-		);
-		return;
-	}
-
-	// State 4 — fresh account. Walk the full sequence.
 	info("First time? Here's the path to your first query:");
 	console.log();
 	console.log(dim("  1. ") + cyan("sl project create my-app"));
