@@ -137,6 +137,35 @@ flock -u 9
 # instead of requiring a manual `--force-recreate provisioner` after.
 $COMPOSE --profile platform up -d --no-build --remove-orphans $PLATFORM_SERVICES
 
+# Pin .env to the SHA we just rolled to — BEFORE the health gate runs. If a
+# subsequent check fails and the script exits non-zero, the containers are
+# already running the new tag; .env must reflect that or a future manual
+# `docker compose up -d <service>` will silently roll back to whatever .env
+# still says. `record_successful_deploy()` adds the state-dir markers at
+# end-of-script ONLY on full success — that's intentional, the markers track
+# "last verified deploy" separately from "what's running now."
+_upsert_env_var() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  if grep -qE "^${key}=" "$file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$file"
+  fi
+}
+
+pin_deploy_env() {
+  local env_file="/opt/secondlayer/docker/.env"
+  if [ -f "$env_file" ]; then
+    _upsert_env_var "$env_file" DEPLOY_IMAGE_OWNER "$DEPLOY_IMAGE_OWNER" || true
+    _upsert_env_var "$env_file" DEPLOY_IMAGE_TAG "$DEPLOY_IMAGE_TAG" || true
+    echo "📌 Pinned .env to deploy tag ${DEPLOY_IMAGE_TAG} (containers running new SHA regardless of health-gate outcome)"
+  fi
+}
+
+pin_deploy_env
+
 # Health check with retry
 check_health() {
   local name=$1 url=$2 retries=5 delay=5
@@ -266,31 +295,12 @@ record_successful_deploy() {
     printf 'DEPLOY_RECORDED_AT=%q\n' "$(date -Iseconds)"
   } > "$metadata_path"
 
-  # Pin DEPLOY_IMAGE_OWNER / DEPLOY_IMAGE_TAG into /opt/secondlayer/docker/.env
-  # so any subsequent `docker compose up -d <service>` run by hand uses the
-  # same images this deploy installed. Without this, compose substitutes the
-  # baked-in defaults (`secondlayer-labs` / `:latest`), silently rolling the
-  # service back to a different image. Idempotent upsert per key.
-  local env_file="/opt/secondlayer/docker/.env"
-  if [ -f "$env_file" ]; then
-    _upsert_env_var "$env_file" DEPLOY_IMAGE_OWNER "$DEPLOY_IMAGE_OWNER" || true
-    _upsert_env_var "$env_file" DEPLOY_IMAGE_TAG "$DEPLOY_IMAGE_TAG" || true
-  fi
+  # NOTE: `.env` is pinned earlier in `pin_deploy_env()`, immediately after
+  # `docker compose up -d`. This function only writes the state-dir markers,
+  # which represent "last fully-verified deploy" (different concept from
+  # "what's currently running").
 
   echo "Recorded successful deploy state in ${DEPLOY_STATE_DIR}"
-}
-
-_upsert_env_var() {
-  local file="$1"
-  local key="$2"
-  local value="$3"
-  if grep -qE "^${key}=" "$file"; then
-    # sed -i requires no-arg suffix on GNU; macOS would need -i ''. Server is
-    # ubuntu so GNU sed is fine.
-    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
-  else
-    printf '%s=%s\n' "$key" "$value" >> "$file"
-  fi
 }
 
 record_successful_deploy
