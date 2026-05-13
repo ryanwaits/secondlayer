@@ -50,8 +50,16 @@ export interface Plan {
 // ── Allocation helpers ──────────────────────────────────────────────
 //
 // Allocation within a plan (3 containers per tenant):
-//   Default split (paid tiers)   — PG 50% / proc 30% / api 20%
+//   Default split (paid tiers)   — PG 25% / proc 55% / api 20%
 //   Sub-1GB total                — PG 60% / proc 25% / api 15%
+//
+// Why proc-heavy: the subgraph processor is CPU-bound during backfill
+// (event decode + handler exec + DB writes), while PG idles at <1% CPU
+// observed during steady-state indexing on Launch tier. The 2026-05-13
+// rebalance shifts CPU from idle PG to active proc to recover backfill
+// throughput regressed by the move from shared infra to per-tenant
+// containers — Launch went from 5 blocks/min → ~100 blocks/min just by
+// raising the proc's `--cpus` allotment.
 //
 // Docker memory limit is a hard cap (OOM kill on overage). CPU is a soft
 // cap via `--cpus` (throttling, not killing). Storage is monitored
@@ -60,12 +68,12 @@ export interface Plan {
 function alloc(totalMb: number, totalCpus: number): Plan["containers"] {
 	return {
 		postgres: {
-			memoryMb: Math.floor(totalMb * 0.5),
-			cpus: round2(totalCpus * 0.5),
+			memoryMb: Math.floor(totalMb * 0.25),
+			cpus: round2(totalCpus * 0.25),
 		},
 		processor: {
-			memoryMb: Math.floor(totalMb * 0.3),
-			cpus: round2(totalCpus * 0.3),
+			memoryMb: Math.floor(totalMb * 0.55),
+			cpus: round2(totalCpus * 0.55),
 		},
 		api: {
 			memoryMb: Math.floor(totalMb * 0.2),
