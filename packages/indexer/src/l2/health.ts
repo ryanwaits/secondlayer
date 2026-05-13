@@ -75,8 +75,13 @@ export async function getL2DecoderHealth(opts?: {
 					.where("canonical", "=", true)
 					.executeTakeFirst();
 
+	// Guard against block rows with timestamp = 0 (historical bulk imports
+	// occasionally produce these). Without the guard, lag_seconds = now - 0 ≈
+	// 1.78B seconds (~56 years), poisoning every operational dashboard. Returning
+	// `null` is the same shape used for "no checkpoint yet" — already a value
+	// dashboards know how to handle.
 	const checkpointLagSeconds =
-		tip && checkpointBlock
+		tip && checkpointBlock && Number(checkpointBlock.timestamp) > 0
 			? Math.max(0, Number(tip.timestamp) - Number(checkpointBlock.timestamp))
 			: null;
 	const lastDecodedAt = latestDecoded?.created_at ?? null;
@@ -89,9 +94,15 @@ export async function getL2DecoderHealth(opts?: {
 	const nearTip =
 		checkpointLagSeconds !== null ? checkpointLagSeconds <= 60 : false;
 
+	// `checkpointRecent` is a per-iteration heartbeat (`bumpDecoderCheckpoint`
+	// in `service.ts` finally-block) — it only proves the process is alive, not
+	// that it's making forward progress. A decoder stuck in an error-retry loop
+	// keeps the heartbeat fresh while writing zero rows. Treat it as NECESSARY
+	// (process must be alive), not sufficient — require a real-work signal too:
+	// either we're close to tip (no work to do) or we wrote rows recently.
 	return {
 		status:
-			nearTip || writesRecent || checkpointRecent ? "healthy" : "unhealthy",
+			checkpointRecent && (nearTip || writesRecent) ? "healthy" : "unhealthy",
 		decoder: decoderName,
 		checkpoint: checkpoint?.last_cursor ?? null,
 		checkpoint_block_height: checkpointBlockHeight,
