@@ -89,7 +89,14 @@ export async function assertOk(res: Response): Promise<void> {
  */
 async function getTenantClient(): Promise<SecondLayer> {
 	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
-	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
+	// The CLI mints its own ephemeral via `resolveActiveTenant`, so the SDK
+	// must NOT try to re-mint via its `getTenantSession()` flow. Setting
+	// `tenantBaseUrl` short-circuits that resolver and forces the SDK to use
+	// `ephemeralKey` (passed as apiKey) directly against the tenant URL.
+	// Without this, SDK 3.5.4+ requests `POST /api/tenants/me/keys/mint-ephemeral`
+	// against `baseUrl = apiUrl` (tenant URL), which 404s — the mint route only
+	// exists on the platform.
+	return new SecondLayer({ tenantBaseUrl: apiUrl, apiKey: ephemeralKey });
 }
 
 /**
