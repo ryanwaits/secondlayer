@@ -20,7 +20,7 @@ import {
 import {
 	getSubgraph,
 	listSubgraphs,
-	pgSchemaName,
+	pgSchemaNameFor,
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
@@ -289,7 +289,7 @@ app.post("/", async (c) => {
 	const apiKeyId = getApiKeyId(c);
 	const accountId = getAccountId(c);
 
-	const schemaName = pgSchemaName(name);
+	const schemaName = pgSchemaNameFor(accountId ?? "", name);
 
 	const { deploySchema } = await import("@secondlayer/subgraphs");
 	const db = getDb();

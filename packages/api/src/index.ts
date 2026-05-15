@@ -133,10 +133,10 @@ if (mode === "platform") {
 }
 
 // Resource paths per mode.
-// - Platform: control plane only (accounts, projects, tenants, chat, insights,
-//   auth/logout, admin). NO /api/subgraphs — subgraphs live on per-tenant
-//   dedicated containers now.
-// - Dedicated: serves /api/subgraphs on its tenant DB; /api/node read-through.
+// - Platform: control plane + subgraphs + subscriptions (shared-rip 2026-05-14
+//   brought subgraphs back onto the platform API after the dedicated
+//   per-tenant model was scrapped pre-launch).
+// - Dedicated: same surface plus /api/node passthrough. Dormant post-rip.
 // - OSS: full single-tenant deployment.
 const DEDICATED_PATHS = [
 	"/status",
@@ -163,6 +163,10 @@ const PLATFORM_PATHS = [
 	"/api/tenants",
 	"/api/tenants/*",
 	"/api/auth/logout",
+	"/api/subgraphs",
+	"/api/subgraphs/*",
+	"/api/subscriptions",
+	"/api/subscriptions/*",
 ];
 
 const paths = mode === "platform" ? PLATFORM_PATHS : DEDICATED_PATHS;
@@ -175,11 +179,12 @@ for (const path of paths) {
 	}
 }
 
-// Subgraph + subscription + node routes run in dedicated/oss mode only —
-// platform is a pure control plane post-cutover.
+// Subgraph + subscription routes mount in all modes (shared-rip 2026-05-14
+// brought subgraphs back onto the platform API). /api/node stays
+// oss/dedicated-only — node reads aren't a platform concern.
+app.route("/api/subgraphs", subgraphsRouter);
+app.route("/api/subscriptions", subscriptionsRouter);
 if (mode !== "platform") {
-	app.route("/api/subgraphs", subgraphsRouter);
-	app.route("/api/subscriptions", subscriptionsRouter);
 	app.route("/api/node", nodeRouter);
 }
 if (mode === "platform") {
@@ -200,16 +205,14 @@ const PORT = Number.parseInt(process.env.PORT || "3800");
 
 logger.info("Starting API service", { port: PORT, mode });
 
-// Start subgraph registry cache (LISTEN for subgraph_changes) — only in modes
-// that actually have a `subgraphs` table on their DB (dedicated / oss).
-if (mode !== "platform") {
-	startSubgraphCache().catch((err) => {
-		logger.warn(
-			"Failed to start subgraph cache, subgraphs will load on-demand",
-			{ error: String(err) },
-		);
-	});
-}
+// Start subgraph registry cache (LISTEN for subgraph_changes) — runs in all
+// modes post shared-rip; subgraphs live on the platform DB too.
+startSubgraphCache().catch((err) => {
+	logger.warn(
+		"Failed to start subgraph cache, subgraphs will load on-demand",
+		{ error: String(err) },
+	);
+});
 
 const server = Bun.serve({
 	port: PORT,
