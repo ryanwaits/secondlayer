@@ -29,14 +29,6 @@ export function handleApiError(err: unknown, action: string): never {
 			console.error("Session expired. Run: sl login");
 			process.exit(1);
 		}
-		if (err.code === "TENANT_SUSPENDED") {
-			console.error("Tenant is suspended. Run: sl instance resume");
-			process.exit(1);
-		}
-		if (err.code === "NO_TENANT_FOR_PROJECT") {
-			console.error(err.message);
-			process.exit(1);
-		}
 	}
 	if (err instanceof ApiError && err.status === 401) {
 		console.error("Authentication required. Run: sl login");
@@ -83,99 +75,78 @@ export async function assertOk(res: Response): Promise<void> {
 }
 
 /**
- * Returns an SDK client targeting the caller's tenant with a short-lived
- * ephemeral service key. Resolves via `resolveActiveTenant` — honors
- * SL_API_URL / SL_SERVICE_KEY env-var bypass for CI/OSS.
+ * SDK client targeting the platform API with the caller's session token.
+ * Post shared-rip subgraphs + subscriptions live here too — no tenant URL,
+ * no ephemeral JWT. Honors SL_API_URL / SL_SERVICE_KEY env-var bypass via
+ * `resolveActiveTenant` for CI/OSS.
  */
-async function getTenantClient(): Promise<SecondLayer> {
+async function getPlatformClient(): Promise<SecondLayer> {
 	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
-	// The CLI mints its own ephemeral via `resolveActiveTenant`, so the SDK
-	// must NOT try to re-mint via its `getTenantSession()` flow. Setting
-	// `tenantBaseUrl` short-circuits that resolver and forces the SDK to use
-	// `ephemeralKey` (passed as apiKey) directly against the tenant URL.
-	// Without this, SDK 3.5.4+ requests `POST /api/tenants/me/keys/mint-ephemeral`
-	// against `baseUrl = apiUrl` (tenant URL), which 404s — the mint route only
-	// exists on the platform.
-	return new SecondLayer({ tenantBaseUrl: apiUrl, apiKey: ephemeralKey });
+	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
 
-/**
- * Auth headers for raw fetch() against tenant endpoints — uses an ephemeral
- * JWT. Prefer `httpTenant` from `./http.ts` for new code; this exists for
- * callers still building raw fetch() requests.
- */
-export async function tenantAuthHeaders(): Promise<Record<string, string>> {
-	const { ephemeralKey } = await resolveActiveTenant();
-	return SecondLayer.authHeaders(ephemeralKey);
-}
-
-/** Back-compat alias. Prefer `tenantAuthHeaders` or `httpTenant`. */
-export async function authHeaders(): Promise<Record<string, string>> {
-	return tenantAuthHeaders();
-}
-
-// ── Subgraphs (tenant-scoped) ──────────────────────────────────────────
+// ── Subgraphs ──────────────────────────────────────────────────────────
 
 export async function listSubgraphsApi(): Promise<{ data: SubgraphSummary[] }> {
-	return (await getTenantClient()).subgraphs.list();
+	return (await getPlatformClient()).subgraphs.list();
 }
 
 export async function getSubgraphApi(name: string): Promise<SubgraphDetail> {
-	return (await getTenantClient()).subgraphs.get(name);
+	return (await getPlatformClient()).subgraphs.get(name);
 }
 
 export async function getSubgraphOpenApi(
 	name: string,
 	options?: SubgraphSpecOptions,
 ): Promise<Record<string, unknown>> {
-	return (await getTenantClient()).subgraphs.openapi(name, options);
+	return (await getPlatformClient()).subgraphs.openapi(name, options);
 }
 
 export async function getSubgraphAgentSchema(
 	name: string,
 	options?: SubgraphSpecOptions,
 ): Promise<SubgraphAgentSchema> {
-	return (await getTenantClient()).subgraphs.schema(name, options);
+	return (await getPlatformClient()).subgraphs.schema(name, options);
 }
 
 export async function getSubgraphMarkdown(
 	name: string,
 	options?: SubgraphSpecOptions,
 ): Promise<string> {
-	return (await getTenantClient()).subgraphs.markdown(name, options);
+	return (await getPlatformClient()).subgraphs.markdown(name, options);
 }
 
 export async function reindexSubgraphApi(
 	name: string,
 	options?: { fromBlock?: number; toBlock?: number },
 ): Promise<ReindexResponse> {
-	return (await getTenantClient()).subgraphs.reindex(name, options);
+	return (await getPlatformClient()).subgraphs.reindex(name, options);
 }
 
 export async function backfillSubgraphApi(
 	name: string,
 	options: { fromBlock: number; toBlock: number },
 ): Promise<ReindexResponse> {
-	return (await getTenantClient()).subgraphs.backfill(name, options);
+	return (await getPlatformClient()).subgraphs.backfill(name, options);
 }
 
 export async function stopSubgraphApi(
 	name: string,
 ): Promise<{ message: string }> {
-	return (await getTenantClient()).subgraphs.stop(name);
+	return (await getPlatformClient()).subgraphs.stop(name);
 }
 
 export async function deleteSubgraphApi(
 	name: string,
 	options?: { force?: boolean },
 ): Promise<{ message: string }> {
-	return (await getTenantClient()).subgraphs.delete(name, options);
+	return (await getPlatformClient()).subgraphs.delete(name, options);
 }
 
 export async function deploySubgraphApi(
 	data: DeploySubgraphRequest,
 ): Promise<DeploySubgraphResponse> {
-	return (await getTenantClient()).subgraphs.deploy(data);
+	return (await getPlatformClient()).subgraphs.deploy(data);
 }
 
 export async function querySubgraphTable(
@@ -183,7 +154,7 @@ export async function querySubgraphTable(
 	table: string,
 	params: SubgraphQueryParams = {},
 ): Promise<unknown[]> {
-	return (await getTenantClient()).subgraphs.queryTable(name, table, params);
+	return (await getPlatformClient()).subgraphs.queryTable(name, table, params);
 }
 
 export async function querySubgraphTableCount(
@@ -191,7 +162,7 @@ export async function querySubgraphTableCount(
 	table: string,
 	params: SubgraphQueryParams = {},
 ): Promise<{ count: number }> {
-	return (await getTenantClient()).subgraphs.queryTableCount(
+	return (await getPlatformClient()).subgraphs.queryTableCount(
 		name,
 		table,
 		params,
@@ -202,7 +173,7 @@ export async function getSubgraphGaps(
 	name: string,
 	opts?: { limit?: number; offset?: number; resolved?: boolean },
 ): Promise<SubgraphGapsResponse> {
-	return (await getTenantClient()).subgraphs.gaps(name, opts);
+	return (await getPlatformClient()).subgraphs.gaps(name, opts);
 }
 
 // ── Account (platform-scoped, session-authed) ──────────────────────────

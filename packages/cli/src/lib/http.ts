@@ -1,18 +1,14 @@
 import { readSession } from "./session.ts";
 
 /**
- * Typed HTTP client for the platform API and per-tenant APIs.
+ * Typed HTTP client for the platform API.
  *
  * `httpPlatform` uses the stored session token; the server auto-extends the
- * 90d expiry on every request (sliding window in packages/api/src/auth/middleware.ts),
- * so no refresh logic lives here.
+ * 90d expiry on every request (sliding window in
+ * packages/api/src/auth/middleware.ts), so no refresh logic lives here.
  *
- * `httpTenant` takes an explicit bearer — the caller (usually the resolver)
- * has already minted an ephemeral service JWT.
- *
- * Both functions throw `CliHttpError` on non-2xx with a typed `code` so
- * command handlers can match on specific backend codes (`TENANT_SUSPENDED`,
- * `SESSION_EXPIRED`, `KEY_ROTATED`, etc.).
+ * Throws `CliHttpError` on non-2xx with a typed `code` so command handlers
+ * can match on specific backend codes (`SESSION_EXPIRED`, etc.).
  */
 
 export interface CliHttpErrorBody {
@@ -103,42 +99,6 @@ export async function httpPlatform<T>(
 		...opts,
 		bearer: session.token,
 	});
-}
-
-export async function httpTenant<T>(
-	tenantUrl: string,
-	path: string,
-	bearer: string,
-	opts: HttpOptions = {},
-): Promise<T> {
-	return request<T>(`${tenantUrl.replace(/\/$/, "")}${path}`, {
-		...opts,
-		bearer,
-	});
-}
-
-/**
- * Like `httpTenant` but handles the key-rotation race. If the ephemeral JWT
- * lands at the tenant AFTER a rotation (gen mismatch), the server returns
- * 401 with `code: "KEY_ROTATED"`. The CLI calls `remint` once and retries.
- * Second 401 surfaces normally.
- */
-export async function httpTenantWithRetry<T>(
-	tenantUrl: string,
-	path: string,
-	bearer: string,
-	remint: () => Promise<{ apiUrl: string; ephemeralKey: string }>,
-	opts: HttpOptions = {},
-): Promise<T> {
-	try {
-		return await httpTenant<T>(tenantUrl, path, bearer, opts);
-	} catch (err) {
-		if (err instanceof CliHttpError && err.code === "KEY_ROTATED") {
-			const fresh = await remint();
-			return httpTenant<T>(fresh.apiUrl, path, fresh.ephemeralKey, opts);
-		}
-		throw err;
-	}
 }
 
 /**
