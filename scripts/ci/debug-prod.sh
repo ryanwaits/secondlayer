@@ -45,5 +45,21 @@ case "$DEBUG_TARGET" in
 		;;
 esac
 
+case "$DEBUG_TARGET" in
+	schema|full)
+		echo ""
+		echo "--- public schema tables ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -c "\dt public.*" 2>&1 | head -80 || true
+		echo ""
+		echo "--- views vs subgraphs (renamed in migration 0015) ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT to_regclass('public.views') AS views_oid, to_regclass('public.subgraphs') AS subgraphs_oid;" 2>&1 || true
+		echo ""
+		echo "--- last 20 applied migrations ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT name, timestamp FROM kysely_migration ORDER BY timestamp DESC LIMIT 20;" 2>&1 || true
+		;;
+esac
+
 echo ""
 echo "=== done ==="

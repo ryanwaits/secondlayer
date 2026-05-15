@@ -16,6 +16,7 @@ on:
           - all-containers
           - service-heartbeats
           - subgraphs-state
+          - schema
           - full
         default: subgraph-processor
 
