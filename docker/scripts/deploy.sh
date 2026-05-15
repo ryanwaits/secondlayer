@@ -51,7 +51,7 @@ fi
 [ -n "$_DEPLOY_SHA_OVERRIDE" ] && DEPLOY_SHA="$_DEPLOY_SHA_OVERRIDE"
 unset _DEPLOY_IMAGE_OWNER_OVERRIDE _DEPLOY_IMAGE_TAG_OVERRIDE _DEPLOY_SHA_OVERRIDE
 
-APP_SERVICES="api indexer l2-decoder worker agent caddy"
+APP_SERVICES="api indexer l2-decoder subgraph-processor worker agent caddy"
 PLATFORM_SERVICES="provisioner"
 TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
 DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}}"
