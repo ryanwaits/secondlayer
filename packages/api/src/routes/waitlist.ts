@@ -18,20 +18,22 @@ app.post("/", async (c) => {
 	const { email, source } = WaitlistSchema.parse(body);
 	const db = getDb();
 
+	// Open beta (post 2026-05-14 shared-rip): auto-approve new entries so the
+	// magic-link allow-check passes immediately. Waitlist table is preserved
+	// as a kill-switch — set status='pending' admin-side to re-gate.
 	const result = await db
 		.insertInto("waitlist")
-		.values({ email, ...(source ? { source } : {}) })
+		.values({ email, status: "approved", ...(source ? { source } : {}) })
 		.onConflict((oc) => oc.column("email").doNothing())
 		.returning("id")
 		.executeTakeFirst();
 
-	// Only send confirmation for new signups (not duplicates)
 	if (result) {
 		await sendWaitlistConfirmation(email);
 	}
 
 	return c.json({
-		message: "You're on the list. We approve daily and email within 24h.",
+		message: "You're in. Check your inbox for the sign-in link.",
 	});
 });
 
