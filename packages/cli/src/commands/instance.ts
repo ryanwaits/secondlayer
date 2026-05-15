@@ -41,8 +41,13 @@ interface TenantSummary {
  * instance lifecycle only makes sense for hosted deployments.
  */
 export function registerInstanceCommand(program: Command): void {
+	// Hidden post 2026-05-14 shared-rip — beta runs on shared platform, no
+	// per-account instance. Commands still resolve if invoked explicitly (e.g.
+	// `sl instance info`) so the dormant dedicated path can be re-surfaced
+	// when paid tiers flip back on; just removed from `--help` listings to
+	// stop confusing beta users.
 	const instance = program
-		.command("instance")
+		.command("instance", { hidden: true })
 		.description("Manage your dedicated Secondlayer instance");
 
 	instance

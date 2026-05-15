@@ -42,10 +42,9 @@ program.addHelpText(
 	`
 Quickstart:
   $ sl login                        # Authenticate (magic-link email)
-  $ sl project create my-app        # Scaffold a project (tenant + data)
-  $ sl project use my-app           # Bind this directory to the project
-  $ sl instance create --plan launch  # Provision a dedicated instance
-  $ sl subgraphs deploy ./x.ts      # Deploy a subgraph — targets your instance
+  $ sl subgraphs new my-watcher --template sip-010-balances
+  $ sl subgraphs deploy subgraphs/my-watcher.ts
+  $ sl subgraphs status my-watcher
 `,
 );
 

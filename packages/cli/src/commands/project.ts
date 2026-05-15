@@ -64,7 +64,7 @@ export function registerProjectCommand(program: Command): void {
 				// for the common "I just made a project, now I want to use it" flow.
 				const path = await writeActiveProject(res.slug, process.cwd());
 				info(dim(`Bound to this directory → ${path}`));
-				info(dim("Next: sl instance create --plan launch"));
+				info(dim("Next: sl subgraphs deploy <file.ts>"));
 			} catch (err) {
 				handleProjectError(err);
 			}

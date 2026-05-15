@@ -8,7 +8,7 @@ import { readSession } from "../lib/session.ts";
 export function registerWhoamiCommand(program: Command): void {
 	program
 		.command("whoami")
-		.description("Show current authenticated account + active project + tenant")
+		.description("Show current authenticated account + active project")
 		.action(async () => {
 			const session = await readSession();
 			if (!session) {
@@ -61,10 +61,7 @@ export function registerWhoamiCommand(program: Command): void {
 					rows.push(["Plan", tenant.tenant.plan]);
 					rows.push(["Status", tenant.tenant.status]);
 				} else {
-					rows.push([
-						"Instance",
-						dim("(none — run `sl instance create --plan launch`)"),
-					]);
+					rows.push(["Plan", dim("open beta (shared platform)")]);
 				}
 			} catch {
 				// Tenant fetch failing shouldn't break whoami.
