@@ -100,8 +100,28 @@ export function BillingView({
 		return () => clearInterval(t);
 	}, [tenant, sessionToken]);
 
+	const dedicatedEnabled =
+		process.env.NEXT_PUBLIC_DEDICATED_PROVISIONING_ENABLED === "true";
+
 	if (provisioningView && !tenant) {
 		return <ProvisionProgress />;
+	}
+
+	if (!tenant && !dedicatedEnabled) {
+		return (
+			<>
+				<h1 className="settings-title">Billing</h1>
+				<p className="settings-desc">
+					Open beta — Subgraphs, Subscriptions, Streams, Index, and Foundation
+					Datasets are all free. Paid tiers coming soon.
+				</p>
+				<p className="settings-desc">
+					Generate an API key from{" "}
+					<Link href="/platform/api-keys">/platform/api-keys</Link> and start
+					deploying subgraphs.
+				</p>
+			</>
+		);
 	}
 
 	if (!tenant) {
