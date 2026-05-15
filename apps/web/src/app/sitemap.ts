@@ -4,7 +4,6 @@ const BASE = "https://www.secondlayer.tools";
 
 const ROUTES = [
 	"/",
-	"/pricing",
 	"/streams",
 	"/subgraphs",
 	"/subscriptions",
@@ -24,7 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 	return ROUTES.map((path) => ({
 		url: `${BASE}${path}`,
 		lastModified,
-		changeFrequency: path === "/" || path === "/pricing" ? "weekly" : "monthly",
+		changeFrequency: path === "/" ? "weekly" : "monthly",
 		priority: path === "/" ? 1 : path.startsWith("/datasets/") ? 0.8 : 0.6,
 	}));
 }
