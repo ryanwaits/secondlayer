@@ -104,6 +104,20 @@ function createMeteredIndexApp(opts: {
 }
 
 describe("Stacks Index gateway middleware", () => {
+	test("anon GET ft-transfers returns 200, no rate limit", async () => {
+		const app = createApp();
+		const res = await app.request("/v1/index/ft-transfers");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { events: unknown[] };
+		expect(body.events).toEqual([]);
+		expect(res.headers.get("X-RateLimit-Limit")).toBeNull();
+	});
+
+	test("anon GET nft-transfers returns 200", async () => {
+		const res = await createApp().request("/v1/index/nft-transfers");
+		expect(res.status).toBe(200);
+	});
+
 	test("free tier is rejected for Index", async () => {
 		const res = await createApp().request("/v1/index/ft-transfers", {
 			headers: authHeaders(FREE_KEY),

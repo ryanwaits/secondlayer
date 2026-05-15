@@ -11,6 +11,10 @@ export function indexRateLimit(opts?: {
 
 	return async (c, next) => {
 		const tenant = c.get("indexTenant");
+		if (!tenant) {
+			await next();
+			return;
+		}
 		const limit = INDEX_TIER_CONFIG[tenant.tier].rateLimitPerSecond;
 
 		if (limit === null) {

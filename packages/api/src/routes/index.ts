@@ -58,7 +58,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readTransfers: opts.readFtTransfers,
 			readReorgs,
 		});
-		const accountId = c.get("indexTenant").account_id;
+		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
 		}
@@ -74,7 +74,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readTransfers: opts.readNftTransfers,
 			readReorgs,
 		});
-		const accountId = c.get("indexTenant").account_id;
+		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
 		}

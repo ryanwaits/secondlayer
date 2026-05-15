@@ -18,7 +18,7 @@ export type IndexTenant = {
 
 export type IndexEnv = {
 	Variables: {
-		indexTenant: IndexTenant;
+		indexTenant?: IndexTenant;
 		indexTip: IndexTip;
 	};
 };
@@ -88,8 +88,11 @@ export function indexBearerAuth(opts?: {
 
 	return async (c, next) => {
 		const authHeader = c.req.header("authorization");
+		// Open-beta: no header = anon read. Keys still validated when presented so
+		// metering + tier checks continue to work for paid-tier resurrection.
 		if (!authHeader?.startsWith("Bearer ")) {
-			throw new AuthenticationError("Missing or invalid Authorization header");
+			await next();
+			return;
 		}
 
 		const rawToken = authHeader.slice(7);
