@@ -46,6 +46,25 @@ case "$DEBUG_TARGET" in
 esac
 
 case "$DEBUG_TARGET" in
+	env-snapshot|full)
+		echo ""
+		echo "--- bench env snapshot ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT 'events' AS rel, count(*) AS rows FROM events UNION ALL SELECT 'blocks', count(*) FROM blocks UNION ALL SELECT 'subgraphs', count(*) FROM subgraphs;" 2>&1 || true
+		echo ""
+		echo "--- subgraphs currently reindexing ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT name, status, reindex_from_block, reindex_to_block FROM subgraphs WHERE status = 'reindexing';" 2>&1 || true
+		echo ""
+		echo "--- subgraph-processor resource limits ---"
+		docker inspect secondlayer-subgraph-processor-1 --format '{{json .HostConfig}}' 2>&1 | head -c 600 || true
+		echo ""
+		echo "--- docker stats --no-stream subgraph-processor ---"
+		docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" secondlayer-subgraph-processor-1 2>&1 || true
+		;;
+esac
+
+case "$DEBUG_TARGET" in
 	schema|full)
 		echo ""
 		echo "--- public schema tables ---"

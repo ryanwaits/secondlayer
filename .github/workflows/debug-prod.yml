@@ -17,6 +17,7 @@ on:
           - service-heartbeats
           - subgraphs-state
           - schema
+          - env-snapshot
           - full
         default: subgraph-processor
 
