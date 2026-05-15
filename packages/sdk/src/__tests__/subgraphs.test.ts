@@ -32,13 +32,9 @@ describe("Subgraphs", () => {
 	let subgraphs: Subgraphs;
 
 	beforeEach(() => {
-		// Subgraphs auto-resolves a tenant baseUrl via /api/tenants/me by default;
-		// tests mock /api/subgraphs directly against BASE_URL so set
-		// tenantBaseUrl to skip the resolution lookup.
 		subgraphs = new Subgraphs({
 			baseUrl: BASE_URL,
 			apiKey: API_KEY,
-			tenantBaseUrl: BASE_URL,
 		});
 	});
 

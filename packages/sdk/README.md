@@ -172,16 +172,7 @@ for await (const transfer of sl.index.ftTransfers.walk({
 
 Deploy and query app-specific L3 tables.
 
-Subgraphs and subscriptions live on per-tenant containers (`https://<slug>.api.secondlayer.tools`), not on the platform `api.secondlayer.tools`. The tenant containers expect a short-lived HS256 JWT, not your platform `sk-sl_*` key — so the SDK transparently mints one on the first subgraph or subscription call (POST `/api/tenants/me/keys/mint-ephemeral`), caches the apiUrl + JWT for the session's lifetime, and refreshes 30 s before expiry. You don't need to know the URL or manage tokens — just pass your normal `apiKey`.
-
-If you already know your tenant URL (OSS, staging, or a custom routing setup), skip the lookup with `tenantBaseUrl`:
-
-```typescript
-const sl = new SecondLayer({
-  apiKey: "sk-sl_...",
-  tenantBaseUrl: "https://myslug.api.secondlayer.tools", // optional
-});
-```
+Subgraphs and subscriptions live on the platform API alongside Streams and Index. Authenticate with your `sk-sl_*` key — no extra setup, no tenant URL.
 
 ```typescript
 // List
