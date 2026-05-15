@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "5.1.6",
+	"version": "5.2.0",
 	"description": "CLI for subgraphs and blockchain indexing on Stacks",
 	"type": "module",
 	"bin": {
@@ -43,8 +43,8 @@
 	"dependencies": {
 		"@inquirer/prompts": "^8.2.0",
 		"@secondlayer/bundler": "^0.3.5",
-		"@secondlayer/sdk": "^3.5.4",
-		"@secondlayer/shared": "^6.3.2",
+		"@secondlayer/sdk": "^3.6.0",
+		"@secondlayer/shared": "^6.3.4",
 		"@secondlayer/stacks": "^2.2.0",
 		"@secondlayer/subgraphs": "^2.0.0",
 		"@biomejs/js-api": "^0.7.0",
