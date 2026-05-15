@@ -1,3 +1,4 @@
+import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -170,9 +171,17 @@ export function StxTransfersDatasetContent() {
 				</p>
 			</div>
 
-			<InlineCodeBlock>
-				{`curl "https://api.secondlayer.dev/v1/datasets/stx-transfers?sender=SP1...&limit=100"`}
-			</InlineCodeBlock>
+			<DatasetSandbox
+				endpoint="/v1/datasets/stx-transfers"
+				title="Try stx-transfers"
+				filters={[
+					{ name: "limit", type: "number", default: "5", placeholder: "5" },
+					{ name: "sender", type: "string", placeholder: "SP1..." },
+					{ name: "recipient", type: "string", placeholder: "SP2..." },
+					{ name: "from_block", type: "number", placeholder: "7800000" },
+					{ name: "to_block", type: "number", placeholder: "7900000" },
+				]}
+			/>
 
 			<div className="prose">
 				<p>Response shape:</p>

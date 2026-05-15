@@ -1,3 +1,4 @@
+import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -67,9 +68,13 @@ export function NetworkHealthDatasetContent() {
 				</p>
 			</div>
 
-			<InlineCodeBlock>
-				{`curl "https://api.secondlayer.dev/v1/datasets/network-health/summary?days=7"`}
-			</InlineCodeBlock>
+			<DatasetSandbox
+				endpoint="/v1/datasets/network-health/summary"
+				title="Try network-health/summary"
+				filters={[
+					{ name: "days", type: "number", default: "7", placeholder: "7" },
+				]}
+			/>
 
 			<InlineCodeBlock>
 				{`{

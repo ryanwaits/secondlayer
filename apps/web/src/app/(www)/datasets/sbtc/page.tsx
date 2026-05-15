@@ -1,3 +1,4 @@
+import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { ParquetSnippet } from "@/components/parquet-snippet";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
@@ -104,15 +105,45 @@ export function SbtcDatasetContent() {
 				</p>
 			</div>
 
-			<SectionHeading id="api">Access</SectionHeading>
+			<SectionHeading id="api">API</SectionHeading>
 
 			<div className="prose">
 				<p>
-					sBTC is distributed as parquet on R2 — pull a finalized block range
-					with DuckDB or any parquet reader. Discover the latest available range
-					via the per-family <code>manifest/latest.json</code>.
+					<code>GET /v1/datasets/sbtc/events</code> — registry events. Filters:{" "}
+					<code>topic</code>, <code>sender</code>, <code>bitcoin_txid</code>,{" "}
+					<code>from_block</code>, <code>to_block</code>. Pagination via{" "}
+					<code>cursor</code>. For bulk pulls, use the parquet shelf below.
 				</p>
 			</div>
+
+			<DatasetSandbox
+				endpoint="/v1/datasets/sbtc/events"
+				title="Try sbtc/events"
+				filters={[
+					{
+						name: "topic",
+						type: "enum",
+						options: [
+							"completed-deposit",
+							"withdrawal-create",
+							"withdrawal-accept",
+							"withdrawal-reject",
+							"key-rotation",
+							"update-protocol-contract",
+						],
+						default: "completed-deposit",
+					},
+					{ name: "limit", type: "number", default: "5", placeholder: "5" },
+					{ name: "sender", type: "string", placeholder: "SP1..." },
+					{
+						name: "bitcoin_txid",
+						type: "string",
+						placeholder: "0xa1b2...",
+					},
+					{ name: "from_block", type: "number", placeholder: "7800000" },
+					{ name: "to_block", type: "number", placeholder: "7900000" },
+				]}
+			/>
 
 			<ParquetSnippet
 				dataset="sbtc/events"
