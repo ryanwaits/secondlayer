@@ -3,14 +3,29 @@ import { jsonb } from "../jsonb.ts";
 import type { Database, Subgraph } from "../types.ts";
 
 /**
- * Convert a subgraph name to its PostgreSQL schema name.
- * Every tenant DB has its own isolated schema namespace, so there's no
- * account-prefix disambiguation needed — every subgraph within a tenant
- * just maps to `subgraph_{safeName}`.
+ * Convert a subgraph name to its PostgreSQL schema name (legacy form).
+ * Pre shared-rip every tenant DB had its own schema namespace so disambiguation
+ * was implicit. Kept for oss mode (single-tenant) and legacy-row fallback.
+ * Platform-mode deploys use `pgSchemaNameFor(accountId, name)`.
  */
 export function pgSchemaName(subgraphName: string): string {
 	const safeName = subgraphName.replace(/-/g, "_");
 	return `subgraph_${safeName}`;
+}
+
+/**
+ * Account-scoped schema name. Matches migration 0028's rename pattern:
+ *   subgraph_{first8charsOfAccountId, dashes-as-underscores}_{name}
+ * Empty accountId falls back to legacy form (oss mode).
+ */
+export function pgSchemaNameFor(
+	accountId: string,
+	subgraphName: string,
+): string {
+	if (!accountId) return pgSchemaName(subgraphName);
+	const accountPrefix = accountId.slice(0, 8).replace(/-/g, "_");
+	const safeName = subgraphName.replace(/-/g, "_");
+	return `subgraph_${accountPrefix}_${safeName}`;
 }
 
 export async function registerSubgraph(
