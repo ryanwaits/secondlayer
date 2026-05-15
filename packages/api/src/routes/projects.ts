@@ -326,6 +326,17 @@ app.patch("/:slug/team/:memberId", async (c) => {
 // Enforces the 1:1 project↔tenant rule at application layer: 409 if the
 // project already has a tenant.
 app.post("/:slug/instance", async (c) => {
+	if (process.env.ENABLE_DEDICATED_PROVISIONING !== "true") {
+		return c.json(
+			{
+				error:
+					"Dedicated provisioning is disabled. Use the shared platform — subgraphs and subscriptions are served from api.secondlayer.tools directly.",
+				code: "DEDICATED_PROVISIONING_DISABLED",
+			},
+			503,
+		);
+	}
+
 	const accountId = requireAccountId(c);
 	const db = getDb();
 	const slug = c.req.param("slug");

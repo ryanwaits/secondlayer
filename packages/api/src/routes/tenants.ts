@@ -70,6 +70,17 @@ const app = new Hono();
 // ── POST /api/tenants — provision a new tenant ─────────────────────────
 
 app.post("/", async (c) => {
+	if (process.env.ENABLE_DEDICATED_PROVISIONING !== "true") {
+		return c.json(
+			{
+				error:
+					"Dedicated provisioning is disabled. Use the shared platform — subgraphs and subscriptions are served from api.secondlayer.tools directly.",
+				code: "DEDICATED_PROVISIONING_DISABLED",
+			},
+			503,
+		);
+	}
+
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 
