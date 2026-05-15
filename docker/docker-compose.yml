@@ -181,6 +181,34 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Subgraph processor — shared-rip 2026-05-14 moves subgraph runtime onto
+  # the platform alongside the API (previously ran inside per-tenant
+  # `sl-proc` containers under the dedicated model). Same DB as api,
+  # listens `indexer:new_block` NOTIFY, catches up + tails all active
+  # subgraphs across accounts.
+  subgraph-processor:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: api
+    command: ["bun", "run", "packages/subgraphs/src/service.ts"]
+    environment:
+      INSTANCE_MODE: ${INSTANCE_MODE:-platform}
+      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      DATA_DIR: /data
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
+    volumes:
+      - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Worker service — scheduled background jobs (storage measurement + tenant
   # trial/health crons in platform mode).
   worker:
