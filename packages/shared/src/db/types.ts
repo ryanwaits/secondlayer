@@ -675,6 +675,12 @@ export interface Database {
 	bns_marketplace_events: BnsMarketplaceEventsTable;
 	bns_names: BnsNamesTable;
 	bns_namespaces: BnsNamespacesTable;
+	service_heartbeats: ServiceHeartbeatsTable;
+}
+
+export interface ServiceHeartbeatsTable {
+	name: string;
+	updated_at: Generated<Date>;
 }
 
 // --- Tenants (dedicated hosting) ---

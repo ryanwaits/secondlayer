@@ -41,9 +41,11 @@ type PublicIndexStatus = {
 type SemanticHealthStatus = "ok" | "degraded" | "unavailable";
 
 type PublicServiceHealth = {
-	name: "api" | "database" | "indexer" | "l2_decoder";
+	name: "api" | "database" | "indexer" | "l2_decoder" | "subgraph_processor";
 	status: SemanticHealthStatus;
 };
+
+const SUBGRAPH_PROCESSOR_STALE_MS = 90_000;
 
 // Built per-request from env flags so the public status response surfaces
 // every enabled L2 decoder, not just the always-on ft + nft pair.
@@ -168,13 +170,26 @@ app.get("/public/status", async (c) => {
 		streamsTipResult,
 		l2DecodersResult,
 		dumpsManifestResult,
+		subgraphProcessorHeartbeat,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		getIndexerHealth(),
 		getStreamsTip(),
 		getL2DecodersHealth({ db }),
 		getStreamsBulkManifest(),
+		db
+			.selectFrom("service_heartbeats")
+			.select("updated_at")
+			.where("name", "=", "subgraph-processor")
+			.executeTakeFirst(),
 	]);
+	const subgraphProcessorStatus: SemanticHealthStatus = (() => {
+		if (subgraphProcessorHeartbeat.status !== "fulfilled") return "unavailable";
+		const row = subgraphProcessorHeartbeat.value;
+		if (!row) return "unavailable";
+		const ageMs = Date.now() - new Date(row.updated_at).getTime();
+		return ageMs <= SUBGRAPH_PROCESSOR_STALE_MS ? "ok" : "degraded";
+	})();
 	const streamsTip: StreamsTip | null =
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
 	const chainTip = streamsTip?.block_height ?? null;
@@ -207,6 +222,7 @@ app.get("/public/status", async (c) => {
 					: "unavailable",
 		},
 		{ name: "l2_decoder", status: serviceStatusFromPublicIndex(index) },
+		{ name: "subgraph_processor", status: subgraphProcessorStatus },
 	];
 
 	return c.json({
@@ -252,6 +268,7 @@ app.get("/status", async (c) => {
 		gapSummaryResult,
 		streamsTipResult,
 		l2DecodersResult,
+		subgraphProcessorHeartbeat,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		db.selectFrom("index_progress").selectAll().execute(),
@@ -260,9 +277,21 @@ app.get("/status", async (c) => {
 		getGapSummaryBySubgraph(db),
 		getStreamsTip(),
 		getL2DecodersHealth({ db }),
+		db
+			.selectFrom("service_heartbeats")
+			.select("updated_at")
+			.where("name", "=", "subgraph-processor")
+			.executeTakeFirst(),
 	]);
 
 	const dbStatus = dbResult.status === "fulfilled" ? "ok" : "error";
+	const subgraphProcessorStatus: SemanticHealthStatus = (() => {
+		if (subgraphProcessorHeartbeat.status !== "fulfilled") return "unavailable";
+		const row = subgraphProcessorHeartbeat.value;
+		if (!row) return "unavailable";
+		const ageMs = Date.now() - new Date(row.updated_at).getTime();
+		return ageMs <= SUBGRAPH_PROCESSOR_STALE_MS ? "ok" : "degraded";
+	})();
 
 	let progress: Array<{
 		network: string;
@@ -359,6 +388,7 @@ app.get("/status", async (c) => {
 					: "unavailable",
 		},
 		{ name: "l2_decoder", status: serviceStatusFromPublicIndex(index) },
+		{ name: "subgraph_processor", status: subgraphProcessorStatus },
 	];
 
 	return c.json({
