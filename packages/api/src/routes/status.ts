@@ -183,13 +183,45 @@ app.get("/public/status", async (c) => {
 			.where("name", "=", "subgraph-processor")
 			.executeTakeFirst(),
 	]);
-	const subgraphProcessorStatus: SemanticHealthStatus = (() => {
-		if (subgraphProcessorHeartbeat.status !== "fulfilled") return "unavailable";
+	const subgraphProcessorDetail: {
+		status: SemanticHealthStatus;
+		lastSeen: string | null;
+		ageSeconds: number | null;
+		reason: string;
+	} = (() => {
+		if (subgraphProcessorHeartbeat.status !== "fulfilled") {
+			const reason =
+				subgraphProcessorHeartbeat.reason instanceof Error
+					? subgraphProcessorHeartbeat.reason.message
+					: String(subgraphProcessorHeartbeat.reason ?? "query_failed");
+			return {
+				status: "unavailable",
+				lastSeen: null,
+				ageSeconds: null,
+				reason: `query_error: ${reason.slice(0, 200)}`,
+			};
+		}
 		const row = subgraphProcessorHeartbeat.value;
-		if (!row) return "unavailable";
-		const ageMs = Date.now() - new Date(row.updated_at).getTime();
-		return ageMs <= SUBGRAPH_PROCESSOR_STALE_MS ? "ok" : "degraded";
+		if (!row) {
+			return {
+				status: "unavailable",
+				lastSeen: null,
+				ageSeconds: null,
+				reason: "no_heartbeat_row",
+			};
+		}
+		const lastSeen = new Date(row.updated_at);
+		const ageSeconds = Math.floor((Date.now() - lastSeen.getTime()) / 1000);
+		const status: SemanticHealthStatus =
+			ageSeconds * 1000 <= SUBGRAPH_PROCESSOR_STALE_MS ? "ok" : "degraded";
+		return {
+			status,
+			lastSeen: lastSeen.toISOString(),
+			ageSeconds,
+			reason: status === "ok" ? "fresh" : "stale",
+		};
 	})();
+	const subgraphProcessorStatus = subgraphProcessorDetail.status;
 	const streamsTip: StreamsTip | null =
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
 	const chainTip = streamsTip?.block_height ?? null;
@@ -239,6 +271,7 @@ app.get("/public/status", async (c) => {
 		node: {
 			status: nodeStatusFromStreamsTip(streamsTip),
 		},
+		subgraphProcessor: subgraphProcessorDetail,
 		services,
 		timestamp: new Date().toISOString(),
 	});
