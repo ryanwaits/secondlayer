@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-TARGET="${TARGET:-subgraph-processor}"
-echo "=== target: $TARGET ==="
+DEBUG_TARGET="${DEBUG_TARGET:-subgraph-processor}"
+echo "=== target: $DEBUG_TARGET ==="
 
-case "$TARGET" in
+case "$DEBUG_TARGET" in
 	subgraph-processor|full)
 		echo ""
 		echo "--- docker ps -a (subgraph-processor) ---"
@@ -15,7 +15,7 @@ case "$TARGET" in
 		;;
 esac
 
-case "$TARGET" in
+case "$DEBUG_TARGET" in
 	all-containers|full)
 		echo ""
 		echo "--- docker ps -a (all) ---"
@@ -23,7 +23,7 @@ case "$TARGET" in
 		;;
 esac
 
-case "$TARGET" in
+case "$DEBUG_TARGET" in
 	service-heartbeats|full)
 		echo ""
 		echo "--- service_heartbeats table ---"
@@ -32,7 +32,7 @@ case "$TARGET" in
 		;;
 esac
 
-case "$TARGET" in
+case "$DEBUG_TARGET" in
 	subgraphs-state|full)
 		echo ""
 		echo "--- subgraphs (status + cursor) ---"
