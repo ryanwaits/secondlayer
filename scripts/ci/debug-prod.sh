@@ -125,6 +125,28 @@ case "$DEBUG_TARGET" in
 		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
 			-c "SELECT MIN(block_height) AS first_block, COUNT(*) AS total FROM events WHERE type IN ('ft_transfer_event','ft_mint_event','ft_burn_event') AND data->>'asset_identifier' LIKE 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::%';" 2>&1 || true
 		;;
+	dataset-ranges)
+		echo ""
+		echo "--- finalized tip ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT MAX(block_height) AS tip FROM blocks WHERE canonical = true;" 2>&1 || true
+		echo ""
+		echo "--- pox4_calls range ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT MIN(block_height) AS first, MAX(block_height) AS last, COUNT(*) AS rows FROM pox4_calls;" 2>&1 || true
+		echo ""
+		echo "--- bns_name_events range ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT MIN(block_height) AS first, MAX(block_height) AS last, COUNT(*) AS rows FROM bns_name_events;" 2>&1 || true
+		echo ""
+		echo "--- bns_namespace_events range ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT MIN(block_height) AS first, MAX(block_height) AS last, COUNT(*) AS rows FROM bns_namespace_events;" 2>&1 || true
+		echo ""
+		echo "--- bns_marketplace_events range ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT MIN(block_height) AS first, MAX(block_height) AS last, COUNT(*) AS rows FROM bns_marketplace_events;" 2>&1 || true
+		;;
 esac
 
 case "$DEBUG_TARGET" in

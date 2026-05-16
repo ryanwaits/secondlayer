@@ -18,6 +18,7 @@ on:
           - restart-caddy
           - flip-parquet-flags
           - indexer-publishers
+          - dataset-ranges
           - all-containers
           - service-heartbeats
           - subgraphs-state
