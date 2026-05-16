@@ -8,11 +8,8 @@ const INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Start periodic storage measurement. Returns a cleanup function.
- *
- * In platform mode there are no subgraphs on the control plane — per-tenant
- * storage is measured by the provisioner's `measureStorageMb` called from
- * the tenant-health cron. Skip here to avoid querying a `subgraphs` table
- * that doesn't exist on the platform DB post-cutover.
+ * Skipped in platform mode — kept for OSS / self-host where subgraphs
+ * live on the local DB.
  */
 export function startStorageMeasurement(): () => void {
 	if (isPlatformMode()) {

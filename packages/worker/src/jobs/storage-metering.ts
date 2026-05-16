@@ -41,8 +41,6 @@ export function startStorageMeteringCron(): () => void {
 		}
 	};
 
-	// 5-minute offset from boot so tenant-health has a chance to populate
-	// fresh storage_used_mb values.
 	const initial = setTimeout(tick, 5 * 60_000);
 	const interval = setInterval(tick, INTERVAL_MS);
 
