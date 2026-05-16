@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/shared",
-	"version": "6.3.5",
+	"version": "6.4.0",
 	"type": "module",
 	"main": "./dist/src/index.js",
 	"types": "./dist/src/index.d.ts",
