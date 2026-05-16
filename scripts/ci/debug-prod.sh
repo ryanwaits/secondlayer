@@ -48,13 +48,13 @@ esac
 case "$DEBUG_TARGET" in
 	sbtc-first-block)
 		echo ""
-		echo "--- earliest sbtc-registry event block ---"
+		echo "--- earliest sbtc-registry print_event in raw events table ---"
 		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
-			-c "SELECT MIN(block_height) AS first_block FROM sbtc_events;" 2>&1 || true
+			-c "SELECT MIN(block_height) AS first_block, COUNT(*) AS total FROM events WHERE type IN ('smart_contract_event','contract_event') AND data->>'contract_identifier' = 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry';" 2>&1 || true
 		echo ""
-		echo "--- earliest sbtc-token event block ---"
+		echo "--- earliest sbtc-token ft event ---"
 		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
-			-c "SELECT MIN(block_height) AS first_block FROM sbtc_token_events;" 2>&1 || true
+			-c "SELECT MIN(block_height) AS first_block, COUNT(*) AS total FROM events WHERE type IN ('ft_transfer_event','ft_mint_event','ft_burn_event') AND data->>'asset_identifier' LIKE 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::%';" 2>&1 || true
 		;;
 esac
 
