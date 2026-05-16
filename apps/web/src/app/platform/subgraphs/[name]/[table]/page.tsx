@@ -1,7 +1,11 @@
 import { CollapsibleSection } from "@/components/console/collapsible-section";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
-import { ApiError, getSessionFromCookies } from "@/lib/api";
-import { fetchFromTenantOrThrow, getTenantApiUrl } from "@/lib/tenant-api";
+import {
+	ApiError,
+	PLATFORM_API_URL,
+	apiRequest,
+	getSessionFromCookies,
+} from "@/lib/api";
 import type { SubgraphDetail } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,14 +22,11 @@ export default async function TableDetailPage({
 	if (!session) notFound();
 
 	let subgraph: SubgraphDetail;
-	let tenantApiUrl = "";
+	const tenantApiUrl = PLATFORM_API_URL;
 	try {
-		const [subgraphResult, tenantUrlResult] = await Promise.all([
-			fetchFromTenantOrThrow<SubgraphDetail>(session, `/api/subgraphs/${name}`),
-			getTenantApiUrl(session),
-		]);
-		subgraph = subgraphResult;
-		tenantApiUrl = tenantUrlResult;
+		subgraph = await apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
+			sessionToken: session,
+		});
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 404) notFound();
 		throw e;

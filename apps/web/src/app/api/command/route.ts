@@ -3,7 +3,6 @@ import { apiRequest, getSessionFromRequest } from "@/lib/api";
 import { createCommandAgent } from "@/lib/command/agent";
 import type { CommandRequest, CommandResponse } from "@/lib/command/types";
 import { triageSubgraphs } from "@/lib/intelligence/dashboard";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { ApiKey, SubgraphSummary } from "@/lib/types";
 import { NextResponse } from "next/server";
 
@@ -138,10 +137,7 @@ export async function POST(req: Request) {
 	}
 
 	const [subgraphs, keys, statusData] = await Promise.all([
-		fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
-			sessionToken,
-			"/api/subgraphs",
-		)
+		apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", { sessionToken })
 			.then((r) => r.data)
 			.catch(() => [] as SubgraphSummary[]),
 		apiRequest<{ keys: ApiKey[] }>("/api/keys", { sessionToken })

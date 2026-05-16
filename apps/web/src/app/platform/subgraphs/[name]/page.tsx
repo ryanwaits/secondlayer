@@ -1,9 +1,13 @@
 import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { CollapsibleSection } from "@/components/console/collapsible-section";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
-import { ApiError, getSessionFromCookies } from "@/lib/api";
+import {
+	ApiError,
+	PLATFORM_API_URL,
+	apiRequest,
+	getSessionFromCookies,
+} from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
-import { fetchFromTenantOrThrow, getTenantApiUrl } from "@/lib/tenant-api";
 import type { SubgraphDetail, SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -56,17 +60,17 @@ export default async function SubgraphDetailPage({
 
 	let subgraph: SubgraphDetail;
 	let allSubgraphs: SubgraphSummary[] = [];
-	let tenantApiUrl = "";
+	const tenantApiUrl = PLATFORM_API_URL;
 
 	try {
 		if (!session) notFound();
-		const [sgResult, listResult, tenantUrlResult] = await Promise.allSettled([
-			fetchFromTenantOrThrow<SubgraphDetail>(session, `/api/subgraphs/${name}`),
-			fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
-				session,
-				"/api/subgraphs",
-			),
-			getTenantApiUrl(session),
+		const [sgResult, listResult] = await Promise.allSettled([
+			apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
+				sessionToken: session,
+			}),
+			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
+				sessionToken: session,
+			}),
 		]);
 
 		if (sgResult.status === "rejected") {
@@ -77,8 +81,6 @@ export default async function SubgraphDetailPage({
 		subgraph = sgResult.value;
 		allSubgraphs =
 			listResult.status === "fulfilled" ? listResult.value.data : [];
-		tenantApiUrl =
-			tenantUrlResult.status === "fulfilled" ? tenantUrlResult.value : "";
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 404) notFound();
 		throw e;
@@ -86,9 +88,9 @@ export default async function SubgraphDetailPage({
 
 	let subsForSubgraph: SubscriptionSummary[] = [];
 	try {
-		const subsResult = await fetchFromTenantOrThrow<{
+		const subsResult = await apiRequest<{
 			data: SubscriptionSummary[];
-		}>(session, "/api/subscriptions");
+		}>("/api/subscriptions", { sessionToken: session });
 		subsForSubgraph = subsResult.data.filter((s) => s.subgraphName === name);
 	} catch {
 		subsForSubgraph = [];

@@ -1,7 +1,6 @@
 import { OnboardingCard } from "@/components/console/onboarding-card";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
-import { getSessionFromCookies } from "@/lib/api";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { SubgraphSummary, SubscriptionSummary } from "@/lib/types";
 import Link from "next/link";
 
@@ -61,14 +60,12 @@ export default async function DashboardPage() {
 
 	if (session) {
 		const [subgraphsResult, subscriptionsResult] = await Promise.allSettled([
-			fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
-				session,
-				"/api/subgraphs",
-			),
-			fetchFromTenantOrThrow<{ data: SubscriptionSummary[] }>(
-				session,
-				"/api/subscriptions",
-			),
+			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
+				sessionToken: session,
+			}),
+			apiRequest<{ data: SubscriptionSummary[] }>("/api/subscriptions", {
+				sessionToken: session,
+			}),
 		]);
 		subgraphs =
 			subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];

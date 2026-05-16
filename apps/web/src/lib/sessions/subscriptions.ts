@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from "node:crypto";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { apiRequest } from "@/lib/api";
 import type {
 	DeadRow,
 	DeliveryRow,
@@ -51,26 +51,24 @@ export async function resolveSubscription(
 	sessionToken: string,
 	ref: string,
 ): Promise<SubscriptionDetail> {
-	const list = await fetchFromTenantOrThrow<{ data: SubscriptionSummary[] }>(
-		sessionToken,
+	const list = await apiRequest<{ data: SubscriptionSummary[] }>(
 		"/api/subscriptions",
+		{ sessionToken },
 	);
 	const exact = list.data.find((sub) => sub.id === ref);
 	if (exact) {
-		return fetchFromTenantOrThrow<SubscriptionDetail>(
+		return apiRequest<SubscriptionDetail>(`/api/subscriptions/${exact.id}`, {
 			sessionToken,
-			`/api/subscriptions/${exact.id}`,
-		);
+		});
 	}
 	const matches = list.data.filter((sub) => sub.name === ref);
 	if (matches.length > 1) {
 		throw new Error(`Subscription name "${ref}" is ambiguous; use its id.`);
 	}
 	const id = matches[0]?.id ?? ref;
-	return fetchFromTenantOrThrow<SubscriptionDetail>(
+	return apiRequest<SubscriptionDetail>(`/api/subscriptions/${id}`, {
 		sessionToken,
-		`/api/subscriptions/${id}`,
-	);
+	});
 }
 
 export function buildSubscriptionDiagnostics(input: {
@@ -243,10 +241,9 @@ export async function representativeSubscriptionRow(
 		_order: "desc",
 	});
 	try {
-		const result = await fetchFromTenantOrThrow<{ data: unknown[] }>(
-			sessionToken,
-			`/api/subgraphs/${subscription.subgraphName}/${subscription.tableName}`,
-			{ query },
+		const result = await apiRequest<{ data: unknown[] }>(
+			`/api/subgraphs/${subscription.subgraphName}/${subscription.tableName}?${query.toString()}`,
+			{ sessionToken },
 		);
 		const row = result.data[0];
 		if (row && typeof row === "object") {

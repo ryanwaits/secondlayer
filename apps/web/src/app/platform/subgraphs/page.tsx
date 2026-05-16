@@ -4,7 +4,6 @@ import { PromptActions } from "@/components/console/prompt-actions";
 import { getAgentPrompt } from "@/lib/agent-prompts";
 import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubgraphSummary } from "@/lib/types";
 
 function statusLabel(sg: SubgraphSummary, chainTip: number | null) {
@@ -28,10 +27,9 @@ export default async function SubgraphsPage() {
 
 	if (session) {
 		const [subgraphsResult, statusResult] = await Promise.allSettled([
-			fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
-				session,
-				"/api/subgraphs",
-			),
+			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
+				sessionToken: session,
+			}),
 			apiRequest<{ chainTip: number | null }>("/status", {
 				sessionToken: session,
 				tags: ["status"],

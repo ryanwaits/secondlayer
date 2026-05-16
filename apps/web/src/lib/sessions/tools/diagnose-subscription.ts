@@ -1,4 +1,4 @@
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { apiRequest } from "@/lib/api";
 import type { DeadRow, DeliveryRow, SubgraphDetail } from "@/lib/types";
 import { tool } from "ai";
 import { z } from "zod";
@@ -19,18 +19,17 @@ export function createDiagnoseSubscription(sessionToken: string) {
 		execute: async ({ subscription }) => {
 			const detail = await resolveSubscription(sessionToken, subscription);
 			const [deliveries, deadRows, subgraph] = await Promise.allSettled([
-				fetchFromTenantOrThrow<{ data: DeliveryRow[] }>(
-					sessionToken,
+				apiRequest<{ data: DeliveryRow[] }>(
 					`/api/subscriptions/${detail.id}/deliveries`,
+					{ sessionToken },
 				),
-				fetchFromTenantOrThrow<{ data: DeadRow[] }>(
-					sessionToken,
+				apiRequest<{ data: DeadRow[] }>(
 					`/api/subscriptions/${detail.id}/dead`,
+					{ sessionToken },
 				),
-				fetchFromTenantOrThrow<SubgraphDetail>(
+				apiRequest<SubgraphDetail>(`/api/subgraphs/${detail.subgraphName}`, {
 					sessionToken,
-					`/api/subgraphs/${detail.subgraphName}`,
-				),
+				}),
 			]);
 
 			return buildSubscriptionDiagnostics({

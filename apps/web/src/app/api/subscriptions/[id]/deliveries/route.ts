@@ -1,20 +1,9 @@
-import { getSessionFromRequest } from "@/lib/api";
-import { fetchFromTenant } from "@/lib/tenant-api";
-import { NextResponse } from "next/server";
+import { proxyApiRequest } from "@/lib/api";
 
-interface RouteParams {
-	params: Promise<{ id: string }>;
-}
-
-export async function GET(req: Request, { params }: RouteParams) {
-	const sessionToken = getSessionFromRequest(req);
-	if (!sessionToken) {
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-	}
+export async function GET(
+	req: Request,
+	{ params }: { params: Promise<{ id: string }> },
+) {
 	const { id } = await params;
-	const { ok, status, data } = await fetchFromTenant(
-		sessionToken,
-		`/api/subscriptions/${id}/deliveries`,
-	);
-	return NextResponse.json(data, { status: ok ? 200 : status });
+	return proxyApiRequest(req, `/api/subscriptions/${id}/deliveries`);
 }

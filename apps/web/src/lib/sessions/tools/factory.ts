@@ -1,5 +1,4 @@
 import { apiRequest } from "@/lib/api";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { ApiKey, SubgraphSummary, SubscriptionSummary } from "@/lib/types";
 import { createCheckInsights } from "./check-insights";
 import { createCheckKeys } from "./check-keys";
@@ -35,10 +34,7 @@ export async function fetchAccountResources(
 	sessionToken: string,
 ): Promise<AccountResources> {
 	const [subgraphs, keys, chainTip] = await Promise.all([
-		fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
-			sessionToken,
-			"/api/subgraphs",
-		)
+		apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", { sessionToken })
 			.then((r) => r.data)
 			.catch(() => [] as SubgraphSummary[]),
 		apiRequest<{ keys: ApiKey[] }>("/api/keys", { sessionToken })
@@ -48,9 +44,9 @@ export async function fetchAccountResources(
 			.then((r) => r.chainTip ?? null)
 			.catch(() => null as number | null),
 	]);
-	const subscriptions = await fetchFromTenantOrThrow<{
+	const subscriptions = await apiRequest<{
 		data: SubscriptionSummary[];
-	}>(sessionToken, "/api/subscriptions")
+	}>("/api/subscriptions", { sessionToken })
 		.then((r) => r.data)
 		.catch(() => [] as SubscriptionSummary[]);
 	return { subgraphs, subscriptions, keys, chainTip };

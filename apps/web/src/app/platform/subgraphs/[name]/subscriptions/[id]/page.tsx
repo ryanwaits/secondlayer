@@ -4,8 +4,7 @@ import { MetaGrid } from "@/components/console/meta-grid";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { PromptActions } from "@/components/console/prompt-actions";
 import { getAgentPrompt } from "@/lib/agent-prompts";
-import { ApiError, getSessionFromCookies } from "@/lib/api";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubscriptionActions } from "./actions";
@@ -66,18 +65,15 @@ export default async function SubscriptionDetailPage({
 	let deadRows: DeadRow[] = [];
 	try {
 		const [detailResult, listResult, deadResult] = await Promise.allSettled([
-			fetchFromTenantOrThrow<SubscriptionDetail>(
-				session,
-				`/api/subscriptions/${id}`,
-			),
-			fetchFromTenantOrThrow<{ data: SubscriptionSummary[] }>(
-				session,
-				"/api/subscriptions",
-			),
-			fetchFromTenantOrThrow<{ data: DeadRow[] }>(
-				session,
-				`/api/subscriptions/${id}/dead`,
-			),
+			apiRequest<SubscriptionDetail>(`/api/subscriptions/${id}`, {
+				sessionToken: session,
+			}),
+			apiRequest<{ data: SubscriptionSummary[] }>("/api/subscriptions", {
+				sessionToken: session,
+			}),
+			apiRequest<{ data: DeadRow[] }>(`/api/subscriptions/${id}/dead`, {
+				sessionToken: session,
+			}),
 		]);
 		if (detailResult.status === "rejected") {
 			if (

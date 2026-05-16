@@ -1,4 +1,4 @@
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { apiRequest } from "@/lib/api";
 import type { SubgraphDetail } from "@/lib/types";
 import { tool } from "ai";
 import { z } from "zod";
@@ -27,9 +27,9 @@ export function createTestSubscription(sessionToken: string) {
 		}),
 		execute: async ({ subscription, signingSecret, row }) => {
 			const detail = await resolveSubscription(sessionToken, subscription);
-			const subgraph = await fetchFromTenantOrThrow<SubgraphDetail>(
-				sessionToken,
+			const subgraph = await apiRequest<SubgraphDetail>(
 				`/api/subgraphs/${detail.subgraphName}`,
+				{ sessionToken },
 			).catch(() => null);
 			const payloadRow =
 				row ??

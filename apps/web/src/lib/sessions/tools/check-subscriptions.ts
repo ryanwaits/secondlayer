@@ -1,4 +1,4 @@
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { apiRequest } from "@/lib/api";
 import type { SubscriptionSummary } from "@/lib/types";
 import { tool } from "ai";
 import { z } from "zod";
@@ -18,9 +18,9 @@ export function createCheckSubscriptions(sessionToken: string) {
 				.describe("Filter by subscription status."),
 		}),
 		execute: async ({ subgraphName, status }) => {
-			const result = await fetchFromTenantOrThrow<{
+			const result = await apiRequest<{
 				data: SubscriptionSummary[];
-			}>(sessionToken, "/api/subscriptions");
+			}>("/api/subscriptions", { sessionToken });
 			const subscriptions = result.data.filter((sub) => {
 				if (subgraphName && sub.subgraphName !== subgraphName) return false;
 				if (status && sub.status !== status) return false;

@@ -2,8 +2,7 @@ import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { PromptActions } from "@/components/console/prompt-actions";
 import { getAgentPrompt } from "@/lib/agent-prompts";
-import { ApiError, getSessionFromCookies } from "@/lib/api";
-import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
+import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -43,14 +42,12 @@ export default async function SubgraphSubscriptionsPage({
 
 	try {
 		const [subsResult, listResult] = await Promise.allSettled([
-			fetchFromTenantOrThrow<{ data: SubscriptionSummary[] }>(
-				session,
-				"/api/subscriptions",
-			),
-			fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
-				session,
-				"/api/subgraphs",
-			),
+			apiRequest<{ data: SubscriptionSummary[] }>("/api/subscriptions", {
+				sessionToken: session,
+			}),
+			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
+				sessionToken: session,
+			}),
 		]);
 		if (subsResult.status === "fulfilled") {
 			subs = subsResult.value.data.filter((s) => s.subgraphName === name);
