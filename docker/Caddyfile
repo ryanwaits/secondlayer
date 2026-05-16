@@ -1,72 +1,20 @@
-# Caddy config — platform mode with wildcard tenant routing.
-#
-# One site block serves both platform API and tenant subdomains. Splitting
-# into two blocks (`api.` explicit + `*.` wildcard) triggers a Caddy 2 TLS
-# connection-policy collision where the wildcard's on_demand flag leaks into
-# the explicit block's handshake path and kills all TLS. One wildcard block
-# with an inline host matcher is the only config that works.
+# Caddy config — single platform host post 2026-05-14 shared-rip.
 #
 # Backend routing:
 #   api.{BASE_DOMAIN}   →  api:3800   (`/hooks/slack*` → agent:3900)
-#   *.{BASE_DOMAIN}     →  sl-api-{labels.2}:3800   (tenant slug = leftmost label)
-#
-# On-demand TLS: Caddy issues a Let's Encrypt cert the first time a new
-# subdomain is requested. Before issuing, it calls the `ask` endpoint on
-# the provisioner — the provisioner confirms the subject is `api.` (platform)
-# or a valid slug with a running tenant container. Prevents cert spam for
-# random `*.{BASE_DOMAIN}` probes.
 
 {
 	email {$CADDY_ACME_EMAIL:ryan.waits@gmail.com}
-	on_demand_tls {
-		ask http://provisioner:3850/internal/caddy/ask
-	}
 }
 
-*.{$BASE_DOMAIN:secondlayer.tools} {
-	tls {
-		on_demand
-	}
+api.{$BASE_DOMAIN:secondlayer.tools} {
 	header -Server
 	header X-Content-Type-Options nosniff
 
-	@api host api.{$BASE_DOMAIN:secondlayer.tools}
-	handle @api {
-		handle /hooks/slack* {
-			reverse_proxy agent:3900
-		}
-		handle {
-			reverse_proxy api:3800
-		}
-	}
-
-	# labels.2 = leftmost label (the tenant slug). For `abc12345.secondlayer.tools`:
-	#   labels.0=tools  labels.1=secondlayer  labels.2=abc12345
-	#
-	# `/internal/*` paths on tenant API containers are intra-cluster only
-	# (e.g. `/internal/activity` for the activity probe). Block them at
-	# Caddy so the public tenant subdomain can never reach them, regardless
-	# of whether the route is added today or in the future.
-	handle /internal/* {
-		respond "Not Found" 404
+	handle /hooks/slack* {
+		reverse_proxy agent:3900
 	}
 	handle {
-		reverse_proxy sl-api-{labels.2}:3800
-	}
-
-	# Fail-hook: dial failures (paused tenant container) fall into
-	# handle_errors. We proxy the error path to the provisioner's resume
-	# endpoint, which kicks off an async container restart and returns a
-	# 503 with `Retry-After: 30` for the caller. Next retry lands on a
-	# healthy tenant. Idempotent — if the tenant was already running the
-	# provisioner short-circuits.
-	handle_errors {
-		@upstream_down expression `{err.status_code} >= 502 && {err.status_code} <= 504`
-		handle @upstream_down {
-			rewrite * /internal/resume/{labels.2}
-			reverse_proxy http://provisioner:3850 {
-				method POST
-			}
-		}
+		reverse_proxy api:3800
 	}
 }
