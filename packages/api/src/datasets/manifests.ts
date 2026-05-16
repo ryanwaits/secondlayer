@@ -119,6 +119,10 @@ const DATASET_PATHS: Array<{ slug: string; path: string }> = [
 	{ slug: "stx-transfers", path: "stx-transfers" },
 	{ slug: "sbtc-events", path: "sbtc/events" },
 	{ slug: "sbtc-token-events", path: "sbtc/token-events" },
+	{ slug: "pox-4-calls", path: "pox-4/calls" },
+	{ slug: "bns-name-events", path: "bns/name-events" },
+	{ slug: "bns-namespace-events", path: "bns/namespace-events" },
+	{ slug: "bns-marketplace-events", path: "bns/marketplace-events" },
 ];
 
 export function datasetSources(): DatasetSource[] {

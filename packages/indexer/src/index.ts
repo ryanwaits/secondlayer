@@ -12,6 +12,22 @@ import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
 import {
+	bnsMarketplaceEventsPublisherState,
+	startBnsMarketplaceEventsPublisher,
+} from "./datasets/bns/marketplace-events/scheduler.ts";
+import {
+	bnsNameEventsPublisherState,
+	startBnsNameEventsPublisher,
+} from "./datasets/bns/name-events/scheduler.ts";
+import {
+	bnsNamespaceEventsPublisherState,
+	startBnsNamespaceEventsPublisher,
+} from "./datasets/bns/namespace-events/scheduler.ts";
+import {
+	pox4CallsPublisherState,
+	startPox4CallsPublisher,
+} from "./datasets/pox-4/calls/scheduler.ts";
+import {
 	sbtcEventsPublisherState,
 	startSbtcEventsPublisher,
 } from "./datasets/sbtc/events/scheduler.ts";
@@ -108,6 +124,27 @@ await runStartupIntegrityCheck();
 
 logger.info("Starting indexer service", { port: PORT });
 
+type PublisherStateShape = {
+	enabled: boolean;
+	publishedTotal: number;
+	lastPublishedRange: unknown;
+	lastPublishedAt: number;
+	lastError: string | null;
+};
+
+function publisherStatus(state: PublisherStateShape) {
+	return {
+		enabled: state.enabled,
+		publishedTotal: state.publishedTotal,
+		lastPublishedRange: state.lastPublishedRange,
+		lastPublishedSecondsAgo:
+			state.lastPublishedAt > 0
+				? Math.round((Date.now() - state.lastPublishedAt) / 1000)
+				: null,
+		lastError: state.lastError,
+	};
+}
+
 const server = Bun.serve({
 	port: PORT,
 
@@ -162,19 +199,15 @@ const server = Bun.serve({
 							: null,
 					lastError: sbtcEventsPublisherState.lastError,
 				},
-				sbtcTokenEventsPublisher: {
-					enabled: sbtcTokenEventsPublisherState.enabled,
-					publishedTotal: sbtcTokenEventsPublisherState.publishedTotal,
-					lastPublishedRange: sbtcTokenEventsPublisherState.lastPublishedRange,
-					lastPublishedSecondsAgo:
-						sbtcTokenEventsPublisherState.lastPublishedAt > 0
-							? Math.round(
-									(Date.now() - sbtcTokenEventsPublisherState.lastPublishedAt) /
-										1000,
-								)
-							: null,
-					lastError: sbtcTokenEventsPublisherState.lastError,
-				},
+				sbtcTokenEventsPublisher: publisherStatus(sbtcTokenEventsPublisherState),
+				pox4CallsPublisher: publisherStatus(pox4CallsPublisherState),
+				bnsNameEventsPublisher: publisherStatus(bnsNameEventsPublisherState),
+				bnsNamespaceEventsPublisher: publisherStatus(
+					bnsNamespaceEventsPublisherState,
+				),
+				bnsMarketplaceEventsPublisher: publisherStatus(
+					bnsMarketplaceEventsPublisherState,
+				),
 			}),
 
 		"/health/integrity": async () => {
@@ -511,9 +544,19 @@ const stopStxTransfersPublisher = startStxTransfersPublisher();
 const stopSbtcEventsPublisher = startSbtcEventsPublisher();
 const stopSbtcTokenEventsPublisher = startSbtcTokenEventsPublisher();
 
+// PoX-4 + BNS publishers (each gated on its own *_PUBLISHER_ENABLED flag)
+const stopPox4CallsPublisher = startPox4CallsPublisher();
+const stopBnsNameEventsPublisher = startBnsNameEventsPublisher();
+const stopBnsNamespaceEventsPublisher = startBnsNamespaceEventsPublisher();
+const stopBnsMarketplaceEventsPublisher = startBnsMarketplaceEventsPublisher();
+
 // Graceful shutdown
 const shutdown = () => {
 	logger.info("Shutting down indexer service...");
+	stopBnsMarketplaceEventsPublisher();
+	stopBnsNamespaceEventsPublisher();
+	stopBnsNameEventsPublisher();
+	stopPox4CallsPublisher();
 	stopSbtcTokenEventsPublisher();
 	stopSbtcEventsPublisher();
 	stopStxTransfersPublisher();

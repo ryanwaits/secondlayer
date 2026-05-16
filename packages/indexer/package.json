@@ -33,6 +33,7 @@
 	"scripts": {
 		"start": "bun run src/index.ts",
 		"dev": "bun run --watch src/index.ts",
+		"datasets:backfill": "bun run src/datasets/backfill.ts",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test"
 	},
