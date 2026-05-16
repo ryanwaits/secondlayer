@@ -14,6 +14,7 @@ on:
         options:
           - subgraph-processor
           - caddy
+          - reload-caddy
           - all-containers
           - service-heartbeats
           - subgraphs-state
