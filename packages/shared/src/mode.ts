@@ -2,21 +2,17 @@
  * Instance modes for the Secondlayer platform.
  *
  * - `oss`: self-hosted, single-tenant. No auth middleware, no platform routes
- *   (projects, admin, tenants). Everything runs against a single
- *   `DATABASE_URL`. Intended for `docker compose up`.
- *
- * - `dedicated`: per-customer managed instance. JWT-based auth (anon =
- *   read-only, service = full). Dual-DB mode — shared source indexer DB for
- *   block reads, per-tenant target DB for subgraph data. No platform-wide
- *   routes mounted (no cross-tenant accounts).
+ *   (projects, admin). Everything runs against a single `DATABASE_URL`.
+ *   Intended for `docker compose up`.
  *
  * - `platform`: control-plane mode. Magic-link auth, API keys, projects,
- *   tenants, admin. Serves the dashboard + CLI against a single shared DB.
+ *   admin. Serves the dashboard + CLI against a single shared DB. Post
+ *   2026-05-14 shared-rip this also serves subgraphs + subscriptions.
  */
 
-export type InstanceMode = "oss" | "dedicated" | "platform";
+export type InstanceMode = "oss" | "platform";
 
-const VALID_MODES: readonly InstanceMode[] = ["oss", "dedicated", "platform"];
+const VALID_MODES: readonly InstanceMode[] = ["oss", "platform"];
 
 /**
  * Resolve the active instance mode from `process.env.INSTANCE_MODE`.
@@ -39,9 +35,4 @@ export function isPlatformMode(): boolean {
 /** True when the active mode is `"oss"` (self-hosted). */
 export function isOssMode(): boolean {
 	return getInstanceMode() === "oss";
-}
-
-/** True when the active mode is `"dedicated"` (per-tenant managed). */
-export function isDedicatedMode(): boolean {
-	return getInstanceMode() === "dedicated";
 }
