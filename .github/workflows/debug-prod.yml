@@ -15,6 +15,7 @@ on:
           - subgraph-processor
           - caddy
           - reload-caddy
+          - restart-caddy
           - all-containers
           - service-heartbeats
           - subgraphs-state

@@ -62,6 +62,15 @@ case "$DEBUG_TARGET" in
 		echo "--- docker logs --tail 30 secondlayer-caddy-1 (post-reload) ---"
 		docker logs --tail 30 secondlayer-caddy-1 2>&1 | tail -30 || true
 		;;
+	restart-caddy)
+		echo ""
+		echo "--- docker restart secondlayer-caddy-1 ---"
+		docker restart secondlayer-caddy-1 2>&1 || true
+		sleep 8
+		echo ""
+		echo "--- docker logs --tail 40 secondlayer-caddy-1 (post-restart) ---"
+		docker logs --tail 40 secondlayer-caddy-1 2>&1 | tail -40 || true
+		;;
 esac
 
 case "$DEBUG_TARGET" in
