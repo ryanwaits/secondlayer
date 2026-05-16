@@ -5,13 +5,6 @@ import type { AccountResources } from "./tools";
 describe("buildSessionInstructions", () => {
 	test("includes subscription resources and lifecycle guidance", () => {
 		const resources: AccountResources = {
-			instance: {
-				exists: true,
-				slug: "alex",
-				plan: "launch",
-				status: "active",
-				apiUrl: "https://alex.secondlayer.tools",
-			},
 			subgraphs: [
 				{
 					name: "alex-swaps",
@@ -51,29 +44,8 @@ describe("buildSessionInstructions", () => {
 		expect(text).toContain("Never request, recover, infer, or reveal");
 	});
 
-	test("tells chat not to treat a missing instance as missing auth", () => {
-		const resources: AccountResources = {
-			instance: { exists: false },
-			subgraphs: [],
-			subscriptions: [],
-			keys: [],
-			chainTip: null,
-		};
-		const text = buildSessionInstructions(resources);
-		expect(text).toContain("No instance exists for this account");
-		expect(text).toContain("setupRequired: true");
-		expect(text).toContain("do not tell an already logged-in dashboard user");
-	});
-
 	test("includes canonical subgraph schema contract for session authoring", () => {
 		const resources: AccountResources = {
-			instance: {
-				exists: true,
-				slug: "alex",
-				plan: "launch",
-				status: "active",
-				apiUrl: "https://alex.secondlayer.tools",
-			},
 			subgraphs: [],
 			subscriptions: [],
 			keys: [],

@@ -7,24 +7,9 @@ import {
 	useProjects,
 	useUpdateProject,
 } from "@/lib/queries/projects";
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { LogoutButton } from "./logout-button";
 
-interface TenantSummary {
-	slug: string;
-	plan: string;
-	status: string;
-	apiUrl: string;
-}
-
-/**
- * Project-level settings. In the dedicated-hosting model every project maps
- * 1:1 to a tenant instance — the Stacks network + node RPC are set at the
- * platform level (not per-project), so we no longer surface them here.
- * Network/nodeRpc columns remain on `projects` for historical compat but
- * aren't user-editable from the dashboard.
- */
 export default function SettingsPage() {
 	const { account } = useAuth();
 	const { data: projects } = useProjects();
@@ -39,31 +24,11 @@ export default function SettingsPage() {
 		"idle" | "saving" | "saved" | "error"
 	>("idle");
 
-	const [tenant, setTenant] = useState<TenantSummary | null>(null);
-	const [tenantLoading, setTenantLoading] = useState(true);
-
 	// Hydrate form from project data once loaded
 	if (project && !initialized) {
 		setName(project.name);
 		setInitialized(true);
 	}
-
-	useEffect(() => {
-		const run = async () => {
-			try {
-				const res = await fetch("/api/tenants/me");
-				if (res.ok) {
-					const data = (await res.json()) as { tenant: TenantSummary | null };
-					setTenant(data.tenant);
-				}
-			} catch {
-				// 404 = no tenant — treat as "not provisioned"
-			} finally {
-				setTenantLoading(false);
-			}
-		};
-		run();
-	}, []);
 
 	const handleSave = useCallback(async () => {
 		if (!project) return;
@@ -82,17 +47,15 @@ export default function SettingsPage() {
 
 	const handleDelete = useCallback(async () => {
 		if (!project) return;
-		const warning = tenant
-			? `Delete project "${project.slug}"? Your instance (${tenant.slug}) will stay running and unlinked. Go to Billing to tear it down separately.`
-			: `Delete project "${project.slug}"? This cannot be undone.`;
-		if (!confirm(warning)) return;
+		if (!confirm(`Delete project "${project.slug}"? This cannot be undone.`))
+			return;
 		try {
 			await deleteProject.mutateAsync(project.slug);
 			window.location.href = "/";
 		} catch (e) {
 			alert(e instanceof Error ? e.message : "Failed to delete project");
 		}
-	}, [project, tenant, deleteProject]);
+	}, [project, deleteProject]);
 
 	return (
 		<>
@@ -167,75 +130,6 @@ export default function SettingsPage() {
 					</div>
 
 					<div className="settings-section">
-						<div className="settings-section-title">Instance</div>
-						{tenantLoading ? (
-							<div className="instance-gauge-empty">
-								<span className="pulse" />
-								Loading…
-							</div>
-						) : tenant ? (
-							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "space-between",
-									padding: "12px 14px",
-									border: "1px solid var(--border)",
-									borderRadius: 8,
-								}}
-							>
-								<div>
-									<div style={{ fontSize: 13, fontWeight: 500 }}>
-										<span className="mono">{tenant.slug}</span> ·{" "}
-										{capitalize(tenant.plan)} · {tenant.status}
-									</div>
-									<div
-										style={{
-											fontSize: 12,
-											color: "var(--text-muted)",
-											marginTop: 2,
-										}}
-									>
-										{tenant.apiUrl}
-									</div>
-								</div>
-								<Link className="settings-btn ghost small" href="/billing">
-									Manage →
-								</Link>
-							</div>
-						) : (
-							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "space-between",
-									padding: "12px 14px",
-									border: "1px solid var(--border)",
-									borderRadius: 8,
-								}}
-							>
-								<div>
-									<div style={{ fontSize: 13, fontWeight: 500 }}>
-										No instance
-									</div>
-									<div
-										style={{
-											fontSize: 12,
-											color: "var(--text-muted)",
-											marginTop: 2,
-										}}
-									>
-										Provision a dedicated Postgres + API + processor.
-									</div>
-								</div>
-								<Link className="settings-btn primary small" href="/billing">
-									Create instance →
-								</Link>
-							</div>
-						)}
-					</div>
-
-					<div className="settings-section">
 						<div className="settings-section-title">Account</div>
 						{account && (
 							<div
@@ -246,8 +140,6 @@ export default function SettingsPage() {
 								}}
 							>
 								Member since {new Date(account.createdAt).toLocaleDateString()}.
-								Billing follows the instance plan shown above — accounts
-								themselves aren't separately tiered.
 							</div>
 						)}
 						<LogoutButton />
@@ -278,9 +170,7 @@ export default function SettingsPage() {
 										marginTop: 2,
 									}}
 								>
-									{tenant
-										? "Removes the project record. The instance keeps running — delete it separately from Billing."
-										: "Permanently remove this project. Cannot be undone."}
+									Permanently remove this project. Cannot be undone.
 								</div>
 							</div>
 							<button
@@ -298,6 +188,3 @@ export default function SettingsPage() {
 	);
 }
 
-function capitalize(s: string): string {
-	return s.charAt(0).toUpperCase() + s.slice(1);
-}

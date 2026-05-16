@@ -1,27 +1,9 @@
-import { ApiError } from "@/lib/api";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubscriptionSummary } from "@/lib/types";
 import { tool } from "ai";
 import { z } from "zod";
-import type { AccountInstance } from "./factory";
 
-const NO_INSTANCE_RESULT = {
-	subscriptions: [],
-	setupRequired: true,
-	missing: "instance",
-	message:
-		"No Secondlayer instance exists for this account yet. Start a trial from Billing or run `sl instance create --plan launch` before creating subscriptions.",
-	nextActions: [
-		"Open `/billing` and create an instance.",
-		"Deploy a subgraph after the instance is active.",
-		"Then create a subscription for one of its tables.",
-	],
-};
-
-export function createCheckSubscriptions(
-	sessionToken: string,
-	instance: AccountInstance,
-) {
+export function createCheckSubscriptions(sessionToken: string) {
 	return tool({
 		description:
 			"List the user's subscriptions with status, target table, runtime, last delivery, and last success. Use before creating, diagnosing, or managing subscriptions.",
@@ -36,19 +18,9 @@ export function createCheckSubscriptions(
 				.describe("Filter by subscription status."),
 		}),
 		execute: async ({ subgraphName, status }) => {
-			if (instance.exists === false) return NO_INSTANCE_RESULT;
-
-			let result: { data: SubscriptionSummary[] };
-			try {
-				result = await fetchFromTenantOrThrow<{
-					data: SubscriptionSummary[];
-				}>(sessionToken, "/api/subscriptions");
-			} catch (err) {
-				if (err instanceof ApiError && err.status === 404) {
-					return NO_INSTANCE_RESULT;
-				}
-				throw err;
-			}
+			const result = await fetchFromTenantOrThrow<{
+				data: SubscriptionSummary[];
+			}>(sessionToken, "/api/subscriptions");
 			const subscriptions = result.data.filter((sub) => {
 				if (subgraphName && sub.subgraphName !== subgraphName) return false;
 				if (status && sub.status !== status) return false;

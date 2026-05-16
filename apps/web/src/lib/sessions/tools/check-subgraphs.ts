@@ -1,26 +1,9 @@
-import { ApiError } from "@/lib/api";
 import { fetchFromTenantOrThrow } from "@/lib/tenant-api";
 import type { SubgraphSummary } from "@/lib/types";
 import { tool } from "ai";
 import { z } from "zod";
-import type { AccountInstance } from "./factory";
 
-const NO_INSTANCE_RESULT = {
-	subgraphs: [],
-	setupRequired: true,
-	missing: "instance",
-	message:
-		"No Secondlayer instance exists for this account yet. Start a trial from Billing or run `sl instance create --plan launch` before deploying or querying subgraphs.",
-	nextActions: [
-		"Open `/billing` and create an instance.",
-		"Or run `sl instance create --plan launch` from the CLI after login.",
-	],
-};
-
-export function createCheckSubgraphs(
-	sessionToken: string,
-	instance: AccountInstance,
-) {
+export function createCheckSubgraphs(sessionToken: string) {
 	return tool({
 		description:
 			"Check the health and status of the user's subgraphs. Returns structured data for each subgraph including name, status, last processed block, and row counts.",
@@ -31,20 +14,10 @@ export function createCheckSubgraphs(
 				.describe("Specific subgraph name to check. Omit to check all."),
 		}),
 		execute: async ({ name }) => {
-			if (instance.exists === false) return NO_INSTANCE_RESULT;
-
-			let data: { data: SubgraphSummary[] };
-			try {
-				data = await fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
-					sessionToken,
-					"/api/subgraphs",
-				);
-			} catch (err) {
-				if (err instanceof ApiError && err.status === 404) {
-					return NO_INSTANCE_RESULT;
-				}
-				throw err;
-			}
+			const data = await fetchFromTenantOrThrow<{ data: SubgraphSummary[] }>(
+				sessionToken,
+				"/api/subgraphs",
+			);
 			const all = data.data ?? [];
 			const filtered = name ? all.filter((s) => s.name === name) : all;
 
