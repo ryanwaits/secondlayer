@@ -16,6 +16,7 @@ on:
           - caddy
           - reload-caddy
           - restart-caddy
+          - flip-parquet-flags
           - all-containers
           - service-heartbeats
           - subgraphs-state

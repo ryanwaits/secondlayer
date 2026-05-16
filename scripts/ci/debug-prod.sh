@@ -71,6 +71,34 @@ case "$DEBUG_TARGET" in
 		echo "--- docker logs --tail 40 secondlayer-caddy-1 (post-restart) ---"
 		docker logs --tail 40 secondlayer-caddy-1 2>&1 | tail -40 || true
 		;;
+	flip-parquet-flags)
+		ENV_FILE="/opt/secondlayer/docker/.env"
+		echo ""
+		echo "--- upserting publisher flags in $ENV_FILE ---"
+		upsert() {
+			local key="$1"
+			local value="$2"
+			if grep -qE "^${key}=" "$ENV_FILE"; then
+				sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+				echo "  updated  ${key}=${value}"
+			else
+				printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+				echo "  appended ${key}=${value}"
+			fi
+		}
+		upsert POX4_CALLS_PUBLISHER_ENABLED true
+		upsert BNS_NAME_EVENTS_PUBLISHER_ENABLED true
+		upsert BNS_NAMESPACE_EVENTS_PUBLISHER_ENABLED true
+		upsert BNS_MARKETPLACE_EVENTS_PUBLISHER_ENABLED true
+		echo ""
+		echo "--- docker compose up -d --no-build indexer (re-creates with new env) ---"
+		cd /opt/secondlayer/docker
+		docker compose up -d --no-build indexer 2>&1 || true
+		sleep 8
+		echo ""
+		echo "--- docker logs --tail 80 secondlayer-indexer-1 (post-recreate) ---"
+		docker logs --tail 80 secondlayer-indexer-1 2>&1 | grep -E "publisher|disabled|Starting|enabled" | tail -50 || true
+		;;
 esac
 
 case "$DEBUG_TARGET" in
