@@ -17,17 +17,8 @@ import {
 	getAccountByStripeCustomerId,
 	setAccountPlan,
 } from "@secondlayer/shared/db/queries/accounts";
-import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
-import {
-	getTenantByAccount,
-	setTenantStatus,
-} from "@secondlayer/shared/db/queries/tenants";
 import { Hono } from "hono";
 import type Stripe from "stripe";
-import {
-	ProvisionerError,
-	suspendTenant as provisionerSuspend,
-} from "../lib/provisioner-client.ts";
 import {
 	getStripeOrNull,
 	getStripeWebhookSecretOrNull,
@@ -125,23 +116,6 @@ app.post("/", async (c) => {
 		});
 	}
 
-	// Best-effort audit trail.
-	await recordProvisioningAudit(getDb(), {
-		actor: "stripe:webhook",
-		event: "provision.start", // reusing enum bucket; broaden later.
-		status: "ok",
-		detail: {
-			stripeEventId: event.id,
-			stripeEventType: event.type,
-			livemode: event.livemode,
-		},
-	}).catch((err) => {
-		logger.warn("Failed to audit Stripe webhook", {
-			id: event.id,
-			error: err instanceof Error ? err.message : String(err),
-		});
-	});
-
 	return c.json({ received: true });
 });
 
@@ -236,7 +210,6 @@ async function onSubscriptionActive(
 		status === "incomplete_expired"
 	) {
 		await setAccountPlan(db, account.id, "none");
-		await suspendTenantForBilling(account.id, eventId, status);
 		logger.info("stripe.webhook.subscription.reverted", {
 			eventId,
 			accountId: account.id,
@@ -252,7 +225,7 @@ async function onSubscriptionActive(
 	}
 }
 
-/** customer.subscription.deleted — remove plan and suspend tenant. */
+/** customer.subscription.deleted — remove plan. Tenant-suspend removed post shared-rip. */
 async function onSubscriptionDeleted(
 	sub: Stripe.Subscription,
 	eventId: string,
@@ -269,58 +242,10 @@ async function onSubscriptionDeleted(
 		return;
 	}
 	await setAccountPlan(db, account.id, "none");
-	await suspendTenantForBilling(account.id, eventId, "deleted");
 	logger.info("stripe.webhook.subscription.deleted", {
 		eventId,
 		accountId: account.id,
 	});
-}
-
-async function suspendTenantForBilling(
-	accountId: string,
-	eventId: string,
-	reason: string,
-): Promise<void> {
-	const db = getDb();
-	const tenant = await getTenantByAccount(db, accountId);
-	if (!tenant || tenant.status === "suspended" || tenant.status === "deleted") {
-		return;
-	}
-	try {
-		await provisionerSuspend(tenant.slug);
-		await setTenantStatus(db, tenant.slug, "suspended");
-		await recordProvisioningAudit(db, {
-			tenantId: tenant.id,
-			tenantSlug: tenant.slug,
-			accountId,
-			actor: "stripe:webhook",
-			event: "suspend",
-			status: "ok",
-			detail: { reason, stripeEventId: eventId },
-		});
-	} catch (err) {
-		await recordProvisioningAudit(db, {
-			tenantId: tenant.id,
-			tenantSlug: tenant.slug,
-			accountId,
-			actor: "stripe:webhook",
-			event: "suspend",
-			status: "error",
-			detail: { reason, stripeEventId: eventId },
-			error: err instanceof Error ? err.message : String(err),
-		});
-		if (err instanceof ProvisionerError) {
-			logger.error("stripe.webhook.subscription.suspend_failed", {
-				eventId,
-				accountId,
-				slug: tenant.slug,
-				status: err.status,
-				body: err.body.slice(0, 500),
-			});
-			return;
-		}
-		throw err;
-	}
 }
 
 export default app;

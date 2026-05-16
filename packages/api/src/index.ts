@@ -10,7 +10,7 @@ import {
 	requireAuth,
 } from "./auth/index.ts";
 import { requireAdmin } from "./middleware/admin.ts";
-import { dedicatedAuth, staticKeyAuth } from "./middleware/auth-modes.ts";
+import { staticKeyAuth } from "./middleware/auth-modes.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import { countApiRequests } from "./middleware/usage.ts";
@@ -31,7 +31,6 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
-import tenantsRouter from "./routes/tenants.ts";
 import waitlistRouter from "./routes/waitlist.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
@@ -83,11 +82,9 @@ app.onError(errorHandler);
 /**
  * Resource auth middleware applied per instance mode.
  * - oss: `staticKeyAuth` (pass-through unless `API_KEY` env is set)
- * - dedicated: `dedicatedAuth` (HS256 JWT with anon/service role)
  * - platform: `requireAuth` (magic-link sessions + sk-sl_ API keys)
  */
 function resourceAuth(): MiddlewareHandler {
-	if (mode === "dedicated") return dedicatedAuth();
 	if (mode === "oss") return staticKeyAuth();
 	return requireAuth();
 }
@@ -176,7 +173,6 @@ if (mode === "platform") {
 	app.route("/api/insights", insightsRouter);
 	app.route("/api/projects", projectsRouter);
 	app.route("/api/chat-sessions", chatSessionsRouter);
-	app.route("/api/tenants", tenantsRouter);
 }
 app.route("/", statusRouter);
 app.route("/v1/streams", streamsRouter);
