@@ -124,9 +124,12 @@ docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docke
 $COMPOSE up -d --no-build --remove-orphans $APP_SERVICES
 
 # Caddy's Caddyfile is bind-mounted, so `up -d` won't detect file changes
-# from the git pull. Trigger a live config reload via the admin API.
-docker exec secondlayer-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile 2>/dev/null || \
-  echo "⚠️  caddy reload failed (config may be unchanged or container restarting)"
+# from the git pull. Restart to pick up Caddyfile edits AND drop any cached
+# TLS state from prior configs (a `reload` keeps cert cache, which can
+# cause stale on-demand resolutions to outlive the config that requested
+# them — bit us during the post-shared-rip Caddyfile collapse).
+docker restart secondlayer-caddy-1 2>/dev/null || \
+  echo "⚠️  caddy restart failed (container may be missing)"
 
 flock -u 9
 
