@@ -102,6 +102,19 @@ case "$DEBUG_TARGET" in
 esac
 
 case "$DEBUG_TARGET" in
+	indexer-publishers)
+		echo ""
+		echo "--- indexer /health publisher state ---"
+		docker exec secondlayer-indexer-1 curl -sS http://localhost:3700/health 2>&1 | \
+			grep -oE '"[a-zA-Z]+Publisher":\{[^}]*\}' || true
+		echo ""
+		echo "--- recent publisher log lines ---"
+		docker logs --tail 100 secondlayer-indexer-1 2>&1 | \
+			grep -E "publisher: (exporting|published|disabled)|Starting .* publisher" | tail -30 || true
+		;;
+esac
+
+case "$DEBUG_TARGET" in
 	sbtc-first-block)
 		echo ""
 		echo "--- earliest sbtc-registry print_event in raw events table ---"
