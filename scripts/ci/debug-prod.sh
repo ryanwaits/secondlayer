@@ -46,6 +46,19 @@ case "$DEBUG_TARGET" in
 esac
 
 case "$DEBUG_TARGET" in
+	sbtc-first-block)
+		echo ""
+		echo "--- earliest sbtc-registry event block ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT MIN(block_height) AS first_block FROM sbtc_events;" 2>&1 || true
+		echo ""
+		echo "--- earliest sbtc-token event block ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT MIN(block_height) AS first_block FROM sbtc_token_events;" 2>&1 || true
+		;;
+esac
+
+case "$DEBUG_TARGET" in
 	env-snapshot|full)
 		echo ""
 		echo "--- bench env snapshot ---"

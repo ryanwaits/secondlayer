@@ -18,6 +18,7 @@ on:
           - subgraphs-state
           - schema
           - env-snapshot
+          - sbtc-first-block
           - full
         default: subgraph-processor
 
