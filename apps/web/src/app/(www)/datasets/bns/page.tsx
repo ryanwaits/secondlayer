@@ -1,4 +1,5 @@
 import { DatasetSandbox } from "@/components/dataset-sandbox";
+import { ParquetSnippet } from "@/components/parquet-snippet";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -214,15 +215,40 @@ export function BnsDatasetContent() {
 }`}
 			</InlineCodeBlock>
 
+			<SectionHeading id="parquet">Parquet</SectionHeading>
+
+			<div className="prose">
+				<p>
+					Three parquet families mirror the API tables, partitioned by
+					10,000-block range. Each family has its own manifest.
+				</p>
+			</div>
+
+			<ParquetSnippet
+				dataset="bns/name-events"
+				title="bns/name-events"
+				description="BNS-V2 name lifecycle events: register, transfer, renew, burn, airdrop."
+			/>
+			<ParquetSnippet
+				dataset="bns/namespace-events"
+				title="bns/namespace-events"
+				description="BNS-V2 namespace lifecycle: preorder, reveal, ready, manager-update."
+			/>
+			<ParquetSnippet
+				dataset="bns/marketplace-events"
+				title="bns/marketplace-events"
+				description="BNS-V2 marketplace activity: list, unlist, sale, price-change."
+			/>
+
 			<SectionHeading id="freshness">Freshness</SectionHeading>
 
 			<div className="prose">
 				<p>
-					<code>/public/status.datasets[]</code> includes a{" "}
-					<code>bns-name-events</code> entry with{" "}
+					<code>/public/status.datasets[]</code> includes{" "}
+					<code>bns-name-events</code>, <code>bns-namespace-events</code>, and{" "}
+					<code>bns-marketplace-events</code> entries with{" "}
 					<code>latest_finalized_cursor</code>, <code>generated_at</code>, and{" "}
-					<code>lag_blocks</code> against the chain tip. Parquet exporter is
-					deferred — the API is the primary surface for v0.
+					<code>lag_blocks</code> against the chain tip.
 				</p>
 				<p>
 					Schema doc: <code>docs/datasets/bns/schema.md</code>.

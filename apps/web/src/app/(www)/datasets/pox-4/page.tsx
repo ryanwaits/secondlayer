@@ -1,4 +1,5 @@
 import { DatasetSandbox } from "@/components/dataset-sandbox";
+import { ParquetSnippet } from "@/components/parquet-snippet";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -201,6 +202,22 @@ export function Pox4DatasetContent() {
 }`}
 			</InlineCodeBlock>
 
+			<SectionHeading id="parquet">Parquet</SectionHeading>
+
+			<div className="prose">
+				<p>
+					Same data as the API, distributed as parquet for bulk pulls. Files
+					are partitioned by 10,000-block range. Manifest lists every published
+					file with row counts and SHA-256.
+				</p>
+			</div>
+
+			<ParquetSnippet
+				dataset="pox-4/calls"
+				title="pox-4/calls"
+				description="One row per successful PoX-4 contract call across all 12 supported functions."
+			/>
+
 			<SectionHeading id="freshness">Freshness</SectionHeading>
 
 			<div className="prose">
@@ -208,8 +225,7 @@ export function Pox4DatasetContent() {
 					<code>/public/status.datasets[]</code> includes a{" "}
 					<code>pox-4-calls</code> entry with{" "}
 					<code>latest_finalized_cursor</code>, <code>generated_at</code>, and{" "}
-					<code>lag_blocks</code> against the chain tip. Parquet exporter is
-					deferred — the API is the primary surface for v0.
+					<code>lag_blocks</code> against the chain tip.
 				</p>
 				<p>
 					Schema doc: <code>docs/datasets/pox-4/schema.md</code>.
