@@ -1,44 +1,15 @@
 import crypto from "node:crypto";
-import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
 import {
 	getProjectBySlug,
 	getProjectsByAccount,
 	getTeamInvitations,
 	getTeamMembers,
 } from "@secondlayer/shared/db/queries/projects";
-import { recordProvisioningAudit } from "@secondlayer/shared/db/queries/provisioning-audit";
-import {
-	getTenantByAccount,
-	insertTenant,
-} from "@secondlayer/shared/db/queries/tenants";
 import { AuthenticationError } from "@secondlayer/shared/errors";
-import { getPlan } from "@secondlayer/shared/pricing";
 import { type Context, Hono } from "hono";
-import {
-	ProvisionerError,
-	provisionTenant as provisionerProvision,
-	teardownTenant as provisionerTeardown,
-} from "../lib/provisioner-client.ts";
-import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
-
-function projectProvisioningDetail(input: {
-	projectId: string;
-	projectSlug: string;
-	plan: string;
-	extra?: Record<string, unknown>;
-}): Record<string, unknown> {
-	return {
-		route: "projects.instance",
-		projectId: input.projectId,
-		projectSlug: input.projectSlug,
-		plan: input.plan,
-		...(input.extra ?? {}),
-	};
-}
 
 function requireAccountId(c: Context): string {
 	const accountId = c.get("accountId") as string | undefined;
@@ -315,278 +286,17 @@ app.patch("/:slug/team/:memberId", async (c) => {
 	return c.json({ ok: true });
 });
 
-// POST /api/projects/:slug/instance — provision a tenant bound to this project.
-// Platform control plane manages the project_id → tenant linkage; provisioner
-// creates Docker resources and is unaware of projects.
-//
-// Body: `{ plan: "launch" | "scale" | "enterprise" }`.
-// Returns: `{ tenant, credentials: { apiUrl, anonKey, serviceKey } }` — same
-// shape as POST /api/tenants so the dashboard/CLI can share response handling.
-//
-// Enforces the 1:1 project↔tenant rule at application layer: 409 if the
-// project already has a tenant.
+// POST /api/projects/:slug/instance — dormant since 2026-05-14 shared-rip.
+// Subgraphs + subscriptions are served from the shared platform; there is
+// nothing to provision per project anymore.
 app.post("/:slug/instance", async (c) => {
-	if (process.env.ENABLE_DEDICATED_PROVISIONING !== "true") {
-		return c.json(
-			{
-				error:
-					"Dedicated provisioning is disabled. Use the shared platform — subgraphs and subscriptions are served from api.secondlayer.tools directly.",
-				code: "DEDICATED_PROVISIONING_DISABLED",
-			},
-			503,
-		);
-	}
-
-	const accountId = requireAccountId(c);
-	const db = getDb();
-	const slug = c.req.param("slug");
-	const project = await getProjectBySlug(db, accountId, slug);
-	if (!project) return c.json({ error: "Project not found" }, 404);
-
-	const body = (await c.req.json().catch(() => {
-		throw new InvalidJSONError();
-	})) as { plan?: unknown };
-	if (
-		typeof body.plan !== "string" ||
-		!["launch", "scale", "enterprise"].includes(body.plan)
-	) {
-		return c.json(
-			{ error: "plan must be one of: launch, scale, enterprise" },
-			400,
-		);
-	}
-	// Enterprise is custom-quoted per deal and must be granted out-of-band
-	// (admin DB write or future admin endpoint). Self-serve provisioning
-	// would bypass billing entirely (enterprise has no Stripe price).
-	if (!["launch", "scale"].includes(body.plan)) {
-		return c.json(
-			{
-				error:
-					"Enterprise is custom-quoted per deal — email hey@secondlayer.tools.",
-				code: "PLAN_REQUIRES_SALES",
-			},
-			403,
-		);
-	}
-	const plan = body.plan as "launch" | "scale" | "enterprise";
-	const account = await getAccountById(db, accountId);
-	if (!account) return c.json({ error: "Account not found" }, 404);
-	if (account.plan !== plan) {
-		return c.json(
-			{
-				error:
-					"Start a 30-day trial or activate a subscription before provisioning this plan.",
-				code: "SUBSCRIPTION_REQUIRED",
-				accountPlan: account.plan,
-				requestedPlan: plan,
-			},
-			409,
-		);
-	}
-
-	// Enforce 1 project : 1 tenant today. The `project_id` FK is on
-	// `tenants`, so walk there and reject if one already exists for this
-	// account and this project.
-	const existing = await getTenantByAccount(db, accountId);
-	if (existing && existing.project_id === project.id) {
-		return c.json(
-			{
-				error: "Project already has an instance",
-				code: "INSTANCE_EXISTS",
-				tenant: {
-					slug: existing.slug,
-					plan: existing.plan,
-					status: existing.status,
-					apiUrl: existing.api_url_public,
-				},
-			},
-			409,
-		);
-	}
-
-	let provisioned: Awaited<ReturnType<typeof provisionerProvision>>;
-	await recordProvisioningAudit(db, {
-		accountId,
-		actor: `account:${accountId}`,
-		event: "provision.start",
-		status: "ok",
-		detail: projectProvisioningDetail({
-			projectId: project.id,
-			projectSlug: project.slug,
-			plan,
-		}),
-	});
-
-	try {
-		provisioned = await provisionerProvision({ accountId, plan });
-	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (err instanceof ProvisionerError) {
-			const detail = err.body.slice(0, 500);
-			await recordProvisioningAudit(db, {
-				accountId,
-				actor: `account:${accountId}`,
-				event: "provision.failure",
-				status: "error",
-				detail: projectProvisioningDetail({
-					projectId: project.id,
-					projectSlug: project.slug,
-					plan,
-					extra: {
-						provisioner: {
-							status: err.status,
-							body: detail,
-						},
-					},
-				}),
-				error: msg,
-			});
-			return c.json(
-				{
-					error: "Provisioner rejected the request",
-					code: "PROVISIONER_REJECTED",
-					detail,
-					status: err.status,
-					projectSlug: project.slug,
-					plan,
-				},
-				502,
-			);
-		}
-		await recordProvisioningAudit(db, {
-			accountId,
-			actor: `account:${accountId}`,
-			event: "provision.failure",
-			status: "error",
-			detail: projectProvisioningDetail({
-				projectId: project.id,
-				projectSlug: project.slug,
-				plan,
-			}),
-			error: msg,
-		});
-		return c.json(
-			{
-				error: "Instance provisioning failed",
-				code: "INSTANCE_PROVISION_FAILED",
-				projectSlug: project.slug,
-				plan,
-			},
-			500,
-		);
-	}
-
-	const planDef = getPlan(plan);
-	const alloc = {
-		cpus: planDef.totalCpus,
-		memoryMb: planDef.totalMemoryMb,
-		storageLimitMb: planDef.storageLimitMb,
-	};
-
-	let tenant: Awaited<ReturnType<typeof insertTenant>>;
-	try {
-		tenant = await insertTenant(db, {
-			accountId,
-			slug: provisioned.slug,
-			plan,
-			cpus: alloc.cpus,
-			memoryMb: alloc.memoryMb,
-			storageLimitMb: alloc.storageLimitMb,
-			pgContainerId: provisioned.containerIds.postgres,
-			apiContainerId: provisioned.containerIds.api,
-			processorContainerId: provisioned.containerIds.processor,
-			targetDatabaseUrl: provisioned.targetDatabaseUrl,
-			tenantJwtSecret: provisioned.tenantJwtSecret,
-			anonKey: provisioned.anonKey,
-			serviceKey: provisioned.serviceKey,
-			apiUrlInternal: provisioned.apiUrlInternal,
-			apiUrlPublic: provisioned.apiUrlPublic,
-			projectId: project.id,
-		});
-	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		// Containers + volumes were created on the host; without a row
-		// nothing tracks them. Tear down or they're orphaned forever.
-		await provisionerTeardown(provisioned.slug, true).catch((teardownErr) => {
-			logger.error("teardown after insertTenant failure also failed", {
-				projectSlug: project.slug,
-				tenantSlug: provisioned.slug,
-				error:
-					teardownErr instanceof Error
-						? teardownErr.message
-						: String(teardownErr),
-			});
-		});
-		await recordProvisioningAudit(db, {
-			tenantSlug: provisioned.slug,
-			accountId,
-			actor: `account:${accountId}`,
-			event: "provision.failure",
-			status: "error",
-			detail: projectProvisioningDetail({
-				projectId: project.id,
-				projectSlug: project.slug,
-				plan,
-				extra: {
-					tenantSlug: provisioned.slug,
-					containerIds: provisioned.containerIds,
-					stage: "insertTenant",
-				},
-			}),
-			error: msg,
-		});
-		return c.json(
-			{
-				error:
-					"Instance provisioning failed during finalization — please retry",
-				code: "INSTANCE_RECORD_FAILED",
-				projectSlug: project.slug,
-				plan,
-			},
-			500,
-		);
-	}
-
-	logger.info("Tenant provisioned for project", {
-		slug: tenant.slug,
-		projectSlug: project.slug,
-		accountId,
-	});
-
-	await recordProvisioningAudit(db, {
-		tenantId: tenant.id,
-		tenantSlug: tenant.slug,
-		accountId,
-		actor: `account:${accountId}`,
-		event: "provision.success",
-		status: "ok",
-		detail: projectProvisioningDetail({
-			projectId: project.id,
-			projectSlug: project.slug,
-			plan,
-		}),
-	});
-
 	return c.json(
 		{
-			tenant: {
-				slug: tenant.slug,
-				plan: tenant.plan,
-				status: tenant.status,
-				cpus: Number(tenant.cpus),
-				memoryMb: tenant.memory_mb,
-				storageLimitMb: tenant.storage_limit_mb,
-				apiUrl: tenant.api_url_public,
-				createdAt: tenant.created_at,
-				projectId: tenant.project_id,
-			},
-			credentials: {
-				apiUrl: provisioned.apiUrlPublic,
-				anonKey: provisioned.anonKey,
-				serviceKey: provisioned.serviceKey,
-			},
+			error:
+				"Per-project instances are dormant — subgraphs and subscriptions are served from api.secondlayer.tools directly.",
+			code: "DEDICATED_PROVISIONING_DISABLED",
 		},
-		201,
+		503,
 	);
 });
 
