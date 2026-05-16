@@ -13,5 +13,4 @@ export { registerLocalCommand } from "./local.ts";
 export { registerWhoamiCommand } from "./whoami.ts";
 export { registerLoginCommand } from "./login.ts";
 export { registerLogoutCommand } from "./logout.ts";
-export { registerInstanceCommand } from "./instance.ts";
 export { registerProjectCommand } from "./project.ts";

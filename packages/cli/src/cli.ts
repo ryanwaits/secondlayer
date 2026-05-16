@@ -8,7 +8,6 @@ import {
 	registerCreateCommand,
 	registerDbCommand,
 	registerDoctorCommand,
-	registerInstanceCommand,
 	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
@@ -78,11 +77,10 @@ registerLoginCommand(program);
 registerLogoutCommand(program);
 registerWhoamiCommand(program);
 
-// Tenant lifecycle
+// Project
 registerProjectCommand(program);
-registerInstanceCommand(program);
 
-// Workload (tenant-scoped via resolver)
+// Workload
 registerSubgraphsCommand(program);
 registerCreateCommand(program);
 registerSubscriptionsCommand(program);
