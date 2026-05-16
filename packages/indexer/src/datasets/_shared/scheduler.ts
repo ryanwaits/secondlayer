@@ -105,11 +105,31 @@ export function createDatasetPublisher<Row extends DatasetRowWithCursor>(
 			spec.exporter.dataset,
 			range,
 		);
-		if (
-			await objectExists({ client, bucket: r2Config.bucket, key: parquetKey })
-		) {
-			logger.debug(`${spec.label} publisher: latest range already published`, {
+		const parquetExists = await objectExists({
+			client,
+			bucket: r2Config.bucket,
+			key: parquetKey,
+		});
+		const producerVersion = await readIndexerProducerVersion();
+
+		// If the parquet for the latest finalized range already exists, refresh
+		// just the manifest so `latest.json` always reflects the actual latest
+		// finalized range — not "the last range the publisher wrote." Without
+		// this, latest.json drifts behind reality for unchanging families.
+		if (parquetExists) {
+			logger.debug(
+				`${spec.label} publisher: refreshing manifest for existing range`,
+				{ range },
+			);
+			await exportDatasetRange(spec.exporter, {
 				range,
+				network,
+				prefix,
+				outputDir,
+				finalityLagBlocks,
+				producerVersion,
+				upload: true,
+				manifestOnly: true,
 			});
 			return null;
 		}
@@ -126,7 +146,7 @@ export function createDatasetPublisher<Row extends DatasetRowWithCursor>(
 				prefix,
 				outputDir,
 				finalityLagBlocks,
-				producerVersion: await readIndexerProducerVersion(),
+				producerVersion,
 				upload: true,
 				force: false,
 			},

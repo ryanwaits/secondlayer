@@ -23,6 +23,7 @@ on:
           - backfill-progress
           - ghost-tenants
           - stop-tenant-compute
+          - stop-tenant-postgres
           - all-containers
           - service-heartbeats
           - subgraphs-state

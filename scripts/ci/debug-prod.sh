@@ -132,6 +132,21 @@ case "$DEBUG_TARGET" in
 		docker rm -f sl-api-2tbyrjby 2>&1 || true
 		echo "  done. Postgres ghost containers left in place pending your call."
 		;;
+	stop-tenant-postgres)
+		echo ""
+		echo "--- stop + rm sl-pg-2tbyrjby, sl-pg-n38s3zbw (ghost postgres) ---"
+		echo "    NOTE: removes containers + their named volumes. Data is gone."
+		docker rm -f -v sl-pg-2tbyrjby 2>&1 || true
+		docker rm -f -v sl-pg-n38s3zbw 2>&1 || true
+		echo ""
+		echo "--- remove ghost networks if no containers remain attached ---"
+		docker network rm sl-tenants 2>&1 || true
+		docker network rm sl-source 2>&1 || true
+		echo ""
+		echo "--- remaining sl-* containers + networks ---"
+		docker ps -a --filter "name=^sl-" --format "table {{.Names}}\t{{.Status}}" || true
+		docker network ls --filter "name=sl-" 2>&1 || true
+		;;
 	run-backfills)
 		echo ""
 		echo "--- kicking off 4 detached backfills inside secondlayer-indexer-1 ---"

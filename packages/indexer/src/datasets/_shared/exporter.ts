@@ -65,6 +65,14 @@ export type ExportDatasetRangeOptions = {
 	upload?: boolean;
 	force?: boolean;
 	db?: Kysely<Database>;
+	/**
+	 * Refresh manifests only — re-derive rows + manifests, upload only the
+	 * manifest + schema JSON. Skip the parquet upload (the existing object
+	 * on R2 is byte-identical for a finalized range). Lets the scheduler
+	 * keep `latest.json` fresh on no-op ticks where the parquet already
+	 * exists, so consumers always see the actual latest finalized range.
+	 */
+	manifestOnly?: boolean;
 };
 
 export type ExportDatasetRangeResult = {
@@ -166,26 +174,26 @@ export async function exportDatasetRange<Row extends DatasetRowWithCursor>(
 	if (options.upload) {
 		const r2Config = getDatasetsR2ConfigFromEnv();
 		const client = createDatasetsS3Client(r2Config);
-		if (
-			!options.force &&
-			(await objectExists({
-				client,
-				bucket: r2Config.bucket,
-				key: parquetObjectPath,
-			}))
-		) {
+		const parquetExists = await objectExists({
+			client,
+			bucket: r2Config.bucket,
+			key: parquetObjectPath,
+		});
+		if (parquetExists && !options.force && !options.manifestOnly) {
 			throw new Error(
 				`refusing to overwrite existing parquet object ${parquetObjectPath}; pass --force for private/staging reruns`,
 			);
 		}
 
-		await putFileObject({
-			client,
-			bucket: r2Config.bucket,
-			key: parquetObjectPath,
-			path: localParquetPath,
-			contentType: "application/vnd.apache.parquet",
-		});
+		if (!options.manifestOnly) {
+			await putFileObject({
+				client,
+				bucket: r2Config.bucket,
+				key: parquetObjectPath,
+				path: localParquetPath,
+				contentType: "application/vnd.apache.parquet",
+			});
+		}
 		await putJsonObject({
 			client,
 			bucket: r2Config.bucket,
