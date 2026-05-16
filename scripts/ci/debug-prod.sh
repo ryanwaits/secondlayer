@@ -125,11 +125,16 @@ case "$DEBUG_TARGET" in
 		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
 			-c "SELECT MIN(block_height) AS first_block, COUNT(*) AS total FROM events WHERE type IN ('ft_transfer_event','ft_mint_event','ft_burn_event') AND data->>'asset_identifier' LIKE 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::%';" 2>&1 || true
 		;;
+	stop-tenant-compute)
+		echo ""
+		echo "--- stop + rm sl-proc-2tbyrjby, sl-api-2tbyrjby (ghost compute) ---"
+		docker rm -f sl-proc-2tbyrjby 2>&1 || true
+		docker rm -f sl-api-2tbyrjby 2>&1 || true
+		echo "  done. Postgres ghost containers left in place pending your call."
+		;;
 	run-backfills)
 		echo ""
 		echo "--- kicking off 4 detached backfills inside secondlayer-indexer-1 ---"
-		# Each backfill logs to /tmp/backfill-<slug>.log inside the container.
-		# --no-build means we use the already-running image; bun executes the script.
 		docker exec -d secondlayer-indexer-1 sh -c \
 			'bun run packages/indexer/src/datasets/backfill.ts pox-4-calls --from 7890000 --to 7960000 > /tmp/backfill-pox4-calls.log 2>&1'
 		docker exec -d secondlayer-indexer-1 sh -c \
