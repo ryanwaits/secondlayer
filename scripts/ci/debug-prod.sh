@@ -125,6 +125,47 @@ case "$DEBUG_TARGET" in
 		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
 			-c "SELECT MIN(block_height) AS first_block, COUNT(*) AS total FROM events WHERE type IN ('ft_transfer_event','ft_mint_event','ft_burn_event') AND data->>'asset_identifier' LIKE 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::%';" 2>&1 || true
 		;;
+	run-backfills)
+		echo ""
+		echo "--- kicking off 4 detached backfills inside secondlayer-indexer-1 ---"
+		# Each backfill logs to /tmp/backfill-<slug>.log inside the container.
+		# --no-build means we use the already-running image; bun executes the script.
+		docker exec -d secondlayer-indexer-1 sh -c \
+			'bun run packages/indexer/src/datasets/backfill.ts pox-4-calls --from 7890000 --to 7960000 > /tmp/backfill-pox4-calls.log 2>&1'
+		docker exec -d secondlayer-indexer-1 sh -c \
+			'bun run packages/indexer/src/datasets/backfill.ts bns-namespace-events --from 160000 --to 170000 > /tmp/backfill-bns-namespace.log 2>&1'
+		docker exec -d secondlayer-indexer-1 sh -c \
+			'bun run packages/indexer/src/datasets/backfill.ts bns-marketplace-events --from 7800000 --to 7960000 > /tmp/backfill-bns-marketplace.log 2>&1'
+		docker exec -d secondlayer-indexer-1 sh -c \
+			'bun run packages/indexer/src/datasets/backfill.ts bns-name-events --from 160000 --to 7960000 > /tmp/backfill-bns-name.log 2>&1'
+		echo "  4 backfill processes detached. Tail logs via target=backfill-progress"
+		;;
+	backfill-progress)
+		echo ""
+		for slug in pox4-calls bns-namespace bns-marketplace bns-name; do
+			echo ""
+			echo "--- /tmp/backfill-${slug}.log (last 5 lines) ---"
+			docker exec secondlayer-indexer-1 tail -n 5 "/tmp/backfill-${slug}.log" 2>&1 || true
+		done
+		echo ""
+		echo "--- backfill processes still running ---"
+		docker exec secondlayer-indexer-1 sh -c 'ps -ef | grep "backfill.ts" | grep -v grep' 2>&1 || true
+		;;
+	ghost-tenants)
+		echo ""
+		echo "--- all containers (host-wide) ---"
+		docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" || true
+		echo ""
+		echo "--- ghost tenant-mode containers (sl-* pattern) ---"
+		docker ps -a --filter "name=^sl-" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" || true
+		echo ""
+		echo "--- tenants table row count (deprecated post-pivot) ---"
+		docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+			-c "SELECT count(*) AS tenants_rows, count(*) FILTER (WHERE status='active') AS active FROM tenants;" 2>&1 || true
+		echo ""
+		echo "--- ghost docker networks ---"
+		docker network ls --filter "name=sl-" 2>&1 || true
+		;;
 	dataset-ranges)
 		echo ""
 		echo "--- finalized tip ---"

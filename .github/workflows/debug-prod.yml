@@ -19,6 +19,9 @@ on:
           - flip-parquet-flags
           - indexer-publishers
           - dataset-ranges
+          - run-backfills
+          - backfill-progress
+          - ghost-tenants
           - all-containers
           - service-heartbeats
           - subgraphs-state
