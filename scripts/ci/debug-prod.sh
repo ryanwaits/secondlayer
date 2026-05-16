@@ -46,6 +46,17 @@ case "$DEBUG_TARGET" in
 esac
 
 case "$DEBUG_TARGET" in
+	caddy)
+		echo ""
+		echo "--- docker ps caddy ---"
+		docker ps -a --filter name=caddy --format "table {{.Names}}\t{{.Status}}" || true
+		echo ""
+		echo "--- docker logs --tail 200 secondlayer-caddy-1 ---"
+		docker logs --tail 200 secondlayer-caddy-1 2>&1 | tail -200 || true
+		;;
+esac
+
+case "$DEBUG_TARGET" in
 	sbtc-first-block)
 		echo ""
 		echo "--- earliest sbtc-registry print_event in raw events table ---"
