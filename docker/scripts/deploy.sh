@@ -52,17 +52,12 @@ fi
 unset _DEPLOY_IMAGE_OWNER_OVERRIDE _DEPLOY_IMAGE_TAG_OVERRIDE _DEPLOY_SHA_OVERRIDE
 
 APP_SERVICES="api indexer l2-decoder subgraph-processor worker agent caddy"
-PLATFORM_SERVICES="provisioner"
-TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
-DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}}"
+DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-secondlayer-labs}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
 DB_MAINTENANCE_LOCK_FILE="${DB_MAINTENANCE_LOCK_FILE:-${DATA_DIR:-/opt/secondlayer/data}/db-maintenance.lock}"
 DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS="${DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS:-2700}"
 export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
-export PROVISIONER_IMAGE_OWNER="$DEPLOY_IMAGE_OWNER"
-export PROVISIONER_IMAGE_TAG="$DEPLOY_IMAGE_TAG"
-TENANT_API_IMAGE="ghcr.io/${DEPLOY_IMAGE_OWNER}/secondlayer-api:${DEPLOY_IMAGE_TAG}"
 
 # Services that hold locks on tables migrations mutate. Indexer and l2-decoder
 # write L1/L2 tables, so migrations must complete before they restart on new code.
@@ -70,12 +65,10 @@ MIGRATION_LOCK_HOLDERS="api indexer l2-decoder agent worker"
 
 echo "Deploy image owner: ${DEPLOY_IMAGE_OWNER}"
 echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
-echo "Tenant API image: ${TENANT_API_IMAGE}"
 
 # Pull exact CI-built images before stopping services. If GHCR is missing any
 # image for this SHA, fail while the current deployment is still running.
 $COMPOSE pull api indexer l2-decoder worker agent migrate
-$COMPOSE --profile platform pull provisioner
 
 # Stop only the services that hold locks on migrated tables. DDL then acquires
 # ACCESS EXCLUSIVE without racing app or indexer sessions.
@@ -132,11 +125,6 @@ $COMPOSE up -d --no-build --remove-orphans $APP_SERVICES
 
 flock -u 9
 
-# Platform-mode services (provisioner, behind --profile platform). Must be
-# recreated separately so compose changes to the provisioner land on deploy
-# instead of requiring a manual `--force-recreate provisioner` after.
-$COMPOSE --profile platform up -d --no-build --remove-orphans $PLATFORM_SERVICES
-
 # Pin .env to the SHA we just rolled to — BEFORE the health gate runs. If a
 # subsequent check fails and the script exits non-zero, the containers are
 # already running the new tag; .env must reflect that or a future manual
@@ -185,7 +173,6 @@ check_health() {
 sleep 5
 check_health api http://localhost:3800/health
 check_health indexer http://localhost:3700/health
-check_health provisioner http://localhost:3850/health
 
 check_container_health() {
 	local service=$1
@@ -206,70 +193,6 @@ check_container_health() {
 }
 
 check_container_health l2-decoder
-
-refresh_active_tenants() {
-  if [ -z "${PROVISIONER_SECRET:-}" ]; then
-    echo "⚠️  PROVISIONER_SECRET unset; skipping tenant runtime refresh"
-    return 0
-  fi
-
-  local target_digest
-  target_digest=$(docker image inspect "$TENANT_API_IMAGE" \
-    --format "{{ index .Config.Labels \"${TENANT_API_DIGEST_LABEL}\" }}" \
-    2>/dev/null || true)
-
-  if [ -z "$target_digest" ] || [ "$target_digest" = "<no value>" ]; then
-    echo "⚠️  Target tenant API image has no source digest label; refreshing active tenants"
-  else
-    echo "Tenant API target digest: ${target_digest}"
-  fi
-
-  echo "🔎 Checking active tenant runtimes..."
-  local slugs
-  slugs=$(docker exec secondlayer-postgres-1 psql \
-    -U "${POSTGRES_USER:-secondlayer}" \
-    -d "${POSTGRES_DB:-secondlayer}" \
-    -Atc "SELECT slug FROM tenants WHERE status = 'active' ORDER BY slug;" \
-    2>/dev/null || true)
-
-  if [ -z "$slugs" ]; then
-    echo "No active tenants to refresh."
-    return 0
-  fi
-
-  while IFS= read -r slug; do
-    [ -z "$slug" ] && continue
-    local image_id current_digest
-    image_id=$(docker inspect "sl-api-${slug}" --format '{{ .Image }}' 2>/dev/null || true)
-    current_digest=""
-    if [ -n "$image_id" ]; then
-      current_digest=$(docker image inspect "$image_id" \
-        --format "{{ index .Config.Labels \"${TENANT_API_DIGEST_LABEL}\" }}" \
-        2>/dev/null || true)
-    fi
-
-    if [ -n "$target_digest" ] && [ "$target_digest" != "<no value>" ] && [ "$current_digest" = "$target_digest" ]; then
-      echo "Tenant ${slug} already on current API image; skipping refresh."
-      continue
-    fi
-
-    if [ -z "$current_digest" ] || [ "$current_digest" = "<no value>" ]; then
-      echo "Refreshing tenant ${slug} (missing current API digest)..."
-    else
-      echo "Refreshing tenant ${slug} (${current_digest} -> ${target_digest})..."
-    fi
-    if ! curl -sfS \
-      -X POST "http://localhost:3850/tenants/${slug}/resume" \
-      -H "x-provisioner-secret: ${PROVISIONER_SECRET}" \
-      >/dev/null; then
-      echo "⚠️  Tenant ${slug} refresh failed"
-    fi
-  done <<< "$slugs"
-
-  return 0
-}
-
-refresh_active_tenants
 
 record_successful_deploy() {
   mkdir -p "$DEPLOY_STATE_DIR"

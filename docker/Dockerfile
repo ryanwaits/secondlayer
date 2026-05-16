@@ -28,7 +28,6 @@ COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
 COPY packages/bundler/package.json ./packages/bundler/
 COPY packages/scaffold/package.json ./packages/scaffold/
-COPY packages/provisioner/package.json ./packages/provisioner/
 # Install dependencies
 RUN bun install
 
@@ -46,7 +45,6 @@ COPY packages/api ./packages/api
 COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
 COPY packages/bundler ./packages/bundler
-COPY packages/provisioner ./packages/provisioner
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
@@ -82,32 +80,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3800/health || exit 1
 
 CMD ["bun", "run", "packages/api/src/index.ts"]
-
-# =============================================================================
-# Provisioner service — tenant Docker lifecycle HTTP API (platform mode).
-# Needs /var/run/docker.sock passthrough at runtime.
-# =============================================================================
-FROM base AS provisioner
-
-WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
-# @secondlayer/shared depends on @secondlayer/stacks via the workspace, so
-# we must copy stacks even though the provisioner itself doesn't reference it.
-COPY --from=builder /app/packages/stacks ./packages/stacks
-COPY --from=builder /app/packages/shared ./packages/shared
-COPY --from=builder /app/packages/provisioner ./packages/provisioner
-COPY --from=builder /app/package.json ./
-
-ENV NODE_ENV=production
-ENV PROVISIONER_PORT=3850
-
-EXPOSE 3850
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3850/health || exit 1
-
-CMD ["bun", "run", "packages/provisioner/src/index.ts"]
 
 # =============================================================================
 # Worker service

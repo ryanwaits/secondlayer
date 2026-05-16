@@ -72,7 +72,6 @@ jobs:
           - indexer
           - worker
           - agent
-          - provisioner
     steps:
       - uses: actions/checkout@v4
       - name: Compute API source digest

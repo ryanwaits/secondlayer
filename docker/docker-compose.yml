@@ -60,8 +60,6 @@ services:
       STRIPE_PRICE_AI_EVAL_OVERAGE: ${STRIPE_PRICE_AI_EVAL_OVERAGE:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
       INDEXER_URL: ${INDEXER_URL:-http://indexer:3700}
-      PROVISIONER_URL: ${PROVISIONER_URL:-http://provisioner:3850}
-      PROVISIONER_SECRET: ${PROVISIONER_SECRET:-}
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
       STREAMS_BULK_PUBLIC_BASE_URL: ${STREAMS_BULK_PUBLIC_BASE_URL:-}
       DATASETS_PUBLIC_BASE_URL: ${DATASETS_PUBLIC_BASE_URL:-}
@@ -223,8 +221,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       NETWORKS: ${NETWORKS:-mainnet}
-      PROVISIONER_URL: ${PROVISIONER_URL:-http://provisioner:3850}
-      PROVISIONER_SECRET: ${PROVISIONER_SECRET:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_METER_STORAGE: ${STRIPE_METER_STORAGE:-}
       STRIPE_METER_AI_EVAL: ${STRIPE_METER_AI_EVAL:-}
@@ -235,45 +231,6 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-
-  # Provisioner service — tenant Docker lifecycle (platform mode only).
-  # Activated via `--profile platform`. OSS users never run this.
-  provisioner:
-    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-provisioner:${DEPLOY_IMAGE_TAG:-latest}
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: provisioner
-    environment:
-      PROVISIONER_PORT: "3850"
-      PROVISIONER_SECRET: ${PROVISIONER_SECRET:-}
-      PROVISIONER_SOURCE_DB_ADMIN_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
-      PROVISIONER_SOURCE_DB_READONLY_PASSWORD: ${PROVISIONER_SOURCE_DB_READONLY_PASSWORD:-}
-      PROVISIONER_SOURCE_DB_HOST: ${PROVISIONER_SOURCE_DB_HOST:-postgres:5432}
-      PROVISIONER_SOURCE_DB_NAME: ${POSTGRES_DB:-secondlayer}
-      PROVISIONER_IMAGE_TAG: ${PROVISIONER_IMAGE_TAG:-latest}
-      PROVISIONER_IMAGE_OWNER: ${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}
-      PROVISIONER_TENANT_BASE_DOMAIN: ${PROVISIONER_TENANT_BASE_DOMAIN:-secondlayer.tools}
-      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
-      HIRO_API_URL: ${HIRO_API_URL:-}
-      HIRO_API_KEY: ${HIRO_API_KEY:-}
-      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      NODE_ENV: production
-    volumes:
-      # Required for provisioner to create/manage tenant containers. Gives
-      # root-on-host effectively — run only on hosts where that's acceptable.
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      # Bind to localhost only — provisioner is reached by platform API
-      # over the docker network at `provisioner:3850`; localhost binding
-      # is for operator debugging (`curl http://localhost:3850/health`).
-      - "127.0.0.1:3850:3850"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    profiles: ["platform"]
 
 volumes:
   postgres_data:

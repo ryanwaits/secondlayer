@@ -23,14 +23,6 @@ services:
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data
       - ${DATA_DIR:-/opt/secondlayer/data}/wal_archive:/wal_archive
-    # Join sl-source so tenant api/processor containers (which join sl-source
-    # via the provisioner) can resolve this as `postgres:5432` for read-only
-    # source-data queries + pg_notify listeners.
-    networks:
-      default: {}
-      sl-source:
-        aliases:
-          - postgres
 
   api:
     environment:
@@ -60,18 +52,6 @@ services:
         limits:
           memory: 512M
 
-  provisioner:
-    # Provisioner needs sl-tenants to reach `sl-pg-<slug>` for storage
-    # measurement; default to reach secondlayer-postgres-1 for the readonly
-    # role bootstrap. Also used to talk to the Docker daemon via the socket
-    # passthrough in the base compose file.
-    environment:
-      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
-      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
-    networks:
-      default: {}
-      sl-tenants:
-
   caddy:
     image: caddy:2-alpine
     ports:
@@ -84,33 +64,10 @@ services:
     environment:
       BASE_DOMAIN: ${BASE_DOMAIN:-secondlayer.tools}
       CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:-ryan.waits@gmail.com}
-    # Caddy needs default (to reach platform `api`) and sl-tenants (to reach
-    # `sl-api-<slug>` containers provisioned dynamically).
-    networks:
-      - default
-      - sl-tenants
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
-
-  bastion:
-    container_name: secondlayer-bastion
-    build:
-      context: ./bastion
-      dockerfile: Dockerfile
-    # 2222:22 — public SSH entry point. Only port forwarding is permitted.
-    ports:
-      - "2222:22"
-    # Needs sl-tenants so `sl-pg-<slug>` resolves when a tenant's SSH session
-    # requests a tunnel to its pg.
-    networks:
-      - sl-tenants
-    volumes:
-      - ${DATA_DIR:-/opt/secondlayer/data}/bastion:/var/bastion-state
-    restart: unless-stopped
-    labels:
-      secondlayer.role: bastion
 
   agent:
     container_name: secondlayer-agent
@@ -149,15 +106,3 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-
-networks:
-  # Both networks are created by the provisioner (`networkEnsure` in
-  # docker.ts / names.ts). Compose references them as `external: true` so
-  # compose won't try to create/adopt them (which fails with "network exists
-  # but has incorrect labels"). The provisioner remains the canonical creator.
-  sl-tenants:
-    name: sl-tenants
-    external: true
-  sl-source:
-    name: sl-source
-    external: true
