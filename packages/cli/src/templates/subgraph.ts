@@ -233,6 +233,10 @@ export default defineSubgraph({
   version: "1.0.0",
   description: "sBTC deposits, withdrawals, signer rotations, governance",
 
+  // Skip pre-sBTC history. Raise this (e.g., to a recent block near tip) for
+  // a smaller backfill, or lower it if you need every sBTC event from genesis.
+  startBlock: 860000,
+
   sources: {
     registry: {
       type: "print_event",
@@ -255,18 +259,19 @@ export default defineSubgraph({
 
   handlers: {
     registry: (event, ctx) => {
-      // biome-ignore lint/suspicious/noExplicitAny: print payload shape varies by topic
-      const payload = (event as any).payload ?? {};
-      const topic = payload.topic;
-      if (typeof topic !== "string") return;
+      // biome-ignore lint/suspicious/noExplicitAny: print event shape varies by topic
+      const e = event as any;
+      const topic = typeof e.topic === "string" ? e.topic : null;
+      if (!topic) return;
+      const data = (e.data ?? {}) as Record<string, unknown>;
 
       ctx.insert("flows", {
         topic,
-        request_id: payload["request-id"] ?? null,
-        amount: payload.amount ? String(payload.amount) : null,
-        sender: payload.sender ?? null,
-        bitcoin_txid: payload["bitcoin-txid"] ?? null,
-        burn_height: payload["burn-height"] ?? null,
+        request_id: data.requestId ?? null,
+        amount: data.amount != null ? String(data.amount) : null,
+        sender: (data.sender as string) ?? null,
+        bitcoin_txid: (data.bitcoinTxid as string) ?? null,
+        burn_height: data.burnHeight ?? null,
       });
     },
   },
@@ -374,19 +379,20 @@ export default defineSubgraph({
 
   handlers: {
     bns: (event, ctx) => {
-      // biome-ignore lint/suspicious/noExplicitAny: print payload shape
-      const payload = (event as any).payload ?? {};
-      const topic = payload.topic;
-      if (typeof topic !== "string") return;
-      const namespace = decodeBuffUtf8(payload.namespace);
-      const nameLabel = decodeBuffUtf8(payload.name);
+      // biome-ignore lint/suspicious/noExplicitAny: print event shape
+      const e = event as any;
+      const topic = typeof e.topic === "string" ? e.topic : null;
+      if (!topic) return;
+      const data = (e.data ?? {}) as Record<string, unknown>;
+      const namespace = decodeBuffUtf8(data.namespace);
+      const nameLabel = decodeBuffUtf8(data.name);
       if (!namespace || !nameLabel) return;
       ctx.insert("names", {
         topic,
         namespace,
         name: nameLabel,
         fqn: \`\${nameLabel}.\${namespace}\`,
-        owner: topic === "burn-name" ? null : (payload.owner ?? null),
+        owner: topic === "burn-name" ? null : ((data.owner as string) ?? null),
       });
     },
   },

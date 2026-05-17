@@ -1335,10 +1335,21 @@ export function registerSubgraphsCommand(program: Command): void {
 						}
 					}
 
-					const result = await deleteSubgraphApi(name, {
-						force: options.force,
-					});
-					success(result.message);
+					try {
+						const result = await deleteSubgraphApi(name, {
+							force: options.force,
+						});
+						success(result.message);
+					} catch (delErr) {
+						const msg =
+							delErr instanceof Error ? delErr.message : String(delErr);
+						const status = (delErr as { status?: number } | undefined)?.status;
+						if (status === 404 || /not found/i.test(msg)) {
+							info(`Subgraph "${name}" not found (already deleted?)`);
+							return;
+						}
+						throw delErr;
+					}
 				} catch (err) {
 					handleApiError(err, "delete subgraph");
 				}

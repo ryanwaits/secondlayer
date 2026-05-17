@@ -15,6 +15,7 @@ import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import {
 	blue,
 	dim,
+	error,
 	formatKeyValue,
 	formatTable,
 	green,
@@ -527,7 +528,20 @@ function printDead(rows: DeadRow[]): void {
 
 async function confirmOrExit(message: string, yes?: boolean): Promise<boolean> {
 	if (yes) return true;
-	const ok = await confirm({ message });
+	let ok = false;
+	try {
+		ok = await confirm({ message });
+	} catch (promptErr) {
+		const m =
+			promptErr instanceof Error ? promptErr.message : String(promptErr);
+		if (m.includes("ExitPromptError") || m.includes("force closed")) {
+			error(
+				"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
+			);
+			process.exit(1);
+		}
+		throw promptErr;
+	}
 	if (!ok) {
 		info("Cancelled");
 		return false;
