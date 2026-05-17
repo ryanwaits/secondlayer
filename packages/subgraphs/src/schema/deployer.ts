@@ -131,7 +131,7 @@ export async function deploySchema(
 		sourceCode?: string;
 	},
 ): Promise<{
-	action: "created" | "unchanged" | "updated" | "reindexed";
+	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
 	subgraphId: string;
 	version: string;
 	diff?: DeployDiff;
@@ -174,13 +174,19 @@ export async function deploySchema(
 
 	if (existing) {
 		if (existing.schema_hash === hash && !opts?.forceReindex) {
-			// Update handler path in case file moved
+			// Update handler path and code in case file moved or handler changed.
+			const handlerChanged =
+				opts?.handlerCode != null &&
+				opts.handlerCode !== existing.handler_code;
 			const { updateSubgraphHandlerPath } = await import(
 				"@secondlayer/shared/db/queries/subgraphs"
 			);
-			await updateSubgraphHandlerPath(db, def.name, handlerPath);
+			await updateSubgraphHandlerPath(db, def.name, handlerPath, {
+				handlerCode: opts?.handlerCode,
+				sourceCode: opts?.sourceCode,
+			});
 			return {
-				action: "unchanged",
+				action: handlerChanged ? "handler_updated" : "unchanged",
 				subgraphId: existing.id,
 				version: existing.version,
 			};

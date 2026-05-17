@@ -20,6 +20,7 @@ export type {
 	ContractCallFilter,
 	ContractDeployFilter,
 	PrintEventFilter,
+	ContractCallEvent,
 	TxMeta,
 	RowValue,
 	ComputedValue,

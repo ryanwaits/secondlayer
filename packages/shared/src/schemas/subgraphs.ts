@@ -39,7 +39,7 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 	});
 
 export interface DeploySubgraphResponse {
-	action: "created" | "unchanged" | "updated" | "reindexed";
+	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
 	subgraphId: string;
 	version: string;
 	message: string;

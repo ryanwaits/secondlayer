@@ -577,10 +577,6 @@ export function registerSubgraphsCommand(program: Command): void {
 		.command("deploy <file>")
 		.description("Deploy a subgraph definition file")
 		.option(
-			"--version <semver>",
-			"Explicit version (default: auto-increment patch)",
-		)
-		.option(
 			"--start-block <n>",
 			"Override the subgraph definition startBlock for this deploy",
 		)
@@ -595,7 +591,6 @@ export function registerSubgraphsCommand(program: Command): void {
 			async (
 				file: string,
 				options: {
-					version?: string;
 					startBlock?: string;
 					dryRun?: boolean;
 					preview?: boolean;
@@ -652,7 +647,7 @@ export function registerSubgraphsCommand(program: Command): void {
 								createSubgraphDeployPreview(
 									{
 										...validated,
-										version: options.version ?? validated.version,
+										version: validated.version,
 									},
 									{
 										bundleBytes: Buffer.byteLength(handlerCode, "utf8"),
@@ -670,7 +665,7 @@ export function registerSubgraphsCommand(program: Command): void {
 						// The server decides whether this creates, updates, or reindexes.
 						const result = await deploySubgraphApi({
 							name: effectiveDef.name,
-							version: options.version,
+							version: undefined,
 							description: effectiveDef.description,
 							sources: effectiveDef.sources as unknown as Record<
 								string,
@@ -702,6 +697,10 @@ export function registerSubgraphsCommand(program: Command): void {
 						if (result.action === "unchanged") {
 							info(
 								`Subgraph "${effectiveDef.name}" is up to date (v${result.version} — no changes)`,
+							);
+						} else if (result.action === "handler_updated") {
+							success(
+								`Subgraph "${effectiveDef.name}" handler updated (v${result.version} — schema unchanged, no reindex needed)`,
 							);
 						} else if (result.action === "created") {
 							// Fresh deploy — no existing data to drop, no confirmation needed
@@ -762,7 +761,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							printSubgraphDeployPreview(
 								createSubgraphDeployPreview({
 									...validated,
-									version: options.version ?? validated.version,
+									version: validated.version,
 								}),
 								{
 									network: config.network,
@@ -778,13 +777,17 @@ export function registerSubgraphsCommand(program: Command): void {
 
 						const db = getDb();
 						const result = await deploySchema(db, effectiveDef, absPath, {
-							version: options.version,
+							version: undefined,
 							forceReindex: startBlock !== undefined,
 						});
 
 						if (result.action === "unchanged") {
 							info(
 								`Subgraph "${effectiveDef.name}" is up to date (v${result.version} — no changes)`,
+							);
+						} else if (result.action === "handler_updated") {
+							success(
+								`Subgraph "${effectiveDef.name}" handler updated (v${result.version} — schema unchanged, no reindex needed)`,
 							);
 						} else if (result.action === "created") {
 							success(

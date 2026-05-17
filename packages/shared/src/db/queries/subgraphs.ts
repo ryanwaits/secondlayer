@@ -144,10 +144,16 @@ export async function updateSubgraphHandlerPath(
 	db: Kysely<Database>,
 	name: string,
 	handlerPath: string,
+	opts?: { handlerCode?: string; sourceCode?: string },
 ): Promise<void> {
 	await db
 		.updateTable("subgraphs")
-		.set({ handler_path: handlerPath, updated_at: new Date() })
+		.set({
+			handler_path: handlerPath,
+			...(opts?.handlerCode != null ? { handler_code: opts.handlerCode } : {}),
+			...(opts?.sourceCode != null ? { source_code: opts.sourceCode } : {}),
+			updated_at: new Date(),
+		})
 		.where("name", "=", name)
 		.execute();
 }

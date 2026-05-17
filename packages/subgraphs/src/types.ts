@@ -96,6 +96,36 @@ export interface NftBurnFilter {
 	sender?: string;
 }
 
+/**
+ * Event shape passed to contract_call handlers.
+ *
+ * `args` is a **positional array** of decoded Clarity values matching the
+ * contract function's parameter list in declaration order. Use the ABI
+ * (or Clarity contract source) to map positions to names:
+ *
+ * ```ts
+ * // pox-4 stack-stx args: (amount-ustx uint) (pox-addr tuple) (start-burn-ht uint) (lock-period uint)
+ * const [amountUstx, , , lockPeriod] = event.args;
+ * ```
+ *
+ * Bigints come out as `bigint`. Buffers as `Uint8Array`. Principals as
+ * strings (`"SP..."`). Tuples as `Record<string, unknown>`.
+ *
+ * Historical transactions indexed before the function_args column was added
+ * will have `args = []` — always guard with `args.length > 0` when reading
+ * args from pre-Nakamoto history.
+ */
+export interface ContractCallEvent {
+	type: "contract_call";
+	sender: string;
+	contractId: string;
+	functionName: string;
+	/** Positional decoded Clarity values — order matches the ABI parameter list. */
+	args: unknown[];
+	/** Decoded return value from the contract function, or null. */
+	result: unknown;
+}
+
 /** Contract event filters */
 export interface ContractCallFilter {
 	type: "contract_call";
