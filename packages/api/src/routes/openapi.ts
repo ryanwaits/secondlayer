@@ -154,7 +154,7 @@ const OPENAPI_SPEC = {
 		"/v1/datasets/bns/events": {
 			get: {
 				tags: ["datasets"],
-				summary: "BNS name lifecycle events",
+				summary: "BNS-V2 name lifecycle events",
 				parameters: [
 					{ $ref: "#/components/parameters/Limit" },
 					{ $ref: "#/components/parameters/Cursor" },
@@ -171,36 +171,42 @@ const OPENAPI_SPEC = {
 		"/v1/datasets/bns/namespace-events": {
 			get: {
 				tags: ["datasets"],
-				summary: "BNS namespace lifecycle events",
+				summary: "BNS-V2 namespace lifecycle events",
 				responses: envelope(),
 			},
 		},
 		"/v1/datasets/bns/marketplace-events": {
 			get: {
 				tags: ["datasets"],
-				summary: "BNS marketplace events",
+				summary: "BNS-V2 marketplace events",
 				responses: envelope(),
 			},
 		},
 		"/v1/datasets/bns/names": {
-			get: { tags: ["datasets"], summary: "BNS names snapshot", responses: ok() },
+			get: {
+				tags: ["datasets"],
+				summary: "BNS-V2 names snapshot",
+				responses: ok(),
+			},
 		},
 		"/v1/datasets/bns/namespaces": {
 			get: {
 				tags: ["datasets"],
-				summary: "BNS namespaces list",
+				summary: "BNS-V2 namespaces list",
 				responses: ok(),
 			},
 		},
 		"/v1/datasets/bns/resolve": {
 			get: {
 				tags: ["datasets"],
-				summary: "Resolve a fully-qualified BNS name",
+				summary: "Resolve a fully-qualified BNS-V2 name",
 				parameters: [qp("fqn", "string", true)],
 				responses: ok(),
 			},
 		},
-		"/v1/index": { get: { tags: ["index"], summary: "Index discovery", responses: ok() } },
+		"/v1/index": {
+			get: { tags: ["index"], summary: "Index discovery", responses: ok() },
+		},
 		"/v1/index/ft-transfers": {
 			get: {
 				tags: ["index"],
@@ -275,7 +281,14 @@ const OPENAPI_SPEC = {
 				tags: ["streams"],
 				summary: "Canonical block by height",
 				security: [{ bearerAuth: [] }],
-				parameters: [{ name: "height", in: "path", required: true, schema: { type: "integer" } }],
+				parameters: [
+					{
+						name: "height",
+						in: "path",
+						required: true,
+						schema: { type: "integer" },
+					},
+				],
 				responses: ok(),
 			},
 		},

@@ -73,9 +73,12 @@ export function BnsDatasetContent() {
 					</li>
 				</ul>
 				<p>
-					v0 ships BNS-V2 only. BNS-V1 historical names are out of scope.
-					Subdomain registrations and zonefile resolution are also out of scope
-					for v0.
+					<strong>Scope:</strong> BNS-V2 only. The BNS-V1 boot contract (
+					<code>SP000000000000000000002Q6VF78.bns</code>) is not indexed. V1
+					namespaces (<code>.btc</code>, <code>.id</code>, etc.) were imported
+					into v2 at launch, so most live activity lands here, but ops that
+					still happen on the v1 contract are not in these tables. Subdomain
+					registrations and zonefile resolution are also out of scope for v0.
 				</p>
 			</div>
 
