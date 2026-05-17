@@ -58,7 +58,7 @@ import {
 import { StacksApiClient } from "../utils/api.ts";
 import { inferNetwork } from "../utils/network.ts";
 import { deriveBaseUrl } from "../utils/urls.ts";
-import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
+import { resolveAuth } from "../lib/resolve-auth.ts";
 
 /** Import the handler file; if it fails with ERR_MODULE_NOT_FOUND for
  *  `@secondlayer/subgraphs` (the required SDK), offer to install it before
@@ -679,7 +679,7 @@ export function registerSubgraphsCommand(program: Command): void {
 
 						const printDeployFooter = async () => {
 							try {
-								const { apiUrl } = await resolveActiveTenant();
+								const { apiUrl } = await resolveAuth();
 								const baseUrl = deriveBaseUrl(apiUrl);
 								const firstTable = Object.keys(effectiveDef.schema ?? {})[0];
 								info(`  Dashboard: ${baseUrl}/platform/subgraphs/${effectiveDef.name}`);

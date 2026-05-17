@@ -46,27 +46,6 @@ export function registerWhoamiCommand(program: Command): void {
 				rows.push(["Project", dim("(none — run `sl project create <name>`)")]);
 			}
 
-			// Tenant info — best effort
-			try {
-				const tenant = await httpPlatform<{
-					tenant: {
-						slug: string;
-						plan: string;
-						status: string;
-						apiUrl: string;
-					} | null;
-				}>("/api/tenants/me");
-				if (tenant.tenant) {
-					rows.push(["Instance", tenant.tenant.apiUrl]);
-					rows.push(["Plan", tenant.tenant.plan]);
-					rows.push(["Status", tenant.tenant.status]);
-				} else {
-					rows.push(["Plan", dim("open beta (shared platform)")]);
-				}
-			} catch {
-				// Tenant fetch failing shouldn't break whoami.
-			}
-
 			console.log(formatKeyValue(rows));
 		});
 }

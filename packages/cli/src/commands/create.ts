@@ -15,7 +15,7 @@ import type { CreateSubscriptionRequest } from "@secondlayer/sdk";
 import type { Command } from "commander";
 import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import { blue, error, info, success, warn } from "../lib/output.ts";
-import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
+import { resolveAuth } from "../lib/resolve-auth.ts";
 import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
 import { deriveBaseUrl } from "../utils/urls.ts";
 
@@ -284,7 +284,7 @@ export async function createSubscription(
 	// Success footer — dashboard URL, resume hint if paused, run instructions.
 	let dashboardLine = "";
 	try {
-		const { apiUrl } = await resolveActiveTenant();
+		const { apiUrl } = await resolveAuth();
 		const base = deriveBaseUrl(apiUrl);
 		dashboardLine = subscriptionId
 			? `Dashboard: ${base}/platform/subgraphs/${subgraph}/subscriptions/${subscriptionId}\n  `
@@ -312,8 +312,8 @@ type SubscriptionClientEnv = {
 	SL_SERVICE_KEY?: string;
 };
 
-type ResolvedTenantCredentials = Awaited<
-	ReturnType<typeof resolveActiveTenant>
+type ResolvedAuthCredentials = Awaited<
+	ReturnType<typeof resolveAuth>
 >;
 
 type SubscriptionClientConfig =
@@ -323,7 +323,7 @@ type SubscriptionClientConfig =
 export function resolveSubscriptionClientConfig(
 	opts: SubscriptionClientOptions,
 	env: SubscriptionClientEnv = process.env,
-	resolved?: ResolvedTenantCredentials,
+	resolved?: ResolvedAuthCredentials,
 ): SubscriptionClientConfig {
 	const needsResolvedKey = !opts.serviceKey && !env.SL_SERVICE_KEY;
 	const needsResolvedUrl = !opts.baseUrl && !env.SL_API_URL;
@@ -342,7 +342,7 @@ export function resolveSubscriptionClientConfig(
 	}
 	if (!baseUrl) {
 		throw new Error(
-			"No tenant API URL available. Run `sl project use <slug>` or pass --base-url.",
+			"No API URL available. Run `sl login` or pass --base-url.",
 		);
 	}
 
@@ -357,14 +357,14 @@ export async function getSubscriptionClient(
 		return new SecondLayer({ baseUrl: config.baseUrl, apiKey: config.apiKey });
 	}
 
-	const resolved = await resolveActiveTenant();
+	const resolved = await resolveAuth();
 	const resolvedConfig = resolveSubscriptionClientConfig(
 		opts,
 		process.env,
 		resolved,
 	);
 	if (resolvedConfig.needsTenantResolution) {
-		throw new Error("Could not resolve active tenant credentials.");
+		throw new Error("Could not resolve credentials — run `sl login`.");
 	}
 
 	return new SecondLayer({

@@ -15,7 +15,7 @@ import type {
 	SubgraphSpecOptions,
 } from "@secondlayer/shared/subgraphs/spec";
 import { CliHttpError, httpPlatform } from "./http.ts";
-import { resolveActiveTenant } from "./resolve-tenant.ts";
+import { resolveAuth } from "./resolve-auth.ts";
 
 export { ApiError };
 export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
@@ -76,12 +76,11 @@ export async function assertOk(res: Response): Promise<void> {
 
 /**
  * SDK client targeting the platform API with the caller's session token.
- * Post shared-rip subgraphs + subscriptions live here too — no tenant URL,
- * no ephemeral JWT. Honors SL_API_URL / SL_SERVICE_KEY env-var bypass via
- * `resolveActiveTenant` for CI/OSS.
+ * SDK client targeting the platform API. Honors SL_API_URL / SL_SERVICE_KEY
+ * for CI/OSS; otherwise uses the active session token.
  */
 async function getPlatformClient(): Promise<SecondLayer> {
-	const { apiUrl, ephemeralKey } = await resolveActiveTenant();
+	const { apiUrl, ephemeralKey } = await resolveAuth();
 	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
 

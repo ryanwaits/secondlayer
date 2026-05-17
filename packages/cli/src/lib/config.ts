@@ -188,7 +188,7 @@ function applyEnvOverrides(config: Config): Config {
 		}
 	}
 
-	// Note: SL_SERVICE_KEY + SL_API_URL are read by `resolve-tenant.ts`
+	// Note: SL_SERVICE_KEY + SL_API_URL are read by `resolve-auth.ts`
 	// (CI/OSS bypass). Not stored in config — env-only.
 
 	// SL_DATA_DIR
