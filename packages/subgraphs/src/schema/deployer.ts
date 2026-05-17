@@ -173,11 +173,29 @@ export async function deploySchema(
 	};
 
 	if (existing) {
+		// Guard against zombie rows: registry entry exists but PG schema was dropped
+		// (e.g. partial delete or manual cleanup). Treat as a new subgraph.
+		const schemaExists = await sql<{ exists: boolean }>`
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.schemata
+				WHERE schema_name = ${schemaName}
+			) AS "exists"
+		`
+			.execute(db)
+			.then((r) => r.rows[0]?.exists ?? false);
+
+		if (!schemaExists) {
+			for (const stmt of statements) {
+				await sql.raw(stmt).execute(db);
+			}
+			const sg = await registerSubgraph(db, regData);
+			return { action: "reindexed", subgraphId: sg.id, version: newVersion };
+		}
+
 		if (existing.schema_hash === hash && !opts?.forceReindex) {
 			// Update handler path and code in case file moved or handler changed.
 			const handlerChanged =
-				opts?.handlerCode != null &&
-				opts.handlerCode !== existing.handler_code;
+				opts?.handlerCode != null && opts.handlerCode !== existing.handler_code;
 			const { updateSubgraphHandlerPath } = await import(
 				"@secondlayer/shared/db/queries/subgraphs"
 			);

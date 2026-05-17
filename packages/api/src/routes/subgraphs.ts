@@ -622,9 +622,7 @@ app.delete("/:subgraphName", async (c) => {
 		}
 	}
 
-	// Drop the subgraph's schema (all tables) and remove registry entry
-	const client = getRawClient();
-	await client.unsafe(`DROP SCHEMA IF EXISTS ${ident(sn)} CASCADE`);
+	// deleteSubgraph drops the PG schema + removes the registry row atomically
 	const { deleteSubgraph } = await import(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
@@ -867,7 +865,8 @@ function readSpecOptions(c: {
 	const server = c.req.query("server");
 	if (server) return { serverUrl: server };
 	const url = new URL(c.req.url);
-	const proto = c.req.header("x-forwarded-proto") ?? url.protocol.replace(":", "");
+	const proto =
+		c.req.header("x-forwarded-proto") ?? url.protocol.replace(":", "");
 	return { serverUrl: `${proto}://${url.host}` };
 }
 
