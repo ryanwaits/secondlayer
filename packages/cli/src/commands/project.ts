@@ -1,6 +1,6 @@
 import { input } from "@inquirer/prompts";
 import type { Command } from "commander";
-import { loadConfig } from "../lib/config.ts";
+import { loadConfig, saveConfig } from "../lib/config.ts";
 import { CliHttpError, httpPlatform } from "../lib/http.ts";
 import {
 	dim,
@@ -60,10 +60,15 @@ export function registerProjectCommand(program: Command): void {
 					body: { name, slug },
 				});
 				success(`Created project ${res.name} (${res.slug})`);
-				// Auto-bind the new project to this directory — reduces friction
-				// for the common "I just made a project, now I want to use it" flow.
-				const path = await writeActiveProject(res.slug, process.cwd());
-				info(dim(`Bound to this directory → ${path}`));
+				// First project becomes the global default (most users have one).
+				// Subsequent projects don't overwrite — switch with `sl project use`.
+				const config = await loadConfig();
+				if (!config.defaultProject) {
+					await saveConfig({ ...config, defaultProject: res.slug });
+					info(dim("Set as your default project."));
+				} else {
+					info(dim(`To use this project, run: sl project use ${res.slug}`));
+				}
 				info(dim("Next: sl subgraphs deploy <file.ts>"));
 			} catch (err) {
 				handleProjectError(err);
@@ -128,6 +133,9 @@ export function registerProjectCommand(program: Command): void {
 			const path = await writeActiveProject(slug, process.cwd());
 			success(`Bound to project "${slug}"`);
 			info(dim(`Written to ${path}`));
+			info(
+				dim("Tip: add `.secondlayer/` to .gitignore — it's account-personal."),
+			);
 		});
 
 	project
