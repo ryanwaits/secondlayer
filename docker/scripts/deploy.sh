@@ -68,10 +68,47 @@ echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
 
 # Pull exact CI-built images before stopping services. If GHCR is missing any
 # image for this SHA, fail while the current deployment is still running.
-$COMPOSE pull api indexer l2-decoder worker agent migrate
+# Skip the pull entirely when every required image is already cached locally
+# (no-op re-deploys, rollbacks to a recent SHA, CI pre-pull from build-images).
+_pull_services=(api indexer l2-decoder worker agent migrate)
+_expected_images=$($COMPOSE config --images "${_pull_services[@]}" 2>/dev/null | sort -u)
+_missing_images=()
+while IFS= read -r _img; do
+  [ -z "$_img" ] && continue
+  docker image inspect "$_img" >/dev/null 2>&1 || _missing_images+=("$_img")
+done <<< "$_expected_images"
 
-# Stop only the services that hold locks on migrated tables. DDL then acquires
-# ACCESS EXCLUSIVE without racing app or indexer sessions.
+if [ ${#_missing_images[@]} -eq 0 ]; then
+  echo "✅ All deploy images for ${DEPLOY_IMAGE_TAG} already present locally — skipping pull"
+else
+  echo "📥 Pulling ${#_missing_images[@]} missing image(s):"
+  printf '   %s\n' "${_missing_images[@]}"
+  $COMPOSE pull "${_pull_services[@]}"
+fi
+unset _pull_services _expected_images _missing_images _img
+
+# Detect whether this deploy actually touches migrations. The full
+# stop-holders → terminate-sessions → run-migrate sequence is only needed
+# when SQL has changed; for code-only or chore deploys we can skip ~10-30s
+# of lock churn and let `compose up -d` do a rolling restart instead.
+_prev_sha=""
+if [ -f "${DEPLOY_STATE_DIR}/current" ]; then
+  _prev_sha="$(cat "${DEPLOY_STATE_DIR}/current" 2>/dev/null || true)"
+fi
+MIGRATIONS_CHANGED=true
+if [ -n "$_prev_sha" ] && [ -n "${DEPLOY_SHA:-}" ] && [ "$_prev_sha" != "$DEPLOY_SHA" ]; then
+  if git -C /opt/secondlayer rev-parse --verify "$_prev_sha^{commit}" >/dev/null 2>&1 \
+     && git -C /opt/secondlayer rev-parse --verify "$DEPLOY_SHA^{commit}" >/dev/null 2>&1; then
+    if [ -z "$(git -C /opt/secondlayer diff --name-only "$_prev_sha" "$DEPLOY_SHA" -- packages/shared/migrations/ 2>/dev/null)" ]; then
+      MIGRATIONS_CHANGED=false
+    fi
+  fi
+fi
+PREV_SHA="$_prev_sha"
+unset _prev_sha
+
+# Always acquire the maintenance lock so two deploys can't race regardless
+# of migration state.
 mkdir -p "$(dirname "$DB_MAINTENANCE_LOCK_FILE")"
 exec 9>"$DB_MAINTENANCE_LOCK_FILE"
 echo "🔒 Waiting for DB maintenance lock ${DB_MAINTENANCE_LOCK_FILE}..."
@@ -80,41 +117,45 @@ if ! flock -w "$DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS" 9; then
   exit 1
 fi
 
-echo "🛑 Stopping lock-holders so migrations can acquire ACCESS EXCLUSIVE..."
-$COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
-
 # Force-remove orphan containers from removed/renamed services. These are
 # live containers from older deploys whose service no longer exists in the
-# compose files — `docker compose stop` misses them. Without this, an
-# orphan can hold locks on tables migrations want to drop or alter,
-# causing indefinite hangs.
+# compose files — `docker compose stop` misses them. Always safe and cheap.
 docker rm -f secondlayer-view-processor-1 2>/dev/null || true
 
-# Force-remove any zombie one-off migrate containers from prior deploys.
-# If a previous `docker compose run --rm migrate` was killed mid-flight by
-# SSH timeout, the container keeps running and holds kysely's advisory
-# migration lock — new migrate runs then wait forever. Cleanup BEFORE, not
-# after, so the new migrate run starts with a clean slate.
-echo "🧹 Cleaning up stale one-off migrate containers from prior deploys..."
-docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com.docker.compose.service=migrate" -q \
-  | xargs -r docker rm -f 2>/dev/null || true
+if [ "$MIGRATIONS_CHANGED" = "true" ]; then
+  # Stop only the services that hold locks on migrated tables. DDL then acquires
+  # ACCESS EXCLUSIVE without racing app or indexer sessions.
+  echo "🛑 Stopping lock-holders so migrations can acquire ACCESS EXCLUSIVE..."
+  $COMPOSE stop $MIGRATION_LOCK_HOLDERS 2>/dev/null || true
 
-# Terminate every remaining session on the DB. Docker stop should have
-# dropped these, but TCP-half-closed connections can linger with pg
-# sessions alive for minutes — and prior diagnostic runs showed ~20 stuck
-# `select * from subgraphs` queries queued behind our ALTER. Killing them
-# now guarantees ACCESS EXCLUSIVE on subgraphs can be acquired immediately.
-# Services auto-reconnect via postgres.js on their next statement after restart.
-echo "🔌 Terminating zombie sessions on tenant DB..."
-docker exec secondlayer-postgres-1 psql -U "${POSTGRES_USER:-secondlayer}" -d "${POSTGRES_DB:-secondlayer}" -c "
-  SELECT pg_terminate_backend(pid)
-  FROM pg_stat_activity
-  WHERE datname = current_database()
-    AND pid <> pg_backend_pid();
-" 2>/dev/null || true
+  # Force-remove any zombie one-off migrate containers from prior deploys.
+  # If a previous `docker compose run --rm migrate` was killed mid-flight by
+  # SSH timeout, the container keeps running and holds kysely's advisory
+  # migration lock — new migrate runs then wait forever. Cleanup BEFORE, not
+  # after, so the new migrate run starts with a clean slate.
+  echo "🧹 Cleaning up stale one-off migrate containers from prior deploys..."
+  docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com.docker.compose.service=migrate" -q \
+    | xargs -r docker rm -f 2>/dev/null || true
 
-# Run migrations synchronously — fail fast on error
-$COMPOSE run --rm migrate
+  # Terminate every remaining session on the DB. Docker stop should have
+  # dropped these, but TCP-half-closed connections can linger with pg
+  # sessions alive for minutes — and prior diagnostic runs showed ~20 stuck
+  # `select * from subgraphs` queries queued behind our ALTER. Killing them
+  # now guarantees ACCESS EXCLUSIVE on subgraphs can be acquired immediately.
+  # Services auto-reconnect via postgres.js on their next statement after restart.
+  echo "🔌 Terminating zombie sessions on tenant DB..."
+  docker exec secondlayer-postgres-1 psql -U "${POSTGRES_USER:-secondlayer}" -d "${POSTGRES_DB:-secondlayer}" -c "
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE datname = current_database()
+      AND pid <> pg_backend_pid();
+  " 2>/dev/null || true
+
+  # Run migrations synchronously — fail fast on error
+  $COMPOSE run --rm migrate
+else
+  echo "✅ No migration files changed between ${PREV_SHA:-unknown}..${DEPLOY_SHA} — skipping stop + migrate"
+fi
 
 # Clean up stale one-off containers (from manual `docker compose run` without --rm)
 docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docker rm -f 2>/dev/null || true
@@ -178,10 +219,6 @@ check_health() {
   return 1
 }
 
-sleep 5
-check_health api http://localhost:3800/health
-check_health indexer http://localhost:3700/health
-
 check_container_health() {
 	local service=$1
 	local container="secondlayer-${service}-1" retries=10 delay=6
@@ -200,7 +237,27 @@ check_container_health() {
 	return 1
 }
 
-check_container_health l2-decoder
+# Run health probes concurrently so a slow service doesn't serialize the others.
+# Each function already has its own retry/backoff. Skip the historical `sleep 5`
+# warmup — the first probe attempt acts as the initial wait and falls through
+# to the retry loop if the service isn't ready yet.
+check_health api http://localhost:3800/health &
+_pid_api=$!
+check_health indexer http://localhost:3700/health &
+_pid_indexer=$!
+check_container_health l2-decoder &
+_pid_decoder=$!
+
+_health_failed=0
+wait "$_pid_api" || _health_failed=1
+wait "$_pid_indexer" || _health_failed=1
+wait "$_pid_decoder" || _health_failed=1
+unset _pid_api _pid_indexer _pid_decoder
+if [ "$_health_failed" != "0" ]; then
+  echo "ERROR: one or more services failed health check"
+  exit 1
+fi
+unset _health_failed
 
 record_successful_deploy() {
   mkdir -p "$DEPLOY_STATE_DIR"
