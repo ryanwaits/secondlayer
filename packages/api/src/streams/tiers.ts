@@ -10,6 +10,13 @@ export type StreamsTierConfig = {
 // switch to a wall-clock cutoff if block cadence drifts materially.
 export const STREAMS_BLOCKS_PER_DAY = 17_280;
 
+/** When a caller hits `/v1/streams/events` with neither `cursor` nor
+ *  `from_height`, the default window is `tip - this` blocks. Tightened
+ *  from one day (~17280) to 1000 blocks (~80 minutes) post-2026-05 QA —
+ *  the old default made first-touch responses look stale on every fresh
+ *  cursor-less query. */
+export const STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS = 1_000;
+
 export const STREAMS_TIER_CONFIG: Record<StreamsTier, StreamsTierConfig> = {
 	free: { rateLimitPerSecond: 10, retentionDays: 7 },
 	build: { rateLimitPerSecond: 50, retentionDays: 30 },

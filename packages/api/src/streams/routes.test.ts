@@ -5,7 +5,10 @@ import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 import type { StreamsEventsReader } from "./events.ts";
-import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
+import {
+	STREAMS_BLOCKS_PER_DAY,
+	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
+} from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
 const FREE_KEY = "sk-sl_streams_free_test";
@@ -413,7 +416,10 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.status).toBe(200);
 		expect(elapsedMs).toBeLessThan(1000);
 		expect(seenFromHeight).toBe(
-			Math.max(0, TEST_TIP.block_height - STREAMS_BLOCKS_PER_DAY),
+			Math.max(
+				0,
+				TEST_TIP.block_height - STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
+			),
 		);
 		const body = (await res.json()) as { next_cursor: string | null };
 		expect(body.next_cursor).toBe("9999:0");

@@ -13,7 +13,7 @@ import {
 	type StreamsReorg,
 	type StreamsReorgsReader,
 } from "./reorgs.ts";
-import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
+import { STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
 export type StreamsEventsReader = (
@@ -29,8 +29,8 @@ export type StreamsEventsQuery = {
 	cursorRaw?: string;
 	/**
 	 * If neither `from_height` nor a cursor is provided, the handler sets this to
-	 * `tip.block_height - STREAMS_BLOCKS_PER_DAY`. Explicit `from_height=0`
-	 * is preserved and bypasses the default window.
+	 * `tip.block_height - STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS`. Explicit
+	 * `from_height=0` is preserved and bypasses the default window.
 	 */
 	fromHeight?: number;
 	toHeight: number;
@@ -141,7 +141,7 @@ export function parseStreamsEventsQuery(
 			: Math.min(requestedToHeight, clampedTipHeight);
 	const defaultFromHeight =
 		cursorRaw === undefined && fromHeightRaw === undefined
-			? Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY)
+			? Math.max(0, tip.block_height - STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS)
 			: undefined;
 
 	return {

@@ -19,6 +19,7 @@ export type IndexCursorInput = {
 export type FtTransferEvent = {
 	cursor: string;
 	block_height: number;
+	block_time?: string | null;
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
@@ -72,6 +73,7 @@ export type FtTransfersReader = (
 type FtTransferRow = {
 	cursor: string;
 	block_height: string | number;
+	block_time: Date | string | null;
 	tx_id: string;
 	tx_index: string | number;
 	event_index: string | number;
@@ -178,6 +180,7 @@ function normalizeRow(row: FtTransferRow): FtTransferEvent {
 	return {
 		cursor: row.cursor,
 		block_height: Number(row.block_height),
+		block_time: toIsoOrNull(row.block_time),
 		tx_id: row.tx_id,
 		tx_index: Number(row.tx_index),
 		event_index: Number(row.event_index),
@@ -188,6 +191,13 @@ function normalizeRow(row: FtTransferRow): FtTransferEvent {
 		recipient: row.recipient,
 		amount: row.amount,
 	};
+}
+
+function toIsoOrNull(value: Date | string | null | undefined): string | null {
+	if (!value) return null;
+	if (value instanceof Date) return value.toISOString();
+	const d = new Date(value);
+	return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 export function encodeIndexCursor(cursor: IndexCursorInput): string {
@@ -247,6 +257,13 @@ export async function readFtTransfers(
 		SELECT
 			cursor,
 			block_height,
+			(
+				SELECT to_timestamp(b.timestamp) AT TIME ZONE 'UTC'
+				FROM blocks b
+				WHERE b.height = decoded_events.block_height
+					AND b.canonical = true
+				LIMIT 1
+			) AS block_time,
 			tx_id,
 			tx_index,
 			event_index,

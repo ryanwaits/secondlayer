@@ -92,6 +92,12 @@ export type StreamsEvent = {
 	contract_id: string | null;
 	payload: Record<string, unknown>;
 	ts: string;
+	/** True for the canonical chain. The firehose only returns canonical
+	 *  events today; the field is here so clients can write type-safe
+	 *  reorg-aware code and so future non-canonical streams can flip it.
+	 *  Optional for backwards compat with pre-2026-05 callers + test
+	 *  fixtures that pre-date the field. */
+	canonical?: boolean;
 };
 
 export type ReadCanonicalStreamsEventsParams = {
@@ -223,6 +229,7 @@ function normalizeRow(row: StreamsEventRow): StreamsEvent {
 		contract_id,
 		payload,
 		ts: new Date(Number(row.timestamp) * 1000).toISOString(),
+		canonical: true,
 	};
 }
 

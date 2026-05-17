@@ -3,7 +3,7 @@ import {
 	type StreamsEventsReader,
 	getStreamsEventsResponse,
 } from "./events.ts";
-import { STREAMS_BLOCKS_PER_DAY } from "./tiers.ts";
+import { STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
 const TIP: StreamsTip = {
@@ -47,7 +47,9 @@ describe("Streams events route helpers", () => {
 			},
 		});
 
-		expect(seenFromHeight).toBe(Math.max(0, 10_000 - STREAMS_BLOCKS_PER_DAY));
+		expect(seenFromHeight).toBe(
+			Math.max(0, 10_000 - STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS),
+		);
 		expect(body.next_cursor).toBe("9999:0");
 	});
 
