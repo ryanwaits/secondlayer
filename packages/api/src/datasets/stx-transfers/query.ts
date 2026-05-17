@@ -77,9 +77,10 @@ function parseFilter(
 	return value;
 }
 
-function parseCursor(
-	value: string,
-): { block_height: number; event_index: number } {
+function parseCursor(value: string): {
+	block_height: number;
+	event_index: number;
+} {
 	try {
 		return decodeStreamsCursor(value);
 	} catch {
@@ -103,12 +104,15 @@ export function parseStxTransfersQuery(
 	// Bound the default scan window to roughly one day of blocks so an
 	// unfiltered request doesn't sweep the full event history. Callers that
 	// need older data must pass `from_block` or a `cursor` explicitly.
-	const defaultFromBlock = Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY);
+	const defaultFromBlock = Math.max(
+		0,
+		tip.block_height - STREAMS_BLOCKS_PER_DAY,
+	);
 	const fromBlock =
 		fromBlockRaw !== undefined
 			? parseNonNegativeInteger(fromBlockRaw, "from_block")
-			: cursorRaw !== undefined
-				? 0
+			: cursor !== undefined
+				? cursor.block_height
 				: defaultFromBlock;
 	const toBlock =
 		toBlockRaw !== undefined

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { ValidationError } from "@secondlayer/shared/errors";
 import {
+	type StxTransferRow,
 	getStxTransfersResponse,
 	parseStxTransfersQuery,
-	type StxTransferRow,
 } from "./query.ts";
 
 const TIP = { block_height: 200_000 };
@@ -18,12 +18,14 @@ describe("parseStxTransfersQuery", () => {
 		expect(parsed.cursor).toBeUndefined();
 	});
 
-	test("cursor without from_block scans full range", () => {
+	test("cursor bounds fromBlock to cursor.block_height", () => {
+		// Regression: cursor used to set fromBlock=0, causing a full-history
+		// CTE scan on every paginated request (30s+ timeout in prod).
 		const parsed = parseStxTransfersQuery(
-			new URLSearchParams({ cursor: "1:0" }),
+			new URLSearchParams({ cursor: "180000:42" }),
 			TIP,
 		);
-		expect(parsed.fromBlock).toBe(0);
+		expect(parsed.fromBlock).toBe(180_000);
 	});
 
 	test("parses sender/recipient filters", () => {

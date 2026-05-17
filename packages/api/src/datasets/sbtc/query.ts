@@ -1,9 +1,9 @@
 import { getSourceDb, sql } from "@secondlayer/shared/db";
-import type { Database } from "@secondlayer/shared/db/schema";
 import type {
 	SbtcEventTopic,
 	SbtcTokenEventType,
 } from "@secondlayer/shared/db";
+import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
 import { decodeStreamsCursor } from "../../streams/cursor.ts";
@@ -86,7 +86,10 @@ function parseTokenEventType(
 	return value as SbtcTokenEventType;
 }
 
-function bumpCursor(blockHeight: number, eventIndex: number): RawBuilder<unknown> {
+function bumpCursor(
+	blockHeight: number,
+	eventIndex: number,
+): RawBuilder<unknown> {
 	return sql`
 		(
 			block_height > ${blockHeight}
@@ -154,12 +157,15 @@ export function parseSbtcEventsQuery(
 	}
 
 	const cursor = cursorRaw ? parseCursor(cursorRaw) : undefined;
-	const defaultFromBlock = Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY);
+	const defaultFromBlock = Math.max(
+		0,
+		tip.block_height - STREAMS_BLOCKS_PER_DAY,
+	);
 	const fromBlock =
 		fromBlockRaw !== undefined
 			? parseNonNegativeInteger(fromBlockRaw, "from_block")
-			: cursorRaw !== undefined
-				? 0
+			: cursor !== undefined
+				? cursor.block_height
 				: defaultFromBlock;
 	const toBlock =
 		toBlockRaw !== undefined
@@ -396,12 +402,15 @@ export function parseSbtcTokenEventsQuery(
 	}
 
 	const cursor = cursorRaw ? parseCursor(cursorRaw) : undefined;
-	const defaultFromBlock = Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY);
+	const defaultFromBlock = Math.max(
+		0,
+		tip.block_height - STREAMS_BLOCKS_PER_DAY,
+	);
 	const fromBlock =
 		fromBlockRaw !== undefined
 			? parseNonNegativeInteger(fromBlockRaw, "from_block")
-			: cursorRaw !== undefined
-				? 0
+			: cursor !== undefined
+				? cursor.block_height
 				: defaultFromBlock;
 	const toBlock =
 		toBlockRaw !== undefined

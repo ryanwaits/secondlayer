@@ -173,8 +173,8 @@ export function parseBnsNameEventsQuery(
 	const fromBlock =
 		fromBlockRaw !== undefined
 			? parseNonNegativeInteger(fromBlockRaw, "from_block")
-			: cursorRaw !== undefined
-				? 0
+			: cursor !== undefined
+				? cursor.block_height
 				: defaultFromBlock;
 	const toBlock =
 		toBlockRaw !== undefined
@@ -376,8 +376,8 @@ export function parseBnsNamespaceEventsQuery(
 	const fromBlock =
 		fromBlockRaw !== undefined
 			? parseNonNegativeInteger(fromBlockRaw, "from_block")
-			: cursorRaw !== undefined
-				? 0
+			: cursor !== undefined
+				? cursor.block_height
 				: defaultFromBlock;
 	const toBlock =
 		toBlockRaw !== undefined
@@ -555,8 +555,8 @@ export function parseBnsMarketplaceEventsQuery(
 	const fromBlock =
 		fromBlockRaw !== undefined
 			? parseNonNegativeInteger(fromBlockRaw, "from_block")
-			: cursorRaw !== undefined
-				? 0
+			: cursor !== undefined
+				? cursor.block_height
 				: defaultFromBlock;
 	const toBlock =
 		toBlockRaw !== undefined
