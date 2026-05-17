@@ -104,9 +104,10 @@ function buildEventPayload(
 		switch (filter.type) {
 			case "contract_call":
 				return {
+					type: "contract_call",
 					contractId: tx.contract_id ?? "",
 					functionName: tx.function_name ?? "",
-					caller: tx.sender,
+					sender: tx.sender,
 					args: decodedArgs,
 					result: decodedResult,
 					resultHex: tx.raw_result ?? null,
@@ -242,10 +243,11 @@ function buildEventPayload(
 		case "contract_call":
 			return {
 				...decoded,
+				type: "contract_call",
 				_eventType: event.type,
 				contractId: tx.contract_id ?? "",
 				functionName: tx.function_name ?? "",
-				caller: tx.sender,
+				sender: tx.sender,
 				args: decodedArgs,
 				result: decodedResult,
 				resultHex: tx.raw_result ?? null,

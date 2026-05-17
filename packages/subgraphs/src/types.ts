@@ -117,6 +117,7 @@ export interface NftBurnFilter {
  */
 export interface ContractCallEvent {
 	type: "contract_call";
+	/** Transaction sender (the principal who signed the tx). Always non-null. */
 	sender: string;
 	contractId: string;
 	functionName: string;
@@ -124,6 +125,17 @@ export interface ContractCallEvent {
 	args: unknown[];
 	/** Decoded return value from the contract function, or null. */
 	result: unknown;
+	/** Raw hex-encoded result value. */
+	resultHex: string | null;
+	/** Transaction metadata. */
+	tx: {
+		txId: string;
+		sender: string;
+		type: string;
+		status: string;
+		contractId: string | null;
+		functionName: string | null;
+	};
 }
 
 /** Contract event filters */
