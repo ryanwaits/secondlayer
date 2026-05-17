@@ -15,6 +15,7 @@ import {
 import {
 	datasetHistoryManifestObjectPath,
 	datasetLatestManifestObjectPath,
+	datasetLatestManifestRootAliasObjectPath,
 	datasetParquetObjectPath,
 	datasetSchemaObjectPath,
 } from "./paths.ts";
@@ -210,6 +211,17 @@ export async function exportDatasetRange<Row extends DatasetRowWithCursor>(
 			client,
 			bucket: r2Config.bucket,
 			key: latestManifestObjectPath,
+			value: manifest,
+		});
+		// Family-root alias — docs say "latest.json per family"; without
+		// this, `<root>/<family>/latest.json` 404s and quickstart snippets die.
+		await putJsonObject({
+			client,
+			bucket: r2Config.bucket,
+			key: datasetLatestManifestRootAliasObjectPath(
+				options.prefix,
+				spec.dataset,
+			),
 			value: manifest,
 		});
 	}

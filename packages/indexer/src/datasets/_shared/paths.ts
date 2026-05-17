@@ -40,6 +40,16 @@ export function datasetLatestManifestObjectPath(
 	);
 }
 
+/** Family-root alias for `manifest/latest.json`. Docs and intuition tell
+ *  users to fetch `<prefix>/<dataset>/latest.json`; we publish to both
+ *  paths so guessable URLs work without rewriting every snippet. */
+export function datasetLatestManifestRootAliasObjectPath(
+	prefix: string,
+	dataset: string,
+): string {
+	return joinObjectPath(datasetPrefix(prefix, dataset), "latest.json");
+}
+
 export function datasetHistoryManifestObjectPath(
 	prefix: string,
 	dataset: string,

@@ -18,11 +18,16 @@ export function ParquetSnippet({
 	description,
 }: ParquetSnippetProps) {
 	const dataGlob = `${R2_BASE}/${dataset}/data/block_height/*/data.parquet`;
-	const manifestUrl = `${R2_BASE}/${dataset}/manifest/latest.json`;
-	const duckdb = `SELECT count(*) AS rows
-FROM read_parquet(
-  '${dataGlob}'
-);`;
+	const manifestUrl = `${R2_BASE}/${dataset}/latest.json`;
+	// Manifest-based snippet — recommended; works without LIST permission on R2.
+	const duckdbManifest = `-- Read partition list from manifest, then count rows.
+WITH m AS (SELECT files FROM read_json_auto('${manifestUrl}'))
+SELECT count(*) AS rows
+FROM read_parquet((SELECT files FROM m));`;
+	// Glob fallback — requires R2 LIST + DuckDB http-glob escape.
+	const duckdbGlob = `SET allow_asterisks_in_http_paths = true;
+SELECT count(*) AS rows
+FROM read_parquet('${dataGlob}');`;
 	const curl = `curl ${manifestUrl}`;
 
 	return (
@@ -39,12 +44,21 @@ FROM read_parquet(
 
 			<div className="dataset-sandbox-snippets">
 				<details className="dataset-sandbox-snippet" open>
-					<summary>DuckDB</summary>
+					<summary>DuckDB (via manifest, recommended)</summary>
 					<div className="dataset-sandbox-snippet-body">
 						<pre className="code-block">
-							<code>{duckdb}</code>
+							<code>{duckdbManifest}</code>
 						</pre>
-						<CopyButton code={duckdb} />
+						<CopyButton code={duckdbManifest} />
+					</div>
+				</details>
+				<details className="dataset-sandbox-snippet">
+					<summary>DuckDB (via glob, requires LIST)</summary>
+					<div className="dataset-sandbox-snippet-body">
+						<pre className="code-block">
+							<code>{duckdbGlob}</code>
+						</pre>
+						<CopyButton code={duckdbGlob} />
 					</div>
 				</details>
 				<details className="dataset-sandbox-snippet">
