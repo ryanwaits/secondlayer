@@ -54,7 +54,11 @@ export class InvalidColumnError extends ValidationError {
 }
 
 const KNOWN_OPS = Object.keys(COMPARISON_OPS);
+// Matches known ops in "col=op.value" (PostgREST-style misplacement).
 const VALUE_LOOKS_LIKE_OP = /^(gte|lte|gt|lt|neq|like)\./i;
+// Matches any short lowercase word before "." — catches unknown ops like "bogus.1"
+// without false-positiving on Stacks principals (uppercase) or hyphenated values.
+const VALUE_LOOKS_LIKE_ANY_OP = /^([a-z]{2,6})\./;
 
 export interface ParsedQuery {
 	filters: { column: string; op: string; value: string; isLike?: boolean }[];
@@ -144,10 +148,15 @@ export function parseQueryParams(
 		}
 
 		// Catch "?col=op.value" — common typo for "?col.op=value".
-		if (validColumns.has(key) && VALUE_LOOKS_LIKE_OP.test(value)) {
-			const op = value.split(".", 1)[0]?.toLowerCase();
+		if (validColumns.has(key) && VALUE_LOOKS_LIKE_ANY_OP.test(value)) {
+			const maybeOp = value.split(".", 1)[0]?.toLowerCase() ?? "";
+			if (VALUE_LOOKS_LIKE_OP.test(value)) {
+				throw new ValidationError(
+					`filter "${key}=${value}" looks like a misplaced operator; use "${key}.${maybeOp}=<value>" instead`,
+				);
+			}
 			throw new ValidationError(
-				`filter "${key}=${value}" looks like a misplaced operator; use "${key}.${op}=<value>" instead`,
+				`unknown filter operator "${maybeOp}" in "${key}=${value}"; use dot notation "${key}.op=<value>" (allowed: ${KNOWN_OPS.join(", ")})`,
 			);
 		}
 

@@ -132,6 +132,12 @@ export async function resolveSubscriptionRef(
 		};
 	}
 
+	// Non-UUID ref not matched by name → it can't be a valid subscription ID.
+	const UUID_RE =
+		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	if (!UUID_RE.test(ref)) {
+		throw new Error(`Subscription "${ref}" not found.`);
+	}
 	return {
 		id: ref,
 		detail: await client.subscriptions.get(ref),

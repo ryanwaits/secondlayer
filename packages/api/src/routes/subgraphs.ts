@@ -858,12 +858,17 @@ async function buildSubgraphDetailPayload(
 }
 
 function readSpecOptions(c: {
-	req: { url: string; query(name: string): string | undefined };
+	req: {
+		url: string;
+		query(name: string): string | undefined;
+		header(name: string): string | undefined;
+	};
 }): SubgraphSpecOptions {
 	const server = c.req.query("server");
-	return {
-		serverUrl: server || new URL(c.req.url).origin,
-	};
+	if (server) return { serverUrl: server };
+	const url = new URL(c.req.url);
+	const proto = c.req.header("x-forwarded-proto") ?? url.protocol.replace(":", "");
+	return { serverUrl: `${proto}://${url.host}` };
 }
 
 // Friendly redirect: /:subgraphName/openapi → /openapi.json (Scalar/Swagger
