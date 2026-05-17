@@ -57,6 +57,34 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			incrementIndexDecodedEventsReturned(getDb(), accountId, quantity));
 	const router = new Hono<IndexEnv>();
 
+	// Discovery — anonymous, lists endpoints + filters.
+	router.get("/", (c) =>
+		c.json({
+			routes: [
+				{
+					path: "/v1/index/ft-transfers",
+					method: "GET",
+					description:
+						"Fungible token transfers, decoded + filterable. Returns events[], next_cursor, tip, reorgs[].",
+					filters: FT_ALLOWED,
+				},
+				{
+					path: "/v1/index/nft-transfers",
+					method: "GET",
+					description:
+						"NFT transfers, decoded + filterable. Returns events[], next_cursor, tip, reorgs[].",
+					filters: NFT_ALLOWED,
+				},
+			],
+			auth: "optional bearer for higher rate-limit tier; anon allowed",
+			cursor: {
+				format: "<block_height>:<event_index>",
+				semantics:
+					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input).",
+			},
+		}),
+	);
+
 	router.use(
 		"*",
 		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),

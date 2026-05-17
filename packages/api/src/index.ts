@@ -21,6 +21,8 @@ import billingRouter from "./routes/billing.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
 import datasetsRouter from "./routes/datasets.ts";
 import indexRouter from "./routes/index.ts";
+import openApiRouter from "./routes/openapi.ts";
+import v1IndexRouter from "./routes/v1-index.ts";
 import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
 import projectsRouter from "./routes/projects.ts";
@@ -175,6 +177,8 @@ if (mode === "platform") {
 	app.route("/api/chat-sessions", chatSessionsRouter);
 }
 app.route("/", statusRouter);
+app.route("/v1", v1IndexRouter);
+app.route("/v1/openapi.json", openApiRouter);
 app.route("/v1/streams", streamsRouter);
 app.route("/v1/index", indexRouter);
 app.route("/v1/datasets", datasetsRouter);

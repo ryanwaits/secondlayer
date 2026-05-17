@@ -28,6 +28,126 @@ import { getStreamsTip } from "../streams/tip.ts";
 
 const RANGE_KEYS = ["limit", "cursor", "from_block", "to_block"] as const;
 
+const DUCKDB_EXAMPLE = {
+	via_manifest: [
+		"-- via manifest (recommended; no LIST permission needed)",
+		"WITH m AS (SELECT * FROM read_json_auto('<r2-root>/<family>/latest.json'))",
+		"SELECT topic, count(*) FROM read_parquet(m.files) GROUP BY topic;",
+	].join("\n"),
+	via_glob: [
+		"-- via glob (requires LIST + http_asterisks setting)",
+		"SET allow_asterisks_in_http_paths = true;",
+		"SELECT topic, count(*) FROM read_parquet(",
+		"  '<r2-root>/<family>/data/block_height/*/data.parquet'",
+		") GROUP BY topic;",
+	].join("\n"),
+};
+
+const DATASETS_DISCOVERY = [
+	{
+		family: "stx-transfers",
+		path: "/v1/datasets/stx-transfers",
+		row_key: "events",
+		filters: ["limit", "cursor", "from_block", "to_block", "sender", "recipient"],
+	},
+	{
+		family: "sbtc-events",
+		path: "/v1/datasets/sbtc/events",
+		row_key: "events",
+		filters: [
+			"limit",
+			"cursor",
+			"from_block",
+			"to_block",
+			"topic",
+			"bitcoin_txid",
+			"request_id",
+			"sender",
+		],
+	},
+	{
+		family: "sbtc-token-events",
+		path: "/v1/datasets/sbtc/token-events",
+		row_key: "events",
+		filters: [
+			"limit",
+			"cursor",
+			"from_block",
+			"to_block",
+			"event_type",
+			"sender",
+			"recipient",
+		],
+	},
+	{
+		family: "pox-4-calls",
+		path: "/v1/datasets/pox-4/calls",
+		row_key: "calls",
+		filters: [
+			"limit",
+			"cursor",
+			"from_block",
+			"to_block",
+			"function_name",
+			"stacker",
+			"delegate_to",
+			"signer_key",
+			"reward_cycle",
+		],
+	},
+	{
+		family: "bns-name-events",
+		path: "/v1/datasets/bns/name-events",
+		row_key: "events",
+		filters: [
+			"limit",
+			"cursor",
+			"from_block",
+			"to_block",
+			"topic",
+			"namespace",
+			"name",
+			"owner",
+		],
+	},
+	{
+		family: "bns-namespace-events",
+		path: "/v1/datasets/bns/namespace-events",
+		row_key: "events",
+		filters: ["limit", "cursor", "from_block", "to_block", "status", "namespace"],
+	},
+	{
+		family: "bns-marketplace-events",
+		path: "/v1/datasets/bns/marketplace-events",
+		row_key: "events",
+		filters: ["limit", "cursor", "from_block", "to_block", "action", "bns_id"],
+	},
+	{
+		family: "bns-names",
+		path: "/v1/datasets/bns/names",
+		row_key: "names",
+		filters: ["limit", "cursor", "namespace", "owner", "offset"],
+	},
+	{
+		family: "bns-namespaces",
+		path: "/v1/datasets/bns/namespaces",
+		row_key: "namespaces",
+		filters: [],
+	},
+	{
+		family: "bns-resolve",
+		path: "/v1/datasets/bns/resolve",
+		row_key: "name",
+		filters: ["fqn"],
+	},
+	{
+		family: "network-health",
+		path: "/v1/datasets/network-health/summary",
+		row_key: "summary",
+		filters: ["days"],
+	},
+] as const;
+
 const ALLOWED = {
 	networkHealth: ["days"],
 	stxTransfers: [...RANGE_KEYS, "sender", "recipient"],
@@ -73,6 +193,14 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	const getTip = opts.getTip ?? getStreamsTip;
 
 	router.use("*", ipRateLimit(DATASETS_IP_RATE_LIMIT));
+
+	router.get("/", (c) =>
+		c.json({
+			families: DATASETS_DISCOVERY,
+			cursor_format: "<block_height>:<event_index>",
+			example_duckdb: DUCKDB_EXAMPLE,
+		}),
+	);
 
 	router.get("/network-health/summary", async (c) => {
 		const query = new URL(c.req.url).searchParams;
