@@ -124,6 +124,9 @@ export async function claimSubgraphOperation(
 	db: Kysely<Database>,
 	lockedBy: string,
 ): Promise<SubgraphOperation | null> {
+	// Fair queue: accounts with fewer currently-running operations are served first,
+	// breaking ties by creation time. Prevents one user's long reindex from
+	// starving other accounts when SUBGRAPH_OPERATION_CONCURRENCY > 1.
 	const result = await sql<SubgraphOperation>`
 		UPDATE subgraph_operations
 		SET
@@ -133,18 +136,25 @@ export async function claimSubgraphOperation(
 			started_at = COALESCE(started_at, now()),
 			updated_at = now()
 		WHERE id = (
-			SELECT id
-			FROM subgraph_operations
+			SELECT so.id
+			FROM subgraph_operations so
+			LEFT JOIN (
+				SELECT account_id, COUNT(*) AS cnt
+				FROM subgraph_operations
+				WHERE status = 'running'
+				GROUP BY account_id
+			) rc ON so.account_id = rc.account_id
 			WHERE
-				status = 'queued'
+				so.status = 'queued'
 				OR (
-					status = 'running'
-					AND (locked_until IS NULL OR locked_until < now())
+					so.status = 'running'
+					AND (so.locked_until IS NULL OR so.locked_until < now())
 				)
 			ORDER BY
-				CASE WHEN status = 'queued' THEN 0 ELSE 1 END,
-				created_at
-			FOR UPDATE SKIP LOCKED
+				COALESCE(rc.cnt, 0) ASC,
+				CASE WHEN so.status = 'queued' THEN 0 ELSE 1 END,
+				so.created_at ASC
+			FOR UPDATE OF so SKIP LOCKED
 			LIMIT 1
 		)
 		RETURNING *

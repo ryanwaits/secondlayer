@@ -69,6 +69,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  subgraph-processor:
+    environment:
+      SUBGRAPH_OPERATION_CONCURRENCY: "5"
+
   agent:
     container_name: secondlayer-agent
     image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-agent:${DEPLOY_IMAGE_TAG:-latest}
