@@ -83,7 +83,23 @@ export function parseQueryParams(
 	let fields: string[] | undefined;
 	let search: ParsedQuery["search"];
 
+	// Pagination params use underscore prefix to avoid column name collisions.
+	const CONTROL_PARAMS = new Set([
+		"limit",
+		"offset",
+		"sort",
+		"order",
+		"fields",
+		"search",
+	]);
+
 	for (const [key, value] of Object.entries(params)) {
+		if (CONTROL_PARAMS.has(key)) {
+			throw new ValidationError(
+				`use "_${key}" (with underscore) for pagination/control params, e.g. "_${key}=${value}"`,
+			);
+		}
+
 		if (key === "_search") {
 			const searchCols = tableDef
 				? Object.entries(tableDef.columns)

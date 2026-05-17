@@ -88,6 +88,16 @@ export function indexBearerAuth(opts?: {
 
 	return async (c, next) => {
 		const authHeader = c.req.header("authorization");
+		const apiKeyHeader = c.req.header("x-api-key");
+
+		// Reject x-api-key header explicitly so clients get a signal rather than
+		// silently falling through to anon. Only Bearer is the supported format.
+		if (!authHeader && apiKeyHeader) {
+			throw new AuthenticationError(
+				"Use Authorization: Bearer <key>, not X-API-Key",
+			);
+		}
+
 		// Open-beta: no header = anon read. Keys still validated when presented so
 		// metering + tier checks continue to work for paid-tier resurrection.
 		if (!authHeader?.startsWith("Bearer ")) {
