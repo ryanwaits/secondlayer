@@ -124,6 +124,28 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
 
+      # Warm the host's Docker cache while the build is fresh. Each matrix
+      # job pulls only its own image in parallel with the other matrix jobs,
+      # so by the time the `deploy` job runs the on-host `compose pull` is
+      # a fast digest verify instead of a multi-image GHCR download.
+      # Optimization-only — failures here MUST NOT block deploy, so we mark
+      # it continue-on-error.
+      - name: Pre-pull image on deploy host
+        if: success()
+        continue-on-error: true
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        env:
+          PRE_PULL_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/secondlayer-${{ matrix.service }}:${{ github.sha }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: PRE_PULL_IMAGE
+          command_timeout: 5m
+          script: |
+            echo "Pre-pulling $PRE_PULL_IMAGE"
+            docker pull "$PRE_PULL_IMAGE"
+
   deploy:
     needs: [typecheck, build-images]
     runs-on: ubuntu-latest
