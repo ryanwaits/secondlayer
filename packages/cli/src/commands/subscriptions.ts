@@ -199,6 +199,7 @@ function printSubscriptionDetail(sub: SubscriptionDetail): void {
 			["Circuit Opened", sub.circuitOpenedAt ?? "none"],
 			["Last Error", sub.lastError ?? "none"],
 			["Max Retries", String(sub.maxRetries)],
+			["Backoff", "30s → 2m → 10m → 1h → 6h → 24h → 72h"],
 			["Timeout", `${sub.timeoutMs}ms`],
 			["Concurrency", String(sub.concurrency)],
 			["Created", sub.createdAt],
@@ -670,7 +671,21 @@ export function registerSubscriptionsCommand(program: Command): void {
 	).action(async (idOrName: string, options: CommonOptions) => {
 		try {
 			const client = await getSubscriptionClient(options);
-			const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+			let resolved: ResolvedSubscription | null = null;
+			try {
+				resolved = await resolveSubscriptionRef(client, idOrName);
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				const status = (err as { status?: number } | undefined)?.status;
+				if (status === 404 || /not found/i.test(msg)) {
+					// Idempotent: second delete is a no-op, not a 500.
+					if (options.json) printJson({ deleted: false, reason: "not_found" });
+					else info(`Subscription "${idOrName}" not found (already deleted?)`);
+					return;
+				}
+				throw err;
+			}
+			const { id, detail } = resolved;
 			const ok = await confirmOrExit(
 				`Delete subscription "${detail.name}"? Pending outbox rows will be removed.`,
 				options.yes,

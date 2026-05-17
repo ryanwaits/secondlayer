@@ -975,7 +975,9 @@ export type UpdateSubscriptionOutbox = Updateable<SubscriptionOutboxTable>;
 
 export interface SubscriptionDeliveriesTable {
 	id: Generated<string>;
-	outbox_id: string;
+	/** Nullable after migration 0077 — outbox row may be cleaned up while
+	 *  delivery telemetry is retained. */
+	outbox_id: string | null;
 	subscription_id: string;
 	attempt: number;
 	status_code: number | null;
