@@ -389,6 +389,16 @@ export async function runHandlers(
 							};
 						})();
 
+				// Post-decode topic filter for print_event — source-matcher defers this
+				// because data.value is raw hex at match time; apply it now after decode.
+				if (
+					filter?.type === "print_event" &&
+					filter.topic &&
+					(payload as Record<string, unknown>).topic !== filter.topic
+				) {
+					continue;
+				}
+
 				await handler(payload, ctx);
 				processed++;
 			} catch (err) {
