@@ -96,8 +96,8 @@ const DATASETS_DISCOVERY = [
 		],
 	},
 	{
-		family: "bns-name-events",
-		path: "/v1/datasets/bns/name-events",
+		family: "bns-events",
+		path: "/v1/datasets/bns/events",
 		row_key: "events",
 		filters: [
 			"limit",
@@ -280,7 +280,7 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 		return c.json(response);
 	});
 
-	router.get("/bns/name-events", async (c) => {
+	router.get("/bns/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, ALLOWED.bnsNameEvents);
 		const tip = await getTip();
@@ -325,8 +325,9 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	router.get("/bns/names", async (c) => {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, ALLOWED.bnsNames);
+		const tip = await getTip();
 		const response = await getBnsNamesResponse({ query });
-		return c.json(response);
+		return c.json({ ...response, tip: tip ? { block_height: tip.block_height } : null });
 	});
 
 	router.get("/bns/namespaces", async (c) => {

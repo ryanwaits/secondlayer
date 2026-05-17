@@ -151,7 +151,7 @@ const OPENAPI_SPEC = {
 				responses: envelope("calls"),
 			},
 		},
-		"/v1/datasets/bns/name-events": {
+		"/v1/datasets/bns/events": {
 			get: {
 				tags: ["datasets"],
 				summary: "BNS name lifecycle events",

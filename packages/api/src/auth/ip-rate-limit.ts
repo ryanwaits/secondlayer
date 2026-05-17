@@ -17,6 +17,10 @@ export function ipRateLimit(max: number = DEFAULT_MAX): MiddlewareHandler {
 
 		const result = window.check(ip, max);
 
+		c.header("X-RateLimit-Limit", String(max));
+		c.header("X-RateLimit-Remaining", String(Math.max(0, max - result.count)));
+		c.header("X-RateLimit-Reset", String(result.resetAt));
+
 		if (!result.allowed) {
 			c.header("Retry-After", String(result.retryAfter));
 			throw new RateLimitError("Rate limit exceeded");

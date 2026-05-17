@@ -591,7 +591,6 @@ app.delete("/:subgraphName", async (c) => {
 	const force = c.req.query("force") === "true";
 
 	const db = getDb();
-	const sn = subgraphSchemaName(subgraph);
 	const cancelledOperations = await requestSubgraphOperationsCancelForDelete(
 		db,
 		subgraph.id,
