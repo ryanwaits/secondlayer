@@ -2,7 +2,7 @@ import { RateLimitError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
 import { SlidingWindow } from "../auth/sliding-window.ts";
 import type { IndexEnv } from "./auth.ts";
-import { INDEX_TIER_CONFIG } from "./tiers.ts";
+import { INDEX_ANON_RATE_LIMIT_PER_SECOND, INDEX_TIER_CONFIG } from "./tiers.ts";
 
 export function indexRateLimit(opts?: {
 	window?: SlidingWindow;
@@ -12,6 +12,20 @@ export function indexRateLimit(opts?: {
 	return async (c, next): Promise<Response | void> => {
 		const tenant = c.get("indexTenant");
 		if (!tenant) {
+			// Open-beta anon reads: enforce a shared global limit so clients
+			// always receive X-RateLimit-* headers and scraping is bounded.
+			const limit = INDEX_ANON_RATE_LIMIT_PER_SECOND;
+			const result = window.check("anon", limit);
+			c.header("X-RateLimit-Limit", String(limit));
+			c.header(
+				"X-RateLimit-Remaining",
+				String(Math.max(0, limit - result.count)),
+			);
+			c.header("X-RateLimit-Reset", String(result.resetAt));
+			if (!result.allowed) {
+				c.header("Retry-After", String(result.retryAfter));
+				throw new RateLimitError("Rate limit exceeded");
+			}
 			await next();
 			return;
 		}
