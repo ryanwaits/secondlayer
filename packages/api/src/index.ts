@@ -54,11 +54,14 @@ const app = new Hono();
 
 // Global middleware
 //
-// CORS is restricted to the dashboard origins. The platform API is
-// session-authed (Bearer + cookie); a wildcard origin would let any
-// page on any host invoke billing/keys/auth flows from a victim's
-// browser. Tenant API runs under a different mode and may want a more
-// open policy — that lives in dedicated/oss code paths.
+// Two CORS policies (open beta, 2026-05):
+//  - `/api/*` (session-cookie + Bearer; mutations): allowlist + credentials.
+//    Wildcard here would let any page invoke billing/keys/auth from a
+//    victim's browser.
+//  - Public read surfaces (`/v1/*`, `/health`, `/public/*`): wildcard origin,
+//    no credentials. Anyone should be able to fetch sBTC/BNS datasets or
+//    paginate Streams from a third-party app. Rate-limit headers are exposed
+//    so clients can read them.
 const dashboardOrigins = (
 	process.env.DASHBOARD_ORIGINS ||
 	"https://secondlayer.tools,https://www.secondlayer.tools,http://localhost:3000"
@@ -66,20 +69,45 @@ const dashboardOrigins = (
 	.split(",")
 	.map((s) => s.trim())
 	.filter(Boolean);
-app.use(
-	"*",
-	cors({
-		origin: dashboardOrigins,
-		credentials: true,
-		allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-		allowHeaders: ["Authorization", "Content-Type", "X-Provisioner-Secret"],
-	}),
-);
+
+const PUBLIC_EXPOSE_HEADERS = [
+	"X-RateLimit-Limit",
+	"X-RateLimit-Remaining",
+	"X-RateLimit-Reset",
+	"Retry-After",
+	"ETag",
+];
+
+const publicCors = cors({
+	origin: "*",
+	credentials: false,
+	allowMethods: ["GET", "OPTIONS"],
+	allowHeaders: ["Authorization", "Content-Type"],
+	exposeHeaders: PUBLIC_EXPOSE_HEADERS,
+	maxAge: 86400,
+});
+
+const platformCors = cors({
+	origin: dashboardOrigins,
+	credentials: true,
+	allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+	allowHeaders: ["Authorization", "Content-Type", "X-Provisioner-Secret"],
+});
+
+app.use("/v1/*", publicCors);
+app.use("/health", publicCors);
+app.use("/public/*", publicCors);
+app.use("/api/*", platformCors);
 app.use("*", requestLogger);
 app.use("*", apiTelemetry());
 
 // Global error handler
 app.onError(errorHandler);
+
+// Unmatched routes — always JSON, never text/plain.
+app.notFound((c) =>
+	c.json({ error: "Not Found", code: "NOT_FOUND", path: c.req.path }, 404),
+);
 
 /**
  * Resource auth middleware applied per instance mode.
