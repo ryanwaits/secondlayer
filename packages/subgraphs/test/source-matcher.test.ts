@@ -372,6 +372,34 @@ describe("matchSources", () => {
 		expect(matched[0]?.events[0]?.type).toBe("contract_event");
 	});
 
+	test("matches print_event when payload uses contract_id instead of contract_identifier", () => {
+		// Regression: contract_event rows from the renamed node label store the
+		// contract under `contract_id`; matcher must mirror the streams query's
+		// dual-field lookup or all contractId-filtered subgraphs index 0 rows.
+		const sources: Record<string, SubgraphFilter> = {
+			prints: {
+				type: "print_event",
+				contractId: "SP000.nft-marketplace",
+			},
+		};
+		const indexedEvents = [
+			{
+				id: "e8",
+				tx_id: "tx1",
+				type: "contract_event",
+				event_index: 0,
+				data: {
+					contract_id: "SP000.nft-marketplace",
+					topic: "print",
+					value: "0x01",
+				},
+			},
+		];
+		const matched = matchSources(sources, txs, indexedEvents);
+		expect(matched.length).toBe(1);
+		expect(matched[0]?.events[0]?.type).toBe("contract_event");
+	});
+
 	test("matches print_event with wildcard contractId", () => {
 		const sources: Record<string, SubgraphFilter> = {
 			allPrints: { type: "print_event", contractId: "SP000.*" },

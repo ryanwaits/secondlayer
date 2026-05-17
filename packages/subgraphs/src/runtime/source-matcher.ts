@@ -246,9 +246,14 @@ function matchFilter(
 					if (!data) return false;
 					if (data.topic !== "print") return false;
 
-					// Contract filter
+					// Contract filter — events store the contract under either
+					// `contract_identifier` (legacy smart_contract_event payload)
+					// or `contract_id` (current contract_event payload). Mirror
+					// the streams query which checks both shapes.
 					if (filter.contractId) {
-						const contractId = data.contract_identifier as string | undefined;
+						const contractId =
+							(data.contract_identifier as string | undefined) ??
+							(data.contract_id as string | undefined);
 						if (!contractId || !matchPattern(contractId, filter.contractId))
 							return false;
 					}
