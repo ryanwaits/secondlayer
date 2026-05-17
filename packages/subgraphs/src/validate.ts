@@ -86,7 +86,7 @@ export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> = z
 		lockedAddress: z.string().optional(),
 		abi: z.record(z.string(), z.any()).optional(),
 	})
-	.passthrough() as unknown as z.ZodType<SubgraphFilter>;
+	.strict() as unknown as z.ZodType<SubgraphFilter>;
 
 export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
 	{
