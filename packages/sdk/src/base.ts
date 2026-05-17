@@ -69,12 +69,31 @@ export abstract class BaseClient {
 		const headers = BaseClient.authHeaders(this.apiKey);
 		headers["x-sl-origin"] = this.origin;
 
+		// Serialize the body BEFORE the network try so a body-encoding error
+		// (e.g. unsupported BigInt) isn't misreported as "Cannot reach API".
+		// BigInts are stringified — server schemas accept jsonb so the value
+		// reaches the server intact, and any field that needs an actual bigint
+		// at runtime is rehydrated by the consuming module (subgraph handler
+		// code preserves the literal). See packages/subgraphs source-matcher
+		// for the post-load shape.
+		let serializedBody: string | undefined;
+		if (body !== undefined && body !== null) {
+			try {
+				serializedBody = JSON.stringify(body, (_key, value) =>
+					typeof value === "bigint" ? value.toString() : value,
+				);
+			} catch (err) {
+				const detail = err instanceof Error ? err.message : String(err);
+				throw new ApiError(0, `Failed to serialize request body: ${detail}`);
+			}
+		}
+
 		let response: Response;
 		try {
 			response = await fetch(url, {
 				method,
 				headers,
-				body: body ? JSON.stringify(body) : undefined,
+				body: serializedBody,
 			});
 		} catch {
 			throw new ApiError(

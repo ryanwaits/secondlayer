@@ -137,6 +137,50 @@ describe("BaseClient", () => {
 			}
 		});
 
+		test("serializes bigint in body to string instead of failing", async () => {
+			// Regression: BigInt in request body used to surface as "Cannot
+			// reach API" because JSON.stringify(bigint) threw inside the
+			// fetch try-block and was caught as a network error.
+			const calls: RequestInit[] = [];
+			globalThis.fetch = mock((_url: unknown, init?: RequestInit) => {
+				if (init) calls.push(init);
+				return Promise.resolve({
+					ok: true,
+					status: 200,
+					headers: new Headers(),
+					json: () => Promise.resolve({ ok: true }),
+					text: () => Promise.resolve(""),
+				} as Response);
+			}) as unknown as typeof fetch;
+
+			await client.doRequest("POST", "/test", {
+				sources: { t: { type: "stx_transfer", minAmount: 1_000_000n } },
+			});
+
+			expect(calls.length).toBe(1);
+			const sent = JSON.parse(String(calls[0]?.body ?? "{}"));
+			expect(sent.sources.t.minAmount).toBe("1000000");
+		});
+
+		test("non-serializable body surfaces a body error, not a network error", async () => {
+			globalThis.fetch = mock(() => {
+				throw new Error("fetch should not be called");
+			}) as unknown as typeof fetch;
+
+			const circular: Record<string, unknown> = {};
+			circular.self = circular;
+
+			try {
+				await client.doRequest("POST", "/test", circular);
+				expect.unreachable("should have thrown");
+			} catch (err) {
+				expect(err).toBeInstanceOf(ApiError);
+				expect((err as ApiError).message).toContain(
+					"Failed to serialize request body",
+				);
+			}
+		});
+
 		test("204 returns undefined", async () => {
 			globalThis.fetch = mockFetch({ ok: true, status: 204, body: undefined });
 
