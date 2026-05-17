@@ -57,6 +57,42 @@ import {
 } from "../templates/subgraph.ts";
 import { StacksApiClient } from "../utils/api.ts";
 import { inferNetwork } from "../utils/network.ts";
+import { deriveBaseUrl } from "../utils/urls.ts";
+import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
+
+/** Import the handler file; if it fails with ERR_MODULE_NOT_FOUND for
+ *  `@secondlayer/subgraphs` (the required SDK), offer to install it before
+ *  giving up. Other errors bubble. */
+async function loadSubgraphWithDepCheck(
+	absPath: string,
+): Promise<{ default?: SubgraphDefinition } & SubgraphDefinition> {
+	try {
+		return await import(absPath);
+	} catch (err: unknown) {
+		const msg = err instanceof Error ? err.message : String(err);
+		const code = (err as { code?: string } | undefined)?.code;
+		const missingSdk =
+			(code === "ERR_MODULE_NOT_FOUND" || msg.includes("ERR_MODULE_NOT_FOUND")) &&
+			msg.includes("@secondlayer/subgraphs");
+		if (!missingSdk) throw err;
+		warn("Missing dependency: @secondlayer/subgraphs");
+		const install = await confirm({
+			message: "Install with `bun add @secondlayer/subgraphs`?",
+			default: true,
+		});
+		if (!install) throw err;
+		await new Promise<void>((res, rej) => {
+			const child = spawn("bun", ["add", "@secondlayer/subgraphs"], {
+				stdio: "inherit",
+			});
+			child.on("error", rej);
+			child.on("exit", (c) =>
+				c === 0 ? res() : rej(new Error(`bun add exit ${c}`)),
+			);
+		});
+		return await import(absPath);
+	}
+}
 
 /** Run `bunx tsc --noEmit` against the handler file using the user's local
  *  TypeScript install. Throws if the type-check reports any errors. */
@@ -590,7 +626,7 @@ export function registerSubgraphsCommand(program: Command): void {
 
 					// Load and validate locally for fast feedback
 					info(`Loading subgraph from ${absPath}`);
-					const mod = await import(absPath);
+					const mod = await loadSubgraphWithDepCheck(absPath);
 					const def = mod.default ?? mod;
 					const effectiveDef =
 						startBlock === undefined ? def : { ...def, startBlock };
@@ -636,7 +672,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							name: effectiveDef.name,
 							version: options.version,
 							description: effectiveDef.description,
-							sources: effectiveDef.sources as Record<
+							sources: effectiveDef.sources as unknown as Record<
 								string,
 								Record<string, unknown>
 							>,
@@ -645,6 +681,23 @@ export function registerSubgraphsCommand(program: Command): void {
 							sourceCode: source,
 							...(startBlock !== undefined ? { startBlock } : {}),
 						});
+
+						const printDeployFooter = async () => {
+							try {
+								const { apiUrl } = await resolveActiveTenant();
+								const baseUrl = deriveBaseUrl(apiUrl);
+								const firstTable = Object.keys(effectiveDef.schema ?? {})[0];
+								info(`  Dashboard: ${baseUrl}/platform/subgraphs/${effectiveDef.name}`);
+								if (firstTable) {
+									info(
+										`  REST:      ${apiUrl}/api/subgraphs/${effectiveDef.name}/${firstTable}`,
+									);
+								}
+								info(`  Watch:     sl subgraphs status ${effectiveDef.name}`);
+							} catch {
+								// Footer is decorative — never block deploy on URL derivation
+							}
+						};
 
 						if (result.action === "unchanged") {
 							info(
@@ -655,6 +708,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							success(
 								`Subgraph "${effectiveDef.name}" created → v${result.version}`,
 							);
+							await printDeployFooter();
 						} else if (result.action === "reindexed") {
 							// Show diff if available
 							if (result.diff) {
@@ -686,6 +740,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							success(
 								`Subgraph "${effectiveDef.name}" updated → v${result.version} (reindexing)`,
 							);
+							await printDeployFooter();
 						} else {
 							// "updated" — additive changes, no confirmation needed
 							if (result.diff) {
@@ -699,6 +754,7 @@ export function registerSubgraphsCommand(program: Command): void {
 							success(
 								`Subgraph "${effectiveDef.name}" updated → v${result.version}`,
 							);
+							await printDeployFooter();
 						}
 					} else {
 						// ── Local deploy ───────────────────────────────────────
@@ -1221,9 +1277,24 @@ export function registerSubgraphsCommand(program: Command): void {
 				try {
 					if (!options.yes && !options.force) {
 						const { confirm } = await import("@inquirer/prompts");
-						const ok = await confirm({
-							message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
-						});
+						let ok = false;
+						try {
+							ok = await confirm({
+								message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
+							});
+						} catch (promptErr) {
+							// ExitPromptError fires when stdin isn't a TTY (CI, pipes,
+							// some shells). Give the user a clear path out.
+							const m =
+								promptErr instanceof Error ? promptErr.message : String(promptErr);
+							if (m.includes("ExitPromptError") || m.includes("force closed")) {
+								error(
+									"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
+								);
+								process.exit(1);
+							}
+							throw promptErr;
+						}
 						if (!ok) {
 							info("Cancelled");
 							return;

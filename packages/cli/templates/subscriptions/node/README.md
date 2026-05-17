@@ -5,9 +5,11 @@ to your business logic. No framework lock-in.
 
 ## Run
 
+`.env` is written for you at `sl create subscription` time with the signing
+secret already populated.
+
 ```bash
 bun install
-cp .env.example .env   # paste the signingSecret you copied on create
 bun run dev
 ```
 

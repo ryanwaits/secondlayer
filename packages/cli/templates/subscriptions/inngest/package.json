@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "npx inngest-cli@latest dev",
+		"dev": "bunx inngest-cli@latest dev",
 		"start": "bun --hot src/server.ts"
 	},
 	"dependencies": {

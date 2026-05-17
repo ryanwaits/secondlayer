@@ -14,9 +14,10 @@ import { SecondLayer } from "@secondlayer/sdk";
 import type { CreateSubscriptionRequest } from "@secondlayer/sdk";
 import type { Command } from "commander";
 import { parseSubscriptionFilter } from "../lib/filter-params.ts";
-import { blue, dim, error, info, success, warn } from "../lib/output.ts";
+import { blue, error, info, success, warn } from "../lib/output.ts";
 import { resolveActiveTenant } from "../lib/resolve-tenant.ts";
 import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
+import { deriveBaseUrl } from "../utils/urls.ts";
 
 /**
  * `sl create subscription <name> --runtime <runtime>`
@@ -151,6 +152,15 @@ export async function createSubscription(
 	name: string,
 	opts: CreateSubscriptionOptions,
 ): Promise<void> {
+	// Validate runtime BEFORE touching the filesystem. The template-dir lookup
+	// at copyTemplate() would otherwise throw `template dir missing` after
+	// mkdirSync had already created the target — leaving litter on disk.
+	if (opts.runtime && !RUNTIMES.includes(opts.runtime)) {
+		error(
+			`Unknown --runtime "${opts.runtime}". Valid: ${RUNTIMES.join(", ")}`,
+		);
+		process.exit(1);
+	}
 	const { runtime, subgraph, table, url } = await promptFor(name, opts);
 	let filter: Record<string, unknown> | undefined;
 	let authConfig: Record<string, unknown> | undefined;
@@ -227,33 +237,42 @@ export async function createSubscription(
 		}
 	}
 
-	// Write the signing secret into the scaffolded .env.local if present.
+	// Write the signing secret to .env (creates if missing — all 4 templates
+	// now ship .env.example; even if a template doesn't, we still write).
+	let subscriptionId: string | undefined;
+	let subscriptionStatus: string | undefined;
+	if (sl) {
+		try {
+			const list = await sl.subscriptions.list();
+			const rows = (list as { data?: Array<{ name: string; id: string; status: string }> }).data ?? [];
+			const created = rows.find((s) => s.name === name);
+			subscriptionId = created?.id;
+			subscriptionStatus = created?.status;
+		} catch {
+			// best-effort; don't block on read-back
+		}
+	}
 	if (signingSecret) {
 		const envTarget = join(targetDir, ".env");
 		const envExample = join(targetDir, ".env.example");
 		if (existsSync(envExample) && !existsSync(envTarget)) {
 			copyFileSync(envExample, envTarget);
 		}
-		if (existsSync(envTarget)) {
+		if (!existsSync(envTarget)) {
+			writeFileSync(envTarget, `SIGNING_SECRET=${signingSecret}\n`);
+		} else {
 			const cur = readFileSync(envTarget, "utf8");
-			const next = cur.replace(
-				/^SIGNING_SECRET=.*/m,
-				`SIGNING_SECRET=${signingSecret}`,
-			);
 			writeFileSync(
 				envTarget,
-				next.includes("SIGNING_SECRET=")
-					? next
+				cur.match(/^SIGNING_SECRET=/m)
+					? cur.replace(
+							/^SIGNING_SECRET=.*/m,
+							`SIGNING_SECRET=${signingSecret}`,
+						)
 					: `${cur}\nSIGNING_SECRET=${signingSecret}\n`,
 			);
-			success(
-				`Signing secret written to ${relative(process.cwd(), envTarget)}`,
-			);
-		} else {
-			info(
-				`Signing secret (copy this — won't be shown again):\n${dim("  ")}${signingSecret}`,
-			);
 		}
+		success(`Signing secret written to ${relative(process.cwd(), envTarget)}`);
 	}
 
 	console.log();
@@ -261,7 +280,25 @@ export async function createSubscription(
 		error("Subscription was not created.");
 		process.exit(1);
 	}
-	success(`Done. Next:\n  cd ${name}\n  bun install\n  bun run dev`);
+
+	// Success footer — dashboard URL, resume hint if paused, run instructions.
+	let dashboardLine = "";
+	try {
+		const { apiUrl } = await resolveActiveTenant();
+		const base = deriveBaseUrl(apiUrl);
+		dashboardLine = subscriptionId
+			? `Dashboard: ${base}/platform/subgraphs/${subgraph}/subscriptions/${subscriptionId}\n  `
+			: `Dashboard: ${base}/platform/subgraphs/${subgraph}/subscriptions\n  `;
+	} catch {
+		// dashboard URL is decorative; don't block on it
+	}
+	const pausedLine =
+		subscriptionStatus === "paused"
+			? `Subscription is paused. Resume:\n  sl subscriptions resume ${name}\n  `
+			: "";
+	success(
+		`Done. Next:\n  ${dashboardLine}${pausedLine}cd ${name}\n  bun install\n  bun run dev`,
+	);
 }
 
 export type SubscriptionClientOptions = Pick<
