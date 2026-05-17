@@ -37,6 +37,43 @@ const POLL_INTERVAL_MS = 5_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const CANCEL_POLL_INTERVAL_MS = 1_000;
 
+/**
+ * Fan-out catch-up across multiple subgraphs with a bounded concurrency pool.
+ * Each subgraph's catchUpSubgraph() call is independent — different target
+ * schemas, read-only source access. The catchingUp set in catchup.ts guards
+ * per-subgraph re-entrancy so concurrent calls for the same name are safe.
+ */
+async function catchUpAll(
+	subgraphs: Subgraph[],
+	db: ReturnType<typeof getTargetDb>,
+	concurrency: number,
+): Promise<void> {
+	const queue = [...subgraphs];
+	const workers = Array.from(
+		{ length: Math.min(concurrency, queue.length) },
+		async () => {
+			while (queue.length > 0) {
+				const sg = queue.shift();
+				if (!sg) break;
+				try {
+					const def = await loadSubgraphDefinition(sg);
+					await catchUpSubgraph(def, sg.name);
+				} catch (err) {
+					const msg = getErrorMessage(err);
+					if (isHandlerNotFoundError(err)) {
+						await updateSubgraphStatus(db, sg.name, "error");
+					}
+					logger.error("Subgraph catch-up failed", {
+						subgraph: sg.name,
+						error: msg,
+					});
+				}
+			}
+		},
+	);
+	await Promise.allSettled(workers);
+}
+
 function handlerImportUrl(handlerPath: string, cacheBust = Date.now()) {
 	return `${pathToFileURL(resolve(handlerPath)).href}?t=${cacheBust}`;
 }
@@ -388,21 +425,7 @@ export async function startSubgraphProcessor(opts?: {
 	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
 		(v: Subgraph) => v.status === "active",
 	);
-	for (const sg of activeSubgraphs) {
-		try {
-			const def = await loadSubgraphDefinition(sg);
-			await catchUpSubgraph(def, sg.name);
-		} catch (err) {
-			const msg = getErrorMessage(err);
-			if (isHandlerNotFoundError(err)) {
-				await updateSubgraphStatus(targetDb, sg.name, "error");
-			}
-			logger.error("Subgraph catch-up failed on startup", {
-				subgraph: sg.name,
-				error: msg,
-			});
-		}
-	}
+	await catchUpAll(activeSubgraphs, targetDb, concurrency);
 
 	// Listen for new blocks — NOTIFY is fired from the indexer on the source DB
 	const stopListening = await listen(
@@ -417,21 +440,7 @@ export async function startSubgraphProcessor(opts?: {
 				(v: Subgraph) => v.status === "active",
 			);
 			cleanupCaches(subgraphs);
-			for (const sg of subgraphs) {
-				try {
-					const def = await loadSubgraphDefinition(sg);
-					await catchUpSubgraph(def, sg.name);
-				} catch (err) {
-					const msg = getErrorMessage(err);
-					if (isHandlerNotFoundError(err)) {
-						await updateSubgraphStatus(db, sg.name, "error");
-					}
-					logger.error("Subgraph processing failed", {
-						subgraph: sg.name,
-						error: msg,
-					});
-				}
-			}
+			await catchUpAll(subgraphs, db, concurrency);
 		},
 		{ connectionString: sourceListenerUrl() },
 	);
@@ -464,17 +473,7 @@ export async function startSubgraphProcessor(opts?: {
 			(v: Subgraph) => v.status === "active",
 		);
 		cleanupCaches(subgraphs);
-		for (const sg of subgraphs) {
-			try {
-				const def = await loadSubgraphDefinition(sg);
-				await catchUpSubgraph(def, sg.name);
-			} catch (err) {
-				logger.error("Subgraph poll processing failed", {
-					subgraph: sg.name,
-					error: getErrorMessage(err),
-				});
-			}
-		}
+		await catchUpAll(subgraphs, db, concurrency);
 	}, POLL_INTERVAL_MS);
 
 	// Boot subscription emitter in same process — shares pool, shares
