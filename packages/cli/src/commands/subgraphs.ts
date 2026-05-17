@@ -58,6 +58,29 @@ import {
 import { StacksApiClient } from "../utils/api.ts";
 import { inferNetwork } from "../utils/network.ts";
 
+/** Run `bunx tsc --noEmit` against the handler file using the user's local
+ *  TypeScript install. Throws if the type-check reports any errors. */
+async function typecheckHandler(absPath: string): Promise<void> {
+	await new Promise<void>((res, rej) => {
+		const child = spawn(
+			"bunx",
+			["tsc", "--noEmit", "--allowJs", "--target", "es2022", absPath],
+			{ stdio: "inherit" },
+		);
+		child.on("error", (err) =>
+			rej(
+				new Error(
+					`Failed to run tsc — install typescript (\`bun add -d typescript\`) or drop --strict. (${err.message})`,
+				),
+			),
+		);
+		child.on("exit", (code) => {
+			if (code === 0) res();
+			else rej(new Error(`Type-check failed (tsc exit ${code})`));
+		});
+	});
+}
+
 export function parseStartBlockOption(value?: string): number | undefined {
 	if (value === undefined) return undefined;
 	const trimmed = value.trim();
@@ -528,6 +551,10 @@ export function registerSubgraphsCommand(program: Command): void {
 		.option("--dry-run", "Validate and preview deploy without writing changes")
 		.option("--preview", "Alias for --dry-run")
 		.option("--force", "Skip confirmation prompt for reindex operations")
+		.option(
+			"--strict",
+			"Run `tsc --noEmit` against the handler before deploy (slower; catches TS type errors)",
+		)
 		.action(
 			async (
 				file: string,
@@ -537,6 +564,7 @@ export function registerSubgraphsCommand(program: Command): void {
 					dryRun?: boolean;
 					preview?: boolean;
 					force?: boolean;
+					strict?: boolean;
 				},
 			) => {
 				try {
@@ -553,6 +581,11 @@ export function registerSubgraphsCommand(program: Command): void {
 						warn(
 							`--start-block ${startBlock} overrides the definition's startBlock for this deploy.`,
 						);
+					}
+
+					if (options.strict) {
+						info("Type-checking handler (tsc --noEmit)...");
+						await typecheckHandler(absPath);
 					}
 
 					// Load and validate locally for fast feedback

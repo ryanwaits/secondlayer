@@ -23,7 +23,37 @@ import {
 	type StxTransfersReader,
 	getStxTransfersResponse,
 } from "../datasets/stx-transfers/query.ts";
+import { validateQueryParams } from "../middleware/validation.ts";
 import { getStreamsTip } from "../streams/tip.ts";
+
+const RANGE_KEYS = ["limit", "cursor", "from_block", "to_block"] as const;
+
+const ALLOWED = {
+	networkHealth: ["days"],
+	stxTransfers: [...RANGE_KEYS, "sender", "recipient"],
+	sbtcEvents: [
+		...RANGE_KEYS,
+		"topic",
+		"bitcoin_txid",
+		"request_id",
+		"sender",
+	],
+	sbtcTokenEvents: [...RANGE_KEYS, "event_type", "sender", "recipient"],
+	pox4Calls: [
+		...RANGE_KEYS,
+		"function_name",
+		"stacker",
+		"delegate_to",
+		"signer_key",
+		"reward_cycle",
+	],
+	bnsNameEvents: [...RANGE_KEYS, "topic", "namespace", "name", "owner"],
+	bnsNamespaceEvents: [...RANGE_KEYS, "status", "namespace"],
+	bnsMarketplaceEvents: [...RANGE_KEYS, "action", "bns_id"],
+	bnsNames: ["limit", "cursor", "namespace", "owner", "offset"],
+	bnsNamespaces: [] as string[],
+	bnsResolve: ["fqn"],
+} as const;
 
 const DATASETS_IP_RATE_LIMIT = Number.parseInt(
 	process.env.DATASETS_IP_RATE_LIMIT ?? "60",
@@ -45,15 +75,19 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	router.use("*", ipRateLimit(DATASETS_IP_RATE_LIMIT));
 
 	router.get("/network-health/summary", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.networkHealth);
 		const tip = await getTip();
 		const response = await getNetworkHealthResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip: tip ? { block_height: tip.block_height } : null,
 		});
 		return c.json(response);
 	});
 
 	router.get("/stx-transfers", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.stxTransfers);
 		const tip = await getTip();
 		if (!tip) {
 			return c.json(
@@ -66,7 +100,7 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 			);
 		}
 		const response = await getStxTransfersResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip: { block_height: tip.block_height },
 			readTransfers: opts.readStxTransfers,
 		});
@@ -74,12 +108,14 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	});
 
 	router.get("/sbtc/events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.sbtcEvents);
 		const tip = await getTip();
 		if (!tip) {
 			return c.json({ events: [], next_cursor: null, tip: null }, 503);
 		}
 		const response = await getSbtcEventsResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip: { block_height: tip.block_height },
 			readEvents: opts.readSbtcEvents,
 		});
@@ -87,12 +123,14 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	});
 
 	router.get("/sbtc/token-events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.sbtcTokenEvents);
 		const tip = await getTip();
 		if (!tip) {
 			return c.json({ events: [], next_cursor: null, tip: null }, 503);
 		}
 		const response = await getSbtcTokenEventsResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip: { block_height: tip.block_height },
 			readEvents: opts.readSbtcTokenEvents,
 		});
@@ -100,12 +138,14 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	});
 
 	router.get("/pox-4/calls", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.pox4Calls);
 		const tip = await getTip();
 		if (!tip) {
 			return c.json({ calls: [], next_cursor: null, tip: null }, 503);
 		}
 		const response = await getPox4CallsResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip: { block_height: tip.block_height },
 			readCalls: opts.readPox4Calls,
 		});
@@ -113,57 +153,65 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	});
 
 	router.get("/bns/name-events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.bnsNameEvents);
 		const tip = await getTip();
 		if (!tip) {
 			return c.json({ events: [], next_cursor: null, tip: null }, 503);
 		}
 		const response = await getBnsNameEventsResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip: { block_height: tip.block_height },
 		});
 		return c.json(response);
 	});
 
 	router.get("/bns/namespace-events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.bnsNamespaceEvents);
 		const tip = await getTip();
 		if (!tip) {
 			return c.json({ events: [], next_cursor: null, tip: null }, 503);
 		}
 		const response = await getBnsNamespaceEventsResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip: { block_height: tip.block_height },
 		});
 		return c.json(response);
 	});
 
 	router.get("/bns/marketplace-events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.bnsMarketplaceEvents);
 		const tip = await getTip();
 		if (!tip) {
 			return c.json({ events: [], next_cursor: null, tip: null }, 503);
 		}
 		const response = await getBnsMarketplaceEventsResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip: { block_height: tip.block_height },
 		});
 		return c.json(response);
 	});
 
 	router.get("/bns/names", async (c) => {
-		const response = await getBnsNamesResponse({
-			query: new URL(c.req.url).searchParams,
-		});
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.bnsNames);
+		const response = await getBnsNamesResponse({ query });
 		return c.json(response);
 	});
 
 	router.get("/bns/namespaces", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.bnsNamespaces);
 		const response = await getBnsNamespacesResponse();
 		return c.json(response);
 	});
 
 	router.get("/bns/resolve", async (c) => {
-		const result = await getBnsResolveResponse({
-			query: new URL(c.req.url).searchParams,
-		});
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.bnsResolve);
+		const result = await getBnsResolveResponse({ query });
 		if (result.status === "found") return c.json(result.name);
 		if (result.status === "not_indexed") {
 			return c.json(

@@ -60,7 +60,10 @@ function parseNonNegativeInteger(value: string, name: string): number {
 function parseLimit(value: string | undefined): number {
 	if (value === undefined) return DEFAULT_LIMIT;
 	const parsed = parseNonNegativeInteger(value, "limit");
-	return Math.min(MAX_LIMIT, Math.max(1, parsed));
+	if (parsed === 0) {
+		throw new ValidationError("limit must be a positive integer");
+	}
+	return Math.min(MAX_LIMIT, parsed);
 }
 
 function parseFilter(

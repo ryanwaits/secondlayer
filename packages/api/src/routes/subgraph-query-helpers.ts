@@ -1,5 +1,6 @@
 import type { Subgraph } from "@secondlayer/shared/db";
 import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
+import { ValidationError } from "@secondlayer/shared/errors";
 import type {
 	SubgraphColumn,
 	SubgraphSchema,
@@ -46,11 +47,14 @@ export function getSubgraphSchema(subgraph: Subgraph): SubgraphSchema {
 	return (subgraph.definition.schema as SubgraphSchema) ?? {};
 }
 
-export class InvalidColumnError extends Error {
+export class InvalidColumnError extends ValidationError {
 	constructor(column: string) {
 		super(`Unknown column: ${column}`);
 	}
 }
+
+const KNOWN_OPS = Object.keys(COMPARISON_OPS);
+const VALUE_LOOKS_LIKE_OP = /^(gte|lte|gt|lt|neq|like)\./i;
 
 export interface ParsedQuery {
 	filters: { column: string; op: string; value: string; isLike?: boolean }[];
@@ -131,6 +135,20 @@ export function parseQueryParams(
 				});
 				continue;
 			}
+			// Looks intentional (col.unknownOp) — reject explicitly with hint.
+			if (validColumns.has(col)) {
+				throw new ValidationError(
+					`unknown filter operator "${op}" for column "${col}" (allowed: ${KNOWN_OPS.join(", ")})`,
+				);
+			}
+		}
+
+		// Catch "?col=op.value" — common typo for "?col.op=value".
+		if (validColumns.has(key) && VALUE_LOOKS_LIKE_OP.test(value)) {
+			const op = value.split(".", 1)[0]?.toLowerCase();
+			throw new ValidationError(
+				`filter "${key}=${value}" looks like a misplaced operator; use "${key}.${op}=<value>" instead`,
+			);
 		}
 
 		// Equality filter

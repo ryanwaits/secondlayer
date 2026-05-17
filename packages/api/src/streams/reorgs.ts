@@ -36,13 +36,13 @@ export const DEFAULT_STREAMS_REORGS_SINCE_READER: StreamsReorgsSinceReader = (
 function parseLimit(value: string | undefined): number {
 	if (value === undefined) return 100;
 	if (!/^(0|[1-9]\d*)$/.test(value)) {
-		throw new ValidationError("limit must be a non-negative integer");
+		throw new ValidationError("limit must be a positive integer");
 	}
 	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed)) {
-		throw new ValidationError("limit must be a non-negative integer");
+	if (!Number.isSafeInteger(parsed) || parsed === 0) {
+		throw new ValidationError("limit must be a positive integer");
 	}
-	return Math.min(1000, Math.max(1, parsed));
+	return Math.min(1000, parsed);
 }
 
 export function parseReorgsSince(

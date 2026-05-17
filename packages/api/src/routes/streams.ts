@@ -33,6 +33,18 @@ import {
 	type StreamsReorgsSinceReader,
 } from "../streams/reorgs.ts";
 import { getStreamsTip, type StreamsTipProvider } from "../streams/tip.ts";
+import { validateQueryParams } from "../middleware/validation.ts";
+
+const STREAMS_EVENTS_ALLOWED = [
+	"cursor",
+	"from_cursor",
+	"from_height",
+	"to_height",
+	"types",
+	"contract_id",
+	"limit",
+] as const;
+const STREAMS_REORGS_ALLOWED = ["since", "limit"] as const;
 
 export type StreamsRouterOptions = {
 	tokens?: StreamsTokenStore;
@@ -67,9 +79,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	router.use("/events", streamsRetentionWindow({ getTip }));
 
 	router.get("/events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, STREAMS_EVENTS_ALLOWED);
 		const tip = c.get("streamsTip");
 		const response = await getStreamsEventsResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			tip,
 			readEvents: opts.readEvents,
 			readReorgs,
@@ -160,8 +174,10 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	});
 
 	router.get("/reorgs", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, STREAMS_REORGS_ALLOWED);
 		const response = await getStreamsReorgsListResponse({
-			query: new URL(c.req.url).searchParams,
+			query,
 			readReorgsSince:
 				opts.readReorgsSince ?? DEFAULT_STREAMS_REORGS_SINCE_READER,
 		});

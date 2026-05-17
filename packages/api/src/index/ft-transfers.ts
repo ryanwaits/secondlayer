@@ -107,7 +107,10 @@ function parseCursor(value: string): IndexCursorInput {
 function parseLimit(value: string | undefined): number {
 	if (value === undefined) return 200;
 	const parsed = parseNonNegativeInteger(value, "limit");
-	return Math.min(1000, Math.max(1, parsed));
+	if (parsed === 0) {
+		throw new ValidationError("limit must be a positive integer");
+	}
+	return Math.min(1000, parsed);
 }
 
 function parseFilter(
