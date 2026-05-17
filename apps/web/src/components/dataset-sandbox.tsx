@@ -164,7 +164,7 @@ export function DatasetSandbox({
 							autoComplete="off"
 							value={apiKey}
 							onChange={(e) => setApiKey(e.target.value)}
-							placeholder="sk-sl_streams_..."
+							placeholder="sk-sl_..."
 							className="dataset-sandbox-filter-input"
 						/>
 					</label>

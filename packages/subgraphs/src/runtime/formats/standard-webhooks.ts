@@ -6,7 +6,10 @@ import type { SubscriptionOutbox } from "@secondlayer/shared/db";
  * https://standardwebhooks.com
  *
  * Body shape: `{ type, timestamp, data }`
- *   - `type` — `<subgraph>.<table>.<verb>` (e.g. `bitcoin.transfers.created`)
+ *   - `type` — `<subgraph>.<table>.created` (only `.created` is emitted in
+ *     v1; `.updated` / `.deleted` require row-diffing hooks in the subgraph
+ *     runtime and are intentionally deferred). The third segment is here
+ *     for forward compatibility, not because verbs vary.
  *   - `timestamp` — ISO 8601 at DISPATCH time (not row creation). Receivers
  *     verify `webhook-timestamp` against a tolerance window (default 300s per
  *     Svix); stamping at creation would fail verification on every retry

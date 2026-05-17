@@ -857,8 +857,9 @@ export function registerSubgraphsCommand(program: Command): void {
 	subgraphs
 		.command("status <name>")
 		.description("Show detailed subgraph status")
-		.action(async (name: string) => {
-			try {
+		.option("-w, --watch", "Refresh every 2s until synced or Ctrl-C")
+		.action(async (name: string, options: { watch?: boolean }) => {
+			const renderOnce = async () => {
 				const subgraph = await getSubgraphApi(name);
 
 				const rowCounts =
@@ -929,6 +930,27 @@ export function registerSubgraphsCommand(program: Command): void {
 					][]) {
 						console.log(dim(`  ${info.endpoint}`));
 					}
+				}
+
+				return subgraph;
+			};
+
+			try {
+				if (!options.watch) {
+					await renderOnce();
+					return;
+				}
+				// eslint-disable-next-line no-constant-condition
+				while (true) {
+					// Clear screen so the latest snapshot replaces the previous one
+					// instead of accumulating noise.
+					process.stdout.write("\x1Bc");
+					const sg = await renderOnce();
+					if (sg && sg.status === "synced") {
+						console.log(dim("\nSynced — exiting watch."));
+						return;
+					}
+					await new Promise((res) => setTimeout(res, 2000));
 				}
 			} catch (err) {
 				handleApiError(err, "get subgraph status");

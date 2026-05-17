@@ -42,7 +42,7 @@ export default function StreamsPage() {
 
 				<CodeBlock
 					code={`# Issue a key at /platform/api-keys (product: Streams), then:
-curl -H "Authorization: Bearer sk-sl_streams_..." \\
+curl -H "Authorization: Bearer sk-sl_..." \\
   https://api.secondlayer.tools/v1/streams/tip`}
 					lang="bash"
 				/>
