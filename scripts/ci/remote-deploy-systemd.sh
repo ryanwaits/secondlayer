@@ -75,13 +75,34 @@ systemd-run \
 
 deadline=$((SECONDS + POLL_TIMEOUT_SECONDS))
 
+# Operator-friendly polling: print the unit state line only when it changes
+# (otherwise it spams the same `ActiveState=active SubState=running` line every
+# 15s for the whole deploy duration), and tail the unit's journal every
+# JOURNAL_TAIL_INTERVAL_SECONDS so the SSH log shows live progress from
+# deploy.sh instead of a wall of identical state lines.
+JOURNAL_TAIL_INTERVAL_SECONDS="${DEPLOY_JOURNAL_TAIL_INTERVAL_SECONDS:-60}"
+JOURNAL_TAIL_LINES="${DEPLOY_JOURNAL_TAIL_LINES:-40}"
+last_state_key=""
+last_journal_tail_at=$((SECONDS - JOURNAL_TAIL_INTERVAL_SECONDS))
+
 while ((SECONDS < deadline)); do
 	active_state="$(unit_property ActiveState)"
 	sub_state="$(unit_property SubState)"
 	result="$(unit_property Result)"
 	exec_main_status="$(unit_property ExecMainStatus)"
 
-	echo "Deploy unit ${UNIT_NAME}: ActiveState=${active_state:-unknown} SubState=${sub_state:-unknown} Result=${result:-unknown} ExecMainStatus=${exec_main_status:-unknown}"
+	state_key="${active_state:-unknown}/${sub_state:-unknown}/${result:-unknown}/${exec_main_status:-unknown}"
+	if [[ "$state_key" != "$last_state_key" ]]; then
+		echo "Deploy unit ${UNIT_NAME}: ActiveState=${active_state:-unknown} SubState=${sub_state:-unknown} Result=${result:-unknown} ExecMainStatus=${exec_main_status:-unknown}"
+		last_state_key="$state_key"
+	fi
+
+	if [[ "$active_state" == "active" ]] && (( SECONDS - last_journal_tail_at >= JOURNAL_TAIL_INTERVAL_SECONDS )); then
+		echo "--- ${UNIT_NAME} journal (last ${JOURNAL_TAIL_LINES} lines) ---"
+		journalctl -u "$UNIT_NAME" --no-pager -n "$JOURNAL_TAIL_LINES" || true
+		echo "--- end journal tail ---"
+		last_journal_tail_at=$SECONDS
+	fi
 
 	if [[ "$active_state" == "failed" ]]; then
 		fail_from_unit "$active_state" "$sub_state" "$result" "$exec_main_status"
