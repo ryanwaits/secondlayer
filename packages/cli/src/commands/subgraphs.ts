@@ -48,6 +48,7 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { requireAuth } from "../lib/require-auth.ts";
+import { resolveAuth } from "../lib/resolve-auth.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
 import {
 	SUBGRAPH_TEMPLATE_DESCRIPTIONS,
@@ -58,7 +59,6 @@ import {
 import { StacksApiClient } from "../utils/api.ts";
 import { inferNetwork } from "../utils/network.ts";
 import { deriveBaseUrl } from "../utils/urls.ts";
-import { resolveAuth } from "../lib/resolve-auth.ts";
 
 /** Import the handler file; if it fails with ERR_MODULE_NOT_FOUND for
  *  `@secondlayer/subgraphs` (the required SDK), offer to install it before
@@ -72,7 +72,8 @@ async function loadSubgraphWithDepCheck(
 		const msg = err instanceof Error ? err.message : String(err);
 		const code = (err as { code?: string } | undefined)?.code;
 		const missingSdk =
-			(code === "ERR_MODULE_NOT_FOUND" || msg.includes("ERR_MODULE_NOT_FOUND")) &&
+			(code === "ERR_MODULE_NOT_FOUND" ||
+				msg.includes("ERR_MODULE_NOT_FOUND")) &&
 			msg.includes("@secondlayer/subgraphs");
 		if (!missingSdk) throw err;
 		warn("Missing dependency: @secondlayer/subgraphs");
@@ -663,6 +664,8 @@ export function registerSubgraphsCommand(program: Command): void {
 						}
 
 						// The server decides whether this creates, updates, or reindexes.
+						// Always forward startBlock — CLI flag takes priority, then definition file.
+						const deployStartBlock = startBlock ?? effectiveDef.startBlock;
 						const result = await deploySubgraphApi({
 							name: effectiveDef.name,
 							version: undefined,
@@ -674,7 +677,9 @@ export function registerSubgraphsCommand(program: Command): void {
 							schema: effectiveDef.schema,
 							handlerCode,
 							sourceCode: source,
-							...(startBlock !== undefined ? { startBlock } : {}),
+							...(deployStartBlock !== undefined
+								? { startBlock: deployStartBlock }
+								: {}),
 						});
 
 						const printDeployFooter = async () => {
@@ -682,7 +687,9 @@ export function registerSubgraphsCommand(program: Command): void {
 								const { apiUrl } = await resolveAuth();
 								const baseUrl = deriveBaseUrl(apiUrl);
 								const firstTable = Object.keys(effectiveDef.schema ?? {})[0];
-								info(`  Dashboard: ${baseUrl}/platform/subgraphs/${effectiveDef.name}`);
+								info(
+									`  Dashboard: ${baseUrl}/platform/subgraphs/${effectiveDef.name}`,
+								);
 								if (firstTable) {
 									info(
 										`  REST:      ${apiUrl}/api/subgraphs/${effectiveDef.name}/${firstTable}`,
@@ -1311,7 +1318,9 @@ export function registerSubgraphsCommand(program: Command): void {
 							// ExitPromptError fires when stdin isn't a TTY (CI, pipes,
 							// some shells). Give the user a clear path out.
 							const m =
-								promptErr instanceof Error ? promptErr.message : String(promptErr);
+								promptErr instanceof Error
+									? promptErr.message
+									: String(promptErr);
 							if (m.includes("ExitPromptError") || m.includes("force closed")) {
 								error(
 									"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
