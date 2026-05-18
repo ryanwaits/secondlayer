@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "1.5.4",
+	"version": "1.5.5",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -13,8 +13,8 @@
 	},
 	"dependencies": {
 		"@secondlayer/bundler": "^0.3.5",
-		"@secondlayer/indexer": "^1.4.1",
-		"@secondlayer/sdk": "^3.5.4",
+		"@secondlayer/indexer": "^1.4.2",
+		"@secondlayer/sdk": "^4.0.0",
 		"@secondlayer/shared": "^6.4.1",
 		"@secondlayer/subgraphs": "^2.0.2",
 		"hono": "^4.0.0",
