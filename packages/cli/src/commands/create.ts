@@ -84,6 +84,7 @@ export interface CreateSubscriptionOptions {
 	serviceKey?: string;
 	baseUrl?: string;
 	skipApi?: boolean;
+	noScaffold?: boolean;
 	filter?: string[];
 }
 
@@ -189,19 +190,21 @@ export async function createSubscription(
 
 	const eventName = `${subgraph}.${table}.created`;
 	const targetDir = resolve(process.cwd(), name);
-	if (existsSync(targetDir)) {
-		error(`Directory already exists: ${relative(process.cwd(), targetDir)}`);
-		process.exit(1);
-	}
+	if (!opts.noScaffold) {
+		if (existsSync(targetDir)) {
+			error(`Directory already exists: ${relative(process.cwd(), targetDir)}`);
+			process.exit(1);
+		}
 
-	const tplRoot = templatesRoot();
-	const tplDir = join(tplRoot, runtime);
-	info(`Scaffolding ${blue(runtime)} template at ${blue(targetDir)}`);
-	copyTemplate(tplDir, targetDir, {
-		NAME: name,
-		EVENT_NAME: eventName,
-		TASK_ID: `${subgraph}-${table}`,
-	});
+		const tplRoot = templatesRoot();
+		const tplDir = join(tplRoot, runtime);
+		info(`Scaffolding ${blue(runtime)} template at ${blue(targetDir)}`);
+		copyTemplate(tplDir, targetDir, {
+			NAME: name,
+			EVENT_NAME: eventName,
+			TASK_ID: `${subgraph}-${table}`,
+		});
+	}
 
 	// Provision the subscription via SDK unless --skip-api was passed (useful
 	// for offline template scaffolding while the user sets up auth first).
@@ -252,7 +255,7 @@ export async function createSubscription(
 			// best-effort; don't block on read-back
 		}
 	}
-	if (signingSecret) {
+	if (signingSecret && !opts.noScaffold) {
 		const envTarget = join(targetDir, ".env");
 		const envExample = join(targetDir, ".env.example");
 		if (existsSync(envExample) && !existsSync(envTarget)) {
@@ -273,6 +276,9 @@ export async function createSubscription(
 			);
 		}
 		success(`Signing secret written to ${relative(process.cwd(), envTarget)}`);
+	} else if (signingSecret && opts.noScaffold) {
+		// No scaffold dir to write to — surface the secret so the user can store it.
+		info(`Signing secret (store securely): ${signingSecret}`);
 	}
 
 	console.log();
@@ -296,9 +302,10 @@ export async function createSubscription(
 		subscriptionStatus === "paused"
 			? `Subscription is paused. Resume:\n  sl subscriptions resume ${name}\n  `
 			: "";
-	success(
-		`Done. Next:\n  ${dashboardLine}${pausedLine}cd ${name}\n  bun install\n  bun run dev`,
-	);
+	const runHint = opts.noScaffold
+		? `View deliveries:\n  sl subscriptions get ${name}`
+		: `cd ${name}\n  bun install\n  bun run dev`;
+	success(`Done. Next:\n  ${dashboardLine}${pausedLine}${runHint}`);
 }
 
 export type SubscriptionClientOptions = Pick<
@@ -393,6 +400,10 @@ export function registerCreateCommand(program: Command): void {
 		.option("--service-key <key>", "SL_SERVICE_KEY override")
 		.option("--base-url <url>", "SL_API_URL override")
 		.option("--skip-api", "Copy template only, don't call the API")
+		.option(
+			"--no-scaffold",
+			"Skip the local runtime template directory (webhook-only setups)",
+		)
 		.action(async (name: string, options: CreateSubscriptionOptions) => {
 			await createSubscription(name, options);
 		});
