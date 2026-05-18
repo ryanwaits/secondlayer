@@ -84,7 +84,9 @@ export interface CreateSubscriptionOptions {
 	serviceKey?: string;
 	baseUrl?: string;
 	skipApi?: boolean;
-	noScaffold?: boolean;
+	// commander's `--no-scaffold` declares an inverse boolean: opts.scaffold is
+	// true by default and becomes false when --no-scaffold is passed.
+	scaffold?: boolean;
 	filter?: string[];
 }
 
@@ -190,7 +192,7 @@ export async function createSubscription(
 
 	const eventName = `${subgraph}.${table}.created`;
 	const targetDir = resolve(process.cwd(), name);
-	if (!opts.noScaffold) {
+	if (!opts.scaffold === false) {
 		if (existsSync(targetDir)) {
 			error(`Directory already exists: ${relative(process.cwd(), targetDir)}`);
 			process.exit(1);
@@ -255,7 +257,7 @@ export async function createSubscription(
 			// best-effort; don't block on read-back
 		}
 	}
-	if (signingSecret && !opts.noScaffold) {
+	if (signingSecret && !opts.scaffold === false) {
 		const envTarget = join(targetDir, ".env");
 		const envExample = join(targetDir, ".env.example");
 		if (existsSync(envExample) && !existsSync(envTarget)) {
@@ -276,7 +278,7 @@ export async function createSubscription(
 			);
 		}
 		success(`Signing secret written to ${relative(process.cwd(), envTarget)}`);
-	} else if (signingSecret && opts.noScaffold) {
+	} else if (signingSecret && opts.scaffold === false) {
 		// No scaffold dir to write to — surface the secret so the user can store it.
 		info(`Signing secret (store securely): ${signingSecret}`);
 	}
@@ -302,7 +304,7 @@ export async function createSubscription(
 		subscriptionStatus === "paused"
 			? `Subscription is paused. Resume:\n  sl subscriptions resume ${name}\n  `
 			: "";
-	const runHint = opts.noScaffold
+	const runHint = opts.scaffold === false
 		? `View deliveries:\n  sl subscriptions get ${name}`
 		: `cd ${name}\n  bun install\n  bun run dev`;
 	success(`Done. Next:\n  ${dashboardLine}${pausedLine}${runHint}`);
