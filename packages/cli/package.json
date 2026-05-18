@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "5.4.6",
+	"version": "5.4.7",
 	"description": "CLI for subgraphs and blockchain indexing on Stacks",
 	"type": "module",
 	"bin": {
