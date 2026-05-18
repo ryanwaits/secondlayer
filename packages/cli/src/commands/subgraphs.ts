@@ -1308,6 +1308,15 @@ export function registerSubgraphsCommand(program: Command): void {
 			async (name: string, options: { yes?: boolean; force?: boolean }) => {
 				try {
 					if (!options.yes && !options.force) {
+						// Refuse to prompt on non-TTY stdin. An empty pipe (`echo |`)
+						// would otherwise feed a newline into confirm() and auto-accept
+						// the destructive default.
+						if (!process.stdin.isTTY) {
+							error(
+								"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
+							);
+							process.exit(1);
+						}
 						const { confirm } = await import("@inquirer/prompts");
 						let ok = false;
 						try {
@@ -1315,8 +1324,6 @@ export function registerSubgraphsCommand(program: Command): void {
 								message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
 							});
 						} catch (promptErr) {
-							// ExitPromptError fires when stdin isn't a TTY (CI, pipes,
-							// some shells). Give the user a clear path out.
 							const m =
 								promptErr instanceof Error
 									? promptErr.message

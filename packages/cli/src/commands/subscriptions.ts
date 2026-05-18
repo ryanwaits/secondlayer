@@ -528,6 +528,15 @@ function printDead(rows: DeadRow[]): void {
 
 async function confirmOrExit(message: string, yes?: boolean): Promise<boolean> {
 	if (yes) return true;
+	// Refuse to prompt on non-TTY stdin. An empty pipe (e.g. `echo |`) would
+	// otherwise feed a newline into @inquirer/prompts.confirm and auto-accept
+	// the destructive default — silent destruction is worse than crashing.
+	if (!process.stdin.isTTY) {
+		error(
+			"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
+		);
+		process.exit(1);
+	}
 	let ok = false;
 	try {
 		ok = await confirm({ message });
