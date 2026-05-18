@@ -66,8 +66,12 @@ export function registerConfigCommand(program: Command): void {
 	config
 		.command("reset")
 		.description("Reset configuration to defaults")
-		.action(async () => {
+		.option("-y, --yes", "Skip confirmation")
+		.action(async (opts: { yes?: boolean }) => {
 			try {
+				if (!opts.yes && !(await confirmDestructive("Reset configuration to defaults?"))) {
+					return;
+				}
 				await resetConfig();
 				success("Configuration reset to defaults");
 			} catch (err) {
@@ -79,8 +83,12 @@ export function registerConfigCommand(program: Command): void {
 	config
 		.command("clear")
 		.description("Clear all configuration (delete config file)")
-		.action(async () => {
+		.option("-y, --yes", "Skip confirmation")
+		.action(async (opts: { yes?: boolean }) => {
 			try {
+				if (!opts.yes && !(await confirmDestructive("Delete the config file?"))) {
+					return;
+				}
 				await clearConfig();
 				success("Configuration cleared");
 			} catch (err) {
@@ -88,6 +96,26 @@ export function registerConfigCommand(program: Command): void {
 				process.exit(1);
 			}
 		});
+}
+
+async function confirmDestructive(message: string): Promise<boolean> {
+	if (!process.stdin.isTTY) {
+		error("Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.");
+		process.exit(1);
+	}
+	const { confirm } = await import("@inquirer/prompts");
+	try {
+		const ok = await confirm({ message, default: false });
+		if (!ok) console.log("Cancelled.");
+		return ok;
+	} catch (promptErr) {
+		const m = promptErr instanceof Error ? promptErr.message : String(promptErr);
+		if (m.includes("ExitPromptError") || m.includes("force closed")) {
+			error("Interactive prompt unavailable. Re-run with -y to skip confirmation.");
+			process.exit(1);
+		}
+		throw promptErr;
+	}
 }
 
 async function printConfigTree(cfg: Config): Promise<void> {
