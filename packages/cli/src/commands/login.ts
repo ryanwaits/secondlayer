@@ -1,8 +1,8 @@
-import { input } from "@inquirer/prompts";
+import { confirm, input } from "@inquirer/prompts";
 import type { Command } from "commander";
 import { CliHttpError, httpPlatformAnon } from "../lib/http.ts";
 import { dim, info, error as logError, success } from "../lib/output.ts";
-import { writeSession } from "../lib/session.ts";
+import { readSession, writeSession } from "../lib/session.ts";
 
 /**
  * `sl login` — magic-link email flow.
@@ -11,7 +11,41 @@ import { writeSession } from "../lib/session.ts";
  * /api/auth/verify → write session. Server auto-extends session on every
  * subsequent request (sliding window), so no refresh logic here.
  */
-export async function runLoginFlow(): Promise<void> {
+export async function runLoginFlow(
+	options: { force?: boolean } = {},
+): Promise<void> {
+	if (!options.force) {
+		const existing = await readSession();
+		if (existing) {
+			info(`Already logged in as ${existing.email}.`);
+			if (!process.stdin.isTTY) {
+				info(
+					dim(
+						"Run 'sl logout' first, or re-run with --force to switch accounts.",
+					),
+				);
+				return;
+			}
+			try {
+				const proceed = await confirm({
+					message: "Log in as a different user?",
+					default: false,
+				});
+				if (!proceed) {
+					info(dim("Run 'sl logout' to sign out."));
+					return;
+				}
+			} catch {
+				info(
+					dim(
+						"Run 'sl logout' first, or re-run with --force to switch accounts.",
+					),
+				);
+				return;
+			}
+		}
+	}
+
 	const email = await input({
 		message: "Email",
 		validate: (v: string) => (/^.+@.+\..+$/.test(v) ? true : "Invalid email"),
@@ -80,5 +114,9 @@ export function registerLoginCommand(program: Command): void {
 	program
 		.command("login")
 		.description("Log in to Secondlayer (magic-link email)")
-		.action(runLoginFlow);
+		.option(
+			"-f, --force",
+			"Skip the already-logged-in check and re-run the flow",
+		)
+		.action((opts: { force?: boolean }) => runLoginFlow({ force: opts.force }));
 }
