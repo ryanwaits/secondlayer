@@ -265,6 +265,9 @@ sl subgraphs deploy subgraphs/token-transfers.ts
 # Dev mode — watches for changes, auto-redeploys
 sl subgraphs dev subgraphs/token-transfers.ts
 
+# Generate a typed client for a deployed subgraph (autocompletion + table types)
+sl subgraphs generate token-transfers --output src/clients/token-transfers.ts
+
 # Force reindex
 sl subgraphs reindex token-transfers`}
 			/>
@@ -275,8 +278,10 @@ sl subgraphs reindex token-transfers`}
 				<p>
 					Query via the SDK, CLI, or HTTP API. Supports filtering, comparison
 					operators, ordering, and pagination. For typed queries with
-					autocompletion, see <a href="/sdk#typed-subgraphs">typed subgraphs</a>{" "}
-					in the SDK docs.
+					autocompletion, run{" "}
+					<code>sl subgraphs generate &lt;name&gt; --output &lt;path&gt;</code>{" "}
+					or see <a href="/sdk#typed-subgraphs">typed subgraphs</a> in the SDK
+					docs.
 				</p>
 				<p>
 					Each deployed Stacks Subgraph exposes list, detail, source, gaps,
