@@ -60,7 +60,7 @@
         {"text": "Backfill command uses subcommand 'backfill' with --from and --to flags (both required)"},
         {"text": "Names the two operations correctly: reindex = destructive/drops data, backfill = additive/preserves data"},
         {"text": "Does NOT invent flags like --start-block or --reprocess on these subcommands"},
-        {"text": "Mentions that reindex prompts for confirmation (or that --force skips it)"}
+        {"text": "Either notes that reindex prompts for confirmation by default (with -y to skip) OR — if predating cli 5.5.0 — that reindex has no built-in prompt and the caller must confirm. Either factual statement passes."}
       ]
     },
     {

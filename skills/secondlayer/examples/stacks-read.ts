@@ -44,7 +44,8 @@ const token = getContract({
   abi: SIP010_ABI,
 });
 
-const tokenBalance = await token.read.getBalance({ owner: ADDR });
+// Param name `account` comes verbatim from the SIP-010 ABI's `get-balance` arg.
+const tokenBalance = await token.read.getBalance({ account: ADDR });
 const decimals = await token.read.getDecimals();
 const symbol = await token.read.getSymbol();
 

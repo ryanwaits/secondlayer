@@ -716,6 +716,8 @@ bundle(data: { code: string }): Promise<BundleSubgraphResponse> // needs apiKey
 
 ### `typed(def)` — inferred row types from a `defineSubgraph()` literal
 
+> **If you only have a deployed subgraph (no local source file):** run `sl subgraphs generate <name> -o src/client.ts` first. It introspects the deployed schema and writes a typed module you can import directly. Use `typed()` only when you already have the `defineSubgraph(...)` literal in scope (you wrote the subgraph in this project).
+
 ```ts
 typed<T extends { name: string; schema: Record<string, unknown> }>(
   def: T,

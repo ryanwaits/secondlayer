@@ -221,7 +221,7 @@ Bundles the file in-process and emits spec without touching any server.
 
 ### sl subgraphs reindex
 
-**DESTRUCTIVE.** Reindex a subgraph from historical blocks (drops existing rows in range).
+**DESTRUCTIVE.** Reindex a subgraph from historical blocks (drops existing rows in range, reprocesses).
 
 Usage: `sl subgraphs reindex <name>`
 
@@ -229,8 +229,9 @@ Usage: `sl subgraphs reindex <name>`
 | --- | --- |
 | `--from <block>` | Start block height (integer). |
 | `--to <block>` | End block height (integer). |
+| `-y, --yes` | Skip the confirmation prompt. |
 
-No built-in confirmation prompt — confirm before running.
+Prompts for confirmation by default (default answer: **no**). Non-TTY environments must pass `-y` or the command exits non-zero. Added in `@secondlayer/cli` 5.5.0; older versions ran silently.
 
 ### sl subgraphs backfill
 

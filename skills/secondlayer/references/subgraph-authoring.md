@@ -79,6 +79,30 @@ handlers: {
 }
 ```
 
+### Asset identifier format — don't guess
+
+`assetIdentifier` is `<contract-principal>.<contract-name>::<asset-name>`. The asset name comes from `(define-fungible-token <name> ...)` or `(define-non-fungible-token <name> ...)` inside the contract — **it is NOT necessarily the same as the contract name**.
+
+Two ways to get it right without guessing:
+
+1. **Use a constant when available** (preferred). `@secondlayer/stacks` exports verified asset identifiers for tokens it has first-class support for:
+
+   ```ts
+   import { SBTC_ASSET_IDENTIFIER_MAINNET, SBTC_ASSET_IDENTIFIER_TESTNET } from "@secondlayer/stacks/sbtc";
+   // → "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token"
+   ```
+
+   Note: the sBTC token has the unusual property that the asset name equals the contract name (`sbtc-token`). Most tokens don't.
+
+2. **Fetch the ABI and read the `fungible_tokens` / `non_fungible_tokens` array**:
+
+   ```ts
+   const abi = await client.getContractAbi({ contract: "SP....my-token" });
+   // abi.fungible_tokens[0].name → the asset name to use after the `::`
+   ```
+
+For deployer/contract addresses, ask the user or check the project's docs — don't fabricate them from common-looking principal patterns.
+
 ### Filter ↔ Event Payload Reference
 
 The `event` arg the handler receives carries the decoded payload for that filter type. Below: filter interface (verbatim from `src/types.ts`) + the payload your handler will receive (from `src/triggers/index.ts`).

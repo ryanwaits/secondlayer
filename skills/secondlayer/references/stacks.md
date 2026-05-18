@@ -776,7 +776,25 @@ const txid = await usda.call.transfer(
 );
 ```
 
-Argument names accept both the original kebab-case (`"get-balance"`'s `account` arg) and camelCase (e.g. `tokenId` for an ABI arg `token-id`).
+### Argument naming — read this before calling `.read.*` / `.call.*`
+
+The properties you pass to a method come **verbatim from the ABI argument names**. Don't guess based on what makes sense in English — read the ABI. Both kebab-case and camelCase forms are accepted (`token-id` ≡ `tokenId`), but the *root* name must match.
+
+Standard ABI argument names (the high-traffic ones agents get wrong):
+
+| Standard | Method | Argument |
+|---|---|---|
+| SIP-010 | `get-balance` | `account` *(not `who`, `owner`, `address`)* |
+| SIP-010 | `transfer` | `amount`, `sender`, `recipient`, `memo` |
+| SIP-009 | `get-owner` | `id` *(not `tokenId`, `token-id` also accepted)* |
+| SIP-009 | `transfer` | `token-id` *(or `tokenId`)*, `sender`, `recipient` |
+
+For non-standard contracts, inspect the fetched ABI directly:
+
+```ts
+const abi = await client.getContractAbi({ contract: "SP....my-contract" });
+// abi.functions[i].args[j].name is what you pass
+```
 
 ## 12. Standard ABIs
 
