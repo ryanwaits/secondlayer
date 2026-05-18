@@ -1,175 +1,79 @@
 ---
 name: secondlayer
-description: Build and operate Secondlayer Stacks subgraphs, table subscriptions, CLI, SDK, and MCP workflows with an agent-native loop.
+description: Use Secondlayer to build on the Stacks blockchain — index on-chain activity into typed Postgres tables (subgraphs), stream raw and decoded events (Streams + Index), deliver row-level webhooks (subscriptions), and call Clarity contracts from a viem-style TypeScript SDK. Invoke this skill whenever the user mentions Secondlayer, `sl`, the `@secondlayer/*` packages, Stacks indexing, sBTC, BNS, PoX/stacking, Clarity contract reads/calls, post-conditions, webhook subscriptions on chain events, or asks how to query, watch, or react to anything happening on the Stacks chain — even if they don't name Secondlayer explicitly.
 ---
 
 # Secondlayer
 
-Secondlayer indexes Stacks blockchain activity into typed Postgres tables and
-delivers row changes to HTTP receivers.
+Secondlayer is a stack of tools for building on the **Stacks blockchain**:
 
-Use this skill when the user asks for Secondlayer, `sl`, Stacks indexing,
-subgraphs, webhooks/subscriptions, MCP setup, SDK wiring, or recovery work.
+| Layer | Package / Surface | What it does |
+|---|---|---|
+| **L1 raw events** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `sl streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness. |
+| **L2 decoded transfers** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` | Pre-decoded SIP-010 (FT) and SIP-009 (NFT) transfers, filtered by principal/contract. |
+| **L3 app-specific tables** | `@secondlayer/subgraphs` + CLI · REST `/api/subgraphs` | TypeScript-authored indexers: declare filters + schema + handlers; Secondlayer materializes Postgres tables and exposes REST. |
+| **Per-row webhooks** | `sl.subscriptions` · REST `/api/subscriptions` · `sl subscriptions` | Standard-Webhooks-signed deliveries for every row written by a subgraph. |
+| **Chain client** | `@secondlayer/stacks` | viem-style SDK: public/wallet clients, `Cl.*`, `Pc.*`, `getContract`, BNS / PoX / sBTC / StackingDAO extensions. |
+| **CLI** | `@secondlayer/cli` (binary `sl`) | Every one of the above is reachable from `sl`. |
 
-## Default Loop
+The packages are independent — pick whichever layer fits the task.
 
-1. Identify intent and the target account/project.
-2. Inspect current state before changing anything.
-3. Scaffold, edit, or create the smallest correct artifact.
-4. Validate locally or through `sl`/MCP.
-5. Ask for human confirmation before deploy, destructive actions, secret
-   rotation, replay, or requeue.
-6. Verify after the action.
-7. If delivery/indexing fails, diagnose before retrying.
+## Decision tree — which reference to load
 
-## Setup
+Before doing the task, load the smallest set of reference files that cover it. Reference files live in `references/`. They contain the exact public surface (function signatures, flags, response shapes) verified against the source.
 
-Prefer Bun commands.
+| If the user wants to… | Load |
+|---|---|
+| Install the CLI, log in, set up env vars, install an SDK package | `references/installation.md` |
+| Run any `sl` command (subgraphs, subscriptions, streams, create, project, local, account) | `references/cli.md` |
+| Call the platform API from TypeScript (`new SecondLayer(...)`, `sl.streams`, `sl.subgraphs`, `sl.subscriptions`, `sl.index`) | `references/sdk.md` |
+| Write or edit a subgraph file (`defineSubgraph`, sources, schema, handlers, `ctx.*`) | `references/subgraph-authoring.md` |
+| Read or call a Clarity contract, sign STX/contract transactions, work with Clarity values, post-conditions, accounts, transports | `references/stacks.md` |
+| Use BNS, PoX/stacking, sBTC, or StackingDAO | `references/stacks-extensions.md` |
+| Hit the REST API from a language without an SDK (curl, Python, Go) | `references/api-rest.md` |
+| Set up MCP for an agent to manage subgraphs/subscriptions | `references/mcp.md` |
+| Diagnose a stalled subgraph, a paused/failing subscription, dead letters, replays | `references/troubleshooting.md` |
 
-```bash
-bun add -g @secondlayer/cli
-sl login
-sl whoami
-```
+For working code, see `examples/` — every file is copy-pasteable and verified.
 
-For project-local packages:
+## Always-true facts
 
-```bash
-bun add @secondlayer/sdk
-bun add @secondlayer/subgraphs
-bun add -d @secondlayer/mcp
-```
+These are small enough to keep in the router. Everything else is in a reference file.
 
-## Task Router
+- **Binary:** `sl` (aliased `secondlayer`). Install: `bun add -g @secondlayer/cli`.
+- **Default platform API:** `https://api.secondlayer.tools`. Override with `SL_API_URL`.
+- **CLI auth:** `sl login` → magic-link → session in `~/.secondlayer/session.json` (90-day sliding). Tenant-scoped commands auto-mint 5-minute service JWTs per invocation; no long-lived key on disk.
+- **Streams auth:** `SL_STREAMS_API_KEY` env var (issued from the dashboard).
+- **Open beta:** reads have no auth; writes (deploy, create, delete, rotate, replay) require auth. Don't fabricate auth steps for read-only queries.
+- **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
+- **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 
-### Subgraphs
+## Default working loop
 
-Read `references/subgraphs.md` before authoring or editing a subgraph.
-Read `references/subgraph-patterns.md` for examples.
-Read `references/filters.md` and `references/column-types.md` when choosing
-sources, filters, columns, indexes, or unique keys.
+1. **Identify the layer.** Is this a subgraph (custom indexer)? A pre-built dataset (`sl.index`)? A raw stream consumer? A direct contract call? Pick the right tool — don't reach for a subgraph when `sl.index.ftTransfers.list({ recipient })` does the job in one HTTP call.
+2. **Inspect first.** Before changing anything tenant-scoped, run a read (`sl subgraphs list`, `sl subscriptions get …`). Confirms auth + state, prevents accidental overwrites.
+3. **Scaffold the smallest correct thing.** Use `sl subgraphs scaffold <contract>` or `sl create subscription <name>` rather than hand-writing boilerplate. Both generate code that's already 1:1 with current package APIs.
+4. **Validate locally.** For subgraphs: `sl subgraphs inspect <file>` to preview generated schema and API without deploying. For SDK code: type-check.
+5. **Confirm before destructive actions.** Always pause to confirm: `sl subgraphs delete`, `sl subgraphs reindex` (drops + reprocesses), `sl subscriptions rotate-secret`, `sl subscriptions replay`, `sl subscriptions requeue`. The CLI prompts by default; if running in non-TTY, pass `-y` only with explicit user consent.
+6. **Verify after.** `sl subgraphs status <name>` after deploy. `sl subscriptions deliveries <name>` after creating a subscription.
 
-Use current commands:
+## Code quality bar
 
-```bash
-sl subgraphs scaffold SP123.contract-name --output subgraphs/my-subgraph.ts
-sl subgraphs deploy subgraphs/my-subgraph.ts
-sl subgraphs deploy subgraphs/my-subgraph.ts --reindex
-sl subgraphs status my-subgraph
-sl subgraphs query my-subgraph table_name --limit 10
-sl subgraphs generate my-subgraph -o src/secondlayer/my-subgraph.ts
-```
+- **Never invent function names, flags, or env vars.** When uncertain, load the matching reference file. Hallucinated APIs are the single highest-cost failure mode for this skill.
+- **Use real types, not `any`.** The packages are aggressively typed; `defineSubgraph`, `getContract`, and `sl.subgraphs.typed(def)` infer column → row types automatically.
+- **bigint for amounts.** STX is microSTX (`1_000_000n` = 1 STX). FT amounts are bigint. Never use floats for token amounts.
+- **Post-conditions on every wallet transaction.** `postConditionMode: "deny"` (the default) blocks the tx unless every asset movement is asserted. Tell the user when you omit them and why.
+- **Don't surface signing secrets after `create` / `rotate-secret`.** They're returned once; the user stores them in their receiver's `.env`. If you have the secret in chat, treat it as sensitive.
 
-Important contracts:
+## Common-mistake guard rails
 
-- `defineSubgraph()` uses named object `sources`.
-- Handler keys match `sources` keys; `"*"` is the catch-all.
-- Handler payloads use unwrapped event objects. Print event fields live at
-  `event.data`; transfer fields are top-level.
-- Writes are batched per block through `ctx.insert`, `ctx.patch`, `ctx.upsert`,
-  `ctx.delete`, and `ctx.patchOrInsert`.
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Subgraph deploy errors `upsert requires unique key` | Schema declared `upsert` writes but `uniqueKeys` missing | Add `uniqueKeys: [["col_a", "col_b"]]` to the table |
+| Subscription paused after 20 failures | Receiver returning 4xx/5xx or timing out | `sl subscriptions doctor <name>`; fix receiver; `sl subscriptions resume <name>` |
+| `ApiError 401` from SDK | Missing `apiKey` or expired session | Set `SECONDLAYER_API_KEY` / regenerate from dashboard; for CLI run `sl login` |
+| `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `sl subgraphs generate <name> -o ...` or refresh ABI |
+| Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `sl subscriptions update <name> --format standard-webhooks` |
+| Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `sl subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |
 
-### Subscriptions
-
-Read `references/subscriptions.md` before creating or managing subscriptions.
-Read `references/troubleshooting.md` before replaying or requeueing.
-
-Subscription loop:
-
-1. Confirm the subgraph and table exist.
-2. Ask only for missing receiver details: runtime and URL.
-3. Create the receiver/subscription.
-4. Surface the `signingSecret` exactly once and tell the user to store it
-   server-side.
-5. Generate a signed test fixture only from a user-provided secret.
-6. Diagnose failures with deliveries, dead letters, and linked subgraph state.
-
-Commands:
-
-```bash
-sl create subscription whale-alerts --runtime node
-sl subscriptions list
-sl subscriptions get whale-alerts
-sl subscriptions update whale-alerts --url https://example.com/hooks/sl
-sl subscriptions pause whale-alerts
-sl subscriptions resume whale-alerts
-sl subscriptions rotate-secret whale-alerts
-sl subscriptions deliveries whale-alerts
-sl subscriptions dead whale-alerts
-sl subscriptions requeue whale-alerts <outbox-id>
-sl subscriptions replay whale-alerts --from-block 180000 --to-block 181000
-sl subscriptions doctor whale-alerts
-sl subscriptions test whale-alerts --signing-secret "$SIGNING_SECRET"
-```
-
-Human-confirm `delete`, `rotate-secret`, `replay`, and `requeue`.
-
-### MCP
-
-Read `references/mcp.md` before configuring or using MCP.
-
-Use MCP when the user wants an agent to inspect, deploy, query, create
-subscriptions, pause/resume, rotate secrets, replay, inspect deliveries/dead
-letters, or requeue without shelling out.
-
-```json
-{
-  "mcpServers": {
-    "secondlayer": {
-      "command": "bunx",
-      "args": ["@secondlayer/mcp"],
-      "env": {
-        "SL_SERVICE_KEY": "sk-sl_..."
-      }
-    }
-  }
-}
-```
-
-### CLI
-
-Use `sl` for local, terminal-first workflows. Prefer `--json` for inspection
-when the result feeds another step.
-
-Core commands:
-
-```bash
-sl login
-sl project current
-sl instance info
-sl subgraphs list --json
-sl subscriptions list --json
-sl doctor
-```
-
-### SDK
-
-Use `@secondlayer/sdk` for app code. Prefer typed subgraph clients via
-`getSubgraph(definition, client)` when the app owns the subgraph source.
-
-Use SDK subscriptions for product code that creates, pauses, resumes, rotates,
-replays, reads deliveries, reads dead letters, or requeues dead rows.
-
-### Troubleshooting
-
-Read `references/troubleshooting.md` when:
-
-- a subgraph is behind, stalled, or in error;
-- a subscription is paused or erroring;
-- deliveries return 4xx/5xx/timeouts;
-- dead-letter rows exist;
-- the user asks to replay or requeue.
-
-Never replay a large block range until you have inspected current delivery
-health and confirmed the exact range with the user.
-
-## Reference Map
-
-- `references/subgraphs.md` — current `defineSubgraph` contract and handler API.
-- `references/subgraph-patterns.md` — working source/handler examples.
-- `references/filters.md` — 13 source filter types.
-- `references/column-types.md` — subgraph column types and schema options.
-- `references/subscriptions.md` — create/update, formats, lifecycle, doctor,
-  test, replay, and DLQ.
-- `references/mcp.md` — MCP setup and full tool parity.
-- `references/troubleshooting.md` — recovery paths for indexing and delivery.
+When the user asks "why isn't this working" and the symptom isn't on this list, load `references/troubleshooting.md`.

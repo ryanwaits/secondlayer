@@ -1,0 +1,113 @@
+{
+  "skill_name": "secondlayer",
+  "evals": [
+    {
+      "id": 1,
+      "name": "sbtc-subgraph-with-webhook",
+      "prompt": "I want to track every sBTC transfer over 0.1 sBTC and get a webhook at https://my-app.com/sbtc-alerts whenever one happens. I'm starting from scratch in a fresh project — show me everything I need: install commands, the subgraph file, the deploy command, and how to wire the webhook receiver. sBTC contract on mainnet is SP3DX3H4FEYZJZ586MFBS25ZW3HZDMEW92260R2PR.sbtc-token, decimals 8.",
+      "expected_output": "Should produce: bun add commands for cli/subgraphs/sdk, a defineSubgraph file using ft_transfer filter with assetIdentifier, sl subgraphs deploy + sl create subscription (or sl subscriptions create) commands, and a Hono/Express receiver using verifyWebhookSignature from @secondlayer/sdk.",
+      "files": [],
+      "assertions": [
+        {"text": "Imports defineSubgraph from @secondlayer/subgraphs (not from a fabricated path)"},
+        {"text": "Uses ft_transfer filter type with assetIdentifier including '::sbtc' suffix"},
+        {"text": "Uses bigint for the 0.1 sBTC threshold (10_000_000n with 8 decimals, NOT 0.1 as a float)"},
+        {"text": "Schema has at least one table with valid column types from the allowed set (text/uint/int/principal/boolean/timestamp/jsonb)"},
+        {"text": "Subscription create command uses --subgraph, --table, --url flags (not invented flags)"},
+        {"text": "Webhook receiver uses verifyWebhookSignature from @secondlayer/sdk, passing (rawBody, headers, signingSecret). Passes the raw request body (NOT JSON.stringify of parsed body). Returns 401 on false."},
+        {"text": "Mentions that signingSecret is returned once and must be stored"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "stacks-read-balances",
+      "prompt": "Write me a TypeScript script that uses @secondlayer/stacks to: (1) read the STX balance of SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7, (2) read the USDA balance from contract SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token for that same address, and (3) print both in human-readable form. Mainnet. No signing needed.",
+      "expected_output": "A script using createPublicClient + http() transport + mainnet chain, calls getBalance for STX, uses getContract with SIP010_ABI for the token balance (or readContract with Cl.principal arg), formats with formatStx.",
+      "files": [],
+      "assertions": [
+        {"text": "Imports createPublicClient, http, mainnet from @secondlayer/stacks"},
+        {"text": "Uses mainnet (not testnet/devnet) chain"},
+        {"text": "Calls client.getBalance({ address }) for STX balance"},
+        {"text": "Uses either getContract with SIP010_ABI, OR readContract with Cl.principal as the arg"},
+        {"text": "Imports Cl or SIP010_ABI from @secondlayer/stacks/clarity (correct subpath)"},
+        {"text": "Uses formatStx or divides microSTX by 1_000_000 for STX display"},
+        {"text": "Does not require/import a private key, account, or wallet client (read-only task)"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "stacks-call-with-postconditions",
+      "prompt": "Show me how to send 100 USDA tokens from my wallet to SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE with proper post conditions so the transaction reverts if anything other than exactly 100 USDA gets moved. USDA contract is SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token, 6 decimals. I'll set STACKS_PRIVATE_KEY in env.",
+      "expected_output": "A script using createWalletClient + privateKeyToAccount, calling callContract with Cl.uint/Cl.principal args, and Pc.principal(sender).willSendEq(amount).ft(contract, tokenName) post-condition with deny mode.",
+      "files": [],
+      "assertions": [
+        {"text": "Uses privateKeyToAccount from @secondlayer/stacks/accounts"},
+        {"text": "Uses createWalletClient (not createPublicClient) since this is signing"},
+        {"text": "Function args use Cl.uint and Cl.principal (not raw strings/numbers)"},
+        {"text": "Amount is 100_000_000n (bigint, 100 * 10^6) NOT 100 or 100n"},
+        {"text": "Post-condition uses Pc.principal(sender).willSendEq(amount).ft(contract, 'usda')"},
+        {"text": "postConditionMode is 'deny' (or omitted since deny is the default)"},
+        {"text": "Imports Cl from @secondlayer/stacks/clarity and Pc from @secondlayer/stacks/postconditions"}
+      ]
+    },
+    {
+      "id": 4,
+      "name": "cli-reindex-flag-accuracy",
+      "prompt": "What's the exact sl CLI command to drop and reprocess my 'my-token' subgraph from block 180000 to 181000? And separately what's the command to just FILL the gap from 180000-181000 without dropping existing data?",
+      "expected_output": "Two distinct commands: `sl subgraphs reindex my-token --from 180000 --to 181000` (drops + reprocesses) and `sl subgraphs backfill my-token --from 180000 --to 181000` (additive).",
+      "files": [],
+      "assertions": [
+        {"text": "Reindex command uses subcommand 'reindex' with --from and --to flags"},
+        {"text": "Backfill command uses subcommand 'backfill' with --from and --to flags (both required)"},
+        {"text": "Names the two operations correctly: reindex = destructive/drops data, backfill = additive/preserves data"},
+        {"text": "Does NOT invent flags like --start-block or --reprocess on these subcommands"},
+        {"text": "Mentions that reindex prompts for confirmation (or that --force skips it)"}
+      ]
+    },
+    {
+      "id": 5,
+      "name": "streams-consumer-checkpoint",
+      "prompt": "Build me a long-running Node script that consumes the @secondlayer/sdk streams firehose, filters to ft_transfer events only, and persists a cursor to a local file so it can resume after a restart. Use SL_STREAMS_API_KEY from env.",
+      "expected_output": "A script using createStreamsClient, calling streams.events.consume with mode 'tail', types filter, onBatch callback that returns the next cursor after persisting.",
+      "files": [],
+      "assertions": [
+        {"text": "Imports createStreamsClient from @secondlayer/sdk/streams (correct subpath, not main)"},
+        {"text": "Passes apiKey: process.env.SL_STREAMS_API_KEY"},
+        {"text": "Calls streams.events.consume (not streams.events.list in a loop)"},
+        {"text": "Sets types: ['ft_transfer'] to filter the firehose"},
+        {"text": "onBatch callback returns the cursor (or null) to checkpoint progress"},
+        {"text": "Persists the cursor to disk BEFORE returning it from onBatch"},
+        {"text": "Loads the saved cursor on startup and passes as fromCursor"}
+      ]
+    },
+    {
+      "id": 6,
+      "name": "bns-register-flow",
+      "prompt": "I want to register the BNS name 'alice.btc' for my wallet using @secondlayer/stacks. Walk me through it — I understand it's a 2-step preorder/register flow. Show the code.",
+      "expected_output": "Uses .extend(bns()) on a wallet client, calls walletClient.bns.preorder({ name: 'alice.btc' }) to get {txid, salt}, waits for confirmation (~10 min), then calls .register({ name, salt }).",
+      "files": [],
+      "assertions": [
+        {"text": "Imports bns from @secondlayer/stacks/bns and extends client with bns()"},
+        {"text": "Uses a wallet client (not public client) since registration signs"},
+        {"text": "Calls bns.preorder first and captures both txid and salt from the return"},
+        {"text": "Calls bns.register second, passing the salt from step 1"},
+        {"text": "Mentions the ~10 minute wait between preorder and register (or notes that fast-claim is an alternative via claimFast)"},
+        {"text": "Does NOT invent a single-step 'registerName' method"}
+      ]
+    },
+    {
+      "id": 7,
+      "name": "sdk-typed-query",
+      "prompt": "I have a deployed subgraph called 'whale-watcher' with a table 'large_transfers' that has columns sender (principal), recipient (principal), amount (uint), and timestamp. Write a TypeScript function using @secondlayer/sdk that returns the 50 largest transfers from the last 24 hours, fully typed.",
+      "expected_output": "Either uses sl.subgraphs.queryTable with sort/order/limit/filters, OR sl.subgraphs.typed(def) with findMany if the user has the definition in scope. Filters use _block_height or timestamp; sorts by amount desc.",
+      "files": [],
+      "assertions": [
+        {"text": "Imports SecondLayer from @secondlayer/sdk"},
+        {"text": "Either calls sl.subgraphs.queryTable('whale-watcher', 'large_transfers', ...) or uses sl.subgraphs.typed(def).large_transfers.findMany(...)"},
+        {"text": "Sort is by 'amount' with order 'desc'"},
+        {"text": "Limit is 50"},
+        {"text": "Time filter is on a timestamp/block_height column with a .gte/.gt operator"},
+        {"text": "Does NOT invent methods like sl.subgraphs.query() or sl.subgraphs.find()"}
+      ]
+    }
+  ]
+}
