@@ -44,7 +44,8 @@ await streams.events.consume({
     for (const event of events) {
       // Process event. If you write to a DB, do it transactionally
       // and only return the new cursor AFTER the commit succeeds.
-      console.log(event.type, event.txId);
+      // StreamsEvent fields are snake_case (event_type, tx_id, block_height, ...).
+      console.log(event.event_type, event.tx_id);
     }
 
     if (envelope.next_cursor) {

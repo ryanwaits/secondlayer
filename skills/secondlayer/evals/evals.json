@@ -101,8 +101,8 @@
       "expected_output": "Either uses sl.subgraphs.queryTable with sort/order/limit/filters, OR sl.subgraphs.typed(def) with findMany if the user has the definition in scope. Filters use _block_height or timestamp; sorts by amount desc.",
       "files": [],
       "assertions": [
-        {"text": "Imports SecondLayer from @secondlayer/sdk"},
-        {"text": "Either calls sl.subgraphs.queryTable('whale-watcher', 'large_transfers', ...) or uses sl.subgraphs.typed(def).large_transfers.findMany(...)"},
+        {"text": "Uses one of the three SDK paths: (a) SecondLayer + sl.subgraphs.typed(def), (b) SecondLayer + sl.subgraphs.queryTable(name, table, ...), or (c) getSubgraph(def, opts) — all imported from @secondlayer/sdk. Any of the three counts."},
+        {"text": "Returned client exposes findMany on the table (e.g. client.large_transfers.findMany or via queryTable)"},
         {"text": "Sort is by 'amount' with order 'desc'"},
         {"text": "Limit is 50"},
         {"text": "Time filter is on a timestamp/block_height column with a .gte/.gt operator"},
