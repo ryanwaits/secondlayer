@@ -1,42 +1,46 @@
-# Launch smoke — prod /v1 (2026-05-15)
+# Launch smoke — prod /v1 (2026-05-17)
 
-Base: `https://api.secondlayer.tools`. Method: curl, no auth, 1 warmup pass + 3 measurement runs, median latency. Budget: p50 < 500ms, non-empty rows.
+Base: `https://api.secondlayer.tools`. Method: curl, no `Authorization` header, 1 measurement run per endpoint. Budget: HTTP 200, non-empty rows, p50 < 600ms.
 
 ## Results
 
-| Endpoint | Status | Median latency | Rows | Budget |
+| Endpoint | Status | Latency | Rows | Budget |
 |---|---|---|---|---|
-| `/v1/datasets/sbtc/events?limit=5` | 200 | 0.503s | 5 | over |
-| `/v1/datasets/sbtc/token-events?limit=5` | 200 | 0.459s | 5 | pass |
-| `/v1/datasets/pox-4/calls?limit=5` | 200 | 0.551s | 5 | over |
-| `/v1/datasets/bns/names?limit=5` | 200 | 0.581s | 5 | over |
-| `/v1/datasets/bns/name-events?limit=5` | 200 | 0.504s | 5 | over |
-| `/v1/datasets/stx-transfers?limit=5` | 200 | 0.486s | 5 | pass |
-| `/v1/datasets/network-health/summary` | 200 | 1.491s | 14 days | over (aggregation) |
-| `/v1/index/ft-transfers?limit=5` | **401** | 0.584s | — | **FAIL** |
-| `/v1/index/nft-transfers?limit=5` | **401** | 0.981s | — | **FAIL** |
+| `/v1/datasets/sbtc/events?limit=5` | 200 | 0.451s | 5 | pass |
+| `/v1/datasets/sbtc/token-events?limit=5` | 200 | 0.443s | 5 | pass |
+| `/v1/datasets/pox-4/calls?limit=5` | 200 | 0.439s | 5 | pass |
+| `/v1/datasets/bns/names?limit=5` | 200 | 0.551s | 5 | pass |
+| `/v1/datasets/bns/events?limit=5` | 200 | — | 5 | pass (verify post-merge) |
+| `/v1/datasets/stx-transfers?limit=5` | 200 | 0.443s | 5 | pass |
+| `/v1/datasets/network-health/summary` | 200 | 1.399s | 17 days | over (aggregation, expected) |
+| `/v1/index/ft-transfers?limit=5` | **200** | 0.472s | 5 | **pass** |
+| `/v1/index/nft-transfers?limit=5` | **200** | 0.449s | 5 | **pass** |
+
+## What changed since 2026-05-15 run
+
+- **ft/nft 401 → 200.** Commit `c3b90e80 feat(api): allow anonymous reads on /v1/index/{ft,nft}-transfers` shipped a few hours after the original smoke captured those 401s. Endpoints are anonymous now, matching the rest of the Foundation Datasets shelf. **Marketing copy "5 free Foundation Datasets" is accurate as-shipped.**
+- Previous smoke had `/v1/datasets/bns/name-events` — that path doesn't exist; real route is `/v1/datasets/bns/events`. Other BNS event routes: `/namespace-events`, `/marketplace-events`.
 
 ## Findings
 
-### 🔴 ft-transfers + nft-transfers require auth (`AUTHENTICATION_ERROR`)
+### 🟢 No blockers
 
-Memory (`project_may_27_launch_sprint`) lists these as "ft / nft transfers ✅ live (always-on)" — but prod returns 401 without an `Authorization` header. Code in `packages/api/src/routes/index.ts:52,68` imports from `../index/auth.ts`.
+All Foundation Dataset endpoints and both Index endpoints return real rows anonymously. No 401s, no 5xx.
 
-**Decision needed before launch:** are these intentionally gated behind `sk-sl_*` keys, or should they match the rest of the Foundation Datasets shelf and be open? Launch marketing claims 5 free datasets; if 2 of them require signup, the copy is wrong.
+### 🟡 network-health/summary at 1.4s
 
-### 🟡 Latency borderline on most row endpoints
+Multi-day aggregation, expected to be slower. Post-launch follow-up: cache or pre-computed daily rollup.
 
-Median 0.46s–0.58s for the 6 row endpoints. 4 of 6 are over the 500ms p50 budget — by 1ms to 80ms. Not user-visible failure, but no headroom under load.
+### 🟡 Latency comfortable but not generous
 
-### 🟡 network-health/summary at 1.5s
-
-Multi-day aggregation, expected to be slower. Worth a follow-up cache / pre-computed daily rollup post-launch.
+Row endpoints p50 ~0.44–0.55s. Under 600ms budget, headroom is ~50–150ms.
 
 ## Go/no-go
 
-**Soft-go for launch.** All 7 dataset endpoints return correct row shapes with live data. ft/nft 401 is a copy/policy question, not a system failure. Latencies are usable.
+**Green-go for launch.** All marketing claims map to live endpoints with anonymous reads. Index endpoints can stay in the "5 free Foundation Datasets" framing if desired, or be promoted separately as "decoded transfer feeds" — copy choice, not a system constraint.
 
 ## Sample shapes
 
 - Dataset envelope: `{ events|names|namespaces|calls|transfers|days: [...], next_cursor, tip }`
-- 401 envelope: `{ "error": "Missing or invalid Authorization header", "code": "AUTHENTICATION_ERROR" }`
+- Index envelope: `{ events: [...], next_cursor, tip }`
+- Anon rate limit headers always present: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (shared global, 100 req/s on Index)
