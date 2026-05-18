@@ -1081,26 +1081,78 @@ export function registerSubgraphsCommand(program: Command): void {
 	// --- reindex ---
 	subgraphs
 		.command("reindex <name>")
-		.description("Reindex a subgraph from historical blocks")
+		.description("Reindex a subgraph from historical blocks (drops + reprocesses)")
 		.option("--from <block>", "Start block height")
 		.option("--to <block>", "End block height")
-		.action(async (name: string, options: { from?: string; to?: string }) => {
-			try {
-				info(`Reindexing subgraph "${name}"...`);
-
-				const result = await reindexSubgraphApi(name, {
-					fromBlock: options.from
+		.option("-y, --yes", "Skip confirmation")
+		.action(
+			async (
+				name: string,
+				options: { from?: string; to?: string; yes?: boolean },
+			) => {
+				try {
+					const fromBlock = options.from
 						? Number.parseInt(options.from, 10)
-						: undefined,
-					toBlock: options.to ? Number.parseInt(options.to, 10) : undefined,
-				});
+						: undefined;
+					const toBlock = options.to
+						? Number.parseInt(options.to, 10)
+						: undefined;
 
-				success(result.message);
-				info(`From block ${result.fromBlock} to ${result.toBlock}`);
-			} catch (err) {
-				handleApiError(err, "reindex subgraph");
-			}
-		});
+					if (!options.yes) {
+						if (!process.stdin.isTTY) {
+							error(
+								"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
+							);
+							process.exit(1);
+						}
+						const { confirm } = await import("@inquirer/prompts");
+						const range =
+							fromBlock !== undefined && toBlock !== undefined
+								? ` for blocks [${fromBlock}, ${toBlock}]`
+								: fromBlock !== undefined
+									? ` from block ${fromBlock}`
+									: toBlock !== undefined
+										? ` up to block ${toBlock}`
+										: "";
+						let ok = false;
+						try {
+							ok = await confirm({
+								message: `Reindex subgraph "${name}"${range}? Existing rows in this range will be dropped and reprocessed.`,
+								default: false,
+							});
+						} catch (promptErr) {
+							const m =
+								promptErr instanceof Error
+									? promptErr.message
+									: String(promptErr);
+							if (m.includes("ExitPromptError") || m.includes("force closed")) {
+								error(
+									"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
+								);
+								process.exit(1);
+							}
+							throw promptErr;
+						}
+						if (!ok) {
+							info("Cancelled.");
+							return;
+						}
+					}
+
+					info(`Reindexing subgraph "${name}"...`);
+
+					const result = await reindexSubgraphApi(name, {
+						fromBlock,
+						toBlock,
+					});
+
+					success(result.message);
+					info(`From block ${result.fromBlock} to ${result.toBlock}`);
+				} catch (err) {
+					handleApiError(err, "reindex subgraph");
+				}
+			},
+		);
 
 	// --- backfill ---
 	subgraphs
