@@ -44,10 +44,10 @@ export default defineSubgraph({
 
 	handlers: {
 		registry: (event, ctx) => {
-			const payload = (event as { payload?: { topic?: unknown } }).payload ?? {};
-			const topic =
-				typeof payload.topic === "string" ? payload.topic : "unknown";
-			ctx.insert("flows", { topic });
+			const topic = (event as { topic?: unknown }).topic;
+			ctx.insert("flows", {
+				topic: typeof topic === "string" ? topic : "unknown",
+			});
 		},
 	},
 });
