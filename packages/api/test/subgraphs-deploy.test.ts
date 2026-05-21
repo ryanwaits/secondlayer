@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { resolve } from "node:path";
+import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import {
 	applyDeployStartBlockOverride,
-	handlerImportUrl,
 	hasDeployStartBlockChanged,
+	pruneSubgraphHandlerFiles,
 	resolveDeployStartBlock,
+	subgraphHandlerPath,
 } from "../src/routes/subgraphs.ts";
 
 const def = {
@@ -65,10 +68,43 @@ describe("subgraph deploy helpers", () => {
 		).toBe(false);
 	});
 
-	test("builds file URLs for relative handler imports", () => {
-		const handlerPath = "data/subgraphs/sbtc-activity.js";
-		expect(handlerImportUrl(handlerPath, 123)).toBe(
-			`${pathToFileURL(resolve(handlerPath)).href}?t=123`,
+	test("gives each deploy a unique handler filename", () => {
+		const dir = "data/subgraphs";
+		expect(subgraphHandlerPath(dir, "sbtc-activity", 123)).toBe(
+			join(dir, "sbtc-activity.123.js"),
 		);
+		// Distinct busts → distinct paths (so import() loads fresh under Bun).
+		expect(subgraphHandlerPath(dir, "x", 1)).not.toBe(
+			subgraphHandlerPath(dir, "x", 2),
+		);
+	});
+
+	test("prunes only this subgraph's prior handler files", () => {
+		const dir = mkdtempSync(join(tmpdir(), "sg-prune-"));
+		for (const f of [
+			"demo.js", // legacy
+			"demo.111.js", // busted
+			"demo.222.js", // busted
+			"demo-other.999.js", // different subgraph (prefix collision guard)
+			"keep.js",
+		]) {
+			writeFileSync(join(dir, f), "");
+		}
+		pruneSubgraphHandlerFiles(dir, "demo");
+		expect(readdirSync(dir).sort()).toEqual(["demo-other.999.js", "keep.js"]);
+	});
+
+	test("Bun loads fresh module content from a unique path (regression)", async () => {
+		// Bun ignores ?query cache-busting for file: imports — the deploy route
+		// relies on unique filenames instead. Prove a new path picks up new code.
+		const dir = mkdtempSync(join(tmpdir(), "sg-import-"));
+		const p1 = subgraphHandlerPath(dir, "h", 1);
+		writeFileSync(p1, "export const v = 1;");
+		const p2 = subgraphHandlerPath(dir, "h", 2);
+		writeFileSync(p2, "export const v = 2;");
+		const m1 = await import(pathToFileURL(p1).href);
+		const m2 = await import(pathToFileURL(p2).href);
+		expect(m1.v).toBe(1);
+		expect(m2.v).toBe(2);
 	});
 });

@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, unlinkSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { BundleSizeError, bundleSubgraphCode } from "@secondlayer/bundler";
 import { getErrorMessage, logger } from "@secondlayer/shared";
@@ -194,8 +194,38 @@ function getOwnedSubgraph(
 
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
-export function handlerImportUrl(handlerPath: string, cacheBust = Date.now()) {
-	return `${pathToFileURL(resolve(handlerPath)).href}?t=${cacheBust}`;
+// Bun's import() ignores the ?query cache-buster for file: URLs (Node honors
+// it), so reusing a stable per-name path re-runs the stale cached module on
+// every redeploy — silently dropping schema/handler changes. Give each deploy
+// a unique filename so import() always loads a genuinely new path.
+export function subgraphHandlerPath(
+	subgraphsDir: string,
+	name: string,
+	cacheBust: number = Date.now(),
+): string {
+	return join(subgraphsDir, `${name}.${cacheBust}.js`);
+}
+
+/** Remove prior handler files for this subgraph (legacy `${name}.js` and any
+ * `${name}.<bust>.js`). Safe: the processor re-materializes from handler_code. */
+export function pruneSubgraphHandlerFiles(
+	subgraphsDir: string,
+	name: string,
+): void {
+	if (!existsSync(subgraphsDir)) return;
+	const legacy = `${name}.js`;
+	const bustPattern = new RegExp(`^${escapeRegExp(name)}\\.\\d+\\.js$`);
+	for (const file of readdirSync(subgraphsDir)) {
+		if (file === legacy || bustPattern.test(file)) {
+			try {
+				unlinkSync(join(subgraphsDir, file));
+			} catch {}
+		}
+	}
+}
+
+function escapeRegExp(s: string): string {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function applyDeployStartBlockOverride(
@@ -252,13 +282,16 @@ app.post("/", async (c) => {
 		mkdirSync(subgraphsDir, { recursive: true });
 	}
 
-	const handlerPath = join(subgraphsDir, `${name}.js`);
+	// Unique filename per deploy so import() below loads fresh under Bun (which
+	// ignores ?query cache-busting). Prune older files for this subgraph first.
+	pruneSubgraphHandlerFiles(subgraphsDir, name);
+	const handlerPath = subgraphHandlerPath(subgraphsDir, name);
 	await Bun.write(handlerPath, handlerCode);
 
 	// Import the handler to get a full SubgraphDefinition with handler functions
 	let def: SubgraphDefinition;
 	try {
-		const mod = await import(handlerImportUrl(handlerPath));
+		const mod = await import(pathToFileURL(handlerPath).href);
 		def = applyDeployStartBlockOverride(
 			mod.default ?? mod,
 			parsed.data.startBlock,
@@ -313,12 +346,6 @@ app.post("/", async (c) => {
 			existingStartBlock,
 			definitionStartBlock: def.startBlock,
 		});
-	if (
-		existing == null ||
-		parsed.data.startBlock !== undefined ||
-		startBlockChanged
-	) {
-	}
 	const result = await deploySchema(db, def, handlerPath, {
 		apiKeyId,
 		accountId,
