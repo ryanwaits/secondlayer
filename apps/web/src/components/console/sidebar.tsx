@@ -30,7 +30,6 @@ const SETTINGS_CHILDREN = [
 	{ href: "/api-keys", label: "API Keys" },
 	{ href: "/team", label: "Team" },
 	{ href: "/usage", label: "Usage" },
-	{ href: "/billing", label: "Billing" },
 ];
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -127,8 +126,7 @@ function isSettingsActive(pathname: string) {
 		clean.startsWith("/settings") ||
 		clean.startsWith("/api-keys") ||
 		clean.startsWith("/team") ||
-		clean.startsWith("/usage") ||
-		clean.startsWith("/billing")
+		clean.startsWith("/usage")
 	);
 }
 

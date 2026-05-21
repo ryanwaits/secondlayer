@@ -10,7 +10,6 @@ import {
 	formatNum,
 } from "@/lib/usage";
 import { PLANS } from "@secondlayer/shared/pricing";
-import Link from "next/link";
 
 type ProductUsageResponse = {
 	streams: {
@@ -116,13 +115,7 @@ export default async function UsagePage() {
 								<div className="alert-body">
 									{formatCents(spend.projectedCents)} projected of{" "}
 									{formatCents(spend.capCents)} — {period.daysRemaining} day
-									{period.daysRemaining === 1 ? "" : "s"} to go.{" "}
-									<Link
-										href="/billing"
-										style={{ color: "var(--text-main)", fontWeight: 500 }}
-									>
-										Raise cap or upgrade →
-									</Link>
+									{period.daysRemaining === 1 ? "" : "s"} to go.
 								</div>
 							</div>
 						</div>
@@ -153,7 +146,7 @@ export default async function UsagePage() {
 							}
 							pct={storage.pct}
 							sparkData={storage.sparkline}
-							color="teal"
+							color="accent"
 							hidePct={!Number.isFinite(storage.allowanceBytes)}
 						/>
 					</div>
@@ -201,13 +194,6 @@ export default async function UsagePage() {
 										: "unlimited storage"}
 								</div>
 							</div>
-							<Link
-								href="/billing"
-								className="settings-btn ghost"
-								style={{ textDecoration: "none" }}
-							>
-								Manage plan
-							</Link>
 						</div>
 					</div>
 				</div>
@@ -317,9 +303,6 @@ function CapStrip({
 					<span>No spend cap set</span>
 					<span className="pct">— {formatCents(currentCents)} this period</span>
 				</div>
-				<Link href="/billing" className="cap-strip-action">
-					Set cap →
-				</Link>
 			</div>
 		);
 	}
@@ -353,9 +336,6 @@ function CapStrip({
 					/>
 				</div>
 			</div>
-			<Link href="/billing" className="cap-strip-action">
-				{frozen ? "Unfreeze →" : "Change →"}
-			</Link>
 		</div>
 	);
 }
