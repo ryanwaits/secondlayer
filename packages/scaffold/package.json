@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/scaffold",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -22,7 +22,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/subgraphs": "^2.0.0"
+		"@secondlayer/subgraphs": "^3.0.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
