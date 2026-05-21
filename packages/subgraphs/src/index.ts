@@ -32,6 +32,7 @@ export {
 } from "./define.ts";
 export type {
 	EventForFilter,
+	PrintEventFor,
 	AnyEvent,
 	FtTransferPayload,
 	FtMintPayload,

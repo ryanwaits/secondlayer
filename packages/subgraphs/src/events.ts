@@ -6,7 +6,13 @@
  * filter to its payload so handlers are typed by their source's `type` (no
  * `event as {...}` casts).
  */
-import type { ContractCallEvent, SubgraphFilter, TxMeta } from "./types.ts";
+import type { ColumnToTS } from "./infer.ts";
+import type {
+	ColumnType,
+	ContractCallEvent,
+	SubgraphFilter,
+	TxMeta,
+} from "./types.ts";
 
 // ── FT events ────────────────────────────────────────────────────────────
 
@@ -105,11 +111,29 @@ export interface ContractDeployPayload {
 
 // ── Filter → payload mapping ─────────────────────────────────────────────
 
+/**
+ * Print event typed per topic. When a `print_event` source declares a `prints`
+ * map, the payload is a discriminated union keyed by `topic` with `data` typed
+ * per topic; otherwise it falls back to the untyped {@link PrintEventPayload}.
+ */
+export type PrintEventFor<F> = F extends {
+	prints: infer P extends Record<string, Record<string, ColumnType>>;
+}
+	? {
+			[K in keyof P]: {
+				contractId: string;
+				topic: K;
+				data: { [Field in keyof P[K]]: ColumnToTS<P[K][Field]> };
+				tx: TxMeta;
+			};
+		}[keyof P]
+	: PrintEventPayload;
+
 /** The event payload a handler receives for a given source filter. */
 export type EventForFilter<F extends SubgraphFilter> = F extends {
 	type: "print_event";
 }
-	? PrintEventPayload
+	? PrintEventFor<F>
 	: F extends { type: "ft_transfer" }
 		? FtTransferPayload
 		: F extends { type: "ft_mint" }

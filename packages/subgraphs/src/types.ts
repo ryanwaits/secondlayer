@@ -156,6 +156,14 @@ export interface PrintEventFilter {
 	type: "print_event";
 	contractId?: string;
 	topic?: string;
+	/**
+	 * Optional per-topic field schema. When declared, the handler's `event` is
+	 * a discriminated union keyed by `topic` and `event.data` is typed per topic
+	 * (e.g. `{ "completed-deposit": { amount: "uint", sender: "principal" } }`).
+	 * Uses the same `ColumnType` vocab as `schema`; nested fields use `"jsonb"`.
+	 * Type-level only — not validated at runtime.
+	 */
+	prints?: Record<string, Record<string, ColumnType>>;
 }
 
 /** All subgraph filter types — discriminated on `type` */

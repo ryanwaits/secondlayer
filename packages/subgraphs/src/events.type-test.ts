@@ -10,6 +10,7 @@ import type {
 	ContractDeployPayload,
 	EventForFilter,
 	FtTransferPayload,
+	PrintEventFor,
 	PrintEventPayload,
 	StxTransferPayload,
 } from "./events.ts";
@@ -109,3 +110,42 @@ defineSubgraph({
 		},
 	},
 });
+
+// ── Declared `prints` → typed, discriminated `event.data` per topic ──────
+
+defineSubgraph({
+	name: "prints-type-test",
+	sources: {
+		registry: {
+			type: "print_event",
+			contractId: "SP000.sbtc-registry",
+			prints: {
+				"completed-deposit": { amount: "uint", sender: "principal" },
+				"key-rotation": { newKey: "text" },
+			},
+		},
+	},
+	schema: { flows: { columns: { topic: { type: "text" } } } },
+	handlers: {
+		registry: (event, ctx) => {
+			expectTypeOf(event.topic).toEqualTypeOf<
+				"completed-deposit" | "key-rotation"
+			>();
+			if (event.topic === "completed-deposit") {
+				expectTypeOf(event.data.amount).toEqualTypeOf<bigint>();
+				expectTypeOf(event.data.sender).toEqualTypeOf<string>();
+				// @ts-expect-error newKey belongs to a different topic
+				void event.data.newKey;
+			}
+			if (event.topic === "key-rotation") {
+				expectTypeOf(event.data.newKey).toEqualTypeOf<string>();
+			}
+			ctx.insert("flows", { topic: event.topic });
+		},
+	},
+});
+
+// Undeclared `prints` falls back to the untyped payload (back-compat).
+expectTypeOf<
+	PrintEventFor<{ type: "print_event"; contractId: string }>
+>().toEqualTypeOf<PrintEventPayload>();
