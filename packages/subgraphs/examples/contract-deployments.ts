@@ -32,9 +32,8 @@ export default defineSubgraph({
 
 	handlers: {
 		deploy: async (event, ctx) => {
-			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-			const tx = (event as any).tx;
-			const contractId = tx?.contractId ?? ctx.tx.sender;
+			// contract_deploy events expose `contractId` and `deployer` directly.
+			const contractId = event.contractId || ctx.tx.sender;
 			const name = contractId.includes(".")
 				? contractId.split(".")[1]
 				: contractId;

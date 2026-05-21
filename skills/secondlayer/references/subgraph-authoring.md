@@ -609,19 +609,19 @@ Rules:
 - Handler **key must equal a source key** in `sources`, or be `"*"` (catch-all that fires for every matched event).
 - Runs **once per matched event**. Writes are batched and flushed atomically at the end of the block.
 - Can be sync or `async`. Use `async` when calling `ctx.findOne`, `ctx.findMany`, `ctx.count`, etc. — those return promises.
-- The `event` arg is typed as `Record<string, unknown>` at the runtime contract; cast to the concrete payload (e.g. `FtTransferEvent`) or use typed triggers (§7) for inference.
+- The `event` arg is **typed from the source's `type`** (e.g. an `ft_transfer` source → `event.amount` is `bigint`, `event.sender`/`event.recipient` are `string`) — no cast needed. `ctx.insert` is checked against your `schema`. For `print_event` sources, declare a `prints` map to type `event.data` per topic (§7); for `contract_call`, pass a `const` `abi` to type `event.input` (§7).
 
 Example:
 
 ```ts
 handlers: {
   transfer: async (event, ctx) => {
-    const e = event as { assetIdentifier: string; sender: string; recipient: string; amount: bigint };
+    // event is FtTransferEvent — fields are typed, no cast.
     ctx.insert("transfers", {
-      asset_identifier: e.assetIdentifier,
-      sender: e.sender,
-      recipient: e.recipient,
-      amount: e.amount,
+      asset_identifier: event.assetIdentifier,
+      sender: event.sender,
+      recipient: event.recipient,
+      amount: event.amount,
     });
   },
   "*": (event, ctx) => {
@@ -929,18 +929,15 @@ export default defineSubgraph({
   },
   handlers: {
     transfer: async (event, ctx) => {
-      const amount = BigInt((event as { amount: bigint }).amount ?? 0n);
-      const e = event as { assetIdentifier: string; sender?: string; recipient?: string };
-      if (e.sender)    await adjust(ctx, e.assetIdentifier, e.sender, -amount);
-      if (e.recipient) await adjust(ctx, e.assetIdentifier, e.recipient, amount);
+      // ft_transfer event is typed: amount: bigint, sender/recipient: string.
+      await adjust(ctx, event.assetIdentifier, event.sender, -event.amount);
+      await adjust(ctx, event.assetIdentifier, event.recipient, event.amount);
     },
     mint: async (event, ctx) => {
-      const e = event as { assetIdentifier: string; recipient: string; amount: bigint };
-      await adjust(ctx, e.assetIdentifier, e.recipient, BigInt(e.amount ?? 0n));
+      await adjust(ctx, event.assetIdentifier, event.recipient, event.amount);
     },
     burn: async (event, ctx) => {
-      const e = event as { assetIdentifier: string; sender: string; amount: bigint };
-      await adjust(ctx, e.assetIdentifier, e.sender, -BigInt(e.amount ?? 0n));
+      await adjust(ctx, event.assetIdentifier, event.sender, -event.amount);
     },
   },
 });
@@ -988,8 +985,8 @@ export default defineSubgraph({
   },
   handlers: {
     deploy: async (event, ctx) => {
-      const tx = (event as { tx?: { contractId?: string } }).tx;
-      const contractId = tx?.contractId ?? ctx.tx.sender;
+      // contract_deploy event exposes `contractId` and `deployer` directly.
+      const contractId = event.contractId || ctx.tx.sender;
       const name = contractId.includes(".") ? contractId.split(".")[1] : contractId;
       ctx.upsert(
         "contracts",
@@ -1023,6 +1020,8 @@ export default defineSubgraph({
       type: "print_event",
       contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01",
       topic: "swap",
+      // Declare the topic's tuple shape (camelCased keys) to type event.data.
+      prints: { swap: { tokenX: "principal", tokenY: "principal", dx: "uint", dy: "uint" } },
     },
   },
   schema: {
@@ -1039,13 +1038,13 @@ export default defineSubgraph({
   },
   handlers: {
     swap: (event, ctx) => {
-      const value = (event as { value: Record<string, unknown> }).value;
+      // `prints` types event.data: tokenX/tokenY → string, dx/dy → bigint.
       ctx.insert("swaps", {
         sender:   ctx.tx.sender,
-        token_x:  value["token-x"],
-        token_y:  value["token-y"],
-        amount_x: value.dx,
-        amount_y: value.dy,
+        token_x:  event.data.tokenX,
+        token_y:  event.data.tokenY,
+        amount_x: event.data.dx,
+        amount_y: event.data.dy,
       });
     },
   },
@@ -1069,6 +1068,12 @@ export default defineSubgraph({
       type: "print_event",
       contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
       topic: "completed-deposit",
+      prints: {
+        "completed-deposit": {
+          bitcoinTxid: "text", outputIndex: "uint", recipient: "principal",
+          amount: "uint", sweepBlockHash: "text", sweepTxid: "text",
+        },
+      },
     },
   },
   schema: {
@@ -1086,17 +1091,18 @@ export default defineSubgraph({
   },
   handlers: {
     registry: (event, ctx) => {
-      const value = (event as { value: Record<string, unknown> }).value;
+      // `prints` types event.data per topic (camelCased keys).
+      const d = event.data;
       ctx.upsert(
         "deposits",
-        { bitcoin_txid: value["bitcoin-txid"], bitcoin_vout: value["output-index"] },
+        { bitcoin_txid: d.bitcoinTxid, bitcoin_vout: d.outputIndex },
         {
-          bitcoin_txid:     value["bitcoin-txid"],
-          bitcoin_vout:     value["output-index"],
-          recipient:        value.recipient,
-          amount:           value.amount,
-          sweep_block_hash: value["sweep-block-hash"] ?? null,
-          sweep_txid:       value["sweep-txid"] ?? null,
+          bitcoin_txid:     d.bitcoinTxid,
+          bitcoin_vout:     d.outputIndex,
+          recipient:        d.recipient,
+          amount:           d.amount,
+          sweep_block_hash: d.sweepBlockHash ?? null,
+          sweep_txid:       d.sweepTxid ?? null,
         },
       );
     },
