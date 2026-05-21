@@ -100,7 +100,7 @@ export default defineSubgraph({
   //   { type: "stx_transfer", minAmount: 1000000n }
   //   { type: "nft_transfer", assetIdentifier: "SP...nft::nft-name" }
   sources: {
-    handler: { type: "contract_call", contractId: "SP000000000000000000002Q6VF78.pox-4" },
+    handler: { type: "ft_transfer" },
   },
 
   // Schema defines the tables this subgraph creates.
@@ -121,9 +121,11 @@ export default defineSubgraph({
   //          ctx.patchOrInsert(), ctx.findOne(), ctx.findMany()
   handlers: {
     handler: (event, ctx) => {
+      // event is typed from the source — for ft_transfer: sender, recipient,
+      // amount (bigint), assetIdentifier. ctx.insert is checked against schema.
       ctx.insert("data", {
-        sender: ctx.tx.sender,
-        amount: event.amount ?? 0,
+        sender: event.sender,
+        amount: event.amount,
         memo: null,
       });
     },
@@ -259,18 +261,22 @@ export default defineSubgraph({
 
   handlers: {
     registry: (event, ctx) => {
-      // biome-ignore lint/suspicious/noExplicitAny: print event shape varies by topic
-      const e = event as any;
-      const topic = typeof e.topic === "string" ? e.topic : null;
-      if (!topic) return;
-      const data = (e.data ?? {}) as Record<string, unknown>;
-
+      if (!event.topic) return;
+      // event.data is untyped across topics — cast to the fields you read, or
+      // declare \`prints\` per topic on the source for fully typed event.data.
+      const data = event.data as {
+        requestId?: bigint;
+        amount?: bigint | string;
+        sender?: string;
+        bitcoinTxid?: string;
+        burnHeight?: bigint;
+      };
       ctx.insert("flows", {
-        topic,
+        topic: event.topic,
         request_id: data.requestId ?? null,
         amount: data.amount != null ? String(data.amount) : null,
-        sender: (data.sender as string) ?? null,
-        bitcoin_txid: (data.bitcoinTxid as string) ?? null,
+        sender: data.sender ?? null,
+        bitcoin_txid: data.bitcoinTxid ?? null,
         burn_height: data.burnHeight ?? null,
       });
     },
@@ -322,12 +328,11 @@ export default defineSubgraph({
 
   handlers: {
     pox: (event, ctx) => {
-      // biome-ignore lint/suspicious/noExplicitAny: contract_call event shape
-      const fnName = (event as any).functionName ?? ctx.tx.functionName ?? "";
-      // biome-ignore lint/suspicious/noExplicitAny: raw_result is hex-encoded Clarity
-      const resultHex = (event as any).rawResult ?? "";
+      // contract_call events are typed: functionName, resultHex, args, sender.
+      // (Add an \`abi\` to the source to also get typed \`event.input\`.)
+      const resultHex = event.resultHex ?? "";
       ctx.insert("calls", {
-        function_name: fnName,
+        function_name: event.functionName || ctx.tx.functionName || "",
         caller: ctx.tx.sender,
         result_ok: resultHex.startsWith("0x07"), // 0x07 = response-ok type tag
       });
@@ -379,20 +384,17 @@ export default defineSubgraph({
 
   handlers: {
     bns: (event, ctx) => {
-      // biome-ignore lint/suspicious/noExplicitAny: print event shape
-      const e = event as any;
-      const topic = typeof e.topic === "string" ? e.topic : null;
-      if (!topic) return;
-      const data = (e.data ?? {}) as Record<string, unknown>;
+      if (!event.topic) return;
+      const data = event.data as { namespace?: unknown; name?: unknown; owner?: string };
       const namespace = decodeBuffUtf8(data.namespace);
       const nameLabel = decodeBuffUtf8(data.name);
       if (!namespace || !nameLabel) return;
       ctx.insert("names", {
-        topic,
+        topic: event.topic,
         namespace,
         name: nameLabel,
         fqn: \`\${nameLabel}.\${namespace}\`,
-        owner: topic === "burn-name" ? null : ((data.owner as string) ?? null),
+        owner: event.topic === "burn-name" ? null : (data.owner ?? null),
       });
     },
   },
