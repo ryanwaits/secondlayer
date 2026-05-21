@@ -1,9 +1,8 @@
 import { expect, test } from "bun:test";
 import { defineSubgraph } from "../src/define.ts";
-import type { SubgraphDefinition } from "../src/types.ts";
 
 test("defineSubgraph returns the same definition", () => {
-	const def: SubgraphDefinition = {
+	const def = {
 		name: "test-subgraph",
 		sources: {
 			transfer: { type: "ft_transfer", assetIdentifier: "SP000::my-contract" },

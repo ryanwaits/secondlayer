@@ -25,7 +25,27 @@ export type {
 	RowValue,
 	ComputedValue,
 } from "./types.ts";
-export { defineSubgraph } from "./define.ts";
+export {
+	defineSubgraph,
+	type TypedHandlers,
+	type TypedSubgraphDefinition,
+} from "./define.ts";
+export type {
+	EventForFilter,
+	AnyEvent,
+	FtTransferPayload,
+	FtMintPayload,
+	FtBurnPayload,
+	NftTransferPayload,
+	NftMintPayload,
+	NftBurnPayload,
+	StxTransferPayload,
+	StxMintPayload,
+	StxBurnPayload,
+	StxLockPayload,
+	PrintEventPayload,
+	ContractDeployPayload,
+} from "./events.ts";
 export { validateSubgraphDefinition } from "./validate.ts";
 export { generateSubgraphSQL } from "./schema/generator.ts";
 export { pgSchemaName } from "./schema/utils.ts";
@@ -48,4 +68,6 @@ export type {
 	FindManyOptions,
 	SubgraphTableClient,
 	InferSubgraphClient,
+	WriteRow,
+	TypedSubgraphContext,
 } from "./infer.ts";

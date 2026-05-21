@@ -44,12 +44,8 @@ export default defineSubgraph({
 
 	handlers: {
 		registry: (event, ctx) => {
-			// `event.topic` is the decoded print-event topic (from the Clarity tuple),
-			// not `event.payload.topic` — there is no `payload` on the event.
-			const topic = (event as { topic?: unknown }).topic;
-			ctx.insert("flows", {
-				topic: typeof topic === "string" ? topic : "unknown",
-			});
+			// event: PrintEventPayload — event.topic is the decoded print topic (string).
+			ctx.insert("flows", { topic: event.topic });
 		},
 	},
 });
