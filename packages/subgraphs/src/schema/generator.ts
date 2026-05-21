@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ColumnType, SubgraphDefinition } from "../types.ts";
 import { pgSchemaName } from "./utils.ts";
 
@@ -135,7 +136,9 @@ export function generateSubgraphSQL(
 		},
 		(_key, value) => (typeof value === "bigint" ? value.toString() : value),
 	);
-	const hash = String(Bun.hash(hashInput));
+	// node crypto (not Bun.hash) so the published node-runtime `sl` CLI can
+	// compute schema hashes too (e.g. `sl subgraphs inspect`).
+	const hash = createHash("sha256").update(hashInput).digest("hex");
 
 	return { statements, hash };
 }
