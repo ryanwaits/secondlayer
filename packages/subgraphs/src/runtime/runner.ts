@@ -1,6 +1,15 @@
 import { getErrorMessage } from "@secondlayer/shared";
 import { logger } from "@secondlayer/shared/logger";
-import type { SubgraphDefinition, SubgraphFilter } from "../types.ts";
+import {
+	clarityValueToJS,
+	deserializeCV,
+	toCamelCase,
+} from "@secondlayer/stacks/clarity";
+import type {
+	ContractCallFilter,
+	SubgraphDefinition,
+	SubgraphFilter,
+} from "../types.ts";
 import { decodeClarityValue, decodeEventData } from "./clarity.ts";
 import type { SubgraphContext } from "./context.ts";
 import type { MatchedTx } from "./source-matcher.ts";
@@ -78,6 +87,54 @@ function safeBigInt(val: unknown): bigint {
 }
 
 /**
+ * Build the named, ABI-decoded `event.input` for a contract_call source that
+ * declares an `abi`. Each function arg is decoded via `clarityValueToJS` so the
+ * values match the types `ExtractFunctionArgs` promises (Uint8Array buffers,
+ * camelCase tuple keys, wrapped responses). Returns undefined when no abi /
+ * function match, leaving handlers with the positional `args` only.
+ */
+export function buildContractCallInput(
+	filter: ContractCallFilter,
+	tx: MatchedTx["tx"],
+): Record<string, unknown> | undefined {
+	const abi = filter.abi;
+	const fnName = tx.function_name;
+	if (!abi || !fnName) return undefined;
+	const fn = abi.functions?.find((f) => f.name === fnName);
+	if (!fn || !Array.isArray(fn.args)) return undefined;
+
+	let rawArgs: unknown = tx.function_args;
+	if (typeof rawArgs === "string") {
+		try {
+			rawArgs = JSON.parse(rawArgs);
+		} catch {
+			return undefined;
+		}
+	}
+	if (!Array.isArray(rawArgs)) return undefined;
+
+	// Call through a non-generic cast: clarityValueToJS<T> instantiates the deep
+	// AbiToTS<T> conditional (TS2589) at runtime call sites. The static types
+	// come from ContractCallPayload; here we only need its runtime reshaping.
+	const decodeArg = clarityValueToJS as unknown as (
+		type: unknown,
+		cv: unknown,
+	) => unknown;
+	const input: Record<string, unknown> = {};
+	fn.args.forEach((arg, i) => {
+		const hex = rawArgs[i];
+		if (typeof hex !== "string") return;
+		try {
+			const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
+			input[toCamelCase(arg.name)] = decodeArg(arg.type, deserializeCV(clean));
+		} catch {
+			// Skip args that fail to decode rather than dropping the whole event.
+		}
+	});
+	return input;
+}
+
+/**
  * Build a typed event payload based on the source filter type.
  * Returns the payload the handler will receive.
  */
@@ -102,17 +159,20 @@ function buildEventPayload(
 	// No event — tx-level match (contract_call or contract_deploy)
 	if (!event) {
 		switch (filter.type) {
-			case "contract_call":
+			case "contract_call": {
+				const input = buildContractCallInput(filter, tx);
 				return {
 					type: "contract_call",
 					contractId: tx.contract_id ?? "",
 					functionName: tx.function_name ?? "",
 					sender: tx.sender,
 					args: decodedArgs,
+					...(input !== undefined ? { input } : {}),
 					result: decodedResult,
 					resultHex: tx.raw_result ?? null,
 					tx: txMeta,
 				};
+			}
 			case "contract_deploy":
 				return {
 					contractId: tx.contract_id ?? "",
@@ -240,7 +300,8 @@ function buildEventPayload(
 		}
 
 		// ── Contract call (with events) ──
-		case "contract_call":
+		case "contract_call": {
+			const input = buildContractCallInput(filter, tx);
 			return {
 				...decoded,
 				type: "contract_call",
@@ -249,10 +310,12 @@ function buildEventPayload(
 				functionName: tx.function_name ?? "",
 				sender: tx.sender,
 				args: decodedArgs,
+				...(input !== undefined ? { input } : {}),
 				result: decodedResult,
 				resultHex: tx.raw_result ?? null,
 				tx: txMeta,
 			};
+		}
 
 		// ── Contract deploy ──
 		case "contract_deploy":

@@ -1,3 +1,5 @@
+import type { AbiContract } from "@secondlayer/stacks/clarity";
+
 /** Supported column types for subgraph schemas */
 export type ColumnType =
 	| "text"
@@ -144,8 +146,13 @@ export interface ContractCallFilter {
 	contractId?: string;
 	functionName?: string;
 	caller?: string;
-	/** ABI for typed event.args. If omitted, auto-fetched at deploy time. */
-	abi?: Record<string, unknown>;
+	/**
+	 * Contract ABI (pass it `as const`) used to type `event.input` — the named,
+	 * decoded function arguments. Dev-provided; serialized into the deployed
+	 * definition and used at runtime to decode args by name. Omit to keep
+	 * `event.args` as a positional `unknown[]`.
+	 */
+	abi?: AbiContract;
 }
 export interface ContractDeployFilter {
 	type: "contract_deploy";

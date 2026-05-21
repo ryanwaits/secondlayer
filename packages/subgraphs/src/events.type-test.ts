@@ -149,3 +149,48 @@ defineSubgraph({
 expectTypeOf<
 	PrintEventFor<{ type: "print_event"; contractId: string }>
 >().toEqualTypeOf<PrintEventPayload>();
+
+// ── Declared `abi` → typed, named `event.input` for contract_call ────────
+
+const poxAbi = {
+	functions: [
+		{
+			name: "stack-stx",
+			access: "public",
+			args: [
+				{ name: "amount-ustx", type: "uint128" },
+				{ name: "lock-period", type: "uint128" },
+			],
+			outputs: "uint128",
+		},
+	],
+} as const;
+
+defineSubgraph({
+	name: "args-type-test",
+	sources: {
+		stackStx: {
+			type: "contract_call",
+			contractId: "SP000.pox-4",
+			functionName: "stack-stx",
+			abi: poxAbi,
+		},
+		plainCall: { type: "contract_call", contractId: "SP000.c" },
+	},
+	schema: { rows: { columns: { n: { type: "uint" } } } },
+	handlers: {
+		stackStx: (event) => {
+			// Named, typed args decoded via the ABI.
+			expectTypeOf(event.input.amountUstx).toEqualTypeOf<bigint>();
+			expectTypeOf(event.input.lockPeriod).toEqualTypeOf<bigint>();
+			// Positional `args` stays for back-compat.
+			expectTypeOf(event.args).toEqualTypeOf<unknown[]>();
+		},
+		plainCall: (event) => {
+			// No abi → ContractCallEvent, positional args only.
+			expectTypeOf(event.args).toEqualTypeOf<unknown[]>();
+			// @ts-expect-error no typed `input` without a declared abi
+			void event.input;
+		},
+	},
+});

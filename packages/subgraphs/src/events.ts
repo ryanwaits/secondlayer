@@ -6,6 +6,11 @@
  * filter to its payload so handlers are typed by their source's `type` (no
  * `event as {...}` casts).
  */
+import type {
+	AbiContract,
+	ExtractFunctionArgs,
+	ExtractFunctionNames,
+} from "@secondlayer/stacks/clarity";
 import type { ColumnToTS } from "./infer.ts";
 import type {
 	ColumnType,
@@ -109,6 +114,23 @@ export interface ContractDeployPayload {
 	tx: TxMeta;
 }
 
+// ── Contract call ────────────────────────────────────────────────────────
+
+/**
+ * Contract-call payload. When the source carries a `const` `abi` and a known
+ * `functionName`, `event.input` is the named, typed, decoded arguments
+ * (camelCased, via the contract ABI). The positional `event.args` is always
+ * present for back-compat. Without an `abi`, the payload is {@link ContractCallEvent}.
+ */
+export type ContractCallPayload<F> = F extends {
+	abi: infer A extends AbiContract;
+	functionName: infer N extends string;
+}
+	? N extends ExtractFunctionNames<A>
+		? ContractCallEvent & { input: ExtractFunctionArgs<A, N> }
+		: ContractCallEvent
+	: ContractCallEvent;
+
 // ── Filter → payload mapping ─────────────────────────────────────────────
 
 /**
@@ -155,7 +177,7 @@ export type EventForFilter<F extends SubgraphFilter> = F extends {
 										: F extends { type: "stx_lock" }
 											? StxLockPayload
 											: F extends { type: "contract_call" }
-												? ContractCallEvent
+												? ContractCallPayload<F>
 												: F extends { type: "contract_deploy" }
 													? ContractDeployPayload
 													: never;

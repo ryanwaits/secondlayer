@@ -33,6 +33,7 @@ export {
 export type {
 	EventForFilter,
 	PrintEventFor,
+	ContractCallPayload,
 	AnyEvent,
 	FtTransferPayload,
 	FtMintPayload,
