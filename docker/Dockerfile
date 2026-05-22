@@ -95,6 +95,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/packages/platform ./packages/platform
 COPY --from=builder /app/packages/worker ./packages/worker
 COPY --from=builder /app/package.json ./
 

@@ -24,7 +24,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.1.21",
+      "version": "0.1.22",
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.71",
         "@ai-sdk/react": "3.0.148",
@@ -54,7 +54,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.5.8",
+      "version": "1.5.9",
       "dependencies": {
         "@secondlayer/bundler": "^0.3.6",
         "@secondlayer/indexer": "^1.4.2",
@@ -161,10 +161,11 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.15",
+        "zod": "^4.3.6",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -196,7 +197,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "6.5.0",
+      "version": "6.6.0",
       "dependencies": {
         "@secondlayer/stacks": "^2.2.1",
         "kysely": "0.28.15",
@@ -247,7 +248,8 @@
       "name": "@secondlayer/worker",
       "version": "1.1.3",
       "dependencies": {
-        "@secondlayer/shared": "^3.0.0",
+        "@secondlayer/platform": "workspace:*",
+        "@secondlayer/shared": "^6.0.0",
         "kysely": "0.28.15",
         "stripe": "^22.0.2",
       },
@@ -1593,8 +1595,6 @@
 
     "@secondlayer/web/@types/node": ["@types/node@22.19.15", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg=="],
 
-    "@secondlayer/worker/@types/bun": ["@types/bun@1.3.13", "", { "dependencies": { "bun-types": "1.3.13" } }, "sha512-9fqXWk5YIHGGnUau9TEi+qdlTYDAnOj+xLCmSTwXfAIqXr2x4tytJb43E9uCvt09zJURKXwAtkoH4nLQfzeTXw=="],
-
     "@stacks/transactions/@noble/hashes": ["@noble/hashes@1.1.5", "", {}, "sha512-LTMZiiLc+V4v1Yi16TD6aX2gmtKszNye0pQgbaLqkvhIqP7nVsSaJsWloGQjJfJ8offaoP5GtX3yY5swbcJxxQ=="],
 
     "@stacks/transactions/@noble/secp256k1": ["@noble/secp256k1@1.7.1", "", {}, "sha512-hOUk6AyBFmqVrv7k5WAw/LpszxVbj9gGN4JRkIX52fdFAj1UA61KXmZDvqVEm+pOyec3+fIeZB02LYa/pWOArw=="],
@@ -1689,8 +1689,6 @@
 
     "@secondlayer/mcp/@types/bun/bun-types": ["bun-types@1.3.13", "", { "dependencies": { "@types/node": "*" } }, "sha512-QXKeHLlOLqQX9LgYaHJfzdBaV21T63HhFJnvuRCcjZiaUDpbs5ED1MgxbMra71CsryN/1dAoXuJJJwIv/2drVA=="],
 
-    "@secondlayer/worker/@types/bun/bun-types": ["bun-types@1.3.13", "", { "dependencies": { "@types/node": "*" } }, "sha512-QXKeHLlOLqQX9LgYaHJfzdBaV21T63HhFJnvuRCcjZiaUDpbs5ED1MgxbMra71CsryN/1dAoXuJJJwIv/2drVA=="],
-
     "cliui/strip-ansi/ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
 
     "read-yaml-file/js-yaml/argparse": ["argparse@1.0.10", "", { "dependencies": { "sprintf-js": "~1.0.2" } }, "sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg=="],
@@ -1708,7 +1706,5 @@
     "@secondlayer/cli/@types/bun/bun-types/@types/node": ["@types/node@22.19.15", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg=="],
 
     "@secondlayer/mcp/@types/bun/bun-types/@types/node": ["@types/node@22.19.15", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg=="],
-
-    "@secondlayer/worker/@types/bun/bun-types/@types/node": ["@types/node@22.19.15", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg=="],
   }
 }

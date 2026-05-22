@@ -1,6 +1,6 @@
 import { getErrorMessage } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { measureStorage } from "@secondlayer/shared/db/queries/usage";
+import { measureStorage } from "@secondlayer/platform/db/queries/usage";
 import { logger } from "@secondlayer/shared/logger";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 

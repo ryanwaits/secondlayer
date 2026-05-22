@@ -1,5 +1,5 @@
 import { getDb } from "@secondlayer/shared/db";
-import { incrementApiRequests } from "@secondlayer/shared/db/queries/usage";
+import { incrementApiRequests } from "@secondlayer/platform/db/queries/usage";
 import type { Context, MiddlewareHandler } from "hono";
 
 /**

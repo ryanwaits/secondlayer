@@ -1,5 +1,5 @@
 import { type Kysely, sql } from "kysely";
-import type { Database } from "../types.ts";
+import type { Database } from "@secondlayer/shared/db";
 
 /** Increment API request counter for today. Fire-and-forget safe. */
 export async function incrementApiRequests(

@@ -11,6 +11,26 @@
 		"./account-usage": {
 			"types": "./dist/account-usage.d.ts",
 			"import": "./dist/account-usage.js"
+		},
+		"./db/queries/accounts": {
+			"types": "./dist/db/queries/accounts.d.ts",
+			"import": "./dist/db/queries/accounts.js"
+		},
+		"./db/queries/usage": {
+			"types": "./dist/db/queries/usage.d.ts",
+			"import": "./dist/db/queries/usage.js"
+		},
+		"./db/queries/account-spend-caps": {
+			"types": "./dist/db/queries/account-spend-caps.d.ts",
+			"import": "./dist/db/queries/account-spend-caps.js"
+		},
+		"./db/queries/projects": {
+			"types": "./dist/db/queries/projects.d.ts",
+			"import": "./dist/db/queries/projects.js"
+		},
+		"./schemas/accounts": {
+			"types": "./dist/schemas/accounts.d.ts",
+			"import": "./dist/schemas/accounts.js"
 		}
 	},
 	"files": [
@@ -23,7 +43,8 @@
 	},
 	"dependencies": {
 		"@secondlayer/shared": "workspace:*",
-		"kysely": "0.28.15"
+		"kysely": "0.28.15",
+		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

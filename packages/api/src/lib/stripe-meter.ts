@@ -1,7 +1,7 @@
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { getCaps } from "@secondlayer/shared/db/queries/account-spend-caps";
-import { getAccountById } from "@secondlayer/shared/db/queries/accounts";
+import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
+import { getAccountById } from "@secondlayer/platform/db/queries/accounts";
 import { getStripeOrNull } from "./stripe.ts";
 
 /**

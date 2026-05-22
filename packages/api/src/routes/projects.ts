@@ -5,7 +5,7 @@ import {
 	getProjectsByAccount,
 	getTeamInvitations,
 	getTeamMembers,
-} from "@secondlayer/shared/db/queries/projects";
+} from "@secondlayer/platform/db/queries/projects";
 import { AuthenticationError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
 

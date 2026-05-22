@@ -4,7 +4,7 @@ import {
 	upsertAccount,
 	verifyMagicLink,
 	verifyMagicLinkByCode,
-} from "@secondlayer/shared/db/queries/accounts";
+} from "@secondlayer/platform/db/queries/accounts";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { z } from "zod/v4";

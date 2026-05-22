@@ -17,16 +17,6 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
-	test("db/queries/accounts export", async () => {
-		const mod = await import("@secondlayer/shared/db/queries/accounts");
-		expect(mod).toBeDefined();
-	});
-
-	test("db/queries/usage export", async () => {
-		const mod = await import("@secondlayer/shared/db/queries/usage");
-		expect(mod).toBeDefined();
-	});
-
 	test("db/queries/chain-reorgs export", async () => {
 		const mod = await import("@secondlayer/shared/db/queries/chain-reorgs");
 		expect(mod).toBeDefined();

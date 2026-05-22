@@ -17,12 +17,12 @@ import { getDb } from "@secondlayer/shared/db";
 import {
 	getCaps,
 	upsertCaps,
-} from "@secondlayer/shared/db/queries/account-spend-caps";
+} from "@secondlayer/platform/db/queries/account-spend-caps";
 import {
 	getAccountById,
 	setAccountPlan,
 	setStripeCustomerId,
-} from "@secondlayer/shared/db/queries/accounts";
+} from "@secondlayer/platform/db/queries/accounts";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";

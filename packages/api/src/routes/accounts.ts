@@ -1,23 +1,23 @@
 import { getDb } from "@secondlayer/shared/db";
-import { getCaps } from "@secondlayer/shared/db/queries/account-spend-caps";
+import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import {
 	getComputeUsage,
 	getProjectBreakdown,
 	getStorageUsage,
 } from "@secondlayer/platform/account-usage";
-import { getProductUsage } from "@secondlayer/shared/db/queries/usage";
+import { getProductUsage } from "@secondlayer/platform/db/queries/usage";
 import {
 	getAccountById,
 	isSlugTaken,
 	updateAccountProfile,
-} from "@secondlayer/shared/db/queries/accounts";
+} from "@secondlayer/platform/db/queries/accounts";
 import { AuthenticationError } from "@secondlayer/shared/errors";
 import {
 	getBasePriceCents,
 	getPlanDisplayName,
 	hasStorageOverage,
 } from "@secondlayer/platform/pricing";
-import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/accounts";
+import { UpdateProfileRequestSchema } from "@secondlayer/platform/schemas/accounts";
 import { type Context, Hono } from "hono";
 import { emitMeterEvent } from "../lib/stripe-meter.ts";
 

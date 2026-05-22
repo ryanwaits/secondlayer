@@ -1,5 +1,5 @@
 import { getDb } from "@secondlayer/shared/db";
-import { incrementStreamsEventsReturned } from "@secondlayer/shared/db/queries/usage";
+import { incrementStreamsEventsReturned } from "@secondlayer/platform/db/queries/usage";
 import { Hono } from "hono";
 import {
 	readCanonicalStreamsBlockEvents,

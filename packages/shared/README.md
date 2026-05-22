@@ -22,22 +22,19 @@ DATABASE_URL=... bun run migrate
 
 | Path | Description |
 |------|-------------|
-| `@secondlayer/shared` | Core utilities |
+| `@secondlayer/shared` | Core utilities (errors, logger, env, db layer, subgraph/subscription schemas) |
 | `@secondlayer/shared/db` | Kysely database layer |
-| `@secondlayer/shared/db/queries/*` | Query helpers (integrity, accounts, usage, subgraphs, projects, subgraph-gaps, tenants, provisioning-audit) |
-| `@secondlayer/shared/db/schema` | Database schema |
-| `@secondlayer/shared/db/jsonb` | JSONB helpers |
-| `@secondlayer/shared/schemas` | Zod schemas |
-| `@secondlayer/shared/schemas/accounts` | Account profile schemas |
-| `@secondlayer/shared/schemas/filters` | Event filter schemas |
+| `@secondlayer/shared/db/schema` | Database schema + row types |
+| `@secondlayer/shared/db/queries/*` | Query helpers (integrity, chain-reorgs, subgraphs, subgraph-gaps, subgraph-operations, subscriptions) |
+| `@secondlayer/shared/schemas` | Zod schemas (subgraphs, subscriptions) |
 | `@secondlayer/shared/schemas/subgraphs` | Subgraph schemas |
-| `@secondlayer/shared/types` | Shared TypeScript types |
+| `@secondlayer/shared/schemas/subscriptions` | Subscription schemas |
+| `@secondlayer/shared/subgraphs/spec` | Subgraph spec generation |
 | `@secondlayer/shared/queue/listener` | Postgres LISTEN/NOTIFY helper (used for block notifications) |
-| `@secondlayer/shared/env` | Environment config |
 | `@secondlayer/shared/logger` | Logger |
 | `@secondlayer/shared/errors` | Error types |
-| `@secondlayer/shared/crypto` | HMAC helpers, Standard Webhooks signing, AES-GCM secret envelope |
-| `@secondlayer/shared/pricing` | Plan definitions + billing helpers |
 | `@secondlayer/shared/mode` | INSTANCE_MODE dispatch (platform / dedicated / oss) |
+| `@secondlayer/shared/crypto/secrets` | AES-GCM secret envelope |
+| `@secondlayer/shared/crypto/standard-webhooks` | Standard Webhooks signing |
 | `@secondlayer/shared/node` | Stacks node client |
-| `@secondlayer/shared/node/hiro-pg-client` | Direct PG queries against Hiro DB |
+| `@secondlayer/shared/node/*` | Stacks node clients (hiro-client, local-client, hiro-pg-client, archive-client) |

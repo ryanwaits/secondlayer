@@ -12,11 +12,11 @@
 
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { clearFreeze } from "@secondlayer/shared/db/queries/account-spend-caps";
+import { clearFreeze } from "@secondlayer/platform/db/queries/account-spend-caps";
 import {
 	getAccountByStripeCustomerId,
 	setAccountPlan,
-} from "@secondlayer/shared/db/queries/accounts";
+} from "@secondlayer/platform/db/queries/accounts";
 import { Hono } from "hono";
 import type Stripe from "stripe";
 import {

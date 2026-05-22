@@ -24,14 +24,6 @@
 			"types": "./dist/src/db/queries/integrity.d.ts",
 			"import": "./dist/src/db/queries/integrity.js"
 		},
-		"./db/queries/accounts": {
-			"types": "./dist/src/db/queries/accounts.d.ts",
-			"import": "./dist/src/db/queries/accounts.js"
-		},
-		"./db/queries/usage": {
-			"types": "./dist/src/db/queries/usage.d.ts",
-			"import": "./dist/src/db/queries/usage.js"
-		},
 		"./db/queries/chain-reorgs": {
 			"types": "./dist/src/db/queries/chain-reorgs.d.ts",
 			"import": "./dist/src/db/queries/chain-reorgs.js"
@@ -71,18 +63,6 @@
 		"./schemas/subscriptions": {
 			"types": "./dist/src/schemas/subscriptions.d.ts",
 			"import": "./dist/src/schemas/subscriptions.js"
-		},
-		"./schemas/accounts": {
-			"types": "./dist/src/schemas/accounts.d.ts",
-			"import": "./dist/src/schemas/accounts.js"
-		},
-		"./db/queries/projects": {
-			"types": "./dist/src/db/queries/projects.d.ts",
-			"import": "./dist/src/db/queries/projects.js"
-		},
-		"./db/queries/account-spend-caps": {
-			"types": "./dist/src/db/queries/account-spend-caps.d.ts",
-			"import": "./dist/src/db/queries/account-spend-caps.js"
 		},
 		"./db/queries/subscriptions": {
 			"types": "./dist/src/db/queries/subscriptions.d.ts",

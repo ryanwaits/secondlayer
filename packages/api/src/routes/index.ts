@@ -1,5 +1,5 @@
 import { getDb } from "@secondlayer/shared/db";
-import { incrementIndexDecodedEventsReturned } from "@secondlayer/shared/db/queries/usage";
+import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
 import { Hono } from "hono";
 import {
 	DEFAULT_INDEX_TOKEN_STORE,

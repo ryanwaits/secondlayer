@@ -4,7 +4,7 @@ import type {
 	Database,
 	InsertAccountSpendCap,
 	UpdateAccountSpendCap,
-} from "../types.ts";
+} from "@secondlayer/shared/db";
 
 /**
  * Spend-cap state for an account. Both the metering crons (check + set

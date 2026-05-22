@@ -15,7 +15,7 @@
 
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { listFrozenAccountIds } from "@secondlayer/shared/db/queries/account-spend-caps";
+import { listFrozenAccountIds } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { getStripe, shouldMeterTenant } from "./stripe.ts";
 
