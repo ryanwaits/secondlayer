@@ -1,6 +1,13 @@
 {
 	"name": "@secondlayer/bundler",
 	"version": "0.3.6",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryanwaits/secondlayer.git",
+		"directory": "packages/bundler"
+	},
+	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/bundler#readme",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

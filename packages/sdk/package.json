@@ -1,6 +1,13 @@
 {
 	"name": "@secondlayer/sdk",
 	"version": "4.0.1",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryanwaits/secondlayer.git",
+		"directory": "packages/sdk"
+	},
+	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/sdk#readme",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

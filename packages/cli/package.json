@@ -1,6 +1,12 @@
 {
 	"name": "@secondlayer/cli",
 	"version": "5.6.3",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryanwaits/secondlayer.git",
+		"directory": "packages/cli"
+	},
+	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/cli#readme",
 	"description": "CLI for subgraphs and blockchain indexing on Stacks",
 	"type": "module",
 	"bin": {

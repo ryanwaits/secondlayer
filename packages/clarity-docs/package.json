@@ -1,6 +1,12 @@
 {
 	"name": "@secondlayer/clarity-docs",
 	"version": "0.3.9",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryanwaits/secondlayer.git",
+		"directory": "packages/clarity-docs"
+	},
+	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/clarity-docs#readme",
 	"description": "ClarityDoc - Documentation comment standard and tooling for Clarity smart contracts",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -11,7 +17,7 @@
 			"import": "./dist/index.js"
 		}
 	},
-	"files": ["dist", "src"],
+	"files": ["dist"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
