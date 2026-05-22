@@ -16,7 +16,7 @@ jobs:
   rollback:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         env:
           ROLLBACK_UNIT: secondlayer-rollback-${{ github.run_id }}-${{ github.run_attempt }}
