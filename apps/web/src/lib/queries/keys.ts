@@ -19,7 +19,6 @@ export const queryKeys = {
 	},
 	status: ["status"] as const,
 	admin: {
-		waitlist: (status?: string) => ["admin", "waitlist", status] as const,
 		accounts: ["admin", "accounts"] as const,
 		stats: ["admin", "stats"] as const,
 	},

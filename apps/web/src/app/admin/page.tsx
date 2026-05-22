@@ -45,9 +45,6 @@ export default function AdminPage() {
 							<div className="dash-page-desc">System overview</div>
 						</div>
 						<div style={{ display: "flex", gap: 8 }}>
-							<Link href="/admin/waitlist" className="ov-section-link">
-								Waitlist &rarr;
-							</Link>
 							<Link href="/admin/accounts" className="ov-section-link">
 								Accounts &rarr;
 							</Link>
@@ -63,12 +60,6 @@ export default function AdminPage() {
 						style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
 					>
 						<StatCard label="Total Accounts" value={stats.totalAccounts} />
-						<StatCard
-							label="Pending Waitlist"
-							value={stats.pendingWaitlist}
-							color={stats.pendingWaitlist > 0 ? "var(--yellow)" : undefined}
-							sub={stats.pendingWaitlist > 0 ? "needs attention" : "all clear"}
-						/>
 						<StatCard
 							label="Active Subgraphs"
 							value={stats.activeSubgraphs}

@@ -145,14 +145,6 @@ export interface IndexFreshnessStatus {
 
 // ── Admin ──
 
-export interface WaitlistEntry {
-	id: string;
-	email: string;
-	source: string;
-	status: "pending" | "approved" | "joined";
-	createdAt: string;
-}
-
 export interface AdminAccount {
 	id: string;
 	email: string;
@@ -164,7 +156,6 @@ export interface AdminAccount {
 
 export interface AdminStats {
 	totalAccounts: number;
-	pendingWaitlist: number;
 	totalSubgraphs: number;
 	activeSubgraphs: number;
 	errorSubgraphs: number;

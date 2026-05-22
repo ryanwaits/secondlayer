@@ -196,14 +196,6 @@ export interface UsageSnapshotsTable {
 	storage_bytes: Generated<number>;
 }
 
-export interface WaitlistTable {
-	id: Generated<string>;
-	email: string;
-	source: Generated<string>;
-	status: Generated<string>;
-	created_at: Generated<Date>;
-}
-
 export interface AccountInsightsTable {
 	id: Generated<string>;
 	account_id: string;
@@ -638,7 +630,6 @@ export interface Database {
 	magic_links: MagicLinksTable;
 	usage_daily: UsageDailyTable;
 	usage_snapshots: UsageSnapshotsTable;
-	waitlist: WaitlistTable;
 	account_insights: AccountInsightsTable;
 	account_agent_runs: AccountAgentRunsTable;
 	subgraph_health_snapshots: SubgraphHealthSnapshotsTable;

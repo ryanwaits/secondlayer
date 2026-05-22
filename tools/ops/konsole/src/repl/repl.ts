@@ -1,12 +1,10 @@
 import * as readline from "node:readline";
 import type { Database } from "@secondlayer/shared/db";
-import { approveWaitlistEntry } from "@secondlayer/shared/db/queries/accounts";
 import { type Kysely, sql } from "kysely";
-import { sendApprovalNotification } from "../../../../../packages/api/src/auth/email.ts";
 import type { ModelRegistry } from "../model/types.ts";
 import type { AssociationMap } from "../schema/associations.ts";
 import type { SchemaInfo } from "../schema/types.ts";
-import { cyan, dim, green, red } from "./colors.ts";
+import { cyan, dim, red } from "./colors.ts";
 import { createCommands } from "./commands.ts";
 import { createCompleter } from "./completer.ts";
 import { evalExpr, rubyToJs } from "./eval.ts";
@@ -30,29 +28,11 @@ export function startRepl(opts: ReplOptions) {
 		return rows;
 	}
 
-	// Approve a waitlisted email: sets status, creates magic link, sends email
-	async function approve(email: string) {
-		const result = await approveWaitlistEntry(db, email);
-
-		if (result.status === "not_found") {
-			console.log(red(`  No waitlist entry for ${email}`));
-			return;
-		}
-		if (result.status === "already_approved") {
-			console.log(red(`  ${email} is already approved`));
-			return;
-		}
-
-		await sendApprovalNotification(email, result.token);
-		console.log(green(`  Approved ${email} — token: ${result.token}`));
-	}
-
 	// Build eval context
 	const ctx: Record<string, unknown> = {
 		db,
 		sql,
 		rawSql,
-		approve,
 		...models,
 	};
 

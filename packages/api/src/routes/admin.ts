@@ -1,67 +1,8 @@
 import { getDb } from "@secondlayer/shared/db";
-import {
-	approveWaitlistEntry,
-	getWaitlistById,
-	listWaitlist,
-} from "@secondlayer/shared/db/queries/accounts";
 import { Hono } from "hono";
 import { sql } from "kysely";
-import { sendApprovalNotification } from "../auth/email.ts";
 
 const app = new Hono();
-
-// GET /api/admin/waitlist?status=pending
-app.get("/waitlist", async (c) => {
-	const db = getDb();
-	const status = c.req.query("status") || undefined;
-	const entries = await listWaitlist(db, status);
-	return c.json({
-		entries: entries.map((e) => ({
-			id: e.id,
-			email: e.email,
-			source: e.source,
-			status: e.status,
-			createdAt: e.created_at.toISOString(),
-		})),
-	});
-});
-
-// POST /api/admin/waitlist/:id/approve
-app.post("/waitlist/:id/approve", async (c) => {
-	const db = getDb();
-	const entry = await getWaitlistById(db, c.req.param("id"));
-	if (!entry) return c.json({ error: "Waitlist entry not found" }, 404);
-
-	const result = await approveWaitlistEntry(db, entry.email);
-	if (result.status === "already_approved") {
-		return c.json({ error: "Already approved" }, 409);
-	}
-
-	await sendApprovalNotification(entry.email, result.token);
-	return c.json({ message: `Approved ${entry.email}` });
-});
-
-// POST /api/admin/waitlist/bulk-approve
-app.post("/waitlist/bulk-approve", async (c) => {
-	const { ids } = await c.req.json<{ ids: string[] }>();
-	const db = getDb();
-	const results: { email: string; status: string }[] = [];
-
-	for (const id of ids) {
-		const entry = await getWaitlistById(db, id);
-		if (!entry) {
-			results.push({ email: id, status: "not_found" });
-			continue;
-		}
-		const result = await approveWaitlistEntry(db, entry.email);
-		if (result.status === "approved") {
-			await sendApprovalNotification(entry.email, result.token);
-		}
-		results.push({ email: entry.email, status: result.status });
-	}
-
-	return c.json({ results });
-});
 
 // GET /api/admin/accounts
 app.get("/accounts", async (c) => {
@@ -96,15 +37,10 @@ app.get("/accounts", async (c) => {
 // GET /api/admin/stats
 app.get("/stats", async (c) => {
 	const db = getDb();
-	const [accounts, waitlist, tenants] = await Promise.all([
+	const [accounts, tenants] = await Promise.all([
 		db
 			.selectFrom("accounts")
 			.select((eb) => eb.fn.countAll<number>().as("count"))
-			.executeTakeFirstOrThrow(),
-		db
-			.selectFrom("waitlist")
-			.select((eb) => eb.fn.countAll<number>().as("count"))
-			.where("status", "=", "pending")
 			.executeTakeFirstOrThrow(),
 		db
 			.selectFrom("tenants")
@@ -124,7 +60,6 @@ app.get("/stats", async (c) => {
 
 	return c.json({
 		totalAccounts: Number(accounts.count),
-		pendingWaitlist: Number(waitlist.count),
 		totalTenants: Number(tenants.total),
 		activeTenants: Number(tenants.active),
 		suspendedTenants: Number(tenants.suspended),

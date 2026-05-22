@@ -33,7 +33,6 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
-import waitlistRouter from "./routes/waitlist.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
 
@@ -127,9 +126,6 @@ if (mode === "platform") {
 	// Auth routes (no auth required, IP rate limited)
 	app.use("/api/auth/*", ipRateLimit(10));
 	app.route("/api/auth", authRouter);
-
-	// Waitlist (no auth required)
-	app.route("/api/waitlist", waitlistRouter);
 
 	// Stripe webhook — no auth; signature is verified inside the route.
 	// IP rate limiting intentionally skipped (Stripe's egress is trusted
