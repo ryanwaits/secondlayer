@@ -48,10 +48,6 @@
 			"types": "./dist/src/db/queries/subgraph-operations.d.ts",
 			"import": "./dist/src/db/queries/subgraph-operations.js"
 		},
-		"./db/jsonb": {
-			"types": "./dist/src/db/jsonb.d.ts",
-			"import": "./dist/src/db/jsonb.js"
-		},
 		"./db/schema": {
 			"types": "./dist/src/db/schema.d.ts",
 			"import": "./dist/src/db/schema.js"
@@ -63,10 +59,6 @@
 		"./schemas": {
 			"types": "./dist/src/schemas/index.d.ts",
 			"import": "./dist/src/schemas/index.js"
-		},
-		"./schemas/filters": {
-			"types": "./dist/src/schemas/filters.d.ts",
-			"import": "./dist/src/schemas/filters.js"
 		},
 		"./schemas/subgraphs": {
 			"types": "./dist/src/schemas/subgraphs.d.ts",
@@ -84,21 +76,9 @@
 			"types": "./dist/src/schemas/accounts.d.ts",
 			"import": "./dist/src/schemas/accounts.js"
 		},
-		"./db/queries/tenants": {
-			"types": "./dist/src/db/queries/tenants.d.ts",
-			"import": "./dist/src/db/queries/tenants.js"
-		},
 		"./db/queries/projects": {
 			"types": "./dist/src/db/queries/projects.d.ts",
 			"import": "./dist/src/db/queries/projects.js"
-		},
-		"./db/queries/provisioning-audit": {
-			"types": "./dist/src/db/queries/provisioning-audit.d.ts",
-			"import": "./dist/src/db/queries/provisioning-audit.js"
-		},
-		"./db/queries/tenant-compute-addons": {
-			"types": "./dist/src/db/queries/tenant-compute-addons.d.ts",
-			"import": "./dist/src/db/queries/tenant-compute-addons.js"
 		},
 		"./db/queries/account-spend-caps": {
 			"types": "./dist/src/db/queries/account-spend-caps.d.ts",
@@ -116,14 +96,6 @@
 			"types": "./dist/src/crypto/standard-webhooks.d.ts",
 			"import": "./dist/src/crypto/standard-webhooks.js"
 		},
-		"./types": {
-			"types": "./dist/src/types.d.ts",
-			"import": "./dist/src/types.js"
-		},
-		"./env": {
-			"types": "./dist/src/env.d.ts",
-			"import": "./dist/src/env.js"
-		},
 		"./mode": {
 			"types": "./dist/src/mode.d.ts",
 			"import": "./dist/src/mode.js"
@@ -136,21 +108,9 @@
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"
 		},
-		"./constants": {
-			"types": "./dist/src/constants.d.ts",
-			"import": "./dist/src/constants.js"
-		},
 		"./pricing": {
 			"types": "./dist/src/pricing.d.ts",
 			"import": "./dist/src/pricing.js"
-		},
-		"./crypto": {
-			"types": "./dist/src/crypto/hmac.d.ts",
-			"import": "./dist/src/crypto/hmac.js"
-		},
-		"./crypto/hmac": {
-			"types": "./dist/src/crypto/hmac.d.ts",
-			"import": "./dist/src/crypto/hmac.js"
 		},
 		"./crypto/secrets": {
 			"types": "./dist/src/crypto/secrets.d.ts",

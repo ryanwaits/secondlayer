@@ -43,12 +43,6 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
-	test("db/jsonb export", async () => {
-		const mod = await import("@secondlayer/shared/db/jsonb");
-		expect(mod).toBeDefined();
-		expect(mod.jsonb).toBeDefined();
-	});
-
 	test("db/schema export", async () => {
 		const mod = await import("@secondlayer/shared/db/schema");
 		expect(mod).toBeDefined();
@@ -64,11 +58,6 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
-	test("schemas/filters export", async () => {
-		const mod = await import("@secondlayer/shared/schemas/filters");
-		expect(mod).toBeDefined();
-	});
-
 	test("schemas/subgraphs export", async () => {
 		const mod = await import("@secondlayer/shared/schemas/subgraphs");
 		expect(mod).toBeDefined();
@@ -80,17 +69,6 @@ describe("package exports", () => {
 		expect(mod.CreateSubscriptionRequestSchema).toBeDefined();
 	});
 
-	test("types export", async () => {
-		const mod = await import("@secondlayer/shared/types");
-		expect(mod).toBeDefined();
-	});
-
-	test("env export", async () => {
-		const mod = await import("@secondlayer/shared/env");
-		expect(mod).toBeDefined();
-		expect(mod.getEnv).toBeDefined();
-	});
-
 	test("logger export", async () => {
 		const mod = await import("@secondlayer/shared/logger");
 		expect(mod).toBeDefined();
@@ -100,17 +78,6 @@ describe("package exports", () => {
 	test("errors export", async () => {
 		const mod = await import("@secondlayer/shared/errors");
 		expect(mod).toBeDefined();
-	});
-
-	test("crypto export", async () => {
-		const mod = await import("@secondlayer/shared/crypto");
-		expect(mod).toBeDefined();
-	});
-
-	test("crypto/hmac export", async () => {
-		const mod = await import("@secondlayer/shared/crypto/hmac");
-		expect(mod).toBeDefined();
-		expect(mod.signPayload).toBeDefined();
 	});
 
 	test("node export", async () => {
