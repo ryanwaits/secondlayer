@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
+import { InfoTooltip } from "./info-tooltip";
 
 interface MetaItem {
 	label: string;
@@ -20,6 +21,15 @@ interface MetaGridProps {
 	columns?: string;
 }
 
+function MetaLabel({ item }: { item: MetaItem }) {
+	return (
+		<div className="sg-meta-label">
+			{item.label}
+			{item.tooltip && <InfoTooltip text={item.tooltip} />}
+		</div>
+	);
+}
+
 function CopyableCard({ item }: { item: MetaItem }) {
 	const [copied, setCopied] = useState(false);
 
@@ -36,28 +46,7 @@ function CopyableCard({ item }: { item: MetaItem }) {
 			className="sg-meta-card sg-meta-card--copyable"
 			style={item.span ? { gridColumn: `span ${item.span}` } : undefined}
 		>
-			<div className="sg-meta-label">
-				{item.label}
-				{item.tooltip && (
-					<span className="info" title={item.tooltip}>
-						<svg
-							width="10"
-							height="10"
-							viewBox="0 0 16 16"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-							aria-label={item.tooltip}
-							role="img"
-						>
-							<circle cx="8" cy="8" r="6" />
-							<path d="M8 7v4" />
-							<circle cx="8" cy="5" r="0.5" fill="currentColor" />
-						</svg>
-					</span>
-				)}
-			</div>
+			<MetaLabel item={item} />
 			<div className="sg-meta-card-body">
 				<div
 					className={`sg-meta-value${item.mono ? " mono" : ""}`}
@@ -125,28 +114,7 @@ export function MetaGrid({ items, columns }: MetaGridProps) {
 						className="sg-meta-card"
 						style={item.span ? { gridColumn: `span ${item.span}` } : undefined}
 					>
-						<div className="sg-meta-label">
-							{item.label}
-							{item.tooltip && (
-								<span className="info" title={item.tooltip}>
-									<svg
-										width="10"
-										height="10"
-										viewBox="0 0 16 16"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="1.5"
-										strokeLinecap="round"
-										aria-label={item.tooltip}
-										role="img"
-									>
-										<circle cx="8" cy="8" r="6" />
-										<path d="M8 7v4" />
-										<circle cx="8" cy="5" r="0.5" fill="currentColor" />
-									</svg>
-								</span>
-							)}
-						</div>
+						<MetaLabel item={item} />
 						<div
 							className={`sg-meta-value${item.mono ? " mono" : ""}`}
 							style={

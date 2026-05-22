@@ -2919,16 +2919,12 @@ html.force-light .tabbed-code-tab.active {
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var(--text-muted);
-	opacity: 0.7;
+	/* mute via color, not group opacity — opacity would fade the nested tooltip */
+	color: color-mix(in srgb, var(--text-muted) 70%, transparent);
 	margin-bottom: 8px;
 	display: flex;
 	align-items: center;
 	gap: 4px;
-}
-.sg-meta-label .info {
-	opacity: 0.4;
-	cursor: help;
 }
 .sg-meta-value {
 	font-size: 14px;
@@ -4874,16 +4870,12 @@ html.force-light .tabbed-code-tab.active {
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var(--text-muted);
-	opacity: 0.7;
+	/* mute via color, not group opacity — opacity would fade the nested tooltip */
+	color: color-mix(in srgb, var(--text-muted) 70%, transparent);
 	margin-bottom: 10px;
 	display: flex;
 	align-items: center;
 	gap: 4px;
-}
-.ov-card-label .info {
-	opacity: 0.4;
-	cursor: help;
 }
 .ov-card-value {
 	font-family: var(--font-heading-stack);
@@ -4986,11 +4978,6 @@ html.force-light .tabbed-code-tab.active {
 	align-items: center;
 	gap: 6px;
 }
-.ov-stats-label .info {
-	opacity: 0.4;
-	cursor: help;
-}
-
 .ov-stats-grid {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
@@ -5298,15 +5285,11 @@ html.force-light .tabbed-code-tab.active {
 	font-weight: 600;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: var(--text-muted);
-	opacity: 0.6;
+	/* mute via color, not group opacity — opacity would fade the nested tooltip */
+	color: color-mix(in srgb, var(--text-muted) 60%, transparent);
 	display: flex;
 	align-items: center;
 	gap: 5px;
-}
-.sg-card-label .info {
-	opacity: 0.4;
-	cursor: help;
 }
 .sg-card-big {
 	font-family: var(--font-heading-stack);
@@ -8849,4 +8832,226 @@ html.force-light .tabbed-code-tab.active {
 .settings-btn.small {
 	padding: 5px 10px;
 	font-size: 11.5px;
+}
+
+/* ════════════════════════════════════════════════
+   InfoTooltip — (i) trigger + styled hover/focus bubble
+   LiveKit-style replacement for native `title` on info icons.
+   ════════════════════════════════════════════════ */
+.info-tip {
+	position: relative;
+	display: inline-flex;
+}
+.info-tip-trigger {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	opacity: 0.5;
+	cursor: help;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: 50%;
+	transition: opacity 0.15s ease, color 0.15s ease;
+}
+.info-tip-trigger:hover,
+.info-tip:focus-within .info-tip-trigger {
+	opacity: 1;
+	color: var(--text-main);
+}
+.info-tip-trigger:focus-visible {
+	outline: 2px solid var(--accent-border);
+	outline-offset: 2px;
+}
+.info-tip-bubble {
+	position: absolute;
+	top: calc(100% + 8px);
+	left: 50%;
+	transform: translateX(-50%) translateY(-3px);
+	z-index: 100;
+	width: max-content;
+	max-width: 240px;
+	white-space: normal;
+	/* reset any inherited label styling (uppercase/letter-spacing/weight) */
+	text-transform: none;
+	letter-spacing: normal;
+	font-weight: 400;
+	font-family: var(--font-sans-stack);
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: var(--text-main);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 8px 11px;
+	box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.22), 0 2px 6px -2px
+		rgba(0, 0, 0, 0.1);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.info-tip-trigger:hover + .info-tip-bubble,
+.info-tip:focus-within .info-tip-bubble {
+	opacity: 1;
+	transform: translateX(-50%) translateY(0);
+	pointer-events: auto;
+}
+/* caret: border layer + fill layer */
+.info-tip-bubble::before {
+	content: "";
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	border: 5px solid transparent;
+	border-bottom-color: var(--border);
+}
+.info-tip-bubble::after {
+	content: "";
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%) translateY(1px);
+	border: 5px solid transparent;
+	border-bottom-color: var(--bg-elevated);
+}
+@media (prefers-reduced-motion: reduce) {
+	.info-tip-bubble {
+		transition: opacity 0.01s;
+		transform: translateX(-50%);
+	}
+	.info-tip-trigger:hover + .info-tip-bubble,
+	.info-tip:focus-within .info-tip-bubble {
+		transform: translateX(-50%);
+	}
+}
+
+/* ════════════════════════════════════════════════
+   DataPayloadPopover — "Data" trigger + anchored JSON popover
+   Full row as flat Shiki-highlighted JSON (LiveKit-style).
+   ════════════════════════════════════════════════ */
+/* Keep the Data column tight to its button */
+.sg-table th.sg-col-data,
+.sg-table td.sg-col-data {
+	width: 1%;
+	white-space: nowrap;
+	text-align: right;
+}
+.data-payload-btn {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-muted);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 4px 10px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.data-payload-btn:hover {
+	color: var(--text-main);
+	border-color: var(--border-hover);
+	background: var(--code-bg);
+}
+.data-payload-btn.open {
+	color: var(--accent);
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
+}
+.data-payload-ico {
+	display: inline-flex;
+	opacity: 0.5;
+	transition: opacity 0.15s ease;
+}
+.data-payload-btn:hover .data-payload-ico,
+.data-payload-btn.open .data-payload-ico {
+	opacity: 0.9;
+}
+.data-payload-pop {
+	position: fixed;
+	z-index: 200;
+	min-width: 320px;
+	max-width: 460px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.18), 0 2px 8px -2px
+		rgba(0, 0, 0, 0.1);
+	overflow: hidden;
+	animation: data-payload-in 0.14s ease;
+}
+@keyframes data-payload-in {
+	from {
+		opacity: 0;
+		transform: translateY(-4px) scale(0.985);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.data-payload-pop {
+		animation: none;
+	}
+}
+.data-payload-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	background: var(--code-bg);
+	border-bottom: 1px solid var(--border);
+}
+.data-payload-title {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.data-payload-copy {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	color: var(--text-muted);
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 2px 8px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	transition: color 0.15s ease, border-color 0.15s ease;
+}
+.data-payload-copy:hover {
+	color: var(--text-main);
+	border-color: var(--border-hover);
+}
+.data-payload-body {
+	margin: 0;
+	max-height: 320px;
+	overflow: auto;
+}
+/* Let the popover background show through Shiki; override its inline + dark bg */
+.data-payload-body .shiki {
+	margin: 0;
+	padding: 12px 14px;
+	font-size: 12.5px;
+	line-height: 1.65;
+	background: transparent !important;
+}
+.data-payload-fallback {
+	padding: 12px 14px;
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	line-height: 1.65;
+	white-space: pre;
+	color: var(--text-muted);
 }

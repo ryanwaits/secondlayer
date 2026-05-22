@@ -1,5 +1,6 @@
 import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { CollapsibleSection } from "@/components/console/collapsible-section";
+import { InfoTooltip } from "@/components/console/info-tooltip";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import {
 	ApiError,
@@ -26,28 +27,6 @@ function dotClass(status: string) {
 	if (status === "syncing" || status === "reindexing") return "syncing";
 	if (status === "error" || status === "failed") return "error";
 	return "";
-}
-
-function InfoTip({ text }: { text: string }) {
-	return (
-		<span className="info" title={text}>
-			<svg
-				width="10"
-				height="10"
-				viewBox="0 0 16 16"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				aria-label={text}
-				role="img"
-			>
-				<circle cx="8" cy="8" r="6" />
-				<path d="M8 7v4" />
-				<circle cx="8" cy="5" r="0.5" fill="currentColor" />
-			</svg>
-		</span>
-	);
 }
 
 export default async function SubgraphDetailPage({
@@ -208,7 +187,7 @@ export default async function SubgraphDetailPage({
 							<div className="sg-card">
 								<div className="sg-card-label">
 									Uptime{" "}
-									<InfoTip text="Percentage of blocks processed without error" />
+									<InfoTooltip text="Percentage of blocks processed without error" />
 								</div>
 								<div className="sg-card-big">
 									{uptime !== null ? (
@@ -226,7 +205,7 @@ export default async function SubgraphDetailPage({
 							<div className="sg-card">
 								<div className="sg-card-label">
 									Block sync{" "}
-									<InfoTip text="Current indexed block vs chain tip" />
+									<InfoTooltip text="Current indexed block vs chain tip" />
 								</div>
 								<div className="sg-card-progress">
 									<div className="sg-card-bar-wrap">
@@ -251,7 +230,7 @@ export default async function SubgraphDetailPage({
 							{/* Latency */}
 							<div className="sg-card">
 								<div className="sg-card-label">
-									Latency <InfoTip text="Estimated time behind chain tip" />
+									Latency <InfoTooltip text="Estimated time behind chain tip" />
 								</div>
 								<div className="sg-card-big neutral">{latency}</div>
 								{blocksRemaining > 0 && (
@@ -265,7 +244,7 @@ export default async function SubgraphDetailPage({
 							<div className="sg-card">
 								<div className="sg-card-label">
 									Rows Indexed{" "}
-									<InfoTip text="Total rows stored across this subgraph's tables" />
+									<InfoTooltip text="Total rows stored across this subgraph's tables" />
 								</div>
 								<div className="sg-card-big neutral">
 									{totalRows.toLocaleString()}
@@ -276,7 +255,7 @@ export default async function SubgraphDetailPage({
 							<div className="sg-card">
 								<div className="sg-card-label">
 									Tables{" "}
-									<InfoTip text="Tables and row counts in this subgraph" />
+									<InfoTooltip text="Tables and row counts in this subgraph" />
 								</div>
 								<div className="sg-card-mini-table">
 									<div className="sg-card-mini-hdr">

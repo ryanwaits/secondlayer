@@ -1,30 +1,9 @@
+import { InfoTooltip } from "@/components/console/info-tooltip";
 import { OnboardingCard } from "@/components/console/onboarding-card";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { SubgraphSummary, SubscriptionSummary } from "@/lib/types";
 import Link from "next/link";
-
-function InfoTip({ text }: { text: string }) {
-	return (
-		<span className="info" title={text}>
-			<svg
-				width="10"
-				height="10"
-				viewBox="0 0 16 16"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				aria-label={text}
-				role="img"
-			>
-				<circle cx="8" cy="8" r="6" />
-				<path d="M8 7v4" />
-				<circle cx="8" cy="5" r="0.5" fill="currentColor" />
-			</svg>
-		</span>
-	);
-}
 
 function formatRelative(dateStr: string): string {
 	const diff = Date.now() - new Date(dateStr).getTime();
@@ -101,13 +80,14 @@ export default async function DashboardPage() {
 				<div className="overview-inner">
 					<div className="ov-stats-label">
 						Overview
-						<InfoTip text="Key metrics across your project" />
+						<InfoTooltip text="Key metrics across your project" />
 					</div>
 
 					<div className="ov-stats-grid">
 						<Link href="/platform/subgraphs" className="ov-card">
 							<div className="ov-card-label">
-								Active Subgraphs <InfoTip text="Number of deployed subgraphs" />
+								Active Subgraphs{" "}
+								<InfoTooltip text="Number of deployed subgraphs" />
 							</div>
 							<div className="ov-card-value">{subgraphs.length}</div>
 							<div className="ov-card-sub">
@@ -137,7 +117,7 @@ export default async function DashboardPage() {
 						<Link href="/platform/subgraphs" className="ov-card">
 							<div className="ov-card-label">
 								Rows Indexed{" "}
-								<InfoTip text="Total rows stored across all subgraph tables" />
+								<InfoTooltip text="Total rows stored across all subgraph tables" />
 							</div>
 							<div className="ov-card-value">{formatRows(totalRows)}</div>
 							<div className="ov-card-sub">across all subgraphs</div>
@@ -145,7 +125,8 @@ export default async function DashboardPage() {
 
 						<div className="ov-card">
 							<div className="ov-card-label">
-								Subscriptions <InfoTip text="Webhook and event subscriptions" />
+								Subscriptions{" "}
+								<InfoTooltip text="Webhook and event subscriptions" />
 							</div>
 							<div className="ov-card-value">{subscriptions.length}</div>
 							<div className="ov-card-sub">
@@ -158,7 +139,7 @@ export default async function DashboardPage() {
 						<Link href="/platform/subgraphs" className="ov-card">
 							<div className="ov-card-label">
 								Uptime{" "}
-								<InfoTip text="Percentage of blocks processed without error" />
+								<InfoTooltip text="Percentage of blocks processed without error" />
 							</div>
 							<div
 								className="ov-card-value"
