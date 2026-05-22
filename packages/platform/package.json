@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/platform",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"private": true,
 	"type": "module",
 	"exports": {
@@ -13,7 +13,9 @@
 			"import": "./dist/account-usage.js"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
