@@ -8,8 +8,9 @@ and three interchangeable front-ends (CLI, SDK, MCP).
 
 Two ways to run it:
 
-- **Hosted** — dedicated per-project Postgres + API + subgraph processor.
-  Start with a 30-day trial; paid tiers start at $99/mo.
+- **Hosted** — managed shared platform. Free during open beta: `sl login`,
+  create a project, and deploy a subgraph in minutes. Reads are public; an
+  API key gates writes.
 - **Self-host** — the whole stack is MIT-licensed. `docker compose up` gets
   you indexer + API + processor on your own hardware. See
   [`docker/oss/README.md`](docker/oss/README.md).
@@ -30,9 +31,9 @@ Two ways to run it:
 ## Beta Quickstart (Hosted)
 
 This path gets a new beta user from zero to a live indexed table and webhook
-receiver. The CLI resolves your active project and mints short-lived tenant
-credentials for each command, so you do not need to copy service keys unless
-you are using the SDK, MCP, or raw REST.
+receiver. The CLI authenticates with your `sl login` session, so you don't
+manage keys for CLI commands. Reads from the SDK, MCP, and REST are public too;
+you only need a service key for writes from those surfaces.
 
 ```bash
 bun add -g @secondlayer/cli
@@ -40,7 +41,6 @@ bun add -g @secondlayer/cli
 sl login
 sl project create my-app
 sl project use my-app
-sl instance create --plan launch
 
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
@@ -68,7 +68,7 @@ Full command reference: [packages/cli/README.md](packages/cli/README.md).
 
 1. Give an agent the contract address and the events or calls you care about.
 2. The agent scaffolds a `defineSubgraph()` from the contract ABI, validates it,
-   and deploys it to your dedicated instance.
+   and deploys it to the platform.
 3. Query the generated table over REST, SDK, CLI, or MCP.
 4. Add a subscription on that table when the rows should trigger another system.
 5. Replay by block range when a receiver changes or misses deliveries.
@@ -79,13 +79,13 @@ Reviewable walkthrough: [packages/subgraphs/QUICKSTART.md](packages/subgraphs/QU
 
 | Package | Description |
 |---|---|
-| [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — auth, project/instance lifecycle, subgraph deploy, Clarity code-gen |
+| [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — auth, project lifecycle, subgraph deploy, Clarity code-gen |
 | [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — typed subgraph queries, webhooks |
 | [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — exposes subgraphs + scaffolding to AI agents |
 | [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS, AI-SDK tools |
 | [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema, triggers + event handlers |
 | [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, crypto helpers |
-| [`@secondlayer/api`](packages/api/README.md) | REST API — platform + dedicated + OSS modes |
+| [`@secondlayer/api`](packages/api/README.md) | REST API — hosted platform + self-host modes |
 
 ## Surfaces
 
@@ -104,10 +104,8 @@ sl create subscription transfer-hook --runtime node --subgraph my-subgraph --tab
 ```typescript
 import { SecondLayer } from "@secondlayer/sdk"
 
-const sl = new SecondLayer({
-  baseUrl: "https://<slug>.secondlayer.tools",
-  apiKey: process.env.SL_SERVICE_KEY,
-})
+// Reads are public — no key needed. Defaults to https://api.secondlayer.tools.
+const sl = new SecondLayer()
 
 const { data } = await sl.subgraphs.queryTable("transfers", "events", {
   filters: { sender: "SP1234..." },
@@ -120,15 +118,14 @@ const { data } = await sl.subgraphs.queryTable("transfers", "events", {
 ### REST API
 
 ```bash
-curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
-  "https://<slug>.secondlayer.tools/api/subgraphs/transfers/events?_sort=_block_height&_order=desc&_limit=25"
+curl "https://api.secondlayer.tools/api/subgraphs/transfers/events?_sort=_block_height&_order=desc&_limit=25"
 ```
 
 ### MCP (AI agents)
 
 Point Claude Desktop, Cursor, or any MCP client at `bunx -p @secondlayer/mcp secondlayer-mcp`
-with `SECONDLAYER_API_URL=https://<slug>.secondlayer.tools` and
-`SL_SERVICE_KEY` set. See [packages/mcp/README.md](packages/mcp/README.md).
+with `SECONDLAYER_API_URL=https://api.secondlayer.tools`. Set `SL_SERVICE_KEY`
+to enable writes (deploy/manage). See [packages/mcp/README.md](packages/mcp/README.md).
 
 ## Self-hosting
 
