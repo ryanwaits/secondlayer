@@ -28,6 +28,7 @@ COPY packages/stacks/package.json ./packages/stacks/
 COPY packages/clarity-docs/package.json ./packages/clarity-docs/
 COPY packages/bundler/package.json ./packages/bundler/
 COPY packages/scaffold/package.json ./packages/scaffold/
+COPY packages/platform/package.json ./packages/platform/
 # Install dependencies
 RUN bun install
 
@@ -45,10 +46,11 @@ COPY packages/api ./packages/api
 COPY packages/worker ./packages/worker
 COPY packages/indexer ./packages/indexer
 COPY packages/bundler ./packages/bundler
+COPY packages/platform ./packages/platform
 COPY tsconfig.json ./
 
 # Build all server packages (stacks must be built first as a dependency)
-RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/subgraphs' --filter '@secondlayer/bundler' --filter '@secondlayer/sdk' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
+RUN bun run --filter '@secondlayer/stacks' --filter '@secondlayer/shared' --filter '@secondlayer/platform' --filter '@secondlayer/subgraphs' --filter '@secondlayer/bundler' --filter '@secondlayer/sdk' --filter '@secondlayer/api' --filter '@secondlayer/worker' --filter '@secondlayer/indexer' build
 
 # =============================================================================
 # API service
@@ -69,6 +71,7 @@ COPY --from=builder /app/packages/bundler ./packages/bundler
 COPY --from=builder /app/packages/indexer ./packages/indexer
 COPY --from=builder /app/packages/sdk ./packages/sdk
 COPY --from=builder /app/packages/api ./packages/api
+COPY --from=builder /app/packages/platform ./packages/platform
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
