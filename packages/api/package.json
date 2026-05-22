@@ -14,6 +14,7 @@
 	"dependencies": {
 		"@secondlayer/bundler": "^0.3.6",
 		"@secondlayer/indexer": "^1.4.2",
+		"@secondlayer/platform": "workspace:*",
 		"@secondlayer/sdk": "^4.0.1",
 		"@secondlayer/shared": "^6.4.4",
 		"@secondlayer/subgraphs": "^3.0.0",

@@ -12,6 +12,7 @@
 	"dependencies": {
 		"@ai-sdk/anthropic": "3.0.71",
 		"@ai-sdk/react": "3.0.148",
+		"@secondlayer/platform": "workspace:*",
 		"@secondlayer/scaffold": "workspace:*",
 		"@secondlayer/sdk": "workspace:*",
 		"@secondlayer/stacks": "workspace:*",

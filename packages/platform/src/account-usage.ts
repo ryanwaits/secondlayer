@@ -1,9 +1,9 @@
 import { type Kysely, sql } from "kysely";
+import type { Database } from "@secondlayer/shared/db";
 import {
 	getComputeAllowanceHours,
 	getStorageAllowanceBytes,
-} from "../../pricing.ts";
-import type { Database } from "../types.ts";
+} from "./pricing.ts";
 
 /**
  * Rollup queries that power the `/platform/usage` page.

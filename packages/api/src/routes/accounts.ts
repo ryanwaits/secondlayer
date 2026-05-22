@@ -4,7 +4,7 @@ import {
 	getComputeUsage,
 	getProjectBreakdown,
 	getStorageUsage,
-} from "@secondlayer/shared/db/queries/account-usage";
+} from "@secondlayer/platform/account-usage";
 import { getProductUsage } from "@secondlayer/shared/db/queries/usage";
 import {
 	getAccountById,
@@ -16,7 +16,7 @@ import {
 	getBasePriceCents,
 	getPlanDisplayName,
 	hasStorageOverage,
-} from "@secondlayer/shared/pricing";
+} from "@secondlayer/platform/pricing";
 import { UpdateProfileRequestSchema } from "@secondlayer/shared/schemas/accounts";
 import { type Context, Hono } from "hono";
 import { emitMeterEvent } from "../lib/stripe-meter.ts";

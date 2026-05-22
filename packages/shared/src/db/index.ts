@@ -4,6 +4,8 @@ import postgres from "postgres";
 import { logger } from "../logger.ts";
 import type { Database } from "./types.ts";
 
+export type { Database } from "./types.ts";
+
 const DEFAULT_URL =
 	"postgres://postgres:postgres@localhost:5432/secondlayer_dev";
 

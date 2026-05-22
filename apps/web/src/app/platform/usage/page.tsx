@@ -9,7 +9,7 @@ import {
 	formatHours,
 	formatNum,
 } from "@/lib/usage";
-import { PLANS } from "@secondlayer/shared/pricing";
+import { PLANS } from "@secondlayer/platform/pricing";
 
 type ProductUsageResponse = {
 	streams: {
