@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/clarity-docs",
-	"version": "0.3.9",
+	"version": "0.3.10",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
@@ -17,7 +17,9 @@
 			"import": "./dist/index.js"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -36,7 +38,7 @@
 	"author": "Ryan Waits",
 	"license": "MIT",
 	"dependencies": {
-		"@secondlayer/stacks": "^2.0.1"
+		"@secondlayer/stacks": "^2.2.1"
 	},
 	"devDependencies": {},
 	"engines": {
