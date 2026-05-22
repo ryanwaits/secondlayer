@@ -22,6 +22,8 @@ import { SecondLayer } from "@secondlayer/sdk";
 
 ```ts
 // packages/sdk/src/base.ts
+// Construct with `new SecondLayer(opts?)` — opts is Partial<SecondLayerOptions>,
+// so every field is optional; baseUrl defaults to https://api.secondlayer.tools.
 export interface SecondLayerOptions {
   /** Base URL of the Secondlayer platform API (trailing slashes are stripped). */
   baseUrl: string;

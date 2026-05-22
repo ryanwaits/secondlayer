@@ -64,6 +64,8 @@ export type SubgraphHandler = (
 ) => Promise<void> | void;
 ```
 
+> `event` and `ctx` above are the **loose base types**. When you author with `defineSubgraph`, `event` is narrowed per source `type` and `ctx` per your `schema` automatically — no `Record<string, unknown>` and no casts (see §5).
+
 ---
 
 ## 3. Sources (Event Filters) — All 13 Types
@@ -141,7 +143,7 @@ export interface StxTransferEvent {
   sender: string;
   recipient: string;
   amount: bigint;
-  memo: string | null;
+  memo: string;
   tx: TxMeta;
 }
 ```
@@ -219,8 +221,8 @@ export interface StxLockFilter {
 ```ts
 export interface StxLockEvent {
   lockedAddress: string;
-  amount: bigint;
-  unlockHeight: number;
+  lockedAmount: bigint;
+  unlockHeight: bigint;
   tx: TxMeta;
 }
 ```
@@ -484,13 +486,13 @@ export interface PrintEventFilter {
 ```ts
 export interface PrintEventEvent {
   contractId: string;
-  topic: string | null;
-  value: unknown;
+  topic: string;
+  data: Record<string, unknown>;
   tx: TxMeta;
 }
 ```
 
-`topic` is the conventional top-level `topic` string in a printed tuple (e.g. `"swap"`, `"deposit"`). `value` is the fully decoded Clarity value (tuple, list, scalar — depends on what the contract printed).
+`topic` is the decoded `topic` field of the printed Clarity tuple (e.g. `"swap"`, `"deposit"`), or `""` when the print has no topic. `data` holds the remaining decoded tuple fields, camelCased — an empty object when the printed value isn't a tuple. Narrow `data` per `topic`, or declare a `prints` map (§7) to type it automatically.
 
 ---
 
@@ -1149,6 +1151,6 @@ The CLI runs validation on `sl subgraphs deploy` — bad definitions never reach
 - **Don't use `number` for amounts** — Stacks amounts are 128-bit. Use `bigint` literals (`1_000_000n`) and the `uint` column type.
 - **Don't hand-add `_block_height` / `_tx_id` columns** — they're auto-added on every insert. Declaring them yourself will conflict.
 - **Don't reach for `patchOrInsert` if a plain `upsert` works** — `patchOrInsert` is async (it reads existing first). Use it only when you need `(existing) => newValue` merge semantics; otherwise compute the new row inline and call sync `upsert`.
-- **Don't assume `event` is strongly typed** — the runtime contract is `Record<string, unknown>`. Cast to the concrete payload (e.g. `FtTransferEvent`) or use typed triggers at the subscription layer.
+- **Don't cast `event` — it's already typed.** `defineSubgraph` types `event` per source `type` (e.g. an `ft_transfer` source → `event.amount: bigint`). Declare a `prints` map to type `event.data` per topic, and pass a `const` `abi` to type `event.input` for `contract_call` (§7). No `as` casts needed.
 - **Don't call `findOne`/`findMany` and expect to see writes from earlier in the same block** — reads return pre-flush state. If you need running totals within a block, accumulate in handler-local state or use `patchOrInsert` with a merge function.
 - **Don't put complex business logic in `"*"` catch-all handlers without a discriminator** — `event` shape varies by source. Inspect `event.type` or branch on the source that matched.

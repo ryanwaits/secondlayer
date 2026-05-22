@@ -40,6 +40,7 @@ Subgraphs:
 - `subgraphs_list`
 - `subgraphs_get`
 - `subgraphs_query`
+- `subgraphs_spec`
 - `subgraphs_deploy`
 - `subgraphs_reindex`
 - `subgraphs_delete`

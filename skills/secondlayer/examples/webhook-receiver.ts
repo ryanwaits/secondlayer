@@ -4,7 +4,7 @@
 // `webhook-id` / `webhook-timestamp` / `webhook-signature` headers, checks
 // the timestamp is within tolerance, and HMAC-verifies a `v1` signature.
 //
-// Set SIGNING_SECRET to the value returned ONCE by `sl subscriptions create`
+// Set SIGNING_SECRET to the value returned ONCE by `sl create subscription`
 // or `sl subscriptions rotate-secret`.
 
 import { Hono } from "hono";
