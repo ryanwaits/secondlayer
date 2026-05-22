@@ -16,7 +16,7 @@ const PLATFORM_PATHS = [
 ];
 
 export function AuthBar() {
-	const { account, loading, logout } = useAuth();
+	const { account, loading, login, logout } = useAuth();
 	const pathname = usePathname();
 	const router = useRouter();
 	const [expanded, setExpanded] = useState(false);
@@ -63,19 +63,14 @@ export function AuthBar() {
 			if (!email || status === "sending") return;
 			setStatus("sending");
 			try {
-				const res = await fetch("/api/waitlist", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ email }),
-				});
-				if (!res.ok) throw new Error();
+				await login(email);
 				setStatus("done");
 			} catch {
 				setStatus("error");
 				setTimeout(() => setStatus("idle"), 2000);
 			}
 		},
-		[email, status],
+		[email, login, status],
 	);
 
 	if (loading) return null;
@@ -113,7 +108,7 @@ export function AuthBar() {
 			</Link>
 			{status === "done" ? (
 				<span className="auth-bar-done">
-					You&apos;re on the list. We approve daily and email within 24h.
+					Check your email for a sign-in link.
 				</span>
 			) : (
 				<form
@@ -149,11 +144,7 @@ export function AuthBar() {
 							if (!expanded) setExpanded(true);
 						}}
 					>
-						{status === "sending"
-							? "..."
-							: expanded
-								? "Join"
-								: "Get early access"}
+						{status === "sending" ? "..." : "Sign up"}
 					</button>
 				</form>
 			)}

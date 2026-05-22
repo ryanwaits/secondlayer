@@ -1,6 +1,6 @@
 /**
- * `DEV_MODE` bypasses authentication, allows any email past the waitlist,
- * and surfaces magic-link tokens + codes in response bodies — none of
+ * `DEV_MODE` bypasses authentication and surfaces magic-link tokens +
+ * codes in response bodies — none of
  * which can ever be true on a production host. This helper centralises
  * the check so we can't have a process running with `DEV_MODE=true` in
  * `NODE_ENV=production`.

@@ -1,7 +1,6 @@
 import { getDb } from "@secondlayer/shared/db";
 import {
 	createMagicLink,
-	isEmailAllowed,
 	upsertAccount,
 	verifyMagicLink,
 	verifyMagicLinkByCode,
@@ -52,19 +51,6 @@ app.post("/magic-link", async (c) => {
 	const parsed = MagicLinkSchema.parse(body);
 	const db = getDb();
 
-	const allowed = isDevMode() || (await isEmailAllowed(db, parsed.email));
-
-	if (!allowed) {
-		return c.json(
-			{
-				error:
-					"We don't recognize this email yet. Join the early access list to request access.",
-				code: "WAITLIST_REQUIRED",
-			},
-			403,
-		);
-	}
-
 	// Generate secure magic link token (for URL)
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
@@ -105,11 +91,6 @@ app.post("/verify", async (c) => {
 			: await verifyMagicLinkByCode(db, parsed.email, parsed.code);
 	if (!email) {
 		throw new ValidationError("Invalid or expired code");
-	}
-
-	const allowed = isDevMode() || (await isEmailAllowed(db, email));
-	if (!allowed) {
-		throw new ValidationError("Invalid or expired token");
 	}
 
 	const account = await upsertAccount(db, email);

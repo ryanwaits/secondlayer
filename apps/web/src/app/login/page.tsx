@@ -121,9 +121,7 @@ export default function LoginPage() {
 							</button>
 						</form>
 						<p className="login-disclaimer" style={{ marginTop: 16 }}>
-							Or click the link in your email to sign in directly. Didn&apos;t
-							get it? You may need{" "}
-							<Link href="/#early-access">early access</Link> first.
+							Or click the link in your email to sign in directly.
 						</p>
 						{devToken && (
 							<a href={`/verify?token=${devToken}`} className="login-dev-link">
@@ -156,9 +154,7 @@ export default function LoginPage() {
 							{status === "sending" ? "Sending..." : "Send me a login code"}
 						</button>
 						<p className="login-disclaimer">
-							You&apos;ll receive a code if you have an account or approved
-							early access. Otherwise,{" "}
-							<Link href="/#early-access">join the early access list</Link>.
+							New here? Entering your email creates your account.
 						</p>
 					</form>
 				)}

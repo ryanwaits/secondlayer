@@ -3905,7 +3905,7 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	border: 1px solid var(--border);
 	background: var(--accent, #2563eb);
 	/* Use the theme-aware accent contrast so dark mode flips to dark text
-	   on the cyan accent (matches the auth-bar "Get early access" CTA). */
+	   on the cyan accent (matches the auth-bar "Sign up" CTA). */
 	color: var(--accent-contrast, #fff);
 	cursor: pointer;
 	font-weight: 600;
