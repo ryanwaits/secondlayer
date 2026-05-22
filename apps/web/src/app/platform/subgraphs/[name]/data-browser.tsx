@@ -1,5 +1,6 @@
 "use client";
 
+import { DataPayloadPopover } from "@/components/console/data-payload-popover";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
@@ -61,8 +62,27 @@ function copy(value: string) {
 	}
 }
 
-function prettyHeader(col: string) {
-	return col.replace(/^_+/, "").replace(/_/g, " ");
+/** Fixed columns shown in the slimmed table; every other field lives in the payload. */
+const CORE_COLUMNS = [
+	{ header: "ID", keys: ["_id", "id"] },
+	{ header: "Block Height", keys: ["_block_height", "block_height"] },
+	{ header: "Tx ID", keys: ["tx_id", "_tx_id", "txid"] },
+	{
+		header: "Created At",
+		keys: ["created_at", "_created_at", "_inserted_at", "inserted_at"],
+	},
+] as const;
+
+/** First present candidate value for a core column, or undefined (rendered as "—"). */
+function coreValue(
+	row: Record<string, unknown>,
+	keys: readonly string[],
+): unknown {
+	for (const k of keys) {
+		const v = row[k];
+		if (v !== undefined) return v;
+	}
+	return undefined;
 }
 
 function Cell({ value }: { value: unknown }) {
@@ -205,7 +225,6 @@ export function SubgraphDataBrowser({
 
 	const rows = data?.rows ?? [];
 	const total = data?.total ?? 0;
-	const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 	const stale = isFetching && isPlaceholderData;
 
 	return (
@@ -248,19 +267,23 @@ export function SubgraphDataBrowser({
 						>
 							<thead>
 								<tr>
-									{columns.map((col) => (
-										<th key={col}>{prettyHeader(col)}</th>
+									{CORE_COLUMNS.map((col) => (
+										<th key={col.header}>{col.header}</th>
 									))}
+									<th className="sg-col-data">Data</th>
 								</tr>
 							</thead>
 							<tbody>
 								{rows.map((row) => (
 									<tr key={String(row._id ?? row.tx_id ?? row.contract_id)}>
-										{columns.map((col) => (
-											<td key={col}>
-												<Cell value={row[col]} />
+										{CORE_COLUMNS.map((col) => (
+											<td key={col.header}>
+												<Cell value={coreValue(row, col.keys)} />
 											</td>
 										))}
+										<td className="sg-col-data">
+											<DataPayloadPopover row={row} />
+										</td>
 									</tr>
 								))}
 							</tbody>

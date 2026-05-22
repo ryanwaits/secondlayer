@@ -246,6 +246,31 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				fontStyle: "italic",
 			},
 		},
+		// JSON — object keys stay muted (matches property-key style above).
+		// Listed after the generic `string` rule so it wins for key tokens.
+		{
+			scope: [
+				"support.type.property-name.json",
+				"meta.structure.dictionary.key.json string",
+			],
+			settings: {
+				foreground: "#555555",
+			},
+		},
+		// JSON — string values pop accent (the LiveKit-style payload view).
+		// Scoped under value/array ancestors so it never colors keys; the explicit
+		// punctuation descendants color the surrounding quotes accent too.
+		{
+			scope: [
+				"meta.structure.dictionary.value.json string.quoted.double.json",
+				"meta.structure.array.json string.quoted.double.json",
+				"meta.structure.dictionary.value.json punctuation.definition.string",
+				"meta.structure.array.json punctuation.definition.string",
+			],
+			settings: {
+				foreground: "#2563EB",
+			},
+		},
 	],
 };
 
@@ -412,6 +437,24 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		{
 			scope: ["markup.italic"],
 			settings: { fontStyle: "italic" },
+		},
+		// JSON — object keys stay muted
+		{
+			scope: [
+				"support.type.property-name.json",
+				"meta.structure.dictionary.key.json string",
+			],
+			settings: { foreground: "#a0a0a0" },
+		},
+		// JSON — string values pop accent (LiveKit-style payload view)
+		{
+			scope: [
+				"meta.structure.dictionary.value.json string.quoted.double.json",
+				"meta.structure.array.json string.quoted.double.json",
+				"meta.structure.dictionary.value.json punctuation.definition.string",
+				"meta.structure.array.json punctuation.definition.string",
+			],
+			settings: { foreground: "#1FD5F9" },
 		},
 	],
 };
