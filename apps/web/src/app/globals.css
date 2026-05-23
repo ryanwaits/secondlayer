@@ -4948,22 +4948,14 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 }
 /* brand/home link at the top of the docs sidebar */
 .docs-nav-brand {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	font-family: var(--font-heading-stack);
+	/* same Public Sans as marketing; bold is reserved for the wordmark.
+	   Layout + logo fills come from the .page-title-with-logo class. */
 	font-weight: 600;
-	font-size: 15px;
-	letter-spacing: -0.01em;
+	font-size: 0.9375rem;
+	letter-spacing: -0.015em;
 	color: var(--text-main);
 	text-decoration: none;
-	margin: 0 0 24px 8px;
-}
-.docs-nav-brand-dot {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background: var(--accent);
+	margin: 0 0 26px 8px;
 }
 .docs-nav-group {
 	margin-bottom: 22px;
@@ -5003,67 +4995,74 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 .docs-article {
 	max-width: 720px;
 }
-.docs-article h1 {
-	font-family: var(--font-heading-stack);
-	font-size: 2rem;
-	font-weight: 600;
-	letter-spacing: -0.02em;
-	line-height: 1.1;
-	margin: 0 0 16px;
+/* Title + section headings reuse marketing's .page-title / .section-heading
+   (set in mdx-components). Here we only add docs-specific spacing + anchors. */
+.docs-article .page-title {
+	margin-bottom: var(--spacing-sm);
 }
-/* first paragraph after the title reads as the lead */
-.docs-article > h1 + p {
-	font-size: 16px;
-	line-height: 24px;
-	color: var(--text-muted);
-	margin-bottom: 28px;
-}
-.docs-article h2 {
-	font-family: var(--font-heading-stack);
-	font-size: 1.2rem;
-	font-weight: 600;
-	letter-spacing: -0.01em;
-	margin: 40px 0 12px;
+.docs-article .section-heading {
 	scroll-margin-top: 24px;
 }
 .docs-article h3 {
 	font-size: 14px;
-	font-weight: 600;
-	margin: 24px 0 8px;
+	font-weight: 560;
+	color: var(--text-main);
+	letter-spacing: -0.00563rem;
+	margin: var(--spacing-md) 0 0.5rem;
 	scroll-margin-top: 24px;
 }
+/* Body matches marketing .prose exactly (Public Sans, dense editorial type). */
 .docs-article p {
 	font-size: 14px;
 	font-weight: 460;
-	line-height: 22px;
+	line-height: 20px;
+	letter-spacing: -0.00563rem;
 	color: var(--text-prose);
-	margin: 0 0 14px;
+	margin: 0 0 var(--spacing-xs);
 }
-.docs-article a.ln,
 .docs-article a {
-	color: var(--accent);
+	color: inherit;
 	text-decoration: underline;
-	text-decoration-color: var(--accent-border);
+	text-decoration-color: var(--link-underline);
 	text-underline-offset: 3px;
+	text-decoration-thickness: 1px;
+	transition: text-decoration-color 0.2s ease;
+}
+.docs-article a:hover {
+	text-decoration-color: var(--link-underline-hover);
 }
 .docs-article ul {
-	margin: 0 0 14px;
-	padding-left: 18px;
+	margin: var(--spacing-xs) 0;
+	padding-left: 1.25rem;
+	list-style: none;
 }
 .docs-article li {
-	margin: 5px 0;
-	line-height: 22px;
+	position: relative;
+	margin-bottom: 0.375rem;
+	padding-left: 0.25rem;
 	font-size: 14px;
+	line-height: 20px;
+	letter-spacing: -0.00563rem;
+	color: var(--text-prose);
+}
+.docs-article ul > li::before {
+	content: "—";
+	position: absolute;
+	left: -1.25rem;
+	color: var(--text-muted);
+	font-weight: 460;
 }
 .docs-article :not(pre) > code {
 	font-family: var(--font-mono-stack);
-	font-size: 12.5px;
+	font-size: 0.9em;
 	background: var(--code-bg);
-	padding: 1px 5px;
-	border-radius: 4px;
+	padding: 0.15em 0.35em;
+	border-radius: 3px;
+	color: var(--text-main);
 }
 .docs-article strong {
 	font-weight: 600;
+	color: var(--text-main);
 }
 
 .docs-toc {

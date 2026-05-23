@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo } from "@/components/console/logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -45,9 +46,9 @@ export function DocsSidebar() {
 				/>
 			)}
 			<aside className={`docs-nav${open ? " open" : ""}`}>
-				<Link href="/" className="docs-nav-brand">
-					<span className="docs-nav-brand-dot" aria-hidden="true" />
-					secondlayer
+				<Link href="/" className="docs-nav-brand page-title-with-logo">
+					<Logo size={22} />
+					<span>secondlayer</span>
 				</Link>
 				{DOCS_NAV.map((group) => (
 					<div className="docs-nav-group" key={group.label}>
