@@ -171,7 +171,7 @@ export default async function SubgraphDetailPage({
 							<span className="hl">{"<table>"}</span>
 						</span>
 						<a
-							href="https://docs.secondlayer.dev/api"
+							href="/docs/rest-api"
 							className="sg-ep-link"
 							target="_blank"
 							rel="noopener noreferrer"

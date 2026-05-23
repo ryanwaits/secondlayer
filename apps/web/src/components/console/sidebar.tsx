@@ -262,9 +262,7 @@ export function ConsoleSidebar() {
 						type="button"
 						className="sb-bottom-item"
 						style={{ cursor: "pointer" }}
-						onClick={() =>
-							window.open("https://docs.secondlayer.xyz", "_blank")
-						}
+						onClick={() => window.open("/docs", "_blank")}
 					>
 						<span className="sb-bottom-icon">
 							<svg

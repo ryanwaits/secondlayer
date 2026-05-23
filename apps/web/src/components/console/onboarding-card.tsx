@@ -57,7 +57,7 @@ const CARDS = [
 		),
 		title: "Set up subscriptions",
 		desc: "Stream real-time events to your backend via webhooks or WebSocket.",
-		href: "https://docs.secondlayer.dev/subscriptions",
+		href: "/docs/subscriptions",
 		external: true,
 	},
 	{
@@ -77,7 +77,7 @@ const CARDS = [
 		),
 		title: "View documentation",
 		desc: "Read the full API reference and quickstart guides.",
-		href: "https://docs.secondlayer.dev",
+		href: "/docs",
 		external: true,
 	},
 ];

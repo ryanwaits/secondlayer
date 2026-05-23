@@ -236,7 +236,7 @@ export default async function DashboardPage() {
 							<div className="ov-empty">
 								No subscriptions yet.{" "}
 								<Link
-									href="https://docs.secondlayer.dev/subscriptions"
+									href="/docs/subscriptions"
 									className="ov-section-link"
 									target="_blank"
 									rel="noopener noreferrer"
