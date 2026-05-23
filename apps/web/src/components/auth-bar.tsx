@@ -57,6 +57,28 @@ export function AuthBar() {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [account, loading, router]);
 
+	// D keyboard shortcut → docs (available regardless of auth state)
+	useEffect(() => {
+		function onKeyDown(e: KeyboardEvent) {
+			if (
+				e.target instanceof HTMLInputElement ||
+				e.target instanceof HTMLTextAreaElement
+			)
+				return;
+			if (e.metaKey || e.ctrlKey || e.altKey) return;
+			if (e.key === "d" || e.key === "D") router.push("/docs");
+		}
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [router]);
+
+	const docsLink = (
+		<Link href="/docs" className="auth-bar-nav-link">
+			<span className="auth-bar-nav-key">[D]</span>
+			<span className="auth-bar-nav-label">Docs</span>
+		</Link>
+	);
+
 	const handleSubmit = useCallback(
 		async (e: React.FormEvent) => {
 			e.preventDefault();
@@ -85,6 +107,7 @@ export function AuthBar() {
 	if (account) {
 		return (
 			<div className="auth-bar">
+				{docsLink}
 				<button
 					type="button"
 					className="auth-bar-login"
@@ -102,6 +125,7 @@ export function AuthBar() {
 	// Unauthenticated
 	return (
 		<div className="auth-bar">
+			{docsLink}
 			<Link href="/login" className="auth-bar-nav-link">
 				<span className="auth-bar-nav-key">[L]</span>
 				<span className="auth-bar-nav-label">Login</span>

@@ -1,0 +1,91 @@
+# Subgraphs
+
+Stacks Subgraphs are the L3 surface for app-specific materialized tables. Declare the contract events you care about, write a handler that shapes each event into rows, and Secondlayer backfills history and keeps the table live as new blocks arrive.
+
+## How it works
+
+- **Declare sources** — the contracts and events you want to track.
+- **Write a handler** — turn each matched event into one or more rows.
+- **Deploy** — Secondlayer backfills history, then streams new blocks into your table in real time.
+
+## Define a subgraph
+
+A subgraph is a single config file. Point it at one or more contract sources and the events you care about:
+
+```ts
+import { defineSubgraph } from "@secondlayer/subgraphs";
+
+export default defineSubgraph({
+  name: "sbtc-flows",
+  network: "mainnet",
+  sources: [
+    {
+      contract: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+      events: ["ft_transfer_event"],
+      startBlock: 8000000,
+    },
+  ],
+});
+```
+
+## Write a handler
+
+Handlers are typed by their source: `event.data` is shaped from the event you subscribed to, and `ctx.db` is typed from your table schema. Every row your handler writes lands in the materialized table.
+
+```ts
+import type { Handler } from "@secondlayer/subgraphs";
+
+// Each matched event becomes one row in the transfers table.
+const handler: Handler = async (event, ctx) => {
+  const { amount, sender, recipient } = event.data;
+
+  await ctx.db.transfers.insert({
+    tx_id: event.txId,
+    block_height: event.blockHeight,
+    amount,
+    sender,
+    recipient,
+  });
+};
+
+export default handler;
+```
+
+## Deploy
+
+Deploy from the CLI. The first deploy backfills history from `startBlock`; subsequent blocks stream in automatically.
+
+```bash
+sl subgraphs deploy ./subgraph.config.ts
+```
+
+## Query your data
+
+Your table is immediately available over REST. Reads are public — cursor-paginate with `_limit` and `_order`.
+
+```bash
+curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
+  -G -d "_limit=10" -d "_order=desc"
+```
+
+```json
+{
+  "data": [
+    {
+      "_id": 48138,
+      "block_height": 8054704,
+      "tx_id": "0x5ee90c4f8a21d25b",
+      "amount": 697078828,
+      "sender": "SP3PE7Q9...X44J"
+    }
+  ],
+  "meta": { "total": 48138, "cursor": "eyJpZCI6NDgxMzd9" }
+}
+```
+
+Want pushes instead of polling? Bind a [Subscription](/docs/subscriptions) to this table and Secondlayer will POST every matching row to your webhook.
+
+export const metadata = {
+	title: "Subgraphs — Secondlayer Docs",
+	description: "App-specific materialized tables from Stacks contract events.",
+};

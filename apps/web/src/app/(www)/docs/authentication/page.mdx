@@ -1,0 +1,27 @@
+# Authentication
+
+Open beta: reads are public, API keys gate writes only.
+
+During the open beta every read endpoint is public — no key required. API keys are only needed for **write** operations: deploying subgraphs, managing subscriptions, and rotating keys.
+
+## Reading — no auth
+
+```bash
+curl https://api.secondlayer.tools/v1/datasets/sbtc/events
+```
+
+## Writing — bearer token
+
+Pass your key as a bearer token. Create one with `sl auth keys create` or from the dashboard.
+
+```bash
+curl -X POST https://api.secondlayer.tools/api/subgraphs \
+  -H "Authorization: Bearer $SL_KEY"
+```
+
+Keep keys server-side — they grant write access to your account. Rotate anytime with `sl auth keys rotate`.
+
+export const metadata = {
+	title: "Authentication — Secondlayer Docs",
+	description: "Open beta: reads are public, API keys gate writes only.",
+};

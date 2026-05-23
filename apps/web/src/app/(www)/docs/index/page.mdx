@@ -1,0 +1,21 @@
+# Index
+
+Query decoded Stacks chain data — blocks, transactions, events, and contract calls — through one REST surface.
+
+The Index API is the general-purpose read layer beneath every dataset. Filter by block range, principal, contract, or event type, and page through results with a stable cursor.
+
+## Query events
+
+```bash
+curl https://api.secondlayer.tools/v1/index/events \
+  -G \
+  -d "contract=SP000000000000000000002Q6VF78.pox-4" \
+  -d "_limit=20"
+```
+
+Responses use the same envelope as every other surface — `data` rows plus a `meta` cursor. See the [REST API](/docs/rest-api) reference for the full filter and pagination grammar.
+
+export const metadata = {
+	title: "Index — Secondlayer Docs",
+	description: "Query decoded Stacks chain data through one REST surface.",
+};

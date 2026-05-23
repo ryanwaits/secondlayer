@@ -4925,3 +4925,255 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	color: var(--accent);
 	font-weight: 600;
 }
+
+/* ════════════════════════════════════════════════
+   Docs site (/docs) — 3-pane, marketing-styled.
+   Topbar/chrome ported from the approved mock (docs- prefixed so it
+   doesn't collide with the centered .www-* marketing topbar).
+   ════════════════════════════════════════════════ */
+.docs-shell {
+	display: grid;
+	grid-template-columns: 248px minmax(0, 1fr) 200px;
+	max-width: 1320px;
+	margin: 0 auto;
+}
+.docs-nav {
+	position: sticky;
+	top: 0;
+	align-self: start;
+	height: 100vh;
+	overflow-y: auto;
+	padding: 26px 18px 60px 22px;
+	border-right: 1px solid var(--border);
+}
+/* brand/home link at the top of the docs sidebar */
+.docs-nav-brand {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-heading-stack);
+	font-weight: 600;
+	font-size: 15px;
+	letter-spacing: -0.01em;
+	color: var(--text-main);
+	text-decoration: none;
+	margin: 0 0 24px 8px;
+}
+.docs-nav-brand-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--accent);
+}
+.docs-nav-group {
+	margin-bottom: 22px;
+}
+.docs-nav-grouplabel {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: color-mix(in srgb, var(--text-muted) 70%, transparent);
+	margin: 0 0 8px 8px;
+}
+.docs-nav-item {
+	display: block;
+	padding: 5px 8px;
+	border-radius: 6px;
+	font-size: 13.5px;
+	color: var(--text-muted);
+	text-decoration: none;
+	transition: color 0.12s ease, background 0.12s ease;
+}
+.docs-nav-item:hover {
+	color: var(--text-main);
+	background: var(--code-bg);
+}
+.docs-nav-item.active {
+	color: var(--accent);
+	background: var(--accent-bg);
+	font-weight: 500;
+}
+
+.docs-content {
+	padding: 40px 48px 120px;
+	min-width: 0;
+}
+.docs-article {
+	max-width: 720px;
+}
+.docs-article h1 {
+	font-family: var(--font-heading-stack);
+	font-size: 2rem;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	line-height: 1.1;
+	margin: 0 0 16px;
+}
+/* first paragraph after the title reads as the lead */
+.docs-article > h1 + p {
+	font-size: 16px;
+	line-height: 24px;
+	color: var(--text-muted);
+	margin-bottom: 28px;
+}
+.docs-article h2 {
+	font-family: var(--font-heading-stack);
+	font-size: 1.2rem;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	margin: 40px 0 12px;
+	scroll-margin-top: 24px;
+}
+.docs-article h3 {
+	font-size: 14px;
+	font-weight: 600;
+	margin: 24px 0 8px;
+	scroll-margin-top: 24px;
+}
+.docs-article p {
+	font-size: 14px;
+	font-weight: 460;
+	line-height: 22px;
+	color: var(--text-prose);
+	margin: 0 0 14px;
+}
+.docs-article a.ln,
+.docs-article a {
+	color: var(--accent);
+	text-decoration: underline;
+	text-decoration-color: var(--accent-border);
+	text-underline-offset: 3px;
+}
+.docs-article ul {
+	margin: 0 0 14px;
+	padding-left: 18px;
+}
+.docs-article li {
+	margin: 5px 0;
+	line-height: 22px;
+	font-size: 14px;
+}
+.docs-article :not(pre) > code {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	background: var(--code-bg);
+	padding: 1px 5px;
+	border-radius: 4px;
+}
+.docs-article strong {
+	font-weight: 600;
+}
+
+.docs-toc {
+	position: sticky;
+	top: 0;
+	align-self: start;
+	height: 100vh;
+	overflow-y: auto;
+	/* top padding clears the fixed global AuthBar in the top-right corner */
+	padding: 64px 22px 40px;
+}
+.docs-toc-label {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin-bottom: 12px;
+}
+.docs-toc a {
+	display: block;
+	font-size: 12.5px;
+	color: var(--text-muted);
+	text-decoration: none;
+	padding: 4px 0 4px 10px;
+	border-left: 2px solid var(--border);
+	transition: color 0.12s ease, border-color 0.12s ease;
+}
+.docs-toc a:hover {
+	color: var(--text-main);
+}
+.docs-toc a.h3 {
+	padding-left: 22px;
+}
+.docs-toc a.active {
+	color: var(--accent);
+	border-left-color: var(--accent);
+}
+
+@media (max-width: 1080px) {
+	.docs-shell {
+		grid-template-columns: 240px minmax(0, 1fr);
+	}
+	.docs-toc {
+		display: none;
+	}
+}
+/* mobile drawer: hamburger toggles the sidebar (both hidden on desktop) */
+.docs-burger {
+	display: none;
+}
+.docs-nav-overlay {
+	display: none;
+}
+@media (max-width: 768px) {
+	.docs-shell {
+		grid-template-columns: 1fr;
+	}
+	.docs-content {
+		padding: 60px 20px 100px;
+	}
+	.docs-burger {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		position: fixed;
+		top: 10px;
+		left: 12px;
+		z-index: 60;
+		width: 38px;
+		height: 38px;
+		border-radius: 8px;
+		background: var(--bg-elevated);
+		border: 1px solid var(--border);
+		color: var(--text-main);
+		font-size: 16px;
+		cursor: pointer;
+	}
+	.docs-nav {
+		position: fixed;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		height: 100vh;
+		width: 84vw;
+		max-width: 320px;
+		z-index: 65;
+		background: var(--bg);
+		border-right: 1px solid var(--border);
+		transform: translateX(-100%);
+		transition: transform 0.22s ease;
+	}
+	.docs-nav.open {
+		transform: translateX(0);
+		box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
+	}
+	.docs-nav-overlay {
+		display: block;
+		position: fixed;
+		inset: 0;
+		z-index: 64;
+		background: rgba(0, 0, 0, 0.4);
+		border: none;
+		padding: 0;
+		cursor: pointer;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.docs-nav {
+		transition: none;
+	}
+}

@@ -1,0 +1,25 @@
+# CLI
+
+The `sl` command-line tool — authenticate once, manage subgraphs and subscriptions from your terminal.
+
+## Install
+
+```bash
+bun add -g @secondlayer/cli
+```
+
+## Common commands
+
+```bash
+sl auth login            # authenticate (opens the browser)
+sl subgraphs deploy      # deploy a subgraph from a config
+sl subgraphs ls          # list your deployments
+sl subscriptions create  # wire up a webhook subscription
+```
+
+Every tool shares one session — sign in once and the SDK, CLI, and MCP server all inherit it.
+
+export const metadata = {
+	title: "CLI — Secondlayer Docs",
+	description: "Manage subgraphs and subscriptions from your terminal with sl.",
+};

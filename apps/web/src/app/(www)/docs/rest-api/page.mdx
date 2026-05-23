@@ -1,0 +1,37 @@
+# REST API
+
+Every read surface speaks the same envelope, cursor, and filter grammar — datasets, index, streams, and subgraph tables.
+
+## Response envelope
+
+Rows come back in a `data` array; `meta` carries the total and a stable cursor.
+
+```json
+{
+  "data": [{ "_id": 48138, "block_height": 8054704 }],
+  "meta": { "total": 48138, "cursor": "eyJpZCI6NDgxMzd9" }
+}
+```
+
+## Pagination
+
+- `_limit` — page size (default 10).
+- `_order` — `asc` or `desc`.
+- `_cursor` — opaque token from the previous response's `meta.cursor`.
+
+## Filtering & sorting
+
+Filter on any column by passing it as a query param; sort with `_sort`. The grammar is identical across every surface.
+
+```bash
+curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
+  -G \
+  -d "sender=SP3PE7Q9...X44J" \
+  -d "_sort=_block_height" \
+  -d "_order=desc"
+```
+
+export const metadata = {
+	title: "REST API — Secondlayer Docs",
+	description: "The shared envelope, cursor, and filter grammar across all surfaces.",
+};

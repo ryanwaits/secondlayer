@@ -1,0 +1,22 @@
+# Streams
+
+Raw chain event firehose — cursor-paginated REST, idempotent, replayable.
+
+Streams expose the same event surface every Foundation Dataset decoder consumes internally. Page forward with a cursor, replay from any point, and never miss an event. For push delivery to your backend, see [Subscriptions](/docs/subscriptions).
+
+## Read the stream
+
+```bash
+curl https://api.secondlayer.tools/v1/streams/events -G -d "_limit=100"
+```
+
+Each response returns a `cursor` in `meta`. Pass it back as `_cursor` to continue exactly where you left off — deliveries are idempotent, so retries never double-count.
+
+```bash
+curl https://api.secondlayer.tools/v1/streams/events -G -d "_cursor=eyJpZCI6NDgxMzd9"
+```
+
+export const metadata = {
+	title: "Streams — Secondlayer Docs",
+	description: "Raw chain event firehose — cursor-paginated, idempotent, replayable.",
+};

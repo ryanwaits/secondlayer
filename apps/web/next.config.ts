@@ -1,6 +1,9 @@
+import createMDX from "@next/mdx";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+	// .mdx files are first-class pages (docs site lives at /docs).
+	pageExtensions: ["ts", "tsx", "mdx"],
 	experimental: {
 		staleTimes: {
 			dynamic: 30,
@@ -19,43 +22,11 @@ const nextConfig: NextConfig = {
 			},
 		];
 	},
-	// /docs was collapsed back into the marketing surface; everything lives at
-	// the root now. Old inbound links (tweets, READMEs, MCP server defaults)
-	// 301 to the new top-level paths.
 	async redirects() {
-		// /docs/<product>          → /<product>
-		// /docs/datasets/<slug>    → /datasets/<slug>
-		// /docs/migration/<slug>   → /migration/<slug>
-		const productPaths = [
-			"streams",
-			"subgraphs",
-			"subscriptions",
-			"datasets",
-			"migration",
-		];
-		// /docs/cli, /docs/sdk, /docs/mcp, /docs/stacks all consolidated into /tools.
-		const toolsPaths = ["cli", "sdk", "mcp", "stacks"];
-		const docsRedirects = [
-			{ source: "/docs", destination: "/", permanent: true },
-			...productPaths.map((p) => ({
-				source: `/docs/${p}`,
-				destination: `/${p}`,
-				permanent: true,
-			})),
-			...productPaths.map((p) => ({
-				source: `/docs/${p}/:path*`,
-				destination: `/${p}/:path*`,
-				permanent: true,
-			})),
-			...toolsPaths.map((p) => ({
-				source: `/docs/${p}`,
-				destination: `/tools#${p}`,
-				permanent: true,
-			})),
-		];
 		// Workflow + sentry packages were deprecated in the 2026-04-23 pivot;
 		// inbound traffic lands on Subscriptions or the migration guide.
-		const deprecatedRedirects = [
+		// (The former /docs → / collapse was reverted: /docs is now the docs site.)
+		return [
 			{ source: "/workflows", destination: "/subscriptions", permanent: true },
 			{
 				source: "/workflows/:path*",
@@ -79,8 +50,17 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			},
 		];
-		return [...docsRedirects, ...deprecatedRedirects];
 	},
 };
 
-export default nextConfig;
+// Turbopack requires string-form remark/rehype plugins (functions can't be
+// serialized into its pipeline). Code highlighting is handled per-block by a
+// custom `pre` component (mdx-components.tsx) reusing our Shiki highlight().
+const withMDX = createMDX({
+	options: {
+		remarkPlugins: [["remark-gfm"]],
+		rehypePlugins: [["rehype-slug"]],
+	},
+});
+
+export default withMDX(nextConfig);

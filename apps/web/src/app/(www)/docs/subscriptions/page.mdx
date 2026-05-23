@@ -1,0 +1,32 @@
+# Subscriptions
+
+Push semantics. Subscribe to your subgraph table writes — the server delivers signed webhooks.
+
+A subscription binds to a subgraph table. Every row your handler writes that matches the filter triggers a signed HTTP POST to your endpoint, with automatic retries and idempotency keys.
+
+## Create a subscription
+
+```bash
+sl subscriptions create \
+  --subgraph sbtc-flows \
+  --table transfers \
+  --url https://your-app.com/webhooks/sbtc
+```
+
+## Verify the signature
+
+Every delivery is signed. Verify the `secondlayer-signature` header against your subscription secret before trusting the payload.
+
+```ts
+import { verifyWebhookSignature } from "@secondlayer/sdk";
+
+const valid = verifyWebhookSignature(req.headers, rawBody, secret);
+if (!valid) return new Response("bad signature", { status: 401 });
+```
+
+Failed deliveries retry with backoff; after repeated failures the subscription's circuit opens so a downed endpoint can't block the queue.
+
+export const metadata = {
+	title: "Subscriptions — Secondlayer Docs",
+	description: "Push matched subgraph rows to your webhook as signed POSTs.",
+};
