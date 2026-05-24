@@ -191,14 +191,14 @@ export function DatasetsList() {
 					<p className="dataset-shelf-summary">{dataset.summary}</p>
 					<div className="dataset-shelf-meta">
 						{dataset.apiPath ? (
-							<span>
-								<span className="dataset-shelf-meta-label">API</span>{" "}
+							<span className="dataset-endpoint">
+								<span className="dataset-endpoint-label">API</span>
 								<code>{dataset.apiPath}</code>
 							</span>
 						) : null}
 						{dataset.parquetPrefix ? (
-							<span>
-								<span className="dataset-shelf-meta-label">parquet</span>{" "}
+							<span className="dataset-endpoint">
+								<span className="dataset-endpoint-label">Parquet</span>
 								<code>{dataset.parquetPrefix}</code>
 							</span>
 						) : null}
