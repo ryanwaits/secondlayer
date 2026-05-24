@@ -20,13 +20,6 @@ const nextConfig: NextConfig = {
 				source: "/site/:path*",
 				destination: "/:path*",
 			},
-			// The Index product page lives at /index-page on disk: a top-level
-			// app/index/ segment collides with the root's index.html output on
-			// Vercel (ENOENT app/index.html). Serve it at the canonical /index.
-			{
-				source: "/index",
-				destination: "/index-page",
-			},
 		];
 	},
 	async redirects() {
@@ -34,8 +27,6 @@ const nextConfig: NextConfig = {
 		// inbound traffic lands on Subscriptions or the migration guide.
 		// (The former /docs → / collapse was reverted: /docs is now the docs site.)
 		return [
-			// Canonicalize the on-disk path back to /index (see rewrites()).
-			{ source: "/index-page", destination: "/index", permanent: true },
 			{ source: "/workflows", destination: "/subscriptions", permanent: true },
 			{
 				source: "/workflows/:path*",

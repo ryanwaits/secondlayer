@@ -5,6 +5,7 @@ const BASE = "https://www.secondlayer.tools";
 const ROUTES = [
 	"/",
 	"/streams",
+	"/index-api",
 	"/subgraphs",
 	"/subscriptions",
 	"/datasets",

@@ -21,7 +21,7 @@ describe("www marketing routes", () => {
 		// Single Products row group.
 		expect(html).toContain(">Products<");
 		expect(html).toContain('href="/streams"');
-		expect(html).toContain('href="/index"');
+		expect(html).toContain('href="/index-api"');
 		expect(html).toContain('href="/subgraphs"');
 		expect(html).toContain('href="/subscriptions"');
 		expect(html).toContain('href="/datasets"');

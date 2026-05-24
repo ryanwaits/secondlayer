@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 const products = [
 	{ name: "Streams", href: "/streams" },
-	{ name: "Index", href: "/index" },
+	{ name: "Index", href: "/index-api" },
 	{ name: "Subgraphs", href: "/subgraphs" },
 	{ name: "Subscriptions", href: "/subscriptions" },
 	{ name: "Datasets", href: "/datasets" },
