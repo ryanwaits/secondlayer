@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { CollapsibleJsonTree } from "./collapsible-json-tree";
 import { CopyButton } from "./copy-button";
+import { SandboxCode } from "./sandbox-code";
 
 export type SandboxFilterDef =
 	| {
@@ -132,6 +134,10 @@ export function DatasetSandbox({
 	);
 
 	const responseBody = formatResponseBody(response);
+	const showJsonTree =
+		response.kind === "ok" &&
+		typeof response.body === "object" &&
+		response.body !== null;
 
 	return (
 		<div className="dataset-sandbox">
@@ -206,29 +212,36 @@ export function DatasetSandbox({
 				<details className="dataset-sandbox-snippet" open>
 					<summary>curl</summary>
 					<div className="dataset-sandbox-snippet-body">
-						<pre className="code-block">
-							<code>{curlSnippet}</code>
-						</pre>
-						<CopyButton code={curlSnippet} />
+						<SandboxCode code={curlSnippet} lang="bash" />
 					</div>
 				</details>
 				<details className="dataset-sandbox-snippet">
 					<summary>fetch (TypeScript)</summary>
 					<div className="dataset-sandbox-snippet-body">
-						<pre className="code-block">
-							<code>{fetchSnippet}</code>
-						</pre>
-						<CopyButton code={fetchSnippet} />
+						<SandboxCode code={fetchSnippet} lang="typescript" />
 					</div>
 				</details>
 			</div>
 
-			<div className="dataset-sandbox-response">
-				<div className="dataset-sandbox-response-header">Response</div>
-				<pre className="code-block dataset-sandbox-response-body">
-					<code>{responseBody}</code>
-				</pre>
-			</div>
+			{response.kind !== "idle" ? (
+				<div className="dataset-sandbox-response">
+					<div className="dataset-sandbox-response-header">Response</div>
+					{showJsonTree ? (
+						<div className="dataset-sandbox-json">
+							<CopyButton code={responseBody} />
+							<div className="dataset-sandbox-json-scroll">
+								<CollapsibleJsonTree
+									data={(response as { body: unknown }).body}
+								/>
+							</div>
+						</div>
+					) : (
+						<pre className="code-block dataset-sandbox-response-body">
+							<code>{responseBody}</code>
+						</pre>
+					)}
+				</div>
+			) : null}
 		</div>
 	);
 }

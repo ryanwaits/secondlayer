@@ -120,6 +120,32 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				foreground: "#666666",
 			},
 		},
+		// Shell — command name (curl, git, …) pops accent + bold
+		{
+			scope: [
+				"entity.name.command",
+				"entity.name.command.shell",
+				"entity.name.function.call.shell",
+			],
+			settings: {
+				foreground: "#2563EB",
+				fontStyle: "bold",
+			},
+		},
+		// Shell — option flags (-H, --flag) via constant.other.option
+		{
+			scope: ["constant.other.option"],
+			settings: {
+				foreground: "#888888",
+			},
+		},
+		// Shell — quoted-string arguments stay neutral but distinct from command
+		{
+			scope: ["string.quoted.double.shell", "string.quoted.single.shell"],
+			settings: {
+				foreground: "#1a1a1a",
+			},
+		},
 		// Types / classes
 		{
 			scope: [
@@ -271,6 +297,18 @@ export const monotonePurple: ThemeRegistrationRaw = {
 				foreground: "#2563EB",
 			},
 		},
+		// JSON — numbers, booleans, and null in values pop accent too.
+		{
+			scope: [
+				"meta.structure.dictionary.value.json constant.numeric",
+				"meta.structure.array.json constant.numeric",
+				"meta.structure.dictionary.value.json constant.language",
+				"meta.structure.array.json constant.language",
+			],
+			settings: {
+				foreground: "#2563EB",
+			},
+		},
 	],
 };
 
@@ -352,6 +390,25 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		{
 			scope: ["variable.parameter.option", "punctuation.definition.parameter"],
 			settings: { foreground: "#909090" },
+		},
+		// Shell — command name (curl, git, …) pops accent + bold
+		{
+			scope: [
+				"entity.name.command",
+				"entity.name.command.shell",
+				"entity.name.function.call.shell",
+			],
+			settings: { foreground: "#1FD5F9", fontStyle: "bold" },
+		},
+		// Shell — option flags (-H, --flag) via constant.other.option
+		{
+			scope: ["constant.other.option"],
+			settings: { foreground: "#909090" },
+		},
+		// Shell — quoted-string arguments
+		{
+			scope: ["string.quoted.double.shell", "string.quoted.single.shell"],
+			settings: { foreground: "#e0e0e0" },
 		},
 		{
 			scope: [
@@ -453,6 +510,16 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"meta.structure.array.json string.quoted.double.json",
 				"meta.structure.dictionary.value.json punctuation.definition.string",
 				"meta.structure.array.json punctuation.definition.string",
+			],
+			settings: { foreground: "#1FD5F9" },
+		},
+		// JSON — numbers, booleans, and null in values pop accent too.
+		{
+			scope: [
+				"meta.structure.dictionary.value.json constant.numeric",
+				"meta.structure.array.json constant.numeric",
+				"meta.structure.dictionary.value.json constant.language",
+				"meta.structure.array.json constant.language",
 			],
 			settings: { foreground: "#1FD5F9" },
 		},
