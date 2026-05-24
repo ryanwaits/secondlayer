@@ -103,17 +103,23 @@ export function AuthBar() {
 	// Platform pages — sidebar handles everything, never show auth bar
 	if (isPlatform) return null;
 
-	// Authenticated on marketing pages
+	// Authenticated on marketing pages. Two groups: nav (Home/Docs) and account
+	// actions (Log out / Platform), split by a divider. Home → /site keeps the
+	// marketing site reachable (authed `/` rewrites to the platform dashboard).
 	if (account) {
 		return (
 			<div className="auth-bar">
+				<Link href="/site" className="auth-bar-nav-link">
+					Home
+				</Link>
 				{docsLink}
+				<span className="auth-bar-sep" aria-hidden="true" />
 				<button
 					type="button"
 					className="auth-bar-login"
 					onClick={() => logout()}
 				>
-					Logout
+					Log out
 				</button>
 				<Link href="/" className="auth-bar-cta">
 					Platform
