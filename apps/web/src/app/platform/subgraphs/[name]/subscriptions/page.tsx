@@ -122,7 +122,7 @@ export default async function SubgraphSubscriptionsPage({
 							<div className="empty-divider">
 								<span className="empty-divider-text">Get started</span>
 							</div>
-							<div style={{ marginTop: 16 }}>
+							<div style={{ marginTop: 16, textAlign: "center" }}>
 								<code
 									style={{
 										display: "inline-block",
