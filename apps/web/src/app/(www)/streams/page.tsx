@@ -1,5 +1,7 @@
+import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
 import { DatasetSandbox } from "@/components/dataset-sandbox";
+import { StreamsDiagram } from "@/components/diagrams/streams-diagram";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -8,14 +10,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
 	title: "Streams | secondlayer",
 	description:
-		"Raw chain event firehose. Cursor-paginated REST, idempotent, replayable.",
+		"The raw event firehose for Stacks — an immutable, replayable, cursor-paginated log. No node required.",
 };
 
 const toc: TocItem[] = [
+	{ label: "How it works", href: "#how-it-works" },
 	{ label: "Auth", href: "#auth" },
-	{ label: "Tiers", href: "#tiers" },
-	{ label: "Endpoints", href: "#endpoints" },
-	{ label: "TypeScript", href: "#typescript" },
+	{ label: "Reading the log", href: "#reading-the-log" },
 	{ label: "Try it", href: "#try-it" },
 ];
 
@@ -31,52 +32,65 @@ export default function StreamsPage() {
 
 				<div className="prose">
 					<p>
-						Raw chain event firehose — cursor-paginated REST, idempotent,
-						replayable. The same surface every Foundation Dataset decoder
-						consumes internally. For push semantics see{" "}
-						<a href="/subscriptions">Subscriptions</a>.
+						Streams is the raw event firehose for Stacks. One service captures
+						every event a Stacks node emits — STX, FT and NFT transfers,
+						contract prints, locks — and saves them as an immutable, ordered
+						log. You read that log over a cursor-paginated REST API.
+					</p>
+					<p>
+						Because the data is append-only and never changes, it's heavily
+						cacheable and trivially replayable: sync, stop, and pick up exactly
+						where you left off. The point is what you <em>don't</em> do — you
+						never run a Stacks node. We shoulder data availability so you can
+						build higher-level APIs and indexers on top. It's the same firehose
+						every Foundation Dataset decoder reads internally. For push
+						delivery, see <a href="/subscriptions">Subscriptions</a>.
+					</p>
+				</div>
+
+				<SectionHeading id="how-it-works">How it works</SectionHeading>
+
+				<StreamsDiagram />
+
+				<div className="prose">
+					<p>
+						An indexer faces the Stacks node and writes raw, canonical events;
+						the Streams API serves them to your consumer over a cursor. Stop and
+						resume anytime — the cursor is just <code>height:event_index</code>.
 					</p>
 				</div>
 
 				<SectionHeading id="auth">Auth</SectionHeading>
 
+				<div className="prose">
+					<p>
+						Streams is read-only but keyed — every request needs an API key,
+						including during open beta. Issue one at{" "}
+						<a href="/platform/api-keys">/platform/api-keys</a> (product:
+						Streams).
+					</p>
+				</div>
+
 				<CodeBlock
-					code={`# Issue a key at /platform/api-keys (product: Streams), then:
-curl -H "Authorization: Bearer sk-sl_..." \\
+					code={`curl -H "Authorization: Bearer sk-sl_..." \\
   https://api.secondlayer.tools/v1/streams/tip`}
 					lang="bash"
 				/>
 
-				<SectionHeading id="tiers">Tiers</SectionHeading>
+				<SectionHeading id="reading-the-log">Reading the log</SectionHeading>
 
-				<CodeBlock
-					code={`tier        rate/sec   retention
-free        10         7  days  (~121K blocks)
-build       50         30 days  (~518K blocks)
-scale       250        90 days  (~1.6M blocks)
-enterprise  unlimited  unlimited`}
-					lang="text"
-				/>
-
-				<SectionHeading id="endpoints">Endpoints</SectionHeading>
-
-				<CodeBlock
-					code={`GET /v1/streams/events
-  ?cursor=<height>:<event_index>
-  &from_height=<n>  &to_height=<n>
-  &types=stx_transfer,ft_transfer,nft_transfer,print,...
-  &contract_id=<SP...>
-  &limit=<1-1000>
-
-GET /v1/streams/events/:tx_id          # every event from a tx
-GET /v1/streams/blocks/:height/events  # every event in a block
-GET /v1/streams/reorgs?since=<cursor>  # reorg history
-GET /v1/streams/canonical/:height      # canonical block at height
-GET /v1/streams/tip                    # current canonical tip`}
-					lang="text"
-				/>
-
-				<SectionHeading id="typescript">TypeScript</SectionHeading>
+				<div className="prose">
+					<p>
+						Every event carries a cursor — <code>height:event_index</code>. Page
+						forward from a cursor and the stream is fully{" "}
+						<strong>idempotent</strong>: persist the last cursor you saw and a
+						restarted job resumes from exactly that point, no duplicates.
+						Because the log is append-only it's also reorg-aware — when a fork
+						resolves, <code>/v1/streams/reorgs</code> tells you which cursors to
+						roll back, so your derived state stays consistent.
+					</p>
+					<p>The SDK wraps this into a consume loop with checkpointing:</p>
+				</div>
 
 				<CodeBlock
 					code={`import { createStreamsClient } from "@secondlayer/sdk";
@@ -95,6 +109,14 @@ await streams.events.consume({
   },
 });`}
 				/>
+
+				<Callout label="Full reference">
+					<p>
+						Every endpoint, the rate and retention tiers, and the full SDK
+						surface live in the docs → <a href="/docs/streams">/docs/streams</a>
+						.
+					</p>
+				</Callout>
 
 				<SectionHeading id="try-it">Try it</SectionHeading>
 
