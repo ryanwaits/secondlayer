@@ -3957,6 +3957,82 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	overflow-y: auto;
 }
 
+/* ── API sandbox: collapsible JSON response ────────────────────────── */
+.dataset-sandbox-json {
+	position: relative;
+	background: var(--code-block-bg);
+	border-radius: 6px;
+}
+.dataset-sandbox-json .copy-button {
+	opacity: 1;
+}
+.dataset-sandbox-json-scroll {
+	max-height: 400px;
+	overflow: auto;
+	padding: var(--spacing-xs);
+}
+
+.sl-json {
+	font-family: var(--font-mono-stack);
+	font-size: 0.8125rem;
+	line-height: 1.6;
+	color: var(--text-main);
+}
+.sl-json-row {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+.sl-json-children {
+	padding-left: 1.1em;
+	border-left: 1px solid var(--border);
+}
+.sl-json-toggle {
+	display: inline;
+	background: none;
+	border: none;
+	padding: 0;
+	margin: 0;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+.sl-json-chevron {
+	display: inline-block;
+	width: 0.85em;
+	color: var(--text-muted);
+	transition: transform 0.12s ease;
+}
+.sl-json-chevron[data-open="true"] {
+	transform: rotate(90deg);
+}
+.sl-json-key {
+	color: var(--text-muted);
+}
+.sl-json-string {
+	color: var(--accent);
+}
+.sl-json-number {
+	color: var(--text-main);
+}
+.sl-json-bool {
+	color: var(--accent);
+}
+.sl-json-null {
+	color: var(--text-muted);
+	font-style: italic;
+}
+.sl-json-punct {
+	color: var(--text-muted);
+}
+.sl-json-summary {
+	color: var(--text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+	.sl-json-chevron {
+		transition: none;
+	}
+}
+
 /* ─────────────────────────────────────────────────────────────────
    www / marketing surface
    Customer/partner-facing landing + pricing.
@@ -5175,4 +5251,424 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	.docs-nav {
 		transition: none;
 	}
+}
+
+/* ════════════════════════════════════════════════
+   Docs — breadcrumb + copy-page (human view chrome)
+   ════════════════════════════════════════════════ */
+.docs-topline {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 14px;
+}
+.docs-crumb {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.docs-crumb .sep {
+	color: var(--text-dim);
+	margin: 0 2px;
+}
+.docs-copy-page {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	padding: 6px 11px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	white-space: nowrap;
+	transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.docs-copy-page:hover {
+	color: var(--text-main);
+	border-color: var(--border-hover);
+	background: var(--code-bg);
+}
+
+/* ════════════════════════════════════════════════
+   Docs — floating Human | Agent toggle
+   ════════════════════════════════════════════════ */
+.docs-mode-toggle {
+	position: fixed;
+	bottom: 22px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 300;
+	display: inline-flex;
+	padding: 4px;
+	gap: 3px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.28),
+		0 2px 6px -2px rgba(0, 0, 0, 0.08);
+}
+.docs-mode-toggle button {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	font-family: var(--font-sans-stack);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-muted);
+	background: transparent;
+	border: none;
+	border-radius: 999px;
+	padding: 7px 16px;
+	cursor: pointer;
+	transition: color 0.15s ease, background 0.15s ease;
+}
+.docs-mode-toggle button:hover:not(.active) {
+	color: var(--text-main);
+}
+.docs-mode-toggle button.active {
+	color: var(--accent);
+	background: var(--accent-bg);
+}
+
+/* ════════════════════════════════════════════════
+   Docs — Agent view (markdown/terminal doc, our tokens)
+   ════════════════════════════════════════════════ */
+.agent-view {
+	max-width: 760px;
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	line-height: 1.7;
+	color: var(--text-main);
+}
+.agent-cat {
+	color: var(--text-muted);
+	margin-bottom: 20px;
+}
+.agent-cat .sigil {
+	color: var(--accent);
+}
+.agent-h1 {
+	font-family: var(--font-mono-stack);
+	font-size: 19px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	margin: 0 0 6px;
+}
+.agent-h1 .hash,
+.agent-sec-title .hash {
+	color: var(--text-dim);
+	margin-right: 10px;
+	font-weight: 400;
+}
+.agent-by {
+	color: var(--text-muted);
+	margin: 0 0 20px;
+}
+.agent-by .sigil {
+	color: var(--text-dim);
+}
+.agent-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+.agent-btn {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-main);
+	background: transparent;
+	border: 1px dashed var(--border);
+	border-radius: 7px;
+	padding: 9px 15px;
+	cursor: pointer;
+	text-decoration: none;
+	display: inline-flex;
+	align-items: center;
+	transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.agent-btn:hover {
+	border-color: var(--accent-border);
+	color: var(--accent);
+	background: var(--accent-bg);
+}
+.agent-rule {
+	border: none;
+	border-top: 1px dashed var(--border);
+	margin: 26px 0;
+}
+.agent-sec {
+	margin-top: 30px;
+}
+.agent-sec-title {
+	font-weight: 600;
+	font-size: 14px;
+	margin-bottom: 4px;
+}
+.agent-sec-sub {
+	color: var(--text-muted);
+	margin: 0 0 16px;
+}
+.agent-block {
+	border: 1px dashed var(--border);
+	border-radius: 10px;
+	background: var(--code-bg);
+	overflow: hidden;
+}
+.agent-block-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 11px 14px;
+	border-bottom: 1px dashed var(--border);
+}
+.agent-block-label {
+	color: var(--text-muted);
+	font-size: 12px;
+}
+.ic-copy {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	color: var(--text-muted);
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 3px 9px;
+	cursor: pointer;
+}
+.ic-copy:hover {
+	color: var(--text-main);
+	border-color: var(--border-hover);
+}
+.agent-block pre {
+	margin: 0;
+	padding: 14px;
+	white-space: pre-wrap;
+	font-size: 12.5px;
+	line-height: 1.7;
+	color: var(--text-main);
+}
+.cmd {
+	color: var(--accent);
+}
+.dash {
+	color: var(--text-muted);
+}
+.agent-cards {
+	display: grid;
+	gap: 12px;
+}
+.agent-card {
+	border: 1px dashed var(--border);
+	border-radius: 10px;
+	transition: border-color 0.15s ease;
+}
+.agent-card:hover {
+	border-color: var(--border-hover);
+}
+.agent-card-row {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	padding: 16px 18px;
+	font-family: var(--font-mono-stack);
+}
+.agent-card-toggle {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+}
+.agent-card-text {
+	display: block;
+	pointer-events: none;
+}
+.apc-title {
+	display: block;
+	font-weight: 600;
+	font-size: 14px;
+	color: var(--text-main);
+	margin-bottom: 6px;
+}
+.apc-desc {
+	display: block;
+	color: var(--text-muted);
+	font-size: 12.5px;
+	line-height: 1.5;
+	max-width: 44ch;
+}
+.apc-actions {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	flex-shrink: 0;
+	pointer-events: none;
+}
+.apc-copy {
+	pointer-events: auto;
+}
+.apc-chevron {
+	color: var(--text-dim);
+	font-size: 16px;
+	transition: transform 0.15s ease;
+}
+.agent-card.open .apc-chevron {
+	transform: rotate(90deg);
+}
+.agent-card-full {
+	margin: 0;
+	padding: 14px 18px 16px;
+	border-top: 1px dashed var(--border);
+	white-space: pre-wrap;
+	font-size: 12px;
+	line-height: 1.7;
+	color: var(--text-main);
+}
+
+/* ── Service flow diagrams (ported from marketing mocks) ───────────── */
+.sl-diagram-figure {
+	margin: var(--spacing-sm) 0;
+}
+.sl-diagram-frame {
+	position: relative;
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: clamp(18px, 2.4vw, 28px);
+	background:
+		radial-gradient(130% 120% at 84% 0%, var(--accent-glow), transparent 60%),
+		var(--bg-elevated);
+	overflow: hidden;
+}
+.sl-diagram-frame::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0.4;
+	background-image:
+		linear-gradient(var(--border) 1px, transparent 1px),
+		linear-gradient(90deg, var(--border) 1px, transparent 1px);
+	background-size: 30px 30px;
+	-webkit-mask-image: radial-gradient(
+		130% 100% at 50% 42%,
+		#000 28%,
+		transparent 100%
+	);
+	mask-image: radial-gradient(130% 100% at 50% 42%, #000 28%, transparent 100%);
+}
+.sl-diagram-inner {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.sl-diagram {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+.sl-diagram .node rect {
+	fill: var(--code-block-bg);
+	stroke: var(--border);
+	stroke-width: 1.2;
+}
+.sl-diagram .node .nt {
+	fill: var(--text-main);
+	font-family: var(--font-heading-stack);
+	font-weight: 600;
+	font-size: 13px;
+}
+.sl-diagram .node .ns {
+	fill: var(--text-muted);
+	font-family: var(--font-mono-stack);
+	font-size: 8.5px;
+}
+.sl-diagram .node.api rect {
+	fill: var(--accent);
+	stroke: var(--accent);
+}
+.sl-diagram .node.api .nt {
+	fill: var(--accent-contrast);
+}
+.sl-diagram .node.api .ns {
+	fill: var(--accent-contrast);
+	opacity: 0.78;
+}
+.sl-diagram .node.data rect {
+	fill: var(--accent-bg);
+	stroke: var(--accent-border);
+}
+.sl-diagram .node.data .nt {
+	fill: var(--accent);
+}
+.sl-diagram .node.data .ns {
+	fill: var(--text-muted);
+}
+.sl-diagram .edge {
+	fill: none;
+	stroke: var(--text-muted);
+	stroke-width: 1.4;
+	opacity: 0.6;
+}
+.sl-diagram .edge.acc {
+	stroke: var(--accent);
+	opacity: 0.5;
+}
+.sl-diagram-note {
+	margin: 0.35rem 0 0;
+	padding-right: 0.5rem;
+	text-align: right;
+	font-family: var(--font-cursive), cursive;
+	font-size: 1.2rem;
+	font-weight: 400;
+	line-height: 1.2;
+	color: var(--accent);
+}
+
+/* ── Callout (tips, notes, link-outs) ──────────────────────────────── */
+.callout {
+	margin: var(--spacing-sm) 0;
+	padding: var(--spacing-xs);
+	border: 1px solid var(--accent-border);
+	border-left: 3px solid var(--accent);
+	border-radius: 6px;
+	background: var(--accent-bg);
+}
+.callout-label {
+	display: block;
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--accent);
+	margin-bottom: 0.4rem;
+}
+.callout-body {
+	font-size: 14px;
+	line-height: 20px;
+	color: var(--text-prose);
+}
+.callout-body p {
+	margin: 0;
+}
+.callout-body a {
+	color: var(--accent);
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }

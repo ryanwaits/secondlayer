@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useDocsMode } from "./docs-mode";
 
 interface Head {
 	id: string;
@@ -13,6 +14,7 @@ interface Head {
  *  (rehype-slug gives stable ids) and highlights the active one on scroll. */
 export function DocsToc() {
 	const pathname = usePathname();
+	const { mode } = useDocsMode();
 	const [heads, setHeads] = useState<Head[]>([]);
 	const [activeId, setActiveId] = useState("");
 
@@ -58,6 +60,8 @@ export function DocsToc() {
 		return () => observer.disconnect();
 	}, [heads]);
 
+	// Agent mode has its own layout — no right rail.
+	if (mode === "agent") return null;
 	if (heads.length === 0) return <aside className="docs-toc" />;
 
 	return (
