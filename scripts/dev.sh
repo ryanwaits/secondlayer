@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/docker-compose.dev.yml"
-DB_URL="postgresql://postgres:postgres@127.0.0.1:5432/secondlayer"
+DB_URL="postgresql://postgres:postgres@127.0.0.1:5435/secondlayer"
 
 # Colors
 dim='\033[2m'
