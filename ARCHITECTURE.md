@@ -66,10 +66,10 @@ This document describes the runtime architecture, the data layers, the delivery 
 Raw, ordered, append-only chain events. The lowest layer the platform exposes.
 
 - **Source:** Indexer block follower, post-reorg-resolution.
-- **Shape:** `{ block_height, index_block_hash, tx_id, event_index, event_type, payload, ts }`.
+- **Shape:** `{ block_height, block_hash, tx_id, event_index, event_type, payload, ts }`.
 - **Access:**
   - Cursor-paginated read API. Cursors are `(block_height, event_index)` tuples; stable across replays.
-  - Canonical-state lookup: `GET /canonical/{height}` returns the canonical `index_block_hash` so external indexers can self-heal without replaying our entire reorg history.
+  - Canonical-state lookup: `GET /canonical/{height}` returns the canonical `block_hash` so external indexers can self-heal without replaying our entire reorg history.
   - Bulk parquet dumps on S3, refreshed continuously. Backfillers `aws s3 sync` for historical, then tail the cursor API from a recent point. Same pipeline that feeds Datasets.
 - **Guarantees:** At-least-once during reorgs (clients dedupe by cursor); strict order within a block; reorg events emitted as explicit `chain.reorg` markers.
 - **Retention:** 90 days hot, full archive cold (S3 dumps).

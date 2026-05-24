@@ -4,7 +4,7 @@ import type { Kysely } from "kysely";
 
 export type IndexerStreamsTipBlock = {
 	block_height: number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: number;
 	ts: Date;
 };
@@ -24,7 +24,7 @@ export async function getCurrentCanonicalTip(
 
 	return {
 		block_height: Number(row.height),
-		index_block_hash: row.hash,
+		block_hash: row.hash,
 		burn_block_height: Number(row.burn_block_height),
 		ts: new Date(Number(row.timestamp) * 1000),
 	};

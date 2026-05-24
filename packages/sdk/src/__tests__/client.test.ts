@@ -16,7 +16,7 @@ describe("SecondLayer root client", () => {
 				return new Response(
 					JSON.stringify({
 						block_height: 100,
-						index_block_hash: "0x01",
+						block_hash: "0x01",
 						burn_block_height: 200,
 						burn_block_hash: null,
 						is_canonical: true,

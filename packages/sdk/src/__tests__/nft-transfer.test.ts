@@ -5,7 +5,7 @@ import type { StreamsEvent } from "../streams/types.ts";
 const EVENT: StreamsEvent = {
 	cursor: "1:0",
 	block_height: 1,
-	index_block_hash: "0x01",
+	block_hash: "0x01",
 	burn_block_height: 101,
 	tx_id: "0xtx",
 	tx_index: 0,

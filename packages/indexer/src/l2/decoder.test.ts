@@ -39,7 +39,7 @@ function streamsClientSpy(
 		},
 		canonical: async (height) => ({
 			block_height: height,
-			index_block_hash: "0x01",
+			block_hash: "0x01",
 			burn_block_height: 1,
 			burn_block_hash: null,
 			is_canonical: true,
@@ -81,7 +81,7 @@ describe("L2 decoder Streams filters", () => {
 function tip() {
 	return {
 		block_height: 1,
-		index_block_hash: "0x01",
+		block_hash: "0x01",
 		burn_block_height: 1,
 		lag_seconds: 0,
 	};

@@ -35,7 +35,7 @@ describe.skipIf(!HAS_DB)("getCurrentCanonicalTip", () => {
 
 		await expect(getCurrentCanonicalTip(db)).resolves.toEqual({
 			block_height: 1,
-			index_block_hash: "0x01",
+			block_hash: "0x01",
 			burn_block_height: 1001,
 			ts: new Date(1000),
 		});

@@ -17,7 +17,7 @@ describe("status page visual smoke", () => {
 					tip: {
 						block_height: 182447,
 						burn_block_height: 871249,
-						index_block_hash: "0x1234567890abcdef1234567890abcdef",
+						block_hash: "0x1234567890abcdef1234567890abcdef",
 						lag_seconds: 3,
 					},
 					index: {

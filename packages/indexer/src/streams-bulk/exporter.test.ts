@@ -1,9 +1,9 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { getDb, sql } from "@secondlayer/shared/db";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ParquetReader } from "@dsnp/parquetjs";
+import { getDb, sql } from "@secondlayer/shared/db";
 import { exportStreamsBulkRange } from "./exporter.ts";
 import { readJsonFile, writeStreamsBulkParquet } from "./file.ts";
 import { stableJsonStringify } from "./json.ts";
@@ -12,11 +12,11 @@ import {
 	manifestTimestampSlug,
 	streamsBulkParquetObjectPath,
 } from "./paths.ts";
+import type { StreamsBulkEventRow } from "./query.ts";
 import {
 	formatBlockRangeLabel,
 	latestCompleteFinalizedRange,
 } from "./range.ts";
-import type { StreamsBulkEventRow } from "./query.ts";
 import {
 	STREAMS_BULK_SCHEMA_COLUMNS,
 	createStreamsBulkSchemaDocument,
@@ -50,8 +50,9 @@ describe("Streams bulk dump contract helpers", () => {
 	});
 
 	test("formats stable object paths and manifest slugs", () => {
-		expect(formatBlockRangeLabel({ fromBlock: 180_000, toBlock: 189_999 }))
-			.toBe("0000180000-0000189999");
+		expect(
+			formatBlockRangeLabel({ fromBlock: 180_000, toBlock: 189_999 }),
+		).toBe("0000180000-0000189999");
 		expect(
 			streamsBulkParquetObjectPath("stacks-streams/mainnet/v0", {
 				fromBlock: 180_000,
@@ -285,7 +286,7 @@ function fixtureBulkRow(
 	return {
 		cursor: "1:0",
 		block_height: 1,
-		index_block_hash: "0x01",
+		block_hash: "0x01",
 		burn_block_height: 101,
 		burn_block_hash: "0xburn01",
 		tx_id: "tx-1",

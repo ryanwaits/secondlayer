@@ -3,8 +3,8 @@ import { createReadStream } from "node:fs";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { ParquetWriter } from "@dsnp/parquetjs";
-import { createStreamsBulkParquetSchema } from "./schema.ts";
 import type { StreamsBulkEventRow } from "./query.ts";
+import { createStreamsBulkParquetSchema } from "./schema.ts";
 
 export type StreamsBulkFileStats = {
 	byteSize: number;
@@ -30,7 +30,7 @@ export async function writeStreamsBulkParquet(params: {
 			await writer.appendRow({
 				cursor: row.cursor,
 				block_height: row.block_height,
-				index_block_hash: row.index_block_hash,
+				block_hash: row.block_hash,
 				burn_block_height: row.burn_block_height,
 				burn_block_hash: row.burn_block_hash,
 				tx_id: row.tx_id,

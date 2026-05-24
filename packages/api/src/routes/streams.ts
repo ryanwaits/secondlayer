@@ -1,39 +1,39 @@
-import { getDb } from "@secondlayer/shared/db";
-import { incrementStreamsEventsReturned } from "@secondlayer/platform/db/queries/usage";
-import { Hono } from "hono";
 import {
-	readCanonicalStreamsBlockEvents,
-	readCanonicalStreamsEventsByTxId,
 	type ReadStreamsBlockEventsParams,
 	type ReadStreamsEventsByTxIdParams,
 	type ReadStreamsEventsListResult,
+	readCanonicalStreamsBlockEvents,
+	readCanonicalStreamsEventsByTxId,
 } from "@secondlayer/indexer/streams-events";
+import { incrementStreamsEventsReturned } from "@secondlayer/platform/db/queries/usage";
+import { getDb } from "@secondlayer/shared/db";
+import { Hono } from "hono";
+import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_TOKEN_STORE,
-	streamsBearerAuth,
 	type StreamsEnv,
 	type StreamsTokenStore,
+	streamsBearerAuth,
 } from "../streams/auth.ts";
 import {
+	type StreamsCanonicalBlockReader,
 	parseStreamsHeight,
 	readCanonicalStreamsBlock,
-	type StreamsCanonicalBlockReader,
 } from "../streams/canonical.ts";
 import {
-	getStreamsEventsResponse,
 	type StreamsEventsReader,
+	getStreamsEventsResponse,
 } from "../streams/events.ts";
 import { streamsRateLimit } from "../streams/rate-limit.ts";
-import { streamsRetentionWindow } from "../streams/retention.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
 	DEFAULT_STREAMS_REORGS_SINCE_READER,
-	getStreamsReorgsListResponse,
 	type StreamsReorgsReader,
 	type StreamsReorgsSinceReader,
+	getStreamsReorgsListResponse,
 } from "../streams/reorgs.ts";
-import { getStreamsTip, type StreamsTipProvider } from "../streams/tip.ts";
-import { validateQueryParams } from "../middleware/validation.ts";
+import { streamsRetentionWindow } from "../streams/retention.ts";
+import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
 
 const STREAMS_EVENTS_ALLOWED = [
 	"cursor",
@@ -117,7 +117,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 					path: "/v1/streams/tip",
 					method: "GET",
 					description:
-						"Current chain tip: { block_height, index_block_hash, burn_block_height, lag_seconds }.",
+						"Current chain tip: { block_height, block_hash, burn_block_height, lag_seconds }.",
 				},
 			],
 			cursor: {
@@ -166,7 +166,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		if (!block) {
 			return c.json({ error: "Canonical block not found" }, 404);
 		}
-		c.header("ETag", `"${block.index_block_hash}"`);
+		c.header("ETag", `"${block.block_hash}"`);
 		return c.json(block);
 	});
 
@@ -212,7 +212,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			opts.readBlockEvents ?? readCanonicalStreamsBlockEvents;
 		const result = await readBlockEvents(
 			byHeight === undefined
-				? { indexBlockHash: heightOrHash }
+				? { blockHash: heightOrHash }
 				: { blockHeight: byHeight },
 		);
 		if (result.events.length === 0) {

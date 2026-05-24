@@ -83,7 +83,7 @@ export type StreamsEventCursor = {
 export type StreamsEvent = {
 	cursor: string;
 	block_height: number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: number;
 	tx_id: string;
 	tx_index: number;
@@ -123,7 +123,7 @@ export type ReadStreamsEventsByTxIdParams = {
 
 export type ReadStreamsBlockEventsParams = {
 	blockHeight?: number;
-	indexBlockHash?: string;
+	blockHash?: string;
 	limit?: number;
 	db?: Kysely<Database>;
 };
@@ -134,7 +134,7 @@ export type ReadStreamsEventsListResult = {
 
 type StreamsEventRow = {
 	block_height: string | number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: string | number;
 	timestamp: string | number;
 	tx_id: string;
@@ -220,7 +220,7 @@ function normalizeRow(row: StreamsEventRow): StreamsEvent {
 			event_index: eventIndex,
 		}),
 		block_height: blockHeight,
-		index_block_hash: row.index_block_hash,
+		block_hash: row.block_hash,
 		burn_block_height: Number(row.burn_block_height),
 		tx_id: row.tx_id,
 		tx_index: Number(row.tx_index),
@@ -343,7 +343,7 @@ export async function readCanonicalStreamsEventsByTxId(
 		WITH candidate_events AS (
 			SELECT
 				e.block_height,
-				b.hash AS index_block_hash,
+				b.hash AS block_hash,
 				b.burn_block_height,
 				b.timestamp,
 				e.tx_id,
@@ -363,7 +363,7 @@ export async function readCanonicalStreamsEventsByTxId(
 		ordered_events AS (
 			SELECT
 				c.block_height,
-				c.index_block_hash,
+				c.block_hash,
 				c.burn_block_height,
 				c.timestamp,
 				c.tx_id,
@@ -399,7 +399,7 @@ export async function readCanonicalStreamsBlockEvents(
 	params: ReadStreamsBlockEventsParams,
 ): Promise<ReadStreamsEventsListResult> {
 	const db = params.db ?? getSourceDb();
-	if (params.blockHeight === undefined && !params.indexBlockHash) {
+	if (params.blockHeight === undefined && !params.blockHash) {
 		return { events: [] };
 	}
 	const allDbEventTypes = sql.join(
@@ -408,12 +408,12 @@ export async function readCanonicalStreamsBlockEvents(
 	const blockPredicate =
 		params.blockHeight !== undefined
 			? sql`b.height = ${params.blockHeight}`
-			: sql`b.hash = ${params.indexBlockHash}`;
+			: sql`b.hash = ${params.blockHash}`;
 	const { rows } = await sql<StreamsEventRow>`
 		WITH candidate_events AS (
 			SELECT
 				e.block_height,
-				b.hash AS index_block_hash,
+				b.hash AS block_hash,
 				b.burn_block_height,
 				b.timestamp,
 				e.tx_id,
@@ -433,7 +433,7 @@ export async function readCanonicalStreamsBlockEvents(
 		ordered_events AS (
 			SELECT
 				c.block_height,
-				c.index_block_hash,
+				c.block_hash,
 				c.burn_block_height,
 				c.timestamp,
 				c.tx_id,
@@ -478,7 +478,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
     WITH candidate_events AS (
       SELECT
         e.block_height,
-        b.hash AS index_block_hash,
+        b.hash AS block_hash,
         b.burn_block_height,
         b.timestamp,
         e.tx_id,
@@ -500,7 +500,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
     ordered_events AS (
       SELECT
         c.block_height,
-        c.index_block_hash,
+        c.block_hash,
         c.burn_block_height,
         c.timestamp,
         c.tx_id,
@@ -546,7 +546,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
     WITH same_block_events AS (
       SELECT
         e.block_height,
-        b.hash AS index_block_hash,
+        b.hash AS block_hash,
         b.burn_block_height,
         b.timestamp,
         e.tx_id,
@@ -566,7 +566,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
     future_events AS (
       SELECT
         e.block_height,
-        b.hash AS index_block_hash,
+        b.hash AS block_hash,
         b.burn_block_height,
         b.timestamp,
         e.tx_id,
@@ -593,7 +593,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
     ordered_events AS (
       SELECT
         c.block_height,
-        c.index_block_hash,
+        c.block_hash,
         c.burn_block_height,
         c.timestamp,
         c.tx_id,

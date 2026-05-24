@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import {
 	AuthError,
-	createStreamsClient,
 	RateLimitError,
+	type StreamsEvent,
 	StreamsServerError,
 	ValidationError,
-	type StreamsEvent,
+	createStreamsClient,
 } from "../index.ts";
 
 const TIP = {
 	block_height: 10,
-	index_block_hash: "0x01",
+	block_hash: "0x01",
 	burn_block_height: 20,
 	lag_seconds: 0,
 };
@@ -30,7 +30,7 @@ function event(cursor: string, index: number): StreamsEvent {
 	return {
 		cursor,
 		block_height: 1,
-		index_block_hash: TIP.index_block_hash,
+		block_hash: TIP.block_hash,
 		burn_block_height: TIP.burn_block_height,
 		tx_id: `0x${index}`,
 		tx_index: index,
@@ -102,7 +102,7 @@ describe("createStreamsClient", () => {
 				if (request.url.includes("/canonical/100")) {
 					return jsonResponse({
 						block_height: 100,
-						index_block_hash: "0x01",
+						block_hash: "0x01",
 						burn_block_height: 200,
 						burn_block_hash: null,
 						is_canonical: true,

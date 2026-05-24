@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
-	createStreamsClient,
 	type StreamsEvent,
 	type StreamsEventsEnvelope,
+	createStreamsClient,
 } from "../index.ts";
 
 const TIP = {
 	block_height: 10,
-	index_block_hash: "0x01",
+	block_hash: "0x01",
 	burn_block_height: 20,
 	lag_seconds: 0,
 };
@@ -16,7 +16,7 @@ function event(cursor: string, index: number): StreamsEvent {
 	return {
 		cursor,
 		block_height: 1,
-		index_block_hash: TIP.index_block_hash,
+		block_hash: TIP.block_hash,
 		burn_block_height: TIP.burn_block_height,
 		tx_id: `0x${index}`,
 		tx_index: index,
@@ -36,7 +36,12 @@ function event(cursor: string, index: number): StreamsEvent {
 describe("client.events.consume", () => {
 	test("paginates in order and advances the cursor", async () => {
 		const pages: StreamsEventsEnvelope[] = [
-			{ events: [event("1:0", 0), event("1:1", 1)], next_cursor: "1:1", tip: TIP, reorgs: [] },
+			{
+				events: [event("1:0", 0), event("1:1", 1)],
+				next_cursor: "1:1",
+				tip: TIP,
+				reorgs: [],
+			},
 			{ events: [event("1:2", 2)], next_cursor: "1:2", tip: TIP, reorgs: [] },
 		];
 		const seen: string[] = [];

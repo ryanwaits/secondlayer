@@ -73,7 +73,7 @@ export function StatusGridView({
 					<div>
 						<dt>Index block hash</dt>
 						<dd className="status-hash">
-							{truncateHash(snapshot.tip?.index_block_hash)}
+							{truncateHash(snapshot.tip?.block_hash)}
 						</dd>
 					</div>
 				</dl>

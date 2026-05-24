@@ -19,7 +19,7 @@ const WRONG_SCOPE_KEY = "sk-sl_streams_wrong_scope_test";
 
 const TEST_TIP: StreamsTip = {
 	block_height: 200_000,
-	index_block_hash:
+	block_hash:
 		"0x0000000000000000000000000000000000000000000000000000000000000001",
 	burn_block_height: 20_000,
 	lag_seconds: 0,
@@ -99,7 +99,7 @@ function streamsEvent(overrides: Partial<StreamsEvent> = {}): StreamsEvent {
 	return {
 		cursor: "100:0",
 		block_height: 100,
-		index_block_hash: TEST_TIP.index_block_hash,
+		block_hash: TEST_TIP.block_hash,
 		burn_block_height: TEST_TIP.burn_block_height,
 		tx_id: "0xtx",
 		tx_index: 0,
@@ -190,7 +190,7 @@ describe("Stacks Streams gateway middleware", () => {
 				readReorgs: async () => [],
 				readCanonicalBlock: async (height) => ({
 					block_height: height,
-					index_block_hash: "0xabc",
+					block_hash: "0xabc",
 					burn_block_height: 77,
 					burn_block_hash: null,
 					is_canonical: true,
@@ -206,7 +206,7 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.headers.get("ETag")).toBe('"0xabc"');
 		await expect(res.json()).resolves.toEqual({
 			block_height: 100,
-			index_block_hash: "0xabc",
+			block_hash: "0xabc",
 			burn_block_height: 77,
 			burn_block_hash: null,
 			is_canonical: true,
@@ -264,9 +264,9 @@ describe("Stacks Streams gateway middleware", () => {
 			createStreamsRouter({
 				getTip: () => TEST_TIP,
 				readEvents: EMPTY_EVENTS_READER,
-				readBlockEvents: async ({ indexBlockHash }) => {
-					seenHash = indexBlockHash;
-					return { events: [streamsEvent({ index_block_hash: "0xblock" })] };
+				readBlockEvents: async ({ blockHash }) => {
+					seenHash = blockHash;
+					return { events: [streamsEvent({ block_hash: "0xblock" })] };
 				},
 				readReorgs: async () => [],
 			}),
@@ -361,7 +361,7 @@ describe("Stacks Streams gateway middleware", () => {
 			events: Array.from({ length: limit }, (_, i) => ({
 				cursor: `1:${i}`,
 				block_height: 1,
-				index_block_hash: TEST_TIP.index_block_hash,
+				block_hash: TEST_TIP.block_hash,
 				burn_block_height: TEST_TIP.burn_block_height,
 				tx_id: `0x${i}`,
 				tx_index: i,
@@ -392,7 +392,7 @@ describe("Stacks Streams gateway middleware", () => {
 					{
 						cursor: "9999:0",
 						block_height: 9999,
-						index_block_hash: TEST_TIP.index_block_hash,
+						block_hash: TEST_TIP.block_hash,
 						burn_block_height: TEST_TIP.burn_block_height,
 						tx_id: "0x01",
 						tx_index: 0,
@@ -454,7 +454,7 @@ describe("Stacks Streams gateway middleware", () => {
 					{
 						cursor: "9999:0",
 						block_height: 9999,
-						index_block_hash: TEST_TIP.index_block_hash,
+						block_hash: TEST_TIP.block_hash,
 						burn_block_height: TEST_TIP.burn_block_height,
 						tx_id: "0x01",
 						tx_index: 0,
@@ -467,7 +467,7 @@ describe("Stacks Streams gateway middleware", () => {
 					{
 						cursor: "9999:1",
 						block_height: 9999,
-						index_block_hash: TEST_TIP.index_block_hash,
+						block_hash: TEST_TIP.block_hash,
 						burn_block_height: TEST_TIP.burn_block_height,
 						tx_id: "0x02",
 						tx_index: 1,
@@ -501,7 +501,7 @@ describe("Stacks Streams gateway middleware", () => {
 					{
 						cursor: "9999:0",
 						block_height: 9999,
-						index_block_hash: TEST_TIP.index_block_hash,
+						block_hash: TEST_TIP.block_hash,
 						burn_block_height: TEST_TIP.burn_block_height,
 						tx_id: "0x01",
 						tx_index: 0,

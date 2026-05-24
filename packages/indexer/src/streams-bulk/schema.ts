@@ -25,10 +25,10 @@ export const STREAMS_BULK_SCHEMA_COLUMNS = [
 		description: "Canonical Stacks block height.",
 	},
 	{
-		name: "index_block_hash",
+		name: "block_hash",
 		type: "string",
 		nullable: false,
-		description: "Canonical Stacks index block hash for block_height.",
+		description: "Canonical Stacks block (header) hash for block_height.",
 	},
 	{
 		name: "burn_block_height",
@@ -40,7 +40,8 @@ export const STREAMS_BULK_SCHEMA_COLUMNS = [
 		name: "burn_block_hash",
 		type: "string",
 		nullable: true,
-		description: "Bitcoin burn block hash when available for this historical row.",
+		description:
+			"Bitcoin burn block hash when available for this historical row.",
 	},
 	{
 		name: "tx_id",
@@ -88,7 +89,8 @@ export const STREAMS_BULK_SCHEMA_COLUMNS = [
 		name: "partition_block_range",
 		type: "string",
 		nullable: false,
-		description: "Zero-padded inclusive block range covered by the parquet file.",
+		description:
+			"Zero-padded inclusive block range covered by the parquet file.",
 	},
 ] as const satisfies readonly StreamsBulkSchemaColumn[];
 
@@ -108,7 +110,7 @@ export function createStreamsBulkParquetSchema(): ParquetSchema {
 	return new ParquetSchema({
 		cursor: STRING_FIELD,
 		block_height: INT64_FIELD,
-		index_block_hash: STRING_FIELD,
+		block_hash: STRING_FIELD,
 		burn_block_height: INT64_FIELD,
 		burn_block_hash: { ...STRING_FIELD, optional: true },
 		tx_id: STRING_FIELD,

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { StreamsEvent } from "@secondlayer/sdk";
 import {
 	bufferCV,
 	serializeCV,
@@ -7,7 +8,6 @@ import {
 	tupleCV,
 	uintCV,
 } from "@secondlayer/stacks/clarity";
-import type { StreamsEvent } from "@secondlayer/sdk";
 import {
 	SBTC_ASSET_IDENTIFIER_MAINNET,
 	SBTC_CONTRACTS,
@@ -32,7 +32,7 @@ function buildPrintEvent(
 	return {
 		cursor: "100:7",
 		block_height: 100,
-		index_block_hash: "0xblock",
+		block_hash: "0xblock",
 		burn_block_height: 902481,
 		tx_id: "0xtx",
 		tx_index: 3,
@@ -85,9 +85,7 @@ describe("decodeRegistryPrint", () => {
 				topic: stringAsciiCV("withdrawal-create"),
 				"request-id": uintCV(42n),
 				amount: uintCV(50_000_000n),
-				sender: standardPrincipalCV(
-					"SP000000000000000000002Q6VF78",
-				),
+				sender: standardPrincipalCV("SP000000000000000000002Q6VF78"),
 				recipient: tupleCV({
 					version: bufferCV(bytes(0x04)),
 					hashbytes: bufferCV(bytes(0xab, 0xcd, 0xef)),
@@ -153,10 +151,8 @@ describe("decodeRegistryPrint", () => {
 		const event = buildPrintEvent(
 			tupleCV({
 				topic: stringAsciiCV("key-rotation"),
-				"new-keys": tupleCV({}),  // Empty tuple - we only care about array detection
-				"new-address": standardPrincipalCV(
-					"SP000000000000000000002Q6VF78",
-				),
+				"new-keys": tupleCV({}), // Empty tuple - we only care about array detection
+				"new-address": standardPrincipalCV("SP000000000000000000002Q6VF78"),
 				"new-aggregate-pubkey": bufferCV(bytes(0x02, 0x03)),
 				"new-signature-threshold": uintCV(11n),
 			}),
@@ -174,18 +170,14 @@ describe("decodeRegistryPrint", () => {
 			tupleCV({
 				topic: stringAsciiCV("update-protocol-contract"),
 				"contract-type": bufferCV(bytes(0x02)),
-				"new-contract": standardPrincipalCV(
-					"SP000000000000000000002Q6VF78",
-				),
+				"new-contract": standardPrincipalCV("SP000000000000000000002Q6VF78"),
 			}),
 		);
 
 		const row = decodeRegistryPrint(event);
 		expect(row?.topic).toBe("update-protocol-contract");
 		expect(row?.governance_contract_type).toBe(0x02);
-		expect(row?.governance_new_contract).toBe(
-			"SP000000000000000000002Q6VF78",
-		);
+		expect(row?.governance_new_contract).toBe("SP000000000000000000002Q6VF78");
 	});
 
 	test("returns null for unknown topic", () => {
@@ -216,7 +208,7 @@ describe("decodeTokenEvent", () => {
 		return {
 			cursor: "100:8",
 			block_height: 100,
-			index_block_hash: "0xblock",
+			block_hash: "0xblock",
 			burn_block_height: 902481,
 			tx_id: "0xtx2",
 			tx_index: 4,

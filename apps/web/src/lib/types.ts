@@ -96,7 +96,7 @@ export interface SystemStatus {
 		status: "ok" | "unavailable";
 		tip: {
 			block_height: number;
-			index_block_hash: string;
+			block_hash: string;
 			burn_block_height: number;
 			lag_seconds: number;
 		} | null;

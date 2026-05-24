@@ -4,9 +4,9 @@ import type { Kysely } from "kysely";
 import {
 	DB_TO_STREAMS_EVENT_TYPE,
 	STREAMS_DB_EVENT_TYPES,
+	type StreamsEventType,
 	encodeStreamsEventCursor,
 	normalizeStreamsEventPayload,
-	type StreamsEventType,
 } from "../streams-events.ts";
 import { stableJsonStringify } from "./json.ts";
 import type { StreamsBulkBlockRange } from "./range.ts";
@@ -14,7 +14,7 @@ import type { StreamsBulkBlockRange } from "./range.ts";
 export type StreamsBulkEventRow = {
 	cursor: string;
 	block_height: number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: number;
 	burn_block_hash: string | null;
 	tx_id: string;
@@ -29,7 +29,7 @@ export type StreamsBulkEventRow = {
 
 type StreamsBulkDbRow = {
 	block_height: string | number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: string | number;
 	burn_block_hash: string | null;
 	timestamp: string | number;
@@ -53,7 +53,7 @@ export async function readCanonicalStreamsBulkRows(params: {
 		WITH ordered_events AS (
 			SELECT
 				e.block_height,
-				b.hash AS index_block_hash,
+				b.hash AS block_hash,
 				b.burn_block_height,
 				b.burn_block_hash,
 				b.timestamp,
@@ -134,7 +134,7 @@ function normalizeBulkRow(
 			event_index: eventIndex,
 		}),
 		block_height: blockHeight,
-		index_block_hash: row.index_block_hash,
+		block_hash: row.block_hash,
 		burn_block_height: Number(row.burn_block_height),
 		burn_block_hash: row.burn_block_hash,
 		tx_id: row.tx_id,

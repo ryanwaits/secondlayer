@@ -8,7 +8,7 @@ import type { StreamsTip } from "./tip.ts";
 
 const TIP: StreamsTip = {
 	block_height: 10,
-	index_block_hash:
+	block_hash:
 		"0x0000000000000000000000000000000000000000000000000000000000000001",
 	burn_block_height: 20,
 	lag_seconds: 0,
@@ -31,7 +31,7 @@ describe("Streams events route helpers", () => {
 						{
 							cursor: "9999:0",
 							block_height: 9999,
-							index_block_hash: TIP.index_block_hash,
+							block_hash: TIP.block_hash,
 							burn_block_height: TIP.burn_block_height,
 							tx_id: "0x01",
 							tx_index: 0,
@@ -89,7 +89,7 @@ describe("Streams events route helpers", () => {
 			events: (types ?? []).map((eventType, i) => ({
 				cursor: `1:${i}`,
 				block_height: 1,
-				index_block_hash: TIP.index_block_hash,
+				block_hash: TIP.block_hash,
 				burn_block_height: TIP.burn_block_height,
 				tx_id: `0x${i}`,
 				tx_index: i,
@@ -133,7 +133,7 @@ describe("Streams events route helpers", () => {
 		const allEvents = Array.from({ length: 5 }, (_, i) => ({
 			cursor: `1:${i}`,
 			block_height: 1,
-			index_block_hash: TIP.index_block_hash,
+			block_hash: TIP.block_hash,
 			burn_block_height: TIP.burn_block_height,
 			tx_id: `0x${i}`,
 			tx_index: i,

@@ -40,7 +40,7 @@ function buildPrintEvent(
 	return {
 		cursor: "100:7",
 		block_height: 100,
-		index_block_hash: "0xblock",
+		block_hash: "0xblock",
 		burn_block_height: 902_481,
 		tx_id: "0xtx",
 		tx_index: 3,

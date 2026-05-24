@@ -28,7 +28,7 @@ Raw, ordered, append-only Stacks chain events. Two access modes — cursor API f
 - **What it isn't.** A webhook system. A filter DSL. A push channel. If you need push, see Hiro Chainhooks or our Subscriptions product on top of Index/Subgraphs.
 - **Who uses it.** Teams building their own indexers, archivers, analytics pipelines, or custom decoders. Researchers pulling historical events.
 - **Shape.**
-  - `GET /v1/streams/events?cursor=<height>:<index>&limit=...` — cursor-paginated tail. Returns events with `block_height`, `index_block_hash`, `tx_id`, `event_index`, `event_type`, `payload`, `ts`.
+  - `GET /v1/streams/events?cursor=<height>:<index>&limit=...` — cursor-paginated tail. Returns events with `block_height`, `block_hash`, `tx_id`, `event_index`, `event_type`, `payload`, `ts`.
   - `GET /v1/streams/canonical/{height}` — canonical block hash lookup, so external indexers can self-verify without replaying our reorg history.
   - **Parquet bulk dumps** on S3 (Phase 2). `aws s3 sync` historical events, then tail the cursor API from a recent cursor. Most backfill workloads belong here, not in the API.
 - **Guarantees.** At-least-once across reorgs, deduped by cursor. Strict in-block order. Explicit `chain.reorg` markers.

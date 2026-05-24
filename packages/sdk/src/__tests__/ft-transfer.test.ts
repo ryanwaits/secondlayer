@@ -1,15 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import {
-	decodeFtTransfer,
-	isFtTransfer,
-	type StreamsEvent,
-} from "../index.ts";
+import { type StreamsEvent, decodeFtTransfer, isFtTransfer } from "../index.ts";
 
 function ftTransfer(payload: Record<string, unknown>): StreamsEvent {
 	return {
 		cursor: "123:4",
 		block_height: 123,
-		index_block_hash: "0x01",
+		block_hash: "0x01",
 		burn_block_height: 456,
 		tx_id: "0xtx",
 		tx_index: 2,

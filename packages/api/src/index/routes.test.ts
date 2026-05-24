@@ -18,7 +18,7 @@ const WRONG_SCOPE_KEY = "sk-sl_index_wrong_scope_test";
 const TIP: IndexTip = { block_height: 10_000, lag_seconds: 1 };
 const STREAMS_TIP: StreamsTip = {
 	block_height: 10_000,
-	index_block_hash: "0x01",
+	block_hash: "0x01",
 	burn_block_height: 20_000,
 	lag_seconds: 0,
 };

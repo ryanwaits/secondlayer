@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
+	type StreamsTipBlockReader,
 	createStreamsTipProvider,
 	getLagSeconds,
-	type StreamsTipBlockReader,
 } from "./tip.ts";
 
 function tipBlock(height: number, ts: Date) {
 	return {
 		block_height: height,
-		index_block_hash: `0x${height.toString(16).padStart(64, "0")}`,
+		block_hash: `0x${height.toString(16).padStart(64, "0")}`,
 		burn_block_height: height + 1000,
 		ts,
 	};
@@ -23,7 +23,7 @@ describe("Streams tip provider", () => {
 
 		await expect(provider()).resolves.toEqual({
 			block_height: 182_447,
-			index_block_hash:
+			block_hash:
 				"0x000000000000000000000000000000000000000000000000000000000002c8af",
 			burn_block_height: 183_447,
 			lag_seconds: 3,

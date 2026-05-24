@@ -25,7 +25,7 @@ const OPENAPI_SPEC = {
 				type: "object",
 				properties: {
 					block_height: { type: "integer" },
-					index_block_hash: { type: "string" },
+					block_hash: { type: "string" },
 					burn_block_height: { type: "integer" },
 					lag_seconds: { type: "integer" },
 				},

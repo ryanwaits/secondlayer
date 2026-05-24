@@ -189,7 +189,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 				tokens: INTERNAL_STREAMS_TOKENS,
 				getTip: () => ({
 					block_height: 1,
-					index_block_hash: "0x01",
+					block_hash: "0x01",
 					burn_block_height: 101,
 					lag_seconds: 0,
 				}),

@@ -5,7 +5,7 @@ import type { Kysely } from "kysely";
 
 export type StreamsCanonicalBlock = {
 	block_height: number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: number;
 	burn_block_hash: string | null;
 	is_canonical: true;
@@ -43,7 +43,7 @@ export function createCanonicalBlockReader(
 
 		return {
 			block_height: Number(row.height),
-			index_block_hash: row.hash,
+			block_hash: row.hash,
 			burn_block_height: Number(row.burn_block_height),
 			burn_block_hash: row.burn_block_hash ?? null,
 			is_canonical: true,

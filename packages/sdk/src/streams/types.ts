@@ -19,7 +19,7 @@ export type StreamsEventPayload = Record<string, unknown>;
 export type StreamsEvent = {
 	cursor: string;
 	block_height: number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: number;
 	tx_id: string;
 	tx_index: number;
@@ -32,14 +32,14 @@ export type StreamsEvent = {
 
 export type StreamsTip = {
 	block_height: number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: number;
 	lag_seconds: number;
 };
 
 export type StreamsCanonicalBlock = {
 	block_height: number;
-	index_block_hash: string;
+	block_hash: string;
 	burn_block_height: number;
 	burn_block_hash: string | null;
 	is_canonical: true;
