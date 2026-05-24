@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CollapsibleJsonTree } from "./collapsible-json-tree";
 import { CopyButton } from "./copy-button";
 import { SandboxCode } from "./sandbox-code";
@@ -35,6 +35,10 @@ export type DatasetSandboxProps = {
 };
 
 const DEFAULT_API_BASE = "https://api.secondlayer.tools";
+// Persisted only in the visitor's browser — never sent to our servers.
+const API_KEY_STORAGE = "sl-sandbox-api-key";
+// Env-var reference shown in snippets so the real key never leaves the client.
+const KEY_ENV_VAR = "SL_STREAMS_API_KEY";
 
 type ResponseState =
 	| { kind: "idle" }
@@ -62,16 +66,41 @@ export function DatasetSandbox({
 		return initial;
 	});
 	const [apiKey, setApiKey] = useState("");
+	const [showKey, setShowKey] = useState(false);
 	const [response, setResponse] = useState<ResponseState>({ kind: "idle" });
+
+	// Restore a previously-entered key from the browser (client-only).
+	useEffect(() => {
+		if (!requiresApiKey || typeof window === "undefined") return;
+		try {
+			const saved = window.localStorage.getItem(API_KEY_STORAGE);
+			if (saved) setApiKey(saved);
+		} catch {
+			// localStorage may be unavailable (private mode) — ignore.
+		}
+	}, [requiresApiKey]);
+
+	const updateApiKey = useCallback((value: string) => {
+		setApiKey(value);
+		if (typeof window === "undefined") return;
+		try {
+			if (value) window.localStorage.setItem(API_KEY_STORAGE, value);
+			else window.localStorage.removeItem(API_KEY_STORAGE);
+		} catch {
+			// Ignore storage failures — the key still works for this session.
+		}
+	}, []);
 
 	const queryString = useMemo(() => buildQuery(values), [values]);
 	const fullUrl = `${apiBase}${endpoint}${queryString}`;
+	// Snippets reference an env var, never the real key — so the key is never
+	// embedded in text that gets sent to our highlight server action or copied.
 	const authHeaderForSnippet = requiresApiKey
-		? ` \\\n  -H "Authorization: Bearer ${apiKey || "<your-key>"}"`
+		? ` \\\n  -H "Authorization: Bearer $${KEY_ENV_VAR}"`
 		: "";
 	const curlSnippet = `curl "${fullUrl}"${authHeaderForSnippet}`;
 	const fetchSnippet = requiresApiKey
-		? `const res = await fetch(\n  "${fullUrl}",\n  { headers: { Authorization: \`Bearer \${process.env.SL_STREAMS_API_KEY}\` } },\n);\nconst data = await res.json();`
+		? `const res = await fetch(\n  "${fullUrl}",\n  { headers: { Authorization: \`Bearer \${process.env.${KEY_ENV_VAR}}\` } },\n);\nconst data = await res.json();`
 		: `const res = await fetch(\n  "${fullUrl}",\n);\nconst data = await res.json();`;
 
 	const handleChange = useCallback((name: string, value: string) => {
@@ -98,6 +127,7 @@ export function DatasetSandbox({
 				if (requiresApiKey && apiKey) {
 					headers.Authorization = `Bearer ${apiKey}`;
 				}
+				// Sent straight from the browser to the API host — never via our server.
 				const res = await fetch(fullUrl, { headers });
 				const latencyMs = Math.round(performance.now() - started);
 				const text = await res.text();
@@ -153,27 +183,47 @@ export function DatasetSandbox({
 				</div>
 
 				{requiresApiKey ? (
-					<label
-						className="dataset-sandbox-filter"
-						htmlFor="dataset-sandbox-api-key"
-					>
-						<span className="dataset-sandbox-filter-label">
+					<div className="dataset-sandbox-filter">
+						<label
+							className="dataset-sandbox-filter-label"
+							htmlFor="dataset-sandbox-api-key"
+						>
 							Streams API key
 							<span className="dataset-sandbox-filter-helper">
 								{" "}
-								(Bearer; create at /platform/api-keys)
+								· stored in your browser only, sent straight to the API
 							</span>
-						</span>
-						<input
-							id="dataset-sandbox-api-key"
-							type="password"
-							autoComplete="off"
-							value={apiKey}
-							onChange={(e) => setApiKey(e.target.value)}
-							placeholder="sk-sl_..."
-							className="dataset-sandbox-filter-input"
-						/>
-					</label>
+						</label>
+						<div className="dataset-sandbox-key-row">
+							<input
+								id="dataset-sandbox-api-key"
+								type={showKey ? "text" : "password"}
+								autoComplete="off"
+								spellCheck={false}
+								value={apiKey}
+								onChange={(e) => updateApiKey(e.target.value)}
+								placeholder="sk-sl_..."
+								className="dataset-sandbox-filter-input"
+							/>
+							<button
+								type="button"
+								className="dataset-sandbox-key-btn"
+								onClick={() => setShowKey((s) => !s)}
+								aria-label={showKey ? "Hide API key" : "Show API key"}
+							>
+								{showKey ? "Hide" : "Show"}
+							</button>
+							{apiKey ? (
+								<button
+									type="button"
+									className="dataset-sandbox-key-btn"
+									onClick={() => updateApiKey("")}
+								>
+									Forget
+								</button>
+							) : null}
+						</div>
+					</div>
 				) : null}
 
 				{filters.length > 0 ? (
