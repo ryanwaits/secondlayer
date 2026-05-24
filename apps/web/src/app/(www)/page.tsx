@@ -6,11 +6,12 @@ import Link from "next/link";
 export const metadata: Metadata = {
 	title: "secondlayer · the agent-native data plane for Stacks",
 	description:
-		"The agent-native data plane for Stacks. Pull with Streams, index with Subgraphs, push with Subscriptions, query five Foundation Datasets directly. Public goods, free forever.",
+		"The agent-native data plane for Stacks. Pull raw with Streams, query decoded with Index, shape your own with Subgraphs, push with Subscriptions, or query the curated Foundation Datasets. Indexed once, free to read.",
 };
 
 const products = [
 	{ name: "Streams", href: "/streams" },
+	{ name: "Index", href: "/index" },
 	{ name: "Subgraphs", href: "/subgraphs" },
 	{ name: "Subscriptions", href: "/subscriptions" },
 	{ name: "Datasets", href: "/datasets" },
@@ -27,7 +28,8 @@ function IndexRow({ item }: { item: { name: string; href: string } }) {
 	);
 }
 
-const STATUS_API_URL = process.env.SL_API_URL || "https://api.secondlayer.tools";
+const STATUS_API_URL =
+	process.env.SL_API_URL || "https://api.secondlayer.tools";
 const STATUS_API_KEY =
 	process.env.SL_STATUS_API_KEY || process.env.SL_SERVICE_KEY;
 const STATUS_PATH = STATUS_API_KEY ? "/status" : "/public/status";
@@ -66,14 +68,8 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 						fill="none"
 						aria-hidden="true"
 					>
-						<polygon
-							points="8,25 28,17 42,25 22,33"
-							className="logo-echo"
-						/>
-						<polygon
-							points="8,19 28,11 42,19 22,27"
-							className="logo-primary"
-						/>
+						<polygon points="8,25 28,17 42,25 22,33" className="logo-echo" />
+						<polygon points="8,19 28,11 42,19 22,27" className="logo-primary" />
 					</svg>
 					<span>secondlayer</span>
 				</h1>
@@ -83,14 +79,15 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 				<p>
 					Secondlayer is the agent-native data plane for Stacks.{" "}
 					<em>
-						The chain produces events; apps and agents need them in any shape.
+						The chain produces events; apps and agents need them in any shape —
+						and nobody should have to run a node to get them.
 					</em>
 				</p>
 				<p>
-					Pull them with Streams, index them with Subgraphs, push them with
-					Subscriptions, or query five{" "}
-					<Link href="/datasets">Foundation Datasets</Link> directly. Public
-					goods, free forever. Hosted infrastructure on top.
+					Pull raw with Streams, query decoded with Index, shape your own with
+					Subgraphs, push with Subscriptions, or query the curated{" "}
+					<Link href="/datasets">Foundation Datasets</Link> directly. Indexed
+					once, free to read — hosted infrastructure on top.
 				</p>
 			</div>
 
