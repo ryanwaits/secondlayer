@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CollapsibleJsonTree } from "./collapsible-json-tree";
 import { CopyButton } from "./copy-button";
+import { InlineKeyCreate } from "./inline-key-create";
 import { SandboxCode } from "./sandbox-code";
 
 export type SandboxFilterDef =
@@ -67,6 +68,7 @@ export function DatasetSandbox({
 	});
 	const [apiKey, setApiKey] = useState("");
 	const [showKey, setShowKey] = useState(false);
+	const [creating, setCreating] = useState(false);
 	const [response, setResponse] = useState<ResponseState>({ kind: "idle" });
 
 	// Restore a previously-entered key from the browser (client-only).
@@ -194,35 +196,54 @@ export function DatasetSandbox({
 								· stored in your browser only, sent straight to the API
 							</span>
 						</label>
-						<div className="dataset-sandbox-key-row">
-							<input
-								id="dataset-sandbox-api-key"
-								type={showKey ? "text" : "password"}
-								autoComplete="off"
-								spellCheck={false}
-								value={apiKey}
-								onChange={(e) => updateApiKey(e.target.value)}
-								placeholder="sk-sl_..."
-								className="dataset-sandbox-filter-input"
+						{creating ? (
+							<InlineKeyCreate
+								onKey={(k) => {
+									updateApiKey(k);
+									setShowKey(false);
+									setCreating(false);
+								}}
+								onCancel={() => setCreating(false)}
 							/>
-							<button
-								type="button"
-								className="dataset-sandbox-key-btn"
-								onClick={() => setShowKey((s) => !s)}
-								aria-label={showKey ? "Hide API key" : "Show API key"}
-							>
-								{showKey ? "Hide" : "Show"}
-							</button>
-							{apiKey ? (
+						) : (
+							<div className="dataset-sandbox-key-row">
+								<input
+									id="dataset-sandbox-api-key"
+									type={showKey ? "text" : "password"}
+									autoComplete="off"
+									spellCheck={false}
+									value={apiKey}
+									onChange={(e) => updateApiKey(e.target.value)}
+									placeholder="sk-sl_..."
+									className="dataset-sandbox-filter-input"
+								/>
 								<button
 									type="button"
 									className="dataset-sandbox-key-btn"
-									onClick={() => updateApiKey("")}
+									onClick={() => setShowKey((s) => !s)}
+									aria-label={showKey ? "Hide API key" : "Show API key"}
 								>
-									Forget
+									{showKey ? "Hide" : "Show"}
 								</button>
-							) : null}
-						</div>
+								{apiKey ? (
+									<button
+										type="button"
+										className="dataset-sandbox-key-btn"
+										onClick={() => updateApiKey("")}
+									>
+										Forget
+									</button>
+								) : (
+									<button
+										type="button"
+										className="dataset-sandbox-key-btn"
+										onClick={() => setCreating(true)}
+									>
+										Create a key
+									</button>
+								)}
+							</div>
+						)}
 					</div>
 				) : null}
 

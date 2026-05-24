@@ -3999,6 +3999,112 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	border-color: var(--border-hover);
 }
 
+/* Inline create-key / sign-in flow */
+.sl-keygen {
+	margin-top: 10px;
+	padding: 14px;
+	border: 1px solid var(--accent-border);
+	border-radius: 8px;
+	background: var(--accent-bg);
+}
+.sl-keygen-label {
+	display: block;
+	font-family: var(--font-mono-stack);
+	font-size: 0.78rem;
+	color: var(--text-prose);
+	margin-bottom: 9px;
+}
+.sl-keygen-label .hint {
+	color: var(--text-muted);
+}
+.sl-keygen-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+.sl-keygen-row .dataset-sandbox-filter-input {
+	flex: 1;
+	min-width: 0;
+}
+.sl-keygen-code {
+	letter-spacing: 0.3em;
+	font-variant-numeric: tabular-nums;
+}
+.sl-keygen-btn {
+	flex: none;
+	height: 38px;
+	padding: 0 16px;
+	border: none;
+	border-radius: 6px;
+	background: var(--accent);
+	color: var(--accent-contrast);
+	font-family: var(--font-sans-stack);
+	font-weight: 500;
+	font-size: 0.82rem;
+	cursor: pointer;
+	transition: filter var(--duration-snappy) var(--ease-snappy);
+}
+.sl-keygen-btn:hover {
+	filter: brightness(1.06);
+}
+.sl-keygen-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.sl-keygen-foot {
+	margin-top: 10px;
+	display: flex;
+	gap: 14px;
+	align-items: center;
+	font-family: var(--font-mono-stack);
+	font-size: 0.72rem;
+	color: var(--text-muted);
+}
+.sl-keygen-link {
+	background: none;
+	border: none;
+	padding: 0;
+	color: var(--accent);
+	font-family: var(--font-mono-stack);
+	font-size: 0.72rem;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.sl-keygen-ok {
+	color: var(--green);
+}
+.sl-keygen-key {
+	position: relative;
+	display: flex;
+	align-items: center;
+	margin-top: 4px;
+	padding: 10px 12px;
+	background: var(--code-block-bg);
+	border: 1px solid var(--accent-border);
+	border-radius: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.8rem;
+	color: var(--accent);
+}
+.sl-keygen-key code {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	background: none;
+	padding: 0;
+}
+.sl-keygen-key .copy-button {
+	opacity: 1;
+}
+.sl-keygen-err {
+	color: var(--red);
+	font-size: 0.75rem;
+	margin: 9px 0 0;
+}
+
 .sl-json {
 	font-family: var(--font-mono-stack);
 	font-size: 0.8125rem;
