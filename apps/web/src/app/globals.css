@@ -5666,6 +5666,21 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	line-height: 1.2;
 	color: var(--accent);
 }
+.sl-diagram .chip {
+	fill: var(--accent-bg);
+	stroke: var(--accent-border);
+	stroke-width: 1;
+}
+.sl-diagram .chiptext {
+	fill: var(--accent);
+	font-family: var(--font-mono-stack);
+	font-size: 8px;
+}
+.sl-diagram .elabel {
+	fill: var(--text-muted);
+	font-family: var(--font-mono-stack);
+	font-size: 8px;
+}
 
 /* ── Callout (tips, notes, link-outs) ──────────────────────────────── */
 .callout {
