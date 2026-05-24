@@ -2,6 +2,7 @@ import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
 import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { StreamsDiagram } from "@/components/diagrams/streams-diagram";
+import { InlineKey, KeyTrigger } from "@/components/inline-key";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -63,12 +64,10 @@ export default function StreamsPage() {
 				<SectionHeading id="auth">Auth</SectionHeading>
 
 				<div className="prose">
-					<p>
-						Streams is read-only but keyed — every request needs an API key,
-						including during open beta. Issue one at{" "}
-						<a href="/platform/api-keys">/platform/api-keys</a> (product:
-						Streams).
-					</p>
+					<InlineKey product="streams">
+						Streams is read-only but keyed — every request needs an{" "}
+						<KeyTrigger>API key</KeyTrigger>, including during open beta.
+					</InlineKey>
 				</div>
 
 				<CodeBlock

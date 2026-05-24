@@ -6,14 +6,26 @@ import { CopyButton } from "./copy-button";
 
 type Step = "email" | "code" | "create" | "reveal";
 
+/** Products that can mint a scoped key inline. */
+export type KeyProduct = "streams" | "index";
+
+const PRODUCT_LABEL: Record<KeyProduct, string> = {
+	streams: "Streams",
+	index: "Index",
+};
+
 function errMessage(e: unknown): string {
 	return e instanceof Error ? e.message : "Something went wrong — try again.";
 }
 
 /**
- * Inline create-account / sign-in / create-key flow for the API sandbox.
+ * Inline create-account / sign-in / create-key flow.
  * Magic-link email → 6-digit code (or one-click when already signed in) →
- * reveal-once key that auto-fills the sandbox. No full-page redirect.
+ * reveal-once key. No full-page redirect.
+ *
+ * `context` tunes the copy: "sandbox" assumes the key is filled into a
+ * surrounding playground; "inline" is for standalone prose (docs/product
+ * pages) where the user just copies the revealed key.
  *
  * Rendered inside the sandbox's <form>, so this uses plain elements + Enter
  * handling rather than nested <form>s (which are invalid and would trigger
@@ -22,9 +34,13 @@ function errMessage(e: unknown): string {
 export function InlineKeyCreate({
 	onKey,
 	onCancel,
+	product = "streams",
+	context = "sandbox",
 }: {
 	onKey: (key: string) => void;
 	onCancel: () => void;
+	product?: KeyProduct;
+	context?: "sandbox" | "inline";
 }) {
 	const { account, login, verify } = useAuth();
 	const [step, setStep] = useState<Step>(account ? "create" : "email");
@@ -33,12 +49,16 @@ export function InlineKeyCreate({
 	const [revealed, setRevealed] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const productLabel = PRODUCT_LABEL[product];
 
 	const createStreamsKey = useCallback(async (): Promise<string> => {
 		const res = await fetch("/api/keys", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name: "Playground", product: "streams" }),
+			body: JSON.stringify({
+				name: context === "sandbox" ? "Playground" : productLabel,
+				product,
+			}),
 		});
 		if (!res.ok) {
 			const data = await res.json().catch(() => ({}));
@@ -46,7 +66,7 @@ export function InlineKeyCreate({
 		}
 		const data = (await res.json()) as { key: string };
 		return data.key;
-	}, []);
+	}, [product, productLabel, context]);
 
 	const finish = useCallback(
 		(key: string) => {
@@ -114,13 +134,7 @@ export function InlineKeyCreate({
 		<div className="sl-keygen">
 			{step === "email" ? (
 				<div>
-					<span className="sl-keygen-label">
-						Create your API key
-						<span className="hint">
-							{" "}
-							· we'll email a code — new email creates your account
-						</span>
-					</span>
+					<span className="sl-keygen-label">Create your API key</span>
 					<div className="sl-keygen-row">
 						<input
 							type="email"
@@ -142,9 +156,8 @@ export function InlineKeyCreate({
 					</div>
 					<div className="sl-keygen-foot">
 						<button type="button" className="sl-keygen-link" onClick={onCancel}>
-							← I already have a key
+							{context === "sandbox" ? "← I already have a key" : "← Cancel"}
 						</button>
-						<span>No credit card</span>
 					</div>
 				</div>
 			) : null}
@@ -202,7 +215,7 @@ export function InlineKeyCreate({
 				) : (
 					<div>
 						<span className="sl-keygen-label">
-							Create a Streams key
+							Create a {productLabel} key
 							<span className="hint"> · signed in as {account?.email}</span>
 						</span>
 						<div className="sl-keygen-row">
@@ -219,7 +232,9 @@ export function InlineKeyCreate({
 								className="sl-keygen-link"
 								onClick={onCancel}
 							>
-								← I'll paste one instead
+								{context === "sandbox"
+									? "← I'll paste one instead"
+									: "← Cancel"}
 							</button>
 						</div>
 					</div>
@@ -237,7 +252,11 @@ export function InlineKeyCreate({
 						<CopyButton code={revealed} />
 					</div>
 					<div className="sl-keygen-foot">
-						<span className="sl-keygen-ok">✓ Filled into the playground</span>
+						<span className="sl-keygen-ok">
+							{context === "sandbox"
+								? "✓ Filled into the playground"
+								: "✓ Store it now — it won't be shown again"}
+						</span>
 						<button type="button" className="sl-keygen-link" onClick={onCancel}>
 							Done
 						</button>

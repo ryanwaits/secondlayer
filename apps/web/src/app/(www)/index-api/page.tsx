@@ -2,6 +2,7 @@ import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
 import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { IndexDiagram } from "@/components/diagrams/index-diagram";
+import { InlineKey, KeyTrigger } from "@/components/inline-key";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -37,9 +38,12 @@ export default function IndexPage() {
 						contract, wallet, or block range, with no decoders to write or
 						maintain.
 					</p>
+					<InlineKey product="index">
+						Reads are open during beta — anonymous works, and an{" "}
+						<KeyTrigger>API key</KeyTrigger> just raises your rate limit.
+					</InlineKey>
 					<p>
-						Reads are open during beta — anonymous works, and an API key just
-						raises your rate limit. For your own app-specific shape, see{" "}
+						For your own app-specific shape, see{" "}
 						<a href="/subgraphs">Subgraphs</a>; for raw events, see{" "}
 						<a href="/streams">Streams</a>.
 					</p>

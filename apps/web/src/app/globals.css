@@ -851,7 +851,9 @@ a mark {
 }
 
 .prose ul li:last-child,
-.prose ol li:last-child { margin-bottom: 0; }
+.prose ol li:last-child {
+	margin-bottom: 0;
+}
 
 .prose ul > li::before {
 	content: "—";
@@ -863,7 +865,9 @@ a mark {
 }
 
 /* nested ul gets a fainter dash */
-.prose ul ul > li::before { color: var(--text-soft); }
+.prose ul ul > li::before {
+	color: var(--text-soft);
+}
 
 /* ordered lists — tabular numerals */
 .prose ol {
@@ -896,7 +900,9 @@ a mark {
 	transition: opacity var(--duration-smooth) var(--ease-smooth);
 }
 
-.dataset-shelf-row:last-child { border-bottom: none; }
+.dataset-shelf-row:last-child {
+	border-bottom: none;
+}
 
 .dataset-shelf-head {
 	display: flex;
@@ -913,8 +919,12 @@ a mark {
 	text-decoration: none;
 }
 
-a.dataset-shelf-name { transition: color var(--duration-snappy) var(--ease-smooth); }
-a.dataset-shelf-name:hover { color: var(--text-prose); }
+a.dataset-shelf-name {
+	transition: color var(--duration-snappy) var(--ease-smooth);
+}
+a.dataset-shelf-name:hover {
+	color: var(--text-prose);
+}
 
 .dataset-shelf-status {
 	color: var(--text-muted);
@@ -936,30 +946,45 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 .dataset-shelf-meta {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 1.25rem;
-	font-family: var(--font-mono-stack);
-	font-size: 0.75rem;
-	color: var(--text-muted);
+	gap: 0.5rem;
+	align-items: center;
 }
 
-.dataset-shelf-meta code {
+/* Each endpoint is a compact chip so long parquet prefixes wrap as whole
+   units instead of breaking mid-path across two lines. */
+.dataset-endpoint {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.45rem;
+	padding: 3px 9px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--code-block-bg);
+	font-family: var(--font-mono-stack);
+	font-size: 0.72rem;
+}
+
+.dataset-endpoint code {
 	font-family: inherit;
 	background: none;
 	padding: 0;
 	color: var(--text-prose);
 }
 
-.dataset-shelf-meta-label {
+.dataset-endpoint-label {
 	color: var(--text-soft);
-	font-size: 0.6875rem;
+	font-size: 0.62rem;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	margin-right: 0.25rem;
 }
 
 /* hover dim like benji.org */
-.dataset-shelf:hover .dataset-shelf-row { opacity: 0.5; }
-.dataset-shelf:hover .dataset-shelf-row:hover { opacity: 1; }
+.dataset-shelf:hover .dataset-shelf-row {
+	opacity: 0.5;
+}
+.dataset-shelf:hover .dataset-shelf-row:hover {
+	opacity: 1;
+}
 
 /* ── Public status page ──────────────────────────────────────────── */
 .status-page {
@@ -2029,6 +2054,15 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	font-size: 13px;
 	font-weight: 460;
 	color: var(--accent);
+}
+
+/* Divider between nav links and account actions in the authed bar. */
+.auth-bar-sep {
+	width: 1px;
+	height: 16px;
+	background: var(--border);
+	opacity: 0.8;
+	margin: 0 2px;
 }
 
 /* ── Auth bar — mobile overrides (must come after base rules) ────── */
@@ -4105,6 +4139,163 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	margin: 9px 0 0;
 }
 
+/* In-prose "get a key" trigger + the panel it expands into. The trigger reads
+   as a normal inline prose link; the panel reuses .sl-keygen for its chrome,
+   so this only styles the link and constrains the expanded width. */
+.inline-keylink {
+	font: inherit;
+	color: var(--accent);
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-color: var(--link-underline);
+	text-underline-offset: 3px;
+	text-decoration-thickness: 1px;
+	transition: text-decoration-color 0.2s ease;
+}
+.inline-keylink:hover {
+	text-decoration-color: currentColor;
+}
+
+/* Anchored key panel: on wide screens it docks in the right gutter beside the
+   trigger paragraph (diagram-frame chrome, matching .sl-diagram-frame) while
+   the content column nudges left; below 1240px it expands inline instead. */
+.inline-key {
+	position: relative;
+}
+.inline-key-panel {
+	position: absolute;
+	/* vertically centered on the trigger paragraph */
+	top: 50%;
+	left: calc(100% + 1.5rem);
+	width: 320px;
+	z-index: 5;
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: 20px;
+	background: radial-gradient(
+			130% 120% at 84% 0%,
+			var(--accent-glow),
+			transparent 60%
+		), var(--bg-elevated);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 22px 48px -18px
+		rgba(0, 0, 0, 0.16);
+	overflow: hidden;
+	opacity: 0;
+	transform: translateY(calc(-50% + 10px));
+	/* entering element → ease-out */
+	transition: opacity var(--duration-smooth) ease, transform
+		var(--duration-smooth) var(--ease-smooth);
+}
+.inline-key-panel::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0.4;
+	background-image: linear-gradient(var(--border) 1px, transparent 1px),
+		linear-gradient(90deg, var(--border) 1px, transparent 1px);
+	background-size: 30px 30px;
+	-webkit-mask-image: radial-gradient(
+		130% 100% at 50% 42%,
+		#000 28%,
+		transparent 100%
+	);
+	mask-image: radial-gradient(130% 100% at 50% 42%, #000 28%, transparent 100%);
+}
+.inline-key-panel > * {
+	position: relative;
+}
+.inline-key-panel.is-open {
+	opacity: 1;
+	transform: translateY(-50%);
+}
+/* The frame supplies the chrome — strip InlineKeyCreate's own boxed styling. */
+.inline-key-panel .sl-keygen {
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: none;
+}
+
+/* Email / code entry adopts the auth-bar sign-up pill: a bordered container
+   with a borderless input and the accent button, glowing on focus. Scoped to
+   rows that actually have an input, so the one-click "create" row is untouched. */
+.inline-key-panel .sl-keygen-row:has(.dataset-sandbox-filter-input) {
+	gap: 6px;
+	padding: 4px 4px 4px 12px;
+	border: 1px solid var(--border);
+	border-radius: 9px;
+	background: var(--bg);
+	transition: border-color var(--duration-snappy) var(--ease-snappy), box-shadow
+		var(--duration-snappy) var(--ease-snappy);
+}
+.inline-key-panel
+	.sl-keygen-row:has(.dataset-sandbox-filter-input):focus-within {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.inline-key-panel .sl-keygen-row .dataset-sandbox-filter-input {
+	border: none;
+	background: none;
+	outline: none;
+	height: auto;
+	padding: 8px 0;
+	font-family: var(--font-sans-stack);
+	font-size: 0.875rem;
+	color: var(--text-main);
+}
+.inline-key-panel .sl-keygen-row .dataset-sandbox-filter-input::placeholder {
+	color: var(--text-muted);
+}
+.inline-key-panel .sl-keygen-btn {
+	height: 32px;
+	padding: 0 14px;
+	border-radius: 7px;
+	font-size: 0.8rem;
+	font-weight: 560;
+}
+
+/* Only the content column shifts; the sidebar is position:fixed and unaffected.
+   On-screen movement → ease-in-out. */
+.content-area {
+	transition: transform var(--duration-smooth)
+		cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+.content-area:has(.inline-key[data-open="true"]) {
+	transform: translateX(-40px);
+}
+
+@media (max-width: 1239px) {
+	.inline-key-panel {
+		position: static;
+		width: auto;
+		max-width: 460px;
+		margin-top: 0.875rem;
+		transform: translateY(8px);
+	}
+	.inline-key-panel.is-open {
+		transform: translateY(0);
+	}
+	.content-area:has(.inline-key[data-open="true"]) {
+		transform: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* No transitions and no content shift, but keep the panel's centering
+	   transform intact (don't reset transform — it's structural here). */
+	.content-area,
+	.inline-key-panel {
+		transition: none !important;
+	}
+	.content-area:has(.inline-key[data-open="true"]) {
+		transform: none !important;
+	}
+}
+
 .sl-json {
 	font-family: var(--font-mono-stack);
 	font-size: 0.8125rem;
@@ -5447,8 +5638,8 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 999px;
-	box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.28),
-		0 2px 6px -2px rgba(0, 0, 0, 0.08);
+	box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.28), 0 2px 6px -2px
+		rgba(0, 0, 0, 0.08);
 }
 .docs-mode-toggle button {
 	display: inline-flex;
@@ -5682,9 +5873,11 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	border: 1px solid var(--border);
 	border-radius: 14px;
 	padding: clamp(18px, 2.4vw, 28px);
-	background:
-		radial-gradient(130% 120% at 84% 0%, var(--accent-glow), transparent 60%),
-		var(--bg-elevated);
+	background: radial-gradient(
+			130% 120% at 84% 0%,
+			var(--accent-glow),
+			transparent 60%
+		), var(--bg-elevated);
 	overflow: hidden;
 }
 .sl-diagram-frame::before {
@@ -5693,8 +5886,7 @@ a.dataset-shelf-name:hover { color: var(--text-prose); }
 	inset: 0;
 	pointer-events: none;
 	opacity: 0.4;
-	background-image:
-		linear-gradient(var(--border) 1px, transparent 1px),
+	background-image: linear-gradient(var(--border) 1px, transparent 1px),
 		linear-gradient(90deg, var(--border) 1px, transparent 1px);
 	background-size: 30px 30px;
 	-webkit-mask-image: radial-gradient(
