@@ -79,15 +79,13 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 				<p>
 					Secondlayer is the agent-native data plane for Stacks.{" "}
 					<em>
-						The chain produces events; apps and agents need them in any shape —
-						and nobody should have to run a node to get them.
+						The chain produces events; apps and agents need them in any shape.
 					</em>
 				</p>
 				<p>
 					Pull raw with Streams, query decoded with Index, shape your own with
 					Subgraphs, push with Subscriptions, or query the curated{" "}
-					<Link href="/datasets">Foundation Datasets</Link> directly. Indexed
-					once, free to read — hosted infrastructure on top.
+					<Link href="/datasets">Foundation Datasets</Link> directly.
 				</p>
 			</div>
 

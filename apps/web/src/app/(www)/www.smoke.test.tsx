@@ -16,7 +16,6 @@ describe("www marketing routes", () => {
 		// Intro prose: agent-native framing + chain-events thesis.
 		expect(html).toContain("agent-native data plane for Stacks");
 		expect(html).toContain("apps and agents need them in any shape");
-		expect(html).toContain("Indexed once, free to read");
 		expect(html).toContain("Foundation Datasets");
 		// Single Products row group.
 		expect(html).toContain(">Products<");
