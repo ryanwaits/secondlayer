@@ -1,0 +1,66 @@
+# SDK
+
+`@secondlayer/sdk` — a typed TypeScript client for every Secondlayer surface: Streams, Index, Subgraphs, and Subscriptions, plus webhook verification and a checkpointed consumer for indexers.
+
+## Install
+
+```bash
+bun add @secondlayer/sdk
+```
+
+## Create a client
+
+```ts
+import { SecondLayer } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({
+  apiKey: process.env.SL_API_KEY, // or a session token
+  baseUrl: "https://api.secondlayer.tools", // default
+});
+```
+
+## One client, every surface
+
+- `sl.streams` — raw, ordered L1 chain events (cursor-paginated, replayable).
+- `sl.index` — decoded FT/NFT transfer events.
+- `sl.subgraphs` — your app-specific L3 tables.
+- `sl.subscriptions` — create and manage webhook subscriptions.
+
+```ts
+const tip = await sl.streams.tip();
+const page = await sl.streams.events.list({
+  types: ["ft_transfer"],
+  contractId: "SP000000000000000000002Q6VF78.sbtc-token",
+  limit: 10,
+});
+```
+
+## Verify webhooks
+
+Subscription deliveries are signed. Verify the signature before trusting a payload.
+
+```ts
+import { verifyWebhookSignature } from "@secondlayer/sdk";
+
+const valid = verifyWebhookSignature(req.headers, rawBody, secret);
+if (!valid) return new Response("bad signature", { status: 401 });
+```
+
+## Checkpointed consumer
+
+For indexers and ETL jobs, `consume` polls and commits a cursor so you never miss or double-process events — return the cursor you committed inside `onBatch`.
+
+```ts
+await sl.streams.events.consume({
+  types: ["ft_transfer"],
+  onBatch: async (events) => {
+    // write your rows here, then return the last committed cursor
+    return events.at(-1)?.cursor;
+  },
+});
+```
+
+export const metadata = {
+	title: "SDK — Secondlayer Docs",
+	description: "Typed TypeScript client for every Secondlayer surface.",
+};
