@@ -1,4 +1,6 @@
+import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
+import { SubscriptionsDiagram } from "@/components/diagrams/subscriptions-diagram";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -7,15 +9,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
 	title: "Subscriptions | secondlayer",
 	description:
-		"Push semantics. Subscribe to your subgraph table writes — server delivers signed webhooks.",
+		"Push, not poll. Matched subgraph rows fire a signed, retried webhook — wire chain events into anything that speaks HTTP.",
 };
 
 const toc: TocItem[] = [
-	{ label: "Quickstart", href: "#quickstart" },
-	{ label: "Filters", href: "#filters" },
-	{ label: "on.* factories", href: "#on-factories" },
-	{ label: "Signing", href: "#signing" },
-	{ label: "Replay & DLQ", href: "#replay-dlq" },
+	{ label: "How it works", href: "#how-it-works" },
+	{ label: "Subscribe", href: "#subscribe" },
+	{ label: "Delivery", href: "#delivery" },
 ];
 
 export default function SubscriptionsPage() {
@@ -30,84 +30,93 @@ export default function SubscriptionsPage() {
 
 				<div className="prose">
 					<p>
-						Push matched events to your webhook URL. Subscriptions bind to a
-						subgraph table — every row your handler writes that matches the
-						filter triggers a signed HTTP POST. For pull semantics see{" "}
-						<a href="/streams">Streams</a>.
+						Push instead of poll. A subscription binds to a{" "}
+						<a href="/subgraphs">subgraph</a> table — every row your handler
+						writes that matches your filter fires a signed, retried webhook.
+						Point it at Discord, Slack, Trigger.dev, or your own backend —
+						anything that speaks HTTP.
+					</p>
+					<p>
+						For pull semantics, see <a href="/streams">Streams</a>.
 					</p>
 				</div>
 
-				<SectionHeading id="quickstart">Quickstart</SectionHeading>
+				<SectionHeading id="how-it-works">How it works</SectionHeading>
+
+				<SubscriptionsDiagram />
+
+				<div className="prose">
+					<p>
+						On each matching write the row lands in an outbox; a delivery worker
+						signs it and POSTs to your URL, retrying with backoff until it
+						lands. No polling loop to run, no cursor to track.
+					</p>
+				</div>
+
+				<SectionHeading id="subscribe">Subscribe</SectionHeading>
+
+				<div className="prose">
+					<p>
+						Scaffold a receiver for your runtime, or create one programmatically
+						against a table you own:
+					</p>
+				</div>
 
 				<CodeBlock
-					code={`# Scaffold a receiver project; runtimes: inngest | trigger | cloudflare | node
-sl create subscription my-watcher --runtime node
+					code={`# Scaffold a receiver — runtimes: inngest | trigger | cloudflare | node
+sl create subscription whale-alerts --runtime node
 
-# Or programmatically:
-import { createClient } from "@secondlayer/sdk";
-await createClient(...).subscriptions.create({
-  name: "my-watcher",
-  subgraphName: "my-watcher",
+# Or via the SDK
+await sdk.subscriptions.create({
+  name: "whale-alerts",
+  subgraphName: "token-transfers",
   tableName: "transfers",
   url: "https://my-app.com/webhook",
+  filter: { recipient: "SP1ABC...", amount: { gte: "1000000" } },
   format: "standard-webhooks",
 });`}
 				/>
 
-				<SectionHeading id="filters">Filters</SectionHeading>
+				<div className="prose">
+					<p>
+						Filters are <code>{"{ column: value }"}</code> maps with operators (
+						<code>eq</code>, <code>gte</code>, <code>in</code>, …). Typed{" "}
+						<code>on.*</code> factories — <code>on.sip010Transfer</code>,{" "}
+						<code>on.sbtcDeposit</code>, <code>on.poxStack</code> and more —
+						build common specs for you.
+					</p>
+				</div>
+
+				<SectionHeading id="delivery">Delivery</SectionHeading>
+
+				<div className="prose">
+					<p>
+						Deliveries are signed with{" "}
+						<a href="https://www.standardwebhooks.com">standard-webhooks</a>{" "}
+						(HMAC-SHA256) by default. Failures back off and, if they keep
+						failing, land in a DLQ — and you can replay any block range.
+					</p>
+				</div>
 
 				<CodeBlock
-					code={`// {column: value} maps. Bare value = eq. Operators: eq, neq, gt, gte, lt, lte, in.
-{
-  filter: {
-    recipient: "SP1ABC...",
-    amount: { gte: "1000000" }
-  }
-}`}
-				/>
-
-				<SectionHeading id="on-factories">on.* factories</SectionHeading>
-
-				<CodeBlock
-					code={`import { on } from "@secondlayer/stacks";
-
-// Each factory takes {subgraph, table} first — bind to a table you own.
-const spec = on.transferTo(
-  { subgraph: "my-watcher", table: "transfers" },
-  "SP1ABC...",
-  { asset: "SP1...usdc::usdc-token" },
-);
-
-await sdk.subscriptions.create({ ...spec, name: "watch", url: "https://..." });
-
-// Available: on.transferTo, on.sip010Transfer, on.sip009Transfer,
-//            on.bnsName, on.poxStack, on.sbtcDeposit, on.sbtcWithdrawal`}
-				/>
-
-				<SectionHeading id="signing">Signing</SectionHeading>
-
-				<CodeBlock
-					code={`# Default format: standard-webhooks. Every delivery carries:
+					code={`# Headers on every delivery (standard-webhooks):
 webhook-id:        msg_<id>
 webhook-timestamp: <unix-seconds>
 webhook-signature: v1,<base64-hmac>
 
-# signature = HMAC-SHA256("<id>.<timestamp>.<body>", secret)
-# Rotate via: sl subscriptions rotate-secret <id>
-#
-# Other formats: inngest, trigger, cloudflare, cloudevents, raw`}
+# Retries: 30s → 2m → 10m → 1h → 6h → 24h → 72h, then DLQ.
+# Replay a range:
+#   await sdk.subscriptions.replay(id, { fromBlock, toBlock })`}
 					lang="text"
 				/>
 
-				<SectionHeading id="replay-dlq">Replay & DLQ</SectionHeading>
-
-				<CodeBlock
-					code={`# Failed deliveries fall back through 30s → 2m → 10m → 1h → 6h → 24h → 72h.
-# After 7 attempts they land in the DLQ; 20 consecutive failures pause the sub.
-# Inspect at /platform/subgraphs/<name>/subscriptions/<id>.
-
-await sdk.subscriptions.replay(id, { fromBlock: 123000, toBlock: 124000 });`}
-				/>
+				<Callout label="Full reference">
+					<p>
+						All filter operators, the <code>on.*</code> factory catalog, every
+						signing format, and replay/DLQ details live in the docs →{" "}
+						<a href="/docs/subscriptions">/docs/subscriptions</a>.
+					</p>
+				</Callout>
 			</main>
 		</div>
 	);

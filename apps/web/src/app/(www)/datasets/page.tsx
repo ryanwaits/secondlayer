@@ -1,3 +1,6 @@
+import { Callout } from "@/components/callout";
+import { CodeBlock } from "@/components/code-block";
+import { DatasetsDiagram } from "@/components/diagrams/datasets-diagram";
 import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
@@ -6,14 +9,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
 	title: "Stacks Datasets | secondlayer",
 	description:
-		"Curated, public-good Stacks datasets with stable APIs, parquet downloads, and dashboard views.",
+		"Curated, ready-to-query Stacks datasets — sBTC, stacking, BNS and more. Stable APIs + parquet, free to read.",
 };
 
 const toc: TocItem[] = [
-	{ label: "Overview", href: "#overview" },
+	{ label: "How it works", href: "#how-it-works" },
 	{ label: "The shelf", href: "#the-shelf" },
 	{ label: "How to read", href: "#how-to-read" },
-	{ label: "Pricing", href: "#pricing" },
 ];
 
 export type DatasetEntry = {
@@ -101,19 +103,31 @@ export function DatasetsContent() {
 				<h1 className="page-title">Stacks Datasets</h1>
 			</header>
 
-			<SectionHeading id="overview">Overview</SectionHeading>
+			<div className="prose">
+				<p>
+					Datasets are curated, ready-to-query views of Stacks data — sBTC,
+					stacking, BNS and more. Each ships a stable read API, a parquet
+					download, a schema reference, and a freshness signal. Free to read and
+					always on — you never run a node.
+				</p>
+				<p>
+					They share the same publishing harness as{" "}
+					<a href="/streams">Streams</a> bulk dumps: parquet partitioned by
+					Stacks block height, refreshed on a schedule, with a machine-readable
+					manifest at <code>manifest/latest.json</code>.
+				</p>
+			</div>
+
+			<SectionHeading id="how-it-works">How it works</SectionHeading>
+
+			<DatasetsDiagram />
 
 			<div className="prose">
 				<p>
-					Stacks Datasets are curated, public-good data products. Each dataset
-					ships with a stable read API, a parquet download path, a schema
-					reference, a dashboard view, and a freshness signal.
-				</p>
-				<p>
-					Datasets share the same publishing harness as Streams bulk dumps —
-					parquet files partitioned by Stacks block height, refreshed on a
-					schedule, with a machine-readable manifest at{" "}
-					<code>manifest/latest.json</code>.
+					Each dataset is a curated view over the raw L1 events — decoded and
+					shaped for one domain, then served two ways: a cursor-paginated JSON
+					API for apps and dashboards, and bulk parquet for warehouses and
+					notebooks.
 				</p>
 			</div>
 
@@ -124,32 +138,35 @@ export function DatasetsContent() {
 			<SectionHeading id="how-to-read">How to read</SectionHeading>
 
 			<div className="prose">
-				<p>Two access modes per dataset:</p>
-				<ul>
-					<li>
-						<strong>Read API.</strong> JSON over HTTPS with cursor pagination.
-						Best for dashboards, app event loops, and ad-hoc queries.
-					</li>
-					<li>
-						<strong>Parquet download.</strong> Bulk historical files for
-						warehouses, DuckDB, Spark, pandas. Best for ETL and analytics.
-					</li>
-				</ul>
 				<p>
-					Read the manifest first; it points at every published file with row
+					Reads are open — no key needed for low-volume use. Hit the JSON API
+					for live queries, or pull parquet for analytics:
+				</p>
+			</div>
+
+			<CodeBlock
+				code={`# JSON API — cursor-paginated, anonymous
+curl "https://api.secondlayer.tools/v1/datasets/sbtc/events?limit=5"
+
+# Bulk parquet — read straight into DuckDB
+SELECT * FROM 'https://data.secondlayer.tools/stacks-datasets/mainnet/v0/sbtc/*.parquet'
+LIMIT 5;`}
+				lang="bash"
+			/>
+
+			<div className="prose">
+				<p>
+					Read the manifest first — it points at every published file with row
 					counts and SHA-256 checksums.
 				</p>
 			</div>
 
-			<SectionHeading id="pricing">Pricing</SectionHeading>
-
-			<div className="prose">
+			<Callout label="Full reference">
 				<p>
-					Dataset reads are free for low-volume use. Heavy programmatic use
-					rolls into Build or Scale via the standard API key path. Parquet
-					downloads remain free regardless of tier.
+					Per-dataset schemas, endpoints, and parquet paths live in the docs →{" "}
+					<a href="/docs/datasets">/docs/datasets</a>.
 				</p>
-			</div>
+			</Callout>
 		</main>
 	);
 }
