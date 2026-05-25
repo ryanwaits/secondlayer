@@ -8,7 +8,7 @@ colors:
   chrome: "#f0f0f0"
   hairline: "#e5e5e5"
   hairline-hover: "#dddddd"
-  text-muted: "#00000066"
+  text-muted: "#0000008c"
   text-dim: "#0000001f"
   signal-blue: "#2563eb"
   signal-blue-dark: "#8aa7f8"
@@ -144,7 +144,7 @@ Tinted near-neutrals do the work; chromatic color is rationed. The palette is de
 - **Paper** (#fafafa light / #111111 dark): the page. Warm, never pure white.
 - **Paper Elevated** (#ffffff / #1a1a1a): cards, panels, status blocks, raised surfaces.
 - **Chrome** (#f0f0f0 / #0c0c0c): inset surfaces, code chips, tab backgrounds.
-- **Text Muted** (rgba black/white 0.4): secondary copy, metadata, labels.
+- **Text Muted** (rgba black 0.55 / white 0.6): secondary copy, metadata, labels. Tuned to ≈4.6:1 so muted text clears WCAG AA in both themes.
 - **Text Dim** (rgba 0.10–0.12): faintest support text and disabled marks.
 - **Hairline** (#e5e5e5 / #2e2e2e): every border, divider, and rule. The structural backbone of the whole system.
 

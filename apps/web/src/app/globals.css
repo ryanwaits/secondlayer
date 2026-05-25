@@ -2,7 +2,7 @@
 	--bg: #fafafa;
 	--text-main: #111;
 	--text-prose: #111;
-	--text-muted: rgba(0, 0, 0, 0.4);
+	--text-muted: rgba(0, 0, 0, 0.55);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #e5e5e5;
 	--border-hover: #ddd;
@@ -63,7 +63,7 @@
 		--bg: #111111;
 		--text-main: #ececec;
 		--text-prose: #ececec;
-		--text-muted: rgba(255, 255, 255, 0.4);
+		--text-muted: rgba(255, 255, 255, 0.6);
 		--text-dim: rgba(255, 255, 255, 0.1);
 		--border: #2e2e2e;
 		--border-hover: #3a3a3a;
@@ -107,7 +107,7 @@ html.force-dark {
 	--bg: #111111;
 	--text-main: #ececec;
 	--text-prose: #ececec;
-	--text-muted: rgba(255, 255, 255, 0.4);
+	--text-muted: rgba(255, 255, 255, 0.6);
 	--text-dim: rgba(255, 255, 255, 0.1);
 	--border: #2e2e2e;
 	--border-hover: #3a3a3a;
@@ -149,7 +149,7 @@ html.force-light {
 	--bg: #fafafa;
 	--text-main: #111;
 	--text-prose: #111;
-	--text-muted: rgba(0, 0, 0, 0.4);
+	--text-muted: rgba(0, 0, 0, 0.55);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #e5e5e5;
 	--border-hover: #ddd;
@@ -4415,7 +4415,7 @@ a.dataset-shelf-name:hover {
 
 /* Anchored key panel: on wide screens it docks in the right gutter beside the
    trigger paragraph (diagram-frame chrome, matching .sl-diagram-frame) while
-   the content column nudges left; below 1240px it expands inline instead. */
+   the content column nudges left; below 1280px it expands inline instead. */
 .inline-key {
 	position: relative;
 }
@@ -4466,6 +4466,14 @@ a.dataset-shelf-name:hover {
 	opacity: 1;
 	transform: translateY(-50%);
 }
+/* Deepen the float shadow on dark — 0.16 black is invisible on near-black
+   elevated; match the palette's dark elevation so it still reads as floating. */
+@media (prefers-color-scheme: dark) {
+	.inline-key-panel {
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 22px 48px -18px
+			rgba(0, 0, 0, 0.6);
+	}
+}
 /* The frame supplies the chrome — strip InlineKeyCreate's own boxed styling. */
 .inline-key-panel .sl-keygen {
 	margin: 0;
@@ -4512,17 +4520,34 @@ a.dataset-shelf-name:hover {
 	font-weight: 560;
 }
 
+/* Touch: lift tap targets to the 44px minimum on coarse pointers only, so the
+   dense pointer layout above is untouched. min-height beats the fixed heights. */
+@media (pointer: coarse) {
+	.inline-key-panel .sl-keygen-btn,
+	.inline-key-panel .sl-keygen-row {
+		min-height: 44px;
+	}
+	.inline-key-panel .sl-keygen-link {
+		min-height: 44px;
+		display: inline-flex;
+		align-items: center;
+	}
+	.inline-key-panel .sl-keygen-key .copy-button {
+		min-width: 44px;
+		min-height: 44px;
+	}
+}
+
 /* Only the content column shifts; the sidebar is position:fixed and unaffected.
-   On-screen movement → ease-in-out. */
+   Ease-out (system --ease-smooth) so the shift settles like the panel's entry. */
 .content-area {
-	transition: transform var(--duration-smooth)
-		cubic-bezier(0.645, 0.045, 0.355, 1);
+	transition: transform var(--duration-smooth) var(--ease-smooth);
 }
 .content-area:has(.inline-key[data-open="true"]) {
 	transform: translateX(-40px);
 }
 
-@media (max-width: 1239px) {
+@media (max-width: 1279px) {
 	.inline-key-panel {
 		position: static;
 		width: auto;

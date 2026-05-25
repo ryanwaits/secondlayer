@@ -2,7 +2,9 @@
 
 import {
 	type ReactNode,
+	type RefObject,
 	createContext,
+	useCallback,
 	useContext,
 	useEffect,
 	useId,
@@ -21,7 +23,7 @@ import { InlineKeyCreate, type KeyProduct } from "./inline-key-create";
  *
  * On wide screens the panel docks in the right gutter beside the trigger and
  * the content column nudges left to make room — the sidebar is position:fixed,
- * so it stays put. Below 1240px it expands inline beneath the text instead.
+ * so it stays put. Below 1280px it expands inline beneath the text instead.
  *
  * Dismisses on Escape, an outside pointer press, or focus leaving the block.
  * Auth-aware via InlineKeyCreate: a new visitor gets email → code → key; a
@@ -31,6 +33,7 @@ const KeyCtx = createContext<{
 	open: boolean;
 	toggle: () => void;
 	panelId: string;
+	triggerRef: RefObject<HTMLButtonElement | null>;
 } | null>(null);
 
 export function InlineKey({
@@ -44,7 +47,16 @@ export function InlineKey({
 	const [mounted, setMounted] = useState(false); // panel present in DOM
 	const [active, setActive] = useState(false); // panel animated in
 	const wrapRef = useRef<HTMLDivElement>(null);
+	const panelRef = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
 	const panelId = useId();
+
+	// Close and hand focus back to the trigger — keyboard users dismissing the
+	// panel (Escape, Cancel, Done) must land somewhere predictable, not in limbo.
+	const closeAndRefocus = useCallback(() => {
+		setOpen(false);
+		requestAnimationFrame(() => triggerRef.current?.focus());
+	}, []);
 
 	// Mount on open; keep mounted through the exit transition before unmounting.
 	useEffect(() => {
@@ -67,6 +79,17 @@ export function InlineKey({
 		return () => cancelAnimationFrame(r);
 	}, [open, mounted]);
 
+	// Move focus into the panel once it's animated in, so keyboard users land on
+	// the first field instead of having to tab into the gutter.
+	useEffect(() => {
+		if (!active) return;
+		panelRef.current
+			?.querySelector<HTMLElement>(
+				'input, button, [tabindex]:not([tabindex="-1"])',
+			)
+			?.focus();
+	}, [active]);
+
 	// Dismiss on outside pointer press or Escape.
 	useEffect(() => {
 		if (!open) return;
@@ -74,7 +97,7 @@ export function InlineKey({
 			if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
 		};
 		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") setOpen(false);
+			if (e.key === "Escape") closeAndRefocus();
 		};
 		document.addEventListener("pointerdown", onPointerDown);
 		document.addEventListener("keydown", onKey);
@@ -82,7 +105,7 @@ export function InlineKey({
 			document.removeEventListener("pointerdown", onPointerDown);
 			document.removeEventListener("keydown", onKey);
 		};
-	}, [open]);
+	}, [open, closeAndRefocus]);
 
 	// Dismiss when focus leaves the block entirely (e.g. tabbing past it).
 	const onBlur = (e: React.FocusEvent<HTMLDivElement>) => {
@@ -92,7 +115,7 @@ export function InlineKey({
 
 	return (
 		<KeyCtx.Provider
-			value={{ open, toggle: () => setOpen((o) => !o), panelId }}
+			value={{ open, toggle: () => setOpen((o) => !o), panelId, triggerRef }}
 		>
 			<div
 				className="inline-key"
@@ -104,13 +127,14 @@ export function InlineKey({
 				{mounted ? (
 					<div
 						id={panelId}
+						ref={panelRef}
 						className={`inline-key-panel${active ? " is-open" : ""}`}
 					>
 						<InlineKeyCreate
 							product={product}
 							context="inline"
 							onKey={() => {}}
-							onCancel={() => setOpen(false)}
+							onCancel={closeAndRefocus}
 						/>
 					</div>
 				) : null}
@@ -126,6 +150,7 @@ export function KeyTrigger({ children }: { children: ReactNode }) {
 	if (!ctx) return <>{children}</>;
 	return (
 		<button
+			ref={ctx.triggerRef}
 			type="button"
 			className="inline-keylink"
 			aria-expanded={ctx.open}

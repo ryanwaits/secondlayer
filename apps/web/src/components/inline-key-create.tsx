@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { CopyButton } from "./copy-button";
 
 type Step = "email" | "code" | "create" | "reveal";
@@ -50,6 +50,7 @@ export function InlineKeyCreate({
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const productLabel = PRODUCT_LABEL[product];
+	const codeHintId = useId();
 
 	const createStreamsKey = useCallback(async (): Promise<string> => {
 		const res = await fetch("/api/keys", {
@@ -139,6 +140,7 @@ export function InlineKeyCreate({
 						<input
 							type="email"
 							autoComplete="email"
+							aria-label="Email address"
 							className="dataset-sandbox-filter-input"
 							placeholder="you@company.xyz"
 							value={email}
@@ -166,12 +168,17 @@ export function InlineKeyCreate({
 				<div>
 					<span className="sl-keygen-label">
 						Enter the 6-digit code
-						<span className="hint"> · sent to {email}</span>
+						<span className="hint" id={codeHintId}>
+							{" "}
+							· sent to {email}
+						</span>
 					</span>
 					<div className="sl-keygen-row">
 						<input
 							inputMode="numeric"
 							autoComplete="one-time-code"
+							aria-label="Verification code"
+							aria-describedby={codeHintId}
 							maxLength={6}
 							className="dataset-sandbox-filter-input sl-keygen-code"
 							placeholder="••••••"
@@ -207,7 +214,7 @@ export function InlineKeyCreate({
 			{step === "create" ? (
 				busy && !error ? (
 					<div>
-						<span className="sl-keygen-label">
+						<span className="sl-keygen-label" aria-live="polite">
 							Creating your key…
 							<span className="hint"> · signed in as {account?.email}</span>
 						</span>
@@ -264,7 +271,11 @@ export function InlineKeyCreate({
 				</div>
 			) : null}
 
-			{error ? <p className="sl-keygen-err">{error}</p> : null}
+			{error ? (
+				<p className="sl-keygen-err" role="alert">
+					{error}
+				</p>
+			) : null}
 		</div>
 	);
 }
