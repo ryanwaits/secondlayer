@@ -19,7 +19,7 @@ export function createV1IndexRouter() {
 					name: "index",
 					path: "/v1/index",
 					description:
-						"Semantic indexes of high-volume event types (FT/NFT transfers).",
+						"Decoded chain events via /v1/index/events?event_type=… (FT/NFT transfers today), with typed ft-transfers/nft-transfers aliases.",
 					auth: "optional bearer for higher tier; anon allowed",
 				},
 				{

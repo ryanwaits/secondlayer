@@ -207,6 +207,31 @@ const OPENAPI_SPEC = {
 		"/v1/index": {
 			get: { tags: ["index"], summary: "Index discovery", responses: ok() },
 		},
+		"/v1/index/events": {
+			get: {
+				tags: ["index"],
+				summary: "Decoded events by event_type",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{
+						name: "event_type",
+						in: "query",
+						required: true,
+						schema: { type: "string", enum: ["ft_transfer", "nft_transfer"] },
+					},
+					{ $ref: "#/components/parameters/Limit" },
+					{ $ref: "#/components/parameters/Cursor" },
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+					qp("contract_id", "string"),
+					qp("asset_identifier", "string"),
+					qp("sender", "string"),
+					qp("recipient", "string"),
+				],
+				responses: envelope(),
+			},
+		},
 		"/v1/index/ft-transfers": {
 			get: {
 				tags: ["index"],

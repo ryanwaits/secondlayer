@@ -1,5 +1,5 @@
-import { getDb } from "@secondlayer/shared/db";
 import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
+import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import {
 	DEFAULT_INDEX_TOKEN_STORE,
@@ -7,6 +7,11 @@ import {
 	type IndexTokenStore,
 	indexBearerAuth,
 } from "../index/auth.ts";
+import {
+	INDEX_EVENT_TYPES,
+	type IndexEventsReader,
+	getIndexEventsResponse,
+} from "../index/events.ts";
 import {
 	type FtTransfersReader,
 	getFtTransfersResponse,
@@ -35,10 +40,12 @@ const INDEX_COMMON = [
 ] as const;
 const FT_ALLOWED = INDEX_COMMON;
 const NFT_ALLOWED = [...INDEX_COMMON, "asset_identifier"] as const;
+const EVENTS_ALLOWED = [...INDEX_COMMON, "event_type", "asset_identifier"];
 
 export type IndexRouterOptions = {
 	tokens?: IndexTokenStore;
 	getTip?: IndexTipProvider;
+	readEvents?: IndexEventsReader;
 	readFtTransfers?: FtTransfersReader;
 	readNftTransfers?: NftTransfersReader;
 	readReorgs?: StreamsReorgsReader;
@@ -62,17 +69,28 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		c.json({
 			routes: [
 				{
+					path: "/v1/index/events",
+					method: "GET",
+					description:
+						"Decoded chain events for a chosen event_type, filterable + cursor-paginated. Returns events[], next_cursor, tip, reorgs[].",
+					required: ["event_type"],
+					event_types: INDEX_EVENT_TYPES,
+					filters: EVENTS_ALLOWED,
+					notes:
+						"asset_identifier applies to nft_transfer only; allowed filters vary by event_type.",
+				},
+				{
 					path: "/v1/index/ft-transfers",
 					method: "GET",
 					description:
-						"Fungible token transfers, decoded + filterable. Returns events[], next_cursor, tip, reorgs[].",
+						"Alias for /events?event_type=ft_transfer. Fungible token transfers, decoded + filterable.",
 					filters: FT_ALLOWED,
 				},
 				{
 					path: "/v1/index/nft-transfers",
 					method: "GET",
 					description:
-						"NFT transfers, decoded + filterable. Returns events[], next_cursor, tip, reorgs[].",
+						"Alias for /events?event_type=nft_transfer. NFT transfers, decoded + filterable.",
 					filters: NFT_ALLOWED,
 				},
 			],
@@ -90,6 +108,23 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
 	);
 	router.use("*", indexRateLimit());
+
+	router.get("/events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getIndexEventsResponse({
+			query,
+			tip,
+			readEvents: opts.readEvents,
+			readReorgs,
+		});
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.events.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.events.length);
+		}
+		return c.json(response);
+	});
 
 	router.get("/ft-transfers", async (c) => {
 		const query = new URL(c.req.url).searchParams;

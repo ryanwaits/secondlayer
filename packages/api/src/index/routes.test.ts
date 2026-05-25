@@ -290,6 +290,60 @@ describe("Stacks Index gateway middleware", () => {
 		]);
 	});
 
+	test("GET /events requires event_type", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+			}),
+		);
+		const res = await app.request("/v1/index/events");
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("event_type is required");
+	});
+
+	test("GET /events serves a chosen event_type via the injected reader", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readEvents: async ({ eventType }) => ({
+					events: [
+						{
+							cursor: "10:0",
+							block_height: 10,
+							tx_id: "0x01",
+							tx_index: 0,
+							event_index: 0,
+							event_type: eventType,
+							contract_id: "SP123.token",
+							asset_identifier: "SP123.token::coin",
+							sender: "SP123.sender",
+							recipient: "SP123.recipient",
+							amount: "1",
+						},
+					],
+					next_cursor: "10:0",
+				}),
+			}),
+		);
+		const res = await app.request("/v1/index/events?event_type=ft_transfer");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			events: Array<{ event_type: string }>;
+			reorgs: unknown[];
+		};
+		expect(body.events.map((e) => e.event_type)).toEqual(["ft_transfer"]);
+		expect(body.reorgs).toEqual([]);
+	});
+
 	test("does not meter static keys, failed auth, wrong scope, or rate limit responses", async () => {
 		const metered: Array<{ accountId: string; quantity: number }> = [];
 		const app = createMeteredIndexApp({
