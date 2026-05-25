@@ -340,7 +340,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"keyword.control.from",
 				"keyword.control.as",
 			],
-			settings: { foreground: "#1FD5F9" },
+			settings: { foreground: "#8AA7F8" },
 		},
 		{
 			scope: [
@@ -361,7 +361,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"constant.language.boolean",
 				"variable.language.this",
 			],
-			settings: { foreground: "#1FD5F9" },
+			settings: { foreground: "#8AA7F8" },
 		},
 		{
 			scope: ["entity.name.function", "support.function", "meta.function-call"],
@@ -379,7 +379,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"variable.other.normal",
 				"punctuation.definition.variable",
 			],
-			settings: { foreground: "#1FD5F9" },
+			settings: { foreground: "#8AA7F8" },
 		},
 		// Pipes and redirects
 		{
@@ -398,7 +398,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"entity.name.command.shell",
 				"entity.name.function.call.shell",
 			],
-			settings: { foreground: "#1FD5F9", fontStyle: "bold" },
+			settings: { foreground: "#8AA7F8", fontStyle: "bold" },
 		},
 		// Shell — option flags (-H, --flag) via constant.other.option
 		{
@@ -453,7 +453,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		},
 		{
 			scope: ["punctuation.definition.template-expression"],
-			settings: { foreground: "#1FD5F9" },
+			settings: { foreground: "#8AA7F8" },
 		},
 		{
 			scope: ["entity.name.tag", "punctuation.definition.tag"],
@@ -469,12 +469,12 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 		},
 		{
 			scope: ["meta.decorator", "punctuation.decorator"],
-			settings: { foreground: "#1FD5F9" },
+			settings: { foreground: "#8AA7F8" },
 		},
 		// Markdown — inline code
 		{
 			scope: ["markup.inline.raw", "markup.raw"],
-			settings: { foreground: "#1FD5F9" },
+			settings: { foreground: "#8AA7F8" },
 		},
 		// Markdown — list markers
 		{
@@ -511,7 +511,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"meta.structure.dictionary.value.json punctuation.definition.string",
 				"meta.structure.array.json punctuation.definition.string",
 			],
-			settings: { foreground: "#1FD5F9" },
+			settings: { foreground: "#8AA7F8" },
 		},
 		// JSON — numbers, booleans, and null in values pop accent too.
 		{
@@ -521,7 +521,7 @@ export const monotonePurpleDark: ThemeRegistrationRaw = {
 				"meta.structure.dictionary.value.json constant.language",
 				"meta.structure.array.json constant.language",
 			],
-			settings: { foreground: "#1FD5F9" },
+			settings: { foreground: "#8AA7F8" },
 		},
 	],
 };
