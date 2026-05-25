@@ -67,7 +67,7 @@ export function IndexDiagram() {
 								Decoded events
 							</text>
 							<text className="ns" x="268" y="86" textAnchor="middle">
-								ft · nft · L2
+								stx · ft · nft · print
 							</text>
 						</g>
 						<g className="node api">
