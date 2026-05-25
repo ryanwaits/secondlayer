@@ -5644,7 +5644,6 @@ a.dataset-shelf-name:hover {
 .docs-mode-toggle button {
 	display: inline-flex;
 	align-items: center;
-	gap: 7px;
 	font-family: var(--font-sans-stack);
 	font-size: 13px;
 	font-weight: 500;
@@ -5662,6 +5661,19 @@ a.dataset-shelf-name:hover {
 .docs-mode-toggle button.active {
 	color: var(--accent);
 	background: var(--accent-bg);
+}
+/* [H] / [A] keycap — same treatment as .auth-bar-nav-key in the nav.
+   Inherits currentColor so it tints with the active tab. */
+.docs-mode-key {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	opacity: 0.5;
+}
+.docs-mode-label {
+	margin-left: 4px;
+}
+.docs-mode-toggle button.active .docs-mode-key {
+	opacity: 1;
 }
 
 /* ════════════════════════════════════════════════

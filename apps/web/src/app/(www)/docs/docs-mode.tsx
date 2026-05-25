@@ -3,6 +3,7 @@
 import {
 	type ReactNode,
 	createContext,
+	useCallback,
 	useContext,
 	useEffect,
 	useState,
@@ -24,12 +25,47 @@ export function DocsModeProvider({ children }: { children: ReactNode }) {
 		if (saved === "agent" || saved === "human") setModeState(saved);
 	}, []);
 
-	const setMode = (m: Mode) => {
+	const setMode = useCallback((m: Mode) => {
 		setModeState(m);
 		try {
 			localStorage.setItem("docs-mode", m);
 		} catch {}
-	};
+	}, []);
+
+	// Keyboard shortcuts: ⌘/Ctrl+← → human, ⌘/Ctrl+→ → agent (positional,
+	// matching the toggle order), and bare H / A as direct jumps. Ignored
+	// while typing in a field so search/command-palette input is unaffected.
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			const t = e.target as HTMLElement | null;
+			if (
+				t?.isContentEditable ||
+				t?.tagName === "INPUT" ||
+				t?.tagName === "TEXTAREA" ||
+				t?.tagName === "SELECT"
+			)
+				return;
+
+			if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+				if (e.key === "ArrowLeft") {
+					e.preventDefault();
+					setMode("human");
+				} else if (e.key === "ArrowRight") {
+					e.preventDefault();
+					setMode("agent");
+				}
+				return;
+			}
+
+			// Bare letters only — never with a modifier, so ⌘A/⌘H stay native.
+			if (e.metaKey || e.ctrlKey || e.altKey) return;
+			const k = e.key.toLowerCase();
+			if (k === "h") setMode("human");
+			else if (k === "a") setMode("agent");
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [setMode]);
 
 	return (
 		<DocsModeContext.Provider value={{ mode, setMode }}>
@@ -42,44 +78,9 @@ export function useDocsMode() {
 	return useContext(DocsModeContext);
 }
 
-function HumanIcon() {
-	return (
-		<svg
-			width="13"
-			height="13"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-		>
-			<circle cx="12" cy="8" r="4" />
-			<path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
-		</svg>
-	);
-}
-function AgentIcon() {
-	return (
-		<svg
-			width="13"
-			height="13"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-		>
-			<rect x="3" y="6" width="18" height="12" rx="2" />
-			<path d="M9 11h.01M15 11h.01M8 18l-2 3" />
-		</svg>
-	);
-}
-
-/** Floating Human | Agent switch (every.to-style), painted in our tokens. */
+/** Floating Human | Agent switch (every.to-style), painted in our tokens.
+ *  Each tab leads with its [H] / [A] keycap (same style as the nav links) to
+ *  signal the keyboard shortcut. */
 export function ModeToggle() {
 	const { mode, setMode } = useDocsMode();
 	return (
@@ -88,19 +89,29 @@ export function ModeToggle() {
 				type="button"
 				role="tab"
 				aria-selected={mode === "human"}
+				aria-keyshortcuts="H"
+				title="Human view (H or ⌘←)"
 				className={mode === "human" ? "active" : ""}
 				onClick={() => setMode("human")}
 			>
-				<HumanIcon /> Human
+				<span className="docs-mode-key" aria-hidden="true">
+					[H]
+				</span>
+				<span className="docs-mode-label">Human</span>
 			</button>
 			<button
 				type="button"
 				role="tab"
 				aria-selected={mode === "agent"}
+				aria-keyshortcuts="A"
+				title="Agent view (A or ⌘→)"
 				className={mode === "agent" ? "active" : ""}
 				onClick={() => setMode("agent")}
 			>
-				<AgentIcon /> Agent
+				<span className="docs-mode-key" aria-hidden="true">
+					[A]
+				</span>
+				<span className="docs-mode-label">Agent</span>
 			</button>
 		</div>
 	);
