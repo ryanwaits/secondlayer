@@ -9,9 +9,11 @@ export { decodeFtTransfer, isFtTransfer } from "./ft-transfer.ts";
 export { decodeNftTransfer, isNftTransfer } from "./nft-transfer.ts";
 export {
 	decodeStxBurn,
+	decodeStxLock,
 	decodeStxMint,
 	decodeStxTransfer,
 	isStxBurn,
+	isStxLock,
 	isStxMint,
 	isStxTransfer,
 } from "./stx-events.ts";
@@ -31,6 +33,7 @@ import type { DecodedNftTransfer } from "./nft-transfer.ts";
 import type { DecodedPrint } from "./print.ts";
 import type {
 	DecodedStxBurn,
+	DecodedStxLock,
 	DecodedStxMint,
 	DecodedStxTransfer,
 } from "./stx-events.ts";
@@ -47,6 +50,7 @@ export type DecodedEventRow =
 	| DecodedStxTransfer
 	| DecodedStxMint
 	| DecodedStxBurn
+	| DecodedStxLock
 	| DecodedFtMint
 	| DecodedFtBurn
 	| DecodedNftMint
@@ -68,6 +72,8 @@ export type {
 export type {
 	DecodedStxBurn,
 	DecodedStxBurnPayload,
+	DecodedStxLock,
+	DecodedStxLockPayload,
 	DecodedStxMint,
 	DecodedStxMintPayload,
 	DecodedStxTransfer,

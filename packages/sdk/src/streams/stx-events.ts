@@ -2,6 +2,7 @@ import {
 	decodedRow,
 	optionalString,
 	requireAmount,
+	requireAmountField,
 	requireString,
 } from "./_payload.ts";
 import type { StreamsEvent } from "./types.ts";
@@ -106,5 +107,43 @@ export function decodeStxBurn(event: StreamsEvent): DecodedStxBurn {
 	return decodedRow(event, "stx_burn", {
 		sender: requireString(payload, "sender", "stx_burn"),
 		amount: requireAmount(payload, "stx_burn"),
+	});
+}
+
+export type DecodedStxLockPayload = {
+	// The locked principal maps to `sender` and the locked uSTX to `amount` so
+	// stx_lock is filterable like the other STX types; the lock-specific
+	// unlock_height rides in the jsonb `payload` overflow.
+	sender: string;
+	amount: string;
+	payload: { unlock_height: string | null };
+};
+
+export type DecodedStxLock = {
+	cursor: string;
+	block_height: number;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	event_type: "stx_lock";
+	decoded_payload: DecodedStxLockPayload;
+	source_cursor: string;
+};
+
+export function isStxLock(
+	event: StreamsEvent,
+): event is StreamsEvent & { event_type: "stx_lock" } {
+	return event.event_type === "stx_lock";
+}
+
+export function decodeStxLock(event: StreamsEvent): DecodedStxLock {
+	if (!isStxLock(event)) {
+		throw new Error(`Expected stx_lock event, got ${event.event_type}`);
+	}
+	const payload = event.payload;
+	return decodedRow(event, "stx_lock", {
+		sender: requireString(payload, "locked_address", "stx_lock"),
+		amount: requireAmountField(payload, "locked_amount", "stx_lock"),
+		payload: { unlock_height: optionalString(payload.unlock_height) },
 	});
 }

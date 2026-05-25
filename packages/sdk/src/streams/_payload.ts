@@ -31,15 +31,23 @@ export function optionalString(value: unknown): string | null {
 	return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+export function requireAmountField(
+	payload: Record<string, unknown>,
+	field: string,
+	eventType: string,
+): string {
+	const amount = requireString(payload, field, eventType);
+	if (!/^(0|[1-9]\d*)$/.test(amount)) {
+		throw new Error(`${eventType} payload has malformed ${field}`);
+	}
+	return amount;
+}
+
 export function requireAmount(
 	payload: Record<string, unknown>,
 	eventType: string,
 ): string {
-	const amount = requireString(payload, "amount", eventType);
-	if (!/^(0|[1-9]\d*)$/.test(amount)) {
-		throw new Error(`${eventType} payload has malformed amount`);
-	}
-	return amount;
+	return requireAmountField(payload, "amount", eventType);
 }
 
 export function parseAssetIdentifier(

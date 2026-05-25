@@ -126,6 +126,12 @@ export type IndexStxBurn = IndexEventBase & {
 	sender: string;
 	amount: string;
 };
+export type IndexStxLock = IndexEventBase & {
+	event_type: "stx_lock";
+	sender: string;
+	amount: string;
+	payload: { unlock_height: string | null };
+};
 export type IndexFtMint = IndexEventBase & {
 	event_type: "ft_mint";
 	asset_identifier: string;
@@ -162,6 +168,7 @@ export type IndexEvent =
 	| IndexStxTransfer
 	| IndexStxMint
 	| IndexStxBurn
+	| IndexStxLock
 	| IndexFtMint
 	| IndexFtBurn
 	| IndexNftMint
