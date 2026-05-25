@@ -1,4 +1,4 @@
-import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
+import { decodeClarityValue, toJsonSafe } from "../clarity.ts";
 import { decodedRow, optionalString } from "./_payload.ts";
 import type { StreamsEvent } from "./types.ts";
 
@@ -43,21 +43,6 @@ function printValueHex(payload: Record<string, unknown>): string | null {
 	return null;
 }
 
-/** cvToValue yields bigint for Clarity (u)ints; convert recursively to strings
- *  so the decoded value is JSON-serializable for the jsonb column / API. */
-function toJsonSafe(value: unknown): unknown {
-	if (typeof value === "bigint") return value.toString();
-	if (Array.isArray(value)) return value.map(toJsonSafe);
-	if (value && typeof value === "object") {
-		const out: Record<string, unknown> = {};
-		for (const [key, val] of Object.entries(value)) {
-			out[key] = toJsonSafe(val);
-		}
-		return out;
-	}
-	return value;
-}
-
 export function isPrint(
 	event: StreamsEvent,
 ): event is StreamsEvent & { event_type: "print" } {
@@ -72,17 +57,9 @@ export function decodePrint(event: StreamsEvent): DecodedPrint {
 	const topic = optionalString(payload.topic);
 	const rawValue = printValueHex(payload);
 
-	let value: unknown;
-	if (rawValue) {
-		try {
-			const hex = rawValue.startsWith("0x") ? rawValue.slice(2) : rawValue;
-			value = toJsonSafe(cvToValue(deserializeCV(hex)));
-		} catch {
-			value = toJsonSafe(payload.value ?? null);
-		}
-	} else {
-		value = toJsonSafe(payload.value ?? null);
-	}
+	const value = rawValue
+		? decodeClarityValue(rawValue)
+		: toJsonSafe(payload.value ?? null);
 
 	return decodedRow(event, "print", {
 		contract_id: event.contract_id ?? optionalString(payload.contract_id),

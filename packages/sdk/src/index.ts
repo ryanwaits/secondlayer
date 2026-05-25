@@ -62,6 +62,7 @@ export {
 	StreamsServerError,
 	ValidationError,
 } from "./streams/index.ts";
+export { decodeClarityValue, toJsonSafe } from "./clarity.ts";
 export type {
 	DecodedEventColumns,
 	DecodedEventRow,
