@@ -1,0 +1,336 @@
+import { getSourceDb, sql } from "@secondlayer/shared/db";
+import type { Database } from "@secondlayer/shared/db/schema";
+import { ValidationError } from "@secondlayer/shared/errors";
+import type { Kysely, RawBuilder } from "kysely";
+import { validateQueryParams } from "../middleware/validation.ts";
+import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
+import {
+	type IndexCursorInput,
+	encodeIndexCursor,
+	parseFilter,
+	parseIndexBaseQuery,
+	readReorgsForEvents,
+	toIsoOrNull,
+} from "./_shared.ts";
+import type { IndexTip } from "./tip.ts";
+
+/** Query params shared by every Index read endpoint. */
+const INDEX_COMMON_FILTERS = [
+	"limit",
+	"cursor",
+	"from_cursor",
+	"from_height",
+	"to_height",
+	"contract_id",
+	"sender",
+	"recipient",
+] as const;
+
+/** Equality filters a decoded-event type may expose. Each also drives the
+ *  ORDER BY (the first provided filter, in config order, leads the sort). */
+type IndexEqualityFilter =
+	| "contract_id"
+	| "asset_identifier"
+	| "sender"
+	| "recipient";
+
+type IndexEventConfig = {
+	/** Type-specific columns selected beyond the universal base, in SELECT order. */
+	columns: readonly string[];
+	/** Columns constrained to NOT NULL — the rows this event type guarantees. */
+	requiredNonNull: readonly string[];
+	/** Equality filters in ORDER BY precedence order. */
+	equalityFilters: readonly IndexEqualityFilter[];
+	/** Allowed query params (event_type is always allowed on /events). */
+	allowedFilters: readonly string[];
+};
+
+/** Registry of decoded-event types served by GET /v1/index/events.
+ *  New Streams-sourced event types (stx_transfer, mints/burns, print) plug in
+ *  here — no new handler files. contract_call is tx-sourced and lives on its
+ *  own endpoint, so it is intentionally absent. */
+const INDEX_EVENT_CONFIG = {
+	ft_transfer: {
+		columns: ["asset_identifier", "sender", "recipient", "amount"],
+		requiredNonNull: [
+			"contract_id",
+			"asset_identifier",
+			"sender",
+			"recipient",
+			"amount",
+		],
+		equalityFilters: ["contract_id", "sender", "recipient"],
+		allowedFilters: INDEX_COMMON_FILTERS,
+	},
+	nft_transfer: {
+		columns: ["asset_identifier", "sender", "recipient", "value"],
+		requiredNonNull: [
+			"contract_id",
+			"asset_identifier",
+			"sender",
+			"recipient",
+			"value",
+		],
+		equalityFilters: ["contract_id", "asset_identifier", "sender", "recipient"],
+		allowedFilters: [...INDEX_COMMON_FILTERS, "asset_identifier"],
+	},
+} as const satisfies Record<string, IndexEventConfig>;
+
+export type IndexEventType = keyof typeof INDEX_EVENT_CONFIG;
+
+export const INDEX_EVENT_TYPES = Object.keys(
+	INDEX_EVENT_CONFIG,
+) as IndexEventType[];
+
+export function isIndexEventType(value: string): value is IndexEventType {
+	return value in INDEX_EVENT_CONFIG;
+}
+
+/** A decoded event in flat form, discriminated by `event_type`. Type-specific
+ *  fields are optional at the type level; the per-type NOT NULL constraints
+ *  guarantee their presence for the rows a given event_type returns. */
+export type IndexEvent = {
+	cursor: string;
+	block_height: number;
+	block_time?: string | null;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	event_type: IndexEventType;
+	contract_id: string | null;
+	asset_identifier?: string | null;
+	sender?: string | null;
+	recipient?: string | null;
+	amount?: string | null;
+	value?: string | null;
+};
+
+type IndexEventRow = {
+	cursor: string;
+	block_height: string | number;
+	block_time: Date | string | null;
+	tx_id: string;
+	tx_index: string | number;
+	event_index: string | number;
+	event_type: IndexEventType;
+	contract_id: string | null;
+	asset_identifier?: string | null;
+	sender?: string | null;
+	recipient?: string | null;
+	amount?: string | null;
+	value?: string | null;
+};
+
+export type IndexEventsQuery = {
+	eventType: IndexEventType;
+	cursor?: IndexCursorInput;
+	cursorRaw?: string;
+	fromHeight: number;
+	toHeight: number;
+	limit: number;
+	filters: Partial<Record<IndexEqualityFilter, string>>;
+	cursorPastTip: boolean;
+};
+
+export type IndexEventsResponse = {
+	events: IndexEvent[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	reorgs: StreamsReorg[];
+};
+
+export type ReadIndexEventsParams = {
+	eventType: IndexEventType;
+	after?: IndexCursorInput;
+	fromHeight: number;
+	toHeight: number;
+	limit: number;
+	filters?: Partial<Record<IndexEqualityFilter, string>>;
+	db?: Kysely<Database>;
+};
+
+export type ReadIndexEventsResult = {
+	events: IndexEvent[];
+	next_cursor: string | null;
+};
+
+export type IndexEventsReader = (
+	params: ReadIndexEventsParams,
+) => Promise<ReadIndexEventsResult>;
+
+function normalizeIndexRow(
+	row: IndexEventRow,
+	config: IndexEventConfig,
+): IndexEvent {
+	const event: IndexEvent = {
+		cursor: row.cursor,
+		block_height: Number(row.block_height),
+		block_time: toIsoOrNull(row.block_time),
+		tx_id: row.tx_id,
+		tx_index: Number(row.tx_index),
+		event_index: Number(row.event_index),
+		event_type: row.event_type,
+		contract_id: row.contract_id,
+	};
+	for (const column of config.columns) {
+		(event as Record<string, unknown>)[column] = (
+			row as Record<string, unknown>
+		)[column];
+	}
+	return event;
+}
+
+/** Single SQL source for every decoded-event read. ft/nft transfer endpoints
+ *  delegate here, so /events and the typed aliases never diverge. Column names
+ *  come from the static registry, never from user input. */
+export async function readIndexEvents(
+	params: ReadIndexEventsParams,
+): Promise<ReadIndexEventsResult> {
+	if (params.toHeight < params.fromHeight) {
+		return { events: [], next_cursor: null };
+	}
+
+	const config = INDEX_EVENT_CONFIG[params.eventType];
+	const db = params.db ?? getSourceDb();
+	const filters = params.filters ?? {};
+
+	const predicates: RawBuilder<unknown>[] = [
+		sql`canonical = true`,
+		sql`event_type = ${params.eventType}`,
+		sql`block_height >= ${params.fromHeight}`,
+		sql`block_height <= ${params.toHeight}`,
+		...config.requiredNonNull.map(
+			(column) => sql`${sql.ref(column)} IS NOT NULL`,
+		),
+	];
+
+	if (params.after) {
+		predicates.push(sql`
+			(
+				block_height > ${params.after.block_height}
+				OR (
+					block_height = ${params.after.block_height}
+					AND event_index > ${params.after.event_index}
+				)
+			)
+		`);
+	}
+
+	for (const filter of config.equalityFilters) {
+		const value = filters[filter];
+		if (value) {
+			predicates.push(sql`${sql.ref(filter)} = ${value}`);
+		}
+	}
+
+	const leadFilter = config.equalityFilters.find((filter) => filters[filter]);
+	const orderBy = leadFilter
+		? sql`${sql.ref(leadFilter)} ASC, block_height ASC, event_index ASC`
+		: sql`block_height ASC, event_index ASC`;
+	const extraColumns = sql.join(
+		config.columns.map((column) => sql.ref(column)),
+		sql`, `,
+	);
+
+	const { rows } = await sql<IndexEventRow>`
+		SELECT
+			cursor,
+			block_height,
+			(
+				SELECT to_timestamp(b.timestamp) AT TIME ZONE 'UTC'
+				FROM blocks b
+				WHERE b.height = decoded_events.block_height
+					AND b.canonical = true
+				LIMIT 1
+			) AS block_time,
+			tx_id,
+			tx_index,
+			event_index,
+			event_type,
+			contract_id,
+			${extraColumns}
+		FROM decoded_events
+		WHERE ${sql.join(predicates, sql` AND `)}
+		ORDER BY ${orderBy}
+		LIMIT ${params.limit + 1}
+	`.execute(db);
+
+	const pageRows = rows.slice(0, params.limit);
+	const events = pageRows.map((row) => normalizeIndexRow(row, config));
+	const lastEvent = events.at(-1);
+
+	return {
+		events,
+		next_cursor: lastEvent
+			? encodeIndexCursor({
+					block_height: lastEvent.block_height,
+					event_index: lastEvent.event_index,
+				})
+			: null,
+	};
+}
+
+export function parseIndexEventsQuery(
+	query: URLSearchParams,
+	tip: IndexTip,
+): IndexEventsQuery {
+	const eventTypeRaw = query.get("event_type") ?? undefined;
+	if (eventTypeRaw === undefined) {
+		throw new ValidationError(
+			`event_type is required (one of: ${INDEX_EVENT_TYPES.join(", ")})`,
+		);
+	}
+	if (!isIndexEventType(eventTypeRaw)) {
+		throw new ValidationError(
+			`unknown event_type: ${eventTypeRaw} (one of: ${INDEX_EVENT_TYPES.join(", ")})`,
+		);
+	}
+
+	const config = INDEX_EVENT_CONFIG[eventTypeRaw];
+	validateQueryParams(query, [...config.allowedFilters, "event_type"]);
+
+	const base = parseIndexBaseQuery(query, tip);
+	const filters: Partial<Record<IndexEqualityFilter, string>> = {};
+	for (const filter of config.equalityFilters) {
+		const value = parseFilter(query.get(filter) ?? undefined, filter);
+		if (value !== undefined) filters[filter] = value;
+	}
+
+	return { ...base, eventType: eventTypeRaw, filters };
+}
+
+export async function getIndexEventsResponse(opts: {
+	query: URLSearchParams;
+	tip: IndexTip;
+	readEvents?: IndexEventsReader;
+	readReorgs?: StreamsReorgsReader;
+}): Promise<IndexEventsResponse> {
+	const parsed = parseIndexEventsQuery(opts.query, opts.tip);
+
+	if (parsed.cursorPastTip) {
+		return {
+			events: [],
+			next_cursor: parsed.cursorRaw ?? null,
+			tip: opts.tip,
+			reorgs: [],
+		};
+	}
+
+	const readEvents = opts.readEvents ?? readIndexEvents;
+	const result = await readEvents({
+		eventType: parsed.eventType,
+		after: parsed.cursor,
+		fromHeight: parsed.fromHeight,
+		toHeight: parsed.toHeight,
+		limit: parsed.limit,
+		filters: parsed.filters,
+	});
+	const reorgs = await readReorgsForEvents(result.events, opts.readReorgs);
+
+	return {
+		events: result.events,
+		next_cursor: result.next_cursor,
+		tip: opts.tip,
+		reorgs,
+	};
+}
