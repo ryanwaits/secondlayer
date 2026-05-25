@@ -2,6 +2,26 @@
 /* Console / Dashboard                                             */
 /* ═══════════════════════════════════════════════════════════════ */
 
+/* Skeleton placeholder used by route-level loading.tsx fallbacks */
+.sl-skeleton {
+	background: var(--code-bg);
+	animation: sl-skeleton-pulse 1.4s ease-in-out infinite;
+}
+@keyframes sl-skeleton-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.45;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.sl-skeleton {
+		animation: none;
+	}
+}
+
 /* Remove native focus rings globally within the console shell */
 .dash *:focus,
 .dash *:focus-visible {
