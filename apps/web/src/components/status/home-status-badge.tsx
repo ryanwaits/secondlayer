@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
 	formatLag,
 	formatLastChecked,
@@ -9,6 +8,8 @@ import {
 } from "@/lib/status-page";
 import type { FreshnessColor } from "@/lib/status-page";
 import type { IndexDecoderFreshness, SystemStatus } from "@/lib/types";
+import Link from "next/link";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 type StatusState = FreshnessColor | "red";
 
@@ -263,7 +264,7 @@ export function HomeStatusBadge({ status }: { status: SystemStatus | null }) {
 							status?.timestamp ? new Date(status.timestamp) : null,
 						)}
 					</span>
-					<a href="/status">Status page</a>
+					<Link href="/status">Status page</Link>
 				</div>
 			</div>
 

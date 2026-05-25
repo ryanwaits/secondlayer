@@ -7,6 +7,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Index | secondlayer",
@@ -33,8 +34,8 @@ export default function IndexPage() {
 				<div className="prose">
 					<p>
 						Index is the decoded read layer for Stacks. An L2 decoder consumes
-						the raw <a href="/streams">Streams</a> firehose and normalizes it
-						into typed FT and NFT transfer tables — query them directly by
+						the raw <Link href="/streams">Streams</Link> firehose and normalizes
+						it into typed FT and NFT transfer tables — query them directly by
 						contract, wallet, or block range, with no decoders to write or
 						maintain.
 					</p>
@@ -44,8 +45,8 @@ export default function IndexPage() {
 					</InlineKey>
 					<p>
 						For your own app-specific shape, see{" "}
-						<a href="/subgraphs">Subgraphs</a>; for raw events, see{" "}
-						<a href="/streams">Streams</a>.
+						<Link href="/subgraphs">Subgraphs</Link>; for raw events, see{" "}
+						<Link href="/streams">Streams</Link>.
 					</p>
 				</div>
 
@@ -95,7 +96,7 @@ for await (const t of index.ftTransfers.walk({ contractId })) {
 				<Callout label="Full reference">
 					<p>
 						Every field, the rate tiers, and the NFT endpoint live in the docs →{" "}
-						<a href="/docs/index">/docs/index</a>.
+						<Link href="/docs/index">/docs/index</Link>.
 					</p>
 				</Callout>
 

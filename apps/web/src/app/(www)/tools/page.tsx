@@ -3,6 +3,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Tools | secondlayer",
@@ -121,7 +122,7 @@ bunx @secondlayer/mcp --http              # HTTP transport on :3900`}
 						The agent-native Stacks chain SDK. Typed contract reads + writes, AI
 						SDK <code>tool({"{...}"})</code> values, and the <code>on.*</code>{" "}
 						filter factories that produce typed{" "}
-						<a href="/subscriptions">Subscription</a> specs.
+						<Link href="/subscriptions">Subscription</Link> specs.
 					</p>
 				</div>
 

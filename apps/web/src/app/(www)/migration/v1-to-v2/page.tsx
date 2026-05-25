@@ -3,6 +3,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "v1 → v2 migration | secondlayer",
@@ -30,10 +31,10 @@ export default function MigrationPage() {
 					<p>
 						<code>@secondlayer/workflows</code>, <code>workflow-runner</code>,
 						and <code>sentries</code> are deprecated. Push semantics for chain
-						events live on <a href="/subscriptions">Subscriptions</a>. Durable
-						execution isn't our edge — Inngest, Trigger.dev, and Cloudflare
-						Workflows already nailed it. We deliver typed signed events into
-						your runtime.
+						events live on <Link href="/subscriptions">Subscriptions</Link>.
+						Durable execution isn't our edge — Inngest, Trigger.dev, and
+						Cloudflare Workflows already nailed it. We deliver typed signed
+						events into your runtime.
 					</p>
 				</div>
 

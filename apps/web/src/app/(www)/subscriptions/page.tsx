@@ -5,6 +5,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Subscriptions | secondlayer",
@@ -31,13 +32,13 @@ export default function SubscriptionsPage() {
 				<div className="prose">
 					<p>
 						Push instead of poll. A subscription binds to a{" "}
-						<a href="/subgraphs">subgraph</a> table — every row your handler
-						writes that matches your filter fires a signed, retried webhook.
-						Point it at Discord, Slack, Trigger.dev, or your own backend —
-						anything that speaks HTTP.
+						<Link href="/subgraphs">subgraph</Link> table — every row your
+						handler writes that matches your filter fires a signed, retried
+						webhook. Point it at Discord, Slack, Trigger.dev, or your own
+						backend — anything that speaks HTTP.
 					</p>
 					<p>
-						For pull semantics, see <a href="/streams">Streams</a>.
+						For pull semantics, see <Link href="/streams">Streams</Link>.
 					</p>
 				</div>
 
@@ -114,7 +115,7 @@ webhook-signature: v1,<base64-hmac>
 					<p>
 						All filter operators, the <code>on.*</code> factory catalog, every
 						signing format, and replay/DLQ details live in the docs →{" "}
-						<a href="/docs/subscriptions">/docs/subscriptions</a>.
+						<Link href="/docs/subscriptions">/docs/subscriptions</Link>.
 					</p>
 				</Callout>
 			</main>

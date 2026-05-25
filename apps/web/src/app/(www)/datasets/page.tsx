@@ -5,6 +5,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Stacks Datasets | secondlayer",
@@ -112,9 +113,9 @@ export function DatasetsContent() {
 				</p>
 				<p>
 					They share the same publishing harness as{" "}
-					<a href="/streams">Streams</a> bulk dumps: parquet partitioned by
-					Stacks block height, refreshed on a schedule, with a machine-readable
-					manifest at <code>manifest/latest.json</code>.
+					<Link href="/streams">Streams</Link> bulk dumps: parquet partitioned
+					by Stacks block height, refreshed on a schedule, with a
+					machine-readable manifest at <code>manifest/latest.json</code>.
 				</p>
 			</div>
 
@@ -164,7 +165,7 @@ LIMIT 5;`}
 			<Callout label="Full reference">
 				<p>
 					Per-dataset schemas, endpoints, and parquet paths live in the docs →{" "}
-					<a href="/docs/datasets">/docs/datasets</a>.
+					<Link href="/docs/datasets">/docs/datasets</Link>.
 				</p>
 			</Callout>
 		</main>
@@ -178,9 +179,9 @@ export function DatasetsList() {
 				<li key={dataset.slug} className="dataset-shelf-row">
 					<div className="dataset-shelf-head">
 						{dataset.href ? (
-							<a href={dataset.href} className="dataset-shelf-name">
+							<Link href={dataset.href} className="dataset-shelf-name">
 								{dataset.name}
-							</a>
+							</Link>
 						) : (
 							<span className="dataset-shelf-name">{dataset.name}</span>
 						)}

@@ -7,6 +7,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Streams | secondlayer",
@@ -45,7 +46,7 @@ export default function StreamsPage() {
 						never run a Stacks node. We shoulder data availability so you can
 						build higher-level APIs and indexers on top. It's the same firehose
 						every Foundation Dataset decoder reads internally. For push
-						delivery, see <a href="/subscriptions">Subscriptions</a>.
+						delivery, see <Link href="/subscriptions">Subscriptions</Link>.
 					</p>
 				</div>
 
@@ -112,8 +113,8 @@ await streams.events.consume({
 				<Callout label="Full reference">
 					<p>
 						Every endpoint, the rate and retention tiers, and the full SDK
-						surface live in the docs → <a href="/docs/streams">/docs/streams</a>
-						.
+						surface live in the docs →{" "}
+						<Link href="/docs/streams">/docs/streams</Link>.
 					</p>
 				</Callout>
 

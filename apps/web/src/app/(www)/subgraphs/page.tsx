@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/sidebar";
 import type { TocItem } from "@/components/sidebar";
 import { MARKETING_SUBGRAPHS_PROMPT } from "@/lib/agent-prompts";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Stacks Subgraphs | secondlayer",
@@ -41,8 +42,8 @@ export default function SubgraphsPage() {
 						generated typed client.
 					</p>
 					<p>
-						It's the L3 surface: where <a href="/streams">raw events</a> become
-						the data <em>your</em> app actually wants. Install with{" "}
+						It's the L3 surface: where <Link href="/streams">raw events</Link>{" "}
+						become the data <em>your</em> app actually wants. Install with{" "}
 						<code>bun add @secondlayer/subgraphs</code>.
 					</p>
 				</div>
@@ -161,7 +162,7 @@ const { data } = await client.subgraphs.queryTable(
 					<p>
 						Column types, the full handler context API, monitoring patterns, and
 						every HTTP route live in the docs →{" "}
-						<a href="/docs/subgraphs">/docs/subgraphs</a>.
+						<Link href="/docs/subgraphs">/docs/subgraphs</Link>.
 					</p>
 				</Callout>
 			</main>
