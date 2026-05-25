@@ -229,6 +229,7 @@ const OPENAPI_SPEC = {
 								"ft_burn",
 								"nft_mint",
 								"nft_burn",
+								"print",
 							],
 						},
 					},

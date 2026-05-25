@@ -131,6 +131,12 @@ const INDEX_EVENT_CONFIG = {
 			"sender",
 		],
 	},
+	print: {
+		columns: ["payload"],
+		requiredNonNull: ["contract_id"],
+		equalityFilters: ["contract_id"],
+		allowedFilters: [...PAGINATION_FILTERS, "contract_id"],
+	},
 } as const satisfies Record<string, IndexEventConfig>;
 
 export type IndexEventType = keyof typeof INDEX_EVENT_CONFIG;
@@ -161,6 +167,7 @@ export type IndexEvent = {
 	amount?: string | null;
 	value?: string | null;
 	memo?: string | null;
+	payload?: unknown;
 };
 
 type IndexEventRow = {
@@ -178,6 +185,7 @@ type IndexEventRow = {
 	amount?: string | null;
 	value?: string | null;
 	memo?: string | null;
+	payload?: unknown;
 };
 
 export type IndexEventsQuery = {
@@ -232,11 +240,23 @@ function normalizeIndexRow(
 		contract_id: row.contract_id,
 	};
 	for (const column of config.columns) {
-		(event as Record<string, unknown>)[column] = (
-			row as Record<string, unknown>
-		)[column];
+		const raw = (row as Record<string, unknown>)[column];
+		// jsonb columns (print's payload) arrive as objects from postgres.js, but
+		// parse defensively in case a driver hands back the raw string.
+		(event as Record<string, unknown>)[column] =
+			column === "payload" && typeof raw === "string"
+				? parseJsonColumn(raw)
+				: raw;
 	}
 	return event;
+}
+
+function parseJsonColumn(value: string): unknown {
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
+	}
 }
 
 /** Single SQL source for every decoded-event read. ft/nft transfer endpoints

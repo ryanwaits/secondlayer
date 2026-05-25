@@ -94,6 +94,18 @@ describe("Index /events query parsing", () => {
 		expect(parsed.filters.asset_identifier).toBe("SP1.nft::item");
 	});
 
+	test("print accepts contract_id but rejects sender", () => {
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=print&contract_id=SP1.c"),
+			TIP,
+		);
+		expect(parsed.eventType).toBe("print");
+		expect(parsed.filters.contract_id).toBe("SP1.c");
+		expect(() =>
+			parseIndexEventsQuery(params("?event_type=print&sender=SP1"), TIP),
+		).toThrow("unknown query param: sender");
+	});
+
 	test("defaults to last day when no explicit height or cursor is provided", () => {
 		const parsed = parseIndexEventsQuery(
 			params("?event_type=ft_transfer"),
@@ -249,6 +261,45 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 			limit: 10,
 		});
 		expect(nftOnly.events.map((e) => e.cursor)).toEqual(["9900:1"]);
+	});
+
+	test("print returns the decoded jsonb payload", async () => {
+		if (!db) throw new Error("missing db");
+		const payload = {
+			topic: "deposit",
+			value: { amount: "100" },
+			raw_value: "0x0c",
+		};
+		await db
+			.insertInto("decoded_events")
+			.values([
+				{
+					cursor: "9000:0",
+					block_height: 9000,
+					tx_id: "tx-print",
+					tx_index: 0,
+					event_index: 0,
+					event_type: "print",
+					contract_id: "SP1.contract",
+					payload: JSON.stringify(payload),
+					source_cursor: "9000:0",
+				},
+			])
+			.execute();
+
+		const result = await readIndexEvents({
+			db,
+			eventType: "print",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+		});
+		expect(result.events[0]).toMatchObject({
+			cursor: "9000:0",
+			event_type: "print",
+			contract_id: "SP1.contract",
+			payload,
+		});
 	});
 });
 
