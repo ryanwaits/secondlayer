@@ -97,6 +97,14 @@ const INDEX_EVENT_CONFIG = {
 		equalityFilters: ["sender"],
 		allowedFilters: [...PAGINATION_FILTERS, "sender"],
 	},
+	stx_lock: {
+		// locked_address → sender, locked_amount → amount; unlock_height rides in
+		// the jsonb payload ({ unlock_height }).
+		columns: ["sender", "amount", "payload"],
+		requiredNonNull: ["sender", "amount"],
+		equalityFilters: ["sender"],
+		allowedFilters: [...PAGINATION_FILTERS, "sender"],
+	},
 	ft_mint: {
 		columns: ["asset_identifier", "recipient", "amount"],
 		requiredNonNull: ["contract_id", "asset_identifier", "recipient", "amount"],

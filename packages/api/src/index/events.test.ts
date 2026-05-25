@@ -53,6 +53,7 @@ describe("Index /events query parsing", () => {
 			"stx_transfer",
 			"stx_mint",
 			"stx_burn",
+			"stx_lock",
 			"ft_mint",
 			"ft_burn",
 			"nft_mint",
