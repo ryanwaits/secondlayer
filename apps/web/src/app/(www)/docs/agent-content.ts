@@ -80,8 +80,8 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	"/docs/index": [
 		card(
 			"Query decoded events",
-			"Filter blocks, txs, events, and contract calls.",
-			"/secondlayer Help me query the Index API for decoded Stacks chain data. Ask me for a contract, principal, event type, or block range, build the filtered cursor-paginated request against `/v1/index`, and explain the response envelope.",
+			"Filter every event type + contract calls by contract, principal, or block.",
+			"/secondlayer Help me query the Index API. Ask me for an event_type (ft_transfer, stx_transfer, print, …) or contract calls, plus any contract/principal/block-range filter, then build the cursor-paginated request against `/v1/index/events` or `/v1/index/contract-calls` and explain the response envelope.",
 		),
 	],
 

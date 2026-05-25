@@ -12,7 +12,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
 	title: "Index | secondlayer",
 	description:
-		"Decoded FT & NFT transfers for Stacks — normalized, filterable, cursor-paginated. No decoders to write.",
+		"Decoded Stacks events and contract calls — normalized, filterable, cursor-paginated. No decoders to write.",
 };
 
 const toc: TocItem[] = [
@@ -35,9 +35,10 @@ export default function IndexPage() {
 					<p>
 						Index is the decoded read layer for Stacks. An L2 decoder consumes
 						the raw <Link href="/streams">Streams</Link> firehose and normalizes
-						it into typed FT and NFT transfer tables — query them directly by
-						contract, wallet, or block range, with no decoders to write or
-						maintain.
+						every event type — STX, FT, and NFT transfers, mints and burns, and{" "}
+						<code>print</code> events — plus contract calls, into typed,
+						queryable rows. Filter by contract, wallet, or block range, with no
+						decoders to write or maintain.
 					</p>
 					<InlineKey product="index">
 						Reads are open during beta — anonymous works, and an{" "}
@@ -56,8 +57,9 @@ export default function IndexPage() {
 
 				<div className="prose">
 					<p>
-						The decoder reads Streams and writes normalized{" "}
-						<code>ft_transfer</code> and <code>nft_transfer</code> rows; the
+						The decoder reads Streams and writes normalized rows for every
+						decoded <code>event_type</code>; contract calls come straight from
+						the transaction record with their arguments and result decoded. The
 						Index API serves them, filtered and cursor-paginated. Decoding
 						happens once, on shared infra — you just query.
 					</p>
@@ -67,11 +69,13 @@ export default function IndexPage() {
 
 				<div className="prose">
 					<p>
-						Two endpoints — <code>/v1/index/ft-transfers</code> and{" "}
-						<code>/v1/index/nft-transfers</code> — both filter by{" "}
-						<code>contract_id</code>, <code>sender</code>,{" "}
-						<code>recipient</code>, and block range, and page forward on a{" "}
-						<code>cursor</code>. The SDK wraps list + cursor-walking:
+						<code>/v1/index/events?event_type=…</code> serves every decoded
+						event type, and <code>/v1/index/contract-calls</code> serves decoded
+						contract calls. Filter by <code>contract_id</code>,{" "}
+						<code>sender</code>, and block range, and page forward on a{" "}
+						<code>cursor</code>. (<code>ft-transfers</code> and{" "}
+						<code>nft-transfers</code> remain as typed aliases.) The SDK wraps
+						list + cursor-walking:
 					</p>
 				</div>
 
@@ -80,16 +84,16 @@ export default function IndexPage() {
 
 const index = new Index({ apiKey: process.env.SL_INDEX_API_KEY });
 
-// One page of decoded FT transfers, filtered
-const { events, next_cursor } = await index.ftTransfers.list({
-  contractId: "SP2C2YFP12AJZB4MR27X4XXNXKWQK90ZQGW8A0X.token-usda",
+// One page of decoded events for any type
+const { events, next_cursor } = await index.events.list({
+  eventType: "stx_transfer",
   sender: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE",
   limit: 50,
 });
 
-// Or stream every match across pages
-for await (const t of index.ftTransfers.walk({ contractId })) {
-  await handle(t);
+// Or stream every contract call to a contract across pages
+for await (const call of index.contractCalls.walk({ contractId })) {
+  await handle(call);
 }`}
 				/>
 

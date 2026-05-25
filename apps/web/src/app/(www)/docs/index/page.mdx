@@ -1,21 +1,27 @@
 # Index
 
-Query decoded Stacks chain data — blocks, transactions, events, and contract calls — through one REST surface.
+Query decoded Stacks chain data — every decoded event type plus contract calls — through one REST surface. No decoders to write.
 
-The Index API is the general-purpose read layer beneath every dataset. Filter by block range, principal, contract, or event type, and page through results with a stable cursor.
+`/v1/index/events` returns decoded events for a chosen `event_type` (`ft_transfer`, `nft_transfer`, `stx_transfer`, the STX/FT/NFT mints and burns, and `print`). `/v1/index/contract-calls` returns decoded contract-call transactions. Filter by block range, principal, or contract and page through with a stable cursor. Open beta: no key required to read.
 
 ## Query events
 
 ```bash
-curl https://api.secondlayer.tools/v1/index/events \
-  -G \
-  -d "contract=SP000000000000000000002Q6VF78.pox-4" \
-  -d "_limit=20"
+curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
 ```
 
-Responses use the same envelope as every other surface — `data` rows plus a `meta` cursor. See the [REST API](/docs/rest-api) reference for the full filter and pagination grammar.
+Allowed filters vary by `event_type` — e.g. `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id`. `print` rows carry a `payload` with the Clarity value decoded to JSON.
+
+## Contract calls
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/contract-calls?function_name=transfer&limit=20"
+```
+
+Each row includes the decoded `args` and `result`. Responses use the cursor envelope — `events` (or `contract_calls`), `next_cursor`, `tip`, `reorgs`. See the [REST API](/docs/rest-api) reference for the full per-type filter grammar.
 
 export const metadata = {
 	title: "Index — Secondlayer Docs",
-	description: "Query decoded Stacks chain data through one REST surface.",
+	description:
+		"Query decoded Stacks events and contract calls through one REST surface.",
 };

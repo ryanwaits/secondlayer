@@ -104,38 +104,51 @@ Recent chain reorgs.
 
 ---
 
-## `/v1/index` — decoded L2 transfers
+## `/v1/index` — decoded chain events + contract calls
 
-Pre-decoded SIP-010 (FT) and SIP-009 (NFT) transfers. Faster than `/v1/streams` when you only need transfers; filtered by principal/contract.
+The decoded read layer over Stacks. `/v1/index/events` serves every decoded event type; `/v1/index/contract-calls` serves decoded contract-call transactions. Open-beta read (no key required). Query params are snake_case; envelope is the standard cursor shape (`events` or `contract_calls`, `next_cursor`, `tip`, `reorgs`).
 
-### `GET /v1/index/ft-transfers`
+### `GET /v1/index/events`
+
+Decoded events for a chosen `event_type` — flat objects discriminated by `event_type`.
 
 | Query param | Type | Description |
 |---|---|---|
-| `cursor` | string | Resume token |
-| `contractId` | string | Token contract |
-| `sender` | string | Stacks principal |
-| `recipient` | string | Stacks principal |
-| `fromHeight` | number | |
-| `toHeight` | number | |
+| `event_type` | string | **Required.** One of `ft_transfer`, `nft_transfer`, `stx_transfer`, `stx_mint`, `stx_burn`, `ft_mint`, `ft_burn`, `nft_mint`, `nft_burn`, `print` |
+| `cursor` / `from_cursor` | string | Resume token `<block_height>:<event_index>` |
+| `from_height` / `to_height` | number | Block range |
+| `contract_id` | string | Token/contract (not valid for `stx_*`) |
+| `asset_identifier` | string | `nft_*` only |
+| `sender` | string | Principal (types that have one) |
+| `recipient` | string | Principal (types that have one) |
 | `limit` | number | Default 200, max 1000 |
 
+Allowed filters vary by `event_type` — `stx_*` have no `contract_id`; mints have no `sender`, burns no `recipient`; `print` filters by `contract_id` only. An unknown param for the chosen type → 400.
+
 ```bash
-curl "https://api.secondlayer.tools/v1/index/ft-transfers?recipient=SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7&limit=20"
+curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
 ```
 
-### `GET /v1/index/nft-transfers`
+`print` rows carry `payload: { topic, value, raw_value }`, where `value` is the Clarity value decoded to JSON (uints as strings, buffers as `0x…` hex). `/v1/index/ft-transfers` and `/v1/index/nft-transfers` remain as typed aliases for `event_type=ft_transfer` / `nft_transfer`.
+
+### `GET /v1/index/contract-calls`
+
+Decoded `contract_call` transactions. Cursor is `<block_height>:<tx_index>` (a distinct keyspace from events — don't reuse cursors across endpoints); always returns `reorgs: []`.
 
 | Query param | Type | Description |
 |---|---|---|
-| `cursor` | string | Resume token |
-| `contractId` | string | NFT contract |
-| `assetIdentifier` | string | Full asset id (`SP....contract::token-name`) |
-| `sender` | string | |
-| `recipient` | string | |
-| `fromHeight` | number | |
-| `toHeight` | number | |
-| `limit` | number | |
+| `cursor` / `from_cursor` | string | Resume token `<block_height>:<tx_index>` |
+| `from_height` / `to_height` | number | Block range |
+| `contract_id` | string | Called contract |
+| `function_name` | string | Called function |
+| `sender` | string | Caller principal |
+| `limit` | number | Default 200, max 1000 |
+
+Each row: `{ cursor, block_height, tx_id, tx_index, contract_id, function_name, sender, status, args, result, result_hex }` — `args` are the positional function arguments decoded to JSON, `result` the decoded return value.
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/contract-calls?function_name=transfer&limit=20"
+```
 
 ---
 
