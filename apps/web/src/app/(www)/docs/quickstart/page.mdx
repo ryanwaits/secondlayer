@@ -1,38 +1,10 @@
+import { QuickstartGuide } from "./quickstart-guide";
+
 # Quickstart
 
-From zero to your first indexed table in three commands.
+From zero to your first indexed table — follow along in your terminal.
 
-## Install the CLI
-
-```bash
-bun add -g @secondlayer/cli
-```
-
-## Authenticate
-
-Opens your browser to sign in. Reads are public, but deploying needs a key.
-
-```bash
-sl auth login
-```
-
-## Deploy a subgraph
-
-Point the CLI at a subgraph config — Secondlayer backfills history, then keeps the table live as new blocks arrive.
-
-```bash
-sl subgraphs deploy ./subgraph.config.ts
-```
-
-## Query it
-
-Your table is live over REST immediately — no auth required to read.
-
-```bash
-curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers -G -d "_limit=10"
-```
-
-Next: write your first [handler](/docs/subgraphs), or wire up [push delivery](/docs/subscriptions).
+<QuickstartGuide />
 
 export const metadata = {
 	title: "Quickstart — Secondlayer Docs",

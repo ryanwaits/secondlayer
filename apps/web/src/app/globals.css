@@ -5624,6 +5624,308 @@ a.dataset-shelf-name:hover {
 }
 
 /* ════════════════════════════════════════════════
+   Docs — surface cards (intro "Pick your surface")
+   Numbered cards; hover tints border + bg only (no movement).
+   ════════════════════════════════════════════════ */
+.docs-surfaces {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin: var(--spacing-sm) 0;
+}
+/* beats `.docs-article a` underline (equal specificity, later in source) */
+.docs-article a.docs-surface {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	color: inherit;
+	text-decoration: none;
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	background: var(--bg-elevated);
+	padding: 18px 18px 16px;
+	transition: border-color 0.18s ease, background 0.18s ease;
+}
+.docs-surface.wide {
+	grid-column: 1 / -1;
+}
+.docs-surface-num {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+.docs-surface-name {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-family: var(--font-heading-stack);
+	font-size: 16px;
+	font-weight: 560;
+	color: var(--text-main);
+	margin: 8px 0 5px;
+}
+.docs-surface-arrow {
+	color: var(--text-muted);
+	font-size: 13px;
+	transition: color 0.18s ease;
+}
+.docs-surface-desc {
+	font-size: 13px;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+.docs-surface-ep {
+	margin-top: 12px;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--accent);
+}
+.docs-surface-ep .verb {
+	color: var(--text-muted);
+}
+@media (hover: hover) {
+	.docs-article a.docs-surface:hover {
+		border-color: var(--accent-border);
+		background: color-mix(in srgb, var(--bg-elevated) 90%, var(--accent) 10%);
+	}
+	.docs-article a.docs-surface:hover .docs-surface-arrow {
+		color: var(--accent);
+	}
+}
+
+/* ════════════════════════════════════════════════
+   Docs — Quickstart panel (tabbed runner: label + command)
+   ════════════════════════════════════════════════ */
+.docs-qpanel {
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	background: var(--bg-elevated);
+	overflow: hidden;
+	margin: var(--spacing-sm) 0;
+}
+.docs-qpanel-tabs {
+	display: flex;
+	border-bottom: 1px solid var(--border);
+}
+.docs-qpanel-tab {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	padding: 11px 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	background: transparent;
+	border: none;
+	border-right: 1px solid var(--border);
+	cursor: pointer;
+	transition: color 0.15s ease, background 0.15s ease;
+}
+.docs-qpanel-tab:last-child {
+	border-right: none;
+}
+.docs-qpanel-tab .n {
+	font-variant-numeric: tabular-nums;
+	opacity: 0.6;
+}
+.docs-qpanel-tab[aria-selected="true"] {
+	color: var(--accent);
+	background: var(--accent-bg);
+}
+.docs-qpanel-tab[aria-selected="true"] .n {
+	opacity: 1;
+}
+.docs-qpanel-body {
+	padding: 16px 18px;
+}
+.docs-qpanel-label {
+	font-size: 13px;
+	line-height: 1.45;
+	color: var(--text-prose);
+	margin-bottom: 10px;
+}
+.docs-qpanel-cmd {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: var(--code-block-bg);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 11px 13px;
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	overflow-x: auto;
+}
+.docs-qpanel-cmd .prompt {
+	color: var(--text-muted);
+}
+.docs-qpanel-cmd .kw {
+	color: var(--accent);
+}
+.docs-qpanel-cmd .rest {
+	color: var(--text-main);
+	white-space: nowrap;
+}
+.docs-qpanel-copy,
+.docs-qs-term-copy {
+	margin-left: auto;
+	flex: 0 0 auto;
+	color: var(--copy-btn);
+	background: none;
+	border: none;
+	cursor: pointer;
+	display: inline-flex;
+	padding: 2px;
+	transition: color 0.15s ease;
+}
+@media (hover: hover) {
+	.docs-qpanel-copy:hover,
+	.docs-qs-term-copy:hover {
+		color: var(--copy-btn-hover);
+	}
+}
+
+/* ════════════════════════════════════════════════
+   Docs — Quickstart page (guided terminal session)
+   ════════════════════════════════════════════════ */
+.docs-qs-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 var(--spacing-sm);
+}
+.docs-qs-chip {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	letter-spacing: 0.03em;
+	color: var(--text-muted);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 4px 11px;
+	font-variant-numeric: tabular-nums;
+}
+.docs-qs-chip b {
+	color: var(--accent);
+	font-weight: 500;
+}
+.docs-qs-rail {
+	position: relative;
+	margin: var(--spacing-md) 0 var(--spacing-sm);
+	padding-left: 40px;
+}
+.docs-qs-rail::before {
+	content: "";
+	position: absolute;
+	left: 11px;
+	top: 8px;
+	bottom: 30px;
+	width: 2px;
+	background: var(--border);
+}
+.docs-qs-step {
+	position: relative;
+	margin-bottom: 22px;
+}
+.docs-qs-dot {
+	position: absolute;
+	left: -40px;
+	top: 0;
+	width: 24px;
+	height: 24px;
+	border-radius: 999px;
+	display: grid;
+	place-items: center;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	font-weight: 500;
+	background: var(--bg-elevated);
+	border: 1px solid var(--accent-border);
+	color: var(--accent);
+	font-variant-numeric: tabular-nums;
+}
+.docs-qs-title {
+	font-family: var(--font-heading-stack);
+	font-size: 14px;
+	font-weight: 560;
+	color: var(--text-main);
+	margin: 2px 0 3px;
+}
+.docs-qs-desc {
+	font-size: 13px;
+	line-height: 1.45;
+	color: var(--text-muted);
+	margin-bottom: 10px;
+}
+.docs-qs-term {
+	border: 1px solid var(--border);
+	border-radius: 9px;
+	overflow: hidden;
+	background: var(--code-block-bg);
+}
+.docs-qs-term-top {
+	display: flex;
+	align-items: center;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--border);
+}
+.docs-qs-term-top .lbl {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.docs-qs-term-in {
+	padding: 12px 14px;
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	line-height: 1.7;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+.docs-qs-term-in .prompt {
+	color: var(--text-muted);
+}
+.docs-qs-term-in .kw {
+	color: var(--accent);
+}
+.docs-qs-done {
+	margin-top: var(--spacing-sm);
+	border: 1px solid var(--accent-border);
+	background: var(--accent-bg);
+	border-radius: 12px;
+	padding: 16px 18px;
+}
+.docs-qs-done strong {
+	font-family: var(--font-heading-stack);
+	font-size: 13.5px;
+	color: var(--text-main);
+}
+.docs-qs-done p {
+	font-size: 13px;
+	color: var(--text-prose);
+	margin: 5px 0 0;
+}
+.docs-article .docs-qs-done a {
+	color: var(--accent);
+	text-decoration: none;
+}
+@media (max-width: 768px) {
+	.docs-surfaces {
+		grid-template-columns: 1fr;
+	}
+	.docs-qpanel-tab {
+		font-size: 10px;
+		padding: 10px 4px;
+	}
+}
+
+/* ════════════════════════════════════════════════
    Docs — floating Human | Agent toggle
    ════════════════════════════════════════════════ */
 .docs-mode-toggle {
