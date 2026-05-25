@@ -344,6 +344,44 @@ describe("Stacks Index gateway middleware", () => {
 		expect(body.reorgs).toEqual([]);
 	});
 
+	test("GET /contract-calls serves via the injected reader with reorgs: []", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readContractCalls: async () => ({
+					contract_calls: [
+						{
+							cursor: "10:0",
+							block_height: 10,
+							tx_id: "0x01",
+							tx_index: 0,
+							contract_id: "SP1.c",
+							function_name: "transfer",
+							sender: "SP2",
+							status: "success",
+							args: [],
+							result: null,
+							result_hex: null,
+						},
+					],
+					next_cursor: "10:0",
+				}),
+			}),
+		);
+		const res = await app.request("/v1/index/contract-calls");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			contract_calls: unknown[];
+			reorgs: unknown[];
+		};
+		expect(body.contract_calls).toHaveLength(1);
+		expect(body.reorgs).toEqual([]);
+	});
+
 	test("does not meter static keys, failed auth, wrong scope, or rate limit responses", async () => {
 		const metered: Array<{ accountId: string; quantity: number }> = [];
 		const app = createMeteredIndexApp({

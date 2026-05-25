@@ -8,6 +8,11 @@ import {
 	indexBearerAuth,
 } from "../index/auth.ts";
 import {
+	CONTRACT_CALLS_FILTERS,
+	type ContractCallsReader,
+	getContractCallsResponse,
+} from "../index/contract-calls.ts";
+import {
 	INDEX_EVENT_TYPES,
 	type IndexEventsReader,
 	getIndexEventsResponse,
@@ -46,6 +51,7 @@ export type IndexRouterOptions = {
 	tokens?: IndexTokenStore;
 	getTip?: IndexTipProvider;
 	readEvents?: IndexEventsReader;
+	readContractCalls?: ContractCallsReader;
 	readFtTransfers?: FtTransfersReader;
 	readNftTransfers?: NftTransfersReader;
 	readReorgs?: StreamsReorgsReader;
@@ -93,6 +99,13 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 						"Alias for /events?event_type=nft_transfer. NFT transfers, decoded + filterable.",
 					filters: NFT_ALLOWED,
 				},
+				{
+					path: "/v1/index/contract-calls",
+					method: "GET",
+					description:
+						"Decoded contract-call transactions (function args + result), filterable + cursor-paginated. Returns contract_calls[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<tx_index>.",
+					filters: CONTRACT_CALLS_FILTERS,
+				},
 			],
 			auth: "optional bearer for higher rate-limit tier; anon allowed",
 			cursor: {
@@ -122,6 +135,26 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
+		}
+		return c.json(response);
+	});
+
+	router.get("/contract-calls", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, CONTRACT_CALLS_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getContractCallsResponse({
+			query,
+			tip,
+			readContractCalls: opts.readContractCalls,
+		});
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.contract_calls.length > 0) {
+			await recordDecodedEventsReturned(
+				accountId,
+				response.contract_calls.length,
+			);
 		}
 		return c.json(response);
 	});

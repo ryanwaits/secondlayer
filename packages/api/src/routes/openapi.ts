@@ -283,6 +283,28 @@ const OPENAPI_SPEC = {
 				responses: envelope(),
 			},
 		},
+		"/v1/index/contract-calls": {
+			get: {
+				tags: ["index"],
+				summary: "Decoded contract-call transactions",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "string", example: "7960000:3" },
+					},
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+					qp("contract_id", "string"),
+					qp("function_name", "string"),
+					qp("sender", "string"),
+				],
+				responses: envelope("contract_calls"),
+			},
+		},
 		"/v1/streams": {
 			get: { tags: ["streams"], summary: "Streams discovery", responses: ok() },
 		},
