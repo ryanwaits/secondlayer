@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-24T00:00:00.000Z",
+  "title": "Design System: Secondlayer",
+  "extensions": {
+    "colorMeta": {
+      "signal-blue": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "#2563eb",
+        "darkValue": "#8aa7f8",
+        "tonalRamp": ["#0a1733", "#13265c", "#1b3a8f", "#2563eb", "#5587f0", "#8aa7f8", "#b9cbfa", "#e4ebfd"]
+      },
+      "marker-pink": {
+        "role": "secondary",
+        "displayName": "Marker Pink",
+        "canonical": "#ff00aa",
+        "tonalRamp": ["#33001f", "#660043", "#990066", "#cc0088", "#ff00aa", "#ff4dc2", "#ff99db", "#ffd6f1"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#111111",
+        "darkValue": "#ececec",
+        "tonalRamp": ["#111111", "#2e2e2e", "#4a4a4a", "#6b6b6b", "#909090", "#b8b8b8", "#dddddd", "#fafafa"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#fafafa",
+        "darkValue": "#111111",
+        "tonalRamp": ["#0c0c0c", "#141414", "#1a1a1a", "#2e2e2e", "#6b6b6b", "#e5e5e5", "#f0f0f0", "#fafafa"]
+      },
+      "success-green": { "role": "tertiary", "displayName": "Success Green", "canonical": "#22c55e", "tonalRamp": ["#06210f", "#0a3d1c", "#0f5e2c", "#15803d", "#22c55e", "#5fd98a", "#9fe9b8", "#d6f6e1"] },
+      "warning-yellow": { "role": "tertiary", "displayName": "Warning Yellow", "canonical": "#eab308", "tonalRamp": ["#2b2102", "#4d3b05", "#7a5e08", "#a8810b", "#eab308", "#f1c84a", "#f7dd87", "#fcefc4"] },
+      "danger-red": { "role": "tertiary", "displayName": "Danger Red", "canonical": "#ef4444", "tonalRamp": ["#2e0a0a", "#511212", "#7d1d1d", "#b02929", "#ef4444", "#f47979", "#f9aaaa", "#fcd7d7"] },
+      "accent-teal": { "role": "tertiary", "displayName": "Accent Teal", "canonical": "#1588b2", "darkValue": "#1ea8d8", "tonalRamp": ["#04222d", "#063b4d", "#0a5972", "#0f7497", "#1588b2", "#4faecf", "#8acce2", "#c8e8f2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Status page state and the rare hero number. Big, tight, confident." },
+      "headline": { "displayName": "Headline", "purpose": "Status states and major section openers." },
+      "title": { "displayName": "Title", "purpose": "Page titles and section-heading-over-a-rule. Small; weight and rule carry hierarchy, not size." },
+      "body": { "displayName": "Body", "purpose": "All prose, capped at 65-75ch. Tuned tight (weight 460) for even color on dense pages." },
+      "label": { "displayName": "Label", "purpose": "Mono uppercase eyebrows, status text, table headers, callout labels. The signature label treatment." },
+      "note": { "displayName": "Note", "purpose": "Caveat cursive hand annotations and the beta bracket. Slightly rotated when overlaid." }
+    },
+    "shadows": [
+      { "name": "floating-panel", "value": "0 18px 44px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)", "purpose": "Home status popover. Paired with backdrop-filter: blur(16px)." },
+      { "name": "lifted-badge", "value": "0 12px 32px rgba(0,0,0,0.1)", "purpose": "Status badge in its open/expanded state." },
+      { "name": "soft-notify", "value": "0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)", "purpose": "Auth-bar email-capture field when expanded. Deepens to 0.2/0.1 in dark theme." }
+    ],
+    "motion": [
+      { "name": "ease-snappy", "value": "cubic-bezier(0.175, 0.885, 0.32, 1.1)", "duration": "220ms", "purpose": "State feedback (buttons, copy, hover). A barely-there overshoot." },
+      { "name": "ease-smooth", "value": "cubic-bezier(0.19, 1, 0.22, 1)", "duration": "300ms", "purpose": "Transitions and reveals (ease-out-expo). Panels, dims, expansions." },
+      { "name": "stagger-in", "value": "translateY(8px) -> 0, opacity 0 -> 1 over 0.4s ease", "purpose": "Homepage children fade up in 0.05s increments." }
+    ],
+    "breakpoints": [
+      { "name": "sidebar-stack", "value": "1080px" },
+      { "name": "mobile", "value": "768px" },
+      { "name": "small-phone", "value": "480px" },
+      { "name": "tiny", "value": "360px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Accent CTA",
+      "kind": "button",
+      "refersTo": "button-accent",
+      "description": "Marketing call to action (notify / get a key). The one accent-filled button.",
+      "html": "<button class=\"ds-btn-accent\">Get an API key</button>",
+      "css": ".ds-btn-accent { font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 560; color: #ffffff; background: #2563eb; border: none; border-radius: 6px; padding: 5px 14px; white-space: nowrap; cursor: pointer; transition: opacity 220ms cubic-bezier(0.175,0.885,0.32,1.1); } .ds-btn-accent:hover { opacity: 0.9; } .ds-btn-accent:focus-visible { outline: 2px solid rgba(0,122,255,0.5); outline-offset: 2px; } .ds-btn-accent:disabled { opacity: 0.7; cursor: default; }"
+    },
+    {
+      "name": "Ink Primary Button",
+      "kind": "button",
+      "refersTo": "button-ink",
+      "description": "Dominant primary action inside the product console and login.",
+      "html": "<button class=\"ds-btn-ink\">Create key</button>",
+      "css": ".ds-btn-ink { font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; color: #fafafa; background: #111111; border: 1px solid #111111; border-radius: 6px; padding: 6px 12px; cursor: pointer; transition: opacity 220ms cubic-bezier(0.175,0.885,0.32,1.1); } .ds-btn-ink:hover { opacity: 0.85; } .ds-btn-ink:disabled { opacity: 0.4; cursor: not-allowed; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The console workhorse: transparent with a hairline that lifts on hover.",
+      "html": "<button class=\"ds-btn-ghost\">Refresh</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; gap: 6px; font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; color: #111111; background: transparent; border: 1px solid #e5e5e5; border-radius: 6px; padding: 6px 12px; cursor: pointer; transition: border-color 220ms cubic-bezier(0.175,0.885,0.32,1.1); } .ds-btn-ghost:hover { border-color: rgba(0,0,0,0.4); } .ds-btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-state",
+      "description": "Uppercase mono state pill; color + 8%-alpha background per state.",
+      "html": "<span class=\"ds-badge ds-badge-active\">Active</span> <span class=\"ds-badge ds-badge-paused\">Paused</span> <span class=\"ds-badge ds-badge-failed\">Failed</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; font-family: 'Fira Code', SFMono-Regular, Consolas, monospace; font-size: 11px; font-weight: 560; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1; padding: 2px 6px; border-radius: 3px; } .ds-badge-active { color: #15803d; background: rgba(34,197,94,0.08); } .ds-badge-paused { color: #a8810b; background: rgba(234,179,8,0.08); } .ds-badge-failed { color: #b02929; background: rgba(239,68,68,0.08); }"
+    },
+    {
+      "name": "Console Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Mono field, transparent, hairline border that shifts to muted on focus. No glow.",
+      "html": "<input class=\"ds-input\" placeholder=\"contract.address\" />",
+      "css": ".ds-input { font-family: 'Fira Code', SFMono-Regular, Consolas, monospace; font-size: 13px; color: #111111; background: transparent; border: 1px solid #e5e5e5; border-radius: 6px; padding: 6px 10px; width: 100%; outline: none; transition: border-color 0.2s ease; } .ds-input::placeholder { color: rgba(0,0,0,0.4); } .ds-input:focus { border-color: rgba(0,0,0,0.4); } .ds-input:focus-visible { outline: 2px solid rgba(0,122,255,0.5); outline-offset: 1px; }"
+    },
+    {
+      "name": "Callout",
+      "kind": "card",
+      "refersTo": "callout",
+      "description": "Tip / note / link-out block. Accent-tinted, uppercase mono label.",
+      "html": "<div class=\"ds-callout\"><span class=\"ds-callout-label\">Note</span><div class=\"ds-callout-body\">Reads are free. An API key only gates writes.</div></div>",
+      "css": ".ds-callout { padding: 1rem; border: 1px solid rgba(37,99,235,0.2); border-radius: 6px; background: rgba(37,99,235,0.06); } .ds-callout-label { display: block; font-family: 'Fira Code', SFMono-Regular, Consolas, monospace; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #2563eb; margin-bottom: 0.4rem; } .ds-callout-body { font-size: 14px; line-height: 20px; color: #111111; }"
+    },
+    {
+      "name": "Section Heading",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature editorial chunking device: heading text overlaid on a full-width hairline rule.",
+      "html": "<div class=\"ds-section-heading-wrap\"><hr /><h2 class=\"ds-section-heading\">Endpoints</h2></div>",
+      "css": ".ds-section-heading-wrap { position: relative; margin-top: 3rem; margin-bottom: 1.5rem; } .ds-section-heading-wrap hr { border: none; height: 1px; background: #e5e5e5; } .ds-section-heading { position: absolute; top: 50%; left: 0; transform: translateY(-50%); background: #fafafa; padding-right: 12px; font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 560; color: #111111; line-height: 20px; letter-spacing: -0.00563rem; margin: 0; }"
+    },
+    {
+      "name": "Hand Note",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature Caveat cursive annotation, lightly rotated like a margin scribble.",
+      "html": "<span class=\"ds-note\">free, forever ↗</span>",
+      "css": ".ds-note { font-family: 'Caveat', cursive; font-size: 22px; font-weight: 460; line-height: 1.2; color: #4a4a4a; display: inline-block; transform: rotate(-2deg); white-space: nowrap; }"
+    },
+    {
+      "name": "Data Table",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Console data page: mono cells, hairline row dividers, uppercase mono headers, hover/selected tint.",
+      "html": "<table class=\"ds-data-table\"><thead><tr><th>block</th><th>event</th><th>amount</th></tr></thead><tbody><tr><td>178204</td><td class=\"ds-muted\">stx_transfer</td><td>1.500000</td></tr><tr class=\"ds-selected\"><td>178203</td><td class=\"ds-muted\">ft_mint</td><td>42.000000</td></tr></tbody></table>",
+      "css": ".ds-data-table { width: 100%; border-collapse: collapse; font-family: 'Fira Code', SFMono-Regular, Consolas, monospace; font-size: 12px; font-variant-numeric: tabular-nums; } .ds-data-table th { text-align: left; font-size: 10px; font-weight: 560; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(0,0,0,0.4); padding: 8px 12px 8px 0; border-bottom: 1px solid #e5e5e5; } .ds-data-table td { padding: 8px 12px 8px 0; border-bottom: 1px solid #e5e5e5; color: #111111; } .ds-data-table tr:last-child td { border-bottom: none; } .ds-data-table tr:hover td { background: rgba(0,0,0,0.02); } .ds-data-table tr.ds-selected td { background: rgba(37,99,235,0.06); } .ds-data-table td.ds-muted { color: rgba(0,0,0,0.4); }"
+    },
+    {
+      "name": "Agent Prompt Block",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature copyable 'hand this to your agent' card: Sora title, nested code block, collapsible mask fade with a floating toggle pill.",
+      "html": "<div class=\"ds-agent-prompt\"><div class=\"ds-agent-prompt-header\"><span class=\"ds-agent-prompt-title\">Index every sBTC transfer for my app</span><button class=\"ds-copy\" aria-label=\"Copy\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button></div><div class=\"ds-agent-prompt-code ds-agent-prompt-collapsed\"><pre><code>Use the @secondlayer/sdk to read decoded events from\n/v1/index?event_type=ft_transfer&amp;contract=...\nPaginate with the cursor and write each row to my DB.</code></pre></div><button class=\"ds-agent-prompt-toggle\">Expand</button></div>",
+      "css": ".ds-agent-prompt { position: relative; background: #fafafa; border: 1px solid #e5e5e5; border-radius: 12px; min-width: 0; } .ds-agent-prompt-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 22px 0; } .ds-agent-prompt-title { font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 600; color: #111111; letter-spacing: -0.02em; line-height: 1.35; } .ds-agent-prompt .ds-copy { border: none; background: transparent; color: rgba(0,0,0,0.25); padding: 4px; border-radius: 4px; cursor: pointer; transition: color 220ms cubic-bezier(0.175,0.885,0.32,1.1); } .ds-agent-prompt .ds-copy:hover { color: rgba(0,0,0,0.5); } .ds-agent-prompt-code { margin: 14px 22px 20px; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; } .ds-agent-prompt-code pre { margin: 0; background: #f8f8f8; font-family: 'Fira Code', SFMono-Regular, Consolas, monospace; font-size: 0.8125rem; line-height: 1.55; padding: 1rem; overflow-x: auto; } .ds-agent-prompt-collapsed { max-height: 64px; -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%); mask-image: linear-gradient(to bottom, #000 60%, transparent 100%); } .ds-agent-prompt-toggle { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); font-family: 'Fira Code', SFMono-Regular, Consolas, monospace; font-size: 11px; font-weight: 500; color: #111111; background: #fafafa; border: 1px solid #e5e5e5; border-radius: 6px; padding: 4px 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: box-shadow 0.15s; } .ds-agent-prompt-toggle:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.15); }"
+    },
+    {
+      "name": "Service Flow Diagram",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature per-product pipeline SVG: hairline frame with radial accent-glow over a masked grid, three semantic node types (default / data / api), thin edges, and a Caveat cursive caption. The single filled accent node is always the product surface.",
+      "html": "<figure class=\"ds-diagram-figure\"><div class=\"ds-diagram-frame\"><div class=\"ds-diagram-inner\"><svg class=\"ds-diagram\" viewBox=\"0 0 690 150\" role=\"img\" aria-label=\"L2 decoder reads Streams into decoded events, served by the Index API to your app.\"><defs><marker id=\"ds-ar\" viewBox=\"0 0 10 10\" refX=\"8.5\" refY=\"5\" markerWidth=\"6\" markerHeight=\"6\" orient=\"auto-start-reverse\"><path d=\"M1 1L9 5L1 9\" fill=\"none\" stroke=\"context-stroke\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></marker></defs><path class=\"edge\" d=\"M164,75 H190\" marker-end=\"url(#ds-ar)\"/><path class=\"edge acc\" d=\"M346,75 H372\" marker-end=\"url(#ds-ar)\"/><path class=\"edge acc\" d=\"M512,75 H538\" marker-end=\"url(#ds-ar)\"/><g class=\"node\"><rect x=\"14\" y=\"48\" width=\"150\" height=\"54\" rx=\"9\"/><text class=\"nt\" x=\"89\" y=\"72\" text-anchor=\"middle\">L2 decoder</text><text class=\"ns\" x=\"89\" y=\"88\" text-anchor=\"middle\">reads Streams</text></g><g class=\"node data\"><rect x=\"190\" y=\"46\" width=\"156\" height=\"58\" rx=\"9\"/><text class=\"nt\" x=\"268\" y=\"70\" text-anchor=\"middle\">Decoded events</text><text class=\"ns\" x=\"268\" y=\"86\" text-anchor=\"middle\">ft · nft · L2</text></g><g class=\"node api\"><rect x=\"372\" y=\"48\" width=\"140\" height=\"54\" rx=\"9\"/><text class=\"nt\" x=\"442\" y=\"72\" text-anchor=\"middle\">Index</text><text class=\"ns\" x=\"442\" y=\"88\" text-anchor=\"middle\">/v1/index</text></g><g class=\"node\"><rect x=\"538\" y=\"48\" width=\"138\" height=\"54\" rx=\"9\"/><text class=\"nt\" x=\"607\" y=\"72\" text-anchor=\"middle\">Your app</text><text class=\"ns\" x=\"607\" y=\"88\" text-anchor=\"middle\">filter · paginate</text></g></svg></div></div><p class=\"ds-diagram-note\">decoded once — query forever</p></figure>",
+      "css": ".ds-diagram-figure { margin: 1.5rem 0; } .ds-diagram-frame { position: relative; border: 1px solid #e5e5e5; border-radius: 14px; padding: clamp(18px, 2.4vw, 28px); background: radial-gradient(130% 120% at 84% 0%, rgba(37,99,235,0.06), transparent 60%), #ffffff; overflow: hidden; } .ds-diagram-frame::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.4; background-image: linear-gradient(#e5e5e5 1px, transparent 1px), linear-gradient(90deg, #e5e5e5 1px, transparent 1px); background-size: 30px 30px; -webkit-mask-image: radial-gradient(130% 100% at 50% 42%, #000 28%, transparent 100%); mask-image: radial-gradient(130% 100% at 50% 42%, #000 28%, transparent 100%); } .ds-diagram-inner { position: relative; display: flex; align-items: center; justify-content: center; } .ds-diagram { display: block; width: 100%; height: auto; } .ds-diagram .node rect { fill: #f8f8f8; stroke: #e5e5e5; stroke-width: 1.2; } .ds-diagram .node .nt { fill: #111111; font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 13px; } .ds-diagram .node .ns { fill: rgba(0,0,0,0.4); font-family: 'Fira Code', SFMono-Regular, Consolas, monospace; font-size: 8.5px; } .ds-diagram .node.data rect { fill: rgba(37,99,235,0.06); stroke: rgba(37,99,235,0.2); } .ds-diagram .node.data .nt { fill: #2563eb; } .ds-diagram .node.api rect { fill: #2563eb; stroke: #2563eb; } .ds-diagram .node.api .nt { fill: #ffffff; } .ds-diagram .node.api .ns { fill: #ffffff; opacity: 0.78; } .ds-diagram .edge { fill: none; stroke: rgba(0,0,0,0.4); stroke-width: 1.4; opacity: 0.6; } .ds-diagram .edge.acc { stroke: #2563eb; opacity: 0.5; } .ds-diagram-note { margin: 0.35rem 0 0; padding-right: 0.5rem; text-align: right; font-family: 'Caveat', cursive; font-size: 1.2rem; font-weight: 400; line-height: 1.2; color: #2563eb; }"
+    },
+    {
+      "name": "Dataset Sandbox",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature inline query playground as a notebook cell: a shaded request strip stacked flush above a lifted response, with the response as the hero. Idle teaches a dimmed static sample; loading animates; shown here in success.",
+      "html": "<div class=\"ds-sbx\"><div class=\"ds-sbx-req\"><div class=\"ds-sbx-line\"><span class=\"ds-sbx-method\">GET</span><code class=\"ds-sbx-path\">/v1/datasets/sbtc/events<span class=\"ds-sbx-q\">?topic=completed-deposit&amp;limit=5</span></code><button class=\"ds-sbx-run\"><svg viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M8 5v14l11-7z\"/></svg>Send</button></div><div class=\"ds-sbx-filters\"><span class=\"ds-sbx-chip is-set\"><span class=\"ds-sbx-chip-key\">topic</span><span class=\"ds-sbx-chip-val\">completed-deposit</span></span><span class=\"ds-sbx-chip is-set\"><span class=\"ds-sbx-chip-key\">limit</span><span class=\"ds-sbx-chip-val\">5</span></span><span class=\"ds-sbx-chip\"><span class=\"ds-sbx-chip-key\">sender</span><span class=\"ds-sbx-chip-ph\">SP1…</span></span></div></div><div class=\"ds-sbx-res\"><div class=\"ds-sbx-meta\"><span class=\"ds-sbx-dot\"></span><span class=\"ds-sbx-status\">200</span><span class=\"ds-sbx-sep\">·</span>34 ms<span class=\"ds-sbx-sep\">·</span>1 row</div><div class=\"ds-sbx-body\"><span class=\"jp\">{</span>\n  <span class=\"jk\">\"events\"</span><span class=\"jp\">: [ { … 12 keys } ],</span>\n  <span class=\"jk\">\"next_cursor\"</span><span class=\"jp\">:</span> <span class=\"js\">\"7870001:7\"</span>\n<span class=\"jp\">}</span></div></div></div>",
+      "css": ".ds-sbx { font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; } .ds-sbx-req { background: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 8px 8px 0 0; } .ds-sbx-line { display: flex; align-items: center; gap: 10px; padding: 10px 12px; } .ds-sbx-method { font-family: 'Fira Code', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #2563eb; } .ds-sbx-path { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-family: 'Fira Code', monospace; font-size: 12px; color: #111; } .ds-sbx-q { color: rgba(0,0,0,0.4); } .ds-sbx-run { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 560; color: #fff; background: #2563eb; border: none; border-radius: 6px; padding: 6px 13px; cursor: pointer; } .ds-sbx-run svg { width: 11px; height: 11px; } .ds-sbx-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-top: 1px dashed #e5e5e5; } .ds-sbx-chip { display: inline-flex; align-items: center; border: 1px solid #e5e5e5; border-radius: 6px; background: #fff; overflow: hidden; font-family: 'Fira Code', monospace; font-size: 12px; } .ds-sbx-chip.is-set { border-color: rgba(37,99,235,0.2); } .ds-sbx-chip-key { font-size: 11px; color: rgba(0,0,0,0.4); padding: 4px 6px 4px 9px; } .ds-sbx-chip.is-set .ds-sbx-chip-key { color: #2563eb; } .ds-sbx-chip-val { color: #111; padding: 4px 9px 4px 0; } .ds-sbx-chip-ph { color: rgba(0,0,0,0.12); padding: 4px 9px 4px 0; } .ds-sbx-res { border: 1px solid #e5e5e5; border-radius: 0 0 8px 8px; background: #fff; } .ds-sbx-meta { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #e5e5e5; font-family: 'Fira Code', monospace; font-size: 11px; color: rgba(0,0,0,0.4); } .ds-sbx-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; } .ds-sbx-status { color: #111; font-weight: 500; } .ds-sbx-sep { color: rgba(0,0,0,0.12); } .ds-sbx-body { padding: 12px 14px; font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.6; white-space: pre; } .ds-sbx-body .jk { color: rgba(0,0,0,0.4); } .ds-sbx-body .js { color: #2563eb; } .ds-sbx-body .jp { color: rgba(0,0,0,0.4); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Field Notebook",
+    "overview": "Secondlayer reads like an engineer's annotated notebook: dense, legible, and quietly opinionated. Long-form pages are set as essays in Sora over Public Sans, ruled with hairlines and dashed em-dash bullets, and marked up by hand in Caveat cursive. The product console is the same notebook flipped to its data pages: tabular Fira Code figures, ruled rows, and small uppercase labels. One token set, two registers. The marketing surface is where design is the product; the authed console is where design serves the data. They never look like two apps because they share a single :root. The system is built on tinted near-neutrals carrying ~95% of every screen, with exactly one chromatic voice (Signal Blue) doing the pointing and a single Marker Pink reserved for one human flourish per page. It rejects the SaaS landing template and the web3 neon look alike; depth comes from hairlines and whitespace, not drop shadows.",
+    "keyCharacteristics": [
+      "Editorial restraint: hairline rules, generous measure (65-75ch), no decorative containers.",
+      "Hand-annotation layer: Caveat cursive labels and rough-notation circles, used sparingly.",
+      "One accent that points (Signal Blue), one accent that delights (Marker Pink), used once each per view.",
+      "Light by default, with a true dark theme via prefers-color-scheme plus explicit force-light / force-dark overrides.",
+      "Monospace as a first-class voice for data, code, identifiers, and numerals."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Signal Blue covers <=10% of any screen. If two things are blue, neither reads as the signal. Demote one to ink.", "section": "colors" },
+      { "name": "The Pink-Once Rule", "body": "Marker Pink appears at most once per page, and only as a hand-gesture (underline, circle, highlight). Never as a button, fill, or second accent.", "section": "colors" },
+      { "name": "The Tinted-Neutral Rule", "body": "No #000, no #fff. Paper is warm (#fafafa); ink is #111, never pure black.", "section": "colors" },
+      { "name": "The Weight-Not-Size Rule", "body": "Hierarchy is carried by weight (460 -> 560 -> 650) and hairline rules, not by dramatic size jumps. Titles can be 15px; the rule under them does the framing.", "section": "typography" },
+      { "name": "The Mono-Is-Data Rule", "body": "Anything that is a value, hash, endpoint, count, or identifier is set in Fira Code with tabular-nums. Prose is never mono; data is never proportional.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. A shadow is a statement that an element is floating and dismissible. If it does not float, it has no shadow, only a hairline.", "section": "elevation" },
+      { "name": "The Idle-Teaches Rule", "body": "An idle data surface renders a dimmed, static sample of what's coming, never an animated skeleton. Animation is reserved for loading; if idle animates it reads as already-running and teaches nothing.", "section": "components" },
+      { "name": "The One-Cell Rule", "body": "Request and response are a single unit: the input strip is shaded and the output is lifted, joined by shared corners (top radius on the request, bottom radius on the response). They are never two separate cards.", "section": "components" }
+    ],
+    "dos": [
+      "Do ration Signal Blue to <=10% of any screen. It points at the one thing that matters.",
+      "Do separate content with hairlines (1px border) and whitespace. The section-heading-over-a-rule is the canonical chunking device.",
+      "Do set all data, identifiers, hashes, endpoints, and numerals in Fira Code with tabular-nums.",
+      "Do keep prose to a 65-75ch measure and body weight 460 for calm, even color.",
+      "Do express depth with borders and inset Chrome backgrounds; reserve shadow + blur for floating, dismissible chrome only.",
+      "Do use the Caveat hand-annotation layer sparingly to keep pages from feeling machine-generated.",
+      "Do ease with the project curves: ease-snappy for state feedback, ease-smooth for transitions.",
+      "Do pair every status hue (green/yellow/red/teal) with text or an icon. Never encode meaning in color alone.",
+      "Do provide deliberate, visible custom focus states; the console suppresses native rings, so a focus-visible affordance is mandatory. Maintain AA contrast in both light and dark.",
+      "Do respect prefers-reduced-motion everywhere; motion is decoration the product can do without."
+    ],
+    "donts": [
+      "Don't drift toward crypto / web3 neon: no neon-on-black, glows, 3D coins, gradient-mesh heroes, degen energy.",
+      "Don't build the generic SaaS template: no hero-metric blocks, no identical feature-card grids, no gradient-text headings, no Inter-on-cream sameness.",
+      "Don't go heavy enterprise: no navy-and-gold corporate, legalese, stock photography, or bloated marketing chrome.",
+      "Don't go playful / consumer: no rounded blobs, mascots, cartoon palettes, or oversized friendly emoji.",
+      "Don't use #000 or #fff as text or page color. Paper is #fafafa, ink is #111.",
+      "Don't make Marker Pink a second accent or a button. One human gesture per page, maximum.",
+      "Don't nest cards or box content that a hairline and whitespace would separate better.",
+      "Don't add focus glows or rings to inputs. Focus is a border-color shift plus the mandatory a11y focus-visible outline.",
+      "Don't use bounce or elastic easing, and never animate layout properties. Ease-out only.",
+      "Don't let two elements compete as the signal. If everything is blue, nothing is.",
+      "Don't swap the two registers' density: editorial whitespace stays on (www), console density stays on platform."
+    ]
+  }
+}
