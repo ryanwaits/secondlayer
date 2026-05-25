@@ -48,6 +48,52 @@ describe("Index /events query parsing", () => {
 		expect(parsed.filters.asset_identifier).toBe("SP1.nft::item");
 	});
 
+	test("the new decoded event types are accepted", () => {
+		for (const eventType of [
+			"stx_transfer",
+			"stx_mint",
+			"stx_burn",
+			"ft_mint",
+			"ft_burn",
+			"nft_mint",
+			"nft_burn",
+		] as const) {
+			const parsed = parseIndexEventsQuery(
+				params(`?event_type=${eventType}`),
+				TIP,
+			);
+			expect(parsed.eventType).toBe(eventType);
+		}
+	});
+
+	test("contract_id is rejected for stx_transfer (STX has no contract)", () => {
+		expect(() =>
+			parseIndexEventsQuery(
+				params("?event_type=stx_transfer&contract_id=SP1.x"),
+				TIP,
+			),
+		).toThrow("unknown query param: contract_id");
+	});
+
+	test("recipient is rejected for stx_burn; sender is allowed", () => {
+		expect(() =>
+			parseIndexEventsQuery(params("?event_type=stx_burn&recipient=SP2"), TIP),
+		).toThrow("unknown query param: recipient");
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=stx_burn&sender=SP1"),
+			TIP,
+		);
+		expect(parsed.filters.sender).toBe("SP1");
+	});
+
+	test("asset_identifier is allowed for nft_mint", () => {
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=nft_mint&asset_identifier=SP1.nft::item"),
+			TIP,
+		);
+		expect(parsed.filters.asset_identifier).toBe("SP1.nft::item");
+	});
+
 	test("defaults to last day when no explicit height or cursor is provided", () => {
 		const parsed = parseIndexEventsQuery(
 			params("?event_type=ft_transfer"),

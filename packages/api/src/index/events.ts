@@ -14,13 +14,18 @@ import {
 } from "./_shared.ts";
 import type { IndexTip } from "./tip.ts";
 
-/** Query params shared by every Index read endpoint. */
-const INDEX_COMMON_FILTERS = [
+/** Pagination/window params every Index read endpoint accepts. */
+const PAGINATION_FILTERS = [
 	"limit",
 	"cursor",
 	"from_cursor",
 	"from_height",
 	"to_height",
+] as const;
+
+/** Pagination plus the principal/contract filters the transfer types expose. */
+const INDEX_COMMON_FILTERS = [
+	...PAGINATION_FILTERS,
 	"contract_id",
 	"sender",
 	"recipient",
@@ -74,6 +79,58 @@ const INDEX_EVENT_CONFIG = {
 		equalityFilters: ["contract_id", "asset_identifier", "sender", "recipient"],
 		allowedFilters: [...INDEX_COMMON_FILTERS, "asset_identifier"],
 	},
+	stx_transfer: {
+		columns: ["sender", "recipient", "amount", "memo"],
+		requiredNonNull: ["sender", "recipient", "amount"],
+		equalityFilters: ["sender", "recipient"],
+		allowedFilters: [...PAGINATION_FILTERS, "sender", "recipient"],
+	},
+	stx_mint: {
+		columns: ["recipient", "amount"],
+		requiredNonNull: ["recipient", "amount"],
+		equalityFilters: ["recipient"],
+		allowedFilters: [...PAGINATION_FILTERS, "recipient"],
+	},
+	stx_burn: {
+		columns: ["sender", "amount"],
+		requiredNonNull: ["sender", "amount"],
+		equalityFilters: ["sender"],
+		allowedFilters: [...PAGINATION_FILTERS, "sender"],
+	},
+	ft_mint: {
+		columns: ["asset_identifier", "recipient", "amount"],
+		requiredNonNull: ["contract_id", "asset_identifier", "recipient", "amount"],
+		equalityFilters: ["contract_id", "recipient"],
+		allowedFilters: [...PAGINATION_FILTERS, "contract_id", "recipient"],
+	},
+	ft_burn: {
+		columns: ["asset_identifier", "sender", "amount"],
+		requiredNonNull: ["contract_id", "asset_identifier", "sender", "amount"],
+		equalityFilters: ["contract_id", "sender"],
+		allowedFilters: [...PAGINATION_FILTERS, "contract_id", "sender"],
+	},
+	nft_mint: {
+		columns: ["asset_identifier", "recipient", "value"],
+		requiredNonNull: ["contract_id", "asset_identifier", "recipient", "value"],
+		equalityFilters: ["contract_id", "asset_identifier", "recipient"],
+		allowedFilters: [
+			...PAGINATION_FILTERS,
+			"contract_id",
+			"asset_identifier",
+			"recipient",
+		],
+	},
+	nft_burn: {
+		columns: ["asset_identifier", "sender", "value"],
+		requiredNonNull: ["contract_id", "asset_identifier", "sender", "value"],
+		equalityFilters: ["contract_id", "asset_identifier", "sender"],
+		allowedFilters: [
+			...PAGINATION_FILTERS,
+			"contract_id",
+			"asset_identifier",
+			"sender",
+		],
+	},
 } as const satisfies Record<string, IndexEventConfig>;
 
 export type IndexEventType = keyof typeof INDEX_EVENT_CONFIG;
@@ -103,6 +160,7 @@ export type IndexEvent = {
 	recipient?: string | null;
 	amount?: string | null;
 	value?: string | null;
+	memo?: string | null;
 };
 
 type IndexEventRow = {
@@ -119,6 +177,7 @@ type IndexEventRow = {
 	recipient?: string | null;
 	amount?: string | null;
 	value?: string | null;
+	memo?: string | null;
 };
 
 export type IndexEventsQuery = {
