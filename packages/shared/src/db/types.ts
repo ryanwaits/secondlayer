@@ -338,6 +338,9 @@ export interface DecodedEventsTable {
 	asset_identifier: string | null;
 	value: string | null;
 	memo: string | null;
+	/** Decoded payload for event types that don't fit the flat columns
+	 *  (e.g. `print`: { topic, value, raw_value }). Null for transfer types. */
+	payload: unknown | null;
 	source_cursor: string;
 	created_at: Generated<Date>;
 }
