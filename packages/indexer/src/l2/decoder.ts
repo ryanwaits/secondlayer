@@ -12,6 +12,7 @@ import {
 	decodeNftTransfer,
 	decodePrint,
 	decodeStxBurn,
+	decodeStxLock,
 	decodeStxMint,
 	decodeStxTransfer,
 } from "@secondlayer/sdk";
@@ -28,6 +29,7 @@ import {
 	NFT_TRANSFER_DECODER_NAME,
 	PRINT_DECODER_NAME,
 	STX_BURN_DECODER_NAME,
+	STX_LOCK_DECODER_NAME,
 	STX_MINT_DECODER_NAME,
 	STX_TRANSFER_DECODER_NAME,
 	readDecoderCheckpoint,
@@ -289,6 +291,16 @@ export const consumeStxBurnDecodedEvents = (opts?: DecodedEventConsumeOpts) =>
 			streamsType: "stx_burn",
 			defaultDecoderName: STX_BURN_DECODER_NAME,
 			decode: decodeStxBurn,
+		},
+		opts,
+	);
+
+export const consumeStxLockDecodedEvents = (opts?: DecodedEventConsumeOpts) =>
+	consumeDecodedEvents(
+		{
+			streamsType: "stx_lock",
+			defaultDecoderName: STX_LOCK_DECODER_NAME,
+			decode: decodeStxLock,
 		},
 		opts,
 	);

@@ -9,6 +9,7 @@ import {
 	consumeNftTransferDecodedEvents,
 	consumePrintDecodedEvents,
 	consumeStxBurnDecodedEvents,
+	consumeStxLockDecodedEvents,
 	consumeStxMintDecodedEvents,
 	consumeStxTransferDecodedEvents,
 } from "./decoder.ts";
@@ -35,6 +36,7 @@ const DECODED_EVENT_DECODERS = {
 	"l2.stx_transfer.v1": 0,
 	"l2.stx_mint.v1": 0,
 	"l2.stx_burn.v1": 0,
+	"l2.stx_lock.v1": 0,
 	"l2.ft_mint.v1": 0,
 	"l2.ft_burn.v1": 0,
 	"l2.nft_mint.v1": 0,
@@ -166,6 +168,7 @@ async function runDecoders(): Promise<void> {
 		runDecoder("l2.stx_transfer.v1", consumeStxTransferDecodedEvents),
 		runDecoder("l2.stx_mint.v1", consumeStxMintDecodedEvents),
 		runDecoder("l2.stx_burn.v1", consumeStxBurnDecodedEvents),
+		runDecoder("l2.stx_lock.v1", consumeStxLockDecodedEvents),
 		runDecoder("l2.ft_mint.v1", consumeFtMintDecodedEvents),
 		runDecoder("l2.ft_burn.v1", consumeFtBurnDecodedEvents),
 		runDecoder("l2.nft_mint.v1", consumeNftMintDecodedEvents),

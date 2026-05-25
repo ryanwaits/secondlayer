@@ -8,6 +8,7 @@ export const NFT_TRANSFER_DECODER_NAME = "l2.nft_transfer.v1";
 export const STX_TRANSFER_DECODER_NAME = "l2.stx_transfer.v1";
 export const STX_MINT_DECODER_NAME = "l2.stx_mint.v1";
 export const STX_BURN_DECODER_NAME = "l2.stx_burn.v1";
+export const STX_LOCK_DECODER_NAME = "l2.stx_lock.v1";
 export const FT_MINT_DECODER_NAME = "l2.ft_mint.v1";
 export const FT_BURN_DECODER_NAME = "l2.ft_burn.v1";
 export const NFT_MINT_DECODER_NAME = "l2.nft_mint.v1";
@@ -20,6 +21,7 @@ export const L2_DECODER_NAMES = [
 	STX_TRANSFER_DECODER_NAME,
 	STX_MINT_DECODER_NAME,
 	STX_BURN_DECODER_NAME,
+	STX_LOCK_DECODER_NAME,
 	FT_MINT_DECODER_NAME,
 	FT_BURN_DECODER_NAME,
 	NFT_MINT_DECODER_NAME,
@@ -35,6 +37,7 @@ export const L2_DECODER_EVENT_TYPES: Record<L2DecoderName, string> = {
 	[STX_TRANSFER_DECODER_NAME]: "stx_transfer",
 	[STX_MINT_DECODER_NAME]: "stx_mint",
 	[STX_BURN_DECODER_NAME]: "stx_burn",
+	[STX_LOCK_DECODER_NAME]: "stx_lock",
 	[FT_MINT_DECODER_NAME]: "ft_mint",
 	[FT_BURN_DECODER_NAME]: "ft_burn",
 	[NFT_MINT_DECODER_NAME]: "nft_mint",
@@ -55,6 +58,7 @@ export function getEnabledL2DecoderNames(
 		STX_TRANSFER_DECODER_NAME,
 		STX_MINT_DECODER_NAME,
 		STX_BURN_DECODER_NAME,
+		STX_LOCK_DECODER_NAME,
 		FT_MINT_DECODER_NAME,
 		FT_BURN_DECODER_NAME,
 		NFT_MINT_DECODER_NAME,
