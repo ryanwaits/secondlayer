@@ -2,10 +2,19 @@ export { SecondLayer } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
 export { Index } from "./index-api/index.ts";
 export type {
+	ContractCallsEnvelope,
+	ContractCallsListParams,
+	ContractCallsWalkParams,
+	EventsEnvelope,
+	EventsListParams,
+	EventsWalkParams,
 	FtTransfer,
 	FtTransfersEnvelope,
 	FtTransfersListParams,
 	FtTransfersWalkParams,
+	IndexContractCall,
+	IndexEvent,
+	IndexEventType,
 	IndexTip,
 	NftTransfer,
 	NftTransfersEnvelope,

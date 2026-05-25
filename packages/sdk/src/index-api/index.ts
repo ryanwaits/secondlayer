@@ -1,9 +1,18 @@
 export { Index } from "./client.ts";
 export type {
+	ContractCallsEnvelope,
+	ContractCallsListParams,
+	ContractCallsWalkParams,
+	EventsEnvelope,
+	EventsListParams,
+	EventsWalkParams,
 	FtTransfer,
 	FtTransfersEnvelope,
 	FtTransfersListParams,
 	FtTransfersWalkParams,
+	IndexContractCall,
+	IndexEvent,
+	IndexEventType,
 	IndexTip,
 	NftTransfer,
 	NftTransfersEnvelope,

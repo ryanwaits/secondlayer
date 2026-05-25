@@ -83,6 +83,159 @@ export type NftTransfersWalkParams = Omit<NftTransfersListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+// ── Generic decoded events (/v1/index/events) ──────────────────────
+
+type IndexEventBase = {
+	cursor: string;
+	block_height: number;
+	block_time?: string | null;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	contract_id: string | null;
+};
+
+export type IndexFtTransfer = IndexEventBase & {
+	event_type: "ft_transfer";
+	asset_identifier: string;
+	sender: string;
+	recipient: string;
+	amount: string;
+};
+export type IndexNftTransfer = IndexEventBase & {
+	event_type: "nft_transfer";
+	asset_identifier: string;
+	sender: string;
+	recipient: string;
+	value: string;
+};
+export type IndexStxTransfer = IndexEventBase & {
+	event_type: "stx_transfer";
+	sender: string;
+	recipient: string;
+	amount: string;
+	memo: string | null;
+};
+export type IndexStxMint = IndexEventBase & {
+	event_type: "stx_mint";
+	recipient: string;
+	amount: string;
+};
+export type IndexStxBurn = IndexEventBase & {
+	event_type: "stx_burn";
+	sender: string;
+	amount: string;
+};
+export type IndexFtMint = IndexEventBase & {
+	event_type: "ft_mint";
+	asset_identifier: string;
+	recipient: string;
+	amount: string;
+};
+export type IndexFtBurn = IndexEventBase & {
+	event_type: "ft_burn";
+	asset_identifier: string;
+	sender: string;
+	amount: string;
+};
+export type IndexNftMint = IndexEventBase & {
+	event_type: "nft_mint";
+	asset_identifier: string;
+	recipient: string;
+	value: string;
+};
+export type IndexNftBurn = IndexEventBase & {
+	event_type: "nft_burn";
+	asset_identifier: string;
+	sender: string;
+	value: string;
+};
+export type IndexPrint = IndexEventBase & {
+	event_type: "print";
+	payload: { topic: string | null; value: unknown; raw_value: string | null };
+};
+
+/** Decoded chain event, discriminated by `event_type`. */
+export type IndexEvent =
+	| IndexFtTransfer
+	| IndexNftTransfer
+	| IndexStxTransfer
+	| IndexStxMint
+	| IndexStxBurn
+	| IndexFtMint
+	| IndexFtBurn
+	| IndexNftMint
+	| IndexNftBurn
+	| IndexPrint;
+
+export type IndexEventType = IndexEvent["event_type"];
+
+export type EventsEnvelope = {
+	events: IndexEvent[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	reorgs: never[];
+};
+
+export type EventsListParams = {
+	/** Required. One of the decoded event types. */
+	eventType: IndexEventType;
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	contractId?: string;
+	assetIdentifier?: string;
+	sender?: string;
+	recipient?: string;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type EventsWalkParams = Omit<EventsListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
+// ── Contract calls (/v1/index/contract-calls) ──────────────────────
+
+export type IndexContractCall = {
+	cursor: string;
+	block_height: number;
+	block_time?: string | null;
+	tx_id: string;
+	tx_index: number;
+	contract_id: string;
+	function_name: string;
+	sender: string;
+	status: string;
+	args: unknown[];
+	result: unknown;
+	result_hex: string | null;
+};
+
+export type ContractCallsEnvelope = {
+	contract_calls: IndexContractCall[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	reorgs: never[];
+};
+
+export type ContractCallsListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	contractId?: string;
+	functionName?: string;
+	sender?: string;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
 function appendSearchParam(
 	params: URLSearchParams,
 	name: string,
@@ -126,6 +279,31 @@ export class Index extends BaseClient {
 		): Promise<NftTransfersEnvelope> => this.listNftTransfers(params),
 		walk: (params: NftTransfersWalkParams = {}): AsyncIterable<NftTransfer> =>
 			this.walkNftTransfers(params),
+	};
+
+	/** Generic decoded events by `event_type` (the full /v1/index/events surface). */
+	readonly events: {
+		list: (params: EventsListParams) => Promise<EventsEnvelope>;
+		walk: (params: EventsWalkParams) => AsyncIterable<IndexEvent>;
+	} = {
+		list: (params: EventsListParams): Promise<EventsEnvelope> =>
+			this.listEvents(params),
+		walk: (params: EventsWalkParams): AsyncIterable<IndexEvent> =>
+			this.walkEvents(params),
+	};
+
+	readonly contractCalls: {
+		list: (params?: ContractCallsListParams) => Promise<ContractCallsEnvelope>;
+		walk: (
+			params?: ContractCallsWalkParams,
+		) => AsyncIterable<IndexContractCall>;
+	} = {
+		list: (
+			params: ContractCallsListParams = {},
+		): Promise<ContractCallsEnvelope> => this.listContractCalls(params),
+		walk: (
+			params: ContractCallsWalkParams = {},
+		): AsyncIterable<IndexContractCall> => this.walkContractCalls(params),
 	};
 
 	private async listFtTransfers(
@@ -230,6 +408,115 @@ export class Index extends BaseClient {
 				!nextCursor ||
 				nextCursor === cursor ||
 				envelope.events.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async listEvents(params: EventsListParams): Promise<EventsEnvelope> {
+		const searchParams = new URLSearchParams();
+		appendSearchParam(searchParams, "event_type", params.eventType);
+		appendSearchParam(searchParams, "cursor", params.cursor);
+		appendSearchParam(searchParams, "from_cursor", params.fromCursor);
+		appendSearchParam(searchParams, "limit", params.limit);
+		appendSearchParam(searchParams, "contract_id", params.contractId);
+		appendSearchParam(searchParams, "asset_identifier", params.assetIdentifier);
+		appendSearchParam(searchParams, "sender", params.sender);
+		appendSearchParam(searchParams, "recipient", params.recipient);
+		appendSearchParam(searchParams, "from_height", params.fromHeight);
+		appendSearchParam(searchParams, "to_height", params.toHeight);
+
+		return this.request<EventsEnvelope>(
+			"GET",
+			`/v1/index/events?${searchParams.toString()}`,
+		);
+	}
+
+	private async *walkEvents(
+		params: EventsWalkParams,
+	): AsyncGenerator<IndexEvent> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listEvents({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const event of envelope.events) {
+				if (params.signal?.aborted) return;
+				yield event;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.events.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async listContractCalls(
+		params: ContractCallsListParams = {},
+	): Promise<ContractCallsEnvelope> {
+		const searchParams = new URLSearchParams();
+		appendSearchParam(searchParams, "cursor", params.cursor);
+		appendSearchParam(searchParams, "from_cursor", params.fromCursor);
+		appendSearchParam(searchParams, "limit", params.limit);
+		appendSearchParam(searchParams, "contract_id", params.contractId);
+		appendSearchParam(searchParams, "function_name", params.functionName);
+		appendSearchParam(searchParams, "sender", params.sender);
+		appendSearchParam(searchParams, "from_height", params.fromHeight);
+		appendSearchParam(searchParams, "to_height", params.toHeight);
+
+		const query = searchParams.toString();
+		return this.request<ContractCallsEnvelope>(
+			"GET",
+			`/v1/index/contract-calls${query ? `?${query}` : ""}`,
+		);
+	}
+
+	private async *walkContractCalls(
+		params: ContractCallsWalkParams = {},
+	): AsyncGenerator<IndexContractCall> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listContractCalls({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const call of envelope.contract_calls) {
+				if (params.signal?.aborted) return;
+				yield call;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.contract_calls.length < batchSize
 			) {
 				return;
 			}
