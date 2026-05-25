@@ -40,7 +40,9 @@ async function readStatusSnapshot(): Promise<SystemStatus | null> {
 		if (STATUS_API_KEY) headers.Authorization = `Bearer ${STATUS_API_KEY}`;
 		const res = await fetch(`${STATUS_API_URL}${STATUS_PATH}`, {
 			headers,
-			cache: "no-store",
+			// ISR: keep `/` static + prefetchable; refresh the status snapshot
+			// server-side at most every 30s instead of a blocking fetch per request.
+			next: { revalidate: 30 },
 		});
 		if (!res.ok) return null;
 		return (await res.json()) as SystemStatus;
