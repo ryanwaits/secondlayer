@@ -1,8 +1,15 @@
 import { closeDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import {
+	consumeFtBurnDecodedEvents,
+	consumeFtMintDecodedEvents,
 	consumeFtTransferDecodedEvents,
+	consumeNftBurnDecodedEvents,
+	consumeNftMintDecodedEvents,
 	consumeNftTransferDecodedEvents,
+	consumeStxBurnDecodedEvents,
+	consumeStxMintDecodedEvents,
+	consumeStxTransferDecodedEvents,
 } from "./decoder.ts";
 import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
 import { consumePox4DecodedEvents } from "./decoders/pox-4.ts";
@@ -21,16 +28,25 @@ const controller = new AbortController();
 const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED !== "false";
 const POX4_ENABLED = process.env.POX4_DECODER_ENABLED === "true";
 const BNS_ENABLED = process.env.BNS_DECODER_ENABLED === "true";
-const decodedTotals: Record<string, number> = {
+const DECODED_EVENT_DECODERS = {
 	"l2.ft_transfer.v1": 0,
 	"l2.nft_transfer.v1": 0,
+	"l2.stx_transfer.v1": 0,
+	"l2.stx_mint.v1": 0,
+	"l2.stx_burn.v1": 0,
+	"l2.ft_mint.v1": 0,
+	"l2.ft_burn.v1": 0,
+	"l2.nft_mint.v1": 0,
+	"l2.nft_burn.v1": 0,
+} as const;
+const decodedTotals: Record<string, number> = {
+	...DECODED_EVENT_DECODERS,
 	...(SBTC_ENABLED ? { "l2.sbtc.v1": 0, "l2.sbtc_token.v1": 0 } : {}),
 	...(POX4_ENABLED ? { "l2.pox4.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "l2.bns.v1": 0 } : {}),
 };
 const decodedThisMinute: Record<string, number> = {
-	"l2.ft_transfer.v1": 0,
-	"l2.nft_transfer.v1": 0,
+	...DECODED_EVENT_DECODERS,
 	...(SBTC_ENABLED ? { "l2.sbtc.v1": 0, "l2.sbtc_token.v1": 0 } : {}),
 	...(POX4_ENABLED ? { "l2.pox4.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "l2.bns.v1": 0 } : {}),
@@ -145,6 +161,13 @@ async function runDecoders(): Promise<void> {
 	const tasks = [
 		runDecoder("l2.ft_transfer.v1", consumeFtTransferDecodedEvents),
 		runDecoder("l2.nft_transfer.v1", consumeNftTransferDecodedEvents),
+		runDecoder("l2.stx_transfer.v1", consumeStxTransferDecodedEvents),
+		runDecoder("l2.stx_mint.v1", consumeStxMintDecodedEvents),
+		runDecoder("l2.stx_burn.v1", consumeStxBurnDecodedEvents),
+		runDecoder("l2.ft_mint.v1", consumeFtMintDecodedEvents),
+		runDecoder("l2.ft_burn.v1", consumeFtBurnDecodedEvents),
+		runDecoder("l2.nft_mint.v1", consumeNftMintDecodedEvents),
+		runDecoder("l2.nft_burn.v1", consumeNftBurnDecodedEvents),
 	];
 	if (SBTC_ENABLED) {
 		tasks.push(runDecoder("l2.sbtc.v1", consumeSbtcRegistryDecodedEvents));

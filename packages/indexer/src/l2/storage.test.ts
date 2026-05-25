@@ -10,38 +10,51 @@ import {
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
+const ALWAYS_ON = [
+	"l2.ft_transfer.v1",
+	"l2.nft_transfer.v1",
+	"l2.stx_transfer.v1",
+	"l2.stx_mint.v1",
+	"l2.stx_burn.v1",
+	"l2.ft_mint.v1",
+	"l2.ft_burn.v1",
+	"l2.nft_mint.v1",
+	"l2.nft_burn.v1",
+];
+
 describe("getEnabledL2DecoderNames", () => {
-	test("ft + nft only when no flags set", () => {
+	test("always-on decoders plus sbtc (enabled by default)", () => {
 		expect(getEnabledL2DecoderNames({})).toEqual([
-			"l2.ft_transfer.v1",
-			"l2.nft_transfer.v1",
+			...ALWAYS_ON,
+			"l2.sbtc.v1",
+			"l2.sbtc_token.v1",
 		]);
 	});
 
-	test("includes sbtc/pox4/bns when their flags are 'true'", () => {
+	test("SBTC_DECODER_ENABLED=false suppresses sbtc", () => {
+		expect(getEnabledL2DecoderNames({ SBTC_DECODER_ENABLED: "false" })).toEqual(
+			ALWAYS_ON,
+		);
+	});
+
+	test("includes pox4/bns when their flags are 'true'", () => {
 		expect(
 			getEnabledL2DecoderNames({
-				SBTC_DECODER_ENABLED: "true",
+				SBTC_DECODER_ENABLED: "false",
 				POX4_DECODER_ENABLED: "true",
 				BNS_DECODER_ENABLED: "true",
 			}),
-		).toEqual([
-			"l2.ft_transfer.v1",
-			"l2.nft_transfer.v1",
-			"l2.sbtc.v1",
-			"l2.pox4.v1",
-			"l2.bns.v1",
-		]);
+		).toEqual([...ALWAYS_ON, "l2.pox4.v1", "l2.bns.v1"]);
 	});
 
-	test("flag values other than 'true' are ignored", () => {
+	test("pox4/bns flag values other than 'true' are ignored", () => {
 		expect(
 			getEnabledL2DecoderNames({
-				SBTC_DECODER_ENABLED: "1",
+				SBTC_DECODER_ENABLED: "false",
 				POX4_DECODER_ENABLED: "yes",
 				BNS_DECODER_ENABLED: "TRUE",
 			}),
-		).toEqual(["l2.ft_transfer.v1", "l2.nft_transfer.v1"]);
+		).toEqual(ALWAYS_ON);
 	});
 });
 
@@ -86,8 +99,15 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			markedNonCanonical: 2,
 			checkpoint: "9:0",
 			checkpoints: {
-				[FT_TRANSFER_DECODER_NAME]: "9:0",
-				[NFT_TRANSFER_DECODER_NAME]: null,
+				"l2.ft_transfer.v1": "9:0",
+				"l2.nft_transfer.v1": null,
+				"l2.stx_transfer.v1": null,
+				"l2.stx_mint.v1": null,
+				"l2.stx_burn.v1": null,
+				"l2.ft_mint.v1": null,
+				"l2.ft_burn.v1": null,
+				"l2.nft_mint.v1": null,
+				"l2.nft_burn.v1": null,
 			},
 		});
 		expect(rows).toEqual([

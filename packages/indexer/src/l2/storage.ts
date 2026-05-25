@@ -1,14 +1,28 @@
-import type { DecodedEventRow } from "@secondlayer/sdk";
+import type { DecodedEventColumns, DecodedEventRow } from "@secondlayer/sdk";
 import { getTargetDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Generated, Kysely } from "kysely";
 
 export const FT_TRANSFER_DECODER_NAME = "l2.ft_transfer.v1";
 export const NFT_TRANSFER_DECODER_NAME = "l2.nft_transfer.v1";
+export const STX_TRANSFER_DECODER_NAME = "l2.stx_transfer.v1";
+export const STX_MINT_DECODER_NAME = "l2.stx_mint.v1";
+export const STX_BURN_DECODER_NAME = "l2.stx_burn.v1";
+export const FT_MINT_DECODER_NAME = "l2.ft_mint.v1";
+export const FT_BURN_DECODER_NAME = "l2.ft_burn.v1";
+export const NFT_MINT_DECODER_NAME = "l2.nft_mint.v1";
+export const NFT_BURN_DECODER_NAME = "l2.nft_burn.v1";
 
 export const L2_DECODER_NAMES = [
 	FT_TRANSFER_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
+	STX_TRANSFER_DECODER_NAME,
+	STX_MINT_DECODER_NAME,
+	STX_BURN_DECODER_NAME,
+	FT_MINT_DECODER_NAME,
+	FT_BURN_DECODER_NAME,
+	NFT_MINT_DECODER_NAME,
+	NFT_BURN_DECODER_NAME,
 ] as const;
 
 export type L2DecoderName = (typeof L2_DECODER_NAMES)[number];
@@ -16,6 +30,13 @@ export type L2DecoderName = (typeof L2_DECODER_NAMES)[number];
 export const L2_DECODER_EVENT_TYPES: Record<L2DecoderName, string> = {
 	[FT_TRANSFER_DECODER_NAME]: "ft_transfer",
 	[NFT_TRANSFER_DECODER_NAME]: "nft_transfer",
+	[STX_TRANSFER_DECODER_NAME]: "stx_transfer",
+	[STX_MINT_DECODER_NAME]: "stx_mint",
+	[STX_BURN_DECODER_NAME]: "stx_burn",
+	[FT_MINT_DECODER_NAME]: "ft_mint",
+	[FT_BURN_DECODER_NAME]: "ft_burn",
+	[NFT_MINT_DECODER_NAME]: "nft_mint",
+	[NFT_BURN_DECODER_NAME]: "nft_burn",
 };
 
 // Returns ft+nft (always on) plus sbtc/pox4/bns conditional on env flags.
@@ -25,7 +46,17 @@ export const L2_DECODER_EVENT_TYPES: Record<L2DecoderName, string> = {
 export function getEnabledL2DecoderNames(
 	env: NodeJS.ProcessEnv = process.env,
 ): readonly string[] {
-	const names: string[] = [FT_TRANSFER_DECODER_NAME, NFT_TRANSFER_DECODER_NAME];
+	const names: string[] = [
+		FT_TRANSFER_DECODER_NAME,
+		NFT_TRANSFER_DECODER_NAME,
+		STX_TRANSFER_DECODER_NAME,
+		STX_MINT_DECODER_NAME,
+		STX_BURN_DECODER_NAME,
+		FT_MINT_DECODER_NAME,
+		FT_BURN_DECODER_NAME,
+		NFT_MINT_DECODER_NAME,
+		NFT_BURN_DECODER_NAME,
+	];
 	// String literals here (not imports) to keep storage.ts free of cycles
 	// with sbtc-/pox4-/bns-storage.ts; the canonical defs live in those files.
 	// sbtc defaults to enabled (see service.ts) — only suppressed via
@@ -135,28 +166,28 @@ export async function writeDecodedEvents(
 	await db
 		.insertInto("decoded_events")
 		.values(
-			events.map((event) => ({
-				cursor: event.cursor,
-				block_height: event.block_height,
-				tx_id: event.tx_id,
-				tx_index: event.tx_index,
-				event_index: event.event_index,
-				event_type: event.event_type,
-				contract_id: event.decoded_payload.contract_id,
-				sender: event.decoded_payload.sender,
-				recipient: event.decoded_payload.recipient,
-				amount:
-					event.event_type === "ft_transfer"
-						? event.decoded_payload.amount
-						: null,
-				asset_identifier: event.decoded_payload.asset_identifier,
-				value:
-					event.event_type === "nft_transfer"
-						? event.decoded_payload.value
-						: null,
-				memo: null,
-				source_cursor: event.source_cursor,
-			})),
+			events.map((event) => {
+				// Every decoded payload is a subset of DecodedEventColumns, so columns
+				// map generically — the decoder decides which fields a given event
+				// type populates; absent ones fall to null.
+				const payload = event.decoded_payload as DecodedEventColumns;
+				return {
+					cursor: event.cursor,
+					block_height: event.block_height,
+					tx_id: event.tx_id,
+					tx_index: event.tx_index,
+					event_index: event.event_index,
+					event_type: event.event_type,
+					contract_id: payload.contract_id ?? null,
+					sender: payload.sender ?? null,
+					recipient: payload.recipient ?? null,
+					amount: payload.amount ?? null,
+					asset_identifier: payload.asset_identifier ?? null,
+					value: payload.value ?? null,
+					memo: payload.memo ?? null,
+					source_cursor: event.source_cursor,
+				};
+			}),
 		)
 		.onConflict((oc) =>
 			oc.column("cursor").doUpdateSet((eb) => ({
