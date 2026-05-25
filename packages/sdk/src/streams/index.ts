@@ -7,10 +7,49 @@ export {
 } from "./errors.ts";
 export { decodeFtTransfer, isFtTransfer } from "./ft-transfer.ts";
 export { decodeNftTransfer, isNftTransfer } from "./nft-transfer.ts";
+export {
+	decodeStxBurn,
+	decodeStxMint,
+	decodeStxTransfer,
+	isStxBurn,
+	isStxMint,
+	isStxTransfer,
+} from "./stx-events.ts";
+export {
+	decodeFtBurn,
+	decodeFtMint,
+	decodeNftBurn,
+	decodeNftMint,
+	isFtBurn,
+	isFtMint,
+	isNftBurn,
+	isNftMint,
+} from "./token-mint-burn.ts";
 import type { DecodedFtTransfer } from "./ft-transfer.ts";
 import type { DecodedNftTransfer } from "./nft-transfer.ts";
+import type {
+	DecodedStxBurn,
+	DecodedStxMint,
+	DecodedStxTransfer,
+} from "./stx-events.ts";
+import type {
+	DecodedFtBurn,
+	DecodedFtMint,
+	DecodedNftBurn,
+	DecodedNftMint,
+} from "./token-mint-burn.ts";
 
-export type DecodedEventRow = DecodedFtTransfer | DecodedNftTransfer;
+export type DecodedEventRow =
+	| DecodedFtTransfer
+	| DecodedNftTransfer
+	| DecodedStxTransfer
+	| DecodedStxMint
+	| DecodedStxBurn
+	| DecodedFtMint
+	| DecodedFtBurn
+	| DecodedNftMint
+	| DecodedNftBurn;
+export type { DecodedEventColumns } from "./_payload.ts";
 export type {
 	DecodedFtTransfer,
 	DecodedFtTransferPayload,
@@ -23,6 +62,24 @@ export type {
 	NftTransferEvent,
 	NftTransferPayload,
 } from "./nft-transfer.ts";
+export type {
+	DecodedStxBurn,
+	DecodedStxBurnPayload,
+	DecodedStxMint,
+	DecodedStxMintPayload,
+	DecodedStxTransfer,
+	DecodedStxTransferPayload,
+} from "./stx-events.ts";
+export type {
+	DecodedFtBurn,
+	DecodedFtBurnPayload,
+	DecodedFtMint,
+	DecodedFtMintPayload,
+	DecodedNftBurn,
+	DecodedNftBurnPayload,
+	DecodedNftMint,
+	DecodedNftMintPayload,
+} from "./token-mint-burn.ts";
 export { STREAMS_EVENT_TYPES } from "./types.ts";
 export type {
 	FetchLike,
