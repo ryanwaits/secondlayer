@@ -20,6 +20,7 @@ const ALWAYS_ON = [
 	"l2.ft_burn.v1",
 	"l2.nft_mint.v1",
 	"l2.nft_burn.v1",
+	"l2.print.v1",
 ];
 
 describe("getEnabledL2DecoderNames", () => {
@@ -108,6 +109,7 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 				"l2.ft_burn.v1": null,
 				"l2.nft_mint.v1": null,
 				"l2.nft_burn.v1": null,
+				"l2.print.v1": null,
 			},
 		});
 		expect(rows).toEqual([

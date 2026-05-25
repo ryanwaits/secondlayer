@@ -7,6 +7,7 @@ import {
 	consumeNftBurnDecodedEvents,
 	consumeNftMintDecodedEvents,
 	consumeNftTransferDecodedEvents,
+	consumePrintDecodedEvents,
 	consumeStxBurnDecodedEvents,
 	consumeStxMintDecodedEvents,
 	consumeStxTransferDecodedEvents,
@@ -38,6 +39,7 @@ const DECODED_EVENT_DECODERS = {
 	"l2.ft_burn.v1": 0,
 	"l2.nft_mint.v1": 0,
 	"l2.nft_burn.v1": 0,
+	"l2.print.v1": 0,
 } as const;
 const decodedTotals: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
@@ -168,6 +170,7 @@ async function runDecoders(): Promise<void> {
 		runDecoder("l2.ft_burn.v1", consumeFtBurnDecodedEvents),
 		runDecoder("l2.nft_mint.v1", consumeNftMintDecodedEvents),
 		runDecoder("l2.nft_burn.v1", consumeNftBurnDecodedEvents),
+		runDecoder("l2.print.v1", consumePrintDecodedEvents),
 	];
 	if (SBTC_ENABLED) {
 		tasks.push(runDecoder("l2.sbtc.v1", consumeSbtcRegistryDecodedEvents));

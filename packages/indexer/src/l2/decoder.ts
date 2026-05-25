@@ -10,6 +10,7 @@ import {
 	decodeNftBurn,
 	decodeNftMint,
 	decodeNftTransfer,
+	decodePrint,
 	decodeStxBurn,
 	decodeStxMint,
 	decodeStxTransfer,
@@ -25,6 +26,7 @@ import {
 	NFT_BURN_DECODER_NAME,
 	NFT_MINT_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
+	PRINT_DECODER_NAME,
 	STX_BURN_DECODER_NAME,
 	STX_MINT_DECODER_NAME,
 	STX_TRANSFER_DECODER_NAME,
@@ -327,6 +329,16 @@ export const consumeNftBurnDecodedEvents = (opts?: DecodedEventConsumeOpts) =>
 			streamsType: "nft_burn",
 			defaultDecoderName: NFT_BURN_DECODER_NAME,
 			decode: decodeNftBurn,
+		},
+		opts,
+	);
+
+export const consumePrintDecodedEvents = (opts?: DecodedEventConsumeOpts) =>
+	consumeDecodedEvents(
+		{
+			streamsType: "print",
+			defaultDecoderName: PRINT_DECODER_NAME,
+			decode: decodePrint,
 		},
 		opts,
 	);

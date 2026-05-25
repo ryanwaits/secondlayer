@@ -12,6 +12,7 @@ export const FT_MINT_DECODER_NAME = "l2.ft_mint.v1";
 export const FT_BURN_DECODER_NAME = "l2.ft_burn.v1";
 export const NFT_MINT_DECODER_NAME = "l2.nft_mint.v1";
 export const NFT_BURN_DECODER_NAME = "l2.nft_burn.v1";
+export const PRINT_DECODER_NAME = "l2.print.v1";
 
 export const L2_DECODER_NAMES = [
 	FT_TRANSFER_DECODER_NAME,
@@ -23,6 +24,7 @@ export const L2_DECODER_NAMES = [
 	FT_BURN_DECODER_NAME,
 	NFT_MINT_DECODER_NAME,
 	NFT_BURN_DECODER_NAME,
+	PRINT_DECODER_NAME,
 ] as const;
 
 export type L2DecoderName = (typeof L2_DECODER_NAMES)[number];
@@ -37,6 +39,7 @@ export const L2_DECODER_EVENT_TYPES: Record<L2DecoderName, string> = {
 	[FT_BURN_DECODER_NAME]: "ft_burn",
 	[NFT_MINT_DECODER_NAME]: "nft_mint",
 	[NFT_BURN_DECODER_NAME]: "nft_burn",
+	[PRINT_DECODER_NAME]: "print",
 };
 
 // Returns ft+nft (always on) plus sbtc/pox4/bns conditional on env flags.
@@ -56,6 +59,7 @@ export function getEnabledL2DecoderNames(
 		FT_BURN_DECODER_NAME,
 		NFT_MINT_DECODER_NAME,
 		NFT_BURN_DECODER_NAME,
+		PRINT_DECODER_NAME,
 	];
 	// String literals here (not imports) to keep storage.ts free of cycles
 	// with sbtc-/pox4-/bns-storage.ts; the canonical defs live in those files.
@@ -88,6 +92,7 @@ type L2Database = Database & {
 		asset_identifier: string | null;
 		value: string | null;
 		memo: string | null;
+		payload: string | null;
 		source_cursor: string;
 		created_at: Generated<Date>;
 	};
@@ -185,6 +190,8 @@ export async function writeDecodedEvents(
 					asset_identifier: payload.asset_identifier ?? null,
 					value: payload.value ?? null,
 					memo: payload.memo ?? null,
+					payload:
+						payload.payload != null ? JSON.stringify(payload.payload) : null,
 					source_cursor: event.source_cursor,
 				};
 			}),
@@ -205,6 +212,7 @@ export async function writeDecodedEvents(
 				asset_identifier: eb.ref("excluded.asset_identifier"),
 				value: eb.ref("excluded.value"),
 				memo: eb.ref("excluded.memo"),
+				payload: eb.ref("excluded.payload"),
 				source_cursor: eb.ref("excluded.source_cursor"),
 			})),
 		)
