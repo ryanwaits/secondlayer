@@ -25,8 +25,10 @@ export {
 	isNftBurn,
 	isNftMint,
 } from "./token-mint-burn.ts";
+export { decodePrint, isPrint } from "./print.ts";
 import type { DecodedFtTransfer } from "./ft-transfer.ts";
 import type { DecodedNftTransfer } from "./nft-transfer.ts";
+import type { DecodedPrint } from "./print.ts";
 import type {
 	DecodedStxBurn,
 	DecodedStxMint,
@@ -48,7 +50,8 @@ export type DecodedEventRow =
 	| DecodedFtMint
 	| DecodedFtBurn
 	| DecodedNftMint
-	| DecodedNftBurn;
+	| DecodedNftBurn
+	| DecodedPrint;
 export type { DecodedEventColumns } from "./_payload.ts";
 export type {
 	DecodedFtTransfer,
@@ -80,6 +83,11 @@ export type {
 	DecodedNftMint,
 	DecodedNftMintPayload,
 } from "./token-mint-burn.ts";
+export type {
+	DecodedPrint,
+	DecodedPrintPayload,
+	DecodedPrintValue,
+} from "./print.ts";
 export { STREAMS_EVENT_TYPES } from "./types.ts";
 export type {
 	FetchLike,

@@ -11,6 +11,8 @@ export type DecodedEventColumns = {
 	amount?: string | null;
 	value?: string | null;
 	memo?: string | null;
+	/** JSONB overflow for non-flat types (e.g. print's decoded value). */
+	payload?: unknown;
 };
 
 export function requireString(

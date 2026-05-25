@@ -37,6 +37,7 @@
 	},
 	"dependencies": {
 		"@secondlayer/shared": "^6.4.5",
+		"@secondlayer/stacks": "^2.2.1",
 		"@secondlayer/subgraphs": "^3.2.1"
 	},
 	"devDependencies": {
