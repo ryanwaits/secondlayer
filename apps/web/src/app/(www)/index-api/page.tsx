@@ -109,6 +109,21 @@ for await (const call of index.contractCalls.walk({ contractId })) {
 				<DatasetSandbox
 					endpoint="/v1/index/ft-transfers"
 					title="Try /v1/index/ft-transfers"
+					sample={{
+						events: [
+							{
+								event_type: "ft_transfer",
+								block_height: 7869999,
+								tx_id: "0xabc…",
+								event_index: 12,
+								contract_id: "SP2…token-usda",
+								sender: "SP3…",
+								recipient: "SP1…",
+								amount: "1000000",
+							},
+						],
+						next_cursor: "7870001:7",
+					}}
 					filters={[
 						{
 							name: "contract_id",

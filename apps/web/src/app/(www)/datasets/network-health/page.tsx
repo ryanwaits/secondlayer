@@ -17,14 +17,6 @@ const toc: TocItem[] = [
 	{ label: "Notes", href: "#notes" },
 ];
 
-function InlineCodeBlock({ children }: { children: string }) {
-	return (
-		<pre className="code-block">
-			<code>{children.trim()}</code>
-		</pre>
-	);
-}
-
 export default function NetworkHealthDatasetPage() {
 	return (
 		<div className="article-layout">
@@ -71,24 +63,21 @@ export function NetworkHealthDatasetContent() {
 			<DatasetSandbox
 				endpoint="/v1/datasets/network-health/summary"
 				title="Try network-health/summary"
+				sample={{
+					days: [
+						{
+							date: "2026-05-05",
+							block_count: 8602,
+							avg_block_time_seconds: 10.04,
+							reorg_count: 0,
+						},
+					],
+					tip: { block_height: 7501982 },
+				}}
 				filters={[
 					{ name: "days", type: "number", default: "7", placeholder: "7" },
 				]}
 			/>
-
-			<InlineCodeBlock>
-				{`{
-  "days": [
-    {
-      "date": "2026-05-05",
-      "block_count": 8602,
-      "avg_block_time_seconds": 10.04,
-      "reorg_count": 0
-    }
-  ],
-  "tip": { "block_height": 7501982 }
-}`}
-			</InlineCodeBlock>
 
 			<SectionHeading id="schema">Schema</SectionHeading>
 

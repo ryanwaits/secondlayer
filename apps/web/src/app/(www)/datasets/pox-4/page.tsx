@@ -19,14 +19,6 @@ const toc: TocItem[] = [
 	{ label: "Freshness", href: "#freshness" },
 ];
 
-function InlineCodeBlock({ children }: { children: string }) {
-	return (
-		<pre className="code-block">
-			<code>{children.trim()}</code>
-		</pre>
-	);
-}
-
 export default function Pox4DatasetPage() {
 	return (
 		<div className="article-layout">
@@ -139,6 +131,22 @@ export function Pox4DatasetContent() {
 			<DatasetSandbox
 				endpoint="/v1/datasets/pox-4/calls"
 				title="Try pox-4/calls"
+				sample={{
+					calls: [
+						{
+							cursor: "7869999:4",
+							block_height: 7869999,
+							function_name: "stack-stx",
+							stacker: "SP1…",
+							amount_ustx: "100000000000",
+							start_cycle: 87,
+							end_cycle: 92,
+							result_ok: true,
+						},
+					],
+					next_cursor: "7870001:0",
+					tip: { block_height: 7889408 },
+				}}
 				filters={[
 					{
 						name: "function_name",
@@ -167,48 +175,13 @@ export function Pox4DatasetContent() {
 				]}
 			/>
 
-			<div className="prose">
-				<p>Sample response shape:</p>
-			</div>
-
-			<InlineCodeBlock>
-				{`{
-  "calls": [
-    {
-      "cursor": "7869999:4",
-      "block_height": 7869999,
-      "block_time": "2026-05-05T12:34:56.000Z",
-      "burn_block_height": 902481,
-      "tx_id": "0xabc...",
-      "tx_index": 4,
-      "function_name": "stack-stx",
-      "caller": "SP1...",
-      "stacker": "SP1...",
-      "amount_ustx": "100000000000",
-      "lock_period": 6,
-      "pox_addr_version": 4,
-      "pox_addr_hashbytes": "0x000102...",
-      "pox_addr_btc": "bc1q...",
-      "start_cycle": 87,
-      "end_cycle": 92,
-      "signer_key": "0x03ab...",
-      "auth_id": "1",
-      "max_amount": "200000000000",
-      "result_ok": true
-    }
-  ],
-  "next_cursor": "7870001:0",
-  "tip": { "block_height": 7889408 }
-}`}
-			</InlineCodeBlock>
-
 			<SectionHeading id="parquet">Parquet</SectionHeading>
 
 			<div className="prose">
 				<p>
-					Same data as the API, distributed as parquet for bulk pulls. Files
-					are partitioned by 10,000-block range. Manifest lists every published
-					file with row counts and SHA-256.
+					Same data as the API, distributed as parquet for bulk pulls. Files are
+					partitioned by 10,000-block range. Manifest lists every published file
+					with row counts and SHA-256.
 				</p>
 			</div>
 

@@ -143,6 +143,21 @@ export function SbtcDatasetContent() {
 					{ name: "from_block", type: "number", placeholder: "7800000" },
 					{ name: "to_block", type: "number", placeholder: "7900000" },
 				]}
+				sample={{
+					events: [
+						{
+							cursor: "7869999:42",
+							block_height: 7869999,
+							block_time: "2026-05-05T12:34:56.000Z",
+							tx_id: "0xabc…",
+							topic: "completed-deposit",
+							amount: "100000000",
+							bitcoin_txid: "0xa1b2…",
+						},
+					],
+					next_cursor: "7870001:7",
+					tip: { block_height: 7879089 },
+				}}
 			/>
 
 			<ParquetSnippet
@@ -156,34 +171,6 @@ export function SbtcDatasetContent() {
 				title="sbtc/token-events"
 				description="SIP-010 movements on sbtc-token: transfer, mint, burn."
 			/>
-
-			<div className="prose">
-				<p>Sample row shape (one row per registry event):</p>
-			</div>
-
-			<InlineCodeBlock>
-				{`{
-  "events": [
-    {
-      "cursor": "7869999:42",
-      "block_height": 7869999,
-      "block_time": "2026-05-05T12:34:56.000Z",
-      "tx_id": "0xabc...",
-      "tx_index": 12,
-      "event_index": 42,
-      "topic": "completed-deposit",
-      "amount": "100000000",
-      "bitcoin_txid": "0xa1b2...",
-      "output_index": 0,
-      "sweep_txid": "0xc3d4...",
-      "burn_hash": "0xe5f6...",
-      "burn_height": 902481
-    }
-  ],
-  "next_cursor": "7870001:7",
-  "tip": { "block_height": 7879089 }
-}`}
-			</InlineCodeBlock>
 
 			<SectionHeading id="parquet">Parquet</SectionHeading>
 

@@ -123,6 +123,22 @@ await streams.events.consume({
 				<DatasetSandbox
 					endpoint="/v1/streams/events"
 					title="Try /v1/streams/events"
+					sample={{
+						events: [
+							{
+								event_type: "ft_transfer",
+								block_height: 7869999,
+								block_hash: "0xdef…",
+								tx_id: "0xabc…",
+								event_index: 12,
+								contract_id: "SP2…BNS-V2",
+								sender: "SP3…",
+								recipient: "SP1…",
+								amount: "1000000",
+							},
+						],
+						next_cursor: "7870001:7",
+					}}
 					requiresApiKey
 					filters={[
 						{

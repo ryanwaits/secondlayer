@@ -29,10 +29,15 @@ export type DatasetSandboxProps = {
 	filters: readonly SandboxFilterDef[];
 	/** Optional default API base. Falls back to `https://api.secondlayer.tools`. */
 	apiBase?: string;
-	/** Optional title shown above the panel. */
+	/** Optional label shown above the cell. */
 	title?: string;
-	/** When true, render an API key input + send `Authorization: Bearer <key>`. */
+	/** When true, render an API key control + send `Authorization: Bearer <key>`. */
 	requiresApiKey?: boolean;
+	/**
+	 * A representative response envelope, shown dimmed in the idle state so the
+	 * shape is legible before the first request. Omit to show just the hint.
+	 */
+	sample?: unknown;
 };
 
 const DEFAULT_API_BASE = "https://api.secondlayer.tools";
@@ -58,6 +63,7 @@ export function DatasetSandbox({
 	apiBase = DEFAULT_API_BASE,
 	title,
 	requiresApiKey = false,
+	sample,
 }: DatasetSandboxProps) {
 	const [values, setValues] = useState<Record<string, string>>(() => {
 		const initial: Record<string, string> = {};
@@ -165,154 +171,219 @@ export function DatasetSandbox({
 		[fullUrl, apiKey, requiresApiKey],
 	);
 
-	const responseBody = formatResponseBody(response);
-	const showJsonTree =
+	const isObjectBody =
 		response.kind === "ok" &&
 		typeof response.body === "object" &&
 		response.body !== null;
+	const rows = response.kind === "ok" ? rowCount(response.body) : null;
+	const prettyBody = response.kind === "ok" ? safeStringify(response.body) : "";
+	// 401/403 on a write-gated endpoint → route the user into the key flow.
+	const authError =
+		requiresApiKey &&
+		response.kind === "error" &&
+		(response.status === 401 || response.status === 403);
 
 	return (
 		<div className="dataset-sandbox">
 			{title ? <div className="dataset-sandbox-title">{title}</div> : null}
 
+			{/* ── Request strip: the cell input ── */}
 			<form className="dataset-sandbox-form" onSubmit={handleSubmit}>
-				<div className="dataset-sandbox-endpoint">
-					<span className="dataset-sandbox-method">GET</span>
-					<code className="dataset-sandbox-path">
-						{endpoint}
-						{queryString || ""}
-					</code>
-				</div>
-
-				{requiresApiKey ? (
-					<div className="dataset-sandbox-filter">
-						<label
-							className="dataset-sandbox-filter-label"
-							htmlFor="dataset-sandbox-api-key"
+				<div className="dataset-sandbox-req">
+					<div className="dataset-sandbox-line">
+						<span className="dataset-sandbox-method">GET</span>
+						<code className="dataset-sandbox-path">
+							{endpoint}
+							{queryString ? (
+								<span className="dataset-sandbox-query">{queryString}</span>
+							) : null}
+						</code>
+						<button
+							type="submit"
+							className="dataset-sandbox-submit"
+							disabled={response.kind === "loading"}
 						>
-							Streams API key
-							<span className="dataset-sandbox-filter-helper">
-								{" "}
-								· stored in your browser only, sent straight to the API
-							</span>
-						</label>
-						{creating ? (
-							<InlineKeyCreate
-								onKey={(k) => {
-									updateApiKey(k);
-									setShowKey(false);
-									setCreating(false);
-								}}
-								onCancel={() => setCreating(false)}
-							/>
-						) : (
-							<div className="dataset-sandbox-key-row">
-								<input
-									id="dataset-sandbox-api-key"
-									type={showKey ? "text" : "password"}
-									autoComplete="off"
-									spellCheck={false}
-									value={apiKey}
-									onChange={(e) => updateApiKey(e.target.value)}
-									placeholder="sk-sl_..."
-									className="dataset-sandbox-filter-input"
+							{response.kind === "loading" ? (
+								<span className="dataset-sandbox-spin" aria-hidden="true" />
+							) : (
+								<PlayIcon />
+							)}
+							{response.kind === "loading" ? "Running" : "Send"}
+						</button>
+					</div>
+
+					{requiresApiKey ? (
+						<div className="dataset-sandbox-keyline">
+							{creating ? (
+								<InlineKeyCreate
+									onKey={(k) => {
+										updateApiKey(k);
+										setShowKey(false);
+										setCreating(false);
+									}}
+									onCancel={() => setCreating(false)}
 								/>
-								<button
-									type="button"
-									className="dataset-sandbox-key-btn"
-									onClick={() => setShowKey((s) => !s)}
-									aria-label={showKey ? "Hide API key" : "Show API key"}
-								>
-									{showKey ? "Hide" : "Show"}
-								</button>
-								{apiKey ? (
-									<button
-										type="button"
-										className="dataset-sandbox-key-btn"
-										onClick={() => updateApiKey("")}
-									>
-										Forget
-									</button>
-								) : (
-									<button
-										type="button"
-										className="dataset-sandbox-key-btn"
-										onClick={() => setCreating(true)}
-									>
-										Create a key
-									</button>
-								)}
-							</div>
-						)}
-					</div>
-				) : null}
+							) : (
+								<>
+									<span className="dataset-sandbox-keyline-label">
+										<KeyIcon />
+										API key · stored in your browser only
+									</span>
+									<div className="dataset-sandbox-key-row">
+										<input
+											type={showKey ? "text" : "password"}
+											autoComplete="off"
+											spellCheck={false}
+											value={apiKey}
+											onChange={(e) => updateApiKey(e.target.value)}
+											placeholder="sk-sl_..."
+											aria-label="API key"
+											className="dataset-sandbox-filter-input"
+										/>
+										<button
+											type="button"
+											className="dataset-sandbox-key-btn"
+											onClick={() => setShowKey((s) => !s)}
+											aria-label={showKey ? "Hide API key" : "Show API key"}
+										>
+											{showKey ? "Hide" : "Show"}
+										</button>
+										{apiKey ? (
+											<button
+												type="button"
+												className="dataset-sandbox-key-btn"
+												onClick={() => updateApiKey("")}
+											>
+												Forget
+											</button>
+										) : (
+											<button
+												type="button"
+												className="dataset-sandbox-key-btn"
+												onClick={() => setCreating(true)}
+											>
+												Create a key
+											</button>
+										)}
+									</div>
+								</>
+							)}
+						</div>
+					) : null}
 
-				{filters.length > 0 ? (
-					<div className="dataset-sandbox-filters">
-						{filters.map((filter) => (
-							<FilterInput
-								key={filter.name}
-								filter={filter}
-								value={values[filter.name] ?? ""}
-								onChange={handleChange}
-							/>
-						))}
-					</div>
-				) : null}
-
-				<div className="dataset-sandbox-actions">
-					<button
-						type="submit"
-						className="dataset-sandbox-submit"
-						disabled={response.kind === "loading"}
-					>
-						{response.kind === "loading" ? "Loading…" : "Send"}
-					</button>
-					{response.kind !== "idle" && response.kind !== "loading" ? (
-						<span className="dataset-sandbox-status">
-							{response.kind === "ok"
-								? "200 OK"
-								: `${response.status ?? "—"} ${response.kind === "error" ? "error" : ""}`}{" "}
-							· {response.latencyMs}ms
-						</span>
+					{filters.length > 0 ? (
+						<div className="dataset-sandbox-filters">
+							{filters.map((filter) => (
+								<FilterInput
+									key={filter.name}
+									filter={filter}
+									value={values[filter.name] ?? ""}
+									onChange={handleChange}
+								/>
+							))}
+						</div>
 					) : null}
 				</div>
 			</form>
 
-			<div className="dataset-sandbox-snippets">
-				<details className="dataset-sandbox-snippet" open>
-					<summary>curl</summary>
-					<div className="dataset-sandbox-snippet-body">
-						<SandboxCode code={curlSnippet} lang="bash" />
-					</div>
-				</details>
-				<details className="dataset-sandbox-snippet">
-					<summary>fetch (TypeScript)</summary>
-					<div className="dataset-sandbox-snippet-body">
-						<SandboxCode code={fetchSnippet} lang="typescript" />
-					</div>
-				</details>
+			{/* ── Response: the cell output, the hero ── */}
+			<div className="dataset-sandbox-res">
+				<div className="dataset-sandbox-res-meta">
+					<span className={`dataset-sandbox-dot ${metaDot(response)}`} />
+					{response.kind === "idle" ? <span>not run yet</span> : null}
+					{response.kind === "loading" ? <span>running…</span> : null}
+					{response.kind === "ok" ? (
+						<>
+							<span className="dataset-sandbox-status">{response.status}</span>
+							<span className="dataset-sandbox-sep">·</span>
+							<span>{response.latencyMs} ms</span>
+							{rows !== null ? (
+								<>
+									<span className="dataset-sandbox-sep">·</span>
+									<span>
+										{rows} row{rows === 1 ? "" : "s"}
+									</span>
+								</>
+							) : null}
+						</>
+					) : null}
+					{response.kind === "error" ? (
+						<>
+							<span className="dataset-sandbox-status err">
+								{response.status ?? "—"}
+							</span>
+							<span className="dataset-sandbox-sep">·</span>
+							<span>{response.latencyMs} ms</span>
+						</>
+					) : null}
+				</div>
+
+				<div
+					className={`dataset-sandbox-res-body${response.kind === "idle" ? " is-idle" : ""}`}
+				>
+					{response.kind === "idle" ? (
+						<>
+							{sample !== undefined ? (
+								<CollapsibleJsonTree data={sample} expandDepth={3} />
+							) : null}
+							<div className="dataset-sandbox-hint">
+								<span>Press</span>
+								<kbd>Send</kbd>
+								<span>to run this against live data.</span>
+							</div>
+						</>
+					) : null}
+
+					{response.kind === "loading" ? <Skeleton rows={5} /> : null}
+
+					{response.kind === "ok" && isObjectBody ? (
+						<>
+							<CopyButton code={prettyBody} />
+							<CollapsibleJsonTree
+								data={(response as { body: unknown }).body}
+							/>
+							{rows === 0 ? (
+								<div className="dataset-sandbox-nudge">
+									No rows matched. Loosen a filter and run again.
+								</div>
+							) : null}
+						</>
+					) : null}
+
+					{response.kind === "ok" && !isObjectBody ? (
+						<pre className="code-block">
+							<code>{prettyBody}</code>
+						</pre>
+					) : null}
+
+					{response.kind === "error" ? (
+						<>
+							<div className="dataset-sandbox-error">{`// ${response.message}`}</div>
+							{authError && !creating ? (
+								<button
+									type="button"
+									className="dataset-sandbox-error-action"
+									onClick={() => setCreating(true)}
+								>
+									<KeyIcon />
+									Create a key
+								</button>
+							) : null}
+						</>
+					) : null}
+				</div>
 			</div>
 
-			{response.kind !== "idle" ? (
-				<div className="dataset-sandbox-response">
-					<div className="dataset-sandbox-response-header">Response</div>
-					{showJsonTree ? (
-						<div className="dataset-sandbox-json">
-							<CopyButton code={responseBody} />
-							<div className="dataset-sandbox-json-scroll">
-								<CollapsibleJsonTree
-									data={(response as { body: unknown }).body}
-								/>
-							</div>
-						</div>
-					) : (
-						<pre className="code-block dataset-sandbox-response-body">
-							<code>{responseBody}</code>
-						</pre>
-					)}
+			{/* ── Snippets: demoted to one quiet disclosure ── */}
+			<details className="dataset-sandbox-snippets">
+				<summary>Code · curl, fetch</summary>
+				<div className="dataset-sandbox-snippet-body">
+					<SandboxCode code={curlSnippet} lang="bash" />
 				</div>
-			) : null}
+				<div className="dataset-sandbox-snippet-body">
+					<SandboxCode code={fetchSnippet} lang="typescript" />
+				</div>
+			</details>
 		</div>
 	);
 }
@@ -328,16 +399,12 @@ function FilterInput({
 }) {
 	const id = `sandbox-filter-${filter.name}`;
 	return (
-		<label className="dataset-sandbox-filter" htmlFor={id}>
-			<span className="dataset-sandbox-filter-label">
-				{filter.name}
-				{filter.helper ? (
-					<span className="dataset-sandbox-filter-helper">
-						{" "}
-						{filter.helper}
-					</span>
-				) : null}
-			</span>
+		<label
+			className={`dataset-sandbox-filter${value ? " is-set" : ""}`}
+			htmlFor={id}
+			title={filter.helper}
+		>
+			<span className="dataset-sandbox-filter-label">{filter.name}</span>
 			{filter.type === "enum" ? (
 				<select
 					id={id}
@@ -364,6 +431,54 @@ function FilterInput({
 	);
 }
 
+function Skeleton({ rows }: { rows: number }) {
+	// Varied widths read as "rows of data" rather than a progress bar.
+	const widths = ["38%", "72%", "64%", "80%", "46%"];
+	return (
+		<div className="dataset-sandbox-skeleton" aria-hidden="true">
+			{Array.from({ length: rows }, (_, i) => (
+				<span
+					// biome-ignore lint/suspicious/noArrayIndexKey: static placeholder bars
+					key={i}
+					className="dataset-sandbox-sk"
+					style={{ width: widths[i % widths.length] }}
+				/>
+			))}
+		</div>
+	);
+}
+
+function PlayIcon() {
+	return (
+		<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+			<path d="M8 5v14l11-7z" />
+		</svg>
+	);
+}
+
+function KeyIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3" />
+		</svg>
+	);
+}
+
+function metaDot(state: ResponseState): string {
+	if (state.kind === "ok") return "ok";
+	if (state.kind === "error") return "err";
+	if (state.kind === "idle") return "idle";
+	return "";
+}
+
 function buildQuery(values: Record<string, string>): string {
 	const params = new URLSearchParams();
 	for (const [k, v] of Object.entries(values)) {
@@ -373,19 +488,31 @@ function buildQuery(values: Record<string, string>): string {
 	return s ? `?${s}` : "";
 }
 
-function formatResponseBody(state: ResponseState): string {
-	if (state.kind === "idle") {
-		return "// Hit Send to see live JSON.";
+// Row count for the meta line — the first array we find in the envelope, or the
+// body itself when it's a bare array. Null when there's nothing countable.
+function rowCount(body: unknown): number | null {
+	if (Array.isArray(body)) return body.length;
+	if (body && typeof body === "object") {
+		for (const key of [
+			"events",
+			"transactions",
+			"calls",
+			"results",
+			"data",
+			"rows",
+			"items",
+		]) {
+			const v = (body as Record<string, unknown>)[key];
+			if (Array.isArray(v)) return v.length;
+		}
 	}
-	if (state.kind === "loading") {
-		return "// fetching…";
-	}
-	if (state.kind === "error") {
-		return `// ${state.message}`;
-	}
+	return null;
+}
+
+function safeStringify(body: unknown): string {
 	try {
-		return JSON.stringify(state.body, null, 2);
+		return JSON.stringify(body, null, 2);
 	} catch {
-		return String(state.body);
+		return String(body);
 	}
 }

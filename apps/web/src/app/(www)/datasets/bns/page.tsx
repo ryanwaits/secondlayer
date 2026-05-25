@@ -20,14 +20,6 @@ const toc: TocItem[] = [
 	{ label: "Freshness", href: "#freshness" },
 ];
 
-function InlineCodeBlock({ children }: { children: string }) {
-	return (
-		<pre className="code-block">
-			<code>{children.trim()}</code>
-		</pre>
-	);
-}
-
 export default function BnsDatasetPage() {
 	return (
 		<div className="article-layout">
@@ -163,6 +155,23 @@ export function BnsDatasetContent() {
 			<DatasetSandbox
 				endpoint="/v1/datasets/bns/name-events"
 				title="Try bns/name-events"
+				sample={{
+					events: [
+						{
+							cursor: "7869999:12",
+							block_height: 7869999,
+							block_time: "2026-05-05T12:34:56.000Z",
+							tx_id: "0xabc…",
+							topic: "new-name",
+							namespace: "btc",
+							name: "alice",
+							owner: "SP1…",
+							bns_id: "12345",
+						},
+					],
+					next_cursor: "7870001:3",
+					tip: { block_height: 7889408 },
+				}}
 				filters={[
 					{
 						name: "topic",
@@ -186,6 +195,16 @@ export function BnsDatasetContent() {
 			<DatasetSandbox
 				endpoint="/v1/datasets/bns/resolve"
 				title="Try bns/resolve"
+				sample={{
+					fqn: "alice.btc",
+					namespace: "btc",
+					name: "alice",
+					owner: "SP1…",
+					bns_id: "12345",
+					registered_at: 7869999,
+					renewal_height: 7919999,
+					last_event_at: "2026-05-05T12:34:56.000Z",
+				}}
 				filters={[
 					{
 						name: "fqn",
@@ -204,19 +223,6 @@ export function BnsDatasetContent() {
 					current canonical owner row. 404 if not registered or burned.
 				</p>
 			</div>
-
-			<InlineCodeBlock>
-				{`{
-  "fqn": "alice.btc",
-  "namespace": "btc",
-  "name": "alice",
-  "owner": "SP1...",
-  "bns_id": "12345",
-  "registered_at": 7869999,
-  "renewal_height": 7919999,
-  "last_event_at": "2026-05-05T12:34:56.000Z"
-}`}
-			</InlineCodeBlock>
 
 			<SectionHeading id="parquet">Parquet</SectionHeading>
 

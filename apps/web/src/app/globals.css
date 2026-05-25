@@ -3842,153 +3842,407 @@ a.dataset-shelf-name:hover {
 	}
 }
 
-/* ── Dataset sandbox ─────────────────────────────────────────────── */
+/* ── Dataset sandbox — notebook cell (request strip → response hero) ──
+   The request compresses to a chrome-inset "input" strip; the live JSON
+   response is the bright "output" below it. Input shaded, output lifted,
+   stacked flush like a Jupyter/Observable cell. Stays in the prose column. */
 .dataset-sandbox {
-	margin-top: var(--spacing-md);
-	margin-bottom: var(--spacing-md);
-	border: 1px solid var(--border);
-	border-radius: 8px;
-	padding: var(--spacing-sm);
-	background: var(--bg);
-	display: flex;
-	flex-direction: column;
-	gap: var(--spacing-sm);
+	margin: var(--spacing-md) 0;
+	min-width: 0;
 }
 
 .dataset-sandbox-title {
-	font-weight: 600;
-	font-size: 0.875rem;
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	font-weight: 560;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin-bottom: 8px;
 }
 
+/* The <form> is a layout no-op so the request strip sits flush against the
+   response panel (which lives outside the form). */
 .dataset-sandbox-form {
-	display: flex;
-	flex-direction: column;
-	gap: var(--spacing-xs);
+	display: contents;
 }
 
-.dataset-sandbox-endpoint {
+/* — Request strip: the cell input — */
+.dataset-sandbox-req {
+	background: var(--code-block-bg);
+	border: 1px solid var(--border);
+	border-radius: 8px 8px 0 0;
+}
+
+.dataset-sandbox-line {
 	display: flex;
 	align-items: center;
-	gap: var(--spacing-xs);
-	font-family: var(--font-mono-stack);
-	font-size: 0.8125rem;
-	background: var(--code-block-bg);
-	padding: 6px 10px;
-	border-radius: 6px;
-	overflow-x: auto;
+	gap: 10px;
+	padding: 10px 12px;
 }
 
 .dataset-sandbox-method {
-	color: var(--accent, #2563eb);
+	flex: none;
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
 	font-weight: 600;
-	font-size: 0.7rem;
 	letter-spacing: 0.04em;
+	color: var(--accent);
 }
 
 .dataset-sandbox-path {
+	flex: 1;
+	min-width: 0;
+	overflow-x: auto;
 	white-space: nowrap;
+	font-family: var(--font-mono-stack);
+	font-size: 0.75rem;
+	color: var(--text-main);
 	background: transparent;
+	scrollbar-width: none;
+}
+.dataset-sandbox-path::-webkit-scrollbar {
+	display: none;
+}
+.dataset-sandbox-query {
+	color: var(--text-muted);
 }
 
+.dataset-sandbox-submit {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-family: var(--font-sans-stack);
+	font-size: 12px;
+	font-weight: 560;
+	color: var(--accent-contrast);
+	background: var(--accent);
+	border: none;
+	border-radius: 6px;
+	padding: 6px 13px;
+	cursor: pointer;
+	transition: opacity var(--duration-snappy) var(--ease-snappy), transform
+		var(--duration-snappy) var(--ease-snappy);
+}
+.dataset-sandbox-submit:hover {
+	opacity: 0.9;
+}
+.dataset-sandbox-submit:active {
+	transform: translateY(0.5px);
+}
+.dataset-sandbox-submit:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.dataset-sandbox-submit svg {
+	width: 11px;
+	height: 11px;
+}
+.dataset-sandbox-spin {
+	width: 12px;
+	height: 12px;
+	border: 1.5px solid var(--accent-contrast);
+	border-right-color: transparent;
+	border-radius: 50%;
+	animation: dataset-sandbox-spin 0.6s linear infinite;
+}
+@keyframes dataset-sandbox-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* — Filter row: compact inline chips, label fused to control — */
 .dataset-sandbox-filters {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: var(--spacing-xs);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 10px 12px;
+	border-top: 1px dashed var(--border);
 }
 
 .dataset-sandbox-filter {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	font-size: 0.8125rem;
+	display: inline-flex;
+	align-items: center;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--bg-elevated);
+	overflow: hidden;
+	transition: border-color var(--duration-snappy) var(--ease-snappy);
+}
+.dataset-sandbox-filter:focus-within,
+.dataset-sandbox-filter.is-set {
+	border-color: var(--accent-border);
 }
 
 .dataset-sandbox-filter-label {
+	flex: none;
 	font-family: var(--font-mono-stack);
-	font-size: 0.75rem;
-	color: var(--text-muted, #6b7280);
+	font-size: 0.6875rem;
+	color: var(--text-muted);
+	padding: 0 6px 0 9px;
+	white-space: nowrap;
 }
-
-.dataset-sandbox-filter-helper {
-	font-style: italic;
-	font-size: 0.7rem;
-	opacity: 0.7;
+.dataset-sandbox-filter.is-set .dataset-sandbox-filter-label {
+	color: var(--accent);
 }
 
 .dataset-sandbox-filter input,
 .dataset-sandbox-filter select {
 	font-family: var(--font-mono-stack);
-	font-size: 0.8125rem;
-	padding: 6px 8px;
-	border: 1px solid var(--border);
-	border-radius: 4px;
-	background: var(--bg);
-	color: inherit;
+	font-size: 0.75rem;
+	color: var(--text-main);
+	border: none;
+	outline: none;
+	background: transparent;
+	padding: 5px 9px 5px 2px;
+	max-width: 130px;
+}
+.dataset-sandbox-filter select {
+	padding-right: 6px;
+	cursor: pointer;
+}
+.dataset-sandbox-filter input::placeholder {
+	color: var(--text-dim);
 }
 
-.dataset-sandbox-actions {
+/* Base for the key + keygen inputs (InlineKeyCreate uses this class). */
+.dataset-sandbox-filter-input {
+	font-family: var(--font-mono-stack);
+	font-size: 0.8125rem;
+	color: var(--text-main);
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 7px 10px;
+	outline: none;
+	transition: border-color var(--duration-snappy) var(--ease-snappy);
+}
+.dataset-sandbox-filter-input:focus {
+	border-color: var(--text-muted);
+}
+.dataset-sandbox-filter-input::placeholder {
+	color: var(--text-muted);
+}
+
+/* — Demoted API-key line, tucked into the request strip — */
+.dataset-sandbox-keyline {
+	padding: 10px 12px;
+	border-top: 1px dashed var(--border);
+}
+.dataset-sandbox-keyline-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	color: var(--text-muted);
+	margin-bottom: 7px;
+}
+.dataset-sandbox-keyline-label svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* — Response: the cell output — the hero — */
+.dataset-sandbox-res {
+	border: 1px solid var(--border);
+	border-radius: 0 0 8px 8px;
+	background: var(--bg-elevated);
+	overflow: hidden;
+}
+
+.dataset-sandbox-res-meta {
 	display: flex;
 	align-items: center;
-	gap: var(--spacing-sm);
-}
-
-.dataset-sandbox-submit {
-	font-size: 0.8125rem;
-	padding: 6px 14px;
-	border-radius: 4px;
-	border: 1px solid var(--border);
-	background: var(--accent, #2563eb);
-	/* Use the theme-aware accent contrast so dark mode flips to dark text
-	   on the cyan accent (matches the auth-bar "Sign up" CTA). */
-	color: var(--accent-contrast, #fff);
-	cursor: pointer;
-	font-weight: 600;
-}
-
-.dataset-sandbox-submit:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-
-.dataset-sandbox-status {
+	gap: 8px;
+	padding: 9px 12px;
+	border-bottom: 1px solid var(--border);
 	font-family: var(--font-mono-stack);
-	font-size: 0.75rem;
-	color: var(--text-muted, #6b7280);
+	font-size: 0.6875rem;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+.dataset-sandbox-dot {
+	width: 7px;
+	height: 7px;
+	flex: none;
+	border-radius: 50%;
+	background: var(--text-muted);
+}
+.dataset-sandbox-dot.ok {
+	background: var(--green);
+}
+.dataset-sandbox-dot.err {
+	background: var(--red);
+}
+.dataset-sandbox-dot.idle {
+	background: var(--text-dim);
+}
+.dataset-sandbox-status {
+	color: var(--text-main);
+	font-weight: 500;
+}
+.dataset-sandbox-status.err {
+	color: var(--red);
+}
+.dataset-sandbox-sep {
+	color: var(--text-dim);
 }
 
-.dataset-sandbox-snippets {
+.dataset-sandbox-res-body {
+	position: relative;
+	max-height: 360px;
+	overflow: auto;
+	padding: 12px 14px;
+}
+/* Response copy button is always visible (no hover-reveal here). */
+.dataset-sandbox-res-body .copy-button {
+	opacity: 1;
+}
+.dataset-sandbox-res-body.is-idle .sl-json {
+	opacity: 0.5;
+}
+
+/* Skeleton rows for loading + the idle teaching shape. */
+.dataset-sandbox-skeleton {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 9px;
+}
+.dataset-sandbox-sk {
+	height: 11px;
+	border-radius: 3px;
+	background: var(--bg-chrome);
+	position: relative;
+	overflow: hidden;
+}
+.dataset-sandbox-sk::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		color-mix(in srgb, var(--text-main) 7%, transparent),
+		transparent
+	);
+	animation: dataset-sandbox-shimmer 1.1s infinite;
 }
 
-.dataset-sandbox-snippet > summary {
+@keyframes dataset-sandbox-shimmer {
+	100% {
+		transform: translateX(100%);
+	}
+}
+
+.dataset-sandbox-hint {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-top: 12px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.75rem;
+	color: var(--text-muted);
+}
+.dataset-sandbox-hint kbd {
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	color: var(--text-main);
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 1px 6px;
+}
+.dataset-sandbox-nudge {
+	margin-top: 10px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.75rem;
+	color: var(--text-muted);
+}
+
+/* Error body: red message + (write-gated endpoints) inline create-key path. */
+.dataset-sandbox-error {
+	font-family: var(--font-mono-stack);
+	font-size: 0.75rem;
+	line-height: 1.55;
+	color: var(--red);
+}
+.dataset-sandbox-error-action {
+	margin-top: 10px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-family: var(--font-sans-stack);
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-main);
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 6px 11px;
+	cursor: pointer;
+	transition: border-color var(--duration-snappy) var(--ease-snappy);
+}
+.dataset-sandbox-error-action:hover {
+	border-color: var(--border-hover);
+}
+.dataset-sandbox-error-action svg {
+	width: 13px;
+	height: 13px;
+}
+
+/* — Snippets: demoted to one quiet disclosure under the response — */
+.dataset-sandbox-snippets {
+	margin-top: 10px;
+}
+.dataset-sandbox-snippets > summary {
 	cursor: pointer;
 	font-family: var(--font-mono-stack);
 	font-size: 0.75rem;
-	color: var(--text-muted, #6b7280);
+	color: var(--text-muted);
 	user-select: none;
+	list-style: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	transition: color var(--duration-snappy) var(--ease-snappy);
 }
-
+.dataset-sandbox-snippets > summary::-webkit-details-marker {
+	display: none;
+}
+.dataset-sandbox-snippets > summary::before {
+	content: "›";
+	display: inline-block;
+	transition: transform var(--duration-snappy) var(--ease-snappy);
+}
+.dataset-sandbox-snippets[open] > summary::before {
+	transform: rotate(90deg);
+}
+.dataset-sandbox-snippets > summary:hover {
+	color: var(--text-main);
+}
 .dataset-sandbox-snippet-body {
 	position: relative;
-	margin-top: 4px;
+	margin-top: 8px;
 }
-
 .dataset-sandbox-snippet-body .copy-button {
 	opacity: 1;
 }
 
-.dataset-sandbox-response-header {
-	font-family: var(--font-mono-stack);
-	font-size: 0.75rem;
-	color: var(--text-muted, #6b7280);
-	margin-bottom: 4px;
+@media (prefers-reduced-motion: reduce) {
+	.dataset-sandbox-spin,
+	.dataset-sandbox-sk::after {
+		animation: none;
+	}
 }
 
-.dataset-sandbox-response-body {
-	max-height: 400px;
-	overflow-y: auto;
+@media (max-width: 480px) {
+	.dataset-sandbox-filter input,
+	.dataset-sandbox-filter select {
+		max-width: 104px;
+	}
 }
 
 /* ── API sandbox: collapsible JSON response ────────────────────────── */

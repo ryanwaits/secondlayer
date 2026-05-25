@@ -174,6 +174,22 @@ export function StxTransfersDatasetContent() {
 			<DatasetSandbox
 				endpoint="/v1/datasets/stx-transfers"
 				title="Try stx-transfers"
+				sample={{
+					events: [
+						{
+							cursor: "189999:42",
+							block_height: 189999,
+							block_time: "2026-05-05T12:34:56.000Z",
+							tx_id: "0xabc…",
+							sender: "SP1…",
+							recipient: "SP2…",
+							amount: "1000000",
+							memo: null,
+						},
+					],
+					next_cursor: "190001:7",
+					tip: { block_height: 195000 },
+				}}
 				filters={[
 					{ name: "limit", type: "number", default: "5", placeholder: "5" },
 					{ name: "sender", type: "string", placeholder: "SP1..." },
@@ -182,31 +198,6 @@ export function StxTransfersDatasetContent() {
 					{ name: "to_block", type: "number", placeholder: "7900000" },
 				]}
 			/>
-
-			<div className="prose">
-				<p>Response shape:</p>
-			</div>
-
-			<InlineCodeBlock>
-				{`{
-  "events": [
-    {
-      "cursor": "189999:42",
-      "block_height": 189999,
-      "block_time": "2026-05-05T12:34:56.000Z",
-      "tx_id": "0xabc...",
-      "tx_index": 12,
-      "event_index": 42,
-      "sender": "SP1...",
-      "recipient": "SP2...",
-      "amount": "1000000",
-      "memo": null
-    }
-  ],
-  "next_cursor": "190001:7",
-  "tip": { "block_height": 195000 }
-}`}
-			</InlineCodeBlock>
 
 			<SectionHeading id="parquet">Parquet</SectionHeading>
 
