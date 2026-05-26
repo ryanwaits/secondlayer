@@ -1,16 +1,12 @@
-import { sql } from "@secondlayer/shared";
 // Indexer service - receives events from Stacks node
 // Uses native Bun.serve routes instead of Hono (fixes stack overflow issues)
 import { getDb } from "@secondlayer/shared/db";
-import type { Database } from "@secondlayer/shared/db";
 import {
-	computeContiguousTip,
 	countMissingBlocks,
 	findGaps,
 } from "@secondlayer/shared/db/queries/integrity";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
-import type { Transaction } from "kysely";
 import {
 	bnsMarketplaceEventsPublisherState,
 	startBnsMarketplaceEventsPublisher,
@@ -46,6 +42,7 @@ import {
 	parseTransaction,
 	stripNullBytes,
 } from "./parser.ts";
+import { persistBlock } from "./persist.ts";
 import { detectReorg, handleReorg } from "./reorg.ts";
 import {
 	startStreamsBulkPublisher,
@@ -199,7 +196,9 @@ const server = Bun.serve({
 							: null,
 					lastError: sbtcEventsPublisherState.lastError,
 				},
-				sbtcTokenEventsPublisher: publisherStatus(sbtcTokenEventsPublisherState),
+				sbtcTokenEventsPublisher: publisherStatus(
+					sbtcTokenEventsPublisherState,
+				),
 				pox4CallsPublisher: publisherStatus(pox4CallsPublisherState),
 				bnsNameEventsPublisher: publisherStatus(bnsNameEventsPublisherState),
 				bnsNamespaceEventsPublisher: publisherStatus(
@@ -360,95 +359,14 @@ const server = Bun.serve({
 						.filter((evt): evt is NonNullable<typeof evt> => evt !== null)
 						.map((evt) => stripNullBytes(evt) as typeof evt);
 
-					// Insert in transaction (chunk large batches to avoid Postgres parameter limit)
-					const TX_CHUNK_SIZE = 500;
-					const EVT_CHUNK_SIZE = 1000;
-
-					await db.transaction().execute(async (tx: Transaction<Database>) => {
-						await tx
-							.insertInto("blocks")
-							.values(block)
-							// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-							.onConflict((oc: any) =>
-								oc.column("height").doUpdateSet({
-									hash: block.hash,
-									parent_hash: block.parent_hash,
-									burn_block_height: block.burn_block_height,
-									burn_block_hash: block.burn_block_hash,
-									timestamp: block.timestamp,
-									canonical: true,
-								}),
-							)
-							.execute();
-
-						for (let i = 0; i < txs.length; i += TX_CHUNK_SIZE) {
-							await tx
-								.insertInto("transactions")
-								.values(txs.slice(i, i + TX_CHUNK_SIZE))
-								// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-								.onConflict((oc: any) => oc.doNothing())
-								.execute();
-						}
-
-						for (let i = 0; i < evts.length; i += EVT_CHUNK_SIZE) {
-							await tx
-								.insertInto("events")
-								.values(evts.slice(i, i + EVT_CHUNK_SIZE))
-								// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-								.onConflict((oc: any) => oc.doNothing())
-								.execute();
-						}
-
-						const network = process.env.STACKS_NETWORK || "mainnet";
-
-						// Compute lastContiguousBlock
-						const progressRow = await tx
-							.selectFrom("index_progress")
-							.select("last_contiguous_block")
-							.where("network", "=", network)
-							.limit(1)
-							.executeTakeFirst();
-
-						const currentContiguous = Number(
-							progressRow?.last_contiguous_block ?? 0,
-						);
-						let newContiguous = currentContiguous;
-
-						if (payload.block_height === currentContiguous + 1) {
-							// Next sequential block — extend the contiguous chain
-							newContiguous = await computeContiguousTip(
-								tx,
-								currentContiguous + 1,
-							);
-						} else if (currentContiguous === 0 && payload.block_height > 1) {
-							// Indexing from non-genesis start — find contiguous run from our lowest block
-							const { rows: minRows } = await sql<{ min_height: string }>`
-                SELECT MIN(height) AS min_height FROM blocks WHERE canonical = true
-              `.execute(tx);
-							const minHeight = Number(minRows[0]?.min_height ?? 0);
-							if (minHeight > 0) {
-								newContiguous = await computeContiguousTip(tx, minHeight);
-							}
-						}
-
-						await tx
-							.insertInto("index_progress")
-							.values({
-								network,
-								last_indexed_block: payload.block_height,
-								last_contiguous_block: newContiguous,
-								highest_seen_block: payload.block_height,
-							})
-							// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-							.onConflict((oc: any) =>
-								oc.column("network").doUpdateSet({
-									last_indexed_block: sql`GREATEST(index_progress.last_indexed_block, ${payload.block_height})`,
-									last_contiguous_block: sql`GREATEST(index_progress.last_contiguous_block, ${newContiguous})`,
-									highest_seen_block: sql`GREATEST(index_progress.highest_seen_block, ${payload.block_height})`,
-									updated_at: new Date(),
-								}),
-							)
-							.execute();
+					// Persist block + txs/events atomically. Replace-per-height inside
+					// (deletes stale rows at this height before insert) keeps reorged
+					// heights free of orphaned duplicates — see persistBlock / #46.
+					await persistBlock(db, {
+						block,
+						txs,
+						evts,
+						blockHeight: payload.block_height,
 					});
 
 					logger.info("Block indexed successfully", {
