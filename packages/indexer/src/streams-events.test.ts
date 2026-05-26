@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
+import { type PersistBlockInput, persistBlock } from "./persist.ts";
 import { readCanonicalStreamsEvents } from "./streams-events.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -420,3 +421,78 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		expect(page.next_cursor).toBe("12:2147483647");
 	});
 });
+
+describe.skipIf(!HAS_DB)(
+	"readCanonicalStreamsEvents — reorg-replaced height (#46)",
+	() => {
+		const db = HAS_DB ? getDb() : null;
+		const H = 991001;
+		const NETWORK = "streams-reorg-test";
+
+		beforeEach(async () => {
+			if (!db) return;
+			await db.deleteFrom("events").where("block_height", "=", H).execute();
+			await db
+				.deleteFrom("transactions")
+				.where("block_height", "=", H)
+				.execute();
+			await db.deleteFrom("blocks").where("height", "=", H).execute();
+			await db
+				.deleteFrom("index_progress")
+				.where("network", "=", NETWORK)
+				.execute();
+		});
+
+		function block(hash: string, prefix: string): PersistBlockInput {
+			return {
+				block: {
+					height: H,
+					hash,
+					parent_hash: "0xpar",
+					burn_block_height: 1,
+					burn_block_hash: null,
+					timestamp: 1_700_000_000,
+					canonical: true,
+				},
+				txs: [0, 1].map((i) => ({
+					tx_id: `${prefix}${i}`,
+					block_height: H,
+					tx_index: i,
+					type: "token_transfer",
+					sender: "SP1",
+					status: "success",
+					raw_tx: "0x00",
+				})),
+				evts: [0, 1].map((i) => ({
+					tx_id: `${prefix}${i}`,
+					block_height: H,
+					event_index: 0,
+					type: "stx_transfer_event",
+					data: { sender: "SP1", recipient: "SP2", amount: `${i + 1}` },
+				})),
+				blockHeight: H,
+				network: NETWORK,
+			};
+		}
+
+		test("after a reorg replace, cursors are unique and only canonical events remain", async () => {
+			if (!db) throw new Error("missing db");
+			await persistBlock(db, block("0xblockA", "0xtxA"));
+			// Reorg: a new block at the same height with a different tx set. Before
+			// the replace-per-height fix this left A's rows behind, colliding cursors.
+			await persistBlock(db, block("0xblockB", "0xtxB"));
+
+			const page = await readCanonicalStreamsEvents({
+				fromHeight: H,
+				toHeight: H,
+				limit: 50,
+				db,
+			});
+
+			const cursors = page.events.map((e) => e.cursor);
+			expect(cursors).toEqual([`${H}:0`, `${H}:1`]);
+			expect(new Set(cursors).size).toBe(cursors.length);
+			expect(page.events.map((e) => e.tx_id)).toEqual(["0xtxB0", "0xtxB1"]);
+		});
+	},
+);
