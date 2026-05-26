@@ -171,11 +171,22 @@ export async function writeDecodedEvents(
 ): Promise<void> {
 	if (events.length === 0) return;
 
+	// De-dupe by cursor before the upsert. A single batch can carry two events
+	// that resolve to the same Streams cursor when a reorged height has stale
+	// duplicate transactions (the Streams stream_event_index counts events
+	// joined to transactions, which double-counts orphaned tx rows). `cursor` is
+	// this table's conflict key, so Postgres rejects the whole batch otherwise —
+	// "ON CONFLICT DO UPDATE command cannot affect row a second time" — and the
+	// decoder wedges. Last occurrence wins.
+	const byCursor = new Map<string, DecodedEventRow>();
+	for (const event of events) byCursor.set(event.cursor, event);
+	const deduped = [...byCursor.values()];
+
 	const db = l2Db(opts?.db);
 	await db
 		.insertInto("decoded_events")
 		.values(
-			events.map((event) => {
+			deduped.map((event) => {
 				// Every decoded payload is a subset of DecodedEventColumns, so columns
 				// map generically — the decoder decides which fields a given event
 				// type populates; absent ones fall to null.

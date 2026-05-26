@@ -169,6 +169,36 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 		});
 	});
 
+	test("writeDecodedEvents de-dupes a batch by cursor (reorg dup-tx safety)", async () => {
+		if (!db) throw new Error("missing db");
+		const event = (txId: string, amount: string) => ({
+			cursor: "20:0",
+			block_height: 20,
+			tx_id: txId,
+			tx_index: 0,
+			event_index: 0,
+			event_type: "stx_transfer" as const,
+			decoded_payload: {
+				sender: "SP1",
+				recipient: "SP2",
+				amount,
+				memo: null,
+			},
+			source_cursor: "20:0",
+		});
+
+		// Two events colliding on one cursor must not throw "ON CONFLICT ...
+		// cannot affect row a second time"; last occurrence wins.
+		await writeDecodedEvents([event("tx-a", "10"), event("tx-b", "20")], { db });
+
+		const rows = await db
+			.selectFrom("decoded_events")
+			.select(["cursor", "tx_id", "amount"])
+			.where("cursor", "=", "20:0")
+			.execute();
+		expect(rows).toEqual([{ cursor: "20:0", tx_id: "tx-b", amount: "20" }]);
+	});
+
 	test("writeDecodedEvents stores raw nft_transfer values", async () => {
 		if (!db) throw new Error("missing db");
 
