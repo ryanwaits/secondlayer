@@ -24,6 +24,25 @@ are idempotent upserts, so re-processing the recent tail is harmless.
 - Confirm container/service names if unsure: `docker compose ps` — expect the
   decoder service `l2-decoder` (container `secondlayer-l2-decoder-1`).
 
+## Step 0 — clean reorg dupes first (#46, required)
+
+Before backfilling, remove the reorg-orphaned duplicate transactions/events that
+caused the Streams cursor collisions. Run this once, after the replace-per-height
+ingest fix is deployed (so no new dupes form), and before the backfill below:
+
+```bash
+# dry-run — reports orphaned tx / event counts, no writes
+docker compose run --rm l2-decoder \
+  bun run packages/indexer/src/cleanup-reorg-dupes.ts
+
+# apply
+docker compose run --rm l2-decoder \
+  bun run packages/indexer/src/cleanup-reorg-dupes.ts --apply
+```
+
+Expect `remaining orphaned transactions: 0` after `--apply`. (Optional
+`--from-height` / `--to-height` to scope.) Then proceed to the backfill.
+
 ## Procedure (race-free)
 
 Stop the decoder first so it can't overwrite the checkpoint mid-reset.
