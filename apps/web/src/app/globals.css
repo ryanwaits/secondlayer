@@ -2,7 +2,7 @@
 	--bg: #fafafa;
 	--text-main: #111;
 	--text-prose: #111;
-	--text-muted: rgba(0, 0, 0, 0.55);
+	--text-muted: rgba(0, 0, 0, 0.65);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #e5e5e5;
 	--border-hover: #ddd;
@@ -149,7 +149,7 @@ html.force-light {
 	--bg: #fafafa;
 	--text-main: #111;
 	--text-prose: #111;
-	--text-muted: rgba(0, 0, 0, 0.55);
+	--text-muted: rgba(0, 0, 0, 0.65);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #e5e5e5;
 	--border-hover: #ddd;
