@@ -1,6 +1,9 @@
 "use client";
 
-import { OverviewTopbar } from "@/components/console/overview-topbar";
+import {
+	OverviewTopbar,
+	SettingsCrumb,
+} from "@/components/console/overview-topbar";
 import { useAuth } from "@/lib/auth";
 import {
 	useDeleteProject,
@@ -59,7 +62,11 @@ export default function SettingsPage() {
 
 	return (
 		<>
-			<OverviewTopbar path="Settings" page="Project" showRefresh={false} />
+			<OverviewTopbar
+				path={<SettingsCrumb />}
+				page="Project"
+				showRefresh={false}
+			/>
 			<div className="settings-scroll">
 				<div className="settings-inner">
 					<h1 className="settings-title">Project settings</h1>
@@ -187,4 +194,3 @@ export default function SettingsPage() {
 		</>
 	);
 }
-

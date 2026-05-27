@@ -1,4 +1,7 @@
-import { OverviewTopbar } from "@/components/console/overview-topbar";
+import {
+	OverviewTopbar,
+	SettingsCrumb,
+} from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import type { ApiKey } from "@/lib/types";
 import { KeysList } from "./keys-list";
@@ -19,7 +22,11 @@ export default async function KeysPage() {
 
 	return (
 		<>
-			<OverviewTopbar path="Settings" page="API Keys" showRefresh={false} />
+			<OverviewTopbar
+				path={<SettingsCrumb />}
+				page="API Keys"
+				showRefresh={false}
+			/>
 			<div className="settings-scroll">
 				<div className="settings-inner">
 					<KeysList initialKeys={keys} sessionToken={session ?? ""} />
