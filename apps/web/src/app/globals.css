@@ -2,7 +2,7 @@
 	--bg: #fafafa;
 	--text-main: #111;
 	--text-prose: #111;
-	--text-muted: rgba(0, 0, 0, 0.65);
+	--text-muted: rgba(0, 0, 0, 0.6);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #e5e5e5;
 	--border-hover: #ddd;
@@ -17,7 +17,7 @@
 	--accent-glow: rgba(37, 99, 235, 0.06);
 	--dot-color: rgba(0, 0, 0, 0.1);
 	--code-bg: rgba(0, 0, 0, 0.04);
-	--code-block-bg: #f8f8f8;
+	--code-block-bg: #f0f0f0;
 	--nudge-bg: rgba(0, 0, 0, 0.02);
 	--selection-bg: #ededed;
 	--selection-text: #111;
@@ -149,7 +149,7 @@ html.force-light {
 	--bg: #fafafa;
 	--text-main: #111;
 	--text-prose: #111;
-	--text-muted: rgba(0, 0, 0, 0.65);
+	--text-muted: rgba(0, 0, 0, 0.6);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #e5e5e5;
 	--border-hover: #ddd;
@@ -161,7 +161,7 @@ html.force-light {
 	--accent-glow: rgba(37, 99, 235, 0.06);
 	--dot-color: rgba(0, 0, 0, 0.1);
 	--code-bg: rgba(0, 0, 0, 0.04);
-	--code-block-bg: #f8f8f8;
+	--code-block-bg: #f0f0f0;
 	--nudge-bg: rgba(0, 0, 0, 0.02);
 	--selection-bg: #ededed;
 	--selection-text: #111;
@@ -999,12 +999,14 @@ a.dataset-shelf-name:hover {
 	padding: var(--spacing-xs);
 	border-radius: 6px;
 	overflow-x: auto;
-	margin-top: var(--spacing-xs);
+	margin-top: var(--spacing-sm);
+	margin-bottom: var(--spacing-sm);
 }
 
 /* Shiki-rendered code blocks */
 .code-block-wrapper {
-	margin-top: var(--spacing-xs);
+	margin-top: var(--spacing-sm);
+	margin-bottom: var(--spacing-sm);
 	position: relative;
 	min-width: 0;
 }
