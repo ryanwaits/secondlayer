@@ -2,132 +2,72 @@
 
 [![Status](https://img.shields.io/badge/status-public-111111)](https://secondlayer.tools/status)
 
-Agent-native developer tools for Stacks. Dedicated indexing + real-time
-subgraphs + a viem-style chain SDK — exposed through one API, one auth model,
-and three interchangeable front-ends (CLI, SDK, MCP).
+The agent-native data plane for Stacks. Dedicated indexing, real-time subgraphs,
+and a viem-style chain SDK behind one API — usable from the CLI, SDK, or MCP.
+Indexed once, free to read.
 
-Two ways to run it:
+- **Hosted** — managed platform, free during open beta. Reads are public; a key
+  gates writes.
+- **Self-host** — the whole stack is MIT-licensed. `docker compose up` runs
+  indexer + API + processor on your own hardware.
 
-- **Hosted** — managed shared platform. Free during open beta: `sl login`,
-  create a project, and deploy a subgraph in minutes. Reads are public; an
-  API key gates writes.
-- **Self-host** — the whole stack is MIT-licensed. `docker compose up` gets
-  you indexer + API + processor on your own hardware. See
-  [`docker/oss/README.md`](docker/oss/README.md).
-
-## What's shipped
-
-- **Subgraphs** — `defineSubgraph()` declares event filters + column schema;
-  the processor indexes the chain into a typed Postgres view you query over
-  REST.
-- **Subscriptions** — per-row HTTP webhooks from subgraph tables. Signed
-  Standard Webhooks POSTs, 7× retries with backoff, circuit-breaks at 20
-  consecutive failures, 6 wire formats (`standard-webhooks`, `inngest`,
-  `trigger`, `cloudflare`, `cloudevents`, `raw`), historical replay by
-  block range.
-- **`@secondlayer/stacks`** — viem-style chain SDK: typed contract calls,
-  wallets, BNS, transaction builders, and AI-SDK `tool({...})` values.
-
-## Beta Quickstart (Hosted)
-
-This path gets a new beta user from zero to a live indexed table and webhook
-receiver. The CLI authenticates with your `sl login` session, so you don't
-manage keys for CLI commands. Reads from the SDK, MCP, and REST are public too;
-you only need a service key for writes from those surfaces.
+## Quickstart (hosted)
 
 ```bash
 bun add -g @secondlayer/cli
 
 sl login
-sl project create my-app
-sl project use my-app
+sl project create my-app && sl project use my-app
 
+# Index a contract into a typed, queryable Postgres table
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 sl subgraphs query my-contract <table> --sort _block_height --order desc
 
-sl create subscription my-hook \
-  --runtime node \
-  --subgraph my-contract \
-  --table <table> \
-  --url https://<receiver-host>/webhook
+# Push new rows to a webhook
+sl create subscription my-hook --runtime node \
+  --subgraph my-contract --table <table> --url https://<host>/webhook
 ```
 
-`sl subgraphs scaffold` writes `subgraphs/my-contract.ts`, creates or updates
-the local `package.json`, and runs `bun install` by default. Use
-`--no-install` only when you want to run `bun install` yourself before deploy.
+Full walkthrough → [QUICKSTART](packages/subgraphs/QUICKSTART.md) ·
+commands → [CLI reference](packages/cli/README.md).
 
-Use `--start-block` for fast demos; it overrides the definition for that deploy
-without rewriting your source file. For Trigger.dev or Cloudflare receivers,
-add `--auth-token <token>` when creating or updating the subscription.
+## Read it from anywhere
 
-Full walkthrough: [packages/subgraphs/QUICKSTART.md](packages/subgraphs/QUICKSTART.md).
-Full command reference: [packages/cli/README.md](packages/cli/README.md).
+Reads are public — no key needed; the SDK defaults to `https://api.secondlayer.tools`.
 
-## Agent-native golden path
+```typescript
+import { SecondLayer } from "@secondlayer/sdk";
 
-1. Give an agent the contract address and the events or calls you care about.
-2. The agent scaffolds a `defineSubgraph()` from the contract ABI, validates it,
-   and deploys it to the platform.
-3. Query the generated table over REST, SDK, CLI, or MCP.
-4. Add a subscription on that table when the rows should trigger another system.
-5. Replay by block range when a receiver changes or misses deliveries.
+const sl = new SecondLayer();
+const { data } = await sl.subgraphs.queryTable("my-contract", "<table>", {
+  sort: "_block_height",
+  order: "desc",
+  limit: 25,
+});
+```
 
-Reviewable walkthrough: [packages/subgraphs/QUICKSTART.md](packages/subgraphs/QUICKSTART.md).
+```bash
+curl "https://api.secondlayer.tools/api/subgraphs/my-contract/<table>?_limit=25"
+```
+
+**MCP** — point any MCP client at `bunx -p @secondlayer/mcp secondlayer-mcp`
+(`SECONDLAYER_API_URL=https://api.secondlayer.tools`). Set `SL_SERVICE_KEY` to
+enable writes (deploy/manage). See [MCP README](packages/mcp/README.md).
 
 ## Packages
 
 | Package | Description |
 |---|---|
-| [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — auth, project lifecycle, subgraph deploy, Clarity code-gen |
+| [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — auth, projects, subgraph deploy, Clarity code-gen |
 | [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — typed subgraph queries, webhooks |
-| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — exposes subgraphs + scaffolding to AI agents |
+| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — subgraphs + scaffolding for AI agents |
 | [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS, AI-SDK tools |
-| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema, triggers + event handlers |
+| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema, triggers + handlers |
 | [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, crypto helpers |
-| [`@secondlayer/api`](packages/api/README.md) | REST API — hosted platform + self-host modes |
+| [`@secondlayer/api`](packages/api/README.md) | REST API — hosted + self-host modes |
 
-## Surfaces
-
-### CLI
-
-```bash
-sl login
-sl project use my-app
-sl subgraphs deploy ./my-subgraph.ts --start-block <recent-block>
-sl subgraphs query my-subgraph transfers --sort _block_height --order desc
-sl create subscription transfer-hook --runtime node --subgraph my-subgraph --table transfers --url https://example.com/webhook
-```
-
-### SDK
-
-```typescript
-import { SecondLayer } from "@secondlayer/sdk"
-
-// Reads are public — no key needed. Defaults to https://api.secondlayer.tools.
-const sl = new SecondLayer()
-
-const { data } = await sl.subgraphs.queryTable("transfers", "events", {
-  filters: { sender: "SP1234..." },
-  sort: "_block_height",
-  order: "desc",
-  limit: 25,
-})
-```
-
-### REST API
-
-```bash
-curl "https://api.secondlayer.tools/api/subgraphs/transfers/events?_sort=_block_height&_order=desc&_limit=25"
-```
-
-### MCP (AI agents)
-
-Point Claude Desktop, Cursor, or any MCP client at `bunx -p @secondlayer/mcp secondlayer-mcp`
-with `SECONDLAYER_API_URL=https://api.secondlayer.tools`. Set `SL_SERVICE_KEY`
-to enable writes (deploy/manage). See [packages/mcp/README.md](packages/mcp/README.md).
-
-## Self-hosting
+## Self-host
 
 ```bash
 git clone https://github.com/ryanwaits/secondlayer
@@ -136,20 +76,15 @@ cp docker/.env.example docker/.env   # fill in secrets
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-See [docker/oss/README.md](docker/oss/README.md) for the OSS-mode quickstart
-and [docker/docs/](docker/docs/) for operations, backups, and dedicated
-hosting internals.
+[OSS quickstart](docker/oss/README.md) · operations & backups in [docker/docs/](docker/docs/).
 
 ## Development
 
 ```bash
-bun install
-bun run build
-bun run typecheck
-bun run test
+bun install && bun run build && bun run test
 ```
 
-Releases flow through [Changesets](https://github.com/changesets/changesets) —
+Releases flow through [Changesets](https://github.com/changesets/changesets):
 `bun run version` to bump, `bun run release` to publish.
 
 ## License
