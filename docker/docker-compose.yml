@@ -183,7 +183,10 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3710/health"]
       interval: 30s
-      timeout: 3s
+      # /health queries per-decoder checkpoints; under heavy backfill DB load it
+      # can take 5-7s, so 3s produced false "unhealthy" + failed deploy gates
+      # while the decoder was actually fine (#46 backfill). 15s gives headroom.
+      timeout: 15s
       start_period: 60s
       retries: 3
     restart: unless-stopped
