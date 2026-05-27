@@ -1284,11 +1284,10 @@ a.dataset-shelf-name:hover {
 .index-year-group {
 	display: flex;
 	align-items: baseline;
-	border-bottom: 1px solid var(--border);
 }
 
-.index-year-group:last-child {
-	border-bottom: none;
+.index-year-group + .index-year-group {
+	margin-top: var(--spacing-lg);
 }
 
 .index-year {
@@ -1338,9 +1337,41 @@ a.dataset-shelf-name:hover {
 	inset: -12px 0;
 }
 
+.index-link-main {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	min-width: 0;
+}
+
 .index-link-label {
 	display: inline-flex;
 	align-items: center;
+	flex-shrink: 0;
+	transition: color 0.2s ease;
+}
+
+.index-link-desc {
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.index-link-end {
+	flex-shrink: 0;
+	font-family: var(--font-mono-stack);
+	font-size: 0.72rem;
+	color: var(--text-muted);
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 2px 8px;
+	white-space: nowrap;
+}
+
+.index-item:hover .index-link-label {
+	color: var(--accent);
 }
 
 .index-link:hover {
@@ -1704,10 +1735,21 @@ a.dataset-shelf-name:hover {
 
 	.index-link {
 		min-height: 28px;
+		align-items: flex-start;
 	}
 
 	.index-link::before {
 		inset: -14px 0;
+	}
+
+	/* Stack name over description; let it wrap instead of truncating */
+	.index-link-main {
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.index-link-desc {
+		white-space: normal;
 	}
 
 	/* Beta bracket — on mobile the cursive side-label folds under

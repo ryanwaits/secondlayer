@@ -17,30 +17,30 @@ describe("www marketing routes", () => {
 		expect(html).toContain("agent-native data plane for Stacks");
 		expect(html).toContain("apps and agents need them in any shape");
 		expect(html).toContain("Foundation Datasets");
-		// Single Products row group.
+		// Two row groups: Products (data-plane APIs) + Tools (clients).
 		expect(html).toContain(">Products<");
+		expect(html).toContain(">Tools<");
 		expect(html).toContain('href="/streams"');
 		expect(html).toContain('href="/index-api"');
 		expect(html).toContain('href="/subgraphs"');
 		expect(html).toContain('href="/subscriptions"');
+		expect(html).toContain('href="/sdk"');
+		expect(html).toContain('href="/cli"');
+		expect(html).toContain('href="/mcp"');
 		expect(html).toContain('href="/datasets"');
-		expect(html).toContain('href="/tools"');
 	});
 
-	test("/pricing renders five tiers + compute ladder + soft-cap callout", () => {
+	test("/pricing renders the free-during-beta reframe", () => {
 		const html = renderToStaticMarkup(<PricingPage />);
-		expect(html).toContain("Pay for compute");
-		// five tier names
-		expect(html).toContain("Hobby");
-		expect(html).toContain("Launch");
-		expect(html).toContain("Grow");
-		expect(html).toContain("Scale");
-		expect(html).toContain("Enterprise");
-		// soft-cap differentiator
-		expect(html).toContain("Soft spend caps");
-		// compute ladder
-		expect(html).toContain("Nano");
-		expect(html).toContain("2XL");
+		expect(html).toContain("Free while we");
+		expect(html).toContain("free during open beta");
+		// no paid tiers / compute ladder exposed during beta
+		expect(html).not.toContain("Pay for compute");
+		expect(html).not.toContain("Start Launch");
+		expect(html).not.toContain("/mo");
+		// included surface + forward look
+		expect(html).toContain("Foundation Datasets");
+		expect(html).toContain("What paid plans will add");
 		// CTA
 		expect(html).toContain("Start free");
 	});

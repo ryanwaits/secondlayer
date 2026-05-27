@@ -14,7 +14,9 @@ const ROUTES = [
 	"/datasets/pox-4",
 	"/datasets/bns",
 	"/datasets/network-health",
-	"/tools",
+	"/sdk",
+	"/cli",
+	"/mcp",
 	"/migration/v1-to-v2",
 	"/status",
 ] as const;

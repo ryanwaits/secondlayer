@@ -9,22 +9,91 @@ export const metadata: Metadata = {
 		"The agent-native data plane for Stacks. Pull raw with Streams, query decoded with Index, shape your own with Subgraphs, push with Subscriptions, or query the curated Foundation Datasets. Indexed once, free to read.",
 };
 
-const products = [
-	{ name: "Streams", href: "/streams" },
-	{ name: "Index", href: "/index-api" },
-	{ name: "Subgraphs", href: "/subgraphs" },
-	{ name: "Subscriptions", href: "/subscriptions" },
-	{ name: "Datasets", href: "/datasets" },
-	{ name: "Tools", href: "/tools" },
+type IndexEntry = {
+	name: string;
+	href: string;
+	desc: string;
+	endpoint: string;
+};
+
+const products: IndexEntry[] = [
+	{
+		name: "Streams",
+		href: "/streams",
+		desc: "Raw chain events, in order.",
+		endpoint: "/v1/streams",
+	},
+	{
+		name: "Index",
+		href: "/index-api",
+		desc: "Decoded transactions and events.",
+		endpoint: "/v1/index",
+	},
+	{
+		name: "Subgraphs",
+		href: "/subgraphs",
+		desc: "Your schema, your handlers.",
+		endpoint: "/api/subgraphs",
+	},
+	{
+		name: "Subscriptions",
+		href: "/subscriptions",
+		desc: "Webhooks pushed to your endpoint.",
+		endpoint: "push",
+	},
 ];
 
-function IndexRow({ item }: { item: { name: string; href: string } }) {
+const tools: IndexEntry[] = [
+	{
+		name: "SDK",
+		href: "/sdk",
+		desc: "Typed Stacks client, viem-style.",
+		endpoint: "@secondlayer/sdk",
+	},
+	{
+		name: "CLI",
+		href: "/cli",
+		desc: "Deploy and inspect from the terminal.",
+		endpoint: "sl",
+	},
+	{
+		name: "MCP",
+		href: "/mcp",
+		desc: "Chain data for your agent.",
+		endpoint: "mcp",
+	},
+	{
+		name: "Datasets",
+		href: "/datasets",
+		desc: "Curated Foundation datasets.",
+		endpoint: "/v1/datasets",
+	},
+];
+
+function IndexRow({ item }: { item: IndexEntry }) {
 	return (
 		<li className="index-item">
 			<Link href={item.href} className="index-link">
-				<span className="index-link-label">{item.name}</span>
+				<span className="index-link-main">
+					<span className="index-link-label">{item.name}</span>
+					<span className="index-link-desc">{item.desc}</span>
+				</span>
+				<span className="index-link-end">{item.endpoint}</span>
 			</Link>
 		</li>
+	);
+}
+
+function IndexGroup({ label, items }: { label: string; items: IndexEntry[] }) {
+	return (
+		<div className="index-year-group">
+			<div className="index-year">{label}</div>
+			<ul className="index-list">
+				{items.map((item) => (
+					<IndexRow key={item.href} item={item} />
+				))}
+			</ul>
+		</div>
 	);
 }
 
@@ -95,14 +164,8 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 				className="index-group"
 				style={{ marginTop: "var(--spacing-xl)" }}
 			>
-				<div className="index-year-group">
-					<div className="index-year">Products</div>
-					<ul className="index-list">
-						{products.map((p) => (
-							<IndexRow key={p.href} item={p} />
-						))}
-					</ul>
-				</div>
+				<IndexGroup label="Products" items={products} />
+				<IndexGroup label="Tools" items={tools} />
 			</section>
 		</div>
 	);
