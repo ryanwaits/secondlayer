@@ -47,18 +47,26 @@ export function registerBillingCommand(program: Command): void {
 				throw err;
 			}
 
+			// No active subscription = free open beta. Everything is unmetered
+			// and there's no upgrade path yet, so keep the output reassuring
+			// rather than surfacing empty Stripe fields.
+			if (!res.subscription) {
+				console.log(
+					formatKeyValue([
+						["Plan", "Free during open beta"],
+						["Cost", dim("$0 — no limits, no charges")],
+						["Paid plans", dim("coming after beta")],
+					]),
+				);
+				return;
+			}
+
 			const rows: [string, string][] = [];
 			rows.push(["Plan", res.plan]);
 			rows.push([
 				"Customer",
 				res.stripeCustomerId ?? dim("(none — no subscription yet)"),
 			]);
-
-			if (!res.subscription) {
-				rows.push(["Subscription", dim("(none)")]);
-				console.log(formatKeyValue(rows));
-				return;
-			}
 
 			const sub = res.subscription;
 			rows.push(["Subscription", `${sub.id} (${sub.status})`]);
