@@ -1,12 +1,19 @@
-import { OverviewTopbar } from "@/components/console/overview-topbar";
+import {
+	OverviewTopbar,
+	SettingsCrumb,
+} from "@/components/console/overview-topbar";
 
 export default function UsageLoading() {
 	return (
 		<>
-			<OverviewTopbar path="Settings" page="Usage" showRefresh={false} />
+			<OverviewTopbar
+				path={<SettingsCrumb />}
+				page="Resources"
+				showRefresh={false}
+			/>
 			<div className="settings-scroll">
 				<div className="settings-inner">
-					<h1 className="settings-title">Usage</h1>
+					<h1 className="settings-title">Resources</h1>
 					<p className="settings-desc" style={{ opacity: 0.4 }}>
 						Loading…
 					</p>
@@ -14,24 +21,6 @@ export default function UsageLoading() {
 					<div className="axis-grid">
 						<SkeletonAxisCard />
 						<SkeletonAxisCard />
-						<SkeletonAxisCard />
-					</div>
-
-					<div
-						className="cap-strip none"
-						style={{ opacity: 0.4 }}
-						aria-busy="true"
-					>
-						<div className="cap-strip-label">
-							<span
-								style={{
-									background: "var(--code-bg)",
-									width: 200,
-									height: 12,
-									borderRadius: 3,
-								}}
-							/>
-						</div>
 					</div>
 				</div>
 			</div>

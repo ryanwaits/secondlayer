@@ -1,6 +1,5 @@
 import { formatBytes, formatHours } from "@/lib/usage";
 import type { UsageProject } from "@/lib/usage";
-import Link from "next/link";
 
 interface Props {
 	projects: UsageProject[];
@@ -19,13 +18,7 @@ export function ProjectUsageTable({ projects }: Props) {
 					color: "var(--text-muted)",
 				}}
 			>
-				No projects yet.{" "}
-				<Link
-					href="/billing"
-					style={{ color: "var(--text-main)", fontWeight: 500 }}
-				>
-					Create one →
-				</Link>
+				No projects yet.
 			</div>
 		);
 	}
@@ -46,14 +39,8 @@ export function ProjectUsageTable({ projects }: Props) {
 						<span className={`status-dot ${p.status}`} />
 						{p.name}
 					</div>
-					<div className="num">
-						{formatHours(p.compute.hours)} h
-						<span className="sub">{Math.round(p.compute.pct)}%</span>
-					</div>
-					<div className="num">
-						{formatBytes(p.storage.bytes)}
-						<span className="sub">{Math.round(p.storage.pct)}%</span>
-					</div>
+					<div className="num">{formatHours(p.compute.hours)} h</div>
+					<div className="num">{formatBytes(p.storage.bytes)}</div>
 				</div>
 			))}
 		</div>

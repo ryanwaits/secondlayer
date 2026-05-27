@@ -40,8 +40,8 @@ export const actions: Action[] = [
 	},
 	{
 		id: "usage",
-		label: "Usage",
-		keywords: ["quota", "limits", "metrics"],
+		label: "Resources",
+		keywords: ["usage", "quota", "limits", "metrics", "compute", "storage"],
 		category: "Settings",
 		href: "/usage",
 	},

@@ -1,15 +1,16 @@
 import { AxisCard } from "@/components/console/axis-card";
-import { OverviewTopbar } from "@/components/console/overview-topbar";
+import {
+	OverviewTopbar,
+	SettingsCrumb,
+} from "@/components/console/overview-topbar";
 import { ProjectUsageTable } from "@/components/console/project-usage-table";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
 import {
 	type UsageResponse,
 	formatBytes,
-	formatCents,
 	formatHours,
 	formatNum,
 } from "@/lib/usage";
-import { PLANS } from "@secondlayer/platform/pricing";
 
 type ProductUsageResponse = {
 	streams: {
@@ -27,7 +28,7 @@ type ProductUsageResponse = {
 	};
 };
 
-export default async function UsagePage() {
+export default async function ResourcesPage() {
 	const session = await getSessionFromCookies();
 	let usage: UsageResponse | null = null;
 	let productUsage: ProductUsageResponse | null = null;
@@ -49,35 +50,34 @@ export default async function UsagePage() {
 	if (!usage) {
 		return (
 			<>
-				<OverviewTopbar path="Settings" page="Usage" showRefresh={false} />
+				<OverviewTopbar
+					path={<SettingsCrumb />}
+					page="Resources"
+					showRefresh={false}
+				/>
 				<div className="settings-scroll">
 					<div className="settings-inner">
-						<h1 className="settings-title">Usage</h1>
-						<p className="settings-desc">Unable to load usage data.</p>
+						<h1 className="settings-title">Resources</h1>
+						<p className="settings-desc">Unable to load resource data.</p>
 					</div>
 				</div>
 			</>
 		);
 	}
 
-	const { period, plan, spend, compute, storage, projects } = usage;
-	const planSpec = getPlanSpec(plan.tier);
-
+	const { period, compute, storage, projects } = usage;
 	const periodLabel = formatPeriod(period.startIso, period.endIso);
-	const capStripClass = spend.frozen
-		? "over"
-		: spend.thresholdHit
-			? "hot"
-			: spend.capCents == null
-				? "none"
-				: "";
 
 	return (
 		<>
-			<OverviewTopbar path="Settings" page="Usage" showRefresh={false} />
+			<OverviewTopbar
+				path={<SettingsCrumb />}
+				page="Resources"
+				showRefresh={false}
+			/>
 			<div className="settings-scroll">
 				<div className="settings-inner">
-					<h1 className="settings-title">Usage</h1>
+					<h1 className="settings-title">Resources</h1>
 					<p className="settings-desc">
 						Resource consumption ·{" "}
 						<span className="period-chip">
@@ -89,76 +89,27 @@ export default async function UsagePage() {
 						</span>
 					</p>
 
-					{spend.thresholdHit && spend.capCents != null ? (
-						<div className="alert-row" role="alert">
-							<svg
-								className="alert-icon"
-								viewBox="0 0 16 16"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1.5"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								aria-hidden="true"
-							>
-								<title>Threshold warning</title>
-								<path d="M8 2l6 11H2L8 2z" />
-								<path d="M8 6v4" />
-								<circle cx="8" cy="12" r="0.5" fill="currentColor" />
-							</svg>
-							<div>
-								<div className="alert-title">
-									Spend at{" "}
-									{Math.round((spend.projectedCents / spend.capCents) * 100)}%
-									of cap
-								</div>
-								<div className="alert-body">
-									{formatCents(spend.projectedCents)} projected of{" "}
-									{formatCents(spend.capCents)} — {period.daysRemaining} day
-									{period.daysRemaining === 1 ? "" : "s"} to go.
-								</div>
-							</div>
-						</div>
-					) : null}
-
 					<div className="axis-grid">
 						<AxisCard
 							label="Compute"
 							value={formatHours(compute.usedHours)}
 							unit="h"
-							of={
-								Number.isFinite(compute.allowanceHours)
-									? `of ${formatNum(compute.allowanceHours)} h / mo`
-									: "unmetered"
-							}
+							of="unmetered"
 							pct={compute.pct}
 							sparkData={compute.sparkline}
 							color="accent"
-							hidePct={!Number.isFinite(compute.allowanceHours)}
+							hidePct
 						/>
 						<AxisCard
 							label="Storage"
 							value={formatBytes(storage.usedBytes)}
-							of={
-								Number.isFinite(storage.allowanceBytes)
-									? `of ${formatBytes(storage.allowanceBytes)}`
-									: "unmetered"
-							}
+							of="unmetered"
 							pct={storage.pct}
 							sparkData={storage.sparkline}
 							color="accent"
-							hidePct={!Number.isFinite(storage.allowanceBytes)}
+							hidePct
 						/>
 					</div>
-
-					<CapStrip
-						currentCents={spend.currentCents}
-						projectedCents={spend.projectedCents}
-						capCents={spend.capCents}
-						thresholdHit={spend.thresholdHit}
-						frozen={spend.frozen}
-						stripClass={capStripClass}
-					/>
 
 					{productUsage && <ProductUsageSection usage={productUsage} />}
 
@@ -176,22 +127,12 @@ export default async function UsagePage() {
 						<div className="plan-card">
 							<div>
 								<div className="plan-card-name">
-									{plan.name} <span className="tier-badge">{plan.tier}</span>
+									Open beta <span className="tier-badge">free</span>
 								</div>
 								<div className="plan-card-sub">
-									{plan.basePriceUsd > 0
-										? `$${plan.basePriceUsd}/mo · `
-										: "Free · "}
-									{planSpec
-										? `${planSpec.totalCpus} vCPU · ${formatBytes(
-												planSpec.totalMemoryMb * 1024 * 1024,
-											)} RAM, `
-										: Number.isFinite(compute.allowanceHours)
-											? `${formatNum(compute.allowanceHours)} h compute, `
-											: "custom compute, "}
-									{Number.isFinite(storage.allowanceBytes)
-										? `${formatBytes(storage.allowanceBytes)} storage`
-										: "unlimited storage"}
+									Everything is free while Secondlayer is in beta — no limits,
+									no charges. Paid plans with higher dedicated resources are
+									coming later.
 								</div>
 							</div>
 						</div>
@@ -265,75 +206,10 @@ function ProductUsageSection({ usage }: { usage: ProductUsageResponse }) {
 							decoded events today
 						</div>
 						<div>
-							<strong>
-								{formatNum(usage.index.decodedEventsThisMonth)}
-							</strong>{" "}
+							<strong>{formatNum(usage.index.decodedEventsThisMonth)}</strong>{" "}
 							decoded events this period
 						</div>
 					</div>
-				</div>
-			</div>
-		</div>
-	);
-}
-
-function getPlanSpec(tier: string) {
-	return tier in PLANS ? PLANS[tier as keyof typeof PLANS] : null;
-}
-
-function CapStrip({
-	currentCents,
-	projectedCents,
-	capCents,
-	thresholdHit,
-	frozen,
-	stripClass,
-}: {
-	currentCents: number;
-	projectedCents: number;
-	capCents: number | null;
-	thresholdHit: boolean;
-	frozen: boolean;
-	stripClass: string;
-}) {
-	if (capCents == null) {
-		return (
-			<div className="cap-strip none">
-				<div className="cap-strip-label">
-					<span>No spend cap set</span>
-					<span className="pct">— {formatCents(currentCents)} this period</span>
-				</div>
-			</div>
-		);
-	}
-
-	const useProjected = projectedCents > currentCents;
-	const displayCents = useProjected ? projectedCents : currentCents;
-	const usedPct = Math.min((displayCents / capCents) * 100, 100);
-	const label = frozen
-		? "Frozen at cap"
-		: useProjected
-			? "Projected this period"
-			: "Spend this period";
-
-	const fillClass = frozen ? "red" : thresholdHit ? "yellow" : "accent";
-
-	return (
-		<div className={`cap-strip ${stripClass}`}>
-			<div className="cap-strip-label">
-				<span>{label}</span>
-				<span className="pct">
-					{formatCents(displayCents)} / {formatCents(capCents)} ·{" "}
-					{Math.round(usedPct)}%{thresholdHit ? " ⚠" : ""}
-					{frozen ? " 🔒" : ""}
-				</span>
-			</div>
-			<div className="cap-strip-bar">
-				<div className="usage-bar">
-					<div
-						className={`usage-bar-fill ${fillClass}`}
-						style={{ width: `${usedPct}%` }}
-					/>
 				</div>
 			</div>
 		</div>

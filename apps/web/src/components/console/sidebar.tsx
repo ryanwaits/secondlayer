@@ -29,7 +29,7 @@ const SETTINGS_CHILDREN = [
 	{ href: "/settings", label: "Project" },
 	{ href: "/api-keys", label: "API Keys" },
 	{ href: "/team", label: "Team" },
-	{ href: "/usage", label: "Usage" },
+	{ href: "/usage", label: "Resources" },
 ];
 
 const ICONS: Record<string, React.ReactNode> = {
