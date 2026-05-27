@@ -203,6 +203,12 @@ services:
       dockerfile: docker/Dockerfile
       target: api
     command: ["bun", "run", "packages/subgraphs/src/service.ts"]
+    # Reuses the `api` image but runs the subgraph service, which has no HTTP
+    # server — so the image's inherited `curl :3800/health` healthcheck can
+    # never pass and falsely reports "unhealthy". Disable it; liveness is via
+    # `restart: unless-stopped` + logs, same as the worker service.
+    healthcheck:
+      disable: true
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
