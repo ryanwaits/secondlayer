@@ -1160,20 +1160,6 @@ a.dataset-shelf-name:hover {
 	text-decoration: none;
 }
 
-/* Dim siblings on row hover */
-.index-group:hover .index-item {
-	opacity: 0.4;
-	transition: opacity var(--duration-smooth) var(--ease-smooth);
-}
-
-.index-group:hover .index-item:hover {
-	opacity: 1;
-}
-
-.index-item {
-	transition: opacity var(--duration-smooth) var(--ease-smooth);
-}
-
 .index-desc {
 	color: var(--text-muted);
 	font-weight: 400;
