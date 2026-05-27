@@ -10,7 +10,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-The MCP server requires an API key — it does not do keyless reads. Create a key (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_SERVICE_KEY`.
+Reads are public — `list`, `get`, `query`, and `spec` tools work with no key. Writes (deploy, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_SERVICE_KEY`.
 
 ## Quick Start — Stdio (IDE)
 
@@ -43,7 +43,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SL_SERVICE_KEY` | Yes | — | An `sk-sl_` API key from the platform console (https://secondlayer.tools/platform/api-keys). `SECONDLAYER_API_KEY` is accepted as a deprecated alias. |
+| `SL_SERVICE_KEY` | Writes only | — | An `sk-sl_` API key from the platform console (https://secondlayer.tools/platform/api-keys). Required for write/account tools; reads are public. `SECONDLAYER_API_KEY` is accepted as a deprecated alias. |
 | `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base API URL. Point at a local instance for dev. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
