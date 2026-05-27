@@ -1,51 +1,20 @@
-import { indexFreshnessColor } from "@/lib/status-page";
-import type { FreshnessColor } from "@/lib/status-page";
-import type { IndexDecoderFreshness, SystemStatus } from "@/lib/types";
+import type { SystemStatus } from "@/lib/types";
 import Link from "next/link";
 
-type StatusState = FreshnessColor | "red";
+type StatusState = "green" | "red" | "muted";
 
-function streamState(status: SystemStatus | null): StatusState {
-	const lag = status?.streams?.tip?.lag_seconds;
-	if (status?.streams?.status === "unavailable" || lag == null) return "muted";
-	return lag >= 60 ? "yellow" : "green";
-}
-
-function apiState(status: SystemStatus | null): StatusState {
+// Reflects only the API health check. Per-surface freshness (stream lag,
+// decoder catch-up) is intentionally excluded — it made the badge flip to
+// "Index catching up" during normal backfill. Green while the service is up.
+function healthState(status: SystemStatus | null): StatusState {
 	if (!status) return "muted";
-	return status.status === "healthy" ? "green" : "yellow";
-}
-
-function decoderFor(
-	status: SystemStatus | null,
-	eventType: IndexDecoderFreshness["eventType"],
-) {
-	return status?.index?.decoders.find(
-		(decoder) => decoder.eventType === eventType,
-	);
-}
-
-// Worst-of every public surface — one summary instead of per-service rows.
-function overallState(status: SystemStatus | null): StatusState {
-	const states: StatusState[] = [
-		apiState(status),
-		streamState(status),
-		indexFreshnessColor(decoderFor(status, "ft_transfer")),
-		indexFreshnessColor(decoderFor(status, "nft_transfer")),
-		status?.chainTip == null ? "muted" : "green",
-	];
-	if (states.includes("red")) return "red";
-	if (states.includes("yellow")) return "yellow";
-	if (states.includes("muted")) return "muted";
-	return "green";
+	return status.status === "healthy" ? "green" : "red";
 }
 
 function summaryLabel(state: StatusState): string {
 	switch (state) {
 		case "red":
 			return "Service degraded";
-		case "yellow":
-			return "Index catching up";
 		case "muted":
 			return "Status unavailable";
 		default:
@@ -54,7 +23,7 @@ function summaryLabel(state: StatusState): string {
 }
 
 export function HomeStatusBadge({ status }: { status: SystemStatus | null }) {
-	const state = overallState(status);
+	const state = healthState(status);
 
 	return (
 		<div className="home-status-shell">
