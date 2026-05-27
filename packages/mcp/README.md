@@ -8,6 +8,10 @@ MCP server for Secondlayer's agent-native subgraph platform.
 bun add @secondlayer/mcp
 ```
 
+## Auth
+
+The MCP server requires an API key — it does not do keyless reads. Create a key (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_SERVICE_KEY`.
+
 ## Quick Start — Stdio (IDE)
 
 Add to your Claude Desktop or Cursor config:
@@ -19,8 +23,7 @@ Add to your Claude Desktop or Cursor config:
       "command": "bunx",
       "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
-        "SECONDLAYER_API_URL": "https://<slug>.secondlayer.tools",
-        "SL_SERVICE_KEY": "sl_live_..."
+        "SL_SERVICE_KEY": "sk-sl_..."
       }
     }
   }
@@ -30,26 +33,19 @@ Add to your Claude Desktop or Cursor config:
 ## Quick Start — HTTP (Remote)
 
 ```bash
-export SECONDLAYER_API_URL=https://<slug>.secondlayer.tools
-export SL_SERVICE_KEY=sl_live_...
+export SL_SERVICE_KEY=sk-sl_...
 export SECONDLAYER_MCP_SECRET=your-secret
 bunx -p @secondlayer/mcp secondlayer-mcp-http
 # Listening on port 3100
 ```
 
-## Agent Golden Path
-
-Use MCP when the agent should do the full loop: scaffold a subgraph from a
-contract, deploy it, query generated tables, create a table subscription, and
-replay deliveries by block range when needed.
-
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SL_SERVICE_KEY` | Yes | — | Tenant service key. `SECONDLAYER_API_KEY` is still accepted as a deprecated alias. |
-| `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base URL for the tenant API. Use `https://<slug>.secondlayer.tools` for a dedicated tenant or point at a local instance for dev. |
-| `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port |
+| `SL_SERVICE_KEY` | Yes | — | An `sk-sl_` API key from the platform console (https://secondlayer.tools/platform/api-keys). `SECONDLAYER_API_KEY` is accepted as a deprecated alias. |
+| `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base API URL. Point at a local instance for dev. |
+| `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
 
 ## Tools
@@ -66,11 +62,9 @@ replay deliveries by block range when needed.
 - `fields` — comma-separated column projection (e.g. `"sender,amount_x"`)
 - `count` — boolean, returns row count instead of rows
 - Filter operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`
-- Max limit raised from 50 to 200
+- Max limit: 200
 
 ## Resources
-
-2 MCP resources for agent context:
 
 | URI | Description |
 | --- | --- |
@@ -93,9 +87,7 @@ All tools return structured errors with `isError: true`:
 | `server_error` | 5xx | Server-side failure |
 | `error` | other | Validation, bundling, etc. |
 
-Bundle/deploy errors use descriptive prefixes: `"Bundle failed:"`, `"Module evaluation failed:"`, `"Validation failed:"`.
-
-HTTP transport enforces a 1MB body limit (413) and JSON parse safety (400). Scaffold ABI fetch has a 10s timeout.
+Bundle/deploy errors use descriptive prefixes: `"Bundle failed:"`, `"Module evaluation failed:"`, `"Validation failed:"`. HTTP transport enforces a 1MB body limit (413) and JSON parse safety (400). Scaffold ABI fetch has a 10s timeout.
 
 ## Programmatic Usage
 

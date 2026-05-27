@@ -1,41 +1,48 @@
 # @secondlayer/cli
 
-The Secondlayer CLI — one binary for dedicated Stacks indexing, real-time
-subgraphs, and per-tenant hosting lifecycle.
+The Secondlayer CLI — one binary for Stacks indexing, real-time subgraphs,
+subscriptions, and Clarity code generation.
 
 ```bash
 bun add -g @secondlayer/cli
 sl --version
 ```
 
-## Beta Quickstart
+## Auth
 
-Use this path for a first hosted demo. The CLI stores your login session,
-binds the current directory to a project, provisions a dedicated tenant, then
-deploys and queries a subgraph through short-lived tenant credentials.
+Two ways to authenticate:
+
+- **Interactive (`sl login`)** — magic-link email → 6-digit code → session
+  written to `~/.secondlayer/session.json`. Used for day-to-day CLI work.
+- **Machine / CI** — set `SL_SERVICE_KEY` to an API key created in the platform
+  console at https://secondlayer.tools/platform/api-keys. Keys are prefixed
+  `sk-sl_`.
+
+```bash
+# interactive
+sl login
+
+# machine / CI
+export SL_SERVICE_KEY=sk-sl_xxxxxxxx
+```
+
+During open beta, reads are public (no key needed). Writes — deploying or
+managing subgraphs and subscriptions — require a session or an `sk-sl_` key.
+
+## Quickstart
 
 ```bash
 bun add -g @secondlayer/cli
-
 sl login
 sl project create my-app
 sl project use my-app
-sl instance create --plan launch
 
+# scaffold + deploy a subgraph from a deployed contract
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 sl subgraphs query my-contract <table> --sort _block_height --order desc
-sl subgraphs spec my-contract --format openapi -o openapi.json
-```
 
-`sl subgraphs scaffold` writes the definition file, creates or updates
-`package.json`, and runs `bun install` by default so the generated import is
-deployable immediately. Pass `--no-install` to skip the install and run
-`bun install` manually in the output directory.
-
-Then wire a receiver:
-
-```bash
+# wire a webhook receiver
 sl create subscription my-hook \
   --runtime node \
   --subgraph my-contract \
@@ -43,129 +50,62 @@ sl create subscription my-hook \
   --url https://<receiver-host>/webhook
 ```
 
-## Command surface
+`sl subgraphs scaffold` writes the definition file, creates/updates
+`package.json`, and runs `bun install` (pass `--no-install` to skip).
 
-### Auth (top-level)
+## Commands
 
-| Command | What it does |
-|---|---|
-| `sl login` | Magic-link email → 6-digit code → writes session to `~/.secondlayer/session.json` |
-| `sl logout` | Revokes the session and clears the local file |
-| `sl whoami` | Prints account, active project, instance URL, plan, status |
-
-### Project
-
-Projects are the unit that binds a working directory to a dedicated instance.
-Binding is **per-directory** — `.secondlayer/project` in cwd takes precedence
-over the global default at `~/.secondlayer/config.json:defaultProject`. The
-walk-up stops at `.git` (never crosses repos).
+### Auth & project
 
 | Command | What it does |
 |---|---|
-| `sl project create [name]` | Scaffold a new project on the platform |
-| `sl project list` | List all projects for the account |
-| `sl project use <slug>` | Write `./.secondlayer/project` — binds cwd to that project |
-| `sl project current` | Prints the resolved slug + the file it was read from |
+| `sl login` / `sl logout` | Start or revoke a session |
+| `sl whoami` | Print account + active project |
+| `sl project create [name]` | Create a project |
+| `sl project list` | List projects |
+| `sl project use <slug>` | Bind cwd to a project (writes `./.secondlayer/project`) |
+| `sl project current` | Show resolved project + source file |
 
-### Instance (dedicated hosting)
+Project binding is per-directory: `.secondlayer/project` in cwd takes
+precedence over `~/.secondlayer/config.json:defaultProject`. The walk-up stops
+at `.git`.
 
-One instance per project. The platform API spawns a dedicated `sl-pg-{slug}`,
-`sl-api-{slug}`, and `sl-proc-{slug}` container set on the hosting side.
-
-| Command | What it does |
-|---|---|
-| `sl instance create --plan <launch\|scale>` | Provision containers after trial/subscription activation. Boxed reveal of `serviceKey` + `anonKey` (shown once). |
-| `sl instance info` | Plan, status, resource usage |
-| `sl instance resize --plan <...>` | Recreate containers with new CPU/memory (~30s downtime) |
-| `sl instance suspend` / `resume` | Stop/start containers, volume preserved |
-| `sl instance keys rotate [--service\|--anon\|--both]` | Bump JWT gen, recreate API container, mint replacement key(s) |
-| `sl instance delete` | Typed-slug confirm, hard teardown |
-| `sl instance db` | Print `ssh -L` command + `DATABASE_URL` for tunneled Postgres access |
-| `sl instance db add-key <path>` | Upload an SSH pubkey to the bastion |
-| `sl instance db revoke-key` | Revoke your bastion access |
-
-### Create (scaffolders)
+### Subgraphs
 
 | Command | What it does |
 |---|---|
-| `sl create subscription <name> --runtime <inngest\|trigger\|cloudflare\|node> [--auth-token <token>] [--filter key=value]` | Scaffold a receiver project wired to a new subscription. Copies the runtime template into `./<name>/`, provisions through the active project/instance, supports scalar filters and bearer auth, and wires the signing secret so the dev server starts consuming events immediately. |
+| `sl subgraphs new <name>` | Scaffold a definition file |
+| `sl subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a subgraph from a deployed contract |
+| `sl subgraphs deploy <file> [--start-block <n>]` | Deploy; `--start-block` overrides the definition |
+| `sl subgraphs dev <file>` | Watch + hot-redeploy |
+| `sl subgraphs query <name> <table>` | Query a table with filters, sort, pagination |
+| `sl subgraphs list` / `status <name>` / `gaps <name>` | Inspect deployments |
+| `sl subgraphs spec <name> [--format openapi\|agent\|markdown]` | Export API docs for a deployed subgraph |
+| `sl subgraphs inspect <file> [--format ...]` | Same docs from a local definition before deploy |
+| `sl subgraphs reindex/backfill/stop/delete/generate <name>` | Manage processing + types |
 
-### Subscriptions (tenant-scoped)
+### Subscriptions
 
-`sl create subscription` is the receiver scaffolder. `sl subscriptions ...` is
-the operational surface for existing subscriptions. All commands resolve the
-active project/instance the same way as `sl subgraphs ...`; `SL_API_URL` and
-`SL_SERVICE_KEY` still bypass platform resolution for OSS or CI.
+`sl create subscription` scaffolds a receiver project. `sl subscriptions ...`
+manages existing ones.
 
 | Command | What it does |
 |---|---|
-| `sl subscriptions list` | List subscriptions with status, target table, format, and last success |
-| `sl subscriptions get <id\|name>` | Show full config, filter, retry/circuit state |
-| `sl subscriptions update <id\|name> --url <url> [--auth-token <token>] [--filter key.gte=value]` | Patch URL, bearer auth, filter, format, runtime, retry, timeout, concurrency |
+| `sl create subscription <name> --runtime <inngest\|trigger\|cloudflare\|node> [--auth-token <token>] [--filter key=value]` | Scaffold a receiver wired to a new subscription |
+| `sl subscriptions list` / `get <id\|name>` | List or show config + delivery state |
+| `sl subscriptions update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, retry, etc. |
 | `sl subscriptions pause/resume <id\|name>` | Stop or restart delivery |
-| `sl subscriptions rotate-secret <id\|name>` | Rotate signing secret and print the new value once |
-| `sl subscriptions deliveries <id\|name>` | Last 100 delivery attempts |
-| `sl subscriptions dead <id\|name>` | Dead-letter rows |
+| `sl subscriptions rotate-secret <id\|name>` | Rotate signing secret (printed once) |
+| `sl subscriptions deliveries/dead <id\|name>` | Recent attempts / dead-letter rows |
 | `sl subscriptions requeue <id\|name> <outboxId>` | Requeue one dead-letter row |
-| `sl subscriptions replay <id\|name> --from-block <n> --to-block <n>` | Enqueue historical rows from a block range |
-| `sl subscriptions doctor <id\|name>` | Config, circuit state, recent delivery health, linked subgraph gaps, next-step hints |
-| `sl subscriptions test <id\|name> --signing-secret <secret> [--post]` | Build a signed Standard Webhooks fixture from the latest row or a synthetic row |
+| `sl subscriptions replay <id\|name> --from-block <n> --to-block <n>` | Enqueue a historical block range |
+| `sl subscriptions doctor/test <id\|name>` | Health check / signed fixture |
 
 Read/action commands support `--json`. Destructive commands prompt unless
-`--yes` is passed. CLI filters are schema-aware: unknown tables, unknown
-columns, unsupported operators, and non-scalar columns are rejected before the
-API call; the server repeats the same validation as the source of truth.
+`--yes`. Filters are schema-aware: unknown tables/columns, bad operators, and
+non-scalar columns are rejected before the API call.
 
-### Subgraphs (tenant-scoped)
-
-All tenant-scoped commands auto-mint a 5-minute ephemeral service JWT per
-invocation. No long-lived key on disk.
-
-| Command | What it does |
-|---|---|
-| `sl subgraphs new <name>` | Scaffold a subgraph definition file |
-| `sl subgraphs deploy <file> [--start-block <n>]` | Deploy to the active instance; `--start-block` overrides the definition start block for that deploy |
-| `sl subgraphs dev <file>` | Watch + hot-redeploy |
-| `sl subgraphs list` | List deployed subgraphs |
-| `sl subgraphs status <name>` | Indexing progress, row counts, gaps |
-| `sl subgraphs query <name> <table>` | Query a subgraph table with filters, sort, pagination |
-| `sl subgraphs spec <name> [--format openapi\|agent\|markdown] [-o <path>] [--server <url>]` | Export generated API docs for a deployed subgraph |
-| `sl subgraphs inspect <file> [--format openapi\|agent\|markdown] [-o <path>] [--server <url>]` | Generate API docs from a local `defineSubgraph()` file before deploy |
-| `sl subgraphs reindex <name>` | Drop + re-process from the tip backwards |
-| `sl subgraphs backfill <name>` | Fill a specific block range |
-| `sl subgraphs stop <name>` | Pause processing |
-| `sl subgraphs gaps <name>` | List missing block ranges |
-| `sl subgraphs delete <name>` | Drop the subgraph + its schema |
-| `sl subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a starter subgraph from a deployed contract, write/amend `package.json`, and install dependencies unless skipped |
-| `sl subgraphs generate <name>` | Regenerate TS types for an existing subgraph |
-
-#### Subgraph API specs
-
-Use `spec` when the subgraph is already deployed to the active project
-instance. Use `inspect` when you want the same documentation contract from a
-local TypeScript definition before deploy.
-
-```bash
-# Deployed subgraph docs from the active project instance
-sl subgraphs spec token-transfers --format openapi -o openapi.json
-sl subgraphs spec token-transfers --format agent
-sl subgraphs spec token-transfers --format markdown -o API.md
-
-# Local pre-deploy docs from a defineSubgraph() file
-sl subgraphs inspect subgraphs/token-transfers.ts --format agent
-sl subgraphs inspect subgraphs/token-transfers.ts --format openapi \
-  --server https://<your-slug>.secondlayer.tools
-```
-
-Formats:
-
-| Format | Use |
-|---|---|
-| `openapi` | OpenAPI 3.1 JSON for docs tooling, client generators, and API catalogs |
-| `agent` | Compact JSON schema for agents that need table, column, filter, and endpoint context |
-| `markdown` | Human-readable API reference for docs pages or repository docs |
-
-### Local dev + OSS
+### Local dev & OSS
 
 | Command | What it does |
 |---|---|
@@ -178,10 +118,9 @@ Formats:
 
 | Command | What it does |
 |---|---|
-| `sl generate [files...]` (aliases: `gen`, `codegen`) | Generate TS interfaces from Clarity contracts |
+| `sl generate [files...]` (aliases `gen`, `codegen`) | Generate TS interfaces from Clarity contracts |
 | `sl init` | Scaffold `secondlayer.config.ts` |
-| `sl doctor` | Session + project + instance reachability check |
-| `sl status` | Platform/instance health |
+| `sl doctor` / `sl status` | Reachability + health checks |
 | `sl account profile` | Update display name / bio / slug |
 | `sl config show/set/reset/clear` | Inspect or reset local config |
 
@@ -189,46 +128,29 @@ Formats:
 
 | Var | Purpose |
 |---|---|
-| `SL_API_URL` | Bypass platform resolution — point at an OSS or internal API directly |
-| `SL_SERVICE_KEY` | Service key when using env-var bypass |
+| `SL_SERVICE_KEY` | An `sk-sl_` API key (or session token) for machine/CI use; bypasses platform resolution. `SECONDLAYER_API_KEY` is a deprecated alias |
+| `SL_API_URL` | Point at an OSS or internal API directly, bypassing the platform |
 | `SL_PLATFORM_API_URL` | Override the platform API base (default `https://api.secondlayer.tools`) |
-| `STACKS_NETWORK` | Override via `--network <local\|testnet\|mainnet>` |
+| `STACKS_NETWORK` | Default network (also via `--network <local\|testnet\|mainnet>`) |
 | `HIRO_API_KEY` | Used by `sl generate` for remote contract fetches |
-
-## Error codes
-
-Every tenant-scoped failure surfaces a typed code and an action hint:
-
-| Code | CLI hint |
-|---|---|
-| `SESSION_EXPIRED` | `Session expired. Run: sl login` |
-| `TENANT_SUSPENDED` | `Instance is suspended. Run: sl instance resume` |
-| `NO_ACTIVE_PROJECT` | `No project selected. Run: sl project use <slug>` |
-| `NO_TENANT_FOR_PROJECT` | `Project has no instance. Run: sl instance create --plan launch` |
-| `KEY_ROTATED` | Handled transparently — `http.ts` re-mints and retries once |
 
 ## Code generation (`sl generate`)
 
-Generate type-safe interfaces, functions, and optional React hooks from
-Clarity contracts — works against local `.clar` files, deployed contracts
-(network inferred from address prefix), or glob patterns.
+Generate type-safe interfaces, functions, and optional React hooks from Clarity
+contracts — local `.clar` files, deployed contracts (network inferred from
+address prefix), or globs.
 
 ```bash
-# Local .clar files
 sl generate ./contracts/token.clar -o ./src/generated.ts
-
-# Deployed contracts (SP/SM → mainnet, ST/SN → testnet)
 sl generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
-
-# Glob
 sl generate "./contracts/*.clar" -o ./src/generated.ts
 ```
 
-Config-driven mode:
+Config-driven:
 
 ```bash
-sl init          # creates secondlayer.config.ts
-sl generate      # regenerates from the config
+sl init        # creates secondlayer.config.ts
+sl generate    # regenerates from the config
 ```
 
 ```typescript
@@ -242,20 +164,15 @@ export default defineConfig({
 })
 ```
 
-### Plugins
-
 | Plugin | What it adds |
 |---|---|
 | `clarinet()` | Parse local Clarinet project |
-| `actions()` | `read.*` + `write.*` helpers on each contract |
-| `react()` | Typed React Query hooks (`useTokenTransfer`, `useTokenBalance`, etc.) |
+| `actions()` | `read.*` + `write.*` helpers per contract |
+| `react()` | Typed React Query hooks |
 | `testing()` | Clarinet SDK test helpers |
-
-### Usage examples
 
 ```typescript
 import { token } from "./generated/contracts"
-import { makeContractCall, fetchCallReadOnlyFunction } from "@stacks/transactions"
 
 // Works with @stacks/transactions directly:
 await makeContractCall({
@@ -263,26 +180,15 @@ await makeContractCall({
   network: "mainnet",
 })
 
-// With actions() plugin — read/write helpers:
+// With actions() — read/write helpers + maps/vars/constants:
 const balance = await token.read.getBalance({ account: "SP..." })
 await token.write.transfer({ amount: 100n, recipient: "SP..." })
-
-// Maps / vars / constants:
 const supply = await token.vars.totalSupply.get()
-const bal = await token.maps.balances.get("SP...")
-const max = await token.constants.maxSupply.get()
 ```
 
-```typescript
-// With react() plugin:
-import { useTokenTransfer, useTokenBalance } from "./generated/hooks"
+## Docs
 
-function App() {
-  const { transfer, isRequestPending } = useTokenTransfer()
-  const { data: balance } = useTokenBalance("SP...")
-  // ...
-}
-```
+Full reference: https://secondlayer.tools/docs
 
 ## License
 

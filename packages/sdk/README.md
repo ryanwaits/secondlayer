@@ -14,10 +14,14 @@ bun add @secondlayer/sdk
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
-  apiKey: "sk-sl_...",                          // or session token
+  apiKey: "sk-sl_...",                          // or `sl login` session token
   baseUrl: "https://api.secondlayer.tools",     // default
 });
 ```
+
+Reads are public during open beta — no key needed. Writes require an `sk-sl_`
+API key, created in the platform console at
+https://secondlayer.tools/platform/api-keys.
 
 ## Mental model
 
@@ -27,10 +31,7 @@ const sl = new SecondLayer({
 
 ## Stacks Streams
 
-Typed L1 HTTP client.
-
-`sk-sl_streams_status_public` is a public, non-secret Free-tier key used by the
-Second Layer status page. Production apps should use their own Streams API key.
+Typed L1 HTTP client. Reads are public — no key needed.
 
 ```typescript
 const tip = await sl.streams.tip();
@@ -49,7 +50,7 @@ console.log({ tip, firstCursor: page.events[0]?.cursor });
 import { createStreamsClient } from "@secondlayer/sdk";
 
 const streams = createStreamsClient({
-  apiKey: process.env.SECONDLAYER_API_KEY!,
+  apiKey: process.env.SL_SERVICE_KEY!, // sk-sl_...
 });
 ```
 
@@ -70,13 +71,7 @@ inside `onBatch`, then return the cursor you committed. It exits when
 `maxPages`, `maxEmptyPolls`, or `signal` stops it.
 
 ```typescript
-import { createStreamsClient } from "@secondlayer/sdk";
-
-const client = createStreamsClient({
-  apiKey: process.env.SECONDLAYER_API_KEY!,
-});
-
-await client.events.consume({
+await streams.events.consume({
   types: ["ft_transfer"],
   batchSize: 100,
   maxPages: 1,
@@ -95,16 +90,10 @@ Use `client.events.stream` for live processors and watch-style apps. It follows
 the tip indefinitely. Stop it with an `AbortSignal`.
 
 ```typescript
-import { createStreamsClient } from "@secondlayer/sdk";
-
-const client = createStreamsClient({
-  apiKey: process.env.SECONDLAYER_API_KEY!,
-});
-
 const abort = new AbortController();
 process.once("SIGINT", () => abort.abort());
 
-for await (const event of client.events.stream({
+for await (const event of streams.events.stream({
   types: ["ft_transfer"],
   batchSize: 100,
   signal: abort.signal,
@@ -116,17 +105,9 @@ for await (const event of client.events.stream({
 Decoder helper.
 
 ```typescript
-import {
-  createStreamsClient,
-  decodeFtTransfer,
-  isFtTransfer,
-} from "@secondlayer/sdk";
+import { decodeFtTransfer, isFtTransfer } from "@secondlayer/sdk";
 
-const client = createStreamsClient({
-  apiKey: process.env.SECONDLAYER_API_KEY!,
-});
-
-for await (const event of client.events.stream({ types: ["ft_transfer"] })) {
+for await (const event of streams.events.stream({ types: ["ft_transfer"] })) {
   if (!isFtTransfer(event)) continue;
   const transfer = decodeFtTransfer(event);
   console.log(transfer.decoded_payload);
@@ -172,7 +153,7 @@ for await (const transfer of sl.index.ftTransfers.walk({
 
 Deploy and query app-specific L3 tables.
 
-Subgraphs and subscriptions live on the platform API alongside Streams and Index. Authenticate with your `sk-sl_*` key — no extra setup, no tenant URL.
+Subgraphs and subscriptions live on the platform API alongside Streams and Index. Deploying and managing them needs your `sk-sl_` key — no extra setup, no tenant URL.
 
 ```typescript
 // List

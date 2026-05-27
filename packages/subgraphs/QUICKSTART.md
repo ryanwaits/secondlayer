@@ -1,8 +1,8 @@
 # Beta Quickstart: Subgraphs + Subscriptions
 
-This guide is the shortest complete onboarding loop for a hosted beta user:
+The shortest complete loop for a hosted beta user:
 
-1. Create a project and dedicated tenant.
+1. Log in and pick a project.
 2. Deploy a subgraph from a recent block so rows appear quickly.
 3. Query the generated table.
 4. Add a receiver subscription.
@@ -17,15 +17,13 @@ A **subgraph** is a TypeScript definition with three parts:
 - `handlers` turn matched chain activity into rows with `ctx.insert()`,
   `ctx.upsert()`, `ctx.patch()`, and related helpers.
 
-A **subscription** is a delivery rule on one subgraph table:
+A **subscription** is a delivery rule on one subgraph table. It watches
+`subgraphName + tableName`, optionally filters rows, and enqueues delivery work
+in the same transaction as the subgraph row. It POSTs to your receiver with
+retries, circuit breaking, delivery logs, dead-letter requeue, and historical
+replay.
 
-- It watches `subgraphName + tableName`.
-- It can filter rows with scalar conditions.
-- It enqueues delivery work in the same transaction as the subgraph row.
-- It POSTs to your receiver with retries, circuit breaking, delivery logs,
-  dead-letter requeue, and historical replay.
-
-## 1. Create A Tenant
+## 1. Log In And Pick A Project
 
 ```bash
 bun add -g @secondlayer/cli
@@ -33,26 +31,24 @@ bun add -g @secondlayer/cli
 sl login
 sl project create my-app
 sl project use my-app
-sl instance create --plan launch
 sl whoami
 ```
 
-The CLI uses your login session and active project to mint short-lived tenant
-credentials for `sl subgraphs` and `sl subscriptions` commands. Save the
-instance URL and service key printed by `sl instance create` only when you want
-SDK, MCP, or raw REST access:
+`sl login` authenticates an interactive session; the CLI uses that session and
+your active project for all `sl subgraphs` and `sl subscriptions` commands.
+
+For machine, REST, or SDK access, create an API key (prefixed `sk-sl_`) in the
+platform console at https://secondlayer.tools/platform/api-keys, then export it:
 
 ```bash
-export SECONDLAYER_API_URL="https://<slug>.secondlayer.tools"
+export SECONDLAYER_API_URL="https://api.secondlayer.tools"
 export SL_API_URL="$SECONDLAYER_API_URL"
-export SL_SERVICE_KEY="sl_live_..."
+export SL_SERVICE_KEY="sk-sl_..."
 ```
 
-If you lose the service key:
-
-```bash
-sl instance keys rotate --service
-```
+During open beta, reads are public and need no key; writes (deploy, manage,
+subscriptions) require an `sk-sl_` key. (`SECONDLAYER_API_KEY` is a deprecated
+alias of `SL_SERVICE_KEY`.) Rotate or revoke keys in the same console.
 
 ## 2. Create A Subgraph
 
@@ -62,8 +58,8 @@ Scaffold from a contract ABI when you have a specific contract:
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 ```
 
-The scaffolder also creates or updates the module `package.json` in the output
-directory and runs `bun install` by default. If you pass `--no-install`, run
+The scaffolder creates or updates the module `package.json` in the output
+directory and runs `bun install` by default. With `--no-install`, run
 `bun install` in that directory before deploying.
 
 Or create `subgraphs/stx-transfers.ts` manually:
@@ -103,18 +99,12 @@ export default defineSubgraph({
 ```
 
 For beta demos, deploy from a recent block so catch-up is fast. The override is
-deploy-time only; it does not rewrite the source file.
+deploy-time only; it does not rewrite the source file. Omit `--start-block` to
+use the file's `startBlock` as the source of truth.
 
 ```bash
 sl subgraphs deploy subgraphs/stx-transfers.ts --start-block <recent-block>
 sl subgraphs status stx-transfers
-```
-
-Use the file's `startBlock` when you want the definition to be the source of
-truth:
-
-```bash
-sl subgraphs deploy subgraphs/stx-transfers.ts
 ```
 
 ## 3. Query Rows
@@ -212,7 +202,8 @@ sl subscriptions test transfer-hook --signing-secret "$SIGNING_SECRET"
 sl subscriptions test transfer-hook --signing-secret "$SIGNING_SECRET" --post
 ```
 
-Replay a historical range after a receiver changes or misses events:
+Replay a historical range after a receiver changes or misses events. Replay
+scans existing subgraph rows in the range and enqueues replay deliveries:
 
 ```bash
 sl subscriptions replay transfer-hook \
@@ -220,20 +211,20 @@ sl subscriptions replay transfer-hook \
   --to-block 124000
 ```
 
-Replay scans existing subgraph rows in the range and enqueues replay
-deliveries. Operational commands accept either subscription id or unique name
-and support `--json`.
+Operational commands accept either subscription id or unique name and support
+`--json`.
 
 ## SDK And MCP Setup
 
-Use the SDK when setup needs to live in application code:
+Use the SDK when setup needs to live in application code. Pass your `sk-sl_` key
+via the `apiKey` option:
 
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
   baseUrl: process.env.SECONDLAYER_API_URL!,
-  apiKey: process.env.SL_SERVICE_KEY!,
+  apiKey: process.env.SL_SERVICE_KEY!, // sk-sl_...
 });
 
 const { data } = await sl.subgraphs.queryTable("stx-transfers", "transfers", {
@@ -264,8 +255,8 @@ Use MCP when an agent should scaffold, deploy, query, and subscribe:
       "command": "bunx",
       "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
-        "SECONDLAYER_API_URL": "https://<slug>.secondlayer.tools",
-        "SL_SERVICE_KEY": "sl_live_..."
+        "SECONDLAYER_API_URL": "https://api.secondlayer.tools",
+        "SL_SERVICE_KEY": "sk-sl_..."
       }
     }
   }
@@ -286,5 +277,7 @@ CLI filters:
 
 Supported CLI suffixes: `.eq`, `.neq`, `.gt`, `.gte`, `.lt`, `.lte`. Bare
 `key=value` is equality. Multiple fields are ANDed together. CLI create and
-update filters are schema-aware, and the API repeats table, field, and
-operator validation as the source of truth.
+update filters are schema-aware, and the API repeats table, field, and operator
+validation as the source of truth.
+</content>
+</invoke>
