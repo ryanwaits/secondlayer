@@ -45,6 +45,9 @@ function toSummary(sub: Subscription) {
 		url: sub.url,
 		lastDeliveryAt: sub.last_delivery_at?.toISOString() ?? null,
 		lastSuccessAt: sub.last_success_at?.toISOString() ?? null,
+		// Circuit-breaker state: list views derive a "circuit-paused" count from
+		// this, so it must be present on the summary (not just toDetail).
+		circuitOpenedAt: sub.circuit_opened_at?.toISOString() ?? null,
 		createdAt: sub.created_at.toISOString(),
 		updatedAt: sub.updated_at.toISOString(),
 	};
@@ -59,7 +62,6 @@ function toDetail(sub: Subscription) {
 		timeoutMs: sub.timeout_ms,
 		concurrency: sub.concurrency,
 		circuitFailures: sub.circuit_failures,
-		circuitOpenedAt: sub.circuit_opened_at?.toISOString() ?? null,
 		lastError: sub.last_error,
 	};
 }
