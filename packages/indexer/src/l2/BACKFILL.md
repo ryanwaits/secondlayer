@@ -1,5 +1,18 @@
 # L2 decoder backfill runbook
 
+> **STATUS (2026-05-27) — backfill paused for launch; re-run post-launch.**
+> The 90-day backfill was started but **fast-forwarded back to tip before launch**
+> to remove sustained DB / Streams-API load (`/health` was hitting 5–20s and the
+> dense `print` decoder was ~overnight from catching up). All decoders are now at
+> tip serving **current** data; the one deferred piece is the **90-day history**:
+> partially backfilled (~6.8M → ~7.9M per type) with a gap (~7.9M → recent) the
+> re-run will fill — writes are idempotent, so nothing was lost.
+>
+> **Post-launch TODO (off-peak):** Step 0 cleanup is already done, so just re-run
+> the backfill below — `reset-checkpoints.ts --days 90 --apply` for the go-forward
+> decoders, ideally in **groups** (cheap types first, `print` last). Watch §Verify
+> until every `lag_seconds` is back near tip.
+
 The decoders added go-forward — `stx_transfer`, `stx_mint`, `stx_burn`,
 `stx_lock`, `ft_mint`, `ft_burn`, `nft_mint`, `nft_burn`, `print` — only hold
 data since their deploy. This rewinds their checkpoints so they replay history.
