@@ -16,18 +16,13 @@ describe("www marketing routes", () => {
 		// Intro prose: agent-native framing + chain-events thesis.
 		expect(html).toContain("agent-native data plane for Stacks");
 		expect(html).toContain("apps and agents need them in any shape");
-		expect(html).toContain("Foundation Datasets");
-		// Two row groups: Products (data-plane APIs) + Tools (clients).
+		// Products group (data-plane APIs). Tools group is hidden for now.
 		expect(html).toContain(">Products<");
-		expect(html).toContain(">Tools<");
+		expect(html).not.toContain(">Tools<");
 		expect(html).toContain('href="/streams"');
 		expect(html).toContain('href="/index-api"');
 		expect(html).toContain('href="/subgraphs"');
 		expect(html).toContain('href="/subscriptions"');
-		expect(html).toContain('href="/sdk"');
-		expect(html).toContain('href="/cli"');
-		expect(html).toContain('href="/mcp"');
-		expect(html).toContain('href="/datasets"');
 	});
 
 	test("/pricing renders the free-during-beta reframe", () => {

@@ -43,33 +43,6 @@ const products: IndexEntry[] = [
 	},
 ];
 
-const tools: IndexEntry[] = [
-	{
-		name: "SDK",
-		href: "/sdk",
-		desc: "Typed Stacks client, viem-style.",
-		endpoint: "@secondlayer/sdk",
-	},
-	{
-		name: "CLI",
-		href: "/cli",
-		desc: "Deploy and inspect from the terminal.",
-		endpoint: "sl",
-	},
-	{
-		name: "MCP",
-		href: "/mcp",
-		desc: "Chain data for your agent.",
-		endpoint: "mcp",
-	},
-	{
-		name: "Datasets",
-		href: "/datasets",
-		desc: "Curated Foundation datasets.",
-		endpoint: "/v1/datasets",
-	},
-];
-
 function IndexRow({ item }: { item: IndexEntry }) {
 	return (
 		<li className="index-item">
@@ -153,11 +126,6 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 						The chain produces events; apps and agents need them in any shape.
 					</em>
 				</p>
-				<p>
-					Pull raw with Streams, query decoded with Index, shape your own with
-					Subgraphs, push with Subscriptions, or query the curated{" "}
-					<Link href="/datasets">Foundation Datasets</Link> directly.
-				</p>
 			</div>
 
 			<section
@@ -165,7 +133,6 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 				style={{ marginTop: "var(--spacing-xl)" }}
 			>
 				<IndexGroup label="Products" items={products} />
-				<IndexGroup label="Tools" items={tools} />
 			</section>
 		</div>
 	);
