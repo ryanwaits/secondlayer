@@ -106,12 +106,49 @@ whole thing with the service stopped and start it once at the end.)
 
 ## Verify
 
-Once caught up, the new history is queryable:
+Run these to confirm the backfill is progressing / done and the system is
+healthy. The decoder checks run on the prod host (`ssh ryan@claude-mini` →
+`ssh app-server`); the API checks run from anywhere.
+
+**1. Decoders caught up + healthy** (the main check). Want `overall: healthy`
+and every `l2.*` decoder's `lag_seconds` small (tens-to-low-hundreds = at tip).
+Dense types (`stx_transfer`, `print`) finish last.
 
 ```bash
-curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&from_height=<low>&limit=1"
-curl "https://api.secondlayer.tools/v1/index/events?event_type=print&from_height=<low>&limit=1"
+docker exec secondlayer-l2-decoder-1 curl -s localhost:3710/health \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print('overall:', d['status']); [print(f\"  {x['decoder']:22} {x['status']:9} lag={x['lag_seconds']}s\") for x in d['decoders']]"
 ```
+
+**2. Watch live progress** (per-decoder writes_per_minute / checkpoint / lag):
+
+```bash
+docker logs -f secondlayer-l2-decoder-1 | grep l2_decoder.progress
+```
+
+**3. No decoder errors** (expect empty):
+
+```bash
+docker logs --since 2h secondlayer-l2-decoder-1 2>&1 | grep "l2_decoder.error" | tail
+```
+
+**4. Replace-per-height holding — no new reorg dupes** (read-only, expect 0):
+
+```bash
+docker exec secondlayer-l2-decoder-1 \
+  bun run packages/indexer/src/cleanup-reorg-dupes.ts   # → "orphaned transactions: 0"
+```
+
+**5. API serving backfilled history** (run anywhere, once lag → 0). A height
+well inside the window should return rows:
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&from_height=7200000&to_height=7200100&limit=3"
+curl "https://api.secondlayer.tools/v1/index/events?event_type=print&from_height=7200000&to_height=7200100&limit=1"
+curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_lock&from_height=7200000&limit=1"
+```
+
+**All good** = #1 healthy with small lags, #3 empty, #4 reports 0, #5 returns
+historical rows.
 
 ## Notes / safety
 
