@@ -8,6 +8,7 @@ export { registerDbCommand } from "./db.ts";
 export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStackCommand } from "./stack.ts";
 export { registerStreamsCommand } from "./streams.ts";
+export { registerDatasetsCommand } from "./datasets.ts";
 export { registerDoctorCommand } from "./doctor.ts";
 export { registerLocalCommand } from "./local.ts";
 export { registerWhoamiCommand } from "./whoami.ts";

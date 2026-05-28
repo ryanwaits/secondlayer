@@ -48,7 +48,14 @@ const DATASETS_DISCOVERY = [
 		family: "stx-transfers",
 		path: "/v1/datasets/stx-transfers",
 		row_key: "events",
-		filters: ["limit", "cursor", "from_block", "to_block", "sender", "recipient"],
+		filters: [
+			"limit",
+			"cursor",
+			"from_block",
+			"to_block",
+			"sender",
+			"recipient",
+		],
 	},
 	{
 		family: "sbtc-events",
@@ -93,6 +100,7 @@ const DATASETS_DISCOVERY = [
 			"delegate_to",
 			"signer_key",
 			"reward_cycle",
+			"address",
 		],
 	},
 	{
@@ -114,7 +122,14 @@ const DATASETS_DISCOVERY = [
 		family: "bns-namespace-events",
 		path: "/v1/datasets/bns/namespace-events",
 		row_key: "events",
-		filters: ["limit", "cursor", "from_block", "to_block", "status", "namespace"],
+		filters: [
+			"limit",
+			"cursor",
+			"from_block",
+			"to_block",
+			"status",
+			"namespace",
+		],
 	},
 	{
 		family: "bns-marketplace-events",
@@ -151,13 +166,7 @@ const DATASETS_DISCOVERY = [
 const ALLOWED = {
 	networkHealth: ["days"],
 	stxTransfers: [...RANGE_KEYS, "sender", "recipient"],
-	sbtcEvents: [
-		...RANGE_KEYS,
-		"topic",
-		"bitcoin_txid",
-		"request_id",
-		"sender",
-	],
+	sbtcEvents: [...RANGE_KEYS, "topic", "bitcoin_txid", "request_id", "sender"],
 	sbtcTokenEvents: [...RANGE_KEYS, "event_type", "sender", "recipient"],
 	pox4Calls: [
 		...RANGE_KEYS,
@@ -166,6 +175,7 @@ const ALLOWED = {
 		"delegate_to",
 		"signer_key",
 		"reward_cycle",
+		"address",
 	],
 	bnsNameEvents: [...RANGE_KEYS, "topic", "namespace", "name", "owner"],
 	bnsNamespaceEvents: [...RANGE_KEYS, "status", "namespace"],
@@ -327,7 +337,10 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 		validateQueryParams(query, ALLOWED.bnsNames);
 		const tip = await getTip();
 		const response = await getBnsNamesResponse({ query });
-		return c.json({ ...response, tip: tip ? { block_height: tip.block_height } : null });
+		return c.json({
+			...response,
+			tip: tip ? { block_height: tip.block_height } : null,
+		});
 	});
 
 	router.get("/bns/namespaces", async (c) => {

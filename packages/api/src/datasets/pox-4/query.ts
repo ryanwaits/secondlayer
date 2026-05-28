@@ -135,6 +135,8 @@ export type Pox4CallsQuery = {
 	delegateTo?: string;
 	signerKey?: string;
 	rewardCycle?: number;
+	/** Any-role filter: matches caller OR stacker OR delegate_to. */
+	address?: string;
 };
 
 export function parsePox4CallsQuery(
@@ -187,6 +189,7 @@ export function parsePox4CallsQuery(
 		),
 		signerKey: parseFilter(query.get("signer_key") ?? undefined, "signer_key"),
 		rewardCycle,
+		address: parseFilter(query.get("address") ?? undefined, "address"),
 	};
 }
 
@@ -269,6 +272,7 @@ export type ReadPox4CallsParams = {
 	delegateTo?: string;
 	signerKey?: string;
 	rewardCycle?: number;
+	address?: string;
 	db?: Kysely<Database>;
 };
 
@@ -304,6 +308,11 @@ export async function readPox4Calls(
 	if (params.signerKey) predicates.push(sql`signer_key = ${params.signerKey}`);
 	if (params.rewardCycle !== undefined) {
 		predicates.push(sql`reward_cycle = ${params.rewardCycle}`);
+	}
+	if (params.address) {
+		predicates.push(
+			sql`(caller = ${params.address} OR stacker = ${params.address} OR delegate_to = ${params.address})`,
+		);
 	}
 	if (params.after) {
 		predicates.push(
@@ -356,6 +365,7 @@ export async function getPox4CallsResponse(opts: {
 		delegateTo: parsed.delegateTo,
 		signerKey: parsed.signerKey,
 		rewardCycle: parsed.rewardCycle,
+		address: parsed.address,
 	});
 	return {
 		calls: result.calls,

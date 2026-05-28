@@ -6,6 +6,7 @@ import {
 	registerBillingCommand,
 	registerConfigCommand,
 	registerCreateCommand,
+	registerDatasetsCommand,
 	registerDbCommand,
 	registerDoctorCommand,
 	registerLocalCommand,
@@ -85,6 +86,7 @@ registerSubgraphsCommand(program);
 registerCreateCommand(program);
 registerSubscriptionsCommand(program);
 registerStreamsCommand(program);
+registerDatasetsCommand(program);
 
 // Ops / inspection
 registerStatusCommand(program);

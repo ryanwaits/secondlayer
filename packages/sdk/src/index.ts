@@ -1,6 +1,14 @@
 export { SecondLayer } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
 export { Index } from "./index-api/index.ts";
+export {
+	Datasets,
+	CURSOR_SLUGS,
+	type DatasetRow,
+	type CursorListParams,
+	type CursorEnvelope,
+	type Pox4CallsParams,
+} from "./datasets/client.ts";
 export type {
 	ContractCallsEnvelope,
 	ContractCallsListParams,
