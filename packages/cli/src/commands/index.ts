@@ -5,6 +5,7 @@ export { registerCreateCommand } from "./create.ts";
 export { registerStatusCommand } from "./status.ts";
 export { registerSubscriptionsCommand } from "./subscriptions.ts";
 export { registerDbCommand } from "./db.ts";
+export { registerDevnetCommand } from "./devnet.ts";
 export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStackCommand } from "./stack.ts";
 export { registerStreamsCommand } from "./streams.ts";

@@ -8,6 +8,7 @@ import {
 	registerCreateCommand,
 	registerDatasetsCommand,
 	registerDbCommand,
+	registerDevnetCommand,
 	registerDoctorCommand,
 	registerLocalCommand,
 	registerLoginCommand,
@@ -97,6 +98,7 @@ registerConfigCommand(program);
 
 // Local dev
 registerLocalCommand(program);
+registerDevnetCommand(program);
 
 // Account
 registerAccountCommand(program);
