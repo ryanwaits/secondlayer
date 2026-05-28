@@ -30,6 +30,21 @@ sl subgraphs codegen ./subgraph.config.ts --target drizzle -o db/schema.ts
 
 For Kysely, run `kysely-codegen` against your database. See [Subgraphs](/docs/subgraphs#use-your-own-database--orm).
 
+## Local devnet
+
+Run the full pipeline against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet — write Clarity, `clarinet devnet start`, and index it locally with subgraphs, datasets, and subscriptions. Something Chainhooks can't do.
+
+```bash
+cd my-clarinet-project
+sl devnet connect        # patches Devnet.toml + starts the Secondlayer stack
+clarinet devnet start    # your normal command — events now stream to the indexer
+
+SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy \
+  sl subgraphs deploy ./subgraph.ts
+```
+
+`connect` pulls the published OSS images (Docker required) — no repo checkout needed. Stop with `sl devnet down` (add `--purge` to wipe the local index when restarting the devnet from scratch).
+
 export const metadata = {
 	title: "CLI — Secondlayer Docs",
 	description: "Manage subgraphs and subscriptions from your terminal with sl.",

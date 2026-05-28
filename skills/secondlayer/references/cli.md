@@ -34,6 +34,7 @@ The `sl` binary (alias `secondlayer`) is the official CLI for Secondlayer — de
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`
 - [Create](#create) — `create subscription`
 - [Local](#local) — `local start|stop|restart|status|logs`, `local node …`
+- [Devnet](#devnet) — `devnet connect|down` (run services against a Clarinet devnet)
 - [Stack](#stack) — `stack start|stop|restart`
 - [DB](#db) — `db blocks|txs|events|gaps|reset|resync`
 - [Account](#account) — `account profile`
@@ -808,6 +809,42 @@ Usage: `sl local node logs`
 | `-f, --follow` | false | Follow log output. |
 | `-n, --lines <n>` | `50` | Number of lines. |
 | `-q, --quiet` | false | Filter noise. |
+
+---
+
+## Devnet
+
+Run Secondlayer services against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet. Unlike `sl local` (which runs the services from source for contributors), `sl devnet` pulls the published OSS Docker images, so it works for any developer with a clarinet project — no repo checkout required. Requires Docker (Docker Desktop or OrbStack) and `clarinet` installed.
+
+### sl devnet connect
+
+Point your clarinet project's devnet at a local Secondlayer stack and start it. Detects the nearest `Clarinet.toml`, adds the indexer to `settings/Devnet.toml`'s `stacks_node_events_observers` (idempotent; preserves your comments), writes `.secondlayer/docker-compose.yml`, and runs `docker compose up -d`.
+
+Usage: `sl devnet connect`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory. |
+| `--image-tag <tag>` | `latest` | Published OSS image tag to run. |
+| `--owner <owner>` | `ryanwaits` | ghcr image owner (namespace) to pull from. |
+| `--no-up` | (starts docker) | Patch config + write compose without starting Docker. |
+
+Then run your normal `clarinet devnet start` — deployed contracts and their events stream into the local indexer (api at `http://localhost:3800`, indexer at `http://localhost:3700`). Deploy a subgraph against it with:
+
+```bash
+SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy sl subgraphs deploy ./subgraph.ts
+```
+
+### sl devnet down
+
+Stop the local Secondlayer stack started by `sl devnet connect`.
+
+Usage: `sl devnet down`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory. |
+| `--purge` | false | Also remove volumes (wipes the local index — use when restarting the devnet from scratch). |
 
 ---
 
