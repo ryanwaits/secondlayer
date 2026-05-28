@@ -43,12 +43,39 @@ function matchPattern(value: string, pattern: string): boolean {
 	return re.test(value);
 }
 
+// Trait → set of conforming contract IDs, resolved per block by the caller
+// (block-processor) from the contract registry. Kept as injected data so this
+// module stays pure/sync/DB-less.
+export type TraitContracts = Map<string, ReadonlySet<string>>;
+const EMPTY_SET: ReadonlySet<string> = new Set();
+
+/**
+ * True when a filter's optional `trait` admits this contract: no trait → always
+ * allowed; trait set → the contract must be in the resolved conforming set.
+ */
+function traitAllows(
+	filter: SubgraphFilter,
+	contractId: string | undefined | null,
+	traitContracts: TraitContracts,
+): boolean {
+	const trait = (filter as { trait?: string }).trait;
+	if (!trait) return true;
+	if (!contractId) return false;
+	return (traitContracts.get(trait) ?? EMPTY_SET).has(contractId);
+}
+
+/** Extract the contract id from an asset identifier (`<contract>::<token>`). */
+function assetContract(assetId: string | undefined): string | undefined {
+	return assetId?.split("::")[0];
+}
+
 // ── Per-filter-type matchers ────────────────────────────────────────
 
 function matchFilter(
 	filter: SubgraphFilter,
 	transactions: TxRecord[],
 	eventsByTx: Map<string, EventRecord[]>,
+	traitContracts: TraitContracts,
 ): { tx: TxRecord; events: EventRecord[] }[] {
 	const results: { tx: TxRecord; events: EventRecord[] }[] = [];
 
@@ -125,6 +152,15 @@ function matchFilter(
 						if (!assetId || !matchPattern(assetId, filter.assetIdentifier))
 							return false;
 					}
+					// Trait scope — the asset's contract must conform.
+					if (
+						!traitAllows(
+							filter,
+							assetContract(data.asset_identifier as string | undefined),
+							traitContracts,
+						)
+					)
+						return false;
 					// Address filters
 					if ("sender" in filter && filter.sender) {
 						if (!matchPattern(data.sender as string, filter.sender))
@@ -166,6 +202,14 @@ function matchFilter(
 						if (!assetId || !matchPattern(assetId, filter.assetIdentifier))
 							return false;
 					}
+					if (
+						!traitAllows(
+							filter,
+							assetContract(data.asset_identifier as string | undefined),
+							traitContracts,
+						)
+					)
+						return false;
 					if ("sender" in filter && filter.sender) {
 						if (!matchPattern(data.sender as string, filter.sender))
 							return false;
@@ -209,6 +253,8 @@ function matchFilter(
 				if (filter.caller) {
 					if (!matchPattern(tx.sender, filter.caller)) continue;
 				}
+				// Trait scope — the called contract must conform.
+				if (!traitAllows(filter, tx.contract_id, traitContracts)) continue;
 
 				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
 				results.push({ tx, events: txEvents });
@@ -250,13 +296,18 @@ function matchFilter(
 					// `contract_identifier` (legacy smart_contract_event payload)
 					// or `contract_id` (current contract_event payload). Mirror
 					// the streams query which checks both shapes.
+					const printContractId =
+						(data.contract_identifier as string | undefined) ??
+						(data.contract_id as string | undefined);
 					if (filter.contractId) {
-						const contractId =
-							(data.contract_identifier as string | undefined) ??
-							(data.contract_id as string | undefined);
-						if (!contractId || !matchPattern(contractId, filter.contractId))
+						if (
+							!printContractId ||
+							!matchPattern(printContractId, filter.contractId)
+						)
 							return false;
 					}
+					if (!traitAllows(filter, printContractId, traitContracts))
+						return false;
 					// Topic filter — check the decoded Clarity value's topic field
 					// At this stage data.value is still raw hex; topic filtering happens
 					// after decode in the runner. For now, skip topic filtering here.
@@ -283,6 +334,7 @@ export function matchSources(
 	sources: Record<string, SubgraphFilter>,
 	transactions: TxRecord[],
 	events: EventRecord[],
+	traitContracts: TraitContracts = new Map(),
 ): MatchedTx[] {
 	// Index events by txId
 	const eventsByTx = new Map<string, EventRecord[]>();
@@ -296,7 +348,12 @@ export function matchSources(
 	const results: MatchedTx[] = [];
 
 	for (const [sourceName, filter] of Object.entries(sources)) {
-		const matches = matchFilter(filter, transactions, eventsByTx);
+		const matches = matchFilter(
+			filter,
+			transactions,
+			eventsByTx,
+			traitContracts,
+		);
 		for (const match of matches) {
 			const dedupeKey = `${match.tx.tx_id}:${sourceName}`;
 			if (!seen.has(dedupeKey)) {

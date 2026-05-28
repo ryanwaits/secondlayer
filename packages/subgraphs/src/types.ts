@@ -78,21 +78,28 @@ export interface StxLockFilter {
 	minAmount?: bigint;
 }
 
+/**
+ * Restrict a source to contracts conforming to a trait/standard (e.g. "sip-010")
+ * instead of a fixed contract — resolved from the contract registry at match time,
+ * as-of each processed block. Lets a source index "all SIP-010 tokens" etc.
+ */
+type TraitScope = { trait?: string };
+
 /** FT event filters */
-export interface FtTransferFilter {
+export interface FtTransferFilter extends TraitScope {
 	type: "ft_transfer";
 	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
 	minAmount?: bigint;
 }
-export interface FtMintFilter {
+export interface FtMintFilter extends TraitScope {
 	type: "ft_mint";
 	assetIdentifier?: string;
 	recipient?: string;
 	minAmount?: bigint;
 }
-export interface FtBurnFilter {
+export interface FtBurnFilter extends TraitScope {
 	type: "ft_burn";
 	assetIdentifier?: string;
 	sender?: string;
@@ -100,18 +107,18 @@ export interface FtBurnFilter {
 }
 
 /** NFT event filters */
-export interface NftTransferFilter {
+export interface NftTransferFilter extends TraitScope {
 	type: "nft_transfer";
 	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
 }
-export interface NftMintFilter {
+export interface NftMintFilter extends TraitScope {
 	type: "nft_mint";
 	assetIdentifier?: string;
 	recipient?: string;
 }
-export interface NftBurnFilter {
+export interface NftBurnFilter extends TraitScope {
 	type: "nft_burn";
 	assetIdentifier?: string;
 	sender?: string;
@@ -160,7 +167,7 @@ export interface ContractCallEvent {
 }
 
 /** Contract event filters */
-export interface ContractCallFilter {
+export interface ContractCallFilter extends TraitScope {
 	type: "contract_call";
 	contractId?: string;
 	functionName?: string;
@@ -178,7 +185,7 @@ export interface ContractDeployFilter {
 	deployer?: string;
 	contractName?: string;
 }
-export interface PrintEventFilter {
+export interface PrintEventFilter extends TraitScope {
 	type: "print_event";
 	contractId?: string;
 	topic?: string;

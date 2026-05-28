@@ -95,6 +95,7 @@ export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> = z
 		topic: z.string().optional(),
 		lockedAddress: z.string().optional(),
 		abi: z.record(z.string(), z.any()).optional(),
+		trait: z.string().optional(),
 	})
 	.strict() as unknown as z.ZodType<SubgraphFilter>;
 

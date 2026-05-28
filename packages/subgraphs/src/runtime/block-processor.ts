@@ -3,6 +3,7 @@ import {
 	getSourceDb,
 	getTargetDb,
 } from "@secondlayer/shared/db";
+import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import {
 	isByoSubgraph,
 	recordSubgraphProcessed,
@@ -57,6 +58,29 @@ async function resolveRoute(
 /** Drop a subgraph's cached route — call on redeploy/delete (conn may change). */
 export function invalidateSubgraphRoute(subgraphName: string): void {
 	routeCache.delete(subgraphName);
+}
+
+/**
+ * Resolve each distinct trait used by a subgraph's sources to its conforming
+ * contract-id set, as of `blockHeight`, from the contract registry. Empty map
+ * when no source is trait-scoped (the common case → no DB work).
+ */
+async function resolveTraitContracts(
+	subgraph: SubgraphDefinition,
+	blockHeight: number,
+	db: Kysely<Database>,
+): Promise<Map<string, ReadonlySet<string>>> {
+	const traits = new Set<string>();
+	for (const source of Object.values(subgraph.sources)) {
+		const trait = (source as { trait?: string }).trait;
+		if (trait) traits.add(trait);
+	}
+	const resolved = new Map<string, ReadonlySet<string>>();
+	for (const trait of traits) {
+		const ids = await resolveTraitContractIds(db, trait, blockHeight);
+		resolved.set(trait, new Set(ids));
+	}
+	return resolved;
 }
 
 export interface ProcessBlockTiming {
@@ -161,8 +185,16 @@ export async function processBlock(
 			.execute();
 	}
 
-	// 3. Match source
-	const matched = matchSources(subgraph.sources, txs, evts);
+	// 3. Match source. Trait-scoped sources ({ trait: "sip-010" }) resolve to the
+	// set of conforming contracts AS OF this block (deploy_height ≤ blockHeight),
+	// so a reindex backfills a token's full history even if it was classified
+	// after deploy. Resolution is done here (DB access) so the matcher stays pure.
+	const traitContracts = await resolveTraitContracts(
+		subgraph,
+		blockHeight,
+		targetDb,
+	);
+	const matched = matchSources(subgraph.sources, txs, evts, traitContracts);
 	result.matched = matched.length;
 
 	if (matched.length === 0) {
