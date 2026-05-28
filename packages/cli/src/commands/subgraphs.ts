@@ -1513,41 +1513,81 @@ export function registerSubgraphsCommand(program: Command): void {
 
 	// --- scaffold ---
 	subgraphs
-		.command("scaffold <contractAddress>")
-		.description("Scaffold a defineSubgraph() file from a contract ABI")
+		.command("scaffold [contractAddress]")
+		.description(
+			"Scaffold a defineSubgraph() file. Detects SIP-010/009 → ft/nft source; --functions for typed call tables; --trait for a trait-scoped source (no contract)",
+		)
 		.option("-o, --output <path>", "Output file path (required)")
 		.option("--api-key <key>", "Stacks node API key for direct RPC URLs")
+		.option(
+			"--functions <names>",
+			"Comma-separated public functions to index as typed contract_call tables",
+		)
+		.option(
+			"--trait <std>",
+			"Scaffold a trait-scoped source (sip-009|sip-010|sip-013) — no contract needed",
+		)
 		.option("--no-install", "Skip bun install after writing package.json")
 		.action(
 			async (
-				contractAddress: string,
-				options: { output?: string; apiKey?: string; install?: boolean },
+				contractAddress: string | undefined,
+				options: {
+					output?: string;
+					apiKey?: string;
+					functions?: string;
+					trait?: string;
+					install?: boolean;
+				},
 			) => {
 				try {
 					if (!options.output) {
 						error("--output <path> is required");
 						process.exit(1);
 					}
+					const trait = options.trait as
+						| "sip-009"
+						| "sip-010"
+						| "sip-013"
+						| undefined;
+					if (trait && !["sip-009", "sip-010", "sip-013"].includes(trait)) {
+						error("--trait must be one of: sip-009, sip-010, sip-013");
+						process.exit(1);
+					}
+					if (!trait && !contractAddress) {
+						error("a <contractAddress> is required (or use --trait)");
+						process.exit(1);
+					}
 
 					const outPath = resolve(options.output);
-					const network = inferNetwork(contractAddress) ?? "mainnet";
-					const apiKey =
-						options.apiKey ??
-						process.env.STACKS_NODE_API_KEY ??
-						process.env.HIRO_API_KEY;
 
-					const client = new StacksApiClient(network, apiKey);
-					info(
-						`Fetching ABI for ${contractAddress} via ${client.describeContractInfoSource()}...`,
-					);
-					const contractInfo = await client.getContractInfo(contractAddress);
-					const abi = parseApiResponse(contractInfo);
-
-					info("Generating scaffold...");
-					const content = await generateSubgraphScaffold({
-						contractId: contractAddress,
-						functions: abi.functions,
-					});
+					let content: string;
+					if (trait) {
+						// Trait mode — no contract to fetch.
+						info(`Generating trait-scoped scaffold for ${trait}...`);
+						content = await generateSubgraphScaffold({ trait });
+					} else {
+						const address = contractAddress as string;
+						const network = inferNetwork(address) ?? "mainnet";
+						const apiKey =
+							options.apiKey ??
+							process.env.STACKS_NODE_API_KEY ??
+							process.env.HIRO_API_KEY;
+						const client = new StacksApiClient(network, apiKey);
+						info(
+							`Fetching ABI for ${address} via ${client.describeContractInfoSource()}...`,
+						);
+						const contractInfo = await client.getContractInfo(address);
+						const abi = parseApiResponse(contractInfo);
+						info("Generating scaffold...");
+						content = await generateSubgraphScaffold({
+							contractId: address,
+							abi,
+							functions: options.functions
+								?.split(",")
+								.map((f) => f.trim())
+								.filter(Boolean),
+						});
+					}
 
 					const dir = resolve(outPath, "..");
 					if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

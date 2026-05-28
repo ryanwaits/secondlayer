@@ -298,19 +298,27 @@ Refuses to run without a TTY unless `-y` is passed. Idempotent: a 404 after a pr
 
 ### sl subgraphs scaffold
 
-Scaffold a `defineSubgraph()` file from a contract ABI (fetched via Stacks RPC).
+Scaffold a deploy-ready `defineSubgraph()` file (real handlers, not stubs).
+**Standard-aware**: it classifies the contract's ABI and emits the *useful* source —
+a SIP-010 token → an `ft_transfer` source over its asset, a SIP-009 → `nft_transfer`,
+anything else → a single generic `calls` table.
 
-Usage: `sl subgraphs scaffold <contractAddress>`
+Usage: `sl subgraphs scaffold [contractAddress]`
 
 | Flag | Required | Description |
 | --- | --- | --- |
 | `-o, --output <path>` | yes | Output file path. |
-| `--api-key <key>` | no | Stacks API key (fallback to `STACKS_NODE_API_KEY` or `HIRO_API_KEY`). |
-| `--no-install` | no | Skip `bun install` in output directory (default: install after writing). |
+| `--functions <a,b>` | no | Index these public functions as typed `contract_call` tables (positional arg decode) instead of the generic `calls` table. |
+| `--trait <std>` | no | Scaffold a **trait-scoped** source (`sip-009\|sip-010\|sip-013`) that indexes every conforming contract — no `<contractAddress>` needed. |
+| `--api-key <key>` | no | Stacks API key (fallback to `STACKS_NODE_API_KEY` / `HIRO_API_KEY`). |
+| `--no-install` | no | Skip `bun install` in output directory. |
 
-Infers network from address prefix (`SP`/`SM` → mainnet, `ST`/`SN` → testnet). Writes file, ensures `package.json` lists `@secondlayer/subgraphs`, runs `bun install` unless `--no-install`.
-
-Example: `sl subgraphs scaffold SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o subgraphs/my-token.ts`
+Examples:
+```bash
+sl subgraphs scaffold SM3VD….sbtc-token -o subgraphs/sbtc.ts        # → ft_transfer source
+sl subgraphs scaffold SP….amm --functions swap,add-liquidity -o subgraphs/amm.ts
+sl subgraphs scaffold --trait sip-010 -o subgraphs/all-tokens.ts    # all SIP-010 tokens
+```
 
 ### sl subgraphs client
 
