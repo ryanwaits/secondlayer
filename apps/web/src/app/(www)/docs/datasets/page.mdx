@@ -20,6 +20,18 @@ Reads are public and cursor-paginated. Filter on any column; page with `_limit` 
 curl https://api.secondlayer.tools/v1/datasets/sbtc/events -G -d "_limit=10"
 ```
 
+Or use the typed SDK / CLI instead of raw HTTP:
+
+```ts
+import { Datasets } from "@secondlayer/sdk";
+const ds = new Datasets({ baseUrl: "https://api.secondlayer.tools" });
+for await (const row of ds.sbtcEvents.walk({ batchSize: 500 })) { /* … */ }
+```
+
+```bash
+sl datasets query pox-4-calls --filter address=SP… --limit 20   # all stacking activity for an address
+```
+
 Need the full history? Each dataset exposes a parquet export for bulk analytics. Response shape follows the shared [REST API](/docs/rest-api) envelope.
 
 export const metadata = {

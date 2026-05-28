@@ -528,6 +528,30 @@ Note `.walk()` defaults `fromHeight: 0` when neither `cursor` nor `fromCursor` i
 
 ---
 
+## 5b. `Datasets` — Foundation Datasets
+
+Typed client for `/v1/datasets/*` (public reads, no key). Cursor-paginated event
+datasets share a `list`/`walk` shape; offset/single-object ones have bespoke methods.
+
+```ts
+import { Datasets } from "@secondlayer/sdk";
+const ds = new Datasets({ baseUrl: "https://api.secondlayer.tools" });
+
+// cursor datasets: pox4Calls, sbtcEvents, sbtcTokenEvents, stxTransfers,
+// bnsEvents, bnsNamespaceEvents, bnsMarketplaceEvents
+const { rows, next_cursor } = await ds.pox4Calls.list({ address: "SP…", limit: 20 });
+for await (const row of ds.sbtcEvents.walk({ batchSize: 500 })) { /* … */ }
+
+// bespoke
+await ds.bnsResolve("alice.btc");      // single record
+await ds.bnsNames({ namespace: "btc", offset: 0 });  // offset-paginated
+await ds.networkHealth();              // summary
+```
+
+Rows are `DatasetRow` (JSON) in v1; query params are typed per dataset.
+
+---
+
 ## 6. `sl.subgraphs`
 
 Read methods are anonymous. **Write methods (`deploy`, `reindex`, `backfill`, `stop`, `delete`, `bundle`) require `apiKey`.**
