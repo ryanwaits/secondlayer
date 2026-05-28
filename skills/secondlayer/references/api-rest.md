@@ -299,6 +299,43 @@ Delete subscription and any pending outbox rows.
 
 ---
 
+## `/v1/contracts` — contract discovery
+
+Find contracts conforming to a SIP standard. The registry classifies deployed
+contracts by static ABI shape inference (`inferred`) and by `(impl-trait …)`
+declarations parsed from source (`declared`). Anonymous public read.
+
+### `GET /v1/contracts`
+
+| Query param | Required | Description |
+| --- | --- | --- |
+| `trait` | yes | Standard to match: `sip-009`, `sip-010`, `sip-013`. |
+| `conformance` | no | `declared` \| `inferred` \| `any` (default `any`). |
+| `limit` | no | 1–500 (default 100). |
+| `cursor` | no | Opaque resume token (the last `contract_id` of the prior page). |
+| `include` | no | `abi` to include the full ABI blob (omitted by default). |
+
+```jsonc
+{
+  "contracts": [
+    {
+      "contract_id": "SP....token-x",
+      "deployer": "SP....",
+      "block_height": 150000,
+      "declared_traits": ["sip-010"],
+      "inferred_standards": ["sip-010"],
+      "abi_status": "fetched"
+    }
+  ],
+  "next_cursor": "SP....token-x"   // null on the last page
+}
+```
+
+Trait-scoped subgraph sources (`{ type: "ft_transfer", trait: "sip-010" }`)
+resolve against this same registry — see `subgraph-authoring.md`.
+
+---
+
 ## Webhook verification
 
 The default `format: "standard-webhooks"` sends three headers:

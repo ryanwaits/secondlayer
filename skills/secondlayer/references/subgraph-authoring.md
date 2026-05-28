@@ -81,6 +81,31 @@ handlers: {
 }
 ```
 
+### Trait-scoped sources — index by standard, not by address
+
+FT, NFT, `contract_call`, and `print_event` filters accept an optional `trait`
+instead of (or alongside) a fixed `contractId`/`assetIdentifier`. It indexes
+**every contract the registry classifies as that SIP standard** — including
+contracts deployed after you deploy the subgraph — with no contract list to
+maintain:
+
+```ts
+sources: {
+  // every SIP-010 token transfer on-chain
+  tokens: { type: "ft_transfer", trait: "sip-010" },
+  // every call to any SIP-013 SFT's transfer (trait composes with other filters, AND)
+  sft:    { type: "contract_call", trait: "sip-013", functionName: "transfer" },
+}
+```
+
+Supported traits: `sip-009` (NFT), `sip-010` (FT), `sip-013` (SFT). Matching:
+token filters match the **asset-identifier's contract** prefix; `contract_call`/
+`print_event` match the **transaction's `contract_id`**. Resolution is
+**as-of-block** (a contract is in scope from its deploy block, not its
+classification time), so a reindex backfills a token's full history even if it
+was classified after deploy. Requires the contract registry to be populated.
+Discover the matching set via `GET /v1/contracts?trait=sip-010` (see `api-rest.md`).
+
 ### Asset identifier format — don't guess
 
 `assetIdentifier` is `<contract-principal>.<contract-name>::<asset-name>`. The asset name comes from `(define-fungible-token <name> ...)` or `(define-non-fungible-token <name> ...)` inside the contract — **it is NOT necessarily the same as the contract name**.

@@ -1,0 +1,50 @@
+# Contract discovery
+
+Find every contract that conforms to a token standard — "all SIP-010 tokens", "all SIP-009 NFTs" — without maintaining a list of addresses. Secondlayer keeps a registry of deployed contracts and classifies each against SIP-009 / SIP-010 / SIP-013, both by parsing declared `(impl-trait …)` and by statically matching the contract's ABI shape (so contracts that conform without declaring the trait are caught too).
+
+## Query by trait
+
+```bash
+curl https://api.secondlayer.tools/v1/contracts \
+  -G -d "trait=sip-010" -d "conformance=any"
+```
+
+```json
+{
+  "contracts": [
+    {
+      "contract_id": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token",
+      "deployer": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9",
+      "block_height": 21000,
+      "declared_traits": ["sip-010"],
+      "inferred_standards": ["sip-010"],
+      "abi_status": "fetched"
+    }
+  ],
+  "next_cursor": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token"
+}
+```
+
+Reads are public. Cursor-paginate by passing the previous response's `next_cursor` (it's `null` on the last page).
+
+| Param | Description |
+| --- | --- |
+| `trait` | `sip-009`, `sip-010`, or `sip-013` (required). |
+| `conformance` | `declared` (parsed from source), `inferred` (ABI shape match), or `any` (default). |
+| `limit` | 1–500, default 100. |
+| `cursor` | Resume token from `next_cursor`. |
+
+## Index a whole standard in a subgraph
+
+The same classification powers **trait-scoped [Subgraph](/docs/subgraphs) sources** — point a source at a standard instead of a contract and it indexes every conforming contract, including ones deployed later:
+
+```ts
+sources: {
+  tokens: { type: "ft_transfer", trait: "sip-010" }, // no contract address
+}
+```
+
+export const metadata = {
+	title: "Contract discovery — Secondlayer Docs",
+	description: "Find every contract conforming to a SIP token standard via the registry.",
+};

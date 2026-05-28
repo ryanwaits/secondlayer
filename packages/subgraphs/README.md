@@ -140,6 +140,41 @@ script and verifies the connection — without writing anything.
 schema, and point `--database-url` at a session-mode pooler endpoint
 (PgBouncer/Neon/Supabase) rather than raw Postgres.
 
+### ORM codegen
+
+Once rows land in your DB, generate a typed schema for your ORM:
+
+```bash
+sl subgraphs codegen subgraphs/my.ts --target prisma  -o prisma/schema.prisma
+sl subgraphs codegen subgraphs/my.ts --target drizzle -o db/schema.ts
+```
+
+Prisma and Drizzle have first-class generators (`generatePrismaSchema` /
+`generateDrizzleSchema` are exported); both emit relations/`@relation` from the
+schema's `relations` metadata. For Kysely, run `kysely-codegen` against the DB.
+Output mirrors the deployed DDL — `prisma db pull` should be a no-op; treat the
+tables as read-only (the processor owns them) and never `migrate`/`push`.
+`uint`→`Decimal`/`numeric` and the `BigInt` id need `.toString()` for JSON.
+
+## Trait-scoped sources
+
+A source can target a SIP standard instead of a fixed contract — it indexes
+every contract the registry classifies as that standard (incl. ones deployed
+later):
+
+```ts
+sources: {
+  tokens: { type: "ft_transfer", trait: "sip-010" }, // all SIP-010 tokens
+}
+```
+
+`trait` (`sip-009` | `sip-010` | `sip-013`) is supported on FT/NFT/`contract_call`/
+`print_event` filters and composes (AND) with other fields. Token filters match
+the asset-identifier's contract; `contract_call`/`print` match `contract_id`.
+Resolution is as-of-block, so a reindex backfills a contract's full history even
+if it was classified after deploy. Requires the contract registry to be
+populated. Discover the set via `GET /v1/contracts?trait=sip-010`.
+
 ## Postgres + pool mode
 
 The emitter holds a persistent `LISTEN` on `subscriptions:new_outbox` and `subscriptions:changed`, so it MUST connect through a session-mode pool. pgbouncer in transaction mode silently breaks it. Run the emitter against a session-mode port (`pool_mode = session`), or connect directly to Postgres as the default docker-compose setup does.

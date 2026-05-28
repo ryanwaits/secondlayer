@@ -29,7 +29,7 @@ The `sl` binary (alias `secondlayer`) is the official CLI for Secondlayer — de
 
 - [Auth](#auth) — `login`, `logout`, `whoami`
 - [Project](#project) — `project create|list|use|current`
-- [Subgraphs](#subgraphs) — `new`, `dev`, `deploy`, `list`, `status`, `spec`, `inspect`, `reindex`, `backfill`, `stop`, `gaps`, `query`, `delete`, `scaffold`, `generate`
+- [Subgraphs](#subgraphs) — `new`, `dev`, `deploy`, `list`, `status`, `spec`, `inspect`, `reindex`, `backfill`, `stop`, `gaps`, `query`, `delete`, `scaffold`, `generate`, `codegen`
 - [Subscriptions](#subscriptions) — `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`
 - [Create](#create) — `create subscription`
@@ -325,6 +325,30 @@ Usage: `sl subgraphs generate <subgraphName>`
 Fetches subgraph metadata, emits typed query client.
 
 Example: `sl subgraphs generate my-watcher -o ./src/generated/my-watcher.ts`
+
+### sl subgraphs codegen
+
+Generate an ORM schema (Prisma or Drizzle) for a subgraph's tables — the
+companion to BYO database (`sl subgraphs deploy --database-url`). Point the ORM
+at your own Postgres for a fully-typed client with relations and joins.
+
+Usage: `sl subgraphs codegen <file>`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--target <orm>` | `prisma` | `prisma` or `drizzle`. (Kysely: run `kysely-codegen` against your DB.) |
+| `--schema <name>` | `subgraph_<name>` | Postgres schema the tables live in. |
+| `--env <var>` | `DATABASE_URL` | datasource url env var (Prisma only). |
+| `--models-only` | — | Emit only Prisma models (compose via `prismaSchemaFolder`). |
+| `-o, --output <path>` | stdout | Write to a file. |
+
+The output mirrors the deployed DDL, so the subgraph owns the schema: run
+`prisma db pull` / `drizzle-kit pull` to verify (it should be a no-op), never
+`prisma migrate` / `drizzle-kit push`. Tables are processor-written — query them
+read-only. `uint`→`Decimal`/`numeric` and the `BigInt` id need `.toString()` for
+JSON. Relations require `relations` metadata on the subgraph schema.
+
+Example: `sl subgraphs codegen subgraphs/dex.ts --target prisma -o prisma/schema.prisma`
 
 ---
 

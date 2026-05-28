@@ -83,6 +83,31 @@ curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
 }
 ```
 
+## Index by standard, not by address
+
+A source can target a token standard instead of a fixed contract. `trait` resolves to **every contract Secondlayer classifies as that standard** — including ones deployed after you ship the subgraph — so you index a whole ecosystem with no address list to maintain:
+
+```ts
+sources: {
+  // every SIP-010 token transfer on-chain
+  tokens: { type: "ft_transfer", trait: "sip-010" },
+},
+```
+
+Supported traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract's full history from its deploy block, even if it was classified later. See [Contract discovery](/docs/contracts) to query the matching set directly.
+
+## Use your own database + ORM
+
+Deploy with `--database-url` and your subgraph's rows land in **your** Postgres. Then generate a typed schema for your ORM and query it with full joins and relations:
+
+```bash
+sl subgraphs deploy ./subgraph.config.ts --database-url "$DATABASE_URL"
+sl subgraphs codegen ./subgraph.config.ts --target prisma -o prisma/schema.prisma
+npx prisma generate
+```
+
+Prisma and Drizzle have first-class generators; for Kysely, run `kysely-codegen` against your database. Secondlayer owns the table DDL, so treat the tables as read-only and verify with `prisma db pull` (never `migrate`).
+
 Want pushes instead of polling? Bind a [Subscription](/docs/subscriptions) to this table and Secondlayer will POST every matching row to your webhook.
 
 export const metadata = {

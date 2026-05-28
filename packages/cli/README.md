@@ -82,6 +82,8 @@ at `.git`.
 | `sl subgraphs list` / `status <name>` / `gaps <name>` | Inspect deployments |
 | `sl subgraphs spec <name> [--format openapi\|agent\|markdown]` | Export API docs for a deployed subgraph |
 | `sl subgraphs inspect <file> [--format ...]` | Same docs from a local definition before deploy |
+| `sl subgraphs deploy <file> --database-url <url>` | BYO: write the subgraph's rows to your own Postgres |
+| `sl subgraphs codegen <file> --target prisma\|drizzle [-o <path>]` | Generate an ORM schema for the subgraph's tables (BYO DB) |
 | `sl subgraphs reindex/backfill/stop/delete/generate <name>` | Manage processing + types |
 
 ### Subscriptions
