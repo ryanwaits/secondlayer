@@ -52,12 +52,15 @@ export async function persistBlock(
 			)
 			.execute();
 
+		// Delete events before transactions: events.tx_id references
+		// transactions.tx_id with no ON DELETE CASCADE, so dropping the parent
+		// rows first would violate the FK.
 		await tx
-			.deleteFrom("transactions")
+			.deleteFrom("events")
 			.where("block_height", "=", blockHeight)
 			.execute();
 		await tx
-			.deleteFrom("events")
+			.deleteFrom("transactions")
 			.where("block_height", "=", blockHeight)
 			.execute();
 
