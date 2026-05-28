@@ -110,6 +110,35 @@ export interface DeployDiff {
 	breakingChanges: string[];
 }
 
+export interface DeployPlan {
+	schemaName: string;
+	/** DDL Secondlayer will run against your database. */
+	statements: string[];
+	/** Least-privilege grant script to run once, before deploying. */
+	grantScript: string;
+}
+
+/**
+ * Render the DDL + grant script a BYO deploy would run, without executing.
+ * Powers `--dry-run`: the user reviews exactly what touches their DB first.
+ */
+export function renderDeployPlan(
+	def: SubgraphDefinition,
+	schemaName?: string,
+): DeployPlan {
+	validateSubgraphDefinition(def);
+	const { statements } = generateSubgraphSQL(def, schemaName);
+	const schema = schemaName ?? pgSchemaName(def.name);
+	const grantScript = [
+		"-- Run once on YOUR database as an owner/superuser, replacing <role>",
+		"-- with the role whose credentials you give Secondlayer.",
+		"-- Secondlayer then creates and owns only this one schema:",
+		`GRANT CREATE ON DATABASE current_database() TO <role>;`,
+		`-- (after first deploy <role> owns "${schema}"; no further grants needed)`,
+	].join("\n");
+	return { schemaName: schema, statements, grantScript };
+}
+
 /**
  * Deploy a subgraph schema to the database.
  * - New subgraph → CREATE SCHEMA + tables + register
@@ -129,6 +158,14 @@ export async function deploySchema(
 		version?: string;
 		handlerCode?: string;
 		sourceCode?: string;
+		/**
+		 * BYO data plane: when set, schema DDL (CREATE/ALTER/index) runs against
+		 * the user-owned DB while the subgraphs registry row stays on `db`
+		 * (managed). Defaults to `db` — managed deploys are unchanged.
+		 */
+		dataDb?: AnyDb;
+		/** Encrypted user-DB connection string to persist on the registry row. */
+		databaseUrlEnc?: Buffer | null;
 	},
 ): Promise<{
 	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
@@ -142,6 +179,18 @@ export async function deploySchema(
 	const { getSubgraph, registerSubgraph } = await import(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
+
+	// DDL target: the user's DB for BYO, else the managed DB. The registry
+	// (getSubgraph/registerSubgraph) always stays on `db`.
+	const ddlDb = opts?.dataDb ?? db;
+	const byo = opts?.dataDb != null;
+	const refuseDestructiveOnByo = (reason: string): never => {
+		throw new Error(
+			`Breaking schema change on a BYO subgraph (${reason}) would drop data ` +
+				`in your database. Drop the schema "${opts?.schemaName ?? pgSchemaName(def.name)}" ` +
+				`manually and re-deploy to rebuild.`,
+		);
+	};
 
 	const existing = await getSubgraph(db, def.name, opts?.accountId);
 
@@ -170,23 +219,25 @@ export async function deploySchema(
 		sourceCode: opts?.sourceCode,
 		schemaName,
 		startBlock: def.startBlock,
+		databaseUrlEnc: opts?.databaseUrlEnc ?? null,
 	};
 
 	if (existing) {
 		// Guard against zombie rows: registry entry exists but PG schema was dropped
-		// (e.g. partial delete or manual cleanup). Treat as a new subgraph.
+		// (e.g. partial delete or manual cleanup). Treat as a new subgraph. The
+		// schema lives on the data-plane DB (user DB for BYO), so check there.
 		const schemaExists = await sql<{ exists: boolean }>`
 			SELECT EXISTS (
 				SELECT 1 FROM information_schema.schemata
 				WHERE schema_name = ${schemaName}
 			) AS "exists"
 		`
-			.execute(db)
+			.execute(ddlDb)
 			.then((r) => r.rows[0]?.exists ?? false);
 
 		if (!schemaExists) {
 			for (const stmt of statements) {
-				await sql.raw(stmt).execute(db);
+				await sql.raw(stmt).execute(ddlDb);
 			}
 			const sg = await registerSubgraph(db, regData);
 			return { action: "reindexed", subgraphId: sg.id, version: newVersion };
@@ -211,12 +262,13 @@ export async function deploySchema(
 		}
 
 		if (existing.schema_hash === hash && opts?.forceReindex) {
-			// Same schema but force reindex requested — drop and recreate
+			// Same schema but force reindex requested — drop and recreate.
+			if (byo) refuseDestructiveOnByo("force reindex");
 			await sql
 				.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
-				.execute(db);
+				.execute(ddlDb);
 			for (const stmt of statements) {
-				await sql.raw(stmt).execute(db);
+				await sql.raw(stmt).execute(ddlDb);
 			}
 			const sg = await registerSubgraph(db, regData);
 			return { action: "reindexed", subgraphId: sg.id, version: newVersion };
@@ -231,11 +283,16 @@ export async function deploySchema(
 
 			if (breaking || opts?.forceReindex) {
 				// Breaking change or forced: drop schema, recreate, register
+				if (byo) {
+					refuseDestructiveOnByo(
+						reasons.length > 0 ? reasons.join("; ") : "force reindex",
+					);
+				}
 				await sql
 					.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
-					.execute(db);
+					.execute(ddlDb);
 				for (const stmt of statements) {
-					await sql.raw(stmt).execute(db);
+					await sql.raw(stmt).execute(ddlDb);
 				}
 				const sg = await registerSubgraph(db, regData);
 				const deployDiff: DeployDiff = {
@@ -277,31 +334,31 @@ export async function deploySchema(
 					.raw(
 						`CREATE TABLE IF NOT EXISTS ${qualifiedName} (\n  ${colDefs.join(",\n  ")}\n)`,
 					)
-					.execute(db);
+					.execute(ddlDb);
 				await sql
 					.raw(
 						`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_block_height ON ${qualifiedName} (_block_height)`,
 					)
-					.execute(db);
+					.execute(ddlDb);
 				await sql
 					.raw(
 						`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_tx_id ON ${qualifiedName} (_tx_id)`,
 					)
-					.execute(db);
+					.execute(ddlDb);
 				for (const [colName, col] of Object.entries(tableDef.columns)) {
 					if (col.indexed) {
 						await sql
 							.raw(
 								`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName} ON ${qualifiedName} (${colName})`,
 							)
-							.execute(db);
+							.execute(ddlDb);
 					}
 					if (col.search) {
 						await sql
 							.raw(
 								`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName}_trgm ON ${qualifiedName} USING gin (${colName} gin_trgm_ops)`,
 							)
-							.execute(db);
+							.execute(ddlDb);
 					}
 				}
 			}
@@ -324,20 +381,20 @@ export async function deploySchema(
 						.raw(
 							`ALTER TABLE ${qualifiedName} ADD COLUMN ${colName} ${sqlType}${nullable}`,
 						)
-						.execute(db);
+						.execute(ddlDb);
 					if (col.indexed) {
 						await sql
 							.raw(
 								`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName} ON ${qualifiedName} (${colName})`,
 							)
-							.execute(db);
+							.execute(ddlDb);
 					}
 					if (col.search) {
 						await sql
 							.raw(
 								`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName}_trgm ON ${qualifiedName} USING gin (${colName} gin_trgm_ops)`,
 							)
-							.execute(db);
+							.execute(ddlDb);
 					}
 				}
 			}
@@ -365,7 +422,7 @@ export async function deploySchema(
 
 	// New subgraph — execute all DDL
 	for (const stmt of statements) {
-		await sql.raw(stmt).execute(db);
+		await sql.raw(stmt).execute(ddlDb);
 	}
 
 	const sg = await registerSubgraph(db, regData);

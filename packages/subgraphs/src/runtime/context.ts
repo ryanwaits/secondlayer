@@ -63,6 +63,14 @@ export class SubgraphContext {
 	private readonly pgSchemaName: string;
 	private readonly subgraphSchema: SubgraphSchema;
 	private readonly ops: WriteOp[] = [];
+	/**
+	 * BYO data plane: handler writes land in a user-owned DB whose flush can't
+	 * share the managed block transaction, so a crash replays the block. When
+	 * set, flush() prepends a replace-per-height DELETE for every inserted table
+	 * (`_block_height = N` → re-INSERT), making block reprocessing idempotent.
+	 * Non-idempotent `update` handlers are rejected at deploy, not here.
+	 */
+	private readonly byo: boolean;
 
 	constructor(
 		db: AnyDb,
@@ -70,12 +78,14 @@ export class SubgraphContext {
 		subgraphSchema: SubgraphSchema,
 		block: BlockMeta,
 		tx: TxMeta,
+		byo = false,
 	) {
 		this.db = db;
 		this.pgSchemaName = pgSchemaName;
 		this.subgraphSchema = subgraphSchema;
 		this.block = block;
 		this._tx = tx;
+		this.byo = byo;
 	}
 
 	get tx(): TxMeta {
@@ -422,6 +432,20 @@ export class SubgraphContext {
 	/** Build SQL statements from write ops, batching compatible INSERTs. */
 	private buildStatements(ops: WriteOp[]): string[] {
 		const statements: string[] = [];
+
+		// BYO replace-per-height: clear this block's prior inserts before
+		// re-inserting so a replayed block (no cross-DB tx) stays idempotent.
+		// One DELETE per distinct inserted table; upserts/updates self-heal.
+		if (this.byo) {
+			const insertTables = new Set<string>();
+			for (const op of ops)
+				if (op.kind === "insert") insertTables.add(op.table);
+			for (const table of insertTables) {
+				statements.push(
+					`DELETE FROM "${this.pgSchemaName}"."${table}" WHERE "_block_height" = ${this.block.height}`,
+				);
+			}
+		}
 
 		// Group consecutive inserts by batch key
 		type InsertBatch = {

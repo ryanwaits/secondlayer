@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { BundleSizeError, bundleSubgraphCode } from "@secondlayer/bundler";
 import { getErrorMessage, logger } from "@secondlayer/shared";
-import { getDb, getRawClient, getSourceDb } from "@secondlayer/shared/db";
+import { getDb, getRawClientFor, getSourceDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
 import {
 	countSubgraphMissingBlocks,
@@ -18,9 +18,11 @@ import {
 	waitForSubgraphOperationsClear,
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
+	encryptDatabaseUrl,
 	getSubgraph,
 	listSubgraphs,
 	pgSchemaNameFor,
+	resolveSubgraphRawClient,
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
@@ -74,8 +76,10 @@ export async function stopSubgraphCache(): Promise<void> {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-async function query(text: string, params: unknown[] = []) {
-	const client = getRawClient();
+// Serving reads route to the subgraph's data plane: the user's DB for BYO, else
+// the managed target. resolveSubgraphRawClient handles both (cached by URL).
+async function query(subgraph: Subgraph, text: string, params: unknown[] = []) {
+	const client = resolveSubgraphRawClient(subgraph);
 	// biome-ignore lint/suspicious/noExplicitAny: postgres client requires any[]
 	return client.unsafe(text, params as any[]);
 }
@@ -324,8 +328,65 @@ app.post("/", async (c) => {
 
 	const schemaName = pgSchemaNameFor(accountId ?? "", name);
 
-	const { deploySchema } = await import("@secondlayer/subgraphs");
+	const { deploySchema, renderDeployPlan } = await import(
+		"@secondlayer/subgraphs"
+	);
 	const db = getDb();
+
+	// ── BYO data plane ──────────────────────────────────────────────────────
+	// When a databaseUrl is supplied, the schema/writes/reads live in the user's
+	// DB. Reject handlers whose writes can't survive at-least-once replay, verify
+	// the connection, and (for --dry-run) return the DDL/grant plan without
+	// touching anything.
+	const byoUrl = parsed.data.databaseUrl;
+	let databaseUrlEnc: Buffer | undefined;
+	let byoDataDb: ReturnType<typeof getDb> | undefined;
+	if (byoUrl) {
+		const code = `${parsed.data.sourceCode ?? ""}\n${handlerCode}`;
+		if (/\bctx\.(update|patchOrInsert)\s*\(/.test(code)) {
+			return c.json(
+				{
+					error:
+						"BYO subgraphs require idempotent handlers: ctx.update / ctx.patchOrInsert " +
+						"can double-apply on block replay (no cross-DB transaction). Use ctx.insert " +
+						"or ctx.upsert with a unique key instead.",
+					code: "BYO_NON_IDEMPOTENT_HANDLER",
+				},
+				400,
+			);
+		}
+		try {
+			await getRawClientFor(byoUrl)`SELECT 1`;
+		} catch (err) {
+			return c.json(
+				{
+					error: `Could not connect to your database: ${getErrorMessage(err)}`,
+					code: "BYO_CONNECT_FAILED",
+				},
+				400,
+			);
+		}
+		if (parsed.data.dryRun) {
+			const plan = renderDeployPlan(def, schemaName);
+			return c.json({
+				dryRun: true,
+				connection: "ok",
+				schemaName: plan.schemaName,
+				statements: plan.statements,
+				grantScript: plan.grantScript,
+			});
+		}
+		databaseUrlEnc = encryptDatabaseUrl(byoUrl);
+		byoDataDb = getDb(byoUrl);
+	} else if (parsed.data.dryRun) {
+		const plan = renderDeployPlan(def, schemaName);
+		return c.json({
+			dryRun: true,
+			schemaName: plan.schemaName,
+			statements: plan.statements,
+		});
+	}
+
 	const existing = await getSubgraph(db, name, accountId);
 	const deployStartBlock = resolveDeployStartBlock(def);
 	if (chainTip > 0 && deployStartBlock > chainTip) {
@@ -354,19 +415,28 @@ app.post("/", async (c) => {
 		handlerCode: parsed.data.handlerCode,
 		sourceCode: parsed.data.sourceCode,
 		forceReindex: parsed.data.startBlock !== undefined || startBlockChanged,
+		dataDb: byoDataDb,
+		databaseUrlEnc,
 	});
 
 	await cache.refresh();
 
-	// Auto-trigger reindex for new deploys and breaking schema changes
+	// Auto-trigger initial population for new deploys and breaking schema changes.
+	// Managed → reindex (drops + rebuilds). BYO → backfill (forward fill, no drop):
+	// reindex is blocked on BYO since dropping the user's schema from a background
+	// job is destructive. A BYO backfill needs a concrete range, so it only runs
+	// once there's a chain tip; otherwise forward catch-up populates as blocks land.
 	let operationId: string | undefined;
-	if (result.action === "created" || result.action === "reindexed") {
+	const needsPopulation =
+		result.action === "created" || result.action === "reindexed";
+	const startByoBackfill = byoUrl && needsPopulation && chainTip > 0;
+	if ((needsPopulation && !byoUrl) || startByoBackfill) {
 		try {
 			const operation = await createSubgraphOperation(db, {
 				subgraphId: result.subgraphId,
 				subgraphName: name,
 				accountId,
-				kind: "reindex",
+				kind: byoUrl ? "backfill" : "reindex",
 				fromBlock: deployStartBlock,
 				toBlock: chainTip > 0 ? chainTip : undefined,
 			});
@@ -773,6 +843,7 @@ async function buildSubgraphDetailPayload(
 		Promise.allSettled(
 			schemaEntries.map(([tableName]) =>
 				query(
+					subgraph,
 					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
 				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
 			),
@@ -961,6 +1032,7 @@ app.get("/:subgraphName", async (c) => {
 		Promise.allSettled(
 			schemaEntries.map(([tableName]) =>
 				query(
+					subgraph,
 					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
 				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
 			),
@@ -1178,7 +1250,7 @@ app.get("/:subgraphName/:tableName/count", async (c) => {
 			text += ` WHERE ${conditions.join(" AND ")}`;
 		}
 
-		const result = await query(text, params);
+		const result = await query(subgraph, text, params);
 		return c.json({
 			count: Number.parseInt(String(result[0]?.count ?? 0), 10),
 		});
@@ -1206,6 +1278,7 @@ app.get("/:subgraphName/:tableName/:id", async (c) => {
 
 	const sn = subgraphSchemaName(subgraph);
 	const result = await query(
+		subgraph,
 		`SELECT * FROM ${ident(sn)}.${ident(tableName)} WHERE "_id" = $1`,
 		[Number.parseInt(id, 10)],
 	);
@@ -1261,8 +1334,8 @@ app.get("/:subgraphName/:tableName", async (c) => {
 			countText += ` WHERE ${countConditions.join(" AND ")}`;
 			// Use countParams for count query
 			const [data, countResult] = await Promise.all([
-				query(text, params),
-				query(countText, countParams),
+				query(subgraph, text, params),
+				query(subgraph, countText, countParams),
 			]);
 
 			return c.json({
@@ -1276,8 +1349,8 @@ app.get("/:subgraphName/:tableName", async (c) => {
 		}
 
 		const [data, countResult] = await Promise.all([
-			query(text, params),
-			query(countText),
+			query(subgraph, text, params),
+			query(subgraph, countText),
 		]);
 
 		return c.json({

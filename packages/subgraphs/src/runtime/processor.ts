@@ -17,6 +17,7 @@ import {
 	isActiveSubgraphOperationConflict,
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
+	isByoSubgraph,
 	listSubgraphs,
 	pgSchemaName,
 	updateSubgraphStatus,
@@ -24,6 +25,7 @@ import {
 import { logger } from "@secondlayer/shared/logger";
 import { listen } from "@secondlayer/shared/queue/listener";
 import type { SubgraphDefinition } from "../types.ts";
+import { invalidateSubgraphRoute } from "./block-processor.ts";
 import { catchUpSubgraph } from "./catchup.ts";
 import { startEmitter } from "./emitter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
@@ -140,6 +142,9 @@ async function loadSubgraphDefinition(
 	definitionCache.set(sg.name, def);
 
 	if (prevVersion && prevVersion !== sg.version) {
+		// A redeploy can change the data-plane connection (BYO toggled/rotated),
+		// so drop the cached route alongside the handler def.
+		invalidateSubgraphRoute(sg.name);
 		logger.info("Subgraph handler reloaded", {
 			subgraph: sg.name,
 			from: prevVersion,
@@ -157,6 +162,7 @@ function cleanupCaches(active: Subgraph[]): void {
 		if (!names.has(name)) {
 			knownVersions.delete(name);
 			definitionCache.delete(name);
+			invalidateSubgraphRoute(name);
 		}
 	}
 }
@@ -225,6 +231,16 @@ async function runSubgraphOperation(
 			signal,
 		});
 		return result.processed;
+	}
+
+	// Reindex drops + recreates the schema. On a BYO subgraph that would destroy
+	// data in the user's DB from a background job, so it's blocked — the user
+	// re-deploys to rebuild. Initial population uses a `backfill` op (handled
+	// above), which never drops.
+	if (isByoSubgraph(subgraph)) {
+		throw new Error(
+			`Reindex is not supported for BYO subgraphs ("${subgraph.name}"). Re-deploy to rebuild, or drop and recreate the schema in your database.`,
+		);
 	}
 
 	const hasResumeMetadata =

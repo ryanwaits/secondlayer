@@ -1,7 +1,10 @@
 import { getErrorMessage } from "@secondlayer/shared";
-import { getRawClient, getTargetDb } from "@secondlayer/shared/db";
+import { getTargetDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
-import { listSubgraphs } from "@secondlayer/shared/db/queries/subgraphs";
+import {
+	listSubgraphs,
+	resolveSubgraphRawClient,
+} from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition, SubgraphSchema } from "../types.ts";
@@ -27,10 +30,10 @@ export async function handleSubgraphReorg(
 	blockHeight: number,
 	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
 ): Promise<void> {
-	// Subgraphs table + tenant schemas (and thus the DELETE DDL target) live
-	// in the target DB; source DB is unrelated here.
+	// The subgraphs registry + revert-event outbox live on the managed target
+	// DB; the row SELECT/DELETE target each subgraph's data plane (the user's DB
+	// for BYO), resolved per subgraph inside the loop.
 	const targetDb = getTargetDb();
-	const client = getRawClient("target");
 	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
 		(v: Subgraph) => v.status === "active",
 	);
@@ -48,6 +51,8 @@ export async function handleSubgraphReorg(
 			if (!schema) continue;
 
 			const schemaName = sg.schema_name ?? pgSchemaName(sg.name);
+			// Rows live on the subgraph's data plane — user DB for BYO, else target.
+			const client = resolveSubgraphRawClient(sg);
 
 			// Snapshot affected rows BEFORE deletion so we can surface them
 			// to subscription receivers as revert events. Cap at 1k rows

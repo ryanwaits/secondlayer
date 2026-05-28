@@ -50,15 +50,27 @@ export type {
 } from "./events.ts";
 export { validateSubgraphDefinition } from "./validate.ts";
 export { generateSubgraphSQL } from "./schema/generator.ts";
+export {
+	generatePrismaSchema,
+	type PrismaGenOptions,
+} from "./schema/prisma.ts";
+export {
+	generateDrizzleSchema,
+	type DrizzleGenOptions,
+} from "./schema/drizzle.ts";
 export { pgSchemaName } from "./schema/utils.ts";
-export { deploySchema, diffSchema } from "./schema/deployer.ts";
+export {
+	deploySchema,
+	diffSchema,
+	renderDeployPlan,
+} from "./schema/deployer.ts";
 export {
 	reindexSubgraph,
 	resumeReindex,
 	backfillSubgraph,
 	type ReindexOptions,
 } from "./runtime/reindex.ts";
-export type { TableDiff, ColumnDiff } from "./schema/deployer.ts";
+export type { TableDiff, ColumnDiff, DeployPlan } from "./schema/deployer.ts";
 export type { GeneratedSQL } from "./schema/generator.ts";
 export type {
 	ColumnToTS,

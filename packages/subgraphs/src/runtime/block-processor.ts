@@ -4,11 +4,13 @@ import {
 	getTargetDb,
 } from "@secondlayer/shared/db";
 import {
+	isByoSubgraph,
 	recordSubgraphProcessed,
+	resolveSubgraphDb,
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
-import { type Transaction, sql } from "kysely";
+import { type Kysely, type Transaction, sql } from "kysely";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
 import { type BlockMeta, SubgraphContext, type TxMeta } from "./context.ts";
@@ -17,8 +19,45 @@ import { runHandlers } from "./runner.ts";
 import { matchSources } from "./source-matcher.ts";
 import { matcher } from "./subscription-state.ts";
 
-// Cache schema_name per subgraph to avoid per-block DB lookups
-const schemaNameCache = new Map<string, string>();
+/**
+ * The data-plane route for a subgraph: which schema its tables live in, the DB
+ * those writes/reads land on (the user's DB when BYO, else the managed target),
+ * and whether it's BYO. Cached per subgraph to avoid a per-block lookup +
+ * decrypt; invalidated on redeploy (the connection can change) via
+ * {@link invalidateSubgraphRoute}.
+ */
+interface SubgraphRoute {
+	schemaName: string;
+	dataDb: Kysely<Database>;
+	byo: boolean;
+}
+const routeCache = new Map<string, SubgraphRoute>();
+
+async function resolveRoute(
+	subgraphName: string,
+	targetDb: Kysely<Database>,
+): Promise<SubgraphRoute> {
+	const cached = routeCache.get(subgraphName);
+	if (cached) return cached;
+	const row = await targetDb
+		.selectFrom("subgraphs")
+		.selectAll()
+		.where("name", "=", subgraphName)
+		.executeTakeFirst();
+	const byo = row ? isByoSubgraph(row) : false;
+	const route: SubgraphRoute = {
+		schemaName: row?.schema_name ?? pgSchemaName(subgraphName),
+		dataDb: row && byo ? resolveSubgraphDb(row) : targetDb,
+		byo,
+	};
+	routeCache.set(subgraphName, route);
+	return route;
+}
+
+/** Drop a subgraph's cached route — call on redeploy/delete (conn may change). */
+export function invalidateSubgraphRoute(subgraphName: string): void {
+	routeCache.delete(subgraphName);
+}
 
 export interface ProcessBlockTiming {
 	totalMs: number;
@@ -133,18 +172,10 @@ export async function processBlock(
 		return result;
 	}
 
-	// 4. Create context and run handlers
-	// Schema name cache lookup reads the subgraphs table (tenant-side / target DB)
-	let schemaName = schemaNameCache.get(subgraphName);
-	if (!schemaName) {
-		const subgraphRecord = await targetDb
-			.selectFrom("subgraphs")
-			.select("schema_name")
-			.where("name", "=", subgraphName)
-			.executeTakeFirst();
-		schemaName = subgraphRecord?.schema_name ?? pgSchemaName(subgraphName);
-		schemaNameCache.set(subgraphName, schemaName);
-	}
+	// 4. Resolve where this subgraph's data plane lives (managed target DB, or
+	// the user's DB when BYO). Cached per subgraph.
+	const route = await resolveRoute(subgraphName, targetDb);
+	const schemaName = route.schemaName;
 	const blockMeta: BlockMeta = {
 		height: block.height,
 		hash: block.hash,
@@ -158,32 +189,66 @@ export async function processBlock(
 		status: "",
 	};
 
-	// Wrap entire block processing in a single transaction on the target DB
-	// (tenant schemas + subgraph progress rows live in target)
 	let handlerMs = 0;
 	let flushMs = 0;
 
-	await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
-		const ctx = new SubgraphContext(
-			tx,
-			schemaName,
-			subgraph.schema,
-			blockMeta,
-			initialTx,
-		);
+	// Progress + health writes — always on the managed DB, identical in both
+	// modes (the subgraphs control-plane table lives in target).
+	const applyProgress = async (
+		tx: Transaction<Database>,
+		rr: { processed: number; errors: number },
+	) => {
+		if (opts?.skipProgressUpdate) return;
+		const status = rr.errors > 0 && rr.processed === 0 ? "error" : "active";
+		await updateSubgraphStatus(tx, subgraphName, status, blockHeight);
+		if (rr.processed > 0 || rr.errors > 0) {
+			const lastError =
+				rr.errors > 0
+					? `${rr.errors} error(s) at block ${blockHeight}`
+					: undefined;
+			await recordSubgraphProcessed(
+				tx,
+				subgraphName,
+				rr.processed,
+				rr.errors,
+				lastError,
+			);
+		}
+	};
 
-		const handlerStart = performance.now();
-		const runResult = await runHandlers(subgraph, matched, ctx);
-		handlerMs = performance.now() - handlerStart;
-
+	if (route.byo) {
+		// BYO: no cross-DB transaction possible. Phase A commits handler writes to
+		// the user DB first (replace-per-height makes a replay idempotent); phase
+		// B then records outbox + progress on the managed DB. If phase A throws,
+		// progress never advances and the block replays — safe by construction.
+		let runResult = { processed: 0, errors: 0 };
+		let manifest: Awaited<ReturnType<SubgraphContext["flush"]>> | undefined;
+		await route.dataDb
+			.transaction()
+			.execute(async (tx: Transaction<Database>) => {
+				const ctx = new SubgraphContext(
+					tx,
+					schemaName,
+					subgraph.schema,
+					blockMeta,
+					initialTx,
+					true,
+				);
+				const handlerStart = performance.now();
+				runResult = await runHandlers(subgraph, matched, ctx);
+				handlerMs = performance.now() - handlerStart;
+				if (ctx.pendingOps > 0) {
+					const flushStart = performance.now();
+					manifest = await ctx.flush();
+					flushMs = performance.now() - flushStart;
+				}
+			});
 		result.processed = runResult.processed;
 		result.errors = runResult.errors;
 
-		// 5. Flush writes + emit subscription outbox atomically in-tx.
-		if (ctx.pendingOps > 0) {
-			const flushStart = performance.now();
-			const manifest = await ctx.flush();
-			if (manifest.count > 0) {
+		// Phase B (managed) — only reached after phase A commits.
+		await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
+			if (manifest && manifest.count > 0) {
 				await emitSubscriptionOutbox(
 					tx,
 					subgraphName,
@@ -192,33 +257,44 @@ export async function processBlock(
 					block.height,
 				);
 			}
-			flushMs = performance.now() - flushStart;
-		}
-
-		// 6. Update progress + health metrics (same transaction)
-		if (!opts?.skipProgressUpdate) {
-			const status =
-				runResult.errors > 0 && runResult.processed === 0 ? "error" : "active";
-			await updateSubgraphStatus(tx, subgraphName, status, blockHeight);
-		}
-
-		if (
-			!opts?.skipProgressUpdate &&
-			(runResult.processed > 0 || runResult.errors > 0)
-		) {
-			const lastError =
-				runResult.errors > 0
-					? `${runResult.errors} error(s) at block ${blockHeight}`
-					: undefined;
-			await recordSubgraphProcessed(
+			await applyProgress(tx, runResult);
+		});
+	} else {
+		// Managed: a single atomic transaction on the target DB — unchanged.
+		await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
+			const ctx = new SubgraphContext(
 				tx,
-				subgraphName,
-				runResult.processed,
-				runResult.errors,
-				lastError,
+				schemaName,
+				subgraph.schema,
+				blockMeta,
+				initialTx,
 			);
-		}
-	});
+
+			const handlerStart = performance.now();
+			const runResult = await runHandlers(subgraph, matched, ctx);
+			handlerMs = performance.now() - handlerStart;
+
+			result.processed = runResult.processed;
+			result.errors = runResult.errors;
+
+			if (ctx.pendingOps > 0) {
+				const flushStart = performance.now();
+				const manifest = await ctx.flush();
+				if (manifest.count > 0) {
+					await emitSubscriptionOutbox(
+						tx,
+						subgraphName,
+						manifest,
+						matcher,
+						block.height,
+					);
+				}
+				flushMs = performance.now() - flushStart;
+			}
+
+			await applyProgress(tx, runResult);
+		});
+	}
 
 	const totalMs = performance.now() - blockStart;
 	result.timing = {
@@ -236,7 +312,7 @@ export async function processBlock(
 					.raw(
 						`SELECT n_live_tup AS count FROM pg_stat_user_tables WHERE schemaname = '${schemaName}' AND relname = '${table}'`,
 					)
-					.execute(targetDb);
+					.execute(route.dataDb);
 				const count = Number((rows[0] as Record<string, unknown>)?.count ?? 0);
 				if (count >= 10_000_000) {
 					logger.warn("Subgraph table exceeds 10M rows (estimate)", {
