@@ -93,6 +93,52 @@ Delivery bodies and response previews land in `subscription_deliveries`. Rows wh
 | `SUBGRAPH_REINDEX_BATCH_SIZE` | plan-based | Override the default historical block batch size used by reindex/backfill. |
 | `SUBGRAPH_REINDEX_MIN_BATCH_SIZE` | plan-based | Override the adaptive lower bound for reindex/backfill batches. |
 | `SUBGRAPH_REINDEX_MAX_BATCH_SIZE` | plan-based | Override the adaptive upper bound for reindex/backfill batches. |
+| `DATABASE_MAX_POOLS` | `25` | Max cached connection pools. With BYO subgraphs (one pool per user DB) the least-recently-used pool is evicted past this cap; the source/target pools are never evicted. |
+| `DATABASE_IDLE_TIMEOUT` | `300` | Seconds before idle connections are closed (`0` = never). Keeps a fleet of BYO pools from pinning connections. |
+
+## Bring your own database (BYO data plane)
+
+There are three tiers, not two:
+
+| Tier | Indexer / decode | Handler exec | Database | Serving API |
+| --- | --- | --- | --- | --- |
+| Managed (default) | ours | ours | ours | ours |
+| **BYO data plane** | ours | ours | **yours** | **yours** |
+| Self-host | yours | yours | yours | yours |
+
+With BYO, the managed pipeline (ingest → decode → match → run your handler) is
+unchanged, but your handler's rows land in **your** Postgres and the serving API
+reads from there. Deploy with a connection string:
+
+```bash
+sl subgraphs deploy subgraphs/my.ts --database-url "postgres://user:pass@your-host:5432/db"
+```
+
+The connection string is stored encrypted at rest (AES-GCM, keyed by
+`SECONDLAYER_SECRETS_KEY`) and never returned in API responses. The server
+verifies the connection before deploying. Once deployed, query the
+`subgraph_…` schema directly with any ORM/GraphQL/REST — we're no longer in the
+serving path.
+
+**Preview before it touches your DB.** `POST /api/subgraphs` with
+`{"dryRun": true, "databaseUrl": "…"}` returns the exact DDL plus a grant
+script and verifies the connection — without writing anything.
+
+**Constraints (v1):**
+
+- **Idempotent handlers only.** A BYO block write can't share the managed
+  transaction, so a crash replays the block (at-least-once). `ctx.insert` and
+  `ctx.upsert` (with a unique key) are safe — flush is replace-per-height. A
+  deploy with non-idempotent `ctx.update` / `ctx.patchOrInsert` is rejected.
+- **No reindex.** Reindex would drop + rebuild the schema in your DB from a
+  background job; instead, re-deploy to rebuild (or drop the schema yourself).
+- **Delete leaves your data.** Deleting the subgraph removes our registry row
+  (and the stored connection) and pauses subscriptions, but never drops the
+  schema in your database.
+
+**Recommended:** give Secondlayer a least-privilege role scoped to its own
+schema, and point `--database-url` at a session-mode pooler endpoint
+(PgBouncer/Neon/Supabase) rather than raw Postgres.
 
 ## Postgres + pool mode
 
