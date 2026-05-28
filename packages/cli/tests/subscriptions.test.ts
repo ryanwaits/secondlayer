@@ -60,7 +60,7 @@ const deadRow: DeadRow = {
 };
 
 describe("subscriptions command helpers", () => {
-	it("resolves subscription refs by id, name, then direct get fallback", async () => {
+	it("resolves refs by id and name, falls back to get for UUIDs, rejects unknown refs", async () => {
 		const calls: string[] = [];
 		// Partial mock — `resolveSubscriptionRef` only calls list + get.
 		const client = {
@@ -78,12 +78,17 @@ describe("subscriptions command helpers", () => {
 			},
 		} as unknown as Pick<SecondLayer, "subscriptions">;
 
+		const UUID = "00000000-0000-0000-0000-000000000009";
+
 		expect((await resolveSubscriptionRef(client, "sub-1")).id).toBe("sub-1");
 		expect((await resolveSubscriptionRef(client, "two")).id).toBe("sub-2");
-		expect((await resolveSubscriptionRef(client, "sub-missing")).id).toBe(
-			"sub-missing",
+		// A UUID absent from the list is assumed to be a real id → direct get.
+		expect((await resolveSubscriptionRef(client, UUID)).id).toBe(UUID);
+		// A non-UUID ref matching no name can't be a valid subscription id.
+		await expect(resolveSubscriptionRef(client, "sub-missing")).rejects.toThrow(
+			'Subscription "sub-missing" not found.',
 		);
-		expect(calls).toEqual(["sub-1", "sub-2", "sub-missing"]);
+		expect(calls).toEqual(["sub-1", "sub-2", UUID]);
 	});
 
 	it("builds update payloads and rejects ambiguous filter flags", () => {

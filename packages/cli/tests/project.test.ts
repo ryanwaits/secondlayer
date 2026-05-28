@@ -50,7 +50,7 @@ describe("project slug helpers", () => {
 });
 
 describe("project create command", () => {
-	test("sends derived slug, reads flat response, and binds project", async () => {
+	test("sends derived slug, reads flat response, and sets the default project", async () => {
 		const requests: ProjectCreateRequest[] = [];
 		mockServer = startProjectServer(requests);
 		const env = await createCliEnv();
@@ -60,10 +60,14 @@ describe("project create command", () => {
 		expect(result.exitCode).toBe(0);
 		expect(requests).toEqual([{ name: "My App", slug: "my-app" }]);
 		expect(result.output).toContain("Created project My App (my-app)");
-		const projectFile = JSON.parse(
-			await readFile(join(env.cwd, ".secondlayer", "project"), "utf8"),
+		// The first project becomes the global default (~/.secondlayer/config.json),
+		// not a per-directory bind file — writing ./.secondlayer/project is what
+		// `sl project use` does.
+		expect(result.output).toContain("Set as your default project.");
+		const config = JSON.parse(
+			await readFile(join(env.home, ".secondlayer", "config.json"), "utf8"),
 		);
-		expect(projectFile).toEqual({ slug: "my-app" });
+		expect(config.defaultProject).toBe("my-app");
 
 		await env.cleanup();
 	});

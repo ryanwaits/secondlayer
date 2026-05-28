@@ -18,8 +18,8 @@ import type { SubgraphDefinition } from "../src/types.ts";
 
 const SKIP = !process.env.DATABASE_URL;
 
-const SUBGRAPH_NAME = "sprint4-test";
-const PG_SCHEMA = "subgraph_sprint4_test";
+const SUBGRAPH_NAME = "deploy-reorg-test";
+const PG_SCHEMA = "subgraph_deploy_reorg_test";
 
 const baseDef: SubgraphDefinition = {
 	name: SUBGRAPH_NAME,
@@ -68,9 +68,15 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 		expect(result.action).toBe("unchanged");
 	});
 
-	test("deploy with breaking change throws without --reindex", async () => {
+	test("deploy with breaking change auto-reindexes on a managed DB", async () => {
 		const db = getDb();
 		await deploySchema(db, baseDef, "/tmp/handler.ts");
+
+		// Seed a row so we can confirm the reindex drops existing data.
+		const client = getRawClient();
+		await client.unsafe(
+			`INSERT INTO ${PG_SCHEMA}.transfers ("_block_height", "_tx_id", "sender", "amount") VALUES (1, 'tx1', 'SP_A', 100)`,
+		);
 
 		// Remove a column = breaking change
 		const breakingDef: SubgraphDefinition = {
@@ -86,9 +92,18 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 			},
 		};
 
-		expect(deploySchema(db, breakingDef, "/tmp/handler.ts")).rejects.toThrow(
-			"Breaking schema change detected",
+		// Managed deploys auto-reindex breaking changes (no forceReindex needed).
+		const result = await deploySchema(db, breakingDef, "/tmp/handler.ts");
+		expect(result.action).toBe("reindexed");
+		expect(result.diff?.breakingChanges).toContain(
+			"transfers: removed columns [amount]",
 		);
+
+		// Table recreated empty (seeded row dropped).
+		const after = await client.unsafe(
+			`SELECT COUNT(*) as count FROM ${PG_SCHEMA}.transfers`,
+		);
+		expect(Number.parseInt(String(after[0]?.count), 10)).toBe(0);
 	});
 
 	test("deploy with breaking change + forceReindex succeeds", async () => {
@@ -182,7 +197,7 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 	afterEach(cleanup);
 	afterAll(cleanup);
 
-	test("handleSubgraphReorg deletes rows at reorged block height", async () => {
+	test("handleSubgraphReorg deletes rows at and above the reorged block height", async () => {
 		const db = getDb();
 		const client = getRawClient();
 
@@ -192,9 +207,9 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 		await client.unsafe(`
       INSERT INTO ${PG_SCHEMA}.transfers ("_block_height", "_tx_id", "sender", "amount") VALUES
         (100, 'tx1', 'SP_A', 1000),
-        (100, 'tx2', 'SP_B', 2000),
-        (101, 'tx3', 'SP_C', 3000),
-        (102, 'tx4', 'SP_D', 4000)
+        (101, 'tx2', 'SP_B', 2000),
+        (102, 'tx3', 'SP_C', 3000),
+        (103, 'tx4', 'SP_D', 4000)
     `);
 
 		const beforeCount = await client.unsafe(
@@ -202,23 +217,17 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 		);
 		expect(Number.parseInt(String(beforeCount[0]?.count), 10)).toBe(4);
 
-		// Simulate reorg at block 100
+		// Reorg root at block 102. A Stacks reorg reverts every block ≥ the
+		// root, so heights 102 and 103 are removed; 100 and 101 remain.
 		const mockLoadDef = async (_sg: Subgraph) => baseDef;
-		await handleSubgraphReorg(100, mockLoadDef);
+		await handleSubgraphReorg(102, mockLoadDef);
 
-		// Rows at block 100 should be deleted
-		const afterCount = await client.unsafe(
-			`SELECT COUNT(*) as count FROM ${PG_SCHEMA}.transfers`,
-		);
-		expect(Number.parseInt(String(afterCount[0]?.count), 10)).toBe(2);
-
-		// Verify remaining rows are at heights 101 and 102
 		const remaining = await client.unsafe(
 			`SELECT DISTINCT "_block_height" FROM ${PG_SCHEMA}.transfers ORDER BY "_block_height"`,
 		);
 		expect(
 			remaining.map((r: Record<string, unknown>) => Number(r._block_height)),
-		).toEqual([101, 102]);
+		).toEqual([100, 101]);
 	});
 
 	test("handleSubgraphReorg skips subgraphs without schema definition", async () => {
@@ -241,7 +250,7 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 		await handleSubgraphReorg(100, mockLoadDef);
 	});
 
-	test("handleSubgraphReorg only affects specified block height", async () => {
+	test("handleSubgraphReorg leaves heights below the root untouched", async () => {
 		const db = getDb();
 		const client = getRawClient();
 
@@ -257,12 +266,12 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
 		const mockLoadDef = async (_sg: Subgraph) => baseDef;
 		await handleSubgraphReorg(201, mockLoadDef);
 
-		// Only block 201 should be removed
+		// Blocks 201 and 202 (≥ root) are reverted; only 200 remains.
 		const rows = await client.unsafe(
 			`SELECT "_block_height" FROM ${PG_SCHEMA}.transfers ORDER BY "_block_height"`,
 		);
 		expect(
 			rows.map((r: Record<string, unknown>) => Number(r._block_height)),
-		).toEqual([200, 202]);
+		).toEqual([200]);
 	});
 });
