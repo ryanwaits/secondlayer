@@ -585,6 +585,10 @@ export function registerSubgraphsCommand(program: Command): void {
 		.option("--preview", "Alias for --dry-run")
 		.option("--force", "Skip confirmation prompt for reindex operations")
 		.option(
+			"--database-url <url>",
+			"BYO data plane: write the subgraph's schema/rows to your own Postgres. With --dry-run, prints the DDL + grant script and verifies the connection.",
+		)
+		.option(
 			"--strict",
 			"Run `tsc --noEmit` against the handler before deploy (slower; catches TS type errors)",
 		)
@@ -597,6 +601,7 @@ export function registerSubgraphsCommand(program: Command): void {
 					preview?: boolean;
 					force?: boolean;
 					strict?: boolean;
+					databaseUrl?: string;
 				},
 			) => {
 				try {
@@ -666,6 +671,11 @@ export function registerSubgraphsCommand(program: Command): void {
 						// The server decides whether this creates, updates, or reindexes.
 						// Always forward startBlock — CLI flag takes priority, then definition file.
 						const deployStartBlock = startBlock ?? effectiveDef.startBlock;
+						if (options.databaseUrl) {
+							info(
+								"BYO data plane: schema + rows will live in your database. The server verifies the connection before deploying.",
+							);
+						}
 						const result = await deploySubgraphApi({
 							name: effectiveDef.name,
 							version: undefined,
@@ -679,6 +689,9 @@ export function registerSubgraphsCommand(program: Command): void {
 							sourceCode: source,
 							...(deployStartBlock !== undefined
 								? { startBlock: deployStartBlock }
+								: {}),
+							...(options.databaseUrl
+								? { databaseUrl: options.databaseUrl }
 								: {}),
 						});
 
@@ -1078,10 +1091,93 @@ export function registerSubgraphsCommand(program: Command): void {
 			},
 		);
 
+	// --- generate (ORM codegen) ---
+	subgraphs
+		.command("generate <file>")
+		.description(
+			"Generate an ORM schema (Prisma or Drizzle) for a subgraph's tables — point it at your BYO database",
+		)
+		.option("--target <orm>", "ORM target: prisma | drizzle", "prisma")
+		.option(
+			"--schema <name>",
+			"Postgres schema name (defaults to subgraph_<name>)",
+		)
+		.option("--env <var>", "datasource url env var", "DATABASE_URL")
+		.option(
+			"--models-only",
+			"Emit only Prisma models (compose via prismaSchemaFolder)",
+		)
+		.option("-o, --output <path>", "Write to a file (defaults to stdout)")
+		.action(
+			async (
+				file: string,
+				options: {
+					target?: string;
+					schema?: string;
+					env?: string;
+					output?: string;
+					modelsOnly?: boolean;
+				},
+			) => {
+				try {
+					const target = options.target ?? "prisma";
+					if (target !== "prisma" && target !== "drizzle") {
+						error(
+							`Unsupported --target "${target}" (supported: prisma, drizzle). For Kysely, run kysely-codegen against your database.`,
+						);
+						process.exit(1);
+					}
+					const absPath = resolve(file);
+					if (!existsSync(absPath)) {
+						error(`File not found: ${absPath}`);
+						process.exit(1);
+					}
+					const { readFile } = await import("node:fs/promises");
+					const { bundleSubgraphCode } = await import("@secondlayer/bundler");
+					const { generatePrismaSchema, generateDrizzleSchema } = await import(
+						"@secondlayer/subgraphs"
+					);
+					const source = await readFile(absPath, "utf8");
+					const bundled = await bundleSubgraphCode(source);
+					const def: SubgraphDefinition = {
+						name: bundled.name,
+						version: bundled.version,
+						description: bundled.description,
+						sources:
+							bundled.sources as unknown as SubgraphDefinition["sources"],
+						schema: bundled.schema as SubgraphDefinition["schema"],
+						handlers: {},
+					};
+					const out =
+						target === "drizzle"
+							? generateDrizzleSchema(def, { schemaName: options.schema })
+							: generatePrismaSchema(def, {
+									schemaName: options.schema,
+									datasourceEnv: options.env,
+									modelsOnly: options.modelsOnly,
+								});
+					if (options.output) {
+						await writeTextFile(resolve(options.output), out);
+						success(`Wrote ${target} schema to ${options.output}`);
+						info(
+							"Next: point its datasource at your BYO database, then `prisma generate`.",
+						);
+					} else {
+						process.stdout.write(out);
+					}
+				} catch (err) {
+					error(`Failed to generate schema: ${err}`);
+					process.exit(1);
+				}
+			},
+		);
+
 	// --- reindex ---
 	subgraphs
 		.command("reindex <name>")
-		.description("Reindex a subgraph from historical blocks (drops + reprocesses)")
+		.description(
+			"Reindex a subgraph from historical blocks (drops + reprocesses)",
+		)
 		.option("--from <block>", "Start block height")
 		.option("--to <block>", "End block height")
 		.option("-y, --yes", "Skip confirmation")
