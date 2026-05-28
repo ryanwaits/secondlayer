@@ -19,6 +19,23 @@ export interface SubgraphColumn {
 	default?: string | number | boolean;
 }
 
+/**
+ * A foreign-key relation to another table in the same subgraph. Drives DDL FK
+ * constraints and ORM codegen (`@relation` in Prisma, `relations()` in Drizzle)
+ * so generated clients get typed joins. The referenced columns must form a
+ * `uniqueKeys` entry on the target table.
+ */
+export interface SubgraphRelation {
+	/** Relation field name on this table's generated model (e.g. "pool"). */
+	name: string;
+	/** Target table name in this subgraph. */
+	references: string;
+	/** Local column(s) holding the foreign key. */
+	fields: string[];
+	/** Target column(s) the fields point at (a uniqueKeys entry on the target). */
+	referencedColumns: string[];
+}
+
 /** Table definition within a subgraph schema */
 export interface SubgraphTable {
 	columns: Record<string, SubgraphColumn>;
@@ -26,6 +43,8 @@ export interface SubgraphTable {
 	indexes?: string[][];
 	/** Unique key constraints (each entry is an array of column names). Required for upsert. */
 	uniqueKeys?: string[][];
+	/** Foreign-key relations to other tables (for typed ORM joins). */
+	relations?: SubgraphRelation[];
 }
 
 /** Subgraph schema — maps table names to table definitions */

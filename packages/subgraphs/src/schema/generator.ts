@@ -126,6 +126,20 @@ export function generateSubgraphSQL(
 		}
 	}
 
+	// Foreign keys are added in a second pass so every referenced table exists.
+	// These mirror the ORM relations emitted by the codegen (no drift) and require
+	// the referenced columns to be a UNIQUE key on the target table.
+	for (const [tableName, tableDef] of Object.entries(def.schema)) {
+		for (const rel of tableDef.relations ?? []) {
+			const constraintName = `fk_${schemaName}_${tableName}_${rel.name}`;
+			statements.push(
+				`ALTER TABLE ${schemaName}.${tableName} ADD CONSTRAINT ${constraintName} ` +
+					`FOREIGN KEY (${rel.fields.join(", ")}) ` +
+					`REFERENCES ${schemaName}.${rel.references} (${rel.referencedColumns.join(", ")})`,
+			);
+		}
+	}
+
 	// Hash based on schema structure only — version intentionally excluded
 	// so server-managed version bumps don't look like schema changes
 	const hashInput = JSON.stringify(

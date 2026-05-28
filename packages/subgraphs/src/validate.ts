@@ -43,6 +43,16 @@ export const SubgraphTableSchema: z.ZodType<SubgraphTable> = z.object({
 		),
 	indexes: z.array(z.array(z.string())).optional(),
 	uniqueKeys: z.array(z.array(z.string())).optional(),
+	relations: z
+		.array(
+			z.object({
+				name: z.string(),
+				references: z.string(),
+				fields: z.array(z.string()).min(1),
+				referencedColumns: z.array(z.string()).min(1),
+			}),
+		)
+		.optional(),
 }) as z.ZodType<SubgraphTable>;
 
 export const SubgraphSchemaSchema: z.ZodType<Record<string, SubgraphTable>> = z
