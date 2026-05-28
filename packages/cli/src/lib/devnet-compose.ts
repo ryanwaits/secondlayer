@@ -94,8 +94,12 @@ services:
       DATABASE_URL: ${dbUrl}
       PORT: 3700
       NODE_ENV: production
+      # Keep every network key aligned: the indexer writes index_progress under
+      # STACKS_NETWORK, the subgraph processor reads it under NETWORK. If they
+      # differ, catch-up finds no progress row and subgraphs never advance.
       NETWORKS: testnet
       STACKS_NETWORK: testnet
+      NETWORK: testnet
       # Fed by the devnet node's event observer — never reach out to Hiro mainnet.
       AUTO_BACKFILL_ENABLED: "false"
       TIP_FOLLOWER_ENABLED: "false"
@@ -125,6 +129,10 @@ services:
       DATABASE_URL: ${dbUrl}
       NODE_ENV: production
       DATA_DIR: /data
+      # Must match the indexer's network key (see indexer note) — catch-up reads
+      # index_progress under NETWORK.
+      NETWORK: testnet
+      STACKS_NETWORK: testnet
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:

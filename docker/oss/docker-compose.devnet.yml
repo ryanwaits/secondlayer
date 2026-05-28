@@ -19,8 +19,17 @@
 services:
   indexer:
     environment:
-      # Fed by the devnet node's event observer — never reach out to Hiro mainnet.
+      # Keep every network key aligned: the indexer writes index_progress under
+      # STACKS_NETWORK, the subgraph processor reads it under NETWORK. If they
+      # differ, catch-up finds no progress row and subgraphs never advance.
       NETWORKS: testnet
       STACKS_NETWORK: testnet
+      NETWORK: testnet
+      # Fed by the devnet node's event observer — never reach out to Hiro mainnet.
       AUTO_BACKFILL_ENABLED: "false"
       TIP_FOLLOWER_ENABLED: "false"
+
+  subgraph-processor:
+    environment:
+      NETWORK: testnet
+      STACKS_NETWORK: testnet

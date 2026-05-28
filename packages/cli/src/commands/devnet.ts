@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Command } from "commander";
@@ -10,10 +11,31 @@ import {
 	ensureEventObserver,
 	findClarinetProject,
 } from "../lib/devnet-config.ts";
-import { DockerNotAvailableError, requireDocker } from "../lib/docker.ts";
 import { bold, cyan, dim, error, green, yellow } from "../lib/output.ts";
 
 const COMPOSE_REL = join(".secondlayer", "docker-compose.yml");
+
+// child_process (not Bun.$) so the command works under both node and bun —
+// the published CLI runs under node via its shebang.
+function ensureDocker(): void {
+	const probe = spawnSync("docker", ["info"], { stdio: "ignore" });
+	if (probe.error || probe.status !== 0) {
+		error(
+			"Docker isn't available.\n\n" +
+				"Start Docker Desktop or OrbStack (macOS), or install Docker:\n" +
+				"  macOS:  brew install --cask docker  (or https://orbstack.dev)\n" +
+				"  Linux:  curl -fsSL https://get.docker.com | sh",
+		);
+		process.exit(1);
+	}
+}
+
+function dockerCompose(composePath: string, args: string[]): number {
+	const res = spawnSync("docker", ["compose", "-f", composePath, ...args], {
+		stdio: "inherit",
+	});
+	return res.status ?? 1;
+}
 
 interface ConnectOptions {
 	project?: string;
@@ -128,19 +150,10 @@ async function connect(options: ConnectOptions): Promise<void> {
 		return;
 	}
 
-	try {
-		await requireDocker();
-	} catch (e) {
-		if (e instanceof DockerNotAvailableError) {
-			error(e.message);
-			process.exit(1);
-		}
-		throw e;
-	}
+	ensureDocker();
 
 	console.log(dim("\nStarting Secondlayer stack (docker compose up -d)…"));
-	const up = await Bun.$`docker compose -f ${composePath} up -d`.nothrow();
-	if (up.exitCode !== 0) {
+	if (dockerCompose(composePath, ["up", "-d"]) !== 0) {
 		error("docker compose up failed — see output above.");
 		process.exit(1);
 	}
@@ -168,21 +181,10 @@ async function down(options: DownOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	try {
-		await requireDocker();
-	} catch (e) {
-		if (e instanceof DockerNotAvailableError) {
-			error(e.message);
-			process.exit(1);
-		}
-		throw e;
-	}
+	ensureDocker();
 
-	const cmd = options.purge
-		? Bun.$`docker compose -f ${composePath} down -v`
-		: Bun.$`docker compose -f ${composePath} down`;
-	const res = await cmd.nothrow();
-	if (res.exitCode !== 0) {
+	const args = options.purge ? ["down", "-v"] : ["down"];
+	if (dockerCompose(composePath, args) !== 0) {
 		error("docker compose down failed — see output above.");
 		process.exit(1);
 	}
