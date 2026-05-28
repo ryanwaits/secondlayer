@@ -8,6 +8,10 @@ import {
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import {
+	contractRegistryState,
+	startContractRegistry,
+} from "./contracts/scheduler.ts";
+import {
 	bnsMarketplaceEventsPublisherState,
 	startBnsMarketplaceEventsPublisher,
 } from "./datasets/bns/marketplace-events/scheduler.ts";
@@ -207,6 +211,19 @@ const server = Bun.serve({
 				bnsMarketplaceEventsPublisher: publisherStatus(
 					bnsMarketplaceEventsPublisherState,
 				),
+				contractRegistry: {
+					enabled: contractRegistryState.enabled,
+					discoveredTotal: contractRegistryState.discoveredTotal,
+					classifiedTotal: contractRegistryState.classifiedTotal,
+					failedTotal: contractRegistryState.failedTotal,
+					lastRunSecondsAgo:
+						contractRegistryState.lastRunAt > 0
+							? Math.round(
+									(Date.now() - contractRegistryState.lastRunAt) / 1000,
+								)
+							: null,
+					lastError: contractRegistryState.lastError,
+				},
 			}),
 
 		"/health/integrity": async () => {
@@ -468,9 +485,14 @@ const stopBnsNameEventsPublisher = startBnsNameEventsPublisher();
 const stopBnsNamespaceEventsPublisher = startBnsNamespaceEventsPublisher();
 const stopBnsMarketplaceEventsPublisher = startBnsMarketplaceEventsPublisher();
 
+// Contract registry worker (gated on CONTRACT_REGISTRY_ENABLED) — populates the
+// `contracts` table that powers trait discovery + trait-scoped subgraph sources.
+const stopContractRegistry = startContractRegistry();
+
 // Graceful shutdown
 const shutdown = () => {
 	logger.info("Shutting down indexer service...");
+	stopContractRegistry();
 	stopBnsMarketplaceEventsPublisher();
 	stopBnsNamespaceEventsPublisher();
 	stopBnsNameEventsPublisher();

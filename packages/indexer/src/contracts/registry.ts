@@ -21,21 +21,33 @@ import type { Kysely } from "kysely";
  * steps drive both go-forward sync and historical backfill (B1c).
  */
 
-/** Discover contract deploys from transactions and record them (idempotent). */
+/**
+ * Discover contract deploys not yet in the registry and record them. Anti-joins
+ * against `contracts` (newest-first) so it's self-progressing: new tip deploys
+ * are registered immediately and historical deploys drain over successive ticks,
+ * with no cursor to track. Uses the partial index on
+ * `transactions (contract_id) WHERE type='smart_contract'`.
+ */
 export async function discoverDeploys(
 	db: Kysely<Database>,
-	opts: { sinceBlock?: number; limit?: number } = {},
+	opts: { limit?: number } = {},
 ): Promise<number> {
-	let q = db
+	const rows = await db
 		.selectFrom("transactions")
 		.select(["contract_id", "sender", "block_height"])
 		.where("type", "=", "smart_contract")
-		.where("contract_id", "is not", null);
-	if (opts.sinceBlock !== undefined) {
-		q = q.where("block_height", ">", opts.sinceBlock);
-	}
-	const rows = await q
-		.orderBy("block_height", "asc")
+		.where("contract_id", "is not", null)
+		.where((eb) =>
+			eb.not(
+				eb.exists(
+					eb
+						.selectFrom("contracts")
+						.select("contracts.contract_id")
+						.whereRef("contracts.contract_id", "=", "transactions.contract_id"),
+				),
+			),
+		)
+		.orderBy("block_height", "desc")
 		.limit(opts.limit ?? 500)
 		.execute();
 
