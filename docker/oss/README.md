@@ -20,6 +20,11 @@ There is no "light" mode that fetches from Hiro's REST API — it's too slow to
 index anything useful. Run the full chain or use the hosted tier at
 secondlayer.tools.
 
+For **local contract development**, point the indexer at a fast
+[Clarinet devnet](https://docs.hiro.so/stacks/clarinet) instead of a full
+mainnet node — `sl devnet connect` wires it up in one step from inside any
+clarinet project.
+
 ## Quick start (app services only)
 
 ```bash

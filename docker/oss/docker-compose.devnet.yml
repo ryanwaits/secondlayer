@@ -1,0 +1,26 @@
+# Override for local Clarinet devnet development (contributors running from this
+# repo). Layer it onto the base OSS stack:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.devnet.yml up -d \
+#     postgres migrate api indexer subgraph-processor
+#
+# Then run `clarinet devnet start` in your clarinet project, whose
+# settings/Devnet.toml must forward events to the indexer:
+#   stacks_node_events_observers = ["host.docker.internal:3700"]
+# (`sl devnet connect` writes that line for you.)
+#
+# End users without a repo checkout should use `sl devnet connect`, which writes
+# an equivalent compose pinned to the published OSS images instead of building.
+#
+# On Linux, the devnet node can't reach an indexer bound to 127.0.0.1 via
+# host.docker.internal — export INDEXER_PORT=0.0.0.0:3700 before `up`. On
+# macOS (Docker Desktop / OrbStack) the default 127.0.0.1 binding works.
+
+services:
+  indexer:
+    environment:
+      # Fed by the devnet node's event observer — never reach out to Hiro mainnet.
+      NETWORKS: testnet
+      STACKS_NETWORK: testnet
+      AUTO_BACKFILL_ENABLED: "false"
+      TIP_FOLLOWER_ENABLED: "false"
