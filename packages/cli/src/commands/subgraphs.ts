@@ -1579,8 +1579,9 @@ export function registerSubgraphsCommand(program: Command): void {
 
 	// --- generate ---
 	subgraphs
-		.command("generate <subgraphName>")
-		.description("Generate a typed client for a deployed subgraph")
+		.command("client <subgraphName>")
+		.alias("generate") // back-compat: `generate` was the old name
+		.description("Generate a typed query client for a deployed subgraph")
 		.option("-o, --output <path>", "Output file path (required)")
 		.action(async (subgraphName: string, options: { output?: string }) => {
 			try {

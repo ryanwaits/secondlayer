@@ -29,7 +29,7 @@ The `sl` binary (alias `secondlayer`) is the official CLI for Secondlayer — de
 
 - [Auth](#auth) — `login`, `logout`, `whoami`
 - [Project](#project) — `project create|list|use|current`
-- [Subgraphs](#subgraphs) — `new`, `dev`, `deploy`, `list`, `status`, `spec`, `inspect`, `reindex`, `backfill`, `stop`, `gaps`, `query`, `delete`, `scaffold`, `generate`, `codegen`
+- [Subgraphs](#subgraphs) — `new`, `dev`, `deploy`, `list`, `status`, `spec`, `inspect`, `reindex`, `backfill`, `stop`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
 - [Subscriptions](#subscriptions) — `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`
 - [Create](#create) — `create subscription`
@@ -312,19 +312,21 @@ Infers network from address prefix (`SP`/`SM` → mainnet, `ST`/`SN` → testnet
 
 Example: `sl subgraphs scaffold SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o subgraphs/my-token.ts`
 
-### sl subgraphs generate
+### sl subgraphs client
 
-Generate a typed TypeScript client for a deployed subgraph.
+Generate a typed TypeScript query client for a deployed subgraph. (Formerly
+`sl subgraphs generate` — still accepted as a deprecated alias.)
 
-Usage: `sl subgraphs generate <subgraphName>`
+Usage: `sl subgraphs client <subgraphName>`
 
 | Flag | Required | Description |
 | --- | --- | --- |
 | `-o, --output <path>` | yes | Output file path. |
 
-Fetches subgraph metadata, emits typed query client.
+Fetches subgraph metadata, emits typed query client. For an ORM schema on your
+own database instead, see `sl subgraphs codegen`.
 
-Example: `sl subgraphs generate my-watcher -o ./src/generated/my-watcher.ts`
+Example: `sl subgraphs client my-watcher -o ./src/generated/my-watcher.ts`
 
 ### sl subgraphs codegen
 
@@ -1012,7 +1014,7 @@ Hosted mode: checks platform API reachability, session auth, account info, index
 
 ### sl generate
 
-Generate TypeScript interfaces from Clarity contracts. Aliases: `gen`, `codegen`.
+Generate TypeScript interfaces from Clarity contracts. Alias: `gen`.
 
 Usage: `sl generate [files...]`
 

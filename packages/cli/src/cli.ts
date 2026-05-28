@@ -50,7 +50,7 @@ Quickstart:
 // --- Code generation ---
 program
 	.command("generate [files...]")
-	.aliases(["gen", "codegen"])
+	.aliases(["gen"])
 	.description("Generate TypeScript interfaces from Clarity contracts")
 	.option("-c, --config <path>", "Path to config file")
 	.option(

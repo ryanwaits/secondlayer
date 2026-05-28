@@ -84,7 +84,8 @@ at `.git`.
 | `sl subgraphs inspect <file> [--format ...]` | Same docs from a local definition before deploy |
 | `sl subgraphs deploy <file> --database-url <url>` | BYO: write the subgraph's rows to your own Postgres |
 | `sl subgraphs codegen <file> --target prisma\|drizzle [-o <path>]` | Generate an ORM schema for the subgraph's tables (BYO DB) |
-| `sl subgraphs reindex/backfill/stop/delete/generate <name>` | Manage processing + types |
+| `sl subgraphs client <name> -o <path>` | Generate a typed query client for a deployed subgraph (was `generate`) |
+| `sl subgraphs reindex/backfill/stop/delete <name>` | Manage processing |
 
 ### Subscriptions
 
@@ -120,7 +121,7 @@ non-scalar columns are rejected before the API call.
 
 | Command | What it does |
 |---|---|
-| `sl generate [files...]` (aliases `gen`, `codegen`) | Generate TS interfaces from Clarity contracts |
+| `sl generate [files...]` (alias `gen`) | Generate TS interfaces from Clarity contracts |
 | `sl init` | Scaffold `secondlayer.config.ts` |
 | `sl doctor` / `sl status` | Reachability + health checks |
 | `sl account profile` | Update display name / bio / slug |
