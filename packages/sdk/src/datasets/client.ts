@@ -149,31 +149,22 @@ export class Datasets extends BaseClient {
 		};
 	}
 
-	readonly stxTransfers = this.cursorDataset<StxTransfersParams>(
-		"stx-transfers",
-		"events",
-	);
-	readonly sbtcEvents = this.cursorDataset<SbtcEventsParams>(
-		"sbtc/events",
-		"events",
-	);
-	readonly sbtcTokenEvents = this.cursorDataset<SbtcTokenEventsParams>(
-		"sbtc/token-events",
-		"events",
-	);
-	readonly pox4Calls = this.cursorDataset<Pox4CallsParams>(
-		"pox-4/calls",
-		"calls",
-	);
-	readonly bnsEvents = this.cursorDataset<BnsEventsParams>(
-		"bns/events",
-		"events",
-	);
-	readonly bnsNamespaceEvents = this.cursorDataset<BnsNamespaceEventsParams>(
-		"bns/namespace-events",
-		"events",
-	);
-	readonly bnsMarketplaceEvents =
+	readonly stxTransfers: CursorDataset<StxTransfersParams> =
+		this.cursorDataset<StxTransfersParams>("stx-transfers", "events");
+	readonly sbtcEvents: CursorDataset<SbtcEventsParams> =
+		this.cursorDataset<SbtcEventsParams>("sbtc/events", "events");
+	readonly sbtcTokenEvents: CursorDataset<SbtcTokenEventsParams> =
+		this.cursorDataset<SbtcTokenEventsParams>("sbtc/token-events", "events");
+	readonly pox4Calls: CursorDataset<Pox4CallsParams> =
+		this.cursorDataset<Pox4CallsParams>("pox-4/calls", "calls");
+	readonly bnsEvents: CursorDataset<BnsEventsParams> =
+		this.cursorDataset<BnsEventsParams>("bns/events", "events");
+	readonly bnsNamespaceEvents: CursorDataset<BnsNamespaceEventsParams> =
+		this.cursorDataset<BnsNamespaceEventsParams>(
+			"bns/namespace-events",
+			"events",
+		);
+	readonly bnsMarketplaceEvents: CursorDataset<BnsMarketplaceEventsParams> =
 		this.cursorDataset<BnsMarketplaceEventsParams>(
 			"bns/marketplace-events",
 			"events",
