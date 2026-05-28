@@ -11,7 +11,8 @@ import {
 	getEnabledL2DecoderNames,
 } from "./storage.ts";
 
-export { getEnabledL2DecoderNames };
+export { getEnabledL2DecoderNames, L2_DECODER_EVENT_TYPES };
+export type { L2DecoderName };
 
 export type L2DecoderHealth = {
 	status: "healthy" | "unhealthy";

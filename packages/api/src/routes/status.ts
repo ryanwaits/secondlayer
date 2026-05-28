@@ -1,5 +1,6 @@
 import {
 	type L2DecodersHealth,
+	L2_DECODER_EVENT_TYPES,
 	getEnabledL2DecoderNames,
 	getL2DecodersHealth,
 } from "@secondlayer/indexer/l2/health";
@@ -48,10 +49,12 @@ type PublicServiceHealth = {
 const SUBGRAPH_PROCESSOR_STALE_MS = 90_000;
 
 // Built per-request from env flags so the public status response surfaces
-// every enabled L2 decoder, not just the always-on ft + nft pair.
+// every enabled L2 decoder, not just the always-on ft + nft pair. The base
+// decoders reuse the indexer's canonical event-type map (so they never drift);
+// the env-gated sbtc/pox4/bns decoders live in separate storage modules and
+// carry their public labels here.
 const DECODER_EVENT_TYPE: Record<string, string> = {
-	"l2.ft_transfer.v1": "ft_transfer",
-	"l2.nft_transfer.v1": "nft_transfer",
+	...L2_DECODER_EVENT_TYPES,
 	"l2.sbtc.v1": "sbtc",
 	"l2.sbtc_token.v1": "sbtc_token",
 	"l2.pox4.v1": "pox4_call",
