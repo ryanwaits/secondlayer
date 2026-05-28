@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/subgraphs",
-	"version": "3.2.1",
+	"version": "3.3.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -52,8 +52,8 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^6.4.5",
-		"@secondlayer/stacks": "^2.2.1",
+		"@secondlayer/shared": "^6.9.0",
+		"@secondlayer/stacks": "^2.3.0",
 		"kysely": "0.28.15",
 		"zod": "^4.3.6"
 	},

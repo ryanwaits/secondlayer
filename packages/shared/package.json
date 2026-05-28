@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/shared",
-	"version": "6.8.1",
+	"version": "6.9.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -131,7 +131,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/stacks": "^2.2.1",
+		"@secondlayer/stacks": "^2.3.0",
 		"kysely": "0.28.15",
 		"kysely-postgres-js": "3.0.0",
 		"postgres": "^3.4.6",
