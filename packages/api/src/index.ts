@@ -19,12 +19,12 @@ import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
 import billingRouter from "./routes/billing.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
+import contractsRouter from "./routes/contracts.ts";
 import datasetsRouter from "./routes/datasets.ts";
 import indexRouter from "./routes/index.ts";
-import openApiRouter from "./routes/openapi.ts";
-import v1IndexRouter from "./routes/v1-index.ts";
 import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
+import openApiRouter from "./routes/openapi.ts";
 import projectsRouter from "./routes/projects.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
@@ -33,6 +33,7 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
+import v1IndexRouter from "./routes/v1-index.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
 
@@ -206,6 +207,7 @@ app.route("/v1/openapi.json", openApiRouter);
 app.route("/v1/streams", streamsRouter);
 app.route("/v1/index", indexRouter);
 app.route("/v1/datasets", datasetsRouter);
+app.route("/v1/contracts", contractsRouter);
 
 // Start server
 const PORT = Number.parseInt(process.env.PORT || "3800");
@@ -215,10 +217,9 @@ logger.info("Starting API service", { port: PORT, mode });
 // Start subgraph registry cache (LISTEN for subgraph_changes) — runs in all
 // modes post shared-rip; subgraphs live on the platform DB too.
 startSubgraphCache().catch((err) => {
-	logger.warn(
-		"Failed to start subgraph cache, subgraphs will load on-demand",
-		{ error: String(err) },
-	);
+	logger.warn("Failed to start subgraph cache, subgraphs will load on-demand", {
+		error: String(err),
+	});
 });
 
 const server = Bun.serve({

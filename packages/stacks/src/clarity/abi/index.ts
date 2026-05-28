@@ -111,6 +111,13 @@ export {
 	sip013Abi,
 } from "./standards.ts";
 
+// Trait classification / discovery
+export {
+	classifyContract,
+	parseDeclaredStandards,
+	type SipStandard,
+} from "./classify.ts";
+
 // Utils
 export type { ToCamelCase } from "./utils.ts";
 export { toCamelCase } from "./utils.ts";
