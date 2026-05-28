@@ -1091,9 +1091,9 @@ export function registerSubgraphsCommand(program: Command): void {
 			},
 		);
 
-	// --- generate (ORM codegen) ---
+	// --- codegen (ORM schema for BYO database) ---
 	subgraphs
-		.command("generate <file>")
+		.command("codegen <file>")
 		.description(
 			"Generate an ORM schema (Prisma or Drizzle) for a subgraph's tables — point it at your BYO database",
 		)
