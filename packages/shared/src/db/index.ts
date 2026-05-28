@@ -12,6 +12,10 @@ const DEFAULT_URL =
 interface PoolEntry {
 	db: Kysely<Database>;
 	rawClient: ReturnType<typeof postgres>;
+	/** Last access (ms) — drives LRU eviction of BYO pools. */
+	lastUsed: number;
+	/** Monotonic counter as a tiebreaker; Date.now() can repeat under load. */
+	seq: number;
 }
 
 /**
@@ -19,8 +23,45 @@ interface PoolEntry {
  * Two getters resolving to the same URL share one entry (single pool) —
  * this is the single-DB backward-compat contract: when only `DATABASE_URL`
  * is set, `getSourceDb() === getTargetDb()` (zero regression vs. pre-dual-DB).
+ *
+ * The BYO data plane adds one pool per user-owned DB. To stop N user DBs from
+ * exhausting connections/FDs, the map is bounded (`DATABASE_MAX_POOLS`, default
+ * 25) with LRU eviction — the hot source/target pools are never evicted.
  */
 const pools = new Map<string, PoolEntry>();
+let poolSeq = 0;
+
+function maxPools(): number {
+	return Number.parseInt(process.env.DATABASE_MAX_POOLS ?? "25", 10);
+}
+
+/** Close the least-recently-used non-(source/target) pool when over the cap. */
+function evictIfNeeded(): void {
+	if (pools.size <= maxPools()) return;
+	const protectedUrls = new Set([resolveSourceUrl(), resolveTargetUrl()]);
+	let lruUrl: string | undefined;
+	let lruEntry: PoolEntry | undefined;
+	for (const [url, entry] of pools) {
+		if (protectedUrls.has(url)) continue;
+		if (
+			!lruEntry ||
+			entry.lastUsed < lruEntry.lastUsed ||
+			(entry.lastUsed === lruEntry.lastUsed && entry.seq < lruEntry.seq)
+		) {
+			lruUrl = url;
+			lruEntry = entry;
+		}
+	}
+	if (!lruUrl || !lruEntry) return;
+	pools.delete(lruUrl);
+	const evicted = lruEntry;
+	// Close in the background — never block pool creation on teardown.
+	void evicted.db
+		.destroy()
+		.catch(() => {})
+		.then(() => evicted.rawClient.end({ timeout: 5 }))
+		.catch(() => {});
+}
 
 function resolveSourceUrl(): string {
 	return (
@@ -36,7 +77,11 @@ function resolveTargetUrl(): string {
 
 function getOrCreatePool(url: string): PoolEntry {
 	const existing = pools.get(url);
-	if (existing) return existing;
+	if (existing) {
+		existing.lastUsed = Date.now();
+		existing.seq = poolSeq++;
+		return existing;
+	}
 
 	// "Local" = we skip TLS. Any Docker service alias (single-label hostname
 	// with no dots) is on an internal network and won't serve TLS.
@@ -50,8 +95,15 @@ function getOrCreatePool(url: string): PoolEntry {
 	const isLocal =
 		host === "localhost" || host === "127.0.0.1" || !host.includes(".");
 	const poolMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "20", 10);
+	// Close idle connections so a fleet of BYO pools doesn't pin connections it
+	// no longer needs (0 = never; postgres.js default).
+	const idleTimeout = Number.parseInt(
+		process.env.DATABASE_IDLE_TIMEOUT ?? "300",
+		10,
+	);
 	const rawClient = postgres(url, {
 		max: poolMax,
+		idle_timeout: idleTimeout,
 		ssl: isLocal
 			? undefined
 			: {
@@ -79,8 +131,14 @@ function getOrCreatePool(url: string): PoolEntry {
 			});
 		},
 	});
-	const entry: PoolEntry = { db, rawClient };
+	const entry: PoolEntry = {
+		db,
+		rawClient,
+		lastUsed: Date.now(),
+		seq: poolSeq++,
+	};
 	pools.set(url, entry);
+	evictIfNeeded();
 	return entry;
 }
 
@@ -119,6 +177,16 @@ export function getRawClient(
 	role: "source" | "target" = "target",
 ): ReturnType<typeof postgres> {
 	const url = role === "source" ? resolveSourceUrl() : resolveTargetUrl();
+	return getOrCreatePool(url).rawClient;
+}
+
+/**
+ * Raw postgres.js client for an arbitrary connection string (cached by URL).
+ * Used by the BYO data plane to run DDL / serving queries against a
+ * user-owned Postgres. Distinct from {@link getRawClient}, which only knows the
+ * source/target roles resolved from env.
+ */
+export function getRawClientFor(url: string): ReturnType<typeof postgres> {
 	return getOrCreatePool(url).rawClient;
 }
 

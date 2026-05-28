@@ -1,6 +1,48 @@
 import { type Kysely, sql } from "kysely";
+import type postgres from "postgres";
+import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
+import { getDb, getRawClient, getRawClientFor, getTargetDb } from "../index.ts";
 import { jsonb } from "../jsonb.ts";
 import type { Database, Subgraph } from "../types.ts";
+
+/**
+ * BYO data plane helpers. A subgraph's user-owned Postgres connection string is
+ * stored encrypted at rest in `database_url_enc` (AES-GCM envelope). Plaintext
+ * only exists transiently — at deploy (to encrypt) and at pool construction (to
+ * connect). Never serialize it into API responses.
+ */
+export function encryptDatabaseUrl(url: string): Buffer {
+	return encryptSecret(url);
+}
+
+/** Decrypt a subgraph's BYO connection string, or null when managed. */
+export function subgraphDatabaseUrl(subgraph: Subgraph): string | null {
+	return subgraph.database_url_enc
+		? decryptSecret(subgraph.database_url_enc)
+		: null;
+}
+
+/** True when the subgraph writes/serves from a user-owned DB. */
+export function isByoSubgraph(subgraph: Subgraph): boolean {
+	return subgraph.database_url_enc != null;
+}
+
+/**
+ * Resolve the Kysely instance a subgraph's data plane lives on: the user's DB
+ * when BYO, else the managed target DB. Pools are cached by URL in db/index.ts.
+ */
+export function resolveSubgraphDb(subgraph: Subgraph): Kysely<Database> {
+	const url = subgraphDatabaseUrl(subgraph);
+	return url ? getDb(url) : getTargetDb();
+}
+
+/** Raw postgres.js client for a subgraph's data plane (DDL / serving queries). */
+export function resolveSubgraphRawClient(
+	subgraph: Subgraph,
+): ReturnType<typeof postgres> {
+	const url = subgraphDatabaseUrl(subgraph);
+	return url ? getRawClientFor(url) : getRawClient("target");
+}
 
 /**
  * Convert a subgraph name to its PostgreSQL schema name (legacy form).
@@ -42,6 +84,8 @@ export async function registerSubgraph(
 		startBlock?: number;
 		handlerCode?: string;
 		sourceCode?: string;
+		/** BYO data plane: encrypted user-DB connection string, or null = managed. */
+		databaseUrlEnc?: Buffer | null;
 	},
 ): Promise<Subgraph> {
 	return await db
@@ -57,6 +101,7 @@ export async function registerSubgraph(
 			source_code: data.sourceCode ?? null,
 			schema_name: data.schemaName ?? null,
 			start_block: data.startBlock ?? 0,
+			database_url_enc: data.databaseUrlEnc ?? null,
 		})
 		.onConflict((oc) =>
 			oc.columns(["name", "account_id"]).doUpdateSet({
@@ -68,6 +113,7 @@ export async function registerSubgraph(
 				source_code: data.sourceCode ?? null,
 				schema_name: data.schemaName ?? null,
 				start_block: data.startBlock ?? 0,
+				database_url_enc: data.databaseUrlEnc ?? null,
 				updated_at: new Date(),
 			}),
 		)
@@ -195,12 +241,18 @@ export async function deleteSubgraph(
 		)
 		.execute();
 
-	// Drop the subgraph's schema (CASCADE drops all tables within)
-	await sql`DROP SCHEMA IF EXISTS ${sql.raw(`"${schemaName}"`)} CASCADE`.execute(
-		db,
-	);
+	// Drop the subgraph's schema (CASCADE drops all tables within). For BYO the
+	// schema lives in the user's DB — we deliberately do NOT connect there to
+	// drop their data on delete; deleting the subgraph just removes our registry
+	// row (and, with it, the encrypted connection) + pauses subscriptions. The
+	// user drops the schema themselves if they want it gone.
+	if (!isByoSubgraph(subgraph)) {
+		await sql`DROP SCHEMA IF EXISTS ${sql.raw(`"${schemaName}"`)} CASCADE`.execute(
+			db,
+		);
+	}
 
-	// Remove from registry
+	// Remove from registry (the inline database_url_enc envelope goes with it)
 	await db.deleteFrom("subgraphs").where("id", "=", subgraph.id).execute();
 
 	return subgraph;

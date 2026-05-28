@@ -77,8 +77,29 @@ export interface SubgraphsTable {
 	handler_code: string | null;
 	source_code: string | null;
 	project_id: string | null;
+	// BYO data plane: AES-GCM envelope (iv‖tag‖ciphertext) of the user-owned
+	// Postgres connection string. Null = managed (writes/serving use the target
+	// DB). Encrypted via crypto/secrets.ts; never returned in API responses.
+	database_url_enc: ColumnType<
+		Buffer | null,
+		Buffer | null | undefined,
+		Buffer | null
+	>;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
+}
+
+export interface ContractsTable {
+	contract_id: string;
+	deployer: string;
+	block_height: number;
+	canonical: Generated<boolean>;
+	abi: unknown | null;
+	declared_traits: Generated<string[]>;
+	inferred_standards: Generated<string[]>;
+	abi_status: Generated<string>;
+	abi_fetched_at: Date | null;
+	created_at: Generated<Date>;
 }
 
 export interface SubgraphGapsTable {
@@ -626,6 +647,7 @@ export interface Database {
 	transactions: TransactionsTable;
 	events: EventsTable;
 	index_progress: IndexProgressTable;
+	contracts: ContractsTable;
 	subgraphs: SubgraphsTable;
 	api_keys: ApiKeysTable;
 	accounts: AccountsTable;
@@ -835,6 +857,10 @@ export type UpdateIndexProgress = Updateable<IndexProgressTable>;
 export type Subgraph = Selectable<SubgraphsTable>;
 export type InsertSubgraph = Insertable<SubgraphsTable>;
 export type UpdateSubgraph = Updateable<SubgraphsTable>;
+
+export type Contract = Selectable<ContractsTable>;
+export type InsertContract = Insertable<ContractsTable>;
+export type UpdateContract = Updateable<ContractsTable>;
 
 export type SubgraphOperation = Selectable<SubgraphOperationsTable>;
 export type InsertSubgraphOperation = Insertable<SubgraphOperationsTable>;

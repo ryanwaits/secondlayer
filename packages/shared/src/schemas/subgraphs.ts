@@ -13,6 +13,14 @@ export interface DeploySubgraphRequest {
 	startBlock?: number;
 	/** Original TypeScript source, persisted so chat can read/diff/edit later. */
 	sourceCode?: string;
+	/**
+	 * BYO data plane: a user-owned Postgres connection string. When set, the
+	 * subgraph's schema, handler writes, and serving reads live in this DB instead
+	 * of the managed one. Stored encrypted at rest, never returned.
+	 */
+	databaseUrl?: string;
+	/** Validate the connection + print the DDL/grant plan without deploying. */
+	dryRun?: boolean;
 }
 
 export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
@@ -36,6 +44,15 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 			.string()
 			.max(1_048_576, "source code exceeds 1MB limit")
 			.optional(),
+		databaseUrl: z
+			.string()
+			.url()
+			.refine(
+				(u) => u.startsWith("postgres://") || u.startsWith("postgresql://"),
+				"must be a postgres:// connection string",
+			)
+			.optional(),
+		dryRun: z.boolean().optional(),
 	});
 
 export interface DeploySubgraphResponse {
