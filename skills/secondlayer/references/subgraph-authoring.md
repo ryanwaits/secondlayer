@@ -877,7 +877,10 @@ export interface SubgraphTableClient<TRow> {
 
 export interface FindManyOptions<TRow> {
   where?: WhereInput<TRow> & SystemWhereAliases;
-  orderBy?: { [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases;
+  // Single-key object, OR an ordered [column, dir][] for deterministic multi-column sort.
+  orderBy?:
+    | ({ [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases)
+    | Array<[keyof TRow & string, "asc" | "desc"]>;
   limit?: number;
   offset?: number;
   fields?: (keyof TRow & string)[];
@@ -885,6 +888,8 @@ export interface FindManyOptions<TRow> {
 
 export type ComparisonFilter<T> = {
   eq?: T; neq?: T; gt?: T; gte?: T; lt?: T; lte?: T;
+  in?: T[]; notIn?: T[];   // set membership
+  like?: string;           // case-insensitive ILIKE pattern (%/_ wildcards), strings only
 };
 
 export type WhereInput<TRow> = {
@@ -892,7 +897,15 @@ export type WhereInput<TRow> = {
 };
 ```
 
-`SystemWhereAliases` / `SystemOrderByAliases` accept either underscore (`_blockHeight`) or no-prefix (`blockHeight`) forms.
+```ts
+// in / notIn / like + multi-column sort
+await client.transfers.findMany({
+  where: { token: { in: ["SP….usda", "SP….welsh"] }, sender: { like: "SP2%" } },
+  orderBy: [["blockHeight", "desc"], ["id", "asc"]],   // ordered, deterministic
+});
+```
+
+`SystemWhereAliases` / `SystemOrderByAliases` accept either underscore (`_blockHeight`) or no-prefix (`blockHeight`) forms. `in`/`notIn` values can't contain commas (the REST encoding is a comma list).
 
 ### Using `sl.subgraphs.typed(definition)`
 

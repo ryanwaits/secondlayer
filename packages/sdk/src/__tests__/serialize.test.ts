@@ -39,6 +39,32 @@ describe("serializeWhere", () => {
 		});
 	});
 
+	test("like operator", () => {
+		expect(serializeWhere({ name: { like: "alex%" } })).toEqual({
+			"name.like": "alex%",
+		});
+	});
+
+	test("in operator → comma list", () => {
+		expect(serializeWhere({ status: { in: ["a", "b", "c"] } })).toEqual({
+			"status.in": "a,b,c",
+		});
+	});
+
+	test("notIn operator → comma list", () => {
+		expect(serializeWhere({ status: { notIn: ["deleted", "draft"] } })).toEqual(
+			{
+				"status.notIn": "deleted,draft",
+			},
+		);
+	});
+
+	test("in coerces non-string values", () => {
+		expect(serializeWhere({ amount: { in: [1, 2, 3] } })).toEqual({
+			"amount.in": "1,2,3",
+		});
+	});
+
 	test("null values are skipped", () => {
 		expect(serializeWhere({ sender: null, amount: 50 })).toEqual({
 			amount: "50",

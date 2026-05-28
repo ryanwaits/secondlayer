@@ -1321,8 +1321,11 @@ app.get("/:subgraphName/:tableName", async (c) => {
 			text += ` WHERE ${conditions.join(" AND ")}`;
 		}
 
-		const sortCol = parsed.sort ? ident(parsed.sort) : '"_id"';
-		text += ` ORDER BY ${sortCol} ${parsed.order}`;
+		const orderBy =
+			parsed.sorts.length > 0
+				? parsed.sorts.map((s) => `${ident(s.column)} ${s.order}`).join(", ")
+				: '"_id" ASC';
+		text += ` ORDER BY ${orderBy}`;
 		text += ` LIMIT ${parsed.limit} OFFSET ${parsed.offset}`;
 
 		// Count query uses same params

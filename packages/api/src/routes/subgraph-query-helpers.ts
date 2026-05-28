@@ -24,6 +24,12 @@ export const COMPARISON_OPS: Record<string, string> = {
 	like: "ILIKE",
 };
 
+// Set membership ops — value is a comma list, emitted as `IN ($1,$2,…)`.
+export const IN_OPS: Record<string, string> = {
+	in: "IN",
+	notIn: "NOT IN",
+};
+
 export function ident(name: string): string {
 	if (!/^[a-z0-9_]+$/i.test(name)) {
 		throw new Error(`Invalid identifier: ${name}`);
@@ -53,17 +59,25 @@ export class InvalidColumnError extends ValidationError {
 	}
 }
 
-const KNOWN_OPS = Object.keys(COMPARISON_OPS);
+const KNOWN_OPS = [...Object.keys(COMPARISON_OPS), ...Object.keys(IN_OPS)];
 // Matches known ops in "col=op.value" (PostgREST-style misplacement).
-const VALUE_LOOKS_LIKE_OP = /^(gte|lte|gt|lt|neq|like)\./i;
+const VALUE_LOOKS_LIKE_OP = /^(gte|lte|gt|lt|neq|like|in|notIn)\./i;
 // Matches any short lowercase word before "." — catches unknown ops like "bogus.1"
 // without false-positiving on Stacks principals (uppercase) or hyphenated values.
 const VALUE_LOOKS_LIKE_ANY_OP = /^([a-z]{2,6})\./;
 
 export interface ParsedQuery {
-	filters: { column: string; op: string; value: string; isLike?: boolean }[];
-	sort?: string;
-	order: "ASC" | "DESC";
+	filters: {
+		column: string;
+		op: string;
+		/** Single value for binary ops (=, >=, ILIKE…). */
+		value?: string;
+		/** Value set for IN / NOT IN. */
+		values?: string[];
+		isLike?: boolean;
+	}[];
+	/** Ordered sort columns (multi-column). Empty → caller defaults to `_id`. */
+	sorts: { column: string; order: "ASC" | "DESC" }[];
 	limit: number;
 	offset: number;
 	fields?: string[];
@@ -76,8 +90,9 @@ export function parseQueryParams(
 	tableDef?: { columns: Record<string, SubgraphColumn> },
 ): ParsedQuery {
 	const filters: ParsedQuery["filters"] = [];
-	let sort: string | undefined;
-	let order: "ASC" | "DESC" = "ASC";
+	// Captured raw, zipped into `sorts` after the loop (params order is arbitrary).
+	let sortRaw: string | undefined;
+	let orderRaw: string | undefined;
 	let limit = DEFAULT_LIMIT;
 	let offset = 0;
 	let fields: string[] | undefined;
@@ -112,12 +127,15 @@ export function parseQueryParams(
 			continue;
 		}
 		if (key === "_sort") {
-			if (!validColumns.has(value)) throw new InvalidColumnError(value);
-			sort = value;
+			// One or more columns: "_sort=a,b". Validate each.
+			for (const c of value.split(",").map((s) => s.trim())) {
+				if (!validColumns.has(c)) throw new InvalidColumnError(c);
+			}
+			sortRaw = value;
 			continue;
 		}
 		if (key === "_order") {
-			order = value.toLowerCase() === "desc" ? "DESC" : "ASC";
+			orderRaw = value;
 			continue;
 		}
 		if (key === "_limit") {
@@ -155,6 +173,19 @@ export function parseQueryParams(
 				});
 				continue;
 			}
+			const inOp = IN_OPS[op];
+			if (inOp) {
+				if (!validColumns.has(col)) throw new InvalidColumnError(col);
+				const values = value
+					.split(",")
+					.map((v) => v.trim())
+					.filter((v) => v.length > 0);
+				if (values.length === 0) {
+					throw new ValidationError(`empty "${op}" list for column "${col}"`);
+				}
+				filters.push({ column: col, op: inOp, values });
+				continue;
+			}
 			// Looks intentional (col.unknownOp) — reject explicitly with hint.
 			if (validColumns.has(col)) {
 				throw new ValidationError(
@@ -181,7 +212,18 @@ export function parseQueryParams(
 		filters.push({ column: key, op: "=", value });
 	}
 
-	return { filters, sort, order, limit, offset, fields, search };
+	// Zip _sort + _order into ordered, parallel sort entries. Missing/short
+	// _order defaults remaining columns to ASC.
+	const sorts: ParsedQuery["sorts"] = [];
+	if (sortRaw) {
+		const cols = sortRaw.split(",").map((s) => s.trim());
+		const dirs = (orderRaw ?? "").split(",").map((s) => s.trim().toLowerCase());
+		cols.forEach((column, i) => {
+			sorts.push({ column, order: dirs[i] === "desc" ? "DESC" : "ASC" });
+		});
+	}
+
+	return { filters, sorts, limit, offset, fields, search };
 }
 
 export function buildWhereConditions(
@@ -191,7 +233,16 @@ export function buildWhereConditions(
 	const conditions: string[] = [];
 
 	for (const f of parsed.filters) {
-		if (f.isLike) {
+		if (f.values) {
+			// IN / NOT IN — one placeholder per value, all parameterized.
+			const placeholders = f.values.map((v) => {
+				params.push(v);
+				return `$${params.length}`;
+			});
+			conditions.push(
+				`${ident(f.column)} ${f.op} (${placeholders.join(", ")})`,
+			);
+		} else if (f.isLike) {
 			params.push(f.value);
 			conditions.push(
 				`${ident(f.column)} ILIKE '%' || $${params.length} || '%'`,

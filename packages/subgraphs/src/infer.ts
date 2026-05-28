@@ -55,6 +55,12 @@ export type ComparisonFilter<T> = {
 	gte?: T;
 	lt?: T;
 	lte?: T;
+	/** Match any value in the set. */
+	in?: T[];
+	/** Match none of the values in the set. */
+	notIn?: T[];
+	/** SQL ILIKE pattern (case-insensitive); `%`/`_` wildcards. Strings only. */
+	like?: string;
 };
 
 /** Where clause — each column accepts a scalar (eq) or comparison object */
@@ -82,9 +88,20 @@ export type SystemOrderByAliases = {
 
 // ── Per-table client ─────────────────────────────────────────────────────
 
+/** Ordered list form for deterministic multi-column sort. */
+export type OrderByList<TRow> = Array<
+	[keyof (TRow & SystemOrderByAliases) & string, "asc" | "desc"]
+>;
+
 export interface FindManyOptions<TRow> {
 	where?: WhereInput<TRow> & SystemWhereAliases;
-	orderBy?: { [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases;
+	/**
+	 * Single-key object (common case) OR an ordered `[column, direction][]` list
+	 * for deterministic multi-column sort (object key order isn't guaranteed).
+	 */
+	orderBy?:
+		| ({ [K in keyof TRow]?: "asc" | "desc" } & SystemOrderByAliases)
+		| OrderByList<TRow>;
 	limit?: number;
 	offset?: number;
 	fields?: (keyof TRow & string)[];

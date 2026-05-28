@@ -43,7 +43,12 @@ export function serializeWhere(
 				if (opValue === null || opValue === undefined) continue;
 				if (op === "eq") {
 					filters[col] = String(opValue);
-				} else if (["neq", "gt", "gte", "lt", "lte"].includes(op)) {
+				} else if (op === "in" || op === "notIn") {
+					// Array → comma list. Values can't contain commas (principals,
+					// numbers, hashes don't) — the server splits on `,`.
+					const arr = Array.isArray(opValue) ? opValue : [opValue];
+					filters[`${col}.${op}`] = arr.map((v) => String(v)).join(",");
+				} else if (["neq", "gt", "gte", "lt", "lte", "like"].includes(op)) {
 					filters[`${col}.${op}`] = String(opValue);
 				}
 			}

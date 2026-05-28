@@ -240,26 +240,17 @@ export class Subgraphs extends BaseClient {
 				let sort: string | undefined;
 				let order: string | undefined;
 				if (options.orderBy) {
-					const entries = Object.entries(options.orderBy) as [
-						string,
-						"asc" | "desc",
-					][];
+					// Accept the object form `{ col: "asc" }` or the ordered array
+					// form `[[col, "asc"], …]` for deterministic multi-column sort.
+					const entries: [string, "asc" | "desc"][] = Array.isArray(
+						options.orderBy,
+					)
+						? (options.orderBy as [string, "asc" | "desc"][])
+						: (Object.entries(options.orderBy) as [string, "asc" | "desc"][]);
 					if (entries.length > 0) {
-						if (entries.length > 1) {
-							const extra = entries
-								.slice(1)
-								.map(([col]) => col)
-								.join(", ");
-							throw new Error(
-								`orderBy supports only one column; remove extra keys: ${extra}`,
-							);
-						}
-						const first = entries[0];
-						if (first) {
-							const [col, dir] = first;
-							sort = resolveOrderByColumn(col);
-							order = dir ?? "asc";
-						}
+						// Comma-joined parallel lists → `_sort=a,b&_order=asc,desc`.
+						sort = entries.map(([col]) => resolveOrderByColumn(col)).join(",");
+						order = entries.map(([, dir]) => dir ?? "asc").join(",");
 					}
 				}
 
