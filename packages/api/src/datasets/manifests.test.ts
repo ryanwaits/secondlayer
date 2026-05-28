@@ -86,6 +86,10 @@ describe("datasetSources", () => {
 			{ slug: "stx-transfers", manifestUrl: null },
 			{ slug: "sbtc-events", manifestUrl: null },
 			{ slug: "sbtc-token-events", manifestUrl: null },
+			{ slug: "pox-4-calls", manifestUrl: null },
+			{ slug: "bns-name-events", manifestUrl: null },
+			{ slug: "bns-namespace-events", manifestUrl: null },
+			{ slug: "bns-marketplace-events", manifestUrl: null },
 		]);
 	});
 

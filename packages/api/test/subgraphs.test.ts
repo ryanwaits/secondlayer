@@ -476,9 +476,23 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		});
 		await cache.refresh();
 
-		const res = await app.request(`/subgraphs/${name}?force=true`, {
+		// No live processor runs in this test, so the delete's drain-wait
+		// (waitForSubgraphOperationsClear) would block on the still-active
+		// operation. Simulate the processor observing `cancel_requested` and
+		// releasing its row mid-request so the wait resolves.
+		const resPromise = app.request(`/subgraphs/${name}?force=true`, {
 			method: "DELETE",
 		});
+		await db
+			.updateTable("subgraph_operations")
+			.set({
+				status: "cancelled",
+				finished_at: new Date(),
+				updated_at: new Date(),
+			})
+			.where("subgraph_id", "=", subgraph.id)
+			.execute();
+		const res = await resPromise;
 		expect(res.status).toBe(200);
 		expect(
 			await db

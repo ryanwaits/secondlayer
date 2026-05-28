@@ -317,7 +317,11 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			{ cursor: "1:0", source_cursor: "1:0" },
 			{ cursor: "1:2", source_cursor: "1:2" },
 		]);
-		expect(checkpoint?.last_cursor).toBe("1:2");
+		// After block 1's ft_transfers are consumed, the final scan finds no
+		// more matches and advances the cursor past the range via the empty-range
+		// sentinel (block_height:2147483647) rather than pinning at the last
+		// event — so the decoder resumes at block 2 without re-reading block 1.
+		expect(checkpoint?.last_cursor).toBe("1:2147483647");
 	});
 
 	test("bounded decoder rows are returned by /v1/index/ft-transfers with pagination", async () => {

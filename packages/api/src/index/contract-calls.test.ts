@@ -108,6 +108,8 @@ describe.skipIf(!HAS_DB)("Index /contract-calls DB reads", () => {
 
 	beforeEach(async () => {
 		if (!db) return;
+		// events.tx_id references transactions (no cascade); clear children first.
+		await sql`DELETE FROM events`.execute(db);
 		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
 	});

@@ -104,13 +104,16 @@ function createMeteredIndexApp(opts: {
 }
 
 describe("Stacks Index gateway middleware", () => {
-	test("anon GET ft-transfers returns 200, no rate limit", async () => {
+	test("anon GET ft-transfers returns 200 with bounded anon rate limit", async () => {
 		const app = createApp();
 		const res = await app.request("/v1/index/ft-transfers");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { events: unknown[] };
 		expect(body.events).toEqual([]);
-		expect(res.headers.get("X-RateLimit-Limit")).toBeNull();
+		// Open beta: anon reads aren't auth-gated but are bounded by a shared
+		// global limit, so they always carry X-RateLimit-* headers.
+		expect(res.headers.get("X-RateLimit-Limit")).toBe("100");
+		expect(res.headers.get("X-RateLimit-Remaining")).not.toBeNull();
 	});
 
 	test("anon GET nft-transfers returns 200", async () => {
