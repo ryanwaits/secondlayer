@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "5.8.0",
+	"version": "5.9.0",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
