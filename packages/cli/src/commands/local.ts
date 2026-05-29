@@ -48,7 +48,7 @@ export function registerLocalCommand(program: Command): void {
 			"--stacks-node",
 			"Use port 3701 for indexer (avoids conflict with stacks-blockchain-api)",
 		)
-		.option("-f, --foreground", "Run in foreground (blocking)")
+		.option("--foreground", "Run in foreground (blocking)")
 		.action(async (options) => {
 			// Import dynamically to avoid circular deps
 			const { runBackground, runForeground, isDevAlreadyRunning } =
@@ -148,12 +148,22 @@ export function registerLocalCommand(program: Command): void {
 			"-p, --path <path>",
 			"Path to stacks-blockchain-docker (overrides config)",
 		)
-		.option("-f, --force", "Skip confirmation")
+		.option("-y, --yes", "Skip confirmation")
+		.option("--force", "Deprecated alias for --yes")
 		.option("--wait", "Wait for in-flight work to drain first")
 		.action(
-			async (options: { path?: string; force?: boolean; wait?: boolean }) => {
+			async (options: {
+				path?: string;
+				yes?: boolean;
+				force?: boolean;
+				wait?: boolean;
+			}) => {
 				const { stopNode } = await import("./node-impl.ts");
-				await stopNode(options.path, options.force, options.wait);
+				await stopNode(
+					options.path,
+					options.yes ?? options.force,
+					options.wait,
+				);
 			},
 		);
 
@@ -165,12 +175,22 @@ export function registerLocalCommand(program: Command): void {
 			"-p, --path <path>",
 			"Path to stacks-blockchain-docker (overrides config)",
 		)
-		.option("-f, --force", "Skip confirmation")
+		.option("-y, --yes", "Skip confirmation")
+		.option("--force", "Deprecated alias for --yes")
 		.option("--wait", "Wait for in-flight work to drain before stopping")
 		.action(
-			async (options: { path?: string; force?: boolean; wait?: boolean }) => {
+			async (options: {
+				path?: string;
+				yes?: boolean;
+				force?: boolean;
+				wait?: boolean;
+			}) => {
 				const { restartNode } = await import("./node-impl.ts");
-				await restartNode(options.path, options.force, options.wait);
+				await restartNode(
+					options.path,
+					options.yes ?? options.force,
+					options.wait,
+				);
 			},
 		);
 

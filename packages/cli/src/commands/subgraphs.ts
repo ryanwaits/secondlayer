@@ -589,8 +589,9 @@ Examples:
 			"Override the subgraph definition startBlock for this deploy",
 		)
 		.option("--dry-run", "Validate and preview deploy without writing changes")
-		.option("--preview", "Alias for --dry-run")
-		.option("--force", "Skip confirmation prompt for reindex operations")
+		.option("--preview", "Deprecated alias for --dry-run")
+		.option("-y, --yes", "Skip the reindex confirmation prompt")
+		.option("--force", "Deprecated alias for --yes")
 		.option(
 			"--database-url <url>",
 			"BYO data plane: write the subgraph's schema/rows to your own Postgres. With --dry-run, prints the DDL + grant script and verifies the connection.",
@@ -606,6 +607,7 @@ Examples:
 					startBlock?: string;
 					dryRun?: boolean;
 					preview?: boolean;
+					yes?: boolean;
 					force?: boolean;
 					strict?: boolean;
 					databaseUrl?: string;
@@ -753,6 +755,7 @@ Examples:
 
 							// Confirmation prompt — dropping existing data (skippable with --force)
 							const confirmed =
+								options.yes ||
 								options.force ||
 								(await confirm({
 									message:
@@ -1185,28 +1188,34 @@ Examples:
 		.description(
 			"Reindex a subgraph from historical blocks (drops + reprocesses)",
 		)
-		.option("--from <block>", "Start block height")
-		.option("--to <block>", "End block height")
+		.option("--from-block <n>", "Start block height")
+		.option("--to-block <n>", "End block height")
+		.option("--from <n>", "Deprecated alias for --from-block")
+		.option("--to <n>", "Deprecated alias for --to-block")
 		.option("-y, --yes", "Skip confirmation")
 		.addHelpText(
 			"after",
 			`
 Examples:
   $ sl subgraphs reindex my-graph -y
-  $ sl subgraphs reindex my-graph --from 150000 --to 160000 -y`,
+  $ sl subgraphs reindex my-graph --from-block 150000 --to-block 160000 -y`,
 		)
 		.action(
 			async (
 				name: string,
-				options: { from?: string; to?: string; yes?: boolean },
+				options: {
+					fromBlock?: string;
+					toBlock?: string;
+					from?: string;
+					to?: string;
+					yes?: boolean;
+				},
 			) => {
 				try {
-					const fromBlock = options.from
-						? Number.parseInt(options.from, 10)
-						: undefined;
-					const toBlock = options.to
-						? Number.parseInt(options.to, 10)
-						: undefined;
+					const fromRaw = options.fromBlock ?? options.from;
+					const toRaw = options.toBlock ?? options.to;
+					const fromBlock = fromRaw ? Number.parseInt(fromRaw, 10) : undefined;
+					const toBlock = toRaw ? Number.parseInt(toRaw, 10) : undefined;
 
 					if (!options.yes) {
 						if (!process.stdin.isTTY) {
@@ -1268,36 +1277,57 @@ Examples:
 	subgraphs
 		.command("backfill <name>")
 		.description("Backfill a block range without dropping existing data")
-		.requiredOption("--from <block>", "Start block height")
-		.requiredOption("--to <block>", "End block height")
+		.option("--from-block <n>", "Start block height")
+		.option("--to-block <n>", "End block height")
+		.option("--from <n>", "Deprecated alias for --from-block")
+		.option("--to <n>", "Deprecated alias for --to-block")
 		.addHelpText(
 			"after",
 			`
 Examples:
-  $ sl subgraphs backfill my-graph --from 150000 --to 160000`,
+  $ sl subgraphs backfill my-graph --from-block 150000 --to-block 160000`,
 		)
-		.action(async (name: string, options: { from: string; to: string }) => {
-			try {
-				const fromBlock = Number.parseInt(options.from, 10);
-				const toBlock = Number.parseInt(options.to, 10);
+		.action(
+			async (
+				name: string,
+				options: {
+					fromBlock?: string;
+					toBlock?: string;
+					from?: string;
+					to?: string;
+				},
+			) => {
+				try {
+					const fromRaw = options.fromBlock ?? options.from;
+					const toRaw = options.toBlock ?? options.to;
+					if (!fromRaw || !toRaw) {
+						error("--from-block and --to-block are required");
+						process.exit(1);
+					}
+					const fromBlock = Number.parseInt(fromRaw, 10);
+					const toBlock = Number.parseInt(toRaw, 10);
 
-				if (Number.isNaN(fromBlock) || Number.isNaN(toBlock)) {
-					error("--from and --to must be valid block numbers");
-					process.exit(1);
+					if (Number.isNaN(fromBlock) || Number.isNaN(toBlock)) {
+						error("--from-block and --to-block must be valid block numbers");
+						process.exit(1);
+					}
+
+					info(
+						`Backfilling subgraph "${name}" from block ${fromBlock} to ${toBlock}...`,
+					);
+
+					const result = await backfillSubgraphApi(name, {
+						fromBlock,
+						toBlock,
+					});
+
+					success(result.message);
+					info(`From block ${result.fromBlock} to ${result.toBlock}`);
+				} catch (err) {
+					handleApiError(err, "backfill subgraph");
 				}
-
-				info(
-					`Backfilling subgraph "${name}" from block ${fromBlock} to ${toBlock}...`,
-				);
-
-				const result = await backfillSubgraphApi(name, { fromBlock, toBlock });
-
-				success(result.message);
-				info(`From block ${result.fromBlock} to ${result.toBlock}`);
-			} catch (err) {
-				handleApiError(err, "backfill subgraph");
-			}
-		});
+			},
+		);
 
 	// --- stop ---
 	subgraphs
@@ -1544,7 +1574,7 @@ Examples:
 		.command("scaffold [contractAddress]")
 		.description("Scaffold a defineSubgraph() file from a contract or trait")
 		.option("-o, --output <path>", "Output file path (required)")
-		.option("--api-key <key>", "Stacks node API key for direct RPC URLs")
+		.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
 		.option(
 			"--functions <names>",
 			"Comma-separated public functions to index as typed contract_call tables",

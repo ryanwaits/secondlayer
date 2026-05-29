@@ -159,10 +159,7 @@ export function registerLoginCommand(program: Command): void {
 	program
 		.command("login")
 		.description("Log in to Secondlayer (magic-link email)")
-		.option(
-			"-f, --force",
-			"Skip the already-logged-in check and re-run the flow",
-		)
+		.option("--force", "Skip the already-logged-in check and re-run the flow")
 		.option("--with-token", "Read an API key from stdin (non-interactive)")
 		.addHelpText(
 			"after",

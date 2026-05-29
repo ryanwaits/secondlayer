@@ -105,15 +105,17 @@ export function registerStreamsCommand(program: Command): void {
 		)
 		.option("--contract-id <id>", "filter to a single contract identifier")
 		.option("--cursor <cursor>", "start cursor (block_height:event_index)")
-		.option("--from-height <n>", "filter to blocks >= n")
-		.option("--to-height <n>", "filter to blocks <= n")
+		.option("--from-block <n>", "filter to blocks >= n")
+		.option("--to-block <n>", "filter to blocks <= n")
+		.option("--from-height <n>", "Deprecated alias for --from-block")
+		.option("--to-height <n>", "Deprecated alias for --to-block")
 		.option("--limit <n>", "page size (1-1000, default 100)", "100")
 		.addHelpText(
 			"after",
 			`
 Examples:
   $ sl streams events --types stx_transfer,print --limit 50
-  $ sl streams events --contract-id SP00....token --from-height 150000 --to-height 160000
+  $ sl streams events --contract-id SP00....token --from-block 150000 --to-block 160000
   $ sl streams events --cursor 150000:3`,
 		)
 		.action(
@@ -121,6 +123,8 @@ Examples:
 				types?: string;
 				contractId?: string;
 				cursor?: string;
+				fromBlock?: string;
+				toBlock?: string;
 				fromHeight?: string;
 				toHeight?: string;
 				limit?: string;
@@ -130,8 +134,14 @@ Examples:
 						types: parseTypes(options.types),
 						contractId: options.contractId,
 						cursor: options.cursor,
-						fromHeight: parseHeight(options.fromHeight, "--from-height"),
-						toHeight: parseHeight(options.toHeight, "--to-height"),
+						fromHeight: parseHeight(
+							options.fromBlock ?? options.fromHeight,
+							"--from-block",
+						),
+						toHeight: parseHeight(
+							options.toBlock ?? options.toHeight,
+							"--to-block",
+						),
 						limit: parseLimit(options.limit),
 					});
 					writeData(JSON.stringify(envelope, null, 2));

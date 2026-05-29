@@ -87,9 +87,10 @@ program
 	.description("Generate TypeScript interfaces from Clarity contracts")
 	.option("-c, --config <path>", "Path to config file")
 	.option(
-		"-o, --out <path>",
+		"-o, --output <path>",
 		"Output file path (required when using direct files)",
 	)
+	.option("--out <path>", "Deprecated alias for --output")
 	.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
 	.option("-w, --watch", "Watch for changes")
 	.addHelpText(
@@ -101,6 +102,7 @@ Examples:
   $ sl generate --config secondlayer.config.ts --watch`,
 	)
 	.action(async (files, options) => {
+		options.out = options.output ?? options.out;
 		const { generate } = await import("./commands/generate");
 		await generate(files, options);
 	});

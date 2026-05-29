@@ -52,7 +52,9 @@ interface DownOptions {
 interface LogsOptions {
 	project?: string;
 	follow?: boolean;
-	tail: string;
+	lines?: string;
+	/** Deprecated alias for `lines`. */
+	tail?: string;
 }
 
 interface StatusOptions {
@@ -113,7 +115,7 @@ export function registerDevnetCommand(program: Command): void {
 			"Snapshot of the local stack: ingest, subgraphs, and recent activity",
 		)
 		.option("-w, --watch", "Refresh every 2s until Ctrl-C")
-		.option("-n, --limit <n>", "Recent activity rows to show", "12")
+		.option("--limit <n>", "Recent activity rows to show", "12")
 		.action(async (options: StatusOptions) => {
 			await status(options);
 		});
@@ -125,7 +127,8 @@ export function registerDevnetCommand(program: Command): void {
 		)
 		.option("--project <dir>", "Clarinet project directory")
 		.option("-f, --follow", "Follow log output")
-		.option("-n, --tail <n>", "Lines to show from the end of each log", "200")
+		.option("-n, --lines <n>", "Lines to show from the end of each log")
+		.option("--tail <n>", "Deprecated alias for --lines")
 		.action(async (service: string | undefined, options: LogsOptions) => {
 			await logs(service, options);
 		});
@@ -257,7 +260,7 @@ async function logs(
 
 	ensureDocker();
 
-	const args = ["logs", "--tail", options.tail];
+	const args = ["logs", "--tail", options.lines ?? options.tail ?? "200"];
 	if (options.follow) args.push("-f");
 	if (service) args.push(service);
 	// stdio is inherited, so `-f` streams until the user Ctrl-C's.
