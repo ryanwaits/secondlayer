@@ -15,26 +15,48 @@ import type {
 	SubgraphSpecOptions,
 } from "@secondlayer/shared/subgraphs/spec";
 import { CliHttpError, httpPlatform } from "./http.ts";
+import { printError } from "./output.ts";
 import { resolveAuth } from "./resolve-auth.ts";
 
 export { ApiError };
 export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
 
+/** Map an HTTP status to an actionable next-step hint, when one is obvious. */
+function nextStepHint(status: number | undefined): string | undefined {
+	if (status === undefined) return undefined;
+	if (status === 403)
+		return "You may not have access — check your active project with `sl whoami`.";
+	if (status === 404)
+		return "Check the name/slug — run the matching `list` command to see what exists.";
+	if (status === 400 || status === 422)
+		return "Check the command arguments and flags — see `--help` for the expected format.";
+	if (status === 429) return "Rate limited — wait a moment and retry.";
+	if (status >= 500)
+		return "Server error — retry shortly, or check `sl status`.";
+	return undefined;
+}
+
 /**
- * Shared error handler. Maps typed codes to user-facing hints.
+ * Shared error handler. Maps typed codes to user-facing, actionable hints.
  */
 export function handleApiError(err: unknown, action: string): never {
-	if (err instanceof CliHttpError) {
-		if (err.code === "SESSION_EXPIRED") {
-			console.error("Session expired. Run: sl login");
-			process.exit(1);
-		}
-	}
-	if (err instanceof ApiError && err.status === 401) {
-		console.error("Authentication required. Run: sl login");
+	const status =
+		err instanceof ApiError || err instanceof CliHttpError
+			? err.status
+			: undefined;
+
+	if (
+		(err instanceof CliHttpError && err.code === "SESSION_EXPIRED") ||
+		status === 401
+	) {
+		printError("Authentication required.", {
+			hint: "Run `sl login` to re-authenticate.",
+		});
 		process.exit(1);
 	}
-	console.error(`Error: Failed to ${action}: ${err}`);
+
+	const detail = err instanceof Error ? err.message : String(err);
+	printError(`Failed to ${action}: ${detail}`, { hint: nextStepHint(status) });
 	process.exit(1);
 }
 
