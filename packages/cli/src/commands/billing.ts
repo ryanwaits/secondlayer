@@ -54,21 +54,6 @@ export function addBillingCommand(parent: Command): void {
 		.action((options: { json?: boolean }) => runBillingStatus(options.json));
 }
 
-export function registerBillingCommand(program: Command): void {
-	// Deprecated top-level group; canonical home is `sl account billing`.
-	const billing = program
-		.command("billing")
-		.description("Deprecated: use `account billing`");
-
-	billing
-		.command("status")
-		.description(
-			"Show your current plan, Stripe subscription, trial, and discounts",
-		)
-		.option("--json", "Output as JSON")
-		.action((options: { json?: boolean }) => runBillingStatus(options.json));
-}
-
 function renderBillingStatus(res: BillingStatusResponse): void {
 	// No active subscription = free open beta. Everything is unmetered
 	// and there's no upgrade path yet, so keep the output reassuring

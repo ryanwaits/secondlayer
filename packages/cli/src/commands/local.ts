@@ -224,21 +224,11 @@ export function registerLocalCommand(program: Command): void {
 			"Path to stacks-blockchain-docker (overrides config)",
 		)
 		.option("-y, --yes", "Skip confirmation")
-		.option("--force", "Deprecated alias for --yes")
 		.option("--wait", "Wait for in-flight work to drain first")
 		.action(
-			async (options: {
-				path?: string;
-				yes?: boolean;
-				force?: boolean;
-				wait?: boolean;
-			}) => {
+			async (options: { path?: string; yes?: boolean; wait?: boolean }) => {
 				const { stopNode } = await import("./node-impl.ts");
-				await stopNode(
-					options.path,
-					options.yes ?? options.force,
-					options.wait,
-				);
+				await stopNode(options.path, options.yes, options.wait);
 			},
 		);
 
@@ -251,21 +241,11 @@ export function registerLocalCommand(program: Command): void {
 			"Path to stacks-blockchain-docker (overrides config)",
 		)
 		.option("-y, --yes", "Skip confirmation")
-		.option("--force", "Deprecated alias for --yes")
 		.option("--wait", "Wait for in-flight work to drain before stopping")
 		.action(
-			async (options: {
-				path?: string;
-				yes?: boolean;
-				force?: boolean;
-				wait?: boolean;
-			}) => {
+			async (options: { path?: string; yes?: boolean; wait?: boolean }) => {
 				const { restartNode } = await import("./node-impl.ts");
-				await restartNode(
-					options.path,
-					options.yes ?? options.force,
-					options.wait,
-				);
+				await restartNode(options.path, options.yes, options.wait);
 			},
 		);
 

@@ -427,15 +427,3 @@ export function addSubscriptionsCreateCommand(subscriptions: Command): void {
 		examplePrefix: "sl subscriptions create",
 	});
 }
-
-export function registerCreateCommand(program: Command): void {
-	// Deprecated top-level group; canonical home is `sl subscriptions create`.
-	const create = program
-		.command("create")
-		.description("Deprecated: use `sl subscriptions create`");
-
-	addSubscriptionScaffold(create, "subscription <name>", {
-		description: "Deprecated: use `sl subscriptions create`",
-		examplePrefix: "sl create subscription",
-	});
-}

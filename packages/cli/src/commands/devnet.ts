@@ -53,8 +53,6 @@ interface LogsOptions {
 	project?: string;
 	follow?: boolean;
 	lines?: string;
-	/** Deprecated alias for `lines`. */
-	tail?: string;
 }
 
 interface StatusOptions {
@@ -128,7 +126,6 @@ export function registerDevnetCommand(program: Command): void {
 		.option("--project <dir>", "Clarinet project directory")
 		.option("-f, --follow", "Follow log output")
 		.option("-n, --lines <n>", "Lines to show from the end of each log")
-		.option("--tail <n>", "Deprecated alias for --lines")
 		.action(async (service: string | undefined, options: LogsOptions) => {
 			await logs(service, options);
 		});
@@ -214,7 +211,7 @@ export async function connect(options: ConnectOptions): Promise<void> {
 		`  ${yellow("clarinet devnet start")}   ${dim("# auto-deploys + streams to the indexer")}`,
 	);
 	console.log(
-		`  ${yellow("SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy sl subgraphs deploy ./subgraph.ts")}`,
+		`  ${yellow("SL_API_URL=http://localhost:3800 SL_API_KEY=dummy sl subgraphs deploy ./subgraph.ts")}`,
 	);
 	console.log(dim("\nStop with: sl devnet down"));
 }
@@ -260,7 +257,7 @@ async function logs(
 
 	ensureDocker();
 
-	const args = ["logs", "--tail", options.lines ?? options.tail ?? "200"];
+	const args = ["logs", "--tail", options.lines ?? "200"];
 	if (options.follow) args.push("-f");
 	if (service) args.push(service);
 	// stdio is inherited, so `-f` streams until the user Ctrl-C's.

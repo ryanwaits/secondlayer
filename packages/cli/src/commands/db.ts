@@ -101,7 +101,6 @@ Run \`sl db\` with no subcommand to print an overview.`,
 
 	dbCmd
 		.command("truncate")
-		.alias("reset")
 		.description("Truncate all indexed data (blocks, txs, events)")
 		.option("-y, --yes", "Skip confirmation prompt")
 		.action(async function (this: Command) {

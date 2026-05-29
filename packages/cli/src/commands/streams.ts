@@ -107,8 +107,6 @@ export function registerStreamsCommand(program: Command): void {
 		.option("--cursor <cursor>", "start cursor (block_height:event_index)")
 		.option("--from-block <n>", "filter to blocks >= n")
 		.option("--to-block <n>", "filter to blocks <= n")
-		.option("--from-height <n>", "Deprecated alias for --from-block")
-		.option("--to-height <n>", "Deprecated alias for --to-block")
 		.option("--limit <n>", "page size (1-1000, default 100)", "100")
 		.addHelpText(
 			"after",
@@ -125,8 +123,6 @@ Examples:
 				cursor?: string;
 				fromBlock?: string;
 				toBlock?: string;
-				fromHeight?: string;
-				toHeight?: string;
 				limit?: string;
 			}) => {
 				try {
@@ -134,14 +130,8 @@ Examples:
 						types: parseTypes(options.types),
 						contractId: options.contractId,
 						cursor: options.cursor,
-						fromHeight: parseHeight(
-							options.fromBlock ?? options.fromHeight,
-							"--from-block",
-						),
-						toHeight: parseHeight(
-							options.toBlock ?? options.toHeight,
-							"--to-block",
-						),
+						fromHeight: parseHeight(options.fromBlock, "--from-block"),
+						toHeight: parseHeight(options.toBlock, "--to-block"),
 						limit: parseLimit(options.limit),
 					});
 					writeData(JSON.stringify(envelope, null, 2));

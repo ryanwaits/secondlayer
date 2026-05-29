@@ -152,7 +152,6 @@ export function registerProjectCommand(program: Command): void {
 
 	project
 		.command("get")
-		.alias("current")
 		.description("Show the active project for this directory")
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {

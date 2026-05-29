@@ -485,7 +485,6 @@ export function registerSubgraphsCommand(program: Command): void {
 	// --- new ---
 	subgraphs
 		.command("create <name>")
-		.alias("new")
 		.description("Create a new subgraph definition file")
 		.option(
 			"--template <slug>",
@@ -629,9 +628,7 @@ Examples:
 			"Override the subgraph definition startBlock for this deploy",
 		)
 		.option("--dry-run", "Validate and preview deploy without writing changes")
-		.option("--preview", "Deprecated alias for --dry-run")
 		.option("-y, --yes", "Skip the reindex confirmation prompt")
-		.option("--force", "Deprecated alias for --yes")
 		.option(
 			"--database-url <url>",
 			"BYO data plane: write the subgraph's schema/rows to your own Postgres. With --dry-run, prints the DDL + grant script and verifies the connection.",
@@ -646,9 +643,7 @@ Examples:
 				options: {
 					startBlock?: string;
 					dryRun?: boolean;
-					preview?: boolean;
 					yes?: boolean;
-					force?: boolean;
 					strict?: boolean;
 					databaseUrl?: string;
 				},
@@ -661,7 +656,7 @@ Examples:
 						// session rather than failing with a generic 401 mid-flow.
 						await requireAuth();
 					}
-					const dryRun = options.dryRun || options.preview;
+					const dryRun = options.dryRun;
 					const startBlock = parseStartBlockOption(options.startBlock);
 					if (startBlock !== undefined) {
 						warn(
@@ -793,10 +788,9 @@ Examples:
 								}
 							}
 
-							// Confirmation prompt — dropping existing data (skippable with --force)
+							// Confirmation prompt — dropping existing data (skippable with --yes)
 							const confirmed =
 								options.yes ||
-								options.force ||
 								(await confirm({
 									message:
 										"⚠  This will drop all data and reindex from scratch. Continue?",
@@ -1163,8 +1157,6 @@ Examples:
 		)
 		.option("--from-block <n>", "Start block height")
 		.option("--to-block <n>", "End block height")
-		.option("--from <n>", "Deprecated alias for --from-block")
-		.option("--to <n>", "Deprecated alias for --to-block")
 		.option("-y, --yes", "Skip confirmation")
 		.addHelpText(
 			"after",
@@ -1179,14 +1171,12 @@ Examples:
 				options: {
 					fromBlock?: string;
 					toBlock?: string;
-					from?: string;
-					to?: string;
 					yes?: boolean;
 				},
 			) => {
 				try {
-					const fromRaw = options.fromBlock ?? options.from;
-					const toRaw = options.toBlock ?? options.to;
+					const fromRaw = options.fromBlock;
+					const toRaw = options.toBlock;
 					const fromBlock = fromRaw ? Number.parseInt(fromRaw, 10) : undefined;
 					const toBlock = toRaw ? Number.parseInt(toRaw, 10) : undefined;
 
@@ -1252,8 +1242,6 @@ Examples:
 		.description("Backfill a block range without dropping existing data")
 		.option("--from-block <n>", "Start block height")
 		.option("--to-block <n>", "End block height")
-		.option("--from <n>", "Deprecated alias for --from-block")
-		.option("--to <n>", "Deprecated alias for --to-block")
 		.addHelpText(
 			"after",
 			`
@@ -1266,13 +1254,11 @@ Examples:
 				options: {
 					fromBlock?: string;
 					toBlock?: string;
-					from?: string;
-					to?: string;
 				},
 			) => {
 				try {
-					const fromRaw = options.fromBlock ?? options.from;
-					const toRaw = options.toBlock ?? options.to;
+					const fromRaw = options.fromBlock;
+					const toRaw = options.toBlock;
 					if (!fromRaw || !toRaw) {
 						error("--from-block and --to-block are required");
 						process.exit(1);
@@ -1305,7 +1291,6 @@ Examples:
 	// --- stop ---
 	subgraphs
 		.command("cancel <name>")
-		.alias("stop")
 		.description("Cancel a running reindex or backfill operation")
 		.action(async (name: string) => {
 			try {

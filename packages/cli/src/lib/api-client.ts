@@ -97,9 +97,8 @@ export async function assertOk(res: Response): Promise<void> {
 }
 
 /**
- * SDK client targeting the platform API with the caller's session token.
- * SDK client targeting the platform API. Honors SL_API_URL / SL_SERVICE_KEY
- * for CI/OSS; otherwise uses the active session token.
+ * SDK client targeting the platform API. Honors SL_API_URL / SL_API_KEY for
+ * CI/OSS; otherwise uses the active session token.
  */
 async function getPlatformClient(): Promise<SecondLayer> {
 	const { apiUrl, ephemeralKey } = await resolveAuth();

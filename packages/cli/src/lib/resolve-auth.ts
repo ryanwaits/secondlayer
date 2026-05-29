@@ -22,15 +22,10 @@ export function resolveApiUrl(): string {
 }
 
 /**
- * Resolve an env-provided credential by precedence. `SL_API_KEY` is canonical;
- * `SL_SERVICE_KEY` and `SL_STREAMS_API_KEY` are accepted as legacy aliases.
+ * Resolve an env-provided credential. `SL_API_KEY` is the only accepted var.
  */
 export function resolveEnvKey(): string | undefined {
-	return (
-		process.env.SL_API_KEY ??
-		process.env.SL_SERVICE_KEY ??
-		process.env.SL_STREAMS_API_KEY
-	);
+	return process.env.SL_API_KEY;
 }
 
 export async function resolveAuth(): Promise<ResolvedAuth> {

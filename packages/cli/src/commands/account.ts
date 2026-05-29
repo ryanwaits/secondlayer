@@ -88,25 +88,4 @@ export function registerAccountCommand(program: Command): void {
 				},
 			),
 		);
-
-	// Deprecated: `account profile` read-or-write-by-flag. Use get/update.
-	account
-		.command("profile")
-		.description("Deprecated: use `account get` / `account update`")
-		.option("--name <name>", "Set display name")
-		.option("--bio <bio>", "Set bio")
-		.option("--slug <slug>", "Set public URL slug")
-		.option("--json", "Output as JSON")
-		.action(
-			withErrorHandling(
-				async (options: ProfileOptions) => {
-					if (options.name || options.bio || options.slug) {
-						await applyProfileUpdate(options);
-					} else {
-						await showProfile(options.json);
-					}
-				},
-				{ action: "manage profile" },
-			),
-		);
 }

@@ -1,5 +1,4 @@
-import type { Command } from "commander";
-import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
+import { loadConfig } from "../lib/config.ts";
 import { isDevRunning } from "../lib/dev-state.ts";
 import { DockerNotAvailableError, requireDocker } from "../lib/docker.ts";
 import { validateNetworkConsistency } from "../lib/network.ts";
@@ -18,50 +17,6 @@ import {
 	warn,
 	yellow,
 } from "../lib/output.ts";
-
-export function registerStackCommand(program: Command): void {
-	const stack = program.command("stack").description("Manage the full stack");
-
-	stack
-		.command("start")
-		.description("Start the full stack (node + dev services)")
-		.option("--no-node", "Skip starting the Stacks node")
-		.option("--no-dev", "Skip starting dev services")
-		.hook("preAction", async () => {
-			await requireLocalNetwork();
-		})
-		.action(async (options: { node: boolean; dev: boolean }) => {
-			await stackStart(options);
-		});
-
-	stack
-		.command("stop")
-		.description("Stop the full stack")
-		.option("--no-node", "Skip stopping the Stacks node")
-		.option("--no-dev", "Skip stopping dev services")
-		.option("--wait", "Wait for in-flight work to drain before stopping")
-		.hook("preAction", async () => {
-			await requireLocalNetwork();
-		})
-		.action(
-			async (options: { node: boolean; dev: boolean; wait?: boolean }) => {
-				await stackStop(options);
-			},
-		);
-
-	stack
-		.command("restart")
-		.description("Restart the full stack")
-		.option("--no-node", "Skip restarting the Stacks node")
-		.option("--no-dev", "Skip restarting dev services")
-		.hook("preAction", async () => {
-			await requireLocalNetwork();
-		})
-		.action(async (options: { node: boolean; dev: boolean }) => {
-			await stackStop({ ...options, wait: false });
-			await stackStart(options);
-		});
-}
 
 export async function stackStart(options: {
 	node: boolean;

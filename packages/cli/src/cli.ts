@@ -3,9 +3,7 @@ import { type Command, program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
 	registerAccountCommand,
-	registerBillingCommand,
 	registerConfigCommand,
-	registerCreateCommand,
 	registerDatasetsCommand,
 	registerDbCommand,
 	registerDevnetCommand,
@@ -14,7 +12,6 @@ import {
 	registerLoginCommand,
 	registerLogoutCommand,
 	registerProjectCommand,
-	registerStackCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
@@ -51,7 +48,7 @@ program.addHelpText(
 	`
 Quickstart:
   $ sl login                        # Authenticate (magic-link email)
-  $ sl subgraphs new my-watcher --template sip-010-balances
+  $ sl subgraphs create my-watcher --template sip-010-balances
   $ sl subgraphs deploy subgraphs/my-watcher.ts
   $ sl subgraphs status my-watcher
 `,
@@ -73,7 +70,6 @@ registerWhoamiCommand(program);
 // Data products
 program.commandsGroup("Data products:");
 registerSubgraphsCommand(program);
-registerCreateCommand(program);
 registerSubscriptionsCommand(program);
 registerStreamsCommand(program);
 registerDatasetsCommand(program);
@@ -82,8 +78,8 @@ registerDatasetsCommand(program);
 program.commandsGroup("Project & codegen:");
 registerProjectCommand(program);
 
-// Clarity → TypeScript codegen. Shared options + action so it mounts as both
-// the canonical `sl contracts generate` and the deprecated top-level `sl generate`.
+// Clarity → TypeScript codegen. Shared options + action so it mounts as
+// the canonical `sl contracts generate`.
 const configureGenerate = (cmd: Command): Command =>
 	cmd
 		.option("-c, --config <path>", "Path to config file")
@@ -91,11 +87,10 @@ const configureGenerate = (cmd: Command): Command =>
 			"-o, --output <path>",
 			"Output file path (required when using direct files)",
 		)
-		.option("--out <path>", "Deprecated alias for --output")
 		.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
 		.option("-w, --watch", "Watch for changes")
 		.action(async (files, options) => {
-			options.out = options.output ?? options.out;
+			options.out = options.output;
 			const { generate } = await import("./commands/generate");
 			await generate(files, options);
 		});
@@ -117,18 +112,10 @@ Examples:
   $ sl contracts generate --config secondlayer.config.ts --watch`,
 );
 
-configureGenerate(
-	program
-		.command("generate [files...]")
-		.aliases(["gen"])
-		.description("Deprecated: use `sl contracts generate`"),
-);
-
 // Local development
 program.commandsGroup("Local development:");
 registerLocalCommand(program);
 registerDevnetCommand(program);
-registerStackCommand(program);
 registerDbCommand(program);
 
 // Diagnostics
@@ -140,6 +127,5 @@ registerConfigCommand(program);
 // Account
 program.commandsGroup("Account:");
 registerAccountCommand(program);
-registerBillingCommand(program);
 
 program.parse();

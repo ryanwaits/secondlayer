@@ -30,13 +30,13 @@ describe("resolveAuth", () => {
 	it("authenticates from an env key alone, with no session and no SL_API_URL", async () => {
 		// Regression: previously required BOTH SL_API_URL and a key, so a key
 		// alone fell through to the session path and threw.
-		process.env.SL_SERVICE_KEY = "legacy-service-key";
+		process.env.SL_API_KEY = "sk-sl_envkey";
 		const auth = await resolveAuth();
-		expect(auth.ephemeralKey).toBe("legacy-service-key");
+		expect(auth.ephemeralKey).toBe("sk-sl_envkey");
 		expect(auth.fromEnv).toBe(true);
 	});
 
-	it("prefers SL_API_KEY over the legacy aliases", async () => {
+	it("ignores legacy SL_SERVICE_KEY / SL_STREAMS_API_KEY (only SL_API_KEY is read)", async () => {
 		process.env.SL_API_KEY = "primary";
 		process.env.SL_SERVICE_KEY = "legacy";
 		process.env.SL_STREAMS_API_KEY = "streams";
