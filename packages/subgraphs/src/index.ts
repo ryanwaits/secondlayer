@@ -81,6 +81,7 @@ export type {
 	WhereInput,
 	FindManyOptions,
 	SubgraphTableClient,
+	SubscribeOptions,
 	InferSubgraphClient,
 	WriteRow,
 	TypedSubgraphContext,

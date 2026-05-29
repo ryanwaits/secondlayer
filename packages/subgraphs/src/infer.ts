@@ -107,9 +107,28 @@ export interface FindManyOptions<TRow> {
 	fields?: (keyof TRow & string)[];
 }
 
+/** Options for the realtime row stream (SSE). */
+export interface SubscribeOptions<TRow> {
+	/** Same column filters as `findMany`, applied server-side per row. */
+	where?: WhereInput<TRow> & SystemWhereAliases;
+	/** Replay rows from this block height, then tail live. Omit for go-forward only. */
+	since?: number;
+	/** Called on stream/connection errors. */
+	onError?: (err: unknown) => void;
+}
+
 export interface SubgraphTableClient<TRow> {
 	findMany(options?: FindManyOptions<TRow>): Promise<TRow[]>;
 	count(where?: WhereInput<TRow> & SystemWhereAliases): Promise<number>;
+	/**
+	 * Stream rows as they're indexed over Server-Sent Events. `onRow` fires for
+	 * each new row (block-cadence). Returns an unsubscribe function that closes
+	 * the connection. Requires a global `EventSource` (browsers, Node >= 22).
+	 */
+	subscribe(
+		onRow: (row: TRow) => void,
+		options?: SubscribeOptions<TRow>,
+	): () => void;
 }
 
 // ── Writable row + typed handler context ──────────────────────────────────

@@ -16,6 +16,7 @@ import type {
 import type {
 	FindManyOptions,
 	InferSubgraphClient,
+	SubscribeOptions,
 	WhereInput,
 } from "@secondlayer/subgraphs";
 import { BaseClient } from "../base.ts";
@@ -277,6 +278,49 @@ export class Subgraphs extends BaseClient {
 					filters,
 				});
 				return result.count;
+			},
+
+			subscribe<TRow>(
+				onRow: (row: TRow) => void,
+				options: SubscribeOptions<TRow> = {},
+			): () => void {
+				const filters = options.where
+					? serializeWhere(options.where as Record<string, unknown>)
+					: {};
+				const qs = new URLSearchParams();
+				for (const [k, v] of Object.entries(filters)) qs.set(k, String(v));
+				if (options.since != null) qs.set("since", String(options.since));
+				const query = qs.toString();
+				const url = `${self.baseUrl}/api/subgraphs/${subgraphName}/${tableName}/stream${query ? `?${query}` : ""}`;
+
+				type EventSourceLike = {
+					onmessage: ((ev: { data: string }) => void) | null;
+					onerror: ((ev: unknown) => void) | null;
+					close(): void;
+				};
+				const ES = (
+					globalThis as unknown as {
+						EventSource?: new (url: string) => EventSourceLike;
+					}
+				).EventSource;
+				if (!ES) {
+					throw new Error(
+						"subscribe() needs a global EventSource (available in browsers and Node >= 22).",
+					);
+				}
+				const es = new ES(url);
+				es.onmessage = (ev) => {
+					try {
+						onRow(JSON.parse(ev.data) as TRow);
+					} catch {
+						// ignore non-JSON frames (e.g. heartbeats)
+					}
+				};
+				if (options.onError) {
+					const handler = options.onError;
+					es.onerror = (ev) => handler(ev);
+				}
+				return () => es.close();
 			},
 		};
 	}
