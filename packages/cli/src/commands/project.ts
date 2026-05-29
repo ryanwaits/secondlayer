@@ -7,6 +7,7 @@ import {
 	formatTable,
 	info,
 	error as logError,
+	output,
 	success,
 } from "../lib/output.ts";
 import { readActiveProject, writeActiveProject } from "../lib/project-file.ts";
@@ -78,31 +79,40 @@ export function registerProjectCommand(program: Command): void {
 	project
 		.command("list")
 		.description("List projects in your account")
-		.action(async () => {
+		.option("--json", "Output as JSON")
+		.action(async (options: { json?: boolean }) => {
 			try {
 				const res = await httpPlatform<{ projects: ProjectSummary[] }>(
 					"/api/projects",
 				);
-				if (res.projects.length === 0) {
-					info("No projects yet — run `sl project create <name>` to start.");
-					return;
-				}
 				const active = await readActiveProject(
 					process.cwd(),
 					(await loadConfig()).defaultProject,
 				);
-				const rows = res.projects.map((p) => [
-					p.slug === active?.slug ? `* ${p.slug}` : `  ${p.slug}`,
-					p.name,
-					p.network,
-					new Date(p.createdAt).toLocaleDateString(),
-				]);
-				console.log(formatTable(["", "Name", "Network", "Created"], rows));
-				if (active) {
-					console.log(
-						dim(`Active: ${active.slug} (from ${active.resolvedFrom})`),
-					);
-				}
+				output({
+					json: options.json,
+					data: { projects: res.projects, active: active?.slug ?? null },
+					human: () => {
+						if (res.projects.length === 0) {
+							info(
+								"No projects yet — run `sl project create <name>` to start.",
+							);
+							return;
+						}
+						const rows = res.projects.map((p) => [
+							p.slug === active?.slug ? `* ${p.slug}` : `  ${p.slug}`,
+							p.name,
+							p.network,
+							new Date(p.createdAt).toLocaleDateString(),
+						]);
+						console.log(formatTable(["", "Name", "Network", "Created"], rows));
+						if (active) {
+							console.log(
+								dim(`Active: ${active.slug} (from ${active.resolvedFrom})`),
+							);
+						}
+					},
+				});
 			} catch (err) {
 				handleProjectError(err);
 			}
@@ -141,19 +151,30 @@ export function registerProjectCommand(program: Command): void {
 	project
 		.command("current")
 		.description("Show the active project for this directory")
-		.action(async () => {
+		.option("--json", "Output as JSON")
+		.action(async (options: { json?: boolean }) => {
 			const config = await loadConfig();
 			const active = await readActiveProject(
 				process.cwd(),
 				config.defaultProject,
 			);
-			if (!active) {
-				info("No active project.");
-				info(dim("Run 'sl project create <name>' or 'sl project use <slug>'."));
-				return;
-			}
-			console.log(active.slug);
-			console.log(dim(`(from ${active.resolvedFrom})`));
+			output({
+				json: options.json,
+				data: active
+					? { slug: active.slug, source: active.resolvedFrom }
+					: null,
+				human: () => {
+					if (!active) {
+						info("No active project.");
+						info(
+							dim("Run 'sl project create <name>' or 'sl project use <slug>'."),
+						);
+						return;
+					}
+					console.log(active.slug);
+					console.log(dim(`(from ${active.resolvedFrom})`));
+				},
+			});
 		});
 }
 

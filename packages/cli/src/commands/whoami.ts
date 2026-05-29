@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { loadConfig } from "../lib/config.ts";
 import { CliHttpError, httpPlatform } from "../lib/http.ts";
-import { dim, error, formatKeyValue } from "../lib/output.ts";
+import { dim, error, formatKeyValue, output } from "../lib/output.ts";
 import { readActiveProject } from "../lib/project-file.ts";
 import { readSession } from "../lib/session.ts";
 
@@ -9,22 +9,21 @@ export function registerWhoamiCommand(program: Command): void {
 	program
 		.command("whoami")
 		.description("Show current authenticated account + active project")
-		.action(async () => {
+		.option("--json", "Output as JSON")
+		.action(async (options: { json?: boolean }) => {
 			const session = await readSession();
 			if (!session) {
 				error("Not logged in. Run: sl login");
 				process.exit(0);
 			}
 
-			const rows: [string, string][] = [];
-			rows.push(["Email", session.email]);
-
 			// Account + plan
+			let plan: string;
 			try {
 				const account = await httpPlatform<{ email: string; plan: string }>(
 					"/api/accounts/me",
 				);
-				rows.push(["Plan", account.plan]);
+				plan = account.plan;
 			} catch (err) {
 				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
 					error("Session expired. Run: sl login");
@@ -39,13 +38,31 @@ export function registerWhoamiCommand(program: Command): void {
 				process.cwd(),
 				config.defaultProject,
 			);
-			if (active) {
-				rows.push(["Project", active.slug]);
-				rows.push(["Project source", dim(active.resolvedFrom)]);
-			} else {
-				rows.push(["Project", dim("(none — run `sl project create <name>`)")]);
-			}
 
-			console.log(formatKeyValue(rows));
+			output({
+				json: options.json,
+				data: {
+					email: session.email,
+					plan,
+					project: active
+						? { slug: active.slug, source: active.resolvedFrom }
+						: null,
+				},
+				human: () => {
+					const rows: [string, string][] = [];
+					rows.push(["Email", session.email]);
+					rows.push(["Plan", plan]);
+					if (active) {
+						rows.push(["Project", active.slug]);
+						rows.push(["Project source", dim(active.resolvedFrom)]);
+					} else {
+						rows.push([
+							"Project",
+							dim("(none — run `sl project create <name>`)"),
+						]);
+					}
+					console.log(formatKeyValue(rows));
+				},
+			});
 		});
 }

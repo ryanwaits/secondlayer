@@ -1,6 +1,11 @@
 import type { Command } from "commander";
 import { CliHttpError, httpPlatform } from "../lib/http.ts";
-import { dim, formatKeyValue, error as logError } from "../lib/output.ts";
+import {
+	dim,
+	formatKeyValue,
+	error as logError,
+	output,
+} from "../lib/output.ts";
 
 interface BillingStatusResponse {
 	plan: string;
@@ -35,7 +40,8 @@ export function registerBillingCommand(program: Command): void {
 		.description(
 			"Show your current plan, Stripe subscription, trial, and discounts",
 		)
-		.action(async () => {
+		.option("--json", "Output as JSON")
+		.action(async (options: { json?: boolean }) => {
 			let res: BillingStatusResponse;
 			try {
 				res = await httpPlatform<BillingStatusResponse>("/api/billing/status");
@@ -47,66 +53,72 @@ export function registerBillingCommand(program: Command): void {
 				throw err;
 			}
 
-			// No active subscription = free open beta. Everything is unmetered
-			// and there's no upgrade path yet, so keep the output reassuring
-			// rather than surfacing empty Stripe fields.
-			if (!res.subscription) {
-				console.log(
-					formatKeyValue([
-						["Plan", "Free during open beta"],
-						["Cost", dim("$0 — no limits, no charges")],
-						["Paid plans", dim("coming after beta")],
-					]),
-				);
-				return;
-			}
-
-			const rows: [string, string][] = [];
-			rows.push(["Plan", res.plan]);
-			rows.push([
-				"Customer",
-				res.stripeCustomerId ?? dim("(none — no subscription yet)"),
-			]);
-
-			const sub = res.subscription;
-			rows.push(["Subscription", `${sub.id} (${sub.status})`]);
-			if (sub.tier) rows.push(["Tier", sub.tier]);
-			if (sub.amountCents !== null && sub.interval) {
-				const dollars = (sub.amountCents / 100).toFixed(2);
-				rows.push(["Price", `$${dollars} / ${sub.interval}`]);
-			}
-			if (sub.trialEnd) {
-				const days = Math.max(
-					0,
-					Math.round(
-						(new Date(sub.trialEnd).getTime() - Date.now()) / 86_400_000,
-					),
-				);
-				rows.push([
-					"Trial ends",
-					`${formatDate(sub.trialEnd)} (${days}d remaining)`,
-				]);
-			}
-			if (sub.currentPeriodEnd) {
-				rows.push(["Renews", formatDate(sub.currentPeriodEnd)]);
-			}
-			if (sub.cancelAtPeriodEnd) {
-				rows.push(["Cancels at period end", "yes"]);
-			}
-			if (sub.discount) {
-				const off =
-					sub.discount.percentOff !== null
-						? `${sub.discount.percentOff}% off`
-						: sub.discount.amountOff !== null
-							? `$${(sub.discount.amountOff / 100).toFixed(2)} off`
-							: "discount";
-				const label = sub.discount.code
-					? `${sub.discount.code} (${sub.discount.name ?? "coupon"})`
-					: (sub.discount.name ?? "applied");
-				rows.push(["Discount", `${label} — ${off}, ${sub.discount.duration}`]);
-			}
-			console.log(formatKeyValue(rows));
+			output({
+				json: options.json,
+				data: res,
+				human: () => renderBillingStatus(res),
+			});
 		});
+}
+
+function renderBillingStatus(res: BillingStatusResponse): void {
+	// No active subscription = free open beta. Everything is unmetered
+	// and there's no upgrade path yet, so keep the output reassuring
+	// rather than surfacing empty Stripe fields.
+	if (!res.subscription) {
+		console.log(
+			formatKeyValue([
+				["Plan", "Free during open beta"],
+				["Cost", dim("$0 — no limits, no charges")],
+				["Paid plans", dim("coming after beta")],
+			]),
+		);
+		return;
+	}
+
+	const rows: [string, string][] = [];
+	rows.push(["Plan", res.plan]);
+	rows.push([
+		"Customer",
+		res.stripeCustomerId ?? dim("(none — no subscription yet)"),
+	]);
+
+	const sub = res.subscription;
+	rows.push(["Subscription", `${sub.id} (${sub.status})`]);
+	if (sub.tier) rows.push(["Tier", sub.tier]);
+	if (sub.amountCents !== null && sub.interval) {
+		const dollars = (sub.amountCents / 100).toFixed(2);
+		rows.push(["Price", `$${dollars} / ${sub.interval}`]);
+	}
+	if (sub.trialEnd) {
+		const days = Math.max(
+			0,
+			Math.round((new Date(sub.trialEnd).getTime() - Date.now()) / 86_400_000),
+		);
+		rows.push([
+			"Trial ends",
+			`${formatDate(sub.trialEnd)} (${days}d remaining)`,
+		]);
+	}
+	if (sub.currentPeriodEnd) {
+		rows.push(["Renews", formatDate(sub.currentPeriodEnd)]);
+	}
+	if (sub.cancelAtPeriodEnd) {
+		rows.push(["Cancels at period end", "yes"]);
+	}
+	if (sub.discount) {
+		const off =
+			sub.discount.percentOff !== null
+				? `${sub.discount.percentOff}% off`
+				: sub.discount.amountOff !== null
+					? `$${(sub.discount.amountOff / 100).toFixed(2)} off`
+					: "discount";
+		const label = sub.discount.code
+			? `${sub.discount.code} (${sub.discount.name ?? "coupon"})`
+			: (sub.discount.name ?? "applied");
+		rows.push(["Discount", `${label} — ${off}, ${sub.discount.duration}`]);
+	}
+	console.log(formatKeyValue(rows));
 }
 
 function formatDate(iso: string): string {
