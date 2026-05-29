@@ -3,27 +3,29 @@ import { loadConfig } from "../lib/config.ts";
 import { CliHttpError, httpPlatform } from "../lib/http.ts";
 import { dim, error, formatKeyValue, output } from "../lib/output.ts";
 import { readActiveProject } from "../lib/project-file.ts";
-import { readSession } from "../lib/session.ts";
+import { resolveAuth } from "../lib/resolve-auth.ts";
 
 export function registerWhoamiCommand(program: Command): void {
 	program
 		.command("whoami")
-		.description("Show current authenticated account + active project")
+		.description("Show the active account, credential source, and project")
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {
-			const session = await readSession();
-			if (!session) {
+			// Single source of truth for "who am I + where am I pointed".
+			let auth: Awaited<ReturnType<typeof resolveAuth>>;
+			try {
+				auth = await resolveAuth();
+			} catch {
 				error("Not logged in. Run: sl login");
-				process.exit(0);
+				process.exit(1);
 			}
 
-			// Account + plan
-			let plan: string;
+			// Identity comes from the API so it's correct in env-key mode too.
+			let account: { email: string; plan: string };
 			try {
-				const account = await httpPlatform<{ email: string; plan: string }>(
+				account = await httpPlatform<{ email: string; plan: string }>(
 					"/api/accounts/me",
 				);
-				plan = account.plan;
 			} catch (err) {
 				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
 					error("Session expired. Run: sl login");
@@ -38,20 +40,25 @@ export function registerWhoamiCommand(program: Command): void {
 				process.cwd(),
 				config.defaultProject,
 			);
+			const authSource = auth.fromEnv ? "API key (env)" : "session";
 
 			output({
 				json: options.json,
 				data: {
-					email: session.email,
-					plan,
+					email: account.email,
+					plan: account.plan,
+					apiUrl: auth.apiUrl,
+					authSource,
 					project: active
 						? { slug: active.slug, source: active.resolvedFrom }
 						: null,
 				},
 				human: () => {
 					const rows: [string, string][] = [];
-					rows.push(["Email", session.email]);
-					rows.push(["Plan", plan]);
+					rows.push(["Email", account.email]);
+					rows.push(["Plan", account.plan]);
+					rows.push(["API URL", auth.apiUrl]);
+					rows.push(["Auth", dim(authSource)]);
 					if (active) {
 						rows.push(["Project", active.slug]);
 						rows.push(["Project source", dim(active.resolvedFrom)]);
