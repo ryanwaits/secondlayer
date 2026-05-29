@@ -31,7 +31,9 @@ program
 		"SecondLayer CLI — dedicated Stacks indexing + real-time subgraphs",
 	)
 	.version(version)
-	.option("--network <network>", "Override network (local, testnet, mainnet)");
+	.option("--network <network>", "Override network (local, testnet, mainnet)")
+	.showSuggestionAfterError(true)
+	.showHelpAfterError("(run `sl --help` to see available commands)");
 
 program.hook("preAction", (thisCommand) => {
 	const net = thisCommand.opts().network;
@@ -49,7 +51,30 @@ Quickstart:
 `,
 );
 
-// --- Code generation ---
+// Getting started
+program.commandsGroup("Getting started:");
+program
+	.command("init")
+	.description("Initialize a new secondlayer.config.ts file")
+	.action(async () => {
+		const { init } = await import("./commands/init");
+		await init();
+	});
+registerLoginCommand(program);
+registerLogoutCommand(program);
+registerWhoamiCommand(program);
+
+// Data products
+program.commandsGroup("Data products:");
+registerSubgraphsCommand(program);
+registerCreateCommand(program);
+registerSubscriptionsCommand(program);
+registerStreamsCommand(program);
+registerDatasetsCommand(program);
+
+// Project & codegen
+program.commandsGroup("Project & codegen:");
+registerProjectCommand(program);
 program
 	.command("generate [files...]")
 	.aliases(["gen"])
@@ -66,41 +91,21 @@ program
 		await generate(files, options);
 	});
 
-program
-	.command("init")
-	.description("Initialize a new secondlayer.config.ts file")
-	.action(async () => {
-		const { init } = await import("./commands/init");
-		await init();
-	});
-
-// Auth — top-level
-registerLoginCommand(program);
-registerLogoutCommand(program);
-registerWhoamiCommand(program);
-
-// Project
-registerProjectCommand(program);
-
-// Workload
-registerSubgraphsCommand(program);
-registerCreateCommand(program);
-registerSubscriptionsCommand(program);
-registerStreamsCommand(program);
-registerDatasetsCommand(program);
-
-// Ops / inspection
-registerStatusCommand(program);
+// Local development
+program.commandsGroup("Local development:");
+registerLocalCommand(program);
+registerDevnetCommand(program);
 registerStackCommand(program);
 registerDbCommand(program);
+
+// Diagnostics
+program.commandsGroup("Diagnostics:");
+registerStatusCommand(program);
 registerDoctorCommand(program);
 registerConfigCommand(program);
 
-// Local dev
-registerLocalCommand(program);
-registerDevnetCommand(program);
-
 // Account
+program.commandsGroup("Account:");
 registerAccountCommand(program);
 registerBillingCommand(program);
 
