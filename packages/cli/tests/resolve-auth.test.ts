@@ -64,7 +64,8 @@ describe("isOssMode", () => {
 	});
 
 	afterEach(() => {
-		if (savedUrl === undefined) Reflect.deleteProperty(process.env, "SL_API_URL");
+		if (savedUrl === undefined)
+			Reflect.deleteProperty(process.env, "SL_API_URL");
 		else process.env.SL_API_URL = savedUrl;
 		if (savedKey === undefined)
 			Reflect.deleteProperty(process.env, "SL_SERVICE_KEY");

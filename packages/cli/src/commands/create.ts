@@ -81,8 +81,6 @@ export interface CreateSubscriptionOptions {
 	table?: string;
 	url?: string;
 	authToken?: string;
-	serviceKey?: string;
-	baseUrl?: string;
 	skipApi?: boolean;
 	// commander's `--no-scaffold` declares an inverse boolean: opts.scaffold is
 	// true by default and becomes false when --no-scaffold is passed.
@@ -176,7 +174,7 @@ export async function createSubscription(
 	let sl: SecondLayer | null = null;
 	if (!opts.skipApi) {
 		try {
-			sl = await getSubscriptionClient(opts);
+			sl = await getSubscriptionClient();
 			await validateSubscriptionTargetFromApi(sl, {
 				subgraphName: subgraph,
 				tableName: table,
@@ -212,7 +210,7 @@ export async function createSubscription(
 	let provisioningFailed = false;
 	if (!opts.skipApi) {
 		try {
-			if (!sl) sl = await getSubscriptionClient(opts);
+			if (!sl) sl = await getSubscriptionClient();
 			const res = await sl.subscriptions.create({
 				name,
 				subgraphName: subgraph,
@@ -311,72 +309,9 @@ export async function createSubscription(
 	success(`Done. Next:\n  ${dashboardLine}${pausedLine}${runHint}`);
 }
 
-export type SubscriptionClientOptions = Pick<
-	CreateSubscriptionOptions,
-	"baseUrl" | "serviceKey"
->;
-
-type SubscriptionClientEnv = {
-	[key: string]: string | undefined;
-	SL_API_URL?: string;
-	SL_SERVICE_KEY?: string;
-};
-
-type ResolvedAuthCredentials = Awaited<ReturnType<typeof resolveAuth>>;
-
-type SubscriptionClientConfig =
-	| { needsTenantResolution: true }
-	| { needsTenantResolution: false; baseUrl: string; apiKey: string };
-
-export function resolveSubscriptionClientConfig(
-	opts: SubscriptionClientOptions,
-	env: SubscriptionClientEnv = process.env,
-	resolved?: ResolvedAuthCredentials,
-): SubscriptionClientConfig {
-	const needsResolvedKey = !opts.serviceKey && !env.SL_SERVICE_KEY;
-	const needsResolvedUrl = !opts.baseUrl && !env.SL_API_URL;
-	if ((needsResolvedKey || needsResolvedUrl) && !resolved) {
-		return { needsTenantResolution: true };
-	}
-
-	const apiKey =
-		opts.serviceKey ?? env.SL_SERVICE_KEY ?? resolved?.ephemeralKey;
-	const baseUrl = opts.baseUrl ?? env.SL_API_URL ?? resolved?.apiUrl;
-
-	if (!apiKey) {
-		throw new Error(
-			"No service key available. Run `sl login` from an active project or pass --service-key.",
-		);
-	}
-	if (!baseUrl) {
-		throw new Error("No API URL available. Run `sl login` or pass --base-url.");
-	}
-
-	return { needsTenantResolution: false, baseUrl, apiKey };
-}
-
-export async function getSubscriptionClient(
-	opts: SubscriptionClientOptions,
-): Promise<SecondLayer> {
-	const config = resolveSubscriptionClientConfig(opts);
-	if (!config.needsTenantResolution) {
-		return new SecondLayer({ baseUrl: config.baseUrl, apiKey: config.apiKey });
-	}
-
-	const resolved = await resolveAuth();
-	const resolvedConfig = resolveSubscriptionClientConfig(
-		opts,
-		process.env,
-		resolved,
-	);
-	if (resolvedConfig.needsTenantResolution) {
-		throw new Error("Could not resolve credentials — run `sl login`.");
-	}
-
-	return new SecondLayer({
-		baseUrl: resolvedConfig.baseUrl,
-		apiKey: resolvedConfig.apiKey,
-	});
+export async function getSubscriptionClient(): Promise<SecondLayer> {
+	const { apiUrl, ephemeralKey } = await resolveAuth();
+	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
 
 /**
@@ -401,8 +336,6 @@ function addSubscriptionScaffold(
 			"--filter <kv...>",
 			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",
 		)
-		.option("--service-key <key>", "SL_SERVICE_KEY override")
-		.option("--base-url <url>", "SL_API_URL override")
 		.option("--skip-api", "Copy template only, don't call the API")
 		.option(
 			"--no-scaffold",

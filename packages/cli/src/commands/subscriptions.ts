@@ -31,8 +31,6 @@ import {
 } from "./create.ts";
 
 interface CommonOptions {
-	baseUrl?: string;
-	serviceKey?: string;
 	json?: boolean;
 	yes?: boolean;
 }
@@ -61,12 +59,6 @@ export interface ResolvedSubscription {
 }
 
 type SubscriptionClientLike = Pick<SecondLayer, "subscriptions">;
-
-function commonOptions<T extends Command>(cmd: T): T {
-	return cmd
-		.option("--service-key <key>", "SL_SERVICE_KEY override")
-		.option("--base-url <url>", "SL_API_URL override") as T;
-}
 
 function parseIntegerOption(
 	value: string | undefined,
@@ -560,403 +552,387 @@ async function confirmOrExit(message: string, yes?: boolean): Promise<boolean> {
 }
 
 export function registerSubscriptionsCommand(program: Command): void {
-	const subscriptions = commonOptions(
-		program
-			.command("subscriptions")
-			.alias("subs")
-			.description("Manage subgraph table subscriptions"),
-	);
+	const subscriptions = program
+		.command("subscriptions")
+		.alias("subs")
+		.description("Manage subgraph table subscriptions");
 
 	addSubscriptionsCreateCommand(subscriptions);
 
-	commonOptions(
-		subscriptions
-			.command("list")
-			.alias("ls")
-			.description("List subscriptions")
-			.option("--json", "Output as JSON"),
-	).action(async (options: CommonOptions) => {
-		try {
-			const client = await getSubscriptionClient(options);
-			const { data } = await client.subscriptions.list();
-			if (options.json) {
-				printJson(data);
-				return;
+	subscriptions
+		.command("list")
+		.alias("ls")
+		.description("List subscriptions")
+		.option("--json", "Output as JSON")
+		.action(async (options: CommonOptions) => {
+			try {
+				const client = await getSubscriptionClient();
+				const { data } = await client.subscriptions.list();
+				if (options.json) {
+					printJson(data);
+					return;
+				}
+				if (data.length === 0) {
+					console.log(dim("No subscriptions"));
+					return;
+				}
+				console.log(
+					formatTable(
+						["Name", "ID", "Status", "Target", "Format", "Last Success"],
+						data.map((sub) => [
+							sub.name,
+							sub.id,
+							sub.status === "active"
+								? green(sub.status)
+								: sub.status === "paused"
+									? yellow(sub.status)
+									: redStatus(sub.status),
+							`${sub.subgraphName}.${sub.tableName}`,
+							sub.format,
+							formatMaybeDate(sub.lastSuccessAt),
+						]),
+					),
+				);
+				console.log(dim(`\n${data.length} subscription(s) total`));
+			} catch (err) {
+				handleApiError(err, "list subscriptions");
 			}
-			if (data.length === 0) {
-				console.log(dim("No subscriptions"));
-				return;
+		});
+
+	subscriptions
+		.command("get <idOrName>")
+		.description("Show subscription details")
+		.option("--json", "Output as JSON")
+		.action(async (idOrName: string, options: CommonOptions) => {
+			try {
+				const client = await getSubscriptionClient();
+				const { detail } = await resolveSubscriptionRef(client, idOrName);
+				if (options.json) printJson(detail);
+				else printSubscriptionDetail(detail);
+			} catch (err) {
+				handleApiError(err, "get subscription");
 			}
-			console.log(
-				formatTable(
-					["Name", "ID", "Status", "Target", "Format", "Last Success"],
-					data.map((sub) => [
-						sub.name,
-						sub.id,
-						sub.status === "active"
-							? green(sub.status)
-							: sub.status === "paused"
-								? yellow(sub.status)
-								: redStatus(sub.status),
-						`${sub.subgraphName}.${sub.tableName}`,
-						sub.format,
-						formatMaybeDate(sub.lastSuccessAt),
-					]),
-				),
-			);
-			console.log(dim(`\n${data.length} subscription(s) total`));
-		} catch (err) {
-			handleApiError(err, "list subscriptions");
-		}
-	});
+		});
 
-	commonOptions(
-		subscriptions
-			.command("get <idOrName>")
-			.description("Show subscription details")
-			.option("--json", "Output as JSON"),
-	).action(async (idOrName: string, options: CommonOptions) => {
-		try {
-			const client = await getSubscriptionClient(options);
-			const { detail } = await resolveSubscriptionRef(client, idOrName);
-			if (options.json) printJson(detail);
-			else printSubscriptionDetail(detail);
-		} catch (err) {
-			handleApiError(err, "get subscription");
-		}
-	});
-
-	commonOptions(
-		subscriptions
-			.command("update <idOrName>")
-			.description("Update subscription config")
-			.option("--name <name>", "Rename subscription")
-			.option("--url <url>", "Webhook URL")
-			.option("--auth-token <token>", "Set bearer token auth config")
-			.option(
-				"--format <format>",
-				"standard-webhooks | inngest | trigger | cloudflare | cloudevents | raw",
-			)
-			.option(
-				"--runtime <runtime>",
-				"inngest | trigger | cloudflare | node | none",
-			)
-			.option(
-				"--filter <kv...>",
-				"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",
-			)
-			.option("--clear-filter", "Replace filter with {}")
-			.option("--max-retries <n>", "Maximum delivery retries")
-			.option("--timeout-ms <n>", "Delivery timeout in milliseconds")
-			.option("--concurrency <n>", "Per-subscription delivery concurrency")
-			.option("--json", "Output as JSON")
-			.addHelpText(
-				"after",
-				`
+	subscriptions
+		.command("update <idOrName>")
+		.description("Update subscription config")
+		.option("--name <name>", "Rename subscription")
+		.option("--url <url>", "Webhook URL")
+		.option("--auth-token <token>", "Set bearer token auth config")
+		.option(
+			"--format <format>",
+			"standard-webhooks | inngest | trigger | cloudflare | cloudevents | raw",
+		)
+		.option(
+			"--runtime <runtime>",
+			"inngest | trigger | cloudflare | node | none",
+		)
+		.option(
+			"--filter <kv...>",
+			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",
+		)
+		.option("--clear-filter", "Replace filter with {}")
+		.option("--max-retries <n>", "Maximum delivery retries")
+		.option("--timeout-ms <n>", "Delivery timeout in milliseconds")
+		.option("--concurrency <n>", "Per-subscription delivery concurrency")
+		.option("--json", "Output as JSON")
+		.addHelpText(
+			"after",
+			`
 Examples:
   $ sl subscriptions update my-sub --url https://example.com/hook
   $ sl subscriptions update my-sub --filter amount.gte=1000 --max-retries 5
   $ sl subscriptions update my-sub --clear-filter`,
-			),
-	).action(async (idOrName: string, options: UpdateOptions) => {
-		try {
-			const client = await getSubscriptionClient(options);
-			const patch = buildUpdatePatch(options);
-			const { id, detail } = await resolveSubscriptionRef(client, idOrName);
-			if (patch.filter !== undefined) {
-				await validateSubscriptionTargetFromApi(client, {
-					subgraphName: detail.subgraphName,
-					tableName: detail.tableName,
-					filter: patch.filter,
-				});
-			}
-			const updated = await client.subscriptions.update(id, patch);
-			if (options.json) printJson(updated);
-			else success(`Updated subscription ${blue(updated.name)}`);
-		} catch (err) {
-			handleApiError(err, "update subscription");
-		}
-	});
-
-	for (const action of ["pause", "resume"] as const) {
-		commonOptions(
-			subscriptions
-				.command(`${action} <idOrName>`)
-				.description(
-					`${action === "pause" ? "Pause" : "Resume"} a subscription`,
-				)
-				.option("--json", "Output as JSON"),
-		).action(async (idOrName: string, options: CommonOptions) => {
+		)
+		.action(async (idOrName: string, options: UpdateOptions) => {
 			try {
-				const client = await getSubscriptionClient(options);
-				const { id } = await resolveSubscriptionRef(client, idOrName);
-				const updated = await client.subscriptions[action](id);
+				const client = await getSubscriptionClient();
+				const patch = buildUpdatePatch(options);
+				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+				if (patch.filter !== undefined) {
+					await validateSubscriptionTargetFromApi(client, {
+						subgraphName: detail.subgraphName,
+						tableName: detail.tableName,
+						filter: patch.filter,
+					});
+				}
+				const updated = await client.subscriptions.update(id, patch);
 				if (options.json) printJson(updated);
-				else
-					success(
-						`${action === "pause" ? "Paused" : "Resumed"} ${blue(updated.name)}`,
-					);
+				else success(`Updated subscription ${blue(updated.name)}`);
 			} catch (err) {
-				handleApiError(err, `${action} subscription`);
+				handleApiError(err, "update subscription");
 			}
 		});
+
+	for (const action of ["pause", "resume"] as const) {
+		subscriptions
+			.command(`${action} <idOrName>`)
+			.description(`${action === "pause" ? "Pause" : "Resume"} a subscription`)
+			.option("--json", "Output as JSON")
+			.action(async (idOrName: string, options: CommonOptions) => {
+				try {
+					const client = await getSubscriptionClient();
+					const { id } = await resolveSubscriptionRef(client, idOrName);
+					const updated = await client.subscriptions[action](id);
+					if (options.json) printJson(updated);
+					else
+						success(
+							`${action === "pause" ? "Paused" : "Resumed"} ${blue(updated.name)}`,
+						);
+				} catch (err) {
+					handleApiError(err, `${action} subscription`);
+				}
+			});
 	}
 
-	commonOptions(
-		subscriptions
-			.command("delete <idOrName>")
-			.alias("rm")
-			.description("Delete a subscription")
-			.option("-y, --yes", "Skip confirmation")
-			.option("--json", "Output as JSON"),
-	).action(async (idOrName: string, options: CommonOptions) => {
-		try {
-			const client = await getSubscriptionClient(options);
-			let resolved: ResolvedSubscription | null = null;
+	subscriptions
+		.command("delete <idOrName>")
+		.alias("rm")
+		.description("Delete a subscription")
+		.option("-y, --yes", "Skip confirmation")
+		.option("--json", "Output as JSON")
+		.action(async (idOrName: string, options: CommonOptions) => {
 			try {
-				resolved = await resolveSubscriptionRef(client, idOrName);
-			} catch (err) {
-				const msg = err instanceof Error ? err.message : String(err);
-				const status = (err as { status?: number } | undefined)?.status;
-				if (status === 404 || /not found/i.test(msg)) {
-					// Idempotent: second delete is a no-op, not a 500.
-					if (options.json) printJson({ deleted: false, reason: "not_found" });
-					else info(`Subscription "${idOrName}" not found (already deleted?)`);
-					return;
+				const client = await getSubscriptionClient();
+				let resolved: ResolvedSubscription | null = null;
+				try {
+					resolved = await resolveSubscriptionRef(client, idOrName);
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					const status = (err as { status?: number } | undefined)?.status;
+					if (status === 404 || /not found/i.test(msg)) {
+						// Idempotent: second delete is a no-op, not a 500.
+						if (options.json)
+							printJson({ deleted: false, reason: "not_found" });
+						else
+							info(`Subscription "${idOrName}" not found (already deleted?)`);
+						return;
+					}
+					throw err;
 				}
-				throw err;
-			}
-			const { id, detail } = resolved;
-			const ok = await confirmOrExit(
-				`Delete subscription "${detail.name}"? Pending outbox rows will be removed.`,
-				options.yes,
-			);
-			if (!ok) return;
-			const res = await client.subscriptions.delete(id);
-			if (options.json) printJson(res);
-			else success(`Deleted subscription ${blue(detail.name)}`);
-		} catch (err) {
-			handleApiError(err, "delete subscription");
-		}
-	});
-
-	commonOptions(
-		subscriptions
-			.command("rotate-secret <idOrName>")
-			.description("Rotate the signing secret")
-			.option("-y, --yes", "Skip confirmation")
-			.option("--json", "Output as JSON"),
-	).action(async (idOrName: string, options: CommonOptions) => {
-		try {
-			const client = await getSubscriptionClient(options);
-			const { id, detail } = await resolveSubscriptionRef(client, idOrName);
-			const ok = await confirmOrExit(
-				`Rotate signing secret for "${detail.name}"? Existing receivers using the old secret will fail verification.`,
-				options.yes,
-			);
-			if (!ok) return;
-			const res = await client.subscriptions.rotateSecret(id);
-			if (options.json) printJson(res);
-			else {
-				success(`Rotated signing secret for ${blue(res.subscription.name)}`);
-				console.log(res.signingSecret);
-			}
-		} catch (err) {
-			handleApiError(err, "rotate subscription secret");
-		}
-	});
-
-	commonOptions(
-		subscriptions
-			.command("deliveries <idOrName>")
-			.description("Show recent delivery attempts")
-			.option("--json", "Output as JSON"),
-	).action(async (idOrName: string, options: CommonOptions) => {
-		try {
-			const client = await getSubscriptionClient(options);
-			const { id } = await resolveSubscriptionRef(client, idOrName);
-			const { data } = await client.subscriptions.recentDeliveries(id);
-			if (options.json) printJson(data);
-			else printDeliveries(data);
-		} catch (err) {
-			handleApiError(err, "list subscription deliveries");
-		}
-	});
-
-	commonOptions(
-		subscriptions
-			.command("dead <idOrName>")
-			.description("Show dead-letter outbox rows")
-			.option("--json", "Output as JSON"),
-	).action(async (idOrName: string, options: CommonOptions) => {
-		try {
-			const client = await getSubscriptionClient(options);
-			const { id } = await resolveSubscriptionRef(client, idOrName);
-			const { data } = await client.subscriptions.dead(id);
-			if (options.json) printJson(data);
-			else printDead(data);
-		} catch (err) {
-			handleApiError(err, "list dead-letter rows");
-		}
-	});
-
-	commonOptions(
-		subscriptions
-			.command("requeue <idOrName> <outboxId>")
-			.description("Requeue one dead-letter row")
-			.option("-y, --yes", "Skip confirmation")
-			.option("--json", "Output as JSON"),
-	).action(
-		async (idOrName: string, outboxId: string, options: CommonOptions) => {
-			try {
-				const client = await getSubscriptionClient(options);
-				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+				const { id, detail } = resolved;
 				const ok = await confirmOrExit(
-					`Requeue ${outboxId} for "${detail.name}"?`,
+					`Delete subscription "${detail.name}"? Pending outbox rows will be removed.`,
 					options.yes,
 				);
 				if (!ok) return;
-				const res = await client.subscriptions.requeueDead(id, outboxId);
+				const res = await client.subscriptions.delete(id);
 				if (options.json) printJson(res);
-				else success(`Requeued ${blue(outboxId)}`);
+				else success(`Deleted subscription ${blue(detail.name)}`);
 			} catch (err) {
-				handleApiError(err, "requeue dead-letter row");
+				handleApiError(err, "delete subscription");
 			}
-		},
-	);
+		});
 
-	commonOptions(
-		subscriptions
-			.command("replay <idOrName>")
-			.description("Replay a block range")
-			.requiredOption("--from-block <n>", "Start block height")
-			.requiredOption("--to-block <n>", "End block height")
-			.option("-y, --yes", "Skip confirmation")
-			.option("--json", "Output as JSON")
-			.addHelpText(
-				"after",
-				`
-Examples:
-  $ sl subscriptions replay my-sub --from-block 150000 --to-block 160000 -y`,
-			),
-	).action(
-		async (
-			idOrName: string,
-			options: CommonOptions & { fromBlock?: string; toBlock?: string },
-		) => {
+	subscriptions
+		.command("rotate-secret <idOrName>")
+		.description("Rotate the signing secret")
+		.option("-y, --yes", "Skip confirmation")
+		.option("--json", "Output as JSON")
+		.action(async (idOrName: string, options: CommonOptions) => {
 			try {
-				const fromBlock = requireIntegerOption(
-					options.fromBlock,
-					"--from-block",
-				);
-				const toBlock = requireIntegerOption(options.toBlock, "--to-block");
-				if (fromBlock > toBlock) {
-					throw new Error("--from-block must be <= --to-block");
-				}
-				const client = await getSubscriptionClient(options);
+				const client = await getSubscriptionClient();
 				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
 				const ok = await confirmOrExit(
-					`Replay ${detail.name} from block ${fromBlock} to ${toBlock}?`,
+					`Rotate signing secret for "${detail.name}"? Existing receivers using the old secret will fail verification.`,
 					options.yes,
 				);
 				if (!ok) return;
-				const res = await client.subscriptions.replay(id, {
-					fromBlock,
-					toBlock,
-				});
+				const res = await client.subscriptions.rotateSecret(id);
 				if (options.json) printJson(res);
 				else {
-					success(`Replay enqueued: ${blue(res.replayId)}`);
-					info(
-						`${res.enqueuedCount} row(s) enqueued from ${res.scannedCount} scanned`,
-					);
+					success(`Rotated signing secret for ${blue(res.subscription.name)}`);
+					console.log(res.signingSecret);
 				}
 			} catch (err) {
-				handleApiError(err, "replay subscription");
+				handleApiError(err, "rotate subscription secret");
 			}
-		},
-	);
+		});
 
-	commonOptions(
-		subscriptions
-			.command("doctor <idOrName>")
-			.description("Diagnose subscription health and next steps")
-			.option("--json", "Output as JSON"),
-	).action(async (idOrName: string, options: CommonOptions) => {
-		try {
-			const client = await getSubscriptionClient(options);
-			const { id, detail } = await resolveSubscriptionRef(client, idOrName);
-			const [deliveries, dead, subgraph] = await Promise.allSettled([
-				client.subscriptions.recentDeliveries(id),
-				client.subscriptions.dead(id),
-				client.subgraphs.get(detail.subgraphName),
-			]);
-			const report = buildDoctorReport({
-				subscription: detail,
-				deliveries:
-					deliveries.status === "fulfilled" ? deliveries.value.data : [],
-				dead: dead.status === "fulfilled" ? dead.value.data : [],
-				subgraph: subgraph.status === "fulfilled" ? subgraph.value : null,
-			});
-			if (options.json) printJson(report);
-			else printDoctorReport(report);
-		} catch (err) {
-			handleApiError(err, "diagnose subscription");
-		}
-	});
+	subscriptions
+		.command("deliveries <idOrName>")
+		.description("Show recent delivery attempts")
+		.option("--json", "Output as JSON")
+		.action(async (idOrName: string, options: CommonOptions) => {
+			try {
+				const client = await getSubscriptionClient();
+				const { id } = await resolveSubscriptionRef(client, idOrName);
+				const { data } = await client.subscriptions.recentDeliveries(id);
+				if (options.json) printJson(data);
+				else printDeliveries(data);
+			} catch (err) {
+				handleApiError(err, "list subscription deliveries");
+			}
+		});
 
-	commonOptions(
-		subscriptions
-			.command("test <idOrName>")
-			.description(
-				"Build and optionally POST a signed Standard Webhooks fixture",
-			)
-			.option("--signing-secret <secret>", "Signing secret override")
-			.option("--post", "POST the fixture to the subscription URL")
-			.option("--json", "Output as JSON"),
-	).action(async (idOrName: string, options: TestOptions) => {
-		try {
-			const signingSecret = resolveSigningSecret(options);
-			const client = await getSubscriptionClient(options);
-			const { detail } = await resolveSubscriptionRef(client, idOrName);
-			const subgraph = await client.subgraphs
-				.get(detail.subgraphName)
-				.catch(() => null);
-			const row = await representativeRow(client, detail, subgraph);
-			const fixture = buildSubscriptionTestFixture({
-				subscription: detail,
-				row,
-				signingSecret,
-			});
-			let postResult: { status: number; body: string } | null = null;
-			if (options.post) {
-				const res = await fetch(detail.url, {
-					method: "POST",
-					headers: fixture.headers,
-					body: fixture.body,
+	subscriptions
+		.command("dead <idOrName>")
+		.description("Show dead-letter outbox rows")
+		.option("--json", "Output as JSON")
+		.action(async (idOrName: string, options: CommonOptions) => {
+			try {
+				const client = await getSubscriptionClient();
+				const { id } = await resolveSubscriptionRef(client, idOrName);
+				const { data } = await client.subscriptions.dead(id);
+				if (options.json) printJson(data);
+				else printDead(data);
+			} catch (err) {
+				handleApiError(err, "list dead-letter rows");
+			}
+		});
+
+	subscriptions
+		.command("requeue <idOrName> <outboxId>")
+		.description("Requeue one dead-letter row")
+		.option("-y, --yes", "Skip confirmation")
+		.option("--json", "Output as JSON")
+		.action(
+			async (idOrName: string, outboxId: string, options: CommonOptions) => {
+				try {
+					const client = await getSubscriptionClient();
+					const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+					const ok = await confirmOrExit(
+						`Requeue ${outboxId} for "${detail.name}"?`,
+						options.yes,
+					);
+					if (!ok) return;
+					const res = await client.subscriptions.requeueDead(id, outboxId);
+					if (options.json) printJson(res);
+					else success(`Requeued ${blue(outboxId)}`);
+				} catch (err) {
+					handleApiError(err, "requeue dead-letter row");
+				}
+			},
+		);
+
+	subscriptions
+		.command("replay <idOrName>")
+		.description("Replay a block range")
+		.requiredOption("--from-block <n>", "Start block height")
+		.requiredOption("--to-block <n>", "End block height")
+		.option("-y, --yes", "Skip confirmation")
+		.option("--json", "Output as JSON")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl subscriptions replay my-sub --from-block 150000 --to-block 160000 -y`,
+		)
+		.action(
+			async (
+				idOrName: string,
+				options: CommonOptions & { fromBlock?: string; toBlock?: string },
+			) => {
+				try {
+					const fromBlock = requireIntegerOption(
+						options.fromBlock,
+						"--from-block",
+					);
+					const toBlock = requireIntegerOption(options.toBlock, "--to-block");
+					if (fromBlock > toBlock) {
+						throw new Error("--from-block must be <= --to-block");
+					}
+					const client = await getSubscriptionClient();
+					const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+					const ok = await confirmOrExit(
+						`Replay ${detail.name} from block ${fromBlock} to ${toBlock}?`,
+						options.yes,
+					);
+					if (!ok) return;
+					const res = await client.subscriptions.replay(id, {
+						fromBlock,
+						toBlock,
+					});
+					if (options.json) printJson(res);
+					else {
+						success(`Replay enqueued: ${blue(res.replayId)}`);
+						info(
+							`${res.enqueuedCount} row(s) enqueued from ${res.scannedCount} scanned`,
+						);
+					}
+				} catch (err) {
+					handleApiError(err, "replay subscription");
+				}
+			},
+		);
+
+	subscriptions
+		.command("doctor <idOrName>")
+		.description("Diagnose subscription health and next steps")
+		.option("--json", "Output as JSON")
+		.action(async (idOrName: string, options: CommonOptions) => {
+			try {
+				const client = await getSubscriptionClient();
+				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+				const [deliveries, dead, subgraph] = await Promise.allSettled([
+					client.subscriptions.recentDeliveries(id),
+					client.subscriptions.dead(id),
+					client.subgraphs.get(detail.subgraphName),
+				]);
+				const report = buildDoctorReport({
+					subscription: detail,
+					deliveries:
+						deliveries.status === "fulfilled" ? deliveries.value.data : [],
+					dead: dead.status === "fulfilled" ? dead.value.data : [],
+					subgraph: subgraph.status === "fulfilled" ? subgraph.value : null,
 				});
-				postResult = {
-					status: res.status,
-					body: (await res.text()).slice(0, 2000),
-				};
+				if (options.json) printJson(report);
+				else printDoctorReport(report);
+			} catch (err) {
+				handleApiError(err, "diagnose subscription");
 			}
-			if (options.json) {
-				printJson({ ...fixture, postResult });
-				return;
+		});
+
+	subscriptions
+		.command("test <idOrName>")
+		.description("Build and optionally POST a signed Standard Webhooks fixture")
+		.option("--signing-secret <secret>", "Signing secret override")
+		.option("--post", "POST the fixture to the subscription URL")
+		.option("--json", "Output as JSON")
+		.action(async (idOrName: string, options: TestOptions) => {
+			try {
+				const signingSecret = resolveSigningSecret(options);
+				const client = await getSubscriptionClient();
+				const { detail } = await resolveSubscriptionRef(client, idOrName);
+				const subgraph = await client.subgraphs
+					.get(detail.subgraphName)
+					.catch(() => null);
+				const row = await representativeRow(client, detail, subgraph);
+				const fixture = buildSubscriptionTestFixture({
+					subscription: detail,
+					row,
+					signingSecret,
+				});
+				let postResult: { status: number; body: string } | null = null;
+				if (options.post) {
+					const res = await fetch(detail.url, {
+						method: "POST",
+						headers: fixture.headers,
+						body: fixture.body,
+					});
+					postResult = {
+						status: res.status,
+						body: (await res.text()).slice(0, 2000),
+					};
+				}
+				if (options.json) {
+					printJson({ ...fixture, postResult });
+					return;
+				}
+				console.log(dim("Body:"));
+				console.log(fixture.body);
+				console.log(dim("\nHeaders:"));
+				console.log(JSON.stringify(fixture.headers, null, 2));
+				console.log(dim("\nCurl:"));
+				console.log(fixture.curl);
+				if (postResult) {
+					console.log(dim("\nPOST result:"));
+					console.log(`Status: ${postResult.status}`);
+					if (postResult.body) console.log(postResult.body);
+				}
+			} catch (err) {
+				handleApiError(err, "test subscription");
 			}
-			console.log(dim("Body:"));
-			console.log(fixture.body);
-			console.log(dim("\nHeaders:"));
-			console.log(JSON.stringify(fixture.headers, null, 2));
-			console.log(dim("\nCurl:"));
-			console.log(fixture.curl);
-			if (postResult) {
-				console.log(dim("\nPOST result:"));
-				console.log(`Status: ${postResult.status}`);
-				if (postResult.body) console.log(postResult.body);
-			}
-		} catch (err) {
-			handleApiError(err, "test subscription");
-		}
-	});
+		});
 }
