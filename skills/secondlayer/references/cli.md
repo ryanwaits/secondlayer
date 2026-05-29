@@ -34,7 +34,7 @@ The `sl` binary (alias `secondlayer`) is the official CLI for Secondlayer — de
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`
 - [Create](#create) — `create subscription`
 - [Local](#local) — `local start|stop|restart|status|logs`, `local node …`
-- [Devnet](#devnet) — `devnet connect|down` (run services against a Clarinet devnet)
+- [Devnet](#devnet) — `devnet connect|down|status|logs` (run services against a Clarinet devnet)
 - [Stack](#stack) — `stack start|stop|restart`
 - [DB](#db) — `db blocks|txs|events|gaps|reset|resync`
 - [Account](#account) — `account profile`
@@ -879,6 +879,29 @@ Usage: `sl devnet down`
 | --- | --- | --- |
 | `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory. |
 | `--purge` | false | Also remove volumes (wipes the local index — use when restarting the devnet from scratch). |
+
+### sl devnet status
+
+Snapshot of the local stack: service health, ingest tip/lag, deployed subgraphs (status, block, tables, row counts), and a recent-activity table built from the subgraph rows. Node-native; reads `SL_API_URL` (default `http://localhost:3800`) and `INDEXER_URL` (default `http://localhost:3700`).
+
+Usage: `sl devnet status`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-w, --watch` | false | Refresh every 2s until Ctrl-C. |
+| `-n, --limit <n>` | `12` | Recent activity rows to show. |
+
+### sl devnet logs
+
+Tail the stack's container logs.
+
+Usage: `sl devnet logs [service]` — `service` is optional, one of `indexer`, `api`, `subgraph-processor`, `postgres`.
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory. |
+| `-f, --follow` | false | Follow log output. |
+| `-n, --tail <n>` | `200` | Lines to show from the end of each log. |
 
 ---
 
