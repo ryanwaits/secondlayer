@@ -31,6 +31,45 @@ import {
 const DEV_SERVICES = ["api", "indexer", "worker", "subgraphs"] as const;
 type DevService = (typeof DEV_SERVICES)[number];
 
+// Shared option shape + delegation for the full-stack lifecycle (up/down/restart).
+// `--no-node`/`--no-dev` map to commander's inverse booleans (default true).
+interface StackLifecycleOptions {
+	devnet?: boolean;
+	node: boolean;
+	dev: boolean;
+	wait?: boolean;
+	project?: string;
+	imageTag?: string;
+	owner?: string;
+	up?: boolean;
+	purge?: boolean;
+}
+
+async function startStack(options: StackLifecycleOptions): Promise<void> {
+	if (options.devnet) {
+		await devnetConnect({
+			project: options.project,
+			imageTag: options.imageTag ?? DEFAULT_IMAGE_TAG,
+			owner: options.owner,
+			up: options.up ?? true,
+		});
+	} else {
+		await stackStart({ node: options.node, dev: options.dev });
+	}
+}
+
+async function stopStack(options: StackLifecycleOptions): Promise<void> {
+	if (options.devnet) {
+		await devnetDown({ project: options.project, purge: options.purge });
+	} else {
+		await stackStop({
+			node: options.node,
+			dev: options.dev,
+			wait: options.wait,
+		});
+	}
+}
+
 export function registerLocalCommand(program: Command): void {
 	const local = program
 		.command("local")
@@ -78,17 +117,8 @@ export function registerLocalCommand(program: Command): void {
 			await stopDev();
 		});
 
-	// Restart subcommand
-	local
-		.command("restart")
-		.description("Restart dev services (preserves docker containers)")
-		.action(async () => {
-			const { restartDev } = await import("./dev-impl.ts");
-			await restartDev();
-		});
-
-	// Up / down — full local stack (Stacks node + dev services), or a Clarinet
-	// devnet with --devnet. Delegates to the stack/devnet orchestrators.
+	// Up / down / restart — full local stack (Stacks node + dev services), or a
+	// Clarinet devnet with --devnet. Delegates to the stack/devnet orchestrators.
 	local
 		.command("up")
 		.description("Start the full local stack (Stacks node + dev services)")
@@ -102,28 +132,7 @@ export function registerLocalCommand(program: Command): void {
 			"--no-up",
 			"[--devnet] Patch config + write compose without starting",
 		)
-		.action(
-			async (options: {
-				devnet?: boolean;
-				node: boolean;
-				dev: boolean;
-				project?: string;
-				imageTag?: string;
-				owner?: string;
-				up: boolean;
-			}) => {
-				if (options.devnet) {
-					await devnetConnect({
-						project: options.project,
-						imageTag: options.imageTag ?? DEFAULT_IMAGE_TAG,
-						owner: options.owner,
-						up: options.up,
-					});
-				} else {
-					await stackStart({ node: options.node, dev: options.dev });
-				}
-			},
-		);
+		.action((options: StackLifecycleOptions) => startStack(options));
 
 	local
 		.command("down")
@@ -134,26 +143,31 @@ export function registerLocalCommand(program: Command): void {
 		.option("--wait", "Wait for in-flight work to drain before stopping")
 		.option("--project <dir>", "[--devnet] Clarinet project directory")
 		.option("--purge", "[--devnet] Also remove volumes (wipes the local index)")
-		.action(
-			async (options: {
-				devnet?: boolean;
-				node: boolean;
-				dev: boolean;
-				wait?: boolean;
-				project?: string;
-				purge?: boolean;
-			}) => {
-				if (options.devnet) {
-					await devnetDown({ project: options.project, purge: options.purge });
-				} else {
-					await stackStop({
-						node: options.node,
-						dev: options.dev,
-						wait: options.wait,
-					});
-				}
-			},
-		);
+		.action((options: StackLifecycleOptions) => stopStack(options));
+
+	// Restart = stop then start. `--no-node` restarts just the dev services;
+	// `--devnet` restarts the Clarinet devnet.
+	local
+		.command("restart")
+		.description("Restart the full local stack (stop then start)")
+		.option("--devnet", "Restart a local Clarinet devnet instead")
+		.option("--no-node", "Skip the Stacks node (restart dev services only)")
+		.option("--no-dev", "Skip dev services")
+		.option("--wait", "Wait for in-flight work to drain before stopping")
+		.option("--project <dir>", "[--devnet] Clarinet project directory")
+		.option("--image-tag <tag>", "[--devnet] Published image tag to run")
+		.option("--owner <owner>", "[--devnet] ghcr image owner to pull from")
+		.action(async (options: StackLifecycleOptions) => {
+			// Dev-services-only restart uses the in-place fast path that preserves
+			// docker containers, rather than a full stop/start cycle.
+			if (options.node === false && !options.devnet) {
+				const { restartDev } = await import("./dev-impl.ts");
+				await restartDev();
+				return;
+			}
+			await stopStack(options);
+			await startStack(options);
+		});
 
 	// Status subcommand
 	local
