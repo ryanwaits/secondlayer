@@ -6,6 +6,7 @@ import {
 	dim,
 	formatKeyValue,
 	green,
+	output,
 	red,
 	yellow,
 } from "../lib/output.ts";
@@ -21,12 +22,11 @@ export function registerStatusCommand(program: Command): void {
 			try {
 				const status = await httpPlatform<Record<string, unknown>>("/status");
 
-				if (options.json) {
-					console.log(JSON.stringify(status, null, 2));
-					return;
-				}
-
-				printStatus(status);
+				output({
+					json: options.json,
+					data: status,
+					human: () => printStatus(status),
+				});
 			} catch (err) {
 				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
 					console.error("Not logged in. Run: sl login");

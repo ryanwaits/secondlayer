@@ -1,6 +1,6 @@
 import { CURSOR_SLUGS, Datasets } from "@secondlayer/sdk";
 import type { Command } from "commander";
-import { info, error as logError } from "../lib/output.ts";
+import { error as logError, note, output, writeData } from "../lib/output.ts";
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
@@ -33,7 +33,7 @@ export function registerDatasetsCommand(program: Command): void {
 		.action(async () => {
 			try {
 				const catalog = await client().listDatasets();
-				process.stdout.write(`${JSON.stringify(catalog, null, 2)}\n`);
+				writeData(JSON.stringify(catalog, null, 2));
 			} catch (err) {
 				logError(`Failed to list datasets: ${err}`);
 				process.exit(1);
@@ -68,14 +68,14 @@ export function registerDatasetsCommand(program: Command): void {
 					if (options.cursor) params.cursor = options.cursor;
 
 					const env = await client().query(dataset, params);
-					if (options.json) {
-						process.stdout.write(`${JSON.stringify(env, null, 2)}\n`);
-					} else {
-						process.stdout.write(`${JSON.stringify(env.rows, null, 2)}\n`);
-						if (env.next_cursor) {
-							info(`next_cursor: ${env.next_cursor}`);
-						}
-					}
+					output({
+						json: options.json,
+						data: env,
+						human: () => {
+							writeData(JSON.stringify(env.rows, null, 2));
+							if (env.next_cursor) note(`next_cursor: ${env.next_cursor}`);
+						},
+					});
 				} catch (err) {
 					logError(`Failed to query dataset: ${err}`);
 					process.exit(1);

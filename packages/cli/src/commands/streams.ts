@@ -7,7 +7,7 @@ import type {
 	StreamsTip,
 } from "@secondlayer/sdk";
 import type { Command } from "commander";
-import { dim, info, error as logError } from "../lib/output.ts";
+import { error as logError, note, writeData } from "../lib/output.ts";
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
@@ -90,7 +90,7 @@ export function registerStreamsCommand(program: Command): void {
 		.action(async () => {
 			try {
 				const tip: StreamsTip = await client().tip();
-				process.stdout.write(`${JSON.stringify(tip, null, 2)}\n`);
+				writeData(JSON.stringify(tip, null, 2));
 			} catch (err) {
 				logError(err instanceof Error ? err.message : String(err));
 				process.exit(1);
@@ -127,7 +127,7 @@ export function registerStreamsCommand(program: Command): void {
 						toHeight: parseHeight(options.toHeight, "--to-height"),
 						limit: parseLimit(options.limit),
 					});
-					process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+					writeData(JSON.stringify(envelope, null, 2));
 				} catch (err) {
 					logError(err instanceof Error ? err.message : String(err));
 					process.exit(1);
@@ -162,10 +162,8 @@ export function registerStreamsCommand(program: Command): void {
 					const maxPages = options.maxPages
 						? Number.parseInt(options.maxPages, 10)
 						: undefined;
-					info(
-						dim(
-							"# streaming events to stdout (jsonl); next_cursor printed to stderr",
-						),
+					note(
+						"# streaming events to stdout (jsonl); next_cursor printed to stderr",
 					);
 					await client().events.consume({
 						fromCursor: options.cursor,
@@ -205,7 +203,7 @@ export function registerStreamsCommand(program: Command): void {
 					since: options.since,
 					limit: parseLimit(options.limit),
 				});
-				process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+				writeData(JSON.stringify(envelope, null, 2));
 			} catch (err) {
 				logError(err instanceof Error ? err.message : String(err));
 				process.exit(1);
@@ -220,7 +218,7 @@ export function registerStreamsCommand(program: Command): void {
 				const height = parseHeight(heightArg, "<height>");
 				if (height === undefined) throw new Error("<height> is required");
 				const block: StreamsCanonicalBlock = await client().canonical(height);
-				process.stdout.write(`${JSON.stringify(block, null, 2)}\n`);
+				writeData(JSON.stringify(block, null, 2));
 			} catch (err) {
 				logError(err instanceof Error ? err.message : String(err));
 				process.exit(1);

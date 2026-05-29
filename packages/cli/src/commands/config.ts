@@ -11,7 +11,16 @@ import {
 	setConfigValue,
 } from "../lib/config.ts";
 import { detectStacksNodes } from "../lib/detect.ts";
-import { blue, dim, error, green, success, warn } from "../lib/output.ts";
+import {
+	blue,
+	dim,
+	error,
+	green,
+	note,
+	success,
+	warn,
+	writeData,
+} from "../lib/output.ts";
 
 export function registerConfigCommand(program: Command): void {
 	const config = program
@@ -21,10 +30,15 @@ export function registerConfigCommand(program: Command): void {
 	config
 		.command("show")
 		.description("Show current configuration")
-		.action(async () => {
+		.option("--json", "Output as JSON")
+		.action(async (options: { json?: boolean }) => {
 			try {
 				const cfg = await loadConfig();
-				console.log(dim(`Config file: ${getConfigPath()}`));
+				if (options.json) {
+					writeData(JSON.stringify(cfg, null, 2));
+					return;
+				}
+				note(`Config file: ${getConfigPath()}`);
 				console.log("");
 				await printConfigTree(cfg);
 			} catch (err) {
@@ -69,7 +83,10 @@ export function registerConfigCommand(program: Command): void {
 		.option("-y, --yes", "Skip confirmation")
 		.action(async (opts: { yes?: boolean }) => {
 			try {
-				if (!opts.yes && !(await confirmDestructive("Reset configuration to defaults?"))) {
+				if (
+					!opts.yes &&
+					!(await confirmDestructive("Reset configuration to defaults?"))
+				) {
 					return;
 				}
 				await resetConfig();
@@ -86,7 +103,10 @@ export function registerConfigCommand(program: Command): void {
 		.option("-y, --yes", "Skip confirmation")
 		.action(async (opts: { yes?: boolean }) => {
 			try {
-				if (!opts.yes && !(await confirmDestructive("Delete the config file?"))) {
+				if (
+					!opts.yes &&
+					!(await confirmDestructive("Delete the config file?"))
+				) {
 					return;
 				}
 				await clearConfig();
@@ -100,7 +120,9 @@ export function registerConfigCommand(program: Command): void {
 
 async function confirmDestructive(message: string): Promise<boolean> {
 	if (!process.stdin.isTTY) {
-		error("Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.");
+		error(
+			"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
+		);
 		process.exit(1);
 	}
 	const { confirm } = await import("@inquirer/prompts");
@@ -109,9 +131,12 @@ async function confirmDestructive(message: string): Promise<boolean> {
 		if (!ok) console.log("Cancelled.");
 		return ok;
 	} catch (promptErr) {
-		const m = promptErr instanceof Error ? promptErr.message : String(promptErr);
+		const m =
+			promptErr instanceof Error ? promptErr.message : String(promptErr);
 		if (m.includes("ExitPromptError") || m.includes("force closed")) {
-			error("Interactive prompt unavailable. Re-run with -y to skip confirmation.");
+			error(
+				"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
+			);
 			process.exit(1);
 		}
 		throw promptErr;
