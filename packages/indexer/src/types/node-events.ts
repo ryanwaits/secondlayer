@@ -298,12 +298,30 @@ export interface NewBlockPayload {
 	matured_miner_rewards?: MaturedMinerReward[];
 }
 
-// New burn block payload
+// A single PoX reward payout in a burn block — one per reward slot (≤2/block).
+// `amt` is in satoshis. Populated during a reward cycle's reward phase only;
+// empty during the prepare phase (where miner BTC is burned, see `burn_amount`).
+export interface BurnBlockRewardRecipient {
+	recipient: string;
+	amt: number;
+}
+
+// New burn block payload — the stacks-node event observer POST to /new_burn_block.
+// Field shape verified against a live prod payload (mainnet burn block 951475).
 export interface NewBurnBlockPayload {
 	burn_block_hash: string;
 	burn_block_height: number;
-	burn_block_timestamp: number;
-	stacks_blocks: string[];
+	consensus_hash: string;
+	parent_burn_block_hash: string;
+	// Total sats burned this block (nonzero in prepare phase; ~0 in reward phase).
+	burn_amount: number;
+	// Actual BTC payouts this block (reward phase); empty in prepare phase.
+	reward_recipients: BurnBlockRewardRecipient[];
+	// Reward-set membership for this block — BTC addresses eligible for payouts.
+	reward_slot_holders: string[];
+	// Present but unused in v1; shape not modeled.
+	pox_transactions?: unknown[];
+	burn_block_timestamp?: number;
 }
 
 // Mempool transaction payloads (no-op for v1)

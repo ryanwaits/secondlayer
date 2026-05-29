@@ -40,6 +40,7 @@ import {
 	stxTransfersPublisherState,
 } from "./datasets/stx-transfers/scheduler.ts";
 import { integrityState, startIntegrityLoop } from "./integrity.ts";
+import { persistBurnBlockRewards } from "./l2/burn-rewards-storage.ts";
 import {
 	parseBlock,
 	parseEvent,
@@ -413,14 +414,19 @@ const server = Bun.serve({
 			},
 		},
 
-		// New burn block event (log only)
+		// New burn block event — persists PoX reward payouts + reward-set
+		// membership (the burnchain dataset). Replace-per-height write is
+		// idempotent on redelivery and shallow burnchain reorgs.
 		"/new_burn_block": {
 			POST: async (req) => {
 				try {
 					const payload = (await req.json()) as NewBurnBlockPayload;
+					const { rewards, slots } = await persistBurnBlockRewards(payload);
 					logger.debug("Received new burn block", {
 						height: payload.burn_block_height,
 						hash: payload.burn_block_hash,
+						rewards,
+						slots,
 					});
 					return Response.json({ status: "ok" });
 				} catch (error) {
