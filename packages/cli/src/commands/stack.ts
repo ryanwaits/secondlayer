@@ -27,15 +27,12 @@ export function registerStackCommand(program: Command): void {
 		.description("Start the full stack (node + dev services)")
 		.option("--no-node", "Skip starting the Stacks node")
 		.option("--no-dev", "Skip starting dev services")
-		.option("--network <network>", "Override network (mainnet|testnet)")
 		.hook("preAction", async () => {
 			await requireLocalNetwork();
 		})
-		.action(
-			async (options: { node: boolean; dev: boolean; network?: string }) => {
-				await stackStart(options);
-			},
-		);
+		.action(async (options: { node: boolean; dev: boolean }) => {
+			await stackStart(options);
+		});
 
 	stack
 		.command("stop")
@@ -69,7 +66,6 @@ export function registerStackCommand(program: Command): void {
 async function stackStart(options: {
 	node: boolean;
 	dev: boolean;
-	network?: string;
 }): Promise<void> {
 	const config = await loadConfig();
 
@@ -84,7 +80,8 @@ async function stackStart(options: {
 		throw err;
 	}
 
-	const network = options.network ?? config.node?.network ?? "mainnet";
+	const network =
+		process.env.STACKS_NETWORK ?? config.node?.network ?? "mainnet";
 
 	// Validate network consistency
 	const validation = await validateNetworkConsistency(config);

@@ -32,12 +32,18 @@ program
 	)
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)")
+	.option("--api-key <key>", "API credential (overrides SL_API_KEY)")
+	.option("--api-url <url>", "API endpoint (overrides SL_API_URL)")
 	.showSuggestionAfterError(true)
 	.showHelpAfterError("(run `sl --help` to see available commands)");
 
+// Funnel global flags into the env vars the auth/network layers already read,
+// so a flag transparently takes precedence over its env var for every command.
 program.hook("preAction", (thisCommand) => {
-	const net = thisCommand.opts().network;
-	if (net) process.env.STACKS_NETWORK = net;
+	const { network, apiKey, apiUrl } = thisCommand.opts();
+	if (network) process.env.STACKS_NETWORK = network;
+	if (apiKey) process.env.SL_API_KEY = apiKey;
+	if (apiUrl) process.env.SL_API_URL = apiUrl;
 });
 
 program.addHelpText(
