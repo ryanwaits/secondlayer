@@ -1,27 +1,14 @@
 import { SecondLayer } from "@secondlayer/sdk";
 
 let instance: SecondLayer | null = null;
-let legacyEnvWarned = false;
 
 /**
- * Read the API key from env. `SL_API_KEY` is canonical (matches the CLI and
- * SDK); `SL_SERVICE_KEY` and `SECONDLAYER_API_KEY` are accepted as deprecated
- * aliases and log once per process so users notice without breaking their setup.
+ * Read the API key from env. `SL_API_KEY` is the single credential var, matching
+ * the CLI and SDK. (The former `SL_SERVICE_KEY` / `SECONDLAYER_API_KEY` aliases
+ * were removed.)
  */
 function readApiKey(): string | undefined {
-	const canonical = process.env.SL_API_KEY;
-	if (canonical) return canonical;
-	const legacy = process.env.SL_SERVICE_KEY ?? process.env.SECONDLAYER_API_KEY;
-	if (legacy) {
-		if (!legacyEnvWarned) {
-			legacyEnvWarned = true;
-			console.error(
-				"[mcp] SL_SERVICE_KEY / SECONDLAYER_API_KEY are deprecated — use SL_API_KEY going forward.",
-			);
-		}
-		return legacy;
-	}
-	return undefined;
+	return process.env.SL_API_KEY;
 }
 
 /**

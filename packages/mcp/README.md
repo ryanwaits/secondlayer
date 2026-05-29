@@ -43,7 +43,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SL_API_KEY` | Writes only | — | An `sk-sl_` API key from the platform console (https://secondlayer.tools/platform/api-keys). Required for write/account tools; reads are public. `SL_SERVICE_KEY` and `SECONDLAYER_API_KEY` are accepted as deprecated aliases. |
+| `SL_API_KEY` | Writes only | — | An `sk-sl_` API key from the platform console (https://secondlayer.tools/platform/api-keys). Required for write/account tools; reads are public. |
 | `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base API URL. Point at a local instance for dev. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
