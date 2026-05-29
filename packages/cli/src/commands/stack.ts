@@ -63,7 +63,7 @@ export function registerStackCommand(program: Command): void {
 		});
 }
 
-async function stackStart(options: {
+export async function stackStart(options: {
 	node: boolean;
 	dev: boolean;
 }): Promise<void> {
@@ -183,7 +183,7 @@ async function stackStart(options: {
 	console.log("");
 }
 
-async function stackStop(options: {
+export async function stackStop(options: {
 	node: boolean;
 	dev: boolean;
 	wait?: boolean;

@@ -37,14 +37,14 @@ function dockerCompose(composePath: string, args: string[]): number {
 	return res.status ?? 1;
 }
 
-interface ConnectOptions {
+export interface ConnectOptions {
 	project?: string;
 	imageTag: string;
 	owner?: string;
 	up: boolean;
 }
 
-interface DownOptions {
+export interface DownOptions {
 	project?: string;
 	purge?: boolean;
 }
@@ -153,7 +153,7 @@ function resolveProject(explicit?: string): string {
 	return found;
 }
 
-async function connect(options: ConnectOptions): Promise<void> {
+export async function connect(options: ConnectOptions): Promise<void> {
 	const project = resolveProject(options.project);
 
 	// 1. Patch settings/Devnet.toml so the devnet node forwards events to us.
@@ -219,7 +219,7 @@ async function connect(options: ConnectOptions): Promise<void> {
 	console.log(dim("\nStop with: sl devnet down"));
 }
 
-async function down(options: DownOptions): Promise<void> {
+export async function down(options: DownOptions): Promise<void> {
 	const project = resolveProject(options.project);
 	const composePath = join(project, COMPOSE_REL);
 	if (!existsSync(composePath)) {

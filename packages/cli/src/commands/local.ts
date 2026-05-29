@@ -1,6 +1,9 @@
 import type { Command } from "commander";
 import { requireLocalNetwork } from "../lib/config.ts";
+import { DEFAULT_IMAGE_TAG } from "../lib/devnet-compose.ts";
 import { addDbCommand } from "./db.ts";
+import { connect as devnetConnect, down as devnetDown } from "./devnet.ts";
+import { stackStart, stackStop } from "./stack.ts";
 
 // Dev service imports
 import { loadDevState } from "../lib/dev-state.ts";
@@ -83,6 +86,74 @@ export function registerLocalCommand(program: Command): void {
 			const { restartDev } = await import("./dev-impl.ts");
 			await restartDev();
 		});
+
+	// Up / down — full local stack (Stacks node + dev services), or a Clarinet
+	// devnet with --devnet. Delegates to the stack/devnet orchestrators.
+	local
+		.command("up")
+		.description("Start the full local stack (Stacks node + dev services)")
+		.option("--devnet", "Run against a local Clarinet devnet instead")
+		.option("--no-node", "Skip starting the Stacks node")
+		.option("--no-dev", "Skip starting dev services")
+		.option("--project <dir>", "[--devnet] Clarinet project directory")
+		.option("--image-tag <tag>", "[--devnet] Published image tag to run")
+		.option("--owner <owner>", "[--devnet] ghcr image owner to pull from")
+		.option(
+			"--no-up",
+			"[--devnet] Patch config + write compose without starting",
+		)
+		.action(
+			async (options: {
+				devnet?: boolean;
+				node: boolean;
+				dev: boolean;
+				project?: string;
+				imageTag?: string;
+				owner?: string;
+				up: boolean;
+			}) => {
+				if (options.devnet) {
+					await devnetConnect({
+						project: options.project,
+						imageTag: options.imageTag ?? DEFAULT_IMAGE_TAG,
+						owner: options.owner,
+						up: options.up,
+					});
+				} else {
+					await stackStart({ node: options.node, dev: options.dev });
+				}
+			},
+		);
+
+	local
+		.command("down")
+		.description("Stop the full local stack")
+		.option("--devnet", "Stop a local Clarinet devnet instead")
+		.option("--no-node", "Skip stopping the Stacks node")
+		.option("--no-dev", "Skip stopping dev services")
+		.option("--wait", "Wait for in-flight work to drain before stopping")
+		.option("--project <dir>", "[--devnet] Clarinet project directory")
+		.option("--purge", "[--devnet] Also remove volumes (wipes the local index)")
+		.action(
+			async (options: {
+				devnet?: boolean;
+				node: boolean;
+				dev: boolean;
+				wait?: boolean;
+				project?: string;
+				purge?: boolean;
+			}) => {
+				if (options.devnet) {
+					await devnetDown({ project: options.project, purge: options.purge });
+				} else {
+					await stackStop({
+						node: options.node,
+						dev: options.dev,
+						wait: options.wait,
+					});
+				}
+			},
+		);
 
 	// Status subcommand
 	local

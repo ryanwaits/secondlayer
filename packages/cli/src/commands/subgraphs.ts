@@ -165,6 +165,45 @@ async function writeOrPrintSubgraphSpec(
 	success(`Created ${outPath}`);
 }
 
+/** Build an API spec from a local subgraph .ts file (bundle → synthetic detail). */
+async function specFromLocalFile(
+	absPath: string,
+	format: SubgraphSpecFormat,
+	specOptions: { serverUrl: string } | undefined,
+): Promise<unknown> {
+	const { readFile } = await import("node:fs/promises");
+	const { bundleSubgraphCode } = await import("@secondlayer/bundler");
+	const { generateSubgraphSQL } = await import("@secondlayer/subgraphs");
+	const {
+		generateSubgraphAgentSchema,
+		generateSubgraphMarkdown,
+		generateSubgraphOpenApi,
+	} = await import("@secondlayer/shared/subgraphs/spec");
+	const source = await readFile(absPath, "utf8");
+	const bundled = await bundleSubgraphCode(source);
+	const { hash } = generateSubgraphSQL({
+		name: bundled.name,
+		version: bundled.version,
+		description: bundled.description,
+		sources: bundled.sources as unknown as SubgraphDefinition["sources"],
+		schema: bundled.schema as SubgraphDefinition["schema"],
+		handlers: {},
+	});
+	const detail = createLocalSubgraphDetail({
+		name: bundled.name,
+		version: bundled.version,
+		description: bundled.description,
+		sources: bundled.sources,
+		schema: bundled.schema,
+		schemaHash: hash,
+	});
+	return format === "openapi"
+		? generateSubgraphOpenApi(detail, specOptions)
+		: format === "agent"
+			? generateSubgraphAgentSchema(detail, specOptions)
+			: generateSubgraphMarkdown(detail, specOptions);
+}
+
 function createLocalSubgraphDetail(input: {
 	name: string;
 	version?: string;
@@ -992,10 +1031,12 @@ Examples:
 			}
 		});
 
-	// --- spec ---
+	// --- spec (deployed subgraph name OR local .ts file) ---
 	subgraphs
-		.command("spec <name>")
-		.description("Output API documentation for a deployed subgraph")
+		.command("spec <nameOrFile>")
+		.description(
+			"Output API documentation for a deployed subgraph or a local subgraph file",
+		)
 		.option(
 			"--format <format>",
 			"Output format: openapi, agent, markdown",
@@ -1005,7 +1046,7 @@ Examples:
 		.option("--server <url>", "Override the server URL in generated docs")
 		.action(
 			async (
-				name: string,
+				nameOrFile: string,
 				options: { format?: string; output?: string; server?: string },
 			) => {
 				try {
@@ -1013,12 +1054,15 @@ Examples:
 					const specOptions = options.server
 						? { serverUrl: options.server }
 						: undefined;
-					const spec =
-						format === "openapi"
-							? await getSubgraphOpenApi(name, specOptions)
+					const absPath = resolve(nameOrFile);
+					const isLocalFile = nameOrFile.endsWith(".ts") && existsSync(absPath);
+					const spec = isLocalFile
+						? await specFromLocalFile(absPath, format, specOptions)
+						: format === "openapi"
+							? await getSubgraphOpenApi(nameOrFile, specOptions)
 							: format === "agent"
-								? await getSubgraphAgentSchema(name, specOptions)
-								: await getSubgraphMarkdown(name, specOptions);
+								? await getSubgraphAgentSchema(nameOrFile, specOptions)
+								: await getSubgraphMarkdown(nameOrFile, specOptions);
 					await writeOrPrintSubgraphSpec(spec, format, options.output);
 				} catch (err) {
 					if (err instanceof Error && err.message.startsWith("--format")) {
@@ -1026,79 +1070,6 @@ Examples:
 						process.exit(1);
 					}
 					handleApiError(err, "generate subgraph spec");
-				}
-			},
-		);
-
-	// --- inspect ---
-	subgraphs
-		.command("inspect <file>")
-		.description("Output API documentation for a local subgraph file")
-		.option(
-			"--format <format>",
-			"Output format: openapi, agent, markdown",
-			"agent",
-		)
-		.option("-o, --output <path>", "Write output to a file")
-		.option("--server <url>", "Override the server URL in generated docs")
-		.action(
-			async (
-				file: string,
-				options: { format?: string; output?: string; server?: string },
-			) => {
-				try {
-					const format = parseSubgraphSpecFormat(options.format);
-					const absPath = resolve(file);
-					if (!existsSync(absPath)) {
-						error(`File not found: ${absPath}`);
-						process.exit(1);
-					}
-					const { readFile } = await import("node:fs/promises");
-					const { bundleSubgraphCode } = await import("@secondlayer/bundler");
-					const { generateSubgraphSQL } = await import(
-						"@secondlayer/subgraphs"
-					);
-					const {
-						generateSubgraphAgentSchema,
-						generateSubgraphMarkdown,
-						generateSubgraphOpenApi,
-					} = await import("@secondlayer/shared/subgraphs/spec");
-					const source = await readFile(absPath, "utf8");
-					const bundled = await bundleSubgraphCode(source);
-					const { hash } = generateSubgraphSQL({
-						name: bundled.name,
-						version: bundled.version,
-						description: bundled.description,
-						sources:
-							bundled.sources as unknown as SubgraphDefinition["sources"],
-						schema: bundled.schema as SubgraphDefinition["schema"],
-						handlers: {},
-					});
-					const detail = createLocalSubgraphDetail({
-						name: bundled.name,
-						version: bundled.version,
-						description: bundled.description,
-						sources: bundled.sources,
-						schema: bundled.schema,
-						schemaHash: hash,
-					});
-					const specOptions = options.server
-						? { serverUrl: options.server }
-						: undefined;
-					const spec =
-						format === "openapi"
-							? generateSubgraphOpenApi(detail, specOptions)
-							: format === "agent"
-								? generateSubgraphAgentSchema(detail, specOptions)
-								: generateSubgraphMarkdown(detail, specOptions);
-					await writeOrPrintSubgraphSpec(spec, format, options.output);
-				} catch (err) {
-					if (err instanceof Error && err.message.startsWith("--format")) {
-						error(err.message);
-						process.exit(1);
-					}
-					error(`Failed to inspect subgraph: ${err}`);
-					process.exit(1);
 				}
 			},
 		);
