@@ -1,8 +1,58 @@
 import { confirm, input } from "@inquirer/prompts";
 import type { Command } from "commander";
-import { CliHttpError, httpPlatformAnon } from "../lib/http.ts";
+import { CliHttpError, httpPlatform, httpPlatformAnon } from "../lib/http.ts";
 import { dim, info, error as logError, success } from "../lib/output.ts";
 import { readSession, writeSession } from "../lib/session.ts";
+
+/** ~90 days out — informational only; the server slides the real expiry. */
+function sessionExpiry(): string {
+	return new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+async function readStdin(): Promise<string> {
+	const chunks: Buffer[] = [];
+	for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+	return Buffer.concat(chunks).toString("utf8").trim();
+}
+
+/**
+ * Non-interactive login: read an API key from stdin, verify it against the
+ * account endpoint, and persist it as the stored credential. For CI/headless
+ * use, e.g. `echo "$SL_API_KEY" | sl login --with-token`.
+ */
+async function runTokenLogin(): Promise<void> {
+	const token = await readStdin();
+	if (!token) {
+		logError('No token on stdin. Usage: echo "$KEY" | sl login --with-token');
+		process.exit(1);
+	}
+
+	// Verify by hitting the account endpoint with the provided key.
+	process.env.SL_API_KEY = token;
+	let account: { id: string; email: string; plan: string };
+	try {
+		account = await httpPlatform<{ id: string; email: string; plan: string }>(
+			"/api/accounts/me",
+		);
+	} catch (err) {
+		logError(
+			err instanceof CliHttpError
+				? `Token rejected: ${err.message}`
+				: err instanceof Error
+					? err.message
+					: String(err),
+		);
+		process.exit(1);
+	}
+
+	await writeSession({
+		token,
+		email: account.email,
+		accountId: account.id,
+		expiresAt: sessionExpiry(),
+	});
+	success(`Logged in as ${account.email}`);
+}
 
 /**
  * `sl login` — magic-link email flow.
@@ -87,16 +137,11 @@ export async function runLoginFlow(
 			body: { email, code },
 		});
 
-		// Server does sliding-window extension; 90d from now is informational.
-		const expiresAt = new Date(
-			Date.now() + 90 * 24 * 60 * 60 * 1000,
-		).toISOString();
-
 		await writeSession({
 			token: verified.sessionToken,
 			email: verified.account.email,
 			accountId: verified.account.id,
-			expiresAt,
+			expiresAt: sessionExpiry(),
 		});
 		success(`Logged in as ${verified.account.email}`);
 		info(dim("Run 'sl whoami' to see your account status."));
@@ -118,5 +163,15 @@ export function registerLoginCommand(program: Command): void {
 			"-f, --force",
 			"Skip the already-logged-in check and re-run the flow",
 		)
-		.action((opts: { force?: boolean }) => runLoginFlow({ force: opts.force }));
+		.option("--with-token", "Read an API key from stdin (non-interactive)")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl login
+  $ echo "$SL_API_KEY" | sl login --with-token`,
+		)
+		.action((opts: { force?: boolean; withToken?: boolean }) =>
+			opts.withToken ? runTokenLogin() : runLoginFlow({ force: opts.force }),
+		);
 }
