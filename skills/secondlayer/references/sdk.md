@@ -760,6 +760,14 @@ Each table on the returned client has:
 interface SubgraphTableClient<TRow> {
   findMany(options?: FindManyOptions<TRow>): Promise<TRow[]>;
   count(where?: WhereInput<TRow> & SystemWhereAliases): Promise<number>;
+  // Realtime: stream rows as they're indexed (SSE). Returns an unsubscribe fn.
+  subscribe(onRow: (row: TRow) => void, options?: SubscribeOptions<TRow>): () => void;
+}
+
+interface SubscribeOptions<TRow> {
+  where?: WhereInput<TRow> & SystemWhereAliases; // same filters as findMany
+  since?: number;                                // replay from this block, then tail
+  onError?: (err: unknown) => void;
 }
 
 interface FindManyOptions<TRow> {
@@ -806,6 +814,15 @@ const transfers = await client.transfers.findMany({
   orderBy: { blockHeight: "desc" },
   limit: 100,
 });
+
+// Realtime: react to rows as they're indexed (block-cadence) over SSE.
+// Browser-friendly — no webhook endpoint needed. Requires a global EventSource
+// (browsers, or Node >= 22). Backed by GET /api/subgraphs/<name>/<table>/stream.
+const unsubscribe = client.transfers.subscribe(
+  (row) => console.log("new transfer", row.sender, row.amount),
+  { where: { amount: { gte: 1_000_000n } } },
+);
+// later: unsubscribe();
 
 const big = await client.transfers.count({ amount: { gte: 100_000_000n } });
 ```
