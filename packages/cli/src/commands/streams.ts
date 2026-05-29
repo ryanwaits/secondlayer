@@ -8,6 +8,7 @@ import type {
 } from "@secondlayer/sdk";
 import type { Command } from "commander";
 import { error as logError, note, writeData } from "../lib/output.ts";
+import { resolveEnvKey } from "../lib/resolve-auth.ts";
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
@@ -26,10 +27,10 @@ const VALID_TYPES: StreamsEventType[] = [
 ];
 
 function readApiKey(): string {
-	const key = process.env.SL_STREAMS_API_KEY;
+	const key = resolveEnvKey();
 	if (!key) {
 		logError(
-			"SL_STREAMS_API_KEY env var not set. Issue a key at https://www.secondlayer.tools/platform/api-keys (product: Streams).",
+			"No API key set. Export SL_API_KEY (issue one at https://www.secondlayer.tools/platform/api-keys).",
 		);
 		process.exit(1);
 	}
@@ -80,9 +81,7 @@ function parseHeight(
 export function registerStreamsCommand(program: Command): void {
 	const streams = program
 		.command("streams")
-		.description(
-			"Read raw chain events from Streams (requires SL_STREAMS_API_KEY)",
-		);
+		.description("Read raw chain events from Streams (requires SL_API_KEY)");
 
 	streams
 		.command("tip")
