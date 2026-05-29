@@ -170,7 +170,7 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		tags: ["mcp", "subgraphs", "subscriptions"],
 		build: () =>
 			withSetup(
-				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config using `SL_SERVICE_KEY`, then verify tool availability for subgraphs and subscriptions: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
+				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config using `SL_API_KEY`, then verify tool availability for subgraphs and subscriptions: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
 			),
 	},
 	{

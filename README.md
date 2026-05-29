@@ -52,7 +52,7 @@ curl "https://api.secondlayer.tools/api/subgraphs/my-contract/<table>?_limit=25"
 ```
 
 **MCP** — point any MCP client at `bunx -p @secondlayer/mcp secondlayer-mcp`
-(`SECONDLAYER_API_URL=https://api.secondlayer.tools`). Set `SL_SERVICE_KEY` to
+(`SECONDLAYER_API_URL=https://api.secondlayer.tools`). Set `SL_API_KEY` to
 enable writes (deploy/manage). See [MCP README](packages/mcp/README.md).
 
 ## Packages

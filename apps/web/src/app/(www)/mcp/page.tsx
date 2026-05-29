@@ -51,7 +51,7 @@ bunx @secondlayer/mcp --http              # HTTP transport on :3900`}
     "secondlayer": {
       "command": "bunx",
       "args": ["@secondlayer/mcp"],
-      "env": { "SL_SERVICE_KEY": "sk-sl_..." }
+      "env": { "SL_API_KEY": "sk-sl_..." }
     }
   }
 }`}

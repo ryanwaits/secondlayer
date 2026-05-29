@@ -4,19 +4,19 @@ let instance: SecondLayer | null = null;
 let legacyEnvWarned = false;
 
 /**
- * Read the tenant service key from env. `SL_SERVICE_KEY` is canonical;
- * `SECONDLAYER_API_KEY` is accepted as a deprecated alias and logs once
- * per process so users notice without breaking their setup.
+ * Read the API key from env. `SL_API_KEY` is canonical (matches the CLI and
+ * SDK); `SL_SERVICE_KEY` and `SECONDLAYER_API_KEY` are accepted as deprecated
+ * aliases and log once per process so users notice without breaking their setup.
  */
-function readServiceKey(): string | undefined {
-	const canonical = process.env.SL_SERVICE_KEY;
+function readApiKey(): string | undefined {
+	const canonical = process.env.SL_API_KEY;
 	if (canonical) return canonical;
-	const legacy = process.env.SECONDLAYER_API_KEY;
+	const legacy = process.env.SL_SERVICE_KEY ?? process.env.SECONDLAYER_API_KEY;
 	if (legacy) {
 		if (!legacyEnvWarned) {
 			legacyEnvWarned = true;
 			console.error(
-				"[mcp] SECONDLAYER_API_KEY is deprecated — use SL_SERVICE_KEY going forward.",
+				"[mcp] SL_SERVICE_KEY / SECONDLAYER_API_KEY are deprecated — use SL_API_KEY going forward.",
 			);
 		}
 		return legacy;
@@ -32,7 +32,7 @@ function readServiceKey(): string | undefined {
  */
 export function getClient(): SecondLayer {
 	if (!instance) {
-		const apiKey = readServiceKey();
+		const apiKey = readApiKey();
 		const baseUrl = process.env.SECONDLAYER_API_URL;
 		instance = new SecondLayer({
 			...(apiKey ? { apiKey } : {}),
@@ -46,7 +46,7 @@ export function getClient(): SecondLayer {
 // Appended to 401/403 errors raised on keyless requests — the operation needs
 // a write/account key, so point at where to get one.
 const keyHint =
-	" — set SL_SERVICE_KEY to an sk-sl_ API key from " +
+	" — set SL_API_KEY to an sk-sl_ API key from " +
 	"https://secondlayer.tools/platform/api-keys for write and account operations";
 
 /** Raw fetch helper for API endpoints not covered by the SDK. */
@@ -55,7 +55,7 @@ export async function apiRequest<T>(
 	path: string,
 	body?: unknown,
 ): Promise<T> {
-	const apiKey = readServiceKey();
+	const apiKey = readApiKey();
 	const baseUrl =
 		process.env.SECONDLAYER_API_URL || "https://api.secondlayer.tools";
 	const res = await fetch(`${baseUrl}${path}`, {

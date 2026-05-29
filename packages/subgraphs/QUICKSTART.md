@@ -256,7 +256,7 @@ Use MCP when an agent should scaffold, deploy, query, and subscribe:
       "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
         "SECONDLAYER_API_URL": "https://api.secondlayer.tools",
-        "SL_SERVICE_KEY": "sk-sl_..."
+        "SL_API_KEY": "sk-sl_..."
       }
     }
   }

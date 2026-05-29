@@ -10,7 +10,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Reads are public — `list`, `get`, `query`, and `spec` tools work with no key. Writes (deploy, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_SERVICE_KEY`.
+Reads are public — `list`, `get`, `query`, and `spec` tools work with no key. Writes (deploy, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`.
 
 ## Quick Start — Stdio (IDE)
 
@@ -23,7 +23,7 @@ Add to your Claude Desktop or Cursor config:
       "command": "bunx",
       "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
-        "SL_SERVICE_KEY": "sk-sl_..."
+        "SL_API_KEY": "sk-sl_..."
       }
     }
   }
@@ -33,7 +33,7 @@ Add to your Claude Desktop or Cursor config:
 ## Quick Start — HTTP (Remote)
 
 ```bash
-export SL_SERVICE_KEY=sk-sl_...
+export SL_API_KEY=sk-sl_...
 export SECONDLAYER_MCP_SECRET=your-secret
 bunx -p @secondlayer/mcp secondlayer-mcp-http
 # Listening on port 3100
@@ -43,7 +43,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SL_SERVICE_KEY` | Writes only | — | An `sk-sl_` API key from the platform console (https://secondlayer.tools/platform/api-keys). Required for write/account tools; reads are public. `SECONDLAYER_API_KEY` is accepted as a deprecated alias. |
+| `SL_API_KEY` | Writes only | — | An `sk-sl_` API key from the platform console (https://secondlayer.tools/platform/api-keys). Required for write/account tools; reads are public. `SL_SERVICE_KEY` and `SECONDLAYER_API_KEY` are accepted as deprecated aliases. |
 | `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base API URL. Point at a local instance for dev. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
