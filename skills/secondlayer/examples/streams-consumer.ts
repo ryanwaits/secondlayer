@@ -4,13 +4,13 @@
 // callback. Return a cursor string from onBatch to mark it "committed";
 // the consumer will resume from there on restart.
 //
-// Run:  SL_STREAMS_API_KEY=sk-sl_... bun examples/streams-consumer.ts
+// Run:  SL_API_KEY=sk-sl_... bun examples/streams-consumer.ts
 
 import { createStreamsClient } from "@secondlayer/sdk/streams";
 import { readFile, writeFile } from "node:fs/promises";
 
 const streams = createStreamsClient({
-  apiKey: process.env.SL_STREAMS_API_KEY!,
+  apiKey: process.env.SL_API_KEY!,
 });
 
 const CHECKPOINT_FILE = ".streams-cursor";

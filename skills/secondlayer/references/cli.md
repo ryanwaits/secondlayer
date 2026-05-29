@@ -15,34 +15,31 @@ The `sl` binary (alias `secondlayer`) is the official CLI for Secondlayer — de
 | Var | Used by | Purpose |
 | --- | --- | --- |
 | `SL_API_URL` | subscriptions, create | Override tenant API base URL. |
-| `SL_SERVICE_KEY` | subscriptions, create | Service key for tenant API auth (write scope). |
-| `SL_STREAMS_API_KEY` | streams | API key for `api.secondlayer.tools` Streams (issued in dashboard). |
+| `SL_API_KEY` | subscriptions, create, streams, MCP, SDK | API key for tenant/platform API auth (write scope) and Streams reads (issued in dashboard). |
 | `SL_PLATFORM_API_URL` | doctor (hosted) | Override platform API URL (default `https://api.secondlayer.tools`). |
-| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, generate | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
+| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, contracts generate | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
-| `DATABASE_URL` | db | Postgres URL for local indexer DB; defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
-| `INDEXER_URL` | db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
-| `DEBUG` | generate | When set, prints stack traces on failure. |
+| `DATABASE_URL` | local db | Postgres URL for local indexer DB; defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
+| `INDEXER_URL` | local db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
+| `DEBUG` | contracts generate | When set, prints stack traces on failure. |
+
+Global flags `--api-key <key>` and `--api-url <url>` are available on every command and override `SL_API_KEY` / `SL_API_URL` for that invocation.
 
 ## Table of contents
 
 - [Auth](#auth) — `login`, `logout`, `whoami`
-- [Project](#project) — `project create|list|use|current`
-- [Subgraphs](#subgraphs) — `new`, `dev`, `deploy`, `list`, `status`, `spec`, `inspect`, `reindex`, `backfill`, `stop`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
-- [Subscriptions](#subscriptions) — `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
+- [Projects](#projects) — `projects create|list|use|get`
+- [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `reindex`, `backfill`, `cancel`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
+- [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`
-- [Create](#create) — `create subscription`
-- [Local](#local) — `local start|stop|restart|status|logs`, `local node …`
-- [Devnet](#devnet) — `devnet connect|down|status|logs` (run services against a Clarinet devnet)
-- [Stack](#stack) — `stack start|stop|restart`
-- [DB](#db) — `db blocks|txs|events|gaps|reset|resync`
-- [Account](#account) — `account profile`
-- [Billing](#billing) — `billing status`
-- [Config](#config) — `config show|set|reset|clear`
+- [Local](#local) — `local up|down|restart|status|logs`, `local node …`, `local db …`
+- [Devnet](#devnet) — `local up --devnet` / `local down --devnet`, `devnet status|logs` (run services against a Clarinet devnet)
+- [Account](#account) — `account profile`, `account billing`
+- [Config](#config) — `config get|set|reset|delete`
 - [Status](#status) — top-level `status`
 - [Doctor](#doctor) — top-level `doctor`
-- [Generate](#generate) — top-level `generate`, `init`
+- [Contracts generate](#contracts-generate) — `contracts generate` (alias `contracts gen`), `init`
 
 ---
 
@@ -70,23 +67,29 @@ No flags. POSTs `/api/auth/logout`; clears local session even if the server call
 
 ### sl whoami
 
-Show current authenticated account + active project.
+Show current authenticated account + active project, plus the effective API URL and credential source.
 
 Usage: `sl whoami`
 
-No flags. Reads local session, calls `/api/accounts/me`, and prints email, plan, and the active project (from `./.secondlayer/project`, walking up the directory tree, falling back to global `defaultProject`).
+No flags. Reads local session (or `SL_API_KEY`), calls `/api/accounts/me`, and prints email, plan, the active project (from `./.secondlayer/project`, walking up the directory tree, falling back to global `defaultProject`), the effective API URL, and where the credential came from. **Exits non-zero when not logged in** — useful as a CI auth check.
+
+Headless / CI login (no magic-link prompt): pipe a key into `--with-token`:
+
+```bash
+echo "$SL_API_KEY" | sl login --with-token
+```
 
 ---
 
-## Project
+## Projects
 
 Account-scoped project management. Each project maps 1:1 to a dedicated tenant. Binding a project to a directory writes `./.secondlayer/project` (recommend adding `.secondlayer/` to `.gitignore` — it's account-personal).
 
-### sl project create
+### sl projects create
 
 Create a new project.
 
-Usage: `sl project create [name]`
+Usage: `sl projects create [name]`
 
 | Flag | Description |
 | --- | --- |
@@ -94,31 +97,31 @@ Usage: `sl project create [name]`
 
 Prompts for a name if not provided. POSTs `/api/projects`. First project becomes the global `defaultProject`.
 
-Example: `sl project create "My Watcher" --slug my-watcher`
+Example: `sl projects create "My Watcher" --slug my-watcher`
 
-### sl project list
+### sl projects list
 
 List projects in your account.
 
-Usage: `sl project list`
+Usage: `sl projects list`
 
 No flags. GETs `/api/projects`. Marks the active project with `*`.
 
-### sl project use
+### sl projects use
 
 Bind this directory to a project (writes `./.secondlayer/project`).
 
-Usage: `sl project use <slug>`
+Usage: `sl projects use <slug>`
 
 No flags. Verifies project exists via `GET /api/projects/:slug` before writing the binding file.
 
-Example: `sl project use my-watcher`
+Example: `sl projects use my-watcher`
 
-### sl project current
+### sl projects get
 
 Show the active project for this directory.
 
-Usage: `sl project current`
+Usage: `sl projects get`
 
 No flags. Prints the active slug and resolution source (`.secondlayer/project` in cwd / parent dir / global default).
 
@@ -126,13 +129,13 @@ No flags. Prints the active slug and resolution source (`.secondlayer/project` i
 
 ## Subgraphs
 
-Manage materialized subgraphs. Most subcommands hit the active tenant's API (resolved via session + active project) and require `sl login` unless `--service-key`/`SL_SERVICE_KEY` is set. Local deploys (`network=local`) skip auth and write to the local Postgres dev DB.
+Manage materialized subgraphs. Most subcommands hit the active tenant's API (resolved via session + active project) and require `sl login` unless `--service-key`/`SL_API_KEY` is set. Local deploys (`network=local`) skip auth and write to the local Postgres dev DB.
 
-### sl subgraphs new
+### sl subgraphs create
 
 Scaffold a new subgraph definition file at `./subgraphs/<name>.ts`.
 
-Usage: `sl subgraphs new <name>`
+Usage: `sl subgraphs create <name>`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -140,7 +143,7 @@ Usage: `sl subgraphs new <name>`
 
 Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists.
 
-Example: `sl subgraphs new my-watcher --template sip-010-balances`
+Example: `sl subgraphs create my-watcher --template sip-010-balances`
 
 ### sl subgraphs dev
 
@@ -162,11 +165,10 @@ Usage: `sl subgraphs deploy <file>`
 | --- | --- | --- |
 | `--start-block <n>` | (from definition) | Override definition's `startBlock` for this deploy (nonneg integer). |
 | `--dry-run` | false | Validate and preview without writing. |
-| `--preview` | false | Alias for `--dry-run`. |
-| `--force` | false | Skip confirmation prompt for reindex operations (DROP + reindex). |
+| `-y, --yes` | false | Skip confirmation prompt for reindex operations (DROP + reindex). |
 | `--strict` | false | Run `bunx tsc --noEmit` on handler before deploy. |
 
-Remote deploy (non-local): bundles handler via `@secondlayer/bundler`, POSTs to tenant API. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `--force` is set. Local deploy: writes to local DB via `deploySchema()`.
+Remote deploy (non-local): bundles handler via `@secondlayer/bundler`, POSTs to tenant API. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `-y` is set. Local deploy: writes to local DB via `deploySchema()`.
 
 Example: `sl subgraphs deploy subgraphs/my-watcher.ts --start-block 100000`
 
@@ -194,9 +196,9 @@ Example: `sl subgraphs status my-watcher -w`
 
 ### sl subgraphs spec
 
-Output API documentation for a deployed subgraph.
+Output API documentation for a subgraph. Accepts either a **deployed subgraph name** (fetched from the API) or a **local `.ts` file** (bundled in-process, no API call).
 
-Usage: `sl subgraphs spec <name>`
+Usage: `sl subgraphs spec <nameOrFile>`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -204,21 +206,11 @@ Usage: `sl subgraphs spec <name>`
 | `-o, --output <path>` | (stdout) | Write to file instead of stdout. |
 | `--server <url>` | (from API) | Override server URL in generated docs. |
 
-Example: `sl subgraphs spec my-watcher --format agent -o ./docs/my-watcher.json`
-
-### sl subgraphs inspect
-
-Output API documentation for a LOCAL subgraph file (no API call).
-
-Usage: `sl subgraphs inspect <file>`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--format <format>` | `agent` | One of: `openapi`, `agent`, `markdown`. |
-| `-o, --output <path>` | (stdout) | Write to file. |
-| `--server <url>` | — | Override server URL in generated docs. |
-
-Bundles the file in-process and emits spec without touching any server.
+Examples:
+```bash
+sl subgraphs spec my-watcher --format agent -o ./docs/my-watcher.json   # deployed name
+sl subgraphs spec subgraphs/my-watcher.ts                               # local file, no server call
+```
 
 ### sl subgraphs reindex
 
@@ -228,8 +220,8 @@ Usage: `sl subgraphs reindex <name>`
 
 | Flag | Description |
 | --- | --- |
-| `--from <block>` | Start block height (integer). |
-| `--to <block>` | End block height (integer). |
+| `--from-block <block>` | Start block height (integer). |
+| `--to-block <block>` | End block height (integer). |
 | `-y, --yes` | Skip the confirmation prompt. |
 
 Prompts for confirmation by default (default answer: **no**). Non-TTY environments must pass `-y` or the command exits non-zero. Added in `@secondlayer/cli` 5.5.0; older versions ran silently.
@@ -238,18 +230,18 @@ Prompts for confirmation by default (default answer: **no**). Non-TTY environmen
 
 Backfill a block range without dropping existing data.
 
-Usage: `sl subgraphs backfill <name> --from <block> --to <block>`
+Usage: `sl subgraphs backfill <name> --from-block <block> --to-block <block>`
 
 | Flag | Required | Description |
 | --- | --- | --- |
-| `--from <block>` | yes | Start block height. |
-| `--to <block>` | yes | End block height. |
+| `--from-block <block>` | yes | Start block height. |
+| `--to-block <block>` | yes | End block height. |
 
-### sl subgraphs stop
+### sl subgraphs cancel
 
-Stop a running reindex or backfill operation.
+Cancel a running reindex or backfill operation.
 
-Usage: `sl subgraphs stop <name>`
+Usage: `sl subgraphs cancel <name>`
 
 No flags.
 
@@ -365,9 +357,40 @@ Example: `sl subgraphs codegen subgraphs/dex.ts --target prisma -o prisma/schema
 
 ## Subscriptions
 
-Manage subgraph table subscriptions (webhook deliveries). Alias: `subs`. All subcommands accept `--service-key <key>` (overrides `SL_SERVICE_KEY`) and `--base-url <url>` (overrides `SL_API_URL`). Without those, the CLI resolves credentials from the active project via `sl login`.
+Manage subgraph table subscriptions (webhook deliveries). Alias: `subs`. All subcommands accept `--service-key <key>` (overrides `SL_API_KEY`) and `--base-url <url>` (overrides `SL_API_URL`). Without those, the CLI resolves credentials from the active project via `sl login`.
 
 Subscription references (`<idOrName>`) accept the subscription UUID or its name. Ambiguous names error out — use the ID.
+
+### sl subscriptions create
+
+Scaffold a subscription receiver for a runtime and provision the subscription via the API.
+
+Usage: `sl subscriptions create <name>`
+
+| Flag | Description |
+| --- | --- |
+| `-r, --runtime <runtime>` | `inngest` \| `trigger` \| `cloudflare` \| `node`. Prompts if omitted. |
+| `-s, --subgraph <name>` | Subgraph to subscribe to. Prompts if omitted. |
+| `-t, --table <name>` | Table to subscribe to. Prompts if omitted. |
+| `-u, --url <url>` | Webhook URL. Prompts if omitted. Must be http/https. |
+| `--auth-token <token>` | Bearer token for receiver-side auth. |
+| `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
+| `--service-key <key>` | `SL_API_KEY` override. |
+| `--base-url <url>` | `SL_API_URL` override. |
+| `--skip-api` | Copy template only; do NOT create the subscription via API. |
+| `--no-scaffold` | Skip the local runtime template directory (webhook-only setups — provisions subscription only). |
+
+Behavior:
+1. Validates target subgraph + table + filter via API (skipped with `--skip-api`).
+2. Copies template into `./<name>/` (skipped with `--no-scaffold`).
+3. POSTs `/api/subscriptions` to create the subscription with the matching `format`/`runtime`.
+4. Writes returned `SIGNING_SECRET` into `./<name>/.env` (or prints if `--no-scaffold`).
+
+`format` is derived from `runtime`: `inngest`→`inngest`, `trigger`→`trigger`, `cloudflare`→`cloudflare`, `node`→`standard-webhooks`.
+
+Example: `sl subscriptions create my-sub -r node -s my-watcher -t transfers -u https://app.example/webhook`
+
+Webhook-only (no scaffold): `sl subscriptions create notify --no-scaffold -r node -s my-watcher -t transfers -u https://app.example/webhook`
 
 ### sl subscriptions list
 
@@ -378,7 +401,7 @@ Usage: `sl subscriptions list`
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
-| `--service-key <key>` | `SL_SERVICE_KEY` override. |
+| `--service-key <key>` | `SL_API_KEY` override. |
 | `--base-url <url>` | `SL_API_URL` override. |
 
 ### sl subscriptions get
@@ -567,7 +590,7 @@ The SDK exposes the same surface (`new Datasets({...})` → `.pox4Calls.list/wal
 
 ## Streams
 
-Read raw chain events from Streams at `api.secondlayer.tools`. **Requires `SL_STREAMS_API_KEY`** (issue at https://www.secondlayer.tools/platform/api-keys, product: Streams). Base URL defaults to `https://api.secondlayer.tools`; override via `SL_API_URL`.
+Read raw chain events from Streams at `api.secondlayer.tools`. **Requires `SL_API_KEY`** (issue at https://www.secondlayer.tools/platform/api-keys, product: Streams). Base URL defaults to `https://api.secondlayer.tools`; override via `SL_API_URL`.
 
 Valid event types: `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_transfer`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, `print`.
 
@@ -592,8 +615,8 @@ Usage: `sl streams events`
 | `--types <types>` | — | Comma-separated event types. |
 | `--contract-id <id>` | — | Filter to a single contract identifier. |
 | `--cursor <cursor>` | — | Start cursor (`block_height:event_index`). |
-| `--from-height <n>` | — | Filter to blocks ≥ n. |
-| `--to-height <n>` | — | Filter to blocks ≤ n. |
+| `--from-block <n>` | — | Filter to blocks ≥ n. |
+| `--to-block <n>` | — | Filter to blocks ≤ n. |
 | `--limit <n>` | `100` | Page size (1-1000). |
 
 Prints full envelope (events + `next_cursor`) as JSON.
@@ -641,52 +664,15 @@ Example: `sl streams canonical 150000`
 
 ---
 
-## Create
-
-Scaffold new resources.
-
-### sl create subscription
-
-Scaffold a subscription receiver for a runtime and provision the subscription via the API.
-
-Usage: `sl create subscription <name>`
-
-| Flag | Description |
-| --- | --- |
-| `-r, --runtime <runtime>` | `inngest` \| `trigger` \| `cloudflare` \| `node`. Prompts if omitted. |
-| `-s, --subgraph <name>` | Subgraph to subscribe to. Prompts if omitted. |
-| `-t, --table <name>` | Table to subscribe to. Prompts if omitted. |
-| `-u, --url <url>` | Webhook URL. Prompts if omitted. Must be http/https. |
-| `--auth-token <token>` | Bearer token for receiver-side auth. |
-| `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
-| `--service-key <key>` | `SL_SERVICE_KEY` override. |
-| `--base-url <url>` | `SL_API_URL` override. |
-| `--skip-api` | Copy template only; do NOT create the subscription via API. |
-| `--no-scaffold` | Skip the local runtime template directory (webhook-only setups — provisions subscription only). |
-
-Behavior:
-1. Validates target subgraph + table + filter via API (skipped with `--skip-api`).
-2. Copies template into `./<name>/` (skipped with `--no-scaffold`).
-3. POSTs `/api/subscriptions` to create the subscription with the matching `format`/`runtime`.
-4. Writes returned `SIGNING_SECRET` into `./<name>/.env` (or prints if `--no-scaffold`).
-
-`format` is derived from `runtime`: `inngest`→`inngest`, `trigger`→`trigger`, `cloudflare`→`cloudflare`, `node`→`standard-webhooks`.
-
-Example: `sl create subscription my-sub -r node -s my-watcher -t transfers -u https://app.example/webhook`
-
-Webhook-only (no scaffold): `sl create subscription notify --no-scaffold -r node -s my-watcher -t transfers -u https://app.example/webhook`
-
----
-
 ## Local
 
 Manage local development environment. All `local` subcommands require `network=local` (set via `--network local` or `sl config set network local`).
 
-### sl local start
+### sl local up
 
 Start all local dev services (API, indexer, worker, subgraphs).
 
-Usage: `sl local start`
+Usage: `sl local up`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -696,11 +682,11 @@ Usage: `sl local start`
 | `--stacks-node` | false | Use port 3701 for indexer (avoids conflict with `stacks-blockchain-api`). |
 | `-f, --foreground` | false | Run in foreground (blocking). Default is background. |
 
-### sl local stop
+### sl local down
 
 Stop all local dev services.
 
-Usage: `sl local stop`
+Usage: `sl local down`
 
 No flags.
 
@@ -817,13 +803,13 @@ Usage: `sl local node logs`
 
 ## Devnet
 
-Run Secondlayer services against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet. Unlike `sl local` (which runs the services from source for contributors), `sl devnet` pulls the published OSS Docker images, so it works for any developer with a clarinet project — no repo checkout required. Requires Docker (Docker Desktop or OrbStack) and `clarinet` installed.
+Run Secondlayer services against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet. Unlike `sl local up` (which runs the services from source for contributors), `sl local up --devnet` pulls the published OSS Docker images, so it works for any developer with a clarinet project — no repo checkout required. Requires Docker (Docker Desktop or OrbStack) and `clarinet` installed.
 
-### sl devnet connect
+### sl local up --devnet
 
 Point your clarinet project's devnet at a local Secondlayer stack and start it. Detects the nearest `Clarinet.toml`, adds the indexer to `settings/Devnet.toml`'s `stacks_node_events_observers` (idempotent; preserves your comments), writes `.secondlayer/docker-compose.yml`, and runs `docker compose up -d`.
 
-Usage: `sl devnet connect`
+Usage: `sl local up --devnet`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -835,7 +821,7 @@ Usage: `sl devnet connect`
 Then run your normal `clarinet devnet start` — deployed contracts and their events stream into the local indexer (api at `http://localhost:3800`, indexer at `http://localhost:3700`). Deploy a subgraph against it with:
 
 ```bash
-SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy sl subgraphs deploy ./subgraph.ts
+SL_API_URL=http://localhost:3800 SL_API_KEY=dummy sl subgraphs deploy ./subgraph.ts
 ```
 
 To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not your running devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):
@@ -869,11 +855,11 @@ console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
 
 The row shows up at `GET http://localhost:3800/api/subgraphs/<name>/<table>` within ~5s.
 
-### sl devnet down
+### sl local down --devnet
 
-Stop the local Secondlayer stack started by `sl devnet connect`.
+Stop the local Secondlayer stack started by `sl local up --devnet`.
 
-Usage: `sl devnet down`
+Usage: `sl local down --devnet`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -901,11 +887,11 @@ Usage: `sl devnet logs [service]` — `service` is optional, one of `indexer`, `
 | --- | --- | --- |
 | `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory. |
 | `-f, --follow` | false | Follow log output. |
-| `-n, --tail <n>` | `200` | Lines to show from the end of each log. |
+| `-n, --lines <n>` | `200` | Lines to show from the end of each log. |
 
 ### Testing subscriptions locally
 
-`sl devnet connect` starts the subscription emitter and configures the stack to deliver webhooks locally: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a subscription's signing secret) and sets `SECONDLAYER_ALLOW_PRIVATE_EGRESS` (so webhooks can reach a localhost receiver). To test:
+`sl local up --devnet` starts the subscription emitter and configures the stack to deliver webhooks locally: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a subscription's signing secret) and sets `SECONDLAYER_ALLOW_PRIVATE_EGRESS` (so webhooks can reach a localhost receiver). To test:
 
 1. Deploy a subgraph (`sl subgraphs deploy ./subgraph.ts`), then start a local chain with `clarinet devnet start`.
 2. Create a subscription on the local API, pointing at a webhook receiver on your host. The emitter runs in a container, so use `host.docker.internal` instead of `localhost`:
@@ -920,116 +906,71 @@ curl -X POST http://localhost:3800/api/subscriptions \
 
 ---
 
-## Stack
+## Local DB
 
-Manage the full local stack (node + dev services). Requires `network=local`.
+Inspect the local indexer Postgres database. Nested under `local` (requires `network=local`). Defaults `DATABASE_URL` to `postgres://postgres:postgres@localhost:5432/secondlayer_dev` if unset.
 
-### sl stack start
-
-Start the full stack.
-
-Usage: `sl stack start`
-
-| Flag | Description |
-| --- | --- |
-| `--no-node` | Skip starting the Stacks node. |
-| `--no-dev` | Skip starting dev services. |
-| `--network <network>` | Override node network (`mainnet` \| `testnet`). |
-
-Validates Docker + network consistency, starts node containers, polls RPC for up to 60s, then starts dev services.
-
-### sl stack stop
-
-Stop the full stack.
-
-Usage: `sl stack stop`
-
-| Flag | Description |
-| --- | --- |
-| `--no-node` | Skip stopping the node. |
-| `--no-dev` | Skip stopping dev services. |
-| `--wait` | Wait for in-flight work to drain. |
-
-Also cleans up orphaned `secondlayer-dev*`/`stacks*` exited containers.
-
-### sl stack restart
-
-Restart the full stack.
-
-Usage: `sl stack restart`
-
-| Flag | Description |
-| --- | --- |
-| `--no-node` | Skip restarting the node. |
-| `--no-dev` | Skip restarting dev services. |
-
----
-
-## DB
-
-Inspect the local indexer Postgres database. Requires `network=local`. Defaults `DATABASE_URL` to `postgres://postgres:postgres@localhost:5432/secondlayer_dev` if unset.
-
-### sl db (overview)
+### sl local db (overview)
 
 Show overview (counts + latest block).
 
-Usage: `sl db`
+Usage: `sl local db`
 
 No flags.
 
-### sl db blocks
+### sl local db blocks
 
 Show recent blocks.
 
-Usage: `sl db blocks`
+Usage: `sl local db blocks`
 
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--limit <n>` | `10` | Number of rows. |
 | `--json` | false | Output as JSON. |
 
-### sl db txs
+### sl local db txs
 
 Show recent transactions.
 
-Usage: `sl db txs`
+Usage: `sl local db txs`
 
 Same flags as `blocks`.
 
-### sl db events
+### sl local db events
 
 Show recent events.
 
-Usage: `sl db events`
+Usage: `sl local db events`
 
 Same flags as `blocks`.
 
-### sl db gaps
+### sl local db gaps
 
 Show gaps in indexed block data.
 
-Usage: `sl db gaps`
+Usage: `sl local db gaps`
 
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--limit <n>` | `50` | Number of gaps to show. |
 | `--json` | false | Output as JSON. |
 
-### sl db reset
+### sl local db truncate
 
 **DESTRUCTIVE.** Truncate all indexed data (`blocks`, `transactions`, `events`, `index_progress`). Subgraph configs preserved.
 
-Usage: `sl db reset`
+Usage: `sl local db truncate`
 
 | Flag | Description |
 | --- | --- |
 | `-y, --yes` | Skip confirmation. |
 
-### sl db resync
+### sl local db resync
 
 **DESTRUCTIVE.** Reset DB and restart indexer for fresh sync.
 
-Usage: `sl db resync`
+Usage: `sl local db resync`
 
 | Flag | Description |
 | --- | --- |
@@ -1057,13 +998,11 @@ Usage: `sl account profile`
 
 ---
 
-## Billing
-
-### sl billing status
+### sl account billing
 
 Show your current plan, Stripe subscription, trial, and discounts.
 
-Usage: `sl billing status`
+Usage: `sl account billing`
 
 No flags. GETs `/api/billing/status`.
 
@@ -1071,13 +1010,13 @@ No flags. GETs `/api/billing/status`.
 
 ## Config
 
-Manage CLI configuration (`~/.config/secondlayer/config.json` or platform equivalent — see `sl config show` output for actual path).
+Manage CLI configuration (`~/.config/secondlayer/config.json` or platform equivalent — see `sl config get` output for actual path).
 
-### sl config show
+### sl config get
 
 Show current configuration.
 
-Usage: `sl config show`
+Usage: `sl config get`
 
 No flags. Prints config tree; in local mode also prints node + ports + database sections.
 
@@ -1103,11 +1042,11 @@ Usage: `sl config reset`
 
 No flags.
 
-### sl config clear
+### sl config delete
 
 Clear all configuration (delete config file).
 
-Usage: `sl config clear`
+Usage: `sl config delete`
 
 No flags.
 
@@ -1125,7 +1064,7 @@ Usage: `sl status`
 | --- | --- |
 | `--json` | Output as JSON. |
 
-GETs `/status` from the platform. Prints DB status, per-network index progress with chain-tip progress bar, gap summary, and active subgraph count. On failure: in local mode suggests `sl local start`; in hosted mode reports connectivity issue.
+GETs `/status` from the platform. Prints DB status, per-network index progress with chain-tip progress bar, gap summary, and active subgraph count. On failure: in local mode suggests `sl local up`; in hosted mode reports connectivity issue.
 
 ---
 
@@ -1147,27 +1086,27 @@ Hosted mode: checks platform API reachability, session auth, account info, index
 
 ---
 
-## Generate (top-level)
+## Contracts generate
 
-### sl generate
+### sl contracts generate
 
-Generate TypeScript interfaces from Clarity contracts. Alias: `gen`.
+Generate TypeScript interfaces from Clarity contracts. Alias: `contracts gen`.
 
-Usage: `sl generate [files...]`
+Usage: `sl contracts generate [files...]`
 
 | Flag | Description |
 | --- | --- |
 | `-c, --config <path>` | Path to config file (default `secondlayer.config.ts`). |
-| `-o, --out <path>` | Output file path. **Required** when using direct file/contract inputs (not config-based). |
+| `-o, --output <path>` | Output file path. **Required** when using direct file/contract inputs (not config-based). |
 | `-k, --api-key <key>` | Stacks node API key for direct RPC. Falls back to `STACKS_NODE_API_KEY` / `HIRO_API_KEY`. |
 | `-w, --watch` | Watch for changes. |
 
 Accepts `.clar` file paths, glob patterns, or deployed contract IDs (`SP…/ST…/SM…/SN….<name>`). When invoked with no positional args, reads `secondlayer.config.ts`.
 
 Examples:
-- `sl generate ./contracts/*.clar -o ./src/generated.ts`
-- `sl generate SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o ./src/generated.ts`
-- `sl generate` (uses config file)
+- `sl contracts generate ./contracts/*.clar -o ./src/generated.ts`
+- `sl contracts generate SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o ./src/generated.ts`
+- `sl contracts generate` (uses config file)
 
 ### sl init
 

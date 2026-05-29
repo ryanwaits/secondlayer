@@ -25,7 +25,7 @@ Before doing the task, load the smallest set of reference files that cover it. R
 | If the user wants to… | Load |
 |---|---|
 | Install the CLI, log in, set up env vars, install an SDK package | `references/installation.md` |
-| Run any `sl` command (subgraphs, subscriptions, streams, create, project, local, account) | `references/cli.md` |
+| Run any `sl` command (subgraphs, subscriptions, streams, projects, local, account) | `references/cli.md` |
 | Call the platform API from TypeScript (`new SecondLayer(...)`, `sl.streams`, `sl.subgraphs`, `sl.subscriptions`, `sl.index`) | `references/sdk.md` |
 | Write or edit a subgraph file (`defineSubgraph`, sources, schema, handlers, `ctx.*`) | `references/subgraph-authoring.md` |
 | Read or call a Clarity contract, sign STX/contract transactions, work with Clarity values, post-conditions, accounts, transports | `references/stacks.md` |
@@ -43,7 +43,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 - **Binary:** `sl` (aliased `secondlayer`). Install: `bun add -g @secondlayer/cli`.
 - **Default platform API:** `https://api.secondlayer.tools`. Override with `SL_API_URL`.
 - **CLI auth:** `sl login` → magic-link → session in `~/.secondlayer/session.json` (90-day sliding). Tenant-scoped commands auto-mint 5-minute service JWTs per invocation; no long-lived key on disk.
-- **Streams auth:** `SL_STREAMS_API_KEY` env var (issued from the dashboard).
+- **Streams auth:** `SL_API_KEY` env var (issued from the dashboard).
 - **Open beta:** reads have no auth; writes (deploy, create, delete, rotate, replay) require auth. Don't fabricate auth steps for read-only queries.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
@@ -52,8 +52,8 @@ These are small enough to keep in the router. Everything else is in a reference 
 
 1. **Identify the layer.** Is this a subgraph (custom indexer)? A pre-built dataset (`sl.index`)? A raw stream consumer? A direct contract call? Pick the right tool — don't reach for a subgraph when `sl.index.ftTransfers.list({ recipient })` does the job in one HTTP call.
 2. **Inspect first.** Before changing anything tenant-scoped, run a read (`sl subgraphs list`, `sl subscriptions get …`). Confirms auth + state, prevents accidental overwrites.
-3. **Scaffold the smallest correct thing.** Use `sl subgraphs scaffold <contract>` or `sl create subscription <name>` rather than hand-writing boilerplate. Both generate code that's already 1:1 with current package APIs.
-4. **Validate locally.** For subgraphs: `sl subgraphs inspect <file>` to preview generated schema and API without deploying. For SDK code: type-check.
+3. **Scaffold the smallest correct thing.** Use `sl subgraphs scaffold <contract>` or `sl subscriptions create <name>` rather than hand-writing boilerplate. Both generate code that's already 1:1 with current package APIs.
+4. **Validate locally.** For subgraphs: `sl subgraphs spec <file>` to preview generated schema and API without deploying. For SDK code: type-check.
 5. **Confirm before destructive actions.** Always pause to confirm: `sl subgraphs delete`, `sl subgraphs reindex` (drops + reprocesses), `sl subscriptions rotate-secret`, `sl subscriptions replay`, `sl subscriptions requeue`. The CLI prompts by default; if running in non-TTY, pass `-y` only with explicit user consent.
 6. **Verify after.** `sl subgraphs status <name>` after deploy. `sl subscriptions deliveries <name>` after creating a subscription.
 
@@ -72,7 +72,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 | Subgraph deploy errors `upsert requires unique key` | Schema declared `upsert` writes but `uniqueKeys` missing | Add `uniqueKeys: [["col_a", "col_b"]]` to the table |
 | Subscription paused after 20 failures | Receiver returning 4xx/5xx or timing out | `sl subscriptions doctor <name>`; fix receiver; `sl subscriptions resume <name>` |
 | `ApiError 401` from SDK | Missing `apiKey` or expired session | Set `SECONDLAYER_API_KEY` / regenerate from dashboard; for CLI run `sl login` |
-| `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `sl subgraphs generate <name> -o ...` or refresh ABI |
+| `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `sl subgraphs client <name> -o ...` or refresh ABI |
 | Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `sl subscriptions update <name> --format standard-webhooks` |
 | Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `sl subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |
 

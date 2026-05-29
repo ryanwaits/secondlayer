@@ -12,7 +12,7 @@ subscription tools to MCP-capable agents.
       "command": "bunx",
       "args": ["@secondlayer/mcp"],
       "env": {
-        "SL_SERVICE_KEY": "sk-sl_..."
+        "SL_API_KEY": "sk-sl_..."
       }
     }
   }
@@ -24,7 +24,7 @@ Restart the MCP client after changing the config.
 ## HTTP Setup
 
 ```bash
-export SL_SERVICE_KEY=sk-sl_...
+export SL_API_KEY=sk-sl_...
 export SECONDLAYER_MCP_SECRET=local-bearer-secret
 bunx --package @secondlayer/mcp mcp-http
 ```

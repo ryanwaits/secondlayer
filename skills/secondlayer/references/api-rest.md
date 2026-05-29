@@ -16,7 +16,7 @@ Override with `SL_API_URL` env var or `baseUrl` SDK option.
 
 | Endpoint family | Auth required for reads? | Auth required for writes? | Header |
 |---|---|---|---|
-| `/v1/streams/*` | **Yes** (Streams API key) | n/a (read-only) | `Authorization: Bearer <SL_STREAMS_API_KEY>` |
+| `/v1/streams/*` | **Yes** (Streams API key) | n/a (read-only) | `Authorization: Bearer <SL_API_KEY>` |
 | `/v1/index/*` | No (open beta) | n/a (read-only) | `Authorization: Bearer <key>` if you have one |
 | `/api/subgraphs/*` | No (open beta) | Yes | `Authorization: Bearer <apiKey>` |
 | `/api/subscriptions/*` | Yes | Yes | `Authorization: Bearer <apiKey>` |
@@ -57,7 +57,7 @@ Common error codes: `NOT_FOUND`, `UNAUTHORIZED`, `VALIDATION_ERROR`, `VERSION_CO
 Returns current canonical tip.
 
 ```bash
-curl -H "Authorization: Bearer $SL_STREAMS_API_KEY" \
+curl -H "Authorization: Bearer $SL_API_KEY" \
   https://api.secondlayer.tools/v1/streams/tip
 ```
 
@@ -77,7 +77,7 @@ Cursor-paginated firehose of decoded events.
 | `limit` | number | 1-1000, default 100 |
 
 ```bash
-curl -H "Authorization: Bearer $SL_STREAMS_API_KEY" \
+curl -H "Authorization: Bearer $SL_API_KEY" \
   "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&limit=50"
 ```
 

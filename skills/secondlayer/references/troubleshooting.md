@@ -23,7 +23,7 @@ Look at:
 |---|---|---|
 | Stuck on `catching_up` for hours | Normal — first deploy from low `startBlock` | Wait; or redeploy with `--start-block <near tip>` to skip history. |
 | `error` status with handler exception | Bug in handler — bad type, missing field, missing `uniqueKeys` | Read `last_error`; fix handler; redeploy. 50+ consecutive errors flips status to `error`. |
-| Gaps after live tip caught up | Transient ingestion failure on specific ranges | `sl subgraphs backfill <name> --from <gap_start> --to <gap_end>`. |
+| Gaps after live tip caught up | Transient ingestion failure on specific ranges | `sl subgraphs backfill <name> --from-block <gap_start> --to-block <gap_end>`. |
 | Schema mismatch error on deploy | Table/column changed in a breaking way | Deploy will auto-trigger reindex; confirm before allowing (drops the table). |
 | `upsert requires unique key` error | Schema declared `upsert` but missing `uniqueKeys` | Add `uniqueKeys: [["col_a"]]` to the table. |
 
@@ -87,7 +87,7 @@ sl streams tip                      # baseline reachability
 
 | Symptom | Cause | Action |
 |---|---|---|
-| `401 Unauthorized` | Missing `SL_STREAMS_API_KEY` | Export it; or pass via `createStreamsClient({ apiKey })`. |
+| `401 Unauthorized` | Missing `SL_API_KEY` | Export it; or pass via `createStreamsClient({ apiKey })`. |
 | `429 Too Many Requests` | Hit rate limit | SDK throws `RateLimitError` with `retryAfter`. Back off; use `events.consume` instead of polling `events.list`. |
 | Consumer stops processing | Aborted by signal OR `mode: "bounded"` reached end | Restart with last saved cursor. |
 | `next_cursor: null` reached | Caught up to tip (with `mode: "bounded"`) | Switch to `mode: "tail"` to keep polling. |
@@ -123,9 +123,9 @@ CLI returns typed errors with action hints:
 | Error code | Hint |
 |---|---|
 | `SESSION_EXPIRED` | `sl login` |
-| `NO_ACTIVE_PROJECT` | `sl project use <slug>` |
-| `NO_TENANT_FOR_PROJECT` | `sl instance create --plan launch` (dedicated only) |
-| `TENANT_SUSPENDED` | Contact billing / `sl instance resume` |
+| `NO_ACTIVE_PROJECT` | `sl projects use <slug>` |
+| `NO_TENANT_FOR_PROJECT` | `sl projects create <name>` (no project provisioned yet) |
+| `TENANT_SUSPENDED` | Contact support (`sl account billing` to check plan state) |
 | `KEY_ROTATED` | Handled transparently (CLI re-mints + retries once) |
 
 ## Stacks SDK: contract calls failing
