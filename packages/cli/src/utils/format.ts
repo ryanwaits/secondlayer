@@ -38,7 +38,12 @@ async function getBiome(): Promise<Biome> {
 			},
 		});
 
-		biome.registerProjectFolder();
+		// Intentionally NOT calling registerProjectFolder(): doing so makes Biome
+		// load the on-disk biome.json (which has no quoteStyle, so it defaults to
+		// double quotes) and override the single-quote style pinned above. Whether
+		// that override won was timing-dependent across the shared singleton,
+		// making generated output nondeterministic between test runs. Relying only
+		// on applyConfiguration keeps codegen output stable regardless of cwd.
 	}
 
 	return biome;
