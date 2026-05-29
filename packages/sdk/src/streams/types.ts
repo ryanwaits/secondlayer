@@ -90,6 +90,9 @@ export type StreamsEventsListParams = {
 	toHeight?: number;
 	types?: readonly StreamsEventType[];
 	contractId?: string;
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
 	limit?: number;
 };
 
@@ -97,6 +100,9 @@ export type StreamsEventsStreamParams = {
 	fromCursor?: string | null;
 	types?: readonly StreamsEventType[];
 	contractId?: string;
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
 	batchSize?: number;
 	emptyBackoffMs?: number;
 	maxPages?: number;
@@ -109,6 +115,9 @@ export type StreamsEventsConsumeParams = {
 	mode?: "tail" | "bounded";
 	types?: readonly StreamsEventType[];
 	contractId?: string;
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
 	batchSize?: number;
 	onBatch: (
 		events: StreamsEvent[],

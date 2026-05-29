@@ -47,6 +47,34 @@ describe("Streams events route helpers", () => {
 		expect(body.events.map((e) => e.finalized)).toEqual([true, true, false]);
 	});
 
+	test("forwards sender/recipient/asset_identifier filters to the reader", async () => {
+		let seen: Record<string, unknown> = {};
+		await getStreamsEventsResponse({
+			query: params(
+				"?from_height=0&sender=SP1&recipient=SP2&asset_identifier=SP3.t::tok",
+			),
+			tip: { ...TIP, block_height: 10_000 },
+			readEvents: async (p) => {
+				seen = p;
+				return { events: [], next_cursor: null };
+			},
+		});
+
+		expect(seen.sender).toBe("SP1");
+		expect(seen.recipient).toBe("SP2");
+		expect(seen.assetIdentifier).toBe("SP3.t::tok");
+	});
+
+	test("rejects an empty payload filter", async () => {
+		await expect(
+			getStreamsEventsResponse({
+				query: params("?from_height=0&sender="),
+				tip: TIP,
+				readEvents: async () => ({ events: [], next_cursor: null }),
+			}),
+		).rejects.toThrow("sender must not be empty");
+	});
+
 	test("defaults to the last day when no explicit height or cursor is provided", async () => {
 		let seenFromHeight: number | undefined;
 		const body = await getStreamsEventsResponse({

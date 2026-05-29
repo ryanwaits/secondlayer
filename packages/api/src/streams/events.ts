@@ -36,6 +36,9 @@ export type StreamsEventsQuery = {
 	toHeight: number;
 	types?: readonly StreamsEventType[];
 	contractId?: string;
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
 	limit: number;
 	cursorPastTip: boolean;
 };
@@ -120,6 +123,17 @@ function parseContractId(value: string | undefined): string | undefined {
 	return value;
 }
 
+function parsePayloadFilter(
+	value: string | undefined,
+	name: string,
+): string | undefined {
+	if (value === undefined) return undefined;
+	if (value.length === 0) {
+		throw new ValidationError(`${name} must not be empty`);
+	}
+	return value;
+}
+
 export function getClampedStreamsTipHeight(tip: StreamsTip): number {
 	return Math.max(0, tip.block_height - tip.lag_seconds);
 }
@@ -170,6 +184,15 @@ export function parseStreamsEventsQuery(
 		toHeight,
 		types: parseTypes(query.get("types") ?? undefined),
 		contractId: parseContractId(query.get("contract_id") ?? undefined),
+		sender: parsePayloadFilter(query.get("sender") ?? undefined, "sender"),
+		recipient: parsePayloadFilter(
+			query.get("recipient") ?? undefined,
+			"recipient",
+		),
+		assetIdentifier: parsePayloadFilter(
+			query.get("asset_identifier") ?? undefined,
+			"asset_identifier",
+		),
 		limit: parseLimit(query.get("limit") ?? undefined),
 		cursorPastTip: cursor ? cursor.block_height > clampedTipHeight : false,
 	};
@@ -200,6 +223,9 @@ export async function getStreamsEventsResponse(opts: {
 		toHeight: parsed.toHeight,
 		types: parsed.types,
 		contractId: parsed.contractId,
+		sender: parsed.sender,
+		recipient: parsed.recipient,
+		assetIdentifier: parsed.assetIdentifier,
 		limit: parsed.limit,
 	});
 	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;

@@ -113,8 +113,19 @@ export function createStreamsClient(
 		limit,
 		types,
 		contractId,
+		sender,
+		recipient,
+		assetIdentifier,
 	}) => {
-		return listEvents({ cursor, limit, types, contractId });
+		return listEvents({
+			cursor,
+			limit,
+			types,
+			contractId,
+			sender,
+			recipient,
+			assetIdentifier,
+		});
 	};
 
 	async function listEvents(
@@ -126,6 +137,9 @@ export function createStreamsClient(
 		appendSearchParam(searchParams, "to_height", params.toHeight);
 		appendSearchParam(searchParams, "limit", params.limit);
 		appendSearchParam(searchParams, "contract_id", params.contractId);
+		appendSearchParam(searchParams, "sender", params.sender);
+		appendSearchParam(searchParams, "recipient", params.recipient);
+		appendSearchParam(searchParams, "asset_identifier", params.assetIdentifier);
 		if (params.types?.length) {
 			searchParams.set("types", params.types.join(","));
 		}
@@ -150,6 +164,9 @@ export function createStreamsClient(
 					mode: params.mode,
 					types: params.types,
 					contractId: params.contractId,
+					sender: params.sender,
+					recipient: params.recipient,
+					assetIdentifier: params.assetIdentifier,
 					batchSize: params.batchSize ?? 100,
 					fetchEvents,
 					onBatch: params.onBatch,
@@ -164,6 +181,9 @@ export function createStreamsClient(
 					fromCursor: params.fromCursor,
 					types: params.types,
 					contractId: params.contractId,
+					sender: params.sender,
+					recipient: params.recipient,
+					assetIdentifier: params.assetIdentifier,
 					batchSize: params.batchSize ?? 100,
 					emptyBackoffMs: params.emptyBackoffMs,
 					maxPages: params.maxPages,

@@ -9,6 +9,9 @@ type StreamsEventsFetchParams = {
 	limit: number;
 	types?: readonly StreamsEventType[];
 	contractId?: string;
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
 };
 
 export type StreamsEventsFetcher = (
@@ -43,6 +46,9 @@ export async function consumeStreamsEvents(opts: {
 	batchSize: number;
 	types?: readonly StreamsEventType[];
 	contractId?: string;
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
 	fetchEvents: StreamsEventsFetcher;
 	onBatch: (
 		events: StreamsEvent[],
@@ -73,6 +79,9 @@ export async function consumeStreamsEvents(opts: {
 			limit: opts.batchSize,
 			types: opts.types,
 			contractId: opts.contractId,
+			sender: opts.sender,
+			recipient: opts.recipient,
+			assetIdentifier: opts.assetIdentifier,
 		});
 		pages++;
 
@@ -105,6 +114,9 @@ export async function* streamStreamsEvents(opts: {
 	batchSize: number;
 	types?: readonly StreamsEventType[];
 	contractId?: string;
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
 	fetchEvents: StreamsEventsFetcher;
 	sleep?: Sleep;
 	emptyBackoffMs?: number;
@@ -130,6 +142,9 @@ export async function* streamStreamsEvents(opts: {
 			limit: opts.batchSize,
 			types: opts.types,
 			contractId: opts.contractId,
+			sender: opts.sender,
+			recipient: opts.recipient,
+			assetIdentifier: opts.assetIdentifier,
 		});
 		pages++;
 

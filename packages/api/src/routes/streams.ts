@@ -52,6 +52,9 @@ const STREAMS_EVENTS_ALLOWED = [
 	"to_height",
 	"types",
 	"contract_id",
+	"sender",
+	"recipient",
+	"asset_identifier",
 	"limit",
 ] as const;
 const STREAMS_REORGS_ALLOWED = ["since", "limit"] as const;
@@ -102,6 +105,9 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						"to_height",
 						"types",
 						"contract_id",
+						"sender",
+						"recipient",
+						"asset_identifier",
 					],
 					auth: "bearer (Build+ tier)",
 				},

@@ -6,6 +6,7 @@ import {
 	matchesIfNoneMatch,
 	streamsETag,
 	streamsEventsCacheControl,
+	streamsEventsCachePlan,
 } from "./cache.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -50,6 +51,20 @@ describe("streamsEventsCacheControl", () => {
 		expect(streamsEventsCacheControl(params("?to_height=950"), TIP)).toBe(
 			STREAMS_MUTABLE_CACHE_CONTROL,
 		);
+	});
+
+	test("cache key isolates distinct payload filters", () => {
+		const base = streamsEventsCachePlan(params("?to_height=900"), TIP).cacheKey;
+		const bySender = streamsEventsCachePlan(
+			params("?to_height=900&sender=SP1"),
+			TIP,
+		).cacheKey;
+		const byRecipient = streamsEventsCachePlan(
+			params("?to_height=900&recipient=SP1"),
+			TIP,
+		).cacheKey;
+		expect(base).not.toBe(bySender);
+		expect(bySender).not.toBe(byRecipient);
 	});
 });
 

@@ -56,6 +56,9 @@ export function streamsEventsCachePlan(
 				t: parsed.toHeight,
 				ty: parsed.types ? [...parsed.types].sort() : null,
 				c: parsed.contractId ?? null,
+				s: parsed.sender ?? null,
+				r: parsed.recipient ?? null,
+				a: parsed.assetIdentifier ?? null,
 				l: parsed.limit,
 				cur: parsed.cursorRaw ?? null,
 			})

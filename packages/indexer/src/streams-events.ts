@@ -106,6 +106,11 @@ export type ReadCanonicalStreamsEventsParams = {
 	toHeight: number;
 	types?: readonly StreamsEventType[];
 	contractId?: string;
+	/** Exact-match filters on the raw event payload (`events.data`). Event types
+	 *  that lack the field simply never match — the firehose narrows naturally. */
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
 	limit: number;
 	db?: Kysely<Database>;
 };
@@ -254,7 +259,7 @@ export async function readCanonicalStreamsEvents(
 			STREAMS_TO_DB_EVENT_TYPES[eventType].map((dbType) => sql`${dbType}`),
 		),
 	);
-	const contractPredicate = contractIdPredicate(params.contractId);
+	const filterPredicate = streamsFilterPredicate(params);
 	const rows = params.after
 		? await readCanonicalStreamsEventsAfterCursor({
 				db,
@@ -263,7 +268,7 @@ export async function readCanonicalStreamsEvents(
 				limit: params.limit,
 				allDbEventTypes,
 				selectedDbEventTypes,
-				contractPredicate,
+				filterPredicate,
 			})
 		: await readCanonicalStreamsEventsFromHeight({
 				db,
@@ -272,7 +277,7 @@ export async function readCanonicalStreamsEvents(
 				limit: params.limit,
 				allDbEventTypes,
 				selectedDbEventTypes,
-				contractPredicate,
+				filterPredicate,
 			});
 
 	const pageRows = rows.slice(0, params.limit);
@@ -330,6 +335,32 @@ function contractIdPredicate(
 			)
 		)
 	`;
+}
+
+/** Exact-match predicate on a raw payload field, or empty when unset. The key
+ *  is bound as a parameter (safe) and the `->>` operator accepts it. */
+function payloadFieldPredicate(
+	field: string,
+	value: string | undefined,
+): RawBuilder<unknown> {
+	if (value === undefined) return sql``;
+	return sql` AND e.data->>${field} = ${value}`;
+}
+
+/** Combined WHERE predicate for all payload filters Streams exposes. */
+function streamsFilterPredicate(params: {
+	contractId?: string;
+	sender?: string;
+	recipient?: string;
+	assetIdentifier?: string;
+}): RawBuilder<unknown> {
+	return sql`${contractIdPredicate(params.contractId)}${payloadFieldPredicate(
+		"sender",
+		params.sender,
+	)}${payloadFieldPredicate("recipient", params.recipient)}${payloadFieldPredicate(
+		"asset_identifier",
+		params.assetIdentifier,
+	)}`;
 }
 
 export async function readCanonicalStreamsEventsByTxId(
@@ -472,7 +503,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
 	limit: number;
 	allDbEventTypes: RawBuilder<unknown>;
 	selectedDbEventTypes: RawBuilder<unknown>;
-	contractPredicate: RawBuilder<unknown>;
+	filterPredicate: RawBuilder<unknown>;
 }): Promise<StreamsEventRow[]> {
 	const { rows } = await sql<StreamsEventRow>`
     WITH candidate_events AS (
@@ -491,7 +522,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
       INNER JOIN blocks b ON b.height = e.block_height
       WHERE b.canonical = true
         AND e.type IN (${opts.selectedDbEventTypes})
-        ${opts.contractPredicate}
+        ${opts.filterPredicate}
         AND e.block_height >= ${opts.fromHeight}
         AND e.block_height <= ${opts.toHeight}
       ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
@@ -540,7 +571,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
 	limit: number;
 	allDbEventTypes: RawBuilder<unknown>;
 	selectedDbEventTypes: RawBuilder<unknown>;
-	contractPredicate: RawBuilder<unknown>;
+	filterPredicate: RawBuilder<unknown>;
 }): Promise<StreamsEventRow[]> {
 	const { rows } = await sql<StreamsEventRow>`
     WITH same_block_events AS (
@@ -559,7 +590,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
       INNER JOIN blocks b ON b.height = e.block_height
       WHERE b.canonical = true
         AND e.type IN (${opts.selectedDbEventTypes})
-        ${opts.contractPredicate}
+        ${opts.filterPredicate}
         AND e.block_height = ${opts.after.block_height}
         AND e.block_height <= ${opts.toHeight}
     ),
@@ -579,7 +610,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
       INNER JOIN blocks b ON b.height = e.block_height
       WHERE b.canonical = true
         AND e.type IN (${opts.selectedDbEventTypes})
-        ${opts.contractPredicate}
+        ${opts.filterPredicate}
         AND e.block_height > ${opts.after.block_height}
         AND e.block_height <= ${opts.toHeight}
       ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
