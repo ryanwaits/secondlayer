@@ -36,14 +36,38 @@ export function isFinalizedHeight(
  * past the tip. Re-parses the query (pure, cheap) so the handler can decide
  * without threading the resolved range through the response envelope.
  */
+/**
+ * Cache decision for a `/events` request, computed in one parse: the
+ * `Cache-Control` directive plus an origin-cache key (non-null only for
+ * finalized/immutable pages). The key is derived from the resolved range so
+ * different URLs that resolve to the same page share an entry; it deliberately
+ * excludes tenant/auth, since finalized content is identical across tenants.
+ */
+export function streamsEventsCachePlan(
+	query: URLSearchParams,
+	tip: StreamsTip,
+): { cacheControl: string; cacheKey: string | null } {
+	const parsed = parseStreamsEventsQuery(query, tip);
+	const fullyFinalized =
+		!parsed.cursorPastTip && parsed.toHeight <= tip.finalized_height;
+	const cacheKey = fullyFinalized
+		? JSON.stringify({
+				f: parsed.fromHeight ?? null,
+				t: parsed.toHeight,
+				ty: parsed.types ? [...parsed.types].sort() : null,
+				c: parsed.contractId ?? null,
+				l: parsed.limit,
+				cur: parsed.cursorRaw ?? null,
+			})
+		: null;
+	return { cacheControl: streamsCacheControl(fullyFinalized), cacheKey };
+}
+
 export function streamsEventsCacheControl(
 	query: URLSearchParams,
 	tip: StreamsTip,
 ): string {
-	const parsed = parseStreamsEventsQuery(query, tip);
-	const fullyFinalized =
-		!parsed.cursorPastTip && parsed.toHeight <= tip.finalized_height;
-	return streamsCacheControl(fullyFinalized);
+	return streamsEventsCachePlan(query, tip).cacheControl;
 }
 
 /** Weak ETag over a response body. Immutable pages hash to a stable value. */

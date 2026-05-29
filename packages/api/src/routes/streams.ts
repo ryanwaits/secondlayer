@@ -21,7 +21,7 @@ import {
 	matchesIfNoneMatch,
 	streamsCacheControl,
 	streamsETag,
-	streamsEventsCacheControl,
+	streamsEventsCachePlan,
 } from "../streams/cache.ts";
 import {
 	type StreamsCanonicalBlockReader,
@@ -41,6 +41,7 @@ import {
 	type StreamsReorgsSinceReader,
 	getStreamsReorgsListResponse,
 } from "../streams/reorgs.ts";
+import { StreamsResponseCache } from "../streams/response-cache.ts";
 import { streamsRetentionWindow } from "../streams/retention.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
 
@@ -69,11 +70,15 @@ export type StreamsRouterOptions = {
 	readReorgs?: StreamsReorgsReader;
 	readReorgsSince?: StreamsReorgsSinceReader;
 	recordEventsReturned?: (accountId: string, quantity: number) => Promise<void>;
+	responseCache?: StreamsResponseCache;
 };
 
 export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	const getTip = opts.getTip ?? getStreamsTip;
 	const readReorgs = opts.readReorgs ?? DEFAULT_STREAMS_REORGS_READER;
+	// One cache per router: a single shared instance in production (the router is
+	// built once at startup), and isolated per app in tests.
+	const responseCache = opts.responseCache ?? new StreamsResponseCache();
 	const recordEventsReturned =
 		opts.recordEventsReturned ??
 		((accountId, quantity) =>
@@ -154,18 +159,38 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, STREAMS_EVENTS_ALLOWED);
 		const tip = c.get("streamsTip");
-		const response = await getStreamsEventsResponse({
-			query,
-			tip,
-			readEvents: opts.readEvents,
-			readReorgs,
-		});
-		const cacheControl = streamsEventsCacheControl(query, tip);
+		const { cacheControl, cacheKey } = streamsEventsCachePlan(query, tip);
 		c.header("Cache-Control", cacheControl);
-		// Immutable pages get an ETag; a matching If-None-Match short-circuits to
-		// 304 before metering, since the client already holds the data.
+
+		// Finalized pages are immutable: serve the memoized payload (Postgres skip)
+		// and attach the fresh tip. Rate-limit/metering still run per request.
+		const cached = cacheKey ? responseCache.get(cacheKey) : undefined;
+		const response = cached
+			? { ...cached, tip }
+			: await getStreamsEventsResponse({
+					query,
+					tip,
+					readEvents: opts.readEvents,
+					readReorgs,
+				});
+		if (cacheKey && !cached) {
+			responseCache.set(cacheKey, {
+				events: response.events,
+				next_cursor: response.next_cursor,
+				reorgs: response.reorgs,
+			});
+		}
+		// Immutable pages get an ETag over the stable slice only (not the moving
+		// tip), so it survives tip movement. A matching If-None-Match short-circuits
+		// to 304 before metering, since the client already holds the data.
 		if (cacheControl === STREAMS_IMMUTABLE_CACHE_CONTROL) {
-			const etag = streamsETag(JSON.stringify(response));
+			const etag = streamsETag(
+				JSON.stringify({
+					events: response.events,
+					next_cursor: response.next_cursor,
+					reorgs: response.reorgs,
+				}),
+			);
 			c.header("ETag", etag);
 			if (matchesIfNoneMatch(c.req.header("If-None-Match"), etag)) {
 				return c.body(null, 304);

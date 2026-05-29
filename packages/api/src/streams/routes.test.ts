@@ -154,6 +154,18 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.headers.get("Cache-Control")).toContain("immutable");
 	});
 
+	test("finalized page is served from the origin cache on repeat", async () => {
+		let reads = 0;
+		const app = createApp(async () => {
+			reads++;
+			return { events: [], next_cursor: null };
+		});
+		const path = "/v1/streams/events?from_height=199990&to_height=199994";
+		await app.request(path, { headers: authHeaders(BUILD_KEY) });
+		await app.request(path, { headers: authHeaders(BUILD_KEY) });
+		expect(reads).toBe(1);
+	});
+
 	test("If-None-Match on a finalized page returns 304", async () => {
 		const app = createApp();
 		const path = "/v1/streams/events?from_height=199990&to_height=199994";
