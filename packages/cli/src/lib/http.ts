@@ -1,10 +1,12 @@
-import { readSession } from "./session.ts";
+import { resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
 
 /**
  * Typed HTTP client for the platform API.
  *
- * `httpPlatform` uses the stored session token; the server auto-extends the
- * 90d expiry on every request (sliding window in
+ * `httpPlatform` resolves auth via `resolveAuth` (env API key or stored session
+ * token) and targets `resolveAuth().apiUrl`, so global `--api-key`/`--api-url`
+ * and `SL_API_KEY`/`SL_API_URL` apply uniformly. With a session token the
+ * server auto-extends the 90d expiry on every request (sliding window in
  * packages/api/src/auth/middleware.ts), so no refresh logic lives here.
  *
  * Throws `CliHttpError` on non-2xx with a typed `code` so command handlers
@@ -31,8 +33,6 @@ export class CliHttpError extends Error {
 	}
 }
 
-const PLATFORM_API_URL =
-	process.env.SL_PLATFORM_API_URL ?? "https://api.secondlayer.tools";
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export interface HttpOptions {
@@ -86,8 +86,10 @@ export async function httpPlatform<T>(
 	path: string,
 	opts: HttpOptions = {},
 ): Promise<T> {
-	const session = await readSession();
-	if (!session) {
+	let auth: Awaited<ReturnType<typeof resolveAuth>>;
+	try {
+		auth = await resolveAuth();
+	} catch {
 		throw new CliHttpError(
 			401,
 			"SESSION_EXPIRED",
@@ -95,19 +97,19 @@ export async function httpPlatform<T>(
 			"Not logged in — run `sl login`",
 		);
 	}
-	return request<T>(`${PLATFORM_API_URL}${path}`, {
+	return request<T>(`${auth.apiUrl}${path}`, {
 		...opts,
-		bearer: session.token,
+		bearer: auth.ephemeralKey,
 	});
 }
 
 /**
  * Platform API request without auth — used by `sl login` before a session
- * exists (magic-link + verify endpoints).
+ * exists (magic-link + verify endpoints). Honors SL_API_URL / SL_PLATFORM_API_URL.
  */
 export async function httpPlatformAnon<T>(
 	path: string,
 	opts: HttpOptions = {},
 ): Promise<T> {
-	return request<T>(`${PLATFORM_API_URL}${path}`, opts);
+	return request<T>(`${resolveApiUrl()}${path}`, opts);
 }

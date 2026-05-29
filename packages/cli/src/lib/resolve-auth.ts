@@ -15,7 +15,7 @@ const DEFAULT_API_URL = "https://api.secondlayer.tools";
  * SL_API_URL redirects the endpoint while keeping the session token, so
  * `SL_API_URL=http://localhost… sl …` hits local instead of silently prod.
  */
-function resolveApiUrl(): string {
+export function resolveApiUrl(): string {
 	return (
 		process.env.SL_API_URL ?? process.env.SL_PLATFORM_API_URL ?? DEFAULT_API_URL
 	);
