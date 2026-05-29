@@ -65,6 +65,14 @@ export type Pox4CallsParams = RangeFilters & {
 	/** Any-role: matches caller OR stacker OR delegate_to. */
 	address?: string;
 };
+export type BurnchainRewardsParams = RangeFilters & {
+	/** Filter to one Bitcoin reward address. */
+	recipient?: string;
+};
+export type BurnchainRewardSlotsParams = RangeFilters & {
+	/** Filter to one reward-set Bitcoin address. */
+	holder?: string;
+};
 export type BnsEventsParams = RangeFilters & {
 	topic?: string;
 	namespace?: string;
@@ -105,6 +113,11 @@ export const CURSOR_SLUGS: Record<string, { path: string; rowKey: string }> = {
 	"sbtc-events": { path: "sbtc/events", rowKey: "events" },
 	"sbtc-token-events": { path: "sbtc/token-events", rowKey: "events" },
 	"pox-4-calls": { path: "pox-4/calls", rowKey: "calls" },
+	"burnchain-rewards": { path: "burnchain/rewards", rowKey: "rewards" },
+	"burnchain-reward-slots": {
+		path: "burnchain/reward-slots",
+		rowKey: "slots",
+	},
 	"bns-events": { path: "bns/events", rowKey: "events" },
 	"bns-namespace-events": { path: "bns/namespace-events", rowKey: "events" },
 	"bns-marketplace-events": {
@@ -157,6 +170,13 @@ export class Datasets extends BaseClient {
 		this.cursorDataset<SbtcTokenEventsParams>("sbtc/token-events", "events");
 	readonly pox4Calls: CursorDataset<Pox4CallsParams> =
 		this.cursorDataset<Pox4CallsParams>("pox-4/calls", "calls");
+	readonly burnchainRewards: CursorDataset<BurnchainRewardsParams> =
+		this.cursorDataset<BurnchainRewardsParams>("burnchain/rewards", "rewards");
+	readonly burnchainRewardSlots: CursorDataset<BurnchainRewardSlotsParams> =
+		this.cursorDataset<BurnchainRewardSlotsParams>(
+			"burnchain/reward-slots",
+			"slots",
+		);
 	readonly bnsEvents: CursorDataset<BnsEventsParams> =
 		this.cursorDataset<BnsEventsParams>("bns/events", "events");
 	readonly bnsNamespaceEvents: CursorDataset<BnsNamespaceEventsParams> =
