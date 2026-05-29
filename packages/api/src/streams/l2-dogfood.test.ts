@@ -191,6 +191,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 					block_height: 1,
 					block_hash: "0x01",
 					burn_block_height: 101,
+					finalized_height: 0,
 					lag_seconds: 0,
 				}),
 				readReorgs: async () => [],

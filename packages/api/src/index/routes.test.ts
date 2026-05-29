@@ -20,6 +20,7 @@ const STREAMS_TIP: StreamsTip = {
 	block_height: 10_000,
 	block_hash: "0x01",
 	burn_block_height: 20_000,
+	finalized_height: 9_994,
 	lag_seconds: 0,
 };
 

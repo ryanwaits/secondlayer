@@ -15,6 +15,7 @@ const TIP = {
 	block_height: 10,
 	block_hash: "0x01",
 	burn_block_height: 20,
+	finalized_height: 4,
 	lag_seconds: 0,
 };
 

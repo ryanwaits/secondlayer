@@ -22,6 +22,7 @@ const TEST_TIP: StreamsTip = {
 	block_hash:
 		"0x0000000000000000000000000000000000000000000000000000000000000001",
 	burn_block_height: 20_000,
+	finalized_height: 199_994,
 	lag_seconds: 0,
 };
 

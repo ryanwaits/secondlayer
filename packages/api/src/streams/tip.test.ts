@@ -18,6 +18,7 @@ describe("Streams tip provider", () => {
 	test("real provider returns expected shape", async () => {
 		const provider = createStreamsTipProvider({
 			readTip: async () => tipBlock(182_447, new Date(1000)),
+			readFinalizedHeight: async () => 182_440,
 			now: () => 4000,
 		});
 
@@ -26,8 +27,27 @@ describe("Streams tip provider", () => {
 			block_hash:
 				"0x000000000000000000000000000000000000000000000000000000000002c8af",
 			burn_block_height: 183_447,
+			finalized_height: 182_440,
 			lag_seconds: 3,
 		});
+	});
+
+	test("maps burn-confirmation boundary to a finalized Stacks height", async () => {
+		const seen: number[] = [];
+		const provider = createStreamsTipProvider({
+			readTip: async () => tipBlock(182_447, new Date(0)),
+			btcConfirmations: 6,
+			readFinalizedHeight: async (burnCutoff) => {
+				seen.push(burnCutoff);
+				return 182_400;
+			},
+			now: () => 0,
+		});
+
+		const tip = await provider();
+		// burn tip 183_447 - 6 confirmations = 183_441 passed to the reader.
+		expect(seen).toEqual([183_441]);
+		expect(tip.finalized_height).toBe(182_400);
 	});
 
 	test("lag_seconds clamps to 0 on negative clock skew", () => {
@@ -43,6 +63,7 @@ describe("Streams tip provider", () => {
 		};
 		const provider = createStreamsTipProvider({
 			readTip,
+			readFinalizedHeight: async () => 0,
 			now: () => nowMs,
 			cacheTtlMs: 500,
 		});
@@ -64,6 +85,7 @@ describe("Streams tip provider", () => {
 		};
 		const provider = createStreamsTipProvider({
 			readTip,
+			readFinalizedHeight: async () => 0,
 			now: () => nowMs,
 			cacheTtlMs: 500,
 		});
