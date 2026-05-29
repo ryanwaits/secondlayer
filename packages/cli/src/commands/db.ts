@@ -23,22 +23,10 @@ import {
 const DEV_DATABASE_URL =
 	"postgres://postgres:postgres@localhost:5432/secondlayer_dev";
 
-export function registerDbCommand(program: Command): void {
-	// Deprecated top-level; canonical home is `sl local db`.
-	addDbCommand(program, { deprecated: true });
-}
-
-export function addDbCommand(
-	parent: Command,
-	opts?: { deprecated?: boolean },
-): void {
+export function addDbCommand(parent: Command): void {
 	const dbCmd = parent
 		.command("db")
-		.description(
-			opts?.deprecated
-				? "Deprecated: use `sl local db`"
-				: "Inspect indexer database tables",
-		)
+		.description("Inspect indexer database tables")
 		.addHelpText(
 			"after",
 			`

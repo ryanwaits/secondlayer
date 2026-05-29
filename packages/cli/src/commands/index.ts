@@ -2,7 +2,6 @@ export { registerAccountCommand } from "./account.ts";
 export { registerConfigCommand } from "./config.ts";
 export { registerStatusCommand } from "./status.ts";
 export { registerSubscriptionsCommand } from "./subscriptions.ts";
-export { registerDbCommand } from "./db.ts";
 export { registerDevnetCommand } from "./devnet.ts";
 export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStreamsCommand } from "./streams.ts";

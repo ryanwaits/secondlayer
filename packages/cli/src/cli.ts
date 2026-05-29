@@ -5,7 +5,6 @@ import {
 	registerAccountCommand,
 	registerConfigCommand,
 	registerDatasetsCommand,
-	registerDbCommand,
 	registerDevnetCommand,
 	registerDoctorCommand,
 	registerLocalCommand,
@@ -116,7 +115,6 @@ Examples:
 program.commandsGroup("Local development:");
 registerLocalCommand(program);
 registerDevnetCommand(program);
-registerDbCommand(program);
 
 // Diagnostics
 program.commandsGroup("Diagnostics:");
