@@ -9,6 +9,7 @@ Foundation Datasets are maintained data products. Each ships with a stable read 
 - **sBTC** — mints, burns, and transfers for sBTC.
 - **STX transfers** — native STX movement across the chain.
 - **PoX-4** — stacking, delegation, and reward cycles.
+- **Burnchain rewards** — Bitcoin PoX reward payouts and reward-set membership per burn block.
 - **BNS** — name registrations, renewals, and transfers.
 - **Network health** — block production, mempool, and node signals.
 
@@ -30,6 +31,7 @@ for await (const row of ds.sbtcEvents.walk({ batchSize: 500 })) { /* … */ }
 
 ```bash
 sl datasets query pox-4-calls --filter address=SP… --limit 20   # all stacking activity for an address
+sl datasets query burnchain-rewards --filter recipient=bc1q… --limit 20   # Bitcoin PoX payouts to an address
 ```
 
 Need the full history? Each dataset exposes a parquet export for bulk analytics. Response shape follows the shared [REST API](/docs/rest-api) envelope.

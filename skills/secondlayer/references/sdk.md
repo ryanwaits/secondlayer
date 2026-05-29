@@ -538,9 +538,13 @@ import { Datasets } from "@secondlayer/sdk";
 const ds = new Datasets({ baseUrl: "https://api.secondlayer.tools" });
 
 // cursor datasets: pox4Calls, sbtcEvents, sbtcTokenEvents, stxTransfers,
-// bnsEvents, bnsNamespaceEvents, bnsMarketplaceEvents
+// bnsEvents, bnsNamespaceEvents, bnsMarketplaceEvents,
+// burnchainRewards, burnchainRewardSlots
 const { rows, next_cursor } = await ds.pox4Calls.list({ address: "SP…", limit: 20 });
 for await (const row of ds.sbtcEvents.walk({ batchSize: 500 })) { /* … */ }
+
+// Bitcoin PoX reward payouts (go-forward), filter by reward address:
+await ds.burnchainRewards.list({ recipient: "bc1q…", limit: 20 });
 
 // bespoke
 await ds.bnsResolve("alice.btc");      // single record

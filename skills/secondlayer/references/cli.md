@@ -550,13 +550,16 @@ API key. Base URL via `SL_API_URL` (default `https://api.secondlayer.tools`).
 - `sl datasets list` — dataset catalog + freshness.
 - `sl datasets query <dataset> [--filter k=v…] [--limit n] [--cursor c] [--json]`
   — cursor-paginated query. Datasets: `stx-transfers`, `sbtc-events`,
-  `sbtc-token-events`, `pox-4-calls`, `bns-events`, `bns-namespace-events`,
+  `sbtc-token-events`, `pox-4-calls`, `burnchain-rewards`,
+  `burnchain-reward-slots`, `bns-events`, `bns-namespace-events`,
   `bns-marketplace-events`. `--filter` keys are the dataset's documented params.
 
 ```bash
 # all stacking activity for an address (any role: caller / stacker / delegate)
 sl datasets query pox-4-calls --filter address=SP… --limit 20
 sl datasets query sbtc-events --filter topic=withdrawal-create --limit 5
+# Bitcoin PoX reward payouts to a reward address (go-forward)
+sl datasets query burnchain-rewards --filter recipient=bc1q… --limit 20
 ```
 
 The SDK exposes the same surface (`new Datasets({...})` → `.pox4Calls.list/walk`,
