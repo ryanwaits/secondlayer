@@ -3,6 +3,8 @@ import {
 	STREAMS_IMMUTABLE_CACHE_CONTROL,
 	STREAMS_MUTABLE_CACHE_CONTROL,
 	isFinalizedHeight,
+	matchesIfNoneMatch,
+	streamsETag,
 	streamsEventsCacheControl,
 } from "./cache.ts";
 import type { StreamsTip } from "./tip.ts";
@@ -48,5 +50,33 @@ describe("streamsEventsCacheControl", () => {
 		expect(streamsEventsCacheControl(params("?to_height=950"), TIP)).toBe(
 			STREAMS_MUTABLE_CACHE_CONTROL,
 		);
+	});
+});
+
+describe("streamsETag", () => {
+	test("stable for identical bodies, distinct for different bodies", () => {
+		expect(streamsETag('{"a":1}')).toBe(streamsETag('{"a":1}'));
+		expect(streamsETag('{"a":1}')).not.toBe(streamsETag('{"a":2}'));
+	});
+
+	test("emits a weak validator", () => {
+		expect(streamsETag("{}").startsWith('W/"')).toBe(true);
+	});
+});
+
+describe("matchesIfNoneMatch", () => {
+	const etag = streamsETag('{"a":1}');
+
+	test("matches the same tag and weak/strong variants", () => {
+		expect(matchesIfNoneMatch(etag, etag)).toBe(true);
+		expect(matchesIfNoneMatch(etag.replace(/^W\//, ""), etag)).toBe(true);
+		expect(matchesIfNoneMatch("*", etag)).toBe(true);
+		expect(matchesIfNoneMatch(`"other", ${etag}`, etag)).toBe(true);
+	});
+
+	test("does not match a different or absent tag", () => {
+		expect(matchesIfNoneMatch(streamsETag('{"a":2}'), etag)).toBe(false);
+		expect(matchesIfNoneMatch(undefined, etag)).toBe(false);
+		expect(matchesIfNoneMatch("", etag)).toBe(false);
 	});
 });

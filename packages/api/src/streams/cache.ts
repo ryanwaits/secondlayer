@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { parseStreamsEventsQuery } from "./events.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -43,4 +44,25 @@ export function streamsEventsCacheControl(
 	const fullyFinalized =
 		!parsed.cursorPastTip && parsed.toHeight <= tip.finalized_height;
 	return streamsCacheControl(fullyFinalized);
+}
+
+/** Weak ETag over a response body. Immutable pages hash to a stable value. */
+export function streamsETag(body: string): string {
+	return `W/"${createHash("sha256").update(body).digest("base64url")}"`;
+}
+
+/**
+ * Conditional-request match. Honors `*` and weak comparison (RFC 7232 §3.2:
+ * `If-None-Match` always uses the weak comparison function), so `W/"x"` and
+ * `"x"` match.
+ */
+export function matchesIfNoneMatch(
+	ifNoneMatch: string | null | undefined,
+	etag: string,
+): boolean {
+	if (!ifNoneMatch) return false;
+	if (ifNoneMatch.trim() === "*") return true;
+	const normalize = (tag: string) => tag.trim().replace(/^W\//, "");
+	const target = normalize(etag);
+	return ifNoneMatch.split(",").some((tag) => normalize(tag) === target);
 }

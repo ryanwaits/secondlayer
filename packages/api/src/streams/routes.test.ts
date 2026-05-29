@@ -154,6 +154,20 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.headers.get("Cache-Control")).toContain("immutable");
 	});
 
+	test("If-None-Match on a finalized page returns 304", async () => {
+		const app = createApp();
+		const path = "/v1/streams/events?from_height=199990&to_height=199994";
+		const first = await app.request(path, { headers: authHeaders(BUILD_KEY) });
+		expect(first.status).toBe(200);
+		const etag = first.headers.get("ETag");
+		expect(etag).toBeTruthy();
+
+		const second = await app.request(path, {
+			headers: { ...authHeaders(BUILD_KEY), "If-None-Match": etag as string },
+		});
+		expect(second.status).toBe(304);
+	});
+
 	test("default tip-spanning request is private and short-lived", async () => {
 		const app = createApp();
 		const res = await app.request("/v1/streams/events", {

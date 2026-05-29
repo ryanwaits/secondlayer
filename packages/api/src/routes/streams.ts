@@ -16,8 +16,11 @@ import {
 	streamsBearerAuth,
 } from "../streams/auth.ts";
 import {
+	STREAMS_IMMUTABLE_CACHE_CONTROL,
 	isFinalizedHeight,
+	matchesIfNoneMatch,
 	streamsCacheControl,
+	streamsETag,
 	streamsEventsCacheControl,
 } from "../streams/cache.ts";
 import {
@@ -157,11 +160,21 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			readEvents: opts.readEvents,
 			readReorgs,
 		});
+		const cacheControl = streamsEventsCacheControl(query, tip);
+		c.header("Cache-Control", cacheControl);
+		// Immutable pages get an ETag; a matching If-None-Match short-circuits to
+		// 304 before metering, since the client already holds the data.
+		if (cacheControl === STREAMS_IMMUTABLE_CACHE_CONTROL) {
+			const etag = streamsETag(JSON.stringify(response));
+			c.header("ETag", etag);
+			if (matchesIfNoneMatch(c.req.header("If-None-Match"), etag)) {
+				return c.body(null, 304);
+			}
+		}
 		const accountId = c.get("streamsTenant").account_id;
 		if (accountId && response.events.length > 0) {
 			await recordEventsReturned(accountId, response.events.length);
 		}
-		c.header("Cache-Control", streamsEventsCacheControl(query, tip));
 		return c.json(response);
 	});
 
@@ -174,11 +187,15 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			return c.json({ error: "Canonical block not found" }, 404);
 		}
 		const tip = await getTip();
-		c.header("ETag", `"${block.block_hash}"`);
+		const etag = `"${block.block_hash}"`;
+		c.header("ETag", etag);
 		c.header(
 			"Cache-Control",
 			streamsCacheControl(isFinalizedHeight(height, tip)),
 		);
+		if (matchesIfNoneMatch(c.req.header("If-None-Match"), etag)) {
+			return c.body(null, 304);
+		}
 		return c.json(block);
 	});
 
