@@ -32,6 +32,7 @@ import {
 } from "@secondlayer/shared/schemas/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { sql } from "kysely";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -1264,9 +1265,85 @@ app.get("/:subgraphName/:tableName/count", async (c) => {
 
 // ── Get row by ID ───────────────────────────────────────────────────────
 
+// SSE: stream rows as they're indexed. Poll-based v1 — tails the table by a
+// monotonic `_id` cursor every ~1.5s and pushes each new row as an SSE message;
+// reuses the same filter query params as the REST list endpoint. Go-forward by
+// default; `?since=<block>` replays from a block then tails. Open auth (matches
+// the read endpoints). No subscription record is created — this is ephemeral.
+// Registered before the `/:id` route so a static `stream` segment wins over the
+// row-id param (`return;` does not fall through in Hono).
+app.get("/:subgraphName/:tableName/stream", async (c) => {
+	const { subgraphName, tableName } = c.req.param();
+	const accountId = getAccountId(c);
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const tableDef = getSubgraphSchema(subgraph)[tableName];
+	if (!tableDef) {
+		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
+	}
+	const validColumns = getValidColumns(tableDef);
+	// `since` is SSE-specific — strip it before parsing the rest as column
+	// filters (parseQueryParams treats unknown keys as filters).
+	const { since: sinceRaw, ...filterQuery } = c.req.query();
+	let parsed: ReturnType<typeof parseQueryParams>;
+	try {
+		parsed = parseQueryParams(filterQuery, validColumns, tableDef);
+	} catch (e) {
+		if (e instanceof InvalidColumnError) {
+			return c.json({ error: e.message, code: "INVALID_COLUMN" }, 400);
+		}
+		throw e;
+	}
+	const sn = subgraphSchemaName(subgraph);
+	const tbl = `${ident(sn)}.${ident(tableName)}`;
+	const since =
+		sinceRaw != null && Number.isFinite(Number(sinceRaw))
+			? Number(sinceRaw)
+			: null;
+
+	return streamSSE(c, async (stream) => {
+		// Go-forward: start past the current max _id. With ?since, start at 0 and
+		// filter _block_height >= since to replay that range, then tail live.
+		let cursor = 0;
+		if (since == null) {
+			const r = await query(
+				subgraph,
+				`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,
+			);
+			cursor = Number((r[0] as { m?: number | string })?.m ?? 0);
+		}
+		let lastBeat = Date.now();
+		while (!stream.aborted) {
+			const params: unknown[] = [];
+			const conds = buildWhereConditions(parsed, params);
+			params.push(cursor);
+			conds.push(`"_id" > $${params.length}`);
+			if (since != null) {
+				params.push(since);
+				conds.push(`"_block_height" >= $${params.length}`);
+			}
+			const text = `SELECT * FROM ${tbl} WHERE ${conds.join(" AND ")} ORDER BY "_id" ASC LIMIT 500`;
+			const rows = await query(subgraph, text, params);
+			for (const row of rows) {
+				const r = row as Record<string, unknown>;
+				await stream.writeSSE({ data: JSON.stringify(r), id: String(r._id) });
+				cursor = Math.max(cursor, Number(r._id));
+			}
+			if (rows.length > 0) {
+				lastBeat = Date.now();
+			} else if (Date.now() - lastBeat > 20_000) {
+				// Heartbeat (custom event so SDK onmessage ignores it) keeps the
+				// connection + any proxies alive during idle stretches.
+				await stream.writeSSE({ event: "ping", data: "" });
+				lastBeat = Date.now();
+			}
+			await stream.sleep(1500);
+		}
+	});
+});
+
 app.get("/:subgraphName/:tableName/:id", async (c) => {
 	const { subgraphName, tableName, id } = c.req.param();
-	if (id === "count") return;
+	if (id === "count" || id === "stream") return;
 
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
