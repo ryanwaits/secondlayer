@@ -16,13 +16,13 @@ describe("resolveAuth", () => {
 		saved = {};
 		for (const k of AUTH_ENV) {
 			saved[k] = process.env[k];
-			delete process.env[k];
+			Reflect.deleteProperty(process.env, k);
 		}
 	});
 
 	afterEach(() => {
 		for (const k of AUTH_ENV) {
-			if (saved[k] === undefined) delete process.env[k];
+			if (saved[k] === undefined) Reflect.deleteProperty(process.env, k);
 			else process.env[k] = saved[k];
 		}
 	});
@@ -59,14 +59,15 @@ describe("isOssMode", () => {
 	beforeEach(() => {
 		savedUrl = process.env.SL_API_URL;
 		savedKey = process.env.SL_SERVICE_KEY;
-		delete process.env.SL_API_URL;
-		delete process.env.SL_SERVICE_KEY;
+		Reflect.deleteProperty(process.env, "SL_API_URL");
+		Reflect.deleteProperty(process.env, "SL_SERVICE_KEY");
 	});
 
 	afterEach(() => {
-		if (savedUrl === undefined) delete process.env.SL_API_URL;
+		if (savedUrl === undefined) Reflect.deleteProperty(process.env, "SL_API_URL");
 		else process.env.SL_API_URL = savedUrl;
-		if (savedKey === undefined) delete process.env.SL_SERVICE_KEY;
+		if (savedKey === undefined)
+			Reflect.deleteProperty(process.env, "SL_SERVICE_KEY");
 		else process.env.SL_SERVICE_KEY = savedKey;
 	});
 
