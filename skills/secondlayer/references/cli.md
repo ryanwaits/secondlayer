@@ -838,7 +838,7 @@ Then run your normal `clarinet devnet start` — deployed contracts and their ev
 SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy sl subgraphs deploy ./subgraph.ts
 ```
 
-To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not the devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):
+To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not your running devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):
 
 ```ts
 import {
@@ -878,7 +878,7 @@ Usage: `sl devnet down`
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory. |
-| `--purge` | false | Also remove volumes (wipes the local index — use when restarting the devnet from scratch). |
+| `--purge` | false | Also remove volumes (wipes the local index — use when restarting your devnet from scratch). |
 
 ### sl devnet status
 
@@ -902,6 +902,21 @@ Usage: `sl devnet logs [service]` — `service` is optional, one of `indexer`, `
 | `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory. |
 | `-f, --follow` | false | Follow log output. |
 | `-n, --tail <n>` | `200` | Lines to show from the end of each log. |
+
+### Testing subscriptions locally
+
+`sl devnet connect` starts the subscription emitter and configures the stack to deliver webhooks locally: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a subscription's signing secret) and sets `SECONDLAYER_ALLOW_PRIVATE_EGRESS` (so webhooks can reach a localhost receiver). To test:
+
+1. Deploy a subgraph (`sl subgraphs deploy ./subgraph.ts`), then start a local chain with `clarinet devnet start`.
+2. Create a subscription on the local API, pointing at a webhook receiver on your host. The emitter runs in a container, so use `host.docker.internal` instead of `localhost`:
+
+```bash
+curl -X POST http://localhost:3800/api/subscriptions \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"my-hook","subgraphName":"my-app","tableName":"counter_calls","url":"http://host.docker.internal:9999/hook"}'
+```
+
+3. Fire a contract call. The matched row is delivered to your receiver as a signed Standard-Webhooks payload; inspect attempts with `sl subscriptions deliveries my-hook`.
 
 ---
 

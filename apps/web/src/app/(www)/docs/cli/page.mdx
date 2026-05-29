@@ -43,7 +43,7 @@ SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy \
   sl subgraphs deploy ./subgraph.ts
 ```
 
-`connect` pulls the published OSS images (Docker required) — no repo checkout needed. Stop with `sl devnet down` (add `--purge` to wipe the local index when restarting the devnet from scratch).
+`connect` pulls the published OSS images (Docker required) — no repo checkout needed. Stop with `sl devnet down` (add `--purge` to wipe the local index when restarting your devnet from scratch).
 
 To populate rows you need a real contract-call transaction (`clarinet console` is simnet-only and won't broadcast on-chain). Fire one with `@stacks/transactions`:
 
