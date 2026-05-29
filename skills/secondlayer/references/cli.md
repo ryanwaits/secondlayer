@@ -835,6 +835,37 @@ Then run your normal `clarinet devnet start` — deployed contracts and their ev
 SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy sl subgraphs deploy ./subgraph.ts
 ```
 
+To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not the devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):
+
+```ts
+import {
+	broadcastTransaction,
+	getAddressFromPrivateKey,
+	makeContractCall,
+} from "@stacks/transactions";
+
+const key =
+	"753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601"; // devnet deployer
+const sender = getAddressFromPrivateKey(key, "testnet");
+const { nonce } = await fetch(
+	`http://localhost:3999/v2/accounts/${sender}?proof=0`,
+).then((r) => r.json());
+
+const tx = await makeContractCall({
+	contractAddress: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+	contractName: "counter",
+	functionName: "increment",
+	functionArgs: [],
+	senderKey: key,
+	network: "devnet",
+	fee: 3000n,
+	nonce: BigInt(nonce),
+});
+console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
+```
+
+The row shows up at `GET http://localhost:3800/api/subgraphs/<name>/<table>` within ~5s.
+
 ### sl devnet down
 
 Stop the local Secondlayer stack started by `sl devnet connect`.

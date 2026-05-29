@@ -45,6 +45,37 @@ SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy \
 
 `connect` pulls the published OSS images (Docker required) — no repo checkout needed. Stop with `sl devnet down` (add `--purge` to wipe the local index when restarting the devnet from scratch).
 
+To populate rows you need a real contract-call transaction (`clarinet console` is simnet-only and won't broadcast on-chain). Fire one with `@stacks/transactions`:
+
+```ts
+import {
+  broadcastTransaction,
+  getAddressFromPrivateKey,
+  makeContractCall,
+} from "@stacks/transactions";
+
+const key =
+  "753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601"; // devnet deployer
+const sender = getAddressFromPrivateKey(key, "testnet");
+const { nonce } = await fetch(
+  `http://localhost:3999/v2/accounts/${sender}?proof=0`,
+).then((r) => r.json());
+
+const tx = await makeContractCall({
+  contractAddress: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+  contractName: "counter",
+  functionName: "increment",
+  functionArgs: [],
+  senderKey: key,
+  network: "devnet",
+  fee: 3000n,
+  nonce: BigInt(nonce),
+});
+console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
+```
+
+The row appears at `/api/subgraphs/<name>/<table>` within ~5s.
+
 export const metadata = {
 	title: "CLI — Secondlayer Docs",
 	description: "Manage subgraphs and subscriptions from your terminal with sl.",
