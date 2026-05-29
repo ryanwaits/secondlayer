@@ -29,3 +29,28 @@ export async function getCurrentCanonicalTip(
 		ts: new Date(Number(row.timestamp) * 1000),
 	};
 }
+
+/**
+ * Highest canonical Stacks block height whose anchoring burn block is at or
+ * below `finalizedBurnHeight` — i.e. the finality boundary in Stacks-height
+ * space. Nakamoto packs many Stacks blocks into one burn block, so this maps
+ * the burn-confirmation boundary (see `@secondlayer/shared` `finalizedBurnHeight`)
+ * to the highest Stacks height a consumer can treat as immutable.
+ *
+ * Returns 0 when no canonical block is finalized yet.
+ */
+export async function getFinalizedStacksHeight(
+	finalizedBurnHeight: number,
+	db: Kysely<Database> = getSourceDb(),
+): Promise<number> {
+	const row = await db
+		.selectFrom("blocks")
+		.select("height")
+		.where("canonical", "=", true)
+		.where("burn_block_height", "<=", finalizedBurnHeight)
+		.orderBy("height", "desc")
+		.limit(1)
+		.executeTakeFirst();
+
+	return row ? Number(row.height) : 0;
+}

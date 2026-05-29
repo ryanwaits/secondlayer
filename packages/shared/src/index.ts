@@ -1,6 +1,7 @@
 export * from "./types.ts";
 export * from "./db/index.ts";
 export * from "./errors.ts";
+export * from "./finality.ts";
 export { getEnv } from "./env.ts";
 export { logger } from "./logger.ts";
 
