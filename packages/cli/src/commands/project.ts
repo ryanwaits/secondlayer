@@ -33,7 +33,8 @@ interface ProjectCreateOptions {
  */
 export function registerProjectCommand(program: Command): void {
 	const project = program
-		.command("project")
+		.command("projects")
+		.alias("project")
 		.description("Manage Secondlayer projects");
 
 	project
@@ -78,6 +79,7 @@ export function registerProjectCommand(program: Command): void {
 
 	project
 		.command("list")
+		.alias("ls")
 		.description("List projects in your account")
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {
@@ -149,7 +151,8 @@ export function registerProjectCommand(program: Command): void {
 		});
 
 	project
-		.command("current")
+		.command("get")
+		.alias("current")
 		.description("Show the active project for this directory")
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {

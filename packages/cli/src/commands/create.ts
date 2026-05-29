@@ -379,14 +379,19 @@ export async function getSubscriptionClient(
 	});
 }
 
-export function registerCreateCommand(program: Command): void {
-	const create = program
-		.command("create")
-		.description("Scaffold new resources (subscription receivers, etc.)");
-
-	create
-		.command("subscription <name>")
-		.description("Scaffold a subscription receiver for a runtime")
+/**
+ * Register the subscription-receiver scaffolder onto `parent` under
+ * `commandSpec`. Shared so it can mount as both `subscriptions create` (canonical)
+ * and the deprecated `create subscription`.
+ */
+function addSubscriptionScaffold(
+	parent: Command,
+	commandSpec: string,
+	opts: { description: string; examplePrefix: string },
+): void {
+	parent
+		.command(commandSpec)
+		.description(opts.description)
 		.option("-r, --runtime <runtime>", "inngest | trigger | cloudflare | node")
 		.option("-s, --subgraph <name>", "Subgraph to subscribe to")
 		.option("-t, --table <name>", "Table to subscribe to")
@@ -407,10 +412,30 @@ export function registerCreateCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl create subscription my-sub -s my-graph -t transfers -u https://example.com/webhook
-  $ sl create subscription my-sub -s my-graph -t balances -r inngest --filter amount.gte=1000`,
+  $ ${opts.examplePrefix} my-sub -s my-graph -t transfers -u https://example.com/webhook
+  $ ${opts.examplePrefix} my-sub -s my-graph -t balances -r inngest --filter amount.gte=1000`,
 		)
 		.action(async (name: string, options: CreateSubscriptionOptions) => {
 			await createSubscription(name, options);
 		});
+}
+
+/** Canonical home: `sl subscriptions create <name>`. */
+export function addSubscriptionsCreateCommand(subscriptions: Command): void {
+	addSubscriptionScaffold(subscriptions, "create <name>", {
+		description: "Create a subscription receiver for a runtime",
+		examplePrefix: "sl subscriptions create",
+	});
+}
+
+export function registerCreateCommand(program: Command): void {
+	// Deprecated top-level group; canonical home is `sl subscriptions create`.
+	const create = program
+		.command("create")
+		.description("Deprecated: use `sl subscriptions create`");
+
+	addSubscriptionScaffold(create, "subscription <name>", {
+		description: "Deprecated: use `sl subscriptions create`",
+		examplePrefix: "sl create subscription",
+	});
 }

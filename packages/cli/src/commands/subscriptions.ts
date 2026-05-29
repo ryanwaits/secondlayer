@@ -24,6 +24,7 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
+import { addSubscriptionsCreateCommand } from "./create.ts";
 import {
 	buildSubscriptionAuthConfig,
 	getSubscriptionClient,
@@ -566,6 +567,8 @@ export function registerSubscriptionsCommand(program: Command): void {
 			.description("Manage subgraph table subscriptions"),
 	);
 
+	addSubscriptionsCreateCommand(subscriptions);
+
 	commonOptions(
 		subscriptions
 			.command("list")
@@ -702,6 +705,7 @@ Examples:
 	commonOptions(
 		subscriptions
 			.command("delete <idOrName>")
+			.alias("rm")
 			.description("Delete a subscription")
 			.option("-y, --yes", "Skip confirmation")
 			.option("--json", "Output as JSON"),

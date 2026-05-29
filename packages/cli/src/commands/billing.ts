@@ -30,10 +30,35 @@ interface BillingStatusResponse {
 	} | null;
 }
 
+async function runBillingStatus(json?: boolean): Promise<void> {
+	let res: BillingStatusResponse;
+	try {
+		res = await httpPlatform<BillingStatusResponse>("/api/billing/status");
+	} catch (err) {
+		if (err instanceof CliHttpError) {
+			logError(err.message);
+			process.exit(1);
+		}
+		throw err;
+	}
+
+	output({ json, data: res, human: () => renderBillingStatus(res) });
+}
+
+/** Add `<parent> billing` showing plan/subscription/trial/discounts. */
+export function addBillingCommand(parent: Command): void {
+	parent
+		.command("billing")
+		.description("Show your plan, Stripe subscription, trial, and discounts")
+		.option("--json", "Output as JSON")
+		.action((options: { json?: boolean }) => runBillingStatus(options.json));
+}
+
 export function registerBillingCommand(program: Command): void {
+	// Deprecated top-level group; canonical home is `sl account billing`.
 	const billing = program
 		.command("billing")
-		.description("Inspect billing state");
+		.description("Deprecated: use `account billing`");
 
 	billing
 		.command("status")
@@ -41,24 +66,7 @@ export function registerBillingCommand(program: Command): void {
 			"Show your current plan, Stripe subscription, trial, and discounts",
 		)
 		.option("--json", "Output as JSON")
-		.action(async (options: { json?: boolean }) => {
-			let res: BillingStatusResponse;
-			try {
-				res = await httpPlatform<BillingStatusResponse>("/api/billing/status");
-			} catch (err) {
-				if (err instanceof CliHttpError) {
-					logError(err.message);
-					process.exit(1);
-				}
-				throw err;
-			}
-
-			output({
-				json: options.json,
-				data: res,
-				human: () => renderBillingStatus(res),
-			});
-		});
+		.action((options: { json?: boolean }) => runBillingStatus(options.json));
 }
 
 function renderBillingStatus(res: BillingStatusResponse): void {

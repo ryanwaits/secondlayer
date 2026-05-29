@@ -24,9 +24,21 @@ const DEV_DATABASE_URL =
 	"postgres://postgres:postgres@localhost:5432/secondlayer_dev";
 
 export function registerDbCommand(program: Command): void {
-	const dbCmd = program
+	// Deprecated top-level; canonical home is `sl local db`.
+	addDbCommand(program, { deprecated: true });
+}
+
+export function addDbCommand(
+	parent: Command,
+	opts?: { deprecated?: boolean },
+): void {
+	const dbCmd = parent
 		.command("db")
-		.description("Inspect indexer database tables")
+		.description(
+			opts?.deprecated
+				? "Deprecated: use `sl local db`"
+				: "Inspect indexer database tables",
+		)
 		.addHelpText(
 			"after",
 			`
@@ -35,7 +47,7 @@ Subcommands:
   txs       Show recent transactions
   events    Show recent events
   gaps      Show gaps in indexed block data
-  reset     Truncate all indexed data
+  truncate  Truncate all indexed data
   resync    Reset database and restart indexer
 
 Run \`sl db\` with no subcommand to print an overview.`,
@@ -88,7 +100,8 @@ Run \`sl db\` with no subcommand to print an overview.`,
 		});
 
 	dbCmd
-		.command("reset")
+		.command("truncate")
+		.alias("reset")
 		.description("Truncate all indexed data (blocks, txs, events)")
 		.option("-y, --yes", "Skip confirmation prompt")
 		.action(async function (this: Command) {

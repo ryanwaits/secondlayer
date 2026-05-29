@@ -445,8 +445,9 @@ export function registerSubgraphsCommand(program: Command): void {
 
 	// --- new ---
 	subgraphs
-		.command("new <name>")
-		.description("Scaffold a new subgraph definition file")
+		.command("create <name>")
+		.alias("new")
+		.description("Create a new subgraph definition file")
 		.option(
 			"--template <slug>",
 			`Foundation Dataset starter (one of: ${SUBGRAPH_TEMPLATE_SLUGS.join(", ")})`,
@@ -889,6 +890,7 @@ Examples:
 	// --- status ---
 	subgraphs
 		.command("status <name>")
+		.alias("get")
 		.description("Show detailed subgraph status")
 		.option("-w, --watch", "Refresh every 2s until synced or Ctrl-C")
 		.action(async (name: string, options: { watch?: boolean }) => {
@@ -1331,8 +1333,9 @@ Examples:
 
 	// --- stop ---
 	subgraphs
-		.command("stop <name>")
-		.description("Stop a running reindex or backfill operation")
+		.command("cancel <name>")
+		.alias("stop")
+		.description("Cancel a running reindex or backfill operation")
 		.action(async (name: string) => {
 			try {
 				info(`Stopping operation for subgraph "${name}"...`);
@@ -1507,6 +1510,7 @@ Examples:
 	// --- delete ---
 	subgraphs
 		.command("delete <name>")
+		.alias("rm")
 		.description("Delete a subgraph and its data")
 		.option("-y, --yes", "Skip confirmation")
 		.option("--force", "Cancel active operations and force delete")
@@ -1681,10 +1685,9 @@ Examples:
 			},
 		);
 
-	// --- generate ---
+	// --- client ---
 	subgraphs
 		.command("client <subgraphName>")
-		.alias("generate") // back-compat: `generate` was the old name
 		.description("Generate a typed query client for a deployed subgraph")
 		.option("-o, --output <path>", "Output file path (required)")
 		.action(async (subgraphName: string, options: { output?: string }) => {

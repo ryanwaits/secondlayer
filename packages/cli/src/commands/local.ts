@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { requireLocalNetwork } from "../lib/config.ts";
+import { addDbCommand } from "./db.ts";
 
 // Dev service imports
 import { loadDevState } from "../lib/dev-state.ts";
@@ -113,6 +114,9 @@ export function registerLocalCommand(program: Command): void {
 				await showLocalLogs(options);
 			},
 		);
+
+	// Database inspection, nested under `local` (canonical home).
+	addDbCommand(local);
 
 	// Node subcommand group
 	const node = local.command("node").description("Manage local Stacks node");

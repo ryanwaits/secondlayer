@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { program } from "commander";
+import { type Command, program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
 	registerAccountCommand,
@@ -81,31 +81,48 @@ registerDatasetsCommand(program);
 // Project & codegen
 program.commandsGroup("Project & codegen:");
 registerProjectCommand(program);
-program
-	.command("generate [files...]")
-	.aliases(["gen"])
-	.description("Generate TypeScript interfaces from Clarity contracts")
-	.option("-c, --config <path>", "Path to config file")
-	.option(
-		"-o, --output <path>",
-		"Output file path (required when using direct files)",
-	)
-	.option("--out <path>", "Deprecated alias for --output")
-	.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
-	.option("-w, --watch", "Watch for changes")
-	.addHelpText(
-		"after",
-		`
+
+// Clarity → TypeScript codegen. Shared options + action so it mounts as both
+// the canonical `sl contracts generate` and the deprecated top-level `sl generate`.
+const configureGenerate = (cmd: Command): Command =>
+	cmd
+		.option("-c, --config <path>", "Path to config file")
+		.option(
+			"-o, --output <path>",
+			"Output file path (required when using direct files)",
+		)
+		.option("--out <path>", "Deprecated alias for --output")
+		.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
+		.option("-w, --watch", "Watch for changes")
+		.action(async (files, options) => {
+			options.out = options.output ?? options.out;
+			const { generate } = await import("./commands/generate");
+			await generate(files, options);
+		});
+
+const contracts = program
+	.command("contracts")
+	.description("Work with Clarity contracts");
+configureGenerate(
+	contracts
+		.command("generate [files...]")
+		.aliases(["gen"])
+		.description("Generate TypeScript interfaces from Clarity contracts"),
+).addHelpText(
+	"after",
+	`
 Examples:
-  $ sl generate
-  $ sl generate ./contracts/pool.clar -o ./src/generated.ts
-  $ sl generate --config secondlayer.config.ts --watch`,
-	)
-	.action(async (files, options) => {
-		options.out = options.output ?? options.out;
-		const { generate } = await import("./commands/generate");
-		await generate(files, options);
-	});
+  $ sl contracts generate
+  $ sl contracts generate ./contracts/pool.clar -o ./src/generated.ts
+  $ sl contracts generate --config secondlayer.config.ts --watch`,
+);
+
+configureGenerate(
+	program
+		.command("generate [files...]")
+		.aliases(["gen"])
+		.description("Deprecated: use `sl contracts generate`"),
+);
 
 // Local development
 program.commandsGroup("Local development:");

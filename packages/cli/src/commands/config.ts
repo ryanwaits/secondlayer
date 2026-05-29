@@ -28,7 +28,8 @@ export function registerConfigCommand(program: Command): void {
 		.description("Manage CLI configuration");
 
 	config
-		.command("show")
+		.command("get")
+		.alias("show")
 		.description("Show current configuration")
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {
@@ -106,8 +107,9 @@ Examples:
 		});
 
 	config
-		.command("clear")
-		.description("Clear all configuration (delete config file)")
+		.command("delete")
+		.alias("clear")
+		.description("Delete all configuration (remove the config file)")
 		.option("-y, --yes", "Skip confirmation")
 		.action(async (opts: { yes?: boolean }) => {
 			try {
