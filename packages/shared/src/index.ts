@@ -9,3 +9,4 @@ export * from "./schemas/index.ts";
 export * from "./subgraphs/spec.ts";
 
 export * as crypto from "./crypto/hmac.ts";
+export * as ed25519 from "./crypto/ed25519.ts";
