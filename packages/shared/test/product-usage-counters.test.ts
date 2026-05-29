@@ -3,14 +3,14 @@ import { Kysely, sql } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import {
+	incrementIndexDecodedEventsReturned,
+	incrementStreamsEventsReturned,
+} from "../../platform/src/db/queries/usage.ts";
+import {
 	down as down0067,
 	up as up0067,
 } from "../migrations/0067_product_usage_counters.ts";
 import type { Database } from "../src/db/types.ts";
-import {
-	incrementIndexDecodedEventsReturned,
-	incrementStreamsEventsReturned,
-} from "../src/db/queries/usage.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 

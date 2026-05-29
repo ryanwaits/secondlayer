@@ -100,7 +100,7 @@ function createStreamsApi(db: Kysely<Database>): Hono {
 					.executeTakeFirstOrThrow();
 				return {
 					block_height: Number(tip.height),
-					index_block_hash: tip.hash,
+					block_hash: tip.hash,
 					burn_block_height: Number(tip.burn_block_height),
 					lag_seconds: 0,
 				};

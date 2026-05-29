@@ -115,7 +115,7 @@ export async function getFreePort(): Promise<number> {
 		port: 0,
 		fetch: () => new Response("ok"),
 	});
-	const port = server.port;
+	const port = server.port as number;
 	server.stop();
 	return port;
 }

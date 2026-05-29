@@ -53,7 +53,7 @@ async function countAt(height: number): Promise<number> {
 	const rows = await getRawClient().unsafe(
 		`SELECT count(*)::int AS n FROM "${PG_SCHEMA}".transfers WHERE _block_height = ${height}`,
 	);
-	return (rows[0] as { n: number }).n;
+	return (rows[0] as unknown as { n: number }).n;
 }
 
 describe.skipIf(SKIP)("BYO replace-per-height idempotency", () => {

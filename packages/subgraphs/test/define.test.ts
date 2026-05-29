@@ -16,7 +16,7 @@ test("defineSubgraph returns the same definition", () => {
 			},
 		},
 		handlers: { transfer: async () => {} },
-	};
+	} as const;
 
 	const result = defineSubgraph(def);
 	expect(result).toBe(def);

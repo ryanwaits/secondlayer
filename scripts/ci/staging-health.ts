@@ -254,6 +254,8 @@ async function checkZeroTimestampBlocks(): Promise<void> {
 	}
 }
 
+export {};
+
 await checkPublicStatus();
 await checkAuthorizedStatus();
 await checkZeroTimestampBlocks();

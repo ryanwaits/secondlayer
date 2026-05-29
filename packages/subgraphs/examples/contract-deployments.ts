@@ -45,7 +45,7 @@ export default defineSubgraph({
 					contract_id: contractId,
 					name,
 					deployer: ctx.tx.sender,
-					deploy_block: ctx.block.height,
+					deploy_block: BigInt(ctx.block.height),
 					deploy_tx_id: ctx.tx.txId,
 				},
 			);

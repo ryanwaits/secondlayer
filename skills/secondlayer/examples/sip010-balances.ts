@@ -56,8 +56,8 @@ export default defineSubgraph({
         { holder: event.sender },
         {
           holder: event.sender,
-          balance: (row) =>
-            ((row?.balance as bigint) ?? 0n) - (event.amount as bigint),
+          balance: (row: { balance?: bigint } | null) =>
+            (row?.balance ?? 0n) - (event.amount as bigint),
         },
       );
 
@@ -67,8 +67,8 @@ export default defineSubgraph({
         { holder: event.recipient },
         {
           holder: event.recipient,
-          balance: (row) =>
-            ((row?.balance as bigint) ?? 0n) + (event.amount as bigint),
+          balance: (row: { balance?: bigint } | null) =>
+            (row?.balance ?? 0n) + (event.amount as bigint),
         },
       );
     },
@@ -79,8 +79,8 @@ export default defineSubgraph({
         { holder: event.recipient },
         {
           holder: event.recipient,
-          balance: (row) =>
-            ((row?.balance as bigint) ?? 0n) + (event.amount as bigint),
+          balance: (row: { balance?: bigint } | null) =>
+            (row?.balance ?? 0n) + (event.amount as bigint),
         },
       );
     },
@@ -91,8 +91,8 @@ export default defineSubgraph({
         { holder: event.sender },
         {
           holder: event.sender,
-          balance: (row) =>
-            ((row?.balance as bigint) ?? 0n) - (event.amount as bigint),
+          balance: (row: { balance?: bigint } | null) =>
+            (row?.balance ?? 0n) - (event.amount as bigint),
         },
       );
     },
