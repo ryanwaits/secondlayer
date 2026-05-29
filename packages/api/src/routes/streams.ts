@@ -16,6 +16,11 @@ import {
 	streamsBearerAuth,
 } from "../streams/auth.ts";
 import {
+	isFinalizedHeight,
+	streamsCacheControl,
+	streamsEventsCacheControl,
+} from "../streams/cache.ts";
+import {
 	type StreamsCanonicalBlockReader,
 	parseStreamsHeight,
 	readCanonicalStreamsBlock,
@@ -118,7 +123,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 					path: "/v1/streams/tip",
 					method: "GET",
 					description:
-						"Current chain tip: { block_height, block_hash, burn_block_height, lag_seconds }.",
+						"Current chain tip: { block_height, block_hash, burn_block_height, finalized_height, lag_seconds }.",
 				},
 			],
 			cursor: {
@@ -156,6 +161,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		if (accountId && response.events.length > 0) {
 			await recordEventsReturned(accountId, response.events.length);
 		}
+		c.header("Cache-Control", streamsEventsCacheControl(query, tip));
 		return c.json(response);
 	});
 
@@ -167,7 +173,12 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		if (!block) {
 			return c.json({ error: "Canonical block not found" }, 404);
 		}
+		const tip = await getTip();
 		c.header("ETag", `"${block.block_hash}"`);
+		c.header(
+			"Cache-Control",
+			streamsCacheControl(isFinalizedHeight(height, tip)),
+		);
 		return c.json(block);
 	});
 
@@ -196,6 +207,10 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						},
 					})
 				: [];
+		c.header(
+			"Cache-Control",
+			streamsCacheControl(isFinalizedHeight(lastEvent?.block_height, tip)),
+		);
 		return c.json({
 			events: markFinalized(result.events, tip.finalized_height),
 			tip,
@@ -238,6 +253,10 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						},
 					})
 				: [];
+		c.header(
+			"Cache-Control",
+			streamsCacheControl(isFinalizedHeight(firstEvent?.block_height, tip)),
+		);
 		return c.json({
 			events: markFinalized(result.events, tip.finalized_height),
 			tip,
@@ -256,7 +275,10 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		return c.json(response);
 	});
 
-	router.get("/tip", async (c) => c.json(await getTip()));
+	router.get("/tip", async (c) => {
+		c.header("Cache-Control", streamsCacheControl(false));
+		return c.json(await getTip());
+	});
 
 	return router;
 }

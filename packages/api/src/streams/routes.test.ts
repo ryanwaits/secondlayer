@@ -143,6 +143,26 @@ describe("Stacks Streams gateway middleware", () => {
 		}
 	});
 
+	test("finalized closed range is cacheable as immutable", async () => {
+		const app = createApp();
+		// TEST_TIP.finalized_height = 199_994; a closed range below it is immutable.
+		const res = await app.request(
+			"/v1/streams/events?from_height=199990&to_height=199994",
+			{ headers: authHeaders(BUILD_KEY) },
+		);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toContain("immutable");
+	});
+
+	test("default tip-spanning request is private and short-lived", async () => {
+		const app = createApp();
+		const res = await app.request("/v1/streams/events", {
+			headers: authHeaders(BUILD_KEY),
+		});
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe("private, max-age=2");
+	});
+
 	test("Free-tier key requesting from_block older than 7 days gets 403", async () => {
 		const app = createApp();
 		const oldBlock = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY - 1;
