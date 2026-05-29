@@ -77,10 +77,19 @@ PY
 
 check_public_status_services_ok() {
 	local url="${API_URL%/}/public/status"
-	local body
+	# Services flap transiently right after a deploy (especially l2_decoder, which
+	# reports `degraded` while it catches up on indexing lag). Retry within a short
+	# grace window before failing so a momentary blip doesn't red an otherwise-good
+	# deploy. `l2_decoder=degraded` is tolerated outright — it's data-plane lag, not
+	# a deploy regression, and persistent degradation is tracked by Staging Health.
+	local retries="${SMOKE_STATUS_RETRIES:-5}"
+	local delay="${SMOKE_STATUS_RETRY_DELAY:-8}"
+	local attempt=1
+	local body result code
 
-	body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" "$url" || true)"
-	if ! SMOKE_BODY="$body" python3 <<'PY'
+	while :; do
+		body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" "$url" || true)"
+		if result="$(SMOKE_BODY="$body" python3 <<'PY'
 import json
 import os
 import sys
@@ -88,36 +97,55 @@ import sys
 try:
     body = json.loads(os.environ["SMOKE_BODY"])
 except json.JSONDecodeError:
-    print("invalid public status JSON")
+    print("retry: invalid public status JSON")
     sys.exit(1)
 
 services = body.get("services")
 if not isinstance(services, list):
-    print("services is not a list")
+    print("retry: services is not a list")
     sys.exit(1)
 
 by_name = {service.get("name"): service for service in services}
-failures = []
-for name in ("api", "database", "indexer", "l2_decoder"):
-    service = by_name.get(name)
-    if not service:
-        failures.append(f"missing {name}")
-        continue
-    status = service.get("status")
+bad = []
+for name in ("api", "database", "indexer"):
+    status = (by_name.get(name) or {}).get("status")
     if status != "ok":
-        failures.append(f"{name}={status!r}")
+        bad.append(f"{name}={status!r}")
 
-if failures:
-    print("; ".join(failures))
+# Tolerate a degraded (but present and running) decoder; only a down/missing
+# decoder counts against the deploy.
+decoder_status = (by_name.get("l2_decoder") or {}).get("status")
+if decoder_status not in ("ok", "degraded"):
+    bad.append(f"l2_decoder={decoder_status!r}")
+
+if bad:
+    print("retry: " + "; ".join(bad))
     sys.exit(1)
-PY
-	then
-		echo "public status required services: unhealthy"
-		failures=$((failures + 1))
-		return
-	fi
 
-	echo "public status required services: ok"
+print("ok (tolerating l2_decoder=degraded)" if decoder_status == "degraded" else "ok")
+sys.exit(0)
+PY
+		)"; then
+			code=0
+		else
+			code=$?
+		fi
+
+		if [[ "$code" -eq 0 ]]; then
+			echo "public status required services: ${result}"
+			return
+		fi
+
+		if [[ "$attempt" -ge "$retries" ]]; then
+			echo "public status required services: unhealthy after ${retries} attempts (${result})"
+			failures=$((failures + 1))
+			return
+		fi
+
+		echo "public status services not ready (${result}) — attempt ${attempt}/${retries}, retrying in ${delay}s"
+		attempt=$((attempt + 1))
+		sleep "$delay"
+	done
 }
 
 check_status "api health" "200" "/health"
