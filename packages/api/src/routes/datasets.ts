@@ -8,6 +8,12 @@ import {
 	getBnsNamespacesResponse,
 	getBnsResolveResponse,
 } from "../datasets/bns/query.ts";
+import {
+	type BurnchainRewardSlotsReader,
+	type BurnchainRewardsReader,
+	getBurnchainRewardSlotsResponse,
+	getBurnchainRewardsResponse,
+} from "../datasets/burnchain/query.ts";
 import { getNetworkHealthResponse } from "../datasets/network-health/query.ts";
 import {
 	type Pox4CallsReader,
@@ -104,6 +110,18 @@ const DATASETS_DISCOVERY = [
 		],
 	},
 	{
+		family: "burnchain-rewards",
+		path: "/v1/datasets/burnchain/rewards",
+		row_key: "rewards",
+		filters: ["limit", "cursor", "from_block", "to_block", "recipient"],
+	},
+	{
+		family: "burnchain-reward-slots",
+		path: "/v1/datasets/burnchain/reward-slots",
+		row_key: "slots",
+		filters: ["limit", "cursor", "from_block", "to_block", "holder"],
+	},
+	{
 		family: "bns-events",
 		path: "/v1/datasets/bns/events",
 		row_key: "events",
@@ -177,6 +195,8 @@ const ALLOWED = {
 		"reward_cycle",
 		"address",
 	],
+	burnchainRewards: [...RANGE_KEYS, "recipient"],
+	burnchainRewardSlots: [...RANGE_KEYS, "holder"],
 	bnsNameEvents: [...RANGE_KEYS, "topic", "namespace", "name", "owner"],
 	bnsNamespaceEvents: [...RANGE_KEYS, "status", "namespace"],
 	bnsMarketplaceEvents: [...RANGE_KEYS, "action", "bns_id"],
@@ -191,11 +211,16 @@ const DATASETS_IP_RATE_LIMIT = Number.parseInt(
 );
 
 export type DatasetsRouterOptions = {
-	getTip?: () => Promise<{ block_height: number } | null>;
+	getTip?: () => Promise<{
+		block_height: number;
+		burn_block_height?: number;
+	} | null>;
 	readStxTransfers?: StxTransfersReader;
 	readSbtcEvents?: SbtcEventsReader;
 	readSbtcTokenEvents?: SbtcTokenEventsReader;
 	readPox4Calls?: Pox4CallsReader;
+	readBurnchainRewards?: BurnchainRewardsReader;
+	readBurnchainRewardSlots?: BurnchainRewardSlotsReader;
 };
 
 export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
@@ -286,6 +311,36 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 			query,
 			tip: { block_height: tip.block_height },
 			readCalls: opts.readPox4Calls,
+		});
+		return c.json(response);
+	});
+
+	router.get("/burnchain/rewards", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.burnchainRewards);
+		const tip = await getTip();
+		if (!tip || tip.burn_block_height === undefined) {
+			return c.json({ rewards: [], next_cursor: null, tip: null }, 503);
+		}
+		const response = await getBurnchainRewardsResponse({
+			query,
+			tip: { burn_block_height: tip.burn_block_height },
+			readRewards: opts.readBurnchainRewards,
+		});
+		return c.json(response);
+	});
+
+	router.get("/burnchain/reward-slots", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, ALLOWED.burnchainRewardSlots);
+		const tip = await getTip();
+		if (!tip || tip.burn_block_height === undefined) {
+			return c.json({ slots: [], next_cursor: null, tip: null }, 503);
+		}
+		const response = await getBurnchainRewardSlotsResponse({
+			query,
+			tip: { burn_block_height: tip.burn_block_height },
+			readSlots: opts.readBurnchainRewardSlots,
 		});
 		return c.json(response);
 	});
