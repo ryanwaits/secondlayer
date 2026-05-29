@@ -29,7 +29,18 @@ services:
       AUTO_BACKFILL_ENABLED: "false"
       TIP_FOLLOWER_ENABLED: "false"
 
+  # Shared secrets key so the emitter can decrypt secrets the api encrypted
+  # (e.g. subscription signing secrets). OSS auto-generates a per-process key
+  # when unset — that splits api and processor. Local-dev fixed value.
+  api:
+    environment:
+      SECONDLAYER_SECRETS_KEY: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
   subgraph-processor:
     environment:
       NETWORK: testnet
       STACKS_NETWORK: testnet
+      # Allow subscription webhooks to reach a localhost receiver during local
+      # dev (the emitter blocks private/loopback egress by default).
+      SECONDLAYER_ALLOW_PRIVATE_EGRESS: "true"
+      SECONDLAYER_SECRETS_KEY: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
