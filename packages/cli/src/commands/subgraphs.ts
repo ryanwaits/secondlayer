@@ -1049,7 +1049,14 @@ Examples:
 						? { serverUrl: options.server }
 						: undefined;
 					const absPath = resolve(nameOrFile);
-					const isLocalFile = nameOrFile.endsWith(".ts") && existsSync(absPath);
+					// A `.ts` argument is unambiguously a local file — if it's
+					// missing, fail clearly rather than treating the path as a
+					// deployed subgraph name (which yields a confusing 404).
+					if (nameOrFile.endsWith(".ts") && !existsSync(absPath)) {
+						error(`File not found: ${absPath}`);
+						process.exit(1);
+					}
+					const isLocalFile = nameOrFile.endsWith(".ts");
 					const spec = isLocalFile
 						? await specFromLocalFile(absPath, format, specOptions)
 						: format === "openapi"

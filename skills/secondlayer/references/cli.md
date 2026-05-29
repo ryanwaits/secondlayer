@@ -35,7 +35,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`
 - [Local](#local) — `local up|down|restart|status|logs`, `local node …`, `local db …`
 - [Devnet](#devnet) — `local up --devnet` / `local down --devnet`, `devnet status|logs` (run services against a Clarinet devnet)
-- [Account](#account) — `account profile`, `account billing`
+- [Account](#account) — `account get`, `account update`, `account billing`
 - [Config](#config) — `config get|set|reset|delete`
 - [Status](#status) — top-level `status`
 - [Doctor](#doctor) — top-level `doctor`
@@ -983,11 +983,17 @@ Usage: `sl local db resync`
 
 Manage your public account profile.
 
-### sl account profile
+### sl account get
 
-View or update your public profile. With no flags, prints current profile.
+Show your account profile.
 
-Usage: `sl account profile`
+Usage: `sl account get [--json]`
+
+### sl account update
+
+Update your public profile.
+
+Usage: `sl account update`
 
 | Flag | Description |
 | --- | --- |
