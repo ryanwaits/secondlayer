@@ -460,6 +460,32 @@ export interface Pox4SignersDailyTable {
 	updated_at: Generated<Date>;
 }
 
+// Actual BTC PoX payout — one row per reward slot (≤2 per burn block), from the
+// /new_burn_block reward_recipients array. `amount_sats`/`burn_amount` are sats.
+export interface BurnBlockRewardsTable {
+	cursor: string;
+	burn_block_height: number;
+	burn_block_hash: string;
+	reward_index: number;
+	recipient_btc: string;
+	// sats; TEXT to match the dataset amount convention (BIGINT returns as string).
+	amount_sats: string;
+	burn_amount: Generated<string>;
+	canonical: Generated<boolean>;
+	created_at: Generated<Date>;
+}
+
+// Reward-set membership per burn block, from /new_burn_block reward_slot_holders.
+export interface BurnBlockRewardSlotsTable {
+	cursor: string;
+	burn_block_height: number;
+	burn_block_hash: string;
+	slot_index: number;
+	holder_btc: string;
+	canonical: Generated<boolean>;
+	created_at: Generated<Date>;
+}
+
 export type SbtcEventTopic =
 	| "completed-deposit"
 	| "withdrawal-create"
@@ -683,6 +709,8 @@ export interface Database {
 	pox4_calls: Pox4CallsTable;
 	pox4_cycles_daily: Pox4CyclesDailyTable;
 	pox4_signers_daily: Pox4SignersDailyTable;
+	burn_block_rewards: BurnBlockRewardsTable;
+	burn_block_reward_slots: BurnBlockRewardSlotsTable;
 	sbtc_events: SbtcEventsTable;
 	sbtc_token_events: SbtcTokenEventsTable;
 	sbtc_supply_snapshots: SbtcSupplySnapshotsTable;
