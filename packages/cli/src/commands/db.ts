@@ -27,6 +27,19 @@ export function registerDbCommand(program: Command): void {
 	const dbCmd = program
 		.command("db")
 		.description("Inspect indexer database tables")
+		.addHelpText(
+			"after",
+			`
+Subcommands:
+  blocks    Show recent blocks
+  txs       Show recent transactions
+  events    Show recent events
+  gaps      Show gaps in indexed block data
+  reset     Truncate all indexed data
+  resync    Reset database and restart indexer
+
+Run \`sl db\` with no subcommand to print an overview.`,
+		)
 		.hook("preAction", async () => {
 			await requireLocalNetwork();
 		})

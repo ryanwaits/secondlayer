@@ -52,6 +52,14 @@ export function registerDatasetsCommand(program: Command): void {
 		.option("--limit <n>", "Rows per page")
 		.option("--cursor <cursor>", "Resume token from a previous next_cursor")
 		.option("--json", "Print the full envelope as JSON")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl datasets query stx-transfers --filter sender=SP2J6ZY... --limit 100
+  $ sl datasets query sbtc-events --filter amount.gte=1000
+  $ sl datasets query bns-events --cursor 150000:3 --json`,
+		)
 		.action(
 			async (
 				dataset: string,

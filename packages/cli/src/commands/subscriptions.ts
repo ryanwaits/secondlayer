@@ -646,7 +646,15 @@ export function registerSubscriptionsCommand(program: Command): void {
 			.option("--max-retries <n>", "Maximum delivery retries")
 			.option("--timeout-ms <n>", "Delivery timeout in milliseconds")
 			.option("--concurrency <n>", "Per-subscription delivery concurrency")
-			.option("--json", "Output as JSON"),
+			.option("--json", "Output as JSON")
+			.addHelpText(
+				"after",
+				`
+Examples:
+  $ sl subscriptions update my-sub --url https://example.com/hook
+  $ sl subscriptions update my-sub --filter amount.gte=1000 --max-retries 5
+  $ sl subscriptions update my-sub --clear-filter`,
+			),
 	).action(async (idOrName: string, options: UpdateOptions) => {
 		try {
 			const client = await getSubscriptionClient(options);
@@ -820,7 +828,13 @@ export function registerSubscriptionsCommand(program: Command): void {
 			.requiredOption("--from-block <n>", "Start block height")
 			.requiredOption("--to-block <n>", "End block height")
 			.option("-y, --yes", "Skip confirmation")
-			.option("--json", "Output as JSON"),
+			.option("--json", "Output as JSON")
+			.addHelpText(
+				"after",
+				`
+Examples:
+  $ sl subscriptions replay my-sub --from-block 150000 --to-block 160000 -y`,
+			),
 	).action(
 		async (
 			idOrName: string,

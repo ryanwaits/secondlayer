@@ -451,6 +451,13 @@ export function registerSubgraphsCommand(program: Command): void {
 			"--template <slug>",
 			`Foundation Dataset starter (one of: ${SUBGRAPH_TEMPLATE_SLUGS.join(", ")})`,
 		)
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl subgraphs new my-graph
+  $ sl subgraphs new token-balances --template sip-010-balances`,
+		)
 		.action(async (name: string, opts: { template?: string }) => {
 			const slug = (opts.template ?? "basic") as SubgraphTemplateSlug;
 			if (!SUBGRAPH_TEMPLATE_SLUGS.includes(slug)) {
@@ -1181,6 +1188,13 @@ export function registerSubgraphsCommand(program: Command): void {
 		.option("--from <block>", "Start block height")
 		.option("--to <block>", "End block height")
 		.option("-y, --yes", "Skip confirmation")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl subgraphs reindex my-graph -y
+  $ sl subgraphs reindex my-graph --from 150000 --to 160000 -y`,
+		)
 		.action(
 			async (
 				name: string,
@@ -1256,6 +1270,12 @@ export function registerSubgraphsCommand(program: Command): void {
 		.description("Backfill a block range without dropping existing data")
 		.requiredOption("--from <block>", "Start block height")
 		.requiredOption("--to <block>", "End block height")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl subgraphs backfill my-graph --from 150000 --to 160000`,
+		)
 		.action(async (name: string, options: { from: string; to: string }) => {
 			try {
 				const fromBlock = Number.parseInt(options.from, 10);
@@ -1365,6 +1385,14 @@ export function registerSubgraphsCommand(program: Command): void {
 		)
 		.option("--count", "Return row count only")
 		.option("--json", "Output as JSON")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl subgraphs query my-graph balances --filter holder=SP2J6ZY... --limit 50
+  $ sl subgraphs query my-graph transfers --filter amount.gte=1000 --sort _block_height --order desc
+  $ sl subgraphs query my-graph balances --count`,
+		)
 		.action(
 			async (
 				name: string,
@@ -1514,9 +1542,7 @@ export function registerSubgraphsCommand(program: Command): void {
 	// --- scaffold ---
 	subgraphs
 		.command("scaffold [contractAddress]")
-		.description(
-			"Scaffold a defineSubgraph() file. Detects SIP-010/009 → ft/nft source; --functions for typed call tables; --trait for a trait-scoped source (no contract)",
-		)
+		.description("Scaffold a defineSubgraph() file from a contract or trait")
 		.option("-o, --output <path>", "Output file path (required)")
 		.option("--api-key <key>", "Stacks node API key for direct RPC URLs")
 		.option(
@@ -1528,6 +1554,14 @@ export function registerSubgraphsCommand(program: Command): void {
 			"Scaffold a trait-scoped source (sip-009|sip-010|sip-013) — no contract needed",
 		)
 		.option("--no-install", "Skip bun install after writing package.json")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl subgraphs scaffold SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.megapont-ape-club-nft -o subgraphs/apes.ts
+  $ sl subgraphs scaffold SP00...token --functions transfer,mint -o subgraphs/token.ts
+  $ sl subgraphs scaffold --trait sip-010 -o subgraphs/all-ft.ts`,
+		)
 		.action(
 			async (
 				contractAddress: string | undefined,

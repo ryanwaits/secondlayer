@@ -86,6 +86,14 @@ program
 	)
 	.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
 	.option("-w, --watch", "Watch for changes")
+	.addHelpText(
+		"after",
+		`
+Examples:
+  $ sl generate
+  $ sl generate ./contracts/pool.clar -o ./src/generated.ts
+  $ sl generate --config secondlayer.config.ts --watch`,
+	)
 	.action(async (files, options) => {
 		const { generate } = await import("./commands/generate");
 		await generate(files, options);

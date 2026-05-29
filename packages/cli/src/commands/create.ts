@@ -159,9 +159,7 @@ export async function createSubscription(
 	// at copyTemplate() would otherwise throw `template dir missing` after
 	// mkdirSync had already created the target — leaving litter on disk.
 	if (opts.runtime && !RUNTIMES.includes(opts.runtime)) {
-		error(
-			`Unknown --runtime "${opts.runtime}". Valid: ${RUNTIMES.join(", ")}`,
-		);
+		error(`Unknown --runtime "${opts.runtime}". Valid: ${RUNTIMES.join(", ")}`);
 		process.exit(1);
 	}
 	const { runtime, subgraph, table, url } = await promptFor(name, opts);
@@ -249,7 +247,9 @@ export async function createSubscription(
 	if (sl) {
 		try {
 			const list = await sl.subscriptions.list();
-			const rows = (list as { data?: Array<{ name: string; id: string; status: string }> }).data ?? [];
+			const rows =
+				(list as { data?: Array<{ name: string; id: string; status: string }> })
+					.data ?? [];
 			const created = rows.find((s) => s.name === name);
 			subscriptionId = created?.id;
 			subscriptionStatus = created?.status;
@@ -304,9 +304,10 @@ export async function createSubscription(
 		subscriptionStatus === "paused"
 			? `Subscription is paused. Resume:\n  sl subscriptions resume ${name}\n  `
 			: "";
-	const runHint = opts.scaffold === false
-		? `View deliveries:\n  sl subscriptions get ${name}`
-		: `cd ${name}\n  bun install\n  bun run dev`;
+	const runHint =
+		opts.scaffold === false
+			? `View deliveries:\n  sl subscriptions get ${name}`
+			: `cd ${name}\n  bun install\n  bun run dev`;
 	success(`Done. Next:\n  ${dashboardLine}${pausedLine}${runHint}`);
 }
 
@@ -321,9 +322,7 @@ type SubscriptionClientEnv = {
 	SL_SERVICE_KEY?: string;
 };
 
-type ResolvedAuthCredentials = Awaited<
-	ReturnType<typeof resolveAuth>
->;
+type ResolvedAuthCredentials = Awaited<ReturnType<typeof resolveAuth>>;
 
 type SubscriptionClientConfig =
 	| { needsTenantResolution: true }
@@ -350,9 +349,7 @@ export function resolveSubscriptionClientConfig(
 		);
 	}
 	if (!baseUrl) {
-		throw new Error(
-			"No API URL available. Run `sl login` or pass --base-url.",
-		);
+		throw new Error("No API URL available. Run `sl login` or pass --base-url.");
 	}
 
 	return { needsTenantResolution: false, baseUrl, apiKey };
@@ -405,6 +402,13 @@ export function registerCreateCommand(program: Command): void {
 		.option(
 			"--no-scaffold",
 			"Skip the local runtime template directory (webhook-only setups)",
+		)
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl create subscription my-sub -s my-graph -t transfers -u https://example.com/webhook
+  $ sl create subscription my-sub -s my-graph -t balances -r inngest --filter amount.gte=1000`,
 		)
 		.action(async (name: string, options: CreateSubscriptionOptions) => {
 			await createSubscription(name, options);

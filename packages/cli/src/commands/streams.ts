@@ -109,6 +109,14 @@ export function registerStreamsCommand(program: Command): void {
 		.option("--from-height <n>", "filter to blocks >= n")
 		.option("--to-height <n>", "filter to blocks <= n")
 		.option("--limit <n>", "page size (1-1000, default 100)", "100")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl streams events --types stx_transfer,print --limit 50
+  $ sl streams events --contract-id SP00....token --from-height 150000 --to-height 160000
+  $ sl streams events --cursor 150000:3`,
+		)
 		.action(
 			async (options: {
 				types?: string;
@@ -148,6 +156,13 @@ export function registerStreamsCommand(program: Command): void {
 		.option("--cursor <cursor>", "start cursor (block_height:event_index)")
 		.option("--batch-size <n>", "events per batch (1-1000, default 100)", "100")
 		.option("--max-pages <n>", "stop after N pages (default: run until SIGINT)")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl streams consume --types print --cursor 150000:0
+  $ sl streams consume --types stx_transfer --batch-size 500 --max-pages 10`,
+		)
 		.action(
 			async (options: {
 				types?: string;

@@ -54,6 +54,14 @@ export function registerConfigCommand(program: Command): void {
 			"--no-validate",
 			"Skip connection validation for database/redis URLs",
 		)
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl config set network local
+  $ sl config set ports.api 3800
+  $ sl config set database.url postgres://localhost:5432/secondlayer_dev`,
+		)
 		.action(
 			async (key: string, value: string, options: { validate: boolean }) => {
 				try {
