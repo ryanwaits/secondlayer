@@ -17,6 +17,7 @@ import {
 	getStreamsBulkManifest,
 	streamsDumpsFreshness,
 } from "../streams/dumps.ts";
+import { getStreamsSigner } from "../streams/signing.ts";
 import { type StreamsTip, getStreamsTip } from "../streams/tip.ts";
 import { getApiTelemetrySnapshot } from "../telemetry/api.ts";
 
@@ -291,6 +292,23 @@ app.get("/public/streams/dumps/manifest", async (c) => {
 	c.header("Cache-Control", "public, max-age=30, s-maxage=30");
 	c.header("Content-Type", "application/json; charset=utf-8");
 	return c.json(snapshot.manifest);
+});
+
+// Public ed25519 key consumers use to verify Streams response signatures.
+app.get("/public/streams/signing-key", (c) => {
+	const signer = getStreamsSigner();
+	if (!signer) {
+		return c.json(
+			{ status: "unavailable", message: "response signing not enabled" },
+			503,
+		);
+	}
+	c.header("Cache-Control", "public, max-age=300, s-maxage=300");
+	return c.json({
+		algorithm: "ed25519",
+		key_id: signer.keyId,
+		public_key_pem: signer.publicKeyPem,
+	});
 });
 
 app.get("/status", async (c) => {

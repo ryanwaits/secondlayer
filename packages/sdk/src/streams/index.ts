@@ -3,6 +3,7 @@ export {
 	AuthError,
 	RateLimitError,
 	StreamsServerError,
+	StreamsSignatureError,
 	ValidationError,
 } from "./errors.ts";
 export { decodeFtTransfer, isFtTransfer } from "./ft-transfer.ts";

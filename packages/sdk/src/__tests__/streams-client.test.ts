@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { ed25519 } from "@secondlayer/shared";
 import {
 	AuthError,
 	RateLimitError,
 	type StreamsEvent,
 	StreamsServerError,
+	StreamsSignatureError,
 	ValidationError,
 	createStreamsClient,
 } from "../index.ts";
@@ -283,5 +285,84 @@ describe("createStreamsClient", () => {
 
 		expect(seen).toEqual([]);
 		expect(requests).toBe(2);
+	});
+});
+
+describe("createStreamsClient verify", () => {
+	const { privateKeyPem, publicKeyPem } = ed25519.generateEd25519KeyPair();
+	const priv = ed25519.loadEd25519PrivateKey(privateKeyPem);
+	const envelope = {
+		events: [],
+		next_cursor: null,
+		tip: TIP,
+		reorgs: [],
+	};
+
+	function signedResponse(body: string, signature: string): Response {
+		return new Response(body, {
+			status: 200,
+			headers: { "Content-Type": "application/json", "X-Signature": signature },
+		});
+	}
+
+	test("accepts a valid signature over the exact body", async () => {
+		const body = JSON.stringify(envelope);
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			verify: { publicKey: publicKeyPem },
+			fetchImpl: async () =>
+				signedResponse(body, ed25519.signEd25519(body, priv)),
+		});
+		await expect(client.events.list()).resolves.toMatchObject({
+			next_cursor: null,
+		});
+	});
+
+	test("rejects a tampered body", async () => {
+		const body = JSON.stringify(envelope);
+		const signature = ed25519.signEd25519(body, priv);
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			verify: { publicKey: publicKeyPem },
+			// Return a different body than what was signed.
+			fetchImpl: async () =>
+				signedResponse(JSON.stringify({ ...envelope, reorgs: [1] }), signature),
+		});
+		await expect(client.events.list()).rejects.toBeInstanceOf(
+			StreamsSignatureError,
+		);
+	});
+
+	test("throws when the signature header is missing", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			verify: { publicKey: publicKeyPem },
+			fetchImpl: async () =>
+				new Response(JSON.stringify(envelope), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				}),
+		});
+		await expect(client.events.list()).rejects.toBeInstanceOf(
+			StreamsSignatureError,
+		);
+	});
+
+	test("does not verify when disabled (default)", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async () =>
+				new Response(JSON.stringify(envelope), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				}),
+		});
+		await expect(client.events.list()).resolves.toMatchObject({
+			next_cursor: null,
+		});
 	});
 });

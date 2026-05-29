@@ -1,3 +1,4 @@
+import { ed25519 } from "@secondlayer/shared";
 import {
 	type StreamsEventsFetcher,
 	consumeStreamsEvents,
@@ -7,6 +8,7 @@ import {
 	AuthError,
 	RateLimitError,
 	StreamsServerError,
+	StreamsSignatureError,
 	ValidationError,
 } from "./errors.ts";
 import type {
@@ -29,6 +31,13 @@ export type CreateStreamsClientOptions = {
 	apiKey: string;
 	baseUrl?: string;
 	fetchImpl?: FetchLike;
+	/**
+	 * Verify the ed25519 `X-Signature` on every response (default off). Pass
+	 * `true` to fetch the server's public key from
+	 * `/public/streams/signing-key`, or `{ publicKey }` to pin a known PEM. A
+	 * failed or missing signature throws `StreamsSignatureError`.
+	 */
+	verify?: boolean | { publicKey: string };
 };
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -99,13 +108,50 @@ export function createStreamsClient(
 ): StreamsClient {
 	const baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_STREAMS_BASE_URL);
 	const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
+	const verify = options.verify ?? false;
+
+	// Lazily resolve and cache the verification public key.
+	let publicKeyPromise: Promise<
+		ReturnType<typeof ed25519.loadEd25519PublicKey>
+	> | null = null;
+	function getPublicKey() {
+		if (publicKeyPromise) return publicKeyPromise;
+		publicKeyPromise = (async () => {
+			if (typeof verify === "object") {
+				return ed25519.loadEd25519PublicKey(verify.publicKey);
+			}
+			const res = await fetchImpl(`${baseUrl}/public/streams/signing-key`);
+			if (!res.ok) {
+				throw new StreamsSignatureError(
+					`Could not fetch signing key (${res.status}).`,
+				);
+			}
+			const body = (await res.json()) as { public_key_pem?: string };
+			if (!body.public_key_pem) {
+				throw new StreamsSignatureError("Signing key response missing key.");
+			}
+			return ed25519.loadEd25519PublicKey(body.public_key_pem);
+		})();
+		return publicKeyPromise;
+	}
 
 	async function request<T>(path: string): Promise<T> {
 		const response = await fetchImpl(`${baseUrl}${path}`, {
 			headers: { Authorization: `Bearer ${options.apiKey}` },
 		});
 		if (!response.ok) await mapStreamsError(response);
-		return (await response.json()) as T;
+		const text = await response.text();
+		if (verify) {
+			const signature = response.headers.get("X-Signature");
+			if (!signature) {
+				throw new StreamsSignatureError("Response is missing X-Signature.");
+			}
+			const publicKey = await getPublicKey();
+			if (!ed25519.verifyEd25519(text, signature, publicKey)) {
+				throw new StreamsSignatureError();
+			}
+		}
+		return JSON.parse(text) as T;
 	}
 
 	const fetchEvents: StreamsEventsFetcher = async ({

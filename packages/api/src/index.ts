@@ -76,6 +76,8 @@ const PUBLIC_EXPOSE_HEADERS = [
 	"X-RateLimit-Reset",
 	"Retry-After",
 	"ETag",
+	"X-Signature",
+	"X-Signature-KeyId",
 ];
 
 const publicCors = cors({

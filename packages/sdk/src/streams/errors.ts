@@ -40,3 +40,11 @@ export class StreamsServerError extends Error {
 		this.name = "StreamsServerError";
 	}
 }
+
+/** Thrown when response signature verification is enabled and fails. */
+export class StreamsSignatureError extends Error {
+	constructor(message = "Streams response signature verification failed.") {
+		super(message);
+		this.name = "StreamsSignatureError";
+	}
+}

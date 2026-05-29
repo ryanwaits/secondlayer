@@ -79,6 +79,7 @@ export {
 	AuthError,
 	RateLimitError,
 	StreamsServerError,
+	StreamsSignatureError,
 	ValidationError,
 } from "./streams/index.ts";
 export { decodeClarityValue, toJsonSafe } from "./clarity.ts";

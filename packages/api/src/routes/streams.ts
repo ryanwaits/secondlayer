@@ -43,6 +43,7 @@ import {
 } from "../streams/reorgs.ts";
 import { StreamsResponseCache } from "../streams/response-cache.ts";
 import { streamsRetentionWindow } from "../streams/retention.ts";
+import { respondSignedJson } from "../streams/signing.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
 
 const STREAMS_EVENTS_ALLOWED = [
@@ -206,7 +207,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		if (accountId && response.events.length > 0) {
 			await recordEventsReturned(accountId, response.events.length);
 		}
-		return c.json(response);
+		return respondSignedJson(c, response);
 	});
 
 	router.get("/canonical/:height", async (c) => {
@@ -227,7 +228,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		if (matchesIfNoneMatch(c.req.header("If-None-Match"), etag)) {
 			return c.body(null, 304);
 		}
-		return c.json(block);
+		return respondSignedJson(c, block);
 	});
 
 	router.get("/events/:tx_id", async (c) => {
@@ -259,7 +260,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			"Cache-Control",
 			streamsCacheControl(isFinalizedHeight(lastEvent?.block_height, tip)),
 		);
-		return c.json({
+		return respondSignedJson(c, {
 			events: markFinalized(result.events, tip.finalized_height),
 			tip,
 			reorgs,
@@ -305,7 +306,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			"Cache-Control",
 			streamsCacheControl(isFinalizedHeight(firstEvent?.block_height, tip)),
 		);
-		return c.json({
+		return respondSignedJson(c, {
 			events: markFinalized(result.events, tip.finalized_height),
 			tip,
 			reorgs,
@@ -320,12 +321,12 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			readReorgsSince:
 				opts.readReorgsSince ?? DEFAULT_STREAMS_REORGS_SINCE_READER,
 		});
-		return c.json(response);
+		return respondSignedJson(c, response);
 	});
 
 	router.get("/tip", async (c) => {
 		c.header("Cache-Control", streamsCacheControl(false));
-		return c.json(await getTip());
+		return respondSignedJson(c, await getTip());
 	});
 
 	return router;
