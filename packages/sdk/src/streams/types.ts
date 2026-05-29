@@ -28,12 +28,22 @@ export type StreamsEvent = {
 	contract_id: string | null;
 	payload: StreamsEventPayload;
 	ts: string;
+	/**
+	 * True when this event's block is past the finality boundary (immutable).
+	 * Optional for back-compat; the API always sets it on Streams responses.
+	 */
+	finalized?: boolean;
 };
 
 export type StreamsTip = {
 	block_height: number;
 	block_hash: string;
 	burn_block_height: number;
+	/**
+	 * Highest Stacks block past the burn-confirmation finality boundary.
+	 * Optional for back-compat; the API always sets it.
+	 */
+	finalized_height?: number;
 	lag_seconds: number;
 };
 

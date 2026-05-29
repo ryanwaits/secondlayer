@@ -20,6 +20,33 @@ function params(query: string) {
 }
 
 describe("Streams events route helpers", () => {
+	test("flags events at or below the finality boundary as finalized", async () => {
+		const event = (block_height: number, event_index: number) => ({
+			cursor: `${block_height}:${event_index}`,
+			block_height,
+			block_hash: TIP.block_hash,
+			burn_block_height: TIP.burn_block_height,
+			tx_id: "0x01",
+			tx_index: 0,
+			event_index,
+			event_type: "stx_transfer" as const,
+			contract_id: null,
+			payload: {},
+			ts: "2026-05-02T21:43:00.000Z",
+		});
+		const body = await getStreamsEventsResponse({
+			query: params("?from_height=0&to_height=10"),
+			// finalized_height: 4 -> heights 3,4 finalized; 5 not.
+			tip: { ...TIP, finalized_height: 4 },
+			readEvents: async () => ({
+				events: [event(3, 0), event(4, 0), event(5, 0)],
+				next_cursor: null,
+			}),
+		});
+
+		expect(body.events.map((e) => e.finalized)).toEqual([true, true, false]);
+	});
+
 	test("defaults to the last day when no explicit height or cursor is provided", async () => {
 		let seenFromHeight: number | undefined;
 		const body = await getStreamsEventsResponse({

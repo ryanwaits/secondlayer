@@ -23,6 +23,7 @@ import {
 import {
 	type StreamsEventsReader,
 	getStreamsEventsResponse,
+	markFinalized,
 } from "../streams/events.ts";
 import { streamsRateLimit } from "../streams/rate-limit.ts";
 import {
@@ -195,7 +196,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						},
 					})
 				: [];
-		return c.json({ events: result.events, tip, reorgs });
+		return c.json({
+			events: markFinalized(result.events, tip.finalized_height),
+			tip,
+			reorgs,
+		});
 	});
 
 	router.get("/blocks/:heightOrHash/events", async (c) => {
@@ -233,7 +238,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						},
 					})
 				: [];
-		return c.json({ events: result.events, tip, reorgs });
+		return c.json({
+			events: markFinalized(result.events, tip.finalized_height),
+			tip,
+			reorgs,
+		});
 	});
 
 	router.get("/reorgs", async (c) => {

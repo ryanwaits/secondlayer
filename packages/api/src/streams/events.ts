@@ -40,12 +40,28 @@ export type StreamsEventsQuery = {
 	cursorPastTip: boolean;
 };
 
+/**
+ * Wire event: the indexer event plus `finalized`, true when the event's block
+ * is at or below the tip's burn-confirmation finality boundary (immutable).
+ */
+export type StreamsEventEnvelope = StreamsEvent & { finalized: boolean };
+
 export type StreamsEventsResponse = {
-	events: StreamsEvent[];
+	events: StreamsEventEnvelope[];
 	next_cursor: string | null;
 	tip: StreamsTip;
 	reorgs: StreamsReorg[];
 };
+
+export function markFinalized(
+	events: readonly StreamsEvent[],
+	finalizedHeight: number,
+): StreamsEventEnvelope[] {
+	return events.map((event) => ({
+		...event,
+		finalized: event.block_height <= finalizedHeight,
+	}));
+}
 
 const STREAMS_EVENT_TYPE_SET = new Set<string>(STREAMS_EVENT_TYPES);
 
@@ -141,7 +157,10 @@ export function parseStreamsEventsQuery(
 			: Math.min(requestedToHeight, clampedTipHeight);
 	const defaultFromHeight =
 		cursorRaw === undefined && fromHeightRaw === undefined
-			? Math.max(0, tip.block_height - STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS)
+			? Math.max(
+					0,
+					tip.block_height - STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
+				)
 			: undefined;
 
 	return {
@@ -201,7 +220,7 @@ export async function getStreamsEventsResponse(opts: {
 			: [];
 
 	return {
-		events: result.events,
+		events: markFinalized(result.events, opts.tip.finalized_height),
 		next_cursor: result.next_cursor,
 		tip: opts.tip,
 		reorgs,
