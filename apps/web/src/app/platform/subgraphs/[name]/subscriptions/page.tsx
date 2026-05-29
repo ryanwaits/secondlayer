@@ -132,7 +132,7 @@ export default async function SubgraphSubscriptionsPage({
 										borderRadius: 4,
 									}}
 								>
-									sl create subscription &lt;name&gt; --runtime
+									sl subscriptions create &lt;name&gt; --runtime
 									&lt;inngest|trigger|cloudflare|node&gt;
 								</code>
 							</div>

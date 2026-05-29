@@ -18,7 +18,7 @@
  * The user supplies which subgraph + table to bind against — these factories
  * don't assume Foundation Datasets are subscribable. To watch FT transfers
  * to an address, build a subgraph with a `transfers` table (see
- * `sl subgraphs new --template sip-010-balances`) and bind here.
+ * `sl subgraphs create --template sip-010-balances`) and bind here.
  */
 
 /**

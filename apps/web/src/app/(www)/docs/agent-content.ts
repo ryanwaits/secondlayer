@@ -60,7 +60,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Rotate a key",
 			"Rotate and re-wire an API key safely.",
-			"/secondlayer Rotate my Secondlayer API key with `sl auth keys rotate`, then help me update everywhere the old key was used.",
+			"/secondlayer Rotate my Secondlayer API key in the platform console dashboard (https://secondlayer.tools/platform/api-keys), then help me update everywhere the old key was used.",
 		),
 	],
 

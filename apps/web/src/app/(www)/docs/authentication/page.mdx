@@ -12,14 +12,14 @@ curl https://api.secondlayer.tools/v1/datasets/sbtc/events
 
 ## Writing — bearer token
 
-Pass your key as a bearer token. Create one with `sl auth keys create` or from the dashboard.
+Pass your key as a bearer token. Create one in the platform console at [secondlayer.tools/platform/api-keys](https://secondlayer.tools/platform/api-keys).
 
 ```bash
 curl -X POST https://api.secondlayer.tools/api/subgraphs \
   -H "Authorization: Bearer $SL_KEY"
 ```
 
-Keep keys server-side — they grant write access to your account. Rotate anytime with `sl auth keys rotate`.
+Keep keys server-side — they grant write access to your account. Rotate or revoke them anytime in the platform console at [secondlayer.tools/platform/api-keys](https://secondlayer.tools/platform/api-keys).
 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",

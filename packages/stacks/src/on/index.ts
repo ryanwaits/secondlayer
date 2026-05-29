@@ -18,7 +18,7 @@
  *
  * The first arg is the user's subgraph + table — these factories don't
  * assume Foundation Datasets are subscribable. Use a template
- * (`sl subgraphs new --template <slug>`) to scaffold a table that matches
+ * (`sl subgraphs create --template <slug>`) to scaffold a table that matches
  * the factory's expected column shape.
  */
 

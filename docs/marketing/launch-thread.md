@@ -49,7 +49,7 @@ Draft for the Sprint 8 day-of post. 5–7 tweets. Hook → datasets → curl →
 > Outgrow public datasets? Define your own shape with a subgraph:
 >
 > ```
-> sl subgraphs new my-app --template sip-010-balances
+> sl subgraphs create my-app --template sip-010-balances
 > sl subgraphs deploy
 > ```
 >

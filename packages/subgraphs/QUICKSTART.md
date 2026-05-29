@@ -43,12 +43,12 @@ platform console at https://secondlayer.tools/platform/api-keys, then export it:
 ```bash
 export SECONDLAYER_API_URL="https://api.secondlayer.tools"
 export SL_API_URL="$SECONDLAYER_API_URL"
-export SL_SERVICE_KEY="sk-sl_..."
+export SL_API_KEY="sk-sl_..."
 ```
 
 During open beta, reads are public and need no key; writes (deploy, manage,
 subscriptions) require an `sk-sl_` key. (`SECONDLAYER_API_KEY` is a deprecated
-alias of `SL_SERVICE_KEY`.) Rotate or revoke keys in the same console.
+alias of `SL_API_KEY`.) Rotate or revoke keys in the same console.
 
 ## 2. Create A Subgraph
 
@@ -129,7 +129,7 @@ sl subgraphs query stx-transfers transfers \
 With REST:
 
 ```bash
-curl -H "Authorization: Bearer $SL_SERVICE_KEY" \
+curl -H "Authorization: Bearer $SL_API_KEY" \
   "$SECONDLAYER_API_URL/api/subgraphs/stx-transfers/transfers?_sort=_block_height&_order=desc&_limit=10"
 ```
 
@@ -142,7 +142,7 @@ HTTPS POSTs.
 Standard Webhooks receiver:
 
 ```bash
-sl create subscription transfer-hook \
+sl subscriptions create transfer-hook \
   --runtime node \
   --subgraph stx-transfers \
   --table transfers \
@@ -160,7 +160,7 @@ secret is shown once by the API and written into the generated `.env`.
 Trigger.dev receiver:
 
 ```bash
-sl create subscription transfer-trigger \
+sl subscriptions create transfer-trigger \
   --runtime trigger \
   --subgraph stx-transfers \
   --table transfers \
@@ -171,7 +171,7 @@ sl create subscription transfer-trigger \
 Cloudflare Workflows receiver:
 
 ```bash
-sl create subscription transfer-workflow \
+sl subscriptions create transfer-workflow \
   --runtime cloudflare \
   --subgraph stx-transfers \
   --table transfers \
@@ -224,7 +224,7 @@ import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
   baseUrl: process.env.SECONDLAYER_API_URL!,
-  apiKey: process.env.SL_SERVICE_KEY!, // sk-sl_...
+  apiKey: process.env.SL_API_KEY!, // sk-sl_...
 });
 
 const { data } = await sl.subgraphs.queryTable("stx-transfers", "transfers", {

@@ -44,7 +44,7 @@ const DEFAULT_API_BASE = "https://api.secondlayer.tools";
 // Persisted only in the visitor's browser — never sent to our servers.
 const API_KEY_STORAGE = "sl-sandbox-api-key";
 // Env-var reference shown in snippets so the real key never leaves the client.
-const KEY_ENV_VAR = "SL_STREAMS_API_KEY";
+const KEY_ENV_VAR = "SL_API_KEY";
 
 type ResponseState =
 	| { kind: "idle" }

@@ -16,7 +16,7 @@ export type BnsAction =
  *
  * Bind against a subgraph table that mirrors the `bns_name_events` shape
  * (topic, namespace, name, owner, ...). Easiest path: scaffold via
- * `sl subgraphs new --template bns-names`.
+ * `sl subgraphs create --template bns-names`.
  *
  * @param action restrict to one topic; omit to fire on every name event
  */

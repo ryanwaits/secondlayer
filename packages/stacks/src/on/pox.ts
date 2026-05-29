@@ -21,7 +21,7 @@ export type PoxFunction =
 /**
  * Match PoX-4 stacking calls. Bind against a subgraph table mirroring
  * `pox4_calls` (function_name, stacker, caller, ...). Scaffold via
- * `sl subgraphs new --template pox-stacking`.
+ * `sl subgraphs create --template pox-stacking`.
  *
  * @param fn restrict to one PoX-4 function; omit to fire on every call
  */

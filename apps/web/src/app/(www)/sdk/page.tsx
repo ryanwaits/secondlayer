@@ -56,7 +56,7 @@ export default function SdkPage() {
 					lang="typescript"
 					code={`import { createClient, createStreamsClient } from "@secondlayer/sdk";
 
-const client = createClient({ apiKey: process.env.SL_SERVICE_KEY! });
+const client = createClient({ apiKey: process.env.SL_API_KEY! });
 
 // Decoded events, queryable — no indexer to run.
 const { events } = await client.index.events({ eventType: "stx_transfer", limit: 25 });
@@ -64,7 +64,7 @@ const { events } = await client.index.events({ eventType: "stx_transfer", limit:
 await client.subgraphs.queryTable("my-watcher", "transfers", { _limit: 10 });
 await client.subscriptions.create({ ... });
 
-const streams = createStreamsClient({ apiKey: process.env.SL_STREAMS_API_KEY! });
+const streams = createStreamsClient({ apiKey: process.env.SL_API_KEY! });
 await streams.events.consume({ types: ["print"], onBatch: async (events) => { ... } });`}
 				/>
 

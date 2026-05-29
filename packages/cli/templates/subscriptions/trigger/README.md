@@ -21,7 +21,7 @@ https://api.trigger.dev/api/v1/tasks/{{TASK_ID}}/trigger
 Provision the subscription with bearer auth:
 
 ```bash
-sl create subscription {{NAME}} --runtime trigger --auth-token tr_secret_abc...
+sl subscriptions create {{NAME}} --runtime trigger --auth-token tr_secret_abc...
 ```
 
 You can also patch an existing subscription with

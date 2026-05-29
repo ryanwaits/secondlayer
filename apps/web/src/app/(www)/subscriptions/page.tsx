@@ -65,7 +65,7 @@ export default function SubscriptionsPage() {
 
 				<CodeBlock
 					code={`# Scaffold a receiver — runtimes: inngest | trigger | cloudflare | node
-sl create subscription whale-alerts --runtime node
+sl subscriptions create whale-alerts --runtime node
 
 # Or via the SDK
 await sdk.subscriptions.create({

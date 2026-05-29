@@ -1,8 +1,8 @@
 /**
  * Subgraph scaffold templates.
  *
- * `sl subgraphs new <name>` — emits the basic blank.
- * `sl subgraphs new <name> --template <slug>` — emits a Foundation
+ * `sl subgraphs create <name>` — emits the basic blank.
+ * `sl subgraphs create <name> --template <slug>` — emits a Foundation
  * Dataset–shaped starter that compiles + runs zero-config.
  *
  * Each template mirrors one of the public Foundation Datasets so that the
@@ -54,7 +54,7 @@ export function generateSubgraphTemplate(
 
 /**
  * Header comment shown at the top of every scaffolded subgraph file. Five
- * numbered steps a new user follows after `sl subgraphs new`. Mirrors the
+ * numbered steps a new user follows after `sl subgraphs create`. Mirrors the
  * "30-minute quickstart" section in /docs/subgraphs.
  */
 function nextStepsHeader(name: string): string {

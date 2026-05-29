@@ -74,7 +74,7 @@ With the CLI (`bun add -g @secondlayer/cli`):
 ```bash
 # Point the CLI at the local OSS API — no session needed.
 export SL_API_URL=http://localhost:3800
-export SL_SERVICE_KEY=<your-key>   # only if API_KEY is set in the OSS .env
+export SL_API_KEY=<your-key>   # only if API_KEY is set in the OSS .env
 
 sl subgraphs deploy ./my-subgraph.ts
 ```

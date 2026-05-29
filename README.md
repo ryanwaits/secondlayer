@@ -25,7 +25,7 @@ sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 sl subgraphs query my-contract <table> --sort _block_height --order desc
 
 # Push new rows to a webhook
-sl create subscription my-hook --runtime node \
+sl subscriptions create my-hook --runtime node \
   --subgraph my-contract --table <table> --url https://<host>/webhook
 ```
 

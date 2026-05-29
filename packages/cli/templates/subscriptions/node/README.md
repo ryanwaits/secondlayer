@@ -5,7 +5,7 @@ to your business logic. No framework lock-in.
 
 ## Run
 
-`.env` is written for you at `sl create subscription` time with the signing
+`.env` is written for you at `sl subscriptions create` time with the signing
 secret already populated.
 
 ```bash

@@ -494,8 +494,8 @@ export function registerSubgraphsCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl subgraphs new my-graph
-  $ sl subgraphs new token-balances --template sip-010-balances`,
+  $ sl subgraphs create my-graph
+  $ sl subgraphs create token-balances --template sip-010-balances`,
 		)
 		.action(async (name: string, opts: { template?: string }) => {
 			const slug = (opts.template ?? "basic") as SubgraphTemplateSlug;

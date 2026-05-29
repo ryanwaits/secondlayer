@@ -20,7 +20,7 @@ import { validateSubscriptionTargetFromApi } from "../lib/subscription-validatio
 import { deriveBaseUrl } from "../utils/urls.ts";
 
 /**
- * `sl create subscription <name> --runtime <runtime>`
+ * `sl subscriptions create <name> --runtime <runtime>`
  *
  * Copies a runtime template into `./{name}/`, string-replaces the template
  * variables, and provisions the subscription via the SDK so the emitter

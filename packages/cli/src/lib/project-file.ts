@@ -13,7 +13,7 @@ import { z } from "zod/v4";
  * If no per-dir file is found, falls back to `~/.secondlayer/config.json:
  * defaultProject`.
  *
- * `sl project current` prints `{slug} (from {resolvedFrom})` so the user
+ * `sl projects get` prints `{slug} (from {resolvedFrom})` so the user
  * can always sanity-check which file won.
  */
 

@@ -7,7 +7,7 @@ import {
 /**
  * Match sBTC deposit completion events. Bind against a subgraph table
  * mirroring `sbtc_events` (topic, amount, sender, bitcoin_txid, ...).
- * Scaffold via `sl subgraphs new --template sbtc-flows`.
+ * Scaffold via `sl subgraphs create --template sbtc-flows`.
  */
 export function sbtcDeposit(
 	target: FactoryTarget,

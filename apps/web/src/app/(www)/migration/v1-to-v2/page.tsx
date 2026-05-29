@@ -63,7 +63,7 @@ export default defineWorkflow({
 });
 
 // v2
-// 1. sl create subscription large-usdc --runtime node
+// 1. sl subscriptions create large-usdc --runtime node
 // 2. provision the subscription:
 import { on } from "@secondlayer/stacks";
 await sdk.subscriptions.create({

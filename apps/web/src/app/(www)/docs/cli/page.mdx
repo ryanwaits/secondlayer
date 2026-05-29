@@ -11,7 +11,7 @@ bun add -g @secondlayer/cli
 ## Common commands
 
 ```bash
-sl auth login            # authenticate (opens the browser)
+sl login                 # authenticate (opens the browser)
 sl subgraphs deploy      # deploy a subgraph from a config
 sl subgraphs ls          # list your deployments
 sl subscriptions create  # wire up a webhook subscription
@@ -39,7 +39,7 @@ cd my-clarinet-project
 sl devnet connect        # patches Devnet.toml + starts the Secondlayer stack
 clarinet devnet start    # your normal command — events now stream to the indexer
 
-SL_API_URL=http://localhost:3800 SL_SERVICE_KEY=dummy \
+SL_API_URL=http://localhost:3800 SL_API_KEY=dummy \
   sl subgraphs deploy ./subgraph.ts
 ```
 

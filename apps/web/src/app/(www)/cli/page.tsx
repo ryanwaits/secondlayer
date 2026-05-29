@@ -43,11 +43,11 @@ export default function CliPage() {
 				<CodeBlock
 					lang="bash"
 					code={`sl login                                  # magic-link email
-sl subgraphs new my-watcher --template sip-010-balances
+sl subgraphs create my-watcher --template sip-010-balances
 sl subgraphs deploy my-watcher.ts         # prompts login if no session
 sl subgraphs query my-watcher transfers --filter recipient=SP1...
 sl streams events --types print --contract-id SP2...BNS-V2
-sl create subscription my-watcher --runtime node`}
+sl subscriptions create my-watcher --runtime node`}
 				/>
 			</main>
 		</div>

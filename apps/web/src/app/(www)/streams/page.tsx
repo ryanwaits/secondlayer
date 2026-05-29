@@ -95,7 +95,7 @@ export default function StreamsPage() {
 				<CodeBlock
 					code={`import { createStreamsClient } from "@secondlayer/sdk";
 
-const streams = createStreamsClient({ apiKey: process.env.SL_STREAMS_API_KEY! });
+const streams = createStreamsClient({ apiKey: process.env.SL_API_KEY! });
 
 await streams.events.consume({
   fromCursor: lastCheckpoint,

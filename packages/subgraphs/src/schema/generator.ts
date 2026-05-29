@@ -151,7 +151,7 @@ export function generateSubgraphSQL(
 		(_key, value) => (typeof value === "bigint" ? value.toString() : value),
 	);
 	// node crypto (not Bun.hash) so the published node-runtime `sl` CLI can
-	// compute schema hashes too (e.g. `sl subgraphs inspect`).
+	// compute schema hashes too (e.g. `sl subgraphs spec`).
 	const hash = createHash("sha256").update(hashInput).digest("hex");
 
 	return { statements, hash };

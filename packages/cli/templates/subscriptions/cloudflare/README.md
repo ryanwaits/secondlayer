@@ -23,7 +23,7 @@ https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/workflows/{{NAME}}/in
 Provision the subscription with bearer auth:
 
 ```bash
-sl create subscription {{NAME}} --runtime cloudflare --auth-token <CF_API_TOKEN>
+sl subscriptions create {{NAME}} --runtime cloudflare --auth-token <CF_API_TOKEN>
 ```
 
 You can also patch an existing subscription with

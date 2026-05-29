@@ -50,7 +50,7 @@ console.log({ tip, firstCursor: page.events[0]?.cursor });
 import { createStreamsClient } from "@secondlayer/sdk";
 
 const streams = createStreamsClient({
-  apiKey: process.env.SL_SERVICE_KEY!, // sk-sl_...
+  apiKey: process.env.SL_API_KEY!, // sk-sl_...
 });
 ```
 
