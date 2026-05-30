@@ -73,17 +73,20 @@ Cursor-paginated firehose of decoded events.
 | `from_height` | number | Block height ≥ |
 | `to_height` | number | Block height ≤ |
 | `types` | comma-separated | `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_transfer`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, `print` |
-| `contract_id` | string | Filter to one contract |
-| `sender` | string | Exact payload `sender` (events that have one) |
-| `recipient` | string | Exact payload `recipient` |
+| `not_types` | comma-separated | Event types to exclude (applied after `types`) |
+| `contract_id` | string or comma list | Filter to one or more contracts |
+| `sender` | string or comma list | Payload `sender` (events that have one) |
+| `recipient` | string or comma list | Payload `recipient` |
 | `asset_identifier` | string | Exact FT/NFT asset identifier |
 | `limit` | number | 1-1000, default 100 |
 
-Each event includes `finalized` (true when its block is past the finality boundary). `sender`/`recipient`/`asset_identifier` are exact-match payload filters; event types lacking the field simply don't match.
+Each event includes `finalized` (true when its block is past the finality boundary). `contract_id`/`sender`/`recipient`/`asset_identifier` are inclusion payload filters (a comma list matches any value); event types lacking the field simply don't match.
 
 ```bash
 curl -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP...&limit=50"
+  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP1...,SP2...&limit=50"
+curl -H "Authorization: Bearer $SL_API_KEY" \
+  "https://api.secondlayer.tools/v1/streams/events?not_types=print&contract_id=SP1....token,SP2....token"
 ```
 
 **Caching & proofs:** a closed, fully-finalized page (`to_height` ≤ `finalized_height`) is served `Cache-Control: public, max-age=31536000, immutable` with a weak `ETag` (honors `If-None-Match` → `304`); tip-spanning/default requests are `private, max-age=2`. Response signing is **enabled in prod**: every read carries an `X-Signature` (ed25519 over the exact response body) + `X-Signature-KeyId`; fetch the public key at `GET /public/streams/signing-key` and verify, or use the SDK `verify` option.

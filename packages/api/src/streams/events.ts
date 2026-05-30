@@ -35,9 +35,10 @@ export type StreamsEventsQuery = {
 	fromHeight?: number;
 	toHeight: number;
 	types?: readonly StreamsEventType[];
-	contractId?: string;
-	sender?: string;
-	recipient?: string;
+	notTypes?: readonly StreamsEventType[];
+	contractId?: string | string[];
+	sender?: string | string[];
+	recipient?: string | string[];
 	assetIdentifier?: string;
 	limit: number;
 	cursorPastTip: boolean;
@@ -115,12 +116,21 @@ function parseTypes(
 	return types as StreamsEventType[];
 }
 
-function parseContractId(value: string | undefined): string | undefined {
+/** Parse a single-or-comma-list filter. Returns a string for one value and a
+ *  string[] for many, so single-value callers keep the simpler shape. */
+function parseListFilter(
+	value: string | undefined,
+	name: string,
+): string | string[] | undefined {
 	if (value === undefined) return undefined;
 	if (value.length === 0) {
-		throw new ValidationError("contract_id must not be empty");
+		throw new ValidationError(`${name} must not be empty`);
 	}
-	return value;
+	const items = value.split(",").map((part) => part.trim());
+	if (items.some((item) => item.length === 0)) {
+		throw new ValidationError(`${name} must be a comma-separated list`);
+	}
+	return items.length === 1 ? items[0] : items;
 }
 
 function parsePayloadFilter(
@@ -183,9 +193,13 @@ export function parseStreamsEventsQuery(
 		fromHeight: fromHeight ?? defaultFromHeight,
 		toHeight,
 		types: parseTypes(query.get("types") ?? undefined),
-		contractId: parseContractId(query.get("contract_id") ?? undefined),
-		sender: parsePayloadFilter(query.get("sender") ?? undefined, "sender"),
-		recipient: parsePayloadFilter(
+		notTypes: parseTypes(query.get("not_types") ?? undefined),
+		contractId: parseListFilter(
+			query.get("contract_id") ?? undefined,
+			"contract_id",
+		),
+		sender: parseListFilter(query.get("sender") ?? undefined, "sender"),
+		recipient: parseListFilter(
 			query.get("recipient") ?? undefined,
 			"recipient",
 		),
@@ -222,6 +236,7 @@ export async function getStreamsEventsResponse(opts: {
 		fromHeight: parsed.fromHeight,
 		toHeight: parsed.toHeight,
 		types: parsed.types,
+		notTypes: parsed.notTypes,
 		contractId: parsed.contractId,
 		sender: parsed.sender,
 		recipient: parsed.recipient,

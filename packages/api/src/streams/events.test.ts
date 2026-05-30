@@ -172,7 +172,7 @@ describe("Streams events route helpers", () => {
 	});
 
 	test("passes contract_id filter to the reader", async () => {
-		let seenContractId: string | undefined;
+		let seenContractId: string | readonly string[] | undefined;
 		await getStreamsEventsResponse({
 			query: params("?contract_id=SP123.token"),
 			tip: TIP,
@@ -183,6 +183,25 @@ describe("Streams events route helpers", () => {
 		});
 
 		expect(seenContractId).toBe("SP123.token");
+	});
+
+	test("passes not_types and list filters to the reader", async () => {
+		let seen: Parameters<StreamsEventsReader>[0] | undefined;
+		await getStreamsEventsResponse({
+			query: params(
+				"?not_types=print&contract_id=SP1.a,SP2.b&sender=SP1,SP2&recipient=SP3",
+			),
+			tip: TIP,
+			readEvents: async (p) => {
+				seen = p;
+				return { events: [], next_cursor: null };
+			},
+		});
+
+		expect(seen?.notTypes).toEqual(["print"]);
+		expect(seen?.contractId).toEqual(["SP1.a", "SP2.b"]);
+		expect(seen?.sender).toEqual(["SP1", "SP2"]);
+		expect(seen?.recipient).toBe("SP3");
 	});
 
 	test("full pagination walk over fixture range ends with null cursor", async () => {

@@ -9,7 +9,7 @@ Secondlayer is a stack of tools for building on the **Stacks blockchain**:
 
 | Layer | Package / Surface | What it does |
 |---|---|---|
-| **L1 raw events** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `sl streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `sender`/`recipient`/`asset_identifier` payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `sl streams pull`). |
+| **L1 raw events** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `sl streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `types`/`not_types` + `sender`/`recipient`/`contract_id` (single or comma-list) payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `sl streams pull`). |
 | **L2 decoded transfers** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` | Pre-decoded SIP-010 (FT) and SIP-009 (NFT) transfers, filtered by principal/contract. |
 | **L3 app-specific tables** | `@secondlayer/subgraphs` + CLI · REST `/api/subgraphs` | TypeScript-authored indexers: declare filters + schema + handlers; Secondlayer materializes Postgres tables and exposes REST. |
 | **Per-row webhooks** | `sl.subscriptions` · REST `/api/subscriptions` · `sl subscriptions` | Standard-Webhooks-signed deliveries for every row written by a subgraph. |

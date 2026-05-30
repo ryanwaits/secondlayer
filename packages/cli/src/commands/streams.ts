@@ -65,17 +65,31 @@ function dumpsClient(
 	});
 }
 
-function parseTypes(value?: string): StreamsEventType[] | undefined {
+function parseTypes(
+	value?: string,
+	flag = "--types",
+): StreamsEventType[] | undefined {
 	if (!value) return undefined;
 	const parts = value.split(",").map((s) => s.trim());
 	for (const p of parts) {
 		if (!VALID_TYPES.includes(p as StreamsEventType)) {
 			throw new Error(
-				`invalid --types value "${p}"; expected one of: ${VALID_TYPES.join(", ")}`,
+				`invalid ${flag} value "${p}"; expected one of: ${VALID_TYPES.join(", ")}`,
 			);
 		}
 	}
 	return parts as StreamsEventType[];
+}
+
+/** Parse a single-or-comma-list filter into a string (one) or string[] (many). */
+function parseList(value?: string): string | string[] | undefined {
+	if (value === undefined) return undefined;
+	const parts = value
+		.split(",")
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0);
+	if (parts.length === 0) return undefined;
+	return parts.length === 1 ? parts[0] : parts;
 }
 
 function parseLimit(value?: string): number | undefined {
@@ -124,7 +138,10 @@ export function registerStreamsCommand(program: Command): void {
 			"--types <types>",
 			`comma-separated event types (${VALID_TYPES.join(", ")})`,
 		)
-		.option("--contract-id <id>", "filter to a single contract identifier")
+		.option("--not-types <types>", "comma-separated event types to exclude")
+		.option("--contract-id <ids>", "comma-separated contract identifier(s)")
+		.option("--sender <addrs>", "comma-separated sender principal(s)")
+		.option("--recipient <addrs>", "comma-separated recipient principal(s)")
 		.option("--cursor <cursor>", "start cursor (block_height:event_index)")
 		.option("--from-block <n>", "filter to blocks >= n")
 		.option("--to-block <n>", "filter to blocks <= n")
@@ -134,13 +151,17 @@ export function registerStreamsCommand(program: Command): void {
 			`
 Examples:
   $ sl streams events --types stx_transfer,print --limit 50
-  $ sl streams events --contract-id SP00....token --from-block 150000 --to-block 160000
+  $ sl streams events --not-types print --contract-id SP00....token,SP01....token
+  $ sl streams events --sender SP1...,SP2... --from-block 150000 --to-block 160000
   $ sl streams events --cursor 150000:3`,
 		)
 		.action(
 			async (options: {
 				types?: string;
+				notTypes?: string;
 				contractId?: string;
+				sender?: string;
+				recipient?: string;
 				cursor?: string;
 				fromBlock?: string;
 				toBlock?: string;
@@ -149,7 +170,10 @@ Examples:
 				try {
 					const envelope: StreamsEventsEnvelope = await client().events.list({
 						types: parseTypes(options.types),
-						contractId: options.contractId,
+						notTypes: parseTypes(options.notTypes, "--not-types"),
+						contractId: parseList(options.contractId),
+						sender: parseList(options.sender),
+						recipient: parseList(options.recipient),
 						cursor: options.cursor,
 						fromHeight: parseHeight(options.fromBlock, "--from-block"),
 						toHeight: parseHeight(options.toBlock, "--to-block"),
@@ -172,7 +196,10 @@ Examples:
 			"--types <types>",
 			`comma-separated event types (${VALID_TYPES.join(", ")})`,
 		)
-		.option("--contract-id <id>", "filter to a single contract identifier")
+		.option("--not-types <types>", "comma-separated event types to exclude")
+		.option("--contract-id <ids>", "comma-separated contract identifier(s)")
+		.option("--sender <addrs>", "comma-separated sender principal(s)")
+		.option("--recipient <addrs>", "comma-separated recipient principal(s)")
 		.option("--cursor <cursor>", "start cursor (block_height:event_index)")
 		.option("--batch-size <n>", "events per batch (1-1000, default 100)", "100")
 		.option("--max-pages <n>", "stop after N pages (default: run until SIGINT)")
@@ -181,18 +208,20 @@ Examples:
 			`
 Examples:
   $ sl streams consume --types print --cursor 150000:0
-  $ sl streams consume --types stx_transfer --batch-size 500 --max-pages 10`,
+  $ sl streams consume --not-types print --sender SP1...,SP2... --batch-size 500 --max-pages 10`,
 		)
 		.action(
 			async (options: {
 				types?: string;
+				notTypes?: string;
 				contractId?: string;
+				sender?: string;
+				recipient?: string;
 				cursor?: string;
 				batchSize?: string;
 				maxPages?: string;
 			}) => {
 				try {
-					const types = parseTypes(options.types);
 					const batchSize = parseLimit(options.batchSize) ?? 100;
 					const maxPages = options.maxPages
 						? Number.parseInt(options.maxPages, 10)
@@ -202,8 +231,11 @@ Examples:
 					);
 					await client().events.consume({
 						fromCursor: options.cursor,
-						types,
-						contractId: options.contractId,
+						types: parseTypes(options.types),
+						notTypes: parseTypes(options.notTypes, "--not-types"),
+						contractId: parseList(options.contractId),
+						sender: parseList(options.sender),
+						recipient: parseList(options.recipient),
 						batchSize,
 						mode: "tail",
 						maxPages,

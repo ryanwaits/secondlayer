@@ -158,6 +158,137 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		]);
 	});
 
+	test("not_types excludes types and list filters match any value", async () => {
+		if (!db) throw new Error("missing db");
+
+		await db
+			.insertInto("blocks")
+			.values([
+				{
+					height: 1,
+					hash: "0x01",
+					parent_hash: "0x00",
+					burn_block_height: 101,
+					timestamp: 1000,
+					canonical: true,
+				},
+			])
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values([
+				{
+					tx_id: "tx-a",
+					block_height: 1,
+					tx_index: 0,
+					type: "contract_call",
+					sender: "SPA",
+					status: "success",
+					contract_id: "SP1.alpha",
+					raw_tx: "0x0a",
+				},
+				{
+					tx_id: "tx-b",
+					block_height: 1,
+					tx_index: 1,
+					type: "contract_call",
+					sender: "SPC",
+					status: "success",
+					contract_id: "SP2.beta",
+					raw_tx: "0x0b",
+				},
+			])
+			.execute();
+		await db
+			.insertInto("events")
+			.values([
+				{
+					tx_id: "tx-a",
+					block_height: 1,
+					event_index: 0,
+					type: "ft_transfer_event",
+					data: {
+						asset_identifier: "SP1.alpha::tok",
+						sender: "SPA",
+						recipient: "SPB",
+						amount: "1",
+					},
+				},
+				{
+					tx_id: "tx-a",
+					block_height: 1,
+					event_index: 1,
+					type: "smart_contract_event",
+					data: { contract_identifier: "SP1.alpha", topic: "print", value: {} },
+				},
+				{
+					tx_id: "tx-b",
+					block_height: 1,
+					event_index: 0,
+					type: "ft_transfer_event",
+					data: {
+						asset_identifier: "SP2.beta::tok",
+						sender: "SPC",
+						recipient: "SPB",
+						amount: "2",
+					},
+				},
+				{
+					tx_id: "tx-b",
+					block_height: 1,
+					event_index: 1,
+					type: "stx_transfer_event",
+					data: { sender: "SPA", recipient: "SPD", amount: "3" },
+				},
+			])
+			.execute();
+
+		// not_types drops the print, keeping the two ft_transfers + the stx_transfer.
+		const excluded = await readCanonicalStreamsEvents({
+			fromHeight: 1,
+			toHeight: 1,
+			notTypes: ["print"],
+			limit: 10,
+			db,
+		});
+		expect(excluded.events.map((e) => e.cursor)).toEqual(["1:0", "1:2", "1:3"]);
+
+		// A contract-id list matches the ft asset_identifier and the print contract.
+		const byContract = await readCanonicalStreamsEvents({
+			fromHeight: 1,
+			toHeight: 1,
+			contractId: ["SP1.alpha", "SP2.beta"],
+			limit: 10,
+			db,
+		});
+		expect(byContract.events.map((e) => e.cursor)).toEqual([
+			"1:0",
+			"1:1",
+			"1:2",
+		]);
+
+		// A sender list matches across event types that carry a sender.
+		const bySender = await readCanonicalStreamsEvents({
+			fromHeight: 1,
+			toHeight: 1,
+			sender: ["SPA", "SPC"],
+			limit: 10,
+			db,
+		});
+		expect(bySender.events.map((e) => e.cursor)).toEqual(["1:0", "1:2", "1:3"]);
+
+		// Filters compose: exclude print AND restrict to one contract.
+		const composed = await readCanonicalStreamsEvents({
+			fromHeight: 1,
+			toHeight: 1,
+			notTypes: ["print"],
+			contractId: "SP2.beta",
+			limit: 10,
+			db,
+		});
+		expect(composed.events.map((e) => e.cursor)).toEqual(["1:2"]);
+	});
+
 	test("types filter returns matching events without scanning excluded pages", async () => {
 		if (!db) throw new Error("missing db");
 

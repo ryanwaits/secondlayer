@@ -109,11 +109,16 @@ export type ReadCanonicalStreamsEventsParams = {
 	fromHeight?: number;
 	toHeight: number;
 	types?: readonly StreamsEventType[];
-	contractId?: string;
-	/** Exact-match filters on the raw event payload (`events.data`). Event types
-	 *  that lack the field simply never match — the firehose narrows naturally. */
-	sender?: string;
-	recipient?: string;
+	/** Event types to exclude. Applied after `types`, so `not_types` narrows the
+	 *  included set further (an empty result is a no-op page that still advances
+	 *  the cursor). */
+	notTypes?: readonly StreamsEventType[];
+	/** Inclusion filters on the raw event payload (`events.data`). A list matches
+	 *  any of its values (`IN`). Event types that lack the field simply never
+	 *  match — the firehose narrows naturally. */
+	contractId?: string | readonly string[];
+	sender?: string | readonly string[];
+	recipient?: string | readonly string[];
 	assetIdentifier?: string;
 	limit: number;
 	db?: Kysely<Database>;
@@ -254,11 +259,20 @@ export async function readCanonicalStreamsEvents(
 		return { events: [], next_cursor: null };
 	}
 
+	// `not_types` narrows the included set rather than adding a NOT IN clause, so
+	// the existing `type IN (...)` path covers both inclusion and exclusion.
+	const includedStreamsTypes = (params.types ?? STREAMS_EVENT_TYPES).filter(
+		(eventType) => !params.notTypes?.includes(eventType),
+	);
+	if (includedStreamsTypes.length === 0) {
+		return { events: [], next_cursor: null };
+	}
+
 	const allDbEventTypes = sql.join(
 		STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
 	);
 	const selectedDbEventTypes = sql.join(
-		(params.types ?? STREAMS_EVENT_TYPES).flatMap((eventType) =>
+		includedStreamsTypes.flatMap((eventType) =>
 			STREAMS_TO_DB_EVENT_TYPES[eventType].map((dbType) => sql`${dbType}`),
 		),
 	);
@@ -310,17 +324,33 @@ export async function readCanonicalStreamsEvents(
 	return { events, next_cursor };
 }
 
+/** Normalize a single value or list into a non-empty array, or undefined. */
+function toFilterList(
+	value: string | readonly string[] | undefined,
+): string[] | undefined {
+	if (value === undefined) return undefined;
+	const list = Array.isArray(value) ? [...value] : [value];
+	return list.length > 0 ? list : undefined;
+}
+
+/** A parameterized `IN (...)` list (each value bound separately, safe). */
+function inList(values: string[]): RawBuilder<unknown> {
+	return sql.join(values.map((value) => sql`${value}`));
+}
+
 function contractIdPredicate(
-	contractId: string | undefined,
+	contractId: string | readonly string[] | undefined,
 ): RawBuilder<unknown> {
-	if (!contractId) return sql``;
+	const ids = toFilterList(contractId);
+	if (!ids) return sql``;
+	const list = inList(ids);
 	return sql`
 		AND (
 			(
 				e.type IN ('smart_contract_event', 'contract_event')
 				AND (
-					e.data->>'contract_identifier' = ${contractId}
-					OR e.data->>'contract_id' = ${contractId}
+					e.data->>'contract_identifier' IN (${list})
+					OR e.data->>'contract_id' IN (${list})
 				)
 			)
 			OR (
@@ -332,27 +362,32 @@ function contractIdPredicate(
 					'nft_mint_event',
 					'nft_burn_event'
 				)
-				AND split_part(e.data->>'asset_identifier', '::', 1) = ${contractId}
+				AND split_part(e.data->>'asset_identifier', '::', 1) IN (${list})
 			)
 		)
 	`;
 }
 
-/** Exact-match predicate on a raw payload field, or empty when unset. The key
- *  is bound as a parameter (safe) and the `->>` operator accepts it. */
+/** Inclusion predicate on a raw payload field, or empty when unset. The key is
+ *  bound as a parameter (safe) and the `->>` operator accepts it. A list matches
+ *  any of its values. */
 function payloadFieldPredicate(
 	field: string,
-	value: string | undefined,
+	value: string | readonly string[] | undefined,
 ): RawBuilder<unknown> {
-	if (value === undefined) return sql``;
-	return sql` AND e.data->>${field} = ${value}`;
+	const values = toFilterList(value);
+	if (!values) return sql``;
+	if (values.length === 1) {
+		return sql` AND e.data->>${field} = ${values[0]}`;
+	}
+	return sql` AND e.data->>${field} IN (${inList(values)})`;
 }
 
 /** Combined WHERE predicate for all payload filters Streams exposes. */
 function streamsFilterPredicate(params: {
-	contractId?: string;
-	sender?: string;
-	recipient?: string;
+	contractId?: string | readonly string[];
+	sender?: string | readonly string[];
+	recipient?: string | readonly string[];
 	assetIdentifier?: string;
 }): RawBuilder<unknown> {
 	return sql`${contractIdPredicate(params.contractId)}${payloadFieldPredicate(
