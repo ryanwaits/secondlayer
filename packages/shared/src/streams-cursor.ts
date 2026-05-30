@@ -3,6 +3,17 @@
  * Datasets, bulk). A cursor is `"<block_height>:<event_index>"` — an opaque,
  * monotonic resume token. One implementation so encode/decode and the
  * empty-range sentinel can never drift between products.
+ *
+ * NOTE: this codec IS the shared piece worth centralizing. A broader "shared
+ * canonical reader" across the ~10 raw-event query sites (streams-events,
+ * streams-bulk/query, api+indexer datasets/stx-transfers/query, l2/storage) was
+ * deliberately NOT built: those sites split into three distinct query patterns
+ * (raw-events-with-blocks-join, pre-computed dataset tables, burnchain) and
+ * share only the row_number ordering *pattern*, not an identical reader. The
+ * reorg-archive design (migration 0084) keeps the main tables canonical-only, so
+ * each reader's `WHERE canonical` filter already needs no dedup logic. Forcing
+ * one mega-reader was the wrong abstraction; this codec captures the only part
+ * that actually drifts.
  */
 
 export type StreamsCursor = {
