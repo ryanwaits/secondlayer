@@ -21,14 +21,24 @@ Two backstops now make an empty/wrong volume loud instead of silent:
 
 Tiered, smallest-effort-first.
 
-### v1 — offsite PITR to R2 (WAL-G)  ← do this
-Prod already bind-mounts `/wal_archive`, so WAL archiving is partly wired. Finish it with **WAL-G** (single binary, S3/R2-native):
-- `archive_command` ships WAL segments to `/wal_archive` → WAL-G pushes to R2.
-- Weekly base backup (`wal-g backup-push`) + continuous WAL → **point-in-time recovery**.
-- Chain data is append-only ⇒ tiny daily deltas; ~full set compresses well.
-- Run WAL-G as a small sidecar in the compose stack; reuse the R2 creds already used for Streams dumps.
+### v1 — offsite PITR to R2 (WAL-G)  ← wired, apply when the bucket exists
+Postgres already archives WAL to `/wal_archive` (`archive_mode=on`). The
+**`walg-backup` sidecar** (`docker/walg/`, added to `docker-compose.hetzner.yml`)
+finishes the job: a spooler ships each archived segment to R2 and deletes it
+(also bounding the local `/wal_archive`), plus a weekly `wal-g backup-push` with
+`delete retain FULL 4`. Base + WAL = **point-in-time recovery**.
 
-> TODO (needs R2 bucket/creds): wire the WAL-G sidecar + `archive_command`, then fill in the exact restore commands below and **test the restore once**.
+**Apply (one-time):**
+1. Create a **private** R2 bucket `secondlayer-db-backups` (NOT the public dumps
+   bucket). By default the sidecar reuses the `STREAMS_BULK_R2_*` creds; set
+   `WALG_*` overrides in `.env` only if you mint scoped creds.
+2. Set `WALG_S3_PREFIX=s3://secondlayer-db-backups/pg` in the prod `.env`
+   (see `docker/.env.hetzner.example`).
+3. Deploy. The sidecar will take a first base backup immediately, then weekly.
+4. Verify: `docker logs secondlayer-walg-backup-1` shows `base backup complete`;
+   `docker exec secondlayer-walg-backup-1 wal-g backup-list` lists it.
+5. After the first base backup succeeds, the old pre-WAL-G segments still sitting
+   in `/wal_archive` get spooled up + removed automatically.
 
 ### v2 — local fast snapshot (optional)
 Nightly `pg_basebackup` to the local data disk (plenty of free space), keep last N — instant local restore if the volume is fine but data got clobbered. Or move PGDATA onto ZFS/LVM for instant copy-on-write snapshots.
@@ -36,17 +46,30 @@ Nightly `pg_basebackup` to the local data disk (plenty of free space), keep last
 ### Last resort — cold rebuild from chain
 `packages/indexer/src/bulk-backfill.ts` with `BACKFILL_SOURCE=archive` rebuilds `blocks`/`transactions`/`events` from Hiro's ~25GB event archive (`archive.hiro.so`), replaying gap heights through the indexer's `/new_block`. Slow (hours) but zero external dependency. Run it **inside** the indexer container (`localhost:3700` ingest), with `ARCHIVE_DIR=/data/archive`, `BACKFILL_FROM`/`BACKFILL_TO` set explicitly. (Fixed 2026-05-30 — it previously crashed on large gap sets.)
 
-## Restore drill (WAL-G — fill in once v1 is wired)
+## Restore drill (WAL-G)
 
-```
-# 1. Stop the stack writers (keep postgres image available)
-# 2. Provision an empty PGDATA, then:
-#    wal-g backup-fetch $PGDATA LATEST
-#    configure recovery (restore_command = wal-g wal-fetch) + recovery_target_time
-# 3. Start postgres, let it replay WAL to the target, promote
-# 4. Verify: SELECT count(*), min(height), max(height) FROM blocks;
-#    and curl /public/status → chainIntegrity.ok == true
-# 5. Start the rest of the stack
+Run from a box with `wal-g` + the same `WALG_S3_PREFIX`/R2 env (e.g. exec into
+the `walg-backup` sidecar, or a one-off container from `docker/walg`).
+
+```bash
+# 0. Stop the stack writers (api/indexer/etc.); keep the postgres image.
+# 1. Empty target data dir, fetch the base backup into it:
+wal-g backup-list                       # pick a base (or LATEST)
+wal-g backup-fetch /var/lib/postgresql/data LATEST
+
+# 2. Configure recovery for PITR (postgres 17):
+#    in postgresql.auto.conf (or -c flags):
+#      restore_command = 'wal-g wal-fetch %f %p'
+#      recovery_target_time = '2026-05-30 17:00:00+00'   # omit to replay all WAL
+#    and: touch /var/lib/postgresql/data/recovery.signal
+
+# 3. Start postgres → it replays WAL to the target, then promotes.
+
+# 4. Verify before reattaching the stack:
+psql -tA -c "SELECT pg_size_pretty(pg_database_size(current_database())), count(*), min(height), max(height) FROM blocks"
+curl -s https://api.secondlayer.tools/public/status | jq '.status, .chainIntegrity'   # chainIntegrity.ok == true
+
+# 5. Start the rest of the stack.
 ```
 
 **Test this end-to-end once** against a scratch instance so it's proven, not theoretical.

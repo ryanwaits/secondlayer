@@ -24,6 +24,41 @@ services:
       - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data
       - ${DATA_DIR:-/opt/secondlayer/data}/wal_archive:/wal_archive
 
+  # Offsite backups: ships the WAL postgres archives to /wal_archive up to R2 and
+  # takes periodic base backups (point-in-time recovery). See
+  # docs/runbook/db-backup-restore.md. Reuses the Streams R2 creds by default;
+  # WALG_S3_PREFIX should point at a SEPARATE PRIVATE bucket from the public
+  # dumps bucket. Purely additive — postgres is unchanged.
+  walg-backup:
+    build:
+      context: ./walg
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:-s3://secondlayer-db-backups/pg}
+      # R2 is S3-compatible; map the existing Streams R2 creds straight through.
+      AWS_ACCESS_KEY_ID: ${WALG_R2_ACCESS_KEY_ID:-${STREAMS_BULK_R2_ACCESS_KEY_ID}}
+      AWS_SECRET_ACCESS_KEY: ${WALG_R2_SECRET_ACCESS_KEY:-${STREAMS_BULK_R2_SECRET_ACCESS_KEY}}
+      AWS_ENDPOINT: ${WALG_R2_ENDPOINT:-${STREAMS_BULK_R2_ENDPOINT}}
+      AWS_S3_FORCE_PATH_STYLE: "true"
+      AWS_REGION: auto
+      WALG_COMPRESSION_METHOD: zstd
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-secondlayer}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
+      PGDATABASE: ${POSTGRES_DB:-secondlayer}
+      PGDATA: /pgdata
+      RETAIN_FULL: ${WALG_RETAIN_FULL:-4}
+      BACKUP_INTERVAL_SECS: ${WALG_BACKUP_INTERVAL_SECS:-604800}
+    volumes:
+      # PGDATA read-only (backup-push reads the data dir); the WAL spool is r/w
+      # so the spooler can delete segments after they're safely in R2.
+      - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/pgdata:ro
+      - ${DATA_DIR:-/opt/secondlayer/data}/wal_archive:/wal_archive
+
   api:
     environment:
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
