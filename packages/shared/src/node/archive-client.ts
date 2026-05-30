@@ -84,7 +84,11 @@ export class ArchiveReplayClient {
 	): Promise<ReplayResult> {
 		if (gapHeights.size === 0) return { replayed: 0, errors: 0 };
 
-		const maxHeight = Math.max(...gapHeights);
+		// Iterate, don't spread: a full-history gap set is millions of heights,
+		// and `Math.max(...set)` spreads them all as call arguments → instant
+		// RangeError (max call-stack) on any large backfill.
+		let maxHeight = 0;
+		for (const h of gapHeights) if (h > maxHeight) maxHeight = h;
 		let replayed = 0;
 		let errors = 0;
 
@@ -181,9 +185,15 @@ export class ArchiveReplayClient {
 			await proc.exited;
 
 			if (remaining.size > 0) {
+				// Don't spread `remaining` (can be millions) just to sample a few.
+				const sample: number[] = [];
+				for (const h of remaining) {
+					sample.push(h);
+					if (sample.length === 5) break;
+				}
 				logger.warn("Archive replay: some heights not found in archive", {
 					missing: remaining.size,
-					sample: [...remaining].slice(0, 5),
+					sample,
 				});
 			}
 
