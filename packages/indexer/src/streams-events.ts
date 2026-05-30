@@ -1,3 +1,7 @@
+import {
+	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	encodeStreamsCursor,
+} from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely, RawBuilder } from "kysely";
@@ -150,9 +154,8 @@ type StreamsEventRow = {
 	stream_event_index: string | number;
 };
 
-export function encodeStreamsEventCursor(cursor: StreamsEventCursor): string {
-	return `${cursor.block_height}:${cursor.event_index}`;
-}
+/** Alias of the shared codec; kept for existing indexer import sites. */
+export const encodeStreamsEventCursor = encodeStreamsCursor;
 
 function dataRecord(data: unknown): Record<string, unknown> {
 	return data && typeof data === "object" && !Array.isArray(data)
@@ -306,8 +309,6 @@ export async function readCanonicalStreamsEvents(
 
 	return { events, next_cursor };
 }
-
-const EMPTY_RANGE_EVENT_INDEX_SENTINEL = 2_147_483_647;
 
 function contractIdPredicate(
 	contractId: string | undefined,

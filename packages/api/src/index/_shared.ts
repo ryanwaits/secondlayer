@@ -63,9 +63,7 @@ export function toIsoOrNull(
 	return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-export function encodeIndexCursor(cursor: IndexCursorInput): string {
-	return `${cursor.block_height}:${cursor.event_index}`;
-}
+export { encodeStreamsCursor as encodeIndexCursor } from "@secondlayer/shared";
 
 /** Shared cursor / height-window parsing for every Index read endpoint.
  *  Resolves cursor vs from_height precedence and the default last-day window. */

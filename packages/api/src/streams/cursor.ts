@@ -1,29 +1,6 @@
-export type StreamsCursorInput = {
-	block_height: number;
-	event_index: number;
-};
+// The Streams cursor codec is canonical in @secondlayer/shared so every product
+// shares one implementation. Re-exported here for existing import sites.
+import type { StreamsCursor } from "@secondlayer/shared";
 
-export function encodeStreamsCursor(event: StreamsCursorInput): string {
-	return `${event.block_height}:${event.event_index}`;
-}
-
-export function decodeStreamsCursor(cursor: string): StreamsCursorInput {
-	const match = /^(0|[1-9]\d*):(0|[1-9]\d*)$/.exec(cursor);
-	if (!match) {
-		throw new Error("Invalid Streams cursor");
-	}
-
-	const decoded = {
-		block_height: Number(match[1]),
-		event_index: Number(match[2]),
-	};
-
-	if (
-		!Number.isSafeInteger(decoded.block_height) ||
-		!Number.isSafeInteger(decoded.event_index)
-	) {
-		throw new Error("Invalid Streams cursor");
-	}
-
-	return decoded;
-}
+export type StreamsCursorInput = StreamsCursor;
+export { decodeStreamsCursor, encodeStreamsCursor } from "@secondlayer/shared";
