@@ -67,7 +67,21 @@ export function createPostgresLeaderBackend(): LeaderBackend {
 			return rows[0]?.locked === true;
 		},
 		async ping() {
-			await sql`SELECT 1`;
+			// Verify we STILL hold the advisory lock — not just that the connection
+			// is alive. The driver auto-reconnects transparently; a reconnect starts
+			// a new backend session, which silently drops the session-scoped lock. A
+			// plain `SELECT 1` would succeed on the new session and never notice, so
+			// two instances could both believe they're leader. The lock is held on
+			// this (max:1) connection, so count advisory locks on the current
+			// backend; 0 means we lost it (reconnect) → relinquish + re-elect.
+			const rows = await sql<{ held: number }[]>`
+				SELECT count(*)::int AS held
+				FROM pg_locks
+				WHERE locktype = 'advisory' AND pid = pg_backend_pid()
+			`;
+			if ((rows[0]?.held ?? 0) === 0) {
+				throw new Error("advisory lock no longer held (connection reset?)");
+			}
 		},
 		async close() {
 			// Closing the session releases all advisory locks it held.

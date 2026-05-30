@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { type LeaderBackend, withLeaderLock } from "./leader.ts";
+import {
+	type LeaderBackend,
+	createPostgresLeaderBackend,
+	withLeaderLock,
+} from "./leader.ts";
+
+const HAS_DB = !!process.env.DATABASE_URL;
+const PG_LOCK_KEY = 770_2099; // dedicated test key, distinct from prod's
 
 /** A single shared lock across "instances", simulating one Postgres lock. */
 function lockRegistry() {
@@ -88,6 +95,49 @@ describe("withLeaderLock", () => {
 		await tick();
 		expect(started).toBe(2);
 		expect(held.has(1)).toBe(true);
+		await stopB();
+	});
+});
+
+describe.skipIf(!HAS_DB)("withLeaderLock (real Postgres advisory lock)", () => {
+	test("real backend: second acquirer is blocked until the first releases", async () => {
+		let aLeader = false;
+		let bLeader = false;
+
+		const stopA = withLeaderLock(
+			PG_LOCK_KEY,
+			() => {
+				aLeader = true;
+				return () => {
+					aLeader = false;
+				};
+			},
+			{ createBackend: createPostgresLeaderBackend, pollMs: 10_000 },
+		);
+
+		// Let A acquire (real round-trip to Postgres).
+		await new Promise((r) => setTimeout(r, 200));
+		expect(aLeader).toBe(true);
+
+		const stopB = withLeaderLock(
+			PG_LOCK_KEY,
+			() => {
+				bLeader = true;
+				return () => {
+					bLeader = false;
+				};
+			},
+			{ createBackend: createPostgresLeaderBackend, pollMs: 200 },
+		);
+
+		await new Promise((r) => setTimeout(r, 200));
+		expect(bLeader).toBe(false); // A holds the lock
+
+		// A releases (closes its connection) → B's poll acquires.
+		await stopA();
+		await new Promise((r) => setTimeout(r, 600));
+		expect(bLeader).toBe(true);
+
 		await stopB();
 	});
 });
