@@ -4,6 +4,7 @@ import {
 	consumeStreamsEvents,
 	streamStreamsEvents,
 } from "./consumer.ts";
+import { createStreamsDumps } from "./dumps.ts";
 import {
 	AuthError,
 	RateLimitError,
@@ -31,6 +32,11 @@ export type CreateStreamsClientOptions = {
 	apiKey: string;
 	baseUrl?: string;
 	fetchImpl?: FetchLike;
+	/**
+	 * Public base URL for bulk parquet dumps (the R2/CDN bucket root). Required
+	 * to use `client.dumps`. See `GET /public/streams/dumps/manifest`.
+	 */
+	dumpsBaseUrl?: string;
 	/**
 	 * Verify the ed25519 `X-Signature` on every response (default off). Pass
 	 * `true` to fetch the server's public key from
@@ -257,6 +263,7 @@ export function createStreamsClient(
 				);
 			},
 		},
+		dumps: createStreamsDumps({ baseUrl: options.dumpsBaseUrl, fetchImpl }),
 		canonical(height: number) {
 			return request<StreamsCanonicalBlock>(`/v1/streams/canonical/${height}`);
 		},

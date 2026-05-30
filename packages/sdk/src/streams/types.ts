@@ -140,6 +140,44 @@ export type FetchLike = (
 	init?: RequestInit,
 ) => Promise<Response>;
 
+/** One bulk parquet file in the dumps manifest. `path` is the object key under
+ *  the dumps base URL. */
+export type StreamsDumpFile = {
+	path: string;
+	from_block: number;
+	to_block: number;
+	min_cursor: string | null;
+	max_cursor: string | null;
+	row_count: number;
+	byte_size: number;
+	sha256: string;
+	schema_version: number;
+	created_at: string;
+};
+
+export type StreamsDumpsManifest = {
+	dataset: string;
+	network: string;
+	version: string;
+	schema_version: number;
+	generated_at: string;
+	producer_version: string;
+	finality_lag_blocks: number;
+	/** Cursor at the end of the finalized bulk coverage — hand to live tailing. */
+	latest_finalized_cursor: string | null;
+	coverage: { from_block: number; to_block: number };
+	files: StreamsDumpFile[];
+};
+
+export type StreamsDumps = {
+	/** Fetch and parse the latest dumps manifest. */
+	list(): Promise<StreamsDumpsManifest>;
+	/** Absolute URL for a manifest file. */
+	fileUrl(file: StreamsDumpFile): string;
+	/** Download a parquet file and verify its sha256 against the manifest. */
+	download(file: StreamsDumpFile): Promise<Uint8Array>;
+};
+
 export type StreamsClient = {
 	events: {
 		list(params?: StreamsEventsListParams): Promise<StreamsEventsEnvelope>;
@@ -171,6 +209,8 @@ export type StreamsClient = {
 	reorgs: {
 		list(params: StreamsReorgsListParams): Promise<StreamsReorgsListEnvelope>;
 	};
+	/** Bulk parquet dumps. Requires `dumpsBaseUrl` on the client. */
+	dumps: StreamsDumps;
 	canonical(height: number): Promise<StreamsCanonicalBlock>;
 	tip(): Promise<StreamsTip>;
 };
