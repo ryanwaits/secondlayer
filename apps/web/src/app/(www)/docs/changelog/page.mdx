@@ -1,0 +1,67 @@
+# Changelog
+
+Notable changes to the Secondlayer platform and SDKs.
+
+## Streams — May 2026
+
+The raw-event availability layer matured across the board.
+`@secondlayer/sdk@5.9.0`, `@secondlayer/cli@8.2.0`, `@secondlayer/shared@6.11.0`.
+
+### Query
+
+New payload filters on `/v1/streams/events`: `sender`, `recipient`, and
+`asset_identifier` (exact-match), alongside the existing `contract_id` and
+`types`. Event types that lack a field simply don't match, so the firehose
+narrows naturally.
+
+```bash
+curl -H "Authorization: Bearer $SL_API_KEY" \
+  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP...&limit=50"
+```
+
+### Finality
+
+`/v1/streams/tip` now returns `finalized_height`, and every event carries a
+`finalized` flag. Finality is anchored to Bitcoin (burn-block) confirmations —
+not a fixed count of Stacks blocks — so a `finalized` event will not reorg.
+
+### Caching
+
+Fully-finalized pages (a closed range with `to_height ≤ finalized_height`) are
+served `Cache-Control: public, max-age=31536000, immutable` with a weak `ETag`
+and `304` on `If-None-Match`. Tip-spanning requests stay `private, max-age=2`,
+so historical reads are cheap while the live edge stays fresh.
+
+### Proofs
+
+Streams responses are signed with ed25519. Each read carries an `X-Signature`
+(over the exact response body) and `X-Signature-KeyId`. Fetch the public key at
+`GET /public/streams/signing-key` and verify, or set `verify` on the SDK
+client — you can trust the data without trusting the server.
+
+```ts
+const streams = createStreamsClient({ apiKey, verify: true });
+```
+
+### Bulk & backfill
+
+Download all of it. Finalized history is published as parquet with a
+sha256-verified manifest:
+
+- SDK: `client.dumps.list()` / `download(file)` and a one-call
+  `events.replay({ from: "genesis", onDumpFile, onBatch })` that backfills cold
+  history from dumps, then tails live from the manifest's finalized cursor —
+  no gap or duplicate at the seam.
+- CLI: `sl streams pull --to ./dump` downloads finalized dumps locally
+  (dumps are public — no API key).
+
+### Reliability
+
+Reorgs now archive orphaned rows instead of deleting them, keeping the raw log
+intact and auditable. The indexer gained leader election, making it safe to run
+as multiple instances.
+
+export const metadata = {
+	title: "Changelog — Secondlayer Docs",
+	description: "Notable changes to the Secondlayer platform and SDKs.",
+};

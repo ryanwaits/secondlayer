@@ -4,17 +4,39 @@ Raw chain event firehose — cursor-paginated REST, idempotent, replayable.
 
 Streams expose the same event surface every Foundation Dataset decoder consumes internally. Page forward with a cursor, replay from any point, and never miss an event. For push delivery to your backend, see [Subscriptions](/docs/subscriptions).
 
+Streams reads require an API key — send it as `Authorization: Bearer`.
+
 ## Read the stream
 
 ```bash
-curl https://api.secondlayer.tools/v1/streams/events -G -d "_limit=100"
+curl -H "Authorization: Bearer $SL_API_KEY" \
+  "https://api.secondlayer.tools/v1/streams/events?limit=100"
 ```
 
-Each response returns a `cursor` in `meta`. Pass it back as `_cursor` to continue exactly where you left off — deliveries are idempotent, so retries never double-count.
+Each response returns a `next_cursor`. Pass it back as `cursor` to continue exactly where you left off — deliveries are idempotent, so retries never double-count.
 
 ```bash
-curl https://api.secondlayer.tools/v1/streams/events -G -d "_cursor=eyJpZCI6NDgxMzd9"
+curl -H "Authorization: Bearer $SL_API_KEY" \
+  "https://api.secondlayer.tools/v1/streams/events?cursor=7970329:8"
 ```
+
+## Filter the stream
+
+Narrow the firehose by event type, contract, or principal — `types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, and `from_height`/`to_height`. Filters are exact-match; event types without a given field simply don't match.
+
+```bash
+curl -H "Authorization: Bearer $SL_API_KEY" \
+  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP...&limit=50"
+```
+
+## What's new (May 2026)
+
+- **Finality** — `tip.finalized_height` plus a `finalized` flag on every event, anchored to Bitcoin (burn-block) confirmations. A `finalized` event won't reorg.
+- **Caching** — fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (and `304` on `If-None-Match`); the moving tip stays short-lived.
+- **Signed responses** — every read carries an ed25519 `X-Signature`. Fetch the public key at `/public/streams/signing-key` and verify, or set `verify` on the SDK client — trust the data without trusting the server.
+- **Bulk + replay** — download finalized history as parquet (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam.
+
+See the [changelog](/docs/changelog) for the full list.
 
 export const metadata = {
 	title: "Streams — Secondlayer Docs",

@@ -34,6 +34,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Contract discovery", href: "/docs/contracts" },
 			{ title: "SDK", href: "/docs/sdk" },
 			{ title: "CLI", href: "/docs/cli" },
+			{ title: "Changelog", href: "/docs/changelog" },
 		],
 	},
 ];
