@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { createStreamsClient } from "@secondlayer/sdk";
 import type {
 	StreamsCanonicalBlock,
@@ -41,6 +43,25 @@ function client(): ReturnType<typeof createStreamsClient> {
 	return createStreamsClient({
 		baseUrl: process.env.SL_API_URL ?? DEFAULT_BASE_URL,
 		apiKey: readApiKey(),
+	});
+}
+
+/** Client for the public bulk dumps. Dumps are unauthenticated, so no API key
+ *  is required — only the public dumps base URL. */
+function dumpsClient(
+	dumpsUrl: string | undefined,
+): ReturnType<typeof createStreamsClient> {
+	const dumpsBaseUrl = dumpsUrl ?? process.env.SL_STREAMS_DUMPS_URL;
+	if (!dumpsBaseUrl) {
+		logError(
+			"No dumps URL. Pass --dumps-url <url> or set SL_STREAMS_DUMPS_URL (the public bulk bucket base; see GET /public/streams/dumps/manifest).",
+		);
+		process.exit(1);
+	}
+	return createStreamsClient({
+		baseUrl: process.env.SL_API_URL ?? DEFAULT_BASE_URL,
+		apiKey: resolveEnvKey() ?? "",
+		dumpsBaseUrl,
 	});
 }
 
@@ -223,6 +244,74 @@ Examples:
 				process.exit(1);
 			}
 		});
+
+	streams
+		.command("pull")
+		.description(
+			"Download finalized bulk parquet dumps to a local dir (verifies sha256)",
+		)
+		.requiredOption("--to <dir>", "output directory")
+		.option(
+			"--dumps-url <url>",
+			"public dumps base URL (or SL_STREAMS_DUMPS_URL)",
+		)
+		.option("--from-block <n>", "only files covering blocks >= n")
+		.option("--to-block <n>", "only files covering blocks <= n")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl streams pull --to ./dump
+  $ sl streams pull --to ./dump --from-block 150000 --to-block 200000`,
+		)
+		.action(
+			async (options: {
+				to: string;
+				dumpsUrl?: string;
+				fromBlock?: string;
+				toBlock?: string;
+			}) => {
+				try {
+					const fromBlock = parseHeight(options.fromBlock, "--from-block");
+					const toBlock = parseHeight(options.toBlock, "--to-block");
+					const dumps = dumpsClient(options.dumpsUrl).dumps;
+					const manifest = await dumps.list();
+					const files = manifest.files.filter(
+						(f) =>
+							(fromBlock === undefined || f.to_block >= fromBlock) &&
+							(toBlock === undefined || f.from_block <= toBlock),
+					);
+					if (files.length === 0) {
+						note("# no dump files match the requested range");
+						return;
+					}
+					note(`# downloading ${files.length} file(s) to ${options.to}`);
+					for (const file of files) {
+						const bytes = await dumps.download(file);
+						const dest = join(options.to, file.path);
+						await mkdir(dirname(dest), { recursive: true });
+						await writeFile(dest, bytes);
+						process.stderr.write(
+							`# ${file.path} (${file.row_count} rows, ${bytes.byteLength} bytes)\n`,
+						);
+					}
+					writeData(
+						JSON.stringify(
+							{
+								files: files.length,
+								to: options.to,
+								latest_finalized_cursor: manifest.latest_finalized_cursor,
+							},
+							null,
+							2,
+						),
+					);
+				} catch (err) {
+					logError(err instanceof Error ? err.message : String(err));
+					process.exit(1);
+				}
+			},
+		);
 
 	streams
 		.command("canonical <height>")
