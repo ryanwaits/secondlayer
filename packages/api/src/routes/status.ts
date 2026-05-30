@@ -5,6 +5,7 @@ import {
 	getL2DecodersHealth,
 } from "@secondlayer/indexer/l2/health";
 import { getDb } from "@secondlayer/shared/db";
+import { checkChainDataIntegrity } from "@secondlayer/shared/db/queries/integrity";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { Hono } from "hono";
 import { sql } from "kysely";
@@ -175,6 +176,7 @@ app.get("/public/status", async (c) => {
 		l2DecodersResult,
 		dumpsManifestResult,
 		subgraphProcessorHeartbeat,
+		chainIntegrityResult,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		getIndexerHealth(),
@@ -186,6 +188,7 @@ app.get("/public/status", async (c) => {
 			.select("updated_at")
 			.where("name", "=", "subgraph-processor")
 			.executeTakeFirst(),
+		checkChainDataIntegrity(db),
 	]);
 	const subgraphProcessorDetail: {
 		status: SemanticHealthStatus;
@@ -261,9 +264,26 @@ app.get("/public/status", async (c) => {
 		{ name: "subgraph_processor", status: subgraphProcessorStatus },
 	];
 
+	// Chain-data integrity: catches a wrong/empty Postgres volume being served
+	// (the tip looks current but the history its tip implies is missing). On
+	// failure we degrade the top-level status so monitoring alarms — but we do
+	// NOT mark a core service down, so the deploy smoke gate isn't tripped by a
+	// transient false positive. `unavailable` here = the check itself errored.
+	const chainIntegrity =
+		chainIntegrityResult.status === "fulfilled"
+			? chainIntegrityResult.value
+			: {
+					ok: true,
+					maxHeight: 0,
+					sampleHeight: null,
+					sampleBlocks: 0,
+					reason: "check_failed",
+				};
+
 	return c.json({
-		status: overallPublicStatus(services),
+		status: chainIntegrity.ok ? overallPublicStatus(services) : "degraded",
 		chainTip,
+		chainIntegrity,
 		streams: {
 			status: streamsTip ? "ok" : "unavailable",
 			tip: streamsTip,

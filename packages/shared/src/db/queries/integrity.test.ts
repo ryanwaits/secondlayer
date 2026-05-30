@@ -1,7 +1,15 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { sql } from "kysely";
 import { getDb } from "../index.ts";
 import {
+	checkChainDataIntegrity,
 	computeContiguousTip,
 	countMissingBlocks,
 	findGaps,
@@ -85,3 +93,65 @@ describe.skipIf(!HAS_DB)("integrity queries", () => {
 		expect(tip).toBe(8);
 	});
 });
+
+describe.skipIf(!HAS_DB)(
+	"checkChainDataIntegrity (wrong/empty volume guard)",
+	() => {
+		// biome-ignore lint/suspicious/noExplicitAny: test db handle
+		const db = HAS_DB ? getDb() : (null as any);
+		// Small floor/lookback so the test needs only a couple of rows, not millions.
+		// lookback must exceed the function's 1000-wide sample window so the sample
+		// sits clearly below the tip (as it does with the real 500k default).
+		const opts = { checkFloor: 100, lookback: 5000 };
+
+		beforeEach(async () => {
+			await sql`DELETE FROM events`.execute(db);
+			await sql`DELETE FROM transactions`.execute(db);
+			await sql`DELETE FROM blocks`.execute(db);
+		});
+
+		afterAll(async () => {
+			await sql`DELETE FROM blocks`.execute(db);
+		});
+
+		async function insertBlock(height: number) {
+			await db
+				.insertInto("blocks")
+				.values({
+					height,
+					hash: `0x${height.toString(16).padStart(64, "0")}`,
+					parent_hash: `0x${(height - 1).toString(16).padStart(64, "0")}`,
+					burn_block_height: height,
+					timestamp: Math.floor(Date.now() / 1000),
+					canonical: true,
+				})
+				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
+				.onConflict((oc: any) => oc.column("height").doNothing())
+				.execute();
+		}
+
+		test("ok below the check floor (can't tell fresh install from empty)", async () => {
+			await insertBlock(50);
+			const r = await checkChainDataIntegrity(db, opts);
+			expect(r.ok).toBe(true);
+			expect(r.maxHeight).toBe(50);
+		});
+
+		test("fails when tip is high but the implied deep history is missing", async () => {
+			await insertBlock(20000);
+			const r = await checkChainDataIntegrity(db, opts);
+			expect(r.ok).toBe(false);
+			expect(r.maxHeight).toBe(20000);
+			expect(r.sampleHeight).toBe(15000);
+			expect(r.reason).toContain("wrong or empty volume");
+		});
+
+		test("passes when the implied history is present", async () => {
+			await insertBlock(20000);
+			await insertBlock(15000);
+			const r = await checkChainDataIntegrity(db, opts);
+			expect(r.ok).toBe(true);
+			expect(r.sampleBlocks).toBeGreaterThan(0);
+		});
+	},
+);

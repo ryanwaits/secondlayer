@@ -7,6 +7,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
       POSTGRES_DB: ${POSTGRES_DB:-secondlayer}
     volumes:
+      # The chain data (100s of GB) lives here. FOOTGUN: do NOT `docker compose
+      # run` a service with `depends_on: postgres` — it recreates this container
+      # and can surface a wrong/empty data dir. Use `docker exec` on the running
+      # container (or direct psql) for one-off DB tasks. Backstop: the indexer's
+      # startup guard + /public/status `chainIntegrity` alarm on an empty volume.
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-127.0.0.1:5432}:5432"

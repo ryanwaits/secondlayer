@@ -2,6 +2,7 @@
 // Uses native Bun.serve routes instead of Hono (fixes stack overflow issues)
 import { getDb } from "@secondlayer/shared/db";
 import {
+	checkChainDataIntegrity,
 	countMissingBlocks,
 	findGaps,
 } from "@secondlayer/shared/db/queries/integrity";
@@ -94,6 +95,29 @@ async function runStartupIntegrityCheck() {
 
 		// Initialize lastSeenHeight for out-of-order tracking
 		initIngestState(Number(progress.highest_seen_block));
+
+		// Wrong/empty-volume guard: if the tip is high but the deep history it
+		// implies is missing, we're almost certainly pointed at a fresh or wrong
+		// Postgres volume (e.g. a container recreated outside the deploy flow).
+		// Loud by default; fail-closed when REQUIRE_INTEGRITY=true.
+		const chainIntegrity = await checkChainDataIntegrity(db);
+		if (!chainIntegrity.ok) {
+			logger.error(
+				"DB INTEGRITY ALERT: chain history missing for the current tip — wrong or empty Postgres volume?",
+				chainIntegrity,
+			);
+			if (process.env.REQUIRE_INTEGRITY === "true") {
+				logger.error(
+					"REQUIRE_INTEGRITY is set — refusing to start on a wrong/empty volume",
+				);
+				process.exit(1);
+			}
+		} else {
+			logger.info("Chain-data integrity check passed", {
+				maxHeight: chainIntegrity.maxHeight,
+				sampleHeight: chainIntegrity.sampleHeight,
+			});
+		}
 
 		const gaps = await findGaps(db, 20);
 		const missing = await countMissingBlocks(db);

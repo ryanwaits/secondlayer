@@ -52,6 +52,65 @@ export async function countMissingBlocks(
 	return Number(rows[0]?.total ?? 0);
 }
 
+export interface ChainDataIntegrity {
+	ok: boolean;
+	maxHeight: number;
+	sampleHeight: number | null;
+	sampleBlocks: number;
+	reason: string | null;
+}
+
+/**
+ * Cheap sanity check that the `blocks` table actually holds the history its tip
+ * implies. Catches a wrong/empty Postgres volume — e.g. a container recreated
+ * against a fresh volume — being silently served: if the tip is high but a
+ * window of blocks well below it is missing, the data isn't what the tip claims.
+ *
+ * Below `checkFloor` we can't distinguish a fresh install from an empty volume,
+ * so we report ok — a genuinely new DB legitimately has little history. Two
+ * indexed lookups, safe to run on every startup / health poll.
+ */
+export async function checkChainDataIntegrity(
+	db: Kysely<Database>,
+	opts?: { checkFloor?: number; lookback?: number },
+): Promise<ChainDataIntegrity> {
+	const checkFloor = opts?.checkFloor ?? 1_000_000;
+	const lookback = opts?.lookback ?? 500_000;
+
+	const { rows: tipRows } = await sql<{ max: string | null }>`
+		SELECT MAX(height) AS max FROM blocks WHERE canonical = true
+	`.execute(db);
+	const maxHeight = Number(tipRows[0]?.max ?? 0);
+
+	if (maxHeight < checkFloor) {
+		return {
+			ok: true,
+			maxHeight,
+			sampleHeight: null,
+			sampleBlocks: 0,
+			reason: null,
+		};
+	}
+
+	const sampleHeight = maxHeight - lookback;
+	const { rows: sampleRows } = await sql<{ n: string }>`
+		SELECT count(*) AS n FROM blocks
+		WHERE canonical = true AND height >= ${sampleHeight} AND height < ${sampleHeight + 1000}
+	`.execute(db);
+	const sampleBlocks = Number(sampleRows[0]?.n ?? 0);
+
+	return {
+		ok: sampleBlocks > 0,
+		maxHeight,
+		sampleHeight,
+		sampleBlocks,
+		reason:
+			sampleBlocks > 0
+				? null
+				: `tip is ${maxHeight} but no canonical blocks near ${sampleHeight} — wrong or empty volume?`,
+	};
+}
+
 export async function computeContiguousTip(
 	db: Kysely<Database>,
 	fromHeight: number,
