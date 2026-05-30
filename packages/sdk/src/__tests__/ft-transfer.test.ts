@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { type StreamsEvent, decodeFtTransfer, isFtTransfer } from "../index.ts";
 
+// Payloads arrive untyped over the wire; these fixtures deliberately pass
+// partial/foreign shapes to exercise the runtime guards, so cast to StreamsEvent.
 function ftTransfer(payload: Record<string, unknown>): StreamsEvent {
 	return {
 		cursor: "123:4",
@@ -14,7 +16,7 @@ function ftTransfer(payload: Record<string, unknown>): StreamsEvent {
 		contract_id: "SP1.token",
 		payload,
 		ts: "2026-05-02T21:43:00.000Z",
-	};
+	} as unknown as StreamsEvent;
 }
 
 describe("ft_transfer helpers", () => {
@@ -27,7 +29,12 @@ describe("ft_transfer helpers", () => {
 		});
 
 		expect(isFtTransfer(event)).toBe(true);
-		expect(isFtTransfer({ ...event, event_type: "print" })).toBe(false);
+		expect(
+			isFtTransfer({
+				...event,
+				event_type: "print",
+			} as unknown as StreamsEvent),
+		).toBe(false);
 	});
 
 	test("maps Streams payload to decoded ft_transfer shape", () => {
@@ -61,7 +68,10 @@ describe("ft_transfer helpers", () => {
 
 	test("rejects non-ft_transfer events", () => {
 		expect(() =>
-			decodeFtTransfer({ ...ftTransfer({}), event_type: "print" }),
+			decodeFtTransfer({
+				...ftTransfer({}),
+				event_type: "print",
+			} as unknown as StreamsEvent),
 		).toThrow("Expected ft_transfer");
 	});
 

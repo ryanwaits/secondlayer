@@ -149,8 +149,18 @@ export type StreamsEventType = (typeof STREAMS_EVENT_TYPES)[number];
 
 ### Event shape
 
+`StreamsEvent` is a discriminated union on `event_type`, so `event.payload`
+narrows to the matching per-type shape (e.g. `FtTransferPayload`, `PrintPayload`)
+once you check `event.event_type` (or use an `isX` guard) — no cast needed.
+
 ```ts
-export type StreamsEvent = {
+// Common fields (StreamsEventBase) + a typed payload per event_type:
+type StreamsEvent =
+  | (StreamsEventBase & { event_type: "ft_transfer"; payload: FtTransferPayload })
+  | (StreamsEventBase & { event_type: "print"; payload: PrintPayload })
+  | /* …stx_*, ft_*, nft_* … */;
+
+type StreamsEventBase = {
   cursor: string;
   block_height: number;
   block_hash: string;
@@ -158,12 +168,13 @@ export type StreamsEvent = {
   tx_id: string;
   tx_index: number;
   event_index: number;
-  event_type: StreamsEventType;
   contract_id: string | null;
-  payload: Record<string, unknown>;
   ts: string;
   finalized?: boolean; // true when the block is past the finality boundary
 };
+
+// for (const e of envelope.events)
+//   if (e.event_type === "ft_transfer") e.payload.amount  // string, typed
 
 export type StreamsEventsEnvelope = {
   events: StreamsEvent[];
@@ -197,15 +208,18 @@ console.log(`At block ${tip.block_height}, lag ${tip.lag_seconds}s`);
 ### `sl.streams.events.list(params?)`
 
 ```ts
+type StreamsFilterValue = string | readonly string[]; // one value or a list (matches any)
+
 type StreamsEventsListParams = {
   cursor?: string | null;
   fromHeight?: number;
   toHeight?: number;
   types?: readonly StreamsEventType[];
-  contractId?: string;
-  sender?: string;          // exact payload sender (events that have one)
-  recipient?: string;       // exact payload recipient
-  assetIdentifier?: string; // exact FT/NFT asset identifier
+  notTypes?: readonly StreamsEventType[]; // exclude these types (applied after `types`)
+  contractId?: StreamsFilterValue;
+  sender?: StreamsFilterValue;       // payload sender (events that have one)
+  recipient?: StreamsFilterValue;    // payload recipient
+  assetIdentifier?: string;          // exact FT/NFT asset identifier
   limit?: number;
 };
 
@@ -243,9 +257,10 @@ type StreamsEventsConsumeParams = {
   fromCursor?: string | null;
   mode?: "tail" | "bounded";        // default "tail"
   types?: readonly StreamsEventType[];
-  contractId?: string;
-  sender?: string;
-  recipient?: string;
+  notTypes?: readonly StreamsEventType[];
+  contractId?: StreamsFilterValue;  // string | readonly string[]
+  sender?: StreamsFilterValue;
+  recipient?: StreamsFilterValue;
   assetIdentifier?: string;
   batchSize?: number;               // default 100
   onBatch: (
@@ -291,9 +306,10 @@ For live watchers/processors that don't need explicit checkpointing.
 type StreamsEventsStreamParams = {
   fromCursor?: string | null;
   types?: readonly StreamsEventType[];
-  contractId?: string;
-  sender?: string;
-  recipient?: string;
+  notTypes?: readonly StreamsEventType[];
+  contractId?: StreamsFilterValue;  // string | readonly string[]
+  sender?: StreamsFilterValue;
+  recipient?: StreamsFilterValue;
   assetIdentifier?: string;
   batchSize?: number;               // default 100
   emptyBackoffMs?: number;          // default 500

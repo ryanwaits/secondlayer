@@ -46,7 +46,7 @@ function buildPrintEvent(
 		},
 		ts: "2026-05-05T12:34:56.000Z",
 		...overrides,
-	};
+	} as StreamsEvent;
 }
 
 describe("decodeRegistryPrint", () => {
@@ -192,10 +192,10 @@ describe("decodeRegistryPrint", () => {
 	});
 
 	test("returns null for non-tuple payload", () => {
-		const event: StreamsEvent = {
+		const event = {
 			...buildPrintEvent(tupleCV({ topic: stringAsciiCV("ignored") })),
 			payload: { contract_id: REGISTRY_CONTRACT, topic: "print", value: null },
-		};
+		} as StreamsEvent;
 		expect(decodeRegistryPrint(event)).toBeNull();
 	});
 });
@@ -217,7 +217,7 @@ describe("decodeTokenEvent", () => {
 			contract_id: TOKEN_CONTRACT,
 			payload: { asset_identifier: SBTC_ASSET_IDENTIFIER_MAINNET, ...payload },
 			ts: "2026-05-05T12:34:56.000Z",
-		};
+		} as StreamsEvent;
 	}
 
 	test("ft_transfer", () => {

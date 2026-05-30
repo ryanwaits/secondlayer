@@ -1,16 +1,11 @@
 import type { StreamsEvent } from "./types.ts";
 
-export type NftTransferPayload = {
-	asset_identifier: string;
-	sender: string;
-	recipient: string;
-	value: string | { hex: string };
-};
+export type { NftTransferPayload } from "./types.ts";
 
-export type NftTransferEvent = StreamsEvent & {
-	event_type: "nft_transfer";
-	payload: NftTransferPayload;
-};
+export type NftTransferEvent = Extract<
+	StreamsEvent,
+	{ event_type: "nft_transfer" }
+>;
 
 export type DecodedNftTransferPayload = {
 	asset_identifier: string;

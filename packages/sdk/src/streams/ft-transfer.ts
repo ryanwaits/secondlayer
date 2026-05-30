@@ -1,16 +1,11 @@
-import type { StreamsEvent } from "./types.ts";
+import type { FtTransferPayload, StreamsEvent } from "./types.ts";
 
-export type FtTransferPayload = {
-	asset_identifier: string;
-	sender: string;
-	recipient: string;
-	amount: string;
-};
+export type { FtTransferPayload } from "./types.ts";
 
-export type FtTransferEvent = StreamsEvent & {
-	event_type: "ft_transfer";
-	payload: FtTransferPayload;
-};
+export type FtTransferEvent = Extract<
+	StreamsEvent,
+	{ event_type: "ft_transfer" }
+>;
 
 export type DecodedFtTransferPayload = {
 	asset_identifier: string;

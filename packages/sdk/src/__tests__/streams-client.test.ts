@@ -90,6 +90,40 @@ describe("createStreamsClient", () => {
 		expect(requests[0]?.headers.get("Authorization")).toBe("Bearer sk-test");
 	});
 
+	test("serializes not_types and list filters as comma-separated params", async () => {
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				requests.push(
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init),
+				);
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
+			},
+		});
+
+		await client.events.list({
+			notTypes: ["print"],
+			contractId: ["SP1.a", "SP2.b"],
+			sender: ["SP1", "SP2"],
+			recipient: "SP3",
+		});
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.searchParams.get("not_types")).toBe("print");
+		expect(url.searchParams.get("contract_id")).toBe("SP1.a,SP2.b");
+		expect(url.searchParams.get("sender")).toBe("SP1,SP2");
+		expect(url.searchParams.get("recipient")).toBe("SP3");
+	});
+
 	test("builds convenience endpoint URLs with auth", async () => {
 		const requests: Request[] = [];
 		const client = createStreamsClient({
@@ -364,5 +398,104 @@ describe("createStreamsClient verify", () => {
 		await expect(client.events.list()).resolves.toMatchObject({
 			next_cursor: null,
 		});
+	});
+});
+
+describe("createStreamsClient verify key rotation", () => {
+	const envelope = { events: [], next_cursor: null, tip: TIP, reorgs: [] };
+	const body = JSON.stringify(envelope);
+
+	type ServerKey = {
+		priv: ReturnType<typeof ed25519.loadEd25519PrivateKey>;
+		keyId: string;
+		pem: string;
+	};
+	function serverKey(): ServerKey {
+		const { privateKeyPem, publicKeyPem } = ed25519.generateEd25519KeyPair();
+		return {
+			priv: ed25519.loadEd25519PrivateKey(privateKeyPem),
+			keyId: ed25519.ed25519KeyId(publicKeyPem),
+			pem: publicKeyPem,
+		};
+	}
+
+	function signingKeyResponse(key: ServerKey): Response {
+		return new Response(
+			JSON.stringify({
+				algorithm: "ed25519",
+				key_id: key.keyId,
+				public_key_pem: key.pem,
+			}),
+			{ status: 200, headers: { "Content-Type": "application/json" } },
+		);
+	}
+
+	function dataResponse(key: ServerKey): Response {
+		return new Response(body, {
+			status: 200,
+			headers: {
+				"Content-Type": "application/json",
+				"X-Signature": ed25519.signEd25519(body, key.priv),
+				"X-Signature-KeyId": key.keyId,
+			},
+		});
+	}
+
+	test("refreshes the cached key when the server rotates", async () => {
+		const keyA = serverKey();
+		const keyB = serverKey();
+		let current = keyA;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			verify: true,
+			fetchImpl: async (input) =>
+				String(input).endsWith("/public/streams/signing-key")
+					? signingKeyResponse(current)
+					: dataResponse(current),
+		});
+
+		// First request caches key A.
+		await expect(client.events.list()).resolves.toMatchObject({
+			next_cursor: null,
+		});
+		// Rotate the server; the SDK should detect the new key id and refetch.
+		current = keyB;
+		await expect(client.events.list()).resolves.toMatchObject({
+			next_cursor: null,
+		});
+	});
+
+	test("fails closed when the rotated key id is not served", async () => {
+		const served = serverKey();
+		const rogue = serverKey();
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			verify: true,
+			// Endpoint serves `served`, but the response is signed by `rogue` and
+			// claims its id — one refetch still won't match, so fail closed.
+			fetchImpl: async (input) =>
+				String(input).endsWith("/public/streams/signing-key")
+					? signingKeyResponse(served)
+					: dataResponse(rogue),
+		});
+		await expect(client.events.list()).rejects.toBeInstanceOf(
+			StreamsSignatureError,
+		);
+	});
+
+	test("rejects a rotated key id in pinned mode", async () => {
+		const pinned = serverKey();
+		const rotated = serverKey();
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			verify: { publicKey: pinned.pem },
+			fetchImpl: async () => dataResponse(rotated),
+		});
+		await expect(client.events.list()).rejects.toBeInstanceOf(
+			StreamsSignatureError,
+		);
 	});
 });

@@ -14,9 +14,86 @@ export const STREAMS_EVENT_TYPES = [
 
 export type StreamsEventType = (typeof STREAMS_EVENT_TYPES)[number];
 
-export type StreamsEventPayload = Record<string, unknown>;
+/** A Clarity value as Streams serves it: the canonical hex string, a typed
+ *  object carrying that hex (`{ hex }`), or a decoded Clarity-JSON object.
+ *  Decode helpers (`decodeNftTransfer`, etc.) resolve it to a concrete value. */
+export type StreamsClarityValue =
+	| string
+	| { hex: string }
+	| Record<string, unknown>;
 
-export type StreamsEvent = {
+export type StxTransferPayload = {
+	sender: string;
+	recipient: string;
+	amount: string;
+	memo?: string;
+};
+export type StxMintPayload = { recipient: string; amount: string };
+export type StxBurnPayload = { sender: string; amount: string };
+export type StxLockPayload = {
+	locked_address: string;
+	locked_amount: string;
+	unlock_height: string;
+};
+export type FtTransferPayload = {
+	asset_identifier: string;
+	sender: string;
+	recipient: string;
+	amount: string;
+};
+export type FtMintPayload = {
+	asset_identifier: string;
+	recipient: string;
+	amount: string;
+};
+export type FtBurnPayload = {
+	asset_identifier: string;
+	sender: string;
+	amount: string;
+};
+export type NftTransferPayload = {
+	asset_identifier: string;
+	sender: string;
+	recipient: string;
+	value: StreamsClarityValue;
+	/** Canonical serialized hex of `value`, when the stream carries it. */
+	raw_value?: string;
+};
+export type NftMintPayload = {
+	asset_identifier: string;
+	recipient: string;
+	value: StreamsClarityValue;
+	raw_value?: string;
+};
+export type NftBurnPayload = {
+	asset_identifier: string;
+	sender: string;
+	value: StreamsClarityValue;
+	raw_value?: string;
+};
+export type PrintPayload = {
+	contract_id?: string | null;
+	topic?: string;
+	value?: unknown;
+	raw_value?: string;
+};
+
+/** Union of every Streams payload shape, discriminated by `event_type` on the
+ *  parent `StreamsEvent`. */
+export type StreamsEventPayload =
+	| StxTransferPayload
+	| StxMintPayload
+	| StxBurnPayload
+	| StxLockPayload
+	| FtTransferPayload
+	| FtMintPayload
+	| FtBurnPayload
+	| NftTransferPayload
+	| NftMintPayload
+	| NftBurnPayload
+	| PrintPayload;
+
+export type StreamsEventBase = {
 	cursor: string;
 	block_height: number;
 	block_hash: string;
@@ -24,9 +101,7 @@ export type StreamsEvent = {
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
-	event_type: StreamsEventType;
 	contract_id: string | null;
-	payload: StreamsEventPayload;
 	ts: string;
 	/**
 	 * True when this event's block is past the finality boundary (immutable).
@@ -34,6 +109,26 @@ export type StreamsEvent = {
 	 */
 	finalized?: boolean;
 };
+
+type StreamsEventOf<T extends StreamsEventType, P> = StreamsEventBase & {
+	event_type: T;
+	payload: P;
+};
+
+/** A raw Streams event. Discriminated on `event_type`, so `event.payload`
+ *  narrows to the matching payload shape once the type is checked. */
+export type StreamsEvent =
+	| StreamsEventOf<"stx_transfer", StxTransferPayload>
+	| StreamsEventOf<"stx_mint", StxMintPayload>
+	| StreamsEventOf<"stx_burn", StxBurnPayload>
+	| StreamsEventOf<"stx_lock", StxLockPayload>
+	| StreamsEventOf<"ft_transfer", FtTransferPayload>
+	| StreamsEventOf<"ft_mint", FtMintPayload>
+	| StreamsEventOf<"ft_burn", FtBurnPayload>
+	| StreamsEventOf<"nft_transfer", NftTransferPayload>
+	| StreamsEventOf<"nft_mint", NftMintPayload>
+	| StreamsEventOf<"nft_burn", NftBurnPayload>
+	| StreamsEventOf<"print", PrintPayload>;
 
 export type StreamsTip = {
 	block_height: number;
@@ -84,14 +179,19 @@ export type StreamsReorgsListEnvelope = {
 	next_since: string | null;
 };
 
+/** A filter that matches a single value or any value in a list. */
+export type StreamsFilterValue = string | readonly string[];
+
 export type StreamsEventsListParams = {
 	cursor?: string | null;
 	fromHeight?: number;
 	toHeight?: number;
 	types?: readonly StreamsEventType[];
-	contractId?: string;
-	sender?: string;
-	recipient?: string;
+	/** Event types to exclude (applied after `types`). */
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
 	limit?: number;
 };
@@ -99,9 +199,10 @@ export type StreamsEventsListParams = {
 export type StreamsEventsStreamParams = {
 	fromCursor?: string | null;
 	types?: readonly StreamsEventType[];
-	contractId?: string;
-	sender?: string;
-	recipient?: string;
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
 	batchSize?: number;
 	emptyBackoffMs?: number;
@@ -114,9 +215,10 @@ export type StreamsEventsConsumeParams = {
 	fromCursor?: string | null;
 	mode?: "tail" | "bounded";
 	types?: readonly StreamsEventType[];
-	contractId?: string;
-	sender?: string;
-	recipient?: string;
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
 	batchSize?: number;
 	onBatch: (

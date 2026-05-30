@@ -54,7 +54,7 @@ function buildPrintEvent(
 		},
 		ts: "2026-05-05T12:34:56.000Z",
 		...overrides,
-	};
+	} as StreamsEvent;
 }
 
 function decodePayloadFromEvent(event: StreamsEvent): Record<string, unknown> {

@@ -2,15 +2,17 @@ import type {
 	StreamsEvent,
 	StreamsEventType,
 	StreamsEventsEnvelope,
+	StreamsFilterValue,
 } from "./types.ts";
 
 type StreamsEventsFetchParams = {
 	cursor?: string | null;
 	limit: number;
 	types?: readonly StreamsEventType[];
-	contractId?: string;
-	sender?: string;
-	recipient?: string;
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
 };
 
@@ -45,9 +47,10 @@ export async function consumeStreamsEvents(opts: {
 	mode?: "tail" | "bounded";
 	batchSize: number;
 	types?: readonly StreamsEventType[];
-	contractId?: string;
-	sender?: string;
-	recipient?: string;
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
 	fetchEvents: StreamsEventsFetcher;
 	onBatch: (
@@ -78,6 +81,7 @@ export async function consumeStreamsEvents(opts: {
 			cursor,
 			limit: opts.batchSize,
 			types: opts.types,
+			notTypes: opts.notTypes,
 			contractId: opts.contractId,
 			sender: opts.sender,
 			recipient: opts.recipient,
@@ -113,9 +117,10 @@ export async function* streamStreamsEvents(opts: {
 	fromCursor?: string | null;
 	batchSize: number;
 	types?: readonly StreamsEventType[];
-	contractId?: string;
-	sender?: string;
-	recipient?: string;
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
 	fetchEvents: StreamsEventsFetcher;
 	sleep?: Sleep;
@@ -141,6 +146,7 @@ export async function* streamStreamsEvents(opts: {
 			cursor,
 			limit: opts.batchSize,
 			types: opts.types,
+			notTypes: opts.notTypes,
 			contractId: opts.contractId,
 			sender: opts.sender,
 			recipient: opts.recipient,

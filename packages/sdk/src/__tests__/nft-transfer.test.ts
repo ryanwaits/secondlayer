@@ -24,7 +24,12 @@ const EVENT: StreamsEvent = {
 describe("nft_transfer helpers", () => {
 	test("narrows nft_transfer events", () => {
 		expect(isNftTransfer(EVENT)).toBe(true);
-		expect(isNftTransfer({ ...EVENT, event_type: "ft_transfer" })).toBe(false);
+		expect(
+			isNftTransfer({
+				...EVENT,
+				event_type: "ft_transfer",
+			} as unknown as StreamsEvent),
+		).toBe(false);
 	});
 
 	test("maps Streams payload to decoded nft_transfer shape", () => {

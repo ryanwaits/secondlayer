@@ -74,6 +74,17 @@ function appendSearchParam(
 	params.set(name, String(value));
 }
 
+/** Serialize a single value or list as a comma-separated query param. */
+function appendListParam(
+	params: URLSearchParams,
+	name: string,
+	value: string | readonly string[] | null | undefined,
+): void {
+	if (value === undefined || value === null) return;
+	const joined = Array.isArray(value) ? value.join(",") : (value as string);
+	if (joined.length > 0) params.set(name, joined);
+}
+
 async function responseBody(response: Response): Promise<unknown> {
 	const text = await response.text();
 	if (text.length === 0) return undefined;
@@ -135,15 +146,21 @@ export function createStreamsClient(
 		fetchImpl,
 	});
 
-	// Lazily resolve and cache the verification public key.
-	let publicKeyPromise: Promise<
-		ReturnType<typeof ed25519.loadEd25519PublicKey>
-	> | null = null;
-	function getPublicKey() {
-		if (publicKeyPromise) return publicKeyPromise;
-		publicKeyPromise = (async () => {
+	// Lazily resolve and cache the verification key alongside its id, so a
+	// rotation (signalled by a changed `X-Signature-KeyId`) can be detected.
+	type VerificationKey = {
+		keyId: string;
+		publicKey: ReturnType<typeof ed25519.loadEd25519PublicKey>;
+	};
+	let keyPromise: Promise<VerificationKey> | null = null;
+	function loadKey(): Promise<VerificationKey> {
+		if (keyPromise) return keyPromise;
+		keyPromise = (async () => {
 			if (typeof verify === "object") {
-				return ed25519.loadEd25519PublicKey(verify.publicKey);
+				return {
+					keyId: ed25519.ed25519KeyId(verify.publicKey),
+					publicKey: ed25519.loadEd25519PublicKey(verify.publicKey),
+				};
 			}
 			const res = await fetchImpl(`${baseUrl}/public/streams/signing-key`);
 			if (!res.ok) {
@@ -151,13 +168,19 @@ export function createStreamsClient(
 					`Could not fetch signing key (${res.status}).`,
 				);
 			}
-			const body = (await res.json()) as { public_key_pem?: string };
+			const body = (await res.json()) as {
+				public_key_pem?: string;
+				key_id?: string;
+			};
 			if (!body.public_key_pem) {
 				throw new StreamsSignatureError("Signing key response missing key.");
 			}
-			return ed25519.loadEd25519PublicKey(body.public_key_pem);
+			return {
+				keyId: body.key_id ?? ed25519.ed25519KeyId(body.public_key_pem),
+				publicKey: ed25519.loadEd25519PublicKey(body.public_key_pem),
+			};
 		})();
-		return publicKeyPromise;
+		return keyPromise;
 	}
 
 	async function request<T>(path: string): Promise<T> {
@@ -171,8 +194,27 @@ export function createStreamsClient(
 			if (!signature) {
 				throw new StreamsSignatureError("Response is missing X-Signature.");
 			}
-			const publicKey = await getPublicKey();
-			if (!ed25519.verifyEd25519(text, signature, publicKey)) {
+			const responseKeyId = response.headers.get("X-Signature-KeyId");
+			let key = await loadKey();
+			// The server rotated to a key we haven't seen.
+			if (responseKeyId && responseKeyId !== key.keyId) {
+				if (typeof verify === "object") {
+					// Pinned key: a different id is never the pinned key — fail closed.
+					throw new StreamsSignatureError(
+						`Response signed with key '${responseKeyId}', expected pinned key '${key.keyId}'.`,
+					);
+				}
+				// Fetched key: refresh once. A still-mismatched id (no re-loop)
+				// means the endpoint doesn't serve the signing key — fail closed.
+				keyPromise = null;
+				key = await loadKey();
+				if (responseKeyId !== key.keyId) {
+					throw new StreamsSignatureError(
+						`Response signed with key '${responseKeyId}' not served by the signing-key endpoint.`,
+					);
+				}
+			}
+			if (!ed25519.verifyEd25519(text, signature, key.publicKey)) {
 				throw new StreamsSignatureError();
 			}
 		}
@@ -183,6 +225,7 @@ export function createStreamsClient(
 		cursor,
 		limit,
 		types,
+		notTypes,
 		contractId,
 		sender,
 		recipient,
@@ -192,6 +235,7 @@ export function createStreamsClient(
 			cursor,
 			limit,
 			types,
+			notTypes,
 			contractId,
 			sender,
 			recipient,
@@ -207,12 +251,15 @@ export function createStreamsClient(
 		appendSearchParam(searchParams, "from_height", params.fromHeight);
 		appendSearchParam(searchParams, "to_height", params.toHeight);
 		appendSearchParam(searchParams, "limit", params.limit);
-		appendSearchParam(searchParams, "contract_id", params.contractId);
-		appendSearchParam(searchParams, "sender", params.sender);
-		appendSearchParam(searchParams, "recipient", params.recipient);
+		appendListParam(searchParams, "contract_id", params.contractId);
+		appendListParam(searchParams, "sender", params.sender);
+		appendListParam(searchParams, "recipient", params.recipient);
 		appendSearchParam(searchParams, "asset_identifier", params.assetIdentifier);
 		if (params.types?.length) {
 			searchParams.set("types", params.types.join(","));
+		}
+		if (params.notTypes?.length) {
+			searchParams.set("not_types", params.notTypes.join(","));
 		}
 
 		const query = searchParams.toString();
@@ -234,6 +281,7 @@ export function createStreamsClient(
 					fromCursor: params.fromCursor,
 					mode: params.mode,
 					types: params.types,
+					notTypes: params.notTypes,
 					contractId: params.contractId,
 					sender: params.sender,
 					recipient: params.recipient,
@@ -251,6 +299,7 @@ export function createStreamsClient(
 				return streamStreamsEvents({
 					fromCursor: params.fromCursor,
 					types: params.types,
+					notTypes: params.notTypes,
 					contractId: params.contractId,
 					sender: params.sender,
 					recipient: params.recipient,
