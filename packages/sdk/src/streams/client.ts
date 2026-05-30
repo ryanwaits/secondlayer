@@ -20,11 +20,26 @@ import type {
 	StreamsEventsEnvelope,
 	StreamsEventsListEnvelope,
 	StreamsEventsListParams,
+	StreamsEventsReplayParams,
 	StreamsEventsStreamParams,
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
 } from "./types.ts";
+
+/** Parse a `<block>:<index>` cursor; null sorts before genesis. */
+function cursorTuple(cursor: string | null): [number, number] {
+	if (!cursor) return [-1, -1];
+	const [block, index] = cursor.split(":");
+	return [Number(block), Number(index)];
+}
+
+/** The greater of two cursors (later in the stream). */
+function maxCursor(a: string | null, b: string | null): string | null {
+	const [ah, ai] = cursorTuple(a);
+	const [bh, bi] = cursorTuple(b);
+	return ah > bh || (ah === bh && ai >= bi) ? a : b;
+}
 
 const DEFAULT_STREAMS_BASE_URL = "https://api.secondlayer.tools";
 
@@ -115,6 +130,10 @@ export function createStreamsClient(
 	const baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_STREAMS_BASE_URL);
 	const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
 	const verify = options.verify ?? false;
+	const dumps = createStreamsDumps({
+		baseUrl: options.dumpsBaseUrl,
+		fetchImpl,
+	});
 
 	// Lazily resolve and cache the verification public key.
 	let publicKeyPromise: Promise<
@@ -244,6 +263,38 @@ export function createStreamsClient(
 					fetchEvents,
 				});
 			},
+			async replay(params: StreamsEventsReplayParams) {
+				const fromCursor =
+					params.from === "genesis" ? null : (params.from ?? null);
+				const fromBlock = fromCursor ? cursorTuple(fromCursor)[0] : 0;
+				const manifest = await dumps.list();
+
+				// Hydrate finalized history from dumps, in block order.
+				const files = manifest.files
+					.filter((file) => file.to_block >= fromBlock)
+					.sort(
+						(a, b) => a.from_block - b.from_block || a.to_block - b.to_block,
+					);
+				for (const file of files) {
+					if (params.signal?.aborted) break;
+					await params.onDumpFile(file);
+				}
+
+				// Seam: tail live from just past the dumped coverage. Cursor input is
+				// exclusive, so the first live event is strictly after the last dump.
+				const seam = maxCursor(fromCursor, manifest.latest_finalized_cursor);
+				return consumeStreamsEvents({
+					fromCursor: seam,
+					mode: params.mode ?? "tail",
+					batchSize: params.batchSize ?? 100,
+					fetchEvents,
+					onBatch: params.onBatch,
+					emptyBackoffMs: params.emptyBackoffMs,
+					maxPages: params.maxPages,
+					maxEmptyPolls: params.maxEmptyPolls,
+					signal: params.signal,
+				});
+			},
 		},
 		blocks: {
 			events(heightOrHash: number | string) {
@@ -263,7 +314,7 @@ export function createStreamsClient(
 				);
 			},
 		},
-		dumps: createStreamsDumps({ baseUrl: options.dumpsBaseUrl, fetchImpl }),
+		dumps,
 		canonical(height: number) {
 			return request<StreamsCanonicalBlock>(`/v1/streams/canonical/${height}`);
 		},

@@ -135,6 +135,28 @@ export type StreamsEventsConsumeResult = {
 	emptyPolls: number;
 };
 
+export type StreamsEventsReplayParams = {
+	/** Start point: `"genesis"` (default) or a `<block>:<index>` cursor. */
+	from?: "genesis" | string;
+	/**
+	 * Called once per finalized dump file, in block order, before live tailing.
+	 * Process the parquet with your own tooling (e.g. DuckDB) — the SDK does not
+	 * decode parquet. Use `client.dumps.download(file)` to fetch + verify bytes.
+	 */
+	onDumpFile: (file: StreamsDumpFile) => Promise<void> | void;
+	/** Called per live page after the dump phase, like `consume`. */
+	onBatch: (
+		events: StreamsEvent[],
+		envelope: StreamsEventsEnvelope,
+	) => Promise<string | null | undefined> | string | null | undefined;
+	mode?: "tail" | "bounded";
+	batchSize?: number;
+	emptyBackoffMs?: number;
+	maxPages?: number;
+	maxEmptyPolls?: number;
+	signal?: AbortSignal;
+};
+
 export type FetchLike = (
 	input: string | URL | Request,
 	init?: RequestInit,
@@ -193,6 +215,16 @@ export type StreamsClient = {
 		 */
 		consume(
 			params: StreamsEventsConsumeParams,
+		): Promise<StreamsEventsConsumeResult>;
+		/**
+		 * Backfill from bulk dumps, then continue live from the dump→live seam in
+		 * one call. Iterates finalized dump files (via `onDumpFile`) in block
+		 * order, then tails live from the manifest's `latest_finalized_cursor`
+		 * (exclusive input → no gap or duplicate at the seam). Requires
+		 * `dumpsBaseUrl`.
+		 */
+		replay(
+			params: StreamsEventsReplayParams,
 		): Promise<StreamsEventsConsumeResult>;
 		/**
 		 * Follow Streams as an async iterator.
