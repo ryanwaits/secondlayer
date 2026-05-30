@@ -82,6 +82,20 @@ export interface EventsArchiveTable {
 	archived_at: Generated<Date>;
 }
 
+// Dead-letter log (see migration 0085): events whose decoded payload failed
+// schema validation on ingest. Append-only diagnostic; the event still lands in
+// `events`, so chain data is never lost.
+export interface DeadLetterEventsTable {
+	id: Generated<string>;
+	block_height: number;
+	tx_id: string;
+	event_index: number;
+	event_type: string;
+	data: unknown;
+	reason: string;
+	created_at: Generated<Date>;
+}
+
 export interface IndexProgressTable {
 	network: string;
 	last_indexed_block: Generated<number>;
@@ -708,6 +722,7 @@ export interface Database {
 	events: EventsTable;
 	transactions_archive: TransactionsArchiveTable;
 	events_archive: EventsArchiveTable;
+	dead_letter_events: DeadLetterEventsTable;
 	index_progress: IndexProgressTable;
 	contracts: ContractsTable;
 	subgraphs: SubgraphsTable;

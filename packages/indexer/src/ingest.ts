@@ -1,5 +1,7 @@
 import { getDb } from "@secondlayer/shared/db";
+import type { Database, InsertEvent } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
+import type { Kysely } from "kysely";
 import {
 	parseBlock,
 	parseEvent,
@@ -8,10 +10,51 @@ import {
 } from "./parser.ts";
 import { persistBlock } from "./persist.ts";
 import { detectReorg, handleReorg } from "./reorg.ts";
+import { validateStreamsEventPayload } from "./streams-payload-schema.ts";
 import type {
 	NewBlockPayload,
 	TransactionPayload,
 } from "./types/node-events.ts";
+
+// Opt-in (default off): validate decoded event payloads and dead-letter the
+// malformed ones for observability. The event is still persisted regardless, so
+// this never drops chain data. Off by default to keep the ingest hot path lean.
+const STREAMS_PAYLOAD_VALIDATION_ENABLED =
+	process.env.STREAMS_PAYLOAD_VALIDATION === "true";
+
+export async function recordDeadLetterEvents(
+	db: Kysely<Database>,
+	evts: InsertEvent[],
+): Promise<void> {
+	const rows = evts
+		.map((evt) => {
+			const reason = validateStreamsEventPayload(evt.type, evt.data);
+			return reason
+				? {
+						block_height: evt.block_height,
+						tx_id: evt.tx_id,
+						event_index: evt.event_index,
+						event_type: evt.type,
+						data: evt.data,
+						reason,
+					}
+				: null;
+		})
+		.filter((row): row is NonNullable<typeof row> => row !== null);
+
+	if (rows.length === 0) return;
+
+	// Best-effort: a dead-letter write must never fail ingestion.
+	try {
+		await db.insertInto("dead_letter_events").values(rows).execute();
+		logger.warn("Dead-lettered malformed event payloads", {
+			count: rows.length,
+			blockHeight: evts[0]?.block_height,
+		});
+	} catch (err) {
+		logger.error("Failed to record dead-letter events", { error: err });
+	}
+}
 
 /**
  * In-process block ingestion — the single path for indexing a block, whether it
@@ -147,6 +190,10 @@ export async function ingestNewBlock(
 		evts,
 		blockHeight: payload.block_height,
 	});
+
+	if (STREAMS_PAYLOAD_VALIDATION_ENABLED) {
+		await recordDeadLetterEvents(db, evts);
+	}
 
 	logger.info("Block indexed successfully", {
 		height: payload.block_height,
