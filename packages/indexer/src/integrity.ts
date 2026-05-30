@@ -8,6 +8,8 @@ import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
+import { ingestNewBlock } from "./ingest.ts";
+import type { NewBlockPayload } from "./types/node-events.ts";
 
 // Auto-backfill state (visible to /health/integrity)
 export const integrityState = {
@@ -129,26 +131,24 @@ async function autoBackfill(gaps: Gap[]) {
 	});
 
 	const localClient = new LocalClient();
-	const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
 	const db = getDb();
 
 	try {
-		// Phase 1: Try local DB for each gap height (reprocessing/replays)
+		// Phase 1: Try local DB for each gap height (reprocessing/replays).
+		// Ingest in-process — see tip-follower for why self-POST is wrong.
 		const remainingHeights = new Set<number>();
 		for (const gap of staleGaps) {
 			for (let height = gap.gapStart; height <= gap.gapEnd; height++) {
 				const block = await localClient.getBlockForReplay(db, height);
 				if (block) {
-					const res = await fetch(`${indexerUrl}/new_block`, {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							"X-Source": "auto-backfill-local",
-						},
-						body: JSON.stringify(block),
-					});
-					if (res.ok) {
+					try {
+						await ingestNewBlock(block as unknown as NewBlockPayload);
 						integrityState.autoBackfillRemaining--;
+					} catch (err) {
+						logger.warn("Auto-backfill: local ingest failed", {
+							height,
+							error: err,
+						});
 					}
 				} else {
 					remainingHeights.add(height);
@@ -182,24 +182,9 @@ async function autoBackfill(gaps: Gap[]) {
 						});
 						if (!payload) continue;
 
-						const res = await fetch(`${indexerUrl}/new_block`, {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-								"X-Source": "auto-backfill-hiro",
-							},
-							body: JSON.stringify(payload),
-						});
-
-						if (res.ok) {
-							hiroFilled++;
-							integrityState.autoBackfillRemaining--;
-						} else {
-							logger.warn("Auto-backfill: Hiro block rejected by indexer", {
-								height: h,
-								status: res.status,
-							});
-						}
+						await ingestNewBlock(payload as unknown as NewBlockPayload);
+						hiroFilled++;
+						integrityState.autoBackfillRemaining--;
 					} catch (err) {
 						logger.warn("Auto-backfill: Hiro API fetch failed", {
 							height: h,

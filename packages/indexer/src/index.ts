@@ -39,16 +39,13 @@ import {
 	startStxTransfersPublisher,
 	stxTransfersPublisherState,
 } from "./datasets/stx-transfers/scheduler.ts";
+import {
+	getIngestTelemetry,
+	ingestNewBlock,
+	initIngestState,
+} from "./ingest.ts";
 import { integrityState, startIntegrityLoop } from "./integrity.ts";
 import { persistBurnBlockRewards } from "./l2/burn-rewards-storage.ts";
-import {
-	parseBlock,
-	parseEvent,
-	parseTransaction,
-	stripNullBytes,
-} from "./parser.ts";
-import { persistBlock } from "./persist.ts";
-import { detectReorg, handleReorg } from "./reorg.ts";
 import {
 	startStreamsBulkPublisher,
 	streamsBulkPublisherState,
@@ -61,14 +58,9 @@ import {
 import type {
 	NewBlockPayload,
 	NewBurnBlockPayload,
-	TransactionPayload,
 } from "./types/node-events.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3700");
-
-// Task 2.3: Out-of-order block counter (ephemeral, resets on restart)
-let lastSeenHeight = 0;
-let blocksReceivedOutOfOrder = 0;
 
 // Task 2.2: Startup integrity check
 async function runStartupIntegrityCheck() {
@@ -96,7 +88,7 @@ async function runStartupIntegrityCheck() {
 		});
 
 		// Initialize lastSeenHeight for out-of-order tracking
-		lastSeenHeight = Number(progress.highest_seen_block);
+		initIngestState(Number(progress.highest_seen_block));
 
 		const gaps = await findGaps(db, 20);
 		const missing = await countMissingBlocks(db);
@@ -152,11 +144,12 @@ const server = Bun.serve({
 
 	routes: {
 		// Health check
-		"/health": () =>
-			Response.json({
+		"/health": () => {
+			const ingest = getIngestTelemetry();
+			return Response.json({
 				status: "ok",
-				blocksReceivedOutOfOrder,
-				lastSeenHeight,
+				blocksReceivedOutOfOrder: ingest.blocksReceivedOutOfOrder,
+				lastSeenHeight: ingest.lastSeenHeight,
 				tipFollower: tipFollowerState.mode,
 				lastBlockReceivedSecondsAgo: Math.round(
 					(Date.now() - tipFollowerState.lastBlockReceivedAt) / 1000,
@@ -225,7 +218,8 @@ const server = Bun.serve({
 							: null,
 					lastError: contractRegistryState.lastError,
 				},
-			}),
+			});
+		},
 
 		"/health/integrity": async () => {
 			const db = getDb();
@@ -286,119 +280,8 @@ const server = Bun.serve({
 					if (!source) recordBlockReceived();
 
 					const payload = (await req.json()) as NewBlockPayload;
-					const db = getDb();
-
-					logger.info("Received new block", {
-						height: payload.block_height,
-						hash: payload.block_hash,
-					});
-
-					// Detect reorganization
-					const reorgCheck = await detectReorg(
-						payload.block_height,
-						payload.block_hash,
-					);
-
-					if (reorgCheck.isReorg && reorgCheck.oldHash) {
-						await handleReorg(
-							payload.block_height,
-							reorgCheck.oldHash,
-							payload.block_hash,
-						);
-					} else {
-						// Check for duplicate — only skip if already canonical
-						const existing = await db
-							.selectFrom("blocks")
-							.selectAll()
-							.where("height", "=", payload.block_height)
-							.where("hash", "=", payload.block_hash)
-							.where("canonical", "=", true)
-							.limit(1)
-							.execute();
-
-						if (existing.length > 0) {
-							logger.debug("Duplicate block, skipping", {
-								height: payload.block_height,
-							});
-							return Response.json({ status: "ok", message: "duplicate" });
-						}
-					}
-
-					// Task 2.3: Track out-of-order blocks
-					if (lastSeenHeight > 0 && payload.block_height < lastSeenHeight) {
-						blocksReceivedOutOfOrder++;
-						logger.debug("Block received out of order", {
-							height: payload.block_height,
-							lastSeen: lastSeenHeight,
-							outOfOrderCount: blocksReceivedOutOfOrder,
-						});
-					}
-					if (payload.block_height > lastSeenHeight) {
-						lastSeenHeight = payload.block_height;
-					}
-
-					// Task 2.1: Parent hash validation
-					if (payload.block_height > 1) {
-						const parentRow = await db
-							.selectFrom("blocks")
-							.select("hash")
-							.where("height", "=", payload.block_height - 1)
-							.where("canonical", "=", true)
-							.limit(1)
-							.executeTakeFirst();
-
-						if (!parentRow) {
-							logger.warn("Missing parent block", {
-								height: payload.block_height,
-								parentHeight: payload.block_height - 1,
-							});
-						} else if (parentRow.hash !== payload.parent_block_hash) {
-							logger.warn("Parent hash mismatch", {
-								height: payload.block_height,
-								expectedParent: payload.parent_block_hash,
-								storedParent: parentRow.hash,
-							});
-						}
-					}
-
-					// Parse block data
-					const block = parseBlock(payload);
-					const txResults = await Promise.all(
-						payload.transactions.map((tx: TransactionPayload) =>
-							parseTransaction(tx, payload.block_height),
-						),
-					);
-					const txs = txResults
-						.filter((tx): tx is NonNullable<typeof tx> => tx !== null)
-						.map((tx) => stripNullBytes(tx) as typeof tx);
-
-					const evts = payload.events
-						.map((evt) => parseEvent(evt, payload.block_height))
-						.filter((evt): evt is NonNullable<typeof evt> => evt !== null)
-						.map((evt) => stripNullBytes(evt) as typeof evt);
-
-					// Persist block + txs/events atomically. Replace-per-height inside
-					// (deletes stale rows at this height before insert) keeps reorged
-					// heights free of orphaned duplicates — see persistBlock / #46.
-					await persistBlock(db, {
-						block,
-						txs,
-						evts,
-						blockHeight: payload.block_height,
-					});
-
-					logger.info("Block indexed successfully", {
-						height: payload.block_height,
-						transactions: txs.length,
-						events: evts.length,
-					});
-
-					return Response.json({
-						status: "ok",
-						block_height: payload.block_height,
-						transactions: txs.length,
-						events: evts.length,
-					});
+					const result = await ingestNewBlock(payload);
+					return Response.json(result);
 				} catch (error) {
 					logger.error("Error processing new_block", {
 						error:

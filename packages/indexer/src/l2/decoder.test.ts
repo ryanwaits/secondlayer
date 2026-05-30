@@ -25,6 +25,7 @@ function streamsClientSpy(
 				onTypes(params.types);
 				return { cursor: null, pages: 0, emptyPolls: 0 };
 			},
+			replay: async () => ({ cursor: null, pages: 0, emptyPolls: 0 }),
 			stream: async function* () {},
 		},
 		blocks: {
@@ -36,6 +37,13 @@ function streamsClientSpy(
 		},
 		reorgs: {
 			list: async () => ({ reorgs: [], next_since: null }),
+		},
+		dumps: {
+			list: async () => {
+				throw new Error("not used");
+			},
+			fileUrl: () => "",
+			download: async () => new Uint8Array(),
 		},
 		canonical: async (height) => ({
 			block_height: height,

@@ -2,6 +2,8 @@ import { getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { StacksNodeClient } from "@secondlayer/shared/node/client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
+import { ingestNewBlock } from "./ingest.ts";
+import type { NewBlockPayload } from "./types/node-events.ts";
 
 type TipFollowerMode = "normal" | "polling";
 
@@ -81,9 +83,11 @@ export function startTipFollower(intervalMs?: number): () => void {
 				gap,
 			});
 
-			// For small gaps, try replaying from local DB (blocks we already have)
+			// For small gaps, try replaying from local DB (blocks we already have).
+			// Ingest in-process — self-POSTing to localhost is wrong behind a load
+			// balancer. The replay payload is runtime-compatible with NewBlockPayload
+			// (same shape the HTTP observer path consumed).
 			if (gap <= 10) {
-				const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
 				const localClient = new LocalClient();
 
 				for (let height = ourHeight + 1; height <= chainTip; height++) {
@@ -92,16 +96,15 @@ export function startTipFollower(intervalMs?: number): () => void {
 					const block = await localClient.getBlockForReplay(db, height);
 					if (!block) continue;
 
-					const res = await fetch(`${indexerUrl}/new_block`, {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							"X-Source": "tip-follower-local",
-						},
-						body: JSON.stringify(block),
-					});
-
-					if (res.ok) tipFollowerState.blocksFetchedViaPoll++;
+					try {
+						await ingestNewBlock(block as unknown as NewBlockPayload);
+						tipFollowerState.blocksFetchedViaPoll++;
+					} catch (err) {
+						logger.warn("Tip follower: in-process ingest failed", {
+							height,
+							error: err,
+						});
+					}
 				}
 			}
 		} catch (err) {
