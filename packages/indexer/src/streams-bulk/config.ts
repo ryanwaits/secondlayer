@@ -1,17 +1,23 @@
 import { readFile } from "node:fs/promises";
+import { DEFAULT_BTC_CONFIRMATIONS } from "@secondlayer/shared";
+import { DEFAULT_STREAMS_BULK_PREFIX } from "./paths.ts";
 import {
-	DEFAULT_STREAMS_BULK_FINALITY_LAG_BLOCKS,
 	DEFAULT_STREAMS_BULK_RANGE_SIZE_BLOCKS,
 	requireNonNegativeInteger,
 	requirePositiveInteger,
 } from "./range.ts";
-import { DEFAULT_STREAMS_BULK_PREFIX } from "./paths.ts";
 
 export type StreamsBulkRuntimeConfig = {
 	network: string;
 	prefix: string;
 	rangeSizeBlocks: number;
-	finalityLagBlocks: number;
+	/**
+	 * Bitcoin confirmations the streams-bulk publisher requires before a Stacks
+	 * height counts as final — the same burn-confirmation boundary the Streams
+	 * read path uses. Replaces the legacy `STREAMS_BULK_FINALITY_LAG_BLOCKS`
+	 * (144 Stacks-block lag), which is no longer read on the streams path.
+	 */
+	btcConfirmations: number;
 	outputDir: string;
 };
 
@@ -19,8 +25,7 @@ export function getStreamsBulkRuntimeConfigFromEnv(
 	overrides: Partial<StreamsBulkRuntimeConfig> = {},
 ): StreamsBulkRuntimeConfig {
 	return {
-		network:
-			overrides.network ?? process.env.STREAMS_BULK_NETWORK ?? "mainnet",
+		network: overrides.network ?? process.env.STREAMS_BULK_NETWORK ?? "mainnet",
 		prefix:
 			overrides.prefix ??
 			process.env.STREAMS_BULK_PREFIX ??
@@ -33,13 +38,13 @@ export function getStreamsBulkRuntimeConfigFromEnv(
 				),
 			"rangeSizeBlocks",
 		),
-		finalityLagBlocks: requireNonNegativeInteger(
-			overrides.finalityLagBlocks ??
+		btcConfirmations: requireNonNegativeInteger(
+			overrides.btcConfirmations ??
 				parseIntegerEnv(
-					"STREAMS_BULK_FINALITY_LAG_BLOCKS",
-					DEFAULT_STREAMS_BULK_FINALITY_LAG_BLOCKS,
+					"STREAMS_BULK_BTC_CONFIRMATIONS",
+					DEFAULT_BTC_CONFIRMATIONS,
 				),
-			"finalityLagBlocks",
+			"btcConfirmations",
 		),
 		outputDir:
 			overrides.outputDir ??

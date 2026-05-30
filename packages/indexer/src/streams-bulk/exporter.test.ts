@@ -14,6 +14,7 @@ import {
 } from "./paths.ts";
 import type { StreamsBulkEventRow } from "./query.ts";
 import {
+	finalizedRangeFromHeight,
 	formatBlockRangeLabel,
 	latestCompleteFinalizedRange,
 } from "./range.ts";
@@ -45,6 +46,48 @@ describe("Streams bulk dump contract helpers", () => {
 				tipBlockHeight: 10_142,
 				rangeSizeBlocks: 10_000,
 				finalityLagBlocks: 144,
+			}),
+		).toBeNull();
+	});
+
+	test("aligns a burn-derived finalized height to a complete range", () => {
+		// finalizedHeight is already past the burn-confirmation boundary, so it
+		// maps directly to the last complete range at or below it (no extra
+		// Stacks-block lag, unlike latestCompleteFinalizedRange).
+		expect(
+			finalizedRangeFromHeight({
+				finalizedHeight: 189_999,
+				rangeSizeBlocks: 10_000,
+			}),
+		).toEqual({ fromBlock: 180_000, toBlock: 189_999 });
+
+		// A finalized height mid-range only yields the last fully-finalized range.
+		expect(
+			finalizedRangeFromHeight({
+				finalizedHeight: 185_123,
+				rangeSizeBlocks: 10_000,
+			}),
+		).toEqual({ fromBlock: 170_000, toBlock: 179_999 });
+
+		expect(
+			finalizedRangeFromHeight({
+				finalizedHeight: 9_999,
+				rangeSizeBlocks: 10_000,
+			}),
+		).toEqual({ fromBlock: 0, toBlock: 9_999 });
+
+		expect(
+			finalizedRangeFromHeight({
+				finalizedHeight: 9_998,
+				rangeSizeBlocks: 10_000,
+			}),
+		).toBeNull();
+
+		// A still-warming chain (nothing finalized yet) yields no range.
+		expect(
+			finalizedRangeFromHeight({
+				finalizedHeight: 0,
+				rangeSizeBlocks: 10_000,
 			}),
 		).toBeNull();
 	});

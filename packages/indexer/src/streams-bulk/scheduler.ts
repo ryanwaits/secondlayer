@@ -1,4 +1,9 @@
+import { finalizedBurnHeight } from "@secondlayer/shared";
 import { logger } from "@secondlayer/shared/logger";
+import {
+	getCurrentCanonicalTip,
+	getFinalizedStacksHeight,
+} from "../streams-tip.ts";
 import {
 	getStreamsBulkRuntimeConfigFromEnv,
 	readIndexerProducerVersion,
@@ -6,10 +11,9 @@ import {
 import { exportStreamsBulkRange } from "./exporter.ts";
 import { streamsBulkParquetObjectPath } from "./paths.ts";
 import {
-	latestCompleteFinalizedRange,
 	type StreamsBulkBlockRange,
+	finalizedRangeFromHeight,
 } from "./range.ts";
-import { getLatestCanonicalBlockHeight } from "./query.ts";
 import {
 	createStreamsBulkS3Client,
 	getStreamsBulkR2ConfigFromEnv,
@@ -87,26 +91,28 @@ export function startStreamsBulkPublisher(
 	};
 }
 
-export async function publishNextEligibleRange(): Promise<
-	StreamsBulkBlockRange | null
-> {
+export async function publishNextEligibleRange(): Promise<StreamsBulkBlockRange | null> {
 	const config = getStreamsBulkRuntimeConfigFromEnv();
-	const tipHeight = await getLatestCanonicalBlockHeight();
-	if (tipHeight === null) {
+	const tip = await getCurrentCanonicalTip();
+	if (tip === null) {
 		logger.debug("Streams bulk publisher: no canonical blocks yet");
 		return null;
 	}
-	const range = latestCompleteFinalizedRange({
-		tipBlockHeight: tipHeight,
+	const finalizedHeight = await getFinalizedStacksHeight(
+		finalizedBurnHeight(tip.burn_block_height, config.btcConfirmations),
+	);
+	const range = finalizedRangeFromHeight({
+		finalizedHeight,
 		rangeSizeBlocks: config.rangeSizeBlocks,
-		finalityLagBlocks: config.finalityLagBlocks,
 	});
 	if (!range) {
 		logger.debug("Streams bulk publisher: no eligible finalized range", {
-			tipHeight,
+			tipHeight: tip.block_height,
+			finalizedHeight,
 		});
 		return null;
 	}
+	const finalityLagBlocks = tip.block_height - finalizedHeight;
 
 	const r2Config = getStreamsBulkR2ConfigFromEnv();
 	const client = createStreamsBulkS3Client(r2Config);
@@ -120,13 +126,17 @@ export async function publishNextEligibleRange(): Promise<
 		return null;
 	}
 
-	logger.info("Streams bulk publisher: exporting range", { range, tipHeight });
+	logger.info("Streams bulk publisher: exporting range", {
+		range,
+		tipHeight: tip.block_height,
+		finalizedHeight,
+	});
 	const result = await exportStreamsBulkRange({
 		range,
 		network: config.network,
 		prefix: config.prefix,
 		outputDir: config.outputDir,
-		finalityLagBlocks: config.finalityLagBlocks,
+		finalityLagBlocks,
 		producerVersion: await readIndexerProducerVersion(),
 		upload: true,
 		force: false,

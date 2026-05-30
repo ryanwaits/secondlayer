@@ -1,15 +1,20 @@
+import { finalizedBurnHeight } from "@secondlayer/shared";
 import { closeDb } from "@secondlayer/shared/db";
+import {
+	type IndexerStreamsTipBlock,
+	getCurrentCanonicalTip,
+	getFinalizedStacksHeight,
+} from "../streams-tip.ts";
 import {
 	getStreamsBulkRuntimeConfigFromEnv,
 	readIndexerProducerVersion,
 } from "./config.ts";
 import { exportStreamsBulkRange } from "./exporter.ts";
 import {
-	latestCompleteFinalizedRange,
-	validateStreamsBulkRange,
 	type StreamsBulkBlockRange,
+	finalizedRangeFromHeight,
+	validateStreamsBulkRange,
 } from "./range.ts";
-import { getLatestCanonicalBlockHeight } from "./query.ts";
 
 type CliOptions = {
 	fromBlock?: number;
@@ -31,17 +36,24 @@ async function main() {
 	const config = getStreamsBulkRuntimeConfigFromEnv({
 		outputDir: cli.outputDir,
 	});
+	const tip = await getCurrentCanonicalTip();
+	const finalizedHeight = tip
+		? await getFinalizedStacksHeight(
+				finalizedBurnHeight(tip.burn_block_height, config.btcConfirmations),
+			)
+		: 0;
 	const range = await resolveRange(
 		cli,
 		config.rangeSizeBlocks,
-		config.finalityLagBlocks,
+		tip,
+		finalizedHeight,
 	);
 	const result = await exportStreamsBulkRange({
 		range,
 		network: config.network,
 		prefix: config.prefix,
 		outputDir: config.outputDir,
-		finalityLagBlocks: config.finalityLagBlocks,
+		finalityLagBlocks: tip ? tip.block_height - finalizedHeight : 0,
 		producerVersion: await readIndexerProducerVersion(),
 		upload: cli.upload,
 		force: cli.force,
@@ -68,7 +80,8 @@ async function main() {
 async function resolveRange(
 	cli: CliOptions,
 	rangeSizeBlocks: number,
-	finalityLagBlocks: number,
+	tip: IndexerStreamsTipBlock | null,
+	finalizedHeight: number,
 ): Promise<StreamsBulkBlockRange> {
 	if (cli.latestFinalized) {
 		if (cli.fromBlock !== undefined || cli.toBlock !== undefined) {
@@ -76,14 +89,12 @@ async function resolveRange(
 				"--latest-finalized cannot be combined with --from-block or --to-block",
 			);
 		}
-		const latestHeight = await getLatestCanonicalBlockHeight();
-		if (latestHeight === null) {
+		if (tip === null) {
 			throw new Error("no canonical blocks available");
 		}
-		const range = latestCompleteFinalizedRange({
-			tipBlockHeight: latestHeight,
+		const range = finalizedRangeFromHeight({
+			finalizedHeight,
 			rangeSizeBlocks,
-			finalityLagBlocks,
 		});
 		if (!range) {
 			throw new Error(
@@ -166,7 +177,7 @@ function printHelp() {
   bun run packages/indexer/src/streams-bulk/export.ts --from-block 180000 --to-block 189999 [--upload] [--force]
 
 Options:
-  --latest-finalized       Export the latest complete range behind finality lag.
+  --latest-finalized       Export the latest complete range behind the burn-confirmation finality boundary.
   --from-block <height>    Inclusive range start.
   --to-block <height>      Inclusive range end.
   --output-dir <path>      Local output root. Default: tmp/streams-bulk.

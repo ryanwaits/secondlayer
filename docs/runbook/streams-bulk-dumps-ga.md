@@ -57,8 +57,15 @@ Expect a manifest with real `files[]`, a non-null `latest_finalized_cursor`, and
 
 ## Finality
 
-The publisher gates eligible ranges on finality. Note the read path uses
-burn-block (BTC) confirmations (`@secondlayer/shared` `finalizedBurnHeight`,
-default 6); the bulk publisher still uses a Stacks-block lag default
-(`DEFAULT_STREAMS_BULK_FINALITY_LAG_BLOCKS`). Align these before/at GA if a
-single finality definition across read + bulk is required.
+The publisher gates eligible ranges on the **same burn-block (BTC) confirmation
+boundary as the read path** (`@secondlayer/shared` `finalizedBurnHeight` →
+indexer `getFinalizedStacksHeight`, default 6 confirmations). It derives the
+finalized Stacks height from the canonical tip's `burn_block_height` and only
+publishes complete ranges at or below it, so dumps and live reads agree on what
+is final.
+
+- Tune with `STREAMS_BULK_BTC_CONFIRMATIONS` (default 6). The legacy
+  `STREAMS_BULK_FINALITY_LAG_BLOCKS` (144 Stacks-block lag) is **no longer read**
+  on the streams path — remove it from prod `.env` to avoid confusion.
+- The manifest's `finality_lag_blocks` now reports the *observed* lag
+  (`tip_height − finalized_height`) at publish time, not a fixed constant.

@@ -13,7 +13,10 @@ export function requirePositiveInteger(value: number, label: string): number {
 	return value;
 }
 
-export function requireNonNegativeInteger(value: number, label: string): number {
+export function requireNonNegativeInteger(
+	value: number,
+	label: string,
+): number {
 	if (!Number.isInteger(value) || value < 0) {
 		throw new Error(`${label} must be a non-negative integer`);
 	}
@@ -48,6 +51,37 @@ export function latestCompleteFinalizedRange(params: {
 	if (eligibleTip < rangeSizeBlocks - 1) return null;
 
 	const completeRangeCount = Math.floor((eligibleTip + 1) / rangeSizeBlocks);
+	const toBlock = completeRangeCount * rangeSizeBlocks - 1;
+	return {
+		fromBlock: toBlock - rangeSizeBlocks + 1,
+		toBlock,
+	};
+}
+
+/**
+ * Latest complete range whose end is at or below an already-finalized Stacks
+ * height. Unlike `latestCompleteFinalizedRange` (Stacks-block lag, used by the
+ * datasets exporters), the streams-bulk path derives `finalizedHeight` from the
+ * burn-confirmation boundary (`@secondlayer/shared` `finalizedBurnHeight` →
+ * `getFinalizedStacksHeight`) so it matches the Streams read path.
+ */
+export function finalizedRangeFromHeight(params: {
+	finalizedHeight: number;
+	rangeSizeBlocks?: number;
+}): StreamsBulkBlockRange | null {
+	const rangeSizeBlocks = requirePositiveInteger(
+		params.rangeSizeBlocks ?? DEFAULT_STREAMS_BULK_RANGE_SIZE_BLOCKS,
+		"rangeSizeBlocks",
+	);
+	const finalizedHeight = requireNonNegativeInteger(
+		params.finalizedHeight,
+		"finalizedHeight",
+	);
+	if (finalizedHeight < rangeSizeBlocks - 1) return null;
+
+	const completeRangeCount = Math.floor(
+		(finalizedHeight + 1) / rangeSizeBlocks,
+	);
 	const toBlock = completeRangeCount * rangeSizeBlocks - 1;
 	return {
 		fromBlock: toBlock - rangeSizeBlocks + 1,
