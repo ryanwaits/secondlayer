@@ -56,6 +56,14 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.deleteFrom("index_progress")
 			.where("network", "=", NETWORK)
 			.execute();
+		await db
+			.deleteFrom("events_archive")
+			.where("block_height", "=", H)
+			.execute();
+		await db
+			.deleteFrom("transactions_archive")
+			.where("block_height", "=", H)
+			.execute();
 	});
 
 	test("a reorged height holds only the latest block's txs/events", async () => {
@@ -84,5 +92,42 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(txs.map((t) => t.tx_id)).toEqual(["0xtxB"]);
 		expect(evts.map((e) => e.tx_id)).toEqual(["0xtxB"]);
 		expect(block?.hash).toBe("0xblockB");
+	});
+
+	test("reorg archives the orphaned rows instead of destroying them", async () => {
+		if (!db) throw new Error("missing db");
+		await persistBlock(db, payload("0xblockA", "0xtxA"));
+		await persistBlock(db, payload("0xblockB", "0xtxB"));
+
+		const archivedTxs = await db
+			.selectFrom("transactions_archive")
+			.select(["tx_id", "orphaned_block_hash"])
+			.where("block_height", "=", H)
+			.execute();
+		const archivedEvts = await db
+			.selectFrom("events_archive")
+			.select(["tx_id", "orphaned_block_hash"])
+			.where("block_height", "=", H)
+			.execute();
+
+		// The orphaned A rows are preserved, tagged with the displaced block hash.
+		expect(archivedTxs.map((t) => t.tx_id)).toEqual(["0xtxA"]);
+		expect(archivedTxs[0]?.orphaned_block_hash).toBe("0xblockA");
+		expect(archivedEvts.map((e) => e.tx_id)).toEqual(["0xtxA"]);
+		expect(archivedEvts[0]?.orphaned_block_hash).toBe("0xblockA");
+	});
+
+	test("redelivery of the same block does not archive", async () => {
+		if (!db) throw new Error("missing db");
+		await persistBlock(db, payload("0xblockA", "0xtxA"));
+		// Same hash → not a reorg, nothing orphaned.
+		await persistBlock(db, payload("0xblockA", "0xtxA"));
+
+		const archivedTxs = await db
+			.selectFrom("transactions_archive")
+			.select(["tx_id"])
+			.where("block_height", "=", H)
+			.execute();
+		expect(archivedTxs).toHaveLength(0);
 	});
 });

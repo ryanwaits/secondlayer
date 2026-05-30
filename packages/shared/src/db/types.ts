@@ -48,6 +48,40 @@ export interface EventsTable {
 	created_at: Generated<Date>;
 }
 
+// Reorg archive (see migration 0084): orphaned transactions/events copied here
+// before a reused height is replaced, preserving the raw log instead of
+// deleting it.
+export interface TransactionsArchiveTable {
+	archive_id: Generated<string>;
+	tx_id: string;
+	block_height: number;
+	tx_index: number;
+	type: string;
+	sender: string;
+	status: string;
+	contract_id: string | null;
+	function_name: string | null;
+	function_args: unknown | null;
+	raw_result: string | null;
+	raw_tx: string;
+	created_at: Date;
+	orphaned_block_hash: string | null;
+	archived_at: Generated<Date>;
+}
+
+export interface EventsArchiveTable {
+	archive_id: Generated<string>;
+	id: string;
+	tx_id: string;
+	block_height: number;
+	event_index: number;
+	type: string;
+	data: unknown;
+	created_at: Date;
+	orphaned_block_hash: string | null;
+	archived_at: Generated<Date>;
+}
+
 export interface IndexProgressTable {
 	network: string;
 	last_indexed_block: Generated<number>;
@@ -672,6 +706,8 @@ export interface Database {
 	blocks: BlocksTable;
 	transactions: TransactionsTable;
 	events: EventsTable;
+	transactions_archive: TransactionsArchiveTable;
+	events_archive: EventsArchiveTable;
 	index_progress: IndexProgressTable;
 	contracts: ContractsTable;
 	subgraphs: SubgraphsTable;

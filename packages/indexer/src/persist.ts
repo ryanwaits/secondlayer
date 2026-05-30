@@ -28,6 +28,40 @@ export type PersistBlockInput = {
  * transactions_block_height_idx and events_block_height_idx exist, so the
  * deletes are cheap.
  */
+/**
+ * Copy the transactions/events currently at `blockHeight` into the archive
+ * tables before they are replaced by a reorg. `orphanedHash` is the hash of the
+ * block being displaced, kept for audit. Idempotent enough for our use — only
+ * called on a real hash change.
+ */
+async function archiveOrphanedHeight(
+	tx: Kysely<Database>,
+	blockHeight: number,
+	orphanedHash: string,
+): Promise<void> {
+	await sql`
+		INSERT INTO transactions_archive (
+			tx_id, block_height, tx_index, type, sender, status, contract_id,
+			function_name, function_args, raw_result, raw_tx, created_at,
+			orphaned_block_hash
+		)
+		SELECT tx_id, block_height, tx_index, type, sender, status, contract_id,
+			function_name, function_args, raw_result, raw_tx, created_at,
+			${orphanedHash}
+		FROM transactions WHERE block_height = ${blockHeight}
+	`.execute(tx);
+
+	await sql`
+		INSERT INTO events_archive (
+			id, tx_id, block_height, event_index, type, data, created_at,
+			orphaned_block_hash
+		)
+		SELECT id, tx_id, block_height, event_index, type, data, created_at,
+			${orphanedHash}
+		FROM events WHERE block_height = ${blockHeight}
+	`.execute(tx);
+}
+
 export async function persistBlock(
 	db: Kysely<Database>,
 	input: PersistBlockInput,
@@ -36,6 +70,18 @@ export async function persistBlock(
 	const network = input.network ?? process.env.STACKS_NETWORK ?? "mainnet";
 
 	await db.transaction().execute(async (tx) => {
+		// A reorg reuses a height with a new block hash. When that happens, the
+		// existing rows at this height are orphaned — archive them before the
+		// replace so the raw log is preserved, not destroyed. A redelivery of the
+		// same hash is not a reorg, so we skip archiving it.
+		const existingBlock = await tx
+			.selectFrom("blocks")
+			.select("hash")
+			.where("height", "=", blockHeight)
+			.executeTakeFirst();
+		const isReorgReplacement =
+			existingBlock !== undefined && existingBlock.hash !== block.hash;
+
 		await tx
 			.insertInto("blocks")
 			.values(block)
@@ -51,6 +97,10 @@ export async function persistBlock(
 				}),
 			)
 			.execute();
+
+		if (isReorgReplacement) {
+			await archiveOrphanedHeight(tx, blockHeight, existingBlock.hash);
+		}
 
 		// Delete events before transactions: events.tx_id references
 		// transactions.tx_id with no ON DELETE CASCADE, so dropping the parent
