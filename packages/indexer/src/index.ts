@@ -47,6 +47,11 @@ import {
 import { integrityState, startIntegrityLoop } from "./integrity.ts";
 import { persistBurnBlockRewards } from "./l2/burn-rewards-storage.ts";
 import {
+	INDEXER_LEADER_LOCK_KEY,
+	type StopFn,
+	withLeaderLock,
+} from "./leader.ts";
+import {
 	startStreamsBulkPublisher,
 	streamsBulkPublisherState,
 } from "./streams-bulk/scheduler.ts";
@@ -352,46 +357,48 @@ const server = Bun.serve({
 	},
 });
 
-// Start integrity loop (gap detection + optional auto-backfill)
-const stopIntegrityLoop = startIntegrityLoop();
+// Singleton background loops. Each already self-gates on its own
+// *_ENABLED flag; they are leader-only because running them on more than one
+// instance would double-write. The HTTP server (above) runs on every instance.
+function startLeaderLoops(): StopFn {
+	const stops = [
+		// integrity (gap detection + optional auto-backfill)
+		startIntegrityLoop(),
+		// tip follower (auto-fallback when the node stops pushing blocks)
+		startTipFollower(),
+		// dataset publishers (each gated on its own *_PUBLISHER_ENABLED flag)
+		startStreamsBulkPublisher(),
+		startStxTransfersPublisher(),
+		startSbtcEventsPublisher(),
+		startSbtcTokenEventsPublisher(),
+		startPox4CallsPublisher(),
+		startBnsNameEventsPublisher(),
+		startBnsNamespaceEventsPublisher(),
+		startBnsMarketplaceEventsPublisher(),
+		// contract registry (gated on CONTRACT_REGISTRY_ENABLED)
+		startContractRegistry(),
+	];
+	return () => {
+		for (const stop of stops.reverse()) stop();
+	};
+}
 
-// Start tip follower (auto-fallback when node stops pushing blocks)
-const stopTipFollower = startTipFollower();
-
-// Start streams bulk publisher (gated on STREAMS_BULK_PUBLISHER_ENABLED)
-const stopStreamsBulkPublisher = startStreamsBulkPublisher();
-
-// Start STX transfers dataset publisher (gated on STX_TRANSFERS_PUBLISHER_ENABLED)
-const stopStxTransfersPublisher = startStxTransfersPublisher();
-
-// Start sBTC dataset publishers (both gated on SBTC_PUBLISHER_ENABLED)
-const stopSbtcEventsPublisher = startSbtcEventsPublisher();
-const stopSbtcTokenEventsPublisher = startSbtcTokenEventsPublisher();
-
-// PoX-4 + BNS publishers (each gated on its own *_PUBLISHER_ENABLED flag)
-const stopPox4CallsPublisher = startPox4CallsPublisher();
-const stopBnsNameEventsPublisher = startBnsNameEventsPublisher();
-const stopBnsNamespaceEventsPublisher = startBnsNamespaceEventsPublisher();
-const stopBnsMarketplaceEventsPublisher = startBnsMarketplaceEventsPublisher();
-
-// Contract registry worker (gated on CONTRACT_REGISTRY_ENABLED) — populates the
-// `contracts` table that powers trait discovery + trait-scoped subgraph sources.
-const stopContractRegistry = startContractRegistry();
+// Leader election gates the singleton loops so multiple indexer instances are
+// safe to run. Opt-in (default off) — a single instance keeps today's behavior.
+const leaderElectionEnabled = process.env.INDEXER_LEADER_ELECTION === "true";
+const stopLeaderLoops: () => Promise<void> = leaderElectionEnabled
+	? withLeaderLock(INDEXER_LEADER_LOCK_KEY, startLeaderLoops)
+	: (() => {
+			const stop = startLeaderLoops();
+			return async () => {
+				await stop();
+			};
+		})();
 
 // Graceful shutdown
-const shutdown = () => {
+const shutdown = async () => {
 	logger.info("Shutting down indexer service...");
-	stopContractRegistry();
-	stopBnsMarketplaceEventsPublisher();
-	stopBnsNamespaceEventsPublisher();
-	stopBnsNameEventsPublisher();
-	stopPox4CallsPublisher();
-	stopSbtcTokenEventsPublisher();
-	stopSbtcEventsPublisher();
-	stopStxTransfersPublisher();
-	stopStreamsBulkPublisher();
-	stopTipFollower();
-	stopIntegrityLoop();
+	await stopLeaderLoops();
 	server.stop();
 	logger.info("Indexer service stopped");
 	process.exit(0);
