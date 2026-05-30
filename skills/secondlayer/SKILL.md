@@ -9,7 +9,7 @@ Secondlayer is a stack of tools for building on the **Stacks blockchain**:
 
 | Layer | Package / Surface | What it does |
 |---|---|---|
-| **L1 raw events** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `sl streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness. |
+| **L1 raw events** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `sl streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `sender`/`recipient`/`asset_identifier` payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `sl streams pull`). |
 | **L2 decoded transfers** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` | Pre-decoded SIP-010 (FT) and SIP-009 (NFT) transfers, filtered by principal/contract. |
 | **L3 app-specific tables** | `@secondlayer/subgraphs` + CLI · REST `/api/subgraphs` | TypeScript-authored indexers: declare filters + schema + handlers; Secondlayer materializes Postgres tables and exposes REST. |
 | **Per-row webhooks** | `sl.subscriptions` · REST `/api/subscriptions` · `sl subscriptions` | Standard-Webhooks-signed deliveries for every row written by a subgraph. |
@@ -43,8 +43,8 @@ These are small enough to keep in the router. Everything else is in a reference 
 - **Binary:** `sl` (aliased `secondlayer`). Install: `bun add -g @secondlayer/cli`.
 - **Default platform API:** `https://api.secondlayer.tools`. Override with `SL_API_URL`.
 - **CLI auth:** `sl login` → magic-link → session in `~/.secondlayer/session.json` (90-day sliding). Tenant-scoped commands auto-mint 5-minute service JWTs per invocation; no long-lived key on disk.
-- **Streams auth:** `SL_API_KEY` env var (issued from the dashboard).
-- **Open beta:** reads have no auth; writes (deploy, create, delete, rotate, replay) require auth. Don't fabricate auth steps for read-only queries.
+- **Streams auth:** `SL_API_KEY` env var (issued from the dashboard). **`/v1/streams/*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise) — a publicly-known free-tier token exists but a bearer is always required. (The public `/public/streams/*` dump/signing-key endpoints need no auth.)
+- **Open beta:** Datasets (`/v1/datasets/*`) and Index (`/v1/index/*`) reads are anonymous (no auth); Streams reads need a bearer (above); writes (deploy, create, delete, rotate, replay) require auth. Don't fabricate auth steps for the anonymous read-only queries.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 

@@ -19,9 +19,12 @@ const sl = new SecondLayer({
 });
 ```
 
-Reads are public during open beta — no key needed. Writes require an `sk-sl_`
-API key, created in the platform console at
-https://secondlayer.tools/platform/api-keys.
+`sl.index` and `sl.subgraphs` reads are anonymous — no key needed. **`sl.streams`
+reads require a bearer token** (`apiKey`) and resolve a per-tier tenant; a
+publicly-known free-tier token exists but a bearer is always required. Writes
+require an `sk-sl_` API key, created in the platform console at
+https://secondlayer.tools/platform/api-keys. (Public Streams bulk dumps —
+`client.dumps`, `events.replay` — need no key.)
 
 ## Mental model
 
@@ -31,16 +34,20 @@ https://secondlayer.tools/platform/api-keys.
 
 ## Stacks Streams
 
-Typed L1 HTTP client. Reads are public — no key needed.
+Typed L1 HTTP client. Reads require a bearer token (`apiKey`).
 
 ```typescript
 const tip = await sl.streams.tip();
+// tip.finalized_height — highest immutable (past Bitcoin-anchored finality) block
 const page = await sl.streams.events.list({
   types: ["ft_transfer"],
   contractId: "SP...sbtc-token",
+  sender: "SP...",       // exact payload sender (events that have one)
+  recipient: "SP...",    // exact payload recipient
+  assetIdentifier: "SP...token::asset", // exact FT/NFT asset id
   limit: 10,
 });
-
+// each event carries `finalized: boolean`
 console.log({ tip, firstCursor: page.events[0]?.cursor });
 ```
 
@@ -50,9 +57,18 @@ console.log({ tip, firstCursor: page.events[0]?.cursor });
 import { createStreamsClient } from "@secondlayer/sdk";
 
 const streams = createStreamsClient({
-  apiKey: process.env.SL_API_KEY!, // sk-sl_...
+  apiKey: process.env.SL_API_KEY!, // sk-sl_... — required for reads
+  // verify: true,                 // verify ed25519 X-Signature on every read
+  //                               // (auto-fetches the public key; { publicKey } pins a PEM)
+  // dumpsBaseUrl: process.env.SL_STREAMS_DUMPS_URL, // required to use client.dumps
 });
 ```
+
+Verified responses: every Streams read is signed (ed25519 `X-Signature` +
+`X-Signature-KeyId`). Pass `verify: true` to check it on every read (or
+`{ publicKey }` to pin a PEM); a missing/bad signature throws
+`StreamsSignatureError`. The public key is at
+`GET /public/streams/signing-key`.
 
 Convenience reads:
 
@@ -100,6 +116,46 @@ for await (const event of streams.events.stream({
 })) {
   console.log(event.cursor, event.tx_id);
 }
+```
+
+Bulk parquet dumps.
+
+Finalized history is published as public parquet files. Set `dumpsBaseUrl`
+(or `SL_STREAMS_DUMPS_URL`) — no API key needed for dumps. The SDK does **not**
+decode parquet; `download` hands you sha256-verified bytes to process with your
+own tooling.
+
+```typescript
+const streams = createStreamsClient({
+  apiKey: process.env.SL_API_KEY!,
+  dumpsBaseUrl: process.env.SL_STREAMS_DUMPS_URL!,
+});
+
+const manifest = await streams.dumps.list();       // parse the manifest
+for (const file of manifest.files) {
+  const bytes = await streams.dumps.download(file); // fetch + verify sha256
+  await myParquetReader(bytes);
+}
+```
+
+Backfill then tail (`events.replay`).
+
+Backfills from bulk dumps, then tails live from the manifest's
+`latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you
+each finalized file; `onBatch` receives live events after the seam.
+
+```typescript
+await streams.events.replay({
+  from: lastCheckpoint,
+  async onDumpFile(file) {
+    const bytes = await streams.dumps.download(file);
+    await ingestParquet(bytes); // your tooling
+  },
+  async onBatch(events, envelope) {
+    for (const event of events) await handle(event);
+    return envelope.next_cursor;
+  },
+});
 ```
 
 Decoder helper.

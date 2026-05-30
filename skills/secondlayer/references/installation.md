@@ -93,14 +93,14 @@ const sl = new SecondLayer({
   apiKey: process.env.SECONDLAYER_API_KEY, // optional for read-only public endpoints
 });
 
-// Read tip of the chain (public)
+// Read tip of the chain (Streams reads require apiKey)
 const tip = await sl.streams.tip();
 
 // List your subgraphs (requires apiKey)
 const { data } = await sl.subgraphs.list();
 ```
 
-Open-beta auth: **reads are anonymous** (`sl.streams.events.list`, `sl.index.ftTransfers.list`, `sl.subgraphs.queryTable`). **Writes need an apiKey** (`sl.subgraphs.deploy`, `sl.subscriptions.create`, `sl.subgraphs.delete`, `sl.subscriptions.rotateSecret`). Don't fabricate auth steps for read calls.
+Open-beta auth: **`sl.index` and `sl.subgraphs` reads are anonymous** (`sl.index.ftTransfers.list`, `sl.subgraphs.queryTable`). **`sl.streams.*` reads require an apiKey** (per-tier tenant; a publicly-known free-tier token exists but a bearer is always required) — public Streams bulk dumps (`client.dumps`, `events.replay`) need no key. **Writes need an apiKey** (`sl.subgraphs.deploy`, `sl.subscriptions.create`, `sl.subgraphs.delete`, `sl.subscriptions.rotateSecret`). Don't fabricate auth steps for the anonymous read calls.
 
 ## Stacks client quickstart
 

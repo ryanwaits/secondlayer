@@ -61,7 +61,7 @@ curl -H "Authorization: Bearer $SL_API_KEY" \
   https://api.secondlayer.tools/v1/streams/tip
 ```
 
-Response: `{ block_height, block_hash, burn_block_height, lag_seconds }`.
+Response: `{ block_height, block_hash, burn_block_height, finalized_height, lag_seconds }`. `finalized_height` is the highest block past the burn-confirmation finality boundary (Bitcoin-anchored, ~6 burn confirmations) — blocks at or below it are immutable.
 
 ### `GET /v1/streams/events`
 
@@ -69,17 +69,38 @@ Cursor-paginated firehose of decoded events.
 
 | Query param | Type | Description |
 |---|---|---|
-| `cursor` | string | Resume from this cursor (exclusive). |
-| `fromHeight` | number | Block height ≥ |
-| `toHeight` | number | Block height ≤ |
+| `cursor` / `from_cursor` | string | Resume from this cursor (exclusive). |
+| `from_height` | number | Block height ≥ |
+| `to_height` | number | Block height ≤ |
 | `types` | comma-separated | `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_transfer`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, `print` |
-| `contractId` | string | Filter to one contract |
+| `contract_id` | string | Filter to one contract |
+| `sender` | string | Exact payload `sender` (events that have one) |
+| `recipient` | string | Exact payload `recipient` |
+| `asset_identifier` | string | Exact FT/NFT asset identifier |
 | `limit` | number | 1-1000, default 100 |
+
+Each event includes `finalized` (true when its block is past the finality boundary). `sender`/`recipient`/`asset_identifier` are exact-match payload filters; event types lacking the field simply don't match.
 
 ```bash
 curl -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&limit=50"
+  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP...&limit=50"
 ```
+
+**Caching & proofs:** a closed, fully-finalized page (`to_height` ≤ `finalized_height`) is served `Cache-Control: public, max-age=31536000, immutable` with a weak `ETag` (honors `If-None-Match` → `304`); tip-spanning/default requests are `private, max-age=2`. Response signing is **enabled in prod**: every read carries an `X-Signature` (ed25519 over the exact response body) + `X-Signature-KeyId`; fetch the public key at `GET /public/streams/signing-key` and verify, or use the SDK `verify` option.
+
+### `GET /public/streams/signing-key`
+
+Public ed25519 key used to sign Streams reads. Anonymous (no auth).
+
+```json
+{ "algorithm": "ed25519", "key_id": "...", "public_key_pem": "-----BEGIN PUBLIC KEY-----\n..." }
+```
+
+Match `key_id` against the `X-Signature-KeyId` header, then verify `X-Signature` (base64 ed25519) over the exact response body.
+
+### `GET /public/streams/dumps/manifest`
+
+Parquet bulk-dump manifest (when enabled). Anonymous (no auth). Lists finalized event files for bulk backfill — each entry carries a `sha256` for integrity. Also exposes `latest_finalized_cursor` so you can seam a bulk backfill into a live tail with no gap/dupe. The SDK (`client.dumps`, `events.replay`) and CLI (`sl streams pull`) consume this directly.
 
 ### `GET /v1/streams/events/{txId}`
 

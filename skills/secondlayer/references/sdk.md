@@ -2,7 +2,7 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model (open beta):** all `sl.streams.*`, `sl.index.*`, and read-only `sl.subgraphs.*` (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) are **anonymous** — no API key required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**.
+**Auth model:** `sl.index.*` and read-only `sl.subgraphs.*` (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) are **anonymous** — no API key required. **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
 
 ---
 
@@ -75,6 +75,7 @@ import {
   AuthError,
   RateLimitError,
   StreamsServerError,
+  StreamsSignatureError,
   ValidationError,
   STREAMS_EVENT_TYPES,
 } from "@secondlayer/sdk/streams";
@@ -89,13 +90,16 @@ import type {
   StreamsTip,
   StreamsReorg,
   StreamsCanonicalBlock,
+  StreamsDumpFile,
+  StreamsDumps,
+  StreamsDumpsManifest,
   DecodedFtTransfer,
   DecodedNftTransfer,
   FtTransferEvent,
   NftTransferEvent,
 } from "@secondlayer/sdk/streams";
 
-const streams = createStreamsClient({ apiKey: "" }); // anonymous reads OK
+const streams = createStreamsClient({ apiKey: process.env.SL_API_KEY }); // bearer required for reads
 ```
 
 ```ts
@@ -113,6 +117,24 @@ The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Ind
 ---
 
 ## 4. `sl.streams` — Stacks event stream
+
+### `createStreamsClient(options)` — bare client options
+
+`sl.streams` is constructed for you; use `createStreamsClient` for focused Streams-only consumers. Beyond `apiKey` / `baseUrl` / `fetchImpl`, it accepts:
+
+```ts
+type CreateStreamsClientOptions = {
+  apiKey?: string;          // bearer — REQUIRED for reads (per-tier tenant)
+  baseUrl?: string;         // default https://api.secondlayer.tools
+  fetchImpl?: FetchLike;
+  /** Verify the ed25519 response signature on every read. Default OFF.
+   *  `true` auto-fetches the public key from /public/streams/signing-key;
+   *  `{ publicKey }` pins a PEM. A missing/bad signature throws StreamsSignatureError. */
+  verify?: boolean | { publicKey: string };
+  /** Public bulk-dump bucket base URL — required to use `client.dumps`. */
+  dumpsBaseUrl?: string;
+};
+```
 
 ```ts
 // StreamsEventType — exact enum from packages/sdk/src/streams/types.ts
@@ -140,6 +162,7 @@ export type StreamsEvent = {
   contract_id: string | null;
   payload: Record<string, unknown>;
   ts: string;
+  finalized?: boolean; // true when the block is past the finality boundary
 };
 
 export type StreamsEventsEnvelope = {
@@ -162,6 +185,7 @@ type StreamsTip = {
   block_hash: string;
   burn_block_height: number;
   lag_seconds: number;
+  finalized_height?: number; // highest immutable (past-finality) block
 };
 ```
 
@@ -179,6 +203,9 @@ type StreamsEventsListParams = {
   toHeight?: number;
   types?: readonly StreamsEventType[];
   contractId?: string;
+  sender?: string;          // exact payload sender (events that have one)
+  recipient?: string;       // exact payload recipient
+  assetIdentifier?: string; // exact FT/NFT asset identifier
   limit?: number;
 };
 
@@ -217,6 +244,9 @@ type StreamsEventsConsumeParams = {
   mode?: "tail" | "bounded";        // default "tail"
   types?: readonly StreamsEventType[];
   contractId?: string;
+  sender?: string;
+  recipient?: string;
+  assetIdentifier?: string;
   batchSize?: number;               // default 100
   onBatch: (
     events: StreamsEvent[],
@@ -262,6 +292,9 @@ type StreamsEventsStreamParams = {
   fromCursor?: string | null;
   types?: readonly StreamsEventType[];
   contractId?: string;
+  sender?: string;
+  recipient?: string;
+  assetIdentifier?: string;
   batchSize?: number;               // default 100
   emptyBackoffMs?: number;          // default 500
   maxPages?: number;
@@ -339,6 +372,70 @@ type StreamsCanonicalBlock = {
 
 ```ts
 const block = await sl.streams.canonical(170_000);
+```
+
+### `sl.streams.dumps` — bulk parquet dumps
+
+Public bulk backfill from finalized parquet files. Requires `dumpsBaseUrl` on the client. The SDK does **not** decode parquet — `download` / `replay` hand you the raw bytes/file to process with your own tooling.
+
+```ts
+type StreamsDumpFile = {
+  file: string;
+  sha256: string;
+  // …plus block range / cursor metadata from the manifest
+};
+type StreamsDumpsManifest = {
+  files: StreamsDumpFile[];
+  latest_finalized_cursor: string | null;
+};
+
+list(): Promise<StreamsDumpsManifest>          // parse the manifest
+fileUrl(file: StreamsDumpFile | string): string
+download(file: StreamsDumpFile): Promise<Uint8Array> // fetches + verifies sha256
+```
+
+```ts
+const streams = createStreamsClient({
+  apiKey: process.env.SL_API_KEY,
+  dumpsBaseUrl: process.env.SL_STREAMS_DUMPS_URL,
+});
+
+const manifest = await streams.dumps.list();
+for (const f of manifest.files) {
+  const bytes = await streams.dumps.download(f); // sha256-verified parquet
+  await myParquetReader(bytes);
+}
+```
+
+### `sl.streams.events.replay(params)` — bulk backfill then live tail
+
+Backfills from bulk dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you each finalized parquet file to process with your own tooling (the SDK doesn't decode parquet); `onBatch` receives live events after the seam.
+
+```ts
+type StreamsEventsReplayParams = {
+  from?: "genesis" | string;                     // "genesis" (default) or a start cursor
+  onDumpFile: (file: StreamsDumpFile) => Promise<void> | void;
+  onBatch: (
+    events: StreamsEvent[],
+    envelope: StreamsEventsEnvelope,
+  ) => Promise<string | null | undefined> | string | null | undefined;
+};
+
+replay(params: StreamsEventsReplayParams): Promise<StreamsEventsConsumeResult>
+```
+
+```ts
+await streams.events.replay({
+  from: lastCheckpoint,
+  async onDumpFile(file) {
+    const bytes = await streams.dumps.download(file);
+    await ingestParquet(bytes);            // your tooling
+  },
+  async onBatch(events, envelope) {
+    for (const ev of events) await handle(ev);
+    return envelope.next_cursor;
+  },
+});
 ```
 
 ### Decoders (sync helpers)
@@ -1084,7 +1181,7 @@ try {
 }
 ```
 
-### Streams: `AuthError`, `RateLimitError`, `StreamsServerError`, `ValidationError`
+### Streams: `AuthError`, `RateLimitError`, `StreamsServerError`, `StreamsSignatureError`, `ValidationError`
 
 Thrown by `sl.streams.*` (and the bare `createStreamsClient()`). They do **not** extend `ApiError`.
 
@@ -1107,6 +1204,10 @@ class ValidationError extends Error {
   readonly status: number; // other 4xx
   readonly body?: unknown;
 }
+
+// Thrown only when `verify` is enabled and a response's X-Signature is
+// missing or fails ed25519 verification.
+class StreamsSignatureError extends Error {}
 ```
 
 ```ts

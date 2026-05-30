@@ -20,6 +20,7 @@ The `sl` binary (alias `secondlayer`) is the official CLI for Secondlayer — de
 | `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, contracts generate | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
+| `SL_STREAMS_DUMPS_URL` | streams pull | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
 | `DATABASE_URL` | local db | Postgres URL for local indexer DB; defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
 | `INDEXER_URL` | local db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
 | `DEBUG` | contracts generate | When set, prints stack traces on failure. |
@@ -32,7 +33,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 - [Projects](#projects) — `projects create|list|use|get`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `reindex`, `backfill`, `cancel`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
 - [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
-- [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`
+- [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `pull`
 - [Local](#local) — `local up|down|restart|status|logs`, `local node …`, `local db …`
 - [Devnet](#devnet) — `local up --devnet` / `local down --devnet`, `devnet status|logs` (run services against a Clarinet devnet)
 - [Account](#account) — `account get`, `account update`, `account billing`
@@ -661,6 +662,21 @@ Usage: `sl streams canonical <height>`
 No flags.
 
 Example: `sl streams canonical 150000`
+
+### sl streams pull
+
+Download finalized bulk parquet dumps locally and verify each file's sha256 against the manifest. Dumps are **public** — no API key needed; pass `--dumps-url` or set `SL_STREAMS_DUMPS_URL`.
+
+Usage: `sl streams pull --to <dir>`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--to <dir>` | — | Output directory for downloaded parquet files. |
+| `--dumps-url <url>` | `SL_STREAMS_DUMPS_URL` | Public bulk-dump bucket base URL. |
+| `--from-block <n>` | — | Only pull dumps covering blocks ≥ n. |
+| `--to-block <n>` | — | Only pull dumps covering blocks ≤ n. |
+
+Example: `sl streams pull --to ./dumps --dumps-url https://dumps.secondlayer.tools --from-block 100000 --to-block 200000`
 
 ---
 
