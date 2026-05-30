@@ -63,6 +63,8 @@ docs/*
 !docs/marketing/**
 !docs/runbook/
 !docs/runbook/**
+!docs/design/
+!docs/design/**
 !docker/docs/
 
 # Config files (users should create their own)
