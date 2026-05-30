@@ -64,8 +64,10 @@ finalized Stacks height from the canonical tip's `burn_block_height` and only
 publishes complete ranges at or below it, so dumps and live reads agree on what
 is final.
 
-- Tune with `STREAMS_BULK_BTC_CONFIRMATIONS` (default 6). The legacy
-  `STREAMS_BULK_FINALITY_LAG_BLOCKS` (144 Stacks-block lag) is **no longer read**
-  on the streams path — remove it from prod `.env` to avoid confusion.
+- Tune with `STREAMS_BULK_BTC_CONFIRMATIONS` (default 6).
+- The streams-bulk path no longer reads `STREAMS_BULK_FINALITY_LAG_BLOCKS`.
+  **Do NOT remove that var from prod `.env`** — the **dataset publishers**
+  (sbtc / stx-transfers / pox-4 / bns, via `datasets/_shared/scheduler.ts`)
+  still read it for their own finality lag. It is inert only for streams-bulk.
 - The manifest's `finality_lag_blocks` now reports the *observed* lag
   (`tip_height − finalized_height`) at publish time, not a fixed constant.
