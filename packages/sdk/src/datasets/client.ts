@@ -1,4 +1,4 @@
-import { BaseClient, type SecondLayerOptions } from "../base.ts";
+import { BaseClient, type SecondLayerOptions, buildQuery } from "../base.ts";
 
 /**
  * Typed client for the Foundation Datasets REST API (`/v1/datasets/*`).
@@ -30,15 +30,6 @@ export interface CursorEnvelope {
 export interface CursorWalkParams extends CursorListParams {
 	batchSize?: number;
 	signal?: AbortSignal;
-}
-
-function appendParam(
-	params: URLSearchParams,
-	name: string,
-	value: number | string | null | undefined,
-): void {
-	if (value === undefined || value === null) return;
-	params.set(name, String(value));
 }
 
 // Per-dataset filter params (precise — drives CLI flags + autocomplete).
@@ -153,7 +144,7 @@ export class Datasets extends BaseClient {
 		}
 		const env = await this.get<Record<string, unknown>>(
 			d.path,
-			this.buildParams(params),
+			this.paramsToQuery(params),
 		);
 		return {
 			rows: (env[d.rowKey] as DatasetRow[]) ?? [],
@@ -201,46 +192,48 @@ export class Datasets extends BaseClient {
 			offset?: number;
 		} = {},
 	): Promise<{ names: DatasetRow[] }> {
-		const sp = new URLSearchParams();
-		appendParam(sp, "namespace", params.namespace);
-		appendParam(sp, "owner", params.owner);
-		appendParam(sp, "limit", params.limit);
-		appendParam(sp, "offset", params.offset);
-		return this.get("bns/names", sp);
+		return this.get(
+			"bns/names",
+			buildQuery({
+				namespace: params.namespace,
+				owner: params.owner,
+				limit: params.limit,
+				offset: params.offset,
+			}),
+		);
 	}
 
 	/** All BNS namespaces (no pagination). */
 	bnsNamespaces(): Promise<{ namespaces: DatasetRow[] }> {
-		return this.get("bns/namespaces", new URLSearchParams());
+		return this.get("bns/namespaces", "");
 	}
 
 	/** Resolve a fully-qualified BNS name → single record. */
 	bnsResolve(fqn: string): Promise<{ name: DatasetRow | null }> {
-		const sp = new URLSearchParams();
-		sp.set("fqn", fqn);
-		return this.get("bns/resolve", sp);
+		return this.get("bns/resolve", buildQuery({ fqn }));
 	}
 
 	/** Network health summary. */
 	networkHealth(): Promise<{ summary: DatasetRow }> {
-		return this.get("network-health/summary", new URLSearchParams());
+		return this.get("network-health/summary", "");
 	}
 
 	// ── internals ──────────────────────────────────────────────────────────
 
-	private get<T>(path: string, sp: URLSearchParams): Promise<T> {
-		const qs = sp.toString();
-		return this.request<T>("GET", `/v1/datasets/${path}${qs ? `?${qs}` : ""}`);
+	private get<T>(path: string, query: string): Promise<T> {
+		return this.request<T>("GET", `/v1/datasets/${path}${query}`);
 	}
 
-	private buildParams(params: Record<string, unknown>): URLSearchParams {
-		const sp = new URLSearchParams();
+	/** Map camelCase filter fields to snake_case query keys (dropping pagination
+	 *  controls) and build the canonical query suffix. */
+	private paramsToQuery(params: Record<string, unknown>): string {
+		const mapped: Record<string, number | string | null | undefined> = {};
 		for (const [k, v] of Object.entries(params)) {
 			if (v === undefined || v === null || k === "batchSize" || k === "signal")
 				continue;
-			appendParam(sp, PARAM_KEYS[k] ?? k, v as string | number);
+			mapped[PARAM_KEYS[k] ?? k] = v as string | number;
 		}
-		return sp;
+		return buildQuery(mapped);
 	}
 
 	private cursorDataset<P extends CursorListParams>(
@@ -250,7 +243,7 @@ export class Datasets extends BaseClient {
 		const list = async (params: P = {} as P): Promise<CursorEnvelope> => {
 			const envelope = await this.get<Record<string, unknown>>(
 				path,
-				this.buildParams(params as Record<string, unknown>),
+				this.paramsToQuery(params as Record<string, unknown>),
 			);
 			return {
 				rows: (envelope[rowKey] as DatasetRow[]) ?? [],
