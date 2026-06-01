@@ -31,8 +31,19 @@ import type {
 /** Parse a `<block>:<index>` cursor; null sorts before genesis. */
 function cursorTuple(cursor: string | null): [number, number] {
 	if (!cursor) return [-1, -1];
-	const [block, index] = cursor.split(":");
-	return [Number(block), Number(index)];
+	const parts = cursor.split(":");
+	const [block, index] = parts.map(Number);
+	if (
+		parts.length !== 2 ||
+		!Number.isInteger(block) ||
+		!Number.isInteger(index)
+	) {
+		throw new ValidationError(
+			`Invalid stream cursor "${cursor}"; expected "<block>:<index>" (e.g. "951475:3").`,
+			400,
+		);
+	}
+	return [block, index];
 }
 
 /** The greater of two cursors (later in the stream). */

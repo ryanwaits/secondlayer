@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { type StreamsDumpFile, createStreamsClient } from "../index.ts";
+import {
+	type StreamsDumpFile,
+	ValidationError,
+	createStreamsClient,
+} from "../index.ts";
 
 const DUMPS_BASE = "https://dumps.secondlayer.test";
 
@@ -83,5 +87,25 @@ describe("events.replay", () => {
 		expect(dumped).toEqual([0, 10000]);
 		// Live tail started at the manifest's latest_finalized_cursor (the seam).
 		expect(liveCursors[0]).toBe("19999:2");
+	});
+
+	test("rejects a malformed `from` cursor instead of silently dropping dumps", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			dumpsBaseUrl: DUMPS_BASE,
+			fetchImpl: (async () => {
+				throw new Error("fetch should not run for an invalid cursor");
+			}) as never,
+		});
+
+		await expect(
+			client.events.replay({
+				from: "abc",
+				mode: "bounded",
+				onDumpFile: () => undefined,
+				onBatch: () => undefined,
+			}),
+		).rejects.toBeInstanceOf(ValidationError);
 	});
 });
