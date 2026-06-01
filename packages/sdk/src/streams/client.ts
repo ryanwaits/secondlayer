@@ -1,4 +1,5 @@
 import { ed25519 } from "@secondlayer/shared";
+import { buildQuery } from "../base.ts";
 import {
 	type StreamsEventsFetcher,
 	consumeStreamsEvents,
@@ -63,26 +64,6 @@ export type CreateStreamsClientOptions = {
 
 function normalizeBaseUrl(baseUrl: string): string {
 	return baseUrl.replace(/\/+$/, "");
-}
-
-function appendSearchParam(
-	params: URLSearchParams,
-	name: string,
-	value: number | string | null | undefined,
-): void {
-	if (value === undefined || value === null) return;
-	params.set(name, String(value));
-}
-
-/** Serialize a single value or list as a comma-separated query param. */
-function appendListParam(
-	params: URLSearchParams,
-	name: string,
-	value: string | readonly string[] | null | undefined,
-): void {
-	if (value === undefined || value === null) return;
-	const joined = Array.isArray(value) ? value.join(",") : (value as string);
-	if (joined.length > 0) params.set(name, joined);
 }
 
 async function responseBody(response: Response): Promise<unknown> {
@@ -246,25 +227,19 @@ export function createStreamsClient(
 	async function listEvents(
 		params: StreamsEventsListParams = {},
 	): Promise<StreamsEventsEnvelope> {
-		const searchParams = new URLSearchParams();
-		appendSearchParam(searchParams, "cursor", params.cursor);
-		appendSearchParam(searchParams, "from_height", params.fromHeight);
-		appendSearchParam(searchParams, "to_height", params.toHeight);
-		appendSearchParam(searchParams, "limit", params.limit);
-		appendListParam(searchParams, "contract_id", params.contractId);
-		appendListParam(searchParams, "sender", params.sender);
-		appendListParam(searchParams, "recipient", params.recipient);
-		appendSearchParam(searchParams, "asset_identifier", params.assetIdentifier);
-		if (params.types?.length) {
-			searchParams.set("types", params.types.join(","));
-		}
-		if (params.notTypes?.length) {
-			searchParams.set("not_types", params.notTypes.join(","));
-		}
-
-		const query = searchParams.toString();
 		return request<StreamsEventsEnvelope>(
-			`/v1/streams/events${query ? `?${query}` : ""}`,
+			`/v1/streams/events${buildQuery({
+				cursor: params.cursor,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+				limit: params.limit,
+				contract_id: params.contractId,
+				sender: params.sender,
+				recipient: params.recipient,
+				asset_identifier: params.assetIdentifier,
+				types: params.types,
+				not_types: params.notTypes,
+			})}`,
 		);
 	}
 
@@ -354,12 +329,11 @@ export function createStreamsClient(
 		},
 		reorgs: {
 			list(params: StreamsReorgsListParams) {
-				const searchParams = new URLSearchParams();
-				appendSearchParam(searchParams, "since", params.since);
-				appendSearchParam(searchParams, "limit", params.limit);
-				const query = searchParams.toString();
 				return request<StreamsReorgsListEnvelope>(
-					`/v1/streams/reorgs${query ? `?${query}` : ""}`,
+					`/v1/streams/reorgs${buildQuery({
+						since: params.since,
+						limit: params.limit,
+					})}`,
 				);
 			},
 		},

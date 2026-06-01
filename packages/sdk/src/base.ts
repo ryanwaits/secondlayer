@@ -18,6 +18,27 @@ export interface SecondLayerOptions {
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
+/** Build a query-string suffix from name→value pairs. Skips null/undefined and
+ *  empty values; arrays are comma-joined. Returns "" (never a dangling "?") or
+ *  "?a=1&b=2" — the one canonical builder every list endpoint shares, so the
+ *  empty-query guard can't be forgotten per call site. */
+export function buildQuery(
+	params: Record<
+		string,
+		number | string | readonly string[] | null | undefined
+	>,
+): string {
+	const search = new URLSearchParams();
+	for (const [name, value] of Object.entries(params)) {
+		if (value === undefined || value === null) continue;
+		const serialized = Array.isArray(value) ? value.join(",") : String(value);
+		if (serialized.length === 0) continue;
+		search.set(name, serialized);
+	}
+	const query = search.toString();
+	return query ? `?${query}` : "";
+}
+
 export abstract class BaseClient {
 	protected baseUrl: string;
 	protected apiKey?: string;

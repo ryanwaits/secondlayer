@@ -1,4 +1,4 @@
-import { BaseClient } from "../base.ts";
+import { BaseClient, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
 
 export type IndexTip = {
@@ -243,15 +243,6 @@ export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
-function appendSearchParam(
-	params: URLSearchParams,
-	name: string,
-	value: number | string | null | undefined,
-): void {
-	if (value === undefined || value === null) return;
-	params.set(name, String(value));
-}
-
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -316,41 +307,37 @@ export class Index extends BaseClient {
 	private async listFtTransfers(
 		params: FtTransfersListParams = {},
 	): Promise<FtTransfersEnvelope> {
-		const searchParams = new URLSearchParams();
-		appendSearchParam(searchParams, "cursor", params.cursor);
-		appendSearchParam(searchParams, "from_cursor", params.fromCursor);
-		appendSearchParam(searchParams, "limit", params.limit);
-		appendSearchParam(searchParams, "contract_id", params.contractId);
-		appendSearchParam(searchParams, "sender", params.sender);
-		appendSearchParam(searchParams, "recipient", params.recipient);
-		appendSearchParam(searchParams, "from_height", params.fromHeight);
-		appendSearchParam(searchParams, "to_height", params.toHeight);
-
-		const query = searchParams.toString();
 		return this.request<FtTransfersEnvelope>(
 			"GET",
-			`/v1/index/ft-transfers${query ? `?${query}` : ""}`,
+			`/v1/index/ft-transfers${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				contract_id: params.contractId,
+				sender: params.sender,
+				recipient: params.recipient,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
 		);
 	}
 
 	private async listNftTransfers(
 		params: NftTransfersListParams = {},
 	): Promise<NftTransfersEnvelope> {
-		const searchParams = new URLSearchParams();
-		appendSearchParam(searchParams, "cursor", params.cursor);
-		appendSearchParam(searchParams, "from_cursor", params.fromCursor);
-		appendSearchParam(searchParams, "limit", params.limit);
-		appendSearchParam(searchParams, "contract_id", params.contractId);
-		appendSearchParam(searchParams, "asset_identifier", params.assetIdentifier);
-		appendSearchParam(searchParams, "sender", params.sender);
-		appendSearchParam(searchParams, "recipient", params.recipient);
-		appendSearchParam(searchParams, "from_height", params.fromHeight);
-		appendSearchParam(searchParams, "to_height", params.toHeight);
-
-		const query = searchParams.toString();
 		return this.request<NftTransfersEnvelope>(
 			"GET",
-			`/v1/index/nft-transfers${query ? `?${query}` : ""}`,
+			`/v1/index/nft-transfers${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				contract_id: params.contractId,
+				asset_identifier: params.assetIdentifier,
+				sender: params.sender,
+				recipient: params.recipient,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
 		);
 	}
 
@@ -425,21 +412,20 @@ export class Index extends BaseClient {
 	}
 
 	private async listEvents(params: EventsListParams): Promise<EventsEnvelope> {
-		const searchParams = new URLSearchParams();
-		appendSearchParam(searchParams, "event_type", params.eventType);
-		appendSearchParam(searchParams, "cursor", params.cursor);
-		appendSearchParam(searchParams, "from_cursor", params.fromCursor);
-		appendSearchParam(searchParams, "limit", params.limit);
-		appendSearchParam(searchParams, "contract_id", params.contractId);
-		appendSearchParam(searchParams, "asset_identifier", params.assetIdentifier);
-		appendSearchParam(searchParams, "sender", params.sender);
-		appendSearchParam(searchParams, "recipient", params.recipient);
-		appendSearchParam(searchParams, "from_height", params.fromHeight);
-		appendSearchParam(searchParams, "to_height", params.toHeight);
-
 		return this.request<EventsEnvelope>(
 			"GET",
-			`/v1/index/events?${searchParams.toString()}`,
+			`/v1/index/events${buildQuery({
+				event_type: params.eventType,
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				contract_id: params.contractId,
+				asset_identifier: params.assetIdentifier,
+				sender: params.sender,
+				recipient: params.recipient,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
 		);
 	}
 
@@ -481,20 +467,18 @@ export class Index extends BaseClient {
 	private async listContractCalls(
 		params: ContractCallsListParams = {},
 	): Promise<ContractCallsEnvelope> {
-		const searchParams = new URLSearchParams();
-		appendSearchParam(searchParams, "cursor", params.cursor);
-		appendSearchParam(searchParams, "from_cursor", params.fromCursor);
-		appendSearchParam(searchParams, "limit", params.limit);
-		appendSearchParam(searchParams, "contract_id", params.contractId);
-		appendSearchParam(searchParams, "function_name", params.functionName);
-		appendSearchParam(searchParams, "sender", params.sender);
-		appendSearchParam(searchParams, "from_height", params.fromHeight);
-		appendSearchParam(searchParams, "to_height", params.toHeight);
-
-		const query = searchParams.toString();
 		return this.request<ContractCallsEnvelope>(
 			"GET",
-			`/v1/index/contract-calls${query ? `?${query}` : ""}`,
+			`/v1/index/contract-calls${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				contract_id: params.contractId,
+				function_name: params.functionName,
+				sender: params.sender,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
 		);
 	}
 
