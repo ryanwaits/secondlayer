@@ -1,4 +1,10 @@
-import type { FtTransferPayload, StreamsEvent } from "./types.ts";
+import {
+	decodedRow,
+	parseAssetIdentifier,
+	requireAmount,
+	requireString,
+} from "./_payload.ts";
+import type { StreamsEvent } from "./types.ts";
 
 export type { FtTransferPayload } from "./types.ts";
 
@@ -27,31 +33,6 @@ export type DecodedFtTransfer = {
 	source_cursor: string;
 };
 
-function requireString(
-	payload: Record<string, unknown>,
-	field: keyof FtTransferPayload,
-): string {
-	const value = payload[field];
-	if (typeof value !== "string" || value.length === 0) {
-		throw new Error(`ft_transfer payload missing ${field}`);
-	}
-	return value;
-}
-
-function parseAssetIdentifier(assetIdentifier: string): {
-	contract_id: string;
-	token_name: string | null;
-} {
-	const [contractId, tokenName] = assetIdentifier.split("::");
-	if (!contractId) {
-		throw new Error("ft_transfer payload has malformed asset_identifier");
-	}
-	return {
-		contract_id: contractId,
-		token_name: tokenName && tokenName.length > 0 ? tokenName : null,
-	};
-}
-
 export function isFtTransfer(event: StreamsEvent): event is FtTransferEvent {
 	return event.event_type === "ft_transfer";
 }
@@ -62,31 +43,25 @@ export function decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer {
 	}
 
 	const payload = event.payload;
-	const assetIdentifier = requireString(payload, "asset_identifier");
-	const sender = requireString(payload, "sender");
-	const recipient = requireString(payload, "recipient");
-	const amount = requireString(payload, "amount");
-	if (!/^(0|[1-9]\d*)$/.test(amount)) {
-		throw new Error("ft_transfer payload has malformed amount");
-	}
+	const assetIdentifier = requireString(
+		payload,
+		"asset_identifier",
+		"ft_transfer",
+	);
+	const sender = requireString(payload, "sender", "ft_transfer");
+	const recipient = requireString(payload, "recipient", "ft_transfer");
+	const amount = requireAmount(payload, "ft_transfer");
+	const { contract_id, token_name } = parseAssetIdentifier(
+		assetIdentifier,
+		"ft_transfer",
+	);
 
-	const { contract_id, token_name } = parseAssetIdentifier(assetIdentifier);
-
-	return {
-		cursor: event.cursor,
-		block_height: event.block_height,
-		tx_id: event.tx_id,
-		tx_index: event.tx_index,
-		event_index: event.event_index,
-		event_type: event.event_type,
-		decoded_payload: {
-			asset_identifier: assetIdentifier,
-			contract_id: event.contract_id ?? contract_id,
-			token_name,
-			sender,
-			recipient,
-			amount,
-		},
-		source_cursor: event.cursor,
-	};
+	return decodedRow(event, "ft_transfer", {
+		asset_identifier: assetIdentifier,
+		contract_id: event.contract_id ?? contract_id,
+		token_name,
+		sender,
+		recipient,
+		amount,
+	});
 }
