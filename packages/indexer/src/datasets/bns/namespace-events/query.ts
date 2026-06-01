@@ -67,7 +67,8 @@ export async function readCanonicalBnsNamespaceEventRows(params: {
 			revealed_at,
 			launched_at
 		FROM bns_namespace_events
-		WHERE block_height >= ${params.range.fromBlock}
+		WHERE canonical = true
+			AND block_height >= ${params.range.fromBlock}
 			AND block_height <= ${params.range.toBlock}
 		ORDER BY block_height ASC, tx_index ASC, event_index ASC
 	`.execute(db);

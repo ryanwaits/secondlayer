@@ -106,7 +106,8 @@ export async function readCanonicalPox4CallRows(params: {
 			result_ok,
 			result_raw
 		FROM pox4_calls
-		WHERE block_height >= ${params.range.fromBlock}
+		WHERE canonical = true
+			AND block_height >= ${params.range.fromBlock}
 			AND block_height <= ${params.range.toBlock}
 		ORDER BY block_height ASC, tx_index ASC
 	`.execute(db);

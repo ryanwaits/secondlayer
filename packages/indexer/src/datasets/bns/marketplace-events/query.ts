@@ -49,7 +49,8 @@ export async function readCanonicalBnsMarketplaceEventRows(params: {
 			price_ustx,
 			commission
 		FROM bns_marketplace_events
-		WHERE block_height >= ${params.range.fromBlock}
+		WHERE canonical = true
+			AND block_height >= ${params.range.fromBlock}
 			AND block_height <= ${params.range.toBlock}
 		ORDER BY block_height ASC, tx_index ASC, event_index ASC
 	`.execute(db);
