@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { ipRateLimit } from "../auth/index.ts";
 import {
 	getBnsMarketplaceEventsResponse,
@@ -227,6 +227,33 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 	const router = new Hono();
 	const getTip = opts.getTip ?? getStreamsTip;
 
+	/** Cursor-paginated dataset route: validate params, require the tip field,
+	 *  else 503 with an empty envelope keyed to match the success body. */
+	function cursorRoute<F extends "block_height" | "burn_block_height">(
+		tipField: F,
+		allowed: readonly string[],
+		rowKey: string,
+		run: (a: {
+			query: URLSearchParams;
+			tip: Record<F, number>;
+		}) => Promise<unknown>,
+	) {
+		return async (c: Context) => {
+			const query = new URL(c.req.url).searchParams;
+			validateQueryParams(query, allowed);
+			const tip = await getTip();
+			const value = tip?.[tipField];
+			if (value == null) {
+				return c.json({ [rowKey]: [], next_cursor: null, tip: null }, 503);
+			}
+			const response = await run({
+				query,
+				tip: { [tipField]: value } as Record<F, number>,
+			});
+			return c.json(response);
+		};
+	}
+
 	router.use("*", ipRateLimit(DATASETS_IP_RATE_LIMIT));
 
 	router.get("/", (c) =>
@@ -248,144 +275,113 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 		return c.json(response);
 	});
 
-	router.get("/stx-transfers", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.stxTransfers);
-		const tip = await getTip();
-		if (!tip) {
-			return c.json(
-				{
-					events: [],
-					next_cursor: null,
-					tip: null,
-				},
-				503,
-			);
-		}
-		const response = await getStxTransfersResponse({
-			query,
-			tip: { block_height: tip.block_height },
-			readTransfers: opts.readStxTransfers,
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/stx-transfers",
+		cursorRoute(
+			"block_height",
+			ALLOWED.stxTransfers,
+			"events",
+			({ query, tip }) =>
+				getStxTransfersResponse({
+					query,
+					tip,
+					readTransfers: opts.readStxTransfers,
+				}),
+		),
+	);
 
-	router.get("/sbtc/events", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.sbtcEvents);
-		const tip = await getTip();
-		if (!tip) {
-			return c.json({ events: [], next_cursor: null, tip: null }, 503);
-		}
-		const response = await getSbtcEventsResponse({
-			query,
-			tip: { block_height: tip.block_height },
-			readEvents: opts.readSbtcEvents,
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/sbtc/events",
+		cursorRoute(
+			"block_height",
+			ALLOWED.sbtcEvents,
+			"events",
+			({ query, tip }) =>
+				getSbtcEventsResponse({ query, tip, readEvents: opts.readSbtcEvents }),
+		),
+	);
 
-	router.get("/sbtc/token-events", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.sbtcTokenEvents);
-		const tip = await getTip();
-		if (!tip) {
-			return c.json({ events: [], next_cursor: null, tip: null }, 503);
-		}
-		const response = await getSbtcTokenEventsResponse({
-			query,
-			tip: { block_height: tip.block_height },
-			readEvents: opts.readSbtcTokenEvents,
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/sbtc/token-events",
+		cursorRoute(
+			"block_height",
+			ALLOWED.sbtcTokenEvents,
+			"events",
+			({ query, tip }) =>
+				getSbtcTokenEventsResponse({
+					query,
+					tip,
+					readEvents: opts.readSbtcTokenEvents,
+				}),
+		),
+	);
 
-	router.get("/pox-4/calls", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.pox4Calls);
-		const tip = await getTip();
-		if (!tip) {
-			return c.json({ calls: [], next_cursor: null, tip: null }, 503);
-		}
-		const response = await getPox4CallsResponse({
-			query,
-			tip: { block_height: tip.block_height },
-			readCalls: opts.readPox4Calls,
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/pox-4/calls",
+		cursorRoute("block_height", ALLOWED.pox4Calls, "calls", ({ query, tip }) =>
+			getPox4CallsResponse({ query, tip, readCalls: opts.readPox4Calls }),
+		),
+	);
 
-	router.get("/burnchain/rewards", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.burnchainRewards);
-		const tip = await getTip();
-		if (!tip || tip.burn_block_height === undefined) {
-			return c.json({ rewards: [], next_cursor: null, tip: null }, 503);
-		}
-		const response = await getBurnchainRewardsResponse({
-			query,
-			tip: { burn_block_height: tip.burn_block_height },
-			readRewards: opts.readBurnchainRewards,
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/burnchain/rewards",
+		cursorRoute(
+			"burn_block_height",
+			ALLOWED.burnchainRewards,
+			"rewards",
+			({ query, tip }) =>
+				getBurnchainRewardsResponse({
+					query,
+					tip,
+					readRewards: opts.readBurnchainRewards,
+				}),
+		),
+	);
 
-	router.get("/burnchain/reward-slots", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.burnchainRewardSlots);
-		const tip = await getTip();
-		if (!tip || tip.burn_block_height === undefined) {
-			return c.json({ slots: [], next_cursor: null, tip: null }, 503);
-		}
-		const response = await getBurnchainRewardSlotsResponse({
-			query,
-			tip: { burn_block_height: tip.burn_block_height },
-			readSlots: opts.readBurnchainRewardSlots,
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/burnchain/reward-slots",
+		cursorRoute(
+			"burn_block_height",
+			ALLOWED.burnchainRewardSlots,
+			"slots",
+			({ query, tip }) =>
+				getBurnchainRewardSlotsResponse({
+					query,
+					tip,
+					readSlots: opts.readBurnchainRewardSlots,
+				}),
+		),
+	);
 
-	router.get("/bns/events", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.bnsNameEvents);
-		const tip = await getTip();
-		if (!tip) {
-			return c.json({ events: [], next_cursor: null, tip: null }, 503);
-		}
-		const response = await getBnsNameEventsResponse({
-			query,
-			tip: { block_height: tip.block_height },
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/bns/events",
+		cursorRoute(
+			"block_height",
+			ALLOWED.bnsNameEvents,
+			"events",
+			({ query, tip }) => getBnsNameEventsResponse({ query, tip }),
+		),
+	);
 
-	router.get("/bns/namespace-events", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.bnsNamespaceEvents);
-		const tip = await getTip();
-		if (!tip) {
-			return c.json({ events: [], next_cursor: null, tip: null }, 503);
-		}
-		const response = await getBnsNamespaceEventsResponse({
-			query,
-			tip: { block_height: tip.block_height },
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/bns/namespace-events",
+		cursorRoute(
+			"block_height",
+			ALLOWED.bnsNamespaceEvents,
+			"events",
+			({ query, tip }) => getBnsNamespaceEventsResponse({ query, tip }),
+		),
+	);
 
-	router.get("/bns/marketplace-events", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, ALLOWED.bnsMarketplaceEvents);
-		const tip = await getTip();
-		if (!tip) {
-			return c.json({ events: [], next_cursor: null, tip: null }, 503);
-		}
-		const response = await getBnsMarketplaceEventsResponse({
-			query,
-			tip: { block_height: tip.block_height },
-		});
-		return c.json(response);
-	});
+	router.get(
+		"/bns/marketplace-events",
+		cursorRoute(
+			"block_height",
+			ALLOWED.bnsMarketplaceEvents,
+			"events",
+			({ query, tip }) => getBnsMarketplaceEventsResponse({ query, tip }),
+		),
+	);
 
 	router.get("/bns/names", async (c) => {
 		const query = new URL(c.req.url).searchParams;
