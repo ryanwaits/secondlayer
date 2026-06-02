@@ -54,6 +54,7 @@ export { ApiError, VersionConflictError } from "./errors.ts";
 export { verifyWebhookSignature } from "./webhooks.ts";
 export {
 	createStreamsClient,
+	Cursor,
 	decodeFtBurn,
 	decodeFtMint,
 	decodeFtTransfer,
@@ -114,6 +115,7 @@ export type {
 	FtTransferPayload,
 	NftTransferEvent,
 	NftTransferPayload,
+	StreamsBatchContext,
 	StreamsClient,
 	StreamsCanonicalBlock,
 	StreamsDumpFile,
@@ -129,6 +131,7 @@ export type {
 	StreamsEventsStreamParams,
 	StreamsEventType,
 	StreamsReorg,
+	StreamsReorgContext,
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,

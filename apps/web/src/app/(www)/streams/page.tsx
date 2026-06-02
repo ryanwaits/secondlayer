@@ -102,10 +102,13 @@ await streams.events.consume({
   types: ["print"],
   contractId: "SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2",
   batchSize: 500,
-  onBatch: async (events, envelope) => {
-    for (const e of events) await handle(e);
-    await saveCheckpoint(envelope.next_cursor);
-    return envelope.next_cursor;
+  onBatch: async (events, _envelope, { cursor }) => {
+    for (const e of events) await handle(e); // key rows by e.cursor
+    await saveCheckpoint(cursor);
+  },
+  onReorg: async (reorg, { cursor }) => {
+    await rollbackAbove(reorg.fork_point_height); // SDK rewinds + re-reads
+    await saveCheckpoint(cursor);
   },
 });`}
 				/>

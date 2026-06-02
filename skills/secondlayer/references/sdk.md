@@ -250,12 +250,13 @@ const { events } = await sl.streams.events.byTxId(
 
 ### `sl.streams.events.consume(params)` — checkpoint-driven puller
 
-Use for indexers/ETL that own cursor checkpointing. Return the next checkpoint from `onBatch`.
+Use for indexers/ETL that own cursor checkpointing. The SDK owns the cursor (where to poll next, reorg dedup + rewind) and hands you the checkpoint to persist via `ctx.cursor` — write it in the **same transaction** as your projection rows. Key rows by `event.cursor` (the stable per-event id) so replaying a batch is an idempotent no-op.
 
 ```ts
 type StreamsEventsConsumeParams = {
   fromCursor?: string | null;
   mode?: "tail" | "bounded";        // default "tail"
+  finalizedOnly?: boolean;          // emit only immutable events; never surfaces reorgs
   types?: readonly StreamsEventType[];
   notTypes?: readonly StreamsEventType[];
   contractId?: StreamsFilterValue;  // string | readonly string[]
@@ -266,7 +267,12 @@ type StreamsEventsConsumeParams = {
   onBatch: (
     events: StreamsEvent[],
     envelope: StreamsEventsEnvelope,
-  ) => Promise<string | null | undefined> | string | null | undefined;
+    ctx: { cursor: string | null },  // checkpoint to persist for this batch
+  ) => void | string | null | undefined | Promise<void | string | null | undefined>;
+  onReorg?: (
+    reorg: StreamsReorg,
+    ctx: { cursor: string },         // rewind cursor to persist with the rollback
+  ) => void | Promise<void>;
   emptyBackoffMs?: number;          // default 500
   maxPages?: number;
   maxEmptyPolls?: number;
@@ -280,23 +286,43 @@ consume(params: StreamsEventsConsumeParams): Promise<{
 }>
 ```
 
-```ts
-let checkpoint = await loadCheckpoint(); // your durable store
+Reorg-aware indexer — `onBatch` applies, `onReorg` rolls back, both persist `ctx.cursor` in their own transaction:
 
+```ts
 await sl.streams.events.consume({
-  fromCursor: checkpoint,
+  fromCursor: await loadCheckpoint(),   // your durable store
   types: ["ft_transfer", "nft_transfer"],
   batchSize: 250,
-  mode: "tail",
-  async onBatch(events, envelope) {
-    for (const ev of events) await handle(ev);
-    await saveCheckpoint(envelope.next_cursor);
-    return envelope.next_cursor; // continue from here
+  onBatch(events, _envelope, { cursor }) {
+    db.transaction(() => {
+      for (const ev of events) upsertByCursor(ev); // PK = ev.cursor
+      saveCheckpoint(cursor);                       // atomic with the writes
+    });
+  },
+  onReorg(reorg, { cursor }) {
+    db.transaction(() => {
+      deleteRowsAboveHeight(reorg.fork_point_height); // roll back the fork
+      saveCheckpoint(cursor);                         // SDK rewinds + re-reads
+    });
   },
 });
 ```
 
-`mode: "bounded"` exits on the first empty page — useful for backfills. `signal` lets you abort cleanly on shutdown.
+Omit `onReorg` only if you don't store reorg-eligible (unfinalized) data — events stay canonical, but stale rows from an orphaned fork are left in place.
+
+`finalizedOnly: true` is the zero-reorg path — it emits only immutable events and checkpoints at the last finalized one (so `ctx.cursor` is always safe to persist and `onReorg` is never needed), trading finality lag for simplicity:
+
+```ts
+await sl.streams.events.consume({
+  finalizedOnly: true,
+  types: ["ft_transfer"],
+  onBatch(events, _envelope, { cursor }) {
+    db.transaction(() => { for (const ev of events) upsertByCursor(ev); saveCheckpoint(cursor); });
+  },
+});
+```
+
+`mode: "bounded"` exits on the first empty page — useful for backfills. `signal` lets you abort cleanly on shutdown. Returning a cursor from `onBatch` still overrides `ctx.cursor` for advanced manual control. Reach for raw cursors via the exported `Cursor` helper (`Cursor.atHeight(h)`, `Cursor.parse(c)`) rather than string-building the `<block>:<index>` format.
 
 ### `sl.streams.events.stream(params?)` — async iterator
 

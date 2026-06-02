@@ -266,6 +266,7 @@ export function createStreamsClient(
 				return consumeStreamsEvents({
 					fromCursor: params.fromCursor,
 					mode: params.mode,
+					finalizedOnly: params.finalizedOnly,
 					types: params.types,
 					notTypes: params.notTypes,
 					contractId: params.contractId,
@@ -275,6 +276,7 @@ export function createStreamsClient(
 					batchSize: params.batchSize ?? 100,
 					fetchEvents,
 					onBatch: params.onBatch,
+					onReorg: params.onReorg,
 					emptyBackoffMs: params.emptyBackoffMs,
 					maxPages: params.maxPages,
 					maxEmptyPolls: params.maxEmptyPolls,

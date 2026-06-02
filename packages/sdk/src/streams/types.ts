@@ -94,6 +94,11 @@ export type StreamsEventPayload =
 	| PrintPayload;
 
 export type StreamsEventBase = {
+	/**
+	 * Globally unique, monotonic position of this event (`<block>:<index>`). Use
+	 * it as the primary key of your projection rows — replaying a batch then
+	 * upserts cleanly. Don't synthesize your own id from `tx_id`/`event_index`.
+	 */
 	cursor: string;
 	block_height: number;
 	block_hash: string;
@@ -211,9 +216,30 @@ export type StreamsEventsStreamParams = {
 	signal?: AbortSignal;
 };
 
+/**
+ * The checkpoint the SDK computes for a batch. Persist `cursor` inside the same
+ * transaction as your projection writes, then resume from it via `fromCursor`.
+ * It is the position to advance to: `next_cursor` normally, or the last
+ * finalized event when `finalizedOnly` is set.
+ */
+export type StreamsBatchContext = { cursor: string | null };
+
+/**
+ * The checkpoint for a reorg rollback. Persist `cursor` (the rewind position)
+ * inside the same transaction as your rollback so the two commit atomically.
+ */
+export type StreamsReorgContext = { cursor: string };
+
 export type StreamsEventsConsumeParams = {
 	fromCursor?: string | null;
 	mode?: "tail" | "bounded";
+	/**
+	 * Emit only finalized (immutable) events and never surface reorgs. The SDK
+	 * checkpoints at the last finalized event and re-reads the unfinalized tail
+	 * until it settles. Trades finality lag for zero reorg handling; `onReorg` is
+	 * ignored.
+	 */
+	finalizedOnly?: boolean;
 	types?: readonly StreamsEventType[];
 	notTypes?: readonly StreamsEventType[];
 	contractId?: StreamsFilterValue;
@@ -221,10 +247,33 @@ export type StreamsEventsConsumeParams = {
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
 	batchSize?: number;
+	/**
+	 * Apply a page of canonical events. Persist `ctx.cursor` in the same
+	 * transaction as your writes. Returning a cursor overrides `ctx.cursor` as
+	 * the resume point (advanced manual control); returning nothing uses it.
+	 */
 	onBatch: (
 		events: StreamsEvent[],
 		envelope: StreamsEventsEnvelope,
-	) => Promise<string | null | undefined> | string | null | undefined;
+		ctx: StreamsBatchContext,
+	) =>
+		| void
+		| string
+		| null
+		| undefined
+		| Promise<void>
+		| Promise<string | null | undefined>;
+	/**
+	 * Roll your projection back to `reorg.fork_point_height`, persisting
+	 * `ctx.cursor` in the same transaction. Called once per *new* reorg
+	 * (deduped in-memory, fork-ascending) before the SDK rewinds and re-reads the
+	 * now-canonical events. Omit it to ignore reorgs (events stay canonical, but
+	 * stale rows from an orphaned fork are left in place).
+	 */
+	onReorg?: (
+		reorg: StreamsReorg,
+		ctx: StreamsReorgContext,
+	) => Promise<void> | void;
 	emptyBackoffMs?: number;
 	maxPages?: number;
 	maxEmptyPolls?: number;

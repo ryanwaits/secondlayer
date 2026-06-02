@@ -96,8 +96,10 @@ export type {
 	DecodedPrintValue,
 } from "./print.ts";
 export { STREAMS_EVENT_TYPES } from "./types.ts";
+export { Cursor } from "./cursor.ts";
 export type {
 	FetchLike,
+	StreamsBatchContext,
 	StreamsClient,
 	StreamsCanonicalBlock,
 	StreamsDumpFile,
@@ -113,6 +115,7 @@ export type {
 	StreamsEventsStreamParams,
 	StreamsEventType,
 	StreamsReorg,
+	StreamsReorgContext,
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
