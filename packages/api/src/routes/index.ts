@@ -1,13 +1,20 @@
 import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
 import { getDb } from "@secondlayer/shared/db";
 import { type Context, Hono } from "hono";
-import { etag, matchesIfNoneMatch } from "../http/cache.ts";
+import { cacheControl, etag, matchesIfNoneMatch } from "../http/cache.ts";
 import {
 	DEFAULT_INDEX_TOKEN_STORE,
 	type IndexEnv,
 	type IndexTokenStore,
 	indexBearerAuth,
 } from "../index/auth.ts";
+import {
+	BLOCKS_FILTERS,
+	type BlockByRefReader,
+	type BlocksReader,
+	getBlocksResponse,
+	readBlockByRef,
+} from "../index/blocks.ts";
 import { indexCachePlan } from "../index/cache.ts";
 import {
 	CANONICAL_FILTERS,
@@ -66,6 +73,8 @@ export type IndexRouterOptions = {
 	readFtTransfers?: FtTransfersReader;
 	readNftTransfers?: NftTransfersReader;
 	readCanonical?: CanonicalRangeReader;
+	readBlocks?: BlocksReader;
+	readBlockByRef?: BlockByRefReader;
 	readReorgs?: StreamsReorgsReader;
 	recordDecodedEventsReturned?: (
 		accountId: string,
@@ -150,6 +159,19 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 						"Canonical block-hash map over a height range — one row per height (orphaned blocks excluded) so clients sync only the canonical chain. Returns canonical[] ({block_height, block_hash, parent_hash, burn_block_height, burn_block_hash}), next_cursor, tip.",
 					filters: CANONICAL_FILTERS,
 				},
+				{
+					path: "/v1/index/blocks",
+					method: "GET",
+					description:
+						"Canonical blocks, cursor-paginated. Returns blocks[] ({block_height, block_hash, parent_hash, burn_block_height, burn_block_hash, block_time, canonical}), next_cursor, tip.",
+					filters: BLOCKS_FILTERS,
+				},
+				{
+					path: "/v1/index/blocks/:height_or_hash",
+					method: "GET",
+					description:
+						"A single block by height (canonical) or by hash (any; check the canonical flag). 404 when absent.",
+				},
 			],
 			auth: "optional bearer for higher rate-limit tier; anon allowed",
 			cursor: {
@@ -233,6 +255,49 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		});
 		if (notModified) return notModified;
 		return c.json(response);
+	});
+
+	router.get("/blocks", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, BLOCKS_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getBlocksResponse({
+			query,
+			tip,
+			readBlocks: opts.readBlocks,
+		});
+		const notModified = applyIndexCache(c, query, tip, {
+			blocks: response.blocks,
+			next_cursor: response.next_cursor,
+		});
+		if (notModified) return notModified;
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.blocks.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.blocks.length);
+		}
+		return c.json(response);
+	});
+
+	router.get("/blocks/:heightOrHash", async (c) => {
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const read = opts.readBlockByRef ?? readBlockByRef;
+		const block = await read(c.req.param("heightOrHash"));
+		if (!block) return c.json({ error: "Block not found" }, 404);
+		// A point-get is cheap reference data — served but not metered. Immutable
+		// once the block is canonical and past finality.
+		const finalized =
+			block.canonical && block.block_height <= tip.finalized_height;
+		c.header("Cache-Control", cacheControl(finalized));
+		if (finalized) {
+			const tag = etag(JSON.stringify(block));
+			c.header("ETag", tag);
+			if (matchesIfNoneMatch(c.req.header("If-None-Match"), tag)) {
+				return c.body(null, 304);
+			}
+		}
+		return c.json({ block, tip });
 	});
 
 	router.get("/ft-transfers", async (c) => {

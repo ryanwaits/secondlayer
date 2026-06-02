@@ -321,6 +321,37 @@ const OPENAPI_SPEC = {
 				responses: envelope("canonical"),
 			},
 		},
+		"/v1/index/blocks": {
+			get: {
+				tags: ["index"],
+				summary: "Canonical blocks",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{ $ref: "#/components/parameters/Cursor" },
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+				],
+				responses: envelope("blocks"),
+			},
+		},
+		"/v1/index/blocks/{height_or_hash}": {
+			get: {
+				tags: ["index"],
+				summary: "Block by height or hash",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{
+						name: "height_or_hash",
+						in: "path",
+						required: true,
+						schema: { type: "string", example: "182447" },
+					},
+				],
+				responses: ok(),
+			},
+		},
 		"/v1/streams": {
 			get: { tags: ["streams"], summary: "Streams discovery", responses: ok() },
 		},

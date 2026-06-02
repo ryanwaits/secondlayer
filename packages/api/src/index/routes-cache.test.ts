@@ -6,6 +6,7 @@ import {
 } from "../http/cache.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { createIndexRouter } from "../routes/index.ts";
+import type { BlockByRefReader, BlocksReader, IndexBlock } from "./blocks.ts";
 import type { CanonicalRangeReader } from "./canonical.ts";
 import type { ContractCallsReader } from "./contract-calls.ts";
 import type { IndexEventsReader } from "./events.ts";
@@ -110,6 +111,25 @@ const ONE_CANONICAL: CanonicalRangeReader = async () => ({
 	next_cursor: "9000:0",
 });
 
+const BLOCK_9000: IndexBlock = {
+	cursor: "9000:0",
+	block_height: 9000,
+	block_hash: "0x9000",
+	parent_hash: "0x8999",
+	burn_block_height: 19_000,
+	burn_block_hash: "0xb9000",
+	block_time: "2026-05-01T00:00:00.000Z",
+	canonical: true,
+};
+
+const ONE_BLOCK: BlocksReader = async () => ({
+	blocks: [BLOCK_9000],
+	next_cursor: "9000:0",
+});
+
+const BLOCK_BY_REF: BlockByRefReader = async (ref) =>
+	ref === "9000" || ref === "0x9000" ? BLOCK_9000 : null;
+
 function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 	const app = new Hono();
 	app.onError(errorHandler);
@@ -122,6 +142,8 @@ function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 			readNftTransfers: ONE_NFT,
 			readContractCalls: ONE_CALL,
 			readCanonical: ONE_CANONICAL,
+			readBlocks: ONE_BLOCK,
+			readBlockByRef: BLOCK_BY_REF,
 			readReorgs: async () => [],
 		}),
 	);
@@ -174,6 +196,7 @@ describe.each([
 	["nft-transfers", "/v1/index/nft-transfers"],
 	["contract-calls", "/v1/index/contract-calls"],
 	["canonical", "/v1/index/canonical"],
+	["blocks", "/v1/index/blocks"],
 ])("Index %s caching", (_name, path) => {
 	const finalized = `${path}?from_height=0&to_height=9994`;
 	const tipSpanning = `${path}?from_height=0`;
@@ -228,5 +251,52 @@ describe("Index canonical route", () => {
 			routes: Array<{ path: string }>;
 		};
 		expect(body.routes.map((r) => r.path)).toContain("/v1/index/canonical");
+	});
+});
+
+describe("Index blocks routes", () => {
+	test("lists blocks as a cursor envelope", async () => {
+		const res = await createApp().request(
+			"/v1/index/blocks?from_height=0&to_height=9994",
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			blocks: Array<{ block_height: number; canonical: boolean }>;
+			next_cursor: string | null;
+			tip: { block_height: number };
+		};
+		expect(body.blocks[0]).toMatchObject({
+			block_height: 9000,
+			canonical: true,
+		});
+		expect(body.next_cursor).toBe("9000:0");
+	});
+
+	test("fetches a single block by height with finalized caching", async () => {
+		const app = createApp();
+		const res = await app.request("/v1/index/blocks/9000");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { block: { block_hash: string } };
+		expect(body.block.block_hash).toBe("0x9000");
+		// height 9000 <= finalized 9994 and canonical → immutable + ETag + 304.
+		expect(res.headers.get("Cache-Control")).toBe(IMMUTABLE_CACHE_CONTROL);
+		const etag = res.headers.get("ETag");
+		expect(etag).not.toBeNull();
+		const conditional = await app.request("/v1/index/blocks/9000", {
+			headers: { "If-None-Match": etag as string },
+		});
+		expect(conditional.status).toBe(304);
+	});
+
+	test("fetches a single block by hash", async () => {
+		const res = await createApp().request("/v1/index/blocks/0x9000");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { block: { block_height: number } };
+		expect(body.block.block_height).toBe(9000);
+	});
+
+	test("returns 404 for an unknown block", async () => {
+		const res = await createApp().request("/v1/index/blocks/0xdead");
+		expect(res.status).toBe(404);
 	});
 });
