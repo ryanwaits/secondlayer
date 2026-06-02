@@ -17,6 +17,10 @@ export {
 	type Pox4CallsParams,
 } from "./datasets/client.ts";
 export type {
+	BlockEnvelope,
+	BlocksEnvelope,
+	BlocksListParams,
+	BlocksWalkParams,
 	CanonicalEnvelope,
 	CanonicalListParams,
 	CanonicalWalkParams,
@@ -30,6 +34,7 @@ export type {
 	FtTransfersEnvelope,
 	FtTransfersListParams,
 	FtTransfersWalkParams,
+	IndexBlock,
 	IndexCanonicalBlock,
 	IndexContractCall,
 	IndexEvent,

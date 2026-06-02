@@ -268,6 +268,54 @@ describe("SecondLayer Index client", () => {
 		expect(secondUrl.searchParams.get("cursor")).toBe("9000:0");
 	});
 
+	test("lists blocks and fetches a single block by ref", async () => {
+		const block = {
+			cursor: "9000:0",
+			block_height: 9000,
+			block_hash: "0x9000",
+			parent_hash: "0x8999",
+			burn_block_height: 19_000,
+			burn_block_hash: "0xb9000",
+			block_time: "2026-05-01T00:00:00.000Z",
+			canonical: true,
+		};
+		const requests: Request[] = [];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			const path = new URL(request.url).pathname;
+			if (path === "/v1/index/blocks/9000") {
+				return jsonResponse({ block, tip: TIP });
+			}
+			return jsonResponse({ blocks: [block], next_cursor: "9000:0", tip: TIP });
+		}) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+
+		const list = await client.index.blocks.list({ fromHeight: 0, limit: 10 });
+		expect(new URL(requests[0]?.url ?? "").pathname).toBe("/v1/index/blocks");
+		expect(list.blocks[0]?.canonical).toBe(true);
+
+		const single = await client.index.blocks.get(9000);
+		expect(new URL(requests[1]?.url ?? "").pathname).toBe(
+			"/v1/index/blocks/9000",
+		);
+		expect(single?.block.block_hash).toBe("0x9000");
+	});
+
+	test("blocks.get resolves to null on 404", async () => {
+		globalThis.fetch = (async (_input, _init) =>
+			jsonResponse({ error: "Block not found" }, 404)) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+		expect(await client.index.blocks.get("0xdead")).toBeNull();
+	});
+
 	test("walks nft transfer history until an empty page", async () => {
 		const requests: Request[] = [];
 		const pages = [

@@ -1,5 +1,6 @@
 import { BaseClient, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
+import { ApiError } from "../errors.ts";
 
 export type IndexTip = {
 	block_height: number;
@@ -276,6 +277,45 @@ export type CanonicalWalkParams = Omit<CanonicalListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+// ── Blocks (/v1/index/blocks) ──────────────────────────────────────
+
+/** A block resource. Metadata is intentionally thin — only chain-linkage and
+ *  burn-anchor fields are persisted (no miner / tx_count / signer). */
+export type IndexBlock = {
+	cursor: string;
+	block_height: number;
+	block_hash: string;
+	parent_hash: string;
+	burn_block_height: number;
+	burn_block_hash: string | null;
+	block_time: string | null;
+	canonical: boolean;
+};
+
+export type BlocksEnvelope = {
+	blocks: IndexBlock[];
+	next_cursor: string | null;
+	tip: IndexTip;
+};
+
+export type BlockEnvelope = {
+	block: IndexBlock;
+	tip: IndexTip;
+};
+
+export type BlocksListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type BlocksWalkParams = Omit<BlocksListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -347,6 +387,21 @@ export class Index extends BaseClient {
 		walk: (
 			params: CanonicalWalkParams = {},
 		): AsyncIterable<IndexCanonicalBlock> => this.walkCanonical(params),
+	};
+
+	/** Canonical blocks: paginated `list`/`walk`, plus `get` by height or hash
+	 *  (resolves to null on 404). */
+	readonly blocks: {
+		list: (params?: BlocksListParams) => Promise<BlocksEnvelope>;
+		walk: (params?: BlocksWalkParams) => AsyncIterable<IndexBlock>;
+		get: (ref: string | number) => Promise<BlockEnvelope | null>;
+	} = {
+		list: (params: BlocksListParams = {}): Promise<BlocksEnvelope> =>
+			this.listBlocks(params),
+		walk: (params: BlocksWalkParams = {}): AsyncIterable<IndexBlock> =>
+			this.walkBlocks(params),
+		get: (ref: string | number): Promise<BlockEnvelope | null> =>
+			this.getBlock(ref),
 	};
 
 	private async listFtTransfers(
@@ -603,6 +658,68 @@ export class Index extends BaseClient {
 				!nextCursor ||
 				nextCursor === cursor ||
 				envelope.canonical.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async listBlocks(
+		params: BlocksListParams = {},
+	): Promise<BlocksEnvelope> {
+		return this.request<BlocksEnvelope>(
+			"GET",
+			`/v1/index/blocks${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
+		);
+	}
+
+	private async getBlock(ref: string | number): Promise<BlockEnvelope | null> {
+		try {
+			return await this.request<BlockEnvelope>(
+				"GET",
+				`/v1/index/blocks/${encodeURIComponent(String(ref))}`,
+			);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
+	}
+
+	private async *walkBlocks(
+		params: BlocksWalkParams = {},
+	): AsyncGenerator<IndexBlock> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listBlocks({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const block of envelope.blocks) {
+				if (params.signal?.aborted) return;
+				yield block;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.blocks.length < batchSize
 			) {
 				return;
 			}
