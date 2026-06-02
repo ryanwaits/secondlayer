@@ -39,11 +39,17 @@ export type {
 	IndexContractCall,
 	IndexEvent,
 	IndexEventType,
+	IndexPostCondition,
 	IndexTip,
+	IndexTransaction,
 	NftTransfer,
 	NftTransfersEnvelope,
 	NftTransfersListParams,
 	NftTransfersWalkParams,
+	TransactionEnvelope,
+	TransactionsEnvelope,
+	TransactionsListParams,
+	TransactionsWalkParams,
 } from "./index-api/index.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
 export type {

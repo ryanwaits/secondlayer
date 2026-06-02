@@ -316,6 +316,74 @@ describe("SecondLayer Index client", () => {
 		expect(await client.index.blocks.get("0xdead")).toBeNull();
 	});
 
+	test("lists transactions with filters and fetches one by tx_id", async () => {
+		const tx = {
+			cursor: "9000:0",
+			tx_id: "0xtt",
+			block_height: 9000,
+			tx_index: 0,
+			tx_type: "token_transfer",
+			sender: "SP1",
+			status: "success",
+			fee: "180",
+			nonce: "1",
+			sponsored: false,
+			anchor_mode: "any",
+			post_condition_mode: "deny",
+			post_conditions: [],
+			token_transfer: { recipient: "SP2", amount: "1", memo: "" },
+		};
+		const requests: Request[] = [];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			const path = new URL(request.url).pathname;
+			if (path === "/v1/index/transactions/0xtt") {
+				return jsonResponse({ transaction: tx, tip: TIP });
+			}
+			return jsonResponse({
+				transactions: [tx],
+				next_cursor: "9000:0",
+				tip: TIP,
+				reorgs: [],
+			});
+		}) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+
+		const list = await client.index.transactions.list({
+			type: "token_transfer",
+			sender: "SP1",
+			contractId: "SP2.amm",
+			fromHeight: 0,
+		});
+		const listUrl = new URL(requests[0]?.url ?? "");
+		expect(listUrl.pathname).toBe("/v1/index/transactions");
+		expect(listUrl.searchParams.get("type")).toBe("token_transfer");
+		expect(listUrl.searchParams.get("sender")).toBe("SP1");
+		expect(listUrl.searchParams.get("contract_id")).toBe("SP2.amm");
+		expect(list.transactions[0]?.fee).toBe("180");
+
+		const single = await client.index.transactions.get("0xtt");
+		expect(new URL(requests[1]?.url ?? "").pathname).toBe(
+			"/v1/index/transactions/0xtt",
+		);
+		expect(single?.transaction.tx_type).toBe("token_transfer");
+	});
+
+	test("transactions.get resolves to null on 404", async () => {
+		globalThis.fetch = (async (_input, _init) =>
+			jsonResponse({ error: "Transaction not found" }, 404)) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+		expect(await client.index.transactions.get("0xnope")).toBeNull();
+	});
+
 	test("walks nft transfer history until an empty page", async () => {
 		const requests: Request[] = [];
 		const pages = [

@@ -316,6 +316,95 @@ export type BlocksWalkParams = Omit<BlocksListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+// ── Transactions (/v1/index/transactions) ──────────────────────────
+
+export type IndexPostCondition =
+	| {
+			type: "stx";
+			principal: string;
+			condition_code: number;
+			condition_code_name: string | null;
+			amount: string;
+	  }
+	| {
+			type: "ft";
+			principal: string;
+			asset_identifier: string;
+			condition_code: number;
+			condition_code_name: string | null;
+			amount: string;
+	  }
+	| {
+			type: "nft";
+			principal: string;
+			asset_identifier: string;
+			asset_value: unknown;
+			condition_code: number;
+			condition_code_name: string | null;
+	  };
+
+/** Full transaction document: columnar fields plus `raw_tx`-decoded enrichment.
+ *  Payload sub-objects are present only for the matching `tx_type`; enrichment
+ *  fields are null when `raw_tx` isn't decodable (e.g. burnchain ops). */
+export type IndexTransaction = {
+	cursor: string;
+	tx_id: string;
+	block_height: number;
+	block_time?: string | null;
+	tx_index: number;
+	tx_type: string;
+	sender: string;
+	status: string;
+	fee: string | null;
+	nonce: string | null;
+	sponsored: boolean | null;
+	anchor_mode: string | null;
+	post_condition_mode: string | null;
+	post_conditions: IndexPostCondition[];
+	contract_call?: {
+		contract_id: string;
+		function_name: string;
+		function_args: unknown[];
+		result: unknown;
+		result_hex: string | null;
+	};
+	token_transfer?: { recipient: string; amount: string; memo: string };
+	smart_contract?: {
+		contract_id: string | null;
+		clarity_version: number | null;
+	};
+	coinbase?: { alt_recipient: string | null };
+	tenure_change?: { cause: number };
+};
+
+export type TransactionsEnvelope = {
+	transactions: IndexTransaction[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	reorgs: never[];
+};
+
+export type TransactionEnvelope = {
+	transaction: IndexTransaction;
+	tip: IndexTip;
+};
+
+export type TransactionsListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	type?: string;
+	sender?: string;
+	contractId?: string;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type TransactionsWalkParams = Omit<TransactionsListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -402,6 +491,23 @@ export class Index extends BaseClient {
 			this.walkBlocks(params),
 		get: (ref: string | number): Promise<BlockEnvelope | null> =>
 			this.getBlock(ref),
+	};
+
+	/** Full transaction documents: paginated `list`/`walk`, plus `get` by tx_id
+	 *  (resolves to null on 404). */
+	readonly transactions: {
+		list: (params?: TransactionsListParams) => Promise<TransactionsEnvelope>;
+		walk: (params?: TransactionsWalkParams) => AsyncIterable<IndexTransaction>;
+		get: (txId: string) => Promise<TransactionEnvelope | null>;
+	} = {
+		list: (
+			params: TransactionsListParams = {},
+		): Promise<TransactionsEnvelope> => this.listTransactions(params),
+		walk: (
+			params: TransactionsWalkParams = {},
+		): AsyncIterable<IndexTransaction> => this.walkTransactions(params),
+		get: (txId: string): Promise<TransactionEnvelope | null> =>
+			this.getTransaction(txId),
 	};
 
 	private async listFtTransfers(
@@ -720,6 +826,73 @@ export class Index extends BaseClient {
 				!nextCursor ||
 				nextCursor === cursor ||
 				envelope.blocks.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async listTransactions(
+		params: TransactionsListParams = {},
+	): Promise<TransactionsEnvelope> {
+		return this.request<TransactionsEnvelope>(
+			"GET",
+			`/v1/index/transactions${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				type: params.type,
+				sender: params.sender,
+				contract_id: params.contractId,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
+		);
+	}
+
+	private async getTransaction(
+		txId: string,
+	): Promise<TransactionEnvelope | null> {
+		try {
+			return await this.request<TransactionEnvelope>(
+				"GET",
+				`/v1/index/transactions/${encodeURIComponent(txId)}`,
+			);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
+	}
+
+	private async *walkTransactions(
+		params: TransactionsWalkParams = {},
+	): AsyncGenerator<IndexTransaction> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listTransactions({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const tx of envelope.transactions) {
+				if (params.signal?.aborted) return;
+				yield tx;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.transactions.length < batchSize
 			) {
 				return;
 			}
