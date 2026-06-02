@@ -352,6 +352,44 @@ const OPENAPI_SPEC = {
 				responses: ok(),
 			},
 		},
+		"/v1/index/transactions": {
+			get: {
+				tags: ["index"],
+				summary: "Full transaction documents",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "string", example: "7960000:3" },
+					},
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+					qp("type", "string"),
+					qp("sender", "string"),
+					qp("contract_id", "string"),
+				],
+				responses: envelope("transactions"),
+			},
+		},
+		"/v1/index/transactions/{tx_id}": {
+			get: {
+				tags: ["index"],
+				summary: "Transaction by tx_id",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{
+						name: "tx_id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+					},
+				],
+				responses: ok(),
+			},
+		},
 		"/v1/streams": {
 			get: { tags: ["streams"], summary: "Streams discovery", responses: ok() },
 		},

@@ -45,6 +45,13 @@ import {
 	type IndexTipProvider,
 	getIndexTip,
 } from "../index/tip.ts";
+import {
+	TRANSACTIONS_FILTERS,
+	type TransactionByIdReader,
+	type TransactionsReader,
+	getTransactionsResponse,
+	readTransactionById,
+} from "../index/transactions.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -75,6 +82,8 @@ export type IndexRouterOptions = {
 	readCanonical?: CanonicalRangeReader;
 	readBlocks?: BlocksReader;
 	readBlockByRef?: BlockByRefReader;
+	readTransactions?: TransactionsReader;
+	readTransactionById?: TransactionByIdReader;
 	readReorgs?: StreamsReorgsReader;
 	recordDecodedEventsReturned?: (
 		accountId: string,
@@ -171,6 +180,19 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					method: "GET",
 					description:
 						"A single block by height (canonical) or by hash (any; check the canonical flag). 404 when absent.",
+				},
+				{
+					path: "/v1/index/transactions",
+					method: "GET",
+					description:
+						"Full transaction documents (fee, nonce, post-conditions, payload detail decoded from raw_tx), filterable by type/sender/contract_id + cursor-paginated. Returns transactions[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<tx_index>.",
+					filters: TRANSACTIONS_FILTERS,
+				},
+				{
+					path: "/v1/index/transactions/:tx_id",
+					method: "GET",
+					description:
+						"A single transaction document by tx_id (canonical). 404 when absent.",
 				},
 			],
 			auth: "optional bearer for higher rate-limit tier; anon allowed",
@@ -298,6 +320,52 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			}
 		}
 		return c.json({ block, tip });
+	});
+
+	router.get("/transactions", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, TRANSACTIONS_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getTransactionsResponse({
+			query,
+			tip,
+			readTransactions: opts.readTransactions,
+		});
+		const notModified = applyIndexCache(c, query, tip, {
+			transactions: response.transactions,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.transactions.length > 0) {
+			await recordDecodedEventsReturned(
+				accountId,
+				response.transactions.length,
+			);
+		}
+		return c.json(response);
+	});
+
+	router.get("/transactions/:tx_id", async (c) => {
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const read = opts.readTransactionById ?? readTransactionById;
+		const transaction = await read(c.req.param("tx_id"));
+		if (!transaction) return c.json({ error: "Transaction not found" }, 404);
+		// Point-get: cheap reference data, served but not metered. Immutable once
+		// past finality (the reader only returns canonical transactions).
+		const finalized = transaction.block_height <= tip.finalized_height;
+		c.header("Cache-Control", cacheControl(finalized));
+		if (finalized) {
+			const tag = etag(JSON.stringify(transaction));
+			c.header("ETag", tag);
+			if (matchesIfNoneMatch(c.req.header("If-None-Match"), tag)) {
+				return c.body(null, 304);
+			}
+		}
+		return c.json({ transaction, tip });
 	});
 
 	router.get("/ft-transfers", async (c) => {

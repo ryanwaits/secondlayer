@@ -13,6 +13,11 @@ import type { IndexEventsReader } from "./events.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
 import type { IndexTip } from "./tip.ts";
+import type {
+	IndexTransaction,
+	TransactionByIdReader,
+	TransactionsReader,
+} from "./transactions.ts";
 
 const TIP: IndexTip = {
 	block_height: 10_000,
@@ -130,6 +135,32 @@ const ONE_BLOCK: BlocksReader = async () => ({
 const BLOCK_BY_REF: BlockByRefReader = async (ref) =>
 	ref === "9000" || ref === "0x9000" ? BLOCK_9000 : null;
 
+const TX_9000: IndexTransaction = {
+	cursor: "9000:0",
+	tx_id: "0xtt",
+	block_height: 9000,
+	block_time: "2026-05-01T00:00:00.000Z",
+	tx_index: 0,
+	tx_type: "token_transfer",
+	sender: "SP1",
+	status: "success",
+	fee: "180",
+	nonce: "1",
+	sponsored: false,
+	anchor_mode: "any",
+	post_condition_mode: "deny",
+	post_conditions: [],
+	token_transfer: { recipient: "SP2", amount: "1", memo: "" },
+};
+
+const ONE_TX: TransactionsReader = async () => ({
+	transactions: [TX_9000],
+	next_cursor: "9000:0",
+});
+
+const TX_BY_ID: TransactionByIdReader = async (txId) =>
+	txId === "0xtt" ? TX_9000 : null;
+
 function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 	const app = new Hono();
 	app.onError(errorHandler);
@@ -144,6 +175,8 @@ function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 			readCanonical: ONE_CANONICAL,
 			readBlocks: ONE_BLOCK,
 			readBlockByRef: BLOCK_BY_REF,
+			readTransactions: ONE_TX,
+			readTransactionById: TX_BY_ID,
 			readReorgs: async () => [],
 		}),
 	);
@@ -197,6 +230,7 @@ describe.each([
 	["contract-calls", "/v1/index/contract-calls"],
 	["canonical", "/v1/index/canonical"],
 	["blocks", "/v1/index/blocks"],
+	["transactions", "/v1/index/transactions"],
 ])("Index %s caching", (_name, path) => {
 	const finalized = `${path}?from_height=0&to_height=9994`;
 	const tipSpanning = `${path}?from_height=0`;
@@ -297,6 +331,44 @@ describe("Index blocks routes", () => {
 
 	test("returns 404 for an unknown block", async () => {
 		const res = await createApp().request("/v1/index/blocks/0xdead");
+		expect(res.status).toBe(404);
+	});
+});
+
+describe("Index transactions routes", () => {
+	test("lists full transaction documents as a cursor envelope", async () => {
+		const res = await createApp().request(
+			"/v1/index/transactions?from_height=0&to_height=9994",
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			transactions: Array<{ tx_type: string; fee: string | null }>;
+			next_cursor: string | null;
+			reorgs: unknown[];
+		};
+		expect(body.transactions[0]).toMatchObject({
+			tx_type: "token_transfer",
+			fee: "180",
+		});
+		expect(body.reorgs).toEqual([]);
+	});
+
+	test("fetches a single transaction by tx_id with finalized caching", async () => {
+		const app = createApp();
+		const res = await app.request("/v1/index/transactions/0xtt");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { transaction: { tx_id: string } };
+		expect(body.transaction.tx_id).toBe("0xtt");
+		expect(res.headers.get("Cache-Control")).toBe(IMMUTABLE_CACHE_CONTROL);
+		const etag = res.headers.get("ETag");
+		const conditional = await app.request("/v1/index/transactions/0xtt", {
+			headers: { "If-None-Match": etag as string },
+		});
+		expect(conditional.status).toBe(304);
+	});
+
+	test("returns 404 for an unknown tx_id", async () => {
+		const res = await createApp().request("/v1/index/transactions/0xnope");
 		expect(res.status).toBe(404);
 	});
 });
