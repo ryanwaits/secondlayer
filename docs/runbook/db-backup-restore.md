@@ -21,27 +21,39 @@ Two backstops now make an empty/wrong volume loud instead of silent:
 
 Tiered, smallest-effort-first.
 
-### v1 — offsite PITR to R2 (WAL-G)  ← wired, apply when the bucket exists
-Postgres already archives WAL to `/wal_archive` (`archive_mode=on`). The
-**`walg-backup` sidecar** (`docker/walg/`, added to `docker-compose.hetzner.yml`)
-finishes the job: a spooler ships each archived segment to R2 and deletes it
-(also bounding the local `/wal_archive`), plus a weekly `wal-g backup-push` with
-`delete retain FULL 4`. Base + WAL = **point-in-time recovery**.
+### Offsite PITR to R2 (WAL-G) — **LIVE since 2026-06-02 (verified)**
+Postgres archives WAL to `/wal_archive` (`archive_mode=on`). The **`walg-backup`
+sidecar** (`docker/walg/`, in `docker-compose.hetzner.yml`) spools each archived
+segment to R2 and deletes it (bounding local `/wal_archive`), plus a weekly
+`wal-g backup-push` with `delete retain FULL 4`. Base + WAL = **point-in-time
+recovery**. Backups go to the private R2 bucket `secondlayer-db-backups`
+(`s3://secondlayer-db-backups/pg`) using a dedicated scoped token in prod `.env`
+(`WALG_R2_ACCESS_KEY_ID/SECRET` + `WALG_S3_PREFIX`; endpoint auto-reuses
+`STREAMS_BULK_R2_ENDPOINT`). First full verified: `wal-verify integrity` OK, the
+spool drained 12 GB → ~0.
 
-**Apply (one-time):**
-1. Create a **private** R2 bucket `secondlayer-db-backups` (NOT the public dumps
-   bucket). By default the sidecar reuses the `STREAMS_BULK_R2_*` creds; set
-   `WALG_*` overrides in `.env` only if you mint scoped creds.
-2. Set `WALG_S3_PREFIX=s3://secondlayer-db-backups/pg` in the prod `.env`
-   (see `docker/.env.hetzner.example`).
-3. Deploy. The sidecar will take a first base backup immediately, then weekly.
-4. Verify: `docker logs secondlayer-walg-backup-1` shows `base backup complete`;
-   `docker exec secondlayer-walg-backup-1 wal-g backup-list` lists it.
-5. After the first base backup succeeds, the old pre-WAL-G segments still sitting
-   in `/wal_archive` get spooled up + removed automatically.
+- **Gotcha (already fixed in compose):** `wal-g backup-push` requires its data-dir
+  arg to equal Postgres's `data_directory`, so the sidecar mounts PGDATA at
+  `/var/lib/postgresql/data` (not `/pgdata`). Keep them equal.
+- Health: `docker logs secondlayer-walg-backup-1` ("base backup complete"),
+  `docker exec secondlayer-walg-backup-1 wal-g backup-list`.
 
-### v2 — local fast snapshot (optional)
-Nightly `pg_basebackup` to the local data disk (plenty of free space), keep last N — instant local restore if the volume is fine but data got clobbered. Or move PGDATA onto ZFS/LVM for instant copy-on-write snapshots.
+### Decommissioned 2026-06-02 — the OLD local backup system (was the disk-fill cause)
+A cron-based local system (`backup-postgres.sh` daily 22 GB pg_dump ×7 = 154 GB,
+`backup-basebackup.sh` weekly 34 GB = 96 GB, `sync-wal.sh`, `upload-snapshot.sh`)
+grew to **264 GB** with weak retention — the "ran out of space in a week." All
+four crons are commented `# DISABLED walg->R2` in the app-server crontab and the
+`/data/backups/{postgres,basebackup}` dirs deleted (reclaimed 264 GB). Storage Box
+keeps its last-synced copies as a frozen fallback. `prune-docker-images.sh` (2am)
+stays. Also reclaimed: a dead 953 GB `chainstate-vg` LVM (held 4.5 GB of abandoned
+node data; lvremove + vgremove + pvremove of `nvme2n1p4`/`nvme3n1p4`).
+
+### Node chainstate — intentionally NOT backed up
+The stacks-node + bitcoind chainstate (~2 TB) on the separate node-server
+(`37.27.171.220`) is **public, reconstructible** data. Recovery = restore from a
+Hiro chainstate snapshot (`archive.hiro.so`, hours) or network re-sync (2–4 days).
+A ~$31/mo R2 copy of re-derivable data isn't justified — only the irreplaceable
+platform Postgres warrants the R2 backup above.
 
 ### Last resort — cold rebuild from chain
 `packages/indexer/src/bulk-backfill.ts` with `BACKFILL_SOURCE=archive` rebuilds `blocks`/`transactions`/`events` from Hiro's ~25GB event archive (`archive.hiro.so`), replaying gap heights through the indexer's `/new_block`. Slow (hours) but zero external dependency. Run it **inside** the indexer container (`localhost:3700` ingest), with `ARCHIVE_DIR=/data/archive`, `BACKFILL_FROM`/`BACKFILL_TO` set explicitly. (Fixed 2026-05-30 — it previously crashed on large gap sets.)
