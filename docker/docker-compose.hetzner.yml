@@ -50,13 +50,15 @@ services:
       PGUSER: ${POSTGRES_USER:-secondlayer}
       PGPASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
       PGDATABASE: ${POSTGRES_DB:-secondlayer}
-      PGDATA: /pgdata
+      # Must equal Postgres's own data_directory — wal-g backup-push refuses if
+      # the path differs from what Postgres reports. So mount at the same path.
+      PGDATA: /var/lib/postgresql/data
       RETAIN_FULL: ${WALG_RETAIN_FULL:-4}
       BACKUP_INTERVAL_SECS: ${WALG_BACKUP_INTERVAL_SECS:-604800}
     volumes:
       # PGDATA read-only (backup-push reads the data dir); the WAL spool is r/w
       # so the spooler can delete segments after they're safely in R2.
-      - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/pgdata:ro
+      - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data:ro
       - ${DATA_DIR:-/opt/secondlayer/data}/wal_archive:/wal_archive
 
   api:
