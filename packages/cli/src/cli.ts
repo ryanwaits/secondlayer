@@ -7,6 +7,7 @@ import {
 	registerDatasetsCommand,
 	registerDevnetCommand,
 	registerDoctorCommand,
+	registerIndexCommand,
 	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
@@ -72,6 +73,7 @@ registerSubgraphsCommand(program);
 registerSubscriptionsCommand(program);
 registerStreamsCommand(program);
 registerDatasetsCommand(program);
+registerIndexCommand(program);
 
 // Project & codegen
 program.commandsGroup("Project & codegen:");

@@ -178,6 +178,53 @@ export function registerProjectCommand(program: Command): void {
 				},
 			});
 		});
+
+	project
+		.command("delete <slug>")
+		.alias("rm")
+		.description("Delete a project")
+		.option("-y, --yes", "Skip confirmation")
+		.action(async (slug: string, options: { yes?: boolean } = {}) => {
+			if (!options.yes) {
+				// Refuse to prompt on non-TTY stdin so a piped newline can't
+				// auto-accept the destructive default. Mirrors `sl subgraphs delete`.
+				if (!process.stdin.isTTY) {
+					logError(
+						"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
+					);
+					process.exit(1);
+				}
+				const { confirm } = await import("@inquirer/prompts");
+				let ok = false;
+				try {
+					ok = await confirm({
+						message: `Delete project "${slug}"? This cannot be undone.`,
+					});
+				} catch {
+					logError(
+						"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
+					);
+					process.exit(1);
+				}
+				if (!ok) {
+					info("Cancelled");
+					return;
+				}
+			}
+
+			try {
+				await httpPlatform(`/api/projects/${encodeURIComponent(slug)}`, {
+					method: "DELETE",
+				});
+				success(`Deleted project "${slug}"`);
+			} catch (err) {
+				if (err instanceof CliHttpError && err.status === 404) {
+					info(`Project "${slug}" not found (already deleted?)`);
+					return;
+				}
+				handleProjectError(err);
+			}
+		});
 }
 
 function handleProjectError(err: unknown): never {

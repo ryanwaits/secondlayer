@@ -622,7 +622,10 @@ Examples:
 	// --- deploy ---
 	subgraphs
 		.command("deploy <file>")
-		.description("Deploy a subgraph definition file")
+		.alias("update")
+		.description(
+			"Deploy a subgraph definition file (alias: update — deploy is create-or-update)",
+		)
 		.option(
 			"--start-block <n>",
 			"Override the subgraph definition startBlock for this deploy",
