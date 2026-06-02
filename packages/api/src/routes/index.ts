@@ -10,6 +10,11 @@ import {
 } from "../index/auth.ts";
 import { indexCachePlan } from "../index/cache.ts";
 import {
+	CANONICAL_FILTERS,
+	type CanonicalRangeReader,
+	getCanonicalResponse,
+} from "../index/canonical.ts";
+import {
 	CONTRACT_CALLS_FILTERS,
 	type ContractCallsReader,
 	getContractCallsResponse,
@@ -60,6 +65,7 @@ export type IndexRouterOptions = {
 	readContractCalls?: ContractCallsReader;
 	readFtTransfers?: FtTransfersReader;
 	readNftTransfers?: NftTransfersReader;
+	readCanonical?: CanonicalRangeReader;
 	readReorgs?: StreamsReorgsReader;
 	recordDecodedEventsReturned?: (
 		accountId: string,
@@ -137,6 +143,13 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 						"Decoded contract-call transactions (function args + result), filterable + cursor-paginated. Returns contract_calls[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<tx_index>.",
 					filters: CONTRACT_CALLS_FILTERS,
 				},
+				{
+					path: "/v1/index/canonical",
+					method: "GET",
+					description:
+						"Canonical block-hash map over a height range — one row per height (orphaned blocks excluded) so clients sync only the canonical chain. Returns canonical[] ({block_height, block_hash, parent_hash, burn_block_height, burn_block_hash}), next_cursor, tip.",
+					filters: CANONICAL_FILTERS,
+				},
 			],
 			auth: "optional bearer for higher rate-limit tier; anon allowed",
 			cursor: {
@@ -199,6 +212,26 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 				response.contract_calls.length,
 			);
 		}
+		return c.json(response);
+	});
+
+	router.get("/canonical", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, CANONICAL_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getCanonicalResponse({
+			query,
+			tip,
+			readCanonical: opts.readCanonical,
+		});
+		// The canonical map is cheap sync metadata — served but deliberately not
+		// metered as decoded events.
+		const notModified = applyIndexCache(c, query, tip, {
+			canonical: response.canonical,
+			next_cursor: response.next_cursor,
+		});
+		if (notModified) return notModified;
 		return c.json(response);
 	});
 

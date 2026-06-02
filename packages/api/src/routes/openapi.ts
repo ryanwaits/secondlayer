@@ -306,6 +306,21 @@ const OPENAPI_SPEC = {
 				responses: envelope("contract_calls"),
 			},
 		},
+		"/v1/index/canonical": {
+			get: {
+				tags: ["index"],
+				summary: "Canonical block-hash map",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{ $ref: "#/components/parameters/Cursor" },
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+				],
+				responses: envelope("canonical"),
+			},
+		},
 		"/v1/streams": {
 			get: { tags: ["streams"], summary: "Streams discovery", responses: ok() },
 		},
