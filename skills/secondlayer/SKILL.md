@@ -10,7 +10,7 @@ Secondlayer is a stack of tools for building on the **Stacks blockchain**:
 | Layer | Package / Surface | What it does |
 |---|---|---|
 | **L1 raw events** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `sl streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `types`/`not_types` + `sender`/`recipient`/`contract_id` (single or comma-list) payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `sl streams pull`). |
-| **L2 decoded transfers** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` | Pre-decoded SIP-010 (FT) and SIP-009 (NFT) transfers, filtered by principal/contract. |
+| **L2 decoded events** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` · `sl index` | The full decoded layer: SIP-010 (FT) and SIP-009 (NFT) transfers, all event types (`stx_*`, ft/nft mint/burn, print) via `events`, and decoded `contract-calls` — filtered by principal/contract/height. |
 | **L3 app-specific tables** | `@secondlayer/subgraphs` + CLI · REST `/api/subgraphs` | TypeScript-authored indexers: declare filters + schema + handlers; Secondlayer materializes Postgres tables and exposes REST. |
 | **Per-row webhooks** | `sl.subscriptions` · REST `/api/subscriptions` · `sl subscriptions` | Standard-Webhooks-signed deliveries for every row written by a subgraph. |
 | **Chain client** | `@secondlayer/stacks` | viem-style SDK: public/wallet clients, `Cl.*`, `Pc.*`, `getContract`, BNS / PoX / sBTC / StackingDAO extensions. |
@@ -84,7 +84,7 @@ Reads are not uniformly open — know the tier before querying:
 |---|---|---|
 | Subgraph deploy errors `upsert requires unique key` | Schema declared `upsert` writes but `uniqueKeys` missing | Add `uniqueKeys: [["col_a", "col_b"]]` to the table |
 | Subscription paused after 20 failures | Receiver returning 4xx/5xx or timing out | `sl subscriptions doctor <name>`; fix receiver; `sl subscriptions resume <name>` |
-| `ApiError 401` from SDK | Missing `apiKey` or expired session | Set `SECONDLAYER_API_KEY` / regenerate from dashboard; for CLI run `sl login` |
+| `ApiError 401` from SDK | Missing `apiKey` or expired session | Pass `apiKey` to the client (commonly from `SL_API_KEY`) / regenerate from dashboard; for CLI run `sl login` |
 | `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `sl subgraphs client <name> -o ...` or refresh ABI |
 | Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `sl subscriptions update <name> --format standard-webhooks` |
 | Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `sl subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |
