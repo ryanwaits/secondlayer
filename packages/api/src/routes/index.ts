@@ -41,6 +41,11 @@ import {
 } from "../index/nft-transfers.ts";
 import { indexRateLimit } from "../index/rate-limit.ts";
 import {
+	STACKING_FILTERS,
+	type StackingReader,
+	getStackingResponse,
+} from "../index/stacking.ts";
+import {
 	type IndexTip,
 	type IndexTipProvider,
 	getIndexTip,
@@ -84,6 +89,7 @@ export type IndexRouterOptions = {
 	readBlockByRef?: BlockByRefReader;
 	readTransactions?: TransactionsReader;
 	readTransactionById?: TransactionByIdReader;
+	readStacking?: StackingReader;
 	readReorgs?: StreamsReorgsReader;
 	recordDecodedEventsReturned?: (
 		accountId: string,
@@ -193,6 +199,13 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					method: "GET",
 					description:
 						"A single transaction document by tx_id (canonical). 404 when absent.",
+				},
+				{
+					path: "/v1/index/stacking",
+					method: "GET",
+					description:
+						"Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …), filterable by function_name/stacker/caller + cursor-paginated. Returns stacking[], next_cursor, tip. Cursor: <block_height>:<tx_index>.",
+					filters: STACKING_FILTERS,
 				},
 			],
 			auth: "optional bearer for higher rate-limit tier; anon allowed",
@@ -366,6 +379,28 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			}
 		}
 		return c.json({ transaction, tip });
+	});
+
+	router.get("/stacking", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, STACKING_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getStackingResponse({
+			query,
+			tip,
+			readStacking: opts.readStacking,
+		});
+		const notModified = applyIndexCache(c, query, tip, {
+			stacking: response.stacking,
+			next_cursor: response.next_cursor,
+		});
+		if (notModified) return notModified;
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.stacking.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.stacking.length);
+		}
+		return c.json(response);
 	});
 
 	router.get("/ft-transfers", async (c) => {

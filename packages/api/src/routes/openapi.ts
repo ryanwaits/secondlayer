@@ -390,6 +390,28 @@ const OPENAPI_SPEC = {
 				responses: ok(),
 			},
 		},
+		"/v1/index/stacking": {
+			get: {
+				tags: ["index"],
+				summary: "PoX-4 stacking actions",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "string", example: "7960000:3" },
+					},
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+					qp("function_name", "string"),
+					qp("stacker", "string"),
+					qp("caller", "string"),
+				],
+				responses: envelope("stacking"),
+			},
+		},
 		"/v1/streams": {
 			get: { tags: ["streams"], summary: "Streams discovery", responses: ok() },
 		},
