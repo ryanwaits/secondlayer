@@ -1,0 +1,90 @@
+import { describe, expect, test } from "bun:test";
+import { Hono } from "hono";
+import {
+	IMMUTABLE_CACHE_CONTROL,
+	MUTABLE_CACHE_CONTROL,
+} from "../http/cache.ts";
+import { errorHandler } from "../middleware/error.ts";
+import { createIndexRouter } from "../routes/index.ts";
+import type { IndexEventsReader } from "./events.ts";
+import type { IndexTip } from "./tip.ts";
+
+const TIP: IndexTip = {
+	block_height: 10_000,
+	finalized_height: 9_994,
+	lag_seconds: 0,
+};
+
+const ONE_EVENT: IndexEventsReader = async () => ({
+	events: [
+		{
+			cursor: "9000:0",
+			block_height: 9000,
+			block_time: "2026-05-01T00:00:00.000Z",
+			tx_id: "0x01",
+			tx_index: 0,
+			event_index: 0,
+			event_type: "ft_transfer",
+			contract_id: "SP123.token",
+			asset_identifier: "SP123.token::coin",
+			sender: "SP1",
+			recipient: "SP2",
+			amount: "1",
+		},
+	],
+	next_cursor: "9000:0",
+});
+
+function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
+	const app = new Hono();
+	app.onError(errorHandler);
+	app.route(
+		"/v1/index",
+		createIndexRouter({
+			getTip: () => TIP,
+			readEvents,
+			readReorgs: async () => [],
+		}),
+	);
+	return app;
+}
+
+const FINALIZED =
+	"/v1/index/events?event_type=ft_transfer&from_height=0&to_height=9994";
+const TIP_SPANNING = "/v1/index/events?event_type=ft_transfer&from_height=0";
+
+describe("Index events caching", () => {
+	test("a finalized range is immutable and carries an ETag", async () => {
+		const res = await createApp().request(FINALIZED);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe(IMMUTABLE_CACHE_CONTROL);
+		expect(res.headers.get("ETag")).toMatch(/^W\/".+"$/);
+	});
+
+	test("If-None-Match on a finalized page short-circuits to 304", async () => {
+		const app = createApp();
+		const first = await app.request(FINALIZED);
+		const etag = first.headers.get("ETag");
+		expect(etag).not.toBeNull();
+
+		const second = await app.request(FINALIZED, {
+			headers: { "If-None-Match": etag as string },
+		});
+		expect(second.status).toBe(304);
+		expect(await second.text()).toBe("");
+	});
+
+	test("a tip-spanning range is mutable, has no ETag, and never 304s", async () => {
+		const app = createApp();
+		const res = await app.request(TIP_SPANNING);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe(MUTABLE_CACHE_CONTROL);
+		expect(res.headers.get("ETag")).toBeNull();
+
+		// A spoofed conditional must not short-circuit a still-mutable page.
+		const conditional = await app.request(TIP_SPANNING, {
+			headers: { "If-None-Match": "*" },
+		});
+		expect(conditional.status).toBe(200);
+	});
+});

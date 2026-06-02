@@ -1,12 +1,14 @@
 import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
 import { getDb } from "@secondlayer/shared/db";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
+import { etag, matchesIfNoneMatch } from "../http/cache.ts";
 import {
 	DEFAULT_INDEX_TOKEN_STORE,
 	type IndexEnv,
 	type IndexTokenStore,
 	indexBearerAuth,
 } from "../index/auth.ts";
+import { indexCachePlan } from "../index/cache.ts";
 import {
 	CONTRACT_CALLS_FILTERS,
 	type ContractCallsReader,
@@ -26,7 +28,11 @@ import {
 	getNftTransfersResponse,
 } from "../index/nft-transfers.ts";
 import { indexRateLimit } from "../index/rate-limit.ts";
-import { type IndexTipProvider, getIndexTip } from "../index/tip.ts";
+import {
+	type IndexTip,
+	type IndexTipProvider,
+	getIndexTip,
+} from "../index/tip.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -60,6 +66,31 @@ export type IndexRouterOptions = {
 		quantity: number,
 	) => Promise<void>;
 };
+
+/**
+ * Apply Index caching to a read response. Sets `Cache-Control` from the finality
+ * plan, and for immutable (fully-finalized) pages attaches an ETag over the
+ * stable slice — everything except the moving `tip`, so it survives tip
+ * movement — and short-circuits to 304 on a matching `If-None-Match` BEFORE
+ * metering, since the client already holds the data. Returns the 304 Response to
+ * return early, or null to continue. Mirrors the Streams route wiring.
+ */
+function applyIndexCache(
+	c: Context<IndexEnv>,
+	query: URLSearchParams,
+	tip: IndexTip,
+	stableSlice: unknown,
+): Response | null {
+	const plan = indexCachePlan(query, tip);
+	c.header("Cache-Control", plan.cacheControl);
+	if (!plan.fullyFinalized) return null;
+	const tag = etag(JSON.stringify(stableSlice));
+	c.header("ETag", tag);
+	if (matchesIfNoneMatch(c.req.header("If-None-Match"), tag)) {
+		return c.body(null, 304);
+	}
+	return null;
+}
 
 export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	const getTip = opts.getTip ?? getIndexTip;
@@ -132,6 +163,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readEvents: opts.readEvents,
 			readReorgs,
 		});
+		const notModified = applyIndexCache(c, query, tip, {
+			events: response.events,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
