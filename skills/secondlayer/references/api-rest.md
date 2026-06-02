@@ -130,9 +130,9 @@ Recent chain reorgs.
 
 ---
 
-## `/v1/index` — decoded chain events + contract calls
+## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, stacking)
 
-The decoded read layer over Stacks. `/v1/index/events` serves every decoded event type; `/v1/index/contract-calls` serves decoded contract-call transactions. Open-beta read (no key required). Query params are snake_case; envelope is the standard cursor shape (`events` or `contract_calls`, `next_cursor`, `tip`, `reorgs`).
+The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, and PoX-4 stacking. `GET /v1/index` returns route discovery. Open-beta read (no key required). Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
 
 ### `GET /v1/index/events`
 
@@ -175,6 +175,26 @@ Each row: `{ cursor, block_height, tx_id, tx_index, contract_id, function_name, 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/contract-calls?function_name=transfer&limit=20"
 ```
+
+### `GET /v1/index/canonical`
+
+Canonical block-hash map over a height range — one row per height (orphaned blocks excluded), so a client syncs only the current canonical chain. Lean sync primitive: no `reorgs[]`. Params: `cursor`/`from_cursor`, `from_height`/`to_height`, `limit`. Each row: `{ cursor, block_height, block_hash, parent_hash, burn_block_height, burn_block_hash }`.
+
+### `GET /v1/index/blocks` and `GET /v1/index/blocks/{height_or_hash}`
+
+Canonical blocks, cursor-paginated. Each row: `{ cursor, block_height, block_hash, parent_hash, burn_block_height, burn_block_hash, block_time, canonical }`. The single-resource form takes a height (returns the canonical block) or a hash (returns it regardless of canonicality — check the `canonical` flag); 404 when absent. Returns `{ block, tip }`.
+
+### `GET /v1/index/transactions` and `GET /v1/index/transactions/{tx_id}`
+
+Full transaction documents: the columnar fields plus enrichment decoded from `raw_tx` — `fee`, `nonce`, `sponsored`, `anchor_mode`, `post_condition_mode`, `post_conditions[]`, and a payload sub-object for the matching `tx_type` (`token_transfer`, `contract_call`, `smart_contract`, `coinbase`, `tenure_change`). Enrichment is null for undecodable rows (e.g. burnchain ops). Filter `type`/`sender`/`contract_id`. Cursor `<block_height>:<tx_index>`; always `reorgs: []`. Single form returns `{ transaction, tip }`, 404 when absent.
+
+### `GET /v1/index/stacking`
+
+Decoded PoX-4 stacking actions (`stack-stx`, `delegate-stx`, …). Filter `function_name`/`stacker`/`caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr` (`{version, hashbytes, btc}`), `start_cycle`/`end_cycle`/`reward_cycle`, `signer_key`, `result_ok`. Returns `[]` plus a `notes` hint when the platform's PoX-4 decoder is disabled.
+
+### Caching
+
+Every Index read sets `Cache-Control`: `public, max-age=31536000, immutable` once the resolved range is past burn-finality, else `private, max-age=2`. Finalized pages carry a weak ETag (over the data slice, excluding the moving tip); a matching `If-None-Match` returns 304.
 
 ---
 
