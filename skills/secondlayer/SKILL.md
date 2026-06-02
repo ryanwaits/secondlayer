@@ -48,9 +48,22 @@ These are small enough to keep in the router. Everything else is in a reference 
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 
+## Read-auth tiers
+
+Reads are not uniformly open — know the tier before querying:
+
+| Surface | Auth |
+| --- | --- |
+| Datasets (`/v1/datasets`, `sl.datasets`, `sl datasets`) | **Open** — no key |
+| Contracts (`/v1/contracts`, `sl.contracts`) | **Open** — no key |
+| Index (`/v1/index`, `sl.index`, `sl index`) | Anonymous reads OK; **free-tier API keys are rejected** (Build+ required) |
+| Streams (`/v1/streams`, `sl.streams`, `sl streams`) | **API key required** (`SL_API_KEY`) — keyless 401 |
+| Subgraphs reads | Open during beta; **writes require a key** |
+
 ## Default working loop
 
-1. **Identify the layer.** Is this a subgraph (custom indexer)? A pre-built dataset (`sl.index`)? A raw stream consumer? A direct contract call? Pick the right tool — don't reach for a subgraph when `sl.index.ftTransfers.list({ recipient })` does the job in one HTTP call.
+0. **Discover what exists.** Don't assume — enumerate at runtime: `sl datasets list` / `sl.datasets.listDatasets()` for dataset slugs + freshness, `sl.contracts.list({ trait })` for contracts implementing a trait, and (over MCP) read `secondlayer://context` for your subgraphs/subscriptions/account + capabilities.
+1. **Identify the layer.** Is this a subgraph (custom indexer)? A pre-built dataset (`sl.index` / `sl.datasets`)? A raw stream consumer? A direct contract call? Pick the right tool — don't reach for a subgraph when `sl.index.ftTransfers.list({ recipient })` does the job in one HTTP call.
 2. **Inspect first.** Before changing anything tenant-scoped, run a read (`sl subgraphs list`, `sl subscriptions get …`). Confirms auth + state, prevents accidental overwrites.
 3. **Scaffold the smallest correct thing.** Use `sl subgraphs scaffold <contract>` or `sl subscriptions create <name>` rather than hand-writing boilerplate. Both generate code that's already 1:1 with current package APIs.
 4. **Validate locally.** For subgraphs: `sl subgraphs spec <file>` to preview generated schema and API without deploying. For SDK code: type-check.

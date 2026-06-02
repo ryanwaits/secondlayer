@@ -10,6 +10,8 @@ The `sl` binary (alias `secondlayer`) is the official CLI for Secondlayer — de
 | `--version` | Print CLI version. |
 | `--help` | Show help. |
 
+**Output contract (for scripting/agents):** data goes to **stdout**, status/chrome to **stderr** (color auto-disables when piped). On platform read commands `--json` selects the full JSON envelope; `sl streams`/`sl index`/`sl datasets` already emit JSON to stdout (the `--json` flag is accepted there for uniformity). `-o, --output <path>` always means a **file path** (codegen/spec), never a format selector.
+
 ## Environment variables
 
 | Var | Used by | Purpose |
@@ -126,6 +128,12 @@ Usage: `sl projects get`
 
 No flags. Prints the active slug and resolution source (`.secondlayer/project` in cwd / parent dir / global default).
 
+### sl projects delete
+
+Delete a project. Alias: `rm`.
+
+Usage: `sl projects delete <slug>` (`-y, --yes` to skip confirmation; refuses to prompt on non-TTY stdin). Deleting your only/last project is rejected by the API.
+
 ---
 
 ## Subgraphs
@@ -158,7 +166,7 @@ Example: `sl subgraphs dev subgraphs/my-watcher.ts`
 
 ### sl subgraphs deploy
 
-Deploy a subgraph definition file.
+Deploy a subgraph definition file. Alias: `sl subgraphs update <file>` — deploy is create-or-update.
 
 Usage: `sl subgraphs deploy <file>`
 
@@ -588,6 +596,24 @@ sl datasets query burnchain-rewards --filter recipient=bc1q… --limit 20
 
 The SDK exposes the same surface (`new Datasets({...})` → `.pox4Calls.list/walk`,
 `.bnsResolve(fqn)`, `.networkHealth()`); see `sdk.md`.
+
+## Index
+
+Query the decoded L2 layer (`/v1/index`). Anonymous reads are allowed; **free-tier
+API keys are rejected** (Build+ required for keyed access). The key is optional —
+passed through from `SL_API_KEY` when present.
+
+- `sl index ft-transfers [--contract-id] [--sender] [--recipient] [--from-height] [--to-height] [--cursor] [--limit] [--json]`
+- `sl index nft-transfers [… --asset-identifier]`
+- `sl index events --event-type <type> [filters…]` — generic decoded events (stx_*, ft/nft mint/burn, print, …)
+- `sl index contract-calls [--function-name] [--sender] [filters…]`
+
+```bash
+sl index ft-transfers --recipient SP… --limit 20
+sl index events --event-type print --contract-id SP….dao --limit 10
+```
+
+Mirrors `sl.index.{ftTransfers,nftTransfers,events,contractCalls}` in the SDK.
 
 ## Streams
 

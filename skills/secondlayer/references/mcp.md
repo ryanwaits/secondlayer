@@ -61,6 +61,27 @@ Subscriptions:
 - `subscriptions_requeue_dead`
 - `subscriptions_recent_deliveries`
 
+Datasets (public reads):
+
+- `datasets_list` — catalog + freshness (discover slugs first)
+- `datasets_query` — query a cursor dataset by slug
+
+Index (decoded L2 — anonymous reads; free-tier keys rejected):
+
+- `index_ft_transfers`
+- `index_nft_transfers`
+- `index_events` — generic by event type
+- `index_contract_calls`
+
+Streams (firehose — requires SL_API_KEY):
+
+- `streams_tip`
+- `streams_events`
+
+Contracts:
+
+- `contracts_find` — discover contracts conforming to a trait
+
 Scaffold:
 
 - `scaffold_from_contract`
@@ -69,9 +90,12 @@ Scaffold:
 Account:
 
 - `account_whoami`
+- `account_update` — update profile (display_name, bio, slug)
+- `account_billing` — plan + subscription status
 
 Resources:
 
+- `secondlayer://context` — live state: what exists, what you can do, read-auth tiers (read first)
 - `secondlayer://filters`
 - `secondlayer://column-types`
 

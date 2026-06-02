@@ -2,7 +2,7 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** `sl.index.*` and read-only `sl.subgraphs.*` (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) are **anonymous** — no API key required. **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
+**Auth model:** `sl.datasets.*`, `sl.contracts.*`, `sl.index.*` and read-only `sl.subgraphs.*` (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) are **anonymous** — no API key required (note: `sl.index.*` rejects free-tier keys — Build+ for keyed access). **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
 
 ---
 
@@ -51,14 +51,20 @@ const sl = new SecondLayer({
 });
 ```
 
-`SecondLayer` exposes four resource clients:
+`SecondLayer` exposes six resource clients:
 
 ```ts
 sl.streams        // StreamsClient
 sl.index          // Index
+sl.datasets       // Datasets — Foundation Datasets, incl. listDatasets() catalog
+sl.contracts      // Contracts — trait-based contract discovery
 sl.subgraphs      // Subgraphs
 sl.subscriptions  // Subscriptions
 ```
+
+Discover what exists at runtime: `sl.datasets.listDatasets()` returns the dataset
+catalog + freshness, and `sl.contracts.list({ trait: "sip-010" })` finds deployed
+contracts conforming to a trait.
 
 ---
 
@@ -672,9 +678,14 @@ Note `.walk()` defaults `fromHeight: 0` when neither `cursor` nor `fromCursor` i
 Typed client for `/v1/datasets/*` (public reads, no key). Cursor-paginated event
 datasets share a `list`/`walk` shape; offset/single-object ones have bespoke methods.
 
+Also on the root client as `sl.datasets` (no separate import needed).
+
 ```ts
 import { Datasets } from "@secondlayer/sdk";
 const ds = new Datasets({ baseUrl: "https://api.secondlayer.tools" });
+
+// discovery: catalog + freshness — call this first to learn what exists
+const catalog = await ds.listDatasets();
 
 // cursor datasets: pox4Calls, sbtcEvents, sbtcTokenEvents, stxTransfers,
 // bnsEvents, bnsNamespaceEvents, bnsMarketplaceEvents,
@@ -692,6 +703,23 @@ await ds.networkHealth();              // summary
 ```
 
 Rows are `DatasetRow` (JSON) in v1; query params are typed per dataset.
+
+---
+
+## 5c. `sl.contracts` — contract discovery
+
+Typed client for `GET /v1/contracts` (public reads, no key). "Find all contracts
+conforming to a trait" — `trait` is required.
+
+```ts
+// also standalone: import { Contracts } from "@secondlayer/sdk"
+const { contracts, next_cursor } = await sl.contracts.list({
+  trait: "sip-010",          // required
+  conformance: "any",        // "declared" | "inferred" | "any" (default any)
+  include: "abi",            // omit to exclude the ABI blob
+  limit: 100,                // 1–500
+});
+```
 
 ---
 

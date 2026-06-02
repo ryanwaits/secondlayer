@@ -121,6 +121,7 @@ export function registerStreamsCommand(program: Command): void {
 	streams
 		.command("tip")
 		.description("Print current canonical tip")
+		.option("--json", "Output as JSON (streams always emits JSON)")
 		.action(async () => {
 			try {
 				const tip: StreamsTip = await client().tip();
@@ -146,6 +147,7 @@ export function registerStreamsCommand(program: Command): void {
 		.option("--from-block <n>", "filter to blocks >= n")
 		.option("--to-block <n>", "filter to blocks <= n")
 		.option("--limit <n>", "page size (1-1000, default 100)", "100")
+		.option("--json", "Output as JSON (streams always emits JSON)")
 		.addHelpText(
 			"after",
 			`
@@ -264,6 +266,7 @@ Examples:
 			"start cursor (block_height:event_index)",
 		)
 		.option("--limit <n>", "page size (default 100)", "100")
+		.option("--json", "Output as JSON (streams always emits JSON)")
 		.action(async (options: { since: string; limit?: string }) => {
 			try {
 				const envelope: StreamsReorgsListEnvelope = await client().reorgs.list({
@@ -348,6 +351,7 @@ Examples:
 	streams
 		.command("canonical <height>")
 		.description("Canonical block metadata at a given height")
+		.option("--json", "Output as JSON (streams always emits JSON)")
 		.action(async (heightArg: string) => {
 			try {
 				const height = parseHeight(heightArg, "<height>");
