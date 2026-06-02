@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-# Provision a dedicated node server (Hetzner AX102) for bitcoind + stacks-node.
+# Provision the dedicated node server (Hetzner) for bitcoind + stacks-node.
+#
+# Matches live prod (37.27.171.220): 2x NVMe in a RAID1 mirror provisioned by
+# Hetzner's installimage (NOT by this script) — md2 → / (~2 TB), md3 → /home
+# (~1.5 TB). bitcoind chainstate lives on /home/bitcoin (md3); stacks-node data
+# on /data/stacks, a dir under / (md2). No LVM, no per-drive purpose split.
+#
+# This script does NOT touch the raw disks — they are already RAID + mounted by
+# the installer. It only creates the data dirs, installs Docker, configures the
+# firewall, and writes the node config/.env. (The old version formatted raw
+# /dev/nvme*n1 directly, which would destroy the live RAID members — removed.)
 #
 # Usage: bash docker/node-server/setup.sh
 #
 # Prerequisites:
-#   - Fresh Ubuntu 24.04
-#   - 2x NVMe drives (nvme0n1 = Bitcoin, nvme1n1 = Stacks)
+#   - Ubuntu 24.04 with the Hetzner RAID1 install (md2 → /, md3 → /home)
 #   - Run as root
 
 set -euo pipefail
@@ -93,42 +102,18 @@ systemctl enable --now fail2ban
 log "fail2ban active"
 
 # ---------------------------------------------------------------------------
-# Partition drives
+# Data directories
 # ---------------------------------------------------------------------------
-setup_drive() {
-  local dev="$1" mount="$2" label="$3"
-
-  if mountpoint -q "$mount"; then
-    log "$mount already mounted, skipping"
-    return
-  fi
-
-  if [ ! -b "$dev" ]; then
-    die "$dev not found — expected NVMe drive for $label at $mount"
-  fi
-
-  log "Formatting $dev as $label → $mount"
-  parted -s "$dev" mklabel gpt
-  parted -s "$dev" mkpart primary ext4 0% 100%
-
-  # Wait for partition device
-  sleep 2
-  local part="${dev}p1"
-  [ -b "$part" ] || part="${dev}1"
-  [ -b "$part" ] || die "Partition device not found for $dev"
-
-  mkfs.ext4 -L "$label" "$part"
-  mkdir -p "$mount"
-  mount "$part" "$mount"
-
-  # Add to fstab if not already there
-  if ! grep -q "$mount" /etc/fstab; then
-    echo "LABEL=$label $mount ext4 defaults,noatime 0 2" >> /etc/fstab
-  fi
-}
-
-setup_drive /dev/nvme0n1 /data/bitcoin bitcoin-data
-setup_drive /dev/nvme1n1 /data/stacks  stacks-data
+# The disks are already a RAID1 mirror mounted by the installer (md2 → /,
+# md3 → /home) — do NOT format the raw /dev/nvme* devices, they are live RAID
+# members. We only create the data dirs on the existing filesystems:
+#   bitcoind → /home/bitcoin  (md3, ~1.5 TB)
+#   stacks   → /data/stacks   (under /, md2, ~2 TB)
+BITCOIN_DATA_DIR=/home/bitcoin
+STACKS_DATA_DIR=/data/stacks
+log "Creating data directories ($BITCOIN_DATA_DIR, $STACKS_DATA_DIR)"
+mkdir -p "$BITCOIN_DATA_DIR" "$STACKS_DATA_DIR"
+chown -R 1000:1000 "$BITCOIN_DATA_DIR"   # bitcoind container runs as uid 1000
 
 # ---------------------------------------------------------------------------
 # Generate credentials
@@ -141,8 +126,8 @@ log "Generated Bitcoin RPC password"
 # ---------------------------------------------------------------------------
 cat > "$SCRIPT_DIR/.env" <<EOF
 COMPOSE_PROJECT_NAME=secondlayer
-BITCOIN_DATA_DIR=/data/bitcoin
-STACKS_DATA_DIR=/data/stacks
+BITCOIN_DATA_DIR=${BITCOIN_DATA_DIR}
+STACKS_DATA_DIR=${STACKS_DATA_DIR}
 BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD}
 APP_SERVER_IP=${APP_SERVER_IP}
 EOF
