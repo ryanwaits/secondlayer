@@ -138,60 +138,57 @@ export function parseDocBlock(block: CommentBlock): DocBlock {
 	};
 }
 
+/** Filter tags by tag name, narrowing `name` to a guaranteed string. */
+function namedTags(
+	tags: DocTag[],
+	tag: ClarityDocTag,
+): Array<DocTag & { name: string }> {
+	return tags.filter(
+		(t): t is DocTag & { name: string } => t.tag === tag && Boolean(t.name),
+	);
+}
+
 /** Extract @param tags as ParamDoc array */
 export function extractParams(tags: DocTag[]): ParamDoc[] {
-	return tags
-		.filter((t) => t.tag === "param" && t.name)
-		.map((t) => ({
-			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-			name: t.name!,
-			description: t.description,
-		}));
+	return namedTags(tags, "param").map((t) => ({
+		name: t.name,
+		description: t.description,
+	}));
 }
 
 /** Extract @err tags as ErrDoc array */
 export function extractErrs(tags: DocTag[]): ErrDoc[] {
-	return tags
-		.filter((t) => t.tag === "err" && t.name)
-		.map((t) => ({
-			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-			code: t.name!,
-			description: t.description,
-		}));
+	return namedTags(tags, "err").map((t) => ({
+		code: t.name,
+		description: t.description,
+	}));
 }
 
 /** Extract @post tags as PostDoc array */
 export function extractPosts(tags: DocTag[]): PostDoc[] {
-	return tags
-		.filter((t) => t.tag === "post" && t.name)
-		.map((t) => ({
-			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-			asset: t.name!,
-			description: t.description,
-		}));
+	return namedTags(tags, "post").map((t) => ({
+		asset: t.name,
+		description: t.description,
+	}));
 }
 
 /** Extract @prints tags as PrintDoc array */
 export function extractPrints(tags: DocTag[]): PrintDoc[] {
-	return tags
-		.filter((t) => t.tag === "prints" && t.name)
-		.map((t) => {
-			// Check if description starts with type annotation {..}
-			const typeMatch = t.description.match(/^\{([^}]+)\}\s*(.*)/);
-			if (typeMatch) {
-				return {
-					// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-					name: t.name!,
-					type: typeMatch[1],
-					description: typeMatch[2],
-				};
-			}
+	return namedTags(tags, "prints").map((t) => {
+		// Check if description starts with type annotation {..}
+		const typeMatch = t.description.match(/^\{([^}]+)\}\s*(.*)/);
+		if (typeMatch) {
 			return {
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				name: t.name!,
-				description: t.description,
+				name: t.name,
+				type: typeMatch[1],
+				description: typeMatch[2],
 			};
-		});
+		}
+		return {
+			name: t.name,
+			description: t.description,
+		};
+	});
 }
 
 /** Extract all tags of a specific type */
@@ -225,20 +222,17 @@ export function extractCustomTags(tags: DocTag[]): Map<string, string> {
 
 /** Extract @calls tags as CallDoc array */
 export function extractCalls(tags: DocTag[]): CallDoc[] {
-	return tags
-		.filter((t) => t.tag === "calls" && t.name)
-		.map((t) => {
-			// Description contains: "<contract-ref> [optional description]"
-			const parts = t.description.split(/\s+/);
-			const contract = parts[0];
-			const description = parts.slice(1).join(" ") || undefined;
-			return {
-				contract,
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				function: t.name!,
-				description,
-			};
-		});
+	return namedTags(tags, "calls").map((t) => {
+		// Description contains: "<contract-ref> [optional description]"
+		const parts = t.description.split(/\s+/);
+		const contract = parts[0];
+		const description = parts.slice(1).join(" ") || undefined;
+		return {
+			contract,
+			function: t.name,
+			description,
+		};
+	});
 }
 
 /** Extract first @caller tag as string */
