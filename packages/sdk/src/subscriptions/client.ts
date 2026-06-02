@@ -35,10 +35,7 @@ export class Subscriptions extends BaseClient {
 	}
 
 	async get(id: string): Promise<SubscriptionDetail> {
-		return this.request<SubscriptionDetail>(
-			"GET",
-			`/api/subscriptions/${id}`,
-		);
+		return this.request<SubscriptionDetail>("GET", `/api/subscriptions/${id}`);
 	}
 
 	async create(
@@ -77,10 +74,7 @@ export class Subscriptions extends BaseClient {
 	}
 
 	async delete(id: string): Promise<{ ok: true }> {
-		return this.request<{ ok: true }>(
-			"DELETE",
-			`/api/subscriptions/${id}`,
-		);
+		return this.request<{ ok: true }>("DELETE", `/api/subscriptions/${id}`);
 	}
 
 	async rotateSecret(id: string): Promise<RotateSecretResponse> {

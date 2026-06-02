@@ -15,7 +15,10 @@ export type WebhookHeaderInput =
 	| Record<string, string | string[] | undefined>
 	| { get: (name: string) => string | null }; // e.g. Fetch `Headers`
 
-function pickHeader(headers: WebhookHeaderInput, name: string): string | undefined {
+function pickHeader(
+	headers: WebhookHeaderInput,
+	name: string,
+): string | undefined {
 	if (typeof headers === "function") {
 		const v = (headers as HeaderLookup)(name);
 		return typeof v === "string" ? v : undefined;
