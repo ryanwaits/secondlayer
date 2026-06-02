@@ -405,6 +405,58 @@ export type TransactionsWalkParams = Omit<TransactionsListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+// ── Stacking (/v1/index/stacking) ──────────────────────────────────
+
+/** A decoded PoX-4 stacking action (one per stacking contract call). */
+export type IndexStackingAction = {
+	cursor: string;
+	block_height: number;
+	block_time?: string | null;
+	burn_block_height: number;
+	tx_id: string;
+	tx_index: number;
+	function_name: string;
+	caller: string;
+	stacker: string | null;
+	delegate_to: string | null;
+	amount_ustx: string | null;
+	lock_period: number | null;
+	pox_addr: {
+		version: number | null;
+		hashbytes: string | null;
+		btc: string | null;
+	};
+	start_cycle: number | null;
+	end_cycle: number | null;
+	reward_cycle: number | null;
+	signer_key: string | null;
+	result_ok: boolean;
+};
+
+export type StackingEnvelope = {
+	stacking: IndexStackingAction[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	/** Present only when the PoX-4 decoder is disabled, explaining an empty feed. */
+	notes?: string;
+};
+
+export type StackingListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	functionName?: string;
+	stacker?: string;
+	caller?: string;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type StackingWalkParams = Omit<StackingListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -508,6 +560,19 @@ export class Index extends BaseClient {
 		): AsyncIterable<IndexTransaction> => this.walkTransactions(params),
 		get: (txId: string): Promise<TransactionEnvelope | null> =>
 			this.getTransaction(txId),
+	};
+
+	/** Decoded PoX-4 stacking actions. Empty (with a `notes` hint) when the
+	 *  platform's PoX-4 decoder is disabled. */
+	readonly stacking: {
+		list: (params?: StackingListParams) => Promise<StackingEnvelope>;
+		walk: (params?: StackingWalkParams) => AsyncIterable<IndexStackingAction>;
+	} = {
+		list: (params: StackingListParams = {}): Promise<StackingEnvelope> =>
+			this.listStacking(params),
+		walk: (
+			params: StackingWalkParams = {},
+		): AsyncIterable<IndexStackingAction> => this.walkStacking(params),
 	};
 
 	private async listFtTransfers(
@@ -893,6 +958,59 @@ export class Index extends BaseClient {
 				!nextCursor ||
 				nextCursor === cursor ||
 				envelope.transactions.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async listStacking(
+		params: StackingListParams = {},
+	): Promise<StackingEnvelope> {
+		return this.request<StackingEnvelope>(
+			"GET",
+			`/v1/index/stacking${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				function_name: params.functionName,
+				stacker: params.stacker,
+				caller: params.caller,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
+		);
+	}
+
+	private async *walkStacking(
+		params: StackingWalkParams = {},
+	): AsyncGenerator<IndexStackingAction> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listStacking({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const action of envelope.stacking) {
+				if (params.signal?.aborted) return;
+				yield action;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.stacking.length < batchSize
 			) {
 				return;
 			}

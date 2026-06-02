@@ -384,6 +384,56 @@ describe("SecondLayer Index client", () => {
 		expect(await client.index.transactions.get("0xnope")).toBeNull();
 	});
 
+	test("lists stacking actions with filters and surfaces a notes hint", async () => {
+		const action = {
+			cursor: "9000:0",
+			block_height: 9000,
+			burn_block_height: 19_000,
+			tx_id: "0xstx",
+			tx_index: 0,
+			function_name: "stack-stx",
+			caller: "SP1",
+			stacker: "SP1",
+			delegate_to: null,
+			amount_ustx: "1000000",
+			lock_period: 6,
+			pox_addr: { version: 4, hashbytes: "0xabcd", btc: "bc1q9000" },
+			start_cycle: 100,
+			end_cycle: 106,
+			reward_cycle: 100,
+			signer_key: null,
+			result_ok: true,
+		};
+		const requests: Request[] = [];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			return jsonResponse({
+				stacking: [action],
+				next_cursor: "9000:0",
+				tip: TIP,
+				notes: "PoX-4 decoding is disabled (POX4_DECODER_ENABLED is not set).",
+			});
+		}) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+
+		const response = await client.index.stacking.list({
+			functionName: "stack-stx",
+			stacker: "SP1",
+			fromHeight: 0,
+		});
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.pathname).toBe("/v1/index/stacking");
+		expect(url.searchParams.get("function_name")).toBe("stack-stx");
+		expect(url.searchParams.get("stacker")).toBe("SP1");
+		expect(response.stacking[0]?.pox_addr.btc).toBe("bc1q9000");
+		expect(response.notes).toContain("POX4_DECODER_ENABLED");
+	});
+
 	test("walks nft transfer history until an empty page", async () => {
 		const requests: Request[] = [];
 		const pages = [
