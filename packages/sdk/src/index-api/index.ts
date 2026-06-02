@@ -1,5 +1,8 @@
 export { Index } from "./client.ts";
 export type {
+	CanonicalEnvelope,
+	CanonicalListParams,
+	CanonicalWalkParams,
 	ContractCallsEnvelope,
 	ContractCallsListParams,
 	ContractCallsWalkParams,
@@ -10,6 +13,7 @@ export type {
 	FtTransfersEnvelope,
 	FtTransfersListParams,
 	FtTransfersWalkParams,
+	IndexCanonicalBlock,
 	IndexContractCall,
 	IndexEvent,
 	IndexEventType,

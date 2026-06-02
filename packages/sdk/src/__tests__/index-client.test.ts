@@ -182,6 +182,92 @@ describe("SecondLayer Index client", () => {
 		expect(secondUrl.searchParams.get("contract_id")).toBe("SP1.token");
 	});
 
+	test("lists the canonical map with a height window and auth", async () => {
+		const requests: Request[] = [];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			return jsonResponse({
+				canonical: [
+					{
+						cursor: "9000:0",
+						block_height: 9000,
+						block_hash: "0x9000",
+						parent_hash: "0x8999",
+						burn_block_height: 19_000,
+						burn_block_hash: "0xb9000",
+					},
+				],
+				next_cursor: "9000:0",
+				tip: TIP,
+			});
+		}) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+
+		const response = await client.index.canonical.list({
+			fromHeight: 9000,
+			toHeight: 9994,
+			limit: 50,
+		});
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.pathname).toBe("/v1/index/canonical");
+		expect(url.searchParams.get("from_height")).toBe("9000");
+		expect(url.searchParams.get("to_height")).toBe("9994");
+		expect(url.searchParams.get("limit")).toBe("50");
+		expect(requests[0]?.headers.get("Authorization")).toBe("Bearer sk-test");
+		expect(response.canonical[0]?.parent_hash).toBe("0x8999");
+		// Lean sync primitive: no reorgs[] field.
+		expect(response).not.toHaveProperty("reorgs");
+	});
+
+	test("walks the canonical map with cursor pagination", async () => {
+		const requests: Request[] = [];
+		const pages = [
+			{
+				canonical: [
+					{
+						cursor: "9000:0",
+						block_height: 9000,
+						block_hash: "0x9000",
+						parent_hash: "0x8999",
+						burn_block_height: 19_000,
+						burn_block_hash: "0xb9000",
+					},
+				],
+				next_cursor: "9000:0",
+				tip: TIP,
+			},
+			{ canonical: [], next_cursor: null, tip: TIP },
+		];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			return jsonResponse(pages.shift());
+		}) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+		const seen: number[] = [];
+
+		for await (const block of client.index.canonical.walk({ batchSize: 1 })) {
+			seen.push(block.block_height);
+		}
+
+		const firstUrl = new URL(requests[0]?.url ?? "");
+		const secondUrl = new URL(requests[1]?.url ?? "");
+		expect(seen).toEqual([9000]);
+		expect(firstUrl.pathname).toBe("/v1/index/canonical");
+		expect(firstUrl.searchParams.get("from_height")).toBe("0");
+		expect(secondUrl.searchParams.get("cursor")).toBe("9000:0");
+	});
+
 	test("walks nft transfer history until an empty page", async () => {
 		const requests: Request[] = [];
 		const pages = [

@@ -243,6 +243,39 @@ export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+// ── Canonical block-hash map (/v1/index/canonical) ─────────────────
+
+/** One canonical block in the sync map. Lean by design — block + parent hash
+ *  for chain linkage, burn anchor for Bitcoin confirmations. Use `blocks` for
+ *  the full block resource. */
+export type IndexCanonicalBlock = {
+	cursor: string;
+	block_height: number;
+	block_hash: string;
+	parent_hash: string;
+	burn_block_height: number;
+	burn_block_hash: string | null;
+};
+
+export type CanonicalEnvelope = {
+	canonical: IndexCanonicalBlock[];
+	next_cursor: string | null;
+	tip: IndexTip;
+};
+
+export type CanonicalListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type CanonicalWalkParams = Omit<CanonicalListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -302,6 +335,18 @@ export class Index extends BaseClient {
 		walk: (
 			params: ContractCallsWalkParams = {},
 		): AsyncIterable<IndexContractCall> => this.walkContractCalls(params),
+	};
+
+	/** Canonical block-hash map — sync only the current canonical chain. */
+	readonly canonical: {
+		list: (params?: CanonicalListParams) => Promise<CanonicalEnvelope>;
+		walk: (params?: CanonicalWalkParams) => AsyncIterable<IndexCanonicalBlock>;
+	} = {
+		list: (params: CanonicalListParams = {}): Promise<CanonicalEnvelope> =>
+			this.listCanonical(params),
+		walk: (
+			params: CanonicalWalkParams = {},
+		): AsyncIterable<IndexCanonicalBlock> => this.walkCanonical(params),
 	};
 
 	private async listFtTransfers(
@@ -508,6 +553,56 @@ export class Index extends BaseClient {
 				!nextCursor ||
 				nextCursor === cursor ||
 				envelope.contract_calls.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async listCanonical(
+		params: CanonicalListParams = {},
+	): Promise<CanonicalEnvelope> {
+		return this.request<CanonicalEnvelope>(
+			"GET",
+			`/v1/index/canonical${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
+		);
+	}
+
+	private async *walkCanonical(
+		params: CanonicalWalkParams = {},
+	): AsyncGenerator<IndexCanonicalBlock> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listCanonical({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const block of envelope.canonical) {
+				if (params.signal?.aborted) return;
+				yield block;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.canonical.length < batchSize
 			) {
 				return;
 			}
