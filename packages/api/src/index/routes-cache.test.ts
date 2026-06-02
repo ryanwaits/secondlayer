@@ -6,7 +6,10 @@ import {
 } from "../http/cache.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { createIndexRouter } from "../routes/index.ts";
+import type { ContractCallsReader } from "./contract-calls.ts";
 import type { IndexEventsReader } from "./events.ts";
+import type { FtTransfersReader } from "./ft-transfers.ts";
+import type { NftTransfersReader } from "./nft-transfers.ts";
 import type { IndexTip } from "./tip.ts";
 
 const TIP: IndexTip = {
@@ -35,6 +38,63 @@ const ONE_EVENT: IndexEventsReader = async () => ({
 	next_cursor: "9000:0",
 });
 
+const ONE_FT: FtTransfersReader = async () => ({
+	events: [
+		{
+			cursor: "9000:0",
+			block_height: 9000,
+			tx_id: "0x01",
+			tx_index: 0,
+			event_index: 0,
+			event_type: "ft_transfer",
+			contract_id: "SP123.token",
+			asset_identifier: "SP123.token::coin",
+			sender: "SP1",
+			recipient: "SP2",
+			amount: "1",
+		},
+	],
+	next_cursor: "9000:0",
+});
+
+const ONE_NFT: NftTransfersReader = async () => ({
+	events: [
+		{
+			cursor: "9000:0",
+			block_height: 9000,
+			tx_id: "0x02",
+			tx_index: 0,
+			event_index: 0,
+			event_type: "nft_transfer",
+			contract_id: "SP123.collection",
+			asset_identifier: "SP123.collection::token",
+			sender: "SP1",
+			recipient: "SP2",
+			value: "0x01",
+		},
+	],
+	next_cursor: "9000:0",
+});
+
+const ONE_CALL: ContractCallsReader = async () => ({
+	contract_calls: [
+		{
+			cursor: "9000:0",
+			block_height: 9000,
+			tx_id: "0x03",
+			tx_index: 0,
+			contract_id: "SP123.amm",
+			function_name: "swap",
+			sender: "SP1",
+			status: "success",
+			args: [],
+			result: null,
+			result_hex: null,
+		},
+	],
+	next_cursor: "9000:0",
+});
+
 function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 	const app = new Hono();
 	app.onError(errorHandler);
@@ -43,6 +103,9 @@ function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 		createIndexRouter({
 			getTip: () => TIP,
 			readEvents,
+			readFtTransfers: ONE_FT,
+			readNftTransfers: ONE_NFT,
+			readContractCalls: ONE_CALL,
 			readReorgs: async () => [],
 		}),
 	);
@@ -86,5 +149,36 @@ describe("Index events caching", () => {
 			headers: { "If-None-Match": "*" },
 		});
 		expect(conditional.status).toBe(200);
+	});
+});
+
+// Every Index read route shares the same finality-gated cache wiring.
+describe.each([
+	["ft-transfers", "/v1/index/ft-transfers"],
+	["nft-transfers", "/v1/index/nft-transfers"],
+	["contract-calls", "/v1/index/contract-calls"],
+])("Index %s caching", (_name, path) => {
+	const finalized = `${path}?from_height=0&to_height=9994`;
+	const tipSpanning = `${path}?from_height=0`;
+
+	test("finalized range is immutable with a 304 round-trip", async () => {
+		const app = createApp();
+		const res = await app.request(finalized);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe(IMMUTABLE_CACHE_CONTROL);
+		const etag = res.headers.get("ETag");
+		expect(etag).not.toBeNull();
+
+		const conditional = await app.request(finalized, {
+			headers: { "If-None-Match": etag as string },
+		});
+		expect(conditional.status).toBe(304);
+	});
+
+	test("tip-spanning range is mutable with no ETag", async () => {
+		const res = await createApp().request(tipSpanning);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe(MUTABLE_CACHE_CONTROL);
+		expect(res.headers.get("ETag")).toBeNull();
 	});
 });

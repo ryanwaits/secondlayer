@@ -186,6 +186,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			tip,
 			readContractCalls: opts.readContractCalls,
 		});
+		const notModified = applyIndexCache(c, query, tip, {
+			contract_calls: response.contract_calls,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.contract_calls.length > 0) {
 			await recordDecodedEventsReturned(
@@ -207,6 +213,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readTransfers: opts.readFtTransfers,
 			readReorgs,
 		});
+		const notModified = applyIndexCache(c, query, tip, {
+			events: response.events,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
@@ -225,6 +237,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readTransfers: opts.readNftTransfers,
 			readReorgs,
 		});
+		const notModified = applyIndexCache(c, query, tip, {
+			events: response.events,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
