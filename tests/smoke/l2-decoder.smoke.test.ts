@@ -102,6 +102,7 @@ function createStreamsApi(db: Kysely<Database>): Hono {
 					block_height: Number(tip.height),
 					block_hash: tip.hash,
 					burn_block_height: Number(tip.burn_block_height),
+					finalized_height: Number(tip.height),
 					lag_seconds: 0,
 				};
 			},
