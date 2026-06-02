@@ -58,7 +58,10 @@ export async function bundleSubgraphCode(
 		tempDir = await mkdtemp(join(tmpdir(), "secondlayer-subgraph-"));
 		const tempFile = join(tempDir, "handler.mjs");
 		await writeFile(tempFile, handlerCode);
-		mod = await import(`${pathToFileURL(tempFile).href}?t=${Date.now()}`);
+		// Freshness comes from the unique mkdtemp path, NOT a `?t=` query —
+		// Bun's import() ignores file-URL query cache-busters (the stale-handler
+		// redeploy bug, fixed 2026-05-21). Keep this path per-call unique.
+		mod = await import(pathToFileURL(tempFile).href);
 	} catch (err: unknown) {
 		throw new Error(
 			`Module evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
