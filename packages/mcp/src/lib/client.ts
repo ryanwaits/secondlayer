@@ -32,7 +32,7 @@ export function getClient(): SecondLayer {
 
 // Appended to 401/403 errors raised on keyless requests — the operation needs
 // a write/account key, so point at where to get one.
-const keyHint =
+export const keyHint =
 	" — set SL_API_KEY to an sk-sl_ API key from " +
 	"https://secondlayer.tools/platform/api-keys for write and account operations";
 
