@@ -15,7 +15,11 @@ const BUILD_KEY = "sk-sl_index_build_test";
 const FREE_KEY = "sk-sl_index_free_test";
 const SCALE_KEY = "sk-sl_index_scale_test";
 const WRONG_SCOPE_KEY = "sk-sl_index_wrong_scope_test";
-const TIP: IndexTip = { block_height: 10_000, lag_seconds: 1 };
+const TIP: IndexTip = {
+	block_height: 10_000,
+	finalized_height: 9_994,
+	lag_seconds: 1,
+};
 const STREAMS_TIP: StreamsTip = {
 	block_height: 10_000,
 	block_hash: "0x01",

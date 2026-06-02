@@ -9,7 +9,11 @@ import {
 import type { IndexTip } from "./tip.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const TIP: IndexTip = { block_height: 30_000, lag_seconds: 3 };
+const TIP: IndexTip = {
+	block_height: 30_000,
+	finalized_height: 29_994,
+	lag_seconds: 3,
+};
 const OUTSIDE_DEFAULT_WINDOW_HEIGHT =
 	TIP.block_height - STREAMS_BLOCKS_PER_DAY - 1;
 const INSIDE_DEFAULT_WINDOW_HEIGHT = TIP.block_height - 100;

@@ -2,15 +2,31 @@ import { FT_TRANSFER_DECODER_NAME } from "@secondlayer/indexer/l2/decoder";
 import {
 	type IndexerStreamsTipBlock,
 	getCurrentCanonicalTip,
+	getFinalizedStacksHeight,
 } from "@secondlayer/indexer/streams-tip";
+import {
+	DEFAULT_BTC_CONFIRMATIONS,
+	finalizedBurnHeight,
+} from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 
 export type IndexTip = {
 	block_height: number;
+	/**
+	 * Highest Stacks height treated as immutable: blocks at or below this are
+	 * past the burn-confirmation finality boundary and safe to cache forever.
+	 * Derived from the canonical burn tip, NOT the decoded tip — the decoded
+	 * `block_height` can lag below this while the decoder catches up.
+	 */
+	finalized_height: number;
 	lag_seconds: number;
 };
+
+export type IndexFinalizedHeightReader = (
+	finalizedBurnHeight: number,
+) => Promise<number>;
 
 export type DecodedTipBlock = {
 	block_height: number;
@@ -82,6 +98,8 @@ export function getIndexLagSeconds(tipTs: Date, nowMs = Date.now()): number {
 export function createIndexTipProvider(opts?: {
 	readSourceTip?: IndexSourceTipReader;
 	readDecodedTip?: DecodedTipReader;
+	readFinalizedHeight?: IndexFinalizedHeightReader;
+	btcConfirmations?: number;
 	now?: () => number;
 	cacheTtlMs?: number;
 }): IndexTipProvider {
@@ -92,6 +110,9 @@ export function createIndexTipProvider(opts?: {
 			const checkpointTip = await getDecoderCheckpointTipBlock();
 			return checkpointTip ?? (await getLatestDecodedTipBlock());
 		});
+	const readFinalizedHeight =
+		opts?.readFinalizedHeight ?? getFinalizedStacksHeight;
+	const btcConfirmations = opts?.btcConfirmations ?? DEFAULT_BTC_CONFIRMATIONS;
 	const now = opts?.now ?? Date.now;
 	const cacheTtlMs = opts?.cacheTtlMs ?? 500;
 	let cache: { expiresAt: number; value: IndexTip } | null = null;
@@ -105,13 +126,25 @@ export function createIndexTipProvider(opts?: {
 			throw new Error("Index tip unavailable: no canonical block found");
 		}
 
+		// Finality comes from the canonical burn tip, independent of how far the
+		// decoder has progressed. block_height tracks the decoded tip, so it may
+		// sit below finalized_height — the cache plan clamps to_height by the
+		// decoded tip, so finalized pages near the boundary are conservatively
+		// served as mutable (never the reverse), which is safe.
+		const finalizedBurn = finalizedBurnHeight(
+			sourceTip.burn_block_height,
+			btcConfirmations,
+		);
+		const finalized_height = await readFinalizedHeight(finalizedBurn);
+
 		const decodedTip = await readDecodedTip();
 		const tipBlock = decodedTip ?? {
 			block_height: sourceTip.block_height,
 			ts: sourceTip.ts,
 		};
-		const value = {
+		const value: IndexTip = {
 			block_height: tipBlock.block_height,
+			finalized_height,
 			lag_seconds: getIndexLagSeconds(tipBlock.ts, nowMs),
 		};
 

@@ -15,7 +15,11 @@ import {
 import type { IndexTip } from "./tip.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const TIP: IndexTip = { block_height: 30_000, lag_seconds: 3 };
+const TIP: IndexTip = {
+	block_height: 30_000,
+	finalized_height: 29_994,
+	lag_seconds: 3,
+};
 
 function params(query: string) {
 	return new URL(`http://localhost/v1/index/contract-calls${query}`)

@@ -341,7 +341,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			"/v1/index",
 			createIndexRouter({
 				tokens: INDEX_TOKENS,
-				getTip: () => ({ block_height: 1, lag_seconds: 0 }),
+				getTip: () => ({ block_height: 1, finalized_height: 0, lag_seconds: 0 }),
 				readFtTransfers: (params) => readFtTransfers({ ...params, db }),
 				readNftTransfers: (params) => readNftTransfers({ ...params, db }),
 				readReorgs: async () => [],
@@ -393,7 +393,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			"/v1/index",
 			createIndexRouter({
 				tokens: INDEX_TOKENS,
-				getTip: () => ({ block_height: 1, lag_seconds: 0 }),
+				getTip: () => ({ block_height: 1, finalized_height: 0, lag_seconds: 0 }),
 				readFtTransfers: (params) => readFtTransfers({ ...params, db }),
 				readNftTransfers: (params) => readNftTransfers({ ...params, db }),
 				readReorgs: async () => [],
