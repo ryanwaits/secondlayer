@@ -2,6 +2,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import type { StreamsBulkBlockRange } from "../../../streams-bulk/range.ts";
+import { blockTimeToIso } from "../../_shared/row.ts";
 
 export type BnsMarketplaceEventParquetRow = {
 	cursor: string;
@@ -61,10 +62,7 @@ function normalize(
 	row: BnsMarketplaceEventDbRow,
 	partitionBlockRange: string,
 ): BnsMarketplaceEventParquetRow {
-	const blockTime =
-		row.block_time instanceof Date
-			? row.block_time.toISOString()
-			: new Date(row.block_time).toISOString();
+	const blockTime = blockTimeToIso(row.block_time);
 	return {
 		cursor: row.cursor,
 		block_height: Number(row.block_height),

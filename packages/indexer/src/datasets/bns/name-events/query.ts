@@ -2,6 +2,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import type { StreamsBulkBlockRange } from "../../../streams-bulk/range.ts";
+import { blockTimeToIso, nullableInt } from "../../_shared/row.ts";
 
 export type BnsNameEventParquetRow = {
 	cursor: string;
@@ -81,18 +82,11 @@ export async function readCanonicalBnsNameEventRows(params: {
 	return rows.map((row) => normalize(row, params.partitionBlockRange));
 }
 
-function nullableInt(value: string | number | null): number | null {
-	return value === null || value === undefined ? null : Number(value);
-}
-
 function normalize(
 	row: BnsNameEventDbRow,
 	partitionBlockRange: string,
 ): BnsNameEventParquetRow {
-	const blockTime =
-		row.block_time instanceof Date
-			? row.block_time.toISOString()
-			: new Date(row.block_time).toISOString();
+	const blockTime = blockTimeToIso(row.block_time);
 	return {
 		cursor: row.cursor,
 		block_height: Number(row.block_height),
