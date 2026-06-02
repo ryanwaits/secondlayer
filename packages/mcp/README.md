@@ -10,7 +10,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Reads are public — `list`, `get`, `query`, and `spec` tools work with no key. Writes (deploy, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`.
+Most reads are public — subgraph reads, `datasets_*`, `index_*`, and `contracts_find` work with no key. **`streams_*` requires an `SL_API_KEY`** (and the Index tools reject free-tier keys — Build+ for keyed access). Writes (deploy, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -54,8 +54,12 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | --- | --- |
 | **Subgraphs** (7) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy`, `subgraphs_read_source` |
 | **Subscriptions** (12) | `subscriptions_list`, `subscriptions_get`, `subscriptions_create`, `subscriptions_update`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_delete`, `subscriptions_rotate_secret`, `subscriptions_replay`, `subscriptions_recent_deliveries`, `subscriptions_dead`, `subscriptions_requeue_dead` |
+| **Datasets** (2) | `datasets_list`, `datasets_query` |
+| **Index** (4) | `index_ft_transfers`, `index_nft_transfers`, `index_events`, `index_contract_calls` |
+| **Streams** (2) | `streams_tip`, `streams_events` |
+| **Contracts** (1) | `contracts_find` |
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
-| **Account** (1) | `account_whoami` |
+| **Account** (3) | `account_whoami`, `account_update`, `account_billing` |
 
 ### `subgraphs_query` enhancements
 
@@ -68,6 +72,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | URI | Description |
 | --- | --- |
+| `secondlayer://context` | Live state — what exists (your subgraphs, subscriptions, account), what you can do, and read-auth tiers. Read first. |
 | `secondlayer://filters` | Filter types reference |
 | `secondlayer://column-types` | Column type mappings and options |
 

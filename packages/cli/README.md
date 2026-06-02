@@ -69,6 +69,7 @@ sl subscriptions create my-hook \
 | `sl projects list` | List projects |
 | `sl projects use <slug>` | Bind cwd to a project (writes `./.secondlayer/project`) |
 | `sl projects get` | Show resolved project + source file |
+| `sl projects delete <slug>` (alias `rm`) | Delete a project (`-y` to skip confirm) |
 
 Project binding is per-directory: `.secondlayer/project` in cwd takes
 precedence over `~/.secondlayer/config.json:defaultProject`. The walk-up stops
@@ -89,6 +90,16 @@ at `.git`.
 | `sl subgraphs codegen <file> --target prisma\|drizzle [-o <path>]` | Generate an ORM schema for the subgraph's tables (BYO DB) |
 | `sl subgraphs client <name> -o <path>` | Generate a typed query client for a deployed subgraph |
 | `sl subgraphs reindex/backfill/cancel/delete <name>` | Manage processing |
+
+### Data products (reads)
+
+| Command | What it does |
+|---|---|
+| `sl datasets list` / `query <dataset> [--filter k=v] [--cursor] [--limit] [--json]` | Foundation Datasets (sBTC, BNS, PoX-4, STX transfers). Public — no key |
+| `sl index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded L2 layer. Anonymous reads OK; free-tier keys rejected (Build+ for keyed) |
+| `sl streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `pull` | Raw L1 event firehose. **Requires `SL_API_KEY`** |
+
+Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--output` is a file path, not a format.
 
 ### Subscriptions
 

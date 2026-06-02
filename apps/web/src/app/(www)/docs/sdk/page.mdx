@@ -22,7 +22,9 @@ const sl = new SecondLayer({
 ## One client, every surface
 
 - `sl.streams` — raw, ordered L1 chain events (cursor-paginated, replayable).
-- `sl.index` — decoded FT/NFT transfer events.
+- `sl.index` — the decoded L2 layer: FT/NFT transfers, all event types, and contract calls.
+- `sl.datasets` — Foundation Datasets (sBTC, BNS, PoX-4, STX transfers) + catalog.
+- `sl.contracts` — find deployed contracts by trait (SIP-009/010/013).
 - `sl.subgraphs` — your app-specific L3 tables.
 - `sl.subscriptions` — create and manage webhook subscriptions.
 

@@ -19,8 +19,9 @@ const sl = new SecondLayer({
 });
 ```
 
-`sl.index` and `sl.subgraphs` reads are anonymous — no key needed. **`sl.streams`
-reads require a bearer token** (`apiKey`) and resolve a per-tier tenant; a
+`sl.datasets`, `sl.contracts`, `sl.index`, and `sl.subgraphs` reads are anonymous
+— no key needed (`sl.index` rejects free-tier keys — Build+ for keyed access).
+**`sl.streams` reads require a bearer token** (`apiKey`) and resolve a per-tier tenant; a
 publicly-known free-tier token exists but a bearer is always required. Writes
 require an `sk-sl_` API key, created in the platform console at
 https://secondlayer.tools/platform/api-keys. (Public Streams bulk dumps —
@@ -29,7 +30,9 @@ https://secondlayer.tools/platform/api-keys. (Public Streams bulk dumps —
 ## Mental model
 
 - `sl.streams` reads raw ordered L1 events from Stacks Streams.
-- `sl.index` reads decoded L2 FT/NFT transfer events from Stacks Index.
+- `sl.index` reads the decoded L2 layer from Stacks Index — FT/NFT transfers, all event types (`events`), and `contractCalls`.
+- `sl.datasets` reads the Foundation Datasets (sBTC, BNS, PoX-4, STX transfers); `listDatasets()` is the catalog.
+- `sl.contracts` finds deployed contracts by trait (SIP-009/010/013).
 - `sl.subgraphs` reads app-specific L3 tables from Stacks Subgraphs.
 
 ## Stacks Streams
