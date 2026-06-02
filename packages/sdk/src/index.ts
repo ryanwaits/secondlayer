@@ -1,5 +1,12 @@
 export { SecondLayer } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
+export {
+	Contracts,
+	type ContractConformance,
+	type ContractsListParams,
+	type ContractSummary,
+	type ContractsEnvelope,
+} from "./contracts/client.ts";
 export { Index } from "./index-api/index.ts";
 export {
 	Datasets,
