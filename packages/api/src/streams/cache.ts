@@ -1,9 +1,17 @@
-import { createHash } from "node:crypto";
+import {
+	IMMUTABLE_CACHE_CONTROL,
+	MUTABLE_CACHE_CONTROL,
+	cacheControl,
+	etag,
+	matchesIfNoneMatch,
+} from "../http/cache.ts";
 import { parseStreamsEventsQuery } from "./events.ts";
 import type { StreamsTip } from "./tip.ts";
 
 /**
- * Caching for Streams reads, gated on finality.
+ * Caching for Streams reads, gated on finality. Built on the generic
+ * `http/cache.ts` primitives; this module adds the Streams-specific finality
+ * decision (resolved `to_height` vs `tip.finalized_height`).
  *
  * A page is immutable only when every row it can contain is past the
  * burn-confirmation finality boundary — i.e. its resolved `to_height` is at or
@@ -12,14 +20,11 @@ import type { StreamsTip } from "./tip.ts";
  * tip-spanning request) gets a short private TTL so a shared cache never serves
  * stale tip data across tenants.
  */
-export const STREAMS_IMMUTABLE_CACHE_CONTROL =
-	"public, max-age=31536000, immutable";
-export const STREAMS_MUTABLE_CACHE_CONTROL = "private, max-age=2";
+export const STREAMS_IMMUTABLE_CACHE_CONTROL = IMMUTABLE_CACHE_CONTROL;
+export const STREAMS_MUTABLE_CACHE_CONTROL = MUTABLE_CACHE_CONTROL;
 
 export function streamsCacheControl(fullyFinalized: boolean): string {
-	return fullyFinalized
-		? STREAMS_IMMUTABLE_CACHE_CONTROL
-		: STREAMS_MUTABLE_CACHE_CONTROL;
+	return cacheControl(fullyFinalized);
 }
 
 /** True when a finite height is at or below the finality boundary. */
@@ -75,21 +80,7 @@ export function streamsEventsCacheControl(
 
 /** Weak ETag over a response body. Immutable pages hash to a stable value. */
 export function streamsETag(body: string): string {
-	return `W/"${createHash("sha256").update(body).digest("base64url")}"`;
+	return etag(body);
 }
 
-/**
- * Conditional-request match. Honors `*` and weak comparison (RFC 7232 §3.2:
- * `If-None-Match` always uses the weak comparison function), so `W/"x"` and
- * `"x"` match.
- */
-export function matchesIfNoneMatch(
-	ifNoneMatch: string | null | undefined,
-	etag: string,
-): boolean {
-	if (!ifNoneMatch) return false;
-	if (ifNoneMatch.trim() === "*") return true;
-	const normalize = (tag: string) => tag.trim().replace(/^W\//, "");
-	const target = normalize(etag);
-	return ifNoneMatch.split(",").some((tag) => normalize(tag) === target);
-}
+export { matchesIfNoneMatch };
