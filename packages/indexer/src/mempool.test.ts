@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import {
+	MEMPOOL_RETENTION_HOURS,
 	buildMempoolRow,
 	ingestMempoolTxs,
 	isGenuineDrop,
+	mempoolDepth,
 	removeMempoolTxs,
 	sweepStaleMempool,
 	txidFromRawTx,
@@ -46,6 +48,13 @@ describe("mempool ingest helpers", () => {
 		expect(isGenuineDrop("ReplaceByFee")).toBe(true);
 		expect(isGenuineDrop("ReplaceAcrossFork")).toBe(true);
 		expect(isGenuineDrop("Problematic")).toBe(true);
+	});
+
+	test("retention default is 72h (env-tunable)", () => {
+		if (process.env.MEMPOOL_RETENTION_HOURS === undefined) {
+			expect(MEMPOOL_RETENTION_HOURS).toBe(72);
+		}
+		expect(MEMPOOL_RETENTION_HOURS).toBeGreaterThan(0);
 	});
 });
 
@@ -113,5 +122,34 @@ describe.skipIf(!HAS_DB)("mempool ingest DB", () => {
 		const deleted = await sweepStaleMempool(db, 24);
 		expect(deleted).toBe(1);
 		expect(await count()).toBe(1);
+	});
+
+	test("72h window keeps rows younger than 72h, sweeps older", async () => {
+		if (!db) throw new Error("missing db");
+		const mkRow = (txId: string, ageHours: number) => ({
+			tx_id: txId,
+			raw_tx: "0x00",
+			type: "token_transfer",
+			sender: "SP1",
+			contract_id: null,
+			function_name: null,
+			function_args: null,
+			received_at: new Date(Date.now() - ageHours * 3_600_000),
+		});
+		await db
+			.insertInto("mempool_transactions")
+			.values([mkRow("0xyoung", 48), mkRow("0xold", 96)])
+			.execute();
+
+		const deleted = await sweepStaleMempool(db, 72);
+		expect(deleted).toBe(1); // only the 96h row
+		expect(await count()).toBe(1);
+	});
+
+	test("mempoolDepth returns the current row count", async () => {
+		if (!db) throw new Error("missing db");
+		expect(await mempoolDepth(db)).toBe(0);
+		await ingestMempoolTxs(db, [TOKEN_TRANSFER.raw_tx]);
+		expect(await mempoolDepth(db)).toBe(1);
 	});
 });

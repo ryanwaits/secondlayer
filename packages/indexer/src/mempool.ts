@@ -93,9 +93,14 @@ export function isGenuineDrop(reason: string): boolean {
 	return reason !== STALE_GC_DROP_REASON;
 }
 
-/** Delete stuck mempool rows older than the retention window — txs the node
- *  garbage-collected without a drop event, or that simply never confirmed.
- *  Returns the number of rows deleted. */
+/** Delete stuck mempool rows older than the retention window. This is a
+ *  *backstop*, not the primary eviction path — confirmed txs leave via
+ *  eviction-on-confirmation (persistBlock) and genuinely-dropped txs via
+ *  `/drop_mempool_tx`. The sweep only catches what neither covers: txs the node
+ *  garbage-collected without a (honored) drop, or that simply never confirmed.
+ *  The window is set well past the node's own GC horizon so valid pending txs
+ *  accumulate (the go-forward observer only captures each tx once, so too short
+ *  a window caps the table near-empty). Returns the number of rows deleted. */
 export async function sweepStaleMempool(
 	db: Kysely<Database>,
 	olderThanHours: number,
@@ -108,19 +113,32 @@ export async function sweepStaleMempool(
 	return Number(result.numDeletedRows ?? 0);
 }
 
-const MEMPOOL_RETENTION_HOURS = Number(
-	process.env.MEMPOOL_RETENTION_HOURS ?? "24",
+export const MEMPOOL_RETENTION_HOURS = Number(
+	process.env.MEMPOOL_RETENTION_HOURS ?? "72",
 );
 const MEMPOOL_SWEEP_INTERVAL_MS = Number(
 	process.env.MEMPOOL_SWEEP_INTERVAL_MS ?? String(15 * 60_000),
 );
 
-/** Leader-gated periodic retention sweep (singleton — see startLeaderLoops). */
+/** Current row count of the mempool table — the accumulation depth. */
+export async function mempoolDepth(db: Kysely<Database>): Promise<number> {
+	const result = await db
+		.selectFrom("mempool_transactions")
+		.select((eb) => eb.fn.countAll<string>().as("n"))
+		.executeTakeFirst();
+	return Number(result?.n ?? 0);
+}
+
+/** Leader-gated periodic retention sweep (singleton — see startLeaderLoops).
+ *  Logs the post-sweep depth at info level so accumulation is observable in
+ *  prod (the table should climb over uptime, not sit near-empty). */
 export function startMempoolSweep(): () => void {
 	const interval = setInterval(async () => {
 		try {
-			const deleted = await sweepStaleMempool(getDb(), MEMPOOL_RETENTION_HOURS);
-			if (deleted > 0) logger.debug("mempool retention sweep", { deleted });
+			const db = getDb();
+			const deleted = await sweepStaleMempool(db, MEMPOOL_RETENTION_HOURS);
+			const count = await mempoolDepth(db);
+			logger.info("mempool depth", { count, deleted });
 		} catch (error) {
 			logger.warn("mempool retention sweep failed", { error: String(error) });
 		}
