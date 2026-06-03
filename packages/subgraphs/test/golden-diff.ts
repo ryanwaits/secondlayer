@@ -48,7 +48,7 @@ function arg(name: string, def?: string): string | undefined {
 	return i >= 0 ? process.argv[i + 1] : def;
 }
 
-// One source per event type, covering the Phase-1 surface.
+// One source per type, covering the full Phase-1 + Phase-2 surface.
 const SOURCES: Record<string, SubgraphFilter> = {
 	stxTransfer: { type: "stx_transfer" } as SubgraphFilter,
 	stxMint: { type: "stx_mint" } as SubgraphFilter,
@@ -56,13 +56,20 @@ const SOURCES: Record<string, SubgraphFilter> = {
 	ftMint: { type: "ft_mint" } as SubgraphFilter,
 	nftMint: { type: "nft_mint" } as SubgraphFilter,
 	prints: { type: "print_event" } as SubgraphFilter,
+	calls: { type: "contract_call" } as SubgraphFilter,
+	deploys: { type: "contract_deploy" } as SubgraphFilter,
 };
 const EVENT_TYPES = [
 	"stx_transfer",
 	"stx_mint",
+	"stx_burn",
+	"stx_lock",
 	"ft_transfer",
 	"ft_mint",
+	"ft_burn",
+	"nft_transfer",
 	"nft_mint",
+	"nft_burn",
 	"print",
 ];
 
@@ -80,11 +87,19 @@ function collectPayloads(blocks: Map<number, BlockData>): Map<string, string> {
 		const matched = matchSources(SOURCES, bd.txs, bd.events, noTraits);
 		for (const m of matched) {
 			const filter = SOURCES[m.sourceName];
+			// Mirror runHandlers: tx-level (no-event) match → one payload; else
+			// one per event.
+			if (m.events.length === 0) {
+				out.set(
+					`${height}:${m.tx.tx_id}::${m.sourceName}`,
+					stable(buildEventPayload(filter, m.tx, null)),
+				);
+				continue;
+			}
 			for (const ev of m.events) {
-				const payload = buildEventPayload(filter, m.tx, ev);
 				out.set(
 					`${height}:${m.tx.tx_id}:${ev.event_index}:${m.sourceName}`,
-					stable(payload),
+					stable(buildEventPayload(filter, m.tx, ev)),
 				);
 			}
 		}
