@@ -18,12 +18,15 @@ describe("isStreamsIndexEligible", () => {
 			),
 		).toBe(true);
 	});
-	test("a contract_call source → ineligible (Phase 2)", () => {
+	test("contract_call / contract_deploy sources → eligible (Phase 2)", () => {
 		expect(
 			isStreamsIndexEligible(
 				def({ a: { type: "ft_transfer" }, b: { type: "contract_call" } }),
 			),
-		).toBe(false);
+		).toBe(true);
+		expect(
+			isStreamsIndexEligible(def({ a: { type: "contract_deploy" } })),
+		).toBe(true);
 	});
 	test("a trait-scoped event source → ineligible (Phase 2)", () => {
 		expect(

@@ -365,6 +365,8 @@ export type IndexTransaction = {
 		contract_id: string;
 		function_name: string;
 		function_args: unknown[];
+		/** Raw hex-encoded ClarityValues; decode(function_args_hex[i]) === function_args[i]. */
+		function_args_hex: string[];
 		result: unknown;
 		result_hex: string | null;
 	};

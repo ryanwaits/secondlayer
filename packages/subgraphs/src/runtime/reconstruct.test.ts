@@ -4,8 +4,10 @@ import type { SubgraphFilter } from "../types.ts";
 import {
 	type IndexBlockRow,
 	type IndexEventRow,
+	type IndexTransactionRow,
 	reconstructBlock,
 	reconstructEvent,
+	reconstructTransaction,
 } from "./reconstruct.ts";
 import { buildEventPayload } from "./runner.ts";
 import type { MatchedTx } from "./source-matcher.ts";
@@ -112,6 +114,42 @@ describe("reconstructEvent → handler-payload parity with the raw node row", ()
 		expect(payloadFrom("ft_transfer", reconstructEvent(indexRow))).toEqual(
 			payloadFrom("ft_transfer", rawRow),
 		);
+	});
+
+	test("contract_call: same payload from Index function_args_hex as from the raw tx", () => {
+		const argsHex = ["0x0100000000000000000000000000000001"]; // Clarity uint 1
+		const indexTx: IndexTransactionRow = {
+			tx_id: "0xc",
+			block_height: 1,
+			tx_index: 0,
+			tx_type: "contract_call",
+			sender: "SP1",
+			status: "success",
+			contract_call: {
+				contract_id: "SP.c",
+				function_name: "transfer",
+				function_args_hex: argsHex,
+				result_hex: "0x07",
+			},
+		};
+		const rawTx = {
+			tx_id: "0xc",
+			type: "contract_call",
+			sender: "SP1",
+			status: "success",
+			contract_id: "SP.c",
+			function_name: "transfer",
+			function_args: argsHex,
+			raw_result: "0x07",
+		} as unknown as MatchedTx["tx"];
+		const filter = { type: "contract_call" } as SubgraphFilter;
+		const fromIndex = buildEventPayload(
+			filter,
+			reconstructTransaction(indexTx) as unknown as MatchedTx["tx"],
+			null,
+		);
+		const fromRaw = buildEventPayload(filter, rawTx, null);
+		expect(fromIndex).toEqual(fromRaw);
 	});
 
 	test("print: same data (driven by raw_value hex, not the tagged value)", () => {

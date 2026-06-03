@@ -61,6 +61,12 @@ const EVENT_FILTER_TO_INDEX_TYPE: Record<string, string> = {
 	print_event: "print",
 };
 
+// Tx-level source types — matched against /v1/index/transactions, not events.
+const TX_SOURCE_TYPES = new Set(["contract_call", "contract_deploy"]);
+const ALL_INDEX_EVENT_TYPES = [
+	...new Set(Object.values(EVENT_FILTER_TO_INDEX_TYPE)),
+];
+
 function sourceFilters(subgraph: SubgraphDefinition): SubgraphFilter[] {
 	const sources = subgraph.sources;
 	return Array.isArray(sources)
@@ -68,10 +74,19 @@ function sourceFilters(subgraph: SubgraphDefinition): SubgraphFilter[] {
 		: Object.values(sources as Record<string, SubgraphFilter>);
 }
 
-/** The distinct Index event_types a subgraph's event sources reference. */
+/**
+ * The Index event_types the loader must fetch. A contract_call/contract_deploy
+ * source matches a tx and hands its FULL event set to the handler, so when one
+ * is present we fetch every event type (the matched tx's events must be
+ * complete); otherwise just the referenced event types.
+ */
 function referencedIndexEventTypes(subgraph: SubgraphDefinition): string[] {
+	const filters = sourceFilters(subgraph);
+	if (filters.some((f) => TX_SOURCE_TYPES.has(f.type))) {
+		return ALL_INDEX_EVENT_TYPES;
+	}
 	const types = new Set<string>();
-	for (const f of sourceFilters(subgraph)) {
+	for (const f of filters) {
 		const t = EVENT_FILTER_TO_INDEX_TYPE[f.type];
 		if (t) types.add(t);
 	}
@@ -79,17 +94,20 @@ function referencedIndexEventTypes(subgraph: SubgraphDefinition): string[] {
 }
 
 /**
- * Phase-1 streams-index eligibility: only subgraphs whose sources are ALL
- * event-types, with no trait scope and no array-style (filterless `*`) sources
- * — those need tx-level/trait data (Phase 2) or leak the unreconstructable
- * `_eventId`. Everything else stays on the DB tap.
+ * streams-index eligibility: sources must be event-types or contract_call/
+ * contract_deploy, with no trait scope (resolved from the registry — Phase-2
+ * trait-over-HTTP lifts this) and no array-style (filterless `*`) sources
+ * (which leak the unreconstructable `_eventId`). Everything else stays on the
+ * DB tap.
  */
 export function isStreamsIndexEligible(subgraph: SubgraphDefinition): boolean {
 	if (Array.isArray(subgraph.sources)) return false;
 	const filters = sourceFilters(subgraph);
 	if (filters.length === 0) return false;
 	for (const f of filters) {
-		if (!EVENT_FILTER_TO_INDEX_TYPE[f.type]) return false;
+		const known =
+			EVENT_FILTER_TO_INDEX_TYPE[f.type] || TX_SOURCE_TYPES.has(f.type);
+		if (!known) return false;
 		if ((f as { trait?: string }).trait) return false;
 	}
 	return true;

@@ -59,9 +59,9 @@ export function reconstructTransaction(t: IndexTransactionRow): Transaction {
 		contract_id:
 			t.contract_call?.contract_id ?? t.smart_contract?.contract_id ?? null,
 		function_name: t.contract_call?.function_name ?? null,
-		// Phase-2 contract_call sources decode args from raw hex (S4.T1a); event
-		// sources don't read them, so default empty here.
-		function_args: t.contract_call?.function_args ?? [],
+		// Raw hex ClarityValues — the runner decodes them via its own deserializeCV
+		// path, identical to the DB tap.
+		function_args: t.contract_call?.function_args_hex ?? [],
 		raw_result: t.contract_call?.result_hex ?? null,
 		raw_tx: "",
 		created_at: new Date(0),

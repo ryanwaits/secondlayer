@@ -84,7 +84,7 @@ export type IndexTransactionRow = {
 	contract_call?: {
 		contract_id: string;
 		function_name: string;
-		function_args?: string[] | null;
+		function_args_hex?: string[] | null;
 		result_hex?: string | null;
 	} | null;
 	smart_contract?: { contract_id: string | null } | null;

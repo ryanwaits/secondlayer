@@ -52,6 +52,9 @@ export type IndexTransaction = {
 		contract_id: string;
 		function_name: string;
 		function_args: unknown[];
+		// Raw hex-encoded ClarityValues, for consumers that decode themselves
+		// (e.g. the subgraph runtime). decode(function_args_hex[i]) === function_args[i].
+		function_args_hex: string[];
 		result: unknown;
 		result_hex: string | null;
 	};
@@ -159,6 +162,20 @@ function decodeArgs(raw: unknown): unknown[] {
 	);
 }
 
+/** function_args as the raw array of hex-encoded ClarityValue strings. */
+function rawArgs(raw: unknown): string[] {
+	let parsed = raw;
+	if (typeof parsed === "string") {
+		try {
+			parsed = JSON.parse(parsed);
+		} catch {
+			return [];
+		}
+	}
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter((a): a is string => typeof a === "string");
+}
+
 function decodeResult(raw: string | null): unknown {
 	if (typeof raw === "string" && raw.length > 2) return decodeClarityValue(raw);
 	return null;
@@ -192,6 +209,7 @@ function normalizeTransaction(row: TransactionDbRow): IndexTransaction {
 			contract_id: row.contract_id,
 			function_name: row.function_name,
 			function_args: decodeArgs(row.function_args),
+			function_args_hex: rawArgs(row.function_args),
 			result: decodeResult(row.raw_result),
 			result_hex: row.raw_result,
 		};
