@@ -225,7 +225,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/mempool",
 					method: "GET",
 					description:
-						"Pending (unconfirmed) transaction documents, filterable by sender/type + cursor-paginated. Pre-chain: no block_height/result/events, plus received_at. Never cacheable (volatile). Cursor: mempool sequence integer.",
+						"Pending (unconfirmed) transaction documents, filterable by sender/type/contract_id + cursor-paginated. Pre-chain: no block_height/result/events, plus received_at. Never cacheable (volatile). Cursor: mempool sequence integer.",
 					filters: MEMPOOL_FILTERS,
 				},
 				{

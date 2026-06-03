@@ -502,6 +502,8 @@ export type MempoolListParams = {
 	limit?: number;
 	sender?: string;
 	type?: string;
+	/** Filter to pending calls to a single contract (e.g. `SP….contract`). */
+	contractId?: string;
 };
 
 export type MempoolWalkParams = Omit<MempoolListParams, "limit"> & {
@@ -1101,6 +1103,7 @@ export class Index extends BaseClient {
 				limit: params.limit,
 				sender: params.sender,
 				type: params.type,
+				contract_id: params.contractId,
 			})}`,
 		);
 	}

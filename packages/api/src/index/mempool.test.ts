@@ -39,6 +39,11 @@ describe("Index mempool helpers", () => {
 		expect(parsed.type).toBe("contract_call");
 	});
 
+	test("parses the contract_id filter", () => {
+		const parsed = parseMempoolQuery(params("?contract_id=SP2.amm"));
+		expect(parsed.contractId).toBe("SP2.amm");
+	});
+
 	test("rejects a non-integer cursor", () => {
 		expect(() => parseMempoolQuery(params("?cursor=9000:0"))).toThrow();
 	});
@@ -136,6 +141,16 @@ describe.skipIf(!HAS_DB)("Index mempool DB reads", () => {
 			limit: 10,
 		});
 		expect(after.mempool.some((t) => t.tx_id === "0xcc")).toBe(false);
+	});
+
+	test("filters by contract_id", async () => {
+		await seed();
+		const filtered = await readMempool({
+			db: db ?? undefined,
+			contractId: "SP2.amm",
+			limit: 10,
+		});
+		expect(filtered.mempool.map((t) => t.tx_id)).toEqual(["0xcc"]);
 	});
 
 	test("fetches a single pending tx by tx_id", async () => {

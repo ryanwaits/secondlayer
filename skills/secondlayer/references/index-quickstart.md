@@ -232,11 +232,12 @@ Pending (unconfirmed) transactions, captured straight from the node's mempool. S
 - **Dropped-tx detection** — absent from *both* `/mempool` and `/transactions` ⇒ the tx was dropped (resubmit / alert).
 - **Keepers, fee estimation, live feeds** — watch `?type=contract_call` for pending state-changing calls; sample pending fees for inclusion pricing.
 
-> **Completeness caveat.** This is a **single-node, go-forward** view: the node's observer only pushes txs new *after* the indexer connected, so it doesn't carry a long-running explorer's full pending backlog and isn't a globally-aggregated mempool. It's strong for "did my tx land / is it still pending / did it confirm" and per-node pending state; weaker for exhaustive MEV/front-running. (Parity with an explorer's active set would need an explicit node-mempool sync — a planned follow-up.)
+> **Completeness caveat.** This is a **single-node, go-forward** view: the node's observer pushes each tx once, when it's new *after* the indexer connected, so a freshly (re)deployed indexer starts empty and accumulates over uptime (it isn't a globally-aggregated mempool). It's strong for "did my tx land / is it still pending / did it confirm", per-node pending state, and pending-by-sender/contract feeds; weaker for exhaustive MEV/front-running (which wants every node's view). It is intentionally **not** a 1:1 mirror of a long-running explorer's full active set — the node exposes no full-pending-set dump RPC, and a cross-host sync of its internal mempool (mostly stale, never-minable txs) was evaluated and rejected as not worth the coupling.
 
 ```bash
 curl -s "https://api.secondlayer.tools/v1/index/mempool?limit=2"
 curl -s "https://api.secondlayer.tools/v1/index/mempool?type=contract_call&sender=SP17R9...&limit=10"
+curl -s "https://api.secondlayer.tools/v1/index/mempool?contract_id=SP….amm-v2&limit=10"  # pending calls to one contract
 curl -s "https://api.secondlayer.tools/v1/index/mempool/0xpending..."   # -> { transaction, tip }; 404 once mined
 ```
 
@@ -259,6 +260,7 @@ curl -s "https://api.secondlayer.tools/v1/index/mempool/0xpending..."   # -> { t
 
 ```ts
 const { mempool } = await sl.index.mempool.list({ type: "contract_call", sender: "SP17R9..." });
+const calls = await sl.index.mempool.list({ contractId: "SP….amm-v2" }); // pending calls to one contract
 for await (const tx of sl.index.mempool.walk({})) console.log(tx.tx_id, tx.fee);
 const pending = await sl.index.mempool.get("0xpending..."); // { transaction, tip } | null (null once mined)
 ```

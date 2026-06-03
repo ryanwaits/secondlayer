@@ -23,17 +23,24 @@
  * no ETag).
  *
  * COMPLETENESS CAVEAT — read before relying on it. This is a SINGLE-NODE,
- * GO-FORWARD view. The node's `/new_mempool_tx` observer only pushes txs that are
- * new to the node *after* our observer connected; it never replays the existing
- * backlog. So a freshly (re)deployed indexer starts empty and accumulates over
- * time, and it is NOT a globally-aggregated mempool. It's strong for "did my tx
- * land / is it still pending / did it confirm" and per-node pending state; it is
- * weaker for exhaustive MEV/front-running (which wants every node's view). Reaching
- * parity with a long-running mempool (e.g. an explorer's active set) requires
- * actively syncing the node's pending set — its `mempool.sqlite` carries txid +
- * raw tx + accept_time — rather than waiting on the observer trickle. That sync is
- * a deliberate, not-yet-built follow-up; without it the endpoint reflects recent
- * activity only.
+ * GO-FORWARD view. The node's `/new_mempool_tx` observer pushes each tx once,
+ * when it is new to the node *after* our observer connected; it never replays
+ * the existing backlog. So a freshly (re)deployed indexer starts empty and
+ * accumulates over uptime (it is NOT a globally-aggregated mempool). The table
+ * is maintained, not seeded: confirmed txs are evicted on block ingest, genuine
+ * drops removed, StaleGarbageCollect ignored, and a retention sweep is the
+ * backstop — so over uptime the depth converges toward the node's recent pending
+ * set rather than capping near-empty.
+ *
+ * We do NOT seed the pre-observer backlog, by design. The node exposes no
+ * full-pending-set dump RPC (`/v2/mempool/query` returns only the last ~2 blocks),
+ * and the only complete source — the node's `mempool.sqlite` — lives on a
+ * different host and is mostly stale, never-minable junk; a cross-host sync was
+ * evaluated and rejected as node-coupled and low-value. So this is strong for
+ * "did my tx land / is it pending / did it confirm", per-node pending state, and
+ * pending-by-sender/contract feeds; it is intentionally not a 1:1 mirror of a
+ * long-running explorer's full active set, and is weaker for exhaustive
+ * MEV/front-running (which wants every node's view).
  */
 import { decodeClarityValue } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
@@ -50,6 +57,7 @@ export const MEMPOOL_FILTERS = [
 	"from_cursor",
 	"sender",
 	"type",
+	"contract_id",
 ] as const;
 
 /** A pending (unconfirmed) transaction. The columnar fields plus `raw_tx`
@@ -90,6 +98,7 @@ export type MempoolQuery = {
 	limit: number;
 	sender?: string;
 	type?: string;
+	contractId?: string;
 };
 
 export type ReadMempoolParams = {
@@ -97,6 +106,7 @@ export type ReadMempoolParams = {
 	limit: number;
 	sender?: string;
 	type?: string;
+	contractId?: string;
 	db?: Kysely<Database>;
 };
 
@@ -202,6 +212,10 @@ export function parseMempoolQuery(query: URLSearchParams): MempoolQuery {
 		limit: parseLimit(query.get("limit") ?? undefined),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
 		type: parseFilter(query.get("type") ?? undefined, "type"),
+		contractId: parseFilter(
+			query.get("contract_id") ?? undefined,
+			"contract_id",
+		),
 	};
 }
 
@@ -213,6 +227,8 @@ export async function readMempool(
 	if (params.after !== undefined) predicates.push(sql`seq > ${params.after}`);
 	if (params.sender) predicates.push(sql`sender = ${params.sender}`);
 	if (params.type) predicates.push(sql`type = ${params.type}`);
+	if (params.contractId)
+		predicates.push(sql`contract_id = ${params.contractId}`);
 	const where =
 		predicates.length > 0
 			? sql`WHERE ${sql.join(predicates, sql` AND `)}`
@@ -261,6 +277,7 @@ export async function getMempoolResponse(opts: {
 		limit: parsed.limit,
 		sender: parsed.sender,
 		type: parsed.type,
+		contractId: parsed.contractId,
 	});
 	return {
 		mempool: result.mempool,
