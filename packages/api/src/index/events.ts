@@ -292,15 +292,14 @@ export async function readIndexEvents(
 	];
 
 	if (params.after) {
-		predicates.push(sql`
-			(
-				block_height > ${params.after.block_height}
-				OR (
-					block_height = ${params.after.block_height}
-					AND event_index > ${params.after.event_index}
-				)
-			)
-		`);
+		// Sargable row-values keyset — lets Postgres range-scan the composite
+		// (event_type, block_height, event_index) index. The equivalent OR form
+		// (`bh > X OR (bh = X AND ei > Y)`) is non-sargable: the planner falls
+		// back to bitmap-ANDing the bare event_type index, re-scanning the whole
+		// event-type partition on every page (O(n²) pagination over print).
+		predicates.push(
+			sql`(block_height, event_index) > (${params.after.block_height}, ${params.after.event_index})`,
+		);
 	}
 
 	for (const filter of config.equalityFilters) {
