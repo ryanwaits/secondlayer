@@ -434,6 +434,67 @@ describe("SecondLayer Index client", () => {
 		expect(response.notes).toContain("POX4_DECODER_ENABLED");
 	});
 
+	test("lists pending mempool txs with filters and fetches one by tx_id", async () => {
+		const pending = {
+			cursor: "42",
+			tx_id: "0xpending",
+			tx_type: "token_transfer",
+			sender: "SP1",
+			received_at: "2026-06-03T00:00:00.000Z",
+			fee: "180",
+			nonce: "1",
+			sponsored: false,
+			anchor_mode: "any",
+			post_condition_mode: "deny",
+			post_conditions: [],
+			token_transfer: { recipient: "SP2", amount: "1", memo: "" },
+		};
+		const requests: Request[] = [];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			requests.push(request);
+			const path = new URL(request.url).pathname;
+			if (path === "/v1/index/mempool/0xpending") {
+				return jsonResponse({ transaction: pending, tip: TIP });
+			}
+			return jsonResponse({ mempool: [pending], next_cursor: "42", tip: TIP });
+		}) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+
+		const list = await client.index.mempool.list({
+			sender: "SP1",
+			type: "token_transfer",
+		});
+		const listUrl = new URL(requests[0]?.url ?? "");
+		expect(listUrl.pathname).toBe("/v1/index/mempool");
+		expect(listUrl.searchParams.get("sender")).toBe("SP1");
+		expect(listUrl.searchParams.get("type")).toBe("token_transfer");
+		expect(list.mempool[0]?.fee).toBe("180");
+
+		const single = await client.index.mempool.get("0xpending");
+		expect(new URL(requests[1]?.url ?? "").pathname).toBe(
+			"/v1/index/mempool/0xpending",
+		);
+		expect(single?.transaction.tx_id).toBe("0xpending");
+	});
+
+	test("mempool.get resolves to null on 404", async () => {
+		globalThis.fetch = (async (_input, _init) =>
+			jsonResponse(
+				{ error: "Pending transaction not found" },
+				404,
+			)) as typeof fetch;
+		const client = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			apiKey: "sk-test",
+		});
+		expect(await client.index.mempool.get("0xnope")).toBeNull();
+	});
+
 	test("walks nft transfer history until an empty page", async () => {
 		const requests: Request[] = [];
 		const pages = [

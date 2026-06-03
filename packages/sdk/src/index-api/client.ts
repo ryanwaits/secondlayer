@@ -457,6 +457,58 @@ export type StackingWalkParams = Omit<StackingListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+// ── Mempool (/v1/index/mempool) ────────────────────────────────────
+
+/** A pending (unconfirmed) transaction. Like a transaction document but
+ *  pre-chain — no block_height/tx_index/result/events — with `received_at` and
+ *  a sequence cursor instead of a block position. */
+export type IndexMempoolTransaction = {
+	cursor: string;
+	tx_id: string;
+	tx_type: string;
+	sender: string;
+	received_at?: string | null;
+	fee: string | null;
+	nonce: string | null;
+	sponsored: boolean | null;
+	anchor_mode: string | null;
+	post_condition_mode: string | null;
+	post_conditions: IndexPostCondition[];
+	contract_call?: {
+		contract_id: string;
+		function_name: string;
+		function_args: unknown[];
+	};
+	token_transfer?: { recipient: string; amount: string; memo: string };
+	smart_contract?: { clarity_version: number | null };
+	coinbase?: { alt_recipient: string | null };
+	tenure_change?: { cause: number };
+};
+
+export type MempoolEnvelope = {
+	mempool: IndexMempoolTransaction[];
+	next_cursor: string | null;
+	tip: IndexTip;
+};
+
+export type MempoolTransactionEnvelope = {
+	transaction: IndexMempoolTransaction;
+	tip: IndexTip;
+};
+
+export type MempoolListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	sender?: string;
+	type?: string;
+};
+
+export type MempoolWalkParams = Omit<MempoolListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -573,6 +625,24 @@ export class Index extends BaseClient {
 		walk: (
 			params: StackingWalkParams = {},
 		): AsyncIterable<IndexStackingAction> => this.walkStacking(params),
+	};
+
+	/** Pending (unconfirmed) transactions: paginated `list`/`walk`, plus `get` by
+	 *  tx_id (resolves to null when the tx has confirmed or dropped). */
+	readonly mempool: {
+		list: (params?: MempoolListParams) => Promise<MempoolEnvelope>;
+		walk: (
+			params?: MempoolWalkParams,
+		) => AsyncIterable<IndexMempoolTransaction>;
+		get: (txId: string) => Promise<MempoolTransactionEnvelope | null>;
+	} = {
+		list: (params: MempoolListParams = {}): Promise<MempoolEnvelope> =>
+			this.listMempool(params),
+		walk: (
+			params: MempoolWalkParams = {},
+		): AsyncIterable<IndexMempoolTransaction> => this.walkMempool(params),
+		get: (txId: string): Promise<MempoolTransactionEnvelope | null> =>
+			this.getMempoolTx(txId),
 	};
 
 	private async listFtTransfers(
@@ -1011,6 +1081,69 @@ export class Index extends BaseClient {
 				!nextCursor ||
 				nextCursor === cursor ||
 				envelope.stacking.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async listMempool(
+		params: MempoolListParams = {},
+	): Promise<MempoolEnvelope> {
+		return this.request<MempoolEnvelope>(
+			"GET",
+			`/v1/index/mempool${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				sender: params.sender,
+				type: params.type,
+			})}`,
+		);
+	}
+
+	private async getMempoolTx(
+		txId: string,
+	): Promise<MempoolTransactionEnvelope | null> {
+		try {
+			return await this.request<MempoolTransactionEnvelope>(
+				"GET",
+				`/v1/index/mempool/${encodeURIComponent(txId)}`,
+			);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
+	}
+
+	private async *walkMempool(
+		params: MempoolWalkParams = {},
+	): AsyncGenerator<IndexMempoolTransaction> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listMempool({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+			});
+
+			for (const tx of envelope.mempool) {
+				if (params.signal?.aborted) return;
+				yield tx;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.mempool.length < batchSize
 			) {
 				return;
 			}
