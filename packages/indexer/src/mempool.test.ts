@@ -4,6 +4,7 @@ import {
 	buildMempoolRow,
 	ingestMempoolTxs,
 	removeMempoolTxs,
+	sweepStaleMempool,
 	txidFromRawTx,
 } from "./mempool.ts";
 
@@ -81,5 +82,28 @@ describe.skipIf(!HAS_DB)("mempool ingest DB", () => {
 		expect(await count()).toBe(1);
 		await removeMempoolTxs(db, [TOKEN_TRANSFER.txid]);
 		expect(await count()).toBe(0);
+	});
+
+	test("sweepStaleMempool removes rows older than the window, keeps fresh", async () => {
+		if (!db) throw new Error("missing db");
+		await ingestMempoolTxs(db, [TOKEN_TRANSFER.raw_tx]); // fresh (received_at = now)
+		await db
+			.insertInto("mempool_transactions")
+			.values({
+				tx_id: "0xstale",
+				raw_tx: "0x00",
+				type: "token_transfer",
+				sender: "SP1",
+				contract_id: null,
+				function_name: null,
+				function_args: null,
+				received_at: new Date(Date.now() - 48 * 3_600_000),
+			})
+			.execute();
+		expect(await count()).toBe(2);
+
+		const deleted = await sweepStaleMempool(db, 24);
+		expect(deleted).toBe(1);
+		expect(await count()).toBe(1);
 	});
 });

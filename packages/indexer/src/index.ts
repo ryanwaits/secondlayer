@@ -53,6 +53,11 @@ import {
 	withLeaderLock,
 } from "./leader.ts";
 import {
+	ingestMempoolTxs,
+	removeMempoolTxs,
+	startMempoolSweep,
+} from "./mempool.ts";
+import {
 	startStreamsBulkPublisher,
 	streamsBulkPublisherState,
 } from "./streams-bulk/scheduler.ts";
@@ -62,8 +67,10 @@ import {
 	tipFollowerState,
 } from "./tip-follower.ts";
 import type {
+	DropMempoolTxPayload,
 	NewBlockPayload,
 	NewBurnBlockPayload,
+	NewMempoolTxPayload,
 } from "./types/node-events.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3700");
@@ -351,13 +358,41 @@ const server = Bun.serve({
 			},
 		},
 
-		// Mempool events (no-op for v1)
+		// Mempool: the node POSTs a bare array of raw_tx hex strings. Decode +
+		// derive the txid + upsert (idempotent, runs on every instance). Decode
+		// failures skip that tx rather than 500 the whole batch.
 		"/new_mempool_tx": {
-			POST: () => Response.json({ status: "ok" }),
+			POST: async (req) => {
+				try {
+					const rawTxs = (await req.json()) as NewMempoolTxPayload;
+					const written = await ingestMempoolTxs(getDb(), rawTxs);
+					return Response.json({ status: "ok", written });
+				} catch (error) {
+					logger.error("Error processing new_mempool_tx", { error });
+					return Response.json(
+						{ status: "error", message: String(error) },
+						{ status: 500 },
+					);
+				}
+			},
 		},
 
+		// Mempool drops (RBF, GC, too-expensive, …): hard-delete by txid. Mined
+		// txs are NOT dropped here — eviction-on-confirmation runs in block ingest.
 		"/drop_mempool_tx": {
-			POST: () => Response.json({ status: "ok" }),
+			POST: async (req) => {
+				try {
+					const payload = (await req.json()) as DropMempoolTxPayload;
+					await removeMempoolTxs(getDb(), payload.dropped_txids ?? []);
+					return Response.json({ status: "ok" });
+				} catch (error) {
+					logger.error("Error processing drop_mempool_tx", { error });
+					return Response.json(
+						{ status: "error", message: String(error) },
+						{ status: 500 },
+					);
+				}
+			},
 		},
 
 		// Atlas attachments (no-op, required by Stacks node event dispatcher)
@@ -401,6 +436,8 @@ function startLeaderLoops(): StopFn {
 		startBnsMarketplaceEventsPublisher(),
 		// contract registry (gated on CONTRACT_REGISTRY_ENABLED)
 		startContractRegistry(),
+		// mempool retention sweep (clears stuck pending txs)
+		startMempoolSweep(),
 	];
 	return () => {
 		for (const stop of stops.reverse()) stop();

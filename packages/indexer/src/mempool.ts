@@ -1,7 +1,9 @@
+import { getDb } from "@secondlayer/shared/db";
 import type {
 	Database,
 	InsertMempoolTransaction,
 } from "@secondlayer/shared/db/schema";
+import { logger } from "@secondlayer/shared/logger";
 import {
 	hexToBytes,
 	txidFromBytes,
@@ -77,4 +79,39 @@ export async function removeMempoolTxs(
 		.deleteFrom("mempool_transactions")
 		.where("tx_id", "in", txIds)
 		.execute();
+}
+
+/** Delete stuck mempool rows older than the retention window — txs the node
+ *  garbage-collected without a drop event, or that simply never confirmed.
+ *  Returns the number of rows deleted. */
+export async function sweepStaleMempool(
+	db: Kysely<Database>,
+	olderThanHours: number,
+): Promise<number> {
+	const cutoff = new Date(Date.now() - olderThanHours * 3_600_000);
+	const result = await db
+		.deleteFrom("mempool_transactions")
+		.where("received_at", "<", cutoff)
+		.executeTakeFirst();
+	return Number(result.numDeletedRows ?? 0);
+}
+
+const MEMPOOL_RETENTION_HOURS = Number(
+	process.env.MEMPOOL_RETENTION_HOURS ?? "24",
+);
+const MEMPOOL_SWEEP_INTERVAL_MS = Number(
+	process.env.MEMPOOL_SWEEP_INTERVAL_MS ?? String(15 * 60_000),
+);
+
+/** Leader-gated periodic retention sweep (singleton — see startLeaderLoops). */
+export function startMempoolSweep(): () => void {
+	const interval = setInterval(async () => {
+		try {
+			const deleted = await sweepStaleMempool(getDb(), MEMPOOL_RETENTION_HOURS);
+			if (deleted > 0) logger.debug("mempool retention sweep", { deleted });
+		} catch (error) {
+			logger.warn("mempool retention sweep failed", { error: String(error) });
+		}
+	}, MEMPOOL_SWEEP_INTERVAL_MS);
+	return () => clearInterval(interval);
 }
