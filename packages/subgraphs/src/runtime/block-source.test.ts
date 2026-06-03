@@ -28,12 +28,12 @@ describe("isStreamsIndexEligible", () => {
 			isStreamsIndexEligible(def({ a: { type: "contract_deploy" } })),
 		).toBe(true);
 	});
-	test("a trait-scoped event source → ineligible (Phase 2)", () => {
+	test("a trait-scoped event source → eligible (registry is on the platform DB)", () => {
 		expect(
 			isStreamsIndexEligible(
 				def({ a: { type: "ft_transfer", trait: "sip-010" } }),
 			),
-		).toBe(false);
+		).toBe(true);
 	});
 	test("array-style sources → ineligible (filterless * leak)", () => {
 		const d = {
@@ -91,7 +91,7 @@ describe("PublicApiBlockSource.loadBlockRange", () => {
 						},
 					]
 				: [],
-		getTip: async () => 2,
+		getIndexTip: async () => 2,
 	} as unknown as IndexHttpClient;
 
 	test("assembles canonical BlockData incl. empty blocks, txs, events", async () => {
@@ -116,7 +116,7 @@ describe("PublicApiBlockSource.loadBlockRange", () => {
 		expect(map.get(2)?.txs).toHaveLength(0);
 	});
 
-	test("getTip reads the Streams clock", async () => {
+	test("getTip reads the Index tip", async () => {
 		const src = new PublicApiBlockSource(fakeHttp, []);
 		expect(await src.getTip()).toBe(2);
 	});

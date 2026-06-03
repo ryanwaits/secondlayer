@@ -199,12 +199,25 @@ export class IndexHttpClient {
 	}
 
 	/** Canonical tip height from the Streams clock. */
-	async getTip(): Promise<number> {
+	async getStreamsTip(): Promise<number> {
 		const tip = await this.get<{ block_height: number }>(
 			`${this.streamsBaseUrl}/v1/streams/tip`,
 			this.streamsApiKey,
 		);
 		return Number(tip.block_height) || 0;
+	}
+
+	/**
+	 * Highest block height the Index data plane can serve (tip is inline in every
+	 * envelope). This is the data-availability bound — a consumer must not
+	 * process past it, even if the Streams clock is ahead.
+	 */
+	async getIndexTip(): Promise<number> {
+		const env = await this.get<{ tip: { block_height: number } }>(
+			`${this.indexBaseUrl}/v1/index/blocks?limit=1`,
+			this.indexApiKey,
+		);
+		return Number(env.tip?.block_height) || 0;
 	}
 
 	/** Reorgs since a resume token (wall-clock `detected_at`-keyed). */

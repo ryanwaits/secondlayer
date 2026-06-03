@@ -94,11 +94,12 @@ function referencedIndexEventTypes(subgraph: SubgraphDefinition): string[] {
 }
 
 /**
- * streams-index eligibility: sources must be event-types or contract_call/
- * contract_deploy, with no trait scope (resolved from the registry — Phase-2
- * trait-over-HTTP lifts this) and no array-style (filterless `*`) sources
- * (which leak the unreconstructable `_eventId`). Everything else stays on the
- * DB tap.
+ * streams-index eligibility: every source must be a known event-type or
+ * contract_call/contract_deploy filter (no array-style sources, which leak the
+ * unreconstructable `_eventId`). Trait scope IS allowed — trait resolution
+ * reads the contract registry on the platform DB (`targetDb`), which the
+ * processor always holds, so it's source-independent. Everything else stays on
+ * the DB tap.
  */
 export function isStreamsIndexEligible(subgraph: SubgraphDefinition): boolean {
 	if (Array.isArray(subgraph.sources)) return false;
@@ -108,7 +109,6 @@ export function isStreamsIndexEligible(subgraph: SubgraphDefinition): boolean {
 		const known =
 			EVENT_FILTER_TO_INDEX_TYPE[f.type] || TX_SOURCE_TYPES.has(f.type);
 		if (!known) return false;
-		if ((f as { trait?: string }).trait) return false;
 	}
 	return true;
 }
@@ -121,7 +121,9 @@ export class PublicApiBlockSource implements BlockSource {
 	) {}
 
 	getTip(): Promise<number> {
-		return this.http.getTip();
+		// Bound advancement to what the Index data plane can serve — never
+		// process past it even if the Streams clock is ahead.
+		return this.http.getIndexTip();
 	}
 
 	async loadBlockRange(
