@@ -54,6 +54,7 @@ import {
 } from "./leader.ts";
 import {
 	ingestMempoolTxs,
+	isGenuineDrop,
 	removeMempoolTxs,
 	startMempoolSweep,
 } from "./mempool.ts";
@@ -377,13 +378,18 @@ const server = Bun.serve({
 			},
 		},
 
-		// Mempool drops (RBF, GC, too-expensive, …): hard-delete by txid. Mined
-		// txs are NOT dropped here — eviction-on-confirmation runs in block ingest.
+		// Mempool drops: hard-delete by txid for GENUINE drops (RBF, replace, …).
+		// StaleGarbageCollect — the node's memory-pressure GC — is ignored so one
+		// node's aggressive GC doesn't drain the mempool; those clear via
+		// eviction-on-confirmation or the retention sweep. Mined txs aren't dropped
+		// here either — eviction-on-confirmation runs in block ingest.
 		"/drop_mempool_tx": {
 			POST: async (req) => {
 				try {
 					const payload = (await req.json()) as DropMempoolTxPayload;
-					await removeMempoolTxs(getDb(), payload.dropped_txids ?? []);
+					if (isGenuineDrop(payload.reason)) {
+						await removeMempoolTxs(getDb(), payload.dropped_txids ?? []);
+					}
 					return Response.json({ status: "ok" });
 				} catch (error) {
 					logger.error("Error processing drop_mempool_tx", { error });

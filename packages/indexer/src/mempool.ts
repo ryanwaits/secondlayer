@@ -81,6 +81,18 @@ export async function removeMempoolTxs(
 		.execute();
 }
 
+/** The node's own memory-pressure GC reason. A `StaleGarbageCollect` drop means
+ *  the node evicted the tx from ITS mempool to free memory — NOT that the tx is
+ *  invalid or gone from the network (another miner may still mine it). Honoring
+ *  it would mirror one node's aggressive GC and drain our mempool to near-empty,
+ *  so we keep these and let eviction-on-confirmation + the retention sweep clean
+ *  them up. Genuine drops (RBF, replace-across-fork, problematic, …) are honored. */
+export const STALE_GC_DROP_REASON = "StaleGarbageCollect";
+
+export function isGenuineDrop(reason: string): boolean {
+	return reason !== STALE_GC_DROP_REASON;
+}
+
 /** Delete stuck mempool rows older than the retention window — txs the node
  *  garbage-collected without a drop event, or that simply never confirmed.
  *  Returns the number of rows deleted. */

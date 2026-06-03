@@ -3,6 +3,7 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import {
 	buildMempoolRow,
 	ingestMempoolTxs,
+	isGenuineDrop,
 	removeMempoolTxs,
 	sweepStaleMempool,
 	txidFromRawTx,
@@ -38,6 +39,13 @@ describe("mempool ingest helpers", () => {
 	test("returns null for an undecodable raw_tx", () => {
 		expect(buildMempoolRow("0x00")).toBeNull();
 		expect(buildMempoolRow("0xnothex")).toBeNull();
+	});
+
+	test("ignores StaleGarbageCollect drops, honors genuine ones", () => {
+		expect(isGenuineDrop("StaleGarbageCollect")).toBe(false);
+		expect(isGenuineDrop("ReplaceByFee")).toBe(true);
+		expect(isGenuineDrop("ReplaceAcrossFork")).toBe(true);
+		expect(isGenuineDrop("Problematic")).toBe(true);
 	});
 });
 
