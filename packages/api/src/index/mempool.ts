@@ -47,7 +47,12 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
-import { parseFilter, parseLimit, toIsoOrNull } from "./_shared.ts";
+import {
+	jsonSafeBigInt,
+	parseFilter,
+	parseLimit,
+	toIsoOrNull,
+} from "./_shared.ts";
 import type { IndexTip } from "./tip.ts";
 import { type DecodedTx, decodeTransaction } from "./transaction-decode.ts";
 
@@ -172,7 +177,7 @@ function normalizeMempool(row: MempoolDbRow): MempoolTransaction {
 		tx.contract_call = {
 			contract_id: row.contract_id,
 			function_name: row.function_name,
-			function_args: decodeArgs(row.function_args),
+			function_args: jsonSafeBigInt(decodeArgs(row.function_args)),
 		};
 	}
 	if (decoded?.token_transfer) tx.token_transfer = decoded.token_transfer;

@@ -63,6 +63,25 @@ export function toIsoOrNull(
 	return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+/**
+ * Deep-convert BigInt → string so decoded Clarity values are JSON-serializable.
+ * `cvToValue` yields a bigint for Clarity uint/int, which throws in
+ * `JSON.stringify` (both `c.json` and the ETag computation). Applied to decoded
+ * contract-call args/result before they enter a response.
+ */
+export function jsonSafeBigInt<T>(value: T): T {
+	if (typeof value === "bigint") return value.toString() as unknown as T;
+	if (Array.isArray(value)) {
+		return value.map((v) => jsonSafeBigInt(v)) as unknown as T;
+	}
+	if (value && typeof value === "object") {
+		const out: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(value)) out[k] = jsonSafeBigInt(v);
+		return out as unknown as T;
+	}
+	return value;
+}
+
 export { encodeStreamsCursor as encodeIndexCursor } from "@secondlayer/shared";
 
 /** Shared cursor / height-window parsing for every Index read endpoint.

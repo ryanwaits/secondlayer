@@ -5,6 +5,7 @@ import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
+	jsonSafeBigInt,
 	parseFilter,
 	parseLimit,
 	parseNonNegativeInteger,
@@ -208,9 +209,9 @@ function normalizeTransaction(row: TransactionDbRow): IndexTransaction {
 		tx.contract_call = {
 			contract_id: row.contract_id,
 			function_name: row.function_name,
-			function_args: decodeArgs(row.function_args),
+			function_args: jsonSafeBigInt(decodeArgs(row.function_args)),
 			function_args_hex: rawArgs(row.function_args),
-			result: decodeResult(row.raw_result),
+			result: jsonSafeBigInt(decodeResult(row.raw_result)),
 			result_hex: row.raw_result,
 		};
 	}

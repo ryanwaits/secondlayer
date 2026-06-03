@@ -6,6 +6,7 @@ import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg } from "../streams/reorgs.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
+	jsonSafeBigInt,
 	parseFilter,
 	parseLimit,
 	parseNonNegativeInteger,
@@ -196,8 +197,8 @@ function normalizeRow(row: ContractCallDbRow): ContractCall {
 		function_name: row.function_name,
 		sender: row.sender,
 		status: row.status,
-		args: decodeArgs(row.function_args),
-		result: decodeResult(row.raw_result),
+		args: jsonSafeBigInt(decodeArgs(row.function_args)),
+		result: jsonSafeBigInt(decodeResult(row.raw_result)),
 		result_hex: row.raw_result,
 	};
 }
