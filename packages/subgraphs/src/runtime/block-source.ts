@@ -1,8 +1,8 @@
 import { getSourceDb } from "@secondlayer/shared/db";
+import { IndexHttpClient } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition, SubgraphFilter } from "../types.ts";
 import { type BlockData, loadBlockRange } from "./batch-loader.ts";
-import { IndexHttpClient } from "./index-http.ts";
 import {
 	reconstructBlock,
 	reconstructEvent,

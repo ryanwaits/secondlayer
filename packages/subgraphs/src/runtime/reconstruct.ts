@@ -1,4 +1,15 @@
 import type { Block, Event, Transaction } from "@secondlayer/shared/db";
+import type {
+	IndexBlockRow,
+	IndexEventRow,
+	IndexTransactionRow,
+} from "@secondlayer/shared/index-http";
+
+export type {
+	IndexBlockRow,
+	IndexEventRow,
+	IndexTransactionRow,
+} from "@secondlayer/shared/index-http";
 
 /**
  * Reconstruct the raw `blocks`/`events` row shapes the subgraph runtime expects
@@ -16,79 +27,6 @@ import type { Block, Event, Transaction } from "@secondlayer/shared/db";
  *    serde-tagged `value`, e.g. `{UInt:223}`, is not reproducible from hex and
  *    is no longer read — see the nft tokenId normalization in runner.ts.)
  */
-
-// ── Index API response shapes (local copies — subgraphs cannot depend on the
-// SDK, which depends on subgraphs) ─────────────────────────────────────────
-export type IndexBlockRow = {
-	block_height: number;
-	block_hash: string;
-	parent_hash: string;
-	burn_block_height: number;
-	burn_block_hash: string | null;
-	block_time: string | null;
-};
-
-type IndexEventCommon = {
-	block_height: number;
-	tx_id: string;
-	event_index: number;
-	contract_id: string | null;
-};
-
-export type IndexEventRow = IndexEventCommon &
-	(
-		| {
-				event_type: "ft_transfer" | "ft_mint" | "ft_burn";
-				asset_identifier: string;
-				sender?: string;
-				recipient?: string;
-				amount: string;
-		  }
-		| {
-				event_type: "nft_transfer" | "nft_mint" | "nft_burn";
-				asset_identifier: string;
-				sender?: string;
-				recipient?: string;
-				value: string;
-		  }
-		| {
-				event_type: "stx_transfer" | "stx_mint" | "stx_burn";
-				sender?: string;
-				recipient?: string;
-				amount: string;
-				memo?: string | null;
-		  }
-		| {
-				event_type: "stx_lock";
-				sender: string;
-				amount: string;
-				payload: { unlock_height: string | null };
-		  }
-		| {
-				event_type: "print";
-				payload: {
-					topic: string | null;
-					value: unknown;
-					raw_value: string | null;
-				};
-		  }
-	);
-
-export type IndexTransactionRow = {
-	tx_id: string;
-	block_height: number;
-	tx_index: number;
-	tx_type: string;
-	sender: string;
-	status: string;
-	contract_call?: {
-		contract_id: string;
-		function_name: string;
-		function_args?: string[] | null;
-		result_hex?: string | null;
-	} | null;
-	smart_contract?: { contract_id: string | null } | null;
-};
 
 /** ISO `block_time` (or null) → unix-seconds integer the runtime expects. */
 function isoToUnixSeconds(iso: string | null): number {

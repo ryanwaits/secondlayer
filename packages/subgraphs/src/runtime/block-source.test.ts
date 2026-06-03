@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import type { SubgraphDefinition } from "../types.ts";
 import {
 	PublicApiBlockSource,
 	isStreamsIndexEligible,
 } from "./block-source.ts";
-import type { IndexHttpClient } from "./index-http.ts";
 
 function def(sources: Record<string, unknown>): SubgraphDefinition {
 	return { name: "t", sources } as unknown as SubgraphDefinition;

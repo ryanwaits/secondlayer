@@ -84,6 +84,10 @@
 			"types": "./dist/src/index-internal-auth.d.ts",
 			"import": "./dist/src/index-internal-auth.js"
 		},
+		"./index-http": {
+			"types": "./dist/src/index-http.d.ts",
+			"import": "./dist/src/index-http.js"
+		},
 		"./logger": {
 			"types": "./dist/src/logger.d.ts",
 			"import": "./dist/src/logger.js"
