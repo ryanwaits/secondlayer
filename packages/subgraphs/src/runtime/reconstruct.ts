@@ -119,7 +119,9 @@ export function reconstructEvent(e: IndexEventRow): Event {
 					sender: e.sender,
 					recipient: e.recipient,
 					amount: e.amount,
-					...("memo" in e ? { memo: e.memo ?? undefined } : {}),
+					// Raw stx_transfer always carries memo ("" when empty); Index
+					// returns null for empty — default to "" to match the DB tap.
+					...(e.event_type === "stx_transfer" ? { memo: e.memo ?? "" } : {}),
 				},
 			} as Event;
 
@@ -140,7 +142,7 @@ export function reconstructEvent(e: IndexEventRow): Event {
 				type: "contract_event",
 				data: {
 					topic: e.payload.topic,
-					contract_id: e.contract_id,
+					// Matcher + runner read `contract_identifier` (the raw node field).
 					contract_identifier: e.contract_id,
 					value: e.payload.value,
 					raw_value: e.payload.raw_value,

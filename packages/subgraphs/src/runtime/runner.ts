@@ -308,9 +308,19 @@ export function buildEventPayload(
 
 		// ── Contract call (with events) ──
 		case "contract_call": {
+			// Normalize the spread event Clarity `value` to the decoded canonical
+			// (from `raw_value`), so it's identical whether the event came from the
+			// DB tap or the Index API — the node's serde-tagged `value` is not
+			// reproducible from Index (same rationale as nft tokenId / print).
+			const ccRawHex = (event.data as Record<string, unknown> | null)
+				?.raw_value;
+			const normalized =
+				typeof ccRawHex === "string" && ccRawHex.startsWith("0x")
+					? { ...decoded, value: decodeClarityValue(ccRawHex) }
+					: decoded;
 			const input = buildContractCallInput(filter, tx);
 			return {
-				...decoded,
+				...normalized,
 				type: "contract_call",
 				_eventType: event.type,
 				contractId: tx.contract_id ?? "",

@@ -73,8 +73,20 @@ const EVENT_TYPES = [
 	"print",
 ];
 
+// Deep key-sort + bigint-safe — handler output depends on values, not key order.
+function sortDeep(v: unknown): unknown {
+	if (Array.isArray(v)) return v.map(sortDeep);
+	if (v && typeof v === "object") {
+		const out: Record<string, unknown> = {};
+		for (const k of Object.keys(v).sort()) {
+			out[k] = sortDeep((v as Record<string, unknown>)[k]);
+		}
+		return out;
+	}
+	return v;
+}
 function stable(value: unknown): string {
-	return JSON.stringify(value, (_k, v) =>
+	return JSON.stringify(sortDeep(value), (_k, v) =>
 		typeof v === "bigint" ? `${v}n` : v,
 	);
 }
