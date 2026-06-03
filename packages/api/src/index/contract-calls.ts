@@ -187,7 +187,9 @@ function decodeResult(raw: string | null): unknown {
 function normalizeRow(row: ContractCallDbRow): ContractCall {
 	const blockHeight = Number(row.block_height);
 	const txIndex = Number(row.tx_index);
-	return {
+	// Deep BigInt→string over the whole row — decoded Clarity args/result carry
+	// bigints that throw in JSON.stringify (c.json + ETag).
+	return jsonSafeBigInt({
 		cursor: `${blockHeight}:${txIndex}`,
 		block_height: blockHeight,
 		block_time: toIsoOrNull(row.block_time),
@@ -197,10 +199,10 @@ function normalizeRow(row: ContractCallDbRow): ContractCall {
 		function_name: row.function_name,
 		sender: row.sender,
 		status: row.status,
-		args: jsonSafeBigInt(decodeArgs(row.function_args)),
-		result: jsonSafeBigInt(decodeResult(row.raw_result)),
+		args: decodeArgs(row.function_args),
+		result: decodeResult(row.raw_result),
 		result_hex: row.raw_result,
-	};
+	});
 }
 
 export async function readContractCalls(

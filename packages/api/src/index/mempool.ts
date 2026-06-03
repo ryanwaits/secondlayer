@@ -177,7 +177,7 @@ function normalizeMempool(row: MempoolDbRow): MempoolTransaction {
 		tx.contract_call = {
 			contract_id: row.contract_id,
 			function_name: row.function_name,
-			function_args: jsonSafeBigInt(decodeArgs(row.function_args)),
+			function_args: decodeArgs(row.function_args),
 		};
 	}
 	if (decoded?.token_transfer) tx.token_transfer = decoded.token_transfer;
@@ -189,7 +189,9 @@ function normalizeMempool(row: MempoolDbRow): MempoolTransaction {
 	if (decoded?.coinbase) tx.coinbase = decoded.coinbase;
 	if (decoded?.tenure_change) tx.tenure_change = decoded.tenure_change;
 
-	return tx;
+	// Deep BigInt→string over the whole tx — decoded args/result and NFT
+	// post-condition asset_value carry bigints that throw in JSON.stringify.
+	return jsonSafeBigInt(tx);
 }
 
 function parseMempoolCursor(value: string): number {
