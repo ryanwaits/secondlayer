@@ -2,6 +2,7 @@ import { sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import { computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
 import type { Insertable, Kysely } from "kysely";
+import { removeMempoolTxs } from "./mempool.ts";
 
 // Chunk large batches to stay under the Postgres bind-parameter limit.
 const TX_CHUNK_SIZE = 500;
@@ -131,6 +132,14 @@ export async function persistBlock(
 				.onConflict((oc: any) => oc.doNothing())
 				.execute();
 		}
+
+		// Evict now-confirmed txs from the mempool, in the same transaction so it
+		// rolls back with the block on failure. The node doesn't reliably emit a
+		// drop for mined txs, so block ingest is the canonical eviction signal.
+		await removeMempoolTxs(
+			tx,
+			txs.map((t) => t.tx_id as string),
+		);
 
 		// Compute last_contiguous_block.
 		const progressRow = await tx
