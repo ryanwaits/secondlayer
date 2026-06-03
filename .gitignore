@@ -83,3 +83,4 @@ plans/
 !/.claude/sprints/current-sprint.md
 
 .scaffold-test-*
+packages/subgraphs/test/fixtures/
