@@ -221,6 +221,41 @@ for await (const action of sl.index.stacking.walk({ stacker: "SP4VG5YE..." })) {
 
 ---
 
+## 5. Mempool (`/v1/index/mempool` + `/mempool/{tx_id}`)
+
+Pending (unconfirmed) transactions, captured straight from the node's mempool. Same enrichment as confirmed transactions (`fee`, `nonce`, `sponsored`, `post_conditions`, payload sub-object) but pre-chain — no `block_height`/`tx_index`/`result`/`events` — plus `received_at`. Filter by `sender`/`type`. Cursor is the mempool sequence integer. Rows leave the set when the tx confirms or drops, so a `/mempool/{tx_id}` lookup 404s once it's mined. Unlike every other Index endpoint, mempool is **never cacheable** (always `private, max-age=2`, no ETag) — it's the one volatile surface.
+
+```bash
+curl -s "https://api.secondlayer.tools/v1/index/mempool?limit=2"
+curl -s "https://api.secondlayer.tools/v1/index/mempool?type=contract_call&sender=SP17R9...&limit=10"
+curl -s "https://api.secondlayer.tools/v1/index/mempool/0xpending..."   # -> { transaction, tip }; 404 once mined
+```
+
+```jsonc
+{
+  "mempool": [{
+    "cursor": "10428",
+    "tx_id": "0xpending...",
+    "tx_type": "token_transfer",
+    "sender": "SP2Z0V6KWDW82V6YDHHKH6E8M010PWEXAPX711XWR",
+    "received_at": "2026-06-03T01:33:16.000Z",
+    "fee": "300", "nonce": "191160", "sponsored": false,
+    "post_condition_mode": "deny", "post_conditions": [],
+    "token_transfer": { "recipient": "SP...", "amount": "440", "memo": "" }
+  }],
+  "next_cursor": "10428",
+  "tip": { "block_height": 8170629, "finalized_height": 8170453, "lag_seconds": 120 }
+}
+```
+
+```ts
+const { mempool } = await sl.index.mempool.list({ type: "contract_call", sender: "SP17R9..." });
+for await (const tx of sl.index.mempool.walk({})) console.log(tx.tx_id, tx.fee);
+const pending = await sl.index.mempool.get("0xpending..."); // { transaction, tip } | null (null once mined)
+```
+
+---
+
 ## Verify caching (ETag / 304)
 
 Every Index read sets `Cache-Control`:

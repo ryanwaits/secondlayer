@@ -130,9 +130,9 @@ Recent chain reorgs.
 
 ---
 
-## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, stacking)
+## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, stacking, mempool)
 
-The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, and PoX-4 stacking. `GET /v1/index` returns route discovery. Open-beta read (no key required). Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
+The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, PoX-4 stacking, and mempool (pending txs). `GET /v1/index` returns route discovery. Open-beta read (no key required). Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
 
 ### `GET /v1/index/events`
 
@@ -192,9 +192,13 @@ Full transaction documents: the columnar fields plus enrichment decoded from `ra
 
 Decoded PoX-4 stacking actions (`stack-stx`, `delegate-stx`, …). Filter `function_name`/`stacker`/`caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr` (`{version, hashbytes, btc}`), `start_cycle`/`end_cycle`/`reward_cycle`, `signer_key`, `result_ok`. Returns `[]` plus a `notes` hint when the platform's PoX-4 decoder is disabled.
 
+### `GET /v1/index/mempool` and `GET /v1/index/mempool/{tx_id}`
+
+Pending (unconfirmed) transactions. Same `raw_tx`-decoded enrichment as `/transactions` (`fee`, `nonce`, `sponsored`, `post_conditions`, payload sub-object) but pre-chain — no `block_height`/`tx_index`/`result`/`events`, plus `received_at`. Filter `sender`/`type`. Cursor is the mempool sequence integer (not `block_height:tx_index`). Rows are evicted on confirmation or drop, so the single form 404s once a tx mines. **Never cacheable** — always `private, max-age=2`, no ETag (the one volatile Index surface).
+
 ### Caching
 
-Every Index read sets `Cache-Control`: `public, max-age=31536000, immutable` once the resolved range is past burn-finality, else `private, max-age=2`. Finalized pages carry a weak ETag (over the data slice, excluding the moving tip); a matching `If-None-Match` returns 304.
+Every Index read sets `Cache-Control`: `public, max-age=31536000, immutable` once the resolved range is past burn-finality, else `private, max-age=2`. Finalized pages carry a weak ETag (over the data slice, excluding the moving tip); a matching `If-None-Match` returns 304. The exception is `/mempool`, which is always volatile (short TTL, no ETag).
 
 ---
 
