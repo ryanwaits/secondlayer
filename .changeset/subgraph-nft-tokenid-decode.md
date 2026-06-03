@@ -2,4 +2,4 @@
 "@secondlayer/subgraphs": minor
 ---
 
-NFT event handlers now receive `tokenId` decoded from the canonical hex (clean `cvToValue`, e.g. `223n`) instead of the stacks-node's verbose serde-tagged form (`{ UInt: 223 }`). This makes the value source-independent (identical whether the runtime reads the indexer DB or the public Index API) and far friendlier for handler authors. Print event values already decoded this way. Behavior change for NFT `tokenId` shape — reindex NFT subgraphs to pick up the new representation.
+NFT `tokenId` and print `value` now decode from the canonical hex (clean `cvToValue`, e.g. `223n`, `{}` for `(none)`) instead of the stacks-node's verbose serde-tagged form (`{ UInt: 223 }`, `{ Optional: { data: null } }`). This makes the values source-independent (identical whether the runtime reads the indexer DB or the public Index API) and far friendlier for handler authors. Behavior change for NFT `tokenId` and some print `data` shapes — reindex affected subgraphs to pick up the new representation.

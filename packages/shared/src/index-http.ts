@@ -122,8 +122,10 @@ export class IndexHttpClient {
 	}
 
 	private async get<T>(url: string, apiKey: string): Promise<T> {
+		// Index reads are anon — omit the header entirely when no key is set, so
+		// an empty key reads anonymously rather than 401-ing as an invalid bearer.
 		const res = await fetch(url, {
-			headers: { authorization: `Bearer ${apiKey}` },
+			headers: apiKey ? { authorization: `Bearer ${apiKey}` } : {},
 		});
 		if (!res.ok) {
 			throw new Error(`GET ${url} → ${res.status} ${await res.text()}`);
@@ -143,12 +145,14 @@ export class IndexHttpClient {
 		let cursor: string | null = null;
 		do {
 			const params = new URLSearchParams({
-				from_height: String(fromHeight),
 				to_height: String(toHeight),
 				limit: String(PAGE_LIMIT),
 				...extraParams,
 			});
+			// from_height and cursor are mutually exclusive — anchor the first page
+			// by height, then page forward by cursor only.
 			if (cursor) params.set("cursor", cursor);
+			else params.set("from_height", String(fromHeight));
 			const env: Envelope<K, T> = await this.get(
 				`${this.indexBaseUrl}${path}?${params}`,
 				this.indexApiKey,

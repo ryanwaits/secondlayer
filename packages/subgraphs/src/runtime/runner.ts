@@ -271,12 +271,15 @@ export function buildEventPayload(
 
 		// ── Print event ──
 		case "print_event": {
-			const decodedRawValue = decoded.raw_value;
+			// Decode the print value from the canonical hex (`raw_value`) so it's
+			// source-independent and clean — the node's verbose serde-tagged
+			// `value` (e.g. `{Optional:{data:null}}`) is not reproducible from the
+			// Index API and is no longer used (same rationale as nft tokenId).
+			// decodeEventData skips hex ≤10 chars, so decode `raw_value` directly.
+			const rawHex = (event.data as Record<string, unknown> | null)?.raw_value;
 			const rawValue =
-				decodedRawValue &&
-				typeof decodedRawValue === "object" &&
-				!Array.isArray(decodedRawValue)
-					? decodedRawValue
+				typeof rawHex === "string" && rawHex.startsWith("0x")
+					? decodeClarityValue(rawHex)
 					: decoded.value;
 			// Extract topic from decoded Clarity value (not raw event topic which is always "print")
 			const clarityObj =
