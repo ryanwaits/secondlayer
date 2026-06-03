@@ -225,6 +225,15 @@ for await (const action of sl.index.stacking.walk({ stacker: "SP4VG5YE..." })) {
 
 Pending (unconfirmed) transactions, captured straight from the node's mempool. Same enrichment as confirmed transactions (`fee`, `nonce`, `sponsored`, `post_conditions`, payload sub-object) but pre-chain — no `block_height`/`tx_index`/`result`/`events` — plus `received_at`. Filter by `sender`/`type`. Cursor is the mempool sequence integer. Rows leave the set when the tx confirms or drops, so a `/mempool/{tx_id}` lookup 404s once it's mined. Unlike every other Index endpoint, mempool is **never cacheable** (always `private, max-age=2`, no ETag) — it's the one volatile surface.
 
+**What it's for.** Track a transaction's *pre-confirmation* lifecycle. The canonical flow: submit a tx → `GET /mempool/{tx_id}` returns the decoded pending document ("your tx is pending") → it 404s here and appears on `/transactions/{tx_id}` with a `block_height` once mined. That pending→confirmed handoff is the point of pairing mempool with the transactions endpoint.
+
+- **Optimistic UX** — show "pending" with the decoded fee / amount / contract-call detail before confirmation, then flip to confirmed.
+- **Wallet pending view + nonce management** — `?sender=<addr>` lists a user's in-flight txs and their nonces, so the next submit doesn't reuse a pending nonce and a stuck tx is easy to spot.
+- **Dropped-tx detection** — absent from *both* `/mempool` and `/transactions` ⇒ the tx was dropped (resubmit / alert).
+- **Keepers, fee estimation, live feeds** — watch `?type=contract_call` for pending state-changing calls; sample pending fees for inclusion pricing.
+
+> **Completeness caveat.** This is a **single-node, go-forward** view: the node's observer only pushes txs new *after* the indexer connected, so it doesn't carry a long-running explorer's full pending backlog and isn't a globally-aggregated mempool. It's strong for "did my tx land / is it still pending / did it confirm" and per-node pending state; weaker for exhaustive MEV/front-running. (Parity with an explorer's active set would need an explicit node-mempool sync — a planned follow-up.)
+
 ```bash
 curl -s "https://api.secondlayer.tools/v1/index/mempool?limit=2"
 curl -s "https://api.secondlayer.tools/v1/index/mempool?type=contract_call&sender=SP17R9...&limit=10"

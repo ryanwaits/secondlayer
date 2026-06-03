@@ -1,3 +1,40 @@
+/**
+ * Mempool (pending / unconfirmed transactions) — the `/v1/index/mempool` surface.
+ *
+ * WHY THIS EXISTS. App developers use it to track a transaction's *pre-confirmation*
+ * lifecycle. The canonical flow: submit a tx → `GET /mempool/:tx_id` returns the
+ * decoded pending document ("your tx is pending") → it 404s here and shows up on
+ * `/transactions/:tx_id` with a block_height once mined. That pending→confirmed
+ * handoff is the whole reason mempool sits alongside the transactions endpoint.
+ * Concrete use cases:
+ *   - Optimistic UX: render "pending" with decoded fee / amount / contract-call
+ *     detail *before* confirmation, then flip to confirmed.
+ *   - Wallet pending view + nonce management: `?sender=` lists a user's in-flight
+ *     txs and their nonces, so the next submit doesn't reuse a pending nonce and
+ *     the user can spot a stuck tx to fee-bump.
+ *   - Dropped-tx detection: absent from BOTH /mempool and /transactions ⇒ dropped
+ *     (resubmit / alert).
+ *   - Keepers, fee estimation, live feeds: watch `?type=contract_call` for pending
+ *     state-changing calls; sample pending fees for inclusion pricing.
+ *
+ * SHAPE. A pending tx is pre-chain — no block_height / tx_index / result / events —
+ * so the document is the transactions shape minus those, plus `received_at`, with
+ * a sequence-integer cursor. Never cacheable (always volatile → short private TTL,
+ * no ETag).
+ *
+ * COMPLETENESS CAVEAT — read before relying on it. This is a SINGLE-NODE,
+ * GO-FORWARD view. The node's `/new_mempool_tx` observer only pushes txs that are
+ * new to the node *after* our observer connected; it never replays the existing
+ * backlog. So a freshly (re)deployed indexer starts empty and accumulates over
+ * time, and it is NOT a globally-aggregated mempool. It's strong for "did my tx
+ * land / is it still pending / did it confirm" and per-node pending state; it is
+ * weaker for exhaustive MEV/front-running (which wants every node's view). Reaching
+ * parity with a long-running mempool (e.g. an explorer's active set) requires
+ * actively syncing the node's pending set — its `mempool.sqlite` carries txid +
+ * raw tx + accept_time — rather than waiting on the observer trickle. That sync is
+ * a deliberate, not-yet-built follow-up; without it the endpoint reflects recent
+ * activity only.
+ */
 import { decodeClarityValue } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
