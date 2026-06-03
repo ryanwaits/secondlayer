@@ -138,7 +138,7 @@ export function buildContractCallInput(
  * Build a typed event payload based on the source filter type.
  * Returns the payload the handler will receive.
  */
-function buildEventPayload(
+export function buildEventPayload(
 	filter: SubgraphFilter,
 	tx: MatchedTx["tx"],
 	event: MatchedTx["events"][0] | null,
@@ -213,25 +213,29 @@ function buildEventPayload(
 			};
 
 		// ── NFT events ──
+		// tokenId decodes from the canonical hex (`raw_value`), not the node's
+		// verbose serde-tagged `value` (`{UInt:223}`). The hex is source-
+		// independent — present in both the DB tap and the Index API — so a
+		// subgraph yields the same clean tokenId (e.g. 223n) on either source.
 		case "nft_transfer":
 			return {
 				sender: decoded.sender as string,
 				recipient: decoded.recipient as string,
-				tokenId: decoded.value,
+				tokenId: decoded.raw_value ?? decoded.value,
 				assetIdentifier: decoded.asset_identifier as string,
 				tx: txMeta,
 			};
 		case "nft_mint":
 			return {
 				recipient: decoded.recipient as string,
-				tokenId: decoded.value,
+				tokenId: decoded.raw_value ?? decoded.value,
 				assetIdentifier: decoded.asset_identifier as string,
 				tx: txMeta,
 			};
 		case "nft_burn":
 			return {
 				sender: decoded.sender as string,
-				tokenId: decoded.value,
+				tokenId: decoded.raw_value ?? decoded.value,
 				assetIdentifier: decoded.asset_identifier as string,
 				tx: txMeta,
 			};
