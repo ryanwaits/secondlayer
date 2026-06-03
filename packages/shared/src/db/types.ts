@@ -96,6 +96,22 @@ export interface DeadLetterEventsTable {
 	created_at: Generated<Date>;
 }
 
+// Pending (unconfirmed) transactions (see migration 0086). Pre-chain, so no
+// block_height/tx_index/result/events and never canonical. tx_id is derived
+// from raw_tx; function_args holds hex-encoded ClarityValues (jsonb), like
+// `transactions`.
+export interface MempoolTransactionsTable {
+	seq: Generated<string>;
+	tx_id: string;
+	raw_tx: string;
+	type: string;
+	sender: string;
+	contract_id: string | null;
+	function_name: string | null;
+	function_args: unknown | null;
+	received_at: Generated<Date>;
+}
+
 export interface IndexProgressTable {
 	network: string;
 	last_indexed_block: Generated<number>;
@@ -723,6 +739,7 @@ export interface Database {
 	transactions_archive: TransactionsArchiveTable;
 	events_archive: EventsArchiveTable;
 	dead_letter_events: DeadLetterEventsTable;
+	mempool_transactions: MempoolTransactionsTable;
 	index_progress: IndexProgressTable;
 	contracts: ContractsTable;
 	subgraphs: SubgraphsTable;
@@ -924,6 +941,9 @@ export type UpdateBlock = Updateable<BlocksTable>;
 export type Transaction = Selectable<TransactionsTable>;
 export type InsertTransaction = Insertable<TransactionsTable>;
 export type UpdateTransaction = Updateable<TransactionsTable>;
+
+export type MempoolTransaction = Selectable<MempoolTransactionsTable>;
+export type InsertMempoolTransaction = Insertable<MempoolTransactionsTable>;
 
 export type Event = Selectable<EventsTable>;
 export type InsertEvent = Insertable<EventsTable>;
