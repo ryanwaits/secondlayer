@@ -1,7 +1,12 @@
 import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
 import { getDb } from "@secondlayer/shared/db";
 import { type Context, Hono } from "hono";
-import { cacheControl, etag, matchesIfNoneMatch } from "../http/cache.ts";
+import {
+	MUTABLE_CACHE_CONTROL,
+	cacheControl,
+	etag,
+	matchesIfNoneMatch,
+} from "../http/cache.ts";
 import {
 	DEFAULT_INDEX_TOKEN_STORE,
 	type IndexEnv,
@@ -35,6 +40,13 @@ import {
 	type FtTransfersReader,
 	getFtTransfersResponse,
 } from "../index/ft-transfers.ts";
+import {
+	MEMPOOL_FILTERS,
+	type MempoolByIdReader,
+	type MempoolReader,
+	getMempoolResponse,
+	readMempoolByTxId,
+} from "../index/mempool.ts";
 import {
 	type NftTransfersReader,
 	getNftTransfersResponse,
@@ -90,6 +102,8 @@ export type IndexRouterOptions = {
 	readTransactions?: TransactionsReader;
 	readTransactionById?: TransactionByIdReader;
 	readStacking?: StackingReader;
+	readMempool?: MempoolReader;
+	readMempoolByTxId?: MempoolByIdReader;
 	readReorgs?: StreamsReorgsReader;
 	recordDecodedEventsReturned?: (
 		accountId: string,
@@ -206,6 +220,19 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …), filterable by function_name/stacker/caller + cursor-paginated. Returns stacking[], next_cursor, tip. Cursor: <block_height>:<tx_index>.",
 					filters: STACKING_FILTERS,
+				},
+				{
+					path: "/v1/index/mempool",
+					method: "GET",
+					description:
+						"Pending (unconfirmed) transaction documents, filterable by sender/type + cursor-paginated. Pre-chain: no block_height/result/events, plus received_at. Never cacheable (volatile). Cursor: mempool sequence integer.",
+					filters: MEMPOOL_FILTERS,
+				},
+				{
+					path: "/v1/index/mempool/:tx_id",
+					method: "GET",
+					description:
+						"A single pending transaction by tx_id. 404 when absent (confirmed/dropped txs leave the mempool).",
 				},
 			],
 			auth: "optional bearer for higher rate-limit tier; anon allowed",
@@ -401,6 +428,38 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			await recordDecodedEventsReturned(accountId, response.stacking.length);
 		}
 		return c.json(response);
+	});
+
+	router.get("/mempool", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, MEMPOOL_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getMempoolResponse({
+			query,
+			tip,
+			readMempool: opts.readMempool,
+		});
+		// Mempool is permanently volatile — never finalized, so no immutable cache
+		// or ETag/304. Short private TTL only.
+		c.header("Cache-Control", MUTABLE_CACHE_CONTROL);
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.mempool.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.mempool.length);
+		}
+		return c.json(response);
+	});
+
+	router.get("/mempool/:tx_id", async (c) => {
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const read = opts.readMempoolByTxId ?? readMempoolByTxId;
+		const transaction = await read(c.req.param("tx_id"));
+		if (!transaction) {
+			return c.json({ error: "Pending transaction not found" }, 404);
+		}
+		c.header("Cache-Control", MUTABLE_CACHE_CONTROL);
+		return c.json({ transaction, tip });
 	});
 
 	router.get("/ft-transfers", async (c) => {

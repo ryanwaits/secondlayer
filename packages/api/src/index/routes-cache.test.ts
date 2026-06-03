@@ -11,6 +11,11 @@ import type { CanonicalRangeReader } from "./canonical.ts";
 import type { ContractCallsReader } from "./contract-calls.ts";
 import type { IndexEventsReader } from "./events.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
+import type {
+	MempoolByIdReader,
+	MempoolReader,
+	MempoolTransaction,
+} from "./mempool.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
 import type { StackingAction, StackingReader } from "./stacking.ts";
 import type { IndexTip } from "./tip.ts";
@@ -188,6 +193,29 @@ const ONE_STACK: StackingReader = async () => ({
 	next_cursor: "9000:0",
 });
 
+const PENDING_TX: MempoolTransaction = {
+	cursor: "42",
+	tx_id: "0xpending",
+	tx_type: "token_transfer",
+	sender: "SP1",
+	received_at: "2026-06-03T00:00:00.000Z",
+	fee: "180",
+	nonce: "1",
+	sponsored: false,
+	anchor_mode: "any",
+	post_condition_mode: "deny",
+	post_conditions: [],
+	token_transfer: { recipient: "SP2", amount: "1", memo: "" },
+};
+
+const ONE_MEMPOOL: MempoolReader = async () => ({
+	mempool: [PENDING_TX],
+	next_cursor: "42",
+});
+
+const MEMPOOL_BY_ID: MempoolByIdReader = async (txId) =>
+	txId === "0xpending" ? PENDING_TX : null;
+
 function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 	const app = new Hono();
 	app.onError(errorHandler);
@@ -205,6 +233,8 @@ function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 			readTransactions: ONE_TX,
 			readTransactionById: TX_BY_ID,
 			readStacking: ONE_STACK,
+			readMempool: ONE_MEMPOOL,
+			readMempoolByTxId: MEMPOOL_BY_ID,
 			readReorgs: async () => [],
 		}),
 	);
@@ -422,5 +452,35 @@ describe("Index stacking route", () => {
 		const res = await createApp().request("/v1/index");
 		const body = (await res.json()) as { routes: Array<{ path: string }> };
 		expect(body.routes.map((r) => r.path)).toContain("/v1/index/stacking");
+	});
+});
+
+describe("Index mempool routes", () => {
+	test("lists pending txs, never cacheable (no ETag, short TTL)", async () => {
+		const res = await createApp().request("/v1/index/mempool?limit=10");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			mempool: Array<{ tx_id: string; fee: string | null }>;
+			next_cursor: string | null;
+			tip: { block_height: number };
+		};
+		expect(body.mempool[0]).toMatchObject({ tx_id: "0xpending", fee: "180" });
+		expect(body.next_cursor).toBe("42");
+		// Mempool is volatile — short private TTL, never immutable, no ETag.
+		expect(res.headers.get("Cache-Control")).toBe(MUTABLE_CACHE_CONTROL);
+		expect(res.headers.get("ETag")).toBeNull();
+	});
+
+	test("fetches a single pending tx by tx_id", async () => {
+		const res = await createApp().request("/v1/index/mempool/0xpending");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { transaction: { tx_id: string } };
+		expect(body.transaction.tx_id).toBe("0xpending");
+		expect(res.headers.get("Cache-Control")).toBe(MUTABLE_CACHE_CONTROL);
+	});
+
+	test("returns 404 for an unknown pending tx_id", async () => {
+		const res = await createApp().request("/v1/index/mempool/0xnope");
+		expect(res.status).toBe(404);
 	});
 });

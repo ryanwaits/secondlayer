@@ -412,6 +412,41 @@ const OPENAPI_SPEC = {
 				responses: envelope("stacking"),
 			},
 		},
+		"/v1/index/mempool": {
+			get: {
+				tags: ["index"],
+				summary: "Pending (unconfirmed) transactions",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "string", example: "10428" },
+					},
+					qp("from_cursor", "string"),
+					qp("sender", "string"),
+					qp("type", "string"),
+				],
+				responses: envelope("mempool"),
+			},
+		},
+		"/v1/index/mempool/{tx_id}": {
+			get: {
+				tags: ["index"],
+				summary: "Pending transaction by tx_id",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{
+						name: "tx_id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+					},
+				],
+				responses: ok(),
+			},
+		},
 		"/v1/streams": {
 			get: { tags: ["streams"], summary: "Streams discovery", responses: ok() },
 		},
