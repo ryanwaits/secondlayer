@@ -2,8 +2,12 @@ import {
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
-import { createRuntimeProductTokenStore } from "../auth/product-token-store.ts";
+import {
+	INDEX_INTERNAL_TENANT_ID,
+	defaultInternalIndexApiKey,
+} from "@secondlayer/shared/index-internal-auth";
 import type { MiddlewareHandler } from "hono";
+import { createRuntimeProductTokenStore } from "../auth/product-token-store.ts";
 import type { IndexTier } from "./tiers.ts";
 import type { IndexTip } from "./tip.ts";
 
@@ -24,7 +28,9 @@ export type IndexEnv = {
 };
 
 export type IndexTokenStore = {
-	get(rawToken: string): IndexTenant | undefined | Promise<IndexTenant | undefined>;
+	get(
+		rawToken: string,
+	): IndexTenant | undefined | Promise<IndexTenant | undefined>;
 };
 
 // Static seed tokens cover post-deploy smoke and test fixtures; production
@@ -71,6 +77,19 @@ export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 		},
 	],
 ]);
+
+// First-party internal consumer (subgraph processor PublicApiBlockSource).
+// Enterprise tier + NO account_id → reads are unmetered (metering gates on
+// account_id). Key resolves from INDEX_INTERNAL_API_KEY env. Mirrors the
+// Streams internal tenant seed.
+(DEFAULT_INDEX_TOKENS as unknown as Map<string, IndexTenant>).set(
+	defaultInternalIndexApiKey(),
+	{
+		tenant_id: INDEX_INTERNAL_TENANT_ID,
+		tier: "enterprise",
+		scopes: [INDEX_READ_SCOPE],
+	},
+);
 
 export const DEFAULT_INDEX_TOKEN_STORE: IndexTokenStore =
 	createRuntimeProductTokenStore({
