@@ -225,7 +225,10 @@ function normalizeTransaction(row: TransactionDbRow): IndexTransaction {
 	if (decoded?.coinbase) tx.coinbase = decoded.coinbase;
 	if (decoded?.tenure_change) tx.tenure_change = decoded.tenure_change;
 
-	return tx;
+	// Deep BigInt→string over the whole tx — decoded payloads carry bigints in
+	// several spots (decoded args/result, and NFT post-condition asset_value)
+	// that throw in JSON.stringify (c.json + ETag).
+	return jsonSafeBigInt(tx);
 }
 
 export function parseTransactionCursor(value: string): TransactionCursor {
