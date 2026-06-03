@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "1.15.0",
+	"version": "1.16.0",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -13,10 +13,10 @@
 	},
 	"dependencies": {
 		"@secondlayer/bundler": "^0.3.9",
-		"@secondlayer/indexer": "^1.11.0",
+		"@secondlayer/indexer": "^1.12.0",
 		"@secondlayer/platform": "workspace:*",
-		"@secondlayer/sdk": "^6.3.0",
-		"@secondlayer/shared": "^6.13.0",
+		"@secondlayer/sdk": "^6.4.0",
+		"@secondlayer/shared": "^6.14.0",
 		"@secondlayer/subgraphs": "^3.4.0",
 		"hono": "^4.0.0",
 		"stripe": "^22.0.2",
