@@ -30,6 +30,7 @@ import { catchUpSubgraph } from "./catchup.ts";
 import { startEmitter } from "./emitter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
+import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
 
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const CHANNEL_SUBGRAPH_OPERATIONS = "subgraph_operations:new";
@@ -492,6 +493,14 @@ export async function startSubgraphProcessor(opts?: {
 		await catchUpAll(subgraphs, db, concurrency);
 	}, POLL_INTERVAL_MS);
 
+	// Streams is the reorg authority for streams-index subgraphs (the public
+	// API path has no Postgres NOTIFY). Runs alongside the LISTEN above; both
+	// drive the idempotent handler.
+	const stopStreamsReorgPoll =
+		process.env.SUBGRAPH_SOURCE === "streams-index"
+			? startStreamsReorgPoll(handleSubgraphReorg, loadSubgraphDefinition)
+			: undefined;
+
 	// Boot subscription emitter in same process — shares pool, shares
 	// LISTEN connection. Platform mode is control plane only and does not
 	// need the emitter, but processor itself isn't started there.
@@ -505,6 +514,7 @@ export async function startSubgraphProcessor(opts?: {
 		clearInterval(pollInterval);
 		await stopListening();
 		await stopReorgListening();
+		stopStreamsReorgPoll?.();
 		await stopOperations();
 		await stopEmitter();
 		logger.info("Subgraph processor stopped");
