@@ -324,14 +324,14 @@ export interface NewBurnBlockPayload {
 	burn_block_timestamp?: number;
 }
 
-// Mempool transaction payloads (no-op for v1)
-export interface NewMempoolTxPayload {
-	txid: string;
-	raw_tx: string;
-	status: string;
-}
+// Mempool transaction payloads — verified against a live prod node (3.4.0.0.3).
+// `/new_mempool_tx` POSTs a bare JSON array of raw_tx hex strings (no txid, no
+// wrapper), so the txid must be derived from the raw_tx. `/drop_mempool_tx`
+// POSTs the object below; `new_txid` is the RBF replacement (null otherwise).
+export type NewMempoolTxPayload = string[];
 
 export interface DropMempoolTxPayload {
-	txid: string;
+	dropped_txids: string[];
+	new_txid: string | null;
 	reason: string;
 }
