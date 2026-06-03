@@ -109,6 +109,10 @@ services:
   subgraph-processor:
     environment:
       SUBGRAPH_OPERATION_CONCURRENCY: "5"
+      # Eligible subgraphs read chain data from the public microservices
+      # (Streams clock + Index data) instead of the indexer Postgres. Ineligible
+      # subgraphs transparently stay on the DB tap. Unset to roll back to db.
+      SUBGRAPH_SOURCE: streams-index
 
   agent:
     container_name: secondlayer-agent
