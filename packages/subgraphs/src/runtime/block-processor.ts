@@ -1,8 +1,4 @@
-import {
-	type Database,
-	getSourceDb,
-	getTargetDb,
-} from "@secondlayer/shared/db";
+import { type Database, getTargetDb } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import {
 	isByoSubgraph,
@@ -14,6 +10,7 @@ import { logger } from "@secondlayer/shared/logger";
 import { type Kysely, type Transaction, sql } from "kysely";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
+import { resolveBlockSource } from "./block-source.ts";
 import { type BlockMeta, SubgraphContext, type TxMeta } from "./context.ts";
 import { emitSubscriptionOutbox } from "./outbox-emit.ts";
 import { runHandlers } from "./runner.ts";
@@ -127,7 +124,6 @@ export async function processBlock(
 	blockHeight: number,
 	opts?: ProcessBlockOptions,
 ): Promise<ProcessBlockResult> {
-	const sourceDb = getSourceDb();
 	const targetDb = getTargetDb();
 	const blockStart = performance.now();
 	const result: ProcessBlockResult = {
@@ -147,42 +143,25 @@ export async function processBlock(
 		txs = opts.preloaded.txs;
 		evts = opts.preloaded.events;
 	} else {
-		block = await sourceDb
-			.selectFrom("blocks")
-			.selectAll()
-			.where("height", "=", blockHeight)
-			.executeTakeFirst();
-
-		if (!block) {
-			logger.warn("Block not found for subgraph processing", {
+		// The block source returns canonical blocks only, so a missing entry
+		// means the block is absent or non-canonical — skip either way.
+		const data = (
+			await resolveBlockSource(subgraph).loadBlockRange(
+				blockHeight,
+				blockHeight,
+			)
+		).get(blockHeight);
+		if (!data) {
+			logger.debug("Block not found or non-canonical for subgraph processing", {
 				subgraph: subgraphName,
 				blockHeight,
 			});
 			result.skipped = true;
 			return result;
 		}
-
-		if (!block.canonical) {
-			logger.debug("Skipping non-canonical block", {
-				subgraph: subgraphName,
-				blockHeight,
-			});
-			result.skipped = true;
-			return result;
-		}
-
-		// 2. Load txs + events (source DB)
-		txs = await sourceDb
-			.selectFrom("transactions")
-			.selectAll()
-			.where("block_height", "=", blockHeight)
-			.execute();
-
-		evts = await sourceDb
-			.selectFrom("events")
-			.selectAll()
-			.where("block_height", "=", blockHeight)
-			.execute();
+		block = data.block;
+		txs = data.txs;
+		evts = data.events;
 	}
 
 	// 3. Match source. Trait-scoped sources ({ trait: "sip-010" }) resolve to the

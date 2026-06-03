@@ -1,4 +1,4 @@
-import { getSourceDb, getTargetDb } from "@secondlayer/shared/db";
+import { getTargetDb } from "@secondlayer/shared/db";
 import {
 	type GapRange,
 	recordGapBatch,
@@ -6,8 +6,9 @@ import {
 import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition } from "../types.ts";
-import { avgEventsPerBlock, loadBlockRange } from "./batch-loader.ts";
+import { type BlockData, avgEventsPerBlock } from "./batch-loader.ts";
 import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
+import { resolveBlockSource } from "./block-source.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
@@ -128,7 +129,7 @@ export async function catchUpSubgraph(
 	catchingUp.add(subgraphName);
 
 	try {
-		const sourceDb = getSourceDb();
+		const source = resolveBlockSource(subgraph);
 		const targetDb = getTargetDb();
 
 		// Re-read from DB to avoid stale lastProcessedBlock
@@ -136,17 +137,10 @@ export async function catchUpSubgraph(
 		if (!subgraphRow) return 0;
 		const lastProcessedBlock = Number(subgraphRow.last_processed_block);
 
-		// Chain tip lives in the shared indexer DB (source)
-		const progress = await sourceDb
-			.selectFrom("index_progress")
-			.selectAll()
-			.where("network", "=", process.env.NETWORK ?? "mainnet")
-			.executeTakeFirst();
-
-		if (!progress) return 0;
-
-		const chainTip = Number(progress.highest_seen_block);
-		if (lastProcessedBlock >= chainTip) return 0;
+		// Chain tip comes from the block source (indexer DB today; Streams clock
+		// once re-pointed).
+		const chainTip = await source.getTip();
+		if (chainTip <= 0 || lastProcessedBlock >= chainTip) return 0;
 
 		const subgraphStart = Number(subgraphRow.start_block) || 1;
 		const startBlock = Math.max(lastProcessedBlock + 1, subgraphStart);
@@ -170,7 +164,7 @@ export async function catchUpSubgraph(
 		// potentially resized batchSize (adaptive sizing can change it between iterations).
 		let prefetchedBatchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
 		let nextBatchPromise = batchConfig.prefetch
-			? loadBlockRange(sourceDb, currentHeight, prefetchedBatchEnd)
+			? source.loadBlockRange(currentHeight, prefetchedBatchEnd)
 			: undefined;
 
 		while (currentHeight <= chainTip) {
@@ -185,7 +179,7 @@ export async function catchUpSubgraph(
 			}
 
 			let batchEnd: number;
-			let batch: Awaited<ReturnType<typeof loadBlockRange>>;
+			let batch: Map<number, BlockData>;
 			if (nextBatchPromise) {
 				batch = await nextBatchPromise;
 				batchEnd = prefetchedBatchEnd;
@@ -194,8 +188,7 @@ export async function catchUpSubgraph(
 				const nextStart = batchEnd + 1;
 				if (nextStart <= chainTip) {
 					prefetchedBatchEnd = Math.min(nextStart + batchSize - 1, chainTip);
-					nextBatchPromise = loadBlockRange(
-						sourceDb,
+					nextBatchPromise = source.loadBlockRange(
 						nextStart,
 						prefetchedBatchEnd,
 					);
@@ -206,7 +199,7 @@ export async function catchUpSubgraph(
 				// Low-memory mode: load only the current batch, process it, then size
 				// and load the next batch after this iteration completes.
 				batchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
-				batch = await loadBlockRange(sourceDb, currentHeight, batchEnd);
+				batch = await source.loadBlockRange(currentHeight, batchEnd);
 			}
 
 			// Process each block from pre-loaded data

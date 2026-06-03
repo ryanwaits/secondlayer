@@ -1,5 +1,5 @@
 import { getErrorMessage } from "@secondlayer/shared";
-import { getRawClient, getSourceDb, getTargetDb } from "@secondlayer/shared/db";
+import { getRawClient, getTargetDb } from "@secondlayer/shared/db";
 import {
 	type GapRange,
 	recordGapBatch,
@@ -13,8 +13,9 @@ import { logger } from "@secondlayer/shared/logger";
 import { generateSubgraphSQL } from "../schema/generator.ts";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
-import { avgEventsPerBlock, loadBlockRange } from "./batch-loader.ts";
+import { avgEventsPerBlock } from "./batch-loader.ts";
 import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
+import { type BlockSource, resolveBlockSource } from "./block-source.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
@@ -145,7 +146,7 @@ async function processBlockRange(
 	totalErrors: number;
 	aborted: boolean;
 }> {
-	const sourceDb = getSourceDb();
+	const source = resolveBlockSource(def);
 	const targetDb = getTargetDb();
 	const subgraphName = def.name;
 	const { fromBlock, toBlock, status } = opts;
@@ -186,7 +187,7 @@ async function processBlockRange(
 	// batchEnd must match what was actually loaded — not recalculated from a
 	// potentially resized batchSize (adaptive sizing can change it between iterations).
 	let nextBatchEnd = Math.min(currentHeight + batchSize - 1, toBlock);
-	let nextBatchPromise = loadBlockRange(sourceDb, currentHeight, nextBatchEnd);
+	let nextBatchPromise = source.loadBlockRange(currentHeight, nextBatchEnd);
 
 	while (currentHeight <= toBlock) {
 		// Check for abort at batch boundary
@@ -207,7 +208,7 @@ async function processBlockRange(
 		const nextStart = batchEnd + 1;
 		if (nextStart <= toBlock) {
 			nextBatchEnd = Math.min(nextStart + batchSize - 1, toBlock);
-			nextBatchPromise = loadBlockRange(sourceDb, nextStart, nextBatchEnd);
+			nextBatchPromise = source.loadBlockRange(nextStart, nextBatchEnd);
 		}
 
 		const batchFailedBlocks: { height: number; reason: string }[] = [];
@@ -336,24 +337,12 @@ async function processBlockRange(
  * Chain tip reads from `index_progress` — lives in the source DB.
  */
 async function resolveBlockRange(
-	sourceDb: ReturnType<typeof getSourceDb>,
+	source: BlockSource,
 	def: SubgraphDefinition,
 	opts?: ReindexOptions,
 ): Promise<{ fromBlock: number; toBlock: number }> {
 	const fromBlock = opts?.fromBlock ?? def.startBlock ?? 1;
-	let toBlock: number;
-
-	if (opts?.toBlock != null) {
-		toBlock = opts.toBlock;
-	} else {
-		const progress = await sourceDb
-			.selectFrom("index_progress")
-			.selectAll()
-			.where("network", "=", process.env.NETWORK ?? "mainnet")
-			.executeTakeFirst();
-		toBlock = progress?.highest_seen_block ?? 0;
-	}
-
+	const toBlock = opts?.toBlock != null ? opts.toBlock : await source.getTip();
 	return { fromBlock, toBlock };
 }
 
@@ -381,8 +370,8 @@ export async function reindexSubgraph(
 	def: SubgraphDefinition,
 	opts?: ReindexOptions,
 ): Promise<{ processed: number }> {
-	// Chain tip reads hit source; subgraph rows + tenant schemas live in target
-	const sourceDb = getSourceDb();
+	// Chain tip reads hit the block source; subgraph rows + tenant schemas live in target
+	const source = resolveBlockSource(def);
 	const targetDb = getTargetDb();
 	const client = getRawClient("target");
 	const subgraphName = def.name;
@@ -393,7 +382,7 @@ export async function reindexSubgraph(
 
 	try {
 		// Resolve block range BEFORE schema drop so we can persist metadata
-		const { fromBlock, toBlock } = await resolveBlockRange(sourceDb, def, opts);
+		const { fromBlock, toBlock } = await resolveBlockRange(source, def, opts);
 
 		if (fromBlock > toBlock) {
 			logger.info("No blocks to reindex", {
