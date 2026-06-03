@@ -91,9 +91,12 @@ const TX_TYPE_NAMES: Record<PayloadType, string> = {
 };
 
 /**
- * Decode raw_tx hex to extract tx_type and sender_address
+ * Decode raw_tx hex to extract tx_type and sender_address. Exported for mempool
+ * ingest, which has only the raw_tx and needs the same columnar fields without
+ * the block-anchored (block_height/tx_index/result) machinery of
+ * `parseTransaction`. Pure CPU (deserialize + c32), no network fallback.
  */
-function decodeRawTx(
+export function decodeRawTx(
 	rawTx: string,
 	txid?: string,
 ): {
