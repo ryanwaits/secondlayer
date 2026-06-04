@@ -133,7 +133,7 @@ Recent chain reorgs.
 
 ## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, stacking, mempool)
 
-The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, PoX-4 stacking, and mempool (pending txs). `GET /v1/index` returns route discovery. Open-beta read (no key required). Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
+The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, PoX-4 stacking, and mempool (pending txs). `GET /v1/index` returns route discovery — including `event_types` and a machine-readable `event_type_filters` map (per type: `columns`, `allowed_filters`, `equality_filters`, `required_non_null`), so an agent can learn what each event type accepts at runtime. `GET /v1/streams` similarly lists `event_types` + structured `filters`. Open-beta read (no key required). Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
 
 ### `GET /v1/index/events`
 
