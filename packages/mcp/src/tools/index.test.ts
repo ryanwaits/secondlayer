@@ -24,7 +24,7 @@ function fakeServer(tools: RegisteredTool[]): McpServer {
 }
 
 describe("index MCP tools", () => {
-	it("registers the four SDK index surfaces and passes params through", async () => {
+	it("registers the index tools and passes params through", async () => {
 		const tools: RegisteredTool[] = [];
 		const calls: Record<string, unknown> = {};
 		const surface = (key: string) => ({
@@ -50,10 +50,18 @@ describe("index MCP tools", () => {
 		);
 
 		expect(tools.map((t) => t.name).sort()).toEqual([
+			"index_block",
+			"index_blocks",
+			"index_canonical",
 			"index_contract_calls",
 			"index_events",
 			"index_ft_transfers",
+			"index_mempool",
+			"index_mempool_tx",
 			"index_nft_transfers",
+			"index_stacking",
+			"index_transaction",
+			"index_transactions",
 		]);
 
 		await tools
@@ -65,5 +73,39 @@ describe("index MCP tools", () => {
 			.find((t) => t.name === "index_events")
 			?.handler({ eventType: "print", contractId: "SP1.x" });
 		expect(calls.events).toEqual({ eventType: "print", contractId: "SP1.x" });
+	});
+
+	it("coerces numeric refs and surfaces a null get as not_found", async () => {
+		const tools: RegisteredTool[] = [];
+		let getRef: unknown;
+		const client = {
+			index: {
+				blocks: {
+					get: async (ref: unknown) => {
+						getRef = ref;
+						return null;
+					},
+				},
+			},
+		};
+		registerIndexTools(
+			fakeServer(tools),
+			() =>
+				client as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+
+		const res = await tools
+			.find((t) => t.name === "index_block")
+			?.handler({ ref: "12345" });
+		expect(getRef).toBe(12345); // digit string → number (height lookup)
+		expect(res?.isError).toBe(true);
+		expect(res?.content[0]?.text).toContain("not_found");
+
+		await tools
+			.find((t) => t.name === "index_block")
+			?.handler({ ref: "0xabc" });
+		expect(getRef).toBe("0xabc"); // hash stays a string
 	});
 });

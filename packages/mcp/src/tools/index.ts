@@ -21,6 +21,18 @@ const rangeFilters = {
 	limit: z.number().optional().describe("Max rows for this page"),
 };
 
+/** Height-range subset for endpoints that don't filter by contract (canonical, blocks). */
+const heightFilters = {
+	fromHeight: rangeFilters.fromHeight,
+	toHeight: rangeFilters.toHeight,
+	cursor: rangeFilters.cursor,
+	limit: rangeFilters.limit,
+};
+
+/** SDK get(...) resolves null on 404; surface that as a structured not_found. */
+const notFound = (message: string) =>
+	jsonResponse({ error: { type: "not_found", status: 404, message } }, true);
+
 export function registerIndexTools(
 	server: McpServer,
 	clientProvider: ClientProvider = getClient,
@@ -133,5 +145,145 @@ export function registerIndexTools(
 		},
 		async (params) =>
 			jsonResponse(await clientProvider().index.contractCalls.list(params)),
+	);
+
+	defineTool<{
+		fromHeight?: number;
+		toHeight?: number;
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_canonical",
+		"List the canonical Stacks block sequence from the Index (height + hash). Anonymous reads allowed (free-tier keys rejected).",
+		{ ...heightFilters },
+		async (params) =>
+			jsonResponse(await clientProvider().index.canonical.list(params)),
+	);
+
+	defineTool<{
+		fromHeight?: number;
+		toHeight?: number;
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_blocks",
+		"List decoded blocks from the Index. Anonymous reads allowed (free-tier keys rejected).",
+		{ ...heightFilters },
+		async (params) =>
+			jsonResponse(await clientProvider().index.blocks.list(params)),
+	);
+
+	defineTool<{ ref: string }>(
+		server,
+		"index_block",
+		"Get a single block from the Index by height or block hash. Returns not_found if unknown.",
+		{
+			ref: z
+				.string()
+				.describe("Block height (digits) or block hash (0x… string)"),
+		},
+		async ({ ref }) => {
+			const block = await clientProvider().index.blocks.get(
+				/^\d+$/.test(ref) ? Number(ref) : ref,
+			);
+			return block ? jsonResponse(block) : notFound(`No block for ref ${ref}`);
+		},
+	);
+
+	defineTool<{
+		type?: string;
+		sender?: string;
+		contractId?: string;
+		fromHeight?: number;
+		toHeight?: number;
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_transactions",
+		"List decoded transactions from the Index. Filter by type, sender, or contract. Anonymous reads allowed (free-tier keys rejected).",
+		{
+			...rangeFilters,
+			type: z.string().optional().describe("Filter by transaction type"),
+			sender: z.string().optional().describe("Filter by sender principal"),
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().index.transactions.list(params)),
+	);
+
+	defineTool<{ txId: string }>(
+		server,
+		"index_transaction",
+		"Get a single transaction from the Index by tx_id. Returns not_found if unknown.",
+		{ txId: z.string().describe("Transaction id (0x… hash)") },
+		async ({ txId }) => {
+			const tx = await clientProvider().index.transactions.get(txId);
+			return tx ? jsonResponse(tx) : notFound(`No transaction for ${txId}`);
+		},
+	);
+
+	defineTool<{
+		functionName?: string;
+		stacker?: string;
+		caller?: string;
+		fromHeight?: number;
+		toHeight?: number;
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_stacking",
+		"List decoded PoX-4 stacking actions from the Index (stack-stx, delegate-stx, etc.). Anonymous reads allowed (free-tier keys rejected).",
+		{
+			...heightFilters,
+			functionName: z
+				.string()
+				.optional()
+				.describe("Filter by PoX function name"),
+			stacker: z.string().optional().describe("Filter by stacker principal"),
+			caller: z.string().optional().describe("Filter by caller principal"),
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().index.stacking.list(params)),
+	);
+
+	defineTool<{
+		sender?: string;
+		type?: string;
+		contractId?: string;
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_mempool",
+		"List pending (unconfirmed) transactions from the Index mempool. Sequence-cursor paginated (no height range). Anonymous reads allowed (free-tier keys rejected).",
+		{
+			sender: z.string().optional().describe("Filter by sender principal"),
+			type: z.string().optional().describe("Filter by transaction type"),
+			contractId: z
+				.string()
+				.optional()
+				.describe("Filter to pending calls to a single contract"),
+			cursor: z
+				.string()
+				.optional()
+				.describe("Opaque cursor from a prior response's next_cursor"),
+			limit: z.number().optional().describe("Max rows for this page"),
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().index.mempool.list(params)),
+	);
+
+	defineTool<{ txId: string }>(
+		server,
+		"index_mempool_tx",
+		"Get a single pending transaction from the Index mempool by tx_id. Returns not_found once it is mined or dropped.",
+		{ txId: z.string().describe("Transaction id (0x… hash)") },
+		async ({ txId }) => {
+			const tx = await clientProvider().index.mempool.get(txId);
+			return tx ? jsonResponse(tx) : notFound(`No pending tx for ${txId}`);
+		},
 	);
 }
