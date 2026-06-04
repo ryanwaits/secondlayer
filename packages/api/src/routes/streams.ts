@@ -5,7 +5,10 @@ import {
 	readCanonicalStreamsBlockEvents,
 	readCanonicalStreamsEventsByTxId,
 } from "@secondlayer/indexer/streams-events";
-import { incrementStreamsEventsReturned } from "@secondlayer/platform/db/queries/usage";
+import {
+	getProductUsage,
+	incrementStreamsEventsReturned,
+} from "@secondlayer/platform/db/queries/usage";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
@@ -45,6 +48,7 @@ import {
 import { StreamsResponseCache } from "../streams/response-cache.ts";
 import { streamsRetentionWindow } from "../streams/retention.ts";
 import { respondSignedJson } from "../streams/signing.ts";
+import { STREAMS_TIER_CONFIG } from "../streams/tiers.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
 
 const STREAMS_EVENTS_ALLOWED = [
@@ -155,6 +159,13 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 					description:
 						"Current chain tip: { block_height, block_hash, burn_block_height, finalized_height, lag_seconds }.",
 				},
+				{
+					path: "/v1/streams/usage",
+					method: "GET",
+					description:
+						"Your own Streams consumption (events today + this month) and tier limits (rate limit, retention).",
+					auth: "bearer (Build+ tier)",
+				},
 			],
 			cursor: {
 				format: "<block_height>:<event_index>",
@@ -176,6 +187,29 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	);
 	router.use("*", streamsRateLimit());
 	router.use("/events", streamsRetentionWindow({ getTip }));
+
+	// An agent's own Streams consumption + tier limits. Streams is key-mandatory,
+	// so account_id is always present here; guard anyway.
+	router.get("/usage", async (c) => {
+		const tenant = c.get("streamsTenant");
+		if (!tenant.account_id) {
+			return c.json({ error: "Usage requires an API key", code: "AUTH" }, 401);
+		}
+		const usage = await getProductUsage(getDb(), tenant.account_id);
+		const limits = STREAMS_TIER_CONFIG[tenant.tier];
+		return c.json({
+			product: "streams",
+			tier: tenant.tier,
+			limits: {
+				rate_limit_per_second: limits.rateLimitPerSecond,
+				retention_days: limits.retentionDays,
+			},
+			usage: {
+				events_today: usage.streamsEventsToday,
+				events_this_month: usage.streamsEventsThisMonth,
+			},
+		});
+	});
 
 	router.get("/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;

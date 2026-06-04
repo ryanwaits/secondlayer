@@ -1,4 +1,7 @@
-import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
+import {
+	getProductUsage,
+	incrementIndexDecodedEventsReturned,
+} from "@secondlayer/platform/db/queries/usage";
 import { getDb } from "@secondlayer/shared/db";
 import { type Context, Hono } from "hono";
 import {
@@ -58,6 +61,7 @@ import {
 	type StackingReader,
 	getStackingResponse,
 } from "../index/stacking.ts";
+import { INDEX_TIER_CONFIG } from "../index/tiers.ts";
 import {
 	type IndexTip,
 	type IndexTipProvider,
@@ -250,6 +254,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"A single pending transaction by tx_id. 404 when absent (confirmed/dropped txs leave the mempool).",
 				},
+				{
+					path: "/v1/index/usage",
+					method: "GET",
+					description:
+						"Your own Index consumption (decoded events today + this month) and tier limits. Requires a key (anon → 401).",
+				},
 			],
 			auth: "optional bearer for higher rate-limit tier; anon allowed",
 			cursor: {
@@ -265,6 +275,31 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
 	);
 	router.use("*", indexRateLimit());
+
+	// An agent's own Index consumption + tier limits. Index reads allow anon, but
+	// usage needs an identity — a keyed (Build+) request. Anon → 401.
+	router.get("/usage", async (c) => {
+		const tenant = c.get("indexTenant");
+		if (!tenant?.account_id) {
+			return c.json(
+				{ error: "Usage requires an API key (Build+ tier)", code: "AUTH" },
+				401,
+			);
+		}
+		const usage = await getProductUsage(getDb(), tenant.account_id);
+		return c.json({
+			product: "index",
+			tier: tenant.tier,
+			limits: {
+				rate_limit_per_second:
+					INDEX_TIER_CONFIG[tenant.tier].rateLimitPerSecond,
+			},
+			usage: {
+				decoded_events_today: usage.indexDecodedEventsToday,
+				decoded_events_this_month: usage.indexDecodedEventsThisMonth,
+			},
+		});
+	});
 
 	router.get("/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;
