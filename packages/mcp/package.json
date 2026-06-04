@@ -39,6 +39,7 @@
 		"@secondlayer/bundler": "^0.3.7",
 		"@secondlayer/scaffold": "^1.0.6",
 		"@secondlayer/sdk": "^6.8.0",
+		"@secondlayer/shared": "^6.17.0",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

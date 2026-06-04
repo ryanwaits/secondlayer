@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
@@ -6,19 +7,7 @@ import { defineTool } from "../lib/tool.ts";
 
 type ClientProvider = typeof getClient;
 
-const INDEX_EVENT_TYPES = [
-	"ft_transfer",
-	"nft_transfer",
-	"stx_transfer",
-	"stx_mint",
-	"stx_burn",
-	"stx_lock",
-	"ft_mint",
-	"ft_burn",
-	"nft_mint",
-	"nft_burn",
-	"print",
-] as const;
+const INDEX_EVENT_TYPES = DECODED_EVENT_TYPES;
 
 /** Filters shared by the height/cursor-paginated Index endpoints. */
 const rangeFilters = {

@@ -1,26 +1,16 @@
 import {
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	STREAMS_EVENT_TYPES,
+	type StreamsEventType,
 	encodeStreamsCursor,
 } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely, RawBuilder } from "kysely";
 
-export const STREAMS_EVENT_TYPES = [
-	"stx_transfer",
-	"stx_mint",
-	"stx_burn",
-	"stx_lock",
-	"ft_transfer",
-	"ft_mint",
-	"ft_burn",
-	"nft_transfer",
-	"nft_mint",
-	"nft_burn",
-	"print",
-] as const;
-
-export type StreamsEventType = (typeof STREAMS_EVENT_TYPES)[number];
+// Canonical list lives in @secondlayer/shared; re-exported so existing
+// consumers (api/src/streams/events.ts) keep importing it from here.
+export { STREAMS_EVENT_TYPES, type StreamsEventType };
 
 export const STREAMS_DB_EVENT_TYPES = [
 	"stx_transfer_event",

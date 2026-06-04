@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AuthError } from "@secondlayer/sdk";
+import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { z } from "zod/v4";
 import { getClient, keyHint } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
@@ -7,19 +8,7 @@ import { defineTool } from "../lib/tool.ts";
 
 type ClientProvider = typeof getClient;
 
-const STREAMS_EVENT_TYPES = [
-	"stx_transfer",
-	"stx_mint",
-	"stx_burn",
-	"stx_lock",
-	"ft_transfer",
-	"ft_mint",
-	"ft_burn",
-	"nft_transfer",
-	"nft_mint",
-	"nft_burn",
-	"print",
-] as const;
+const STREAMS_EVENT_TYPES = DECODED_EVENT_TYPES;
 
 /**
  * Streams is key-mandatory — a keyless call rejects with the SDK's `AuthError`

@@ -4,6 +4,7 @@ import type {
 	CreateSubscriptionRequest,
 	UpdateSubscriptionRequest,
 } from "@secondlayer/sdk";
+import { CHAIN_TRIGGER_TYPES } from "@secondlayer/shared";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
@@ -77,21 +78,7 @@ export function registerSubscriptionTools(
 			triggers: z
 				.array(
 					z.object({
-						type: z.enum([
-							"stx_transfer",
-							"stx_mint",
-							"stx_burn",
-							"stx_lock",
-							"ft_transfer",
-							"ft_mint",
-							"ft_burn",
-							"nft_transfer",
-							"nft_mint",
-							"nft_burn",
-							"contract_call",
-							"contract_deploy",
-							"print_event",
-						]),
+						type: z.enum(CHAIN_TRIGGER_TYPES),
 						contractId: z.string().optional(),
 						functionName: z.string().optional(),
 						caller: z.string().optional(),

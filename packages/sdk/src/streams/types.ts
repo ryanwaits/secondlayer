@@ -1,18 +1,11 @@
-export const STREAMS_EVENT_TYPES = [
-	"stx_transfer",
-	"stx_mint",
-	"stx_burn",
-	"stx_lock",
-	"ft_transfer",
-	"ft_mint",
-	"ft_burn",
-	"nft_transfer",
-	"nft_mint",
-	"nft_burn",
-	"print",
-] as const;
+// Canonical decoded event-type vocab lives in @secondlayer/shared; re-exported
+// here so the public Streams surface (StreamsEventType) is unchanged.
+import {
+	STREAMS_EVENT_TYPES,
+	type StreamsEventType,
+} from "@secondlayer/shared";
 
-export type StreamsEventType = (typeof STREAMS_EVENT_TYPES)[number];
+export { STREAMS_EVENT_TYPES, type StreamsEventType };
 
 /** A Clarity value as Streams serves it: the canonical hex string, a typed
  *  object carrying that hex (`{ hex }`), or a decoded Clarity-JSON object.
