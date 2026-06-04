@@ -1010,6 +1010,12 @@ const client = getSubgraph(mySubgraph, { apiKey: process.env.SL_API_KEY });
 
 **All methods require `apiKey`.**
 
+A subscription is one of two **kinds** (mutually exclusive):
+- **`subgraph`** — fires on rows written to a deployed subgraph's table (`subgraphName` + `tableName` + column `filter`).
+- **`chain`** — fires on **raw chain events directly, no subgraph** (`triggers`). The turnkey "webhook on a contract / event-type / function-call (or any SIP-010/SIP-009/custom trait)". Built off the public Index/Streams clock; **forward-looking** (starts at chain tip, never backfills).
+
+Both kinds share the same delivery stack (retries, circuit breaker, 6 formats, per-subscription HMAC signing) and the same routes below.
+
 ### Shared types
 
 ```ts
@@ -1029,12 +1035,29 @@ type SubscriptionFilterOperator =
 type SubscriptionFilterClause = SubscriptionFilterPrimitive | SubscriptionFilterOperator;
 type SubscriptionFilter = Record<string, SubscriptionFilterClause>;
 
+type SubscriptionKind = "subgraph" | "chain";
+
+// Chain-trigger filter (the wire shape for chain subscriptions). Amounts are
+// non-negative integer strings (uint128-safe) or numbers.
+type ChainTrigger =
+  | { type: "stx_transfer"; sender?: string; recipient?: string; minAmount?: string | number; maxAmount?: string | number }
+  | { type: "stx_mint" | "stx_burn"; sender?: string; recipient?: string; minAmount?: string | number }
+  | { type: "stx_lock"; lockedAddress?: string; minAmount?: string | number }
+  | { type: "ft_transfer" | "ft_mint" | "ft_burn"; assetIdentifier?: string; sender?: string; recipient?: string; minAmount?: string | number; trait?: string }
+  | { type: "nft_transfer" | "nft_mint" | "nft_burn"; assetIdentifier?: string; sender?: string; recipient?: string; trait?: string }
+  | { type: "contract_call"; contractId?: string; functionName?: string; caller?: string; trait?: string }
+  | { type: "contract_deploy"; deployer?: string; contractName?: string }
+  | { type: "print_event"; contractId?: string; topic?: string; trait?: string };
+// All string fields support `*` wildcards. `trait` scopes to contracts
+// conforming to a SIP/trait (e.g. "sip-010") — resolved from the contract registry.
+
 interface SubscriptionSummary {
   id: string;
   name: string;
   status: SubscriptionStatus;
-  subgraphName: string;
-  tableName: string;
+  kind: SubscriptionKind;
+  subgraphName: string | null;   // null for chain subscriptions
+  tableName: string | null;      // null for chain subscriptions
   format: SubscriptionFormat;
   runtime: SubscriptionRuntime | null;
   url: string;
@@ -1046,6 +1069,7 @@ interface SubscriptionSummary {
 
 interface SubscriptionDetail extends SubscriptionSummary {
   filter: Record<string, unknown>;
+  triggers: ChainTrigger[] | null;  // chain subscriptions only
   authConfig: Record<string, unknown>;
   maxRetries: number;
   timeoutMs: number;
@@ -1055,6 +1079,23 @@ interface SubscriptionDetail extends SubscriptionSummary {
   lastError: string | null;
 }
 ```
+
+### Delivery envelope (chain subscriptions)
+
+Chain deliveries carry an **apply / rollback** envelope so consumers can reconcile reorgs:
+
+```jsonc
+// chain.{eventType}.apply  — a matched canonical event
+{ "action": "apply", "block_hash": "0x..", "block_height": 152233, "tx_id": "0x..",
+  "canonical": true, "trigger": "contract_call", "event": { /* the decoded event/tx */ } }
+
+// chain.reorg.rollback  — emitted when delivered events get orphaned by a reorg
+{ "action": "rollback", "fork_point_height": 152230,
+  "orphaned": [ { "tx_id": "0x..", "event": { /* the previously-applied event */ } } ],
+  "truncated": false }
+```
+
+Delivery is at-least-once. A tx that survives a reorg re-delivers an `apply` under its new `block_hash`; one that's orphaned for good only gets the `rollback`. Key your state on `(tx_id, block_hash)`.
 
 ### `list()`, `get(id)`
 
@@ -1068,10 +1109,13 @@ get(id: string): Promise<SubscriptionDetail>
 ```ts
 interface CreateSubscriptionRequest {
   name: string;
-  subgraphName: string;
-  tableName: string;
   url: string;                              // must start with http(s)://
+  // Provide EITHER a subgraph target (subgraph subscription) ...
+  subgraphName?: string;
+  tableName?: string;
   filter?: SubscriptionFilter;
+  // ... OR triggers (chain subscription). Mutually exclusive.
+  triggers?: ChainTrigger[];                // 1..50
   format?: SubscriptionFormat;              // default "standard-webhooks"
   runtime?: SubscriptionRuntime | null;
   authConfig?: Record<string, unknown>;
@@ -1088,6 +1132,8 @@ interface CreateSubscriptionResponse {
 
 create(input: CreateSubscriptionRequest): Promise<CreateSubscriptionResponse>
 ```
+
+**Subgraph subscription** — react to processed table rows:
 
 ```ts
 const { subscription, signingSecret } = await sl.subscriptions.create({
@@ -1106,6 +1152,23 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
 
 await secretStore.put(subscription.id, signingSecret); // store it NOW
 ```
+
+**Chain subscription** — react to raw chain events, no subgraph. Use the `on.*` builders:
+
+```ts
+import { on } from "@secondlayer/sdk";
+
+const { subscription, signingSecret } = await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://example.com/webhooks/swaps",
+  triggers: [
+    on.contractCall({ contractId: "SP...amm-v2", functionName: "swap-*" }),
+    on.ftTransfer({ trait: "sip-010", minAmount: "1000000" }), // any SIP-010 transfer ≥ 1 token
+  ],
+});
+```
+
+`on` exposes one builder per event type: `stxTransfer/stxMint/stxBurn/stxLock`, `ftTransfer/ftMint/ftBurn`, `nftTransfer/nftMint/nftBurn`, `contractCall`, `contractDeploy`, `printEvent`. `update()` cannot switch a subscription's kind.
 
 ### `update(id, patch)`
 

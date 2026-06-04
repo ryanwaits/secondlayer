@@ -286,7 +286,9 @@ List subscriptions for the active tenant.
 
 ### `POST /api/subscriptions`
 
-Create. Body:
+Create. A subscription is one of two **kinds** (mutually exclusive):
+
+**Subgraph subscription** — fires on subgraph table rows (`subgraphName` + `tableName` + column `filter`):
 
 ```json
 {
@@ -300,6 +302,21 @@ Create. Body:
   "authConfig": { "authType": "bearer", "token": "secret-token" }
 }
 ```
+
+**Chain subscription** — fires on raw chain events, **no subgraph** (`triggers`, 1..50). Forward-looking (starts at tip, no backfill):
+
+```json
+{
+  "name": "amm-swaps",
+  "url": "https://my-app.com/webhook",
+  "triggers": [
+    { "type": "contract_call", "contractId": "SP...amm", "functionName": "swap-*" },
+    { "type": "ft_transfer", "trait": "sip-010", "minAmount": "1000000" }
+  ]
+}
+```
+
+Trigger types: `stx_transfer|stx_mint|stx_burn|stx_lock`, `ft_transfer|ft_mint|ft_burn`, `nft_transfer|nft_mint|nft_burn`, `contract_call`, `contract_deploy`, `print_event`. String fields accept `*` wildcards; `trait` scopes to a SIP/trait (needs the contract registry). Deliveries carry an apply/rollback envelope (`chain.{type}.apply` / `chain.reorg.rollback`).
 
 Response includes a one-time `signingSecret`:
 
