@@ -31,6 +31,24 @@ export interface SubgraphSource {
 	updatedAt: string;
 }
 
+/** Status of a tracked reindex/backfill operation (poll until terminal). */
+export interface SubgraphOperationStatus {
+	id: string;
+	subgraphName: string;
+	kind: "reindex" | "backfill";
+	status: "queued" | "running" | "completed" | "failed" | "cancelled";
+	fromBlock: number | null;
+	toBlock: number | null;
+	processedBlocks: number | null;
+	/** 0–1 fraction; null when no denominator is known yet. 1 when completed. */
+	progress: number | null;
+	error: string | null;
+	startedAt: string | null;
+	finishedAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface BundleSubgraphResponse {
 	ok: true;
 	name: string;
@@ -157,6 +175,28 @@ export class Subgraphs extends BaseClient {
 		return this.request<{ message: string }>(
 			"DELETE",
 			`/api/subgraphs/${name}${qs}`,
+		);
+	}
+
+	/** Recent reindex/backfill operations for a subgraph, newest first. */
+	async operations(
+		name: string,
+	): Promise<{ operations: SubgraphOperationStatus[] }> {
+		return this.request<{ operations: SubgraphOperationStatus[] }>(
+			"GET",
+			`/api/subgraphs/${name}/operations`,
+		);
+	}
+
+	/** Status of a single operation (poll the `operationId` returned by
+	 *  reindex/backfill/stop until `status` is terminal). */
+	async getOperation(
+		name: string,
+		operationId: string,
+	): Promise<SubgraphOperationStatus> {
+		return this.request<SubgraphOperationStatus>(
+			"GET",
+			`/api/subgraphs/${name}/operations/${operationId}`,
 		);
 	}
 
