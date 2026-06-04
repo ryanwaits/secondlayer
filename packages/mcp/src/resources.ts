@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { apiRequest, getClient } from "./lib/client.ts";
+import { getClient } from "./lib/client.ts";
 import { formatSubgraphSummary } from "./lib/format.ts";
 import { getRegisteredToolNames } from "./lib/tool.ts";
 
@@ -130,44 +130,39 @@ const READ_AUTH_TIERS = {
 
 type ContextDeps = {
 	clientProvider: typeof getClient;
-	accountRequest: () => Promise<{ email: string; plan: string }>;
 };
 
 /**
- * Assemble the live agent context read at connect: what exists (the user's
- * subgraphs/subscriptions + account), what the agent can do, and the read-auth
- * tiers. Every live call degrades to a sentinel string on failure (e.g. keyless
- * requests that 401) so the resource never throws and always orients the agent.
+ * Assemble the live agent context read at connect: who you are, the live
+ * Streams/Index tips, what you own (subgraphs/subscriptions), any in-flight
+ * reindex operations, what the agent can do, and the read-auth tiers. The
+ * snapshot comes from the SDK's `context()` (shared with non-MCP agents); each
+ * field that couldn't be read becomes a sentinel string so the resource never
+ * throws and always orients the agent.
  */
 export async function buildContext(
-	deps: ContextDeps = {
-		clientProvider: getClient,
-		accountRequest: () =>
-			apiRequest<{ email: string; plan: string }>("GET", "/api/accounts/me"),
-	},
+	deps: ContextDeps = { clientProvider: getClient },
 ) {
 	const unavailable = "unavailable: set SL_API_KEY";
+	const orNull = <T>(v: T | null | undefined) => (v == null ? unavailable : v);
 
-	const subgraphs = await deps
+	const snap = await deps
 		.clientProvider()
-		.subgraphs.list()
-		.then((r) => r.data.map(formatSubgraphSummary))
-		.catch(() => unavailable);
-
-	const subscriptions = await deps
-		.clientProvider()
-		.subscriptions.list()
-		.then((r) => ({
-			count: r.data.length,
-			statuses: r.data.map((s: { status: string }) => s.status),
-		}))
-		.catch(() => unavailable);
-
-	const account = await deps.accountRequest().catch(() => unavailable);
+		.context()
+		.catch(() => null);
 
 	return {
 		authState: { apiKeySet: Boolean(process.env.SL_API_KEY) },
-		whatExists: { subgraphs, subscriptions, account },
+		whatExists: {
+			account: orNull(snap?.account),
+			streamsTip: orNull(snap?.streamsTip),
+			indexTip: orNull(snap?.indexTip),
+			subgraphs: snap?.subgraphs
+				? snap.subgraphs.map(formatSubgraphSummary)
+				: unavailable,
+			subscriptions: orNull(snap?.subscriptions),
+			activeOperations: orNull(snap?.activeOperations),
+		},
 		whatYouCanDo: buildCapabilities(),
 		readAuthTiers: READ_AUTH_TIERS,
 	};

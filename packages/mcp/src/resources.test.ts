@@ -14,62 +14,67 @@ beforeAll(() => {
 });
 
 describe("secondlayer://context", () => {
-	it("assembles live state when authenticated", async () => {
+	it("assembles live state from the SDK context snapshot", async () => {
 		const client = {
-			subgraphs: {
-				list: async () => ({
-					data: [
-						{
-							name: "swaps",
-							status: "running",
-							tables: ["t"],
-							lastProcessedBlock: 5,
-						},
-					],
-				}),
-			},
-			subscriptions: {
-				list: async () => ({
-					data: [{ status: "active" }, { status: "paused" }],
-				}),
-			},
+			context: async () => ({
+				account: { email: "a@b.com", plan: "build" },
+				streamsTip: {
+					block_height: 100,
+					block_hash: "0xabc",
+					burn_block_height: 50,
+					lag_seconds: 2,
+				},
+				indexTip: { block_height: 99, lag_seconds: 3 },
+				subgraphs: [
+					{
+						name: "swaps",
+						status: "running",
+						tables: ["t"],
+						lastProcessedBlock: 5,
+					},
+				],
+				subscriptions: { count: 2, byStatus: { active: 1, paused: 1 } },
+				activeOperations: [],
+			}),
 		} as unknown as Client;
 
-		const ctx = await buildContext({
-			clientProvider: () => client,
-			accountRequest: async () => ({ email: "a@b.com", plan: "build" }),
-		});
+		const ctx = await buildContext({ clientProvider: () => client });
 
 		expect(Array.isArray(ctx.whatExists.subgraphs)).toBe(true);
 		expect(ctx.whatExists.subscriptions).toEqual({
 			count: 2,
-			statuses: ["active", "paused"],
+			byStatus: { active: 1, paused: 1 },
 		});
 		expect(ctx.whatExists.account).toEqual({ email: "a@b.com", plan: "build" });
+		expect(ctx.whatExists.streamsTip).toEqual({
+			block_height: 100,
+			block_hash: "0xabc",
+			burn_block_height: 50,
+			lag_seconds: 2,
+		});
+		expect(ctx.whatExists.activeOperations).toEqual([]);
 		expect(ctx.whatYouCanDo.products.length).toBeGreaterThan(0);
 		expect(ctx.readAuthTiers.streams).toContain("SL_API_KEY");
 	});
 
-	it("degrades gracefully when keyless calls fail (never throws)", async () => {
+	it("degrades gracefully when a field is unavailable (never throws)", async () => {
 		const client = {
-			subgraphs: { list: async () => ({ data: [] }) }, // public read still works
-			subscriptions: {
-				list: async () => {
-					throw new Error("401");
-				},
-			},
+			context: async () => ({
+				account: null,
+				streamsTip: null,
+				indexTip: null,
+				subgraphs: [],
+				subscriptions: null,
+				activeOperations: null,
+			}),
 		} as unknown as Client;
 
-		const ctx = await buildContext({
-			clientProvider: () => client,
-			accountRequest: async () => {
-				throw new Error("401");
-			},
-		});
+		const ctx = await buildContext({ clientProvider: () => client });
 
 		expect(ctx.whatExists.subgraphs).toEqual([]);
 		expect(ctx.whatExists.subscriptions).toBe("unavailable: set SL_API_KEY");
 		expect(ctx.whatExists.account).toBe("unavailable: set SL_API_KEY");
+		expect(ctx.whatExists.streamsTip).toBe("unavailable: set SL_API_KEY");
 	});
 });
 
