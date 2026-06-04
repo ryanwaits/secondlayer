@@ -1,16 +1,29 @@
 # Index
 
-Query decoded Stacks chain data — every decoded event type plus contract calls — through one REST surface. No decoders to write.
+The decoded read layer for Stacks. One REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool. No decoders to write, no node to run. Open beta: reads need no key (free-tier keys are rejected; Build+ for keyed access).
 
-`/v1/index/events` returns decoded events for a chosen `event_type` (`ft_transfer`, `nft_transfer`, `stx_transfer`, the STX/FT/NFT mints and burns, and `print`). `/v1/index/contract-calls` returns decoded contract-call transactions. Filter by block range, principal, or contract and page through with a stable cursor. Open beta: no key required to read.
+Every list response uses the same cursor envelope — the collection, a `next_cursor`, the chain `tip`, and `reorgs` where applicable. Cursors are opaque `<block_height>:<index>` resume tokens; pass them back unchanged to continue.
 
-## Query events
+## Surfaces
+
+| Endpoint | Returns |
+| --- | --- |
+| `/v1/index/events` | Decoded events for a chosen `event_type` (+ `ft-transfers` / `nft-transfers` aliases) |
+| `/v1/index/contract-calls` | Decoded contract-call transactions with `args` and `result` |
+| `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, post-conditions, decoded payload) |
+| `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single |
+| `/v1/index/canonical` | Canonical block-hash map — one row per height, for chain sync |
+| `/v1/index/stacking` | Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …) |
+| `/v1/index/mempool` · `/{tx_id}` | Pending (unconfirmed) transaction documents |
+| `/v1/index/usage` | Your own consumption and tier limits |
+
+## Events
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
 ```
 
-Allowed filters vary by `event_type` — e.g. `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id`. `print` rows carry a `payload` with the Clarity value decoded to JSON.
+Allowed filters vary by `event_type`: `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id` and carries a `payload` with the Clarity value decoded to JSON. `ft-transfers` and `nft-transfers` are typed aliases for the two most common types.
 
 ## Contract calls
 
@@ -18,10 +31,77 @@ Allowed filters vary by `event_type` — e.g. `stx_*` have no `contract_id`, `nf
 curl "https://api.secondlayer.tools/v1/index/contract-calls?function_name=transfer&limit=20"
 ```
 
-Each row includes the decoded `args` and `result`. Responses use the cursor envelope — `events` (or `contract_calls`), `next_cursor`, `tip`, `reorgs`. See the [REST API](/docs/rest-api) reference for the full per-type filter grammar.
+Each row decodes the call's `args` and `result` from the raw Clarity. Contract-call cursors are a separate keyspace from event cursors.
+
+## Transactions
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>"
+```
+
+Full transaction documents, decoded from the raw transaction: `fee`, `nonce`, `sponsored`, `post_conditions`, and a typed `payload` sub-object. List with `/v1/index/transactions` filtered by `type`, `sender`, or `contract_id`, or fetch one by `tx_id`.
+
+## Blocks and canonical
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/blocks/892100"
+```
+
+`/v1/index/blocks` lists decoded blocks (or fetch one by height or hash). `/v1/index/canonical` returns the canonical block-hash map — exactly one row per height, orphaned blocks excluded — so a client can sync only the canonical chain.
+
+## Stacking
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/stacking?function_name=stack-stx&limit=20"
+```
+
+Decoded PoX-4 stacking actions, filterable by `function_name`, `stacker`, or `caller`.
+
+## Mempool
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/mempool?contract_id=SP000000000000000000002Q6VF78.pox-4"
+```
+
+Pending, unconfirmed transactions with the same decoded enrichment as `/transactions`, but pre-chain: no `block_height` or `result`, plus a `received_at`. Filter by `sender`, `type`, or `contract_id`. Rows leave the mempool on confirmation or drop, so the single form 404s once a transaction mines. This surface is never cached.
+
+## Discovery
+
+`GET /v1/index` describes itself. Alongside the route list it returns `event_type_filters` — a per-type map of `columns`, `allowed_filters`, `equality_filters`, and `required_non_null`, generated from the event registry — so an agent can learn exactly what each `event_type` accepts at runtime rather than hard-coding it.
+
+## Beyond REST
+
+The Index is the same data through every surface, not just REST. Pick the one that fits your runtime:
+
+```ts
+// SDK — typed client, cursor walking built in
+const block = await sl.index.blocks.get(892100);
+for await (const action of sl.index.stacking.walk({ functionName: "stack-stx" })) {
+	// …
+}
+```
+
+```bash
+# CLI
+sl index transactions get 0x<tx_id>
+sl index mempool --contract-id SP….token
+```
+
+In MCP, the same families are tools: `index_events`, `index_transactions`, `index_stacking`, `index_mempool`, `index_blocks`, and the rest.
+
+## Usage
+
+Read your own consumption and tier limits at any time.
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/usage" -H "Authorization: Bearer $SL_API_KEY"
+# → { product, tier, limits: { rate_limit_per_second }, usage: { decoded_events_today, decoded_events_this_month } }
+```
+
+Also `sl.index.usage()` (SDK) and `index_usage` (MCP). See the [REST API](/docs/rest-api) reference for the full per-type filter grammar and envelope shapes.
 
 export const metadata = {
 	title: "Index — Secondlayer Docs",
 	description:
-		"Query decoded Stacks events and contract calls through one REST surface.",
+		"The decoded read layer for Stacks: events, contract calls, transactions, blocks, canonical map, PoX-4 stacking, and mempool through one REST surface, SDK, CLI, and MCP.",
 };
