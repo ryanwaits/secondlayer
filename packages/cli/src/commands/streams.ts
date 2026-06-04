@@ -132,7 +132,7 @@ export function registerStreamsCommand(program: Command): void {
 			}
 		});
 
-	streams
+	const events = streams
 		.command("events")
 		.description("List events (cursor-paginated; one page per call)")
 		.option(
@@ -188,6 +188,20 @@ Examples:
 				}
 			},
 		);
+
+	events
+		.command("by-tx <txId>")
+		.description("List all events emitted by a single transaction")
+		.option("--json", "Output as JSON (streams always emits JSON)")
+		.action(async (txId: string) => {
+			try {
+				const envelope = await client().events.byTxId(txId);
+				writeData(JSON.stringify(envelope, null, 2));
+			} catch (err) {
+				logError(err instanceof Error ? err.message : String(err));
+				process.exit(1);
+			}
+		});
 
 	streams
 		.command("consume")
@@ -358,6 +372,23 @@ Examples:
 				if (height === undefined) throw new Error("<height> is required");
 				const block: StreamsCanonicalBlock = await client().canonical(height);
 				writeData(JSON.stringify(block, null, 2));
+			} catch (err) {
+				logError(err instanceof Error ? err.message : String(err));
+				process.exit(1);
+			}
+		});
+
+	streams
+		.command("block-events <heightOrHash>")
+		.description("List all events in a single block (by height or block hash)")
+		.option("--json", "Output as JSON (streams always emits JSON)")
+		.action(async (heightOrHash: string) => {
+			try {
+				const ref = /^\d+$/.test(heightOrHash)
+					? Number.parseInt(heightOrHash, 10)
+					: heightOrHash;
+				const envelope = await client().blocks.events(ref);
+				writeData(JSON.stringify(envelope, null, 2));
 			} catch (err) {
 				logError(err instanceof Error ? err.message : String(err));
 				process.exit(1);
