@@ -1,3 +1,4 @@
+import { ApiKeys } from "./api-keys/client.ts";
 import { BaseClient } from "./base.ts";
 import type { SecondLayerOptions } from "./base.ts";
 import { Contracts } from "./contracts/client.ts";
@@ -15,6 +16,7 @@ export class SecondLayer extends BaseClient {
 	readonly contracts: Contracts;
 	readonly subgraphs: Subgraphs;
 	readonly subscriptions: Subscriptions;
+	readonly apiKeys: ApiKeys;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
@@ -28,5 +30,6 @@ export class SecondLayer extends BaseClient {
 		this.contracts = new Contracts(options);
 		this.subgraphs = new Subgraphs(options);
 		this.subscriptions = new Subscriptions(options);
+		this.apiKeys = new ApiKeys(options);
 	}
 }

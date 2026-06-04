@@ -1,6 +1,12 @@
 export { SecondLayer } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
 export {
+	ApiKeys,
+	type CreateApiKeyParams,
+	type CreateApiKeyResponse,
+	type ScopedKeyProduct,
+} from "./api-keys/client.ts";
+export {
 	Contracts,
 	type ContractConformance,
 	type ContractsListParams,
