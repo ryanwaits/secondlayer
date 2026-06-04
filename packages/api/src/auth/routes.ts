@@ -2,8 +2,13 @@ import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { z } from "zod/v4";
 import { getClientIp } from "./http.ts";
-import { generateApiKey } from "./keys.ts";
 import { requireAuth } from "./middleware.ts";
+import {
+	assertCanMint,
+	mintApiKey,
+	resolveMintProduct,
+	resolveMintTier,
+} from "./mint.ts";
 
 const CreateKeySchema = z.object({
 	name: z.string().max(255).optional(),
@@ -13,42 +18,30 @@ const CreateKeySchema = z.object({
 
 const app = new Hono();
 
-// Create key (requires auth — tied to account)
+// Create key (requires auth — tied to account). Owner-gated: only a dashboard
+// session or an account-product key may mint, and non-session callers are
+// confined to scoped keys with an inherited tier (see mint.ts).
 app.post("/", requireAuth(), async (c) => {
 	const body = await c.req.json().catch(() => ({}));
 	const parsed = CreateKeySchema.parse(body);
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-	const accountId = (c as any).get("accountId");
+	const ctx = c as any;
+	const accountId = ctx.get("accountId");
+	const caller = {
+		isSession: Boolean(ctx.get("session")),
+		apiKeyProduct: ctx.get("apiKey")?.product ?? null,
+	};
+	assertCanMint(caller);
 
-	const db = getDb();
-	const { raw, hash, prefix } = generateApiKey();
+	const minted = await mintApiKey(getDb(), {
+		accountId,
+		name: parsed.name,
+		product: resolveMintProduct(caller, parsed.product),
+		tier: resolveMintTier(caller, parsed.tier),
+		ip: getClientIp(c),
+	});
 
-	const key = await db
-		.insertInto("api_keys")
-		.values({
-			key_hash: hash,
-			key_prefix: prefix,
-			name: parsed.name ?? null,
-			ip_address: getClientIp(c),
-			account_id: accountId,
-			status: "active",
-			product: parsed.product,
-			tier: parsed.tier ?? null,
-		})
-		.returningAll()
-		.executeTakeFirstOrThrow();
-
-	return c.json(
-		{
-			key: raw,
-			prefix,
-			id: key.id,
-			product: key.product,
-			tier: key.tier,
-			createdAt: key.created_at.toISOString(),
-		},
-		201,
-	);
+	return c.json(minted, 201);
 });
 
 // List keys (requires auth, scoped to account)
