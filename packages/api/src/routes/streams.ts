@@ -6,6 +6,7 @@ import {
 	readCanonicalStreamsEventsByTxId,
 } from "@secondlayer/indexer/streams-events";
 import { incrementStreamsEventsReturned } from "@secondlayer/platform/db/queries/usage";
+import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { validateQueryParams } from "../middleware/validation.ts";
@@ -61,6 +62,29 @@ const STREAMS_EVENTS_ALLOWED = [
 ] as const;
 const STREAMS_REORGS_ALLOWED = ["since", "limit"] as const;
 
+// Machine-readable filter spec for GET /v1/streams discovery (name + type).
+const STREAMS_EVENTS_FILTER_SPEC = [
+	{
+		name: "types",
+		type: "event_type[]",
+		description: "Event types to include",
+	},
+	{
+		name: "not_types",
+		type: "event_type[]",
+		description: "Event types to exclude (applied after types)",
+	},
+	{ name: "contract_id", type: "principal | comma-list" },
+	{ name: "sender", type: "principal | comma-list" },
+	{ name: "recipient", type: "principal | comma-list" },
+	{ name: "asset_identifier", type: "string" },
+	{ name: "from_height", type: "number" },
+	{ name: "to_height", type: "number" },
+	{ name: "cursor", type: "string" },
+	{ name: "from_cursor", type: "string" },
+	{ name: "limit", type: "number (max 1000)" },
+] as const;
+
 export type StreamsRouterOptions = {
 	tokens?: StreamsTokenStore;
 	getTip?: StreamsTipProvider;
@@ -99,19 +123,8 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 					method: "GET",
 					description:
 						"Raw event firehose. Cursor-paginated. Returns events[], next_cursor, tip, reorgs[].",
-					filters: [
-						"limit (max 1000)",
-						"cursor",
-						"from_cursor",
-						"from_height",
-						"to_height",
-						"types",
-						"not_types",
-						"contract_id (comma list)",
-						"sender (comma list)",
-						"recipient (comma list)",
-						"asset_identifier",
-					],
+					event_types: DECODED_EVENT_TYPES,
+					filters: STREAMS_EVENTS_FILTER_SPEC,
 					auth: "bearer (Build+ tier)",
 				},
 				{
