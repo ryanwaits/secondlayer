@@ -35,6 +35,9 @@ type ListOptions = {
 	assetIdentifier?: string;
 	functionName?: string;
 	eventType?: string;
+	type?: string;
+	stacker?: string;
+	caller?: string;
 	fromHeight?: string;
 	toHeight?: string;
 	cursor?: string;
@@ -42,15 +45,19 @@ type ListOptions = {
 	json?: boolean;
 };
 
-/** Shared numeric/string param coercion for the height-paginated endpoints. */
-function rangeParams(o: ListOptions) {
+/** Coerce the height/cursor/limit params shared by the paginated endpoints. */
+function heightParams(o: ListOptions) {
 	return {
-		contractId: o.contractId,
 		fromHeight: o.fromHeight ? Number.parseInt(o.fromHeight, 10) : undefined,
 		toHeight: o.toHeight ? Number.parseInt(o.toHeight, 10) : undefined,
 		cursor: o.cursor,
 		limit: o.limit ? Number.parseInt(o.limit, 10) : undefined,
 	};
+}
+
+/** As {@link heightParams} plus the shared `--contract-id` filter. */
+function rangeParams(o: ListOptions) {
+	return { contractId: o.contractId, ...heightParams(o) };
 }
 
 function emit(env: { next_cursor: string | null }, json?: boolean): void {
@@ -64,6 +71,19 @@ function emit(env: { next_cursor: string | null }, json?: boolean): void {
 	});
 }
 
+/** Print a single fetched document; SDK get(...) resolves null on 404. */
+function emitOne(doc: unknown, label: string, json?: boolean): void {
+	if (doc == null) {
+		logError(`Not found: ${label}`);
+		process.exit(1);
+	}
+	output({
+		json,
+		data: doc,
+		human: () => writeData(JSON.stringify(doc, null, 2)),
+	});
+}
+
 export function registerIndexCommand(program: Command): void {
 	const index = program
 		.command("index")
@@ -72,6 +92,15 @@ export function registerIndexCommand(program: Command): void {
 	const rangeFlags = (cmd: Command): Command =>
 		cmd
 			.option("--contract-id <id>", "Filter by contract id")
+			.option("--from-height <n>", "Start block height (inclusive)")
+			.option("--to-height <n>", "End block height (inclusive)")
+			.option("--cursor <cursor>", "Resume token from a previous next_cursor")
+			.option("--limit <n>", "Rows per page")
+			.option("--json", "Print the full envelope as JSON");
+
+	// Height-paginated endpoints that don't filter by contract.
+	const heightFlags = (cmd: Command): Command =>
+		cmd
 			.option("--from-height <n>", "Start block height (inclusive)")
 			.option("--to-height <n>", "End block height (inclusive)")
 			.option("--cursor <cursor>", "Resume token from a previous next_cursor")
@@ -160,6 +189,135 @@ export function registerIndexCommand(program: Command): void {
 				);
 			} catch (err) {
 				fail("list contract calls", err);
+			}
+		});
+
+	heightFlags(index.command("canonical"))
+		.description("List the canonical Stacks block sequence (height + hash)")
+		.action(async (o: ListOptions) => {
+			try {
+				emit(await client().canonical.list(heightParams(o)), o.json);
+			} catch (err) {
+				fail("list canonical blocks", err);
+			}
+		});
+
+	const blocks = heightFlags(index.command("blocks"))
+		.description("List decoded blocks (run `blocks get <ref>` for one block)")
+		.action(async (o: ListOptions) => {
+			try {
+				emit(await client().blocks.list(heightParams(o)), o.json);
+			} catch (err) {
+				fail("list blocks", err);
+			}
+		});
+
+	blocks
+		.command("get <ref>")
+		.description("Get a single block by height or block hash")
+		.option("--json", "Print as JSON")
+		.action(async (ref: string, o: ListOptions) => {
+			try {
+				const block = await client().blocks.get(
+					/^\d+$/.test(ref) ? Number.parseInt(ref, 10) : ref,
+				);
+				emitOne(block, `block ${ref}`, o.json);
+			} catch (err) {
+				fail("get block", err);
+			}
+		});
+
+	const transactions = rangeFlags(index.command("transactions"))
+		.description(
+			"List decoded transactions (run `transactions get <txId>` for one)",
+		)
+		.option("--type <type>", "Filter by transaction type")
+		.option("--sender <principal>", "Filter by sender")
+		.action(async (o: ListOptions) => {
+			try {
+				emit(
+					await client().transactions.list({
+						...rangeParams(o),
+						type: o.type,
+						sender: o.sender,
+					}),
+					o.json,
+				);
+			} catch (err) {
+				fail("list transactions", err);
+			}
+		});
+
+	transactions
+		.command("get <txId>")
+		.description("Get a single transaction by tx_id")
+		.option("--json", "Print as JSON")
+		.action(async (txId: string, o: ListOptions) => {
+			try {
+				emitOne(await client().transactions.get(txId), `tx ${txId}`, o.json);
+			} catch (err) {
+				fail("get transaction", err);
+			}
+		});
+
+	heightFlags(index.command("stacking"))
+		.description("List decoded PoX-4 stacking actions")
+		.option("--function-name <name>", "Filter by PoX function name")
+		.option("--stacker <principal>", "Filter by stacker")
+		.option("--caller <principal>", "Filter by caller")
+		.action(async (o: ListOptions) => {
+			try {
+				emit(
+					await client().stacking.list({
+						...heightParams(o),
+						functionName: o.functionName,
+						stacker: o.stacker,
+						caller: o.caller,
+					}),
+					o.json,
+				);
+			} catch (err) {
+				fail("list stacking actions", err);
+			}
+		});
+
+	const mempool = index
+		.command("mempool")
+		.description(
+			"List pending mempool transactions (run `mempool get <txId>` for one)",
+		)
+		.option("--contract-id <id>", "Filter to pending calls to a contract")
+		.option("--sender <principal>", "Filter by sender")
+		.option("--type <type>", "Filter by transaction type")
+		.option("--cursor <cursor>", "Resume token from a previous next_cursor")
+		.option("--limit <n>", "Rows per page")
+		.option("--json", "Print the full envelope as JSON")
+		.action(async (o: ListOptions) => {
+			try {
+				emit(
+					await client().mempool.list({
+						contractId: o.contractId,
+						sender: o.sender,
+						type: o.type,
+						cursor: o.cursor,
+						limit: o.limit ? Number.parseInt(o.limit, 10) : undefined,
+					}),
+					o.json,
+				);
+			} catch (err) {
+				fail("list mempool", err);
+			}
+		});
+
+	mempool
+		.command("get <txId>")
+		.description("Get a single pending transaction by tx_id (404 once mined)")
+		.option("--json", "Print as JSON")
+		.action(async (txId: string, o: ListOptions) => {
+			try {
+				emitOne(await client().mempool.get(txId), `pending tx ${txId}`, o.json);
+			} catch (err) {
+				fail("get mempool tx", err);
 			}
 		});
 }
