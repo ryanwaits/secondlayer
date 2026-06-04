@@ -129,6 +129,10 @@ Recent chain reorgs.
 | `since` | ISO 8601 | Required. Reorgs detected after this timestamp. |
 | `limit` | number | Page size |
 
+### `GET /v1/streams/usage` *(auth)*
+
+Your own Streams consumption + tier limits: `{ product, tier, limits: { rate_limit_per_second, retention_days }, usage: { events_today, events_this_month } }`. SDK: `sl.streams.usage()`. MCP: `streams_usage`.
+
 ---
 
 ## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, stacking, mempool)
@@ -196,6 +200,10 @@ Decoded PoX-4 stacking actions (`stack-stx`, `delegate-stx`, …). Filter `funct
 ### `GET /v1/index/mempool` and `GET /v1/index/mempool/{tx_id}`
 
 Pending (unconfirmed) transactions. Same `raw_tx`-decoded enrichment as `/transactions` (`fee`, `nonce`, `sponsored`, `post_conditions`, payload sub-object) but pre-chain — no `block_height`/`tx_index`/`result`/`events`, plus `received_at`. Filter `sender`/`type`. Cursor is the mempool sequence integer (not `block_height:tx_index`). Rows are evicted on confirmation or drop, so the single form 404s once a tx mines. **Never cacheable** — always `private, max-age=2`, no ETag (the one volatile Index surface).
+
+### `GET /v1/index/usage` *(auth)*
+
+Your own Index consumption + tier limits: `{ product, tier, limits: { rate_limit_per_second }, usage: { decoded_events_today, decoded_events_this_month } }`. Requires a Build+ key — anonymous reads return 401. SDK: `sl.index.usage()`. MCP: `index_usage`.
 
 ### Caching
 
