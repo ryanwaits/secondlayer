@@ -4,6 +4,7 @@ import pkg from "../package.json" with { type: "json" };
 import {
 	registerAccountCommand,
 	registerConfigCommand,
+	registerContextCommand,
 	registerDatasetsCommand,
 	registerDevnetCommand,
 	registerDoctorCommand,
@@ -124,6 +125,7 @@ program.commandsGroup("Diagnostics:");
 registerStatusCommand(program);
 registerDoctorCommand(program);
 registerConfigCommand(program);
+registerContextCommand(program);
 
 // Account
 program.commandsGroup("Account:");
