@@ -54,6 +54,7 @@ describe("streams MCP tools", () => {
 			"streams_events",
 			"streams_reorgs",
 			"streams_tip",
+			"streams_usage",
 		]);
 
 		await tools

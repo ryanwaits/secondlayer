@@ -286,4 +286,12 @@ export function registerIndexTools(
 			return tx ? jsonResponse(tx) : notFound(`No pending tx for ${txId}`);
 		},
 	);
+
+	defineTool<Record<string, never>>(
+		server,
+		"index_usage",
+		"Your own Index consumption (decoded events today + this month) and tier limits. Requires a Build+ API key (anonymous reads can't report usage).",
+		{},
+		async () => jsonResponse(await clientProvider().index.usage()),
+	);
 }

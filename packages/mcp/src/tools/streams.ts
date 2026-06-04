@@ -149,4 +149,15 @@ export function registerStreamsTools(
 				jsonResponse(await clientProvider().streams.canonical(height)),
 			),
 	);
+
+	defineTool<Record<string, never>>(
+		server,
+		"streams_usage",
+		"Your own Streams consumption (events today + this month) and tier limits (rate limit, retention). Streams requires an API key (SL_API_KEY).",
+		{},
+		async () =>
+			withStreamsAuthHint(async () =>
+				jsonResponse(await clientProvider().streams.usage()),
+			),
+	);
 }

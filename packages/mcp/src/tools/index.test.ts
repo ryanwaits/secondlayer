@@ -62,6 +62,7 @@ describe("index MCP tools", () => {
 			"index_stacking",
 			"index_transaction",
 			"index_transactions",
+			"index_usage",
 		]);
 
 		await tools
