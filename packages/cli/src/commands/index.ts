@@ -7,6 +7,7 @@ export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStreamsCommand } from "./streams.ts";
 export { registerDatasetsCommand } from "./datasets.ts";
 export { registerIndexCommand } from "./index-api.ts";
+export { registerKeysCommand } from "./keys.ts";
 export { registerDoctorCommand } from "./doctor.ts";
 export { registerLocalCommand } from "./local.ts";
 export { registerWhoamiCommand } from "./whoami.ts";

@@ -8,6 +8,7 @@ import {
 	registerDevnetCommand,
 	registerDoctorCommand,
 	registerIndexCommand,
+	registerKeysCommand,
 	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
@@ -127,5 +128,6 @@ registerConfigCommand(program);
 // Account
 program.commandsGroup("Account:");
 registerAccountCommand(program);
+registerKeysCommand(program);
 
 program.parse();
