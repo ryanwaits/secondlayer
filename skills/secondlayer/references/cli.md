@@ -31,7 +31,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Auth](#auth) — `login`, `logout`, `whoami`
+- [Auth](#auth) — `login`, `logout`, `whoami`, `keys create`
 - [Projects](#projects) — `projects create|list|use|get`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `reindex`, `backfill`, `cancel`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
 - [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
@@ -81,6 +81,16 @@ Headless / CI login (no magic-link prompt): pipe a key into `--with-token`:
 ```bash
 echo "$SL_API_KEY" | sl login --with-token
 ```
+
+### sl keys create
+
+Mint a **scoped** read key without the dashboard.
+
+Usage: `sl keys create --product streams [--name <name>]`
+
+`--product` is `streams` or `index` (single-product, read-only). Prints the new `sk-sl_…` key **once** — store it immediately. **Requires an account/owner key** in `SL_API_KEY` (or session): a scoped key cannot mint (403). Minted keys inherit your account plan's tier and can never be an account key.
+
+**Key products:** an `account` key (dashboard default) grants both `streams:read` and `index:read` and is the only key that can mint; `streams`/`index` keys are scoped reads and cannot mint.
 
 ---
 

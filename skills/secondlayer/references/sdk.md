@@ -4,6 +4,14 @@ Source of truth: `packages/sdk/src/`. Function signatures below are copied verba
 
 **Auth model:** `sl.datasets.*`, `sl.contracts.*`, `sl.index.*` and read-only `sl.subgraphs.*` (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) are **anonymous** — no API key required (note: `sl.index.*` rejects free-tier keys — Build+ for keyed access). **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
 
+**Key products & scope:** every `sk-sl_` key (set as `SL_API_KEY`) has a `product` that scopes it. An **`account`** key is the owner key — it grants BOTH `streams:read` and `index:read`, and is the **only** key allowed to mint new keys. A **`streams`** or **`index`** key is a scoped single-product read key and **cannot mint** (403). Dashboard keys default to `account`. Mint scoped keys programmatically with `sl.apiKeys.create({ product })` (requires an account/owner key); minted keys are always scoped and inherit your account plan's tier (never escalatable):
+
+```ts
+const { key, prefix, id, product, tier, createdAt } =
+  await sl.apiKeys.create({ product: "streams", name: "ci" });
+// `key` (sk-sl_…) is returned ONCE — store it now. `product` defaults to "streams" (or "index").
+```
+
 ---
 
 ## 1. Install and import

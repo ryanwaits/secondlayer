@@ -10,9 +10,9 @@ import type { ApiKey, ApiKeyProduct, ApiKeyTier } from "@/lib/types";
 import { useCallback, useRef, useState } from "react";
 
 const PRODUCT_LABELS: Record<ApiKeyProduct, string> = {
-	account: "Account (any)",
-	streams: "Streams",
-	index: "Index",
+	account: "Account — Streams + Index",
+	streams: "Streams only",
+	index: "Index only",
 };
 
 const TIER_OPTIONS: ApiKeyTier[] = ["free", "build", "scale", "enterprise"];
@@ -182,9 +182,7 @@ export function KeysList({
 								<select
 									className="settings-input"
 									value={product}
-									onChange={(e) =>
-										setProduct(e.target.value as ApiKeyProduct)
-									}
+									onChange={(e) => setProduct(e.target.value as ApiKeyProduct)}
 								>
 									{(["account", "streams", "index"] as ApiKeyProduct[]).map(
 										(p) => (
@@ -212,7 +210,22 @@ export function KeysList({
 								</select>
 							</label>
 						</div>
-						<div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+						<p
+							style={{
+								fontSize: 11,
+								color: "var(--text-muted)",
+								lineHeight: 1.5,
+								margin: 0,
+							}}
+						>
+							An <strong>Account</strong> key reads both products and can create
+							more keys. <strong>Streams</strong>/<strong>Index</strong> keys
+							are scoped to one product and can&apos;t create keys. Tier
+							inherits your plan unless set.
+						</p>
+						<div
+							style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+						>
 							<button
 								type="button"
 								className="settings-btn ghost"

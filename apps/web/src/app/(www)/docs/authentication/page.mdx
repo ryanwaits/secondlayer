@@ -1,27 +1,62 @@
 # Authentication
 
-Open beta: reads are public, API keys gate writes only.
+Reads are public during the open beta. API keys gate writes — and scope which products a key can read.
 
-During the open beta every read endpoint is public — no key required. API keys are only needed for **write** operations: deploying subgraphs, managing subscriptions, and rotating keys.
-
-## Reading — no auth
+Most reads need no key: datasets, contracts, and subgraph queries are fully open, and the Index is anonymous-readable (free-tier keys are rejected — Build+ for keyed access). The **Streams** firehose and every **write** (deploying subgraphs, managing subscriptions, minting keys) require a key.
 
 ```bash
+# Public read — no key
 curl https://api.secondlayer.tools/v1/datasets/sbtc/events
+
+# Keyed request — bearer token
+curl https://api.secondlayer.tools/v1/streams/tip \
+  -H "Authorization: Bearer $SL_API_KEY"
 ```
 
-## Writing — bearer token
+## API keys
 
-Pass your key as a bearer token. Create one in the platform console at [secondlayer.tools/platform/api-keys](https://secondlayer.tools/platform/api-keys).
+An API key looks like `sk-sl_…`. Set it as `SL_API_KEY` — the SDK, CLI, and MCP server all read that one variable. Every key has a **product** that scopes what it can do:
+
+| Product | Reads | Can mint new keys? | Use it as |
+| --- | --- | --- | --- |
+| `account` | Streams **and** Index | Yes | your **owner** key |
+| `streams` | Streams only | No (`403`) | a scoped key |
+| `index` | Index only | No (`403`) | a scoped key |
+
+The `account` key is the owner credential — it reads both products and is the only key allowed to create more keys. A scoped `streams`/`index` key can read just its product and cannot mint, so a leaked scoped key can't escalate.
+
+Keep keys server-side. Rotate or revoke them anytime in the [platform console](https://secondlayer.tools/platform/api-keys).
+
+## Creating a key
+
+Create a key in the [platform console](https://secondlayer.tools/platform/api-keys) — console keys default to `account`.
+
+To self-provision a **scoped** key without the dashboard (handy for agents and CI), call the mint API with an `account` (owner) key. Minted keys are always scoped and inherit your account plan's tier — they can never be an `account` key or a higher tier.
 
 ```bash
-curl -X POST https://api.secondlayer.tools/api/subgraphs \
-  -H "Authorization: Bearer $SL_KEY"
+curl -X POST https://api.secondlayer.tools/v1/api-keys \
+  -H "Authorization: Bearer $OWNER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "product": "streams", "name": "ci" }'
+# → 201 { "key": "sk-sl_…", "product": "streams", "tier": null, ... }
 ```
 
-Keep keys server-side — they grant write access to your account. Rotate or revoke them anytime in the platform console at [secondlayer.tools/platform/api-keys](https://secondlayer.tools/platform/api-keys).
+The plaintext `key` is returned **once** — store it immediately. The same mint is available as `sl.apiKeys.create({ product })` (SDK), `sl keys create --product streams` (CLI), and the `account_create_key` tool (MCP).
+
+## Tiers
+
+A key's tier (`free` · `build` · `scale` · `enterprise`) sets its rate limit and, for Streams, its history retention. The Index rejects `free`-tier keys (Build+ required); Streams accepts any valid key. A minted key has no pinned tier and inherits your account plan.
+
+## Session tokens
+
+`sl login` issues a short-lived **session token** (`ss-sl_…`) instead of a long-lived key. The CLI mints these per call. Like a key, a session authenticates you — it's just ephemeral, so prefer it for interactive CLI use and reserve `sk-sl_` keys for servers and agents.
+
+## Webhook signing secrets
+
+A **signing secret** (`whsec_…`) is a different kind of secret — not an API key. Each subscription has one, and you use it to *verify* that an incoming webhook payload genuinely came from Secondlayer (`verifyWebhookSignature`). It never goes in `Authorization` and isn't interchangeable with `SL_API_KEY`. Rotate it with `sl subscriptions rotate-secret`.
 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",
-	description: "Open beta: reads are public, API keys gate writes only.",
+	description:
+		"API keys, key products (account vs scoped streams/index), tiers, session tokens, and webhook signing secrets.",
 };

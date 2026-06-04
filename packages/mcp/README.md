@@ -59,7 +59,13 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Streams** (2) | `streams_tip`, `streams_events` |
 | **Contracts** (1) | `contracts_find` |
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
-| **Account** (3) | `account_whoami`, `account_update`, `account_billing` |
+| **Account** (4) | `account_whoami`, `account_update`, `account_billing`, `account_create_key` |
+
+`account_create_key` mints a scoped `streams`/`index` read key — requires an
+account/owner key and returns the `sk-sl_` key **once**. **Key products:** an
+`account` key (dashboard default) grants both `streams:read` and `index:read` and
+is the only key that can mint; `streams`/`index` keys are scoped reads and cannot
+mint (403).
 
 ### `subscriptions_create` kinds
 

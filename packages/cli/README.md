@@ -65,6 +65,7 @@ sl subscriptions create my-hook \
 |---|---|
 | `sl login` / `sl logout` | Start or revoke a session |
 | `sl whoami` | Print account, credential source, and active project |
+| `sl keys create --product streams [--name <name>]` | Mint a scoped `streams`/`index` read key; prints the `sk-sl_` key **once**. Needs an account key in `SL_API_KEY` |
 | `sl projects create [name]` | Create a project |
 | `sl projects list` | List projects |
 | `sl projects use <slug>` | Bind cwd to a project (writes `./.secondlayer/project`) |
@@ -74,6 +75,10 @@ sl subscriptions create my-hook \
 Project binding is per-directory: `.secondlayer/project` in cwd takes
 precedence over `~/.secondlayer/config.json:defaultProject`. The walk-up stops
 at `.git`.
+
+**Key products:** an `account` key (dashboard default) grants both `streams:read`
+and `index:read` and is the only key that can mint; `streams`/`index` keys are
+scoped reads and cannot mint (403). Minted keys inherit your plan's tier.
 
 ### Subgraphs
 

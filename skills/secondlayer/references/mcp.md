@@ -92,6 +92,9 @@ Account:
 - `account_whoami`
 - `account_update` — update profile (display_name, bio, slug)
 - `account_billing` — plan + subscription status
+- `account_create_key` — mint a scoped `streams`/`index` read key; requires an account/owner key; returns the `sk-sl_…` key **once**
+
+**Key products:** an `account` key (dashboard default, the `SL_API_KEY` you configure) grants both `streams:read` and `index:read` and is the only key that can mint; `streams`/`index` keys are scoped reads and cannot mint (403). Minted keys are always scoped and inherit your plan's tier.
 
 Resources:
 

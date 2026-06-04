@@ -27,6 +27,13 @@ require an `sk-sl_` API key, created in the platform console at
 https://secondlayer.tools/platform/api-keys. (Public Streams bulk dumps —
 `client.dumps`, `events.replay` — need no key.)
 
+**API keys.** Each `sk-sl_` key has a `product`. An **`account`** key (dashboard
+default) grants both `streams:read` and `index:read` and is the only key that can
+mint new keys; **`streams`** / **`index`** keys are scoped, read-only, and cannot
+mint. Mint scoped keys programmatically with `sl.apiKeys.create({ product })`
+(needs an account/owner key) — the returned `key` is shown once and inherits your
+plan's tier.
+
 ## Mental model
 
 - `sl.streams` reads raw ordered L1 events from Stacks Streams.
