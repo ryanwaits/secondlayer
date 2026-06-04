@@ -5,6 +5,17 @@ interface ToolResult {
 	isError?: boolean;
 }
 
+// Names of every tool registered via defineTool, in registration order. The
+// context resource generates its capability list from this so CAPABILITIES can
+// never drift behind the actual tool surface (a new tool auto-appears). A Set
+// dedupes across repeated createServer() calls in tests.
+const registeredToolNames = new Set<string>();
+
+/** Tool names registered so far this process (see {@link defineTool}). */
+export function getRegisteredToolNames(): string[] {
+	return [...registeredToolNames];
+}
+
 /**
  * Type-safe wrapper around McpServer.tool() that avoids TS2589.
  *
@@ -53,6 +64,7 @@ export function defineTool<T>(
 			};
 		}
 	};
+	registeredToolNames.add(name);
 	(server.tool as (...args: unknown[]) => unknown)(
 		name,
 		description,

@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { apiRequest, getClient } from "./lib/client.ts";
 import { formatSubgraphSummary } from "./lib/format.ts";
+import { getRegisteredToolNames } from "./lib/tool.ts";
 
 /** Filter types for blockchain events — SubgraphFilter vocabulary. */
 const FILTERS_REFERENCE = [
@@ -60,20 +61,63 @@ const COLUMN_TYPES = [
 	},
 ];
 
-/** Static "what you can do" overview — the product surfaces an agent can reach. */
-const CAPABILITIES = {
-	products: [
-		"datasets — public foundation datasets (datasets_list, datasets_query)",
-		"index — decoded L2 events + contract calls (index_ft_transfers, index_nft_transfers, index_events, index_contract_calls)",
-		"streams — raw chain event firehose (streams_tip, streams_events)",
-		"contracts — trait-based contract discovery (contracts_find)",
-		"subgraphs — author/deploy/query custom indexes (subgraphs_deploy, subgraphs_query, subgraphs_list, subgraphs_get, subgraphs_reindex, subgraphs_delete)",
-		"subscriptions — webhook delivery of subgraph rows (subscriptions_create, subscriptions_list, subscriptions_update, …)",
-		"account — identity + plan (account_whoami)",
-	],
-	discoverFirst:
-		"Call datasets_list / contracts_find to learn what exists before querying.",
+// One-line human blurb per product surface; the tool list for each is
+// generated from the live tool registry (see buildCapabilities) so it can't
+// drift behind the actual surface.
+const PRODUCT_BLURBS: Record<string, string> = {
+	datasets: "public foundation datasets",
+	index:
+		"decoded L2 events, contract calls, blocks, transactions, stacking, mempool",
+	streams: "raw canonical chain event firehose",
+	contracts: "trait-based contract discovery",
+	subgraphs: "author/deploy/query custom indexes",
+	subscriptions: "webhook delivery on subgraph rows or raw chain events",
+	account: "identity, plan, billing, and API keys",
+	scaffold: "generate typed contract clients from a deployment or ABI",
 };
+
+const PRODUCT_ORDER = [
+	"datasets",
+	"index",
+	"streams",
+	"contracts",
+	"subgraphs",
+	"subscriptions",
+	"account",
+	"scaffold",
+];
+
+/**
+ * "What you can do" overview, generated from the registered tool names so every
+ * tool surfaces under its product without a hand-maintained list to fall stale.
+ * Tools register (via defineTool) before registerResources runs, so the
+ * registry is fully populated by the time a context read calls this.
+ */
+export function buildCapabilities() {
+	const byPrefix = new Map<string, string[]>();
+	for (const name of getRegisteredToolNames()) {
+		const prefix = name.slice(0, name.indexOf("_"));
+		const tools = byPrefix.get(prefix) ?? [];
+		tools.push(name);
+		byPrefix.set(prefix, tools);
+	}
+	const order = [
+		...PRODUCT_ORDER.filter((p) => byPrefix.has(p)),
+		...[...byPrefix.keys()].filter((p) => !PRODUCT_ORDER.includes(p)),
+	];
+	const products = order.map((p) => {
+		const tools = byPrefix.get(p) ?? [];
+		const blurb = PRODUCT_BLURBS[p];
+		return blurb
+			? `${p} — ${blurb} (${tools.join(", ")})`
+			: `${p} (${tools.join(", ")})`;
+	});
+	return {
+		products,
+		discoverFirst:
+			"Call datasets_list / contracts_find to learn what exists before querying.",
+	};
+}
 
 /** Per-product read-auth tiers — what an agent must know before reading. */
 const READ_AUTH_TIERS = {
@@ -124,7 +168,7 @@ export async function buildContext(
 	return {
 		authState: { apiKeySet: Boolean(process.env.SL_API_KEY) },
 		whatExists: { subgraphs, subscriptions, account },
-		whatYouCanDo: CAPABILITIES,
+		whatYouCanDo: buildCapabilities(),
 		readAuthTiers: READ_AUTH_TIERS,
 	};
 }

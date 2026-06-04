@@ -1,8 +1,17 @@
-import { describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 import type { getClient } from "./lib/client.ts";
-import { buildContext } from "./resources.ts";
+import { getRegisteredToolNames } from "./lib/tool.ts";
+import { buildCapabilities, buildContext } from "./resources.ts";
+import { createServer } from "./server.ts";
 
 type Client = ReturnType<typeof getClient>;
+
+// Registering all tools populates the global tool registry that
+// buildCapabilities reads (mirrors production: register*Tools run before any
+// context read). Without this the registry is empty and capabilities are blank.
+beforeAll(() => {
+	createServer();
+});
 
 describe("secondlayer://context", () => {
 	it("assembles live state when authenticated", async () => {
@@ -61,5 +70,19 @@ describe("secondlayer://context", () => {
 		expect(ctx.whatExists.subgraphs).toEqual([]);
 		expect(ctx.whatExists.subscriptions).toBe("unavailable: set SL_API_KEY");
 		expect(ctx.whatExists.account).toBe("unavailable: set SL_API_KEY");
+	});
+});
+
+describe("capabilities ↔ tool registry", () => {
+	// Guards against CAPABILITIES drifting behind the tool surface: every tool
+	// registered via defineTool must appear in the generated capability list. If
+	// this fails, a tool was added but buildCapabilities couldn't place it (e.g.
+	// an unknown product prefix) — fix the generator, don't hand-edit a list.
+	it("lists every registered tool", () => {
+		const names = getRegisteredToolNames();
+		expect(names.length).toBeGreaterThan(0);
+		const listed = buildCapabilities().products.join(" ");
+		const missing = names.filter((n) => !listed.includes(n));
+		expect(missing).toEqual([]);
 	});
 });
