@@ -1,4 +1,9 @@
 export { SecondLayer } from "./client.ts";
+export type {
+	ActiveSubgraphOperation,
+	ContextAccount,
+	ContextSnapshot,
+} from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
 export {
 	ApiKeys,
