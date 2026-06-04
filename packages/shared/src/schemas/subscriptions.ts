@@ -224,7 +224,10 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 	],
 );
 
-export const ChainTriggersSchema = z.array(ChainTriggerSchema).min(1).max(50);
+export const ChainTriggersSchema: z.ZodType<ChainTrigger[]> = z
+	.array(ChainTriggerSchema)
+	.min(1)
+	.max(50);
 
 export const CreateSubscriptionRequestSchema: z.ZodType<ParsedCreateSubscriptionRequest> =
 	z
