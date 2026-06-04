@@ -14,6 +14,7 @@ import {
 	updateSubscription,
 } from "@secondlayer/shared/db/queries/subscriptions";
 import {
+	type ChainTrigger,
 	CreateSubscriptionRequestSchema,
 	ReplaySubscriptionRequestSchema,
 	type SubscriptionSchemaTables,
@@ -38,6 +39,7 @@ function toSummary(sub: Subscription) {
 		id: sub.id,
 		name: sub.name,
 		status: sub.status,
+		kind: sub.kind,
 		subgraphName: sub.subgraph_name,
 		tableName: sub.table_name,
 		format: sub.format,
@@ -57,6 +59,7 @@ function toDetail(sub: Subscription) {
 	return {
 		...toSummary(sub),
 		filter: sub.filter as Record<string, unknown>,
+		triggers: (sub.triggers ?? null) as ChainTrigger[] | null,
 		authConfig: sub.auth_config as Record<string, unknown>,
 		maxRetries: sub.max_retries,
 		timeoutMs: sub.timeout_ms,
@@ -130,18 +133,25 @@ app.post("/", async (c) => {
 		return c.json({ error: details.join("; "), details }, 400);
 	}
 	const input = parsed.data;
+	// The schema guarantees exactly one mode: chain (triggers) XOR subgraph
+	// (subgraphName + tableName). Chain subscriptions match raw chain events and
+	// have no subgraph table to validate a column filter against.
+	const isChain = input.triggers !== undefined;
 
-	const validationErrors = await validateSubscriptionTarget({
-		accountId,
-		subgraphName: input.subgraphName,
-		tableName: input.tableName,
-		filter: input.filter,
-	});
-	if (validationErrors.length > 0) {
-		return c.json(
-			{ error: validationErrors.join("; "), details: validationErrors },
-			400,
-		);
+	if (!isChain) {
+		const validationErrors = await validateSubscriptionTarget({
+			accountId,
+			// Non-chain mode guarantees both are present (schema refine).
+			subgraphName: input.subgraphName as string,
+			tableName: input.tableName as string,
+			filter: input.filter,
+		});
+		if (validationErrors.length > 0) {
+			return c.json(
+				{ error: validationErrors.join("; "), details: validationErrors },
+				400,
+			);
+		}
 	}
 
 	const existing = await getSubscriptionByName(getDb(), accountId, input.name);
@@ -156,12 +166,14 @@ app.post("/", async (c) => {
 		const { subscription, signingSecret } = await createSubscription(getDb(), {
 			accountId,
 			name: input.name,
-			subgraphName: input.subgraphName,
-			tableName: input.tableName,
+			kind: isChain ? "chain" : "subgraph",
+			subgraphName: isChain ? null : input.subgraphName,
+			tableName: isChain ? null : input.tableName,
+			triggers: isChain ? input.triggers : undefined,
 			url: input.url,
 			format: input.format,
 			runtime: input.runtime ?? null,
-			filter: input.filter ?? {},
+			filter: isChain ? {} : (input.filter ?? {}),
 			authConfig: input.authConfig ?? {},
 			maxRetries: input.maxRetries,
 			timeoutMs: input.timeoutMs,
@@ -212,17 +224,25 @@ app.patch("/:id", async (c) => {
 	if (patch.filter !== undefined) {
 		const current = await getSubscription(getDb(), accountId, id);
 		if (!current) return c.json({ error: "Subscription not found" }, 404);
-		const validationErrors = await validateSubscriptionTarget({
-			accountId,
-			subgraphName: current.subgraph_name,
-			tableName: current.table_name,
-			filter: patch.filter,
-		});
-		if (validationErrors.length > 0) {
-			return c.json(
-				{ error: validationErrors.join("; "), details: validationErrors },
-				400,
-			);
+		// `filter` is a subgraph-table column filter; chain subscriptions use
+		// `triggers` instead, so there's nothing to validate against a table here.
+		if (
+			current.kind === "subgraph" &&
+			current.subgraph_name &&
+			current.table_name
+		) {
+			const validationErrors = await validateSubscriptionTarget({
+				accountId,
+				subgraphName: current.subgraph_name,
+				tableName: current.table_name,
+				filter: patch.filter,
+			});
+			if (validationErrors.length > 0) {
+				return c.json(
+					{ error: validationErrors.join("; "), details: validationErrors },
+					400,
+				);
+			}
 		}
 	}
 
