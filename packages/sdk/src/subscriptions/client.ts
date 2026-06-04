@@ -12,6 +12,8 @@ import type {
 import { BaseClient } from "../base.ts";
 
 export type {
+	ChainTrigger,
+	ChainTriggerType,
 	CreateSubscriptionRequest,
 	CreateSubscriptionResponse,
 	DeadRow,
@@ -20,11 +22,15 @@ export type {
 	RotateSecretResponse,
 	SubscriptionDetail,
 	SubscriptionFormat,
+	SubscriptionKind,
 	SubscriptionRuntime,
 	SubscriptionStatus,
 	SubscriptionSummary,
 	UpdateSubscriptionRequest,
 } from "@secondlayer/shared/schemas/subscriptions";
+// `on.*` chain-trigger builders for direct chain-level subscriptions
+// (`create({ triggers: [on.contractCall({ ... })] })`).
+export { on } from "@secondlayer/shared/schemas/subscriptions";
 
 export class Subscriptions extends BaseClient {
 	async list(): Promise<{ data: SubscriptionSummary[] }> {
