@@ -166,7 +166,7 @@ export function registerSubgraphTools(
 	defineTool<{ name: string; fromBlock?: number; toBlock?: number }>(
 		server,
 		"subgraphs_reindex",
-		"Reindex a subgraph from a specific block range.",
+		"Reindex a subgraph from a specific block range. Returns an operationId — poll subgraphs_operation to track progress to completion.",
 		{
 			name: z.string().describe("Subgraph name"),
 			fromBlock: z
@@ -180,6 +180,29 @@ export function registerSubgraphTools(
 				fromBlock,
 				toBlock,
 			});
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ name: string; operationId?: string }>(
+		server,
+		"subgraphs_operation",
+		"Check reindex/backfill progress. With operationId, returns that operation's status (poll until status is completed/failed/cancelled); without it, lists recent operations for the subgraph.",
+		{
+			name: z.string().describe("Subgraph name"),
+			operationId: z
+				.string()
+				.optional()
+				.describe(
+					"Operation id from reindex/backfill/stop; omit to list recent operations",
+				),
+		},
+		async ({ name, operationId }) => {
+			const result = operationId
+				? await clientProvider().subgraphs.getOperation(name, operationId)
+				: await clientProvider().subgraphs.operations(name);
 			return {
 				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
 			};
