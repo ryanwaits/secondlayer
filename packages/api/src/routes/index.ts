@@ -32,6 +32,7 @@ import {
 	getContractCallsResponse,
 } from "../index/contract-calls.ts";
 import {
+	INDEX_EVENT_CONFIG,
 	INDEX_EVENT_TYPES,
 	type IndexEventsReader,
 	getIndexEventsResponse,
@@ -157,8 +158,23 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					required: ["event_type"],
 					event_types: INDEX_EVENT_TYPES,
 					filters: EVENTS_ALLOWED,
-					notes:
-						"asset_identifier applies to nft_transfer only; allowed filters vary by event_type.",
+					// Allowed filters vary by event_type — this map is the precise,
+					// machine-readable vocabulary (generated from the event registry, so
+					// it can't drift from what the endpoint actually accepts).
+					event_type_filters: Object.fromEntries(
+						INDEX_EVENT_TYPES.map((t) => {
+							const cfg = INDEX_EVENT_CONFIG[t];
+							return [
+								t,
+								{
+									columns: cfg.columns,
+									allowed_filters: cfg.allowedFilters,
+									equality_filters: cfg.equalityFilters,
+									required_non_null: cfg.requiredNonNull,
+								},
+							];
+						}),
+					),
 				},
 				{
 					path: "/v1/index/ft-transfers",

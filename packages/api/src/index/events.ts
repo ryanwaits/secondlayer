@@ -54,7 +54,7 @@ type IndexEventConfig = {
  *  New Streams-sourced event types (stx_transfer, mints/burns, print) plug in
  *  here — no new handler files. contract_call is tx-sourced and lives on its
  *  own endpoint, so it is intentionally absent. */
-const INDEX_EVENT_CONFIG = {
+export const INDEX_EVENT_CONFIG = {
 	ft_transfer: {
 		columns: ["asset_identifier", "sender", "recipient", "amount"],
 		requiredNonNull: [
