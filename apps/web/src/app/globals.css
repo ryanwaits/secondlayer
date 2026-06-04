@@ -5479,21 +5479,21 @@ a.dataset-shelf-name:hover {
 	scroll-margin-top: 24px;
 }
 .docs-article h3 {
-	font-size: 14px;
-	font-weight: 560;
+	font-size: 14.5px;
+	font-weight: 600;
 	color: var(--text-main);
-	letter-spacing: -0.00563rem;
-	margin: var(--spacing-md) 0 0.5rem;
+	letter-spacing: -0.008em;
+	margin: var(--spacing-md) 0 0.6rem;
 	scroll-margin-top: 24px;
 }
 /* Body matches marketing .prose exactly (Public Sans, dense editorial type). */
 .docs-article p {
 	font-size: 14px;
 	font-weight: 460;
-	line-height: 20px;
+	line-height: 1.62;
 	letter-spacing: -0.00563rem;
 	color: var(--text-prose);
-	margin: 0 0 var(--spacing-xs);
+	margin: 0 0 1.15rem;
 }
 .docs-article a {
 	color: inherit;
@@ -5506,17 +5506,21 @@ a.dataset-shelf-name:hover {
 .docs-article a:hover {
 	text-decoration-color: var(--link-underline-hover);
 }
-.docs-article ul {
+.docs-article ul,
+.docs-article ol {
 	margin: var(--spacing-xs) 0;
 	padding-left: 1.25rem;
 	list-style: none;
 }
+.docs-article ol {
+	counter-reset: docs-li;
+}
 .docs-article li {
 	position: relative;
-	margin-bottom: 0.375rem;
+	margin-bottom: 0.5rem;
 	padding-left: 0.25rem;
 	font-size: 14px;
-	line-height: 20px;
+	line-height: 1.6;
 	letter-spacing: -0.00563rem;
 	color: var(--text-prose);
 }
@@ -5526,6 +5530,19 @@ a.dataset-shelf-name:hover {
 	left: -1.25rem;
 	color: var(--text-muted);
 	font-weight: 460;
+}
+.docs-article ol > li {
+	counter-increment: docs-li;
+}
+.docs-article ol > li::before {
+	content: counter(docs-li);
+	position: absolute;
+	left: -1.35rem;
+	width: 1rem;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	font-size: 12px;
+	color: var(--text-muted);
 }
 .docs-article :not(pre) > code {
 	font-family: var(--font-mono-stack);
@@ -5538,6 +5555,65 @@ a.dataset-shelf-name:hover {
 .docs-article strong {
 	font-weight: 600;
 	color: var(--text-main);
+}
+
+/* Tables — contained card with a tinted header row. Numbers use tabular-nums
+   so columns align without layout shift; the table scrolls on narrow screens. */
+.docs-article table {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	margin: var(--spacing-sm) 0;
+	font-size: 13px;
+	line-height: 1.5;
+	letter-spacing: -0.004em;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.docs-article thead th {
+	text-align: left;
+	font-weight: 600;
+	color: var(--text-main);
+	background: var(--bg-chrome);
+	padding: 0.55rem 1rem;
+	border-bottom: 1px solid var(--border);
+}
+.docs-article tbody td {
+	padding: 0.6rem 1rem;
+	color: var(--text-prose);
+	border-bottom: 1px solid var(--border);
+	vertical-align: top;
+	font-variant-numeric: tabular-nums;
+}
+.docs-article tbody tr:last-child td {
+	border-bottom: none;
+}
+@media (max-width: 640px) {
+	.docs-article table {
+		display: block;
+		overflow-x: auto;
+	}
+}
+
+/* Blockquote — 1px hairline indent in muted text (no heavy colored stripe). */
+.docs-article blockquote {
+	margin: var(--spacing-sm) 0;
+	padding: 0.1rem 0 0.1rem 1.1rem;
+	border-left: 1px solid var(--border-hover);
+	color: var(--text-muted);
+}
+.docs-article blockquote p {
+	margin: 0;
+	color: inherit;
+}
+
+/* Standalone rule (markdown `---`). Scoped to a direct child so it never
+   touches the <hr> inside .section-heading-wrap. */
+.docs-article > hr {
+	border: none;
+	border-top: 1px solid var(--border);
+	margin: var(--spacing-md) 0;
 }
 
 .docs-toc {
@@ -6372,11 +6448,32 @@ a.dataset-shelf-name:hover {
 /* ── Callout (tips, notes, link-outs) ──────────────────────────────── */
 .callout {
 	margin: var(--spacing-sm) 0;
-	padding: var(--spacing-xs);
+	padding: 12px 14px;
 	border: 1px solid var(--accent-border);
-	border-left: 3px solid var(--accent);
-	border-radius: 6px;
+	border-radius: 8px;
 	background: var(--accent-bg);
+}
+/* Semantic variants — full border + tint, no side-stripe. */
+.callout.warn {
+	border-color: var(--yellow-border, rgba(234, 179, 8, 0.32));
+	background: var(--yellow-bg);
+}
+.callout.warn .callout-label {
+	color: var(--yellow);
+}
+.callout.ok {
+	border-color: var(--green-border, rgba(34, 197, 94, 0.28));
+	background: var(--green-bg);
+}
+.callout.ok .callout-label {
+	color: var(--green);
+}
+.callout.bad {
+	border-color: var(--red-border, rgba(239, 68, 68, 0.28));
+	background: var(--red-bg);
+}
+.callout.bad .callout-label {
+	color: var(--red);
 }
 .callout-label {
 	display: block;
