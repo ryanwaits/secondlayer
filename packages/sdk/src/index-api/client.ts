@@ -7,6 +7,13 @@ export type IndexTip = {
 	lag_seconds: number;
 };
 
+export type IndexUsage = {
+	product: "index";
+	tier: string;
+	limits: { rate_limit_per_second: number | null };
+	usage: { decoded_events_today: number; decoded_events_this_month: number };
+};
+
 export type FtTransfer = {
 	cursor: string;
 	block_height: number;
@@ -526,6 +533,11 @@ function firstWalkFromHeight(params: {
 export class Index extends BaseClient {
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
+	}
+
+	/** Your own Index consumption (decoded events today + this month) and tier limits. */
+	usage(): Promise<IndexUsage> {
+		return this.request<IndexUsage>("GET", "/v1/index/usage");
 	}
 
 	readonly ftTransfers: {

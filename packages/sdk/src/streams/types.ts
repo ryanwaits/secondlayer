@@ -389,4 +389,16 @@ export type StreamsClient = {
 	dumps: StreamsDumps;
 	canonical(height: number): Promise<StreamsCanonicalBlock>;
 	tip(): Promise<StreamsTip>;
+	/** Your own Streams consumption (events today + this month) and tier limits. */
+	usage(): Promise<StreamsUsage>;
+};
+
+export type StreamsUsage = {
+	product: "streams";
+	tier: string;
+	limits: {
+		rate_limit_per_second: number | null;
+		retention_days: number | null;
+	};
+	usage: { events_today: number; events_this_month: number };
 };

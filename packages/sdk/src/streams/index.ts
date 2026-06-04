@@ -119,4 +119,5 @@ export type {
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
+	StreamsUsage,
 } from "./types.ts";

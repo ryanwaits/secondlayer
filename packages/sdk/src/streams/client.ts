@@ -26,6 +26,7 @@ import type {
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
+	StreamsUsage,
 } from "./types.ts";
 
 /** Parse a `<block>:<index>` cursor; null sorts before genesis. */
@@ -356,6 +357,9 @@ export function createStreamsClient(
 		},
 		tip() {
 			return request<StreamsTip>("/v1/streams/tip");
+		},
+		usage() {
+			return request<StreamsUsage>("/v1/streams/usage");
 		},
 	};
 }

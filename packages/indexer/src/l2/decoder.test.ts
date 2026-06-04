@@ -53,6 +53,12 @@ function streamsClientSpy(
 			is_canonical: true,
 		}),
 		tip: async () => tip(),
+		usage: async () => ({
+			product: "streams",
+			tier: "build",
+			limits: { rate_limit_per_second: 50, retention_days: 30 },
+			usage: { events_today: 0, events_this_month: 0 },
+		}),
 	};
 }
 

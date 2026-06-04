@@ -55,6 +55,7 @@ export type {
 	IndexStackingAction,
 	IndexTip,
 	IndexTransaction,
+	IndexUsage,
 	MempoolEnvelope,
 	MempoolListParams,
 	MempoolTransactionEnvelope,
@@ -181,4 +182,5 @@ export type {
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
+	StreamsUsage,
 } from "./streams/index.ts";
