@@ -1,5 +1,493 @@
 # @secondlayer/cli
 
+## 8.4.3
+
+## 8.4.2
+
+## 8.4.1
+
+### Patch Changes
+
+- 43325d9: Sync package READMEs with the newly added surfaces: SDK datasets/contracts root clients, MCP datasets/index/streams/contracts tools + `secondlayer://context` resource + account update/billing, and CLI `sl index` / `projects delete` / data-products read commands.
+- Updated dependencies:
+  - @secondlayer/sdk@6.2.1
+
+## 8.4.0
+
+### Minor Changes
+
+- 48f0ab6: Add `sl index` (ft-transfers, nft-transfers, events, contract-calls) so the decoded Index layer has a CLI read path matching `sl datasets` and `sl streams`. Add `sl projects delete <slug>` (alias `rm`) and register `update` as an alias of `sl subgraphs deploy` (deploy is create-or-update).
+- 743746c: Accept `--json` on `sl streams` read commands (tip, events, reorgs, canonical) for uniform machine-readable output across all read commands. Streams already emits JSON; the flag documents the contract so an agent can pass it consistently.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@6.2.0
+
+## 8.3.0
+
+### Minor Changes
+
+- 655db50: Add exclusion and multi-value filters to the Streams events firehose. `not_types` excludes event types, and `contract_id`, `sender`, and `recipient` now accept comma-separated lists (matching any value). Exposed on `GET /v1/streams/events`, the SDK (`events.list/consume/stream` accept `notTypes` and `string | string[]` filters), and the `sl streams events`/`consume` CLI (`--not-types`, `--sender`, `--recipient`, comma lists on `--contract-id`).
+  
+  No new indexes: `not_types` narrows the existing `type IN (...)` set and the list filters reuse the same range-bounded `events.data` access path as the single-value filters, so the query plan is unchanged.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@6.0.0
+  - @secondlayer/shared@6.12.0
+
+## 8.2.0
+
+### Minor Changes
+
+- 60970ac: Add `sl streams pull --to <dir>`: downloads finalized bulk parquet dumps to a local directory and verifies each file's sha256 against the manifest. Dumps are public, so no API key is needed — pass `--dumps-url` or set `SL_STREAMS_DUMPS_URL`. Supports `--from-block`/`--to-block` range filtering.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@5.9.0
+  - @secondlayer/shared@6.11.0
+
+## 8.1.0
+
+### Minor Changes
+
+- dc5c317: Add a full-stack `sl local restart` that pairs with `local up`/`local down` — it stops then starts the whole local stack (Stacks node + dev services), and accepts the same `--devnet` / `--no-node` / `--no-dev` / `--wait` flags.
+  
+  Behavior change: `local restart` previously restarted only the dev services. It now restarts the full stack by default. To get the old in-place dev-services-only restart (which preserves docker containers), use `local restart --no-node`.
+
+## 8.0.0
+
+### Major Changes
+
+- 5b645fb: Subscription commands now authenticate through the same `resolveAuth()` path as every other command (`SL_API_KEY` → stored session, with the global `--api-key` / `--api-url` flags). The bespoke per-command `--service-key` and `--base-url` flags are removed — use `--api-key` / `--api-url` (or `SL_API_KEY` / `SL_API_URL`) instead. This also retires the last code path that still read the deprecated `SL_SERVICE_KEY`, completing the move to a single `SL_API_KEY` credential across the CLI.
+
+## 7.0.1
+
+### Patch Changes
+
+- bc79f53: Docs: fix the `subgraphs create` help examples (they still showed the removed `subgraphs new`) and update the package README to the canonical command surface (`subscriptions create`, `account get`/`update`/`billing`, `contracts generate`, `local up`/`down`, `local db`, `projects`, and `SL_API_KEY`).
+
+## 7.0.0
+
+### Major Changes
+
+- b8c0f4e: Remove the deprecated aliases that were kept for back-compat in the previous release, leaving only the canonical names. Breaking changes:
+  
+  - **Commands removed** (use the canonical form): top-level `create` (→ `subscriptions create`), `billing` (→ `account billing`), `generate` (→ `contracts generate`), and `stack` (→ `local up` / `local down`). `account profile` is gone (→ `account get` / `account update`). Verb aliases dropped: `subgraphs new` (→ `create`), `subgraphs stop` (→ `cancel`), `config show`/`clear` (→ `get`/`delete`), `projects current` (→ `get`), `db reset` (→ `truncate`).
+  - **Flags removed**: `--preview` (→ `--dry-run`), `--force` as a confirm-skip (→ `-y`/`--yes`; `--force` remains only for genuine overrides like `subgraphs delete`), `--from`/`--to` and `--from-height`/`--to-height` (→ `--from-block`/`--to-block`), `--out` (→ `-o`/`--output`), and `--tail` on `devnet logs` (→ `--lines`).
+  - **Env vars**: `SL_SERVICE_KEY` and `SL_STREAMS_API_KEY` are no longer read — use `SL_API_KEY`.
+  
+  Also: `subgraphs inspect` is merged into `subgraphs spec <nameOrFile>` (accepts a deployed name or a local `.ts` file), and `local up [--devnet]` / `local down [--devnet]` are the canonical way to run the full local stack or a Clarinet devnet.
+
+## 6.0.0
+
+### Major Changes
+
+- ae666bc: Canonicalize the command grammar toward a consistent `<noun> <verb>` shape, with the previous names kept working as aliases (to be removed in a future major). This is a major release because of these aliased renames plus the flag and `whoami` exit-code changes from the same release.
+  
+  - **Resource creation** is now `<noun> create`: `sl subscriptions create` (was `sl create subscription`) and `sl subgraphs create` (alias `new`). The top-level `create` group is deprecated.
+  - **Account & billing**: `sl account get` / `sl account update` replace the flag-overloaded `account profile` (kept as a deprecated alias), and billing moves to `sl account billing` (top-level `billing` deprecated).
+  - **Codegen**: Clarity→TypeScript generation is now `sl contracts generate` (top-level `sl generate` deprecated; `gen` still works).
+  - **Projects**: the noun is pluralized to `sl projects` (alias `project`), and `projects get` replaces `projects current` (aliased). `ls` is now an alias for every `list`.
+  - **Verb consistency**: `sl subgraphs get` (alias `status`), `sl subgraphs cancel` (alias `stop`), `rm` as an alias for every `delete`, `sl config get`/`config delete` (aliases `show`/`clear`), and `sl db truncate` (alias `reset`).
+  - **Local dev**: database inspection is now nested as `sl local db` (top-level `db` deprecated).
+  
+  Deferred to a follow-up: a unified `sl subgraphs generate <types|schema|client>` dispatcher, merging `inspect` into `spec`, and folding `stack`/`devnet` into `local up`/`local up --devnet` (those involve reconciling distinct service-orchestration semantics, not a mechanical rename).
+
+### Minor Changes
+
+- 9fabdc4: Unify CLI authentication and fix a silent prod-routing bug. The endpoint and credential now resolve independently, so `SL_API_URL=http://localhost…` redirects the endpoint while keeping your session token instead of silently hitting production (previously `resolveAuth` required both URL and key while `isOssMode` keyed off URL-only, so they disagreed). One credential precedence chain — `--api-key` flag > `SL_API_KEY` > stored session — applies to every command, including `streams`; `SL_SERVICE_KEY` and `SL_STREAMS_API_KEY` are accepted as legacy aliases. Adds global `--api-key`/`--api-url` flags (inherited by all commands) and `sl login --with-token` for headless/CI setup (`echo "$SL_API_KEY" | sl login --with-token`). `sl whoami` now reports the effective API URL and credential source and exits non-zero when unauthenticated (previously exited 0, which could mask `sl whoami && …` checks).
+- 9f081ba: Polish CLI output and discoverability (non-breaking). Color is now gated on the terminal (honors `NO_COLOR`/`FORCE_COLOR` and auto-disables when piped), and status/progress messages are routed to stderr so `--json` and raw data on stdout pipe cleanly into `jq`. Adds `--json` to `whoami`, `billing status`, `config show`, and `project list`/`current`. `sl --help` now groups commands into labeled sections, mistyped commands get "Did you mean…?" suggestions, and the data commands (`subgraphs query`/`reindex`/`backfill`/`scaffold`/`new`, `streams events`/`consume`, `datasets query`, `subscriptions update`/`replay`, `config set`, `generate`) gained `Examples:` blocks. API errors now print actionable next-step hints.
+- ce1fbd8: Canonicalize CLI flags toward one consistent vocabulary, keeping old names working as deprecated aliases:
+  
+  - Confirm-skip is now `-y`/`--yes` everywhere. `--force` is reserved for genuine overrides (cancel active work / force-delete); where it previously meant "skip prompt" (`subgraphs deploy`, `local node stop`/`restart`) it stays as a deprecated alias for `--yes`.
+  - Block ranges are `--from-block`/`--to-block` across `subgraphs reindex`/`backfill` and `streams events`; the old `--from`/`--to` and `--from-height`/`--to-height` remain as deprecated aliases.
+  - Output paths use `-o`/`--output` (with `--out` kept as a deprecated alias on `generate`); `subgraphs scaffold` gains the `-k` short for `--api-key`.
+  - `--preview` is now a deprecated alias for `--dry-run`.
+  
+  Note: a few short flags were disambiguated and are no longer accepted on certain commands — `-f` is reserved for `--follow` (so `local start --foreground`, `local node stop/restart`, and `login --force` lose their `-f` short), and `-n` is reserved for `--lines` (so `devnet status --limit` loses `-n`, and `devnet logs --tail` becomes `--lines` with `--tail` kept as an alias). Use the long-form flags instead.
+
+## 5.10.1
+
+### Patch Changes
+
+- 6a899dc: `sl devnet connect` now wires the local stack so subscriptions are testable against a devnet: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a subscription's signing secret) and allows webhook delivery to a localhost receiver (the emitter blocks private egress by default). Deploy a subgraph, create a subscription pointing at your local endpoint, and contract calls on the devnet deliver signed Standard-Webhooks payloads to it.
+- Updated dependencies:
+  - @secondlayer/sdk@5.8.0
+  - @secondlayer/subgraphs@3.5.0
+
+## 5.10.0
+
+### Minor Changes
+
+- bf294c9: Add `sl devnet status` and `sl devnet logs` for the local Clarinet devnet stack. `status` prints a snapshot — service health, ingest tip/lag, deployed subgraphs with table + row counts, and a recent-activity table built from the subgraph rows (with `--watch` to refresh). `logs` tails the stack's container logs (all services or one of indexer/api/subgraph-processor/postgres). Both are node-native.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@5.7.0
+  - @secondlayer/shared@6.10.0
+
+## 5.9.0
+
+### Minor Changes
+
+- e675422: Add `sl devnet connect` and `sl devnet down` to run Secondlayer services against a local Clarinet devnet. `connect` patches your clarinet project's `settings/Devnet.toml` to forward block events to a local indexer, writes a docker compose pinned to the published OSS images, and starts the stack — so `clarinet devnet start` streams straight into subgraphs, datasets, and subscriptions locally.
+
+## 5.8.0
+
+### Minor Changes
+
+- ae8b749: Add a typed Datasets client and `sl datasets` CLI command for the Foundation Datasets (`/v1/datasets/*`) — previously HTTP-only. The SDK `Datasets` client offers uniform `list`/`walk` (cursor) for the event datasets (sBTC, BNS, PoX-4, STX transfers) plus bespoke methods for BNS names/namespaces/resolve and network-health. `sl datasets list` / `sl datasets query <dataset> --filter k=v` query from the terminal. Adds an `address` super-filter to the pox-4 calls dataset that matches a stacker's activity across any role (caller, stacker, or delegate_to).
+- 9ef3c7d: `sl subgraphs scaffold` is now standard-aware and emits deploy-ready subgraphs with real handlers (no `// TODO` stubs). It classifies the contract ABI and scaffolds the useful source: a SIP-010 token → an `ft_transfer` source over its asset, SIP-009 → `nft_transfer`, anything else → a single generic `calls` table. New `--functions a,b` scaffolds typed `contract_call` tables for specific functions, and `--trait sip-009|sip-010|sip-013` scaffolds a trait-scoped source that indexes every conforming contract (no contract address needed).
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@5.6.0
+  - @secondlayer/subgraphs@3.4.0
+
+## 5.7.0
+
+### Minor Changes
+
+- 0c3ba82: Add bring-your-own-database support to subgraphs. Deploy with `sl subgraphs deploy <file> --database-url <postgres-url>` to write a subgraph's schema, handler rows, and serving reads to your own Postgres while the managed pipeline still ingests, decodes, matches, and runs your handler. The connection string is stored encrypted at rest and never returned. Handler writes must be idempotent (insert/upsert); reindex is unavailable on BYO subgraphs (re-deploy to rebuild), and deleting a BYO subgraph never drops the schema in your database.
+- 3a56127: Disambiguate the code-generation commands so each verb means one output. The top-level `sl generate` (Clarity → TypeScript contract interfaces) drops its `codegen` alias (use `sl generate` or `sl gen`); `codegen` now refers only to `sl subgraphs codegen` (ORM schema). `sl subgraphs generate` (typed query client) is renamed to `sl subgraphs client` — `generate` still works as a deprecated alias.
+- 0c3ba82: Add ORM codegen and contract trait discovery.
+  
+  `sl subgraphs generate <file> --target prisma|drizzle` emits a typed ORM schema for a subgraph's tables — point it at your BYO database for a fully-typed Prisma/Drizzle client with relations (`@relation` / `relations()`), inferred row types, and FK constraints that mirror the deployed DDL. Kysely is supported via `kysely-codegen` against your database.
+  
+  Contract trait discovery adds a contract registry that statically classifies deployed contracts against SIP-009/010/013 (by ABI shape inference and declared `impl-trait`s) and exposes `GET /v1/contracts?trait=sip-010&conformance=declared|inferred|any` to find every conforming contract.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.9.0
+  - @secondlayer/stacks@2.3.0
+  - @secondlayer/subgraphs@3.3.0
+
+## 5.6.6
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.8.1
+
+## 5.6.5
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@5.0.0
+
+## 5.6.4
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+- Updated dependencies:
+  - @secondlayer/bundler@0.3.7
+  - @secondlayer/sdk@4.0.2
+  - @secondlayer/shared@6.4.5
+  - @secondlayer/stacks@2.2.1
+  - @secondlayer/subgraphs@3.2.1
+
+## 5.6.3
+
+### Patch Changes
+
+- c06579a: Scaffold templates now emit typed, cast-free handlers. `contract_call` handlers use the typed `event.functionName`/`event.resultHex` (and note `abi` → `event.input`); `print_event` handlers use the typed `event.topic`/`event.data` and the basic template is a coherent `ft_transfer` example. Matches the typed handlers in `@secondlayer/subgraphs` 3.x.
+- Updated dependencies:
+  - @secondlayer/subgraphs@3.2.0
+
+## 5.6.2
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/bundler@0.3.6
+  - @secondlayer/sdk@4.0.1
+  - @secondlayer/subgraphs@3.0.0
+
+## 5.6.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@2.0.9
+
+## 5.6.0
+
+### Minor Changes
+
+- 48458e5: `sl login` now detects an existing session and asks before re-running the magic-link flow. Pass `-f`/`--force` to skip the check. Non-TTY runs short-circuit with a hint to use `sl logout` or `--force`.
+
+## 5.5.0
+
+### Minor Changes
+
+- 9644e21: feat(cli): `sl subgraphs reindex` now prompts for confirmation by default
+  
+  Reindex is destructive — it drops existing rows in the range and reprocesses. Previously it ran silently. Now:
+  
+  - TTY: prompts `Reindex subgraph "<name>" for blocks [from, to]? Existing rows in this range will be dropped and reprocessed.` Defaults to **no**.
+  - Non-TTY (CI, pipelines): exits non-zero with a hint to use `-y`.
+  - New `-y, --yes` flag skips the prompt.
+  
+  Matches the existing safety pattern on `sl subgraphs delete`.
+
+## 5.4.10
+
+### Patch Changes
+
+- 71e80cd: chore(deps): bump @secondlayer/sdk to v4
+  
+  Pulls in the fix to `verifyWebhookSignature` (now validates the real Standard Webhooks delivery headers). Neither package calls `verifyWebhookSignature` directly, so no consumer-facing behavior changes here.
+- Updated dependencies:
+  - @secondlayer/sdk@4.0.0
+
+## 5.4.9
+
+### Patch Changes
+
+- b315c90: `sl create subscription --no-scaffold` now actually skips the runtime template directory. The 5.4.8 implementation checked `opts.noScaffold`, but commander parses `--no-scaffold` as `opts.scaffold = false`, so the flag was a silent no-op (template was always copied). Now reads `opts.scaffold === false` at all four branch points.
+
+## 5.4.8
+
+### Patch Changes
+
+- b9e2760: `sl create subscription` accepts `--no-scaffold` to skip copying the runtime template directory into cwd. The subscription is still provisioned via API and the signing secret is printed to stdout for the user to store. Useful for webhook-only setups (e.g. forwarding to an existing receiver, QA scripts, or webhook.site) where the runtime template is just noise.
+
+## 5.4.7
+
+### Patch Changes
+
+- 161106f: Refuse to render the destructive-action confirm prompt on non-TTY stdin. `sl subgraphs delete` and `sl subscriptions delete/rotate-secret/requeue/replay` now check `process.stdin.isTTY` up front; if stdin is a pipe (e.g. `echo |`) or otherwise non-interactive, they print "Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation." and exit 1. The previous catch-after-error path only handled fully-closed stdin and silently auto-accepted the destructive default when given an empty pipe.
+
+## 5.4.6
+
+### Patch Changes
+
+- 0cb0ce3: - `sbtc-flows` and `bns-names` templates: read the print-event payload from `event.topic` + `event.data` (camelized) instead of the non-existent `event.payload`. The old shape silently produced zero rows. `sbtc-flows` also ships with a default `startBlock` so a fresh deploy doesn't backfill from genesis.
+  - `sl subgraphs delete <name>` is now idempotent: a second call on an already-deleted subgraph prints a friendly "not found (already deleted?)" message and exits 0, matching `sl subscriptions delete` behavior.
+  - `sl subscriptions delete/rotate-secret/requeue/replay` no longer crash with `ExitPromptError` when stdin isn't a TTY; they print "Re-run with -y to skip confirmation." and exit 1, matching `sl subgraphs delete`.
+- Updated dependencies:
+  - @secondlayer/subgraphs@2.0.8
+
+## 5.4.5
+
+### Patch Changes
+
+- d237649: `sl project create` no longer auto-writes `./.secondlayer/project`. If no global default project is set, the new project becomes the default in `~/.secondlayer/config.json`; otherwise it prints a `sl project use <slug>` hint. `sl project use` now also suggests gitignoring `.secondlayer/`.
+
+## 5.4.4
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.4.3
+
+## 5.4.3
+
+### Patch Changes
+
+- 39af7d3: rename resolve-tenant to resolve-auth; remove dead /api/tenants/me call from whoami
+
+## 5.4.2
+
+### Patch Changes
+
+- 69ef11a: subgraph deploy: detect handler-only changes, add ContractCallEvent type, remove version override flag
+- Updated dependencies:
+  - @secondlayer/shared@6.4.2
+  - @secondlayer/subgraphs@2.0.3
+
+## 5.4.1
+
+### Patch Changes
+
+- a31d857: fix unknown filter ops, limit message consistency, subgraph HTTPS server url, subscription delete not-found
+
+## 5.4.0
+
+### Minor Changes
+
+- 71a1f74: First-touch CLI UX:
+  
+  - `sl subgraphs deploy` prints `Dashboard:`, `REST:`, and `Watch:` URLs after success (uses new `deriveBaseUrl` helper).
+  - `sl subgraphs deploy` auto-detects missing `@secondlayer/subgraphs` SDK and prompts to install via `bun add`.
+  - `sl subgraphs delete` no longer dies with raw `ExitPromptError` when stdin isn't a TTY — prints a friendly hint to use `-y`.
+  - `sl create subscription --runtime <bogus>` now errors upfront with valid choices listed, instead of creating a directory then throwing `template dir missing`.
+  - All 4 subscription templates (node, inngest, cloudflare, trigger) now ship `.env.example` and get `.env` written on create.
+  - Subscription create success block prints dashboard URL + `sl subscriptions resume` hint if the subscription is paused.
+  - Inngest template switched from `npx inngest-cli` to `bunx inngest-cli` (works under Bun's postinstall sandbox).
+  - Node template README updated to drop the stale "copy .env.example → .env" line (CLI already does it).
+- fc8f486: Housekeeping polish:
+  
+  - Dropped fictitious typed-key prefixes (`sk-sl_streams_…`, `sk-sl_index_…`) from marketing copy + sandbox placeholder. Real keys are generic `sk-sl_…`; scoped prefixes were doc fiction.
+  - Index rate-limit 429 for free tier now returns `{required_tier, upgrade_url}` so blocked users know how to unblock.
+  - `sl subgraphs status <name> --watch` polls every 2s, clearing screen between snapshots, exits cleanly when synced.
+  - `standard-webhooks.ts` docstring clarified that only `.created` is emitted in v1; `.updated`/`.deleted` are deferred.
+  - T8.6 `sl subgraphs logs` deferred — needs server-side log storage.
+  - T8.3 broken tenant URL strip is `[infra]`, tracked in ops backlog.
+- 305a7ea: Strict query validation across public surfaces — Datasets, Index, Streams, and Subgraphs REST now reject unknown query params with `400 VALIDATION_ERROR` (with "did you mean…" hint) instead of silently ignoring them. `limit=0` is now rejected; `limit` is still capped at 1000. Subgraph REST filter parser now returns `400` (not `500`) on unknown ops like `?col.bogus=X`, and detects misplaced operators like `?col=gt.X`. Adds optional `sl subgraphs deploy --strict` flag to run `tsc --noEmit` against the handler before deploy.
+
+### Patch Changes
+
+- 9f28cd2: Subscription delivery integrity fixes:
+  
+  - New migration `0077` loosens `subscription_deliveries.outbox_id` FK from `ON DELETE CASCADE` to `ON DELETE SET NULL`. Outbox cleanup races no longer 23503 the delivery insert, which previously snowballed circuit_failures and auto-paused subscriptions.
+  - `sl subscriptions delete <name>` is now idempotent — a second delete prints "already deleted" instead of `500 Server error`.
+  - `sl subscriptions get` now shows the backoff curve (30s → 2m → 10m → 1h → 6h → 24h → 72h) alongside Max Retries / Timeout / Concurrency.
+- Updated dependencies:
+  - @secondlayer/shared@6.4.1
+  - @secondlayer/subgraphs@2.0.2
+
+## 5.3.0
+
+### Minor Changes
+
+- f48e3ca: Drop the hidden `sl instance` command family (`create`, `resize`, `suspend`, `resume`, `delete`, `keys`, `db`). These targeted the dedicated per-tenant provisioner and have been hidden + deprecated since the 2026-05-14 shared-rip pivot. `resolve-tenant` retained as a thin session helper for the workload commands.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.4.0
+
+## 5.2.1
+
+### Patch Changes
+
+- 919e2be: Hide `sl instance` from `--help` and drop stale "instance" / "tenant" copy from quickstart, `whoami`, and `project create` next-step hints. Beta runs on the shared platform — no per-account instance to manage. Commands still resolve if invoked explicitly so the dormant path can be re-surfaced when paid tiers return.
+
+## 5.2.0
+
+### Minor Changes
+
+- a9b8c59: Drop tenant client routing. All API calls now go to the platform base URL with the session token directly — no more ephemeral JWT mint, no more per-tenant URLs. Subgraph and subscription commands hit `api.secondlayer.tools` like every other command.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@3.6.0
+  - @secondlayer/shared@6.3.4
+
+## 5.1.6
+
+### Patch Changes
+
+- 294d672: `sl login` reverts to the pre-5.1.4 message for everyone — `✓ Logged in` plus `Run 'sl whoami' to see your account status.` No tenant probe, no conditional walkthrough. Fresh users still get clear guidance from `sl whoami` and from contextual errors when they run commands without a tenant.
+
+## 5.1.5
+
+### Patch Changes
+
+- a26de30: `sl login` now only shows the new-user walkthrough for accounts that don't have a tenant yet. Returning users (anyone already provisioned) see the original `Run 'sl whoami' to see your account status.` line — no extra noise on every login. The 5.1.4 patch was over-eager and printed nudges to returning users too; this restores prior behavior for them while keeping the helpful 4-step block for genuinely first-time signups.
+
+## 5.1.4
+
+### Patch Changes
+
+- 976df5c: post-login next-step nudge. After `sl login` succeeds, the CLI now inspects provisioning state (active project in cwd, tenant on account) and prints a tailored block — fresh accounts see the full 4-step path (`sl project create` → `sl instance create` → `sl subgraphs new` → `sl subgraphs deploy`), users with an instance but no project bound get `sl project use <slug>`, etc. Returning users with a fully-set-up account see only `✓ Logged in` plus a one-line "try this next" suggestion. We deliberately don't auto-provision (Launch is $99/mo; plan choice is the user's call), but a fresh user no longer has to read docs to find the next command. 404 from `/api/tenants/me` is treated as the expected "no tenant yet" state rather than a failure.
+
+## 5.1.3
+
+### Patch Changes
+
+- 9cd6b5d: fix `sl subgraphs deploy` returning 404 Not Found against tenants on SDK 3.5.4+. The CLI mints its own ephemeral JWT via `resolveActiveTenant()` and hands it to the SDK, but the SDK's new `requestAtTenant()` tries to re-mint a token against its `baseUrl` — which the CLI was setting to the tenant URL, where `/api/tenants/me/keys/mint-ephemeral` doesn't exist. Now uses the SDK's `tenantBaseUrl` constructor option (added in 3.5.4 for this exact case) to short-circuit the resolver. Bumps SDK dep `^3.3.2 → ^3.5.4`.
+- Updated dependencies:
+  - @secondlayer/shared@6.3.2
+
+## 5.1.2
+
+### Patch Changes
+
+- 5092494: add `sl billing status` — read-only snapshot of plan, Stripe subscription, trial end, renewal date, and applied discount. Backed by new `GET /api/billing/status` endpoint. Lets customers verify post-checkout that the webhook landed before retrying `sl instance create`.
+
+## 5.1.1
+
+### Patch Changes
+
+- 9a31a08: feat(cli): scaffolded subgraphs ship with a "what to do next" header
+  
+  `sl subgraphs new <name> [--template <slug>]` now emits a 5-step header comment at the top of every scaffolded file (edit → deploy → wait for sync → query). Mirrors the `/docs/subgraphs#quickstart` walkthrough so new users don't bounce between the file and the docs to figure out next steps.
+
+## 5.1.0
+
+### Minor Changes
+
+- 9299f44: feat(cli): `sl streams` family — `events`, `consume`, `tip`, `reorgs`, `canonical`
+  
+  Mirrors the SDK Streams client. Reads `SL_STREAMS_API_KEY` from env (issue at `/platform/api-keys` with product=streams), supports `SL_API_URL` override for OSS / dev. `sl streams consume` emits one event per line as JSONL with `next_cursor` tracked on stderr — pipe directly into a downstream pipeline.
+
+## 5.0.1
+
+### Patch Changes
+
+- 93a4955: feat(cli): prompt magic-link login on `sl subgraphs deploy` when no session
+  
+  Previously, running `sl subgraphs deploy file.ts` against a remote network with no CLI session bailed with a generic 401 deep inside the deploy flow. New `requireAuth()` helper in `packages/cli/src/lib/require-auth.ts` checks for a session and runs the magic-link login flow inline if missing, then resumes the deploy. Local-network deploys are unaffected.
+- Updated dependencies:
+  - @secondlayer/shared@6.3.1
+  - @secondlayer/stacks@2.2.0
+
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/bundler@0.3.5
+  - @secondlayer/sdk@3.3.2
+  - @secondlayer/shared@6.0.0
+  - @secondlayer/subgraphs@2.0.0
+
+## 4.0.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@5.2.0
+
+## 4.0.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/bundler@0.3.4
+  - @secondlayer/sdk@3.3.1
+  - @secondlayer/shared@5.0.0
+  - @secondlayer/stacks@2.0.1
+  - @secondlayer/subgraphs@1.3.3
+
+## 3.6.1
+
+## 3.6.0
+
+### Minor Changes
+
+- f8645e8: Add generated subgraph API specs for OpenAPI, compact agent schemas, and Markdown docs across shared, SDK, CLI, and MCP surfaces.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@3.3.0
+  - @secondlayer/shared@4.4.0
+
+## 3.5.6
+
+### Patch Changes
+
+- 2ffce80: Run scaffold dependency installation through Node-compatible process spawning so published CLI builds can invoke `bun install` without relying on the `Bun` global.
+
+## 3.5.5
+
+### Patch Changes
+
+- d3700a3: Install scaffolded subgraph dependencies by default and make instance deletion report successful cleanup reliably.
+
 ## 3.5.3
 
 ### Patch Changes

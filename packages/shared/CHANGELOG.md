@@ -1,5 +1,238 @@
 # @secondlayer/shared
 
+## 6.17.0
+
+### Minor Changes
+
+- bb96d3f: feat: `trigger.*` chain-subscription builders + MCP chain support
+  
+  Expose ergonomic chain-trigger builders for direct chain-level subscriptions from the SDK root, and let the MCP `subscriptions_create` tool create chain subscriptions.
+  
+  - SDK now exports `trigger` (`import { trigger } from "@secondlayer/sdk"`) with one builder per event type (`trigger.contractCall`, `trigger.ftTransfer`, …), plus the `ChainTrigger` / `SubscriptionKind` types. Use as `subscriptions.create({ triggers: [trigger.contractCall({ ... })] })`. Raw `triggers` objects still work. (Renamed from the previously-unreachable `on` export to avoid colliding with `@secondlayer/stacks`'s subgraph-source `on`.)
+  - MCP `subscriptions_create` accepts a `triggers` array (chain subscription) as an alternative to `subgraphName`/`tableName` (subgraph subscription).
+
+## 6.16.0
+
+### Minor Changes
+
+- 56bc457: feat: direct chain-level subscriptions (webhooks on chain events, no subgraph)
+  
+  Subscriptions are now polymorphic: a `subgraph` subscription fires on a deployed subgraph's table rows (unchanged), or a new `chain` subscription fires on raw chain events directly — a webhook on a contract / event-type / function-call, or any SIP-010/SIP-009/custom trait — with no subgraph to deploy.
+  
+  - SDK: `subscriptions.create({ triggers: [...] })` plus `on.*` trigger builders (`on.contractCall`, `on.ftTransfer`, …). New `ChainTrigger` / `SubscriptionKind` types; `SubscriptionDetail` gains `kind` + `triggers`.
+  - Built on the public Index/Streams clock (reuses the subgraph re-point's `PublicApiBlockSource` + matcher); forward-looking (starts at tip, never backfills).
+  - Reorg-safe apply/rollback delivery envelope (`chain.{type}.apply` / `chain.reorg.rollback`); per-subscription HMAC signing and all delivery formats reused unchanged.
+  - Trait-scoped triggers require the contract registry (`CONTRACT_REGISTRY_ENABLED=true`).
+
+## 6.15.0
+
+### Minor Changes
+
+- 7fc3cf9: Add an internal Index read credential (`@secondlayer/shared/index-internal-auth`), seeded into the Index token store as an unmetered enterprise tenant (no `account_id`). Lets first-party consumers — the subgraph processor — read `/v1/index` over HTTP without self-metering. Resolves from `INDEX_INTERNAL_API_KEY`.
+- 0b87582: Add `@secondlayer/shared/index-http` — a minimal cursor-paginated transport for the public Index (`/v1/index`) + Streams clock (`/v1/streams`) APIs, plus the Index wire-row types. Lives in `shared` (a leaf both the SDK and the subgraph runtime depend on) so the wire format has a single home and no package cycle.
+
+## 6.14.1
+
+### Patch Changes
+
+- 9e3223b: Fix O(n²) keyset pagination on `/v1/index/events` for bare event-type sources. Adds a `(event_type, block_height, event_index)` partial composite index (migration 0087) and rewrites the cursor predicate to the sargable row-values tuple form `(block_height, event_index) > (X, Y)`. Without both, the non-sargable `OR` keyset made the planner bitmap-scan the entire event-type partition on every page (e.g. ~4.2M `print` rows, ~6.8s/page); it is now an index-only range scan (~0.37ms/page).
+
+## 6.14.0
+
+### Minor Changes
+
+- 4b96a8a: Add mempool (pending transactions) to the Index API.
+  
+  The indexer now persists unconfirmed transactions from the Stacks node's `/new_mempool_tx` observer callback (deriving the txid from raw_tx), evicts them on confirmation (block ingest) or drop (`/drop_mempool_tx`), and sweeps stuck rows. The Index API serves them at `GET /v1/index/mempool` (filter by `sender`/`type`, cursor-paginated) and `GET /v1/index/mempool/:tx_id` — full pending-transaction documents (fee/nonce/post-conditions decoded from raw_tx), minus the block-anchored fields, plus `received_at`. Mempool reads are never cacheable (volatile). New SDK client: `index.mempool` (`list`/`walk`/`get`).
+
+## 6.13.0
+
+### Minor Changes
+
+- 982f2bb: Add a wrong/empty Postgres volume guard. `checkChainDataIntegrity` flags the case where the chain tip is high but the deep history it implies is missing — the signature of a container recreated against a fresh/empty data dir. The indexer logs a loud `DB INTEGRITY ALERT` on startup (fail-closed with `REQUIRE_INTEGRITY=true`), and `/public/status` now reports `chainIntegrity` and degrades the top-level status on failure (without marking a core service down). Closes the blind spot where the DB read "healthy" on freshness while serving an empty volume.
+
+### Patch Changes
+
+- 3b56393: Fix `ArchiveReplayClient.replayGaps` crashing on large backfills. It computed the max target height with `Math.max(...gapHeights)`, which spreads the entire gap set as call arguments — a full-history backfill (millions of heights) hit the call-stack limit and threw `RangeError` instantly. Now computes the max by iteration, and samples unmatched heights without spreading the whole set.
+
+## 6.12.0
+
+### Minor Changes
+
+- a930331: Add opt-in payload validation with a dead-letter log on ingest. When `STREAMS_PAYLOAD_VALIDATION=true` (default off), each event's decoded payload is checked against the minimal shape its type requires; malformed payloads are recorded in a new `dead_letter_events` table (migration 0085) with a reason. The event itself is still persisted — chain data is never dropped — so this is a diagnostic log, not a gate. Default-off keeps the ingest hot path lean.
+
+## 6.11.0
+
+### Minor Changes
+
+- 0fab6c1: Preserve reorged rows instead of destroying them. On a reorg that reuses a height with a new block hash, the indexer now copies the orphaned transactions/events into new `transactions_archive` / `events_archive` tables (migration 0084) before replacing the height, tagged with the displaced block hash. The main tables stay canonical-only so all readers are unaffected, while the raw log is preserved and queryable — honoring the immutable-log guarantee. A redelivery of the same block is not a reorg and is not archived.
+- bfa74db: Centralize the Streams cursor codec in `@secondlayer/shared` (`encodeStreamsCursor`, `decodeStreamsCursor`, `EMPTY_RANGE_EVENT_INDEX_SENTINEL`). The API and indexer now delegate to one implementation instead of three near-identical copies, so encode/decode and the empty-range sentinel can't drift between products.
+- b03c049: Add an ed25519 signing module (`@secondlayer/shared` `ed25519`): `sign`/`verify`, PEM key loaders, keypair generation, public-key derivation, and a stable key id. Asymmetric so consumers verify with a published public key, no shared secret. Backs Streams response proofs.
+- c8e7c41: Add burn-block-anchored finality helpers. `@secondlayer/shared` exposes `DEFAULT_BTC_CONFIRMATIONS` + `finalizedBurnHeight()`, and the indexer adds `getFinalizedStacksHeight()` to map the burn-confirmation boundary to the highest finalized Stacks height. Post-Nakamoto finality is anchored to Bitcoin confirmations rather than a fixed Stacks-block lag.
+
+## 6.10.0
+
+### Minor Changes
+
+- 96fd583: Add the burnchain rewards dataset: Bitcoin PoX reward payouts and reward-set membership, indexed from the stacks-node `/new_burn_block` event. Served at `/v1/datasets/burnchain/rewards` (filter by `recipient`) and `/v1/datasets/burnchain/reward-slots` (filter by `holder`), cursor-paginated by burn block height. New SDK clients `datasets.burnchainRewards` and `datasets.burnchainRewardSlots` (list/walk), and `sl datasets query burnchain-rewards`. Go-forward only.
+
+## 6.9.0
+
+### Minor Changes
+
+- 0c3ba82: Add bring-your-own-database support to subgraphs. Deploy with `sl subgraphs deploy <file> --database-url <postgres-url>` to write a subgraph's schema, handler rows, and serving reads to your own Postgres while the managed pipeline still ingests, decodes, matches, and runs your handler. The connection string is stored encrypted at rest and never returned. Handler writes must be idempotent (insert/upsert); reindex is unavailable on BYO subgraphs (re-deploy to rebuild), and deleting a BYO subgraph never drops the schema in your database.
+- 0c3ba82: Add ORM codegen and contract trait discovery.
+  
+  `sl subgraphs generate <file> --target prisma|drizzle` emits a typed ORM schema for a subgraph's tables — point it at your BYO database for a fully-typed Prisma/Drizzle client with relations (`@relation` / `relations()`), inferred row types, and FK constraints that mirror the deployed DDL. Kysely is supported via `kysely-codegen` against your database.
+  
+  Contract trait discovery adds a contract registry that statically classifies deployed contracts against SIP-009/010/013 (by ABI shape inference and declared `impl-trait`s) and exposes `GET /v1/contracts?trait=sip-010&conformance=declared|inferred|any` to find every conforming contract.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/stacks@2.3.0
+
+## 6.8.1
+
+## 6.8.0
+
+### Minor Changes
+
+- 81fc2d8: Index now decodes and serves Clarity `print` events. `GET /v1/index/events?event_type=print` returns each print's `topic`, the Clarity `value` decoded to JSON (uints as strings, buffers as `0x…` hex, tuples as objects), and the canonical `raw_value` hex — filterable by `contract_id`.
+  
+  SDK adds `decodePrint` / `isPrint` and the `DecodedPrint` types (depends on `@secondlayer/stacks` for Clarity decoding). A nullable `payload` JSONB column is added to `decoded_events` to hold decoded values that don't fit the flat transfer columns. The indexer runs a `print` decoder; the API registry and OpenAPI expose it.
+
+## 6.7.0
+
+### Minor Changes
+
+- 74cf4a4: Remove account/billing modules from the public surface — db/queries (accounts, usage, account-spend-caps, projects) and schemas/accounts, relocated to an internal package. The schemas barrel no longer re-exports account schemas.
+
+## 6.6.0
+
+### Minor Changes
+
+- d7b1ae2: Remove pricing and account-usage from the public surface (relocated to an internal package) and re-export the Database type from the db entry.
+
+## 6.5.0
+
+### Minor Changes
+
+- 903a278: Remove unused internal exports from the public surface (tenant/provisioning queries, db/jsonb, schemas/filters, env, types, constants, crypto/hmac) and drop the dead provisioning-audit and tenant-compute-addons query modules.
+
+## 6.4.5
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+- Updated dependencies:
+  - @secondlayer/stacks@2.2.1
+
+## 6.4.4
+
+### Patch Changes
+
+- ba36d64: Replace the waitlist/early-access gate with open signup. Any email can request a magic link and an account is created on verify. Removes the waitlist table, admin approval routes, and confirmation/approval emails.
+
+## 6.4.3
+
+## 6.4.2
+
+### Patch Changes
+
+- 69ef11a: subgraph deploy: detect handler-only changes, add ContractCallEvent type, remove version override flag
+
+## 6.4.1
+
+### Patch Changes
+
+- 9f28cd2: Subscription delivery integrity fixes:
+  
+  - New migration `0077` loosens `subscription_deliveries.outbox_id` FK from `ON DELETE CASCADE` to `ON DELETE SET NULL`. Outbox cleanup races no longer 23503 the delivery insert, which previously snowballed circuit_failures and auto-paused subscriptions.
+  - `sl subscriptions delete <name>` is now idempotent — a second delete prints "already deleted" instead of `500 Server error`.
+  - `sl subscriptions get` now shows the backoff curve (30s → 2m → 10m → 1h → 6h → 24h → 72h) alongside Max Retries / Timeout / Concurrency.
+
+## 6.4.0
+
+### Minor Changes
+
+- f3ca84e: Drop `"dedicated"` from the `InstanceMode` union and remove `isDedicatedMode()`. The shared-rip pivot has been live for two days; nothing references the dedicated branch in source. Delete unused `db/queries/tenants.ts`. Add migration 0076 marking the `tenants` table deprecated (data preserved for one observation window; a follow-up migration will DROP).
+
+### Patch Changes
+
+- 31d029b: Add migration 0075 — restores `subgraphs` + `subgraph_operations` on platform DBs that lost them during the shared→dedicated cutover. Idempotent; no-ops on OSS, fresh dev, and dedicated tenant DBs that still have the tables. Fixes the post-2026-05-14 shared-rip regression where `subgraph-processor` crash-loops on `relation "subgraphs" does not exist`.
+
+## 6.3.5
+
+### Patch Changes
+
+- 807b3e7: Add `service_heartbeats` table (migration 0074) — long-running services (subgraph-processor, decoders) upsert a row every 30s so the platform can surface their liveness without docker introspection.
+
+## 6.3.4
+
+### Patch Changes
+
+- 36d8e2b: Add `pgSchemaNameFor(accountId, name)` helper for account-scoped subgraph schema names.
+
+## 6.3.3
+
+### Patch Changes
+
+- e1b68e9: fix subgraph delete 500-ing mid-reindex. Previously the route set `cancel_requested: true` and immediately ran `DROP SCHEMA ... CASCADE`, which blocked behind the live reindex transaction until the API socket timed out → generic 500. Adds `waitForSubgraphOperationsClear` (polls until active ops drain or 30 s timeout) and calls it after requesting cancel. The processor observes `cancel_requested` at batch boundaries (typically <5 s) and releases its row + advisory locks; DROP SCHEMA then proceeds cleanly. If the timeout elapses, the route logs a warning and proceeds anyway — preserves current behavior for the pathological case.
+
+## 6.3.2
+
+### Patch Changes
+
+- 5cb9862: rebalance per-tenant container CPU + RAM split from `PG 50% / proc 30% / api 20%` → `PG 25% / proc 55% / api 20%`. Backfill throughput regressed massively in the move from shared infra to per-tenant containers because the proc only got 30% of plan CPU (0.6 CPU on Launch) while PG idled at <1% observed utilization. Live-tested on a Launch tenant: bumping proc from 0.6 CPU → 1.5 CPU took backfill from ~5 blocks/min to ~108 blocks/min (~21× speedup). New tenants get the new split automatically. Existing tenants need `docker update --cpus` or re-provision.
+
+## 6.3.1
+
+### Patch Changes
+
+- 9a4c8d3: perf(events): expression index on `data->>'contract_identifier'`
+  
+  Print-event scans filtered by contract used to fall back to a sequential scan of the events table (53M+ rows on mainnet) — query took 2-3s at limit=100, 5-20s at limit=500, surfacing as `socket connection was closed unexpectedly` errors in the L2 BNS decoder. New partial expression index `events_contract_event_contract_id_idx` brings those queries to ~1ms via Index Scan.
+  
+  - `@secondlayer/shared@*`: ships migration `0073_events_contract_id_idx.ts` (`CREATE INDEX IF NOT EXISTS …`). The index was already applied to prod via `CREATE INDEX CONCURRENTLY` on 2026-05-09; the migration is a no-op there but seeds dev/staging.
+  - `@secondlayer/api@*`: reverts the `Bun.serve idleTimeout: 60` workaround introduced 2026-05-09 — back to default. Indexed query no longer needs the extended timeout.
+- Updated dependencies:
+  - @secondlayer/stacks@2.2.0
+
+## 6.3.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/stacks@2.1.0
+
+## 6.2.0
+
+## 6.1.0
+
+## 6.0.0
+
+## 5.2.1
+
+## 5.2.0
+
+## 5.1.0
+
+## 5.0.1
+
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/stacks@2.0.1
+
+## 4.4.0
+
+### Minor Changes
+
+- f8645e8: Add generated subgraph API specs for OpenAPI, compact agent schemas, and Markdown docs across shared, SDK, CLI, and MCP surfaces.
+
 ## 4.3.3
 
 ### Patch Changes

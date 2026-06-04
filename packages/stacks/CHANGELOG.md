@@ -1,5 +1,43 @@
 # @secondlayer/stacks
 
+## 2.3.0
+
+### Minor Changes
+
+- 0c3ba82: Add ORM codegen and contract trait discovery.
+  
+  `sl subgraphs generate <file> --target prisma|drizzle` emits a typed ORM schema for a subgraph's tables — point it at your BYO database for a fully-typed Prisma/Drizzle client with relations (`@relation` / `relations()`), inferred row types, and FK constraints that mirror the deployed DDL. Kysely is supported via `kysely-codegen` against your database.
+  
+  Contract trait discovery adds a contract registry that statically classifies deployed contracts against SIP-009/010/013 (by ABI shape inference and declared `impl-trait`s) and exposes `GET /v1/contracts?trait=sip-010&conformance=declared|inferred|any` to find every conforming contract.
+
+## 2.2.1
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+
+## 2.2.0
+
+### Minor Changes
+
+- 9a4c8d3: feat(stacks): add `on.*` filter factories for typed subscription specs
+  
+  Six typed factories that produce `SubscriptionFilterSpec` objects (just `{subgraphName, tableName, filter}`) for `@secondlayer/sdk` subscriptions:
+  
+  - `on.transferTo(target, recipient, opts?)` — match transfers into an address
+  - `on.sip010Transfer(target, asset?, opts?)` / `on.sip009Transfer(target, asset?, opts?)` — token-class sugar
+  - `on.bnsName(target, action?, opts?)` — BNS-V2 name lifecycle (`new-name`, `transfer-name`, `renew-name`, `burn-name`, `new-airdrop`)
+  - `on.poxStack(target, fn?, opts?)` — PoX-4 stacking calls
+  - `on.sbtcDeposit(target, opts?)` / `on.sbtcWithdrawal(target, opts?)` — sBTC lifecycle
+  
+  The first arg is `{subgraph, table}` — factories don't assume Foundation Datasets are subscribable; bring your own subgraph (see `sl subgraphs new --template <slug>`). Pure addition, no breaking changes.
+
+## 2.1.1
+
+## 2.1.0
+
+## 2.0.1
+
 ## 2.0.0
 
 ### Major Changes

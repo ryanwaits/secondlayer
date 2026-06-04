@@ -1,5 +1,175 @@
 # @secondlayer/subgraphs
 
+## 3.7.0
+
+### Minor Changes
+
+- 56bc457: feat: direct chain-level subscriptions (webhooks on chain events, no subgraph)
+  
+  Subscriptions are now polymorphic: a `subgraph` subscription fires on a deployed subgraph's table rows (unchanged), or a new `chain` subscription fires on raw chain events directly — a webhook on a contract / event-type / function-call, or any SIP-010/SIP-009/custom trait — with no subgraph to deploy.
+  
+  - SDK: `subscriptions.create({ triggers: [...] })` plus `on.*` trigger builders (`on.contractCall`, `on.ftTransfer`, …). New `ChainTrigger` / `SubscriptionKind` types; `SubscriptionDetail` gains `kind` + `triggers`.
+  - Built on the public Index/Streams clock (reuses the subgraph re-point's `PublicApiBlockSource` + matcher); forward-looking (starts at tip, never backfills).
+  - Reorg-safe apply/rollback delivery envelope (`chain.{type}.apply` / `chain.reorg.rollback`); per-subscription HMAC signing and all delivery formats reused unchanged.
+  - Trait-scoped triggers require the contract registry (`CONTRACT_REGISTRY_ENABLED=true`).
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.16.0
+
+## 3.6.1
+
+### Patch Changes
+
+- 0fbb4fa: Normalize the `contract_call` handler payload's spread event `value` to the decoded canonical (from `raw_value`) — completing source-independent parity for contract_call sources whose matched tx carries print/nft events (the node's serde-tagged `value` is not reproducible from the Index API). Also default stx_transfer `memo` to `""` to match the DB tap. Verified byte-identical across all source types via the golden-diff over real prod blocks.
+
+## 3.6.0
+
+### Minor Changes
+
+- 943ae7b: NFT event handlers now receive `tokenId` decoded from the canonical hex (clean `cvToValue`, e.g. `223n`) instead of the stacks-node's verbose serde-tagged form (`{ UInt: 223 }`). This makes the value source-independent (identical whether the runtime reads the indexer DB or the public Index API) and far friendlier for handler authors. Print event values already decoded this way. Behavior change for NFT `tokenId` shape — reindex NFT subgraphs to pick up the new representation.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.15.0
+
+## 3.5.0
+
+### Minor Changes
+
+- 501e095: Add realtime subgraph row streaming over Server-Sent Events. A new endpoint `GET /api/subgraphs/<name>/<table>/stream` pushes rows as they're indexed (go-forward by default, `?since=<block>` to replay then tail), accepting the same column filters as the list endpoint. The SDK's typed client gains `subgraph.<table>.subscribe(onRow, { where, since })`, which opens the stream and returns an unsubscribe function — a browser-friendly way to react to indexed data live without running a webhook receiver.
+
+## 3.4.0
+
+### Minor Changes
+
+- 948c0d5: Add `in`/`notIn`/`like` filter operators and deterministic multi-column ordering to the subgraph query client. `findMany`/`count` now accept `{ col: { in: [...] }, name: { like: "a%" } }` and `orderBy: [["blockHeight","desc"],["id","asc"]]`. All values are parameterized server-side (`IN ($1,$2,…)`); `in`/`notIn` are comma-encoded over REST so values cannot contain commas.
+
+## 3.3.0
+
+### Minor Changes
+
+- 0c3ba82: Add bring-your-own-database support to subgraphs. Deploy with `sl subgraphs deploy <file> --database-url <postgres-url>` to write a subgraph's schema, handler rows, and serving reads to your own Postgres while the managed pipeline still ingests, decodes, matches, and runs your handler. The connection string is stored encrypted at rest and never returned. Handler writes must be idempotent (insert/upsert); reindex is unavailable on BYO subgraphs (re-deploy to rebuild), and deleting a BYO subgraph never drops the schema in your database.
+- 0c3ba82: Add ORM codegen and contract trait discovery.
+  
+  `sl subgraphs generate <file> --target prisma|drizzle` emits a typed ORM schema for a subgraph's tables — point it at your BYO database for a fully-typed Prisma/Drizzle client with relations (`@relation` / `relations()`), inferred row types, and FK constraints that mirror the deployed DDL. Kysely is supported via `kysely-codegen` against your database.
+  
+  Contract trait discovery adds a contract registry that statically classifies deployed contracts against SIP-009/010/013 (by ABI shape inference and declared `impl-trait`s) and exposes `GET /v1/contracts?trait=sip-010&conformance=declared|inferred|any` to find every conforming contract.
+- 0d94c36: Add trait-scoped subgraph sources. A source can target a SIP standard instead of a fixed contract — `{ type: "ft_transfer", trait: "sip-010" }` indexes events across every contract the registry classifies as that standard, including ones deployed later. Token filters match by the asset-identifier's contract; contract_call/print match by contract id; trait composes with other filters. Resolution is as-of-block, so a reindex backfills a contract's full history even if it was classified after deploy. Requires the contract registry to be populated.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.9.0
+  - @secondlayer/stacks@2.3.0
+
+## 3.2.1
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+- Updated dependencies:
+  - @secondlayer/shared@6.4.5
+  - @secondlayer/stacks@2.2.1
+
+## 3.2.0
+
+### Minor Changes
+
+- f0b7859: Type `contract_call` arguments from the contract ABI. A `contract_call` source can carry a `const` `abi`; the handler then receives `event.input` — the named, decoded function arguments typed from the ABI (camelCase keys, `uint128` → `bigint`, `buff` → `Uint8Array`, tuples/optionals/responses shaped per the ABI). The positional `event.args` is kept for back-compat. Sources without an `abi` are unchanged.
+
+## 3.1.0
+
+### Minor Changes
+
+- b9cc82e: Type print `event.data` per topic. A `print_event` source can declare a `prints` map (`{ [topic]: { [field]: ColumnType } }`); the handler's `event` then becomes a discriminated union keyed by `topic` with `event.data` typed per topic (same column-type vocab as `schema` — `"uint"` → `bigint`, `"principal"` → `string`, nested → `"jsonb"`). Sources without `prints` keep the untyped `Record<string, unknown>` data. Type-level only — no runtime change.
+
+## 3.0.0
+
+### Major Changes
+
+- fc94993: Typed subgraph handlers. `event` is now inferred from each source's `type` (e.g. a `print_event` source gives `event.topic: string`, an `ft_transfer` source gives `event.amount: bigint`), and `ctx` is typed against the schema — table names and row columns in `ctx.insert`/`update`/`upsert`/etc. are checked. Removes the need for `event as {...}` casts.
+  
+  BREAKING: handler `event` and `ctx` are now strictly typed, so existing handlers may surface new type errors (usually real shape mismatches). No runtime behavior changes.
+
+## 2.0.9
+
+### Patch Changes
+
+- aad48bc: Compute schema hashes with node crypto instead of Bun.hash so the node-runtime CLI can run `sl subgraphs inspect`
+
+## 2.0.8
+
+### Patch Changes
+
+- d304339: `SubgraphFilterSchema` is now `.strict()`, so unknown fields inside a `sources: {}` entry (most commonly a mis-placed `startBlock`) error at validate time instead of being silently dropped. `startBlock` is only valid at the top level of `defineSubgraph()`.
+
+## 2.0.7
+
+### Patch Changes
+
+- a852994: Match `print_event` sources whose payload stores the contract under `contract_id` (in addition to `contract_identifier`). Mirrors the streams query's dual-shape lookup. Without this, every `print_event` subgraph with a `contractId` filter silently indexed 0 rows for the newer `contract_event` payload shape.
+
+## 2.0.6
+
+## 2.0.5
+
+## 2.0.4
+
+## 2.0.3
+
+### Patch Changes
+
+- 69ef11a: subgraph deploy: detect handler-only changes, add ContractCallEvent type, remove version override flag
+- Updated dependencies:
+  - @secondlayer/shared@6.4.2
+
+## 2.0.2
+
+### Patch Changes
+
+- fc8f486: Housekeeping polish:
+  
+  - Dropped fictitious typed-key prefixes (`sk-sl_streams_…`, `sk-sl_index_…`) from marketing copy + sandbox placeholder. Real keys are generic `sk-sl_…`; scoped prefixes were doc fiction.
+  - Index rate-limit 429 for free tier now returns `{required_tier, upgrade_url}` so blocked users know how to unblock.
+  - `sl subgraphs status <name> --watch` polls every 2s, clearing screen between snapshots, exits cleanly when synced.
+  - `standard-webhooks.ts` docstring clarified that only `.created` is emitted in v1; `.updated`/`.deleted` are deferred.
+  - T8.6 `sl subgraphs logs` deferred — needs server-side log storage.
+  - T8.3 broken tenant URL strip is `[infra]`, tracked in ops backlog.
+- Updated dependencies:
+  - @secondlayer/shared@6.4.1
+
+## 2.0.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.3.5
+
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.0.0
+
+## 1.3.4
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@5.0.1
+
+## 1.3.3
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@5.0.0
+  - @secondlayer/stacks@2.0.1
+
 ## 1.3.2
 
 ### Patch Changes

@@ -1,5 +1,48 @@
 # @secondlayer/bundler
 
+## 0.3.9
+
+### Patch Changes
+
+- b2f709a: Drop the ineffective `?t=` import cache-buster in `bundleSubgraphCode` — Bun ignores file-URL query cache-busters, and per-call freshness is already guaranteed by the unique `mkdtemp` path. No behavior change.
+
+## 0.3.8
+
+### Patch Changes
+
+- aa9fe86: Add a package README for the npm listing.
+
+## 0.3.7
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+- Updated dependencies:
+  - @secondlayer/subgraphs@3.2.1
+
+## 0.3.6
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@3.0.0
+
+## 0.3.5
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@2.0.0
+
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@1.3.3
+
+## 0.3.3
+
 ## 0.3.2
 
 ### Patch Changes

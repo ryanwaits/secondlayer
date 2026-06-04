@@ -1,5 +1,40 @@
 # @secondlayer/scaffold
 
+## 1.0.7
+
+### Patch Changes
+
+- aa9fe86: Add a package README for the npm listing.
+
+## 1.0.6
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+- Updated dependencies:
+  - @secondlayer/subgraphs@3.2.1
+
+## 1.0.5
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@3.0.0
+
+## 1.0.4
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@2.0.0
+
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@1.3.3
+
 ## 1.0.2
 
 ### Patch Changes

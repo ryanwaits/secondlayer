@@ -1,5 +1,340 @@
 # @secondlayer/sdk
 
+## 6.8.0
+
+### Minor Changes
+
+- bb96d3f: feat: `trigger.*` chain-subscription builders + MCP chain support
+  
+  Expose ergonomic chain-trigger builders for direct chain-level subscriptions from the SDK root, and let the MCP `subscriptions_create` tool create chain subscriptions.
+  
+  - SDK now exports `trigger` (`import { trigger } from "@secondlayer/sdk"`) with one builder per event type (`trigger.contractCall`, `trigger.ftTransfer`, …), plus the `ChainTrigger` / `SubscriptionKind` types. Use as `subscriptions.create({ triggers: [trigger.contractCall({ ... })] })`. Raw `triggers` objects still work. (Renamed from the previously-unreachable `on` export to avoid colliding with `@secondlayer/stacks`'s subgraph-source `on`.)
+  - MCP `subscriptions_create` accepts a `triggers` array (chain subscription) as an alternative to `subgraphName`/`tableName` (subgraph subscription).
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.17.0
+
+## 6.7.0
+
+### Minor Changes
+
+- 56bc457: feat: direct chain-level subscriptions (webhooks on chain events, no subgraph)
+  
+  Subscriptions are now polymorphic: a `subgraph` subscription fires on a deployed subgraph's table rows (unchanged), or a new `chain` subscription fires on raw chain events directly — a webhook on a contract / event-type / function-call, or any SIP-010/SIP-009/custom trait — with no subgraph to deploy.
+  
+  - SDK: `subscriptions.create({ triggers: [...] })` plus `on.*` trigger builders (`on.contractCall`, `on.ftTransfer`, …). New `ChainTrigger` / `SubscriptionKind` types; `SubscriptionDetail` gains `kind` + `triggers`.
+  - Built on the public Index/Streams clock (reuses the subgraph re-point's `PublicApiBlockSource` + matcher); forward-looking (starts at tip, never backfills).
+  - Reorg-safe apply/rollback delivery envelope (`chain.{type}.apply` / `chain.reorg.rollback`); per-subscription HMAC signing and all delivery formats reused unchanged.
+  - Trait-scoped triggers require the contract registry (`CONTRACT_REGISTRY_ENABLED=true`).
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.16.0
+  - @secondlayer/subgraphs@3.7.0
+
+## 6.6.0
+
+### Minor Changes
+
+- 30033cf: Expose raw hex `function_args_hex` on `/v1/index/transactions` (the `contract_call` sub-object) alongside the decoded `function_args`, for consumers that decode ClarityValues themselves (`decode(function_args_hex[i]) === function_args[i]`). Used by the subgraph runtime's Index source to reconstruct contract_call transactions identically to the DB tap.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.15.0
+  - @secondlayer/subgraphs@3.6.0
+
+## 6.5.0
+
+### Minor Changes
+
+- 65b7839: Add a `contract_id` filter to `/v1/index/mempool` (and `sl.index.mempool.list/walk({ contractId })`) — watch pending calls to a single contract in one query, for keepers and agent feeds.
+
+## 6.4.0
+
+### Minor Changes
+
+- 4b96a8a: Add mempool (pending transactions) to the Index API.
+  
+  The indexer now persists unconfirmed transactions from the Stacks node's `/new_mempool_tx` observer callback (deriving the txid from raw_tx), evicts them on confirmation (block ingest) or drop (`/drop_mempool_tx`), and sweeps stuck rows. The Index API serves them at `GET /v1/index/mempool` (filter by `sender`/`type`, cursor-paginated) and `GET /v1/index/mempool/:tx_id` — full pending-transaction documents (fee/nonce/post-conditions decoded from raw_tx), minus the block-anchored fields, plus `received_at`. Mempool reads are never cacheable (volatile). New SDK client: `index.mempool` (`list`/`walk`/`get`).
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.14.0
+
+## 6.3.0
+
+### Minor Changes
+
+- 6088df9: Expand the Index API with canonical block-hash map, blocks, full transaction documents, and PoX-4 stacking, plus finality-gated HTTP caching across all Index reads.
+  
+  New endpoints: `GET /v1/index/canonical`, `/v1/index/blocks` (+ `/:height_or_hash`), `/v1/index/transactions` (+ `/:tx_id`, full documents with fee/nonce/post-conditions decoded from `raw_tx`), and `/v1/index/stacking`. All Index responses now carry `Cache-Control` and ETag/304 for finalized ranges. New SDK clients: `index.canonical`, `index.blocks`, `index.transactions`, and `index.stacking` (each with `list`/`walk`, and `get` for blocks/transactions).
+
+## 6.2.1
+
+### Patch Changes
+
+- 43325d9: Sync package READMEs with the newly added surfaces: SDK datasets/contracts root clients, MCP datasets/index/streams/contracts tools + `secondlayer://context` resource + account update/billing, and CLI `sl index` / `projects delete` / data-products read commands.
+
+## 6.2.0
+
+### Minor Changes
+
+- 78c6fd4: Expose `datasets` and `contracts` clients on the `SecondLayer` root client. `sl.datasets` reaches the Foundation Datasets API (including the `listDatasets()` catalog), and the new `sl.contracts.list({ trait })` wraps `/v1/contracts` for trait-based contract discovery.
+
+## 6.1.0
+
+### Minor Changes
+
+- 727e130: `events.consume()` now owns reorg handling and checkpoint computation. New `onReorg(reorg, { cursor })` callback fires once per deduped reorg — roll your projection back to `reorg.fork_point_height` and the SDK rewinds the cursor and re-reads the now-canonical events (the re-reported-reorg loop and fork-point math are handled internally). New `finalizedOnly` flag emits only immutable events and never surfaces reorgs. `onBatch` gains a third `ctx` arg carrying the checkpoint cursor to persist (the last finalized event in `finalizedOnly` mode, else `next_cursor`). Exposes a `Cursor` helper (`atHeight`, `parse`) and documents `event.cursor` as the projection primary key. All additions are optional and back-compatible; the return-a-cursor path is unchanged.
+
+### Patch Changes
+
+- 5603d5a: Index and Streams clients build query strings through one canonical `buildQuery` helper instead of three copy-pasted append helpers; fixes a dangling `?` on `/v1/index/events` when called with no filters.
+- 63e7e6c: Validate stream cursors when parsing. A malformed `from` cursor passed to `events.replay()` previously parsed to `NaN` and silently dropped all dump files / mis-seamed the live tail; it now throws `ValidationError`.
+- eb7dc43: Streams ft/nft transfer decoders reuse the shared `_payload` helpers instead of inlining their own copies; decoded output and error messages are unchanged.
+- Updated dependencies:
+  - @secondlayer/shared@6.13.0
+
+## 6.0.0
+
+### Major Changes
+
+- 5fcd621: `StreamsEvent` is now a discriminated union keyed on `event_type`, so `event.payload` narrows to a typed per-type shape (e.g. `FtTransferPayload`, `PrintPayload`) once the type is checked — no manual casting or guard call needed.
+  
+  BREAKING: `payload` is no longer `Record<string, unknown>`, and `StreamsEventPayload` is now the union of the per-type payloads. Code that read arbitrary keys off `event.payload` without first narrowing on `event_type` (or using a guard like `isFtTransfer`) will now fail to type-check. Narrow on `event_type`, use the `isX`/`decodeX` helpers, or cast untyped wire data to the specific payload type.
+
+### Minor Changes
+
+- 655db50: Add exclusion and multi-value filters to the Streams events firehose. `not_types` excludes event types, and `contract_id`, `sender`, and `recipient` now accept comma-separated lists (matching any value). Exposed on `GET /v1/streams/events`, the SDK (`events.list/consume/stream` accept `notTypes` and `string | string[]` filters), and the `sl streams events`/`consume` CLI (`--not-types`, `--sender`, `--recipient`, comma lists on `--contract-id`).
+  
+  No new indexes: `not_types` narrows the existing `type IN (...)` set and the list filters reuse the same range-bounded `events.data` access path as the single-value filters, so the query plan is unchanged.
+- 5fcd621: Streams `verify` now survives a signing-key rotation. The client caches the key id alongside the public key and compares it against the `X-Signature-KeyId` response header; when the server rotates, a fetched key is refreshed once and re-verified, while a pinned key fails closed on a mismatch. Previously the public key was cached for the client's lifetime, so verification broke until the process restarted.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.12.0
+
+## 5.9.0
+
+### Minor Changes
+
+- 06e4810: `createStreamsClient` gains a `dumps` namespace (set `dumpsBaseUrl` to the public bulk bucket): `dumps.list()` fetches the parquet manifest, `dumps.fileUrl(file)` resolves a file's URL, and `dumps.download(file)` fetches a parquet and verifies its sha256 against the manifest. Backs "download all the raw data" bulk backfill.
+- 3cea0d5: Streams types expose finality: `StreamsEvent.finalized?` and `StreamsTip.finalized_height?` reflect the new fields the API returns, so consumers can tell which events are past the burn-confirmation finality boundary (immutable).
+- bedeb1d: Add `events.replay({ from, onDumpFile, onBatch })`: backfill from bulk dumps then continue live in one call. It iterates finalized dump files in block order (you process the parquet with your own tooling via `onDumpFile`), then tails live from the manifest's `latest_finalized_cursor` — exclusive input, so there's no gap or duplicate at the dump→live seam.
+- 9ee756c: `createStreamsClient` gains an optional `verify` hook (default off): pass `true` to fetch the server's ed25519 public key, or `{ publicKey }` to pin one. When enabled, every response's `X-Signature` is verified over the raw body and a mismatch/missing signature throws the new `StreamsSignatureError`.
+- 48a8b08: Streams events now support `sender`, `recipient`, and `asset_identifier` filters on `/v1/streams/events` (and the SDK `events.list`/`consume`/`stream`), matching Index's principal/asset filters. They apply as exact-match predicates on the raw event payload, so event types lacking the field simply don't match — the firehose narrows naturally. Closes the query-parity gap with Index.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.11.0
+
+## 5.8.0
+
+### Minor Changes
+
+- 501e095: Add realtime subgraph row streaming over Server-Sent Events. A new endpoint `GET /api/subgraphs/<name>/<table>/stream` pushes rows as they're indexed (go-forward by default, `?since=<block>` to replay then tail), accepting the same column filters as the list endpoint. The SDK's typed client gains `subgraph.<table>.subscribe(onRow, { where, since })`, which opens the stream and returns an unsubscribe function — a browser-friendly way to react to indexed data live without running a webhook receiver.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@3.5.0
+
+## 5.7.0
+
+### Minor Changes
+
+- 96fd583: Add the burnchain rewards dataset: Bitcoin PoX reward payouts and reward-set membership, indexed from the stacks-node `/new_burn_block` event. Served at `/v1/datasets/burnchain/rewards` (filter by `recipient`) and `/v1/datasets/burnchain/reward-slots` (filter by `holder`), cursor-paginated by burn block height. New SDK clients `datasets.burnchainRewards` and `datasets.burnchainRewardSlots` (list/walk), and `sl datasets query burnchain-rewards`. Go-forward only.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.10.0
+
+## 5.6.0
+
+### Minor Changes
+
+- ae8b749: Add a typed Datasets client and `sl datasets` CLI command for the Foundation Datasets (`/v1/datasets/*`) — previously HTTP-only. The SDK `Datasets` client offers uniform `list`/`walk` (cursor) for the event datasets (sBTC, BNS, PoX-4, STX transfers) plus bespoke methods for BNS names/namespaces/resolve and network-health. `sl datasets list` / `sl datasets query <dataset> --filter k=v` query from the terminal. Adds an `address` super-filter to the pox-4 calls dataset that matches a stacker's activity across any role (caller, stacker, or delegate_to).
+- 948c0d5: Add `in`/`notIn`/`like` filter operators and deterministic multi-column ordering to the subgraph query client. `findMany`/`count` now accept `{ col: { in: [...] }, name: { like: "a%" } }` and `orderBy: [["blockHeight","desc"],["id","asc"]]`. All values are parameterized server-side (`IN ($1,$2,…)`); `in`/`notIn` are comma-encoded over REST so values cannot contain commas.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@3.4.0
+
+## 5.5.0
+
+### Minor Changes
+
+- 4657c71: Index now serves `stx_lock` (stacking lock) events via `GET /v1/index/events?event_type=stx_lock`. The locked principal maps to `sender`, the locked uSTX to `amount`, and `unlock_height` rides in `payload` (`{ unlock_height }`) — filterable by `sender`. SDK adds `decodeStxLock` / `isStxLock` + `DecodedStxLock` types and the `IndexStxLock` client variant. No migration: reuses the existing `decoded_events.payload` jsonb column.
+
+## 5.4.0
+
+### Minor Changes
+
+- d2358b1: `Index` client gains `events.list/walk` — generic decoded events keyed by `event_type`, returning a discriminated `IndexEvent` union (transfers, mints, burns, and `print`) — and `contractCalls.list/walk` for decoded contract-call transactions, alongside the existing `ftTransfers`/`nftTransfers`. Cursors are opaque and per-endpoint (events use `block_height:event_index`, contract-calls use `block_height:tx_index`).
+
+## 5.3.0
+
+### Minor Changes
+
+- 8557963: Index now serves decoded contract-call transactions. `GET /v1/index/contract-calls` returns each `contract_call` tx with its decoded `function_name`, positional `args` (Clarity values decoded to JSON), `result`, and `result_hex` — filterable by `contract_id`, `function_name`, and `sender`, cursor-paginated on `<block_height>:<tx_index>`. Sourced from the transactions table (canonical via block height); always returns `reorgs: []`.
+  
+  SDK exports `decodeClarityValue` / `toJsonSafe` (a hex-Clarity-value → JSON-safe decoder, now shared by the print decoder and reusable by callers).
+
+## 5.2.0
+
+### Minor Changes
+
+- 81fc2d8: Index now decodes and serves Clarity `print` events. `GET /v1/index/events?event_type=print` returns each print's `topic`, the Clarity `value` decoded to JSON (uints as strings, buffers as `0x…` hex, tuples as objects), and the canonical `raw_value` hex — filterable by `contract_id`.
+  
+  SDK adds `decodePrint` / `isPrint` and the `DecodedPrint` types (depends on `@secondlayer/stacks` for Clarity decoding). A nullable `payload` JSONB column is added to `decoded_events` to hold decoded values that don't fit the flat transfer columns. The indexer runs a `print` decoder; the API registry and OpenAPI expose it.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.8.0
+
+## 5.1.0
+
+### Minor Changes
+
+- 239e2f2: Index now decodes and serves STX transfers, mints, and burns for tokens. `GET /v1/index/events` accepts `event_type` of `stx_transfer`, `stx_mint`, `stx_burn`, `ft_mint`, `ft_burn`, `nft_mint`, and `nft_burn` alongside the existing transfer types.
+  
+  SDK adds `decodeStxTransfer`, `decodeStxMint`, `decodeStxBurn`, `decodeFtMint`, `decodeFtBurn`, `decodeNftMint`, `decodeNftBurn` (plus their decoded types, `is*` guards, and the `DecodedEventColumns` helper) and widens `DecodedEventRow` to the full set. The indexer runs a decoder per new type; the API registry and OpenAPI expose them with per-type filters.
+
+## 5.0.0
+
+### Major Changes
+
+- b0035b2: Rename streams `index_block_hash` to `block_hash` on `StreamsEvent`, `StreamsTip`, and `StreamsCanonicalBlock`. The field always carried the block header hash (matching Hiro's `hash`), not the Stacks index block hash.
+
+## 4.0.2
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+- Updated dependencies:
+  - @secondlayer/shared@6.4.5
+  - @secondlayer/subgraphs@3.2.1
+
+## 4.0.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/subgraphs@3.0.0
+
+## 4.0.0
+
+### Major Changes
+
+- 71e80cd: fix(sdk): verifyWebhookSignature now validates the real Standard Webhooks delivery format
+  
+  The previous implementation validated a Stripe-style `x-secondlayer-signature` header that no Secondlayer delivery format actually emits — so it returned `false` for every real webhook. The signature has changed:
+  
+  ```ts
+  // before — validated nothing in production
+  verifyWebhookSignature(rawBody, signatureHeader: string, secret, toleranceSeconds?)
+  
+  // after — validates `standard-webhooks` (the default format)
+  verifyWebhookSignature(rawBody, headers, secret, toleranceSeconds?)
+  ```
+  
+  `headers` accepts a plain object (Express `req.headers`), a Fetch `Headers` instance (Hono / Bun / Workers), or a callback `(name) => value`. Header lookup is case-insensitive.
+  
+  Also exports `StandardWebhooksHeaders` and `verifyStandardWebhooksHeaders` (the lower-level helper from `@secondlayer/shared/crypto/standard-webhooks`) for advanced cases.
+
+## 3.6.1
+
+### Patch Changes
+
+- faa0c64: `BaseClient` now serializes BigInt values in request bodies to strings (via a JSON.stringify replacer) and surfaces body-encoding failures with a clear error message instead of masking them as "Cannot reach API". Fixes `sl subgraphs deploy` silently failing on configs that use bigint literals (e.g. `minAmount: 1_000_000n` in an `stx_transfer` filter).
+
+## 3.6.0
+
+### Minor Changes
+
+- e9e50d7: Drop tenant URL auto-resolution and ephemeral JWT minting. Subgraphs and subscriptions now route through the platform API alongside Streams and Index — pass your `sk-sl_*` key as `apiKey` and the SDK uses it directly. Removed: `tenantBaseUrl` constructor option, `requestAtTenant`/`requestTextAtTenant`, `getTenantSession`, `getTenantBaseUrl`, `mintTenantSession`, `MintEphemeralResponse`/`TenantSession` types.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.3.4
+
+## 3.5.4
+
+### Patch Changes
+
+- fc9fbc0: fix subgraphs + subscriptions returning "Malformed JWT" 401 on tenant URLs. SDK 3.5.3's auto-resolve landed on the right tenant URL but kept sending the platform `sk-sl_*` key as Bearer — tenant containers expect a short-lived HS256 JWT. SDK now mints an ephemeral JWT via `POST /api/tenants/me/keys/mint-ephemeral` on first tenant call (which returns both `apiUrl` + `serviceKey` in one round-trip, replacing the previous `/api/tenants/me` resolver), caches the session, and refreshes 30 s before the 5-min TTL expires. `tenantBaseUrl` constructor option still bypasses the mint flow for OSS / staging setups where the same `apiKey` works against both surfaces.
+
+## 3.5.3
+
+### Patch Changes
+
+- 34c7d2e: auto-resolve tenant baseUrl for subgraphs + subscriptions; expose `ApiError.code`. previously `sl.subgraphs.list()` and `sl.subscriptions.list()` 404'd on the documented default `baseUrl` because those routes don't run on the platform api — they live on per-tenant containers. the SDK now lazily resolves the tenant url via `/api/tenants/me` on first tenant-resource call, caches it, and routes requests there. opt-out via `tenantBaseUrl` constructor option (OSS / staging / custom routing). `ApiError` gains a `code` field populated from the api's `{error, code}` envelope so callers don't have to dig into `err.body` for `VALIDATION_ERROR`, `NOT_FOUND`, etc. distinctive codes for tenant resolution failures: `TENANT_SUSPENDED`, `NO_TENANT`.
+
+## 3.5.2
+
+### Patch Changes
+
+- 57a1472: fix `decodeNftTransfer` reading wrong payload field. live streams emits the token id as a typed Clarity value at `payload.value` (e.g. `{UInt: 52}`) and the canonical hex at `payload.raw_value`. the decoder was reading `payload.value` and throwing on every event, leaving `decoded_events` empty for `nft_transfer`. now prefers `raw_value`, mirroring the indexer 1.3.7 sbtc/bns fix.
+
+## 3.5.1
+
+### Patch Changes
+
+- 3c53cb4: fix(streams): pipe contractId through events.consume / events.stream
+  
+  The streams events consumer had no way to push a server-side `contract_id` filter into the events fetch — only `types` was forwarded. On a backfill from a stale checkpoint that translates to "scan every print event in the cursor range across every contract," which on mainnet hit socket-close timeouts and stalled the BNS decoder. SDK `events.consume` / `events.stream` now accept `contractId` and forward it to the API; the BNS decoder uses it for the BNS-V2 mainnet contract.
+
+## 3.5.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.1.0
+
+## 3.4.0
+
+### Minor Changes
+
+- 8e80efe: Add bounded Streams iterator controls for page limits, empty-poll limits, and bounded consumption mode.
+
+## 3.3.2
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@6.0.0
+  - @secondlayer/subgraphs@2.0.0
+
+## 3.3.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@5.0.0
+  - @secondlayer/subgraphs@1.3.3
+
+## 3.3.0
+
+### Minor Changes
+
+- f8645e8: Add generated subgraph API specs for OpenAPI, compact agent schemas, and Markdown docs across shared, SDK, CLI, and MCP surfaces.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/shared@4.4.0
+
 ## 3.2.2
 
 ### Patch Changes

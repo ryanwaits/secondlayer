@@ -1,5 +1,114 @@
 # @secondlayer/mcp
 
+## 3.2.0
+
+### Minor Changes
+
+- bb96d3f: feat: `trigger.*` chain-subscription builders + MCP chain support
+  
+  Expose ergonomic chain-trigger builders for direct chain-level subscriptions from the SDK root, and let the MCP `subscriptions_create` tool create chain subscriptions.
+  
+  - SDK now exports `trigger` (`import { trigger } from "@secondlayer/sdk"`) with one builder per event type (`trigger.contractCall`, `trigger.ftTransfer`, …), plus the `ChainTrigger` / `SubscriptionKind` types. Use as `subscriptions.create({ triggers: [trigger.contractCall({ ... })] })`. Raw `triggers` objects still work. (Renamed from the previously-unreachable `on` export to avoid colliding with `@secondlayer/stacks`'s subgraph-source `on`.)
+  - MCP `subscriptions_create` accepts a `triggers` array (chain subscription) as an alternative to `subgraphName`/`tableName` (subgraph subscription).
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@6.8.0
+
+## 3.1.1
+
+### Patch Changes
+
+- 43325d9: Sync package READMEs with the newly added surfaces: SDK datasets/contracts root clients, MCP datasets/index/streams/contracts tools + `secondlayer://context` resource + account update/billing, and CLI `sl index` / `projects delete` / data-products read commands.
+- Updated dependencies:
+  - @secondlayer/sdk@6.2.1
+
+## 3.1.0
+
+### Minor Changes
+
+- 48f0ab6: Add `account_update` (PATCH profile: display_name, bio, slug) and `account_billing` (plan + subscription status) tools so the MCP account surface matches the CLI's `account get/update/billing`.
+- 86a7711: Add a live `secondlayer://context` resource so a connecting agent learns what exists (its subgraphs + freshness, subscriptions, account/plan), what it can do (the product surfaces and their key tools), and the per-product read-auth tiers. Every live call degrades gracefully when keyless, so the resource never throws.
+- 0967b9a: Add read tools for the core data products so an MCP agent can reach them directly: `datasets_list`/`datasets_query` (Foundation Datasets), `index_ft_transfers`/`index_nft_transfers`/`index_events`/`index_contract_calls` (decoded Index layer, mirroring the SDK surface), `streams_tip`/`streams_events` (Streams firehose, with an API-key hint on keyless auth failures), and `contracts_find` (trait-based contract discovery).
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@6.2.0
+
+## 3.0.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@6.0.0
+
+## 3.0.0
+
+### Major Changes
+
+- 76caa66: Remove the `SL_SERVICE_KEY` and `SECONDLAYER_API_KEY` env-var aliases — the MCP server now reads only `SL_API_KEY`, matching the CLI and SDK. (The previous release accepted them as deprecated aliases with a warning.) Update any MCP config that still sets `SL_SERVICE_KEY` to use `SL_API_KEY`.
+
+## 2.4.0
+
+### Minor Changes
+
+- b4c3fee: Standardize on `SL_API_KEY` for the MCP server's API credential, matching the CLI and SDK. `SL_SERVICE_KEY` and `SECONDLAYER_API_KEY` continue to work as deprecated aliases (logged once per process), so existing MCP configs keep functioning. README and config examples now lead with `SL_API_KEY`.
+
+## 2.3.5
+
+### Patch Changes
+
+- 5766f99: Allow keyless reads. The MCP server no longer requires `SL_SERVICE_KEY` to start — read tools (`list`, `get`, `query`, `spec`) work without a key during open beta, and only writes/account tools need an `sk-sl_` key. Also fixes a stale error message that referenced the removed `sl instance info` command.
+
+## 2.3.4
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@5.0.0
+
+## 2.3.3
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+- Updated dependencies:
+  - @secondlayer/bundler@0.3.7
+  - @secondlayer/scaffold@1.0.6
+  - @secondlayer/sdk@4.0.2
+
+## 2.3.2
+
+### Patch Changes
+
+- 71e80cd: chore(deps): bump @secondlayer/sdk to v4
+  
+  Pulls in the fix to `verifyWebhookSignature` (now validates the real Standard Webhooks delivery headers). Neither package calls `verifyWebhookSignature` directly, so no consumer-facing behavior changes here.
+- Updated dependencies:
+  - @secondlayer/sdk@4.0.0
+
+## 2.3.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/bundler@0.3.4
+  - @secondlayer/scaffold@1.0.3
+  - @secondlayer/sdk@3.3.1
+
+## 2.3.0
+
+### Minor Changes
+
+- f8645e8: Add generated subgraph API specs for OpenAPI, compact agent schemas, and Markdown docs across shared, SDK, CLI, and MCP surfaces.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/sdk@3.3.0
+
 ## 2.2.0
 
 ### Minor Changes

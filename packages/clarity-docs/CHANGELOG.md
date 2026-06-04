@@ -1,5 +1,32 @@
 # @secondlayer/clarity-docs
 
+## 0.3.12
+
+### Patch Changes
+
+- e93d184: Replace the repeated `t.name!` non-null assertions in the ClarityDoc tag extractors with a single `namedTags` type-guard filter helper, so `name` is narrowed to `string` by the compiler instead of suppressed via `biome-ignore`. No behavior change.
+
+## 0.3.11
+
+### Patch Changes
+
+- aa9fe86: Add a package README for the npm listing.
+
+## 0.3.10
+
+### Patch Changes
+
+- 229c297: Add license, repository, and homepage metadata plus a bundled LICENSE file; drop src from clarity-docs npm files.
+- Updated dependencies:
+  - @secondlayer/stacks@2.2.1
+
+## 0.3.9
+
+### Patch Changes
+
+- Updated dependencies:
+  - @secondlayer/stacks@2.0.1
+
 ## 0.3.8
 
 ### Patch Changes
