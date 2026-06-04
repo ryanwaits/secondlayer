@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { BundleSizeError, bundleSubgraphCode } from "@secondlayer/bundler";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, getRawClientFor, getSourceDb } from "@secondlayer/shared/db";
-import type { Subgraph } from "@secondlayer/shared/db";
+import type { Subgraph, SubgraphOperation } from "@secondlayer/shared/db";
 import {
 	countSubgraphMissingBlocks,
 	findSubgraphGaps,
@@ -12,7 +12,9 @@ import {
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import {
 	createSubgraphOperation,
+	getSubgraphOperation,
 	isActiveSubgraphOperationConflict,
+	listSubgraphOperations,
 	requestSubgraphOperationCancel,
 	requestSubgraphOperationsCancelForDelete,
 	waitForSubgraphOperationsClear,
@@ -1223,6 +1225,70 @@ app.get("/:subgraphName/gaps", async (c) => {
 			offset,
 		},
 	});
+});
+
+// ── Operation status (poll reindex/backfill/stop progress) ───────────────
+
+/** Map a tracked operation to the public status shape (+ derived progress). */
+function toOperationResponse(op: SubgraphOperation, chainTip: number) {
+	const from = op.from_block ?? 1;
+	const to = op.to_block ?? chainTip;
+	const total = to - from + 1;
+	const progress =
+		op.status === "completed"
+			? 1
+			: op.processed_blocks != null && total > 0
+				? Math.min(1, Math.max(0, op.processed_blocks / total))
+				: null;
+	return {
+		id: op.id,
+		subgraphName: op.subgraph_name,
+		kind: op.kind,
+		status: op.status,
+		fromBlock: op.from_block,
+		toBlock: op.to_block,
+		processedBlocks: op.processed_blocks,
+		progress,
+		error: op.error,
+		startedAt: op.started_at?.toISOString() ?? null,
+		finishedAt: op.finished_at?.toISOString() ?? null,
+		createdAt: op.created_at.toISOString(),
+		updatedAt: op.updated_at.toISOString(),
+	};
+}
+
+app.get("/:subgraphName/operations", async (c) => {
+	const { subgraphName } = c.req.param();
+	const accountId = getAccountId(c);
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const db = getDb();
+	const [ops, chainTip] = await Promise.all([
+		listSubgraphOperations(db, subgraph.id),
+		getChainTip(),
+	]);
+	return c.json({
+		operations: ops.map((op) => toOperationResponse(op, chainTip)),
+	});
+});
+
+app.get("/:subgraphName/operations/:operationId", async (c) => {
+	const { subgraphName, operationId } = c.req.param();
+	const accountId = getAccountId(c);
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const db = getDb();
+	const op = await getSubgraphOperation(db, operationId);
+	// Scope to the named subgraph so one account can't read another's op by id.
+	if (!op || op.subgraph_id !== subgraph.id) {
+		return c.json(
+			{
+				error: `Operation "${operationId}" not found for "${subgraphName}"`,
+				code: "OPERATION_NOT_FOUND",
+			},
+			404,
+		);
+	}
+	const chainTip = await getChainTip();
+	return c.json(toOperationResponse(op, chainTip));
 });
 
 // ── Count rows ──────────────────────────────────────────────────────────

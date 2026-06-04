@@ -192,6 +192,21 @@ export async function getSubgraphOperation(
 	);
 }
 
+/** Recent operations for a subgraph, newest first (for the status read API). */
+export async function listSubgraphOperations(
+	db: Kysely<Database>,
+	subgraphId: string,
+	limit = 20,
+): Promise<SubgraphOperation[]> {
+	return db
+		.selectFrom("subgraph_operations")
+		.selectAll()
+		.where("subgraph_id", "=", subgraphId)
+		.orderBy("created_at", "desc")
+		.limit(limit)
+		.execute();
+}
+
 export async function completeSubgraphOperation(
 	db: Kysely<Database>,
 	operationId: string,
