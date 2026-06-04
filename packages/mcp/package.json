@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/mcp",
-	"version": "3.2.0",
+	"version": "3.3.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -38,8 +38,8 @@
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@secondlayer/bundler": "^0.3.7",
 		"@secondlayer/scaffold": "^1.0.6",
-		"@secondlayer/sdk": "^6.8.0",
-		"@secondlayer/shared": "^6.17.0",
+		"@secondlayer/sdk": "^6.9.0",
+		"@secondlayer/shared": "^6.18.0",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

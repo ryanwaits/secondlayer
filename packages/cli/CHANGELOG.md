@@ -1,5 +1,26 @@
 # @secondlayer/cli
 
+## 8.5.0
+
+### Minor Changes
+
+- a777de7: Add an agent orientation snapshot available to every surface, not just MCP. `SecondLayer.context()` (SDK) assembles, concurrently and degrading to `null` per field, the account, live Streams + Index tips, your subgraphs/subscriptions (with a per-status breakdown), and any in-flight reindex operations. The MCP `secondlayer://context` resource now builds on this — so it gains the tips, subscription health, and in-flight operations it lacked — and `sl context` (CLI) prints the same snapshot so non-MCP agents aren't context-starved.
+- e0f9499: Agent-reachable, hardened API-key mint. A headless agent holding an account-level (owner) key can now self-provision a SCOPED `streams`/`index` read key via `POST /v1/api-keys` — no dashboard. The minted key is always scoped (never an account/superkey), inherits the account plan's tier, is per-IP rate limited, and is bounded by a per-account active-key ceiling. Surfaced as `sl.apiKeys.create()` (SDK), `sl keys create` (CLI), and the `account_create_key` MCP tool.
+
+  Also closes a privilege-escalation hole on the existing `POST /api/keys`: it accepted any valid credential and did no product check, so a leaked scoped key could mint an account superkey. Minting is now owner-gated (a dashboard session or an `account`-product key), and non-session callers are confined to scoped keys with an inherited tier.
+
+- 4cf2020: Bring the `sl` CLI to parity with the SDK for Index and Streams reads. Adds `sl index canonical`, `sl index blocks` (+ `blocks get <ref>`), `sl index transactions` (+ `transactions get <txId>`), `sl index stacking`, and `sl index mempool` (+ `mempool get <txId>`), plus `sl streams events by-tx <txId>` and `sl streams block-events <heightOrHash>`. List commands page by cursor (one page per call); bulk pagination stays in `sl streams consume`.
+
+### Patch Changes
+
+- Updated dependencies [a777de7]
+- Updated dependencies [80433eb]
+- Updated dependencies [e0f9499]
+- Updated dependencies [a9be0a3]
+- Updated dependencies [22725d0]
+  - @secondlayer/sdk@6.9.0
+  - @secondlayer/shared@6.18.0
+
 ## 8.4.3
 
 ## 8.4.2
@@ -29,7 +50,7 @@
 ### Minor Changes
 
 - 655db50: Add exclusion and multi-value filters to the Streams events firehose. `not_types` excludes event types, and `contract_id`, `sender`, and `recipient` now accept comma-separated lists (matching any value). Exposed on `GET /v1/streams/events`, the SDK (`events.list/consume/stream` accept `notTypes` and `string | string[]` filters), and the `sl streams events`/`consume` CLI (`--not-types`, `--sender`, `--recipient`, comma lists on `--contract-id`).
-  
+
   No new indexes: `not_types` narrows the existing `type IN (...)` set and the list filters reuse the same range-bounded `events.data` access path as the single-value filters, so the query plan is unchanged.
 
 ### Patch Changes
@@ -55,7 +76,7 @@
 ### Minor Changes
 
 - dc5c317: Add a full-stack `sl local restart` that pairs with `local up`/`local down` — it stops then starts the whole local stack (Stacks node + dev services), and accepts the same `--devnet` / `--no-node` / `--no-dev` / `--wait` flags.
-  
+
   Behavior change: `local restart` previously restarted only the dev services. It now restarts the full stack by default. To get the old in-place dev-services-only restart (which preserves docker containers), use `local restart --no-node`.
 
 ## 8.0.0
@@ -75,11 +96,11 @@
 ### Major Changes
 
 - b8c0f4e: Remove the deprecated aliases that were kept for back-compat in the previous release, leaving only the canonical names. Breaking changes:
-  
+
   - **Commands removed** (use the canonical form): top-level `create` (→ `subscriptions create`), `billing` (→ `account billing`), `generate` (→ `contracts generate`), and `stack` (→ `local up` / `local down`). `account profile` is gone (→ `account get` / `account update`). Verb aliases dropped: `subgraphs new` (→ `create`), `subgraphs stop` (→ `cancel`), `config show`/`clear` (→ `get`/`delete`), `projects current` (→ `get`), `db reset` (→ `truncate`).
   - **Flags removed**: `--preview` (→ `--dry-run`), `--force` as a confirm-skip (→ `-y`/`--yes`; `--force` remains only for genuine overrides like `subgraphs delete`), `--from`/`--to` and `--from-height`/`--to-height` (→ `--from-block`/`--to-block`), `--out` (→ `-o`/`--output`), and `--tail` on `devnet logs` (→ `--lines`).
   - **Env vars**: `SL_SERVICE_KEY` and `SL_STREAMS_API_KEY` are no longer read — use `SL_API_KEY`.
-  
+
   Also: `subgraphs inspect` is merged into `subgraphs spec <nameOrFile>` (accepts a deployed name or a local `.ts` file), and `local up [--devnet]` / `local down [--devnet]` are the canonical way to run the full local stack or a Clarinet devnet.
 
 ## 6.0.0
@@ -87,14 +108,14 @@
 ### Major Changes
 
 - ae666bc: Canonicalize the command grammar toward a consistent `<noun> <verb>` shape, with the previous names kept working as aliases (to be removed in a future major). This is a major release because of these aliased renames plus the flag and `whoami` exit-code changes from the same release.
-  
+
   - **Resource creation** is now `<noun> create`: `sl subscriptions create` (was `sl create subscription`) and `sl subgraphs create` (alias `new`). The top-level `create` group is deprecated.
   - **Account & billing**: `sl account get` / `sl account update` replace the flag-overloaded `account profile` (kept as a deprecated alias), and billing moves to `sl account billing` (top-level `billing` deprecated).
   - **Codegen**: Clarity→TypeScript generation is now `sl contracts generate` (top-level `sl generate` deprecated; `gen` still works).
   - **Projects**: the noun is pluralized to `sl projects` (alias `project`), and `projects get` replaces `projects current` (aliased). `ls` is now an alias for every `list`.
   - **Verb consistency**: `sl subgraphs get` (alias `status`), `sl subgraphs cancel` (alias `stop`), `rm` as an alias for every `delete`, `sl config get`/`config delete` (aliases `show`/`clear`), and `sl db truncate` (alias `reset`).
   - **Local dev**: database inspection is now nested as `sl local db` (top-level `db` deprecated).
-  
+
   Deferred to a follow-up: a unified `sl subgraphs generate <types|schema|client>` dispatcher, merging `inspect` into `spec`, and folding `stack`/`devnet` into `local up`/`local up --devnet` (those involve reconciling distinct service-orchestration semantics, not a mechanical rename).
 
 ### Minor Changes
@@ -102,12 +123,12 @@
 - 9fabdc4: Unify CLI authentication and fix a silent prod-routing bug. The endpoint and credential now resolve independently, so `SL_API_URL=http://localhost…` redirects the endpoint while keeping your session token instead of silently hitting production (previously `resolveAuth` required both URL and key while `isOssMode` keyed off URL-only, so they disagreed). One credential precedence chain — `--api-key` flag > `SL_API_KEY` > stored session — applies to every command, including `streams`; `SL_SERVICE_KEY` and `SL_STREAMS_API_KEY` are accepted as legacy aliases. Adds global `--api-key`/`--api-url` flags (inherited by all commands) and `sl login --with-token` for headless/CI setup (`echo "$SL_API_KEY" | sl login --with-token`). `sl whoami` now reports the effective API URL and credential source and exits non-zero when unauthenticated (previously exited 0, which could mask `sl whoami && …` checks).
 - 9f081ba: Polish CLI output and discoverability (non-breaking). Color is now gated on the terminal (honors `NO_COLOR`/`FORCE_COLOR` and auto-disables when piped), and status/progress messages are routed to stderr so `--json` and raw data on stdout pipe cleanly into `jq`. Adds `--json` to `whoami`, `billing status`, `config show`, and `project list`/`current`. `sl --help` now groups commands into labeled sections, mistyped commands get "Did you mean…?" suggestions, and the data commands (`subgraphs query`/`reindex`/`backfill`/`scaffold`/`new`, `streams events`/`consume`, `datasets query`, `subscriptions update`/`replay`, `config set`, `generate`) gained `Examples:` blocks. API errors now print actionable next-step hints.
 - ce1fbd8: Canonicalize CLI flags toward one consistent vocabulary, keeping old names working as deprecated aliases:
-  
+
   - Confirm-skip is now `-y`/`--yes` everywhere. `--force` is reserved for genuine overrides (cancel active work / force-delete); where it previously meant "skip prompt" (`subgraphs deploy`, `local node stop`/`restart`) it stays as a deprecated alias for `--yes`.
   - Block ranges are `--from-block`/`--to-block` across `subgraphs reindex`/`backfill` and `streams events`; the old `--from`/`--to` and `--from-height`/`--to-height` remain as deprecated aliases.
   - Output paths use `-o`/`--output` (with `--out` kept as a deprecated alias on `generate`); `subgraphs scaffold` gains the `-k` short for `--api-key`.
   - `--preview` is now a deprecated alias for `--dry-run`.
-  
+
   Note: a few short flags were disambiguated and are no longer accepted on certain commands — `-f` is reserved for `--follow` (so `local start --foreground`, `local node stop/restart`, and `login --force` lose their `-f` short), and `-n` is reserved for `--lines` (so `devnet status --limit` loses `-n`, and `devnet logs --tail` becomes `--lines` with `--tail` kept as an alias). Use the long-form flags instead.
 
 ## 5.10.1
@@ -157,9 +178,9 @@
 - 0c3ba82: Add bring-your-own-database support to subgraphs. Deploy with `sl subgraphs deploy <file> --database-url <postgres-url>` to write a subgraph's schema, handler rows, and serving reads to your own Postgres while the managed pipeline still ingests, decodes, matches, and runs your handler. The connection string is stored encrypted at rest and never returned. Handler writes must be idempotent (insert/upsert); reindex is unavailable on BYO subgraphs (re-deploy to rebuild), and deleting a BYO subgraph never drops the schema in your database.
 - 3a56127: Disambiguate the code-generation commands so each verb means one output. The top-level `sl generate` (Clarity → TypeScript contract interfaces) drops its `codegen` alias (use `sl generate` or `sl gen`); `codegen` now refers only to `sl subgraphs codegen` (ORM schema). `sl subgraphs generate` (typed query client) is renamed to `sl subgraphs client` — `generate` still works as a deprecated alias.
 - 0c3ba82: Add ORM codegen and contract trait discovery.
-  
+
   `sl subgraphs generate <file> --target prisma|drizzle` emits a typed ORM schema for a subgraph's tables — point it at your BYO database for a fully-typed Prisma/Drizzle client with relations (`@relation` / `relations()`), inferred row types, and FK constraints that mirror the deployed DDL. Kysely is supported via `kysely-codegen` against your database.
-  
+
   Contract trait discovery adds a contract registry that statically classifies deployed contracts against SIP-009/010/013 (by ABI shape inference and declared `impl-trait`s) and exposes `GET /v1/contracts?trait=sip-010&conformance=declared|inferred|any` to find every conforming contract.
 
 ### Patch Changes
@@ -230,13 +251,13 @@
 ### Minor Changes
 
 - 9644e21: feat(cli): `sl subgraphs reindex` now prompts for confirmation by default
-  
+
   Reindex is destructive — it drops existing rows in the range and reprocesses. Previously it ran silently. Now:
-  
+
   - TTY: prompts `Reindex subgraph "<name>" for blocks [from, to]? Existing rows in this range will be dropped and reprocessed.` Defaults to **no**.
   - Non-TTY (CI, pipelines): exits non-zero with a hint to use `-y`.
   - New `-y, --yes` flag skips the prompt.
-  
+
   Matches the existing safety pattern on `sl subgraphs delete`.
 
 ## 5.4.10
@@ -244,8 +265,9 @@
 ### Patch Changes
 
 - 71e80cd: chore(deps): bump @secondlayer/sdk to v4
-  
+
   Pulls in the fix to `verifyWebhookSignature` (now validates the real Standard Webhooks delivery headers). Neither package calls `verifyWebhookSignature` directly, so no consumer-facing behavior changes here.
+
 - Updated dependencies:
   - @secondlayer/sdk@4.0.0
 
@@ -316,7 +338,7 @@
 ### Minor Changes
 
 - 71a1f74: First-touch CLI UX:
-  
+
   - `sl subgraphs deploy` prints `Dashboard:`, `REST:`, and `Watch:` URLs after success (uses new `deriveBaseUrl` helper).
   - `sl subgraphs deploy` auto-detects missing `@secondlayer/subgraphs` SDK and prompts to install via `bun add`.
   - `sl subgraphs delete` no longer dies with raw `ExitPromptError` when stdin isn't a TTY — prints a friendly hint to use `-y`.
@@ -325,23 +347,26 @@
   - Subscription create success block prints dashboard URL + `sl subscriptions resume` hint if the subscription is paused.
   - Inngest template switched from `npx inngest-cli` to `bunx inngest-cli` (works under Bun's postinstall sandbox).
   - Node template README updated to drop the stale "copy .env.example → .env" line (CLI already does it).
+
 - fc8f486: Housekeeping polish:
-  
+
   - Dropped fictitious typed-key prefixes (`sk-sl_streams_…`, `sk-sl_index_…`) from marketing copy + sandbox placeholder. Real keys are generic `sk-sl_…`; scoped prefixes were doc fiction.
   - Index rate-limit 429 for free tier now returns `{required_tier, upgrade_url}` so blocked users know how to unblock.
   - `sl subgraphs status <name> --watch` polls every 2s, clearing screen between snapshots, exits cleanly when synced.
   - `standard-webhooks.ts` docstring clarified that only `.created` is emitted in v1; `.updated`/`.deleted` are deferred.
   - T8.6 `sl subgraphs logs` deferred — needs server-side log storage.
   - T8.3 broken tenant URL strip is `[infra]`, tracked in ops backlog.
+
 - 305a7ea: Strict query validation across public surfaces — Datasets, Index, Streams, and Subgraphs REST now reject unknown query params with `400 VALIDATION_ERROR` (with "did you mean…" hint) instead of silently ignoring them. `limit=0` is now rejected; `limit` is still capped at 1000. Subgraph REST filter parser now returns `400` (not `500`) on unknown ops like `?col.bogus=X`, and detects misplaced operators like `?col=gt.X`. Adds optional `sl subgraphs deploy --strict` flag to run `tsc --noEmit` against the handler before deploy.
 
 ### Patch Changes
 
 - 9f28cd2: Subscription delivery integrity fixes:
-  
+
   - New migration `0077` loosens `subscription_deliveries.outbox_id` FK from `ON DELETE CASCADE` to `ON DELETE SET NULL`. Outbox cleanup races no longer 23503 the delivery insert, which previously snowballed circuit_failures and auto-paused subscriptions.
   - `sl subscriptions delete <name>` is now idempotent — a second delete prints "already deleted" instead of `500 Server error`.
   - `sl subscriptions get` now shows the backoff curve (30s → 2m → 10m → 1h → 6h → 24h → 72h) alongside Max Retries / Timeout / Concurrency.
+
 - Updated dependencies:
   - @secondlayer/shared@6.4.1
   - @secondlayer/subgraphs@2.0.2
@@ -412,7 +437,7 @@
 ### Patch Changes
 
 - 9a31a08: feat(cli): scaffolded subgraphs ship with a "what to do next" header
-  
+
   `sl subgraphs new <name> [--template <slug>]` now emits a 5-step header comment at the top of every scaffolded file (edit → deploy → wait for sync → query). Mirrors the `/docs/subgraphs#quickstart` walkthrough so new users don't bounce between the file and the docs to figure out next steps.
 
 ## 5.1.0
@@ -420,7 +445,7 @@
 ### Minor Changes
 
 - 9299f44: feat(cli): `sl streams` family — `events`, `consume`, `tip`, `reorgs`, `canonical`
-  
+
   Mirrors the SDK Streams client. Reads `SL_STREAMS_API_KEY` from env (issue at `/platform/api-keys` with product=streams), supports `SL_API_URL` override for OSS / dev. `sl streams consume` emits one event per line as JSONL with `next_cursor` tracked on stderr — pipe directly into a downstream pipeline.
 
 ## 5.0.1
@@ -428,8 +453,9 @@
 ### Patch Changes
 
 - 93a4955: feat(cli): prompt magic-link login on `sl subgraphs deploy` when no session
-  
+
   Previously, running `sl subgraphs deploy file.ts` against a remote network with no CLI session bailed with a generic 401 deep inside the deploy flow. New `requireAuth()` helper in `packages/cli/src/lib/require-auth.ts` checks for a session and runs the magic-link login flow inline if missing, then resumes the deploy. Local-network deploys are unaffected.
+
 - Updated dependencies:
   - @secondlayer/shared@6.3.1
   - @secondlayer/stacks@2.2.0

@@ -1,5 +1,29 @@
 # @secondlayer/api
 
+## 1.18.0
+
+### Minor Changes
+
+- e0f9499: Agent-reachable, hardened API-key mint. A headless agent holding an account-level (owner) key can now self-provision a SCOPED `streams`/`index` read key via `POST /v1/api-keys` — no dashboard. The minted key is always scoped (never an account/superkey), inherits the account plan's tier, is per-IP rate limited, and is bounded by a per-account active-key ceiling. Surfaced as `sl.apiKeys.create()` (SDK), `sl keys create` (CLI), and the `account_create_key` MCP tool.
+
+  Also closes a privilege-escalation hole on the existing `POST /api/keys`: it accepted any valid credential and did no product check, so a leaked scoped key could mint an account superkey. Minting is now owner-gated (a dashboard session or an `account`-product key), and non-session callers are confined to scoped keys with an inherited tier.
+
+- a9be0a3: Let an agent read its own consumption and limits. `GET /v1/streams/usage` and `GET /v1/index/usage` return the account's events today + this month for that product plus its tier limits (Streams: rate limit + retention days; Index: rate limit), reusing the existing metering. Streams is key-mandatory; Index requires a Build+ key (anonymous → 401). Surfaced as `sl.streams.usage()` / `sl.index.usage()` (SDK) and the `streams_usage` / `index_usage` MCP tools, and listed in the `/v1/streams` and `/v1/index` discovery routes.
+- 109d697: Make the Index and Streams event vocabularies runtime-discoverable. `GET /v1/index` now exposes a machine-readable `event_type_filters` map — per event type its `columns`, `allowed_filters`, `equality_filters`, and `required_non_null` (generated from the event registry, so it can't drift from what the endpoint accepts) — instead of a single flattened filter list with a prose caveat. `GET /v1/streams` now lists `event_types` and a structured `filters` spec (name + type) for its events route. A test pins the Index registry to the shared decoded event-type list so discovery can't lie.
+- 22725d0: Expose subgraph operation status so agents can poll a reindex/backfill to completion instead of guessing. `reindex`/`backfill`/`stop` already return an `operationId`; now `GET /api/subgraphs/:name/operations/:id` returns that operation's live status (kind, status, processed blocks, a derived 0–1 progress, error, timestamps), and `GET /api/subgraphs/:name/operations` lists recent operations. Surfaced as `sl.subgraphs.getOperation(name, id)` / `sl.subgraphs.operations(name)` (SDK) and the `subgraphs_operation` MCP tool. Backed by the existing `subgraph_operations` table — no migration.
+
+### Patch Changes
+
+- Updated dependencies [a777de7]
+- Updated dependencies [80433eb]
+- Updated dependencies [e0f9499]
+- Updated dependencies [a9be0a3]
+- Updated dependencies [22725d0]
+  - @secondlayer/sdk@6.9.0
+  - @secondlayer/shared@6.18.0
+  - @secondlayer/indexer@1.12.2
+  - @secondlayer/platform@0.0.15
+
 ## 1.17.1
 
 ### Patch Changes
@@ -13,9 +37,9 @@
 ### Minor Changes
 
 - 56bc457: feat: direct chain-level subscriptions (webhooks on chain events, no subgraph)
-  
+
   Subscriptions are now polymorphic: a `subgraph` subscription fires on a deployed subgraph's table rows (unchanged), or a new `chain` subscription fires on raw chain events directly — a webhook on a contract / event-type / function-call, or any SIP-010/SIP-009/custom trait — with no subgraph to deploy.
-  
+
   - SDK: `subscriptions.create({ triggers: [...] })` plus `on.*` trigger builders (`on.contractCall`, `on.ftTransfer`, …). New `ChainTrigger` / `SubscriptionKind` types; `SubscriptionDetail` gains `kind` + `triggers`.
   - Built on the public Index/Streams clock (reuses the subgraph re-point's `PublicApiBlockSource` + matcher); forward-looking (starts at tip, never backfills).
   - Reorg-safe apply/rollback delivery envelope (`chain.{type}.apply` / `chain.reorg.rollback`); per-subscription HMAC signing and all delivery formats reused unchanged.
@@ -67,7 +91,7 @@
 ### Minor Changes
 
 - 4b96a8a: Add mempool (pending transactions) to the Index API.
-  
+
   The indexer now persists unconfirmed transactions from the Stacks node's `/new_mempool_tx` observer callback (deriving the txid from raw_tx), evicts them on confirmation (block ingest) or drop (`/drop_mempool_tx`), and sweeps stuck rows. The Index API serves them at `GET /v1/index/mempool` (filter by `sender`/`type`, cursor-paginated) and `GET /v1/index/mempool/:tx_id` — full pending-transaction documents (fee/nonce/post-conditions decoded from raw_tx), minus the block-anchored fields, plus `received_at`. Mempool reads are never cacheable (volatile). New SDK client: `index.mempool` (`list`/`walk`/`get`).
 
 ### Patch Changes
@@ -82,7 +106,7 @@
 ### Minor Changes
 
 - 6088df9: Expand the Index API with canonical block-hash map, blocks, full transaction documents, and PoX-4 stacking, plus finality-gated HTTP caching across all Index reads.
-  
+
   New endpoints: `GET /v1/index/canonical`, `/v1/index/blocks` (+ `/:height_or_hash`), `/v1/index/transactions` (+ `/:tx_id`, full documents with fee/nonce/post-conditions decoded from `raw_tx`), and `/v1/index/stacking`. All Index responses now carry `Cache-Control` and ETag/304 for finalized ranges. New SDK clients: `index.canonical`, `index.blocks`, `index.transactions`, and `index.stacking` (each with `list`/`walk`, and `get` for blocks/transactions).
 
 ### Patch Changes
@@ -110,7 +134,7 @@
 ### Minor Changes
 
 - 655db50: Add exclusion and multi-value filters to the Streams events firehose. `not_types` excludes event types, and `contract_id`, `sender`, and `recipient` now accept comma-separated lists (matching any value). Exposed on `GET /v1/streams/events`, the SDK (`events.list/consume/stream` accept `notTypes` and `string | string[]` filters), and the `sl streams events`/`consume` CLI (`--not-types`, `--sender`, `--recipient`, comma lists on `--contract-id`).
-  
+
   No new indexes: `not_types` narrows the existing `type IN (...)` set and the list filters reuse the same range-bounded `events.data` access path as the single-value filters, so the query plan is unchanged.
 
 ### Patch Changes
@@ -196,7 +220,7 @@
 ### Minor Changes
 
 - 8557963: Index now serves decoded contract-call transactions. `GET /v1/index/contract-calls` returns each `contract_call` tx with its decoded `function_name`, positional `args` (Clarity values decoded to JSON), `result`, and `result_hex` — filterable by `contract_id`, `function_name`, and `sender`, cursor-paginated on `<block_height>:<tx_index>`. Sourced from the transactions table (canonical via block height); always returns `reorgs: []`.
-  
+
   SDK exports `decodeClarityValue` / `toJsonSafe` (a hex-Clarity-value → JSON-safe decoder, now shared by the print decoder and reusable by callers).
 
 ### Patch Changes
@@ -209,7 +233,7 @@
 ### Minor Changes
 
 - 81fc2d8: Index now decodes and serves Clarity `print` events. `GET /v1/index/events?event_type=print` returns each print's `topic`, the Clarity `value` decoded to JSON (uints as strings, buffers as `0x…` hex, tuples as objects), and the canonical `raw_value` hex — filterable by `contract_id`.
-  
+
   SDK adds `decodePrint` / `isPrint` and the `DecodedPrint` types (depends on `@secondlayer/stacks` for Clarity decoding). A nullable `payload` JSONB column is added to `decoded_events` to hold decoded values that don't fit the flat transfer columns. The indexer runs a `print` decoder; the API registry and OpenAPI expose it.
 
 ### Patch Changes
@@ -224,7 +248,7 @@
 ### Minor Changes
 
 - 239e2f2: Index now decodes and serves STX transfers, mints, and burns for tokens. `GET /v1/index/events` accepts `event_type` of `stx_transfer`, `stx_mint`, `stx_burn`, `ft_mint`, `ft_burn`, `nft_mint`, and `nft_burn` alongside the existing transfer types.
-  
+
   SDK adds `decodeStxTransfer`, `decodeStxMint`, `decodeStxBurn`, `decodeFtMint`, `decodeFtBurn`, `decodeNftMint`, `decodeNftBurn` (plus their decoded types, `is*` guards, and the `DecodedEventColumns` helper) and widens `DecodedEventRow` to the full set. The indexer runs a decoder per new type; the API registry and OpenAPI expose them with per-type filters.
 
 ### Patch Changes
@@ -319,11 +343,12 @@
 ### Minor Changes
 
 - 3da36df: Reorg + data model polish:
-  
+
   - Streams event rows now include `canonical: true` so clients can write type-safe reorg-aware code. (Field is optional in the SDK type to preserve backwards compatibility.)
   - Index `/v1/index/ft-transfers` and `/v1/index/nft-transfers` row projections now include `block_time` (ISO 8601 UTC, sourced via subquery on the canonical block).
   - Streams cursor-less default window tightened from `tip - 1 day` (~17280 blocks) to `tip - 1000 blocks` (~80 min) so first-touch responses surface recent data instead of stale events ~17k blocks behind tip. Indexer-style backfill consumers should pass `from_height=0` or an explicit cursor as before.
   - `microblock_hash` field on events deferred — requires a `blocks` table schema change; tracked separately.
+
 - 7d33b80: Split CORS: public read surfaces (`/v1/*`, `/health`, `/public/*`) now use `Access-Control-Allow-Origin: *` (no credentials) so browsers from any third-party origin can fetch datasets, index, and streams. `/api/*` keeps the dashboard allowlist + credentials for session-cookie / Bearer-mutation routes. Exposes rate-limit headers (`X-RateLimit-*`, `Retry-After`, `ETag`) on public responses. Unmatched routes now always return JSON `{error, code:"NOT_FOUND", path}` instead of text/plain 404.
 - 305a7ea: Strict query validation across public surfaces — Datasets, Index, Streams, and Subgraphs REST now reject unknown query params with `400 VALIDATION_ERROR` (with "did you mean…" hint) instead of silently ignoring them. `limit=0` is now rejected; `limit` is still capped at 1000. Subgraph REST filter parser now returns `400` (not `500`) on unknown ops like `?col.bogus=X`, and detects misplaced operators like `?col=gt.X`. Adds optional `sl subgraphs deploy --strict` flag to run `tsc --noEmit` against the handler before deploy.
 - bfa3d2e: `/v1` discovery surface — `GET /v1` returns surface index (datasets, index, streams). `GET /v1/datasets`, `/v1/streams`, `/v1/index` each return route + filter inventory. Hand-authored OpenAPI 3.1 spec at `/v1/openapi.json` covering all public surfaces (datasets, index, streams). Adds a friendly `/api/subgraphs/<name>/openapi → openapi.json` redirect (was previously matched as a table name and returned 404 TABLE_NOT_FOUND).
@@ -331,13 +356,14 @@
 ### Patch Changes
 
 - fc8f486: Housekeeping polish:
-  
+
   - Dropped fictitious typed-key prefixes (`sk-sl_streams_…`, `sk-sl_index_…`) from marketing copy + sandbox placeholder. Real keys are generic `sk-sl_…`; scoped prefixes were doc fiction.
   - Index rate-limit 429 for free tier now returns `{required_tier, upgrade_url}` so blocked users know how to unblock.
   - `sl subgraphs status <name> --watch` polls every 2s, clearing screen between snapshots, exits cleanly when synced.
   - `standard-webhooks.ts` docstring clarified that only `.created` is emitted in v1; `.updated`/`.deleted` are deferred.
   - T8.6 `sl subgraphs logs` deferred — needs server-side log storage.
   - T8.3 broken tenant URL strip is `[infra]`, tracked in ops backlog.
+
 - Updated dependencies:
   - @secondlayer/indexer@1.4.1
   - @secondlayer/shared@6.4.1
@@ -353,10 +379,11 @@
 
 - a099bb7: Delete the dedicated-mode `trackTenantActivity` middleware and `/internal/activity` endpoint. The worker cron that consumed them is gone post shared-rip; nothing reads `getLastRequestAtMs` anymore.
 - 6ec2143: Add parquet exporters for `pox-4/calls`, `bns/name-events`, `bns/namespace-events`, `bns/marketplace-events`. Each ships behind its own `*_PUBLISHER_ENABLED` flag (no auto-on). Register the four new slugs in the `/v1/datasets/*` manifest map.
-  
+
   Refactors: extract `datasets/_shared/exporter.ts`, `scheduler.ts`, `parquet.ts` so adding new families is now a ~5-file, column-driven addition rather than a copy-paste of the sBTC pattern. Existing sBTC + STX-transfers families switched to the shared factories; output byte-identical.
-  
+
   Add `bun run --filter @secondlayer/indexer datasets:backfill <slug> --from <block> --to <block>` to walk historical ranges and upload.
+
 - Updated dependencies:
   - @secondlayer/indexer@1.4.0
   - @secondlayer/shared@6.4.0
@@ -398,10 +425,11 @@
 ### Patch Changes
 
 - aac8f1f: fix two L2 decoder health bugs that surfaced during the 2026-05-12 BNS backfill experiment.
-  
+
   (1) `getL2DecoderHealth` reported `status: ok` for decoders stuck in error-retry loops. The `runDecoder` `finally` block bumps `checkpoint.updated_at` every iteration as a liveness ping — `checkpointRecent` was true even when the decoder was failing every fetch. Treated heartbeat as sufficient. Now treat it as necessary: status is healthy only when the heartbeat is recent AND there's a real-work signal (`nearTip` or `writesRecent`). Decoder stuck mid-history with no writes now correctly reports unhealthy in ~5 min instead of forever.
-  
+
   (2) `lag_seconds` returned ~1.78B (~56 years) when checkpoint moves backwards onto a block whose row in the `blocks` table has `timestamp = 0` (a historical bulk-import artifact). Added a defensive `timestamp > 0` guard; returns `null` for the unmeasurable case, matching the existing "no checkpoint yet" shape that dashboards already handle.
+
 - Updated dependencies:
   - @secondlayer/indexer@1.3.12
   - @secondlayer/sdk@3.5.4
@@ -422,16 +450,18 @@
 - fda87d8: `/v1/datasets/bns/namespaces` now distinguishes "no namespace events ever" from "backfill hasn't reached the era when .btc / .id were created". When the projection is empty AND the indexed range starts past the BNS-V2 history threshold, the response includes `status: 'backfill_pending'` and `earliest_indexed_block`. Mirrors the signal already emitted by `/v1/datasets/bns/resolve`.
 - 9d1813a: `/v1/datasets/bns/resolve` now distinguishes "name not in indexed range" from "name does not exist". When `bns_names` earliest indexed block exceeds the BNS-V2 history threshold, the endpoint returns `503 BACKFILL_PENDING` with `earliest_indexed_block` instead of a generic `404`. Defends against the launch-day "muneeb.btc returns not found" failure mode while the historical backfill catches up.
 - 5b03de0: surface deploy SHA on `/health` so drift is detectable without shelling in
-  
+
   `GET /health` now returns `{ status: "ok", image_sha }` where `image_sha` is the git SHA the Deploy workflow built this container from. Companion change to `docker/scripts/deploy.sh` persists `DEPLOY_IMAGE_OWNER` / `DEPLOY_IMAGE_TAG` into `/opt/secondlayer/docker/.env` after a successful deploy so subsequent manual `docker compose up -d <service>` no longer falls back to compose-file defaults and silently rolls a service back to a different image.
+
 - 321ebca: split sbtc decoder into registry + token, narrow filter to avoid socket timeouts
-  
+
   `l2.sbtc.v1` previously fetched `print` + `ft_transfer/mint/burn` events across all contracts with `batchSize: 500` and no server-side filter, mirroring the unfiltered scan bug BNS already fixed — the upstream socket closes mid-response on long-running historical scans. Split into two decoders backed by one source file:
-  
+
   - `l2.sbtc.v1` — registry `print` events on `<network>.sbtc-registry`, writes `sbtc_events`
   - `l2.sbtc_token.v1` (new checkpoint) — `ft_transfer/mint/burn` on `<network>.sbtc-token`, writes `sbtc_token_events`
-  
+
   Each uses `batchSize: 100` and a server-side `contractId` filter selected via `STACKS_NETWORK`. `/public/status` reports both via `status.ts` mapping. `getEnabledL2DecoderNames` and the health-module `readLatestDecodedAt` switch surface the new decoder too. Existing `l2.sbtc.v1` checkpoint preserved.
+
 - Updated dependencies:
   - @secondlayer/indexer@1.3.11
   - @secondlayer/sdk@3.5.2
@@ -442,15 +472,17 @@
 
 - 936026a: enable promotion codes on Stripe Checkout — sets `allow_promotion_codes: true` so users can redeem coupon codes at upgrade, including founder/friend comp codes
 - 7f4a5a2: cap empty-range cursor sentinel at int4 max so the next fetch doesn't 500
-  
+
   The earlier sentinel `Number.MAX_SAFE_INTEGER` overflowed Postgres `integer` (int4) when used as a query parameter against `stream_event_index`, so the very fetch that was supposed to advance past an empty filtered range threw `value "9007199254740991" is out of range for type integer` and pinned the decoder.
+
 - 55848a6: fix decoder freeze when server-side filter eliminates every event in scanned range
-  
+
   `readCanonicalStreamsEvents` advances `next_cursor` past `toHeight` instead of returning `null` for empty filtered scans — fixes BNS/FT decoders that pinned at previous cursor and spun forever in `consume()`.
-  
+
   `runDecoder` passes `maxEmptyPolls: 1` so `consume()` returns periodically and the liveness ping keeps `l2_decoder_checkpoints.updated_at` fresh.
-  
+
   Status route drops unimplemented `reorgs.last_24h`.
+
 - 5092494: add `sl billing status` — read-only snapshot of plan, Stripe subscription, trial end, renewal date, and applied discount. Backed by new `GET /api/billing/status` endpoint. Lets customers verify post-checkout that the webhook landed before retrying `sl instance create`.
 - Updated dependencies:
   - @secondlayer/indexer@1.3.10
@@ -460,11 +492,12 @@
 ### Patch Changes
 
 - 9a4c8d3: perf(events): expression index on `data->>'contract_identifier'`
-  
+
   Print-event scans filtered by contract used to fall back to a sequential scan of the events table (53M+ rows on mainnet) — query took 2-3s at limit=100, 5-20s at limit=500, surfacing as `socket connection was closed unexpectedly` errors in the L2 BNS decoder. New partial expression index `events_contract_event_contract_id_idx` brings those queries to ~1ms via Index Scan.
-  
+
   - `@secondlayer/shared@*`: ships migration `0073_events_contract_id_idx.ts` (`CREATE INDEX IF NOT EXISTS …`). The index was already applied to prod via `CREATE INDEX CONCURRENTLY` on 2026-05-09; the migration is a no-op there but seeds dev/staging.
   - `@secondlayer/api@*`: reverts the `Bun.serve idleTimeout: 60` workaround introduced 2026-05-09 — back to default. Indexed query no longer needs the extended timeout.
+
 - Updated dependencies:
   - @secondlayer/shared@6.3.1
 
@@ -473,7 +506,7 @@
 ### Patch Changes
 
 - 0650816: fix(api): raise Bun.serve idleTimeout 10 → 60s
-  
+
   Slow streams queries (the unindexed jsonb scan that backs `types=print&contract_id=...`) regularly take 5–20s on backfill. Bun's default 10s idle timeout was closing the socket mid-response, surfacing as `socket connection was closed unexpectedly` in downstream consumers (the L2 BNS decoder, which then sat at the same checkpoint forever).
 
 ## 1.3.1
@@ -481,8 +514,9 @@
 ### Patch Changes
 
 - f041151: fix(api): public status surfaces every enabled L2 decoder
-  
+
   `/public/status.index.decoders[]` was hardcoded to `[ft, nft]` even when sbtc/pox4/bns were running. The list now derives from the same `*_DECODER_ENABLED` env flags the indexer reads, via a re-exported `getEnabledL2DecoderNames()` from `@secondlayer/indexer/l2/health`.
+
 - Updated dependencies:
   - @secondlayer/indexer@1.3.4
 
@@ -491,11 +525,11 @@
 ### Minor Changes
 
 - 4cf176f: Add BNS Foundation Dataset — closes the 5-dataset shelf alongside STX Transfers, sBTC, PoX-4, and Network Health.
-  
+
   **Decoder** (`l2.bns.v1`): subscribes to BNS-V2 contract print events, dispatches on three discriminator keys (`topic` for names, `status` for namespaces, `a` for marketplace), writes into 3 event tables and maintains 2 current-state projections (`bns_names`, `bns_namespaces`). Gated on `BNS_DECODER_ENABLED`.
-  
+
   **API** (`/v1/datasets/bns/*`): six endpoints — `name-events`, `namespace-events`, `marketplace-events`, `names`, `namespaces`, `resolve?fqn=alice.btc`. Cursor pagination on event endpoints; current-state lookups against the projections.
-  
+
   **Marketing**: `/datasets/bns` detail page, BNS flipped to "shipped" on the dataset index. Mainnet-only for v0; BNS-V1 historical data and subdomain resolution out of scope.
 
 ### Patch Changes
