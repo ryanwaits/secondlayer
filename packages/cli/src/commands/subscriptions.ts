@@ -421,7 +421,7 @@ function shellQuote(value: string): string {
 export function buildSubscriptionTestFixture(input: {
 	subscription: Pick<
 		SubscriptionDetail,
-		"id" | "subgraphName" | "tableName" | "url"
+		"id" | "kind" | "subgraphName" | "tableName" | "triggers" | "url"
 	>;
 	row: Record<string, unknown>;
 	signingSecret: string;
@@ -429,10 +429,28 @@ export function buildSubscriptionTestFixture(input: {
 	id?: string;
 }): { body: string; headers: Record<string, string>; curl: string } {
 	const nowSeconds = input.nowSeconds ?? Math.floor(Date.now() / 1000);
+	const sub = input.subscription;
+	const isChain = sub.kind === "chain";
+	// Chain subs deliver an apply envelope keyed `chain.{type}.apply`; subgraph
+	// subs deliver `{subgraph}.{table}.created` with the row as data.
+	const type = isChain
+		? `chain.${sub.triggers?.[0]?.type ?? "event"}.apply`
+		: `${sub.subgraphName}.${sub.tableName}.created`;
+	const data = isChain
+		? {
+				action: "apply",
+				canonical: true,
+				block_hash: "0xexampleblock",
+				block_height: 0,
+				tx_id: input.row.tx_id ?? "0xexampletransaction",
+				trigger: sub.triggers?.[0]?.type ?? "event",
+				event: input.row,
+			}
+		: input.row;
 	const body = JSON.stringify({
-		type: `${input.subscription.subgraphName}.${input.subscription.tableName}.created`,
+		type,
 		timestamp: new Date(nowSeconds * 1000).toISOString(),
-		data: input.row,
+		data,
 	});
 	const headers = {
 		"content-type": "application/json",
@@ -458,6 +476,17 @@ async function representativeRow(
 	sub: SubscriptionDetail,
 	subgraph: SubgraphDetail | null,
 ): Promise<Record<string, unknown>> {
+	// Chain subscriptions have no subgraph table to sample — use a synthetic
+	// chain event keyed off the first trigger.
+	if (sub.kind === "chain" || !sub.subgraphName || !sub.tableName) {
+		return {
+			tx_id: "0xexampletransaction",
+			contract_id: "SP000000000000000000002Q6VF78.example",
+			...(sub.triggers?.[0]?.type === "contract_call"
+				? { function_name: "example-fn" }
+				: {}),
+		};
+	}
 	try {
 		const rows = (await client.subgraphs.queryTable(
 			sub.subgraphName,
@@ -650,7 +679,11 @@ Examples:
 				const client = await getSubscriptionClient();
 				const patch = buildUpdatePatch(options);
 				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
-				if (patch.filter !== undefined) {
+				if (
+					patch.filter !== undefined &&
+					detail.subgraphName &&
+					detail.tableName
+				) {
 					await validateSubscriptionTargetFromApi(client, {
 						subgraphName: detail.subgraphName,
 						tableName: detail.tableName,
@@ -868,7 +901,9 @@ Examples:
 				const [deliveries, dead, subgraph] = await Promise.allSettled([
 					client.subscriptions.recentDeliveries(id),
 					client.subscriptions.dead(id),
-					client.subgraphs.get(detail.subgraphName),
+					detail.subgraphName
+						? client.subgraphs.get(detail.subgraphName)
+						: Promise.resolve(null),
 				]);
 				const report = buildDoctorReport({
 					subscription: detail,
@@ -895,9 +930,9 @@ Examples:
 				const signingSecret = resolveSigningSecret(options);
 				const client = await getSubscriptionClient();
 				const { detail } = await resolveSubscriptionRef(client, idOrName);
-				const subgraph = await client.subgraphs
-					.get(detail.subgraphName)
-					.catch(() => null);
+				const subgraph = detail.subgraphName
+					? await client.subgraphs.get(detail.subgraphName).catch(() => null)
+					: null;
 				const row = await representativeRow(client, detail, subgraph);
 				const fixture = buildSubscriptionTestFixture({
 					subscription: detail,
