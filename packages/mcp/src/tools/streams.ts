@@ -49,8 +49,8 @@ export function registerStreamsTools(
 		sender?: string;
 		recipient?: string;
 		assetIdentifier?: string;
-		fromBlock?: number;
-		toBlock?: number;
+		fromHeight?: number;
+		toHeight?: number;
 		cursor?: string;
 		limit?: number;
 	}>(
@@ -76,8 +76,11 @@ export function registerStreamsTools(
 				.string()
 				.optional()
 				.describe("Filter by asset identifier"),
-			fromBlock: z.number().optional().describe("Start block (inclusive)"),
-			toBlock: z.number().optional().describe("End block (inclusive)"),
+			fromHeight: z
+				.number()
+				.optional()
+				.describe("Start block height (inclusive)"),
+			toHeight: z.number().optional().describe("End block height (inclusive)"),
 			cursor: z
 				.string()
 				.optional()
@@ -87,6 +90,63 @@ export function registerStreamsTools(
 		async (params) =>
 			withStreamsAuthHint(async () =>
 				jsonResponse(await clientProvider().streams.events.list(params)),
+			),
+	);
+
+	defineTool<{ txId: string }>(
+		server,
+		"streams_event_by_txid",
+		"List all Streams events emitted by a single transaction. Streams requires an API key (SL_API_KEY).",
+		{ txId: z.string().describe("Transaction id (0x… hash)") },
+		async ({ txId }) =>
+			withStreamsAuthHint(async () =>
+				jsonResponse(await clientProvider().streams.events.byTxId(txId)),
+			),
+	);
+
+	defineTool<{ heightOrHash: string }>(
+		server,
+		"streams_block_events",
+		"List all Streams events in a single block, by height or block hash. Streams requires an API key (SL_API_KEY).",
+		{
+			heightOrHash: z
+				.string()
+				.describe("Block height (digits) or block hash (0x… string)"),
+		},
+		async ({ heightOrHash }) =>
+			withStreamsAuthHint(async () =>
+				jsonResponse(
+					await clientProvider().streams.blocks.events(
+						/^\d+$/.test(heightOrHash) ? Number(heightOrHash) : heightOrHash,
+					),
+				),
+			),
+	);
+
+	defineTool<{ since: string; limit?: number }>(
+		server,
+		"streams_reorgs",
+		"List chain reorgs observed by Streams since a cursor. Streams requires an API key (SL_API_KEY).",
+		{
+			since: z
+				.string()
+				.describe("Cursor to list reorgs since (block:index or ISO timestamp)"),
+			limit: z.number().optional().describe("Max reorgs to return"),
+		},
+		async (params) =>
+			withStreamsAuthHint(async () =>
+				jsonResponse(await clientProvider().streams.reorgs.list(params)),
+			),
+	);
+
+	defineTool<{ height: number }>(
+		server,
+		"streams_canonical",
+		"Get the canonical block at a given height from Streams (height + hashes + is_canonical). Streams requires an API key (SL_API_KEY).",
+		{ height: z.number().describe("Block height") },
+		async ({ height }) =>
+			withStreamsAuthHint(async () =>
+				jsonResponse(await clientProvider().streams.canonical(height)),
 			),
 	);
 }

@@ -48,7 +48,11 @@ describe("streams MCP tools", () => {
 		);
 
 		expect(tools.map((t) => t.name).sort()).toEqual([
+			"streams_block_events",
+			"streams_canonical",
+			"streams_event_by_txid",
 			"streams_events",
+			"streams_reorgs",
 			"streams_tip",
 		]);
 
@@ -56,6 +60,13 @@ describe("streams MCP tools", () => {
 			.find((t) => t.name === "streams_events")
 			?.handler({ types: ["ft_transfer"], limit: 3 });
 		expect(listed).toEqual({ types: ["ft_transfer"], limit: 3 });
+
+		// Regression: the tool once declared fromBlock/toBlock while the SDK
+		// expects fromHeight/toHeight, so block-range filters were silently dropped.
+		await tools
+			.find((t) => t.name === "streams_events")
+			?.handler({ fromHeight: 10, toHeight: 20 });
+		expect(listed).toEqual({ fromHeight: 10, toHeight: 20 });
 	});
 
 	it("decorates a keyless AuthError with the API-key hint", async () => {
