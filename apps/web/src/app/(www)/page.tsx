@@ -38,7 +38,7 @@ const products: IndexEntry[] = [
 	{
 		name: "Subscriptions",
 		href: "/subscriptions",
-		desc: "Webhooks pushed to your endpoint.",
+		desc: "Webhooks on subgraph rows or raw chain events.",
 		endpoint: "push",
 	},
 ];

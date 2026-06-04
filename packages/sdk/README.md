@@ -243,14 +243,19 @@ const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode })
 
 ## Subscriptions
 
-Per-row HTTP webhooks from subgraph tables.
+Signed HTTP webhooks. Subscriptions are polymorphic — pick one kind:
+
+- **subgraph** — fires on rows written to a deployed subgraph table.
+- **chain** — fires on raw chain events with no subgraph. Forward-looking: it
+  starts at the chain tip and never backfills. The turnkey "webhook on a
+  contract / event / function / trait".
 
 ```typescript
 // List / get
 const { data } = await sl.subscriptions.list();
 const sub = await sl.subscriptions.get(id);
 
-// Create — sink a subgraph table to a signed webhook endpoint.
+// Create a SUBGRAPH subscription — sink a subgraph table to a signed endpoint.
 // `signingSecret` is returned ONCE; store it in the receiver's env.
 const { subscription, signingSecret } = await sl.subscriptions.create({
   name: "whale-alerts",
@@ -259,8 +264,48 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
   url: "https://example.com/hooks/transfers",
   format: "standard-webhooks", // or inngest | trigger | cloudflare | cloudevents | raw
 });
+```
 
-// Lifecycle
+### Chain subscriptions
+
+Pass `triggers` instead of `subgraphName`/`tableName`. The `trigger.*` builders
+are optional sugar — you can also pass raw objects (e.g.
+`{ type: "contract_call", contractId: "SP....amm", functionName: "swap-*" }`).
+All string fields accept `*` wildcards; `trait` scopes to contracts conforming
+to a SIP/trait (e.g. `"sip-010"`); amounts are non-negative integer strings
+(uint128-safe) or numbers.
+
+```typescript
+import { SecondLayer, trigger } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({ apiKey: "sk-sl_..." });
+
+const { subscription, signingSecret } = await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
+  ],
+});
+```
+
+One builder per event type:
+`trigger.stxTransfer` / `stxMint` / `stxBurn` / `stxLock`,
+`trigger.ftTransfer` / `ftMint` / `ftBurn`,
+`trigger.nftTransfer` / `nftMint` / `nftBurn`,
+`trigger.contractCall`, `trigger.contractDeploy`, `trigger.printEvent`.
+
+Delivery envelope (chain subs only): each apply is `chain.{type}.apply` with
+body `{ action: "apply", block_hash, block_height, tx_id, canonical, trigger,
+event }`. On reorg you get `chain.reorg.rollback` with `{ action: "rollback",
+fork_point_height, orphaned: [{ tx_id, event }] }`. Delivery is at-least-once: a
+tx surviving a reorg re-delivers an apply under its new `block_hash`, so key
+consumer state on `(tx_id, block_hash)`. Per-subscription HMAC signing (Standard
+Webhooks) is unchanged for both kinds.
+
+```typescript
+// Lifecycle (both kinds)
 await sl.subscriptions.update(id, { filter: { amount: { gte: "1000000" } } });
 await sl.subscriptions.pause(id);
 await sl.subscriptions.resume(id);

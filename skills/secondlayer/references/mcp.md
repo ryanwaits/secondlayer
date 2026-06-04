@@ -50,7 +50,7 @@ Subscriptions:
 
 - `subscriptions_list`
 - `subscriptions_get`
-- `subscriptions_create`
+- `subscriptions_create` — creates either a subgraph subscription (`subgraphName` + `tableName`) or a **chain subscription** by passing `triggers` (array, 1..50) instead. Chain subs fire on raw chain events with no subgraph; see `references/sdk.md` for the trigger shapes (`contractCall`, `ftTransfer`, etc.).
 - `subscriptions_update`
 - `subscriptions_pause`
 - `subscriptions_resume`

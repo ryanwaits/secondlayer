@@ -61,6 +61,14 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
 | **Account** (3) | `account_whoami`, `account_update`, `account_billing` |
 
+### `subscriptions_create` kinds
+
+Subscriptions are polymorphic. Pass `subgraphName` + `tableName` for a
+**subgraph** subscription, or a `triggers` array for a **chain** subscription —
+a webhook on raw chain events (contract / event / function / trait) with no
+subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
+"functionName": "swap-*" }]`).
+
 ### `subgraphs_query` enhancements
 
 - `fields` — comma-separated column projection (e.g. `"sender,amount_x"`)

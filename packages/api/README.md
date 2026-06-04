@@ -106,7 +106,9 @@ Pass `?server=<url>` to override the server URL embedded in generated docs.
 
 ## Subscriptions
 
-Per-row HTTP webhooks from subgraph tables.
+Signed HTTP webhooks. Polymorphic — a subscription is either **subgraph** (fires
+on a deployed subgraph table's rows) or **chain** (fires on raw chain events,
+no subgraph; forward-looking — starts at the chain tip, never backfills).
 
 ```
 GET    /api/subscriptions                       # list
@@ -122,6 +124,46 @@ GET    /api/subscriptions/:id/dead              # dead-letter outbox rows
 POST   /api/subscriptions/:id/dead/:outboxId/requeue
 POST   /api/subscriptions/:id/replay            # replay a block range
 ```
+
+`POST /api/subscriptions` accepts a `triggers` array (1..50) for a **chain**
+subscription, OR `subgraphName` + `tableName` for a **subgraph** subscription —
+mutually exclusive.
+
+```bash
+curl -X POST -H "Authorization: Bearer sk-sl_..." \
+  https://api.secondlayer.tools/api/subscriptions \
+  -d '{
+    "name": "amm-swaps",
+    "url": "https://my-app.com/webhook",
+    "triggers": [
+      { "type": "contract_call", "contractId": "SP....amm", "functionName": "swap-*" },
+      { "type": "ft_transfer", "trait": "sip-010", "minAmount": "1000000" }
+    ]
+  }'
+```
+
+Trigger types and their fields (all string fields accept `*` wildcards; `trait`
+scopes to contracts conforming to a SIP/trait; amounts are non-negative integer
+strings or numbers):
+
+| `type` | Fields |
+|---|---|
+| `contract_call` | `contractId`, `functionName`, `caller`, `trait` |
+| `contract_deploy` | `deployer`, `contractName` |
+| `ft_transfer` / `ft_mint` / `ft_burn` | `assetIdentifier`, `sender`, `recipient`, `minAmount`, `trait` |
+| `nft_transfer` / `nft_mint` / `nft_burn` | `assetIdentifier`, `sender`, `recipient`, `trait` |
+| `stx_transfer` | `sender`, `recipient`, `minAmount`, `maxAmount` |
+| `stx_mint` / `stx_burn` | `sender`, `recipient`, `minAmount` |
+| `stx_lock` | `lockedAddress`, `minAmount` |
+| `print_event` | `contractId`, `topic`, `trait` |
+
+Chain delivery envelope: each apply is `chain.{type}.apply` with body
+`{ action: "apply", block_hash, block_height, tx_id, canonical, trigger, event }`.
+On reorg you get `chain.reorg.rollback` with `{ action: "rollback",
+fork_point_height, orphaned: [{ tx_id, event }] }`. Delivery is at-least-once: a
+tx surviving a reorg re-delivers an apply under its new `block_hash` — key
+consumer state on `(tx_id, block_hash)`. Per-subscription HMAC signing (Standard
+Webhooks) applies to both kinds.
 
 ## Error Codes
 

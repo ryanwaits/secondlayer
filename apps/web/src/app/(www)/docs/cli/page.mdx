@@ -19,6 +19,8 @@ sl subscriptions create  # wire up a webhook subscription
 
 Every tool shares one session — sign in once and the SDK, CLI, and MCP server all inherit it.
 
+`sl subscriptions create` wires a webhook to a subgraph table. [Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) — webhooks on raw chain events with no subgraph — are created over the SDK, REST, or MCP instead (they take a `triggers` array rather than a table).
+
 ## ORM codegen
 
 Generate a typed ORM schema for a subgraph's tables — pair it with `--database-url` to query your own Postgres with Prisma or Drizzle (joins, relations, transactions):

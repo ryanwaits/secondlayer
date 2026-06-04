@@ -29,6 +29,22 @@ sl subscriptions create my-hook --runtime node \
   --subgraph my-contract --table <table> --url https://<host>/webhook
 ```
 
+Subscriptions are polymorphic. The above is a **subgraph** subscription (fires on
+a subgraph table's rows). A **chain** subscription fires on raw chain events with
+no subgraph — a turnkey webhook on a contract, event, function, or trait — and is
+created via the SDK, REST, or MCP with a `triggers` array:
+
+```typescript
+import { SecondLayer, trigger } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({ apiKey: "sk-sl_..." });
+const { subscription, signingSecret } = await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" })],
+});
+```
+
 Full walkthrough → [QUICKSTART](packages/subgraphs/QUICKSTART.md) ·
 commands → [CLI reference](packages/cli/README.md).
 

@@ -26,7 +26,7 @@ const sl = new SecondLayer({
 - `sl.datasets` — Foundation Datasets (sBTC, BNS, PoX-4, STX transfers) + catalog.
 - `sl.contracts` — find deployed contracts by trait (SIP-009/010/013).
 - `sl.subgraphs` — your app-specific L3 tables.
-- `sl.subscriptions` — create and manage webhook subscriptions.
+- `sl.subscriptions` — create and manage webhook subscriptions (subgraph rows or raw chain events).
 
 ```ts
 const tip = await sl.streams.tip();
@@ -36,6 +36,27 @@ const page = await sl.streams.events.list({
   limit: 10,
 });
 ```
+
+## Subscribe to chain events
+
+`sl.subscriptions` creates webhook subscriptions. Beyond binding to a subgraph table, you can subscribe directly to **raw chain events** with no subgraph at all — pass a `triggers` array built with the `trigger.*` factories (imported from the SDK root):
+
+```ts
+import { trigger } from "@secondlayer/sdk";
+
+await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
+  ],
+});
+```
+
+Builders exist for every event type (`contractCall`, `contractDeploy`, `printEvent`, and the `stx*`/`ft*`/`nft*` transfer/mint/burn variants). See [Subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) for the full trigger catalog and delivery envelope.
+
+> Don't confuse `trigger.*` (from `@secondlayer/sdk`, for **chain subscriptions**) with `on.*` (from `@secondlayer/stacks`, for **subgraph sources** in a handler config) — they look similar but configure different things.
 
 ## Verify webhooks
 

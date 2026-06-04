@@ -1153,22 +1153,22 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
 await secretStore.put(subscription.id, signingSecret); // store it NOW
 ```
 
-**Chain subscription** — react to raw chain events, no subgraph. Use the `on.*` builders:
+**Chain subscription** — react to raw chain events, no subgraph. Use the `trigger.*` builders:
 
 ```ts
-import { on } from "@secondlayer/sdk";
+import { trigger } from "@secondlayer/sdk";
 
 const { subscription, signingSecret } = await sl.subscriptions.create({
   name: "amm-swaps",
   url: "https://example.com/webhooks/swaps",
   triggers: [
-    on.contractCall({ contractId: "SP...amm-v2", functionName: "swap-*" }),
-    on.ftTransfer({ trait: "sip-010", minAmount: "1000000" }), // any SIP-010 transfer ≥ 1 token
+    trigger.contractCall({ contractId: "SP...amm-v2", functionName: "swap-*" }),
+    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }), // any SIP-010 transfer ≥ 1 token
   ],
 });
 ```
 
-`on` exposes one builder per event type: `stxTransfer/stxMint/stxBurn/stxLock`, `ftTransfer/ftMint/ftBurn`, `nftTransfer/nftMint/nftBurn`, `contractCall`, `contractDeploy`, `printEvent`. `update()` cannot switch a subscription's kind.
+`trigger` exposes one builder per event type: `stxTransfer/stxMint/stxBurn/stxLock`, `ftTransfer/ftMint/ftBurn`, `nftTransfer/nftMint/nftBurn`, `contractCall`, `contractDeploy`, `printEvent`. `update()` cannot switch a subscription's kind.
 
 ### `update(id, patch)`
 

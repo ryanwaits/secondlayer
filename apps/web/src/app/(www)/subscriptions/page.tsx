@@ -10,12 +10,13 @@ import Link from "next/link";
 export const metadata: Metadata = {
 	title: "Subscriptions | secondlayer",
 	description:
-		"Push, not poll. Matched subgraph rows fire a signed, retried webhook — wire chain events into anything that speaks HTTP.",
+		"Push, not poll. Fire a signed, retried webhook on matched subgraph rows — or on raw chain events with no subgraph at all.",
 };
 
 const toc: TocItem[] = [
 	{ label: "How it works", href: "#how-it-works" },
 	{ label: "Subscribe", href: "#subscribe" },
+	{ label: "Chain subscriptions", href: "#chain-subscriptions" },
 	{ label: "Delivery", href: "#delivery" },
 ];
 
@@ -31,11 +32,12 @@ export default function SubscriptionsPage() {
 
 				<div className="prose">
 					<p>
-						Push instead of poll. A subscription binds to a{" "}
-						<Link href="/subgraphs">subgraph</Link> table — every row your
-						handler writes that matches your filter fires a signed, retried
-						webhook. Point it at Discord, Slack, Trigger.dev, or your own
-						backend — anything that speaks HTTP.
+						Push instead of poll. A subscription fires a signed, retried
+						webhook — point it at Discord, Slack, Trigger.dev, or your own
+						backend, anything that speaks HTTP. Two kinds: bind to a{" "}
+						<Link href="/subgraphs">subgraph</Link> table and fire on the rows
+						your handler writes, or skip the subgraph entirely and fire on{" "}
+						<a href="#chain-subscriptions">raw chain events</a>.
 					</p>
 					<p>
 						For pull semantics, see <Link href="/streams">Streams</Link>.
@@ -88,6 +90,54 @@ await sdk.subscriptions.create({
 					</p>
 				</div>
 
+				<SectionHeading id="chain-subscriptions">
+					Chain subscriptions
+				</SectionHeading>
+
+				<div className="prose">
+					<p>
+						A lambda for Stacks. Skip the subgraph deploy and put a webhook
+						directly on a contract, an event, a function, or a SIP trait. A
+						chain subscription takes a <code>triggers</code> array instead of a
+						table — it&apos;s forward-looking, starting at the chain tip with no
+						backfill, and fires the moment a matching event lands.
+					</p>
+				</div>
+
+				<CodeBlock
+					code={`import { trigger } from "@secondlayer/sdk";
+
+await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
+  ],
+});`}
+					lang="ts"
+				/>
+
+				<div className="prose">
+					<p>
+						Builders cover every event type — <code>trigger.contractCall</code>,{" "}
+						<code>trigger.contractDeploy</code>, <code>trigger.printEvent</code>,
+						and the <code>stx*</code>/<code>ft*</code>/<code>nft*</code> transfer,
+						mint, and burn variants. Each takes filter fields (
+						<code>contractId</code>, <code>functionName</code>,{" "}
+						<code>sender</code>, <code>recipient</code>, <code>minAmount</code>,{" "}
+						<code>trait</code>, …), <code>*</code> wildcards are allowed, and{" "}
+						<code>trait</code> scopes a trigger to a whole SIP. The raw object form
+						(<code>{'{ type: "contract_call", functionName: "swap-*" }'}</code>)
+						works too.
+					</p>
+					<p>
+						Chain subscriptions are created via the SDK, REST (
+						<code>POST /api/subscriptions</code> with <code>triggers</code>), or
+						MCP. (CLI <code>create</code> remains subgraph-only.)
+					</p>
+				</div>
+
 				<SectionHeading id="delivery">Delivery</SectionHeading>
 
 				<div className="prose">
@@ -96,6 +146,17 @@ await sdk.subscriptions.create({
 						<a href="https://www.standardwebhooks.com">standard-webhooks</a>{" "}
 						(HMAC-SHA256) by default. Failures back off and, if they keep
 						failing, land in a DLQ — and you can replay any block range.
+					</p>
+					<p>
+						Chain subscriptions deliver a{" "}
+						<code>chain.{"{type}"}.apply</code> envelope (
+						<code>block_hash</code>, <code>block_height</code>,{" "}
+						<code>tx_id</code>, <code>canonical</code>, the matched{" "}
+						<code>trigger</code>, and the <code>event</code>); a reorg sends{" "}
+						<code>chain.reorg.rollback</code> with the{" "}
+						<code>fork_point_height</code> and the orphaned events. Delivery is
+						at-least-once, so key your state on{" "}
+						<code>(tx_id, block_hash)</code>.
 					</p>
 				</div>
 

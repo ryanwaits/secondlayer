@@ -17,11 +17,18 @@ A **subgraph** is a TypeScript definition with three parts:
 - `handlers` turn matched chain activity into rows with `ctx.insert()`,
   `ctx.upsert()`, `ctx.patch()`, and related helpers.
 
-A **subscription** is a delivery rule on one subgraph table. It watches
-`subgraphName + tableName`, optionally filters rows, and enqueues delivery work
-in the same transaction as the subgraph row. It POSTs to your receiver with
-retries, circuit breaking, delivery logs, dead-letter requeue, and historical
-replay.
+A **subscription** is a signed webhook delivery rule. It comes in two kinds:
+
+- **subgraph** — watches one subgraph table (`subgraphName + tableName`),
+  optionally filters rows, and enqueues delivery in the same transaction as the
+  subgraph row. This quickstart uses this kind.
+- **chain** — fires on raw chain events with no subgraph (pass a `triggers`
+  array instead of a subgraph/table). Forward-looking — starts at the chain tip,
+  never backfills. Created via the SDK, REST, or MCP. See the
+  [SDK README](../sdk/README.md#chain-subscriptions).
+
+Both POST to your receiver with retries, circuit breaking, delivery logs,
+dead-letter requeue, and (subgraph) historical replay.
 
 ## 1. Log In And Pick A Project
 

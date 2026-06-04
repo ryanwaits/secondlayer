@@ -26,7 +26,77 @@ if (!valid) return new Response("bad signature", { status: 401 });
 
 Failed deliveries retry with backoff; after repeated failures the subscription's circuit opens so a downed endpoint can't block the queue.
 
+## Direct chain subscriptions (no subgraph)
+
+Subscriptions are polymorphic. A subscription is one of two mutually-exclusive kinds:
+
+- **`subgraph`** — fires on the rows a subgraph handler writes. Shape: `{ name, subgraphName, tableName, url, filter? }`.
+- **`chain`** — fires on **raw chain events**, with no subgraph deployed. Shape: `{ name, url, triggers: [...] }`. It's the "lambda for Stacks": a webhook on a contract, event, function, or SIP trait — no schema, no handler. Chain subscriptions are forward-looking (they start at the chain tip; there's no backfill).
+
+### Triggers
+
+A chain subscription takes a `triggers` array (1–50) instead of `subgraphName`/`tableName`. Build them with the `trigger.*` factories from the SDK root:
+
+```ts
+import { trigger } from "@secondlayer/sdk";
+
+await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
+  ],
+});
+```
+
+The raw object form is equivalent — `{ type: "contract_call", contractId, functionName: "swap-*" }`.
+
+**Trigger types and their fields** (`*` wildcards are allowed; `trait` scopes a trigger to a SIP/trait):
+
+| Builder | `type` | Fields |
+| --- | --- | --- |
+| `trigger.contractCall` | `contract_call` | `contractId`, `functionName`, `caller`, `trait` |
+| `trigger.contractDeploy` | `contract_deploy` | `deployer`, `contractName` |
+| `trigger.ftTransfer` / `ftMint` / `ftBurn` | `ft_*` | `assetIdentifier`, `sender`, `recipient`, `minAmount`, `trait` |
+| `trigger.nftTransfer` / `nftMint` / `nftBurn` | `nft_*` | `assetIdentifier`, `sender`, `recipient`, `trait` |
+| `trigger.stxTransfer` | `stx_transfer` | `sender`, `recipient`, `minAmount`, `maxAmount` |
+| `trigger.stxMint` / `stxBurn` | `stx_mint` / `stx_burn` | `sender`, `recipient`, `minAmount` |
+| `trigger.stxLock` | `stx_lock` | `lockedAddress`, `minAmount` |
+| `trigger.printEvent` | `print_event` | `contractId`, `topic`, `trait` |
+
+Via REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50) in place of `subgraphName`/`tableName`. Chain subscriptions are created over the SDK, REST, or MCP — the CLI's `create` is subgraph-only.
+
+### Delivery envelope
+
+Chain deliveries carry a small typed envelope. A matched event delivers `chain.{type}.apply`:
+
+```json
+{
+  "action": "apply",
+  "block_hash": "0x…",
+  "block_height": 123456,
+  "tx_id": "0x…",
+  "canonical": true,
+  "trigger": { "type": "contract_call", "contractId": "SP….amm", "functionName": "swap-x-for-y" },
+  "event": { /* the raw chain event */ }
+}
+```
+
+A reorg delivers `chain.reorg.rollback`, so you can undo anything you committed off an orphaned block:
+
+```json
+{
+  "action": "rollback",
+  "fork_point_height": 123450,
+  "orphaned": [ /* the apply payloads that no longer hold */ ]
+}
+```
+
+Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions — verify the signature, and key your state on `(tx_id, block_hash)` so a redelivery is idempotent.
+
 export const metadata = {
 	title: "Subscriptions — Secondlayer Docs",
-	description: "Push matched subgraph rows to your webhook as signed POSTs.",
+	description:
+		"Push matched subgraph rows — or raw chain events with no subgraph — to your webhook as signed POSTs.",
 };

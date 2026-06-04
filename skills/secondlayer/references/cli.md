@@ -370,9 +370,11 @@ Manage subgraph table subscriptions (webhook deliveries). Alias: `subs`. All sub
 
 Subscription references (`<idOrName>`) accept the subscription UUID or its name. Ambiguous names error out — use the ID.
 
+Subscriptions come in two kinds: **subgraph** (fires on subgraph table rows) and **chain** (fires on raw chain events, no subgraph). `create` here only makes subgraph subscriptions; all other subcommands (`list`, `get`, `update`, `pause`, `resume`, `delete`, `deliveries`, etc.) operate on both kinds.
+
 ### sl subscriptions create
 
-Scaffold a subscription receiver for a runtime and provision the subscription via the API.
+Scaffold a subscription receiver for a runtime and provision the subscription via the API. **Creates subgraph subscriptions only** (fires on rows written to a subgraph table — `--subgraph` + `--table`). To create a **chain subscription** (raw chain events, no subgraph — `triggers`), use the SDK (`sl.subscriptions.create({ triggers: [...] })`, see `references/sdk.md`), REST (`POST /api/subscriptions` with `triggers`), or MCP (`subscriptions_create` with `triggers`). The CLI has no `--triggers` flag.
 
 Usage: `sl subscriptions create <name>`
 

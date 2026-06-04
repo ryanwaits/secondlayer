@@ -119,6 +119,14 @@ Read/action commands support `--json`. Destructive commands prompt unless
 `-y` / `--yes`. Filters are schema-aware: unknown tables/columns, bad operators,
 and non-scalar columns are rejected before the API call.
 
+Subscriptions are polymorphic — **subgraph** (fires on a subgraph table's rows)
+or **chain** (fires on raw chain events with no subgraph). `sl subscriptions
+create` makes subgraph subscriptions only (via the `--subgraph`/`--table`
+flags). Create chain subscriptions — a webhook on a contract / event / function /
+trait — via the SDK, REST, or MCP with a `triggers` array. Every other
+`sl subscriptions` command (list/get/update/pause/resume/delete/doctor/test/
+deliveries/...) operates on both kinds.
+
 ### Local dev & OSS
 
 | Command | What it does |

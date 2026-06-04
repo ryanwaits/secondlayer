@@ -2,6 +2,44 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Subscriptions — June 2026
+
+Subscriptions went polymorphic. A subscription is now one of two kinds:
+`subgraph` (fires on subgraph table rows, as before) or `chain` — a webhook on
+**raw chain events with no subgraph at all**. The lambda for Stacks.
+
+### Direct chain subscriptions
+
+Pass a `triggers` array instead of a subgraph table. A chain subscription is
+forward-looking — it starts at the chain tip and fires the moment a matching
+event lands, no deploy and no backfill.
+
+```ts
+import { trigger } from "@secondlayer/sdk";
+
+await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+    trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
+  ],
+});
+```
+
+`trigger.*` builders cover every event type — `contractCall`,
+`contractDeploy`, `printEvent`, and the `stx*`/`ft*`/`nft*` transfer/mint/burn
+variants — with `*` wildcards and a `trait` filter that scopes to a whole SIP.
+Over REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50).
+
+### Apply / rollback delivery
+
+Chain deliveries carry a typed envelope: a match sends `chain.{type}.apply`
+(with `block_hash`, `block_height`, `tx_id`, `canonical`, the matched `trigger`,
+and the `event`), and a reorg sends `chain.reorg.rollback` (with
+`fork_point_height` and the orphaned events) so you can cleanly undo. Delivery
+stays at-least-once and HMAC-signed — key your state on `(tx_id, block_hash)`.
+
 ## Streams — May 2026
 
 The raw-event availability layer matured across the board.
