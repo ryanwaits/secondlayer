@@ -22,6 +22,7 @@ Override with `SL_API_URL` env var or `baseUrl` SDK option.
 | `/v1/index/*` | No (anonymous OK) — but **free-tier keys are rejected** (Build+ for keyed access) | n/a (read-only) | `Authorization: Bearer <key>` if you have one |
 | `/api/subgraphs/*` | No (open beta) | Yes | `Authorization: Bearer <apiKey>` |
 | `/api/subscriptions/*` | Yes | Yes | `Authorization: Bearer <apiKey>` |
+| `/v1/api-keys` | n/a | **Yes** (account-level owner key) | `Authorization: Bearer <account key>` |
 
 API key formats:
 - `sk-sl_*` — service / API key (long-lived, from dashboard)
@@ -199,6 +200,22 @@ Pending (unconfirmed) transactions. Same `raw_tx`-decoded enrichment as `/transa
 ### Caching
 
 Every Index read sets `Cache-Control`: `public, max-age=31536000, immutable` once the resolved range is past burn-finality, else `private, max-age=2`. Finalized pages carry a weak ETag (over the data slice, excluding the moving tip); a matching `If-None-Match` returns 304. The exception is `/mempool`, which is always volatile (short TTL, no ETag).
+
+---
+
+## `/v1/api-keys` — self-provision a scoped key
+
+`POST /v1/api-keys` lets a headless agent mint its own **scoped** `streams`/`index` read key — no dashboard. Requires an **account-level (owner) key** in the `Authorization` header; a scoped key cannot mint (403). The minted key always inherits the account plan's tier and can never be an account/superkey. Per-IP rate limited and bounded by the account's active-key ceiling.
+
+```bash
+curl -X POST "https://api.secondlayer.tools/v1/api-keys" \
+  -H "Authorization: Bearer <account key>" \
+  -H "Content-Type: application/json" \
+  -d '{"product":"streams","name":"ci"}'
+# → 201 { "key":"sk-sl_…", "prefix":"sk-sl_…", "id":"…", "product":"streams", "tier":null, "createdAt":"…" }
+```
+
+`product` defaults to `streams` (or `index`). The plaintext `key` is returned **once** — store it immediately. SDK: `sl.apiKeys.create({ product })`. CLI: `sl keys create --product streams`. MCP: `account_create_key`.
 
 ---
 
