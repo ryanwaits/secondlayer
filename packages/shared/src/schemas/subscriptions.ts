@@ -78,20 +78,192 @@ export const SubscriptionFilterSchema: z.ZodType<SubscriptionFilter> = z.record(
 	SubscriptionFilterClauseSchema,
 );
 
+// --- Chain triggers (direct chain-level subscriptions) -----------------------
+// A chain subscription reacts to raw chain events matched directly off the
+// Index/Streams clock (no subgraph). `triggers` is an array of these filters —
+// the JSON mirror of the subgraph runtime's `SubgraphFilter` union. Defined
+// here (not imported from @secondlayer/subgraphs) to avoid a shared→subgraphs
+// cycle; the evaluator maps these to `SubgraphFilter` at match time. Amounts are
+// non-negative integer strings (uint128 can exceed JS safe-int) or numbers.
+
+export const CHAIN_TRIGGER_TYPES = [
+	"stx_transfer",
+	"stx_mint",
+	"stx_burn",
+	"stx_lock",
+	"ft_transfer",
+	"ft_mint",
+	"ft_burn",
+	"nft_transfer",
+	"nft_mint",
+	"nft_burn",
+	"contract_call",
+	"contract_deploy",
+	"print_event",
+] as const;
+
+const triggerAmount = z.union([
+	z.string().trim().regex(/^\d+$/, "must be a non-negative integer string"),
+	z.number().int().nonnegative(),
+]);
+/** Principal/identifier/name patterns — `*` wildcards allowed (matched by the
+ *  evaluator). */
+const triggerPattern = z.string().trim().min(1);
+const trait = z.string().trim().min(1);
+
+export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
+	"type",
+	[
+		z
+			.object({
+				type: z.literal("stx_transfer"),
+				sender: triggerPattern.optional(),
+				recipient: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+				maxAmount: triggerAmount.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("stx_mint"),
+				recipient: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("stx_burn"),
+				sender: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("stx_lock"),
+				lockedAddress: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("ft_transfer"),
+				assetIdentifier: triggerPattern.optional(),
+				sender: triggerPattern.optional(),
+				recipient: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("ft_mint"),
+				assetIdentifier: triggerPattern.optional(),
+				recipient: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("ft_burn"),
+				assetIdentifier: triggerPattern.optional(),
+				sender: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("nft_transfer"),
+				assetIdentifier: triggerPattern.optional(),
+				sender: triggerPattern.optional(),
+				recipient: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("nft_mint"),
+				assetIdentifier: triggerPattern.optional(),
+				recipient: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("nft_burn"),
+				assetIdentifier: triggerPattern.optional(),
+				sender: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("contract_call"),
+				contractId: triggerPattern.optional(),
+				functionName: triggerPattern.optional(),
+				caller: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("contract_deploy"),
+				deployer: triggerPattern.optional(),
+				contractName: triggerPattern.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("print_event"),
+				contractId: triggerPattern.optional(),
+				topic: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+	],
+);
+
+export const ChainTriggersSchema = z.array(ChainTriggerSchema).min(1).max(50);
+
 export const CreateSubscriptionRequestSchema: z.ZodType<ParsedCreateSubscriptionRequest> =
-	z.object({
-		name,
-		subgraphName: resourceName,
-		tableName: resourceName,
-		url: webhookUrl,
-		filter: SubscriptionFilterSchema.optional(),
-		format: SubscriptionFormatSchema.default("standard-webhooks"),
-		runtime: SubscriptionRuntimeSchema.nullable().optional(),
-		authConfig: z.record(z.string(), z.unknown()).optional(),
-		maxRetries: z.number().int().min(0).max(100).optional(),
-		timeoutMs: z.number().int().min(100).max(300_000).optional(),
-		concurrency: z.number().int().min(1).max(100).optional(),
-	});
+	z
+		.object({
+			name,
+			// Subgraph mode (kind=subgraph): subgraphName + tableName + optional filter.
+			subgraphName: resourceName.optional(),
+			tableName: resourceName.optional(),
+			filter: SubscriptionFilterSchema.optional(),
+			// Chain mode (kind=chain): triggers.
+			triggers: ChainTriggersSchema.optional(),
+			url: webhookUrl,
+			format: SubscriptionFormatSchema.default("standard-webhooks"),
+			runtime: SubscriptionRuntimeSchema.nullable().optional(),
+			authConfig: z.record(z.string(), z.unknown()).optional(),
+			maxRetries: z.number().int().min(0).max(100).optional(),
+			timeoutMs: z.number().int().min(100).max(300_000).optional(),
+			concurrency: z.number().int().min(1).max(100).optional(),
+		})
+		.refine(
+			(v) => {
+				const subgraphMode =
+					v.subgraphName !== undefined || v.tableName !== undefined;
+				const chainMode = v.triggers !== undefined;
+				if (chainMode && subgraphMode) return false;
+				if (chainMode) return true;
+				// Subgraph mode requires BOTH subgraphName and tableName.
+				return v.subgraphName !== undefined && v.tableName !== undefined;
+			},
+			{
+				message:
+					"provide either { subgraphName, tableName } for a subgraph subscription OR { triggers } for a chain subscription — not both",
+			},
+		)
+		.refine((v) => v.filter === undefined || v.triggers === undefined, {
+			message:
+				"`filter` applies to subgraph subscriptions; chain subscriptions use `triggers`",
+			path: ["filter"],
+		});
 
 export const UpdateSubscriptionRequestSchema: z.ZodType<UpdateSubscriptionRequest> =
 	z
@@ -123,6 +295,8 @@ export const ReplaySubscriptionRequestSchema: z.ZodType<ReplaySubscriptionReques
 		});
 
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+/** Polymorphic subscription mode (mirrors db/types `SubscriptionKind`). */
+export type SubscriptionKind = "subgraph" | "chain";
 export type SubscriptionFormat = (typeof SUBSCRIPTION_FORMATS)[number];
 export type SubscriptionRuntime = (typeof SUBSCRIPTION_RUNTIMES)[number];
 export type SubscriptionFilterPrimitive = string | number | boolean;
@@ -139,12 +313,159 @@ export type SubscriptionFilterClause =
 	| SubscriptionFilterOperator;
 export type SubscriptionFilter = Record<string, SubscriptionFilterClause>;
 
+export type ChainTriggerType = (typeof CHAIN_TRIGGER_TYPES)[number];
+/** Non-negative integer amount over JSON (string for uint128 safety, or number). */
+export type ChainTriggerAmount = string | number;
+
+interface TraitScoped {
+	trait?: string;
+}
+
+/** JSON mirror of the subgraph runtime's `SubgraphFilter` union. */
+export type ChainTrigger =
+	| {
+			type: "stx_transfer";
+			sender?: string;
+			recipient?: string;
+			minAmount?: ChainTriggerAmount;
+			maxAmount?: ChainTriggerAmount;
+	  }
+	| { type: "stx_mint"; recipient?: string; minAmount?: ChainTriggerAmount }
+	| { type: "stx_burn"; sender?: string; minAmount?: ChainTriggerAmount }
+	| {
+			type: "stx_lock";
+			lockedAddress?: string;
+			minAmount?: ChainTriggerAmount;
+	  }
+	| ({
+			type: "ft_transfer";
+			assetIdentifier?: string;
+			sender?: string;
+			recipient?: string;
+			minAmount?: ChainTriggerAmount;
+	  } & TraitScoped)
+	| ({
+			type: "ft_mint";
+			assetIdentifier?: string;
+			recipient?: string;
+			minAmount?: ChainTriggerAmount;
+	  } & TraitScoped)
+	| ({
+			type: "ft_burn";
+			assetIdentifier?: string;
+			sender?: string;
+			minAmount?: ChainTriggerAmount;
+	  } & TraitScoped)
+	| ({
+			type: "nft_transfer";
+			assetIdentifier?: string;
+			sender?: string;
+			recipient?: string;
+	  } & TraitScoped)
+	| ({
+			type: "nft_mint";
+			assetIdentifier?: string;
+			recipient?: string;
+	  } & TraitScoped)
+	| ({
+			type: "nft_burn";
+			assetIdentifier?: string;
+			sender?: string;
+	  } & TraitScoped)
+	| ({
+			type: "contract_call";
+			contractId?: string;
+			functionName?: string;
+			caller?: string;
+	  } & TraitScoped)
+	| { type: "contract_deploy"; deployer?: string; contractName?: string }
+	| ({
+			type: "print_event";
+			contractId?: string;
+			topic?: string;
+	  } & TraitScoped);
+
+/** Args for a chain-trigger builder — every field of a variant except `type`. */
+type TriggerArgs<T extends ChainTrigger["type"]> = Omit<
+	Extract<ChainTrigger, { type: T }>,
+	"type"
+>;
+
+/**
+ * Ergonomic chain-trigger constructors for `subscriptions.create({ triggers })`.
+ * Each returns a bare `ChainTrigger` (the wire shape the API expects):
+ *
+ * ```ts
+ * client.subscriptions.create({
+ *   url: "https://my.app/webhook",
+ *   triggers: [on.contractCall({ contractId: "SP....amm", functionName: "swap-*" })],
+ * });
+ * ```
+ */
+export const on = {
+	stxTransfer: (f: TriggerArgs<"stx_transfer"> = {}): ChainTrigger => ({
+		type: "stx_transfer",
+		...f,
+	}),
+	stxMint: (f: TriggerArgs<"stx_mint"> = {}): ChainTrigger => ({
+		type: "stx_mint",
+		...f,
+	}),
+	stxBurn: (f: TriggerArgs<"stx_burn"> = {}): ChainTrigger => ({
+		type: "stx_burn",
+		...f,
+	}),
+	stxLock: (f: TriggerArgs<"stx_lock"> = {}): ChainTrigger => ({
+		type: "stx_lock",
+		...f,
+	}),
+	ftTransfer: (f: TriggerArgs<"ft_transfer"> = {}): ChainTrigger => ({
+		type: "ft_transfer",
+		...f,
+	}),
+	ftMint: (f: TriggerArgs<"ft_mint"> = {}): ChainTrigger => ({
+		type: "ft_mint",
+		...f,
+	}),
+	ftBurn: (f: TriggerArgs<"ft_burn"> = {}): ChainTrigger => ({
+		type: "ft_burn",
+		...f,
+	}),
+	nftTransfer: (f: TriggerArgs<"nft_transfer"> = {}): ChainTrigger => ({
+		type: "nft_transfer",
+		...f,
+	}),
+	nftMint: (f: TriggerArgs<"nft_mint"> = {}): ChainTrigger => ({
+		type: "nft_mint",
+		...f,
+	}),
+	nftBurn: (f: TriggerArgs<"nft_burn"> = {}): ChainTrigger => ({
+		type: "nft_burn",
+		...f,
+	}),
+	contractCall: (f: TriggerArgs<"contract_call"> = {}): ChainTrigger => ({
+		type: "contract_call",
+		...f,
+	}),
+	contractDeploy: (f: TriggerArgs<"contract_deploy"> = {}): ChainTrigger => ({
+		type: "contract_deploy",
+		...f,
+	}),
+	printEvent: (f: TriggerArgs<"print_event"> = {}): ChainTrigger => ({
+		type: "print_event",
+		...f,
+	}),
+} as const;
+
 export interface CreateSubscriptionRequest {
 	name: string;
-	subgraphName: string;
-	tableName: string;
-	url: string;
+	/** Subgraph mode. */
+	subgraphName?: string;
+	tableName?: string;
 	filter?: SubscriptionFilter;
+	/** Chain mode. */
+	triggers?: ChainTrigger[];
+	url: string;
 	format?: SubscriptionFormat;
 	runtime?: SubscriptionRuntime | null;
 	authConfig?: Record<string, unknown>;
@@ -184,8 +505,11 @@ export interface SubscriptionSummary {
 	id: string;
 	name: string;
 	status: SubscriptionStatus;
-	subgraphName: string;
-	tableName: string;
+	kind: SubscriptionKind;
+	/** Null for chain subscriptions. */
+	subgraphName: string | null;
+	/** Null for chain subscriptions. */
+	tableName: string | null;
 	format: SubscriptionFormat;
 	runtime: SubscriptionRuntime | null;
 	url: string;
@@ -197,6 +521,8 @@ export interface SubscriptionSummary {
 
 export interface SubscriptionDetail extends SubscriptionSummary {
 	filter: Record<string, unknown>;
+	/** Chain-trigger filters (chain subscriptions only). */
+	triggers: ChainTrigger[] | null;
 	authConfig: Record<string, unknown>;
 	maxRetries: number;
 	timeoutMs: number;

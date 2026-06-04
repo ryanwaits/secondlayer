@@ -167,4 +167,31 @@ describe("subscriptions queries", () => {
 		const after = await getSubscription(db, accountId, subscription.id);
 		expect(after).not.toBeNull();
 	});
+
+	it("creates a chain subscription (kind=chain, triggers persisted, no subgraph target)", async () => {
+		const triggers = [
+			{
+				type: "contract_call",
+				contractId: "SP123.amm",
+				functionName: "swap-x-for-y",
+			},
+			{ type: "ft_transfer", trait: "sip-010", minAmount: "1000000" },
+		];
+		const { subscription, signingSecret } = await createSubscription(db, {
+			accountId,
+			name: "chain-sub",
+			kind: "chain",
+			triggers,
+			url: "https://webhook.site/chain",
+		});
+		expect(subscription.kind).toBe("chain");
+		expect(subscription.subgraph_name).toBeNull();
+		expect(subscription.table_name).toBeNull();
+		expect(subscription.triggers).toEqual(triggers);
+		expect(signingSecret).toMatch(/^[a-f0-9]{64}$/);
+
+		const fetched = await getSubscription(db, accountId, subscription.id);
+		expect(fetched?.kind).toBe("chain");
+		expect(fetched?.triggers).toEqual(triggers);
+	});
 });

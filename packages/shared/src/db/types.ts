@@ -771,6 +771,7 @@ export interface Database {
 	subscriptions: SubscriptionsTable;
 	subscription_outbox: SubscriptionOutboxTable;
 	subscription_deliveries: SubscriptionDeliveriesTable;
+	trigger_evaluator_state: TriggerEvaluatorStateTable;
 	decoded_events: DecodedEventsTable;
 	l2_decoder_checkpoints: L2DecoderCheckpointsTable;
 	chain_reorgs: ChainReorgsTable;
@@ -1017,6 +1018,11 @@ export type InsertChatMessage = Insertable<ChatMessagesTable>;
 // ── Subscriptions (subgraph event subscriptions) ─────────────────────
 
 export type SubscriptionStatus = "active" | "paused" | "error";
+
+/** Polymorphic subscription mode: `subgraph` reacts to processed table rows;
+ *  `chain` reacts to raw chain events matched directly off the Index/Streams
+ *  clock (no subgraph). See migration 0088. */
+export type SubscriptionKind = "subgraph" | "chain";
 export type SubscriptionFormat =
 	| "standard-webhooks"
 	| "inngest"
@@ -1036,8 +1042,19 @@ export interface SubscriptionsTable {
 		SubscriptionStatus | undefined,
 		SubscriptionStatus
 	>;
-	subgraph_name: string;
-	table_name: string;
+	kind: ColumnType<
+		SubscriptionKind,
+		SubscriptionKind | undefined,
+		SubscriptionKind
+	>;
+	/** Null for chain subscriptions (CHECK subscriptions_kind_shape). */
+	subgraph_name: string | null;
+	/** Null for chain subscriptions (CHECK subscriptions_kind_shape). */
+	table_name: string | null;
+	/** Chain-trigger filter array (the `SubgraphFilter` shape, JSON). Null for
+	 *  subgraph subscriptions. Typed loosely here to avoid a shared→subgraphs
+	 *  import cycle; the Zod schema in schemas/subscriptions.ts owns the shape. */
+	triggers: unknown | null;
 	filter: Generated<unknown>;
 	format: ColumnType<
 		SubscriptionFormat,
@@ -1069,8 +1086,15 @@ export type OutboxStatus = "pending" | "delivered" | "dead";
 export interface SubscriptionOutboxTable {
 	id: Generated<string>;
 	subscription_id: string;
-	subgraph_name: string;
-	table_name: string;
+	kind: ColumnType<
+		SubscriptionKind,
+		SubscriptionKind | undefined,
+		SubscriptionKind
+	>;
+	/** Null for chain-subscription rows. */
+	subgraph_name: string | null;
+	/** Null for chain-subscription rows. */
+	table_name: string | null;
 	block_height: number | bigint;
 	tx_id: string | null;
 	row_pk: unknown;
@@ -1110,3 +1134,17 @@ export interface SubscriptionDeliveriesTable {
 export type SubscriptionDelivery = Selectable<SubscriptionDeliveriesTable>;
 export type InsertSubscriptionDelivery =
 	Insertable<SubscriptionDeliveriesTable>;
+
+/** Single-row (id always TRUE) high-water mark for the chain-trigger evaluator.
+ *  One loop serves all chain subscriptions, so the cursor is global. */
+export interface TriggerEvaluatorStateTable {
+	id: Generated<boolean>;
+	last_processed_block: ColumnType<
+		bigint,
+		bigint | number | undefined,
+		bigint | number
+	>;
+	updated_at: Generated<Date>;
+}
+
+export type TriggerEvaluatorState = Selectable<TriggerEvaluatorStateTable>;

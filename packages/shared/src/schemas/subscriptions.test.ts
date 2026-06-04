@@ -131,3 +131,112 @@ describe("subscription schemas", () => {
 		);
 	});
 });
+
+describe("chain subscriptions (direct chain triggers)", () => {
+	it("accepts a chain subscription with triggers and no subgraph target", () => {
+		const parsed = CreateSubscriptionRequestSchema.parse({
+			name: "swaps",
+			url: "https://example.com/webhook",
+			triggers: [
+				{
+					type: "contract_call",
+					contractId: "SP123.amm",
+					functionName: "swap-*",
+				},
+				{ type: "ft_transfer", trait: "sip-010", minAmount: "1000000" },
+			],
+		});
+		expect(parsed.triggers).toHaveLength(2);
+		expect(parsed.subgraphName).toBeUndefined();
+		expect(parsed.format).toBe("standard-webhooks");
+	});
+
+	it("accepts amounts as both string and number", () => {
+		const parsed = CreateSubscriptionRequestSchema.parse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [
+				{
+					type: "stx_transfer",
+					minAmount: "340282366920938463463374607431768211455",
+				},
+				{ type: "stx_burn", minAmount: 100 },
+			],
+		});
+		expect(parsed.triggers).toHaveLength(2);
+	});
+
+	it("rejects mixing subgraph target and triggers", () => {
+		const r = CreateSubscriptionRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			subgraphName: "sg",
+			tableName: "t",
+			triggers: [{ type: "contract_call" }],
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("rejects neither mode (no subgraph target, no triggers)", () => {
+		const r = CreateSubscriptionRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("rejects subgraph mode missing tableName", () => {
+		const r = CreateSubscriptionRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			subgraphName: "sg",
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("rejects an unknown field on a trigger (strict)", () => {
+		const r = CreateSubscriptionRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "contract_call", bogus: 1 }],
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("rejects an empty triggers array", () => {
+		const r = CreateSubscriptionRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [],
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("rejects an unknown trigger type", () => {
+		const r = CreateSubscriptionRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "not_a_real_event" }],
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("rejects a non-integer amount string", () => {
+		const r = CreateSubscriptionRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "stx_transfer", minAmount: "12.5" }],
+		});
+		expect(r.success).toBe(false);
+	});
+
+	it("rejects combining filter with triggers", () => {
+		const r = CreateSubscriptionRequestSchema.safeParse({
+			name: "x",
+			url: "https://x.com/h",
+			triggers: [{ type: "contract_call" }],
+			filter: { amount: { gte: "1" } },
+		});
+		expect(r.success).toBe(false);
+	});
+});

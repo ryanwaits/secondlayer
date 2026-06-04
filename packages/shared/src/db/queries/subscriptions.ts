@@ -6,6 +6,7 @@ import type {
 	InsertSubscription,
 	Subscription,
 	SubscriptionFormat,
+	SubscriptionKind,
 	SubscriptionRuntime,
 	SubscriptionStatus,
 	UpdateSubscription,
@@ -21,8 +22,14 @@ export interface CreateSubscriptionInput {
 	accountId: string;
 	projectId?: string | null;
 	name: string;
-	subgraphName: string;
-	tableName: string;
+	/** Defaults to "subgraph". Chain subscriptions set kind="chain" + triggers. */
+	kind?: SubscriptionKind;
+	/** Required for subgraph subscriptions; omitted for chain. */
+	subgraphName?: string | null;
+	/** Required for subgraph subscriptions; omitted for chain. */
+	tableName?: string | null;
+	/** Chain-trigger filter array. Required for chain subscriptions. */
+	triggers?: unknown;
 	filter?: unknown;
 	format?: SubscriptionFormat;
 	runtime?: SubscriptionRuntime | null;
@@ -44,13 +51,16 @@ export async function createSubscription(
 	input: CreateSubscriptionInput,
 ): Promise<CreateSubscriptionResult> {
 	const signingSecret = generateSecret();
+	const kind: SubscriptionKind = input.kind ?? "subgraph";
 	const row: InsertSubscription = {
 		account_id: input.accountId,
 		project_id: input.projectId ?? null,
 		name: input.name,
 		status: "active",
-		subgraph_name: input.subgraphName,
-		table_name: input.tableName,
+		kind,
+		subgraph_name: input.subgraphName ?? null,
+		table_name: input.tableName ?? null,
+		triggers: kind === "chain" ? ((input.triggers ?? []) as unknown) : null,
 		filter: input.filter ?? {},
 		format: input.format ?? "standard-webhooks",
 		runtime: input.runtime ?? null,
@@ -82,6 +92,22 @@ export async function listSubscriptions(
 		.selectAll()
 		.where("account_id", "=", accountId)
 		.orderBy("created_at", "desc")
+		.execute();
+}
+
+/**
+ * All active chain subscriptions across every account — the input to the global
+ * trigger evaluator (one loop serves them all). Subgraph subscriptions are
+ * excluded; they emit via the subgraph flush path.
+ */
+export async function listActiveChainSubscriptions(
+	db: Kysely<Database>,
+): Promise<Subscription[]> {
+	return db
+		.selectFrom("subscriptions")
+		.selectAll()
+		.where("kind", "=", "chain")
+		.where("status", "=", "active")
 		.execute();
 }
 
