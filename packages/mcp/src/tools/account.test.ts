@@ -29,11 +29,12 @@ afterEach(() => {
 });
 
 describe("account MCP tools", () => {
-	it("registers whoami, update, and billing", () => {
+	it("registers whoami, update, billing, and create-key", () => {
 		const tools: RegisteredTool[] = [];
 		registerAccountTools(fakeServer(tools));
 		expect(tools.map((t) => t.name).sort()).toEqual([
 			"account_billing",
+			"account_create_key",
 			"account_update",
 			"account_whoami",
 		]);
