@@ -66,13 +66,16 @@ export type {
 	SubgraphSpecFormat,
 	SubgraphSpecOptions,
 } from "@secondlayer/shared/subgraphs/spec";
-export { Subscriptions } from "./subscriptions/client.ts";
+export { Subscriptions, trigger } from "./subscriptions/client.ts";
 export type {
 	SubscriptionStatus,
 	SubscriptionFormat,
 	SubscriptionRuntime,
+	SubscriptionKind,
 	SubscriptionSummary,
 	SubscriptionDetail,
+	ChainTrigger,
+	ChainTriggerType,
 	CreateSubscriptionRequest,
 	CreateSubscriptionResponse,
 	UpdateSubscriptionRequest,

@@ -401,11 +401,11 @@ type TriggerArgs<T extends ChainTrigger["type"]> = Omit<
  * ```ts
  * client.subscriptions.create({
  *   url: "https://my.app/webhook",
- *   triggers: [on.contractCall({ contractId: "SP....amm", functionName: "swap-*" })],
+ *   triggers: [trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" })],
  * });
  * ```
  */
-export const on = {
+export const trigger = {
 	stxTransfer: (f: TriggerArgs<"stx_transfer"> = {}): ChainTrigger => ({
 		type: "stx_transfer",
 		...f,

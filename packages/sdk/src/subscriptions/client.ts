@@ -28,9 +28,9 @@ export type {
 	SubscriptionSummary,
 	UpdateSubscriptionRequest,
 } from "@secondlayer/shared/schemas/subscriptions";
-// `on.*` chain-trigger builders for direct chain-level subscriptions
-// (`create({ triggers: [on.contractCall({ ... })] })`).
-export { on } from "@secondlayer/shared/schemas/subscriptions";
+// `trigger.*` chain-trigger builders for direct chain-level subscriptions
+// (`create({ triggers: [trigger.contractCall({ ... })] })`).
+export { trigger } from "@secondlayer/shared/schemas/subscriptions";
 
 export class Subscriptions extends BaseClient {
 	async list(): Promise<{ data: SubscriptionSummary[] }> {

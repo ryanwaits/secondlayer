@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type {
+	ChainTrigger,
 	CreateSubscriptionRequest,
 	UpdateSubscriptionRequest,
 } from "@secondlayer/sdk";
@@ -46,8 +47,9 @@ export function registerSubscriptionTools(
 
 	defineTool<{
 		name: string;
-		subgraphName: string;
-		tableName: string;
+		subgraphName?: string;
+		tableName?: string;
+		triggers?: ChainTrigger[];
 		url: string;
 		format?:
 			| "standard-webhooks"
@@ -61,11 +63,54 @@ export function registerSubscriptionTools(
 	}>(
 		server,
 		"subscriptions_create",
-		"Create a subscription. Returns `signingSecret` ONCE — forward it to the user so they can wire it into their receiver.",
+		"Create a subscription. Two kinds (mutually exclusive): a SUBGRAPH subscription fires on a subgraph table's rows (set subgraphName + tableName + optional filter); a CHAIN subscription fires on raw chain events with no subgraph (set triggers). Returns `signingSecret` ONCE — forward it to the user so they can wire it into their receiver.",
 		{
 			name: z.string().describe("Human-readable name, unique per account"),
-			subgraphName: z.string().describe("Subgraph to subscribe to"),
-			tableName: z.string().describe("Table within the subgraph"),
+			subgraphName: z
+				.string()
+				.optional()
+				.describe("Subgraph to subscribe to (subgraph subscription)"),
+			tableName: z
+				.string()
+				.optional()
+				.describe("Table within the subgraph (subgraph subscription)"),
+			triggers: z
+				.array(
+					z.object({
+						type: z.enum([
+							"stx_transfer",
+							"stx_mint",
+							"stx_burn",
+							"stx_lock",
+							"ft_transfer",
+							"ft_mint",
+							"ft_burn",
+							"nft_transfer",
+							"nft_mint",
+							"nft_burn",
+							"contract_call",
+							"contract_deploy",
+							"print_event",
+						]),
+						contractId: z.string().optional(),
+						functionName: z.string().optional(),
+						caller: z.string().optional(),
+						sender: z.string().optional(),
+						recipient: z.string().optional(),
+						assetIdentifier: z.string().optional(),
+						deployer: z.string().optional(),
+						contractName: z.string().optional(),
+						topic: z.string().optional(),
+						lockedAddress: z.string().optional(),
+						trait: z.string().optional(),
+						minAmount: z.union([z.string(), z.number()]).optional(),
+						maxAmount: z.union([z.string(), z.number()]).optional(),
+					}),
+				)
+				.optional()
+				.describe(
+					"Chain triggers (chain subscription) — provide INSTEAD of subgraphName/tableName. Each targets a raw chain event/tx; string fields accept `*` wildcards, `trait` scopes to a SIP/trait. Forward-looking: starts at chain tip, no backfill.",
+				),
 			url: z.string().describe("Webhook URL"),
 			format: z
 				.enum([

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { SecondLayer } from "../index.ts";
-import { on } from "../subscriptions/client.ts";
+import { SecondLayer, trigger } from "../index.ts";
 
 const originalFetch = globalThis.fetch;
 
@@ -8,21 +7,23 @@ afterEach(() => {
 	globalThis.fetch = originalFetch;
 });
 
-describe("on.* chain-trigger builders", () => {
+describe("trigger.* chain-trigger builders", () => {
 	test("produce bare ChainTrigger objects with the right type tag", () => {
 		expect(
-			on.contractCall({ contractId: "SP1.amm", functionName: "swap-*" }),
+			trigger.contractCall({ contractId: "SP1.amm", functionName: "swap-*" }),
 		).toEqual({
 			type: "contract_call",
 			contractId: "SP1.amm",
 			functionName: "swap-*",
 		});
-		expect(on.ftTransfer({ trait: "sip-010", minAmount: "1000000" })).toEqual({
+		expect(
+			trigger.ftTransfer({ trait: "sip-010", minAmount: "1000000" }),
+		).toEqual({
 			type: "ft_transfer",
 			trait: "sip-010",
 			minAmount: "1000000",
 		});
-		expect(on.stxTransfer()).toEqual({ type: "stx_transfer" });
+		expect(trigger.stxTransfer()).toEqual({ type: "stx_transfer" });
 	});
 });
 
@@ -46,7 +47,7 @@ describe("Subscriptions.create with triggers", () => {
 		const res = await sl.subscriptions.create({
 			name: "amm-swaps",
 			url: "https://my.app/webhook",
-			triggers: [on.contractCall({ contractId: "SP1.amm" })],
+			triggers: [trigger.contractCall({ contractId: "SP1.amm" })],
 		});
 
 		expect(res.signingSecret).toBe("whsec_x");
