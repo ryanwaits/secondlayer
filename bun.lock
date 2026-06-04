@@ -13,6 +13,7 @@
       },
       "devDependencies": {
         "@biomejs/biome": "1.9.4",
+        "@changesets/changelog-git": "^0.2.1",
         "@changesets/changelog-github": "^0.5.2",
         "@changesets/cli": "^2.29.8",
         "@types/node": "^20.11.0",
@@ -24,7 +25,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.1.32",
+      "version": "0.1.46",
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.71",
         "@ai-sdk/react": "3.0.148",
@@ -59,7 +60,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.11.0",
+      "version": "1.17.1",
       "dependencies": {
         "@secondlayer/bundler": "^0.3.6",
         "@secondlayer/indexer": "^1.4.2",
@@ -78,7 +79,7 @@
     },
     "packages/bundler": {
       "name": "@secondlayer/bundler",
-      "version": "0.3.8",
+      "version": "0.3.9",
       "dependencies": {
         "@secondlayer/subgraphs": "^3.2.1",
         "esbuild": "^0.27.4",
@@ -90,14 +91,14 @@
     },
     "packages/clarity-docs": {
       "name": "@secondlayer/clarity-docs",
-      "version": "0.3.11",
+      "version": "0.3.12",
       "dependencies": {
         "@secondlayer/stacks": "^0.2.0",
       },
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "5.8.0",
+      "version": "8.4.3",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -131,7 +132,7 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "1.8.0",
+      "version": "1.12.1",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@dsnp/parquetjs": "^1.8.7",
@@ -146,7 +147,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "2.3.5",
+      "version": "3.2.0",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -167,7 +168,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.0.5",
+      "version": "0.0.14",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.15",
@@ -191,7 +192,7 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "5.6.0",
+      "version": "6.8.0",
       "dependencies": {
         "@secondlayer/shared": "^6.8.0",
         "@secondlayer/stacks": "^2.2.1",
@@ -204,7 +205,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "6.9.0",
+      "version": "6.17.0",
       "dependencies": {
         "@secondlayer/stacks": "^2.3.0",
         "kysely": "0.28.15",
@@ -239,7 +240,7 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "3.4.0",
+      "version": "3.7.0",
       "dependencies": {
         "@secondlayer/shared": "^6.9.0",
         "@secondlayer/stacks": "^2.3.0",
@@ -253,7 +254,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.1.7",
+      "version": "1.1.16",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^6.0.0",
