@@ -33,6 +33,7 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
+import v1ApiKeysRouter from "./routes/v1-api-keys.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
@@ -210,6 +211,10 @@ app.route("/v1/streams", streamsRouter);
 app.route("/v1/index", indexRouter);
 app.route("/v1/datasets", datasetsRouter);
 app.route("/v1/contracts", contractsRouter);
+// Agent-reachable scoped key mint — platform-only (OSS uses a static key).
+if (mode === "platform") {
+	app.route("/v1/api-keys", v1ApiKeysRouter);
+}
 
 // Start server
 const PORT = Number.parseInt(process.env.PORT || "3800");

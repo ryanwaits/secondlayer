@@ -29,6 +29,13 @@ export function createV1IndexRouter() {
 						"Raw, ordered, cursor-paginated firehose with reorg awareness.",
 					auth: "bearer required (Build+ tier)",
 				},
+				{
+					name: "api-keys",
+					path: "/v1/api-keys",
+					description:
+						"POST to mint a scoped streams/index read key so an agent can self-provision access. Returns the key once.",
+					auth: "bearer required (account-level owner key)",
+				},
 			],
 			openapi: "/v1/openapi.json",
 			envelope_examples: {
