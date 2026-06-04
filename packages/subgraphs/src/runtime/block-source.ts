@@ -75,22 +75,28 @@ function sourceFilters(subgraph: SubgraphDefinition): SubgraphFilter[] {
 }
 
 /**
- * The Index event_types the loader must fetch. A contract_call/contract_deploy
- * source matches a tx and hands its FULL event set to the handler, so when one
- * is present we fetch every event type (the matched tx's events must be
- * complete); otherwise just the referenced event types.
+ * The Index event_types the loader must fetch for a set of source filter types.
+ * A contract_call/contract_deploy source matches a tx and hands its FULL event
+ * set to the handler, so when one is present we fetch every event type (the
+ * matched tx's events must be complete); otherwise just the referenced types.
+ * Shared by the subgraph loader and the chain-trigger evaluator.
  */
-function referencedIndexEventTypes(subgraph: SubgraphDefinition): string[] {
-	const filters = sourceFilters(subgraph);
-	if (filters.some((f) => TX_SOURCE_TYPES.has(f.type))) {
+export function indexEventTypesForFilterTypes(filterTypes: string[]): string[] {
+	if (filterTypes.some((t) => TX_SOURCE_TYPES.has(t))) {
 		return ALL_INDEX_EVENT_TYPES;
 	}
 	const types = new Set<string>();
-	for (const f of filters) {
-		const t = EVENT_FILTER_TO_INDEX_TYPE[f.type];
-		if (t) types.add(t);
+	for (const t of filterTypes) {
+		const indexType = EVENT_FILTER_TO_INDEX_TYPE[t];
+		if (indexType) types.add(indexType);
 	}
 	return [...types];
+}
+
+function referencedIndexEventTypes(subgraph: SubgraphDefinition): string[] {
+	return indexEventTypesForFilterTypes(
+		sourceFilters(subgraph).map((f) => f.type),
+	);
 }
 
 /**
@@ -169,7 +175,7 @@ export class PublicApiBlockSource implements BlockSource {
 
 const postgresBlockSource = new PostgresBlockSource();
 
-function buildHttpClient(): IndexHttpClient {
+export function buildHttpClient(): IndexHttpClient {
 	const baseUrl =
 		process.env.SUBGRAPH_INDEX_API_URL ??
 		process.env.STREAMS_API_URL ??

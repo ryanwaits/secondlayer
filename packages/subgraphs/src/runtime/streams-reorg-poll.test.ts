@@ -32,6 +32,26 @@ describe("pollReorgsOnce", () => {
 		expect(next).toBe("2026-02-01T00:00:00Z");
 	});
 
+	test("invokes the chain-reorg hook at each fork (lowest first)", async () => {
+		const http = {
+			listReorgs: async () => ({
+				reorgs: [reorg(900), reorg(500)],
+				next_since: "2026-02-01T00:00:00Z",
+			}),
+		};
+		const chainForks: number[] = [];
+		await pollReorgsOnce(
+			http,
+			"start",
+			async () => {},
+			async () => ({}) as never,
+			async (h) => {
+				chainForks.push(h);
+			},
+		);
+		expect(chainForks).toEqual([500, 900]);
+	});
+
 	test("keeps the cursor when there are no reorgs / no next_since", async () => {
 		const http = {
 			listReorgs: async () => ({ reorgs: [], next_since: null }),

@@ -17,15 +17,21 @@ type HandleReorg = (
 
 type ReorgLister = Pick<IndexHttpClient, "listReorgs">;
 
+/** Optional per-reorg hook for direct chain-level subscriptions — rewinds the
+ *  evaluator + emits rollbacks off the same reorg signal. */
+type HandleChainReorg = (forkHeight: number) => Promise<void>;
+
 /**
- * Fetch reorgs since `cursor` and rewind subgraphs at each fork point (lowest
- * first), returning the next cursor. Extracted for testing.
+ * Fetch reorgs since `cursor` and rewind subgraphs (and, if provided, chain
+ * subscriptions) at each fork point (lowest first), returning the next cursor.
+ * Extracted for testing.
  */
 export async function pollReorgsOnce(
 	http: ReorgLister,
 	cursor: string,
 	handleReorg: HandleReorg,
 	loadDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
+	handleChainReorg?: HandleChainReorg,
 ): Promise<string> {
 	const { reorgs, next_since } = await http.listReorgs(cursor);
 	const sorted = [...reorgs].sort(
@@ -36,6 +42,7 @@ export async function pollReorgsOnce(
 			forkPointHeight: r.fork_point_height,
 		});
 		await handleReorg(r.fork_point_height, loadDef);
+		if (handleChainReorg) await handleChainReorg(r.fork_point_height);
 	}
 	return next_since ?? cursor;
 }
@@ -49,6 +56,7 @@ export async function pollReorgsOnce(
 export function startStreamsReorgPoll(
 	handleReorg: HandleReorg,
 	loadDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
+	handleChainReorg?: HandleChainReorg,
 ): () => void {
 	const baseUrl =
 		process.env.SUBGRAPH_INDEX_API_URL ??
@@ -68,7 +76,13 @@ export function startStreamsReorgPoll(
 	const tick = async (): Promise<void> => {
 		if (!running) return;
 		try {
-			since = await pollReorgsOnce(http, since, handleReorg, loadDef);
+			since = await pollReorgsOnce(
+				http,
+				since,
+				handleReorg,
+				loadDef,
+				handleChainReorg,
+			);
 		} catch (err) {
 			logger.error("Streams reorg poll failed", {
 				error: getErrorMessage(err),

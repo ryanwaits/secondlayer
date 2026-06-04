@@ -96,7 +96,15 @@ export async function replaySubscription(
 	const sub = await getSubscription(db, input.accountId, input.subscriptionId);
 	if (!sub) throw new Error("Subscription not found");
 
-	const schema = await resolveSchemaName(db, sub.subgraph_name);
+	// Replay scans the subgraph's processed table — chain subscriptions have no
+	// such table (they react to raw chain events), so replay is subgraph-only.
+	const subgraphName = sub.subgraph_name;
+	const tableName = sub.table_name;
+	if (sub.kind !== "subgraph" || !subgraphName || !tableName) {
+		throw new Error("replay is only supported for subgraph subscriptions");
+	}
+
+	const schema = await resolveSchemaName(db, subgraphName);
 	const replayId = deterministicReplayId(
 		sub.id,
 		input.fromBlock,
@@ -111,7 +119,7 @@ export async function replaySubscription(
 	while (true) {
 		const { rows } = await sql<
 			Record<string, unknown>
-		>`SELECT * FROM ${sql.raw(`"${schema}"."${sub.table_name}"`)}
+		>`SELECT * FROM ${sql.raw(`"${schema}"."${tableName}"`)}
 			WHERE _block_height >= ${sql.lit(input.fromBlock)}
 				AND _block_height <= ${sql.lit(input.toBlock)}
 			ORDER BY _block_height, _created_at
@@ -122,8 +130,8 @@ export async function replaySubscription(
 
 		const inserts = rows.map((row) => ({
 			subscription_id: sub.id,
-			subgraph_name: sub.subgraph_name,
-			table_name: sub.table_name,
+			subgraph_name: subgraphName,
+			table_name: tableName,
 			block_height: Number(row._block_height),
 			tx_id: (row._tx_id as string | undefined) ?? null,
 			row_pk: {
@@ -131,14 +139,9 @@ export async function replaySubscription(
 				txId: row._tx_id ?? "",
 				replayId,
 			},
-			event_type: `${sub.subgraph_name}.${sub.table_name}.replay`,
+			event_type: `${subgraphName}.${tableName}.replay`,
 			payload: row,
-			dedup_key: replayDedupKey(
-				sub.subgraph_name,
-				sub.table_name,
-				row,
-				replayId,
-			),
+			dedup_key: replayDedupKey(subgraphName, tableName, row, replayId),
 			is_replay: true,
 		}));
 

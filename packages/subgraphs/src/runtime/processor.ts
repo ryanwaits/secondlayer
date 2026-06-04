@@ -27,10 +27,12 @@ import { listen } from "@secondlayer/shared/queue/listener";
 import type { SubgraphDefinition } from "../types.ts";
 import { invalidateSubgraphRoute } from "./block-processor.ts";
 import { catchUpSubgraph } from "./catchup.ts";
+import { handleChainReorg } from "./chain-reorg.ts";
 import { startEmitter } from "./emitter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
+import { startTriggerEvaluator } from "./trigger-evaluator-loop.ts";
 
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const CHANNEL_SUBGRAPH_OPERATIONS = "subgraph_operations:new";
@@ -498,7 +500,20 @@ export async function startSubgraphProcessor(opts?: {
 	// drive the idempotent handler.
 	const stopStreamsReorgPoll =
 		process.env.SUBGRAPH_SOURCE === "streams-index"
-			? startStreamsReorgPoll(handleSubgraphReorg, loadSubgraphDefinition)
+			? startStreamsReorgPoll(
+					handleSubgraphReorg,
+					loadSubgraphDefinition,
+					(forkHeight) => handleChainReorg(forkHeight),
+				)
+			: undefined;
+
+	// Direct chain-level subscriptions: a sibling loop that matches raw chain
+	// events off the same public Index/Streams clock and emits to the shared
+	// outbox. Gated on streams-index (it reads the public data plane); the
+	// emitter below delivers its rows unchanged.
+	const stopTriggerEvaluator =
+		process.env.SUBGRAPH_SOURCE === "streams-index"
+			? startTriggerEvaluator()
 			: undefined;
 
 	// Boot subscription emitter in same process — shares pool, shares
@@ -515,6 +530,7 @@ export async function startSubgraphProcessor(opts?: {
 		await stopListening();
 		await stopReorgListening();
 		stopStreamsReorgPoll?.();
+		stopTriggerEvaluator?.();
 		await stopOperations();
 		await stopEmitter();
 		logger.info("Subgraph processor stopped");

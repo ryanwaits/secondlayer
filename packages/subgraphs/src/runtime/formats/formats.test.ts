@@ -11,8 +11,10 @@ function sub(overrides: Partial<Subscription>): Subscription {
 		project_id: null,
 		name: "test",
 		status: "active",
+		kind: "subgraph",
 		subgraph_name: "bitcoin",
 		table_name: "transfers",
+		triggers: null,
 		filter: {},
 		format: "standard-webhooks",
 		runtime: null,
@@ -37,6 +39,7 @@ function outbox(): SubscriptionOutbox {
 	return {
 		id: "out-00000000-0000-0000-0000-000000000001",
 		subscription_id: "sub-00000000-0000-0000-0000-000000000001",
+		kind: "subgraph",
 		subgraph_name: "bitcoin",
 		table_name: "transfers",
 		block_height: 1000,
