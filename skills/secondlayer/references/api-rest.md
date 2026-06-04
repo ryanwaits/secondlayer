@@ -273,6 +273,10 @@ Body: `{ fromBlock, toBlock }` (both required). Additive — fills a gap without
 
 Cancel a running reindex/backfill.
 
+### `GET /api/subgraphs/{name}/operations` and `GET /api/subgraphs/{name}/operations/{operationId}`
+
+Poll the progress of a reindex/backfill/stop. `reindex`/`backfill` return an `operationId` immediately; read `operations/{operationId}` until `status` is terminal (`completed`/`failed`/`cancelled`). Each op carries `kind`, `status`, `fromBlock`, `toBlock`, `processedBlocks`, a derived `progress` (0–1, or `null` when no denominator is known yet; `1` when completed), `error`, and `startedAt`/`finishedAt`. The list form returns recent operations newest-first. SDK: `sl.subgraphs.getOperation(name, id)` / `sl.subgraphs.operations(name)`. MCP: `subgraphs_operation`.
+
 ### `GET /api/subgraphs/{name}/gaps`
 
 | Query param | Type | Description |
