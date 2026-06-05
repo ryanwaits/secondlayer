@@ -14,6 +14,19 @@ import { defaultInternalIndexApiKey } from "./index-internal-auth.ts";
 
 const PAGE_LIMIT = 1000;
 
+// Transport resilience for the streams-index data plane. The api runs N>1
+// replicas behind Caddy; during a rolling deploy one replica is briefly
+// unreachable, surfacing as a thrown fetch (connection refused/reset) or a
+// Caddy 502/503/504 while it fails over. Retrying a few times with backoff
+// makes a single-replica recreate transparent to the subgraph-processor /
+// l2-decoder — closing the processors-depend-on-api coupling.
+const MAX_ATTEMPTS = 4;
+const RETRY_BASE_MS = 150;
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+const delay = (ms: number): Promise<void> =>
+	new Promise((resolve) => setTimeout(resolve, ms));
+
 type Envelope<K extends string, T> = {
 	[P in K]: T[];
 } & { next_cursor: string | null };
@@ -126,13 +139,38 @@ export class IndexHttpClient {
 	private async get<T>(url: string, apiKey: string): Promise<T> {
 		// Index reads are anon — omit the header entirely when no key is set, so
 		// an empty key reads anonymously rather than 401-ing as an invalid bearer.
-		const res = await fetch(url, {
-			headers: apiKey ? { authorization: `Bearer ${apiKey}` } : {},
-		});
-		if (!res.ok) {
-			throw new Error(`GET ${url} → ${res.status} ${await res.text()}`);
+		const headers: Record<string, string> = apiKey
+			? { authorization: `Bearer ${apiKey}` }
+			: {};
+		let lastErr: unknown;
+		for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+			let res: Response;
+			try {
+				res = await fetch(url, { headers });
+			} catch (err) {
+				// Transport-level failure (connection refused/reset) — e.g. an api
+				// replica mid-recreate. Retry; the next attempt round-robins to a
+				// healthy replica.
+				lastErr = err;
+				if (attempt >= MAX_ATTEMPTS) break;
+				await delay(RETRY_BASE_MS * 2 ** (attempt - 1));
+				continue;
+			}
+			if (!res.ok) {
+				if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_ATTEMPTS) {
+					// Drain the body so the connection can be reused, then back off.
+					await res.text().catch(() => {});
+					await delay(RETRY_BASE_MS * 2 ** (attempt - 1));
+					continue;
+				}
+				throw new Error(`GET ${url} → ${res.status} ${await res.text()}`);
+			}
+			return (await res.json()) as T;
 		}
-		return (await res.json()) as T;
+		throw (
+			lastErr ??
+			new Error(`GET ${url} failed after ${MAX_ATTEMPTS} attempts`)
+		);
 	}
 
 	/** Fetch a single cursor page of an Index collection. */
