@@ -432,7 +432,8 @@ export function buildSubscriptionTestFixture(input: {
 	const sub = input.subscription;
 	const isChain = sub.kind === "chain";
 	// Chain subs deliver an apply envelope keyed `chain.{type}.apply`; subgraph
-	// subs deliver `{subgraph}.{table}.created` with the row as data.
+	// subs deliver `{subgraph}.{table}.{created|updated|deleted}` (verb per row
+	// op) with the row as data — this preview shows a `.created` example.
 	const type = isChain
 		? `chain.${sub.triggers?.[0]?.type ?? "event"}.apply`
 		: `${sub.subgraphName}.${sub.tableName}.created`;

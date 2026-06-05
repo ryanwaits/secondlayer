@@ -6,7 +6,7 @@ import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
  * Body shape:
  *   {
  *     "specversion": "1.0",
- *     "type":        "<subgraph>.<table>.created",
+ *     "type":        "<subgraph>.<table>.<created|updated|deleted>",
  *     "source":      "secondlayer:<subgraph_name>",
  *     "id":          <outbox.id>,        // UUID, used for dedup
  *     "time":        <ISO 8601>,

@@ -43,7 +43,8 @@ app.post("/webhook", async (c) => {
 
 async function onEvent(event: SubgraphEvent): Promise<void> {
 	// TODO: plug in your business logic. `event.type` is
-	// `<subgraph>.<table>.created`; `event.data` is the row payload.
+	// `<subgraph>.<table>.<created|updated|deleted>` (the verb reflects the row
+	// op); `event.data` is the row payload.
 	console.log("[event]", event.type, event.data);
 }
 
