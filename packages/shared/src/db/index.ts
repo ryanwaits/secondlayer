@@ -203,4 +203,5 @@ import { sql } from "kysely";
 export { sql };
 export * from "./types.ts";
 export type { DbReadRow, NumericAsText } from "./read-row.ts";
+export { SOURCE_READ_COLUMNS } from "./source-read-columns.ts";
 export { jsonb, parseJsonb } from "./jsonb.ts";
