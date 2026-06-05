@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { LeaderBackend } from "@secondlayer/shared/leader";
 import {
+	gateChainReorgOnLeader,
 	isEvaluatorLeader,
 	startTriggerEvaluatorLeader,
 } from "./subscription-leader.ts";
@@ -73,5 +74,31 @@ describe("startTriggerEvaluatorLeader", () => {
 
 		await stop();
 		expect(isEvaluatorLeader()).toBe(false);
+	});
+});
+
+describe("gateChainReorgOnLeader", () => {
+	test("skips the chain-reorg handler when not leader", async () => {
+		let calls = 0;
+		const gated = gateChainReorgOnLeader(
+			async () => {
+				calls++;
+			},
+			() => false,
+		);
+		await gated(123);
+		expect(calls).toBe(0);
+	});
+
+	test("runs the chain-reorg handler when leader", async () => {
+		const seen: number[] = [];
+		const gated = gateChainReorgOnLeader(
+			async (h) => {
+				seen.push(h);
+			},
+			() => true,
+		);
+		await gated(123);
+		expect(seen).toEqual([123]);
 	});
 });

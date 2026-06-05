@@ -32,6 +32,22 @@ export function isEvaluatorLeader(): boolean {
 	return evaluatorLeader;
 }
 
+/**
+ * Wrap the chain-reorg handler so it fires only while this process is the
+ * evaluator leader. The handler rewinds `trigger_evaluator_state` — the same row
+ * the evaluator advances — so running it on a non-leader would race the leader's
+ * cursor. The subgraph-reorg handler is left ungated (idempotent row-deletes).
+ */
+export function gateChainReorgOnLeader(
+	handler: (forkHeight: number) => Promise<void>,
+	isLeader: () => boolean = isEvaluatorLeader,
+): (forkHeight: number) => Promise<void> {
+	return async (forkHeight) => {
+		if (!isLeader()) return;
+		await handler(forkHeight);
+	};
+}
+
 export type StartTriggerEvaluatorLeaderOptions = {
 	pollMs?: number;
 	heartbeatMs?: number;

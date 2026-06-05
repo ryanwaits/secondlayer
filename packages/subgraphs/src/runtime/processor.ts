@@ -36,7 +36,10 @@ import { startEmitter } from "./emitter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
-import { startTriggerEvaluatorLeader } from "./subscription-leader.ts";
+import {
+	gateChainReorgOnLeader,
+	startTriggerEvaluatorLeader,
+} from "./subscription-leader.ts";
 
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const CHANNEL_SUBGRAPH_OPERATIONS = "subgraph_operations:new";
@@ -493,7 +496,7 @@ export async function startSubgraphProcessor(opts?: {
 			? startStreamsReorgPoll(
 					handleSubgraphReorg,
 					loadSubgraphDefinition,
-					(forkHeight) => handleChainReorg(forkHeight),
+					gateChainReorgOnLeader((forkHeight) => handleChainReorg(forkHeight)),
 				)
 			: undefined;
 
