@@ -1,6 +1,6 @@
 // Subgraph processor service entry point
 // Run with: bun run packages/subgraphs/src/service.ts
-import { getDb } from "@secondlayer/shared/db";
+import { assertDbSplit, getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { sql } from "kysely";
 import { startSubgraphProcessor } from "./runtime/processor.ts";
@@ -23,6 +23,8 @@ async function writeHeartbeat(): Promise<void> {
 		});
 	}
 }
+
+assertDbSplit();
 
 const processor = await startSubgraphProcessor({
 	concurrency: Number.parseInt(process.env.SUBGRAPH_CONCURRENCY ?? "5"),

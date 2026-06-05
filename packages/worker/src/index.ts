@@ -1,4 +1,5 @@
 import { getEnv, logger } from "@secondlayer/shared";
+import { assertDbSplit } from "@secondlayer/shared/db";
 import { startComputeMeteringCron } from "./jobs/compute-metering.ts";
 import { startStorageMeasurement } from "./jobs/measure-storage.ts";
 import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
@@ -7,6 +8,7 @@ import { startStorageMeteringCron } from "./jobs/storage-metering.ts";
 let running = true;
 
 async function runWorker() {
+	assertDbSplit();
 	const env = getEnv();
 	logger.info("Starting worker", { networks: env.enabledNetworks });
 
