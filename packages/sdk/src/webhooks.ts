@@ -1,3 +1,4 @@
+import { verifySecondlayerSignatureValues } from "@secondlayer/shared/crypto/secondlayer-webhook";
 import {
 	type StandardWebhooksHeaders,
 	verify,
@@ -137,4 +138,43 @@ export function verifyWebhookSignature(
 		secret,
 		{ toleranceSeconds },
 	);
+}
+
+/**
+ * Verify the universal Secondlayer authenticity signature that every delivery
+ * carries, regardless of body format (`raw`, `cloudevents`, `standard-webhooks`,
+ * …). This is the format-agnostic alternative to {@link verifyWebhookSignature}:
+ * instead of a per-subscription HMAC secret, it checks an ed25519 signature over
+ * `${webhook-id}.${rawBody}` against Secondlayer's published public key — so one
+ * key proves authenticity for any format.
+ *
+ * @param rawBody    The raw request body string (never re-stringify the parsed
+ *                   JSON — whitespace/key-order changes break the signature).
+ * @param headers    Request headers — plain object, Fetch `Headers`, or a
+ *                   lookup callback. Reads `webhook-id` + `x-secondlayer-signature`.
+ * @param publicKeyPem Secondlayer's published ed25519 public key (SPKI PEM).
+ * @returns true when the signature header is present and verifies.
+ *
+ * @example
+ * ```ts
+ * import { verifySecondlayerSignature } from "@secondlayer/sdk";
+ *
+ * app.post("/webhook", async (c) => {
+ *   const raw = await c.req.text();
+ *   if (!verifySecondlayerSignature(raw, c.req.raw.headers, SECONDLAYER_PUBLIC_KEY)) {
+ *     return c.text("Invalid signature", 401);
+ *   }
+ *   // ... process raw ...
+ *   return c.body(null, 204);
+ * });
+ * ```
+ */
+export function verifySecondlayerSignature(
+	rawBody: string,
+	headers: WebhookHeaderInput,
+	publicKeyPem: string,
+): boolean {
+	const id = pickHeader(headers, "webhook-id");
+	const signature = pickHeader(headers, "x-secondlayer-signature");
+	return verifySecondlayerSignatureValues(rawBody, id, signature, publicKeyPem);
 }

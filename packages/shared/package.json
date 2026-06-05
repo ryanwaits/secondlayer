@@ -76,6 +76,14 @@
 			"types": "./dist/src/crypto/standard-webhooks.d.ts",
 			"import": "./dist/src/crypto/standard-webhooks.js"
 		},
+		"./crypto/secondlayer-webhook": {
+			"types": "./dist/src/crypto/secondlayer-webhook.d.ts",
+			"import": "./dist/src/crypto/secondlayer-webhook.js"
+		},
+		"./crypto/ed25519": {
+			"types": "./dist/src/crypto/ed25519.d.ts",
+			"import": "./dist/src/crypto/ed25519.js"
+		},
 		"./mode": {
 			"types": "./dist/src/mode.d.ts",
 			"import": "./dist/src/mode.js"

@@ -1,3 +1,4 @@
+import { signSecondlayerWebhook } from "@secondlayer/shared/crypto/secondlayer-webhook";
 import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { buildCloudEvents } from "./cloudevents.ts";
@@ -12,12 +13,7 @@ export interface FormatBuildResult {
 	headers: Record<string, string>;
 }
 
-/**
- * Dispatch an outbox row through the format matching the subscription's
- * `format` column. Unknown formats fall back to `standard-webhooks` with
- * a warning log — receivers always get something deliverable.
- */
-export function buildForFormat(
+function buildBody(
 	outboxRow: SubscriptionOutbox,
 	sub: Subscription,
 	signingSecret: string,
@@ -45,6 +41,30 @@ export function buildForFormat(
 			);
 			return buildStandardWebhooks(outboxRow, signingSecret);
 	}
+}
+
+/**
+ * Dispatch an outbox row through the format matching the subscription's
+ * `format` column. Unknown formats fall back to `standard-webhooks` with
+ * a warning log — receivers always get something deliverable.
+ *
+ * Every delivery, whatever its body shape, also gets the universal Secondlayer
+ * authenticity headers (`webhook-id` + `X-Secondlayer-Signature`) so a receiver
+ * can prove the payload came from us with one published public key — not just
+ * the `standard-webhooks` format. The signature covers the exact body bytes
+ * built here, so it must be attached after the body is final.
+ */
+export function buildForFormat(
+	outboxRow: SubscriptionOutbox,
+	sub: Subscription,
+	signingSecret: string,
+): FormatBuildResult {
+	const result = buildBody(outboxRow, sub, signingSecret);
+	const sigHeaders = signSecondlayerWebhook(outboxRow.id, result.body);
+	if (sigHeaders) {
+		result.headers = { ...result.headers, ...sigHeaders };
+	}
+	return result;
 }
 
 export {

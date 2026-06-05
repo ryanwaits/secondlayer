@@ -98,7 +98,10 @@ export type {
 	DeadRow,
 } from "./subscriptions/client.ts";
 export { ApiError, VersionConflictError } from "./errors.ts";
-export { verifyWebhookSignature } from "./webhooks.ts";
+export {
+	verifyWebhookSignature,
+	verifySecondlayerSignature,
+} from "./webhooks.ts";
 export {
 	createStreamsClient,
 	Cursor,

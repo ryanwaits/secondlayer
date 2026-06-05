@@ -1,4 +1,9 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
+import {
+	resetSecondlayerWebhookSignerForTest,
+	verifySecondlayerSignatureValues,
+} from "@secondlayer/shared/crypto/secondlayer-webhook";
 import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
 import { buildForFormat } from "./index.ts";
 
@@ -171,4 +176,44 @@ describe("format dispatcher", () => {
 		const { headers } = buildForFormat(outbox(), s, "whsec_dGVzdA==");
 		expect(headers["webhook-signature"]).toMatch(/^v1,/);
 	});
+});
+
+describe("universal Secondlayer signature", () => {
+	const { privateKeyPem, publicKeyPem } = generateEd25519KeyPair();
+	const saved = process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY;
+
+	beforeAll(() => {
+		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = privateKeyPem;
+		resetSecondlayerWebhookSignerForTest();
+	});
+	afterAll(() => {
+		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = saved;
+		resetSecondlayerWebhookSignerForTest();
+	});
+
+	// Formats that build without an encrypted bearer secret. The signature is
+	// attached uniformly in buildForFormat (after the body), so coverage across
+	// these distinct body shapes proves it is format-agnostic.
+	for (const format of [
+		"standard-webhooks",
+		"cloudevents",
+		"raw",
+		"inngest",
+	] as const) {
+		it(`${format} carries a verifiable ed25519 signature over its body`, () => {
+			const s = sub({ format });
+			const out = outbox();
+			const { body, headers } = buildForFormat(out, s, "whsec_dGVzdA==");
+			expect(headers["webhook-id"]).toBe(out.id);
+			expect(headers["x-secondlayer-signature"]).toBeTruthy();
+			expect(
+				verifySecondlayerSignatureValues(
+					body,
+					headers["webhook-id"],
+					headers["x-secondlayer-signature"],
+					publicKeyPem,
+				),
+			).toBe(true);
+		});
+	}
 });

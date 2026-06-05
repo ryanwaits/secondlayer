@@ -35,6 +35,8 @@ const config: DefineConfigItem = defineConfig({
 		"src/crypto/hmac.ts",
 		"src/crypto/secrets.ts",
 		"src/crypto/standard-webhooks.ts",
+		"src/crypto/secondlayer-webhook.ts",
+		"src/crypto/ed25519.ts",
 		"src/node/client.ts",
 		"src/node/hiro-client.ts",
 		"src/node/local-client.ts",
