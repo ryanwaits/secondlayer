@@ -233,7 +233,12 @@ export function DatasetSandbox({
 										<input
 											type={showKey ? "text" : "password"}
 											autoComplete="off"
+											autoCorrect="off"
+											autoCapitalize="off"
 											spellCheck={false}
+											data-1p-ignore=""
+											data-lpignore="true"
+											data-form-type="other"
 											value={apiKey}
 											onChange={(e) => updateApiKey(e.target.value)}
 											placeholder="sk-sl_..."
@@ -425,6 +430,13 @@ function FilterInput({
 					placeholder={filter.placeholder}
 					value={value}
 					onChange={(e) => onChange(filter.name, e.target.value)}
+					autoComplete="off"
+					autoCorrect="off"
+					autoCapitalize="off"
+					spellCheck={false}
+					data-1p-ignore=""
+					data-lpignore="true"
+					data-form-type="other"
 				/>
 			)}
 		</label>
