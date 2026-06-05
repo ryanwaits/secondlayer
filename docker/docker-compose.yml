@@ -129,8 +129,14 @@ services:
       # Set by the Deploy workflow + persisted into .env by deploy.sh's
       # record_successful_deploy step.
       DEPLOY_IMAGE_TAG: ${DEPLOY_IMAGE_TAG:-unknown}
-    ports:
-      - "${API_PORT:-3800}:3800"
+    # No fixed host port: replicas can't share one. Caddy reaches the pool over
+    # the compose network via `dynamic a api 3800` (load-balanced). Set
+    # API_REPLICAS>1 for rolling, zero-502 deploys (deploy.sh recreates one at a
+    # time). Stays 1 by default so single-DB/dev topology is unchanged.
+    expose:
+      - "3800"
+    deploy:
+      replicas: ${API_REPLICAS:-1}
     depends_on:
       migrate:
         condition: service_completed_successfully

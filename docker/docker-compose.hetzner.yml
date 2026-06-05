@@ -83,6 +83,10 @@ services:
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
     deploy:
+      # N>1 replicas behind Caddy → rolling, zero-502 deploys + a single
+      # replica recreate never stalls the streams-index processors (they reach
+      # api over round-robin Docker DNS). 2× the 2G limit = 4G api headroom.
+      replicas: ${API_REPLICAS:-2}
       resources:
         limits:
           memory: 2G
