@@ -20,6 +20,11 @@ services:
       - "archive_command=test -f /wal_archive/%f || cp %p /wal_archive/%f"
       - "-c"
       - "archive_timeout=300"
+      # 100 was undersized for 7 services + N>1 api replicas (~94 steady, mostly
+      # idle pooled). 200 gives headroom; applied via a deliberate `up -d postgres`
+      # (deploy.sh never recreates postgres, so this must be set here to persist).
+      - "-c"
+      - "max_connections=200"
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data
       - ${DATA_DIR:-/opt/secondlayer/data}/wal_archive:/wal_archive

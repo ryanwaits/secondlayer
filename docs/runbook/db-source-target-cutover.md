@@ -49,6 +49,17 @@ triggers a Deploy with a 1–2 min 502.
    ```
    The script exits non-zero on any row-count mismatch — do not proceed if it does.
 
+   **Freeze writers for the FINAL copy.** High-churn control tables (e.g.
+   `subgraph_processing_stats`, `sessions`, `usage_*`) are written continuously,
+   so a copy with the app live drifts by a row or two (the script will flag it).
+   For a consistent cutover, stop the control-plane writers, run the copy, then
+   flip — chain ingest (indexer/l2-decoder) can keep running:
+   ```
+   docker compose -f docker-compose.yml -f docker-compose.hetzner.yml \
+     stop api subgraph-processor worker
+   # …run the copy (now consistent)… then bring services back up after the flip.
+   ```
+
 4. **Flip the env + remove `DATABASE_URL`.** In `.env` set:
    ```
    SOURCE_DATABASE_URL=postgres://…@postgres:5432/secondlayer
@@ -74,3 +85,19 @@ triggers a Deploy with a 1–2 min 502.
 Re-add `DATABASE_URL` and unset `SOURCE_/TARGET_DATABASE_URL` (both fall back to
 `DATABASE_URL` → original single DB) and redeploy. If the control-plane data on
 SOURCE was already dropped (step 6), restore from the wal-g snapshot instead.
+
+## Notes (learned in the 2026-06-05 prod cutover)
+
+- **Connection headroom.** Pre-split, running N>1 api replicas against the single
+  Postgres can exhaust `max_connections` (each process holds a ~20-conn pool;
+  many sit idle). The split itself relieves this — worker + subgraph-processor
+  move entirely to TARGET. Source `max_connections` was bumped 100→200 (in
+  `docker-compose.hetzner.yml`, applied via `up -d postgres` — deploy.sh never
+  recreates postgres). If you cut over with replicas already at N>1 and hit
+  "too many clients", scale api to 1 first (`API_REPLICAS=1`, `up -d api`), cut
+  over, then scale back up.
+- **Readers must source-read chain/decoded.** Any reader that touches chain or
+  decoded tables (`blocks`, `l2_decoder_checkpoints`, `decoded_events`, …) must
+  use `getSourceDb()`, not `getDb()`/`getTargetDb()` — under the active split the
+  latter point at TARGET, where those tables exist but are empty (false
+  "degraded"). `/status` l2-health + chain-integrity were fixed for this.
