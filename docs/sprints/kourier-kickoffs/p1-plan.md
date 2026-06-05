@@ -65,7 +65,7 @@
 
 - Changeset per changed package every task (api/indexer private — api keeps a changeset per house rule, indexer auto-skips). Release via bun release workflow. Version-bump commit = `chore: version packages`.
 - Conventional single-line commits, no body, no process labels.
-- DB-gated tests → local PG `127.0.0.1:5435` postgres/postgres db `secondlayer`.
+- DB-gated tests → local PG `127.0.0.1:5440` postgres/postgres db `secondlayer`.
 - Leader locks pinned to the correct split DB: subscription/subgraph control-plane state lives on **target** (postgres-platform) per P0 split — the lock backend takes an explicit target URL (A1).
 - **No DB migrations required** for any task in this plan — the bulk manifest (D2a) is R2 JSON, the new event verbs (C2) reuse `subscription_outbox.event_type` (free-text), chain replay (C4) reuses existing outbox columns. Confirm before each task; if one is needed, number it sequentially after the latest migration.
 

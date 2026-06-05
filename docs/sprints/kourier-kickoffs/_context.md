@@ -30,7 +30,7 @@ G1 schema-contract belt (`DbReadRow` + `SOURCE_READ_COLUMNS` + CI drift test); G
 - Always create a changeset for every changed package; `api`/`indexer` are private (changesets auto-skip indexer; api keeps a changeset per house rule). Release via the bun release workflow.
 - Delete over refactor during deprecations.
 - Every push to main triggers a full Deploy → 1-2 min 502 window. Prod SSH: `ssh ryan@claude-mini` → `ssh app-server`/`ssh node-server`; compose at `/opt/secondlayer/docker`; postgres = `secondlayer-postgres-1` (user/db `secondlayer`).
-- DB-gated tests use local Postgres `127.0.0.1:5435`, postgres/postgres, db `secondlayer`.
+- DB-gated tests use local Postgres `127.0.0.1:5440`, postgres/postgres, db `secondlayer`.
 - Be terse; sacrifice grammar for concision.
 
 ## Plan format (produce this, per global CLAUDE.md)

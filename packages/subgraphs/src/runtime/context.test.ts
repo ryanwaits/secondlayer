@@ -9,7 +9,7 @@ import { SubgraphContext } from "./context.ts";
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
-	"postgresql://postgres:postgres@127.0.0.1:5435/secondlayer";
+	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
 
 const schema = {
 	transfers: {

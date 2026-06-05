@@ -18,7 +18,7 @@ import type { Database } from "../src/db/types.ts";
  * + real Postgres: a single migration creates a control probe table via
  * `onControlPlane` and a chain probe via `onChainPlane`; the role set before
  * `migrateToLatest()` decides which actually lands. Gated on a base DB the test
- * can `CREATE DATABASE` against (local: `127.0.0.1:5435`).
+ * can `CREATE DATABASE` against (local: `127.0.0.1:5440`).
  */
 const HAS_DB = !!process.env.DATABASE_URL;
 

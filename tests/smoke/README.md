@@ -31,7 +31,7 @@ bun run test:smoke
 Default database URL:
 
 ```sh
-postgresql://postgres:postgres@127.0.0.1:5435/secondlayer
+postgresql://postgres:postgres@127.0.0.1:5440/secondlayer
 ```
 
 Override with `DATABASE_URL`.

@@ -7,7 +7,7 @@ import postgres from "postgres";
 import type { Database } from "../../packages/shared/src/db/types.ts";
 
 const DEFAULT_DATABASE_URL =
-	"postgresql://postgres:postgres@127.0.0.1:5435/secondlayer";
+	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
 const MIN_CONTINUOUS_RUN_MS = 60_000;
 
 type EnvMap = Record<string, string | undefined>;
