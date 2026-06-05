@@ -1,6 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { StreamsEvent } from "@secondlayer/indexer/streams-events";
 import { Hono } from "hono";
+import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
@@ -114,6 +115,10 @@ function streamsEvent(overrides: Partial<StreamsEvent> = {}): StreamsEvent {
 }
 
 describe("Stacks Streams gateway middleware", () => {
+	beforeEach(async () => {
+		await _resetRateLimitStoreForTests();
+	});
+
 	test("Free-tier key gets 429 at 11 req/s sustained", async () => {
 		const app = createApp();
 

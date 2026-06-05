@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
+import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { createIndexRouter } from "../routes/index.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
@@ -109,6 +110,10 @@ function createMeteredIndexApp(opts: {
 }
 
 describe("Stacks Index gateway middleware", () => {
+	beforeEach(async () => {
+		await _resetRateLimitStoreForTests();
+	});
+
 	test("anon GET ft-transfers returns 200 with bounded anon rate limit", async () => {
 		const app = createApp();
 		const res = await app.request("/v1/index/ft-transfers");

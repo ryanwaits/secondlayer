@@ -433,19 +433,26 @@ describe("Index transactions routes", () => {
 });
 
 describe("Index stacking route", () => {
-	test("returns stacking actions and a disabled-decoder note", async () => {
-		const res = await createApp().request(
-			"/v1/index/stacking?from_height=0&to_height=9994",
-		);
-		expect(res.status).toBe(200);
-		const body = (await res.json()) as {
-			stacking: Array<{ function_name: string }>;
-			next_cursor: string | null;
-			notes?: string;
-		};
-		expect(body.stacking[0]?.function_name).toBe("stack-stx");
-		// POX4_DECODER_ENABLED is not set in the test env → note is present.
-		expect(body.notes).toContain("POX4_DECODER_ENABLED");
+	test("returns stacking actions and a disabled-decoder note when opted out", async () => {
+		// The decoder is ON by default now; opt out to exercise the note path.
+		const prev = process.env.POX4_DECODER_ENABLED;
+		process.env.POX4_DECODER_ENABLED = "false";
+		try {
+			const res = await createApp().request(
+				"/v1/index/stacking?from_height=0&to_height=9994",
+			);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as {
+				stacking: Array<{ function_name: string }>;
+				next_cursor: string | null;
+				notes?: string;
+			};
+			expect(body.stacking[0]?.function_name).toBe("stack-stx");
+			expect(body.notes).toContain("POX4_DECODER_ENABLED");
+		} finally {
+			if (prev === undefined) delete process.env.POX4_DECODER_ENABLED;
+			else process.env.POX4_DECODER_ENABLED = prev;
+		}
 	});
 
 	test("is listed in route discovery", async () => {
