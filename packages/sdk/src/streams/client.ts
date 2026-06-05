@@ -72,6 +72,12 @@ export type CreateStreamsClientOptions = {
 	 * failed or missing signature throws `StreamsSignatureError`.
 	 */
 	verify?: boolean | { publicKey: string };
+	/**
+	 * Verify the bulk dumps manifest's ed25519 signature in `client.dumps.list()`
+	 * before trusting any file sha256 (default off). Uses the same key source as
+	 * `verify`. Default off until historical manifests carry signatures.
+	 */
+	verifyDumpsManifest?: boolean;
 };
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -134,15 +140,12 @@ export function createStreamsClient(
 	const baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_STREAMS_BASE_URL);
 	const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
 	const verify = options.verify ?? false;
-	const dumps = createStreamsDumps({
-		baseUrl: options.dumpsBaseUrl,
-		fetchImpl,
-	});
 
 	// Lazily resolve and cache the verification key alongside its id, so a
 	// rotation (signalled by a changed `X-Signature-KeyId`) can be detected.
 	type VerificationKey = {
 		keyId: string;
+		publicKeyPem: string;
 		publicKey: ReturnType<typeof ed25519.loadEd25519PublicKey>;
 	};
 	let keyPromise: Promise<VerificationKey> | null = null;
@@ -152,6 +155,7 @@ export function createStreamsClient(
 			if (typeof verify === "object") {
 				return {
 					keyId: ed25519.ed25519KeyId(verify.publicKey),
+					publicKeyPem: verify.publicKey,
 					publicKey: ed25519.loadEd25519PublicKey(verify.publicKey),
 				};
 			}
@@ -170,11 +174,19 @@ export function createStreamsClient(
 			}
 			return {
 				keyId: body.key_id ?? ed25519.ed25519KeyId(body.public_key_pem),
+				publicKeyPem: body.public_key_pem,
 				publicKey: ed25519.loadEd25519PublicKey(body.public_key_pem),
 			};
 		})();
 		return keyPromise;
 	}
+
+	const dumps = createStreamsDumps({
+		baseUrl: options.dumpsBaseUrl,
+		fetchImpl,
+		verifyManifest: options.verifyDumpsManifest ?? false,
+		loadPublicKeyPem: async () => (await loadKey()).publicKeyPem,
+	});
 
 	async function request<T>(path: string): Promise<T> {
 		const response = await fetchImpl(`${baseUrl}${path}`, {

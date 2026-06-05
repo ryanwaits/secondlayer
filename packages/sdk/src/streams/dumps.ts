@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { verifyStreamsBulkManifestSignature } from "@secondlayer/shared/streams-bulk-manifest";
 import { StreamsServerError, StreamsSignatureError } from "./errors.ts";
 import type {
 	FetchLike,
@@ -13,10 +14,17 @@ import type {
  * The manifest lives at `<dumpsBaseUrl>/manifest/latest.json` and each file's
  * `path` is the object key under the same base. Downloads are verified against
  * the manifest sha256 so a truncated or tampered file is rejected.
+ *
+ * When `verifyManifest` is set, the manifest's own ed25519 signature is checked
+ * (against the published Streams key) BEFORE any file sha256 is trusted — a
+ * sha256 is only as trustworthy as the manifest it came from. Default off until
+ * historical manifests have been backfilled with signatures.
  */
 export function createStreamsDumps(opts: {
 	baseUrl?: string;
 	fetchImpl: FetchLike;
+	verifyManifest?: boolean;
+	loadPublicKeyPem?: () => Promise<string>;
 }): StreamsDumps {
 	const baseUrl = opts.baseUrl?.replace(/\/+$/, "");
 
@@ -43,7 +51,21 @@ export function createStreamsDumps(opts: {
 				res.status,
 			);
 		}
-		return (await res.json()) as StreamsDumpsManifest;
+		const manifest = (await res.json()) as StreamsDumpsManifest;
+		if (opts.verifyManifest) {
+			if (!opts.loadPublicKeyPem) {
+				throw new StreamsSignatureError(
+					"Manifest verification is on but no signing key source is configured.",
+				);
+			}
+			const publicKeyPem = await opts.loadPublicKeyPem();
+			if (!verifyStreamsBulkManifestSignature(manifest, publicKeyPem)) {
+				throw new StreamsSignatureError(
+					"Dumps manifest signature is missing or invalid.",
+				);
+			}
+		}
+		return manifest;
 	}
 
 	async function download(file: StreamsDumpFile): Promise<Uint8Array> {

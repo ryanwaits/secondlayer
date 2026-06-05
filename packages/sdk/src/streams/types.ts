@@ -333,6 +333,11 @@ export type StreamsDumpsManifest = {
 	latest_finalized_cursor: string | null;
 	coverage: { from_block: number; to_block: number };
 	files: StreamsDumpFile[];
+	/** ed25519 signature over the manifest's canonical bytes. Absent on legacy
+	 *  unsigned manifests. Verified by `list()` when `verifyDumpsManifest` is on. */
+	signature?: string;
+	/** Short id of the signing public key. */
+	key_id?: string;
 };
 
 export type StreamsDumps = {
