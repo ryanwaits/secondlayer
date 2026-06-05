@@ -12,6 +12,12 @@ Resolution (already wired in `@secondlayer/shared/db`):
 When only `DATABASE_URL` is set both resolve to one DB — the split is a no-op,
 so all of this is safe to merge and deploy before any cutover.
 
+> **Canonical mapping:** `TABLE_TO_DB` in
+> `packages/shared/src/db/table-plane.ts` is the machine-readable source of truth
+> for which plane each table belongs to (type-enforced exhaustive vs
+> `keyof Database`). The lists below + the cutover script's `CONTROL_TABLES` are
+> human mirrors of it, guarded by `table-plane.test.ts`.
+
 ## SOURCE (chain + decoded)
 
 Written by the `indexer` and `l2-decoder` services. Read by the public API.

@@ -43,8 +43,9 @@ for cmd in pg_dump psql; do
 done
 
 # Control-plane tables (public schema), FK-parent order. The reload defers FK
-# checks, so order is belt-and-suspenders, not load-bearing. Mirrors the TARGET
-# set in docker/SCHEMA_SPLIT.md — keep in sync.
+# checks, so order is belt-and-suspenders, not load-bearing. Mirrors the `target`
+# set of TABLE_TO_DB (packages/shared/src/db/table-plane.ts) — the canonical
+# source of truth; table-plane.test.ts asserts this list matches it.
 CONTROL_TABLES=(
   accounts
   tenants
