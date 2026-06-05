@@ -77,6 +77,8 @@ export type IndexEventRow = IndexEventCommon &
 export type IndexTransactionRow = {
 	tx_id: string;
 	block_height: number;
+	block_time?: string | null;
+	burn_block_height?: number | null;
 	tx_index: number;
 	tx_type: string;
 	sender: string;
@@ -193,7 +195,10 @@ export class IndexHttpClient {
 			fromHeight?: number;
 			limit?: number;
 		},
-	): Promise<{ transactions: IndexTransactionRow[]; next_cursor: string | null }> {
+	): Promise<{
+		transactions: IndexTransactionRow[];
+		next_cursor: string | null;
+	}> {
 		const params = new URLSearchParams({
 			to_height: String(opts.toHeight),
 			limit: String(opts.limit ?? PAGE_LIMIT),
