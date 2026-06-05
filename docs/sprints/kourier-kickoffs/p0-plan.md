@@ -33,7 +33,8 @@ Scope: all code/config/script + staging validation. Prod cutover + replica rollo
 - tsc green: shared, api, worker, subgraphs.
 - compose base + prod (`-f docker-compose.yml -f hetzner.yml`) `config` valid; api `replicas: 2`, exposed (no host port); postgres-platform default-on + volume bound to DATA_DIR.
 - deploy.sh `bash -n` clean; rolling recreate + `caddy validate` gate added.
-- **Env-blocked:** live `caddy validate` (docker credential helper hangs in this env) — mitigated by the deploy.sh validate-before-restart gate. Caddyfile syntax reviewed against Caddy v2 dynamic-upstream + passive-failover modules.
+- Caddyfile: `caddy validate` (caddy:2-alpine) → "Valid configuration" (dynamic-a upstream + passive failover). deploy.sh also gates on it before restart.
+- Cutover script re-validated after review fixes: happy path 24-table parity + idempotent; negative path (missing SOURCE table) → `pg_dump --strict-names` exit 1, TARGET untruncated.
 
 ## Founder-manual remaining (out of automated scope)
 - Execute prod cutover window (snapshot → run split-platform-db.sh → flip env, remove DATABASE_URL → redeploy → verify /status).
