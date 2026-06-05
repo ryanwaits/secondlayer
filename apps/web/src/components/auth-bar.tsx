@@ -174,7 +174,7 @@ export function AuthBar() {
 							if (!expanded) setExpanded(true);
 						}}
 					>
-						{status === "sending" ? "..." : "Get API key"}
+						{status === "sending" ? "..." : "Get an API key"}
 					</button>
 				</form>
 			)}

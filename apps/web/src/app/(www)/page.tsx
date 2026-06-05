@@ -13,33 +13,28 @@ type IndexEntry = {
 	name: string;
 	href: string;
 	desc: string;
-	endpoint: string;
 };
 
 const products: IndexEntry[] = [
 	{
 		name: "Streams",
 		href: "/streams",
-		desc: "Raw chain events, in order.",
-		endpoint: "/v1/streams",
+		desc: "Pull raw chain events, in order.",
 	},
 	{
 		name: "Index",
 		href: "/index-api",
-		desc: "Decoded transactions and events.",
-		endpoint: "/v1/index",
+		desc: "Query decoded transactions and events.",
 	},
 	{
 		name: "Subgraphs",
 		href: "/subgraphs",
-		desc: "Your schema, your handlers.",
-		endpoint: "/api/subgraphs",
+		desc: "Shape your own tables from contract events.",
 	},
 	{
 		name: "Subscriptions",
 		href: "/subscriptions",
-		desc: "Webhooks on subgraph rows or raw chain events.",
-		endpoint: "push",
+		desc: "Push matched events to your webhook.",
 	},
 ];
 
@@ -51,22 +46,18 @@ function IndexRow({ item }: { item: IndexEntry }) {
 					<span className="index-link-label">{item.name}</span>
 					<span className="index-link-desc">{item.desc}</span>
 				</span>
-				<span className="index-link-end">{item.endpoint}</span>
 			</Link>
 		</li>
 	);
 }
 
-function IndexGroup({ label, items }: { label: string; items: IndexEntry[] }) {
+function IndexGroup({ items }: { items: IndexEntry[] }) {
 	return (
-		<div className="index-year-group">
-			<div className="index-year">{label}</div>
-			<ul className="index-list">
-				{items.map((item) => (
-					<IndexRow key={item.href} item={item} />
-				))}
-			</ul>
-		</div>
+		<ul className="index-list">
+			{items.map((item) => (
+				<IndexRow key={item.href} item={item} />
+			))}
+		</ul>
 	);
 }
 
@@ -132,7 +123,7 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 				className="index-group"
 				style={{ marginTop: "var(--spacing-xl)" }}
 			>
-				<IndexGroup label="Products" items={products} />
+				<IndexGroup items={products} />
 			</section>
 		</div>
 	);
