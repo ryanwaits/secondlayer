@@ -7,13 +7,36 @@ import type { Database } from "./types.ts";
 
 const migrationsFolder = resolve(dirname(import.meta.dir), "../migrations");
 
+/**
+ * The distinct databases to migrate. In single-DB mode (`DATABASE_URL` only)
+ * this is one URL. When the chain/control split is configured
+ * (`SOURCE_DATABASE_URL`/`TARGET_DATABASE_URL`) it's both — and the full schema
+ * is applied to each (the opposite-set tables sit empty, which is harmless).
+ */
+function migrationTargets(): string[] {
+	const source = process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL;
+	const target = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
+	return [...new Set([source, target].filter((u): u is string => !!u))];
+}
+
 async function runMigrations() {
-	const connectionString = process.env.DATABASE_URL;
-	if (!connectionString) {
-		console.error("❌ DATABASE_URL environment variable is required");
+	const targets = migrationTargets();
+	if (targets.length === 0) {
+		console.error(
+			"❌ DATABASE_URL (or SOURCE_DATABASE_URL/TARGET_DATABASE_URL) is required",
+		);
 		process.exit(1);
 	}
 
+	for (const [i, url] of targets.entries()) {
+		if (targets.length > 1) {
+			console.log(`\n🗄️  Migrating database ${i + 1}/${targets.length}`);
+		}
+		await migrateOne(url);
+	}
+}
+
+async function migrateOne(connectionString: string) {
 	console.log("🔄 Running migrations...");
 
 	const client = postgres(connectionString, { max: 1 });
