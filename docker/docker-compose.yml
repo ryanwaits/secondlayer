@@ -75,7 +75,7 @@ services:
       # enabled decoder, not just ft+nft. Mirror the values set on the
       # l2-decoder service.
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
-      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
+      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-true}
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
       # Surfaced on /health so deploy drift is detectable without docker ps.
       # Set by the Deploy workflow + persisted into .env by deploy.sh's
@@ -177,7 +177,7 @@ services:
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
       # PoX-4 transaction-result decoder. Mainnet-only; auto-seeds checkpoint
       # to tip on first enable (no historical replay).
-      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
+      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-true}
       POX4_DECODER_INTERVAL_MS: ${POX4_DECODER_INTERVAL_MS:-30000}
       POX4_DECODER_BATCH_SIZE: ${POX4_DECODER_BATCH_SIZE:-500}
       # BNS-V2 print-event decoder. Subscribes to BNS-V2 contract prints,
