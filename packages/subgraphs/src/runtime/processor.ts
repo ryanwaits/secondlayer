@@ -90,11 +90,13 @@ function handlerImportUrl(handlerPath: string, cacheBust = Date.now()) {
  * back to `DATABASE_URL` — identical to pre-dual-DB behavior.
  */
 function sourceListenerUrl(): string | undefined {
-	return process.env.SOURCE_DATABASE_URL ?? process.env.DATABASE_URL;
+	// `||` so an empty-string env (unset SOURCE_DATABASE_URL passed through
+	// docker-compose as "") falls back to DATABASE_URL instead of resolving "".
+	return process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL;
 }
 
 function targetListenerUrl(): string | undefined {
-	return process.env.TARGET_DATABASE_URL ?? process.env.DATABASE_URL;
+	return process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
 }
 
 function isHandlerNotFoundError(err: unknown): boolean {

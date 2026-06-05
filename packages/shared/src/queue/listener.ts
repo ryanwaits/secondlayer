@@ -11,7 +11,10 @@ interface ListenOptions {
 }
 
 function resolveUrl(opts?: ListenOptions): string {
-	const url = opts?.connectionString ?? process.env.DATABASE_URL;
+	// `||` not `??`: an empty-string connectionString (e.g. an unset
+	// SOURCE_/TARGET_DATABASE_URL passed through docker-compose as "") must fall
+	// back to DATABASE_URL, not be treated as a valid value.
+	const url = opts?.connectionString || process.env.DATABASE_URL;
 	if (!url) {
 		throw new Error(
 			"listen/notify requires a connection string (opts.connectionString or DATABASE_URL)",

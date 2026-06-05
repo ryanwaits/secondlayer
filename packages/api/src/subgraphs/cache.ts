@@ -39,7 +39,9 @@ export class SubgraphRegistryCache {
 		// Subgraph registry lives in the target DB (tenant-side). In dual-DB
 		// mode, listener must bind to TARGET_DATABASE_URL — DATABASE_URL alone
 		// wouldn't reach the tenant in dedicated deployments.
-		const url = process.env.TARGET_DATABASE_URL ?? process.env.DATABASE_URL;
+		// `||` so an empty-string TARGET_DATABASE_URL (passed through compose as "")
+		// falls back to DATABASE_URL instead of resolving to "".
+		const url = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
 		if (!url) return;
 
 		this.listener = postgres(url, { max: 1 });
