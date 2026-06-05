@@ -1,6 +1,6 @@
+import type { Kysely, Transaction } from "kysely";
 import { getSourceDb, sql } from "../index.ts";
 import type { Database } from "../types.ts";
-import type { Kysely, Transaction } from "kysely";
 
 export type ChainReorgCursor = {
 	block_height: number;
@@ -36,6 +36,12 @@ export type ReadChainReorgsSinceParams = {
 export type ReadChainReorgsForRangeParams = {
 	from: ChainReorgCursor;
 	to: ChainReorgCursor;
+	db?: Kysely<Database>;
+};
+
+export type ReadChainReorgsForHeightRangeParams = {
+	fromHeight: number;
+	toHeight: number;
 	db?: Kysely<Database>;
 };
 
@@ -138,6 +144,25 @@ export async function readChainReorgsSince(
 				`.execute(db);
 
 	return result.rows.map(normalizeRow);
+}
+
+/**
+ * Reorgs overlapping the block-height window [fromHeight, toHeight], ignoring
+ * event_index. For cursor keyspaces that are NOT event-indexed (the
+ * transactions / contract-calls endpoints key on block_height:tx_index): a
+ * height-granular overlap. Over-inclusive — a partially-orphaned height in range
+ * surfaces even if the page's specific rows survived — but never under-reports.
+ */
+export async function readChainReorgsForHeightRange(
+	params: ReadChainReorgsForHeightRangeParams,
+): Promise<ChainReorgRecord[]> {
+	return readChainReorgsForRange({
+		from: { block_height: params.fromHeight, event_index: 0 },
+		// int4 max — event_index is a Postgres `integer`, so a larger sentinel
+		// (e.g. Number.MAX_SAFE_INTEGER) overflows when bound for comparison.
+		to: { block_height: params.toHeight, event_index: 2_147_483_647 },
+		db: params.db,
+	});
 }
 
 export async function readChainReorgsForRange(
