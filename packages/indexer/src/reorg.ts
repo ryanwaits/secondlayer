@@ -5,20 +5,10 @@ import type { Database } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
 import { handleDecodedEventsReorg } from "./l2/storage.ts";
-
-const STREAMS_DB_EVENT_TYPES = [
-	"stx_transfer_event",
-	"stx_mint_event",
-	"stx_burn_event",
-	"stx_lock_event",
-	"ft_transfer_event",
-	"ft_mint_event",
-	"ft_burn_event",
-	"nft_transfer_event",
-	"nft_mint_event",
-	"nft_burn_event",
-	"smart_contract_event",
-] as const;
+// Single-source the firehose vocab from streams-events.ts. A local fork here
+// omitted `contract_event` (the current print label post node-rename ~block
+// 7828030), undercounting the orphaned_to event cursor on post-rename blocks.
+import { STREAMS_DB_EVENT_TYPES } from "./streams-events.ts";
 
 export async function handleReorg(
 	blockHeight: number,
