@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type StreamsEventsReader,
+	getClampedStreamsTipHeight,
 	getStreamsEventsResponse,
 } from "./events.ts";
-import { STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS } from "./tiers.ts";
+import {
+	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
+	STREAMS_TIP_REORG_MARGIN_BLOCKS,
+} from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
 const TIP: StreamsTip = {
@@ -18,6 +22,26 @@ const TIP: StreamsTip = {
 function params(query: string) {
 	return new URL(`http://localhost/v1/streams/events${query}`).searchParams;
 }
+
+describe("getClampedStreamsTipHeight", () => {
+	test("clamps to a fixed block margin, independent of lag_seconds", () => {
+		// Regression: the clamp used to subtract lag_seconds (a wall-clock value)
+		// from a block height — a unit mismatch that, post-Nakamoto, held the
+		// servable tip back ~lag_seconds blocks (~80s). The servable tip must
+		// depend only on the reorg block margin, never on wall-clock lag.
+		const recent = { ...TIP, block_height: 10_000, lag_seconds: 0 };
+		const stale = { ...TIP, block_height: 10_000, lag_seconds: 80 };
+		const expected = 10_000 - STREAMS_TIP_REORG_MARGIN_BLOCKS;
+		expect(getClampedStreamsTipHeight(recent)).toBe(expected);
+		expect(getClampedStreamsTipHeight(stale)).toBe(expected);
+	});
+
+	test("never returns a negative height", () => {
+		expect(
+			getClampedStreamsTipHeight({ ...TIP, block_height: 1, lag_seconds: 0 }),
+		).toBe(Math.max(0, 1 - STREAMS_TIP_REORG_MARGIN_BLOCKS));
+	});
+});
 
 describe("Streams events route helpers", () => {
 	test("flags events at or below the finality boundary as finalized", async () => {

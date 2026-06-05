@@ -13,7 +13,10 @@ import {
 	type StreamsReorg,
 	type StreamsReorgsReader,
 } from "./reorgs.ts";
-import { STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS } from "./tiers.ts";
+import {
+	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
+	STREAMS_TIP_REORG_MARGIN_BLOCKS,
+} from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
 export type StreamsEventsReader = (
@@ -144,8 +147,25 @@ function parsePayloadFilter(
 	return value;
 }
 
+/**
+ * Highest height the public Streams API will serve. Held back from the raw tip
+ * by a fixed reorg-safety margin (in blocks) so consumers never read a height
+ * likely to reorg; the L2 decoder and SDK consumer rewind on reorg, so a small
+ * margin suffices. The margin is a block count — NOT `lag_seconds`, which is a
+ * wall-clock value and would hold the tip back ~lag_seconds blocks (the bug this
+ * replaces). Override via `STREAMS_TIP_REORG_MARGIN_BLOCKS` for ops tuning.
+ */
 export function getClampedStreamsTipHeight(tip: StreamsTip): number {
-	return Math.max(0, tip.block_height - tip.lag_seconds);
+	return Math.max(0, tip.block_height - reorgMarginBlocks());
+}
+
+function reorgMarginBlocks(): number {
+	const raw = process.env.STREAMS_TIP_REORG_MARGIN_BLOCKS;
+	if (raw == null || raw.trim() === "") return STREAMS_TIP_REORG_MARGIN_BLOCKS;
+	const parsed = Number.parseInt(raw, 10);
+	return Number.isFinite(parsed) && parsed >= 0
+		? parsed
+		: STREAMS_TIP_REORG_MARGIN_BLOCKS;
 }
 
 export function parseStreamsEventsQuery(
