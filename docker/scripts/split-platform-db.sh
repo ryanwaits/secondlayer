@@ -104,20 +104,36 @@ fi
 
 echo
 echo "── Loading control-plane tables (FK checks deferred) ──"
-# One transaction: truncate the TARGET control set, then COPY the SOURCE rows in.
-# session_replication_role=replica bypasses FK + trigger enforcement during load
-# (requires superuser — the POSTGRES_USER is). Idempotent: truncate-then-reload.
+# Dump SOURCE control-plane rows to a temp file FIRST and let `set -e` catch a
+# pg_dump failure — so we NEVER truncate TARGET before we know the dump is good.
+# (Piping pg_dump inside a brace-group whose last command is `echo COMMIT` would
+# mask its exit status and commit a truncated-but-empty TARGET.)
 TABLE_ARGS=()
 for t in "${CONTROL_TABLES[@]}"; do TABLE_ARGS+=(--table="public.$t"); done
+DUMP_FILE=$(mktemp)
+trap 'rm -f "$DUMP_FILE"' EXIT
+# --strict-names: error (non-zero exit → `set -e` aborts BEFORE any truncate) if
+# any listed table is missing on SOURCE, rather than silently dumping a subset
+# and committing a partial reload that only the row-count check catches after
+# TARGET is already mutated.
+pg_dump "$SRC" --strict-names --data-only --no-owner --no-privileges \
+  "${TABLE_ARGS[@]}" > "$DUMP_FILE"
 
+# One transaction: truncate the whole control set together, then load.
+# - RESTRICT (not CASCADE): an FK from a table OUTSIDE this list errors loudly
+#   under ON_ERROR_STOP instead of silently wiping it. FKs AMONG the listed
+#   tables are fine — truncating them in one statement defers the check.
+# - session_replication_role=replica defers FK + trigger enforcement during the
+#   COPY (requires superuser — the POSTGRES_USER is). Idempotent reload.
+# psql (right of the pipe) carries ON_ERROR_STOP=1, so any SQL error aborts the
+# pipeline via pipefail; the brace-group only emits text and can't fail.
+TRUNCATE_LIST=$(printf 'public.%s, ' "${CONTROL_TABLES[@]}")
+TRUNCATE_LIST=${TRUNCATE_LIST%, }
 {
   echo "SET session_replication_role = replica;"
   echo "BEGIN;"
-  # Truncate in reverse FK order; CASCADE is safe since replication_role=replica.
-  for ((i=${#CONTROL_TABLES[@]}-1; i>=0; i--)); do
-    echo "TRUNCATE TABLE public.${CONTROL_TABLES[$i]} CASCADE;"
-  done
-  pg_dump "$SRC" --data-only --no-owner --no-privileges "${TABLE_ARGS[@]}"
+  echo "TRUNCATE TABLE $TRUNCATE_LIST RESTRICT;"
+  cat "$DUMP_FILE"
   echo "COMMIT;"
 } | psql "$TGT" -v ON_ERROR_STOP=1 -q
 echo "  ✓ control-plane tables loaded"
