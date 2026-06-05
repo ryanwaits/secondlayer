@@ -23,7 +23,11 @@ import {
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
-import { listen } from "@secondlayer/shared/queue/listener";
+import {
+	listen,
+	sourceListenerUrl,
+	targetListenerUrl,
+} from "@secondlayer/shared/queue/listener";
 import type { SubgraphDefinition } from "../types.ts";
 import { invalidateSubgraphRoute } from "./block-processor.ts";
 import { catchUpSubgraph } from "./catchup.ts";
@@ -81,22 +85,6 @@ async function catchUpAll(
 
 function handlerImportUrl(handlerPath: string, cacheBust = Date.now()) {
 	return `${pathToFileURL(resolve(handlerPath)).href}?t=${cacheBust}`;
-}
-
-/**
- * URL to LISTEN on for indexer-fired channels (`indexer:new_block`,
- * `subgraph_reorg`). In dual-DB mode the indexer writes to the shared
- * source DB, so listeners must bind there. In single-DB mode this falls
- * back to `DATABASE_URL` — identical to pre-dual-DB behavior.
- */
-function sourceListenerUrl(): string | undefined {
-	// `||` so an empty-string env (unset SOURCE_DATABASE_URL passed through
-	// docker-compose as "") falls back to DATABASE_URL instead of resolving "".
-	return process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL;
-}
-
-function targetListenerUrl(): string | undefined {
-	return process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
 }
 
 function isHandlerNotFoundError(err: unknown): boolean {

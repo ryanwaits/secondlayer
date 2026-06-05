@@ -10,6 +10,24 @@ interface ListenOptions {
 	connectionString?: string;
 }
 
+/**
+ * LISTEN/NOTIFY connection for indexer-fired channels (`indexer:new_block`,
+ * `subgraph_reorg`, `tx:confirmed`) — they fire on the SOURCE (chain) DB.
+ * `||` (not `??`) so an empty-string env (an unset `SOURCE_DATABASE_URL` passed
+ * through docker-compose as `""`) falls back to `DATABASE_URL`.
+ */
+export function sourceListenerUrl(): string | undefined {
+	return process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL;
+}
+
+/**
+ * LISTEN/NOTIFY connection for control-plane channels (`subscriptions:new_outbox`,
+ * `subscriptions:changed`, subgraph operations) — they fire on the TARGET DB.
+ */
+export function targetListenerUrl(): string | undefined {
+	return process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
+}
+
 function resolveUrl(opts?: ListenOptions): string {
 	// `||` not `??`: an empty-string connectionString (e.g. an unset
 	// SOURCE_/TARGET_DATABASE_URL passed through docker-compose as "") must fall

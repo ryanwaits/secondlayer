@@ -6,7 +6,7 @@ import {
 } from "@secondlayer/shared/db";
 import { getSubscriptionSigningSecret } from "@secondlayer/shared/db/queries/subscriptions";
 import { logger } from "@secondlayer/shared/logger";
-import { listen } from "@secondlayer/shared/queue/listener";
+import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
 import { refreshMatcher } from "./subscription-state.ts";
@@ -518,23 +518,34 @@ export async function startEmitter(
 		);
 	}
 
-	// LISTEN on new outbox + sub changes
-	const stopNew = await listen("subscriptions:new_outbox", () => {
-		if (!state.running) return;
-		void claimAndDrain(db, state, emitterId).catch((err) =>
-			logger.error("[emitter] claim failed", {
-				error: err instanceof Error ? err.message : String(err),
-			}),
-		);
-	});
-	const stopChanged = await listen("subscriptions:changed", () => {
-		if (!state.running) return;
-		void refreshMatcher(db).catch((err) =>
-			logger.error("[emitter] matcher refresh failed", {
-				error: err instanceof Error ? err.message : String(err),
-			}),
-		);
-	});
+	// LISTEN on new outbox + sub changes. Both channels fire on the TARGET DB
+	// (subscription_outbox + subscriptions are control-plane tables), so bind the
+	// listener there — under the split it is NOT `DATABASE_URL`.
+	const listenUrl = targetListenerUrl();
+	const stopNew = await listen(
+		"subscriptions:new_outbox",
+		() => {
+			if (!state.running) return;
+			void claimAndDrain(db, state, emitterId).catch((err) =>
+				logger.error("[emitter] claim failed", {
+					error: err instanceof Error ? err.message : String(err),
+				}),
+			);
+		},
+		{ connectionString: listenUrl },
+	);
+	const stopChanged = await listen(
+		"subscriptions:changed",
+		() => {
+			if (!state.running) return;
+			void refreshMatcher(db).catch((err) =>
+				logger.error("[emitter] matcher refresh failed", {
+					error: err instanceof Error ? err.message : String(err),
+				}),
+			);
+		},
+		{ connectionString: listenUrl },
+	);
 
 	// Poll every pollIntervalMs as a safety net for missed notifications +
 	// backoff wakeups (rows whose next_attempt_at has passed).
