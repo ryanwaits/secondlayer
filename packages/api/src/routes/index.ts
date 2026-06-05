@@ -471,10 +471,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			query,
 			tip,
 			readStacking: opts.readStacking,
+			readReorgs: (range) => readChainReorgsForHeightRange(range),
 		});
 		const notModified = applyIndexCache(c, query, tip, {
 			stacking: response.stacking,
 			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
 		const accountId = c.get("indexTenant")?.account_id;

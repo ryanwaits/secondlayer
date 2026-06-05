@@ -3,6 +3,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
+import type { StreamsReorg } from "../streams/reorgs.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
 	parseFilter,
@@ -59,6 +60,7 @@ export type StackingResponse = {
 	stacking: StackingAction[];
 	next_cursor: string | null;
 	tip: IndexTip;
+	reorgs: StreamsReorg[];
 	/** Present only when the PoX-4 decoder is disabled, explaining an empty feed. */
 	notes?: string;
 };
@@ -289,6 +291,10 @@ export async function getStackingResponse(opts: {
 	query: URLSearchParams;
 	tip: IndexTip;
 	readStacking?: StackingReader;
+	readReorgs?: (range: {
+		fromHeight: number;
+		toHeight: number;
+	}) => Promise<StreamsReorg[]>;
 	decoderEnabled?: boolean;
 }): Promise<StackingResponse> {
 	const parsed = parseStackingQuery(opts.query, opts.tip);
@@ -300,6 +306,7 @@ export async function getStackingResponse(opts: {
 			stacking: [],
 			next_cursor: parsed.cursorRaw ?? null,
 			tip: opts.tip,
+			reorgs: [],
 			...(note ? { notes: note } : {}),
 		};
 	}
@@ -315,10 +322,23 @@ export async function getStackingResponse(opts: {
 		caller: parsed.caller,
 	});
 
+	// Height-granular reorg reconciliation (cursor is block_height:tx_index, not
+	// event-indexed). Over-inclusive, never under-reports. Empty page → no lookup.
+	const reorgReader = opts.readReorgs ?? (async () => []);
+	const heights = result.stacking.map((s) => s.block_height);
+	const reorgs =
+		heights.length > 0
+			? await reorgReader({
+					fromHeight: Math.min(...heights),
+					toHeight: Math.max(...heights),
+				})
+			: [];
+
 	return {
 		stacking: result.stacking,
 		next_cursor: result.next_cursor,
 		tip: opts.tip,
+		reorgs,
 		...(note ? { notes: note } : {}),
 	};
 }

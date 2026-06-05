@@ -3,6 +3,7 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import type { Pox4FunctionName } from "@secondlayer/shared/db/schema";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
+	type StackingAction,
 	type StackingReader,
 	getStackingResponse,
 	parseStackingQuery,
@@ -70,6 +71,83 @@ describe("Index stacking helpers", () => {
 		});
 		expect(response.stacking).toEqual([]);
 		expect(response.next_cursor).toBe("40000:0");
+	});
+});
+
+describe("Index stacking reorgs", () => {
+	const ROW: StackingAction = {
+		cursor: "9000:0",
+		block_height: 9000,
+		burn_block_height: 19_000,
+		tx_id: "0x9000",
+		tx_index: 0,
+		function_name: "stack-stx",
+		caller: "SP1",
+		stacker: "SP1",
+		delegate_to: null,
+		amount_ustx: "1000000",
+		lock_period: 6,
+		pox_addr: { version: 4, hashbytes: "0xabcd", btc: "bc1q9000" },
+		start_cycle: 100,
+		end_cycle: 106,
+		reward_cycle: 100,
+		signer_key: null,
+		result_ok: true,
+	};
+	const ONE_ROW: StackingReader = async () => ({
+		stacking: [ROW],
+		next_cursor: "9000:0",
+	});
+
+	test("defaults reorgs to [] when no readReorgs is wired", async () => {
+		const response = await getStackingResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readStacking: ONE_ROW,
+			decoderEnabled: true,
+		});
+		expect(response.reorgs).toEqual([]);
+		expect(response.stacking.map((s) => s.cursor)).toEqual(["9000:0"]);
+	});
+
+	test("queries readReorgs over the returned height range and passes through", async () => {
+		const reorg = {
+			detected_at: "2026-01-01T00:00:00.000Z",
+			fork_point_height: 8999,
+			old_index_block_hash: "0xold",
+			new_index_block_hash: "0xnew",
+			orphaned_range: { from: 9000, to: 9000 },
+			new_canonical_tip: 9001,
+		};
+		const seenRanges: Array<{ fromHeight: number; toHeight: number }> = [];
+		const response = await getStackingResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readStacking: ONE_ROW,
+			readReorgs: async (range) => {
+				seenRanges.push(range);
+				return [reorg as never];
+			},
+			decoderEnabled: true,
+		});
+		expect(seenRanges[0]).toEqual({ fromHeight: 9000, toHeight: 9000 });
+		expect(response.reorgs).toEqual([reorg as never]);
+	});
+
+	test("skips the reorg lookup on an empty page", async () => {
+		let called = false;
+		const response = await getStackingResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readStacking: EMPTY_READER,
+			readReorgs: async () => {
+				called = true;
+				return [];
+			},
+			decoderEnabled: true,
+		});
+		expect(called).toBe(false);
+		expect(response.reorgs).toEqual([]);
 	});
 });
 

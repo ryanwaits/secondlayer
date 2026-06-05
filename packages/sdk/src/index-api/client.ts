@@ -446,6 +446,8 @@ export type StackingEnvelope = {
 	stacking: IndexStackingAction[];
 	next_cursor: string | null;
 	tip: IndexTip;
+	// Reserved envelope field. v1 currently always emits [].
+	reorgs: never[];
 	/** Present only when the PoX-4 decoder is disabled, explaining an empty feed. */
 	notes?: string;
 };
