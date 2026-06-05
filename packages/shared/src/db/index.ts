@@ -301,3 +301,10 @@ export * from "./types.ts";
 export type { DbReadRow, NumericAsText } from "./read-row.ts";
 export { SOURCE_READ_COLUMNS } from "./source-read-columns.ts";
 export { jsonb, parseJsonb } from "./jsonb.ts";
+export {
+	getMigrationRole,
+	onChainPlane,
+	onControlPlane,
+	setMigrationRole,
+} from "./migration-role.ts";
+export type { MigrationRole } from "./migration-role.ts";
