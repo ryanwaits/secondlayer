@@ -1,18 +1,26 @@
-import { logger } from "@secondlayer/shared/logger";
 import postgres from "postgres";
+import { logger } from "./logger.ts";
 
 /**
  * Single-leader election via a Postgres session advisory lock.
  *
  * Exactly one process across the fleet holds `lockKey` and runs the leader-only
- * work (the singleton loops: integrity, tip-follower, dataset publishers).
- * Others poll and take over if the leader exits or its connection dies. The
- * lock lives on a dedicated long-lived connection — a pooled connection would
- * silently drop a session lock — and is released by closing that connection.
+ * work. Others poll and take over if the leader exits or its connection dies.
+ * The lock lives on a dedicated long-lived connection — a pooled connection
+ * would silently drop a session lock — and is released by closing it.
+ *
+ * Lock keys are centralized here so the fleet-wide set stays distinct: a
+ * collision would let two unrelated singletons exclude each other.
  */
 
-/** Default advisory lock key for the indexer's singleton loops. */
+/** Advisory lock key for the indexer's singleton loops. */
 export const INDEXER_LEADER_LOCK_KEY = 770_2026;
+/** Advisory lock key for the chain-subscription trigger evaluator (+ its
+ *  chain-reorg cursor rewind — they mutate the same `trigger_evaluator_state`
+ *  row and so must share one lock). */
+export const SUBSCRIPTION_EVALUATOR_LOCK_KEY = 770_2027;
+/** Advisory lock key for the subgraph catch-up driver. */
+export const SUBGRAPH_CATCHUP_LOCK_KEY = 770_2028;
 
 export type StopFn = () => void | Promise<void>;
 
@@ -37,12 +45,19 @@ function leaderDatabaseUrl(): string {
 	);
 }
 
-/** Postgres-backed advisory lock on a dedicated connection. */
-export function createPostgresLeaderBackend(): LeaderBackend {
-	const url = leaderDatabaseUrl();
+/**
+ * Postgres-backed advisory lock on a dedicated connection.
+ *
+ * Pass an explicit `url` to pin the lock to the DB that holds the serialized
+ * row — after the source/target split, control-plane state (subscriptions,
+ * subgraphs) lives on the target DB, so a lock on the default source DB would
+ * guard nothing.
+ */
+export function createPostgresLeaderBackend(url?: string): LeaderBackend {
+	const resolvedUrl = url ?? leaderDatabaseUrl();
 	const host = (() => {
 		try {
-			return new URL(url).hostname;
+			return new URL(resolvedUrl).hostname;
 		} catch {
 			return "";
 		}
@@ -50,7 +65,7 @@ export function createPostgresLeaderBackend(): LeaderBackend {
 	const isLocal =
 		host === "localhost" || host === "127.0.0.1" || !host.includes(".");
 	// max:1 + idle_timeout:0 keeps one connection open so the session lock holds.
-	const sql = postgres(url, {
+	const sql = postgres(resolvedUrl, {
 		max: 1,
 		idle_timeout: 0,
 		ssl: isLocal

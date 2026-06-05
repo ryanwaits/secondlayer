@@ -92,6 +92,10 @@
 			"types": "./dist/src/logger.d.ts",
 			"import": "./dist/src/logger.js"
 		},
+		"./leader": {
+			"types": "./dist/src/leader.d.ts",
+			"import": "./dist/src/leader.js"
+		},
 		"./errors": {
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"

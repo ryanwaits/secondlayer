@@ -51,7 +51,7 @@ import {
 	INDEXER_LEADER_LOCK_KEY,
 	type StopFn,
 	withLeaderLock,
-} from "./leader.ts";
+} from "@secondlayer/shared/leader";
 import {
 	ingestMempoolTxs,
 	isGenuineDrop,
