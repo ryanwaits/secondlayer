@@ -168,8 +168,7 @@ export class IndexHttpClient {
 			return (await res.json()) as T;
 		}
 		throw (
-			lastErr ??
-			new Error(`GET ${url} failed after ${MAX_ATTEMPTS} attempts`)
+			lastErr ?? new Error(`GET ${url} failed after ${MAX_ATTEMPTS} attempts`)
 		);
 	}
 
