@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 6.22.0
+
+### Minor Changes
+
+- ebbb6b0: Make `migrate.ts` split-aware. `migrationTargets()` now tags each database with a plane role (`source` / `target` / `both`) and `setMigrationRole()` is set before each pass; new helpers `onControlPlane()` / `onChainPlane()` (exported from `@secondlayer/shared/db`) gate DDL inside a migration so control-plane DDL no-ops on the SOURCE (chain) DB — where those tables were dropped post-cutover — and chain DDL no-ops on TARGET. Single-DB / collapsed-split mode resolves to role `both` and is unchanged. Every migration still runs on every DB (kysely integrity preserved); only the DDL is gated.
+- 9f4619d: Add `TABLE_TO_DB` (exported from `@secondlayer/shared/db`) — a canonical, type-enforced (`satisfies Record<keyof Database, "source"|"target"|"both">`) registry mapping every table to its plane in the source/target split. It's the single source of truth that `docker/SCHEMA_SPLIT.md` and the cutover script's `CONTROL_TABLES` mirror, guarded by a drift test.
+
 ## 6.21.0
 
 ### Minor Changes
