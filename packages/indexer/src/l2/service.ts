@@ -1,5 +1,5 @@
 import { isPox4DecoderEnabled } from "@secondlayer/shared";
-import { closeDb } from "@secondlayer/shared/db";
+import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import {
 	consumeFtBurnDecodedEvents,
@@ -222,6 +222,7 @@ const server = Bun.serve({
 	},
 });
 
+assertDbSplit();
 logger.info("Starting L2 decoder service", { port: PORT });
 void runDecoders();
 

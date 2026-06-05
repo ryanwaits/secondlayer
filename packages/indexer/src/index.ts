@@ -1,6 +1,6 @@
 // Indexer service - receives events from Stacks node
 // Uses native Bun.serve routes instead of Hono (fixes stack overflow issues)
-import { getSourceDb } from "@secondlayer/shared/db";
+import { assertDbSplit, getSourceDb } from "@secondlayer/shared/db";
 import {
 	checkChainDataIntegrity,
 	countMissingBlocks,
@@ -153,6 +153,7 @@ async function runStartupIntegrityCheck() {
 
 await runStartupIntegrityCheck();
 
+assertDbSplit();
 logger.info("Starting indexer service", { port: PORT });
 
 type PublisherStateShape = {

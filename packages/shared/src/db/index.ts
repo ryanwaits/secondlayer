@@ -75,6 +75,26 @@ function resolveTargetUrl(): string {
 	);
 }
 
+/**
+ * Boot guard: if the chain/control split is requested (`SOURCE_DATABASE_URL` or
+ * `TARGET_DATABASE_URL` set) but both still resolve to the same DB — a typo, or
+ * a stray `DATABASE_URL` masking the intent — the split silently collapses and
+ * chain + control plane share one instance. Surface it loudly. Fail-soft (no
+ * throw) so a misconfig doesn't brick startup; logs make it obvious.
+ */
+export function assertDbSplit(): void {
+	const wantsSplit = !!(
+		process.env.SOURCE_DATABASE_URL || process.env.TARGET_DATABASE_URL
+	);
+	if (!wantsSplit) return;
+	if (resolveSourceUrl() === resolveTargetUrl()) {
+		const msg =
+			"DB split requested but SOURCE_DATABASE_URL === TARGET_DATABASE_URL (check for a typo or a stray DATABASE_URL fallback)";
+		if (process.env.NODE_ENV === "production") console.error(`❌ ${msg}`);
+		else console.warn(`⚠️  ${msg}`);
+	}
+}
+
 function getOrCreatePool(url: string): PoolEntry {
 	const existing = pools.get(url);
 	if (existing) {

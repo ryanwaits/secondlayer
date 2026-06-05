@@ -1,5 +1,5 @@
 import { logger } from "@secondlayer/shared";
-import { closeDb } from "@secondlayer/shared/db";
+import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
@@ -229,6 +229,7 @@ startSubgraphCache().catch((err) => {
 	});
 });
 
+assertDbSplit();
 const server = Bun.serve({
 	port: PORT,
 	fetch: app.fetch,
