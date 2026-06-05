@@ -1,21 +1,26 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
-import { SlidingWindow } from "../auth/sliding-window.ts";
+import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import type { IndexEnv } from "./auth.ts";
-import { INDEX_ANON_RATE_LIMIT_PER_SECOND, INDEX_TIER_CONFIG } from "./tiers.ts";
+import {
+	INDEX_ANON_RATE_LIMIT_PER_SECOND,
+	INDEX_TIER_CONFIG,
+} from "./tiers.ts";
 
-export function indexRateLimit(opts?: {
-	window?: SlidingWindow;
-}): MiddlewareHandler<IndexEnv> {
-	const window = opts?.window ?? new SlidingWindow(1_000);
+const WINDOW_MS = 1_000;
 
+export function indexRateLimit(): MiddlewareHandler<IndexEnv> {
 	return async (c, next): Promise<Response | void> => {
 		const tenant = c.get("indexTenant");
 		if (!tenant) {
 			// Open-beta anon reads: enforce a shared global limit so clients
 			// always receive X-RateLimit-* headers and scraping is bounded.
 			const limit = INDEX_ANON_RATE_LIMIT_PER_SECOND;
-			const result = window.check("anon", limit);
+			const result = await getRateLimitStore().check(
+				"index:anon",
+				limit,
+				WINDOW_MS,
+			);
 			c.header("X-RateLimit-Limit", String(limit));
 			c.header(
 				"X-RateLimit-Remaining",
@@ -36,7 +41,11 @@ export function indexRateLimit(opts?: {
 			return;
 		}
 
-		const result = window.check(tenant.tenant_id, limit);
+		const result = await getRateLimitStore().check(
+			`index:${tenant.tenant_id}`,
+			limit,
+			WINDOW_MS,
+		);
 		if (!result.allowed) {
 			c.header("Retry-After", String(result.retryAfter));
 			c.header("X-RateLimit-Limit", String(limit));

@@ -1,10 +1,12 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
-import { SlidingWindow } from "./sliding-window.ts";
+import {
+	_resetRateLimitStoreForTests,
+	getRateLimitStore,
+} from "./rate-limit-store.ts";
 
 const DEFAULT_RATE_LIMIT = 120;
-
-const window = new SlidingWindow();
+const WINDOW_MS = 60_000;
 
 export function rateLimit(): MiddlewareHandler {
 	return async (c, next) => {
@@ -16,7 +18,11 @@ export function rateLimit(): MiddlewareHandler {
 
 		const limit = apiKey.rate_limit ?? DEFAULT_RATE_LIMIT;
 		const keyHash = apiKey.key_hash as string;
-		const result = window.check(keyHash, limit);
+		const result = await getRateLimitStore().check(
+			`apikey:${keyHash}`,
+			limit,
+			WINDOW_MS,
+		);
 
 		if (!result.allowed) {
 			c.header("Retry-After", String(result.retryAfter));
@@ -35,6 +41,6 @@ export function rateLimit(): MiddlewareHandler {
 }
 
 /** Reset all rate limit state (for testing) */
-export function _resetRateLimits() {
-	window.clear();
+export async function _resetRateLimits() {
+	await _resetRateLimitStoreForTests();
 }

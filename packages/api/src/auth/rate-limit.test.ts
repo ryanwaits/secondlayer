@@ -33,8 +33,8 @@ function createApp(limit = 120) {
 }
 
 describe("rateLimit middleware", () => {
-	beforeEach(() => {
-		_resetRateLimits();
+	beforeEach(async () => {
+		await _resetRateLimits();
 	});
 
 	test("120 requests pass, 121st gets 429", async () => {

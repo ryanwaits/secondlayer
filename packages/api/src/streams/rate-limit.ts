@@ -1,19 +1,12 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
-import { SlidingWindow } from "../auth/sliding-window.ts";
+import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import type { StreamsEnv } from "./auth.ts";
 import { STREAMS_TIER_CONFIG } from "./tiers.ts";
 
-export function streamsRateLimit(opts?: {
-	window?: SlidingWindow;
-}): MiddlewareHandler<StreamsEnv> {
-	// TODO: replace process-local windows with Redis-backed counters before
-	// running multiple API gateway instances.
-	// TODO: SlidingWindow uses real time. Tests rely on Bun being fast
-	// enough to fit 11 requests inside a 1s window. Inject a clock
-	// function so tests can advance time deterministically.
-	const window = opts?.window ?? new SlidingWindow(1_000);
+const WINDOW_MS = 1_000;
 
+export function streamsRateLimit(): MiddlewareHandler<StreamsEnv> {
 	return async (c, next) => {
 		const tenant = c.get("streamsTenant");
 		const limit = STREAMS_TIER_CONFIG[tenant.tier].rateLimitPerSecond;
@@ -23,7 +16,11 @@ export function streamsRateLimit(opts?: {
 			return;
 		}
 
-		const result = window.check(tenant.tenant_id, limit);
+		const result = await getRateLimitStore().check(
+			`streams:${tenant.tenant_id}`,
+			limit,
+			WINDOW_MS,
+		);
 		if (!result.allowed) {
 			c.header("Retry-After", String(result.retryAfter));
 			c.header("X-RateLimit-Limit", String(limit));

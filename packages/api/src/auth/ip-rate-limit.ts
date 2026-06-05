@@ -1,11 +1,10 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
 import { getClientIp } from "./http.ts";
-import { SlidingWindow } from "./sliding-window.ts";
+import { getRateLimitStore } from "./rate-limit-store.ts";
 
 const DEFAULT_MAX = 10;
-
-const window = new SlidingWindow();
+const WINDOW_MS = 60_000;
 
 export function ipRateLimit(max: number = DEFAULT_MAX): MiddlewareHandler {
 	return async (c, next) => {
@@ -15,7 +14,7 @@ export function ipRateLimit(max: number = DEFAULT_MAX): MiddlewareHandler {
 			return;
 		}
 
-		const result = window.check(ip, max);
+		const result = await getRateLimitStore().check(`ip:${ip}`, max, WINDOW_MS);
 
 		c.header("X-RateLimit-Limit", String(max));
 		c.header("X-RateLimit-Remaining", String(Math.max(0, max - result.count)));
