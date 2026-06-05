@@ -15,6 +15,21 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 		reverse_proxy agent:3900
 	}
 	handle {
-		reverse_proxy api:3800
+		# Load-balance across all `api` replicas. `dynamic a` re-resolves the
+		# service name against Docker's embedded DNS (127.0.0.11) every refresh,
+		# so replicas added/removed during a rolling deploy enter/leave the pool
+		# automatically. Passive failover (fail_duration) drops a replica that's
+		# mid-recreate and retries the next within lb_try_duration → no 502.
+		reverse_proxy {
+			dynamic a {
+				name api
+				port 3800
+				refresh 2s
+			}
+			lb_policy round_robin
+			fail_duration 10s
+			lb_try_duration 5s
+			lb_try_interval 250ms
+		}
 	}
 }
