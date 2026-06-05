@@ -260,4 +260,48 @@ describe("emitChainOutbox (DB)", () => {
 		expect(rows[0].dedup_key).toBe(`chain:${sub.id}:0xb:3:0xblock`);
 		expect(rows[0].event_type).toBe("chain.ft_transfer.apply");
 	});
+
+	it("replay emits is_replay rows with namespaced keys, coexisting with live, idempotent", async () => {
+		const sub = await makeChainSub([
+			{ type: "contract_call", contractId: "SP1.amm" },
+		]);
+		const { sources, keyMeta } = buildSourcesMap([sub]);
+		const b = block(
+			[
+				tx({
+					tx_id: "0xa",
+					type: "contract_call",
+					contract_id: "SP1.amm",
+					function_name: "swap",
+				}),
+			],
+			[],
+		);
+		const matches = evaluateBlock(b, sources, new Map());
+
+		// Live delivery for the block.
+		await emitChainOutbox(db, matches, keyMeta, 100, "0xblock");
+		// Replay the same block — a distinct, replay-namespaced key, so it
+		// re-delivers instead of being suppressed by the live row.
+		const replayId = "abc123";
+		const replayed = await emitChainOutbox(db, matches, keyMeta, 100, "0xblock", {
+			replayId,
+		});
+		expect(replayed).toBe(1);
+		// Re-running the same replay is a no-op (same replayId → same key).
+		const again = await emitChainOutbox(db, matches, keyMeta, 100, "0xblock", {
+			replayId,
+		});
+		expect(again).toBe(0);
+
+		const rows = await outboxRows(sub.id);
+		expect(rows).toHaveLength(2);
+		const replayRow = rows.find((r) => r.is_replay === true);
+		const liveRow = rows.find((r) => r.is_replay === false);
+		expect(liveRow?.dedup_key).toBe(`chain:${sub.id}:0xa:-1:0xblock`);
+		expect(replayRow?.dedup_key).toBe(
+			`replay:${replayId}:chain:${sub.id}:0xa:-1:0xblock`,
+		);
+		expect(replayRow?.event_type).toBe("chain.contract_call.apply");
+	});
 });

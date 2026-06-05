@@ -1,9 +1,18 @@
 import { createHash } from "node:crypto";
 import { type Database, getTargetDb } from "@secondlayer/shared/db";
+import type { Subscription } from "@secondlayer/shared/db";
 import { getSubscription } from "@secondlayer/shared/db/queries/subscriptions";
 import { logger } from "@secondlayer/shared/logger";
 import { type Kysely, sql } from "kysely";
 import { pgSchemaName as defaultSchemaName } from "../schema/utils.ts";
+import { PublicApiBlockSource, buildHttpClient } from "./block-source.ts";
+import {
+	buildSourcesMap,
+	buildTraitContracts,
+	emitChainOutbox,
+	evaluateBlock,
+	referencedEventTypes,
+} from "./trigger-evaluator.ts";
 
 /**
  * Replay historical subgraph rows as new outbox entries for a single
@@ -96,12 +105,17 @@ export async function replaySubscription(
 	const sub = await getSubscription(db, input.accountId, input.subscriptionId);
 	if (!sub) throw new Error("Subscription not found");
 
-	// Replay scans the subgraph's processed table — chain subscriptions have no
-	// such table (they react to raw chain events), so replay is subgraph-only.
+	// Chain subs have no processed table — they react to raw chain events. Replay
+	// re-runs the pure matcher over the canonical block range instead of scanning
+	// rows.
+	if (sub.kind === "chain") {
+		return replayChainSubscription(db, sub, input);
+	}
+
 	const subgraphName = sub.subgraph_name;
 	const tableName = sub.table_name;
 	if (sub.kind !== "subgraph" || !subgraphName || !tableName) {
-		throw new Error("replay is only supported for subgraph subscriptions");
+		throw new Error("replay is only supported for subgraph or chain subscriptions");
 	}
 
 	const schema = await resolveSchemaName(db, subgraphName);
@@ -159,6 +173,71 @@ export async function replaySubscription(
 	}
 
 	logger.info("Replay enqueued", {
+		subscription: sub.name,
+		replayId,
+		scanned,
+		enqueued,
+		fromBlock: input.fromBlock,
+		toBlock: input.toBlock,
+	});
+
+	return { replayId, enqueuedCount: enqueued, scannedCount: scanned };
+}
+
+const CHAIN_REPLAY_BATCH = 200;
+
+/**
+ * Replay a chain subscription by re-running the pure matcher over a historical
+ * canonical block range and emitting fresh apply rows. Unlike subgraph replay
+ * there is no processed table to scan — the matcher is range-driven, so we
+ * reload canonical blocks off the public Index/Streams clock and re-match.
+ *
+ * Rows are emitted with `is_replay=TRUE` and replay-namespaced dedup keys, and —
+ * critically — this never advances `trigger_evaluator_state`: replay is
+ * historical and must not move the live forward cursor.
+ */
+async function replayChainSubscription(
+	db: Kysely<Database>,
+	sub: Subscription,
+	input: ReplayInput,
+): Promise<ReplayResult> {
+	const replayId = deterministicReplayId(
+		sub.id,
+		input.fromBlock,
+		input.toBlock,
+		input.replayIdSuffix,
+	);
+
+	const { sources, keyMeta } = buildSourcesMap([sub]);
+	const source = new PublicApiBlockSource(
+		buildHttpClient(),
+		referencedEventTypes([sub]),
+	);
+
+	let scanned = 0;
+	let enqueued = 0;
+	for (
+		let from = input.fromBlock;
+		from <= input.toBlock;
+		from += CHAIN_REPLAY_BATCH
+	) {
+		const to = Math.min(from + CHAIN_REPLAY_BATCH - 1, input.toBlock);
+		const blocks = await source.loadBlockRange(from, to);
+		// Trait membership only grows; resolve once per batch as of its top height.
+		const traitContracts = await buildTraitContracts(db, [sub], to);
+		for (let h = from; h <= to; h++) {
+			const bd = blocks.get(h);
+			if (!bd) continue;
+			scanned++;
+			const matches = evaluateBlock(bd, sources, traitContracts);
+			if (matches.length === 0) continue;
+			enqueued += await emitChainOutbox(db, matches, keyMeta, h, bd.block.hash, {
+				replayId,
+			});
+		}
+	}
+
+	logger.info("Chain replay enqueued", {
 		subscription: sub.name,
 		replayId,
 		scanned,

@@ -170,8 +170,13 @@ function chainDedupKey(
 	txId: string,
 	eventIndex: number,
 	blockHash: string,
+	replayId?: string,
 ): string {
-	return `chain:${subscriptionId}:${txId}:${eventIndex}:${blockHash}`;
+	const base = `chain:${subscriptionId}:${txId}:${eventIndex}:${blockHash}`;
+	// Replay keys are namespaced so a re-delivery doesn't collide with the
+	// already-emitted live apply row (whose outbox entry may be long gone), while
+	// re-running the SAME replay range stays idempotent (same replayId → same key).
+	return replayId ? `replay:${replayId}:${base}` : base;
 }
 
 function applyRow(
@@ -181,6 +186,7 @@ function applyRow(
 	txId: string,
 	eventIndex: number,
 	event: Record<string, unknown>,
+	replayId?: string,
 ): InsertSubscriptionOutbox {
 	const payload: ApplyEnvelope = {
 		action: "apply",
@@ -201,7 +207,14 @@ function applyRow(
 		row_pk: { tx_id: txId, event_index: eventIndex },
 		event_type: `chain.${meta.triggerType}.apply`,
 		payload,
-		dedup_key: chainDedupKey(meta.subscriptionId, txId, eventIndex, blockHash),
+		dedup_key: chainDedupKey(
+			meta.subscriptionId,
+			txId,
+			eventIndex,
+			blockHash,
+			replayId,
+		),
+		...(replayId ? { is_replay: true } : {}),
 	};
 }
 
@@ -218,7 +231,9 @@ export async function emitChainOutbox(
 	keyMeta: Map<string, TriggerKeyMeta>,
 	blockHeight: number,
 	blockHash: string,
+	opts?: { replayId?: string },
 ): Promise<number> {
+	const replayId = opts?.replayId;
 	const rows: InsertSubscriptionOutbox[] = [];
 	for (const match of matches) {
 		const meta = keyMeta.get(match.sourceName);
@@ -226,37 +241,55 @@ export async function emitChainOutbox(
 		const txId = match.tx.tx_id;
 		if (TX_LEVEL_TRIGGER_TYPES.has(meta.triggerType)) {
 			rows.push(
-				applyRow(meta, blockHeight, blockHash, txId, -1, {
-					tx_id: txId,
-					type: match.tx.type,
-					sender: match.tx.sender,
-					status: match.tx.status,
-					contract_id: match.tx.contract_id ?? null,
-					function_name: match.tx.function_name ?? null,
-					function_args: match.tx.function_args ?? null,
-					result_hex: match.tx.raw_result ?? null,
-				}),
+				applyRow(
+					meta,
+					blockHeight,
+					blockHash,
+					txId,
+					-1,
+					{
+						tx_id: txId,
+						type: match.tx.type,
+						sender: match.tx.sender,
+						status: match.tx.status,
+						contract_id: match.tx.contract_id ?? null,
+						function_name: match.tx.function_name ?? null,
+						function_args: match.tx.function_args ?? null,
+						result_hex: match.tx.raw_result ?? null,
+					},
+					replayId,
+				),
 			);
 		} else {
 			for (const event of match.events) {
 				rows.push(
-					applyRow(meta, blockHeight, blockHash, txId, event.event_index, {
-						tx_id: txId,
-						type: event.type,
-						event_index: event.event_index,
-						data: event.data,
-					}),
+					applyRow(
+						meta,
+						blockHeight,
+						blockHash,
+						txId,
+						event.event_index,
+						{
+							tx_id: txId,
+							type: event.type,
+							event_index: event.event_index,
+							data: event.data,
+						},
+						replayId,
+					),
 				);
 			}
 		}
 	}
 	if (rows.length === 0) return 0;
-	await db
+	// Net-inserted (not built) so callers count genuinely new deliveries — a
+	// re-processed block or a re-run replay returns 0.
+	const result = await db
 		.insertInto("subscription_outbox")
 		.values(rows)
 		.onConflict((oc) =>
 			oc.columns(["subscription_id", "dedup_key"]).doNothing(),
 		)
-		.execute();
-	return rows.length;
+		.executeTakeFirst();
+	return Number(result.numInsertedOrUpdatedRows ?? 0);
 }
