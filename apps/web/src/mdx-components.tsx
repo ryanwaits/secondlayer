@@ -37,6 +37,24 @@ function MdxH1({ children }: { children?: ReactNode }) {
 	return <h1 className="page-title">{children}</h1>;
 }
 
+/** A self-link wrapping heading text: clicking sets the URL hash and scrolls,
+ *  and a `#` affordance appears on hover (see `.heading-anchor` in globals). */
+function HeadingAnchor({
+	id,
+	children,
+}: { id?: string; children?: ReactNode }) {
+	if (!id) return <>{children}</>;
+	return (
+		<a
+			href={`#${id}`}
+			className="heading-anchor"
+			aria-label="Link to this section"
+		>
+			{children}
+		</a>
+	);
+}
+
 /** Section heading — marketing's text-over-a-rule treatment. The id stays on
  *  the <h2> (not the wrap) so rehype-slug anchors + the scrollspy TOC work. */
 function MdxH2({ id, children }: { id?: string; children?: ReactNode }) {
@@ -44,9 +62,18 @@ function MdxH2({ id, children }: { id?: string; children?: ReactNode }) {
 		<div className="section-heading-wrap">
 			<hr />
 			<h2 id={id} className="section-heading">
-				{children}
+				<HeadingAnchor id={id}>{children}</HeadingAnchor>
 			</h2>
 		</div>
+	);
+}
+
+/** Subsection heading — no rule, but still a deep-linkable permalink. */
+function MdxH3({ id, children }: { id?: string; children?: ReactNode }) {
+	return (
+		<h3 id={id}>
+			<HeadingAnchor id={id}>{children}</HeadingAnchor>
+		</h3>
 	);
 }
 
@@ -56,6 +83,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 		a: MdxLink,
 		h1: MdxH1,
 		h2: MdxH2,
+		h3: MdxH3,
 		...components,
 	};
 }

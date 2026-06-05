@@ -5486,6 +5486,33 @@ a.dataset-shelf-name:hover {
 	margin: var(--spacing-md) 0 0.6rem;
 	scroll-margin-top: 24px;
 }
+
+/* Heading permalinks — the heading text is a self-link; a `#` fades in on
+   hover/focus so the deep link is discoverable without cluttering the page. */
+.docs-article .heading-anchor {
+	color: inherit;
+	text-decoration: none;
+}
+.docs-article .heading-anchor::after {
+	content: "#";
+	margin-left: 0.4em;
+	color: var(--text-muted);
+	font-weight: 400;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+@media (hover: hover) {
+	.docs-article h2:hover .heading-anchor::after,
+	.docs-article h3:hover .heading-anchor::after {
+		opacity: 1;
+	}
+}
+.docs-article .heading-anchor:focus-visible {
+	outline: none;
+}
+.docs-article .heading-anchor:focus-visible::after {
+	opacity: 1;
+}
 /* Body matches marketing .prose exactly (Public Sans, dense editorial type). */
 .docs-article p {
 	font-size: 14px;
