@@ -202,4 +202,5 @@ export async function closeDb(): Promise<void> {
 import { sql } from "kysely";
 export { sql };
 export * from "./types.ts";
+export type { DbReadRow, NumericAsText } from "./read-row.ts";
 export { jsonb, parseJsonb } from "./jsonb.ts";
