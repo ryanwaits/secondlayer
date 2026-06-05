@@ -72,13 +72,31 @@ above) and the per-tenant `subgraph_<id>` schemas were **dropped from SOURCE** t
 reclaim space — SOURCE now holds only chain + decoded + `kysely_migration*`.
 Platform is the authoritative copy of all control-plane data.
 
-⚠️ **`migrate.ts` is not split-aware — this is now a footgun.** It applies every
-migration to BOTH databases (`migrationTargets()` = source + target). Existing
-control-table migrations are already marked applied in SOURCE's
-`kysely_migration`, so they won't re-run — no current breakage. But a NEW
-migration that touches a control table (e.g. `ALTER TABLE accounts …`) will run
-against SOURCE, where the table no longer exists, and **fail the deploy's migrate
-step**. Before adding any control-table migration, make `migrate.ts` split-aware
-(apply control migrations only to TARGET, chain/decoded only to SOURCE — e.g. tag
-migrations or drive from a table→DB registry). The per-tenant subgraph schemas
-are dynamic DDL (not in `migrate.ts`), so dropping them carries no such risk.
+### Split-aware migrate (resolved, shared@6.22.0)
+
+`migrate.ts` still runs **every** migration on **every** database — it must, or
+kysely throws "previously executed migration is missing" (each DB's
+`kysely_migration` already records all 88). Instead it tags each target with a
+plane role (`migrationTargets()` → `{url, role}` where role is `source` /
+`target` / `both`) and sets it via `setMigrationRole()` before each pass; a
+migration gates its DDL so control DDL no-ops on SOURCE (where those tables were
+dropped) and chain DDL no-ops on TARGET. Single-DB / collapsed-split (dev / OSS /
+CI) is role `'both'` — every helper runs, identical to pre-split behavior.
+
+**Authoring a migration under the split** (`packages/shared/migrations/NNNN_*.ts`):
+
+```ts
+import { onChainPlane, onControlPlane } from "@secondlayer/shared/db";
+export async function up(db: Kysely<unknown>) {
+  await onControlPlane(() => sql`ALTER TABLE accounts ADD COLUMN …`.execute(db));
+  await onChainPlane(() => sql`ALTER TABLE blocks ADD COLUMN …`.execute(db));
+  // schema-wide / mixed (extensions, functions, enums): leave UNWRAPPED → both.
+}
+```
+
+The canonical table→plane mapping is `TABLE_TO_DB` in
+`packages/shared/src/db/table-plane.ts` (use it to decide which helper a table's
+DDL belongs in). The 88 existing migrations are **unwrapped** → they run on both
+and are recorded on both (harmless; never re-run). NEVER filter the migration
+provider set per-DB — it trips kysely's missing-migration check. Per-tenant
+`subgraph_<id>` schemas are dynamic DDL (not in `migrate.ts`).
