@@ -1,11 +1,13 @@
-import { getSourceDb, getTargetDb, sql } from "@secondlayer/shared/db";
+import { getTargetDb } from "@secondlayer/shared/db";
 import type { Pox4FunctionName } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import { POX_CONTRACTS } from "@secondlayer/stacks/pox";
 import { formatBtcAddress } from "@secondlayer/stacks/sbtc";
 import type { Kysely } from "kysely";
+import { createInternalIndexClient } from "../index-client.ts";
 import {
 	POX4_DECODER_NAME,
 	type Pox4CallRow,
@@ -37,10 +39,25 @@ const SUPPORTED_FUNCTIONS = new Set<Pox4FunctionName>([
 	"set-signer-key-authorization",
 ]);
 
+// Stacks height to anchor a fresh backfill. Default 0 = full history: the
+// contract_id filter makes the Index API jump to the first pox-4 tx regardless,
+// so 0 guarantees completeness; POX4_BACKFILL_FROM_HEIGHT only trims the scan.
+const DEFAULT_POX4_BACKFILL_FROM_HEIGHT = 0;
+
+function pox4BackfillFromHeight(override?: number): number {
+	if (override !== undefined) return override;
+	const env = process.env.POX4_BACKFILL_FROM_HEIGHT;
+	const parsed = env !== undefined ? Number.parseInt(env, 10) : Number.NaN;
+	return Number.isInteger(parsed) && parsed >= 0
+		? parsed
+		: DEFAULT_POX4_BACKFILL_FROM_HEIGHT;
+}
+
 export type ConsumePox4Options = {
-	sourceDb?: Kysely<Database>;
+	indexClient?: IndexHttpClient;
 	targetDb?: Kysely<Database>;
 	fromCursor?: string | null;
+	backfillFromHeight?: number;
 	batchSize?: number;
 	maxPages?: number;
 	signal?: AbortSignal;
@@ -66,30 +83,30 @@ export type Pox4TxRow = {
 export async function consumePox4DecodedEvents(
 	opts: ConsumePox4Options = {},
 ): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const sourceDb = opts.sourceDb ?? getSourceDb();
+	const indexClient = opts.indexClient ?? createInternalIndexClient();
 	const targetDb = opts.targetDb ?? getTargetDb();
 	const decoderName = opts.decoderName ?? POX4_DECODER_NAME;
 	const batchSize = opts.batchSize ?? 500;
 	const maxPages = opts.maxPages ?? 50;
+	const backfillFrom = pox4BackfillFromHeight(opts.backfillFromHeight);
+
+	// Data-availability bound: never read past what the Index plane can serve,
+	// even if the Streams clock is ahead. Captured once per call.
+	const toHeight = await indexClient.getIndexTip();
+	if (toHeight <= 0) {
+		logger.warn("PoX-4 decoder: Index tip unavailable; skipping tick");
+		return { cursor: null, pages: 0, decoded: 0 };
+	}
 
 	let cursor: string | null;
 	if (opts.fromCursor !== undefined) {
 		cursor = opts.fromCursor;
 	} else {
 		cursor = await readDecoderCheckpoint({ db: targetDb, decoderName });
-		if (cursor === null) {
-			cursor = await seedCheckpointToTip(sourceDb);
-			if (cursor !== null) {
-				await writeDecoderCheckpoint({
-					db: targetDb,
-					decoderName,
-					cursor,
-				});
-				logger.info("PoX-4 decoder: seeded checkpoint to tip", { cursor });
-			}
-		} else {
-			// Bump checkpoint updated_at on container restart so the health
-			// endpoint reports `checkpoint_recent: true` before the first tick.
+		// On restart bump updated_at so health reports `checkpoint_recent` before
+		// the first tick. A null checkpoint means a fresh backfill — the first
+		// fetch anchors at `backfillFrom` via from_height (no pre-seed).
+		if (cursor !== null) {
 			await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
 		}
 	}
@@ -100,20 +117,21 @@ export async function consumePox4DecodedEvents(
 	while (pages < maxPages) {
 		if (opts.signal?.aborted) break;
 
-		const rows = await fetchTxBatch(sourceDb, cursor, batchSize);
+		const rows = await fetchTxBatch(
+			indexClient,
+			cursor,
+			batchSize,
+			toHeight,
+			backfillFrom,
+		);
 		if (rows.length === 0) {
-			// Caught up to tip with no pox-4 txs in range. Advance checkpoint to
-			// latest canonical block so health check sees a recent checkpoint —
-			// otherwise the decoder appears stale during the long quiet windows
-			// between cycle prep events.
-			const tipCursor = await seedCheckpointToTip(sourceDb);
-			if (tipCursor !== null && tipCursor !== cursor) {
-				cursor = tipCursor;
-				await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
-			} else {
-				// No movement — still bump updated_at so health stays fresh.
-				await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
-			}
+			// Caught up to the Index tip with no pox-4 txs in range. Advance the
+			// checkpoint to the tip so health sees a recent checkpoint — otherwise
+			// the decoder looks stale during the long quiet windows between cycle
+			// prep events — and the next run resumes after the tip.
+			const tipCursor = encodePox4Cursor(toHeight, Number.MAX_SAFE_INTEGER);
+			if (tipCursor !== cursor) cursor = tipCursor;
+			await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
 			break;
 		}
 
@@ -150,60 +168,49 @@ export async function consumePox4DecodedEvents(
 	return { cursor, pages, decoded };
 }
 
-async function seedCheckpointToTip(
-	sourceDb: Kysely<Database>,
-): Promise<string | null> {
-	const { rows } = await sql<{ block_height: number; tx_index: number }>`
-		SELECT t.block_height, t.tx_index
-		FROM transactions t
-		INNER JOIN blocks b ON b.height = t.block_height
-		WHERE b.canonical = true
-		ORDER BY t.block_height DESC, t.tx_index DESC
-		LIMIT 1
-	`.execute(sourceDb);
-	const row = rows[0];
-	return row ? encodePox4Cursor(row.block_height, row.tx_index) : null;
-}
-
+// Source one batch of pox-4 contract-call txs over the public Index API in a
+// single request. /v1/index/transactions serves block_time + burn_block_height
+// inline (alongside function_args_hex/result_hex/sender), so no per-batch block
+// join is needed — backfill stays one request per page.
 async function fetchTxBatch(
-	sourceDb: Kysely<Database>,
+	indexClient: IndexHttpClient,
 	cursor: string | null,
 	batchSize: number,
+	toHeight: number,
+	backfillFrom: number,
 ): Promise<Pox4TxRow[]> {
-	const after = cursor ? decodePox4Cursor(cursor) : null;
-	const fromBlock = after?.blockHeight ?? 0;
-	const fromTxIndex = after?.txIndex ?? -1;
-	const { rows } = await sql<Pox4TxRow>`
-		SELECT
-			t.tx_id,
-			t.block_height,
-			t.tx_index,
-			t.function_name,
-			t.function_args,
-			t.raw_result,
-			t.sender,
-			b.timestamp AS block_time,
-			b.burn_block_height
-		FROM transactions t
-		INNER JOIN blocks b ON b.height = t.block_height
-		WHERE t.contract_id = ${MAINNET_POX4_CONTRACT}
-			AND b.canonical = true
-			AND (
-				t.block_height > ${fromBlock}
-				OR (t.block_height = ${fromBlock} AND t.tx_index > ${fromTxIndex})
-			)
-		ORDER BY t.block_height ASC, t.tx_index ASC
-		LIMIT ${batchSize}
-	`.execute(sourceDb);
-	return rows.map((r) => ({
-		...r,
-		block_time: coerceBlockTime(r.block_time),
+	const { transactions } = await indexClient.fetchContractCalls(
+		MAINNET_POX4_CONTRACT,
+		{
+			toHeight,
+			cursor: cursor ?? undefined,
+			fromHeight: cursor ? undefined : backfillFrom,
+			limit: batchSize,
+		},
+	);
+	return transactions.map((t) => ({
+		tx_id: t.tx_id,
+		block_height: t.block_height,
+		tx_index: t.tx_index,
+		function_name: t.contract_call?.function_name ?? "",
+		// function_args_hex is an array of Clarity hex (NOT the decoded args);
+		// parseFunctionArgs deserializes each hex.
+		function_args: t.contract_call?.function_args_hex ?? null,
+		// result_hex is the raw Clarity result; parseResultOk deserializes it.
+		raw_result: t.contract_call?.result_hex ?? null,
+		sender: t.sender,
+		block_time: coerceBlockTime(t.block_time),
+		burn_block_height: Number(t.burn_block_height ?? 0),
 	}));
 }
 
-// `blocks.timestamp` is bigint epoch-seconds; pg returns bigint as a string
-// of digits, which `new Date(string)` parses as a date *string* → Invalid Date.
+// Index API serves block_time as an ISO-8601 string; the legacy DB path served
+// bigint epoch-seconds (pg returns bigint as a digit string). Handle both: a
+// pure-digit string is epoch-seconds, anything else is an ISO timestamp.
 export function coerceBlockTime(value: unknown): Date {
+	if (typeof value === "string" && !/^\d+$/.test(value)) {
+		return new Date(value);
+	}
 	if (value instanceof Date) return value;
 	const seconds = Number(value);
 	return new Date(seconds * 1000);
