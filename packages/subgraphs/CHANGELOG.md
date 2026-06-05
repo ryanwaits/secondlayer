@@ -1,13 +1,24 @@
 # @secondlayer/subgraphs
 
+## 3.7.1
+
+### Patch Changes
+
+- 8c7c24c: Surface the chain/control DB split state so its dormancy in prod is visible, not silent: add `getDbSplitStatus()` (source/target host+db, no credentials) exposed on the API `/status` and `/public/status` responses; extend `assertDbSplit()` to warn on a dormant single-failure-domain in prod and error when a split var is unset with no `DATABASE_URL` fallback (the silent wrong-DB case); wire `assertDbSplit()` into the worker and subgraph-processor entrypoints
+- b10a67b: Treat an empty-string SOURCE\_/TARGET_DATABASE_URL (passed through docker-compose as "") as unset in the LISTEN/NOTIFY and subgraph-cache paths — `||` instead of `??` — so single-DB mode falls back to DATABASE_URL instead of crashing the subgraph processor
+- Updated dependencies [8c7c24c]
+- Updated dependencies [a199aeb]
+- Updated dependencies [b10a67b]
+  - @secondlayer/shared@6.20.0
+
 ## 3.7.0
 
 ### Minor Changes
 
 - 56bc457: feat: direct chain-level subscriptions (webhooks on chain events, no subgraph)
-  
+
   Subscriptions are now polymorphic: a `subgraph` subscription fires on a deployed subgraph's table rows (unchanged), or a new `chain` subscription fires on raw chain events directly — a webhook on a contract / event-type / function-call, or any SIP-010/SIP-009/custom trait — with no subgraph to deploy.
-  
+
   - SDK: `subscriptions.create({ triggers: [...] })` plus `on.*` trigger builders (`on.contractCall`, `on.ftTransfer`, …). New `ChainTrigger` / `SubscriptionKind` types; `SubscriptionDetail` gains `kind` + `triggers`.
   - Built on the public Index/Streams clock (reuses the subgraph re-point's `PublicApiBlockSource` + matcher); forward-looking (starts at tip, never backfills).
   - Reorg-safe apply/rollback delivery envelope (`chain.{type}.apply` / `chain.reorg.rollback`); per-subscription HMAC signing and all delivery formats reused unchanged.
@@ -53,10 +64,11 @@
 
 - 0c3ba82: Add bring-your-own-database support to subgraphs. Deploy with `sl subgraphs deploy <file> --database-url <postgres-url>` to write a subgraph's schema, handler rows, and serving reads to your own Postgres while the managed pipeline still ingests, decodes, matches, and runs your handler. The connection string is stored encrypted at rest and never returned. Handler writes must be idempotent (insert/upsert); reindex is unavailable on BYO subgraphs (re-deploy to rebuild), and deleting a BYO subgraph never drops the schema in your database.
 - 0c3ba82: Add ORM codegen and contract trait discovery.
-  
+
   `sl subgraphs generate <file> --target prisma|drizzle` emits a typed ORM schema for a subgraph's tables — point it at your BYO database for a fully-typed Prisma/Drizzle client with relations (`@relation` / `relations()`), inferred row types, and FK constraints that mirror the deployed DDL. Kysely is supported via `kysely-codegen` against your database.
-  
+
   Contract trait discovery adds a contract registry that statically classifies deployed contracts against SIP-009/010/013 (by ABI shape inference and declared `impl-trait`s) and exposes `GET /v1/contracts?trait=sip-010&conformance=declared|inferred|any` to find every conforming contract.
+
 - 0d94c36: Add trait-scoped subgraph sources. A source can target a SIP standard instead of a fixed contract — `{ type: "ft_transfer", trait: "sip-010" }` indexes events across every contract the registry classifies as that standard, including ones deployed later. Token filters match by the asset-identifier's contract; contract_call/print match by contract id; trait composes with other filters. Resolution is as-of-block, so a reindex backfills a contract's full history even if it was classified after deploy. Requires the contract registry to be populated.
 
 ### Patch Changes
@@ -91,7 +103,7 @@
 ### Major Changes
 
 - fc94993: Typed subgraph handlers. `event` is now inferred from each source's `type` (e.g. a `print_event` source gives `event.topic: string`, an `ft_transfer` source gives `event.amount: bigint`), and `ctx` is typed against the schema — table names and row columns in `ctx.insert`/`update`/`upsert`/etc. are checked. Removes the need for `event as {...}` casts.
-  
+
   BREAKING: handler `event` and `ctx` are now strictly typed, so existing handlers may surface new type errors (usually real shape mismatches). No runtime behavior changes.
 
 ## 2.0.9
@@ -131,13 +143,14 @@
 ### Patch Changes
 
 - fc8f486: Housekeeping polish:
-  
+
   - Dropped fictitious typed-key prefixes (`sk-sl_streams_…`, `sk-sl_index_…`) from marketing copy + sandbox placeholder. Real keys are generic `sk-sl_…`; scoped prefixes were doc fiction.
   - Index rate-limit 429 for free tier now returns `{required_tier, upgrade_url}` so blocked users know how to unblock.
   - `sl subgraphs status <name> --watch` polls every 2s, clearing screen between snapshots, exits cleanly when synced.
   - `standard-webhooks.ts` docstring clarified that only `.created` is emitted in v1; `.updated`/`.deleted` are deferred.
   - T8.6 `sl subgraphs logs` deferred — needs server-side log storage.
   - T8.3 broken tenant URL strip is `[infra]`, tracked in ops backlog.
+
 - Updated dependencies:
   - @secondlayer/shared@6.4.1
 

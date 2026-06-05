@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 6.20.0
+
+### Minor Changes
+
+- 8c7c24c: Surface the chain/control DB split state so its dormancy in prod is visible, not silent: add `getDbSplitStatus()` (source/target host+db, no credentials) exposed on the API `/status` and `/public/status` responses; extend `assertDbSplit()` to warn on a dormant single-failure-domain in prod and error when a split var is unset with no `DATABASE_URL` fallback (the silent wrong-DB case); wire `assertDbSplit()` into the worker and subgraph-processor entrypoints
+
+### Patch Changes
+
+- a199aeb: `IndexHttpClient` now retries transport failures (connection refused/reset) and gateway statuses (502/503/504) with bounded exponential backoff. Makes a single api-replica recreate transparent to the streams-index subgraph-processor / l2-decoder, closing the processors-depend-on-api coupling once the API runs N>1 replicas behind Caddy
+- b10a67b: Treat an empty-string SOURCE\_/TARGET_DATABASE_URL (passed through docker-compose as "") as unset in the LISTEN/NOTIFY and subgraph-cache paths — `||` instead of `??` — so single-DB mode falls back to DATABASE_URL instead of crashing the subgraph processor
+
 ## 6.19.0
 
 ### Minor Changes
