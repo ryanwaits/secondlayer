@@ -19,49 +19,58 @@ triggers a Deploy with a 1–2 min 502.
 1. **Snapshot.** Confirm a fresh wal-g base backup exists (see
    `db-backup-restore.md`). This is the rollback path. Do not proceed without it.
 
-2. **Start the platform DB.**
+2. **Confirm the platform DB is up.** `postgres-platform` is default-on (no
+   longer profile-gated), so it should already be running:
    ```
    ssh ryan@claude-mini → ssh app-server
    cd /opt/secondlayer/docker
-   docker compose --profile split up -d postgres-platform
+   docker compose up -d postgres-platform   # no-op if already running
    docker exec secondlayer-postgres-platform-1 pg_isready -U secondlayer
    ```
 
-3. **Migrate the platform schema into it.** Run migrate with both URLs so the
-   full schema lands on the new instance (chain tables sit empty there):
+3. **Migrate + copy via the cutover script.** `docker/scripts/split-platform-db.sh`
+   migrates the schema into `postgres-platform`, then copies the control-plane
+   tables (FK checks deferred) and per-tenant subgraph schemas from SOURCE.
+   Idempotent (truncate-then-reload), and it NEVER writes to SOURCE. Dry-run
+   first, then execute — both print per-table SOURCE/TARGET row counts:
    ```
-   SOURCE_DATABASE_URL=postgres://…@postgres:5432/secondlayer \
-   TARGET_DATABASE_URL=postgres://…@postgres-platform:5432/secondlayer_platform \
-   docker compose run --rm --no-deps migrate
+   export SRC=postgres://…@postgres:5432/secondlayer
+   export TGT=postgres://…@postgres-platform:5432/secondlayer_platform
+   # dual-migrate the schema onto the platform DB (--no-deps: never recreate the
+   # chain volume — the postgres footgun):
+   SOURCE_DATABASE_URL=$SRC TARGET_DATABASE_URL=$TGT \
+     docker compose run --rm --no-deps migrate
+   # copy control-plane data + verify row counts (run inside a box with pg
+   # client tools, e.g. the platform container):
+   SOURCE_DATABASE_URL=$SRC TARGET_DATABASE_URL=$TGT \
+     docker/scripts/split-platform-db.sh --dry-run
+   SOURCE_DATABASE_URL=$SRC TARGET_DATABASE_URL=$TGT \
+     docker/scripts/split-platform-db.sh
    ```
-   NEVER `docker compose run` a service with `depends_on: postgres` — it can
-   recreate the chain volume. `--no-deps` avoids that.
+   The script exits non-zero on any row-count mismatch — do not proceed if it does.
 
-4. **Copy the control-plane tables** (small — megabytes) from SOURCE to TARGET,
-   FK-parent order first (`accounts` before its children). Use
-   `pg_dump --data-only --table=…` per the SCHEMA_SPLIT TARGET list, restore into
-   `postgres-platform`. Verify row counts match per table.
-
-5. **Flip the env.** In `.env` set:
+4. **Flip the env + remove `DATABASE_URL`.** In `.env` set:
    ```
    SOURCE_DATABASE_URL=postgres://…@postgres:5432/secondlayer
    TARGET_DATABASE_URL=postgres://…@postgres-platform:5432/secondlayer_platform
    ```
-   Leave `DATABASE_URL` set (harmless fallback) or remove it to force explicit
-   config. Redeploy. On boot `assertDbSplit()` logs an error if the two still
-   collapse to one DB — watch for it.
+   and **remove `DATABASE_URL`** so a missing/typo'd split var surfaces loudly
+   rather than silently collapsing both getters back to one DB. On boot
+   `assertDbSplit()` errors if either var is unset (it would otherwise resolve to
+   the built-in dev `DEFAULT_URL`) or if the two still collapse. Redeploy.
 
-6. **Verify.** `current_database()` differs between `getSourceDb()` and
-   `getTargetDb()` (smoke via `/health` + a query). Confirm login, API-key auth,
-   billing/usage writes hit `postgres-platform`, and ingest + datasets/subgraphs
-   read/write `postgres`. Check ingest lag and the status page.
+5. **Verify.** `GET /status` (or `/public/status`) now carries a
+   `database.split` block — confirm `active: true` with distinct `sourceDb` /
+   `targetDb`. Confirm login, API-key auth, billing/usage writes hit
+   `postgres-platform`, and ingest + datasets/subgraphs read/write `postgres`.
+   Check ingest lag and the status page.
 
-7. **Later (after a stability window): drop** the migrated control-plane tables
+6. **Later (after a stability window): drop** the migrated control-plane tables
    from SOURCE to reclaim space — irreversible, so only after a clean snapshot
    and confirmed-healthy split.
 
 ## Rollback
 
-Unset `SOURCE_/TARGET_DATABASE_URL` (both fall back to `DATABASE_URL` → original
-single DB) and redeploy. If the control-plane data on SOURCE was already dropped
-(step 7), restore from the wal-g snapshot instead.
+Re-add `DATABASE_URL` and unset `SOURCE_/TARGET_DATABASE_URL` (both fall back to
+`DATABASE_URL` → original single DB) and redeploy. If the control-plane data on
+SOURCE was already dropped (step 6), restore from the wal-g snapshot instead.

@@ -45,11 +45,20 @@ Written by `api`, `worker`, `subgraph-processor`.
 ## Migration order (critical)
 
 1. Reroute chain/decoded **writes** to `getSourceDb()` and deploy — single-DB,
-   zero behavior change. (G4-S1)
+   zero behavior change. (G4-S1) — shipped
 2. Dual-DB migrate + `postgres-platform` container + `assertDbSplit` guard,
-   gated behind `SOURCE_/TARGET_DATABASE_URL`. (G4-S2)
-3. Cutover: snapshot, move the small control-plane tables to TARGET, flip env.
-   (G4-S3 runbook — manual, founder-driven)
+   gated behind `SOURCE_/TARGET_DATABASE_URL`. (G4-S2) — shipped
+3. Cutover: snapshot, move the small control-plane tables + per-tenant subgraph
+   schemas to TARGET, flip env, **remove `DATABASE_URL`**. Manual, founder-driven
+   — run `docker/scripts/split-platform-db.sh` per
+   `docs/runbook/db-source-target-cutover.md`.
+
+`postgres-platform` is now **default-on** (part of the standard topology — an
+empty, idle DB until cutover). The split stays dormant while
+`SOURCE_/TARGET_DATABASE_URL` are unset; `assertDbSplit()` surfaces the dormant
+single-failure-domain state in prod logs, and `GET /status` reports
+`database.split.active`.
 
 Reversed order silently writes chain data to the wrong DB. Never run `migrate`
-against the chain instance via `docker compose run` (recreates the volume).
+against the chain instance via `docker compose run` without `--no-deps` (it can
+recreate the chain volume).

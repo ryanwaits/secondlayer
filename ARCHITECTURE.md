@@ -148,6 +148,8 @@ Quota enforcement happens at the API gateway. Billing meters (rows scanned, webh
 
 - **Nodes:** One live production server/node path in Phase 1. Reliability hardening focuses on status, deploy rollback, backup verification, operator runbooks, and non-destructive recovery drills. Hot-spare infrastructure and failover rehearsal are deferred until funded second-node capacity exists.
 - **Reorg handling:** Indexer reverts L1 writes on reorg, replays from fork point, re-emits decoded L2 rows. Subscriptions emit explicit reorg markers.
+- **Failure-domain isolation:** Chain plane (write-heavy, reconstructable, 100s of GB) and control plane (small, must-never-lose) split across two Postgres instances (`postgres` / `postgres-platform`) via `getSourceDb()` / `getTargetDb()`, so neither can starve or stall the other. See `docker/SCHEMA_SPLIT.md`; cutover is `docs/runbook/db-source-target-cutover.md`. `GET /status` reports `database.split.active`.
+- **Zero-downtime deploys:** API runs N>1 replicas behind Caddy's load-balanced pool; deploys recreate one replica at a time (`docker/scripts/deploy.sh`), so the immutable, aggressively-cached read plane stays up. A single replica recreate never stalls the streams-index processors (they reach the API over round-robin DNS with transport retry).
 - **Status page:** Public. Tracks node health, ingest lag, L2 decode lag, API p50/p95, error rate. Goes live in Phase 1.
 - **SLAs:** None on Free. 99.5% target on Build. 99.9% on Scale. Custom on Enterprise.
 - **Backups:** Postgres PITR, daily off-site snapshots, quarterly restore drills.

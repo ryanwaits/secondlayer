@@ -24,8 +24,20 @@ Scope: all code/config/script + staging validation. Prod cutover + replica rollo
 - [ ] T5 `shared/index-http.ts` bounded connection-retry → closes processors-depend-on-api.
 
 ## Sprint 4 — staging validation + docs
-- [ ] T1 run cutover script vs local two-DB; assert `getSourceDb()!==getTargetDb()` end-to-end.
-- [ ] T2 update runbook + SCHEMA_SPLIT.md + ARCHITECTURE.
+- [x] T1 cutover script validated end-to-end in a throwaway 2-DB Postgres: dry-run (counts + schema discovery), execute (24 control tables + per-tenant subgraph schema dump→load), row-count parity, idempotent re-run (accounts 5→5, not 10). `getSourceDb()!==getTargetDb()` covered by db-dual.test (distinct URLs → distinct pools) + getDbSplitStatus (active=true).
+- [x] T2 updated runbook (script-driven, default-on, remove DATABASE_URL, /status verify) + SCHEMA_SPLIT.md + ARCHITECTURE.
+
+## Validation summary
+- shared db-dual.test + new getDbSplitStatus/assertDbSplit cases: 11 pass.
+- shared index-http.test (retry on transport/503, no-retry on 404, give-up after 4): 4 pass.
+- tsc green: shared, api, worker, subgraphs.
+- compose base + prod (`-f docker-compose.yml -f hetzner.yml`) `config` valid; api `replicas: 2`, exposed (no host port); postgres-platform default-on + volume bound to DATA_DIR.
+- deploy.sh `bash -n` clean; rolling recreate + `caddy validate` gate added.
+- **Env-blocked:** live `caddy validate` (docker credential helper hangs in this env) — mitigated by the deploy.sh validate-before-restart gate. Caddyfile syntax reviewed against Caddy v2 dynamic-upstream + passive-failover modules.
+
+## Founder-manual remaining (out of automated scope)
+- Execute prod cutover window (snapshot → run split-platform-db.sh → flip env, remove DATABASE_URL → redeploy → verify /status).
+- Roll `API_REPLICAS=2` into prod (confirm host RAM for 2×2G first).
 
 ## Unresolved
 - Prod host RAM for 2×api@2G.
