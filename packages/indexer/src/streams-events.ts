@@ -1,6 +1,10 @@
 import {
+	DB_TO_STREAMS_EVENT_TYPE,
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	STREAMS_DB_EVENT_TYPES,
 	STREAMS_EVENT_TYPES,
+	STREAMS_TO_DB_EVENT_TYPES,
+	type StreamsDbEventType,
 	type StreamsEventType,
 	encodeStreamsCursor,
 } from "@secondlayer/shared";
@@ -8,65 +12,16 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely, RawBuilder } from "kysely";
 
-// Canonical list lives in @secondlayer/shared; re-exported so existing
-// consumers (api/src/streams/events.ts) keep importing it from here.
-export { STREAMS_EVENT_TYPES, type StreamsEventType };
-
-export const STREAMS_DB_EVENT_TYPES = [
-	"stx_transfer_event",
-	"stx_mint_event",
-	"stx_burn_event",
-	"stx_lock_event",
-	"ft_transfer_event",
-	"ft_mint_event",
-	"ft_burn_event",
-	"nft_transfer_event",
-	"nft_mint_event",
-	"nft_burn_event",
-	// Print events have two DB labels: `smart_contract_event` (legacy, frozen
-	// after the upstream node renamed) and `contract_event` (current). Both
-	// carry identical payload shape — `topic`, `value`, `contract_identifier`.
-	// Both must be queryable so consumers see prints across the rename
-	// boundary (~block 7828030 on mainnet).
-	"smart_contract_event",
-	"contract_event",
-] as const;
-
-export const DB_TO_STREAMS_EVENT_TYPE: Record<
-	(typeof STREAMS_DB_EVENT_TYPES)[number],
-	StreamsEventType
-> = {
-	stx_transfer_event: "stx_transfer",
-	stx_mint_event: "stx_mint",
-	stx_burn_event: "stx_burn",
-	stx_lock_event: "stx_lock",
-	ft_transfer_event: "ft_transfer",
-	ft_mint_event: "ft_mint",
-	ft_burn_event: "ft_burn",
-	nft_transfer_event: "nft_transfer",
-	nft_mint_event: "nft_mint",
-	nft_burn_event: "nft_burn",
-	smart_contract_event: "print",
-	contract_event: "print",
-};
-
-// Each streams type maps to one or more DB type labels. Print maps to two
-// (see comment on STREAMS_DB_EVENT_TYPES); all other types are 1:1.
-export const STREAMS_TO_DB_EVENT_TYPES: Record<
-	StreamsEventType,
-	readonly (typeof STREAMS_DB_EVENT_TYPES)[number][]
-> = {
-	stx_transfer: ["stx_transfer_event"],
-	stx_mint: ["stx_mint_event"],
-	stx_burn: ["stx_burn_event"],
-	stx_lock: ["stx_lock_event"],
-	ft_transfer: ["ft_transfer_event"],
-	ft_mint: ["ft_mint_event"],
-	ft_burn: ["ft_burn_event"],
-	nft_transfer: ["nft_transfer_event"],
-	nft_mint: ["nft_mint_event"],
-	nft_burn: ["nft_burn_event"],
-	print: ["smart_contract_event", "contract_event"],
+// Canonical event-type vocab lives in @secondlayer/shared; re-exported so
+// existing indexer consumers (streams-bulk/query.ts, reorg.ts) keep importing
+// it from here.
+export {
+	DB_TO_STREAMS_EVENT_TYPE,
+	STREAMS_DB_EVENT_TYPES,
+	STREAMS_EVENT_TYPES,
+	STREAMS_TO_DB_EVENT_TYPES,
+	type StreamsDbEventType,
+	type StreamsEventType,
 };
 
 export type StreamsEventCursor = {
