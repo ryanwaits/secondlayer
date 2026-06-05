@@ -148,9 +148,12 @@ export class IndexHttpClient {
 			try {
 				res = await fetch(url, { headers });
 			} catch (err) {
-				// Transport-level failure (connection refused/reset) — e.g. an api
-				// replica mid-recreate. Retry; the next attempt round-robins to a
-				// healthy replica.
+				// An explicit abort/cancel is intentional — surface it immediately
+				// rather than burning the retry budget masking it as transient.
+				if (err instanceof Error && err.name === "AbortError") throw err;
+				// Otherwise a transport-level failure (connection refused/reset) —
+				// e.g. an api replica mid-recreate. Retry; the next attempt
+				// round-robins to a healthy replica.
 				lastErr = err;
 				if (attempt >= MAX_ATTEMPTS) break;
 				await delay(RETRY_BASE_MS * 2 ** (attempt - 1));
