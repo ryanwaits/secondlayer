@@ -1,14 +1,10 @@
-import { sql } from "@secondlayer/shared";
+import { STREAMS_DB_EVENT_TYPES, sql } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { insertChainReorg } from "@secondlayer/shared/db/queries/chain-reorgs";
 import type { Database } from "@secondlayer/shared/db";
+import { insertChainReorg } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
 import { handleDecodedEventsReorg } from "./l2/storage.ts";
-// Single-source the firehose vocab from streams-events.ts. A local fork here
-// omitted `contract_event` (the current print label post node-rename ~block
-// 7828030), undercounting the orphaned_to event cursor on post-rename blocks.
-import { STREAMS_DB_EVENT_TYPES } from "./streams-events.ts";
 
 export async function handleReorg(
 	blockHeight: number,
