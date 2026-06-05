@@ -4,7 +4,7 @@ import {
 	getEnabledL2DecoderNames,
 	getL2DecodersHealth,
 } from "@secondlayer/indexer/l2/health";
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, getDbSplitStatus } from "@secondlayer/shared/db";
 import { checkChainDataIntegrity } from "@secondlayer/shared/db/queries/integrity";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { Hono } from "hono";
@@ -284,6 +284,7 @@ app.get("/public/status", async (c) => {
 		status: chainIntegrity.ok ? overallPublicStatus(services) : "degraded",
 		chainTip,
 		chainIntegrity,
+		database: { split: getDbSplitStatus() },
 		streams: {
 			status: streamsTip ? "ok" : "unavailable",
 			tip: streamsTip,
@@ -468,7 +469,7 @@ app.get("/status", async (c) => {
 	return c.json({
 		status: overallPublicStatus(services),
 		network: process.env.STACKS_NETWORK || "mainnet",
-		database: { status: dbStatus },
+		database: { status: dbStatus, split: getDbSplitStatus() },
 		api: getApiTelemetrySnapshot(),
 		node: {
 			status: nodeStatusFromStreamsTip(streamsTip),
