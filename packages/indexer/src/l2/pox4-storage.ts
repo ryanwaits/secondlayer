@@ -1,4 +1,4 @@
-import { getTargetDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type { Pox4FunctionName } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
@@ -39,7 +39,7 @@ export type Pox4CallRow = {
 };
 
 function db(client?: Kysely<Database>): Kysely<Database> {
-	return client ?? getTargetDb();
+	return client ?? getSourceDb();
 }
 
 export async function writePox4Calls(

@@ -18,7 +18,7 @@
  * restart the indexer to force immediate pickup. Reset one group at a time to
  * avoid overloading the Streams API / DB.
  */
-import { closeDb, getTargetDb, sql } from "@secondlayer/shared/db";
+import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import {
@@ -93,7 +93,7 @@ async function resolveStartHeight(
 
 async function main(): Promise<void> {
 	const args = parseArgs(process.argv.slice(2));
-	const db = getTargetDb();
+	const db = getSourceDb();
 	const startHeight = await resolveStartHeight(db, args);
 	const cursor = `${startHeight}:0`;
 

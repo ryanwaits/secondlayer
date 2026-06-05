@@ -1,6 +1,6 @@
 import type { DecodedEventColumns, DecodedEventRow } from "@secondlayer/sdk";
 import { isPox4DecoderEnabled } from "@secondlayer/shared";
-import { getTargetDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Generated, Kysely } from "kysely";
 
@@ -109,7 +109,7 @@ type L2Database = Database & {
 };
 
 function l2Db(db?: Kysely<Database>): Kysely<L2Database> {
-	return (db ?? getTargetDb()) as unknown as Kysely<L2Database>;
+	return (db ?? getSourceDb()) as unknown as Kysely<L2Database>;
 }
 
 export async function readDecoderCheckpoint(opts?: {

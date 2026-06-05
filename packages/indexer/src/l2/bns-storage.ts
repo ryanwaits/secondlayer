@@ -1,4 +1,4 @@
-import { getTargetDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type {
 	BnsMarketplaceAction,
 	BnsNameEventTopic,
@@ -93,7 +93,7 @@ export type BnsNamespaceUpsert = {
 };
 
 function db(client?: Kysely<Database>): Kysely<Database> {
-	return client ?? getTargetDb();
+	return client ?? getSourceDb();
 }
 
 // ── Event writers ───────────────────────────────────────────────────────────

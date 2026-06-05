@@ -1,11 +1,11 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import type { NewBurnBlockPayload } from "../types/node-events.ts";
 
 function db(client?: Kysely<Database>): Kysely<Database> {
-	return client ?? getDb();
+	return client ?? getSourceDb();
 }
 
 let innerKeysVerified = false;

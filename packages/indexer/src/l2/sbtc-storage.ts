@@ -1,4 +1,4 @@
-import { getTargetDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type {
 	SbtcEventTopic,
 	SbtcTokenEventType,
@@ -56,7 +56,7 @@ export type SbtcTokenEventRow = {
 };
 
 function db(client?: Kysely<Database>): Kysely<Database> {
-	return client ?? getTargetDb();
+	return client ?? getSourceDb();
 }
 
 export async function writeSbtcEvents(

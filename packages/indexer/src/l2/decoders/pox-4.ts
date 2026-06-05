@@ -1,4 +1,4 @@
-import { getTargetDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type { Pox4FunctionName } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { IndexHttpClient } from "@secondlayer/shared/index-http";
@@ -84,7 +84,7 @@ export async function consumePox4DecodedEvents(
 	opts: ConsumePox4Options = {},
 ): Promise<{ cursor: string | null; pages: number; decoded: number }> {
 	const indexClient = opts.indexClient ?? createInternalIndexClient();
-	const targetDb = opts.targetDb ?? getTargetDb();
+	const targetDb = opts.targetDb ?? getSourceDb();
 	const decoderName = opts.decoderName ?? POX4_DECODER_NAME;
 	const batchSize = opts.batchSize ?? 500;
 	const maxPages = opts.maxPages ?? 50;

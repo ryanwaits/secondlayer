@@ -1,4 +1,4 @@
-import { getTargetDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { BNS_DECODER_NAME } from "./bns-storage.ts";
@@ -43,7 +43,7 @@ export async function getL2DecoderHealth(opts?: {
 	decoderName?: string;
 	now?: Date;
 }): Promise<L2DecoderHealth> {
-	const db = opts?.db ?? getTargetDb();
+	const db = opts?.db ?? getSourceDb();
 	const decoderName = opts?.decoderName ?? FT_TRANSFER_DECODER_NAME;
 	const now = opts?.now ?? new Date();
 
