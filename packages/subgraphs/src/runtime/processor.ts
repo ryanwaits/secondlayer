@@ -36,7 +36,7 @@ import { startEmitter } from "./emitter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
-import { startTriggerEvaluator } from "./trigger-evaluator-loop.ts";
+import { startTriggerEvaluatorLeader } from "./subscription-leader.ts";
 
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const CHANNEL_SUBGRAPH_OPERATIONS = "subgraph_operations:new";
@@ -503,7 +503,7 @@ export async function startSubgraphProcessor(opts?: {
 	// emitter below delivers its rows unchanged.
 	const stopTriggerEvaluator =
 		process.env.SUBGRAPH_SOURCE === "streams-index"
-			? startTriggerEvaluator()
+			? startTriggerEvaluatorLeader()
 			: undefined;
 
 	// Boot subscription emitter in same process — shares pool, shares
@@ -520,7 +520,7 @@ export async function startSubgraphProcessor(opts?: {
 		await stopListening();
 		await stopReorgListening();
 		stopStreamsReorgPoll?.();
-		stopTriggerEvaluator?.();
+		await stopTriggerEvaluator?.();
 		await stopOperations();
 		await stopEmitter();
 		logger.info("Subgraph processor stopped");
