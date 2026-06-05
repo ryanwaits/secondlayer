@@ -1,5 +1,24 @@
 # @secondlayer/api
 
+## 1.19.0
+
+### Minor Changes
+
+- e9d4594: Re-source the PoX-4 stacking decoder over the public Index HTTP API (removing its source-DB coupling), serve burn_block_height on /v1/index/transactions, and enable the stacking decoder by default (set POX4_DECODER_ENABLED=false to opt out; POX4_BACKFILL_FROM_HEIGHT bounds the backfill scan)
+- 9c5125b: Populate `reorgs[]` on /v1/index/transactions and /v1/index/contract-calls (previously always empty despite being advertised). Reconciled at block-height granularity since the tx cursor isn't event-indexed — over-inclusive, never under-reports — so confirmed-tx consumers get the same at-least-once reorg signal the event endpoints provide
+
+### Patch Changes
+
+- a1f18e6: Back the API rate limiters with a shared Redis store (fail-open) so limits stay correct across multiple API instances; falls back to process-local limits when REDIS_URL is unset
+- Updated dependencies [173340a]
+- Updated dependencies [e9d4594]
+- Updated dependencies [0865ca2]
+- Updated dependencies [cc75ef3]
+- Updated dependencies [6b11c2a]
+  - @secondlayer/shared@6.19.0
+  - @secondlayer/indexer@1.12.3
+  - @secondlayer/platform@0.0.16
+
 ## 1.18.1
 
 ### Patch Changes

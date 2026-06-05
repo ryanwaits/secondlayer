@@ -1,5 +1,18 @@
 # @secondlayer/indexer
 
+## 1.12.3
+
+### Patch Changes
+
+- e9d4594: Re-source the PoX-4 stacking decoder over the public Index HTTP API (removing its source-DB coupling), serve burn_block_height on /v1/index/transactions, and enable the stacking decoder by default (set POX4_DECODER_ENABLED=false to opt out; POX4_BACKFILL_FROM_HEIGHT bounds the backfill scan)
+- 0865ca2: Fix reorg orphaned_to cursor undercounting contract_event prints on post-rename blocks by single-sourcing the firehose event-type vocab
+- cc75ef3: Single-source the firehose DB event-type vocab (STREAMS_DB_EVENT_TYPES + label maps) in @secondlayer/shared; indexer consumes it instead of a local copy
+- Updated dependencies [173340a]
+- Updated dependencies [e9d4594]
+- Updated dependencies [cc75ef3]
+- Updated dependencies [6b11c2a]
+  - @secondlayer/shared@6.19.0
+
 ## 1.12.2
 
 ### Patch Changes

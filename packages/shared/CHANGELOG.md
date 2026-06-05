@@ -1,5 +1,14 @@
 # @secondlayer/shared
 
+## 6.19.0
+
+### Minor Changes
+
+- 173340a: Support the chain/control-plane database split: migrate every configured database (source + target), and add an assertDbSplit boot guard that warns when SOURCE\_/TARGET_DATABASE_URL collapse to one DB. No behavior change in single-DB mode (DATABASE_URL only)
+- e9d4594: Re-source the PoX-4 stacking decoder over the public Index HTTP API (removing its source-DB coupling), serve burn_block_height on /v1/index/transactions, and enable the stacking decoder by default (set POX4_DECODER_ENABLED=false to opt out; POX4_BACKFILL_FROM_HEIGHT bounds the backfill scan)
+- cc75ef3: Single-source the firehose DB event-type vocab (STREAMS_DB_EVENT_TYPES + label maps) in @secondlayer/shared; indexer consumes it instead of a local copy
+- 6b11c2a: Add DbReadRow driver-accurate read-row type and SOURCE_READ_COLUMNS map, declaring the indexer→API source-table read contract with a CI drift guard
+
 ## 6.18.0
 
 ### Minor Changes
