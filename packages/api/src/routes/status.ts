@@ -4,7 +4,7 @@ import {
 	getEnabledL2DecoderNames,
 	getL2DecodersHealth,
 } from "@secondlayer/indexer/l2/health";
-import { getDb, getDbSplitStatus } from "@secondlayer/shared/db";
+import { getDb, getDbSplitStatus, getSourceDb } from "@secondlayer/shared/db";
 import { checkChainDataIntegrity } from "@secondlayer/shared/db/queries/integrity";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { Hono } from "hono";
@@ -169,6 +169,11 @@ app.get("/health", async (c) => {
 
 app.get("/public/status", async (c) => {
 	const db = getDb();
+	// Chain + decoded tables (blocks, l2_decoder_checkpoints) live on SOURCE; read
+	// them from there. Under the active DB split getDb() is TARGET (control plane),
+	// where those tables exist but are empty — reading them via getDb() falsely
+	// reports the decoders/chain as degraded.
+	const sourceDb = getSourceDb();
 	const [
 		dbResult,
 		indexerResult,
@@ -181,14 +186,14 @@ app.get("/public/status", async (c) => {
 		sql`SELECT 1`.execute(db),
 		getIndexerHealth(),
 		getStreamsTip(),
-		getL2DecodersHealth({ db }),
+		getL2DecodersHealth({ db: sourceDb }),
 		getStreamsBulkManifest(),
 		db
 			.selectFrom("service_heartbeats")
 			.select("updated_at")
 			.where("name", "=", "subgraph-processor")
 			.executeTakeFirst(),
-		checkChainDataIntegrity(db),
+		checkChainDataIntegrity(sourceDb),
 	]);
 	const subgraphProcessorDetail: {
 		status: SemanticHealthStatus;
@@ -334,6 +339,9 @@ app.get("/public/streams/signing-key", (c) => {
 
 app.get("/status", async (c) => {
 	const db = getDb();
+	// index_progress + l2_decoder_checkpoints are chain/decoded → SOURCE. subgraphs
+	// + subgraph_gaps + service_heartbeats are control plane → getDb()/TARGET.
+	const sourceDb = getSourceDb();
 
 	const [
 		dbResult,
@@ -346,12 +354,12 @@ app.get("/status", async (c) => {
 		subgraphProcessorHeartbeat,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
-		db.selectFrom("index_progress").selectAll().execute(),
+		sourceDb.selectFrom("index_progress").selectAll().execute(),
 		getIndexerHealth(),
 		db.selectFrom("subgraphs").selectAll().execute(),
 		getGapSummaryBySubgraph(db),
 		getStreamsTip(),
-		getL2DecodersHealth({ db }),
+		getL2DecodersHealth({ db: sourceDb }),
 		db
 			.selectFrom("service_heartbeats")
 			.select("updated_at")
