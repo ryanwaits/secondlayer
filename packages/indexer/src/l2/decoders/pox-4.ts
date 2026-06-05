@@ -129,7 +129,9 @@ export async function consumePox4DecodedEvents(
 			// checkpoint to the tip so health sees a recent checkpoint — otherwise
 			// the decoder looks stale during the long quiet windows between cycle
 			// prep events — and the next run resumes after the tip.
-			const tipCursor = encodePox4Cursor(toHeight, Number.MAX_SAFE_INTEGER);
+			// int4 max — tx_index is a Postgres `integer`; a larger sentinel
+			// overflows when this cursor is used in the transactions `after` query.
+			const tipCursor = encodePox4Cursor(toHeight, 2_147_483_647);
 			if (tipCursor !== cursor) cursor = tipCursor;
 			await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
 			break;
