@@ -308,3 +308,5 @@ export {
 	setMigrationRole,
 } from "./migration-role.ts";
 export type { MigrationRole } from "./migration-role.ts";
+export { TABLE_TO_DB } from "./table-plane.ts";
+export type { DbPlane } from "./table-plane.ts";
