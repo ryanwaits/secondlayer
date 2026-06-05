@@ -71,12 +71,21 @@ Reversed order silently writes chain data to the wrong DB. Never run `migrate`
 against the chain instance via `docker compose run` without `--no-deps` (it can
 recreate the chain volume).
 
-## Post-cutover: source is chain/decoded-only (2026-06-05)
+## Post-cutover: each plane holds only its own tables (2026-06-05)
 
 After the prod cutover the duplicated control-plane tables (the 30 TARGET tables
-above) and the per-tenant `subgraph_<id>` schemas were **dropped from SOURCE** to
-reclaim space — SOURCE now holds only chain + decoded + `kysely_migration*`.
-Platform is the authoritative copy of all control-plane data.
+above) and the per-tenant `subgraph_<id>` schemas were **dropped from SOURCE** —
+SOURCE now holds only chain + decoded + `kysely_migration*`. Platform is the
+authoritative copy of all control-plane data (reclaimed ~1 GB).
+
+The symmetric cleanup then ran: the 25 present-but-empty chain/decoded tables
+were **dropped from TARGET** (gated on a verify-empty check; `RESTRICT`, no
+control table references them). TARGET now holds only the 30 control tables +
+`service_heartbeats` (a `both` table — indexer writes its row on SOURCE, the
+subgraph-processor on TARGET) + `kysely_migration*`. Both planes are now clean,
+so **both `onControlPlane` and `onChainPlane` are load-bearing** for new
+migrations (an unwrapped control migration fails on SOURCE; an unwrapped chain
+migration fails on TARGET).
 
 ### Split-aware migrate (resolved, shared@6.22.0)
 
