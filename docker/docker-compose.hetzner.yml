@@ -66,6 +66,11 @@ services:
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
       HIRO_API_URL: ${HIRO_API_URL:-}
       HIRO_API_KEY: ${HIRO_API_KEY:-}
+      # Reorg-safety margin (blocks) the public Streams tip is held back from the
+      # raw tip. Matches the code default; pinned here so it's tunable without a
+      # redeploy (deploys git reset --hard, so prod stays in sync). Raising it
+      # trades latency for reorg safety; the decoder/consumer rewind on reorg.
+      STREAMS_TIP_REORG_MARGIN_BLOCKS: "2"
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
     deploy:
