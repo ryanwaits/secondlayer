@@ -1,6 +1,7 @@
 import { join } from "node:path";
-import { type Kysely } from "kysely";
 import type { Database } from "@secondlayer/shared/db/schema";
+import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
+import { type Kysely } from "kysely";
 import { writeJsonFile, measureFile, writeStreamsBulkParquet } from "./file.ts";
 import {
 	createStreamsBulkManifest,
@@ -118,13 +119,20 @@ export async function exportStreamsBulkRange(
 		maxCursor: rows.at(-1)?.cursor ?? null,
 		createdAt: generatedAt,
 	});
-	const manifest = createStreamsBulkManifest({
+	const unsignedManifest = createStreamsBulkManifest({
 		network: options.network,
 		generatedAt,
 		producerVersion: options.producerVersion,
 		finalityLagBlocks: options.finalityLagBlocks,
 		files: [manifestFile],
 	});
+	// Sign the manifest with the platform Streams key so the cold lane carries the
+	// same authenticity proof as the live lane. Unsigned (legacy shape) when no
+	// key is configured, so export still works before the key is provisioned.
+	const signingKey = process.env.STREAMS_SIGNING_PRIVATE_KEY;
+	const manifest: StreamsBulkManifest = signingKey
+		? signStreamsBulkManifest(unsignedManifest, signingKey)
+		: unsignedManifest;
 	const schemaDocument = createStreamsBulkSchemaDocument(options.network);
 
 	await writeJsonFile(localSchemaPath, schemaDocument);

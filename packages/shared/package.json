@@ -104,6 +104,10 @@
 			"types": "./dist/src/leader.d.ts",
 			"import": "./dist/src/leader.js"
 		},
+		"./streams-bulk-manifest": {
+			"types": "./dist/src/streams-bulk-manifest.d.ts",
+			"import": "./dist/src/streams-bulk-manifest.js"
+		},
 		"./errors": {
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"

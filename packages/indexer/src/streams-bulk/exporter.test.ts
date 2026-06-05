@@ -3,7 +3,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ParquetReader } from "@dsnp/parquetjs";
+import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
 import { getDb, sql } from "@secondlayer/shared/db";
+import { verifyStreamsBulkManifestSignature } from "@secondlayer/shared/streams-bulk-manifest";
 import { exportStreamsBulkRange } from "./exporter.ts";
 import { readJsonFile, writeStreamsBulkParquet } from "./file.ts";
 import { stableJsonStringify } from "./json.ts";
@@ -176,9 +178,12 @@ const HAS_DB = !!process.env.DATABASE_URL;
 describe.skipIf(!HAS_DB)("exportStreamsBulkRange", () => {
 	const db = HAS_DB ? getDb() : null;
 	let tempDir: string | null = null;
+	const keys = generateEd25519KeyPair();
+	const savedSigningKey = process.env.STREAMS_SIGNING_PRIVATE_KEY;
 
 	beforeEach(async () => {
 		if (!db) return;
+		process.env.STREAMS_SIGNING_PRIVATE_KEY = keys.privateKeyPem;
 		await sql`DELETE FROM events`.execute(db);
 		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
@@ -186,6 +191,7 @@ describe.skipIf(!HAS_DB)("exportStreamsBulkRange", () => {
 	});
 
 	afterEach(async () => {
+		process.env.STREAMS_SIGNING_PRIVATE_KEY = savedSigningKey;
 		if (tempDir) await rm(tempDir, { recursive: true, force: true });
 		tempDir = null;
 	});
@@ -299,6 +305,12 @@ describe.skipIf(!HAS_DB)("exportStreamsBulkRange", () => {
 			result.localLatestManifestPath,
 		);
 		expect(manifest.files[0]?.sha256).toMatch(/^[a-f0-9]{64}$/);
+		// The exported manifest is ed25519-signed and verifies with the public key.
+		expect(manifest.signature).toBeTruthy();
+		expect(manifest.key_id).toBeTruthy();
+		expect(verifyStreamsBulkManifestSignature(manifest, keys.publicKeyPem)).toBe(
+			true,
+		);
 
 		const reader = await ParquetReader.openFile(result.localParquetPath);
 		try {
