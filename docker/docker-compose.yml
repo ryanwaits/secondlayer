@@ -66,11 +66,11 @@ services:
       target: api
     command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
     environment:
-      # Overridable, but do NOT blank it in split prod yet: the LISTEN/NOTIFY
-      # listener (packages/shared/.../queue/listener.ts) resolves its connection
-      # from DATABASE_URL and crashes the subgraph-processor without it (it's not
-      # split-aware). Leave it set — it defaults to the source DB; SOURCE_/TARGET_
-      # drive the actual split. (Kept overridable for the future listener fix.)
+      # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
+      # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently
+      # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
+      # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
+      # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
@@ -92,11 +92,11 @@ services:
       target: api
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
-      # Overridable, but do NOT blank it in split prod yet: the LISTEN/NOTIFY
-      # listener (packages/shared/.../queue/listener.ts) resolves its connection
-      # from DATABASE_URL and crashes the subgraph-processor without it (it's not
-      # split-aware). Leave it set — it defaults to the source DB; SOURCE_/TARGET_
-      # drive the actual split. (Kept overridable for the future listener fix.)
+      # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
+      # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently
+      # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
+      # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
+      # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
@@ -172,11 +172,11 @@ services:
       dockerfile: docker/Dockerfile
       target: indexer
     environment:
-      # Overridable, but do NOT blank it in split prod yet: the LISTEN/NOTIFY
-      # listener (packages/shared/.../queue/listener.ts) resolves its connection
-      # from DATABASE_URL and crashes the subgraph-processor without it (it's not
-      # split-aware). Leave it set — it defaults to the source DB; SOURCE_/TARGET_
-      # drive the actual split. (Kept overridable for the future listener fix.)
+      # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
+      # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently
+      # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
+      # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
+      # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
@@ -244,11 +244,11 @@ services:
       target: indexer
     command: ["bun", "run", "packages/indexer/src/l2/service.ts"]
     environment:
-      # Overridable, but do NOT blank it in split prod yet: the LISTEN/NOTIFY
-      # listener (packages/shared/.../queue/listener.ts) resolves its connection
-      # from DATABASE_URL and crashes the subgraph-processor without it (it's not
-      # split-aware). Leave it set — it defaults to the source DB; SOURCE_/TARGET_
-      # drive the actual split. (Kept overridable for the future listener fix.)
+      # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
+      # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently
+      # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
+      # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
+      # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
@@ -308,11 +308,11 @@ services:
       disable: true
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
-      # Overridable, but do NOT blank it in split prod yet: the LISTEN/NOTIFY
-      # listener (packages/shared/.../queue/listener.ts) resolves its connection
-      # from DATABASE_URL and crashes the subgraph-processor without it (it's not
-      # split-aware). Leave it set — it defaults to the source DB; SOURCE_/TARGET_
-      # drive the actual split. (Kept overridable for the future listener fix.)
+      # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
+      # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently
+      # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
+      # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
+      # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
@@ -343,11 +343,11 @@ services:
       target: worker
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
-      # Overridable, but do NOT blank it in split prod yet: the LISTEN/NOTIFY
-      # listener (packages/shared/.../queue/listener.ts) resolves its connection
-      # from DATABASE_URL and crashes the subgraph-processor without it (it's not
-      # split-aware). Leave it set — it defaults to the source DB; SOURCE_/TARGET_
-      # drive the actual split. (Kept overridable for the future listener fix.)
+      # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
+      # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently
+      # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
+      # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
+      # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.

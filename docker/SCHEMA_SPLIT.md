@@ -49,9 +49,10 @@ Written by `api`, `worker`, `subgraph-processor`.
 2. Dual-DB migrate + `postgres-platform` container + `assertDbSplit` guard,
    gated behind `SOURCE_/TARGET_DATABASE_URL`. (G4-S2) — shipped
 3. Cutover: snapshot, move the small control-plane tables + per-tenant subgraph
-   schemas to TARGET, flip env (set `SOURCE_/TARGET_DATABASE_URL`; **keep
-   `DATABASE_URL`** — the LISTEN/NOTIFY listener still needs it, see below).
-   Manual, founder-driven — run `docker/scripts/split-platform-db.sh` per
+   schemas to TARGET, flip env (set `SOURCE_/TARGET_DATABASE_URL`, blank
+   `DATABASE_URL` — the LISTEN/NOTIFY listener is split-aware as of shared@6.21.0,
+   so it no longer needs it). Manual, founder-driven — run
+   `docker/scripts/split-platform-db.sh` per
    `docs/runbook/db-source-target-cutover.md`. Executed in prod 2026-06-05.
 
 `postgres-platform` is now **default-on** (part of the standard topology — an
