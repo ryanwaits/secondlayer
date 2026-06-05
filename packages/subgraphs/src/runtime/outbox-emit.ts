@@ -18,6 +18,14 @@ import type { SubscriptionMatcher } from "./emitter-matcher.ts";
 
 let loggedKillSwitch = false;
 
+/** Flush op → event-type verb. A subscriber tracking a mutable row sees the
+ *  full lifecycle (created → updated → deleted), not just the initial insert. */
+const OP_VERB = {
+	insert: "created",
+	update: "updated",
+	delete: "deleted",
+} as const;
+
 export function isEmitOutboxEnabled(): boolean {
 	return process.env.SECONDLAYER_EMIT_OUTBOX !== "false";
 }
@@ -79,12 +87,10 @@ export async function emitSubscriptionOutbox(
 
 	const rows: OutboxInsert[] = [];
 	for (const write of manifest.writes) {
-		// v1: emit on inserts only. Updates + deletes can land in a follow-up.
-		if (write.op !== "insert") continue;
 		const subs = matcher.match(subgraphName, write.table, write.row);
 		if (subs.length === 0) continue;
 
-		const eventType = `${subgraphName}.${write.table}.created`;
+		const eventType = `${subgraphName}.${write.table}.${OP_VERB[write.op]}`;
 		for (const s of subs) {
 			rows.push({
 				subscription_id: s.id,

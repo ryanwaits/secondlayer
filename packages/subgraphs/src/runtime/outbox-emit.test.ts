@@ -30,7 +30,7 @@ afterAll(async () => {
 });
 
 describe("emitSubscriptionOutbox", () => {
-	it("inserts outbox rows only for matching active subs, deduped across replays", async () => {
+	it("emits created/updated/deleted for matching active subs, deduped across replays", async () => {
 		const { subscription } = await createSubscription(db, {
 			accountId,
 			name: `test-${randomUUID().slice(0, 8)}`,
@@ -47,7 +47,7 @@ describe("emitSubscriptionOutbox", () => {
 		matcher.setAll([subscription]);
 
 		const manifest = {
-			count: 3,
+			count: 4,
 			writes: [
 				{
 					op: "insert" as const,
@@ -62,10 +62,16 @@ describe("emitSubscriptionOutbox", () => {
 					pk: { blockHeight: 1000, txId: "0xbbb", rowIndex: 1 },
 				},
 				{
-					op: "update" as const, // non-insert skipped
+					op: "update" as const,
 					table: "transfers",
 					row: { sender: "SP1", amount: "1000" },
 					pk: { blockHeight: 1000, txId: "0xaaa", rowIndex: 2 },
+				},
+				{
+					op: "delete" as const,
+					table: "transfers",
+					row: { sender: "SP1", amount: "500" },
+					pk: { blockHeight: 1000, txId: "0xaaa", rowIndex: 3 },
 				},
 			],
 		};
@@ -78,18 +84,22 @@ describe("emitSubscriptionOutbox", () => {
 				matcher,
 				1000,
 			);
-			expect(n).toBe(1);
+			// insert (matches) + update (matches) + delete (matches); the second
+			// insert fails the filter.
+			expect(n).toBe(3);
 		});
 
 		const rows = await db
 			.selectFrom("subscription_outbox")
-			.selectAll()
+			.select("event_type")
 			.where("subscription_id", "=", subscription.id)
+			.orderBy("event_type")
 			.execute();
-		expect(rows).toHaveLength(1);
-		expect(rows[0].event_type).toBe("bitcoin.transfers.created");
-		const payload = rows[0].payload as Record<string, unknown>;
-		expect(payload.sender).toBe("SP1");
+		expect(rows.map((r) => r.event_type)).toEqual([
+			"bitcoin.transfers.created",
+			"bitcoin.transfers.deleted",
+			"bitcoin.transfers.updated",
+		]);
 
 		// Replay: same manifest → ON CONFLICT DO NOTHING, no extra rows.
 		await db.transaction().execute(async (tx) => {
@@ -100,7 +110,7 @@ describe("emitSubscriptionOutbox", () => {
 			.select(sql<number>`count(*)::int`.as("c"))
 			.where("subscription_id", "=", subscription.id)
 			.executeTakeFirstOrThrow();
-		expect(Number(after.c)).toBe(1);
+		expect(Number(after.c)).toBe(3);
 	});
 
 	it("kill-switch bypasses emission", async () => {
