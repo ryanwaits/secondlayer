@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
+import type { StreamsReorg } from "../streams/reorgs.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import type { IndexTip } from "./tip.ts";
+import type { IndexTransaction } from "./transactions.ts";
 import {
 	type TransactionsReader,
 	getTransactionsResponse,
@@ -53,8 +55,9 @@ describe("Index transactions helpers", () => {
 		expect(parsed.cursor).toEqual({ block_height: 9000, tx_index: 3 });
 	});
 
-	test("forwards filters to the reader and always returns reorgs []", async () => {
+	test("forwards filters to the reader; empty page → no reorg lookup", async () => {
 		const seen: Array<{ type?: string }> = [];
+		let reorgLookups = 0;
 		const response = await getTransactionsResponse({
 			query: params("?type=token_transfer"),
 			tip: TIP,
@@ -62,9 +65,36 @@ describe("Index transactions helpers", () => {
 				seen.push({ type: p.type });
 				return { transactions: [], next_cursor: null };
 			},
+			readReorgs: async () => {
+				reorgLookups++;
+				return [];
+			},
 		});
 		expect(seen[0]?.type).toBe("token_transfer");
 		expect(response.reorgs).toEqual([]);
+		expect(reorgLookups).toBe(0);
+	});
+
+	test("reconciles reorgs over the page's block-height span", async () => {
+		const seenRange: Array<{ fromHeight: number; toHeight: number }> = [];
+		const marker = [{ id: "reorg-1" }] as unknown as StreamsReorg[];
+		const response = await getTransactionsResponse({
+			query: params(""),
+			tip: TIP,
+			readTransactions: async () => ({
+				transactions: [
+					{ block_height: 100 } as IndexTransaction,
+					{ block_height: 105 } as IndexTransaction,
+				],
+				next_cursor: null,
+			}),
+			readReorgs: async (range) => {
+				seenRange.push(range);
+				return marker;
+			},
+		});
+		expect(seenRange[0]).toEqual({ fromHeight: 100, toHeight: 105 });
+		expect(response.reorgs).toBe(marker);
 	});
 
 	test("a cursor past the tip returns empty and echoes the cursor", async () => {

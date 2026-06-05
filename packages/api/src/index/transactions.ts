@@ -3,6 +3,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
+import type { StreamsReorg } from "../streams/reorgs.ts";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
 	jsonSafeBigInt,
@@ -85,8 +86,15 @@ export type TransactionsResponse = {
 	transactions: IndexTransaction[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	reorgs: never[];
+	reorgs: StreamsReorg[];
 };
+
+/** Height-granular reorg reader for the block_height:tx_index cursor space
+ *  (the event-indexed reader can't address tx cursors). Over-inclusive. */
+export type TransactionsReorgsReader = (range: {
+	fromHeight: number;
+	toHeight: number;
+}) => Promise<StreamsReorg[]>;
 
 export type ReadTransactionsParams = {
 	after?: TransactionCursor;
@@ -379,6 +387,7 @@ export async function getTransactionsResponse(opts: {
 	query: URLSearchParams;
 	tip: IndexTip;
 	readTransactions?: TransactionsReader;
+	readReorgs?: TransactionsReorgsReader;
 }): Promise<TransactionsResponse> {
 	const parsed = parseTransactionsQuery(opts.query, opts.tip);
 
@@ -402,12 +411,23 @@ export async function getTransactionsResponse(opts: {
 		contractId: parsed.contractId,
 	});
 
-	// Cursor keyspace is block_height:tx_index, which the event-indexed reorg
-	// reader can't address — transactions always returns reorgs: [].
+	// Reorgs overlapping the page's block-height span. The tx cursor is
+	// block_height:tx_index (not event-indexed), so we reconcile at height
+	// granularity — over-inclusive, never under-reports. Empty page → no lookup.
+	const reorgReader = opts.readReorgs ?? (async () => []);
+	const heights = result.transactions.map((t) => t.block_height);
+	const reorgs =
+		heights.length > 0
+			? await reorgReader({
+					fromHeight: Math.min(...heights),
+					toHeight: Math.max(...heights),
+				})
+			: [];
+
 	return {
 		transactions: result.transactions,
 		next_cursor: result.next_cursor,
 		tip: opts.tip,
-		reorgs: [],
+		reorgs,
 	};
 }

@@ -3,6 +3,7 @@ import {
 	incrementIndexDecodedEventsReturned,
 } from "@secondlayer/platform/db/queries/usage";
 import { getDb } from "@secondlayer/shared/db";
+import { readChainReorgsForHeightRange } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { type Context, Hono } from "hono";
 import {
 	MUTABLE_CACHE_CONTROL,
@@ -333,6 +334,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			query,
 			tip,
 			readContractCalls: opts.readContractCalls,
+			readReorgs: (range) => readChainReorgsForHeightRange(range),
 		});
 		const notModified = applyIndexCache(c, query, tip, {
 			contract_calls: response.contract_calls,
@@ -422,6 +424,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			query,
 			tip,
 			readTransactions: opts.readTransactions,
+			readReorgs: (range) => readChainReorgsForHeightRange(range),
 		});
 		const notModified = applyIndexCache(c, query, tip, {
 			transactions: response.transactions,

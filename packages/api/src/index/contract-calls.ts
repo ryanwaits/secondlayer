@@ -287,6 +287,10 @@ export async function getContractCallsResponse(opts: {
 	query: URLSearchParams;
 	tip: IndexTip;
 	readContractCalls?: ContractCallsReader;
+	readReorgs?: (range: {
+		fromHeight: number;
+		toHeight: number;
+	}) => Promise<StreamsReorg[]>;
 }): Promise<ContractCallsResponse> {
 	const parsed = parseContractCallsQuery(opts.query, opts.tip);
 
@@ -310,12 +314,22 @@ export async function getContractCallsResponse(opts: {
 		sender: parsed.sender,
 	});
 
-	// Cursor keyspace here is block_height:tx_index, which the event-indexed
-	// reorg reader can't address — contract-calls always returns reorgs: [].
+	// Height-granular reorg reconciliation (cursor is block_height:tx_index, not
+	// event-indexed). Over-inclusive, never under-reports. Empty page → no lookup.
+	const reorgReader = opts.readReorgs ?? (async () => []);
+	const heights = result.contract_calls.map((c) => c.block_height);
+	const reorgs =
+		heights.length > 0
+			? await reorgReader({
+					fromHeight: Math.min(...heights),
+					toHeight: Math.max(...heights),
+				})
+			: [];
+
 	return {
 		contract_calls: result.contract_calls,
 		next_cursor: result.next_cursor,
 		tip: opts.tip,
-		reorgs: [],
+		reorgs,
 	};
 }
