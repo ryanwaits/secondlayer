@@ -64,3 +64,21 @@ single-failure-domain state in prod logs, and `GET /status` reports
 Reversed order silently writes chain data to the wrong DB. Never run `migrate`
 against the chain instance via `docker compose run` without `--no-deps` (it can
 recreate the chain volume).
+
+## Post-cutover: source is chain/decoded-only (2026-06-05)
+
+After the prod cutover the duplicated control-plane tables (the 30 TARGET tables
+above) and the per-tenant `subgraph_<id>` schemas were **dropped from SOURCE** to
+reclaim space — SOURCE now holds only chain + decoded + `kysely_migration*`.
+Platform is the authoritative copy of all control-plane data.
+
+⚠️ **`migrate.ts` is not split-aware — this is now a footgun.** It applies every
+migration to BOTH databases (`migrationTargets()` = source + target). Existing
+control-table migrations are already marked applied in SOURCE's
+`kysely_migration`, so they won't re-run — no current breakage. But a NEW
+migration that touches a control table (e.g. `ALTER TABLE accounts …`) will run
+against SOURCE, where the table no longer exists, and **fail the deploy's migrate
+step**. Before adding any control-table migration, make `migrate.ts` split-aware
+(apply control migrations only to TARGET, chain/decoded only to SOURCE — e.g. tag
+migrations or drive from a table→DB registry). The per-tenant subgraph schemas
+are dynamic DDL (not in `migrate.ts`), so dropping them carries no such risk.
