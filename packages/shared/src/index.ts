@@ -1,5 +1,6 @@
 export * from "./types.ts";
 export * from "./event-types.ts";
+export * from "./db-event-types.ts";
 export * from "./db/index.ts";
 export * from "./errors.ts";
 export * from "./finality.ts";
