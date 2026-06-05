@@ -23,12 +23,14 @@ services:
     restart: unless-stopped
 
   # Control-plane Postgres for the source/target split (see SCHEMA_SPLIT.md).
-  # Profile-gated: only starts with `--profile split`, so default single-DB
-  # deploys are unaffected. Cutover: start it, migrate, COPY the control-plane
-  # tables over, then point TARGET_DATABASE_URL here.
+  # Default-on so it's part of the standard topology (an empty, idle DB until
+  # cutover — single-DB deploys keep `SOURCE_/TARGET_DATABASE_URL` unset and
+  # never touch it). Cutover: migrate, COPY the control-plane tables over, then
+  # point TARGET_DATABASE_URL here. See docker/scripts/split-platform-db.sh.
+  # NOTE: prod deploy.sh restarts only APP_SERVICES, so it never recreates this
+  # container — start it once with `docker compose up -d postgres-platform`.
   postgres-platform:
     image: postgres:17-alpine
-    profiles: ["split"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
@@ -71,6 +73,8 @@ services:
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
     depends_on:
       postgres:
+        condition: service_healthy
+      postgres-platform:
         condition: service_healthy
     restart: "no"
 
@@ -131,6 +135,8 @@ services:
       migrate:
         condition: service_completed_successfully
       postgres:
+        condition: service_healthy
+      postgres-platform:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -292,6 +298,8 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+      postgres-platform:
+        condition: service_healthy
     restart: unless-stopped
 
   # Worker service — scheduled background jobs (storage measurement + tenant
@@ -320,6 +328,8 @@ services:
       migrate:
         condition: service_completed_successfully
       postgres:
+        condition: service_healthy
+      postgres-platform:
         condition: service_healthy
     restart: unless-stopped
 
