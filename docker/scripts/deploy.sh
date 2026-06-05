@@ -52,6 +52,10 @@ fi
 unset _DEPLOY_IMAGE_OWNER_OVERRIDE _DEPLOY_IMAGE_TAG_OVERRIDE _DEPLOY_SHA_OVERRIDE
 
 APP_SERVICES="api indexer l2-decoder subgraph-processor worker agent caddy"
+# api recreates separately (rolling, replica-by-replica behind Caddy) so its
+# cached read plane never goes fully dark on a code-only deploy. Everything else
+# recreates in bulk.
+APP_SERVICES_NO_API="indexer l2-decoder subgraph-processor worker agent caddy"
 DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-secondlayer-labs}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
@@ -160,17 +164,74 @@ fi
 # Clean up stale one-off containers (from manual `docker compose run` without --rm)
 docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docker rm -f 2>/dev/null || true
 
-# Restart all app services so every runtime picks up the pulled image tag.
+# Wait until every running api replica answers /health from inside its network
+# (no host port — api is reached over the compose network / Caddy). Used as the
+# rolling-deploy gate and the final health probe.
+wait_api_healthy() {
+  local retries=20 delay=3 i cids c all_ok
+  for i in $(seq 1 $retries); do
+    cids=$($COMPOSE ps -q api 2>/dev/null || true)
+    if [ -n "$cids" ]; then
+      all_ok=1
+      for c in $cids; do
+        docker exec "$c" curl -sf http://localhost:3800/health >/dev/null 2>&1 || all_ok=0
+      done
+      [ "$all_ok" = 1 ] && return 0
+    fi
+    echo "api: waiting for replicas healthy (attempt $i/$retries)..."
+    sleep $delay
+  done
+  return 1
+}
+
+# Recreate api replicas one at a time so the load-balanced pool keeps serving.
+# Removing a replica then `up --no-recreate` recreates only that missing slot
+# with the new image; survivors stay on the old image until their turn. Caddy's
+# `dynamic a` pool + passive failover routes around the recreating replica → no
+# 502. With one replica (dev default) this is a normal recreate.
+rolling_recreate_api() {
+  local ids id
+  ids=$($COMPOSE ps -q api 2>/dev/null || true)
+  if [ -z "$ids" ]; then
+    # Migration path stopped api (or first boot) — bring the full set up fresh.
+    echo "🔁 api not running — starting replica set"
+    $COMPOSE up -d --no-build --no-deps api
+  else
+    echo "🔁 Rolling-recreating api replicas one at a time..."
+    for id in $ids; do
+      docker rm -f "$id" >/dev/null 2>&1 || true
+      $COMPOSE up -d --no-build --no-deps --no-recreate api
+      if ! wait_api_healthy; then
+        echo "ERROR: api replica failed health after recreate — aborting roll"
+        return 1
+      fi
+    done
+  fi
+  wait_api_healthy
+}
+
+# Restart back-end app services in bulk, then roll the api separately.
 # NEVER touch stacks-node, postgres, hiro-postgres, hiro-api.
-$COMPOSE up -d --no-build --remove-orphans $APP_SERVICES
+$COMPOSE up -d --no-build --remove-orphans $APP_SERVICES_NO_API
+rolling_recreate_api || { echo "ERROR: api rolling recreate failed"; exit 1; }
 
 # Caddy's Caddyfile is bind-mounted, so `up -d` won't detect file changes
 # from the git pull. Restart to pick up Caddyfile edits AND drop any cached
 # TLS state from prior configs (a `reload` keeps cert cache, which can
 # cause stale on-demand resolutions to outlive the config that requested
 # them — bit us during the post-shared-rip Caddyfile collapse).
-docker restart secondlayer-caddy-1 2>/dev/null || \
-  echo "⚠️  caddy restart failed (container may be missing)"
+#
+# Validate the new (bind-mounted) Caddyfile against the still-running OLD
+# container FIRST — a malformed config would otherwise drop the whole API edge
+# on restart. Abort the deploy and leave the current Caddy serving instead.
+if docker exec secondlayer-caddy-1 caddy validate \
+     --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+  docker restart secondlayer-caddy-1 2>/dev/null || \
+    echo "⚠️  caddy restart failed (container may be missing)"
+else
+  echo "ERROR: Caddyfile failed validation — leaving current Caddy config running"
+  exit 1
+fi
 
 flock -u 9
 
@@ -241,7 +302,8 @@ check_container_health() {
 # Each function already has its own retry/backoff. Skip the historical `sleep 5`
 # warmup — the first probe attempt acts as the initial wait and falls through
 # to the retry loop if the service isn't ready yet.
-check_health api http://localhost:3800/health &
+# api has no host port (replicas) — probe live replicas from inside the network.
+wait_api_healthy &
 _pid_api=$!
 check_health indexer http://localhost:3700/health &
 _pid_indexer=$!
