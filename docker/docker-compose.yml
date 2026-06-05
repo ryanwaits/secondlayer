@@ -22,6 +22,26 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Control-plane Postgres for the source/target split (see SCHEMA_SPLIT.md).
+  # Profile-gated: only starts with `--profile split`, so default single-DB
+  # deploys are unaffected. Cutover: start it, migrate, COPY the control-plane
+  # tables over, then point TARGET_DATABASE_URL here.
+  postgres-platform:
+    image: postgres:17-alpine
+    profiles: ["split"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
+      POSTGRES_DB: ${POSTGRES_PLATFORM_DB:-secondlayer_platform}
+    volumes:
+      - postgres_platform_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # Redis — shared rate-limit counters so limits stay correct once the API runs
   # more than one instance. Ephemeral (no AOF/RDB): a restart resets counters,
   # which is fine for rate limiting, and the API fails OPEN if Redis is down.
@@ -45,6 +65,10 @@ services:
     command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # DATABASE_URL (single DB, no behavior change). Set at cutover.
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,6 +84,10 @@ services:
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # DATABASE_URL (single DB, no behavior change). Set at cutover.
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
       # Shared rate-limit store. Unset → process-local limits (single-instance
       # only). Fails open if Redis is unreachable.
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
@@ -123,6 +151,10 @@ services:
       target: indexer
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # DATABASE_URL (single DB, no behavior change). Set at cutover.
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
       PORT: 3700
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
@@ -186,6 +218,10 @@ services:
     command: ["bun", "run", "packages/indexer/src/l2/service.ts"]
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # DATABASE_URL (single DB, no behavior change). Set at cutover.
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
       STREAMS_API_URL: http://api:3800
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
       PORT: 3710
@@ -241,6 +277,10 @@ services:
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # DATABASE_URL (single DB, no behavior change). Set at cutover.
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
@@ -265,6 +305,10 @@ services:
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # DATABASE_URL (single DB, no behavior change). Set at cutover.
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       NETWORKS: ${NETWORKS:-mainnet}
@@ -281,3 +325,4 @@ services:
 
 volumes:
   postgres_data:
+  postgres_platform_data:
