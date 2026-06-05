@@ -70,6 +70,12 @@ CONTROL_TABLES=(
   chat_sessions
   chat_messages
   subgraphs
+  subgraph_operations
+  subgraph_health_snapshots
+  subgraph_gaps
+  subgraph_usage_daily
+  subgraph_processing_stats
+  subgraph_table_snapshots
 )
 
 src_count() { psql "$SRC" -tAc "SELECT count(*) FROM $1" 2>/dev/null || echo "ERR"; }
