@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import snapshot from "./__snapshots__/source-read-columns.json";
 import { SOURCE_READ_COLUMNS } from "../src/db/source-read-columns.ts";
+import snapshot from "./__snapshots__/source-read-columns.json";
 
 // SOURCE_READ_COLUMNS is the read contract between the indexer (write schema
 // owner) and the API (raw reader). Any change to the columns the API depends on

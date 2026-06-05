@@ -10,6 +10,7 @@ import {
 const WINDOW_MS = 1_000;
 
 export function indexRateLimit(): MiddlewareHandler<IndexEnv> {
+	// biome-ignore lint/suspicious/noConfusingVoidType: hono middleware returns Response | void (pre-existing)
 	return async (c, next): Promise<Response | void> => {
 		const tenant = c.get("indexTenant");
 		if (!tenant) {
