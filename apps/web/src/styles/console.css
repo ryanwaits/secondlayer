@@ -2339,7 +2339,7 @@ html.force-light .tabbed-code-tab.active {
 	font-family: var(--font-sans-stack);
 	font-size: 13px;
 	font-weight: 560;
-	color: #fff;
+	color: var(--accent-contrast);
 	background: var(--accent);
 	border: none;
 	border-radius: 6px;
@@ -3333,7 +3333,7 @@ html.force-light .tabbed-code-tab.active {
 	font-family: var(--font-sans-stack);
 	font-size: 12px;
 	font-weight: 500;
-	color: #fff;
+	color: var(--accent-contrast);
 	background: var(--accent);
 	border: none;
 	border-radius: 6px;
@@ -3979,7 +3979,7 @@ html.force-light .tabbed-code-tab.active {
 
 .settings-btn.primary {
 	background: var(--accent);
-	color: #fff;
+	color: var(--accent-contrast);
 	border-color: var(--accent);
 }
 .settings-btn.primary:hover {
@@ -4099,7 +4099,7 @@ html.force-light .tabbed-code-tab.active {
 	font-size: 9px;
 	padding: 2px 6px;
 	background: var(--accent);
-	color: #fff;
+	color: var(--accent-contrast);
 	border-radius: 3px;
 	letter-spacing: 0.05em;
 }
@@ -4776,7 +4776,7 @@ html.force-light .tabbed-code-tab.active {
 	font-family: var(--font-sans-stack);
 	font-size: 13px;
 	font-weight: 500;
-	color: #fff;
+	color: var(--accent-contrast);
 	background: var(--accent);
 	border: none;
 	border-radius: 6px;
@@ -6065,8 +6065,8 @@ html.force-light .tabbed-code-tab.active {
 	font-family: var(--font-sans-stack);
 	font-size: 13px;
 	font-weight: 500;
-	color: #fff;
-	background: var(--red);
+	color: var(--accent-contrast);
+	background: var(--accent);
 	border: none;
 	border-radius: 6px;
 	padding: 8px 20px;
@@ -6926,7 +6926,7 @@ html.force-light .tabbed-code-tab.active {
 .mp-btn-primary {
 	background: var(--accent);
 	border-color: var(--accent);
-	color: #fff;
+	color: var(--accent-contrast);
 }
 .mp-btn-primary:hover {
 	opacity: 0.9;

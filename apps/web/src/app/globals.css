@@ -3313,7 +3313,7 @@ a.dataset-shelf-name:hover {
 .scaffold-btn-primary {
 	background: var(--accent);
 	border-color: var(--accent);
-	color: #fff;
+	color: var(--accent-contrast);
 }
 
 .scaffold-btn-primary:hover {
