@@ -100,6 +100,11 @@ export interface DbSplitStatus {
  * Resolved source/target DB identity for status/health surfaces. Lets operators
  * see whether the chain/control split is live or dormant (collapsed to one DB)
  * without shelling in. Credentials are never exposed — host/db only.
+ *
+ * `active` is a STRING-IDENTITY check on the two URLs: it can't catch two
+ * distinct URLs that alias the same physical instance (e.g. `postgres` vs
+ * `127.0.0.1`, or a swapped/wrong host). Treat `active: true` as "configured
+ * for split", not a proof of physical isolation.
  */
 export function getDbSplitStatus(): DbSplitStatus {
 	const source = resolveSourceUrl();
