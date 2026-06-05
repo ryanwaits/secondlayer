@@ -133,6 +133,19 @@ export class IndexHttpClient {
 		return (await res.json()) as T;
 	}
 
+	/** Fetch a single cursor page of an Index collection. */
+	private async getPage<K extends string, T>(
+		path: string,
+		key: K,
+		params: URLSearchParams,
+	): Promise<{ items: T[]; next_cursor: string | null }> {
+		const env: Envelope<K, T> = await this.get(
+			`${this.indexBaseUrl}${path}?${params}`,
+			this.indexApiKey,
+		);
+		return { items: env[key], next_cursor: env.next_cursor };
+	}
+
 	/** Drain a cursor-paginated Index collection over [fromHeight, toHeight]. */
 	private async walk<K extends string, T>(
 		path: string,
@@ -153,14 +166,46 @@ export class IndexHttpClient {
 			// by height, then page forward by cursor only.
 			if (cursor) params.set("cursor", cursor);
 			else params.set("from_height", String(fromHeight));
-			const env: Envelope<K, T> = await this.get(
-				`${this.indexBaseUrl}${path}?${params}`,
-				this.indexApiKey,
+			const { items, next_cursor } = await this.getPage<K, T>(
+				path,
+				key,
+				params,
 			);
-			out.push(...env[key]);
-			cursor = env.next_cursor;
+			out.push(...items);
+			cursor = next_cursor;
 		} while (cursor);
 		return out;
+	}
+
+	/**
+	 * Fetch ONE page of contract-call transactions filtered to `contractId`.
+	 * Unlike walk(), this does NOT drain — the caller pages by feeding back
+	 * next_cursor — so a sparse high-volume filter (e.g. a single contract over
+	 * all history) costs one request per batch, not O(all-history) per tick.
+	 * `cursor` is exclusive (rows strictly after it); on the first call pass
+	 * `fromHeight` to anchor the backfill start instead.
+	 */
+	async fetchContractCalls(
+		contractId: string,
+		opts: {
+			toHeight: number;
+			cursor?: string | null;
+			fromHeight?: number;
+			limit?: number;
+		},
+	): Promise<{ transactions: IndexTransactionRow[]; next_cursor: string | null }> {
+		const params = new URLSearchParams({
+			to_height: String(opts.toHeight),
+			limit: String(opts.limit ?? PAGE_LIMIT),
+			contract_id: contractId,
+		});
+		if (opts.cursor) params.set("cursor", opts.cursor);
+		else params.set("from_height", String(opts.fromHeight ?? 0));
+		const { items, next_cursor } = await this.getPage<
+			"transactions",
+			IndexTransactionRow
+		>("/v1/index/transactions", "transactions", params);
+		return { transactions: items, next_cursor };
 	}
 
 	walkBlocks(fromHeight: number, toHeight: number): Promise<IndexBlockRow[]> {
