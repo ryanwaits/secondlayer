@@ -22,6 +22,19 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Redis — shared rate-limit counters so limits stay correct once the API runs
+  # more than one instance. Ephemeral (no AOF/RDB): a restart resets counters,
+  # which is fine for rate limiting, and the API fails OPEN if Redis is down.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   # Database migrations
   migrate:
     image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
@@ -47,6 +60,9 @@ services:
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Shared rate-limit store. Unset → process-local limits (single-instance
+      # only). Fails open if Redis is unreachable.
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       PORT: 3800
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
@@ -87,6 +103,8 @@ services:
       migrate:
         condition: service_completed_successfully
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3800/health"]
