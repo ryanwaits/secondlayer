@@ -1,5 +1,5 @@
 import { STREAMS_DB_EVENT_TYPES, sql } from "@secondlayer/shared";
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import { insertChainReorg } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { logger } from "@secondlayer/shared/logger";
@@ -11,7 +11,7 @@ export async function handleReorg(
 	oldHash: string,
 	newHash: string,
 ): Promise<void> {
-	const db = getDb();
+	const db = getSourceDb();
 
 	logger.warn("Handling chain reorganization", {
 		blockHeight,
@@ -93,7 +93,7 @@ export async function detectReorg(
 	blockHeight: number,
 	newHash: string,
 ): Promise<{ isReorg: boolean; oldHash?: string }> {
-	const db = getDb();
+	const db = getSourceDb();
 
 	const existingBlock = await db
 		.selectFrom("blocks")

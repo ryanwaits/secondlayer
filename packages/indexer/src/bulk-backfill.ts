@@ -20,7 +20,7 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { closeDb, getDb, sql } from "@secondlayer/shared/db";
+import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type {
 	Database,
 	InsertEvent,
@@ -89,7 +89,7 @@ function saveProgress(progress: Progress) {
 
 /** Query existing block heights in chunks to build a skip-set */
 async function loadExistingHeights(
-	db: ReturnType<typeof getDb>,
+	db: ReturnType<typeof getSourceDb>,
 	from: number,
 	to: number,
 ): Promise<Set<number>> {
@@ -115,7 +115,7 @@ async function loadExistingHeights(
 
 /** Insert a batch of fetched blocks into DB in a single transaction */
 async function insertBatch(
-	db: ReturnType<typeof getDb>,
+	db: ReturnType<typeof getSourceDb>,
 	blocks: NewBlockPayload[],
 ) {
 	// Parse all blocks
@@ -203,7 +203,7 @@ async function main() {
 	const hiro = new HiroClient();
 	const local = new LocalClient();
 	const hiroPg = BACKFILL_SOURCE === "hiro-pg" ? new HiroPgClient() : null;
-	const db = getDb();
+	const db = getSourceDb();
 
 	logger.info("Backfill source", { source: BACKFILL_SOURCE });
 
@@ -417,7 +417,7 @@ async function main() {
 	});
 }
 
-async function recomputeContiguousAndClose(db: ReturnType<typeof getDb>) {
+async function recomputeContiguousAndClose(db: ReturnType<typeof getSourceDb>) {
 	logger.info("Recomputing contiguous tip...");
 
 	const { rows: minRows } = await sql<{ min_height: string }>`

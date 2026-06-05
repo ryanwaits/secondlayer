@@ -1,4 +1,4 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database, InsertEvent } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
@@ -89,7 +89,7 @@ export type IngestResult = {
 export async function ingestNewBlock(
 	payload: NewBlockPayload,
 ): Promise<IngestResult> {
-	const db = getDb();
+	const db = getSourceDb();
 
 	logger.info("Received new block", {
 		height: payload.block_height,

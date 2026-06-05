@@ -1,6 +1,6 @@
 // Indexer service - receives events from Stacks node
 // Uses native Bun.serve routes instead of Hono (fixes stack overflow issues)
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import {
 	checkChainDataIntegrity,
 	countMissingBlocks,
@@ -79,7 +79,7 @@ const PORT = Number.parseInt(process.env.PORT || "3700");
 // Task 2.2: Startup integrity check
 async function runStartupIntegrityCheck() {
 	try {
-		const db = getDb();
+		const db = getSourceDb();
 		const network = process.env.STACKS_NETWORK || "mainnet";
 
 		const progress = await db
@@ -259,7 +259,7 @@ const server = Bun.serve({
 		},
 
 		"/health/integrity": async () => {
-			const db = getDb();
+			const db = getSourceDb();
 			const network = process.env.STACKS_NETWORK || "mainnet";
 
 			let lastContiguousBlock = 0;
@@ -366,7 +366,7 @@ const server = Bun.serve({
 			POST: async (req) => {
 				try {
 					const rawTxs = (await req.json()) as NewMempoolTxPayload;
-					const written = await ingestMempoolTxs(getDb(), rawTxs);
+					const written = await ingestMempoolTxs(getSourceDb(), rawTxs);
 					return Response.json({ status: "ok", written });
 				} catch (error) {
 					logger.error("Error processing new_mempool_tx", { error });
@@ -388,7 +388,7 @@ const server = Bun.serve({
 				try {
 					const payload = (await req.json()) as DropMempoolTxPayload;
 					if (isGenuineDrop(payload.reason)) {
-						await removeMempoolTxs(getDb(), payload.dropped_txids ?? []);
+						await removeMempoolTxs(getSourceDb(), payload.dropped_txids ?? []);
 					}
 					return Response.json({ status: "ok" });
 				} catch (error) {

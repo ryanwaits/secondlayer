@@ -16,7 +16,7 @@
  *   bun run packages/indexer/src/cleanup-reorg-dupes.ts --apply
  *   bun run packages/indexer/src/cleanup-reorg-dupes.ts --from-height 8000000 --apply
  */
-import { closeDb, getTargetDb, sql } from "@secondlayer/shared/db";
+import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
@@ -71,7 +71,7 @@ function orphanedTxIds(args: Args) {
 
 async function main(): Promise<void> {
 	const args = parseArgs(process.argv.slice(2));
-	const db: Kysely<Database> = getTargetDb();
+	const db: Kysely<Database> = getSourceDb();
 	const orphaned = orphanedTxIds(args);
 
 	const scope =

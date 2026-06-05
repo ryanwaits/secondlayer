@@ -15,7 +15,7 @@
  *   BACKFILL_RAW_TX_BATCH_SIZE    - Txids per iteration (default: 500)
  */
 
-import { closeDb, getDb, sql } from "@secondlayer/shared/db";
+import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 
@@ -28,7 +28,7 @@ const BATCH_SIZE = Number.parseInt(
 
 async function main() {
 	const hiro = new HiroClient();
-	const db = getDb();
+	const db = getSourceDb();
 
 	// Initial count
 	const { rows: countRows } = await sql<{ cnt: string }>`

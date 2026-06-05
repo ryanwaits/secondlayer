@@ -23,7 +23,7 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { closeDb, getDb, sql } from "@secondlayer/shared/db";
+import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { serializeCV } from "@secondlayer/stacks/clarity";
 import type { ClarityValue } from "@secondlayer/stacks/clarity";
@@ -328,7 +328,7 @@ async function main() {
 		testBlocks: TEST_BLOCKS,
 	});
 
-	const db = getDb();
+	const db = getSourceDb();
 	const hiroClient = new HiroRepairClient();
 
 	// Determine target height

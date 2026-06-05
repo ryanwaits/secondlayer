@@ -1,4 +1,4 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type {
 	Database,
 	InsertMempoolTransaction,
@@ -135,7 +135,7 @@ export async function mempoolDepth(db: Kysely<Database>): Promise<number> {
 export function startMempoolSweep(): () => void {
 	const interval = setInterval(async () => {
 		try {
-			const db = getDb();
+			const db = getSourceDb();
 			const deleted = await sweepStaleMempool(db, MEMPOOL_RETENTION_HOURS);
 			const count = await mempoolDepth(db);
 			logger.info("mempool depth", { count, deleted });

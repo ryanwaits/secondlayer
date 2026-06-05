@@ -1,4 +1,4 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { StacksNodeClient } from "@secondlayer/shared/node/client";
 import { discoverDeploys, processPendingAbis } from "./registry.ts";
@@ -51,7 +51,7 @@ export function startContractRegistry(): () => void {
 		if (running) return; // never overlap ticks
 		running = true;
 		try {
-			const db = getDb();
+			const db = getSourceDb();
 			const discovered = await discoverDeploys(db, { limit: discoverLimit });
 			const { fetched, failed } = await processPendingAbis(db, node, {
 				limit: abiLimit,

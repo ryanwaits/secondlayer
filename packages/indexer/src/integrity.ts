@@ -1,4 +1,4 @@
-import { getDb, sql } from "@secondlayer/shared/db";
+import { getSourceDb, sql } from "@secondlayer/shared/db";
 import {
 	computeContiguousTip,
 	countMissingBlocks,
@@ -31,7 +31,7 @@ function gapKey(gap: Gap): string {
 
 async function runIntegrityCheck() {
 	try {
-		const db = getDb();
+		const db = getSourceDb();
 		const gaps = await findGaps(db, 100);
 		const missing = await countMissingBlocks(db);
 
@@ -80,7 +80,7 @@ async function runIntegrityCheck() {
 	}
 }
 
-async function recomputeContiguous(db: ReturnType<typeof getDb>) {
+async function recomputeContiguous(db: ReturnType<typeof getSourceDb>) {
 	const network = process.env.STACKS_NETWORK || "mainnet";
 
 	// Find the lowest block we have — supports indexing from arbitrary start height
@@ -131,7 +131,7 @@ async function autoBackfill(gaps: Gap[]) {
 	});
 
 	const localClient = new LocalClient();
-	const db = getDb();
+	const db = getSourceDb();
 
 	try {
 		// Phase 1: Try local DB for each gap height (reprocessing/replays).
@@ -157,7 +157,7 @@ async function autoBackfill(gaps: Gap[]) {
 		}
 
 		if (remainingHeights.size === 0) {
-			await recomputeContiguous(getDb());
+			await recomputeContiguous(getSourceDb());
 			logger.info("Auto-backfill complete (all from local)", {
 				blocks: totalBlocks,
 			});
@@ -197,7 +197,7 @@ async function autoBackfill(gaps: Gap[]) {
 			}
 		}
 
-		await recomputeContiguous(getDb());
+		await recomputeContiguous(getSourceDb());
 		logger.info("Auto-backfill complete", {
 			blocks: totalBlocks,
 			fromLocal: totalBlocks - remainingHeights.size,

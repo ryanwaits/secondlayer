@@ -1,4 +1,4 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { StacksNodeClient } from "@secondlayer/shared/node/client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
@@ -63,7 +63,7 @@ export function startTipFollower(intervalMs?: number): () => void {
 			const chainTip = nodeInfo.stacks_tip_height;
 			if (!chainTip) return;
 
-			const db = getDb();
+			const db = getSourceDb();
 			const network = process.env.STACKS_NETWORK || "mainnet";
 			const progress = await db
 				.selectFrom("index_progress")
