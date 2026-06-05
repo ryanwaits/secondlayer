@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { migrationTargets } from "../src/db/migrate.ts";
 import {
 	getMigrationRole,
 	onChainPlane,
 	onControlPlane,
 	setMigrationRole,
 } from "../src/db/migration-role.ts";
-import { migrationTargets } from "../src/db/migrate.ts";
 
 describe("migration-role gating", () => {
 	afterEach(() => setMigrationRole("both"));
@@ -62,14 +62,12 @@ describe("migrationTargets resolution", () => {
 	beforeEach(() => {
 		for (const k of ENV_KEYS) saved[k] = process.env[k];
 		for (const k of ENV_KEYS) {
-			// biome-ignore lint/performance/noDelete: env vars must be truly removed
 			delete process.env[k];
 		}
 	});
 	afterEach(() => {
 		for (const k of ENV_KEYS) {
 			if (saved[k] === undefined) {
-				// biome-ignore lint/performance/noDelete: env vars must be truly removed
 				delete process.env[k];
 			} else {
 				process.env[k] = saved[k];
