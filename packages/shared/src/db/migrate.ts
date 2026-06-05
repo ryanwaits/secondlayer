@@ -141,4 +141,8 @@ async function migrateOne(connectionString: string) {
 	}
 }
 
-runMigrations();
+// Only run when executed directly (`bun run …/migrate.ts`), not when imported
+// (tests import `migrationTargets`).
+if (import.meta.main) {
+	runMigrations();
+}
