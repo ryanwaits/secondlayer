@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
+import { handleReorg } from "./reorg.ts";
 import { STREAMS_DB_EVENT_TYPES } from "./streams-events.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -85,5 +86,34 @@ describe.skipIf(!HAS_DB)("handleReorg orphaned_to cursor", () => {
 			.executeTakeFirstOrThrow();
 
 		expect(Number(seeded.count)).toBe(SEED_EVENTS.length);
+	});
+
+	test("orphaned_to event_index counts contract_event prints", async () => {
+		if (!db) throw new Error("missing db");
+		await seedOrphanedBlock(db);
+
+		// Capture the firehose event count BEFORE the reorg flips canonical. The
+		// orphaned tip cursor is COUNT-1 over the same vocab reorg.ts uses.
+		const firehose = await db
+			.selectFrom("events")
+			.select(({ fn }) => fn.countAll<string>().as("count"))
+			.where("block_height", "=", H)
+			.where("type", "in", [...STREAMS_DB_EVENT_TYPES])
+			.executeTakeFirstOrThrow();
+		const expectedEventIndex = Number(firehose.count) - 1;
+
+		await handleReorg(H, "0xreorgA", "0xreorgB");
+
+		const reorg = await db
+			.selectFrom("chain_reorgs")
+			.select(["orphaned_to_height", "orphaned_to_event_index"])
+			.where("fork_point_height", "=", H)
+			.executeTakeFirstOrThrow();
+
+		expect(Number(reorg.orphaned_to_height)).toBe(H);
+		// 2 (stx@0, contract_event@1, nft@2) — the old forked list omitted
+		// contract_event and would record 1 here.
+		expect(Number(reorg.orphaned_to_event_index)).toBe(expectedEventIndex);
+		expect(Number(reorg.orphaned_to_event_index)).toBe(SEED_EVENTS.length - 1);
 	});
 });
