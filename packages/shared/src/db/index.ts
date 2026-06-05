@@ -75,22 +75,93 @@ function resolveTargetUrl(): string {
 	);
 }
 
+/** Host[:port]/dbname for a connection URL — credentials stripped. */
+function describeDbUrl(url: string): string {
+	try {
+		const u = new URL(url);
+		return `${u.hostname}${u.port ? `:${u.port}` : ""}${u.pathname}`;
+	} catch {
+		return "invalid-url";
+	}
+}
+
+export interface DbSplitStatus {
+	/** "split" when source/target resolve to different DBs, else "single". */
+	mode: "split" | "single";
+	/** True when the chain/control split is live (distinct DBs). */
+	active: boolean;
+	/** SOURCE host[:port]/dbname (no credentials). */
+	sourceDb: string;
+	/** TARGET host[:port]/dbname (no credentials). */
+	targetDb: string;
+}
+
 /**
- * Boot guard: if the chain/control split is requested (`SOURCE_DATABASE_URL` or
- * `TARGET_DATABASE_URL` set) but both still resolve to the same DB — a typo, or
- * a stray `DATABASE_URL` masking the intent — the split silently collapses and
- * chain + control plane share one instance. Surface it loudly. Fail-soft (no
- * throw) so a misconfig doesn't brick startup; logs make it obvious.
+ * Resolved source/target DB identity for status/health surfaces. Lets operators
+ * see whether the chain/control split is live or dormant (collapsed to one DB)
+ * without shelling in. Credentials are never exposed — host/db only.
+ */
+export function getDbSplitStatus(): DbSplitStatus {
+	const source = resolveSourceUrl();
+	const target = resolveTargetUrl();
+	const active = source !== target;
+	return {
+		mode: active ? "split" : "single",
+		active,
+		sourceDb: describeDbUrl(source),
+		targetDb: describeDbUrl(target),
+	};
+}
+
+/**
+ * Boot guard for the chain/control DB split. Surfaces three misconfigurations
+ * loudly (fail-soft — logs, never throws, so a misconfig can't brick startup):
+ *
+ *  1. Silent wrong-DB: a split is requested (one of SOURCE_/TARGET_ set) but
+ *     `DATABASE_URL` is absent (the split-prod default) and the OTHER var is
+ *     unset, so it falls through to the built-in dev `DEFAULT_URL` — about to
+ *     read/write a real-but-wrong database. This is the failure mode the
+ *     remove-DATABASE_URL decision creates; catch it.
+ *  2. Collapsed split: both vars set but resolve to the same DB (typo, or a
+ *     stray `DATABASE_URL` masking the intent).
+ *  3. Dormant split (prod only): neither var set, so all services share one
+ *     Postgres failure domain. Not an error, but no longer silent.
  */
 export function assertDbSplit(): void {
+	const isProd = process.env.NODE_ENV === "production";
 	const wantsSplit = !!(
 		process.env.SOURCE_DATABASE_URL || process.env.TARGET_DATABASE_URL
 	);
-	if (!wantsSplit) return;
-	if (resolveSourceUrl() === resolveTargetUrl()) {
+	const databaseUrlSet = !!process.env.DATABASE_URL;
+	const source = resolveSourceUrl();
+	const target = resolveTargetUrl();
+
+	if (
+		wantsSplit &&
+		!databaseUrlSet &&
+		(source === DEFAULT_URL || target === DEFAULT_URL)
+	) {
+		const which =
+			source === DEFAULT_URL ? "SOURCE_DATABASE_URL" : "TARGET_DATABASE_URL";
+		const msg = `${which} unset and DATABASE_URL absent — resolving to built-in DEFAULT_URL; refusing to silently use the wrong database`;
+		if (isProd) console.error(`❌ ${msg}`);
+		else console.warn(`⚠️  ${msg}`);
+		return;
+	}
+
+	if (!wantsSplit) {
+		if (isProd) {
+			console.warn(
+				"⚠️  DB split dormant — all services share one Postgres failure domain (SOURCE_/TARGET_DATABASE_URL unset)",
+			);
+		}
+		return;
+	}
+
+	if (source === target) {
 		const msg =
 			"DB split requested but SOURCE_DATABASE_URL === TARGET_DATABASE_URL (check for a typo or a stray DATABASE_URL fallback)";
-		if (process.env.NODE_ENV === "production") console.error(`❌ ${msg}`);
+		if (isProd) console.error(`❌ ${msg}`);
 		else console.warn(`⚠️  ${msg}`);
 	}
 }

@@ -107,3 +107,71 @@ describe("dual-DB getters", () => {
 		expect(override).not.toBe(getTargetDb());
 	});
 });
+
+describe("getDbSplitStatus", () => {
+	test("single-URL mode: not active, mode=single, no credentials leaked", async () => {
+		unsetEnv("SOURCE_DATABASE_URL");
+		unsetEnv("TARGET_DATABASE_URL");
+		process.env.DATABASE_URL = "postgres://postgres:secret@localhost:5432/a";
+
+		const { getDbSplitStatus } = await import("../src/db/index.ts");
+		const status = getDbSplitStatus();
+		expect(status.active).toBe(false);
+		expect(status.mode).toBe("single");
+		expect(status.sourceDb).toBe("localhost:5432/a");
+		expect(status.sourceDb).toBe(status.targetDb);
+		expect(status.sourceDb).not.toContain("secret");
+	});
+
+	test("dual-URL mode: active, mode=split, distinct DBs", async () => {
+		process.env.SOURCE_DATABASE_URL =
+			"postgres://postgres:x@postgres:5432/secondlayer";
+		process.env.TARGET_DATABASE_URL =
+			"postgres://postgres:x@postgres-platform:5432/secondlayer_platform";
+
+		const { getDbSplitStatus } = await import("../src/db/index.ts");
+		const status = getDbSplitStatus();
+		expect(status.active).toBe(true);
+		expect(status.mode).toBe("split");
+		expect(status.sourceDb).toBe("postgres:5432/secondlayer");
+		expect(status.targetDb).toBe("postgres-platform:5432/secondlayer_platform");
+	});
+});
+
+describe("assertDbSplit", () => {
+	test("dormant single-DB in prod warns, never throws", async () => {
+		unsetEnv("SOURCE_DATABASE_URL");
+		unsetEnv("TARGET_DATABASE_URL");
+		process.env.DATABASE_URL = "postgres://postgres:x@localhost:5432/a";
+		process.env.NODE_ENV = "production";
+
+		const { assertDbSplit } = await import("../src/db/index.ts");
+		expect(() => assertDbSplit()).not.toThrow();
+	});
+
+	test("split prod with one var unset + DATABASE_URL absent → DEFAULT_URL, no throw", async () => {
+		unsetEnv("DATABASE_URL");
+		unsetEnv("TARGET_DATABASE_URL");
+		process.env.SOURCE_DATABASE_URL =
+			"postgres://postgres:x@postgres:5432/secondlayer";
+		process.env.NODE_ENV = "production";
+
+		const { assertDbSplit, getDbSplitStatus } = await import(
+			"../src/db/index.ts"
+		);
+		// Target falls through to the built-in DEFAULT_URL — the silent wrong-DB case.
+		expect(getDbSplitStatus().targetDb).toBe("localhost:5432/secondlayer_dev");
+		expect(() => assertDbSplit()).not.toThrow();
+	});
+
+	test("active split never throws", async () => {
+		unsetEnv("DATABASE_URL");
+		process.env.SOURCE_DATABASE_URL =
+			"postgres://postgres:x@postgres:5432/secondlayer";
+		process.env.TARGET_DATABASE_URL =
+			"postgres://postgres:x@postgres-platform:5432/secondlayer_platform";
+
+		const { assertDbSplit } = await import("../src/db/index.ts");
+		expect(() => assertDbSplit()).not.toThrow();
+	});
+});
