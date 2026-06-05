@@ -164,21 +164,23 @@ fi
 # Clean up stale one-off containers (from manual `docker compose run` without --rm)
 docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docker rm -f 2>/dev/null || true
 
-# Wait until every running api replica answers /health from inside its network
-# (no host port — api is reached over the compose network / Caddy). Used as the
-# rolling-deploy gate and the final health probe.
+# Wait until at least `$1` api replicas are running AND every one answers
+# /health from inside its network (no host port — api is reached over the
+# compose network / Caddy). Gating on COUNT too prevents a half-dark pool (one
+# replica answering while the other is gone) from being reported healthy.
 wait_api_healthy() {
-  local retries=20 delay=3 i cids c all_ok
+  local want="${1:-1}" retries=20 delay=3 i cids n c all_ok
   for i in $(seq 1 $retries); do
     cids=$($COMPOSE ps -q api 2>/dev/null || true)
-    if [ -n "$cids" ]; then
+    n=$(printf '%s\n' "$cids" | grep -c .)
+    if [ "$n" -ge "$want" ]; then
       all_ok=1
       for c in $cids; do
         docker exec "$c" curl -sf http://localhost:3800/health >/dev/null 2>&1 || all_ok=0
       done
       [ "$all_ok" = 1 ] && return 0
     fi
-    echo "api: waiting for replicas healthy (attempt $i/$retries)..."
+    echo "api: waiting for $want healthy replica(s), have ${n} (attempt $i/$retries)..."
     sleep $delay
   done
   return 1
@@ -190,24 +192,34 @@ wait_api_healthy() {
 # `dynamic a` pool + passive failover routes around the recreating replica → no
 # 502. With one replica (dev default) this is a normal recreate.
 rolling_recreate_api() {
-  local ids id
+  local ids id want
   ids=$($COMPOSE ps -q api 2>/dev/null || true)
   if [ -z "$ids" ]; then
-    # Migration path stopped api (or first boot) — bring the full set up fresh.
-    echo "🔁 api not running — starting replica set"
-    $COMPOSE up -d --no-build --no-deps api
+    # Migration path stopped api (or first boot). Bring the set up WITH deps so
+    # the `postgres-platform: service_healthy` gate (and migrate completion) is
+    # honored — `--no-deps` would skip it and could boot api at a dead split DB.
+    echo "🔁 api not running — starting replica set (deps + health gates)"
+    $COMPOSE up -d --no-build api
+    want=$($COMPOSE ps -q api 2>/dev/null | grep -c .)
+    [ "$want" -ge 1 ] || want=1
   else
-    echo "🔁 Rolling-recreating api replicas one at a time..."
+    want=$(printf '%s\n' "$ids" | grep -c .)
+    echo "🔁 Rolling-recreating $want api replica(s) one at a time..."
     for id in $ids; do
       docker rm -f "$id" >/dev/null 2>&1 || true
+      # Recreate the now-missing slot with the new image; --no-recreate leaves
+      # the still-serving survivors untouched until their turn.
       $COMPOSE up -d --no-build --no-deps --no-recreate api
-      if ! wait_api_healthy; then
-        echo "ERROR: api replica failed health after recreate — aborting roll"
+      if ! wait_api_healthy "$want"; then
+        echo "ERROR: api pool unhealthy after recreating a replica — refilling pool, then aborting"
+        # Best-effort: bring the pool back to full count so the edge isn't left
+        # short even though we abort the deploy.
+        $COMPOSE up -d --no-build --no-deps api || true
         return 1
       fi
     done
   fi
-  wait_api_healthy
+  wait_api_healthy "$want"
 }
 
 # Restart back-end app services in bulk, then roll the api separately.
