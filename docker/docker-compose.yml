@@ -66,7 +66,11 @@ services:
       target: api
     command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Overridable so split prod can BLANK it (set `DATABASE_URL=` in .env) —
+      # then a missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of
+      # silently collapsing back to this single DB. `-` (not `:-`) keeps an
+      # explicit empty value; unset still falls back to the single-DB default.
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -87,7 +91,11 @@ services:
       target: api
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
-      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Overridable so split prod can BLANK it (set `DATABASE_URL=` in .env) —
+      # then a missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of
+      # silently collapsing back to this single DB. `-` (not `:-`) keeps an
+      # explicit empty value; unset still falls back to the single-DB default.
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -162,7 +170,11 @@ services:
       dockerfile: docker/Dockerfile
       target: indexer
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Overridable so split prod can BLANK it (set `DATABASE_URL=` in .env) —
+      # then a missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of
+      # silently collapsing back to this single DB. `-` (not `:-`) keeps an
+      # explicit empty value; unset still falls back to the single-DB default.
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -229,7 +241,11 @@ services:
       target: indexer
     command: ["bun", "run", "packages/indexer/src/l2/service.ts"]
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Overridable so split prod can BLANK it (set `DATABASE_URL=` in .env) —
+      # then a missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of
+      # silently collapsing back to this single DB. `-` (not `:-`) keeps an
+      # explicit empty value; unset still falls back to the single-DB default.
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -288,7 +304,11 @@ services:
       disable: true
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
-      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Overridable so split prod can BLANK it (set `DATABASE_URL=` in .env) —
+      # then a missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of
+      # silently collapsing back to this single DB. `-` (not `:-`) keeps an
+      # explicit empty value; unset still falls back to the single-DB default.
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -318,7 +338,11 @@ services:
       target: worker
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
-      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      # Overridable so split prod can BLANK it (set `DATABASE_URL=` in .env) —
+      # then a missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of
+      # silently collapsing back to this single DB. `-` (not `:-`) keeps an
+      # explicit empty value; unset still falls back to the single-DB default.
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
