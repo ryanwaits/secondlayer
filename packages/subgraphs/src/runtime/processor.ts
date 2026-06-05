@@ -31,6 +31,7 @@ import {
 import type { SubgraphDefinition } from "../types.ts";
 import { invalidateSubgraphRoute } from "./block-processor.ts";
 import { catchUpSubgraph } from "./catchup.ts";
+import { isCatchUpLeader, startCatchUpLeader } from "./catchup-leader.ts";
 import { handleChainReorg } from "./chain-reorg.ts";
 import { startEmitter } from "./emitter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
@@ -432,27 +433,31 @@ export async function startSubgraphProcessor(opts?: {
 		),
 	});
 
-	// Catch-up all subgraphs on startup (subgraphs table lives in target DB)
-	const targetDb = getTargetDb();
-	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
-		(v: Subgraph) => v.status === "active",
-	);
-	await catchUpAll(activeSubgraphs, targetDb, concurrency);
+	// One catch-up pass over all active subgraphs (subgraphs table lives in the
+	// target DB). Gated on the catch-up leader: only one process across the fleet
+	// drives catch-up, so scale-out adds capacity instead of double-processing
+	// every block. The in-process Set in catchup.ts still guards within a process.
+	const runCatchUp = async (): Promise<void> => {
+		if (!running || !isCatchUpLeader()) return;
+		const db = getTargetDb();
+		const subgraphs = (await listSubgraphs(db)).filter(
+			(v: Subgraph) => v.status === "active",
+		);
+		cleanupCaches(subgraphs);
+		await catchUpAll(subgraphs, db, concurrency);
+	};
+
+	// Elect a single catch-up leader; the new leader runs an immediate pass so it
+	// doesn't wait a poll interval. NOTIFY/poll below are no-ops on non-leaders.
+	const stopCatchUpLeader = startCatchUpLeader({ onAcquire: runCatchUp });
 
 	// Listen for new blocks — NOTIFY is fired from the indexer on the source DB
 	const stopListening = await listen(
 		CHANNEL_NEW_BLOCK,
 		async () => {
-			if (!running) return;
-			// The NOTIFY payload doesn't include block height — we rely on
-			// each subgraph's last_processed_block to determine what to process.
-			// Trigger catch-up for all subgraphs.
-			const db = getTargetDb();
-			const subgraphs = (await listSubgraphs(db)).filter(
-				(v: Subgraph) => v.status === "active",
-			);
-			cleanupCaches(subgraphs);
-			await catchUpAll(subgraphs, db, concurrency);
+			// The NOTIFY payload doesn't include block height — we rely on each
+			// subgraph's last_processed_block to determine what to process.
+			await runCatchUp();
 		},
 		{ connectionString: sourceListenerUrl() },
 	);
@@ -478,14 +483,8 @@ export async function startSubgraphProcessor(opts?: {
 	);
 
 	// Poll as backup (reads subgraphs table — target DB)
-	const pollInterval = setInterval(async () => {
-		if (!running) return;
-		const db = getTargetDb();
-		const subgraphs = (await listSubgraphs(db)).filter(
-			(v: Subgraph) => v.status === "active",
-		);
-		cleanupCaches(subgraphs);
-		await catchUpAll(subgraphs, db, concurrency);
+	const pollInterval = setInterval(() => {
+		void runCatchUp();
 	}, POLL_INTERVAL_MS);
 
 	// Streams is the reorg authority for streams-index subgraphs (the public
@@ -520,6 +519,7 @@ export async function startSubgraphProcessor(opts?: {
 	return async () => {
 		running = false;
 		clearInterval(pollInterval);
+		await stopCatchUpLeader();
 		await stopListening();
 		await stopReorgListening();
 		stopStreamsReorgPoll?.();
