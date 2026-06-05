@@ -1,3 +1,4 @@
+import { isPox4DecoderEnabled } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
@@ -116,15 +117,11 @@ type StackingDbRow = {
 	result_ok: boolean;
 };
 
-/** PoX-4 decoding is opt-in (it feeds the datasets surface go-forward). When
- *  off, `pox4_calls` is empty and the endpoint says so rather than implying the
- *  network had no stacking activity. */
-export function isPox4DecoderEnabled(): boolean {
-	return process.env.POX4_DECODER_ENABLED === "true";
-}
-
+// `isPox4DecoderEnabled` is single-sourced in @secondlayer/shared (default-ON).
+// When off, `pox4_calls` is empty and the endpoint says so rather than implying
+// the network had no stacking activity.
 const POX4_DISABLED_NOTE =
-	"PoX-4 decoding is disabled (POX4_DECODER_ENABLED is not set); stacking is empty until enabled.";
+	"PoX-4 decoding is disabled (POX4_DECODER_ENABLED=false); stacking is empty until re-enabled.";
 
 function normalizeStacking(row: StackingDbRow): StackingAction {
 	const blockHeight = Number(row.block_height);

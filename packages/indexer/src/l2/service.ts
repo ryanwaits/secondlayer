@@ -1,3 +1,4 @@
+import { isPox4DecoderEnabled } from "@secondlayer/shared";
 import { closeDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import {
@@ -28,7 +29,7 @@ const controller = new AbortController();
 // part of the public dataset surface, so the decoder that fills it must
 // run unless explicitly opted out with `SBTC_DECODER_ENABLED=false`.
 const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED !== "false";
-const POX4_ENABLED = process.env.POX4_DECODER_ENABLED === "true";
+const POX4_ENABLED = isPox4DecoderEnabled();
 const BNS_ENABLED = process.env.BNS_DECODER_ENABLED === "true";
 const DECODED_EVENT_DECODERS = {
 	"l2.ft_transfer.v1": 0,

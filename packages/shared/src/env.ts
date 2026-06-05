@@ -91,5 +91,14 @@ export function getEnv(): Env {
 	return cachedEnv;
 }
 
+/**
+ * PoX-4 stacking decoder is ON by default — `/v1/index/stacking` is part of the
+ * public surface, so the decoder that fills `pox4_calls` runs unless explicitly
+ * opted out with `POX4_DECODER_ENABLED=false` (mirrors the sBTC decoder policy).
+ */
+export function isPox4DecoderEnabled(): boolean {
+	return process.env.POX4_DECODER_ENABLED !== "false";
+}
+
 // Export for testing
 export { envSchema };

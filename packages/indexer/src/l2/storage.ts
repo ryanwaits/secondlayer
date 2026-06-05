@@ -1,4 +1,5 @@
 import type { DecodedEventColumns, DecodedEventRow } from "@secondlayer/sdk";
+import { isPox4DecoderEnabled } from "@secondlayer/shared";
 import { getTargetDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Generated, Kysely } from "kysely";
@@ -74,7 +75,7 @@ export function getEnabledL2DecoderNames(
 	if (env.SBTC_DECODER_ENABLED !== "false") {
 		names.push("l2.sbtc.v1", "l2.sbtc_token.v1");
 	}
-	if (env.POX4_DECODER_ENABLED === "true") names.push("l2.pox4.v1");
+	if (isPox4DecoderEnabled()) names.push("l2.pox4.v1");
 	if (env.BNS_DECODER_ENABLED === "true") names.push("l2.bns.v1");
 	return names;
 }
