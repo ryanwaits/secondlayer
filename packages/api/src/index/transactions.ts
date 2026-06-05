@@ -39,6 +39,7 @@ export type IndexTransaction = {
 	tx_id: string;
 	block_height: number;
 	block_time?: string | null;
+	burn_block_height?: number | null;
 	tx_index: number;
 	tx_type: string;
 	sender: string;
@@ -114,6 +115,7 @@ export type TransactionByIdReader = (
 type TransactionDbRow = {
 	block_height: string | number;
 	block_time: Date | string | null;
+	burn_block_height: string | number | null;
 	tx_id: string;
 	tx_index: string | number;
 	type: string;
@@ -134,6 +136,12 @@ const TRANSACTION_COLUMNS = sql`
 		WHERE b.height = t.block_height AND b.canonical = true
 		LIMIT 1
 	) AS block_time,
+	(
+		SELECT b.burn_block_height
+		FROM blocks b
+		WHERE b.height = t.block_height AND b.canonical = true
+		LIMIT 1
+	) AS burn_block_height,
 	t.tx_id,
 	t.tx_index,
 	t.type,
@@ -193,6 +201,8 @@ function normalizeTransaction(row: TransactionDbRow): IndexTransaction {
 		tx_id: row.tx_id,
 		block_height: blockHeight,
 		block_time: toIsoOrNull(row.block_time),
+		burn_block_height:
+			row.burn_block_height === null ? null : Number(row.burn_block_height),
 		tx_index: txIndex,
 		tx_type: txType,
 		sender: row.sender,
