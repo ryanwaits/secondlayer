@@ -3,20 +3,38 @@ import { dirname, join, resolve } from "node:path";
 import { FileMigrationProvider, Kysely, Migrator, sql } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
+import { type MigrationRole, setMigrationRole } from "./migration-role.ts";
 import type { Database } from "./types.ts";
 
 const migrationsFolder = resolve(dirname(import.meta.dir), "../migrations");
 
+export interface MigrationTarget {
+	url: string;
+	/** DB plane this pass targets — gates control/chain DDL via migration-role helpers. */
+	role: MigrationRole;
+}
+
 /**
- * The distinct databases to migrate. In single-DB mode (`DATABASE_URL` only)
- * this is one URL. When the chain/control split is configured
- * (`SOURCE_DATABASE_URL`/`TARGET_DATABASE_URL`) it's both — and the full schema
- * is applied to each (the opposite-set tables sit empty, which is harmless).
+ * The distinct databases to migrate, each tagged with its plane role. In
+ * single-DB mode (`DATABASE_URL` only) or a collapsed split (`SOURCE`===`TARGET`)
+ * this is one URL with role `'both'` — every migration helper runs, identical to
+ * pre-split behavior. With the chain/control split configured (distinct
+ * `SOURCE_DATABASE_URL`/`TARGET_DATABASE_URL`) it's both URLs, role `'source'`
+ * and `'target'`: every migration still runs on each (kysely integrity), but its
+ * DDL is gated by `onControlPlane`/`onChainPlane` so control DDL no-ops on SOURCE
+ * (where those tables were dropped) and vice-versa.
  */
-function migrationTargets(): string[] {
+export function migrationTargets(): MigrationTarget[] {
 	const source = process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL;
 	const target = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
-	return [...new Set([source, target].filter((u): u is string => !!u))];
+	// Single-DB / collapsed split → one pass, role 'both'.
+	if (source && target && source === target) {
+		return [{ url: source, role: "both" }];
+	}
+	const out: MigrationTarget[] = [];
+	if (source) out.push({ url: source, role: "source" });
+	if (target) out.push({ url: target, role: "target" });
+	return out;
 }
 
 async function runMigrations() {
@@ -28,10 +46,13 @@ async function runMigrations() {
 		process.exit(1);
 	}
 
-	for (const [i, url] of targets.entries()) {
+	for (const [i, { url, role }] of targets.entries()) {
 		if (targets.length > 1) {
-			console.log(`\n🗄️  Migrating database ${i + 1}/${targets.length}`);
+			console.log(
+				`\n🗄️  Migrating database ${i + 1}/${targets.length} (role=${role})`,
+			);
 		}
+		setMigrationRole(role);
 		await migrateOne(url);
 	}
 }
