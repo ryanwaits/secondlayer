@@ -60,15 +60,19 @@ triggers a Deploy with a 1–2 min 502.
    # …run the copy (now consistent)… then bring services back up after the flip.
    ```
 
-4. **Flip the env + remove `DATABASE_URL`.** In `.env` set:
+4. **Flip the env.** In `.env` set:
    ```
    SOURCE_DATABASE_URL=postgres://…@postgres:5432/secondlayer
    TARGET_DATABASE_URL=postgres://…@postgres-platform:5432/secondlayer_platform
    ```
-   and **remove `DATABASE_URL`** so a missing/typo'd split var surfaces loudly
-   rather than silently collapsing both getters back to one DB. On boot
-   `assertDbSplit()` errors if either var is unset (it would otherwise resolve to
-   the built-in dev `DEFAULT_URL`) or if the two still collapse. Redeploy.
+   **Keep `DATABASE_URL` set** (it defaults to the source DB via compose). The
+   founder decision was to *remove* it in split prod so a missing split var fails
+   loud — but that is **blocked**: the LISTEN/NOTIFY listener
+   (`queue/listener.ts`) resolves its connection from `DATABASE_URL` and the
+   subgraph-processor crashes (`listen/notify requires a connection string`)
+   without it. Until the listener is made split-aware, leave `DATABASE_URL` set;
+   `SOURCE_/TARGET_` drive the split and `assertDbSplit()`'s `source===target`
+   collapse check still catches a missing var. Redeploy.
 
 5. **Verify.** `GET /status` (or `/public/status`) now carries a
    `database.split` block — confirm `active: true` with distinct `sourceDb` /
@@ -101,3 +105,10 @@ SOURCE was already dropped (step 6), restore from the wal-g snapshot instead.
   use `getSourceDb()`, not `getDb()`/`getTargetDb()` — under the active split the
   latter point at TARGET, where those tables exist but are empty (false
   "degraded"). `/status` l2-health + chain-integrity were fixed for this.
+- **LISTEN/NOTIFY listener is not split-aware (open).** `queue/listener.ts`
+  resolves its connection from `DATABASE_URL` only. Blanking `DATABASE_URL`
+  crashed the subgraph-processor (`startEmitter` → `listen` → no connection
+  string). So `DATABASE_URL` must stay set (defaults to source). Before it can be
+  removed, the listener needs to take the split into account — listen on TARGET
+  for the subscription outbox NOTIFY and on SOURCE for `indexer:new_block`
+  (today both fall back to polling when the channel's DB isn't the listened one).
