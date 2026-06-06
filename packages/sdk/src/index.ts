@@ -98,7 +98,12 @@ export type {
 	ReplayResult,
 	DeadRow,
 } from "./subscriptions/client.ts";
-export { ApiError, VersionConflictError } from "./errors.ts";
+export {
+	ApiError,
+	VersionConflictError,
+	ByoBreakingChangeError,
+} from "./errors.ts";
+export type { ByoBreakingChangeDetails } from "./errors.ts";
 export {
 	verifyWebhookSignature,
 	verifySecondlayerSignature,

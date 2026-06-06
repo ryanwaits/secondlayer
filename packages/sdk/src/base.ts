@@ -1,4 +1,9 @@
-import { ApiError } from "./errors.ts";
+import {
+	ApiError,
+	type ByoBreakingChangeDetails,
+	ByoBreakingChangeError,
+	isByoBreakingDetails,
+} from "./errors.ts";
 
 export type FetchLike = (
 	input: string | URL | Request,
@@ -161,6 +166,18 @@ export abstract class BaseClient {
 				}
 			} catch {
 				if (errorBody) message = errorBody;
+			}
+			if (
+				response.status === 422 &&
+				code === "BYO_BREAKING_CHANGE" &&
+				parsedBody &&
+				typeof parsedBody === "object" &&
+				isByoBreakingDetails((parsedBody as { details?: unknown }).details)
+			) {
+				throw new ByoBreakingChangeError(
+					message,
+					(parsedBody as { details: ByoBreakingChangeDetails }).details,
+				);
 			}
 			throw new ApiError(response.status, message, parsedBody, code);
 		}

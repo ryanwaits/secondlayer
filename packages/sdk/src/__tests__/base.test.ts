@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { BaseClient } from "../base.ts";
-import { ApiError } from "../errors.ts";
+import { ApiError, ByoBreakingChangeError } from "../errors.ts";
 
 const BASE_URL = "http://localhost:3800";
 const API_KEY = "test-key-123";
@@ -221,6 +221,61 @@ describe("BaseClient", () => {
 					error: "bad cursor",
 					code: "VALIDATION_ERROR",
 				});
+			}
+		});
+
+		test("422 BYO_BREAKING_CHANGE throws typed ByoBreakingChangeError with plan", async () => {
+			globalThis.fetch = mockFetch({
+				ok: false,
+				status: 422,
+				body: {
+					error: "Breaking schema change on a BYO subgraph …",
+					code: "BYO_BREAKING_CHANGE",
+					details: {
+						reasons: ["transfers: removed columns [amount]"],
+						diff: {
+							addedTables: [],
+							removedTables: [],
+							addedColumns: {},
+							breakingChanges: ["transfers: removed columns [amount]"],
+						},
+						plan: {
+							schemaName: "sg_demo",
+							dropStatement: 'DROP SCHEMA IF EXISTS "sg_demo" CASCADE;',
+							statements: ["CREATE SCHEMA sg_demo", "CREATE TABLE …"],
+							grantScript: "-- Run once …",
+						},
+					},
+				},
+			});
+			try {
+				await client.doRequest("POST", "/subgraphs/deploy");
+				expect.unreachable("should have thrown");
+			} catch (err) {
+				expect(err).toBeInstanceOf(ByoBreakingChangeError);
+				const e = err as ByoBreakingChangeError;
+				expect(e.status).toBe(422);
+				expect(e.code).toBe("BYO_BREAKING_CHANGE");
+				expect(Array.isArray(e.details.plan.statements)).toBe(true);
+				expect(e.details.reasons.length).toBeGreaterThan(0);
+				expect(e.details.plan.dropStatement).toBe(
+					'DROP SCHEMA IF EXISTS "sg_demo" CASCADE;',
+				);
+			}
+		});
+
+		test("422 without BYO details falls back to plain ApiError", async () => {
+			globalThis.fetch = mockFetch({
+				ok: false,
+				status: 422,
+				body: { error: "nope", code: "BYO_BREAKING_CHANGE" },
+			});
+			try {
+				await client.doRequest("POST", "/subgraphs/deploy");
+				expect.unreachable("should have thrown");
+			} catch (err) {
+				expect(err).toBeInstanceOf(ApiError);
+				expect(err).not.toBeInstanceOf(ByoBreakingChangeError);
 			}
 		});
 

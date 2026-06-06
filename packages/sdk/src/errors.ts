@@ -1,3 +1,7 @@
+import type { ByoBreakingChangeDetails } from "@secondlayer/shared/errors";
+
+export type { ByoBreakingChangeDetails };
+
 /**
  * Error thrown by {@link SecondLayer} when an API request fails.
  * Includes the HTTP status code for programmatic error handling.
@@ -41,4 +45,45 @@ export class VersionConflictError extends ApiError {
 		super(409, message, { currentVersion, expectedVersion });
 		this.name = "VersionConflictError";
 	}
+}
+
+/**
+ * Thrown when a BYO subgraph deploy is refused for a breaking schema change.
+ * The deploy did NOT run — `details.plan` carries the DROP + rebuild DDL to run
+ * manually on your own database, plus the breaking `reasons` and the `diff`.
+ *
+ * @example
+ * ```ts
+ * try {
+ *   await client.subgraphs.deploy(bundle);
+ * } catch (err) {
+ *   if (err instanceof ByoBreakingChangeError) {
+ *     console.log(err.details.plan.dropStatement);
+ *     console.log(err.details.plan.statements.join(";\n"));
+ *   }
+ * }
+ * ```
+ */
+export class ByoBreakingChangeError extends ApiError {
+	readonly details: ByoBreakingChangeDetails;
+	constructor(message: string, details: ByoBreakingChangeDetails) {
+		super(422, message, details, "BYO_BREAKING_CHANGE");
+		this.name = "ByoBreakingChangeError";
+		this.details = details;
+	}
+}
+
+/** Narrow an unknown error body's `details` to {@link ByoBreakingChangeDetails}. */
+export function isByoBreakingDetails(
+	x: unknown,
+): x is ByoBreakingChangeDetails {
+	if (!x || typeof x !== "object") return false;
+	const d = x as Record<string, unknown>;
+	const plan = d.plan as Record<string, unknown> | undefined;
+	return (
+		Array.isArray(d.reasons) &&
+		!!plan &&
+		typeof plan === "object" &&
+		typeof plan.dropStatement === "string"
+	);
 }
