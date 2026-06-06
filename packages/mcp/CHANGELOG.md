@@ -1,5 +1,32 @@
 # @secondlayer/mcp
 
+## 3.4.0
+
+### Minor Changes
+
+- 54c0ae9: Add two agent-native tools. `subgraphs_codegen` generates a Prisma/Drizzle/Kysely ORM schema for a subgraph's tables (from inline `code` or a deployed `name`'s captured source), closing the author→deploy→typed-ORM loop without the CLI. `streams_consume` is a bounded, reorg-aware consume/resume primitive — walks up to maxPages from a cursor and returns the events, observed reorgs, and a resume cursor.
+- 21de3e4: Add the `index_codegen` MCP tool — generate a typed Prisma/Kysely/Drizzle/JSON-Schema for the public Index domain tables so an agent can scaffold a typed BYO-database mirror without the CLI.
+- 81329ae: Add the `subscriptions_test` MCP tool — send a logged test webhook to a subscription so an agent can verify delivery end-to-end.
+
+### Patch Changes
+
+- 77f437e: Single-source the `secondlayer://column-types` and `secondlayer://filters` resources from the subgraphs vocab so they can't drift behind the validator. Fixes drifted entries that made agents emit validator-rejected schemas: column types now report `NUMERIC`/`boolean`/`jsonb`/`timestamp` (was `bigint`/`bool`/`json`, `timestamp` missing); filter fields now match `SubgraphFilter` (e.g. `contract_call` → `contractId`/`functionName`/`caller`, `print_event` drops the unsupported `contains`, NFT filters drop the unsupported `tokenId`). Drift tests lock both to `TYPE_MAP` / `SubgraphFilterSchema`.
+- Updated dependencies [3a7f8a2]
+- Updated dependencies [14657ae]
+- Updated dependencies [2626eb5]
+- Updated dependencies [3a57c08]
+- Updated dependencies [af82681]
+- Updated dependencies [7ca9bf8]
+- Updated dependencies [cb2f803]
+- Updated dependencies [321e69c]
+- Updated dependencies [abb689c]
+- Updated dependencies [4b88e5c]
+- Updated dependencies [1b41df2]
+- Updated dependencies [6e6026d]
+  - @secondlayer/shared@6.25.0
+  - @secondlayer/sdk@6.14.0
+  - @secondlayer/subgraphs@3.8.0
+
 ## 3.3.1
 
 ### Patch Changes

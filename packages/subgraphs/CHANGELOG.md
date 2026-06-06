@@ -1,5 +1,25 @@
 # @secondlayer/subgraphs
 
+## 3.8.0
+
+### Minor Changes
+
+- 321e69c: Add `deliverTestEvent(db, sub)` (exported from `@secondlayer/subgraphs/runtime/emitter`): builds a representative webhook for a subscription's configured format, POSTs it with the same SSRF guard + timeout + signing as a real delivery, and logs a `subscription_deliveries` row with a null `outbox_id` (so it shows under the subscription's deliveries without a queued event). Factors the shared `postToSubscription` transport out of the emitter hot path (behavior unchanged).
+- abb689c: Export `TYPE_MAP` (from `@secondlayer/subgraphs/schema`) and `VALID_FILTER_TYPES` (from `@secondlayer/subgraphs/validate`) so consumers can single-source the column-type and filter-type vocab instead of hand-duplicating it.
+- 4b88e5c: Add `generateIndexSchema(target, opts)` — emit a typed Prisma/Kysely/Drizzle/JSON-Schema for the public Index domain tables (blocks, decoded events, transactions, stacking, sBTC, BNS, …) from `SOURCE_READ_TYPES`, so a BYO database mirror is fully typed and can't drift from the API. Prisma uses `SOURCE_READ_PKS` for model identity; tables with no read-set primary key (e.g. chain_reorgs) are omitted from Prisma output but emitted by the other targets.
+- 1b41df2: Add `generateKyselySchema` (the Kysely arm of codegen, alongside Prisma/Drizzle). Emits per-table interfaces + a `DB` registry keyed by schema-qualified table name, so a BYO database gets fully-typed Kysely query building over decoded subgraph rows. Lossless numeric/bigint as `string`, mirroring the deployed DDL.
+
+### Patch Changes
+
+- 3a7f8a2: Export typed chain-subscription webhook envelopes. `ChainApplyEnvelope`, `ChainReorgRollbackEnvelope`, `ChainReorgOrphanedEntry`, and the `ChainWebhookEnvelope` union are now single-sourced in `@secondlayer/shared` (the subgraphs producer uses them) and re-exported from `@secondlayer/sdk`, so webhook consumers can type the `chain.*.apply` / `chain.reorg.rollback` bodies they receive instead of reading code.
+- cb2f803: Make the HTTP (Streams+Index) block source a soft dependency: when `SUBGRAPH_SOURCE=streams-index`, the subgraph processor and chain-trigger evaluator now wrap the HTTP source in a `FallbackBlockSource` that falls back to the Postgres tap per-call if api is unavailable, so the data plane keeps advancing instead of stalling during an api outage/rolling deploy. Mixing taps mid-stream is safe (same canonical chain, forward-only cursor); stateless so it's failover-safe across replicas and resumes the HTTP source transparently once healthy.
+- 6e6026d: Fix: an additively-created subgraph table (new table added to an existing subgraph) now gets its UNIQUE constraints, composite indexes, column defaults, and foreign keys — previously the deployer's additive path hand-rolled a bare CREATE TABLE that omitted them, so a handler `upsert` (`ON CONFLICT`) on such a table failed at runtime with "no unique constraint matching the ON CONFLICT specification". The full generator and the additive path now share one `emitTableDDL`/`emitForeignKeyDDL` emitter so they can't drift.
+- Updated dependencies [3a7f8a2]
+- Updated dependencies [14657ae]
+- Updated dependencies [3a57c08]
+- Updated dependencies [af82681]
+  - @secondlayer/shared@6.25.0
+
 ## 3.7.4
 
 ### Patch Changes

@@ -1,5 +1,33 @@
 # @secondlayer/api
 
+## 1.19.6
+
+### Patch Changes
+
+- 78881b3: Add `POST /api/subscriptions/:id/test` — sends a one-off test webhook to the subscription's URL (built for its configured format, SSRF-guarded) and logs it as a delivery row, so it appears under the subscription's deliveries.
+- bbff1b7: Make the Index `/v1/index/mempool` cursor opaque — a base64url envelope over the insertion sequence — instead of a bare integer, so it can't be mistaken for the `<block_height>:<event_index>` block-position cursors the confirmed endpoints use. The legacy plain-integer cursor is still accepted (in-flight pagers keep working); discovery now documents the per-endpoint cursor shape.
+- 83fd1cd: Add a `trait=` filter to Index reads — `GET /v1/index/events` (contract-keyed event types: ft/nft transfers, mints, burns, print) and `GET /v1/index/contract-calls` now accept `trait=<standard>` (e.g. `sip-010`), resolving via the contract registry as-of the window end and restricting results to conforming contracts. Mutually exclusive with `contract_id`. Brings trait-scoped reads (already in Subgraphs + `/v1/contracts`) to the Index layer; discovery advertises it per event type.
+- d97cfac: Drop the legacy `from_block` alias from Streams retention checks. It was half-honored (retention read it, but `/v1/streams/events` rejects it as an unknown param), producing a confusing 403-vs-400 split depending on the requested height. Seek positions now come only from `from_height`/`cursor`.
+- 14657ae: Enrich the Streams retention 403 with a structured `details` body — `reason: "RETENTION"`, `oldest_seekable_height`, `oldest_cursor`, `dumps_manifest_url`, and a hint — so a caller hitting the live retention floor is pointed at the cold dumps lane instead of dead-ending. The global error handler now merges `error.details` into the response.
+- 7ca9bf8: Advertise the seekable retention floor on Streams `/tip` and `/usage`: `oldest_seekable_height` + `oldest_cursor` (the oldest height/cursor the live API serves for the caller's tier; `null` = unlimited). Consumers can now tell how far back the live lane goes before falling to the cold dumps lane. The SDK `StreamsTip` type carries the new optional fields.
+- 9f9d600: Make subgraph SSE `?since=<block>` replay seek instead of scan: the keyset cursor is now seeded from `MIN(_id) WHERE _block_height >= since` (falling back to the live tip when nothing matches yet) rather than starting at `_id=0` and re-scanning the whole table on every poll. The in-loop `_block_height >= since` filter stays as a reorg-safety guard.
+- Updated dependencies [3a7f8a2]
+- Updated dependencies [14657ae]
+- Updated dependencies [2626eb5]
+- Updated dependencies [3a57c08]
+- Updated dependencies [af82681]
+- Updated dependencies [7ca9bf8]
+- Updated dependencies [cb2f803]
+- Updated dependencies [321e69c]
+- Updated dependencies [abb689c]
+- Updated dependencies [4b88e5c]
+- Updated dependencies [1b41df2]
+- Updated dependencies [6e6026d]
+  - @secondlayer/shared@6.25.0
+  - @secondlayer/sdk@6.14.0
+  - @secondlayer/subgraphs@3.8.0
+  - @secondlayer/platform@0.0.22
+
 ## 1.19.5
 
 ### Patch Changes

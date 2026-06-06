@@ -1,5 +1,14 @@
 # @secondlayer/shared
 
+## 6.25.0
+
+### Minor Changes
+
+- 3a7f8a2: Export typed chain-subscription webhook envelopes. `ChainApplyEnvelope`, `ChainReorgRollbackEnvelope`, `ChainReorgOrphanedEntry`, and the `ChainWebhookEnvelope` union are now single-sourced in `@secondlayer/shared` (the subgraphs producer uses them) and re-exported from `@secondlayer/sdk`, so webhook consumers can type the `chain.*.apply` / `chain.reorg.rollback` bodies they receive instead of reading code.
+- 14657ae: `SecondLayerError` (and `AuthorizationError`) now accept an optional structured `details` payload, surfaced in `toJSON()` so HTTP error handlers can emit machine-readable hints alongside the message.
+- 3a57c08: Add `SOURCE_READ_TYPES` (portable column type per read column) and `SOURCE_READ_PKS` (primary key per read table) — both single-sourced from the `Database` interface and drift-tested against `SOURCE_READ_COLUMNS`. These power typed codegen for the public Index domain (`SOURCE_READ_PKS` gives Prisma a model identity; tables with only a synthetic-id PK excluded from the read contract map to `null`).
+- af82681: Add `SubscriptionTestResult` type for the subscription test-delivery endpoint.
+
 ## 6.24.0
 
 ### Minor Changes

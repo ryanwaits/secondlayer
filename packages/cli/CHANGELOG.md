@@ -1,5 +1,32 @@
 # @secondlayer/cli
 
+## 8.6.0
+
+### Minor Changes
+
+- 06b8cc7: `sl subgraphs codegen --target kysely` now emits a Kysely schema (interfaces + `DB` registry) for a subgraph's tables, alongside the existing `prisma`/`drizzle` targets. The previous hard-rejection of `kysely` is removed.
+- d557c78: Add `sl index codegen --target prisma|kysely|drizzle|json-schema [--tables …] [--schema …] [--env …]` — generate a typed schema for the public Index domain tables to mirror into your own database.
+
+### Patch Changes
+
+- 1530581: Source the `sl streams` event-type vocabulary from `@secondlayer/shared` (`STREAMS_EVENT_TYPES`) instead of a hand-duplicated literal, so the CLI can't advertise or accept a stale subset of the Streams event types. A drift test locks the two together.
+- 5e49f0a: `sl subscriptions test --post` now sends the test delivery via the server endpoint (built for the real format, SSRF-guarded, and logged under deliveries) instead of a client-side standard-webhooks-only POST. Use `--post --local` for the previous client-side behavior.
+- Updated dependencies [3a7f8a2]
+- Updated dependencies [14657ae]
+- Updated dependencies [2626eb5]
+- Updated dependencies [3a57c08]
+- Updated dependencies [af82681]
+- Updated dependencies [7ca9bf8]
+- Updated dependencies [cb2f803]
+- Updated dependencies [321e69c]
+- Updated dependencies [abb689c]
+- Updated dependencies [4b88e5c]
+- Updated dependencies [1b41df2]
+- Updated dependencies [6e6026d]
+  - @secondlayer/shared@6.25.0
+  - @secondlayer/sdk@6.14.0
+  - @secondlayer/subgraphs@3.8.0
+
 ## 8.5.2
 
 ### Patch Changes
