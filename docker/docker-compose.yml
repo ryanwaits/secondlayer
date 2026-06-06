@@ -239,14 +239,15 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Continuous L2 decoder service
+  # Continuous L2 decoder service. Dedicated image (own Dockerfile target + tag)
+  # so it deploys/rolls back independently of the indexer. Per-service tag defaults
+  # to the shared DEPLOY_IMAGE_TAG; set L2_DECODER_IMAGE_TAG to pin it alone.
   l2-decoder:
-    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-indexer:${DEPLOY_IMAGE_TAG:-latest}
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-l2-decoder:${L2_DECODER_IMAGE_TAG:-${DEPLOY_IMAGE_TAG:-latest}}
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      target: indexer
-    command: ["bun", "run", "packages/indexer/src/l2/service.ts"]
+      target: l2-decoder
     environment:
       # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
       # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently
@@ -298,18 +299,15 @@ services:
   # listens `indexer:new_block` NOTIFY, catches up + tails all active
   # subgraphs across accounts.
   subgraph-processor:
-    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-subgraph-processor:${SUBGRAPH_PROCESSOR_IMAGE_TAG:-${DEPLOY_IMAGE_TAG:-latest}}
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      target: api
-    command: ["bun", "run", "packages/subgraphs/src/service.ts"]
-    # Reuses the `api` image but runs the subgraph service, which has no HTTP
-    # server — so the image's inherited `curl :3800/health` healthcheck can
-    # never pass and falsely reports "unhealthy". Disable it; liveness is via
-    # `restart: unless-stopped` + logs, same as the worker service.
-    healthcheck:
-      disable: true
+      target: subgraph-processor
+    # Dedicated image (own target + tag) so subgraph indexing deploys/rolls back
+    # independently of the api. The image declares `HEALTHCHECK NONE` (no HTTP
+    # server); liveness is via `restart: unless-stopped` + logs. Set
+    # SUBGRAPH_PROCESSOR_IMAGE_TAG to pin it alone.
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
@@ -348,14 +346,15 @@ services:
   # competing-consumer delivery). No views volume (the plane writes no files) and
   # no operation-runner concurrency (it runs no subgraph operations).
   subscription-processor:
-    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-subscription-processor:${SUBSCRIPTION_PROCESSOR_IMAGE_TAG:-${DEPLOY_IMAGE_TAG:-latest}}
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      target: api
-    command: ["bun", "run", "packages/subgraphs/src/subscription-service.ts"]
-    healthcheck:
-      disable: true
+      target: subscription-processor
+    # Dedicated image (own target + tag) so the delivery plane deploys/rolls back
+    # independently of the api. The image declares `HEALTHCHECK NONE` (no HTTP
+    # server); liveness is via `restart: unless-stopped` + logs. Set
+    # SUBSCRIPTION_PROCESSOR_IMAGE_TAG to pin it alone.
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
