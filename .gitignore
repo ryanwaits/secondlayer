@@ -84,3 +84,6 @@ plans/
 
 .scaffold-test-*
 packages/subgraphs/test/fixtures/
+
+# Cadence (local tooling artifacts)
+.cadence/
