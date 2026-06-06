@@ -105,7 +105,7 @@ describe.skipIf(SKIP)("BYO deploy DDL routing", () => {
 		});
 		await expect(promise).rejects.toThrow(ByoBreakingChangeError);
 
-		const err = await promise.catch((e) => e as ByoBreakingChangeError);
+		const err = (await promise.catch((e) => e)) as ByoBreakingChangeError;
 		expect(err.code).toBe("BYO_BREAKING_CHANGE");
 		expect(err.details.reasons).toContain(
 			"transfers: removed columns [amount]",
