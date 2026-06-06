@@ -58,6 +58,10 @@ export {
 	generateDrizzleSchema,
 	type DrizzleGenOptions,
 } from "./schema/drizzle.ts";
+export {
+	generateKyselySchema,
+	type KyselyGenOptions,
+} from "./schema/kysely.ts";
 export { pgSchemaName } from "./schema/utils.ts";
 export {
 	deploySchema,
