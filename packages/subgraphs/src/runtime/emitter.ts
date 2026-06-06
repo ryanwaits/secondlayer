@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
 	type Database,
 	type Subscription,
@@ -6,6 +7,7 @@ import {
 } from "@secondlayer/shared/db";
 import { getSubscriptionSigningSecret } from "@secondlayer/shared/db/queries/subscriptions";
 import { logger } from "@secondlayer/shared/logger";
+import type { SubscriptionTestResult } from "@secondlayer/shared/schemas/subscriptions";
 import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
@@ -127,6 +129,71 @@ function allowPrivateEgress(): boolean {
 	return process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS === "true";
 }
 
+/** The wire result of one POST attempt (no DB side effect) — shared by the
+ *  emitter hot path and the `deliverTestEvent` test path. */
+interface PostResult {
+	ok: boolean;
+	statusCode: number | null;
+	error: string | null;
+	durationMs: number;
+	responseBody: string | null;
+	responseHeaders: Record<string, string> | null;
+}
+
+/** POST a pre-built body to a subscription URL with the SSRF guard + timeout.
+ *  Pure transport: returns the attempt result; the caller logs the delivery row. */
+async function postToSubscription(
+	url: string,
+	body: string,
+	headers: Record<string, string>,
+	timeoutMs: number,
+): Promise<PostResult> {
+	if (isPrivateEgress(url) && !allowPrivateEgress()) {
+		logger.warn("[emitter] refused private egress", { url });
+		return {
+			ok: false,
+			statusCode: null,
+			error:
+				"refused private egress (set SECONDLAYER_ALLOW_PRIVATE_EGRESS=true to allow)",
+			durationMs: 0,
+			responseBody: null,
+			responseHeaders: null,
+		};
+	}
+
+	const start = performance.now();
+	let statusCode: number | null = null;
+	let error: string | null = null;
+	let ok = false;
+	let responseBody = "";
+	let responseHeaders: Record<string, string> = {};
+	try {
+		const res = await fetch(url, {
+			method: "POST",
+			headers,
+			body,
+			signal: AbortSignal.timeout(timeoutMs),
+		});
+		statusCode = res.status;
+		ok = res.ok;
+		// Collect small response preview for the delivery log (≤8KB).
+		const buf = await res.arrayBuffer();
+		const truncated = buf.byteLength > 8192 ? buf.slice(0, 8192) : buf;
+		responseBody = Buffer.from(truncated).toString("utf8");
+		responseHeaders = Object.fromEntries(res.headers.entries());
+	} catch (err) {
+		error = err instanceof Error ? err.message : String(err);
+	}
+	return {
+		ok,
+		statusCode,
+		error,
+		durationMs: Math.round(performance.now() - start),
+		responseBody: responseBody || null,
+		responseHeaders,
+	};
+}
+
 async function dispatchOne(
 	db: Kysely<Database>,
 	outboxRow: SubscriptionOutbox,
@@ -142,57 +209,7 @@ async function dispatchOne(
 		sub,
 		getSubscriptionSigningSecret(sub),
 	);
-
-	const start = performance.now();
-	let statusCode: number | null = null;
-	let error: string | null = null;
-	let ok = false;
-	let responseBody = "";
-	let responseHeaders: Record<string, string> = {};
-
-	if (isPrivateEgress(sub.url) && !allowPrivateEgress()) {
-		error =
-			"refused private egress (set SECONDLAYER_ALLOW_PRIVATE_EGRESS=true to allow)";
-		logger.warn("[emitter] refused private egress", {
-			subscription: sub.name,
-			url: sub.url,
-		});
-		const durationMs = 0;
-		const attempt = outboxRow.attempt + 1;
-		await db
-			.insertInto("subscription_deliveries")
-			.values({
-				outbox_id: outboxRow.id,
-				subscription_id: outboxRow.subscription_id,
-				attempt,
-				status_code: null,
-				response_headers: null,
-				response_body: null,
-				error_message: error,
-				duration_ms: durationMs,
-			})
-			.execute();
-		return { ok: false, statusCode: null, error, durationMs };
-	}
-
-	try {
-		const res = await fetch(sub.url, {
-			method: "POST",
-			headers,
-			body,
-			signal: AbortSignal.timeout(sub.timeout_ms),
-		});
-		statusCode = res.status;
-		ok = res.ok;
-		// Collect small response preview for the delivery log (≤8KB).
-		const buf = await res.arrayBuffer();
-		const truncated = buf.byteLength > 8192 ? buf.slice(0, 8192) : buf;
-		responseBody = Buffer.from(truncated).toString("utf8");
-		responseHeaders = Object.fromEntries(res.headers.entries());
-	} catch (err) {
-		error = err instanceof Error ? err.message : String(err);
-	}
-	const durationMs = Math.round(performance.now() - start);
+	const r = await postToSubscription(sub.url, body, headers, sub.timeout_ms);
 
 	const attempt = outboxRow.attempt + 1;
 	await db
@@ -201,15 +218,96 @@ async function dispatchOne(
 			outbox_id: outboxRow.id,
 			subscription_id: outboxRow.subscription_id,
 			attempt,
-			status_code: statusCode,
-			response_headers: responseHeaders,
-			response_body: responseBody || null,
-			error_message: error,
-			duration_ms: durationMs,
+			status_code: r.statusCode,
+			response_headers: r.responseHeaders,
+			response_body: r.responseBody,
+			error_message: r.error,
+			duration_ms: r.durationMs,
 		})
 		.execute();
 
-	return { ok, statusCode, error, durationMs };
+	return {
+		ok: r.ok,
+		statusCode: r.statusCode,
+		error: r.error,
+		durationMs: r.durationMs,
+	};
+}
+
+/** A representative (non-persisted) outbox row for a test delivery, shaped to the
+ *  subscription's kind so `buildForFormat` produces a realistic body. */
+function buildTestOutboxRow(sub: Subscription): SubscriptionOutbox {
+	const now = new Date();
+	return {
+		id: randomUUID(),
+		subscription_id: sub.id,
+		kind: sub.kind,
+		subgraph_name: sub.subgraph_name ?? null,
+		table_name: sub.table_name ?? null,
+		block_height: 0,
+		tx_id: null,
+		row_pk: null,
+		event_type:
+			sub.kind === "chain"
+				? "chain.test.apply"
+				: `${sub.subgraph_name ?? "subgraph"}.${sub.table_name ?? "test"}.created`,
+		payload: {
+			test: true,
+			message: "Secondlayer test delivery",
+			subscription_id: sub.id,
+			sent_at: now.toISOString(),
+		},
+		dedup_key: `test:${sub.id}:${now.getTime()}`,
+		attempt: 0,
+		next_attempt_at: now,
+		status: "pending",
+		is_replay: false,
+		delivered_at: null,
+		failed_at: null,
+		locked_by: null,
+		locked_until: null,
+		created_at: now,
+	};
+}
+
+/**
+ * Build a representative webhook for `sub`'s configured format, POST it (same
+ * SSRF guard + timeout + signing as a real delivery), and log a delivery row
+ * with a null `outbox_id` so it appears under the subscription's deliveries
+ * without being tied to a queued event. Powers `POST /:id/test`.
+ */
+export async function deliverTestEvent(
+	db: Kysely<Database>,
+	sub: Subscription,
+): Promise<SubscriptionTestResult> {
+	const testRow = buildTestOutboxRow(sub);
+	const { body, headers } = buildForFormat(
+		testRow,
+		sub,
+		getSubscriptionSigningSecret(sub),
+	);
+	const r = await postToSubscription(sub.url, body, headers, sub.timeout_ms);
+	const inserted = await db
+		.insertInto("subscription_deliveries")
+		.values({
+			outbox_id: null,
+			subscription_id: sub.id,
+			attempt: 1,
+			status_code: r.statusCode,
+			response_headers: r.responseHeaders,
+			response_body: r.responseBody,
+			error_message: r.error,
+			duration_ms: r.durationMs,
+		})
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	return {
+		ok: r.ok,
+		statusCode: r.statusCode,
+		error: r.error,
+		durationMs: r.durationMs,
+		deliveryId: inserted.id,
+	};
 }
 
 async function settleDelivered(

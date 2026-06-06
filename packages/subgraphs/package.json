@@ -39,6 +39,10 @@
 		"./runtime/replay": {
 			"types": "./dist/src/runtime/replay.d.ts",
 			"import": "./dist/src/runtime/replay.js"
+		},
+		"./runtime/emitter": {
+			"types": "./dist/src/runtime/emitter.d.ts",
+			"import": "./dist/src/runtime/emitter.js"
 		}
 	},
 	"files": [
