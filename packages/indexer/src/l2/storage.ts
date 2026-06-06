@@ -1,5 +1,4 @@
 import type { DecodedEventColumns, DecodedEventRow } from "@secondlayer/sdk";
-import { isPox4DecoderEnabled } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Generated, Kysely } from "kysely";
@@ -68,14 +67,14 @@ export function getEnabledL2DecoderNames(
 	];
 	// String literals here (not imports) to keep storage.ts free of cycles
 	// with sbtc-/pox4-/bns-storage.ts; the canonical defs live in those files.
-	// sbtc defaults to enabled (see service.ts) — only suppressed via
-	// explicit `SBTC_DECODER_ENABLED=false`. Mirrors that policy here so
-	// /public/status surfaces the same decoder set the indexer actually
-	// runs.
+	// sbtc and pox4 default to enabled (see service.ts / isPox4DecoderEnabled) —
+	// only suppressed via explicit `*_DECODER_ENABLED=false`. Read the injected
+	// `env` (not global process.env) so this stays testable and consistent, and
+	// so /public/status surfaces the same decoder set the indexer actually runs.
 	if (env.SBTC_DECODER_ENABLED !== "false") {
 		names.push("l2.sbtc.v1", "l2.sbtc_token.v1");
 	}
-	if (isPox4DecoderEnabled()) names.push("l2.pox4.v1");
+	if (env.POX4_DECODER_ENABLED !== "false") names.push("l2.pox4.v1");
 	if (env.BNS_DECODER_ENABLED === "true") names.push("l2.bns.v1");
 	return names;
 }

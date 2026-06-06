@@ -25,38 +25,48 @@ const ALWAYS_ON = [
 ];
 
 describe("getEnabledL2DecoderNames", () => {
-	test("always-on decoders plus sbtc (enabled by default)", () => {
+	test("always-on decoders plus sbtc + pox4 (both enabled by default)", () => {
 		expect(getEnabledL2DecoderNames({})).toEqual([
 			...ALWAYS_ON,
 			"l2.sbtc.v1",
 			"l2.sbtc_token.v1",
+			"l2.pox4.v1",
 		]);
 	});
 
-	test("SBTC_DECODER_ENABLED=false suppresses sbtc", () => {
+	test("SBTC_DECODER_ENABLED=false suppresses sbtc (pox4 still default-on)", () => {
 		expect(getEnabledL2DecoderNames({ SBTC_DECODER_ENABLED: "false" })).toEqual(
-			ALWAYS_ON,
+			[...ALWAYS_ON, "l2.pox4.v1"],
 		);
 	});
 
-	test("includes pox4/bns when their flags are 'true'", () => {
+	test("POX4_DECODER_ENABLED=false suppresses pox4", () => {
 		expect(
 			getEnabledL2DecoderNames({
 				SBTC_DECODER_ENABLED: "false",
-				POX4_DECODER_ENABLED: "true",
-				BNS_DECODER_ENABLED: "true",
-			}),
-		).toEqual([...ALWAYS_ON, "l2.pox4.v1", "l2.bns.v1"]);
-	});
-
-	test("pox4/bns flag values other than 'true' are ignored", () => {
-		expect(
-			getEnabledL2DecoderNames({
-				SBTC_DECODER_ENABLED: "false",
-				POX4_DECODER_ENABLED: "yes",
-				BNS_DECODER_ENABLED: "TRUE",
+				POX4_DECODER_ENABLED: "false",
 			}),
 		).toEqual(ALWAYS_ON);
+	});
+
+	test("includes bns when its flag is 'true'", () => {
+		expect(
+			getEnabledL2DecoderNames({
+				SBTC_DECODER_ENABLED: "false",
+				POX4_DECODER_ENABLED: "false",
+				BNS_DECODER_ENABLED: "true",
+			}),
+		).toEqual([...ALWAYS_ON, "l2.bns.v1"]);
+	});
+
+	test("opt-in bns ignores non-'true' values; opt-out pox4 ignores non-'false' values", () => {
+		expect(
+			getEnabledL2DecoderNames({
+				SBTC_DECODER_ENABLED: "false",
+				POX4_DECODER_ENABLED: "yes", // not "false" → pox4 stays on
+				BNS_DECODER_ENABLED: "TRUE", // not "true" → bns stays off
+			}),
+		).toEqual([...ALWAYS_ON, "l2.pox4.v1"]);
 	});
 });
 
@@ -189,7 +199,9 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 
 		// Two events colliding on one cursor must not throw "ON CONFLICT ...
 		// cannot affect row a second time"; last occurrence wins.
-		await writeDecodedEvents([event("tx-a", "10"), event("tx-b", "20")], { db });
+		await writeDecodedEvents([event("tx-a", "10"), event("tx-b", "20")], {
+			db,
+		});
 
 		const rows = await db
 			.selectFrom("decoded_events")
