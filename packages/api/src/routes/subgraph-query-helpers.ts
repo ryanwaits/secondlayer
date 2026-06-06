@@ -59,6 +59,20 @@ export class InvalidColumnError extends ValidationError {
 	}
 }
 
+export class NonNumericColumnError extends ValidationError {
+	constructor(column: string) {
+		super(`Column is not numeric (uint/int): ${column}`);
+	}
+}
+
+export class TooManyAggregatesError extends ValidationError {
+	constructor(count: number) {
+		super(
+			`Too many aggregate columns: ${count} (max ${MAX_AGGREGATE_COLUMNS})`,
+		);
+	}
+}
+
 const KNOWN_OPS = [...Object.keys(COMPARISON_OPS), ...Object.keys(IN_OPS)];
 // Matches known ops in "col=op.value" (PostgREST-style misplacement).
 const VALUE_LOOKS_LIKE_OP = /^(gte|lte|gt|lt|neq|like|in|notIn)\./i;
@@ -263,4 +277,134 @@ export function buildWhereConditions(
 	}
 
 	return conditions;
+}
+
+// ── Aggregate query helpers ──────────────────────────────────────────────
+
+/** Column types eligible for SUM/MIN/MAX. */
+const NUMERIC_COLUMN_TYPES = new Set(["uint", "int"]);
+/** System columns that are numeric and thus valid SUM/MIN/MAX targets. */
+const NUMERIC_SYSTEM_COLUMNS = new Set(["_block_height"]);
+/** Cost guard — total agg columns across all functions in one request. */
+export const MAX_AGGREGATE_COLUMNS = 32;
+
+/** Parsed aggregate control params (api-internal; mirrors shared SubgraphAggregateParams). */
+export interface AggregateControl {
+	count?: boolean;
+	countDistinct?: string[];
+	sum?: string[];
+	min?: string[];
+	max?: string[];
+}
+
+function splitColumns(raw: string): string[] {
+	return raw
+		.split(",")
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0);
+}
+
+/**
+ * Splits the `_count/_countDistinct/_sum/_min/_max` control params out of the
+ * query string and validates each referenced column. SUM/MIN/MAX columns must
+ * be numeric (uint/int, plus the system `_block_height`). The remaining params
+ * are returned untouched as `readParams` for `parseQueryParams` to build the
+ * WHERE clause (it throws on any unknown `_`-prefixed key, so the agg params
+ * must be stripped first).
+ */
+export function parseAggregateParams(
+	params: Record<string, string>,
+	validColumns: Set<string>,
+	tableDef: { columns: Record<string, SubgraphColumn> },
+): { control: AggregateControl; readParams: Record<string, string> } {
+	const control: AggregateControl = {};
+	const readParams: Record<string, string> = {};
+	let aggColumnCount = 0;
+
+	const requireColumn = (col: string) => {
+		if (!validColumns.has(col)) throw new InvalidColumnError(col);
+	};
+	const requireNumericColumn = (col: string) => {
+		requireColumn(col);
+		const isNumeric =
+			NUMERIC_SYSTEM_COLUMNS.has(col) ||
+			NUMERIC_COLUMN_TYPES.has(tableDef.columns[col]?.type ?? "");
+		if (!isNumeric) throw new NonNumericColumnError(col);
+	};
+
+	for (const [key, value] of Object.entries(params)) {
+		if (key === "_count") {
+			// Any value except an explicit "false" enables the count.
+			control.count = value !== "false";
+			continue;
+		}
+		if (key === "_countDistinct") {
+			const cols = splitColumns(value);
+			for (const c of cols) requireColumn(c);
+			control.countDistinct = cols;
+			aggColumnCount += cols.length;
+			continue;
+		}
+		if (key === "_sum") {
+			const cols = splitColumns(value);
+			for (const c of cols) requireNumericColumn(c);
+			control.sum = cols;
+			aggColumnCount += cols.length;
+			continue;
+		}
+		if (key === "_min") {
+			const cols = splitColumns(value);
+			for (const c of cols) requireNumericColumn(c);
+			control.min = cols;
+			aggColumnCount += cols.length;
+			continue;
+		}
+		if (key === "_max") {
+			const cols = splitColumns(value);
+			for (const c of cols) requireNumericColumn(c);
+			control.max = cols;
+			aggColumnCount += cols.length;
+			continue;
+		}
+		readParams[key] = value;
+	}
+
+	if (aggColumnCount > MAX_AGGREGATE_COLUMNS) {
+		throw new TooManyAggregatesError(aggColumnCount);
+	}
+
+	return { control, readParams };
+}
+
+/**
+ * Builds the SELECT list for an aggregate query. Each column is `ident()`-quoted
+ * and aliased `kind__col` (count → `count`, distinct → `cd__`, sum/min/max →
+ * `sum__`/`min__`/`max__`). SUM is `COALESCE(…,0)::text` and MIN/MAX `::text` so
+ * NUMERIC/BIGINT results round-trip losslessly as strings. Defaults to a bare
+ * `COUNT(*)` when no aggregate is requested.
+ */
+export function buildAggregateSelect(control: AggregateControl): string[] {
+	const selects: string[] = [];
+	const hasOtherAgg = Boolean(
+		control.countDistinct?.length ||
+			control.sum?.length ||
+			control.min?.length ||
+			control.max?.length,
+	);
+	if (control.count || !hasOtherAgg) {
+		selects.push("COUNT(*) AS count");
+	}
+	for (const c of control.countDistinct ?? []) {
+		selects.push(`COUNT(DISTINCT ${ident(c)}) AS "cd__${c}"`);
+	}
+	for (const c of control.sum ?? []) {
+		selects.push(`COALESCE(SUM(${ident(c)}), 0)::text AS "sum__${c}"`);
+	}
+	for (const c of control.min ?? []) {
+		selects.push(`MIN(${ident(c)})::text AS "min__${c}"`);
+	}
+	for (const c of control.max ?? []) {
+		selects.push(`MAX(${ident(c)})::text AS "max__${c}"`);
+	}
+	return selects;
 }

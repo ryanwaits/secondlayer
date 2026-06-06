@@ -6,6 +6,13 @@ import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { errorHandler } from "../src/middleware/error.ts";
+import {
+	InvalidColumnError,
+	NonNumericColumnError,
+	TooManyAggregatesError,
+	buildAggregateSelect,
+	parseAggregateParams,
+} from "../src/routes/subgraph-query-helpers.ts";
 import subgraphsRouter, {
 	cache,
 	startSubgraphCache,
@@ -24,6 +31,124 @@ describe("parseQueryParams (via route behavior)", () => {
 		// We can't import ident directly since it's not exported,
 		// but we can verify the route rejects injection attempts via integration tests.
 		expect(true).toBe(true);
+	});
+});
+
+// ── Aggregate helpers (no DB) ───────────────────────────────────────────
+
+describe("parseAggregateParams", () => {
+	const tableDef = {
+		columns: {
+			nft_id: { type: "text" as const },
+			seller: { type: "text" as const },
+			price: { type: "uint" as const },
+			status: { type: "text" as const },
+		},
+	};
+	const validColumns = new Set([
+		"nft_id",
+		"seller",
+		"price",
+		"status",
+		"_id",
+		"_block_height",
+		"_tx_id",
+		"_created_at",
+	]);
+
+	test("splits agg params and leaves read params untouched", () => {
+		const { control, readParams } = parseAggregateParams(
+			{
+				_count: "true",
+				_sum: "price",
+				_countDistinct: "seller",
+				status: "active",
+				"price.gte": "1000000",
+			},
+			validColumns,
+			tableDef,
+		);
+		expect(control.count).toBe(true);
+		expect(control.sum).toEqual(["price"]);
+		expect(control.countDistinct).toEqual(["seller"]);
+		// Agg control params excluded from readParams.
+		expect(readParams).toEqual({ status: "active", "price.gte": "1000000" });
+	});
+
+	test("_count=false disables count", () => {
+		const { control } = parseAggregateParams(
+			{ _count: "false", _sum: "price" },
+			validColumns,
+			tableDef,
+		);
+		expect(control.count).toBe(false);
+	});
+
+	test("system _block_height is a valid numeric target", () => {
+		const { control } = parseAggregateParams(
+			{ _min: "_block_height", _max: "_block_height" },
+			validColumns,
+			tableDef,
+		);
+		expect(control.min).toEqual(["_block_height"]);
+		expect(control.max).toEqual(["_block_height"]);
+	});
+
+	test("non-numeric sum column throws NonNumericColumnError", () => {
+		expect(() =>
+			parseAggregateParams({ _sum: "seller" }, validColumns, tableDef),
+		).toThrow(NonNumericColumnError);
+	});
+
+	test("unknown agg column throws InvalidColumnError", () => {
+		expect(() =>
+			parseAggregateParams({ _sum: "bogus" }, validColumns, tableDef),
+		).toThrow(InvalidColumnError);
+	});
+
+	test(">32 agg columns throws TooManyAggregatesError", () => {
+		const many = Array.from({ length: 33 }, (_, i) => `c${i}`);
+		const cols = new Set(many);
+		const def = {
+			columns: Object.fromEntries(
+				many.map((c) => [c, { type: "text" as const }]),
+			),
+		};
+		expect(() =>
+			parseAggregateParams({ _countDistinct: many.join(",") }, cols, def),
+		).toThrow(TooManyAggregatesError);
+	});
+});
+
+describe("buildAggregateSelect", () => {
+	test("defaults to COUNT(*) when no aggregates requested", () => {
+		expect(buildAggregateSelect({})).toEqual(["COUNT(*) AS count"]);
+	});
+
+	test("emits ident-quoted kind__col aliases", () => {
+		const selects = buildAggregateSelect({
+			count: true,
+			countDistinct: ["seller"],
+			sum: ["price"],
+			min: ["price"],
+			max: ["_block_height"],
+		});
+		expect(selects).toContain("COUNT(*) AS count");
+		expect(selects).toContain('COUNT(DISTINCT "seller") AS "cd__seller"');
+		expect(selects).toContain(
+			'COALESCE(SUM("price"), 0)::text AS "sum__price"',
+		);
+		expect(selects).toContain('MIN("price")::text AS "min__price"');
+		expect(selects).toContain(
+			'MAX("_block_height")::text AS "max___block_height"',
+		);
+	});
+
+	test("omits count when only other aggregates requested", () => {
+		const selects = buildAggregateSelect({ sum: ["price"] });
+		expect(selects).toEqual([
+			'COALESCE(SUM("price"), 0)::text AS "sum__price"',
+		]);
 	});
 });
 
@@ -381,6 +506,116 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.count).toBe(2);
+	});
+
+	// ── GET /subgraphs/:subgraphName/:tableName/aggregate ───────────────────
+
+	const aggUrl = `/subgraphs/${SUBGRAPH_NAME}/listings/aggregate`;
+
+	test("aggregate defaults to count only", async () => {
+		const res = await app.request(aggUrl);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.count).toBe(4);
+		expect(body.sum).toBeUndefined();
+	});
+
+	test("aggregate sum is a lossless string", async () => {
+		const res = await app.request(`${aggUrl}?_sum=price`);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		// 1000000 + 2000000 + 500000 + 3000000
+		expect(body.sum.price).toBe("6500000");
+		expect(typeof body.sum.price).toBe("string");
+		// No agg-but-count default omitted: count only present when requested.
+		expect(body.count).toBeUndefined();
+	});
+
+	test("aggregate _count=true alongside other aggs", async () => {
+		const res = await app.request(`${aggUrl}?_sum=price&_count=true`);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.count).toBe(4);
+		expect(body.sum.price).toBe("6500000");
+	});
+
+	test("aggregate sum over empty set is '0'", async () => {
+		const res = await app.request(`${aggUrl}?_sum=price&status=nonexistent`);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.sum.price).toBe("0");
+	});
+
+	test("aggregate min/max are lossless strings, null over empty set", async () => {
+		const res = await app.request(`${aggUrl}?_min=price&_max=price`);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.min.price).toBe("500000");
+		expect(body.max.price).toBe("3000000");
+
+		const empty = await app.request(`${aggUrl}?_min=price&status=nonexistent`);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const emptyBody = (await empty.json()) as any;
+		expect(emptyBody.min.price).toBeNull();
+	});
+
+	test("aggregate min/max over system _block_height", async () => {
+		const res = await app.request(
+			`${aggUrl}?_min=_block_height&_max=_block_height`,
+		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.min._block_height).toBe("100");
+		expect(body.max._block_height).toBe("102");
+	});
+
+	test("aggregate countDistinct map", async () => {
+		const res = await app.request(`${aggUrl}?_countDistinct=seller`);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		// SP_ALICE, SP_BOB, SP_CAROL
+		expect(body.countDistinct.seller).toBe(3);
+	});
+
+	test("aggregate respects WHERE filter", async () => {
+		const res = await app.request(`${aggUrl}?_sum=price&status=active`);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		// active rows: 1000000 + 2000000 + 3000000
+		expect(body.sum.price).toBe("6000000");
+	});
+
+	test("aggregate non-numeric sum → 400", async () => {
+		const res = await app.request(`${aggUrl}?_sum=seller`);
+		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("NON_NUMERIC_COLUMN");
+	});
+
+	test("aggregate unknown column → 400", async () => {
+		const res = await app.request(`${aggUrl}?_sum=bogus`);
+		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("INVALID_COLUMN");
+	});
+
+	test("aggregate >32 columns → 400", async () => {
+		const cols = Array.from({ length: 33 }, () => "price").join(",");
+		const res = await app.request(`${aggUrl}?_sum=${cols}`);
+		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("TOO_MANY_AGGREGATES");
+	});
+
+	test("aggregate on unknown table → 404", async () => {
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/nonexistent/aggregate?_count=true`,
+		);
+		expect(res.status).toBe(404);
 	});
 
 	// ── _limit bounds ───────────────────────────────────────────────────

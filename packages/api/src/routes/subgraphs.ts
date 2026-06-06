@@ -42,10 +42,14 @@ import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import {
 	InvalidColumnError,
 	MAX_LIMIT,
+	NonNumericColumnError,
+	TooManyAggregatesError,
+	buildAggregateSelect,
 	buildWhereConditions,
 	getSubgraphSchema,
 	getValidColumns,
 	ident,
+	parseAggregateParams,
 	parseQueryParams,
 	subgraphSchemaName,
 } from "./subgraph-query-helpers.ts";
@@ -1329,6 +1333,93 @@ app.get("/:subgraphName/:tableName/count", async (c) => {
 	}
 });
 
+// ── Aggregate over rows ─────────────────────────────────────────────────
+
+// Scalar aggregates (_count/_countDistinct/_sum/_min/_max) over the same
+// filtered set as the list/count endpoints. SUM/MIN/MAX return lossless strings
+// (NUMERIC ::text); count/countDistinct return JSON numbers. Registered before
+// `/:id` so the static `aggregate` segment wins over the row-id param.
+app.get("/:subgraphName/:tableName/aggregate", async (c) => {
+	const { subgraphName, tableName } = c.req.param();
+	const accountId = getAccountId(c);
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+
+	const subgraphSchema = getSubgraphSchema(subgraph);
+	const tableDef = subgraphSchema[tableName];
+	if (!tableDef) {
+		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
+	}
+
+	const validColumns = getValidColumns(tableDef);
+
+	try {
+		// Strip agg control params before parseQueryParams (it throws on any
+		// unknown `_`-prefixed key), then parse the remainder as WHERE filters.
+		const { control, readParams } = parseAggregateParams(
+			c.req.query(),
+			validColumns,
+			tableDef,
+		);
+		const parsed = parseQueryParams(readParams, validColumns, tableDef);
+		const sn = subgraphSchemaName(subgraph);
+		const params: unknown[] = [];
+
+		const conditions = buildWhereConditions(parsed, params);
+		let text = `SELECT ${buildAggregateSelect(control).join(", ")} FROM ${ident(sn)}.${ident(tableName)}`;
+		if (conditions.length > 0) {
+			text += ` WHERE ${conditions.join(" AND ")}`;
+		}
+
+		const result = await query(subgraph, text, params);
+		const row = (result[0] ?? {}) as Record<string, string | number | null>;
+
+		// Reshape the single result row from `kind__col` aliases into the grouped
+		// response. count/countDistinct → numbers; sum/min/max → lossless strings.
+		const response: {
+			count?: number;
+			countDistinct?: Record<string, number>;
+			sum?: Record<string, string>;
+			min?: Record<string, string | null>;
+			max?: Record<string, string | null>;
+		} = {};
+		const countDistinct: Record<string, number> = {};
+		const sum: Record<string, string> = {};
+		const min: Record<string, string | null> = {};
+		const max: Record<string, string | null> = {};
+		for (const [alias, value] of Object.entries(row)) {
+			if (alias === "count") {
+				response.count = Number.parseInt(String(value ?? 0), 10);
+			} else if (alias.startsWith("cd__")) {
+				countDistinct[alias.slice(4)] = Number.parseInt(String(value ?? 0), 10);
+			} else if (alias.startsWith("sum__")) {
+				sum[alias.slice(5)] = String(value ?? "0");
+			} else if (alias.startsWith("min__")) {
+				min[alias.slice(5)] = value == null ? null : String(value);
+			} else if (alias.startsWith("max__")) {
+				max[alias.slice(5)] = value == null ? null : String(value);
+			}
+		}
+		if (Object.keys(countDistinct).length > 0)
+			response.countDistinct = countDistinct;
+		if (Object.keys(sum).length > 0) response.sum = sum;
+		if (Object.keys(min).length > 0) response.min = min;
+		if (Object.keys(max).length > 0) response.max = max;
+
+		return c.json(response);
+	} catch (e) {
+		if (e instanceof NonNumericColumnError) {
+			return c.json({ error: e.message, code: "NON_NUMERIC_COLUMN" }, 400);
+		}
+		if (e instanceof TooManyAggregatesError) {
+			return c.json({ error: e.message, code: "TOO_MANY_AGGREGATES" }, 400);
+		}
+		if (e instanceof InvalidColumnError) {
+			return c.json({ error: e.message, code: "INVALID_COLUMN" }, 400);
+		}
+		throw e;
+	}
+});
+
 // ── Get row by ID ───────────────────────────────────────────────────────
 
 // SSE: stream rows as they're indexed. Poll-based v1 — tails the table by a
@@ -1430,7 +1521,7 @@ app.get("/:subgraphName/:tableName/stream", async (c) => {
 
 app.get("/:subgraphName/:tableName/:id", async (c) => {
 	const { subgraphName, tableName, id } = c.req.param();
-	if (id === "count" || id === "stream") return;
+	if (id === "count" || id === "stream" || id === "aggregate") return;
 
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
