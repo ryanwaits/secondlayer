@@ -7,6 +7,25 @@ export type IndexTip = {
 	lag_seconds: number;
 };
 
+/**
+ * A chain reorg overlapping a returned page's height range. Height-keyed feeds
+ * (`/transactions`, `/contract-calls`, `/stacking`) populate this so a consumer
+ * can reconcile: roll back the rows whose `block_height:tx_index` cursor falls in
+ * `orphaned_range`, then re-fetch from `new_canonical_tip`. Empty when the page
+ * spans no reorg.
+ */
+export type IndexReorg = {
+	id: string;
+	detected_at: string;
+	fork_point_height: number;
+	old_index_block_hash: string | null;
+	new_index_block_hash: string | null;
+	/** Orphaned cursor span `<block_height>:<tx_index>`, inclusive. */
+	orphaned_range: { from: string; to: string };
+	/** New canonical tip cursor to resume from. */
+	new_canonical_tip: string;
+};
+
 export type IndexUsage = {
 	product: "index";
 	tier: string;
@@ -32,8 +51,8 @@ export type FtTransfersEnvelope = {
 	events: FtTransfer[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Reserved envelope field. v1 currently always emits [].
-	reorgs: never[];
+	// Chain reorgs overlapping this page's height range; empty when none.
+	reorgs: IndexReorg[];
 };
 
 export type FtTransfersListParams = {
@@ -70,8 +89,8 @@ export type NftTransfersEnvelope = {
 	events: NftTransfer[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Reserved envelope field. v1 currently always emits [].
-	reorgs: never[];
+	// Chain reorgs overlapping this page's height range; empty when none.
+	reorgs: IndexReorg[];
 };
 
 export type NftTransfersListParams = {
@@ -189,7 +208,8 @@ export type EventsEnvelope = {
 	events: IndexEvent[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	reorgs: never[];
+	// Chain reorgs overlapping this page's height range; empty when none.
+	reorgs: IndexReorg[];
 };
 
 export type EventsListParams = {
@@ -232,7 +252,8 @@ export type ContractCallsEnvelope = {
 	contract_calls: IndexContractCall[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	reorgs: never[];
+	// Chain reorgs overlapping this page's height range; empty when none.
+	reorgs: IndexReorg[];
 };
 
 export type ContractCallsListParams = {
@@ -390,7 +411,8 @@ export type TransactionsEnvelope = {
 	transactions: IndexTransaction[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	reorgs: never[];
+	// Chain reorgs overlapping this page's height range; empty when none.
+	reorgs: IndexReorg[];
 };
 
 export type TransactionEnvelope = {
@@ -446,8 +468,8 @@ export type StackingEnvelope = {
 	stacking: IndexStackingAction[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Reserved envelope field. v1 currently always emits [].
-	reorgs: never[];
+	// Chain reorgs overlapping this page's height range; empty when none.
+	reorgs: IndexReorg[];
 	/** Present only when the PoX-4 decoder is disabled, explaining an empty feed. */
 	notes?: string;
 };

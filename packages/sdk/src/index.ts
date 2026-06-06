@@ -52,6 +52,7 @@ export type {
 	IndexEventType,
 	IndexMempoolTransaction,
 	IndexPostCondition,
+	IndexReorg,
 	IndexStackingAction,
 	IndexTip,
 	IndexTransaction,
