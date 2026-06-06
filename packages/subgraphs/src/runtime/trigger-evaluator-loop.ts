@@ -4,7 +4,7 @@ import { getTargetDb } from "@secondlayer/shared/db";
 import { listActiveChainSubscriptions } from "@secondlayer/shared/db/queries/subscriptions";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
-import { PublicApiBlockSource, buildHttpClient } from "./block-source.ts";
+import { buildChainBlockSource } from "./block-source.ts";
 import {
 	buildSourcesMap,
 	buildTraitContracts,
@@ -74,10 +74,7 @@ export async function runEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
 ): Promise<number> {
 	const chainSubs = await listActiveChainSubscriptions(db);
-	const source = new PublicApiBlockSource(
-		buildHttpClient(),
-		referencedEventTypes(chainSubs),
-	);
+	const source = buildChainBlockSource(referencedEventTypes(chainSubs));
 	const tip = await source.getTip();
 	if (tip <= 0) return 0;
 

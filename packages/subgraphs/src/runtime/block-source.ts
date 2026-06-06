@@ -173,7 +173,62 @@ export class PublicApiBlockSource implements BlockSource {
 	}
 }
 
+/**
+ * Wraps a primary source and falls back to a secondary, per call, when the
+ * primary throws. Use it to make the HTTP (Streams+Index) plane a SOFT dependency:
+ * if api is unavailable, the processor reads the Postgres tap and keeps advancing
+ * instead of stalling. Safe to mix mid-stream — both taps read the same canonical
+ * chain at the same heights and the cursor is forward-only. Stateless (no breaker)
+ * so it's failover-safe across replicas; the primary is retried every call and
+ * resumes transparently once healthy.
+ */
+export class FallbackBlockSource implements BlockSource {
+	constructor(
+		private readonly primary: BlockSource,
+		private readonly fallback: BlockSource,
+	) {}
+
+	async getTip(): Promise<number> {
+		try {
+			return await this.primary.getTip();
+		} catch (err) {
+			logger.warn("block source primary getTip failed — using DB tap", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+			return this.fallback.getTip();
+		}
+	}
+
+	async loadBlockRange(
+		fromHeight: number,
+		toHeight: number,
+	): Promise<Map<number, BlockData>> {
+		try {
+			return await this.primary.loadBlockRange(fromHeight, toHeight);
+		} catch (err) {
+			logger.warn("block source primary loadBlockRange failed — using DB tap", {
+				from: fromHeight,
+				to: toHeight,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			return this.fallback.loadBlockRange(fromHeight, toHeight);
+		}
+	}
+}
+
 const postgresBlockSource = new PostgresBlockSource();
+
+/**
+ * HTTP (Streams+Index) chain source for a set of decoded event types, wrapped so
+ * it falls back to the Postgres tap when api is down. Used by the chain-trigger
+ * evaluator (which isn't subgraph-scoped, so it can't go through resolveBlockSource).
+ */
+export function buildChainBlockSource(eventTypes: string[]): BlockSource {
+	return new FallbackBlockSource(
+		new PublicApiBlockSource(buildHttpClient(), eventTypes),
+		postgresBlockSource,
+	);
+}
 
 export function buildHttpClient(): IndexHttpClient {
 	const baseUrl =
@@ -199,9 +254,14 @@ export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
 		subgraph &&
 		isStreamsIndexEligible(subgraph)
 	) {
-		return new PublicApiBlockSource(
-			buildHttpClient(),
-			referencedIndexEventTypes(subgraph),
+		// Soft-depend on api: fall back to the Postgres tap per-call if the HTTP
+		// plane is down, so the processor keeps advancing instead of stalling.
+		return new FallbackBlockSource(
+			new PublicApiBlockSource(
+				buildHttpClient(),
+				referencedIndexEventTypes(subgraph),
+			),
+			postgresBlockSource,
 		);
 	}
 	if (process.env.SUBGRAPH_SOURCE === "streams-index" && subgraph) {
