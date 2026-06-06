@@ -70,6 +70,11 @@ describe.skipIf(!HAS_DB)("Index canonical DB reads", () => {
 
 	beforeEach(async () => {
 		if (!db) return;
+		// Clear the full FK chain first: leftover rows from sibling suites
+		// (events → transactions → blocks) would otherwise violate FKs on delete.
+		await sql`DELETE FROM events`.execute(db);
+		await sql`DELETE FROM decoded_events`.execute(db);
+		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
 	});
 
