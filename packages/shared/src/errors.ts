@@ -20,11 +20,19 @@ export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 export class SecondLayerError extends Error {
 	public code: ErrorCode;
 	public override cause?: unknown;
+	/** Optional structured payload merged into the HTTP error body (machine-readable hints). */
+	public details?: Record<string, unknown>;
 
-	constructor(code: ErrorCode, message: string, cause?: unknown) {
+	constructor(
+		code: ErrorCode,
+		message: string,
+		cause?: unknown,
+		details?: Record<string, unknown>,
+	) {
 		super(message);
 		this.code = code;
 		this.cause = cause;
+		this.details = details;
 		this.name = this.constructor.name;
 		Error.captureStackTrace?.(this, this.constructor);
 	}
@@ -35,6 +43,7 @@ export class SecondLayerError extends Error {
 		message: string;
 		stack: string | undefined;
 		cause: unknown;
+		details: Record<string, unknown> | undefined;
 	} {
 		return {
 			name: this.name,
@@ -42,6 +51,7 @@ export class SecondLayerError extends Error {
 			message: this.message,
 			stack: this.stack,
 			cause: this.cause,
+			details: this.details,
 		};
 	}
 }
@@ -71,8 +81,8 @@ export class AuthenticationError extends SecondLayerError {
 }
 
 export class AuthorizationError extends SecondLayerError {
-	constructor(message: string) {
-		super("AUTHORIZATION_ERROR", message);
+	constructor(message: string, details?: Record<string, unknown>) {
+		super("AUTHORIZATION_ERROR", message, undefined, details);
 	}
 }
 

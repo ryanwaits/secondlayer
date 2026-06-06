@@ -202,9 +202,24 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		expect(res.status).toBe(403);
-		const body = (await res.json()) as { error: string };
+		const body = (await res.json()) as {
+			error: string;
+			code: string;
+			details?: {
+				reason?: string;
+				oldest_seekable_height?: number;
+				oldest_cursor?: string;
+				dumps_manifest_url?: string | null;
+			};
+		};
 		expect(body.error).toContain("free tier");
 		expect(body.error).toContain("last 7 days");
+		// Enriched 403: machine-readable retention reason + a pointer to the cold lane.
+		expect(body.details?.reason).toBe("RETENTION");
+		const oldest = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY;
+		expect(body.details?.oldest_seekable_height).toBe(oldest);
+		expect(body.details?.oldest_cursor).toBe(`${oldest}:0`);
+		expect("dumps_manifest_url" in (body.details ?? {})).toBe(true);
 	});
 
 	test("Missing token returns 401", async () => {

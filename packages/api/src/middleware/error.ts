@@ -51,7 +51,16 @@ export const errorHandler: ErrorHandler = (error, c) => {
 			>
 		)[code];
 		if (status) {
-			return c.json({ error: error.message, code }, status);
+			const details =
+				"details" in error &&
+				error.details &&
+				typeof error.details === "object"
+					? (error.details as Record<string, unknown>)
+					: undefined;
+			return c.json(
+				{ error: error.message, code, ...(details ? { details } : {}) },
+				status,
+			);
 		}
 	}
 

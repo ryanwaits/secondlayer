@@ -5,6 +5,7 @@ import {
 import type { MiddlewareHandler } from "hono";
 import type { StreamsEnv } from "./auth.ts";
 import { decodeStreamsCursor } from "./cursor.ts";
+import { streamsDumpsManifestUrl } from "./dumps.ts";
 import { STREAMS_TIER_CONFIG, getStreamsRetentionCutoff } from "./tiers.ts";
 import type { StreamsTipProvider } from "./tip.ts";
 
@@ -59,8 +60,17 @@ export function streamsRetentionWindow(opts: {
 		if (requestedHeight !== null) {
 			const cutoff = getStreamsRetentionCutoff(tenant.tier, tip.block_height);
 			if (cutoff !== null && requestedHeight < cutoff) {
+				// Point the caller at the cold dumps lane instead of dead-ending: the
+				// requested height is past the live retention floor but available there.
 				throw new AuthorizationError(
 					`${tenant.tier} tier can read only the last ${retentionDays} days of Stacks Streams data`,
+					{
+						reason: "RETENTION",
+						oldest_seekable_height: cutoff,
+						oldest_cursor: `${cutoff}:0`,
+						dumps_manifest_url: streamsDumpsManifestUrl(),
+						hint: "This height is past the live retention floor; read it from the cold dumps lane (dumps_manifest_url).",
+					},
 				);
 			}
 		}

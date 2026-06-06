@@ -78,7 +78,13 @@ describe("@secondlayer/sdk Streams integration", () => {
 			},
 		});
 
-		await expect(client.tip()).resolves.toEqual(TIP);
+		// Tip now advertises the seekable floor; build-tier retention exceeds this
+		// tiny test tip so the cutoff clamps to 0.
+		await expect(client.tip()).resolves.toEqual({
+			...TIP,
+			oldest_seekable_height: 0,
+			oldest_cursor: "0:0",
+		});
 
 		const envelope = await client.events.list({
 			types: ["ft_transfer"],
