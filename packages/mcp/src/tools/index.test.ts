@@ -53,6 +53,7 @@ describe("index MCP tools", () => {
 			"index_block",
 			"index_blocks",
 			"index_canonical",
+			"index_codegen",
 			"index_contract_calls",
 			"index_events",
 			"index_ft_transfers",
@@ -74,6 +75,17 @@ describe("index MCP tools", () => {
 			.find((t) => t.name === "index_events")
 			?.handler({ eventType: "print", contractId: "SP1.x" });
 		expect(calls.events).toEqual({ eventType: "print", contractId: "SP1.x" });
+	});
+
+	it("index_codegen emits a typed Index schema without an API call", async () => {
+		const tools: RegisteredTool[] = [];
+		registerIndexTools(fakeServer(tools), () => ({}) as never);
+		const res = await tools
+			.find((t) => t.name === "index_codegen")
+			?.handler({ target: "kysely", tables: ["blocks"] });
+		expect(res?.isError).toBeUndefined();
+		expect(res?.content[0]?.text).toContain("export interface Blocks {");
+		expect(res?.content[0]?.text).toContain("height: number;");
 	});
 
 	it("coerces numeric refs and surfaces a null get as not_found", async () => {

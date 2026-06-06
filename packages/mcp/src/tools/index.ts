@@ -1,5 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
+import {
+	generateIndexSchema,
+	INDEX_CODEGEN_TABLES,
+} from "@secondlayer/subgraphs";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
@@ -293,5 +297,33 @@ export function registerIndexTools(
 		"Your own Index consumption (decoded events today + this month) and tier limits. Requires a Build+ API key (anonymous reads can't report usage).",
 		{},
 		async () => jsonResponse(await clientProvider().index.usage()),
+	);
+
+	defineTool<{
+		target?: "kysely" | "drizzle" | "json-schema";
+		tables?: string[];
+		schemaName?: string;
+	}>(
+		server,
+		"index_codegen",
+		`Generate a typed schema (Kysely, Drizzle, or JSON-Schema) for the public Index domain tables so they can be mirrored into a BYO database with full types. Returns the schema as text. Tables: ${INDEX_CODEGEN_TABLES.join(", ")}. (Prisma is unsupported — the read contract declares no primary key.)`,
+		{
+			target: z
+				.enum(["kysely", "drizzle", "json-schema"])
+				.optional()
+				.describe("Output target (default kysely)"),
+			tables: z
+				.array(z.string())
+				.optional()
+				.describe("Subset of Index tables (default: all)"),
+			schemaName: z
+				.string()
+				.optional()
+				.describe("Postgres schema to qualify table names with"),
+		},
+		async ({ target = "kysely", tables, schemaName }) => {
+			const out = generateIndexSchema(target, { tables, schemaName });
+			return { content: [{ type: "text", text: out }] };
+		},
 	);
 }
