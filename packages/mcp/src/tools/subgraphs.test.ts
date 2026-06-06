@@ -40,6 +40,35 @@ describe("subgraph MCP tools", () => {
 		expect(startBlock.safeParse(1.5).success).toBe(false);
 	});
 
+	it("subgraphs_codegen generates an ORM schema from code", async () => {
+		const tools: RegisteredTool[] = [];
+		registerSubgraphTools(fakeServer(tools), () => ({}) as never);
+		const codegen = tools.find((tool) => tool.name === "subgraphs_codegen");
+		expect(codegen).toBeDefined();
+		if (!codegen) throw new Error("subgraphs_codegen not registered");
+
+		const code = `import { defineSubgraph } from "@secondlayer/subgraphs";
+export default defineSubgraph({
+  name: "dex",
+  sources: { calls: { type: "contract_call", contractId: "SP.dex" } },
+  schema: { swaps: { columns: { amount: { type: "uint" } } } },
+  handlers: { calls: async () => {} },
+});`;
+		const result = await codegen.handler({ code, target: "kysely" });
+		expect(result.isError).toBeUndefined();
+		expect(result.content[0]?.text).toContain("export interface DB");
+		expect(result.content[0]?.text).toContain("amount: string;");
+	});
+
+	it("subgraphs_codegen rejects code+name together", async () => {
+		const tools: RegisteredTool[] = [];
+		registerSubgraphTools(fakeServer(tools), () => ({}) as never);
+		const codegen = tools.find((tool) => tool.name === "subgraphs_codegen");
+		const result = await codegen?.handler({ code: "x", name: "y" });
+		expect(result?.isError).toBe(true);
+		expect(result?.content[0]?.text).toContain("exactly one");
+	});
+
 	it("registers subgraphs_spec with agent default format", async () => {
 		const tools: RegisteredTool[] = [];
 		registerSubgraphTools(

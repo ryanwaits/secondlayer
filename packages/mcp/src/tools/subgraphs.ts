@@ -1,5 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bundleSubgraphCode } from "@secondlayer/bundler";
+import {
+	generateDrizzleSchema,
+	generateKyselySchema,
+	generatePrismaSchema,
+	type SubgraphDefinition,
+} from "@secondlayer/subgraphs";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { formatSubgraphSummary, withCap } from "../lib/format.ts";
@@ -263,6 +269,66 @@ export function registerSubgraphTools(
 			return {
 				content: [{ type: "text", text: JSON.stringify(source, null, 2) }],
 			};
+		},
+	);
+
+	defineTool<{
+		code?: string;
+		name?: string;
+		target?: "prisma" | "drizzle" | "kysely";
+		schemaName?: string;
+	}>(
+		server,
+		"subgraphs_codegen",
+		"Generate a typed ORM schema (Prisma, Drizzle, or Kysely) for a subgraph's tables so they can be queried from a BYO database. Pass either `code` (defineSubgraph source) or `name` (a deployed subgraph — its captured source is used). Returns the schema as text.",
+		{
+			code: z
+				.string()
+				.optional()
+				.describe("defineSubgraph() source (mutually exclusive with name)"),
+			name: z
+				.string()
+				.optional()
+				.describe("Deployed subgraph name (mutually exclusive with code)"),
+			target: z
+				.enum(["prisma", "drizzle", "kysely"])
+				.optional()
+				.describe("ORM target (default prisma)"),
+			schemaName: z
+				.string()
+				.optional()
+				.describe("Postgres schema name (defaults to subgraph_<name>)"),
+		},
+		async ({ code, name, target = "prisma", schemaName }) => {
+			if ((code && name) || (!code && !name)) {
+				throw new Error("Provide exactly one of `code` or `name`.");
+			}
+			let source = code;
+			if (name) {
+				const stored = await clientProvider().subgraphs.getSource(name);
+				if (!stored.sourceCode) {
+					throw new Error(
+						`Subgraph "${name}" has no captured source (deployed before source capture). Redeploy it, or pass its source as \`code\`.`,
+					);
+				}
+				source = stored.sourceCode;
+			}
+			const bundled = await bundleSubgraphCode(source as string);
+			const def: SubgraphDefinition = {
+				name: bundled.name,
+				version: bundled.version,
+				description: bundled.description,
+				sources: bundled.sources as unknown as SubgraphDefinition["sources"],
+				schema: bundled.schema as SubgraphDefinition["schema"],
+				handlers: {},
+			};
+			const out =
+				target === "drizzle"
+					? generateDrizzleSchema(def, { schemaName })
+					: target === "kysely"
+						? generateKyselySchema(def, { schemaName })
+						: generatePrismaSchema(def, { schemaName });
+			return { content: [{ type: "text", text: out }] };
 		},
 	);
 }

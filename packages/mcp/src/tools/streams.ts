@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AuthError } from "@secondlayer/sdk";
+import type { StreamsEvent, StreamsReorg } from "@secondlayer/sdk";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { z } from "zod/v4";
 import { getClient, keyHint } from "../lib/client.ts";
@@ -91,6 +92,88 @@ export function registerStreamsTools(
 			withStreamsAuthHint(async () =>
 				jsonResponse(await clientProvider().streams.events.list(params)),
 			),
+	);
+
+	defineTool<{
+		fromCursor?: string;
+		types?: (typeof STREAMS_EVENT_TYPES)[number][];
+		notTypes?: (typeof STREAMS_EVENT_TYPES)[number][];
+		contractId?: string;
+		sender?: string;
+		recipient?: string;
+		assetIdentifier?: string;
+		batchSize?: number;
+		maxPages?: number;
+		finalizedOnly?: boolean;
+	}>(
+		server,
+		"streams_consume",
+		"Consume a bounded, reorg-aware run of Streams events from a cursor. Walks up to maxPages pages and returns the events, any reorgs observed, and a resume `cursor` to pass back as fromCursor next call — the agent-native consume/resume primitive. Streams requires an API key (SL_API_KEY).",
+		{
+			fromCursor: z
+				.string()
+				.optional()
+				.describe("Resume cursor from a prior consume (omit to start at genesis)"),
+			types: z
+				.array(z.enum(STREAMS_EVENT_TYPES))
+				.optional()
+				.describe("Event types to include"),
+			notTypes: z
+				.array(z.enum(STREAMS_EVENT_TYPES))
+				.optional()
+				.describe("Event types to exclude"),
+			contractId: z.string().optional().describe("Filter by contract id"),
+			sender: z.string().optional().describe("Filter by sender principal"),
+			recipient: z.string().optional().describe("Filter by recipient principal"),
+			assetIdentifier: z
+				.string()
+				.optional()
+				.describe("Filter by asset identifier"),
+			batchSize: z
+				.number()
+				.optional()
+				.describe("Events per page (1–1000, default 100)"),
+			maxPages: z
+				.number()
+				.optional()
+				.describe("Max pages to walk this call (1–20, default 5)"),
+			finalizedOnly: z
+				.boolean()
+				.optional()
+				.describe("Only emit finalized events; skip reorg handling"),
+		},
+		async (params) =>
+			withStreamsAuthHint(async () => {
+				const maxPages = Math.min(Math.max(params.maxPages ?? 5, 1), 20);
+				const batchSize = Math.min(Math.max(params.batchSize ?? 100, 1), 1000);
+				const events: StreamsEvent[] = [];
+				const reorgs: StreamsReorg[] = [];
+				const result = await clientProvider().streams.events.consume({
+					fromCursor: params.fromCursor ?? null,
+					mode: "bounded",
+					finalizedOnly: params.finalizedOnly,
+					types: params.types,
+					notTypes: params.notTypes,
+					contractId: params.contractId,
+					sender: params.sender,
+					recipient: params.recipient,
+					assetIdentifier: params.assetIdentifier,
+					batchSize,
+					maxPages,
+					onBatch: (batch) => {
+						events.push(...batch);
+					},
+					onReorg: (reorg) => {
+						reorgs.push(reorg);
+					},
+				});
+				return jsonResponse({
+					events,
+					reorgs,
+					cursor: result.cursor,
+					pages: result.pages,
+				});
+			}),
 	);
 
 	defineTool<{ txId: string }>(

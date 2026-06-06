@@ -50,6 +50,7 @@ describe("streams MCP tools", () => {
 		expect(tools.map((t) => t.name).sort()).toEqual([
 			"streams_block_events",
 			"streams_canonical",
+			"streams_consume",
 			"streams_event_by_txid",
 			"streams_events",
 			"streams_reorgs",
@@ -68,6 +69,44 @@ describe("streams MCP tools", () => {
 			.find((t) => t.name === "streams_events")
 			?.handler({ fromHeight: 10, toHeight: 20 });
 		expect(listed).toEqual({ fromHeight: 10, toHeight: 20 });
+	});
+
+	it("streams_consume clamps bounds and returns accumulated events + resume cursor", async () => {
+		const tools: RegisteredTool[] = [];
+		let consumeParams: { batchSize?: number; maxPages?: number } = {};
+		const client = {
+			streams: {
+				tip: async () => ({}),
+				events: {
+					list: async () => ({ events: [] }),
+					// biome-ignore lint/suspicious/noExplicitAny: test double
+					consume: async (params: any) => {
+						consumeParams = params;
+						await params.onBatch([{ cursor: "10:1" }, { cursor: "10:2" }]);
+						await params.onReorg?.({ fork_point_height: 9 });
+						return { cursor: "10:2", pages: 1, emptyPolls: 0 };
+					},
+				},
+			},
+		};
+		registerStreamsTools(
+			fakeServer(tools),
+			() =>
+				client as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+
+		const res = await tools
+			.find((t) => t.name === "streams_consume")
+			?.handler({ batchSize: 99999, maxPages: 0, fromCursor: "10:0" });
+		// Clamped: batchSize ≤ 1000, maxPages ≥ 1, bounded mode.
+		expect(consumeParams.batchSize).toBe(1000);
+		expect(consumeParams.maxPages).toBe(1);
+		const body = JSON.parse(res?.content[0]?.text ?? "{}");
+		expect(body.events).toHaveLength(2);
+		expect(body.reorgs).toHaveLength(1);
+		expect(body.cursor).toBe("10:2");
 	});
 
 	it("decorates a keyless AuthError with the API-key hint", async () => {
