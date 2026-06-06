@@ -18,6 +18,12 @@ export interface BlocksTable {
 		string | null | undefined,
 		string | null
 	>;
+	/** Nakamoto StacksBlockId. Null on rows ingested before it was persisted. */
+	index_block_hash: ColumnType<
+		string | null,
+		string | null | undefined,
+		string | null
+	>;
 	timestamp: number;
 	canonical: Generated<boolean>;
 	created_at: Generated<Date>;
