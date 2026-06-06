@@ -91,6 +91,8 @@ export type {
 	WhereInput,
 	FindManyOptions,
 	SubgraphTableClient,
+	AggregateSpec,
+	AggregateResult,
 	SubscribeOptions,
 	InferSubgraphClient,
 	WriteRow,

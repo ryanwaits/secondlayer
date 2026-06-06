@@ -117,9 +117,71 @@ export interface SubscribeOptions<TRow> {
 	onError?: (err: unknown) => void;
 }
 
+// ── Aggregate spec + result inference ────────────────────────────────────
+
+/**
+ * Numeric column keys of a row — those whose (non-null) TS type is `bigint`
+ * (uint/int columns, incl. nullable, plus the system `_blockHeight`). Only
+ * these are valid SUM/MIN/MAX targets at compile time.
+ */
+type NumericKeys<TRow> = {
+	[K in keyof TRow]-?: NonNullable<TRow[K]> extends bigint ? K : never;
+}[keyof TRow] &
+	string;
+
+/** Any column key of a row (valid COUNT DISTINCT target). */
+type AnyKey<TRow> = keyof TRow & string;
+
+/** Aggregate request spec. SUM/MIN/MAX restricted to numeric columns. */
+export interface AggregateSpec<TRow> {
+	count?: boolean;
+	countDistinct?: AnyKey<TRow>[];
+	sum?: NumericKeys<TRow>[];
+	min?: NumericKeys<TRow>[];
+	max?: NumericKeys<TRow>[];
+	where?: WhereInput<TRow> & SystemWhereAliases;
+}
+
+/** Narrows the literal column names listed under a spec key. */
+type ColsOf<A, K extends keyof A> = A[K] extends readonly (infer C extends
+	string)[]
+	? C
+	: never;
+
+/**
+ * Result shape inferred from an `AggregateSpec`. Each block is present only when
+ * the corresponding spec key was provided. Counts are numbers; sum/min/max are
+ * lossless strings (min/max nullable over an empty/all-null set).
+ */
+export type AggregateResult<
+	TRow,
+	A extends AggregateSpec<TRow>,
+> = (A["count"] extends true ? { count: number } : unknown) &
+	(A["countDistinct"] extends readonly string[]
+		? { countDistinct: Record<ColsOf<A, "countDistinct">, number> }
+		: unknown) &
+	(A["sum"] extends readonly string[]
+		? { sum: Record<ColsOf<A, "sum">, string> }
+		: unknown) &
+	(A["min"] extends readonly string[]
+		? { min: Record<ColsOf<A, "min">, string | null> }
+		: unknown) &
+	(A["max"] extends readonly string[]
+		? { max: Record<ColsOf<A, "max">, string | null> }
+		: unknown);
+
 export interface SubgraphTableClient<TRow> {
 	findMany(options?: FindManyOptions<TRow>): Promise<TRow[]>;
 	count(where?: WhereInput<TRow> & SystemWhereAliases): Promise<number>;
+	/**
+	 * Scalar aggregates over the filtered set. SUM/MIN/MAX accept numeric columns
+	 * only (compile-time enforced). The result type is narrowed from the spec —
+	 * no `as const` needed thanks to the `const` type parameter. SUM/MIN/MAX are
+	 * lossless strings; counts are numbers.
+	 */
+	aggregate<const A extends AggregateSpec<TRow>>(
+		spec: A,
+	): Promise<AggregateResult<TRow, A>>;
 	/**
 	 * Stream rows as they're indexed over Server-Sent Events. `onRow` fires for
 	 * each new row (block-cadence). Returns an unsubscribe function that closes
