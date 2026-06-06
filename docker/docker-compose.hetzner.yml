@@ -77,7 +77,10 @@ services:
 
   api:
     environment:
-      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
+      # The tx-inclusion proof route fetches signed block headers from the node's
+      # /v3/blocks; default to the same node the indexer uses so proofs work
+      # without a .env entry.
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
       HIRO_API_URL: ${HIRO_API_URL:-}
       HIRO_API_KEY: ${HIRO_API_KEY:-}
       # Reorg-safety margin (blocks) the public Streams tip is held back from the
