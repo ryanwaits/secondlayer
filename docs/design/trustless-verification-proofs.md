@@ -232,3 +232,15 @@ version(u8) ‖ chain_length(u64 BE) ‖ burn_spent(u64 BE) ‖ consensus_hash(2
 Gotchas that cost time and are now pinned: the `index_block_hash` preimage is `block_hash ‖ consensus_hash` (not the reverse); the `pox_treatment` BitVec carries an internal `u32` length prefix on its data vec (the 4 bytes that must be in the `block_hash` preimage); the `/v3/blocks` path id must be un-prefixed hex.
 
 A deterministic fixture (one full block + its raw txs + expected hashes) is checked in at `packages/shared/src/node/__fixtures__/nakamoto-block.json` and exercised by `nakamoto.test.ts`.
+
+### Appendix — Verified signer-signature recovery (mainnet 3.4.0.0.3)
+
+Confirmed against a real mainnet block (height 8,199,723, reward cycle 136, 23 of 33 signers) — the consensus-verification primitives, recovered and weighed end-to-end:
+
+- **Signature layout**: each header `signer_signature` is a 65-byte recoverable ECDSA in **VRS** order — `recovery(1) ‖ r(32) ‖ s(32)`.
+- **What is signed**: the signers sign the **`block_hash` directly** (= `signer_signature_hash`, the header minus the signer vector). No extra domain-separation hash — `recoverPublicKey(block_hash, sig)` yields the signer's compressed pubkey.
+- **Reward set**: `GET /v3/stacker_set/{cycle}` → `stacker_set.signers[{ signing_key (33-byte compressed pubkey), weight }]`. Cycle = `floor((burn_block_height − first_burnchain_block_height) / reward_cycle_length)` = `floor((burn − 666050) / 2100)` on mainnet (from `/v2/pox`).
+- **Threshold**: sum the `weight` of every reward-set signer whose key a header signature recovers to (dedup keys); assert `signed_weight ≥ floor(total_weight * 7 / 10)`. Validated: 23/23 recovered keys in-set, weight 2744/3862 ≥ 2703.
+- **Tooling**: `recoverPublicKey` already exists in `@secondlayer/stacks` (`utils/signature.ts`, VRS) over `@noble/secp256k1`.
+
+So the consensus verifier is "recover each sig → match to the cycle reward set → sum weights ≥ 70%", with no unknown format work remaining.
