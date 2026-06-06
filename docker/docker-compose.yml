@@ -218,6 +218,10 @@ services:
       STREAMS_BULK_R2_ACCESS_KEY_ID: ${STREAMS_BULK_R2_ACCESS_KEY_ID:-}
       STREAMS_BULK_R2_SECRET_ACCESS_KEY: ${STREAMS_BULK_R2_SECRET_ACCESS_KEY:-}
       STREAMS_BULK_R2_BUCKET: ${STREAMS_BULK_R2_BUCKET:-}
+      # The bulk exporter signs each manifest with the platform Streams key (same
+      # key the api signs live responses with) so the cold lane carries the same
+      # ed25519 authenticity proof. Unset → manifests export unsigned (legacy).
+      STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
       DATASETS_PREFIX: ${DATASETS_PREFIX:-stacks-datasets/mainnet/v0}
       DATASETS_OUTPUT_DIR: ${DATASETS_OUTPUT_DIR:-tmp/datasets}
     ports:

@@ -152,6 +152,13 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    deploy:
+      # N replicas scale webhook DELIVERY (the emitter is a competing-consumer via
+      # FOR UPDATE SKIP LOCKED) and add failover for the single-leader evaluator +
+      # chain-reorg rewind (a standby acquires the lock within pollMs if the leader
+      # dies). The evaluator itself stays single-leader, so this is throughput +
+      # availability, not faster evaluation.
+      replicas: ${SUBSCRIPTION_PROCESSOR_REPLICAS:-2}
 
   agent:
     container_name: secondlayer-agent
