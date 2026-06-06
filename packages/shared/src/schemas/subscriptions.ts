@@ -562,6 +562,16 @@ export interface ReplayResult {
 	scannedCount: number;
 }
 
+/** Result of a one-off test delivery (`POST /:id/test`). Logged as a delivery
+ *  row (with a null outbox_id) so it shows up under the subscription's deliveries. */
+export interface SubscriptionTestResult {
+	ok: boolean;
+	statusCode: number | null;
+	error: string | null;
+	durationMs: number;
+	deliveryId: string;
+}
+
 export interface DeadRow {
 	id: string;
 	eventType: string;
