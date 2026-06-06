@@ -40,6 +40,7 @@
 		"@secondlayer/scaffold": "^1.0.6",
 		"@secondlayer/sdk": "^6.9.1",
 		"@secondlayer/shared": "^6.18.0",
+		"@secondlayer/subgraphs": "^3.7.4",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

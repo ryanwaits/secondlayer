@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { getClient } from "./lib/client.ts";
+import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import { getRegisteredToolNames } from "./lib/tool.ts";
-import { buildCapabilities, buildContext } from "./resources.ts";
+import type { getClient } from "./lib/client.ts";
+import { buildCapabilities, buildContext, COLUMN_TYPES } from "./resources.ts";
 import { createServer } from "./server.ts";
 
 type Client = ReturnType<typeof getClient>;
@@ -75,6 +76,37 @@ describe("secondlayer://context", () => {
 		expect(ctx.whatExists.subscriptions).toBe("unavailable: set SL_API_KEY");
 		expect(ctx.whatExists.account).toBe("unavailable: set SL_API_KEY");
 		expect(ctx.whatExists.streamsTip).toBe("unavailable: set SL_API_KEY");
+	});
+});
+
+describe("column-types ↔ subgraphs TYPE_MAP", () => {
+	// Guards against the served column-type reference drifting behind the deployer's
+	// TYPE_MAP (which is what actually creates the columns). If this fails, a type
+	// was added/renamed in subgraphs — the resource is derived, so fix TYPE_MAP /
+	// COLUMN_TYPE_DESCRIPTIONS, never hand-edit the served list.
+	const typeEntries = COLUMN_TYPES.filter((e) => "type" in e);
+
+	it("serves exactly the TYPE_MAP column types", () => {
+		const served = typeEntries.map((e) => e.type).sort();
+		expect(served).toEqual(Object.keys(TYPE_MAP).sort());
+	});
+
+	it("maps every type to its real SQL type (not a stale alias)", () => {
+		for (const e of typeEntries) {
+			expect(e.sqlType).toBe(TYPE_MAP[e.type as keyof typeof TYPE_MAP]);
+		}
+		// Lock the specific drift the audit caught: NUMERIC (not bigint), boolean/jsonb.
+		const byType = new Map(typeEntries.map((e) => [e.type, e.sqlType]));
+		expect(byType.get("uint")).toBe("NUMERIC");
+		expect(byType.get("boolean")).toBe("BOOLEAN");
+		expect(byType.get("timestamp")).toBe("TIMESTAMPTZ");
+	});
+
+	it("has a description for every type", () => {
+		for (const e of typeEntries) {
+			expect(typeof e.description).toBe("string");
+			expect((e.description as string).length).toBeGreaterThan(0);
+		}
 	});
 });
 

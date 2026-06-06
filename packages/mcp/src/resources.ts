@@ -1,4 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
+import type { ColumnType } from "@secondlayer/subgraphs/types";
 import { getClient } from "./lib/client.ts";
 import { formatSubgraphSummary } from "./lib/format.ts";
 import { getRegisteredToolNames } from "./lib/tool.ts";
@@ -35,25 +37,26 @@ const FILTERS_REFERENCE = [
 	{ type: "print_event", fields: ["contract", "event", "contains"] },
 ];
 
-const COLUMN_TYPES = [
-	{
-		type: "uint",
-		sqlType: "bigint",
-		description: "Unsigned integer (Clarity uint)",
-	},
-	{
-		type: "int",
-		sqlType: "bigint",
-		description: "Signed integer (Clarity int)",
-	},
-	{ type: "text", sqlType: "text", description: "UTF-8 string" },
-	{
-		type: "principal",
-		sqlType: "text",
-		description: "Stacks address (standard or contract)",
-	},
-	{ type: "bool", sqlType: "boolean", description: "Boolean value" },
-	{ type: "json", sqlType: "jsonb", description: "Arbitrary JSON data" },
+// Human blurb per column type, keyed by ColumnType so adding a type to the union
+// forces an entry here (the drift test in resources.test.ts asserts full coverage).
+const COLUMN_TYPE_DESCRIPTIONS: Record<ColumnType, string> = {
+	text: "UTF-8 string",
+	uint: "Unsigned integer (Clarity uint) — NUMERIC for lossless 128-bit range",
+	int: "Signed integer (Clarity int) — NUMERIC for lossless 128-bit range",
+	principal: "Stacks address (standard or contract)",
+	boolean: "Boolean value",
+	timestamp: "Timestamp with time zone",
+	jsonb: "Arbitrary JSON data",
+};
+
+// Derived from the subgraphs TYPE_MAP so the type→SQL mapping can't drift behind
+// the deployer (which is what actually creates the columns).
+export const COLUMN_TYPES: Array<Record<string, unknown>> = [
+	...(Object.keys(TYPE_MAP) as ColumnType[]).map((type) => ({
+		type,
+		sqlType: TYPE_MAP[type],
+		description: COLUMN_TYPE_DESCRIPTIONS[type],
+	})),
 	{
 		options: ["nullable", "indexed", "search"],
 		description:
