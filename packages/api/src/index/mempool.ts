@@ -18,9 +18,11 @@
  *     state-changing calls; sample pending fees for inclusion pricing.
  *
  * SHAPE. A pending tx is pre-chain — no block_height / tx_index / result / events —
- * so the document is the transactions shape minus those, plus `received_at`, with
- * a sequence-integer cursor. Never cacheable (always volatile → short private TTL,
- * no ETag).
+ * so the document is the transactions shape minus those, plus `received_at`. Its
+ * cursor is OPAQUE (a base64url envelope over the mempool insertion sequence) —
+ * distinct from the `<block_height>:<event_index>` block-position cursors the
+ * confirmed endpoints use, so callers don't parse it as a height. Pass it back
+ * unchanged. Never cacheable (always volatile → short private TTL, no ETag).
  *
  * COMPLETENESS CAVEAT — read before relying on it. This is a SINGLE-NODE,
  * GO-FORWARD view. The node's `/new_mempool_tx` observer pushes each tx once,
@@ -160,7 +162,7 @@ function normalizeMempool(row: MempoolDbRow): MempoolTransaction {
 	const txType = decoded?.tx_type ?? row.type;
 
 	const tx: MempoolTransaction = {
-		cursor: String(row.seq),
+		cursor: encodeMempoolCursor(Number(row.seq)),
 		tx_id: row.tx_id,
 		tx_type: txType,
 		sender: row.sender,
@@ -194,13 +196,35 @@ function normalizeMempool(row: MempoolDbRow): MempoolTransaction {
 	return jsonSafeBigInt(tx);
 }
 
+// Opaque mempool cursor: a base64url envelope over the insertion sequence, so it
+// reads as opaque (not a block-position `h:N`) and can evolve without a format
+// break. `m:` tags the decoded form.
+const MEMPOOL_CURSOR_PREFIX = "m:";
+
+function encodeMempoolCursor(seq: number): string {
+	return Buffer.from(`${MEMPOOL_CURSOR_PREFIX}${seq}`).toString("base64url");
+}
+
 function parseMempoolCursor(value: string): number {
-	if (!/^(0|[1-9]\d*)$/.test(value)) {
-		throw new ValidationError("cursor must be a mempool sequence integer");
+	// Back-compat: accept the legacy plain-integer cursor still held by in-flight
+	// pagers; new cursors are the opaque envelope below.
+	if (/^(0|[1-9]\d*)$/.test(value)) {
+		const legacy = Number(value);
+		if (Number.isSafeInteger(legacy)) return legacy;
 	}
-	const seq = Number(value);
+	let decoded: string;
+	try {
+		decoded = Buffer.from(value, "base64url").toString("utf8");
+	} catch {
+		throw new ValidationError("cursor is not a valid mempool cursor");
+	}
+	const match = /^m:(0|[1-9]\d*)$/.exec(decoded);
+	if (!match) {
+		throw new ValidationError("cursor is not a valid mempool cursor");
+	}
+	const seq = Number(match[1]);
 	if (!Number.isSafeInteger(seq)) {
-		throw new ValidationError("cursor must be a mempool sequence integer");
+		throw new ValidationError("cursor is not a valid mempool cursor");
 	}
 	return seq;
 }

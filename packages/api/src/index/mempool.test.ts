@@ -134,10 +134,12 @@ describe.skipIf(!HAS_DB)("Index mempool DB reads", () => {
 		});
 		expect(filtered.mempool.map((t) => t.tx_id)).toEqual(["0xcc"]);
 
-		const firstSeq = Number(filtered.mempool[0]?.cursor);
+		// Round-trip the opaque cursor back through the parser to resume.
+		const firstCursor = filtered.mempool[0]?.cursor ?? "";
+		const parsed = parseMempoolQuery(params(`?from_cursor=${firstCursor}`));
 		const after = await readMempool({
 			db: db ?? undefined,
-			after: firstSeq,
+			after: parsed.after,
 			limit: 10,
 		});
 		expect(after.mempool.some((t) => t.tx_id === "0xcc")).toBe(false);
