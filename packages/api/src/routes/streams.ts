@@ -12,6 +12,7 @@ import {
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_TOKEN_STORE,
@@ -34,6 +35,7 @@ import {
 } from "../streams/canonical.ts";
 import {
 	type StreamsEventsReader,
+	getClampedStreamsTipHeight,
 	getStreamsEventsResponse,
 	markFinalized,
 } from "../streams/events.ts";
@@ -47,7 +49,7 @@ import {
 } from "../streams/reorgs.ts";
 import { StreamsResponseCache } from "../streams/response-cache.ts";
 import { streamsRetentionWindow } from "../streams/retention.ts";
-import { respondSignedJson } from "../streams/signing.ts";
+import { getStreamsSigner, respondSignedJson } from "../streams/signing.ts";
 import { STREAMS_TIER_CONFIG } from "../streams/tiers.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
 
@@ -65,6 +67,11 @@ const STREAMS_EVENTS_ALLOWED = [
 	"limit",
 ] as const;
 const STREAMS_REORGS_ALLOWED = ["since", "limit"] as const;
+
+// SSE tail cadence: poll the forward cursor every `POLL_MS`, and emit a `ping`
+// keepalive after `HEARTBEAT_MS` of no events.
+const STREAMS_SSE_POLL_MS = Number(process.env.STREAMS_SSE_POLL_MS) || 1500;
+const STREAMS_SSE_HEARTBEAT_MS = 20_000;
 
 // Machine-readable filter spec for GET /v1/streams discovery (name + type).
 const STREAMS_EVENTS_FILTER_SPEC = [
@@ -257,6 +264,80 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			await recordEventsReturned(accountId, response.events.length);
 		}
 		return respondSignedJson(c, response);
+	});
+
+	// Real-time push: an SSE poll-loop wrapped in `text/event-stream`. Keeps the
+	// immutable/cacheable event model (it's the same forward cursor read), but
+	// pushes new canonical events at poll cadence instead of the SDK long-poll.
+	// Registered before `/events/:tx_id` so "stream" isn't parsed as a tx_id.
+	router.get("/events/stream", async (c) => {
+		const initialQuery = new URL(c.req.url).searchParams;
+		validateQueryParams(initialQuery, STREAMS_EVENTS_ALLOWED);
+		const accountId = c.get("streamsTenant").account_id;
+		const signer = getStreamsSigner();
+
+		// Filters carry across polls; the start position (cursor/from_*) is replaced
+		// by the running cursor once we've delivered anything.
+		const filterParams = new URLSearchParams(initialQuery);
+		for (const k of ["cursor", "from_cursor", "from_height"]) {
+			filterParams.delete(k);
+		}
+		const hasStart = ["cursor", "from_cursor", "from_height"].some((k) =>
+			initialQuery.has(k),
+		);
+
+		return streamSSE(c, async (stream) => {
+			let pollQuery = initialQuery;
+			let initialized = hasStart;
+			let lastBeat = Date.now();
+			while (!stream.aborted) {
+				const tip = await getTip();
+				if (!initialized) {
+					// No start given → live-tail from the current (reorg-clamped) tip.
+					const q = new URLSearchParams(filterParams);
+					q.set("from_height", String(getClampedStreamsTipHeight(tip)));
+					pollQuery = q;
+					initialized = true;
+				}
+				const response = await getStreamsEventsResponse({
+					query: pollQuery,
+					tip,
+					readEvents: opts.readEvents,
+					readReorgs,
+				});
+				for (const event of response.events) {
+					// Inline per-frame signature: SSE has no per-frame headers, so the
+					// ed25519 proof rides in the frame body as `{ event, sig, key_id }`,
+					// signed over the event's exact JSON bytes.
+					const data = signer
+						? JSON.stringify({
+								event,
+								sig: signer.sign(JSON.stringify(event)),
+								key_id: signer.keyId,
+							})
+						: JSON.stringify({ event });
+					await stream.writeSSE({ data, id: event.cursor });
+				}
+				if (response.events.length > 0) {
+					if (accountId) {
+						await recordEventsReturned(accountId, response.events.length);
+					}
+					lastBeat = Date.now();
+					// Resume strictly after the last delivered cursor (input-exclusive).
+					const next =
+						response.next_cursor ?? response.events.at(-1)?.cursor ?? null;
+					const q = new URLSearchParams(filterParams);
+					if (next) q.set("from_cursor", next);
+					pollQuery = q;
+				} else if (Date.now() - lastBeat > STREAMS_SSE_HEARTBEAT_MS) {
+					// Heartbeat as a custom `ping` event (SDK ignores it) to keep the
+					// connection and any intermediary proxies alive while idle.
+					await stream.writeSSE({ event: "ping", data: "" });
+					lastBeat = Date.now();
+				}
+				await stream.sleep(STREAMS_SSE_POLL_MS);
+			}
+		});
 	});
 
 	router.get("/canonical/:height", async (c) => {
