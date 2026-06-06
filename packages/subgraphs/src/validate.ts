@@ -62,7 +62,7 @@ export const SubgraphSchemaSchema: z.ZodType<Record<string, SubgraphTable>> = z
 		"Schema must have at least one table",
 	) as z.ZodType<Record<string, SubgraphTable>>;
 
-const VALID_FILTER_TYPES = [
+export const VALID_FILTER_TYPES = [
 	"stx_transfer",
 	"stx_mint",
 	"stx_burn",
