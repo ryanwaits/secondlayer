@@ -2,6 +2,36 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Subgraphs — June 2026
+
+### Aggregates
+
+Roll up a subgraph table server-side instead of paging every row. The new
+`/aggregate` endpoint runs `count`, `sum`, `min`, `max`, and distinct counts
+over the same filters as the list endpoint.
+
+```ts
+const stats = await sl.subgraphs.sbtcFlows.transfers.aggregate({
+  where: { sender: "SP3PE7Q9..." },
+  sum: ["amount"],
+  countDistinct: ["recipient"],
+});
+```
+
+`sum`/`min`/`max` are numeric-only (enforced at compile time) and return
+lossless strings; the result shape is inferred from the spec. Also available
+over REST and MCP. See [SDK aggregates](/docs/sdk#aggregate-subgraph-rows).
+
+### Safer schema changes on your own database
+
+For [bring-your-own-database](/docs/subgraphs#use-your-own-database--orm)
+subgraphs, a breaking schema change (removed table/column, changed type, or a
+forced reindex) is now **refused** instead of dropping your data. The deploy
+returns the exact migration plan — the `DROP SCHEMA … CASCADE` plus the rebuild
+DDL — so you can run it yourself and re-deploy. `sl subgraphs deploy` prints the
+plan; the SDK throws a typed `ByoBreakingChangeError` exposing `reasons` and
+`plan`.
+
 ## Subscriptions — June 2026
 
 Subscriptions went polymorphic. A subscription is now one of two kinds:

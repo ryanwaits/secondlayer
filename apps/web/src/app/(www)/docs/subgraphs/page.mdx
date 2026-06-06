@@ -83,6 +83,17 @@ curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
 }
 ```
 
+## Aggregate without pulling rows
+
+Roll up a table server-side instead of paging every row: `count`, `sum`, `min`, `max`, and distinct counts over the same filters as the list endpoint.
+
+```bash
+curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers/aggregate \
+  -G -d "_count=true" -d "_sum=amount" -d "_countDistinct=sender"
+```
+
+`_sum`/`_min`/`_max` take numeric columns only. The typed SDK exposes the same as `<table>.aggregate(spec)` — see [SDK aggregates](/docs/sdk#aggregate-subgraph-rows) and the [REST API reference](/docs/rest-api#aggregates) for the full parameter set.
+
 ## Index by standard, not by address
 
 A source can target a token standard instead of a fixed contract. `trait` resolves to **every contract Secondlayer classifies as that standard** — including ones deployed after you ship the subgraph — so you index a whole ecosystem with no address list to maintain:
