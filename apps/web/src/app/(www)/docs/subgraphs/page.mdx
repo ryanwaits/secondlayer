@@ -130,6 +130,24 @@ Prisma and Drizzle have first-class generators; for Kysely, run `kysely-codegen`
 
 Want pushes instead of polling? Bind a [Subscription](/docs/subscriptions) to this table and Secondlayer will POST every matching row change to your webhook — inserts, updates, and deletes, with the verb encoded in the payload `type` (see the [Subscriptions](/docs/subscriptions) page).
 
+### Breaking changes on your own database
+
+For managed subgraphs a breaking schema change (removed table/column, changed column type, or a forced reindex) auto-reindexes by dropping and rebuilding the schema. On a BYO database that drop would destroy your data, so the deploy is **refused** (HTTP `422`) — nothing on your database is touched.
+
+The refusal carries the exact migration plan instead of a generic error. `sl subgraphs deploy` prints the breaking reasons and the `DROP SCHEMA … CASCADE` + rebuild DDL to run yourself, then re-deploy:
+
+```bash
+✗ Refusing breaking schema change on BYO subgraph (no data dropped).
+Breaking changes:
+  ✗ transfers: removed columns [amount]
+To rebuild manually, run on YOUR database:
+  DROP SCHEMA IF EXISTS "sg_my_subgraph" CASCADE;
+  CREATE SCHEMA "sg_my_subgraph";
+  CREATE TABLE …
+```
+
+The SDK throws a typed `ByoBreakingChangeError` exposing `details.reasons` and `details.plan` (`dropStatement`, `statements`, `grantScript`) for programmatic handling. A destructive `--force` rebuild on your database is **not yet supported** — run the DROP manually.
+
 export const metadata = {
 	title: "Subgraphs — Secondlayer Docs",
 	description: "App-specific materialized tables from Stacks contract events.",

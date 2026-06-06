@@ -130,8 +130,13 @@ script and verifies the connection — without writing anything.
   transaction, so a crash replays the block (at-least-once). `ctx.insert` and
   `ctx.upsert` (with a unique key) are safe — flush is replace-per-height. A
   deploy with non-idempotent `ctx.update` / `ctx.patchOrInsert` is rejected.
-- **No reindex.** Reindex would drop + rebuild the schema in your DB from a
-  background job; instead, re-deploy to rebuild (or drop the schema yourself).
+- **No reindex.** A breaking change (removed table/column, changed type, or a
+  forced reindex) would drop + rebuild the schema in your DB, so the deploy is
+  refused with HTTP `422` — nothing is touched. The refusal carries a migration
+  plan: the SDK throws a typed `ByoBreakingChangeError` (`details.reasons` +
+  `details.plan` with `dropStatement`/`statements`/`grantScript`) and the CLI
+  prints the exact `DROP SCHEMA … CASCADE` + rebuild DDL to run yourself, then
+  re-deploy. A destructive `--force` rebuild on your DB is not yet supported.
 - **Delete leaves your data.** Deleting the subgraph removes our registry row
   (and the stored connection) and pauses subscriptions, but never drops the
   schema in your database.
