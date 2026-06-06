@@ -143,6 +143,16 @@ services:
       api:
         condition: service_healthy
 
+  subscription-processor:
+    environment:
+      # Gates the chain-trigger evaluator + chain-reorg poll (both read the public
+      # Streams/Index plane over HTTP at api:3800). The outbox emitter runs
+      # regardless. Unset to roll the chain-subscription plane back to dormant.
+      SUBGRAPH_SOURCE: streams-index
+    depends_on:
+      api:
+        condition: service_healthy
+
   agent:
     container_name: secondlayer-agent
     image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-agent:${DEPLOY_IMAGE_TAG:-latest}

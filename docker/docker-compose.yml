@@ -333,6 +333,45 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Subscription processor — the real-time delivery plane (chain-trigger
+  # evaluator + outbox emitter + chain-reorg rewind) extracted from
+  # subgraph-processor so webhook delivery is isolated from subgraph indexing and
+  # scales on its own. Reuses the `api` image; runs subscription-service.ts (no
+  # HTTP server, so the inherited healthcheck is disabled like subgraph-processor).
+  # Two-deploy cutover: runs ALONGSIDE subgraph-processor (which still boots the
+  # same plane) until the plane is removed there — leader election + the
+  # FOR UPDATE SKIP LOCKED emitter make the duplicate safe (one evaluator leader,
+  # competing-consumer delivery). No views volume (the plane writes no files) and
+  # no operation-runner concurrency (it runs no subgraph operations).
+  subscription-processor:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: api
+    command: ["bun", "run", "packages/subgraphs/src/subscription-service.ts"]
+    healthcheck:
+      disable: true
+    environment:
+      INSTANCE_MODE: ${INSTANCE_MODE:-platform}
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      DATA_DIR: /data
+      # Decrypts per-subscription auth_config (bearer tokens for trigger/cloudflare
+      # webhook formats) in the emitter.
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      postgres-platform:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Worker service — scheduled background jobs (storage measurement + tenant
   # trial/health crons in platform mode).
   worker:
