@@ -76,6 +76,18 @@ jobs:
           - indexer
           - worker
           - agent
+          - l2-decoder
+          - subgraph-processor
+          - subscription-processor
+        # Thin targets (FROM api / FROM indexer) reuse the base image's build
+        # cache scope so they don't rebuild the whole chain.
+        include:
+          - service: l2-decoder
+            base: indexer
+          - service: subgraph-processor
+            base: api
+          - service: subscription-processor
+            base: api
     steps:
       - uses: actions/checkout@v5
       - name: Compute API source digest
@@ -125,7 +137,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SECONDLAYER_API_SOURCE_DIGEST=${{ steps.api-source.outputs.digest }}
-          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-from: |
+            type=gha,scope=${{ matrix.service }}
+            ${{ matrix.base && format('type=gha,scope={0}', matrix.base) || '' }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
 
       # Warm the host's Docker cache while the build is fresh. Each matrix

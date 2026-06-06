@@ -3,7 +3,7 @@ name: OSS Images
 # Publish OSS Docker images to GitHub Container Registry.
 # - Every push to `main` publishes `:latest` + the short SHA.
 # - Git tags matching `v*` publish `:<tag>` (e.g. v1.0.0).
-# Images: ghcr.io/<owner>/secondlayer-{api,indexer}
+# Images: ghcr.io/<owner>/secondlayer-{api,indexer,worker,agent,l2-decoder,subgraph-processor,subscription-processor}
 
 on:
   push:
@@ -25,7 +25,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, indexer, worker, agent]
+        service: [api, indexer, worker, agent, l2-decoder, subgraph-processor, subscription-processor]
+        # Thin targets (FROM api / FROM indexer) reuse the base build cache scope.
+        include:
+          - service: l2-decoder
+            base: indexer
+          - service: subgraph-processor
+            base: api
+          - service: subscription-processor
+            base: api
 
     steps:
       - uses: actions/checkout@v5
@@ -82,5 +90,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SECONDLAYER_API_SOURCE_DIGEST=${{ steps.api-source.outputs.digest }}
-          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-from: |
+            type=gha,scope=${{ matrix.service }}
+            ${{ matrix.base && format('type=gha,scope={0}', matrix.base) || '' }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
