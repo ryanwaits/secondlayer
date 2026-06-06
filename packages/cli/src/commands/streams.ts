@@ -8,25 +8,16 @@ import type {
 	StreamsReorgsListEnvelope,
 	StreamsTip,
 } from "@secondlayer/sdk";
+import { STREAMS_EVENT_TYPES } from "@secondlayer/shared";
 import type { Command } from "commander";
 import { error as logError, note, writeData } from "../lib/output.ts";
 import { resolveEnvKey } from "../lib/resolve-auth.ts";
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
-const VALID_TYPES: StreamsEventType[] = [
-	"stx_transfer",
-	"stx_mint",
-	"stx_burn",
-	"stx_lock",
-	"ft_transfer",
-	"ft_mint",
-	"ft_burn",
-	"nft_transfer",
-	"nft_mint",
-	"nft_burn",
-	"print",
-];
+// Single-sourced from @secondlayer/shared so the CLI can't advertise a stale
+// subset of the Streams event vocab (drift test in streams.test.ts).
+export const VALID_TYPES: readonly StreamsEventType[] = STREAMS_EVENT_TYPES;
 
 function readApiKey(): string {
 	const key = resolveEnvKey();
