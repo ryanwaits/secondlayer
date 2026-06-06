@@ -1,5 +1,7 @@
 import type {
 	ReindexResponse,
+	SubgraphAggregateParams,
+	SubgraphAggregateResponse,
 	SubgraphDetail,
 	SubgraphGapsResponse,
 	SubgraphQueryParams,
@@ -14,6 +16,8 @@ import type {
 	SubgraphSpecOptions,
 } from "@secondlayer/shared/subgraphs/spec";
 import type {
+	AggregateResult,
+	AggregateSpec,
 	FindManyOptions,
 	InferSubgraphClient,
 	SubscribeOptions,
@@ -73,6 +77,23 @@ function buildSubgraphQueryString(params: SubgraphQueryParams): string {
 			qs.set(key, String(value));
 		}
 	}
+	const str = qs.toString();
+	return str ? `?${str}` : "";
+}
+
+function buildAggregateQueryString(params: SubgraphAggregateParams): string {
+	const qs = new URLSearchParams();
+	if (params.filters) {
+		for (const [key, value] of Object.entries(params.filters)) {
+			qs.set(key, String(value));
+		}
+	}
+	if (params.count) qs.set("_count", "true");
+	if (params.countDistinct?.length)
+		qs.set("_countDistinct", params.countDistinct.join(","));
+	if (params.sum?.length) qs.set("_sum", params.sum.join(","));
+	if (params.min?.length) qs.set("_min", params.min.join(","));
+	if (params.max?.length) qs.set("_max", params.max.join(","));
 	const str = qs.toString();
 	return str ? `?${str}` : "";
 }
@@ -243,6 +264,17 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
+	async queryTableAggregate(
+		name: string,
+		table: string,
+		params: SubgraphAggregateParams = {},
+	): Promise<SubgraphAggregateResponse> {
+		return this.request<SubgraphAggregateResponse>(
+			"GET",
+			`/api/subgraphs/${name}/${table}/aggregate${buildAggregateQueryString(params)}`,
+		);
+	}
+
 	/**
 	 * Returns a typed client for a subgraph defined with `defineSubgraph()`.
 	 * Row types are inferred from the subgraph's schema literal types.
@@ -318,6 +350,24 @@ export class Subgraphs extends BaseClient {
 					filters,
 				});
 				return result.count;
+			},
+
+			async aggregate<TRow, const A extends AggregateSpec<TRow>>(
+				spec: A,
+			): Promise<AggregateResult<TRow, A>> {
+				const filters = spec.where
+					? serializeWhere(spec.where as Record<string, unknown>)
+					: undefined;
+
+				const result = await self.queryTableAggregate(subgraphName, tableName, {
+					filters,
+					count: spec.count,
+					countDistinct: spec.countDistinct,
+					sum: spec.sum,
+					min: spec.min,
+					max: spec.max,
+				});
+				return result as AggregateResult<TRow, A>;
 			},
 
 			subscribe<TRow>(

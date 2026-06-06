@@ -78,6 +78,42 @@ describe("Subgraphs", () => {
 		expect(calledUrl).toContain("sender=SP123");
 	});
 
+	test("queryTableAggregate builds correct URL", async () => {
+		globalThis.fetch = mockFetch({
+			ok: true,
+			status: 200,
+			body: { count: 4, sum: { amount: "6500000" } },
+		});
+
+		const result = await subgraphs.queryTableAggregate(
+			"my-subgraph",
+			"events",
+			{ filters: { status: "active" }, count: true, sum: ["amount"] },
+		);
+		expect(result).toEqual({ count: 4, sum: { amount: "6500000" } });
+
+		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+		const calledUrl = fetchMock.mock.calls[0][0] as string;
+		expect(calledUrl).toContain("/api/subgraphs/my-subgraph/events/aggregate");
+		expect(calledUrl).toContain("status=active");
+		expect(calledUrl).toContain("_count=true");
+		expect(calledUrl).toContain("_sum=amount");
+	});
+
+	test("queryTableAggregate comma-joins multi-column aggs", async () => {
+		globalThis.fetch = mockFetch({ ok: true, status: 200, body: {} });
+
+		await subgraphs.queryTableAggregate("my-subgraph", "events", {
+			min: ["a", "b"],
+			countDistinct: ["c"],
+		});
+
+		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+		const calledUrl = decodeURIComponent(fetchMock.mock.calls[0][0] as string);
+		expect(calledUrl).toContain("_min=a,b");
+		expect(calledUrl).toContain("_countDistinct=c");
+	});
+
 	test("queryTable with no params omits query string", async () => {
 		globalThis.fetch = mockFetch({ ok: true, status: 200, body: [] });
 
