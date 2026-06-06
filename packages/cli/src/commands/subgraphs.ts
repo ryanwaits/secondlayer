@@ -9,6 +9,8 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { confirm } from "@inquirer/prompts";
+import type { ByoBreakingChangeDetails } from "@secondlayer/sdk";
+import { ByoBreakingChangeError } from "@secondlayer/sdk";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import type { Command } from "commander";
@@ -432,6 +434,32 @@ function printSubgraphDeployPreview(
 
 	const deployTarget = context.bundled ? "tenant API" : "local database";
 	info(`Dry run only. No ${deployTarget} changes were made.`);
+}
+
+/**
+ * Render a refused BYO breaking-change deploy: the breaking reasons plus the
+ * exact DROP + rebuild DDL to run manually on the user's own database. No data
+ * was dropped — the server refused; this only shows what a rebuild would take.
+ */
+function printByoBreakingPlan(details: ByoBreakingChangeDetails): void {
+	error("Refusing breaking schema change on BYO subgraph (no data dropped).");
+	console.log("\nBreaking changes:");
+	for (const r of details.reasons) console.log(`  ${red("✗")} ${r}`);
+	console.log("\nTo rebuild manually, run on YOUR database:");
+	console.log(`  ${details.plan.dropStatement}`);
+	console.log(`  ${details.plan.statements.join(";\n  ")}`);
+	console.log("\nGrant (first deploy only):");
+	for (const line of details.plan.grantScript.split("\n")) {
+		console.log(`  ${dim(line)}`);
+	}
+	console.log(
+		`\n${yellow("This DROPS all rows in that schema, then rebuilds it. Re-deploy after.")}`,
+	);
+	console.log(
+		dim(
+			"(--force destructive rebuild not yet supported — manual DROP required.)",
+		),
+	);
 }
 
 function formatSubgraphSync(sync: {
@@ -873,6 +901,25 @@ Examples:
 						await closeDb();
 					}
 				} catch (err) {
+					// Remote deploy: the SDK throws the typed error (same module → instanceof).
+					if (err instanceof ByoBreakingChangeError) {
+						printByoBreakingPlan(err.details);
+						process.exit(1);
+					}
+					// Local deploy throws the subgraphs-bundle class — match it by shape
+					// to avoid a cross-package instanceof. (Local BYO is unreachable today;
+					// guard is defensive for when --database-url reaches local deploy.)
+					if (
+						err &&
+						typeof err === "object" &&
+						(err as { code?: unknown }).code === "BYO_BREAKING_CHANGE" &&
+						(err as { details?: unknown }).details
+					) {
+						printByoBreakingPlan(
+							(err as { details: ByoBreakingChangeDetails }).details,
+						);
+						process.exit(1);
+					}
 					error(`Failed to deploy subgraph: ${err}`);
 					process.exit(1);
 				}
