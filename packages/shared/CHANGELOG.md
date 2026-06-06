@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.27.0
+
+### Minor Changes
+
+- bbd40f7: Add `ByoBreakingChangeDetails` interface and map `BYO_BREAKING_CHANGE` code to HTTP 422.
+
 ## 6.26.0
 
 ### Minor Changes

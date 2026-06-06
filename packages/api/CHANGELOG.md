@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.19.8
+
+### Patch Changes
+
+- bbd40f7: Return 422 with a migration plan when refusing a BYO breaking schema change.
+- Updated dependencies [1c99bd0]
+- Updated dependencies [bbd40f7]
+- Updated dependencies [e98f20d]
+- Updated dependencies [201b630]
+  - @secondlayer/sdk@6.16.0
+  - @secondlayer/shared@6.27.0
+  - @secondlayer/subgraphs@3.10.0
+  - @secondlayer/indexer@1.12.4
+  - @secondlayer/platform@0.0.24
+
 ## 1.19.7
 
 ### Patch Changes

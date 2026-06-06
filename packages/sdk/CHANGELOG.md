@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 6.16.0
+
+### Minor Changes
+
+- 1c99bd0: Add typed `ByoBreakingChangeError` (exposes `reasons` + rebuild `plan`) thrown on a refused BYO breaking-change deploy (HTTP 422).
+
+### Patch Changes
+
+- Updated dependencies [bbd40f7]
+- Updated dependencies [e98f20d]
+  - @secondlayer/shared@6.27.0
+  - @secondlayer/subgraphs@3.10.0
+
 ## 6.15.0
 
 ### Minor Changes

@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 3.10.0
+
+### Minor Changes
+
+- e98f20d: Carry a structured migration plan on a refused BYO breaking-change deploy: `renderDeployPlan` now emits `dropStatement`, and the refuse path throws a typed `ByoBreakingChangeError` exposing `reasons`, `diff`, and the DROP + rebuild DDL.
+
+### Patch Changes
+
+- Updated dependencies [bbd40f7]
+  - @secondlayer/shared@6.27.0
+
 ## 3.9.0
 
 ### Minor Changes

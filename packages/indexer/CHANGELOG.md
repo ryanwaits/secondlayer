@@ -1,5 +1,15 @@
 # @secondlayer/indexer
 
+## 1.12.4
+
+### Patch Changes
+
+- 201b630: `getEnabledL2DecoderNames` now reads pox4 from its injected `env` argument (mirroring sbtc/bns) instead of global `process.env`, so the enabled-decoder view is consistent and testable. Production behavior is unchanged (pox4 still default-on, opt-out via `POX4_DECODER_ENABLED=false`).
+- Updated dependencies [1c99bd0]
+- Updated dependencies [bbd40f7]
+  - @secondlayer/sdk@6.16.0
+  - @secondlayer/shared@6.27.0
+
 ## 1.12.3
 
 ### Patch Changes

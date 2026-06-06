@@ -1,5 +1,17 @@
 # @secondlayer/cli
 
+## 8.6.1
+
+### Patch Changes
+
+- e03ddbd: Render the DROP + rebuild DDL on a refused BYO breaking-change deploy instead of a generic failure.
+- Updated dependencies [1c99bd0]
+- Updated dependencies [bbd40f7]
+- Updated dependencies [e98f20d]
+  - @secondlayer/sdk@6.16.0
+  - @secondlayer/shared@6.27.0
+  - @secondlayer/subgraphs@3.10.0
+
 ## 8.6.0
 
 ### Minor Changes
