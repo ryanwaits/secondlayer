@@ -1,5 +1,14 @@
 # @secondlayer/api
 
+## 1.19.5
+
+### Patch Changes
+
+- Updated dependencies [c171351]
+  - @secondlayer/shared@6.24.0
+  - @secondlayer/sdk@6.13.0
+  - @secondlayer/platform@0.0.21
+
 ## 1.19.4
 
 ### Patch Changes
