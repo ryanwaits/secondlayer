@@ -1,12 +1,12 @@
 import { join } from "node:path";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
-import { type Kysely } from "kysely";
-import { writeJsonFile, measureFile, writeStreamsBulkParquet } from "./file.ts";
+import type { Kysely } from "kysely";
+import { measureFile, writeJsonFile, writeStreamsBulkParquet } from "./file.ts";
 import {
-	createStreamsBulkManifest,
 	type StreamsBulkManifest,
 	type StreamsBulkManifestFile,
+	createStreamsBulkManifest,
 } from "./manifest.ts";
 import {
 	streamsBulkHistoryManifestObjectPath,
@@ -14,12 +14,12 @@ import {
 	streamsBulkParquetObjectPath,
 	streamsBulkSchemaObjectPath,
 } from "./paths.ts";
+import { readCanonicalStreamsBulkRows } from "./query.ts";
 import {
 	type StreamsBulkBlockRange,
 	formatBlockRangeLabel,
 	validateStreamsBulkRange,
 } from "./range.ts";
-import { readCanonicalStreamsBulkRows } from "./query.ts";
 import {
 	STREAMS_BULK_SCHEMA_VERSION,
 	createStreamsBulkSchemaDocument,
@@ -67,10 +67,7 @@ export async function exportStreamsBulkRange(
 	const partitionBlockRange = formatBlockRangeLabel(range);
 	const generatedAt = options.generatedAt ?? new Date().toISOString();
 
-	const parquetObjectPath = streamsBulkParquetObjectPath(
-		options.prefix,
-		range,
-	);
+	const parquetObjectPath = streamsBulkParquetObjectPath(options.prefix, range);
 	const schemaObjectPath = streamsBulkSchemaObjectPath(options.prefix);
 	const latestManifestObjectPath = streamsBulkLatestManifestObjectPath(
 		options.prefix,

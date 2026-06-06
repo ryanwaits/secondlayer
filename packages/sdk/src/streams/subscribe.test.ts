@@ -22,7 +22,8 @@ const EVENT = {
 } as unknown as StreamsEvent;
 
 function signedFrame(event: unknown, sig?: string): string {
-	const signature = sig ?? ed25519.signEd25519(JSON.stringify(event), privateKey);
+	const signature =
+		sig ?? ed25519.signEd25519(JSON.stringify(event), privateKey);
 	const body = JSON.stringify({
 		event,
 		sig: signature,
@@ -72,10 +73,7 @@ describe("subscribeStreamsEvents", () => {
 			unsub = subscribeStreamsEvents({
 				baseUrl: "https://streams.example",
 				apiKey: "sk-sl_test",
-				fetchImpl: sseFetch([
-					"event: ping\ndata: \n\n",
-					signedFrame(EVENT),
-				]),
+				fetchImpl: sseFetch(["event: ping\ndata: \n\n", signedFrame(EVENT)]),
 				verify: false,
 				loadKey,
 				params: {

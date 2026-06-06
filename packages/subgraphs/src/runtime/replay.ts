@@ -115,7 +115,9 @@ export async function replaySubscription(
 	const subgraphName = sub.subgraph_name;
 	const tableName = sub.table_name;
 	if (sub.kind !== "subgraph" || !subgraphName || !tableName) {
-		throw new Error("replay is only supported for subgraph or chain subscriptions");
+		throw new Error(
+			"replay is only supported for subgraph or chain subscriptions",
+		);
 	}
 
 	const schema = await resolveSchemaName(db, subgraphName);
@@ -231,9 +233,16 @@ async function replayChainSubscription(
 			scanned++;
 			const matches = evaluateBlock(bd, sources, traitContracts);
 			if (matches.length === 0) continue;
-			enqueued += await emitChainOutbox(db, matches, keyMeta, h, bd.block.hash, {
-				replayId,
-			});
+			enqueued += await emitChainOutbox(
+				db,
+				matches,
+				keyMeta,
+				h,
+				bd.block.hash,
+				{
+					replayId,
+				},
+			);
 		}
 	}
 

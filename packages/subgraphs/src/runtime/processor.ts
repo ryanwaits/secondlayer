@@ -30,8 +30,8 @@ import {
 } from "@secondlayer/shared/queue/listener";
 import type { SubgraphDefinition } from "../types.ts";
 import { invalidateSubgraphRoute } from "./block-processor.ts";
-import { catchUpSubgraph } from "./catchup.ts";
 import { isCatchUpLeader, startCatchUpLeader } from "./catchup-leader.ts";
+import { catchUpSubgraph } from "./catchup.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";

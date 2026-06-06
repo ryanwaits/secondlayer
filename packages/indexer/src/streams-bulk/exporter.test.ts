@@ -308,9 +308,9 @@ describe.skipIf(!HAS_DB)("exportStreamsBulkRange", () => {
 		// The exported manifest is ed25519-signed and verifies with the public key.
 		expect(manifest.signature).toBeTruthy();
 		expect(manifest.key_id).toBeTruthy();
-		expect(verifyStreamsBulkManifestSignature(manifest, keys.publicKeyPem)).toBe(
-			true,
-		);
+		expect(
+			verifyStreamsBulkManifestSignature(manifest, keys.publicKeyPem),
+		).toBe(true);
 
 		const reader = await ParquetReader.openFile(result.localParquetPath);
 		try {

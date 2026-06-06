@@ -44,7 +44,10 @@ function normalizePem(pem: string): string {
  */
 export function signStreamsBulkManifest<
 	T extends Record<string, unknown> & SignatureEnvelope,
->(manifest: T, privateKeyPem: string): T & { signature: string; key_id: string } {
+>(
+	manifest: T,
+	privateKeyPem: string,
+): T & { signature: string; key_id: string } {
 	const pem = normalizePem(privateKeyPem);
 	const privateKey = loadEd25519PrivateKey(pem);
 	const keyId = ed25519KeyId(publicKeyPemFromPrivate(pem));

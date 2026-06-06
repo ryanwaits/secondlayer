@@ -1,7 +1,10 @@
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
 import { getStreamsBulkRuntimeConfigFromEnv } from "./config.ts";
-import { joinObjectPath, streamsBulkLatestManifestObjectPath } from "./paths.ts";
+import {
+	joinObjectPath,
+	streamsBulkLatestManifestObjectPath,
+} from "./paths.ts";
 import {
 	createStreamsBulkS3Client,
 	getObjectBuffer,

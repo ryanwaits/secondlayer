@@ -7,6 +7,11 @@ import {
 	findGaps,
 } from "@secondlayer/shared/db/queries/integrity";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
+import {
+	INDEXER_LEADER_LOCK_KEY,
+	type StopFn,
+	withLeaderLock,
+} from "@secondlayer/shared/leader";
 import { logger } from "@secondlayer/shared/logger";
 import {
 	contractRegistryState,
@@ -47,11 +52,6 @@ import {
 } from "./ingest.ts";
 import { integrityState, startIntegrityLoop } from "./integrity.ts";
 import { persistBurnBlockRewards } from "./l2/burn-rewards-storage.ts";
-import {
-	INDEXER_LEADER_LOCK_KEY,
-	type StopFn,
-	withLeaderLock,
-} from "@secondlayer/shared/leader";
 import {
 	ingestMempoolTxs,
 	isGenuineDrop,

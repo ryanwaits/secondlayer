@@ -284,9 +284,16 @@ describe("emitChainOutbox (DB)", () => {
 		// Replay the same block — a distinct, replay-namespaced key, so it
 		// re-delivers instead of being suppressed by the live row.
 		const replayId = "abc123";
-		const replayed = await emitChainOutbox(db, matches, keyMeta, 100, "0xblock", {
-			replayId,
-		});
+		const replayed = await emitChainOutbox(
+			db,
+			matches,
+			keyMeta,
+			100,
+			"0xblock",
+			{
+				replayId,
+			},
+		);
 		expect(replayed).toBe(1);
 		// Re-running the same replay is a no-op (same replayId → same key).
 		const again = await emitChainOutbox(db, matches, keyMeta, 100, "0xblock", {
