@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { SOURCE_READ_COLUMNS } from "../src/db/source-read-columns.ts";
+import {
+	SOURCE_READ_COLUMNS,
+	SOURCE_READ_TYPES,
+} from "../src/db/source-read-columns.ts";
 import snapshot from "./__snapshots__/source-read-columns.json";
 
 // SOURCE_READ_COLUMNS is the read contract between the indexer (write schema
@@ -20,6 +23,26 @@ describe("SOURCE_READ_COLUMNS drift guard", () => {
 	for (const table of Object.keys(snap)) {
 		test(`${table} columns match the snapshot`, () => {
 			expect(live[table]).toEqual(snap[table]);
+		});
+	}
+});
+
+// SOURCE_READ_TYPES carries the portable type for every read column (drives
+// `sl index codegen`). It must cover exactly SOURCE_READ_COLUMNS — a column added
+// to the read contract without a type here (or vice versa) makes codegen emit a
+// wrong/partial schema. The `satisfies` clause guarantees table-key parity at
+// compile time; this asserts per-column parity at runtime.
+describe("SOURCE_READ_TYPES ↔ SOURCE_READ_COLUMNS", () => {
+	const cols = SOURCE_READ_COLUMNS as Record<string, readonly string[]>;
+	const types = SOURCE_READ_TYPES as Record<string, Record<string, unknown>>;
+
+	test("same table set", () => {
+		expect(Object.keys(types).sort()).toEqual(Object.keys(cols).sort());
+	});
+
+	for (const table of Object.keys(cols)) {
+		test(`${table} has a type for every read column`, () => {
+			expect(Object.keys(types[table]).sort()).toEqual([...cols[table]].sort());
 		});
 	}
 });
