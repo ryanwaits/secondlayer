@@ -1,6 +1,14 @@
+import { resolve } from "node:path";
 import { Index } from "@secondlayer/sdk";
 import type { Command } from "commander";
-import { error as logError, note, output, writeData } from "../lib/output.ts";
+import {
+	error as logError,
+	note,
+	output,
+	success,
+	writeData,
+} from "../lib/output.ts";
+import { writeTextFile } from "../lib/fs.ts";
 import { resolveEnvKey } from "../lib/resolve-auth.ts";
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
@@ -88,6 +96,62 @@ export function registerIndexCommand(program: Command): void {
 	const index = program
 		.command("index")
 		.description("Query the decoded Index layer (L2 events + contract calls)");
+
+	// Codegen needs no API call — it emits from the static read-column registry.
+	index
+		.command("codegen")
+		.description(
+			"Generate a typed schema (Kysely, Drizzle, or JSON-Schema) for the Index domain tables — point it at your BYO database mirror",
+		)
+		.option("--target <orm>", "kysely | drizzle | json-schema", "kysely")
+		.option("--schema <name>", "Postgres schema to qualify table names with")
+		.option(
+			"--tables <list>",
+			"Comma-separated subset of Index tables (default: all)",
+		)
+		.option("-o, --output <path>", "Write to a file (defaults to stdout)")
+		.action(
+			async (o: {
+				target?: string;
+				schema?: string;
+				tables?: string;
+				output?: string;
+			}) => {
+				try {
+					const target = o.target ?? "kysely";
+					if (
+						target !== "kysely" &&
+						target !== "drizzle" &&
+						target !== "json-schema"
+					) {
+						logError(
+							`Unsupported --target "${target}" (supported: kysely, drizzle, json-schema). Prisma needs a primary key, which the Index read contract doesn't declare.`,
+						);
+						process.exit(1);
+					}
+					const { generateIndexSchema } = await import("@secondlayer/subgraphs");
+					const tables = o.tables
+						? o.tables
+								.split(",")
+								.map((t) => t.trim())
+								.filter(Boolean)
+						: undefined;
+					const out = generateIndexSchema(target, {
+						schemaName: o.schema,
+						tables,
+					});
+					if (o.output) {
+						await writeTextFile(resolve(o.output), out);
+						success(`Wrote ${target} Index schema to ${o.output}`);
+					} else {
+						process.stdout.write(out);
+					}
+				} catch (err) {
+					logError(`Failed to generate Index schema: ${err}`);
+					process.exit(1);
+				}
+			},
+		);
 
 	const rangeFlags = (cmd: Command): Command =>
 		cmd
