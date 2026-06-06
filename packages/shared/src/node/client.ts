@@ -1,3 +1,4 @@
+import type { RewardSet } from "./consensus.ts";
 import {
 	type NakamotoBlockHeader,
 	nakamotoBlockHash,
@@ -91,6 +92,35 @@ export class StacksNodeClient {
 			header,
 			blockHash,
 			indexBlockHash: nakamotoBlockId(blockHash, header.consensusHash),
+		};
+	}
+
+	/**
+	 * Fetch the reward set (signer keys + weights) for a reward cycle from
+	 * `/v3/stacker_set/{cycle}`. Null on 404 (cycle not yet computed).
+	 */
+	async getRewardSet(cycle: number): Promise<RewardSet | null> {
+		const res = await fetch(`${this.rpcUrl}/v3/stacker_set/${cycle}`, {
+			signal: AbortSignal.timeout(15_000),
+		});
+		if (res.status === 404) return null;
+		if (!res.ok) {
+			throw new Error(
+				`Node RPC /v3/stacker_set/${cycle} returned ${res.status}`,
+			);
+		}
+		const body = (await res.json()) as {
+			stacker_set: { signers: { signing_key: string; weight: number }[] };
+		};
+		const signers = body.stacker_set.signers.map((s) => ({
+			signing_key: s.signing_key.startsWith("0x")
+				? s.signing_key.slice(2)
+				: s.signing_key,
+			weight: s.weight,
+		}));
+		return {
+			signers,
+			total_weight: signers.reduce((sum, s) => sum + s.weight, 0),
 		};
 	}
 

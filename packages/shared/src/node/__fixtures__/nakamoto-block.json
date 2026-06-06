@@ -15,6 +15,145 @@
     "signerCount": 23,
     "blockHash": "c389965f2c8f56b05b441d1067bcd06228803fd348ecde6bb1d771bf4d3fe3bf",
     "indexBlockHash": "d8ccdedae442d8e6498ca69a9185691718202a3058ca78ae2dcb26fc6b18fbaa",
-    "txCount": 2
+    "txCount": 2,
+    "burnBlockHeight": 952567,
+    "rewardCycle": 136
+  },
+  "rewardSet": {
+    "signers": [
+      {
+        "signing_key": "0215245613e31de2ec2e7f2c4facb45724be2e49d9d42abb0a5e571322593b36bf",
+        "weight": 51
+      },
+      {
+        "signing_key": "0228a566db9a7b3212d612aa06e34fa981351a4372737849bfcaa1a28e8a044e5d",
+        "weight": 16
+      },
+      {
+        "signing_key": "023d6e4adbd5e7bedd5a1e1b85940e1e8c6c34924fd0d584e5e15d84c8572083d9",
+        "weight": 58
+      },
+      {
+        "signing_key": "023d6ecdc36fa1e1c6a9f116c7f13ae843001ed9d617f66f6c68cabf751bf82555",
+        "weight": 359
+      },
+      {
+        "signing_key": "0244869db071d334ff8e5cd94956ae7b60a4abd41f83f3c9d66ab314718151d94d",
+        "weight": 55
+      },
+      {
+        "signing_key": "024f164c6e73df283d34d7d9cc86553a82dce76045ba7dfbf4de0004f89eabb8e0",
+        "weight": 2
+      },
+      {
+        "signing_key": "025588e24e2bf387fe8cc7bccba1aac7fe599b96724892431e992a40d06e8fe220",
+        "weight": 298
+      },
+      {
+        "signing_key": "0268e6f499fca2912488e89fc8b6734cafbe24a4ecbcd3312e4eb27ed8e5cfb4f3",
+        "weight": 16
+      },
+      {
+        "signing_key": "027af6b78b484b2c129dab7e490e8438f9a6eb4890071335a5781d483073866b9a",
+        "weight": 53
+      },
+      {
+        "signing_key": "02844807121921880119fe05ae47fccb4945a4bb2f840fe7de66e6f32640bc8169",
+        "weight": 576
+      },
+      {
+        "signing_key": "0284df4505c6318a0017a7848aa0a95bf8cd3db697a89d2ec1978a027bece770ef",
+        "weight": 3
+      },
+      {
+        "signing_key": "02877ce29ba35458b827a6ea18510b9058ae4c30e2c33d288f2982c13497caec6e",
+        "weight": 398
+      },
+      {
+        "signing_key": "02879477ec9ed8a56c0b26ba4b452246608d6e1b02ae1fa405a2c97ee8af5da202",
+        "weight": 257
+      },
+      {
+        "signing_key": "02a89cb3164d3dabcb5cf8796bfc28b91fade8c71a64b5a76d94e79cd27cfa8895",
+        "weight": 76
+      },
+      {
+        "signing_key": "02c54d8b1ba4b7207f78f861c60f8a67433c264a11ac9b6b7773476e9f6c008e49",
+        "weight": 53
+      },
+      {
+        "signing_key": "02c770af1c0316b42d50bb2f7720f473a7393a53878a212f1f573b23b8fecc1b35",
+        "weight": 69
+      },
+      {
+        "signing_key": "0302328212d5e430a8a880f8e2365a8f976ee50490ff030c106866c0b789eae91a",
+        "weight": 397
+      },
+      {
+        "signing_key": "0309126df3691918f25f8872819bc8268e9e1e0d92d0494fa4fb9783589a1392fa",
+        "weight": 43
+      },
+      {
+        "signing_key": "03115cb2254a9ad4a32bbe043acf57411d32ea74b05ddf6e850a0b11dbe0f55370",
+        "weight": 3
+      },
+      {
+        "signing_key": "0321129d7a3e14cce66abef68b9a3d31d998f14e9a18b09d66aa1110fc604a3b1f",
+        "weight": 31
+      },
+      {
+        "signing_key": "034df3feda207a1cd4f31ae2b58f136a0d382d23419ef8d06569fa538202ba8aed",
+        "weight": 44
+      },
+      {
+        "signing_key": "038265445ac9fa77d96bf6f3eee74e287deb10aeef2f2e3f96581a6bb765de8240",
+        "weight": 52
+      },
+      {
+        "signing_key": "038b9ddb9808631dd75ccb0b6715b36bb1e391d85d40f1a031e98a332890bed2ea",
+        "weight": 7
+      },
+      {
+        "signing_key": "038cb1e945144ca7669b0f33656b8379bcb3c17795b4d8665e42dea76eb3f86d2f",
+        "weight": 192
+      },
+      {
+        "signing_key": "038d545b66cc01a93fe405e14d6432432d81ec03e296d55cf3c07b143a4407aa4a",
+        "weight": 2
+      },
+      {
+        "signing_key": "039262e5a8badd8e49eaa1808a675ad005f7b324bd677576fa670e43e73b166844",
+        "weight": 53
+      },
+      {
+        "signing_key": "039dc5297b92c1f6b48f4a68e180b853ff6e8188fb78422652a90b8fe14941adce",
+        "weight": 52
+      },
+      {
+        "signing_key": "03a541c1ec2cfb32da48cfadf439c9b2f27d166bbffa18a178c7a6a0d54cfa7813",
+        "weight": 55
+      },
+      {
+        "signing_key": "03b3b78738abbdc573cdcefd8200b1bca999e2f2fd8ecdf70c64ced1e4105437b7",
+        "weight": 399
+      },
+      {
+        "signing_key": "03bbbe587de8a76343bb9cd4233b3b60962a2ff54677dc564a704c8578a67aa582",
+        "weight": 65
+      },
+      {
+        "signing_key": "03cc1da6f6235699284987f7d3a98a950b0c693cdbed87ab33c04f61e2dfb6a177",
+        "weight": 60
+      },
+      {
+        "signing_key": "03cd46fbbdc76f8576c12f8a07832ad48dd460faf27a9b7c277cd2d2fe411e998d",
+        "weight": 1
+      },
+      {
+        "signing_key": "03e0df37e83e43847625a0320456cb9758050a61ce76c2c130bf50242f27ba6d54",
+        "weight": 66
+      }
+    ],
+    "total_weight": 3862
   }
 }

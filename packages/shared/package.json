@@ -128,6 +128,10 @@
 			"types": "./dist/src/node/nakamoto.d.ts",
 			"import": "./dist/src/node/nakamoto.js"
 		},
+		"./node/consensus": {
+			"types": "./dist/src/node/consensus.d.ts",
+			"import": "./dist/src/node/consensus.js"
+		},
 		"./node/local-client": {
 			"types": "./dist/src/node/local-client.d.ts",
 			"import": "./dist/src/node/local-client.js"
