@@ -1,8 +1,18 @@
 import type { Database } from "@secondlayer/shared/db";
 import { type Kysely, sql } from "kysely";
-import type { SubgraphDefinition, SubgraphSchema } from "../types.ts";
+import type {
+	SubgraphDefinition,
+	SubgraphSchema,
+	SubgraphTable,
+} from "../types.ts";
 import { validateSubgraphDefinition } from "../validate.ts";
-import { TYPE_MAP, generateSubgraphSQL } from "./generator.ts";
+import {
+	TYPE_MAP,
+	emitForeignKeyDDL,
+	emitTableDDL,
+	generateSubgraphSQL,
+	tableNeedsTrgm,
+} from "./generator.ts";
 import { pgSchemaName } from "./utils.ts";
 
 type AnyDb = Kysely<Database>;
@@ -313,53 +323,32 @@ export async function deploySchema(
 				};
 			}
 
-			// Create new tables
-			for (const tableName of diff.addedTables) {
-				const tableDef = def.schema[tableName];
-				if (!tableDef) continue;
-				const qualifiedName = `${schemaName}.${tableName}`;
-				const colDefs = [
-					"_id BIGSERIAL PRIMARY KEY",
-					"_block_height BIGINT NOT NULL",
-					"_tx_id TEXT NOT NULL",
-					"_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
-				];
-				for (const [colName, col] of Object.entries(tableDef.columns)) {
-					const nullable = col.nullable ? "" : " NOT NULL";
-					const sqlType = TYPE_MAP[col.type];
-					if (!sqlType) continue;
-					colDefs.push(`${colName} ${sqlType}${nullable}`);
+			// Create new tables using the SAME per-table emitter as the full
+			// generator, so an additively-created table gets its UNIQUE constraints,
+			// composite indexes, column defaults, and FKs — not just the bare columns.
+			// (A missing UNIQUE here previously made a handler upsert ON CONFLICT fail
+			// at runtime on additively-added tables.)
+			const addedDefs = diff.addedTables
+				.map((tableName) => ({ tableName, tableDef: def.schema[tableName] }))
+				.filter(
+					(t): t is { tableName: string; tableDef: SubgraphTable } =>
+						t.tableDef !== undefined,
+				);
+
+			// pg_trgm must exist before any search-column GIN index on the new tables.
+			if (addedDefs.some(({ tableDef }) => tableNeedsTrgm(tableDef))) {
+				await sql.raw("CREATE EXTENSION IF NOT EXISTS pg_trgm").execute(ddlDb);
+			}
+			for (const { tableName, tableDef } of addedDefs) {
+				for (const stmt of emitTableDDL(schemaName, tableName, tableDef)) {
+					await sql.raw(stmt).execute(ddlDb);
 				}
-				await sql
-					.raw(
-						`CREATE TABLE IF NOT EXISTS ${qualifiedName} (\n  ${colDefs.join(",\n  ")}\n)`,
-					)
-					.execute(ddlDb);
-				await sql
-					.raw(
-						`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_block_height ON ${qualifiedName} (_block_height)`,
-					)
-					.execute(ddlDb);
-				await sql
-					.raw(
-						`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_tx_id ON ${qualifiedName} (_tx_id)`,
-					)
-					.execute(ddlDb);
-				for (const [colName, col] of Object.entries(tableDef.columns)) {
-					if (col.indexed) {
-						await sql
-							.raw(
-								`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName} ON ${qualifiedName} (${colName})`,
-							)
-							.execute(ddlDb);
-					}
-					if (col.search) {
-						await sql
-							.raw(
-								`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName}_trgm ON ${qualifiedName} USING gin (${colName} gin_trgm_ops)`,
-							)
-							.execute(ddlDb);
-					}
+			}
+			// FKs in a second pass so every referenced (new or pre-existing) table
+			// exists first.
+			for (const { tableName, tableDef } of addedDefs) {
+				for (const stmt of emitForeignKeyDDL(schemaName, tableName, tableDef)) {
+					await sql.raw(stmt).execute(ddlDb);
 				}
 			}
 

@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import { generateSubgraphSQL } from "../src/schema/generator.ts";
+import {
+	emitForeignKeyDDL,
+	emitTableDDL,
+	generateSubgraphSQL,
+} from "../src/schema/generator.ts";
 import type { SubgraphDefinition } from "../src/types.ts";
 
 const baseDef: SubgraphDefinition = {
@@ -136,6 +140,46 @@ test("generates multiple tables", () => {
 	expect(creates.length).toBe(2);
 	expect(creates[0]).toContain("subgraph_marketplace.listings");
 	expect(creates[1]).toContain("subgraph_marketplace.sales");
+});
+
+// emitTableDDL is the SINGLE per-table emitter shared by the full generator and
+// the deployer's additive-create path. Lock that it includes UNIQUE constraints,
+// composite indexes, and column defaults — the deployer's old hand-rolled path
+// omitted these, so an additively-created table's upsert ON CONFLICT failed.
+test("emitTableDDL includes unique constraints, composite indexes, and defaults", () => {
+	const stmts = emitTableDDL("subgraph_x", "rows", {
+		columns: {
+			key: { type: "text" },
+			status: { type: "text", default: "open" },
+			seller: { type: "principal" },
+		},
+		uniqueKeys: [["key"]],
+		indexes: [["seller", "status"]],
+	});
+	const joined = stmts.join("\n");
+	expect(joined).toContain(
+		'ADD CONSTRAINT uq_subgraph_x_rows_key UNIQUE (key)',
+	);
+	expect(joined).toContain("composite_0");
+	expect(joined).toContain("(seller, status)");
+	expect(joined).toContain("status TEXT NOT NULL DEFAULT 'open'");
+});
+
+test("emitForeignKeyDDL renders relations as FK constraints", () => {
+	const stmts = emitForeignKeyDDL("subgraph_x", "sales", {
+		columns: { listing_id: { type: "uint" } },
+		relations: [
+			{
+				name: "listing",
+				fields: ["listing_id"],
+				references: "listings",
+				referencedColumns: ["id"],
+			},
+		],
+	});
+	expect(stmts[0]).toContain("ADD CONSTRAINT fk_subgraph_x_sales_listing");
+	expect(stmts[0]).toContain("FOREIGN KEY (listing_id)");
+	expect(stmts[0]).toContain("REFERENCES subgraph_x.listings (id)");
 });
 
 test("generates composite indexes", () => {
