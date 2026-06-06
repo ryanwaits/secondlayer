@@ -300,16 +300,16 @@ export function registerIndexTools(
 	);
 
 	defineTool<{
-		target?: "kysely" | "drizzle" | "json-schema";
+		target?: "prisma" | "kysely" | "drizzle" | "json-schema";
 		tables?: string[];
 		schemaName?: string;
 	}>(
 		server,
 		"index_codegen",
-		`Generate a typed schema (Kysely, Drizzle, or JSON-Schema) for the public Index domain tables so they can be mirrored into a BYO database with full types. Returns the schema as text. Tables: ${INDEX_CODEGEN_TABLES.join(", ")}. (Prisma is unsupported — the read contract declares no primary key.)`,
+		`Generate a typed schema (Prisma, Kysely, Drizzle, or JSON-Schema) for the public Index domain tables so they can be mirrored into a BYO database with full types. Returns the schema as text. Tables: ${INDEX_CODEGEN_TABLES.join(", ")}.`,
 		{
 			target: z
-				.enum(["kysely", "drizzle", "json-schema"])
+				.enum(["prisma", "kysely", "drizzle", "json-schema"])
 				.optional()
 				.describe("Output target (default kysely)"),
 			tables: z
