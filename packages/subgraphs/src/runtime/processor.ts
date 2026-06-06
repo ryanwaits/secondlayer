@@ -32,15 +32,10 @@ import type { SubgraphDefinition } from "../types.ts";
 import { invalidateSubgraphRoute } from "./block-processor.ts";
 import { catchUpSubgraph } from "./catchup.ts";
 import { isCatchUpLeader, startCatchUpLeader } from "./catchup-leader.ts";
-import { handleChainReorg } from "./chain-reorg.ts";
-import { startEmitter } from "./emitter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
-import {
-	gateChainReorgOnLeader,
-	startTriggerEvaluatorLeader,
-} from "./subscription-leader.ts";
+import { startSubscriptionPlane } from "./subscription-plane.ts";
 
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const CHANNEL_SUBGRAPH_OPERATIONS = "subgraph_operations:new";
@@ -489,29 +484,19 @@ export async function startSubgraphProcessor(opts?: {
 
 	// Streams is the reorg authority for streams-index subgraphs (the public
 	// API path has no Postgres NOTIFY). Runs alongside the LISTEN above; both
-	// drive the idempotent handler.
+	// drive the idempotent subgraph-reorg handler. The chain-subscription reorg
+	// rewind runs on its own poll inside the subscription plane below.
 	const stopStreamsReorgPoll =
 		process.env.SUBGRAPH_SOURCE === "streams-index"
-			? startStreamsReorgPoll(
-					handleSubgraphReorg,
-					loadSubgraphDefinition,
-					gateChainReorgOnLeader((forkHeight) => handleChainReorg(forkHeight)),
+			? startStreamsReorgPoll((forkHeight) =>
+					handleSubgraphReorg(forkHeight, loadSubgraphDefinition),
 				)
 			: undefined;
 
-	// Direct chain-level subscriptions: a sibling loop that matches raw chain
-	// events off the same public Index/Streams clock and emits to the shared
-	// outbox. Gated on streams-index (it reads the public data plane); the
-	// emitter below delivers its rows unchanged.
-	const stopTriggerEvaluator =
-		process.env.SUBGRAPH_SOURCE === "streams-index"
-			? startTriggerEvaluatorLeader()
-			: undefined;
-
-	// Boot subscription emitter in same process — shares pool, shares
-	// LISTEN connection. Platform mode is control plane only and does not
-	// need the emitter, but processor itself isn't started there.
-	const stopEmitter = await startEmitter();
+	// Boot the real-time subscription delivery plane (evaluator + emitter +
+	// chain-reorg) in the same process for now. The two-deploy cutover moves it to
+	// a dedicated subscription-processor service and removes this call.
+	const stopSubscriptionPlane = await startSubscriptionPlane();
 
 	logger.info("Subgraph processor ready");
 
@@ -523,9 +508,8 @@ export async function startSubgraphProcessor(opts?: {
 		await stopListening();
 		await stopReorgListening();
 		stopStreamsReorgPoll?.();
-		await stopTriggerEvaluator?.();
+		await stopSubscriptionPlane();
 		await stopOperations();
-		await stopEmitter();
 		logger.info("Subgraph processor stopped");
 	};
 }
