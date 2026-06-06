@@ -209,3 +209,31 @@ export interface SubgraphQueryParams {
 	fields?: string;
 	filters?: Record<string, string>;
 }
+
+/**
+ * Request shape for `GET /api/subgraphs/:subgraphName/:tableName/aggregate`.
+ * `filters` reuses the list/count where-surface; the rest name the columns to
+ * aggregate. SUM/MIN/MAX columns must be numeric (uint/int, plus `_block_height`).
+ */
+export interface SubgraphAggregateParams {
+	filters?: Record<string, string>;
+	count?: boolean;
+	countDistinct?: string[];
+	sum?: string[];
+	min?: string[];
+	max?: string[];
+}
+
+/**
+ * Aggregate response. Keys are present only for requested aggregates.
+ * `count`/`countDistinct` are JSON numbers (counts << 2^53); `sum`/`min`/`max`
+ * are lossless strings (NUMERIC `::text`). `sum` of an empty set is `"0"`;
+ * `min`/`max` are `null` when the filtered set is empty or all-null.
+ */
+export interface SubgraphAggregateResponse {
+	count?: number;
+	countDistinct?: Record<string, number>;
+	sum?: Record<string, string>;
+	min?: Record<string, string | null>;
+	max?: Record<string, string | null>;
+}
