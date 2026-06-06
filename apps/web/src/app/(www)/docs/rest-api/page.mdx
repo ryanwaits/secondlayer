@@ -45,6 +45,39 @@ curl -N -H "Authorization: Bearer $SL_API_KEY" \
 
 See [Streams](/docs/streams#real-time-firehose-sse) and the [SDK](/docs/sdk#subscribe-to-the-live-stream-sse) for ergonomic clients.
 
+## Aggregates
+
+`GET /api/subgraphs/:subgraphName/:tableName/aggregate` runs scalar aggregates over the same filtered set as the list/count endpoints — pass any of the column filters above plus aggregate control params:
+
+- `_count=true` — `COUNT(*)`.
+- `_countDistinct=col1,col2` — distinct count per column.
+- `_sum=col`, `_min=col`, `_max=col` — comma-separated columns; `_sum/_min/_max` accept **numeric columns only** (`uint`/`int`, plus the system `_block_height`).
+
+```bash
+curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers/aggregate \
+  -G \
+  -d "status=active" \
+  -d "_count=true" \
+  -d "_sum=amount" \
+  -d "_min=amount" \
+  -d "_countDistinct=sender"
+```
+
+```json
+{
+  "count": 42,
+  "countDistinct": { "sender": 7 },
+  "sum": { "amount": "12300000000" },
+  "min": { "amount": "1000000" }
+}
+```
+
+- With no aggregate param the response is `{ "count": <n> }`.
+- `count` and `countDistinct.col` are JSON numbers. `sum`/`min`/`max` are **lossless strings** (the underlying `NUMERIC`/`BIGINT` cast to text so large values never lose precision). `sum` over an empty set is `"0"`; `min`/`max` are `null` over an empty/all-null set.
+- `400 NON_NUMERIC_COLUMN` for a non-numeric `_sum/_min/_max` column, `400 INVALID_COLUMN` for an unknown column, `400 TOO_MANY_AGGREGATES` past 32 aggregate columns per request.
+
+The [SDK](/docs/sdk) exposes this as a typed `client.aggregate(spec)` whose result shape is inferred from the spec.
+
 ## Transaction-inclusion proof
 
 `GET /v1/index/transactions/:tx_id/proof` returns a trustless inclusion proof: the raw transaction, raw header, and merkle path needed to verify, client-side, that a transaction is in a Stacks (Nakamoto) block — plus the reward set, when resolvable, to confirm the signers attested to it.

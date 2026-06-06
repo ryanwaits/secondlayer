@@ -185,6 +185,25 @@ const unsubscribe = sl.subgraphs.sbtcFlows.transfers.subscribe(
 
 > Unlike the fetch-based Streams `subscribe`, this uses the global `EventSource`, so it requires the browser or **Node ≥ 22** (it throws otherwise). Its frames are bare rows and are **not** signed.
 
+## Aggregate subgraph rows
+
+`subgraph.<table>.aggregate(spec)` runs scalar aggregates over an optional `where` filter and returns a result whose shape is **inferred from the spec** — only the keys you ask for appear. `sum`/`min`/`max` accept numeric columns only (enforced at compile time) and return lossless strings; `count`/`countDistinct` return numbers. No `as const` needed.
+
+```ts
+const stats = await sl.subgraphs.sbtcFlows.transfers.aggregate({
+  count: true,
+  sum: ["amount"],
+  min: ["amount"],
+  countDistinct: ["sender"],
+  where: { status: "active" },
+});
+
+stats.count;             // number
+stats.sum.amount;        // string (lossless)
+stats.min.amount;        // string | null
+stats.countDistinct.sender; // number
+```
+
 export const metadata = {
 	title: "SDK — Secondlayer Docs",
 	description: "Typed TypeScript client for every Secondlayer surface.",
