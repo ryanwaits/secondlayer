@@ -57,6 +57,9 @@ describe.skipIf(SKIP)("BYO deploy DDL routing", () => {
 			`CREATE SCHEMA IF NOT EXISTS ${SCHEMA}`,
 		);
 		expect(plan.grantScript).toContain("GRANT");
+		expect(plan.dropStatement).toBe(
+			`DROP SCHEMA IF EXISTS "${SCHEMA}" CASCADE;`,
+		);
 		expect(await schemaExists(USER_DB_URL)).toBe(false);
 	});
 

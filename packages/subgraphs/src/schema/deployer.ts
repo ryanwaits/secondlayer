@@ -122,6 +122,8 @@ export interface DeployDiff {
 
 export interface DeployPlan {
 	schemaName: string;
+	/** `DROP SCHEMA … CASCADE` a destructive rebuild would run first (shown, never auto-run on BYO). */
+	dropStatement: string;
 	/** DDL Secondlayer will run against your database. */
 	statements: string[];
 	/** Least-privilege grant script to run once, before deploying. */
@@ -139,6 +141,7 @@ export function renderDeployPlan(
 	validateSubgraphDefinition(def);
 	const { statements } = generateSubgraphSQL(def, schemaName);
 	const schema = schemaName ?? pgSchemaName(def.name);
+	const dropStatement = `DROP SCHEMA IF EXISTS "${schema}" CASCADE;`;
 	const grantScript = [
 		"-- Run once on YOUR database as an owner/superuser, replacing <role>",
 		"-- with the role whose credentials you give Secondlayer.",
@@ -146,7 +149,7 @@ export function renderDeployPlan(
 		`GRANT CREATE ON DATABASE current_database() TO <role>;`,
 		`-- (after first deploy <role> owns "${schema}"; no further grants needed)`,
 	].join("\n");
-	return { schemaName: schema, statements, grantScript };
+	return { schemaName: schema, dropStatement, statements, grantScript };
 }
 
 /**
