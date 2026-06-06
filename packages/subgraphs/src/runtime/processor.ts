@@ -35,7 +35,6 @@ import { catchUpSubgraph } from "./catchup.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
-import { startSubscriptionPlane } from "./subscription-plane.ts";
 
 const CHANNEL_NEW_BLOCK = "indexer:new_block";
 const CHANNEL_SUBGRAPH_OPERATIONS = "subgraph_operations:new";
@@ -493,10 +492,10 @@ export async function startSubgraphProcessor(opts?: {
 				)
 			: undefined;
 
-	// Boot the real-time subscription delivery plane (evaluator + emitter +
-	// chain-reorg) in the same process for now. The two-deploy cutover moves it to
-	// a dedicated subscription-processor service and removes this call.
-	const stopSubscriptionPlane = await startSubscriptionPlane();
+	// The real-time subscription delivery plane (evaluator + emitter + chain-reorg)
+	// now runs in the dedicated subscription-processor service, isolated from
+	// subgraph indexing. This process handles subgraph ops + catch-up + the
+	// subgraph-reorg rewind only.
 
 	logger.info("Subgraph processor ready");
 
@@ -508,7 +507,6 @@ export async function startSubgraphProcessor(opts?: {
 		await stopListening();
 		await stopReorgListening();
 		stopStreamsReorgPoll?.();
-		await stopSubscriptionPlane();
 		await stopOperations();
 		logger.info("Subgraph processor stopped");
 	};
