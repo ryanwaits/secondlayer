@@ -1,10 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bundleSubgraphCode } from "@secondlayer/bundler";
 import {
+	type SubgraphDefinition,
 	generateDrizzleSchema,
 	generateKyselySchema,
 	generatePrismaSchema,
-	type SubgraphDefinition,
 } from "@secondlayer/subgraphs";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
@@ -162,6 +162,61 @@ export function registerSubgraphTools(
 			const result = withCap(
 				rows as Record<string, unknown>[],
 				cap > 200 ? 200 : cap,
+			);
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{
+		name: string;
+		table: string;
+		filters?: Record<string, string>;
+		count?: boolean;
+		countDistinct?: string[];
+		sum?: string[];
+		min?: string[];
+		max?: string[];
+	}>(
+		server,
+		"subgraphs_aggregate",
+		'Compute scalar aggregates over a subgraph table\'s filtered rows. Supports count, countDistinct, and sum/min/max (numeric columns only — uint/int plus the system _block_height). Filters use the same grammar as subgraphs_query (e.g. {"amount.gte": "1000"}). sum/min/max come back as lossless strings; counts as numbers. With no aggregate requested, returns the row count.',
+		{
+			name: z.string().describe("Subgraph name"),
+			table: z.string().describe("Table name"),
+			filters: z
+				.record(z.string(), z.string())
+				.optional()
+				.describe(
+					'Column filters — plain values or with operators (e.g. {"amount.gte": "1000", "sender": "SP..."})',
+				),
+			count: z
+				.boolean()
+				.optional()
+				.describe("Include COUNT(*) of matching rows"),
+			countDistinct: z
+				.array(z.string())
+				.optional()
+				.describe("Columns to count distinct values of"),
+			sum: z
+				.array(z.string())
+				.optional()
+				.describe("Numeric columns to sum (lossless string result)"),
+			min: z
+				.array(z.string())
+				.optional()
+				.describe("Numeric columns to take the minimum of"),
+			max: z
+				.array(z.string())
+				.optional()
+				.describe("Numeric columns to take the maximum of"),
+		},
+		async ({ name, table, filters, count, countDistinct, sum, min, max }) => {
+			const result = await clientProvider().subgraphs.queryTableAggregate(
+				name,
+				table,
+				{ filters, count, countDistinct, sum, min, max },
 			);
 			return {
 				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

@@ -52,7 +52,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Domain | Tools |
 | --- | --- |
-| **Subgraphs** (7) | `subgraphs_list`, `subgraphs_get`, `subgraphs_query`, `subgraphs_reindex`, `subgraphs_delete`, `subgraphs_deploy`, `subgraphs_read_source` |
+| **Subgraphs** (11) | `subgraphs_list`, `subgraphs_get`, `subgraphs_spec`, `subgraphs_query`, `subgraphs_aggregate`, `subgraphs_reindex`, `subgraphs_operation`, `subgraphs_delete`, `subgraphs_deploy`, `subgraphs_read_source`, `subgraphs_codegen` |
 | **Subscriptions** (12) | `subscriptions_list`, `subscriptions_get`, `subscriptions_create`, `subscriptions_update`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_delete`, `subscriptions_rotate_secret`, `subscriptions_replay`, `subscriptions_recent_deliveries`, `subscriptions_dead`, `subscriptions_requeue_dead` |
 | **Datasets** (2) | `datasets_list`, `datasets_query` |
 | **Index** (4) | `index_ft_transfers`, `index_nft_transfers`, `index_events`, `index_contract_calls` |
@@ -81,6 +81,15 @@ subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
 - `count` — boolean, returns row count instead of rows
 - Filter operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`
 - Max limit: 200
+
+### `subgraphs_aggregate`
+
+Scalar aggregates over the same filtered set as `subgraphs_query`:
+
+- `count` — `COUNT(*)` of matching rows
+- `countDistinct` — columns to count distinct values of
+- `sum` / `min` / `max` — numeric columns only (`uint`/`int` + system `_block_height`); returned as lossless strings
+- No aggregate requested → returns the row count.
 
 ## Resources
 

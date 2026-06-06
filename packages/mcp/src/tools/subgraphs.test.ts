@@ -69,6 +69,54 @@ export default defineSubgraph({
 		expect(result?.content[0]?.text).toContain("exactly one");
 	});
 
+	it("subgraphs_aggregate delegates to queryTableAggregate", async () => {
+		const tools: RegisteredTool[] = [];
+		let captured: { name: string; table: string; params: unknown } | undefined;
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					subgraphs: {
+						queryTableAggregate: async (
+							name: string,
+							table: string,
+							params: unknown,
+						) => {
+							captured = { name, table, params };
+							return { count: 4, sum: { amount: "6500000" } };
+						},
+					},
+				}) as never,
+		);
+
+		const agg = tools.find((tool) => tool.name === "subgraphs_aggregate");
+		expect(agg).toBeDefined();
+		if (!agg) throw new Error("subgraphs_aggregate not registered");
+
+		const result = await agg.handler({
+			name: "dex",
+			table: "swaps",
+			filters: { status: "active" },
+			count: true,
+			sum: ["amount"],
+		});
+		expect(result.isError).toBeUndefined();
+		expect(captured).toEqual({
+			name: "dex",
+			table: "swaps",
+			params: {
+				filters: { status: "active" },
+				count: true,
+				countDistinct: undefined,
+				sum: ["amount"],
+				min: undefined,
+				max: undefined,
+			},
+		});
+		expect(result.content[0]?.text).toContain('"count": 4');
+		expect(result.content[0]?.text).toContain('"amount": "6500000"');
+	});
+
 	it("registers subgraphs_spec with agent default format", async () => {
 		const tools: RegisteredTool[] = [];
 		registerSubgraphTools(
