@@ -27,6 +27,7 @@ function streamsClientSpy(
 			},
 			replay: async () => ({ cursor: null, pages: 0, emptyPolls: 0 }),
 			stream: async function* () {},
+			subscribe: () => () => {},
 		},
 		blocks: {
 			events: async () => ({
