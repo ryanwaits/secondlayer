@@ -1367,8 +1367,11 @@ app.get("/:subgraphName/:tableName/stream", async (c) => {
 			: null;
 
 	return streamSSE(c, async (stream) => {
-		// Go-forward: start past the current max _id. With ?since, start at 0 and
-		// filter _block_height >= since to replay that range, then tail live.
+		// Seed the keyset cursor. No `since` → tail from the current max _id.
+		// With `?since`, seed from MIN(_id) at/after that block height so we jump
+		// straight to the replay window instead of scanning from _id=0 on every
+		// poll. The in-loop `_block_height >= since` filter stays as a correctness
+		// guard (reorg reprocessing can insert a lower-height row at a higher _id).
 		let cursor = 0;
 		if (since == null) {
 			const r = await query(
@@ -1376,6 +1379,24 @@ app.get("/:subgraphName/:tableName/stream", async (c) => {
 				`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,
 			);
 			cursor = Number((r[0] as { m?: number | string })?.m ?? 0);
+		} else {
+			const r = await query(
+				subgraph,
+				`SELECT MIN("_id") AS m FROM ${tbl} WHERE "_block_height" >= $1`,
+				[since],
+			);
+			const minId = (r[0] as { m?: number | string | null })?.m;
+			if (minId != null) {
+				// First matching row is _id = minId; `_id > cursor` includes it.
+				cursor = Number(minId) - 1;
+			} else {
+				// Nothing at/after `since` yet — tail live from the current tip.
+				const max = await query(
+					subgraph,
+					`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,
+				);
+				cursor = Number((max[0] as { m?: number | string })?.m ?? 0);
+			}
 		}
 		let lastBeat = Date.now();
 		while (!stream.aborted) {
