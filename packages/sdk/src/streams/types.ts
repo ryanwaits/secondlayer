@@ -138,6 +138,14 @@ export type StreamsTip = {
 	 */
 	finalized_height?: number;
 	lag_seconds: number;
+	/**
+	 * Oldest height still seekable on the live API for the caller's tier
+	 * (`tip - retention`). `null` = unlimited retention. Older reads must use the
+	 * cold dumps lane. Optional for back-compat.
+	 */
+	oldest_seekable_height?: number | null;
+	/** Oldest seekable cursor (`<oldest_seekable_height>:0`); `null` = unlimited. */
+	oldest_cursor?: string | null;
 };
 
 export type StreamsCanonicalBlock = {

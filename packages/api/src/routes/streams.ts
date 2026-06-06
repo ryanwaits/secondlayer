@@ -50,7 +50,10 @@ import {
 import { StreamsResponseCache } from "../streams/response-cache.ts";
 import { streamsRetentionWindow } from "../streams/retention.ts";
 import { getStreamsSigner, respondSignedJson } from "../streams/signing.ts";
-import { STREAMS_TIER_CONFIG } from "../streams/tiers.ts";
+import {
+	STREAMS_TIER_CONFIG,
+	getStreamsRetentionCutoff,
+} from "../streams/tiers.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
 
 const STREAMS_EVENTS_ALLOWED = [
@@ -204,12 +207,18 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		}
 		const usage = await getProductUsage(getDb(), tenant.account_id);
 		const limits = STREAMS_TIER_CONFIG[tenant.tier];
+		const tip = await getTip();
+		const oldest = getStreamsRetentionCutoff(tenant.tier, tip.block_height);
 		return c.json({
 			product: "streams",
 			tier: tenant.tier,
 			limits: {
 				rate_limit_per_second: limits.rateLimitPerSecond,
 				retention_days: limits.retentionDays,
+				// Oldest height/cursor still seekable on the live API at this tip.
+				// null = unlimited retention (no floor).
+				oldest_seekable_height: oldest,
+				oldest_cursor: oldest !== null ? `${oldest}:0` : null,
 			},
 			usage: {
 				events_today: usage.streamsEventsToday,
@@ -456,7 +465,16 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 
 	router.get("/tip", async (c) => {
 		c.header("Cache-Control", streamsCacheControl(false));
-		return respondSignedJson(c, await getTip());
+		const tip = await getTip();
+		const tenant = c.get("streamsTenant");
+		// Advertise the seekable floor so consumers know how far back the live API
+		// serves before they must fall to the cold dumps lane. null = unlimited.
+		const oldest = getStreamsRetentionCutoff(tenant.tier, tip.block_height);
+		return respondSignedJson(c, {
+			...tip,
+			oldest_seekable_height: oldest,
+			oldest_cursor: oldest !== null ? `${oldest}:0` : null,
+		});
 	});
 
 	return router;

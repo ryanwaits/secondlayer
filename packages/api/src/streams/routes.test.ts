@@ -228,7 +228,12 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		expect(res.status).toBe(200);
-		await expect(res.json()).resolves.toEqual(TEST_TIP);
+		const oldest = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY;
+		await expect(res.json()).resolves.toEqual({
+			...TEST_TIP,
+			oldest_seekable_height: oldest,
+			oldest_cursor: `${oldest}:0`,
+		});
 	});
 
 	test("/canonical/:height returns canonical block with nullable burn hash", async () => {
@@ -380,7 +385,12 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		expect(res.status).toBe(200);
-		await expect(res.json()).resolves.toEqual(TEST_TIP);
+		const oldest = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY;
+		await expect(res.json()).resolves.toEqual({
+			...TEST_TIP,
+			oldest_seekable_height: oldest,
+			oldest_cursor: `${oldest}:0`,
+		});
 	});
 
 	test("/events rejects from_height with cursor", async () => {
