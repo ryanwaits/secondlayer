@@ -3,7 +3,10 @@ import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { ByoBreakingChangeError } from "@secondlayer/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
+import { Hono } from "hono";
+import { errorHandler } from "../src/middleware/error.ts";
 import {
 	applyDeployStartBlockOverride,
 	hasDeployStartBlockChanged,
@@ -92,6 +95,49 @@ describe("subgraph deploy helpers", () => {
 		}
 		pruneSubgraphHandlerFiles(dir, "demo");
 		expect(readdirSync(dir).sort()).toEqual(["demo-other.999.js", "keep.js"]);
+	});
+
+	// The deploy route has no try/catch — a ByoBreakingChangeError thrown by
+	// deploySchema (on a breaking BYO redeploy) bubbles to the global onError
+	// handler. This proves the cross-bundle propagation the route relies on:
+	// code-based match → 422, details spread verbatim. (The full deploy pipeline
+	// needs auth + a bundle upload + a scratch BYO Postgres; the contract that
+	// matters here is the error→response mapping, exercised with the real class.)
+	test("ByoBreakingChangeError maps to 422 with the migration plan body", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.post("/deploy", () => {
+			throw new ByoBreakingChangeError(
+				["transfers: removed columns [amount]"],
+				{
+					addedTables: [],
+					removedTables: [],
+					addedColumns: {},
+					breakingChanges: ["transfers: removed columns [amount]"],
+				},
+				{
+					schemaName: "sg_demo",
+					dropStatement: 'DROP SCHEMA IF EXISTS "sg_demo" CASCADE;',
+					statements: ["CREATE SCHEMA sg_demo", "CREATE TABLE …"],
+					grantScript: "-- Run once …",
+				},
+			);
+		});
+
+		const res = await app.request("/deploy", { method: "POST" });
+		expect(res.status).toBe(422);
+		const body = (await res.json()) as {
+			code: string;
+			details: {
+				reasons: string[];
+				plan: { dropStatement: string };
+			};
+		};
+		expect(body.code).toBe("BYO_BREAKING_CHANGE");
+		expect(body.details.reasons.length).toBeGreaterThan(0);
+		expect(body.details.plan.dropStatement).toBe(
+			'DROP SCHEMA IF EXISTS "sg_demo" CASCADE;',
+		);
 	});
 
 	test("Bun loads fresh module content from a unique path (regression)", async () => {
