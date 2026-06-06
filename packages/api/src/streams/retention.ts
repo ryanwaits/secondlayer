@@ -46,14 +46,14 @@ export function streamsRetentionWindow(opts: {
 		c.set("streamsTip", tip);
 
 		const cursor = c.req.query("from_cursor") ?? c.req.query("cursor");
-		// TODO(PRD 0001): deprecate one of from_block/from_height or document both.
-		const fromHeightParam =
-			c.req.query("from_height") !== undefined ? "from_height" : "from_block";
-		const fromHeight = c.req.query(fromHeightParam);
+		// Only `from_height`/cursor seed a seek position. The legacy `from_block`
+		// alias was half-honored (retention checked it, but the events route rejects
+		// it as an unknown param), producing a confusing 403/400 split — dropped.
+		const fromHeight = c.req.query("from_height");
 		const requestedHeight = cursor
 			? parseCursorBlockHeight(cursor)
 			: fromHeight
-				? parseBlockHeight(fromHeight, fromHeightParam)
+				? parseBlockHeight(fromHeight, "from_height")
 				: null;
 
 		if (requestedHeight !== null) {

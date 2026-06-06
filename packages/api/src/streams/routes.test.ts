@@ -194,10 +194,10 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.headers.get("Cache-Control")).toBe("private, max-age=2");
 	});
 
-	test("Free-tier key requesting from_block older than 7 days gets 403", async () => {
+	test("Free-tier key requesting from_height older than 7 days gets 403", async () => {
 		const app = createApp();
 		const oldBlock = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY - 1;
-		const res = await app.request(`/v1/streams/events?from_block=${oldBlock}`, {
+		const res = await app.request(`/v1/streams/events?from_height=${oldBlock}`, {
 			headers: authHeaders(FREE_KEY),
 		});
 
