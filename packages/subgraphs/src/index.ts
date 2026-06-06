@@ -62,6 +62,12 @@ export {
 	generateKyselySchema,
 	type KyselyGenOptions,
 } from "./schema/kysely.ts";
+export {
+	generateIndexSchema,
+	INDEX_CODEGEN_TABLES,
+	type IndexCodegenOptions,
+	type IndexCodegenTarget,
+} from "./schema/index-codegen.ts";
 export { pgSchemaName } from "./schema/utils.ts";
 export {
 	deploySchema,
