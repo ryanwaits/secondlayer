@@ -1,8 +1,17 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
+import {
+	SubgraphFilterSchema,
+	VALID_FILTER_TYPES,
+} from "@secondlayer/subgraphs/validate";
 import { getRegisteredToolNames } from "./lib/tool.ts";
 import type { getClient } from "./lib/client.ts";
-import { buildCapabilities, buildContext, COLUMN_TYPES } from "./resources.ts";
+import {
+	buildCapabilities,
+	buildContext,
+	COLUMN_TYPES,
+	FILTERS_REFERENCE,
+} from "./resources.ts";
 import { createServer } from "./server.ts";
 
 type Client = ReturnType<typeof getClient>;
@@ -107,6 +116,44 @@ describe("column-types ↔ subgraphs TYPE_MAP", () => {
 			expect(typeof e.description).toBe("string");
 			expect((e.description as string).length).toBeGreaterThan(0);
 		}
+	});
+});
+
+describe("filters ↔ subgraphs SubgraphFilter validator", () => {
+	// Guards against the served filter reference advertising a type or field the
+	// validator rejects (the audit's "agents emit validator-rejected schemas").
+	// The per-type field breakdown is hand-authored, but locked here: every type
+	// must be in VALID_FILTER_TYPES and every field must be an accepted key of the
+	// `.strict()` SubgraphFilterSchema.
+	// biome-ignore lint/suspicious/noExplicitAny: zod-internal shape access to read accepted keys
+	const shape = (SubgraphFilterSchema as any)._zod.def.shape as Record<
+		string,
+		unknown
+	>;
+	const allowedFields = new Set(Object.keys(shape));
+
+	it("serves exactly the validator's filter types", () => {
+		const served = FILTERS_REFERENCE.map((f) => f.type).sort();
+		expect(served).toEqual([...VALID_FILTER_TYPES].sort());
+	});
+
+	it("never advertises a field the .strict() validator rejects", () => {
+		for (const filter of FILTERS_REFERENCE) {
+			for (const field of filter.fields) {
+				expect(allowedFields.has(field)).toBe(true);
+			}
+		}
+	});
+
+	it("locks the specific drift the audit caught", () => {
+		const byType = new Map(FILTERS_REFERENCE.map((f) => [f.type, f.fields]));
+		// contract_call: contractId/functionName/caller (was contract/function)
+		expect(byType.get("contract_call")).toContain("contractId");
+		expect(byType.get("contract_call")).not.toContain("contract");
+		// print_event drops the unsupported `contains`
+		expect(byType.get("print_event")).not.toContain("contains");
+		// NFT filters drop the unsupported `tokenId`
+		expect(byType.get("nft_transfer")).not.toContain("tokenId");
 	});
 });
 

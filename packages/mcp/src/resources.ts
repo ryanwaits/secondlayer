@@ -5,8 +5,15 @@ import { getClient } from "./lib/client.ts";
 import { formatSubgraphSummary } from "./lib/format.ts";
 import { getRegisteredToolNames } from "./lib/tool.ts";
 
-/** Filter types for blockchain events — SubgraphFilter vocabulary. */
-const FILTERS_REFERENCE = [
+// SubgraphFilter vocabulary — the per-type fields an agent may set on a source
+// filter. Fields are hand-authored (the per-type breakdown lives only in the
+// SubgraphFilter interfaces), but the drift test in resources.test.ts locks the
+// type set to VALID_FILTER_TYPES and asserts every field is accepted by the
+// `.strict()` SubgraphFilterSchema, so this can never advertise a field the
+// validator rejects. `trait` (TraitScope) indexes all contracts of a standard
+// (e.g. all SIP-010 tokens). `prints` on print_event is type-level only (not a
+// runtime match field) and is intentionally omitted.
+export const FILTERS_REFERENCE = [
 	{
 		type: "stx_transfer",
 		fields: ["sender", "recipient", "minAmount", "maxAmount"],
@@ -16,25 +23,28 @@ const FILTERS_REFERENCE = [
 	{ type: "stx_lock", fields: ["lockedAddress", "minAmount"] },
 	{
 		type: "ft_transfer",
-		fields: [
-			"sender",
-			"recipient",
-			"assetIdentifier",
-			"minAmount",
-			"maxAmount",
-		],
+		fields: ["sender", "recipient", "assetIdentifier", "minAmount", "trait"],
 	},
-	{ type: "ft_mint", fields: ["recipient", "assetIdentifier", "minAmount"] },
-	{ type: "ft_burn", fields: ["sender", "assetIdentifier", "minAmount"] },
+	{
+		type: "ft_mint",
+		fields: ["recipient", "assetIdentifier", "minAmount", "trait"],
+	},
+	{
+		type: "ft_burn",
+		fields: ["sender", "assetIdentifier", "minAmount", "trait"],
+	},
 	{
 		type: "nft_transfer",
-		fields: ["sender", "recipient", "assetIdentifier", "tokenId"],
+		fields: ["sender", "recipient", "assetIdentifier", "trait"],
 	},
-	{ type: "nft_mint", fields: ["recipient", "assetIdentifier", "tokenId"] },
-	{ type: "nft_burn", fields: ["sender", "assetIdentifier", "tokenId"] },
-	{ type: "contract_call", fields: ["contract", "function"] },
-	{ type: "contract_deploy", fields: ["contract"] },
-	{ type: "print_event", fields: ["contract", "event", "contains"] },
+	{ type: "nft_mint", fields: ["recipient", "assetIdentifier", "trait"] },
+	{ type: "nft_burn", fields: ["sender", "assetIdentifier", "trait"] },
+	{
+		type: "contract_call",
+		fields: ["contractId", "functionName", "caller", "trait", "abi"],
+	},
+	{ type: "contract_deploy", fields: ["deployer", "contractName"] },
+	{ type: "print_event", fields: ["contractId", "topic", "trait"] },
 ];
 
 // Human blurb per column type, keyed by ColumnType so adding a type to the union
