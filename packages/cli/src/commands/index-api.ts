@@ -101,31 +101,38 @@ export function registerIndexCommand(program: Command): void {
 	index
 		.command("codegen")
 		.description(
-			"Generate a typed schema (Kysely, Drizzle, or JSON-Schema) for the Index domain tables — point it at your BYO database mirror",
+			"Generate a typed schema (Prisma, Kysely, Drizzle, or JSON-Schema) for the Index domain tables — point it at your BYO database mirror",
 		)
-		.option("--target <orm>", "kysely | drizzle | json-schema", "kysely")
+		.option(
+			"--target <orm>",
+			"prisma | kysely | drizzle | json-schema",
+			"kysely",
+		)
 		.option("--schema <name>", "Postgres schema to qualify table names with")
 		.option(
 			"--tables <list>",
 			"Comma-separated subset of Index tables (default: all)",
 		)
+		.option("--env <var>", "Prisma datasource url env var", "DATABASE_URL")
 		.option("-o, --output <path>", "Write to a file (defaults to stdout)")
 		.action(
 			async (o: {
 				target?: string;
 				schema?: string;
 				tables?: string;
+				env?: string;
 				output?: string;
 			}) => {
 				try {
 					const target = o.target ?? "kysely";
 					if (
+						target !== "prisma" &&
 						target !== "kysely" &&
 						target !== "drizzle" &&
 						target !== "json-schema"
 					) {
 						logError(
-							`Unsupported --target "${target}" (supported: kysely, drizzle, json-schema). Prisma needs a primary key, which the Index read contract doesn't declare.`,
+							`Unsupported --target "${target}" (supported: prisma, kysely, drizzle, json-schema).`,
 						);
 						process.exit(1);
 					}
@@ -139,6 +146,7 @@ export function registerIndexCommand(program: Command): void {
 					const out = generateIndexSchema(target, {
 						schemaName: o.schema,
 						tables,
+						datasourceEnv: o.env,
 					});
 					if (o.output) {
 						await writeTextFile(resolve(o.output), out);
