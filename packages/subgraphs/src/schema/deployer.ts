@@ -1,4 +1,5 @@
 import type { Database } from "@secondlayer/shared/db";
+import type { ByoBreakingChangeDetails } from "@secondlayer/shared/errors";
 import { type Kysely, sql } from "kysely";
 import type {
 	SubgraphDefinition,
@@ -120,6 +121,55 @@ export interface DeployDiff {
 	breakingChanges: string[];
 }
 
+export interface ByoMigrationPlan {
+	schemaName: string;
+	dropStatement: string;
+	statements: string[];
+	grantScript: string;
+}
+
+/**
+ * Thrown when a BYO subgraph deploy is refused for a breaking schema change.
+ * Plain `Error` with a literal `code` (not `SecondLayerError`) so the API
+ * middleware matches it by code across bundle boundaries — bunup duplicates
+ * classes per package, breaking cross-bundle `instanceof`. The refusal stands;
+ * `details` carries the reviewable DROP + rebuild the user must run manually.
+ */
+export class ByoBreakingChangeError extends Error {
+	readonly code = "BYO_BREAKING_CHANGE" as const;
+	readonly details: ByoBreakingChangeDetails;
+
+	constructor(reasons: string[], diff: DeployDiff, plan: ByoMigrationPlan) {
+		super(
+			"Breaking schema change on a BYO subgraph would drop data in your " +
+				"database. Review the plan and run the DROP + rebuild DDL manually.",
+		);
+		this.name = "ByoBreakingChangeError";
+		this.details = { reasons, diff, plan };
+	}
+}
+
+/**
+ * Map a raw `TableDiff` (+ breaking reasons) into the wire `DeployDiff`. `null`
+ * diff (e.g. same-hash force reindex, where no schema diff exists) → empty
+ * added/removed/columns with reasons preserved. Single source for both the
+ * non-refuse "reindexed" result and the refuse-path error payload.
+ */
+function toDeployDiff(diff: TableDiff | null, reasons: string[]): DeployDiff {
+	return {
+		addedTables: diff?.addedTables ?? [],
+		removedTables: diff?.removedTables ?? [],
+		addedColumns: diff
+			? Object.fromEntries(
+					Object.entries(diff.tables)
+						.filter(([, c]) => c.added.length > 0)
+						.map(([t, c]) => [t, c.added]),
+				)
+			: {},
+		breakingChanges: reasons,
+	};
+}
+
 export interface DeployPlan {
 	schemaName: string;
 	/** `DROP SCHEMA … CASCADE` a destructive rebuild would run first (shown, never auto-run on BYO). */
@@ -197,12 +247,17 @@ export async function deploySchema(
 	// (getSubgraph/registerSubgraph) always stays on `db`.
 	const ddlDb = opts?.dataDb ?? db;
 	const byo = opts?.dataDb != null;
-	const refuseDestructiveOnByo = (reason: string): never => {
-		throw new Error(
-			`Breaking schema change on a BYO subgraph (${reason}) would drop data ` +
-				`in your database. Drop the schema "${opts?.schemaName ?? pgSchemaName(def.name)}" ` +
-				`manually and re-deploy to rebuild.`,
-		);
+	const refuseDestructiveOnByo = (
+		reasons: string[],
+		diff: TableDiff | null,
+	): never => {
+		const plan = renderDeployPlan(def, opts?.schemaName);
+		throw new ByoBreakingChangeError(reasons, toDeployDiff(diff, reasons), {
+			schemaName: plan.schemaName,
+			dropStatement: plan.dropStatement,
+			statements: plan.statements,
+			grantScript: plan.grantScript,
+		});
 	};
 
 	const existing = await getSubgraph(db, def.name, opts?.accountId);
@@ -276,7 +331,7 @@ export async function deploySchema(
 
 		if (existing.schema_hash === hash && opts?.forceReindex) {
 			// Same schema but force reindex requested — drop and recreate.
-			if (byo) refuseDestructiveOnByo("force reindex");
+			if (byo) refuseDestructiveOnByo(["force reindex"], null);
 			await sql
 				.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
 				.execute(ddlDb);
@@ -298,7 +353,8 @@ export async function deploySchema(
 				// Breaking change or forced: drop schema, recreate, register
 				if (byo) {
 					refuseDestructiveOnByo(
-						reasons.length > 0 ? reasons.join("; ") : "force reindex",
+						reasons.length > 0 ? reasons : ["force reindex"],
+						diff,
 					);
 				}
 				await sql
@@ -308,16 +364,7 @@ export async function deploySchema(
 					await sql.raw(stmt).execute(ddlDb);
 				}
 				const sg = await registerSubgraph(db, regData);
-				const deployDiff: DeployDiff = {
-					addedTables: diff.addedTables,
-					removedTables: diff.removedTables,
-					addedColumns: Object.fromEntries(
-						Object.entries(diff.tables)
-							.filter(([, c]) => c.added.length > 0)
-							.map(([t, c]) => [t, c.added]),
-					),
-					breakingChanges: reasons,
-				};
+				const deployDiff = toDeployDiff(diff, reasons);
 				return {
 					action: "reindexed",
 					subgraphId: sg.id,

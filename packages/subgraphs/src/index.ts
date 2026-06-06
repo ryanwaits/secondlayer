@@ -70,6 +70,7 @@ export {
 } from "./schema/index-codegen.ts";
 export { pgSchemaName } from "./schema/utils.ts";
 export {
+	ByoBreakingChangeError,
 	deploySchema,
 	diffSchema,
 	renderDeployPlan,
@@ -80,7 +81,13 @@ export {
 	backfillSubgraph,
 	type ReindexOptions,
 } from "./runtime/reindex.ts";
-export type { TableDiff, ColumnDiff, DeployPlan } from "./schema/deployer.ts";
+export type {
+	TableDiff,
+	ColumnDiff,
+	DeployPlan,
+	DeployDiff,
+	ByoMigrationPlan,
+} from "./schema/deployer.ts";
 export type { GeneratedSQL } from "./schema/generator.ts";
 export type {
 	ColumnToTS,

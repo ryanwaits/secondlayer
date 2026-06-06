@@ -5,7 +5,11 @@ import {
 	getSubgraph,
 	subgraphDatabaseUrl,
 } from "@secondlayer/shared/db/queries/subgraphs";
-import { deploySchema, renderDeployPlan } from "../src/schema/deployer.ts";
+import {
+	ByoBreakingChangeError,
+	deploySchema,
+	renderDeployPlan,
+} from "../src/schema/deployer.ts";
 import type { SubgraphDefinition } from "../src/types.ts";
 
 // Proves the deploy DDL split: schema/tables land in the user's DB, the registry
@@ -92,14 +96,26 @@ describe.skipIf(SKIP)("BYO deploy DDL routing", () => {
 			...def,
 			schema: { transfers: { columns: { sender: { type: "principal" } } } }, // removed `amount`
 		};
-		await expect(
-			deploySchema(managed, breaking, "/tmp/h.ts", {
-				accountId: acct,
-				schemaName: SCHEMA,
-				dataDb: getDb(USER_DB_URL),
-				databaseUrlEnc: encryptDatabaseUrl(USER_DB_URL),
-				forceReindex: true,
-			}),
-		).rejects.toThrow(/BYO subgraph/);
+		const promise = deploySchema(managed, breaking, "/tmp/h.ts", {
+			accountId: acct,
+			schemaName: SCHEMA,
+			dataDb: getDb(USER_DB_URL),
+			databaseUrlEnc: encryptDatabaseUrl(USER_DB_URL),
+			forceReindex: true,
+		});
+		await expect(promise).rejects.toThrow(ByoBreakingChangeError);
+
+		const err = await promise.catch((e) => e as ByoBreakingChangeError);
+		expect(err.code).toBe("BYO_BREAKING_CHANGE");
+		expect(err.details.reasons).toContain(
+			"transfers: removed columns [amount]",
+		);
+		expect(err.details.plan.dropStatement).toBe(
+			`DROP SCHEMA IF EXISTS "${SCHEMA}" CASCADE;`,
+		);
+		expect(err.details.plan.statements.join("")).toContain("CREATE TABLE");
+
+		// Refusal stands — the user DB schema is untouched.
+		expect(await schemaExists(USER_DB_URL)).toBe(true);
 	});
 });
