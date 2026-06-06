@@ -235,6 +235,19 @@ export function registerSubscriptionTools(
 		},
 	);
 
+	defineTool<{ id: string }>(
+		server,
+		"subscriptions_test",
+		"Send a one-off test webhook to a subscription's URL (built for its format, SSRF-guarded). Logged as a delivery row — check subscriptions_recent_deliveries. Returns {ok, statusCode, error, durationMs, deliveryId}.",
+		{ id: z.string().describe("Subscription id") },
+		async ({ id }) => {
+			const res = await clientProvider().subscriptions.test(id);
+			return {
+				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
+			};
+		},
+	);
+
 	defineTool<{ id: string; fromBlock: number; toBlock: number }>(
 		server,
 		"subscriptions_replay",

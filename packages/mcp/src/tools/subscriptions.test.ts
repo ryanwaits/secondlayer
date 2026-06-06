@@ -90,6 +90,7 @@ describe("subscription MCP tools", () => {
 			"subscriptions_resume",
 			"subscriptions_delete",
 			"subscriptions_rotate_secret",
+			"subscriptions_test",
 			"subscriptions_replay",
 			"subscriptions_dead",
 			"subscriptions_requeue_dead",
