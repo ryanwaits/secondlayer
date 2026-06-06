@@ -1082,9 +1082,9 @@ Examples:
 	subgraphs
 		.command("codegen <file>")
 		.description(
-			"Generate an ORM schema (Prisma or Drizzle) for a subgraph's tables — point it at your BYO database",
+			"Generate an ORM schema (Prisma, Drizzle, or Kysely) for a subgraph's tables — point it at your BYO database",
 		)
-		.option("--target <orm>", "ORM target: prisma | drizzle", "prisma")
+		.option("--target <orm>", "ORM target: prisma | drizzle | kysely", "prisma")
 		.option(
 			"--schema <name>",
 			"Postgres schema name (defaults to subgraph_<name>)",
@@ -1108,9 +1108,13 @@ Examples:
 			) => {
 				try {
 					const target = options.target ?? "prisma";
-					if (target !== "prisma" && target !== "drizzle") {
+					if (
+						target !== "prisma" &&
+						target !== "drizzle" &&
+						target !== "kysely"
+					) {
 						error(
-							`Unsupported --target "${target}" (supported: prisma, drizzle). For Kysely, run kysely-codegen against your database.`,
+							`Unsupported --target "${target}" (supported: prisma, drizzle, kysely).`,
 						);
 						process.exit(1);
 					}
@@ -1121,9 +1125,11 @@ Examples:
 					}
 					const { readFile } = await import("node:fs/promises");
 					const { bundleSubgraphCode } = await import("@secondlayer/bundler");
-					const { generatePrismaSchema, generateDrizzleSchema } = await import(
-						"@secondlayer/subgraphs"
-					);
+					const {
+						generatePrismaSchema,
+						generateDrizzleSchema,
+						generateKyselySchema,
+					} = await import("@secondlayer/subgraphs");
 					const source = await readFile(absPath, "utf8");
 					const bundled = await bundleSubgraphCode(source);
 					const def: SubgraphDefinition = {
@@ -1138,17 +1144,23 @@ Examples:
 					const out =
 						target === "drizzle"
 							? generateDrizzleSchema(def, { schemaName: options.schema })
-							: generatePrismaSchema(def, {
-									schemaName: options.schema,
-									datasourceEnv: options.env,
-									modelsOnly: options.modelsOnly,
-								});
+							: target === "kysely"
+								? generateKyselySchema(def, { schemaName: options.schema })
+								: generatePrismaSchema(def, {
+										schemaName: options.schema,
+										datasourceEnv: options.env,
+										modelsOnly: options.modelsOnly,
+									});
 					if (options.output) {
 						await writeTextFile(resolve(options.output), out);
 						success(`Wrote ${target} schema to ${options.output}`);
-						info(
-							"Next: point its datasource at your BYO database, then `prisma generate`.",
-						);
+						const next =
+							target === "prisma"
+								? "point its datasource at your BYO database, then `prisma generate`."
+								: target === "drizzle"
+									? "point your Drizzle connection at your BYO database (treat tables read-only)."
+									: "import the `DB` type into `new Kysely<DB>()` against your BYO database.";
+						info(`Next: ${next}`);
 					} else {
 						process.stdout.write(out);
 					}
