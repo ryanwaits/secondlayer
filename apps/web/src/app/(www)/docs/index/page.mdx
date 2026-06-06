@@ -77,6 +77,28 @@ Pending, unconfirmed transactions with the same decoded enrichment as `/transact
 
 `GET /v1/index` describes itself. Alongside the route list it returns `event_type_filters` — a per-type map of `columns`, `allowed_filters`, `equality_filters`, and `required_non_null`, generated from the event registry — so an agent can learn exactly what each `event_type` accepts at runtime rather than hard-coding it.
 
+## Reorgs
+
+Read envelopes (e.g. `/v1/index/stacking`, `/transactions`, `/contract-calls`) carry a `reorgs` array alongside the data — the chain reorganizations overlapping the page's height range, empty when none. Use it to reconcile any rows you've already committed from a fork.
+
+```json
+{
+  "reorgs": [
+    {
+      "id": "...",
+      "detected_at": "2026-06-05T12:00:00Z",
+      "fork_point_height": 892100,
+      "old_index_block_hash": "0x…",
+      "new_index_block_hash": "0x…",
+      "orphaned_range": { "from": "892101:0", "to": "892140:7" },
+      "new_canonical_tip": "892140:3"
+    }
+  ]
+}
+```
+
+To reconcile: roll back any rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. Both bounds are `<block_height>:<tx_index>` cursors. The SDK exports the `IndexReorg` type from `@secondlayer/sdk` for typing these elements.
+
 ## Beyond REST
 
 The Index is the same data through every surface, not just REST. Pick the one that fits your runtime:

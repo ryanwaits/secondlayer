@@ -2,7 +2,7 @@
 
 Raw chain event firehose — cursor-paginated REST, idempotent, replayable.
 
-Streams expose the same event surface every Foundation Dataset decoder consumes internally. Page forward with a cursor, replay from any point, and never miss an event. For push delivery to your backend, see [Subscriptions](/docs/subscriptions).
+Streams expose the same event surface every Foundation Dataset decoder consumes internally. Page forward with a cursor, replay from any point, and never miss an event. Stream live over SSE in-process (see below), or fan out to your backend with [Subscriptions](/docs/subscriptions).
 
 Streams reads require an API key — send it as `Authorization: Bearer`.
 
@@ -29,12 +29,29 @@ curl -H "Authorization: Bearer $SL_API_KEY" \
   "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP...&limit=50"
 ```
 
+## Real-time firehose (SSE)
+
+`GET /v1/streams/events/stream` streams events as Server-Sent Events over a single long-lived connection — the native push surface inside Streams. Authenticate with `Authorization: Bearer`, and apply the same filters as `/events`: `types`, `not_types`, `contract_id`, `sender`, `recipient`, and `asset_identifier`.
+
+```bash
+curl -N -H "Authorization: Bearer $SL_API_KEY" \
+  "https://api.secondlayer.tools/v1/streams/events/stream?types=ft_transfer"
+```
+
+Choose a start position with `cursor` (or `from_cursor`), or `from_height`. With no start position the connection live-tails from the reorg-clamped tip. A `ping` keepalive frame is sent every 20s so idle connections stay open.
+
+The SDK's `client.events.subscribe(...)` is the ergonomic way to consume this — it carries your Bearer key, auto-reconnects from the last delivered cursor, and verifies per-frame signatures. See the [SDK docs](/docs/sdk).
+
+### Per-frame signatures
+
+Each SSE frame body is `{ event, sig, key_id }`, where `sig` is an ed25519 signature over `JSON.stringify(event)`. When the Streams client is created with `verify`, every frame is checked against the key published at `/public/streams/signing-key` before your handler runs — a bad or missing signature throws. This is the streaming counterpart to the signed `X-Signature` on REST reads: trust the data without trusting the server.
+
 ## What's new (May 2026)
 
 - **Finality** — `tip.finalized_height` plus a `finalized` flag on every event, anchored to Bitcoin (burn-block) confirmations. A `finalized` event won't reorg.
 - **Caching** — fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (and `304` on `If-None-Match`); the moving tip stays short-lived.
 - **Signed responses** — every read carries an ed25519 `X-Signature`. Fetch the public key at `/public/streams/signing-key` and verify, or set `verify` on the SDK client — trust the data without trusting the server.
-- **Bulk + replay** — download finalized history as parquet (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam.
+- **Bulk + replay** — download finalized history as parquet (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam. The bulk manifest is itself ed25519-signed and is verified before any per-file `sha256` is trusted — the manifest signature is the root of trust, with the file hashes chained beneath it. The client option `verifyDumpsManifest` defaults to `true` (both `dumps.list()` and `events.replay()` enforce it); opt out with `verifyDumpsManifest: false`.
 
 See the [changelog](/docs/changelog) for the full list.
 

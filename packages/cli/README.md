@@ -147,6 +147,7 @@ deliveries/...) operates on both kinds.
 | Command | What it does |
 |---|---|
 | `sl contracts generate [files...]` (alias `gen`) | Generate TS interfaces from Clarity contracts |
+| `sl context` | Print a headless orientation snapshot — account, Streams + Index tips, your subgraphs, subscriptions, and in-flight reindex operations. CLI counterpart to the MCP `secondlayer://context` resource |
 | `sl init` | Scaffold `secondlayer.config.ts` |
 | `sl doctor` / `sl status` | Reachability + health checks |
 | `sl account get` / `sl account update` | Show or update display name / bio / slug |

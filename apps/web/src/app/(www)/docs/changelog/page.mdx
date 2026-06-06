@@ -83,8 +83,9 @@ const streams = createStreamsClient({ apiKey, verify: true });
 
 ### Bulk & backfill
 
-Download all of it. Finalized history is published as parquet with a
-sha256-verified manifest:
+Download all of it. Finalized history is published as parquet with an
+ed25519-signed manifest — the SDK verifies that signature by default
+(`verifyDumpsManifest`) before trusting any per-file sha256 it lists:
 
 - SDK: `client.dumps.list()` / `download(file)` and a one-call
   `events.replay({ from: "genesis", onDumpFile, onBatch })` that backfills cold

@@ -19,6 +19,14 @@ sl subscriptions create  # wire up a webhook subscription
 
 Every tool shares one session — sign in once and the SDK, CLI, and MCP server all inherit it.
 
+## Orientation
+
+```bash
+sl context               # headless orientation snapshot
+```
+
+`sl context` prints a snapshot to orient before acting — your account, the live Streams and Index tips, your subgraphs, your subscriptions, and any in-flight reindex operations. It's the CLI counterpart to the MCP `secondlayer://context` resource agents read before they reach for a tool.
+
 `sl subscriptions create` wires a webhook to a subgraph table. [Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) — webhooks on raw chain events with no subgraph — are created over the SDK, REST, or MCP instead (they take a `triggers` array rather than a table).
 
 ## ORM codegen

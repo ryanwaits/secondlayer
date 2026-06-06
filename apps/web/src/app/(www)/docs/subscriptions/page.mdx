@@ -2,7 +2,7 @@
 
 Push semantics. Subscribe to your subgraph table writes — the server delivers signed webhooks.
 
-A subscription binds to a subgraph table. Every row your handler writes that matches the filter triggers a signed HTTP POST to your endpoint, with automatic retries and idempotency keys.
+A subscription binds to a subgraph table. Every row change that matches the filter triggers a signed HTTP POST to your endpoint, with automatic retries and idempotency keys. Subscriptions deliver the full row lifecycle — inserts, updates, and deletes — not just the initial write.
 
 ## Create a subscription
 
@@ -15,16 +15,65 @@ sl subscriptions create \
 
 ## Verify the signature
 
-Every delivery is signed. Verify the `secondlayer-signature` header against your subscription secret before trusting the payload.
+Every delivery carries a per-subscription HMAC. Verify it against your subscription secret before trusting the payload — pass the **raw body first**, then the headers and secret.
 
 ```ts
 import { verifyWebhookSignature } from "@secondlayer/sdk";
 
-const valid = verifyWebhookSignature(req.headers, rawBody, secret);
+const valid = verifyWebhookSignature(rawBody, req.headers, secret);
 if (!valid) return new Response("bad signature", { status: 401 });
 ```
 
+The optional fourth argument is the timestamp tolerance in seconds (`verifyWebhookSignature(rawBody, headers, secret, toleranceSeconds = 300)`).
+
 Failed deliveries retry with backoff; after repeated failures the subscription's circuit opens so a downed endpoint can't block the queue.
+
+## Row lifecycle verbs
+
+A subgraph subscription tracks the **whole life** of each matching row, not just the insert. The payload's `type` field encodes which mutation fired, as `` `<subgraph>.<table>.<verb>` ``:
+
+| Verb | Fires on | Example `type` |
+| --- | --- | --- |
+| `created` | row insert | `sbtc-flows.transfers.created` |
+| `updated` | row update | `sbtc-flows.transfers.updated` |
+| `deleted` | row delete | `sbtc-flows.transfers.deleted` |
+
+A downstream mirror should apply `created` and `updated` and remove the row on `deleted`, so your copy stays in lockstep with the materialized table.
+
+## Universal webhook signature
+
+Beyond the per-subscription HMAC above, **every** delivery — in any format (`raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest`) — also carries an authenticity signature that proves it came from Secondlayer. Three headers ride on every POST:
+
+| Header | Purpose |
+| --- | --- |
+| `webhook-id` | Unique delivery id (also the signed prefix) |
+| `x-secondlayer-signature` | ed25519 signature, base64 |
+| `x-secondlayer-signature-keyid` | Id of the signing key used |
+
+The signed content is `` `${webhook-id}.${rawBody}` ``. Verify it with the SDK against Secondlayer's published public key — one key proves authenticity for any format:
+
+```ts
+import { verifySecondlayerSignature } from "@secondlayer/sdk";
+
+// Public key (ed25519, SPKI PEM) from GET /public/streams/signing-key
+const valid = verifySecondlayerSignature(rawBody, req.headers, publicKeyPem);
+if (!valid) return new Response("bad signature", { status: 401 });
+```
+
+Fetch the public key once from `GET /public/streams/signing-key` and cache it (rotate on the `keyid` header).
+
+## Replay
+
+Re-deliver historical rows over an existing subscription with `replay`. Replays are **idempotent** (re-running the same range is a no-op), **historical only**, and **never move the live cursor** — your forward stream keeps flowing untouched.
+
+```ts
+const { replayId, enqueuedCount, scannedCount } = await sl.subscriptions.replay(id, {
+  fromBlock: 8000000,
+  toBlock: 8050000,
+});
+```
+
+The range is capped at **100,000 blocks**. Replayed deliveries arrive under `chain.{type}.apply`, tagged as replays so your handler can tell them apart from live traffic.
 
 ## Direct chain subscriptions (no subgraph)
 
@@ -78,7 +127,7 @@ Chain deliveries carry a small typed envelope. A matched event delivers `chain.{
   "block_height": 123456,
   "tx_id": "0x…",
   "canonical": true,
-  "trigger": { "type": "contract_call", "contractId": "SP….amm", "functionName": "swap-x-for-y" },
+  "trigger": "contract_call",
   "event": { /* the raw chain event */ }
 }
 ```

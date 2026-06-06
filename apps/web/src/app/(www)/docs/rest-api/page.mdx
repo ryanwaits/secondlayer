@@ -31,6 +31,20 @@ curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
   -d "_order=desc"
 ```
 
+## Streaming (SSE)
+
+Two endpoints push rows in real time as Server-Sent Events (`Content-Type: text/event-stream`) over a single long-lived connection. Both emit a `ping` keepalive every 20s.
+
+- `GET /v1/streams/events/stream` — the raw chain event firehose. Bearer auth. Accepts the same filters as `/v1/streams/events` (`types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`) and a start position (`cursor`/`from_cursor`/`from_height`); with no start position it live-tails from the reorg-clamped tip.
+- `GET /api/subgraphs/:subgraphName/:tableName/stream` — new rows for a subgraph table. Accepts `?since=<block_height>` (replay from a height, then tail) plus the same column filters as the table's REST read.
+
+```bash
+curl -N -H "Authorization: Bearer $SL_API_KEY" \
+  "https://api.secondlayer.tools/v1/streams/events/stream?types=ft_transfer"
+```
+
+See [Streams](/docs/streams#real-time-firehose-sse) and the [SDK](/docs/sdk#subscribe-to-the-live-stream-sse) for ergonomic clients.
+
 ## Transaction-inclusion proof
 
 `GET /v1/index/transactions/:tx_id/proof` returns a trustless inclusion proof: the raw transaction, raw header, and merkle path needed to verify, client-side, that a transaction is in a Stacks (Nakamoto) block — plus the reward set, when resolvable, to confirm the signers attested to it.

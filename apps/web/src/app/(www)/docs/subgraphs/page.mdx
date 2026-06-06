@@ -96,6 +96,26 @@ sources: {
 
 Supported traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract's full history from its deploy block, even if it was classified later. See [Contract discovery](/docs/contracts) to query the matching set directly.
 
+## Stream rows in real time
+
+Tail a table over Server-Sent Events as rows are indexed, instead of polling. The endpoint streams from the current tip by default, or pass `?since=<block_height>` to replay from a height and then tail live. Column filters are accepted as query params, and a periodic `ping` event keeps the connection alive.
+
+```bash
+curl -N https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers/stream \
+  -G -d "since=8050000"
+```
+
+From the SDK, `subscribe` wraps the stream with the same `where` filters as `findMany` and returns an unsubscribe function:
+
+```ts
+const unsubscribe = subgraph.transfers.subscribe(
+  (row) => console.log(row),
+  { where: { sender: "SP3PE7Q9...X44J" }, since: 8050000, onError: console.error },
+);
+```
+
+`subscribe` uses the global `EventSource`, so it runs in the browser or **Node ≥ 22** only.
+
 ## Use your own database + ORM
 
 Deploy with `--database-url` and your subgraph's rows land in **your** Postgres. Then generate a typed schema for your ORM and query it with full joins and relations:
@@ -108,7 +128,7 @@ npx prisma generate
 
 Prisma and Drizzle have first-class generators; for Kysely, run `kysely-codegen` against your database. Secondlayer owns the table DDL, so treat the tables as read-only and verify with `prisma db pull` (never `migrate`).
 
-Want pushes instead of polling? Bind a [Subscription](/docs/subscriptions) to this table and Secondlayer will POST every matching row to your webhook.
+Want pushes instead of polling? Bind a [Subscription](/docs/subscriptions) to this table and Secondlayer will POST every matching row change to your webhook — inserts, updates, and deletes, with the verb encoded in the payload `type` (see the [Subscriptions](/docs/subscriptions) page).
 
 export const metadata = {
 	title: "Subgraphs — Secondlayer Docs",

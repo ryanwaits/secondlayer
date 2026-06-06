@@ -128,12 +128,43 @@ for await (const event of streams.events.stream({
 }
 ```
 
+Real-time push (`events.subscribe`).
+
+Use `client.events.subscribe` for callback-style live delivery — it pushes each
+event to `onEvent` as it lands. It's fetch-based (so it carries the Bearer key)
+and works in browsers and Node 18+. It auto-reconnects from the last delivered
+cursor on a dropped connection, and returns an unsubscribe function.
+
+```typescript
+const unsubscribe = streams.events.subscribe({
+  types: ["ft_transfer"],          // notTypes / contractId / sender / recipient / assetIdentifier also filter
+  // fromCursor: lastCursor,       // resume strictly after this cursor; omit to tail from the tip
+  onEvent: async (event) => {
+    console.log(event.cursor, event.tx_id);
+  },
+  onError: (err) => console.error("reconnecting…", err),
+});
+
+// later
+unsubscribe(); // or pass `signal` and abort it
+```
+
+Each pushed frame is `{ event, sig, key_id }`. When the client was created with
+`verify` (or `{ publicKey }`), the per-frame ed25519 signature is checked before
+`onEvent` runs; a bad/missing signature throws `StreamsSignatureError`.
+
 Bulk parquet dumps.
 
 Finalized history is published as public parquet files. Set `dumpsBaseUrl`
 (or `SL_STREAMS_DUMPS_URL`) — no API key needed for dumps. The SDK does **not**
 decode parquet; `download` hands you sha256-verified bytes to process with your
 own tooling.
+
+The bulk **manifest is ed25519-signed**, and the SDK verifies that signature
+before it trusts any per-file sha256 listed in it. The `verifyDumpsManifest`
+option **defaults to `true`** — `dumps.list()` and `events.replay()` enforce it,
+so you don't trust the file hashes unless the manifest itself verifies. Opt out
+with `verifyDumpsManifest: false`.
 
 ```typescript
 const streams = createStreamsClient({
@@ -317,6 +348,30 @@ const gaps = await sl.subgraphs.gaps("my-subgraph");
 const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode });
 ```
 
+Stream rows live with the typed client — each table exposes `subscribe`
+alongside `findMany`/`count`:
+
+```typescript
+const subgraph = sl.subgraphs.typed(myDefinition); // { transfers, ... }
+
+const unsubscribe = subgraph.transfers.subscribe(
+  (row) => console.log(row),
+  {
+    where: { amount: { gte: "1000000" } }, // optional row filter
+    since: 180000,                          // optional: replay from this block_height, then tail
+    onError: (err) => console.error(err),
+  },
+);
+
+// later
+unsubscribe();
+```
+
+`subscribe` is an SSE stream over the global `EventSource` (available in
+browsers and Node ≥ 22; it throws if no `EventSource` is present). Frames are
+unsigned rows. `since: <block_height>` replays matching rows from that height,
+then tails the live edge; omit it to tail only.
+
 ## Subscriptions
 
 Signed HTTP webhooks. Subscriptions are polymorphic — pick one kind:
@@ -395,6 +450,38 @@ await sl.subscriptions.replay(id, { fromBlock: 180000, toBlock: 181000 });
 const { data: dead } = await sl.subscriptions.dead(id);
 await sl.subscriptions.requeueDead(id, outboxId);
 ```
+
+### Verifying deliveries
+
+Every delivery — any kind, any `format` — also carries a universal authenticity
+signature you can verify with one published key, no per-subscription secret. The
+headers are `webhook-id`, `x-secondlayer-signature`, and
+`x-secondlayer-signature-keyid`; the signed content is `` `${webhook-id}.${rawBody}` ``
+(ed25519). Fetch the public key from `GET /public/streams/signing-key`.
+
+```typescript
+import { verifySecondlayerSignature } from "@secondlayer/sdk";
+
+app.post("/webhook", async (c) => {
+  const raw = await c.req.text(); // raw body — never re-stringify the parsed JSON
+  if (!verifySecondlayerSignature(raw, c.req.raw.headers, SECONDLAYER_PUBLIC_KEY)) {
+    return c.text("Invalid signature", 401);
+  }
+  // ... trusted ...
+  return c.body(null, 204);
+});
+```
+
+```typescript
+verifySecondlayerSignature(
+  rawBody: string,
+  headers: WebhookHeaderInput,   // plain object, Fetch `Headers`, or a lookup fn
+  publicKeyPem: string,
+): boolean;
+```
+
+Prefer the per-subscription HMAC (Standard Webhooks) secret instead? Use
+`verifyWebhookSignature(rawBody, headers, secret)` — raw body first.
 
 ## Error Handling
 
