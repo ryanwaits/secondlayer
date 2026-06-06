@@ -75,8 +75,8 @@ C1 (quick win) → A1–A4 → B1–B3 (two-deploy) → C2/C3 → C4 → D1 → 
 
 ## Unresolved questions (founder)
 
-1. **Subscription-processor replica count** — N>1 in prod day-1, or start at 1 and rely on leader/SKIP-LOCKED headroom?
-2. **B3 cutover style** — env flag (`SUBGRAPH_PROCESSOR_RUN_SUBSCRIPTIONS=false`) for reversibility, or delete-over-refactor once B2 canary-verified? Audit prefers delete; flag de-risks rollback.
+1. ~~Subscription-processor replica count~~ — **RESOLVED: start at 1, scale later.** Leader/SKIP-LOCKED make N>1 safe; B2 ships 1 replica, bump once stable.
+2. ~~B3 cutover style~~ — **RESOLVED: delete the calls** (delete-over-refactor) once B2 canary-verified. No env flag.
 3. ~~D1 signature primitive~~ — **RESOLVED: ed25519 (single platform key).** Universal `X-Secondlayer-Signature` across all formats; receivers verify with the published public key. No per-sub secret needed.
 4. ~~E1 per-frame signing shape~~ — **RESOLVED: inline per-frame sig `{event,sig,key_id}`.** Each SSE event independently verifiable.
 5. **C4 chain-replay exposure** — wire chain replay into the existing replay route/SDK now, or land the engine first and expose later?
