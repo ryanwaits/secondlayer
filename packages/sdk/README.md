@@ -215,6 +215,75 @@ for await (const transfer of sl.index.ftTransfers.walk({
 }
 ```
 
+## Transaction-inclusion proofs
+
+Verify — **without trusting Second Layer** — that a transaction is included in a
+Stacks (Nakamoto) block, and that ≥70% of the reward cycle's signer weight
+attested to that block. `verifyTransactionProof` recomputes everything
+client-side and trusts nothing the API returned.
+
+> Verification uses Node's crypto via `@secondlayer/shared` — Node/server-side use.
+
+```typescript
+import { verifyTransactionProof, fetchRewardSet } from "@secondlayer/sdk";
+
+const proof = await fetch(
+  `https://api.secondlayer.tools/v1/index/transactions/${txid}/proof`,
+).then((r) => r.json());
+
+const result = verifyTransactionProof(proof); // anchored + consensus (embedded set)
+// result.ok, result.level === "consensus", result.signerWeightBps
+
+// Fully trustless — resolve the reward set from your own node:
+const rewardSet = await fetchRewardSet({
+  nodeUrl: "https://your-stacks-node:20443",
+  cycle: proof.consensus.reward_cycle,
+});
+const trustless = verifyTransactionProof(proof, { rewardSet }); // rewardSetSource: "provided"
+```
+
+Two trust levels:
+
+- **Anchored** — recompute the txid from `raw_tx`, fold `tx_merkle_path` up to the
+  header's `tx_merkle_root`, and recompute `block_hash` + `index_block_hash` from
+  `raw_header`. The tx is in a header any node can corroborate.
+- **Consensus** — additionally recover the header's signer signatures and confirm
+  ≥70% of the reward cycle's signer weight signed the block. Fully trustless when
+  you pass a `rewardSet` resolved yourself via `fetchRewardSet`
+  (`rewardSetSource: "provided"`); otherwise it uses the proof's embedded set
+  (`rewardSetSource: "embedded"`).
+
+```typescript
+verifyTransactionProof(
+  proof: TransactionProof,
+  opts?: { rewardSet?: RewardSet },
+): TransactionProofVerifyResult;
+
+fetchRewardSet(opts: {
+  nodeUrl: string;            // your own stacks-node
+  cycle: number;             // reward cycle — proof.consensus.reward_cycle
+  fetchImpl?: typeof fetch;
+}): Promise<RewardSet | null>; // reads /v3/stacker_set/{cycle}
+```
+
+`verifyTransactionProof` returns a `TransactionProofVerifyResult`:
+
+```typescript
+{
+  level: "anchored" | "consensus";
+  txidMatches: boolean;
+  includedInHeader: boolean;
+  headerSelfConsistent: boolean;
+  signerWeightBps?: number;   // consensus only
+  thresholdMet?: boolean;     // consensus only — ≥70% (7000 bps)
+  rewardSetSource?: "provided" | "embedded";
+  ok: boolean;
+  errors: string[];
+}
+```
+
+Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
+
 ## Stacks Subgraphs
 
 Deploy and query app-specific L3 tables.

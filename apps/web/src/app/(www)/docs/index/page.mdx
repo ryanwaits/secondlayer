@@ -41,6 +41,14 @@ curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>"
 
 Full transaction documents, decoded from the raw transaction: `fee`, `nonce`, `sponsored`, `post_conditions`, and a typed `payload` sub-object. List with `/v1/index/transactions` filtered by `type`, `sender`, or `contract_id`, or fetch one by `tx_id`.
 
+### Proofs
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
+```
+
+`/{tx_id}/proof` returns a trustless inclusion proof — the raw transaction, raw header, and merkle path needed to verify, client-side, that the transaction is in a Stacks block and that the reward cycle's signers attested to it. Nothing Secondlayer returns is trusted. See [Verification](/docs/verification).
+
 ## Blocks and canonical
 
 ```bash

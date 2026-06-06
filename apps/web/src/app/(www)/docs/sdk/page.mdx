@@ -69,6 +69,36 @@ const valid = verifyWebhookSignature(req.headers, rawBody, secret);
 if (!valid) return new Response("bad signature", { status: 401 });
 ```
 
+## Transaction-inclusion proofs
+
+Verify — without trusting Secondlayer — that a transaction is included in a Stacks (Nakamoto) block, and that ≥70% of the reward cycle's signer weight attested to it. `verifyTransactionProof` recomputes everything client-side; `fetchRewardSet` resolves the reward set from your own stacks-node for fully-trustless consensus verification.
+
+```ts
+import { verifyTransactionProof, fetchRewardSet } from "@secondlayer/sdk";
+
+const proof = await fetch(
+  `https://api.secondlayer.tools/v1/index/transactions/${txid}/proof`,
+).then((r) => r.json());
+
+// Anchored + consensus using the reward set embedded in the proof:
+const result = verifyTransactionProof(proof);
+// result.ok === true, result.level === "consensus", result.signerWeightBps ~ 7000+
+
+// Fully trustless: resolve the reward set from your own node
+const rewardSet = await fetchRewardSet({
+  nodeUrl: "https://your-stacks-node:20443",
+  cycle: proof.consensus.reward_cycle,
+});
+const trustless = verifyTransactionProof(proof, { rewardSet });
+// trustless.rewardSetSource === "provided"
+```
+
+- `verifyTransactionProof(proof, opts?: { rewardSet?: RewardSet })` returns a `TransactionProofVerifyResult` — `{ level: "anchored" | "consensus", txidMatches, includedInHeader, headerSelfConsistent, signerWeightBps?, thresholdMet?, rewardSetSource?, ok, errors }`.
+- `fetchRewardSet({ nodeUrl, cycle, fetchImpl? })` resolves the reward set from `/v3/stacker_set/{cycle}` on a node you trust, returning `RewardSet | null`.
+- Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
+
+Verification uses Node's crypto (via `@secondlayer/shared`), so it is intended for Node / server-side use — the same as the Streams signature verification. See [Verification](/docs/verification) for the trust levels and the proof endpoint.
+
 ## Checkpointed consumer
 
 For indexers and ETL jobs, `consume` polls and commits a cursor so you never miss or double-process events — return the cursor you committed inside `onBatch`.

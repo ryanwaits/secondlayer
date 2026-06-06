@@ -55,6 +55,58 @@ support `asset_identifier`.
 Responses use the same envelope pattern as Stacks Streams:
 `{ events, next_cursor, tip, reorgs }`.
 
+### Transaction-inclusion proofs
+
+```
+GET /v1/index/transactions/:tx_id/proof
+```
+
+Returns a trustless proof that a transaction is included in a Stacks (Nakamoto)
+block, and that the reward cycle's signers attested to that block. The proof is
+self-verifying: a consumer recomputes everything client-side and trusts nothing
+Second Layer returned. Open beta — no read auth.
+
+```bash
+curl https://api.secondlayer.tools/v1/index/transactions/0x.../proof
+```
+
+200 response:
+
+```json
+{
+  "txid": "<hex>",
+  "index_block_hash": "<hex>",
+  "block_height": 8199502,
+  "tx_index": 0,
+  "raw_tx": "<hex>",
+  "raw_header": "<hex>",
+  "tx_merkle_path": [{ "position": "left", "hash": "<hex>" }],
+  "consensus": {
+    "reward_cycle": 136,
+    "reward_set": {
+      "signers": [{ "signing_key": "<hex>", "weight": 51 }],
+      "total_weight": 3862
+    }
+  }
+}
+```
+
+`consensus` is present only when the reward set could be resolved; otherwise the
+proof is anchored-only (still verifiable as included in a corroborable header,
+without the signer-weight check).
+
+Verify the proof client-side with `verifyTransactionProof` from
+[`@secondlayer/sdk`](../sdk/README.md). For a fully-trustless consensus check,
+resolve the reward set from your own stacks-node rather than trusting the
+embedded set.
+
+Proof errors:
+
+| Status | Code | Description |
+|--------|------|-------------|
+| 404 | `PROOF_UNAVAILABLE` | Transaction or block not found |
+| 503 | `PROOF_TX_SET_INCOMPLETE` | Server couldn't reproduce the block's `tx_merkle_root` from its stored tx set, so it refuses to emit an unverifiable proof (fail-safe) |
+
 ## Stacks Subgraphs
 
 ```

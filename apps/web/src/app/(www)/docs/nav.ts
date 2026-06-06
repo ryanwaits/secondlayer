@@ -31,6 +31,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		label: "Reference",
 		items: [
 			{ title: "REST API", href: "/docs/rest-api" },
+			{ title: "Verification", href: "/docs/verification" },
 			{ title: "Contract discovery", href: "/docs/contracts" },
 			{ title: "SDK", href: "/docs/sdk" },
 			{ title: "CLI", href: "/docs/cli" },

@@ -31,6 +31,37 @@ curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
   -d "_order=desc"
 ```
 
+## Transaction-inclusion proof
+
+`GET /v1/index/transactions/:tx_id/proof` returns a trustless inclusion proof: the raw transaction, raw header, and merkle path needed to verify, client-side, that a transaction is in a Stacks (Nakamoto) block — plus the reward set, when resolvable, to confirm the signers attested to it.
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
+```
+
+```json
+{
+  "txid": "<hex>",
+  "index_block_hash": "<hex>",
+  "block_height": 8199502,
+  "tx_index": 0,
+  "raw_tx": "<hex>",
+  "raw_header": "<hex>",
+  "tx_merkle_path": [{ "position": "left", "hash": "<hex>" }],
+  "consensus": {
+    "reward_cycle": 136,
+    "reward_set": { "signers": [{ "signing_key": "<hex>", "weight": 51 }], "total_weight": 3862 }
+  }
+}
+```
+
+- `consensus` is present only when the reward set could be resolved; otherwise the proof is anchored-only.
+- `404 { error, code: "PROOF_UNAVAILABLE" }` — the transaction or its block was not found.
+- `503 { error, code: "PROOF_TX_SET_INCOMPLETE" }` — the server could not reproduce the block's `tx_merkle_root` from its stored transaction set, so it refuses to emit a proof that wouldn't verify (fail-safe).
+- Open during beta — no key required, like the other read endpoints.
+
+See [Verification](/docs/verification) for the trust levels and the `@secondlayer/sdk` verifier.
+
 export const metadata = {
 	title: "REST API — Secondlayer Docs",
 	description: "The shared envelope, cursor, and filter grammar across all surfaces.",
