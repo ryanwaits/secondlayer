@@ -20,7 +20,7 @@ if [ -f .env ]; then
 	set +a
 fi
 
-APP_SERVICES="api indexer l2-decoder worker agent caddy"
+APP_SERVICES="api indexer l2-decoder subgraph-processor subscription-processor worker agent caddy"
 PLATFORM_SERVICES="provisioner"
 TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
@@ -49,8 +49,42 @@ echo "Rollback image tag: ${DEPLOY_IMAGE_TAG}"
 echo "Tenant API image: ${TENANT_API_IMAGE}"
 echo "Rollback is image-only. Migrations will not run."
 
+# Optional single-service rollback. Pin ONE dedicated-image service to
+# ROLLBACK_IMAGE_TAG via its per-service tag var and recreate only it — the
+# independent-rollback payoff of the per-service images. api/indexer/worker/agent
+# share images via DEPLOY_IMAGE_TAG and are not targetable here.
+ROLLBACK_SERVICE="${ROLLBACK_SERVICE:-}"
+if [ -n "$ROLLBACK_SERVICE" ]; then
+	case "$ROLLBACK_SERVICE" in
+		l2-decoder) _svc_tag_var=L2_DECODER_IMAGE_TAG ;;
+		subgraph-processor) _svc_tag_var=SUBGRAPH_PROCESSOR_IMAGE_TAG ;;
+		subscription-processor) _svc_tag_var=SUBSCRIPTION_PROCESSOR_IMAGE_TAG ;;
+		*)
+			echo "ERROR: ROLLBACK_SERVICE must be one of: l2-decoder subgraph-processor subscription-processor"
+			exit 2
+			;;
+	esac
+	export "${_svc_tag_var}=${ROLLBACK_IMAGE_TAG}"
+	echo "🎯 Single-service rollback: ${ROLLBACK_SERVICE} → ${ROLLBACK_IMAGE_TAG} (all other services untouched)"
+	$COMPOSE pull "$ROLLBACK_SERVICE"
+	$COMPOSE up -d --no-build --no-deps --force-recreate "$ROLLBACK_SERVICE"
+	# Inline health wait — the shared helper is defined later; keep this block self-contained.
+	_container="secondlayer-${ROLLBACK_SERVICE}-1"
+	for _i in $(seq 1 10); do
+		_h=$(docker inspect "$_container" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null || true)
+		if [ "$_h" = "healthy" ] || [ "$_h" = "running" ]; then
+			echo "${ROLLBACK_SERVICE}: ${_h}"
+			break
+		fi
+		echo "${ROLLBACK_SERVICE}: health=${_h:-missing}, attempt ${_i}/10..."
+		sleep 6
+	done
+	echo "Single-service rollback complete. Deploy-state markers left unchanged (targeted pin, not a full rollback)."
+	exit 0
+fi
+
 # Pull exact images before changing any running containers.
-$COMPOSE pull api indexer l2-decoder worker agent migrate
+$COMPOSE pull api indexer l2-decoder subgraph-processor subscription-processor worker agent migrate
 $COMPOSE --profile platform pull provisioner
 
 # Recreate only runtime services. --no-deps prevents compose from starting the

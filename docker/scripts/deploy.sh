@@ -74,7 +74,7 @@ echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
 # image for this SHA, fail while the current deployment is still running.
 # Skip the pull entirely when every required image is already cached locally
 # (no-op re-deploys, rollbacks to a recent SHA, CI pre-pull from build-images).
-_pull_services=(api indexer l2-decoder worker agent migrate)
+_pull_services=(api indexer l2-decoder subgraph-processor subscription-processor worker agent migrate)
 _expected_images=$($COMPOSE config --images "${_pull_services[@]}" 2>/dev/null | sort -u)
 _missing_images=()
 while IFS= read -r _img; do
