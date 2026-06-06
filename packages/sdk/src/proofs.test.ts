@@ -64,6 +64,35 @@ describe("verifyTransactionProof (anchored)", () => {
 		expect(r.headerSelfConsistent).toBe(false);
 	});
 
+	test("consensus level verifies when ≥70% signer weight signed", () => {
+		const p: TransactionProof = {
+			...proofFor(0),
+			consensus: {
+				reward_cycle: fx.expect.rewardCycle,
+				reward_set: fx.rewardSet,
+			},
+		};
+		const r = verifyTransactionProof(p);
+		expect(r.level).toBe("consensus");
+		expect(r.thresholdMet).toBe(true);
+		expect(r.signerWeightBps ?? 0).toBeGreaterThanOrEqual(7000);
+		expect(r.ok).toBe(true);
+	});
+
+	test("consensus fails (and stays anchored) with a foreign reward set", () => {
+		const p: TransactionProof = {
+			...proofFor(0),
+			consensus: {
+				reward_cycle: fx.expect.rewardCycle,
+				reward_set: { signers: [], total_weight: fx.rewardSet.total_weight },
+			},
+		};
+		const r = verifyTransactionProof(p);
+		expect(r.thresholdMet).toBe(false);
+		expect(r.level).toBe("anchored");
+		expect(r.ok).toBe(false);
+	});
+
 	test("a tampered merkle sibling fails inclusion", () => {
 		const p = proofFor(0);
 		if (p.tx_merkle_path.length > 0) {

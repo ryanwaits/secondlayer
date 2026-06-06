@@ -1,4 +1,8 @@
 import {
+	type RewardSet,
+	verifySignerSignatures,
+} from "@secondlayer/shared/node/consensus";
+import {
 	type MerkleProofStep,
 	nakamotoBlockHash,
 	nakamotoBlockId,
@@ -32,18 +36,30 @@ export interface TransactionProof {
 	raw_header: string;
 	/** Authentication path from the tx leaf to `tx_merkle_root`. */
 	tx_merkle_path: MerkleProofStep[];
+	/** Present when consensus-level verification is available: the reward cycle and
+	 *  its signer set, against which the header's signer signatures are checked. */
+	consensus?: {
+		reward_cycle: number;
+		reward_set: RewardSet;
+	};
 }
 
 export interface TransactionProofVerifyResult {
-	/** Highest level verified. Anchored today; "consensus" once signer sigs ship. */
-	level: "anchored";
+	/** Highest level actually verified. "consensus" requires the proof's
+	 *  `consensus` field and a met signer-weight threshold. */
+	level: "anchored" | "consensus";
 	/** Recomputed txid === proof.txid. */
 	txidMatches: boolean;
 	/** Merkle path folds the txid to the header's tx_merkle_root. */
 	includedInHeader: boolean;
 	/** Recomputed block_hash + index_block_hash match the header / proof. */
 	headerSelfConsistent: boolean;
-	/** All checks passed. */
+	/** Basis points (0–10000) of reward-set signer weight that signed the block.
+	 *  Only set when the proof carries a `consensus` field. */
+	signerWeightBps?: number;
+	/** ≥70% of signer weight signed. Only set with a `consensus` field. */
+	thresholdMet?: boolean;
+	/** All applicable checks passed (incl. the threshold when consensus is present). */
 	ok: boolean;
 	errors: string[];
 }
@@ -86,12 +102,37 @@ export function verifyTransactionProof(
 		errors.push("recomputed index_block_hash does not match proof");
 	}
 
+	const anchoredOk = txidMatches && includedInHeader && headerSelfConsistent;
+
+	// (4) consensus: recover the header's signer signatures over the block_hash and
+	// weigh them against the reward set. Trustless if `reward_set` was independently
+	// resolved by the caller (or re-checkable against /v3/stacker_set).
+	let level: "anchored" | "consensus" = "anchored";
+	let signerWeightBps: number | undefined;
+	let thresholdMet: boolean | undefined;
+	if (proof.consensus) {
+		const v = verifySignerSignatures(
+			blockHash,
+			header.signerSignatures,
+			proof.consensus.reward_set,
+		);
+		signerWeightBps =
+			v.totalWeight > 0
+				? Math.round((v.signedWeight / v.totalWeight) * 10000)
+				: 0;
+		thresholdMet = v.thresholdMet;
+		if (!thresholdMet) errors.push("signer weight below the 70% threshold");
+		if (anchoredOk && thresholdMet) level = "consensus";
+	}
+
 	return {
-		level: "anchored",
+		level,
 		txidMatches,
 		includedInHeader,
 		headerSelfConsistent,
-		ok: txidMatches && includedInHeader && headerSelfConsistent,
+		signerWeightBps,
+		thresholdMet,
+		ok: anchoredOk && (proof.consensus ? thresholdMet === true : true),
 		errors,
 	};
 }
