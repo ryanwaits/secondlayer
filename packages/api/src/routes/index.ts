@@ -69,6 +69,10 @@ import {
 	getIndexTip,
 } from "../index/tip.ts";
 import {
+	IncompleteBlockTxSetError,
+	getTransactionProofDefault,
+} from "../index/transaction-proof.ts";
+import {
 	TRANSACTIONS_FILTERS,
 	type TransactionByIdReader,
 	type TransactionsReader,
@@ -460,6 +464,36 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			}
 		}
 		return c.json({ transaction, tip });
+	});
+
+	// Trustless tx-inclusion proof. Returns the raw tx, raw Nakamoto header, and
+	// tx-merkle path so a client can verify inclusion against the chain's own
+	// commitments via the SDK's `verifyTransactionProof` — no trust in this API.
+	// Distinct 3-segment path, so no collision with :tx_id.
+	router.get("/transactions/:tx_id/proof", async (c) => {
+		let proof: Awaited<ReturnType<typeof getTransactionProofDefault>>;
+		try {
+			proof = await getTransactionProofDefault(c.req.param("tx_id"));
+		} catch (err) {
+			if (err instanceof IncompleteBlockTxSetError) {
+				return c.json(
+					{ error: err.message, code: "PROOF_TX_SET_INCOMPLETE" },
+					503,
+				);
+			}
+			throw err;
+		}
+		if (!proof) {
+			return c.json(
+				{
+					error: "Transaction or its block not found",
+					code: "PROOF_UNAVAILABLE",
+				},
+				404,
+			);
+		}
+		c.header("Cache-Control", cacheControl(true)); // proofs are immutable
+		return c.json(proof);
 	});
 
 	router.get("/stacking", async (c) => {
