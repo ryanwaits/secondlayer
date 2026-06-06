@@ -51,6 +51,7 @@ interface UpdateOptions extends CommonOptions {
 interface TestOptions extends CommonOptions {
 	signingSecret?: string;
 	post?: boolean;
+	local?: boolean;
 }
 
 export interface ResolvedSubscription {
@@ -922,9 +923,15 @@ Examples:
 
 	subscriptions
 		.command("test <idOrName>")
-		.description("Build and optionally POST a signed Standard Webhooks fixture")
-		.option("--signing-secret <secret>", "Signing secret override")
-		.option("--post", "POST the fixture to the subscription URL")
+		.description(
+			"Inspect a webhook fixture; --post sends a logged test delivery via the server (--local POSTs client-side instead)",
+		)
+		.option("--signing-secret <secret>", "Signing secret override (--local only)")
+		.option(
+			"--post",
+			"Send a test delivery via the server (logged, all formats)",
+		)
+		.option("--local", "With --post: POST the fixture client-side (not logged)")
 		.option("--json", "Output as JSON")
 		.action(async (idOrName: string, options: TestOptions) => {
 			try {
@@ -940,8 +947,23 @@ Examples:
 					row,
 					signingSecret,
 				});
+
+				// --post (default): server builds for the real format, SSRF-guards,
+				// and LOGS the delivery. --local: legacy client-side POST (no log,
+				// standard-webhooks fixture only).
+				if (options.post && !options.local) {
+					const result = await client.subscriptions.test(detail.id);
+					if (options.json) {
+						printJson(result);
+						return;
+					}
+					console.log(dim("Server test delivery:"));
+					console.log(JSON.stringify(result, null, 2));
+					return;
+				}
+
 				let postResult: { status: number; body: string } | null = null;
-				if (options.post) {
+				if (options.post && options.local) {
 					const res = await fetch(detail.url, {
 						method: "POST",
 						headers: fixture.headers,
@@ -963,7 +985,7 @@ Examples:
 				console.log(dim("\nCurl:"));
 				console.log(fixture.curl);
 				if (postResult) {
-					console.log(dim("\nPOST result:"));
+					console.log(dim("\nPOST result (client-side, not logged):"));
 					console.log(`Status: ${postResult.status}`);
 					if (postResult.body) console.log(postResult.body);
 				}
