@@ -104,6 +104,11 @@ export {
 	verifySecondlayerSignature,
 } from "./webhooks.ts";
 export {
+	type TransactionProof,
+	type TransactionProofVerifyResult,
+	verifyTransactionProof,
+} from "./proofs.ts";
+export {
 	createStreamsClient,
 	Cursor,
 	decodeFtBurn,
