@@ -47,7 +47,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
 		const status = (
 			CODE_TO_STATUS as Record<
 				string,
-				400 | 401 | 402 | 403 | 404 | 409 | 423 | 429
+				400 | 401 | 403 | 404 | 409 | 422 | 423 | 429
 			>
 		)[code];
 		if (status) {
