@@ -7,6 +7,7 @@ import type {
 	RotateSecretResponse,
 	SubscriptionDetail,
 	SubscriptionSummary,
+	SubscriptionTestResult,
 	UpdateSubscriptionRequest,
 } from "@secondlayer/shared/schemas/subscriptions";
 import { BaseClient } from "../base.ts";
@@ -26,6 +27,7 @@ export type {
 	SubscriptionRuntime,
 	SubscriptionStatus,
 	SubscriptionSummary,
+	SubscriptionTestResult,
 	UpdateSubscriptionRequest,
 } from "@secondlayer/shared/schemas/subscriptions";
 // `trigger.*` chain-trigger builders for direct chain-level subscriptions
@@ -87,6 +89,15 @@ export class Subscriptions extends BaseClient {
 		return this.request<RotateSecretResponse>(
 			"POST",
 			`/api/subscriptions/${id}/rotate-secret`,
+		);
+	}
+
+	/** Send a one-off test webhook to the subscription's URL (built for its
+	 *  format, SSRF-guarded). Logged as a delivery row, visible via recentDeliveries. */
+	async test(id: string): Promise<SubscriptionTestResult> {
+		return this.request<SubscriptionTestResult>(
+			"POST",
+			`/api/subscriptions/${id}/test`,
 		);
 	}
 
