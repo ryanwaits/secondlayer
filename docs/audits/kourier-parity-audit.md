@@ -78,7 +78,7 @@ _Refuted: subgraphs-graphql-read-layer (intentional, documented divergence; type
 | non-default-formats-unsigned | MEDIUM | known-open | Only standard-webhooks HMAC-signed; raw/cloudevents carry no SL authenticity | Attach `webhook-id`+signature header across all formats; export verify helper. |
 | subgraph-updates-deletes-not-emitted | MEDIUM | known-open | Subgraph subs emit INSERT only; updates/deletes dropped | Emit `.updated`/`.deleted` from flush manifest (already carries op+pk+row). |
 | no-chain-replay-catchup | MEDIUM | known-open | Chain subs have no replay/catch-up; long-down receiver loses events | Re-run evaluator over historical range w/ replay dedup keys (matcher is pure/range-driven). |
-| no-test-event-endpoint | LOW | shipped-partial | No server/SDK/MCP test-delivery; `sl subscriptions test --post` exists but logs no delivery row, standard-webhooks-only | Add `POST /:id/test` via `buildForFormat`, log delivery row, surface in SDK/MCP. |
+| no-test-event-endpoint | LOW | ✅ SHIPPED | No server/SDK/MCP test-delivery | DONE (2026-06-06): `POST /:id/test` via `deliverTestEvent` (buildForFormat + SSRF + delivery row, null outbox_id) + SDK `subscriptions.test()` + MCP `subscriptions_test` + CLI `--post` routed through the server (`--local` for client-side). |
 | chain-envelope-undocumented-untyped | LOW | new | `chain.*.apply`/`chain.reorg.rollback` shapes code-only, untyped | Export `ApplyEnvelope`/`RollbackEnvelope` from SDK + document. |
 
 ### 3.5 Agent-native + cross-cutting DX (MCP, SDK, CLI, scaffold, codegen)
@@ -106,7 +106,7 @@ _Refuted: subgraphs-graphql-read-layer (intentional, documented divergence; type
 | three-images-seven-services | MEDIUM | known-open | 7 services from 3 images; subgraph-processor/l2-decoder reuse api/indexer images → no independent deploy/rollback | Split into own Dockerfile targets/images. |
 | subgraph-processor-no-leader | MEDIUM | known-open | Catch-up loop in-process Set only; can't scale out (2+ procs double-process) | Advisory-lock catch-up (mirror `leader.ts`) or shard subgraphs by hashed claim. |
 | deploy-502-window-no-replicas | MEDIUM | known-open | Every push recreates single API container → 1-2 min 502; no replicas behind Caddy | N>1 api behind Caddy + rolling/blue-green recreate. |
-| processors-depend-on-api | LOW | known-open | streams-index processors `depend_on api:healthy` → flapping API stalls data plane | Auto-fallback to DB tap on API unavailability, or front block-source HTTP with N>1 replicas. |
+| processors-depend-on-api | LOW | ✅ SHIPPED | streams-index processors `depend_on api:healthy` → flapping API stalls data plane | DONE (2026-06-06): `FallbackBlockSource` wraps the HTTP source and falls back to the Postgres tap per-call when api is down (subgraph processor + chain evaluator), so the plane keeps advancing. `depends_on` kept as belt-and-suspenders. (N>1 api replicas already mitigate much of it.) |
 
 _(G7 bulk-manifest-unsigned also surfaces here — tracked once under Streams.)_
 
