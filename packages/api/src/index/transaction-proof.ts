@@ -1,21 +1,26 @@
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { StacksNodeClient } from "@secondlayer/shared/node";
 import {
+	type RewardSet,
+	rewardCycle,
+} from "@secondlayer/shared/node/consensus";
+import {
 	type MerkleProofStep,
 	txMerkleProof,
 	txMerkleRoot,
 } from "@secondlayer/shared/node/nakamoto";
 
 /**
- * Anchored transaction-inclusion proof.
+ * Transaction-inclusion proof.
  *
  * `GET /v1/index/transactions/:tx_id/proof` returns the data a consumer needs to
  * verify — without trusting us — that a transaction is included in a Nakamoto
  * block header that any node can corroborate: the raw tx (to recompute the
  * txid), the raw block header (to recompute block_hash / index_block_hash), and
- * the tx-merkle authentication path. The SDK's `verifyTransactionProof` re-runs
- * all of it. (Verifying the signer-set signatures over the header is a separate,
- * stronger step that can be layered on later.)
+ * the tx-merkle authentication path. When the block's reward set is available it
+ * also carries `consensus` (the cycle + signer set) so a client can additionally
+ * verify the signer signatures cross the 70% weight threshold. The SDK's
+ * `verifyTransactionProof` re-runs all of it.
  */
 const strip = (h: string): string => (h.startsWith("0x") ? h.slice(2) : h);
 
@@ -27,6 +32,8 @@ export interface TransactionProofResponse {
 	raw_tx: string;
 	raw_header: string;
 	tx_merkle_path: MerkleProofStep[];
+	/** Reward cycle + signer set, present when the reward set could be resolved. */
+	consensus?: { reward_cycle: number; reward_set: RewardSet };
 }
 
 /**
@@ -63,6 +70,7 @@ export type ProofTxReader = (txId: string) => Promise<{
 	block_height: number;
 	tx_index: number;
 	raw_tx: string;
+	burn_block_height: number;
 	/** Persisted block id; null on rows ingested before it was stored. */
 	index_block_hash?: string | null;
 } | null>;
@@ -76,6 +84,7 @@ export interface ProofNodeClient {
 		raw: Uint8Array;
 		header: { headerByteLength: number; txMerkleRoot: string };
 	} | null>;
+	getRewardSet(cycle: number): Promise<RewardSet | null>;
 }
 
 /** Returned when our stored tx set doesn't reproduce the block's committed
@@ -122,7 +131,7 @@ export async function getTransactionProof(opts: {
 	const rawHeaderHex = Buffer.from(
 		nb.raw.subarray(0, nb.header.headerByteLength),
 	).toString("hex");
-	return buildTransactionProof({
+	const proof = buildTransactionProof({
 		txId: opts.txId,
 		rawTxHex: tx.raw_tx,
 		txIndex: tx.tx_index,
@@ -131,6 +140,15 @@ export async function getTransactionProof(opts: {
 		indexBlockHash,
 		blockHeight: tx.block_height,
 	});
+	// Best-effort consensus layer: attach the cycle's reward set so a client can
+	// also verify the signer signatures. Omitted (anchored-only proof) if the set
+	// can't be resolved.
+	const cycle = rewardCycle(tx.burn_block_height);
+	const rewardSet = await opts.node.getRewardSet(cycle).catch(() => null);
+	if (rewardSet) {
+		proof.consensus = { reward_cycle: cycle, reward_set: rewardSet };
+	}
+	return proof;
 }
 
 // ── Default readers (chain data on the source DB; canonicity via blocks join) ──
@@ -140,9 +158,10 @@ const defaultProofTxReader: ProofTxReader = async (txId) => {
 		block_height: number;
 		tx_index: number;
 		raw_tx: string;
+		burn_block_height: number;
 		index_block_hash: string | null;
 	}>`
-		SELECT t.block_height, t.tx_index, t.raw_tx, b.index_block_hash
+		SELECT t.block_height, t.tx_index, t.raw_tx, b.burn_block_height, b.index_block_hash
 		FROM transactions t
 		JOIN blocks b ON b.height = t.block_height AND b.canonical = true
 		WHERE t.tx_id = ${txId}
