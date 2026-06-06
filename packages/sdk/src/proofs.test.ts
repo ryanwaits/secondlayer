@@ -79,6 +79,32 @@ describe("verifyTransactionProof (anchored)", () => {
 		expect(r.ok).toBe(true);
 	});
 
+	test("a caller-provided reward set takes precedence (fully trustless path)", () => {
+		// Provide the set independently; the proof has no embedded consensus.
+		const p = proofFor(0);
+		const r = verifyTransactionProof(p, { rewardSet: fx.rewardSet });
+		expect(r.level).toBe("consensus");
+		expect(r.thresholdMet).toBe(true);
+		expect(r.rewardSetSource).toBe("provided");
+		expect(r.ok).toBe(true);
+	});
+
+	test("a provided reward set overrides a (correct) embedded one and can fail", () => {
+		const p: TransactionProof = {
+			...proofFor(0),
+			consensus: {
+				reward_cycle: fx.expect.rewardCycle,
+				reward_set: fx.rewardSet,
+			},
+		};
+		const r = verifyTransactionProof(p, {
+			rewardSet: { signers: [], total_weight: fx.rewardSet.total_weight },
+		});
+		expect(r.rewardSetSource).toBe("provided");
+		expect(r.thresholdMet).toBe(false);
+		expect(r.ok).toBe(false);
+	});
+
 	test("consensus fails (and stays anchored) with a foreign reward set", () => {
 		const p: TransactionProof = {
 			...proofFor(0),

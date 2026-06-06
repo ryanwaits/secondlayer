@@ -106,8 +106,10 @@ export {
 export {
 	type TransactionProof,
 	type TransactionProofVerifyResult,
+	fetchRewardSet,
 	verifyTransactionProof,
 } from "./proofs.ts";
+export type { RewardSet } from "@secondlayer/shared/node/consensus";
 export {
 	createStreamsClient,
 	Cursor,

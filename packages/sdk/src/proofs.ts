@@ -12,15 +12,17 @@ import {
 } from "@secondlayer/shared/node/nakamoto";
 
 /**
- * Trustless transaction-inclusion proof verification (Anchored level).
+ * Trustless transaction-inclusion proof verification.
  *
  * Given a proof from `GET /v1/index/transactions/:txid/proof`, the consumer
  * re-derives everything itself — it does NOT trust any value Secondlayer
- * computed. It (1) recomputes the txid from the raw tx bytes, (2) folds it up
- * the merkle path to the header's `tx_merkle_root`, and (3) recomputes the
- * header's `block_hash` and `index_block_hash` from the raw header. The result
- * is "this tx is included in a header any node can corroborate" — one rung short
- * of consensus-verified (which adds the signer-set signatures, future phase).
+ * computed. Anchored level: (1) recompute the txid from the raw tx bytes, (2)
+ * fold it up the merkle path to the header's `tx_merkle_root`, (3) recompute the
+ * header's `block_hash` and `index_block_hash` from the raw header — "this tx is
+ * included in a header any node can corroborate". Consensus level (when the proof
+ * carries a `consensus` field, or a `rewardSet` is passed): additionally recover
+ * the header's signer signatures and confirm ≥70% of reward-set signer weight
+ * signed the block.
  *
  * Note: uses Node's crypto via `@secondlayer/shared` (same as the Streams
  * signature verify); intended for Node/server verification.
@@ -59,6 +61,9 @@ export interface TransactionProofVerifyResult {
 	signerWeightBps?: number;
 	/** ≥70% of signer weight signed. Only set with a `consensus` field. */
 	thresholdMet?: boolean;
+	/** Which reward set the signer check used: "provided" (caller-resolved →
+	 *  fully trustless) or "embedded" (the one Secondlayer put in the proof). */
+	rewardSetSource?: "provided" | "embedded";
 	/** All applicable checks passed (incl. the threshold when consensus is present). */
 	ok: boolean;
 	errors: string[];
@@ -69,11 +74,47 @@ const bytes = (h: string): Uint8Array =>
 	Uint8Array.from(Buffer.from(strip(h), "hex"));
 
 /**
- * Verify an Anchored transaction-inclusion proof. Every check is recomputed
- * client-side, so a `true` result does not rely on trusting Secondlayer.
+ * Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`),
+ * so a caller can verify the consensus layer against a node IT trusts rather than
+ * the reward set Secondlayer embedded in the proof. Pass the result as
+ * `verifyTransactionProof(proof, { rewardSet })`.
+ */
+export async function fetchRewardSet(opts: {
+	nodeUrl: string;
+	cycle: number;
+	fetchImpl?: typeof fetch;
+}): Promise<RewardSet | null> {
+	const f = opts.fetchImpl ?? fetch;
+	const res = await f(
+		`${opts.nodeUrl.replace(/\/+$/, "")}/v3/stacker_set/${opts.cycle}`,
+	);
+	if (res.status === 404) return null;
+	if (!res.ok) {
+		throw new Error(`/v3/stacker_set/${opts.cycle} returned ${res.status}`);
+	}
+	const body = (await res.json()) as {
+		stacker_set: { signers: { signing_key: string; weight: number }[] };
+	};
+	const signers = body.stacker_set.signers.map((s) => ({
+		signing_key: strip(s.signing_key),
+		weight: s.weight,
+	}));
+	return {
+		signers,
+		total_weight: signers.reduce((sum, s) => sum + s.weight, 0),
+	};
+}
+
+/**
+ * Verify a transaction-inclusion proof. Every check is recomputed client-side,
+ * so a `true` result does not rely on trusting Secondlayer. Pass
+ * `{ rewardSet }` (resolved via {@link fetchRewardSet} from your own node) to
+ * verify the consensus layer against a reward set you trust rather than the one
+ * embedded in the proof.
  */
 export function verifyTransactionProof(
 	proof: TransactionProof,
+	opts?: { rewardSet?: RewardSet },
 ): TransactionProofVerifyResult {
 	const errors: string[] = [];
 
@@ -105,22 +146,26 @@ export function verifyTransactionProof(
 	const anchoredOk = txidMatches && includedInHeader && headerSelfConsistent;
 
 	// (4) consensus: recover the header's signer signatures over the block_hash and
-	// weigh them against the reward set. Trustless if `reward_set` was independently
-	// resolved by the caller (or re-checkable against /v3/stacker_set).
+	// weigh them against the reward set. A caller-provided `rewardSet` (resolved
+	// from a trusted node) takes precedence over the proof's embedded set and makes
+	// this fully trustless; otherwise the embedded set is used.
+	const rewardSet = opts?.rewardSet ?? proof.consensus?.reward_set;
 	let level: "anchored" | "consensus" = "anchored";
 	let signerWeightBps: number | undefined;
 	let thresholdMet: boolean | undefined;
-	if (proof.consensus) {
+	let rewardSetSource: "provided" | "embedded" | undefined;
+	if (rewardSet) {
 		const v = verifySignerSignatures(
 			blockHash,
 			header.signerSignatures,
-			proof.consensus.reward_set,
+			rewardSet,
 		);
 		signerWeightBps =
 			v.totalWeight > 0
 				? Math.round((v.signedWeight / v.totalWeight) * 10000)
 				: 0;
 		thresholdMet = v.thresholdMet;
+		rewardSetSource = opts?.rewardSet ? "provided" : "embedded";
 		if (!thresholdMet) errors.push("signer weight below the 70% threshold");
 		if (anchoredOk && thresholdMet) level = "consensus";
 	}
@@ -132,7 +177,8 @@ export function verifyTransactionProof(
 		headerSelfConsistent,
 		signerWeightBps,
 		thresholdMet,
-		ok: anchoredOk && (proof.consensus ? thresholdMet === true : true),
+		rewardSetSource,
+		ok: anchoredOk && (rewardSet ? thresholdMet === true : true),
 		errors,
 	};
 }
