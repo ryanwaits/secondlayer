@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.26.0
+
+### Minor Changes
+
+- 62e4d90: Add `SubgraphAggregateParams` and `SubgraphAggregateResponse` types for the subgraph aggregate query API (count/countDistinct as numbers, sum/min/max as lossless strings).
+
 ## 6.25.0
 
 ### Minor Changes

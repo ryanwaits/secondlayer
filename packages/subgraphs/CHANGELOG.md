@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 3.9.0
+
+### Minor Changes
+
+- f773a6e: Add `aggregate(spec)` to the typed subgraph table client. `AggregateSpec`/`AggregateResult` infer the result shape from the spec (count/countDistinct as numbers, sum/min/max as lossless strings). SUM/MIN/MAX are restricted to numeric columns at compile time; the `const` type parameter narrows results without `as const`.
+
+### Patch Changes
+
+- Updated dependencies [62e4d90]
+  - @secondlayer/shared@6.26.0
+
 ## 3.8.0
 
 ### Minor Changes

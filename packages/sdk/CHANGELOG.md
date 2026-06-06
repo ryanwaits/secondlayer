@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 6.15.0
+
+### Minor Changes
+
+- e5684a5: Add `client.aggregate(spec)` to the typed subgraph table client plus the `queryTableAggregate` transport. SUM/MIN/MAX columns are compile-time numeric-only and the result type is inferred from the spec; sum/min/max values are lossless strings, counts are numbers.
+
+### Patch Changes
+
+- Updated dependencies [62e4d90]
+- Updated dependencies [f773a6e]
+  - @secondlayer/shared@6.26.0
+  - @secondlayer/subgraphs@3.9.0
+
 ## 6.14.0
 
 ### Minor Changes

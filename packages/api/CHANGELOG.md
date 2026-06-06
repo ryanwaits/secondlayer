@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.19.7
+
+### Patch Changes
+
+- 8d05ff3: Add `GET /api/subgraphs/:subgraphName/:tableName/aggregate` — scalar aggregates (`_count`/`_countDistinct`/`_sum`/`_min`/`_max`) over the same filter surface as the list/count endpoints. SUM/MIN/MAX round-trip losslessly as strings (NUMERIC `::text`), count/countDistinct as JSON numbers. Numeric-only + allowlist + ≤32-column cap enforced with 400s; parameterized, `ident()`-quoted, schema-qualified SQL.
+- Updated dependencies [e5684a5]
+- Updated dependencies [62e4d90]
+- Updated dependencies [f773a6e]
+  - @secondlayer/sdk@6.15.0
+  - @secondlayer/shared@6.26.0
+  - @secondlayer/subgraphs@3.9.0
+  - @secondlayer/platform@0.0.23
+
 ## 1.19.6
 
 ### Patch Changes
