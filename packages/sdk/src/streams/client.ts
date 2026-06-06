@@ -13,6 +13,7 @@ import {
 	StreamsSignatureError,
 	ValidationError,
 } from "./errors.ts";
+import { subscribeStreamsEvents } from "./subscribe.ts";
 import type {
 	FetchLike,
 	StreamsCanonicalBlock,
@@ -23,6 +24,7 @@ import type {
 	StreamsEventsListParams,
 	StreamsEventsReplayParams,
 	StreamsEventsStreamParams,
+	StreamsEventsSubscribeParams,
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
@@ -311,6 +313,16 @@ export function createStreamsClient(
 					maxEmptyPolls: params.maxEmptyPolls,
 					signal: params.signal,
 					fetchEvents,
+				});
+			},
+			subscribe(params: StreamsEventsSubscribeParams) {
+				return subscribeStreamsEvents({
+					baseUrl,
+					apiKey: options.apiKey,
+					fetchImpl,
+					verify: Boolean(verify),
+					loadKey,
+					params,
 				});
 			},
 			async replay(params: StreamsEventsReplayParams) {

@@ -179,6 +179,7 @@ export type {
 	StreamsEventsListEnvelope,
 	StreamsEventsListParams,
 	StreamsEventsStreamParams,
+	StreamsEventsSubscribeParams,
 	StreamsEventType,
 	StreamsReorg,
 	StreamsReorgContext,

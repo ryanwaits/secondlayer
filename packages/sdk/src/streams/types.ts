@@ -209,6 +209,24 @@ export type StreamsEventsStreamParams = {
 	signal?: AbortSignal;
 };
 
+export type StreamsEventsSubscribeParams = {
+	/** Resume strictly after this cursor; omit to live-tail from the tip. */
+	fromCursor?: string | null;
+	types?: readonly StreamsEventType[];
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
+	assetIdentifier?: string;
+	/** Abort to unsubscribe (the returned function does the same). */
+	signal?: AbortSignal;
+	/** Called for each pushed event, in order. */
+	onEvent: (event: StreamsEvent) => void | Promise<void>;
+	/** Called on a connection error; the subscription auto-reconnects from the
+	 *  last delivered cursor unless the signal has aborted. */
+	onError?: (err: unknown) => void;
+};
+
 /**
  * The checkpoint the SDK computes for a batch. Persist `cursor` inside the same
  * transaction as your projection writes, then resume from it via `fromCursor`.
@@ -383,6 +401,13 @@ export type StreamsClient = {
 		 * `maxEmptyPolls` stops it.
 		 */
 		stream(params?: StreamsEventsStreamParams): AsyncIterable<StreamsEvent>;
+		/**
+		 * Subscribe to the real-time SSE push surface. Calls `onEvent` for each new
+		 * canonical event as the server pushes it (chain cadence, not poll-bounded),
+		 * and verifies each frame's inline ed25519 signature when the client was
+		 * created with `verify`. Returns an unsubscribe function.
+		 */
+		subscribe(params: StreamsEventsSubscribeParams): () => void;
 	};
 	blocks: {
 		events(heightOrHash: number | string): Promise<StreamsEventsListEnvelope>;
