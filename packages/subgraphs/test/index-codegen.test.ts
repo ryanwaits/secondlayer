@@ -59,6 +59,46 @@ describe("generateIndexSchema", () => {
 		}
 	});
 
+	test("prisma: single-col PK via @id, lossless types, @map", () => {
+		const out = generateIndexSchema("prisma", { tables: ["blocks"] });
+		expect(out).toContain("datasource db {");
+		expect(out).toContain("model Blocks {");
+		expect(out).toContain("height Int @id");
+		expect(out).toContain("burnBlockHash String? @map(\"burn_block_hash\")");
+		expect(out).toContain('@@map("blocks")');
+	});
+
+	test("prisma: cursor-keyed event table uses @id on cursor", () => {
+		const out = generateIndexSchema("prisma", { tables: ["sbtc_events"] });
+		expect(out).toContain("cursor String @id");
+	});
+
+	test("prisma: events uses composite @@id (synthetic uuid not in read set)", () => {
+		const out = generateIndexSchema("prisma", { tables: ["events"] });
+		expect(out).toContain("@@id([txId, eventIndex])");
+		expect(out).not.toContain("@id "); // no single-field @id
+	});
+
+	test("prisma: omits tables with no read-set PK (chain_reorgs)", () => {
+		const out = generateIndexSchema("prisma", {
+			tables: ["blocks", "chain_reorgs"],
+		});
+		expect(out).toContain("model Blocks {");
+		expect(out).not.toContain("model ChainReorgs {");
+		expect(out).toContain("Omitted (no read-set primary key");
+		expect(out).toContain("chain_reorgs");
+	});
+
+	test("prisma: schemaName adds multiSchema + @@schema", () => {
+		const out = generateIndexSchema("prisma", {
+			tables: ["blocks"],
+			schemaName: "stacks",
+		});
+		expect(out).toContain('schemas  = ["stacks"]');
+		expect(out).toContain('previewFeatures = ["multiSchema"]');
+		expect(out).toContain('@@schema("stacks")');
+	});
+
 	test("unknown table throws with a helpful list", () => {
 		expect(() => generateIndexSchema("kysely", { tables: ["nope"] })).toThrow(
 			/Unknown Index table/,
