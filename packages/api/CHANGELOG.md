@@ -1,5 +1,28 @@
 # @secondlayer/api
 
+## 1.19.4
+
+### Patch Changes
+
+- 0424f52: Add `reorgs[]` to the Index `/v1/index/stacking` response so a client tracking stacking actions gets the same height-granular reorg reconciliation signal as `/contract-calls` and `/transactions`. `getStackingResponse` now reads `readChainReorgsForHeightRange` over the returned block-height range (over-inclusive, never under-reports; skipped on an empty page), and the SDK `StackingEnvelope` carries the matching `reorgs` field.
+- 2dce84d: Add a real-time Streams push surface: `GET /v1/streams/events/stream` (`text/event-stream`). It's a server-side poll-loop over the same forward event cursor wrapped in SSE — new canonical events are pushed at poll cadence instead of the SDK's long-poll with empty backoff, keeping the immutable/cacheable read model intact. Without a start cursor it live-tails from the current reorg-clamped tip; pass `from_cursor` to resume precisely. Each event frame is independently ed25519-signed inline as `{ event, sig, key_id }` (SSE has no per-frame headers) using the same Streams signing key as the JSON lane, with a 20s `ping` heartbeat to keep idle connections alive.
+- Updated dependencies [5b7fccf]
+- Updated dependencies [fd8503b]
+- Updated dependencies [958c883]
+- Updated dependencies [b044f39]
+- Updated dependencies [015e39d]
+- Updated dependencies [434c947]
+- Updated dependencies [eccd246]
+- Updated dependencies [0424f52]
+- Updated dependencies [189e379]
+- Updated dependencies [250e910]
+- Updated dependencies [f1706c0]
+- Updated dependencies [61ef1d4]
+  - @secondlayer/subgraphs@3.7.3
+  - @secondlayer/sdk@6.10.0
+  - @secondlayer/shared@6.23.0
+  - @secondlayer/platform@0.0.20
+
 ## 1.19.3
 
 ### Patch Changes

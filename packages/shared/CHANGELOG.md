@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 6.23.0
+
+### Minor Changes
+
+- 434c947: Promote the Postgres advisory-lock leader-election util to `@secondlayer/shared/leader` (`withLeaderLock`, `createPostgresLeaderBackend`, lock-key constants) so the subscription evaluator, chain-reorg handler, and subgraph catch-up can share one fleet-wide election primitive with the indexer. `createPostgresLeaderBackend(url?)` now accepts an explicit lock-DB URL — required after the source/target split, since control-plane state (subscriptions, subgraphs) lives on the target DB and a lock on the default source DB would guard nothing. Adds distinct `SUBSCRIPTION_EVALUATOR_LOCK_KEY` and `SUBGRAPH_CATCHUP_LOCK_KEY` keys.
+- eccd246: Sign the Streams cold-bulk parquet manifest with ed25519, closing the trust gap between the live and bulk availability lanes. The bulk manifest carried only per-file sha256, so a tampered manifest+file pair verified cleanly — the SDK threw a signature error on hash mismatch, overstating the guarantee. The exporter now signs each manifest with the platform Streams key (`STREAMS_SIGNING_PRIVATE_KEY`) over its canonical bytes (the manifest JSON minus the `signature`/`key_id` envelope), and a one-shot backfill script re-signs existing manifests in R2 (latest + history). New `@secondlayer/shared/streams-bulk-manifest` exports `signStreamsBulkManifest` / `verifyStreamsBulkManifestSignature` / `canonicalStreamsBulkManifestPayload`. Signing is a no-op when no key is set, and the `signature`/`key_id` fields are optional, so legacy unsigned manifests still parse — the SDK-side verification ships separately and stays default-off until the backfill has run.
+- 61ef1d4: Sign every subscription webhook with a universal ed25519 signature, regardless of body format. Previously only the `standard-webhooks` format carried an HMAC; `raw`, `cloudevents`, `trigger`, `cloudflare`, and `inngest` deliveries carried no Secondlayer proof, so a receiver had no way to verify a payload came from us. Each delivery now also gets `webhook-id` + `X-Secondlayer-Signature` (ed25519 over `${webhook-id}.${body}`) + `X-Secondlayer-Signature-KeyId`, signed with a single platform key (`SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY`, falling back to the existing `STREAMS_SIGNING_PRIVATE_KEY`). Body shapes stay format-specific. Receivers verify with the new `verifySecondlayerSignature(rawBody, headers, publicKeyPem)` SDK helper against the published public key — no per-subscription secret. Signing is a no-op when no key is configured, so it is safe to ship before the key is provisioned. Also publishes `@secondlayer/shared/crypto/ed25519` as an importable subpath.
+
 ## 6.22.0
 
 ### Minor Changes

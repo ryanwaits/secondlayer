@@ -1,5 +1,28 @@
 # @secondlayer/sdk
 
+## 6.10.0
+
+### Minor Changes
+
+- 015e39d: Add opt-in verification of the bulk dumps manifest signature. `createStreamsClient({ verifyDumpsManifest: true })` makes `client.dumps.list()` check the manifest's ed25519 signature against the published Streams key before any file sha256 is trusted — a sha256 is only as trustworthy as the manifest that carries it. It reuses the same key source as the live-response `verify` option (pinned PEM or `/public/streams/signing-key`). Defaults off so existing consumers are unaffected until historical manifests have been backfilled with signatures; an unsigned or tampered manifest throws `StreamsSignatureError` when enabled.
+- 189e379: Add `client.events.subscribe(...)` for the real-time Streams SSE push surface. It calls `onEvent` for each new canonical event as the server pushes it — chain cadence rather than the long-poll's 500ms empty backoff — and returns an unsubscribe function. Unlike a browser `EventSource` it uses a fetch-based reader so it can send the mandatory `Authorization` header (Streams is key-mandatory) and an `AbortSignal`; it reconnects from the last delivered cursor on a dropped connection. When the client was created with `verify`, each frame's inline ed25519 signature is checked before the event is delivered.
+- 61ef1d4: Sign every subscription webhook with a universal ed25519 signature, regardless of body format. Previously only the `standard-webhooks` format carried an HMAC; `raw`, `cloudevents`, `trigger`, `cloudflare`, and `inngest` deliveries carried no Secondlayer proof, so a receiver had no way to verify a payload came from us. Each delivery now also gets `webhook-id` + `X-Secondlayer-Signature` (ed25519 over `${webhook-id}.${body}`) + `X-Secondlayer-Signature-KeyId`, signed with a single platform key (`SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY`, falling back to the existing `STREAMS_SIGNING_PRIVATE_KEY`). Body shapes stay format-specific. Receivers verify with the new `verifySecondlayerSignature(rawBody, headers, publicKeyPem)` SDK helper against the published public key — no per-subscription secret. Signing is a no-op when no key is configured, so it is safe to ship before the key is provisioned. Also publishes `@secondlayer/shared/crypto/ed25519` as an importable subpath.
+
+### Patch Changes
+
+- 0424f52: Add `reorgs[]` to the Index `/v1/index/stacking` response so a client tracking stacking actions gets the same height-granular reorg reconciliation signal as `/contract-calls` and `/transactions`. `getStackingResponse` now reads `readChainReorgsForHeightRange` over the returned block-height range (over-inclusive, never under-reports; skipped on an empty page), and the SDK `StackingEnvelope` carries the matching `reorgs` field.
+- Updated dependencies [5b7fccf]
+- Updated dependencies [fd8503b]
+- Updated dependencies [958c883]
+- Updated dependencies [b044f39]
+- Updated dependencies [434c947]
+- Updated dependencies [eccd246]
+- Updated dependencies [250e910]
+- Updated dependencies [f1706c0]
+- Updated dependencies [61ef1d4]
+  - @secondlayer/subgraphs@3.7.3
+  - @secondlayer/shared@6.23.0
+
 ## 6.9.1
 
 ### Patch Changes

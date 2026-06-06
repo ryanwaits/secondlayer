@@ -1,5 +1,26 @@
 # @secondlayer/cli
 
+## 8.5.2
+
+### Patch Changes
+
+- 376df72: Update the subscription scaffold template and the `test --post` preview to document the full `<subgraph>.<table>.<created|updated|deleted>` event-type shape, so generated receivers and previews reflect that the verb now tracks the row op rather than always being `created`.
+- Updated dependencies [5b7fccf]
+- Updated dependencies [fd8503b]
+- Updated dependencies [958c883]
+- Updated dependencies [b044f39]
+- Updated dependencies [015e39d]
+- Updated dependencies [434c947]
+- Updated dependencies [eccd246]
+- Updated dependencies [0424f52]
+- Updated dependencies [189e379]
+- Updated dependencies [250e910]
+- Updated dependencies [f1706c0]
+- Updated dependencies [61ef1d4]
+  - @secondlayer/subgraphs@3.7.3
+  - @secondlayer/sdk@6.10.0
+  - @secondlayer/shared@6.23.0
+
 ## 8.5.1
 
 ### Patch Changes
