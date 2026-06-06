@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	SOURCE_READ_COLUMNS,
+	SOURCE_READ_PKS,
 	SOURCE_READ_TYPES,
 } from "../src/db/source-read-columns.ts";
 import snapshot from "./__snapshots__/source-read-columns.json";
@@ -43,6 +44,26 @@ describe("SOURCE_READ_TYPES ↔ SOURCE_READ_COLUMNS", () => {
 	for (const table of Object.keys(cols)) {
 		test(`${table} has a type for every read column`, () => {
 			expect(Object.keys(types[table]).sort()).toEqual([...cols[table]].sort());
+		});
+	}
+});
+
+// SOURCE_READ_PKS gives Prisma codegen a model identity. Every PK column must be a
+// real read column, else the emitted `@id`/`@@id` references a field the schema
+// doesn't have. `null` (no read-set key) is allowed — Prisma omits that table.
+describe("SOURCE_READ_PKS ↔ SOURCE_READ_COLUMNS", () => {
+	const cols = SOURCE_READ_COLUMNS as Record<string, readonly string[]>;
+	const pks = SOURCE_READ_PKS as Record<string, readonly string[] | null>;
+
+	test("same table set", () => {
+		expect(Object.keys(pks).sort()).toEqual(Object.keys(cols).sort());
+	});
+
+	for (const table of Object.keys(cols)) {
+		test(`${table} PK columns are read columns`, () => {
+			const pk = pks[table];
+			if (pk === null) return;
+			for (const col of pk) expect(cols[table]).toContain(col);
 		});
 	}
 });

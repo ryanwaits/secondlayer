@@ -302,8 +302,10 @@ export type { DbReadRow, NumericAsText } from "./read-row.ts";
 export {
 	SOURCE_READ_COLUMNS,
 	SOURCE_READ_TYPES,
+	SOURCE_READ_PKS,
 	type IndexColumn,
 	type IndexColumnType,
+	type IndexPrimaryKey,
 } from "./source-read-columns.ts";
 export { jsonb, parseJsonb } from "./jsonb.ts";
 export {

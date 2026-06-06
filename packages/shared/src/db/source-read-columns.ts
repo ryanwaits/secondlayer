@@ -489,3 +489,30 @@ export const SOURCE_READ_TYPES = {
 	keyof typeof SOURCE_READ_COLUMNS,
 	Record<string, IndexColumn>
 >;
+
+export type IndexPrimaryKey = readonly string[] | null;
+
+// Primary key per read table, for codegen targets that require a model identity
+// (Prisma). Every listed column must be a read column (drift-tested). `null` = no
+// usable read-column key — the physical PK is a synthetic id excluded from the
+// read contract (chain_reorgs) — so Prisma omits the table. `events` uses its
+// natural unique (tx_id, event_index); its physical PK is a synthetic uuid not
+// surfaced in the read set.
+export const SOURCE_READ_PKS = {
+	blocks: ["height"],
+	decoded_events: ["cursor"],
+	transactions: ["tx_id"],
+	mempool_transactions: ["seq"],
+	pox4_calls: ["cursor"],
+	sbtc_events: ["cursor"],
+	sbtc_token_events: ["cursor"],
+	bns_name_events: ["cursor"],
+	bns_namespace_events: ["cursor"],
+	bns_marketplace_events: ["cursor"],
+	bns_names: ["fqn"],
+	bns_namespaces: ["namespace"],
+	burn_block_rewards: ["cursor"],
+	burn_block_reward_slots: ["cursor"],
+	events: ["tx_id", "event_index"],
+	chain_reorgs: null,
+} as const satisfies Record<keyof typeof SOURCE_READ_COLUMNS, IndexPrimaryKey>;
