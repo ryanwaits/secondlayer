@@ -129,6 +129,41 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 CMD ["bun", "run", "packages/indexer/src/index.ts"]
 
 # =============================================================================
+# L2 decoder service — same payload as the indexer image, dedicated default CMD
+# so it versions/deploys/rolls back as its own image (no shared tag with indexer).
+# =============================================================================
+FROM indexer AS l2-decoder
+
+ENV PORT=3710
+
+EXPOSE 3710
+
+HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:3710/health || exit 1
+
+CMD ["bun", "run", "packages/indexer/src/l2/service.ts"]
+
+# =============================================================================
+# Subgraph processor — same payload as the api image, dedicated default CMD.
+# Runs no HTTP server, so it carries no healthcheck (liveness via restart policy).
+# =============================================================================
+FROM api AS subgraph-processor
+
+HEALTHCHECK NONE
+
+CMD ["bun", "run", "packages/subgraphs/src/service.ts"]
+
+# =============================================================================
+# Subscription processor — the real-time delivery plane. Same payload as the api
+# image, dedicated default CMD, no HTTP server (no healthcheck).
+# =============================================================================
+FROM api AS subscription-processor
+
+HEALTHCHECK NONE
+
+CMD ["bun", "run", "packages/subgraphs/src/subscription-service.ts"]
+
+# =============================================================================
 # Agent service - AI DevOps monitoring
 # =============================================================================
 FROM base AS agent
