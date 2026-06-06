@@ -124,6 +124,10 @@
 			"types": "./dist/src/node/hiro-client.d.ts",
 			"import": "./dist/src/node/hiro-client.js"
 		},
+		"./node/nakamoto": {
+			"types": "./dist/src/node/nakamoto.d.ts",
+			"import": "./dist/src/node/nakamoto.js"
+		},
 		"./node/local-client": {
 			"types": "./dist/src/node/local-client.d.ts",
 			"import": "./dist/src/node/local-client.js"

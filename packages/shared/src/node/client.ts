@@ -1,3 +1,10 @@
+import {
+	type NakamotoBlockHeader,
+	nakamotoBlockHash,
+	nakamotoBlockId,
+	parseNakamotoBlockHeader,
+} from "./nakamoto.ts";
+
 export interface NodeInfo {
 	peer_version: number;
 	pox_consensus: string;
@@ -55,6 +62,36 @@ export class StacksNodeClient {
 			throw new Error(`Node RPC /v2/blocks/${height} returned ${res.status}`);
 		}
 		return res.json() as Promise<BlockResponse>;
+	}
+
+	/**
+	 * Fetch + parse a Nakamoto block by its index_block_hash. Returns the raw
+	 * bytes, the parsed header, and the recomputed block_hash / index_block_hash
+	 * (so a caller can cross-check the node's answer). Null on 404.
+	 */
+	async getNakamotoBlock(blockId: string): Promise<{
+		raw: Uint8Array;
+		header: NakamotoBlockHeader;
+		blockHash: string;
+		indexBlockHash: string;
+	} | null> {
+		const id = blockId.startsWith("0x") ? blockId.slice(2) : blockId;
+		const res = await fetch(`${this.rpcUrl}/v3/blocks/${id}`, {
+			signal: AbortSignal.timeout(30_000),
+		});
+		if (res.status === 404) return null;
+		if (!res.ok) {
+			throw new Error(`Node RPC /v3/blocks/${id} returned ${res.status}`);
+		}
+		const raw = new Uint8Array(await res.arrayBuffer());
+		const header = parseNakamotoBlockHeader(raw);
+		const blockHash = nakamotoBlockHash(header);
+		return {
+			raw,
+			header,
+			blockHash,
+			indexBlockHash: nakamotoBlockId(blockHash, header.consensusHash),
+		};
 	}
 
 	async isHealthy(): Promise<boolean> {
