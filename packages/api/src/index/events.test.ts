@@ -52,6 +52,29 @@ describe("Index /events query parsing", () => {
 		expect(parsed.filters.asset_identifier).toBe("SP1.nft::item");
 	});
 
+	test("trait is allowed for contract-keyed event types", () => {
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=ft_transfer&trait=sip-010"),
+			TIP,
+		);
+		expect(parsed.trait).toBe("sip-010");
+	});
+
+	test("trait is rejected for STX event types (no contract_id)", () => {
+		expect(() =>
+			parseIndexEventsQuery(params("?event_type=stx_transfer&trait=sip-010"), TIP),
+		).toThrow(/unknown query param: trait|not supported/);
+	});
+
+	test("trait and contract_id are mutually exclusive", () => {
+		expect(() =>
+			parseIndexEventsQuery(
+				params("?event_type=ft_transfer&trait=sip-010&contract_id=SP1.t"),
+				TIP,
+			),
+		).toThrow(/mutually exclusive/);
+	});
+
 	test("the new decoded event types are accepted", () => {
 		for (const eventType of [
 			"stx_transfer",

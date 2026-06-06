@@ -63,6 +63,17 @@ describe("Index /contract-calls query parsing", () => {
 		expect(parsed.functionName).toBe("transfer");
 		expect(parsed.sender).toBe("SP2");
 	});
+
+	test("captures trait filter", () => {
+		const parsed = parseContractCallsQuery(params("?trait=sip-010"), TIP);
+		expect(parsed.trait).toBe("sip-010");
+	});
+
+	test("trait and contract_id are mutually exclusive", () => {
+		expect(() =>
+			parseContractCallsQuery(params("?trait=sip-010&contract_id=SP1.c"), TIP),
+		).toThrow(/mutually exclusive/);
+	});
 });
 
 describe("Index /contract-calls response", () => {
@@ -116,6 +127,7 @@ describe.skipIf(!HAS_DB)("Index /contract-calls DB reads", () => {
 		await sql`DELETE FROM events`.execute(db);
 		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
+		await sql`DELETE FROM contracts`.execute(db);
 	});
 
 	test("reads canonical contract_call txs and decodes args + result", async () => {
@@ -201,6 +213,94 @@ describe.skipIf(!HAS_DB)("Index /contract-calls DB reads", () => {
 			fromHeight: 0,
 			toHeight: 10_000,
 			limit: 10,
+		});
+		expect(result.contract_calls).toEqual([]);
+	});
+
+	test("trait filter restricts to contracts conforming to the trait", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("blocks")
+			.values({
+				height: 9000,
+				hash: "0xbt",
+				parent_hash: "0xbt0",
+				burn_block_height: 1,
+				timestamp: 1_700_000_000,
+				canonical: true,
+			})
+			.execute();
+		await db
+			.insertInto("contracts")
+			.values([
+				{
+					contract_id: "SP1.sip10",
+					deployer: "SP1",
+					block_height: 8000,
+					canonical: true,
+					declared_traits: ["sip-010"],
+				},
+				{
+					contract_id: "SP1.other",
+					deployer: "SP1",
+					block_height: 8000,
+					canonical: true,
+					declared_traits: [],
+				},
+			])
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values([
+				{
+					tx_id: "0xa",
+					block_height: 9000,
+					tx_index: 1,
+					type: "contract_call",
+					sender: "SP2",
+					status: "success",
+					contract_id: "SP1.sip10",
+					function_name: "transfer",
+					function_args: JSON.stringify([]),
+					raw_result: null,
+					raw_tx: "0x00",
+				},
+				{
+					tx_id: "0xb",
+					block_height: 9000,
+					tx_index: 2,
+					type: "contract_call",
+					sender: "SP2",
+					status: "success",
+					contract_id: "SP1.other",
+					function_name: "transfer",
+					function_args: JSON.stringify([]),
+					raw_result: null,
+					raw_tx: "0x00",
+				},
+			])
+			.execute();
+
+		const result = await readContractCalls({
+			db,
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+			trait: "sip-010",
+		});
+		expect(result.contract_calls.map((c) => c.contract_id)).toEqual([
+			"SP1.sip10",
+		]);
+	});
+
+	test("trait filter with no conforming contracts returns empty", async () => {
+		if (!db) throw new Error("missing db");
+		const result = await readContractCalls({
+			db,
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+			trait: "sip-010",
 		});
 		expect(result.contract_calls).toEqual([]);
 	});

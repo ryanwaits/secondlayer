@@ -173,11 +173,18 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					event_type_filters: Object.fromEntries(
 						INDEX_EVENT_TYPES.map((t) => {
 							const cfg = INDEX_EVENT_CONFIG[t];
+							// `trait` is accepted for contract-keyed types (those with a
+							// contract_id equality filter) — mirror the parser's rule.
+							const traitSupported = (
+								cfg.equalityFilters as readonly string[]
+							).includes("contract_id");
 							return [
 								t,
 								{
 									columns: cfg.columns,
-									allowed_filters: cfg.allowedFilters,
+									allowed_filters: traitSupported
+										? [...cfg.allowedFilters, "trait"]
+										: cfg.allowedFilters,
 									equality_filters: cfg.equalityFilters,
 									required_non_null: cfg.requiredNonNull,
 								},

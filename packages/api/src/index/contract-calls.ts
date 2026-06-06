@@ -1,5 +1,6 @@
 import { decodeClarityValue } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
+import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
@@ -23,6 +24,7 @@ export const CONTRACT_CALLS_FILTERS = [
 	"contract_id",
 	"function_name",
 	"sender",
+	"trait",
 ] as const;
 
 export type ContractCallCursor = {
@@ -54,6 +56,8 @@ export type ContractCallsQuery = {
 	contractId?: string;
 	functionName?: string;
 	sender?: string;
+	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
+	trait?: string;
 	cursorPastTip: boolean;
 };
 
@@ -72,6 +76,8 @@ export type ReadContractCallsParams = {
 	contractId?: string;
 	functionName?: string;
 	sender?: string;
+	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
+	trait?: string;
 	db?: Kysely<Database>;
 };
 
@@ -158,8 +164,21 @@ export function parseContractCallsQuery(
 			"function_name",
 		),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
+		trait: parseTrait(query, parseFilter(query.get("contract_id") ?? undefined, "contract_id")),
 		cursorPastTip: cursor ? cursor.block_height > tip.block_height : false,
 	};
+}
+
+/** Trait filter is mutually exclusive with an explicit contract_id. */
+function parseTrait(
+	query: URLSearchParams,
+	contractId: string | undefined,
+): string | undefined {
+	const trait = parseFilter(query.get("trait") ?? undefined, "trait");
+	if (trait !== undefined && contractId !== undefined) {
+		throw new ValidationError("trait and contract_id are mutually exclusive");
+	}
+	return trait;
 }
 
 /** function_args is a JSONB array of hex-encoded ClarityValues (postgres.js may
@@ -238,6 +257,16 @@ export async function readContractCalls(
 	if (params.sender) {
 		predicates.push(sql`t.sender = ${params.sender}`);
 	}
+	if (params.trait) {
+		const ids = await resolveTraitContractIds(db, params.trait, params.toHeight);
+		if (ids.length === 0) return { contract_calls: [], next_cursor: null };
+		predicates.push(
+			sql`t.contract_id IN (${sql.join(
+				ids.map((id) => sql`${id}`),
+				sql`, `,
+			)})`,
+		);
+	}
 	if (params.after) {
 		predicates.push(sql`
 			(
@@ -312,6 +341,7 @@ export async function getContractCallsResponse(opts: {
 		contractId: parsed.contractId,
 		functionName: parsed.functionName,
 		sender: parsed.sender,
+		trait: parsed.trait,
 	});
 
 	// Height-granular reorg reconciliation (cursor is block_height:tx_index, not

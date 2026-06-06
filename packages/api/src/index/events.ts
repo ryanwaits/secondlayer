@@ -1,4 +1,5 @@
 import { getSourceDb, sql } from "@secondlayer/shared/db";
+import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
@@ -204,6 +205,8 @@ export type IndexEventsQuery = {
 	toHeight: number;
 	limit: number;
 	filters: Partial<Record<IndexEqualityFilter, string>>;
+	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
+	trait?: string;
 	cursorPastTip: boolean;
 };
 
@@ -221,6 +224,8 @@ export type ReadIndexEventsParams = {
 	toHeight: number;
 	limit: number;
 	filters?: Partial<Record<IndexEqualityFilter, string>>;
+	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
+	trait?: string;
 	db?: Kysely<Database>;
 };
 
@@ -309,6 +314,19 @@ export async function readIndexEvents(
 		}
 	}
 
+	// Trait scope: resolve "all contracts of standard X (as-of toHeight)" to a
+	// contract-id set and filter on it. No matches → empty page (skip the read).
+	if (params.trait) {
+		const ids = await resolveTraitContractIds(db, params.trait, params.toHeight);
+		if (ids.length === 0) return { events: [], next_cursor: null };
+		predicates.push(
+			sql`contract_id IN (${sql.join(
+				ids.map((id) => sql`${id}`),
+				sql`, `,
+			)})`,
+		);
+	}
+
 	const leadFilter = config.equalityFilters.find((filter) => filters[filter]);
 	const orderBy = leadFilter
 		? sql`${sql.ref(leadFilter)} ASC, block_height ASC, event_index ASC`
@@ -373,7 +391,16 @@ export function parseIndexEventsQuery(
 	}
 
 	const config = INDEX_EVENT_CONFIG[eventTypeRaw];
-	validateQueryParams(query, [...config.allowedFilters, "event_type"]);
+	// Trait scoping applies only to event types keyed by a contract (those with a
+	// contract_id equality filter) — not the STX events.
+	const traitSupported = (config.equalityFilters as readonly string[]).includes(
+		"contract_id",
+	);
+	validateQueryParams(query, [
+		...config.allowedFilters,
+		"event_type",
+		...(traitSupported ? ["trait"] : []),
+	]);
 
 	const base = parseIndexBaseQuery(query, tip);
 	const filters: Partial<Record<IndexEqualityFilter, string>> = {};
@@ -382,7 +409,17 @@ export function parseIndexEventsQuery(
 		if (value !== undefined) filters[filter] = value;
 	}
 
-	return { ...base, eventType: eventTypeRaw, filters };
+	const trait = parseFilter(query.get("trait") ?? undefined, "trait");
+	if (trait !== undefined) {
+		if (!traitSupported) {
+			throw new ValidationError(`trait filter is not supported for ${eventTypeRaw}`);
+		}
+		if (filters.contract_id !== undefined) {
+			throw new ValidationError("trait and contract_id are mutually exclusive");
+		}
+	}
+
+	return { ...base, eventType: eventTypeRaw, filters, trait };
 }
 
 export async function getIndexEventsResponse(opts: {
@@ -410,6 +447,7 @@ export async function getIndexEventsResponse(opts: {
 		toHeight: parsed.toHeight,
 		limit: parsed.limit,
 		filters: parsed.filters,
+		trait: parsed.trait,
 	});
 	const reorgs = await readReorgsForEvents(result.events, opts.readReorgs);
 
