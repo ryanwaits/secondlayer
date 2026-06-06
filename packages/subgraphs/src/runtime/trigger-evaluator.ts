@@ -4,6 +4,7 @@ import type {
 	Subscription,
 } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
+import type { ChainApplyEnvelope } from "@secondlayer/shared";
 import type { ChainTrigger } from "@secondlayer/shared/schemas/subscriptions";
 import type { Kysely } from "kysely";
 import type { SubgraphFilter } from "../types.ts";
@@ -145,17 +146,9 @@ export function evaluateBlock(
 
 // ── Outbox emission ─────────────────────────────────────────────────────────
 
-/** Apply-envelope delivery payload (`action:'apply'`). Reorg emits a matching
- *  `rollback` envelope; see `handleChainReorg`. */
-interface ApplyEnvelope {
-	action: "apply";
-	block_hash: string;
-	block_height: number;
-	tx_id: string;
-	canonical: true;
-	trigger: ChainTrigger["type"];
-	event: Record<string, unknown>;
-}
+// Apply-envelope shape is single-sourced as `ChainApplyEnvelope` in
+// `@secondlayer/shared` (shared with the SDK consumer); reorg emits a matching
+// `ChainReorgRollbackEnvelope`, see `handleChainReorg`.
 
 /**
  * Stable dedup identity for a chain delivery — (subscription, tx, event,
@@ -188,7 +181,7 @@ function applyRow(
 	event: Record<string, unknown>,
 	replayId?: string,
 ): InsertSubscriptionOutbox {
-	const payload: ApplyEnvelope = {
+	const payload: ChainApplyEnvelope = {
 		action: "apply",
 		block_hash: blockHash,
 		block_height: blockHeight,

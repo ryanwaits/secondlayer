@@ -8,6 +8,12 @@ export {
 	type StandardWebhooksHeaders,
 	verify as verifyStandardWebhooksHeaders,
 } from "@secondlayer/shared/crypto/standard-webhooks";
+export type {
+	ChainApplyEnvelope,
+	ChainReorgOrphanedEntry,
+	ChainReorgRollbackEnvelope,
+	ChainWebhookEnvelope,
+} from "@secondlayer/shared";
 
 type HeaderLookup = (name: string) => string | null | undefined;
 export type WebhookHeaderInput =

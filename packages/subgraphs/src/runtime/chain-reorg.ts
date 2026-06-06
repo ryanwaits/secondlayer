@@ -1,4 +1,8 @@
 import type {
+	ChainReorgOrphanedEntry,
+	ChainReorgRollbackEnvelope,
+} from "@secondlayer/shared";
+import type {
 	Database,
 	InsertSubscriptionOutbox,
 } from "@secondlayer/shared/db";
@@ -29,18 +33,6 @@ import type { Kysely } from "kysely";
  *  shallow). Beyond this the payload is marked truncated. */
 const MAX_ORPHANED_PER_SUB = 500;
 
-interface OrphanedEntry {
-	tx_id: string | null;
-	event: unknown;
-}
-
-interface RollbackEnvelope {
-	action: "rollback";
-	fork_point_height: number;
-	orphaned: OrphanedEntry[];
-	truncated: boolean;
-}
-
 export async function handleChainReorg(
 	forkHeight: number,
 	db: Kysely<Database> = getTargetDb(),
@@ -66,7 +58,7 @@ export async function handleChainReorg(
 		.orderBy("id")
 		.execute();
 
-	const bySub = new Map<string, OrphanedEntry[]>();
+	const bySub = new Map<string, ChainReorgOrphanedEntry[]>();
 	for (const row of delivered) {
 		const list = bySub.get(row.subscription_id) ?? [];
 		const payload = row.payload as { event?: unknown };
@@ -78,7 +70,7 @@ export async function handleChainReorg(
 		const rows: InsertSubscriptionOutbox[] = [];
 		for (const [subscriptionId, entries] of bySub) {
 			const truncated = entries.length > MAX_ORPHANED_PER_SUB;
-			const payload: RollbackEnvelope = {
+			const payload: ChainReorgRollbackEnvelope = {
 				action: "rollback",
 				fork_point_height: forkHeight,
 				orphaned: truncated ? entries.slice(0, MAX_ORPHANED_PER_SUB) : entries,

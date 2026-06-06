@@ -10,6 +10,7 @@ export { logger } from "./logger.ts";
 
 export * from "./schemas/index.ts";
 export * from "./subgraphs/spec.ts";
+export * from "./subscriptions/chain-envelopes.ts";
 
 export * as crypto from "./crypto/hmac.ts";
 export * as ed25519 from "./crypto/ed25519.ts";
