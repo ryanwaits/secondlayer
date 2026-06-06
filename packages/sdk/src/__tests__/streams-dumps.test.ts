@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
+import { ed25519 } from "@secondlayer/shared";
 import {
 	type StreamsDumpFile,
 	StreamsSignatureError,
@@ -42,12 +43,16 @@ type FetchImpl = (
 	init?: RequestInit,
 ) => Promise<Response>;
 
+// Manifest-signature verification defaults ON; these cases exercise list/
+// download mechanics, so opt out. Verification itself is covered below and in
+// streams/dumps.test.ts.
 function client(fetchImpl: FetchImpl) {
 	return createStreamsClient({
 		apiKey: "sk-test",
 		baseUrl: "http://secondlayer.test",
 		dumpsBaseUrl: DUMPS_BASE,
 		fetchImpl,
+		verifyDumpsManifest: false,
 	});
 }
 
@@ -88,5 +93,30 @@ describe("streams.dumps", () => {
 			fetchImpl: (async () => new Response("{}")) as never,
 		});
 		await expect(c.dumps.list()).rejects.toThrow("dumpsBaseUrl");
+	});
+
+	test("list() verifies the manifest signature by default (rejects unsigned)", async () => {
+		const { publicKeyPem, keyId } = (() => {
+			const kp = ed25519.generateEd25519KeyPair();
+			return { ...kp, keyId: ed25519.ed25519KeyId(kp.publicKeyPem) };
+		})();
+		// No verifyDumpsManifest → defaults to on. The manifest below is unsigned,
+		// so verification fails closed once the published key is resolved.
+		const c = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			dumpsBaseUrl: DUMPS_BASE,
+			fetchImpl: (async (input: string | URL | Request) => {
+				const url = String(input);
+				if (url.endsWith("/public/streams/signing-key")) {
+					return new Response(
+						JSON.stringify({ public_key_pem: publicKeyPem, key_id: keyId }),
+						{ status: 200 },
+					);
+				}
+				return new Response(JSON.stringify(manifest), { status: 200 });
+			}) as never,
+		});
+		await expect(c.dumps.list()).rejects.toBeInstanceOf(StreamsSignatureError);
 	});
 });

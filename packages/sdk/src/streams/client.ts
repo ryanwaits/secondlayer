@@ -76,8 +76,10 @@ export type CreateStreamsClientOptions = {
 	verify?: boolean | { publicKey: string };
 	/**
 	 * Verify the bulk dumps manifest's ed25519 signature in `client.dumps.list()`
-	 * before trusting any file sha256 (default off). Uses the same key source as
-	 * `verify`. Default off until historical manifests carry signatures.
+	 * before trusting any file sha256 (default ON). Uses the same key source as
+	 * `verify` (fetches `/public/streams/signing-key`, or a pinned PEM). Pass
+	 * `false` to opt out. A missing or invalid signature throws
+	 * `StreamsSignatureError`.
 	 */
 	verifyDumpsManifest?: boolean;
 };
@@ -186,7 +188,7 @@ export function createStreamsClient(
 	const dumps = createStreamsDumps({
 		baseUrl: options.dumpsBaseUrl,
 		fetchImpl,
-		verifyManifest: options.verifyDumpsManifest ?? false,
+		verifyManifest: options.verifyDumpsManifest ?? true,
 		loadPublicKeyPem: async () => (await loadKey()).publicKeyPem,
 	});
 

@@ -46,7 +46,7 @@ describe("createStreamsDumps manifest verification", () => {
 		loadPublicKeyPem: async () => publicKeyPem,
 	};
 
-	test("default off: returns even an unsigned manifest", async () => {
+	test("verifyManifest unset: returns even an unsigned manifest", async () => {
 		const dumps = createStreamsDumps({
 			...opts,
 			fetchImpl: fetchServing(BASE_MANIFEST),

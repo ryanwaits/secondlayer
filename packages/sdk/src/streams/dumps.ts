@@ -15,10 +15,9 @@ import type {
  * `path` is the object key under the same base. Downloads are verified against
  * the manifest sha256 so a truncated or tampered file is rejected.
  *
- * When `verifyManifest` is set, the manifest's own ed25519 signature is checked
- * (against the published Streams key) BEFORE any file sha256 is trusted — a
- * sha256 is only as trustworthy as the manifest it came from. Default off until
- * historical manifests have been backfilled with signatures.
+ * When `verifyManifest` is set (the default), the manifest's own ed25519
+ * signature is checked (against the published Streams key) BEFORE any file sha256
+ * is trusted — a sha256 is only as trustworthy as the manifest it came from.
  */
 export function createStreamsDumps(opts: {
 	baseUrl?: string;

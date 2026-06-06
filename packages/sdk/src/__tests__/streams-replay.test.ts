@@ -47,6 +47,9 @@ describe("events.replay", () => {
 			apiKey: "sk-test",
 			baseUrl: "http://secondlayer.test",
 			dumpsBaseUrl: DUMPS_BASE,
+			// Exercises replay's dump→live seam with unsigned fixture manifests;
+			// manifest-signature verification defaults on, so opt out here.
+			verifyDumpsManifest: false,
 			fetchImpl: (async (input: string | URL | Request) => {
 				const url = String(input);
 				if (url.endsWith("/manifest/latest.json")) {
