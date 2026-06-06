@@ -22,6 +22,7 @@ import {
 	formatSubscriptionSchemaErrors,
 	validateSubscriptionFilterForTable,
 } from "@secondlayer/shared/schemas/subscriptions";
+import { deliverTestEvent } from "@secondlayer/subgraphs/runtime/emitter";
 import { replaySubscription } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
@@ -310,6 +311,18 @@ app.post("/:id/rotate-secret", async (c) => {
 		subscription: toDetail(result.subscription),
 		signingSecret: result.signingSecret,
 	});
+});
+
+// Send a one-off test webhook to the subscription's URL (built for its configured
+// format, SSRF-guarded) and log it as a delivery row (null outbox_id) so it shows
+// up under the subscription's deliveries.
+app.post("/:id/test", async (c) => {
+	const accountId = getTenantScopedAccountId(c);
+	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+	const result = await deliverTestEvent(getDb(), sub);
+	return c.json(result);
 });
 
 // ── GET /api/subscriptions/:id/deliveries ───────────────────────────────
