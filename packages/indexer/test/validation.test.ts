@@ -1,12 +1,16 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 
-const INDEXER_URL = process.env.INDEXER_URL || "http://localhost:3700";
+// Requires an indexer wired to the SAME database this test reads. Opt in
+// explicitly via INDEXER_URL — auto-attaching to whatever answers on the default
+// port (e.g. a dev indexer following the chain on its own DB) makes these post
+// blocks that never land in the test DB, so they only run when an operator
+// points INDEXER_URL at a co-located indexer.
+const INDEXER_URL = process.env.INDEXER_URL;
 const HAS_DB = !!process.env.DATABASE_URL;
 
-// These tests require a running indexer + database
-let CAN_RUN = HAS_DB;
-if (HAS_DB) {
+let CAN_RUN = HAS_DB && !!INDEXER_URL;
+if (CAN_RUN) {
 	try {
 		const res = await fetch(`${INDEXER_URL}/health`);
 		CAN_RUN = res.ok;

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { type PersistBlockInput, persistBlock } from "./persist.ts";
 import { readCanonicalStreamsEvents } from "./streams-events.ts";
@@ -560,7 +560,7 @@ describe.skipIf(!HAS_DB)(
 		const H = 991001;
 		const NETWORK = "streams-reorg-test";
 
-		beforeEach(async () => {
+		async function cleanup() {
 			if (!db) return;
 			await db.deleteFrom("events").where("block_height", "=", H).execute();
 			await db
@@ -572,7 +572,13 @@ describe.skipIf(!HAS_DB)(
 				.deleteFrom("index_progress")
 				.where("network", "=", NETWORK)
 				.execute();
-		});
+		}
+
+		beforeEach(cleanup);
+		// Leave no canonical block behind: a leftover tip at H would extend the
+		// orphan range in sibling reorg suites that orphan everything above their
+		// own fork point.
+		afterAll(cleanup);
 
 		function block(hash: string, prefix: string): PersistBlockInput {
 			return {

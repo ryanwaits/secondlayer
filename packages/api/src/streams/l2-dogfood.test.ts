@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import {
 	consumeFtTransferDecodedEvents,
 	consumeNftTransferDecodedEvents,
@@ -40,6 +47,21 @@ const INDEX_TOKENS: IndexTokenStore = new Map([
 
 describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 	const db = HAS_DB ? getDb() : null;
+
+	// The fixture lives at block height 1 and the in-process tip is height 1, so
+	// the default 2-block reorg margin would clamp the served tip to 0 and hide
+	// every event. Pin the margin to 0 so the decoder sees the fixture.
+	const originalReorgMargin = process.env.STREAMS_TIP_REORG_MARGIN_BLOCKS;
+	beforeAll(() => {
+		process.env.STREAMS_TIP_REORG_MARGIN_BLOCKS = "0";
+	});
+	afterAll(() => {
+		if (originalReorgMargin === undefined) {
+			Reflect.deleteProperty(process.env, "STREAMS_TIP_REORG_MARGIN_BLOCKS");
+		} else {
+			process.env.STREAMS_TIP_REORG_MARGIN_BLOCKS = originalReorgMargin;
+		}
+	});
 
 	beforeEach(async () => {
 		if (!db) return;
