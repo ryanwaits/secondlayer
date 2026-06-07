@@ -17,6 +17,10 @@ export interface SecondLayerOptions {
 	apiKey?: string;
 	/** Fetch implementation. Tests and edge runtimes can provide their own. */
 	fetchImpl?: FetchLike;
+	/** Public base URL for Streams bulk parquet dumps (the cold backfill plane).
+	 *  Required for `streams.dumps.*`; without it the dumps client falls back to
+	 *  its built-in default. */
+	dumpsBaseUrl?: string;
 	/** Deploy origin label sent as `x-sl-origin` (telemetry). Defaults to `cli`. */
 	origin?: "cli" | "mcp" | "session";
 }

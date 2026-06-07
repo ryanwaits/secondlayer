@@ -21,10 +21,12 @@ export function getClient(): SecondLayer {
 	if (!instance) {
 		const apiKey = readApiKey();
 		const baseUrl = process.env.SECONDLAYER_API_URL;
+		const dumpsBaseUrl = process.env.SL_STREAMS_DUMPS_URL;
 		instance = new SecondLayer({
 			...(apiKey ? { apiKey } : {}),
 			origin: "mcp",
 			...(baseUrl ? { baseUrl } : {}),
+			...(dumpsBaseUrl ? { dumpsBaseUrl } : {}),
 		});
 	}
 	return instance;

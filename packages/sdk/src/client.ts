@@ -76,6 +76,7 @@ export class SecondLayer extends BaseClient {
 			apiKey: options.apiKey ?? "",
 			baseUrl: options.baseUrl,
 			fetchImpl: options.fetchImpl,
+			dumpsBaseUrl: options.dumpsBaseUrl,
 		});
 		this.index = new Index(options);
 		this.datasets = new Datasets(options);

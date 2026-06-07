@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
+import { CHAIN_TRIGGER_FIELDS, DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import type { ColumnType } from "@secondlayer/subgraphs/types";
 import { getClient } from "./lib/client.ts";
@@ -230,6 +230,40 @@ export function registerResources(server: McpServer) {
 					uri: "secondlayer://column-types",
 					mimeType: "application/json",
 					text: JSON.stringify(COLUMN_TYPES, null, 2),
+				},
+			],
+		}),
+	);
+
+	server.resource(
+		"streams-filters",
+		"secondlayer://streams-filters",
+		{
+			description:
+				"Streams firehose vocabulary — the decoded event types and the filter fields accepted by streams_events / streams_consume.",
+		},
+		async () => ({
+			contents: [
+				{
+					uri: "secondlayer://streams-filters",
+					mimeType: "application/json",
+					text: JSON.stringify(
+						{
+							eventTypes: [...DECODED_EVENT_TYPES],
+							filters: {
+								types: "include only these event types (array)",
+								notTypes: "exclude these event types (array)",
+								contractId: "match a contract id",
+								sender: "match the sender principal",
+								recipient: "match the recipient principal",
+								assetIdentifier: "match the asset identifier (contract::asset)",
+								fromHeight: "start block height (inclusive)",
+								toHeight: "end block height (inclusive)",
+							},
+						},
+						null,
+						2,
+					),
 				},
 			],
 		}),

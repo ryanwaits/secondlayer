@@ -51,6 +51,7 @@ describe("streams MCP tools", () => {
 			"streams_block_events",
 			"streams_canonical",
 			"streams_consume",
+			"streams_dumps",
 			"streams_event_by_txid",
 			"streams_events",
 			"streams_reorgs",
@@ -69,6 +70,34 @@ describe("streams MCP tools", () => {
 			.find((t) => t.name === "streams_events")
 			?.handler({ fromHeight: 10, toHeight: 20 });
 		expect(listed).toEqual({ fromHeight: 10, toHeight: 20 });
+	});
+
+	it("streams_dumps returns the bulk parquet manifest", async () => {
+		const tools: RegisteredTool[] = [];
+		const client = {
+			streams: {
+				dumps: {
+					list: async () => ({
+						coverage: { from_block: 0, to_block: 100 },
+						latest_finalized_cursor: "100:0",
+						files: [{ path: "a.parquet", row_count: 5 }],
+					}),
+				},
+			},
+		};
+		registerStreamsTools(
+			fakeServer(tools),
+			() =>
+				client as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+		const res = await tools
+			.find((t) => t.name === "streams_dumps")
+			?.handler({});
+		expect(res?.isError).toBeUndefined();
+		expect(res?.content[0]?.text).toContain("latest_finalized_cursor");
+		expect(res?.content[0]?.text).toContain("a.parquet");
 	});
 
 	it("streams_consume clamps bounds and returns accumulated events + resume cursor", async () => {

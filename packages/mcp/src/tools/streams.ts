@@ -113,7 +113,9 @@ export function registerStreamsTools(
 			fromCursor: z
 				.string()
 				.optional()
-				.describe("Resume cursor from a prior consume (omit to start at genesis)"),
+				.describe(
+					"Resume cursor from a prior consume (omit to start at genesis)",
+				),
 			types: z
 				.array(z.enum(STREAMS_EVENT_TYPES))
 				.optional()
@@ -124,7 +126,10 @@ export function registerStreamsTools(
 				.describe("Event types to exclude"),
 			contractId: z.string().optional().describe("Filter by contract id"),
 			sender: z.string().optional().describe("Filter by sender principal"),
-			recipient: z.string().optional().describe("Filter by recipient principal"),
+			recipient: z
+				.string()
+				.optional()
+				.describe("Filter by recipient principal"),
 			assetIdentifier: z
 				.string()
 				.optional()
@@ -242,5 +247,13 @@ export function registerStreamsTools(
 			withStreamsAuthHint(async () =>
 				jsonResponse(await clientProvider().streams.usage()),
 			),
+	);
+
+	defineTool<Record<string, never>>(
+		server,
+		"streams_dumps",
+		"List the Streams bulk parquet dumps manifest — coverage range, latest_finalized_cursor, and per-file metadata (block range, row count, size, sha256, signed URL). This is the cold backfill path for downloading all raw data; fetch the file URLs directly (e.g. with DuckDB). Requires the dumps base URL to be configured (SL_STREAMS_DUMPS_URL).",
+		{},
+		async () => jsonResponse(await clientProvider().streams.dumps.list()),
 	);
 }
