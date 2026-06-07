@@ -1,5 +1,12 @@
 # @secondlayer/sdk
 
+## 6.17.0
+
+### Minor Changes
+
+- cc16ebc: Add `Datasets.get(slug, params)` — a generic reader that resolves any slug against the live `/v1/datasets` catalog and returns a uniform `{ rows, next_cursor, tip }` envelope for cursor and bespoke datasets alike (single-record datasets like `bns/resolve` come back as 0-or-1 rows). Known cursor slugs keep a network-free fast path; the catalog is fetched once and cached. The MCP `datasets_query` tool now routes through `get()`, so every dataset returned by `datasets_list` — including `bns/resolve`, `bns/names`, `bns/namespaces`, `network-health/summary`, and any dataset added later — is queryable, in either family (`sbtc-events`) or path (`sbtc/events`) slug form. `query()` is unchanged (cursor-only).
+- 31ad555: Add a `projects` client (`list`/`get`/`create`/`update`/`delete`/`team`) for full project CRUD, and extend `apiKeys` with `list()` (metadata only — never the plaintext) and `revoke(id)` to complete the API-key lifecycle. The `context()` snapshot now includes `projects` and `apiKeys` so agents can see their own inventory before acting.
+
 ## 6.16.0
 
 ### Minor Changes

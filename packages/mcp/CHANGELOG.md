@@ -1,5 +1,19 @@
 # @secondlayer/mcp
 
+## 3.6.0
+
+### Minor Changes
+
+- cc16ebc: Add `Datasets.get(slug, params)` — a generic reader that resolves any slug against the live `/v1/datasets` catalog and returns a uniform `{ rows, next_cursor, tip }` envelope for cursor and bespoke datasets alike (single-record datasets like `bns/resolve` come back as 0-or-1 rows). Known cursor slugs keep a network-free fast path; the catalog is fetched once and cached. The MCP `datasets_query` tool now routes through `get()`, so every dataset returned by `datasets_list` — including `bns/resolve`, `bns/names`, `bns/namespaces`, `network-health/summary`, and any dataset added later — is queryable, in either family (`sbtc-events`) or path (`sbtc/events`) slug form. `query()` is unchanged (cursor-only).
+- 5c39138: Add full project CRUD tools (`project_list`/`get`/`create`/`update`/`delete`/`team_list`), complete the API-key lifecycle (`account_list_keys`/`account_revoke_key` alongside the existing mint), and add `account_usage`/`account_get_caps`/`account_set_caps` so an agent can read its usage and bound its own spend (no Stripe — payment flows stay session-only). The `secondlayer://context` resource now lists the account's projects and API keys so agents see their own inventory before acting.
+- 58586c1: Add subgraph lifecycle tools to the MCP server: `subgraphs_backfill` (non-destructive range fill, the only fill path for BYO subgraphs), `subgraphs_stop` (cancel an in-flight reindex/backfill), and `subgraphs_gaps` (list missing block ranges). Extend `subgraphs_deploy` with `databaseUrl` (BYO data plane) and `dryRun` (validate/preview without writing); a refused BYO breaking change now returns the drop+rebuild migration plan as an actionable result instead of an opaque error.
+
+### Patch Changes
+
+- Updated dependencies [cc16ebc]
+- Updated dependencies [31ad555]
+  - @secondlayer/sdk@6.17.0
+
 ## 3.5.0
 
 ### Minor Changes
