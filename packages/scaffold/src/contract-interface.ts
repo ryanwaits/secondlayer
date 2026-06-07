@@ -25,7 +25,7 @@ export interface ContractInterfaceInput {
  */
 function generateNetworkUtils(): string {
 	return `/**
- * API URLs for different networks
+ * Default public API URLs per network (used when no override is configured).
  */
 const API_URLS: Record<'mainnet' | 'testnet' | 'devnet', string> = {
   mainnet: 'https://api.hiro.so',
@@ -34,8 +34,7 @@ const API_URLS: Record<'mainnet' | 'testnet' | 'devnet', string> = {
 };
 
 /**
- * Infer network from Stacks address prefix
- * SP/SM = mainnet, ST/SN = testnet
+ * Infer network from Stacks address prefix (SP/SM = mainnet, ST/SN = testnet).
  */
 function inferNetworkFromAddress(address: string): 'mainnet' | 'testnet' | undefined {
   if (address.startsWith('SP') || address.startsWith('SM')) return 'mainnet';
@@ -44,14 +43,20 @@ function inferNetworkFromAddress(address: string): 'mainnet' | 'testnet' | undef
 }
 
 /**
- * Get API URL, inferring network from contract address if not specified
+ * Resolve the Stacks node RPC URL for contract-state reads. Override precedence:
+ * { apiUrl } per call > STACKS_NODE_RPC_URL env (point at your own node) > the
+ * network default (public API). Pass { apiUrl } or set the env to use your node.
  */
-function getApiUrl(
+function resolveApiUrl(
   contractAddress: string,
-  explicitNetwork?: 'mainnet' | 'testnet' | 'devnet'
+  apiUrl?: string,
+  network?: 'mainnet' | 'testnet' | 'devnet'
 ): string {
-  const network = explicitNetwork ?? inferNetworkFromAddress(contractAddress) ?? 'mainnet';
-  return API_URLS[network];
+  const url =
+    apiUrl ??
+    (typeof process !== 'undefined' ? process.env.STACKS_NODE_RPC_URL : undefined) ??
+    API_URLS[network ?? inferNetworkFromAddress(contractAddress) ?? 'mainnet'];
+  return url.endsWith('/') ? url.slice(0, -1) : url;
 }`;
 }
 
@@ -241,10 +246,10 @@ function generateMapsObject(
 		const keyConversion = generateMapKeyConversion(map.key);
 
 		return `${methodName}: {
-      async get(key: ${keyType}, options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType} | null> {
+      async get(key: ${keyType}, options?: { apiUrl?: string; network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType} | null> {
         try {
           const { cvToJSON, serializeCV } = await import('@secondlayer/stacks/clarity');
-          const baseUrl = getApiUrl('${address}', options?.network);
+          const baseUrl = resolveApiUrl('${address}', options?.apiUrl, options?.network);
           const mapKey = ${keyConversion};
           const keyHex = serializeCV(mapKey).toString('hex');
 
@@ -312,10 +317,10 @@ function generateVarsObject(
 		const valueType = getTypeForArg({ type: variable.type });
 
 		return `${methodName}: {
-      async get(options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
+      async get(options?: { apiUrl?: string; network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
         try {
           const { cvToJSON, deserializeCV } = await import('@secondlayer/stacks/clarity');
-          const baseUrl = getApiUrl('${address}', options?.network);
+          const baseUrl = resolveApiUrl('${address}', options?.apiUrl, options?.network);
 
           const response = await fetch(
             \`\${baseUrl}/v2/data_var/${address}/${contractName}/${variable.name}?proof=0\`
@@ -369,10 +374,10 @@ function generateConstantsObject(
 		const valueType = getTypeForArg({ type: constant.type });
 
 		return `${methodName}: {
-      async get(options?: { network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
+      async get(options?: { apiUrl?: string; network?: 'mainnet' | 'testnet' | 'devnet' }): Promise<${valueType}> {
         try {
           const { cvToJSON, deserializeCV } = await import('@secondlayer/stacks/clarity');
-          const baseUrl = getApiUrl('${address}', options?.network);
+          const baseUrl = resolveApiUrl('${address}', options?.apiUrl, options?.network);
 
           const response = await fetch(
             \`\${baseUrl}/v2/constant_val/${address}/${contractName}/${constant.name}?proof=0\`

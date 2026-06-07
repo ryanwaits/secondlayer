@@ -16,7 +16,7 @@ const contractFetch = got.extend({
 /**
  * Stacks contract client for fetching ABIs and source code.
  *
- * Mainnet/testnet: proxied through SecondLayer API (/api/node/contracts/:id/abi)
+ * Mainnet/testnet: the SecondLayer contract registry (/v1/contracts/:id?include=abi)
  * Devnet: direct RPC to local node (STACKS_NODE_RPC_URL or localhost:3999)
  */
 export class StacksApiClient {
@@ -94,12 +94,19 @@ export class StacksApiClient {
 		await this.ensureProxy();
 
 		if (this.useProxy) {
-			const url = `${this.baseUrl}/api/node/contracts/${contractId}/abi`;
-			return this.fetchWithErrorHandling<AbiContract>(
-				url,
-				"Contract",
+			// Prod-safe registry source (the /api/node proxy is OSS/dedicated-only).
+			const url = `${this.baseUrl}/v1/contracts/${encodeURIComponent(
 				contractId,
-			);
+			)}?include=abi`;
+			const { contract } = await this.fetchWithErrorHandling<{
+				contract: { abi?: unknown; abi_status?: string };
+			}>(url, "Contract", contractId);
+			if (!contract?.abi) {
+				throw new Error(
+					`ABI not available for ${contractId} (status: ${contract?.abi_status ?? "unknown"})`,
+				);
+			}
+			return contract.abi as AbiContract;
 		}
 
 		const { address, contractName } = parseContractId(contractId);

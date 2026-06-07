@@ -82,8 +82,10 @@ describe("Maps, Variables, and Constants Generation", () => {
 			// Should have get method with key parameter
 			expect(code).toContain("key: string");
 
-			// Should have network option parameter
+			// Configurable override (apiUrl + env) layered over the network default
+			expect(code).toContain("apiUrl?:");
 			expect(code).toContain("network?:");
+			expect(code).toContain("STACKS_NODE_RPC_URL");
 		});
 
 		it("should generate proper tuple key types for maps", async () => {

@@ -18,8 +18,8 @@ beforeAll(() => {
 			lastPath = url.pathname;
 			lastAuthorization = req.headers.get("authorization");
 
-			if (url.pathname === `/api/node/contracts/${CONTRACT_ID}/abi`) {
-				return Response.json(ABI);
+			if (url.pathname === `/v1/contracts/${CONTRACT_ID}`) {
+				return Response.json({ contract: { abi: ABI, abi_status: "ok" } });
 			}
 
 			if (
@@ -29,7 +29,7 @@ beforeAll(() => {
 				return Response.json(ABI);
 			}
 
-			if (url.pathname === "/api/node/contracts/SP123.fail/abi") {
+			if (url.pathname === "/v1/contracts/SP123.fail") {
 				failureRequests += 1;
 				return Response.json({ error: "node unavailable" }, { status: 502 });
 			}
@@ -44,7 +44,7 @@ afterAll(() => {
 });
 
 describe("StacksApiClient", () => {
-	test("fetches mainnet ABIs through the Secondlayer node proxy", async () => {
+	test("fetches mainnet ABIs through the Secondlayer contract registry", async () => {
 		const client = new StacksApiClient(
 			"mainnet",
 			undefined,
@@ -55,7 +55,7 @@ describe("StacksApiClient", () => {
 		const abi = await client.getContractInfo(CONTRACT_ID);
 
 		expect(abi).toEqual(ABI);
-		expect(lastPath).toBe(`/api/node/contracts/${CONTRACT_ID}/abi`);
+		expect(lastPath).toBe(`/v1/contracts/${CONTRACT_ID}`);
 		expect(lastAuthorization).toBeNull();
 		expect(client.describeContractInfoSource()).toBe("Secondlayer node");
 	});
