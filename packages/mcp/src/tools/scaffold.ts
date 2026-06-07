@@ -6,30 +6,28 @@ import {
 import type { AbiFunction, AbiMap } from "@secondlayer/scaffold";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import { z } from "zod/v4";
+import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
 
-const API_BASE =
-	process.env.SECONDLAYER_API_URL || "https://api.secondlayer.tools";
-
+// Source ABIs from the platform contract registry (prod-safe). The old
+// `/api/node/contracts/:id/abi` proxy is OSS/dedicated-only and 404s in prod.
 async function fetchAbi(
 	contractId: string,
 ): Promise<{ functions: AbiFunction[]; maps: AbiMap[] }> {
-	const res = await fetch(`${API_BASE}/api/node/contracts/${contractId}/abi`, {
-		signal: AbortSignal.timeout(10_000),
+	const contract = await getClient().contracts.get(contractId, {
+		includeAbi: true,
 	});
-	if (!res.ok) {
-		if (res.status === 404)
-			throw new Error(`Contract not found: ${contractId}`);
-		throw new Error(`Failed to fetch ABI: HTTP ${res.status}`);
-	}
-	const abi = (await res.json()) as {
+	if (!contract) throw new Error(`Contract not found: ${contractId}`);
+	const abi = contract.abi as {
 		functions?: AbiFunction[];
 		maps?: AbiMap[];
-	};
-	return {
-		functions: abi.functions ?? [],
-		maps: abi.maps ?? [],
-	};
+	} | null;
+	if (!abi) {
+		throw new Error(
+			`No ABI available for ${contractId} (abi_status: ${contract.abi_status})`,
+		);
+	}
+	return { functions: abi.functions ?? [], maps: abi.maps ?? [] };
 }
 
 export function registerScaffoldTools(server: McpServer) {

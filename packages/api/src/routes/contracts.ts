@@ -2,6 +2,7 @@ import { getSourceDb } from "@secondlayer/shared/db";
 import type { Contract } from "@secondlayer/shared/db";
 import {
 	type Conformance,
+	getContract,
 	listContractsByTrait,
 } from "@secondlayer/shared/db/queries/contracts";
 import { Hono } from "hono";
@@ -71,6 +72,24 @@ app.get("/", async (c) => {
 		contracts: page.map((row) => toSummary(row, includeAbi)),
 		next_cursor: hasMore ? page[page.length - 1]?.contract_id : null,
 	});
+});
+
+// Single contract by id — the prod-safe ABI source (the `/api/node/...` proxy is
+// OSS/dedicated-only). Pass ?include=abi for the full ABI blob.
+app.get("/:contractId", async (c) => {
+	const contractId = c.req.param("contractId");
+	const includeAbi = c.req.query("include") === "abi";
+	const row = await getContract(getSourceDb(), contractId);
+	if (!row) {
+		return c.json(
+			{
+				error: `Contract not found: ${contractId}`,
+				code: "CONTRACT_NOT_FOUND",
+			},
+			404,
+		);
+	}
+	return c.json({ contract: toSummary(row, includeAbi) });
 });
 
 export default app;

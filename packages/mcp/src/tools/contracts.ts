@@ -41,4 +41,32 @@ export function registerContractTools(
 		async (params) =>
 			jsonResponse(await clientProvider().contracts.list(params)),
 	);
+
+	defineTool<{ contractId: string }>(
+		server,
+		"get_contract_abi",
+		"Fetch a single deployed contract's ABI from the registry (prod-safe). Returns the contract's metadata + full ABI (functions, maps, variables, fungible/non-fungible tokens). Returns not_found if the contract isn't in the registry. Feed the ABI into scaffold_from_abi or generate a typed client.",
+		{
+			contractId: z
+				.string()
+				.describe("Fully qualified contract id (e.g. SP….amm-pool-v2-01)"),
+		},
+		async ({ contractId }) => {
+			const contract = await clientProvider().contracts.get(contractId, {
+				includeAbi: true,
+			});
+			return contract
+				? jsonResponse(contract)
+				: jsonResponse(
+						{
+							error: {
+								type: "not_found",
+								status: 404,
+								message: `Contract not in registry: ${contractId}`,
+							},
+						},
+						true,
+					);
+		},
+	);
 }

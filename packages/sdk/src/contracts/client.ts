@@ -1,4 +1,5 @@
 import { BaseClient, type SecondLayerOptions, buildQuery } from "../base.ts";
+import { ApiError } from "../errors.ts";
 
 /**
  * Typed client for the contract-discovery API (`GET /v1/contracts`).
@@ -58,5 +59,27 @@ export class Contracts extends BaseClient {
 				cursor: params.cursor,
 			})}`,
 		);
+	}
+
+	/**
+	 * Fetch a single contract from the registry by id (the prod-safe ABI source).
+	 * Pass `{ includeAbi: true }` for the full ABI blob. Resolves null on 404.
+	 */
+	async get(
+		contractId: string,
+		opts: { includeAbi?: boolean } = {},
+	): Promise<ContractSummary | null> {
+		try {
+			const { contract } = await this.request<{ contract: ContractSummary }>(
+				"GET",
+				`/v1/contracts/${encodeURIComponent(contractId)}${
+					opts.includeAbi ? "?include=abi" : ""
+				}`,
+			);
+			return contract;
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
 	}
 }

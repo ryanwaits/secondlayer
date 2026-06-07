@@ -22,6 +22,23 @@ mock.module("@secondlayer/shared/db/queries/contracts", () => ({
 		}
 		return [];
 	},
+	getContract: async (db: { plane: string }, contractId: string) => {
+		if (db.plane !== "source") {
+			throw new Error('relation "contracts" does not exist');
+		}
+		if (contractId === "SP1.known") {
+			return {
+				contract_id: "SP1.known",
+				deployer: "SP1",
+				block_height: 100,
+				declared_traits: ["sip-010"],
+				inferred_standards: ["sip-010"],
+				abi_status: "ok",
+				abi: { functions: [{ name: "transfer" }] },
+			};
+		}
+		return null;
+	},
 }));
 
 const { Hono } = await import("hono");
@@ -41,5 +58,26 @@ describe("GET /v1/contracts plane", () => {
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { contracts: unknown[] };
 		expect(Array.isArray(body.contracts)).toBe(true);
+	});
+});
+
+describe("GET /v1/contracts/:contractId", () => {
+	test("returns the contract with its ABI when include=abi", async () => {
+		const res = await app().request("/v1/contracts/SP1.known?include=abi");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { contract: { abi?: unknown } };
+		expect(body.contract.abi).toEqual({ functions: [{ name: "transfer" }] });
+	});
+
+	test("omits the ABI by default", async () => {
+		const res = await app().request("/v1/contracts/SP1.known");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { contract: { abi?: unknown } };
+		expect(body.contract.abi).toBeUndefined();
+	});
+
+	test("404 when the contract is not in the registry", async () => {
+		const res = await app().request("/v1/contracts/SP1.missing");
+		expect(res.status).toBe(404);
 	});
 });

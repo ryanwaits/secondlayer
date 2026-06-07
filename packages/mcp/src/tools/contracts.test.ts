@@ -46,12 +46,59 @@ describe("contracts MCP tool", () => {
 				>,
 		);
 
-		expect(tools.map((t) => t.name)).toEqual(["contracts_find"]);
-		const res = await tools[0]?.handler({
-			trait: "sip-010",
-			conformance: "inferred",
-		});
+		expect(tools.map((t) => t.name).sort()).toEqual([
+			"contracts_find",
+			"get_contract_abi",
+		]);
+		const res = await tools
+			.find((t) => t.name === "contracts_find")
+			?.handler({
+				trait: "sip-010",
+				conformance: "inferred",
+			});
 		expect(received).toEqual({ trait: "sip-010", conformance: "inferred" });
 		expect(res?.content[0]?.text).toContain("SP1.token");
+	});
+
+	it("get_contract_abi fetches a single contract's ABI (includeAbi)", async () => {
+		const tools: RegisteredTool[] = [];
+		let captured: { id: string; opts: unknown } | undefined;
+		const client = {
+			contracts: {
+				get: async (id: string, opts: unknown) => {
+					captured = { id, opts };
+					return { contract_id: id, abi_status: "ok", abi: { functions: [] } };
+				},
+			},
+		};
+		registerContractTools(
+			fakeServer(tools),
+			() =>
+				client as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+		const res = await tools
+			.find((t) => t.name === "get_contract_abi")
+			?.handler({ contractId: "SP1.token" });
+		expect(captured).toEqual({ id: "SP1.token", opts: { includeAbi: true } });
+		expect(res?.isError).toBeUndefined();
+		expect(res?.content[0]?.text).toContain("abi");
+	});
+
+	it("get_contract_abi → not_found when absent", async () => {
+		const tools: RegisteredTool[] = [];
+		registerContractTools(
+			fakeServer(tools),
+			() =>
+				({ contracts: { get: async () => null } }) as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+		const res = await tools
+			.find((t) => t.name === "get_contract_abi")
+			?.handler({ contractId: "SP1.missing" });
+		expect(res?.isError).toBe(true);
+		expect(res?.content[0]?.text).toContain("not_found");
 	});
 });
