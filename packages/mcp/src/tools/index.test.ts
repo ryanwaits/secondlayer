@@ -33,12 +33,17 @@ describe("index MCP tools", () => {
 				return { events: [], next_cursor: null };
 			},
 		});
+		let discovered = false;
 		const client = {
 			index: {
 				ftTransfers: surface("ft"),
 				nftTransfers: surface("nft"),
 				events: surface("events"),
 				contractCalls: surface("calls"),
+				discover: async () => {
+					discovered = true;
+					return { event_type_filters: { ft_transfer: {} } };
+				},
 			},
 		};
 		registerIndexTools(
@@ -55,6 +60,7 @@ describe("index MCP tools", () => {
 			"index_canonical",
 			"index_codegen",
 			"index_contract_calls",
+			"index_discover",
 			"index_events",
 			"index_ft_transfers",
 			"index_mempool",
@@ -71,10 +77,25 @@ describe("index MCP tools", () => {
 			?.handler({ sender: "SP1", limit: 5 });
 		expect(calls.ft).toEqual({ sender: "SP1", limit: 5 });
 
+		// trait flows through the working paths (events + contract-calls)
 		await tools
 			.find((t) => t.name === "index_events")
-			?.handler({ eventType: "print", contractId: "SP1.x" });
-		expect(calls.events).toEqual({ eventType: "print", contractId: "SP1.x" });
+			?.handler({ eventType: "ft_transfer", trait: "sip-010" });
+		expect(calls.events).toEqual({
+			eventType: "ft_transfer",
+			trait: "sip-010",
+		});
+
+		await tools
+			.find((t) => t.name === "index_contract_calls")
+			?.handler({ trait: "sip-010" });
+		expect(calls.calls).toEqual({ trait: "sip-010" });
+
+		const disc = await tools
+			.find((t) => t.name === "index_discover")
+			?.handler({});
+		expect(discovered).toBe(true);
+		expect(disc?.content[0]?.text).toContain("event_type_filters");
 	});
 
 	it("index_codegen emits a typed Index schema without an API call", async () => {

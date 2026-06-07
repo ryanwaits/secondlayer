@@ -131,7 +131,7 @@ export function buildCapabilities() {
 	return {
 		products,
 		discoverFirst:
-			"Call datasets_list / contracts_find to learn what exists before querying.",
+			"Call datasets_list / index_discover / contracts_find to learn what exists (and which filters each surface accepts) before querying.",
 	};
 }
 

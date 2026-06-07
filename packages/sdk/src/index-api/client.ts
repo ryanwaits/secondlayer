@@ -224,6 +224,9 @@ export type EventsListParams = {
 	recipient?: string;
 	fromHeight?: number;
 	toHeight?: number;
+	/** Restrict to contracts conforming to a trait/standard (e.g. "sip-010").
+	 *  Mutually exclusive with contractId; contract-keyed event types only. */
+	trait?: string;
 };
 
 export type EventsWalkParams = Omit<EventsListParams, "limit"> & {
@@ -265,6 +268,9 @@ export type ContractCallsListParams = {
 	sender?: string;
 	fromHeight?: number;
 	toHeight?: number;
+	/** Restrict to contracts conforming to a trait/standard (e.g. "sip-010").
+	 *  Mutually exclusive with contractId. */
+	trait?: string;
 };
 
 export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> & {
@@ -554,6 +560,22 @@ function firstWalkFromHeight(params: {
 	return 0;
 }
 
+/** Per-event-type filter vocabulary in the {@link IndexDiscovery} doc. */
+export type IndexEventTypeFilters = {
+	columns?: string[];
+	allowed_filters?: string[];
+	equality_filters?: string[];
+	required_non_null?: string[];
+};
+
+/** The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.
+ *  Shape is intentionally open (the server may add fields); the agent-relevant
+ *  parts are the per-type filter rules. */
+export type IndexDiscovery = {
+	event_type_filters?: Record<string, IndexEventTypeFilters>;
+	[key: string]: unknown;
+};
+
 export class Index extends BaseClient {
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
@@ -562,6 +584,15 @@ export class Index extends BaseClient {
 	/** Your own Index consumption (decoded events today + this month) and tier limits. */
 	usage(): Promise<IndexUsage> {
 		return this.request<IndexUsage>("GET", "/v1/index/usage");
+	}
+
+	/**
+	 * Index discovery doc — the live vocabulary: every endpoint, each event type's
+	 * columns, allowed/equality filters, and required-non-null fields. Read this to
+	 * learn what's queryable (and which types accept `trait`) instead of hardcoding.
+	 */
+	discover(): Promise<IndexDiscovery> {
+		return this.request<IndexDiscovery>("GET", "/v1/index");
 	}
 
 	readonly ftTransfers: {
@@ -806,6 +837,7 @@ export class Index extends BaseClient {
 				recipient: params.recipient,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
+				trait: params.trait,
 			})}`,
 		);
 	}
@@ -859,6 +891,7 @@ export class Index extends BaseClient {
 				sender: params.sender,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
+				trait: params.trait,
 			})}`,
 		);
 	}

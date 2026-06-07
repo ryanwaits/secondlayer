@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import {
-	generateIndexSchema,
 	INDEX_CODEGEN_TABLES,
+	generateIndexSchema,
 } from "@secondlayer/subgraphs";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
@@ -100,6 +100,7 @@ export function registerIndexTools(
 		sender?: string;
 		recipient?: string;
 		assetIdentifier?: string;
+		trait?: string;
 		fromHeight?: number;
 		toHeight?: number;
 		cursor?: string;
@@ -107,7 +108,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_events",
-		"List decoded chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print). For ft/nft transfers prefer index_ft_transfers / index_nft_transfers.",
+		"List decoded chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print), and for trait-scoped queries: set `trait` (e.g. sip-010) to match all contracts conforming to a standard — pair with contracts_find to discover traits. For ft/nft transfers without a trait prefer index_ft_transfers / index_nft_transfers.",
 		{
 			eventType: z
 				.enum(INDEX_EVENT_TYPES)
@@ -122,6 +123,12 @@ export function registerIndexTools(
 				.string()
 				.optional()
 				.describe("Filter by asset identifier where applicable"),
+			trait: z
+				.string()
+				.optional()
+				.describe(
+					"Match contracts conforming to a trait/standard (e.g. sip-010). Mutually exclusive with contractId; contract-keyed event types only.",
+				),
 		},
 		async (params) =>
 			jsonResponse(await clientProvider().index.events.list(params)),
@@ -131,6 +138,7 @@ export function registerIndexTools(
 		contractId?: string;
 		functionName?: string;
 		sender?: string;
+		trait?: string;
 		fromHeight?: number;
 		toHeight?: number;
 		cursor?: string;
@@ -138,7 +146,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_contract_calls",
-		"List decoded contract calls from the Index (function name, args, result). Note: contract-call cursors are a SEPARATE keyspace from event cursors — they are not interchangeable.",
+		"List decoded contract calls from the Index (function name, args, result). Set `trait` (e.g. sip-010) to match calls to all contracts conforming to a standard. Note: contract-call cursors are a SEPARATE keyspace from event cursors — they are not interchangeable.",
 		{
 			...rangeFilters,
 			functionName: z
@@ -146,6 +154,12 @@ export function registerIndexTools(
 				.optional()
 				.describe("Filter by called function name"),
 			sender: z.string().optional().describe("Filter by caller principal"),
+			trait: z
+				.string()
+				.optional()
+				.describe(
+					"Match contracts conforming to a trait/standard (e.g. sip-010). Mutually exclusive with contractId.",
+				),
 		},
 		async (params) =>
 			jsonResponse(await clientProvider().index.contractCalls.list(params)),
@@ -289,6 +303,14 @@ export function registerIndexTools(
 			const tx = await clientProvider().index.mempool.get(txId);
 			return tx ? jsonResponse(tx) : notFound(`No pending tx for ${txId}`);
 		},
+	);
+
+	defineTool<Record<string, never>>(
+		server,
+		"index_discover",
+		"Discover the Index vocabulary: every event type and its columns, allowed/equality filters, and required-non-null fields (and which types accept `trait`). Read this before building Index queries instead of guessing filters. Anonymous read.",
+		{},
+		async () => jsonResponse(await clientProvider().index.discover()),
 	);
 
 	defineTool<Record<string, never>>(
