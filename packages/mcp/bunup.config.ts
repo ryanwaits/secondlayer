@@ -10,6 +10,7 @@ const config: DefineConfigItem = defineConfig({
 	external: [
 		"@modelcontextprotocol/sdk",
 		"@secondlayer/sdk",
+		"@secondlayer/stacks",
 		"@secondlayer/subgraphs",
 		"esbuild",
 		"zod",
