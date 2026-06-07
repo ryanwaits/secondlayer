@@ -208,10 +208,7 @@ export async function generate(files: string[], options: GenerateOptions) {
 			}
 
 			// Get API key for direct RPC URLs from option or environment variable
-			const apiKey =
-				options.apiKey ||
-				process.env.STACKS_NODE_API_KEY ||
-				process.env.HIRO_API_KEY;
+			const apiKey = options.apiKey || process.env.STACKS_NODE_API_KEY;
 
 			config = await buildConfigFromInputs(parsedInputs, options.out, apiKey);
 		} else {

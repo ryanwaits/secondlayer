@@ -1663,10 +1663,7 @@ Examples:
 					} else {
 						const address = contractAddress as string;
 						const network = inferNetwork(address) ?? "mainnet";
-						const apiKey =
-							options.apiKey ??
-							process.env.STACKS_NODE_API_KEY ??
-							process.env.HIRO_API_KEY;
+						const apiKey = options.apiKey ?? process.env.STACKS_NODE_API_KEY;
 						const client = new StacksApiClient(network, apiKey);
 						info(
 							`Fetching ABI for ${address} via ${client.describeContractInfoSource()}...`,

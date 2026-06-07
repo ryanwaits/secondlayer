@@ -19,8 +19,10 @@ import type {
 	TransactionPayload,
 } from "./types/node-events.ts";
 
-// Stacks API URL for fallback tx lookups (opt-in via ENABLE_TX_DECODE_FALLBACK=true)
-const STACKS_API_URL = process.env.STACKS_API_URL || "https://api.hiro.so";
+// Stacks API URL for fallback tx lookups (opt-in via ENABLE_TX_DECODE_FALLBACK=true).
+// No default — the platform runs Hiro-free; if this fallback is ever enabled it
+// must be explicitly pointed at a source (own node/API), never a public provider.
+const STACKS_API_URL = process.env.STACKS_API_URL;
 const TX_DECODE_FALLBACK_ENABLED =
 	process.env.ENABLE_TX_DECODE_FALLBACK === "true";
 
@@ -35,6 +37,7 @@ async function fetchTxFromApi(txid: string): Promise<{
 	functionName: string | null;
 	functionArgs: string[] | null;
 } | null> {
+	if (!STACKS_API_URL) return null;
 	try {
 		const response = await fetch(`${STACKS_API_URL}/extended/v1/tx/${txid}`);
 		if (!response.ok) {

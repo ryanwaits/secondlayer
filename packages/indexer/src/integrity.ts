@@ -6,7 +6,6 @@ import {
 } from "@secondlayer/shared/db/queries/integrity";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
-import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 import { ingestNewBlock } from "./ingest.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
@@ -164,44 +163,26 @@ async function autoBackfill(gaps: Gap[]) {
 			return;
 		}
 
-		// Phase 2: Hiro API for remaining blocks
-		let hiroFilled = 0;
+		// Phase 2: gaps the own DB can't replay. We deliberately do NOT fall back to
+		// Hiro's public API here — the platform runs on its own stacks-node and stays
+		// Hiro-free. Historical execution events can't be re-derived from raw node RPC,
+		// so surface the unfillable gap loudly for re-sync/ops instead of silently
+		// reaching an external provider. (Was: HiroClient.getBlockForIndexer fill.)
 		if (remainingHeights.size > 0) {
-			logger.info("Auto-backfill: fetching from Hiro API", {
-				remaining: remainingHeights.size,
+			const sorted = [...remainingHeights].sort((a, b) => a - b);
+			logger.error("Auto-backfill: unfillable gap (not in local DB)", {
+				count: sorted.length,
+				first: sorted[0],
+				last: sorted[sorted.length - 1],
+				hint: "re-sync from the stacks-node event stream; no external fallback",
 			});
-
-			const hiroClient = new HiroClient();
-			const hiroHealthy = await hiroClient.isHealthy();
-
-			if (hiroHealthy) {
-				for (const h of remainingHeights) {
-					try {
-						const payload = await hiroClient.getBlockForIndexer(h, {
-							includeRawTx: true,
-						});
-						if (!payload) continue;
-
-						await ingestNewBlock(payload as unknown as NewBlockPayload);
-						hiroFilled++;
-						integrityState.autoBackfillRemaining--;
-					} catch (err) {
-						logger.warn("Auto-backfill: Hiro API fetch failed", {
-							height: h,
-							error: String(err),
-						});
-					}
-				}
-			} else {
-				logger.warn("Auto-backfill: Hiro API not reachable");
-			}
 		}
 
 		await recomputeContiguous(getSourceDb());
 		logger.info("Auto-backfill complete", {
 			blocks: totalBlocks,
 			fromLocal: totalBlocks - remainingHeights.size,
-			fromHiro: hiroFilled,
+			unfilled: remainingHeights.size,
 		});
 	} catch (err) {
 		logger.error("Auto-backfill failed", { error: err });
