@@ -30,6 +30,14 @@ import { onChainPlane } from "../src/db/migration-role.ts";
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
 	await onChainPlane(async () => {
+		// Safety net: a blocking CREATE INDEX on the large prod `events` table
+		// exceeds the default statement_timeout (~60s) and aborts the deploy
+		// (error 57014). Lift it for THIS migration tx so the build completes.
+		// On prod the indexes should still be pre-created CONCURRENTLY (see the
+		// header) so this is a no-op via IF NOT EXISTS with no write-lock held;
+		// this only saves a fresh deploy where pre-creation was skipped — there
+		// the build runs to completion instead of hard-failing the deploy.
+		await sql`SET LOCAL statement_timeout = 0`.execute(db);
 		await sql`
 			CREATE INDEX IF NOT EXISTS events_height_type_idx
 			ON events (block_height, type)
