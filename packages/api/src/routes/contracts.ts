@@ -1,4 +1,4 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import type { Contract } from "@secondlayer/shared/db";
 import {
 	type Conformance,
@@ -54,7 +54,10 @@ app.get("/", async (c) => {
 	const cursor = c.req.query("cursor") || undefined;
 	const includeAbi = c.req.query("include") === "abi";
 
-	const db = getDb();
+	// `contracts` is a SOURCE-plane table (TABLE_TO_DB.contracts === "source"):
+	// read from the chain DB, not the control/target DB, or this 500s with the
+	// split live (target has no `contracts` table).
+	const db = getSourceDb();
 	// Fetch one extra to compute the next cursor without a count query.
 	const rows = await listContractsByTrait(db, trait, {
 		conformance,
