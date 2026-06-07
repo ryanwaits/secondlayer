@@ -63,4 +63,84 @@ export function registerAccountTools(server: McpServer) {
 		async ({ product, name }) =>
 			jsonResponse(await getClient().apiKeys.create({ product, name })),
 	);
+
+	defineTool<Record<string, never>>(
+		server,
+		"account_list_keys",
+		"List the account's API keys (metadata only — prefix, name, status, product, tier, last used; never the plaintext). Requires an account-level (owner) API key.",
+		{},
+		async () => jsonResponse(await getClient().apiKeys.list()),
+	);
+
+	defineTool<{ id: string }>(
+		server,
+		"account_revoke_key",
+		"Revoke an API key by id. Requests using that key stop working immediately. Requires an account-level (owner) API key.",
+		{ id: z.string().describe("Key id from account_list_keys") },
+		async ({ id }) => jsonResponse(await getClient().apiKeys.revoke(id)),
+	);
+
+	defineTool<Record<string, never>>(
+		server,
+		"account_usage",
+		"Show the current billing period's usage snapshot: spend (with cap/projection), compute, storage, and per-project breakdown. Requires an API key.",
+		{},
+		async () => jsonResponse(await apiRequest("GET", "/api/accounts/usage")),
+	);
+
+	defineTool<Record<string, never>>(
+		server,
+		"account_get_caps",
+		"Show the account's spend caps and alert threshold. Requires an account-level (owner) API key.",
+		{},
+		async () => jsonResponse(await apiRequest("GET", "/api/billing/caps")),
+	);
+
+	// Bounds the user's own spend — no Stripe, no payment. The Stripe-gated
+	// billing routes (upgrade / portal / resolve) are intentionally NOT exposed:
+	// they are session-only human-payment flows, not agent actions.
+	defineTool<{
+		monthlyCapCents?: number;
+		computeCapCents?: number;
+		storageCapCents?: number;
+		alertThresholdPct?: number;
+	}>(
+		server,
+		"account_set_caps",
+		"Set the account's spend caps and alert threshold (no payment — just bounds spend). Requires an account-level (owner) API key.",
+		{
+			monthlyCapCents: z
+				.number()
+				.int()
+				.nonnegative()
+				.optional()
+				.describe("Total monthly spend cap in cents"),
+			computeCapCents: z
+				.number()
+				.int()
+				.nonnegative()
+				.optional()
+				.describe("Compute spend cap in cents"),
+			storageCapCents: z
+				.number()
+				.int()
+				.nonnegative()
+				.optional()
+				.describe("Storage spend cap in cents"),
+			alertThresholdPct: z
+				.number()
+				.int()
+				.min(1)
+				.max(100)
+				.optional()
+				.describe("Percent of cap that triggers an alert (1-100)"),
+		},
+		async (caps) => {
+			const body: Record<string, number> = {};
+			for (const [k, v] of Object.entries(caps)) {
+				if (v !== undefined) body[k] = v as number;
+			}
+			return jsonResponse(await apiRequest("PATCH", "/api/billing/caps", body));
+		},
+	);
 }
