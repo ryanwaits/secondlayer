@@ -4,13 +4,13 @@ import {
 	SubgraphFilterSchema,
 	VALID_FILTER_TYPES,
 } from "@secondlayer/subgraphs/validate";
-import { getRegisteredToolNames } from "./lib/tool.ts";
 import type { getClient } from "./lib/client.ts";
+import { getRegisteredToolNames } from "./lib/tool.ts";
 import {
-	buildCapabilities,
-	buildContext,
 	COLUMN_TYPES,
 	FILTERS_REFERENCE,
+	buildCapabilities,
+	buildContext,
 } from "./resources.ts";
 import { createServer } from "./server.ts";
 
@@ -44,6 +44,15 @@ describe("secondlayer://context", () => {
 					},
 				],
 				subscriptions: { count: 2, byStatus: { active: 1, paused: 1 } },
+				projects: [{ name: "My App", slug: "my-app", network: "mainnet" }],
+				apiKeys: [
+					{
+						prefix: "sk-sl_a",
+						name: "ci",
+						status: "active",
+						product: "streams",
+					},
+				],
 				activeOperations: [],
 			}),
 		} as unknown as Client;
@@ -51,6 +60,12 @@ describe("secondlayer://context", () => {
 		const ctx = await buildContext({ clientProvider: () => client });
 
 		expect(Array.isArray(ctx.whatExists.subgraphs)).toBe(true);
+		expect(ctx.whatExists.projects).toEqual([
+			{ name: "My App", slug: "my-app", network: "mainnet" },
+		]);
+		expect(ctx.whatExists.apiKeys).toEqual([
+			{ prefix: "sk-sl_a", name: "ci", status: "active", product: "streams" },
+		]);
 		expect(ctx.whatExists.subscriptions).toEqual({
 			count: 2,
 			byStatus: { active: 1, paused: 1 },
@@ -75,6 +90,8 @@ describe("secondlayer://context", () => {
 				indexTip: null,
 				subgraphs: [],
 				subscriptions: null,
+				projects: null,
+				apiKeys: null,
 				activeOperations: null,
 			}),
 		} as unknown as Client;
@@ -83,6 +100,8 @@ describe("secondlayer://context", () => {
 
 		expect(ctx.whatExists.subgraphs).toEqual([]);
 		expect(ctx.whatExists.subscriptions).toBe("unavailable: set SL_API_KEY");
+		expect(ctx.whatExists.projects).toBe("unavailable: set SL_API_KEY");
+		expect(ctx.whatExists.apiKeys).toBe("unavailable: set SL_API_KEY");
 		expect(ctx.whatExists.account).toBe("unavailable: set SL_API_KEY");
 		expect(ctx.whatExists.streamsTip).toBe("unavailable: set SL_API_KEY");
 	});

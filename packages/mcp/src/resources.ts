@@ -85,7 +85,8 @@ const PRODUCT_BLURBS: Record<string, string> = {
 	contracts: "trait-based contract discovery",
 	subgraphs: "author/deploy/query custom indexes",
 	subscriptions: "webhook delivery on subgraph rows or raw chain events",
-	account: "identity, plan, billing, and API keys",
+	account: "identity, plan, billing, usage, spend caps, and API keys",
+	project: "create/manage projects and view their team",
 	scaffold: "generate typed contract clients from a deployment or ABI",
 };
 
@@ -97,6 +98,7 @@ const PRODUCT_ORDER = [
 	"subgraphs",
 	"subscriptions",
 	"account",
+	"project",
 	"scaffold",
 ];
 
@@ -174,6 +176,8 @@ export async function buildContext(
 				? snap.subgraphs.map(formatSubgraphSummary)
 				: unavailable,
 			subscriptions: orNull(snap?.subscriptions),
+			projects: orNull(snap?.projects),
+			apiKeys: orNull(snap?.apiKeys),
 			activeOperations: orNull(snap?.activeOperations),
 		},
 		whatYouCanDo: buildCapabilities(),
