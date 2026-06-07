@@ -25,7 +25,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.1.56",
+      "version": "0.1.61",
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.71",
         "@ai-sdk/react": "3.0.148",
@@ -60,7 +60,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.19.5",
+      "version": "1.19.10",
       "dependencies": {
         "@secondlayer/bundler": "^0.3.6",
         "@secondlayer/indexer": "^1.4.2",
@@ -98,7 +98,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "8.5.2",
+      "version": "8.6.2",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -132,7 +132,7 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "1.12.3",
+      "version": "1.12.4",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@dsnp/parquetjs": "^1.8.7",
@@ -147,7 +147,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "3.3.1",
+      "version": "3.7.0",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -158,9 +158,10 @@
         "@modelcontextprotocol/sdk": "^1.27.1",
         "@secondlayer/bundler": "^0.3.7",
         "@secondlayer/scaffold": "^1.0.6",
-        "@secondlayer/sdk": "^6.9.1",
-        "@secondlayer/shared": "^6.18.0",
-        "@secondlayer/subgraphs": "^3.7.4",
+        "@secondlayer/sdk": "^6.18.0",
+        "@secondlayer/shared": "^6.28.0",
+        "@secondlayer/stacks": "^2.4.0",
+        "@secondlayer/subgraphs": "^3.8.0",
         "zod": "^4.3.6",
       },
       "devDependencies": {
@@ -170,7 +171,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.0.21",
+      "version": "0.0.25",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.15",
@@ -194,11 +195,11 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "6.13.0",
+      "version": "6.18.0",
       "dependencies": {
-        "@secondlayer/shared": "^6.24.0",
-        "@secondlayer/stacks": "^2.2.1",
-        "@secondlayer/subgraphs": "^3.7.3",
+        "@secondlayer/shared": "^6.28.0",
+        "@secondlayer/stacks": "^2.4.0",
+        "@secondlayer/subgraphs": "^3.10.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -207,9 +208,9 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "6.24.0",
+      "version": "6.28.0",
       "dependencies": {
-        "@secondlayer/stacks": "^2.3.0",
+        "@secondlayer/stacks": "^2.4.0",
         "kysely": "0.28.15",
         "kysely-postgres-js": "3.0.0",
         "postgres": "^3.4.6",
@@ -222,7 +223,7 @@
     },
     "packages/stacks": {
       "name": "@secondlayer/stacks",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "dependencies": {
         "@noble/ciphers": "2.1.1",
         "@noble/curves": "2.0.1",
@@ -242,9 +243,9 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "3.7.4",
+      "version": "3.10.0",
       "dependencies": {
-        "@secondlayer/shared": "^6.23.0",
+        "@secondlayer/shared": "^6.27.0",
         "@secondlayer/stacks": "^2.3.0",
         "kysely": "0.28.15",
         "zod": "^4.3.6",
@@ -256,7 +257,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.1.23",
+      "version": "1.1.27",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^6.0.0",

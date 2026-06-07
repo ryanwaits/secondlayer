@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 6.28.0
+
+### Minor Changes
+
+- 4037871: Subscriptions agent parity: expose `authConfig` (bearer receiver auth) on `subscriptions_create`/`subscriptions_update`, `name` (rename) on `subscriptions_update`, and `force` (idempotency suffix to re-run an already-replayed range) on `subscriptions_replay` + the SDK `replay()`. Add `CHAIN_TRIGGER_FIELDS` (derived from `ChainTriggerSchema`, never drifts) in shared and a `secondlayer://chain-triggers` MCP resource listing the filter fields each chain-trigger type accepts.
+
+### Patch Changes
+
+- Updated dependencies [fbdd5ae]
+  - @secondlayer/stacks@2.4.0
+
 ## 6.27.0
 
 ### Minor Changes

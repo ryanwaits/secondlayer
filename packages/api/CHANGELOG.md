@@ -1,5 +1,17 @@
 # @secondlayer/api
 
+## 1.19.10
+
+### Patch Changes
+
+- 1318497: Fix `GET /v1/contracts` 500 in prod: the route read from the control/target DB via `getDb()`, but `contracts` is a source-plane table (`TABLE_TO_DB.contracts === "source"`), so with the DB split live the target had no `contracts` table. Read from `getSourceDb()` like every other source-plane reader. This also restores the `contracts_find` agent path.
+- Updated dependencies [e9c270c]
+- Updated dependencies [9436b6d]
+- Updated dependencies [4037871]
+  - @secondlayer/sdk@6.18.0
+  - @secondlayer/shared@6.28.0
+  - @secondlayer/platform@0.0.25
+
 ## 1.19.9
 
 ### Patch Changes

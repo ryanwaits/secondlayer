@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/sdk",
-	"version": "6.17.0",
+	"version": "6.18.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -36,8 +36,8 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^6.27.0",
-		"@secondlayer/stacks": "^2.2.1",
+		"@secondlayer/shared": "^6.28.0",
+		"@secondlayer/stacks": "^2.4.0",
 		"@secondlayer/subgraphs": "^3.10.0"
 	},
 	"devDependencies": {

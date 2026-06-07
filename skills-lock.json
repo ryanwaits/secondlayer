@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "cadence": {
+      "source": "ryanwaits/cadence",
+      "sourceType": "github",
+      "skillPath": "skills/cadence/SKILL.md",
+      "computedHash": "21426d93cdde09bda18267a05b13bc53b62911e72534ef46dbeb476ef3fab183"
+    }
+  }
+}

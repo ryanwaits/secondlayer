@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 8.6.2
+
+### Patch Changes
+
+- fbdd5ae: Single-source the SIP trait vocabulary. Export `TRAIT_STANDARDS` from `@secondlayer/stacks/clarity` and derive `SipStandard` from it; the CLI `ScaffoldTrait` type and `--trait` validation now reference it instead of re-hardcoding `sip-009|sip-010|sip-013`. Add a `secondlayer://traits` MCP resource listing the standards so agents can discover the valid `contracts_find` / scaffold trait values. (The `scaffold_from_trait` tool + scaffold-generator consolidation are a separate follow-up.)
+- Updated dependencies [e9c270c]
+- Updated dependencies [9436b6d]
+- Updated dependencies [4037871]
+- Updated dependencies [fbdd5ae]
+  - @secondlayer/sdk@6.18.0
+  - @secondlayer/shared@6.28.0
+  - @secondlayer/stacks@2.4.0
+
 ## 8.6.1
 
 ### Patch Changes

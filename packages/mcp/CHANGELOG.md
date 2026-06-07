@@ -1,5 +1,23 @@
 # @secondlayer/mcp
 
+## 3.7.0
+
+### Minor Changes
+
+- e9c270c: Index discovery + trait filtering for agents. Add `Index.discover()` (GET `/v1/index`) and an `index_discover` MCP tool exposing the live vocabulary — per-event-type columns, allowed/equality filters, and which types accept `trait` — wired into the context resource's discover-first hint. Add a `trait` filter (e.g. `sip-010`) to `index.events` / `index.contractCalls` SDK params and the `index_events` / `index_contract_calls` MCP tools, so `contracts_find → trait → one Index query` composes. (Trait runs through the `/events` and `/contract-calls` routes, which resolve it server-side; the `index_ft_transfers`/`index_nft_transfers` aliases don't take `trait` — use `index_events` with `event_type` for trait-scoped transfers.)
+- 9436b6d: Streams discovery for agents. Thread a `dumpsBaseUrl` option through `SecondLayerOptions` → the streams client so `streams.dumps.*` works from the top-level SDK (MCP wires it from `SL_STREAMS_DUMPS_URL`). Add a `streams_dumps` MCP tool exposing the bulk parquet manifest (coverage, `latest_finalized_cursor`, per-file metadata + signed URLs) for cold backfill, and a `secondlayer://streams-filters` resource listing the firehose event types and the filter fields `streams_events`/`streams_consume` accept.
+- 4037871: Subscriptions agent parity: expose `authConfig` (bearer receiver auth) on `subscriptions_create`/`subscriptions_update`, `name` (rename) on `subscriptions_update`, and `force` (idempotency suffix to re-run an already-replayed range) on `subscriptions_replay` + the SDK `replay()`. Add `CHAIN_TRIGGER_FIELDS` (derived from `ChainTriggerSchema`, never drifts) in shared and a `secondlayer://chain-triggers` MCP resource listing the filter fields each chain-trigger type accepts.
+- fbdd5ae: Single-source the SIP trait vocabulary. Export `TRAIT_STANDARDS` from `@secondlayer/stacks/clarity` and derive `SipStandard` from it; the CLI `ScaffoldTrait` type and `--trait` validation now reference it instead of re-hardcoding `sip-009|sip-010|sip-013`. Add a `secondlayer://traits` MCP resource listing the standards so agents can discover the valid `contracts_find` / scaffold trait values. (The `scaffold_from_trait` tool + scaffold-generator consolidation are a separate follow-up.)
+
+### Patch Changes
+
+- bdc9e5a: Document two agent paths in tool descriptions: `subgraphs_query` now explains the `_id`-cursor tail pattern (`sort=_id`, then poll `{"_id.gt": last}`) as the request/response substitute for SSE streaming, and fetch-by-id via `{"_id": ...}`. `account_billing` notes that plan upgrade / Stripe portal / checkout are deliberately session-only human-payment flows (not agent tools) — use `account_set_caps` to bound spend.
+- Updated dependencies [e9c270c]
+- Updated dependencies [9436b6d]
+- Updated dependencies [4037871]
+  - @secondlayer/sdk@6.18.0
+  - @secondlayer/shared@6.28.0
+
 ## 3.6.0
 
 ### Minor Changes
