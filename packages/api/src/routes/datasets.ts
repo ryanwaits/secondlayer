@@ -14,6 +14,7 @@ import {
 	getBurnchainRewardSlotsResponse,
 	getBurnchainRewardsResponse,
 } from "../datasets/burnchain/query.ts";
+import { datasetSources, getDatasetsFreshness } from "../datasets/manifests.ts";
 import { getNetworkHealthResponse } from "../datasets/network-health/query.ts";
 import {
 	type Pox4CallsReader,
@@ -181,6 +182,15 @@ const DATASETS_DISCOVERY = [
 	},
 ] as const;
 
+// Catalog family slug → bulk-export (manifest) slug, where they differ. The BNS
+// name-events bulk export is published under `bns-name-events` while the REST
+// family is `bns-events`; everything else matches by name. Families with no
+// bulk export (burnchain, bns names/namespaces/resolve, network-health) resolve
+// to no source and carry null freshness/manifest_url — honestly unknown.
+const FAMILY_TO_MANIFEST_SLUG: Record<string, string> = {
+	"bns-events": "bns-name-events",
+};
+
 const ALLOWED = {
 	networkHealth: ["days"],
 	stxTransfers: [...RANGE_KEYS, "sender", "recipient"],
@@ -256,13 +266,29 @@ export function createDatasetsRouter(opts: DatasetsRouterOptions = {}) {
 
 	router.use("*", ipRateLimit(DATASETS_IP_RATE_LIMIT));
 
-	router.get("/", (c) =>
-		c.json({
-			families: DATASETS_DISCOVERY,
+	router.get("/", async (c) => {
+		// Discovery must never 503 — when the tip is unavailable, lag is simply
+		// null (unknown) and the catalog still returns 200.
+		const chainTip = (await getTip())?.block_height ?? null;
+		const freshness = await getDatasetsFreshness({ chainTip });
+		const freshnessBySlug = new Map(freshness.map((f) => [f.slug, f]));
+		const manifestUrlBySlug = new Map(
+			datasetSources().map((s) => [s.slug, s.manifestUrl]),
+		);
+		const families = DATASETS_DISCOVERY.map((fam) => {
+			const sourceSlug = FAMILY_TO_MANIFEST_SLUG[fam.family] ?? fam.family;
+			return {
+				...fam,
+				freshness: freshnessBySlug.get(sourceSlug) ?? null,
+				manifest_url: manifestUrlBySlug.get(sourceSlug) ?? null,
+			};
+		});
+		return c.json({
+			families,
 			cursor_format: "<block_height>:<event_index>",
 			example_duckdb: DUCKDB_EXAMPLE,
-		}),
-	);
+		});
+	});
 
 	router.get("/network-health/summary", async (c) => {
 		const query = new URL(c.req.url).searchParams;
