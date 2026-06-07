@@ -1,5 +1,15 @@
 # @secondlayer/api
 
+## 1.19.11
+
+### Patch Changes
+
+- 93cf539: Add a prod-safe single-contract ABI source. New `GET /v1/contracts/:contractId` (registry lookup by id, `?include=abi` for the blob, 404 when absent), SDK `contracts.get(contractId, { includeAbi })`, and a `get_contract_abi` MCP tool. The MCP `scaffold_from_contract` tool now sources ABIs from this registry instead of the OSS/dedicated-only `/api/node/...` proxy (which 404s in prod), so it works in platform/prod.
+- 161d558: Add `index.transactions.getProof(txId)` (SDK) and the `index_transaction_proof` MCP tool — fetch a transaction's inclusion proof (raw tx + signed Nakamoto header + merkle path) to verify trustlessly with `verifyTransactionProof`. 404 → null. The proof endpoint now degrades gracefully when the signed-header source (stacks-node) is unreachable: a typed `ProofNodeUnavailableError` → HTTP 503 `PROOF_NODE_UNAVAILABLE` instead of an opaque 500. The api container reads `STACKS_NODE_RPC_URL` (added as a compose env hook, empty by default) — set it to a reachable Nakamoto node to enable proofs in platform/prod.
+- Updated dependencies [93cf539]
+- Updated dependencies [161d558]
+  - @secondlayer/sdk@6.19.0
+
 ## 1.19.10
 
 ### Patch Changes

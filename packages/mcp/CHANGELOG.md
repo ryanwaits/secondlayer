@@ -1,5 +1,23 @@
 # @secondlayer/mcp
 
+## 3.8.0
+
+### Minor Changes
+
+- 8866c4e: Add `generate_contract_interface` — generate a typed TypeScript contract client (typed methods + map/var/constant readers) from a deployed contract's ABI (fetched from the registry). The interface generator and its shared Clarity codegen utils (clarity-conversion, type-mapping, generator-helpers) now live in `@secondlayer/scaffold` and are consumed by both the CLI (`sl generate`, via re-export shims — no behavior change) and the new MCP tool, single-sourcing the logic.
+- 93cf539: Add a prod-safe single-contract ABI source. New `GET /v1/contracts/:contractId` (registry lookup by id, `?include=abi` for the blob, 404 when absent), SDK `contracts.get(contractId, { includeAbi })`, and a `get_contract_abi` MCP tool. The MCP `scaffold_from_contract` tool now sources ABIs from this registry instead of the OSS/dedicated-only `/api/node/...` proxy (which 404s in prod), so it works in platform/prod.
+- 161d558: Add `index.transactions.getProof(txId)` (SDK) and the `index_transaction_proof` MCP tool — fetch a transaction's inclusion proof (raw tx + signed Nakamoto header + merkle path) to verify trustlessly with `verifyTransactionProof`. 404 → null. The proof endpoint now degrades gracefully when the signed-header source (stacks-node) is unreachable: a typed `ProofNodeUnavailableError` → HTTP 503 `PROOF_NODE_UNAVAILABLE` instead of an opaque 500. The api container reads `STACKS_NODE_RPC_URL` (added as a compose env hook, empty by default) — set it to a reachable Nakamoto node to enable proofs in platform/prod.
+- ac68f8d: Add `scaffold_from_trait` — generate a deploy-ready subgraph that indexes every contract conforming to a SIP trait (sip-009 → nft_transfer source, sip-010/sip-013 → ft_transfer), no specific contract needed. The trait-scoped generator now lives in `@secondlayer/scaffold` as `generateTraitSubgraph`, single-sourced so the CLI `sl subgraphs scaffold --trait` and the MCP `scaffold_from_trait` tool emit identical output.
+
+### Patch Changes
+
+- Updated dependencies [8866c4e]
+- Updated dependencies [93cf539]
+- Updated dependencies [161d558]
+- Updated dependencies [ac68f8d]
+  - @secondlayer/scaffold@1.1.0
+  - @secondlayer/sdk@6.19.0
+
 ## 3.7.0
 
 ### Minor Changes

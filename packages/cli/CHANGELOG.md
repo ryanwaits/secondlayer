@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 8.6.3
+
+### Patch Changes
+
+- 8866c4e: Add `generate_contract_interface` — generate a typed TypeScript contract client (typed methods + map/var/constant readers) from a deployed contract's ABI (fetched from the registry). The interface generator and its shared Clarity codegen utils (clarity-conversion, type-mapping, generator-helpers) now live in `@secondlayer/scaffold` and are consumed by both the CLI (`sl generate`, via re-export shims — no behavior change) and the new MCP tool, single-sourcing the logic.
+- ac68f8d: Add `scaffold_from_trait` — generate a deploy-ready subgraph that indexes every contract conforming to a SIP trait (sip-009 → nft_transfer source, sip-010/sip-013 → ft_transfer), no specific contract needed. The trait-scoped generator now lives in `@secondlayer/scaffold` as `generateTraitSubgraph`, single-sourced so the CLI `sl subgraphs scaffold --trait` and the MCP `scaffold_from_trait` tool emit identical output.
+- Updated dependencies [8866c4e]
+- Updated dependencies [93cf539]
+- Updated dependencies [161d558]
+- Updated dependencies [ac68f8d]
+  - @secondlayer/scaffold@1.1.0
+  - @secondlayer/sdk@6.19.0
+
 ## 8.6.2
 
 ### Patch Changes
