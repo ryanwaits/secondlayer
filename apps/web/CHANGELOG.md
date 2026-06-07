@@ -1,5 +1,13 @@
 # @secondlayer/web
 
+## 0.1.63
+
+### Patch Changes
+
+- Updated dependencies [5cc0823]
+  - @secondlayer/scaffold@1.2.0
+  - @secondlayer/platform@0.0.26
+
 ## 0.1.62
 
 ### Patch Changes

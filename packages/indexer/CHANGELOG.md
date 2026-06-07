@@ -1,5 +1,14 @@
 # @secondlayer/indexer
 
+## 1.12.5
+
+### Patch Changes
+
+- a063b26: Remove the platform's Hiro reliance. The integrity auto-backfill no longer falls back to Hiro's public API for gaps the own DB can't replay (Phase 1 own-stacks-node DB replay stays; unfillable gaps now alert loudly instead of silently calling `api.mainnet.hiro.so`) — the running plane is now Hiro-free. Drop the `api.hiro.so` default from the opt-in `parser.ts` tx-decode fallback (now no-ops unless explicitly pointed at a source), the legacy `HIRO_API_KEY` env fallback in `sl generate` / `sl subgraphs`, the vestigial blank `HIRO_*` env on the api service, and three zero-importer dead `stacks-api*` codegen files (legacy `stacks-node-api.*.stacks.co` URLs). Fix the false `.env.example` "polls Hiro" comment. (Hiro remains only in manual backfill/repair scripts, which aren't running services.)
+- c2e4caa: Fix the Streams read-path hot spot. Add chain-plane indexes on `events` for the firehose payload filters — `(block_height, type)` plus partial expression indexes on `data->>'sender'`, `data->>'recipient'`, and `data->>'asset_identifier'` (partial `IS NOT NULL` so an equality filter provably uses them regardless of `types=`). Replace the per-row correlated `COUNT(*)` that computed each event's per-block `stream_event_index` (O(rows × block_events) across all four Streams read paths) with a single `ROW_NUMBER()` window over the block's all-types event set — byte-identical ordinals, so the cursor-stability contract (an event's `stream_event_index` is the same with or without filters) is preserved and now covered by a dedicated test. Build the indexes with `CREATE INDEX CONCURRENTLY` in prod before deploy (the migration is `IF NOT EXISTS` no-op there).
+- Updated dependencies [c2e4caa]
+  - @secondlayer/shared@6.28.1
+
 ## 1.12.4
 
 ### Patch Changes
