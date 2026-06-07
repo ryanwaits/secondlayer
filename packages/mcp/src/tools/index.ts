@@ -242,6 +242,19 @@ export function registerIndexTools(
 		},
 	);
 
+	defineTool<{ txId: string }>(
+		server,
+		"index_transaction_proof",
+		"Fetch a transaction's inclusion proof (raw tx + signed Nakamoto block header + merkle path) so it can be verified trustlessly client-side with the SDK's verifyTransactionProof. Returns not_found if the tx/block is unknown; a 503 means the proof can't be assembled on this deployment right now (PROOF_TX_SET_INCOMPLETE, or PROOF_NODE_UNAVAILABLE when the stacks-node header source isn't configured).",
+		{ txId: z.string().describe("Transaction id (0x… hash)") },
+		async ({ txId }) => {
+			const proof = await clientProvider().index.transactions.getProof(txId);
+			return proof
+				? jsonResponse(proof)
+				: notFound(`No proof available for ${txId}`);
+		},
+	);
+
 	defineTool<{
 		functionName?: string;
 		stacker?: string;

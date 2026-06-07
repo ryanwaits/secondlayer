@@ -98,6 +98,18 @@ export class IncompleteBlockTxSetError extends Error {
 	}
 }
 
+/** Thrown when the stacks-node (the signed-header source) can't be reached.
+ *  The proof endpoint needs `STACKS_NODE_RPC_URL` reachable from the api
+ *  container; absent that, surface a clean 503 instead of an opaque 500. */
+export class ProofNodeUnavailableError extends Error {
+	constructor(cause: unknown) {
+		super(
+			`could not reach the stacks-node to fetch the signed block header: ${cause instanceof Error ? cause.message : String(cause)}`,
+		);
+		this.name = "ProofNodeUnavailableError";
+	}
+}
+
 /**
  * Gather the proof pieces from our DB + the stacks-node and assemble. Returns
  * null when the tx or its block can't be found. Readers are injected so the
@@ -111,14 +123,23 @@ export async function getTransactionProof(opts: {
 }): Promise<TransactionProofResponse | null> {
 	const tx = await opts.readTx(opts.txId);
 	if (!tx) return null;
+	// The node fetches (signed-header source) throw on connectivity failure;
+	// translate that into a typed error the route maps to 503 (not a raw 500).
+	const onNode = async <T>(p: Promise<T>): Promise<T> => {
+		try {
+			return await p;
+		} catch (err) {
+			throw new ProofNodeUnavailableError(err);
+		}
+	};
 	// Prefer the persisted index_block_hash; fall back to a node lookup by height
 	// for rows ingested before it was stored.
 	const indexBlockHash =
 		tx.index_block_hash ??
-		(await opts.node.getBlock(tx.block_height))?.index_block_hash ??
+		(await onNode(opts.node.getBlock(tx.block_height)))?.index_block_hash ??
 		null;
 	if (!indexBlockHash) return null;
-	const nb = await opts.node.getNakamotoBlock(indexBlockHash);
+	const nb = await onNode(opts.node.getNakamotoBlock(indexBlockHash));
 	if (!nb) return null;
 	const orderedTxids = await opts.readBlockTxids(tx.block_height);
 	// Completeness guard: only emit a proof if OUR ordered tx set reproduces the

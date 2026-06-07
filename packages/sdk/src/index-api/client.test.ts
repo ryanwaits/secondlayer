@@ -60,4 +60,33 @@ describe("Index trait filter + discover", () => {
 		expect(urls[0]).toMatch(/\/v1\/index($|\?)/);
 		expect(doc.event_type_filters).toBeDefined();
 	});
+
+	test("transactions.getProof hits the /proof path", async () => {
+		const urls = recorder({
+			raw_tx: "00",
+			raw_header: "00",
+			tx_merkle_path: [],
+		});
+		const proof = await new Index({ baseUrl: BASE_URL }).transactions.getProof(
+			"0xabc",
+		);
+		expect(urls[0]).toContain("/v1/index/transactions/0xabc/proof");
+		expect(proof).not.toBeNull();
+	});
+
+	test("transactions.getProof resolves null on 404", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 404,
+				headers: new Headers(),
+				json: () => Promise.resolve({ error: "not found" }),
+				text: () => Promise.resolve('{"error":"not found"}'),
+			} as Response),
+		) as unknown as typeof fetch;
+		const proof = await new Index({ baseUrl: BASE_URL }).transactions.getProof(
+			"0xmissing",
+		);
+		expect(proof).toBeNull();
+	});
 });

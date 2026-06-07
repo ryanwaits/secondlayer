@@ -127,6 +127,10 @@ services:
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
       STREAMS_BULK_PUBLIC_BASE_URL: ${STREAMS_BULK_PUBLIC_BASE_URL:-}
       DATASETS_PUBLIC_BASE_URL: ${DATASETS_PUBLIC_BASE_URL:-}
+      # Signed-header source for transaction proofs (GET /v1/index/transactions/:id/proof).
+      # Unset → the proof endpoint returns a clean 503 PROOF_NODE_UNAVAILABLE. Set to a
+      # Nakamoto node reachable from this container to enable proofs in prod.
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
       DATASETS_IP_RATE_LIMIT: ${DATASETS_IP_RATE_LIMIT:-60}
       # L2 decoder enable flags — read by api/src/routes/status.ts
       # (via getEnabledL2DecoderNames) so /public/status reports every

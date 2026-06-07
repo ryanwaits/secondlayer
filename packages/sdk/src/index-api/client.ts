@@ -1,6 +1,7 @@
 import { BaseClient, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
 import { ApiError } from "../errors.ts";
+import type { TransactionProof } from "../proofs.ts";
 
 export type IndexTip = {
 	block_height: number;
@@ -674,6 +675,7 @@ export class Index extends BaseClient {
 		list: (params?: TransactionsListParams) => Promise<TransactionsEnvelope>;
 		walk: (params?: TransactionsWalkParams) => AsyncIterable<IndexTransaction>;
 		get: (txId: string) => Promise<TransactionEnvelope | null>;
+		getProof: (txId: string) => Promise<TransactionProof | null>;
 	} = {
 		list: (
 			params: TransactionsListParams = {},
@@ -683,6 +685,8 @@ export class Index extends BaseClient {
 		): AsyncIterable<IndexTransaction> => this.walkTransactions(params),
 		get: (txId: string): Promise<TransactionEnvelope | null> =>
 			this.getTransaction(txId),
+		getProof: (txId: string): Promise<TransactionProof | null> =>
+			this.getTransactionProof(txId),
 	};
 
 	/** Decoded PoX-4 stacking actions. Empty (with a `notes` hint) when the
@@ -1068,6 +1072,24 @@ export class Index extends BaseClient {
 			return await this.request<TransactionEnvelope>(
 				"GET",
 				`/v1/index/transactions/${encodeURIComponent(txId)}`,
+			);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
+	}
+
+	/** Fetch the inclusion proof for a tx (raw tx + Nakamoto header + merkle path)
+	 *  to verify client-side with `verifyTransactionProof`. 404 → null. A 503
+	 *  (`PROOF_TX_SET_INCOMPLETE` / `PROOF_NODE_UNAVAILABLE`) surfaces as an
+	 *  ApiError — the proof can't be assembled on this deployment right now. */
+	private async getTransactionProof(
+		txId: string,
+	): Promise<TransactionProof | null> {
+		try {
+			return await this.request<TransactionProof>(
+				"GET",
+				`/v1/index/transactions/${encodeURIComponent(txId)}/proof`,
 			);
 		} catch (err) {
 			if (err instanceof ApiError && err.status === 404) return null;

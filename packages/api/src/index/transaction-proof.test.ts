@@ -7,6 +7,7 @@ import {
 } from "@secondlayer/shared/node/nakamoto";
 import {
 	IncompleteBlockTxSetError,
+	ProofNodeUnavailableError,
 	buildTransactionProof,
 	getTransactionProof,
 } from "./transaction-proof.ts";
@@ -98,6 +99,30 @@ describe("getTransactionProof (gatherer with injected readers)", () => {
 				},
 			}),
 		).rejects.toBeInstanceOf(IncompleteBlockTxSetError);
+	});
+
+	test("surfaces a node-connectivity failure as ProofNodeUnavailableError", async () => {
+		await expect(
+			getTransactionProof({
+				txId: txids[1],
+				readTx: async () => ({
+					block_height: fx.expect.chainLength,
+					tx_index: 1,
+					raw_tx: rawTxs[1],
+					burn_block_height: fx.expect.burnBlockHeight,
+				}),
+				readBlockTxids: async () => txids,
+				node: {
+					getBlock: async () => ({
+						index_block_hash: fx.expect.indexBlockHash,
+					}),
+					getNakamotoBlock: async () => {
+						throw new Error("fetch failed: ECONNREFUSED");
+					},
+					getRewardSet: async () => fx.rewardSet,
+				},
+			}),
+		).rejects.toBeInstanceOf(ProofNodeUnavailableError);
 	});
 
 	test("returns null when the tx is unknown", async () => {

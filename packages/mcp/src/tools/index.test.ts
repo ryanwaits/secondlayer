@@ -68,6 +68,7 @@ describe("index MCP tools", () => {
 			"index_nft_transfers",
 			"index_stacking",
 			"index_transaction",
+			"index_transaction_proof",
 			"index_transactions",
 			"index_usage",
 		]);
@@ -96,6 +97,38 @@ describe("index MCP tools", () => {
 			?.handler({});
 		expect(discovered).toBe(true);
 		expect(disc?.content[0]?.text).toContain("event_type_filters");
+	});
+
+	it("index_transaction_proof delegates to getProof; null → not_found", async () => {
+		const tools: RegisteredTool[] = [];
+		let proofTx: string | undefined;
+		const client = {
+			index: {
+				transactions: {
+					getProof: async (txId: string) => {
+						proofTx = txId;
+						return txId === "0xhit"
+							? { raw_tx: "00", tx_merkle_path: [] }
+							: null;
+					},
+				},
+			},
+		};
+		registerIndexTools(
+			fakeServer(tools),
+			() =>
+				client as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+		const tool = tools.find((t) => t.name === "index_transaction_proof");
+		const hit = await tool?.handler({ txId: "0xhit" });
+		expect(proofTx).toBe("0xhit");
+		expect(hit?.isError).toBeUndefined();
+		expect(hit?.content[0]?.text).toContain("tx_merkle_path");
+		const miss = await tool?.handler({ txId: "0xmiss" });
+		expect(miss?.isError).toBe(true);
+		expect(miss?.content[0]?.text).toContain("not_found");
 	});
 
 	it("index_codegen emits a typed Index schema without an API call", async () => {

@@ -70,6 +70,7 @@ import {
 } from "../index/tip.ts";
 import {
 	IncompleteBlockTxSetError,
+	ProofNodeUnavailableError,
 	getTransactionProofDefault,
 } from "../index/transaction-proof.ts";
 import {
@@ -485,6 +486,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			if (err instanceof IncompleteBlockTxSetError) {
 				return c.json(
 					{ error: err.message, code: "PROOF_TX_SET_INCOMPLETE" },
+					503,
+				);
+			}
+			if (err instanceof ProofNodeUnavailableError) {
+				return c.json(
+					{ error: err.message, code: "PROOF_NODE_UNAVAILABLE" },
 					503,
 				);
 			}
