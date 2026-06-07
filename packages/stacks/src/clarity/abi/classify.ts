@@ -11,7 +11,12 @@ import { SIP009_ABI, SIP010_ABI, SIP013_ABI } from "./standards.ts";
  * `declared` traits parsed from source instead.
  */
 
-export type SipStandard = "sip-009" | "sip-010" | "sip-013";
+/** The canonical SIP trait standards this package can classify/scaffold against.
+ *  Single source of truth — the `SipStandard` type, CLI `--trait` validation, and
+ *  the MCP traits resource all derive from this so the vocabulary can't drift. */
+export const TRAIT_STANDARDS = ["sip-009", "sip-010", "sip-013"] as const;
+
+export type SipStandard = (typeof TRAIT_STANDARDS)[number];
 
 interface StandardSpec {
 	id: SipStandard;

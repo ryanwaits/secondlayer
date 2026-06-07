@@ -12,6 +12,7 @@ import { confirm } from "@inquirer/prompts";
 import type { ByoBreakingChangeDetails } from "@secondlayer/sdk";
 import { ByoBreakingChangeError } from "@secondlayer/sdk";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas";
+import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import type { Command } from "commander";
 import { generateSubgraphScaffold } from "../generators/subgraph-scaffold.ts";
@@ -1638,12 +1639,13 @@ Examples:
 						process.exit(1);
 					}
 					const trait = options.trait as
-						| "sip-009"
-						| "sip-010"
-						| "sip-013"
+						| (typeof TRAIT_STANDARDS)[number]
 						| undefined;
-					if (trait && !["sip-009", "sip-010", "sip-013"].includes(trait)) {
-						error("--trait must be one of: sip-009, sip-010, sip-013");
+					if (
+						trait &&
+						!(TRAIT_STANDARDS as readonly string[]).includes(trait)
+					) {
+						error(`--trait must be one of: ${TRAIT_STANDARDS.join(", ")}`);
 						process.exit(1);
 					}
 					if (!trait && !contractAddress) {

@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CHAIN_TRIGGER_FIELDS, DECODED_EVENT_TYPES } from "@secondlayer/shared";
+import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import type { ColumnType } from "@secondlayer/subgraphs/types";
 import { getClient } from "./lib/client.ts";
@@ -14,6 +15,14 @@ import { getRegisteredToolNames } from "./lib/tool.ts";
 // validator rejects. `trait` (TraitScope) indexes all contracts of a standard
 // (e.g. all SIP-010 tokens). `prints` on print_event is type-level only (not a
 // runtime match field) and is intentionally omitted.
+// One-line human blurb per SIP trait standard, keyed by TRAIT_STANDARDS so a new
+// standard forces an entry here.
+const TRAIT_BLURBS: Record<(typeof TRAIT_STANDARDS)[number], string> = {
+	"sip-009": "Non-fungible token (NFT) standard",
+	"sip-010": "Fungible token standard",
+	"sip-013": "Semi-fungible token standard",
+};
+
 export const FILTERS_REFERENCE = [
 	{
 		type: "stx_transfer",
@@ -230,6 +239,33 @@ export function registerResources(server: McpServer) {
 					uri: "secondlayer://column-types",
 					mimeType: "application/json",
 					text: JSON.stringify(COLUMN_TYPES, null, 2),
+				},
+			],
+		}),
+	);
+
+	server.resource(
+		"traits",
+		"secondlayer://traits",
+		{
+			description:
+				"SIP trait standards the platform can classify and scaffold against — the valid values for contracts_find `trait` and subgraph scaffold `--trait`.",
+		},
+		async () => ({
+			contents: [
+				{
+					uri: "secondlayer://traits",
+					mimeType: "application/json",
+					text: JSON.stringify(
+						{
+							traits: TRAIT_STANDARDS.map((id) => ({
+								id,
+								description: TRAIT_BLURBS[id],
+							})),
+						},
+						null,
+						2,
+					),
 				},
 			],
 		}),

@@ -116,6 +116,7 @@ export {
 	classifyContract,
 	parseDeclaredStandards,
 	type SipStandard,
+	TRAIT_STANDARDS,
 } from "./classify.ts";
 
 // Utils

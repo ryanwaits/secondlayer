@@ -1,9 +1,9 @@
-import type { AbiContract } from "@secondlayer/stacks/clarity";
+import type { AbiContract, SipStandard } from "@secondlayer/stacks/clarity";
 import { classifyContract } from "@secondlayer/stacks/clarity";
 import { formatCode } from "../utils/format.ts";
 import { clarityTypeToSubgraphColumn } from "./clarity-to-subgraph.ts";
 
-export type ScaffoldTrait = "sip-009" | "sip-010" | "sip-013";
+export type ScaffoldTrait = SipStandard;
 
 export interface SubgraphScaffoldInput {
 	/** Full contract identifier, e.g. SP….contract-name (omit for `--trait`). */

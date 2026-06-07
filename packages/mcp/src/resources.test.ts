@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import {
 	SubgraphFilterSchema,
@@ -11,8 +12,29 @@ import {
 	FILTERS_REFERENCE,
 	buildCapabilities,
 	buildContext,
+	registerResources,
 } from "./resources.ts";
 import { createServer } from "./server.ts";
+
+interface RegisteredResource {
+	uri: string;
+	read: () => Promise<{ contents: Array<{ text: string }> }>;
+}
+
+function captureResources(): RegisteredResource[] {
+	const resources: RegisteredResource[] = [];
+	registerResources({
+		resource: (
+			_name: string,
+			uri: string,
+			_opts: unknown,
+			read: RegisteredResource["read"],
+		) => {
+			resources.push({ uri, read });
+		},
+	} as unknown as McpServer);
+	return resources;
+}
 
 type Client = ReturnType<typeof getClient>;
 
@@ -187,5 +209,25 @@ describe("capabilities ↔ tool registry", () => {
 		const listed = buildCapabilities().products.join(" ");
 		const missing = names.filter((n) => !listed.includes(n));
 		expect(missing).toEqual([]);
+	});
+});
+
+describe("discovery resources", () => {
+	it("registers the traits, streams-filters, and chain-triggers resources", async () => {
+		const resources = captureResources();
+		const uris = resources.map((r) => r.uri);
+		expect(uris).toContain("secondlayer://traits");
+		expect(uris).toContain("secondlayer://streams-filters");
+		expect(uris).toContain("secondlayer://chain-triggers");
+	});
+
+	it("traits resource lists the SIP standards", async () => {
+		const traits = captureResources().find(
+			(r) => r.uri === "secondlayer://traits",
+		);
+		const text = (await traits?.read())?.contents[0]?.text ?? "";
+		expect(text).toContain("sip-010");
+		expect(text).toContain("sip-009");
+		expect(text).toContain("sip-013");
 	});
 });
