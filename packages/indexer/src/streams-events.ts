@@ -344,6 +344,63 @@ function streamsFilterPredicate(params: {
 	)}`;
 }
 
+/**
+ * `block_event_ordinals` + `ordered_events` CTEs that assign each candidate row
+ * its dense, 0-based, per-block `stream_event_index`.
+ *
+ * The ordinal is computed over the FULL all-types event set of each candidate
+ * block (`type IN allDbEventTypes`), not the filtered/selected set, so a row's
+ * `stream_event_index` is stable regardless of the `types=`/payload filters a
+ * caller applies — this is the Streams cursor-stability contract. A single
+ * `ROW_NUMBER()` window replaces the old O(rows × block_events) per-row
+ * correlated `COUNT(*)` subquery while producing byte-identical ordinals:
+ * `ROW_NUMBER() OVER (ORDER BY tx_index, event_index) - 1` equals the count of
+ * all-types events at `(tx_index, event_index) <= current` minus one, since
+ * `(tx_index, event_index)` is unique within a block. Population matches the old
+ * subquery exactly — `events INNER JOIN transactions`, scoped by block_height,
+ * no canonical re-check (the candidate CTE already enforces canonicality). The
+ * INNER JOIN back onto `candidate_events` never drops or fans out a candidate:
+ * the selected types are a subset of all types, and the join key is unique.
+ */
+function streamOrdinalCtes(
+	allDbEventTypes: RawBuilder<unknown>,
+): RawBuilder<unknown> {
+	return sql`
+		block_event_ordinals AS (
+			SELECT
+				e2.block_height,
+				t2.tx_index,
+				e2.event_index AS source_event_index,
+				ROW_NUMBER() OVER (
+					PARTITION BY e2.block_height
+					ORDER BY t2.tx_index ASC, e2.event_index ASC
+				) - 1 AS stream_event_index
+			FROM events e2
+			INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
+			WHERE e2.type IN (${allDbEventTypes})
+				AND e2.block_height IN (SELECT DISTINCT block_height FROM candidate_events)
+		),
+		ordered_events AS (
+			SELECT
+				c.block_height,
+				c.block_hash,
+				c.burn_block_height,
+				c.timestamp,
+				c.tx_id,
+				c.tx_index,
+				c.source_event_index,
+				c.db_event_type,
+				c.data,
+				o.stream_event_index
+			FROM candidate_events c
+			INNER JOIN block_event_ordinals o
+				ON o.block_height = c.block_height
+				AND o.tx_index = c.tx_index
+				AND o.source_event_index = c.source_event_index
+		)
+	`;
+}
+
 export async function readCanonicalStreamsEventsByTxId(
 	params: ReadStreamsEventsByTxIdParams,
 ): Promise<ReadStreamsEventsListResult> {
@@ -372,33 +429,7 @@ export async function readCanonicalStreamsEventsByTxId(
 			ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
 			LIMIT ${params.limit ?? 1000}
 		),
-		ordered_events AS (
-			SELECT
-				c.block_height,
-				c.block_hash,
-				c.burn_block_height,
-				c.timestamp,
-				c.tx_id,
-				c.tx_index,
-				c.source_event_index,
-				c.db_event_type,
-				c.data,
-				(
-					SELECT COUNT(*)::integer - 1
-					FROM events e2
-					INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
-					WHERE e2.block_height = c.block_height
-						AND e2.type IN (${allDbEventTypes})
-						AND (
-							t2.tx_index < c.tx_index
-							OR (
-								t2.tx_index = c.tx_index
-								AND e2.event_index <= c.source_event_index
-							)
-						)
-				) AS stream_event_index
-			FROM candidate_events c
-		)
+		${streamOrdinalCtes(allDbEventTypes)}
 		SELECT *
 		FROM ordered_events
 		ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
@@ -442,33 +473,7 @@ export async function readCanonicalStreamsBlockEvents(
 			ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
 			LIMIT ${params.limit ?? 1000}
 		),
-		ordered_events AS (
-			SELECT
-				c.block_height,
-				c.block_hash,
-				c.burn_block_height,
-				c.timestamp,
-				c.tx_id,
-				c.tx_index,
-				c.source_event_index,
-				c.db_event_type,
-				c.data,
-				(
-					SELECT COUNT(*)::integer - 1
-					FROM events e2
-					INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
-					WHERE e2.block_height = c.block_height
-						AND e2.type IN (${allDbEventTypes})
-						AND (
-							t2.tx_index < c.tx_index
-							OR (
-								t2.tx_index = c.tx_index
-								AND e2.event_index <= c.source_event_index
-							)
-						)
-				) AS stream_event_index
-			FROM candidate_events c
-		)
+		${streamOrdinalCtes(allDbEventTypes)}
 		SELECT *
 		FROM ordered_events
 		ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
@@ -509,33 +514,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
       ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
       LIMIT ${opts.limit + 1}
     ),
-    ordered_events AS (
-      SELECT
-        c.block_height,
-        c.block_hash,
-        c.burn_block_height,
-        c.timestamp,
-        c.tx_id,
-        c.tx_index,
-        c.source_event_index,
-        c.db_event_type,
-        c.data,
-        (
-          SELECT COUNT(*)::integer - 1
-          FROM events e2
-          INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
-          WHERE e2.block_height = c.block_height
-            AND e2.type IN (${opts.allDbEventTypes})
-            AND (
-              t2.tx_index < c.tx_index
-              OR (
-                t2.tx_index = c.tx_index
-                AND e2.event_index <= c.source_event_index
-              )
-            )
-        ) AS stream_event_index
-      FROM candidate_events c
-    )
+    ${streamOrdinalCtes(opts.allDbEventTypes)}
     SELECT *
     FROM ordered_events
     ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
@@ -602,33 +581,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
       UNION ALL
       SELECT * FROM future_events
     ),
-    ordered_events AS (
-      SELECT
-        c.block_height,
-        c.block_hash,
-        c.burn_block_height,
-        c.timestamp,
-        c.tx_id,
-        c.tx_index,
-        c.source_event_index,
-        c.db_event_type,
-        c.data,
-        (
-          SELECT COUNT(*)::integer - 1
-          FROM events e2
-          INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
-          WHERE e2.block_height = c.block_height
-            AND e2.type IN (${opts.allDbEventTypes})
-            AND (
-              t2.tx_index < c.tx_index
-              OR (
-                t2.tx_index = c.tx_index
-                AND e2.event_index <= c.source_event_index
-              )
-            )
-        ) AS stream_event_index
-      FROM candidate_events c
-    )
+    ${streamOrdinalCtes(opts.allDbEventTypes)}
     SELECT *
     FROM ordered_events
     WHERE

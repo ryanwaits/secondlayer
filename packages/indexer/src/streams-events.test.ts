@@ -158,6 +158,161 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		]);
 	});
 
+	test("stream_event_index is stable across types/payload filters (cursor-stability contract)", async () => {
+		if (!db) throw new Error("missing db");
+
+		// A busy multi-tx, multi-type block. The per-block `stream_event_index`
+		// is a dense 0-based ordinal over ALL event types, computed independently
+		// of any filter. The window rewrite must reproduce that: a row's cursor
+		// must be identical whether it is reached via an unfiltered page or via a
+		// `types=`/`sender=`/`recipient=` filter — otherwise consumers that switch
+		// filters mid-stream skip or replay events.
+		await db
+			.insertInto("blocks")
+			.values([
+				{
+					height: 5,
+					hash: "0x05",
+					parent_hash: "0x04",
+					burn_block_height: 105,
+					timestamp: 1005,
+					canonical: true,
+				},
+			])
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values([
+				{
+					tx_id: "tx-cb",
+					block_height: 5,
+					tx_index: 0,
+					type: "coinbase",
+					sender: "SP0",
+					status: "success",
+					contract_id: null,
+					raw_tx: "0x00",
+				},
+				{
+					tx_id: "tx-call",
+					block_height: 5,
+					tx_index: 1,
+					type: "contract_call",
+					sender: "SPA",
+					status: "success",
+					contract_id: "SPX.tok",
+					raw_tx: "0x01",
+				},
+				{
+					tx_id: "tx-xfer",
+					block_height: 5,
+					tx_index: 2,
+					type: "token_transfer",
+					sender: "SPC",
+					status: "success",
+					contract_id: null,
+					raw_tx: "0x02",
+				},
+			])
+			.execute();
+		await db
+			.insertInto("events")
+			.values([
+				{
+					tx_id: "tx-cb",
+					block_height: 5,
+					event_index: 0,
+					type: "stx_mint_event",
+					data: { recipient: "SP0", amount: "10" },
+				},
+				{
+					tx_id: "tx-call",
+					block_height: 5,
+					event_index: 0,
+					type: "ft_transfer_event",
+					data: {
+						asset_identifier: "SPX.tok::tok",
+						sender: "SPA",
+						recipient: "SPB",
+						amount: "1",
+					},
+				},
+				{
+					tx_id: "tx-call",
+					block_height: 5,
+					event_index: 1,
+					type: "smart_contract_event",
+					data: {
+						contract_identifier: "SPX.tok",
+						topic: "print",
+						value: { repr: "u1" },
+					},
+				},
+				{
+					tx_id: "tx-xfer",
+					block_height: 5,
+					event_index: 0,
+					type: "stx_transfer_event",
+					data: { sender: "SPC", recipient: "SPD", amount: "2" },
+				},
+			])
+			.execute();
+
+		const full = await readCanonicalStreamsEvents({
+			fromHeight: 5,
+			toHeight: 5,
+			limit: 50,
+			db,
+		});
+		// Dense all-types ordinal: stx_mint=0, ft_transfer=1, print=2, stx_transfer=3.
+		const cursorByType = new Map(
+			full.events.map((event) => [event.event_type, event.cursor]),
+		);
+		expect(cursorByType.get("stx_mint")).toBe("5:0");
+		expect(cursorByType.get("ft_transfer")).toBe("5:1");
+		expect(cursorByType.get("print")).toBe("5:2");
+		expect(cursorByType.get("stx_transfer")).toBe("5:3");
+
+		// Each filtered view must return the SAME cursor for the matched event.
+		const byTypes = await readCanonicalStreamsEvents({
+			fromHeight: 5,
+			toHeight: 5,
+			types: ["ft_transfer"],
+			limit: 50,
+			db,
+		});
+		expect(byTypes.events.map((e) => e.cursor)).toEqual(["5:1"]);
+
+		const bySender = await readCanonicalStreamsEvents({
+			fromHeight: 5,
+			toHeight: 5,
+			sender: "SPC",
+			limit: 50,
+			db,
+		});
+		expect(bySender.events.map((e) => e.cursor)).toEqual(["5:3"]);
+
+		const byRecipient = await readCanonicalStreamsEvents({
+			fromHeight: 5,
+			toHeight: 5,
+			recipient: "SPB",
+			limit: 50,
+			db,
+		});
+		expect(byRecipient.events.map((e) => e.cursor)).toEqual(["5:1"]);
+
+		// Paging with a filter must resume at the same ordinal the unfiltered
+		// page would assign — the after-cursor path computes the ordinal too.
+		const afterFiltered = await readCanonicalStreamsEvents({
+			after: { block_height: 5, event_index: 1 },
+			toHeight: 5,
+			sender: "SPC",
+			limit: 50,
+			db,
+		});
+		expect(afterFiltered.events.map((e) => e.cursor)).toEqual(["5:3"]);
+	});
+
 	test("not_types excludes types and list filters match any value", async () => {
 		if (!db) throw new Error("missing db");
 
