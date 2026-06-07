@@ -6,6 +6,7 @@ import { Contracts } from "./contracts/client.ts";
 import { Datasets } from "./datasets/client.ts";
 import { Index } from "./index-api/client.ts";
 import type { IndexTip } from "./index-api/client.ts";
+import { Projects } from "./projects/client.ts";
 import { createStreamsClient } from "./streams/client.ts";
 import type { StreamsClient, StreamsTip } from "./streams/types.ts";
 import { Subgraphs } from "./subgraphs/client.ts";
@@ -48,6 +49,7 @@ export class SecondLayer extends BaseClient {
 	readonly subgraphs: Subgraphs;
 	readonly subscriptions: Subscriptions;
 	readonly apiKeys: ApiKeys;
+	readonly projects: Projects;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
@@ -62,6 +64,7 @@ export class SecondLayer extends BaseClient {
 		this.subgraphs = new Subgraphs(options);
 		this.subscriptions = new Subscriptions(options);
 		this.apiKeys = new ApiKeys(options);
+		this.projects = new Projects(options);
 	}
 
 	/**

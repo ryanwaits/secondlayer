@@ -7,6 +7,7 @@ export type {
 export type { SecondLayerOptions } from "./base.ts";
 export {
 	ApiKeys,
+	type ApiKeySummary,
 	type CreateApiKeyParams,
 	type CreateApiKeyResponse,
 	type ScopedKeyProduct,
@@ -73,6 +74,15 @@ export type {
 	TransactionsListParams,
 	TransactionsWalkParams,
 } from "./index-api/index.ts";
+export { Projects } from "./projects/client.ts";
+export type {
+	CreateProjectParams,
+	Project,
+	ProjectInvitation,
+	ProjectTeam,
+	ProjectTeamMember,
+	UpdateProjectParams,
+} from "./projects/client.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
 export type { SubgraphOperationStatus } from "./subgraphs/client.ts";
 export type {

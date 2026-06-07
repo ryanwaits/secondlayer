@@ -29,6 +29,18 @@ export interface CreateApiKeyResponse {
 	createdAt: string;
 }
 
+/** A key as seen by {@link ApiKeys.list} — metadata only, never the plaintext. */
+export interface ApiKeySummary {
+	id: string;
+	prefix: string;
+	name: string | null;
+	status: "active" | "revoked";
+	product: string;
+	tier: string | null;
+	createdAt: string;
+	lastUsedAt: string | null;
+}
+
 export class ApiKeys extends BaseClient {
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
@@ -44,5 +56,21 @@ export class ApiKeys extends BaseClient {
 			product: params.product,
 			name: params.name,
 		});
+	}
+
+	/**
+	 * List the account's keys (metadata only — no plaintext). Requires an
+	 * account-level (owner) key or a dashboard session.
+	 */
+	list(): Promise<{ keys: ApiKeySummary[] }> {
+		return this.request<{ keys: ApiKeySummary[] }>("GET", "/api/keys");
+	}
+
+	/** Revoke a key by id. Existing requests with that key stop working. */
+	revoke(id: string): Promise<{ revoked: true; id: string }> {
+		return this.request<{ revoked: true; id: string }>(
+			"DELETE",
+			`/api/keys/${id}`,
+		);
 	}
 }
