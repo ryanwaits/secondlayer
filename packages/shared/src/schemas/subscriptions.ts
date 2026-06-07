@@ -229,6 +229,22 @@ export const ChainTriggersSchema: z.ZodType<ChainTrigger[]> = z
 	.min(1)
 	.max(50);
 
+/**
+ * Per-type accepted filter fields for chain triggers, DERIVED from
+ * {@link ChainTriggerSchema} so the agent-facing reference can never drift behind
+ * the validator. `{ stx_transfer: ["sender","recipient","minAmount","maxAmount"], ... }`.
+ */
+export const CHAIN_TRIGGER_FIELDS: Record<string, string[]> =
+	Object.fromEntries(
+		// biome-ignore lint/suspicious/noExplicitAny: zod-internal introspection of this module's own discriminated union
+		((ChainTriggerSchema as any)._zod.def.options as any[]).map((opt) => {
+			const shape = opt._zod.def.shape as Record<string, unknown>;
+			// biome-ignore lint/suspicious/noExplicitAny: literal value lives on the zod-internal def
+			const type = (shape.type as any)._zod.def.values[0] as string;
+			return [type, Object.keys(shape).filter((k) => k !== "type")];
+		}),
+	);
+
 export const CreateSubscriptionRequestSchema: z.ZodType<ParsedCreateSubscriptionRequest> =
 	z
 		.object({

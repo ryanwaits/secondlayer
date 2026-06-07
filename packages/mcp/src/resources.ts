@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import type { ColumnType } from "@secondlayer/subgraphs/types";
 import { getClient } from "./lib/client.ts";
@@ -229,6 +230,24 @@ export function registerResources(server: McpServer) {
 					uri: "secondlayer://column-types",
 					mimeType: "application/json",
 					text: JSON.stringify(COLUMN_TYPES, null, 2),
+				},
+			],
+		}),
+	);
+
+	server.resource(
+		"chain-triggers",
+		"secondlayer://chain-triggers",
+		{
+			description:
+				"Chain-subscription trigger types and the filter fields each accepts (for subscriptions_create triggers).",
+		},
+		async () => ({
+			contents: [
+				{
+					uri: "secondlayer://chain-triggers",
+					mimeType: "application/json",
+					text: JSON.stringify(CHAIN_TRIGGER_FIELDS, null, 2),
 				},
 			],
 		}),

@@ -1,11 +1,48 @@
 import { describe, expect, it } from "bun:test";
 import {
+	CHAIN_TRIGGER_FIELDS,
+	CHAIN_TRIGGER_TYPES,
+	ChainTriggerSchema,
 	CreateSubscriptionRequestSchema,
 	ReplaySubscriptionRequestSchema,
 	SubscriptionFilterSchema,
 	UpdateSubscriptionRequestSchema,
 	validateSubscriptionFilterForTable,
 } from "./subscriptions.ts";
+
+describe("CHAIN_TRIGGER_FIELDS", () => {
+	it("covers every chain trigger type", () => {
+		expect(Object.keys(CHAIN_TRIGGER_FIELDS).sort()).toEqual(
+			[...CHAIN_TRIGGER_TYPES].sort(),
+		);
+	});
+
+	it("matches the validator's per-type fields (never drifts, excludes `type`)", () => {
+		// biome-ignore lint/suspicious/noExplicitAny: zod-internal introspection mirrors the derivation
+		for (const opt of (ChainTriggerSchema as any)._zod.def.options) {
+			const shape = opt._zod.def.shape as Record<string, unknown>;
+			// biome-ignore lint/suspicious/noExplicitAny: literal value on the zod-internal def
+			const type = (shape.type as any)._zod.def.values[0] as string;
+			const expected = Object.keys(shape).filter((k) => k !== "type");
+			expect(CHAIN_TRIGGER_FIELDS[type]).toEqual(expected);
+		}
+	});
+
+	it("locks known shapes", () => {
+		expect(CHAIN_TRIGGER_FIELDS.stx_transfer).toEqual([
+			"sender",
+			"recipient",
+			"minAmount",
+			"maxAmount",
+		]);
+		expect(CHAIN_TRIGGER_FIELDS.contract_call).toEqual([
+			"contractId",
+			"functionName",
+			"caller",
+			"trait",
+		]);
+	});
+});
 
 const tables = {
 	transfers: {

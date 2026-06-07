@@ -1,6 +1,7 @@
 export * from "./filters.ts";
 export * from "./subgraphs.ts";
 export {
+	CHAIN_TRIGGER_FIELDS,
 	CHAIN_TRIGGER_TYPES,
 	SUBSCRIPTION_FILTER_OPERATORS,
 	SUBSCRIPTION_FORMATS,

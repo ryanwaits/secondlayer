@@ -110,7 +110,7 @@ export class Subscriptions extends BaseClient {
 
 	async replay(
 		id: string,
-		range: { fromBlock: number; toBlock: number },
+		range: { fromBlock: number; toBlock: number; force?: string },
 	): Promise<ReplayResult> {
 		return this.request<ReplayResult>(
 			"POST",

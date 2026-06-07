@@ -117,4 +117,59 @@ describe("subscription MCP tools", () => {
 			"requeue:sub-1:out-1",
 		]);
 	});
+
+	it("forwards authConfig, name (rename), and replay force", async () => {
+		const tools: RegisteredTool[] = [];
+		let created: Record<string, unknown> | undefined;
+		let updated: { id: string; patch: Record<string, unknown> } | undefined;
+		let replayed: { id: string; range: Record<string, unknown> } | undefined;
+		const client = {
+			subscriptions: {
+				create: async (input: Record<string, unknown>) => {
+					created = input;
+					return { subscription: { id: "s1" }, signingSecret: "x" };
+				},
+				update: async (id: string, patch: Record<string, unknown>) => {
+					updated = { id, patch };
+					return { id };
+				},
+				replay: async (id: string, range: Record<string, unknown>) => {
+					replayed = { id, range };
+					return { replayId: "r1", enqueuedCount: 0, scannedCount: 0 };
+				},
+			},
+		};
+		registerSubscriptionTools(fakeServer(tools), () => client as never);
+		const byName = Object.fromEntries(
+			tools.map((tool) => [tool.name, tool.handler]),
+		);
+
+		await byName.subscriptions_create?.({
+			name: "hook",
+			url: "https://e.x/h",
+			authConfig: { type: "bearer", token: "t" },
+		});
+		expect(created?.authConfig).toEqual({ type: "bearer", token: "t" });
+
+		await byName.subscriptions_update?.({
+			id: "s1",
+			name: "renamed",
+			authConfig: { type: "bearer", token: "t2" },
+		});
+		expect(updated).toEqual({
+			id: "s1",
+			patch: { name: "renamed", authConfig: { type: "bearer", token: "t2" } },
+		});
+
+		await byName.subscriptions_replay?.({
+			id: "s1",
+			fromBlock: 1,
+			toBlock: 2,
+			force: "redo",
+		});
+		expect(replayed).toEqual({
+			id: "s1",
+			range: { fromBlock: 1, toBlock: 2, force: "redo" },
+		});
+	});
 });

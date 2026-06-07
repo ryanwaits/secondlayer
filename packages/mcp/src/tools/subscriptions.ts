@@ -61,6 +61,7 @@ export function registerSubscriptionTools(
 			| "raw";
 		runtime?: "inngest" | "trigger" | "cloudflare" | "node";
 		filter?: Record<string, unknown>;
+		authConfig?: Record<string, unknown>;
 	}>(
 		server,
 		"subscriptions_create",
@@ -96,7 +97,7 @@ export function registerSubscriptionTools(
 				)
 				.optional()
 				.describe(
-					"Chain triggers (chain subscription) — provide INSTEAD of subgraphName/tableName. Each targets a raw chain event/tx; string fields accept `*` wildcards, `trait` scopes to a SIP/trait. Forward-looking: starts at chain tip, no backfill.",
+					"Chain triggers (chain subscription) — provide INSTEAD of subgraphName/tableName. Each targets a raw chain event/tx; string fields accept `*` wildcards, `trait` scopes to a SIP/trait. Per-type accepted fields: see the secondlayer://chain-triggers resource. Forward-looking: starts at chain tip, no backfill.",
 				),
 			url: z.string().describe("Webhook URL"),
 			format: z
@@ -120,6 +121,12 @@ export function registerSubscriptionTools(
 				.describe(
 					'Scalar filter DSL, e.g. {"amount": {"gte": 100}, "sender": "SP..."}',
 				),
+			authConfig: z
+				.record(z.string(), z.unknown())
+				.optional()
+				.describe(
+					'Receiver auth sent with each delivery, e.g. {"type": "bearer", "token": "..."}',
+				),
 		},
 		async (input) => {
 			const res = await clientProvider().subscriptions.create(
@@ -133,8 +140,10 @@ export function registerSubscriptionTools(
 
 	defineTool<{
 		id: string;
+		name?: string;
 		url?: string;
 		filter?: Record<string, unknown>;
+		authConfig?: Record<string, unknown>;
 		format?:
 			| "standard-webhooks"
 			| "inngest"
@@ -149,11 +158,16 @@ export function registerSubscriptionTools(
 	}>(
 		server,
 		"subscriptions_update",
-		"Patch a subscription (url, filter, format, runtime, retry, timeout, concurrency).",
+		"Patch a subscription (name, url, filter, authConfig, format, runtime, retry, timeout, concurrency).",
 		{
 			id: z.string(),
+			name: z.string().optional().describe("Rename the subscription"),
 			url: z.string().optional(),
 			filter: z.record(z.string(), z.unknown()).optional(),
+			authConfig: z
+				.record(z.string(), z.unknown())
+				.optional()
+				.describe("Receiver auth sent with each delivery (bearer/etc.)"),
 			format: z
 				.enum([
 					"standard-webhooks",
@@ -248,19 +262,31 @@ export function registerSubscriptionTools(
 		},
 	);
 
-	defineTool<{ id: string; fromBlock: number; toBlock: number }>(
+	defineTool<{
+		id: string;
+		fromBlock: number;
+		toBlock: number;
+		force?: string;
+	}>(
 		server,
 		"subscriptions_replay",
-		"Replay a block range for a subscription. Replays run at 10% of batch capacity — use sparingly.",
+		"Replay a block range for a subscription. Replays run at 10% of batch capacity — use sparingly. Pass `force` (a short idempotency suffix) to re-run a range that was already replayed.",
 		{
 			id: z.string(),
 			fromBlock: z.number().int().nonnegative(),
 			toBlock: z.number().int().nonnegative(),
+			force: z
+				.string()
+				.optional()
+				.describe(
+					"Idempotency suffix to force a duplicate replay of the range",
+				),
 		},
-		async ({ id, fromBlock, toBlock }) => {
+		async ({ id, fromBlock, toBlock, force }) => {
 			const res = await clientProvider().subscriptions.replay(id, {
 				fromBlock,
 				toBlock,
+				...(force !== undefined ? { force } : {}),
 			});
 			return {
 				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
