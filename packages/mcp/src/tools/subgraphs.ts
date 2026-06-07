@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bundleSubgraphCode } from "@secondlayer/bundler";
+import { ByoBreakingChangeError } from "@secondlayer/sdk";
 import {
 	type SubgraphDefinition,
 	generateDrizzleSchema,
@@ -270,6 +271,83 @@ export function registerSubgraphTools(
 		},
 	);
 
+	defineTool<{ name: string; fromBlock: number; toBlock: number }>(
+		server,
+		"subgraphs_backfill",
+		"Backfill a subgraph over a block range. Non-destructive forward fill (does not drop existing data) — unlike subgraphs_reindex, and the only data-fill path for BYO subgraphs (reindex is blocked there). Both blocks required. Returns an operationId — poll subgraphs_operation to track progress.",
+		{
+			name: z.string().describe("Subgraph name"),
+			fromBlock: z
+				.number()
+				.int()
+				.nonnegative()
+				.describe("Start block (inclusive)"),
+			toBlock: z.number().int().nonnegative().describe("End block (inclusive)"),
+		},
+		async ({ name, fromBlock, toBlock }) => {
+			const result = await clientProvider().subgraphs.backfill(name, {
+				fromBlock,
+				toBlock,
+			});
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ name: string }>(
+		server,
+		"subgraphs_stop",
+		"Cancel an in-flight reindex or backfill operation for a subgraph. Returns the stop request status; poll subgraphs_operation to confirm it reaches a terminal state.",
+		{ name: z.string().describe("Subgraph name") },
+		async ({ name }) => {
+			const result = await clientProvider().subgraphs.stop(name);
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{
+		name: string;
+		limit?: number;
+		offset?: number;
+		resolved?: boolean;
+	}>(
+		server,
+		"subgraphs_gaps",
+		"List indexing gaps (missing block ranges) for a subgraph. Each gap reports start/end/size, reason, and detected/resolved timestamps. Feed an unresolved gap's range into subgraphs_backfill to fill it. Defaults to unresolved gaps.",
+		{
+			name: z.string().describe("Subgraph name"),
+			limit: z
+				.number()
+				.int()
+				.positive()
+				.optional()
+				.describe("Max gaps to return"),
+			offset: z
+				.number()
+				.int()
+				.nonnegative()
+				.optional()
+				.describe("Pagination offset"),
+			resolved: z
+				.boolean()
+				.optional()
+				.describe("Filter by resolved state (omit for unresolved only)"),
+		},
+		async ({ name, limit, offset, resolved }) => {
+			const result = await clientProvider().subgraphs.gaps(name, {
+				limit,
+				offset,
+				resolved,
+			});
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
 	defineTool<{ name: string }>(
 		server,
 		"subgraphs_delete",
@@ -281,10 +359,15 @@ export function registerSubgraphTools(
 		},
 	);
 
-	defineTool<{ code: string; startBlock?: number }>(
+	defineTool<{
+		code: string;
+		startBlock?: number;
+		databaseUrl?: string;
+		dryRun?: boolean;
+	}>(
 		server,
 		"subgraphs_deploy",
-		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Optional startBlock overrides the source definition for this deploy. Call `subgraphs_reindex` separately if you need a forced reindex.",
+		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Optional startBlock overrides the source definition for this deploy. Set dryRun to validate and preview the schema/DDL without writing anything. Set databaseUrl to deploy to your own Postgres (BYO data plane) — the server verifies the connection first; with dryRun it returns the DDL + grant script. A breaking BYO schema change is refused and returns a migration plan (drop + rebuild DDL) instead of deploying. Call `subgraphs_reindex` separately if you need a forced reindex.",
 		{
 			code: z
 				.string()
@@ -295,22 +378,57 @@ export function registerSubgraphTools(
 				.nonnegative()
 				.optional()
 				.describe("Override the definition startBlock for this deploy"),
+			databaseUrl: z
+				.string()
+				.optional()
+				.describe(
+					"BYO data plane: Postgres connection string to host the subgraph's schema and rows in your own database",
+				),
+			dryRun: z
+				.boolean()
+				.optional()
+				.describe(
+					"Validate and preview the deploy (schema/DDL, BYO connection) without writing changes",
+				),
 		},
-		async ({ code, startBlock }) => {
+		async ({ code, startBlock, databaseUrl, dryRun }) => {
 			const bundled = await bundleSubgraphCode(code);
-			const result = await clientProvider().subgraphs.deploy({
-				name: bundled.name,
-				version: bundled.version,
-				description: bundled.description,
-				sources: bundled.sources,
-				schema: bundled.schema,
-				handlerCode: bundled.handlerCode,
-				sourceCode: code,
-				...(startBlock !== undefined ? { startBlock } : {}),
-			});
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			try {
+				const result = await clientProvider().subgraphs.deploy({
+					name: bundled.name,
+					version: bundled.version,
+					description: bundled.description,
+					sources: bundled.sources,
+					schema: bundled.schema,
+					handlerCode: bundled.handlerCode,
+					sourceCode: code,
+					...(startBlock !== undefined ? { startBlock } : {}),
+					...(databaseUrl !== undefined ? { databaseUrl } : {}),
+					...(dryRun !== undefined ? { dryRun } : {}),
+				});
+				return {
+					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+				};
+			} catch (err) {
+				// A refused BYO breaking change is an actionable result, not a failure:
+				// defineTool would flatten the throw to {error:{message}} and drop the
+				// migration plan, so surface reasons/diff/plan as a normal result.
+				if (err instanceof ByoBreakingChangeError) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: JSON.stringify(
+									{ byoBreakingChange: true, ...err.details },
+									null,
+									2,
+								),
+							},
+						],
+					};
+				}
+				throw err;
+			}
 		},
 	);
 
