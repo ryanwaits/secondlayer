@@ -29,7 +29,7 @@ export function registerDatasetTools(
 	}>(
 		server,
 		"datasets_query",
-		'Query a cursor-paginated Foundation Dataset by slug (e.g. "stx-transfers", "sbtc/events", "pox-4/calls", "bns/events"). Filters are passed through as documented query params (e.g. {"sender": "SP...", "from_block": "150000"}). Returns { rows, next_cursor, tip }. Call datasets_list first to discover slugs.',
+		'Query ANY Foundation Dataset by slug — every family returned by datasets_list is queryable, including bespoke ones (bns/resolve with {"fqn":"alice.btc"}, bns/names, bns/namespaces, network-health/summary) and any dataset added later. Accepts family ("sbtc-events") or path ("sbtc/events") slug forms. Filters are passed through as documented query params (e.g. {"sender": "SP...", "from_block": "150000"}). Returns { rows, next_cursor, tip }; single-record datasets like bns/resolve return 0-or-1 rows (empty = not found). Call datasets_list first to discover slugs and their filters.',
 		{
 			slug: z
 				.string()
@@ -48,7 +48,7 @@ export function registerDatasetTools(
 			const params: Record<string, unknown> = { ...(filters ?? {}) };
 			if (limit !== undefined) params.limit = limit;
 			if (cursor !== undefined) params.cursor = cursor;
-			const result = await clientProvider().datasets.query(slug, params);
+			const result = await clientProvider().datasets.get(slug, params);
 			return jsonResponse(result);
 		},
 	);

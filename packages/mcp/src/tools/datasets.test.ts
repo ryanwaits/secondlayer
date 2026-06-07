@@ -24,13 +24,13 @@ function fakeServer(tools: RegisteredTool[]): McpServer {
 }
 
 describe("dataset MCP tools", () => {
-	it("registers list + query and passes merged query params", async () => {
+	it("registers list + query and passes merged query params to get()", async () => {
 		const tools: RegisteredTool[] = [];
 		let queried: unknown = null;
 		const client = {
 			datasets: {
 				listDatasets: async () => ({ datasets: [{ slug: "stx-transfers" }] }),
-				query: async (slug: string, params: Record<string, unknown>) => {
+				get: async (slug: string, params: Record<string, unknown>) => {
 					queried = { slug, params };
 					return {
 						rows: [{ id: 1 }],
@@ -69,5 +69,37 @@ describe("dataset MCP tools", () => {
 			params: { sender: "SP1", limit: 10, cursor: "abc" },
 		});
 		expect(res?.content[0]?.text).toContain("next_cursor");
+	});
+
+	it("datasets_query routes bespoke slugs through get()", async () => {
+		const tools: RegisteredTool[] = [];
+		let queried: unknown = null;
+		const client = {
+			datasets: {
+				get: async (slug: string, params: Record<string, unknown>) => {
+					queried = { slug, params };
+					return { rows: [{ fqn: "alice.btc" }], next_cursor: null };
+				},
+			},
+		};
+		registerDatasetTools(
+			fakeServer(tools),
+			() =>
+				client as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+
+		const query = tools.find((t) => t.name === "datasets_query");
+		const res = await query?.handler({
+			slug: "bns/resolve",
+			filters: { fqn: "alice.btc" },
+		});
+		expect(queried).toEqual({
+			slug: "bns/resolve",
+			params: { fqn: "alice.btc" },
+		});
+		expect(res?.isError).toBeUndefined();
+		expect(res?.content[0]?.text).toContain("alice.btc");
 	});
 });

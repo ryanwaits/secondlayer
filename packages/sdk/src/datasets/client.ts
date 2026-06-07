@@ -117,7 +117,23 @@ export const CURSOR_SLUGS: Record<string, { path: string; rowKey: string }> = {
 	},
 };
 
+/** One entry in the `/v1/datasets` catalog (`families[]`). */
+interface CatalogFamily {
+	family: string;
+	path: string;
+	row_key: string;
+	filters: string[];
+}
+
+/** Strip the `/v1/datasets/` prefix from a catalog `path` → the relative path
+ *  `requestPath` expects. */
+function catalogPathTail(path: string): string {
+	return path.replace(/^\/?v1\/datasets\//, "").replace(/^\/+/, "");
+}
+
 export class Datasets extends BaseClient {
+	private catalogPromise?: Promise<CatalogFamily[]>;
+
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
 	}
@@ -128,9 +144,42 @@ export class Datasets extends BaseClient {
 	}
 
 	/**
+	 * Generic read by slug for ANY catalog dataset — cursor or bespoke. Resolves
+	 * the slug against the live `/v1/datasets` catalog (so datasets added
+	 * server-side work with no SDK change), issues the GET, and normalizes the
+	 * response into a uniform `{ rows, next_cursor, tip }` envelope. Single-object
+	 * datasets (bns/resolve, network-health/summary) come back as 0-or-1 rows.
+	 * Accepts both family (`sbtc-events`) and path (`sbtc/events`) slug forms.
+	 * Prefer this over {@link query} unless you specifically need cursor-only
+	 * semantics.
+	 */
+	async get(
+		slug: string,
+		params: Record<string, unknown> = {},
+	): Promise<CursorEnvelope> {
+		const { path, rowKey } = await this.resolveDataset(slug);
+		const env = await this.requestPath<Record<string, unknown>>(
+			path,
+			this.paramsToQuery(params),
+		);
+		const value = env[rowKey];
+		const rows: DatasetRow[] = Array.isArray(value)
+			? (value as DatasetRow[])
+			: value == null
+				? []
+				: [value as DatasetRow];
+		return {
+			rows,
+			next_cursor: (env.next_cursor as string | null) ?? null,
+			tip: env.tip as { block_height: number } | undefined,
+		};
+	}
+
+	/**
 	 * Generic cursor query by slug — used by the CLI. Params are passed through as
 	 * REST query keys (snake_case), so callers can use the documented filter names
-	 * directly. Throws for non-cursor (bespoke) datasets.
+	 * directly. Throws for non-cursor (bespoke) datasets — use {@link get} for
+	 * those (and for slugs added to the catalog after this SDK was built).
 	 */
 	async query(
 		slug: string,
@@ -142,7 +191,7 @@ export class Datasets extends BaseClient {
 				`unknown cursor dataset "${slug}" (use one of: ${Object.keys(CURSOR_SLUGS).join(", ")})`,
 			);
 		}
-		const env = await this.get<Record<string, unknown>>(
+		const env = await this.requestPath<Record<string, unknown>>(
 			d.path,
 			this.paramsToQuery(params),
 		);
@@ -192,7 +241,7 @@ export class Datasets extends BaseClient {
 			offset?: number;
 		} = {},
 	): Promise<{ names: DatasetRow[] }> {
-		return this.get(
+		return this.requestPath(
 			"bns/names",
 			buildQuery({
 				namespace: params.namespace,
@@ -205,23 +254,62 @@ export class Datasets extends BaseClient {
 
 	/** All BNS namespaces (no pagination). */
 	bnsNamespaces(): Promise<{ namespaces: DatasetRow[] }> {
-		return this.get("bns/namespaces", "");
+		return this.requestPath("bns/namespaces", "");
 	}
 
 	/** Resolve a fully-qualified BNS name → single record. */
 	bnsResolve(fqn: string): Promise<{ name: DatasetRow | null }> {
-		return this.get("bns/resolve", buildQuery({ fqn }));
+		return this.requestPath("bns/resolve", buildQuery({ fqn }));
 	}
 
 	/** Network health summary. */
 	networkHealth(): Promise<{ summary: DatasetRow }> {
-		return this.get("network-health/summary", "");
+		return this.requestPath("network-health/summary", "");
 	}
 
 	// ── internals ──────────────────────────────────────────────────────────
 
-	private get<T>(path: string, query: string): Promise<T> {
+	private requestPath<T>(path: string, query: string): Promise<T> {
 		return this.request<T>("GET", `/v1/datasets/${path}${query}`);
+	}
+
+	/** Resolve a slug → relative path + row key. Known cursor slugs take a
+	 *  network-free fast path; anything else is matched against the live catalog
+	 *  by family name or path tail. */
+	private async resolveDataset(
+		slug: string,
+	): Promise<{ path: string; rowKey: string }> {
+		const cursor = CURSOR_SLUGS[slug];
+		if (cursor) return { path: cursor.path, rowKey: cursor.rowKey };
+
+		const families = await this.loadCatalog();
+		const tail = catalogPathTail(slug);
+		const match = families.find(
+			(f) => f.family === slug || catalogPathTail(f.path) === tail,
+		);
+		if (!match) {
+			throw new Error(
+				`unknown dataset "${slug}" (available: ${families
+					.map((f) => f.family)
+					.join(", ")})`,
+			);
+		}
+		return { path: catalogPathTail(match.path), rowKey: match.row_key };
+	}
+
+	/** Fetch + cache the catalog families. Caches the in-flight promise so
+	 *  concurrent first-calls share one request; no TTL — agent sessions are
+	 *  short-lived, and a new client picks up newly added datasets. */
+	private loadCatalog(): Promise<CatalogFamily[]> {
+		this.catalogPromise ??= (async () => {
+			const raw = await this.listDatasets();
+			const families = (raw as { families?: unknown }).families;
+			if (!Array.isArray(families)) {
+				throw new Error("dataset catalog response missing families[]");
+			}
+			return families as CatalogFamily[];
+		})();
+		return this.catalogPromise;
 	}
 
 	/** Map camelCase filter fields to snake_case query keys (dropping pagination
@@ -241,7 +329,7 @@ export class Datasets extends BaseClient {
 		rowKey: string,
 	): CursorDataset<P> {
 		const list = async (params: P = {} as P): Promise<CursorEnvelope> => {
-			const envelope = await this.get<Record<string, unknown>>(
+			const envelope = await this.requestPath<Record<string, unknown>>(
 				path,
 				this.paramsToQuery(params as Record<string, unknown>),
 			);
