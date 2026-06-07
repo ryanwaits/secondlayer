@@ -33,6 +33,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/streams-bulk-manifest.ts",
 		"src/errors.ts",
 		"src/constants.ts",
+		"src/x402.ts",
 		"src/crypto/hmac.ts",
 		"src/crypto/secrets.ts",
 		"src/crypto/standard-webhooks.ts",

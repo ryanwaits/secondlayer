@@ -112,6 +112,10 @@
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"
 		},
+		"./x402": {
+			"types": "./dist/src/x402.d.ts",
+			"import": "./dist/src/x402.js"
+		},
 		"./crypto/secrets": {
 			"types": "./dist/src/crypto/secrets.d.ts",
 			"import": "./dist/src/crypto/secrets.js"

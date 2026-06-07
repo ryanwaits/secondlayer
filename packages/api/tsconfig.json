@@ -17,6 +17,8 @@
 			"@secondlayer/sdk/*": ["../sdk/src/*"],
 			"@secondlayer/shared": ["../shared/src/index.ts"],
 			"@secondlayer/shared/*": ["../shared/src/*"],
+			"@secondlayer/stacks": ["../stacks/src/index.ts"],
+			"@secondlayer/stacks/*": ["../stacks/src/*"],
 			"@secondlayer/subgraphs": ["../subgraphs/src/index.ts"],
 			"@secondlayer/subgraphs/*": ["../subgraphs/src/*"]
 		}
@@ -28,6 +30,7 @@
 		"../indexer/src/streams-tip.ts",
 		"../sdk/src/**/*",
 		"../shared/src/**/*",
+		"../stacks/src/**/*",
 		"../subgraphs/src/**/*"
 	],
 	"exclude": ["node_modules", "dist"]
