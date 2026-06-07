@@ -41,7 +41,7 @@ export function registerAccountTools(server: McpServer) {
 	defineTool<Record<string, never>>(
 		server,
 		"account_billing",
-		"Show the account's plan and subscription/billing status. Requires an API key.",
+		"Show the account's plan and subscription/billing status. Requires an API key. (Plan upgrade / Stripe portal / checkout are deliberately not agent tools — they are session-only human-payment flows; use account_set_caps to bound spend.)",
 		{},
 		async () => {
 			const result = await apiRequest("GET", "/api/billing/status");
