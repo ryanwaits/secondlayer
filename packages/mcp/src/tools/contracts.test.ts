@@ -48,6 +48,7 @@ describe("contracts MCP tool", () => {
 
 		expect(tools.map((t) => t.name).sort()).toEqual([
 			"contracts_find",
+			"generate_contract_interface",
 			"get_contract_abi",
 		]);
 		const res = await tools
@@ -100,5 +101,46 @@ describe("contracts MCP tool", () => {
 			?.handler({ contractId: "SP1.missing" });
 		expect(res?.isError).toBe(true);
 		expect(res?.content[0]?.text).toContain("not_found");
+	});
+
+	it("generate_contract_interface builds a typed client from the registry ABI", async () => {
+		const tools: RegisteredTool[] = [];
+		const client = {
+			contracts: {
+				get: async () => ({
+					contract_id: "SP1.token",
+					abi_status: "ok",
+					abi: {
+						functions: [
+							{
+								name: "transfer",
+								access: "public",
+								args: [],
+								outputs: {
+									type: { response: { ok: "bool", error: "uint128" } },
+								},
+							},
+						],
+						maps: [],
+						variables: [],
+						fungible_tokens: [],
+						non_fungible_tokens: [],
+					},
+				}),
+			},
+		};
+		registerContractTools(
+			fakeServer(tools),
+			() =>
+				client as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+		const res = await tools
+			.find((t) => t.name === "generate_contract_interface")
+			?.handler({ contractId: "SP1.token" });
+		expect(res?.isError).toBeUndefined();
+		expect(res?.content[0]?.text).toContain("export const token");
+		expect(res?.content[0]?.text).toContain("transfer");
 	});
 });

@@ -108,10 +108,11 @@
         "@biomejs/wasm-nodejs": "^1.9.0",
         "@inquirer/prompts": "^8.2.0",
         "@secondlayer/bundler": "^0.3.7",
-        "@secondlayer/sdk": "^5.6.0",
-        "@secondlayer/shared": "^6.9.0",
-        "@secondlayer/stacks": "^2.3.0",
-        "@secondlayer/subgraphs": "^3.4.0",
+        "@secondlayer/scaffold": "^1.0.7",
+        "@secondlayer/sdk": "^6.18.0",
+        "@secondlayer/shared": "^6.28.0",
+        "@secondlayer/stacks": "^2.4.0",
+        "@secondlayer/subgraphs": "^3.10.0",
         "esbuild": "^0.19.0",
         "smol-toml": "^1.6.1",
         "zod": "^4.3.6",
@@ -186,6 +187,7 @@
       "name": "@secondlayer/scaffold",
       "version": "1.0.7",
       "dependencies": {
+        "@secondlayer/stacks": "^2.4.0",
         "@secondlayer/subgraphs": "^3.2.1",
       },
       "devDependencies": {

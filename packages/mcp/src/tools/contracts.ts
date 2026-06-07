@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { generateContractInterface } from "@secondlayer/scaffold";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
@@ -67,6 +68,47 @@ export function registerContractTools(
 						},
 						true,
 					);
+		},
+	);
+
+	defineTool<{ contractId: string }>(
+		server,
+		"generate_contract_interface",
+		"Generate a typed TypeScript contract-client interface (typed methods + map/var/constant readers) from a deployed contract's ABI (fetched from the registry). Returns not_found if the contract isn't in the registry.",
+		{
+			contractId: z
+				.string()
+				.describe("Fully qualified contract id (e.g. SP….amm-pool-v2-01)"),
+		},
+		async ({ contractId }) => {
+			const c = await clientProvider().contracts.get(contractId, {
+				includeAbi: true,
+			});
+			if (!c || !c.abi) {
+				return jsonResponse(
+					{
+						error: {
+							type: "not_found",
+							status: 404,
+							message: `Contract not in registry: ${contractId}`,
+						},
+					},
+					true,
+				);
+			}
+
+			const [address, contractName] = contractId.split(".");
+			const name = (contractName ?? contractId).replace(/[^a-zA-Z0-9]/g, "_");
+			const code = generateContractInterface([
+				{
+					name,
+					address,
+					contractName: contractName ?? "",
+					// biome-ignore lint/suspicious/noExplicitAny: registry ABI shape matches AbiContract at runtime
+					abi: c.abi as any,
+				},
+			]);
+			return { content: [{ type: "text", text: code }] };
 		},
 	);
 }
