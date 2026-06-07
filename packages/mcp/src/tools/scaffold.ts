@@ -1,6 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { generateSubgraphCode } from "@secondlayer/scaffold";
+import {
+	generateSubgraphCode,
+	generateTraitSubgraph,
+} from "@secondlayer/scaffold";
 import type { AbiFunction, AbiMap } from "@secondlayer/scaffold";
+import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import { z } from "zod/v4";
 import { defineTool } from "../lib/tool.ts";
 
@@ -29,6 +33,28 @@ async function fetchAbi(
 }
 
 export function registerScaffoldTools(server: McpServer) {
+	defineTool<{
+		trait: (typeof TRAIT_STANDARDS)[number];
+		subgraphName?: string;
+	}>(
+		server,
+		"scaffold_from_trait",
+		"Generate a deploy-ready subgraph scaffold that indexes EVERY contract conforming to a SIP trait (no specific contract needed) — sip-009 → an nft_transfer source, sip-010/sip-013 → ft_transfer. Use scaffold_from_contract/abi instead when targeting one contract. See the secondlayer://traits resource for valid trait ids.",
+		{
+			trait: z
+				.enum(TRAIT_STANDARDS)
+				.describe("SIP standard to index (sip-009 | sip-010 | sip-013)"),
+			subgraphName: z
+				.string()
+				.optional()
+				.describe("Override the subgraph name (defaults to <trait>-transfers)"),
+		},
+		async ({ trait, subgraphName }) => {
+			const code = generateTraitSubgraph({ trait, name: subgraphName });
+			return { content: [{ type: "text", text: code }] };
+		},
+	);
+
 	defineTool<{ contractId: string; subgraphName?: string }>(
 		server,
 		"scaffold_from_contract",

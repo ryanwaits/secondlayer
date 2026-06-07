@@ -1,3 +1,4 @@
+import { generateTraitSubgraph } from "@secondlayer/scaffold";
 import type { AbiContract, SipStandard } from "@secondlayer/stacks/clarity";
 import { classifyContract } from "@secondlayer/stacks/clarity";
 import { formatCode } from "../utils/format.ts";
@@ -56,13 +57,10 @@ function tokenScaffold(
 	source: {
 		type: "ft_transfer" | "nft_transfer";
 		assetIdentifier?: string;
-		trait?: ScaffoldTrait;
 	},
 ): string {
 	const isFt = source.type === "ft_transfer";
-	const scope = source.trait
-		? `trait: '${source.trait}'`
-		: `assetIdentifier: '${source.assetIdentifier}'`;
+	const scope = `assetIdentifier: '${source.assetIdentifier}'`;
 	const cols = isFt
 		? `        sender: { type: 'principal' },
         recipient: { type: 'principal' },
@@ -165,11 +163,12 @@ function functionsScaffold(
 export async function generateSubgraphScaffold(
 	input: SubgraphScaffoldInput,
 ): Promise<string> {
-	// Trait mode — no contract; index every conforming contract.
+	// Trait mode — no contract; index every conforming contract. Shared with the
+	// MCP scaffold_from_trait tool via @secondlayer/scaffold so output matches.
 	if (input.trait) {
-		const name = input.subgraphName ?? `${input.trait}-transfers`;
-		const type = input.trait === "sip-009" ? "nft_transfer" : "ft_transfer";
-		return formatCode(tokenScaffold(name, { type, trait: input.trait }));
+		return formatCode(
+			generateTraitSubgraph({ trait: input.trait, name: input.subgraphName }),
+		);
 	}
 
 	const { contractId, abi } = input;
