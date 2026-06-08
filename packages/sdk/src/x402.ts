@@ -276,6 +276,14 @@ export type X402Result<T = unknown> = {
 	response: Response;
 };
 
+export type X402Client = {
+	get<T = unknown>(
+		path: string,
+		o?: { query?: Record<string, string> },
+	): Promise<X402Result<T>>;
+	post<T = unknown>(path: string, o?: { body?: unknown }): Promise<X402Result<T>>;
+};
+
 /**
  * A small client over {@link withX402}: `.get/.post` against `baseUrl`, returning
  * parsed JSON plus the settlement receipt.
@@ -284,7 +292,7 @@ export type X402Result<T = unknown> = {
  * const sl = createX402Client({ account, baseUrl: "https://api.secondlayer.tools" });
  * const { data, payment } = await sl.get("/v1/index/events", { query: { event_type: "ft_transfer" } });
  */
-export function createX402Client(opts: X402ClientOptions) {
+export function createX402Client(opts: X402ClientOptions): X402Client {
 	const f = withX402(opts.fetch ?? fetch, opts);
 	const base = opts.baseUrl.replace(/\/$/, "");
 

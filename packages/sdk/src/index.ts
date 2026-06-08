@@ -231,6 +231,7 @@ export {
 	type X402Receipt,
 	type X402Fetch,
 	type X402Result,
+	type X402Client,
 	type WithX402Options,
 	type X402ClientOptions,
 	type SelectOfferOptions,
