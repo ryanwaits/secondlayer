@@ -4,6 +4,7 @@ export const ErrorCodes = {
 	AUTHENTICATION_ERROR: "AUTHENTICATION_ERROR",
 	AUTHORIZATION_ERROR: "AUTHORIZATION_ERROR",
 	RATE_LIMIT_ERROR: "RATE_LIMIT_ERROR",
+	PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
 	FORBIDDEN: "FORBIDDEN",
 	VERSION_CONFLICT: "VERSION_CONFLICT",
 	NOT_FOUND: "NOT_FOUND",
@@ -114,6 +115,17 @@ export class RateLimitError extends SecondLayerError {
 	}
 }
 
+/**
+ * HTTP 402. Carries the x402 challenge (or a retry-later reason) in `details` so
+ * the global error handler emits it in the body. The wire `PAYMENT-REQUIRED`
+ * header is set separately by the x402 middleware on the challenge path.
+ */
+export class PaymentRequiredError extends SecondLayerError {
+	constructor(message: string, details?: Record<string, unknown>) {
+		super("PAYMENT_REQUIRED", message, undefined, details);
+	}
+}
+
 export class ForbiddenError extends SecondLayerError {
 	constructor(message = "Forbidden") {
 		super("FORBIDDEN", message);
@@ -154,10 +166,11 @@ export class TenantSuspendedError extends SecondLayerError {
 // the equation.
 export const CODE_TO_STATUS: Record<
 	string,
-	400 | 401 | 403 | 404 | 409 | 422 | 423 | 429
+	400 | 401 | 402 | 403 | 404 | 409 | 422 | 423 | 429
 > = {
 	AUTHENTICATION_ERROR: 401,
 	AUTHORIZATION_ERROR: 403,
+	PAYMENT_REQUIRED: 402,
 	RATE_LIMIT_ERROR: 429,
 	FORBIDDEN: 403,
 	NOT_FOUND: 404,

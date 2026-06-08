@@ -77,6 +77,7 @@ CONTROL_TABLES=(
   subgraph_usage_daily
   subgraph_processing_stats
   subgraph_table_snapshots
+  x402_payments
 )
 
 src_count() { psql "$SRC" -tAc "SELECT count(*) FROM $1" 2>/dev/null || echo "ERR"; }

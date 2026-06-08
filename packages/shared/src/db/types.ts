@@ -795,10 +795,27 @@ export interface Database {
 	bns_names: BnsNamesTable;
 	bns_namespaces: BnsNamespacesTable;
 	service_heartbeats: ServiceHeartbeatsTable;
+	x402_payments: X402PaymentsTable;
 }
 
 export interface ServiceHeartbeatsTable {
 	name: string;
+	updated_at: Generated<Date>;
+}
+
+/** x402 pay-per-request ledger (control plane). One row per settled payment,
+ *  keyed by challenge nonce + settled txid. `state` tracks confirmed-tier
+ *  settlement and post-serve reorg reversal. */
+export interface X402PaymentsTable {
+	id: Generated<string>;
+	nonce: string;
+	txid: string;
+	asset: string;
+	amount: string;
+	payer: string;
+	surface: string;
+	state: Generated<"pending" | "confirmed" | "reverted">;
+	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
 }
 

@@ -81,6 +81,8 @@ export const TABLE_TO_DB = {
 	subgraph_usage_daily: "target",
 	subgraph_processing_stats: "target",
 	subgraph_table_snapshots: "target",
+	// ── TARGET: x402 payment rail ──
+	x402_payments: "target",
 	// ── BOTH ──
 	service_heartbeats: "both",
 } satisfies Record<keyof Database, DbPlane>;

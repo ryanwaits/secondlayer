@@ -39,6 +39,9 @@ export type X402PaymentRequirements = {
 	amount: string | bigint;
 	asset: X402Token;
 	network: X402Network;
+	/** When set, the on-chain memo must equal this challenge nonce (binds the tx
+	 *  to the specific challenge). */
+	nonce?: string;
 };
 
 export type X402RejectReason =
@@ -50,7 +53,8 @@ export type X402RejectReason =
 	| "invalid_network"
 	| "asset_mismatch"
 	| "recipient_mismatch"
-	| "value_mismatch";
+	| "value_mismatch"
+	| "nonce_mismatch";
 
 export type VerifyResult =
 	| {
@@ -77,6 +81,14 @@ function cvPrincipal(cv: ClarityValue | undefined): string | null {
 
 function cvUint(cv: ClarityValue | undefined): bigint | null {
 	return cv && cv.type === "uint" ? cv.value : null;
+}
+
+/** Decode a SIP-010 `(some (buff ...))` memo arg to its UTF-8 string. */
+function cvSomeBuffUtf8(cv: ClarityValue | undefined): string | null {
+	if (cv?.type !== "some") return null;
+	const inner = cv.value;
+	if (inner?.type !== "buffer") return null;
+	return Buffer.from(inner.value, "hex").toString("utf8");
 }
 
 function originSignaturePresent(tx: StacksTransaction): boolean {
@@ -134,6 +146,8 @@ export function verifyPayment(
 			return { ok: false, reason: "value_mismatch" };
 		if (cvPrincipal(payload.recipient) !== requirements.payTo)
 			return { ok: false, reason: "recipient_mismatch" };
+		if (requirements.nonce !== undefined && payload.memo !== requirements.nonce)
+			return { ok: false, reason: "nonce_mismatch" };
 		return {
 			ok: true,
 			payer,
@@ -163,6 +177,11 @@ export function verifyPayment(
 		return { ok: false, reason: "value_mismatch" };
 	if (cvPrincipal(args[2]) !== requirements.payTo)
 		return { ok: false, reason: "recipient_mismatch" };
+	if (
+		requirements.nonce !== undefined &&
+		cvSomeBuffUtf8(args[3]) !== requirements.nonce
+	)
+		return { ok: false, reason: "nonce_mismatch" };
 	return {
 		ok: true,
 		payer,
