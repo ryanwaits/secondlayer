@@ -20,6 +20,7 @@ import {
 	type OptimisticGate,
 	getX402OptimisticGate,
 } from "./optimistic-gate.ts";
+import { spotUsd } from "./spot.ts";
 
 /**
  * `x402PaymentRequired({surface})` — Hono per-surface middleware mounted AFTER
@@ -82,19 +83,6 @@ function b64decode<T>(value: string): T | null {
 /** Default spot source: env-configured USD price per whole token. USDCx is the
  *  dollar peg (handled in `buildAccepts`); STX/sBTC come from ops-set env vars,
  *  and are simply omitted from the offer when unset. */
-function envSpot(symbol: X402TokenSymbol): number | null {
-	const key =
-		symbol === "STX"
-			? "X402_SPOT_STX_USD"
-			: symbol === "sBTC"
-				? "X402_SPOT_SBTC_USD"
-				: null;
-	if (!key) return null;
-	const raw = process.env[key];
-	const parsed = raw ? Number(raw) : Number.NaN;
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 /** A resolved tenant on the context means a paying (account-backed) caller. */
 function defaultIsAccountBacked(c: Context): boolean {
 	return Boolean(
@@ -146,7 +134,7 @@ export function x402PaymentRequired(
 	options: X402MiddlewareOptions,
 ): MiddlewareHandler {
 	const isAccountBacked = options.isAccountBacked ?? defaultIsAccountBacked;
-	const spot = options.spot ?? envSpot;
+	const spot = options.spot ?? spotUsd;
 	// 32 hex chars (32 bytes) — fits the 34-byte on-chain memo the nonce rides in.
 	const generateNonce =
 		options.generateNonce ?? (() => crypto.randomUUID().replace(/-/g, ""));
