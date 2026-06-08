@@ -1,54 +1,49 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import type { Database } from "@secondlayer/shared/db";
+import { Hono } from "hono";
+import type { Kysely } from "kysely";
+import { errorHandler } from "../middleware/error.ts";
+import { createContractsRouter } from "./contracts.ts";
 
 // Reproduces the prod 500 on GET /v1/contracts: the `contracts` table is a
 // SOURCE-plane table (TABLE_TO_DB.contracts === "source"), but the route read
 // from getDb() (= target/control plane). With the split live, the target DB has
 // no `contracts` table → "relation does not exist" → 500. The route must read
-// from the source plane. We mark each plane's db and make the query throw on the
-// target plane (mirroring the missing table), then assert the route 200s.
-const SOURCE_DB = { plane: "source" } as const;
-const TARGET_DB = { plane: "target" } as const;
-
-mock.module("@secondlayer/shared/db", () => ({
-	getSourceDb: () => SOURCE_DB,
-	getTargetDb: () => TARGET_DB,
-	getDb: () => TARGET_DB,
-}));
-
-mock.module("@secondlayer/shared/db/queries/contracts", () => ({
-	listContractsByTrait: async (db: { plane: string }) => {
-		if (db.plane !== "source") {
-			throw new Error('relation "contracts" does not exist');
-		}
-		return [];
-	},
-	getContract: async (db: { plane: string }, contractId: string) => {
-		if (db.plane !== "source") {
-			throw new Error('relation "contracts" does not exist');
-		}
-		if (contractId === "SP1.known") {
-			return {
-				contract_id: "SP1.known",
-				deployer: "SP1",
-				block_height: 100,
-				declared_traits: ["sip-010"],
-				inferred_standards: ["sip-010"],
-				abi_status: "ok",
-				abi: { functions: [{ name: "transfer" }] },
-			};
-		}
-		return null;
-	},
-}));
-
-const { Hono } = await import("hono");
-const { errorHandler } = await import("../middleware/error.ts");
-const contractsRouter = (await import("./contracts.ts")).default;
+// from the source plane.
+//
+// We inject the route's db + query seams (no mock.module on @secondlayer/shared/db —
+// Bun leaks module mocks across files, which corrupts getDb()/sql for any suite
+// that runs after this one). A sentinel SOURCE_DB proves the source plane is used:
+// the fake queries assert they were handed exactly that handle.
+const SOURCE_DB = { plane: "source" } as unknown as Kysely<Database>;
 
 function app() {
+	const router = createContractsRouter({
+		getSourceDb: () => SOURCE_DB,
+		listContractsByTrait: async (db) => {
+			expect(db).toBe(SOURCE_DB);
+			return [];
+		},
+		getContract: async (db, contractId) => {
+			expect(db).toBe(SOURCE_DB);
+			if (contractId === "SP1.known") {
+				return {
+					contract_id: "SP1.known",
+					deployer: "SP1",
+					block_height: 100,
+					declared_traits: ["sip-010"],
+					inferred_standards: ["sip-010"],
+					abi_status: "ok",
+					abi: { functions: [{ name: "transfer" }] },
+					// biome-ignore lint/suspicious/noExplicitAny: test fixture row
+				} as any;
+			}
+			return null;
+		},
+	});
 	const a = new Hono();
 	a.onError(errorHandler);
-	a.route("/v1/contracts", contractsRouter);
+	a.route("/v1/contracts", router);
 	return a;
 }
 
