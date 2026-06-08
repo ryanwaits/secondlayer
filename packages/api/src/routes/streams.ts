@@ -11,7 +11,7 @@ import {
 } from "@secondlayer/platform/db/queries/usage";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import { streamSSE } from "hono/streaming";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
@@ -116,6 +116,10 @@ export type StreamsRouterOptions = {
 	readReorgsSince?: StreamsReorgsSinceReader;
 	recordEventsReturned?: (accountId: string, quantity: number) => Promise<void>;
 	responseCache?: StreamsResponseCache;
+	/** Pre-built x402 middleware to mount (accountless pay-per-call). Omit to
+	 *  disable. Composed at the app root; its presence also flips Streams from
+	 *  key-mandatory to keyless-allowed (the bearerAuth anon fall-through). */
+	x402Middleware?: MiddlewareHandler;
 };
 
 export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
@@ -193,9 +197,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		}),
 	);
 
-	// x402 rail: when live, accountless callers pay per call instead of needing a
-	// key (keyed callers bypass). When off, Streams stays key-mandatory.
-	const x402On = isX402Enabled();
+	// x402 rail: an injected middleware means the rail is live — accountless
+	// callers pay per call (keyed callers bypass) and bearerAuth allows the
+	// keyless fall-through. Absent → Streams stays key-mandatory. The enable
+	// decision lives at the app root, not here.
+	const x402On = Boolean(opts.x402Middleware);
 	router.use(
 		"*",
 		streamsBearerAuth({
@@ -203,7 +209,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			allowAnon: x402On,
 		}),
 	);
-	if (x402On) router.use("*", x402PaymentRequired({ surface: "streams" }));
+	if (opts.x402Middleware) router.use("*", opts.x402Middleware);
 	router.use("*", streamsRateLimit());
 	router.use("/events", streamsRetentionWindow({ getTip }));
 
@@ -492,4 +498,9 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	return router;
 }
 
-export default createStreamsRouter();
+// Composition root: decide x402 from env here, keeping the route factory pure.
+export default createStreamsRouter({
+	x402Middleware: isX402Enabled()
+		? x402PaymentRequired({ surface: "streams" })
+		: undefined,
+});

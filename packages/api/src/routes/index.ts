@@ -4,7 +4,7 @@ import {
 } from "@secondlayer/platform/db/queries/usage";
 import { getDb } from "@secondlayer/shared/db";
 import { readChainReorgsForHeightRange } from "@secondlayer/shared/db/queries/chain-reorgs";
-import { type Context, Hono } from "hono";
+import { type Context, Hono, type MiddlewareHandler } from "hono";
 import {
 	MUTABLE_CACHE_CONTROL,
 	cacheControl,
@@ -122,6 +122,10 @@ export type IndexRouterOptions = {
 		accountId: string,
 		quantity: number,
 	) => Promise<void>;
+	/** Pre-built x402 middleware to mount (accountless pay-per-call). Omit to
+	 *  disable. Composed at the app root so the route stays free of env +
+	 *  facilitator wiring; tests pass a fake-backed instance. */
+	x402Middleware?: MiddlewareHandler;
 };
 
 /**
@@ -289,10 +293,10 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		"*",
 		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
 	);
-	// x402 rail: when live, accountless callers pay per call (keyed callers + the
-	// open-beta anon path are unaffected when off).
-	if (isX402Enabled())
-		router.use("*", x402PaymentRequired({ surface: "index" }));
+	// x402 rail: mount the injected middleware if present (accountless callers pay
+	// per call; keyed callers + the open-beta anon path are unaffected when off).
+	// Whether it's enabled is decided at the app root, not here.
+	if (opts.x402Middleware) router.use("*", opts.x402Middleware);
 	router.use("*", indexRateLimit());
 
 	// An agent's own Index consumption + tier limits. Index reads allow anon, but
@@ -623,4 +627,9 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	return router;
 }
 
-export default createIndexRouter();
+// Composition root: decide x402 from env here, keeping the route factory pure.
+export default createIndexRouter({
+	x402Middleware: isX402Enabled()
+		? x402PaymentRequired({ surface: "index" })
+		: undefined,
+});
