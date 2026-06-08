@@ -85,6 +85,8 @@ import {
 	DEFAULT_STREAMS_REORGS_READER,
 	type StreamsReorgsReader,
 } from "../streams/reorgs.ts";
+import { isX402Enabled } from "../x402/facilitator.ts";
+import { x402PaymentRequired } from "../x402/middleware.ts";
 
 const INDEX_COMMON = [
 	"limit",
@@ -287,6 +289,10 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		"*",
 		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
 	);
+	// x402 rail: when live, accountless callers pay per call (keyed callers + the
+	// open-beta anon path are unaffected when off).
+	if (isX402Enabled())
+		router.use("*", x402PaymentRequired({ surface: "index" }));
 	router.use("*", indexRateLimit());
 
 	// An agent's own Index consumption + tier limits. Index reads allow anon, but

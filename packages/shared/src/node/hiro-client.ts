@@ -35,6 +35,15 @@ export interface HiroBlockTxsResponse {
 	results: HiroTxResponse[];
 }
 
+/** Minimal shape returned by `HiroClient.getTransaction` (extended `/v1/tx`). */
+export interface HiroTransaction {
+	tx_id: string;
+	tx_status: string;
+	block_height: number | null;
+	canonical?: boolean;
+	is_unanchored?: boolean;
+}
+
 export interface HiroTxResponse {
 	tx_id: string;
 	tx_type: string;
@@ -220,6 +229,22 @@ export class HiroClient {
 			headers: this.headers,
 			signal: AbortSignal.timeout(timeoutMs),
 		});
+	}
+
+	/**
+	 * Fetch a single transaction's status by txid (Hiro extended `/v1/tx`).
+	 * Used by the x402 reconciler to advance/revert ledger rows. Returns null on
+	 * 404 (unknown/not-yet-indexed tx).
+	 */
+	async getTransaction(txId: string): Promise<HiroTransaction | null> {
+		const res = await this.fetchWithRetry(
+			`${this.apiUrl}/extended/v1/tx/${txId}`,
+		);
+		if (res.status === 404) return null;
+		if (!res.ok) {
+			throw new Error(`Hiro getTransaction ${txId} failed: ${res.status}`);
+		}
+		return (await res.json()) as HiroTransaction;
 	}
 
 	/**

@@ -35,7 +35,11 @@ export function streamsRetentionWindow(opts: {
 }): MiddlewareHandler<StreamsEnv> {
 	return async (c, next) => {
 		const tenant = c.get("streamsTenant");
-		const retentionDays = STREAMS_TIER_CONFIG[tenant.tier].retentionDays;
+		// x402-paid accountless reads (no tenant) get full seekable range — they pay
+		// per call, so there's no tier retention cutoff to enforce.
+		const retentionDays = tenant
+			? STREAMS_TIER_CONFIG[tenant.tier].retentionDays
+			: null;
 
 		if (retentionDays === null) {
 			c.set("streamsTip", await opts.getTip());

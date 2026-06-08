@@ -6,8 +6,8 @@ import {
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
-import { createRuntimeProductTokenStore } from "../auth/product-token-store.ts";
 import type { MiddlewareHandler } from "hono";
+import { createRuntimeProductTokenStore } from "../auth/product-token-store.ts";
 import type { StreamsTier } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -108,13 +108,23 @@ export const DEFAULT_STREAMS_TOKEN_STORE: StreamsTokenStore =
 export function streamsBearerAuth(opts?: {
 	tokens?: StreamsTokenStore;
 	requiredScope?: string;
+	/** When true, a request with no Bearer key falls through (no tenant) instead
+	 *  of 401 — the x402 middleware then gates it. Streams is key-mandatory unless
+	 *  the x402 rail is live, so this is enabled only alongside x402. */
+	allowAnon?: boolean;
 }): MiddlewareHandler<StreamsEnv> {
 	const tokens = opts?.tokens ?? DEFAULT_STREAMS_TOKEN_STORE;
 	const requiredScope = opts?.requiredScope ?? STREAMS_READ_SCOPE;
+	const allowAnon = opts?.allowAnon ?? false;
 
 	return async (c, next) => {
 		const authHeader = c.req.header("authorization");
 		if (!authHeader?.startsWith("Bearer ")) {
+			// Accountless: defer to x402 (pay-per-call) instead of rejecting.
+			if (allowAnon) {
+				await next();
+				return;
+			}
 			throw new AuthenticationError("Missing or invalid Authorization header");
 		}
 

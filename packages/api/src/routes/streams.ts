@@ -55,6 +55,8 @@ import {
 	getStreamsRetentionCutoff,
 } from "../streams/tiers.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
+import { isX402Enabled } from "../x402/facilitator.ts";
+import { x402PaymentRequired } from "../x402/middleware.ts";
 
 const STREAMS_EVENTS_ALLOWED = [
 	"cursor",
@@ -191,10 +193,17 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		}),
 	);
 
+	// x402 rail: when live, accountless callers pay per call instead of needing a
+	// key (keyed callers bypass). When off, Streams stays key-mandatory.
+	const x402On = isX402Enabled();
 	router.use(
 		"*",
-		streamsBearerAuth({ tokens: opts.tokens ?? DEFAULT_STREAMS_TOKEN_STORE }),
+		streamsBearerAuth({
+			tokens: opts.tokens ?? DEFAULT_STREAMS_TOKEN_STORE,
+			allowAnon: x402On,
+		}),
 	);
+	if (x402On) router.use("*", x402PaymentRequired({ surface: "streams" }));
 	router.use("*", streamsRateLimit());
 	router.use("/events", streamsRetentionWindow({ getTip }));
 
@@ -202,7 +211,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	// so account_id is always present here; guard anyway.
 	router.get("/usage", async (c) => {
 		const tenant = c.get("streamsTenant");
-		if (!tenant.account_id) {
+		if (!tenant?.account_id) {
 			return c.json({ error: "Usage requires an API key", code: "AUTH" }, 401);
 		}
 		const usage = await getProductUsage(getDb(), tenant.account_id);
@@ -268,7 +277,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				return c.body(null, 304);
 			}
 		}
-		const accountId = c.get("streamsTenant").account_id;
+		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordEventsReturned(accountId, response.events.length);
 		}
@@ -282,7 +291,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	router.get("/events/stream", async (c) => {
 		const initialQuery = new URL(c.req.url).searchParams;
 		validateQueryParams(initialQuery, STREAMS_EVENTS_ALLOWED);
-		const accountId = c.get("streamsTenant").account_id;
+		const accountId = c.get("streamsTenant")?.account_id;
 		const signer = getStreamsSigner();
 
 		// Filters carry across polls; the start position (cursor/from_*) is replaced
@@ -468,8 +477,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		const tip = await getTip();
 		const tenant = c.get("streamsTenant");
 		// Advertise the seekable floor so consumers know how far back the live API
-		// serves before they must fall to the cold dumps lane. null = unlimited.
-		const oldest = getStreamsRetentionCutoff(tenant.tier, tip.block_height);
+		// serves before they must fall to the cold dumps lane. null = unlimited
+		// (also the x402-paid accountless case — no tenant tier to bound it).
+		const oldest = tenant
+			? getStreamsRetentionCutoff(tenant.tier, tip.block_height)
+			: null;
 		return respondSignedJson(c, {
 			...tip,
 			oldest_seekable_height: oldest,

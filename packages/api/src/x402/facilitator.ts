@@ -318,3 +318,13 @@ export function getX402FacilitatorOrNull(): X402Facilitator | null {
 export function _resetX402FacilitatorForTests(): void {
 	cached = null;
 }
+
+/**
+ * Whether the x402 rail is live (a sponsor key is configured). When false,
+ * surfaces keep their pre-x402 behavior — Streams stays key-mandatory, Index
+ * anon reads stay free — so mounting is a no-op until ops funds the sponsor
+ * wallet and sets `X402_SPONSOR_KEY`.
+ */
+export function isX402Enabled(): boolean {
+	return Boolean(process.env.X402_SPONSOR_KEY);
+}

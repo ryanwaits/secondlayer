@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+	type StreamsBulkManifest,
 	getStreamsBulkManifest,
 	resetStreamsDumpsManifestCache,
 	streamsDumpsFreshness,
 	streamsDumpsManifestUrl,
 	streamsDumpsPublicBaseUrl,
-	type StreamsBulkManifest,
 } from "./dumps.ts";
 
 const SAMPLE_MANIFEST: StreamsBulkManifest = {

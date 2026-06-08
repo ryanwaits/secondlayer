@@ -26,6 +26,11 @@ export const STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS = 1_000;
  *  via the `STREAMS_TIP_REORG_MARGIN_BLOCKS` env var for ops tuning. */
 export const STREAMS_TIP_REORG_MARGIN_BLOCKS = 2;
 
+/** Per-second rate-limit bucket for x402-paid accountless (no-tenant) Streams
+ *  reads. Mirrors `INDEX_ANON_RATE_LIMIT_PER_SECOND`; only reachable once the
+ *  caller has paid via x402. */
+export const STREAMS_ANON_RATE_LIMIT_PER_SECOND = 50;
+
 export const STREAMS_TIER_CONFIG: Record<StreamsTier, StreamsTierConfig> = {
 	free: { rateLimitPerSecond: 10, retentionDays: 7 },
 	build: { rateLimitPerSecond: 50, retentionDays: 30 },
