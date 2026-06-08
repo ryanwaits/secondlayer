@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type ReconcilePayment,
-	isCanonicalSuccess,
 	reconcilePayment,
 	sweepX402Reconcile,
 } from "./x402-reconcile.ts";
@@ -16,27 +15,11 @@ function payment(over: Partial<ReconcilePayment> = {}): ReconcilePayment {
 	};
 }
 
-describe("isCanonicalSuccess", () => {
-	test("canonical success → true", () => {
-		expect(isCanonicalSuccess({ tx_status: "success", canonical: true })).toBe(
-			true,
-		);
-		expect(isCanonicalSuccess({ tx_status: "success" })).toBe(true);
-	});
-	test("missing / failed / reorged → false", () => {
-		expect(isCanonicalSuccess(null)).toBe(false);
-		expect(isCanonicalSuccess({ tx_status: "abort_by_response" })).toBe(false);
-		expect(isCanonicalSuccess({ tx_status: "success", canonical: false })).toBe(
-			false,
-		);
-	});
-});
-
 describe("reconcilePayment", () => {
 	test("pending → confirmed once canonical (persists confirmed)", async () => {
 		const updates: [string, string][] = [];
 		const state = await reconcilePayment(payment({ state: "pending" }), {
-			getTx: async () => ({ tx_status: "success", canonical: true }),
+			isCanonical: async () => true,
 			updateState: async (txid, s) => {
 				updates.push([txid, s]);
 			},
@@ -50,7 +33,7 @@ describe("reconcilePayment", () => {
 	test("pending + not canonical + within grace → stays pending (no write)", async () => {
 		let wrote = false;
 		const state = await reconcilePayment(payment({ createdAtMs: 1_000 }), {
-			getTx: async () => null,
+			isCanonical: async () => false,
 			updateState: async () => {
 				wrote = true;
 			},
@@ -68,7 +51,7 @@ describe("reconcilePayment", () => {
 		const strikes: string[] = [];
 		const updates: [string, string][] = [];
 		const state = await reconcilePayment(payment({ createdAtMs: 0 }), {
-			getTx: async () => null,
+			isCanonical: async () => false,
 			updateState: async (txid, s) => {
 				updates.push([txid, s]);
 			},
@@ -86,7 +69,7 @@ describe("reconcilePayment", () => {
 	test("confirmed row that reorged out → reverted + strike", async () => {
 		const strikes: string[] = [];
 		const state = await reconcilePayment(payment({ state: "confirmed" }), {
-			getTx: async () => null,
+			isCanonical: async () => false,
 			updateState: async () => {},
 			recordStrike: async (p) => {
 				strikes.push(p);
@@ -105,8 +88,7 @@ describe("sweepX402Reconcile", () => {
 				payment({ txid: "0xok", state: "pending", createdAtMs: 0 }),
 				payment({ txid: "0xdrop", state: "pending", createdAtMs: 0 }),
 			],
-			getTx: async (txid) =>
-				txid === "0xok" ? { tx_status: "success", canonical: true } : null,
+			isCanonical: async (txid) => txid === "0xok",
 			updateState: async () => {},
 			recordStrike: async () => {},
 			now: () => 10 * 60_000,
