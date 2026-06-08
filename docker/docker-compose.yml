@@ -121,6 +121,16 @@ services:
       STRIPE_METER_AI_EVAL: ${STRIPE_METER_AI_EVAL:-}
       STRIPE_PRICE_STORAGE_OVERAGE: ${STRIPE_PRICE_STORAGE_OVERAGE:-}
       STRIPE_PRICE_AI_EVAL_OVERAGE: ${STRIPE_PRICE_AI_EVAL_OVERAGE:-}
+      # x402 pay-per-request rail. Setting X402_SPONSOR_KEY (a funded mainnet
+      # sponsor wallet) is what turns the rail ON — unset → no x402 (Streams stays
+      # key-mandatory, Index anon stays free). X402_PAY_TO = revenue recipient.
+      # X402_SPOT_URL overrides the sBTC/STX price feed (default CoinGecko);
+      # X402_SPOT_{SBTC,STX}_USD are static fallbacks if the feed is unavailable.
+      X402_SPONSOR_KEY: ${X402_SPONSOR_KEY:-}
+      X402_PAY_TO: ${X402_PAY_TO:-}
+      X402_SPOT_URL: ${X402_SPOT_URL:-}
+      X402_SPOT_SBTC_USD: ${X402_SPOT_SBTC_USD:-}
+      X402_SPOT_STX_USD: ${X402_SPOT_STX_USD:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
       INDEXER_URL: ${INDEXER_URL:-http://indexer:3700}
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
@@ -399,6 +409,10 @@ services:
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
+      # x402 reconciler: REDIS_URL to record per-principal reverted-payment strikes
+      # (the API's optimistic gate reads them). SOURCE_DATABASE_URL above gives it
+      # read access to decoded_events for canonical confirmation.
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       NETWORKS: ${NETWORKS:-mainnet}
