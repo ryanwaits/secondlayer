@@ -89,13 +89,32 @@ function clearCondition(condition: SpendingCondition): SpendingCondition {
 	};
 }
 
+/**
+ * The sponsor "signing sentinel" used in the initial sighash of a sponsored tx.
+ * Its `signer` MUST be 20 zero bytes (an empty address hash160) — NOT the
+ * hash160 of a zero public key. Matching the reference (`newInitialSigHash` in
+ * @stacks/transactions) is load-bearing: this exact byte layout is folded into
+ * the origin's sighash, so any deviation makes the origin signature invalid and
+ * the node rejects the tx with `SignatureValidation`.
+ */
+function sponsorSigningSentinel(): SingleSigSpendingCondition {
+	return {
+		hashMode: AddressHashMode.P2PKH,
+		signer: "00".repeat(20),
+		nonce: 0n,
+		fee: 0n,
+		keyEncoding: PubKeyEncoding.Compressed,
+		signature: EMPTY_SIG,
+	};
+}
+
 export function intoInitialSighashAuth(auth: Authorization): Authorization {
 	if (auth.authType === AuthType.Standard) {
 		return createStandardAuth(clearCondition(auth.spendingCondition));
 	}
 	return createSponsoredAuth(
 		clearCondition(auth.spendingCondition),
-		clearCondition(createSingleSigSpendingCondition("0".repeat(66), 0n, 0n)),
+		sponsorSigningSentinel(),
 	);
 }
 
