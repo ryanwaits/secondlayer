@@ -16,6 +16,7 @@ import {
 	type TokenTransferPayload,
 	deserializeTransaction,
 } from "@secondlayer/stacks/transactions";
+import { c32address } from "@secondlayer/stacks/utils";
 import { sponsorAndBroadcast } from "@secondlayer/stacks/x402";
 import {
 	type MatchedTransfer,
@@ -96,11 +97,27 @@ function originSignaturePresent(tx: StacksTransaction): boolean {
 	return typeof cond?.signature === "string" && cond.signature !== ZERO_SIG;
 }
 
+/** Stacks single-sig C32 address version per CAIP-2 network. */
+function addressVersionFor(network: X402Network): number {
+	return network === X402_NETWORK.mainnet ? 22 : 26;
+}
+
+/** The payer = the tx's origin, derived from the origin spending condition's
+ *  signer hash160 (authoritative; works for STX, which carries no post-condition). */
+function originAddress(tx: StacksTransaction, network: X402Network): string {
+	const cond = tx.auth.spendingCondition as SingleSigSpendingCondition;
+	return c32address(addressVersionFor(network), cond.signer);
+}
+
 /**
  * Statically verify a client's origin-signed sponsored transfer against the
  * challenge requirements. No broadcast, no network — pure structural checks. The
- * payer is read from the post-condition principal (the same field the Deny-mode
- * PC pins), so we never recover it from the signature.
+ * payer is derived from the origin spending condition (not a post-condition, so
+ * it works for native STX too).
+ *
+ * Exactness is enforced differently per asset: native STX rides in the signed
+ * TokenTransfer payload (which by consensus cannot carry post-conditions), while
+ * SIP-010 transfers pin amount+asset with a Deny-mode FT post-condition.
  */
 export function verifyPayment(
 	txHex: string,
@@ -117,30 +134,20 @@ export function verifyPayment(
 		return { ok: false, reason: "not_sponsored" };
 	if (!originSignaturePresent(tx))
 		return { ok: false, reason: "missing_signature" };
-	if (tx.postConditionMode !== PostConditionModeWire.Deny)
-		return { ok: false, reason: "wrong_post_condition_mode" };
 	if (tx.chainId !== NETWORK_CHAIN_ID[requirements.network])
 		return { ok: false, reason: "invalid_network" };
 
-	const pc = tx.postConditions.at(0);
-	if (!pc) return { ok: false, reason: "missing_post_condition" };
-
+	const payer = originAddress(tx, requirements.network);
 	const requiredAmount = BigInt(requirements.amount);
 	const isStx = requirements.asset.contractId === null;
 
-	// The Deny-mode post-condition is the binding guarantee — assert it pins
-	// exactly `requiredAmount` of the right asset leaving the payer.
-	// biome-ignore lint/suspicious/noExplicitAny: post-condition wire shape is a discriminated union read positionally
-	const pcAny = pc as any;
-	if (pcAny.amount !== requiredAmount)
-		return { ok: false, reason: "value_mismatch" };
-	const payer: string | null = pcAny.principal?.address ?? null;
-	if (!payer) return { ok: false, reason: "missing_post_condition" };
-
 	if (isStx) {
-		if (pc.type !== "stx") return { ok: false, reason: "asset_mismatch" };
+		// TokenTransfer payload: amount + recipient are signed into the payload, so
+		// it IS the exact-amount guarantee. It must NOT carry post-conditions.
 		if (tx.payload.payloadType !== PayloadType.TokenTransfer)
 			return { ok: false, reason: "asset_mismatch" };
+		if (tx.postConditions.length > 0)
+			return { ok: false, reason: "wrong_post_condition_mode" };
 		const payload = tx.payload as TokenTransferPayload;
 		if (payload.amount !== requiredAmount)
 			return { ok: false, reason: "value_mismatch" };
@@ -158,8 +165,16 @@ export function verifyPayment(
 		};
 	}
 
-	// SIP-010
-	if (pc.type !== "ft") return { ok: false, reason: "asset_mismatch" };
+	// SIP-010: Deny-mode FT post-condition pins exactly `requiredAmount` of the asset.
+	if (tx.postConditionMode !== PostConditionModeWire.Deny)
+		return { ok: false, reason: "wrong_post_condition_mode" };
+	const pc = tx.postConditions.at(0);
+	if (!pc || pc.type !== "ft")
+		return { ok: false, reason: "missing_post_condition" };
+	// biome-ignore lint/suspicious/noExplicitAny: post-condition wire shape read positionally
+	const pcAny = pc as any;
+	if (pcAny.amount !== requiredAmount)
+		return { ok: false, reason: "value_mismatch" };
 	const assetId = `${pcAny.asset?.address}.${pcAny.asset?.contractName}::${pcAny.asset?.assetName}`;
 	if (assetId !== requirements.asset.assetIdentifier)
 		return { ok: false, reason: "asset_mismatch" };
@@ -188,8 +203,6 @@ export function verifyPayment(
 		txHex,
 		recipient: requirements.payTo,
 		amount: requiredAmount.toString(),
-		// `assetId` equals `requirements.asset.assetIdentifier` here (checked above)
-		// and is always a string — avoids a non-null assertion on the nullable field.
 		asset: { kind: "sip010", assetIdentifier: assetId },
 	};
 }

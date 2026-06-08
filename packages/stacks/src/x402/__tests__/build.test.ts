@@ -33,12 +33,11 @@ const base = {
 describe("buildExactTransfer — STX", () => {
 	const tx = buildExactTransfer({ ...base, asset: { kind: "stx" } });
 
-	test("is a sponsored, fee-0, Deny-mode tx", () => {
+	test("is a sponsored, fee-0 tx", () => {
 		expect(tx.auth.authType).toBe(AuthType.Sponsored);
 		expect(
 			(tx.auth as SponsoredAuthorization).sponsorSpendingCondition,
 		).toBeDefined();
-		expect(tx.postConditionMode).toBe(PostConditionModeWire.Deny);
 		// origin pays nothing — sponsor fills the fee in at settle
 		expect(tx.auth.spendingCondition.fee).toBe(0n);
 	});
@@ -47,14 +46,11 @@ describe("buildExactTransfer — STX", () => {
 		expect((tx.payload as TokenTransferPayload).memo).toBe(NONCE);
 	});
 
-	test("pins exact amount leaving payer via an STX post-condition", () => {
-		expect(tx.postConditions).toHaveLength(1);
-		// biome-ignore lint/suspicious/noExplicitAny: post-condition wire shape varies by type
-		const pc = tx.postConditions[0] as any;
-		expect(pc.type).toBe("stx");
-		expect(pc.conditionCode).toBe(FungibleConditionCode.Equal);
-		expect(pc.amount).toBe(1000n);
-		expect(pc.principal.address).toBe(payer.address);
+	test("has NO post-conditions (consensus forbids them on TokenTransfer)", () => {
+		// STX exactness is inherent in the signed payload (amount + recipient);
+		// a post-condition here would make the tx node-invalid.
+		expect(tx.postConditions).toHaveLength(0);
+		expect((tx.payload as TokenTransferPayload).amount).toBe(1000n);
 	});
 });
 

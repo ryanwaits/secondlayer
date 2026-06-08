@@ -65,9 +65,10 @@ export function buildExactTransfer(
 	}
 
 	if (asset.kind === "stx") {
-		const postConditions: PostCondition[] = [
-			Pc.principal(payer).willSendEq(amount).ustx(),
-		];
+		// A TokenTransfer payload CANNOT carry post-conditions (Stacks consensus
+		// rejects it: "TokenTransfer transactions do not support post-conditions").
+		// STX exactness is inherent — the amount + recipient are in the signed
+		// payload, so there is nothing a post-condition would add.
 		return buildTokenTransfer({
 			recipient: payTo,
 			amount,
@@ -76,8 +77,6 @@ export function buildExactTransfer(
 			nonce: accountNonce,
 			publicKey: payerPublicKey,
 			chain,
-			postConditionMode: "deny",
-			postConditions,
 			sponsored: true,
 		});
 	}
