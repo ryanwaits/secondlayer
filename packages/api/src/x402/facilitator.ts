@@ -207,7 +207,7 @@ export function verifyPayment(
 	};
 }
 
-export type SettlementState = "confirmed" | "pending";
+export type SettlementState = "confirmed" | "optimistic" | "pending";
 
 export type SettlementResponse = {
 	success: boolean;
@@ -261,16 +261,31 @@ export type SettlePaymentArgs = {
 	/** Broadcast the sponsored tx and return its txid. */
 	broadcast: (txHex: string) => Promise<{ txid: string }>;
 	awaitOptions?: Partial<Omit<AwaitCanonicalOptions, "deadlineMs">>;
+	/** Optimistic: broadcast and return immediately (`state: "optimistic"`) instead
+	 *  of blocking on canonical confirmation. The reconciler advances the ledger. */
+	optimistic?: boolean;
 };
 
 /**
- * Broadcast a verified payment, then block until it is canonical (confirmed-tier).
- * On timeout the response is `state: "pending"` — the tx may still land; the
- * caller decides whether to retry-later or reconcile.
+ * Settle a verified payment. Confirmed-tier (default): broadcast, then block
+ * until canonical — `state: "confirmed"`, or `"pending"` on timeout (caller
+ * retries later). Optimistic (`optimistic: true`): broadcast and return at once
+ * with `state: "optimistic"` (the node accepted it into the mempool); the caller
+ * serves immediately and the reconciler advances it to confirmed|reverted.
  */
 export async function settlePayment(
 	args: SettlePaymentArgs,
 ): Promise<SettlementResponse> {
+	if (args.optimistic) {
+		const { txid } = await args.broadcast(args.txHex);
+		return {
+			success: true,
+			state: "optimistic",
+			txid,
+			payer: args.payer,
+			network: args.network,
+		};
+	}
 	const { txid } = await args.broadcast(args.txHex);
 	const match = await awaitCanonical(
 		{

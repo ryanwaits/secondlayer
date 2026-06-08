@@ -13,6 +13,8 @@ import {
 
 export type X402Surface = "streams" | "index";
 
+export type X402Finality = "optimistic" | "confirmed";
+
 export type X402PriceConfig = {
 	/** Flat per-call price in USD. The challenge converts this to each asset's
 	 *  atomic units using live spot at mint time. */
@@ -21,6 +23,10 @@ export type X402PriceConfig = {
 	assets: readonly X402TokenSymbol[];
 	/** x402 `maxTimeoutSeconds` — also the confirmed-tier await-canonical deadline. */
 	maxTimeoutSeconds: number;
+	/** Default finality for this surface. `optimistic` = serve on broadcast-accept
+	 *  (near-instant, gated per-principal + reconciled async); `confirmed` = block
+	 *  until canonical. Cheap public reads (Index/Streams) default optimistic. */
+	finality: X402Finality;
 };
 
 /**
@@ -43,11 +49,13 @@ export const X402_PRICE_CATALOG: Record<X402Surface, X402PriceConfig> = {
 		priceUsd: 0.001,
 		assets: X402_TOKEN_SYMBOLS,
 		maxTimeoutSeconds: 60,
+		finality: "optimistic",
 	},
 	index: {
 		priceUsd: 0.001,
 		assets: X402_TOKEN_SYMBOLS,
 		maxTimeoutSeconds: 60,
+		finality: "optimistic",
 	},
 };
 

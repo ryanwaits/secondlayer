@@ -12,6 +12,10 @@ import type { X402Facilitator } from "../facilitator.ts";
 import type { X402PaymentRecord } from "../ledger.ts";
 import { type X402Challenge, x402PaymentRequired } from "../middleware.ts";
 import { InProcNonceStore } from "../nonce-store.ts";
+import {
+	InProcOptimisticGate,
+	type OptimisticGate,
+} from "../optimistic-gate.ts";
 
 const ORIGIN_KEY =
 	"edf9aee84d9b7abc145504dde6726c64f369d37ee34ded868fabd876c26570bc01";
@@ -25,15 +29,16 @@ function b64encode(v: unknown): string {
 	return Buffer.from(JSON.stringify(v), "utf8").toString("base64");
 }
 
-function confirmingFacilitator(
-	state: "confirmed" | "pending" = "confirmed",
+/** Honors `args.optimistic` (→ state "optimistic"); else returns `fallback`. */
+function fakeFacilitator(
+	fallback: "confirmed" | "pending" = "confirmed",
 ): X402Facilitator {
 	return {
 		network: X402_NETWORK.mainnet,
 		payTo: PAY_TO,
 		settle: async (args) => ({
-			success: state === "confirmed",
-			state,
+			success: args.optimistic ? true : fallback === "confirmed",
+			state: args.optimistic ? "optimistic" : fallback,
 			txid: "0xsettled",
 			payer: args.payer,
 			network: X402_NETWORK.mainnet,
@@ -41,7 +46,13 @@ function confirmingFacilitator(
 	};
 }
 
-/** Build a USDCx PAYMENT-SIGNATURE header for the given offer + nonce. */
+/** A gate that always forces confirmed-tier (optimism denied). */
+const denyOptimism: OptimisticGate = {
+	canServeOptimistically: async () => false,
+	recordStrike: async () => {},
+	clear: async () => {},
+};
+
 async function usdcxPayment(amount: string, nonce: string): Promise<string> {
 	const usdcx = X402_TOKENS.USDCx;
 	if (!usdcx.contractId || !usdcx.assetName) throw new Error("USDCx config");
@@ -74,6 +85,7 @@ function buildApp(opts: {
 	nonceStore: InProcNonceStore;
 	ledger: X402PaymentRecord[];
 	accountBacked?: boolean;
+	optimisticGate?: OptimisticGate;
 }) {
 	const app = new Hono();
 	app.onError(errorHandler);
@@ -84,6 +96,7 @@ function buildApp(opts: {
 			payTo: PAY_TO,
 			facilitator: opts.facilitator,
 			nonceStore: opts.nonceStore,
+			optimisticGate: opts.optimisticGate ?? new InProcOptimisticGate(),
 			isAccountBacked: () => opts.accountBacked ?? false,
 			insertPayment: async (rec) => {
 				opts.ledger.push(rec);
@@ -94,30 +107,40 @@ function buildApp(opts: {
 	return app;
 }
 
+async function challengeOffer(app: ReturnType<typeof buildApp>) {
+	const challenge = b64decode<X402Challenge>(
+		(await app.request("/x")).headers.get("PAYMENT-REQUIRED") as string,
+	);
+	const offer = challenge.accepts.find(
+		(a) => a.asset === X402_TOKENS.USDCx.asset,
+	);
+	if (!offer) throw new Error("no USDCx offer");
+	return offer;
+}
+
 describe("x402PaymentRequired", () => {
 	test("no payment → 402 with a decodable PAYMENT-REQUIRED challenge", async () => {
 		const app = buildApp({
-			facilitator: confirmingFacilitator(),
+			facilitator: fakeFacilitator(),
 			nonceStore: new InProcNonceStore(),
 			ledger: [],
 		});
 		const res = await app.request("/x");
 		expect(res.status).toBe(402);
-		const header = res.headers.get("PAYMENT-REQUIRED");
-		expect(header).toBeTruthy();
-		const challenge = b64decode<X402Challenge>(header as string);
+		const challenge = b64decode<X402Challenge>(
+			res.headers.get("PAYMENT-REQUIRED") as string,
+		);
 		expect(challenge.x402Version).toBe(2);
 		const usdcx = challenge.accepts.find(
 			(a) => a.asset === X402_TOKENS.USDCx.asset,
 		);
-		expect(usdcx).toBeTruthy();
 		expect(usdcx?.amount).toBe("1000"); // $0.001 * 1e6
 		expect(usdcx?.extra.nonce).toBeTruthy();
 	});
 
 	test("account-backed caller bypasses x402 (200, no challenge)", async () => {
 		const app = buildApp({
-			facilitator: confirmingFacilitator(),
+			facilitator: fakeFacilitator(),
 			nonceStore: new InProcNonceStore(),
 			ledger: [],
 			accountBacked: true,
@@ -127,22 +150,15 @@ describe("x402PaymentRequired", () => {
 		expect(await res.json()).toEqual({ data: "ok" });
 	});
 
-	test("valid signed retry → 200 + PAYMENT-RESPONSE + ledger row", async () => {
+	test("optimistic (Index default) → 200 immediately, receipt state=optimistic, ledger pending", async () => {
 		const nonceStore = new InProcNonceStore();
 		const ledger: X402PaymentRecord[] = [];
 		const app = buildApp({
-			facilitator: confirmingFacilitator(),
+			facilitator: fakeFacilitator(),
 			nonceStore,
 			ledger,
 		});
-
-		const challenge = b64decode<X402Challenge>(
-			(await app.request("/x")).headers.get("PAYMENT-REQUIRED") as string,
-		);
-		const offer = challenge.accepts.find(
-			(a) => a.asset === X402_TOKENS.USDCx.asset,
-		);
-		if (!offer) throw new Error("no USDCx offer");
+		const offer = await challengeOffer(app);
 		const sig = await usdcxPayment(offer.amount, offer.extra.nonce);
 
 		const res = await app.request("/x", {
@@ -150,30 +166,43 @@ describe("x402PaymentRequired", () => {
 		});
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ data: "ok" });
-		const receipt = b64decode<{ success: boolean; txid: string }>(
+		const receipt = b64decode<{ state: string; txid: string }>(
 			res.headers.get("PAYMENT-RESPONSE") as string,
 		);
-		expect(receipt).toMatchObject({ success: true, txid: "0xsettled" });
-		expect(ledger).toHaveLength(1);
-		expect(ledger[0]).toMatchObject({ state: "confirmed", surface: "index" });
+		expect(receipt).toMatchObject({ state: "optimistic", txid: "0xsettled" });
+		expect(ledger[0]).toMatchObject({ state: "pending", surface: "index" });
+	});
+
+	test("confirmed-tier (gate denies optimism) → ledger confirmed", async () => {
+		const ledger: X402PaymentRecord[] = [];
+		const app = buildApp({
+			facilitator: fakeFacilitator("confirmed"),
+			nonceStore: new InProcNonceStore(),
+			ledger,
+			optimisticGate: denyOptimism,
+		});
+		const offer = await challengeOffer(app);
+		const sig = await usdcxPayment(offer.amount, offer.extra.nonce);
+		const res = await app.request("/x", {
+			headers: { "PAYMENT-SIGNATURE": sig },
+		});
+		expect(res.status).toBe(200);
+		const receipt = b64decode<{ state: string }>(
+			res.headers.get("PAYMENT-RESPONSE") as string,
+		);
+		expect(receipt.state).toBe("confirmed");
+		expect(ledger[0]).toMatchObject({ state: "confirmed" });
 	});
 
 	test("replaying the same nonce → 402 (nonce_replayed)", async () => {
 		const nonceStore = new InProcNonceStore();
 		const app = buildApp({
-			facilitator: confirmingFacilitator(),
+			facilitator: fakeFacilitator(),
 			nonceStore,
 			ledger: [],
 		});
-		const challenge = b64decode<X402Challenge>(
-			(await app.request("/x")).headers.get("PAYMENT-REQUIRED") as string,
-		);
-		const offer = challenge.accepts.find(
-			(a) => a.asset === X402_TOKENS.USDCx.asset,
-		);
-		if (!offer) throw new Error("no USDCx offer");
+		const offer = await challengeOffer(app);
 		const sig = await usdcxPayment(offer.amount, offer.extra.nonce);
-
 		expect(
 			(await app.request("/x", { headers: { "PAYMENT-SIGNATURE": sig } }))
 				.status,
@@ -186,21 +215,15 @@ describe("x402PaymentRequired", () => {
 		expect(body.details).toMatchObject({ reason: "nonce_replayed" });
 	});
 
-	test("broadcast-but-not-canonical → 402 (awaiting_confirmation)", async () => {
+	test("confirmed-tier broadcast-but-not-canonical → 402 (awaiting_confirmation)", async () => {
 		const app = buildApp({
-			facilitator: confirmingFacilitator("pending"),
+			facilitator: fakeFacilitator("pending"),
 			nonceStore: new InProcNonceStore(),
 			ledger: [],
+			optimisticGate: denyOptimism, // force confirmed-tier so it can time out
 		});
-		const challenge = b64decode<X402Challenge>(
-			(await app.request("/x")).headers.get("PAYMENT-REQUIRED") as string,
-		);
-		const offer = challenge.accepts.find(
-			(a) => a.asset === X402_TOKENS.USDCx.asset,
-		);
-		if (!offer) throw new Error("no USDCx offer");
+		const offer = await challengeOffer(app);
 		const sig = await usdcxPayment(offer.amount, offer.extra.nonce);
-
 		const res = await app.request("/x", {
 			headers: { "PAYMENT-SIGNATURE": sig },
 		});

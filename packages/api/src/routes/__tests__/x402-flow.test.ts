@@ -14,6 +14,7 @@ import type { X402Facilitator } from "../../x402/facilitator.ts";
 import type { X402PaymentRecord } from "../../x402/ledger.ts";
 import { x402PaymentRequired } from "../../x402/middleware.ts";
 import { InProcNonceStore } from "../../x402/nonce-store.ts";
+import { InProcOptimisticGate } from "../../x402/optimistic-gate.ts";
 import { createIndexRouter } from "../index.ts";
 
 /**
@@ -62,7 +63,8 @@ function confirmingFacilitator(): X402Facilitator {
 		payTo: PAY_TO,
 		settle: async (args) => ({
 			success: true,
-			state: "confirmed",
+			// Index defaults to optimistic; honor the flag the middleware passes.
+			state: args.optimistic ? "optimistic" : "confirmed",
 			txid: "0xsettled",
 			payer: args.payer,
 			network: X402_NETWORK.mainnet,
@@ -119,6 +121,7 @@ function build(ledger: X402PaymentRecord[]) {
 				surface: "index",
 				facilitator: confirmingFacilitator(),
 				nonceStore: new InProcNonceStore(),
+				optimisticGate: new InProcOptimisticGate(),
 				insertPayment: async (rec) => {
 					ledger.push(rec);
 				},
@@ -154,12 +157,19 @@ describe("x402 full flow against the real Index router", () => {
 		expect(ok.status).toBe(200);
 		const body = (await ok.json()) as { events: { tx_id: string }[] };
 		expect(body.events[0]?.tx_id).toBe("0x01");
-		const receipt = b64decode<{ success: boolean; txid: string }>(
-			ok.headers.get("PAYMENT-RESPONSE") as string,
-		);
-		expect(receipt).toMatchObject({ success: true, txid: "0xsettled" });
+		const receipt = b64decode<{
+			success: boolean;
+			state: string;
+			txid: string;
+		}>(ok.headers.get("PAYMENT-RESPONSE") as string);
+		// Index serves optimistically by default → near-instant, ledger `pending`.
+		expect(receipt).toMatchObject({
+			success: true,
+			state: "optimistic",
+			txid: "0xsettled",
+		});
 		expect(ledger).toHaveLength(1);
-		expect(ledger[0]).toMatchObject({ surface: "index", state: "confirmed" });
+		expect(ledger[0]).toMatchObject({ surface: "index", state: "pending" });
 	});
 
 	test("a keyless request without payment never reaches the handler", async () => {

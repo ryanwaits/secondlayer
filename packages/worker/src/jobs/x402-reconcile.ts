@@ -1,76 +1,153 @@
 /**
- * x402 post-serve reorg reconciler.
- *
- * Confirmed-tier settlement only serves once a payment tx is canonical, so the
- * request path needs no reconciliation. This sweep exists solely to catch a
- * *post-serve* reorg: a previously-`confirmed` payment whose tx later drops,
- * fails, or is reorged out. Such rows are flipped to `reverted`, which is what
- * `countRevertedByPayer` reads (the abuse/velocity signal).
- *
- * Cheap no-op when the rail is off (the ledger is empty → no Hiro calls).
+ * x402 reconciler. Advances the payment ledger for the optimistic-serve path and
+ * catches post-serve reorgs:
+ *   - `pending` (optimistically served, broadcast) → `confirmed` once canonical,
+ *     or → `reverted` if it never lands within the grace window (dropped/reorged).
+ *   - `confirmed` → `reverted` if a later reorg orphans it.
+ * On any revert it records a per-principal **strike** (Redis, same key the API's
+ * optimistic gate reads) so repeat droppers lose optimism and fall back to
+ * confirmed-tier. Runs on a cron over recent rows.
  */
 
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
+import {
+	X402_STRIKE_TTL_SECONDS,
+	x402StrikeKey,
+} from "@secondlayer/shared/x402";
+import { RedisClient } from "bun";
 
 const SWEEP_INTERVAL_MS = 5 * 60_000; // every 5 minutes
+// A `pending` tx older than this with no canonical record is treated as
+// dropped/reorged. Comfortably past Nakamoto inclusion (~5-29s) + reorg settling.
+const REVERT_GRACE_MS = 5 * 60_000;
 
 export type ReconcileTx = { tx_status: string; canonical?: boolean };
+export type ReconcileState = "pending" | "confirmed" | "reverted";
+export type ReconcilePayment = {
+	txid: string;
+	payer: string;
+	state: ReconcileState;
+	createdAtMs: number;
+};
 
-/** A confirmed payment is still valid iff its tx is a canonical success. */
-export function isPaymentStillValid(tx: ReconcileTx | null): boolean {
+/** A payment is settled iff its tx is a canonical success. */
+export function isCanonicalSuccess(tx: ReconcileTx | null): boolean {
 	return tx !== null && tx.tx_status === "success" && tx.canonical !== false;
 }
 
-export type SweepDeps = {
-	listConfirmedTxids?: () => Promise<string[]>;
+export type ReconcileDeps = {
 	getTx?: (txid: string) => Promise<ReconcileTx | null>;
-	markReverted?: (txid: string) => Promise<void>;
+	updateState?: (
+		txid: string,
+		state: "confirmed" | "reverted",
+	) => Promise<void>;
+	recordStrike?: (principal: string) => Promise<void>;
+	now?: () => number;
+	graceMs?: number;
 };
 
-async function defaultListConfirmedTxids(): Promise<string[]> {
-	const rows = await getDb()
-		.selectFrom("x402_payments")
-		.select("txid")
-		.where("state", "=", "confirmed")
-		// Only recently-confirmed rows can still reorg; older ones are effectively
-		// final (Bitcoin-anchored). Bounds the sweep to a small, recent set.
-		.where("created_at", ">", sql<Date>`now() - interval '1 hour'`)
-		.execute();
-	return rows.map((r) => r.txid);
-}
-
-async function defaultMarkReverted(txid: string): Promise<void> {
-	await getDb()
-		.updateTable("x402_payments")
-		.set({ state: "reverted", updated_at: sql`now()` })
-		.where("txid", "=", txid)
-		.where("state", "=", "confirmed")
-		.execute();
-}
-
-/** One sweep: re-check each recent confirmed payment, revert the ones whose tx is
- *  no longer a canonical success. Returns counts for logging. */
-export async function sweepX402Reconcile(
-	deps: SweepDeps = {},
-): Promise<{ checked: number; reverted: number }> {
-	const listConfirmed = deps.listConfirmedTxids ?? defaultListConfirmedTxids;
+/**
+ * Re-check one payment. Canonical → `confirmed`. Not canonical and either already
+ * `confirmed` (reorged out) or past the grace window (`pending` that never landed)
+ * → `reverted` (+ strike). Otherwise left `pending` (still settling).
+ */
+export async function reconcilePayment(
+	p: ReconcilePayment,
+	deps: ReconcileDeps = {},
+): Promise<ReconcileState> {
 	const getTx =
 		deps.getTx ?? ((txid: string) => new HiroClient().getTransaction(txid));
-	const markReverted = deps.markReverted ?? defaultMarkReverted;
+	const updateState = deps.updateState ?? defaultUpdateState;
+	const recordStrike = deps.recordStrike ?? defaultRecordStrike;
+	const now = deps.now ?? (() => Date.now());
+	const graceMs = deps.graceMs ?? REVERT_GRACE_MS;
 
-	const txids = await listConfirmed();
-	let reverted = 0;
-	for (const txid of txids) {
-		const tx = await getTx(txid);
-		if (!isPaymentStillValid(tx)) {
-			await markReverted(txid);
-			reverted++;
-			logger.warn("x402 payment reverted post-serve (reorg/drop)", { txid });
-		}
+	const tx = await getTx(p.txid);
+	if (isCanonicalSuccess(tx)) {
+		if (p.state !== "confirmed") await updateState(p.txid, "confirmed");
+		return "confirmed";
 	}
-	return { checked: txids.length, reverted };
+
+	const matured = now() - p.createdAtMs > graceMs;
+	if (p.state === "confirmed" || matured) {
+		await updateState(p.txid, "reverted");
+		await recordStrike(p.payer);
+		logger.warn("x402 payment reverted", {
+			txid: p.txid,
+			payer: p.payer,
+			was: p.state,
+		});
+		return "reverted";
+	}
+	return "pending"; // still within grace — give it time to mine
+}
+
+async function defaultUpdateState(
+	txid: string,
+	state: "confirmed" | "reverted",
+): Promise<void> {
+	await getDb()
+		.updateTable("x402_payments")
+		.set({ state, updated_at: sql`now()` })
+		.where("txid", "=", txid)
+		.execute();
+}
+
+let redis: RedisClient | null = null;
+function getRedis(): RedisClient | null {
+	if (redis) return redis;
+	if (!process.env.REDIS_URL) return null;
+	redis = new RedisClient(process.env.REDIS_URL);
+	return redis;
+}
+
+async function defaultRecordStrike(principal: string): Promise<void> {
+	const r = getRedis();
+	if (!r) return; // no Redis (dev) → strikes are a no-op
+	try {
+		const key = x402StrikeKey(principal);
+		await r.send("INCR", [key]);
+		await r.send("EXPIRE", [key, String(X402_STRIKE_TTL_SECONDS)]);
+	} catch {
+		// best-effort
+	}
+}
+
+async function listReconcilable(): Promise<ReconcilePayment[]> {
+	const rows = await getDb()
+		.selectFrom("x402_payments")
+		.select(["txid", "payer", "state", "created_at"])
+		.where("state", "in", ["pending", "confirmed"])
+		.where("created_at", ">", sql<Date>`now() - interval '2 hours'`)
+		.execute();
+	return rows.map((r) => ({
+		txid: r.txid,
+		payer: r.payer,
+		state: r.state as ReconcileState,
+		createdAtMs: new Date(r.created_at).getTime(),
+	}));
+}
+
+export type SweepDeps = ReconcileDeps & {
+	list?: () => Promise<ReconcilePayment[]>;
+};
+
+/** One sweep over recent pending/confirmed payments. Returns counts for logging. */
+export async function sweepX402Reconcile(
+	deps: SweepDeps = {},
+): Promise<{ checked: number; confirmed: number; reverted: number }> {
+	const list = deps.list ?? listReconcilable;
+	const payments = await list();
+	let confirmed = 0;
+	let reverted = 0;
+	for (const p of payments) {
+		const next = await reconcilePayment(p, deps);
+		if (next === "confirmed" && p.state !== "confirmed") confirmed++;
+		if (next === "reverted") reverted++;
+	}
+	return { checked: payments.length, confirmed, reverted };
 }
 
 export function startX402ReconcileCron(): () => void {

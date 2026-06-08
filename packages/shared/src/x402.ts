@@ -67,6 +67,18 @@ export function getX402Token(symbol: X402TokenSymbol): X402Token {
 	return X402_TOKENS[symbol];
 }
 
+/**
+ * Optimistic-serve reputation: the Redis key + TTL for a payer principal's
+ * "strike" counter (reverted/dropped payments). Single-sourced so the API gate
+ * (reader) and the worker reconciler (writer, on revert) agree without a
+ * cross-package import.
+ */
+export const X402_STRIKE_TTL_SECONDS = 24 * 60 * 60;
+
+export function x402StrikeKey(principal: string): string {
+	return `x402:strikes:${principal}`;
+}
+
 /** Resolve a token by its x402 `asset` string (the value carried in `accepts[].asset`). */
 export function findX402TokenByAsset(asset: string): X402Token | undefined {
 	for (const symbol of X402_TOKEN_SYMBOLS) {

@@ -16,6 +16,10 @@ import {
 } from "./facilitator.ts";
 import { insertX402Payment } from "./ledger.ts";
 import { type NonceStore, getX402NonceStore } from "./nonce-store.ts";
+import {
+	type OptimisticGate,
+	getX402OptimisticGate,
+} from "./optimistic-gate.ts";
 
 /**
  * `x402PaymentRequired({surface})` — Hono per-surface middleware mounted AFTER
@@ -55,6 +59,7 @@ export type X402MiddlewareOptions = {
 	// Injectables (wiring + tests):
 	facilitator?: X402Facilitator | null;
 	nonceStore?: NonceStore;
+	optimisticGate?: OptimisticGate;
 	spot?: SpotResolver;
 	/** Override account-backed detection (default: a resolved tenant on ctx). */
 	isAccountBacked?: (c: Context) => boolean;
@@ -254,6 +259,14 @@ export function x402PaymentRequired(
 			});
 		}
 
+		// Optimistic for this surface? Only if the payer is within the per-principal
+		// velocity + reputation gate (fails closed → confirmed-tier). Cheap public
+		// reads (Index/Streams) default optimistic; high-value surfaces stay confirmed.
+		const gate = options.optimisticGate ?? getX402OptimisticGate();
+		const optimistic =
+			cfg.finality === "optimistic" &&
+			(await gate.canServeOptimistically(verdict.payer));
+
 		const settlement: SettlementResponse = await facilitator.settle({
 			txHex: verdict.txHex,
 			payer: verdict.payer,
@@ -261,20 +274,19 @@ export function x402PaymentRequired(
 			amount: offer.amount,
 			asset: verdict.asset,
 			maxTimeoutSeconds: cfg.maxTimeoutSeconds,
+			optimistic,
 		});
 
-		if (settlement.state !== "confirmed") {
-			// Broadcast but not yet canonical — tell the client to retry later.
+		if (settlement.state === "pending") {
+			// Confirmed-tier broadcast but not yet canonical — tell the client to retry.
 			throw new PaymentRequiredError(
 				"Payment broadcast; awaiting confirmation",
-				{
-					reason: "awaiting_confirmation",
-					txid: settlement.txid,
-				},
+				{ reason: "awaiting_confirmation", txid: settlement.txid },
 			);
 		}
 
-		// Record the settled payment (txid UNIQUE blocks double-redemption).
+		// Record the payment (txid UNIQUE blocks double-redemption). Optimistic
+		// serves land as `pending` in the ledger; the reconciler advances them.
 		const insert = options.insertPayment ?? insertX402Payment;
 		await insert({
 			nonce,
@@ -283,13 +295,14 @@ export function x402PaymentRequired(
 			amount: offer.amount,
 			payer: verdict.payer,
 			surface: options.surface,
-			state: "confirmed",
+			state: settlement.state === "confirmed" ? "confirmed" : "pending",
 		});
 
 		c.header(
 			"PAYMENT-RESPONSE",
 			b64encode({
 				success: true,
+				state: settlement.state, // "confirmed" | "optimistic"
 				txid: settlement.txid,
 				payer: settlement.payer,
 				network: settlement.network,
