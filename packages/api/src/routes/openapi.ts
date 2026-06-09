@@ -6,7 +6,7 @@ const OPENAPI_SPEC = {
 		title: "Secondlayer Public API",
 		version: "1.0.0",
 		description:
-			"Public surfaces: Datasets (curated, anon), Index (semantic FT/NFT, anon-readable), Streams (raw firehose, bearer). Cursor format is `<block_height>:<event_index>` across all surfaces.",
+			"Public surfaces: Datasets (curated, anon), Index (semantic FT/NFT, anon-readable), Streams (raw firehose, bearer), Subgraphs (public subgraphs anon-readable, private with the owning account's bearer; `{ rows, next_cursor, tip }` envelope with `_id` keyset cursor). Cursor format is `<block_height>:<event_index>` on Datasets/Index/Streams.",
 	},
 	servers: [
 		{ url: "https://api.secondlayer.tools", description: "Production" },
@@ -15,6 +15,10 @@ const OPENAPI_SPEC = {
 		{ name: "datasets", description: "Curated datasets, anon" },
 		{ name: "index", description: "Semantic indexes (FT/NFT transfers)" },
 		{ name: "streams", description: "Raw firehose, bearer" },
+		{
+			name: "subgraphs",
+			description: "Deployed subgraph reads — public anon, private bearer",
+		},
 	],
 	components: {
 		securitySchemes: {
@@ -48,6 +52,21 @@ const OPENAPI_SPEC = {
 					reorgs: {
 						type: "array",
 						items: { $ref: "#/components/schemas/Reorg" },
+					},
+				},
+			},
+			RowsEnvelope: {
+				type: "object",
+				properties: {
+					rows: { type: "array", items: { type: "object" } },
+					next_cursor: { type: ["string", "null"], example: "1042" },
+					tip: {
+						type: "object",
+						properties: {
+							block_height: { type: "integer" },
+							subgraph_height: { type: "integer" },
+							blocks_behind: { type: "integer" },
+						},
 					},
 				},
 			},
@@ -96,7 +115,34 @@ const OPENAPI_SPEC = {
 		"/v1/subgraphs/{name}": {
 			get: {
 				tags: ["subgraphs"],
-				summary: "Subgraph metadata: tables, columns, sync tip",
+				summary: "Subgraph metadata: tables, columns, sync tip, doc links",
+				parameters: [pp("name")],
+				responses: ok(),
+			},
+		},
+		"/v1/subgraphs/{name}/openapi.json": {
+			get: {
+				tags: ["subgraphs"],
+				summary: "Generated OpenAPI spec for one subgraph",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [pp("name")],
+				responses: ok(),
+			},
+		},
+		"/v1/subgraphs/{name}/schema.json": {
+			get: {
+				tags: ["subgraphs"],
+				summary: "Generated agent schema for one subgraph",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [pp("name")],
+				responses: ok(),
+			},
+		},
+		"/v1/subgraphs/{name}/docs.md": {
+			get: {
+				tags: ["subgraphs"],
+				summary: "Generated markdown docs for one subgraph",
+				security: [{}, { bearerAuth: [] }],
 				parameters: [pp("name")],
 				responses: ok(),
 			},
@@ -106,6 +152,7 @@ const OPENAPI_SPEC = {
 				tags: ["subgraphs"],
 				summary:
 					"Rows, cursor-paginated by _id ({ rows, next_cursor, tip }). Column filters via col.op=value, _limit, _fields, _order=asc|desc.",
+				security: [{}, { bearerAuth: [] }],
 				parameters: [
 					pp("name"),
 					pp("table"),
@@ -114,7 +161,7 @@ const OPENAPI_SPEC = {
 					qp("_order", "string"),
 					qp("_fields", "string"),
 				],
-				responses: envelope(),
+				responses: rowsEnvelope(),
 			},
 		},
 		"/v1/subgraphs/{name}/{table}/count": {
@@ -595,6 +642,23 @@ function envelope(_arrayKey = "events") {
 			description: "Tip unavailable",
 			content: { "application/json": {} },
 		},
+	};
+}
+
+function rowsEnvelope() {
+	return {
+		"200": {
+			description: "Row envelope, _id keyset cursor",
+			content: {
+				"application/json": {
+					schema: { $ref: "#/components/schemas/RowsEnvelope" },
+				},
+			},
+		},
+		"400": jsonError(),
+		"401": jsonError(),
+		"404": jsonError(),
+		"429": jsonError(),
 	};
 }
 

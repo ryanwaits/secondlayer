@@ -147,8 +147,8 @@ function sip010Balances(name: string): string {
  * source filter.
  *
  * Query examples once deployed:
- *   GET /api/subgraphs/${name}/balances?_search=SP1...
- *   GET /api/subgraphs/${name}/balances?holder=SP1...
+ *   GET /v1/subgraphs/${name}/balances?_search=SP1...
+ *   GET /v1/subgraphs/${name}/balances?holder=SP1...
  */
 export default defineSubgraph({
   name: "${name}",
@@ -227,8 +227,8 @@ function sbtcFlows(name: string): string {
  * Source contract: sbtc-registry (mainnet).
  *
  * Query examples once deployed:
- *   GET /api/subgraphs/${name}/flows?topic=completed-deposit
- *   GET /api/subgraphs/${name}/flows?topic=withdrawal-create
+ *   GET /v1/subgraphs/${name}/flows?topic=completed-deposit
+ *   GET /v1/subgraphs/${name}/flows?topic=withdrawal-create
  */
 export default defineSubgraph({
   name: "${name}",
@@ -301,8 +301,8 @@ function poxStacking(name: string): string {
  * the dataset shows one possible shape.
  *
  * Query examples once deployed:
- *   GET /api/subgraphs/${name}/calls?function_name=stack-stx
- *   GET /api/subgraphs/${name}/calls?caller=SP1...
+ *   GET /v1/subgraphs/${name}/calls?function_name=stack-stx
+ *   GET /v1/subgraphs/${name}/calls?caller=SP1...
  */
 export default defineSubgraph({
   name: "${name}",
@@ -355,8 +355,8 @@ function bnsNames(name: string): string {
  * Source: BNS-V2 print events (topic-discriminated payloads).
  *
  * Query examples once deployed:
- *   GET /api/subgraphs/${name}/names?owner=SP1...
- *   GET /api/subgraphs/${name}/names?_search=alice
+ *   GET /v1/subgraphs/${name}/names?owner=SP1...
+ *   GET /v1/subgraphs/${name}/names?_search=alice
  */
 export default defineSubgraph({
   name: "${name}",

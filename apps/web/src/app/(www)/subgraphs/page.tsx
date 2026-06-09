@@ -134,28 +134,39 @@ export default defineSubgraph({
 sl subgraphs scaffold SP1234ABCD.token-transfers --output subgraphs/token-transfers.ts
 
 # Deploy (or 'dev' to watch + auto-redeploy)
-sl subgraphs deploy subgraphs/token-transfers.ts
+sl subgraphs deploy subgraphs/token-transfers.ts --visibility public
+
+# Flip visibility later (managed deploys default public; BYO default private)
+sl subgraphs publish token-transfers
+sl subgraphs unpublish token-transfers
 
 # Generate a typed client (autocompletion + table types)
 sl subgraphs generate token-transfers --output src/clients/token-transfers.ts`}
 				/>
 
+				<div className="prose">
+					<p>
+						Public subgraphs are anon-readable at{" "}
+						<code>/v1/subgraphs/&lt;name&gt;</code> — names are a global
+						namespace claimed on publish.
+					</p>
+				</div>
+
 				<CodeBlock
-					code={`// SDK — filters, comparison operators, ordering, pagination
-const { data } = await client.subgraphs.queryTable(
+					code={`// SDK — open /v1 read: filters, cursor pagination, no key for public subgraphs
+const { rows, next_cursor, tip } = await client.subgraphs.rows(
   "token-transfers",
   "transfers",
   {
-    sort: "_block_height",
     order: "desc",
     limit: 25,
     filters: { sender: "SP1234...", "amount.gte": "1000000" },
   },
 );
 
-// HTTP
-// GET https://api.secondlayer.tools/api/subgraphs/token-transfers/transfers
-//   ?_sort=_block_height&_order=desc&_limit=25&sender=SP1234...`}
+// HTTP — anon-readable for public subgraphs, { rows, next_cursor, tip } envelope
+// GET https://api.secondlayer.tools/v1/subgraphs/token-transfers/transfers
+//   ?_order=desc&_limit=25&sender=SP1234...`}
 				/>
 
 				<Callout label="Full reference">

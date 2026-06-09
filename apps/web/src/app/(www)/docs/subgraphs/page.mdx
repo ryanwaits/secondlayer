@@ -59,18 +59,34 @@ Deploy from the CLI. The first deploy backfills history from `startBlock`; subse
 sl subgraphs deploy ./subgraph.config.ts
 ```
 
-## Query your data
+## Visibility & publishing
 
-Your table is immediately available over REST. Reads are public — cursor-paginate with `_limit` and `_order`.
+Every subgraph has a **visibility**. Managed deploys default **public** — anon-readable on `/v1`. Deploys to your own database (`--database-url`) default **private**, and existing subgraphs were migrated private.
+
+Override at deploy, or flip later:
 
 ```bash
-curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
+sl subgraphs deploy ./subgraph.config.ts --visibility private
+sl subgraphs publish sbtc-flows     # make public
+sl subgraphs unpublish sbtc-flows   # make private again
+```
+
+The SDK exposes the same as `sl.subgraphs.publish(name)` / `unpublish(name)`, and MCP as `subgraphs_publish` / `subgraphs_unpublish` (plus a `visibility` param on `subgraphs_deploy`).
+
+Public names are a **single global namespace**, claimed on publish — a taken name returns `409 PUBLIC_NAME_TAKEN`. Private subgraphs stay readable on `/v1` with your `sk-sl_` bearer; anonymous requests to a private name return `404` (no existence leak).
+
+## Query your data
+
+Your table is immediately available over REST at `/v1/subgraphs` — anon-readable for public subgraphs (managed deploys default public), wildcard CORS. Pages are `_id`-keyset: pass `?cursor=<next_cursor>` to resume, `_order=asc|desc` for direction. No `_offset`/`_sort` on `/v1`.
+
+```bash
+curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
   -G -d "_limit=10" -d "_order=desc"
 ```
 
 ```json
 {
-  "data": [
+  "rows": [
     {
       "_id": 48138,
       "block_height": 8054704,
@@ -79,18 +95,23 @@ curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
       "sender": "SP3PE7Q9...X44J"
     }
   ],
-  "meta": { "total": 48138, "cursor": "eyJpZCI6NDgxMzd9" }
+  "next_cursor": "48137",
+  "tip": { "block_height": 8054704, "subgraph_height": 8054704, "blocks_behind": 0 }
 }
 ```
+
+`GET /v1/subgraphs` lists public subgraphs (plus your own with a bearer), and `GET /v1/subgraphs/sbtc-flows` returns metadata — tables, columns, and the indexing tip. Row-by-id and counts live at `/:table/:id` and `/:table/count`.
 
 ## Aggregate without pulling rows
 
 Roll up a table server-side instead of paging every row: `count`, `sum`, `min`, `max`, and distinct counts over the same filters as the list endpoint.
 
 ```bash
-curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers/aggregate \
+curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers/aggregate \
   -G -d "_count=true" -d "_sum=amount" -d "_countDistinct=sender"
 ```
+
+Anon for public subgraphs; private subgraphs need the owning account's `sk-sl_` bearer (anon gets `404`).
 
 `_sum`/`_min`/`_max` take numeric columns only. The typed SDK exposes the same as `<table>.aggregate(spec)` — see [SDK aggregates](/docs/sdk#aggregate-subgraph-rows) and the [REST API reference](/docs/rest-api#aggregates) for the full parameter set.
 
@@ -112,9 +133,11 @@ Supported traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each cont
 Tail a table over Server-Sent Events as rows are indexed, instead of polling. The endpoint streams from the current tip by default, or pass `?since=<block_height>` to replay from a height and then tail live. Column filters are accepted as query params, and a periodic `ping` event keeps the connection alive.
 
 ```bash
-curl -N https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers/stream \
+curl -N https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers/stream \
   -G -d "since=8050000"
 ```
+
+Anon for public subgraphs; private ones need the owning account's `sk-sl_` bearer.
 
 From the SDK, `subscribe` wraps the stream with the same `where` filters as `findMany` and returns an unsubscribe function:
 

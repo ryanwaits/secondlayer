@@ -11,7 +11,7 @@ Secondlayer is a stack of tools for building on the **Stacks blockchain**:
 |---|---|---|
 | **L1 raw events** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `sl streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `types`/`not_types` + `sender`/`recipient`/`contract_id` (single or comma-list) payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `sl streams pull`). |
 | **L2 decoded events** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` · `sl index` | The full decoded layer: SIP-010 (FT) and SIP-009 (NFT) transfers, all event types (`stx_*`, ft/nft mint/burn, print) via `events`, and decoded `contract-calls` — filtered by principal/contract/height. |
-| **L3 app-specific tables** | `@secondlayer/subgraphs` + CLI · REST `/api/subgraphs` | TypeScript-authored indexers: declare filters + schema + handlers; Secondlayer materializes Postgres tables and exposes REST. |
+| **L3 app-specific tables** | `@secondlayer/subgraphs` + CLI · REST `/v1/subgraphs` (public reads) · `/api/subgraphs` (authed management) | TypeScript-authored indexers: declare filters + schema + handlers; Secondlayer materializes Postgres tables and exposes REST — public subgraphs anon-readable on `/v1/subgraphs`. |
 | **Webhooks** | `sl.subscriptions` · REST `/api/subscriptions` · `sl subscriptions` | Standard-Webhooks-signed deliveries. Two kinds: **subgraph** subscriptions fire on every row written by a subgraph; **chain** subscriptions fire on raw chain events directly (no subgraph) via `triggers` (contract call / event type / trait). |
 | **Chain client** | `@secondlayer/stacks` | viem-style SDK: public/wallet clients, `Cl.*`, `Pc.*`, `getContract`, BNS / PoX / sBTC / StackingDAO extensions. |
 | **CLI** | `@secondlayer/cli` (binary `sl`) | Every one of the above is reachable from `sl`. |
@@ -58,7 +58,7 @@ Reads are not uniformly open — know the tier before querying:
 | Contracts (`/v1/contracts`, `sl.contracts`) | **Open** — no key |
 | Index (`/v1/index`, `sl.index`, `sl index`) | Anonymous reads OK; **free-tier API keys are rejected** (Build+ required) |
 | Streams (`/v1/streams`, `sl.streams`, `sl streams`) | **API key required** (`SL_API_KEY`) — keyless 401 |
-| Subgraphs reads | Open during beta; **writes require a key** |
+| Subgraphs reads | **Public** subgraphs open on `/v1/subgraphs/*` (anon, wildcard CORS); **private** subgraphs need the owner's `sk-sl_` key on /v1 (anon → 404). Pre-existing subgraphs were migrated **private** — no longer anon-readable. Writes + `publish`/`unpublish` require a key |
 
 ## Default working loop
 

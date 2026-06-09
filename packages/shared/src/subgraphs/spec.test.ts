@@ -97,4 +97,65 @@ describe("subgraph spec generation", () => {
 			"curl 'https://tenant.example.test/api/subgraphs/test-subgraph/listings",
 		);
 	});
+
+	test("public visibility emits /v1 surface with rows envelope and no _offset/_sort", () => {
+		const publicDetail: SubgraphDetail = { ...detail, visibility: "public" };
+		const options = {
+			serverUrl: "https://tenant.example.test",
+			generatedAt: "2026-01-01T00:00:00.000Z",
+		};
+
+		const schema = generateSubgraphAgentSchema(publicDetail, options);
+		expect(schema.tables.listings.endpoint).toBe(
+			"https://tenant.example.test/v1/subgraphs/test-subgraph/listings",
+		);
+		expect(schema.tables.listings.countEndpoint).toBe(
+			"https://tenant.example.test/v1/subgraphs/test-subgraph/listings/count",
+		);
+		expect(schema.tables.listings.aggregateEndpoint).toBe(
+			"https://tenant.example.test/v1/subgraphs/test-subgraph/listings/aggregate",
+		);
+		expect(schema.tables.listings.streamEndpoint).toBe(
+			"https://tenant.example.test/v1/subgraphs/test-subgraph/listings/stream",
+		);
+		expect(schema.tables.listings.query.parameters).toContain("cursor");
+		expect(schema.tables.listings.query.parameters).not.toContain("_offset");
+		expect(schema.tables.listings.query.parameters).not.toContain("_sort");
+		expect(schema.tables.listings.query.sortable).toEqual([]);
+		expect(schema.tables.listings.examples.curl).toBe(
+			"curl 'https://tenant.example.test/v1/subgraphs/test-subgraph/listings?_limit=10&_order=desc'",
+		);
+
+		const spec = generateSubgraphOpenApi(publicDetail, options) as {
+			paths: Record<string, { get: { parameters: { name: string }[] } }>;
+		};
+		const rowsPath = spec.paths["/v1/subgraphs/test-subgraph/listings"];
+		expect(rowsPath).toBeDefined();
+		expect(
+			spec.paths["/v1/subgraphs/test-subgraph/listings/count"],
+		).toBeDefined();
+		expect(spec.paths["/api/subgraphs/test-subgraph/listings"]).toBeUndefined();
+		const paramNames = rowsPath.get.parameters.map((p) => p.name);
+		expect(paramNames).toContain("cursor");
+		expect(paramNames).not.toContain("_offset");
+		expect(paramNames).not.toContain("_sort");
+		const envelope = JSON.stringify(rowsPath);
+		expect(envelope).toContain('"rows"');
+		expect(envelope).toContain('"next_cursor"');
+		expect(envelope).toContain('"tip"');
+		expect(envelope).not.toContain('"offset"');
+
+		const markdown = generateSubgraphMarkdown(publicDetail, options);
+		expect(markdown).toContain(
+			"GET https://tenant.example.test/v1/subgraphs/test-subgraph/listings",
+		);
+		expect(markdown).toContain("{ rows, next_cursor, tip }");
+		expect(markdown).toContain(
+			"GET https://tenant.example.test/v1/subgraphs/test-subgraph/listings/stream (SSE)",
+		);
+		expect(markdown).not.toContain("/api/subgraphs/");
+		expect(markdown).toContain(
+			"Parameters: `_limit`, `cursor`, `_order`, `_fields`",
+		);
+	});
 });

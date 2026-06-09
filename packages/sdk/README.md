@@ -328,8 +328,15 @@ const { data } = await sl.subgraphs.list();
 // Get
 const subgraph = await sl.subgraphs.get("my-subgraph");
 
-// Query table
-const rows = await sl.subgraphs.queryTable("my-subgraph", "transfers", {
+// Open read (/v1) — keyless for public subgraphs; pass apiKey for your private ones
+const { rows, next_cursor, tip } = await sl.subgraphs.rows("my-subgraph", "transfers", {
+  order: "desc",
+  limit: 50,
+  // cursor: next_cursor — pass back to resume
+});
+
+// Authed control-plane query (/api)
+const page = await sl.subgraphs.queryTable("my-subgraph", "transfers", {
   sort: "block_height",
   order: "desc",
   limit: 50,
@@ -344,8 +351,12 @@ const spec = await sl.subgraphs.openapi("my-subgraph");
 const source = await sl.subgraphs.getSource("my-subgraph");
 const gaps = await sl.subgraphs.gaps("my-subgraph");
 
-// Deploy
-const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode });
+// Deploy — managed deploys default visibility "public", BYO default "private"
+const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode, visibility: "public" });
+
+// Flip visibility — publish claims the global public name (409 PUBLIC_NAME_TAKEN if claimed)
+await sl.subgraphs.publish("my-subgraph");
+await sl.subgraphs.unpublish("my-subgraph");
 ```
 
 Stream rows live with the typed client — each table exposes `subscribe`

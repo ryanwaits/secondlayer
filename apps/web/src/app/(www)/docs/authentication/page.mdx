@@ -2,7 +2,7 @@
 
 Reads are public during the open beta. API keys gate writes — and scope which products a key can read.
 
-Most reads need no key: datasets, contracts, and subgraph queries are fully open, and the Index is anonymous-readable (free-tier keys are rejected — Build+ for keyed access). The **Streams** firehose and every **write** (deploying subgraphs, managing subscriptions, minting keys) require a key.
+Most reads need no key: datasets and contracts are fully open, and the Index is anonymous-readable (free-tier keys are rejected — Build+ for keyed access). **Public subgraphs** are anon-readable on `/v1/subgraphs` (managed deploys default public); **private** subgraphs (the BYO default) need the owning account's `sk-sl_` key — anon requests `404`. The `/api/subgraphs` dashboard surface always requires a session or key. The **Streams** firehose and every **write** (deploying subgraphs, publishing/unpublishing them, managing subscriptions, minting keys) require a key.
 
 ```bash
 # Public read — no key

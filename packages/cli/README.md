@@ -30,8 +30,11 @@ export SL_API_KEY=sk-sl_xxxxxxxx
 source (and exits non-zero when not logged in). The global `--api-key` /
 `--api-url` flags (and `SL_API_KEY` / `SL_API_URL`) apply to every command.
 
-During open beta, reads are public (no key needed). Writes — deploying or
-managing subgraphs and subscriptions — require a session or an `sk-sl_` key.
+During open beta, reads are public (no key needed) — for subgraphs that means
+**public** subgraphs only (managed deploys default public; BYO deploys and all
+pre-existing subgraphs are private, readable with your key). Writes — deploying,
+publishing, or managing subgraphs and subscriptions — require a session or an
+`sk-sl_` key.
 
 ## Quickstart
 
@@ -86,7 +89,8 @@ scoped reads and cannot mint (403). Minted keys inherit your plan's tier.
 |---|---|
 | `sl subgraphs create <name>` | Scaffold a definition file |
 | `sl subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a subgraph from a deployed contract |
-| `sl subgraphs deploy <file> [--start-block <n>]` | Deploy; `--start-block` overrides the definition |
+| `sl subgraphs deploy <file> [--start-block <n>] [--visibility public\|private]` | Deploy; `--start-block` overrides the definition. Managed deploys default `public`, BYO default `private` |
+| `sl subgraphs publish <name>` / `unpublish <name>` | Flip visibility; publish claims the global public name (409 `PUBLIC_NAME_TAKEN` if claimed) |
 | `sl subgraphs dev <file>` | Watch + hot-redeploy |
 | `sl subgraphs query <name> <table>` | Query a table with filters, sort, pagination |
 | `sl subgraphs list` / `status <name>` / `gaps <name>` | Inspect deployments |

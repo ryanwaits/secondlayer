@@ -50,22 +50,25 @@ commands → [CLI reference](packages/cli/README.md).
 
 ## Read it from anywhere
 
-Reads are public — no key needed; the SDK defaults to `https://api.secondlayer.tools`.
+Reads are public for **public** subgraphs (managed deploys default public; private
+ones need the owner's `sk-sl_` key); the SDK defaults to `https://api.secondlayer.tools`.
 
 ```typescript
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer();
-const { data } = await sl.subgraphs.queryTable("my-contract", "<table>", {
-  sort: "_block_height",
+const { rows, next_cursor, tip } = await sl.subgraphs.rows("my-contract", "<table>", {
   order: "desc",
   limit: 25,
 });
 ```
 
 ```bash
-curl "https://api.secondlayer.tools/api/subgraphs/my-contract/<table>?_limit=25"
+curl "https://api.secondlayer.tools/v1/subgraphs/my-contract/<table>?_limit=25"
 ```
+
+Pages are `_id`-keyset: pass `?cursor=<next_cursor>` to resume, `_order=asc|desc`
+for direction.
 
 **MCP** — point any MCP client at `bunx -p @secondlayer/mcp secondlayer-mcp`
 (`SECONDLAYER_API_URL=https://api.secondlayer.tools`). Set `SL_API_KEY` to

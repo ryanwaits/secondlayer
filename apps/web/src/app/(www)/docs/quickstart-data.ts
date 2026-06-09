@@ -39,8 +39,8 @@ export const QUICKSTART_STEPS: QuickstartStep[] = [
 		n: "04",
 		tab: "Query",
 		title: "Query it",
-		desc: "Live over REST immediately — no auth required to read.",
+		desc: "Live on /v1 immediately — managed deploys are public, no auth to read.",
 		kw: "curl",
-		rest: ' https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers -G -d "_limit=10"',
+		rest: ' https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers -G -d "_limit=10"',
 	},
 ];

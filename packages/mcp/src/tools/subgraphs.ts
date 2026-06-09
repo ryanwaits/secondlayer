@@ -21,7 +21,7 @@ export function registerSubgraphTools(
 	defineTool<Record<string, never>>(
 		server,
 		"subgraphs_list",
-		"List all deployed subgraphs. Returns summary fields only.",
+		"List all deployed subgraphs. Returns summary fields only, including visibility — public subgraphs are anon-readable at /v1/subgraphs/<name>.",
 		{},
 		async () => {
 			const { data } = await clientProvider().subgraphs.list();
@@ -101,7 +101,7 @@ export function registerSubgraphTools(
 	}>(
 		server,
 		"subgraphs_query",
-		'Query rows from a subgraph table (max 200 rows). Filters support operators: "amount.gte": "1000", "sender.neq": "SP...", "name.like": "%token%". Available operators: eq, neq, gt, gte, lt, lte, like. To TAIL new rows (no streaming over MCP): sort=_id, order=desc for the latest, then poll forward with the filter {"_id.gt": "<last _id seen>"}, order=asc. Fetch one row by id with {"_id": "<id>"}.',
+		'Query rows from a subgraph table (max 200 rows). Filters support operators: "amount.gte": "1000", "sender.neq": "SP...", "name.like": "%token%". Available operators: eq, neq, gt, gte, lt, lte, like. To TAIL new rows (no streaming over MCP): sort=_id, order=desc for the latest, then poll forward with the filter {"_id.gt": "<last _id seen>"}, order=asc. Fetch one row by id with {"_id": "<id>"}. Public subgraphs are also keyless over HTTP at GET /v1/subgraphs/<name>/<table> — { rows, next_cursor, tip } envelope, resume with ?cursor=<next_cursor> + _order=asc|desc (no _offset/_sort on /v1); hand that URL to third parties.',
 		{
 			name: z.string().describe("Subgraph name"),
 			table: z.string().describe("Table name"),

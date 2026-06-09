@@ -34,8 +34,8 @@ const SURFACES: Surface[] = [
 		name: "Subgraphs",
 		href: "/docs/subgraphs",
 		desc: "Define app-specific materialized tables from contract events.",
-		verb: "POST",
-		ep: "/api/subgraphs",
+		verb: "GET",
+		ep: "/v1/subgraphs",
 	},
 	{
 		n: "04",

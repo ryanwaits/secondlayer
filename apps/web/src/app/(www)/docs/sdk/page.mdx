@@ -25,7 +25,7 @@ const sl = new SecondLayer({
 - `sl.index` — the decoded L2 layer: FT/NFT transfers, all event types, and contract calls.
 - `sl.datasets` — Foundation Datasets (sBTC, BNS, PoX-4, STX transfers) + catalog.
 - `sl.contracts` — find deployed contracts by trait (SIP-009/010/013).
-- `sl.subgraphs` — your app-specific L3 tables.
+- `sl.subgraphs` — your app-specific L3 tables, plus open `/v1` reads (`rows`) and visibility (`publish`/`unpublish`).
 - `sl.subscriptions` — create and manage webhook subscriptions (subgraph rows or raw chain events).
 
 ```ts
@@ -169,6 +169,27 @@ unsubscribe();
 ```
 
 `subscribe({ fromCursor?, types?, notTypes?, contractId?, sender?, recipient?, assetIdentifier?, signal?, onEvent, onError? }): () => void`. When the client was created with `verify`, each frame's ed25519 signature is verified before `onEvent` runs.
+
+## Read subgraph rows (open /v1)
+
+`sl.subgraphs.rows(name, table, opts)` is the cursor-paginated open `/v1` read — it returns `{ rows, next_cursor, tip }`. Anonymous works for public subgraphs; pass your key for private ones.
+
+```ts
+const { rows, next_cursor, tip } = await sl.subgraphs.rows(
+  "sbtc-flows",
+  "transfers",
+  { order: "desc", limit: 25 },
+);
+
+// resume from where you left off
+const next = await sl.subgraphs.rows("sbtc-flows", "transfers", {
+  cursor: next_cursor,
+});
+```
+
+## Publish & unpublish
+
+`sl.subgraphs.publish(name)` flips a subgraph public — it returns `{ name, visibility: "public", url }`, or throws `409 PUBLIC_NAME_TAKEN` if the global public name is already claimed. `sl.subgraphs.unpublish(name)` makes it private again.
 
 ## Subscribe to subgraph rows (SSE)
 

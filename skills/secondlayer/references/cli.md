@@ -183,6 +183,7 @@ Usage: `sl subgraphs deploy <file>`
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--start-block <n>` | (from definition) | Override definition's `startBlock` for this deploy (nonneg integer). |
+| `--visibility <public\|private>` | managed → `public`, BYO → `private` | Read visibility: `public` = anon /v1 reads + global name claim; `private` = your key only. |
 | `--dry-run` | false | Validate and preview without writing. |
 | `-y, --yes` | false | Skip confirmation prompt for reindex operations (DROP + reindex). |
 | `--strict` | false | Run `bunx tsc --noEmit` on handler before deploy. |
@@ -190,6 +191,14 @@ Usage: `sl subgraphs deploy <file>`
 Remote deploy (non-local): bundles handler via `@secondlayer/bundler`, POSTs to tenant API. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `-y` is set. Local deploy: writes to local DB via `deploySchema()`.
 
 Example: `sl subgraphs deploy subgraphs/my-watcher.ts --start-block 100000`
+
+### sl subgraphs publish / unpublish
+
+Flip a deployed subgraph's read visibility.
+
+Usage: `sl subgraphs publish <name>` / `sl subgraphs unpublish <name>`
+
+`publish` claims the name in the single global public namespace and opens anon /v1 reads — a taken name fails with `409 PUBLIC_NAME_TAKEN`. `unpublish` returns it to private (owner-key reads only).
 
 ### sl subgraphs list
 
@@ -907,7 +916,7 @@ const tx = await makeContractCall({
 console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
 ```
 
-The row shows up at `GET http://localhost:3800/api/subgraphs/<name>/<table>` within ~5s.
+The row shows up at `GET http://localhost:3800/v1/subgraphs/<name>/<table>` within ~5s.
 
 ### sl local down --devnet
 

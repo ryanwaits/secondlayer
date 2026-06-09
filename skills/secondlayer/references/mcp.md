@@ -41,7 +41,8 @@ Subgraphs:
 - `subgraphs_get`
 - `subgraphs_query`
 - `subgraphs_spec`
-- `subgraphs_deploy`
+- `subgraphs_deploy` — accepts a `visibility` param (`public` | `private`; managed default public, BYO default private)
+- `subgraphs_publish` / `subgraphs_unpublish` — flip visibility; publish claims the global public name (409 `PUBLIC_NAME_TAKEN`)
 - `subgraphs_reindex`
 - `subgraphs_delete`
 - `subgraphs_read_source`

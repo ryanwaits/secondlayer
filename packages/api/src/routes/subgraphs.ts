@@ -945,8 +945,15 @@ async function buildSubgraphDetailPayload(
 	subgraphName: string,
 	accountId: string | undefined,
 ): Promise<SubgraphDetail> {
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	return buildSubgraphDetailFromRow(getOwnedSubgraph(subgraphName, accountId));
+}
 
+// Shared with /v1/subgraphs doc routes, which resolve by visibility instead
+// of ownership.
+export async function buildSubgraphDetailFromRow(
+	subgraph: Subgraph,
+): Promise<SubgraphDetail> {
+	const subgraphName = subgraph.name;
 	const subgraphSchema = getSubgraphSchema(subgraph);
 	const tables: SubgraphDetail["tables"] = {};
 	const sn = subgraphSchemaName(subgraph);
@@ -1067,7 +1074,7 @@ async function buildSubgraphDetailPayload(
 	};
 }
 
-function readSpecOptions(c: {
+export function readSpecOptions(c: {
 	req: {
 		url: string;
 		query(name: string): string | undefined;

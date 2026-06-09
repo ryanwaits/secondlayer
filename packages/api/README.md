@@ -10,7 +10,7 @@ Base URL: `https://api.secondlayer.tools`
 |---|---|---|
 | Raw ordered chain events | Stacks Streams | `/v1/streams` |
 | Decoded token and NFT transfer events | Stacks Index | `/v1/index` |
-| App-specific materialized tables | Stacks Subgraphs | `/api/subgraphs` |
+| App-specific materialized tables | Stacks Subgraphs | `/v1/subgraphs` (reads — anon for public subgraphs, wildcard CORS) · `/api/subgraphs` (management) |
 
 ## Authentication
 
@@ -108,6 +108,32 @@ Proof errors:
 | 503 | `PROOF_TX_SET_INCOMPLETE` | Server couldn't reproduce the block's `tx_merkle_root` from its stored tx set, so it refuses to emit an unverifiable proof (fail-safe) |
 
 ## Stacks Subgraphs
+
+Reads live on `/v1/subgraphs` — anon for **public** subgraphs (managed deploys
+default public; BYO deploys default private), owner `sk-sl_` bearer for private
+(anon → 404). Wildcard CORS.
+
+```
+GET /v1/subgraphs                       # list public (+ caller's own with bearer)
+GET /v1/subgraphs/:name                 # metadata + tables + tip
+GET /v1/subgraphs/:name/:table          # query rows
+GET /v1/subgraphs/:name/:table/count
+GET /v1/subgraphs/:name/:table/aggregate
+GET /v1/subgraphs/:name/:table/:id
+GET /v1/subgraphs/:name/:table/stream   # SSE
+GET /v1/subgraphs/:name/openapi.json    # per-subgraph specs (anon for public)
+GET /v1/subgraphs/:name/schema.json
+GET /v1/subgraphs/:name/docs.md
+```
+
+Row routes return `{ rows, next_cursor, tip }` with `_id` keyset pagination —
+pass `?cursor=<next_cursor>` to resume, `_order=asc|desc` for direction
+(`_offset`/`_sort` rejected with 400). Visibility: deploy with
+`--visibility public|private`, flip later with `sl subgraphs publish|unpublish`;
+public names are a single global claim-on-publish namespace
+(409 `PUBLIC_NAME_TAKEN`).
+
+Management stays on `/api/subgraphs` (session or key):
 
 ```
 GET    /api/subgraphs                # list

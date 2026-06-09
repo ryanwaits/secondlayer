@@ -10,7 +10,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public — subgraph reads, `datasets_*`, `index_*`, and `contracts_find` work with no key. **`streams_*` requires an `SL_API_KEY`** (and the Index tools reject free-tier keys — Build+ for keyed access). Writes (deploy, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
+Most reads are public — `datasets_*`, `index_*`, and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). **`streams_*` requires an `SL_API_KEY`** (and the Index tools reject free-tier keys — Build+ for keyed access). Writes (deploy, publish/unpublish, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -52,7 +52,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Domain | Tools |
 | --- | --- |
-| **Subgraphs** (11) | `subgraphs_list`, `subgraphs_get`, `subgraphs_spec`, `subgraphs_query`, `subgraphs_aggregate`, `subgraphs_reindex`, `subgraphs_operation`, `subgraphs_delete`, `subgraphs_deploy`, `subgraphs_read_source`, `subgraphs_codegen` |
+| **Subgraphs** (16) | `subgraphs_list`, `subgraphs_get`, `subgraphs_spec`, `subgraphs_query`, `subgraphs_aggregate`, `subgraphs_reindex`, `subgraphs_operation`, `subgraphs_backfill`, `subgraphs_stop`, `subgraphs_gaps`, `subgraphs_delete`, `subgraphs_deploy`, `subgraphs_publish`, `subgraphs_unpublish`, `subgraphs_read_source`, `subgraphs_codegen` |
 | **Subscriptions** (12) | `subscriptions_list`, `subscriptions_get`, `subscriptions_create`, `subscriptions_update`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_delete`, `subscriptions_rotate_secret`, `subscriptions_replay`, `subscriptions_recent_deliveries`, `subscriptions_dead`, `subscriptions_requeue_dead` |
 | **Datasets** (2) | `datasets_list`, `datasets_query` |
 | **Index** (4) | `index_ft_transfers`, `index_nft_transfers`, `index_events`, `index_contract_calls` |
@@ -74,6 +74,10 @@ Subscriptions are polymorphic. Pass `subgraphName` + `tableName` for a
 a webhook on raw chain events (contract / event / function / trait) with no
 subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
 "functionName": "swap-*" }]`).
+
+### Subgraph visibility
+
+`subgraphs_deploy` takes a `visibility` param (`public` | `private`; defaults: managed → public, BYO `databaseUrl` → private). Flip later with `subgraphs_publish` / `subgraphs_unpublish` — publishing claims the name in the single global public namespace (409 `PUBLIC_NAME_TAKEN` if claimed). Public subgraphs are anon-readable at `GET /v1/subgraphs/<name>/<table>`.
 
 ### `subgraphs_query` enhancements
 

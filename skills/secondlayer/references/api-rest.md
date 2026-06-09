@@ -20,7 +20,8 @@ Override with `SL_API_URL` env var or `baseUrl` SDK option.
 | `/v1/contracts` | No (open) | n/a (read-only) | none |
 | `/v1/streams/*` | **Yes** (Streams API key) | n/a (read-only) | `Authorization: Bearer <SL_API_KEY>` |
 | `/v1/index/*` | No (anonymous OK) — but **free-tier keys are rejected** (Build+ for keyed access) | n/a (read-only) | `Authorization: Bearer <key>` if you have one |
-| `/api/subgraphs/*` | No (open beta) | Yes | `Authorization: Bearer <apiKey>` |
+| `/v1/subgraphs/*` | No for **public** subgraphs (anon, wildcard CORS; anon 100 rps / keyed 50 rps); **private** subgraphs need the owner's `sk-sl_` key — anon → 404 | n/a (read-only) | `Authorization: Bearer <apiKey>` for private |
+| `/api/subgraphs/*` | **Yes** (session or key — control plane) | Yes | `Authorization: Bearer <apiKey>` |
 | `/api/subscriptions/*` | Yes | Yes | `Authorization: Bearer <apiKey>` |
 | `/v1/api-keys` | n/a | **Yes** (account-level owner key) | `Authorization: Bearer <account key>` |
 
@@ -227,7 +228,55 @@ curl -X POST "https://api.secondlayer.tools/v1/api-keys" \
 
 ---
 
-## `/api/subgraphs` — subgraph management
+## `/v1/subgraphs` — subgraph reads (public surface)
+
+Anon for **public** subgraphs (managed deploys default public; BYO deploys and pre-existing subgraphs default private). Private subgraphs read with the owning account's `sk-sl_` bearer — anon requests get 404 (no existence leak).
+
+### `GET /v1/subgraphs`
+
+List public subgraphs (+ your own with a bearer).
+
+### `GET /v1/subgraphs/{name}`
+
+Metadata + tables + tip.
+
+### `GET /v1/subgraphs/{name}/{table}`
+
+Query rows. Envelope:
+
+```json
+{ "rows": [ ... ], "next_cursor": "48137", "tip": { "block_height": 7987630, "subgraph_height": 7987630, "blocks_behind": 0 } }
+```
+
+| Query param | Type | Description |
+|---|---|---|
+| `cursor` | string | `_id` keyset resume token — pass back `next_cursor` |
+| `_order` | `asc`\|`desc` | |
+| `_limit` | number | |
+| `_fields` | comma-separated | Columns to return |
+| `_search` | string | Search-enabled columns |
+| `<column>` / `<column>.gte` etc. | scalar | Same filters as /api |
+
+**`_offset` and `_sort` are rejected with 400 on /v1.**
+
+```bash
+curl "https://api.secondlayer.tools/v1/subgraphs/stx-transfers/transfers?_order=desc&_limit=10&amount.gte=1000000"
+```
+
+### `GET /v1/subgraphs/{name}/{table}/count`
+### `GET /v1/subgraphs/{name}/{table}/aggregate`
+### `GET /v1/subgraphs/{name}/{table}/{id}`
+### `GET /v1/subgraphs/{name}/{table}/stream` (SSE)
+
+Same filters apply; aggregate takes `_count` / `_sum` / `_countDistinct` etc.
+
+### Publish / visibility
+
+Deploy with `--visibility public|private` (managed default public, BYO default private); flip later with `sl subgraphs publish|unpublish <name>`. Public names are a single global claim-on-publish namespace — taken name → `409 PUBLIC_NAME_TAKEN`.
+
+---
+
+## `/api/subgraphs` — subgraph management *(auth — control plane)*
 
 ### `GET /api/subgraphs`
 

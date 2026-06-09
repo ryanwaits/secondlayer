@@ -53,9 +53,11 @@ export SL_API_URL="$SECONDLAYER_API_URL"
 export SL_API_KEY="sk-sl_..."
 ```
 
-During open beta, reads are public and need no key; writes (deploy, manage,
-subscriptions) require an `sk-sl_` key. (`SECONDLAYER_API_KEY` is a deprecated
-alias of `SL_API_KEY`.) Rotate or revoke keys in the same console.
+Managed deploys default **public** — anon-readable on `/v1/subgraphs`, no key.
+BYO-database deploys default **private**; read those on `/v1` with your `sk-sl_`
+bearer. Writes (deploy, publish/unpublish, manage, subscriptions) require an
+`sk-sl_` key. (`SECONDLAYER_API_KEY` is a deprecated alias of `SL_API_KEY`.)
+Rotate or revoke keys in the same console.
 
 ## 2. Create A Subgraph
 
@@ -133,12 +135,14 @@ sl subgraphs query stx-transfers transfers \
   --order desc
 ```
 
-With REST:
+With REST (anon — public subgraph):
 
 ```bash
-curl -H "Authorization: Bearer $SL_API_KEY" \
-  "$SECONDLAYER_API_URL/api/subgraphs/stx-transfers/transfers?_sort=_block_height&_order=desc&_limit=10"
+curl "$SECONDLAYER_API_URL/v1/subgraphs/stx-transfers/transfers?_order=desc&_limit=10"
 ```
+
+Rows are `_id`-keyset ordered — pass `?cursor=<next_cursor>` to resume
+(`_sort`/`_offset` not supported on /v1).
 
 ## 4. Add A Receiver
 

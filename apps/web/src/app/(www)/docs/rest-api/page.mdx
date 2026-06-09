@@ -1,10 +1,10 @@
 # REST API
 
-Every read surface speaks the same envelope, cursor, and filter grammar — datasets, index, streams, and subgraph tables.
+The shared envelope, cursor, and filter grammar across the read surfaces — datasets, index, streams, and subgraph tables.
 
 ## Response envelope
 
-Rows come back in a `data` array; `meta` carries the total and a stable cursor.
+Datasets and index reads come back in a `data` array; `meta` carries the total and a stable cursor.
 
 ```json
 {
@@ -13,30 +13,52 @@ Rows come back in a `data` array; `meta` carries the total and a stable cursor.
 }
 ```
 
+`/v1/subgraphs` speaks a cursor envelope instead — `rows`, a resumable `next_cursor`, and the indexing `tip`:
+
+```json
+{
+  "rows": [{ "_id": 48138, "block_height": 8054704 }],
+  "next_cursor": "48137",
+  "tip": { "block_height": 8054704, "subgraph_height": 8054704, "blocks_behind": 0 }
+}
+```
+
 ## Pagination
 
 - `_limit` — page size (default 10).
 - `_order` — `asc` or `desc`.
-- `_cursor` — opaque token from the previous response's `meta.cursor`.
+- `_cursor` — opaque token from the previous response's `meta.cursor` (data/meta surfaces).
+- `cursor` — on `/v1/subgraphs`, pass the previous response's `next_cursor` to resume (`_id` keyset).
 
-## Filtering & sorting
+## Filtering
 
-Filter on any column by passing it as a query param; sort with `_sort`. The grammar is identical across every surface.
+Filter on any column by passing it as a query param. The filter grammar is identical across every surface.
 
 ```bash
-curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers \
+curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
   -G \
   -d "sender=SP3PE7Q9...X44J" \
-  -d "_sort=_block_height" \
   -d "_order=desc"
 ```
+
+## /v1 subgraphs open reads
+
+Public subgraphs are anon-readable on `/v1/subgraphs` — wildcard CORS, no key. Private subgraphs need the owning account's `sk-sl_` bearer; anonymous requests get `404` (no existence leak).
+
+- `GET /v1/subgraphs` — list public subgraphs (plus your own with a bearer).
+- `GET /v1/subgraphs/:name` — metadata: tables, columns, indexing tip.
+- `GET /v1/subgraphs/:name/:table` — rows; `/count`, `/aggregate`, `/:id`, `/stream` (SSE) alongside.
+
+Pagination is `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. `_offset` and `_sort` are **rejected with `400`** on `/v1` — they live only on the authed `/api/subgraphs` dashboard surface. `_limit`, `_fields`, `_search`, and column filters work as everywhere else.
+
+Rate limits: anonymous 100 rps, keyed 50 rps — watch the `X-RateLimit-*` headers.
 
 ## Streaming (SSE)
 
 Two endpoints push rows in real time as Server-Sent Events (`Content-Type: text/event-stream`) over a single long-lived connection. Both emit a `ping` keepalive every 20s.
 
 - `GET /v1/streams/events/stream` — the raw chain event firehose. Bearer auth. Accepts the same filters as `/v1/streams/events` (`types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`) and a start position (`cursor`/`from_cursor`/`from_height`); with no start position it live-tails from the reorg-clamped tip.
-- `GET /api/subgraphs/:subgraphName/:tableName/stream` — new rows for a subgraph table. Accepts `?since=<block_height>` (replay from a height, then tail) plus the same column filters as the table's REST read.
+- `GET /v1/subgraphs/:name/:table/stream` — new rows for a subgraph table. Anon for public subgraphs, `sk-sl_` bearer for your private ones. Accepts `?since=<block_height>` (replay from a height, then tail) plus the same column filters as the table's REST read.
 
 ```bash
 curl -N -H "Authorization: Bearer $SL_API_KEY" \
@@ -47,14 +69,14 @@ See [Streams](/docs/streams#real-time-firehose-sse) and the [SDK](/docs/sdk#subs
 
 ## Aggregates
 
-`GET /api/subgraphs/:subgraphName/:tableName/aggregate` runs scalar aggregates over the same filtered set as the list/count endpoints — pass any of the column filters above plus aggregate control params:
+`GET /v1/subgraphs/:name/:table/aggregate` runs scalar aggregates over the same filtered set as the list/count endpoints — anon for public subgraphs, `sk-sl_` bearer for your private ones. Pass any of the column filters above plus aggregate control params:
 
 - `_count=true` — `COUNT(*)`.
 - `_countDistinct=col1,col2` — distinct count per column.
 - `_sum=col`, `_min=col`, `_max=col` — comma-separated columns; `_sum/_min/_max` accept **numeric columns only** (`uint`/`int`, plus the system `_block_height`).
 
 ```bash
-curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers/aggregate \
+curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers/aggregate \
   -G \
   -d "status=active" \
   -d "_count=true" \
@@ -77,6 +99,8 @@ curl https://api.secondlayer.tools/api/subgraphs/sbtc-flows/transfers/aggregate 
 - `400 NON_NUMERIC_COLUMN` for a non-numeric `_sum/_min/_max` column, `400 INVALID_COLUMN` for an unknown column, `400 TOO_MANY_AGGREGATES` past 32 aggregate columns per request.
 
 The [SDK](/docs/sdk) exposes this as a typed `client.aggregate(spec)` whose result shape is inferred from the spec.
+
+The `/api/subgraphs/*` equivalents of these endpoints remain as the authed dashboard/control-plane surface (session or key).
 
 ## Transaction-inclusion proof
 

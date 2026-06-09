@@ -20,6 +20,8 @@ export interface SubgraphAgentSchema {
 		{
 			endpoint: string;
 			countEndpoint: string;
+			aggregateEndpoint?: string;
+			streamEndpoint?: string;
 			rowCount: number;
 			columns: SubgraphDetail["tables"][string]["columns"];
 			indexes?: string[][];
@@ -44,7 +46,13 @@ type ColumnMeta = SubgraphDetail["tables"][string]["columns"][string];
 
 const SYSTEM_COLUMNS = ["_id", "_block_height", "_tx_id", "_created_at"];
 const BASE_QUERY_PARAMS = ["_limit", "_offset", "_sort", "_order", "_fields"];
+// /v1 rejects _offset/_sort: keyset pagination via cursor + _order only.
+const PUBLIC_BASE_QUERY_PARAMS = ["_limit", "cursor", "_order", "_fields"];
 const COMPARISON_OPS = ["neq", "gt", "gte", "lt", "lte"];
+
+function isPublicRead(detail: SubgraphDetail): boolean {
+	return detail.visibility === "public";
+}
 
 function generatedAt(options: SubgraphSpecOptions): string {
 	return options.generatedAt ?? new Date().toISOString();
@@ -54,12 +62,21 @@ function normalizeServerUrl(serverUrl?: string): string {
 	return (serverUrl ?? "https://api.secondlayer.tools").replace(/\/+$/, "");
 }
 
-function tablePath(subgraphName: string, tableName: string): string {
-	return `/api/subgraphs/${subgraphName}/${tableName}`;
+function tablePath(
+	subgraphName: string,
+	tableName: string,
+	publicRead: boolean,
+): string {
+	const base = publicRead ? "/v1/subgraphs" : "/api/subgraphs";
+	return `${base}/${subgraphName}/${tableName}`;
 }
 
-function countPath(subgraphName: string, tableName: string): string {
-	return `${tablePath(subgraphName, tableName)}/count`;
+function countPath(
+	subgraphName: string,
+	tableName: string,
+	publicRead: boolean,
+): string {
+	return `${tablePath(subgraphName, tableName, publicRead)}/count`;
 }
 
 function isTextLike(type: string): boolean {
@@ -161,8 +178,13 @@ function filterNames(table: SubgraphDetail["tables"][string]): string[] {
 	return result;
 }
 
-function queryParameters(table: SubgraphDetail["tables"][string]): string[] {
-	const params = [...BASE_QUERY_PARAMS];
+function queryParameters(
+	table: SubgraphDetail["tables"][string],
+	publicRead: boolean,
+): string[] {
+	const params = publicRead
+		? [...PUBLIC_BASE_QUERY_PARAMS]
+		: [...BASE_QUERY_PARAMS];
 	if (searchableColumns(table).length > 0) params.push("_search");
 	return params;
 }
@@ -189,32 +211,57 @@ function openApiParameter(
 	};
 }
 
-function tableParameters(table: SubgraphDetail["tables"][string]) {
-	const parameters = [
-		openApiParameter("_limit", "Maximum rows to return.", {
-			type: "integer",
-			default: 50,
-			minimum: 1,
-			maximum: 1000,
-		}),
-		openApiParameter("_offset", "Rows to skip for pagination.", {
-			type: "integer",
-			default: 0,
-			minimum: 0,
-		}),
-		openApiParameter("_sort", "Column to sort by.", {
-			type: "string",
-			enum: selectableColumns(table),
-		}),
-		openApiParameter("_order", "Sort direction.", {
-			type: "string",
-			enum: ["asc", "desc"],
-			default: "asc",
-		}),
-		openApiParameter("_fields", "Comma-separated columns to include.", {
-			type: "string",
-		}),
-	];
+function tableParameters(
+	table: SubgraphDetail["tables"][string],
+	publicRead: boolean,
+) {
+	const parameters = publicRead
+		? [
+				openApiParameter("_limit", "Maximum rows to return.", {
+					type: "integer",
+					default: 50,
+					minimum: 1,
+					maximum: 1000,
+				}),
+				openApiParameter(
+					"cursor",
+					"Resume token from next_cursor (keyset pagination on _id).",
+					{ type: "string" },
+				),
+				openApiParameter("_order", "Sort direction (_id keyset).", {
+					type: "string",
+					enum: ["asc", "desc"],
+					default: "asc",
+				}),
+				openApiParameter("_fields", "Comma-separated columns to include.", {
+					type: "string",
+				}),
+			]
+		: [
+				openApiParameter("_limit", "Maximum rows to return.", {
+					type: "integer",
+					default: 50,
+					minimum: 1,
+					maximum: 1000,
+				}),
+				openApiParameter("_offset", "Rows to skip for pagination.", {
+					type: "integer",
+					default: 0,
+					minimum: 0,
+				}),
+				openApiParameter("_sort", "Column to sort by.", {
+					type: "string",
+					enum: selectableColumns(table),
+				}),
+				openApiParameter("_order", "Sort direction.", {
+					type: "string",
+					enum: ["asc", "desc"],
+					default: "asc",
+				}),
+				openApiParameter("_fields", "Comma-separated columns to include.", {
+					type: "string",
+				}),
+			];
 	if (searchableColumns(table).length > 0) {
 		parameters.push(
 			openApiParameter("_search", "Search across searchable columns.", {
@@ -262,19 +309,27 @@ export function generateSubgraphAgentSchema(
 	options: SubgraphSpecOptions = {},
 ): SubgraphAgentSchema {
 	const serverUrl = normalizeServerUrl(options.serverUrl);
+	const publicRead = isPublicRead(detail);
 	const tables: SubgraphAgentSchema["tables"] = {};
 	for (const [tableName, table] of Object.entries(detail.tables)) {
-		const path = tablePath(detail.name, tableName);
+		const path = tablePath(detail.name, tableName, publicRead);
 		tables[tableName] = {
 			endpoint: `${serverUrl}${path}`,
-			countEndpoint: `${serverUrl}${countPath(detail.name, tableName)}`,
+			countEndpoint: `${serverUrl}${countPath(detail.name, tableName, publicRead)}`,
+			...(publicRead
+				? {
+						aggregateEndpoint: `${serverUrl}${path}/aggregate`,
+						streamEndpoint: `${serverUrl}${path}/stream`,
+					}
+				: {}),
 			rowCount: table.rowCount,
 			columns: table.columns,
 			...(table.indexes ? { indexes: table.indexes } : {}),
 			...(table.uniqueKeys ? { uniqueKeys: table.uniqueKeys } : {}),
 			query: {
-				parameters: queryParameters(table),
-				sortable: selectableColumns(table),
+				parameters: queryParameters(table, publicRead),
+				// /v1 is _id keyset only — no _sort.
+				sortable: publicRead ? [] : selectableColumns(table),
 				selectable: selectableColumns(table),
 				searchable: searchableColumns(table),
 				filters: filterNames(table),
@@ -282,7 +337,9 @@ export function generateSubgraphAgentSchema(
 			examples: {
 				list: rowExample(table),
 				count: { count: table.rowCount },
-				curl: `curl '${serverUrl}${path}?_limit=10&_sort=_block_height&_order=desc'`,
+				curl: publicRead
+					? `curl '${serverUrl}${path}?_limit=10&_order=desc'`
+					: `curl '${serverUrl}${path}?_limit=10&_sort=_block_height&_order=desc'`,
 			},
 		};
 	}
@@ -303,6 +360,7 @@ export function generateSubgraphOpenApi(
 	options: SubgraphSpecOptions = {},
 ): Record<string, unknown> {
 	const serverUrl = normalizeServerUrl(options.serverUrl);
+	const publicRead = isPublicRead(detail);
 	const paths: Record<string, unknown> = {};
 	const schemas: Record<string, unknown> = {};
 
@@ -321,33 +379,54 @@ export function generateSubgraphOpenApi(
 			example: rowExample(table),
 		};
 
-		paths[tablePath(detail.name, tableName)] = {
+		const responseSchema = publicRead
+			? {
+					type: "object",
+					properties: {
+						rows: {
+							type: "array",
+							items: { $ref: `#/components/schemas/${schemaName}` },
+						},
+						next_cursor: { type: ["string", "null"] },
+						tip: {
+							type: "object",
+							properties: {
+								block_height: { type: "integer" },
+								subgraph_height: { type: "integer" },
+								blocks_behind: { type: "integer" },
+							},
+						},
+					},
+				}
+			: {
+					type: "object",
+					properties: {
+						data: {
+							type: "array",
+							items: { $ref: `#/components/schemas/${schemaName}` },
+						},
+						meta: {
+							type: "object",
+							properties: {
+								total: { type: "integer" },
+								limit: { type: "integer" },
+								offset: { type: "integer" },
+							},
+						},
+					},
+				};
+
+		paths[tablePath(detail.name, tableName, publicRead)] = {
 			get: {
 				summary: `Query ${detail.name}.${tableName}`,
 				operationId: `query_${detail.name.replace(/-/g, "_")}_${tableName}`,
-				parameters: tableParameters(table),
+				parameters: tableParameters(table, publicRead),
 				responses: {
 					"200": {
 						description: "Rows returned from the subgraph table.",
 						content: {
 							"application/json": {
-								schema: {
-									type: "object",
-									properties: {
-										data: {
-											type: "array",
-											items: { $ref: `#/components/schemas/${schemaName}` },
-										},
-										meta: {
-											type: "object",
-											properties: {
-												total: { type: "integer" },
-												limit: { type: "integer" },
-												offset: { type: "integer" },
-											},
-										},
-									},
-								},
+								schema: responseSchema,
 							},
 						},
 					},
@@ -355,11 +434,11 @@ export function generateSubgraphOpenApi(
 			},
 		};
 
-		paths[countPath(detail.name, tableName)] = {
+		paths[countPath(detail.name, tableName, publicRead)] = {
 			get: {
 				summary: `Count ${detail.name}.${tableName}`,
 				operationId: `count_${detail.name.replace(/-/g, "_")}_${tableName}`,
-				parameters: tableParameters(table),
+				parameters: tableParameters(table, publicRead),
 				responses: {
 					"200": {
 						description: "Row count for the filtered table query.",
@@ -403,12 +482,16 @@ export function generateSubgraphMarkdown(
 	options: SubgraphSpecOptions = {},
 ): string {
 	const agent = generateSubgraphAgentSchema(detail, options);
+	const publicRead = isPublicRead(detail);
 	const lines = [
 		`# ${detail.name} Subgraph API`,
 		"",
 		`Version: ${detail.version}`,
 		detail.schemaHash ? `Schema hash: ${detail.schemaHash}` : undefined,
 		`Server: ${agent.serverUrl}`,
+		publicRead
+			? "Visibility: public — anon reads, no API key. Responses use the `{ rows, next_cursor, tip }` envelope; paginate with `?cursor=<next_cursor>` and `_order=asc|desc` (`_offset`/`_sort` are rejected)."
+			: undefined,
 		"",
 		detail.description,
 	].filter((line): line is string => line !== undefined && line !== "");
@@ -420,6 +503,8 @@ export function generateSubgraphMarkdown(
 			"",
 			`GET ${table.endpoint}`,
 			`GET ${table.countEndpoint}`,
+			...(table.aggregateEndpoint ? [`GET ${table.aggregateEndpoint}`] : []),
+			...(table.streamEndpoint ? [`GET ${table.streamEndpoint} (SSE)`] : []),
 			"",
 			`Rows: ${table.rowCount}`,
 			"",

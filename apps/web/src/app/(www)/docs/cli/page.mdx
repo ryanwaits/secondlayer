@@ -13,6 +13,9 @@ bun add -g @secondlayer/cli
 ```bash
 sl login                 # authenticate (opens the browser)
 sl subgraphs deploy      # deploy a subgraph from a config
+                         #   --visibility public|private (managed → public, BYO → private)
+sl subgraphs publish     # claim the global public name (409 PUBLIC_NAME_TAKEN if claimed)
+sl subgraphs unpublish   # make a subgraph private again
 sl subgraphs ls          # list your deployments
 sl subscriptions create  # wire up a webhook subscription
 ```
@@ -84,7 +87,7 @@ const tx = await makeContractCall({
 console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
 ```
 
-The row appears at `/api/subgraphs/<name>/<table>` within ~5s.
+The row appears at `/v1/subgraphs/<name>/<table>` within ~5s.
 
 export const metadata = {
 	title: "CLI — Secondlayer Docs",

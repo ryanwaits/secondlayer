@@ -25,7 +25,12 @@ import {
 	parseQueryParams,
 	subgraphSchemaName,
 } from "./subgraph-query-helpers.ts";
-import { cache, getChainTip } from "./subgraphs.ts";
+import {
+	buildSubgraphDetailFromRow,
+	cache,
+	getChainTip,
+	readSpecOptions,
+} from "./subgraphs.ts";
 
 /**
  * Open read surface for subgraphs: /v1/subgraphs.
@@ -188,6 +193,50 @@ app.get("/:subgraphName", async (c) => {
 			subgraph_height: lastProcessed,
 			blocks_behind: Math.max(0, chainTip - lastProcessed),
 		},
+		docs: {
+			openapi: `/v1/subgraphs/${subgraph.name}/openapi.json`,
+			schema: `/v1/subgraphs/${subgraph.name}/schema.json`,
+			markdown: `/v1/subgraphs/${subgraph.name}/docs.md`,
+		},
+	});
+});
+
+// ── Generated docs ──────────────────────────────────────────────────────
+
+// Same generators as /api/subgraphs, but resolved by visibility (anon →
+// public only) and passed the detail incl. visibility so public subgraphs
+// document the /v1 surface. Registered before /:subgraphName/:tableName so
+// the static segments win.
+
+app.get("/:subgraphName/openapi.json", async (c) => {
+	const { subgraphName } = c.req.param();
+	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const detail = await buildSubgraphDetailFromRow(subgraph);
+	const { generateSubgraphOpenApi } = await import(
+		"@secondlayer/shared/subgraphs/spec"
+	);
+	return c.json(generateSubgraphOpenApi(detail, readSpecOptions(c)));
+});
+
+app.get("/:subgraphName/schema.json", async (c) => {
+	const { subgraphName } = c.req.param();
+	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const detail = await buildSubgraphDetailFromRow(subgraph);
+	const { generateSubgraphAgentSchema } = await import(
+		"@secondlayer/shared/subgraphs/spec"
+	);
+	return c.json(generateSubgraphAgentSchema(detail, readSpecOptions(c)));
+});
+
+app.get("/:subgraphName/docs.md", async (c) => {
+	const { subgraphName } = c.req.param();
+	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const detail = await buildSubgraphDetailFromRow(subgraph);
+	const { generateSubgraphMarkdown } = await import(
+		"@secondlayer/shared/subgraphs/spec"
+	);
+	return c.text(generateSubgraphMarkdown(detail, readSpecOptions(c)), 200, {
+		"Content-Type": "text/markdown; charset=utf-8",
 	});
 });
 

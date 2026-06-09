@@ -31,7 +31,8 @@ Subgraphs are materialized query indexes over blockchain data.
 - status: "building" | "ready" | "failed"
 
 ### API Base URL
-https://api.secondlayer.tools/api/subgraphs/{name}/{table}
+https://api.secondlayer.tools/v1/subgraphs/{name}/{table}
+(public read surface — no auth for public subgraphs; /api/subgraphs is the authed dashboard/control plane)
 
 ### Navigation
 Subgraphs are managed at /subgraphs in the dashboard.
@@ -115,19 +116,24 @@ sl subgraphs dev subgraphs/name.ts                        # watch mode
 export function getSubgraphQueryDocs(): string {
 	return `## Querying Subgraph Data
 
-Base URL: https://api.secondlayer.tools/api
+Base URL: https://api.secondlayer.tools/v1
 
 ### Endpoint
-GET https://api.secondlayer.tools/api/subgraphs/{subgraph-name}/{table-name}
+GET https://api.secondlayer.tools/v1/subgraphs/{subgraph-name}/{table-name}
 
-Auth: Authorization: Bearer <api-key>
+Auth: none for PUBLIC subgraphs (anon-readable, wildcard CORS); PRIVATE subgraphs
+need the owning account's sk-sl_ bearer (anon requests return 404). The
+/api/subgraphs/* equivalents remain the authed session/control-plane surface.
 
 ### Query Parameters
 - **_limit**: number (default 10, max 1000) — rows to return
-- **_sort**: string (default "_id") — column to sort by
-- **_order**: "asc" | "desc" (default "desc") — sort direction
-- **_offset**: number — skip N rows (for pagination)
+- **_order**: "asc" | "desc" (default "desc") — _id keyset direction
+- **cursor**: string — resume token; pass the previous response's next_cursor
 - **_search**: string — full-text search across all text/string columns
+- **_fields**: string — comma-separated columns to return
+
+_offset and _sort are REJECTED with 400 on /v1 — they exist only on the authed
+/api dashboard surface.
 
 ### Column Filtering
 Filter by column value using dot-notation operators:
@@ -139,36 +145,46 @@ Filter by column value using dot-notation operators:
 - \`{column}.lte=VALUE\` — less than or equal
 - \`{column}.like=VALUE\` — pattern match (use % as wildcard)
 
-### Example: curl
+### Example: curl (public subgraph — no auth)
 \`\`\`bash
-curl 'https://api.secondlayer.tools/api/subgraphs/my-subgraph/swaps?_limit=10&_sort=_created_at&_order=desc' \\
+curl 'https://api.secondlayer.tools/v1/subgraphs/my-subgraph/swaps?_limit=10&_order=desc'
+\`\`\`
+
+### Example: curl (private subgraph — owner bearer)
+\`\`\`bash
+curl 'https://api.secondlayer.tools/v1/subgraphs/my-subgraph/swaps?_limit=10&_order=desc' \\
   -H 'Authorization: Bearer sk-sl_...'
 \`\`\`
 
 ### Example: Node.js
 \`\`\`javascript
 const response = await fetch(
-  'https://api.secondlayer.tools/api/subgraphs/my-subgraph/swaps?_limit=10&_sort=_id&_order=desc',
-  { headers: { Authorization: \`Bearer \${apiKey}\` } }
+  'https://api.secondlayer.tools/v1/subgraphs/my-subgraph/swaps?_limit=10&_order=desc',
 );
-const { data, meta } = await response.json();
+const { rows, next_cursor, tip } = await response.json();
+// next page:
+const page2 = await fetch(
+  \`https://api.secondlayer.tools/v1/subgraphs/my-subgraph/swaps?cursor=\${next_cursor}\`,
+);
 \`\`\`
 
 ### Example: SDK
 \`\`\`javascript
 import { Secondlayer } from '@secondlayer/sdk';
 const client = new Secondlayer();
-const { data, meta } = await client
-  .subgraph('my-subgraph')
-  .table('swaps')
-  .query({ limit: 10, sort: '_id', order: 'desc' });
+const { rows, next_cursor, tip } = await client.subgraphs.rows(
+  'my-subgraph',
+  'swaps',
+  { limit: 10, order: 'desc' },
+);
 \`\`\`
 
 ### Response Format
 \`\`\`json
 {
-  "data": [{ "column1": "value", "column2": 123 }],
-  "meta": { "total": 1234, "limit": 10, "offset": 0 }
+  "rows": [{ "column1": "value", "column2": 123 }],
+  "next_cursor": "48137",
+  "tip": { "block_height": 8054704, "subgraph_height": 8054704, "blocks_behind": 0 }
 }
 \`\`\``;
 }

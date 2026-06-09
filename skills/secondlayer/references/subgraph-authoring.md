@@ -6,9 +6,9 @@ Reference for writing `subgraphs/<name>.ts` files. Every type signature below is
 
 ## 1. Mental Model
 
-A subgraph is a single TypeScript file that exports `defineSubgraph({ name, sources, schema, handlers })` as its default export. `sources` is a named object of event filters; `schema` declares Postgres tables; `handlers` are functions keyed by source name that run once per matching event (batched per block). Secondlayer materializes the schema into Postgres, runs your handlers against the Stacks event stream (live + backfill), and exposes each table as a REST endpoint at `/api/subgraphs/<name>/<table>`.
+A subgraph is a single TypeScript file that exports `defineSubgraph({ name, sources, schema, handlers })` as its default export. `sources` is a named object of event filters; `schema` declares Postgres tables; `handlers` are functions keyed by source name that run once per matching event (batched per block). Secondlayer materializes the schema into Postgres, runs your handlers against the Stacks event stream (live + backfill), and exposes each table as a REST endpoint at `/v1/subgraphs/<name>/<table>` (anon for public subgraphs, `{ rows, next_cursor, tip }` cursor envelope; `/api/subgraphs` is the authed control plane).
 
-Deploy with `sl subgraphs deploy <file>`; the runtime owns ingestion, retries, and gap handling.
+Deploy with `sl subgraphs deploy <file>`; the runtime owns ingestion, retries, and gap handling. Deploy-time `--visibility public|private` sets read visibility (managed default public, BYO default private).
 
 ---
 

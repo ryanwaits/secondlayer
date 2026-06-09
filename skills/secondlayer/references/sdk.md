@@ -2,7 +2,7 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** `sl.datasets.*`, `sl.contracts.*`, `sl.index.*` and read-only `sl.subgraphs.*` (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) are **anonymous** — no API key required (note: `sl.index.*` rejects free-tier keys — Build+ for keyed access). **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
+**Auth model:** `sl.datasets.*`, `sl.contracts.*`, `sl.index.*` are **anonymous** — no API key required. `sl.subgraphs.rows()` (the open /v1 read) is anonymous for **public** subgraphs only; **private** subgraphs (incl. all pre-existing ones — migrated private) need the owner's `sk-sl_` key, anon → 404. The /api-backed read methods (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) sit on the authed control plane (note: `sl.index.*` rejects free-tier keys — Build+ for keyed access). **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
 
 **Key products & scope:** every `sk-sl_` key (set as `SL_API_KEY`) has a `product` that scopes it. An **`account`** key is the owner key — it grants BOTH `streams:read` and `index:read`, and is the **only** key allowed to mint new keys. A **`streams`** or **`index`** key is a scoped single-product read key and **cannot mint** (403). Dashboard keys default to `account`. Mint scoped keys programmatically with `sl.apiKeys.create({ product })` (requires an account/owner key); minted keys are always scoped and inherit your account plan's tier (never escalatable):
 
@@ -733,7 +733,7 @@ const { contracts, next_cursor } = await sl.contracts.list({
 
 ## 6. `sl.subgraphs`
 
-Read methods are anonymous. **Write methods (`deploy`, `reindex`, `backfill`, `stop`, `delete`, `bundle`) require `apiKey`.**
+`rows()` (open /v1 read) is anonymous for **public** subgraphs; private subgraphs need the owner's `apiKey` (anon → 404). **Write methods (`deploy`, `publish`, `unpublish`, `reindex`, `backfill`, `stop`, `delete`, `bundle`) require `apiKey`.**
 
 ### `list()`
 
@@ -783,6 +783,33 @@ markdown(name: string, options?: SubgraphSpecOptions): Promise<string>
 ```
 
 `SubgraphAgentSchema` is the agent-oriented JSON description (tables, query params, examples). `markdown` returns prose docs as a string.
+
+### `rows(name, table, params?)` — open /v1 read
+
+```ts
+rows<T = unknown>(
+  name: string,
+  table: string,
+  params?: Omit<SubgraphQueryParams, "offset" | "sort"> & { cursor?: string },
+): Promise<SubgraphRowsEnvelope<T>>
+
+interface SubgraphRowsEnvelope<T = unknown> {
+  rows: T[];
+  next_cursor: string | null;
+  tip: { block_height: number; subgraph_height: number; blocks_behind: number };
+}
+```
+
+Hits `GET /v1/subgraphs/<name>/<table>` — anon for public subgraphs, owner `apiKey` for private. `_id` keyset pagination: pass `cursor: next_cursor` to resume, `order: "asc" | "desc"` for direction. No `offset`/`sort` on /v1.
+
+### `publish(name)` / `unpublish(name)` — need `apiKey`
+
+```ts
+publish(name: string): Promise<{ name: string; visibility: "public"; url: string }>
+unpublish(name: string): Promise<{ name: string; visibility: "private" }>
+```
+
+`publish` claims the global public name — 409 `PUBLIC_NAME_TAKEN` if claimed. Deploy also accepts `visibility?: "public" | "private"` (managed default public, BYO default private).
 
 ### `queryTable(name, table, params?)`
 
@@ -992,7 +1019,8 @@ const transfers = await client.transfers.findMany({
 
 // Realtime: react to rows as they're indexed (block-cadence) over SSE.
 // Browser-friendly — no webhook endpoint needed. Requires a global EventSource
-// (browsers, or Node >= 22). Backed by GET /api/subgraphs/<name>/<table>/stream.
+// (browsers, or Node >= 22). Public path: GET /v1/subgraphs/<name>/<table>/stream
+// (anon for public subgraphs; /api equivalent stays on the authed control plane).
 const unsubscribe = client.transfers.subscribe(
   (row) => console.log("new transfer", row.sender, row.amount),
   { where: { amount: { gte: 1_000_000n } } },

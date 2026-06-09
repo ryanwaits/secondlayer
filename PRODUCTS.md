@@ -56,7 +56,8 @@ Operational surface for developers checking Second Layer before integrating. v0 
 
 User-defined materialized views.
 
-- **What it is.** You write a subgraph manifest (entities, mappings, event handlers). We compile, backfill, and tail it. You query via REST, with the platform's standard filter/sort/paginate grammar.
+- **What it is.** You write a subgraph manifest (entities, mappings, event handlers). We compile, backfill, and tail it. You query via REST: public subgraphs are anon-readable on `/v1/subgraphs` with cursor pagination (`_id` keyset, no sort/offset); the authed `/api` surface keeps the standard filter/sort/paginate grammar.
+- **Visibility.** Managed deploys default **public**, BYO-database deploys default **private** (`--visibility` to override, publish/unpublish to flip). Public names are a single global claim-on-publish namespace.
 - **Who uses it.** App teams whose data shape doesn't fit the Index defaults: marketplaces, lending protocols, custom analytics.
 - **Lifecycle.** `secondlayer subgraph init` → `dev` → `deploy`. Backfill is checkpointed and resumable. Auto-pause after 7 idle days on Free.
 - **Limits.** Free: 1 subgraph, 100K rows. Build: 5 subgraphs, 2M rows. Scale: 25 subgraphs, 25M rows. Enterprise: custom.

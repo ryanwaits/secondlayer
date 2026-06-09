@@ -150,7 +150,8 @@ const READ_AUTH_TIERS = {
 	index:
 		"anonymous reads allowed; free-tier API keys are rejected (Build+ required)",
 	streams: "API key required (SL_API_KEY) — keyless calls return 401",
-	subgraphs: "reads public during open beta; writes require an API key",
+	subgraphs:
+		"public subgraphs anon-readable at /v1/subgraphs/<name>/<table> ({ rows, next_cursor, tip } cursor envelope); private subgraphs need the owning account's API key (anon → 404); writes require an API key",
 };
 
 type ContextDeps = {

@@ -94,7 +94,7 @@ User-defined materialized views over L1+L2. Tenants write a subgraph manifest; t
 
 - **Source:** Subgraph runtime (`packages/subgraphs`), consuming L1 events and L2 decoded events.
 - **Shape:** Tenant-defined schema. Stored in per-tenant Postgres for isolation.
-- **Access:** REST endpoint per subgraph, with the platform's standard filter/sort/paginate query grammar. SQL read access on Scale+.
+- **Access:** open `/v1/subgraphs` read surface for public subgraphs (anon, wildcard CORS, `_id`-keyset cursor envelope `{ rows, next_cursor, tip }`); private subgraphs read with the owner's key; `/api/subgraphs` remains the authed control plane (standard filter/sort/paginate grammar). Visibility defaults: managed deploys public, BYO private. SQL read access on Scale+.
 - **Operations:** Backfill jobs are checkpointed and resumable; auto-pause after 7 days of zero queries on Free tier.
 
 ---

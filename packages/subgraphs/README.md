@@ -2,6 +2,8 @@
 
 Typed on-chain indexing for Stacks. Declare event filters + column schema with `defineSubgraph()`; the runtime decodes blocks, matches filters, runs your handlers inside a transactional context, and exposes the result as a Postgres schema you query over REST or SQL.
 
+Subgraphs have a visibility: managed deploys default `visibility: public` — anon-readable at `/v1/subgraphs/<name>/<table>`, in a single global public namespace claimed on publish (409 `PUBLIC_NAME_TAKEN` if the name is taken). BYO-database deploys default private. Override with `--visibility public|private` at deploy, or flip later with `sl subgraphs publish|unpublish <name>`.
+
 Subgraph rows fan out to HTTP subscribers through a post-flush outbox emitter — signed Standard Webhooks POSTs with retries, circuit breaker, and replay.
 
 ## Install
@@ -113,6 +115,9 @@ reads from there. Deploy with a connection string:
 ```bash
 sl subgraphs deploy subgraphs/my.ts --database-url "postgres://user:pass@your-host:5432/db"
 ```
+
+BYO deploys default `visibility: private` (managed deploys default public);
+pass `--visibility public` or `sl subgraphs publish <name>` to open reads.
 
 The connection string is stored encrypted at rest (AES-GCM, keyed by
 `SECONDLAYER_SECRETS_KEY`) and never returned in API responses. The server
