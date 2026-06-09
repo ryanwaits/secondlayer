@@ -147,6 +147,9 @@ export interface SubgraphsTable {
 	handler_code: string | null;
 	source_code: string | null;
 	project_id: string | null;
+	// 'public' = anon-readable via /v1/subgraphs (global name namespace,
+	// claim-on-publish); 'private' = reads require the owning account's key.
+	visibility: Generated<string>;
 	// BYO data plane: AES-GCM envelope (iv‖tag‖ciphertext) of the user-owned
 	// Postgres connection string. Null = managed (writes/serving use the target
 	// DB). Encrypted via crypto/secrets.ts; never returned in API responses.

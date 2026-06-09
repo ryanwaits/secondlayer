@@ -33,10 +33,11 @@ import subgraphsRouter, {
 	stopSubgraphCache,
 } from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
-import x402Router from "./routes/x402.ts";
 import v1ApiKeysRouter from "./routes/v1-api-keys.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
+import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
+import x402Router from "./routes/x402.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
 
 const mode = getInstanceMode();
@@ -211,6 +212,7 @@ app.route("/v1/openapi.json", openApiRouter);
 app.route("/v1/streams", streamsRouter);
 app.route("/v1/index", indexRouter);
 app.route("/v1/datasets", datasetsRouter);
+app.route("/v1/subgraphs", v1SubgraphsRouter);
 app.route("/v1/contracts", contractsRouter);
 app.route("/x402", x402Router);
 // Agent-reachable scoped key mint — platform-only (OSS uses a static key).

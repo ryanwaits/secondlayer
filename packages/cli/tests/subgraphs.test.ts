@@ -15,9 +15,18 @@ import {
 	installScaffoldDependencies,
 	parseStartBlockOption,
 	parseSubgraphSpecFormat,
+	parseVisibilityOption,
 } from "../src/commands/subgraphs.ts";
 
 describe("subgraphs command helpers", () => {
+	it("parses deploy --visibility as public|private", () => {
+		expect(parseVisibilityOption()).toBeUndefined();
+		expect(parseVisibilityOption("public")).toBe("public");
+		expect(parseVisibilityOption("private")).toBe("private");
+		expect(() => parseVisibilityOption("Public")).toThrow();
+		expect(() => parseVisibilityOption("open")).toThrow();
+	});
+
 	it("parses deploy --start-block as a nonnegative integer", () => {
 		expect(parseStartBlockOption()).toBeUndefined();
 		expect(parseStartBlockOption("0")).toBe(0);

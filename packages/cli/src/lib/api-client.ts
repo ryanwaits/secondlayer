@@ -169,6 +169,18 @@ export async function deploySubgraphApi(
 	return (await getPlatformClient()).subgraphs.deploy(data);
 }
 
+export async function publishSubgraphApi(
+	name: string,
+): Promise<{ name: string; visibility: "public"; url: string }> {
+	return (await getPlatformClient()).subgraphs.publish(name);
+}
+
+export async function unpublishSubgraphApi(
+	name: string,
+): Promise<{ name: string; visibility: "private" }> {
+	return (await getPlatformClient()).subgraphs.unpublish(name);
+}
+
 export async function querySubgraphTable(
 	name: string,
 	table: string,

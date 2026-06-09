@@ -85,6 +85,63 @@ const OPENAPI_SPEC = {
 				responses: ok(),
 			},
 		},
+		"/v1/subgraphs": {
+			get: {
+				tags: ["subgraphs"],
+				summary:
+					"List readable subgraphs (public + your own with a bearer key)",
+				responses: ok(),
+			},
+		},
+		"/v1/subgraphs/{name}": {
+			get: {
+				tags: ["subgraphs"],
+				summary: "Subgraph metadata: tables, columns, sync tip",
+				parameters: [pp("name")],
+				responses: ok(),
+			},
+		},
+		"/v1/subgraphs/{name}/{table}": {
+			get: {
+				tags: ["subgraphs"],
+				summary:
+					"Rows, cursor-paginated by _id ({ rows, next_cursor, tip }). Column filters via col.op=value, _limit, _fields, _order=asc|desc.",
+				parameters: [
+					pp("name"),
+					pp("table"),
+					{ $ref: "#/components/parameters/Limit" },
+					qp("cursor", "string"),
+					qp("_order", "string"),
+					qp("_fields", "string"),
+				],
+				responses: envelope(),
+			},
+		},
+		"/v1/subgraphs/{name}/{table}/count": {
+			get: {
+				tags: ["subgraphs"],
+				summary: "Count rows matching filters",
+				parameters: [pp("name"), pp("table")],
+				responses: ok(),
+			},
+		},
+		"/v1/subgraphs/{name}/{table}/aggregate": {
+			get: {
+				tags: ["subgraphs"],
+				summary:
+					"Scalar aggregates (_count/_countDistinct/_sum/_min/_max) over filtered rows",
+				parameters: [pp("name"), pp("table")],
+				responses: ok(),
+			},
+		},
+		"/v1/subgraphs/{name}/{table}/stream": {
+			get: {
+				tags: ["subgraphs"],
+				summary: "SSE tail of new rows (?since=<block> to replay)",
+				parameters: [pp("name"), pp("table")],
+				responses: ok(),
+			},
+		},
 		"/v1/datasets/stx-transfers": {
 			get: {
 				tags: ["datasets"],
@@ -508,6 +565,10 @@ const OPENAPI_SPEC = {
 
 function qp(name: string, type: string, required = false) {
 	return { name, in: "query", required, schema: { type } };
+}
+
+function pp(name: string) {
+	return { name, in: "path", required: true, schema: { type: "string" } };
 }
 
 function ok() {

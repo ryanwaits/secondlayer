@@ -364,10 +364,11 @@ export function registerSubgraphTools(
 		startBlock?: number;
 		databaseUrl?: string;
 		dryRun?: boolean;
+		visibility?: "public" | "private";
 	}>(
 		server,
 		"subgraphs_deploy",
-		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Optional startBlock overrides the source definition for this deploy. Set dryRun to validate and preview the schema/DDL without writing anything. Set databaseUrl to deploy to your own Postgres (BYO data plane) — the server verifies the connection first; with dryRun it returns the DDL + grant script. A breaking BYO schema change is refused and returns a migration plan (drop + rebuild DDL) instead of deploying. Call `subgraphs_reindex` separately if you need a forced reindex.",
+		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Optional startBlock overrides the source definition for this deploy. Set dryRun to validate and preview the schema/DDL without writing anything. Set databaseUrl to deploy to your own Postgres (BYO data plane) — the server verifies the connection first; with dryRun it returns the DDL + grant script. A breaking BYO schema change is refused and returns a migration plan (drop + rebuild DDL) instead of deploying. Visibility defaults: managed deploys are public (anon-readable at /v1/subgraphs/<name>, name claimed in the global public namespace), BYO deploys are private. Call `subgraphs_reindex` separately if you need a forced reindex.",
 		{
 			code: z
 				.string()
@@ -390,8 +391,14 @@ export function registerSubgraphTools(
 				.describe(
 					"Validate and preview the deploy (schema/DDL, BYO connection) without writing changes",
 				),
+			visibility: z
+				.enum(["public", "private"])
+				.optional()
+				.describe(
+					"Read visibility: public = anon /v1 reads + global name claim; private = owning account's key only. Defaults: managed → public, BYO → private.",
+				),
 		},
-		async ({ code, startBlock, databaseUrl, dryRun }) => {
+		async ({ code, startBlock, databaseUrl, dryRun, visibility }) => {
 			const bundled = await bundleSubgraphCode(code);
 			try {
 				const result = await clientProvider().subgraphs.deploy({
@@ -405,6 +412,7 @@ export function registerSubgraphTools(
 					...(startBlock !== undefined ? { startBlock } : {}),
 					...(databaseUrl !== undefined ? { databaseUrl } : {}),
 					...(dryRun !== undefined ? { dryRun } : {}),
+					...(visibility !== undefined ? { visibility } : {}),
 				});
 				return {
 					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -429,6 +437,32 @@ export function registerSubgraphTools(
 				}
 				throw err;
 			}
+		},
+	);
+
+	defineTool<{ name: string }>(
+		server,
+		"subgraphs_publish",
+		"Make a subgraph publicly readable at /v1/subgraphs/<name> — anyone (or any agent) can read it without a key. Claims the name in the global public namespace; fails with PUBLIC_NAME_TAKEN if another account holds it.",
+		{ name: z.string().describe("Subgraph name") },
+		async ({ name }) => {
+			const result = await clientProvider().subgraphs.publish(name);
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
+		},
+	);
+
+	defineTool<{ name: string }>(
+		server,
+		"subgraphs_unpublish",
+		"Make a subgraph private again — /v1 reads then require the owning account's bearer key, and the global public name claim is released.",
+		{ name: z.string().describe("Subgraph name") },
+		async ({ name }) => {
+			const result = await clientProvider().subgraphs.unpublish(name);
+			return {
+				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+			};
 		},
 	);
 

@@ -171,6 +171,7 @@ export interface SubgraphDetail {
 	version: string;
 	schemaHash?: string;
 	status: string;
+	visibility?: "public" | "private";
 	lastProcessedBlock: number | null;
 	description?: string;
 	sources?: Record<string, SubgraphFilter>;

@@ -28,10 +28,12 @@ import {
 	getSubgraphOpenApi,
 	handleApiError,
 	listSubgraphsApi,
+	publishSubgraphApi,
 	querySubgraphTable,
 	querySubgraphTableCount,
 	reindexSubgraphApi,
 	stopSubgraphApi,
+	unpublishSubgraphApi,
 } from "../lib/api-client.ts";
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
 type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
@@ -132,6 +134,14 @@ export function parseStartBlockOption(value?: string): number | undefined {
 		throw new Error("--start-block must be a safe integer");
 	}
 	return parsed;
+}
+
+export function parseVisibilityOption(
+	value?: string,
+): "public" | "private" | undefined {
+	if (value === undefined) return undefined;
+	if (value === "public" || value === "private") return value;
+	throw new Error('--visibility must be "public" or "private"');
 }
 
 export function parseSubgraphSpecFormat(value?: string): SubgraphSpecFormat {
@@ -669,6 +679,10 @@ Examples:
 			"--strict",
 			"Run `tsc --noEmit` against the handler before deploy (slower; catches TS type errors)",
 		)
+		.option(
+			"--visibility <visibility>",
+			"Read visibility: public (anon /v1 reads, global name claim) or private (your key only). Defaults: managed → public, BYO → private.",
+		)
 		.action(
 			async (
 				file: string,
@@ -678,6 +692,7 @@ Examples:
 					yes?: boolean;
 					strict?: boolean;
 					databaseUrl?: string;
+					visibility?: string;
 				},
 			) => {
 				try {
@@ -689,6 +704,17 @@ Examples:
 						await requireAuth();
 					}
 					const dryRun = options.dryRun;
+					const visibility = parseVisibilityOption(options.visibility);
+					if (visibility === "public" && options.databaseUrl && !options.yes) {
+						const confirmed = await confirm({
+							message:
+								"⚠  Public BYO subgraph: anonymous reads will query YOUR database. Continue?",
+						});
+						if (!confirmed) {
+							info("Aborted.");
+							process.exit(0);
+						}
+					}
 					const startBlock = parseStartBlockOption(options.startBlock);
 					if (startBlock !== undefined) {
 						warn(
@@ -769,6 +795,7 @@ Examples:
 							...(options.databaseUrl
 								? { databaseUrl: options.databaseUrl }
 								: {}),
+							...(visibility ? { visibility } : {}),
 						});
 
 						const printDeployFooter = async () => {
@@ -776,12 +803,23 @@ Examples:
 								const { apiUrl } = await resolveAuth();
 								const baseUrl = deriveBaseUrl(apiUrl);
 								const firstTable = Object.keys(effectiveDef.schema ?? {})[0];
+								const isPublic = result.visibility === "public";
 								info(
 									`  Dashboard: ${baseUrl}/platform/subgraphs/${effectiveDef.name}`,
 								);
-								if (firstTable) {
+								if (isPublic && firstTable) {
+									info(
+										`  Read:      ${apiUrl}/v1/subgraphs/${effectiveDef.name}/${firstTable}`,
+									);
+									info(
+										`  Share:     ${apiUrl}/v1/subgraphs/${effectiveDef.name} (public — no key needed)`,
+									);
+								} else if (firstTable) {
 									info(
 										`  REST:      ${apiUrl}/api/subgraphs/${effectiveDef.name}/${firstTable}`,
+									);
+									info(
+										`  Publish:   sl subgraphs publish ${effectiveDef.name} (open anon /v1 reads)`,
 									);
 								}
 								info(`  Watch:     sl subgraphs status ${effectiveDef.name}`);
@@ -1598,6 +1636,48 @@ Examples:
 				}
 			},
 		);
+
+	// --- publish / unpublish ---
+	subgraphs
+		.command("publish <name>")
+		.description(
+			"Make a subgraph publicly readable on /v1/subgraphs/<name> (claims the name globally, no key needed to read)",
+		)
+		.action(async (name: string) => {
+			try {
+				await requireAuth();
+				const result = await publishSubgraphApi(name);
+				success(`Subgraph "${name}" is now public`);
+				try {
+					const { apiUrl } = await resolveAuth();
+					info(`  Share: ${apiUrl}${result.url} (no key needed)`);
+				} catch {}
+			} catch (err) {
+				const status = (err as { status?: number } | undefined)?.status;
+				if (status === 409) {
+					error(
+						`Public name "${name}" is already taken by another account. Rename the subgraph (redeploy under a new name) or keep it private.`,
+					);
+					process.exit(1);
+				}
+				handleApiError(err, "publish subgraph");
+			}
+		});
+
+	subgraphs
+		.command("unpublish <name>")
+		.description(
+			"Make a subgraph private again — reads require your API key, the public name claim is released",
+		)
+		.action(async (name: string) => {
+			try {
+				await requireAuth();
+				await unpublishSubgraphApi(name);
+				success(`Subgraph "${name}" is now private (reads need your key)`);
+			} catch (err) {
+				handleApiError(err, "unpublish subgraph");
+			}
+		});
 
 	// --- scaffold ---
 	subgraphs

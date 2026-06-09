@@ -181,6 +181,7 @@ export const CODE_TO_STATUS: Record<
 	INSTANCE_EXISTS: 409,
 	SUBGRAPH_NOT_FOUND: 404,
 	BYO_BREAKING_CHANGE: 422,
+	PUBLIC_NAME_TAKEN: 409,
 } as const;
 
 export function getErrorMessage(err: unknown): string {

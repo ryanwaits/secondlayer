@@ -146,6 +146,39 @@ export async function listSubgraphs(
 	return query.execute();
 }
 
+/**
+ * Resolve a public subgraph by name. Public names are a single global
+ * namespace (partial unique index `subgraphs_public_name_uidx`), so at most
+ * one row matches regardless of account.
+ */
+export async function findPublicSubgraphByName(
+	db: Kysely<Database>,
+	name: string,
+): Promise<Subgraph | null> {
+	return (
+		(await db
+			.selectFrom("subgraphs")
+			.selectAll()
+			.where("name", "=", name)
+			.where("visibility", "=", "public")
+			.executeTakeFirst()) ?? null
+	);
+}
+
+export async function updateSubgraphVisibility(
+	db: Kysely<Database>,
+	name: string,
+	accountId: string,
+	visibility: "public" | "private",
+): Promise<void> {
+	await db
+		.updateTable("subgraphs")
+		.set({ visibility, updated_at: new Date() })
+		.where("name", "=", name)
+		.where("account_id", "=", accountId)
+		.execute();
+}
+
 export async function updateSubgraphStatus(
 	db: Kysely<Database>,
 	name: string,

@@ -92,6 +92,17 @@ export class SubgraphRegistryCache {
 		return undefined;
 	}
 
+	/**
+	 * Resolve a public subgraph by name alone (anon /v1 reads). At most one
+	 * match exists — public names are globally unique (partial unique index).
+	 */
+	getPublicByName(name: string): Subgraph | undefined {
+		for (const v of this.subgraphs.values()) {
+			if (v.name === name && v.visibility === "public") return v;
+		}
+		return undefined;
+	}
+
 	/** Get all subgraphs, optionally filtered by account */
 	getAll(accountId?: string): Subgraph[] {
 		const all = Array.from(this.subgraphs.values());

@@ -13,6 +13,7 @@ import type { SubgraphDetail, SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OpenInChat } from "./open-in-chat";
+import { VisibilityToggle } from "./visibility-toggle";
 
 interface SubscriptionSummary {
 	id: string;
@@ -151,6 +152,11 @@ export default async function SubgraphDetailPage({
 							<div className={`sg-hdr-dot ${dotClass(displayStatus)}`} />
 							<span className="sg-hdr-name">{name}</span>
 							<span className="sg-hdr-version">v{subgraph.version}</span>
+							<VisibilityToggle
+								subgraphName={name}
+								visibility={subgraph.visibility ?? "private"}
+								sessionToken={session}
+							/>
 						</div>
 						<div className="sg-hdr-actions">
 							<Link
@@ -163,12 +169,22 @@ export default async function SubgraphDetailPage({
 						</div>
 					</div>
 
-					{/* Endpoint bar */}
+					{/* Endpoint bar — public subgraphs advertise the shareable /v1 URL */}
 					<div className="sg-ep">
 						<span className="sg-ep-method">GET</span>
 						<span className="sg-ep-url">
-							{tenantApiUrl}/api/subgraphs/{name}/
-							<span className="hl">{"<table>"}</span>
+							{subgraph.visibility === "public" ? (
+								<>
+									{tenantApiUrl}/v1/subgraphs/{name}/
+									<span className="hl">{"<table>"}</span> (public — no key
+									needed)
+								</>
+							) : (
+								<>
+									{tenantApiUrl}/api/subgraphs/{name}/
+									<span className="hl">{"<table>"}</span>
+								</>
+							)}
 						</span>
 						<a
 							href="/docs/rest-api"

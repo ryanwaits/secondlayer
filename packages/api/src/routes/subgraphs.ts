@@ -21,11 +21,12 @@ import {
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	encryptDatabaseUrl,
+	findPublicSubgraphByName,
 	getSubgraph,
 	listSubgraphs,
 	pgSchemaNameFor,
-	resolveSubgraphRawClient,
 	updateSubgraphStatus,
+	updateSubgraphVisibility,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
@@ -34,22 +35,25 @@ import {
 } from "@secondlayer/shared/schemas/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
-import { streamSSE } from "hono/streaming";
 import { sql } from "kysely";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import {
+	SubgraphNotFoundError,
+	handleRowById,
+	handleTableAggregate,
+	handleTableCount,
+	handleTableStream,
+	querySubgraph as query,
+} from "../subgraphs/read-core.ts";
+import {
 	InvalidColumnError,
 	MAX_LIMIT,
-	NonNumericColumnError,
-	TooManyAggregatesError,
-	buildAggregateSelect,
 	buildWhereConditions,
 	getSubgraphSchema,
 	getValidColumns,
 	ident,
-	parseAggregateParams,
 	parseQueryParams,
 	subgraphSchemaName,
 } from "./subgraph-query-helpers.ts";
@@ -82,22 +86,8 @@ export async function stopSubgraphCache(): Promise<void> {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
-
-// Serving reads route to the subgraph's data plane: the user's DB for BYO, else
-// the managed target. resolveSubgraphRawClient handles both (cached by URL).
-async function query(subgraph: Subgraph, text: string, params: unknown[] = []) {
-	const client = resolveSubgraphRawClient(subgraph);
-	// biome-ignore lint/suspicious/noExplicitAny: postgres client requires any[]
-	return client.unsafe(text, params as any[]);
-}
-
-class SubgraphNotFoundError extends Error {
-	code = "SUBGRAPH_NOT_FOUND";
-	constructor(subgraphName: string) {
-		super(`Subgraph not found: ${subgraphName}`);
-		this.name = "SubgraphNotFoundError";
-	}
-}
+// query/SubgraphNotFoundError live in subgraphs/read-core.ts, shared with the
+// open /v1/subgraphs read surface.
 
 type SubgraphSyncSource = {
 	status: string;
@@ -173,7 +163,7 @@ function buildSyncInfo(
 	};
 }
 
-async function getChainTip(): Promise<number> {
+export async function getChainTip(): Promise<number> {
 	const network = process.env.NETWORK ?? "mainnet";
 	const selectTip = (db: ReturnType<typeof getDb>) =>
 		db
@@ -395,6 +385,27 @@ app.post("/", async (c) => {
 	}
 
 	const existing = await getSubgraph(db, name, accountId);
+
+	// Visibility: explicit wins; otherwise redeploys keep what they have, new
+	// managed deploys are public (shareable /v1 URL), new BYO deploys are
+	// private (public reads would hit the user's own Postgres). Public names
+	// are a single global namespace — claim-on-publish, first come.
+	const desiredVisibility =
+		parsed.data.visibility ??
+		(existing ? undefined : byoUrl ? "private" : "public");
+	if (desiredVisibility === "public" && existing?.visibility !== "public") {
+		const claimed = await findPublicSubgraphByName(db, name);
+		if (claimed && claimed.account_id !== (accountId ?? "")) {
+			return c.json(
+				{
+					error: `Public name "${name}" is already taken. Pick another name or deploy with visibility "private".`,
+					code: "PUBLIC_NAME_TAKEN",
+				},
+				409,
+			);
+		}
+	}
+
 	const deployStartBlock = resolveDeployStartBlock(def);
 	if (chainTip > 0 && deployStartBlock > chainTip) {
 		return c.json(
@@ -425,6 +436,31 @@ app.post("/", async (c) => {
 		dataDb: byoDataDb,
 		databaseUrlEnc,
 	});
+
+	if (desiredVisibility && desiredVisibility !== existing?.visibility) {
+		try {
+			await updateSubgraphVisibility(
+				db,
+				name,
+				accountId ?? "",
+				desiredVisibility,
+			);
+		} catch (err) {
+			// Race on the partial unique index: another account claimed the public
+			// name between our check and this write. Deploy itself succeeded —
+			// surface the conflict, leave the subgraph private.
+			if (/subgraphs_public_name_uidx/.test(getErrorMessage(err))) {
+				return c.json(
+					{
+						error: `Deployed, but public name "${name}" was just claimed by another account. The subgraph is private; rename to go public.`,
+						code: "PUBLIC_NAME_TAKEN",
+					},
+					409,
+				);
+			}
+			throw err;
+		}
+	}
 
 	await cache.refresh();
 
@@ -469,6 +505,7 @@ app.post("/", async (c) => {
 			action: result.action,
 			subgraphId: result.subgraphId,
 			version: result.version,
+			visibility: desiredVisibility ?? existing?.visibility ?? "private",
 			message: `Subgraph "${name}" ${result.action}`,
 			...(result.diff ? { diff: result.diff } : {}),
 			...(result.action === "created" || result.action === "reindexed"
@@ -557,6 +594,75 @@ app.post("/bundle", async (c) => {
 		logger.warn("Subgraph bundle failed", { origin, error: message });
 		return c.json({ ok: false, error: message, code: "BUNDLE_FAILED" }, 400);
 	}
+});
+
+// ── Visibility (publish / unpublish) ──────────────────────────────────
+
+// Publish = claim the name in the global public namespace + open anon reads
+// on /v1/subgraphs/:name. Unpublish releases the claim; reads fall back to
+// the owning account's bearer key.
+app.post("/:subgraphName/publish", async (c) => {
+	const { subgraphName } = c.req.param();
+	const accountId = getAccountId(c);
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+	const db = getDb();
+
+	if (subgraph.visibility !== "public") {
+		const claimed = await findPublicSubgraphByName(db, subgraphName);
+		if (claimed && claimed.account_id !== subgraph.account_id) {
+			return c.json(
+				{
+					error: `Public name "${subgraphName}" is already taken. Rename the subgraph to publish it.`,
+					code: "PUBLIC_NAME_TAKEN",
+				},
+				409,
+			);
+		}
+		try {
+			await updateSubgraphVisibility(
+				db,
+				subgraphName,
+				subgraph.account_id,
+				"public",
+			);
+		} catch (err) {
+			if (/subgraphs_public_name_uidx/.test(getErrorMessage(err))) {
+				return c.json(
+					{
+						error: `Public name "${subgraphName}" was just claimed by another account.`,
+						code: "PUBLIC_NAME_TAKEN",
+					},
+					409,
+				);
+			}
+			throw err;
+		}
+		await cache.refresh();
+	}
+
+	return c.json({
+		name: subgraphName,
+		visibility: "public",
+		url: `/v1/subgraphs/${subgraphName}`,
+	});
+});
+
+app.post("/:subgraphName/unpublish", async (c) => {
+	const { subgraphName } = c.req.param();
+	const accountId = getAccountId(c);
+	const subgraph = getOwnedSubgraph(subgraphName, accountId);
+
+	if (subgraph.visibility !== "private") {
+		await updateSubgraphVisibility(
+			getDb(),
+			subgraphName,
+			subgraph.account_id,
+			"private",
+		);
+		await cache.refresh();
+	}
+
+	return c.json({ name: subgraphName, visibility: "private" });
 });
 
 // ── Reindex / backfill operations ─────────────────────────────────────
@@ -826,6 +932,7 @@ app.get("/", async (c) => {
 				syncMode: sync.mode,
 				gapCount: gaps?.gapCount ?? 0,
 				integrity: (gaps?.gapCount ?? 0) > 0 ? "gaps_detected" : "complete",
+				visibility: v.visibility as "public" | "private",
 				createdAt: v.created_at.toISOString(),
 			};
 		}),
@@ -940,6 +1047,7 @@ async function buildSubgraphDetailPayload(
 		version: subgraph.version,
 		schemaHash: subgraph.schema_hash,
 		status: live.status,
+		visibility: subgraph.visibility as "public" | "private",
 		lastProcessedBlock: sync.lastProcessedBlock,
 		...(description && { description }),
 		...(sources && { sources }),
@@ -1299,38 +1407,8 @@ app.get("/:subgraphName/operations/:operationId", async (c) => {
 
 app.get("/:subgraphName/:tableName/count", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-
-	const subgraphSchema = getSubgraphSchema(subgraph);
-	const tableDef = subgraphSchema[tableName];
-	if (!tableDef) {
-		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
-	}
-
-	const validColumns = getValidColumns(tableDef);
-
-	try {
-		const parsed = parseQueryParams(c.req.query(), validColumns, tableDef);
-		const sn = subgraphSchemaName(subgraph);
-		const params: unknown[] = [];
-		let text = `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`;
-
-		const conditions = buildWhereConditions(parsed, params);
-		if (conditions.length > 0) {
-			text += ` WHERE ${conditions.join(" AND ")}`;
-		}
-
-		const result = await query(subgraph, text, params);
-		return c.json({
-			count: Number.parseInt(String(result[0]?.count ?? 0), 10),
-		});
-	} catch (e) {
-		if (e instanceof InvalidColumnError) {
-			return c.json({ error: e.message, code: "INVALID_COLUMN" }, 400);
-		}
-		throw e;
-	}
+	const subgraph = getOwnedSubgraph(subgraphName, getAccountId(c));
+	return handleTableCount(c, subgraph, tableName);
 });
 
 // ── Aggregate over rows ─────────────────────────────────────────────────
@@ -1341,83 +1419,8 @@ app.get("/:subgraphName/:tableName/count", async (c) => {
 // `/:id` so the static `aggregate` segment wins over the row-id param.
 app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-
-	const subgraphSchema = getSubgraphSchema(subgraph);
-	const tableDef = subgraphSchema[tableName];
-	if (!tableDef) {
-		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
-	}
-
-	const validColumns = getValidColumns(tableDef);
-
-	try {
-		// Strip agg control params before parseQueryParams (it throws on any
-		// unknown `_`-prefixed key), then parse the remainder as WHERE filters.
-		const { control, readParams } = parseAggregateParams(
-			c.req.query(),
-			validColumns,
-			tableDef,
-		);
-		const parsed = parseQueryParams(readParams, validColumns, tableDef);
-		const sn = subgraphSchemaName(subgraph);
-		const params: unknown[] = [];
-
-		const conditions = buildWhereConditions(parsed, params);
-		let text = `SELECT ${buildAggregateSelect(control).join(", ")} FROM ${ident(sn)}.${ident(tableName)}`;
-		if (conditions.length > 0) {
-			text += ` WHERE ${conditions.join(" AND ")}`;
-		}
-
-		const result = await query(subgraph, text, params);
-		const row = (result[0] ?? {}) as Record<string, string | number | null>;
-
-		// Reshape the single result row from `kind__col` aliases into the grouped
-		// response. count/countDistinct → numbers; sum/min/max → lossless strings.
-		const response: {
-			count?: number;
-			countDistinct?: Record<string, number>;
-			sum?: Record<string, string>;
-			min?: Record<string, string | null>;
-			max?: Record<string, string | null>;
-		} = {};
-		const countDistinct: Record<string, number> = {};
-		const sum: Record<string, string> = {};
-		const min: Record<string, string | null> = {};
-		const max: Record<string, string | null> = {};
-		for (const [alias, value] of Object.entries(row)) {
-			if (alias === "count") {
-				response.count = Number.parseInt(String(value ?? 0), 10);
-			} else if (alias.startsWith("cd__")) {
-				countDistinct[alias.slice(4)] = Number.parseInt(String(value ?? 0), 10);
-			} else if (alias.startsWith("sum__")) {
-				sum[alias.slice(5)] = String(value ?? "0");
-			} else if (alias.startsWith("min__")) {
-				min[alias.slice(5)] = value == null ? null : String(value);
-			} else if (alias.startsWith("max__")) {
-				max[alias.slice(5)] = value == null ? null : String(value);
-			}
-		}
-		if (Object.keys(countDistinct).length > 0)
-			response.countDistinct = countDistinct;
-		if (Object.keys(sum).length > 0) response.sum = sum;
-		if (Object.keys(min).length > 0) response.min = min;
-		if (Object.keys(max).length > 0) response.max = max;
-
-		return c.json(response);
-	} catch (e) {
-		if (e instanceof NonNumericColumnError) {
-			return c.json({ error: e.message, code: "NON_NUMERIC_COLUMN" }, 400);
-		}
-		if (e instanceof TooManyAggregatesError) {
-			return c.json({ error: e.message, code: "TOO_MANY_AGGREGATES" }, 400);
-		}
-		if (e instanceof InvalidColumnError) {
-			return c.json({ error: e.message, code: "INVALID_COLUMN" }, 400);
-		}
-		throw e;
-	}
+	const subgraph = getOwnedSubgraph(subgraphName, getAccountId(c));
+	return handleTableAggregate(c, subgraph, tableName);
 });
 
 // ── Get row by ID ───────────────────────────────────────────────────────
@@ -1429,120 +1432,17 @@ app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 // the read endpoints). No subscription record is created — this is ephemeral.
 // Registered before the `/:id` route so a static `stream` segment wins over the
 // row-id param (`return;` does not fall through in Hono).
-app.get("/:subgraphName/:tableName/stream", async (c) => {
+app.get("/:subgraphName/:tableName/stream", (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-	const tableDef = getSubgraphSchema(subgraph)[tableName];
-	if (!tableDef) {
-		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
-	}
-	const validColumns = getValidColumns(tableDef);
-	// `since` is SSE-specific — strip it before parsing the rest as column
-	// filters (parseQueryParams treats unknown keys as filters).
-	const { since: sinceRaw, ...filterQuery } = c.req.query();
-	let parsed: ReturnType<typeof parseQueryParams>;
-	try {
-		parsed = parseQueryParams(filterQuery, validColumns, tableDef);
-	} catch (e) {
-		if (e instanceof InvalidColumnError) {
-			return c.json({ error: e.message, code: "INVALID_COLUMN" }, 400);
-		}
-		throw e;
-	}
-	const sn = subgraphSchemaName(subgraph);
-	const tbl = `${ident(sn)}.${ident(tableName)}`;
-	const since =
-		sinceRaw != null && Number.isFinite(Number(sinceRaw))
-			? Number(sinceRaw)
-			: null;
-
-	return streamSSE(c, async (stream) => {
-		// Seed the keyset cursor. No `since` → tail from the current max _id.
-		// With `?since`, seed from MIN(_id) at/after that block height so we jump
-		// straight to the replay window instead of scanning from _id=0 on every
-		// poll. The in-loop `_block_height >= since` filter stays as a correctness
-		// guard (reorg reprocessing can insert a lower-height row at a higher _id).
-		let cursor = 0;
-		if (since == null) {
-			const r = await query(
-				subgraph,
-				`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,
-			);
-			cursor = Number((r[0] as { m?: number | string })?.m ?? 0);
-		} else {
-			const r = await query(
-				subgraph,
-				`SELECT MIN("_id") AS m FROM ${tbl} WHERE "_block_height" >= $1`,
-				[since],
-			);
-			const minId = (r[0] as { m?: number | string | null })?.m;
-			if (minId != null) {
-				// First matching row is _id = minId; `_id > cursor` includes it.
-				cursor = Number(minId) - 1;
-			} else {
-				// Nothing at/after `since` yet — tail live from the current tip.
-				const max = await query(
-					subgraph,
-					`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,
-				);
-				cursor = Number((max[0] as { m?: number | string })?.m ?? 0);
-			}
-		}
-		let lastBeat = Date.now();
-		while (!stream.aborted) {
-			const params: unknown[] = [];
-			const conds = buildWhereConditions(parsed, params);
-			params.push(cursor);
-			conds.push(`"_id" > $${params.length}`);
-			if (since != null) {
-				params.push(since);
-				conds.push(`"_block_height" >= $${params.length}`);
-			}
-			const text = `SELECT * FROM ${tbl} WHERE ${conds.join(" AND ")} ORDER BY "_id" ASC LIMIT 500`;
-			const rows = await query(subgraph, text, params);
-			for (const row of rows) {
-				const r = row as Record<string, unknown>;
-				await stream.writeSSE({ data: JSON.stringify(r), id: String(r._id) });
-				cursor = Math.max(cursor, Number(r._id));
-			}
-			if (rows.length > 0) {
-				lastBeat = Date.now();
-			} else if (Date.now() - lastBeat > 20_000) {
-				// Heartbeat (custom event so SDK onmessage ignores it) keeps the
-				// connection + any proxies alive during idle stretches.
-				await stream.writeSSE({ event: "ping", data: "" });
-				lastBeat = Date.now();
-			}
-			await stream.sleep(1500);
-		}
-	});
+	const subgraph = getOwnedSubgraph(subgraphName, getAccountId(c));
+	return handleTableStream(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/:id", async (c) => {
 	const { subgraphName, tableName, id } = c.req.param();
 	if (id === "count" || id === "stream" || id === "aggregate") return;
-
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-
-	const subgraphSchema = getSubgraphSchema(subgraph);
-	if (!subgraphSchema[tableName]) {
-		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
-	}
-
-	const sn = subgraphSchemaName(subgraph);
-	const result = await query(
-		subgraph,
-		`SELECT * FROM ${ident(sn)}.${ident(tableName)} WHERE "_id" = $1`,
-		[Number.parseInt(id, 10)],
-	);
-
-	if (!result[0]) {
-		return c.json({ error: "Row not found", code: "ROW_NOT_FOUND" }, 404);
-	}
-
-	return c.json({ data: result[0] });
+	const subgraph = getOwnedSubgraph(subgraphName, getAccountId(c));
+	return handleRowById(c, subgraph, tableName, id);
 });
 
 // ── List rows with filters ──────────────────────────────────────────────

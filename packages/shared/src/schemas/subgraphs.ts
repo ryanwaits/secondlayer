@@ -21,6 +21,13 @@ export interface DeploySubgraphRequest {
 	databaseUrl?: string;
 	/** Validate the connection + print the DDL/grant plan without deploying. */
 	dryRun?: boolean;
+	/**
+	 * Read visibility. Server-side defaults: managed deploys → public (anon
+	 * reads on /v1/subgraphs, name claimed in the global public namespace);
+	 * BYO-database deploys → private (public reads hit the user's own
+	 * Postgres, so going public is an explicit choice).
+	 */
+	visibility?: "public" | "private";
 }
 
 export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
@@ -53,12 +60,14 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 			)
 			.optional(),
 		dryRun: z.boolean().optional(),
+		visibility: z.enum(["public", "private"]).optional(),
 	});
 
 export interface DeploySubgraphResponse {
 	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
 	subgraphId: string;
 	version: string;
+	visibility?: "public" | "private";
 	message: string;
 	operationId?: string;
 	reindexStarted?: boolean;
@@ -89,6 +98,7 @@ export interface SubgraphSummary {
 	resourceWarning?: SubgraphResourceWarning;
 	gapCount: number;
 	integrity: "complete" | "gaps_detected";
+	visibility?: "public" | "private";
 	createdAt: string;
 }
 
@@ -138,6 +148,7 @@ export interface SubgraphDetail {
 	version: string;
 	schemaHash?: string;
 	status: string;
+	visibility?: "public" | "private";
 	lastProcessedBlock: number;
 	description?: string;
 	sources?: Record<string, unknown>;

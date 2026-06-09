@@ -30,6 +30,13 @@ export function createV1IndexRouter() {
 					auth: "bearer required (Build+ tier)",
 				},
 				{
+					name: "subgraphs",
+					path: "/v1/subgraphs",
+					description:
+						"Custom indexed views (deployed subgraphs). Public subgraphs are anon-readable; private ones need the owning account's bearer key. Cursor envelope: { rows, next_cursor, tip }.",
+					auth: "none for public subgraphs; bearer for private",
+				},
+				{
 					name: "api-keys",
 					path: "/v1/api-keys",
 					description:
