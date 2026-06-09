@@ -42,6 +42,9 @@ export type X402Challenge = {
 /** Decoded `PAYMENT-RESPONSE` settlement receipt. */
 export type X402Receipt = {
 	success: boolean;
+	/** Settlement tier: `optimistic` (served on broadcast-accept, reconciled
+	 *  async) or `confirmed` (canonical). Absent on older deployments. */
+	state?: "optimistic" | "confirmed";
 	txid: string;
 	payer: string;
 	network: string;

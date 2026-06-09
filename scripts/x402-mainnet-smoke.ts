@@ -5,12 +5,16 @@
  * Usage:
  *   1. Generate a throwaway payer wallet (prints address + key):
  *        bun scripts/x402-mainnet-smoke.ts
- *   2. Fund that address with a little sBTC or USDCx (no STX needed — gasless),
- *      then run the paid call:
- *        X402_TEST_KEY=<key> bun scripts/x402-mainnet-smoke.ts
+ *   2. Fund that address with a little STX, sBTC, or USDCx, then run the paid
+ *      call (STX is simplest for a smoke test — you only fund one asset):
+ *        X402_TEST_KEY=<key> X402_TEST_ASSET=STX bun scripts/x402-mainnet-smoke.ts
+ *
+ * Either way it's gasless: the facilitator sponsors the network fee. With STX you
+ * fund only the tiny transfer amount (~$0.001/call); you never pay gas.
  *
  * Env:
  *   X402_TEST_KEY    payer private key (hex). Absent → generate + print one.
+ *   X402_TEST_ASSET  force the pay asset (STX | sBTC | USDCx). Absent → sBTC-first.
  *   X402_API_BASE    default https://api.secondlayer.tools
  *   X402_TEST_PATH   default /v1/index/events?event_type=ft_transfer&from_height=0
  *
@@ -29,6 +33,11 @@ const PATH =
 	process.env.X402_TEST_PATH ??
 	"/v1/index/events?event_type=ft_transfer&from_height=0";
 const KEY = process.env.X402_TEST_KEY;
+const ASSET = process.env.X402_TEST_ASSET as
+	| "STX"
+	| "sBTC"
+	| "USDCx"
+	| undefined;
 const ADDRESS_VERSION = 22; // mainnet single-sig (SP...)
 
 function generateKey(): string {
@@ -50,10 +59,10 @@ async function main(): Promise<void> {
 		console.log(`  address: ${account.address}`);
 		console.log(`  key:     ${key}`);
 		console.log(
-			"\nFund the address with a little sBTC or USDCx (a few cents; NO STX needed),",
+			"\nFund the address with a few cents of STX (simplest), sBTC, or USDCx,",
 		);
 		console.log(
-			"then re-run:\n  X402_TEST_KEY=<key> bun scripts/x402-mainnet-smoke.ts",
+			"then re-run:\n  X402_TEST_KEY=<key> X402_TEST_ASSET=STX bun scripts/x402-mainnet-smoke.ts",
 		);
 		return;
 	}
@@ -64,7 +73,7 @@ async function main(): Promise<void> {
 
 	const x402fetch = withX402(fetch, {
 		account,
-		preferAssets: ["sBTC", "USDCx", "STX"],
+		preferAssets: ASSET ? [ASSET] : ["sBTC", "USDCx", "STX"],
 		// Generous caps (atomic units) — a $0.001 call is far below these; the guard
 		// only trips on a wildly mispriced offer.
 		maxAmountPerCall: { sBTC: 100_000n, USDCx: 1_000_000n, STX: 100_000_000n },
