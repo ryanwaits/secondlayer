@@ -12,6 +12,15 @@ mock.module("@/components/home/cta-pill", () => ({
 	),
 }));
 
+// CodeBlock is an async Shiki server component — static render can't await it
+mock.module("@/components/code-block", () => ({
+	CodeBlock: ({ code }: { code: string }) => <pre>{code}</pre>,
+}));
+
+mock.module("./pricing/x402-steps", () => ({
+	X402Steps: ({ panes }: { panes: React.ReactNode[] }) => <div>{panes}</div>,
+}));
+
 const { HomeView } = await import("./page");
 import PricingPage from "./pricing/page";
 
@@ -35,26 +44,30 @@ describe("www marketing routes", () => {
 		expect(html).not.toContain('class="index-list"');
 	});
 
-	test("/pricing renders the free-during-beta reframe", () => {
+	test("/pricing renders the free-first billing page", () => {
 		const html = renderToStaticMarkup(<PricingPage />);
-		expect(html).toContain("Free while we");
-		expect(html).toContain("free during open beta");
-		// no paid tiers / compute ladder exposed during beta
-		expect(html).not.toContain("Pay for compute");
-		expect(html).not.toContain("Start Launch");
-		expect(html).not.toContain("/mo");
-		// included surface + forward look
-		expect(html).toContain("Foundation Datasets");
-		expect(html).toContain("What paid plans will add");
-		// CTA
-		expect(html).toContain("Start free");
+		// free-first framing + beta honesty
+		expect(html).toContain("Free is the product.");
+		expect(html).toContain("Open beta");
+		expect(html).toContain("until beta ends");
+		// honest free promise
+		expect(html).toContain("2 public subgraphs");
+		expect(html).toContain("rate-limited either way");
+		// paid ladder + enterprise has no number
+		expect(html).toContain("$99");
+		expect(html).toContain("$499");
+		expect(html).toContain("Contact us");
+		expect(html).not.toContain("$1.5k");
+		// x402 walkthrough grounded in the real wire
+		expect(html).toContain("Pay per call");
+		expect(html).toContain("PAYMENT-SIGNATURE");
+		expect(html).toContain("withX402");
 	});
 
-	test("/pricing skip-link + a11y attributes are present", () => {
+	test("/pricing carries the marketing-page chrome", () => {
 		const html = renderToStaticMarkup(<PricingPage />);
-		expect(html).toContain("Skip to content");
-		expect(html).toContain('id="main"');
-		expect(html).toContain('aria-current="page"');
-		expect(html).toContain('aria-label="Primary"');
+		expect(html).toContain('aria-label="Breadcrumb"');
+		expect(html).toContain(">Pricing<");
+		expect(html).toContain('href="/"');
 	});
 });
