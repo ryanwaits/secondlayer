@@ -52,6 +52,12 @@ h2{margin-top:4.5rem;font-family:var(--display);font-weight:560;font-size:1.5rem
 .x-head .chips{margin-left:auto;display:flex;gap:6px}
 .chip{font-family:var(--mono);font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);border-radius:999px;padding:3px 9px;color:var(--muted)}
 .x-grid{display:grid;grid-template-columns:1.05fr .95fr}
+.x-steps .step{all:unset;box-sizing:border-box;display:flex;gap:14px;padding:.8rem .6rem;border-top:1px dashed var(--border);cursor:pointer;border-radius:8px}
+.x-steps .step:first-child{border-top:none}
+.x-steps .step.on{background:var(--accent-bg)}
+.x-steps .step.on .no{background:var(--accent);color:#fff;border-color:var(--accent)}
+.x-code{display:none;white-space:pre}
+.x-code.on{display:block}
 .x-steps{padding:1.3rem 1.4rem;display:flex;flex-direction:column;gap:0}
 .step{display:flex;gap:14px;padding:.8rem 0;border-top:1px dashed var(--border)}
 .step:first-child{border-top:none}
@@ -60,7 +66,7 @@ h2{margin-top:4.5rem;font-family:var(--display);font-weight:560;font-size:1.5rem
 .step h5{font-family:var(--display);font-size:.875rem;font-weight:560}
 .step p{margin-top:.15rem;font-size:.78rem;color:var(--muted)}
 .step p code{font-family:var(--mono);font-size:.85em;background:var(--chrome);border-radius:4px;padding:0 5px}
-.x-code{border-left:1px solid var(--border);background:var(--bg);padding:1.3rem 1.4rem;font-family:var(--mono);font-size:.7rem;line-height:1.85;overflow-x:auto}
+.x-code{border-left:1px solid var(--border);background:var(--bg);padding:1.3rem 1.4rem;font-family:var(--mono);font-size:.68rem;line-height:1.8;overflow-x:auto;margin:0}
 .x-code .c{color:var(--dim)} .x-code .k{color:var(--accent)} .x-code .g{color:var(--green)}
 .x-foot{padding:.9rem 1.4rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;
   font-family:var(--mono);font-size:.65rem;color:var(--muted)}
@@ -154,25 +160,54 @@ h2{margin-top:4.5rem;font-family:var(--display);font-weight:560;font-size:1.5rem
     <div class="x-head"><span class="t">How x402 billing works</span>
       <div class="chips"><span class="chip">sBTC</span><span class="chip">STX</span><span class="chip">USDC</span></div></div>
     <div class="x-grid">
-      <div class="x-steps">
-        <div class="step"><span class="no">1</span><div><h5>Call without a key</h5><p>Past the free anonymous limits, the API answers <code>402 Payment Required</code> with exact price quotes per accepted token.</p></div></div>
-        <div class="step"><span class="no">2</span><div><h5>Sign a sponsored transfer</h5><p>Your agent signs a token transfer for the quoted amount. We sponsor the transaction — <b>you pay zero gas</b>, in any supported token.</p></div></div>
-        <div class="step"><span class="no">3</span><div><h5>Retry with the payment attached</h5><p>Same request plus an <code>X-PAYMENT</code> header. The response streams immediately; settlement confirms on-chain behind it.</p></div></div>
-        <div class="step"><span class="no">4</span><div><h5>Keep the receipt</h5><p>Every paid response carries a verifiable receipt with the tx id. Per-call floor is <b>$0.001</b> — priced per request, not per month.</p></div></div>
+      <div class="x-steps" id="xsteps">
+        <button class="step on" data-s="1"><span class="no">1</span><div><h5>Call without a key</h5><p>Past the free anonymous limits, the API answers <code>402 Payment Required</code> with exact quotes per accepted token.</p></div></button>
+        <button class="step" data-s="2"><span class="no">2</span><div><h5>Wrap fetch, hold a wallet</h5><p>One line with the SDK: <code>withX402(fetch, &#123; account &#125;)</code>. It selects an offer, signs the sponsored transfer — <b>you pay zero gas</b> — and retries for you.</p></div></button>
+        <button class="step" data-s="3"><span class="no">3</span><div><h5>The paid retry</h5><p>Same request plus a <code>PAYMENT-SIGNATURE</code> header. The response streams immediately; settlement confirms on-chain behind it.</p></div></button>
+        <button class="step" data-s="4"><span class="no">4</span><div><h5>Read the receipt</h5><p>Every paid response carries a <code>PAYMENT-RESPONSE</code> receipt — txid, payer, settlement state. Floor $0.001/call.</p></div></button>
       </div>
-      <div class="x-code"><span class="c"># 1 — the quote</span>
+      <pre class="x-code on" data-c="1"><span class="c"># your agent calls like anyone else…</span>
+GET /v1/index/events?event_type=ft_transfer
+
+<span class="c"># …and past the free limits gets a quote</span>
 HTTP/1.1 <span class="k">402 Payment Required</span>
-{ "accepts": [{ "asset": "sBTC",
-    "amount": "21", <span class="c">// sats ≈ $0.012</span>
-    "payTo": "SP2X…8KQ" }] }
+{
+  "x402Version": 2,
+  "accepts": [{
+    "scheme": "exact",
+    "network": "stacks-mainnet",
+    "asset": "sBTC",
+    "amount": "21",          <span class="c">// atomic units</span>
+    "payTo": "SP2X…8KQ",
+    "extra": { "nonce": "…" }
+  }]
+}</pre>
+      <pre class="x-code" data-c="2"><span class="c">// the code you actually write</span>
+<span class="k">import</span> { withX402, readX402Receipt } <span class="k">from</span> <span class="g">"@secondlayer/sdk"</span>;
 
-<span class="c"># 3 — paid retry</span>
-GET /v1/index/ft-transfers
-<span class="k">X-PAYMENT:</span> eyJzaWduZWQi…
+<span class="k">const</span> x402fetch = withX402(fetch, { account });
 
-<span class="c"># 4 — data + receipt</span>
+<span class="k">const</span> res = <span class="k">await</span> x402fetch(
+  <span class="g">"https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer"</span>
+);
+<span class="c">// offer selection, sponsored signing, and the
+// retry all happen inside that one call</span></pre>
+      <pre class="x-code" data-c="3"><span class="c"># what went over the wire for you</span>
+GET /v1/index/events?event_type=ft_transfer
+<span class="k">PAYMENT-SIGNATURE:</span> eyJzaWduZWQi…
+
+<span class="c"># data streams back immediately</span>
 HTTP/1.1 <span class="g">200 OK</span>
-<span class="k">X-PAYMENT-RESPONSE:</span> { "tx": "0x4f…", "settled": true }</div>
+{ "events": [ … ], "next_cursor": "7978231:42" }</pre>
+      <pre class="x-code" data-c="4"><span class="c">// verify what you paid, in code</span>
+<span class="k">const</span> receipt = readX402Receipt(res);
+<span class="c">// {
+//   success: true,
+//   state: "optimistic" | "confirmed",
+//   txid: "0x4f…",
+//   payer: "SP1Q4…2MVE",
+//   network: "stacks-mainnet"
+// }</span></pre>
     </div>
     <div class="x-foot"><span>standard x402 v2 wire · works with any x402 client</span><span>sponsored = we pay the STX gas</span></div>
   </div>
@@ -191,4 +226,11 @@ HTTP/1.1 <span class="g">200 OK</span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
   </div>
 </div>
+<script>
+const steps=document.querySelectorAll(".x-steps .step");
+for(const st of steps) st.addEventListener("click",()=>{
+  for(const x of steps) x.classList.toggle("on",x===st);
+  for(const c of document.querySelectorAll(".x-code")) c.classList.toggle("on",c.dataset.c===st.dataset.s);
+});
+</script>
 </body></html>
