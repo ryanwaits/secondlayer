@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pricing — layout styles A–D</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@520;560;600&family=Public+Sans:wght@400;460;560&family=Fira+Code:wght@400;560&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<style>
+:root { --bg:#fafafa; --elev:#fff; --chrome:#f1f1f0; --ink:#111210; --muted:#6f7066; --dim:#a3a49b;
+  --border:#e4e4df; --accent:#2563eb; --accent-bg:#eff4ff; --accent-border:#c7d8fd; --green:#147d42; --green-bg:#e9f6ee; --pink:#ff00aa;
+  --display:"Sora",sans-serif; --sans:"Public Sans",sans-serif; --mono:"Fira Code",monospace; }
+*{margin:0;padding:0;box-sizing:border-box} body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55}
+.wrap{max-width:calc(1100px + 3rem);margin:0 auto;padding:3.5rem 1.5rem 7rem}
+.crumb{font-family:var(--mono);font-size:.67rem;font-weight:560;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.crumb span{color:var(--dim);margin:0 6px} .crumb b{color:var(--ink)}
+h1{margin-top:1rem;font-family:var(--display);font-weight:520;font-size:clamp(2.5rem,6vw,3.75rem);letter-spacing:-.02em;line-height:1.05}
+.lede{margin-top:1rem;max-width:58ch;font-size:1rem;color:var(--muted)}
+.tbd{display:inline-block;margin-top:1rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--pink);border:1px dashed var(--pink);border-radius:999px;padding:3px 10px;opacity:.8}
+main{display:none} main.on{display:block}
+.switch{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:4px;background:var(--ink);border-radius:999px;padding:4px}
+.switch button{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#c9cac1;background:none;border:none;border-radius:999px;padding:7px 14px;cursor:pointer}
+.switch button.on{background:#fff;color:var(--ink)}
+h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375rem}
+
+/* A — the ledger (one ruled comparison table, no cards) */
+.ledger{margin-top:2rem;border-top:2px solid var(--ink)}
+.lrow{display:grid;grid-template-columns:1.3fr repeat(4,1fr);gap:1rem;align-items:baseline;padding:.85rem 0;border-bottom:1px dotted var(--border)}
+.lrow.head{border-bottom:1px solid var(--ink);padding-bottom:1.1rem}
+.lrow.head .cell{font-family:var(--display);font-weight:560;font-size:1rem}
+.lrow.head .cell small{display:block;font-family:var(--mono);font-size:.65rem;font-weight:400;color:var(--muted);margin-top:2px}
+.lrow .k{font-size:.875rem;color:var(--muted)}
+.lrow .cell{font-family:var(--mono);font-size:.74rem;font-variant-numeric:tabular-nums}
+.lrow .cell.na{color:var(--dim)}
+.lrow .cell.hot{color:var(--accent);font-weight:560}
+.lrow.price .cell{font-family:var(--display);font-size:1.25rem;font-weight:560}
+.lrow.price .cell small{font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+
+/* B — bands (each tier a full-width editorial band) */
+.band{margin-top:1.25rem;display:grid;grid-template-columns:280px 1fr auto;gap:2rem;align-items:center;border:1px solid var(--border);border-radius:12px;background:var(--elev);padding:1.5rem 1.75rem}
+.band.hot{border-color:var(--accent-border);box-shadow:0 0 0 1px var(--accent-border)}
+.band .n{font-family:var(--display);font-weight:560;font-size:1.125rem}
+.band .pr{font-family:var(--display);font-weight:560;font-size:1.875rem;margin-top:.2rem}
+.band .pr small{font-family:var(--mono);font-size:.62rem;color:var(--muted)}
+.band .for{font-size:.78rem;color:var(--muted);margin-top:.2rem}
+.band ul{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:.4rem 1.5rem}
+.band li{font-family:var(--mono);font-size:.71rem;color:var(--muted)}
+.band li b{color:var(--ink)}
+.band .go{font-size:.8125rem;font-weight:560;border-radius:8px;padding:.55rem 1.1rem;text-decoration:none;white-space:nowrap}
+.band .go.solid{background:var(--accent);color:#fff} .band .go.line{border:1px solid var(--border);color:var(--ink)}
+
+/* C — split: free manifesto left, paid stack right */
+.split{margin-top:2rem;display:grid;grid-template-columns:1.05fr .95fr;gap:1.5rem;align-items:start}
+.freebox{border:2px solid var(--ink);border-radius:14px;padding:1.75rem;background:var(--elev);position:relative}
+.freebox .stamp{position:absolute;top:-14px;right:18px;font-family:"Caveat",cursive;font-size:1.3rem;color:var(--pink);transform:rotate(3deg)}
+.freebox h3{font-family:var(--display);font-size:1.5rem;font-weight:560}
+.freebox .big{font-family:var(--display);font-size:3rem;font-weight:560;margin-top:.5rem}
+.freebox ul{list-style:none;margin-top:1.25rem;display:flex;flex-direction:column;gap:.6rem}
+.freebox li{display:flex;gap:10px;font-size:.875rem}
+.freebox li::before{content:"✓";color:var(--green);font-weight:600}
+.paidstack{display:flex;flex-direction:column;gap:.75rem}
+.prow{display:grid;grid-template-columns:1fr auto auto;gap:1rem;align-items:center;border:1px solid var(--border);border-radius:10px;background:var(--elev);padding:1rem 1.25rem}
+.prow.hot{border-color:var(--accent-border)}
+.prow .n{font-family:var(--display);font-weight:560;font-size:.9375rem}
+.prow .d{font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-top:2px}
+.prow .pr{font-family:var(--display);font-weight:560;font-size:1.25rem;white-space:nowrap}
+.prow .pr small{font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+.prow .go{font-family:var(--mono);font-size:.65rem;color:var(--accent);text-decoration:none;white-space:nowrap}
+
+/* D — receipts (mono itemized stubs) */
+.receipts{margin-top:2rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;align-items:start}
+.rcpt{background:var(--elev);border:1px solid var(--border);border-radius:4px 4px 0 0;padding:1.25rem 1.1rem 1.5rem;font-family:var(--mono);position:relative;
+  box-shadow:0 8px 24px rgba(17,18,16,.05)}
+.rcpt::after{content:"";position:absolute;left:0;right:0;bottom:-8px;height:8px;
+  background:linear-gradient(-45deg,transparent 6px,var(--elev) 0) 0 0/12px 8px repeat-x, linear-gradient(45deg,transparent 6px,var(--elev) 0) 6px 0/12px 8px repeat-x}
+.rcpt .shop{text-align:center;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.rcpt .tname{text-align:center;font-family:var(--display);font-weight:560;font-size:1.0625rem;margin-top:.4rem}
+.rcpt .dash{border-top:1px dashed var(--border);margin:.8rem 0}
+.rcpt .it{display:flex;justify-content:space-between;gap:8px;font-size:.65rem;color:var(--muted);padding:.18rem 0}
+.rcpt .it b{color:var(--ink);font-weight:560}
+.rcpt .tot{display:flex;justify-content:space-between;font-size:.8rem;font-weight:560;padding-top:.5rem}
+.rcpt .tot small{font-size:.58rem;color:var(--muted);font-weight:400}
+.rcpt .thanks{margin-top:.9rem;text-align:center;font-family:"Caveat",cursive;font-size:1.05rem;color:var(--accent)}
+.rcpt.hot{border-color:var(--accent-border);box-shadow:0 0 0 1px var(--accent-border),0 8px 24px rgba(37,99,235,.08)}
+
+/* shared x402 mini strip for variants */
+.xmini{margin-top:3rem;display:flex;gap:1rem;align-items:center;border:1px solid var(--accent-border);background:var(--accent-bg);border-radius:12px;padding:1.1rem 1.3rem;flex-wrap:wrap}
+.xmini .t{font-family:var(--display);font-weight:560;font-size:.9375rem;white-space:nowrap}
+.xmini p{flex:1;min-width:260px;font-size:.8125rem}
+.xmini code{font-family:var(--mono);font-size:.85em;background:var(--elev);border-radius:4px;padding:1px 6px}
+.xmini .chips{display:flex;gap:6px}
+.xmini .chip{font-family:var(--mono);font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--accent-border);border-radius:999px;padding:3px 9px;color:var(--accent)}
+@media(max-width:900px){.split,.receipts{grid-template-columns:1fr}.band{grid-template-columns:1fr;gap:1rem}.lrow{grid-template-columns:1.3fr repeat(4,1fr);font-size:.8em}}
+</style></head><body>
+
+<div class="switch">
+  <button class="on" data-v="a">A · Ledger</button>
+  <button data-v="b">B · Bands</button>
+  <button data-v="c">C · Free-first</button>
+  <button data-v="d">D · Receipts</button>
+</div>
+
+<main id="v-a" class="on"><div class="wrap">
+  <nav class="crumb">Home<span>/</span><b>Pricing</b></nav>
+  <h1>Pay for capacity.<br/>Never for access.</h1>
+  <p class="lede">One ruled table, no cards: every tier on the same lines, every value comparable. The most Field-Notebook of the four — pricing as a ledger you audit, not a banner you're sold.</p>
+  <span class="tbd">entitlement values are placeholders — TBD</span>
+  <div class="ledger">
+    <div class="lrow head"><span class="k"></span>
+      <span class="cell">Free<small>$0 · forever</small></span>
+      <span class="cell">Pro<small>$99/mo</small></span>
+      <span class="cell">Scale<small>$499/mo</small></span>
+      <span class="cell">Enterprise<small>from $1.5k/mo</small></span></div>
+    <div class="lrow"><span class="k">Keyed request budget</span><span class="cell">10 req/s</span><span class="cell hot">100 req/s</span><span class="cell">500 req/s</span><span class="cell">custom</span></div>
+    <div class="lrow"><span class="k">Deployed subgraphs</span><span class="cell">2</span><span class="cell hot">10</span><span class="cell">50</span><span class="cell">custom</span></div>
+    <div class="lrow"><span class="k">Backfill priority</span><span class="cell na">shared lane</span><span class="cell">priority</span><span class="cell">dedicated lane</span><span class="cell">dedicated + SLA</span></div>
+    <div class="lrow"><span class="k">Subscriptions</span><span class="cell">3 · 24h retention</span><span class="cell hot">25 · 7d + replay</span><span class="cell">unlimited · 30d</span><span class="cell">unlimited · custom</span></div>
+    <div class="lrow"><span class="k">Team</span><span class="cell na">—</span><span class="cell na">—</span><span class="cell">roles + projects</span><span class="cell">SSO + invoicing</span></div>
+    <div class="lrow"><span class="k">Support</span><span class="cell">community</span><span class="cell">email</span><span class="cell">Slack · 99.9%</span><span class="cell">SLA + incident channel</span></div>
+    <div class="lrow price"><span class="k"></span><span class="cell">$0</span><span class="cell">$99<small>/mo</small></span><span class="cell">$499<small>/mo</small></span><span class="cell">$1.5k+<small>/mo</small></span></div>
+  </div>
+  <div class="xmini"><span class="t">⚡ No account? Pay per call.</span><p>Past the free limits, any read answers <code>402</code> with a quote — sign a sponsored transfer (zero gas), retry with <code>X-PAYMENT</code>, keep the receipt. Floor $0.001/call.</p><div class="chips"><span class="chip">sBTC</span><span class="chip">STX</span><span class="chip">USDC</span></div></div>
+</div></main>
+
+<main id="v-b"><div class="wrap">
+  <nav class="crumb">Home<span>/</span><b>Pricing</b></nav>
+  <h1>Pay for capacity.<br/>Never for access.</h1>
+  <p class="lede">Editorial bands: each tier is a full-width row read left to right — name and price, then the two-column entitlement list, then the action. Calm, scannable, no card-grid cliché.</p>
+  <span class="tbd">entitlement values are placeholders — TBD</span>
+  <div style="margin-top:2rem">
+    <div class="band"><div><div class="n">Free</div><div class="pr">$0 <small>forever</small></div><div class="for">hobby projects, exploration</div></div>
+      <ul><li><b>10 req/s</b> keyed budget</li><li><b>2</b> subgraphs</li><li><b>3</b> subscriptions · 24h</li><li>full parquet archive</li></ul>
+      <a class="go line" href="#">Mint a key</a></div>
+    <div class="band hot"><div><div class="n">Pro</div><div class="pr">$99 <small>/mo</small></div><div class="for">a production app on Stacks</div></div>
+      <ul><li><b>100 req/s</b> keyed budget</li><li><b>10</b> subgraphs · priority backfill</li><li><b>25</b> subscriptions · 7d + replay</li><li>usage budgets + alerts</li></ul>
+      <a class="go solid" href="#">Start Pro</a></div>
+    <div class="band"><div><div class="n">Scale</div><div class="pr">$499 <small>/mo</small></div><div class="for">indexing as your backbone</div></div>
+      <ul><li><b>500 req/s</b> keyed budget</li><li><b>50</b> subgraphs · dedicated lane</li><li>unlimited subscriptions · 30d</li><li>team roles · Slack · 99.9%</li></ul>
+      <a class="go line" href="#">Start Scale</a></div>
+    <div class="band"><div><div class="n">Enterprise</div><div class="pr">$1.5k+ <small>/mo</small></div><div class="for">infra teams, exchanges</div></div>
+      <ul><li>custom limits + capacity</li><li>priority indexing for your contracts</li><li>BYO database plane</li><li>SLA + incident channel</li></ul>
+      <a class="go line" href="#">Talk to us</a></div>
+  </div>
+  <div class="xmini"><span class="t">⚡ No account? Pay per call.</span><p><code>402</code> quote → sponsored transfer (zero gas) → <code>X-PAYMENT</code> retry → receipt. Floor $0.001/call, settled on Stacks.</p><div class="chips"><span class="chip">sBTC</span><span class="chip">STX</span><span class="chip">USDC</span></div></div>
+</div></main>
+
+<main id="v-c"><div class="wrap">
+  <nav class="crumb">Home<span>/</span><b>Pricing</b></nav>
+  <h1>Free is the product.<br/>Paid is the headroom.</h1>
+  <p class="lede">Free-first: the permanent free tier gets the hero box (it IS the pitch during beta), paid tiers stack quietly beside it as upgrades rather than the main event.</p>
+  <span class="tbd">entitlement values are placeholders — TBD</span>
+  <div class="split">
+    <div class="freebox"><span class="stamp">forever!</span>
+      <h3>Free</h3><div class="big">$0</div>
+      <ul>
+        <li>Anonymous reads on every /v1 surface</li>
+        <li>Ghost keys — <span style="font-family:var(--mono);font-size:.85em">curl -X POST /v1/keys</span>, no signup</li>
+        <li>2 deployed subgraphs, synced from genesis</li>
+        <li>3 webhook subscriptions</li>
+        <li>The full parquet archive, signed manifests</li>
+        <li>MCP server + agent skills</li>
+      </ul>
+    </div>
+    <div class="paidstack">
+      <div class="prow hot"><div><div class="n">Pro</div><div class="d">100 req/s · 10 subgraphs · 25 subs · email support</div></div><div class="pr">$99<small>/mo</small></div><a class="go" href="#">start →</a></div>
+      <div class="prow"><div><div class="n">Scale</div><div class="d">500 req/s · 50 subgraphs · unlimited subs · 99.9%</div></div><div class="pr">$499<small>/mo</small></div><a class="go" href="#">start →</a></div>
+      <div class="prow"><div><div class="n">Enterprise</div><div class="d">custom capacity · BYO plane · SLA</div></div><div class="pr">$1.5k+<small>/mo</small></div><a class="go" href="#">talk →</a></div>
+      <div class="xmini" style="margin-top:.5rem"><span class="t">⚡ Pay per call</span><p>Agents skip plans entirely: <code>402</code> → sponsored transfer → <code>X-PAYMENT</code>. $0.001 floor.</p></div>
+    </div>
+  </div>
+</div></main>
+
+<main id="v-d"><div class="wrap">
+  <nav class="crumb">Home<span>/</span><b>Pricing</b></nav>
+  <h1>Pay for capacity.<br/>Never for access.</h1>
+  <p class="lede">Receipts: each tier is an itemized mono stub with perforated edges — pricing literally printed as the thing you'd get. The most playful take; the Caveat thank-you line carries the Field-Notebook wink.</p>
+  <span class="tbd">entitlement values are placeholders — TBD</span>
+  <div class="receipts">
+    <div class="rcpt"><div class="shop">secondlayer · stacks mainnet</div><div class="tname">Free</div><div class="dash"></div>
+      <div class="it"><span>keyed budget</span><b>10 req/s</b></div><div class="it"><span>subgraphs</span><b>2</b></div>
+      <div class="it"><span>subscriptions</span><b>3 · 24h</b></div><div class="it"><span>parquet archive</span><b>full</b></div>
+      <div class="dash"></div><div class="tot"><span>TOTAL</span><span>$0 <small>forever</small></span></div>
+      <div class="thanks">no card, no signup</div></div>
+    <div class="rcpt hot"><div class="shop">secondlayer · stacks mainnet</div><div class="tname">Pro</div><div class="dash"></div>
+      <div class="it"><span>keyed budget</span><b>100 req/s</b></div><div class="it"><span>subgraphs</span><b>10 · priority</b></div>
+      <div class="it"><span>subscriptions</span><b>25 · 7d</b></div><div class="it"><span>support</span><b>email</b></div>
+      <div class="dash"></div><div class="tot"><span>TOTAL</span><span>$99 <small>/mo</small></span></div>
+      <div class="thanks">most teams land here</div></div>
+    <div class="rcpt"><div class="shop">secondlayer · stacks mainnet</div><div class="tname">Scale</div><div class="dash"></div>
+      <div class="it"><span>keyed budget</span><b>500 req/s</b></div><div class="it"><span>subgraphs</span><b>50 · dedicated</b></div>
+      <div class="it"><span>subscriptions</span><b>unltd · 30d</b></div><div class="it"><span>support</span><b>Slack · 99.9%</b></div>
+      <div class="dash"></div><div class="tot"><span>TOTAL</span><span>$499 <small>/mo</small></span></div>
+      <div class="thanks">indexing as backbone</div></div>
+    <div class="rcpt"><div class="shop">secondlayer · stacks mainnet</div><div class="tname">Enterprise</div><div class="dash"></div>
+      <div class="it"><span>capacity</span><b>custom</b></div><div class="it"><span>indexing</span><b>your contracts first</b></div>
+      <div class="it"><span>plane</span><b>BYO database</b></div><div class="it"><span>support</span><b>SLA + channel</b></div>
+      <div class="dash"></div><div class="tot"><span>TOTAL</span><span>$1.5k+ <small>/mo</small></span></div>
+      <div class="thanks">let&rsquo;s talk</div></div>
+  </div>
+  <div class="xmini"><span class="t">⚡ No account? Pay per call.</span><p><code>402</code> quote → sponsored transfer (zero gas) → <code>X-PAYMENT</code> retry → receipt with tx id. Floor $0.001/call.</p><div class="chips"><span class="chip">sBTC</span><span class="chip">STX</span><span class="chip">USDC</span></div></div>
+</div></main>
+
+<script>
+const tabs=document.querySelectorAll(".switch button");
+for(const b of tabs) b.addEventListener("click",()=>{for(const x of tabs)x.classList.toggle("on",x===b);
+  for(const m of document.querySelectorAll("main"))m.classList.toggle("on",m.id==="v-"+b.dataset.v);window.scrollTo(0,0);});
+</script>
+</body></html>
