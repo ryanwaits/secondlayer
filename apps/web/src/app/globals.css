@@ -470,11 +470,13 @@ a {
 	gap: 9px;
 }
 .page-title-with-logo .logo-primary,
-.marketing-nav-brand .logo-primary {
+.marketing-nav-brand .logo-primary,
+.site-footer-brand .logo-primary {
 	fill: var(--accent);
 }
 .page-title-with-logo .logo-echo,
-.marketing-nav-brand .logo-echo {
+.marketing-nav-brand .logo-echo,
+.site-footer-brand .logo-echo {
 	fill: var(--accent);
 	opacity: 0.24;
 }
@@ -7442,6 +7444,9 @@ a.dataset-shelf-name:hover {
 	max-width: 38ch;
 }
 .site-footer-brand .b {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
 	font-family: var(--font-heading-stack);
 	font-weight: 600;
 	font-size: 0.9375rem;
