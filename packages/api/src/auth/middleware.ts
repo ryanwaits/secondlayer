@@ -10,6 +10,22 @@ import { hashToken } from "./keys.ts";
 // Debounce last_used_at updates: tokenHash → last DB write timestamp
 const lastUpdatedMap = new Map<string, number>();
 
+/**
+ * Thrown when a ghost-account key (anonymous self-serve, unclaimed) attempts a
+ * non-GET request on a requireAuth-gated route. Plain Error with a literal
+ * code: status mapping lives in shared `CODE_TO_STATUS`, matched by code (not
+ * instanceof) in the global error handler.
+ */
+export class GhostKeyReadOnlyError extends Error {
+	code = "GHOST_KEY_READ_ONLY";
+	constructor() {
+		super(
+			"Ghost keys are read-only. Claim your account to unlock writes (deploys, subscriptions, key management).",
+		);
+		this.name = "GhostKeyReadOnlyError";
+	}
+}
+
 export function requireAuth(opts?: {
 	getDb?: typeof _getDb;
 }): MiddlewareHandler {
@@ -108,6 +124,21 @@ export function requireAuth(opts?: {
 
 			if (keyRecord.status !== "active") {
 				throw new AuthenticationError("Invalid API key");
+			}
+
+			// Ghost guard: keys owned by an unclaimed ghost account are read-only.
+			// Only checked on mutating methods, so the hot GET path pays nothing;
+			// for writes it's one indexed PK read on accounts — acceptable.
+			const method = c.req.method.toUpperCase();
+			if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+				const owner = await db
+					.selectFrom("accounts")
+					.select("ghost")
+					.where("id", "=", keyRecord.account_id)
+					.executeTakeFirst();
+				if (owner?.ghost) {
+					throw new GhostKeyReadOnlyError();
+				}
 			}
 
 			c.set("apiKey", keyRecord);

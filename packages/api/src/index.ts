@@ -35,6 +35,7 @@ import subgraphsRouter, {
 import subscriptionsRouter from "./routes/subscriptions.ts";
 import v1ApiKeysRouter from "./routes/v1-api-keys.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
+import v1KeysRouter from "./routes/v1-keys.ts";
 import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import x402Router from "./routes/x402.ts";
@@ -218,6 +219,8 @@ app.route("/x402", x402Router);
 // Agent-reachable scoped key mint — platform-only (OSS uses a static key).
 if (mode === "platform") {
 	app.route("/v1/api-keys", v1ApiKeysRouter);
+	// Anonymous ghost-key mint (no auth; per-IP + global daily caps inside).
+	app.route("/v1/keys", v1KeysRouter);
 }
 
 // Start server

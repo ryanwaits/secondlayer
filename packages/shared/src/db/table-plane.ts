@@ -53,6 +53,7 @@ export const TABLE_TO_DB = {
 	api_keys: "target",
 	sessions: "target",
 	magic_links: "target",
+	claim_tokens: "target",
 	usage_daily: "target",
 	usage_snapshots: "target",
 	account_insights: "target",

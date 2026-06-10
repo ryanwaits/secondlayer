@@ -94,7 +94,7 @@ const apiKeyRows = await db
 		accountRows.map((a, i) => ({
 			key_hash: randomHex(64),
 			key_prefix: `sk-sl_${randomHex(4)}`,
-			name: `${a.email.split("@")[0]}-key-${i + 1}`,
+			name: `${(a.email ?? "ghost").split("@")[0]}-key-${i + 1}`,
 			account_id: a.id,
 			ip_address: `192.168.1.${10 + i}`,
 			last_used_at: new Date(),

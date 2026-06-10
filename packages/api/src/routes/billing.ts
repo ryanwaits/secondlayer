@@ -12,8 +12,6 @@
  * Both are session-authed upstream via `requireAuth`.
  */
 
-import { logger } from "@secondlayer/shared";
-import { getDb } from "@secondlayer/shared/db";
 import {
 	getCaps,
 	upsertCaps,
@@ -23,6 +21,8 @@ import {
 	setAccountPlan,
 	setStripeCustomerId,
 } from "@secondlayer/platform/db/queries/accounts";
+import { logger } from "@secondlayer/shared";
+import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
@@ -87,7 +87,9 @@ app.post("/upgrade", async (c) => {
 	let stripeCustomerId = account.stripe_customer_id;
 	if (!stripeCustomerId) {
 		const customer = await stripe.customers.create({
-			email: account.email,
+			// NULL for ghost accounts (unreachable here in practice — billing
+			// is session-gated and ghosts can't log in until claimed).
+			email: account.email ?? undefined,
 			metadata: { secondlayer_account_id: account.id },
 		});
 		stripeCustomerId = customer.id;

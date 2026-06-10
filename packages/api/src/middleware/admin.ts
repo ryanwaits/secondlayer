@@ -15,7 +15,8 @@ export function requireAdmin(): MiddlewareHandler {
 			.where("id", "=", accountId)
 			.executeTakeFirst();
 
-		if (!account || !ADMIN_EMAILS.includes(account.email)) {
+		// Ghost accounts have NULL emails — never admins.
+		if (!account?.email || !ADMIN_EMAILS.includes(account.email)) {
 			throw new ForbiddenError("Admin access required");
 		}
 

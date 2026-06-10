@@ -14,9 +14,9 @@
  * No-op without STRIPE_SECRET_KEY or in non-platform mode.
  */
 
+import { upsertCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { upsertCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { getStripe } from "./stripe.ts";
 
@@ -95,7 +95,8 @@ async function checkAllCaps(): Promise<void> {
 
 interface CapRow {
 	account_id: string;
-	email: string;
+	/** NULL only for ghost accounts, which never have a Stripe customer. */
+	email: string | null;
 	stripe_customer_id: string | null;
 	monthly_cap_cents: number | null;
 	alert_threshold_pct: number;
@@ -166,6 +167,7 @@ async function sendCapAlert(
 	capCents: number,
 	kind: "threshold" | "frozen",
 ): Promise<void> {
+	if (!row.email) return; // no address to alert (ghost account — shouldn't have a cap)
 	const resendKey = process.env.RESEND_API_KEY;
 	if (!resendKey) {
 		logger.warn("RESEND_API_KEY unset — skipping cap email", {

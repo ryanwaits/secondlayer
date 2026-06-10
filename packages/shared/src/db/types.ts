@@ -240,7 +240,10 @@ export interface ApiKeysTable {
 
 export interface AccountsTable {
 	id: Generated<string>;
-	email: string;
+	/** NULL for unclaimed ghost accounts (anonymous self-serve keys). */
+	email: string | null;
+	/** True for anonymous self-serve accounts until claimed via magic link. */
+	ghost: Generated<boolean>;
 	plan: Generated<string>;
 	display_name: string | null;
 	bio: string | null;
@@ -260,6 +263,20 @@ export interface SessionsTable {
 	revoked_at: Date | null;
 	last_used_at: Date | null;
 	created_at: Generated<Date>;
+}
+
+/**
+ * One-time claim tokens for ghost accounts. The raw token only ever appears in
+ * the claim URL returned at mint time; we store its sha256. A used token marks
+ * the account as claimed (or merged into an existing account).
+ */
+export interface ClaimTokensTable {
+	id: Generated<string>;
+	account_id: string;
+	token_hash: string;
+	created_at: Generated<Date>;
+	expires_at: Date;
+	used_at: Date | null;
 }
 
 export interface MagicLinksTable {
@@ -756,6 +773,7 @@ export interface Database {
 	accounts: AccountsTable;
 	sessions: SessionsTable;
 	magic_links: MagicLinksTable;
+	claim_tokens: ClaimTokensTable;
 	usage_daily: UsageDailyTable;
 	usage_snapshots: UsageSnapshotsTable;
 	account_insights: AccountInsightsTable;
@@ -1001,6 +1019,9 @@ export type InsertAccount = Insertable<AccountsTable>;
 
 export type MagicLink = Selectable<MagicLinksTable>;
 export type InsertMagicLink = Insertable<MagicLinksTable>;
+
+export type ClaimToken = Selectable<ClaimTokensTable>;
+export type InsertClaimToken = Insertable<ClaimTokensTable>;
 
 export type Session = Selectable<SessionsTable>;
 export type InsertSession = Insertable<SessionsTable>;

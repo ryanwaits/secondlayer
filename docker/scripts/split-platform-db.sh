@@ -55,6 +55,7 @@ CONTROL_TABLES=(
   api_keys
   sessions
   magic_links
+  claim_tokens
   usage_daily
   usage_snapshots
   account_insights
