@@ -1,4 +1,6 @@
 import { CtaPill } from "@/components/home/cta-pill";
+import { HomeFeatures, HomeGetStarted } from "@/components/home/home-sections";
+import { ProtocolMarquee } from "@/components/home/protocol-marquee";
 import { HomeStatusBadge } from "@/components/status/home-status-badge";
 import type { SystemStatus } from "@/lib/types";
 import type { Metadata } from "next";
@@ -35,7 +37,28 @@ async function readStatusSnapshot(): Promise<SystemStatus | null> {
 
 export default async function Home() {
 	const status = await readStatusSnapshot();
-	return <HomeView status={status} />;
+	return (
+		<>
+			<HomeView status={status} />
+			<ProtocolMarquee />
+			<HomeFeatures />
+			<HomeGetStarted />
+			<section className="home-final">
+				<h2>
+					Stop running nodes.
+					<br />
+					Ship your indexer once.
+				</h2>
+				<p className="home-sub">
+					Open data, open SDKs, honest infrastructure. The indexing every
+					Stacks team rebuilds — run as a utility.
+				</p>
+				<div className="home-ctas">
+					<CtaPill />
+				</div>
+			</section>
+		</>
+	);
 }
 
 // Sync inner view, exported for the smoke test (renderToStaticMarkup is sync).

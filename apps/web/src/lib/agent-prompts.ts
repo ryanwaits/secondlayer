@@ -212,6 +212,9 @@ export const QUICK_SUBGRAPH_PROMPT = getAgentPrompt("subgraph-alex-swaps");
 export const DROPDOWN_DEPLOY_SUBGRAPH = getAgentPrompt("subgraph-create");
 export const DASHBOARD_SUBGRAPHS_PROMPT = getAgentPrompt("subgraph-create");
 export const MARKETING_SUBGRAPHS_PROMPT = getAgentPrompt("subgraph-create");
+// Homepage "hand it to your agent" card reuses the canonical setup prompt so
+// the agent-onboarding steps stay single-sourced with the subgraphs page.
+export const MARKETING_HOME_PROMPT = getAgentPrompt("subgraph-create");
 export const MARKETING_SUBSCRIPTIONS_PROMPT = getAgentPrompt(
 	"subscription-create",
 );
