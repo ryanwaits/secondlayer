@@ -4,10 +4,30 @@ import { LivePane } from "../live-pane";
 import { useInViewOnce, useStagedCycle } from "../use-demo";
 
 const SCRIPT = [
-	{ block: "#7,978,232", events: "8 events", at: "+0.0s", cursor: "7,978,232:8" },
-	{ block: "#7,978,233", events: "11 events", at: "+2.4s", cursor: "7,978,233:11" },
-	{ block: "#7,978,234", events: "6 events", at: "+4.9s", cursor: "7,978,234:6" },
-	{ block: "#7,978,235", events: "12 events", at: "+7.3s", cursor: "7,978,235:12" },
+	{
+		block: "#7,978,232",
+		events: "8 events",
+		at: "+0.0s",
+		cursor: "7,978,232:8",
+	},
+	{
+		block: "#7,978,233",
+		events: "11 events",
+		at: "+2.4s",
+		cursor: "7,978,233:11",
+	},
+	{
+		block: "#7,978,234",
+		events: "6 events",
+		at: "+4.9s",
+		cursor: "7,978,234:6",
+	},
+	{
+		block: "#7,978,235",
+		events: "12 events",
+		at: "+7.3s",
+		cursor: "7,978,235:12",
+	},
 ] as const;
 
 const MARKS = [600, 2100, 3600, 5100];

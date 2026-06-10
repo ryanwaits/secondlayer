@@ -63,10 +63,7 @@ export function SubgraphSchemaPane() {
 					{TABLES.map((t, i) => {
 						const st = cardState(i);
 						return (
-							<div
-								className={`home-schema${st.on ? " on" : ""}`}
-								key={t.name}
-							>
+							<div className={`home-schema${st.on ? " on" : ""}`} key={t.name}>
 								<div className="home-schema-h">
 									<span className="tname">{t.name}</span>
 									{st.resolved ? (

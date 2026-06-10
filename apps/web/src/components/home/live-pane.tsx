@@ -21,7 +21,9 @@ export function LivePane({
 	return (
 		<div className="home-pane">
 			<div className="home-pane-head">
-				<span className={`home-dot home-dot-${dot}${dot === "amber" || dot === "green" ? " pulse" : ""}`} />
+				<span
+					className={`home-dot home-dot-${dot}${dot === "amber" || dot === "green" ? " pulse" : ""}`}
+				/>
 				<span className="home-pane-title">{title}</span>
 				<span className="home-pane-right">{right ?? " "}</span>
 			</div>

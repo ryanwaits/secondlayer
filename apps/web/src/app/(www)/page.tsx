@@ -50,8 +50,8 @@ export default async function Home() {
 					Ship your indexer once.
 				</h2>
 				<p className="home-sub">
-					Open data, open SDKs, honest infrastructure. The indexing every
-					Stacks team rebuilds — run as a utility.
+					Open data, open SDKs, honest infrastructure. The indexing every Stacks
+					team rebuilds — run as a utility.
 				</p>
 				<div className="home-ctas">
 					<CtaPill />

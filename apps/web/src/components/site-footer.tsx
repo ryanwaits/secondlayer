@@ -19,7 +19,10 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 		links: [
 			{ label: "Docs", href: "/docs" },
 			{ label: "Explore", href: "/subgraphs/explore" },
-			{ label: "OpenAPI", href: "https://api.secondlayer.tools/v1/openapi.json" },
+			{
+				label: "OpenAPI",
+				href: "https://api.secondlayer.tools/v1/openapi.json",
+			},
 			{ label: "MCP", href: "/mcp" },
 			{ label: "Status", href: "/status" },
 		],
