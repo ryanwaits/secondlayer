@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const FREE_INCLUDES = [
 	"Public reads on Index + Streams — anonymous or with a key, rate-limited either way",
 	"Ghost keys: curl -X POST /v1/keys, no signup, claim with an email anytime",
-	"2 public subgraphs, synced from genesis",
+	"2 public subgraphs — live indexing + the last 30 days of history",
 	"3 webhook subscriptions, 24h delivery log",
 	"The full parquet archive with signed manifests",
 	"MCP server + agent skills",
@@ -28,7 +28,7 @@ const PAID_TIERS = [
 		per: "/mo",
 		hot: true,
 		summary:
-			"100 req/s · 10 subgraphs incl. private · priority backfills · 25 subscriptions, 7d log + replay · usage budgets · email support",
+			"100 req/s · 10 subgraphs incl. private · genesis backfills · 25 subscriptions, 7d log + replay · usage budgets · email support",
 	},
 	{
 		name: "Scale",
@@ -36,7 +36,7 @@ const PAID_TIERS = [
 		per: "/mo",
 		hot: false,
 		summary:
-			"500 req/s · 50 subgraphs incl. private, dedicated backfill lane · unlimited subscriptions, 30d log · team roles + shared projects · Slack support, 99.9% target",
+			"500 req/s · 50 subgraphs incl. private · genesis backfills, dedicated lane · unlimited subscriptions, 30d log · team roles + shared projects · Slack support, 99.9% target",
 	},
 	{
 		name: "Enterprise",
@@ -55,7 +55,7 @@ const FAQ = [
 	},
 	{
 		q: "What does a paid plan actually buy?",
-		a: "Capacity and guarantees: a bigger request budget under your own key, more subgraphs (including private ones), longer webhook retention, support and SLAs. Never access to public data.",
+		a: "Capacity and guarantees: a bigger request budget under your own key, more subgraphs (including private ones), full genesis backfills instead of the 30-day window, longer webhook retention, support and SLAs. Never access to public data.",
 	},
 	{
 		q: "When does billing start?",
