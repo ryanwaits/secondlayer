@@ -5,7 +5,6 @@ import {
 	CLI_SNIPPET,
 	DUCKDB_SNIPPET,
 	INDEX_SNIPPET,
-	SHELL_GETSTARTED_SNIPPET,
 	STREAMS_SNIPPET,
 	SUBGRAPHS_SNIPPET,
 	SUBSCRIPTIONS_SNIPPET,
@@ -39,10 +38,8 @@ function Feature({
 	return (
 		<div className="home-feature">
 			<div className="home-feature-head">
-				<div>
-					<h3>{title}</h3>
-					<p>{children}</p>
-				</div>
+				<h3>{title}</h3>
+				<p>{children}</p>
 				<Link href={docsHref} className="home-docs-link">
 					{docsLabel} <span className="ar">→</span>
 				</Link>
@@ -145,20 +142,7 @@ export function HomeGetStarted() {
 					speaks MCP, so the fastest path might be pasting one block into your
 					harness.
 				</p>
-				<div className="home-gs">
-					<div className="home-gs-card">
-						<div className="home-gs-head">
-							<span className="t">In your shell</span>
-							<span className="h">~60 seconds</span>
-						</div>
-						<div className="home-gs-body">
-							<CodeBlock code={SHELL_GETSTARTED_SNIPPET} lang="typescript" />
-						</div>
-						<div className="home-gs-foot">
-							Managed deploys are public by default — shareable /v1 URL + a page
-							on Explore.
-						</div>
-					</div>
+				<div className="home-gs home-gs-single">
 					<div className="home-gs-card">
 						<div className="home-gs-head">
 							<span className="t">In your agent&apos;s harness</span>

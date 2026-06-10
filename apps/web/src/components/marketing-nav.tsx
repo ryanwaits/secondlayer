@@ -24,7 +24,17 @@ export function MarketingNav() {
 	return (
 		<nav className="marketing-nav" aria-label="Products">
 			<Link href="/" className="marketing-nav-brand">
-				secondlayer
+				<svg
+					viewBox="4 7 40 28"
+					width="22"
+					height="15"
+					fill="none"
+					aria-hidden="true"
+				>
+					<polygon points="8,25 28,17 42,25 22,33" className="logo-echo" />
+					<polygon points="8,19 28,11 42,19 22,27" className="logo-primary" />
+				</svg>
+				<span>secondlayer</span>
 			</Link>
 			{PRODUCTS.map((p) => {
 				const active =
