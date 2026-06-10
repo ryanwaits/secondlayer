@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sbtc-flows — Explore — secondlayer (mock v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;520;560;600&family=Public+Sans:wght@400;460;500;560;600&family=Fira+Code:wght@400;460;560&family=Caveat:wght@460;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fafafa; --ink: #111111; --bg-elevated: #ffffff; --bg-chrome: #f0f0f0;
+  --border: #e5e5e5; --border-hover: #dddddd;
+  --text-muted: rgba(0,0,0,0.65); --text-dim: rgba(0,0,0,0.32);
+  --accent: #2563eb; --accent-bg: rgba(37,99,235,0.06); --accent-border: rgba(37,99,235,0.2);
+  --accent-contrast: #ffffff; --pink: #ff00aa; --green: #22c55e;
+  --sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Fira Code", SFMono-Regular, Consolas, monospace;
+  --note: "Caveat", cursive;
+  --ease-smooth: cubic-bezier(0.19, 1, 0.22, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111111; --ink: #ececec; --bg-elevated: #1a1a1a; --bg-chrome: #0c0c0c;
+    --border: #2e2e2e; --border-hover: #3a3a3a;
+    --text-muted: rgba(255,255,255,0.6); --text-dim: rgba(255,255,255,0.28);
+    --accent: #8aa7f8; --accent-bg: rgba(138,167,248,0.08); --accent-border: rgba(138,167,248,0.25);
+    --accent-contrast: #111111;
+  }
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--sans); font-size: 0.875rem; font-weight: 460;
+  line-height: 1.43; letter-spacing: -0.00563rem;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 1.5rem 6rem; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; height: 48px; max-width: 1180px; margin: 0 auto; padding: 0 1.5rem; }
+.topbar .brand { font-family: var(--display); font-weight: 600; font-size: 0.9375rem; }
+.topbar nav { display: flex; gap: 1.5rem; }
+.topbar nav a { font-family: var(--mono); font-size: 0.6875rem; font-weight: 560; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); padding: 14px 0; }
+.topbar nav a[aria-current] { color: var(--ink); }
+@media (hover: hover) { .topbar nav a:hover { color: var(--ink); } }
+
+.crumb { font-family: var(--mono); font-size: 0.6875rem; font-weight: 560; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); margin: 3rem 0 1rem; }
+.crumb a { color: var(--text-muted); }
+.crumb span { color: var(--text-dim); margin: 0 0.4em; }
+
+/* two-column reference layout */
+.ref { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 3rem; align-items: start; }
+@media (max-width: 980px) { .ref { grid-template-columns: 1fr; } .rail { position: static !important; } }
+
+/* left: editorial reference */
+.head { padding-bottom: 1.75rem; border-bottom: 1px solid var(--border); }
+.head-line { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.head h1 { font-family: var(--display); font-weight: 520; font-size: clamp(1.75rem, 4vw, 2.25rem); line-height: 1; letter-spacing: -0.01em; }
+.vtag { font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); }
+.badge {
+  font-family: var(--mono); font-size: 0.625rem; font-weight: 560; letter-spacing: 0.04em;
+  text-transform: uppercase; border-radius: 3px; padding: 3px 7px;
+  color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-border);
+}
+.head p.desc { margin-top: 0.9rem; max-width: 58ch; color: var(--text-muted); font-size: 0.9375rem; }
+.head .by { font-size: 0.75rem; color: var(--text-muted); }
+.head-meta { display: flex; gap: 1.6rem; margin-top: 1.1rem; flex-wrap: wrap; }
+.hm { display: flex; flex-direction: column; gap: 3px; }
+.hm .v { font-family: var(--mono); font-size: 0.8125rem; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 5px; }
+.hm .k { font-family: var(--mono); font-size: 0.59rem; font-weight: 560; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.dot { width: 6px; height: 6px; border-radius: 999px; background: var(--green); flex: none; }
+
+/* endpoint sections: one per table, scalar-style */
+.endpoint { padding: 1.75rem 0; border-bottom: 1px solid var(--border); }
+.endpoint:last-of-type { border-bottom: none; }
+.endpoint h2 { font-family: var(--display); font-size: 1rem; font-weight: 560; letter-spacing: -0.015em; }
+.endpoint .about { color: var(--text-muted); margin-top: 0.35rem; max-width: 54ch; }
+.ep {
+  display: flex; align-items: center; gap: 0.5rem; min-width: 0;
+  background: var(--bg-chrome); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 6px 6px 10px; margin-top: 0.8rem;
+}
+.ep .m {
+  font-family: var(--mono); font-size: 0.625rem; font-weight: 560; letter-spacing: 0.04em;
+  color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-border);
+  border-radius: 3px; padding: 2px 5px; flex: none;
+}
+.ep .p { font-family: var(--mono); font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.ep .p .dim { color: var(--text-muted); }
+.copy {
+  flex: none; display: inline-grid; place-items: center; width: 58px; height: 26px;
+  font-family: var(--mono); font-size: 0.625rem; font-weight: 560; color: var(--text-muted);
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  transition: border-color 160ms var(--ease-smooth), color 160ms var(--ease-smooth);
+}
+@media (hover: hover) { .copy:hover { border-color: var(--text-muted); color: var(--ink); } }
+.try {
+  flex: none; height: 26px; padding: 0 10px;
+  font-family: var(--mono); font-size: 0.625rem; font-weight: 560;
+  color: var(--accent); background: none; border: 1px solid var(--accent-border); border-radius: 4px;
+  cursor: pointer; transition: background-color 160ms var(--ease-smooth);
+}
+@media (hover: hover) { .try:hover { background: var(--accent-bg); } }
+
+/* columns: attribute list, not a boxed table */
+.attrs { margin-top: 0.9rem; }
+.attr { display: flex; align-items: baseline; gap: 0.75rem; padding: 0.45rem 0; border-top: 1px dashed var(--border); }
+.attr:first-child { border-top: none; }
+.attr .an { font-family: var(--mono); font-size: 0.74rem; min-width: 11rem; }
+.attr .at { font-family: var(--mono); font-size: 0.625rem; color: var(--accent); flex: none; }
+.attr .ad { font-size: 0.78rem; color: var(--text-muted); }
+.params { margin-top: 0.7rem; font-family: var(--mono); font-size: 0.67rem; color: var(--text-muted); }
+.params code { color: var(--ink); }
+
+/* fork strip */
+.fork { margin-top: 2rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elevated); padding: 1rem 1.1rem; }
+.fork .lbl { font-family: var(--display); font-size: 0.875rem; font-weight: 560; }
+.fork .ep { margin-top: 0.7rem; }
+.fork .fine { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.6rem; }
+.fork .fine em { font-style: normal; color: var(--text-dim); }
+
+/* right rail: live request/response, sticky */
+.rail { position: sticky; top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+.rail-note { align-self: flex-end; transform: rotate(2deg); font-family: var(--note); font-size: 1.25rem; color: var(--accent); margin-bottom: -0.5rem; }
+.req { background: var(--bg-chrome); border: 1px solid var(--border); border-radius: 8px 8px 0 0; padding: 0.7rem 0.9rem; }
+.req-line { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.req-line .m { font-family: var(--mono); font-size: 0.71rem; font-weight: 560; color: var(--accent); flex: none; }
+.req-line .url { font-family: var(--mono); font-size: 0.71rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.req-line .url .q { color: var(--text-muted); }
+.send {
+  margin-left: auto; flex: none; font-size: 0.75rem; font-weight: 560;
+  color: var(--accent-contrast); background: var(--accent); border: none; border-radius: 6px;
+  padding: 6px 14px; min-height: 30px; cursor: pointer; transition: opacity 160ms var(--ease-smooth);
+}
+@media (hover: hover) { .send:hover { opacity: 0.9; } }
+.req-filters { display: flex; gap: 0.4rem; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed var(--border); flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 0.645rem; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px; background: var(--bg); }
+.chip.set { color: var(--accent); border-color: var(--accent-border); }
+.res { background: var(--bg-elevated); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; padding: 0.7rem 0.9rem 0.9rem; }
+.res-meta { display: flex; align-items: center; gap: 0.6rem; font-family: var(--mono); font-size: 0.645rem; color: var(--text-muted); }
+.res-meta .copy { margin-left: auto; width: 76px; }
+.res pre { margin: 0.55rem 0 0; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; overflow-x: auto; }
+.res.idle pre { opacity: 0.55; }
+.res .hint { font-family: var(--note); font-size: 1.05rem; color: var(--text-muted); margin-top: 0.35rem; }
+.j-k { color: var(--text-muted); } .j-s { color: var(--ink); } .j-n { color: var(--accent); } .j-p { color: var(--text-dim); }
+
+/* agents block under rail */
+.agents { border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elevated); padding: 0.8rem 0.9rem; }
+.agents .t { font-family: var(--mono); font-size: 0.59rem; font-weight: 560; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.agents .links { display: flex; gap: 0.4rem; margin-top: 0.55rem; flex-wrap: wrap; }
+.agents a { font-family: var(--mono); font-size: 0.67rem; color: var(--ink); background: var(--bg-chrome); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; transition: border-color 160ms var(--ease-smooth); }
+@media (hover: hover) { .agents a:hover { border-color: var(--text-muted); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { opacity: 0; transform: translateY(6px); animation: in 600ms var(--ease-smooth) forwards; }
+  @keyframes in { to { opacity: 1; transform: none; } }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#">secondlayer</a>
+  <nav>
+    <a href="#">Datasets</a>
+    <a href="#" aria-current="page">Subgraphs</a>
+    <a href="#">Streams</a>
+    <a href="#">Docs</a>
+    <a href="#">Console</a>
+  </nav>
+</header>
+
+<main class="wrap">
+  <nav class="crumb reveal" aria-label="Breadcrumb"><a href="./subgraphs-explore-v2.html">Subgraphs</a><span>/</span><a href="./subgraphs-explore-v2.html">Explore</a><span>/</span>sbtc-flows</nav>
+
+  <div class="ref">
+    <!-- left: the reference -->
+    <div class="reveal">
+      <section class="head">
+        <div class="head-line">
+          <h1>sbtc-flows</h1>
+          <span class="vtag">v1.4.2</span>
+          <span class="badge">public</span>
+        </div>
+        <p class="desc">Every sBTC deposit, withdrawal, and transfer, decoded with running
+        per-address balances. <span class="by">by secondlayer · indexing
+        <code style="font-family:var(--mono);font-size:0.85em">SM3VDXK3…sbtc-token</code> since block 167,200</span></p>
+        <div class="head-meta">
+          <span class="hm"><span class="v">2,418,553</span><span class="k">rows</span></span>
+          <span class="hm"><span class="v">3</span><span class="k">tables</span></span>
+          <span class="hm"><span class="v"><span class="dot"></span>synced</span><span class="k">0 behind</span></span>
+          <span class="hm"><span class="v">187,442</span><span class="k">chain tip</span></span>
+        </div>
+      </section>
+
+      <section class="endpoint">
+        <h2>transfers</h2>
+        <p class="about">One row per sBTC transfer event, newest last. Filter any column with
+        <code style="font-family:var(--mono);font-size:0.85em">col.op=value</code>.</p>
+        <div class="ep">
+          <span class="m">GET</span>
+          <span class="p"><span class="dim">/v1/subgraphs/sbtc-flows</span>/transfers</span>
+          <button class="try" type="button">try</button>
+          <button class="copy" type="button" data-copy="curl 'https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers?_limit=3&_order=desc'" aria-label="Copy curl for transfers">copy</button>
+        </div>
+        <div class="attrs">
+          <div class="attr"><span class="an">sender</span><span class="at">principal</span><span class="ad">sending address</span></div>
+          <div class="attr"><span class="an">recipient</span><span class="at">principal</span><span class="ad">receiving address</span></div>
+          <div class="attr"><span class="an">amount</span><span class="at">uint</span><span class="ad">sats, lossless string</span></div>
+          <div class="attr"><span class="an">memo</span><span class="at">text</span><span class="ad">optional transfer memo</span></div>
+          <div class="attr"><span class="an">_block_height · _tx_id</span><span class="at">system</span><span class="ad">provenance on every row</span></div>
+        </div>
+        <p class="params">params: <code>_limit</code> · <code>_order=asc|desc</code> · <code>cursor=&lt;next_cursor&gt;</code> · <code>_fields</code> · <code>amount.gte=…</code> · also <code>/count</code> <code>/aggregate</code> <code>/stream</code></p>
+      </section>
+
+      <section class="endpoint">
+        <h2>deposits</h2>
+        <p class="about">Bridge deposits with their Bitcoin txid and acceptance status.</p>
+        <div class="ep">
+          <span class="m">GET</span>
+          <span class="p"><span class="dim">/v1/subgraphs/sbtc-flows</span>/deposits</span>
+          <button class="try" type="button">try</button>
+          <button class="copy" type="button" data-copy="curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/deposits" aria-label="Copy curl for deposits">copy</button>
+        </div>
+        <div class="attrs">
+          <div class="attr"><span class="an">recipient</span><span class="at">principal</span><span class="ad">credited address</span></div>
+          <div class="attr"><span class="an">amount</span><span class="at">uint</span><span class="ad">sats</span></div>
+          <div class="attr"><span class="an">btc_txid</span><span class="at">text</span><span class="ad">L1 transaction</span></div>
+          <div class="attr"><span class="an">status</span><span class="at">text</span><span class="ad">pending · accepted · rejected</span></div>
+        </div>
+      </section>
+
+      <section class="endpoint">
+        <h2>balances</h2>
+        <p class="about">Current sBTC balance per address — one row per holder, updated every block.</p>
+        <div class="ep">
+          <span class="m">GET</span>
+          <span class="p"><span class="dim">/v1/subgraphs/sbtc-flows</span>/balances</span>
+          <button class="try" type="button">try</button>
+          <button class="copy" type="button" data-copy="curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/balances" aria-label="Copy curl for balances">copy</button>
+        </div>
+        <div class="attrs">
+          <div class="attr"><span class="an">address</span><span class="at">principal</span><span class="ad">holder</span></div>
+          <div class="attr"><span class="an">balance</span><span class="at">uint</span><span class="ad">sats, running</span></div>
+          <div class="attr"><span class="an">updated_at_block</span><span class="at">uint</span><span class="ad">last change</span></div>
+        </div>
+      </section>
+
+      <div class="fork">
+        <span class="lbl">Build one like this</span>
+        <div class="ep">
+          <span class="m" style="color:var(--ink);background:var(--bg);border-color:var(--border)">CLI</span>
+          <span class="p">sl subgraphs scaffold SM3VDXK3…HM.sbtc-token -o my-sbtc.ts</span>
+          <button class="copy" type="button" data-copy="sl subgraphs scaffold SM3VDXK3T0N4XS4CHC2Z4HJ4HV0AVHJ50V0RX2HM.sbtc-token -o my-sbtc.ts" aria-label="Copy scaffold command">copy</button>
+        </div>
+        <p class="fine">Scaffolds a subgraph over the same contract — deploy under your own name and
+        it lands on Explore. <em>View source · remix in chat arrives when owners opt in.</em></p>
+      </div>
+    </div>
+
+    <!-- right: sticky live rail -->
+    <aside class="rail reveal" aria-label="Live query">
+      <span class="rail-note" aria-hidden="true">try it — it’s live</span>
+      <div>
+        <div class="req">
+          <div class="req-line">
+            <span class="m">GET</span>
+            <span class="url">/transfers<span class="q">?_limit=3&amp;_order=desc</span></span>
+            <button class="send" type="button">Send</button>
+          </div>
+          <div class="req-filters" aria-label="Query filters">
+            <span class="chip set">_limit 3</span>
+            <span class="chip set">_order desc</span>
+            <span class="chip">sender any</span>
+            <span class="chip">amount.gte any</span>
+          </div>
+        </div>
+        <div class="res idle">
+          <div class="res-meta">
+            <span class="dot" style="opacity:0.35"></span>
+            <span>idle · response shape</span>
+            <span class="copy" style="width:76px"><button class="copy" type="button" style="width:76px;border:none;background:none" data-copy="curl 'https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers?_limit=3&_order=desc'" aria-label="Copy curl">copy curl</button></span>
+          </div>
+          <pre>{
+  <span class="j-k">"rows"</span>: [
+    { <span class="j-k">"_id"</span>: <span class="j-n">2418553</span>,
+      <span class="j-k">"_block_height"</span>: <span class="j-n">187442</span>,
+      <span class="j-k">"sender"</span>: <span class="j-s">"SP2J6…X4QD"</span>,
+      <span class="j-k">"recipient"</span>: <span class="j-s">"SP3K8…9TRF"</span>,
+      <span class="j-k">"amount"</span>: <span class="j-s">"21000000"</span> }<span class="j-p">,</span>
+    <span class="j-p">…2 more</span>
+  ],
+  <span class="j-k">"next_cursor"</span>: <span class="j-s">"2418550"</span>,
+  <span class="j-k">"tip"</span>: {
+    <span class="j-k">"block_height"</span>: <span class="j-n">187442</span>,
+    <span class="j-k">"blocks_behind"</span>: <span class="j-n">0</span> }
+}</pre>
+          <p class="hint" aria-hidden="true">press Send — no key, no login</p>
+        </div>
+      </div>
+      <div class="agents">
+        <span class="t">for agents</span>
+        <div class="links">
+          <a href="#">docs.md</a>
+          <a href="#">openapi.json</a>
+          <a href="#">schema.json</a>
+          <a href="#">stream (SSE)</a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+for (const btn of document.querySelectorAll("[data-copy]")) {
+  btn.addEventListener("click", async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch {}
+    const was = btn.textContent; btn.textContent = "copied";
+    setTimeout(() => { btn.textContent = was; }, 1200);
+  });
+}
+</script>
+</body>
+</html>

@@ -59,6 +59,8 @@ docs/*
 !docs/adr/**
 !docs/sprints/
 !docs/sprints/**
+!docs/mocks/
+!docs/mocks/**
 !docs/marketing/
 !docs/marketing/**
 !docs/runbook/
