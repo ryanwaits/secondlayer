@@ -7352,6 +7352,22 @@ a.dataset-shelf-name:hover {
 	min-width: 8ch;
 	text-align: right;
 }
+.home-cmd-ic {
+	display: inline-grid;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	color: var(--text-muted);
+	transition: color var(--duration-snappy) var(--ease-snappy);
+}
+.home-cmd:hover .home-cmd-ic {
+	color: var(--text-main);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.home-cmd-ic.busy { animation: home-pulse 1s ease-in-out infinite; }
+	.home-cmd.minted-pop .home-cmd-ic,
+	.home-cmd-ic svg { transition: transform 160ms var(--ease-snappy); }
+}
 .home-cmd-mint .home-cmd-label {
 	min-width: 34ch;
 	text-align: left;
@@ -7373,10 +7389,12 @@ a.dataset-shelf-name:hover {
 	gap: 0.8rem;
 }
 .home-mint-fine {
-	padding-left: 18px;
-	font-family: var(--font-mono-stack);
-	font-size: 0.67rem;
-	color: var(--text-muted);
+	align-self: flex-end;
+	padding-right: 18px;
+	font-family: var(--font-cursive);
+	font-size: 1.2rem;
+	line-height: 1.2;
+	color: var(--accent);
 }
 .home-ghost-cta {
 	display: inline-flex;
