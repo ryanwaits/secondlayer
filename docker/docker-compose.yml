@@ -131,6 +131,8 @@ services:
       X402_SPOT_URL: ${X402_SPOT_URL:-}
       X402_SPOT_SBTC_USD: ${X402_SPOT_SBTC_USD:-}
       X402_SPOT_STX_USD: ${X402_SPOT_STX_USD:-}
+      # Ghost-key claim URLs (POST /v1/keys) point at the marketing site.
+      PLATFORM_BASE_URL: ${PLATFORM_BASE_URL:-https://secondlayer.tools}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
       INDEXER_URL: ${INDEXER_URL:-http://indexer:3700}
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
