@@ -1,33 +1,38 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { HomeView } from "./page";
+
+// CtaPill is a client component with hooks; this suite renders trees
+// statically (renderToStaticMarkup is sync), so stub it with its
+// install-mode static output.
+mock.module("@/components/home/cta-pill", () => ({
+	CtaPill: () => (
+		<button type="button" className="home-cmd">
+			npm install @secondlayer/sdk
+		</button>
+	),
+}));
+
+const { HomeView } = await import("./page");
 import PricingPage from "./pricing/page";
 
 describe("www marketing routes", () => {
-	test("/ renders the product index", () => {
+	test("/ renders the rewritten homepage hero", () => {
 		const html = renderToStaticMarkup(<HomeView status={null} />);
-		// Page chrome.
-		expect(html).toContain('class="homepage"');
-		expect(html).toContain("page-title");
-		expect(html).toContain("secondlayer");
-		// Logo renders inline next to the wordmark.
-		expect(html).toContain("page-title-with-logo");
-		expect(html).toContain("logo-primary");
-		// Intro prose: agent-native framing + chain-events thesis.
-		expect(html).toContain("agent-native data plane for Stacks");
-		expect(html).toContain("apps and agents need them in any shape");
-		// Data-plane product index: the four surfaces render as a list. The old
-		// "Products"/"Tools" group headings were dropped in the redesign.
-		expect(html).toContain('class="index-list"');
-		expect(html).not.toContain(">Tools<");
-		expect(html).toContain(">Streams<");
-		expect(html).toContain(">Index<");
-		expect(html).toContain(">Subgraphs<");
-		expect(html).toContain(">Subscriptions<");
-		expect(html).toContain('href="/streams"');
-		expect(html).toContain('href="/index-api"');
-		expect(html).toContain('href="/subgraphs"');
-		expect(html).toContain('href="/subscriptions"');
+		// New home shell.
+		expect(html).toContain('class="home"');
+		// Hero: release pill + headline + sub.
+		expect(html).toContain("Explore subgraphs is live");
+		expect(html).toContain("Decoded once.");
+		expect(html).toContain("Query forever.");
+		expect(html).toContain("data plane for Stacks");
+		// CTA pair: install/mint pill (client component renders install mode in
+		// static markup) + docs ghost link.
+		expect(html).toContain("npm install @secondlayer/sdk");
+		expect(html).toContain('href="/docs"');
+		expect(html).toContain('href="/subgraphs/explore"');
+		// Old product-index layout is gone.
+		expect(html).not.toContain('class="homepage"');
+		expect(html).not.toContain('class="index-list"');
 	});
 
 	test("/pricing renders the free-during-beta reframe", () => {

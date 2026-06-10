@@ -1,65 +1,14 @@
+import { CtaPill } from "@/components/home/cta-pill";
 import { HomeStatusBadge } from "@/components/status/home-status-badge";
 import type { SystemStatus } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-	title: "secondlayer · the agent-native data plane for Stacks",
+	title: "secondlayer — the data plane for Stacks",
 	description:
-		"The agent-native data plane for Stacks. Pull raw with Streams, query decoded with Index, shape your own with Subgraphs, push with Subscriptions, or query the curated Foundation Datasets. Indexed once, free to read.",
+		"Raw events, decoded transactions, and your own indexed views — one API, no node, readable by anyone. Even agents that pay per call.",
 };
-
-type IndexEntry = {
-	name: string;
-	href: string;
-	desc: string;
-};
-
-const products: IndexEntry[] = [
-	{
-		name: "Streams",
-		href: "/streams",
-		desc: "Pull raw chain events, in order.",
-	},
-	{
-		name: "Index",
-		href: "/index-api",
-		desc: "Query decoded transactions and events.",
-	},
-	{
-		name: "Subgraphs",
-		href: "/subgraphs",
-		desc: "Shape your own tables from contract events.",
-	},
-	{
-		name: "Subscriptions",
-		href: "/subscriptions",
-		desc: "Push matched events to your webhook.",
-	},
-];
-
-function IndexRow({ item }: { item: IndexEntry }) {
-	return (
-		<li className="index-item">
-			<Link href={item.href} className="index-link">
-				<span className="index-link-main">
-					<span className="index-link-label">{item.name}</span>
-					<span className="index-link-desc">{item.desc}</span>
-				</span>
-			</Link>
-		</li>
-	);
-}
-
-function IndexGroup({ items }: { items: IndexEntry[] }) {
-	return (
-		<ul className="index-list">
-			{items.map((item) => (
-				<IndexRow key={item.href} item={item} />
-			))}
-		</ul>
-	);
-}
 
 const STATUS_API_URL =
 	process.env.SL_API_URL || "https://api.secondlayer.tools";
@@ -92,39 +41,34 @@ export default async function Home() {
 // Sync inner view, exported for the smoke test (renderToStaticMarkup is sync).
 export function HomeView({ status }: { status: SystemStatus | null }) {
 	return (
-		<div className="homepage">
+		<div className="home">
 			<HomeStatusBadge status={status} />
-			<header className="page-header">
-				<h1 className="page-title page-title-with-logo">
-					<svg
-						viewBox="4 7 40 28"
-						width="24"
-						height="16"
-						fill="none"
-						aria-hidden="true"
-					>
-						<polygon points="8,25 28,17 42,25 22,33" className="logo-echo" />
-						<polygon points="8,19 28,11 42,19 22,27" className="logo-primary" />
-					</svg>
-					<span>secondlayer</span>
+
+			<section className="home-hero">
+				<Link href="/subgraphs/explore" className="home-pill">
+					<span className="home-pill-dot" />
+					Latest — Explore subgraphs is live
+					<span className="home-pill-arr">→</span>
+				</Link>
+				<h1>
+					Decoded once.
+					<br />
+					Query forever.
 				</h1>
-			</header>
-
-			<div className="prose www-manifest">
-				<p>
-					Secondlayer is the agent-native data plane for Stacks.{" "}
-					<em>
-						The chain produces events; apps and agents need them in any shape.
-					</em>
+				<p className="home-sub">
+					The data plane for Stacks: raw events, decoded transactions, and your
+					own indexed views — one API, no node, readable by anyone. Even agents
+					that pay per call.
 				</p>
-			</div>
-
-			<section
-				className="index-group"
-				style={{ marginTop: "var(--spacing-xl)" }}
-			>
-				<IndexGroup items={products} />
+				<div className="home-ctas">
+					<CtaPill />
+					<Link href="/docs" className="home-ghost-cta">
+						Read the docs <span className="ar">→</span>
+					</Link>
+				</div>
 			</section>
+
+			{/* S3 mounts: marquee → capability sections → get-started → final CTA */}
 		</div>
 	);
 }
