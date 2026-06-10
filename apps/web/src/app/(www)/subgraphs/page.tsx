@@ -20,6 +20,7 @@ const toc: TocItem[] = [
 	{ label: "How it works", href: "#how-it-works" },
 	{ label: "Define a subgraph", href: "#define" },
 	{ label: "Deploy & query", href: "#deploy" },
+	{ label: "Explore →", href: "/subgraphs/explore" },
 ];
 
 export default function SubgraphsPage() {
@@ -148,7 +149,8 @@ sl subgraphs generate token-transfers --output src/clients/token-transfers.ts`}
 					<p>
 						Public subgraphs are anon-readable at{" "}
 						<code>/v1/subgraphs/&lt;name&gt;</code> — names are a global
-						namespace claimed on publish.
+						namespace claimed on publish, and every public subgraph gets a
+						live page on <Link href="/subgraphs/explore">Explore</Link>.
 					</p>
 				</div>
 

@@ -6,6 +6,7 @@ import {
 	ValidationError,
 } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
+import { sql } from "kysely";
 import { hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import {
@@ -119,7 +120,35 @@ function resolveReadableSubgraph(
 
 // ── Discovery ───────────────────────────────────────────────────────────
 
-function summarize(v: Subgraph, ownedBy: string | undefined) {
+/**
+ * Contract provenance from the definition's source filters: contractId on
+ * call/deploy/print filters, the principal half of assetIdentifier
+ * ("SP….contract::token") on FT/NFT filters. Directory cards and the
+ * "build one like this" scaffold CTA both key off this.
+ */
+function extractSources(v: Subgraph): string[] {
+	const sources = (v.definition as { sources?: Record<string, unknown> })
+		.sources;
+	if (!sources) return [];
+	const out = new Set<string>();
+	for (const filter of Object.values(sources)) {
+		const f = filter as { contractId?: unknown; assetIdentifier?: unknown };
+		if (typeof f.contractId === "string") out.add(f.contractId);
+		if (typeof f.assetIdentifier === "string") {
+			const principal = f.assetIdentifier.split("::")[0];
+			if (principal) out.add(principal);
+		}
+	}
+	return [...out];
+}
+
+function summarize(
+	v: Subgraph,
+	ownedBy: string | undefined,
+	chainTip: number,
+	rowCounts: Map<string, number>,
+) {
+	const lastProcessed = Number(v.last_processed_block) || 0;
 	return {
 		name: v.name,
 		description:
@@ -130,34 +159,74 @@ function summarize(v: Subgraph, ownedBy: string | undefined) {
 		status: v.status,
 		visibility: v.visibility,
 		owned: v.account_id === ownedBy,
-		last_processed_block: Number(v.last_processed_block) || 0,
+		version: v.version,
+		created_at: v.created_at.toISOString(),
+		// null for BYO — rows live in the user's DB, pg_stat can't see them.
+		total_rows: v.database_url_enc
+			? null
+			: (rowCounts.get(subgraphSchemaName(v)) ?? 0),
+		sources: extractSources(v),
+		last_processed_block: lastProcessed,
+		blocks_behind: Math.max(0, chainTip - lastProcessed),
 		tables: Object.keys(getSubgraphSchema(v)),
 		url: `/v1/subgraphs/${v.name}`,
 	};
 }
 
-app.get("/", (c) => {
+/** Approximate per-schema row counts (single pg_stat scan on the managed DB). */
+async function getRowCounts(): Promise<Map<string, number>> {
+	const counts = new Map<string, number>();
+	try {
+		const { rows } = await sql
+			.raw(
+				`SELECT schemaname, SUM(n_live_tup)::bigint AS total_rows FROM pg_stat_user_tables WHERE schemaname LIKE 'subgraph_%' GROUP BY schemaname`,
+			)
+			.execute(getDb());
+		for (const r of rows as { schemaname: string; total_rows: string }[]) {
+			counts.set(r.schemaname, Number(r.total_rows));
+		}
+	} catch {}
+	return counts;
+}
+
+app.get("/", async (c) => {
 	const accountId = c.get("v1AccountId");
+	const [chainTip, rowCounts] = await Promise.all([
+		getChainTip(),
+		getRowCounts(),
+	]);
 	const seen = new Set<string>();
 	const out = [];
 	if (accountId) {
 		for (const v of cache.getAll(accountId)) {
 			seen.add(`${v.account_id}:${v.name}`);
-			out.push(summarize(v, accountId));
+			out.push(summarize(v, accountId, chainTip, rowCounts));
 		}
 	}
 	for (const v of cache.getAll()) {
 		if (v.visibility !== "public") continue;
 		if (seen.has(`${v.account_id}:${v.name}`)) continue;
-		out.push(summarize(v, accountId));
+		out.push(summarize(v, accountId, chainTip, rowCounts));
 	}
-	return c.json({
+	const body = {
 		subgraphs: out,
+		tip: { block_height: chainTip },
 		envelope: {
 			rows: "GET /v1/subgraphs/:name/:table → { rows, next_cursor, tip }",
 			cursor: "_id keyset; pass ?cursor=<next_cursor> to resume",
 		},
-	});
+	};
+	// Anon-cacheable: the keyed view varies on the bearer, so only the anon
+	// list advertises caching (the directory is the hot path).
+	if (!accountId) {
+		const etag = `"${Bun.hash(JSON.stringify(body)).toString(16)}"`;
+		c.header("Cache-Control", "public, max-age=30");
+		c.header("ETag", etag);
+		if (c.req.header("if-none-match") === etag) {
+			return c.body(null, 304);
+		}
+	}
+	return c.json(body);
 });
 
 app.get("/:subgraphName", async (c) => {
@@ -176,17 +245,27 @@ app.get("/:subgraphName", async (c) => {
 		version: subgraph.version,
 		status: subgraph.status,
 		visibility: subgraph.visibility,
+		created_at: subgraph.created_at.toISOString(),
+		sources: extractSources(subgraph),
 		start_block: Number(subgraph.start_block) || 0,
 		tables: Object.fromEntries(
-			Object.entries(schema).map(([table, def]) => [
-				table,
-				{
-					endpoint: `/v1/subgraphs/${subgraph.name}/${table}`,
-					columns: Object.keys(
-						(def as { columns: Record<string, unknown> }).columns,
-					),
-				},
-			]),
+			Object.entries(schema).map(([table, def]) => {
+				const columns = (def as { columns: Record<string, { type?: string }> })
+					.columns;
+				return [
+					table,
+					{
+						endpoint: `/v1/subgraphs/${subgraph.name}/${table}`,
+						columns: Object.keys(columns),
+						column_types: Object.fromEntries(
+							Object.entries(columns).map(([n, col]) => [
+								n,
+								col.type ?? "text",
+							]),
+						),
+					},
+				];
+			}),
 		),
 		tip: {
 			block_height: chainTip,
