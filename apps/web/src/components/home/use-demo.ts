@@ -77,9 +77,9 @@ export function useStagedCycle(
 			for (const t of timeouts) clearTimeout(t);
 			if (loop) clearInterval(loop);
 		};
-		// marks is a stable literal per pane — lint-safe to spread its length
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [active, reduced, loopMs, marks.length]);
+		// every pane passes a module-constant marks array, so the reference
+		// is stable as a dependency
+	}, [active, reduced, loopMs, marks]);
 
 	if (reduced || !active) {
 		// static final scene (also the pre-scroll SSR state for reduced motion;

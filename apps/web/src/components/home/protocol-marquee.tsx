@@ -67,7 +67,10 @@ export async function ProtocolMarquee() {
 			<span className="home-marquee-note" aria-hidden="true">
 				all live, <em>no key needed</em>
 			</span>
-			<div className="home-marquee" aria-label="Protocols indexed on Secondlayer">
+			<div
+				className="home-marquee"
+				aria-label="Protocols indexed on Secondlayer"
+			>
 				<div className="home-marquee-track">
 					{doubled.map((t, i) => (
 						<div className="home-proto" key={`${t.name}-${i}`}>

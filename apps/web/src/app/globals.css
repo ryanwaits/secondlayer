@@ -8050,3 +8050,17 @@ a.dataset-shelf-name:hover {
 	padding: 0 16px;
 	text-decoration: none;
 }
+
+@media (max-width: 480px) {
+	.home-cmd {
+		font-size: 0.71rem;
+		gap: 8px;
+		padding: 0 14px;
+	}
+	.home-cmd .home-cmd-label {
+		white-space: nowrap;
+	}
+	.home-cmd-mint .home-cmd-label {
+		min-width: 0;
+	}
+}

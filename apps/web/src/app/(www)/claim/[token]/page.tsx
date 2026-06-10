@@ -17,8 +17,8 @@ export default async function ClaimPage({
 		<div className="claim-page">
 			<h1>Claim this API key</h1>
 			<p className="claim-lede">
-				This key was minted without an account. Attach an email and it becomes
-				a real one — the key keeps working, history included.
+				This key was minted without an account. Attach an email and it becomes a
+				real one — the key keeps working, history included.
 			</p>
 			<ClaimFlow token={token} />
 		</div>

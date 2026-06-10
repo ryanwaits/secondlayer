@@ -155,8 +155,8 @@ export function HomeGetStarted() {
 							<CodeBlock code={SHELL_GETSTARTED_SNIPPET} lang="typescript" />
 						</div>
 						<div className="home-gs-foot">
-							Managed deploys are public by default — shareable /v1 URL + a
-							page on Explore.
+							Managed deploys are public by default — shareable /v1 URL + a page
+							on Explore.
 						</div>
 					</div>
 					<div className="home-gs-card">

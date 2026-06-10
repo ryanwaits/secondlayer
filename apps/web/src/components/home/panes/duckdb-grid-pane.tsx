@@ -44,7 +44,9 @@ export function DuckdbGridPane() {
 					))}
 				</div>
 				<div className="home-gridfoot">
-					<span>{settled ? "428,113 rows scanned · 14 parquet files" : " "}</span>
+					<span>
+						{settled ? "428,113 rows scanned · 14 parquet files" : " "}
+					</span>
 					<span>manifest latest.json · signed</span>
 				</div>
 			</LivePane>
