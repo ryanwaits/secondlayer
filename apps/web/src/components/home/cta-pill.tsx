@@ -1,6 +1,5 @@
 "use client";
 
-import { Notation } from "@/components/notation";
 import { useState } from "react";
 
 const GHOST_KEYS_ENABLED = process.env.NEXT_PUBLIC_GHOST_KEYS === "1";
@@ -111,7 +110,7 @@ export function CtaPill() {
 					)}
 				</span>
 			</button>
-			{mint.phase === "minted" ? (
+			{mint.phase === "minted" && (
 				<div className="home-reveal" aria-live="polite">
 					<div className="home-reveal-head">
 						<span className="t">Your key is live.</span>
@@ -120,19 +119,6 @@ export function CtaPill() {
 					<KeyLine label="key" value={mint.key} />
 					<KeyLine label="claim" value={mint.claimUrl} />
 				</div>
-			) : (
-				<p className="home-mint-fine" aria-live="polite">
-					<Notation
-						type="underline"
-						color="var(--accent)"
-						strokeWidth={2}
-						padding={2}
-						animationDuration={600}
-						iterations={2}
-					>
-						get an API key, no sign up required
-					</Notation>
-				</p>
 			)}
 		</div>
 	);
