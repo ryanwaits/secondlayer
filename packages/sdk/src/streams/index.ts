@@ -99,8 +99,10 @@ export { STREAMS_EVENT_TYPES } from "./types.ts";
 export { Cursor } from "./cursor.ts";
 export type {
 	FetchLike,
+	StreamsBatch,
 	StreamsBatchContext,
 	StreamsClient,
+	StreamsConsumeParams,
 	StreamsCanonicalBlock,
 	StreamsDumpFile,
 	StreamsDumps,

@@ -561,6 +561,33 @@ function firstWalkFromHeight(params: {
 	return 0;
 }
 
+/**
+ * `index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk`
+ * still available: `await sl.index.ftTransfers({ contractId })`.
+ *
+ * The API accepts `contract_id`/`sender`/`recipient` equality filters only —
+ * no amount filtering and no asset-slug resolution on /v1/index/ft-transfers.
+ */
+export interface FtTransfersResource {
+	(params?: FtTransfersListParams): Promise<FtTransfersEnvelope>;
+	list(params?: FtTransfersListParams): Promise<FtTransfersEnvelope>;
+	walk(params?: FtTransfersWalkParams): AsyncIterable<FtTransfer>;
+}
+
+/** `index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}). */
+export interface NftTransfersResource {
+	(params?: NftTransfersListParams): Promise<NftTransfersEnvelope>;
+	list(params?: NftTransfersListParams): Promise<NftTransfersEnvelope>;
+	walk(params?: NftTransfersWalkParams): AsyncIterable<NftTransfer>;
+}
+
+/** `index.events` — callable shorthand for `.list()`; `eventType` is required. */
+export interface IndexEventsResource {
+	(params: EventsListParams): Promise<EventsEnvelope>;
+	list(params: EventsListParams): Promise<EventsEnvelope>;
+	walk(params: EventsWalkParams): AsyncIterable<IndexEvent>;
+}
+
 /** Per-event-type filter vocabulary in the {@link IndexDiscovery} doc. */
 export type IndexEventTypeFilters = {
 	columns?: string[];
@@ -596,37 +623,44 @@ export class Index extends BaseClient {
 		return this.request<IndexDiscovery>("GET", "/v1/index");
 	}
 
-	readonly ftTransfers: {
-		list: (params?: FtTransfersListParams) => Promise<FtTransfersEnvelope>;
-		walk: (params?: FtTransfersWalkParams) => AsyncIterable<FtTransfer>;
-	} = {
-		list: (params: FtTransfersListParams = {}): Promise<FtTransfersEnvelope> =>
+	/** Callable: `index.ftTransfers(params)` ≡ `index.ftTransfers.list(params)`. */
+	readonly ftTransfers: FtTransfersResource = Object.assign(
+		(params: FtTransfersListParams = {}): Promise<FtTransfersEnvelope> =>
 			this.listFtTransfers(params),
-		walk: (params: FtTransfersWalkParams = {}): AsyncIterable<FtTransfer> =>
-			this.walkFtTransfers(params),
-	};
+		{
+			list: (
+				params: FtTransfersListParams = {},
+			): Promise<FtTransfersEnvelope> => this.listFtTransfers(params),
+			walk: (params: FtTransfersWalkParams = {}): AsyncIterable<FtTransfer> =>
+				this.walkFtTransfers(params),
+		},
+	);
 
-	readonly nftTransfers: {
-		list: (params?: NftTransfersListParams) => Promise<NftTransfersEnvelope>;
-		walk: (params?: NftTransfersWalkParams) => AsyncIterable<NftTransfer>;
-	} = {
-		list: (
-			params: NftTransfersListParams = {},
-		): Promise<NftTransfersEnvelope> => this.listNftTransfers(params),
-		walk: (params: NftTransfersWalkParams = {}): AsyncIterable<NftTransfer> =>
-			this.walkNftTransfers(params),
-	};
+	/** Callable: `index.nftTransfers(params)` ≡ `index.nftTransfers.list(params)`. */
+	readonly nftTransfers: NftTransfersResource = Object.assign(
+		(params: NftTransfersListParams = {}): Promise<NftTransfersEnvelope> =>
+			this.listNftTransfers(params),
+		{
+			list: (
+				params: NftTransfersListParams = {},
+			): Promise<NftTransfersEnvelope> => this.listNftTransfers(params),
+			walk: (params: NftTransfersWalkParams = {}): AsyncIterable<NftTransfer> =>
+				this.walkNftTransfers(params),
+		},
+	);
 
-	/** Generic decoded events by `event_type` (the full /v1/index/events surface). */
-	readonly events: {
-		list: (params: EventsListParams) => Promise<EventsEnvelope>;
-		walk: (params: EventsWalkParams) => AsyncIterable<IndexEvent>;
-	} = {
-		list: (params: EventsListParams): Promise<EventsEnvelope> =>
+	/** Generic decoded events by `event_type` (the full /v1/index/events surface).
+	 *  Callable: `index.events(params)` ≡ `index.events.list(params)`. */
+	readonly events: IndexEventsResource = Object.assign(
+		(params: EventsListParams): Promise<EventsEnvelope> =>
 			this.listEvents(params),
-		walk: (params: EventsWalkParams): AsyncIterable<IndexEvent> =>
-			this.walkEvents(params),
-	};
+		{
+			list: (params: EventsListParams): Promise<EventsEnvelope> =>
+				this.listEvents(params),
+			walk: (params: EventsWalkParams): AsyncIterable<IndexEvent> =>
+				this.walkEvents(params),
+		},
+	);
 
 	readonly contractCalls: {
 		list: (params?: ContractCallsListParams) => Promise<ContractCallsEnvelope>;

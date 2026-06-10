@@ -9,6 +9,8 @@ function streamsClientSpy(
 	onTypes: (types: readonly StreamsEventType[] | undefined) => void,
 ): StreamsClient {
 	return {
+		// Top-level batch iterator (unused by the decoder; present for the type).
+		consume: async function* () {},
 		events: {
 			list: async () => ({
 				events: [],

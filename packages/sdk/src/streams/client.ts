@@ -3,6 +3,7 @@ import { buildQuery } from "../base.ts";
 import {
 	type StreamsEventsFetcher,
 	consumeStreamsEvents,
+	iterateStreamsBatches,
 	streamStreamsEvents,
 } from "./consumer.ts";
 import { createStreamsDumps } from "./dumps.ts";
@@ -18,6 +19,7 @@ import type {
 	FetchLike,
 	StreamsCanonicalBlock,
 	StreamsClient,
+	StreamsConsumeParams,
 	StreamsEventsConsumeParams,
 	StreamsEventsEnvelope,
 	StreamsEventsListEnvelope,
@@ -272,6 +274,21 @@ export function createStreamsClient(
 	}
 
 	return {
+		consume(params: StreamsConsumeParams = {}) {
+			return iterateStreamsBatches({
+				fromCursor: params.cursor,
+				batchSize: params.batchSize ?? 100,
+				intervalMs: params.intervalMs ?? 2000,
+				types: params.types,
+				notTypes: params.notTypes,
+				contractId: params.contractId,
+				sender: params.sender,
+				recipient: params.recipient,
+				assetIdentifier: params.assetIdentifier,
+				signal: params.signal,
+				fetchEvents,
+			});
+		},
 		events: {
 			list: listEvents,
 			byTxId(txId: string) {

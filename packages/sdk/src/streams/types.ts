@@ -299,6 +299,38 @@ export type StreamsEventsConsumeParams = {
 	signal?: AbortSignal;
 };
 
+/**
+ * One yielded page from {@link StreamsClient.consume} — the
+ * `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to
+ * `cursor` (the checkpoint to persist and resume from).
+ */
+export type StreamsBatch = {
+	/** Canonical events of this page, in cursor order. */
+	events: StreamsEvent[];
+	/** Checkpoint after this page — pass back as `consume({ cursor })` to resume. */
+	cursor: string | null;
+	tip: StreamsTip;
+	/** Chain reorgs reported alongside this page; empty when none. */
+	reorgs: StreamsReorg[];
+};
+
+export type StreamsConsumeParams = {
+	/** Resume strictly after this cursor; omit to start from the oldest seekable page. */
+	cursor?: string | null;
+	types?: readonly StreamsEventType[];
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
+	assetIdentifier?: string;
+	/** Events per page (the `limit` query param). Default 100. */
+	batchSize?: number;
+	/** Poll interval while caught up at the tip, in ms. Default 2000. */
+	intervalMs?: number;
+	/** Abort to end the iteration. */
+	signal?: AbortSignal;
+};
+
 export type StreamsEventsConsumeResult = {
 	cursor: string | null;
 	pages: number;
@@ -376,6 +408,21 @@ export type StreamsDumps = {
 };
 
 export type StreamsClient = {
+	/**
+	 * Follow Streams as an async iterator of page batches.
+	 *
+	 * Yields one {@link StreamsBatch} per `GET /v1/streams/events` page — the
+	 * existing envelope (`events`, `next_cursor` → `cursor`, `tip`, `reorgs`)
+	 * with zero extra API calls. Batches are chosen over per-block groupings
+	 * because the envelope is page-keyed, so every yield is exactly one fetch.
+	 * Empty pages are skipped; at the tip the iterator re-polls every
+	 * `intervalMs` (default 2000) until aborted via `signal`.
+	 *
+	 * Reorgs are surfaced on the batch (`batch.reorgs`) but the cursor is not
+	 * rewound automatically — use `events.consume` with `onReorg` for managed
+	 * rollback semantics.
+	 */
+	consume(params?: StreamsConsumeParams): AsyncIterableIterator<StreamsBatch>;
 	events: {
 		list(params?: StreamsEventsListParams): Promise<StreamsEventsEnvelope>;
 		byTxId(txId: string): Promise<StreamsEventsListEnvelope>;

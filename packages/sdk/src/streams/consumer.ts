@@ -1,5 +1,6 @@
 import { Cursor } from "./cursor.ts";
 import type {
+	StreamsBatch,
 	StreamsEvent,
 	StreamsEventType,
 	StreamsEventsEnvelope,
@@ -167,6 +168,62 @@ export async function consumeStreamsEvents(opts: {
 	}
 
 	return { cursor, pages, emptyPolls };
+}
+
+/**
+ * Async-iterator form of the Streams pull loop, yielding one {@link StreamsBatch}
+ * per fetched page. Each yield maps 1:1 onto a `GET /v1/streams/events` envelope
+ * (`{ events, next_cursor, tip, reorgs }` → `{ events, cursor, tip, reorgs }`) —
+ * no extra API calls, no regrouping. Pages with no events and no reorgs are not
+ * yielded; the iterator sleeps `intervalMs` and re-polls the tip instead.
+ */
+export async function* iterateStreamsBatches(opts: {
+	fromCursor?: string | null;
+	batchSize: number;
+	intervalMs: number;
+	types?: readonly StreamsEventType[];
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
+	assetIdentifier?: string;
+	fetchEvents: StreamsEventsFetcher;
+	sleep?: Sleep;
+	signal?: AbortSignal;
+}): AsyncGenerator<StreamsBatch> {
+	const sleep = opts.sleep ?? defaultSleep;
+	let cursor = opts.fromCursor ?? null;
+
+	while (!opts.signal?.aborted) {
+		const envelope = await opts.fetchEvents({
+			cursor,
+			limit: opts.batchSize,
+			types: opts.types,
+			notTypes: opts.notTypes,
+			contractId: opts.contractId,
+			sender: opts.sender,
+			recipient: opts.recipient,
+			assetIdentifier: opts.assetIdentifier,
+		});
+
+		const checkpoint = envelope.next_cursor ?? cursor;
+		if (envelope.events.length > 0 || envelope.reorgs.length > 0) {
+			yield {
+				events: envelope.events,
+				cursor: checkpoint,
+				tip: envelope.tip,
+				reorgs: envelope.reorgs,
+			};
+		}
+
+		const advanced = checkpoint !== null && checkpoint !== cursor;
+		cursor = checkpoint;
+		// Caught up at the tip: wait one poll interval before re-reading.
+		if (!advanced && envelope.events.length === 0) {
+			if (opts.signal?.aborted) return;
+			await sleep(opts.intervalMs, opts.signal);
+		}
+	}
 }
 
 export async function* streamStreamsEvents(opts: {
