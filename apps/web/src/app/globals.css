@@ -8075,3 +8075,73 @@ a.dataset-shelf-name:hover {
 		min-width: 0;
 	}
 }
+
+/* mint reveal card (hero CTA, shown-once key result) */
+.home-reveal {
+	width: min(560px, 100%);
+	border: 1px solid var(--accent-border);
+	border-radius: 12px;
+	background: var(--bg-elevated, var(--bg));
+	padding: 1rem 1.1rem;
+	text-align: left;
+}
+@media (prefers-reduced-motion: no-preference) {
+	.home-reveal { animation: home-rowin 420ms var(--ease-smooth); }
+}
+.home-reveal-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 1rem;
+}
+.home-reveal-head .t {
+	font-family: var(--font-heading-stack);
+	font-size: 0.875rem;
+	font-weight: 560;
+}
+.home-reveal-head .once {
+	font-family: var(--font-mono-stack);
+	font-size: 0.62rem;
+	color: var(--text-dim);
+}
+.home-reveal-line {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 0.8rem;
+}
+.home-reveal-line .k {
+	font-family: var(--font-mono-stack);
+	font-size: 0.6rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	min-width: 3.4rem;
+}
+.home-reveal-line .v {
+	flex: 1;
+	min-width: 0;
+	font-family: var(--font-mono-stack);
+	font-size: 0.72rem;
+	background: var(--bg-chrome);
+	border-radius: 6px;
+	padding: 7px 10px;
+	white-space: nowrap;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+.home-reveal-copy {
+	flex: none;
+	font-family: var(--font-mono-stack);
+	font-size: 0.62rem;
+	color: var(--text-muted);
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 5px 10px;
+	min-width: 70px;
+	cursor: pointer;
+}
+@media (hover: hover) {
+	.home-reveal-copy:hover { color: var(--text-main); }
+}

@@ -22,9 +22,9 @@ describe("www marketing routes", () => {
 		expect(html).toContain('class="home"');
 		// Hero: release pill + headline + sub.
 		expect(html).toContain("Explore subgraphs is live");
-		expect(html).toContain("Decoded once.");
-		expect(html).toContain("Query forever.");
-		expect(html).toContain("data plane for Stacks");
+		expect(html).toContain("Index the chain.");
+		expect(html).toContain("Own your API.");
+		expect(html).toContain("indexing layer for Stacks");
 		// CTA pair: install/mint pill (client component renders install mode in
 		// static markup) + docs ghost link.
 		expect(html).toContain("npm install @secondlayer/sdk");

@@ -7,9 +7,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-	title: "secondlayer — the data plane for Stacks",
+	title: "secondlayer — index the chain, own your API",
 	description:
-		"Raw events, decoded transactions, and your own indexed views — one API, no node, readable by anyone. Even agents that pay per call.",
+		"The indexing layer for Stacks: we capture and decode every event, you define the tables and ship the API. No node, no infra, readable by anyone.",
 };
 
 const STATUS_API_URL =
@@ -47,7 +47,7 @@ export default async function Home() {
 				<h2>
 					Stop running nodes.
 					<br />
-					Ship your indexer once.
+					Ship your own API.
 				</h2>
 				<p className="home-sub">
 					Open data, open SDKs, honest infrastructure. The indexing every Stacks
@@ -74,14 +74,14 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 					<span className="home-pill-arr">→</span>
 				</Link>
 				<h1>
-					Decoded once.
+					Index the chain.
 					<br />
-					Query forever.
+					Own your API.
 				</h1>
 				<p className="home-sub">
-					The data plane for Stacks: raw events, decoded transactions, and your
-					own indexed views — one API, no node, readable by anyone. Even agents
-					that pay per call.
+					Secondlayer is the indexing layer for Stacks: we capture and decode
+					every event, you define the tables and ship the API. No node, no
+					infra, readable by anyone.
 				</p>
 				<div className="home-ctas">
 					<CtaPill />
