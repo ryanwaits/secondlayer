@@ -1,7 +1,6 @@
 import { CodeBlock } from "@/components/code-block";
+import { MarketingPageHeader } from "@/components/marketing-page-header";
 import { SectionHeading } from "@/components/section-heading";
-import { Sidebar } from "@/components/sidebar";
-import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -11,20 +10,11 @@ export const metadata: Metadata = {
 		"TypeScript clients for the data plane and the chain — @secondlayer/sdk and the agent-native @secondlayer/stacks chain SDK.",
 };
 
-const toc: TocItem[] = [
-	{ label: "@secondlayer/sdk", href: "#sdk" },
-	{ label: "@secondlayer/stacks", href: "#stacks" },
-];
-
 export default function SdkPage() {
 	return (
-		<div className="article-layout">
-			<Sidebar title="SDK" toc={toc} />
-
-			<main className="content-area">
-				<header className="page-header">
-					<h1 className="page-title">SDK</h1>
-				</header>
+		<main className="explore-wrap">
+			<MarketingPageHeader crumb="Developers" here="SDK" title="SDK" />
+			<div className="mk-body">
 
 				<div className="prose">
 					<p>
@@ -95,7 +85,7 @@ const spec = on.transferTo(
 // Available: on.transferTo, on.sip010Transfer, on.sip009Transfer,
 //            on.bnsName, on.poxStack, on.sbtcDeposit, on.sbtcWithdrawal`}
 				/>
-			</main>
-		</div>
+			</div>
+		</main>
 	);
 }
