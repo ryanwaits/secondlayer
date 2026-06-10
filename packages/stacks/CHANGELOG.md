@@ -1,5 +1,16 @@
 # @secondlayer/stacks
 
+## 2.5.0
+
+### Minor Changes
+
+- 8f2de58: Add `@secondlayer/stacks/x402` settlement primitives for the x402 payment rail: `buildExactTransfer` (exact-amount, Deny-mode post-conditioned, sponsored origin-only transfer for STX or SIP-010, challenge nonce bound to the ≤34-byte memo) and `sponsorAndBroadcast` (sponsor-sign a payer's origin-signed tx and POST it to `/v2/transactions`, so the payer never holds STX).
+
+### Patch Changes
+
+- 49ce0e9: Fix sponsored-transaction signing: the initial-sighash sponsor sentinel used `signer = hash160(zero public key)` instead of the spec's 20 zero bytes (an empty-address hash160). That altered the origin's sighash, so every sponsored transaction was rejected by Stacks nodes with `SignatureValidation`. The sentinel now matches `@stacks/transactions`, verified by a new reference-vector test asserting byte-identical serialization (and proven end-to-end by a devnet sponsored broadcast). Unblocks the gasless x402 settlement path.
+- 389976a: Fix x402 native-STX payments: a `TokenTransfer` payload cannot carry post-conditions (Stacks consensus rejects it with "TokenTransfer transactions do not support post-conditions"), so `buildExactTransfer` no longer attaches one for STX — exactness is already inherent in the signed amount+recipient. `verifyPayment` now derives the payer from the origin spending condition (works for STX, which has no post-condition to read it from) and only requires the Deny-mode FT post-condition for SIP-010. Proven by a devnet end-to-end: the sponsored STX transfer mined with the payer paying 0 gas and the sponsor paying the fee.
+
 ## 2.4.0
 
 ### Minor Changes

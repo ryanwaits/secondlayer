@@ -1,5 +1,30 @@
 # @secondlayer/sdk
 
+## 6.20.0
+
+### Minor Changes
+
+- f242b9c: Add `streams.consume()` async-iterator yielding page batches (`{ events, cursor, tip, reorgs }`, configurable `intervalMs` tip polling, AbortSignal) and make `index.ftTransfers` / `index.nftTransfers` / `index.events` callable as shorthand for `.list()` (`.list`/`.walk` unchanged).
+- cf8c86d: Subgraph visibility + open /v1 read surface. New managed deploys default `public` — anon-readable at `/v1/subgraphs/:name/:table` with the standard cursor envelope (`{ rows, next_cursor, tip }`), wildcard CORS, and anon rate limits; BYO-database deploys default `private` (reads require the owning account's `sk-sl_` key; anon resolution 404s). Public names are a single global namespace claimed on publish (409 `PUBLIC_NAME_TAKEN` on collision). CLI: `sl subgraphs deploy --visibility`, `sl subgraphs publish|unpublish`. SDK: `subgraphs.publish()/unpublish()/rows()`. MCP: `visibility` on `subgraphs_deploy`, new `subgraphs_publish`/`subgraphs_unpublish` tools. Shared: `subgraphs.visibility` column (migration 0092), deploy schema field, `PUBLIC_NAME_TAKEN` error code.
+- 54611cd: x402 consumer DX: `withX402(fetch, { account })` drop-in (transparently pays on 402) and `createX402Client({ account, baseUrl })` (`.get/.post` returning `{ data, payment }`). Auto-resolves the payer nonce, selects an offer by `preferAssets` (sBTC-first default) with a `maxAmountPerCall` spend guard (`X402SpendGuardError` when nothing fits), and exposes the settlement receipt via `readX402Receipt`. All re-exported from `@secondlayer/sdk` (no longer subpath-only). See `docs/guides/x402-pay-per-call.md`.
+- 2e52a78: Add `@secondlayer/sdk/x402`: a client for the x402 pay-per-request rail. `payAndRetry` runs a request, and on a 402 builds a signed (origin-only, gasless) `PAYMENT-SIGNATURE` from the challenge and retries — one call, no key, no STX. `buildSignedX402Payment`/`readX402Challenge` are exposed for custom flows.
+
+### Patch Changes
+
+- 6c6d2c9: x402 optimistic finality tier (Sprint B): Index/Streams now serve **near-instant** on broadcast-accept (the node admitting the sponsored tx to its mempool), reconciling asynchronously, instead of blocking ~5–29s for canonical confirmation. Gated per-principal by an optimistic gate (`x402/optimistic-gate.ts`) — a fixed-window velocity cap plus a reputation strike counter — that **fails closed** to confirmed-tier; high-value surfaces can stay `confirmed`. `settlePayment` gains a broadcast-no-await mode (`state: "optimistic"`), the catalog carries per-surface `finality` (Index/Streams default optimistic), and the worker reconciler now advances `pending → confirmed | reverted` and records a strike (shared Redis key, `x402StrikeKey`) on revert so repeat droppers lose optimism. Reconciliation confirms against our own indexed `decoded_events` (canonical-gated) — the same substrate the confirmed-tier serve verifies against — so it's self-contained / RPC-free. The SDK's `X402Receipt` now carries the settlement `state` (`optimistic` | `confirmed`).
+- Updated dependencies [051bbc5]
+- Updated dependencies [0640e37]
+- Updated dependencies [49ce0e9]
+- Updated dependencies [cf8c86d]
+- Updated dependencies [8253e67]
+- Updated dependencies [6c6d2c9]
+- Updated dependencies [fb7acf4]
+- Updated dependencies [8f2de58]
+- Updated dependencies [389976a]
+- Updated dependencies [2e52a78]
+  - @secondlayer/shared@6.29.0
+  - @secondlayer/stacks@2.5.0
+
 ## 6.19.0
 
 ### Minor Changes

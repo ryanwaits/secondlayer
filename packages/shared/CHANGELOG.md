@@ -1,5 +1,24 @@
 # @secondlayer/shared
 
+## 6.29.0
+
+### Minor Changes
+
+- 051bbc5: Ghost accounts schema (migration `0093_ghost_accounts`): `accounts.ghost` boolean flag + `accounts.email` made nullable (the plain UNIQUE constraint stays — Postgres unique ignores NULLs, so `ON CONFLICT (email)` upserts are unaffected), new control-plane `claim_tokens` table (hashed one-time tokens that attach an email to a ghost account via the magic-link flow), and a `GHOST_KEY_READ_ONLY` → 403 mapping in `CODE_TO_STATUS`. Backs the anonymous self-serve key mint (`POST /v1/keys`).
+- cf8c86d: Subgraph visibility + open /v1 read surface. New managed deploys default `public` — anon-readable at `/v1/subgraphs/:name/:table` with the standard cursor envelope (`{ rows, next_cursor, tip }`), wildcard CORS, and anon rate limits; BYO-database deploys default `private` (reads require the owning account's `sk-sl_` key; anon resolution 404s). Public names are a single global namespace claimed on publish (409 `PUBLIC_NAME_TAKEN` on collision). CLI: `sl subgraphs deploy --visibility`, `sl subgraphs publish|unpublish`. SDK: `subgraphs.publish()/unpublish()/rows()`. MCP: `visibility` on `subgraphs_deploy`, new `subgraphs_publish`/`subgraphs_unpublish` tools. Shared: `subgraphs.visibility` column (migration 0092), deploy schema field, `PUBLIC_NAME_TAKEN` error code.
+- 8253e67: x402 rail: add HTTP 402 to the error system — `PAYMENT_REQUIRED` code + `402` in `CODE_TO_STATUS`, a `PaymentRequiredError` carrying the challenge in `details`, and the `x402_payments` control-plane ledger (migration `0091`, `Database` type, `TABLE_TO_DB` registration).
+- fb7acf4: Add `@secondlayer/shared/x402`: the x402 payment-rail token set (STX, sBTC, USDCx — mainnet ids/decimals/asset-identifiers, all confirmed on-chain) and CAIP-2 network ids, single-sourced for the SDK/MCP client and the API facilitator.
+
+### Patch Changes
+
+- 0640e37: Make migration `0090_events_streams_filter_idx` timeout-safe: lift `statement_timeout` for the index-build transaction so a fresh deploy completes instead of hard-failing with error 57014 on the large `events` table. On prod the indexes are still pre-created `CONCURRENTLY` (the migration no-ops via `IF NOT EXISTS`), so no write-lock is held there.
+- 6c6d2c9: x402 optimistic finality tier (Sprint B): Index/Streams now serve **near-instant** on broadcast-accept (the node admitting the sponsored tx to its mempool), reconciling asynchronously, instead of blocking ~5–29s for canonical confirmation. Gated per-principal by an optimistic gate (`x402/optimistic-gate.ts`) — a fixed-window velocity cap plus a reputation strike counter — that **fails closed** to confirmed-tier; high-value surfaces can stay `confirmed`. `settlePayment` gains a broadcast-no-await mode (`state: "optimistic"`), the catalog carries per-surface `finality` (Index/Streams default optimistic), and the worker reconciler now advances `pending → confirmed | reverted` and records a strike (shared Redis key, `x402StrikeKey`) on revert so repeat droppers lose optimism. Reconciliation confirms against our own indexed `decoded_events` (canonical-gated) — the same substrate the confirmed-tier serve verifies against — so it's self-contained / RPC-free. The SDK's `X402Receipt` now carries the settlement `state` (`optimistic` | `confirmed`).
+- 2e52a78: Wire the x402 rail onto live surfaces (Sprint 4), gated on `X402_SPONSOR_KEY` so it's a no-op until the sponsor wallet is funded. When live: Streams becomes keyless-but-paid (accountless callers pay per call via x402; keyed callers bypass — `streamsBearerAuth` anon fall-through + anon-tolerant rate-limit/retention) and Index's anon path is x402-gated. Adds `GET /x402/supported` (self-hosted capability + price catalog, no external Bazaar), `HiroClient.getTransaction`, and a worker cron (`x402-reconcile`, 5-min sweep over the last hour) that flips post-serve-reverted ledger rows.
+- Updated dependencies [49ce0e9]
+- Updated dependencies [8f2de58]
+- Updated dependencies [389976a]
+  - @secondlayer/stacks@2.5.0
+
 ## 6.28.1
 
 ### Patch Changes

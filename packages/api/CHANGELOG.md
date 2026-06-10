@@ -1,5 +1,37 @@
 # @secondlayer/api
 
+## 1.20.0
+
+### Minor Changes
+
+- fb7acf4: x402 facilitator (Sprint 2): price catalog with a dynamic gas-aware floor (`x402/catalog.ts`), static payment verification + confirmed-tier settlement that block-polls until the transfer is canonical (`x402/facilitator.ts`), a fail-closed Redis nonce/replay store (`x402/nonce-store.ts`), and a by-txid canonical transfer reader (`index/transfer-by-txid.ts`).
+- 8253e67: x402 middleware + ledger (Sprint 3): `x402PaymentRequired({surface})` runs the full x402 v2 handshake — account-backed callers bypass, accountless callers get a base64 `PAYMENT-REQUIRED` challenge, and a signed retry is verified (incl. nonce-in-memo binding), settled confirmed-tier, recorded to the `x402_payments` ledger, and acknowledged with a `PAYMENT-RESPONSE` receipt. Nonce replay and broadcast-but-unconfirmed both return 402.
+- 6c6d2c9: x402 optimistic finality tier (Sprint B): Index/Streams now serve **near-instant** on broadcast-accept (the node admitting the sponsored tx to its mempool), reconciling asynchronously, instead of blocking ~5–29s for canonical confirmation. Gated per-principal by an optimistic gate (`x402/optimistic-gate.ts`) — a fixed-window velocity cap plus a reputation strike counter — that **fails closed** to confirmed-tier; high-value surfaces can stay `confirmed`. `settlePayment` gains a broadcast-no-await mode (`state: "optimistic"`), the catalog carries per-surface `finality` (Index/Streams default optimistic), and the worker reconciler now advances `pending → confirmed | reverted` and records a strike (shared Redis key, `x402StrikeKey`) on revert so repeat droppers lose optimism. Reconciliation confirms against our own indexed `decoded_events` (canonical-gated) — the same substrate the confirmed-tier serve verifies against — so it's self-contained / RPC-free. The SDK's `X402Receipt` now carries the settlement `state` (`optimistic` | `confirmed`).
+- 2e52a78: Wire the x402 rail onto live surfaces (Sprint 4), gated on `X402_SPONSOR_KEY` so it's a no-op until the sponsor wallet is funded. When live: Streams becomes keyless-but-paid (accountless callers pay per call via x402; keyed callers bypass — `streamsBearerAuth` anon fall-through + anon-tolerant rate-limit/retention) and Index's anon path is x402-gated. Adds `GET /x402/supported` (self-hosted capability + price catalog, no external Bazaar), `HiroClient.getTransaction`, and a worker cron (`x402-reconcile`, 5-min sweep over the last hour) that flips post-serve-reverted ledger rows.
+
+### Patch Changes
+
+- f9d7866: x402 pricing now uses a live, cached USD spot feed for the non-stable assets (sBTC→BTC/USD, STX→STX/USD) instead of a static env value. `spotUsd` is stale-while-revalidate and never blocks a request: it serves an in-process cache (refreshed ~60s in the background, last-known held up to 10m if the feed is down). Fallback chain: live cache → `X402_SPOT_<SYM>_USD` env override → omit the asset — so if a price is unavailable the challenge degrades to USDCx-only (the dollar peg, always exact) rather than mispricing. Feed URL overridable via `X402_SPOT_URL` (CoinGecko shape).
+- ab2855e: Make the Streams/Index routers mount x402 via an injected, pre-built middleware (`opts.x402Middleware`) instead of reading env + building the facilitator inside the route. The enable/which-facilitator decision now lives at the app composition root (the default export), keeping the route factories pure and env-free; tests inject a fake-backed middleware. Adds a route-integration test driving an accountless request through the real Index router end to end: no-key → 402 challenge → real signed sponsored payment → real `verifyPayment` → settle → real handler returns data, plus ledger write and replay rejection.
+- 389976a: Fix x402 native-STX payments: a `TokenTransfer` payload cannot carry post-conditions (Stacks consensus rejects it with "TokenTransfer transactions do not support post-conditions"), so `buildExactTransfer` no longer attaches one for STX — exactness is already inherent in the signed amount+recipient. `verifyPayment` now derives the payer from the origin spending condition (works for STX, which has no post-condition to read it from) and only requires the Deny-mode FT post-condition for SIP-010. Proven by a devnet end-to-end: the sponsored STX transfer mined with the payer paying 0 gas and the sponsor paying the fee.
+- Updated dependencies [051bbc5]
+- Updated dependencies [0640e37]
+- Updated dependencies [f242b9c]
+- Updated dependencies [49ce0e9]
+- Updated dependencies [cf8c86d]
+- Updated dependencies [8253e67]
+- Updated dependencies [54611cd]
+- Updated dependencies [6c6d2c9]
+- Updated dependencies [2e52a78]
+- Updated dependencies [fb7acf4]
+- Updated dependencies [8f2de58]
+- Updated dependencies [389976a]
+- Updated dependencies [2e52a78]
+  - @secondlayer/shared@6.29.0
+  - @secondlayer/sdk@6.20.0
+  - @secondlayer/stacks@2.5.0
+  - @secondlayer/platform@0.0.27
+
 ## 1.19.12
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "8.6.4",
+	"version": "8.7.0",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
@@ -50,9 +50,9 @@
 		"@inquirer/prompts": "^8.2.0",
 		"@secondlayer/bundler": "^0.3.7",
 		"@secondlayer/scaffold": "^1.2.0",
-		"@secondlayer/sdk": "^6.19.0",
-		"@secondlayer/shared": "^6.28.1",
-		"@secondlayer/stacks": "^2.4.0",
+		"@secondlayer/sdk": "^6.20.0",
+		"@secondlayer/shared": "^6.29.0",
+		"@secondlayer/stacks": "^2.5.0",
 		"@secondlayer/subgraphs": "^3.10.0",
 		"@biomejs/js-api": "^0.7.0",
 		"@biomejs/wasm-nodejs": "^1.9.0",
