@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Product pages — Explore layout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;520;560;600;700&family=Public+Sans:wght@400;460;560&family=Fira+Code:wght@400;560&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #fafafa; --bg-elev: #ffffff; --bg-chrome: #f1f1f0;
+  --ink: #111210; --muted: #6f7066; --dim: #a3a49b; --border: #e4e4df;
+  --accent: #2563eb; --accent-bg: #eff4ff; --accent-border: #c7d8fd;
+  --green: #147d42; --green-bg: #e9f6ee; --pink: #ff00aa;
+  --display: "Sora", sans-serif; --sans: "Public Sans", sans-serif; --mono: "Fira Code", monospace;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+a { color: inherit; }
+
+/* nav (matches live) */
+.nav { position: fixed; inset: 0 0 auto 0; z-index: 40; display: flex; align-items: center; gap: 2px; height: 48px; padding: 0 16px; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-weight: 600; font-size: 0.9375rem; text-decoration: none; margin-right: 10px; }
+.brand svg .p1 { fill: var(--accent); } .brand svg .p2 { fill: var(--accent); opacity: 0.24; }
+.nl { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; padding: 2px 8px; }
+.nl.on { color: var(--ink); }
+.nav .right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.cta { font-size: 12px; font-weight: 560; color: #fff; background: var(--accent); border: none; border-radius: 6px; padding: 5px 14px; }
+
+/* mock switcher */
+.switch { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; gap: 4px; background: var(--ink); border-radius: 999px; padding: 4px; }
+.switch button { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: #c9cac1; background: none; border: none; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.switch button.on { background: #fff; color: var(--ink); }
+
+main { display: none; padding: 48px 0 0; }
+main.on { display: block; }
+.wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+/* explore-pattern header */
+.crumb { margin-top: 4.5rem; font-family: var(--mono); font-size: 0.67rem; font-weight: 560; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.crumb a { color: var(--muted); text-decoration: none; }
+.crumb span.sep { color: var(--dim); margin: 0 6px; }
+.crumb .here { color: var(--ink); }
+h1.display { margin-top: 1rem; font-family: var(--display); font-weight: 520; font-size: clamp(3rem, 7vw, 4.75rem); letter-spacing: -0.02em; line-height: 1; }
+.lede { margin-top: 1.25rem; max-width: 62ch; font-size: 1.0625rem; color: var(--muted); }
+.lede code { font-family: var(--mono); font-size: 0.85em; background: var(--bg-chrome); border-radius: 4px; padding: 1px 6px; }
+
+/* machine access card (from Explore) */
+.machine { margin-top: 2.5rem; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev); padding: 1.1rem 1.25rem; }
+.machine .k { font-family: var(--mono); font-size: 0.625rem; font-weight: 560; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.machine ul { list-style: none; margin-top: 0.75rem; display: flex; flex-direction: column; gap: 7px; }
+.machine li { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 0.74rem; }
+.machine .m { color: var(--green); font-weight: 560; min-width: 2.6rem; }
+.machine .m.post { color: var(--accent); }
+.machine .d { margin-left: auto; color: var(--dim); font-size: 0.65rem; }
+.machine .cp { color: var(--dim); cursor: pointer; }
+
+/* quickstart duo */
+.duo { margin-top: 3.5rem; display: grid; grid-template-columns: 1.1fr 0.9fr; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg-elev); }
+.duo pre { padding: 1.4rem 1.3rem; font-family: var(--mono); font-size: 0.76rem; line-height: 1.85; overflow-x: auto; }
+.k1 { color: var(--accent); } .k2 { color: #1d4ed8; } .k3 { color: #0f766e; } .cm { color: var(--dim); }
+.pane { border-left: 1px solid var(--border); }
+.phead { display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 1rem; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 0.65rem; color: var(--muted); }
+.phead .r { margin-left: auto; font-variant-numeric: tabular-nums; }
+.dot { width: 6px; height: 6px; border-radius: 999px; background: var(--green); }
+.dot.blue { background: var(--accent); }
+.row { display: grid; gap: 8px; height: 31px; align-items: center; padding: 0 1rem; border-top: 1px dashed var(--border); font-family: var(--mono); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.row.h { border-top: none; color: var(--muted); font-size: 0.58rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.row span:last-child { text-align: right; }
+.c3 { grid-template-columns: 1fr 0.7fr 0.6fr; }
+.chip { font-family: var(--mono); font-size: 0.6rem; font-weight: 560; border-radius: 3px; padding: 2px 6px; justify-self: end; }
+.chip.ok { color: var(--green); background: var(--green-bg); }
+
+/* section rows */
+.h2 { margin-top: 4.5rem; font-family: var(--display); font-weight: 560; font-size: 1.5rem; letter-spacing: -0.01em; }
+.feats { margin-top: 1.5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px dotted var(--border); }
+.feat { padding: 1.5rem 1.5rem 1.75rem 0; border-bottom: 1px dotted var(--border); }
+.feat h4 { font-family: var(--display); font-size: 0.9375rem; font-weight: 560; }
+.feat p { margin-top: 0.5rem; font-size: 0.84rem; color: var(--muted); }
+.feat .mono { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); }
+.docs-link { display: inline-flex; gap: 6px; margin-top: 1rem; font-size: 0.8125rem; font-weight: 560; color: var(--accent); text-decoration: none; }
+
+/* agent card */
+.agent { margin-top: 4.5rem; margin-bottom: 6rem; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev); padding: 1.5rem; max-width: 760px; }
+.agent h3 { font-family: var(--display); font-size: 1.0625rem; font-weight: 560; }
+.agent .body { margin-top: 1rem; background: var(--bg-chrome); border-radius: 8px; padding: 1.1rem 1.2rem; font-family: var(--mono); font-size: 0.72rem; line-height: 1.9; color: var(--ink); position: relative; }
+.agent .body .cp { position: absolute; top: 10px; right: 12px; color: var(--dim); }
+.agent .harness { display: flex; gap: 6px; margin-top: 0.9rem; }
+.agent .harness span { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px; }
+.note { font-family: "Caveat", cursive; font-size: 1.2rem; color: var(--muted); transform: rotate(-2deg); display: inline-block; margin-top: 2rem; }
+.note em { font-style: normal; color: var(--pink); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="#"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" class="p2"/><polygon points="8,19 28,11 42,19 22,27" class="p1"/></svg><span>secondlayer</span></a>
+  <a class="nl" id="nl-index" href="#">Index</a><a class="nl" id="nl-subgraphs" href="#">Subgraphs</a><a class="nl" id="nl-streams" href="#">Streams</a><a class="nl" href="#">Datasets</a><a class="nl" href="#">Explore</a>
+  <div class="right"><a class="nl" href="#">[D] Docs</a><a class="nl" href="#">[L] Login</a><button class="cta" type="button">Get an API key</button></div>
+</nav>
+
+<div class="switch" role="tablist">
+  <button class="on" data-pg="streams">Streams</button>
+  <button data-pg="index">Index</button>
+  <button data-pg="subgraphs">Subgraphs</button>
+  <button data-pg="subscriptions">Subscriptions</button>
+</div>
+
+<main id="pg-streams" class="on">
+  <div class="wrap">
+    <nav class="crumb"><a href="#">Products</a><span class="sep">/</span><span class="here">Streams</span></nav>
+    <h1 class="display">Streams</h1>
+    <p class="lede">The raw firehose — every event the chain emits, ordered, cursor-paginated, reorg-aware. Resume from any cursor, hold the tip over SSE, or replay history from signed parquet dumps. No key for reads.</p>
+    <div class="machine">
+      <span class="k">Machine access</span>
+      <ul><li><span class="m">GET</span><span>/v1/streams/events?cursor=…</span><span class="d">cursor-paginated reads</span><span class="cp">⧉</span></li><li><span class="m">GET</span><span>/v1/streams/events/tail</span><span class="d">SSE at the tip</span><span class="cp">⧉</span></li><li><span class="m">GET</span><span>data.secondlayer.tools/…/manifest/latest.json</span><span class="d">signed bulk dumps</span><span class="cp">⧉</span></li></ul>
+    </div>
+    <h2 class="h2">In three lines</h2>
+    <div class="duo">
+      <pre><span class="cm">// resume exactly where you stopped</span>
+<span class="k1">for await</span> (<span class="k1">const</span> batch <span class="k1">of</span> sl.streams.<span class="k3">consume</span>({ cursor })) {
+  <span class="k1">await</span> <span class="k3">handle</span>(batch.events);
+}</pre>
+      <div class="pane"><div class="phead"><span class="dot"></span>consuming · cursor 7,978,233:11<span class="r">0 reorgs</span></div>
+<div class="row h c3"><span>block</span><span>events</span><span>received</span></div>
+<div class="row c3"><span>#7,978,233</span><span>11 events</span><span>+2.4s</span></div>
+<div class="row c3"><span>#7,978,232</span><span>8 events</span><span>+0.0s</span></div></div>
+    </div>
+    <h2 class="h2">What you get</h2>
+    <div class="feats"><div class="feat"><h4>Ordered + reorg-aware</h4><p>Events arrive in canonical order; reorgs surface as explicit frames, never silent rewrites.</p></div><div class="feat"><h4>Resume from any cursor</h4><p>Cursors are stable checkpoints. Crash, redeploy, pick up exactly where you left off.</p></div><div class="feat"><h4>Signed bulk history</h4><p>Parquet dumps with ed25519-signed manifests — verify before you trust a byte.</p></div></div>
+    <a class="docs-link" href="#">Read the full docs →</a>
+    <div class="agent">
+      <h3>Set up Streams with your agent.</h3>
+      <div class="harness"><span>Claude Code</span><span>Cursor</span><span>Codex</span><span>any MCP client</span></div>
+      <div class="body"><span class="cp">⧉</span>Ensure setup once, skipping any step already done:<br>- Skill: `bunx skills add ryanwaits/secondlayer`<br>- CLI: `bun add -g @secondlayer/cli`<br>- Auth: `sl login` then `sl whoami`<br><br>/secondlayer Consume sBTC events from the tip and checkpoint my cursor to redis.</div>
+    </div>
+  </div>
+</main>
+<main id="pg-index">
+  <div class="wrap">
+    <nav class="crumb"><a href="#">Products</a><span class="sep">/</span><span class="here">Index</span></nav>
+    <h1 class="display">Index</h1>
+    <p class="lede">Decoded chain data, queryable. Every FT and NFT transfer, contract call, and print event — typed, filterable by contract, principal, or trait. Anonymous reads, wildcard CORS.</p>
+    <div class="machine">
+      <span class="k">Machine access</span>
+      <ul><li><span class="m">GET</span><span>/v1/index/events?event_type=…</span><span class="d">decoded events</span><span class="cp">⧉</span></li><li><span class="m">GET</span><span>/v1/index/ft-transfers?contract_id=…</span><span class="d">token transfers</span><span class="cp">⧉</span></li><li><span class="m">GET</span><span>/v1/index/nft-transfers</span><span class="d">nft activity</span><span class="cp">⧉</span></li></ul>
+    </div>
+    <h2 class="h2">In three lines</h2>
+    <div class="duo">
+      <pre><span class="cm">// decoded sBTC transfers, typed</span>
+<span class="k1">const</span> { events } = <span class="k1">await</span> sl.index.<span class="k3">ftTransfers</span>({
+  contractId: <span class="k2">"SM3V…sbtc-token"</span>,
+});
+
+<span class="cm">// every SIP-010 at once, by trait</span>
+<span class="k1">await</span> sl.index.<span class="k3">events</span>({ trait: <span class="k2">"sip-010"</span> });</pre>
+      <div class="pane"><div class="phead"><span class="dot blue"></span>ft-transfers · sbtc-token<span class="r">214,089 total · 41ms</span></div>
+<div class="row h c3"><span>sender</span><span>amount</span><span>block</span></div>
+<div class="row c3"><span>SP2J6…X4QD</span><span>1.20 sBTC</span><span>7,978,231</span></div>
+<div class="row c3"><span>SPN2K…1WPM</span><span>3.07 sBTC</span><span>7,978,229</span></div></div>
+    </div>
+    <h2 class="h2">What you get</h2>
+    <div class="feats"><div class="feat"><h4>Decoded, not raw hex</h4><p>Clarity values arrive as typed JSON — principals, uints, tuples — no client-side ABI wrangling.</p></div><div class="feat"><h4>Query by trait</h4><p>One filter spans every SIP-010 or SIP-009 contract — declared and inferred implementations.</p></div><div class="feat"><h4>One pagination idiom</h4><p>Cursor in, next_cursor out, reorg-aware — the same shape on every read surface.</p></div></div>
+    <a class="docs-link" href="#">Read the full docs →</a>
+    <div class="agent">
+      <h3>Set up Index with your agent.</h3>
+      <div class="harness"><span>Claude Code</span><span>Cursor</span><span>Codex</span><span>any MCP client</span></div>
+      <div class="body"><span class="cp">⧉</span>Ensure setup once, skipping any step already done:<br>- Skill: `bunx skills add ryanwaits/secondlayer`<br>- CLI: `bun add -g @secondlayer/cli`<br>- Auth: `sl login` then `sl whoami`<br><br>/secondlayer Show me the top sBTC recipients this week, then webhook anything over 1 BTC.</div>
+    </div>
+  </div>
+</main>
+<main id="pg-subgraphs">
+  <div class="wrap">
+    <nav class="crumb"><a href="#">Products</a><span class="sep">/</span><span class="here">Subgraphs</span></nav>
+    <h1 class="display">Subgraphs</h1>
+    <p class="lede">Your own indexer, minus the node. Define sources, schema, and handlers in one TypeScript file — deploy and get typed Postgres tables, a public read API, and a page on Explore, synced from genesis.</p>
+    <div class="machine">
+      <span class="k">Machine access</span>
+      <ul><li><span class="m">GET</span><span>/v1/subgraphs</span><span class="d">public directory, no key</span><span class="cp">⧉</span></li><li><span class="m">GET</span><span>/v1/subgraphs/:name/:table</span><span class="d">cursor-paginated rows</span><span class="cp">⧉</span></li><li><span class="m">GET</span><span>/v1/subgraphs/:name/docs.md</span><span class="d">per-subgraph docs for agents</span><span class="cp">⧉</span></li></ul>
+    </div>
+    <h2 class="h2">In three lines</h2>
+    <div class="duo">
+      <pre><span class="k1">export default</span> <span class="k3">defineSubgraph</span>({
+  sources: { transfer: { type: <span class="k2">"ft_transfer"</span> } },
+  schema: { transfers: { columns: { … } } },
+  handlers: { transfer: (e, ctx) =&gt; ctx.<span class="k3">insert</span>(<span class="k2">"transfers"</span>, e) },
+});</span></pre>
+      <div class="pane"><div class="phead"><span class="dot blue"></span>sbtc-flows · public<span class="r">synced · 0 behind</span></div>
+<div class="row h c3"><span>table</span><span>rows</span><span>&nbsp;</span></div>
+<div class="row c3"><span>transfers</span><span>2,418,553</span><span class="chip ok">live</span></div>
+<div class="row c3"><span>balances</span><span>109,101</span><span class="chip ok">live</span></div></div>
+    </div>
+    <h2 class="h2">What you get</h2>
+    <div class="feats"><div class="feat"><h4>Public by default</h4><p>Managed deploys get a shareable /v1 URL and a listing on Explore — flip to private anytime.</p></div><div class="feat"><h4>Synced from genesis</h4><p>Backfill runs on our infra against the full chain history. You deploy a file, not a fleet.</p></div><div class="feat"><h4>Typed end to end</h4><p>Generated clients for SDK, Kysely, Drizzle — your schema is the single source.</p></div></div>
+    <a class="docs-link" href="#">Read the full docs →</a>
+    <div class="agent">
+      <h3>Set up Subgraphs with your agent.</h3>
+      <div class="harness"><span>Claude Code</span><span>Cursor</span><span>Codex</span><span>any MCP client</span></div>
+      <div class="body"><span class="cp">⧉</span>Ensure setup once, skipping any step already done:<br>- Skill: `bunx skills add ryanwaits/secondlayer`<br>- CLI: `bun add -g @secondlayer/cli`<br>- Auth: `sl login` then `sl whoami`<br><br>/secondlayer Scaffold a subgraph from SM3V…sbtc-token, deploy it, hand me the public read URL.</div>
+    </div>
+  </div>
+</main>
+<main id="pg-subscriptions">
+  <div class="wrap">
+    <nav class="crumb"><a href="#">Products</a><span class="sep">/</span><span class="here">Subscriptions</span></nav>
+    <h1 class="display">Subscriptions</h1>
+    <p class="lede">Webhooks when it happens. Subscribe to chain events or your subgraph rows and get signed deliveries with retries and circuit breakers — the delivery layer of Index and Subgraphs.</p>
+    <div class="machine">
+      <span class="k">Machine access</span>
+      <ul><li><span class="m post">POST</span><span>/api/subscriptions</span><span class="d">create (key required)</span><span class="cp">⧉</span></li><li><span class="m">GET</span><span>/api/subscriptions/:id/deliveries</span><span class="d">delivery log</span><span class="cp">⧉</span></li><li><span class="m post">POST</span><span>→ your webhook</span><span class="d">signed payloads</span><span class="cp">⧉</span></li></ul>
+    </div>
+    <h2 class="h2">In three lines</h2>
+    <div class="duo">
+      <pre><span class="k1">await</span> sl.subscriptions.<span class="k3">create</span>({
+  name: <span class="k2">"whale-alerts"</span>,
+  triggers: [trigger.<span class="k3">ftTransfer</span>({
+    assetIdentifier: <span class="k2">"SM3V…::sbtc-token"</span>,
+    minAmount: <span class="k2">100_000_000</span> })],
+  url: <span class="k2">"https://hooks.example.com/sbtc"</span>,
+});</pre>
+      <div class="pane"><div class="phead"><span class="dot"></span>whale-alerts · active<span class="r">p50 88ms</span></div>
+<div class="row h c3"><span>event</span><span>status</span><span>latency</span></div>
+<div class="row c3"><span>3.07 sBTC · SPN2K…</span><span>200</span><span>91ms</span></div>
+<div class="row c3"><span>1.51 sBTC · SP1Q4…</span><span>200 · retry 1</span><span>—</span></div></div>
+    </div>
+    <h2 class="h2">What you get</h2>
+    <div class="feats"><div class="feat"><h4>Signed deliveries</h4><p>Every POST carries an HMAC signature — verify provenance before you act on it.</p></div><div class="feat"><h4>Retries + circuit breakers</h4><p>Exponential backoff, dead-letter visibility, automatic pause on persistent failures.</p></div><div class="feat"><h4>Chain or subgraph triggers</h4><p>Fire on raw chain events or on rows landing in your own tables.</p></div></div>
+    <a class="docs-link" href="#">Read the full docs →</a>
+    <div class="agent">
+      <h3>Set up Subscriptions with your agent.</h3>
+      <div class="harness"><span>Claude Code</span><span>Cursor</span><span>Codex</span><span>any MCP client</span></div>
+      <div class="body"><span class="cp">⧉</span>Ensure setup once, skipping any step already done:<br>- Skill: `bunx skills add ryanwaits/secondlayer`<br>- CLI: `bun add -g @secondlayer/cli`<br>- Auth: `sl login` then `sl whoami`<br><br>/secondlayer Webhook my Discord whenever an sBTC transfer over 1 BTC confirms.</div>
+    </div>
+  </div>
+</main>
+<script>
+const tabs = document.querySelectorAll(".switch button");
+for (const b of tabs) b.addEventListener("click", () => {
+  for (const x of tabs) x.classList.toggle("on", x === b);
+  for (const m of document.querySelectorAll("main")) m.classList.toggle("on", m.id === "pg-" + b.dataset.pg);
+  for (const nl of document.querySelectorAll(".nl[id]")) nl.classList.toggle("on", nl.id === "nl-" + b.dataset.pg);
+  window.scrollTo(0, 0);
+});
+document.getElementById("nl-streams").classList.add("on");
+</script>
+</body></html>
