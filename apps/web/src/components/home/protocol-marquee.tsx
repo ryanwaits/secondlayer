@@ -64,9 +64,6 @@ export async function ProtocolMarquee() {
 
 	return (
 		<div className="home-marquee-zone">
-			<span className="home-marquee-note" aria-hidden="true">
-				all live, <em>no key needed</em>
-			</span>
 			<div
 				className="home-marquee"
 				aria-label="Protocols indexed on Secondlayer"

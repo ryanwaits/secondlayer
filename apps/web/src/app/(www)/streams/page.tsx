@@ -3,9 +3,8 @@ import { CodeBlock } from "@/components/code-block";
 import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { StreamsDiagram } from "@/components/diagrams/streams-diagram";
 import { InlineKey, KeyTrigger } from "@/components/inline-key";
+import { MarketingPageHeader } from "@/components/marketing-page-header";
 import { SectionHeading } from "@/components/section-heading";
-import { Sidebar } from "@/components/sidebar";
-import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -15,22 +14,11 @@ export const metadata: Metadata = {
 		"The raw event firehose for Stacks — an immutable, replayable, cursor-paginated log. No node required.",
 };
 
-const toc: TocItem[] = [
-	{ label: "How it works", href: "#how-it-works" },
-	{ label: "Auth", href: "#auth" },
-	{ label: "Reading the log", href: "#reading-the-log" },
-	{ label: "Try it", href: "#try-it" },
-];
-
 export default function StreamsPage() {
 	return (
-		<div className="article-layout">
-			<Sidebar title="Streams" toc={toc} />
-
-			<main className="content-area">
-				<header className="page-header">
-					<h1 className="page-title">Streams</h1>
-				</header>
+		<main className="explore-wrap">
+			<MarketingPageHeader crumb="Products" here="Streams" title={<>Streams</>} />
+			<div className="mk-body">
 
 				<div className="prose">
 					<p>
@@ -170,7 +158,7 @@ await streams.events.consume({
 						{ name: "limit", type: "number", default: "5", placeholder: "5" },
 					]}
 				/>
-			</main>
-		</div>
+			</div>
+		</main>
 	);
 }

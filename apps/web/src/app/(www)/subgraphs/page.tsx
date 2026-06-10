@@ -3,9 +3,8 @@ import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { SubgraphsDiagram } from "@/components/diagrams/subgraphs-diagram";
+import { MarketingPageHeader } from "@/components/marketing-page-header";
 import { SectionHeading } from "@/components/section-heading";
-import { Sidebar } from "@/components/sidebar";
-import type { TocItem } from "@/components/sidebar";
 import { MARKETING_SUBGRAPHS_PROMPT } from "@/lib/agent-prompts";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -16,24 +15,19 @@ export const metadata: Metadata = {
 		"Your own indexer, minus the node. Write handlers, get typed Postgres tables shaped exactly for your app.",
 };
 
-const toc: TocItem[] = [
-	{ label: "How it works", href: "#how-it-works" },
-	{ label: "Define a subgraph", href: "#define" },
-	{ label: "Deploy & query", href: "#deploy" },
-	{ label: "Explore →", href: "/subgraphs/explore" },
-];
-
 export default function SubgraphsPage() {
 	return (
-		<div className="article-layout">
-			<Sidebar title="Stacks Subgraphs" toc={toc} />
-
-			<main className="content-area">
-				<header className="page-header">
-					<h1 className="page-title">
-						Stacks Subgraphs <BoxBadge>Beta</BoxBadge>
-					</h1>
-				</header>
+		<main className="explore-wrap">
+			<MarketingPageHeader
+				crumb="Products"
+				here="Subgraphs"
+				title={
+					<>
+						Subgraphs <BoxBadge>Beta</BoxBadge>
+					</>
+				}
+			/>
+			<div className="mk-body">
 
 				<div className="prose">
 					<p>
@@ -178,7 +172,7 @@ const { rows, next_cursor, tip } = await client.subgraphs.rows(
 						<Link href="/docs/subgraphs">/docs/subgraphs</Link>.
 					</p>
 				</Callout>
-			</main>
-		</div>
+			</div>
+		</main>
 	);
 }

@@ -6531,9 +6531,14 @@ a.dataset-shelf-name:hover {
 /* ── Subgraphs Explore (public directory) ──────────────────────────── */
 
 .explore-wrap {
-	max-width: 1040px;
+	max-width: calc(1100px + 3rem);
 	margin: 0 auto;
 	padding: 0 1.5rem 6rem;
+}
+/* marketing product pages: header spans the wrap; body keeps the original
+   readable column, left-aligned to the same gutter */
+.mk-body {
+	max-width: 36.375rem;
 }
 .explore-crumb {
 	font-family: var(--font-mono-stack);
@@ -7359,16 +7364,19 @@ a.dataset-shelf-name:hover {
 	color: var(--accent);
 }
 .home-ctas {
-	flex-wrap: wrap;
+	align-items: flex-start;
+}
+.home-cta-col {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.8rem;
 }
 .home-mint-fine {
-	flex-basis: 100%;
-	order: 3;
-	text-align: center;
-	margin-top: 0.35rem;
+	padding-left: 18px;
 	font-family: var(--font-mono-stack);
 	font-size: 0.67rem;
-	color: var(--text-dim);
+	color: var(--text-muted);
 }
 .home-ghost-cta {
 	display: inline-flex;
@@ -7829,19 +7837,6 @@ a.dataset-shelf-name:hover {
 	padding: 3rem 0 3.5rem;
 	border-top: 1px dotted var(--border);
 	border-bottom: 1px dotted var(--border);
-}
-.home-marquee-note {
-	position: absolute;
-	top: 0.9rem;
-	right: clamp(1rem, 8vw, 6rem);
-	font-family: var(--font-cursive);
-	font-size: 1.15rem;
-	color: var(--text-muted);
-	transform: rotate(-2deg);
-}
-.home-marquee-note em {
-	font-style: normal;
-	color: var(--marker-pink, #ff00aa);
 }
 .home-marquee {
 	overflow: hidden;

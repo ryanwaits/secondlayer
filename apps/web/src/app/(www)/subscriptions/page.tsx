@@ -1,9 +1,8 @@
 import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
 import { SubscriptionsDiagram } from "@/components/diagrams/subscriptions-diagram";
+import { MarketingPageHeader } from "@/components/marketing-page-header";
 import { SectionHeading } from "@/components/section-heading";
-import { Sidebar } from "@/components/sidebar";
-import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -13,22 +12,11 @@ export const metadata: Metadata = {
 		"Push, not poll. Fire a signed, retried webhook on matched subgraph rows — or on raw chain events with no subgraph at all.",
 };
 
-const toc: TocItem[] = [
-	{ label: "How it works", href: "#how-it-works" },
-	{ label: "Subscribe", href: "#subscribe" },
-	{ label: "Chain subscriptions", href: "#chain-subscriptions" },
-	{ label: "Delivery", href: "#delivery" },
-];
-
 export default function SubscriptionsPage() {
 	return (
-		<div className="article-layout">
-			<Sidebar title="Subscriptions" toc={toc} />
-
-			<main className="content-area">
-				<header className="page-header">
-					<h1 className="page-title">Subscriptions</h1>
-				</header>
+		<main className="explore-wrap">
+			<MarketingPageHeader crumb="Products" here="Subscriptions" title={<>Subscriptions</>} />
+			<div className="mk-body">
 
 				<div className="prose">
 					<p>
@@ -179,7 +167,7 @@ webhook-signature: v1,<base64-hmac>
 						<Link href="/docs/subscriptions">/docs/subscriptions</Link>.
 					</p>
 				</Callout>
-			</main>
-		</div>
+			</div>
+		</main>
 	);
 }

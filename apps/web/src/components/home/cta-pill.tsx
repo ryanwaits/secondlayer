@@ -1,5 +1,6 @@
 "use client";
 
+import { Notation } from "@/components/notation";
 import { useState } from "react";
 
 const GHOST_KEYS_ENABLED = process.env.NEXT_PUBLIC_GHOST_KEYS === "1";
@@ -65,7 +66,7 @@ export function CtaPill() {
 	}
 
 	return (
-		<>
+		<div className="home-cta-col">
 			<button
 				type="button"
 				className={`home-cmd home-cmd-mint${mint.phase === "minted" ? " minted" : ""}`}
@@ -91,10 +92,21 @@ export function CtaPill() {
 				</span>
 			</button>
 			<p className="home-mint-fine" aria-live="polite">
-				{mint.phase === "minted"
-					? `on your clipboard · free tier · claim it at ${mint.claimUrl.replace(/^https?:\/\//, "").slice(0, 44)}…`
-					: "free tier · no signup · claim it with an email whenever you want"}
+				{mint.phase === "minted" ? (
+					`on your clipboard · free tier · claim it with an email anytime`
+				) : (
+					<Notation
+						type="underline"
+						color="var(--accent)"
+						strokeWidth={2}
+						padding={2}
+						animationDuration={600}
+						iterations={2}
+					>
+						get an API key, no sign up required
+					</Notation>
+				)}
 			</p>
-		</>
+		</div>
 	);
 }

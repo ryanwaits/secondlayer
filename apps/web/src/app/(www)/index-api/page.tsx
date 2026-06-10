@@ -3,9 +3,8 @@ import { CodeBlock } from "@/components/code-block";
 import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { IndexDiagram } from "@/components/diagrams/index-diagram";
 import { InlineKey, KeyTrigger } from "@/components/inline-key";
+import { MarketingPageHeader } from "@/components/marketing-page-header";
 import { SectionHeading } from "@/components/section-heading";
-import { Sidebar } from "@/components/sidebar";
-import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -15,21 +14,11 @@ export const metadata: Metadata = {
 		"Decoded Stacks events and contract calls — normalized, filterable, cursor-paginated. No decoders to write.",
 };
 
-const toc: TocItem[] = [
-	{ label: "How it works", href: "#how-it-works" },
-	{ label: "Querying", href: "#querying" },
-	{ label: "Try it", href: "#try-it" },
-];
-
 export default function IndexPage() {
 	return (
-		<div className="article-layout">
-			<Sidebar title="Index" toc={toc} />
-
-			<main className="content-area">
-				<header className="page-header">
-					<h1 className="page-title">Index</h1>
-				</header>
+		<main className="explore-wrap">
+			<MarketingPageHeader crumb="Products" here="Index" title={<>Index</>} />
+			<div className="mk-body">
 
 				<div className="prose">
 					<p>
@@ -136,7 +125,7 @@ for await (const call of index.contractCalls.walk({ contractId })) {
 						{ name: "limit", type: "number", default: "5", placeholder: "5" },
 					]}
 				/>
-			</main>
-		</div>
+			</div>
+		</main>
 	);
 }

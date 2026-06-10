@@ -1,9 +1,8 @@
 import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
 import { DatasetsDiagram } from "@/components/diagrams/datasets-diagram";
+import { MarketingPageHeader } from "@/components/marketing-page-header";
 import { SectionHeading } from "@/components/section-heading";
-import { Sidebar } from "@/components/sidebar";
-import type { TocItem } from "@/components/sidebar";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -12,12 +11,6 @@ export const metadata: Metadata = {
 	description:
 		"Curated, ready-to-query Stacks datasets — sBTC, stacking, BNS and more. Stable APIs + parquet, free to read.",
 };
-
-const toc: TocItem[] = [
-	{ label: "How it works", href: "#how-it-works" },
-	{ label: "The shelf", href: "#the-shelf" },
-	{ label: "How to read", href: "#how-to-read" },
-];
 
 export type DatasetEntry = {
 	slug: string;
@@ -90,19 +83,16 @@ export const datasets: DatasetEntry[] = [
 
 export default function DatasetsPage() {
 	return (
-		<div className="article-layout">
-			<Sidebar title="Stacks Datasets" toc={toc} />
+		<main className="explore-wrap">
+			<MarketingPageHeader crumb="Products" here="Datasets" title="Datasets" />
 			<DatasetsContent />
-		</div>
+		</main>
 	);
 }
 
 export function DatasetsContent() {
 	return (
-		<main className="content-area">
-			<header className="page-header">
-				<h1 className="page-title">Stacks Datasets</h1>
-			</header>
+		<div className="mk-body">
 
 			<div className="prose">
 				<p>
@@ -168,7 +158,7 @@ LIMIT 5;`}
 					<Link href="/docs/datasets">/docs/datasets</Link>.
 				</p>
 			</Callout>
-		</main>
+		</div>
 	);
 }
 
