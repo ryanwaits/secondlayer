@@ -87,7 +87,27 @@ h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375r
 .xmini code{font-family:var(--mono);font-size:.85em;background:var(--elev);border-radius:4px;padding:1px 6px}
 .xmini .chips{display:flex;gap:6px}
 .xmini .chip{font-family:var(--mono);font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--accent-border);border-radius:999px;padding:3px 9px;color:var(--accent)}
-@media(max-width:900px){.split,.receipts{grid-template-columns:1fr}.band{grid-template-columns:1fr;gap:1rem}.lrow{grid-template-columns:1.3fr repeat(4,1fr);font-size:.8em}}
+/* full x402 walkthrough (variant C, below tiers) */
+.x{margin-top:3.5rem;border:1px solid var(--border);border-radius:14px;background:var(--elev);overflow:hidden}
+.x-head{display:flex;align-items:baseline;gap:12px;padding:1.2rem 1.4rem;border-bottom:1px solid var(--border)}
+.x-head .t{font-family:var(--display);font-size:1.0625rem;font-weight:560}
+.x-head .chips{margin-left:auto;display:flex;gap:6px}
+.x-head .chip{font-family:var(--mono);font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);border-radius:999px;padding:3px 9px;color:var(--muted)}
+.x-grid{display:grid;grid-template-columns:1.05fr .95fr}
+.x-steps{padding:1rem .8rem;display:flex;flex-direction:column}
+.x-steps .step{all:unset;box-sizing:border-box;display:flex;gap:14px;padding:.8rem .6rem;border-top:1px dashed var(--border);cursor:pointer;border-radius:8px}
+.x-steps .step:first-child{border-top:none}
+.x-steps .step.on{background:var(--accent-bg)}
+.x-steps .no{flex:none;width:22px;height:22px;border-radius:999px;border:1px solid var(--accent-border);background:var(--accent-bg);color:var(--accent);font-family:var(--mono);font-size:.65rem;display:grid;place-items:center}
+.x-steps .step.on .no{background:var(--accent);color:#fff;border-color:var(--accent)}
+.x-steps h5{font-family:var(--display);font-size:.875rem;font-weight:560}
+.x-steps p{margin-top:.15rem;font-size:.78rem;color:var(--muted)}
+.x-steps p code{font-family:var(--mono);font-size:.85em;background:var(--chrome);border-radius:4px;padding:0 5px}
+.x-code{display:none;border-left:1px solid var(--border);background:var(--bg);padding:1.3rem 1.4rem;font-family:var(--mono);font-size:.68rem;line-height:1.8;overflow-x:auto;margin:0;white-space:pre}
+.x-code.on{display:block}
+.x-code .c{color:var(--dim)} .x-code .k{color:var(--accent)} .x-code .g{color:var(--green)}
+.x-foot{padding:.9rem 1.4rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;font-family:var(--mono);font-size:.65rem;color:var(--muted)}
+@media(max-width:900px){.split,.receipts{grid-template-columns:1fr}.band{grid-template-columns:1fr;gap:1rem}.lrow{grid-template-columns:1.3fr repeat(4,1fr);font-size:.8em}.x-grid{grid-template-columns:1fr}.x-code{border-left:none;border-top:1px solid var(--border)}}
 </style></head><body>
 
 <div class="switch">
@@ -163,8 +183,66 @@ h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375r
       <div class="prow hot"><div><div class="n">Pro</div><div class="d">higher rate limits · 10 subgraphs incl. private · 25 subs · email support</div></div><div class="pr">$99<small>/mo</small></div><a class="go" href="#">start →</a></div>
       <div class="prow"><div><div class="n">Scale</div><div class="d">top rate limits · 50 subgraphs incl. private · unlimited subs · 99.9%</div></div><div class="pr">$499<small>/mo</small></div><a class="go" href="#">start →</a></div>
       <div class="prow"><div><div class="n">Enterprise</div><div class="d">custom capacity · BYO plane · SLA</div></div><div class="pr" style="font-size:1rem">contact us</div><a class="go" href="#">talk →</a></div>
-      <div class="xmini" style="margin-top:.5rem"><span class="t">⚡ Pay per call</span><p>Agents skip plans entirely: <code>402</code> → sponsored transfer → <code>X-PAYMENT</code>. $0.001 floor.</p></div>
+      <a class="xmini" style="margin-top:.5rem;text-decoration:none;color:inherit;cursor:pointer" href="#x402-full" onclick="document.getElementById('x402-full').scrollIntoView({behavior:'smooth'});return false;"><span class="t">⚡ Pay per call</span><p>Agents skip plans entirely: <code>402</code> quote, sponsored transfer, receipt. $0.001 floor — see how it works ↓</p></a>
     </div>
+  </div>
+
+  <h2 id="x402-full" style="scroll-margin-top:4rem">No account? Pay per call.</h2>
+  <p class="sub">Built for agents. Any /v1 read can be paid with <b>x402</b>, the HTTP 402 payment standard, settled on Stacks. No card, no signup, no gas: transfers are sponsored, you only hold the token.</p>
+  <div class="x">
+    <div class="x-head"><span class="t">How x402 billing works</span>
+      <div class="chips"><span class="chip">sBTC</span><span class="chip">STX</span><span class="chip">USDC</span></div></div>
+    <div class="x-grid">
+      <div class="x-steps">
+        <button class="step on" data-s="1"><span class="no">1</span><div><h5>Call without a key</h5><p>Past the free anonymous limits, the API answers <code>402 Payment Required</code> with exact quotes per accepted token.</p></div></button>
+        <button class="step" data-s="2"><span class="no">2</span><div><h5>Wrap fetch, hold a wallet</h5><p>One line with the SDK: <code>withX402(fetch, { account })</code>. It selects an offer, signs the sponsored transfer — <b>you pay zero gas</b> — and retries for you.</p></div></button>
+        <button class="step" data-s="3"><span class="no">3</span><div><h5>The paid retry</h5><p>Same request plus a <code>PAYMENT-SIGNATURE</code> header. The response streams immediately; settlement confirms on-chain behind it.</p></div></button>
+        <button class="step" data-s="4"><span class="no">4</span><div><h5>Read the receipt</h5><p>Every paid response carries a <code>PAYMENT-RESPONSE</code> receipt with txid, payer, and settlement state. Floor $0.001/call.</p></div></button>
+      </div>
+      <pre class="x-code on" data-c="1"><span class="c"># your agent calls like anyone else…</span>
+GET /v1/index/events?event_type=ft_transfer
+
+<span class="c"># …and past the free limits gets a quote</span>
+HTTP/1.1 <span class="k">402 Payment Required</span>
+{
+  "x402Version": 2,
+  "accepts": [{
+    "scheme": "exact",
+    "network": "stacks-mainnet",
+    "asset": "sBTC",
+    "amount": "21",          <span class="c">// atomic units</span>
+    "payTo": "SP2X…8KQ",
+    "extra": { "nonce": "…" }
+  }]
+}</pre>
+      <pre class="x-code" data-c="2"><span class="c">// the code you actually write</span>
+<span class="k">import</span> { withX402, readX402Receipt } <span class="k">from</span> <span class="g">"@secondlayer/sdk"</span>;
+
+<span class="k">const</span> x402fetch = withX402(fetch, { account });
+
+<span class="k">const</span> res = <span class="k">await</span> x402fetch(
+  <span class="g">"https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer"</span>
+);
+<span class="c">// offer selection, sponsored signing, and the
+// retry all happen inside that one call</span></pre>
+      <pre class="x-code" data-c="3"><span class="c"># what went over the wire for you</span>
+GET /v1/index/events?event_type=ft_transfer
+<span class="k">PAYMENT-SIGNATURE:</span> eyJzaWduZWQi…
+
+<span class="c"># data streams back immediately</span>
+HTTP/1.1 <span class="g">200 OK</span>
+{ "events": [ … ], "next_cursor": "7978231:42" }</pre>
+      <pre class="x-code" data-c="4"><span class="c">// verify what you paid, in code</span>
+<span class="k">const</span> receipt = readX402Receipt(res);
+<span class="c">// {
+//   success: true,
+//   state: "optimistic" | "confirmed",
+//   txid: "0x4f…",
+//   payer: "SP1Q4…2MVE",
+//   network: "stacks-mainnet"
+// }</span></pre>
+    </div>
+    <div class="x-foot"><span>standard x402 v2 wire · works with any x402 client</span><span>sponsored = we pay the STX gas</span></div>
   </div>
 </div></main>
 
@@ -199,6 +277,11 @@ h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375r
 </div></main>
 
 <script>
+const xsteps=document.querySelectorAll(".x-steps .step");
+for(const st of xsteps) st.addEventListener("click",()=>{
+  for(const x of xsteps) x.classList.toggle("on",x===st);
+  for(const c of document.querySelectorAll(".x-code")) c.classList.toggle("on",c.dataset.c===st.dataset.s);
+});
 const tabs=document.querySelectorAll(".switch button");
 for(const b of tabs) b.addEventListener("click",()=>{for(const x of tabs)x.classList.toggle("on",x===b);
   for(const m of document.querySelectorAll("main"))m.classList.toggle("on",m.id==="v-"+b.dataset.v);window.scrollTo(0,0);});
