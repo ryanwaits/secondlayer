@@ -35,7 +35,7 @@ export async function getTeamMembers(
 		role: string;
 		created_at: Date;
 		account_id: string;
-		email: string;
+		email: string | null;
 		display_name: string | null;
 		avatar_url: string | null;
 		account_slug: string | null;
