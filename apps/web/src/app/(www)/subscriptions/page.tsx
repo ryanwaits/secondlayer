@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function SubscriptionsPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Products" here="Subscriptions" title={<>Subscriptions</>} />
+			<MarketingPageHeader crumb="Home" crumbHref="/" here="Subscriptions" title={<>Subscriptions</>} />
 			<div className="mk-body">
 
 				<div className="prose">

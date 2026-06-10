@@ -19,7 +19,7 @@ export default function SubgraphsPage() {
 	return (
 		<main className="explore-wrap">
 			<MarketingPageHeader
-				crumb="Products"
+				crumb="Home" crumbHref="/"
 				here="Subgraphs"
 				title={
 					<>

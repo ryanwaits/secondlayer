@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function IndexPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Products" here="Index" title={<>Index</>} />
+			<MarketingPageHeader crumb="Home" crumbHref="/" here="Index" title={<>Index</>} />
 			<div className="mk-body">
 
 				<div className="prose">

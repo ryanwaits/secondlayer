@@ -84,7 +84,7 @@ export const datasets: DatasetEntry[] = [
 export default function DatasetsPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Products" here="Datasets" title="Datasets" />
+			<MarketingPageHeader crumb="Home" crumbHref="/" here="Datasets" title="Datasets" />
 			<DatasetsContent />
 		</main>
 	);

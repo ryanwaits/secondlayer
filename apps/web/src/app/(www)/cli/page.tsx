@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function CliPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Developers" here="CLI" title="CLI" />
+			<MarketingPageHeader crumb="Home" crumbHref="/" here="CLI" title="CLI" />
 			<div className="mk-body">
 
 				<div className="prose">

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function SdkPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Developers" here="SDK" title="SDK" />
+			<MarketingPageHeader crumb="Home" crumbHref="/" here="SDK" title="SDK" />
 			<div className="mk-body">
 
 				<div className="prose">
