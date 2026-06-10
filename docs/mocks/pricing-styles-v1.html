@@ -108,7 +108,7 @@ h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375r
       <span class="cell">Pro<small>$99/mo</small></span>
       <span class="cell">Scale<small>$499/mo</small></span>
       <span class="cell">Enterprise<small>contact us</small></span></div>
-    <div class="lrow"><span class="k">Keyed request budget</span><span class="cell">10 req/s</span><span class="cell hot">100 req/s</span><span class="cell">500 req/s</span><span class="cell">custom</span></div>
+    <div class="lrow"><span class="k">Requests per second</span><span class="cell">10 req/s</span><span class="cell hot">100 req/s</span><span class="cell">500 req/s</span><span class="cell">custom</span></div>
     <div class="lrow"><span class="k">Deployed subgraphs</span><span class="cell">2</span><span class="cell hot">10</span><span class="cell">50</span><span class="cell">custom</span></div>
     <div class="lrow"><span class="k">Backfill priority</span><span class="cell na">shared lane</span><span class="cell">priority</span><span class="cell">dedicated lane</span><span class="cell">dedicated + SLA</span></div>
     <div class="lrow"><span class="k">Subscriptions</span><span class="cell">3 · 24h retention</span><span class="cell hot">25 · 7d + replay</span><span class="cell">unlimited · 30d</span><span class="cell">unlimited · custom</span></div>
@@ -116,6 +116,7 @@ h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375r
     <div class="lrow"><span class="k">Support</span><span class="cell">community</span><span class="cell">email</span><span class="cell">Slack · 99.9%</span><span class="cell">SLA + incident channel</span></div>
     <div class="lrow price"><span class="k"></span><span class="cell">$0</span><span class="cell">$99<small>/mo</small></span><span class="cell">$499<small>/mo</small></span><span class="cell" style="font-size:.9rem">contact us</span></div>
   </div>
+  <p style="margin-top:.9rem;font-size:.78rem;color:var(--dim)">Rates are per API key — your app&rsquo;s own budget. Anonymous reads share a per-IP pool instead, so production traffic belongs on a key.</p>
   <div class="xmini"><span class="t">⚡ No account? Pay per call.</span><p>Past the free limits, any read answers <code>402</code> with a quote — sign a sponsored transfer (zero gas), retry with <code>X-PAYMENT</code>, keep the receipt. Floor $0.001/call.</p><div class="chips"><span class="chip">sBTC</span><span class="chip">STX</span><span class="chip">USDC</span></div></div>
 </div></main>
 
@@ -126,13 +127,13 @@ h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375r
   <span class="tbd">entitlement values are placeholders — TBD</span>
   <div style="margin-top:2rem">
     <div class="band"><div><div class="n">Free</div><div class="pr">$0 <small>forever</small></div><div class="for">hobby projects, exploration</div></div>
-      <ul><li><b>10 req/s</b> keyed budget</li><li><b>2</b> subgraphs</li><li><b>3</b> subscriptions · 24h</li><li>full parquet archive</li></ul>
+      <ul><li><b>10</b> requests/sec</li><li><b>2</b> subgraphs</li><li><b>3</b> subscriptions · 24h</li><li>full parquet archive</li></ul>
       <a class="go line" href="#">Mint a key</a></div>
     <div class="band hot"><div><div class="n">Pro</div><div class="pr">$99 <small>/mo</small></div><div class="for">a production app on Stacks</div></div>
-      <ul><li><b>100 req/s</b> keyed budget</li><li><b>10</b> subgraphs · priority backfill</li><li><b>25</b> subscriptions · 7d + replay</li><li>usage budgets + alerts</li></ul>
+      <ul><li><b>100</b> requests/sec</li><li><b>10</b> subgraphs · priority backfill</li><li><b>25</b> subscriptions · 7d + replay</li><li>usage budgets + alerts</li></ul>
       <a class="go solid" href="#">Start Pro</a></div>
     <div class="band"><div><div class="n">Scale</div><div class="pr">$499 <small>/mo</small></div><div class="for">indexing as your backbone</div></div>
-      <ul><li><b>500 req/s</b> keyed budget</li><li><b>50</b> subgraphs · dedicated lane</li><li>unlimited subscriptions · 30d</li><li>team roles · Slack · 99.9%</li></ul>
+      <ul><li><b>500</b> requests/sec</li><li><b>50</b> subgraphs · dedicated lane</li><li>unlimited subscriptions · 30d</li><li>team roles · Slack · 99.9%</li></ul>
       <a class="go line" href="#">Start Scale</a></div>
     <div class="band"><div><div class="n">Enterprise</div><div class="pr" style="font-size:1.125rem">Contact us</div><div class="for">infra teams, exchanges</div></div>
       <ul><li>custom limits + capacity</li><li>priority indexing for your contracts</li><li>BYO database plane</li><li>SLA + incident channel</li></ul>
@@ -159,8 +160,8 @@ h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375r
       </ul>
     </div>
     <div class="paidstack">
-      <div class="prow hot"><div><div class="n">Pro</div><div class="d">100 req/s · 10 subgraphs · 25 subs · email support</div></div><div class="pr">$99<small>/mo</small></div><a class="go" href="#">start →</a></div>
-      <div class="prow"><div><div class="n">Scale</div><div class="d">500 req/s · 50 subgraphs · unlimited subs · 99.9%</div></div><div class="pr">$499<small>/mo</small></div><a class="go" href="#">start →</a></div>
+      <div class="prow hot"><div><div class="n">Pro</div><div class="d">100 req/sec · 10 subgraphs · 25 subs · email support</div></div><div class="pr">$99<small>/mo</small></div><a class="go" href="#">start →</a></div>
+      <div class="prow"><div><div class="n">Scale</div><div class="d">500 req/sec · 50 subgraphs · unlimited subs · 99.9%</div></div><div class="pr">$499<small>/mo</small></div><a class="go" href="#">start →</a></div>
       <div class="prow"><div><div class="n">Enterprise</div><div class="d">custom capacity · BYO plane · SLA</div></div><div class="pr" style="font-size:1rem">contact us</div><a class="go" href="#">talk →</a></div>
       <div class="xmini" style="margin-top:.5rem"><span class="t">⚡ Pay per call</span><p>Agents skip plans entirely: <code>402</code> → sponsored transfer → <code>X-PAYMENT</code>. $0.001 floor.</p></div>
     </div>
@@ -174,17 +175,17 @@ h2{margin-top:3.5rem;font-family:var(--display);font-weight:560;font-size:1.375r
   <span class="tbd">entitlement values are placeholders — TBD</span>
   <div class="receipts">
     <div class="rcpt"><div class="shop">secondlayer · stacks mainnet</div><div class="tname">Free</div><div class="dash"></div>
-      <div class="it"><span>keyed budget</span><b>10 req/s</b></div><div class="it"><span>subgraphs</span><b>2</b></div>
+      <div class="it"><span>requests/sec</span><b>10</b></div><div class="it"><span>subgraphs</span><b>2</b></div>
       <div class="it"><span>subscriptions</span><b>3 · 24h</b></div><div class="it"><span>parquet archive</span><b>full</b></div>
       <div class="dash"></div><div class="tot"><span>TOTAL</span><span>$0 <small>forever</small></span></div>
       <div class="thanks">no card, no signup</div></div>
     <div class="rcpt hot"><div class="shop">secondlayer · stacks mainnet</div><div class="tname">Pro</div><div class="dash"></div>
-      <div class="it"><span>keyed budget</span><b>100 req/s</b></div><div class="it"><span>subgraphs</span><b>10 · priority</b></div>
+      <div class="it"><span>requests/sec</span><b>100</b></div><div class="it"><span>subgraphs</span><b>10 · priority</b></div>
       <div class="it"><span>subscriptions</span><b>25 · 7d</b></div><div class="it"><span>support</span><b>email</b></div>
       <div class="dash"></div><div class="tot"><span>TOTAL</span><span>$99 <small>/mo</small></span></div>
       <div class="thanks">most teams land here</div></div>
     <div class="rcpt"><div class="shop">secondlayer · stacks mainnet</div><div class="tname">Scale</div><div class="dash"></div>
-      <div class="it"><span>keyed budget</span><b>500 req/s</b></div><div class="it"><span>subgraphs</span><b>50 · dedicated</b></div>
+      <div class="it"><span>requests/sec</span><b>500</b></div><div class="it"><span>subgraphs</span><b>50 · dedicated</b></div>
       <div class="it"><span>subscriptions</span><b>unltd · 30d</b></div><div class="it"><span>support</span><b>Slack · 99.9%</b></div>
       <div class="dash"></div><div class="tot"><span>TOTAL</span><span>$499 <small>/mo</small></span></div>
       <div class="thanks">indexing as backbone</div></div>
