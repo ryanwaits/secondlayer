@@ -322,6 +322,11 @@ services:
       NODE_ENV: production
       DATA_DIR: /data
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
+      # Reindex batch tuning (runtime/reindex.ts reads these; resume-safe to
+      # restart mid-reindex). Unset → 500/100/1000 defaults.
+      SUBGRAPH_REINDEX_BATCH_SIZE: ${SUBGRAPH_REINDEX_BATCH_SIZE:-}
+      SUBGRAPH_REINDEX_MIN_BATCH_SIZE: ${SUBGRAPH_REINDEX_MIN_BATCH_SIZE:-}
+      SUBGRAPH_REINDEX_MAX_BATCH_SIZE: ${SUBGRAPH_REINDEX_MAX_BATCH_SIZE:-}
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
     depends_on:
