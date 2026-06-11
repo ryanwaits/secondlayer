@@ -1,0 +1,88 @@
+# x402 pay-per-call
+
+> **Experimental.** The pay-per-call rail is a beta — surfaces, prices, and headers may change. Plans on the [pricing page](/pricing) are the stable way to pay.
+
+Built for agents. Index and Streams reads (`/v1/index`, `/v1/streams`) can be paid with **x402**, the HTTP 402 payment standard, settled on Stacks — and a paid `POST /v1/subgraphs` deploys an indexer owned by your wallet. No card, no signup, no gas: transfers are sponsored, you only hold the token (sBTC, STX, or USDCx).
+
+## How it works
+
+### 1. Call without a key
+
+Call without a key while the pay-per-call rail is on and the API answers `402 Payment Required` with exact quotes per accepted token.
+
+```bash
+# your agent calls like anyone else…
+GET /v1/index/events?event_type=ft_transfer
+
+# …and, with the pay-per-call rail on, gets a quote
+HTTP/1.1 402 Payment Required
+{
+  "x402Version": 2,
+  "accepts": [{
+    "scheme": "exact",
+    "network": "stacks:1",
+    "asset": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+    "amount": "21",
+    "payTo": "SP2X…8KQ",
+    "maxTimeoutSeconds": 60,
+    "extra": { "nonce": "…" }
+  }]
+}
+```
+
+### 2. Wrap fetch, hold a wallet
+
+One line with the SDK: `withX402(fetch, { account })`. It selects an offer, signs the sponsored transfer — **you pay zero gas** — and retries for you.
+
+```typescript
+// the code you actually write
+import { withX402, readX402Receipt } from "@secondlayer/sdk";
+
+const x402fetch = withX402(fetch, { account });
+
+const res = await x402fetch(
+  "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer",
+);
+// offer selection, sponsored signing, and the
+// retry all happen inside that one call
+```
+
+### 3. The paid retry
+
+Same request plus a `PAYMENT-SIGNATURE` header. The response streams immediately; settlement confirms on-chain behind it. On Streams, one payment opens a session — up to 500 polls in the next hour ride free on a `PAYMENT-SESSION` voucher.
+
+```bash
+# what went over the wire for you
+GET /v1/index/events?event_type=ft_transfer
+PAYMENT-SIGNATURE: eyJzaWduZWQi…
+
+# data streams back immediately
+HTTP/1.1 200 OK
+{ "events": [ … ], "next_cursor": "7978231:42" }
+```
+
+### 4. Read the receipt
+
+Every paid response carries a `PAYMENT-RESPONSE` receipt with txid, payer, and settlement state. Floor $0.001 per call.
+
+```typescript
+// verify what you paid, in code
+const receipt = readX402Receipt(res);
+// {
+//   success: true,
+//   state: "optimistic" | "confirmed",
+//   txid: "0x4f…",
+//   payer: "SP1Q4…2MVE",
+//   network: "stacks:1"
+// }
+```
+
+## Discovery and sessions
+
+Standard x402 v2 wire — works with any x402 client. Sponsored means we pay the STX gas. Discovery: `GET /.well-known/x402` and the `x-x402` block in [the OpenAPI spec](https://api.secondlayer.tools/v1/openapi.json). Steady consumers can hold a session (one payment covers up to 500 polls an hour) or a prepaid tab (deposit once, calls debit it instantly).
+
+export const metadata = {
+	title: "x402 pay-per-call (experimental) — Secondlayer",
+	description:
+		"Agents pay per call with x402 — HTTP 402 quotes settled on Stacks. Experimental beta.",
+};
