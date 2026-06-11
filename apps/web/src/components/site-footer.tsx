@@ -56,7 +56,10 @@ export function SiteFooter() {
 								fill="none"
 								aria-hidden="true"
 							>
-								<polygon points="8,25 28,17 42,25 22,33" className="logo-echo" />
+								<polygon
+									points="8,25 28,17 42,25 22,33"
+									className="logo-echo"
+								/>
 								<polygon
 									points="8,19 28,11 42,19 22,27"
 									className="logo-primary"
@@ -65,8 +68,8 @@ export function SiteFooter() {
 							<span>secondlayer</span>
 						</p>
 						<p>
-							The indexing layer for Stacks, run as a utility. Born from
-							Project Kourier.
+							The indexing layer for Stacks, run as a utility. Born from Project
+							Kourier.
 						</p>
 					</div>
 					<div className="site-footer-cols">

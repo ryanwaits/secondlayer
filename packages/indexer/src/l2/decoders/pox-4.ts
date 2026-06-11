@@ -17,7 +17,7 @@ import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
 
 export { POX4_DECODER_NAME };
 
-// Mainnet PoX-4 cycle math constants (Nakamoto activation).
+// Mainnet PoX cycle math constants (PoX genesis schedule from /v2/pox).
 // Testnet skipped for v0; constants need verification before re-enabling.
 const MAINNET_FIRST_BURNCHAIN_BLOCK_HEIGHT = 666_050n;
 const MAINNET_REWARD_CYCLE_LENGTH = 2_100n;

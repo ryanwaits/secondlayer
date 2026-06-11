@@ -220,10 +220,15 @@ stacks-datasets/mainnet/v0/stx-transfers/schema.json`}
 			</div>
 
 			<InlineCodeBlock>
-				{`SELECT recipient, sum(amount::DECIMAL) AS total
-FROM read_parquet(
-  'https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0/stx-transfers/data/block_height/*/data.parquet'
-)
+				{`SET VARIABLE files = (
+  SELECT list('https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/' || f.path)
+  FROM (
+    SELECT unnest(files) AS f
+    FROM read_json_auto('https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0/stx-transfers/latest.json')
+  )
+);
+SELECT recipient, sum(CAST(amount AS DECIMAL(38,0))) AS total
+FROM read_parquet(getvariable('files'))
 GROUP BY recipient
 ORDER BY total DESC
 LIMIT 20;`}

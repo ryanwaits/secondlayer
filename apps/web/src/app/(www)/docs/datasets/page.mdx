@@ -15,10 +15,10 @@ Foundation Datasets are maintained data products. Each ships with a stable read 
 
 ## Read a dataset
 
-Reads are public and cursor-paginated. Filter on any column; page with `_limit` and `_cursor`.
+Reads are public and cursor-paginated. Each dataset accepts a fixed set of filters — the `/v1/datasets` catalog lists `filters` per dataset; unknown params are rejected with 400. Page with `limit` and `cursor`.
 
 ```bash
-curl https://api.secondlayer.tools/v1/datasets/sbtc/events -G -d "_limit=10"
+curl https://api.secondlayer.tools/v1/datasets/sbtc/events -G -d "limit=10"
 ```
 
 Or use the typed SDK / CLI instead of raw HTTP:

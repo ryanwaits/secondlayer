@@ -145,7 +145,6 @@ ${chainTip != null ? `### Chain tip\nBlock ${chainTip.toLocaleString()}` : ""}
 ${buildRecentSessionsSection(recentSessions)}`;
 }
 
-
 function buildRecentSessionsSection(sessions?: RecentSessionInfo[]): string {
 	if (!sessions?.length) return "";
 

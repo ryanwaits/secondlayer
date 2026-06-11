@@ -111,8 +111,8 @@ export function HomeFeatures() {
 					lang="bash"
 					pane={<CliTerminalPane />}
 				>
-					Every surface is also a command. Scaffold, deploy, query, tail — JSON
-					by default, pipeable, scriptable. Local devnet included.
+					Every surface is also a command. Scaffold, deploy, query, tail —
+					pipeable, scriptable, JSON when you ask for it. Local devnet included.
 				</Feature>
 
 				<Feature
@@ -122,9 +122,9 @@ export function HomeFeatures() {
 					lang="sql"
 					pane={<DuckdbGridPane />}
 				>
-					Curated datasets ship as partitioned parquet with signed manifests —
-					point a warehouse, a notebook, or one SQL line at the whole history.
-					Free forever.
+					Curated datasets ship as partitioned parquet with checksummed
+					manifests — point a warehouse, a notebook, or one SQL line at the
+					whole history. Free forever.
 				</Feature>
 			</div>
 		</section>

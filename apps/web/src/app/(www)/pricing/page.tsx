@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 };
 
 const FREE_INCLUDES = [
-	"Public reads on Index + Streams — anonymous or with a key, rate-limited either way",
-	"Ghost keys: curl -X POST /v1/keys, no signup, claim with an email anytime",
+	"Public reads on Index (no key needed) and Streams (with a free ghost key) — rate-limited either way",
+	"Ghost keys: curl -X POST /v1/keys, no signup, claim with an email within 30 days",
 	"2 public subgraphs — live indexing from the moment you deploy",
 	"3 webhook subscriptions, 24h delivery log",
 	"The full parquet archive with signed manifests",
@@ -51,7 +51,7 @@ const PAID_TIERS = [
 const FAQ = [
 	{
 		q: "What stays free forever?",
-		a: "Rate-limited public reads on Index and Streams, the full parquet dataset archive, and the free tier above. Public data stays public.",
+		a: "Rate-limited public reads — anonymous on Index, with a free key on Streams — plus the full parquet dataset archive and the free tier above. Public data stays public.",
 	},
 	{
 		q: "What does a paid plan actually buy?",
@@ -70,16 +70,17 @@ const FAQ = [
 const X402_QUOTE = `# your agent calls like anyone else…
 GET /v1/index/events?event_type=ft_transfer
 
-# …and past the free limits gets a quote
+# …and, with the pay-per-call rail on, gets a quote
 HTTP/1.1 402 Payment Required
 {
   "x402Version": 2,
   "accepts": [{
     "scheme": "exact",
-    "network": "stacks-mainnet",
-    "asset": "sBTC",
+    "network": "stacks:1",
+    "asset": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
     "amount": "21",
     "payTo": "SP2X…8KQ",
+    "maxTimeoutSeconds": 60,
     "extra": { "nonce": "…" }
   }]
 }`;
@@ -110,19 +111,24 @@ const receipt = readX402Receipt(res);
 //   state: "optimistic" | "confirmed",
 //   txid: "0x4f…",
 //   payer: "SP1Q4…2MVE",
-//   network: "stacks-mainnet"
+//   network: "stacks:1"
 // }`;
 
 export default function PricingPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Home" crumbHref="/" here="Pricing" title={
-				<>
-					Free is the product.
-					<br />
-					Paid is the headroom.
-				</>
-			}>
+			<MarketingPageHeader
+				crumb="Home"
+				crumbHref="/"
+				here="Pricing"
+				title={
+					<>
+						Free is the product.
+						<br />
+						Paid is the headroom.
+					</>
+				}
+			>
 				Public reads are rate-limited for everyone, the free tier is permanent,
 				and agents without accounts can pay per call. Paid plans buy capacity
 				and guarantees, never access to public data.
@@ -131,8 +137,9 @@ export default function PricingPage() {
 			<div className="prc-beta">
 				<span className="b">Open beta</span>
 				<p>
-					Nothing is charged today — everything below is <strong>$0 until
-					beta ends</strong>. Plans show what billing will look like.
+					Nothing is charged today — everything below is{" "}
+					<strong>$0 until beta ends</strong>. Plans show what billing will look
+					like.
 				</p>
 			</div>
 
@@ -165,10 +172,7 @@ export default function PricingPage() {
 							</p>
 						</div>
 					))}
-					<a
-						className="prc-xjump"
-						href="#pay-per-call"
-					>
+					<a className="prc-xjump" href="#pay-per-call">
 						<span>⚡ Pay per call</span>
 						<p>
 							Agents skip plans entirely: 402 quote, sponsored transfer,
@@ -182,9 +186,10 @@ export default function PricingPage() {
 				No account? Pay per call.
 			</h2>
 			<p className="prc-sub">
-				Built for agents. Any /v1 read can be paid with <strong>x402</strong>,
-				the HTTP 402 payment standard, settled on Stacks. No card, no signup,
-				no gas: transfers are sponsored, you only hold the token.
+				Built for agents. Index and Streams reads (/v1/index, /v1/streams) can
+				be paid with <strong>x402</strong>, the HTTP 402 payment standard,
+				settled on Stacks. No card, no signup, no gas: transfers are sponsored,
+				you only hold the token.
 			</p>
 			<div className="prc-x">
 				<div className="prc-x-head">
@@ -192,7 +197,7 @@ export default function PricingPage() {
 					<div className="chips">
 						<span>sBTC</span>
 						<span>STX</span>
-						<span>USDC</span>
+						<span>USDCx</span>
 					</div>
 				</div>
 				<X402Steps

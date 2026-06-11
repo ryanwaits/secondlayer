@@ -199,10 +199,15 @@ stacks-datasets/mainnet/v0/sbtc/token-events/schema.json`}
 			</div>
 
 			<InlineCodeBlock>
-				{`SELECT topic, count(*) AS n
-FROM read_parquet(
-  'https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0/sbtc/events/data/block_height/*/data.parquet'
-)
+				{`SET VARIABLE files = (
+  SELECT list('https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/' || f.path)
+  FROM (
+    SELECT unnest(files) AS f
+    FROM read_json_auto('https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0/sbtc/events/latest.json')
+  )
+);
+SELECT topic, count(*) AS n
+FROM read_parquet(getvariable('files'))
 GROUP BY topic
 ORDER BY n DESC;`}
 			</InlineCodeBlock>

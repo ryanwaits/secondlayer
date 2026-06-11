@@ -1,59 +1,89 @@
 # Subgraphs
 
-Stacks Subgraphs are the L3 surface for app-specific materialized tables. Declare the contract events you care about, write a handler that shapes each event into rows, and Secondlayer backfills history and keeps the table live as new blocks arrive.
+Stacks Subgraphs are the L3 surface for app-specific materialized tables. Declare the contract events you care about, write a handler that shapes each event into rows, and Secondlayer backfills history (on paid plans) and keeps the table live as new blocks arrive.
 
 ## How it works
 
 - **Declare sources** — the contracts and events you want to track.
 - **Write a handler** — turn each matched event into one or more rows.
-- **Deploy** — Secondlayer backfills history, then streams new blocks into your table in real time.
+- **Deploy** — Secondlayer backfills history (paid plans) or indexes forward from the current tip (free tier), then streams new blocks into your table in real time.
 
 ## Define a subgraph
 
-A subgraph is a single config file. Point it at one or more contract sources and the events you care about:
+A subgraph is a single config file: named source filters, a table schema, and handlers keyed by source name. `startBlock` is top-level on the definition:
 
 ```ts
 import { defineSubgraph } from "@secondlayer/subgraphs";
 
 export default defineSubgraph({
   name: "sbtc-flows",
-  network: "mainnet",
-  sources: [
-    {
-      contract: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
-      events: ["ft_transfer_event"],
-      startBlock: 8000000,
+  startBlock: 8000000,
+  sources: {
+    transfers: {
+      type: "ft_transfer",
+      assetIdentifier: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
     },
-  ],
+  },
+  schema: {
+    transfers: {
+      columns: {
+        tx_id: { type: "string" },
+        block_height: { type: "uint" },
+        amount: { type: "uint" },
+        sender: { type: "string" },
+        recipient: { type: "string" },
+      },
+    },
+  },
+  handlers: {
+    transfers: (event, ctx) => {
+      ctx.insert("transfers", {
+        tx_id: ctx.tx.txId,
+        block_height: ctx.block.height,
+        amount: event.amount,
+        sender: event.sender,
+        recipient: event.recipient,
+      });
+    },
+  },
 });
 ```
 
 ## Write a handler
 
-Handlers are typed by their source: `event.data` is shaped from the event you subscribed to, and `ctx.db` is typed from your table schema. Every row your handler writes lands in the materialized table.
+Handlers are values in the definition's `handlers` map, keyed by source name (or `"*"` for a catch-all). Event payloads are flat and typed per source (`event.amount`, `event.sender` — no wrapper object); tx and block metadata come from `ctx.tx` and `ctx.block`, and writes go through the ctx mutators (`ctx.insert`/`update`/`upsert`/`delete`/`patch`). Every row your handler writes lands in the materialized table.
 
 ```ts
-import type { Handler } from "@secondlayer/subgraphs";
+import { defineSubgraph } from "@secondlayer/subgraphs";
 
-// Each matched event becomes one row in the transfers table.
-const handler: Handler = async (event, ctx) => {
-  const { amount, sender, recipient } = event.data;
-
-  await ctx.db.transfers.insert({
-    tx_id: event.txId,
-    block_height: event.blockHeight,
-    amount,
-    sender,
-    recipient,
-  });
-};
-
-export default handler;
+export default defineSubgraph({
+  name: "sbtc-flows",
+  startBlock: 8000000,
+  sources: {
+    transfers: {
+      type: "ft_transfer",
+      assetIdentifier: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
+    },
+  },
+  schema: { /* transfers table */ },
+  handlers: {
+    // key matches the source name; each matched event becomes one row
+    transfers: (event, ctx) => {
+      ctx.insert("transfers", {
+        tx_id: ctx.tx.txId,
+        block_height: ctx.block.height,
+        amount: event.amount,
+        sender: event.sender,
+        recipient: event.recipient,
+      });
+    },
+  },
+});
 ```
 
 ## Deploy
 
-Deploy from the CLI. The first deploy backfills history from `startBlock`; subsequent blocks stream in automatically.
+Deploy from the CLI. On paid plans, the first deploy backfills history from `startBlock`; free-tier subgraphs index forward from the chain tip at deploy time (historical backfill returns `GENESIS_BACKFILL_REQUIRES_PLAN`). Subsequent blocks stream in automatically.
 
 ```bash
 sl subgraphs deploy ./subgraph.config.ts
@@ -126,7 +156,7 @@ sources: {
 },
 ```
 
-Supported traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract's full history from its deploy block, even if it was classified later. See [Contract discovery](/docs/contracts) to query the matching set directly.
+Supported traits: `sip-009`, `sip-010`, `sip-013`. On paid plans, a reindex backfills each contract's full history from its deploy block, even if it was classified later (free-tier reindexes are clamped to the subgraph's registered start). See [Contract discovery](/docs/contracts) to query the matching set directly.
 
 ## Stream rows in real time
 
@@ -160,7 +190,7 @@ sl subgraphs codegen ./subgraph.config.ts --target prisma -o prisma/schema.prism
 npx prisma generate
 ```
 
-Prisma and Drizzle have first-class generators; for Kysely, run `kysely-codegen` against your database. Secondlayer owns the table DDL, so treat the tables as read-only and verify with `prisma db pull` (never `migrate`).
+Prisma, Drizzle, and Kysely all have first-class generators (`--target prisma|drizzle|kysely`). Secondlayer owns the table DDL, so treat the tables as read-only and verify with `prisma db pull` (never `migrate`).
 
 Want pushes instead of polling? Bind a [Subscription](/docs/subscriptions) to this table and Secondlayer will POST every matching row change to your webhook — inserts, updates, and deletes, with the verb encoded in the payload `type` (see the [Subscriptions](/docs/subscriptions) page).
 

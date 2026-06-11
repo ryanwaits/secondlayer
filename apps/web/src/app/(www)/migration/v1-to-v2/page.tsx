@@ -63,12 +63,13 @@ export default defineWorkflow({
 });
 
 // v2
-// 1. sl subscriptions create large-usdc --runtime node
-// 2. provision the subscription:
+// 1. scaffold the receiver: sl subscriptions create large-usdc --runtime node --skip-api
+// 2. provision the subscription via SDK:
 import { on } from "@secondlayer/stacks";
+const spec = on.sip010Transfer({ subgraph: "mine", table: "transfers" }, "SP1...usdc::usdc-token");
 await sdk.subscriptions.create({
-  ...on.sip010Transfer({ subgraph: "mine", table: "transfers" }, "SP1...usdc::usdc-token"),
-  filter: { amount: { gte: "1000000" } },
+  ...spec,
+  filter: { ...spec.filter, amount: { gte: "1000000" } },
   name: "large-usdc",
   url: "https://my-app.com/webhook",
 });

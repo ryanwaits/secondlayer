@@ -46,7 +46,7 @@ export const datasets: DatasetEntry[] = [
 		summary:
 			"Solo, delegated, aggregated stacking calls — every PoX-4 contract call decoded with cycle math, BTC payout addresses, and signer keys.",
 		apiPath: "/v1/datasets/pox-4/calls",
-		parquetPrefix: null,
+		parquetPrefix: "stacks-datasets/mainnet/v0/pox-4",
 		href: "/datasets/pox-4",
 	},
 	{
@@ -65,8 +65,8 @@ export const datasets: DatasetEntry[] = [
 		status: "shipped",
 		summary:
 			"BNS-V2 names, namespaces, marketplace listings, plus a current-state projection for fast resolve(fqn).",
-		apiPath: "/v1/datasets/bns/name-events",
-		parquetPrefix: null,
+		apiPath: "/v1/datasets/bns/events",
+		parquetPrefix: "stacks-datasets/mainnet/v0/bns",
 		href: "/datasets/bns",
 	},
 	{
@@ -84,7 +84,12 @@ export const datasets: DatasetEntry[] = [
 export default function DatasetsPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Home" crumbHref="/" here="Datasets" title="Datasets" />
+			<MarketingPageHeader
+				crumb="Home"
+				crumbHref="/"
+				here="Datasets"
+				title="Datasets"
+			/>
 			<DatasetsContent />
 		</main>
 	);
@@ -93,13 +98,12 @@ export default function DatasetsPage() {
 export function DatasetsContent() {
 	return (
 		<div className="mk-body">
-
 			<div className="prose">
 				<p>
 					Datasets are curated, ready-to-query views of Stacks data — sBTC,
-					stacking, BNS and more. Each ships a stable read API, a parquet
-					download, a schema reference, and a freshness signal. Free to read and
-					always on — you never run a node.
+					stacking, BNS and more. Each ships a stable read API, a schema
+					reference, and a freshness signal — and most ship a bulk parquet
+					download. Free to read and always on — you never run a node.
 				</p>
 				<p>
 					They share the same publishing harness as{" "}
@@ -139,9 +143,12 @@ export function DatasetsContent() {
 				code={`# JSON API — cursor-paginated, anonymous
 curl "https://api.secondlayer.tools/v1/datasets/sbtc/events?limit=5"
 
-# Bulk parquet — read straight into DuckDB
-SELECT * FROM 'https://data.secondlayer.tools/stacks-datasets/mainnet/v0/sbtc/*.parquet'
-LIMIT 5;`}
+# Bulk parquet — resolve files from the manifest, then read into DuckDB
+SET VARIABLE files = (
+  SELECT list_transform(files, lambda f: 'https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/' || f.path)
+  FROM read_json_auto('https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0/sbtc/events/latest.json')
+);
+SELECT * FROM read_parquet(getvariable('files')) LIMIT 5;`}
 				lang="bash"
 			/>
 

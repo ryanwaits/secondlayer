@@ -19,7 +19,8 @@ export default function SubgraphsPage() {
 	return (
 		<main className="explore-wrap">
 			<MarketingPageHeader
-				crumb="Home" crumbHref="/"
+				crumb="Home"
+				crumbHref="/"
 				here="Subgraphs"
 				title={
 					<>
@@ -28,7 +29,6 @@ export default function SubgraphsPage() {
 				}
 			/>
 			<div className="mk-body">
-
 				<div className="prose">
 					<p>
 						Subgraphs are your own indexer, minus the node. Pick the events your
@@ -128,7 +128,7 @@ export default defineSubgraph({
 					code={`# Scaffold from a deployed contract's ABI
 sl subgraphs scaffold SP1234ABCD.token-transfers --output subgraphs/token-transfers.ts
 
-# Deploy (or 'dev' to watch + auto-redeploy)
+# Deploy
 sl subgraphs deploy subgraphs/token-transfers.ts --visibility public
 
 # Flip visibility later (managed deploys default public; BYO default private)
@@ -136,15 +136,15 @@ sl subgraphs publish token-transfers
 sl subgraphs unpublish token-transfers
 
 # Generate a typed client (autocompletion + table types)
-sl subgraphs generate token-transfers --output src/clients/token-transfers.ts`}
+sl subgraphs client token-transfers --output src/clients/token-transfers.ts`}
 				/>
 
 				<div className="prose">
 					<p>
 						Public subgraphs are anon-readable at{" "}
 						<code>/v1/subgraphs/&lt;name&gt;</code> — names are a global
-						namespace claimed on publish, and every public subgraph gets a
-						live page on <Link href="/subgraphs/explore">Explore</Link>.
+						namespace claimed on publish, and every public subgraph gets a live
+						page on <Link href="/subgraphs/explore">Explore</Link>.
 					</p>
 				</div>
 

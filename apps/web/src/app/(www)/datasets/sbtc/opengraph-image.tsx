@@ -7,13 +7,11 @@ export const contentType = OG_CONTENT_TYPE;
 
 export default function Image() {
 	return new ImageResponse(
-		(
-			<OgCard
-				title="sBTC"
-				tagline="Every sBTC deposit, withdrawal, and SIP-010 movement on Stacks."
-				endpoint="/v1/datasets/sbtc/events"
-			/>
-		),
+		<OgCard
+			title="sBTC"
+			tagline="Every sBTC deposit, withdrawal, and SIP-010 movement on Stacks."
+			endpoint="/v1/datasets/sbtc/events"
+		/>,
 		{ ...size },
 	);
 }

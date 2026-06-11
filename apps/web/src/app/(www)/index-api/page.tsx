@@ -17,17 +17,21 @@ export const metadata: Metadata = {
 export default function IndexPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Home" crumbHref="/" here="Index" title={<>Index</>} />
+			<MarketingPageHeader
+				crumb="Home"
+				crumbHref="/"
+				here="Index"
+				title={<>Index</>}
+			/>
 			<div className="mk-body">
-
 				<div className="prose">
 					<p>
 						Index is the decoded read layer for Stacks. An L2 decoder consumes
 						the raw <Link href="/streams">Streams</Link> firehose and normalizes
 						every event type — STX, FT, and NFT transfers, mints and burns, and{" "}
 						<code>print</code> events — plus contract calls, into typed,
-						queryable rows. Filter by contract, wallet, or block range, with no
-						decoders to write or maintain.
+						queryable rows. Filter by contract, wallet, or block range — per
+						event type — with no decoders to write or maintain.
 					</p>
 					<InlineKey product="index">
 						Reads are open during beta — anonymous works, and an{" "}
@@ -61,8 +65,12 @@ export default function IndexPage() {
 						<code>/v1/index/events?event_type=…</code> serves every decoded
 						event type, and <code>/v1/index/contract-calls</code> serves decoded
 						contract calls. Filter by <code>contract_id</code>,{" "}
-						<code>sender</code>, and block range, and page forward on a{" "}
-						<code>cursor</code>. (<code>ft-transfers</code> and{" "}
+						<code>sender</code>/<code>recipient</code>, and block range, and
+						page forward on a <code>cursor</code> — each event type accepts only
+						the filters that make sense for it (<code>stx_transfer</code> has no{" "}
+						<code>contract_id</code>; mints filter by recipient, not sender).{" "}
+						<code>GET /v1/index</code> returns the exact per-type filter
+						vocabulary. (<code>ft-transfers</code> and{" "}
 						<code>nft-transfers</code> remain as typed aliases.) The SDK wraps
 						list + cursor-walking:
 					</p>
@@ -104,14 +112,19 @@ for await (const call of index.contractCalls.walk({ contractId })) {
 								event_type: "ft_transfer",
 								block_height: 7869999,
 								tx_id: "0xabc…",
+								tx_index: 3,
 								event_index: 12,
+								cursor: "7869999:12",
 								contract_id: "SP2…token-usda",
+								asset_identifier: "SP2…token-usda::usda",
 								sender: "SP3…",
 								recipient: "SP1…",
 								amount: "1000000",
 							},
 						],
 						next_cursor: "7870001:7",
+						tip: { block_height: 7870042, lag_seconds: 12 },
+						reorgs: [],
 					}}
 					filters={[
 						{

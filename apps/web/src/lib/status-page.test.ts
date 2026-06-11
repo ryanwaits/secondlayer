@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	determineApiHealth,
 	determinePublicStatusHealth,
-	formatLag,
 	formatErrorRate,
+	formatLag,
 	formatLastChecked,
 	formatLatencyMs,
 	indexFreshnessColor,

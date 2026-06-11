@@ -87,10 +87,10 @@ export function ClaimFlow({ token }: { token: string }) {
 			<div className="claim-card">
 				<p className="claim-done">
 					Done — this key now belongs to <strong>{claimedEmail}</strong>. It
-					keeps working exactly as before; manage it from the platform.
+					keeps working exactly as before. Log in to manage it.
 				</p>
-				<a className="auth-bar-cta" href="/">
-					Open the platform
+				<a className="auth-bar-cta" href="/login">
+					Log in
 				</a>
 			</div>
 		);

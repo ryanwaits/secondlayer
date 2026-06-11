@@ -53,7 +53,7 @@ export const AGENT_SETUP = `Ensure setup once, skipping any step already done:
 - Skill: \`bunx skills add ryanwaits/secondlayer --skill secondlayer -y\`
 - CLI: \`bun add -g @secondlayer/cli\`
 - Auth: \`sl login\` then \`sl whoami\`
-- Instance: \`sl instance info\`; if missing, start a trial from Billing or run \`sl instance create --plan launch\``;
+- Plan: \`sl billing\`; if there is no active plan or trial, start one from the Billing page`;
 
 function withSetup(body: string): string {
 	return `${AGENT_SETUP}
@@ -157,7 +157,7 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		tags: ["cli", "subgraphs", "subscriptions"],
 		build: () =>
 			withSetup(
-				"/secondlayer Operate this project through the `sl` CLI. Inspect the current project, instance, subgraphs, and subscriptions with JSON output first. Then help me run the exact `sl` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
+				"/secondlayer Operate this project through the `sl` CLI. Inspect the current project, subgraphs, and subscriptions with JSON output first. Then help me run the exact `sl` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
 			),
 	},
 	{

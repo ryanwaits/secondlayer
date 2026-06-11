@@ -7,11 +7,14 @@ A subscription binds to a subgraph table. Every row change that matches the filt
 ## Create a subscription
 
 ```bash
-sl subscriptions create \
+sl subscriptions create sbtc-webhook \
+  --no-scaffold \
   --subgraph sbtc-flows \
   --table transfers \
   --url https://your-app.com/webhooks/sbtc
 ```
+
+Omit `--no-scaffold` to also scaffold a local receiver project (`-r inngest | trigger | cloudflare | node`) in a directory named after the subscription.
 
 ## Verify the signature
 
@@ -42,7 +45,7 @@ A downstream mirror should apply `created` and `updated` and remove the row on `
 
 ## Universal webhook signature
 
-Beyond the per-subscription HMAC above, **every** delivery — in any format (`raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest`) — also carries an authenticity signature that proves it came from Secondlayer. Three headers ride on every POST:
+Beyond the per-subscription HMAC above, **every** delivery — in any format (`standard-webhooks` — the default — `raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest`) — also carries an authenticity signature that proves it came from Secondlayer. Three headers ride on every POST:
 
 | Header | Purpose |
 | --- | --- |
@@ -73,7 +76,7 @@ const { replayId, enqueuedCount, scannedCount } = await sl.subscriptions.replay(
 });
 ```
 
-The range is capped at **100,000 blocks**. Replayed deliveries arrive under `chain.{type}.apply`, tagged as replays so your handler can tell them apart from live traffic.
+The range is capped at **100,000 blocks**. Subgraph replays deliver under `<subgraph>.<table>.replay` — a distinct verb, not the live `.created`/`.updated`/`.deleted` types — while chain-subscription replays re-emit the standard `chain.{type}.apply` envelope. Both are flagged as replays (`is_replay`) so your handler can tell them apart from live traffic.
 
 ## Direct chain subscriptions (no subgraph)
 
@@ -107,12 +110,19 @@ The raw object form is equivalent — `{ type: "contract_call", contractId, func
 | --- | --- | --- |
 | `trigger.contractCall` | `contract_call` | `contractId`, `functionName`, `caller`, `trait` |
 | `trigger.contractDeploy` | `contract_deploy` | `deployer`, `contractName` |
-| `trigger.ftTransfer` / `ftMint` / `ftBurn` | `ft_*` | `assetIdentifier`, `sender`, `recipient`, `minAmount`, `trait` |
-| `trigger.nftTransfer` / `nftMint` / `nftBurn` | `nft_*` | `assetIdentifier`, `sender`, `recipient`, `trait` |
+| `trigger.ftTransfer` | `ft_transfer` | `assetIdentifier`, `sender`, `recipient`, `minAmount`, `trait` |
+| `trigger.ftMint` | `ft_mint` | `assetIdentifier`, `recipient`, `minAmount`, `trait` |
+| `trigger.ftBurn` | `ft_burn` | `assetIdentifier`, `sender`, `minAmount`, `trait` |
+| `trigger.nftTransfer` | `nft_transfer` | `assetIdentifier`, `sender`, `recipient`, `trait` |
+| `trigger.nftMint` | `nft_mint` | `assetIdentifier`, `recipient`, `trait` |
+| `trigger.nftBurn` | `nft_burn` | `assetIdentifier`, `sender`, `trait` |
 | `trigger.stxTransfer` | `stx_transfer` | `sender`, `recipient`, `minAmount`, `maxAmount` |
-| `trigger.stxMint` / `stxBurn` | `stx_mint` / `stx_burn` | `sender`, `recipient`, `minAmount` |
+| `trigger.stxMint` | `stx_mint` | `recipient`, `minAmount` |
+| `trigger.stxBurn` | `stx_burn` | `sender`, `minAmount` |
 | `trigger.stxLock` | `stx_lock` | `lockedAddress`, `minAmount` |
 | `trigger.printEvent` | `print_event` | `contractId`, `topic`, `trait` |
+
+Validation is strict per type — mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400 validation error.
 
 Via REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50) in place of `subgraphName`/`tableName`. Chain subscriptions are created over the SDK, REST, or MCP — the CLI's `create` is subgraph-only.
 
@@ -138,9 +148,14 @@ A reorg delivers `chain.reorg.rollback`, so you can undo anything you committed 
 {
   "action": "rollback",
   "fork_point_height": 123450,
-  "orphaned": [ /* the apply payloads that no longer hold */ ]
+  "orphaned": [
+    { "tx_id": "0x…", "event": { /* event body from the original apply */ } }
+  ],
+  "truncated": false
 }
 ```
+
+Each orphaned entry is `{ tx_id, event }` — the event body from the original apply, not the full apply envelope. `orphaned` is capped at 500 entries per subscription; if `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list.
 
 Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions — verify the signature, and key your state on `(tx_id, block_hash)` so a redelivery is idempotent.
 

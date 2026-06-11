@@ -17,9 +17,13 @@ export const metadata: Metadata = {
 export default function StreamsPage() {
 	return (
 		<main className="explore-wrap">
-			<MarketingPageHeader crumb="Home" crumbHref="/" here="Streams" title={<>Streams</>} />
+			<MarketingPageHeader
+				crumb="Home"
+				crumbHref="/"
+				here="Streams"
+				title={<>Streams</>}
+			/>
 			<div className="mk-body">
-
 				<div className="prose">
 					<p>
 						Streams is the raw event firehose for Stacks. One service captures
@@ -122,13 +126,24 @@ await streams.events.consume({
 								block_hash: "0xdef…",
 								tx_id: "0xabc…",
 								event_index: 12,
+								cursor: "7869999:12",
 								contract_id: "SP2…BNS-V2",
-								sender: "SP3…",
-								recipient: "SP1…",
-								amount: "1000000",
+								payload: {
+									sender: "SP3…",
+									recipient: "SP1…",
+									amount: "1000000",
+								},
 							},
 						],
 						next_cursor: "7870001:7",
+						tip: {
+							block_height: 7870001,
+							block_hash: "0x9ab…",
+							burn_block_height: 904512,
+							finalized_height: 7869995,
+							lag_seconds: 12,
+						},
+						reorgs: [],
 					}}
 					requiresApiKey
 					filters={[

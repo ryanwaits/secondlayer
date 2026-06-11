@@ -68,9 +68,8 @@ export function Pox4DatasetContent() {
 				<p>
 					Function args and <code>raw_result</code> are deserialized via
 					Clarity. PoX address tuples are decoded into canonical Bitcoin address
-					strings. Cycle math uses Nakamoto activation constants (first
-					burnchain block <code>666050</code>, reward cycle length{" "}
-					<code>2100</code>).
+					strings. Cycle math uses the mainnet PoX schedule (first burnchain
+					block <code>666050</code>, reward cycle length <code>2100</code>).
 				</p>
 				<p>
 					Forward-only ingestion from the moment the decoder enabled —

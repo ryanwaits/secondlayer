@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ExploreDetail } from "../types";
+import { FEATURED } from "../types";
 import { DetailBody } from "./detail-body";
 
 export const revalidate = 30;
@@ -58,7 +59,11 @@ export default async function ExploreDetailPage({
 				<span>/</span>
 				{detail.name}
 			</nav>
-			<DetailBody detail={detail} apiUrl={PLATFORM_API_URL} />
+			<DetailBody
+				detail={detail}
+				apiUrl={PLATFORM_API_URL}
+				featured={FEATURED.includes(detail.name)}
+			/>
 		</>
 	);
 }

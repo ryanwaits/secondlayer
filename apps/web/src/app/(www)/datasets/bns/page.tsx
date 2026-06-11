@@ -126,7 +126,7 @@ export function BnsDatasetContent() {
 				</p>
 				<ul>
 					<li>
-						<code>GET /name-events</code> — filter by{" "}
+						<code>GET /events</code> — filter by{" "}
 						<code>topic, namespace, name, owner, from_block, to_block</code>.
 						Cursor pagination.
 					</li>
@@ -153,8 +153,8 @@ export function BnsDatasetContent() {
 			</div>
 
 			<DatasetSandbox
-				endpoint="/v1/datasets/bns/name-events"
-				title="Try bns/name-events"
+				endpoint="/v1/datasets/bns/events"
+				title="Try bns/events"
 				sample={{
 					events: [
 						{

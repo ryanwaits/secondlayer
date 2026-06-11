@@ -14,13 +14,13 @@ export default function CliPage() {
 		<main className="explore-wrap">
 			<MarketingPageHeader crumb="Home" crumbHref="/" here="CLI" title="CLI" />
 			<div className="mk-body">
-
 				<div className="prose">
 					<p>
 						One binary for everything you'd otherwise click through dashboards
-						for. Login, deploy, query, manage subscriptions, tail Streams,
-						provision dedicated instances. Same auth as every other surface —
-						sign in once and the session is inherited.
+						for. Login, deploy, query, manage subscriptions, tail Streams. Same
+						auth as every other surface — sign in once and the session is
+						inherited (Streams reads are the one exception: they need an
+						SL_API_KEY).
 					</p>
 				</div>
 
@@ -36,6 +36,7 @@ export default function CliPage() {
 sl subgraphs create my-watcher --template sip-010-balances
 sl subgraphs deploy my-watcher.ts         # prompts login if no session
 sl subgraphs query my-watcher transfers --filter recipient=SP1...
+export SL_API_KEY=sk-sl_...                # streams only; issue at /platform/api-keys
 sl streams events --types print --contract-id SP2...BNS-V2
 sl subscriptions create my-watcher --runtime node`}
 				/>

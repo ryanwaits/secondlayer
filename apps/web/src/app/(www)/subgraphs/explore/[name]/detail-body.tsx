@@ -21,9 +21,11 @@ interface QueryState {
 export function DetailBody({
 	detail,
 	apiUrl,
+	featured,
 }: {
 	detail: ExploreDetail;
 	apiUrl: string;
+	featured?: boolean;
 }) {
 	const tableNames = Object.keys(detail.tables);
 	const [active, setActive] = useState(tableNames[0] ?? "");
@@ -83,7 +85,7 @@ export function DetailBody({
 					<p className="explore-desc-p">
 						{detail.description ?? "Custom indexed view of Stacks."}{" "}
 						<span className="explore-by">
-							by secondlayer
+							{featured && "by secondlayer"}
 							{detail.sources.length > 0 && (
 								<>
 									{" "}

@@ -3,6 +3,7 @@ import { PLATFORM_API_URL } from "@/lib/api";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ExploreList, ExploreSummary } from "./types";
+import { FEATURED } from "./types";
 
 export const metadata: Metadata = {
 	title: "Explore Subgraphs | secondlayer",
@@ -14,7 +15,6 @@ export const revalidate = 30;
 
 // R1 curation: hardcoded featured allowlist (first-party seeds). Curation =
 // git commit until non-first-party listings exist; then a featured flag.
-const FEATURED = ["sbtc-flows", "pox-stacking", "bns-names", "sip10-balances"];
 
 const fmt = new Intl.NumberFormat("en-US");
 
@@ -45,7 +45,11 @@ function Freshness({ sg }: { sg: ExploreSummary }) {
 	);
 }
 
-function Card({ sg, wide }: { sg: ExploreSummary; wide?: boolean }) {
+function Card({
+	sg,
+	wide,
+	featured,
+}: { sg: ExploreSummary; wide?: boolean; featured?: boolean }) {
 	const firstTable = sg.tables[0];
 	const path = `/v1/subgraphs/${sg.name}${firstTable && wide ? `/${firstTable}` : ""}`;
 	return (
@@ -53,7 +57,7 @@ function Card({ sg, wide }: { sg: ExploreSummary; wide?: boolean }) {
 			<article className="explore-card">
 				<div className="explore-card-top">
 					<span className="explore-name">{sg.name}</span>
-					<span className="explore-by">by secondlayer</span>
+					{featured && <span className="explore-by">by secondlayer</span>}
 					<Freshness sg={sg} />
 				</div>
 				<p className="explore-desc">{sg.description ?? "—"}</p>
@@ -122,7 +126,7 @@ export default async function ExplorePage() {
 					</section>
 					<div className="explore-grid featured">
 						{featured.map((sg) => (
-							<Card key={sg.name} sg={sg} wide />
+							<Card key={sg.name} sg={sg} wide featured />
 						))}
 					</div>
 				</>
@@ -155,7 +159,7 @@ export default async function ExplorePage() {
 					<CopyButton code={`curl ${PLATFORM_API_URL}/v1/subgraphs`} />
 				</div>
 				<pre>
-					<span className="c"># this page, as JSON — same list, no key</span>
+					<span className="c"># all public subgraphs, as JSON — no key</span>
 					{"\n"}
 					<span className="m">curl</span> {PLATFORM_API_URL}/v1/subgraphs
 				</pre>

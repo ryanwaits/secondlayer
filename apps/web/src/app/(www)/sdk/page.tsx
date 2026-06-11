@@ -15,7 +15,6 @@ export default function SdkPage() {
 		<main className="explore-wrap">
 			<MarketingPageHeader crumb="Home" crumbHref="/" here="SDK" title="SDK" />
 			<div className="mk-body">
-
 				<div className="prose">
 					<p>
 						Two TypeScript packages. <code>@secondlayer/sdk</code> talks to the
@@ -44,14 +43,14 @@ export default function SdkPage() {
 
 				<CodeBlock
 					lang="typescript"
-					code={`import { createClient, createStreamsClient } from "@secondlayer/sdk";
+					code={`import { SecondLayer, createStreamsClient } from "@secondlayer/sdk";
 
-const client = createClient({ apiKey: process.env.SL_API_KEY! });
+const client = new SecondLayer({ apiKey: process.env.SL_API_KEY! });
 
 // Decoded events, queryable — no indexer to run.
 const { events } = await client.index.events({ eventType: "stx_transfer", limit: 25 });
 
-await client.subgraphs.queryTable("my-watcher", "transfers", { _limit: 10 });
+await client.subgraphs.queryTable("my-watcher", "transfers", { limit: 10 });
 await client.subscriptions.create({ ... });
 
 const streams = createStreamsClient({ apiKey: process.env.SL_API_KEY! });

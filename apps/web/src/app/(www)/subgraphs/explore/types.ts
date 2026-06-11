@@ -45,3 +45,11 @@ export interface ExploreDetail {
 	};
 	docs: { openapi: string; schema: string; markdown: string };
 }
+
+/** Curated first-party seeds — the only listings attributed "by secondlayer". */
+export const FEATURED = [
+	"sbtc-flows",
+	"pox-stacking",
+	"bns-names",
+	"sip10-balances",
+];

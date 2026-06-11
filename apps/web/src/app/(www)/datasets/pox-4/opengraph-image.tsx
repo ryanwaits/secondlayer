@@ -7,13 +7,11 @@ export const contentType = OG_CONTENT_TYPE;
 
 export default function Image() {
 	return new ImageResponse(
-		(
-			<OgCard
-				title="PoX-4"
-				tagline="Every Stacks PoX-4 contract call decoded — stacking, delegation, signer auths."
-				endpoint="/v1/datasets/pox-4/calls"
-			/>
-		),
+		<OgCard
+			title="PoX-4"
+			tagline="Every Stacks PoX-4 contract call decoded — stacking, delegation, signer auths."
+			endpoint="/v1/datasets/pox-4/calls"
+		/>,
 		{ ...size },
 	);
 }

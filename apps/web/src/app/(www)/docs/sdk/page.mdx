@@ -147,12 +147,12 @@ await sl.streams.events.consume({
 
 ## Subscribe to the live stream (SSE)
 
-`client.events.subscribe(...)` opens the [Streams SSE firehose](/docs/streams#real-time-firehose-sse) and calls `onEvent` for each event as it lands. It is fetch-based — so it carries your Bearer key (unlike a native `EventSource`) and works in the browser and Node 18+. It auto-reconnects from the last delivered cursor until you abort via `signal`, and returns an unsubscribe function.
+`sl.streams.events.subscribe(...)` opens the [Streams SSE firehose](/docs/streams#real-time-firehose-sse) and calls `onEvent` for each event as it lands. It is fetch-based — so it carries your Bearer key (unlike a native `EventSource`) and works in the browser and Node 18+. It auto-reconnects from the last delivered cursor until you abort via `signal`, and returns an unsubscribe function.
 
 ```ts
 const controller = new AbortController();
 
-const unsubscribe = client.events.subscribe({
+const unsubscribe = sl.streams.events.subscribe({
   types: ["ft_transfer"],
   contractId: "SP000000000000000000002Q6VF78.sbtc-token",
   signal: controller.signal,
@@ -168,7 +168,7 @@ const unsubscribe = client.events.subscribe({
 unsubscribe();
 ```
 
-`subscribe({ fromCursor?, types?, notTypes?, contractId?, sender?, recipient?, assetIdentifier?, signal?, onEvent, onError? }): () => void`. When the client was created with `verify`, each frame's ed25519 signature is verified before `onEvent` runs.
+`subscribe({ fromCursor?, types?, notTypes?, contractId?, sender?, recipient?, assetIdentifier?, signal?, onEvent, onError? }): () => void`. For signed-frame verification, build a standalone streams client with `createStreamsClient({ apiKey, verify: true })` (or `verify: { publicKey }` to pin a PEM) — each frame's ed25519 signature is then verified before `onEvent` runs. `new SecondLayer()` does not accept `verify`.
 
 ## Read subgraph rows (open /v1)
 
@@ -193,10 +193,18 @@ const next = await sl.subgraphs.rows("sbtc-flows", "transfers", {
 
 ## Subscribe to subgraph rows (SSE)
 
+Table clients come from `sl.subgraphs.typed(def)` (or `getSubgraph(def, opts)`) with a `defineSubgraph()` definition:
+
+```ts
+import sbtcFlows from "./subgraphs/sbtc-flows";
+
+const subgraph = sl.subgraphs.typed(sbtcFlows); // or getSubgraph(sbtcFlows, { apiKey })
+```
+
 `subgraph.<table>.subscribe(onRow, { where?, since?, onError? })` streams new rows for a subgraph table over SSE and returns an unsubscribe function. Pass `since: <block_height>` to replay rows from that height and then tail live.
 
 ```ts
-const unsubscribe = sl.subgraphs.sbtcFlows.transfers.subscribe(
+const unsubscribe = subgraph.transfers.subscribe(
   (row) => {
     // handle each new row
   },
@@ -211,7 +219,7 @@ const unsubscribe = sl.subgraphs.sbtcFlows.transfers.subscribe(
 `subgraph.<table>.aggregate(spec)` runs scalar aggregates over an optional `where` filter and returns a result whose shape is **inferred from the spec** — only the keys you ask for appear. `sum`/`min`/`max` accept numeric columns only (enforced at compile time) and return lossless strings; `count`/`countDistinct` return numbers. No `as const` needed.
 
 ```ts
-const stats = await sl.subgraphs.sbtcFlows.transfers.aggregate({
+const stats = await subgraph.transfers.aggregate({
   count: true,
   sum: ["amount"],
   min: ["amount"],

@@ -1,7 +1,7 @@
 import { CopyButton } from "./copy-button";
 
-const R2_BASE =
-	"https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0";
+const R2_HOST = "https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev";
+const R2_BASE = `${R2_HOST}/stacks-datasets/mainnet/v0`;
 
 export type ParquetSnippetProps = {
 	/** Dataset slug, e.g. "sbtc/events" or "sbtc/token-events". */
@@ -20,10 +20,15 @@ export function ParquetSnippet({
 	const dataGlob = `${R2_BASE}/${dataset}/data/block_height/*/data.parquet`;
 	const manifestUrl = `${R2_BASE}/${dataset}/latest.json`;
 	// Manifest-based snippet — recommended; works without LIST permission on R2.
+	// Manifest files[].path is bucket-relative, so prefix the R2 host; DuckDB
+	// can't take a subquery inside read_parquet(), hence SET VARIABLE.
 	const duckdbManifest = `-- Read partition list from manifest, then count rows.
-WITH m AS (SELECT files FROM read_json_auto('${manifestUrl}'))
+SET VARIABLE files = (
+  SELECT list_transform(files, lambda f: '${R2_HOST}/' || f.path)
+  FROM read_json_auto('${manifestUrl}')
+);
 SELECT count(*) AS rows
-FROM read_parquet((SELECT files FROM m));`;
+FROM read_parquet(getvariable('files'));`;
 	// Glob fallback — requires R2 LIST + DuckDB http-glob escape.
 	const duckdbGlob = `SET allow_asterisks_in_http_paths = true;
 SELECT count(*) AS rows

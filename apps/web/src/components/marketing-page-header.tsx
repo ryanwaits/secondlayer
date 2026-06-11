@@ -25,7 +25,11 @@ export function MarketingPageHeader({
 	return (
 		<>
 			<nav className="explore-crumb" aria-label="Breadcrumb">
-				{crumbHref ? <Link href={crumbHref}>{crumb}</Link> : <span>{crumb}</span>}
+				{crumbHref ? (
+					<Link href={crumbHref}>{crumb}</Link>
+				) : (
+					<span>{crumb}</span>
+				)}
 				<span>/</span>
 				{here}
 			</nav>

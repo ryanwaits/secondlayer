@@ -7,13 +7,11 @@ export const contentType = OG_CONTENT_TYPE;
 
 export default function Image() {
 	return new ImageResponse(
-		(
-			<OgCard
-				title="STX Transfers"
-				tagline="Every canonical STX transfer on Stacks — sender, recipient, amount, memo."
-				endpoint="/v1/datasets/stx-transfers"
-			/>
-		),
+		<OgCard
+			title="STX Transfers"
+			tagline="Every canonical STX transfer on Stacks — sender, recipient, amount, memo."
+			endpoint="/v1/datasets/stx-transfers"
+		/>,
 		{ ...size },
 	);
 }

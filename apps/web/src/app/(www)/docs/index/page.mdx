@@ -97,7 +97,7 @@ Read envelopes (e.g. `/v1/index/stacking`, `/transactions`, `/contract-calls`) c
 }
 ```
 
-To reconcile: roll back any rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. Both bounds are `<block_height>:<tx_index>` cursors. The SDK exports the `IndexReorg` type from `@secondlayer/sdk` for typing these elements.
+To reconcile: roll back any rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. Both bounds are `<block_height>:<event_index>` cursors (reorg cursors track decoded-event positions; on transaction-keyed feeds like `/transactions` and `/contract-calls`, compare by the block-height component). The SDK exports the `IndexReorg` type from `@secondlayer/sdk` for typing these elements.
 
 ## Beyond REST
 

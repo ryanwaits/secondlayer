@@ -7,7 +7,7 @@ const STEPS = [
 		title: "Call without a key",
 		body: (
 			<>
-				Past the free anonymous limits, the API answers{" "}
+				Call without a key while the pay-per-call rail is on and the API answers{" "}
 				<code>402 Payment Required</code> with exact quotes per accepted token.
 			</>
 		),

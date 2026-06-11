@@ -2,7 +2,7 @@
 
 Reads are public during the open beta. API keys gate writes — and scope which products a key can read.
 
-Most reads need no key: datasets and contracts are fully open, and the Index is anonymous-readable (free-tier keys are rejected — Build+ for keyed access). **Public subgraphs** are anon-readable on `/v1/subgraphs` (managed deploys default public); **private** subgraphs (the BYO default) need the owning account's `sk-sl_` key — anon requests `404`. The `/api/subgraphs` dashboard surface always requires a session or key. The **Streams** firehose and every **write** (deploying subgraphs, publishing/unpublishing them, managing subscriptions, minting keys) require a key.
+Most reads need no key: datasets and contracts are fully open, and the Index is anonymous-readable (free-tier keys are rejected — Build+ for keyed access). **Public subgraphs** are anon-readable on `/v1/subgraphs` (managed deploys default public); **private** subgraphs (the BYO default) need the owning account's `sk-sl_` key — anon requests `404`. The `/api/subgraphs` dashboard surface always requires a session or key. The **Streams** firehose and every **write** (deploying subgraphs, publishing/unpublishing them, managing subscriptions) require a key.
 
 ```bash
 # Public read — no key
@@ -15,7 +15,7 @@ curl https://api.secondlayer.tools/v1/streams/tip \
 
 ## API keys
 
-An API key looks like `sk-sl_…`. Set it as `SL_API_KEY` — the SDK, CLI, and MCP server all read that one variable. Every key has a **product** that scopes what it can do:
+An API key looks like `sk-sl_…`. Set it as `SL_API_KEY` — the CLI and MCP server read it automatically. The SDK takes the key explicitly: `new SecondLayer({ apiKey: process.env.SL_API_KEY })`. Every key has a **product** that scopes what it can do:
 
 | Product | Reads | Can mint new keys? | Use it as |
 | --- | --- | --- | --- |
@@ -43,13 +43,17 @@ curl -X POST https://api.secondlayer.tools/v1/api-keys \
 
 The plaintext `key` is returned **once** — store it immediately. The same mint is available as `sl.apiKeys.create({ product })` (SDK), `sl keys create --product streams` (CLI), and the `account_create_key` tool (MCP).
 
+### No account yet?
+
+`POST https://api.secondlayer.tools/v1/keys` with no `Authorization` header mints a read-only free-tier **ghost key** — `201 { "key": "sk-sl_…", "tier": "free", "scopes": ["streams:read", "index:read"], "claim_url": "…" }`. It reads Streams and Index at the free tier; every non-GET returns `403 GHOST_KEY_READ_ONLY` until you claim the account via `claim_url`. Capped at 3 mints per IP per day. This is distinct from the owner-key mint at `/v1/api-keys` above.
+
 ## Tiers
 
 A key's tier (`free` · `build` · `scale` · `enterprise`) sets its rate limit and, for Streams, its history retention. The Index rejects `free`-tier keys (Build+ required); Streams accepts any valid key. A minted key has no pinned tier and inherits your account plan.
 
 ## Session tokens
 
-`sl login` issues a short-lived **session token** (`ss-sl_…`) instead of a long-lived key. The CLI mints these per call. Like a key, a session authenticates you — it's just ephemeral, so prefer it for interactive CLI use and reserve `sk-sl_` keys for servers and agents.
+`sl login` issues a **session token** (`ss-sl_…`) instead of a long-lived key. The CLI stores it after `sl login` and reuses it on every request; the server extends its expiry on each use (sliding window). Like a key, a session authenticates you — prefer it for interactive CLI use and reserve `sk-sl_` keys for servers and agents.
 
 ## Webhook signing secrets
 

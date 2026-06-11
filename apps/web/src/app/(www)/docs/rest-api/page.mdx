@@ -1,17 +1,21 @@
 # REST API
 
-The shared envelope, cursor, and filter grammar across the read surfaces — datasets, index, streams, and subgraph tables.
+The shared envelope and cursor grammar across the read surfaces — datasets, index, streams, and subgraph tables — with per-surface filter params.
 
 ## Response envelope
 
-Datasets and index reads come back in a `data` array; `meta` carries the total and a stable cursor.
+Datasets and index reads return rows under a named key (`events`, `calls`, `names`, …) plus a top-level resumable `next_cursor` and the indexing `tip`; index reads also include `reorgs`.
 
 ```json
 {
-  "data": [{ "_id": 48138, "block_height": 8054704 }],
-  "meta": { "total": 48138, "cursor": "eyJpZCI6NDgxMzd9" }
+  "events": [{ "block_height": 8054704, "event_index": 12 }],
+  "next_cursor": "8054704:12",
+  "tip": { "block_height": 8054704 },
+  "reorgs": []
 }
 ```
+
+The cursor format is `<block_height>:<event_index>`.
 
 `/v1/subgraphs` speaks a cursor envelope instead — `rows`, a resumable `next_cursor`, and the indexing `tip`:
 
@@ -25,14 +29,20 @@ Datasets and index reads come back in a `data` array; `meta` carries the total a
 
 ## Pagination
 
-- `_limit` — page size (default 10).
-- `_order` — `asc` or `desc`.
-- `_cursor` — opaque token from the previous response's `meta.cursor` (data/meta surfaces).
-- `cursor` — on `/v1/subgraphs`, pass the previous response's `next_cursor` to resume (`_id` keyset).
+Page-size and ordering params are per-surface:
+
+- Subgraph tables — `_limit` (default 50, max 1000) and `_order=asc|desc`; bare `limit`/`order` are rejected with `400`.
+- Datasets and index — `limit` (default 200, max 1000); ordering is fixed by the keyset cursor (no order param).
+- Streams — `limit` (default 100, max 1000).
+
+Cursors:
+
+- `cursor` — pass the previous response's top-level `next_cursor` to resume (datasets, index, and `/v1/subgraphs`).
+- Index also accepts `from_cursor` (exclusive-start alias, mutually exclusive with `cursor`) and `from_height`/`to_height` height-range params.
 
 ## Filtering
 
-Filter on any column by passing it as a query param. The filter grammar is identical across every surface.
+On subgraph table reads, filter on any column by passing it as a query param — columns are validated against the table's schema. Datasets, index, and streams endpoints instead accept a fixed set of documented filter params per endpoint (e.g. `sender`/`recipient` + range keys on `stx-transfers`; `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier` on `/v1/streams/events`); unknown query params are rejected with `400` (the error suggests the closest valid param). The value grammar — comma lists, ranges, cursor + `_limit`/`_order` — is shared across surfaces.
 
 ```bash
 curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
@@ -129,6 +139,7 @@ curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
 - `consensus` is present only when the reward set could be resolved; otherwise the proof is anchored-only.
 - `404 { error, code: "PROOF_UNAVAILABLE" }` — the transaction or its block was not found.
 - `503 { error, code: "PROOF_TX_SET_INCOMPLETE" }` — the server could not reproduce the block's `tx_merkle_root` from its stored transaction set, so it refuses to emit a proof that wouldn't verify (fail-safe).
+- `503 { error, code: "PROOF_NODE_UNAVAILABLE" }` — the stacks-node that serves signed block headers could not be reached, so the proof cannot be assembled. Retry later.
 - Open during beta — no key required, like the other read endpoints.
 
 See [Verification](/docs/verification) for the trust levels and the `@secondlayer/sdk` verifier.

@@ -68,9 +68,7 @@ export function OgCard({ title, tagline, endpoint }: OgCardProps) {
 				}}
 			>
 				<span>{endpoint}</span>
-				<span style={{ color: "rgba(0, 0, 0, 0.35)" }}>
-					Foundation Dataset
-				</span>
+				<span style={{ color: "rgba(0, 0, 0, 0.35)" }}>Foundation Dataset</span>
 			</div>
 		</div>
 	);

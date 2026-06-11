@@ -3,8 +3,7 @@ import { ClaimFlow } from "./claim-flow";
 
 export const metadata: Metadata = {
 	title: "Claim your API key — secondlayer",
-	description:
-		"Attach an email to a ghost API key. The key and its history survive.",
+	description: "Attach an email to a ghost API key. The key keeps working.",
 };
 
 export default async function ClaimPage({
@@ -18,7 +17,7 @@ export default async function ClaimPage({
 			<h1>Claim this API key</h1>
 			<p className="claim-lede">
 				This key was minted without an account. Attach an email and it becomes a
-				real one — the key keeps working, history included.
+				real one — the key keeps working.
 			</p>
 			<ClaimFlow token={token} />
 		</div>

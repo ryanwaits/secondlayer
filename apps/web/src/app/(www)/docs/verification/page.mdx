@@ -44,6 +44,7 @@ A `200` returns the raw transaction, the raw header, the merkle path linking the
 
 - `404 { error, code: "PROOF_UNAVAILABLE" }` — the transaction, or the block that contains it, was not found.
 - `503 { error, code: "PROOF_TX_SET_INCOMPLETE" }` — the server could not reproduce the block's `tx_merkle_root` from its stored transaction set, so it refuses to emit a proof that wouldn't verify. This is fail-safe: you never receive a proof that would fail client-side recomputation.
+- `503 { error, code: "PROOF_NODE_UNAVAILABLE" }` — the signed-header source (a stacks-node) could not be reached. The proof needs the raw Nakamoto header, so the server returns a clean 503 rather than an unverifiable proof. Retryable.
 
 ## Verify with the SDK
 

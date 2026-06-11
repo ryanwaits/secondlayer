@@ -38,7 +38,7 @@ export default function McpPage() {
 				<CodeBlock
 					lang="bash"
 					code={`bunx @secondlayer/mcp                     # stdio transport (default)
-bunx @secondlayer/mcp --http              # HTTP transport on :3900`}
+bunx -p @secondlayer/mcp secondlayer-mcp-http     # HTTP transport on :3100 (SECONDLAYER_MCP_PORT to change)`}
 				/>
 
 				<SectionHeading id="configure">Configure</SectionHeading>

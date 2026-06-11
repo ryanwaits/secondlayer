@@ -7,13 +7,11 @@ export const contentType = OG_CONTENT_TYPE;
 
 export default function Image() {
 	return new ImageResponse(
-		(
-			<OgCard
-				title="Network Health"
-				tagline="Daily rollups of Stacks block production, block-time, and reorgs."
-				endpoint="/v1/datasets/network-health/summary"
-			/>
-		),
+		<OgCard
+			title="Network Health"
+			tagline="Daily rollups of Stacks block production, block-time, and reorgs."
+			endpoint="/v1/datasets/network-health/summary"
+		/>,
 		{ ...size },
 	);
 }
