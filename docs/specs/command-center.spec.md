@@ -1,169 +1,109 @@
-# Command Center — behavior spec
+# Command Center — v1 spec (navigation + discovery only)
 
-> Scope for the ⌘K search/command center replacing the ripped hosted-LLM surfaces.
-> Mock: `docs/mocks/command-center-v1.html`. Successor to the 609-line fuzzy
-> palette (`components/command-palette` + `lib/actions/registry`), which it
-> absorbs. No LLM anywhere in this surface — detection is rules, search is
-> indexes, actions are the existing REST routes.
+> Founder ruling 2026-06-11 (final): dead simple, super fast. Navigation
+> shortcuts + fuzzy search across the user's resources. No verb actions, no
+> writes, no LLM, no detection, no copy artifacts. Selecting a result OPENS
+> its page. That is the entire contract.
+>
+> Everything richer is parked, not dead — explored and preserved in
+> `docs/mocks/command-center-v1.html` (entity search + artifacts),
+> `command-center-v2-agent.html` (inline one-shot agent), and
+> `command-center-v3-interactive.html` (three approval patterns, driveable).
+> Revisit only on real user pull.
 
 ## 1. Invocation
 
-- `⌘K` / `ctrl+K` anywhere in the authed console; sidebar Search button dispatches the same event.
-- v1 ships **console-only**. The www docs site keeps its own nav; a public
-  variant is a v2 candidate, not in scope.
-- Opening is free: zero network until first keystroke, except one prefetch
-  (see §5). Re-opening within a session reuses warm caches.
+- `⌘K` / `ctrl+K` anywhere in the authed console; the sidebar Search button
+  dispatches the same event. Console-only.
+- Zero network on open beyond one prefetch (§4). Re-open reuses warm caches.
 
-## 2. Capabilities (v1)
+## 2. Capabilities — two, exactly
 
-Four capability classes, in fixed group order. Every result row = icon +
-primary label + mono sub (path/principal) + right meta (badge/count/kbd).
+### 2a. Navigation shortcuts
+Static route registry (the surviving `lib/actions/registry`): Home,
+Subgraphs, API Keys, Billing, Resources, Settings, Team, Docs ↗, Pricing ↗,
+Explore ↗, sign out. Fuzzy-matched, instant.
 
-### 2a. Navigate
-Existing action registry (Home, Subgraphs, API Keys, Billing, Resources,
-Settings, Team, Docs ↗, sign out). Fuzzy-matched, instant, local.
-
-### 2b. Actions & copy artifacts
-
-**Platform principle (founder ruling 2026-06-11): the dash is
-management/observability/docs/telemetry. Reads happen here. Product writes
-(deploy subgraph, create webhook) do NOT happen on the dash — the palette
-generates the artifact and you run it in your own tools (terminal, agent
-harness via MCP).**
-
-Real dash actions (account-plane only):
-| Action | Behavior on ↵ |
-|---|---|
-| Mint API key | routes to /api-keys with the create form open |
-| Open billing portal | existing portal redirect |
-
-Copy artifacts (product-plane creation — ↵ copies to clipboard):
-| Artifact | Drill-down (one level: format) |
-|---|---|
-| Create a subgraph from template X… | `sl` commands (default) · agent prompt · curl |
-| Scaffold a subgraph for contract Y… | agent prompt (default, uses MCP scaffold) · `sl` commands |
-| Create a webhook on table/event… | `sl` command · agent prompt · curl |
-| Query recipe for current view | curl (default) · sl · agent prompt |
-
-↵ copies the default format and the footer confirms: `copied — paste into
-your agent or terminal`. ⌘↵ opens the format picker. Artifacts are generated
-from the same single-sourced vocab the CLI/MCP use; they are always complete
-and runnable (no <placeholders> the user must hunt for, beyond their own URL).
-
-### 2c. Entity search
-| Entity | Source | Freshness |
+### 2b. Fuzzy resource search
+| Entity | Source | Opens |
 |---|---|---|
-| Own subgraphs | authed `/api/subgraphs` | prefetched on open, SWR |
-| Public subgraphs | `/v1/subgraphs` discovery JSON (name, total_rows, status, blocks_behind; ETag) | prefetched on open, SWR |
-| Contracts | `/v1/contracts?q=` (contracts_find) | remote, debounced 150ms, ≥2 chars |
-| Docs pages | build-time static index of docs routes + headings (title, route, section) | bundled, instant |
+| Own subgraphs | authed `/api/subgraphs` | `/subgraphs/:name` detail |
+| Own subscriptions | authed `/api/subscriptions` | subscription detail |
+| Public subgraphs | `/v1/subgraphs` discovery JSON (ETag) | console detail when authed |
+| Docs pages | build-time static index (title + route) | the docs page (new tab) |
 
-Own subgraphs rank above public on equal match. Subgraph rows show the live
-`/v1` read path; selecting opens the subgraph detail (↵) or copies the curl
-(⌘C while selected).
+Rows show identity + one mono context line (subgraph: status badge + row
+count; subscription: status + target table; docs: section). No actions on
+rows. `⌘↵` opens in a new tab. That is the full interaction surface.
 
-### 2d. Smart detection (chain-native; runs before search)
-Pure client-side rules on the raw query, zero network to detect. Detection
-serves the same split as 2b: **reads open, writes copy.**
+## 3. Ranking
 
-| Pattern | Detected as | Read rows (↵ opens) | Artifact rows (↵ copies) |
-|---|---|---|---|
-| `S[PM][A-Z0-9]{38,}` (no dot) | principal | Token transfers GET, Transactions GET, Balance in live `*-balances` subgraphs | "Watch this address" → `sl subscriptions create` / agent prompt |
-| principal + `.name` | contract id | Events GET, Contract ABI | "Index this contract" → agent prompt (MCP scaffold_from_contract) / `sl` commands |
-| `(0x)?[0-9a-f]{64}` | txid | Transaction GET | curl for the lookup |
-| `^[0-9]{4,}$` | block height | Block GET | curl for the lookup |
+- Group order: navigation > own subgraphs > own subscriptions > public
+  subgraphs > docs. Empty groups collapse; cap 5 rows per group.
+- Within a group: exact prefix > word-boundary fuzzy > substring; ties break
+  by frecency (§5), then row count / docs order.
+- First row pre-selected; ↵ on an empty query opens the top suggestion.
 
-Detection flips the scope chip, suppresses fuzzy noise, and the footer states
-`detected in 0ms · no request sent yet`. Read rows open the in-console view
-where one exists, else the GET URL in a new tab; every read row also offers
-⌘C copy-as-curl. Invalid-but-close inputs (right shape, bad checksum) still
-render; the API's 400 is the validator, not the palette.
+## 4. Performance (the actual feature)
 
-## 3. Result model & ranking
+- **Every source is local after one prefetch.** No remote search calls, no
+  debounce, no spinners, ever. The contracts endpoint was cut from scope
+  precisely because it was the only remote dependency.
+- Budget: **<30ms keystroke→paint**, palette open→interactive <100ms.
+- Prefetch on first open: own subgraphs + own subscriptions + discovery JSON
+  (all SWR with ETag; last payloads in localStorage so a cold open still
+  paints instantly from stale data while revalidating).
+- Docs index is bundled at build time (page-level: title, route, section —
+  tens of entries, not a search engine).
+- Footer shows measured truth: `N results · Xms`.
 
-- Group order is fixed: detection > dash actions > copy artifacts > own
-  subgraphs > public subgraphs > contracts > docs > escape hatches. Empty
-  groups collapse.
-- Cap 4 rows per group + a "More in <group>…" row that applies the scope.
-- Ranking within a group: exact prefix > word-boundary fuzzy > substring;
-  tie-break by recency (frecency, §6) then row count (subgraphs) / docs order.
-- First row is always pre-selected; ↵ with zero typing opens the top
-  suggestion (matches OpenAI behavior).
+## 5. Recents & frecency
 
-## 4. Keyboard model
+Last 50 selections in localStorage (`cc-recents`). Empty state = navigation
+shortcuts with recents boosted + the user's 3 most-recent resources. No
+server round-trip, no sync.
+
+## 6. Keyboard
 
 | Key | Behavior |
 |---|---|
-| ↑ ↓ | move selection across groups |
-| ↵ | open (reads/nav) · copy (artifacts) · drill in |
-| ⌘↵ | secondary: open in new tab; on the docs escape row, run docs search |
-| tab | cycle scope: all → subgraphs → contracts → docs (chip updates; detection overrides) |
-| ⌘C | copy the selected row's curl/path when it has one |
-| esc | clear query if non-empty, else close; drill-down esc goes up one level |
-| backspace on empty | exit drill-down / clear scope |
+| ↑ ↓ | move selection |
+| ↵ | open |
+| ⌘↵ | open in new tab |
+| esc | clear query if non-empty, else close |
 
-## 5. Latency budget & data strategy
-
-- Local groups (nav, actions, own+public subgraphs, docs index, detection):
-  **<50ms keystroke→paint**. Everything needed is in memory after the open
-  prefetch (discovery JSON + own subgraphs, both SWR with ETag).
-- Remote group (contracts): debounce 150ms, target <250ms, render under a
-  group-local shimmer; never block local groups on it.
-- The footer's `N results · Xms` is real and measured; it is the performance
-  contract made visible.
-- Cache: localStorage for last discovery payload + docs index version;
-  stale-while-revalidate on open.
-
-## 6. Recents & frecency
-
-- Last 50 selections in localStorage (`cc-recents`): type, id, ts, count.
-- Empty state shows top recents under "jump to" before defaults; frecency
-  feeds ranking tie-breaks. No server round-trip, no account sync (v1).
+No scopes, no tabs, no drill-downs, no chords.
 
 ## 7. States
 
 | State | Behavior |
 |---|---|
-| Empty | jump to (recents-aware) + your subgraphs (top 3 by recency) + quick actions; one Caveat annotation max |
-| Typing, local hits | instant groups, no spinners ever for local sources |
-| Typing, contracts pending | contracts group renders a 2-row shimmer; others already painted |
-| No results | escape hatches only: "Search docs for 'q'", "Query Index for 'q'" (events text match), and a curl hint row |
-| Remote error | contracts group silently absent; footer unchanged; never an error banner inside the palette |
-| Offline/anon edge | local groups still work (nav, actions, cached discovery, docs) |
+| Empty | nav shortcuts (recents-boosted) + 3 recent resources |
+| Typing | instant grouped results; no loading states exist |
+| No results | one row: `Open docs ↗` + the measured footer; nothing else |
+| Stale cache, offline | results from localStorage payloads; silently revalidates |
 
-## 8. Non-goals (v1)
+## 8. Out of scope (parked with mocks, revisit on pull)
 
-- No LLM/agent/ask mode in any form (just removed; stays removed).
-- **No product-plane POSTs from the dash** — no deploy, no webhook create,
-  no reindex buttons in the palette. Artifacts only. (Account-plane writes —
-  keys, billing — are the exception.)
-- No in-palette forms beyond one-level pickers; no in-palette data tables or
-  query previews (v2 candidate below).
-- No www/marketing-site palette; no team/keys/billing entity search.
-- No server-side search infra: every index is an existing endpoint or a
-  build-time artifact.
+- Inline verb actions of any kind (pause/delete/manage) — v3 mock holds the
+  three approval patterns if this ever returns.
+- One-shot agent ask / generative UI — v2-agent mock.
+- Smart detection (principal/txid/contract paste) and copy artifacts — v1 mock.
+- Contracts search (remote), scopes, drill-down pickers, www palette,
+  full-text docs search, telemetry.
 
-## 9. v2 candidates (explicitly deferred)
+## 9. Build sketch (~1-2 days)
 
-- Inline result preview: run the selected GET inline, dataset-sandbox style
-  (the One-Cell pattern), with the response as hero.
-- Docs full-text search (minisearch over MDX content, still build-time).
-- Public palette on www docs; block/tx deep views; BNS name detection
-  (`name.btc` → resolve → principal flows).
-- Selection telemetry to tune ranking.
+Extends the existing 609-line palette rather than replacing it:
+1. Keep `command-palette.tsx` shell + `fuzzy-match`; registry stays the nav
+   source.
+2. Add a `useCommandSources()` hook: prefetch + SWR + localStorage for the
+   three resource feeds; merge into grouped, ranked results.
+3. Docs index: small build-time JSON generated from the docs nav config
+   (`docs/nav.ts` already enumerates every page).
+4. Frecency: tiny localStorage helper, no deps.
+5. Measure and render the footer ms honestly (`performance.now()` around
+   filter+rank+render).
 
-## Resolved (founder, 2026-06-11)
-
-- Dash = management/observability/docs/telemetry. Product creation is
-  off-platform; the palette generates copyable artifacts (curl / sl / agent
-  prompt) instead of hosting flows. API key creation stays a real dash action.
-- Smart detection kept, reframed: reads open, writes copy.
-
-## Open questions
-
-1. Artifact default format: agent prompt vs `sl` commands as the ↵ default
-   (spec currently varies by artifact — confirm).
-2. Should public-subgraph hits open the console detail view or the public
-   Explore page? (Spec assumes console detail when authed.)
-3. Docs index granularity: page-level (cheap, good enough?) vs heading-level
-   (better hits, larger bundle).
+Mock reference for visuals: `command-center-v1.html` EMPTY + “sbtc” states,
+minus the actions/artifacts groups and the scope chip.
