@@ -8543,6 +8543,16 @@ a.dataset-shelf-name:hover {
 	border-left: 1px solid var(--border);
 	background: var(--bg);
 	min-width: 0;
+	display: grid;
+}
+/* all panes share one grid cell: the tallest reserves the height, so
+   switching steps never reflows the container */
+.prc-x-slide {
+	grid-area: 1 / 1;
+	visibility: hidden;
+}
+.prc-x-slide.on {
+	visibility: visible;
 }
 @media (max-width: 900px) {
 	.prc-x-pane {
