@@ -27,6 +27,10 @@ fi
 cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
+# Refuse to deploy against husk databases or a de-bound overlay (the
+# bind-vs-named-volume drift class). See scripts/preflight-data.sh.
+./scripts/preflight-data.sh
+
 # Snapshot vars supplied by the deploy invocation (CI workflow env or manual
 # operator export) BEFORE sourcing .env. `record_successful_deploy` persists
 # these keys into .env at the end of every successful deploy, so once a deploy

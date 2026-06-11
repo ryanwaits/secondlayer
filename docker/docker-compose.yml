@@ -12,14 +12,20 @@ services:
       # and can surface a wrong/empty data dir. Use `docker exec` on the running
       # container (or direct psql) for one-off DB tasks. Backstop: the indexer's
       # startup guard + /public/status `chainIntegrity` alarm on an empty volume.
-      # Real prod data is a bind mount (same story as postgres-platform): a
-      # named volume here attached an empty runt and silently served 1,032
-      # blocks as "the chain". Never point this anywhere but the live dir.
-      - ${POSTGRES_DATA_DIR:-/opt/secondlayer/data/postgres}:/var/lib/postgresql/data
+      # Local/OSS default. PROD DATA LIVES IN docker-compose.hetzner.yml BIND
+      # MOUNTS — raw `docker compose up` without that overlay attaches a fresh
+      # empty volume (bit prod twice, 2026-05/06). The server pins COMPOSE_FILE
+      # in .env so the overlay is always loaded; the healthcheck floor below is
+      # the backstop.
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-127.0.0.1:5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer}"]
+      # Husk canary: a freshly-initdb'd volume (the bind-vs-named-volume drift
+      # class) can never pass the floor check, so dependents refuse to start
+      # against an empty "chain". CHAIN_MIN_BLOCK=0 (default) skips for fresh
+      # local/OSS installs; prod pins a high floor in .env.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer} && { [ \"${CHAIN_MIN_BLOCK:-0}\" = \"0\" ] || psql -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_DB:-secondlayer} -tAc \"SELECT 1 FROM blocks WHERE height >= ${CHAIN_MIN_BLOCK:-0} LIMIT 1\" | grep -q 1; }"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,12 +45,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
       POSTGRES_DB: ${POSTGRES_PLATFORM_DB:-secondlayer_platform}
     volumes:
-      # Real prod data is a bind mount (split-cutover provisioning). A named
-      # volume here once recreated the container EMPTY when compose re-upped —
-      # never point this anywhere but the live data dir.
-      - ${POSTGRES_PLATFORM_DATA_DIR:-/opt/secondlayer/data/postgres-platform}:/var/lib/postgresql/data
+      # Local/OSS default — prod overrides via the hetzner overlay (see above).
+      - postgres_platform_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer}"]
+      # Same husk canary for the control plane: PLATFORM_MIN_ACCOUNTS=0 skips.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer} && { [ \"${PLATFORM_MIN_ACCOUNTS:-0}\" = \"0\" ] || psql -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_PLATFORM_DB:-secondlayer_platform} -tAc \"SELECT 1 FROM accounts LIMIT 1\" | grep -q 1; }"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -425,3 +430,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  postgres_data:
+  postgres_platform_data:
